@@ -10,6 +10,16 @@ entra costa un pomeriggio di errori di build e non lascia niente di buono.
    (`org.jetbrains.compose` contro `androidx.compose`) e i runtime vanno in conflitto. Non forzarlo.
 2. **Compose c'e'?** Un'app di sole View e XML puo' usare `engine-foundation`, `engine-net`,
    `engine-config`, `engine-update` — non `engine-ui`, che senza Compose non ha niente da tematizzare.
+   Non e' solo inutile: `engine-ui` applica il plugin Compose, e in un'app che non lo dichiara nel
+   suo build root il modulo non riesce nemmeno a **configurarsi**, quindi ferma tutto il build. In
+   quel caso l'installazione va ristretta:
+
+   ```powershell
+   engine-install.ps1 -AppRoot . -Modules engine-update
+   ```
+
+   Le dipendenze si aggiungono da sole: `engine-update` porta con se' `engine-net` e
+   `engine-foundation`.
 3. **AGP e compileSdk.** L'engine compila contro l'API 36. Se l'app e' su un AGP che non la conosce,
    non serve un aggiornamento del toolchain: basta `engine.compileSdk=35` nel suo `gradle.properties`.
 4. **minSdk >= 26.** Sotto, il codice dell'engine non gira; AGP lo direbbe comunque.

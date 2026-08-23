@@ -116,7 +116,7 @@ $section = "## $Version - $today`r`n`r`n$entries`r`n"
 $existing = Get-Content -LiteralPath $changelog -Raw
 $marker = "<!-- nuove versioni qui sopra -->"
 if ($existing -match [regex]::Escape($marker)) {
-  $existing = $existing -replace [regex]::Escape($marker), "$section`r`n$marker"
+  $existing = $existing -replace [regex]::Escape($marker), "$marker`r`n`r`n$section"
 } else {
   $existing = $existing.TrimEnd() + "`r`n`r`n" + $section
 }

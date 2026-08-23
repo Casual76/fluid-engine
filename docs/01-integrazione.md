@@ -76,7 +76,7 @@ powershell -ExecutionPolicy Bypass -File fluid-engine/tools/engine-install.ps1 -
 `engine-install.ps1` fa tre cose e le dice tutte:
 
 1. aggiunge al `settings.gradle` dell'app il blocco che include i moduli dell'engine;
-2. scrive `engine.properties` con la versione agganciata e il canale;
+2. scrive `engine.properties` con la versione agganciata, il canale e i moduli inclusi;
 3. stampa le righe di dipendenza da incollare nei moduli che useranno l'engine.
 
 Il blocco che finisce nel `settings.gradle` è questo (e si può anche scrivere a mano):
@@ -95,6 +95,21 @@ if (engineDir.exists()) {
 ```
 
 I percorsi dei progetti sono piatti (`:engine-ui`, non `:engine:engine-ui`) di proposito: sono gli stessi che l'engine usa quando viene compilato da solo, quindi un `project(':engine-foundation')` dentro l'engine risolve allo stesso modo nei due casi.
+
+### Installare solo una parte dell'engine
+
+```powershell
+powershell -ExecutionPolicy Bypass -File engine/tools/engine-install.ps1 -AppRoot . -Modules engine-update
+```
+
+Il default e' "tutti", e per un'app Compose va bene. Per le altre no: `engine-ui` e `engine-widget`
+applicano il plugin Compose, e in un'app che non lo dichiara nel proprio build root quei moduli non
+riescono nemmeno a **configurarsi** — non e' un modulo inutilizzato che pesa, e' un build che non
+parte. `-Modules` esiste per quel caso.
+
+Le dipendenze fra moduli le chiude lo script: chiedere `engine-config` include anche
+`engine-net`, `engine-storage` e `engine-foundation`. La scelta finisce in `engine.properties`
+(`engine.modules`) e `engine-doctor.ps1` verifica che il `settings.gradle` la rispecchi.
 
 ## Dipendenze
 

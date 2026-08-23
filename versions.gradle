@@ -15,8 +15,13 @@
 def hostCompileSdk = project.findProperty('engine.compileSdk')
 def hostMinSdk = project.findProperty('engine.minSdk')
 
+// Letta dal file invece di scritta qui: e' gia' la versione in due posti (ENGINE_VERSION e
+// EngineBuild.VERSION, tenuti in passo da engine-release.ps1) e un terzo che nessuno aggiorna
+// diverge in silenzio. Questo file si applica da <modulo>/../, quindi la radice e' un livello sopra.
+def engineVersionFile = new File(project.projectDir.parentFile, 'ENGINE_VERSION')
+
 ext.engine = [
-  version        : '1.0.0',
+  version        : engineVersionFile.exists() ? engineVersionFile.text.trim() : 'sconosciuta',
   compileSdk     : (hostCompileSdk ?: 36) as Integer,
   minSdk         : Math.max(26, (hostMinSdk ?: 26) as Integer),
   javaVersion    : JavaVersion.VERSION_17,

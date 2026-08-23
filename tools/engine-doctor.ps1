@@ -6,7 +6,7 @@
   Controlla le quattro cose che possono divergere in silenzio:
     - engine.properties, ENGINE_VERSION e EngineBuild.VERSION dicono la stessa versione;
     - la cartella dell'engine e' agganciata al tag corrispondente;
-    - il settings.gradle include davvero i moduli;
+    - il settings.gradle include davvero i moduli che engine.properties dichiara;
     - nessuno ha modificato l'engine in locale senza committare (il modo tipico in cui una copia
       condivisa smette di essere condivisa).
 
@@ -146,6 +146,22 @@ if (Test-Path -LiteralPath $settingsPath) {
   $settings = Get-Content -LiteralPath $settingsPath -Raw
   if ($settings -match "fluid-engine \(inizio\)") {
     Ok "settings.gradle include i moduli dell'engine"
+
+    # Un modulo elencato in engine.properties ma non nel settings.gradle (o viceversa) e' il modo in
+    # cui un'app si ritrova a compilare qualcosa che nessuno ha chiesto, o a non trovare un progetto
+    # che una dipendenza si aspetta.
+    $declared = $properties["engine.modules"]
+    if ([string]::IsNullOrWhiteSpace($declared)) {
+      Warn "engine.properties non elenca i moduli (installazione precedente alla 1.1.0): rilancia engine-install.ps1 per registrarli."
+    } else {
+      $expected = @($declared -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+      $missing = @($expected | Where-Object { $settings -notmatch [regex]::Escape($_) })
+      if ($missing.Count -gt 0) {
+        Bad "engine.properties elenca $($missing -join ', ') ma il settings.gradle non li include: rilancia engine-install.ps1"
+      } else {
+        Ok "moduli inclusi: $($expected -join ', ')"
+      }
+    }
   } else {
     Bad "settings.gradle non include l'engine: esegui engine-install.ps1"
   }

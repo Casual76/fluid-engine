@@ -16,8 +16,19 @@
 .PARAMETER EnginePath
   Dove sta l'engine, relativo ad AppRoot. Default: engine
 
+.PARAMETER Modules
+  Quali moduli includere. Default: tutti. Le dipendenze fra moduli si aggiungono da sole, quindi
+  chiedere engine-update porta con se' engine-net e engine-foundation.
+  Serve alle app che non possono ospitarli tutti: senza il plugin Compose nel build root dell'app,
+  engine-ui non riesce nemmeno a configurarsi, e un modulo che non configura ferma tutto il build.
+
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File engine\tools\engine-install.ps1 -AppRoot .
+
+.EXAMPLE
+  Un'app di sole View, che vuole solo l'aggiornamento in-app:
+
+  powershell -ExecutionPolicy Bypass -File engine\tools\engine-install.ps1 -AppRoot . -Modules engine-update
 #>
 [CmdletBinding()]
 param(
@@ -25,7 +36,13 @@ param(
   [string]$EnginePath = "engine",
   [ValidateSet("stable", "beta")][string]$Channel = "stable",
   [ValidateSet("submodule", "copy")][string]$Mode = "submodule",
-  [string]$Source
+  [string]$Source,
+  # Quali moduli entrano nel build. Non e' un'ottimizzazione: un'app senza Compose non puo' nemmeno
+  # *configurare* engine-ui, perche' quel modulo applica il plugin Compose che il build root dell'app
+  # non dichiara. Includere tutto per default rendeva l'engine impossibile da ospitare per meta' delle
+  # app. Le dipendenze fra moduli vengono aggiunte da sole: chiedere engine-update porta con se'
+  # engine-net e engine-foundation.
+  [string[]]$Modules
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,20 +57,45 @@ function Write-TextFile($path, $text) {
 
 $BeginMarker = "// --- fluid-engine (inizio) ---"
 $EndMarker = "// --- fluid-engine (fine) ---"
-$Modules = @(
-  "engine-foundation",
-  "engine-ui",
-  "engine-storage",
-  "engine-net",
-  "engine-config",
-  "engine-update",
-  "engine-widget"
-)
+# L'ordine e' quello in cui i moduli entrano nel settings.gradle; le liste sono le dipendenze
+# dirette, che lo script chiude da solo.
+$EngineModules = [ordered]@{
+  "engine-foundation" = @()
+  "engine-ui"         = @("engine-foundation")
+  "engine-storage"    = @("engine-foundation")
+  "engine-net"        = @("engine-foundation")
+  "engine-config"     = @("engine-foundation", "engine-net", "engine-storage")
+  "engine-update"     = @("engine-foundation", "engine-net")
+  "engine-widget"     = @("engine-foundation", "engine-ui")
+}
 
 function Fail($message) {
   Write-Host "ERRORE: $message" -ForegroundColor Red
   exit 1
 }
+
+# Chiude la selezione sulle dipendenze: un modulo incluso il cui `api project(...)` punta a un
+# progetto assente non e' un errore di runtime, e' un settings.gradle che non configura.
+function Resolve-Modules {
+  param([string[]]$Requested)
+  $selected = New-Object System.Collections.Generic.HashSet[string]
+  $queue = New-Object System.Collections.Queue
+  foreach ($name in $Requested) { $queue.Enqueue($name) }
+  while ($queue.Count -gt 0) {
+    $name = $queue.Dequeue()
+    if (-not $EngineModules.Contains($name)) {
+      Fail "modulo sconosciuto: $name. Quelli veri sono: $($EngineModules.Keys -join ', ')"
+    }
+    if (-not $selected.Add($name)) { continue }
+    foreach ($dependency in $EngineModules[$name]) { $queue.Enqueue($dependency) }
+  }
+  # Riordinati come in $EngineModules, cosi' il blocco nel settings.gradle e' stabile fra due
+  # esecuzioni e un rilancio non produce un diff fatto di sole righe spostate.
+  return @($EngineModules.Keys | Where-Object { $selected.Contains($_) })
+}
+
+if (-not $Modules -or $Modules.Count -eq 0) { $Modules = @($EngineModules.Keys) }
+$Modules = Resolve-Modules -Requested $Modules
 
 $appRootFull = (Resolve-Path -LiteralPath $AppRoot).Path
 $engineFull = Join-Path $appRootFull $EnginePath
@@ -161,10 +203,16 @@ $properties = @"
 engine.version=$engineVersion
 engine.channel=$Channel
 engine.path=$EnginePath
+engine.modules=$($Modules -join ",")
 engine.updatedAt=$today
 "@
 Write-TextFile $propertiesPath $properties
 Write-Host "engine.properties: agganciato a $engineVersion (canale $Channel)." -ForegroundColor Green
+Write-Host "moduli inclusi: $($Modules -join ', ')" -ForegroundColor Green
+$excludedModules = @($EngineModules.Keys | Where-Object { $Modules -notcontains $_ })
+if ($excludedModules.Count -gt 0) {
+  Write-Host "moduli esclusi: $($excludedModules -join ', ')" -ForegroundColor DarkGray
+}
 
 Write-Host ""
 $buildFileName = if ($isKotlinDsl) { "build.gradle.kts" } else { "build.gradle" }
@@ -182,6 +230,7 @@ $notes = @(
 foreach ($note in $notes) {
   $module = $note[0]
   $comment = $note[1]
+  if ($Modules -notcontains $module) { continue }
   if ($isKotlinDsl) {
     $line = "  implementation(project(`":$module`"))"
   } else {

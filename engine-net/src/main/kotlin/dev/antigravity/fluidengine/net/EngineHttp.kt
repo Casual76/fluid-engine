@@ -57,10 +57,10 @@ class EngineHttp(
     try {
       connection = openFollowingRedirects(url, headers + ("Accept" to "application/octet-stream"))
       val total = connection.contentLengthLong.takeIf { it > 0 } ?: expectedBytes
+      var downloaded = 0L
       connection.inputStream.use { input ->
         temporary.outputStream().use { output ->
           val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-          var downloaded = 0L
           while (true) {
             val read = input.read(buffer)
             if (read == -1) break
@@ -70,6 +70,12 @@ class EngineHttp(
             onProgress(progress.coerceIn(0f, 1f), downloaded, total)
           }
         }
+      }
+      // Un download troncato non solleva niente: la connessione si chiude e il file resta a meta'.
+      // Quando chi chiama sa quanto deve pesare — il manifest lo dice — non verificarlo significa
+      // consegnare mezzo APK all'installer, che lo rifiuta con un errore che non spiega niente.
+      if (expectedBytes > 0 && downloaded != expectedBytes) {
+        error("File incompleto: $downloaded byte invece di $expectedBytes.")
       }
       if (target.exists()) target.delete()
       if (!temporary.renameTo(target)) {

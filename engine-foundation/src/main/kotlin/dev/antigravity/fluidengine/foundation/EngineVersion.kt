@@ -10,7 +10,7 @@ package dev.antigravity.fluidengine.foundation
  * and checked by `tools/engine-doctor.ps1`.
  */
 object EngineBuild {
-  const val VERSION: String = "1.0.1"
+  const val VERSION: String = "1.0.2"
 }
 
 /**
@@ -59,7 +59,7 @@ enum class EngineCompatibility {
    * The engine is older than the manifest's floor.
    *
    * This is the lever that makes one hosted file able to retire an old build across every app: the
-   * app cannot rebuild itself, but it can stop trusting a contract it no longer implements â€” and
+   * app cannot rebuild itself, but it can stop trusting a contract it no longer implements Ã¢â‚¬â€ and
    * say so, instead of failing in some way the user has to interpret.
    */
   UPDATE_REQUIRED,

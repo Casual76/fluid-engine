@@ -2,7 +2,7 @@
 
 Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggiunte compatibili,
 **major** rotture. Le voci che richiedono una modifica nelle app che aggiornano sono marcate
-**BREAKING** â€” `engine-update.ps1` le evidenzia mentre aggiorna.
+**BREAKING** Ã¢â‚¬â€ `engine-update.ps1` le evidenzia mentre aggiorna.
 
 ## 1.0.1 - 2026-08-23
 
@@ -11,6 +11,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 - docs: requisiti dell app ospite, submodule da repo locale (protocol.file.allow), cartella engine gia occupata, local.properties, e la ricetta per adottare il tema senza toccare i punti di chiamata
 - la skill per gli agenti vive in skill/fluid-engine dentro questo repo, cosi non puo divergere
 
+## 1.0.2 - 2026-08-23
+
+- engine-install.ps1 -Mode copy: le cartelle build/ annidate finivano nella copia (centinaia di MB e percorsi troppo lunghi). Ora la copia passa da robocopy, che esclude a ogni profondita
+- engine-install.ps1 esce con codice 0 esplicito: prima restituiva quello dell ultimo comando nativo, e chi automatizza l installazione lo leggeva come errore
+
 <!-- nuove versioni qui sopra -->
 
 ## 1.0.0 - 2026-08-23
@@ -18,7 +23,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 Prima versione. Estratta da ClasseViva Expressive 7.1.1, ripulita di tutto quello che sapeva cos'e'
 un registro scolastico.
 
-- `engine-ui`: il design system Fluid completo â€” angoli continui, tipografia Inter con la scala iOS
+- `engine-ui`: il design system Fluid completo Ã¢â‚¬â€ angoli continui, tipografia Inter con la scala iOS
   e la curva di tracking, palette derivata da un solo accento, liste raggruppate, motion unificato,
   materiale in vetro, notifiche in-app, tab bar, fogli, controlli.
 - `engine-ui`: il colore del marchio e' un parametro (`FluidTheme(settings, brand)`) invece di una

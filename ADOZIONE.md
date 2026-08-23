@@ -21,29 +21,47 @@ Questo documento è il piano per arrivare ai **componenti**.
 
 ---
 
-## Fase 1 — ClasseViva Expressive
+## Fase 1 — ClasseViva Expressive ✅ fatta (2026-08-23, engine 1.2.0)
 
-**Cosa:** l'engine è nato da qui, quindi l'app ha una copia locale di tutto il design system.
-Migrare significa cancellare `core-designsystem` e dipendere da `engine-ui`.
+**8499 righe cancellate, 269 rimaste.** La copia locale del design system non esiste piu':
+`core-designsystem` dipende da `:engine-ui` e tiene solo quello che e' di ClasseViva.
 
-**Perché per prima:** finché quella copia esiste, ogni correzione va fatta due volte, e le due
-inevitabilmente divergono — è esattamente il problema che l'engine esiste per risolvere.
+Cosa e' rimasto nell'app, e perche':
 
-**Onestà sul risultato: visivamente non cambierà quasi niente.** Quest'app già *è* il vocabolario.
-Il guadagno è strutturale, non estetico, e non va raccontato come estetico.
+| file | righe | perche' non e' dell'engine |
+|---|---|---|
+| `AppTheme.kt` | 109 | il verde del marchio, il guscio su `FluidTheme`, e la mappa da `AppSettings` a `EngineSettings` |
+| `FeatureHero.kt` | 71 | `FeatureIdentity`: sa cosa sono voti, agenda e assenze |
+| `GradePill.kt` | 35 | sa cos'e' la sufficienza |
+| `SyncStatusBridge.kt` | 54 | "anno non iniziato" e' un booleano nel dominio e una frase nell'engine |
 
-Passi:
-1. `git submodule add` + `engine-install.ps1 -AppRoot android` (tutti i moduli).
-2. Confrontare file per file `core-designsystem` con `engine-ui`. Dove ClasseViva ha qualcosa in
-   più, **portarlo nell'engine** prima di cancellare: l'engine è stato estratto, non copiato, e
-   qualcosa è rimasto indietro.
-3. Sostituire gli import `…core.designsystem.*` con `dev.antigravity.fluidengine.ui.*`.
-4. `AppTheme` diventa un guscio su `FluidTheme` con l'accento di ClasseViva, firma invariata.
-5. Cancellare `core-designsystem`. Se resta, qualcuno la userà.
-6. `engine-doctor` + build + test + **guardarla sul telefono**.
+**Deviazione dal piano, deliberata:** il piano diceva di cancellare `core-designsystem`. Il modulo
+resta, ma come **strato dell'app** invece che come copia del design system: dichiara
+`api project(':engine-ui')`, quindi i sette moduli feature continuano a dipendere da lui e nessun
+loro `build.gradle` e' stato toccato. La copia e' sparita, il modulo no.
 
-**Prerequisito:** il lavoro sul widget della 7.1.x va committato prima, altrimenti si mescola con
-la migrazione e il diff diventa illeggibile.
+**Cosa e' andato nell'engine:** `FluidHero`. Era rimasta fuori dall'estrazione perche' sembrava
+specifica, e invece il dominio stava solo nei nomi dell'enum. Ora l'engine ha `FluidHeroTone` (una
+posizione sull'anello delle tre famiglie di accento) e `FluidHeroMotif` (la forma sul fondo), e
+l'app mappa le sue sette sezioni su quella coppia.
+
+**Cosa e' stato cancellato senza portarlo:** `Animations.kt`, cioe' `bouncyClickable`. Era un guscio
+di compatibilita' su `fluidPressable` con **zero chiamanti**.
+
+**Verificato:** build debug e release firmata, test verdi, installata sul dispositivo, home / voti /
+altro guardate una per una. Si vede identica a prima — che era il risultato atteso e va detto cosi'.
+
+### Le tre cose che hanno richiesto attenzione
+
+1. **I nomi dei preset dell'accento.** Le impostazioni salvano la scelta per nome e la confrontano
+   con `preset.name`. L'engine chiama "fluid" quello che ClasseViva chiamava "expressive": prendere
+   la lista dall'engine avrebbe fatto apparire *nessun* preset come selezionato a chiunque avesse
+   gia' scelto il blu. La lista resta nell'app, con i nomi storici e gli stessi colori.
+2. **Il tipo dello stato di sincronizzazione.** L'app ne ha uno nel dominio, l'engine uno suo. Non
+   vanno unificati: nel dominio `schoolYearNotStarted` e' un booleano perche' decide un
+   comportamento, nell'engine e' una frase perche' li' serve solo da dire. Si converte al confine.
+3. **Un nome pienamente qualificato** nel codice (`dev.antigravity...theme.QuickAction(`) che la
+   riscrittura degli import non vede. Cercarli prima: `grep -rn "core.designsystem\." --include=*.kt`.
 
 ---
 

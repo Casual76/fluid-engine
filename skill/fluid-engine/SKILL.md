@@ -17,12 +17,17 @@ Questa skill dice **come lavorarci senza romperlo**. Prima di modificare qualsia
 |---|---|
 | esiste `engine/ENGINE_VERSION` e `engine.properties` alla radice | in un'**app** che usa l'engine |
 | esiste `ENGINE_VERSION` alla radice e le cartelle `engine-*` | **dentro l'engine** |
+| c'e' `engine.properties` con `engine.mode=port` ma nessuna cartella dell'engine | in un'app che ha una **copia** del look: `references/integrazione.md`, sezione "Il porto" |
 | nessuno dei due, ma serve partire da queste fondamenta | vai a `references/integrazione.md` |
 
 La distinzione conta: **il codice dentro `engine/` non è codice dell'app.** Modificarlo lì e non
 committarlo nel repo dell'engine crea una variante silenziosa che sparisce al primo aggiornamento.
 
 ## La mappa
+
+Non entrano tutti in ogni app: `engine-install.ps1 -Modules engine-update` include solo quello che
+serve, chiudendo da se' le dipendenze. Serve davvero — un'app senza il plugin Compose nel build root
+non riesce nemmeno a *configurare* `engine-ui`, e un modulo che non configura ferma tutto il build.
 
 ```
 engine-foundation   modelli, versioni, manifest remoto, flag — niente Compose, niente Android UI
@@ -104,6 +109,10 @@ in `references/config-remota.md`.
 ```powershell
 powershell -ExecutionPolicy Bypass -File engine\tools\engine-update.ps1 -AppRoot . -Version 1.1.0
 ```
+
+Se l'app e' un porto (`engine.mode=port`), lo script **non tocca niente** e lo dice: un porto lo
+aggiorna una persona, riportando le modifiche, e poi alza `FLUID_PORT_OF`. Alzare quel numero senza
+aver riportato niente e' l'unico modo di rendere il meccanismo inutile.
 
 Poi compila, leggi le voci **BREAKING** che lo script stampa, e committa `engine` + `engine.properties`
 insieme. Non committare mai solo uno dei due.

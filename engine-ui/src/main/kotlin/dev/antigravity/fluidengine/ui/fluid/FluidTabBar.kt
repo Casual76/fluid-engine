@@ -322,7 +322,7 @@ fun FluidTabRail(
       .glassSurface(
         state = backdrop,
         tint = tint,
-        shape = RoundedCornerShape(28.dp),
+        shape = ContinuousCornerShape(28.dp),
         edge = GlassEdge.None,
       )
       .onSizeChanged { columnHeightPx = it.height.toFloat() }

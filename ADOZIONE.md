@@ -14,10 +14,15 @@ promettere qualcosa che non arriva:
 | **componenti** — `FluidScreen`, `FluidListGroup`, `GlassMaterial`, la fisica dello scroll | com'è fatta ogni schermata | **sì**: è qui che arrivano il vetro e l'overscroll |
 | **moduli senza UI** — `engine-update`, `engine-config` | aggiornamento in-app, feature flag | no, per definizione |
 
-Al 2026-08-23 tutte le app sono ferme al **tema** (o meno). Nessuna chiama `FluidScreen`,
-`GlassMaterial` o `FluidScrollPhysics`: la verifica è un `grep`, e sono zero occorrenze.
+Questo documento è il piano per arrivare ai **componenti**, e lo stato di ogni app.
 
-Questo documento è il piano per arrivare ai **componenti**.
+| app | tema | componenti | note |
+|---|---|---|---|
+| ClasseViva Expressive | ✅ | ✅ | li aveva gia': la migrazione ha tolto la copia locale |
+| universal_converter | ✅ | ✅ | `FluidScreen` su principale, impostazioni e log |
+| Pampa widgets | ✅ | ✅ | `FluidScreen` + `FluidTabBar` in vetro |
+| Pampa Store | ✅ | ◐ | porto: liste raggruppate e bordo elastico. Manca il vetro |
+| KeyVoice | — | — | e' tutta View: prendere i componenti significa riscriverla in Compose |
 
 ---
 
@@ -65,52 +70,73 @@ altro guardate una per una. Si vede identica a prima — che era il risultato at
 
 ---
 
-## Fase 2 — Pampa Store
+## Fase 2 — Pampa Store ◐ parziale (2026-08-24, porto alla 1.1.1)
 
-**Cosa:** portare nel `FluidPort.kt` i componenti, non solo i token. Griglia del catalogo, schede
-app, schermata dettaglio, impostazioni.
+**Fatto:** liste raggruppate (`FluidListGroup`, `FluidListRow`, `FluidListDivider`,
+`FluidSectionHeader`, la piastrella d'icona con i toni) e il **bordo elastico**, attaccato al
+catalogo, al dettaglio e alle impostazioni. Le impostazioni erano card con l'icona colorata
+nell'intestazione: ora sono intestazioni in maiuscolo sopra gruppi, con l'icona sulle righe.
 
-**Costo diverso dalle altre:** è Compose Multiplatform, quindi ogni componente va **riscritto a
-mano** in `commonMain` e non si aggiorna con l'engine. Vale la pena solo per i componenti che
-l'app usa davvero, e ognuno va aggiunto sapendo che è una copia in più da mantenere.
+Il bordo elastico e' una copia fedele e non un'approssimazione: il file dell'engine non ha una sola
+dipendenza da Android, e' matematica e `NestedScrollConnection`.
 
-**Cosa non si può portare:** il motion scheme espressivo non esiste nel Material 3 di Compose
-Multiplatform 1.7. Il vetro sì (è disegno, non API nuove); la fisica dello scroll va verificata.
+**Non fatto, e va detto perche':** il **vetro**. Il suo effetto vero cattura quello che gli sta
+dietro e lo ridisegna sfocato; in Compose questo richiede `RenderEffect`, che e' Android. Servirebbe
+un `expect`/`actual` con il vero effetto in `androidMain` e una resa piatta sul desktop — che
+l'engine ha gia' come livello degradato per i dispositivi sotto l'API 31. Un vetro senza sfocatura
+non e' vetro: o si fa cosi', o non si chiama cosi'.
 
-Alzare `FLUID_PORT_OF` solo dopo aver riportato davvero, mai prima.
-
----
-
-## Fase 3 — KeyVoice
-
-**Cosa:** è tutta View e XML. Prendere i componenti significa **riscrivere l'interfaccia in
-Compose**, non adottare una libreria.
-
-Non è una migrazione, è una riscrittura, e va decisa come tale. Se la risposta è sì, si comincia
-dalla `MainSetupActivity` (che è già una lista di sezioni: mappa quasi uno a uno su `FluidScreen` +
-`FluidListGroup`) e si lasciano stare il servizio di accessibilità e la tastiera, che sono View per
-buone ragioni.
-
-Se la risposta è no, KeyVoice resta dov'è: ha già `engine-update`, che è il pezzo che le serviva.
+**Nemmeno tentato:** il motion scheme espressivo, che nel Material 3 di Compose Multiplatform 1.7
+non esiste.
 
 ---
 
-## Fase 4 — universal_converter
+## Fase 3 — KeyVoice ⏸ ferma, in attesa di una decisione
 
-**Cosa:** schermata principale, anteprima, progresso, impostazioni su `FluidScreen` e liste
-raggruppate.
+**Non e' una migrazione, e' una riscrittura**, e per questo si e' fermata qui invece di procedere.
+KeyVoice e' tutta View e XML: prendere i componenti dell'engine significa riscrivere l'interfaccia
+in Compose, non aggiungere una dipendenza.
 
-È la più semplice delle quattro: poche schermate, già sul tema, già ad angoli continui, nessun
-vincolo multipiattaforma. Ha molte superfici piatte e scroll lunghi, quindi vetro e overscroll ci
-si vedono bene.
+Lo stato oggi: KeyVoice usa `engine-update`, che era il pezzo che le serviva davvero — l'updater
+in-app non e' piu' 450 righe sue. Se la risposta e' "no", l'app resta cosi' e non le manca niente.
+
+Se la risposta e' "si'", lo scopo e' uno solo: **`MainSetupActivity`**. E' gia' una lista di
+sezioni con interruttori, quindi mappa quasi uno a uno su `FluidScreen` + `FluidListGroup` +
+`FluidListRow`. Restano fuori il servizio di accessibilita' e la tastiera, che sono View per buone
+ragioni: disegnano dentro finestre che non sono un'Activity.
+
+Il costo vero non e' scrivere le schermate: e' che l'app usa `viewBinding` e non ha Compose, quindi
+arriva anche il compilatore Compose, il BOM e un aumento dell'APK per un'app che oggi pesa 3,4 MB.
 
 ---
 
-## Fase 5 — Pampa widgets
+## Fase 4 — universal_converter ✅ fatta (2026-08-24, engine 1.2.0)
 
-Non era nell'ordine che Alessio ha dato — probabilmente perché ha già il tema. Ma ha due schermate
-sole, quindi è la più economica di tutte, ed è anche l'unica dove ha senso far passare i widget
-Glance a `engine-widget`.
+`FluidScreen` al posto di `Scaffold` su principale, impostazioni e log: titolo grande che si ritira
+nella barra, barra in vetro, bordo elastico. Impostazioni su liste raggruppate, con il controllo
+segmentato dell'engine al posto dei chip per il tema. Anche l'anteprima passa al segmentato.
+
+`PreviewScreen` resta su `Scaffold` apposta: e' un visualizzatore a tutto schermo, non una pagina
+che scorre, e `FluidScreen` e' una lista.
+
+---
+
+## Fase 5 — Pampa widgets ✅ fatta (2026-08-24, engine 1.2.0)
+
+`FluidTabBar` al posto di `NavigationBar`: la barra fluttua sopra il contenuto invece di occupare
+una fascia in fondo, ed e' per questo che il contenuto le scorre sotto e si vede sfocato attraverso.
+Lo `Scaffold` sparisce perche' la sua `bottomBar` toglie spazio; lo spazio torna al contenuto come
+`bottomInset`, cosi' le liste finiscono sopra la barra e non dietro.
+
+`FluidScreen` su store e impostazioni. Il conteggio dei widget passa da pastiglia accanto al titolo
+a **faccetta della barra**, dove scorre quando il titolo si e' ritirato.
+
+**La griglia diventa righe di due dentro la lista della pagina.** Una lista dentro un'altra lista
+non scorre: quella interna prende il gesto e la pagina resta ferma, quindi il titolo non si
+ritirerebbe mai e il bordo elastico non si sentirebbe. E' la trappola in cui si cade convertendo una
+schermata a `FluidScreen`, e va cercata prima.
+
+I widget Glance non usano ancora `engine-widget`: e' incluso e pronto.
 
 ---
 

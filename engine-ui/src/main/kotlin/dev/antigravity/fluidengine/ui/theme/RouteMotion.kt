@@ -191,6 +191,11 @@ fun FluidRouteMotionHost(
         val hierarchical = signals.hierarchical
         val corner = if (hierarchical) cornerDp.value.dp.toPx() else 0f
         if (corner > 0.5f) {
+          // L'unico angolo circolare rimasto nell'engine, ed e' deliberato: qui il raggio cambia a
+          // ogni fotogramma della transizione, e un angolo continuo costringerebbe il layer a
+          // ritagliare su un Path generico invece che su un rettangolo arrotondato — piu' caro
+          // esattamente durante l'animazione che deve restare fluida. A quei raggi, in movimento,
+          // la differenza non si vede; il costo si sentirebbe.
           shape = RoundedCornerShape(corner)
           clip = true
         } else {

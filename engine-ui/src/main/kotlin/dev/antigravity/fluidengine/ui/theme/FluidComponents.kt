@@ -838,7 +838,7 @@ fun FluidListGroup(
   modifier: Modifier = Modifier,
   content: @Composable ColumnScope.() -> Unit,
 ) {
-  val shape = RoundedCornerShape(20.dp)
+  val shape = ContinuousCornerShape(FluidRadius.Group)
   Surface(
     modifier = modifier.fillMaxWidth().clip(shape),
     shape = shape,
@@ -976,7 +976,7 @@ private fun ToneIconTile(
   Box(
     modifier = Modifier
       .size(32.dp)
-      .background(colors.content.copy(alpha = 0.16f), RoundedCornerShape(9.dp)),
+      .background(colors.content.copy(alpha = 0.16f), ContinuousCornerShape(FluidRadius.Small)),
     contentAlignment = Alignment.Center,
   ) {
     CompositionLocalProvider(LocalContentColor provides colors.content) {

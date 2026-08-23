@@ -76,22 +76,19 @@ class AndroidAppUpdateInstaller(
 
     send(AppUpdateInstallState.Verifying("Verifica APK..."))
     val packageInfo = context.packageManager.readArchiveInfo(apk.absolutePath)
-    when {
-      packageInfo == null -> {
-        send(AppUpdateInstallState.Error("Android non riesce a leggere l'APK scaricato."))
-        return@channelFlow
-      }
-      packageInfo.packageName != context.packageName -> {
-        send(AppUpdateInstallState.Error("L'APK scaricato non appartiene a questa app."))
-        return@channelFlow
-      }
-      else -> {
-        val apkVersion = packageInfo.versionName.orEmpty()
-        if (apkVersion.isNotBlank() && apkVersion != update.version) {
-          send(AppUpdateInstallState.Error("Versione APK inattesa: $apkVersion."))
-          return@channelFlow
-        }
-      }
+    if (packageInfo == null) {
+      send(AppUpdateInstallState.Error("Android non riesce a leggere l'APK scaricato."))
+      return@channelFlow
+    }
+    val rejection = rejectApk(
+      expectedPackageName = context.packageName,
+      expectedVersionName = update.version,
+      actualPackageName = packageInfo.packageName,
+      actualVersionName = packageInfo.versionName,
+    )
+    if (rejection != null) {
+      send(AppUpdateInstallState.Error(rejection))
+      return@channelFlow
     }
 
     runCatching {
@@ -244,6 +241,32 @@ object AppUpdateInstallSessionRegistry {
       unregister(sessionId)
     }
   }
+}
+
+/**
+ * Perche' questo APK non va installato, o `null` se va bene.
+ *
+ * Fuori dal flow e senza toccare Android apposta: e' il controllo che impedisce di aprire una
+ * richiesta di installazione per un pacchetto che non e' questa app, ed e' l'unica parte
+ * dell'installer che si puo' — e quindi si deve — verificare senza un dispositivo.
+ *
+ * Una versione vuota nell'APK non e' un motivo di rifiuto: alcuni strumenti di firma la lasciano
+ * fuori, e rifiutare l'aggiornamento per un campo assente sarebbe peggio del problema.
+ */
+internal fun rejectApk(
+  expectedPackageName: String,
+  expectedVersionName: String,
+  actualPackageName: String?,
+  actualVersionName: String?,
+): String? {
+  if (actualPackageName != expectedPackageName) {
+    return "L'APK scaricato non appartiene a questa app."
+  }
+  val actualVersion = actualVersionName.orEmpty()
+  if (actualVersion.isNotBlank() && actualVersion != expectedVersionName) {
+    return "Versione APK inattesa: $actualVersion."
+  }
+  return null
 }
 
 @Suppress("DEPRECATION")

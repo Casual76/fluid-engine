@@ -13,14 +13,18 @@ import kotlinx.coroutines.withContext
  * app's own network stack is necessarily up — the update check happens on a cold start, and the
  * config fetch has to work in an app that talks to nothing else — and an engine that forces a
  * particular HTTP client on its host is an engine that loses an argument with the host's own.
+ *
+ * `open` for one reason: everything above the network — deciding whether a release is newer, reading
+ * a manifest, resolving a download URL — is ordinary logic that deserves ordinary tests, and a final
+ * class here would force every host app to reach the network to test any of it.
  */
-class EngineHttp(
+open class EngineHttp(
   private val userAgent: String = DefaultUserAgent,
   private val connectTimeoutMillis: Int = 15_000,
   private val readTimeoutMillis: Int = 30_000,
 ) {
 
-  suspend fun readText(url: String, headers: Map<String, String> = emptyMap()): String =
+  open suspend fun readText(url: String, headers: Map<String, String> = emptyMap()): String =
     withContext(Dispatchers.IO) {
       val connection = open(url, headers + ("Accept" to "application/json"))
       try {
@@ -42,7 +46,7 @@ class EngineHttp(
    * A half-written file under the final name is indistinguishable from a complete one, and the next
    * run would happily try to install it.
    */
-  suspend fun download(
+  open suspend fun download(
     url: String,
     target: File,
     expectedBytes: Long = 0L,

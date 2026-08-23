@@ -608,6 +608,13 @@ fun FluidScreen(
     if (!isRefreshing) overscroll.endRefresh()
   }
 
+  // Chi dipinge il fondo dichiara anche il colore di quello che ci va sopra, **barra compresa**.
+  //
+  // Senza, il testo eredita LocalContentColor, che fuori da un Surface vale nero: un'app che non
+  // avvolge tutto l'albero in un Surface si ritrova il titolo grande nero su fondo nero. Il primo
+  // tentativo aveva avvolto solo la lista, e il titolo restava nero lo stesso: quello che si vede
+  // durante il morph e' la copia della **barra**, trasformata sull'ancora del titolo grande.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
   Box(
     modifier = modifier
       .fillMaxSize()
@@ -616,13 +623,6 @@ fun FluidScreen(
     val contentTranslation: () -> Float = { overscroll.offsetPx }
 
     val body: @Composable () -> Unit = {
-      // Chi dipinge il fondo dichiara anche il colore di quello che ci va sopra.
-      //
-      // Senza, il testo eredita LocalContentColor, che fuori da un Surface vale nero: un'app che
-      // non avvolge tutto in un Surface si ritrova il titolo grande nero su fondo nero. Successo
-      // davvero, e non e' un errore dell'app - e' questo componente che dipinge lo sfondo e poi
-      // lascia il contenuto a indovinare.
-      CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
       LazyColumn(
         modifier = Modifier
           .fillMaxSize()
@@ -660,7 +660,6 @@ fun FluidScreen(
           )
         }
         content()
-      }
       }
     }
 
@@ -704,6 +703,7 @@ fun FluidScreen(
         scope.launch { listState.animateScrollToItem(0) }
       },
     )
+  }
   }
 }
 

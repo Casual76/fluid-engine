@@ -95,6 +95,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.material3.LocalContentColor
 
 /**
  * Coordinates chrome that lives above the navigation host without sharing render layers between
@@ -615,6 +616,13 @@ fun FluidScreen(
     val contentTranslation: () -> Float = { overscroll.offsetPx }
 
     val body: @Composable () -> Unit = {
+      // Chi dipinge il fondo dichiara anche il colore di quello che ci va sopra.
+      //
+      // Senza, il testo eredita LocalContentColor, che fuori da un Surface vale nero: un'app che
+      // non avvolge tutto in un Surface si ritrova il titolo grande nero su fondo nero. Successo
+      // davvero, e non e' un errore dell'app - e' questo componente che dipinge lo sfondo e poi
+      // lascia il contenuto a indovinare.
+      CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
       LazyColumn(
         modifier = Modifier
           .fillMaxSize()
@@ -652,6 +660,7 @@ fun FluidScreen(
           )
         }
         content()
+      }
       }
     }
 

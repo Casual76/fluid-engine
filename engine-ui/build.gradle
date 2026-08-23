@@ -1,0 +1,48 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace 'dev.antigravity.fluidengine.ui'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  api project(':engine-foundation')
+
+  api platform("androidx.compose:compose-bom:${engine.composeBom}")
+  api 'androidx.compose.ui:ui'
+  api 'androidx.compose.foundation:foundation'
+  api 'androidx.compose.runtime:runtime'
+  api 'androidx.compose.animation:animation'
+  // Material 3 is pinned to its own alpha rather than taken from the BOM: the expressive motion
+  // scheme the theme installs does not exist in the stable line yet.
+  api "androidx.compose.material3:material3:${engine.material3}"
+  api 'androidx.compose.material:material-icons-extended'
+  api "androidx.core:core-ktx:${engine.coreKtx}"
+  api "androidx.lifecycle:lifecycle-runtime-compose:${engine.lifecycle}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+}

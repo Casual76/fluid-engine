@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Sideloaded updates: the app installs its own APK, so it needs to be allowed to ask. -->
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+  <uses-permission android:name="android.permission.INTERNET" />
+
+  <application>
+    <!-- Merged into the host app, so an app that depends on this module has nothing to declare. -->
+    <receiver
+      android:name=".AppUpdateInstallResultReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

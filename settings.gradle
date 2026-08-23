@@ -1,0 +1,30 @@
+// Only used when the engine is opened on its own — to build it, run its tests, or cut a release.
+// A host app includes the module directories directly (see tools/engine-install.ps1), and then this
+// file is not read at all.
+pluginManagement {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+rootProject.name = "fluid-engine"
+
+// The paths are flat on purpose: a host app includes the same modules under the same names, so a
+// `project(':engine-ui')` dependency resolves identically in both builds.
+include ':engine-foundation'
+include ':engine-ui'
+include ':engine-storage'
+include ':engine-net'
+include ':engine-config'
+include ':engine-update'
+include ':engine-widget'

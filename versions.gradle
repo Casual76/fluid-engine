@@ -1,0 +1,30 @@
+// The engine's dependency versions.
+//
+// Deliberately not a version catalog: the engine is meant to be dropped into an app that already
+// has one, and two catalogs in the same build fight over the `libs` accessor. A plain map applied
+// from each module's own directory works the same whether the engine is built on its own or as
+// part of a host app.
+ext.engine = [
+  version        : '1.0.0',
+  compileSdk     : 36,
+  minSdk         : 26,
+  javaVersion    : JavaVersion.VERSION_17,
+  jvmTarget      : '17',
+
+  agp            : '8.13.2',
+  kotlin         : '2.2.20',
+
+  composeBom     : '2026.03.00',
+  material3      : '1.5.0-alpha16',
+  coreKtx        : '1.18.0',
+  lifecycle      : '2.10.0',
+  activityCompose: '1.13.0',
+  navigation     : '2.9.8',
+  datastore      : '1.1.1',
+  glance         : '1.1.1',
+  coroutines     : '1.8.1',
+  serialization  : '1.6.3',
+
+  junit          : '4.13.2',
+  coroutinesTest : '1.8.1',
+]

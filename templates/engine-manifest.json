@@ -1,0 +1,35 @@
+{
+  "_commento": "Modello del manifest ospitato. La sezione app e' quella del Pampa Store; la sezione engine e' quella che cambia il comportamento delle app gia' installate. Vedi docs/04-config-remota.md.",
+
+  "app": {
+    "id": "nome-app",
+    "name": "Nome App",
+    "packageName": "dev.antigravity.nomeapp",
+    "repository": {
+      "repoOwner": "Casual76",
+      "repoName": "nome-app"
+    },
+    "stable": {
+      "version": "1.0.0",
+      "releaseDate": "2026-01-01",
+      "changelog": "Cosa cambia, in una frase che si legge dentro un avviso.",
+      "releaseTag": "stable-nome-app-v1.0.0",
+      "apkAsset": "nome-app-1.0.0.apk",
+      "sizeBytes": 0
+    },
+    "beta": null
+  },
+
+  "engine": {
+    "schema": 1,
+    "minimumVersion": "1.0.0",
+    "recommendedVersion": "1.0.0",
+    "notice": null,
+    "flags": {},
+    "killSwitch": {
+      "enabled": false,
+      "message": null
+    },
+    "overrides": {}
+  }
+}

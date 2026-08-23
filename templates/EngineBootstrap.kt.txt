@@ -1,0 +1,74 @@
+// Da copiare nella Application dell'app e adattare.
+//
+// Tre collegamenti che l'engine non puo' fare da solo perche' dipendono da quando l'app parte e da
+// cosa considera importante.
+
+package dev.antigravity.tuaapp
+
+import android.app.Application
+import dev.antigravity.fluidengine.config.EngineRemoteConfig
+import dev.antigravity.fluidengine.foundation.EngineCompatibility
+import dev.antigravity.fluidengine.foundation.EngineFlag
+import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+
+/** I flag si dichiarano dove servono, con il valore con cui la build e' stata provata. */
+object Flags {
+  val NuovaAgenda = EngineFlag(key = "nuovaAgenda", default = false)
+}
+
+class TuaApp : Application() {
+
+  @Inject lateinit var remoteConfig: EngineRemoteConfig
+
+  /** Vive quanto il processo: niente di quello che parte qui ha qualcosa da cui essere cancellato. */
+  private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+  override fun onCreate() {
+    super.onCreate()
+
+    // 1. Il file di controllo, se la copia in cache e' vecchia. Non blocca niente: finche' non
+    //    arriva, l'app usa l'ultima risposta valida (o i default compilati).
+    applicationScope.launch {
+      remoteConfig.refreshIfStale()
+    }
+
+    // 2. Cosa fare se questa build e' rimasta indietro rispetto a quello che il manifest chiede.
+    applicationScope.launch {
+      when (remoteConfig.compatibility()) {
+        EngineCompatibility.OK -> Unit
+        EngineCompatibility.UPDATE_RECOMMENDED -> segnalaAggiornamentoConsigliato()
+        EngineCompatibility.UPDATE_REQUIRED -> segnalaAggiornamentoNecessario()
+      }
+      val kill = remoteConfig.current().killSwitch
+      if (kill.enabled) {
+        fermaLApp(kill.message ?: "Questa versione non e' piu' utilizzabile.")
+      }
+    }
+
+    // 3. I widget si ridisegnano da soli quando cambiano i dati, non quando cambia l'aspetto:
+    //    quel collegamento e' questo, ed e' il motivo per cui cambiare accento si vede subito
+    //    anche sulla schermata home invece che alla sincronizzazione successiva.
+    applicationScope.launch {
+      settingsFlow()
+        .map { settings ->
+          listOf(
+            settings.themeMode,
+            settings.accentMode,
+            settings.customAccentName,
+            settings.dynamicColorEnabled,
+            settings.amoledEnabled,
+          )
+        }
+        .distinctUntilChanged()
+        .drop(1) // il primo valore e' quello con cui il widget e' gia' disegnato
+        .collect { /* MioWidget().updateAll(this@TuaApp) */ }
+    }
+  }
+}

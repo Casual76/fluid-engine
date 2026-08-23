@@ -1,0 +1,34 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace 'dev.antigravity.fluidengine.foundation'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  api "org.jetbrains.kotlinx:kotlinx-coroutines-core:${engine.coroutines}"
+  // Parsed through the JsonElement API rather than @Serializable classes: that keeps the
+  // serialization compiler plugin out of the engine, and out of every app that hosts it.
+  api "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+}

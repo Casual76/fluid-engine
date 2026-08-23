@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.2.3 - 2026-08-24
+
+- FluidScreen: il colore del contenuto vale anche per la barra. La 1.2.2 aveva avvolto solo la lista, e il titolo restava nero su fondo nero: quello che si vede mentre il titolo grande si ritira e la copia della barra, trasformata sull ancora del titolo, e la barra sta fuori dal corpo
+
+
 ## 1.2.2 - 2026-08-24
 
 - FluidScreen dichiara il colore del contenuto. Dipingeva il proprio sfondo ma lasciava il testo a ereditare LocalContentColor, che fuori da un Surface vale nero: un app che non avvolge tutto l albero in un Surface si ritrovava il titolo grande nero su fondo nero. Chi dipinge il fondo dichiara anche cosa ci va sopra, altrimenti il componente funziona solo dentro l app da cui e stato estratto

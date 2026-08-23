@@ -191,8 +191,6 @@ private fun Path.cubic(c1: Offset, c2: Offset, end: Offset) {
   cubicTo(c1.x, c1.y, c2.x, c2.y, end.x, end.y)
 }
 
-private operator fun Offset.times(scalar: Float): Offset = Offset(x * scalar, y * scalar)
-
 private val Sqrt2 = sqrt(2f)
 private const val DegToRad = (PI / 180.0).toFloat()
 

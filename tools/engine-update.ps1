@@ -85,6 +85,24 @@ if ([string]::IsNullOrWhiteSpace($enginePath)) { $enginePath = "engine" }
 $channel = $properties["engine.channel"]
 if ([string]::IsNullOrWhiteSpace($channel)) { $channel = "stable" }
 $currentVersion = $properties["engine.version"]
+$modules = $properties["engine.modules"]
+$mode = $properties["engine.mode"]
+
+# Un'app "porto" non ha una cartella dell'engine da spostare: ha una copia del look scritta nel suo
+# codice, perche' i moduli non ci entrano (Compose Multiplatform contro androidx). Aggiornarla
+# significa che qualcuno riporta le modifiche a mano, quindi qui si dice come stanno le cose e si
+# esce senza toccare niente: alzare il numero da solo direbbe una bugia.
+if ($mode -eq "port") {
+  Write-Host ""
+  Write-Host "$appRootFull e' un porto del look, non un'installazione dell'engine." -ForegroundColor Yellow
+  Write-Host "  fermo alla: $currentVersion" -ForegroundColor Yellow
+  $source = $properties["engine.portFile"]
+  if (-not [string]::IsNullOrWhiteSpace($source)) {
+    Write-Host "  il file da riallineare: $source" -ForegroundColor Yellow
+  }
+  Write-Host "Non tocco niente: un porto si aggiorna a mano, e poi si alza FLUID_PORT_OF." -ForegroundColor Yellow
+  exit 0
+}
 
 $engineFull = Join-Path $appRootFull $enginePath
 if (-not (Test-Path -LiteralPath (Join-Path $engineFull "ENGINE_VERSION"))) {
@@ -172,12 +190,18 @@ try {
 }
 
 $today = Get-Date -Format "yyyy-MM-dd"
+# I moduli si riportano com'erano: sono una scelta dell'app (un'app senza Compose non puo' ospitare
+# engine-ui), non qualcosa che un aggiornamento di versione ha il diritto di rimettere a default.
+$moduleLine = ""
+if (-not [string]::IsNullOrWhiteSpace($modules)) {
+  $moduleLine = "engine.modules=$modules`r`n"
+}
 $updated = @"
 # Quale Fluid Engine usa questa app. Aggiornato da engine-update.ps1, verificato da engine-doctor.ps1.
 engine.version=$Version
 engine.channel=$channel
 engine.path=$enginePath
-engine.updatedAt=$today
+${moduleLine}engine.updatedAt=$today
 "@
 Write-TextFile $propertiesPath $updated
 

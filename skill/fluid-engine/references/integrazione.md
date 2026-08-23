@@ -7,7 +7,10 @@ entra costa un pomeriggio di errori di build e non lascia niente di buono.
 
 1. **Che Compose usa?** `grep -r "org.jetbrains.compose" gradle/libs.versions.toml` — se compare,
    e' **Compose Multiplatform** e `engine-ui` non entra: sono due linee di artefatti diverse
-   (`org.jetbrains.compose` contro `androidx.compose`) e i runtime vanno in conflitto. Non forzarlo.
+   (`org.jetbrains.compose` contro `androidx.compose`) e la UI di un'app KMP sta in `commonMain`,
+   dove una libreria Android non entra per definizione. Non forzarlo — ma non fermarti neanche qui:
+   i moduli senza UI girano in `androidMain`, e il look si puo' **portare** a mano (vedi
+   "Il porto" piu' sotto). E' quello che fa il Pampa Store.
 2. **Compose c'e'?** Un'app di sole View e XML puo' usare `engine-foundation`, `engine-net`,
    `engine-config`, `engine-update` — non `engine-ui`, che senza Compose non ha niente da tematizzare.
    Non e' solo inutile: `engine-ui` applica il plugin Compose, e in un'app che non lo dichiara nel
@@ -51,6 +54,30 @@ cd engine ; git checkout engine-1.0.0 ; cd ..
 Quando l'engine passa su GitHub, una volta per app: `git submodule set-url engine <url>`.
 
 Senza git: `engine-install.ps1 -Mode copy -Source <cartella dell'engine>`.
+
+## Il porto: quando l'engine non entra, ma il look serve lo stesso
+
+Riscrivere in `commonMain` i tre pezzi che si vedono — palette derivata dall'accento, angoli
+continui, scala tipografica — e **dirlo nel file**. I componenti e il motion scheme restano fuori:
+il motion espressivo non esiste nel Material 3 di Compose Multiplatform, e i componenti sarebbero
+una copia molto piu' grande e molto piu' fragile.
+
+Una copia che nessuno nomina e' una copia che resta indietro, quindi il porto si dichiara:
+
+```properties
+engine.mode=port
+engine.version=1.1.0
+engine.portFile=shared/src/commonMain/kotlin/.../FluidPort.kt
+```
+
+```kotlin
+const val FLUID_PORT_OF: String = "1.1.0"
+```
+
+`engine-doctor.ps1` fallisce quando i due numeri divergono; `engine-update-all.ps1` elenca il porto
+insieme alle altre app e dice di quanto e' indietro, senza toccarlo. **Non alzare mai
+`FLUID_PORT_OF` senza aver riportato davvero le modifiche**: e' l'unica cosa che quel numero
+promette.
 
 ## Dipendenze
 

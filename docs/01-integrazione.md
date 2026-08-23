@@ -111,6 +111,38 @@ Le dipendenze fra moduli le chiude lo script: chiedere `engine-config` include a
 `engine-net`, `engine-storage` e `engine-foundation`. La scelta finisce in `engine.properties`
 (`engine.modules`) e `engine-doctor.ps1` verifica che il `settings.gradle` la rispecchi.
 
+## Quando l'engine non puo' entrare: il porto
+
+Un'app in Compose Multiplatform non puo' ospitare `engine-ui`. Non e' una questione di versioni:
+`org.jetbrains.compose` e `androidx.compose` sono due linee di artefatti, e la UI di un'app KMP sta
+in `commonMain`, dove una libreria Android non entra per definizione.
+
+Restano due strade, e sono entrambe legittime:
+
+- **Solo i moduli senza UI**, se all'app serve l'aggiornamento in-app o la config remota. Quelli
+  vivono in `androidMain` e funzionano.
+- **Un porto del look**: la palette, gli angoli continui e la scala tipografica riscritti in
+  `commonMain`. E' una copia, e va detto ad alta voce nel file. Il Pampa Store fa cosi'.
+
+Un porto ha un solo problema, ed e' che non si aggiorna da solo. Perche' resti visibile:
+
+```properties
+# engine.properties dell'app
+engine.mode=port
+engine.version=1.1.0
+engine.portFile=shared/src/commonMain/kotlin/.../FluidPort.kt
+```
+
+e nel file del porto una costante che dice da dove viene:
+
+```kotlin
+const val FLUID_PORT_OF: String = "1.1.0"
+```
+
+Da li' in poi il porto e' contato come le altre app: `engine-update-all.ps1` lo elenca e dice di
+quanto e' rimasto indietro senza toccarlo, e `engine-doctor.ps1` fallisce se i due numeri non
+coincidono. Nessuno dei due lo aggiorna: quello lo fa una persona, riportando le modifiche.
+
 ## Dipendenze
 
 Nel modulo che disegna l'interfaccia:

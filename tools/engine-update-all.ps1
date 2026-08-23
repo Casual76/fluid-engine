@@ -56,8 +56,20 @@ Write-Host ""
 foreach ($properties in $found) {
   $appRoot = $properties.Directory.FullName
   $current = (Select-String -LiteralPath $properties.FullName -Pattern "^engine\.version=(.*)$").Matches.Groups[1].Value
+  $isPort = [bool](Select-String -LiteralPath $properties.FullName -Pattern "^engine\.mode=port$")
   Write-Host "-> $appRoot" -ForegroundColor White
   Write-Host "   attuale: $current  richiesta: $Version"
+
+  # I porti si contano fra le app che usano l'engine, ma non si aggiornano con un comando: qui
+  # esistono per essere *visti*, perche' una copia che nessuno nomina e' una copia che resta indietro.
+  if ($isPort) {
+    if ($current -eq $Version) {
+      Write-Host "   porto del look, gia' allineato." -ForegroundColor DarkGray
+    } else {
+      Write-Host "   porto del look: fermo alla $current, va riportato a mano." -ForegroundColor Yellow
+    }
+    continue
+  }
 
   if ($WhatIf) {
     Write-Host "   (WhatIf: non tocco niente)" -ForegroundColor Yellow

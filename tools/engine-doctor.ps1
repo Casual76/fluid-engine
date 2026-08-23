@@ -66,6 +66,37 @@ $pinned = $properties["engine.version"]
 $enginePath = $properties["engine.path"]
 if ([string]::IsNullOrWhiteSpace($enginePath)) { $enginePath = "engine" }
 $engineFull = Join-Path $appRootFull $enginePath
+
+# Un'app "porto" non ospita i moduli: ha una copia del look nel proprio codice, perche' i moduli non
+# ci entrano. Il controllo che ha senso e' un altro, e sta tutto in un numero: quello scritto nel
+# codice deve essere quello che engine.properties dichiara, altrimenti nessuno dei due dice il vero.
+if ($properties["engine.mode"] -eq "port") {
+  Ok "engine.properties: porto del look, allineato alla $pinned"
+  $portFile = $properties["engine.portFile"]
+  if ([string]::IsNullOrWhiteSpace($portFile)) {
+    Warn "engine.portFile non e' indicato: non so quale file contiene il porto."
+  } else {
+    $portFull = Join-Path $appRootFull $portFile
+    if (-not (Test-Path -LiteralPath $portFull)) {
+      Bad "engine.portFile punta a $portFile, che non esiste."
+    } else {
+      $match = Select-String -LiteralPath $portFull -Pattern 'FLUID_PORT_OF: String = "([^"]+)"'
+      if (-not $match) {
+        Bad "in $portFile non trovo FLUID_PORT_OF."
+      } elseif ($match.Matches.Groups[1].Value -ne $pinned) {
+        Bad "FLUID_PORT_OF dice $($match.Matches.Groups[1].Value) ma engine.properties dice $pinned"
+      } else {
+        Ok "FLUID_PORT_OF: $pinned"
+      }
+    }
+  }
+  Write-Host ""
+  Write-Host "Un porto non si aggiorna da solo: quando l'engine va avanti, va riportato a mano." -ForegroundColor Cyan
+  if ($problems -eq 0) { Write-Host "Tutto a posto." -ForegroundColor Green; exit 0 }
+  Write-Host "$problems problemi da sistemare." -ForegroundColor Red
+  exit 1
+}
+
 Ok "engine.properties: versione $pinned, cartella $enginePath"
 
 if (-not (Test-Path -LiteralPath $engineFull)) {

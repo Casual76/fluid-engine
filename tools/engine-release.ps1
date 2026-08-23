@@ -23,7 +23,7 @@
 
 .EXAMPLE
   Con piu' voci serve -Command: passando per -File, PowerShell non sa costruire un array.
-  powershell -ExecutionPolicy Bypass -Command "& .	ools\engine-release.ps1 -Version 1.1.0 -Notes 'FluidStepper','BREAKING: FluidCard non accetta piu elevation' -Tag"
+  powershell -ExecutionPolicy Bypass -Command "& .\tools\engine-release.ps1 -Version 1.1.0 -Notes 'FluidStepper','BREAKING: FluidCard non accetta piu elevation' -Tag"
 #>
 [CmdletBinding()]
 param(

@@ -286,7 +286,11 @@ private fun Intent.parcelableIntent(key: String): Intent? =
   }
 
 private fun Int.toInstallFailureMessage(systemMessage: String): String = when (this) {
-  PackageInstaller.STATUS_FAILURE_ABORTED -> "Installazione annullata."
+  // Android riporta ABORTED sia quando l'utente tocca Annulla sia quando Play Protect blocca
+  // l'installazione da solo, e non c'e' modo di distinguerle. Verificato su un dispositivo reale:
+  // dire soltanto "annullata" a chi non ha annullato niente lo lascia senza la parola da cercare.
+  PackageInstaller.STATUS_FAILURE_ABORTED ->
+    "Installazione interrotta: annullata, oppure bloccata da Play Protect."
   PackageInstaller.STATUS_FAILURE_BLOCKED -> "Android ha bloccato l'installazione dell'APK."
   PackageInstaller.STATUS_FAILURE_CONFLICT -> "Conflitto di firma o versione con l'app installata."
   PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "L'APK non e' compatibile con questo dispositivo."

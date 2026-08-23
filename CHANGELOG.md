@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.2.1 - 2026-08-24
+
+- Gli angoli circolari rimasti dentro l engine sono diventati continui: il gruppo di liste era a RoundedCornerShape(20.dp) mentre due righe piu sotto lo stesso file usava ContinuousCornerShape(FluidRadius.Group), la piastrella d icona e la barra a colonna erano circolari. Era la regola 1 del design system violata dentro l engine che la scrive
+- Resta un solo angolo circolare, in RouteMotion, ed e deliberato: li il raggio cambia a ogni fotogramma e un angolo continuo costringerebbe il layer a ritagliare su un Path generico invece che su un rettangolo arrotondato, piu caro proprio durante l animazione che deve restare fluida. Ora c e scritto perche
+- ADOZIONE.md alla radice tiene il piano per portare i componenti su tutte le app e lo stato di ognuna
+
+
 ## 1.2.0 - 2026-08-23
 
 - FluidHero: l intestazione editoriale per una schermata piena di dati - un valore grande, fatti secondari che passano da tre a due a una colonna secondo lo spazio misurato e la scala del carattere, un motivo astratto sul fondo. Portata da ClasseViva, dove era rimasta fuori dall estrazione perche il suo enum si chiamava FeatureIdentity

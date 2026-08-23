@@ -154,6 +154,19 @@ fatte nel repo dell'engine e poi reinstallate, altrimenti al primo aggiornamento
 Copy-Item -Recurse -Force <engine>\skillluid-engine "$env:USERPROFILE\.claude\skills\"
 ```
 
+## Il piano di adozione in corso
+
+`ADOZIONE.md` alla radice dell'engine tiene l'ordine deciso da Alessio per portare **i componenti**
+(non solo il tema) su tutte le app: ClasseViva Expressive, Pampa Store, KeyVoice,
+universal_converter, Pampa widgets. Leggilo prima di iniziare una migrazione, e aggiornalo quando
+una fase si chiude.
+
+Ci sta dentro anche la distinzione che si sbaglia più spesso: **il tema non porta i componenti.**
+`FluidTheme` cambia colori, tipografia, angoli e curve; il vetro, l'overscroll e le liste
+raggruppate arrivano solo chiamando `FluidScreen`, `FluidListGroup` e `GlassMaterial`. Un'app che
+ha adottato solo il tema si vede quasi identica a prima, e va detto così invece che "ha preso il
+design system".
+
 ## Riferimenti
 
 - `references/regole.md` — le regole del design system, per esteso, con il perché

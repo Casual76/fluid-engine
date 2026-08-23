@@ -2,9 +2,23 @@
 
 Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggiunte compatibili,
 **major** rotture. Le voci che richiedono una modifica nelle app che aggiornano sono marcate
-**BREAKING** — `engine-update.ps1` le evidenzia mentre aggiorna.
+**BREAKING** â€” `engine-update.ps1` le evidenzia mentre aggiorna.
 
 <!-- nuove versioni qui sopra -->
+
+## 1.1.0 - 2026-08-23
+
+- engine-install.ps1 -Modules: si scelgono i moduli da includere, e le dipendenze fra moduli si chiudono da sole. Senza, un app senza il plugin Compose nel build root non riusciva nemmeno a configurare il build: e la ragione per cui KeyVoice non poteva ospitare l engine
+- engine.properties registra i moduli scelti; engine-doctor.ps1 verifica che il settings.gradle li rispecchi ed engine-update.ps1 non li perde piu aggiornando la versione
+- EngineHttp.download verifica la dimensione attesa. Un download troncato non solleva niente e arrivava all installer come mezzo APK
+- EngineHttp e open: leggere un manifest e decidere se una release e piu nuova sono logica ordinaria, e una classe final costringeva ogni app ospite a toccare la rete per testarla
+- engine-update: il controllo che l APK sia davvero questa app estratto in rejectApk() e coperto da cinque test. Era inline nel flow, quindi verificabile solo su un dispositivo
+- engine-update: STATUS_FAILURE_ABORTED non dice piu solo annullata. Verificato su un dispositivo reale: Play Protect blocca l installazione e Android riporta lo stesso codice
+- modalita porto: un app che non puo ospitare i moduli (Compose Multiplatform) dichiara engine.mode=port e viene contata lo stesso
+- versions.gradle leggeva una versione scritta a mano, ferma alla 1.0.0: ora la prende da ENGINE_VERSION
+- engine-ui: rimossa un estensione Offset.times morta, gia coperta da un membro di Compose
+- CHANGELOG: doppia codifica riparata, versioni dalla piu recente in giu
+
 
 ## 1.0.2 - 2026-08-23
 
@@ -23,7 +37,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 Prima versione. Estratta da ClasseViva Expressive 7.1.1, ripulita di tutto quello che sapeva cos'e'
 un registro scolastico.
 
-- `engine-ui`: il design system Fluid completo — angoli continui, tipografia Inter con la scala iOS
+- `engine-ui`: il design system Fluid completo â€” angoli continui, tipografia Inter con la scala iOS
   e la curva di tracking, palette derivata da un solo accento, liste raggruppate, motion unificato,
   materiale in vetro, notifiche in-app, tab bar, fogli, controlli.
 - `engine-ui`: il colore del marchio e' un parametro (`FluidTheme(settings, brand)`) invece di una

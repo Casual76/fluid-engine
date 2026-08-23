@@ -23,6 +23,9 @@ git submodule add <url-del-repo-engine> engine
 powershell -ExecutionPolicy Bypass -File engine/tools/engine-install.ps1 -AppRoot .
 ```
 
+Finche' l'engine e' una cartella locale e non un repo remoto, git rifiuta il trasporto `file` e
+serve `git -c protocol.file.allow=always submodule add ...`; senza git c'e' `-Mode copy`.
+
 Lo script aggiunge i moduli al `settings.gradle`, scrive `engine.properties` con la versione agganciata e stampa le righe da incollare nelle dipendenze. Poi:
 
 ```kotlin
@@ -52,6 +55,16 @@ Ogni app resta agganciata alla propria versione: aggiornarne una non tocca le al
 ## Cambiare comportamento senza ricompilare
 
 Un solo file JSON ospitato (lo stesso del Pampa Store, in una sezione nuova) decide feature flag, versione minima dell'engine, avvisi e kill switch per **tutte** le app che lo leggono. Vedi [`docs/04-config-remota.md`](docs/04-config-remota.md), e soprattutto [`docs/06-limiti.md`](docs/06-limiti.md): il codice non si aggiorna da remoto, e il documento spiega esattamente dove passa il confine.
+
+## La skill per gli agenti
+
+`skill/fluid-engine/` e' la skill che insegna a un agente le regole del design system, l'inventario
+dei componenti, come si integra e come si aggiorna. Sta dentro questo repo di proposito: cosi' non
+puo' divergere dall'engine che descrive.
+
+```powershell
+Copy-Item -Recurse -Force skillluid-engine "$env:USERPROFILE\.claude\skills\"
+```
 
 ## Documentazione
 

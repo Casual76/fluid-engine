@@ -35,6 +35,7 @@ Quindi: **una modifica al design system, un componente nuovo, una correzione den
 
 ## Le altre cose che è bene sapere prima
 
+- **Non ogni app puo' ospitarlo.** `engine-ui` e' scritto su Material 3 androidx: un'app in Compose Multiplatform (`org.jetbrains.compose`) non puo' prenderlo senza migrare, e un'app di sole View puo' usare solo i moduli senza UI. Un AGP vecchio invece non e' un ostacolo: si abbassa il compileSdk dell'engine dal `gradle.properties` dell'app. I requisiti sono in [`01-integrazione.md`](01-integrazione.md).
 - **L'engine è compilato dentro ogni app.** Due app sullo stesso telefono non condividono una copia dell'engine: ognuna ha la sua. Non esiste un "engine installato una volta sola" — su Android sarebbe un'app separata con IPC, e sarebbe una scelta molto peggiore per motivi di avvio, permessi e aggiornamenti.
 - **L'engine è un fork del design system dell'app da cui è nato.** Le correzioni fatte in ClasseViva Expressive non arrivano da sole nell'engine, e viceversa. La direzione giusta è portare l'app *sopra* l'engine, così che esista una copia sola; finché non succede, le due copie vanno riallineate a mano e consapevolmente.
 - **`FluidTheme` richiede Material 3 in versione alpha** (lo `MotionScheme` non è ancora nella linea stabile). È indicato in `versions.gradle` e va tenuto d'occhio a ogni aggiornamento di Compose.

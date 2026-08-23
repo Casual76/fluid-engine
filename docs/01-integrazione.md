@@ -25,6 +25,21 @@ Perché così e non con un artefatto Maven:
 
 Il prezzo è che l'engine viene ricompilato dentro ogni app. Su questi moduli è questione di secondi, con la build cache anche meno.
 
+## Prima di installare: l'app puo' ospitarlo?
+
+Cinque minuti di verifica evitano un pomeriggio di errori di build.
+
+| serve | perche' |
+|---|---|
+| **Compose androidx** (`androidx.compose.*`) | `engine-ui` e' scritto su Material 3 androidx. Un'app in **Compose Multiplatform** (`org.jetbrains.compose`) non puo' ospitarlo: sono due linee di artefatti diverse e i runtime vanno in conflitto |
+| **un AGP che conosca il compileSdk dell'engine** | l'engine compila contro l'API 36; un'app su un AGP piu' vecchio puo' abbassarlo (vedi Dipendenze) invece di rinunciare |
+| **minSdk almeno 26** | e' il pavimento del codice dell'engine, non una preferenza |
+| **una cartella libera** dove metterlo | se `engine/` e' gia' occupata, usa `-EnginePath` |
+
+Un'app senza Compose (View e XML) puo' comunque usare `engine-foundation`, `engine-net`,
+`engine-config` e `engine-update`, che non hanno UI. `engine-ui` no: senza Compose non c'e' niente
+da tematizzare.
+
 ## Installazione
 
 ```powershell
@@ -34,6 +49,28 @@ cd android/engine
 git checkout engine-1.0.0
 cd ..
 powershell -ExecutionPolicy Bypass -File engine/tools/engine-install.ps1 -AppRoot .
+```
+
+**Finche' il repo dell'engine e' solo una cartella locale**, git rifiuta il trasporto `file` (una
+protezione contro submodule ostili, CVE-2022-39253) e serve dirglielo:
+
+```powershell
+git -c protocol.file.allow=always submodule add "C:/VibeCoded Projects/fluid-engine" engine
+```
+
+Quando l'engine finisce su GitHub, si ripunta il submodule una volta sola per app:
+
+```powershell
+git submodule set-url engine https://github.com/<owner>/fluid-engine.git
+git commit -am "engine: submodule su GitHub"
+```
+
+Se il nome `engine` e' gia' preso — succede: universal_converter chiama cosi' il suo motore di
+conversione — scegline un altro e dillo allo script:
+
+```powershell
+git -c protocol.file.allow=always submodule add <url> fluid-engine
+powershell -ExecutionPolicy Bypass -File fluid-engine/tools/engine-install.ps1 -AppRoot . -EnginePath fluid-engine
 ```
 
 `engine-install.ps1` fa tre cose e le dice tutte:
@@ -80,6 +117,33 @@ implementation project(':engine-update')   // aggiornamento in-app
 implementation project(':engine-widget')   // widget Glance
 ```
 
+In un'app con `build.gradle.kts` la sintassi e' quella Kotlin, e `engine-install.ps1` la stampa gia'
+giusta a fine installazione:
+
+```kotlin
+implementation(project(":engine-ui"))
+```
+
+I moduli dell'engine leggono le proprie versioni di dipendenza da `versions.gradle`, non dal version
+catalog dell'app: non serve aggiungere niente a `libs.versions.toml`.
+
+Se l'app e' ferma a un AGP che non conosce l'API 36, abbassa il compileSdk dell'engine dal
+`gradle.properties` dell'app invece di rinunciare:
+
+```properties
+engine.compileSdk=35
+```
+
+C'e' anche `engine.minSdk`, che pero' puo' solo **alzare** il pavimento: sotto 26 il codice
+dell'engine non gira.
+
+Per compilare da riga di comando serve un `local.properties` con `sdk.dir` nella radice del
+progetto. Android Studio lo scrive da solo, ma un repo appena clonato non ce l'ha:
+
+```properties
+sdk.dir=C:/Android/Sdk
+```
+
 ## Il tema
 
 `FluidTheme` prende un `EngineSettings` e il colore del marchio dell'app:
@@ -122,6 +186,32 @@ Se invece l'app è nuova e non ha ancora niente, `EngineSettingsStore` fa la per
 val store = EngineSettingsStore(context)
 val settings by store.settings.collectAsStateWithLifecycle(EngineSettings())
 ```
+
+### Adottarlo in un'app che ha gia' un suo tema
+
+Il modo meno invasivo e' tenere la funzione di tema che l'app gia' ha — stesso nome, stessa firma — e
+riscriverne il **corpo** come una chiamata a `FluidTheme`. Il diff resta in un file solo, i punti di
+chiamata non cambiano, e tornare indietro e' un `git checkout` di quel file.
+
+```kotlin
+private val AppBrand = AccentPreset("app", "App", Color(0xFF3B5BDB), Color(0xFFB6C4FF))
+
+@Composable
+fun MioTemaApp(themeMode: ThemeMode, dynamicColor: Boolean, content: @Composable () -> Unit) {
+  FluidTheme(
+    settings = EngineSettings(
+      themeMode = themeMode.toEngine(),
+      accentMode = if (dynamicColor) AccentMode.DYNAMIC else AccentMode.BRAND,
+      dynamicColorEnabled = dynamicColor,
+    ),
+    brand = AppBrand,
+    content = content,
+  )
+}
+```
+
+I due colori del marchio si prendono dal `lightColorScheme`/`darkColorScheme` che l'app aveva prima:
+sono il suo `primary`, chiaro e scuro. Da li' l'engine ricostruisce l'intera scala di superfici.
 
 ## Dependency injection
 
@@ -174,4 +264,13 @@ Controlla che il pin del submodule, `engine.properties`, `ENGINE_VERSION` e `Eng
 
 ## Se non usi git submodule
 
-Va bene lo stesso: basta che `android/engine` contenga l'engine e che `engine.properties` dica quale versione è. `engine-install.ps1` accetta `-Mode copy` e copia i file invece di aggiungere un submodule. In quel caso però `engine-update.ps1` non può fare un checkout: ricopia, e `engine-doctor.ps1` avvisa se qualcuno ha modificato la copia locale.
+Va bene lo stesso:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <engine>/tools/engine-install.ps1 -AppRoot . -Mode copy -Source "C:/VibeCoded Projects/fluid-engine"
+```
+
+Copia i sorgenti dell'engine dentro l'app (senza `.git`, senza `build`) e poi fa il resto come al
+solito. Aggiornare significa rilanciare lo stesso comando: `engine-update.ps1` su una copia non ha
+un tag da agganciare, e infatti te lo dice invece di provarci. `engine-doctor.ps1` segnala che sei
+in modalita' copia, cosi' nessuno si aspetta un pin che non c'e'.

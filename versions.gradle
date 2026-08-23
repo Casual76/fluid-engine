@@ -4,10 +4,21 @@
 // has one, and two catalogs in the same build fight over the `libs` accessor. A plain map applied
 // from each module's own directory works the same whether the engine is built on its own or as
 // part of a host app.
+// The host app can lower the SDK levels from its own gradle.properties:
+//
+//   engine.compileSdk=35
+//
+// An app on an older AGP cannot host a module that compiles against an API level its plugin has
+// never heard of, and being locked out of the engine over one number is an absurd price. minSdk is
+// raised rather than replaced: the engine's own floor is a fact about the code, not a preference,
+// and a library below its host's floor is an error AGP reports far more clearly than we could.
+def hostCompileSdk = project.findProperty('engine.compileSdk')
+def hostMinSdk = project.findProperty('engine.minSdk')
+
 ext.engine = [
   version        : '1.0.0',
-  compileSdk     : 36,
-  minSdk         : 26,
+  compileSdk     : (hostCompileSdk ?: 36) as Integer,
+  minSdk         : Math.max(26, (hostMinSdk ?: 26) as Integer),
   javaVersion    : JavaVersion.VERSION_17,
   jvmTarget      : '17',
 

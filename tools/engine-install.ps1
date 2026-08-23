@@ -23,7 +23,9 @@
 param(
   [Parameter(Mandatory = $true)][string]$AppRoot,
   [string]$EnginePath = "engine",
-  [ValidateSet("stable", "beta")][string]$Channel = "stable"
+  [ValidateSet("stable", "beta")][string]$Channel = "stable",
+  [ValidateSet("submodule", "copy")][string]$Mode = "submodule",
+  [string]$Source
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,8 +57,33 @@ function Fail($message) {
 
 $appRootFull = (Resolve-Path -LiteralPath $AppRoot).Path
 $engineFull = Join-Path $appRootFull $EnginePath
-if (-not (Test-Path -LiteralPath $engineFull)) {
-  Fail "l'engine non e' in $engineFull. Aggiungilo prima (git submodule add ... $EnginePath)."
+
+if ($Mode -eq "copy") {
+  if ([string]::IsNullOrWhiteSpace($Source)) { Fail "-Mode copy vuole anche -Source." }
+  $sourceFull = (Resolve-Path -LiteralPath $Source).Path
+  if (-not (Test-Path -LiteralPath (Join-Path $sourceFull "ENGINE_VERSION"))) {
+    Fail "$sourceFull non sembra un Fluid Engine: manca ENGINE_VERSION."
+  }
+  Write-Host "Copio l'engine da $sourceFull ..." -ForegroundColor Cyan
+  if (Test-Path -LiteralPath $engineFull) { Remove-Item -Recurse -Force $engineFull }
+  New-Item -ItemType Directory -Path $engineFull | Out-Null
+  # .git, build e .gradle restano fuori: la copia e' una copia dei sorgenti, non del repo ne' dei
+  # suoi prodotti di compilazione.
+  Get-ChildItem -LiteralPath $sourceFull -Force |
+    Where-Object { $_.Name -notin @(".git", "build", ".gradle", ".kotlin", "local.properties") } |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $engineFull -Recurse -Force }
+} elseif (-not (Test-Path -LiteralPath $engineFull)) {
+  Fail @"
+l'engine non e' in $engineFull. Aggiungilo prima:
+
+  git submodule add <url> $EnginePath
+
+Se il repo dell'engine e' ancora una cartella locale, git rifiuta il trasporto 'file' e serve:
+
+  git -c protocol.file.allow=always submodule add "C:\percorsoluid-engine" $EnginePath
+
+In alternativa, senza git: -Mode copy -Source <cartella dell'engine>
+"@
 }
 
 $versionFile = Join-Path $engineFull "ENGINE_VERSION"
@@ -135,12 +162,27 @@ Write-TextFile $propertiesPath $properties
 Write-Host "engine.properties: agganciato a $engineVersion (canale $Channel)." -ForegroundColor Green
 
 Write-Host ""
-Write-Host "Da incollare nel build.gradle dei moduli che useranno l'engine:" -ForegroundColor Cyan
+$buildFileName = if ($isKotlinDsl) { "build.gradle.kts" } else { "build.gradle" }
+Write-Host "Da incollare nel $buildFileName dei moduli che useranno l'engine:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  implementation project(':engine-ui')        // design system (porta con se' Compose e engine-foundation)"
-Write-Host "  implementation project(':engine-storage')   // impostazioni su DataStore"
-Write-Host "  implementation project(':engine-config')    // feature flag remoti"
-Write-Host "  implementation project(':engine-update')    // aggiornamento in-app"
-Write-Host "  implementation project(':engine-widget')    // widget Glance"
+# La sintassi segue il DSL dell'app: nessuno vuole tradurre a mano cinque righe che lo script
+# conosce gia'.
+$notes = @(
+  @("engine-ui", "design system (porta con se' Compose e engine-foundation)"),
+  @("engine-storage", "impostazioni su DataStore"),
+  @("engine-config", "feature flag remoti"),
+  @("engine-update", "aggiornamento in-app"),
+  @("engine-widget", "widget Glance")
+)
+foreach ($note in $notes) {
+  $module = $note[0]
+  $comment = $note[1]
+  if ($isKotlinDsl) {
+    $line = "  implementation(project(`":$module`"))"
+  } else {
+    $line = "  implementation project(':$module')"
+  }
+  Write-Host ("{0,-46}// {1}" -f $line, $comment)
+}
 Write-Host ""
 Write-Host "Poi: docs/01-integrazione.md per il tema e il collegamento della DI." -ForegroundColor Cyan

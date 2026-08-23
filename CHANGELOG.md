@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.2.2 - 2026-08-24
+
+- FluidScreen dichiara il colore del contenuto. Dipingeva il proprio sfondo ma lasciava il testo a ereditare LocalContentColor, che fuori da un Surface vale nero: un app che non avvolge tutto l albero in un Surface si ritrovava il titolo grande nero su fondo nero. Chi dipinge il fondo dichiara anche cosa ci va sopra, altrimenti il componente funziona solo dentro l app da cui e stato estratto
+
+
 ## 1.2.1 - 2026-08-24
 
 - Gli angoli circolari rimasti dentro l engine sono diventati continui: il gruppo di liste era a RoundedCornerShape(20.dp) mentre due righe piu sotto lo stesso file usava ContinuousCornerShape(FluidRadius.Group), la piastrella d icona e la barra a colonna erano circolari. Era la regola 1 del design system violata dentro l engine che la scrive

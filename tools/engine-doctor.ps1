@@ -21,6 +21,11 @@ param(
 $ErrorActionPreference = "Stop"
 $problems = 0
 
+# Get-Content -Raw in PowerShell 5.1 decodifica con la codepage ANSI del sistema, non UTF-8.
+function Read-TextFile($path) {
+  return [System.IO.File]::ReadAllText($path, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 function Ok($message) { Write-Host "  ok    $message" -ForegroundColor Green }
 function Warn($message) { Write-Host "  nota  $message" -ForegroundColor Yellow }
 function Bad($message) {
@@ -106,7 +111,7 @@ if (-not (Test-Path -LiteralPath $engineFull)) {
 
 $versionFilePath = Join-Path $engineFull "ENGINE_VERSION"
 if (Test-Path -LiteralPath $versionFilePath) {
-  $fileVersion = (Get-Content -LiteralPath $versionFilePath -Raw).Trim()
+  $fileVersion = (Read-TextFile $versionFilePath).Trim()
   if ($fileVersion -eq $pinned) {
     Ok "ENGINE_VERSION: $fileVersion"
   } else {
@@ -174,7 +179,7 @@ if (-not (Test-Path -LiteralPath $settingsPath)) {
   $settingsPath = Join-Path $appRootFull "settings.gradle.kts"
 }
 if (Test-Path -LiteralPath $settingsPath) {
-  $settings = Get-Content -LiteralPath $settingsPath -Raw
+  $settings = Read-TextFile $settingsPath
   if ($settings -match "fluid-engine \(inizio\)") {
     Ok "settings.gradle include i moduli dell'engine"
 

@@ -36,6 +36,13 @@ $ErrorActionPreference = "Stop"
 
 # Set-Content -Encoding utf8 in PowerShell 5.1 scrive un BOM, e un BOM in testa a un settings.gradle
 # che non ce l'aveva e' una modifica gratuita a un file dell'app (che Groovy, a volte, non digerisce).
+# Get-Content -Raw in PowerShell 5.1 decodifica con la codepage ANSI del sistema, non UTF-8: leggere
+# un file accentato e riscriverlo in UTF-8 lo corrompe un po' di piu' a ogni giro. E' successo
+# davvero, al CHANGELOG, tagliando una release. Qui la decodifica e' esplicita.
+function Read-TextFile($path) {
+  return [System.IO.File]::ReadAllText($path, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 function Write-TextFile($path, $text) {
   $encoding = New-Object System.Text.UTF8Encoding($false)
   [System.IO.File]::WriteAllText($path, $text, $encoding)
@@ -74,7 +81,7 @@ foreach ($required in @($versionFile, $changelog, $versionKt)) {
   if (-not (Test-Path -LiteralPath $required)) { Fail "manca $required" }
 }
 
-$previous = (Get-Content -LiteralPath $versionFile -Raw).Trim()
+$previous = (Read-TextFile $versionFile).Trim()
 if ($previous -eq $Version) { Fail "la versione e' gia' $Version." }
 
 $isGit = Test-Path -LiteralPath (Join-Path $engineRoot ".git")
@@ -96,7 +103,7 @@ if ($Tag) {
 
 Write-TextFile $versionFile $Version
 
-$kotlin = Get-Content -LiteralPath $versionKt -Raw
+$kotlin = Read-TextFile $versionKt
 $updatedKotlin = [regex]::Replace(
   $kotlin,
   'const val VERSION: String = "[^"]*"',
@@ -113,7 +120,7 @@ if ($Notes.Count -gt 0) {
 }
 $section = "## $Version - $today`r`n`r`n$entries`r`n"
 
-$existing = Get-Content -LiteralPath $changelog -Raw
+$existing = Read-TextFile $changelog
 $marker = "<!-- nuove versioni qui sopra -->"
 if ($existing -match [regex]::Escape($marker)) {
   $existing = $existing -replace [regex]::Escape($marker), "$marker`r`n`r`n$section"

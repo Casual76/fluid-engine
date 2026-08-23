@@ -2,7 +2,7 @@
 
 Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggiunte compatibili,
 **major** rotture. Le voci che richiedono una modifica nelle app che aggiornano sono marcate
-**BREAKING** â€” `engine-update.ps1` le evidenzia mentre aggiorna.
+**BREAKING** — `engine-update.ps1` le evidenzia mentre aggiorna.
 
 <!-- nuove versioni qui sopra -->
 
@@ -37,7 +37,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 Prima versione. Estratta da ClasseViva Expressive 7.1.1, ripulita di tutto quello che sapeva cos'e'
 un registro scolastico.
 
-- `engine-ui`: il design system Fluid completo â€” angoli continui, tipografia Inter con la scala iOS
+- `engine-ui`: il design system Fluid completo — angoli continui, tipografia Inter con la scala iOS
   e la curva di tracking, palette derivata da un solo accento, liste raggruppate, motion unificato,
   materiale in vetro, notifiche in-app, tab bar, fogli, controlli.
 - `engine-ui`: il colore del marchio e' un parametro (`FluidTheme(settings, brand)`) invece di una

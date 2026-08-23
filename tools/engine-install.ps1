@@ -49,6 +49,13 @@ $ErrorActionPreference = "Stop"
 
 # Set-Content -Encoding utf8 in PowerShell 5.1 scrive un BOM, e un BOM in testa a un settings.gradle
 # che non ce l'aveva e' una modifica gratuita a un file dell'app (che Groovy, a volte, non digerisce).
+# Get-Content -Raw in PowerShell 5.1 decodifica con la codepage ANSI del sistema, non UTF-8: leggere
+# un file accentato e riscriverlo in UTF-8 lo corrompe un po' di piu' a ogni giro. E' successo
+# davvero, al CHANGELOG, tagliando una release. Qui la decodifica e' esplicita.
+function Read-TextFile($path) {
+  return [System.IO.File]::ReadAllText($path, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 function Write-TextFile($path, $text) {
   $encoding = New-Object System.Text.UTF8Encoding($false)
   [System.IO.File]::WriteAllText($path, $text, $encoding)
@@ -137,7 +144,7 @@ $versionFile = Join-Path $engineFull "ENGINE_VERSION"
 if (-not (Test-Path -LiteralPath $versionFile)) {
   Fail "$engineFull non sembra un Fluid Engine: manca ENGINE_VERSION."
 }
-$engineVersion = (Get-Content -LiteralPath $versionFile -Raw).Trim()
+$engineVersion = (Read-TextFile $versionFile).Trim()
 
 $settingsPath = Join-Path $appRootFull "settings.gradle"
 $settingsKts = Join-Path $appRootFull "settings.gradle.kts"
@@ -185,7 +192,7 @@ $EndMarker
 "@
 }
 
-$settings = Get-Content -LiteralPath $settingsPath -Raw
+$settings = Read-TextFile $settingsPath
 if ($settings -match [regex]::Escape($BeginMarker)) {
   $pattern = [regex]::Escape($BeginMarker) + "(?s).*?" + [regex]::Escape($EndMarker)
   $settings = [regex]::Replace($settings, $pattern, [System.Text.RegularExpressions.MatchEvaluator] { param($m) $block })

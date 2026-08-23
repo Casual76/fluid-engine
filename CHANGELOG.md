@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.2.0 - 2026-08-23
+
+- FluidHero: l intestazione editoriale per una schermata piena di dati - un valore grande, fatti secondari che passano da tre a due a una colonna secondo lo spazio misurato e la scala del carattere, un motivo astratto sul fondo. Portata da ClasseViva, dove era rimasta fuori dall estrazione perche il suo enum si chiamava FeatureIdentity
+- FluidHeroTone e FluidHeroMotif separano le due cose che quell enum teneva insieme: la posizione sull anello delle tre famiglie di accento, e la forma disegnata dietro. L app mappa le sue sezioni su tono e motivo, e il dominio resta nell app
+- FluidHero: urgent promuove alla famiglia dell errore qualunque tono, non piu solo uno. Prima veniva ignorato in silenzio per sei identita su sette
+
+
 ## 1.1.1 - 2026-08-23
 
 - Gli script leggevano i file con Get-Content -Raw, che in PowerShell 5.1 decodifica in ANSI e non in UTF-8: leggere e riscrivere corrompeva un po piu ogni carattere accentato a ogni esecuzione. Ha gia mangiato due trattini in questo file, e sarebbe successo al settings.gradle di qualunque app con un commento accentato

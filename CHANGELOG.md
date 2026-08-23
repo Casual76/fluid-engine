@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.1.1 - 2026-08-23
+
+- Gli script leggevano i file con Get-Content -Raw, che in PowerShell 5.1 decodifica in ANSI e non in UTF-8: leggere e riscrivere corrompeva un po piu ogni carattere accentato a ogni esecuzione. Ha gia mangiato due trattini in questo file, e sarebbe successo al settings.gradle di qualunque app con un commento accentato
+
+
 ## 1.1.0 - 2026-08-23
 
 - engine-install.ps1 -Modules: si scelgono i moduli da includere, e le dipendenze fra moduli si chiudono da sole. Senza, un app senza il plugin Compose nel build root non riusciva nemmeno a configurare il build: e la ragione per cui KeyVoice non poteva ospitare l engine

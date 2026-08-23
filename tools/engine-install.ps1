@@ -67,11 +67,16 @@ if ($Mode -eq "copy") {
   Write-Host "Copio l'engine da $sourceFull ..." -ForegroundColor Cyan
   if (Test-Path -LiteralPath $engineFull) { Remove-Item -Recurse -Force $engineFull }
   New-Item -ItemType Directory -Path $engineFull | Out-Null
-  # .git, build e .gradle restano fuori: la copia e' una copia dei sorgenti, non del repo ne' dei
-  # suoi prodotti di compilazione.
-  Get-ChildItem -LiteralPath $sourceFull -Force |
-    Where-Object { $_.Name -notin @(".git", "build", ".gradle", ".kotlin", "local.properties") } |
-    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $engineFull -Recurse -Force }
+  # robocopy invece di Copy-Item perche' /XD esclude le cartelle a *ogni* profondita': un filtro sui
+  # soli figli di primo livello si porterebbe dietro engine-ui/build, che sono centinaia di MB di
+  # prodotti di compilazione e percorsi abbastanza lunghi da far fallire la copia stessa.
+  $excluded = @("build", ".gradle", ".kotlin", ".git", ".idea")
+  $robocopyArgs = @($sourceFull, $engineFull, "/MIR", "/NFL", "/NDL", "/NJH", "/NJS", "/NP",
+    "/XF", "local.properties", "/XD") + $excluded
+  & robocopy @robocopyArgs | Out-Null
+  # robocopy usa i codici di uscita come bitmask: sotto 8 ha copiato, da 8 in su e' un errore.
+  if ($LASTEXITCODE -ge 8) { Fail "copia non riuscita (robocopy $LASTEXITCODE)." }
+  $global:LASTEXITCODE = 0
 } elseif (-not (Test-Path -LiteralPath $engineFull)) {
   Fail @"
 l'engine non e' in $engineFull. Aggiungilo prima:
@@ -186,3 +191,8 @@ foreach ($note in $notes) {
 }
 Write-Host ""
 Write-Host "Poi: docs/01-integrazione.md per il tema e il collegamento della DI." -ForegroundColor Cyan
+
+# Esplicito: senza, il codice di uscita dello script resta quello dell'ultimo comando nativo
+# eseguito (robocopy ne usa uno diverso da zero anche quando ha copiato tutto), e chi automatizza
+# l'installazione lo leggerebbe come un fallimento.
+exit 0

@@ -840,7 +840,9 @@ fun FluidListGroup(
 ) {
   val shape = ContinuousCornerShape(FluidRadius.Group)
   Surface(
-    modifier = modifier.fillMaxWidth().clip(shape),
+    // Surface already clips its children to [shape]. A second clip created another large offscreen
+    // layer for the whole group, which was especially expensive for long catalog lists.
+    modifier = modifier.fillMaxWidth(),
     shape = shape,
     color = MaterialTheme.colorScheme.surfaceContainerLow,
   ) {

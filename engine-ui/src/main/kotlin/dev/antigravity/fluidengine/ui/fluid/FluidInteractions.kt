@@ -13,10 +13,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 
@@ -33,8 +34,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
  *  * **Asymmetric timing.** Pressing in is near-instant so the response beats the finger; releasing
  *    is slower and slightly springy, which is what sells the elasticity.
  *
- * The scale is applied through a `graphicsLayer` lambda, so a press animates on the render thread
- * without recomposing anything.
+ * The scale is applied in the draw phase, so a press invalidates only this node without recomposing
+ * anything or keeping a separate RenderNode alive for every clickable card while it is at rest.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -61,10 +62,15 @@ fun Modifier.fluidPressable(
   }
 
   return this
-    .graphicsLayer {
+    .drawWithContent {
       val value = scale.value
-      scaleX = value
-      scaleY = value
+      if (value == 1f) {
+        drawContent()
+      } else {
+        scale(scaleX = value, scaleY = value, pivot = center) {
+          this@drawWithContent.drawContent()
+        }
+      }
     }
     .combinedClickable(
       interactionSource = interactionSource,

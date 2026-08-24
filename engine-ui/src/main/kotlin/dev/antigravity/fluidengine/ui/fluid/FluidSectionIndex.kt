@@ -141,12 +141,12 @@ fun FluidSectionIndex(
                 Modifier.glassSurface(
                   state = backdrop,
                   tint = floatingTint,
-                  shape = FluidCapsuleShape,
+                  shape = FluidGlassCapsuleShape,
                   role = GlassRole.Interactive,
                 )
               } else {
                 Modifier
-                  .clip(FluidCapsuleShape)
+                  .clip(FluidGlassCapsuleShape)
                   .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f))
               },
             )
@@ -169,7 +169,7 @@ fun FluidSectionIndex(
               Modifier.glassSurface(
                 state = backdrop,
                 tint = floatingTint,
-                shape = FluidCapsuleShape,
+                shape = FluidGlassCapsuleShape,
                 role = GlassRole.Interactive,
               )
             } else {

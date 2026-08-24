@@ -33,6 +33,11 @@ Su Android 13+ il bordo sposta davvero il campione con AGSL; Android 12/12L usa 
 ingrandito nel rim; sotto Android 12 resta una tinta quasi opaca con la stessa gerarchia di bordi.
 Il fallback è deliberato e leggibile, non una trasparenza senza blur chiamata vetro.
 
+L'involucro delle superfici **live** uniformi è l'unica eccezione interna alla regola degli angoli
+continui: usa un rounded rectangle/capsule circolare, perché clip, distanza e normale dello shader
+devono descrivere esattamente lo stesso bordo. Tutte le superfici di pagina e le lenti draw-only
+restano `ContinuousCornerShape`; non è un permesso generale per reintrodurre angoli Material.
+
 Una superficie deve essere disegnata **dopo** il body che campiona. Per gli overlay appartenenti a
 una schermata usare lo slot dedicato:
 

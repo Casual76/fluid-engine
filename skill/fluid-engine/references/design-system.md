@@ -66,7 +66,9 @@ Solo chrome e overlay: top bar, tab bar/rail, azioni, notifiche, indici e modali
 campi, chip, segmentati e pulsanti che scorrono con la pagina restano solidi. Un overlay che deve
 campionare la schermata va nello slot `FluidScreen.overlay`; un `glassSurface` dentro il body
 registrato finirebbe per campionare se stesso. Le lenti annidate usano `glassControlSurface`, che
-riusa il blur del genitore senza aggiungere layer.
+riusa il blur del genitore senza aggiungere layer. Le sole sagome live uniformi dell'engine usano
+un envelope circolare esatto per far coincidere clip e SDF AGSL; il resto del sistema conserva gli
+angoli continui.
 
 ## Il tema
 

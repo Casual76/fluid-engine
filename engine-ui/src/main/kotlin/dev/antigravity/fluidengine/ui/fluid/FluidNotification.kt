@@ -490,7 +490,7 @@ private fun FluidNotificationCard(
     if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) 0.09f else 0.045f,
   )
 
-  val shape = ContinuousCornerShape(20.dp)
+  val shape = FluidGlassRoundedShape(20.dp)
   val glassModifier = if (backdrop != null) {
     Modifier.glassSurface(
       state = backdrop,

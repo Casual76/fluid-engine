@@ -47,10 +47,10 @@ fun Modifier.glassControlSurface(
   val scheme = MaterialTheme.colorScheme
   val lightSurface = scheme.surface.luminanceIsLightForGlass()
   val body = if (selected) scheme.primary else scheme.surface
-  val topLight = Color.White.copy(alpha = if (lightSurface) 0.78f else 0.46f)
-  val quietLight = Color.White.copy(alpha = if (lightSurface) 0.16f else 0.10f)
-  val lowerShade = Color.Black.copy(alpha = if (lightSurface) 0.18f else 0.42f)
-  val innerShade = scheme.onSurface.copy(alpha = if (lightSurface) 0.13f else 0.24f)
+  val topLight = Color.White.copy(alpha = if (lightSurface) 0.86f else 0.58f)
+  val quietLight = Color.White.copy(alpha = if (lightSurface) 0.24f else 0.16f)
+  val lowerShade = Color.Black.copy(alpha = if (lightSurface) 0.30f else 0.52f)
+  val innerShade = scheme.onSurface.copy(alpha = if (lightSurface) 0.22f else 0.32f)
 
   return this.drawWithCache {
     val outline = shape.createOutline(size, layoutDirection, this)
@@ -67,9 +67,9 @@ fun Modifier.glassControlSurface(
     val diagonal = Offset(size.width, size.height)
     val bodyBrush = Brush.linearGradient(
       colorStops = arrayOf(
-        0f to body.copy(alpha = if (selected) 0.22f else 0.13f),
-        0.46f to body.copy(alpha = if (selected) 0.14f else 0.075f),
-        1f to body.copy(alpha = if (selected) 0.18f else 0.10f),
+        0f to body.copy(alpha = if (selected) 0.30f else 0.18f),
+        0.46f to body.copy(alpha = if (selected) 0.18f else 0.10f),
+        1f to body.copy(alpha = if (selected) 0.24f else 0.15f),
       ),
       start = Offset.Zero,
       end = diagonal,
@@ -93,8 +93,8 @@ fun Modifier.glassControlSurface(
       start = Offset.Zero,
       end = diagonal,
     )
-    val baseRimWidth = 1.15.dp.toPx()
-    val innerRimWidth = 0.75.dp.toPx()
+    val baseRimWidth = 1.35.dp.toPx()
+    val innerRimWidth = 0.95.dp.toPx()
 
     onDrawBehind {
       val pressed = pressure().coerceIn(0f, 1f)

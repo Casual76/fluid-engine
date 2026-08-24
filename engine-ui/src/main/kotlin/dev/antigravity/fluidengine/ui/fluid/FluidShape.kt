@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape as CircularRoundedCornerShape
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -118,6 +119,17 @@ fun ContinuousCornerShape(
  */
 val FluidCapsuleShape: Shape =
   ContinuousCornerShape(CornerSize(50), CornerSize(50), CornerSize(50), CornerSize(50))
+
+/**
+ * Circular envelopes reserved for live refractive glass.
+ *
+ * The AGSL signed-distance field can follow circular rounded rectangles exactly. Ordinary controls
+ * keep the design system's continuous corners; live glass uses this physical edge so the displaced
+ * backdrop, the optical band and the clip are the same geometry instead of an approximation.
+ */
+internal val FluidGlassCapsuleShape: Shape = CircularRoundedCornerShape(percent = 50)
+
+internal fun FluidGlassRoundedShape(radius: Dp): Shape = CircularRoundedCornerShape(radius)
 
 private val Right = Offset(1f, 0f)
 private val Down = Offset(0f, 1f)

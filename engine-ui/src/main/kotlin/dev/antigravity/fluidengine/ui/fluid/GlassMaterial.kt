@@ -423,35 +423,35 @@ object GlassDefaults {
   )
 
   private val FloatingOptics = GlassOptics(
-    refractionStrength = 3.dp,
-    rimWidth = 1.4.dp,
-    outerRimAlpha = 0.52f,
-    innerRimAlpha = 0.24f,
-    innerShadowAlpha = 0.18f,
-    specularAlpha = 0.34f,
-    magnification = 0.012f,
-    pressedDepthBoost = 0.22f,
+    refractionStrength = 4.4.dp,
+    rimWidth = 1.65.dp,
+    outerRimAlpha = 0.74f,
+    innerRimAlpha = 0.34f,
+    innerShadowAlpha = 0.32f,
+    specularAlpha = 0.50f,
+    magnification = 0.028f,
+    pressedDepthBoost = 0.26f,
   )
 
   private val InteractiveOptics = GlassOptics(
-    refractionStrength = 3.6.dp,
-    rimWidth = 1.5.dp,
-    outerRimAlpha = 0.58f,
-    innerRimAlpha = 0.28f,
-    innerShadowAlpha = 0.20f,
-    specularAlpha = 0.42f,
-    magnification = 0.016f,
-    pressedDepthBoost = 0.35f,
+    refractionStrength = 5.2.dp,
+    rimWidth = 1.75.dp,
+    outerRimAlpha = 0.80f,
+    innerRimAlpha = 0.40f,
+    innerShadowAlpha = 0.36f,
+    specularAlpha = 0.58f,
+    magnification = 0.036f,
+    pressedDepthBoost = 0.38f,
   )
 
   private val ModalOptics = GlassOptics(
-    refractionStrength = 2.2.dp,
-    rimWidth = 1.2.dp,
-    outerRimAlpha = 0.40f,
-    innerRimAlpha = 0.18f,
-    innerShadowAlpha = 0.22f,
-    specularAlpha = 0.26f,
-    magnification = 0.008f,
+    refractionStrength = 3.4.dp,
+    rimWidth = 1.45.dp,
+    outerRimAlpha = 0.60f,
+    innerRimAlpha = 0.28f,
+    innerShadowAlpha = 0.30f,
+    specularAlpha = 0.40f,
+    magnification = 0.020f,
     pressedDepthBoost = 0.15f,
   )
 
@@ -487,7 +487,10 @@ object GlassDefaults {
     val dark = isDarkSurface()
     val surface = MaterialTheme.colorScheme.surface
     return GlassTint(
-      overlay = if (dark) surface.copy(alpha = 0.52f) else surface.copy(alpha = 0.56f),
+      // Navigation floats over arbitrary content. Keep the interior contrast-safe and let the raw,
+      // displaced rim carry the refraction; lowering this base makes fixed icon colours disappear
+      // whenever the pixels underneath have the opposite luminance.
+      overlay = if (dark) surface.copy(alpha = 0.78f) else surface.copy(alpha = 0.86f),
       fallback = if (dark) surface.copy(alpha = 0.96f) else surface.copy(alpha = 0.97f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.18f else 0.08f),
     )

@@ -176,7 +176,7 @@ fun FluidTabBar(
       .glassSurface(
         state = backdrop,
         tint = tint,
-        shape = FluidCapsuleShape,
+        shape = FluidGlassCapsuleShape,
         edge = GlassEdge.None,
       )
       .onSizeChanged { rowWidthPx = it.width.toFloat() }
@@ -331,7 +331,7 @@ fun FluidTabRail(
       .glassSurface(
         state = backdrop,
         tint = tint,
-        shape = ContinuousCornerShape(28.dp),
+        shape = FluidGlassRoundedShape(28.dp),
         edge = GlassEdge.None,
       )
       .onSizeChanged { columnHeightPx = it.height.toFloat() }

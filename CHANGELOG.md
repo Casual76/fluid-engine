@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.3.0 - 2026-08-24
+
+- GlassMaterial aggiunge bordi ottici, rifrazione del backdrop e profili Bar, Floating, Interactive e Modal con fallback progressivi per API e shape.
+- FluidBarAction, back button, tab bar, notifiche e indici di sezione adottano lenti Fluid Glass senza blur annidati e con target touch da 48 dp.
+- FluidScreen espone un overlay post-body per campionare correttamente il backdrop; sheet e alert usano un fallback ottico coerente nelle finestre modali.
+- Il sampling resta ritagliato per superficie, sveglia ogni nuova anchor senza loop e crea lo shader runtime solo quando realmente supportato.
+
+
 ## 1.2.4 - 2026-08-24
 
 - Il backdrop glass registra e sfoca solo le regioni realmente campionate, mantenendo blur, saturazione e texture invariati.

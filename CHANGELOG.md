@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.2.4 - 2026-08-24
+
+- Il backdrop glass registra e sfoca solo le regioni realmente campionate, mantenendo blur, saturazione e texture invariati.
+- Le maschere FadeDown riusano gli oggetti nello stato stabile e riducono le allocazioni durante lo scroll.
+- Le superfici pressabili e i gruppi lista evitano RenderNode e clip ridondanti.
+
+
 ## 1.2.3 - 2026-08-24
 
 - FluidScreen: il colore del contenuto vale anche per la barra. La 1.2.2 aveva avvolto solo la lista, e il titolo restava nero su fondo nero: quello che si vede mentre il titolo grande si ritira e la copia della barra, trasformata sull ancora del titolo, e la barra sta fuori dal corpo

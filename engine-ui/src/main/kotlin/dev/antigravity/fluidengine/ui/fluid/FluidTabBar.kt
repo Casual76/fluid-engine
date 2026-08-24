@@ -31,10 +31,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
@@ -91,9 +95,9 @@ private fun indicatorSpec(durationMillis: Int) = tween<Float>(
  * The floating tab bar: a capsule of frosted glass that content scrolls *under* rather than being
  * cut off above.
  *
- * Selection is carried by colour, a restrained icon settle and a translucent underglow that travels
- * between tabs. The underglow is deliberately faint: it adds spatial continuity without flattening
- * the glass into an opaque Material navigation indicator.
+ * Selection is carried by colour, a restrained icon settle and a convex glass lens that travels
+ * between tabs. The lens reuses the bar's backdrop and is draw-only: it adds an optical rim without
+ * multiplying the number of cropped blur layers.
  */
 @Composable
 fun FluidTabBar(
@@ -106,7 +110,8 @@ fun FluidTabBar(
 ) {
   val tint = GlassDefaults.floatingTint()
   val selectedIndex = items.indexOfFirst { it.route == selectedRoute }
-  val underglowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+  val selectionColor = MaterialTheme.colorScheme.primary
+  val onSurface = MaterialTheme.colorScheme.onSurface
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val indicatorTiming = tabIndicatorTiming(reducedMotion)
   val density = LocalDensity.current
@@ -175,20 +180,23 @@ fun FluidTabBar(
         edge = GlassEdge.None,
       )
       .onSizeChanged { rowWidthPx = it.width.toFloat() }
-      .drawBehind {
-        if (!underglowPlaced || selectedIndex < 0 || itemWidthPx <= 0f) return@drawBehind
-        drawRoundRect(
-          color = underglowColor,
-          topLeft = Offset(
-            x = underglowStart.value,
-            y = underglowVerticalInsetPx,
-          ),
-          size = Size(
-            width = (underglowEnd.value - underglowStart.value).coerceAtLeast(0f),
-            height = (size.height - underglowVerticalInsetPx * 2).coerceAtLeast(0f),
-          ),
-          cornerRadius = CornerRadius(underglowRadiusPx, underglowRadiusPx),
-        )
+      .drawWithCache {
+        val lensBrushes = glassSelectionBrushes(selectionColor, onSurface, size)
+        onDrawBehind {
+          if (!underglowPlaced || selectedIndex < 0 || itemWidthPx <= 0f) return@onDrawBehind
+          drawGlassSelectionLens(
+            brushes = lensBrushes,
+            topLeft = Offset(
+              x = underglowStart.value,
+              y = underglowVerticalInsetPx,
+            ),
+            lensSize = Size(
+              width = (underglowEnd.value - underglowStart.value).coerceAtLeast(0f),
+              height = (size.height - underglowVerticalInsetPx * 2).coerceAtLeast(0f),
+            ),
+            radius = underglowRadiusPx,
+          )
+        }
       },
     verticalAlignment = Alignment.CenterVertically,
   ) {
@@ -289,7 +297,8 @@ fun FluidTabRail(
 ) {
   val selectedIndex = items.indexOfFirst { it.route == selectedRoute }
   val tint = GlassDefaults.floatingTint()
-  val pillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+  val pillColor = MaterialTheme.colorScheme.primary
+  val onSurface = MaterialTheme.colorScheme.onSurface
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val indicatorTiming = tabIndicatorTiming(reducedMotion)
@@ -326,14 +335,17 @@ fun FluidTabRail(
         edge = GlassEdge.None,
       )
       .onSizeChanged { columnHeightPx = it.height.toFloat() }
-      .drawBehind {
-        if (!pillPlaced || selectedIndex < 0 || itemHeightPx <= 0f) return@drawBehind
-        drawRoundRect(
-          color = pillColor,
-          topLeft = Offset(pillInsetPx, pillTop.value + pillInsetPx),
-          size = Size(size.width - pillInsetPx * 2, itemHeightPx - pillInsetPx * 2),
-          cornerRadius = CornerRadius(pillRadiusPx, pillRadiusPx),
-        )
+      .drawWithCache {
+        val lensBrushes = glassSelectionBrushes(pillColor, onSurface, size)
+        onDrawBehind {
+          if (!pillPlaced || selectedIndex < 0 || itemHeightPx <= 0f) return@onDrawBehind
+          drawGlassSelectionLens(
+            brushes = lensBrushes,
+            topLeft = Offset(pillInsetPx, pillTop.value + pillInsetPx),
+            lensSize = Size(size.width - pillInsetPx * 2, itemHeightPx - pillInsetPx * 2),
+            radius = pillRadiusPx,
+          )
+        }
       },
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
@@ -359,3 +371,85 @@ fun fluidTabBarPadding(): androidx.compose.foundation.layout.PaddingValues =
     horizontal = FluidTabBarDefaults.HorizontalMargin,
     vertical = FluidTabBarDefaults.BottomMargin,
   )
+
+private data class GlassSelectionBrushes(
+  val body: Brush,
+  val rim: Brush,
+  val innerRim: Brush,
+)
+
+private fun glassSelectionBrushes(
+  accent: Color,
+  onSurface: Color,
+  size: Size,
+): GlassSelectionBrushes {
+  val end = Offset(size.width, size.height)
+  return GlassSelectionBrushes(
+    body = Brush.linearGradient(
+      colorStops = arrayOf(
+        0f to Color.White.copy(alpha = 0.18f),
+        0.38f to accent.copy(alpha = 0.13f),
+        1f to accent.copy(alpha = 0.19f),
+      ),
+      start = Offset.Zero,
+      end = end,
+    ),
+    rim = Brush.linearGradient(
+      colorStops = arrayOf(
+        0f to Color.White.copy(alpha = 0.78f),
+        0.40f to Color.White.copy(alpha = 0.18f),
+        0.68f to Color.Transparent,
+        1f to Color.Black.copy(alpha = 0.22f),
+      ),
+      start = Offset.Zero,
+      end = end,
+    ),
+    innerRim = Brush.linearGradient(
+      colorStops = arrayOf(
+        0f to Color.White.copy(alpha = 0.22f),
+        0.52f to Color.Transparent,
+        1f to onSurface.copy(alpha = 0.16f),
+      ),
+      start = Offset.Zero,
+      end = end,
+    ),
+  )
+}
+
+private fun DrawScope.drawGlassSelectionLens(
+  brushes: GlassSelectionBrushes,
+  topLeft: Offset,
+  lensSize: Size,
+  radius: Float,
+) {
+  if (lensSize.width <= 0f || lensSize.height <= 0f) return
+  val outerStroke = 1.15.dp.toPx()
+  val inset = 2.dp.toPx()
+  val innerSize = Size(
+    width = (lensSize.width - inset * 2f).coerceAtLeast(0f),
+    height = (lensSize.height - inset * 2f).coerceAtLeast(0f),
+  )
+  drawRoundRect(
+    brush = brushes.body,
+    topLeft = topLeft,
+    size = lensSize,
+    cornerRadius = CornerRadius(radius, radius),
+  )
+  drawRoundRect(
+    brush = brushes.rim,
+    topLeft = topLeft,
+    size = lensSize,
+    cornerRadius = CornerRadius(radius, radius),
+    style = Stroke(width = outerStroke),
+  )
+  if (innerSize.width > 0f && innerSize.height > 0f) {
+    val innerRadius = (radius - inset).coerceAtLeast(0f)
+    drawRoundRect(
+      brush = brushes.innerRim,
+      topLeft = topLeft + Offset(inset, inset),
+      size = innerSize,
+      cornerRadius = CornerRadius(innerRadius, innerRadius),
+      style = Stroke(width = 0.7.dp.toPx()),
+    )
+  }
+}

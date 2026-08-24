@@ -84,6 +84,11 @@ fun FluidSectionIndex(
   modifier: Modifier = Modifier,
   visible: Boolean = true,
   maxVisibleAnchors: Int = FluidSectionIndexDefaults.MaxVisibleAnchors,
+  /**
+   * Supply this only when the index is drawn from [FluidScreen.overlay]. A rail inside the recorded
+   * list body would sample itself; the explicit parameter makes that invalid placement visible.
+   */
+  backdrop: GlassBackdropState? = null,
 ) {
   val sampledSections = remember(sections, maxVisibleAnchors, activeSectionKey) {
     sampleFluidSectionAnchors(sections, maxVisibleAnchors, preferredKey = activeSectionKey)
@@ -97,6 +102,7 @@ fun FluidSectionIndex(
   val haptics = LocalHapticFeedback.current
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val markColor = MaterialTheme.colorScheme.primary
+  val floatingTint = GlassDefaults.floatingTint()
   var interacting by remember { mutableStateOf(false) }
 
   AnimatedVisibility(
@@ -130,8 +136,20 @@ fun FluidSectionIndex(
           text = activeSection.label,
           modifier = Modifier
             .padding(end = 4.dp)
-            .clip(FluidCapsuleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f))
+            .then(
+              if (backdrop != null) {
+                Modifier.glassSurface(
+                  state = backdrop,
+                  tint = floatingTint,
+                  shape = FluidCapsuleShape,
+                  role = GlassRole.Interactive,
+                )
+              } else {
+                Modifier
+                  .clip(FluidCapsuleShape)
+                  .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f))
+              },
+            )
             .padding(horizontal = 11.dp, vertical = 7.dp),
           style = MaterialTheme.typography.labelMedium,
           fontWeight = FontWeight.SemiBold,
@@ -146,6 +164,18 @@ fun FluidSectionIndex(
           .padding(end = FluidSectionIndexDefaults.EdgePadding)
           .width(FluidSectionIndexDefaults.TouchWidth)
           .height(sectionIndexHeight(sampledSections.size))
+          .then(
+            if (backdrop != null) {
+              Modifier.glassSurface(
+                state = backdrop,
+                tint = floatingTint,
+                shape = FluidCapsuleShape,
+                role = GlassRole.Interactive,
+              )
+            } else {
+              Modifier
+            },
+          )
           .sectionIndexSemantics(
             sections = sampledSections,
             selectedIndex = selectedIndex,

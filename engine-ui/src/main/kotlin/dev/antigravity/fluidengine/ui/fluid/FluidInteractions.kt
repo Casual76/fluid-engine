@@ -45,11 +45,12 @@ fun Modifier.fluidPressable(
   enabled: Boolean = true,
   pressedScale: Float = 0.974f,
   role: androidx.compose.ui.semantics.Role? = null,
+  interactionSource: MutableInteractionSource? = null,
 ): Modifier {
   if (onClick == null && onLongClick == null) return this
 
-  val interactionSource = remember { MutableInteractionSource() }
-  val pressed by interactionSource.collectIsPressedAsState()
+  val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+  val pressed by resolvedInteractionSource.collectIsPressedAsState()
   val scale = remember { Animatable(1f) }
   val haptics = LocalHapticFeedback.current
 
@@ -73,7 +74,7 @@ fun Modifier.fluidPressable(
       }
     }
     .combinedClickable(
-      interactionSource = interactionSource,
+      interactionSource = resolvedInteractionSource,
       indication = null,
       enabled = enabled,
       role = role,

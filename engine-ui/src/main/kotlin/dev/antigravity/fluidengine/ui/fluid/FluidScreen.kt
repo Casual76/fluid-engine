@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,8 +28,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.animation.AnimatedContent
@@ -485,6 +484,12 @@ fun FluidScreen(
   horizontalPadding: Dp = FluidScreenDefaults.HorizontalPadding,
   itemSpacing: Dp = FluidScreenDefaults.ItemSpacing,
   extraBottomPadding: Dp = 0.dp,
+  /**
+   * Chrome that must sample this screen without becoming part of its recorded body. Use this for
+   * floating indexes, contextual controls and other true overlays; ordinary page content belongs
+   * in [content] and must stay solid.
+   */
+  overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {},
   content: LazyListScope.() -> Unit,
 ) {
   // A render layer may have only one writer. Keeping this state local is what makes overlapping
@@ -703,6 +708,8 @@ fun FluidScreen(
         scope.launch { listState.animateScrollToItem(0) }
       },
     )
+
+    overlay(backdrop)
   }
   }
 }
@@ -1075,24 +1082,22 @@ private fun FluidTitleFacet(
 
 @Composable
 private fun FluidBackButton(onBack: () -> Unit) {
-  IconButton(
+  FluidGlassIconButton(
     onClick = onBack,
     modifier = Modifier.padding(start = 6.dp),
-    colors = IconButtonDefaults.iconButtonColors(
-      contentColor = MaterialTheme.colorScheme.primary,
-    ),
   ) {
     Icon(
       imageVector = Icons.AutoMirrored.Rounded.ArrowBackIos,
       contentDescription = "Indietro",
+      tint = MaterialTheme.colorScheme.primary,
       modifier = Modifier.size(20.dp),
     )
   }
 }
 
 /**
- * An action in the top bar. Tinted rather than boxed, the way a UIKit bar button item is, so the
- * bar stays visually quiet until the glass appears behind it.
+ * An action in the top bar. It is a draw-only lens over the bar's shared backdrop, so every action
+ * gets a physical rim without paying for another blur pass.
  */
 @Composable
 fun FluidBarAction(
@@ -1102,15 +1107,17 @@ fun FluidBarAction(
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
 ) {
-  IconButton(
+  FluidGlassIconButton(
     onClick = onClick,
     modifier = modifier,
     enabled = enabled,
-    colors = IconButtonDefaults.iconButtonColors(
-      contentColor = MaterialTheme.colorScheme.primary,
-    ),
   ) {
-    Icon(imageVector = icon, contentDescription = contentDescription, modifier = Modifier.size(22.dp))
+    Icon(
+      imageVector = icon,
+      contentDescription = contentDescription,
+      tint = MaterialTheme.colorScheme.primary,
+      modifier = Modifier.size(22.dp),
+    )
   }
 }
 

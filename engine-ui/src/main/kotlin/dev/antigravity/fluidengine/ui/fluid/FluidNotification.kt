@@ -27,7 +27,6 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -325,6 +324,7 @@ val LocalFluidNotificationHostState: ProvidableCompositionLocal<FluidNotificatio
 fun FluidNotificationHost(
   state: FluidNotificationHostState,
   modifier: Modifier = Modifier,
+  backdrop: GlassBackdropState? = null,
 ) {
   val accessibilityManager by rememberUpdatedState(LocalAccessibilityManager.current)
   val lifecycleOwner = LocalLifecycleOwner.current
@@ -428,6 +428,7 @@ fun FluidNotificationHost(
         FluidNotificationCard(
           notification = notification,
           onDismiss = state::dismissCurrent,
+          backdrop = backdrop,
           modifier = Modifier.onGloballyPositioned {
             if (
               state.presentation.visible &&
@@ -473,6 +474,7 @@ private fun FluidNotificationCard(
   notification: FluidNotification,
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier,
+  backdrop: GlassBackdropState? = null,
 ) {
   val iconColors = fluidNotificationIconColors(notification.tone, MaterialTheme.colorScheme)
   val accent = iconColors.container
@@ -488,18 +490,31 @@ private fun FluidNotificationCard(
     if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) 0.09f else 0.045f,
   )
 
+  val shape = ContinuousCornerShape(20.dp)
+  val glassModifier = if (backdrop != null) {
+    Modifier.glassSurface(
+      state = backdrop,
+      tint = GlassDefaults.floatingTint(),
+      shape = shape,
+      role = GlassRole.Modal,
+    )
+  } else {
+    Modifier
+  }
+
   Surface(
     modifier = modifier
       .fillMaxWidth()
       .widthIn(max = 560.dp)
+      .then(glassModifier)
       .semantics {
         paneTitle = "Notifica in-app"
         liveRegion = LiveRegionMode.Polite
       },
-    shape = ContinuousCornerShape(20.dp),
-    color = surface,
+    shape = shape,
+    color = if (backdrop == null) surface else Color.Transparent,
     contentColor = MaterialTheme.colorScheme.onSurface,
-    border = BorderStroke(0.5.dp, accent.copy(alpha = 0.22f)),
+    border = if (backdrop == null) BorderStroke(0.5.dp, accent.copy(alpha = 0.22f)) else null,
     shadowElevation = 12.dp,
   ) {
     Row(
@@ -530,7 +545,7 @@ private fun FluidNotificationCard(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
       }
-      IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+      FluidGlassIconButton(onClick = onDismiss) {
         Icon(
           imageVector = Icons.Rounded.Close,
           contentDescription = "Chiudi notifica",

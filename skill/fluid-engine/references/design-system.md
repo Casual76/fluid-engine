@@ -7,7 +7,7 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 
 | | |
 |---|---|
-| `FluidScreen(title, subtitle, onBack, actions, titleFacets, isRefreshing, onRefresh) { LazyListScope }` | la schermata: titolo grande dentro lo scroll, barra di vetro che appare quando il titolo passa sotto |
+| `FluidScreen(title, subtitle, onBack, actions, titleFacets, isRefreshing, onRefresh, overlay) { LazyListScope }` | la schermata: titolo grande dentro lo scroll, barra di vetro che appare quando il titolo passa sotto; `overlay` riceve il backdrop per chrome flottante sicuro |
 | `FluidScreenSurface` | lo sfondo della finestra |
 | `FluidTabBar` / `FluidTabRail` | navigazione principale a pillola (`FluidTabItem`) |
 | `FluidSheet`, `FluidAlert`, `FluidGrabber` | fogli modali e avvisi (`FluidAlertAction`) |
@@ -43,6 +43,7 @@ il `toggleable` e il target da 48dp.
 
 `FluidSegmentedControl(options, selected, onSelect, label)`, `FluidChip(label, selected, onClick)`,
 `FluidTextField`, `FluidColorDot`, `FluidBarAction(icon, contentDescription, onClick)`,
+`FluidGlassIconButton`, `glassControlSurface`,
 `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`, `FluidHairline`, `FluidRowValue`.
 
 ## Token
@@ -53,11 +54,19 @@ il `toggleable` e il target da 48dp.
 - `FluidFontFamily` (testo), `FluidDisplayFontFamily` (titoli ≥ 20sp)
 - `FluidTone`: Primary, Success, Warning, Danger, Info, Neutral
 - `FluidMotion` (molle), `FluidMotionScheme` (le passa a Material), `FluidMotionPolicy`
-- `GlassDefaults`, `rememberGlassBackdrop`, `GlassTint`, `GlassEdge`, `GlassFalloff`
+- `GlassDefaults`, `rememberGlassBackdrop`, `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche
 - Modificatori: `fluidPressable`, `fluidRowPressable`
+
+## Regola del vetro
+
+Solo chrome e overlay: top bar, tab bar/rail, azioni, notifiche, indici e modali. Card, liste,
+campi, chip, segmentati e pulsanti che scorrono con la pagina restano solidi. Un overlay che deve
+campionare la schermata va nello slot `FluidScreen.overlay`; un `glassSurface` dentro il body
+registrato finirebbe per campionare se stesso. Le lenti annidate usano `glassControlSurface`, che
+riusa il blur del genitore senza aggiungere layer.
 
 ## Il tema
 

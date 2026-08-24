@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -33,13 +35,19 @@ import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.sqrt
 import kotlin.math.roundToInt
 
 /**
@@ -89,15 +97,14 @@ class GlassBackdropState internal constructor(
   private val requestedSurfaces = ArrayList<GlassSurfaceAnchor>(2)
 
   /**
-   * The observable half of the same fact, and the reason the gate works at all.
+   * Observable wake-up signal for the source.
    *
-   * A pane of glass draws *after* the body it samples, so a request can only ever be honoured by a
-   * later frame — and on a screen at rest there is no later frame unless something invalidates the
-   * source. The source reads this during its draw, which subscribes it, so switching the glass on
-   * schedules exactly the redraw needed to produce the first snapshot.
+   * A boolean cannot distinguish a newly visible pane from one that is already being sampled. The
+   * generation advances only when an individual pane has no recording credit left, so every new
+   * pane gets a first snapshot while an already active pane cannot invalidate the source forever.
    */
-  internal var isSampled by mutableStateOf(false)
-    private set
+  internal val requestGeneration = mutableIntStateOf(0)
+  private var publishedRequestGeneration = 0
 
   internal fun registerSurface(surface: GlassSurfaceAnchor) {
     surfaces += surface
@@ -109,8 +116,10 @@ class GlassBackdropState internal constructor(
 
   /** Called by a pane of glass that is about to draw, before it samples anything. */
   internal fun requestSample(surface: GlassSurfaceAnchor) {
-    surface.requestRecording()
-    if (!isSampled) isSampled = true
+    if (surface.requestRecording()) {
+      publishedRequestGeneration = nextGlassFrameTick(publishedRequestGeneration)
+      requestGeneration.intValue = publishedRequestGeneration
+    }
   }
 
   /**
@@ -121,9 +130,6 @@ class GlassBackdropState internal constructor(
     requestedSurfaces.clear()
     surfaces.forEach { surface ->
       if (surface.consumeRecordingCredit()) requestedSurfaces += surface
-    }
-    if (requestedSurfaces.isEmpty()) {
-      if (isSampled) isSampled = false
     }
     return requestedSurfaces
   }
@@ -149,6 +155,30 @@ internal fun nextGlassFrameTick(current: Int): Int = if (current == Int.MAX_VALU
  * between a fresh and a frozen snapshot every time it is on.
  */
 private const val SampleCreditFrames = 2
+
+/** Pure credit gate behind one glass pane's recording demand. */
+internal class GlassRecordingDemand(
+  private val creditFrames: Int = SampleCreditFrames,
+) {
+  init {
+    require(creditFrames > 0)
+  }
+
+  private var recordingCredit = 0
+
+  /** Returns true only when the source must be explicitly woken for this pane. */
+  fun request(): Boolean {
+    val needsSourceWakeUp = recordingCredit == 0
+    recordingCredit = creditFrames
+    return needsSourceWakeUp
+  }
+
+  fun consume(surfaceReady: Boolean): Boolean {
+    if (recordingCredit <= 0) return false
+    recordingCredit--
+    return surfaceReady
+  }
+}
 
 /** Restrained blur; 8 dp is still about 22 physical pixels on the 120 Hz QA phone. */
 val DefaultGlassBlurRadius: Dp = 8.dp
@@ -184,7 +214,7 @@ fun Modifier.glassBackdropSource(state: GlassBackdropState): Modifier = this
     onDrawWithContent {
       // Subscribes this draw node to the demand flag, so a pane of glass switching on invalidates
       // the source even when the content itself is perfectly still.
-      state.isSampled
+      state.requestGeneration.intValue
       val requestedSurfaces = state.consumeRequestedSurfaces()
       if (requestedSurfaces.isEmpty()) {
         // Nothing is sampling this backdrop, so there is nothing to snapshot for. Draw the content
@@ -218,7 +248,220 @@ data class GlassTint(
   val hairline: Color,
 )
 
+/** The optical job a pane performs; colour remains the separate concern of [GlassTint]. */
+enum class GlassRole {
+  /** Edge-to-edge chrome whose material should stay quiet behind navigation and status controls. */
+  Bar,
+
+  /** A detached navigation capsule or rail with a clearly visible silhouette. */
+  Floating,
+
+  /** A control that yields under a finger and therefore carries the strongest lens response. */
+  Interactive,
+
+  /** A sheet or alert surface: deeper than a bar, calmer than a control. */
+  Modal,
+}
+
+/**
+ * Optical treatment layered over the existing blur and tint.
+ *
+ * Values describe the material at full [glassSurface] optical depth. The modifier clamps malformed
+ * custom values, and press feedback is a draw-time multiplier: it never allocates another blurred
+ * layer or re-records a different backdrop.
+ */
+@Immutable
+data class GlassOptics(
+  val refractionStrength: Dp,
+  val rimWidth: Dp,
+  val outerRimAlpha: Float,
+  val innerRimAlpha: Float,
+  val innerShadowAlpha: Float,
+  val specularAlpha: Float,
+  val magnification: Float,
+  val pressedDepthBoost: Float,
+  /** Unit-like vector pointing toward the light; malformed vectors fall back to top-left. */
+  val lightDirection: Offset = Offset(-0.64f, -0.77f),
+)
+
+/** Rendering tier selected without touching classes that do not exist on an older Android release. */
+internal enum class GlassRenderCapability {
+  /** Tint and static optical strokes only. */
+  StaticRim,
+
+  /** Real backdrop blur plus a magnified raw sample in the rim. */
+  MagnifiedRim,
+
+  /** Android 13 AGSL displacement over the raw rim sample. */
+  RuntimeRefraction,
+}
+
+internal fun glassRenderCapability(
+  apiLevel: Int,
+  hardwareAccelerated: Boolean,
+): GlassRenderCapability = when {
+  !hardwareAccelerated || apiLevel < Build.VERSION_CODES.S -> GlassRenderCapability.StaticRim
+  apiLevel < Build.VERSION_CODES.TIRAMISU -> GlassRenderCapability.MagnifiedRim
+  else -> GlassRenderCapability.RuntimeRefraction
+}
+
+/**
+ * Returns the exact circular radius understood by the rounded-box AGSL, or null for shapes whose
+ * outline the shader cannot faithfully describe.
+ */
+internal fun runtimeGlassCornerRadiusOrNull(outline: Outline): Float? =
+  (outline as? Outline.Rounded)?.roundRect?.let(::runtimeGlassCornerRadiusForRoundRectOrNull)
+
+internal fun runtimeGlassCornerRadiusForRoundRectOrNull(roundRect: RoundRect): Float? {
+  val corners = arrayOf(
+    roundRect.topLeftCornerRadius,
+    roundRect.topRightCornerRadius,
+    roundRect.bottomRightCornerRadius,
+    roundRect.bottomLeftCornerRadius,
+  )
+  val radius = corners.first().x
+  if (!radius.isFinite() || radius < 0f) return null
+  return radius.takeIf {
+    corners.all { corner ->
+      corner.x.isFinite() && corner.y.isFinite() &&
+        abs(corner.x - radius) <= GlassRadiusTolerancePx &&
+        abs(corner.y - radius) <= GlassRadiusTolerancePx
+    }
+  }
+}
+
+internal fun shouldCreateGlassRuntimeRefraction(
+  requestedCapability: GlassRenderCapability,
+  perimeterOptics: Boolean,
+  hasRefraction: Boolean,
+  runtimeCornerRadius: Float?,
+): Boolean = requestedCapability == GlassRenderCapability.RuntimeRefraction &&
+  perimeterOptics &&
+  hasRefraction &&
+  runtimeCornerRadius != null
+
+internal fun resolveGlassRenderCapability(
+  requestedCapability: GlassRenderCapability,
+  runtimeEligible: Boolean,
+  runtimeAvailable: Boolean,
+): GlassRenderCapability = if (
+  requestedCapability == GlassRenderCapability.RuntimeRefraction &&
+  (!runtimeEligible || !runtimeAvailable)
+) {
+  GlassRenderCapability.MagnifiedRim
+} else {
+  requestedCapability
+}
+
+private const val GlassRadiusTolerancePx = 0.01f
+
+internal fun clampGlassUnit(value: Float): Float =
+  if (value.isFinite()) value.coerceIn(0f, 1f) else 0f
+
+private fun finiteNonNegative(value: Float): Float =
+  if (value.isFinite()) value.coerceAtLeast(0f) else 0f
+
+internal fun GlassOptics.sanitized(): GlassOptics {
+  val requestedDirectionLength = sqrt(
+    lightDirection.x * lightDirection.x + lightDirection.y * lightDirection.y,
+  )
+  val directionSource = if (
+    requestedDirectionLength.isFinite() && requestedDirectionLength > 0.001f
+  ) {
+    lightDirection
+  } else {
+    Offset(-0.64f, -0.77f)
+  }
+  val directionLength = sqrt(
+    directionSource.x * directionSource.x + directionSource.y * directionSource.y,
+  )
+  val direction = Offset(
+    directionSource.x / directionLength,
+    directionSource.y / directionLength,
+  )
+  return copy(
+    refractionStrength = finiteNonNegative(refractionStrength.value).dp,
+    rimWidth = finiteNonNegative(rimWidth.value).dp,
+    outerRimAlpha = clampGlassUnit(outerRimAlpha),
+    innerRimAlpha = clampGlassUnit(innerRimAlpha),
+    innerShadowAlpha = clampGlassUnit(innerShadowAlpha),
+    specularAlpha = clampGlassUnit(specularAlpha),
+    magnification = if (magnification.isFinite()) magnification.coerceIn(0f, 0.08f) else 0f,
+    pressedDepthBoost = if (pressedDepthBoost.isFinite()) {
+      pressedDepthBoost.coerceIn(0f, 1f)
+    } else {
+      0f
+    },
+    lightDirection = direction,
+  )
+}
+
+internal fun calculateGlassSamplePadding(
+  blurRadiusPx: Float,
+  refractionStrengthPx: Float,
+  rimWidthPx: Float,
+  pressedDepthBoost: Float,
+): Float {
+  val blurReach = finiteNonNegative(blurRadiusPx) * BlurCropPaddingMultiplier
+  val refractionReach = finiteNonNegative(refractionStrengthPx) *
+    (1f + finiteNonNegative(pressedDepthBoost).coerceAtMost(1f)) +
+    finiteNonNegative(rimWidthPx) * 2f
+  return maxOf(blurReach, refractionReach)
+}
+
 object GlassDefaults {
+
+  private val BarOptics = GlassOptics(
+    refractionStrength = 1.25.dp,
+    rimWidth = 0.75.dp,
+    outerRimAlpha = 0.20f,
+    innerRimAlpha = 0.10f,
+    innerShadowAlpha = 0.08f,
+    specularAlpha = 0.12f,
+    magnification = 0.004f,
+    pressedDepthBoost = 0.10f,
+  )
+
+  private val FloatingOptics = GlassOptics(
+    refractionStrength = 3.dp,
+    rimWidth = 1.4.dp,
+    outerRimAlpha = 0.52f,
+    innerRimAlpha = 0.24f,
+    innerShadowAlpha = 0.18f,
+    specularAlpha = 0.34f,
+    magnification = 0.012f,
+    pressedDepthBoost = 0.22f,
+  )
+
+  private val InteractiveOptics = GlassOptics(
+    refractionStrength = 3.6.dp,
+    rimWidth = 1.5.dp,
+    outerRimAlpha = 0.58f,
+    innerRimAlpha = 0.28f,
+    innerShadowAlpha = 0.20f,
+    specularAlpha = 0.42f,
+    magnification = 0.016f,
+    pressedDepthBoost = 0.35f,
+  )
+
+  private val ModalOptics = GlassOptics(
+    refractionStrength = 2.2.dp,
+    rimWidth = 1.2.dp,
+    outerRimAlpha = 0.40f,
+    innerRimAlpha = 0.18f,
+    innerShadowAlpha = 0.22f,
+    specularAlpha = 0.26f,
+    magnification = 0.008f,
+    pressedDepthBoost = 0.15f,
+  )
+
+  /** Stable, allocation-free presets. Custom callers can use `copy` and are sanitized at use. */
+  fun optics(role: GlassRole): GlassOptics = when (role) {
+    GlassRole.Bar -> BarOptics
+    GlassRole.Floating -> FloatingOptics
+    GlassRole.Interactive -> InteractiveOptics
+    GlassRole.Modal -> ModalOptics
+  }
 
   /**
    * Bars.
@@ -285,6 +528,8 @@ enum class GlassFalloff {
 class GlassSurfaceAnchor internal constructor(
   internal val heavyLayer: GraphicsLayer,
   internal val softLayer: GraphicsLayer,
+  /** One unblurred crop, used either by AGSL or by the API 31 magnified-rim fallback. */
+  internal val opticalLayer: GraphicsLayer,
 ) {
   internal var originInRoot by mutableStateOf(Offset.Zero)
   internal var surfaceSize by mutableStateOf(IntSize.Zero)
@@ -292,17 +537,15 @@ class GlassSurfaceAnchor internal constructor(
 
   internal var sampleCrop: GlassSampleCrop? = null
   internal var blurPaddingPx: Float = 0f
-  private var recordingCredit = 0
+  internal var capability: GlassRenderCapability = GlassRenderCapability.StaticRim
+  internal var requiresOpticalSample: Boolean = false
+  private val recordingDemand = GlassRecordingDemand()
 
-  internal fun requestRecording() {
-    recordingCredit = SampleCreditFrames
-  }
+  internal fun requestRecording(): Boolean = recordingDemand.request()
 
-  internal fun consumeRecordingCredit(): Boolean {
-    if (recordingCredit <= 0) return false
-    recordingCredit--
-    return surfaceSize.width > 0 && surfaceSize.height > 0
-  }
+  internal fun consumeRecordingCredit(): Boolean = recordingDemand.consume(
+    surfaceReady = surfaceSize.width > 0 && surfaceSize.height > 0,
+  )
 
   internal fun publishSnapshot() {
     if (sampleCrop != null && !hasSnapshot) hasSnapshot = true
@@ -313,7 +556,10 @@ class GlassSurfaceAnchor internal constructor(
 fun rememberGlassSurfaceAnchor(): GlassSurfaceAnchor {
   val heavyLayer = rememberGraphicsLayer()
   val softLayer = rememberGraphicsLayer()
-  return remember(heavyLayer, softLayer) { GlassSurfaceAnchor(heavyLayer, softLayer) }
+  val opticalLayer = rememberGraphicsLayer()
+  return remember(heavyLayer, softLayer, opticalLayer) {
+    GlassSurfaceAnchor(heavyLayer, softLayer, opticalLayer)
+  }
 }
 
 @Immutable
@@ -388,6 +634,11 @@ private fun DrawScope.recordCroppedGlassLayers(
   surface.heavyLayer.record(size = cropSize) {
     translate(-crop.left.toFloat(), -crop.top.toFloat()) { drawLayer(sourceLayer) }
   }
+  if (surface.requiresOpticalSample) {
+    surface.opticalLayer.record(size = cropSize) {
+      translate(-crop.left.toFloat(), -crop.top.toFloat()) { drawLayer(sourceLayer) }
+    }
+  }
   surface.sampleCrop = crop
 }
 
@@ -405,8 +656,31 @@ fun Modifier.glassSurface(
   edge: GlassEdge = GlassEdge.None,
   falloff: GlassFalloff = GlassFalloff.Uniform,
   intensity: () -> Float = { 1f },
+  role: GlassRole = if (falloff == GlassFalloff.FadeDown) GlassRole.Bar else GlassRole.Floating,
+  optics: GlassOptics = GlassDefaults.optics(role),
+  /** Independent optical weight. Dynamic reads happen in draw, so a press does not recompose. */
+  opticalDepth: () -> Float = { 1f },
+  /** 0 = resting, 1 = fully pressed. Uses the same raw/refraction layer at every value. */
+  pressed: () -> Float = { 0f },
 ): Modifier {
   val anchor = rememberGlassSurfaceAnchor()
+  val resolvedOptics = remember(optics) { optics.sanitized() }
+  val hardwareAccelerated = LocalView.current.isHardwareAccelerated
+  val requestedCapability = glassRenderCapability(
+    apiLevel = Build.VERSION.SDK_INT,
+    hardwareAccelerated = hardwareAccelerated,
+  )
+  val runtimeRefraction = remember(requestedCapability) {
+    lazy(LazyThreadSafetyMode.NONE) {
+      if (requestedCapability == GlassRenderCapability.RuntimeRefraction) {
+        createGlassRuntimeRefractionOrNull()
+      } else {
+        null
+      }
+    }
+  }
+  val perimeterOptics = falloff == GlassFalloff.Uniform && resolvedOptics.rimWidth.value > 0f
+
   DisposableEffect(state, anchor) {
     state.registerSurface(anchor)
     onDispose { state.unregisterSurface(anchor) }
@@ -421,19 +695,67 @@ fun Modifier.glassSurface(
       anchor.surfaceSize = it.size
     }
     .drawWithCache {
-      if (state.blurSupported) {
+      val outline = if (perimeterOptics) {
+        shape.createOutline(size, layoutDirection, this)
+      } else {
+        null
+      }
+      val runtimeCornerRadius = outline?.let(::runtimeGlassCornerRadiusOrNull)
+      val runtimeEligible = shouldCreateGlassRuntimeRefraction(
+        requestedCapability = requestedCapability,
+        perimeterOptics = perimeterOptics,
+        hasRefraction = resolvedOptics.refractionStrength.value > 0f,
+        runtimeCornerRadius = runtimeCornerRadius,
+      )
+      val resolvedRuntimeRefraction = if (runtimeEligible) runtimeRefraction.value else null
+      val capability = resolveGlassRenderCapability(
+        requestedCapability = requestedCapability,
+        runtimeEligible = runtimeEligible,
+        runtimeAvailable = resolvedRuntimeRefraction != null,
+      )
+      val samplesBackdrop = capability != GlassRenderCapability.StaticRim
+      anchor.capability = capability
+      anchor.requiresOpticalSample = perimeterOptics &&
+        samplesBackdrop &&
+        resolvedOptics.refractionStrength.value > 0f
+      if (samplesBackdrop) {
         val heavy = state.blurRadius.toPx()
         val soft = heavy * SoftBlurFraction
-        anchor.blurPaddingPx = heavy * BlurCropPaddingMultiplier
+        val refractionPx = resolvedOptics.refractionStrength.toPx()
+        val rimWidthPx = resolvedOptics.rimWidth.toPx()
+        anchor.blurPaddingPx = calculateGlassSamplePadding(
+          blurRadiusPx = heavy,
+          refractionStrengthPx = refractionPx,
+          rimWidthPx = rimWidthPx,
+          pressedDepthBoost = resolvedOptics.pressedDepthBoost,
+        )
         anchor.heavyLayer.renderEffect = BlurEffect(heavy, heavy, TileMode.Clamp)
         anchor.softLayer.renderEffect = BlurEffect(soft, soft, TileMode.Clamp)
+        anchor.opticalLayer.renderEffect = if (
+          capability == GlassRenderCapability.RuntimeRefraction
+        ) {
+          resolvedRuntimeRefraction?.renderEffect
+        } else {
+          null
+        }
         // Keep only a whisper of the saturation lift used by system materials. A stronger filter
         // made fast-moving text behind the top bar turn into dark, noisy-looking colour bands.
         val saturate = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(1.04f) })
         anchor.heavyLayer.colorFilter = saturate
         anchor.softLayer.colorFilter = saturate
+      } else {
+        anchor.opticalLayer.renderEffect = null
       }
       val hairlinePx = maxOf(1f, 0.5f.dp.toPx())
+      val opticalCache = if (outline != null) {
+        buildGlassOpticalDrawCache(
+          outline = outline,
+          runtimeCornerRadiusPx = runtimeCornerRadius,
+          optics = resolvedOptics,
+        )
+      } else {
+        null
+      }
       val steadyFadeCache = if (falloff == GlassFalloff.FadeDown) {
         GlassFadeDrawCache(
           bounds = Rect(0f, 0f, size.width, size.height),
@@ -462,13 +784,13 @@ fun Modifier.glassSurface(
         null
       }
       onDrawBehind {
-        val amount = intensity().coerceIn(0f, 1f)
+        val amount = clampGlassUnit(intensity())
         if (amount <= 0.001f) return@onDrawBehind
         // Claimed before sampling, so the source keeps recording for as long as this pane is on.
-        if (state.blurSupported) state.requestSample(anchor)
+        if (samplesBackdrop) state.requestSample(anchor)
 
         val crop = anchor.sampleCrop
-        if (state.blurSupported && anchor.hasSnapshot && crop != null) {
+        if (samplesBackdrop && anchor.hasSnapshot && crop != null) {
           // Reading the tick keeps this node invalidated in step with the source's redraws.
           state.frameTick.intValue
           val dx = crop.offsetInSurface.x
@@ -506,6 +828,37 @@ fun Modifier.glassSurface(
           }
         }
 
+        if (opticalCache != null) {
+          val depth = clampGlassUnit(opticalDepth())
+          val press = clampGlassUnit(pressed())
+          val opticalAmount = amount * depth
+          if (opticalAmount > 0.001f) {
+            if (
+              samplesBackdrop &&
+              anchor.requiresOpticalSample &&
+              anchor.hasSnapshot &&
+              crop != null
+            ) {
+              drawRefractedGlassRim(
+                surface = anchor,
+                crop = crop,
+                capability = capability,
+                runtimeRefraction = resolvedRuntimeRefraction,
+                cache = opticalCache,
+                amount = opticalAmount,
+                pressed = press,
+                optics = resolvedOptics,
+              )
+            }
+            drawGlassOpticalRims(
+              cache = opticalCache,
+              optics = resolvedOptics,
+              amount = opticalAmount,
+              pressed = press,
+            )
+          }
+        }
+
         val hairline = tint.hairline.copy(alpha = tint.hairline.alpha * amount)
         when (edge) {
           GlassEdge.None -> Unit
@@ -522,6 +875,171 @@ fun Modifier.glassSurface(
         }
       }
     }
+}
+
+private class GlassOpticalDrawCache(
+  val bounds: Rect,
+  val outline: Outline,
+  val centre: Offset,
+  val runtimeCornerRadiusPx: Float?,
+  val refractionStrengthPx: Float,
+  val rimWidthPx: Float,
+  val refractionMask: Stroke,
+  val innerRimStroke: Stroke,
+  val outerRimStroke: Stroke,
+  val specularStroke: Stroke,
+  val innerRimBrush: Brush,
+  val outerRimBrush: Brush,
+  val specularBrush: Brush,
+  val layerPaint: Paint,
+)
+
+private fun androidx.compose.ui.draw.CacheDrawScope.buildGlassOpticalDrawCache(
+  outline: Outline,
+  runtimeCornerRadiusPx: Float?,
+  optics: GlassOptics,
+): GlassOpticalDrawCache {
+  val rim = maxOf(1f, optics.rimWidth.toPx())
+  val refraction = optics.refractionStrength.toPx()
+  val centre = Offset(size.width * 0.5f, size.height * 0.5f)
+  val directionSpan = maxOf(size.width, size.height) * 0.72f
+  val lightStart = centre + optics.lightDirection * directionSpan
+  val lightEnd = centre - optics.lightDirection * directionSpan
+  val innerRimBrush = Brush.linearGradient(
+    colorStops = arrayOf(
+      0f to Color.White.copy(alpha = optics.innerRimAlpha),
+      0.42f to Color.White.copy(alpha = optics.innerRimAlpha * 0.34f),
+      0.60f to Color.Transparent,
+      1f to Color.Black.copy(alpha = optics.innerShadowAlpha),
+    ),
+    start = lightStart,
+    end = lightEnd,
+  )
+  val outerRimBrush = Brush.linearGradient(
+    colorStops = arrayOf(
+      0f to Color.White.copy(alpha = optics.outerRimAlpha),
+      0.38f to Color.White.copy(alpha = optics.outerRimAlpha * 0.46f),
+      0.64f to Color.Transparent,
+      1f to Color.Black.copy(alpha = optics.innerShadowAlpha * 0.82f),
+    ),
+    start = lightStart,
+    end = lightEnd,
+  )
+  val specularBrush = Brush.linearGradient(
+    colorStops = arrayOf(
+      0f to Color.White.copy(alpha = optics.specularAlpha),
+      0.30f to Color.White.copy(alpha = optics.specularAlpha * 0.52f),
+      0.58f to Color.Transparent,
+      1f to Color.Transparent,
+    ),
+    start = lightStart,
+    end = lightEnd,
+  )
+  val opticalBand = maxOf(rim * 3f, refraction * 2f + rim)
+  return GlassOpticalDrawCache(
+    bounds = Rect(0f, 0f, size.width, size.height),
+    outline = outline,
+    centre = centre,
+    runtimeCornerRadiusPx = runtimeCornerRadiusPx,
+    refractionStrengthPx = refraction,
+    rimWidthPx = rim,
+    // Strokes are centred on the outline; clipping keeps their inner half, hence the factor two.
+    refractionMask = Stroke(width = opticalBand * 2f),
+    innerRimStroke = Stroke(width = rim * 3.2f),
+    outerRimStroke = Stroke(width = maxOf(1f, rim * 1.35f)),
+    specularStroke = Stroke(width = maxOf(1f, rim * 0.72f)),
+    innerRimBrush = innerRimBrush,
+    outerRimBrush = outerRimBrush,
+    specularBrush = specularBrush,
+    layerPaint = Paint(),
+  )
+}
+
+private fun DrawScope.drawRefractedGlassRim(
+  surface: GlassSurfaceAnchor,
+  crop: GlassSampleCrop,
+  capability: GlassRenderCapability,
+  runtimeRefraction: GlassRuntimeRefraction?,
+  cache: GlassOpticalDrawCache,
+  amount: Float,
+  pressed: Float,
+  optics: GlassOptics,
+) {
+  val pressMultiplier = 1f + pressed * optics.pressedDepthBoost
+  val displacement = cache.refractionStrengthPx * amount * pressMultiplier
+  val magnification = optics.magnification * amount * pressMultiplier
+  val dx = crop.offsetInSurface.x
+  val dy = crop.offsetInSurface.y
+
+  val runtimeCornerRadius = cache.runtimeCornerRadiusPx
+  if (
+    capability == GlassRenderCapability.RuntimeRefraction &&
+    runtimeRefraction != null &&
+    runtimeCornerRadius != null
+  ) {
+    runtimeRefraction.update(
+      inputWidth = crop.width.toFloat(),
+      inputHeight = crop.height.toFloat(),
+      surfaceLeft = -dx,
+      surfaceTop = -dy,
+      surfaceWidth = size.width,
+      surfaceHeight = size.height,
+      cornerRadius = runtimeCornerRadius,
+      displacement = displacement,
+      rimWidth = cache.rimWidthPx,
+      magnification = magnification,
+    )
+  }
+
+  drawContext.canvas.saveLayer(cache.bounds, cache.layerPaint)
+  when (capability) {
+    GlassRenderCapability.RuntimeRefraction -> translate(dx, dy) {
+      drawLayer(surface.opticalLayer)
+    }
+    GlassRenderCapability.MagnifiedRim -> scale(
+      scaleX = 1f + magnification,
+      scaleY = 1f + magnification,
+      pivot = cache.centre,
+    ) {
+      translate(dx, dy) { drawLayer(surface.opticalLayer) }
+    }
+    GlassRenderCapability.StaticRim -> Unit
+  }
+  drawOutline(
+    outline = cache.outline,
+    color = Color.White,
+    alpha = amount,
+    style = cache.refractionMask,
+    blendMode = BlendMode.DstIn,
+  )
+  drawContext.canvas.restore()
+}
+
+private fun DrawScope.drawGlassOpticalRims(
+  cache: GlassOpticalDrawCache,
+  optics: GlassOptics,
+  amount: Float,
+  pressed: Float,
+) {
+  val pressGlow = 1f + pressed * optics.pressedDepthBoost * 0.35f
+  drawOutline(
+    outline = cache.outline,
+    brush = cache.innerRimBrush,
+    alpha = (amount * pressGlow).coerceAtMost(1f),
+    style = cache.innerRimStroke,
+  )
+  drawOutline(
+    outline = cache.outline,
+    brush = cache.outerRimBrush,
+    alpha = amount,
+    style = cache.outerRimStroke,
+  )
+  drawOutline(
+    outline = cache.outline,
+    brush = cache.specularBrush,
+    alpha = (amount * pressGlow).coerceAtMost(1f),
+    style = cache.specularStroke,
+  )
 }
 
 /**

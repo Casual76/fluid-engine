@@ -64,12 +64,16 @@ fun FluidSheet(
   showGrabber: Boolean = true,
   content: @Composable ColumnScope.() -> Unit,
 ) {
+  val sheetShape = ContinuousCornerShape(topStart = FluidRadius.Sheet, topEnd = FluidRadius.Sheet)
   ModalBottomSheet(
     onDismissRequest = onDismissRequest,
     modifier = modifier,
     sheetState = sheetState,
-    shape = ContinuousCornerShape(topStart = FluidRadius.Sheet, topEnd = FluidRadius.Sheet),
-    containerColor = MaterialTheme.colorScheme.surface,
+    shape = sheetShape,
+    // ModalBottomSheet owns a separate platform window, so it cannot sample a FluidScreen's
+    // GraphicsLayer. Keep the window translucent and add the same optical rim draw-only below;
+    // the live-backdrop path remains reserved for in-root overlays.
+    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
     contentColor = MaterialTheme.colorScheme.onSurface,
     scrimColor = Color.Black.copy(alpha = 0.42f),
     tonalElevation = 0.dp,
@@ -80,7 +84,11 @@ fun FluidSheet(
     },
     contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
   ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .glassControlSurface(shape = sheetShape),
+    ) {
       if (title != null) {
         Text(
           text = title,
@@ -176,6 +184,7 @@ fun FluidAlert(
     onDismissRequest = onDismissRequest,
     properties = DialogProperties(usePlatformDefaultWidth = false),
   ) {
+    val alertShape = ContinuousCornerShape(FluidRadius.Card)
     Column(
       modifier = modifier
         .graphicsLayer {
@@ -185,8 +194,11 @@ fun FluidAlert(
         }
         .widthIn(max = 280.dp)
         .heightIn(max = windowHeight * AlertMaxHeightFraction)
-        .clip(ContinuousCornerShape(FluidRadius.Card))
-        .background(scheme.surfaceContainerHigh),
+        .clip(alertShape)
+        // Dialog is another platform window: use the optical fallback rather than pretending the
+        // screen's live sample can cross that boundary.
+        .background(scheme.surfaceContainerHigh.copy(alpha = 0.92f))
+        .glassControlSurface(shape = alertShape),
     ) {
       Column(
         modifier = Modifier

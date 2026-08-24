@@ -14,6 +14,46 @@
 
 **5. Il movimento è un vocabolario, non un effetto.** Tutto passa da `FluidMotion` (molle) e `FluidMotionScheme` (che le passa anche ai componenti Material). Una pagina in arrivo non sfuma mai: le transizioni di rotta sono opache e laterali, così non ci sono mai due pagine leggibili sovrapposte. `FluidMotionPolicy` spegne il movimento decorativo quando la scala di animazione di sistema è a zero — va rispettata, non aggirata.
 
+## Fluid Glass: dove vive e dove no
+
+Il vetro è **chrome**, non il materiale universale dell'app. Si usa soltanto per qualcosa che viene
+disegnato sopra altro contenuto: barra superiore, tab bar/rail, azioni della barra, notifica globale,
+indice laterale, sheet e alert. Hero, card, gruppi lista, campi, chip, segmentati e pulsanti dentro la
+pagina restano superfici normali. Se una cosa scorre insieme alla pagina, non è vetro.
+
+`GlassMaterial` separa tre strati:
+
+- il backdrop, registrato una volta e sfocato nelle sole regioni richieste;
+- l'ottica del bordo (`GlassRole.Bar / Floating / Interactive / Modal`), con rifrazione, doppio rim,
+  highlight direzionale e ombra interna;
+- le lenti annidate draw-only (`glassControlSurface`, `FluidGlassIconButton`), che riusano il blur
+  del genitore invece di creare due layer per ogni icona.
+
+Su Android 13+ il bordo sposta davvero il campione con AGSL; Android 12/12L usa il campione
+ingrandito nel rim; sotto Android 12 resta una tinta quasi opaca con la stessa gerarchia di bordi.
+Il fallback è deliberato e leggibile, non una trasparenza senza blur chiamata vetro.
+
+Una superficie deve essere disegnata **dopo** il body che campiona. Per gli overlay appartenenti a
+una schermata usare lo slot dedicato:
+
+```kotlin
+FluidScreen(
+  title = "Archivio",
+  overlay = { backdrop ->
+    FluidSectionIndex(
+      sections = sections,
+      activeSectionKey = active,
+      onSelectSection = onSelect,
+      backdrop = backdrop,
+      modifier = Modifier.align(Alignment.CenterEnd),
+    )
+  },
+) { /* contenuto solido della LazyColumn */ }
+```
+
+Mettere un `glassSurface` dentro la `LazyColumn` registrata significa far campionare il materiale da
+se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarlo solido.
+
 ## Cosa c'è dentro
 
 **Struttura di una schermata**
@@ -21,6 +61,7 @@
 | | |
 |---|---|
 | `FluidScreen` | la schermata: titolo grande dentro lo scroll, barra di vetro che appare solo quando il titolo passa sotto |
+| `FluidScreen.overlay` | chrome flottante disegnato dopo il body, con il `GlassBackdropState` corretto per quella destinazione |
 | `FluidScreenSurface` | lo sfondo della finestra |
 | `FluidTabBar`, `FluidTabRail` | navigazione principale a pillola |
 | `FluidSheet`, `FluidAlert`, `FluidGrabber` | fogli modali e avvisi |
@@ -42,11 +83,11 @@
 
 **Controlli**
 
-`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch`, `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`.
+`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch`, `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassIconButton`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`.
 
 **Token**
 
-`FluidRadius` (Small 10, Control 12, Card 18, Group 22, Sheet 38), `FluidCapsuleShape`, `FluidTextStyles` (`uppercaseCaption`, `numeric`, `largeNumeric` con cifre tabulari), `FluidTone` (Primary/Success/Warning/Danger/Info/Neutral), `GlassDefaults` per il materiale traslucido.
+`FluidRadius` (Small 10, Control 12, Card 18, Group 22, Sheet 38), `FluidCapsuleShape`, `FluidTextStyles` (`uppercaseCaption`, `numeric`, `largeNumeric` con cifre tabulari), `FluidTone` (Primary/Success/Warning/Danger/Info/Neutral), `GlassDefaults`, `GlassOptics` e `GlassRole` per il materiale traslucido.
 
 ## Regole per chi scrive codice nuovo
 

@@ -21,7 +21,7 @@ Questo documento è il piano per arrivare ai **componenti**, e lo stato di ogni 
 | ClasseViva Expressive | ✅ | ✅ | li aveva gia': la migrazione ha tolto la copia locale |
 | universal_converter | ✅ | ✅ | `FluidScreen` su principale, impostazioni e log |
 | Pampa widgets | ✅ | ✅ | `FluidScreen` + `FluidTabBar` in vetro |
-| Pampa Store | ✅ | ◐ | porto: liste raggruppate e bordo elastico. Manca il vetro |
+| Pampa Store | ✅ | ✅ | Android Compose nativo: `FluidScreen`, tab bar/rail, componenti e vetro condivisi |
 | KeyVoice | — | — | e' tutta View: prendere i componenti significa riscriverla in Compose |
 
 ---
@@ -70,24 +70,16 @@ altro guardate una per una. Si vede identica a prima — che era il risultato at
 
 ---
 
-## Fase 2 — Pampa Store ◐ parziale (2026-08-24, porto alla 1.1.1)
+## Fase 2 — Pampa Store ✅ fatta (2026-08-24, Android + engine 1.2.x)
 
-**Fatto:** liste raggruppate (`FluidListGroup`, `FluidListRow`, `FluidListDivider`,
-`FluidSectionHeader`, la piastrella d'icona con i toni) e il **bordo elastico**, attaccato al
-catalogo, al dettaglio e alle impostazioni. Le impostazioni erano card con l'icona colorata
-nell'intestazione: ora sono intestazioni in maiuscolo sopra gruppi, con l'icona sulle righe.
+Il vecchio client Compose Multiplatform e' stato rimosso. Pampa Store e' ora un'app Android Compose
+nativa che include direttamente `engine-ui`: Home, Catalogo, Dettaglio e Altro usano `FluidScreen`,
+la navigazione adattiva usa `FluidTabBar`/`FluidTabRail`, e liste, controlli, motion e backdrop sono
+gli stessi di ClasseViva. Non esiste piu' un porto del look da riallineare a mano.
 
-Il bordo elastico e' una copia fedele e non un'approssimazione: il file dell'engine non ha una sola
-dipendenza da Android, e' matematica e `NestedScrollConnection`.
-
-**Non fatto, e va detto perche':** il **vetro**. Il suo effetto vero cattura quello che gli sta
-dietro e lo ridisegna sfocato; in Compose questo richiede `RenderEffect`, che e' Android. Servirebbe
-un `expect`/`actual` con il vero effetto in `androidMain` e una resa piatta sul desktop — che
-l'engine ha gia' come livello degradato per i dispositivi sotto l'API 31. Un vetro senza sfocatura
-non e' vetro: o si fa cosi', o non si chiama cosi'.
-
-**Nemmeno tentato:** il motion scheme espressivo, che nel Material 3 di Compose Multiplatform 1.7
-non esiste.
+Con Fluid Engine 1.3.0 il chrome passa al nuovo Fluid Glass ottico. Le azioni refresh della barra
+usano `FluidBarAction`; ricerca, filtri, hero, righe e pulsanti dentro le pagine restano solidi per
+scelta, non per migrazione incompleta.
 
 ---
 

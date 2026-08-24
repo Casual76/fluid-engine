@@ -21,22 +21,46 @@ disegnato sopra altro contenuto: barra superiore, tab bar/rail, azioni della bar
 indice laterale, sheet e alert. Hero, card, gruppi lista, campi, chip, segmentati e pulsanti dentro la
 pagina restano superfici normali. Se una cosa scorre insieme alla pagina, non è vetro.
 
-`GlassMaterial` separa tre strati:
+Dalla 1.4.0 l'ottica non è più nostra: la disegna la libreria `backdrop` di Kyant
+([AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass), Apache-2.0), copiata come
+sorgente in `ui/glass/backdrop/` — vedi `LICENSES/AndroidLiquidGlass.md`. `GlassMaterial` non
+disegna niente: decide **quanto** materiale riceve ogni tipo di superficie.
 
-- il backdrop, registrato una volta e sfocato nelle sole regioni richieste;
-- l'ottica del bordo (`GlassRole.Bar / Floating / Interactive / Modal`), con rifrazione, doppio rim,
-  highlight direzionale e ombra interna;
-- le lenti annidate draw-only (`glassControlSurface`, `FluidGlassIconButton`), che riusano il blur
-  del genitore invece di creare due layer per ogni icona.
+Un pannello, nell'ordine in cui lo vedono i pixel:
 
-Su Android 13+ il bordo sposta davvero il campione con AGSL; Android 12/12L usa il campione
-ingrandito nel rim; sotto Android 12 resta una tinta quasi opaca con la stessa gerarchia di bordi.
-Il fallback è deliberato e leggibile, non una trasparenza senza blur chiamata vetro.
+1. **cattura** — `glassBackdropSource` registra il corpo della schermata in un `GraphicsLayer`;
+   ogni pannello campiona la stessa registrazione, trasformata nelle proprie coordinate;
+2. **vividezza** — la saturazione sale sopra 1: il vetro concentra il colore che trasmette, e senza
+   questo passaggio un pannello sopra una foto sembra plastica grigia;
+3. **sfocatura** — molto più larga di prima (16 dp di riferimento) e per questo la **tinta è molto
+   più bassa**: la leggibilità si compra con il raggio, non con l'opacità;
+4. **lente** — un campo di distanza della forma stessa del pannello sposta il campione sempre di più
+   verso il bordo, così lo sfondo si *piega* dentro il perimetro. È il passaggio che mancava;
+5. **tinta, bordo speculare, ombre** — anello illuminato da un angolo, ombra interna che dà spessore,
+   ombra esterna che stacca dalla pagina.
 
-L'involucro delle superfici **live** uniformi è l'unica eccezione interna alla regola degli angoli
-continui: usa un rounded rectangle/capsule circolare, perché clip, distanza e normale dello shader
-devono descrivere esattamente lo stesso bordo. Tutte le superfici di pagina e le lenti draw-only
-restano `ContinuousCornerShape`; non è un permesso generale per reintrodurre angoli Material.
+`GlassOptics` descrive tutto questo in termini fisici: `refractionHeight` è quanto in profondità dal
+bordo si sente la piega, `refractionAmount` quanto lontano trascina il campione. `GlassRole` sceglie
+la ricetta: `Bar` (larga, quieta, senza ombra), `Floating` (la capsula di navigazione, trattamento
+completo), `Interactive` (quasi trasparente, lente al massimo, dispersione cromatica accesa),
+`Modal` (sfocatura profonda, smusso largo).
+
+I controlli non sono più lenti dipinte: `glassControlSurface` piega davvero, si inclina verso il
+dito con un `tanh`, si gonfia e si schiaccia sotto pressione e si illumina dove è stata toccata
+(additivo — una riflessione speculare *aggiunge* luce; scurire al tocco è il linguaggio dei bottoni
+di plastica). Un controllo che sta su una barra rifrange **la barra**, non la pagina: la barra
+esporta il proprio materiale con `exports`, e chi ci sta sopra lo compone con
+`rememberCombinedGlassBackdrop`. In pratica basta che la chrome fornisca `LocalGlassBackdrop`, cosa
+che `FluidScreen` fa da sola.
+
+Serve API 31 per sfocatura e vividezza, API 33 per la lente. Sotto la 31 `glassSurface` dipinge
+`GlassTint.fallback`: un materiale definito e quasi opaco, non una trasparenza rotta chiamata vetro.
+
+Vetro e resto dell'interfaccia usano finalmente **la stessa silhouette**. La vecchia eccezione — le
+superfici live dovevano usare angoli circolari perché lo shader del rim non sapeva descriverne
+altri — non esiste più: la lente legge i raggi da qualsiasi `CornerBasedShape`, quindi anche da
+`ContinuousCornerShape`, e il rettangolo nudo di una barra a tutta larghezza è gestito come forma a
+raggi zero.
 
 Una superficie deve essere disegnata **dopo** il body che campiona. Per gli overlay appartenenti a
 una schermata usare lo slot dedicato:

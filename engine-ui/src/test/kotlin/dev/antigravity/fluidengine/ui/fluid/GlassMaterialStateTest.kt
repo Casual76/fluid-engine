@@ -1,247 +1,107 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GlassMaterialStateTest {
 
   @Test
-  fun glassOptics_presetsGiveFloatingAndInteractiveSurfacesMoreDepthThanBars() {
+  fun glassOptics_presetsRunFromQuietChromeToAThickControl() {
     val bar = GlassDefaults.optics(GlassRole.Bar)
     val floating = GlassDefaults.optics(GlassRole.Floating)
     val interactive = GlassDefaults.optics(GlassRole.Interactive)
     val modal = GlassDefaults.optics(GlassRole.Modal)
 
-    assertTrue(floating.refractionStrength > bar.refractionStrength)
-    assertTrue(interactive.refractionStrength > floating.refractionStrength)
-    assertTrue(interactive.outerRimAlpha > floating.outerRimAlpha)
-    assertTrue(modal.refractionStrength > bar.refractionStrength)
-    assertTrue(modal.refractionStrength < interactive.refractionStrength)
+    // A control hides the least of anything on screen: it is too small to frost its background and
+    // still read as glass, so the bend at its edge has to do the identifying instead.
+    assertTrue(interactive.blurScale < bar.blurScale)
+    assertTrue(interactive.blurScale < modal.blurScale)
+    assertTrue(interactive.blurScale < floating.blurScale)
+    assertTrue(interactive.depthEffect)
+
+    // Displacement is bounded by the size of the thing displacing, not by how important it is. The
+    // control is the smallest surface here — 44 dp — so its absolute reach is the smallest too, and
+    // asserting the opposite is how it grew a coloured halo the first time round.
+    assertTrue(interactive.refractionAmount < floating.refractionAmount)
+
+    // A bar is a wide shallow sheet: it reaches far in and displaces gently, or the whole top of
+    // the screen swims while a list moves under it.
+    assertTrue(bar.refractionAmount < bar.refractionHeight)
+    assertFalse(bar.depthEffect)
+    assertFalse(bar.dispersion)
+
+    // Seven samples per pixel are only ever worth it on something small.
+    assertTrue(interactive.dispersion)
+    assertFalse(modal.dispersion)
+
+    // A sheet has to win an argument with a whole page behind it.
+    assertTrue(modal.blurScale > bar.blurScale)
+
+    // Only the surfaces that float carry a shadow; a bar is flush with the screen.
+    assertEquals(0f, bar.shadowAlpha, 0f)
+    assertTrue(floating.shadowAlpha > 0f)
+
+    // Every preset transmits more colour than it receives, or glass reads as grey plastic.
+    listOf(bar, floating, interactive, modal).forEach { assertTrue(it.vibrancy > 1f) }
   }
 
   @Test
-  fun glassOptics_sanitizedClampsMalformedCustomValuesAndNormalizesLight() {
+  fun glassOptics_pressOnlyDeepensTheSurfacesAFingerCanReach() {
+    assertEquals(0f, GlassDefaults.optics(GlassRole.Bar).pressedDepthBoost, 0f)
+    assertEquals(0f, GlassDefaults.optics(GlassRole.Modal).pressedDepthBoost, 0f)
+    assertTrue(GlassDefaults.optics(GlassRole.Interactive).pressedDepthBoost > 0f)
+    assertTrue(GlassDefaults.optics(GlassRole.Floating).pressedDepthBoost > 0f)
+  }
+
+  @Test
+  fun glassOptics_sanitizedCorrectsMalformedCustomValues() {
     val sanitized = GlassOptics(
-      refractionStrength = (-4).dp,
-      rimWidth = Float.NaN.dp,
-      outerRimAlpha = 4f,
-      innerRimAlpha = -2f,
-      innerShadowAlpha = Float.NaN,
-      specularAlpha = 1.4f,
-      magnification = 2f,
-      pressedDepthBoost = -1f,
-      lightDirection = Offset.Zero,
+      blurScale = Float.NaN,
+      refractionHeight = (-4).dp,
+      refractionAmount = Float.NaN.dp,
+      depthEffect = true,
+      dispersion = true,
+      vibrancy = Float.NaN,
+      highlightWidth = (-1).dp,
+      highlightAlpha = 4f,
+      highlightAngle = Float.NaN,
+      innerShadowRadius = (-2).dp,
+      innerShadowAlpha = -1f,
+      shadowRadius = Float.NEGATIVE_INFINITY.dp,
+      shadowAlpha = Float.NaN,
+      pressedDepthBoost = 9f,
     ).sanitized()
 
-    assertEquals(0.dp, sanitized.refractionStrength)
-    assertEquals(0.dp, sanitized.rimWidth)
-    assertEquals(1f, sanitized.outerRimAlpha, 0f)
-    assertEquals(0f, sanitized.innerRimAlpha, 0f)
+    assertEquals(0f, sanitized.blurScale, 0f)
+    assertEquals(0.dp, sanitized.refractionHeight)
+    assertEquals(0.dp, sanitized.refractionAmount)
+    assertEquals(1f, sanitized.vibrancy, 0f)
+    assertEquals(0.dp, sanitized.highlightWidth)
+    assertEquals(1f, sanitized.highlightAlpha, 0f)
+    assertEquals(45f, sanitized.highlightAngle, 0f)
+    assertEquals(0.dp, sanitized.innerShadowRadius)
     assertEquals(0f, sanitized.innerShadowAlpha, 0f)
-    assertEquals(1f, sanitized.specularAlpha, 0f)
-    assertEquals(0.08f, sanitized.magnification, 0f)
-    assertEquals(0f, sanitized.pressedDepthBoost, 0f)
-    assertEquals(1f, sanitized.lightDirection.getDistance(), 0.001f)
+    assertEquals(0.dp, sanitized.shadowRadius)
+    assertEquals(0f, sanitized.shadowAlpha, 0f)
+    assertEquals(2f, sanitized.pressedDepthBoost, 0f)
+  }
+
+  @Test
+  fun glassOptics_sanitizedIsIdentityOnEveryPreset() {
+    GlassRole.entries.forEach { role ->
+      val optics = GlassDefaults.optics(role)
+      assertEquals("$role was written outside the range the renderer honours", optics, optics.sanitized())
+    }
+  }
+
+  @Test
+  fun clampGlassUnit_treatsAMalformedIntensityAsAbsentRatherThanFull() {
     assertEquals(0f, clampGlassUnit(Float.NaN), 0f)
+    assertEquals(0f, clampGlassUnit(-3f), 0f)
     assertEquals(1f, clampGlassUnit(3f), 0f)
+    assertEquals(0.5f, clampGlassUnit(0.5f), 0f)
   }
-
-  @Test
-  fun glassCapability_selectsStaticMagnifiedAndRuntimeTiers() {
-    assertEquals(GlassRenderCapability.StaticRim, glassRenderCapability(30, true))
-    assertEquals(GlassRenderCapability.MagnifiedRim, glassRenderCapability(31, true))
-    assertEquals(GlassRenderCapability.MagnifiedRim, glassRenderCapability(32, true))
-    assertEquals(GlassRenderCapability.RuntimeRefraction, glassRenderCapability(33, true))
-    assertEquals(GlassRenderCapability.StaticRim, glassRenderCapability(36, false))
-  }
-
-  @Test
-  fun glassRecordingDemand_wakesEachNewPaneOnceWithoutSelfInvalidation() {
-    val firstPane = GlassRecordingDemand()
-    val secondPane = GlassRecordingDemand()
-
-    assertTrue(firstPane.request())
-    assertFalse(firstPane.request())
-    assertTrue(secondPane.request())
-
-    assertTrue(firstPane.consume(surfaceReady = true))
-    assertFalse(firstPane.request())
-    assertTrue(firstPane.consume(surfaceReady = true))
-    assertTrue(firstPane.consume(surfaceReady = true))
-    assertFalse(firstPane.consume(surfaceReady = true))
-    assertTrue(firstPane.request())
-  }
-
-  @Test
-  fun runtimeRefraction_usesOnlyUniformRoundedOutlinesAndSkipsFadeDown() {
-    val rounded = uniformRoundRect(radius = 12f)
-    val asymmetric = RoundRect(
-      left = 0f,
-      top = 0f,
-      right = 100f,
-      bottom = 60f,
-      topLeftCornerRadius = CornerRadius(12f, 12f),
-      topRightCornerRadius = CornerRadius(12f, 12f),
-      bottomRightCornerRadius = CornerRadius(20f, 20f),
-      bottomLeftCornerRadius = CornerRadius(12f, 12f),
-    )
-
-    assertEquals(12f, runtimeGlassCornerRadiusForRoundRectOrNull(rounded) ?: -1f, 0f)
-    assertNull(runtimeGlassCornerRadiusForRoundRectOrNull(asymmetric))
-    assertTrue(
-      shouldCreateGlassRuntimeRefraction(
-        requestedCapability = GlassRenderCapability.RuntimeRefraction,
-        perimeterOptics = true,
-        hasRefraction = true,
-        runtimeCornerRadius = 12f,
-      ),
-    )
-    assertFalse(
-      shouldCreateGlassRuntimeRefraction(
-        requestedCapability = GlassRenderCapability.RuntimeRefraction,
-        perimeterOptics = false,
-        hasRefraction = true,
-        runtimeCornerRadius = 12f,
-      ),
-    )
-    assertFalse(
-      shouldCreateGlassRuntimeRefraction(
-        requestedCapability = GlassRenderCapability.RuntimeRefraction,
-        perimeterOptics = true,
-        hasRefraction = true,
-        runtimeCornerRadius = null,
-      ),
-    )
-    assertEquals(
-      GlassRenderCapability.MagnifiedRim,
-      resolveGlassRenderCapability(
-        requestedCapability = GlassRenderCapability.RuntimeRefraction,
-        runtimeEligible = false,
-        runtimeAvailable = false,
-      ),
-    )
-    assertEquals(
-      GlassRenderCapability.RuntimeRefraction,
-      resolveGlassRenderCapability(
-        requestedCapability = GlassRenderCapability.RuntimeRefraction,
-        runtimeEligible = true,
-        runtimeAvailable = true,
-      ),
-    )
-  }
-
-  @Test
-  fun glassSamplePadding_includesMaximumPressedRefractionAndRimReach() {
-    val padding = calculateGlassSamplePadding(
-      blurRadiusPx = 1f,
-      refractionStrengthPx = 4f,
-      rimWidthPx = 2f,
-      pressedDepthBoost = 0.5f,
-    )
-
-    // max(blur 1 * 4, refraction 4 * 1.5 + two rim widths) = 10.
-    assertEquals(10f, padding, 0f)
-    val crop = calculateGlassSampleCrop(
-      sourceSize = IntSize(200, 200),
-      sourceOrigin = Offset.Zero,
-      surfaceOrigin = Offset(50f, 60f),
-      surfaceSize = IntSize(40, 30),
-      blurPaddingPx = padding,
-    )
-    assertEquals(40, crop?.left)
-    assertEquals(50, crop?.top)
-    assertEquals(60, crop?.width)
-    assertEquals(50, crop?.height)
-  }
-
-  @Test
-  fun nextGlassFrameTick_advancesAndWrapsWithoutRepeatingThePublishedValue() {
-    assertEquals(1, nextGlassFrameTick(0))
-    assertEquals(42, nextGlassFrameTick(41))
-    assertEquals(0, nextGlassFrameTick(Int.MAX_VALUE))
-  }
-
-  @Test
-  fun glassSampleCrop_keepsOnlyTopPaneAndFullBlurSupport() {
-    val crop = calculateGlassSampleCrop(
-      sourceSize = IntSize(1080, 2340),
-      sourceOrigin = Offset.Zero,
-      surfaceOrigin = Offset.Zero,
-      surfaceSize = IntSize(1080, 308),
-      blurPaddingPx = 72f,
-    )
-
-    assertNotNull(crop)
-    assertEquals(0, crop?.left)
-    assertEquals(0, crop?.top)
-    assertEquals(1080, crop?.width)
-    assertEquals(380, crop?.height)
-    assertEquals(Offset.Zero, crop?.offsetInSurface)
-  }
-
-  @Test
-  fun glassSampleCrop_clampsFloatingPaneToSourceWithoutChangingAlignment() {
-    val crop = calculateGlassSampleCrop(
-      sourceSize = IntSize(1080, 2340),
-      sourceOrigin = Offset.Zero,
-      surfaceOrigin = Offset(37f, 2151f),
-      surfaceSize = IntSize(1006, 168),
-      blurPaddingPx = 72f,
-    )
-
-    assertNotNull(crop)
-    assertEquals(0, crop?.left)
-    assertEquals(2079, crop?.top)
-    assertEquals(1080, crop?.width)
-    assertEquals(261, crop?.height)
-    assertEquals(Offset(-37f, -72f), crop?.offsetInSurface)
-  }
-
-  @Test
-  fun glassSampleCrop_preservesRootAlignmentWhenSourceStartsBelowSurface() {
-    val crop = calculateGlassSampleCrop(
-      sourceSize = IntSize(1080, 2000),
-      sourceOrigin = Offset(0f, 100f),
-      surfaceOrigin = Offset.Zero,
-      surfaceSize = IntSize(1080, 308),
-      blurPaddingPx = 72f,
-    )
-
-    assertNotNull(crop)
-    assertEquals(280, crop?.height)
-    assertEquals(Offset(0f, 100f), crop?.offsetInSurface)
-  }
-
-  @Test
-  fun glassSampleCrop_ignoresPaneOutsideSource() {
-    assertNull(
-      calculateGlassSampleCrop(
-        sourceSize = IntSize(1080, 2340),
-        sourceOrigin = Offset.Zero,
-        surfaceOrigin = Offset(0f, 2500f),
-        surfaceSize = IntSize(1080, 200),
-        blurPaddingPx = 72f,
-      ),
-    )
-  }
-
-  private fun uniformRoundRect(radius: Float): RoundRect = RoundRect(
-    left = 0f,
-    top = 0f,
-    right = 100f,
-    bottom = 60f,
-    topLeftCornerRadius = CornerRadius(radius, radius),
-    topRightCornerRadius = CornerRadius(radius, radius),
-    bottomRightCornerRadius = CornerRadius(radius, radius),
-    bottomLeftCornerRadius = CornerRadius(radius, radius),
-  )
 }

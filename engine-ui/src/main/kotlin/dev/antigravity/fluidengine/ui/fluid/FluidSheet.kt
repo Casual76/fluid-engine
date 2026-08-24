@@ -87,7 +87,7 @@ fun FluidSheet(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .glassControlSurface(shape = sheetShape),
+        .fluidStaticGlassSurface(shape = sheetShape),
     ) {
       if (title != null) {
         Text(
@@ -198,7 +198,7 @@ fun FluidAlert(
         // Dialog is another platform window: use the optical fallback rather than pretending the
         // screen's live sample can cross that boundary.
         .background(scheme.surfaceContainerHigh.copy(alpha = 0.92f))
-        .glassControlSurface(shape = alertShape),
+        .fluidStaticGlassSurface(shape = alertShape),
     ) {
       Column(
         modifier = Modifier

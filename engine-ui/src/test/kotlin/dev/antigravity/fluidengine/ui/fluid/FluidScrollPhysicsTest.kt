@@ -180,11 +180,15 @@ class FluidScrollPhysicsTest {
   }
 
   @Test
-  fun progressiveGlassCoverage_hasNoBinaryFirstFrame() {
-    val first = calculateProgressiveGlassCoverage(0.01f)
+  fun glassFadeDown_growsItsCoverageInsteadOfAppearingAtFullHeight() {
+    fun coverage(amount: Float): Float = fadeDownStops(amount)[2].first
+
+    val first = coverage(0.01f)
     assertTrue(first > 0f)
-    assertTrue(first < 0.001f)
-    assertEquals(0.5f, calculateProgressiveGlassCoverage(0.5f), 0.0001f)
-    assertEquals(1f, calculateProgressiveGlassCoverage(1f), 0f)
+    assertTrue(first < 0.05f)
+    assertEquals(0.5f, coverage(0.5f), 0.0001f)
+    assertEquals(1f, coverage(1f), 0f)
+    // The hold runs out before the ramp does, so the material always has a soft tail.
+    assertTrue(fadeDownStops(1f)[1].first < fadeDownStops(1f)[2].first)
   }
 }

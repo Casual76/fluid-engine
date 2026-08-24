@@ -1,0 +1,53 @@
+// The gallery.
+//
+// Not a demo for anyone outside: it is how a change to the design system gets *looked at* before it
+// reaches five apps. The glass this repo shipped before was tuned entirely in screenshots, which is
+// exactly the failure mode a material that only exists while a finger is on it will always produce.
+//
+// It is only built when the engine is opened on its own — a host app includes the engine-* modules
+// directly and never reads the engine's own settings.gradle.
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace 'dev.antigravity.fluidengine.sample'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.antigravity.fluidengine.sample'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName engine.version
+  }
+
+  buildTypes {
+    debug {
+      // Signed with the ordinary debug key, so it never collides with a real app on the device.
+      minifyEnabled false
+    }
+  }
+
+  buildFeatures {
+    compose true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  implementation project(':engine-ui')
+  implementation "androidx.activity:activity-compose:${engine.activityCompose}"
+}

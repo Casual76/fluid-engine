@@ -132,6 +132,43 @@ I widget Glance non usano ancora `engine-widget`: e' incluso e pronto.
 
 ---
 
+## Fase 6 — il vetro, rifatto (2026-08-24, engine 1.4.0)
+
+Non è una migrazione di un'app: è la sostituzione del materiale che tutte usano.
+
+**Cosa c'era.** Un'ottica scritta a mano che fingeva la rifrazione dipingendo gradienti in un bordo
+di due dp, e che per compensare alzava la tinta fino a 0.86 di opacità. Il risultato reggeva in uno
+screenshot e crollava in mano: nessuna piega dello sfondo, nessuna risposta al dito, controlli che
+erano pastiglie grigie con sopra un'icona.
+
+**Cosa c'è.** La libreria `backdrop` di Kyant ([AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass),
+Apache-2.0), copiata come sorgente in `engine-ui/.../ui/glass/`. Lente vera con campo di distanza
+della forma del pannello, dispersione cromatica, bordo speculare orientato, ombra interna. `GlassMaterial`
+non disegna più niente: sceglie quanta ottica riceve ogni ruolo. La tinta è scesa a un terzo e la
+sfocatura è raddoppiata — la leggibilità si compra con il raggio, non con l'opacità.
+
+**Cosa cambia per chi usa l'engine.** Le firme pubbliche (`rememberGlassBackdrop`,
+`glassBackdropSource`, `glassSurface`, `FluidTabBar`, `FluidBarAction`) sono le stesse. Cambia
+`GlassOptics`, che ora parla di altezza e quantità di rifrazione invece di larghezze di rim, e
+`glassControlSurface`, che vuole il backdrop da rifrangere. Nessuna app le usava direttamente.
+
+**Il pezzo che si sbaglia.** Un controllo appoggiato a una barra deve rifrangere la barra. Passargli
+la pagina ci apre dentro un buco — ci siamo passati, si vede benissimo. Chrome espone
+`LocalGlassBackdrop` già composto; usarlo.
+
+**Come si guarda.** `sample/` è la galleria: si compila da `./gradlew.bat :sample:assembleDebug`
+dentro il repo dell'engine e mostra ogni superficie sopra riquadri saturi a righe. Esiste perché il
+vetro precedente è stato messo a punto interamente su screenshot, ed è precisamente il modo di
+sbagliare che un materiale visibile solo mentre lo tocchi produrrà sempre.
+
+**Crediti.** Vetro di Kyant, Apache-2.0 — `LICENSES/AndroidLiquidGlass.md`. La strada l'abbiamo
+imparata da [Square](https://github.com/Lelonio/Square) di @Lelonio. `fluidLicensesSection()` mette
+l'elenco nella pagina "informazioni" di ogni app: l'avviso Apache deve viaggiare con l'APK, non
+restare in un Markdown nel repo. **Ogni app che aggiorna all'engine 1.4.0 deve aggiungere quella
+sezione.**
+
+---
+
 ## Regole che valgono per ogni fase
 
 - **La firma di release è `C:\VibeCoded Projects\pampa.jks`, alias `pampa`**, per tutte le app —

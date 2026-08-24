@@ -2,7 +2,6 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.shape.RoundedCornerShape as CircularRoundedCornerShape
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -121,15 +120,16 @@ val FluidCapsuleShape: Shape =
   ContinuousCornerShape(CornerSize(50), CornerSize(50), CornerSize(50), CornerSize(50))
 
 /**
- * Circular envelopes reserved for live refractive glass.
+ * Kept as an alias so nothing has to remember which shapes glass is allowed to take.
  *
- * The AGSL signed-distance field can follow circular rounded rectangles exactly. Ordinary controls
- * keep the design system's continuous corners; live glass uses this physical edge so the displaced
- * backdrop, the optical band and the clip are the same geometry instead of an approximation.
+ * There used to be a real distinction here: the old rim shader only understood circular corners, so
+ * anything refractive had to give up the design system's continuous ones. The lens reads corner radii
+ * off any `CornerBasedShape` now and its gradient is smoothed well past the corner, so glass and
+ * everything else finally use the same silhouette.
  */
-internal val FluidGlassCapsuleShape: Shape = CircularRoundedCornerShape(percent = 50)
+internal val FluidGlassCapsuleShape: Shape get() = FluidCapsuleShape
 
-internal fun FluidGlassRoundedShape(radius: Dp): Shape = CircularRoundedCornerShape(radius)
+internal fun FluidGlassRoundedShape(radius: Dp): Shape = ContinuousCornerShape(radius)
 
 private val Right = Offset(1f, 0f)
 private val Down = Offset(0f, 1f)
@@ -151,11 +151,19 @@ private fun Path.continuousCorner(
   smoothing: Float,
   moveTo: Boolean = false,
 ) {
-  val s = smoothing.coerceIn(0f, 1f)
-  // The corner consumes (1 + s) * r of each edge, so the radius has to give way before two adjacent
-  // corners would overlap — otherwise a short pill folds in on itself.
+  // The corner consumes (1 + s) * r of each edge and only half the shorter side is available, so
+  // something has to give before two adjacent corners overlap. It has to be the *smoothing*, not the
+  // radius: clamping the radius instead — which is what this did — meant a 50% corner could only
+  // ever reach 62.5% of the half-side, so a capsule came out as a squircle and every pill in the
+  // interface had visibly flat ends. Smoothing runs out exactly when the corner becomes a true
+  // semicircle, which is the same thing Apple's own capsule does.
   val budget = size.minDimension / 2f
-  val radius = min(requestedRadius, budget / (1f + s)).coerceAtLeast(0f)
+  val radius = min(requestedRadius, budget).coerceAtLeast(0f)
+  val s = if (radius <= 0f) {
+    0f
+  } else {
+    smoothing.coerceIn(0f, 1f).coerceAtMost((budget / radius - 1f).coerceAtLeast(0f))
+  }
 
   val start = corner - incoming * ((1f + s) * radius)
   if (moveTo) moveTo(start.x, start.y) else lineTo(start.x, start.y)

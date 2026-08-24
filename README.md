@@ -99,6 +99,25 @@ sdk.dir=C\:\\Android\\Sdk
 
 Vedi `ENGINE_VERSION` e `CHANGELOG.md`. La stessa stringa è compilata in `EngineBuild.VERSION`: è quella che il manifest remoto confronta per decidere se una build è troppo vecchia. `tools/engine-doctor.ps1` verifica che le due non divergano.
 
-## Font
+## Crediti e licenze di terze parti
 
-`engine-ui` include Inter (Rasmus Andersson) sotto SIL Open Font License 1.1 — vedi `LICENSES/Inter.md`. Il file di licenza va distribuito insieme all'app.
+`engine-ui` distribuisce dentro l'APK due opere di altri, e le rispettive licenze chiedono che
+l'avviso viaggi con la distribuzione. `FluidEngineLicenses` e `fluidLicensesSection()` mettono
+l'elenco nella schermata "informazioni" di ogni app senza doverlo riscrivere cinque volte.
+
+| | | |
+|---|---|---|
+| [AndroidLiquidGlass (`backdrop`)](https://github.com/Kyant0/AndroidLiquidGlass) | Kyant, Copyright 2025 | Apache-2.0 — [`LICENSES/AndroidLiquidGlass.md`](LICENSES/AndroidLiquidGlass.md) |
+| [Inter](https://github.com/rsms/inter) | Rasmus Andersson | SIL OFL 1.1 — [`LICENSES/Inter.md`](LICENSES/Inter.md) |
+
+**Il vetro è di Kyant.** Tutta la rifrazione del Fluid Glass — cattura dello sfondo, lente, bordo
+speculare, spessore — è la sua libreria `backdrop`, copiata come sorgente in
+`engine-ui/.../ui/glass/backdrop/`. Il perché della copia, e l'elenco completo delle modifiche, sono
+nel file di licenza.
+
+Che quella fosse la strada giusta l'abbiamo capito guardando
+**[Square](https://github.com/Lelonio/Square)** di [@Lelonio](https://github.com/Lelonio): un client
+musicale Android costruito interamente su quel vetro, e la prima implementazione convincente di
+Liquid Glass su Android che avessimo visto. Da Square non abbiamo preso codice — è GPL-3.0, e il suo
+vetro è la stessa libreria Apache-2.0 che abbiamo preso direttamente da monte — ma il debito è reale
+ed è giusto scriverlo.

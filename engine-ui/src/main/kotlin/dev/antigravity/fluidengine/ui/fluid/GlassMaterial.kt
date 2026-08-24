@@ -1,203 +1,136 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import android.os.Build
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.layer.GraphicsLayer
-import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.sqrt
-import kotlin.math.roundToInt
+import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.emptyBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
+import dev.antigravity.fluidengine.ui.glass.backdrop.effects.colorControls
+import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
+import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
+import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.HighlightStyle
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
+import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 
 /**
- * Backdrop blur — the frosted material that lets bars float over live content instead of cutting it
- * off with an opaque strip.
+ * Fluid Glass — a real refracting material, not a translucent rectangle.
  *
- * Compose has no `backdrop-filter`, so the effect is assembled by hand:
+ * The optics are done by the vendored `backdrop` renderer in
+ * [dev.antigravity.fluidengine.ui.glass.backdrop] (Kyant0/AndroidLiquidGlass, Apache-2.0; see
+ * `LICENSES/AndroidLiquidGlass.md`). This file is the engine's opinion about *how much* of it each
+ * kind of surface gets, and nothing else: no shader of ours competes with it.
  *
- *  1. [glassBackdropSource] records the scrolling content into an offscreen [GraphicsLayer] instead
- *     of drawing it straight to the canvas, then draws that layer — so the content still appears,
- *     unchanged.
- *  2. For each active pane, the same pass re-records only the pane-sized slice into two layers
- *     carrying [BlurEffect]s of different strength. Those are the blurred pixels behind that pane.
- *  3. [glassSurface] draws the slice of the snapshot that sits underneath it, translated so the
- *     sampled pixels line up with what is really behind the bar, and tints the result.
+ * What the material actually does, in the order the pixels see it:
  *
- * Two blurred copies rather than one, because material strength must travel without fading a blurry
- * text contour directly over a sharp one. The soft copy first replaces the sampled pixels, then the
- * heavy copy takes over as the bar materialises. That changes radius instead of manufacturing the
- * double contour that reads as noise while a list is moving.
+ *  1. **Capture.** [glassBackdropSource] records the screen's body into a `GraphicsLayer`. Every
+ *     pane of glass on that screen samples the same recording, transformed into its own coordinates,
+ *     so a bar and a button hold the *same* image rather than two independent screenshots.
+ *  2. **Vibrancy.** Saturation is pushed past 1. Glass concentrates the colour it transmits, and
+ *     without this step a pane over a photograph reads as grey plastic.
+ *  3. **Blur.** The frosting. Kept lighter than the old implementation on purpose — the previous
+ *     glass compensated for having no real refraction by nearly hiding what was behind it.
+ *  4. **Lens.** A signed-distance field of the pane's own shape drives a displacement that grows
+ *     towards the edge, so the backdrop *bends* into the perimeter the way a thick edge bends light.
+ *     This is the step the old implementation only faked in a 2 dp rim, and its absence is why every
+ *     control looked flat.
+ *  5. **Tint, highlight, shadows.** A specular ring lit from one angle, an inner shadow that gives
+ *     the pane thickness, and a drop shadow that lifts it off the page.
  *
- * The snapshot trails the content by one frame: the source writes [GlassBackdropState.frameTick]
- * during its draw and the glass nodes read it during theirs. At 120 Hz that is 8 ms of lag on a
- * heavily blurred image — imperceptible, and the trade-off every backdrop implementation on Android
- * makes.
+ * Steps 2–4 need `RenderEffect` (API 31) and AGSL (API 33). Below those the material degrades on its
+ * own: API 31–32 keeps blur and vibrancy and loses the lens, and below API 31 [glassSurface] paints
+ * [GlassTint.fallback] — a defined, near-opaque material rather than a broken one.
  *
- * `RenderEffect` needs API 31. Below that [GlassBackdropState.blurSupported] is false and the glass
- * degrades to a near-opaque tint, which still reads as a deliberate material rather than as a bug.
+ * The API is the same one the engine has always exposed — [rememberGlassBackdrop],
+ * [glassBackdropSource], [glassSurface] — so screens do not change. [GlassOptics] did change: its
+ * vocabulary is now the physical one (how deep the lens reaches, how far it displaces) instead of
+ * the rim-painting one, because there is no rim being painted any more.
  */
 @Stable
 class GlassBackdropState internal constructor(
-  internal val sourceLayer: GraphicsLayer,
-  internal val blurRadius: Dp,
-) {
-  /** Bumped on every source draw so glass surfaces know the snapshot changed. */
-  internal val frameTick = mutableIntStateOf(0)
-
+  internal val backdrop: Backdrop,
   /**
-   * Deliberately plain state. Reading [frameTick] inside the source draw would subscribe the source
-   * to its own invalidation signal and keep all active backdrop layers redrawing forever.
-   */
-  private var publishedFrameTick = 0
-
-  internal var sourceOrigin by mutableStateOf(Offset.Zero)
-
-  private val surfaces = LinkedHashSet<GlassSurfaceAnchor>()
-  private val requestedSurfaces = ArrayList<GlassSurfaceAnchor>(2)
-
-  /**
-   * Observable wake-up signal for the source.
+   * The layer this state records into, when it has one.
    *
-   * A boolean cannot distinguish a newly visible pane from one that is already being sampled. The
-   * generation advances only when an individual pane has no recording credit left, so every new
-   * pane gets a first snapshot while an already active pane cannot invalidate the source forever.
+   * Null for a state assembled out of other states by [rememberCombinedGlassBackdrop]: that one has
+   * nothing of its own to record, it only says which recordings to stack and in what order.
    */
-  internal val requestGeneration = mutableIntStateOf(0)
-  private var publishedRequestGeneration = 0
+  internal val layerBackdrop: LayerBackdrop?,
+  /** Depth of the frosting, before each role's own multiplier. */
+  val blurRadius: Dp,
+) {
 
-  internal fun registerSurface(surface: GlassSurfaceAnchor) {
-    surfaces += surface
-  }
+  /** False below API 31: no `RenderEffect`, so surfaces fall back to a solid material. */
+  val supported: Boolean get() = isRenderEffectSupported()
 
-  internal fun unregisterSurface(surface: GlassSurfaceAnchor) {
-    surfaces -= surface
-  }
-
-  /** Called by a pane of glass that is about to draw, before it samples anything. */
-  internal fun requestSample(surface: GlassSurfaceAnchor) {
-    if (surface.requestRecording()) {
-      publishedRequestGeneration = nextGlassFrameTick(publishedRequestGeneration)
-      requestGeneration.intValue = publishedRequestGeneration
-    }
-  }
-
-  /**
-   * Whether this frame has to be recorded. Credit outlives a single frame so that a surface which
-   * samples *after* the source has drawn still finds a snapshot no more than one frame stale.
-   */
-  internal fun consumeRequestedSurfaces(): List<GlassSurfaceAnchor> {
-    requestedSurfaces.clear()
-    surfaces.forEach { surface ->
-      if (surface.consumeRecordingCredit()) requestedSurfaces += surface
-    }
-    return requestedSurfaces
-  }
-
-  internal val blurSupported: Boolean
-    get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-
-  /** Publishes one real source redraw without ever reading observable state from that draw pass. */
-  internal fun publishSourceDraw(surfaces: List<GlassSurfaceAnchor>) {
-    surfaces.forEach(GlassSurfaceAnchor::publishSnapshot)
-    publishedFrameTick = nextGlassFrameTick(publishedFrameTick)
-    frameTick.intValue = publishedFrameTick
-  }
+  /** False below API 33: blur and vibrancy still work, the lens does not. */
+  val refractionSupported: Boolean get() = isRuntimeShaderSupported()
 }
-
-internal fun nextGlassFrameTick(current: Int): Int = if (current == Int.MAX_VALUE) 0 else current + 1
 
 /**
- * How many frames one sample request keeps the source recording.
+ * Reference depth of the frosting.
  *
- * Two, not one: a pane of glass draws after the body it samples, so a request made this frame can
- * only be honoured by the next one, and a single frame of credit would leave the material flickering
- * between a fresh and a frozen snapshot every time it is on.
+ * Deliberately far heavier than the 8 dp the previous implementation used. A wider kernel is what
+ * lets the *tint* come down — and it is the tint, not the blur, that was making the old glass look
+ * like a sheet of painted plastic. Legibility is bought with radius here, not with opacity.
  */
-private const val SampleCreditFrames = 2
-
-/** Pure credit gate behind one glass pane's recording demand. */
-internal class GlassRecordingDemand(
-  private val creditFrames: Int = SampleCreditFrames,
-) {
-  init {
-    require(creditFrames > 0)
-  }
-
-  private var recordingCredit = 0
-
-  /** Returns true only when the source must be explicitly woken for this pane. */
-  fun request(): Boolean {
-    val needsSourceWakeUp = recordingCredit == 0
-    recordingCredit = creditFrames
-    return needsSourceWakeUp
-  }
-
-  fun consume(surfaceReady: Boolean): Boolean {
-    if (recordingCredit <= 0) return false
-    recordingCredit--
-    return surfaceReady
-  }
-}
-
-/** Restrained blur; 8 dp is still about 22 physical pixels on the 120 Hz QA phone. */
-val DefaultGlassBlurRadius: Dp = 8.dp
-
-/** The light end of the ramp. It is intentionally subtle when material first crosses the dead zone. */
-private val SoftBlurFraction = 0.20f
-
-/** Four Gaussian radii keep the cropped-edge contribution below one 8-bit channel step. */
-private const val BlurCropPaddingMultiplier = 4f
-
-/** At this point the remaining alpha difference is below one 8-bit channel step. */
-private const val SteadyGlassThreshold = 0.999f
+val DefaultGlassBlurRadius: Dp = 16.dp
 
 @Composable
 fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState {
-  val sourceLayer = rememberGraphicsLayer()
-  return remember(sourceLayer, blurRadius) {
-    GlassBackdropState(sourceLayer, blurRadius)
+  val layerBackdrop = rememberLayerBackdrop()
+  return remember(layerBackdrop, blurRadius) {
+    GlassBackdropState(layerBackdrop, layerBackdrop, blurRadius)
   }
+}
+
+/**
+ * Stacks two backdrops into one, back to front.
+ *
+ * This is what lets glass sit on glass and still be honest. A control on a floating bar has to
+ * refract the *bar* — its material, its tint, the icons printed on it — and not the page three
+ * layers down; combining the page's recording with the bar's own gives the control exactly the image
+ * a real lens resting on that bar would find.
+ */
+@Composable
+fun rememberCombinedGlassBackdrop(
+  behind: GlassBackdropState,
+  inFront: GlassBackdropState,
+  blurRadius: Dp = inFront.blurRadius,
+): GlassBackdropState {
+  val combined = rememberCombinedBackdrop(behind.backdrop, inFront.backdrop)
+  return remember(combined, blurRadius) { GlassBackdropState(combined, null, blurRadius) }
 }
 
 /**
@@ -205,42 +138,45 @@ fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdro
  *
  * Apply this to the scrolling body of a screen and never to the whole screen, otherwise the bars end
  * up sampling themselves. The body must also paint its own opaque background *inside* the recorded
- * region: a snapshot of text on transparency blurs into a faint smear that the sharp original still
+ * region: a recording of text on transparency refracts into a smear that the sharp original still
  * shows through.
  */
-fun Modifier.glassBackdropSource(state: GlassBackdropState): Modifier = this
-  .onGloballyPositioned { state.sourceOrigin = it.positionInRoot() }
-  .drawWithCache {
-    onDrawWithContent {
-      // Subscribes this draw node to the demand flag, so a pane of glass switching on invalidates
-      // the source even when the content itself is perfectly still.
-      state.requestGeneration.intValue
-      val requestedSurfaces = state.consumeRequestedSurfaces()
-      if (requestedSurfaces.isEmpty()) {
-        // Nothing is sampling this backdrop, so there is nothing to snapshot for. Draw the content
-        // straight to the canvas and skip the source recording and every cropped blur pass.
-        drawContent()
-        return@onDrawWithContent
-      }
-      state.sourceLayer.record { this@onDrawWithContent.drawContent() }
-      drawLayer(state.sourceLayer)
-      if (state.blurSupported) {
-        requestedSurfaces.forEach { surface ->
-          recordCroppedGlassLayers(
-            sourceLayer = state.sourceLayer,
-            sourceOrigin = state.sourceOrigin,
-            surface = surface,
-          )
-        }
-      }
-      state.publishSourceDraw(requestedSurfaces)
-    }
-  }
+fun Modifier.glassBackdropSource(state: GlassBackdropState): Modifier {
+  // A combined state has no layer of its own; the states it was built from record theirs.
+  val layer = state.layerBackdrop ?: return this
+  return this.layerBackdrop(layer)
+}
+
+/**
+ * The pane of glass the controls in this subtree should refract.
+ *
+ * Chrome provides it around its own action slot, so a `FluidBarAction` an app drops into a top bar
+ * bends *that bar* without the app ever having to hold a backdrop or pass one down. Null means there
+ * is no live material in scope — a plain page, a dialog in its own window — and controls then draw
+ * their rim and their touch response without a backdrop to bend.
+ */
+val LocalGlassBackdrop = compositionLocalOf<GlassBackdropState?> { null }
+
+/**
+ * A backdrop with nothing in it.
+ *
+ * Not a failure case: a control over ordinary opaque content genuinely has nothing to refract, and
+ * this lets it keep its rim, its highlight and its whole gesture response instead of needing a
+ * second component to exist for that situation.
+ */
+@Composable
+fun rememberEmptyGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState =
+  remember(blurRadius) { GlassBackdropState(emptyBackdrop(), null, blurRadius) }
+
+/** The backdrop a control should use unless its caller names a different one. */
+@Composable
+fun currentGlassBackdrop(): GlassBackdropState =
+  LocalGlassBackdrop.current ?: rememberEmptyGlassBackdrop()
 
 /** Colour treatment of a glass surface. */
 @Immutable
 data class GlassTint(
-  /** Painted over the blurred backdrop when blur is available. */
+  /** Painted over the refracted backdrop. Keep it low: the material is meant to transmit. */
   val overlay: Color,
   /** Used instead of the backdrop on devices without `RenderEffect`. */
   val fallback: Color,
@@ -264,96 +200,47 @@ enum class GlassRole {
 }
 
 /**
- * Optical treatment layered over the existing blur and tint.
+ * How thick the glass is, physically.
  *
- * Values describe the material at full [glassSurface] optical depth. The modifier clamps malformed
- * custom values, and press feedback is a draw-time multiplier: it never allocates another blurred
- * layer or re-records a different backdrop.
+ * Every distance is in `Dp` and describes the *edge*, because that is where glass does its work:
+ * [refractionHeight] is how far in from the perimeter the bending is still felt, and
+ * [refractionAmount] is how far the backdrop is dragged along the surface normal at the very edge.
+ * A tall height with a small amount is a gentle dome; a short height with a large amount is a sharp
+ * bevel. Apple's controls sit near height == amount.
  */
 @Immutable
 data class GlassOptics(
-  val refractionStrength: Dp,
-  val rimWidth: Dp,
-  val outerRimAlpha: Float,
-  val innerRimAlpha: Float,
+  /** Multiplies [GlassBackdropState.blurRadius]. Interactive glass is nearly clear. */
+  val blurScale: Float,
+  val refractionHeight: Dp,
+  val refractionAmount: Dp,
+  /**
+   * Adds a centre-directed term to the surface normal, turning a bevelled edge into a whole dome.
+   * Right for a small control the eye reads as a lens; wrong for a wide bar, where it would make the
+   * middle of the screen swim.
+   */
+  val depthEffect: Boolean,
+  /**
+   * Splits the refracted sample into seven wavelengths. Only ever correct on a small, thick,
+   * moving surface: on a large one it costs seven taps per pixel and reads as a colour fringe.
+   */
+  val dispersion: Boolean,
+  /** Saturation multiplier applied to the transmitted image. 1 = off. */
+  val vibrancy: Float,
+  /** Specular ring drawn along the perimeter. */
+  val highlightWidth: Dp,
+  val highlightAlpha: Float,
+  /** Degrees, clockwise from the positive x axis: where the light is coming from. */
+  val highlightAngle: Float,
+  /** Inner shadow: the pane's own thickness, seen from inside. */
+  val innerShadowRadius: Dp,
   val innerShadowAlpha: Float,
-  val specularAlpha: Float,
-  val magnification: Float,
+  /** Drop shadow: how far off the page the pane sits. */
+  val shadowRadius: Dp,
+  val shadowAlpha: Float,
+  /** Extra displacement while a finger is down, as a fraction of [refractionAmount]. */
   val pressedDepthBoost: Float,
-  /** Unit-like vector pointing toward the light; malformed vectors fall back to top-left. */
-  val lightDirection: Offset = Offset(-0.64f, -0.77f),
 )
-
-/** Rendering tier selected without touching classes that do not exist on an older Android release. */
-internal enum class GlassRenderCapability {
-  /** Tint and static optical strokes only. */
-  StaticRim,
-
-  /** Real backdrop blur plus a magnified raw sample in the rim. */
-  MagnifiedRim,
-
-  /** Android 13 AGSL displacement over the raw rim sample. */
-  RuntimeRefraction,
-}
-
-internal fun glassRenderCapability(
-  apiLevel: Int,
-  hardwareAccelerated: Boolean,
-): GlassRenderCapability = when {
-  !hardwareAccelerated || apiLevel < Build.VERSION_CODES.S -> GlassRenderCapability.StaticRim
-  apiLevel < Build.VERSION_CODES.TIRAMISU -> GlassRenderCapability.MagnifiedRim
-  else -> GlassRenderCapability.RuntimeRefraction
-}
-
-/**
- * Returns the exact circular radius understood by the rounded-box AGSL, or null for shapes whose
- * outline the shader cannot faithfully describe.
- */
-internal fun runtimeGlassCornerRadiusOrNull(outline: Outline): Float? =
-  (outline as? Outline.Rounded)?.roundRect?.let(::runtimeGlassCornerRadiusForRoundRectOrNull)
-
-internal fun runtimeGlassCornerRadiusForRoundRectOrNull(roundRect: RoundRect): Float? {
-  val corners = arrayOf(
-    roundRect.topLeftCornerRadius,
-    roundRect.topRightCornerRadius,
-    roundRect.bottomRightCornerRadius,
-    roundRect.bottomLeftCornerRadius,
-  )
-  val radius = corners.first().x
-  if (!radius.isFinite() || radius < 0f) return null
-  return radius.takeIf {
-    corners.all { corner ->
-      corner.x.isFinite() && corner.y.isFinite() &&
-        abs(corner.x - radius) <= GlassRadiusTolerancePx &&
-        abs(corner.y - radius) <= GlassRadiusTolerancePx
-    }
-  }
-}
-
-internal fun shouldCreateGlassRuntimeRefraction(
-  requestedCapability: GlassRenderCapability,
-  perimeterOptics: Boolean,
-  hasRefraction: Boolean,
-  runtimeCornerRadius: Float?,
-): Boolean = requestedCapability == GlassRenderCapability.RuntimeRefraction &&
-  perimeterOptics &&
-  hasRefraction &&
-  runtimeCornerRadius != null
-
-internal fun resolveGlassRenderCapability(
-  requestedCapability: GlassRenderCapability,
-  runtimeEligible: Boolean,
-  runtimeAvailable: Boolean,
-): GlassRenderCapability = if (
-  requestedCapability == GlassRenderCapability.RuntimeRefraction &&
-  (!runtimeEligible || !runtimeAvailable)
-) {
-  GlassRenderCapability.MagnifiedRim
-} else {
-  requestedCapability
-}
-
-private const val GlassRadiusTolerancePx = 0.01f
 
 internal fun clampGlassUnit(value: Float): Float =
   if (value.isFinite()) value.coerceIn(0f, 1f) else 0f
@@ -361,98 +248,129 @@ internal fun clampGlassUnit(value: Float): Float =
 private fun finiteNonNegative(value: Float): Float =
   if (value.isFinite()) value.coerceAtLeast(0f) else 0f
 
-internal fun GlassOptics.sanitized(): GlassOptics {
-  val requestedDirectionLength = sqrt(
-    lightDirection.x * lightDirection.x + lightDirection.y * lightDirection.y,
-  )
-  val directionSource = if (
-    requestedDirectionLength.isFinite() && requestedDirectionLength > 0.001f
-  ) {
-    lightDirection
+/**
+ * Clamps a hand-written [GlassOptics] into the range the renderer can honour.
+ *
+ * A negative refraction height makes the lens shader sample outside its own input and a NaN alpha
+ * poisons a whole `RenderEffect` chain, so malformed values are corrected rather than propagated.
+ */
+internal fun GlassOptics.sanitized(): GlassOptics = copy(
+  blurScale = finiteNonNegative(blurScale).coerceAtMost(4f),
+  refractionHeight = finiteNonNegative(refractionHeight.value).dp,
+  refractionAmount = finiteNonNegative(refractionAmount.value).dp,
+  vibrancy = if (vibrancy.isFinite()) vibrancy.coerceIn(0f, 3f) else 1f,
+  highlightWidth = finiteNonNegative(highlightWidth.value).dp,
+  highlightAlpha = clampGlassUnit(highlightAlpha),
+  highlightAngle = if (highlightAngle.isFinite()) highlightAngle else 45f,
+  innerShadowRadius = finiteNonNegative(innerShadowRadius.value).dp,
+  innerShadowAlpha = clampGlassUnit(innerShadowAlpha),
+  shadowRadius = finiteNonNegative(shadowRadius.value).dp,
+  shadowAlpha = clampGlassUnit(shadowAlpha),
+  pressedDepthBoost = if (pressedDepthBoost.isFinite()) {
+    pressedDepthBoost.coerceIn(0f, 2f)
   } else {
-    Offset(-0.64f, -0.77f)
-  }
-  val directionLength = sqrt(
-    directionSource.x * directionSource.x + directionSource.y * directionSource.y,
-  )
-  val direction = Offset(
-    directionSource.x / directionLength,
-    directionSource.y / directionLength,
-  )
-  return copy(
-    refractionStrength = finiteNonNegative(refractionStrength.value).dp,
-    rimWidth = finiteNonNegative(rimWidth.value).dp,
-    outerRimAlpha = clampGlassUnit(outerRimAlpha),
-    innerRimAlpha = clampGlassUnit(innerRimAlpha),
-    innerShadowAlpha = clampGlassUnit(innerShadowAlpha),
-    specularAlpha = clampGlassUnit(specularAlpha),
-    magnification = if (magnification.isFinite()) magnification.coerceIn(0f, 0.08f) else 0f,
-    pressedDepthBoost = if (pressedDepthBoost.isFinite()) {
-      pressedDepthBoost.coerceIn(0f, 1f)
-    } else {
-      0f
-    },
-    lightDirection = direction,
-  )
-}
-
-internal fun calculateGlassSamplePadding(
-  blurRadiusPx: Float,
-  refractionStrengthPx: Float,
-  rimWidthPx: Float,
-  pressedDepthBoost: Float,
-): Float {
-  val blurReach = finiteNonNegative(blurRadiusPx) * BlurCropPaddingMultiplier
-  val refractionReach = finiteNonNegative(refractionStrengthPx) *
-    (1f + finiteNonNegative(pressedDepthBoost).coerceAtMost(1f)) +
-    finiteNonNegative(rimWidthPx) * 2f
-  return maxOf(blurReach, refractionReach)
-}
+    0f
+  },
+)
 
 object GlassDefaults {
 
+  /**
+   * Chrome.
+   *
+   * The lens reaches a long way in but displaces gently: a bar is a wide, shallow sheet, and a
+   * strong displacement across that width would make the whole top of the screen wobble while a list
+   * moves under it. No drop shadow — the bar is flush with the screen, not floating over it.
+   */
   private val BarOptics = GlassOptics(
-    refractionStrength = 1.25.dp,
-    rimWidth = 0.75.dp,
-    outerRimAlpha = 0.20f,
-    innerRimAlpha = 0.10f,
-    innerShadowAlpha = 0.08f,
-    specularAlpha = 0.12f,
-    magnification = 0.004f,
-    pressedDepthBoost = 0.10f,
+    blurScale = 1f,
+    refractionHeight = 20.dp,
+    refractionAmount = 14.dp,
+    depthEffect = false,
+    dispersion = false,
+    vibrancy = 1.45f,
+    highlightWidth = 0.5.dp,
+    highlightAlpha = 0.45f,
+    highlightAngle = 90f,
+    innerShadowRadius = 0.dp,
+    innerShadowAlpha = 0f,
+    shadowRadius = 0.dp,
+    shadowAlpha = 0f,
+    pressedDepthBoost = 0f,
   )
 
+  /**
+   * A floating capsule: navigation that content passes beneath.
+   *
+   * This is the surface people look at longest, so it carries the full treatment — a visible bevel,
+   * a lit rim, thickness on the inside and a shadow that separates it from whatever scrolls under.
+   */
   private val FloatingOptics = GlassOptics(
-    refractionStrength = 4.4.dp,
-    rimWidth = 1.65.dp,
-    outerRimAlpha = 0.74f,
-    innerRimAlpha = 0.34f,
-    innerShadowAlpha = 0.32f,
-    specularAlpha = 0.50f,
-    magnification = 0.028f,
-    pressedDepthBoost = 0.26f,
+    blurScale = 0.75f,
+    refractionHeight = 24.dp,
+    refractionAmount = 24.dp,
+    depthEffect = false,
+    dispersion = false,
+    vibrancy = 1.5f,
+    highlightWidth = 0.75.dp,
+    highlightAlpha = 0.7f,
+    highlightAngle = 90f,
+    innerShadowRadius = 8.dp,
+    innerShadowAlpha = 0.25f,
+    shadowRadius = 20.dp,
+    shadowAlpha = 0.7f,
+    pressedDepthBoost = 0.35f,
   )
 
+  /**
+   * A control.
+   *
+   * Barely frosted on purpose. A button this size cannot afford to hide what is behind it and still
+   * look like glass: it is the *bend* at its edge that identifies the material, so the blur comes
+   * almost all the way down and the lens comes all the way up. Dispersion is on — this is the one
+   * place small enough for seven samples per pixel to be worth what it costs.
+   */
   private val InteractiveOptics = GlassOptics(
-    refractionStrength = 5.2.dp,
-    rimWidth = 1.75.dp,
-    outerRimAlpha = 0.80f,
-    innerRimAlpha = 0.40f,
-    innerShadowAlpha = 0.36f,
-    specularAlpha = 0.58f,
-    magnification = 0.036f,
-    pressedDepthBoost = 0.38f,
+    blurScale = 0.25f,
+    refractionHeight = 12.dp,
+    // Held to well under the radius of the smallest control the system has. A 44 dp lens displacing
+    // 24 dp drags in whatever happens to be a centimetre away and reads as a coloured halo rather
+    // than as an edge.
+    refractionAmount = 16.dp,
+    depthEffect = true,
+    dispersion = true,
+    vibrancy = 1.5f,
+    highlightWidth = 0.75.dp,
+    highlightAlpha = 0.6f,
+    highlightAngle = 90f,
+    innerShadowRadius = 6.dp,
+    innerShadowAlpha = 0.3f,
+    shadowRadius = 12.dp,
+    shadowAlpha = 0.5f,
+    pressedDepthBoost = 0.6f,
   )
 
+  /**
+   * A sheet or an alert.
+   *
+   * Deep frosting, because a sheet has to win an argument with a whole page of content behind it,
+   * and a wide bevel that makes its top edge read as a thick slab rather than a cut.
+   */
   private val ModalOptics = GlassOptics(
-    refractionStrength = 3.4.dp,
-    rimWidth = 1.45.dp,
-    outerRimAlpha = 0.60f,
-    innerRimAlpha = 0.28f,
-    innerShadowAlpha = 0.30f,
-    specularAlpha = 0.40f,
-    magnification = 0.020f,
-    pressedDepthBoost = 0.15f,
+    blurScale = 1.5f,
+    refractionHeight = 32.dp,
+    refractionAmount = 28.dp,
+    depthEffect = false,
+    dispersion = false,
+    vibrancy = 1.35f,
+    highlightWidth = 0.65.dp,
+    highlightAlpha = 0.55f,
+    highlightAngle = 90f,
+    innerShadowRadius = 12.dp,
+    innerShadowAlpha = 0.2f,
+    shadowRadius = 32.dp,
+    shadowAlpha = 0.8f,
+    pressedDepthBoost = 0f,
   )
 
   /** Stable, allocation-free presets. Custom callers can use `copy` and are sanitized at use. */
@@ -466,33 +384,76 @@ object GlassDefaults {
   /**
    * Bars.
    *
-   * The tint raises contrast for controls and suppresses the one-frame trail inherent in a manually
-   * sampled Android backdrop. Enough of the softened colour remains to read as material, while text
-   * moving behind the bar no longer becomes a high-contrast grey smear.
+   * A quarter of the old opacity. The previous value — 0.60 in light, 0.58 in dark — existed to hide
+   * a sharp text contour the blur was too narrow to remove; with a real 16 dp kernel and vibrancy
+   * there is nothing left to hide, and the bar can finally transmit its background.
    */
   @Composable
   fun barTint(): GlassTint {
     val dark = isDarkSurface()
     val surface = MaterialTheme.colorScheme.surface
     return GlassTint(
-      overlay = if (dark) surface.copy(alpha = 0.58f) else surface.copy(alpha = 0.60f),
+      overlay = if (dark) surface.copy(alpha = 0.30f) else surface.copy(alpha = 0.34f),
       fallback = if (dark) surface.copy(alpha = 0.95f) else surface.copy(alpha = 0.96f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.16f else 0.10f),
     )
   }
 
-  /** Floating controls: heavier, because they sit over arbitrary content and carry their own edge. */
+  /** Floating navigation: a little denser, because it travels over arbitrary content. */
   @Composable
   fun floatingTint(): GlassTint {
     val dark = isDarkSurface()
     val surface = MaterialTheme.colorScheme.surface
     return GlassTint(
-      // Navigation floats over arbitrary content. Keep the interior contrast-safe and let the raw,
-      // displaced rim carry the refraction; lowering this base makes fixed icon colours disappear
-      // whenever the pixels underneath have the opposite luminance.
-      overlay = if (dark) surface.copy(alpha = 0.78f) else surface.copy(alpha = 0.86f),
+      overlay = if (dark) surface.copy(alpha = 0.38f) else surface.copy(alpha = 0.42f),
       fallback = if (dark) surface.copy(alpha = 0.96f) else surface.copy(alpha = 0.97f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.18f else 0.08f),
+    )
+  }
+
+  /**
+   * Controls.
+   *
+   * Almost nothing. A control is a lens sitting on a surface that is itself already glass; a second
+   * opaque wash here is what made the old buttons read as grey pills stuck onto a bar.
+   */
+  @Composable
+  fun controlTint(): GlassTint {
+    val dark = isDarkSurface()
+    val surface = MaterialTheme.colorScheme.surface
+    return GlassTint(
+      overlay = if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.18f),
+      fallback = if (dark) surface.copy(alpha = 0.88f) else surface.copy(alpha = 0.90f),
+      hairline = Color.Transparent,
+    )
+  }
+
+  /**
+   * The capsule that marks a selection inside a bar.
+   *
+   * Barely there, because it is not what carries the selection: the tab underneath it is already
+   * showing through in the accent colour, and a strong fill here would only cover that up. It exists
+   * to give the selected tab an edge to sit inside.
+   */
+  @Composable
+  fun selectionTint(): GlassTint {
+    val dark = isDarkSurface()
+    return GlassTint(
+      overlay = if (dark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.06f),
+      fallback = if (dark) Color.White.copy(alpha = 0.16f) else Color.Black.copy(alpha = 0.08f),
+      hairline = Color.Transparent,
+    )
+  }
+
+  /** Sheets and alerts. */
+  @Composable
+  fun modalTint(): GlassTint {
+    val dark = isDarkSurface()
+    val surface = MaterialTheme.colorScheme.surface
+    return GlassTint(
+      overlay = if (dark) surface.copy(alpha = 0.52f) else surface.copy(alpha = 0.56f),
+      fallback = if (dark) surface.copy(alpha = 0.97f) else surface.copy(alpha = 0.98f),
+      hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.14f else 0.08f),
     )
   }
 
@@ -504,7 +465,7 @@ object GlassDefaults {
    * white tint into a black backdrop.
    */
   @Composable
-  private fun isDarkSurface(): Boolean = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+  internal fun isDarkSurface(): Boolean = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 }
 
 /** Which edge, if any, carries the hairline that separates glass from content. */
@@ -519,130 +480,11 @@ enum class GlassFalloff {
    * Strongest at the top, ramping to nothing at the bottom.
    *
    * For a bar pinned under the status bar. A uniform bar has to end somewhere, and wherever it ends
-   * there is a line across the screen with sharp content on one side and blurred content on the
+   * there is a line across the screen with sharp content on one side and refracted content on the
    * other. That line is the single most artificial-looking part of a translucent bar; ramping the
-   * blur out removes it entirely.
+   * whole material out — glass, tint and rim together — removes it entirely.
    */
   FadeDown,
-}
-
-/** Tracks where a single pane of glass sits, so it can sample the matching slice of the snapshot. */
-@Stable
-class GlassSurfaceAnchor internal constructor(
-  internal val heavyLayer: GraphicsLayer,
-  internal val softLayer: GraphicsLayer,
-  /** One unblurred crop, used either by AGSL or by the API 31 magnified-rim fallback. */
-  internal val opticalLayer: GraphicsLayer,
-) {
-  internal var originInRoot by mutableStateOf(Offset.Zero)
-  internal var surfaceSize by mutableStateOf(IntSize.Zero)
-  internal var hasSnapshot by mutableStateOf(false)
-
-  internal var sampleCrop: GlassSampleCrop? = null
-  internal var blurPaddingPx: Float = 0f
-  internal var capability: GlassRenderCapability = GlassRenderCapability.StaticRim
-  internal var requiresOpticalSample: Boolean = false
-  private val recordingDemand = GlassRecordingDemand()
-
-  internal fun requestRecording(): Boolean = recordingDemand.request()
-
-  internal fun consumeRecordingCredit(): Boolean = recordingDemand.consume(
-    surfaceReady = surfaceSize.width > 0 && surfaceSize.height > 0,
-  )
-
-  internal fun publishSnapshot() {
-    if (sampleCrop != null && !hasSnapshot) hasSnapshot = true
-  }
-}
-
-@Composable
-fun rememberGlassSurfaceAnchor(): GlassSurfaceAnchor {
-  val heavyLayer = rememberGraphicsLayer()
-  val softLayer = rememberGraphicsLayer()
-  val opticalLayer = rememberGraphicsLayer()
-  return remember(heavyLayer, softLayer, opticalLayer) {
-    GlassSurfaceAnchor(heavyLayer, softLayer, opticalLayer)
-  }
-}
-
-@Immutable
-internal data class GlassSampleCrop(
-  val left: Int,
-  val top: Int,
-  val width: Int,
-  val height: Int,
-  val offsetInSurface: Offset,
-)
-
-/**
- * Restricts a pane's blur input to the pixels its kernel can actually reach.
- *
- * The old implementation blurred the full screen separately for the top bar and the floating tab
- * bar. At 1080 x 2340 that made two small panes pay for millions of invisible pixels every frame.
- * Four radii of padding make the discarded Gaussian tail smaller than one 8-bit channel step, so
- * the cropped input is visually equivalent while avoiding millions of invisible blurred pixels.
- */
-internal fun calculateGlassSampleCrop(
-  sourceSize: IntSize,
-  sourceOrigin: Offset,
-  surfaceOrigin: Offset,
-  surfaceSize: IntSize,
-  blurPaddingPx: Float,
-): GlassSampleCrop? {
-  if (sourceSize.width <= 0 || sourceSize.height <= 0) return null
-  if (surfaceSize.width <= 0 || surfaceSize.height <= 0) return null
-
-  val surfaceLeft = surfaceOrigin.x - sourceOrigin.x
-  val surfaceTop = surfaceOrigin.y - sourceOrigin.y
-  val padding = blurPaddingPx.coerceAtLeast(0f)
-  val left = floor(surfaceLeft - padding).toInt().coerceIn(0, sourceSize.width)
-  val top = floor(surfaceTop - padding).toInt().coerceIn(0, sourceSize.height)
-  val right = ceil(surfaceLeft + surfaceSize.width + padding).toInt()
-    .coerceIn(0, sourceSize.width)
-  val bottom = ceil(surfaceTop + surfaceSize.height + padding).toInt()
-    .coerceIn(0, sourceSize.height)
-  if (right <= left || bottom <= top) return null
-
-  return GlassSampleCrop(
-    left = left,
-    top = top,
-    width = right - left,
-    height = bottom - top,
-    offsetInSurface = Offset(
-      x = left - surfaceLeft,
-      y = top - surfaceTop,
-    ),
-  )
-}
-
-private fun DrawScope.recordCroppedGlassLayers(
-  sourceLayer: GraphicsLayer,
-  sourceOrigin: Offset,
-  surface: GlassSurfaceAnchor,
-) {
-  val crop = calculateGlassSampleCrop(
-    sourceSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-    sourceOrigin = sourceOrigin,
-    surfaceOrigin = surface.originInRoot,
-    surfaceSize = surface.surfaceSize,
-    blurPaddingPx = surface.blurPaddingPx,
-  ) ?: run {
-    surface.sampleCrop = null
-    return
-  }
-  val cropSize = IntSize(crop.width, crop.height)
-  surface.softLayer.record(size = cropSize) {
-    translate(-crop.left.toFloat(), -crop.top.toFloat()) { drawLayer(sourceLayer) }
-  }
-  surface.heavyLayer.record(size = cropSize) {
-    translate(-crop.left.toFloat(), -crop.top.toFloat()) { drawLayer(sourceLayer) }
-  }
-  if (surface.requiresOpticalSample) {
-    surface.opticalLayer.record(size = cropSize) {
-      translate(-crop.left.toFloat(), -crop.top.toFloat()) { drawLayer(sourceLayer) }
-    }
-  }
-  surface.sampleCrop = crop
 }
 
 /**
@@ -650,6 +492,14 @@ private fun DrawScope.recordCroppedGlassLayers(
  *
  * @param intensity 0 = glass absent, 1 = full material. Animate this instead of the bar's own alpha
  *   so that the controls sitting on the glass stay fully opaque and legible throughout.
+ * @param opticalDepth independent weight on the lens, the rim and the shadows, leaving the blur and
+ *   the tint alone. A control uses it to melt its own edge away while it is at rest.
+ * @param pressed 0 = resting, 1 = fully pressed. Deepens the lens without re-recording anything.
+ * @param exports when set, this pane also publishes *itself* — material, tint and all — into that
+ *   state, so another pane can refract it. That is how a control on a bar bends the bar rather than
+ *   the page underneath it. Pair it with [rememberCombinedGlassBackdrop].
+ * @param layerBlock transforms applied to the whole pane. The renderer inverts them when it samples,
+ *   so a bar that scales or slides keeps holding the image the world actually has behind it.
  */
 @Composable
 fun Modifier.glassSurface(
@@ -661,540 +511,263 @@ fun Modifier.glassSurface(
   intensity: () -> Float = { 1f },
   role: GlassRole = if (falloff == GlassFalloff.FadeDown) GlassRole.Bar else GlassRole.Floating,
   optics: GlassOptics = GlassDefaults.optics(role),
-  /** Independent optical weight. Dynamic reads happen in draw, so a press does not recompose. */
   opticalDepth: () -> Float = { 1f },
-  /** 0 = resting, 1 = fully pressed. Uses the same raw/refraction layer at every value. */
   pressed: () -> Float = { 0f },
+  exports: GlassBackdropState? = null,
+  layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
 ): Modifier {
-  val anchor = rememberGlassSurfaceAnchor()
-  val resolvedOptics = remember(optics) { optics.sanitized() }
-  val hardwareAccelerated = LocalView.current.isHardwareAccelerated
-  val requestedCapability = glassRenderCapability(
-    apiLevel = Build.VERSION.SDK_INT,
-    hardwareAccelerated = hardwareAccelerated,
-  )
-  val runtimeRefraction = remember(requestedCapability) {
-    lazy(LazyThreadSafetyMode.NONE) {
-      if (requestedCapability == GlassRenderCapability.RuntimeRefraction) {
-        createGlassRuntimeRefractionOrNull()
-      } else {
-        null
+  val resolved = remember(optics) { optics.sanitized() }
+
+  // Below API 31 there is no RenderEffect at all: no blur, no lens, no vibrancy. Sampling the
+  // backdrop there would hand a *sharp* copy of the page to the bar, which is worse than not
+  // sampling it. A defined solid material is the honest degradation.
+  if (!isRenderEffectSupported()) {
+    return this.glassFallback(shape, tint, edge, falloff, intensity)
+  }
+
+  val currentIntensity by rememberUpdatedState(intensity)
+  val currentDepth by rememberUpdatedState(opticalDepth)
+  val currentPressed by rememberUpdatedState(pressed)
+  val shapeBlock = remember(shape) { { shape } }
+  val blurRadius = state.blurRadius
+
+  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius) {
+    {
+      val amount = clampGlassUnit(currentIntensity())
+      if (amount > 0.001f) {
+        val depth = clampGlassUnit(currentDepth()) * amount
+        val press = clampGlassUnit(currentPressed())
+
+        if (resolved.vibrancy != 1f) {
+          // Ramped with the material rather than switched on: a bar whose colours saturate a frame
+          // before it has any blur announces itself as an effect.
+          colorControls(saturation = 1f + (resolved.vibrancy - 1f) * amount)
+        }
+        blur(blurRadius.toPx() * resolved.blurScale * amount)
+        lens(
+          refractionHeight = resolved.refractionHeight.toPx() * depth,
+          refractionAmount = resolved.refractionAmount.toPx() * depth *
+            (1f + press * resolved.pressedDepthBoost),
+          depthEffect = resolved.depthEffect,
+          chromaticAberration = resolved.dispersion,
+        )
       }
     }
   }
-  val perimeterOptics = falloff == GlassFalloff.Uniform && resolvedOptics.rimWidth.value > 0f
 
-  DisposableEffect(state, anchor) {
-    state.registerSurface(anchor)
-    onDispose { state.unregisterSurface(anchor) }
+  val highlight: () -> Highlight? = remember(resolved) {
+    val style = HighlightStyle.Default(
+      color = Color.White.copy(alpha = 0.5f),
+      angle = resolved.highlightAngle,
+      falloff = 1f,
+    );
+    {
+      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth())
+      if (resolved.highlightAlpha <= 0f || amount <= 0.001f) {
+        null
+      } else {
+        Highlight(
+          width = resolved.highlightWidth,
+          blurRadius = resolved.highlightWidth / 2f,
+          alpha = resolved.highlightAlpha * amount,
+          style = style,
+        )
+      }
+    }
   }
+
+  val shadow: () -> Shadow? = remember(resolved) {
+    {
+      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth())
+      if (resolved.shadowAlpha <= 0f || amount <= 0.001f) {
+        null
+      } else {
+        Shadow(
+          radius = resolved.shadowRadius,
+          color = Color.Black.copy(alpha = 0.1f),
+          alpha = resolved.shadowAlpha * amount,
+        )
+      }
+    }
+  }
+
+  val innerShadow: () -> InnerShadow? = remember(resolved) {
+    {
+      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth())
+      if (resolved.innerShadowAlpha <= 0f || amount <= 0.001f) {
+        null
+      } else {
+        InnerShadow(
+          radius = resolved.innerShadowRadius,
+          color = Color.Black.copy(alpha = 0.15f),
+          alpha = resolved.innerShadowAlpha * amount,
+        )
+      }
+    }
+  }
+
+  val onDrawSurface: DrawScopeBlock = remember(tint, edge, falloff) {
+    {
+      val amount = clampGlassUnit(currentIntensity())
+      if (amount > 0.001f) {
+        drawGlassTint(tint, edge, falloff, amount)
+      }
+    }
+  }
+
   return this
-    .graphicsLayer {
-      this.shape = shape
-      this.clip = true
-    }
-    .onGloballyPositioned {
-      anchor.originInRoot = it.positionInRoot()
-      anchor.surfaceSize = it.size
-    }
-    .drawWithCache {
-      val outline = if (perimeterOptics) {
-        shape.createOutline(size, layoutDirection, this)
-      } else {
-        null
-      }
-      val runtimeCornerRadius = outline?.let(::runtimeGlassCornerRadiusOrNull)
-      val runtimeEligible = shouldCreateGlassRuntimeRefraction(
-        requestedCapability = requestedCapability,
-        perimeterOptics = perimeterOptics,
-        hasRefraction = resolvedOptics.refractionStrength.value > 0f,
-        runtimeCornerRadius = runtimeCornerRadius,
-      )
-      val resolvedRuntimeRefraction = if (runtimeEligible) runtimeRefraction.value else null
-      val capability = resolveGlassRenderCapability(
-        requestedCapability = requestedCapability,
-        runtimeEligible = runtimeEligible,
-        runtimeAvailable = resolvedRuntimeRefraction != null,
-      )
-      val samplesBackdrop = capability != GlassRenderCapability.StaticRim
-      anchor.capability = capability
-      anchor.requiresOpticalSample = perimeterOptics &&
-        samplesBackdrop &&
-        resolvedOptics.refractionStrength.value > 0f
-      if (samplesBackdrop) {
-        val heavy = state.blurRadius.toPx()
-        val soft = heavy * SoftBlurFraction
-        val refractionPx = resolvedOptics.refractionStrength.toPx()
-        val rimWidthPx = resolvedOptics.rimWidth.toPx()
-        anchor.blurPaddingPx = calculateGlassSamplePadding(
-          blurRadiusPx = heavy,
-          refractionStrengthPx = refractionPx,
-          rimWidthPx = rimWidthPx,
-          pressedDepthBoost = resolvedOptics.pressedDepthBoost,
-        )
-        anchor.heavyLayer.renderEffect = BlurEffect(heavy, heavy, TileMode.Clamp)
-        anchor.softLayer.renderEffect = BlurEffect(soft, soft, TileMode.Clamp)
-        anchor.opticalLayer.renderEffect = if (
-          capability == GlassRenderCapability.RuntimeRefraction
-        ) {
-          resolvedRuntimeRefraction?.renderEffect
-        } else {
-          null
-        }
-        // Keep only a whisper of the saturation lift used by system materials. A stronger filter
-        // made fast-moving text behind the top bar turn into dark, noisy-looking colour bands.
-        val saturate = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(1.04f) })
-        anchor.heavyLayer.colorFilter = saturate
-        anchor.softLayer.colorFilter = saturate
-      } else {
-        anchor.opticalLayer.renderEffect = null
-      }
-      val hairlinePx = maxOf(1f, 0.5f.dp.toPx())
-      val opticalCache = if (outline != null) {
-        buildGlassOpticalDrawCache(
-          outline = outline,
-          runtimeCornerRadiusPx = runtimeCornerRadius,
-          optics = resolvedOptics,
-        )
-      } else {
-        null
-      }
-      val steadyFadeCache = if (falloff == GlassFalloff.FadeDown) {
-        GlassFadeDrawCache(
-          bounds = Rect(0f, 0f, size.width, size.height),
-          layerPaint = Paint(),
-          softMask = Brush.verticalGradient(
-            colorStops = progressiveMaskStops(coverage = 1f, holdFraction = 0.72f),
-            startY = 0f,
-            endY = size.height,
-          ),
-          heavyMask = Brush.verticalGradient(
-            colorStops = progressiveMaskStops(coverage = 0.86f, holdFraction = 0.60f),
-            startY = 0f,
-            endY = size.height,
-          ),
-          overlay = Brush.verticalGradient(
-            colorStops = arrayOf(
-              0f to tint.overlay,
-              0.55f to tint.overlay,
-              1f to tint.overlay.copy(alpha = 0f),
-            ),
-            startY = 0f,
-            endY = size.height,
-          ),
-        )
-      } else {
-        null
-      }
-      onDrawBehind {
-        val amount = clampGlassUnit(intensity())
-        if (amount <= 0.001f) return@onDrawBehind
-        // Claimed before sampling, so the source keeps recording for as long as this pane is on.
-        if (samplesBackdrop) state.requestSample(anchor)
-
-        val crop = anchor.sampleCrop
-        if (samplesBackdrop && anchor.hasSnapshot && crop != null) {
-          // Reading the tick keeps this node invalidated in step with the source's redraws.
-          state.frameTick.intValue
-          val dx = crop.offsetInSurface.x
-          val dy = crop.offsetInSurface.y
-          when (falloff) {
-            GlassFalloff.Uniform -> {
-              // Always replace the sharp pixels with the lightly softened snapshot once material is
-              // present, then travel from that soft radius to the full radius. Fading a blurred copy
-              // directly over sharp text creates two readable contours — the noisy trail this glass
-              // implementation is specifically meant to avoid during fast scrolling.
-              translate(dx, dy) { drawLayer(anchor.softLayer) }
-              anchor.heavyLayer.alpha = amount
-              translate(dx, dy) { drawLayer(anchor.heavyLayer) }
-              anchor.heavyLayer.alpha = 1f
-              drawRect(tint.overlay.copy(alpha = tint.overlay.alpha * amount))
-            }
-            GlassFalloff.FadeDown -> drawFadingGlass(
-              surface = anchor,
-              dx = dx,
-              dy = dy,
-              tint = tint,
-              amount = amount,
-              steadyState = steadyFadeCache,
-            )
-          }
-        } else {
-          val fallbackBrush = when (falloff) {
-            GlassFalloff.Uniform -> null
-            GlassFalloff.FadeDown -> verticalFade(tint.fallback.copy(alpha = tint.fallback.alpha * amount))
-          }
-          if (fallbackBrush == null) {
-            drawRect(tint.fallback.copy(alpha = tint.fallback.alpha * amount))
-          } else {
-            drawRect(brush = fallbackBrush)
-          }
-        }
-
-        if (opticalCache != null) {
-          val depth = clampGlassUnit(opticalDepth())
-          val press = clampGlassUnit(pressed())
-          val opticalAmount = amount * depth
-          if (opticalAmount > 0.001f) {
-            if (
-              samplesBackdrop &&
-              anchor.requiresOpticalSample &&
-              anchor.hasSnapshot &&
-              crop != null
-            ) {
-              drawRefractedGlassRim(
-                surface = anchor,
-                crop = crop,
-                capability = capability,
-                runtimeRefraction = resolvedRuntimeRefraction,
-                cache = opticalCache,
-                amount = opticalAmount,
-                pressed = press,
-                optics = resolvedOptics,
-              )
-            }
-            drawGlassOpticalRims(
-              cache = opticalCache,
-              optics = resolvedOptics,
-              amount = opticalAmount,
-              pressed = press,
-            )
-          }
-        }
-
-        val hairline = tint.hairline.copy(alpha = tint.hairline.alpha * amount)
-        when (edge) {
-          GlassEdge.None -> Unit
-          GlassEdge.Bottom -> drawRect(
-            color = hairline,
-            topLeft = Offset(0f, size.height - hairlinePx),
-            size = Size(size.width, hairlinePx),
-          )
-          GlassEdge.Top -> drawRect(
-            color = hairline,
-            topLeft = Offset.Zero,
-            size = Size(size.width, hairlinePx),
-          )
-        }
-      }
-    }
+    .glassMask(falloff, resolved.shadowRadius, currentIntensity)
+    .drawBackdrop(
+      backdrop = state.backdrop,
+      shape = shapeBlock,
+      effects = effects,
+      highlight = highlight,
+      shadow = shadow,
+      innerShadow = innerShadow,
+      layerBlock = layerBlock,
+      exportedBackdrop = exports?.layerBackdrop,
+      onDrawSurface = onDrawSurface,
+    )
 }
 
-private class GlassOpticalDrawCache(
-  val bounds: Rect,
-  val outline: Outline,
-  val centre: Offset,
-  val runtimeCornerRadiusPx: Float?,
-  val refractionStrengthPx: Float,
-  val rimWidthPx: Float,
-  val refractionMask: Stroke,
-  val innerRimStroke: Stroke,
-  val outerRimStroke: Stroke,
-  val specularStroke: Stroke,
-  val innerRimBrush: Brush,
-  val outerRimBrush: Brush,
-  val specularBrush: Brush,
-  val layerPaint: Paint,
-)
+private typealias DrawScopeBlock = DrawScope.() -> Unit
 
-private fun androidx.compose.ui.draw.CacheDrawScope.buildGlassOpticalDrawCache(
-  outline: Outline,
-  runtimeCornerRadiusPx: Float?,
-  optics: GlassOptics,
-): GlassOpticalDrawCache {
-  val rim = maxOf(1f, optics.rimWidth.toPx())
-  val refraction = optics.refractionStrength.toPx()
-  val centre = Offset(size.width * 0.5f, size.height * 0.5f)
-  val directionSpan = maxOf(size.width, size.height) * 0.72f
-  val lightStart = centre + optics.lightDirection * directionSpan
-  val lightEnd = centre - optics.lightDirection * directionSpan
-  val innerRimBrush = Brush.linearGradient(
-    colorStops = arrayOf(
-      0f to Color.White.copy(alpha = optics.innerRimAlpha),
-      0.42f to Color.White.copy(alpha = optics.innerRimAlpha * 0.34f),
-      0.60f to Color.Transparent,
-      1f to Color.Black.copy(alpha = optics.innerShadowAlpha),
-    ),
-    start = lightStart,
-    end = lightEnd,
-  )
-  val outerRimBrush = Brush.linearGradient(
-    colorStops = arrayOf(
-      0f to Color.White.copy(alpha = optics.outerRimAlpha),
-      0.38f to Color.White.copy(alpha = optics.outerRimAlpha * 0.46f),
-      0.64f to Color.Transparent,
-      1f to Color.Black.copy(alpha = optics.innerShadowAlpha * 0.82f),
-    ),
-    start = lightStart,
-    end = lightEnd,
-  )
-  val specularBrush = Brush.linearGradient(
-    colorStops = arrayOf(
-      0f to Color.White.copy(alpha = optics.specularAlpha),
-      0.30f to Color.White.copy(alpha = optics.specularAlpha * 0.52f),
-      0.58f to Color.Transparent,
-      1f to Color.Transparent,
-    ),
-    start = lightStart,
-    end = lightEnd,
-  )
-  val opticalBand = maxOf(rim * 3f, refraction * 2f + rim)
-  return GlassOpticalDrawCache(
-    bounds = Rect(0f, 0f, size.width, size.height),
-    outline = outline,
-    centre = centre,
-    runtimeCornerRadiusPx = runtimeCornerRadiusPx,
-    refractionStrengthPx = refraction,
-    rimWidthPx = rim,
-    // Strokes are centred on the outline; clipping keeps their inner half, hence the factor two.
-    refractionMask = Stroke(width = opticalBand * 2f),
-    innerRimStroke = Stroke(width = rim * 3.2f),
-    outerRimStroke = Stroke(width = maxOf(1f, rim * 1.35f)),
-    specularStroke = Stroke(width = maxOf(1f, rim * 0.72f)),
-    innerRimBrush = innerRimBrush,
-    outerRimBrush = outerRimBrush,
-    specularBrush = specularBrush,
-    layerPaint = Paint(),
-  )
-}
-
-private fun DrawScope.drawRefractedGlassRim(
-  surface: GlassSurfaceAnchor,
-  crop: GlassSampleCrop,
-  capability: GlassRenderCapability,
-  runtimeRefraction: GlassRuntimeRefraction?,
-  cache: GlassOpticalDrawCache,
+private fun DrawScope.drawGlassTint(
+  tint: GlassTint,
+  edge: GlassEdge,
+  falloff: GlassFalloff,
   amount: Float,
-  pressed: Float,
-  optics: GlassOptics,
 ) {
-  val pressMultiplier = 1f + pressed * optics.pressedDepthBoost
-  val displacement = cache.refractionStrengthPx * amount * pressMultiplier
-  val magnification = optics.magnification * amount * pressMultiplier
-  val dx = crop.offsetInSurface.x
-  val dy = crop.offsetInSurface.y
-
-  val runtimeCornerRadius = cache.runtimeCornerRadiusPx
-  if (
-    capability == GlassRenderCapability.RuntimeRefraction &&
-    runtimeRefraction != null &&
-    runtimeCornerRadius != null
-  ) {
-    runtimeRefraction.update(
-      inputWidth = crop.width.toFloat(),
-      inputHeight = crop.height.toFloat(),
-      surfaceLeft = -dx,
-      surfaceTop = -dy,
-      surfaceWidth = size.width,
-      surfaceHeight = size.height,
-      cornerRadius = runtimeCornerRadius,
-      displacement = displacement,
-      rimWidth = cache.rimWidthPx,
-      magnification = magnification,
+  val overlay = tint.overlay.copy(alpha = tint.overlay.alpha * amount)
+  when (falloff) {
+    GlassFalloff.Uniform -> drawRect(overlay)
+    // The tint runs out earlier than the glass does, so the bottom of a bar is refraction with no
+    // colour left in it — which is what stops the ramp from ending on a visible grey lip.
+    GlassFalloff.FadeDown -> drawRect(
+      brush = Brush.verticalGradient(
+        colorStops = arrayOf(
+          0f to overlay,
+          0.55f to overlay,
+          1f to overlay.copy(alpha = 0f),
+        ),
+        startY = 0f,
+        endY = size.height,
+      ),
     )
   }
 
-  drawContext.canvas.saveLayer(cache.bounds, cache.layerPaint)
-  when (capability) {
-    GlassRenderCapability.RuntimeRefraction -> translate(dx, dy) {
-      drawLayer(surface.opticalLayer)
-    }
-    GlassRenderCapability.MagnifiedRim -> scale(
-      scaleX = 1f + magnification,
-      scaleY = 1f + magnification,
-      pivot = cache.centre,
-    ) {
-      translate(dx, dy) { drawLayer(surface.opticalLayer) }
-    }
-    GlassRenderCapability.StaticRim -> Unit
+  if (tint.hairline.alpha <= 0f || edge == GlassEdge.None) return
+  val hairlinePx = maxOf(1f, 0.5f.dp.toPx())
+  val hairline = tint.hairline.copy(alpha = tint.hairline.alpha * amount)
+  when (edge) {
+    GlassEdge.None -> Unit
+    GlassEdge.Bottom -> drawRect(
+      color = hairline,
+      topLeft = Offset(0f, size.height - hairlinePx),
+      size = Size(size.width, hairlinePx),
+    )
+    GlassEdge.Top -> drawRect(
+      color = hairline,
+      topLeft = Offset.Zero,
+      size = Size(size.width, hairlinePx),
+    )
   }
-  drawOutline(
-    outline = cache.outline,
-    color = Color.White,
-    alpha = amount,
-    style = cache.refractionMask,
-    blendMode = BlendMode.DstIn,
-  )
-  drawContext.canvas.restore()
-}
-
-private fun DrawScope.drawGlassOpticalRims(
-  cache: GlassOpticalDrawCache,
-  optics: GlassOptics,
-  amount: Float,
-  pressed: Float,
-) {
-  val pressGlow = 1f + pressed * optics.pressedDepthBoost * 0.35f
-  drawOutline(
-    outline = cache.outline,
-    brush = cache.innerRimBrush,
-    alpha = (amount * pressGlow).coerceAtMost(1f),
-    style = cache.innerRimStroke,
-  )
-  drawOutline(
-    outline = cache.outline,
-    brush = cache.outerRimBrush,
-    alpha = amount,
-    style = cache.outerRimStroke,
-  )
-  drawOutline(
-    outline = cache.outline,
-    brush = cache.specularBrush,
-    alpha = (amount * pressGlow).coerceAtMost(1f),
-    style = cache.specularStroke,
-  )
 }
 
 /**
- * Draws the ramp: heavy blur at the top, light blur in the middle, clear content at the bottom.
+ * Fades the finished material — glass, rim, shadows, everything — instead of any one of its parts.
  *
- * Each band is drawn into its own offscreen buffer and then cut back with a vertical gradient in
- * `DstIn`, which is the only way to apply a soft mask to something already rasterised. The bands
- * overlap, so the heavy layer is still at full strength where the light one begins and the eye never
- * finds the seam between them.
+ * It has to sit *outside* the renderer, because a mask applied inside the recorded layer would be
+ * blurred along with the image and the ramp would grow its own soft lip. Wrapping the node in a
+ * single `saveLayer` and cutting the result with `DstIn` is the only way to apply a gradient to
+ * something already rasterised.
+ *
+ * When there is nothing to fade the modifier disappears entirely, so an ordinary pane at full
+ * strength never pays for an offscreen buffer.
  */
-private class GlassFadeDrawCache(
-  val bounds: Rect,
-  val layerPaint: Paint,
-  val softMask: Brush,
-  val heavyMask: Brush,
-  val overlay: Brush,
-)
-
-private fun DrawScope.drawFadingGlass(
-  surface: GlassSurfaceAnchor,
-  dx: Float,
-  dy: Float,
-  tint: GlassTint,
-  amount: Float,
-  steadyState: GlassFadeDrawCache?,
-) {
-  if (amount >= SteadyGlassThreshold && steadyState != null) {
-    maskedLayer(
-      layer = surface.softLayer,
-      dx = dx,
-      dy = dy,
-      amount = 1f,
-      mask = steadyState.softMask,
-      bounds = steadyState.bounds,
-      paint = steadyState.layerPaint,
-    )
-    maskedLayer(
-      layer = surface.heavyLayer,
-      dx = dx,
-      dy = dy,
-      amount = 1f,
-      mask = steadyState.heavyMask,
-      bounds = steadyState.bounds,
-      paint = steadyState.layerPaint,
-    )
-    drawRect(brush = steadyState.overlay)
-    return
+private fun Modifier.glassMask(
+  falloff: GlassFalloff,
+  shadowRadius: Dp,
+  intensity: () -> Float,
+): Modifier {
+  if (falloff == GlassFalloff.Uniform) {
+    return this.drawWithCache {
+      val paint = Paint()
+      // Inflated so the drop shadow, which lives outside the pane, is not cut off by its own layer.
+      val padding = shadowRadius.toPx() * 2f
+      val bounds = Rect(-padding, -padding, size.width + padding, size.height + padding)
+      onDrawWithContent {
+        val amount = clampGlassUnit(intensity())
+        when {
+          amount <= 0.001f -> Unit
+          amount >= 0.999f -> drawContent()
+          else -> {
+            paint.alpha = amount
+            drawContext.canvas.saveLayer(bounds, paint)
+            drawContent()
+            drawContext.canvas.restore()
+          }
+        }
+      }
+    }
   }
-
-  // Never fade a blurred glyph over its sharp copy: that creates two readable contours. The soft
-  // snapshot stays opaque where present, while its *coverage* grows down from the status bar. This
-  // is a genuinely progressive reveal instead of the previous binary soft layer that appeared at
-  // full height on the first non-zero scroll frame.
-  val coverage = calculateProgressiveGlassCoverage(amount)
-  if (coverage <= 0.001f) return
-  maskedLayer(
-    layer = surface.softLayer,
-    dx = dx,
-    dy = dy,
-    amount = 1f,
-    stops = progressiveMaskStops(coverage, holdFraction = 0.72f),
-  )
-
-  // The heavier radius joins only after the soft material has established an opaque replacement.
-  // It may therefore change alpha without exposing sharp text underneath it.
-  val heavyAmount = smoothStep(((amount - 0.42f) / 0.58f).coerceIn(0f, 1f))
-  if (heavyAmount > 0.001f) {
-    maskedLayer(
-      layer = surface.heavyLayer,
-      dx = dx,
-      dy = dy,
-      amount = heavyAmount,
-      stops = progressiveMaskStops(coverage * 0.86f, holdFraction = 0.60f),
-    )
+  return this.drawWithCache {
+    val paint = Paint()
+    val bounds = Rect(0f, 0f, size.width, size.height)
+    onDrawWithContent {
+      val amount = clampGlassUnit(intensity())
+      if (amount <= 0.001f) return@onDrawWithContent
+      paint.alpha = amount
+      drawContext.canvas.saveLayer(bounds, paint)
+      drawContent()
+      drawRect(
+        brush = Brush.verticalGradient(
+          colorStops = fadeDownStops(amount),
+          startY = 0f,
+          endY = size.height,
+        ),
+        blendMode = BlendMode.DstIn,
+      )
+      drawContext.canvas.restore()
+    }
   }
-  drawRect(
-    brush = progressiveVerticalFade(
-      color = tint.overlay.copy(alpha = tint.overlay.alpha * amount),
-      coverage = coverage,
-    ),
-  )
 }
 
-internal fun calculateProgressiveGlassCoverage(amount: Float): Float = smoothStep(amount)
-
-private fun progressiveMaskStops(
-  coverage: Float,
-  holdFraction: Float,
-): Array<Pair<Float, Color>> {
-  val end = coverage.coerceIn(0.001f, 1f)
-  val hold = end * holdFraction.coerceIn(0f, 1f)
+/**
+ * The ramp's coverage grows with the material rather than appearing at full height.
+ *
+ * A bar that reaches its final extent on the first non-zero scroll frame and only then gains opacity
+ * reads as a rectangle switching on. Growing downward reads as the material arriving.
+ */
+internal fun fadeDownStops(amount: Float): Array<Pair<Float, Color>> {
+  val coverage = smoothStep(clampGlassUnit(amount)).coerceIn(0.001f, 1f)
+  val hold = coverage * 0.62f
   return arrayOf(
     0f to Color.White,
     hold to Color.White,
-    end to Color.Transparent,
+    coverage to Color.Transparent,
     1f to Color.Transparent,
   )
 }
 
-private fun DrawScope.progressiveVerticalFade(color: Color, coverage: Float): Brush {
-  val end = coverage.coerceIn(0.001f, 1f)
-  return Brush.verticalGradient(
-    colorStops = arrayOf(
-      0f to color,
-      (end * 0.55f) to color,
-      end to color.copy(alpha = 0f),
-      1f to color.copy(alpha = 0f),
-    ),
-    startY = 0f,
-    endY = size.height,
-  )
-}
-
-private fun DrawScope.maskedLayer(
-  layer: GraphicsLayer,
-  dx: Float,
-  dy: Float,
-  amount: Float,
-  stops: Array<Pair<Float, Color>>,
-) {
-  val bounds = Rect(0f, 0f, size.width, size.height)
-  val paint = Paint()
-  val mask = Brush.verticalGradient(colorStops = stops, startY = 0f, endY = size.height)
-  maskedLayer(layer, dx, dy, amount, mask, bounds, paint)
-}
-
-private fun DrawScope.maskedLayer(
-  layer: GraphicsLayer,
-  dx: Float,
-  dy: Float,
-  amount: Float,
-  mask: Brush,
-  bounds: Rect,
-  paint: Paint,
-) {
-  drawContext.canvas.saveLayer(bounds, paint)
-  layer.alpha = amount
-  translate(dx, dy) { drawLayer(layer) }
-  layer.alpha = 1f
-  drawRect(
-    brush = mask,
-    blendMode = BlendMode.DstIn,
-  )
-  drawContext.canvas.restore()
-}
-
-private fun DrawScope.verticalFade(color: Color): Brush = Brush.verticalGradient(
-  colorStops = arrayOf(
-    0f to color,
-    0.55f to color,
-    1f to color.copy(alpha = 0f),
-  ),
-  startY = 0f,
-  endY = size.height,
-)
+/** Below API 31 the material is a defined solid, deliberately not an approximation of glass. */
+private fun Modifier.glassFallback(
+  shape: Shape,
+  tint: GlassTint,
+  edge: GlassEdge,
+  falloff: GlassFalloff,
+  intensity: () -> Float,
+): Modifier = this
+  .clip(shape)
+  .drawWithContent {
+    val amount = clampGlassUnit(intensity())
+    if (amount > 0.001f) {
+      drawGlassTint(
+        tint = tint.copy(overlay = tint.fallback),
+        edge = edge,
+        falloff = falloff,
+        amount = amount,
+      )
+    }
+    drawContent()
+  }

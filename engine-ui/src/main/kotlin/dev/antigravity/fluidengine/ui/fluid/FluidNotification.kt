@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -491,12 +492,21 @@ private fun FluidNotificationCard(
   )
 
   val shape = FluidGlassRoundedShape(20.dp)
+  // The card publishes its own material so the close button standing on it refracts the card and
+  // not the page behind it — see LocalGlassBackdrop.
+  val cardGlass = rememberGlassBackdrop()
+  val controlBackdrop = if (backdrop != null) {
+    rememberCombinedGlassBackdrop(backdrop, cardGlass)
+  } else {
+    null
+  }
   val glassModifier = if (backdrop != null) {
     Modifier.glassSurface(
       state = backdrop,
-      tint = GlassDefaults.floatingTint(),
+      tint = GlassDefaults.modalTint(),
       shape = shape,
       role = GlassRole.Modal,
+      exports = cardGlass,
     )
   } else {
     Modifier
@@ -545,12 +555,14 @@ private fun FluidNotificationCard(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
       }
-      FluidGlassIconButton(onClick = onDismiss) {
-        Icon(
-          imageVector = Icons.Rounded.Close,
-          contentDescription = "Chiudi notifica",
-          tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+      CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
+        FluidGlassIconButton(onClick = onDismiss) {
+          Icon(
+            imageVector = Icons.Rounded.Close,
+            contentDescription = "Chiudi notifica",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
       }
     }
   }

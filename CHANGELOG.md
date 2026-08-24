@@ -6,6 +6,20 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.4.0 - 2026-08-24
+
+- Il Fluid Glass e rifatto sopra la libreria backdrop di Kyant (AndroidLiquidGlass, Apache-2.0), copiata come sorgente in engine-ui/ui/glass/. Rifrazione vera con campo di distanza, dispersione cromatica, bordo speculare orientato, ombra interna. Crediti in LICENSES/AndroidLiquidGlass.md
+- La tinta del vetro scende a circa un terzo e la sfocatura di riferimento sale da 8 a 16 dp: la leggibilita si compra con il raggio, non con l opacita. E il motivo per cui il vetro precedente non sembrava vetro
+- I controlli di vetro rispondono al dito: si inclinano verso il tocco con un tanh, si gonfiano e si schiacciano sotto pressione, e si illuminano dove sono stati toccati. L indicatore della tab bar si trascina fra le schede e si stira nella direzione in cui viaggia
+- Un controllo appoggiato a una barra rifrange la barra e non la pagina: glassSurface accetta exports, rememberCombinedGlassBackdrop compone due materiali e la chrome espone LocalGlassBackdrop gia pronto
+- ContinuousCornerShape arriva davvero alla capsula: era il raggio a cedere quando due angoli si sarebbero sovrapposti, e un angolo al 50 per cento si fermava al 62.5 per cento del lato. Ora cede lo smoothing, quindi ogni pastiglia dell interfaccia ha le estremita tonde
+- FluidLicenses: fluidLicensesSection, FluidLicenseGroup e FluidLicenseDetails portano i crediti di terze parti nella pagina informazioni di ogni app
+- sample/: la galleria del vetro, che si compila solo aprendo l engine da solo
+- BREAKING: GlassOptics cambia vocabolario - refractionHeight, refractionAmount, blurScale, dispersion invece delle larghezze di rim. Nessuna app lo costruiva a mano
+- BREAKING: glassControlSurface vuole il backdrop da rifrangere; la vecchia versione dipinta resta come fluidStaticGlassSurface per sheet e dialog, che stanno in una finestra propria e non possono campionare
+- BREAKING: FluidGlassIconButton prende modifier prima di backdrop, e backdrop ha come default LocalGlassBackdrop
+
+
 ## 1.3.1 - 2026-08-24
 
 - Le superfici live uniformi di tab bar, rail, notifiche e indici usano sagome circolari che coincidono esattamente con il campo di distanza AGSL.

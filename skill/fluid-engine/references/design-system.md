@@ -43,8 +43,12 @@ il `toggleable` e il target da 48dp.
 
 `FluidSegmentedControl(options, selected, onSelect, label)`, `FluidChip(label, selected, onClick)`,
 `FluidTextField`, `FluidColorDot`, `FluidBarAction(icon, contentDescription, onClick)`,
-`FluidGlassIconButton`, `glassControlSurface`,
+`FluidGlassIconButton`, `FluidGlassButton`, `glassControlSurface`, `fluidStaticGlassSurface`,
 `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`, `FluidHairline`, `FluidRowValue`.
+
+`fluidLicensesSection()` / `FluidLicenseGroup` / `FluidLicenseDetails` — i crediti di terze parti che
+l'engine porta dentro l'APK. Vanno nella pagina "informazioni" di ogni app: l'Apache-2.0 del vetro
+chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel repo.
 
 ## Token
 
@@ -54,7 +58,8 @@ il `toggleable` e il target da 48dp.
 - `FluidFontFamily` (testo), `FluidDisplayFontFamily` (titoli ≥ 20sp)
 - `FluidTone`: Primary, Success, Warning, Danger, Info, Neutral
 - `FluidMotion` (molle), `FluidMotionScheme` (le passa a Material), `FluidMotionPolicy`
-- `GlassDefaults`, `rememberGlassBackdrop`, `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
+- `GlassDefaults`, `rememberGlassBackdrop`, `rememberCombinedGlassBackdrop`, `LocalGlassBackdrop`,
+  `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche
@@ -65,10 +70,26 @@ il `toggleable` e il target da 48dp.
 Solo chrome e overlay: top bar, tab bar/rail, azioni, notifiche, indici e modali. Card, liste,
 campi, chip, segmentati e pulsanti che scorrono con la pagina restano solidi. Un overlay che deve
 campionare la schermata va nello slot `FluidScreen.overlay`; un `glassSurface` dentro il body
-registrato finirebbe per campionare se stesso. Le lenti annidate usano `glassControlSurface`, che
-riusa il blur del genitore senza aggiungere layer. Le sole sagome live uniformi dell'engine usano
-un envelope circolare esatto per far coincidere clip e SDF AGSL; il resto del sistema conserva gli
-angoli continui.
+registrato finirebbe per campionare se stesso.
+
+**Il vetro sta su quello che ha sotto, non su tre strati sotto.** Un controllo appoggiato a una
+barra deve rifrangere *la barra*: darle la pagina ci apre dentro un buco, ed è esattamente quello
+che sembra. La barra pubblica il proprio materiale con `exports = unAltroGlassBackdropState`, e chi
+ci sta sopra lo compone con `rememberCombinedGlassBackdrop(pagina, barra)`. `FluidScreen` e
+`FluidTabBar` lo fanno già e passano il risultato in `LocalGlassBackdrop`, quindi un
+`FluidBarAction` dentro `actions` è a posto senza che l'app tocchi niente.
+
+**Sopra un testo piccolo, niente sfocatura e niente lente a riposo.** L'indicatore della tab bar sta
+sopra una scritta alta sei pixel: qualsiasi raggio di blur e quella diventa l'unica parola
+illeggibile della barra. Vetro fermo = lo sfondo ridisegnato 1:1; la lente arriva solo con il dito
+(`opticalDepth = { pressProgress }`).
+
+Non c'è più l'eccezione sugli angoli: la lente legge i raggi da qualsiasi `CornerBasedShape`, quindi
+anche vetro e superfici di pagina usano `ContinuousCornerShape` e la stessa capsula.
+
+L'ottica la disegna la libreria `backdrop` di Kyant (Apache-2.0) copiata in `ui/glass/backdrop/`.
+Non scrivere shader di vetro nuovi accanto a quella: se serve un'ottica diversa, è un `GlassOptics`
+diverso.
 
 ## Il tema
 

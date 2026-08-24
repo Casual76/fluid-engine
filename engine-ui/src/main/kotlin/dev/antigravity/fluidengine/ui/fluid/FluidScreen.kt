@@ -904,6 +904,10 @@ private fun FluidTopBar(
   val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val tint = GlassDefaults.barTint()
   val interactionSource = remember { MutableInteractionSource() }
+  // The bar publishes its own finished material so the actions standing on it refract *it* rather
+  // than the page three layers down — a lens resting on frosted glass shows the frosting.
+  val barGlass = rememberGlassBackdrop()
+  val controlBackdrop = rememberCombinedGlassBackdrop(backdrop, barGlass)
 
   Box(
     modifier = Modifier
@@ -922,8 +926,10 @@ private fun FluidTopBar(
         edge = GlassEdge.None,
         falloff = GlassFalloff.FadeDown,
         intensity = { glassIntensity.value },
+        exports = barGlass,
         ),
     )
+    CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
@@ -1037,6 +1043,7 @@ private fun FluidTopBar(
           Spacer(Modifier.width(6.dp))
         }
       }
+    }
     }
   }
 }

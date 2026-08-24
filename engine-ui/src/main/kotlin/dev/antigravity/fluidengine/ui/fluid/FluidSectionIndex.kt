@@ -103,6 +103,7 @@ fun FluidSectionIndex(
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val markColor = MaterialTheme.colorScheme.primary
   val floatingTint = GlassDefaults.floatingTint()
+  val controlTint = GlassDefaults.controlTint()
   var interacting by remember { mutableStateOf(false) }
 
   AnimatedVisibility(
@@ -141,12 +142,12 @@ fun FluidSectionIndex(
                 Modifier.glassSurface(
                   state = backdrop,
                   tint = floatingTint,
-                  shape = FluidGlassCapsuleShape,
-                  role = GlassRole.Interactive,
+                  shape = FluidCapsuleShape,
+                  role = GlassRole.Modal,
                 )
               } else {
                 Modifier
-                  .clip(FluidGlassCapsuleShape)
+                  .clip(FluidCapsuleShape)
                   .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f))
               },
             )
@@ -168,8 +169,8 @@ fun FluidSectionIndex(
             if (backdrop != null) {
               Modifier.glassSurface(
                 state = backdrop,
-                tint = floatingTint,
-                shape = FluidGlassCapsuleShape,
+                tint = controlTint,
+                shape = FluidCapsuleShape,
                 role = GlassRole.Interactive,
               )
             } else {

@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.3.1 - 2026-08-24
+
+- Le superfici live uniformi di tab bar, rail, notifiche e indici usano sagome circolari che coincidono esattamente con il campo di distanza AGSL.
+- Rifrazione, magnification, doppio rim, specular e ombra interna sono più leggibili sul dispositivo reale; anche le lenti dei pulsanti hanno maggiore profondità.
+- La base della navigazione conserva contrasto accessibile sopra contenuto arbitrario, lasciando al bordo crudo e dislocato il lavoro ottico.
+
+
 ## 1.3.0 - 2026-08-24
 
 - GlassMaterial aggiunge bordi ottici, rifrazione del backdrop e profili Bar, Floating, Interactive e Modal con fallback progressivi per API e shape.

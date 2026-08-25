@@ -6,6 +6,16 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.0 - 2026-08-25
+
+- Fluid-physics: qualsiasi forma di vetro diventa qualsiasi altra. FluidForm (Slab/Poly/Group fino a sei pezzi), FluidPhysicsState (morphTo con ritargeting a meta' volo e scalo automatico per i viaggi gruppo<->sagoma), Modifier.fluidPhysicsSurface con la grammatica di glassSurface, Modifier.fluidPhysicsContent per il contenuto che non si stira mai.
+- La rifrazione segue la sagoma mentre viaggia: una famiglia di shader SDF nuova (rettangoli fusi con lo smooth minimum - il ponte liquido fra i pezzi - e poligoni ad anello di vertici), derivata dal preludio Apache-2.0 di Kyant e annotata in LICENSES.
+- Il contratto di performance che risponde a 'niente shape morphing': un fotogramma di morph e' nuovi uniform su uno shader gia' compilato - il clip del layer resta fermo (hook GlassClipGeometry in ShapeProvider, unico tocco al vendored), la silhouette la scolpisce l'alpha dello shader, a riposo l'istanza di Shape e' stabile.
+- Tre tier (Full/Balanced/Lite) con sonda di compilazione una tantum: uno shader rifiutato dal driver degrada, non crasha. La corrispondenza dei vertici e' di androidx.graphics.shapes (Morph), pagata una volta al decollo.
+- La molla dei contenitori e' standard, mai fluid: nei fotogrammi delle transizioni Apple i pannelli non rimbalzano - il rimbalzo e' degli elementi piccoli. E una fusione non estrapola mai oltre il coincidere.
+- La galleria e' diventata Fluid Glass (dev.antigravity.fluidglass, 1.0.0): quinta scheda Playground - preset, disegno a mano libera, molle e tier dal vivo, forme salvate, due tasti che diventano un menu' che diventa un pop-up - piu' identita' da store completa (firma pampa V1+V2+V3, minify, icona, aggiornamento in-app dal manifest.json del repo).
+
+
 ## 1.8.6 - 2026-08-25
 
 - L'indice delle sezioni **condivide il gesto con la lista** invece di sottrarglielo. Compose ferma il test di collisione al primo fratello che colpisce: ogni tocco che finiva sul nastro era un tocco che la lista non sentiva mai, e siccome il nastro si prende il gesto solo dopo una pressione lunga, un dito che atterrava sulla barretta e trascinava subito non otteneva **niente** - ne' scorrimento ne' indice. Rimpicciolire il bersaglio lo rendeva raro, non giusto. Ora entrambi ricevono tutto: la lista agisce sul movimento, il nastro sull'immobilita'

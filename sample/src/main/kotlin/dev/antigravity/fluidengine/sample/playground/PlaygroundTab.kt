@@ -77,7 +77,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
   var stage by remember { mutableStateOf(IntSize.Zero) }
   var selectedPreset by remember { mutableStateOf(PresetCircle) }
   var drawing by remember { mutableStateOf(false) }
-  var springLabel by remember { mutableStateOf("Fluida") }
+  var springLabel by remember { mutableStateOf("Standard") }
   var tierLabel by remember { mutableStateOf("Auto") }
   var loopLabel by remember { mutableStateOf("No") }
   var blobSeed by remember { mutableIntStateOf(7) }

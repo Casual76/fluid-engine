@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Il pezzo di vetro del Playground: una lente con il suo riflesso speculare. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- Il disco di vetro. -->
+  <path
+      android:pathData="M54,54m-25,0a25,25 0,1 1,50 0a25,25 0,1 1,-50 0"
+      android:fillColor="#8CFFFFFF" />
+  <!-- Il bordo. -->
+  <path
+      android:pathData="M54,54m-25,0a25,25 0,1 1,50 0a25,25 0,1 1,-50 0"
+      android:strokeColor="#E6FFFFFF"
+      android:strokeWidth="1.6"
+      android:fillColor="#00000000" />
+  <!-- La riga speculare in alto a sinistra: quella che dice "vetro" e non "cerchio". -->
+  <path
+      android:pathData="M36.5,44 A21,21 0 0 1 47,34.5"
+      android:strokeColor="#FFFFFFFF"
+      android:strokeWidth="3.2"
+      android:strokeLineCap="round"
+      android:fillColor="#00000000" />
+</vector>

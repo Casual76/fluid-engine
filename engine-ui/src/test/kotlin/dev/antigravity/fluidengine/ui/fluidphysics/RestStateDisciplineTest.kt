@@ -86,6 +86,60 @@ class RestStateDisciplineTest {
   }
 
   @Test
+  fun everyJourneyIsServedTheHardOnesViaALayover() {
+    val poly = FluidFormPresets.star(Rect(100f, 100f, 300f, 300f))
+    val group = FluidForm.Group(listOf(circle, square), blendRadius = 40f)
+
+    // Diretti: nessuno scalo.
+    assertEquals(null, physicsLayoverFor(circle, square))
+    assertEquals(null, physicsLayoverFor(circle, poly))
+    assertEquals(null, physicsLayoverFor(poly, circle))
+    assertEquals(null, physicsLayoverFor(group, circle))
+    assertEquals(null, physicsLayoverFor(group, group))
+
+    // Gruppo↔sagoma: lo scalo esiste ed è posato sul footprint della sagoma.
+    val outbound = physicsLayoverFor(group, poly)
+    val inbound = physicsLayoverFor(poly, group)
+    assertEquals(poly.frame, outbound?.frame)
+    assertEquals(poly.frame, inbound?.frame)
+  }
+
+  @Test
+  fun aGroupToPolyJourneyLandsWithoutThrowing() = runBlocking {
+    val state = FluidPhysicsState(FluidForm.Group(listOf(circle, square), blendRadius = 40f))
+    state.reducedMotion = true
+    val poly = FluidFormPresets.star(Rect(100f, 100f, 300f, 300f))
+
+    // La coppia che crashava sul dispositivo: ora è un viaggio in due tappe, mai un'eccezione.
+    state.morphTo(poly)
+
+    assertEquals(poly, state.form)
+    assertFalse(state.isMorphing)
+    assertEquals(PlanModePoly, state.ensurePlan().mode)
+  }
+
+  @Test
+  fun aMergeNeverOvershootsPastCoincidence() {
+    // Due sorgenti, una destinazione: a t=1 coincidono; l'overshoot deve fermarsi lì, perché due
+    // pezzi che si ri-separano dopo essersi fusi sono un doppio bordo che si vede.
+    val target = square
+    val transit = SlabTransit(listOf(circle to target, square to target), blendRadius = 40f)
+    assertTrue(transit.isMerge)
+
+    val plan = PhysicsRenderPlan()
+    buildTransitPlan(plan, transit, 1.08f)
+    // Entrambi i pezzi esattamente sulla destinazione, nonostante t > 1.
+    assertEquals(target.frame.center.x, plan.pieceRects[0], 0.001f)
+    assertEquals(target.frame.center.x, plan.pieceRects[4], 0.001f)
+    assertEquals(target.frame.center.y, plan.pieceRects[1], 0.001f)
+    assertEquals(plan.pieceRects[2], plan.pieceRects[6], 0.001f)
+
+    // Un viaggio senza fusione invece estrapola: è la vita della molla.
+    val direct = SlabTransit(listOf(circle to square), blendRadius = 0f)
+    assertFalse(direct.isMerge)
+  }
+
+  @Test
   fun aGroupRestPlanCarriesEveryPieceAndItsBlend() {
     val group = FluidForm.Group(
       pieces = listOf(circle, FluidForm.Slab(Rect(500f, 100f, 700f, 300f), FluidCornerRadii.all(40f))),

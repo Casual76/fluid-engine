@@ -89,12 +89,32 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * parte dalla geometria in cui il pezzo si trova adesso, non da dove sarebbe dovuto arrivare —
    * un dito che cambia idea non deve mai veder saltare la forma.
    *
-   * Una sagoma libera ([FluidForm.Poly]) non viaggia da/verso un [FluidForm.Group]: il campo fuso
-   * del gruppo parla solo rettangoli. Il Playground non lo chiede mai; un chiamante che lo chiede
-   * riceve una `IllegalArgumentException` con scritto cosa fare.
+   * Non esistono coppie vietate. Il solo viaggio che il renderer non sa fare in un colpo —
+   * una sagoma libera da/verso un gruppo — diventa da sé un viaggio in **due tappe** passando per
+   * lo scalo di [physicsLayoverFor]: i pezzi si fondono in un pannello sul footprint della sagoma,
+   * e il pannello diventa la sagoma (o il percorso inverso). Un gesto legittimo non è mai
+   * un'eccezione.
    */
-  suspend fun morphTo(target: FluidForm, spec: AnimationSpec<Float> = FluidMotion.fluid()) {
+  suspend fun morphTo(
+    target: FluidForm,
+    // Standard, non fluid: è la molla dei contenitori. Nei fotogrammi delle transizioni Apple i
+    // pannelli attaccano in fretta e si posano con una coda lunga, ma non rimbalzano MAI — il
+    // rimbalzo è degli elementi piccoli. Una sagoma intera che oltrepassa e torna è la cosa che
+    // l'occhio legge come "poco naturale" pur non sapendo dire perché.
+    spec: AnimationSpec<Float> = FluidMotion.standard(),
+  ) {
     if (activeTransit == null && target == formState) return
+    val layover = physicsLayoverFor(currentForm(), target)
+    if (layover != null) {
+      // La tappa di scalo è servizio, non spettacolo: criticamente smorzata e rapida, così il
+      // viaggio si legge come UNO — fondersi e cambiare pelle — e non come due animazioni con
+      // una pausa in mezzo.
+      morphLeg(layover, FluidMotion.snappy())
+    }
+    morphLeg(target, spec)
+  }
+
+  private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>) {
     val transit = buildTransit(currentForm(), target)
     formState = target
     activeTransit = transit
@@ -159,8 +179,10 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       val blend = maxOf(groupBlendOf(origin), groupBlendOf(target))
       return SlabTransit(pairs, blend)
     }
-    require(origin !is FluidForm.Group && target !is FluidForm.Group) {
-      "Una sagoma libera non viaggia da/verso un gruppo: falla prima arrivare a uno Slab."
+    // Invariante, non validazione: morphTo instrada le coppie gruppo↔sagoma dallo scalo PRIMA di
+    // arrivare qui. Se questo scatta, il bug è a monte.
+    check(origin !is FluidForm.Group && target !is FluidForm.Group) {
+      "Transito gruppo↔sagoma senza scalo: morphTo doveva passare da physicsLayoverFor."
     }
     return RingTransit(buildMatchedRings(origin, target))
   }
@@ -207,9 +229,38 @@ internal sealed interface Transit
 internal class SlabTransit(
   val pairs: List<Pair<FluidForm.Slab, FluidForm.Slab>>,
   val blendRadius: Float,
-) : Transit
+) : Transit {
+  /**
+   * Vero quando due sorgenti viaggiano verso la STESSA destinazione: una fusione. Lì l'overshoot
+   * della molla va tagliato sulla geometria: due pezzi che coincidono a t=1 e poi estrapolano a
+   * t=1.05 si *ri-separano* per un fotogramma — un doppio bordo che si vede, e che nessuna
+   * fusione vera produce.
+   */
+  val isMerge: Boolean = pairs.map { it.second }.let { targets ->
+    targets.size != targets.distinct().size
+  }
+}
 
 internal class RingTransit(val rings: MatchedRings) : Transit
+
+/**
+ * Lo scalo di un viaggio che il renderer non sa fare in un colpo, o null se il viaggio è diretto.
+ *
+ * L'unica coppia servita è gruppo↔sagoma libera: il campo fuso parla rettangoli e l'anello parla
+ * una sagoma sola, quindi in mezzo ci va un pannello — posato sul footprint della sagoma, così la
+ * tappa dei pezzi è la fusione (o la scissione) e la tappa dell'anello è il cambio di pelle, e
+ * nessuna delle due salta. Pura e testabile: è la funzione che garantisce che morphTo sia totale.
+ */
+internal fun physicsLayoverFor(origin: FluidForm, target: FluidForm): FluidForm.Slab? {
+  val groupToPoly = origin is FluidForm.Group && target is FluidForm.Poly
+  val polyToGroup = origin is FluidForm.Poly && target is FluidForm.Group
+  if (!groupToPoly && !polyToGroup) return null
+  val anchor = (if (groupToPoly) target else origin) as FluidForm.Poly
+  return FluidForm.Slab(
+    frame = anchor.frame,
+    cornerRadii = FluidCornerRadii.all(anchor.frame.minDimension / 4f),
+  )
+}
 
 /** I pezzi Slab di una forma, o null se la forma non è tutta di famiglia A. */
 private fun slabPiecesOf(form: FluidForm): List<FluidForm.Slab>? = when (form) {
@@ -332,9 +383,10 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
 internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Float) {
   when (transit) {
     is SlabTransit -> {
+      val clamped = if (transit.isMerge) t.coerceAtMost(1f) else t
       plan.silhouette.rewind()
       transit.pairs.forEachIndexed { index, (from, to) ->
-        val v = lerpSlab(from, to, t)
+        val v = lerpSlab(from, to, clamped)
         plan.writeSlabPiece(index, v)
         // In viaggio la sagoma passa per angoli circolari: è l'eccezione documentata — un path
         // continuo ricalcolato a ogni fotogramma è esattamente quello che non ci si può permettere,

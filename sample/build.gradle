@@ -1,11 +1,12 @@
-// The gallery.
+// Fluid Glass.
 //
-// Not a demo for anyone outside: it is how a change to the design system gets *looked at* before it
-// reaches five apps. The glass this repo shipped before was tuned entirely in screenshots, which is
-// exactly the failure mode a material that only exists while a finger is on it will always produce.
+// Nata come galleria interna — come un cambiamento al design system viene *guardato* prima di
+// arrivare in cinque app — e ancora quello. Ma dalla 1.0.0 è anche un'app del Pampa Store: la
+// scheda Playground è l'unico posto al mondo dove Fluid-physics si prova con le dita, e un motore
+// che trasforma il vetro merita di essere installabile.
 //
-// It is only built when the engine is opened on its own — a host app includes the engine-* modules
-// directly and never reads the engine's own settings.gradle.
+// Si compila solo quando l'engine è aperto da solo: un'app ospite include i moduli engine-* e non
+// legge mai il settings.gradle dell'engine.
 plugins {
   id 'com.android.application'
   id 'org.jetbrains.kotlin.android'
@@ -14,35 +15,75 @@ plugins {
 
 apply from: "${projectDir}/../versions.gradle"
 
+// La chiave vera vive fuori dal repo: local.properties (git-ignorato) con
+//   pampa.storeFile=C:/VibeCoded Projects/pampa.jks
+//   pampa.storePassword=...
+//   pampa.keyAlias=pampa
+//   pampa.keyPassword=...
+// Senza chiave la release ripiega sulla firma di debug e lo dice: si continua a compilare ovunque,
+// ma quella build non è pubblicabile e non si installa sopra una installazione vera.
+def keystoreProps = new Properties()
+def localPropsFile = new File(project.projectDir.parentFile, 'local.properties')
+if (localPropsFile.exists()) {
+  localPropsFile.withInputStream { keystoreProps.load(it) }
+}
+def hasReleaseKey = keystoreProps.getProperty('pampa.storeFile') != null
+
 android {
   namespace 'dev.antigravity.fluidengine.sample'
   compileSdk engine.compileSdk
 
   defaultConfig {
-    applicationId 'dev.antigravity.fluidengine.sample'
+    // L'id vero dell'app pubblicata. Il namespace Kotlin resta `...fluidengine.sample`: cambiare
+    // i package non fa l'app più vera, cambiare l'id sì.
+    applicationId 'dev.antigravity.fluidglass'
     minSdk engine.minSdk
     targetSdk engine.compileSdk
-    versionCode 1
-    versionName engine.version
+    versionCode 2
+    // Letterale, non `engine.version`: l'app ha la sua vita (il motore è alla 1.9.x mentre questa
+    // è alla 1.0.x), e il publisher dello store legge questa riga con una regex che capisce solo
+    // stringhe.
+    versionName '1.0.0'
+  }
+
+  signingConfigs {
+    if (hasReleaseKey) {
+      release {
+        storeFile file(keystoreProps.getProperty('pampa.storeFile'))
+        storePassword keystoreProps.getProperty('pampa.storePassword')
+        keyAlias keystoreProps.getProperty('pampa.keyAlias', 'pampa')
+        keyPassword keystoreProps.getProperty('pampa.keyPassword')
+        // La v1 va accesa a mano: AGP la toglie con minSdk >= 24, e il publisher dello store
+        // convalida proprio la presenza della firma JAR (META-INF/*.RSA) prima di caricare.
+        enableV1Signing true
+        enableV2Signing true
+        enableV3Signing true
+      }
+    }
   }
 
   buildTypes {
     debug {
-      // Signed with the ordinary debug key, so it never collides with a real app on the device.
+      // Un suffisso, così una build di lavoro convive sul telefono con quella dello store.
+      applicationIdSuffix '.debug'
       minifyEnabled false
     }
     release {
-      // Also debug-signed, on purpose: nothing here is distributed, and the point of the variant is
-      // that `debuggable` is off. Glass is the most draw-heavy thing the design system does, and a
-      // debuggable build measures ART with its optimisations disabled — which is how you end up
-      // "fixing" frame times that were never going to be there.
-      minifyEnabled false
-      signingConfig signingConfigs.debug
+      minifyEnabled true
+      shrinkResources true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+      if (hasReleaseKey) {
+        signingConfig signingConfigs.release
+      } else {
+        signingConfig signingConfigs.debug
+        println 'Fluid Glass: nessuna chiave in local.properties — release firmata DEBUG, non pubblicabile.'
+      }
     }
   }
 
   buildFeatures {
     compose true
+    buildConfig true
   }
 
   compileOptions {
@@ -57,5 +98,7 @@ android {
 
 dependencies {
   implementation project(':engine-ui')
+  // L'aggiornamento in-app: lo stesso manifest.json che il Pampa Store legge, una sola fonte.
+  implementation project(':engine-update')
   implementation "androidx.activity:activity-compose:${engine.activityCompose}"
 }

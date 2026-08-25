@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Il fondale dell'icona: la stessa diagonale blu→viola del palco del Playground. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <path android:pathData="M0,0h108v108h-108z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="0"
+          android:startY="0"
+          android:endX="108"
+          android:endY="108"
+          android:type="linear">
+        <item android:offset="0" android:color="#FF007AFF" />
+        <item android:offset="0.55" android:color="#FF5856D6" />
+        <item android:offset="1" android:color="#FFAF52DE" />
+      </gradient>
+    </aapt:attr>
+  </path>
+  <!-- Le righe dure che rendono leggibile la rifrazione, come sul palco. -->
+  <path
+      android:pathData="M-10,30 L30,-10 L38,-2 L-2,38 Z"
+      android:fillColor="#33FFFFFF" />
+  <path
+      android:pathData="M6,62 L62,6 L70,14 L14,70 Z"
+      android:fillColor="#26FFFFFF" />
+  <path
+      android:pathData="M38,110 L110,38 L118,46 L46,118 Z"
+      android:fillColor="#26FFFFFF" />
+</vector>

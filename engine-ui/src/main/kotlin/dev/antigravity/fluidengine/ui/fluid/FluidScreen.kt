@@ -31,8 +31,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -57,10 +59,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1201,11 +1206,82 @@ fun FluidBarAction(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
+  /**
+   * Actions raised by holding the button, in a menu the button **becomes**.
+   *
+   * A bar has room for two or three lenses, and the app rarely has only two or three verbs — the
+   * rest used to simply not exist. Held, the button steps aside and its own rectangle unfolds into
+   * the menu, exactly the way [FluidGlassMenuButton] does; tapped, it stays the one-verb control it
+   * always was, so nothing is taken away from the person who never discovers the menu.
+   */
+  actions: (() -> List<FluidContextAction>)? = null,
 ) {
+  if (actions == null) {
+    FluidGlassIconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+      Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(22.dp),
+      )
+    }
+    return
+  }
+
+  val host = LocalFluidGlassModalHostState.current
+  val entry = remember { FluidGlassModalEntry() }
+  val haptics = LocalHapticFeedback.current
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  var open by remember { mutableStateOf(false) }
+
+  SideEffect {
+    entry.presentation = FluidGlassModalPresentation.Expand
+    entry.paneTitle = contentDescription
+    entry.onDismissRequest = { open = false }
+  }
+
+  DisposableEffect(host, entry) {
+    host?.register(entry)
+    onDispose {
+      entry.visible = false
+      host?.unregister(entry)
+    }
+  }
+
+  LaunchedEffect(open) {
+    entry.actions = if (open) actions() else entry.actions
+    if (open && host != null) entry.openedAt = host.nextSequence()
+    entry.visible = open && host != null
+  }
+
+  // The button gives up its pixels while the menu is out, and keeps its space — same handover as
+  // FluidGlassMenuButton, for the same reason: the frame the menu grows out of has to be still.
+  val handover = remember { Animatable(1f) }
+  LaunchedEffect(open, reducedMotion) {
+    val target = if (open) 0f else 1f
+    if (reducedMotion) {
+      handover.snapTo(target)
+    } else {
+      handover.animateTo(target, spring(1f, if (open) 900f else 340f, 0.001f))
+    }
+  }
+
   FluidGlassIconButton(
     onClick = onClick,
-    modifier = modifier,
+    modifier = modifier
+      .onGloballyPositioned { coordinates ->
+        val rect = coordinates.boundsInRoot()
+        entry.previewSize = rect
+        entry.origin = { rect }
+      }
+      .graphicsLayer { alpha = handover.value },
     enabled = enabled,
+    onLongClick = {
+      if (host != null && actions().isNotEmpty()) {
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        open = true
+      }
+    },
   ) {
     Icon(
       imageVector = icon,

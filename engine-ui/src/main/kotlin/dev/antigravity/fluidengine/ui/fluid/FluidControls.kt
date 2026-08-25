@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -435,6 +436,12 @@ fun <T> FluidSegmentedControl(
       (constraints.maxWidth.toFloat() - inset.toPx() * 2f) / options.size
     }
     var currentIndex by remember { mutableStateOf(selectedIndex) }
+    // Letti adesso, non catturati allora: l'animazione sopravvive alle ricomposizioni e le sue
+    // lambda vivono piu' a lungo di qualunque valore abbiano chiuso dentro. Vedi la nota gemella
+    // in FluidFoldingTabBar.
+    val currentOptions by rememberUpdatedState(options)
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    val currentEnabled by rememberUpdatedState(enabled)
 
     val pill = remember(scope, options.size, segmentWidth) {
       GlassDragAnimation(
@@ -445,18 +452,18 @@ fun <T> FluidSegmentedControl(
         initialScale = 1f,
         pressedScale = if (reducedMotion) 1f else 1.06f,
         onDragStopped = {
-          val target = targetValue.roundToInt().coerceIn(0, options.size - 1)
+          val target = targetValue.roundToInt().coerceIn(0, currentOptions.size - 1)
           animateToValue(target.toFloat())
           if (target != currentIndex) {
             currentIndex = target
-            options.getOrNull(target)?.let(onSelect)
+            currentOptions.getOrNull(target)?.let { currentOnSelect(it) }
           }
         },
         onDrag = { _, dragAmount ->
-          if (segmentWidth <= 0f || !enabled) return@GlassDragAnimation
+          if (segmentWidth <= 0f || !currentEnabled) return@GlassDragAnimation
           updateValue(
             (targetValue + dragAmount.x / segmentWidth)
-              .coerceIn(0f, (options.size - 1).toFloat()),
+              .coerceIn(0f, (currentOptions.size - 1).toFloat()),
           )
         },
       )
@@ -541,6 +548,14 @@ fun <T> FluidSegmentedControl(
     Box(
       modifier = Modifier
         .padding(inset)
+        // The slide lives *here*, ahead of the gesture modifier, exactly as in FluidTabBar — not in
+        // the glass surface's layerBlock below. A layer applies only to what follows it in the
+        // chain, and the gesture surface has to follow: with the translation inside the glass
+        // layer, the pill was *seen* on the selected segment while its touch target stayed parked
+        // over the first one. Tapping the first segment then fed the pill's drag detector instead
+        // of the segment's click — a zero-length drag that reselects — so once the pill left the
+        // first slot, that segment went dead and the pill itself could no longer be grabbed.
+        .graphicsLayer { translationX = pill.value * segmentWidth }
         .then(pill.modifier)
         .glassSurface(
           state = pillBackdrop,
@@ -561,7 +576,6 @@ fun <T> FluidSegmentedControl(
           opticalDepth = { pill.pressProgress },
           pressed = { pill.pressProgress },
           layerBlock = {
-            translationX = pill.value * segmentWidth
             if (!reducedMotion) {
               scaleX = pill.scaleX
               scaleY = pill.scaleY

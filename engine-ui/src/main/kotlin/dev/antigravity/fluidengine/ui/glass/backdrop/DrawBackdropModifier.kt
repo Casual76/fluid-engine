@@ -255,6 +255,14 @@ private class DrawBackdropElement(
     }
 
     override fun update(node: DrawBackdropNode) {
+        if (node.backdrop != backdrop) {
+            // A record is a picture of one particular backdrop. Swapping the backdrop out — which
+            // is what a tab change does, every screen bringing its own recording for the shared
+            // chrome to sample — makes the held capture wrong by definition, and the offset
+            // comparison below cannot be trusted to notice: the new screen's sources usually sit at
+            // exactly the coordinates the old one's did.
+            node.surfaceDirty = true
+        }
         node.backdrop = backdrop
         node.shapeProvider = shapeProvider
         node.effects = effects
@@ -424,7 +432,7 @@ private class DrawBackdropNode(
      * meant eight of those per frame. It is the difference between a tab switch that stutters and one
      * that does not.
      */
-    private var surfaceDirty = true
+    var surfaceDirty = true
 
     private var recordedSize: IntSize = IntSize.Zero
     private var recordedSelfOffset: Offset? = null

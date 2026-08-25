@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -69,7 +70,14 @@ class LayerBackdrop internal constructor(
 
     private val selfAsSource = listOf(this)
 
-    internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null)
+    // Fluid Engine change: `neverEqualPolicy`, because every positioning callback hands over the
+    // *same* `LayoutCoordinates` instance — it mutates internally. Under structural equality a
+    // source that moves is a write of an equal value, so nothing reading this in a draw pass is
+    // invalidated, and a surface that skips unchanged captures keeps replaying a record made
+    // against the source's *old* position. That is a pane of glass whose refraction is fixed to
+    // where the page stood mid-transition: a band of the backdrop stays sharp until something else
+    // happens to redraw the pane.
+    internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())
 
     private var inverseLayerScope: InverseLayerScope? = null
 

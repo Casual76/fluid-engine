@@ -261,6 +261,7 @@ fun FluidGlassIconButton(
   enabled: Boolean = true,
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,
+  onLongClick: (() -> Unit)? = null,
   content: @Composable BoxScope.() -> Unit,
 ) {
   Box(
@@ -281,6 +282,7 @@ fun FluidGlassIconButton(
         // The click sits inside the material, so the glass reacts to the same press the action does.
         .fluidPressable(
           onClick = onClick,
+          onLongClick = onLongClick,
           enabled = enabled,
           pressedScale = 1f,
           role = Role.Button,

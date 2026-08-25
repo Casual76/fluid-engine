@@ -36,6 +36,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
+import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import androidx.compose.ui.unit.LayoutDirection
 
 @Immutable
@@ -99,13 +100,27 @@ internal class ShapeProvider(val shapeBlock: () -> Shape) {
             val bottomEnd = source.bottomEnd.toPx(size, density)
             val bottomStart = source.bottomStart.toPx(size, density)
             val rtl = layoutDirection == LayoutDirection.Rtl
+            // The clip must make the SAME per-size decision the tint does, or the corner shows two
+            // curves. Small surfaces draw their tint through the rounded-equivalent radii, so the
+            // clip repeats them exactly. Large surfaces draw the true continuous path — there the
+            // clip keeps the full nominal radius, the closest rounded fit to the superellipse:
+            // shrunk by the small-control factor it fell short of the silhouette, and the ring it
+            // left uncovered was a crescent of tint with no refraction in it, framing every corner
+            // of a menu pane.
+            val small = size.maxDimension < ContinuousCornerShape.SmallShapeCutoffPx
+            fun clipRadius(continuousRadius: Float): CornerRadius =
+                if (small) {
+                    ContinuousCornerShape.roundedEquivalent(continuousRadius, size)
+                } else {
+                    CornerRadius(continuousRadius)
+                }
             return Outline.Rounded(
                 RoundRect(
                     rect = Rect(Offset.Zero, size),
-                    topLeft = CornerRadius(if (rtl) topEnd else topStart),
-                    topRight = CornerRadius(if (rtl) topStart else topEnd),
-                    bottomRight = CornerRadius(if (rtl) bottomStart else bottomEnd),
-                    bottomLeft = CornerRadius(if (rtl) bottomEnd else bottomStart),
+                    topLeft = clipRadius(if (rtl) topEnd else topStart),
+                    topRight = clipRadius(if (rtl) topStart else topEnd),
+                    bottomRight = clipRadius(if (rtl) bottomStart else bottomEnd),
+                    bottomLeft = clipRadius(if (rtl) bottomEnd else bottomStart),
                 )
             )
         }

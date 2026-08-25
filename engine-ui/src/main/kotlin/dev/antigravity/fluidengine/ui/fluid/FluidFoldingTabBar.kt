@@ -15,11 +15,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.State
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -207,6 +209,18 @@ private fun FluidFoldingTabCapsule(
   val tabsGlass = rememberGlassBackdrop()
   val indicatorBackdrop = rememberCombinedGlassBackdrop(barGlass, tabsGlass)
 
+  // Letti *adesso*, non catturati allora. L'animazione del trascinamento sopravvive alle
+  // ricomposizioni (e deve: e' lei che tiene la molla), quindi le sue lambda vivono piu' a lungo di
+  // qualunque valore abbiano chiuso dentro. Con la rotta catturata alla prima composizione, il
+  // rilascio confrontava la scheda bersaglio con una selezione vecchia di tre navigazioni: credeva
+  // di essere gia' li', declassava la selezione a riselezione, e la pillola tornava indietro — una
+  // volta per ogni trascinamento, su ogni barra dell'app.
+  val currentSelectedRoute by rememberUpdatedState(selectedRoute)
+  val currentItems by rememberUpdatedState(items)
+  val currentOnSelect by rememberUpdatedState(onSelect)
+  val currentOnReselect by rememberUpdatedState(onReselect)
+  val currentOnExpandRequest by rememberUpdatedState(onExpandRequest)
+
   // The indicator's position, in tab indices, which is allowed to sit between two of them while a
   // finger is pushing it. Animated as its own value and read only in layout and draw.
   val indicator = remember(scope, items.size, isLtr) {
@@ -231,7 +245,7 @@ private fun FluidFoldingTabCapsule(
               from = targetValue,
               dragX = dragAmount.x,
               pitch = size.width,
-              count = items.size,
+              count = currentItems.size,
               isLtr = isLtr,
             ),
           )
@@ -242,13 +256,13 @@ private fun FluidFoldingTabCapsule(
         // person asking for the bar back.
         if (fold() > FoldedEnough) {
           animateToValue(value)
-          onExpandRequest?.invoke()
+          currentOnExpandRequest?.invoke()
           return@GlassDragAnimation
         }
-        val target = targetValue.fastRoundToInt().fastCoerceIn(0, items.size - 1)
+        val target = targetValue.fastRoundToInt().fastCoerceIn(0, currentItems.size - 1)
         animateToValue(target.toFloat())
-        items.getOrNull(target)?.let { item ->
-          if (item.route == selectedRoute) onReselect(item) else onSelect(item)
+        currentItems.getOrNull(target)?.let { item ->
+          if (item.route == currentSelectedRoute) currentOnReselect(item) else currentOnSelect(item)
         }
       },
     )

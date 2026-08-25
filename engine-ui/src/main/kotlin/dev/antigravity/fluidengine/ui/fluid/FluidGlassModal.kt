@@ -253,6 +253,39 @@ fun FluidGlassModalPortal(
 }
 
 /**
+ * Declares a modal that presents **an item**, and stays whole while it leaves.
+ *
+ * This is the form to use when the modal shows a selected thing — a detail, a record, a note — and
+ * "open" means "something is selected". Passing `visible = x != null` plus a lambda that reads `x`
+ * to the other overload cannot survive its own dismissal: the compiler gives that lambda one
+ * mutable instance whose captures are swapped in place, so on the frame the selection clears the
+ * content composes to nothing and the pane would leave the screen as a hard cut, its text gone
+ * while the scrim is still fading. Here the portal keeps the last non-null [item] itself and keeps
+ * handing it to [content] for as long as the exit runs, so the pane leaves exactly as it stood.
+ */
+@Composable
+fun <T : Any> FluidGlassModalPortal(
+  item: T?,
+  onDismissRequest: () -> Unit,
+  origin: () -> Rect? = { null },
+  presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover,
+  paneTitle: String? = null,
+  content: @Composable ColumnScope.(T) -> Unit,
+) {
+  var lastItem by remember { mutableStateOf(item) }
+  if (item != null) lastItem = item
+  FluidGlassModalPortal(
+    visible = item != null,
+    onDismissRequest = onDismissRequest,
+    origin = origin,
+    presentation = presentation,
+    paneTitle = paneTitle,
+  ) {
+    lastItem?.let { content(it) }
+  }
+}
+
+/**
  * Reports this element's bounds in root coordinates, for a modal to expand out of.
  *
  * The rectangle is what the eye was looking at when it tapped, and starting the pop-up anywhere else
@@ -334,11 +367,15 @@ private fun FluidGlassModalLayer(
       launch { scaleX.animateTo(1f, spring(FluidPopoverDampingX, FluidPopoverStiffness, 0.001f)) }
       launch { scaleY.animateTo(1f, spring(FluidPopoverDampingY, FluidPopoverStiffness, 0.001f)) }
     } else {
-      // Leaving is critically damped and much stiffer: an overshoot on the way out reads as the
-      // pop-up bouncing off the screen rather than being put away.
+      // Leaving is critically damped: an overshoot on the way out reads as the pop-up bouncing off
+      // the screen rather than being put away. But not *stiff* — at 900 the pane crossed most of
+      // its travel inside two frames while a 130 ms fade was still at full alpha, and what the eye
+      // caught was a modal that vanished with its text and a scrim left standing alone. The exit
+      // has to be one gesture: the pane shrinks back onto the row it came from *while* it fades,
+      // and the scrim, which reads the same fade, leaves with it.
       launch { fade.animateTo(0f, FluidMotion.fadeOut(FluidPopoverFadeOutMillis)) }
-      launch { scaleX.animateTo(0f, spring(1f, 900f, 0.001f)) }
-      launch { scaleY.animateTo(0f, spring(1f, 900f, 0.001f)) }
+      launch { scaleX.animateTo(0f, spring(1f, FluidPopoverExitStiffness, 0.001f)) }
+      launch { scaleY.animateTo(0f, spring(1f, FluidPopoverExitStiffness, 0.001f)) }
     }
   }
 
@@ -355,10 +392,13 @@ private fun FluidGlassModalLayer(
     derivedStateOf { fade.value <= 0.001f && !fade.isRunning && !scaleY.isRunning }
   }
 
-  // The content is held from the last frame the modal was open, and that is not tidiness. A feature
-  // writes `visible = selected != null` and a lambda that reads `selected!!`; the instant it
-  // dismisses, the fresh lambda captures null, and the exit animation would run over an empty — or
-  // crashing — body. Replaying the last good one is what lets the modal actually leave.
+  // Everything the exit still needs is held from the last frame the modal was open. These are
+  // *values* — an actions list, a rectangle, a title — and values survive a dismissal. What CANNOT
+  // be preserved this way is the content composable: a composable lambda is one mutable holder per
+  // call site whose block the compiler swaps in place, so the reference kept here IS the fresh
+  // lambda, captures and all. What keeps the pane full during the exit is therefore the *data*
+  // overload of [FluidGlassModalPortal], which freezes the last shown item and hands it back to the
+  // very same lambda.
   var lastContent by remember { mutableStateOf(entry.content) }
   var lastActions by remember { mutableStateOf(entry.actions) }
   var lastPreview by remember { mutableStateOf(entry.preview) }
@@ -455,7 +495,12 @@ private fun FluidGlassModalLayer(
         preview = lastPreview,
         bounds = lastPreviewBounds,
         backdrop = popoverBackdrop,
-        presence = presence,
+        // Never faded. The real row hides the moment the menu opens and comes back only at
+        // [exitFinished] — the preview is the row for that whole stretch, and fading it out on the
+        // menu's clock opened a two-hundred-millisecond hole where the group pane showed through
+        // with no text in it. At both ends of its life the preview sits at scale 1 exactly over the
+        // row it recorded, so appearing and vanishing are pixel-identical swaps, not cuts.
+        presence = { 1f },
         // The row is already its own size, so it only has the lift to travel: a few percent, on the
         // same springs, so the row and the menu move as one object.
         scaleX = { lerp(1f, FluidLiftedPreviewScale, scaleX.value) * (1f - backProgress * 0.05f) },
@@ -563,11 +608,12 @@ private fun FluidGlassModalScrim(
 }
 
 /**
- * Where the pop-up ended up, and which of its corners it grew out of.
+ * Where the pop-up ended up, and the rectangle it grew out of.
  *
- * Written by the measure pass and read by the draw pass. Kept in one object rather than in two
- * separate states because the pivot and the position are one decision: split them and there is a
- * frame where the pop-up is already in its new place and still growing out of its old corner.
+ * Written by the measure pass and read by the draw pass. Kept in one object rather than in
+ * separate states because the start geometry and the position are one decision: split them and
+ * there is a frame where the pop-up is already in its new place and still growing out of its old
+ * rectangle.
  */
 @Stable
 private class FluidPopoverPlacement {
@@ -583,6 +629,17 @@ private class FluidPopoverPlacement {
    */
   var startScaleX by mutableStateOf(FluidPopoverStartScale)
   var startScaleY by mutableStateOf(FluidPopoverStartScale)
+
+  /**
+   * Where the pop-up's top-left corner sits at the start of its travel, relative to where it ends —
+   * which, morphing from an anchor, is the anchor's own corner. Zero for the pivot-based growth
+   * a context menu keeps.
+   */
+  var startOffsetX by mutableStateOf(0f)
+  var startOffsetY by mutableStateOf(0f)
+
+  /** True when the pop-up starts as the anchor's exact rectangle and travels to its place. */
+  var morphFromAnchor by mutableStateOf(false)
 }
 
 /**
@@ -626,14 +683,31 @@ private fun FluidAnchoredPopover(
       Column(
         modifier = Modifier
           .graphicsLayer {
-            alpha = presence()
+            val g = growth()
+            val gc = growthCross()
+            // The pane's own opacity rides its travel, not just the clock. Close to the anchor —
+            // the first instants of an arrival, the last of a departure — it is fully transparent,
+            // so a departing pane has finished dissolving *before* it reaches the row it folds
+            // into: the row and the pane are never readable on top of each other, which is what an
+            // app window closing into its icon does. Away from the anchor it is simply solid.
+            alpha = presence() * ((minOf(g, gc) - 0.08f) / 0.27f).coerceIn(0f, 1f)
             val shrink = 1f - retreat() * 0.10f
             // The springs run 0..1 and the *meaning* of 0 comes from the layout below.
             // Interpolating here rather than animating pixels directly is what keeps the whole
             // arrival inside a draw: nothing above this block recomposes for any frame of it.
-            scaleX = lerp(placement.startScaleX, 1f, growth()) * shrink
-            scaleY = lerp(placement.startScaleY, 1f, growthCross()) * shrink
-            transformOrigin = TransformOrigin(placement.pivotX, placement.pivotY)
+            scaleX = lerp(placement.startScaleX, 1f, g) * shrink
+            scaleY = lerp(placement.startScaleY, 1f, gc) * shrink
+            if (placement.morphFromAnchor) {
+              // The row *becomes* the pane: at zero the pop-up is the anchor's exact rectangle —
+              // corner, width and height — and the same travel run backwards is the pane folding
+              // back into the row that opened it. Top-left origin plus a travelling translation is
+              // what makes both rectangles exact rather than merely nearby.
+              transformOrigin = TransformOrigin(0f, 0f)
+              translationX = lerp(placement.startOffsetX, 0f, g)
+              translationY = lerp(placement.startOffsetY, 0f, gc)
+            } else {
+              transformOrigin = TransformOrigin(placement.pivotX, placement.pivotY)
+            }
           }
           .then(
             if (backdrop != null) {
@@ -643,6 +717,12 @@ private fun FluidAnchoredPopover(
                 shape = shape,
                 role = GlassRole.Modal,
                 optics = FluidPopoverOptics,
+                // Captured once and carried. The pane spends both of its journeys being scaled and
+                // translated by the layer above, and a re-capture computed mid-transform maps the
+                // sources wrongly — which on every close stripped the pane of its glass and left a
+                // milky card travelling down the screen. The recording's sources stay live by
+                // reference, so what is frozen is only the geometry.
+                sampleOnce = true,
               )
             } else {
               Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
@@ -678,6 +758,7 @@ private fun FluidAnchoredPopover(
       placement.pivotY = 0.5f
       placement.startScaleX = FluidPopoverStartScale
       placement.startScaleY = FluidPopoverStartScale
+      placement.morphFromAnchor = false
       return@Layout layout(width, height) {
         placeable.place(
           x = ((width - placeable.width) / 2f).roundToInt(),
@@ -720,16 +801,23 @@ private fun FluidAnchoredPopover(
     }
     placement.pivotY = if (below) 0f else 1f
 
-    // Where the growth starts. Over the anchor it is the anchor own rectangle, so the first frame of
-    // the menu is exactly the button that opened it. Beside it, a fixed fraction: there is no
-    // meaningful correspondence between a list row height and a three-line menu, and pretending
-    // there is makes short menus arrive squashed flat.
-    if (overAnchor && placeable.width > 0 && placeable.height > 0) {
-      placement.startScaleX = (anchor.width / placeable.width).coerceIn(0.1f, 1f)
-      placement.startScaleY = (anchor.height / placeable.height).coerceIn(0.1f, 1f)
+    // Where the growth starts. Everything except a context menu morphs from the anchor's own
+    // rectangle: the first frame of the pop-up IS the row or button that opened it, and the exit is
+    // the pane folding back into it. A context menu is the one shape that keeps the fixed-fraction
+    // corner growth — its row is being lifted separately right beside it, and a menu that also
+    // stretched out of the row's rectangle would fight the very object the lift is presenting.
+    val morph = (!compact || overAnchor) && placeable.width > 0 && placeable.height > 0
+    placement.morphFromAnchor = morph
+    if (morph) {
+      placement.startScaleX = (anchor.width / placeable.width).coerceIn(0.05f, 3f)
+      placement.startScaleY = (anchor.height / placeable.height).coerceIn(0.05f, 3f)
+      placement.startOffsetX = anchor.left - x
+      placement.startOffsetY = anchor.top - y
     } else {
       placement.startScaleX = FluidPopoverStartScale
       placement.startScaleY = FluidPopoverStartScale
+      placement.startOffsetX = 0f
+      placement.startOffsetY = 0f
     }
 
     layout(width, height) { placeable.place(x.roundToInt(), y.roundToInt()) }
@@ -1273,11 +1361,20 @@ private const val FluidPopoverDampingY = 0.74f
 private const val FluidPopoverStiffness = 260f
 
 private const val FluidPopoverFadeInMillis = 110
-private const val FluidPopoverFadeOutMillis = 130
+
+/**
+ * L'uscita dura piu' dell'ingresso, ed e' voluto: all'ingresso il contenuto deve essere leggibile
+ * il prima possibile, all'uscita l'occhio sta seguendo il pannello che *torna nella riga*, e un
+ * fade che finisce prima della corsa lascia uno scrim orfano sopra una pagina senza modale.
+ */
+private const val FluidPopoverFadeOutMillis = 240
+private const val FluidPopoverExitStiffness = 420f
 
 private val FluidPopoverMargin = 16.dp
 private val FluidPopoverGap = 10.dp
-private val FluidPopoverMaxWidth = 400.dp
+// Largo abbastanza da far respirare un dettaglio con allegati su un tablet; su un telefono e' la
+// larghezza dello schermo meno i margini a decidere, quindi il numero grande non cambia niente li'.
+private val FluidPopoverMaxWidth = 620.dp
 private const val FluidPopoverMaxHeightFraction = 0.78f
 /**
  * The pop-up's corner, and it is [FluidRadius.Group] on purpose.

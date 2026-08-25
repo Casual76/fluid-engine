@@ -74,10 +74,10 @@ class ContinuousCornerShape(
       return Outline.Rounded(
         RoundRect(
           rect = Rect(Offset.Zero, size),
-          topLeft = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) topEnd else topStart),
-          topRight = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) topStart else topEnd),
-          bottomRight = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) bottomStart else bottomEnd),
-          bottomLeft = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) bottomEnd else bottomStart),
+          topLeft = roundedEquivalent(if (layoutDirection == LayoutDirection.Rtl) topEnd else topStart, size),
+          topRight = roundedEquivalent(if (layoutDirection == LayoutDirection.Rtl) topStart else topEnd, size),
+          bottomRight = roundedEquivalent(if (layoutDirection == LayoutDirection.Rtl) bottomStart else bottomEnd, size),
+          bottomLeft = roundedEquivalent(if (layoutDirection == LayoutDirection.Rtl) bottomEnd else bottomStart, size),
         ),
       )
     }
@@ -104,6 +104,24 @@ class ContinuousCornerShape(
   companion object {
     /** How far Apple pushes the curvature ramp. Figma's slider calls this 60%. */
     const val IosSmoothing: Float = 0.6f
+
+    /**
+     * Il raggio circolare che *sembra* uguale a un raggio continuo dello stesso numero.
+     *
+     * I raggi di `FluidRadius` sono calibrati per gli angoli continui, che a parità di numero
+     * sembrano più stretti perché spalmano la curvatura lungo il lato. Riusarli tali e quali su un
+     * rettangolo arrotondato gonfia visibilmente ogni angolo — è successo, e si vedeva su ogni
+     * badge e piastrella dell'app. Una capsula invece non si tocca: lì il raggio è metà del lato
+     * per definizione, e ridurlo aprirebbe angoli dove non ne esistono.
+     */
+    internal fun roundedEquivalent(continuousRadius: Float, size: Size): CornerRadius {
+      val half = size.minDimension / 2f
+      val radius = if (continuousRadius >= half) continuousRadius else continuousRadius * RoundedEquivalentFactor
+      return CornerRadius(radius)
+    }
+
+    /** Quanto si stringe un raggio continuo per sembrare uguale da circolare. */
+    internal const val RoundedEquivalentFactor: Float = 0.82f
 
     /**
      * Device pixels. Chosen to mirror the ceiling of Skia's small-path atlas: any generic path

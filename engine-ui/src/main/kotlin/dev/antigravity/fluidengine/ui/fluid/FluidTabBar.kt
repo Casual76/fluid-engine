@@ -34,6 +34,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -167,6 +168,11 @@ fun FluidTabBar(
     }
 
     var currentIndex by remember { mutableIntStateOf(selectedIndex) }
+    // Letti adesso, non catturati allora: l'animazione sopravvive alle ricomposizioni e le sue
+    // lambda vivono piu' a lungo di qualunque valore abbiano chiuso dentro. Vedi la nota gemella
+    // in FluidFoldingTabBar, dove la cattura stantia declassava ogni trascinamento a riselezione.
+    val currentItems by rememberUpdatedState(items)
+    val currentOnSelect by rememberUpdatedState(onSelect)
     val indicator = remember(scope, items.size, tabWidth, isLtr) {
       GlassDragAnimation(
         animationScope = scope,
@@ -177,12 +183,12 @@ fun FluidTabBar(
         // Grows to the full height of the bar while held: the lens is being lifted off the surface.
         pressedScale = if (reducedMotion) 1f else 62f / 56f,
         onDragStopped = {
-          val target = targetValue.fastRoundToInt().fastCoerceIn(0, items.size - 1)
+          val target = targetValue.fastRoundToInt().fastCoerceIn(0, currentItems.size - 1)
           animateToValue(target.toFloat())
           scope.launchOverscrollSettle(overscroll)
           if (target != currentIndex) {
             currentIndex = target
-            items.getOrNull(target)?.let(onSelect)
+            currentItems.getOrNull(target)?.let { currentOnSelect(it) }
           }
         },
         onDrag = { _, dragAmount ->

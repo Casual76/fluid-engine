@@ -242,10 +242,27 @@ fun Modifier.fluidPhysicsContent(
     }
 
     FluidPhysicsContentRole.Incoming -> {
-      alpha = ((progress - 0.4f) / 0.45f).coerceIn(0f, 1f)
-      val scale = 0.92f + 0.08f * progress.coerceIn(0f, 1f)
-      scaleX = scale
-      scaleY = scale
+      alpha = ((progress - 0.25f) / 0.5f).coerceIn(0f, 1f)
+      // Il contenuto VIAGGIA con la superficie, non l'aspetta: e' posato sul frame d'arrivo, e
+      // finche' il pannello e' altrove lo raggiunge — traslato sul centro corrente della
+      // silhouette e scalato sulla taglia vera, non sull'orologio. Senza questo, il testo sta
+      // fermo mentre il pannello gli cresce sotto: la "tendina tirata su un cartello gia'
+      // scritto" del design rigettato, di nuovo. Con un gruppo in arrivo la traslazione si
+      // spegne: due etichette trascinate verso il centro dell'unione andrebbero nel posto
+      // sbagliato, e una fusione la raccontano gia' i pezzi.
+      val targetFrame = state.form.frame
+      val bounds = state.ensurePlan().bounds
+      if (state.form !is FluidForm.Group && targetFrame.minDimension > 0f && bounds.minDimension > 0f) {
+        translationX = bounds.center.x - targetFrame.center.x
+        translationY = bounds.center.y - targetFrame.center.y
+        val scale = (bounds.minDimension / targetFrame.minDimension).coerceIn(0.72f, 1.12f)
+        scaleX = scale
+        scaleY = scale
+      } else {
+        val scale = 0.92f + 0.08f * progress
+        scaleX = scale
+        scaleY = scale
+      }
     }
   }
 }

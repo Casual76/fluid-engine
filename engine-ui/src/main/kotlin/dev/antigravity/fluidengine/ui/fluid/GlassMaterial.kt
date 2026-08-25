@@ -214,6 +214,17 @@ fun currentGlassBackdrop(): GlassBackdropState =
  */
 val LocalFluidCanvasBackdrop = compositionLocalOf<GlassBackdropState?> { null }
 
+/**
+ * Whether the canvas in scope is itself a pane of glass rather than a page's ambient wash.
+ *
+ * It changes what a content surface should do, and by more than a shade. On a page the material is
+ * held down: what is behind is a soft wash, and frosting a wash again buys nothing. Inside a modal
+ * the surface is standing on a pane that is already tinted and already softened, so the same light
+ * touch would be indistinguishable from no glass at all — which is exactly what it looked like.
+ */
+val LocalFluidCanvasIsGlass = compositionLocalOf { false }
+
+
 /** The ambient recording in scope, or null when the screen has no canvas. */
 @Composable
 fun currentCanvasBackdrop(): GlassBackdropState? = LocalFluidCanvasBackdrop.current
@@ -413,8 +424,8 @@ object GlassDefaults {
     highlightWidth = 0.8.dp,
     highlightAlpha = 0.6f,
     highlightAngle = 90f,
-    innerShadowRadius = 8.dp,
-    innerShadowAlpha = 0.25f,
+    innerShadowRadius = 0.dp,
+    innerShadowAlpha = 0f,
     shadowRadius = 20.dp,
     shadowAlpha = 0.7f,
     pressedDepthBoost = 0.35f,
@@ -448,8 +459,8 @@ object GlassDefaults {
     highlightWidth = 0.8.dp,
     highlightAlpha = 0.55f,
     highlightAngle = 90f,
-    innerShadowRadius = 6.dp,
-    innerShadowAlpha = 0.3f,
+    innerShadowRadius = 0.dp,
+    innerShadowAlpha = 0f,
     shadowRadius = 12.dp,
     shadowAlpha = 0.5f,
     pressedDepthBoost = 0.6f,
@@ -478,8 +489,8 @@ object GlassDefaults {
     highlightWidth = 0.8.dp,
     highlightAlpha = 0.6f,
     highlightAngle = 90f,
-    innerShadowRadius = 12.dp,
-    innerShadowAlpha = 0.2f,
+    innerShadowRadius = 0.dp,
+    innerShadowAlpha = 0f,
     shadowRadius = 32.dp,
     shadowAlpha = 0.8f,
     pressedDepthBoost = 0f,
@@ -510,8 +521,18 @@ object GlassDefaults {
     highlightWidth = 0.8.dp,
     highlightAlpha = 0.5f,
     highlightAngle = 90f,
-    innerShadowRadius = 6.dp,
-    innerShadowAlpha = 0.16f,
+    // **Nessuna ombra interna, e vale per tutte le superfici che portano un bordo speculare.**
+    //
+    // Il rim lucido e l'ombra interna sono due trattamenti del *medesimo* millimetro di perimetro, e
+    // messi insieme non si leggono come spessore: si leggono come **due bordi**. Una riga chiara,
+    // subito dentro una riga piu' scura, tutt'intorno alla card. Su un fondo chiaro e' la prima cosa
+    // che si vede di ogni pannello dell'app, ed e' anche l'unica cosa che nessuno ha mai chiesto.
+    //
+    // Lo spessore lo dice gia' la dislocazione: il bordo di questo materiale *piega* quello che ha
+    // dietro, che e' un'informazione di profondita' molto piu' forte di una banda scura, e costa
+    // zero in piu' perche' la lente c'e' comunque.
+    innerShadowRadius = 0.dp,
+    innerShadowAlpha = 0f,
     shadowRadius = 0.dp,
     shadowAlpha = 0f,
     pressedDepthBoost = 0f,
@@ -520,6 +541,54 @@ object GlassDefaults {
     // tablet's grades page — megapixels of grouped-list glass — scrolling instead of slideshowing.
     backdropResolution = 0.5f,
   )
+
+  /**
+   * Content standing on **another pane of glass**, not on a page.
+   *
+   * A card inside a modal used to give up and go opaque, and opaque is the wrong answer twice over:
+   * it puts a solid rectangle inside a translucent pane, and it throws away the one place in the
+   * system where this material can legitimately be *stacked*.
+   *
+   * Stacked, every number goes up rather than down. What is behind is already tinted and already
+   * softened, so a light touch reads as nothing at all: the frosting doubles, the bevel reaches
+   * further, the tint is denser, the rim is brighter. What does not change is that it stays
+   * transparent — the pane's own colour keeps coming through, which is the entire difference
+   * between glass on glass and a card on glass.
+   */
+  private val StackedContentOptics = GlassOptics(
+    blurScale = 1.8f,
+    refractionHeight = 14.dp,
+    refractionAmount = 18.dp,
+    depthEffect = false,
+    dispersion = false,
+    vibrancy = 1.6f,
+    highlightWidth = 0.8.dp,
+    highlightAlpha = 0.6f,
+    highlightAngle = 90f,
+    innerShadowRadius = 0.dp,
+    innerShadowAlpha = 0f,
+    shadowRadius = 0.dp,
+    shadowAlpha = 0f,
+    pressedDepthBoost = 0f,
+    backdropResolution = 0.6f,
+  )
+
+  /** The optics a content surface takes when its canvas is another pane. See [LocalFluidCanvasIsGlass]. */
+  fun stackedContentOptics(): GlassOptics = StackedContentOptics
+
+  /**
+   * The tint for the same case: denser than a page card's, because it is competing with a pane that
+   * already carries a film of its own, and text has to stay readable on top of both.
+   */
+  @Composable
+  fun stackedContentTint(): GlassTint {
+    val dark = isDarkSurface()
+    return GlassTint(
+      overlay = glassFilm().copy(alpha = if (dark) 0.30f else 0.34f),
+      fallback = MaterialTheme.colorScheme.surfaceContainerLow,
+      hairline = Color.Transparent,
+    )
+  }
 
   /** Stable, allocation-free presets. Custom callers can use `copy` and are sanitized at use. */
   fun optics(role: GlassRole): GlassOptics = when (role) {

@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.8.2 - 2026-08-25
+
+- Via il doppio bordo. Il rim speculare e l'ombra interna sono due trattamenti dello stesso millimetro di perimetro, e messi insieme non si leggono come spessore: si leggono come due bordi, una riga chiara e subito dentro una piu' scura, tutt'intorno a ogni pannello e a ogni pulsante. Ora l'ombra interna e' zero su tutte le superfici che portano un rim, e lo spessore lo dice la dislocazione del bordo, che e' un'informazione di profondita' piu' forte e che si paga comunque
+- Il contenuto del pop-up **trasla con la finestra** invece di comparirci dentro. Comparire era il difetto: il testo era gia' alla posizione finale e si accendeva mano a mano che il bordo ci passava sopra, cioe' una tendina tirata su un cartello gia' scritto. Traslando dello stesso vettore, quello che si vede attraverso il buco resta sempre lo stesso pezzo di contenuto: al primo fotogramma il titolo sta dove stava quello della riga e da li' scivola al suo posto, e in chiusura la stessa corsa all'indietro lo riporta dentro la riga
+- Vetro su vetro: un contenitore dentro un modale rifrange il **pannello**, non la pagina che sta dietro lo scrim. Prima si arrendeva e diventava opaco, cioe' un rettangolo solido dentro un pannello traslucido. Impilato tutto sale invece di scendere - sfocatura doppia, smusso piu' lungo, tinta piu' densa, rim piu' luminoso - e resta trasparente, che e' l'unica differenza fra vetro su vetro e una card su vetro
+- La riga che ha aperto un pop-up torna visibile su un timer invece che su una condizione globale. Chiedere all'host se qualcosa fosse ancora a schermo era un fatto sull'intera app: un qualunque modale che non azzerava il proprio flag lasciava invisibili tutte le righe ancorate di tutte le liste, e quello che si vede e' un gruppo con un buco che non si richiude piu'
+
+
 ## 1.8.1 - 2026-08-25
 
 - FluidSectionIndex non ruba piu' gli scorrimenti. Occupava una casella di 48x136 dp appoggiata al bordo destro, all'altezza esatta in cui sta il pollice mentre scorre, e un nodo che riceve un tocco lo riceve e basta: anche senza consumarlo, la lista sotto non lo vedeva mai, perche' sono fratelli e il test di collisione si ferma al primo che colpisce. Finiva li' circa un gesto su cinque, e la lista saltava a una sezione invece di muoversi. Ora il bersaglio e' 28 dp per l'altezza della barretta, e viaggia con lei; e si prende il gesto **solo tenendo premuto** - chi vuole scorrere si muove subito, chi vuole l'indice si ferma

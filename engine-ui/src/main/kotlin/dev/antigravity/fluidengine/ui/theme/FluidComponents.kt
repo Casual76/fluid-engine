@@ -83,6 +83,7 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasIsGlass
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.clip
@@ -138,11 +139,14 @@ enum class FluidTone {
 private fun Modifier.fluidContentGlass(enabled: Boolean, shape: Shape): Modifier {
   if (!enabled) return this
   val canvas = LocalFluidCanvasBackdrop.current ?: return this
+  // Vetro su vetro quando il fondale e' gia' un pannello: gli effetti salgono invece di scendere.
+  val stacked = LocalFluidCanvasIsGlass.current
   return this.glassSurface(
     state = canvas,
-    tint = GlassDefaults.contentTint(),
+    tint = if (stacked) GlassDefaults.stackedContentTint() else GlassDefaults.contentTint(),
     shape = shape,
     role = GlassRole.Content,
+    optics = if (stacked) GlassDefaults.stackedContentOptics() else GlassDefaults.optics(GlassRole.Content),
   )
 }
 

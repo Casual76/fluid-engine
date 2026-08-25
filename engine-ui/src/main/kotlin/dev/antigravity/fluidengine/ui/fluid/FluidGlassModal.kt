@@ -91,6 +91,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
@@ -326,20 +327,38 @@ fun Modifier.fluidExpandOrigin(
   open: () -> Boolean = { false },
   onMeasured: (Rect) -> Unit,
 ): Modifier {
-  val host = LocalFluidGlassModalHostState.current
-  // Latched rather than read straight through, because the app's own "is this row's detail open"
-  // goes false the moment the dismiss is requested, and the pane needs the rest of its exit to fold
-  // back into a rectangle that is still empty.
-  var lifted by remember { mutableStateOf(false) }
   val requested = open()
-  val onScreen = host?.isOnScreen ?: false
-  SideEffect {
-    if (requested) lifted = true else if (!onScreen) lifted = false
+  // Held for the length of the exit, and **on a clock rather than on a condition**.
+  //
+  // The pane needs the rest of its fold-back to land on a rectangle that is still empty, so the row
+  // cannot simply reappear when the dismiss is requested. The first version asked the host whether
+  // anything was still on screen, which is a fact about the *whole app*: any modal anywhere that
+  // failed to clear its flag left every anchored row in every list invisible, and what that looks
+  // like is a group with a hole in it that never fills back in.
+  //
+  // A timer cannot get stuck. It is the same duration the fold-back runs for, it starts when the
+  // dismiss is asked for, and the worst it can ever do is give the row back a frame early.
+  var grace by remember { mutableStateOf(false) }
+  LaunchedEffect(requested) {
+    if (requested) {
+      grace = true
+    } else if (grace) {
+      delay(FluidPopoverExitGraceMillis)
+      grace = false
+    }
   }
   return this
     .onGloballyPositioned { onMeasured(it.boundsInRoot()) }
-    .drawWithContent { if (!(requested || lifted)) drawContent() }
+    .drawWithContent { if (!(requested || grace)) drawContent() }
 }
+
+/**
+ * Quanto la riga resta nascosta dopo che il pannello ha ricevuto l'ordine di chiudersi.
+ *
+ * Un filo piu' della molla di uscita: la riga torna quando il pannello e' gia' tornato dentro di
+ * lei, non prima — e non dopo, perche' dopo e' un buco nella lista.
+ */
+private const val FluidPopoverExitGraceMillis = 260L
 
 /**
  * Hides everything under it from accessibility while a modal is open.
@@ -781,6 +800,9 @@ private fun FluidAnchoredPopover(
   val minWidthPx = with(density) { if (compact) FluidContextMenuMinWidth.toPx() else 0f }
   val placement = remember { FluidPopoverPlacement() }
   val shape = ContinuousCornerShape(if (compact) FluidRadius.Group else FluidPopoverRadius)
+  // Il pannello registra se stesso, cosi' quello che ci sta dentro puo' rifrangere *lui* invece
+  // della pagina, che sta dietro uno scrim e non e' affar suo.
+  val paneGlass = rememberGlassBackdrop()
   val currentGrowth by rememberUpdatedState(growth)
   val startRadiusPx = with(density) { FluidRadius.Group.toPx() }
   val endRadiusPx = with(density) {
@@ -856,6 +878,7 @@ private fun FluidAnchoredPopover(
                 // milky card travelling down the screen. The recording's sources stay live by
                 // reference, so what is frozen is only the geometry.
                 sampleOnce = true,
+                exports = paneGlass,
               )
             } else {
               Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
@@ -867,20 +890,36 @@ private fun FluidAnchoredPopover(
             isTraversalGroup = true
           },
       ) {
-        // Il contenuto arriva **dentro** la finestra, non insieme a lei. La finestra che si apre e'
-        // gia' vetro dal primo fotogramma, quindi la riga non sparisce e basta: diventa il
-        // materiale del pannello. Il testo entra subito dopo, mentre il vetro e' gia' li'.
+        // **Il contenuto viaggia con la finestra, non compare dentro di lei.**
+        //
+        // Comparire era il difetto: il testo era gia' alla sua posizione finale e si accendeva mano
+        // a mano che il bordo della finestra ci passava sopra, cioe' esattamente l'effetto di una
+        // tendina tirata su un cartello gia' scritto. Non e' un'apertura, e' una rivelazione.
+        //
+        // Traslando dello stesso vettore della finestra, quello che si vede attraverso il buco resta
+        // *sempre lo stesso pezzo di contenuto*: al primo fotogramma il titolo sta dove stava il
+        // titolo della riga, e da li' scivola al suo posto insieme al bordo che lo scopre. In
+        // chiusura la stessa corsa all'indietro riporta il titolo dentro la riga. E' il motivo per
+        // cui l'apertura di un'app su iOS si legge come una cosa sola che si avvicina invece che
+        // come due cose che si scambiano il posto.
         Column(
           modifier = Modifier.graphicsLayer {
-            alpha = if (placement.morphFromAnchor) {
-              ((growth() - FluidPopoverContentFadeStart) / FluidPopoverContentFadeSpan)
-                .coerceIn(0f, 1f)
-            } else {
-              1f
-            }
+            if (!placement.morphFromAnchor) return@graphicsLayer
+            val g = growth()
+            translationX = lerp(placement.anchorLeft, 0f, g)
+            translationY = lerp(placement.anchorTop, 0f, g)
+            // Solo i primissimi istanti, e solo per non far cominciare il testo di scatto sul
+            // fotogramma in cui la finestra e' ancora larga quanto una riga.
+            alpha = (g / FluidPopoverContentFadeStart).coerceIn(0f, 1f)
           },
-          content = content,
-        )
+        ) {
+          CompositionLocalProvider(
+            LocalFluidCanvasBackdrop provides paneGlass,
+            LocalFluidCanvasIsGlass provides true,
+          ) {
+            content()
+          }
+        }
       }
     },
   ) { measurables, constraints ->
@@ -1482,8 +1521,10 @@ private val FluidPopoverOptics = GlassOptics(
   // rim was the loudest thing on the screen and the pop-up read as a sticker.
   highlightAlpha = 0.45f,
   highlightAngle = 90f,
-  innerShadowRadius = 8.dp,
-  innerShadowAlpha = 0.16f,
+  // Nessuna ombra interna: il rim speculare e l'ombra interna sono due trattamenti dello stesso
+  // millimetro di perimetro, e insieme si leggono come due bordi invece che come spessore.
+  innerShadowRadius = 0.dp,
+  innerShadowAlpha = 0f,
   // Tight and soft. A wide dark shadow over a scrim that is already darkening the page reads as
   // grime around the pop-up rather than as height.
   shadowRadius = 18.dp,
@@ -1530,9 +1571,8 @@ private const val FluidPopoverExitStiffness = 420f
  */
 private const val FluidPopoverMorphStartScale = 0.94f
 
-/** Dove comincia e quanto dura la comparsa del contenuto, lungo la corsa della finestra. */
-private const val FluidPopoverContentFadeStart = 0.18f
-private const val FluidPopoverContentFadeSpan = 0.42f
+/** Su quanta corsa iniziale il contenuto smette di essere trasparente. Pochissima. */
+private const val FluidPopoverContentFadeStart = 0.12f
 
 private val FluidPopoverMargin = 16.dp
 private val FluidPopoverGap = 10.dp

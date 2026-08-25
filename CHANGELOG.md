@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.8.4 - 2026-08-25
+
+- La riga che apre un pop-up si toglie di mezzo in dissolvenza invece che di colpo. Sparire nel fotogramma stesso in cui il pannello comincia a crescere lasciava un buco: il pannello parte piccolo e trasparente, quindi per una novantina di millisecondi al posto della riga non c'era ne' la riga ne' il pannello
+
+
 ## 1.8.3 - 2026-08-25
 
 - Una crescita sola per ogni pop-up, ed e' quella del menu contestuale: frazione uniforme sui due assi, perno nel punto del pannello piu' vicino a cio' che e' stato toccato. Ce n'erano due, e la seconda - quella che partiva dal rettangolo esatto dell'ancora - e' stata due volte un errore: coi due assi scalati in modo diverso schiacciava il testo, e sostituita con una finestra che si apre faceva comparire il contenuto mano a mano che il bordo ci passava sopra, cioe' una tendina tirata su un cartello gia' scritto

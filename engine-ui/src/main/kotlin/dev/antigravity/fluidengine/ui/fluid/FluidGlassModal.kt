@@ -338,19 +338,31 @@ fun Modifier.fluidExpandOrigin(
   //
   // A timer cannot get stuck. It is the same duration the fold-back runs for, it starts when the
   // dismiss is asked for, and the worst it can ever do is give the row back a frame early.
+  //
+  // E se ne va **in dissolvenza**, non di colpo. Sparire nel fotogramma stesso in cui il pannello
+  // comincia a crescere lasciava un buco: il pannello parte piccolo e trasparente, quindi per una
+  // novantina di millisecondi al posto della riga non c'era ne' la riga ne' il pannello. Una
+  // sovrapposizione cosi' breve, per giunta fra due cose entrambe semitrasparenti, non ha niente a
+  // che vedere col doppio bordo che si vedeva quando la riga restava opaca sotto un pannello fermo.
+  val alpha = remember { Animatable(1f) }
   var grace by remember { mutableStateOf(false) }
   LaunchedEffect(requested) {
     if (requested) {
       grace = true
+      alpha.animateTo(0f, FluidMotion.fadeOut(FluidAnchorFadeMillis))
     } else if (grace) {
       delay(FluidPopoverExitGraceMillis)
+      alpha.animateTo(1f, FluidMotion.fadeIn(FluidAnchorFadeMillis))
       grace = false
     }
   }
   return this
     .onGloballyPositioned { onMeasured(it.boundsInRoot()) }
-    .drawWithContent { if (!(requested || grace)) drawContent() }
+    .graphicsLayer { this.alpha = alpha.value }
 }
+
+/** Quanto ci mette la riga a togliersi di mezzo, e a tornare. */
+private const val FluidAnchorFadeMillis = 120
 
 /**
  * Quanto la riga resta nascosta dopo che il pannello ha ricevuto l'ordine di chiudersi.

@@ -55,6 +55,16 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
+ * Dove si raccoglie la barra quando si ripiega.
+ *
+ * Non è una preferenza estetica, è una domanda su quale mano tiene il telefono: la capsula
+ * ripiegata resta l'unico bersaglio della navigazione, e dove si posa decide se il pollice ci
+ * arriva. [Start] è la scelta giusta per la maggior parte delle mani destre, che tengono il
+ * telefono a sinistra del baricentro; [Center] è la scelta neutra e [End] lo specchio.
+ */
+enum class FluidFoldAlignment { Start, Center, End }
+
+/**
  * The navigation bar, folded and unfolded by one number.
  *
  * The thing that makes this different from [FluidTabBar] is not that it can shrink. It is *how*:
@@ -102,6 +112,8 @@ fun FluidFoldingTabBar(
   onExpandRequest: (() -> Unit)? = null,
   /** A control that keeps its size through the fold — a search button, a profile, an overflow. */
   trailing: (@Composable () -> Unit)? = null,
+  /** Dove finisce la barra una volta ripiegata. Vedi [FluidFoldAlignment]. */
+  foldAlignment: FluidFoldAlignment = FluidFoldAlignment.Center,
 ) {
   if (items.isEmpty()) return
 
@@ -148,12 +160,18 @@ fun FluidFoldingTabBar(
       .measure(Constraints.fixed(capsuleWidth, rowHeight))
 
     layout(width, rowHeight) {
-      // Open, the pair spans the whole width and this is the identity. Folded, the two travel
-      // *inwards* and settle together in the middle, because a control that has shrunk to a circle
-      // and stayed pinned to the corner of the display is a control nobody can reach with the hand
-      // already holding the phone — and it looks abandoned there besides.
+      // Open, the pair spans the whole width and this is the identity — every alignment gives the
+      // same answer, because there is no slack to distribute. Folded, the slack is the whole point:
+      // [foldAlignment] decides where the shrunken pair ends up, and the travel is interpolated so
+      // the fold reads as one object contracting rather than as a control that jumps.
       val pairWidth = capsuleWidth + gap + trailingWidth
-      val pairLeft = lerp(0, ((width - pairWidth) / 2).coerceAtLeast(0), f)
+      val slack = (width - pairWidth).coerceAtLeast(0)
+      val foldedLeft = when (foldAlignment) {
+        FluidFoldAlignment.Start -> 0
+        FluidFoldAlignment.Center -> slack / 2
+        FluidFoldAlignment.End -> slack
+      }
+      val pairLeft = lerp(0, foldedLeft, f)
       capsulePlaceable.place(pairLeft, 0)
       trailingPlaceable?.place(pairLeft + capsuleWidth + gap, 0)
     }

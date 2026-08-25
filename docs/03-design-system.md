@@ -16,10 +16,70 @@
 
 ## Fluid Glass: dove vive e dove no
 
-Il vetro è **chrome**, non il materiale universale dell'app. Si usa soltanto per qualcosa che viene
-disegnato sopra altro contenuto: barra superiore, tab bar/rail, azioni della barra, notifica globale,
-indice laterale, sheet e alert. Hero, card, gruppi lista, campi, chip, segmentati e pulsanti dentro la
-pagina restano superfici normali. Se una cosa scorre insieme alla pagina, non è vetro.
+Il vetro è chrome — barra superiore, tab bar/rail, azioni, notifica globale, indice laterale, modali
+— **e, dalla 1.5.0, anche contenuto**, ma solo dove c'è qualcosa da guardare attraverso.
+
+Fino alla 1.4.0 la regola era "solo chrome", e non era una scelta estetica: le app della famiglia
+sono pile di superfici grigie, e il vetro sopra il grigio è invisibile per costruzione. Una superficie
+che rifrange una pagina piatta produce una pagina piatta, quindi il materiale non aveva niente da
+fare e la sua assenza si leggeva come un difetto. La risposta non è stata mettere vetro su tutto: è
+stata dare alle pagine **un fondale che vale la pena guardare attraverso**, e solo dopo metterci il
+vetro sopra.
+
+### Due fondali, non uno
+
+È il vincolo che decide tutto il resto. Se una card di vetro stesse dentro il corpo registrato,
+campionerebbe una registrazione **che contiene se stessa**: feedback ottico, la cosa che nel vetro si
+vede immediatamente e non si può nascondere. Quindi `FluidScreen` registra due cose diverse:
+
+```
+┌─ FluidScreen ──────────────────────────────────────────────┐
+│  ① canvas ambientale (opaco) ──registrato──▶ canvasBackdrop │
+│     lavata di colore della sezione + motivo             │   │
+│  ② LazyColumn del contenuto  ──registrato──▶ bodyBackdrop│  │
+│     ├─ FluidListGroup(glass = true) ─rifrange─◀──────────┼──┘
+│     └─ righe, testo (solidi)                            │
+│  ③ chrome: barra, tab bar, modali ──rifrange─◀───────────┘
+└────────────────────────────────────────────────────────────┘
+```
+
+Il canvas è disegnato e registrato *prima* della lista, quindi non la contiene. Il corpo contiene
+tutto e lo rifrange la chrome, come sempre. **La pagina nel suo insieme resta opaca**, perché il
+canvas è opaco: la traslucenza è *interna* alla pagina, mai fra pagine — che è quello che tiene in
+piedi l'invariante delle transizioni di rotta e i test che la verificano.
+
+Il tetto di costo che ne segue: **il vetro va sul contenitore, mai sulla riga.** Un `FluidListGroup`
+di dodici righe è *un* nodo di vetro, non dodici.
+
+### La taratura
+
+Il raggio di riferimento è **2 dp**, non 16. Il numero è andato 8 → 16 → 2, e il giro di mezzo è
+l'errore che vale la pena non rifare: sopra gli ~8 dp un pannello smette di trasmettere un'immagine e
+trasmette la sua *media*, e un pannello che tiene una media è un riempimento — tutto il lavoro che la
+lente fa sul bordo sta allora piegando un colore piatto in un altro colore piatto. Quello che
+identifica il materiale è la **dislocazione** al perimetro, non la brina, quindi la lente sale a
+19/29 dp (i numeri della capsula di Kyant) e il raggio scende. Le poche superfici che devono davvero
+nascondere qualcosa — la barra superiore, con testo nitido che le scorre sotto — chiedono un multiplo
+con `blurScale` invece di farlo pagare a tutte.
+
+E il film del vetro **non è `MaterialTheme.surface`**. Una barra dello stesso colore del fondo non è
+un materiale traslucido, è niente: su un tema AMOLED la pillola di navigazione spariva. Il Liquid
+Glass è un materiale chiaro e riflettente, che anche in tema scuro si legge come un pannello *più
+chiaro* del fondo. `GlassDefaults.glassFilm()` parte da due grigi fissi e prende un terzo della
+palette: abbastanza da seguire l'accento, non abbastanza da farsi trascinare a fondo.
+
+### Il costo, e come si tiene
+
+Una superficie di vetro rifà la propria cattura **solo quando si muove o cambia misura**. Un
+`RenderNode` tiene i figli per riferimento, quindi quando la sorgente si ridisegna ogni superficie
+che la sta rigiocando vede già il nuovo contenuto: l'unica cosa che invalida davvero una cattura è la
+geometria. Ri-registrare a ogni frame, che è quello che il renderer faceva prima della 1.5.0,
+significava otto rigiocate a schermo intero e otto catene di `RenderEffect` per fotogramma.
+
+Segue una regola per chi scrive animazioni sul vetro: **non animare `intensity` su una superficie
+grande.** `intensity` scala il raggio di sfocatura, il raggio decide il padding del layer, e il
+padding è l'unica cosa che invalida la cattura — quindi ogni fotogramma della dissolvenza
+ri-registra tutto. Per far *arrivare* un pannello si anima un `alpha` sul risultato finito.
 
 Dalla 1.4.0 l'ottica non è più nostra: la disegna la libreria `backdrop` di Kyant
 ([AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass), Apache-2.0), copiata come
@@ -32,8 +92,8 @@ Un pannello, nell'ordine in cui lo vedono i pixel:
    ogni pannello campiona la stessa registrazione, trasformata nelle proprie coordinate;
 2. **vividezza** — la saturazione sale sopra 1: il vetro concentra il colore che trasmette, e senza
    questo passaggio un pannello sopra una foto sembra plastica grigia;
-3. **sfocatura** — molto più larga di prima (16 dp di riferimento) e per questo la **tinta è molto
-   più bassa**: la leggibilità si compra con il raggio, non con l'opacità;
+3. **sfocatura** — piccola (2 dp di riferimento): è il film, non il raggio, a tenere leggibile
+   quello che sta sopra, e un raggio grande cancella l'immagine invece di trasmetterla;
 4. **lente** — un campo di distanza della forma stessa del pannello sposta il campione sempre di più
    verso il bordo, così lo sfondo si *piega* dentro il perimetro. È il passaggio che mancava;
 5. **tinta, bordo speculare, ombre** — anello illuminato da un angolo, ombra interna che dà spessore,
@@ -43,7 +103,8 @@ Un pannello, nell'ordine in cui lo vedono i pixel:
 bordo si sente la piega, `refractionAmount` quanto lontano trascina il campione. `GlassRole` sceglie
 la ricetta: `Bar` (larga, quieta, senza ombra), `Floating` (la capsula di navigazione, trattamento
 completo), `Interactive` (quasi trasparente, lente al massimo, dispersione cromatica accesa),
-`Modal` (sfocatura profonda, smusso largo).
+`Modal` (sfocatura profonda, smusso largo), `Content` (card e gruppi lista dentro la pagina: nessuna
+ombra esterna, perché una card è *nella* pagina e non sopra).
 
 I controlli non sono più lenti dipinte: `glassControlSurface` piega davvero, si inclina verso il
 dito con un `tanh`, si gonfia e si schiaccia sotto pressione e si illumina dove è stata toccata

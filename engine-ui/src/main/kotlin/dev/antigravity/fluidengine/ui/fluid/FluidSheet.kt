@@ -53,7 +53,22 @@ import androidx.compose.ui.window.DialogProperties
  * the corners are continuous and much larger, the grabber is a short capsule rather than Material's
  * wide bar, and the scrim is darker so the sheet reads as being in front of the app rather than
  * merely on top of it.
+ *
+ * **What it cannot do is glass.** `ModalBottomSheet` owns a separate platform window, and a separate
+ * window cannot read the app's `GraphicsLayer` — so this falls back to [fluidStaticGlassSurface],
+ * which paints gradients. That is a system boundary and not a defect, but it does mean a sheet is
+ * now the one surface in the interface made of a different material from everything around it.
+ * [FluidGlassModalPortal] lives inside the app's composition and does not have the problem.
+ *
+ * Still here, still working, and still right for anything that genuinely needs its own window.
  */
+@Deprecated(
+  message = "Un pop-up in vetro deve stare dentro la composizione dell'app: usa " +
+    "FluidGlassModalPortal, che rifrange la pagina invece di dipingerne una copia. FluidSheet " +
+    "resta per i casi che hanno davvero bisogno di una finestra di piattaforma separata.",
+  replaceWith = ReplaceWith("FluidGlassModalPortal"),
+  level = DeprecationLevel.WARNING,
+)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FluidSheet(

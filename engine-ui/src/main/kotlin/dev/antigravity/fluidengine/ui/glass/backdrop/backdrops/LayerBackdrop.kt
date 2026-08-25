@@ -65,6 +65,10 @@ class LayerBackdrop internal constructor(
 
     override val isCoordinatesDependent: Boolean = true
 
+    override val layerSources: List<Any> get() = selfAsSource
+
+    private val selfAsSource = listOf(this)
+
     internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null)
 
     private var inverseLayerScope: InverseLayerScope? = null

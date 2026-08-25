@@ -59,7 +59,14 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `FluidTone`: Primary, Success, Warning, Danger, Info, Neutral
 - `FluidMotion` (molle), `FluidMotionScheme` (le passa a Material), `FluidMotionPolicy`
 - `GlassDefaults`, `rememberGlassBackdrop`, `rememberCombinedGlassBackdrop`, `LocalGlassBackdrop`,
-  `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
+  `LocalFluidCanvasBackdrop`, `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
+- `FluidAmbient`, `FluidAmbientCanvas` — il fondale per schermata; `FluidScreen(ambient = ...)`
+- `FluidGlassModalHost`, `FluidGlassModalPortal`, `FluidGlassModalPresentation`,
+  `fluidExpandOrigin`, `fluidGlassModalObscured` — il pop-up in vetro dentro la composizione
+- `FluidContextAction`, `fluidContextMenu`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`,
+  e `FluidListRow(contextActions = ...)` — il menu contestuale iOS
+- `FluidGlassMenuButton` — il tasto che si trasforma nel proprio menu
+- `FluidFoldingTabBar`, `rememberFluidBarFold` — la barra che si piega scorrendo
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche
@@ -67,10 +74,25 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 
 ## Regola del vetro
 
-Solo chrome e overlay: top bar, tab bar/rail, azioni, notifiche, indici e modali. Card, liste,
-campi, chip, segmentati e pulsanti che scorrono con la pagina restano solidi. Un overlay che deve
-campionare la schermata va nello slot `FluidScreen.overlay`; un `glassSurface` dentro il body
-registrato finirebbe per campionare se stesso.
+Chrome e overlay lo hanno sempre: top bar, tab bar/rail, azioni, notifiche, indici, modali.
+
+**Dalla 1.5.0 anche il contenuto puo' averlo**, ma solo alle sue condizioni. `FluidCard`,
+`FluidListGroup` e `FluidMetricTile` accettano `glass = true`, e lo ottengono soltanto dove la
+schermata ha un canvas ambientale (`FluidScreen(ambient = ...)`): senza, disegnano la superficie
+opaca di sempre. Il motivo e' che il vetro sopra il grigio e' invisibile per costruzione, e il canvas
+e' quello che si guarda *attraverso*.
+
+Il vincolo tecnico che rende tutto questo possibile sono **due registrazioni invece di una**. Il
+canvas si disegna e si registra prima della lista, quindi non puo' contenerla; il corpo contiene
+tutto e lo rifrange la chrome. Una card nel corpo che campionasse il corpo campionerebbe se stessa —
+feedback ottico, che nel vetro non si nasconde. `FluidScreen` tiene le due cose separate e le
+distribuisce come `LocalFluidCanvasBackdrop` (il canvas, per il contenuto) e `LocalGlassBackdrop`
+(il corpo, per la chrome).
+
+**Il vetro va sul contenitore, mai sulla riga.** Un gruppo di dodici righe e' un nodo di vetro, non
+dodici. Testo e icone sopra il vetro restano opachi al 100%.
+
+Un overlay che deve campionare la schermata va nello slot `FluidScreen.overlay`.
 
 **Il vetro sta su quello che ha sotto, non su tre strati sotto.** Un controllo appoggiato a una
 barra deve rifrangere *la barra*: darle la pagina ci apre dentro un buco, ed è esattamente quello
@@ -78,6 +100,13 @@ che sembra. La barra pubblica il proprio materiale con `exports = unAltroGlassBa
 ci sta sopra lo compone con `rememberCombinedGlassBackdrop(pagina, barra)`. `FluidScreen` e
 `FluidTabBar` lo fanno già e passano il risultato in `LocalGlassBackdrop`, quindi un
 `FluidBarAction` dentro `actions` è a posto senza che l'app tocchi niente.
+
+**La taratura sta nella lente, non nella sfocatura.** Il raggio di riferimento e' 2 dp: sopra gli
+~8 dp il vetro trasmette la media di quello che ha dietro invece dell'immagine, e una media e' un
+riempimento. La lente invece e' grande (19/29 dp sulla capsula). Chi deve davvero nascondere qualcosa
+— la barra superiore, con testo nitido che le scorre sotto — chiede un multiplo con `blurScale`.
+E il film non e' `MaterialTheme.surface`: vedi `GlassDefaults.glassFilm()` e la regola in
+`regole.md`, perche' una barra del colore del fondo su AMOLED semplicemente sparisce.
 
 **Sopra un testo piccolo, niente sfocatura e niente lente a riposo.** L'indicatore della tab bar sta
 sopra una scritta alta sei pixel: qualsiasi raggio di blur e quella diventa l'unica parola

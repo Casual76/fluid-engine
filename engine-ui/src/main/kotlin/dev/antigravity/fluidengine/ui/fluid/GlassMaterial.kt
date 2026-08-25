@@ -99,13 +99,24 @@ class GlassBackdropState internal constructor(
 }
 
 /**
- * Reference depth of the frosting.
+ * Reference depth of the frosting. **Two dp.**
  *
- * Deliberately far heavier than the 8 dp the previous implementation used. A wider kernel is what
- * lets the *tint* come down — and it is the tint, not the blur, that was making the old glass look
- * like a sheet of painted plastic. Legibility is bought with radius here, not with opacity.
+ * This number went 8 → 16 → 2, and the middle step is the mistake worth writing down. The reasoning
+ * for widening it was sound in isolation — a wider kernel lets the tint come down, and it is the
+ * tint that made the old glass look like painted plastic — but it answered the wrong question. At 16
+ * dp a pane stops transmitting an image and starts transmitting that image's *average*, and a pane
+ * holding an average is a fill. All the work the lens does at the edge is then bending a flat colour
+ * into another flat colour, which is invisible by construction.
+ *
+ * Real Liquid Glass is nearly clear. What identifies it is the **displacement** at the perimeter and
+ * the specular line on top, not the frosting — so the radius stays tiny and the lens carries the
+ * material. Surfaces that genuinely have to hide something (a scrim, a full-page modal) ask for a
+ * multiple of this through [GlassOptics.blurScale] instead of everything paying for it.
+ *
+ * Calibrated against Kyant's own catalogue and against Square (github.com/Lelonio/Square), which
+ * ships the same renderer tuned by hand and lands on the same 2 dp.
  */
-val DefaultGlassBlurRadius: Dp = 16.dp
+val DefaultGlassBlurRadius: Dp = 2.dp
 
 @Composable
 fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState {
@@ -173,6 +184,29 @@ fun rememberEmptyGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBa
 fun currentGlassBackdrop(): GlassBackdropState =
   LocalGlassBackdrop.current ?: rememberEmptyGlassBackdrop()
 
+/**
+ * The screen's *ambient* recording: the coloured wash and motif painted under the page, and nothing
+ * else.
+ *
+ * This is the twin of [LocalGlassBackdrop], and the reason there have to be two is the only piece of
+ * this architecture that cannot be skipped. [LocalGlassBackdrop] holds the screen's whole scrolling
+ * body, which is right for chrome standing *over* it and catastrophic for a card standing *inside*
+ * it: that card would sample a recording containing itself, and optical feedback is the one artefact
+ * in this material that cannot be hidden.
+ *
+ * A content surface therefore refracts this one — painted and recorded *before* the list, so it can
+ * never contain a single pixel of it — while bars, tab bars and modals go on refracting the body.
+ *
+ * Null means the screen has no ambient canvas. That is not a failure: [dev.antigravity.fluidengine
+ * .ui.theme.FluidCard] and friends then draw exactly the opaque surface they always did, so asking
+ * for glass on a screen that has nothing to show through it costs nothing and breaks nothing.
+ */
+val LocalFluidCanvasBackdrop = compositionLocalOf<GlassBackdropState?> { null }
+
+/** The ambient recording in scope, or null when the screen has no canvas. */
+@Composable
+fun currentCanvasBackdrop(): GlassBackdropState? = LocalFluidCanvasBackdrop.current
+
 /** Colour treatment of a glass surface. */
 @Immutable
 data class GlassTint(
@@ -197,6 +231,16 @@ enum class GlassRole {
 
   /** A sheet or alert surface: deeper than a bar, calmer than a control. */
   Modal,
+
+  /**
+   * A card or a grouped list standing *in* the page rather than over it.
+   *
+   * The one role that carries no drop shadow at all, and the reason is not restraint: content glass
+   * is at the same depth as the text beside it. A shadow would say it floats, and the moment two
+   * cards in a scrolling list both say that, the page reads as a stack of loose slabs. What it keeps
+   * is a short, sharp bevel — an edge, not a dome — because at this size the edge is the whole tell.
+   */
+  Content,
 }
 
 /**
@@ -255,7 +299,12 @@ private fun finiteNonNegative(value: Float): Float =
  * poisons a whole `RenderEffect` chain, so malformed values are corrected rather than propagated.
  */
 internal fun GlassOptics.sanitized(): GlassOptics = copy(
-  blurScale = finiteNonNegative(blurScale).coerceAtMost(4f),
+  // The ceiling is a multiple of [DefaultGlassBlurRadius], and it had to move when that did. At 4
+  // it was a sane cap on a 16 dp reference — 64 dp of frosting, past which nothing gets any more
+  // hidden and every pixel still costs. With the reference down at 2 dp the same 4 silently halved
+  // the top bar, which is the one surface that genuinely needs a wide kernel: the cap was quietly
+  // deciding a design question instead of catching a malformed value, which is its only job.
+  blurScale = finiteNonNegative(blurScale).coerceAtMost(16f),
   refractionHeight = finiteNonNegative(refractionHeight.value).dp,
   refractionAmount = finiteNonNegative(refractionAmount.value).dp,
   vibrancy = if (vibrancy.isFinite()) vibrancy.coerceIn(0f, 3f) else 1f,
@@ -283,14 +332,24 @@ object GlassDefaults {
    * moves under it. No drop shadow — the bar is flush with the screen, not floating over it.
    */
   private val BarOptics = GlassOptics(
-    blurScale = 1f,
+    // The one surface that keeps a heavy kernel, and it earns it: a top bar is the only pane with
+    // *sharp text scrolling underneath it*, arriving from a page it does not control. Everything
+    // else in this file stands over something soft — a wash, a bar's own fill, a control's track —
+    // and can afford to be nearly clear. This cannot, and going clear here was a mistake that made
+    // the top of every screen look like it was leaking.
+    //
+    // Ten dp, not sixteen. Sixteen did stop the leak, and it also stopped the bar being glass: past
+    // roughly five times the base radius the page underneath is averaged to a single colour, and a
+    // pane with a flat colour behind it has nothing left to refract. What separates the bar from
+    // the page is then the tint, which a painted rectangle would have done for nothing.
+    blurScale = 5f,
     refractionHeight = 20.dp,
-    refractionAmount = 14.dp,
+    refractionAmount = 16.dp,
     depthEffect = false,
     dispersion = false,
-    vibrancy = 1.45f,
-    highlightWidth = 0.5.dp,
-    highlightAlpha = 0.45f,
+    vibrancy = 1.6f,
+    highlightWidth = 0.8.dp,
+    highlightAlpha = 0.5f,
     highlightAngle = 90f,
     innerShadowRadius = 0.dp,
     innerShadowAlpha = 0f,
@@ -306,14 +365,20 @@ object GlassDefaults {
    * a lit rim, thickness on the inside and a shadow that separates it from whatever scrolls under.
    */
   private val FloatingOptics = GlassOptics(
-    blurScale = 0.75f,
-    refractionHeight = 24.dp,
-    refractionAmount = 24.dp,
+    // Light, but not nothing: a floating capsule travels over arbitrary content, and its labels are
+    // eight pixels tall. Enough to stop a saturated photograph from eating the word "Impostazioni",
+    // and far short of the radius that would turn the bar back into a fill.
+    blurScale = 1.8f,
+    // 19 and 29 dp: the numbers Kyant's own Apple-matched capsule uses, and the ones Square
+    // converges on independently. The amount running *past* the height is what makes the edge read
+    // as a thick bevel rather than a soft dome — the reverse, which this had, reads as plastic.
+    refractionHeight = 19.dp,
+    refractionAmount = 29.dp,
     depthEffect = false,
     dispersion = false,
-    vibrancy = 1.5f,
-    highlightWidth = 0.75.dp,
-    highlightAlpha = 0.7f,
+    vibrancy = 1.6f,
+    highlightWidth = 0.8.dp,
+    highlightAlpha = 0.6f,
     highlightAngle = 90f,
     innerShadowRadius = 8.dp,
     innerShadowAlpha = 0.25f,
@@ -331,17 +396,24 @@ object GlassDefaults {
    * place small enough for seven samples per pixel to be worth what it costs.
    */
   private val InteractiveOptics = GlassOptics(
-    blurScale = 0.25f,
-    refractionHeight = 12.dp,
+    // A control is a lens, and a lens is nearly clear — but a *label* on a lens still has to be
+    // read against whatever the lens happens to be standing over. This is the least frosting that
+    // survives a button parked over a photograph. Surfaces that carry no text at all — the tab bar's
+    // indicator, a switch thumb — override it back to zero at their call sites.
+    blurScale = 1.4f,
+    refractionHeight = 10.dp,
     // Held to well under the radius of the smallest control the system has. A 44 dp lens displacing
     // 24 dp drags in whatever happens to be a centimetre away and reads as a coloured halo rather
     // than as an edge.
-    refractionAmount = 16.dp,
+    refractionAmount = 14.dp,
+    // A dome, on the one kind of surface small enough for the eye to read the whole thing as a
+    // single lens. Wrong for anything wider — see the note on [GlassOptics.depthEffect] — and wrong
+    // even here below about 40 dp, which is why a switch thumb turns it back off.
     depthEffect = true,
     dispersion = true,
-    vibrancy = 1.5f,
-    highlightWidth = 0.75.dp,
-    highlightAlpha = 0.6f,
+    vibrancy = 1.6f,
+    highlightWidth = 0.8.dp,
+    highlightAlpha = 0.55f,
     highlightAngle = 90f,
     innerShadowRadius = 6.dp,
     innerShadowAlpha = 0.3f,
@@ -357,19 +429,58 @@ object GlassDefaults {
    * and a wide bevel that makes its top edge read as a thick slab rather than a cut.
    */
   private val ModalOptics = GlassOptics(
-    blurScale = 1.5f,
-    refractionHeight = 32.dp,
+    // Heavy, because the things wearing this preset — an in-app notification, an alert — arrive
+    // over a page that is still fully sharp and are the only thing separating themselves from it.
+    // A modal that comes with a scrim does not need it and says so: the pop-up's own optics turn
+    // this down, because a second heavy blur on top of a blurred scrim is what turns a pane into a
+    // grey rectangle with no material left in it.
+    // Which is why it is three and a half and not six: at six the page behind an alert is a colour
+    // rather than a picture, and the alert stops looking like it is *in front of* anything at all.
+    blurScale = 3.5f,
+    refractionHeight = 20.dp,
     refractionAmount = 28.dp,
     depthEffect = false,
     dispersion = false,
-    vibrancy = 1.35f,
-    highlightWidth = 0.65.dp,
-    highlightAlpha = 0.55f,
+    vibrancy = 1.6f,
+    highlightWidth = 0.8.dp,
+    highlightAlpha = 0.6f,
     highlightAngle = 90f,
     innerShadowRadius = 12.dp,
     innerShadowAlpha = 0.2f,
     shadowRadius = 32.dp,
     shadowAlpha = 0.8f,
+    pressedDepthBoost = 0f,
+  )
+
+  /**
+   * A card or a grouped list, in the page.
+   *
+   * The frosting is heavier than a bar's because what is behind this is a coloured wash and the text
+   * printed on top has to win against it — legibility here is bought with radius, as everywhere else
+   * in this file. The lens is the opposite: short reach, modest displacement, no dome. A dome on a
+   * surface that is 300 dp wide and full of text makes the middle of the paragraph swim.
+   *
+   * Nothing outside the pane at all: no drop shadow, and only enough inner shadow to give the edge a
+   * thickness. See [GlassRole.Content].
+   */
+  private val ContentOptics = GlassOptics(
+    // What is behind a content card is an ambient wash — already soft, with nothing sharp in it to
+    // hide. Frosting it again buys nothing and costs the only thing worth having: the wash's own
+    // gradient bending into the card's perimeter.
+    // So: barely.
+    blurScale = 0.8f,
+    refractionHeight = 18.dp,
+    refractionAmount = 22.dp,
+    depthEffect = false,
+    dispersion = false,
+    vibrancy = 1.6f,
+    highlightWidth = 0.8.dp,
+    highlightAlpha = 0.5f,
+    highlightAngle = 90f,
+    innerShadowRadius = 6.dp,
+    innerShadowAlpha = 0.16f,
+    shadowRadius = 0.dp,
+    shadowAlpha = 0f,
     pressedDepthBoost = 0f,
   )
 
@@ -379,22 +490,56 @@ object GlassDefaults {
     GlassRole.Floating -> FloatingOptics
     GlassRole.Interactive -> InteractiveOptics
     GlassRole.Modal -> ModalOptics
+    GlassRole.Content -> ContentOptics
   }
+
+  /**
+   * The colour every pane of glass is made of.
+   *
+   * **Not `MaterialTheme.surface`.** That is the mistake this replaces, and it is the one that made
+   * the navigation pill disappear: matching the film to the page's own background means a bar over
+   * an AMOLED-black page is a black bar, and a black bar over black content is not a translucent
+   * material, it is nothing. Apple's Liquid Glass is a *bright, reflective* material — in dark mode
+   * it reads as a distinctly lighter frosted panel, never as a darker rectangle.
+   *
+   * So the film starts from a fixed pair of glass greys, near-white on a light page and a mid grey
+   * on a dark one, and only then takes a third of the palette's own container colour so it still
+   * belongs to the app's accent and to Material You. A third is enough to be felt and not enough to
+   * let an AMOLED theme drag it back down to the background it is supposed to stand out from.
+   *
+   * The greys are Square's (github.com/Lelonio/Square), which arrived at them by hand against the
+   * same renderer.
+   */
+  @Composable
+  internal fun glassFilm(): Color {
+    val scheme = MaterialTheme.colorScheme
+    return if (isDarkSurface()) {
+      androidx.compose.ui.graphics.lerp(DarkGlassGrey, scheme.surfaceContainerHigh, PaletteShare)
+    } else {
+      androidx.compose.ui.graphics.lerp(LightGlassGrey, scheme.surfaceContainerLowest, PaletteShare)
+    }
+  }
+
+  private val LightGlassGrey = Color(0xFFFAFAFA)
+  private val DarkGlassGrey = Color(0xFF4A4A4E)
+
+  /** How much of the app's own palette the film is allowed to take. See [glassFilm]. */
+  private const val PaletteShare = 0.34f
 
   /**
    * Bars.
    *
-   * A quarter of the old opacity. The previous value — 0.60 in light, 0.58 in dark — existed to hide
-   * a sharp text contour the blur was too narrow to remove; with a real 16 dp kernel and vibrancy
-   * there is nothing left to hide, and the bar can finally transmit its background.
+   * Denser than it looks, and it has to be: with the frosting down at 2 dp the film is now doing all
+   * of the separating on its own. The old value tried the opposite trade — a very light film over a
+   * very wide blur — and produced a bar that hid its background completely while looking like
+   * nothing in particular.
    */
   @Composable
   fun barTint(): GlassTint {
     val dark = isDarkSurface()
-    val surface = MaterialTheme.colorScheme.surface
     return GlassTint(
-      overlay = if (dark) surface.copy(alpha = 0.30f) else surface.copy(alpha = 0.34f),
-      fallback = if (dark) surface.copy(alpha = 0.95f) else surface.copy(alpha = 0.96f),
+      overlay = glassFilm().copy(alpha = if (dark) 0.40f else 0.44f),
+      fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.95f else 0.96f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.16f else 0.10f),
     )
   }
@@ -403,10 +548,9 @@ object GlassDefaults {
   @Composable
   fun floatingTint(): GlassTint {
     val dark = isDarkSurface()
-    val surface = MaterialTheme.colorScheme.surface
     return GlassTint(
-      overlay = if (dark) surface.copy(alpha = 0.38f) else surface.copy(alpha = 0.42f),
-      fallback = if (dark) surface.copy(alpha = 0.96f) else surface.copy(alpha = 0.97f),
+      overlay = glassFilm().copy(alpha = if (dark) 0.48f else 0.52f),
+      fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.96f else 0.97f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.18f else 0.08f),
     )
   }
@@ -420,13 +564,26 @@ object GlassDefaults {
   @Composable
   fun controlTint(): GlassTint {
     val dark = isDarkSurface()
-    val surface = MaterialTheme.colorScheme.surface
+    val scheme = MaterialTheme.colorScheme
+    // Tinted with the app's own accent, and that is not decoration. A control's film is the only
+    // thing standing between its label and whatever it is floating over; a white one at 18% was
+    // effectively no film at all, and the buttons came out completely transparent with unreadable
+    // text on them. Taking a fifth of the accent gives the pane a colour of its own to hold the
+    // label against, and ties every control in the app to the one accent the palette has.
+    val film = androidx.compose.ui.graphics.lerp(glassFilm(), scheme.primary, AccentShare)
     return GlassTint(
-      overlay = if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.18f),
-      fallback = if (dark) surface.copy(alpha = 0.88f) else surface.copy(alpha = 0.90f),
+      overlay = film.copy(alpha = if (dark) 0.34f else 0.38f),
+      fallback = if (dark) {
+        scheme.surface.copy(alpha = 0.88f)
+      } else {
+        scheme.surface.copy(alpha = 0.90f)
+      },
       hairline = Color.Transparent,
     )
   }
+
+  /** How much of the accent a control's film takes. Enough to be felt, not enough to be a fill. */
+  private const val AccentShare = 0.20f
 
   /**
    * The capsule that marks a selection inside a bar.
@@ -439,8 +596,31 @@ object GlassDefaults {
   fun selectionTint(): GlassTint {
     val dark = isDarkSurface()
     return GlassTint(
-      overlay = if (dark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.06f),
-      fallback = if (dark) Color.White.copy(alpha = 0.16f) else Color.Black.copy(alpha = 0.08f),
+      overlay = if (dark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+      fallback = if (dark) Color.White.copy(alpha = 0.16f) else Color.Black.copy(alpha = 0.10f),
+      hairline = Color.Transparent,
+    )
+  }
+
+  /**
+   * Cards and grouped lists.
+   *
+   * The one place the film is allowed to lean back towards the app's own surface rather than towards
+   * the glass grey, because this is the only surface that holds paragraphs: what it stands over is a
+   * coloured wash, and a bright film plus a colour wash plus body text is one layer too many for the
+   * contrast to survive. The rule that goes with it is that the text itself never joins in — labels,
+   * icons and badges over content glass stay fully opaque.
+   */
+  @Composable
+  fun contentTint(): GlassTint {
+    val dark = isDarkSurface()
+    val surface = MaterialTheme.colorScheme.surfaceContainerLow
+    return GlassTint(
+      overlay = androidx.compose.ui.graphics.lerp(surface, glassFilm(), 0.4f)
+        .copy(alpha = if (dark) 0.52f else 0.56f),
+      // The opaque material a card falls back to is exactly the one it used before it could be
+      // glass, so an API 30 device sees the page it has always seen rather than a degraded copy.
+      fallback = surface,
       hairline = Color.Transparent,
     )
   }
@@ -449,10 +629,9 @@ object GlassDefaults {
   @Composable
   fun modalTint(): GlassTint {
     val dark = isDarkSurface()
-    val surface = MaterialTheme.colorScheme.surface
     return GlassTint(
-      overlay = if (dark) surface.copy(alpha = 0.52f) else surface.copy(alpha = 0.56f),
-      fallback = if (dark) surface.copy(alpha = 0.97f) else surface.copy(alpha = 0.98f),
+      overlay = glassFilm().copy(alpha = if (dark) 0.50f else 0.54f),
+      fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.97f else 0.98f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.14f else 0.08f),
     )
   }
@@ -627,8 +806,39 @@ fun Modifier.glassSurface(
       layerBlock = layerBlock,
       exportedBackdrop = exports?.layerBackdrop,
       onDrawSurface = onDrawSurface,
+      backdropScale = if (layerBlock != null) {
+        1f
+      } else {
+        glassResolutionScale(blurRadius.value * resolved.blurScale)
+      },
     )
 }
+
+/**
+ * What fraction of its own resolution a pane processes its backdrop at.
+ *
+ * The `RenderEffect` chain is charged per pixel and it is the most expensive thing the design system
+ * does, so a full-screen scrim is worth six times a small one. What pays for the shortcut is the
+ * blur itself — a wide kernel is exactly what hides the upscale — which is why the fraction is a
+ * function of the radius and nothing else. At zero blur nothing is hidden and the pane stays at full
+ * resolution, because a clear lens is *all* edge and a soft edge is the one thing it cannot have.
+ *
+ * The floor is deliberately conservative. Pushing it lower is tempting and self-defeating: the
+ * effect parameters are pre-multiplied by this, so far enough down a modest blur collapses to under
+ * a pixel and the upscale has nothing left smoothing it, which reads as pixelation rather than as
+ * frost.
+ */
+internal fun glassResolutionScale(blurRadiusDp: Float): Float {
+  if (!blurRadiusDp.isFinite() || blurRadiusDp <= 0f) return 1f
+  val t = (blurRadiusDp / GlassFullQualityBlurDp).coerceIn(0f, 1f)
+  return 1f - t * (1f - GlassMinResolutionScale)
+}
+
+/** Lowest fraction a heavily frosted pane may drop to. */
+internal const val GlassMinResolutionScale = 0.4f
+
+/** Radius at or above which that floor is safe, in dp. */
+internal const val GlassFullQualityBlurDp = 10f
 
 private typealias DrawScopeBlock = DrawScope.() -> Unit
 

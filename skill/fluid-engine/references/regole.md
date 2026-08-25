@@ -66,6 +66,46 @@ che rendeva l'app "colorata" invece che leggibile.
 Il feedback al tocco per una riga è `fluidRowPressable` (tinta), non `fluidPressable` (scala): una
 riga che si rimpicciolisce rompe la sagoma del gruppo e fa sembrare la lista instabile.
 
+## Il vetro va sul contenitore, mai sulla riga
+
+Un `FluidListGroup` di dodici righe e' **un** nodo di vetro, non dodici. Ogni superficie costa una
+registrazione di layer e una catena di `RenderEffect` sui propri limiti, quindi mettere il materiale
+un livello troppo in basso porta una schermata da otto superfici a ottanta e fa cadere fotogrammi per
+qualcosa che nessuno puo' vedere. Testo, icone e badge appoggiati sopra il vetro restano opachi al
+100%: il materiale e' il contenitore, mai il contenuto.
+
+Il vetro nel contenuto e' arrivato con la 1.5.0 e vuole due cose, non una:
+
+1. **un canvas ambientale** (`FluidScreen(ambient = ...)`), perche' il vetro sopra il grigio e'
+   invisibile per costruzione — una superficie che rifrange una pagina piatta produce una pagina
+   piatta, e la sua assenza si legge come un bug;
+2. **due registrazioni, non una.** Il canvas si disegna e si registra *prima* della lista, quindi non
+   la contiene: una card dentro la lista rifrange solo la lavata sotto di se'. La chrome continua a
+   rifrangere il corpo. Se una card campionasse la registrazione che la contiene, il risultato e' un
+   feedback ottico — la cosa che nel vetro si vede subito e non si puo' nascondere.
+
+`glass = true` e' una **richiesta**, non un obbligo: senza canvas in scope, o sotto API 31, il
+componente disegna esattamente la superficie opaca di sempre.
+
+## Il vetro si tara con la lente, non con la sfocatura
+
+Il raggio di riferimento e' **2 dp**. E' passato da 8 a 16 e poi a 2, e il giro di mezzo e' l'errore
+che vale la pena non rifare: sopra circa 8 dp un pannello smette di trasmettere un'immagine e
+trasmette la sua *media*, e un pannello che tiene una media e' un riempimento. Tutto il lavoro che la
+lente fa sul bordo sta allora piegando un colore piatto in un altro colore piatto.
+
+Quello che identifica il materiale e' la **dislocazione** al perimetro e la riga speculare sopra, non
+la brina. Quindi il raggio resta minuscolo e la lente sale (19 e 29 dp sulla capsula flottante, i
+numeri della capsula di Kyant). Le superfici che devono davvero nascondere qualcosa — la barra
+superiore, sotto cui scorre testo nitido — chiedono un multiplo con `GlassOptics.blurScale`, invece
+di farlo pagare a tutte.
+
+**E il film del vetro non e' `MaterialTheme.surface`.** Una barra dello stesso colore del fondo non e'
+un materiale traslucido, e' niente: su un tema AMOLED spariva del tutto. Il Liquid Glass e' un
+materiale *chiaro e riflettente*, che anche in tema scuro si legge come un pannello piu' chiaro del
+fondo. `GlassDefaults.glassFilm()` parte da due grigi fissi e prende solo un terzo della palette,
+quel tanto che basta perche' segua l'accento senza farsi trascinare a fondo.
+
 ## Un solo vocabolario di movimento
 
 Tutto passa da `FluidMotion`. `FluidMotionScheme` lo passa anche ai componenti Material, così uno

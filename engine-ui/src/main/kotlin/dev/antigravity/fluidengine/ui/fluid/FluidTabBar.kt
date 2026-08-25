@@ -76,7 +76,8 @@ data class FluidTabItem(
 object FluidTabBarDefaults {
   val Height = 64.dp
   val HorizontalMargin = 14.dp
-  val BottomMargin = 8.dp
+  /** Above the system's gesture handle, not against it. See [FluidFoldingTabBarDefaults]. */
+  val BottomMargin = 16.dp
   val RailWidth = 84.dp
 
   /** Vertical space a screen must leave free so its content clears the floating bar. */

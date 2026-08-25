@@ -35,6 +35,22 @@ interface Backdrop {
 
     val isCoordinatesDependent: Boolean
 
+    /**
+     * Fluid Engine addition: the recordings this backdrop replays, if it is made of any.
+     *
+     * Exists so a sampling surface can tell whether its capture is still valid without re-taking it.
+     * A surface records `drawLayer(source)` into its own layer, and a `RenderNode` display list holds
+     * its children **by reference** — so when the source re-records, every surface already shows the
+     * new content. The only thing that can actually invalidate a capture is the *geometry*: the
+     * surface moving, resizing, or the source moving underneath it.
+     *
+     * Returning an empty list means "I cannot say", and a surface then re-records on every frame,
+     * which is what every backdrop did before this existed. It is the safe answer, not the default
+     * one worth having: with eight glass surfaces on a screen it is eight full-screen replays and
+     * eight `RenderEffect` chains per frame, and it is the whole of why switching tabs stuttered.
+     */
+    val layerSources: List<Any> get() = emptyList()
+
     fun DrawScope.drawBackdrop(
         density: Density,
         coordinates: LayoutCoordinates?,

@@ -47,6 +47,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -485,6 +486,21 @@ fun FluidScreen(
   itemSpacing: Dp = FluidScreenDefaults.ItemSpacing,
   extraBottomPadding: Dp = 0.dp,
   /**
+   * The page's own backdrop: a colour wash and a motif, painted under everything.
+   *
+   * Additive, and null is exactly the screen this has always drawn. When it is set, three things
+   * change at once and they only make sense together:
+   *
+   *  * the canvas is painted and recorded *before* the body, into a second layer of its own;
+   *  * the body stops painting an opaque background, so the canvas shows through it;
+   *  * the chrome refracts the two stacked — canvas behind, body in front — which is still an opaque
+   *    image, so nothing about route transitions or their tests changes.
+   *
+   * What it buys is [LocalFluidCanvasBackdrop] for the whole subtree, and with it the ability for a
+   * card *inside* the list to be glass without sampling a recording that contains itself.
+   */
+  ambient: FluidAmbient? = null,
+  /**
    * Chrome that must sample this screen without becoming part of its recorded body. Use this for
    * floating indexes, contextual controls and other true overlays; ordinary page content belongs
    * in [content] and must stay solid.
@@ -494,7 +510,25 @@ fun FluidScreen(
 ) {
   // A render layer may have only one writer. Keeping this state local is what makes overlapping
   // NavHost destinations (including predictive back) safe: each screen records into its own layers.
-  val backdrop = rememberGlassBackdrop()
+  val bodyBackdrop = rememberGlassBackdrop()
+  // Only allocated when there is actually a canvas. Holding the layer unconditionally was simpler
+  // and cost every screen in the family a spare `RenderNode` it would never draw into — which is
+  // exactly the kind of "it is only one" that adds up to a tab switch you can see. The `key` is what
+  // makes the conditional `remember` safe: turning a canvas on or off discards this slot rather than
+  // shifting the composition's shape under it.
+  val canvasBackdrop = key(ambient != null) {
+    if (ambient == null) null else rememberGlassBackdrop()
+  }
+  // What the *chrome* refracts. With a canvas that has to be both layers, because the body alone is
+  // now transparent everywhere the content is not — and a bar blurring transparency produces a smear
+  // the sharp original still shows through, which is the artefact the recording exists to avoid.
+  val backdrop = key(canvasBackdrop != null) {
+    if (canvasBackdrop == null) {
+      bodyBackdrop
+    } else {
+      rememberCombinedGlassBackdrop(canvasBackdrop, bodyBackdrop)
+    }
+  }
   val chromeController = LocalFluidChromeController.current
   val chromeRegistration = remember { Any() }
   val density = LocalDensity.current
@@ -619,13 +653,29 @@ fun FluidScreen(
   // avvolge tutto l'albero in un Surface si ritrova il titolo grande nero su fondo nero. Il primo
   // tentativo aveva avvolto solo la lista, e il titolo restava nero lo stesso: quello che si vede
   // durante il morph e' la copia della **barra**, trasformata sull'ancora del titolo grande.
-  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+  CompositionLocalProvider(
+    LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+    LocalFluidCanvasBackdrop provides canvasBackdrop,
+  ) {
   Box(
     modifier = modifier
       .fillMaxSize()
       .background(MaterialTheme.colorScheme.background),
   ) {
     val contentTranslation: () -> Float = { overscroll.offsetPx }
+
+    // The canvas, and its recording, come first — which is the whole of why a card in the list can
+    // be glass. This layer is closed before a single item of the body is composed, so it is
+    // structurally incapable of containing one.
+    if (ambient != null && canvasBackdrop != null) {
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .glassBackdropSource(canvasBackdrop),
+      ) {
+        FluidAmbientCanvas(ambient)
+      }
+    }
 
     val body: @Composable () -> Unit = {
       LazyColumn(
@@ -636,11 +686,21 @@ fun FluidScreen(
           // The background is painted *inside* the recorded region, not behind it. A snapshot of
           // text on transparency blurs into a faint smear that the sharp original still shows
           // through; the glass has to sample an opaque image to actually hide what is under it.
-          .glassBackdropSource(backdrop)
+          .glassBackdropSource(bodyBackdrop)
           // Opaque ground first, elastic content second. Painting the background *outside* the
           // bouncing layer is what stops a bounce from dragging a transparent band under the bar,
           // and keeps the recorded snapshot showing exactly what the glass is meant to be hiding.
-          .background(MaterialTheme.colorScheme.background)
+          //
+          // With a canvas the opacity moves down a layer instead of disappearing: the canvas is
+          // itself opaque and is recorded behind this one, so the pair is still a solid image and
+          // the body is free to let it through.
+          .then(
+            if (ambient != null) {
+              Modifier
+            } else {
+              Modifier.background(MaterialTheme.colorScheme.background)
+            },
+          )
           .graphicsLayer { translationY = contentTranslation() },
         state = listState,
         flingBehavior = flingBehavior,

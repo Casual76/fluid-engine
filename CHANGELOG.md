@@ -6,6 +6,23 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.5.0 - 2026-08-25
+
+- FluidScreen prende un canvas ambientale: FluidScreen(ambient = FluidAmbient(tone, motif)) dipinge sotto la pagina tre lavate radiali sull accento piu il motivo dell hero. Serve perche il vetro sopra una pagina grigia piatta e invisibile per costruzione: una lente che rifrange una superficie piatta produce una superficie piatta
+- Due registrazioni, non una. Il canvas si chiude prima che la lista esista, quindi il vetro nel contenuto rifrange solo la lavata e non puo contenere se stesso; la chrome rifrange canvas piu corpo impilati con rememberCombinedGlassBackdrop. La pagina nel suo insieme resta opaca e l invariante delle transizioni di rotta non si muove
+- FluidCard, FluidListGroup e FluidMetricTile accettano glass = true. E una richiesta, non un obbligo: senza canvas in scope o sotto API 31 il componente disegna la superficie opaca di sempre. Il vetro va sul contenitore, mai sulla riga
+- FluidGlassModalPortal e FluidGlassModalHost: modali dentro la radice, quindi il pixel esce sopra la tab bar e il vetro campiona davvero la pagina. Quattro presentazioni - Popover, Sheet (trascinabile in basso, con nested-scroll che negozia con la lista dentro), ContextMenu in stile iOS e Expand, che cresce dal rettangolo della riga che l ha aperto
+- FluidGlassMenuButton e FluidFoldingTabBar: un pulsante che si apre nel proprio menu, e una tab bar che si chiude sulla scheda in cui sei mentre la pagina scorre. Ripiegata la coppia si raccoglie al centro invece di restare nell angolo del display
+- La sfocatura scende ovunque: barra 10 dp, modale 7, pop-up 5, capsula flottante 3.6, controlli 2.8, contenuto 1.6. Il pop-up stava a 12 dp sopra uno scrim che aveva gia sfocato gli stessi pixel, e quello che ne usciva era una card grigio chiaro col bordo bianco. Il materiale e la piega, la brina serve solo a tenere leggibile il testo sopra
+- Il menu contestuale non raddoppia piu ogni riga. La riga sollevata e un pannello di vetro e quella vera era ancora nella pagina sotto di lei, quindi arrivava una seconda volta rifratta e spostata; ora l ancora smette di disegnarsi mentre la sua copia e nell overlay e torna solo quando l overlay ha finito di uscire
+- fluidContextMenuAnchor risponde al dito prima di aprire: la riga si gonfia e lascia la scia speculare dei controlli di vetro, invece di mezzo secondo di niente seguito da un overlay intero
+- FluidSwitch: 56 dp invece di 51, cioe cinque dp in piu di corsa, e si gonfia mentre lo tieni premuto. A 51 una colonna di interruttori si leggeva come una texture sola
+- L indicatore della FluidFoldingTabBar si trascina di nuovo fra le schede: la barra ripiegabile non gli aveva mai passato un onDrag, quindi la capsula era una fila di pulsanti con sopra una lente
+- Le barre galleggiano a 16 dp dal bordo invece di 8: sopra la maniglia di sistema, non appoggiate sopra
+- backdropScale: la catena di RenderEffect si registra a risoluzione ridotta al crescere del raggio, da 1.0 a 0.4. Sul dispositivo, build di release, scheda con piu vetro della galleria: 1.72% di fotogrammi in ritardo, 90esimo percentile 18 ms
+- FluidSheet e deprecato in favore di FluidGlassModalPortal. ModalBottomSheet vive in una finestra di piattaforma separata e non puo leggere il GraphicsLayer dell app: non e un difetto, e un confine di sistema
+
+
 ## 1.4.0 - 2026-08-24
 
 - Il Fluid Glass e rifatto sopra la libreria backdrop di Kyant (AndroidLiquidGlass, Apache-2.0), copiata come sorgente in engine-ui/ui/glass/. Rifrazione vera con campo di distanza, dispersione cromatica, bordo speculare orientato, ombra interna. Crediti in LICENSES/AndroidLiquidGlass.md

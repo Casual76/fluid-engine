@@ -61,10 +61,20 @@ internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeSh
         return runtimeShaderCache.obtainRuntimeShader(key, string)
     }
 
-    fun update(scope: DrawScope): Boolean {
-        val newDensity = scope.density
+    /**
+     * Fluid Engine addition: [contentScale] lets a surface process its backdrop at a fraction of the
+     * screen's resolution.
+     *
+     * Both the size **and the density** are scaled, and scaling the density is the point: every
+     * pixel figure the effects compute — a blur radius, a lens displacement, the corner radii the
+     * lens reads off the shape — goes through `Density.toPx()`, so one multiplication here keeps the
+     * whole chain consistent instead of asking each call site to pre-multiply its own numbers and
+     * getting the shape wrong anyway.
+     */
+    fun update(scope: DrawScope, contentScale: Float = 1f): Boolean {
+        val newDensity = scope.density * contentScale
         val newFontScale = scope.fontScale
-        val newSize = scope.size
+        val newSize = if (contentScale != 1f) scope.size * contentScale else scope.size
         val newLayoutDirection = scope.layoutDirection
 
         val changed = newDensity != density ||

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -98,7 +99,7 @@ data class FluidHeroMetric(
 )
 
 @Immutable
-private data class FluidHeroColors(
+internal data class FluidHeroColors(
   val container: Color,
   val content: Color,
   val accent: Color,
@@ -437,8 +438,22 @@ private fun FluidHeroMetricCell(
  * schermata che ha qualcosa di urgente da dire lo dice allo stesso modo ovunque.
  */
 @Composable
-private fun fluidHeroColors(tone: FluidHeroTone, urgent: Boolean): FluidHeroColors {
-  val scheme = MaterialTheme.colorScheme
+internal fun fluidHeroColors(tone: FluidHeroTone, urgent: Boolean): FluidHeroColors =
+  fluidHeroColors(MaterialTheme.colorScheme, tone, urgent)
+
+/**
+ * The same resolution, as a function of a palette rather than of a composition.
+ *
+ * Split out so the ring can be *tested*: the one thing worth asserting about it — that seven tones
+ * genuinely land on seven different colours, in every scheme the theme can produce — is impossible
+ * to check from inside a `@Composable`, and it is exactly the property that quietly breaks when
+ * someone adds an eighth entry.
+ */
+internal fun fluidHeroColors(
+  scheme: ColorScheme,
+  tone: FluidHeroTone,
+  urgent: Boolean,
+): FluidHeroColors {
   if (urgent) {
     return FluidHeroColors(
       container = scheme.errorContainer,
@@ -500,7 +515,7 @@ private fun fluidHeroColors(tone: FluidHeroTone, urgent: Boolean): FluidHeroColo
 }
 
 @Composable
-private fun FluidHeroDecoration(
+internal fun FluidHeroDecoration(
   motif: FluidHeroMotif,
   color: Color,
   modifier: Modifier = Modifier,

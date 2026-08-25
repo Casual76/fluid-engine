@@ -72,6 +72,14 @@ private class Combined2Backdrops(
     override val isCoordinatesDependent: Boolean =
         backdrop1.isCoordinatesDependent || backdrop2.isCoordinatesDependent
 
+    // Fluid Engine addition: a stack is only cacheable if everything in it is.
+    override val layerSources: List<Any> =
+        if (backdrop1.layerSources.isEmpty() || backdrop2.layerSources.isEmpty()) {
+            emptyList()
+        } else {
+            backdrop1.layerSources + backdrop2.layerSources
+        }
+
     override fun DrawScope.drawBackdrop(
         density: Density,
         coordinates: LayoutCoordinates?,
@@ -93,6 +101,17 @@ private class Combined3Backdrops(
         backdrop1.isCoordinatesDependent ||
                 backdrop2.isCoordinatesDependent ||
                 backdrop3.isCoordinatesDependent
+
+    // Fluid Engine addition: a stack is only cacheable if everything in it is.
+    override val layerSources: List<Any> =
+        if (backdrop1.layerSources.isEmpty() ||
+            backdrop2.layerSources.isEmpty() ||
+            backdrop3.layerSources.isEmpty()
+        ) {
+            emptyList()
+        } else {
+            backdrop1.layerSources + backdrop2.layerSources + backdrop3.layerSources
+        }
 
     override fun DrawScope.drawBackdrop(
         density: Density,

@@ -10,13 +10,18 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,18 +47,24 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
+import kotlin.math.roundToInt
 
 /**
  * How much a control's colour says about it.
@@ -182,8 +194,15 @@ private fun Color.luminanceIsLight(): Boolean =
  *    has a much smaller thumb, and no amount of colour makes it read as the other thing.
  *  * **The track fills, it does not recolour.** Off is a neutral fill, on is the accent, and the
  *    crossfade runs slightly behind the thumb so the movement leads the colour.
- *  * **The thumb stretches.** Held down, it widens by 4dp and pushes toward the far end. That single
- *    detail is most of why the real one feels like a physical object.
+ *  * **The thumb is a lens, not a disc.** The track records itself into its own layer and the thumb
+ *    refracts *it*: the accent bends around the thumb's edge and the boundary between the filled and
+ *    the unfilled part of the track visibly distorts as it passes underneath. This is the one place
+ *    in the interface small enough for chromatic dispersion to be worth its seven samples per pixel.
+ *  * **The thumb stretches.** Held down it widens by 4 dp, and while it is travelling it stretches
+ *    along its direction of travel and thins across it, by how fast it is going. That single detail
+ *    is most of why the real one feels like a physical object rather than a state being drawn twice.
+ *
+ * Nothing about the public signature changed, so no call site anywhere had to.
  */
 @Composable
 fun FluidSwitch(
@@ -195,6 +214,11 @@ fun FluidSwitch(
   val scheme = MaterialTheme.colorScheme
   val interactionSource = remember { MutableInteractionSource() }
   val pressed by interactionSource.collectIsPressedAsState()
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+
+  // The track publishes its own finished picture. The thumb is the only thing that reads it, and it
+  // is drawn outside the recorded node, so there is no way for the recording to contain the lens.
+  val trackGlass = rememberGlassBackdrop(blurRadius = 0.dp)
 
   val trackOff = scheme.onSurface.copy(alpha = FluidSwitchOffTrackAlpha)
   val track by animateColorAsState(
@@ -211,24 +235,36 @@ fun FluidSwitch(
     animationSpec = FluidMotion.color(200),
     label = "switch track border",
   )
-  val progress by animateFloatAsState(
-    targetValue = if (checked) 1f else 0f,
-    animationSpec = FluidMotion.snappy(),
-    label = "switch thumb",
-  )
+  val progress = remember { Animatable(if (checked) 1f else 0f) }
+  LaunchedEffect(checked, reducedMotion) {
+    val target = if (checked) 1f else 0f
+    if (reducedMotion) progress.snapTo(target) else progress.animateTo(target, FluidMotion.snappy())
+  }
   val thumbWidth by animateDpAsState(
     targetValue = if (pressed && enabled) ThumbSize + 4.dp else ThumbSize,
     animationSpec = FluidMotion.dp(FluidMotion.DampingChrome, FluidMotion.ResponseSnappy),
     label = "switch thumb width",
   )
+  val press by animateFloatAsState(
+    targetValue = if (pressed && enabled) 1f else 0f,
+    animationSpec = FluidMotion.snappy(),
+    label = "switch thumb press",
+  )
 
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.5f)
+      .graphicsLayer {
+        if (reducedMotion) return@graphicsLayer
+        // The whole control swells while it is held and settles back when it is let go — the same
+        // thing the navigation pill does, at the scale of a switch. Held glass that does not move at
+        // all is the tell that it is a picture of glass.
+        val swell = 1f + SwitchPressSwellDp.dp.toPx() / size.width
+        val amount = 1f + (swell - 1f) * press
+        scaleX = amount
+        scaleY = amount
+      }
       .size(TrackWidth, TrackHeight)
-      .clip(FluidCapsuleShape)
-      .background(track)
-      .border(1.dp, trackBorder, FluidCapsuleShape)
       .then(
         if (onCheckedChange != null) {
           Modifier.toggleable(
@@ -245,23 +281,99 @@ fun FluidSwitch(
       ),
     contentAlignment = Alignment.CenterStart,
   ) {
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .glassBackdropSource(trackGlass)
+        .background(track, FluidCapsuleShape)
+        .border(1.dp, trackBorder, FluidCapsuleShape),
+    )
+
     val travel = TrackWidth - ThumbInset * 2 - thumbWidth
     Box(
       modifier = Modifier
-        .offset(x = ThumbInset + travel * progress)
+        .offset(x = ThumbInset)
         .size(width = thumbWidth, height = ThumbSize)
-        // A real shadow, not an elevation overlay: the thumb is the one element in the app that
-        // genuinely sits above its surface, and it is the only place a shadow is spent.
-        .shadow(2.dp, FluidCapsuleShape, ambientColor = Color.Black, spotColor = Color.Black)
-        .background(Color.White, FluidCapsuleShape),
+        // The shadow is the material's own, not a `Modifier.shadow`. `Modifier.shadow` clips its
+        // content to the shape by default, at the thumb's *untransformed* position — so the pane,
+        // once translated along the track, was cut down to the sliver where the two overlapped and
+        // the thumb came out as a leaf floating in the middle of the switch. Everything optical has
+        // to live inside the renderer, which knows about the travel.
+        .glassSurface(
+          state = trackGlass,
+          tint = FluidSwitchThumbTint,
+          shape = FluidCapsuleShape,
+          role = GlassRole.Interactive,
+          // No frosting at all. The track is a flat fill and there is nothing in it to hide; what
+          // identifies the material here is the bend at the thumb's edge, so the blur comes off and
+          // the lens comes all the way up.
+          optics = remember {
+            GlassDefaults.optics(GlassRole.Interactive).copy(
+              blurScale = 0f,
+              // Held to a small fraction of a 27 dp thumb. The stock Interactive numbers displace
+              // 16 dp, and inside a 27 dp capsule that drags the green of the track most of the way
+              // across the thumb's own silhouette.
+              refractionHeight = 8.dp,
+              refractionAmount = 5.dp,
+              // A dome needs somewhere to be a dome. On something this small it only rounds the
+              // whole thumb into a bead and takes its edges with it.
+              depthEffect = false,
+              // The thumb is the one element in the app that genuinely sits above its surface, so
+              // it is one of the few places a shadow is spent — but tight, at the scale of a switch
+              // rather than of a floating button.
+              shadowRadius = 5.dp,
+              shadowAlpha = 0.45f,
+              innerShadowRadius = 3.dp,
+              innerShadowAlpha = 0.14f,
+            )
+          },
+          pressed = { press },
+          layerBlock = {
+            // The position lives in the layer rather than in the layout so that moving the thumb
+            // invalidates a draw and nothing else — and so that the renderer, which inverts this
+            // block when it samples, keeps handing the thumb the image the track actually has
+            // behind it at every point of the travel.
+            translationX = travel.toPx() * progress.value
+            if (!reducedMotion) {
+              val speed = (progress.velocity * 0.09f).coerceIn(-0.22f, 0.22f)
+              scaleX = 1f / (1f - speed) * (1f + 0.04f * press)
+              scaleY = (1f - speed * 0.35f) * (1f + 0.04f * press)
+            }
+          },
+        ),
     )
   }
 }
 
-private val TrackWidth = 51.dp
+/**
+ * The thumb's colour.
+ *
+ * Still white, because a switch thumb is white on both platforms and the material is not an excuse
+ * to change what a control *is*. But at 62% rather than solid: the remaining 38% is the track seen
+ * through it, which is the entire point of making the thumb a lens. On a device without
+ * `RenderEffect` the fallback is opaque white, which is exactly the thumb this control had before.
+ */
+private val FluidSwitchThumbTint = GlassTint(
+  overlay = Color.White.copy(alpha = 0.78f),
+  fallback = Color.White,
+  hairline = Color.Transparent,
+)
+
+/**
+ * 56 x 31 with a 27 thumb.
+ *
+ * Wider than UIKit's 51, and the extra five dp are all travel. At 51 the thumb moves twenty dp and
+ * the two states differ by less than the thumb's own width, which is legible at a glance and not at
+ * a *glance across a settings page*: a column of switches all read as one texture. Twenty-five dp of
+ * travel is where on and off stop having to be compared to each other to be told apart.
+ */
+private val TrackWidth = 56.dp
 private val TrackHeight = 31.dp
 private val ThumbSize = 27.dp
 private val ThumbInset = 2.dp
+
+/** How much the whole switch grows under a finger, in dp added to its width. */
+private const val SwitchPressSwellDp = 5f
 
 /** Keeps the neutral fill quiet; the outline carries the off-state boundary contrast. */
 internal const val FluidSwitchOffTrackAlpha = 0.12f
@@ -272,8 +384,21 @@ internal const val FluidSwitchOffBorderAlpha = 0.55f
 /**
  * A segmented control.
  *
- * The pill slides between segments rather than fading in under the new one — the slide is what makes
- * the control feel like one object with a moving part, instead of a row of buttons that light up.
+ * Three surfaces stacked, and the arrangement is the whole trick — it is exactly the one
+ * [FluidTabBar] uses, stood down to 32 dp:
+ *
+ *  1. **The bar**, with the labels printed on it in the resting colour, recorded into its own layer.
+ *  2. **A second copy of the labels, invisible.** Drawn at zero alpha, tinted with the accent, and
+ *     recorded. Nobody ever sees it directly.
+ *  3. **The pill**, a lens that refracts the bar *and* that invisible accent copy. Wherever it sits,
+ *     the label underneath appears through it — magnified, and in the accent colour.
+ *
+ * So the selected segment is not painted a different colour: it is *seen through glass*. That is the
+ * difference between a control that looks like one physical object with a moving part and a row of
+ * buttons that take turns lighting up, and it is worth the two extra recordings a 32 dp control has
+ * to pay for it.
+ *
+ * The pill can also be dragged between segments; letting go settles it on whichever it is nearest.
  */
 @Composable
 fun <T> FluidSegmentedControl(
@@ -286,82 +411,196 @@ fun <T> FluidSegmentedControl(
 ) {
   if (options.isEmpty()) return
   val scheme = MaterialTheme.colorScheme
+  val accent = scheme.primary
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val density = LocalDensity.current
+  val scope = rememberCoroutineScope()
   val selectedIndex = options.indexOf(selected).coerceAtLeast(0)
-  val pill = remember { Animatable(0f) }
-  var segmentWidth by remember { mutableStateOf(0f) }
-  var placed by remember { mutableStateOf(false) }
 
-  LaunchedEffect(selectedIndex, segmentWidth) {
-    if (segmentWidth <= 0f) return@LaunchedEffect
-    val target = selectedIndex * segmentWidth
-    if (!placed) {
-      placed = true
-      pill.snapTo(target)
-    } else {
-      pill.animateTo(target, FluidMotion.snappy())
-    }
-  }
+  val barGlass = rememberGlassBackdrop(blurRadius = 0.dp)
+  val labelsGlass = rememberGlassBackdrop(blurRadius = 0.dp)
+  val pillBackdrop = rememberCombinedGlassBackdrop(barGlass, labelsGlass)
 
-  val pillColor = if (scheme.background.luminanceIsLight()) Color.White else scheme.surfaceContainerHighest
-  val pillInset = with(LocalDensity.current) { 2.dp.toPx() }
-  val pillRadius = with(LocalDensity.current) { 7.dp.toPx() }
+  val shape = ContinuousCornerShape(9.dp)
+  val pillShape = ContinuousCornerShape(7.dp)
 
-  Row(
+  BoxWithConstraints(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.5f)
       .fillMaxWidth()
-      .height(SegmentHeight)
-      .clip(ContinuousCornerShape(9.dp))
-      .background(scheme.onSurface.copy(alpha = 0.07f))
-      .onGloballyPositioned { segmentWidth = it.size.width.toFloat() / options.size }
-      .drawBehind {
-        if (segmentWidth <= 0f) return@drawBehind
-        drawRoundRect(
-          color = pillColor,
-          topLeft = Offset(pill.value + pillInset, pillInset),
-          size = Size(segmentWidth - pillInset * 2, size.height - pillInset * 2),
-          cornerRadius = CornerRadius(pillRadius, pillRadius),
-        )
-      }
-      .selectableGroup(),
-    verticalAlignment = Alignment.CenterVertically,
+      .height(SegmentHeight),
   ) {
-    options.forEachIndexed { index, option ->
-      val isSelected = index == selectedIndex
-      val weight by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0f,
-        animationSpec = FluidMotion.color(180),
-        label = "segment weight",
+    val inset = SegmentPillInset
+    val segmentWidth = with(density) {
+      (constraints.maxWidth.toFloat() - inset.toPx() * 2f) / options.size
+    }
+    var currentIndex by remember { mutableStateOf(selectedIndex) }
+
+    val pill = remember(scope, options.size, segmentWidth) {
+      GlassDragAnimation(
+        animationScope = scope,
+        initialValue = selectedIndex.toFloat(),
+        valueRange = 0f..(options.size - 1).toFloat(),
+        visibilityThreshold = 0.001f,
+        initialScale = 1f,
+        pressedScale = if (reducedMotion) 1f else 1.06f,
+        onDragStopped = {
+          val target = targetValue.roundToInt().coerceIn(0, options.size - 1)
+          animateToValue(target.toFloat())
+          if (target != currentIndex) {
+            currentIndex = target
+            options.getOrNull(target)?.let(onSelect)
+          }
+        },
+        onDrag = { _, dragAmount ->
+          if (segmentWidth <= 0f || !enabled) return@GlassDragAnimation
+          updateValue(
+            (targetValue + dragAmount.x / segmentWidth)
+              .coerceIn(0f, (options.size - 1).toFloat()),
+          )
+        },
       )
-      Box(
-        modifier = Modifier
-          .weight(1f)
-          .height(SegmentHeight)
-          .clip(ContinuousCornerShape(7.dp))
-          .fluidPressable(
-            onClick = { if (!isSelected) onSelect(option) },
-            enabled = enabled,
-            pressedScale = 0.96f,
-            role = Role.Tab,
-          ),
-        contentAlignment = Alignment.Center,
-      ) {
-        Text(
-          text = label(option),
-          style = MaterialTheme.typography.bodySmall.copy(
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-          ),
-          color = lerp(scheme.onSurfaceVariant, scheme.onSurface, weight),
-          maxLines = 1,
-          textAlign = TextAlign.Center,
-          modifier = Modifier.padding(horizontal = 6.dp),
-        )
+    }
+
+    // Selection also arrives from outside — a restored state, a filter reset. The pill follows it
+    // without reporting anything back: whoever changed it already knows.
+    LaunchedEffect(selectedIndex, pill) {
+      if (currentIndex != selectedIndex) {
+        currentIndex = selectedIndex
+        if (reducedMotion) pill.snapToValue(selectedIndex.toFloat())
+        else pill.animateToValue(selectedIndex.toFloat())
       }
     }
+
+    val segments: @Composable RowScope.() -> Unit = {
+      options.forEachIndexed { index, option ->
+        val isSelected = index == currentIndex
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .height(SegmentHeight)
+            .semantics {
+              this.role = Role.Tab
+              this.selected = isSelected
+            }
+            .fluidPressable(
+              onClick = {
+                if (isSelected) return@fluidPressable
+                currentIndex = index
+                if (reducedMotion) pill.snapToValue(index.toFloat())
+                else pill.animateToValue(index.toFloat())
+                onSelect(option)
+              },
+              enabled = enabled,
+              pressedScale = 0.96f,
+            ),
+          contentAlignment = Alignment.Center,
+        ) {
+          Text(
+            text = label(option),
+            style = MaterialTheme.typography.bodySmall.copy(
+              fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+            ),
+            // Flat, in both copies. The accent copy is tinted wholesale by a colour filter, and a
+            // per-segment colour animation underneath it would only fight the filter.
+            color = if (isSelected) scheme.onSurface else scheme.onSurfaceVariant,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 6.dp),
+          )
+        }
+      }
+    }
+
+    // 1. The bar.
+    Row(
+      modifier = Modifier
+        .fillMaxSize()
+        .glassBackdropSource(barGlass)
+        .background(scheme.onSurface.copy(alpha = 0.07f), shape)
+        .padding(horizontal = inset)
+        .selectableGroup(),
+      verticalAlignment = Alignment.CenterVertically,
+      content = segments,
+    )
+
+    // 2. The invisible accent copy the pill reads.
+    Row(
+      modifier = Modifier
+        .clearAndSetSemantics {}
+        .alpha(0f)
+        .glassBackdropSource(labelsGlass)
+        .fillMaxSize()
+        .padding(horizontal = inset)
+        .graphicsLayer(colorFilter = ColorFilter.tint(accent)),
+      verticalAlignment = Alignment.CenterVertically,
+      content = segments,
+    )
+
+    // 3. The lens.
+    Box(
+      modifier = Modifier
+        .padding(inset)
+        .then(pill.modifier)
+        .glassSurface(
+          state = pillBackdrop,
+          tint = FluidSegmentPillTint(scheme.background.luminanceIsLight()),
+          shape = pillShape,
+          role = GlassRole.Interactive,
+          // Never any frosting: the lens is standing on a label eight pixels tall, and any blur at
+          // all makes the selected segment the one word in the control you cannot read.
+          optics = remember {
+            GlassDefaults.optics(GlassRole.Interactive).copy(
+              blurScale = 0f,
+              refractionHeight = 8.dp,
+              refractionAmount = 8.dp,
+            )
+          },
+          // At rest the lens draws the bar back exactly as it is, so the label underneath shows
+          // through crisp and in the accent colour. The glass thickens only under a finger.
+          opticalDepth = { pill.pressProgress },
+          pressed = { pill.pressProgress },
+          layerBlock = {
+            translationX = pill.value * segmentWidth
+            if (!reducedMotion) {
+              scaleX = pill.scaleX
+              scaleY = pill.scaleY
+              val velocity = pill.velocity / 10f
+              scaleX /= 1f - (velocity * 0.75f).coerceIn(-0.2f, 0.2f)
+              scaleY *= 1f - (velocity * 0.25f).coerceIn(-0.2f, 0.2f)
+            }
+          },
+        )
+        .fillMaxHeight()
+        .width(with(density) { segmentWidth.toDp() }),
+    )
   }
 }
 
+/**
+ * The pill's own colour.
+ *
+ * Barely there, because it is not what carries the selection — the label underneath is already
+ * showing through in the accent, and a strong fill here would only cover it up. It exists to give
+ * the selected segment an edge to sit inside. On a device without `RenderEffect` there is no lens to
+ * see through, so the fallback goes back to being the solid pill this control always had.
+ */
+private fun FluidSegmentPillTint(lightBackground: Boolean): GlassTint = if (lightBackground) {
+  GlassTint(
+    overlay = Color.White.copy(alpha = 0.42f),
+    fallback = Color.White,
+    hairline = Color.Transparent,
+  )
+} else {
+  GlassTint(
+    overlay = Color.White.copy(alpha = 0.14f),
+    fallback = Color(0xFF3A3A3C),
+    hairline = Color.Transparent,
+  )
+}
+
 private val SegmentHeight = 32.dp
+private val SegmentPillInset = 2.dp
 
 /**
  * A filter pill.

@@ -42,6 +42,9 @@ dependencies {
   api 'androidx.compose.material:material-icons-extended'
   api "androidx.core:core-ktx:${engine.coreKtx}"
   api "androidx.lifecycle:lifecycle-runtime-compose:${engine.lifecycle}"
+  // Serve per BackHandler e PredictiveBackHandler: il modale in-root vive dentro la composizione
+  // dell'app, quindi il tasto indietro non gli arriva da solo come farebbe con un Dialog.
+  api "androidx.activity:activity-compose:${engine.activityCompose}"
 
   testImplementation "junit:junit:${engine.junit}"
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"

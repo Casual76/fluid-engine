@@ -31,6 +31,14 @@ android {
       // Signed with the ordinary debug key, so it never collides with a real app on the device.
       minifyEnabled false
     }
+    release {
+      // Also debug-signed, on purpose: nothing here is distributed, and the point of the variant is
+      // that `debuggable` is off. Glass is the most draw-heavy thing the design system does, and a
+      // debuggable build measures ART with its optimisations disabled — which is how you end up
+      // "fixing" frame times that were never going to be there.
+      minifyEnabled false
+      signingConfig signingConfigs.debug
+    }
   }
 
   buildFeatures {

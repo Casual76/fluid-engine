@@ -73,9 +73,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidSheet
+import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidContextMenu
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
+import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -110,6 +118,37 @@ enum class FluidTone {
   Info,
   Neutral,
 }
+
+/**
+ * Turns a content container into glass over the screen's ambient canvas — when there is one.
+ *
+ * The rule this modifier enforces, and the one worth writing on the wall of the design system:
+ * **glass goes on the container, never on the row.** A group of twelve rows is one pane, not twelve.
+ * Every pane costs a layer recording and a chain of `RenderEffect`s over its own bounds, so a screen
+ * that puts the material one level too low goes from eight surfaces to eighty and drops frames for
+ * something nobody can see. Text, icons and badges standing on the glass stay fully opaque.
+ *
+ * Asking for glass is a *request*, not an instruction. With no canvas in scope — a plain screen, a
+ * dialog in its own window, anything below API 31 — this returns the modifier untouched and the
+ * caller draws the opaque surface it has always drawn. That is what makes `glass = true` safe to add
+ * to a component before every screen that uses it has a canvas.
+ */
+@Composable
+private fun Modifier.fluidContentGlass(enabled: Boolean, shape: Shape): Modifier {
+  if (!enabled) return this
+  val canvas = LocalFluidCanvasBackdrop.current ?: return this
+  return this.glassSurface(
+    state = canvas,
+    tint = GlassDefaults.contentTint(),
+    shape = shape,
+    role = GlassRole.Content,
+  )
+}
+
+/** Whether a container asking for glass will actually get it here. Drives its own fill colour. */
+@Composable
+private fun contentGlassAvailable(enabled: Boolean): Boolean =
+  enabled && LocalFluidCanvasBackdrop.current != null
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -387,8 +426,12 @@ fun FluidMetricTile(
   tone: FluidTone = FluidTone.Neutral,
   onClick: (() -> Unit)? = null,
   animatePress: Boolean = true,
+  /** See [fluidContentGlass]. */
+  glass: Boolean = false,
 ) {
   val colors = toneColors(tone)
+  val shape = ContinuousCornerShape(FluidRadius.Card)
+  val onGlass = contentGlassAvailable(glass)
   val clickableModifier = if (onClick != null) {
     modifier.fluidPressable(onClick = onClick, pressedScale = if (animatePress) 0.968f else 1f)
   } else {
@@ -398,8 +441,11 @@ fun FluidMetricTile(
   Box(
     modifier = clickableModifier
       .animateContentSize(animationSpec = FluidMotion.intSize())
-      .clip(ContinuousCornerShape(FluidRadius.Card))
-      .background(colors.container),
+      .fluidContentGlass(glass, shape)
+      .clip(shape)
+      // A tile's tone is the tile: on glass the container is kept, at a fraction, so a Warning tile
+      // is still visibly a Warning tile instead of becoming the same pane as its neighbours.
+      .background(if (onGlass) colors.container.copy(alpha = 0.34f) else colors.container),
   ) {
     Column(
       modifier = Modifier
@@ -434,8 +480,14 @@ fun FluidCard(
   onClick: (() -> Unit)? = null,
   animateContent: Boolean = true,
   animatePress: Boolean = true,
+  /** See [fluidContentGlass]: a request honoured only where there is a canvas to look through. */
+  glass: Boolean = false,
   content: @Composable ColumnScope.() -> Unit,
 ) {
+  // `MaterialTheme.shapes.large` is a circular corner, and rule one of this design system says a
+  // corner is continuous — a violation that had been sitting inside the engine that writes the rule.
+  val shape = ContinuousCornerShape(FluidRadius.Card)
+  val onGlass = contentGlassAvailable(glass)
   val baseModifier = modifier
     .fillMaxWidth()
     .then(
@@ -453,13 +505,18 @@ fun FluidCard(
   }
 
   Surface(
-    modifier = clickableModifier,
-    shape = MaterialTheme.shapes.large,
-    color = if (highlighted) {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-      } else {
-        MaterialTheme.colorScheme.surfaceContainerLow
+    modifier = clickableModifier.fluidContentGlass(glass, shape),
+    shape = shape,
+    color = when {
+        // `highlighted` survives onto glass as a wash rather than as a fill. A highlighted card that
+        // simply went opaque would be the one card on the page not made of the same material, which
+        // reads as an error rather than as emphasis.
+        onGlass && highlighted -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.28f)
+        onGlass -> Color.Transparent
+        highlighted -> MaterialTheme.colorScheme.surfaceContainerHigh
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
       },
+    contentColor = MaterialTheme.colorScheme.onSurface,
   ) {
     Column(
       modifier = Modifier
@@ -672,6 +729,7 @@ fun FluidSyncNotice(
  * failure message and which sections it applied to, and showed neither. Tapping opens what it
  * knows, and offers the one action worth offering when something did not arrive.
  */
+@Suppress("DEPRECATION")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FluidSyncAction(
@@ -836,15 +894,22 @@ private val lastSyncDateFormatter: DateTimeFormatter =
 @Composable
 fun FluidListGroup(
   modifier: Modifier = Modifier,
+  /**
+   * See [fluidContentGlass]. This is *the* place the material belongs on a list: one pane for the
+   * whole group, whatever number of rows it happens to hold.
+   */
+  glass: Boolean = false,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   val shape = ContinuousCornerShape(FluidRadius.Group)
+  val onGlass = contentGlassAvailable(glass)
   Surface(
     // Surface already clips its children to [shape]. A second clip created another large offscreen
     // layer for the whole group, which was especially expensive for long catalog lists.
-    modifier = modifier.fillMaxWidth(),
+    modifier = modifier.fillMaxWidth().fluidContentGlass(glass, shape),
     shape = shape,
-    color = MaterialTheme.colorScheme.surfaceContainerLow,
+    color = if (onGlass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
+    contentColor = MaterialTheme.colorScheme.onSurface,
   ) {
     Column(modifier = Modifier.fillMaxWidth(), content = content)
   }
@@ -874,10 +939,22 @@ fun FluidListRow(
   leading: (@Composable () -> Unit)? = null,
   onClick: (() -> Unit)? = null,
   onLongClick: (() -> Unit)? = null,
+  /**
+   * Actions raised by a long press, in a menu anchored to this row.
+   *
+   * One parameter is the whole subscription: the row records its own picture, lifts it out of the
+   * blurred page and hangs the menu off it. Prefer this to [onLongClick] — a long press that does
+   * exactly one thing, and does not say which, is a gesture nobody discovers.
+   */
+  contextActions: (() -> List<FluidContextAction>)? = null,
   animatePress: Boolean = true,
   animateContent: Boolean = false,
 ) {
   val colors = toneColors(tone)
+  // The menu has to be raised from the row's *own* long-press. A separate long-press detector next
+  // to a `combinedClickable` never fires — the click handler consumes the gesture first — which is
+  // why the controller and the gesture are two things in the engine rather than one modifier.
+  val contextMenu = contextActions?.let { rememberFluidContextMenu(it) }
   Column(
     modifier = modifier
       .fillMaxWidth()
@@ -888,11 +965,18 @@ fun FluidListRow(
           Modifier
         },
       )
+      .then(
+        if (contextMenu != null) Modifier.fluidContextMenuAnchor(contextMenu) else Modifier,
+      )
       // A row inside a grouped list tints instead of scaling: shrinking one row of a stack breaks
       // the group's silhouette and is what made the previous treatment look unsettled.
       .fluidRowPressable(
         onClick = onClick,
-        onLongClick = onLongClick,
+        onLongClick = if (contextMenu != null) {
+          { if (!contextMenu.open()) onLongClick?.invoke() }
+        } else {
+          onLongClick
+        },
         animateFeedback = animatePress,
       ),
   ) {

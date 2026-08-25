@@ -14,6 +14,20 @@ class GlassMaterialStateTest {
     val floating = GlassDefaults.optics(GlassRole.Floating)
     val interactive = GlassDefaults.optics(GlassRole.Interactive)
     val modal = GlassDefaults.optics(GlassRole.Modal)
+    val content = GlassDefaults.optics(GlassRole.Content)
+
+    // Content glass is the one role with nothing outside its own perimeter. A card is at the same
+    // depth as the text beside it, and the moment two cards in a scrolling list both cast a shadow
+    // the page reads as a stack of loose slabs rather than as a page.
+    assertEquals(0f, content.shadowAlpha, 0f)
+    assertEquals(0f, content.shadowRadius.value, 0f)
+    assertFalse(content.depthEffect)
+
+    // And the top bar is the one role that keeps a heavy kernel: it is the only pane with sharp text
+    // scrolling underneath it, arriving from a page it does not control. Everything else here stands
+    // over something soft and can afford to be nearly clear.
+    assertTrue(bar.blurScale > content.blurScale)
+    assertTrue(bar.blurScale > floating.blurScale)
 
     // A control hides the least of anything on screen: it is too small to frost its background and
     // still read as glass, so the bend at its edge has to do the identifying instead.
@@ -37,8 +51,12 @@ class GlassMaterialStateTest {
     assertTrue(interactive.dispersion)
     assertFalse(modal.dispersion)
 
-    // A sheet has to win an argument with a whole page behind it.
-    assertTrue(modal.blurScale > bar.blurScale)
+    // The two heavy roles, and they are heavy for the same reason: both stand over a page that is
+    // still fully sharp and both are the only thing separating themselves from it. Everything else
+    // in this file stands over something already soft — a wash, a bar's own fill, a control's
+    // track — and gets to be nearly clear.
+    assertTrue(modal.blurScale > interactive.blurScale)
+    assertTrue(bar.blurScale > interactive.blurScale)
 
     // Only the surfaces that float carry a shadow; a bar is flush with the screen.
     assertEquals(0f, bar.shadowAlpha, 0f)

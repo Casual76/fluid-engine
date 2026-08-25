@@ -35,7 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -43,6 +45,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
@@ -77,7 +80,8 @@ fun Modifier.drawPlainBackdrop(
     onDrawBehind: (DrawScope.() -> Unit)? = null,
     onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit = DefaultOnDrawBackdrop,
     onDrawSurface: (DrawScope.() -> Unit)? = null,
-    onDrawFront: (DrawScope.() -> Unit)? = null
+    onDrawFront: (DrawScope.() -> Unit)? = null,
+    backdropScale: Float = 1f
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -98,7 +102,8 @@ fun Modifier.drawPlainBackdrop(
                 onDrawBehind = onDrawBehind,
                 onDrawBackdrop = onDrawBackdrop,
                 onDrawSurface = onDrawSurface,
-                onDrawFront = onDrawFront
+                onDrawFront = onDrawFront,
+                backdropScale = backdropScale.coerceIn(0.1f, 1f)
             )
         )
 }
@@ -115,7 +120,18 @@ fun Modifier.drawBackdrop(
     onDrawBehind: (DrawScope.() -> Unit)? = null,
     onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit = DefaultOnDrawBackdrop,
     onDrawSurface: (DrawScope.() -> Unit)? = null,
-    onDrawFront: (DrawScope.() -> Unit)? = null
+    onDrawFront: (DrawScope.() -> Unit)? = null,
+    /**
+     * Fluid Engine addition: record and process the backdrop at this fraction of the surface's own
+     * resolution, then draw it back up.
+     *
+     * The `RenderEffect` chain is the most expensive thing in the design system and it is charged per
+     * pixel, so a full-screen scrim at 0.4 costs a sixth of one at 1. What hides the upscaling is the
+     * blur, which is why the caller picks the fraction from the radius rather than this having a
+     * useful default — see `glassSurface`. Not safe with a `layerBlock`: that block is inverted
+     * against this scope's density when the backdrop is sampled, and a scaled density would move it.
+     */
+    backdropScale: Float = 1f
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -166,7 +182,8 @@ fun Modifier.drawBackdrop(
                 onDrawBehind = onDrawBehind,
                 onDrawBackdrop = onDrawBackdrop,
                 onDrawSurface = onDrawSurface,
-                onDrawFront = onDrawFront
+                onDrawFront = onDrawFront,
+                backdropScale = if (layerBlock != null) 1f else backdropScale.coerceIn(0.1f, 1f)
             )
         )
 }
@@ -180,7 +197,8 @@ private class DrawBackdropElement(
     val onDrawBehind: (DrawScope.() -> Unit)?,
     val onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit,
     val onDrawSurface: (DrawScope.() -> Unit)?,
-    val onDrawFront: (DrawScope.() -> Unit)?
+    val onDrawFront: (DrawScope.() -> Unit)?,
+    val backdropScale: Float
 ) : ModifierNodeElement<DrawBackdropNode>() {
 
     override fun create(): DrawBackdropNode {
@@ -193,7 +211,8 @@ private class DrawBackdropElement(
             onDrawBehind = onDrawBehind,
             onDrawBackdrop = onDrawBackdrop,
             onDrawSurface = onDrawSurface,
-            onDrawFront = onDrawFront
+            onDrawFront = onDrawFront,
+            backdropScale = backdropScale
         )
     }
 
@@ -210,6 +229,7 @@ private class DrawBackdropElement(
         node.onDrawBackdrop = onDrawBackdrop
         node.onDrawSurface = onDrawSurface
         node.onDrawFront = onDrawFront
+        node.backdropScale = backdropScale
         node.invalidateDrawCache()
     }
 
@@ -239,6 +259,7 @@ private class DrawBackdropElement(
         if (onDrawBackdrop != other.onDrawBackdrop) return false
         if (onDrawSurface != other.onDrawSurface) return false
         if (onDrawFront != other.onDrawFront) return false
+        if (backdropScale != other.backdropScale) return false
 
         return true
     }
@@ -253,6 +274,7 @@ private class DrawBackdropElement(
         result = 31 * result + onDrawBackdrop.hashCode()
         result = 31 * result + (onDrawSurface?.hashCode() ?: 0)
         result = 31 * result + (onDrawFront?.hashCode() ?: 0)
+        result = 31 * result + backdropScale.hashCode()
         return result
     }
 }
@@ -266,7 +288,8 @@ private class DrawBackdropNode(
     var onDrawBehind: (DrawScope.() -> Unit)?,
     var onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit,
     var onDrawSurface: (DrawScope.() -> Unit)?,
-    var onDrawFront: (DrawScope.() -> Unit)?
+    var onDrawFront: (DrawScope.() -> Unit)?,
+    var backdropScale: Float
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode, Modifier.Node() {
 
     private val effectScope =
@@ -287,12 +310,60 @@ private class DrawBackdropNode(
 
     private var padding by mutableFloatStateOf(0f)
 
+    /**
+     * Fluid Engine addition: whether the recorded capture is stale for a reason of *this* surface's
+     * own — an element update, a retuned effect chain, a fresh attach.
+     *
+     * See [Backdrop.layerSources] for why anything else does not count. Before this, every glass
+     * surface replayed the whole screen and re-ran its `RenderEffect` chain on every single frame it
+     * drew, whether or not one pixel of the situation had changed, and eight surfaces on a screen
+     * meant eight of those per frame. It is the difference between a tab switch that stutters and one
+     * that does not.
+     */
+    private var surfaceDirty = true
+
+    private var recordedSize: IntSize = IntSize.Zero
+    private var recordedSelfOffset: Offset? = null
+    private var recordedSourceOffsets: List<Offset>? = null
+
+    /**
+     * Where every source sits relative to this surface, which is the only thing a capture depends on.
+     *
+     * Null means at least one source has not been positioned yet, or the backdrop cannot say what it
+     * is made of — either way the answer is to record, which is what every backdrop did before.
+     */
+    private fun currentSourceOffsets(): List<Offset>? {
+        val sources = backdrop.layerSources
+        if (sources.isEmpty()) return null
+        val self = layoutCoordinates ?: return null
+        if (!self.isAttached) return null
+        val offsets = ArrayList<Offset>(sources.size)
+        for (source in sources) {
+            val layer = source as? LayerBackdrop ?: return null
+            val sourceCoordinates = layer.layerCoordinates ?: return null
+            if (!sourceCoordinates.isAttached) return null
+            offsets += try {
+                sourceCoordinates.localPositionOf(self)
+            } catch (_: Exception) {
+                return null
+            }
+        }
+        return offsets
+    }
+
     private val recordBackdropBlock: (DrawScope.() -> Unit) = {
         val canvas = drawContext.canvas
         val padding = padding
+        val scale = backdropScale
 
         if (padding != 0f) {
             canvas.translate(padding, padding)
+        }
+        // Everything after this point is drawn into a layer that covers fewer pixels, so the effect
+        // chain does too. Both the padding above and the effect parameters are already expressed in
+        // this smaller world, because the effect scope was handed a scaled density.
+        if (scale != 1f) {
+            canvas.scale(scale, scale)
         }
         onDrawBackdrop {
             with(backdrop) {
@@ -303,6 +374,9 @@ private class DrawBackdropNode(
                 )
             }
         }
+        if (scale != 1f) {
+            canvas.scale(1f / scale, 1f / scale)
+        }
         if (padding != 0f) {
             canvas.translate(-padding, -padding)
         }
@@ -312,21 +386,51 @@ private class DrawBackdropNode(
         val layer = graphicsLayer
         if (layer != null) {
             val padding = padding
-
-            recordLayer(
-                this@DrawBackdropNode,
-                layer,
-                size = IntSize(
-                    size.width.toInt() + padding.toInt() * 2,
-                    size.height.toInt() + padding.toInt() * 2
-                ),
-                block = recordBackdropBlock
+            // Not named `scale`: that shadows the DrawScope transform of the same name, which is
+            // what un-scales the draw below.
+            val contentScale = backdropScale
+            val recordSize = IntSize(
+                ((size.width * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1),
+                ((size.height * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1)
             )
+            val sourceOffsets = currentSourceOffsets()
+            val selfOffset = layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()
+
+            // Re-record only when this capture can no longer be the right one. A `RenderNode`
+            // display list holds its children by reference, so a source that re-records is picked up
+            // by every surface already replaying it — what a surface cannot survive is *moving*.
+            //
+            // `sourceOffsets == null` is the honest "cannot tell" and keeps the original
+            // record-every-frame behaviour for backdrops that are not made of recordings.
+            val needsRecord = surfaceDirty ||
+                sourceOffsets == null ||
+                recordedSize != recordSize ||
+                recordedSourceOffsets != sourceOffsets ||
+                recordedSelfOffset != selfOffset
+
+            if (needsRecord) {
+                recordLayer(
+                    this@DrawBackdropNode,
+                    layer,
+                    size = recordSize,
+                    block = recordBackdropBlock
+                )
+                recordedSize = recordSize
+                recordedSourceOffsets = sourceOffsets
+                recordedSelfOffset = selfOffset
+                surfaceDirty = false
+            }
 
             layer.topLeft =
                 if (padding != 0f) IntOffset(-padding.toInt(), -padding.toInt())
                 else IntOffset.Zero
-            drawLayer(layer)
+            // `topLeft` is in the layer's own (scaled) coordinates, so the un-scale has to wrap the
+            // placement as well as the draw.
+            if (contentScale != 1f) {
+                scale(1f / contentScale, pivot = Offset.Zero) { drawLayer(layer) }
+            } else {
+                drawLayer(layer)
+            }
         }
     }
 
@@ -341,7 +445,7 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
-        if (effectScope.update(this)) {
+        if (effectScope.update(this, backdropScale)) {
             updateEffects()
         }
 
@@ -391,12 +495,29 @@ private class DrawBackdropNode(
 
         effectScope.apply(effects)
         graphicsLayer?.renderEffect = effectScope.renderEffect
-        padding = effectScope.padding
+        val newPadding = effectScope.padding
+        // Only the *padding* invalidates a capture. The `RenderEffect` itself is applied to the layer
+        // at draw time, so a chain that changes its numbers — a bar's blur ramping up with a scroll,
+        // a modal's lens thickening as it arrives — costs nothing beyond rebuilding the effect.
+        //
+        // Dirtying the capture here unconditionally, which is what this did, meant every frame of
+        // every one of those animations re-recorded the whole screen and re-ran the entire chain
+        // over it. On a full-screen scrim that is the single most expensive thing in the design
+        // system, happening at the exact moment something is trying to animate: it is why holding a
+        // button to open its menu stuttered.
+        if (newPadding != padding) {
+            padding = newPadding
+            surfaceDirty = true
+        }
     }
 
     override fun onAttach() {
         val graphicsContext = requireGraphicsContext()
         graphicsLayer = graphicsContext.createGraphicsLayer()
+        surfaceDirty = true
+        recordedSize = IntSize.Zero
+        recordedSourceOffsets = null
+        recordedSelfOffset = null
 
         observeEffects()
     }

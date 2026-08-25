@@ -169,6 +169,58 @@ sezione.**
 
 ---
 
+## Fase 7 — il vetro entra nella pagina (2026-08-25, engine 1.5.0)
+
+Di nuovo non è una migrazione: è quello che mancava perché la Fase 6 si vedesse. Il materiale 1.4.0
+funzionava nella galleria e in un'app vera era **invisibile**, per un motivo che non è un bug: le
+pagine sono superfici grigie piatte, e una lente che rifrange una pagina piatta produce una pagina
+piatta. Non c'era niente da guardare attraverso.
+
+**Il canvas ambientale.** `FluidScreen(ambient = FluidAmbient(tone, motif))` dipinge sotto la pagina
+tre lavate radiali sull'accento e il motivo dell'hero ingrandito. È opaco: la pagina nel suo insieme
+resta opaca, e l'invariante delle transizioni di rotta — con i suoi test — non si muove.
+
+**Due registrazioni, non una.** È il vincolo che decide tutto il resto. `FluidScreen` registra il
+corpo che scorre; una card *dentro* quella lista che campionasse quella registrazione conterrebbe se
+stessa, ed è un feedback ottico che nel vetro si vede subito. Quindi il canvas si disegna e si chiude
+*prima* che la lista esista: il vetro nel contenuto rifrange solo la lavata, la chrome rifrange
+canvas + corpo impilati (`rememberCombinedGlassBackdrop`).
+
+**Il vetro nel contenuto.** `FluidCard`, `FluidListGroup` e `FluidMetricTile` prendono `glass = true`.
+È una **richiesta**: senza canvas in scope, o sotto API 31, il modificatore torna intatto e il
+componente disegna la superficie opaca di sempre. E il vetro va sul contenitore: un gruppo di dodici
+righe è un nodo, non dodici.
+
+**Il modale dentro la radice.** `ModalBottomSheet` e `Dialog` vivono in una finestra di piattaforma
+separata e non possono leggere il `GraphicsLayer` dell'app — non è un difetto, è un confine di
+sistema, e `FluidSheet` resta deprecato con quella nota. `FluidGlassModalPortal` scrive il proprio
+contenuto in un host alla radice, quindi il pixel esce sopra la tab bar e il vetro campiona davvero
+la pagina. Quattro presentazioni: `Popover`, `Sheet` (trascinabile in basso per chiudere, con
+nested-scroll che negozia con la lista dentro), `ContextMenu` in stile iOS e `Expand`, che cresce dal
+rettangolo della riga che l'ha aperto.
+
+**La taratura, dopo averla guardata in mano.** La sfocatura è scesa ovunque: barra 10 dp, modale 7,
+pop-up 5, capsula 3.6, controlli 2.8, contenuto 1.6. Il pop-up stava a 12 dp **sopra** uno scrim che
+aveva già sfocato gli stessi pixel, e il risultato non era vetro: era una card grigio chiaro con
+attorno un bordo bianco. Il materiale è la *piega*, la brina serve solo a tenere leggibile il testo
+sopra.
+
+**Il difetto che si vedeva di più.** Il menù contestuale mostrava ogni riga due volte: la riga
+sollevata è un pannello di vetro, e la riga vera era ancora nella pagina sotto di lei, quindi
+arrivava una seconda volta rifratta e spostata di qualche pixel. Ora l'ancora smette di disegnarsi
+mentre la sua copia è nell'overlay (`FluidGlassModalEntry.lifted`), e torna solo quando l'overlay ha
+finito di uscire — non un fotogramma prima, o l'uscita mostrerebbe di nuovo le due.
+
+**Misurato sul dispositivo** (SM-S931B, build di release, scheda Chrome, dieci scroll):
+1.72% di fotogrammi in ritardo, 90° percentile 18 ms, un vsync perso. La scheda con più vetro della
+galleria dà gli stessi numeri delle altre. Il costo è tenuto giù registrando la catena di
+`RenderEffect` a risoluzione ridotta (`backdropScale`, da 1.0 a 0.4 al crescere del raggio).
+
+**Guardato**: chiaro e scuro, `fontScale` 1.3, pop-up, menù contestuale, foglio, fold della barra,
+trascinamento della pastiglia fra le schede. 78 test verdi.
+
+---
+
 ## Regole che valgono per ogni fase
 
 - **La firma di release è `C:\VibeCoded Projects\pampa.jks`, alias `pampa`**, per tutte le app —

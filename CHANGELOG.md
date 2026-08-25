@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.7.0 - 2026-08-25
+
+- FluidFoldingTabBar prende foldAlignment: Start, Center (com era) o End. Ripiegata la capsula resta l unico bersaglio della navigazione, e dove si posa decide se il pollice ci arriva
+
+
 ## 1.6.1 - 2026-08-25
 
 - FluidPillTabs e il controllo segmentato dell engine, non un secondo disegno. Era l ultima superficie rimasta a fingere il rilievo - un guscio solido con una pastiglia bianca e un ombra sotto - mentre FluidSegmentedControl tiene una copia invisibile delle etichette tinte d accento sotto una lente: il segmento scelto non viene colorato, viene visto attraverso il vetro, ed e trascinabile fra i segmenti. Il nome resta, quindi le app non cambiano una riga

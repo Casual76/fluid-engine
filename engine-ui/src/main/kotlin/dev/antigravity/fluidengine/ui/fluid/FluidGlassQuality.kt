@@ -35,12 +35,22 @@ import kotlin.math.abs
  * testo che perde contrasto mentre la lista scorre è peggio di qualunque fotogramma in ritardo.
  */
 @Stable
-class FluidGlassQuality internal constructor() {
+class FluidGlassQuality internal constructor(
+  /**
+   * Un tetto imposto da fuori: qualunque altra cosa stia gia' consumando il fotogramma.
+   *
+   * Lo scorrimento non e' l'unico momento in cui il materiale costa piu' di quanto renda. Anche una
+   * transizione di rotta lo e', e molto di piu': mentre due pagine si attraversano ne esistono
+   * due, quindi due fondali e due serie di pannelli. Il livello finale e' il **minimo** fra i due,
+   * perche' sono due ragioni indipendenti per non pagare e la piu' forte vince.
+   */
+  private val ceiling: () -> Float = { 1f },
+) {
 
   private var _level by mutableFloatStateOf(1f)
 
   /** 1 = materiale pieno, [ScrollingFloor] = quanto ne resta durante uno scorrimento veloce. */
-  val level: Float get() = _level
+  val level: Float get() = minOf(_level, ceiling())
 
   /**
    * Aggiorna il livello a partire dallo spostamento di un fotogramma.
@@ -103,7 +113,8 @@ class FluidGlassQuality internal constructor() {
 val LocalFluidGlassQuality = compositionLocalOf<FluidGlassQuality?> { null }
 
 @Composable
-fun rememberFluidGlassQuality(): FluidGlassQuality = remember { FluidGlassQuality() }
+fun rememberFluidGlassQuality(ceiling: () -> Float = { 1f }): FluidGlassQuality =
+  remember { FluidGlassQuality(ceiling) }
 
 /** Il valore che una superficie deve usare adesso. */
 @Composable

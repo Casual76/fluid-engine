@@ -66,4 +66,24 @@ class FluidGlassQualityTest {
 
     assertEquals(1f, quality.level, 0f)
   }
+
+  @Test
+  fun anExternalCeilingHoldsTheMaterialDownWhateverTheScrollSays() {
+    // Il cambio di scheda e' l'altro momento in cui il vetro costa piu' di quanto rende, e non ha
+    // niente a che vedere con la velocita' di scorrimento: mentre due pagine si attraversano ne
+    // esistono due, quindi due fondali e due serie di pannelli. Le due ragioni sono indipendenti e
+    // vince la piu' forte.
+    var ceiling = 1f
+    val quality = FluidGlassQuality { ceiling }
+    quality.onSettled()
+    assertEquals(1f, quality.level, 0.0001f)
+
+    ceiling = FluidGlassQuality.ScrollingFloor
+    assertEquals(FluidGlassQuality.ScrollingFloor, quality.level, 0.0001f)
+
+    // E quando la transizione finisce il materiale torna intero da solo, senza che nessuno debba
+    // ricordarsi di rialzarlo.
+    ceiling = 1f
+    assertEquals(1f, quality.level, 0.0001f)
+  }
 }

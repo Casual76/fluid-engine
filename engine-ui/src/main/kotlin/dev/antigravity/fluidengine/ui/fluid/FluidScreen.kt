@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.theme.LocalRouteMotionSignals
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.ScrollableDefaults
@@ -676,7 +677,10 @@ fun FluidScreen(
   // Il vetro si assottiglia mentre la pagina corre e torna intero quando si ferma: vedi
   // [FluidGlassQuality]. Sta qui e non nelle singole superfici perché la velocità e' un fatto
   // della *pagina*, e perché cosi' ogni schermata dell'app lo eredita senza aggiungere una riga.
-  val glassQuality = rememberFluidGlassQuality()
+  // Il tetto viene dal movimento fra pagine: durante una transizione esistono due schermate intere
+  // e il conto del vetro raddoppia nel fotogramma che ne ha meno.
+  val routeSignals = LocalRouteMotionSignals.current
+  val glassQuality = rememberFluidGlassQuality { routeSignals.glassQuality }
   val qualityConnection = remember(glassQuality) {
     fluidGlassQualityScrollConnection(glassQuality)
   }

@@ -1,6 +1,8 @@
 package dev.antigravity.fluidengine.ui.theme
 
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassQuality
 import android.os.Build
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.animateFloat
@@ -138,6 +140,45 @@ object FluidRouteMotion {
 @Stable
 class RouteMotionSignals internal constructor() {
   var hierarchical: Boolean = true
+
+  /**
+   * Fino a quando il vetro deve restare al minimo perche' due pagine sono in movimento.
+   *
+   * Il cambio di scheda e' il fotogramma piu' caro dell'app e per un motivo strutturale: durante la
+   * transizione **esistono due pagine**, quindi due fondali ambientali, due serie di pannelli di
+   * contenuto e la chrome, tutti disegnati insieme. Il conto raddoppia esattamente nel momento in
+   * cui il budget e' gia' speso, ed e' quello che si vede trascinando la pastiglia fra le schede.
+   *
+   * Non e' un momento in cui il materiale si guarda: due pagine si stanno attraversando. Quindi
+   * scende alla stessa soglia che tiene durante uno scorrimento veloce.
+   *
+   * E' una **scadenza** invece di un contatore perche' le pagine in transizione sono due e nessuna
+   * delle due sa quando l'altra ha finito: chi si muove timbra, e il timbro scade da solo. Un
+   * contatore avrebbe avuto bisogno che ogni pagina chiudesse la propria parentesi, cosa che una
+   * pagina rimossa a meta' animazione non fa.
+   */
+  internal var glassRelaxAt: Long = 0L
+
+  /** Quanta ottica concede il movimento fra pagine, adesso. */
+  val glassQuality: Float
+    get() = if (SystemClock.uptimeMillis() < glassRelaxAt) {
+      FluidGlassQuality.ScrollingFloor
+    } else {
+      1f
+    }
+
+  internal fun markMoving() {
+    glassRelaxAt = SystemClock.uptimeMillis() + GlassRelaxHoldMillis
+  }
+
+  private companion object {
+    /**
+     * Quanto vale un timbro. Poco piu' di due fotogrammi a 60 Hz: abbastanza da coprire il buco fra
+     * un disegno e il successivo, troppo poco perche' il vetro resti scadente dopo che la pagina si
+     * e' fermata.
+     */
+    const val GlassRelaxHoldMillis = 40L
+  }
 }
 
 val LocalRouteMotionSignals: ProvidableCompositionLocal<RouteMotionSignals> =
@@ -189,6 +230,10 @@ fun FluidRouteMotionHost(
       .fillMaxSize()
       .graphicsLayer {
         val hierarchical = signals.hierarchical
+        // Timbrato dal disegno e non dallo stato della transizione: qui siamo gia' dentro il
+        // fotogramma che costa, e la domanda a cui serve rispondere e' "questo fotogramma sta
+        // muovendo due pagine", non "esiste un'animazione".
+        if (cornerDp.value > 0.5f || blurDp.value > 0.5f) signals.markMoving()
         val corner = if (hierarchical) cornerDp.value.dp.toPx() else 0f
         if (corner > 0.5f) {
           // L'unico angolo circolare rimasto nell'engine, ed e' deliberato: qui il raggio cambia a

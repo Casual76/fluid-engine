@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** A semantic destination in a long, sectioned [androidx.compose.foundation.lazy.LazyColumn]. */
 @Immutable
@@ -125,6 +126,10 @@ fun FluidSectionIndex(
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
 
   var interacting by remember { mutableStateOf(false) }
+  // Dove stava la barretta quando il dito l'ha presa. Il bersaglio segue la barretta, e la barretta
+  // segue il dito: senza congelarla, muovere il dito muove il bersaglio sotto il dito, e la y
+  // relativa da cui si ricava la selezione insegue se stessa.
+  var frozenFraction by remember { mutableFloatStateOf(0f) }
   // 0 = the resting sliver, 1 = the full-height rail with the lens on it.
   val expansion = remember { Animatable(0f) }
   // Where the finger is, as a fraction of the unfolded rail: one number drives the lens, the label
@@ -154,11 +159,26 @@ fun FluidSectionIndex(
     ) {
       val rootHeightPx = constraints.maxHeight.toFloat()
       val rootWidthPx = constraints.maxWidth.toFloat()
-      val compactHPx = with(density) { compactTrackHeight.toPx() }
-      val edgeMarginPx = with(density) { FluidSectionIndexDefaults.ExpandedMargin.toPx() }
       val markInsetPx = with(density) { FluidSectionIndexDefaults.ExpandedMarkInset.toPx() }
-      val expandedHPx = (rootHeightPx - 2f * edgeMarginPx).coerceAtLeast(compactHPx)
-      val restWPx = with(density) { FluidSectionIndexDefaults.ActiveMarkWidth.toPx() }
+      // Il percorso a riposo e quello aperto sono due frazioni dell'altezza, non due costanti: su un
+      // telefono e su un tablet la barretta deve occupare la stessa *proporzione* di schermo, o su
+      // uno dei due diventa un dettaglio invisibile e sull'altro una colonna.
+      val compactHPx = (rootHeightPx * FluidSectionIndexDefaults.RestTrackFraction).coerceIn(
+        with(density) { FluidSectionIndexDefaults.RestTrackMinHeight.toPx() },
+        with(density) { FluidSectionIndexDefaults.RestTrackMaxHeight.toPx() },
+      )
+      val expandedHPx = (rootHeightPx * FluidSectionIndexDefaults.ExpandedTrackFraction)
+        .coerceIn(
+          with(density) { FluidSectionIndexDefaults.ExpandedTrackMinHeight.toPx() },
+          with(density) { FluidSectionIndexDefaults.ExpandedTrackMaxHeight.toPx() },
+        )
+        .coerceAtMost(rootHeightPx - 2f * with(density) {
+          FluidSectionIndexDefaults.ExpandedMargin.toPx()
+        })
+        .coerceAtLeast(compactHPx)
+      val restBarWPx = with(density) { FluidSectionIndexDefaults.RestBarWidth.toPx() }
+      val restBarHPx = with(density) { FluidSectionIndexDefaults.RestBarHeight.toPx() }
+      val restWPx = with(density) { FluidSectionIndexDefaults.RestBarWidth.toPx() }
       val expandedWPx = with(density) { FluidSectionIndexDefaults.ExpandedTrackWidth.toPx() }
       val markPx = with(density) { FluidSectionIndexDefaults.MarkSize.toPx() }
       val activeMarkPx = with(density) { FluidSectionIndexDefaults.ActiveMarkWidth.toPx() }
@@ -173,13 +193,21 @@ fun FluidSectionIndex(
         return ((rootY - trackTop(1f) - markInsetPx) / usable).coerceIn(0f, 1f)
       }
       fun compactFractionForRootY(rootY: Float): Float {
-        val usable = (trackHeight(0f)).coerceAtLeast(1f)
-        return ((rootY - trackTop(0f)) / usable).coerceIn(0f, 1f)
+        val usable = (trackHeight(0f) - restBarHPx).coerceAtLeast(1f)
+        return ((rootY - trackTop(0f) - restBarHPx / 2f) / usable).coerceIn(0f, 1f)
       }
+      /** Dove sta la barretta a riposo: il centro della sua corsa, alla frazione data. */
+      val hitHalfPx = with(density) {
+        (FluidSectionIndexDefaults.RestBarHeight + FluidSectionIndexDefaults.HitMargin).toPx() / 2f
+      }
+      /** Dove sta la barretta a riposo: il centro della sua corsa, alla frazione data. */
+      fun restBarCenterY(fraction: Float): Float =
+        restBarHPx / 2f + fraction * (trackHeight(0f) - restBarHPx).coerceAtLeast(0f)
       fun indexForFraction(fraction: Float): Int =
         (fraction * (sampledSections.size - 1)).roundToInt().coerceIn(0, sampledSections.lastIndex)
       fun lensCenterY(): Float =
         trackTop(1f) + markInsetPx + fingerFraction * (trackHeight(1f) - 2f * markInsetPx)
+
 
       // The rail. Its size lives in a layout lambda and its marks in a draw lambda, both reading
       // [expansion] directly: the unfolding never recomposes.
@@ -221,25 +249,45 @@ fun FluidSectionIndex(
           .drawBehind {
             val t = expansion.value
             val n = sampledSections.size
-            for (index in 0 until n) {
-              val isActive = index == selectedIndex
-              // The cluster the marks rest in and the stations they spread to are both expressed
-              // in the rail's own space, so the spread rides the rail's growth.
-              val compactY = index * (markPx + markSpacingPx) + markPx / 2f
-              val expandedY = markInsetPx + (size.height - 2f * markInsetPx) * (index / (n - 1f))
-              val y = lerpFloat(compactY, expandedY, t)
-              val w = if (isActive) lerpFloat(activeMarkPx, markPx * 2f, t) else markPx
-              val alpha = if (isActive) 1f else lerpFloat(0.28f, 0.55f, t)
-              val radius = markPx / 2f
-              // Right-aligned in the resting cluster, centred once they are stations on the rail.
-              val x = lerpFloat(size.width - w, (size.width - w) / 2f, t)
-              drawRoundRect(
-                color = markColor.copy(alpha = alpha),
-                topLeft = Offset(x, y - markPx / 2f),
-                size = Size(w, markPx),
-                cornerRadius = CornerRadius(radius, radius),
-              )
+
+            // Le stazioni esistono solo da aperto. A riposo questo non e' un indice: e' un
+            // indicatore, e un indicatore con otto tacche accanto sta gia' chiedendo di essere
+            // usato come indice — cioe' sta gia' invitando il pollice a toccarlo mentre scorre.
+            if (t > 0.01f) {
+              for (index in 0 until n) {
+                val isActive = index == selectedIndex && !interacting
+                val y = markInsetPx + (size.height - 2f * markInsetPx) * (index / (n - 1f))
+                val w = if (isActive) markPx * 2f else markPx
+                val radius = markPx / 2f
+                drawRoundRect(
+                  color = markColor.copy(alpha = lerpFloat(0f, if (isActive) 1f else 0.55f, t)),
+                  topLeft = Offset((size.width - w) / 2f, y - markPx / 2f),
+                  size = Size(w, markPx),
+                  cornerRadius = CornerRadius(radius, radius),
+                )
+              }
             }
+
+            // La barretta: a riposo dice dove sei, e basta. Aprendosi si accorcia fino a diventare
+            // la stazione attiva, cosi' la cosa che stavi guardando e' la stessa cosa che ti ritrovi
+            // in mano invece di sparire e lasciare il posto a un altro oggetto.
+            val fraction = if (interacting) {
+              fingerFraction
+            } else {
+              selectedIndex / (n - 1f).coerceAtLeast(1f)
+            }
+            val restCenter = restBarCenterY(fraction)
+            val openCenter = markInsetPx + (size.height - 2f * markInsetPx) * fraction
+            val centerY = lerpFloat(restCenter, openCenter, t)
+            val barW = lerpFloat(restBarWPx, markPx * 2f, t)
+            val barH = lerpFloat(restBarHPx, markPx, t)
+            val barX = lerpFloat(size.width - barW, (size.width - barW) / 2f, t)
+            drawRoundRect(
+              color = markColor.copy(alpha = lerpFloat(0.55f, 1f, t)),
+              topLeft = Offset(barX, centerY - barH / 2f),
+              size = Size(barW, barH),
+              cornerRadius = CornerRadius(barW / 2f, barW / 2f),
+            )
           },
       )
 
@@ -323,15 +371,34 @@ fun FluidSectionIndex(
         )
       }
 
-      // The hit target: generous around the resting cluster, deliberately NOT the whole edge — a
-      // full-height grab strip would steal every scroll that starts near the screen's right edge.
-      // Once a drag has begun the pointer stream stays with this node wherever the finger goes, so
-      // the whole unfolded rail is reachable from here.
+      // Il bersaglio e' **la barretta**, e viaggia con lei.
+      //
+      // Un nodo che riceve un tocco lo riceve e basta: anche non consumandolo, la lista che gli sta
+      // sotto non lo vede mai, perche' sono fratelli e il test di collisione si ferma al primo che
+      // colpisce. Quindi qui non conta cosa il gesto decide di fare, conta quanto schermo occupa:
+      // ogni dp di questo riquadro e' un dp in cui scorrere non funziona.
+      //
+      // Prima erano 48 x 136 dp appoggiati al bordo destro, all'altezza esatta in cui sta il
+      // pollice: e' li' che finiva un gesto su cinque. Ora sono 28 dp per l'altezza della barretta
+      // piu' un margine, centrati su di lei, che e' l'unica cosa visibile da prendere. Cominciato
+      // il trascinamento il flusso di puntatore resta a questo nodo ovunque vada il dito, quindi il
+      // nastro aperto si percorre tutto anche partendo da qui.
       Box(
         modifier = Modifier
-          .align(Alignment.Center)
-          .fillMaxWidth()
-          .height(maxOf(compactTrackHeight + 24.dp, 120.dp))
+          .align(Alignment.TopEnd)
+          .offset {
+            val fraction = if (interacting) {
+              frozenFraction
+            } else {
+              selectedIndex / (sampledSections.size - 1f).coerceAtLeast(1f)
+            }
+            IntOffset(
+              0,
+              (trackTop(0f) + restBarCenterY(fraction) - hitHalfPx).roundToInt(),
+            )
+          }
+          .width(FluidSectionIndexDefaults.MinTouchWidth)
+          .height(FluidSectionIndexDefaults.RestBarHeight + FluidSectionIndexDefaults.HitMargin)
           .sectionIndexSemantics(
             sections = sampledSections,
             selectedIndex = selectedIndex,
@@ -343,16 +410,49 @@ fun FluidSectionIndex(
           .pointerInput(sampledSections, touchSlop, reducedMotion) {
             awaitEachGesture {
               val down = awaitFirstDown(requireUnconsumed = false)
-              // The strip owns every gesture that starts on it. Left unconsumed, the list's
-              // scrollable claims the movement the moment it crosses ITS slop — and then dragging
-              // the index scrolls the page under it, which reads as the control being broken.
-              down.consume()
-              val hitTop = (rootHeightPx - size.height) / 2f
-              var lastPosition = down.position
-              var dragged = false
+
+              // **Si prende il gesto solo tenendo premuto.**
+              //
+              // Prima lo prendeva al tocco, e doveva: lasciato libero, lo scorrevole della lista
+              // rivendica il movimento alla *sua* soglia e la pagina scorre sotto il dito invece
+              // dell'indice. Ma un controllo che rivendica al tocco rivendica anche tutti i tocchi
+              // che non erano per lui — e stando sul bordo destro, all'altezza del pollice, quelli
+              // sono la maggioranza: la lista saltava a una sezione a caso circa un gesto su cinque.
+              //
+              // La pressione lunga scioglie il nodo senza compromessi, perche' le due intenzioni si
+              // distinguono da sole: chi vuole scorrere si muove subito, chi vuole l'indice si
+              // ferma. Finche' il dito e' fermo la lista non ha ancora niente da rivendicare, quindi
+              // prenderlo qui non toglie niente a nessuno; e se invece si muove, non consumiamo mai
+              // e lo scorrimento parte come se questo nodo non esistesse.
+              val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                while (true) {
+                  val event = awaitPointerEvent()
+                  val change = event.changes.firstOrNull { it.id == down.id }
+                    ?: return@withTimeoutOrNull false
+                  if (!change.pressed || change.isConsumed) return@withTimeoutOrNull false
+                  if (distance(down.position, change.position) > touchSlop) {
+                    return@withTimeoutOrNull false
+                  }
+                }
+                @Suppress("UNREACHABLE_CODE")
+                false
+              } ?: true
+              if (!held) return@awaitEachGesture
+
+              haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+              // Il nastro si apre *dove sei*, e il trascinamento e' relativo a quel punto. Mappare
+              // la y del dito in assoluto sul nastro aperto significherebbe che il solo aprirlo
+              // sposta la selezione, perche' la barretta a riposo e il nastro aperto non hanno la
+              // stessa altezza: si terrebbe premuto senza muovere un millimetro e la pagina
+              // salterebbe comunque.
+              val originY = down.position.y
+              val originFraction = selectedIndex / (sampledSections.size - 1f).coerceAtLeast(1f)
+              frozenFraction = originFraction
+              val usableExpanded =
+                (trackHeight(1f) - 2f * markInsetPx).coerceAtLeast(1f)
               var lastDragIndex: Int? = null
               interacting = true
-              fingerFraction = expandedFractionForRootY(hitTop + down.position.y)
+              fingerFraction = originFraction
               scope.launch {
                 if (reducedMotion) expansion.snapTo(1f)
                 else expansion.animateTo(1f, FluidMotion.snappy())
@@ -363,30 +463,19 @@ fun FluidSectionIndex(
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 val position = change.position
                 change.consume()
-                if (!dragged && distance(down.position, position) >= touchSlop) {
-                  dragged = true
+                val fraction = (
+                  originFraction + (position.y - originY) / usableExpanded
+                  ).coerceIn(0f, 1f)
+                fingerFraction = fraction
+                val index = indexForFraction(fraction)
+                if (index != lastDragIndex) {
+                  lastDragIndex = index
+                  haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                  currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Immediate)
                 }
-                if (dragged) {
-                  val fraction = expandedFractionForRootY(hitTop + position.y)
-                  fingerFraction = fraction
-                  val index = indexForFraction(fraction)
-                  if (index != lastDragIndex) {
-                    lastDragIndex = index
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Immediate)
-                  }
-                }
-                lastPosition = position
                 if (change.changedToUpIgnoreConsumed() || !change.pressed) break
               }
 
-              if (!dragged) {
-                // A tap aims at what was on screen when it landed — the resting cluster — so it
-                // maps through the compact geometry, not the rail's.
-                val index = indexForFraction(compactFractionForRootY(hitTop + lastPosition.y))
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Animated)
-              }
               interacting = false
               scope.launch {
                 if (reducedMotion) expansion.snapTo(0f)
@@ -405,7 +494,41 @@ object FluidSectionIndexDefaults {
   val MarkSize = 4.dp
   val ActiveMarkWidth = 16.dp
   val MarkSpacing = 10.dp
+
+  /** La barretta a riposo: larghezza e altezza di un normale indicatore di scorrimento. */
+  val RestBarWidth = 4.dp
+  val RestBarHeight = 40.dp
+
+  /** Quanta altezza percorre la barretta a riposo, e i limiti entro cui resta leggibile. */
+  const val RestTrackFraction: Float = 0.42f
+  val RestTrackMinHeight = 160.dp
+  val RestTrackMaxHeight = 300.dp
+
+  /**
+   * Quanto si apre il nastro quando lo tieni premuto.
+   *
+   * Poco piu' della meta' dello schermo, non tutto. Un nastro alto quanto il display mette otto
+   * stazioni a un centimetro l'una dall'altra: sembra piu' facile da centrare e invece obbliga il
+   * pollice a percorrere l'intera altezza del telefono per attraversare l'archivio, che e' proprio
+   * il movimento che una scorciatoia dovrebbe evitare.
+   */
+  const val ExpandedTrackFraction: Float = 0.55f
+  val ExpandedTrackMinHeight = 260.dp
+  val ExpandedTrackMaxHeight = 460.dp
   val EdgePadding = 4.dp
+
+  /**
+   * Narrowest the rail's hit target may be, however thin the marks it is resting as.
+   *
+   * A compromise between two failures that are not symmetric: a target smaller than this is one you
+   * have to aim at, and a target much larger than this eats scrolls aimed at the list. Missing the
+   * index costs a second attempt; losing a scroll costs the page jumping somewhere you did not ask
+   * for, and the second is far worse.
+   */
+  val MinTouchWidth = 28.dp
+
+  /** Quanto margine sopra e sotto la barretta e' ancora "la barretta", per un pollice. */
+  val HitMargin = 16.dp
 
   /** How far the unfolded rail stays from the strip's vertical ends. */
   val ExpandedMargin = 18.dp

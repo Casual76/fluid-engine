@@ -6,6 +6,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.8.1 - 2026-08-25
+
+- FluidSectionIndex non ruba piu' gli scorrimenti. Occupava una casella di 48x136 dp appoggiata al bordo destro, all'altezza esatta in cui sta il pollice mentre scorre, e un nodo che riceve un tocco lo riceve e basta: anche senza consumarlo, la lista sotto non lo vedeva mai, perche' sono fratelli e il test di collisione si ferma al primo che colpisce. Finiva li' circa un gesto su cinque, e la lista saltava a una sezione invece di muoversi. Ora il bersaglio e' 28 dp per l'altezza della barretta, e viaggia con lei; e si prende il gesto **solo tenendo premuto** - chi vuole scorrere si muove subito, chi vuole l'indice si ferma
+- E a riposo e' disegnata una barretta sola, che dice dove sei nella lista, invece di un grappolo di otto tacche che chiedeva di essere usato. Tenendola premuta si apre in un nastro con le stazioni, alto poco piu' della meta' dello schermo invece che quanto tutto il display: otto stazioni distribuite sull'intera altezza obbligano il pollice ad attraversare il telefono per attraversare l'archivio, che e' il movimento che una scorciatoia dovrebbe evitare
+- Il pop-up non schiaccia piu' il testo. Partiva dal rettangolo esatto dell'ancora, cioe' scalava una card alta 300 dp fino a una riga alta 90 tenendone la larghezza: due fattori diversi sui due assi, e per il primo terzo di ogni apertura il titolo era anamorfico. Ora il contenuto non si trasforma affatto - viene disposto una volta alla sua misura finale - e quello che viaggia e' la *finestra* da cui lo si vede, piu' uno zoom uniforme di pochi punti percentuali. E' anche cio' che fa davvero l'apertura di un'app su iOS
+- L'ancora smette di disegnarsi mentre il suo pop-up e' aperto (fluidExpandOrigin prende open). Il pannello e' vetro, quindi la riga si vedeva attraverso: due bordi uno dentro l'altro dove doveva essercene uno, e il titolo leggibile due volte. Resta nascosta per tutta l'uscita, non fino alla richiesta di chiusura: FluidGlassModalHostState.isOnScreen e' il segnale che comprende anche l'animazione
+- La qualita' del vetro scende anche durante le transizioni di rotta, non solo durante lo scorrimento. Il cambio di scheda e' il fotogramma piu' caro dell'app per un motivo strutturale: mentre due pagine si attraversano ne esistono due, quindi due fondali ambientali e due serie di pannelli, disegnati insieme nel momento in cui il budget e' gia' speso
+
+
 ## 1.8.0 - 2026-08-25
 
 - Interazioni: portale con item (uscita vera dei pop-up), morph dal rettangolo dell'ancora, segmented con tocco che segue la pillola, indice sezioni a rotaia con lente, menu Expand sui tasti barra, clip degli angoli coerente con la tinta, sorgenti backdrop che invalidano al movimento.

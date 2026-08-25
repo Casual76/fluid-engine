@@ -453,8 +453,18 @@ private fun FluidGlassModalLayer(
 
   // `derivedStateOf` recomputes on every animation frame but invalidates composition only when
   // the boolean flips — once per exit, instead of once per frame.
-  val exitFinished by remember {
-    derivedStateOf { fade.value <= 0.001f && !fade.isRunning && !scaleY.isRunning }
+  //
+  // **Solo il foglio aspetta le molle.** Per tutto il resto la verita' e' la dissolvenza, e
+  // aspettare la coda della molla di scala era un difetto vero: l'opacita' arrivava a zero a 240 ms
+  // e il layer restava fino a circa 590, con la riga ancorata ancora nascosta per tutto quel tempo.
+  // Quello che si vedeva era un buco al posto della riga per un terzo di secondo, e poi la riga che
+  // ricompariva di colpo. Il foglio invece *e'* la sua molla: la sua opacita' dipende da quanto ha
+  // ancora da viaggiare, quindi li' la coda va aspettata.
+  val waitsForSprings = entry.presentation == FluidGlassModalPresentation.Sheet
+  val exitFinished by remember(waitsForSprings) {
+    derivedStateOf {
+      fade.value <= 0.001f && !fade.isRunning && (!waitsForSprings || !scaleY.isRunning)
+    }
   }
 
   // Everything the exit still needs is held from the last frame the modal was open. These are
@@ -581,7 +591,10 @@ private fun FluidGlassModalLayer(
       paneTitle = lastPaneTitle ?: if (menu || expand) "Azioni" else null,
       backdrop = popoverBackdrop,
       compact = menu || expand,
-      overAnchor = expand,
+      // Tutto quello che nasce da un'ancora si apre **sopra di lei**, tranne il menu contestuale:
+      // quello ha la riga sollevata li' accanto, e crescere sopra la riga significherebbe coprire
+      // proprio l'oggetto che il sollevamento sta presentando.
+      overAnchor = !menu,
       presence = presence,
       growth = { scaleX.value },
       growthCross = { scaleY.value },
@@ -715,56 +728,8 @@ private class FluidPopoverPlacement {
    * Held as four numbers rather than as scale factors because the pane no longer *stretches* into
    * place — it is masked into place, and a mask needs a rectangle.
    */
-  var anchorLeft by mutableStateOf(0f)
-  var anchorTop by mutableStateOf(0f)
-  var anchorWidth by mutableStateOf(0f)
-  var anchorHeight by mutableStateOf(0f)
 }
 
-/**
- * The window a morphing pop-up is seen through, from the anchor's rectangle to its own.
- *
- * This exists because the previous morph **stretched the pane's content**. Starting the pane at the
- * anchor's exact rectangle meant scaling a card 300 dp tall down to a row 90 dp tall while keeping
- * its full width: the two axes got different factors, and for the first third of every opening the
- * title of a circular was squashed to two thirds of its height. Nothing in a real interface is
- * anamorphic, so the eye reads it immediately, and no amount of spring tuning hides it.
- *
- * An opening window has none of that. The content is laid out once, at its final size, and never
- * transformed: what travels is the *hole* it is seen through. That is also what an app icon opening
- * on iOS actually does — the app is never a squashed app, it is an app you can only see part of
- * yet.
- *
- * The outline is an ordinary rounded rectangle rather than this system's continuous corner, and
- * deliberately: a generic path is CPU-rasterised into Skia's small-path atlas keyed by subpixel
- * phase, so a corner that moves every frame would re-rasterise every frame. The smoothing lives
- * inside two pixels of the corner and the corner is in motion; nobody has ever seen it.
- */
-private class FluidPopoverMorphWindow(
-  private val placement: FluidPopoverPlacement,
-  private val growth: () -> Float,
-  private val startRadiusPx: Float,
-  private val endRadiusPx: Float,
-) : Shape {
-  override fun createOutline(
-    size: Size,
-    layoutDirection: LayoutDirection,
-    density: Density,
-  ): Outline {
-    val g = growth().coerceIn(0f, 1f)
-    val left = lerp(placement.anchorLeft, 0f, g)
-    val top = lerp(placement.anchorTop, 0f, g)
-    val right = lerp(placement.anchorLeft + placement.anchorWidth, size.width, g)
-    val bottom = lerp(placement.anchorTop + placement.anchorHeight, size.height, g)
-    val radius = lerp(startRadiusPx, endRadiusPx, g)
-    return Outline.Rounded(
-      RoundRect(
-        rect = Rect(left, top, maxOf(right, left + 1f), maxOf(bottom, top + 1f)),
-        cornerRadius = CornerRadius(radius, radius),
-      ),
-    )
-  }
-}
 
 /**
  * A pop-up placed against [anchor], sized to its content, growing out of the corner nearest it.
@@ -803,19 +768,6 @@ private fun FluidAnchoredPopover(
   // Il pannello registra se stesso, cosi' quello che ci sta dentro puo' rifrangere *lui* invece
   // della pagina, che sta dietro uno scrim e non e' affar suo.
   val paneGlass = rememberGlassBackdrop()
-  val currentGrowth by rememberUpdatedState(growth)
-  val startRadiusPx = with(density) { FluidRadius.Group.toPx() }
-  val endRadiusPx = with(density) {
-    (if (compact) FluidRadius.Group else FluidPopoverRadius).toPx()
-  }
-  val morphWindow = remember(placement, startRadiusPx, endRadiusPx) {
-    FluidPopoverMorphWindow(
-      placement = placement,
-      growth = { currentGrowth() },
-      startRadiusPx = startRadiusPx,
-      endRadiusPx = endRadiusPx,
-    )
-  }
 
   Layout(
     modifier = Modifier.fillMaxSize(),
@@ -826,43 +778,14 @@ private fun FluidAnchoredPopover(
             val g = growth()
             val gc = growthCross()
             val shrink = 1f - retreat() * 0.10f
-            if (placement.morphFromAnchor) {
-              // The row *becomes* the pane, and it does it by opening rather than by stretching:
-              // see [FluidPopoverMorphWindow]. The only transform left is a uniform zoom of a few
-              // percent around the anchor's centre — enough that the pane reads as coming toward
-              // you, small enough that no letter changes shape.
-              alpha = presence()
-              val zoom = lerp(FluidPopoverMorphStartScale, 1f, g) * shrink
-              scaleX = zoom
-              scaleY = zoom
-              transformOrigin = TransformOrigin(
-                if (size.width > 0f) {
-                  ((placement.anchorLeft + placement.anchorWidth / 2f) / size.width)
-                    .coerceIn(0f, 1f)
-                } else {
-                  0.5f
-                },
-                if (size.height > 0f) {
-                  ((placement.anchorTop + placement.anchorHeight / 2f) / size.height)
-                    .coerceIn(0f, 1f)
-                } else {
-                  0.5f
-                },
-              )
-              // The clip is dropped once the window has finished opening, because it also clips the
-              // pane's drop shadow, and a pane at rest is exactly where that shadow is doing its
-              // job of holding the card off the page.
-              clip = g < 0.995f
-              this.shape = morphWindow
-            } else {
-              // A context menu keeps the older growth: its row is being lifted separately right
-              // beside it, and a menu that also opened out of the row's rectangle would fight the
-              // very object the lift is presenting.
-              alpha = presence() * ((minOf(g, gc) - 0.08f) / 0.27f).coerceIn(0f, 1f)
-              scaleX = lerp(placement.startScaleX, 1f, g) * shrink
-              scaleY = lerp(placement.startScaleY, 1f, gc) * shrink
-              transformOrigin = TransformOrigin(placement.pivotX, placement.pivotY)
-            }
+            // L'opacita' cavalca la corsa, non l'orologio: vicino all'ancora — i primi istanti di
+            // un'apertura, gli ultimi di una chiusura — il pannello e' trasparente, quindi quando se
+            // ne va ha finito di dissolversi *prima* di arrivare sulla riga in cui rientra, e le
+            // due cose non sono mai leggibili una sopra l'altra.
+            alpha = presence() * ((minOf(g, gc) - 0.08f) / 0.27f).coerceIn(0f, 1f)
+            scaleX = lerp(placement.startScaleX, 1f, g) * shrink
+            scaleY = lerp(placement.startScaleY, 1f, gc) * shrink
+            transformOrigin = TransformOrigin(placement.pivotX, placement.pivotY)
           }
           .then(
             if (backdrop != null) {
@@ -902,17 +825,7 @@ private fun FluidAnchoredPopover(
         // chiusura la stessa corsa all'indietro riporta il titolo dentro la riga. E' il motivo per
         // cui l'apertura di un'app su iOS si legge come una cosa sola che si avvicina invece che
         // come due cose che si scambiano il posto.
-        Column(
-          modifier = Modifier.graphicsLayer {
-            if (!placement.morphFromAnchor) return@graphicsLayer
-            val g = growth()
-            translationX = lerp(placement.anchorLeft, 0f, g)
-            translationY = lerp(placement.anchorTop, 0f, g)
-            // Solo i primissimi istanti, e solo per non far cominciare il testo di scatto sul
-            // fotogramma in cui la finestra e' ancora larga quanto una riga.
-            alpha = (g / FluidPopoverContentFadeStart).coerceIn(0f, 1f)
-          },
-        ) {
+        Column {
           CompositionLocalProvider(
             LocalFluidCanvasBackdrop provides paneGlass,
             LocalFluidCanvasIsGlass provides true,
@@ -987,28 +900,21 @@ private fun FluidAnchoredPopover(
     }
     placement.pivotY = if (below) 0f else 1f
 
-    // Where the growth starts. Everything except a context menu morphs from the anchor's own
-    // rectangle: the first frame of the pop-up IS the row or button that opened it, and the exit is
-    // the pane folding back into it. A context menu is the one shape that keeps the fixed-fraction
-    // corner growth — its row is being lifted separately right beside it, and a menu that also
-    // stretched out of the row's rectangle would fight the very object the lift is presenting.
-    val morph = (!compact || overAnchor) && placeable.width > 0 && placeable.height > 0
-    placement.morphFromAnchor = morph
-    if (morph) {
-      placement.anchorLeft = anchor.left - x
-      placement.anchorTop = anchor.top - y
-      placement.anchorWidth = anchor.width
-      placement.anchorHeight = anchor.height
-      placement.startScaleX = 1f
-      placement.startScaleY = 1f
-      placement.startOffsetX = 0f
-      placement.startOffsetY = 0f
-    } else {
-      placement.startScaleX = FluidPopoverStartScale
-      placement.startScaleY = FluidPopoverStartScale
-      placement.startOffsetX = 0f
-      placement.startOffsetY = 0f
-    }
+    // **Una crescita sola, per ogni pop-up.**
+    //
+    // Ce n'erano due, e la seconda — quella che partiva dal rettangolo esatto dell'ancora — e'
+    // stata due volte un errore. Scalando i due assi con fattori diversi schiacciava il testo; e
+    // quando l'ho sostituita con una finestra che si apre, il contenuto ci compariva dentro mano a
+    // mano che il bordo ci passava sopra, che e' una tendina tirata su un cartello gia' scritto.
+    //
+    // Quella che restava — la crescita del menu contestuale — non ha nessuno dei due problemi,
+    // perche' e' **uniforme**: una frazione sola su entrambi gli assi, con il perno nel punto del
+    // pannello piu' vicino a cio' che e' stato toccato. Niente si deforma, niente si accende a
+    // meta', e la cosa cresce visibilmente da dove l'hai aperta. Era gia' li' e funzionava.
+    placement.startScaleX = FluidPopoverStartScale
+    placement.startScaleY = FluidPopoverStartScale
+    placement.startOffsetX = 0f
+    placement.startOffsetY = 0f
 
     layout(width, height) { placeable.place(x.roundToInt(), y.roundToInt()) }
   }
@@ -1047,7 +953,14 @@ private fun FluidLiftedPreview(
         height = with(density) { bounds.height.toDp() },
       )
       .graphicsLayer {
-        alpha = presence()
+        // **Opaca sempre, finche' esiste.**
+        //
+        // Sfumare la copia sollevata voleva dire far sparire la riga: quella vera sotto e' nascosta
+        // fino a che il livello non viene smontato, quindi una copia che si dissolve lascia un
+        // rettangolo vuoto dove c'era la riga. Quello che deve dissolversi non e' l'immagine, e' il
+        // *materiale*: sotto, `intensity` porta a zero vetro, bordo e tinta, e quando arriva a zero
+        // questa copia e' identica alla riga — cosi' lo scambio, che avviene nello stesso istante,
+        // non ha niente da mostrare.
         this.scaleX = scaleX()
         this.scaleY = scaleY()
         // Grown from its own bottom edge, because that is the edge the menu appears against: the
@@ -1063,9 +976,16 @@ private fun FluidLiftedPreview(
             shape = shape,
             role = GlassRole.Modal,
             optics = FluidPopoverOptics,
+            // Il materiale entra ed esce; l'immagine no. E' questa la transizione che mancava alla
+            // chiusura: il colore torna quello di prima e il bordo si spegne, invece di essere
+            // scambiati di colpo con la riga vera.
+            intensity = { presence() },
           )
         } else {
-          Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
+          Modifier.background(
+            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = presence()),
+            shape,
+          )
         },
       )
       .clip(shape)

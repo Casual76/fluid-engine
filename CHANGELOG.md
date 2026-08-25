@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.8.3 - 2026-08-25
+
+- Una crescita sola per ogni pop-up, ed e' quella del menu contestuale: frazione uniforme sui due assi, perno nel punto del pannello piu' vicino a cio' che e' stato toccato. Ce n'erano due, e la seconda - quella che partiva dal rettangolo esatto dell'ancora - e' stata due volte un errore: coi due assi scalati in modo diverso schiacciava il testo, e sostituita con una finestra che si apre faceva comparire il contenuto mano a mano che il bordo ci passava sopra, cioe' una tendina tirata su un cartello gia' scritto
+- Un pop-up ancorato si apre **sopra la sua ancora** invece di cercarsi posto sopra o sotto. L'unica eccezione resta il menu contestuale, che ha la riga sollevata li' accanto e coprirla significherebbe coprire proprio l'oggetto che sta presentando
+- Il buco al posto della riga, in chiusura. Il livello del modale aspettava la coda della molla di scala per smontarsi: l'opacita' era a zero a 240 ms e il livello restava fino a circa 590, con la riga ancorata nascosta per tutto quel tempo. Un terzo di secondo di rettangolo vuoto, e poi la riga che tornava di colpo. Ora aspetta la dissolvenza; solo il foglio, la cui opacita' dipende da quanto ha ancora da viaggiare, aspetta ancora le molle
+- E la riga sollevata si richiude con una transizione invece di essere scambiata. Non e' l'immagine a dissolversi - dissolverla faceva sparire la riga, perche' quella vera sotto e' nascosta - ma il **materiale**: vetro, bordo e tinta scendono a zero, e quando ci arrivano la copia e' identica alla riga, quindi lo scambio non ha piu' niente da mostrare
+
+
 ## 1.8.2 - 2026-08-25
 
 - Via il doppio bordo. Il rim speculare e l'ombra interna sono due trattamenti dello stesso millimetro di perimetro, e messi insieme non si leggono come spessore: si leggono come due bordi, una riga chiara e subito dentro una piu' scura, tutt'intorno a ogni pannello e a ogni pulsante. Ora l'ombra interna e' zero su tutte le superfici che portano un rim, e lo spessore lo dice la dislocazione del bordo, che e' un'informazione di profondita' piu' forte e che si paga comunque

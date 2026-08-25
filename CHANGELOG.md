@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.5.2 - 2026-08-25
+
+- La difesa dal tetto delle texture copre anche il contenuto del pannello, non solo la sua cattura. Un pannello di vetro compone se stesso attraverso un layer offscreen grande quanto se stesso, e quel layer e' una texture come la cattura del backdrop: oltre il tetto non si alloca, e le righe del pannello spariscono lasciando un vetro rifratto senza niente stampato sopra. Ora un pannello fuori misura rinuncia al compositing offscreen, che a quella scala nessuno distingue, invece che al proprio contenuto
+
+
 ## 1.5.1 - 2026-08-25
 
 - Una superficie di vetro piu' grande di una texture non annerisce piu'. Il layer che ogni pannello registra e' una texture della GPU, e oltre il tetto la registrazione torna vuota: sotto una tinta traslucida diventa un rettangolo nero al posto del contenuto. Ci arriva sempre un gruppo lista, perche' un gruppo e' alto quanto le righe che uno si trova ad avere - ottantaquattro voti sono sedicimila pixel. Ora l'engine registra piu' in piccolo invece di sparire (fitToTexture), e quello che c'e' dietro un pannello di contenuto e' una lavata morbida che a un quarto della risoluzione non perde niente

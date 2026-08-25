@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.8.5 - 2026-08-25
+
+- Il pop-up riparte dai bordi del tasto che l'ha aperto invece di arrivare dal centro come una forma nuova. Torna a nascere dal rettangolo dell'ancora, ma facendo viaggiare il **bordo** invece di scalare il pannello: la scala sui due assi era la ragione per cui il testo si schiacciava, un bordo che viaggia non ha fattori. Il contenuto dentro prende una scala sola, uniforme, di pochi punti percentuali, cosi' cresce insieme al bordo invece di stare fermo mentre una tendina lo scopre
+- Anche il vetro si apre e si chiude. Arrivava a piena forza nel primo fotogramma, quindi per tutta la crescita il materiale era una costante e l'unica cosa che si muoveva era una sagoma: leggibile come una forma che compare, non come una superficie che si forma. Ora sfocatura, lente e bordo salgono con la corsa e scendono con lei
+
+
 ## 1.8.4 - 2026-08-25
 
 - La riga che apre un pop-up si toglie di mezzo in dissolvenza invece che di colpo. Sparire nel fotogramma stesso in cui il pannello comincia a crescere lasciava un buco: il pannello parte piccolo e trasparente, quindi per una novantina di millisecondi al posto della riga non c'era ne' la riga ne' il pannello

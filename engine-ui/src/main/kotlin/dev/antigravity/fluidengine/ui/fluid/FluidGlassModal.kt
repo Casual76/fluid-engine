@@ -734,12 +734,55 @@ private class FluidPopoverPlacement {
   /** True when the pop-up starts as the anchor's exact rectangle and travels to its place. */
   var morphFromAnchor by mutableStateOf(false)
 
-  /**
-   * The anchor's rectangle in the pane's own coordinates: the window the pane opens out of.
-   *
-   * Held as four numbers rather than as scale factors because the pane no longer *stretches* into
-   * place — it is masked into place, and a mask needs a rectangle.
-   */
+  /** The anchor's rectangle in the pane's own coordinates: the frame the pane grows out of. */
+  var anchorLeft by mutableStateOf(0f)
+  var anchorTop by mutableStateOf(0f)
+  var anchorWidth by mutableStateOf(0f)
+  var anchorHeight by mutableStateOf(0f)
+}
+
+/**
+ * The pane's frame while it opens: the anchor's rectangle, travelling to the pane's own.
+ *
+ * This has to be a **frame** and not a scale, and the distinction is the whole history of this
+ * animation. Scaling the pane from the anchor's rectangle means two different factors on the two
+ * axes — a card three hundred dp tall squeezed into a row of ninety while keeping its width —
+ * and for the first third of every opening the type was anamorphic. Nothing in an interface is
+ * anamorphic, so the eye catches it at once.
+ *
+ * A travelling frame has no factors at all. What grows is the shape the pane is seen through; the
+ * pane inside it is scaled only *uniformly*, by a few percent, so it reads as coming toward you
+ * without one letter changing proportion.
+ *
+ * The outline is a plain rounded rectangle rather than this system's continuous corner, and
+ * deliberately: a generic path is CPU-rasterised into Skia's small-path atlas keyed by subpixel
+ * phase, so a corner that moves every frame would re-rasterise every frame. The smoothing lives
+ * inside two pixels of a corner that is in motion.
+ */
+private class FluidPopoverMorphWindow(
+  private val placement: FluidPopoverPlacement,
+  private val growth: () -> Float,
+  private val startRadiusPx: Float,
+  private val endRadiusPx: Float,
+) : Shape {
+  override fun createOutline(
+    size: Size,
+    layoutDirection: LayoutDirection,
+    density: Density,
+  ): Outline {
+    val g = growth().coerceIn(0f, 1f)
+    val left = lerp(placement.anchorLeft, 0f, g)
+    val top = lerp(placement.anchorTop, 0f, g)
+    val right = lerp(placement.anchorLeft + placement.anchorWidth, size.width, g)
+    val bottom = lerp(placement.anchorTop + placement.anchorHeight, size.height, g)
+    val radius = lerp(startRadiusPx, endRadiusPx, g)
+    return Outline.Rounded(
+      RoundRect(
+        rect = Rect(left, top, maxOf(right, left + 1f), maxOf(bottom, top + 1f)),
+        cornerRadius = CornerRadius(radius, radius),
+      ),
+    )
+  }
 }
 
 
@@ -837,7 +880,29 @@ private fun FluidAnchoredPopover(
         // chiusura la stessa corsa all'indietro riporta il titolo dentro la riga. E' il motivo per
         // cui l'apertura di un'app su iOS si legge come una cosa sola che si avvicina invece che
         // come due cose che si scambiano il posto.
-        Column {
+        Column(
+          modifier = Modifier.graphicsLayer {
+            if (!placement.morphFromAnchor) return@graphicsLayer
+            // Uniforme, e di pochi punti percentuali. Serve perche' il contenuto *cresca* col bordo
+            // invece di stare fermo mentre una tendina lo scopre — ma con un fattore solo per i due
+            // assi, che e' l'unica cosa che il testo non perdona.
+            val zoom = lerp(FluidPopoverContentStartScale, 1f, growth())
+            scaleX = zoom
+            scaleY = zoom
+            transformOrigin = TransformOrigin(
+              if (size.width > 0f) {
+                ((placement.anchorLeft + placement.anchorWidth / 2f) / size.width).coerceIn(0f, 1f)
+              } else {
+                0.5f
+              },
+              if (size.height > 0f) {
+                ((placement.anchorTop + placement.anchorHeight / 2f) / size.height).coerceIn(0f, 1f)
+              } else {
+                0.5f
+              },
+            )
+          },
+        ) {
           CompositionLocalProvider(
             LocalFluidCanvasBackdrop provides paneGlass,
             LocalFluidCanvasIsGlass provides true,
@@ -920,9 +985,14 @@ private fun FluidAnchoredPopover(
     // mano che il bordo ci passava sopra, che e' una tendina tirata su un cartello gia' scritto.
     //
     // Quella che restava — la crescita del menu contestuale — non ha nessuno dei due problemi,
-    // perche' e' **uniforme**: una frazione sola su entrambi gli assi, con il perno nel punto del
-    // pannello piu' vicino a cio' che e' stato toccato. Niente si deforma, niente si accende a
-    // meta', e la cosa cresce visibilmente da dove l'hai aperta. Era gia' li' e funzionava.
+    // perche' e' **uniforme**. La tiene il menu; tutto il resto, che si apre *sopra* la propria
+    // ancora, torna a partire dal rettangolo di quell'ancora — ma facendo viaggiare il **bordo**
+    // invece di scalare il pannello, che era la ragione per cui il testo si schiacciava.
+    placement.morphFromAnchor = overAnchor && placeable.width > 0 && placeable.height > 0
+    placement.anchorLeft = anchor.left - x
+    placement.anchorTop = anchor.top - y
+    placement.anchorWidth = anchor.width
+    placement.anchorHeight = anchor.height
     placement.startScaleX = FluidPopoverStartScale
     placement.startScaleY = FluidPopoverStartScale
     placement.startOffsetX = 0f
@@ -1503,8 +1573,8 @@ private const val FluidPopoverExitStiffness = 420f
  */
 private const val FluidPopoverMorphStartScale = 0.94f
 
-/** Su quanta corsa iniziale il contenuto smette di essere trasparente. Pochissima. */
-private const val FluidPopoverContentFadeStart = 0.12f
+/** Quanto e' piccolo il contenuto quando il bordo comincia ad aprirsi. Pochi punti percentuali. */
+private const val FluidPopoverContentStartScale = 0.90f
 
 private val FluidPopoverMargin = 16.dp
 private val FluidPopoverGap = 10.dp

@@ -60,7 +60,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -346,17 +345,24 @@ private val RefreshIndicatorSize: Dp = 24.dp
  * would travel at twice the speed of the content it belongs to.
  *
  * Only the compact anchor is measured, and only from an untransformed slot in the bar.
+ *
+ * Both anchors live in the **screen's own coordinates**, not the window's. The computed one is
+ * screen-local by construction (it is made of the screen's paddings), so the measured one must be
+ * converted into the same space — read it in window coordinates and any offset the app puts around
+ * the screen becomes a translation error. That is not hypothetical: a tablet insets every page by
+ * the width of the navigation rail, and the mismatch put the resting title a rail's width to the
+ * left of its page, underneath the rail.
  */
 @Stable
 private class FluidTitleMorphState(
-  val expandedLeftInRoot: Float,
-  private val expandedTopInRoot: Float,
+  val expandedLeftInScreen: Float,
+  private val expandedTopInScreen: Float,
 ) {
-  var restingBaselineInRoot by mutableFloatStateOf(Float.NaN)
+  var restingBaselineInScreen by mutableFloatStateOf(Float.NaN)
     private set
-  var compactLeftInRoot by mutableFloatStateOf(Float.NaN)
+  var compactLeftInScreen by mutableFloatStateOf(Float.NaN)
     private set
-  var compactBaselineInRoot by mutableFloatStateOf(Float.NaN)
+  var compactBaselineInScreen by mutableFloatStateOf(Float.NaN)
     private set
 
   /** Where the baseline sits inside the compact text node; the pivot of the whole transform. */
@@ -367,33 +373,39 @@ private class FluidTitleMorphState(
   var compactHasVisualOverflow by mutableStateOf(false)
     private set
 
+  private var screenCoordinates: LayoutCoordinates? = null
   private var compactSlotCoordinates: LayoutCoordinates? = null
   private var compactTextSize = IntSize.Zero
 
   /** Distance the title travels between its two resting places. NaN until both are measured. */
   val travelPx: Float
     get() {
-      val resting = restingBaselineInRoot
-      val compact = compactBaselineInRoot
+      val resting = restingBaselineInScreen
+      val compact = compactBaselineInScreen
       if (!resting.isFinite() || !compact.isFinite()) return Float.NaN
       return resting - compact
     }
 
   val isMeasured: Boolean
     get() = travelPx.isFinite() &&
-      expandedLeftInRoot.isFinite() &&
-      compactLeftInRoot.isFinite() &&
+      expandedLeftInScreen.isFinite() &&
+      compactLeftInScreen.isFinite() &&
       compactLocalBaseline.isFinite()
 
   fun onExpandedTextLayout(result: TextLayoutResult) {
     expandedLineCount = result.lineCount
-    restingBaselineInRoot = expandedTopInRoot + result.firstBaseline
+    restingBaselineInScreen = expandedTopInScreen + result.firstBaseline
   }
 
   fun onCompactTextLayout(result: TextLayoutResult) {
     compactLocalBaseline = result.firstBaseline
     compactTextSize = result.size
     compactHasVisualOverflow = result.hasVisualOverflow
+    rebuildCompact()
+  }
+
+  fun onScreenPositioned(coordinates: LayoutCoordinates) {
+    screenCoordinates = coordinates
     rebuildCompact()
   }
 
@@ -404,14 +416,17 @@ private class FluidTitleMorphState(
 
   private fun rebuildCompact() {
     val coordinates = compactSlotCoordinates ?: return
-    if (!coordinates.isAttached || compactTextSize == IntSize.Zero) return
+    val screen = screenCoordinates ?: return
+    if (!coordinates.isAttached || !screen.isAttached || compactTextSize == IntSize.Zero) return
     if (!compactLocalBaseline.isFinite()) return
     // Measured from the untransformed slot, never from the text node itself: the text carries the
-    // morph's own graphics layer, so its position in root would include the transform being solved.
-    val slotTopLeft = coordinates.positionInRoot()
+    // morph's own graphics layer, so its position would include the transform being solved. And
+    // converted into the screen's coordinates, so whatever the app has put around the screen — a
+    // navigation rail's inset, a split-screen pane — cancels out instead of becoming a translation.
+    val slotTopLeft = screen.localPositionOf(coordinates, Offset.Zero)
     val slotSize = coordinates.size
-    compactLeftInRoot = slotTopLeft.x + (slotSize.width - compactTextSize.width) / 2f
-    compactBaselineInRoot =
+    compactLeftInScreen = slotTopLeft.x + (slotSize.width - compactTextSize.width) / 2f
+    compactBaselineInScreen =
       slotTopLeft.y + (slotSize.height - compactTextSize.height) / 2f + compactLocalBaseline
   }
 }
@@ -542,7 +557,7 @@ fun FluidScreen(
   val titleLeftPx = with(density) { horizontalPadding.toPx() }
   val titleTopPx = with(density) { (topBarHeight + FluidScreenDefaults.TitleTopSpacing).toPx() }
   val titleMorphState = remember(title, density.fontScale, titleLeftPx, titleTopPx) {
-    FluidTitleMorphState(expandedLeftInRoot = titleLeftPx, expandedTopInRoot = titleTopPx)
+    FluidTitleMorphState(expandedLeftInScreen = titleLeftPx, expandedTopInScreen = titleTopPx)
   }
 
   DisposableEffect(chromeController, chromeRegistration, backdrop) {
@@ -660,7 +675,10 @@ fun FluidScreen(
   Box(
     modifier = modifier
       .fillMaxSize()
-      .background(MaterialTheme.colorScheme.background),
+      .background(MaterialTheme.colorScheme.background)
+      // The origin of the title morph's coordinate space. See [FluidTitleMorphState]: anchors are
+      // screen-local, so the compact slot's measurement is converted against these coordinates.
+      .onGloballyPositioned(titleMorphState::onScreenPositioned),
   ) {
     val contentTranslation: () -> Float = { overscroll.offsetPx }
 
@@ -1051,8 +1069,8 @@ private fun FluidTopBar(
             }
 
             val travel = morphState.travelPx
-            val compactLeft = morphState.compactLeftInRoot
-            val compactBaseline = morphState.compactBaselineInRoot
+            val compactLeft = morphState.compactLeftInScreen
+            val compactBaseline = morphState.compactBaselineInScreen
             val localBaseline = morphState.compactLocalBaseline
 
             // Size and horizontal glide are eased; the vertical position is not. Tying the
@@ -1060,7 +1078,7 @@ private fun FluidTopBar(
             // belongs to — an eased vertical would visibly lag the list it is sitting in.
             val eased = smoothStep(progress)
             val scale = lerp(1f / CompactTitleScale, 1f, eased)
-            val desiredLeft = lerp(morphState.expandedLeftInRoot, compactLeft, eased)
+            val desiredLeft = lerp(morphState.expandedLeftInScreen, compactLeft, eased)
             // Never above the docked position: the title is content, and content is allowed to
             // ride an elastic edge, but nothing is allowed to ride it into the status bar.
             val desiredBaseline = (

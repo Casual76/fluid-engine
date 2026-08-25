@@ -100,7 +100,10 @@ sedicimila pixel, ed e' successo davvero.
 
 Dalla 1.5.1 l'engine se ne accorge da solo e registra piu' in piccolo invece di annerire
 (`fitToTexture`): quello che c'e' dietro un pannello di contenuto e' una lavata ambientale, morbida
-per costruzione, che a un quarto della risoluzione non perde niente. Non e' un permesso per fare
+per costruzione, che a un quarto della risoluzione non perde niente. E la cattura era solo meta' del
+problema: il **contenuto** del pannello passa da un secondo layer offscreen grande quanto il pannello
+stesso, e oltre il tetto anche quello sparisce — dalla 1.5.2 un pannello fuori misura rinuncia al
+compositing offscreen invece che alle proprie righe. Niente di tutto questo e' un permesso per fare
 gruppi infiniti: e' la garanzia che una lista lunga resti guardabile.
 
 ## Il vetro si tara con la lente, non con la sfocatura

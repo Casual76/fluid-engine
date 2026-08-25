@@ -294,6 +294,17 @@ internal fun fitToTexture(requested: Float, width: Float, height: Float): Float 
     return requested.coerceAtMost(cap).coerceAtLeast(MinBackdropScale)
 }
 
+/**
+ * Whether a surface of [width] x [height] can be composited through a single offscreen texture.
+ *
+ * A degenerate size (the first frame's zero, an unspecified NaN) answers yes, because the question
+ * only exists to catch surfaces that are genuinely, measurably too big.
+ */
+internal fun fitsOneTexture(width: Float, height: Float): Boolean {
+    val longest = maxOf(width, height)
+    return !longest.isFinite() || longest <= MaxBackdropTextureDimension
+}
+
 /** Pixels. Half of the 8192 that has been the floor of the Android hardware requirement for years. */
 internal const val MaxBackdropTextureDimension = 4096f
 
@@ -324,7 +335,17 @@ private class DrawBackdropNode(
     private val layoutLayerBlock: GraphicsLayerScope.() -> Unit = {
         clip = true
         shape = shapeProvider.shape
-        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+        // Fluid Engine addition — the other half of [fitToTexture]'s defense. An offscreen
+        // compositing layer is itself a GPU texture sized to this surface, and past the ceiling it
+        // cannot be allocated: the capture cap alone would leave a correctly refracted pane with
+        // nothing printed on it, because it is the surface's *own content* that lives in this layer.
+        // Compositing in place changes how translucent children blend against each other, which on a
+        // pane this size nobody can point to; a pane with no content on it, everybody can.
+        compositingStrategy = if (fitsOneTexture(size.width, size.height)) {
+            androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+        } else {
+            androidx.compose.ui.graphics.CompositingStrategy.Auto
+        }
     }
 
     private var layoutCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())

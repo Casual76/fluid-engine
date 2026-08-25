@@ -18,6 +18,15 @@ android {
     compose true
   }
 
+  testOptions {
+    unitTests {
+      // I test restano logica pura, ma il piano di resa di Fluid-physics porta con sé un
+      // `Path` di Compose: sul JVM i metodi android.graphics non esistono, e qui devono solo
+      // non esplodere — nessun test asserisce sui contenuti di un Path.
+      returnDefaultValues = true
+    }
+  }
+
   compileOptions {
     sourceCompatibility engine.javaVersion
     targetCompatibility engine.javaVersion
@@ -45,6 +54,9 @@ dependencies {
   // Serve per BackHandler e PredictiveBackHandler: il modale in-root vive dentro la composizione
   // dell'app, quindi il tasto indietro non gli arriva da solo come farebbe con un Dialog.
   api "androidx.activity:activity-compose:${engine.activityCompose}"
+  // Il motore di corrispondenza dei vertici dietro Fluid-physics. `implementation` di proposito:
+  // l'API pubblica parla solo FluidForm, cosi' la dipendenza puo' cambiare senza rompere le app.
+  implementation "androidx.graphics:graphics-shapes:${engine.graphicsShapes}"
 
   testImplementation "junit:junit:${engine.junit}"
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"

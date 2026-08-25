@@ -180,6 +180,34 @@ internal val FluidGlassCapsuleShape: Shape get() = FluidCapsuleShape
 
 internal fun FluidGlassRoundedShape(radius: Dp): Shape = ContinuousCornerShape(radius)
 
+/**
+ * Aggiunge a questo path un rettangolo a raccordo continuo posato su [rect], come **sotto-path**.
+ *
+ * Esiste per Fluid-physics: una silhouette a riposo non riempie necessariamente il proprio nodo —
+ * un pezzo può stare ovunque dentro la superficie che lo ospita — quindi serve il tracciato
+ * continuo a coordinate arbitrarie, non solo l'`Outline` da (0,0). Stesso emettitore d'angolo
+ * della [ContinuousCornerShape], quindi stessa curva al pixel.
+ */
+internal fun Path.addContinuousRoundRect(
+  rect: Rect,
+  topLeft: Float,
+  topRight: Float,
+  bottomRight: Float,
+  bottomLeft: Float,
+  smoothing: Float = ContinuousCornerShape.IosSmoothing,
+) {
+  val size = Size(rect.width, rect.height)
+  if (topLeft + topRight + bottomRight + bottomLeft <= 0f || size.minDimension <= 0f) {
+    addRect(rect)
+    return
+  }
+  continuousCorner(Offset(rect.right, rect.top), Right, Down, topRight, size, smoothing, moveTo = true)
+  continuousCorner(Offset(rect.right, rect.bottom), Down, Left, bottomRight, size, smoothing)
+  continuousCorner(Offset(rect.left, rect.bottom), Left, Up, bottomLeft, size, smoothing)
+  continuousCorner(Offset(rect.left, rect.top), Up, Right, topLeft, size, smoothing)
+  close()
+}
+
 private val Right = Offset(1f, 0f)
 private val Down = Offset(0f, 1f)
 private val Left = Offset(-1f, 0f)

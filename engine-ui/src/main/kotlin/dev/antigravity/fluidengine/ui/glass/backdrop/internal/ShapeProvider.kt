@@ -11,6 +11,11 @@
  *   - the package was renamed com.kyant.backdrop -> dev.antigravity.fluidengine.ui.glass.backdrop;
  *   - support for io.github.kyant0:shapes' RoundedRectangularShape was dropped from the lens
  *     effect, so the vendored sources pull in no dependency the engine does not already have.
+ *   - `fastClipShape` recognises the engine's `GlassClipGeometry` (Fluid-physics): a morphing
+ *     silhouette supplies its own hardware clip — the node's bounds — because its true outline is
+ *     cut by the shader's alpha mask, and reading corner radii off a shape that changes every
+ *     frame would re-clip the layer on every frame of the one animation the subsystem exists to
+ *     keep cheap.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +42,7 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluidphysics.GlassClipGeometry
 import androidx.compose.ui.unit.LayoutDirection
 
 @Immutable
@@ -91,6 +97,13 @@ internal class ShapeProvider(val shapeBlock: () -> Shape) {
             layoutDirection: LayoutDirection,
             density: Density
         ): Outline {
+            // Fluid Engine change: a Fluid-physics morph supplies its own clip (see the header) —
+            // checked before the exact outline is even computed, because computing it is the work
+            // this path exists to skip.
+            val morphSource = shapeBlock()
+            if (morphSource is GlassClipGeometry) {
+                return morphSource.fastClipOutline(size, layoutDirection, density)
+            }
             val exact = shape.createOutline(size, layoutDirection, density)
             if (exact !is Outline.Generic) return exact
             val source = shapeBlock()

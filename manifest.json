@@ -12,7 +12,24 @@
       "repoOwner": "Casual76",
       "repoName": "fluid-engine",
       "manifestPath": "manifest.json",
-      "ref": "main"
-    }
+      "ref": ""
+    },
+    "stable": {
+      "version": "1.0.0",
+      "releaseDate": "2026-08-25",
+      "changelog": "Prima release. La galleria del Fluid Engine con il Playground di Fluid-physics: il motore che trasforma qualsiasi forma di vetro liquido in qualsiasi altra — preset, disegno a mano libera, pezzi che si fondono con ponti liquidi, e due tasti che diventano un menù che diventa un pop-up.",
+      "releaseTag": "stable-fluid-glass-v1.0.0",
+      "apkAsset": "fluid-glass-1.0.0.apk",
+      "sizeBytes": 2791884
+    },
+    "beta": {
+      "version": "1.0.0",
+      "releaseDate": "2026-08-25",
+      "changelog": "Prima release. La galleria del Fluid Engine con il Playground di Fluid-physics: il motore che trasforma qualsiasi forma di vetro liquido in qualsiasi altra — preset, disegno a mano libera, pezzi che si fondono con ponti liquidi, e due tasti che diventano un menù che diventa un pop-up.",
+      "releaseTag": "stable-fluid-glass-v1.0.0",
+      "apkAsset": "fluid-glass-1.0.0.apk",
+      "sizeBytes": 2791884
+    },
+    "history": []
   }
 }

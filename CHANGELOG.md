@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.6.1 - 2026-08-25
+
+- FluidPillTabs e il controllo segmentato dell engine, non un secondo disegno. Era l ultima superficie rimasta a fingere il rilievo - un guscio solido con una pastiglia bianca e un ombra sotto - mentre FluidSegmentedControl tiene una copia invisibile delle etichette tinte d accento sotto una lente: il segmento scelto non viene colorato, viene visto attraverso il vetro, ed e trascinabile fra i segmenti. Il nome resta, quindi le app non cambiano una riga
+
+
 ## 1.6.0 - 2026-08-25
 
 - Il vetro smette di ridisegnare quello che non e cambiato. Sul tablet la Bacheca passa da 300-550 ms per fotogramma a 53 (senza vetro sarebbe 40: il materiale costa 13 ms invece di 260), i Voti da 400 a 21. La sorgente del backdrop si compone offscreen, quindi la pagina si rasterizza una volta invece che una per ogni pannello che la campiona; i layer di bordo e ombra non si ri-registrano a ogni draw e sono limitati in area, cosi il budget GPU di HWUI non si sfonda piu; i clip dei layer e le forme piccole usano rettangoli arrotondati, che la GPU sa clippare da sola, invece di path generici che passano dall atlas di maschere della CPU; gli shader AGSL sono condivisi da tutto il processo invece di essere ricompilati da ogni pannello

@@ -221,6 +221,41 @@ trascinamento della pastiglia fra le schede. 78 test verdi.
 
 ---
 
+## Fase 8 — ClasseViva col vetro addosso, e il conto pagato (2026-08-25, engine 1.5.1 → 1.5.4)
+
+Il piano "Fluid glass redesign": fondale per sezione + contenuto in vetro (fase 1a), liste in
+gruppi di vetro (1b delle liste), e la circolare che si apre in un pop-up di vetro dalla riga che
+l'ha aperta (1b del piano). Le rotte `communication-detail` e `note-detail` non esistono più: il
+dettaglio, che esisteva **tre volte**, è un `FluidGlassModalPortal` solo, e i deep link aprono la
+tab e poi il modale.
+
+Tre difetti trovati portandolo sul **tablet** (SM-X710), che è il motivo per cui si prova su più di
+un formato:
+
+1. **La pagina Voti arrivava nera.** Un gruppo lista è alto quanto le righe che uno ha — 84 voti,
+   sedicimila pixel — e oltre il tetto delle texture GPU la registrazione torna vuota: nero. Difesa
+   in due metà: la cattura si stringe da sola (`fitToTexture`, 1.5.1) e il compositing offscreen del
+   nodo non esiste più (1.5.3). L'app spezza comunque a dodici righe, perché un pannello di cui non
+   vedi mai i bordi non si legge come un pannello.
+2. **La pagina Voti scorreva a 10 fps** (p90 101 ms). Non era la catena ottica: era il layer
+   offscreen del nodo vetro, che ri-rasterizzava l'intero pannello — testo compreso — a ogni
+   fotogramma, per un isolamento che su una pila tutta `SrcOver` non cambia un pixel. Tolto quello
+   (e dimezzata la cattura del solo ruolo Content, `GlassOptics.backdropResolution`): **27 ms**,
+   in linea con le pagine senza vetro. Misurato con `dumpsys gfxinfo framestats`, che è quello che
+   ha puntato al RenderThread invece che alla GPU.
+3. **Il titolo grande stava sotto il rail.** Le ancore del morph mescolavano coordinate della
+   finestra e coordinate dello schermo; sul telefono coincidono, sul tablet il rail rientra la
+   pagina di 100 dp e la differenza diventava una traslazione (1.5.4).
+
+**Guardato sul tablet**: nativo e in formato telefono (`wm size 1080x2340`), chiaro e scuro, Voti
+con tutti gli 84 voti, pop-up della circolare aperto dalla riga, chiuso da scrim e da back.
+
+**Resta della fase 1**: menù contestuali (1.4 del piano), gli altri ~17 `FluidSheet` (1.5), la
+verifica esplicita di `SettingsPaneMotionTest` (1.6), e una passata vera sul telefono quando torna
+disponibile.
+
+---
+
 ## Regole che valgono per ogni fase
 
 - **La firma di release è `C:\VibeCoded Projects\pampa.jks`, alias `pampa`**, per tutte le app —

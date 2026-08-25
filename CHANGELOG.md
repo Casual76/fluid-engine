@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.5.3 - 2026-08-25
+
+- Il pannello di vetro compone in place: il compositing Offscreen del nodo ri-rasterizzava l'intero pannello, testo compreso, a ogni fotogramma di scorrimento, per un isolamento che su una pila tutta SrcOver non cambiava un pixel. Sul tablet la pagina Voti passa da 85 a 27 ms per frame (p90). Sparito il layer offscreen, sparisce anche la seconda texture che poteva sfondare il tetto della GPU
+- GlassOptics.backdropResolution: quanto della propria risoluzione una superficie concede alla cattura del backdrop, sopra la scala guidata dal blur. Il ruolo Content scende a 0.5, perche' quello che rifrange e' la lavata ambientale e un gradiente ricampionato a meta' torna su identico. Tutti gli altri ruoli restano a 1
+
+
 ## 1.5.2 - 2026-08-25
 
 - La difesa dal tetto delle texture copre anche il contenuto del pannello, non solo la sua cattura. Un pannello di vetro compone se stesso attraverso un layer offscreen grande quanto se stesso, e quel layer e' una texture come la cattura del backdrop: oltre il tetto non si alloca, e le righe del pannello spariscono lasciando un vetro rifratto senza niente stampato sopra. Ora un pannello fuori misura rinuncia al compositing offscreen, che a quella scala nessuno distingue, invece che al proprio contenuto

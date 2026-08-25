@@ -48,7 +48,6 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   /** La forma a cui la superficie è arrivata, o verso cui sta viaggiando. */
   val form: FluidForm get() = formState
 
-  private val progressAnimatable = Animatable(1f)
   private var activeTransit by mutableStateOf<Transit?>(null)
 
   /**
@@ -56,7 +55,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * di disegno — dentro `graphicsLayer {}` o un draw block — mai in composizione: è lo stato che
    * cambia a ogni fotogramma.
    */
-  val progress: Float get() = if (activeTransit == null) 1f else progressAnimatable.value
+  val progress: Float get() = activeTransit?.progress?.value ?: 1f
 
   /** Grossolano e sicuro da leggere in composizione: dietro c'è un derivedStateOf. */
   val isMorphing: Boolean by derivedStateOf { activeTransit != null }
@@ -117,15 +116,22 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>) {
     val transit = buildTransit(currentForm(), target)
+    // L'installazione e il progresso zero DEVONO atterrare nello stesso snapshot, ed è per questo
+    // che ogni transito possiede il proprio Animatable, nato a zero: con un progresso condiviso
+    // il transito nuovo si mostrava per un fotogramma col valore vecchio (1), cioè con la sagoma
+    // d'arrivo a taglia piena — il bordo del traguardo che lampeggia e sparisce.
+    val previous = activeTransit
     formState = target
     activeTransit = transit
     transitPlanStamp = Float.NaN
     try {
-      progressAnimatable.snapTo(0f)
+      // Il viaggio sostituito è orfano: fermarlo libera la coroutine che lo stava animando, senza
+      // aspettare la coda della sua molla.
+      previous?.progress?.stop()
       if (reducedMotion) {
-        progressAnimatable.snapTo(1f)
+        transit.progress.snapTo(1f)
       } else {
-        progressAnimatable.animateTo(1f, spec)
+        transit.progress.animateTo(1f, spec)
       }
     } finally {
       // Se un nuovo morphTo ci ha interrotti ha già sostituito il transito: il viaggio vivo è il
@@ -150,7 +156,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    */
   private fun currentForm(): FluidForm {
     val transit = activeTransit ?: return formState
-    val t = progressAnimatable.value
+    val t = transit.progress.value
     return when (transit) {
       is SlabTransit -> {
         val slabs = transit.pairs.map { (from, to) ->
@@ -200,7 +206,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       }
       return restPlan
     }
-    val t = progressAnimatable.value
+    val t = transit.progress.value
     if (transitPlanTransit !== transit || transitPlanStamp != t) {
       transitPlan.clipToBounds = maskInShader
       buildTransitPlan(transitPlan, transit, t)
@@ -225,12 +231,19 @@ fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
 // pezzo di disciplina che protegge — "in viaggio ogni cambio di progresso è un'istantanea nuova,
 // a riposo l'istanza è una sola" — è logica pura e va inchiodata senza un frame clock.
 
-internal sealed interface Transit
+internal sealed class Transit {
+  /**
+   * Il progresso è DEL transito, non dello stato: nasce a zero insieme a lui, così installazione
+   * e partenza sono lo stesso fatto e nessun fotogramma può vedere il viaggio nuovo col valore
+   * del vecchio.
+   */
+  val progress = Animatable(0f)
+}
 
 internal class SlabTransit(
   val pairs: List<Pair<FluidForm.Slab, FluidForm.Slab>>,
   val blendRadius: Float,
-) : Transit {
+) : Transit() {
   /**
    * Vero quando due sorgenti viaggiano verso la STESSA destinazione: una fusione. Lì l'overshoot
    * della molla va tagliato sulla geometria: due pezzi che coincidono a t=1 e poi estrapolano a
@@ -242,7 +255,7 @@ internal class SlabTransit(
   }
 }
 
-internal class RingTransit(val rings: MatchedRings) : Transit
+internal class RingTransit(val rings: MatchedRings) : Transit()
 
 /**
  * Lo scalo di un viaggio che il renderer non sa fare in un colpo, o null se il viaggio è diretto.
@@ -348,7 +361,9 @@ private fun PhysicsRenderPlan.writeSlabPiece(index: Int, values: FloatArray) {
 private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
   mode = PlanModeSlabs
   pieceCount = count
-  blendRadius = blend
+  // Il ponte si spegne dove i pezzi si compenetrano: vedi effectiveBlendRadius — senza questo, la
+  // fine di ogni fusione ha un alone di k/4 oltre il bordo, che a riposo sparisce di colpo.
+  blendRadius = effectiveBlendRadius(blend, slabMinGap(pieceRects, count))
   soften = 0f
   vertCount = 0
   var union: Rect? = null

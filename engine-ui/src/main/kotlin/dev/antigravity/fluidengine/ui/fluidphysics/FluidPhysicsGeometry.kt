@@ -312,6 +312,37 @@ internal fun matchPieces(
   return pairs
 }
 
+/**
+ * Il varco minimo con segno fra i pezzi di un piano: positivo = il più vicino dei pezzi è staccato
+ * di tanto, negativo = qualcuno si compenetra di tanto.
+ *
+ * Esiste per la proprietà scomoda dello smooth minimum: smin(a, a, k) = a − k/4. Due campi
+ * coincidenti — la fine di ogni fusione — non danno l'unione, danno l'unione GONFIATA di un quarto
+ * del raggio di fusione: un alone di materiale oltre il bordo, che a riposo sparisce di colpo.
+ * Quindi il raggio di fusione effettivo scala col varco: pieno quando i pezzi sono vicini e
+ * staccati (il ponte), spento man mano che si compenetrano (dove l'unione vera basta).
+ */
+internal fun slabMinGap(rects: FloatArray, count: Int): Float {
+  if (count < 2) return Float.POSITIVE_INFINITY
+  var minGap = Float.POSITIVE_INFINITY
+  for (i in 0 until count) {
+    for (j in i + 1 until count) {
+      val dx = abs(rects[i * 4] - rects[j * 4]) - (rects[i * 4 + 2] + rects[j * 4 + 2])
+      val dy = abs(rects[i * 4 + 1] - rects[j * 4 + 1]) - (rects[i * 4 + 3] + rects[j * 4 + 3])
+      // Per rettangoli allineati agli assi: si compenetrano solo se entrambe le componenti sono
+      // negative, quindi il varco con segno è la componente maggiore.
+      minGap = min(minGap, max(dx, dy))
+    }
+  }
+  return minGap
+}
+
+/** Il raggio di fusione effettivo dato il varco: pieno da staccati, spento a compenetrazione [blend]. */
+internal fun effectiveBlendRadius(blend: Float, minGap: Float): Float {
+  if (blend <= 0f || minGap >= 0f) return blend.coerceAtLeast(0f)
+  return (blend + minGap).coerceAtLeast(0f)
+}
+
 // --- Specchi del campo di distanza -------------------------------------------
 //
 // Le stesse formule che stanno in FluidPhysicsShaders.kt, trascritte in Kotlin. I test le

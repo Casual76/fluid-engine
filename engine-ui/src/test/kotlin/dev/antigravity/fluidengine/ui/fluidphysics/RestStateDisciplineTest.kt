@@ -119,6 +119,14 @@ class RestStateDisciplineTest {
   }
 
   @Test
+  fun aFreshTransitStartsAtZeroByConstruction() {
+    // Il lampeggio del traguardo: un transito mostrato col progresso del viaggio precedente (1)
+    // disegna per un fotogramma la sagoma d'arrivo a taglia piena. Il progresso appartiene al
+    // transito e nasce a zero: l'installazione E la partenza sono lo stesso fatto.
+    assertEquals(0f, SlabTransit(listOf(circle to square), 0f).progress.value, 0f)
+  }
+
+  @Test
   fun aMergeNeverOvershootsPastCoincidence() {
     // Due sorgenti, una destinazione: a t=1 coincidono; l'overshoot deve fermarsi lì, perché due
     // pezzi che si ri-separano dopo essersi fusi sono un doppio bordo che si vede.

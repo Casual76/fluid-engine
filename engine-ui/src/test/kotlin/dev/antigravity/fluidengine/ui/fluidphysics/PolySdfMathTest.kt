@@ -61,6 +61,31 @@ class PolySdfMathTest {
   }
 
   @Test
+  fun theBlendDiesAsPiecesSinkIntoEachOther() {
+    // smin(a, a, k) = a - k/4: due campi coincidenti gonfiano l'unione di k/4. Il raggio di
+    // fusione effettivo deve quindi spegnersi con la compenetrazione, o ogni fine di fusione ha
+    // un alone di materiale oltre il bordo.
+    assertEquals(-25f, smin(0f, 0f, 100f), 0.001f)
+
+    // Due pezzi staccati di 10px: ponte pieno.
+    val separated = floatArrayOf(0f, 0f, 50f, 50f, 110f, 0f, 50f, 50f, 0f, 0f, 0f, 0f)
+    assertEquals(10f, slabMinGap(separated, 2), 0.001f)
+    assertEquals(48f, effectiveBlendRadius(48f, 10f), 0f)
+
+    // Compenetrati di 30px: il ponte cala di altrettanto.
+    val overlapping = floatArrayOf(0f, 0f, 50f, 50f, 70f, 0f, 50f, 50f, 0f, 0f, 0f, 0f)
+    assertEquals(-30f, slabMinGap(overlapping, 2), 0.001f)
+    assertEquals(18f, effectiveBlendRadius(48f, -30f), 0.001f)
+
+    // Coincidenti: niente ponte, niente alone.
+    val coincident = floatArrayOf(0f, 0f, 50f, 50f, 0f, 0f, 50f, 50f)
+    assertEquals(0f, effectiveBlendRadius(48f, slabMinGap(coincident, 2)), 0.001f)
+
+    // Un pezzo solo: il varco è infinito e il ponte resta quel che era.
+    assertEquals(48f, effectiveBlendRadius(48f, slabMinGap(coincident, 1)), 0f)
+  }
+
+  @Test
   fun theGradientIsUnitLengthAndPointsAwayFromTheSurface() {
     val outside = sdPolygonGradient(150f, 50f, square)
     assertEquals(1f, hypot(outside.x, outside.y), 0.001f)

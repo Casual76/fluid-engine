@@ -15,21 +15,30 @@
       "ref": ""
     },
     "stable": {
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releaseDate": "2026-08-25",
-      "changelog": "Prima release. La galleria del Fluid Engine con il Playground di Fluid-physics: il motore che trasforma qualsiasi forma di vetro liquido in qualsiasi altra — preset, disegno a mano libera, pezzi che si fondono con ponti liquidi, e due tasti che diventano un menù che diventa un pop-up.",
-      "releaseTag": "stable-fluid-glass-v1.0.0",
-      "apkAsset": "fluid-glass-1.0.0.apk",
-      "sizeBytes": 2791884
+      "changelog": "Le trasformazioni si posano come devono: via l'alone di materiale oltre il bordo durante le fusioni, via il lampeggio della sagoma d'arrivo all'inizio di ogni viaggio, e il contenuto ora viaggia attaccato al pannello invece di aspettarlo. Piu' la goccia negli scali, un contorno solo nelle fusioni, e le sagome libere senza vertici visibili.",
+      "releaseTag": "stable-fluid-glass-v1.0.1",
+      "apkAsset": "fluid-glass-1.0.1.apk",
+      "sizeBytes": 2791873
     },
     "beta": {
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releaseDate": "2026-08-25",
-      "changelog": "Prima release. La galleria del Fluid Engine con il Playground di Fluid-physics: il motore che trasforma qualsiasi forma di vetro liquido in qualsiasi altra — preset, disegno a mano libera, pezzi che si fondono con ponti liquidi, e due tasti che diventano un menù che diventa un pop-up.",
-      "releaseTag": "stable-fluid-glass-v1.0.0",
-      "apkAsset": "fluid-glass-1.0.0.apk",
-      "sizeBytes": 2791884
+      "changelog": "Le trasformazioni si posano come devono: via l'alone di materiale oltre il bordo durante le fusioni, via il lampeggio della sagoma d'arrivo all'inizio di ogni viaggio, e il contenuto ora viaggia attaccato al pannello invece di aspettarlo. Piu' la goccia negli scali, un contorno solo nelle fusioni, e le sagome libere senza vertici visibili.",
+      "releaseTag": "stable-fluid-glass-v1.0.1",
+      "apkAsset": "fluid-glass-1.0.1.apk",
+      "sizeBytes": 2791873
     },
-    "history": []
+    "history": [
+      {
+        "version": "1.0.0",
+        "releaseDate": "2026-08-25",
+        "changelog": "Prima release. La galleria del Fluid Engine con il Playground di Fluid-physics: il motore che trasforma qualsiasi forma di vetro liquido in qualsiasi altra — preset, disegno a mano libera, pezzi che si fondono con ponti liquidi, e due tasti che diventano un menù che diventa un pop-up.",
+        "releaseTag": "stable-fluid-glass-v1.0.0",
+        "apkAsset": "fluid-glass-1.0.0.apk",
+        "sizeBytes": 2791884
+      }
+    ]
   }
 }

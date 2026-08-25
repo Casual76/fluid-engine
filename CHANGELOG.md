@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.6.0 - 2026-08-25
+
+- Il vetro smette di ridisegnare quello che non e cambiato. Sul tablet la Bacheca passa da 300-550 ms per fotogramma a 53 (senza vetro sarebbe 40: il materiale costa 13 ms invece di 260), i Voti da 400 a 21. La sorgente del backdrop si compone offscreen, quindi la pagina si rasterizza una volta invece che una per ogni pannello che la campiona; i layer di bordo e ombra non si ri-registrano a ogni draw e sono limitati in area, cosi il budget GPU di HWUI non si sfonda piu; i clip dei layer e le forme piccole usano rettangoli arrotondati, che la GPU sa clippare da sola, invece di path generici che passano dall atlas di maschere della CPU; gli shader AGSL sono condivisi da tutto il processo invece di essere ricompilati da ogni pannello
+- FluidGlassQuality: il materiale si assottiglia mentre la pagina corre e torna intero quando si ferma. Durante un lancio se ne vanno lente, dispersione, ombre e meta della sfocatura, e la catena ottica si registra a meta risoluzione: nessuna di quelle cose e visibile a centoquaranta pixel per fotogramma, e sono esattamente quelle che costano. La tinta non si tocca mai. FluidScreen lo aggancia da solo, quindi ogni schermata lo eredita
+- GlassOptics.backdropResolution: quanto della propria risoluzione una superficie concede alla cattura. Il ruolo Content sta a 0.5, perche quello che rifrange e la lavata ambientale e un gradiente ricampionato a meta torna su identico
+
+
 ## 1.5.4 - 2026-08-25
 
 - Il morph del titolo usa ancore locali allo schermo invece che alla finestra. Su tablet ogni pagina e' rientrata della larghezza del rail di navigazione, e la differenza fra i due sistemi diventava una traslazione: il titolo grande a riposo finiva sotto il rail. Qualunque inset l'app metta attorno alla pagina ora si annulla da solo

@@ -96,6 +96,8 @@ uniform float4 pieceRadii[$PhysicsMaxPieces];
 uniform float blendRadius;
 uniform float refractionHeight;
 uniform float refractionAmount;
+uniform float depthEffect;
+uniform float2 fieldCenter;
 uniform float aa;
 layout(color) uniform half4 tintColor;
 
@@ -136,8 +138,15 @@ half4 main(float2 coord) {
     } else {
         float x = 1.0 - min(-d, refractionHeight) / refractionHeight;
         float disp = physicsCircleMap(x) * refractionAmount;
-        float len = length(grad);
-        float2 normal = len > 0.0001 ? grad / len : float2(0.0);
+        // Il termine a cupola: aggiunge alla normale del bordo una componente diretta al centro
+        // del campo, e trasforma un bordo smussato in una lente intera. È quello che dà a un
+        // pezzo piccolo la lettura "palla di vetro" invece di "adesivo lucido".
+        float2 toCenter = p - fieldCenter;
+        float toCenterLen = length(toCenter);
+        float2 depthDir = toCenterLen > 0.0001 ? toCenter / toCenterLen : float2(0.0);
+        float2 normal = grad + depthEffect * depthDir;
+        float len = length(normal);
+        normal = len > 0.0001 ? normal / len : float2(0.0);
         sampled = content.eval(coord + disp * normal);
     }
 
@@ -163,6 +172,8 @@ uniform float2 verts[$PhysicsMaxVertices];
 uniform float soften;
 uniform float refractionHeight;
 uniform float refractionAmount;
+uniform float depthEffect;
+uniform float2 fieldCenter;
 uniform float aa;
 layout(color) uniform half4 tintColor;
 
@@ -171,16 +182,20 @@ $PhysicsSdfPrelude
 half4 main(float2 coord) {
     float2 p = coord + offset;
 
+    // AGSL accetta un indice di array uniform solo se costante — e la variabile d'induzione di un
+    // loop a limiti costanti lo è, perché il compilatore srotola. Qualsiasi altro indice (il
+    // classico `j` del vertice precedente) viene rifiutato alla compilazione. Quindi il vertice
+    // precedente viaggia in una variabile, e il lato di chiusura si fa dopo il loop con verts[0].
     int count = int(vertCount);
     float best = 1000000000.0;
     float2 nearest = float2(0.0);
     float winding = 1.0;
-    int j = count - 1;
-    for (int i = 0; i < $PhysicsMaxVertices; ++i) {
+    float2 first = verts[0];
+    float2 prev = first;
+    for (int i = 1; i < $PhysicsMaxVertices; ++i) {
         if (i >= count) break;
         float2 vi = verts[i];
-        float2 vj = verts[j];
-        float2 e = vj - vi;
+        float2 e = prev - vi;
         float2 w = p - vi;
         float t = clamp(dot(w, e) / max(dot(e, e), 0.000001), 0.0, 1.0);
         float2 closest = vi + e * t;
@@ -191,10 +206,27 @@ half4 main(float2 coord) {
             nearest = closest;
         }
         bool c1 = p.y >= vi.y;
-        bool c2 = p.y < vj.y;
+        bool c2 = p.y < prev.y;
         bool c3 = e.x * w.y > e.y * w.x;
         if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) winding = -winding;
-        j = i;
+        prev = vi;
+    }
+    {
+        float2 vi = first;
+        float2 e = prev - vi;
+        float2 w = p - vi;
+        float t = clamp(dot(w, e) / max(dot(e, e), 0.000001), 0.0, 1.0);
+        float2 closest = vi + e * t;
+        float2 delta = p - closest;
+        float dd = dot(delta, delta);
+        if (dd < best) {
+            best = dd;
+            nearest = closest;
+        }
+        bool c1 = p.y >= vi.y;
+        bool c2 = p.y < prev.y;
+        bool c3 = e.x * w.y > e.y * w.x;
+        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) winding = -winding;
     }
     float d = winding * sqrt(best) - soften;
 
@@ -209,7 +241,13 @@ half4 main(float2 coord) {
     } else {
         float2 away = p - nearest;
         float len = length(away);
-        float2 normal = len > 0.0001 ? (away / len) * winding : float2(0.0);
+        float2 grad = len > 0.0001 ? (away / len) * winding : float2(0.0);
+        float2 toCenter = p - fieldCenter;
+        float toCenterLen = length(toCenter);
+        float2 depthDir = toCenterLen > 0.0001 ? toCenter / toCenterLen : float2(0.0);
+        float2 normal = grad + depthEffect * depthDir;
+        float nl = length(normal);
+        normal = nl > 0.0001 ? normal / nl : float2(0.0);
         float x = 1.0 - min(-d, refractionHeight) / refractionHeight;
         float disp = physicsCircleMap(x) * refractionAmount;
         sampled = content.eval(coord + disp * normal);

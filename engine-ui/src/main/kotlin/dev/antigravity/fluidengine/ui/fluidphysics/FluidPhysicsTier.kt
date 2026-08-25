@@ -79,6 +79,10 @@ internal object FluidPhysicsShaderHealth {
   private fun probe(): Boolean = runCatching {
     android.graphics.RuntimeShader(SlabGroupRefractionShaderString)
     android.graphics.RuntimeShader(PolyMorphRefractionShaderString)
+  }.onFailure {
+    // Il fallimento è un fatto del driver che vale la pena leggere in logcat: senza questa riga
+    // un compilatore che rifiuta è indistinguibile da un dispositivo che non può.
+    android.util.Log.w("FluidPhysics", "Shader di Fluid-physics rifiutati: tier Balanced.", it)
   }.isSuccess
 
   /** Solo per i test dell'engine. */

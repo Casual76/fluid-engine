@@ -38,6 +38,7 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
   scratch: PhysicsUniformScratch,
   refractionHeightPx: Float,
   refractionAmountPx: Float,
+  depthEffect: Boolean,
   tintInShader: Color,
 ) {
   if (!isRuntimeShaderSupported()) return
@@ -68,6 +69,12 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
     setFloatUniform("blendRadius", plan.blendRadius * scopeFactor)
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)
+    setFloatUniform("depthEffect", if (depthEffect) 1f else 0f)
+    setFloatUniform(
+      "fieldCenter",
+      plan.bounds.center.x * scopeFactor,
+      plan.bounds.center.y * scopeFactor,
+    )
     setFloatUniform("aa", MaskAntialiasPx)
     setColorUniform("tintColor", tintInShader)
   }
@@ -80,6 +87,7 @@ internal fun BackdropEffectScope.polyMorphLens(
   scratch: PhysicsUniformScratch,
   refractionHeightPx: Float,
   refractionAmountPx: Float,
+  depthEffect: Boolean,
   tintInShader: Color,
 ) {
   if (!isRuntimeShaderSupported()) return
@@ -105,6 +113,12 @@ internal fun BackdropEffectScope.polyMorphLens(
     setFloatUniform("soften", plan.soften * scopeFactor)
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)
+    setFloatUniform("depthEffect", if (depthEffect) 1f else 0f)
+    setFloatUniform(
+      "fieldCenter",
+      plan.bounds.center.x * scopeFactor,
+      plan.bounds.center.y * scopeFactor,
+    )
     setFloatUniform("aa", MaskAntialiasPx)
     setColorUniform("tintColor", tintInShader)
   }

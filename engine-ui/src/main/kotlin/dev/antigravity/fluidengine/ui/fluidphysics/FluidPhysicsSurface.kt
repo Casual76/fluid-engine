@@ -123,6 +123,7 @@ fun Modifier.fluidPhysicsSurface(
               scratch = scratch,
               refractionHeightPx = resolved.refractionHeight.toPx() * depth,
               refractionAmountPx = resolved.refractionAmount.toPx() * depth,
+              depthEffect = resolved.depthEffect,
               tintInShader = shaderTint,
             )
           } else {
@@ -132,6 +133,7 @@ fun Modifier.fluidPhysicsSurface(
               scratch = scratch,
               refractionHeightPx = resolved.refractionHeight.toPx() * depth,
               refractionAmountPx = resolved.refractionAmount.toPx() * depth,
+              depthEffect = resolved.depthEffect,
               tintInShader = shaderTint,
             )
           }

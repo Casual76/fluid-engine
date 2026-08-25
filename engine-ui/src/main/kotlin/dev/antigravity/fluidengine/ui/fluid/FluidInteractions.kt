@@ -29,8 +29,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
  *
  *  * **No ripple.** A ripple announces a touch point; a scale announces that the *thing you touched*
  *    responded. The second is what makes a surface feel physical.
- *  * **No shape morphing.** Animating a corner radius forces a re-clip every frame and makes the
- *    element's silhouette wobble against its neighbours.
+ *  * **No shape morphing here.** Animating a corner radius from a screen forces a re-clip every
+ *    frame and makes the element's silhouette wobble against its neighbours. Since 1.9.0 shape
+ *    morphing exists, but it lives in ONE place — Fluid-physics
+ *    ([dev.antigravity.fluidengine.ui.fluidphysics]) — which earns it with its own discipline: the
+ *    layer clip never chases the shape (the shader's alpha mask sculpts the silhouette), and the
+ *    morph is transient by contract (at rest the surface holds one stable Shape instance). A
+ *    corner radius animated ad hoc in a screen is still the bug it always was.
  *  * **Asymmetric timing.** Pressing in is near-instant so the response beats the finger; releasing
  *    is slower and slightly springy, which is what sells the elasticity.
  *

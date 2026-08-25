@@ -53,6 +53,17 @@ Le modifiche fatte finora:
    si vede un rettangolo nero), e il compositing del nodo è `Auto` invece di `Offscreen`: la pila
    del vetro è tutta `SrcOver` e l'isolamento non cambiava un pixel, ma ri-rasterizzava l'intero
    pannello a ogni fotogramma di scorrimento.
+8. **`ShapeProvider.fastClipShape` riconosce `GlassClipGeometry`** (Fluid-physics, 1.9.0): una
+   sagoma in trasformazione consegna al layer il proprio clip — il rettangolo del nodo — perché la
+   silhouette vera la ritaglia l'alpha dello shader, e leggere i raggi d'angolo da una forma che
+   cambia a ogni fotogramma ri-clipperebbe il layer a ogni fotogramma.
+9. **Il preludio SDF vive anche in una copia first-party.** `FluidPhysicsShaders.kt`
+   (`ui/fluidphysics`) ri-dichiara `radiusAt`/`sdRoundedRect`/`gradSdRoundedRect` derivandoli da
+   `Shaders.kt` (dove sono `private`), e ci costruisce sopra la famiglia di Fluid-physics: i
+   rettangoli fusi con lo smooth minimum e il campo poligonale ad anello di vertici. Stessa
+   struttura di rifrazione (`circleMap`, banda di displacement al bordo), perché il materiale deve
+   restare lo stesso vetro anche mentre cambia forma. Apache-2.0, Copyright 2025 Kyant, come il
+   resto.
 
 ## Cosa fare in pratica
 

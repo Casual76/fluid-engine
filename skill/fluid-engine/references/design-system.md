@@ -167,3 +167,24 @@ fun SchermataDemo(state: DemoUiState, onApri: (String) -> Unit) {
   }
 }
 ```
+
+## Fluid-physics — il vetro che cambia forma (1.9.0)
+
+`dev.antigravity.fluidengine.ui.fluidphysics`: qualsiasi silhouette di vetro diventa qualsiasi
+altra, con la rifrazione che segue la forma. Il vocabolario:
+
+- `FluidForm.Slab` (rettangoli arrotondati: quadrato, cerchio, capsula), `FluidForm.Poly` (sagome
+  libere; `FluidFormPresets.fromFreehand` per i tratti a mano), `FluidForm.Group` (fino a sei Slab
+  resi come una superficie sola, ponte liquido compreso).
+- `rememberFluidPhysicsState(initial)` + `state.morphTo(target, spec)` — sospende fino alla
+  posa; ritargeting a metà volo legittimo; nessuna coppia vietata (gruppo↔sagoma passa da uno
+  scalo automatico).
+- `Modifier.fluidPhysicsSurface(state, backdrop, tint, role, optics, tier)` — stessa grammatica di
+  `glassSurface`. `Modifier.fluidPhysicsContent(state, role)` per il contenuto: dissolvenza e zoom
+  uniforme, mai stirato.
+- `FluidPhysicsTier`: Full (SDK 33+) / Balanced / Lite. La geometria è identica su tutti e tre.
+
+Le regole che porta con sé: il morphing vive SOLO qui (la proibizione per le schermate resta); la
+molla dei contenitori è `FluidMotion.standard()` — i pannelli non rimbalzano mai, il rimbalzo è
+degli elementi piccoli; il contenuto non si stira, cambia strato. Il banco di prova è la scheda
+Playground dell'app Fluid Glass (il modulo `sample/` del repo dell'engine).

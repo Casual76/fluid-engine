@@ -297,6 +297,40 @@ lo scambio perfetto richiederebbe il lift della riga anche per i portali, come p
 
 ---
 
+## Fase 10 — Fluid-physics, e la galleria diventa un'app (2026-08-25, engine 1.9.0, Fluid Glass 1.0.0)
+
+La capacità che mancava: **qualsiasi forma di vetro diventa qualsiasi altra**, con la rifrazione
+che segue la sagoma mentre viaggia. Un sottosistema nuovo in `engine-ui` (`ui/fluidphysics`):
+`FluidForm` (Slab / Poly / Group fino a sei pezzi con ponte liquido smin), `FluidPhysicsState`
+(morphTo con ritargeting e scalo automatico per i viaggi gruppo↔sagoma), `fluidPhysicsSurface`
+(vetro vero sui tre tier Full/Balanced/Lite), `fluidPhysicsContent` (il contenuto non si stira:
+dissolvenza e zoom uniforme). Il clip del layer resta fermo per contratto — la silhouette la
+scolpisce l'alpha dello shader — e a riposo la superficie tiene un'istanza stabile: il morphing è
+transiente, e la vecchia proibizione resta valida per le schermate.
+
+Le lezioni pagate sul dispositivo, coi collage dei fotogrammi (nostri e di iOS 18 al
+rallentatore): AGSL vuole indici costanti negli array uniform (il vertice precedente si trasporta,
+non si indicizza); una fusione non estrapola oltre il coincidere (il doppio bordo si vede); la
+molla dei contenitori è `standard`, mai `fluid` — **i pannelli Apple non rimbalzano, il rimbalzo è
+degli elementi piccoli**; e il termine a cupola (depthEffect) è quello che fa leggere un pezzo da
+dimostrazione come palla di vetro invece che adesivo lucido.
+
+La `sample/` è diventata **Fluid Glass** (`dev.antigravity.fluidglass`, slug store `fluid-glass`):
+cinque schede — la nuova è il Playground, il banco di prova del motore con preset, disegno a mano
+libera, molle e tier dal vivo, loop A↔B per gfxinfo, forme salvate, e il lato pratico (due tasti →
+menù → pop-up). Identità da store completa: firma pampa V1+V2+V3, minify, icona adattiva,
+aggiornamento in-app dal manifest.json del repo, versionamento suo (1.0.x, separato dall'engine).
+
+**Misure su S25** (release, framestats): loop cerchio↔quadrato ~120 fps con jank 2,1%; il caso
+peggiore stella↔blob (anello a 60+ vertici) ~90 fps con jank 2,3%. Tab S9 da guardare al prossimo
+aggancio.
+
+**Rimandato, deliberatamente**: la migrazione dei componenti reali (FluidGlassModal, menù
+contestuale) sopra Fluid-physics — il ramo 1.8.x è appena stato stabilizzato in sei release, e il
+motore doveva prima dimostrarsi nel Playground. È la prossima fase naturale.
+
+---
+
 ## Regole che valgono per ogni fase
 
 - **La firma di release è `C:\VibeCoded Projects\pampa.jks`, alias `pampa`**, per tutte le app —

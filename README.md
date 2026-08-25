@@ -77,6 +77,20 @@ Copy-Item -Recurse -Force skillluid-engine "$env:USERPROFILE\.claude\skills\"
 | [05 · Widget](docs/05-widget.md) | il kit Glance |
 | [06 · Limiti](docs/06-limiti.md) | cosa si aggiorna da remoto e cosa no, senza giri di parole |
 
+## Fluid-physics e l'app Fluid Glass
+
+Dalla 1.9.0 l'engine ha **Fluid-physics** (`engine-ui`, package `ui/fluidphysics`): qualsiasi
+forma di vetro diventa qualsiasi altra — rettangolo↔cerchio, sagome disegnate a mano, gruppi di
+pezzi che si fondono con ponti liquidi — con la rifrazione che segue la sagoma mentre viaggia.
+API: `FluidForm` + `rememberFluidPhysicsState` + `Modifier.fluidPhysicsSurface`; dettagli in
+`docs/03-design-system.md`.
+
+Il modulo `sample/` è il suo banco di prova e, dalla 1.0.0, un'app vera del Pampa Store:
+**Fluid Glass** (`dev.antigravity.fluidglass`, manifest in `manifest.json`). La scheda Playground
+è l'editor del motore: preset, disegno a mano libera, molle e livelli di qualità dal vivo, e il
+lato pratico — due tasti che diventano un menù che diventa un pop-up. Chi aveva installato la
+vecchia galleria firmata debug deve disinstallarla una volta: la firma è cambiata.
+
 ## Sviluppare l'engine
 
 L'engine si apre e si compila da solo:

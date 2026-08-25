@@ -162,3 +162,17 @@ dell'engine produce una variante che:
 - fa sembrare che il bug sia stato risolto quando non lo è.
 
 `engine-doctor.ps1` segnala le modifiche non committate proprio per questo.
+
+## Il morphing vive in un posto solo
+
+La regola storica — niente shape morphing, un raggio animato ri-clippa ogni fotogramma — resta
+vera per le schermate. Dalla 1.9.0 esiste la deroga, ed è una sola: **Fluid-physics**
+(`ui/fluidphysics`), che se la guadagna con una disciplina propria: il clip del layer non insegue
+mai la sagoma (la silhouette la scolpisce l'alpha dello shader), il padding della cattura resta
+fermo per tutto il viaggio, e a riposo la superficie tiene un'istanza di `Shape` stabile — il
+morphing è transiente per contratto. Un raggio animato a mano in una schermata è ancora il bug di
+prima; una forma che deve trasformarsi chiede un `FluidPhysicsState`.
+
+Vale anche per gli shader: "nessuno shader di vetro nuovo accanto a GlassMaterial" resta la
+regola, e la famiglia SDF di Fluid-physics è la deroga deliberata, nel suo package, annotata in
+`LICENSES/AndroidLiquidGlass.md` (il preludio deriva da quello Apache-2.0 di Kyant).

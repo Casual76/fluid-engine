@@ -188,6 +188,42 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 - Feedback al tocco con `fluidPressable` (scala) o `fluidRowPressable` (tinta, per le righe di una lista raggruppata). Una riga che si rimpicciolisce rompe la sagoma del gruppo.
 - Il contrasto è testato: `FluidContrastTest` verifica le coppie. Se aggiungi un ruolo, aggiungi il caso.
 
+## Fluid-physics — il vetro che cambia forma
+
+Dalla 1.9.0 l'engine sa trasformare qualsiasi silhouette di vetro in qualsiasi altra — rettangolo
+in cerchio, cerchio in stella, una sagoma disegnata col dito, due tasti che si fondono in un
+pannello — con la rifrazione che segue la forma mentre viaggia. Vive in
+`dev.antigravity.fluidengine.ui.fluidphysics`, e la scheda Playground dell'app Fluid Glass è il suo
+banco di prova.
+
+**Il vocabolario.** `FluidForm` descrive la silhouette: `Slab` (famiglia dei rettangoli
+arrotondati: quadrato, cerchio, capsula, angoli continui), `Poly` (sagome libere: preset o
+`FluidFormPresets.fromFreehand` per i tratti a mano), `Group` (fino a sei Slab resi come una
+superficie sola, che si versano l'uno nell'altro con un ponte liquido). `FluidPhysicsState`
+possiede il viaggio: `morphTo(target, spec)` sospende finché la molla non si posa, il ritargeting
+a metà volo è legittimo, e **non esistono coppie vietate** — il viaggio che il renderer non sa fare
+in un colpo (gruppo↔sagoma libera) passa da solo per uno scalo. `Modifier.fluidPhysicsSurface`
+veste il viaggio di vetro con la stessa grammatica di `glassSurface` (ruoli, ottiche, tinte,
+qualità); `Modifier.fluidPhysicsContent` dà al contenuto il contratto dei modali — dissolvenza e
+zoom uniforme, mai stirato dalla sagoma.
+
+**Il contratto di performance.** Un fotogramma di morph è nuovi uniform su uno shader già
+compilato: il clip del layer resta un rettangolo fermo per tutta la vita della superficie (la
+silhouette la scolpisce l'alpha dello shader), il padding della cattura non si muove mai, e a
+riposo la superficie tiene un'istanza di `Shape` stabile — è la risposta alla regola "niente shape
+morphing", che per le schermate resta valida: il morphing è transiente per contratto, e vive solo
+qui.
+
+**I tre livelli.** `FluidPhysicsTier`: `Full` (SDK 33+, rifrazione dal campo di distanza e ponti
+smin), `Balanced` (SDK 31–32 o shader rifiutato dal driver: sfocatura, vividezza, tinta e bordo),
+`Lite` (sotto SDK 31: tinta piena sul path). La geometria del viaggio è identica su tutti e tre;
+una richiesta esplicita può solo scendere di livello.
+
+**La deroga sugli shader.** "Nessuno shader di vetro nuovo accanto a `GlassMaterial`" resta la
+regola; Fluid-physics è la deroga deliberata — una seconda famiglia (rettangoli fusi con lo smooth
+minimum, poligoni ad anello di vertici) nel suo package, con il suo concern ottico, derivata dal
+preludio SDF di Kyant e annotata in `LICENSES/AndroidLiquidGlass.md`.
+
 ## Cosa non c'è, e perché
 
 Niente `FeatureHero`, niente `GradePill`, niente componente che sappia cos'è una materia o un voto. Erano nell'app da cui l'engine è stato estratto e ci sono rimasti: un componente che conosce il dominio non è un componente di design system, è una schermata scritta a metà.

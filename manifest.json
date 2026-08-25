@@ -1,0 +1,18 @@
+{
+  "app": {
+    "id": "fluid-glass",
+    "name": "Fluid Glass",
+    "description": "La galleria del Fluid Engine e il playground di Fluid-physics: il motore che trasforma qualsiasi forma di vetro liquido in qualsiasi altra. Preset, disegno a mano libera, pezzi che si fondono con ponti liquidi, e il lato pratico: due tasti che diventano un menù che diventa un pop-up.",
+    "packageName": "dev.antigravity.fluidglass",
+    "iconUrl": "https://raw.githubusercontent.com/Casual76/fluid-engine/main/store/fluid-glass-icon.png",
+    "category": "Strumenti",
+    "developer": "Antigravity",
+    "screenshots": [],
+    "repository": {
+      "repoOwner": "Casual76",
+      "repoName": "fluid-engine",
+      "manifestPath": "manifest.json",
+      "ref": "main"
+    }
+  }
+}

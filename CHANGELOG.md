@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.1 - 2026-08-26
+
+- Lo scalo dei viaggi gruppo<->sagoma e' una goccia, non un pannello: raggio pieno, cosi' la tappa si legge come materiale che si raccoglie, non come un'altra forma.
+- La silhouette dei pezzi e' un'unione geometrica (Path.op): durante una fusione il bordo speculare traccia UN contorno, non i due sovrapposti.
+- L'anello delle sagome libere e' curvo (quadratiche per i punti medi) e l'erosione dello shader sale a 3px: i vertici del campionamento non si vedono piu', ne' nel bordo ne' nella rifrazione.
+
+
 ## 1.9.0 - 2026-08-25
 
 - Fluid-physics: qualsiasi forma di vetro diventa qualsiasi altra. FluidForm (Slab/Poly/Group fino a sei pezzi), FluidPhysicsState (morphTo con ritargeting a meta' volo e scalo automatico per i viaggi gruppo<->sagoma), Modifier.fluidPhysicsSurface con la grammatica di glassSurface, Modifier.fluidPhysicsContent per il contenuto che non si stira mai.

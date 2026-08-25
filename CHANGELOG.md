@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.8.0 - 2026-08-25
+
+- Interazioni: portale con item (uscita vera dei pop-up), morph dal rettangolo dell'ancora, segmented con tocco che segue la pillola, indice sezioni a rotaia con lente, menu Expand sui tasti barra, clip degli angoli coerente con la tinta, sorgenti backdrop che invalidano al movimento.
+
+
 ## 1.7.0 - 2026-08-25
 
 - FluidFoldingTabBar prende foldAlignment: Start, Center (com era) o End. Ripiegata la capsula resta l unico bersaglio della navigazione, e dove si posa decide se il pollice ci arriva

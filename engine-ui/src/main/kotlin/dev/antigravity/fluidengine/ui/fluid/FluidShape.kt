@@ -3,8 +3,10 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -59,6 +61,26 @@ class ContinuousCornerShape(
     if (topStart + topEnd + bottomEnd + bottomStart == 0f || size.minDimension == 0f) {
       return Outline.Rectangle(Rect(Offset.Zero, size))
     }
+    // Below this size the outline is a rounded rect, and it is a rendering decision, not a design
+    // retreat. A generic path this small goes through Skia's small-path atlas: a mask rasterised on
+    // the **CPU**, cached with the path's subpixel phase in the key — and a scrolling list changes
+    // that phase every frame, so every badge, pill and icon tile on screen re-rasterised and
+    // re-uploaded its mask on every frame of every scroll. A hundred masks a frame is what made a
+    // tablet's notice board scroll at five frames a second. `Outline.Rounded` is a native GPU
+    // primitive with none of that — and at these sizes the smoothing it gives up sits inside a
+    // pixel: the continuous ramp only becomes visible at card scale, which is exactly where the
+    // path form is kept.
+    if (size.maxDimension < SmallShapeCutoffPx) {
+      return Outline.Rounded(
+        RoundRect(
+          rect = Rect(Offset.Zero, size),
+          topLeft = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) topEnd else topStart),
+          topRight = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) topStart else topEnd),
+          bottomRight = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) bottomStart else bottomEnd),
+          bottomLeft = CornerRadius(if (layoutDirection == LayoutDirection.Rtl) bottomEnd else bottomStart),
+        ),
+      )
+    }
     val rtl = layoutDirection == LayoutDirection.Rtl
     val topLeft = if (rtl) topEnd else topStart
     val topRight = if (rtl) topStart else topEnd
@@ -82,6 +104,15 @@ class ContinuousCornerShape(
   companion object {
     /** How far Apple pushes the curvature ramp. Figma's slider calls this 60%. */
     const val IosSmoothing: Float = 0.6f
+
+    /**
+     * Device pixels. Chosen to mirror the ceiling of Skia's small-path atlas: any generic path
+     * whose bounds fit under roughly 256 px goes through the CPU mask atlas, and anything above it
+     * is drawn by the GPU's analytic renderers — so this is precisely the population for which the
+     * path form was being paid for in per-frame mask rasterisation, and the population small
+     * enough that the smoothing it encodes is invisible anyway.
+     */
+    internal const val SmallShapeCutoffPx: Float = 256f
   }
 }
 

@@ -96,6 +96,18 @@ internal class ShadowNode(
 
     private val paint = Paint()
 
+    // Fluid Engine change: what makes the recorded shadow stale. Upstream re-recorded on every
+    // draw, and this one carries a `BlurMaskFilter` — a CPU-blurred mask bigger than the pane
+    // itself, regenerated and re-uploaded per visible pane per frame while anything scrolled.
+    // The geometry only changes with size, shape and the shadow's own numbers; `alpha` and
+    // `blendMode` are layer properties.
+    private var recordedSize: IntSize = IntSize.Zero
+    private var recordedShape: Any? = null
+    private var recordedRadius = Float.NaN
+    private var recordedOffsetX = Float.NaN
+    private var recordedOffsetY = Float.NaN
+    private var recordedColor: androidx.compose.ui.graphics.Color? = null
+
     override fun ContentDrawScope.draw() {
         val shadow = shadow() ?: return drawContent()
 
@@ -112,20 +124,38 @@ internal class ShadowNode(
                 ceil(size.width + radius * 4f + offsetX).toInt(),
                 ceil(size.height + radius * 4f + offsetY).toInt()
             )
-            val outline = shapeProvider.shape.createOutline(size, layoutDirection, density)
-
-            configurePaint(shadow)
 
             shadowLayer.alpha = shadow.alpha
             shadowLayer.blendMode = shadow.blendMode
-            shadowLayer.record(shadowSize) {
-                translate(radius * 2f + offsetX, radius * 2f + offsetY) {
-                    val canvas = drawContext.canvas
-                    canvas.drawOutline(outline, paint)
-                    canvas.translate(-offsetX, -offsetY)
-                    canvas.drawOutline(outline, ShadowMaskPaint)
-                    canvas.translate(offsetX, offsetY)
+
+            val shape = shapeProvider.shape
+            val needsRecord = recordedSize != shadowSize ||
+                recordedShape !== shape ||
+                recordedRadius != radius ||
+                recordedOffsetX != offsetX ||
+                recordedOffsetY != offsetY ||
+                recordedColor != shadow.color
+
+            if (needsRecord) {
+                val outline = shape.createOutline(size, layoutDirection, density)
+
+                configurePaint(shadow)
+
+                shadowLayer.record(shadowSize) {
+                    translate(radius * 2f + offsetX, radius * 2f + offsetY) {
+                        val canvas = drawContext.canvas
+                        canvas.drawOutline(outline, paint)
+                        canvas.translate(-offsetX, -offsetY)
+                        canvas.drawOutline(outline, ShadowMaskPaint)
+                        canvas.translate(offsetX, offsetY)
+                    }
                 }
+                recordedSize = shadowSize
+                recordedShape = shape
+                recordedRadius = radius
+                recordedOffsetX = offsetX
+                recordedOffsetY = offsetY
+                recordedColor = shadow.color
             }
 
             translate(-radius * 2f, -radius * 2f) {
@@ -142,6 +172,8 @@ internal class ShadowNode(
             graphicsContext.createGraphicsLayer().apply {
                 compositingStrategy = CompositingStrategy.Offscreen
             }
+        // A fresh layer holds nothing: whatever was recorded belongs to the released one.
+        recordedSize = IntSize.Zero
     }
 
     override fun onDetach() {

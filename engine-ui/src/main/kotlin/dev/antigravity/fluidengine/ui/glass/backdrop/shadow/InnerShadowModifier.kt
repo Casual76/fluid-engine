@@ -34,7 +34,14 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.HighlightLayerMaxPx
+import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.layerResolutionScale
+import kotlin.math.ceil
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -101,6 +108,17 @@ internal class InnerShadowNode(
 
     private var prevRadius = Float.NaN
 
+    // Fluid Engine change: what makes the recorded shadow stale. Upstream re-recorded on every
+    // draw — an offscreen layer the size of the pane, re-rasterised and re-blurred per frame,
+    // for a shadow whose geometry only changes when the pane's does. A pane's draw re-runs on
+    // every frame its screen records itself, so this was charged per visible pane per scrolled
+    // frame. `alpha` and `blendMode` are layer properties and never need a re-record.
+    private var recordedSize: Size = Size.Unspecified
+    private var recordedShape: Any? = null
+    private var recordedOffsetX = Float.NaN
+    private var recordedOffsetY = Float.NaN
+    private var recordedColor: androidx.compose.ui.graphics.Color? = null
+
     override fun ContentDrawScope.draw() {
         drawContent()
 
@@ -114,19 +132,23 @@ internal class InnerShadowNode(
             val density: Density = this
             val layoutDirection = layoutDirection
 
-            val radius = shadow.radius.toPx()
-            val offsetX = shadow.offset.x.toPx()
-            val offsetY = shadow.offset.y.toPx()
+            // See [layerResolutionScale]: this layer holds a blurred outline, and a pane-sized one
+            // on a tablet is tens of megabytes of GPU resource for it.
+            val resScale = layerResolutionScale(size.width, size.height, HighlightLayerMaxPx)
+            val scaledSize = Size(size.width * resScale, size.height * resScale)
 
-            val outline = shapeProvider.shape.createOutline(size, layoutDirection, density)
+            val radius = shadow.radius.toPx() * resScale
+            val offsetX = shadow.offset.x.toPx() * resScale
+            val offsetY = shadow.offset.y.toPx() * resScale
+
+            // Clip di ogni fotogramma: in hardware. Vedi [ShapeProvider.fastClipShape].
+            val outline = shapeProvider.fastClipShape.createOutline(size, layoutDirection, density)
             val clipPath =
                 if (outline is Outline.Rounded) {
                     clipPath ?: Path().also { clipPath = it }
                 } else {
                     null
                 }
-
-            configurePaint(shadow)
 
             shadowLayer.alpha = shadow.alpha
             shadowLayer.blendMode = shadow.blendMode
@@ -139,21 +161,53 @@ internal class InnerShadowNode(
                     }
                 prevRadius = radius
             }
-            shadowLayer.record {
-                val canvas = drawContext.canvas
-                canvas.save()
-                canvas.clipOutline(outline, clipPath)
-                canvas.drawOutline(outline, paint)
-                canvas.translate(offsetX, offsetY)
-                canvas.drawOutline(outline, ShadowMaskPaint)
-                canvas.translate(-offsetX, -offsetY)
-                canvas.restore()
+
+            val shape = shapeProvider.shape
+            val needsRecord = recordedSize != scaledSize ||
+                recordedShape !== shape ||
+                recordedOffsetX != offsetX ||
+                recordedOffsetY != offsetY ||
+                recordedColor != shadow.color
+
+            if (needsRecord) {
+                val scaledOutline = shape.createOutline(scaledSize, layoutDirection, density)
+                val scaledClip =
+                    if (scaledOutline is Outline.Rounded) {
+                        this@InnerShadowNode.clipPath ?: Path().also { this@InnerShadowNode.clipPath = it }
+                    } else {
+                        null
+                    }
+                configurePaint(shadow)
+                shadowLayer.record(
+                    IntSize(
+                        ceil(scaledSize.width).toInt().coerceAtLeast(1),
+                        ceil(scaledSize.height).toInt().coerceAtLeast(1)
+                    )
+                ) {
+                    val canvas = drawContext.canvas
+                    canvas.save()
+                    canvas.clipOutline(scaledOutline, scaledClip)
+                    canvas.drawOutline(scaledOutline, paint)
+                    canvas.translate(offsetX, offsetY)
+                    canvas.drawOutline(scaledOutline, ShadowMaskPaint)
+                    canvas.translate(-offsetX, -offsetY)
+                    canvas.restore()
+                }
+                recordedSize = scaledSize
+                recordedShape = shape
+                recordedOffsetX = offsetX
+                recordedOffsetY = offsetY
+                recordedColor = shadow.color
             }
 
             val canvas = drawContext.canvas
             canvas.save()
             canvas.clipOutline(outline, clipPath)
-            drawLayer(shadowLayer)
+            if (resScale != 1f) {
+                scale(1f / resScale, pivot = Offset.Zero) { drawLayer(shadowLayer) }
+            } else {
+                drawLayer(shadowLayer)
+            }
             canvas.restore()
         }
     }
@@ -164,6 +218,9 @@ internal class InnerShadowNode(
             graphicsContext.createGraphicsLayer().apply {
                 compositingStrategy = CompositingStrategy.Offscreen
             }
+        // A fresh layer holds nothing: whatever was recorded belongs to the released one.
+        recordedSize = Size.Unspecified
+        prevRadius = Float.NaN
     }
 
     override fun onDetach() {

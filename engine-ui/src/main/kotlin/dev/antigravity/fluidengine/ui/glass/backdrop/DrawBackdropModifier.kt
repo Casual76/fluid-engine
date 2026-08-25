@@ -71,6 +71,9 @@ private val DefaultHighlight = { Highlight.Default }
 private val DefaultShadow = { Shadow.Default }
 private val DefaultOnDrawBackdrop: DrawScope.(DrawScope.() -> Unit) -> Unit = { it() }
 
+/** Stable identity, so the default never makes an element compare unequal to itself. */
+private val OneScale: () -> Float = { 1f }
+
 fun Modifier.drawPlainBackdrop(
     backdrop: Backdrop,
     shape: () -> Shape,
@@ -103,7 +106,9 @@ fun Modifier.drawPlainBackdrop(
                 onDrawBackdrop = onDrawBackdrop,
                 onDrawSurface = onDrawSurface,
                 onDrawFront = onDrawFront,
-                backdropScale = backdropScale.coerceIn(0.1f, 1f)
+                backdropScale = backdropScale.coerceIn(0.1f, 1f),
+                sampleOnce = false,
+                backdropScaleFactor = OneScale
             )
         )
 }
@@ -131,7 +136,34 @@ fun Modifier.drawBackdrop(
      * useful default — see `glassSurface`. Not safe with a `layerBlock`: that block is inverted
      * against this scope's density when the backdrop is sampled, and a scaled density would move it.
      */
-    backdropScale: Float = 1f
+    backdropScale: Float = 1f,
+    /**
+     * Fluid Engine addition: sample the backdrop **once**, and keep that capture while the surface
+     * moves.
+     *
+     * The default behaviour re-captures whenever the surface's position against its sources changes,
+     * which while a list scrolls is every frame of every visible pane — and each capture re-runs the
+     * effect chain. On a tablet's grouped-list page that alone is hundreds of milliseconds of render
+     * thread per frame, and none of it buys anything a person can see when what is being sampled is
+     * an ambient wash: soft gradients riding along with the pane and soft gradients fixed to the
+     * screen are indistinguishable in motion.
+     *
+     * Only ever set this for a surface whose backdrop is **static and featureless** — the ambient
+     * canvas. Glass over live content (bars over a scrolling body) must keep re-sampling, or it
+     * visibly carries a stale copy of the page around.
+     */
+    sampleOnce: Boolean = false,
+    /**
+     * Fluid Engine addition: an extra factor on [backdropScale], read per draw, for lowering the
+     * whole chain's resolution while the page is moving.
+     *
+     * The effect chain is charged per pixel, so halving the capture is a quarter of the work — by
+     * far the largest lever the material has. It is **quantised** on purpose: a scale that varied
+     * continuously would change the recorded size on every frame, and changing the recorded size is
+     * the one thing that forces a re-capture. Two steps mean two re-captures per fling instead of
+     * sixty.
+     */
+    backdropScaleFactor: () -> Float = OneScale
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -183,7 +215,9 @@ fun Modifier.drawBackdrop(
                 onDrawBackdrop = onDrawBackdrop,
                 onDrawSurface = onDrawSurface,
                 onDrawFront = onDrawFront,
-                backdropScale = if (layerBlock != null) 1f else backdropScale.coerceIn(0.1f, 1f)
+                backdropScale = if (layerBlock != null) 1f else backdropScale.coerceIn(0.1f, 1f),
+                sampleOnce = sampleOnce,
+                backdropScaleFactor = backdropScaleFactor
             )
         )
 }
@@ -198,7 +232,9 @@ private class DrawBackdropElement(
     val onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit,
     val onDrawSurface: (DrawScope.() -> Unit)?,
     val onDrawFront: (DrawScope.() -> Unit)?,
-    val backdropScale: Float
+    val backdropScale: Float,
+    val sampleOnce: Boolean,
+    val backdropScaleFactor: () -> Float
 ) : ModifierNodeElement<DrawBackdropNode>() {
 
     override fun create(): DrawBackdropNode {
@@ -212,7 +248,9 @@ private class DrawBackdropElement(
             onDrawBackdrop = onDrawBackdrop,
             onDrawSurface = onDrawSurface,
             onDrawFront = onDrawFront,
-            backdropScale = backdropScale
+            backdropScale = backdropScale,
+            sampleOnce = sampleOnce,
+            backdropScaleFactor = backdropScaleFactor
         )
     }
 
@@ -230,6 +268,8 @@ private class DrawBackdropElement(
         node.onDrawSurface = onDrawSurface
         node.onDrawFront = onDrawFront
         node.backdropScale = backdropScale
+        node.sampleOnce = sampleOnce
+        node.backdropScaleFactor = backdropScaleFactor
         node.invalidateDrawCache()
     }
 
@@ -260,6 +300,8 @@ private class DrawBackdropElement(
         if (onDrawSurface != other.onDrawSurface) return false
         if (onDrawFront != other.onDrawFront) return false
         if (backdropScale != other.backdropScale) return false
+        if (sampleOnce != other.sampleOnce) return false
+        if (backdropScaleFactor != other.backdropScaleFactor) return false
 
         return true
     }
@@ -275,6 +317,8 @@ private class DrawBackdropElement(
         result = 31 * result + (onDrawSurface?.hashCode() ?: 0)
         result = 31 * result + (onDrawFront?.hashCode() ?: 0)
         result = 31 * result + backdropScale.hashCode()
+        result = 31 * result + sampleOnce.hashCode()
+        result = 31 * result + backdropScaleFactor.hashCode()
         return result
     }
 }
@@ -294,6 +338,25 @@ internal fun fitToTexture(requested: Float, width: Float, height: Float): Float 
     return requested.coerceAtMost(cap).coerceAtLeast(MinBackdropScale)
 }
 
+/**
+ * Snaps a live quality factor onto the two values a capture is allowed to have.
+ *
+ * Resolution is the one knob that cannot be animated: it decides the recorded size, and a changed
+ * recorded size *is* a re-capture. Continuous would therefore re-run the whole chain on every frame
+ * of the very gesture it is trying to make cheaper. Two steps, with the switch well inside the fast
+ * range, means one re-capture on the way down and one on the way back.
+ */
+internal fun quantiseScaleFactor(factor: Float): Float {
+    if (!factor.isFinite()) return 1f
+    return if (factor < ReducedScaleThreshold) ReducedScaleFactor else 1f
+}
+
+/** Below this quality level the capture drops to [ReducedScaleFactor]. */
+internal const val ReducedScaleThreshold = 0.7f
+
+/** Half the linear resolution: a quarter of the pixels through the effect chain. */
+internal const val ReducedScaleFactor = 0.5f
+
 /** Pixels. Half of the 8192 that has been the floor of the Android hardware requirement for years. */
 internal const val MaxBackdropTextureDimension = 4096f
 
@@ -310,7 +373,9 @@ private class DrawBackdropNode(
     var onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit,
     var onDrawSurface: (DrawScope.() -> Unit)?,
     var onDrawFront: (DrawScope.() -> Unit)?,
-    var backdropScale: Float
+    var backdropScale: Float,
+    var sampleOnce: Boolean,
+    var backdropScaleFactor: () -> Float
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode, Modifier.Node() {
 
     private val effectScope =
@@ -323,7 +388,14 @@ private class DrawBackdropNode(
 
     private val layoutLayerBlock: GraphicsLayerScope.() -> Unit = {
         clip = true
-        shape = shapeProvider.shape
+        // Fluid Engine change: the *layer* is clipped by the shape's rounded-rect reading, not by
+        // its exact path. A `RenderNode` clipped to a generic path cannot use the hardware's
+        // rounded-rect clip and falls back to masking the whole node offscreen — per pane, per
+        // frame. What the eye actually reads as the corner is the tint and the specular edge drawn
+        // on the surface, and those keep the exact continuous silhouette; the layer clip only has
+        // to stop the refracted image spilling, which a rounded rect at the same radii does to
+        // within a fraction of a pixel.
+        shape = shapeProvider.fastClipShape
         // Fluid Engine change: upstream forces `CompositingStrategy.Offscreen` here. That routes the
         // whole surface — backdrop draw, tint, and every child — through a texture the size of the
         // node, re-rasterised on every frame in which the refracted image changes... which while the
@@ -450,11 +522,19 @@ private class DrawBackdropNode(
             //
             // `sourceOffsets == null` is the honest "cannot tell" and keeps the original
             // record-every-frame behaviour for backdrops that are not made of recordings.
+            //
+            // Unless the surface asked to [sampleOnce]: then movement is deliberately not a reason —
+            // its backdrop is a static wash, and a wash riding along with the pane is
+            // indistinguishable from one fixed to the screen. See `drawBackdrop`.
             val needsRecord = surfaceDirty ||
-                sourceOffsets == null ||
                 recordedSize != recordSize ||
-                recordedSourceOffsets != sourceOffsets ||
-                recordedSelfOffset != selfOffset
+                if (sampleOnce) {
+                    false
+                } else {
+                    sourceOffsets == null ||
+                        recordedSourceOffsets != sourceOffsets ||
+                        recordedSelfOffset != selfOffset
+                }
 
             if (needsRecord) {
                 recordLayer(
@@ -493,7 +573,11 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
-        effectiveScale = fitToTexture(backdropScale, size.width, size.height)
+        effectiveScale = fitToTexture(
+            backdropScale * quantiseScaleFactor(backdropScaleFactor()),
+            size.width,
+            size.height
+        )
         if (effectScope.update(this, effectiveScale)) {
             updateEffects()
         }

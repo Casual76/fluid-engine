@@ -18,7 +18,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -155,7 +157,16 @@ fun rememberCombinedGlassBackdrop(
 fun Modifier.glassBackdropSource(state: GlassBackdropState): Modifier {
   // A combined state has no layer of its own; the states it was built from record theirs.
   val layer = state.layerBackdrop ?: return this
-  return this.layerBackdrop(layer)
+  return this
+    .layerBackdrop(layer)
+    // Rasterised **once**, sampled many times. A recording holds its content by reference, so
+    // every pane replaying it re-executes the source's entire op stream — and a screen's chrome
+    // holds many panes: a bar, a rail, the controls sitting on them. On a tablet's notice board
+    // that was the whole list's fills and glyphs re-drawn some eight times per frame, three
+    // hundred milliseconds of render thread that no single surface could be blamed for.
+    // Compositing the source offscreen puts one texture between the op stream and its consumers:
+    // the body rasterises once per change, and every pane after that samples a quad.
+    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
 }
 
 /**
@@ -720,6 +731,15 @@ fun Modifier.glassSurface(
   pressed: () -> Float = { 0f },
   exports: GlassBackdropState? = null,
   layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
+  /**
+   * Sample the backdrop once and keep the capture while the pane moves, instead of re-capturing —
+   * and re-running the whole effect chain — on every frame of a scroll. Defaults to on for
+   * [GlassRole.Content], whose backdrop is the static ambient wash: gradients riding along with the
+   * pane are indistinguishable from gradients fixed behind it, and the saving is the entire
+   * per-frame cost of content glass. Never right for glass over live content — a bar over a
+   * scrolling body must keep re-sampling or it carries a stale copy of the page around.
+   */
+  sampleOnce: Boolean = role == GlassRole.Content,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
 
@@ -731,16 +751,24 @@ fun Modifier.glassSurface(
   }
 
   val currentIntensity by rememberUpdatedState(intensity)
+  // Il livello di qualità è letto come *stato*, dentro le lambda che lo usano, non catturato qui:
+  // così un cambio di livello ridisegna e basta, senza ricomporre la superficie che lo porta.
+  val quality = LocalFluidGlassQuality.current
+  val qualityFactor: () -> Float = remember(quality) { { quality?.level ?: 1f } }
   val currentDepth by rememberUpdatedState(opticalDepth)
   val currentPressed by rememberUpdatedState(pressed)
   val shapeBlock = remember(shape) { { shape } }
   val blurRadius = state.blurRadius
 
-  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius) {
+  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius, quality) {
     {
       val amount = clampGlassUnit(currentIntensity())
       if (amount > 0.001f) {
-        val depth = clampGlassUnit(currentDepth()) * amount
+        // Sfocatura e tinta non lo vedono mai: sono le due cose che tengono leggibile il testo
+        // sopra il vetro. Quello che scala è la *forma* del materiale, che durante uno
+        // scorrimento veloce nessuno guarda. Vedi [FluidGlassQuality].
+        val q = quality?.level ?: 1f
+        val depth = clampGlassUnit(currentDepth()) * amount * q
         val press = clampGlassUnit(currentPressed())
 
         if (resolved.vibrancy != 1f) {
@@ -748,26 +776,35 @@ fun Modifier.glassSurface(
           // before it has any blur announces itself as an effect.
           colorControls(saturation = 1f + (resolved.vibrancy - 1f) * amount)
         }
-        blur(blurRadius.toPx() * resolved.blurScale * amount)
+        // La sfocatura è la parte più cara della catena, ed è l'unica il cui compito — tenere
+        // leggibile il testo stampato sopra — durante un lancio non esiste: a quella velocità non
+        // si legge niente. Quindi scende, ma non a zero e non fino in fondo: sotto una certa
+        // frazione il vetro smette di sembrare vetro e il cambio si vedrebbe quando la pagina si
+        // ferma. Vedi [FluidGlassQuality].
+        val blurQuality = FluidGlassBlurFloor + (1f - FluidGlassBlurFloor) * q
+        blur(blurRadius.toPx() * resolved.blurScale * amount * blurQuality)
         lens(
           refractionHeight = resolved.refractionHeight.toPx() * depth,
           refractionAmount = resolved.refractionAmount.toPx() * depth *
             (1f + press * resolved.pressedDepthBoost),
           depthEffect = resolved.depthEffect,
-          chromaticAberration = resolved.dispersion,
+          // Sette campioni per pixel sono la prima cosa che se ne va: a pagina in movimento la
+          // frangia cromatica non si distingue, e a pagina ferma torna intera.
+          chromaticAberration = resolved.dispersion && q > 0.75f,
         )
       }
     }
   }
 
-  val highlight: () -> Highlight? = remember(resolved) {
+  val highlight: () -> Highlight? = remember(resolved, quality) {
     val style = HighlightStyle.Default(
       color = Color.White.copy(alpha = 0.5f),
       angle = resolved.highlightAngle,
       falloff = 1f,
     );
     {
-      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth())
+      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth()) *
+        (quality?.level ?: 1f)
       if (resolved.highlightAlpha <= 0f || amount <= 0.001f) {
         null
       } else {
@@ -781,9 +818,10 @@ fun Modifier.glassSurface(
     }
   }
 
-  val shadow: () -> Shadow? = remember(resolved) {
+  val shadow: () -> Shadow? = remember(resolved, quality) {
     {
-      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth())
+      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth()) *
+        (quality?.level ?: 1f)
       if (resolved.shadowAlpha <= 0f || amount <= 0.001f) {
         null
       } else {
@@ -796,9 +834,10 @@ fun Modifier.glassSurface(
     }
   }
 
-  val innerShadow: () -> InnerShadow? = remember(resolved) {
+  val innerShadow: () -> InnerShadow? = remember(resolved, quality) {
     {
-      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth())
+      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth()) *
+        (quality?.level ?: 1f)
       if (resolved.innerShadowAlpha <= 0f || amount <= 0.001f) {
         null
       } else {
@@ -837,6 +876,11 @@ fun Modifier.glassSurface(
       } else {
         glassResolutionScale(blurRadius.value * resolved.blurScale) * resolved.backdropResolution
       },
+      sampleOnce = sampleOnce,
+      // La leva più grande che il materiale ha, e la ragione per cui vale la pena avere un livello
+      // di qualità: la catena si paga per pixel, quindi dimezzare la cattura è un quarto del
+      // lavoro. Vedi [FluidGlassQuality] e `quantiseScaleFactor`.
+      backdropScaleFactor = qualityFactor,
     )
 }
 
@@ -862,6 +906,9 @@ internal fun glassResolutionScale(blurRadiusDp: Float): Float {
 
 /** Lowest fraction a heavily frosted pane may drop to. */
 internal const val GlassMinResolutionScale = 0.4f
+
+/** Quanta sfocatura resta a qualità minima. Vedi [FluidGlassQuality]. */
+internal const val FluidGlassBlurFloor = 0.45f
 
 /** Radius at or above which that floor is safe, in dp. */
 internal const val GlassFullQualityBlurDp = 10f

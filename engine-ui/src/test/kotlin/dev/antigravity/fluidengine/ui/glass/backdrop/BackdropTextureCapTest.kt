@@ -38,6 +38,19 @@ class BackdropTextureCapTest {
   }
 
   @Test
+  fun theScaleFactorOnlyEverTakesTwoValues() {
+    // Resolution decides the recorded size, and a changed recorded size is a re-capture: a
+    // continuously varying factor would re-run the whole chain on every frame of the gesture it
+    // exists to make cheaper.
+    assertEquals(1f, quantiseScaleFactor(1f), 0f)
+    assertEquals(1f, quantiseScaleFactor(0.9f), 0f)
+    assertEquals(ReducedScaleFactor, quantiseScaleFactor(0.25f), 0f)
+    assertEquals(ReducedScaleFactor, quantiseScaleFactor(0f), 0f)
+    // A malformed factor must never strip resolution off a still page.
+    assertEquals(1f, quantiseScaleFactor(Float.NaN), 0f)
+  }
+
+  @Test
   fun anAbsurdSurfaceStopsAtTheFloorRatherThanAtZero() {
     // A scale of zero is a layer of one pixel and a division by nothing downstream. Whatever the
     // caller has built, the answer stays a number the effect chain can use.

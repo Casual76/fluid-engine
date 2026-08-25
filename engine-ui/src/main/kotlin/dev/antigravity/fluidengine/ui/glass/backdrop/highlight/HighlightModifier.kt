@@ -34,6 +34,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -91,6 +94,24 @@ internal class HighlightElement(
     }
 }
 
+/**
+ * Fluid Engine addition: the fraction of its own resolution an auxiliary layer is recorded at.
+ *
+ * These layers hold blurred strokes and shadows, never content, so what they cost is measured in
+ * megabytes of GPU resource rather than in detail. A pane the size of a tablet's grouped list is
+ * twenty megabytes per auxiliary layer at full resolution, and a screenful of panes exhausts HWUI's
+ * resource budget — at which point the cache thrashes and *every* small texture on screen is
+ * re-uploaded per frame. Capping the long edge bounds that, and a blurred edge cannot show it.
+ */
+internal fun layerResolutionScale(width: Float, height: Float, maxPx: Float): Float {
+    val longest = maxOf(width, height)
+    if (!longest.isFinite() || longest <= maxPx) return 1f
+    return (maxPx / longest).coerceAtLeast(0.1f)
+}
+
+/** Long edge, in device pixels, past which a highlight ring is recorded smaller. */
+internal const val HighlightLayerMaxPx = 1024f
+
 internal class HighlightNode(
     var shapeProvider: ShapeProvider,
     var highlight: () -> Highlight?
@@ -110,6 +131,19 @@ internal class HighlightNode(
 
     private var prevStyle: HighlightStyle? = null
 
+    // Fluid Engine change: what makes the recorded ring stale. Upstream re-recorded the layer on
+    // every draw, and the ring is drawn with a `BlurMaskFilter` — a mask the size of the pane,
+    // blurred on the CPU and uploaded again. That is invisible on a static screen and ruinous on a
+    // scrolling one: a pane's draw re-runs on every frame its screen records itself (the glass
+    // pipeline does exactly that), so every visible pane re-blurred a multi-megapixel mask per
+    // frame. The ring only actually changes with the geometry and the stroke; `alpha` — the one
+    // thing that animates — is a layer property and needs no re-record at all.
+    private var recordedSize: IntSize = IntSize.Zero
+    private var recordedShape: Any? = null
+    private var recordedWidthPx: Float = Float.NaN
+    private var recordedBlurPx: Float = Float.NaN
+    private var recordedStyle: HighlightStyle? = null
+
     override fun ContentDrawScope.draw() {
         val highlight = highlight()
         if (highlight == null || highlight.width.value <= 0f) {
@@ -124,36 +158,69 @@ internal class HighlightNode(
             val density: Density = this
             val layoutDirection = layoutDirection
 
+            // Fluid Engine change: the ring's layer is area-capped. A grouped-list pane recorded a
+            // full-resolution texture of itself to hold a hairline ring, twenty megabytes a pane on
+            // a tablet — and a screenful of panes blew straight through HWUI's resource budget,
+            // which then evicted and re-uploaded every small texture on every frame. The ring is a
+            // blurred stroke: rendered at a fraction of the pane and drawn back up, the difference
+            // sits inside its own blur.
+            val resScale = layerResolutionScale(size.width, size.height, HighlightLayerMaxPx)
+            val scaledSize = Size(size.width * resScale, size.height * resScale)
             val safeSize =
                 IntSize(
-                    ceil(size.width).toInt() + 2,
-                    ceil(size.height).toInt() + 2
+                    ceil(scaledSize.width).toInt() + 2,
+                    ceil(scaledSize.height).toInt() + 2
                 )
 
-            val outline = shapeProvider.shape.createOutline(size, layoutDirection, density)
-            val clipPath =
-                if (outline is Outline.Rounded) {
-                    clipPath ?: Path().also { clipPath = it }
-                } else {
-                    null
-                }
-
-            configurePaint(highlight)
+            val widthPx = ceil(highlight.width.toPx().fastCoerceAtMost(size.minDimension / 2f)) * 2f * resScale
+            val blurPx = highlight.blurRadius.toPx() * resScale
+            val shape = shapeProvider.shape
+            val needsRecord = recordedSize != safeSize ||
+                recordedShape !== shape ||
+                recordedWidthPx != widthPx ||
+                recordedBlurPx != blurPx ||
+                recordedStyle != highlight.style
 
             highlightLayer.alpha = highlight.alpha
             highlightLayer.blendMode = highlight.style.blendMode
-            highlightLayer.record(safeSize) {
-                translate(1f, 1f) {
-                    val canvas = drawContext.canvas
-                    canvas.save()
-                    canvas.clipOutline(outline, clipPath)
-                    canvas.drawOutline(outline, paint)
-                    canvas.restore()
+
+            if (needsRecord) {
+                val outline = shape.createOutline(scaledSize, layoutDirection, density)
+                val clipPath =
+                    if (outline is Outline.Rounded) {
+                        clipPath ?: Path().also { clipPath = it }
+                    } else {
+                        null
+                    }
+
+                configurePaint(highlight, widthPx, blurPx)
+
+                highlightLayer.record(safeSize) {
+                    translate(1f, 1f) {
+                        val canvas = drawContext.canvas
+                        canvas.save()
+                        canvas.clipOutline(outline, clipPath)
+                        canvas.drawOutline(outline, paint)
+                        canvas.restore()
+                    }
                 }
+                recordedSize = safeSize
+                recordedShape = shape
+                recordedWidthPx = widthPx
+                recordedBlurPx = blurPx
+                recordedStyle = highlight.style
             }
 
-            translate(-1f, -1f) {
-                drawLayer(highlightLayer)
+            if (resScale != 1f) {
+                scale(1f / resScale, pivot = Offset.Zero) {
+                    translate(-1f, -1f) {
+                        drawLayer(highlightLayer)
+                    }
+                }
+            } else {
+                translate(-1f, -1f) {
+                    drawLayer(highlightLayer)
+                }
             }
         }
     }
@@ -161,6 +228,8 @@ internal class HighlightNode(
     override fun onAttach() {
         val graphicsContext = requireGraphicsContext()
         highlightLayer = graphicsContext.createGraphicsLayer()
+        // A fresh layer holds nothing: whatever was recorded belongs to the released one.
+        recordedSize = IntSize.Zero
     }
 
     override fun onDetach() {
@@ -174,10 +243,10 @@ internal class HighlightNode(
         prevStyle = null
     }
 
-    private fun DrawScope.configurePaint(highlight: Highlight) {
+    private fun DrawScope.configurePaint(highlight: Highlight, strokeWidthPx: Float, blurPx: Float) {
         paint.color = highlight.style.color
-        paint.strokeWidth = ceil(highlight.width.toPx().fastCoerceAtMost(size.minDimension / 2f)) * 2f
-        paint.blur(highlight.blurRadius.toPx())
+        paint.strokeWidth = strokeWidthPx
+        paint.blur(blurPx)
         if (isRuntimeShaderSupported()) {
             val shader =
                 with(highlight.style) {

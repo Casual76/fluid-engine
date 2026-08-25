@@ -26,7 +26,12 @@
  */
 package dev.antigravity.fluidengine.ui.glass.backdrop.internal
 
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
@@ -65,6 +70,44 @@ internal class ShapeProvider(val shapeBlock: () -> Shape) {
             }
 
             return _outline!!
+        }
+    }
+
+    /**
+     * Fluid Engine addition: the same silhouette, expressed so a `RenderNode` can clip to it in
+     * hardware.
+     *
+     * A layer clipped to an `Outline.Generic` cannot use the GPU's rounded-rect clip, so HWUI masks
+     * the entire node offscreen instead — measurably, per pane, on every frame of a scroll. This
+     * reads the corner radii off whatever shape is in scope and hands back the rounded-rect form of
+     * it, which differs from the continuous one only in how the curvature ramps *inside* the corner.
+     * The visible corner is drawn by the surface itself and is untouched.
+     */
+    val fastClipShape = object : Shape {
+
+        override fun createOutline(
+            size: Size,
+            layoutDirection: LayoutDirection,
+            density: Density
+        ): Outline {
+            val exact = shape.createOutline(size, layoutDirection, density)
+            if (exact !is Outline.Generic) return exact
+            val source = shapeBlock()
+            if (source !is CornerBasedShape) return exact
+            val topStart = source.topStart.toPx(size, density)
+            val topEnd = source.topEnd.toPx(size, density)
+            val bottomEnd = source.bottomEnd.toPx(size, density)
+            val bottomStart = source.bottomStart.toPx(size, density)
+            val rtl = layoutDirection == LayoutDirection.Rtl
+            return Outline.Rounded(
+                RoundRect(
+                    rect = Rect(Offset.Zero, size),
+                    topLeft = CornerRadius(if (rtl) topEnd else topStart),
+                    topRight = CornerRadius(if (rtl) topStart else topEnd),
+                    bottomRight = CornerRadius(if (rtl) bottomStart else bottomEnd),
+                    bottomLeft = CornerRadius(if (rtl) bottomEnd else bottomStart),
+                )
+            )
         }
     }
 }

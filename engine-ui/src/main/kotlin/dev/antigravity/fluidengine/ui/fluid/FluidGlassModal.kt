@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.SideEffect
@@ -341,7 +342,18 @@ private fun FluidGlassModalLayer(
     }
   }
 
-  val presence = fade.value
+  // Read through a lambda by whoever *draws*, never as a composed value. `fade.value` read here
+  // subscribed this whole layer — scrim, lifted row, popover, its `Layout` — to every frame of
+  // every arrival, and recomposing means re-measuring the modal's content: a paragraph-heavy
+  // detail re-laid-out sixty times a second is precisely the stutter an entrance cannot have.
+  // Composition needs exactly one coarse fact, and it is the boolean below.
+  val presence: () -> Float = { fade.value }
+
+  // `derivedStateOf` recomputes on every animation frame but invalidates composition only when
+  // the boolean flips — once per exit, instead of once per frame.
+  val exitFinished by remember {
+    derivedStateOf { fade.value <= 0.001f && !fade.isRunning && !scaleY.isRunning }
+  }
 
   // The content is held from the last frame the modal was open, and that is not tidiness. A feature
   // writes `visible = selected != null` and a lambda that reads `selected!!`; the instant it
@@ -364,7 +376,7 @@ private fun FluidGlassModalLayer(
 
   // The fade is short and the springs are not, and a sheet slides out on the springs. Dropping
   // the layer the moment the alpha reached zero cut every exit in half.
-  if (!entry.visible && presence <= 0.001f && !fade.isRunning && !scaleY.isRunning) {
+  if (!entry.visible && exitFinished) {
     // Whatever was lifted out of the page is handed back to it here, and not one frame earlier.
     SideEffect { entry.lifted = false }
     return
@@ -407,7 +419,7 @@ private fun FluidGlassModalLayer(
     FluidGlassModalScrim(
       backdrop = backdrop,
       exports = scrimGlass,
-      intensity = { presence * (1f - backProgress * 0.6f) },
+      intensity = { presence() * (1f - backProgress * 0.6f) },
       onDismiss = entry.onDismissRequest,
     )
 
@@ -443,7 +455,7 @@ private fun FluidGlassModalLayer(
         preview = lastPreview,
         bounds = lastPreviewBounds,
         backdrop = popoverBackdrop,
-        presence = { presence },
+        presence = presence,
         // The row is already its own size, so it only has the lift to travel: a few percent, on the
         // same springs, so the row and the menu move as one object.
         scaleX = { lerp(1f, FluidLiftedPreviewScale, scaleX.value) * (1f - backProgress * 0.05f) },
@@ -457,7 +469,7 @@ private fun FluidGlassModalLayer(
       backdrop = popoverBackdrop,
       compact = menu || expand,
       overAnchor = expand,
-      presence = { presence },
+      presence = presence,
       growth = { scaleX.value },
       growthCross = { scaleY.value },
       retreat = { backProgress },

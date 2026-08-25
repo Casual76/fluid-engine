@@ -668,9 +668,18 @@ fun FluidScreen(
   // avvolge tutto l'albero in un Surface si ritrova il titolo grande nero su fondo nero. Il primo
   // tentativo aveva avvolto solo la lista, e il titolo restava nero lo stesso: quello che si vede
   // durante il morph e' la copia della **barra**, trasformata sull'ancora del titolo grande.
+  // Il vetro si assottiglia mentre la pagina corre e torna intero quando si ferma: vedi
+  // [FluidGlassQuality]. Sta qui e non nelle singole superfici perché la velocità e' un fatto
+  // della *pagina*, e perché cosi' ogni schermata dell'app lo eredita senza aggiungere una riga.
+  val glassQuality = rememberFluidGlassQuality()
+  val qualityConnection = remember(glassQuality) {
+    fluidGlassQualityScrollConnection(glassQuality)
+  }
+
   CompositionLocalProvider(
     LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     LocalFluidCanvasBackdrop provides canvasBackdrop,
+    LocalFluidGlassQuality provides glassQuality,
   ) {
   Box(
     modifier = modifier
@@ -700,6 +709,7 @@ fun FluidScreen(
         modifier = Modifier
           .fillMaxSize()
           .nestedScroll(overscroll)
+          .nestedScroll(qualityConnection)
           .onSizeChanged { overscroll.updateViewport(it.height.toFloat()) }
           // The background is painted *inside* the recorded region, not behind it. A snapshot of
           // text on transparency blurs into a faint smear that the sharp original still shows

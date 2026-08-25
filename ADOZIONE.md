@@ -250,9 +250,50 @@ un formato:
 **Guardato sul tablet**: nativo e in formato telefono (`wm size 1080x2340`), chiaro e scuro, Voti
 con tutti gli 84 voti, pop-up della circolare aperto dalla riga, chiuso da scrim e da back.
 
-**Resta della fase 1**: menù contestuali (1.4 del piano), gli altri ~17 `FluidSheet` (1.5), la
-verifica esplicita di `SettingsPaneMotionTest` (1.6), e una passata vera sul telefono quando torna
-disponibile.
+---
+
+## Fase 9 — la fase 1 chiusa: interazioni, non superfici (2026-08-25, engine 1.6.0 → 1.8.0, app 7.4.0)
+
+Il giro di QA di Alessio su telefono e tablet ha spostato il lavoro dal *come appare* al *come
+risponde*, ed è lì che stavano i difetti veri — quasi tutti dell'engine, quasi tutti della stessa
+famiglia: **qualcosa si muove e qualcos'altro tiene una fotografia di dove stava prima.**
+
+- **La qualità che scende scorrendo** (1.6.0–1.7.0, `FluidGlassQuality`): durante un lancio la
+  sfocatura cala verso un pavimento, la dispersione si spegne, la cattura si dimezza; a pagina ferma
+  tutto risale. Approvata a occhio: "non si vede nemmeno".
+- **La banda senza vetro sulla capsula**: `layerCoordinates` con `neverEqualPolicy` + cattura
+  sporcata al cambio di backdrop. Una sorgente che si muove ora ridisegna chi la campiona.
+- **La pillola che rompeva i tasti**: la traslazione stava nel layer del vetro, DOPO i gesti — la
+  zona di tocco restava sul primo segmento. Ora sta prima, come in `FluidTabBar`.
+- **La chiusura dei pop-up**: la lambda del contenuto è UN contenitore mutabile per call site — non
+  esiste "l'ultima lambda buona" da rigiocare, alla chiusura le catture sono già null. La variante
+  `FluidGlassModalPortal(item = ...)` congela il dato, e il pannello esce intero: morpha nel
+  rettangolo esatto della riga che l'ha aperto (richiesto esplicitamente: "il pulsante diventa il
+  pannello"), col vetro `sampleOnce` che viaggia con lui e l'alpha che si dissolve prima di toccare
+  la riga.
+- **La riga che perdeva il testo** scegliendo un'azione dal menù: la preview sollevata sfumava sul
+  suo orologio mentre la riga vera restava nascosta fino a fine uscita. La preview ora non sfuma
+  mai: ai due estremi coincide con la riga al pixel, e lo scambio è invisibile.
+- **L'indice sezioni rifatto**: a riposo tacche e basta, toccato si dispiega in una rotaia di vetro
+  a tutta altezza con una lente che segue il dito. La striscia consuma i propri gesti, o la lista
+  glielo ruba.
+- **I menù sui tasti barra** (`FluidBarAction(actions = ...)`): tenuto premuto, il tasto diventa il
+  menù (presentazione Expand). E il clip degli angoli ora prende la stessa decisione per-misura
+  della tinta: niente più mezzelune chiare sui pannelli.
+
+Nell'app: **tutti i 17 `FluidSheet` sono diventati portali** (1.5 del piano ✅), i menù contestuali
+fanno cose vere (firma dalla lista, allegati aperti direttamente, una voce per file), l'Orario
+mostra un giorno alla volta coi tasti che scelgono invece di scrollare, il rail del tablet non
+esiste più (capsula ripiegabile in basso a sinistra, su ogni formato), e i pannelli di vetro sono
+a 8 righe perché il fotogramma d'ingresso di un pannello nuovo era il singhiozzo residuo delle
+liste lunghe.
+
+**Pubblicata** come 7.4.0 stabile sul Pampa Store, engine agganciato pulito a `engine-1.8.0`,
+doctor verde, test engine e app verdi, guardata su entrambi i dispositivi.
+
+**Noto e rimandato**: dopo "Firma per confermare" la lista si svuota per ~1 s durante il sync
+forzato (repository, non engine); l'uscita del pop-up sfiora ancora la riga per un fotogramma —
+lo scambio perfetto richiederebbe il lift della riga anche per i portali, come per i menù.
 
 ---
 

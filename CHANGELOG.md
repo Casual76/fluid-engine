@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.2 - 2026-08-26
+
+- Il contenuto viaggia con la superficie: fluidPhysicsContent (Incoming) trasla sul centro corrente della silhouette e scala sulla taglia vera del pannello, non sull'orologio. Il testo e' attaccato al vetro per costruzione, mai una tendina tirata su un cartello gia' scritto.
+
+
 ## 1.9.1 - 2026-08-26
 
 - Lo scalo dei viaggi gruppo<->sagoma e' una goccia, non un pannello: raggio pieno, cosi' la tappa si legge come materiale che si raccoglie, non come un'altra forma.

@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.8.6 - 2026-08-25
+
+- L'indice delle sezioni **condivide il gesto con la lista** invece di sottrarglielo. Compose ferma il test di collisione al primo fratello che colpisce: ogni tocco che finiva sul nastro era un tocco che la lista non sentiva mai, e siccome il nastro si prende il gesto solo dopo una pressione lunga, un dito che atterrava sulla barretta e trascinava subito non otteneva **niente** - ne' scorrimento ne' indice. Rimpicciolire il bersaglio lo rendeva raro, non giusto. Ora entrambi ricevono tutto: la lista agisce sul movimento, il nastro sull'immobilita'
+- E la barretta a riposo si vede. A quattro dp, con l'alfa di un indicatore discreto, sopra una lavata chiara e a filo del bordo destro, era invisibile: misurata su una registrazione, non c'era una sola colonna di pixel che si staccasse dallo sfondo
+- La riga torna appena il pannello comincia a rientrare, invece che dopo un'attesa. L'attesa doveva coprire il rientro e lasciava la riga assente per quattrocento millisecondi buoni, dopo i quali ricompariva dal niente
+
+
 ## 1.8.5 - 2026-08-25
 
 - Il pop-up riparte dai bordi del tasto che l'ha aperto invece di arrivare dal centro come una forma nuova. Torna a nascere dal rettangolo dell'ancora, ma facendo viaggiare il **bordo** invece di scalare il pannello: la scala sui due assi era la ragione per cui il testo si schiacciava, un bordo che viaggia non ha fattori. Il contenuto dentro prende una scala sola, uniforme, di pochi punti percentuali, cosi' cresce insieme al bordo invece di stare fermo mentre una tendina lo scopre

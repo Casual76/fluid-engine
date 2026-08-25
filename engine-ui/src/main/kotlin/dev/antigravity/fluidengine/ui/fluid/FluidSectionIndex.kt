@@ -46,6 +46,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.node.PointerInputModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.DelegatingNode
+import androidx.compose.ui.input.pointer.SuspendingPointerInputModifierNode
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -283,7 +292,7 @@ fun FluidSectionIndex(
             val barH = lerpFloat(restBarHPx, markPx, t)
             val barX = lerpFloat(size.width - barW, (size.width - barW) / 2f, t)
             drawRoundRect(
-              color = markColor.copy(alpha = lerpFloat(0.55f, 1f, t)),
+              color = markColor.copy(alpha = lerpFloat(0.85f, 1f, t)),
               topLeft = Offset(barX, centerY - barH / 2f),
               size = Size(barW, barH),
               cornerRadius = CornerRadius(barW / 2f, barW / 2f),
@@ -407,7 +416,7 @@ fun FluidSectionIndex(
               currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Animated)
             },
           )
-          .pointerInput(sampledSections, touchSlop, reducedMotion) {
+          .sharedPointerInput(sampledSections, touchSlop, reducedMotion) {
             awaitEachGesture {
               val down = awaitFirstDown(requireUnconsumed = false)
 
@@ -495,9 +504,15 @@ object FluidSectionIndexDefaults {
   val ActiveMarkWidth = 16.dp
   val MarkSpacing = 10.dp
 
-  /** La barretta a riposo: larghezza e altezza di un normale indicatore di scorrimento. */
-  val RestBarWidth = 4.dp
-  val RestBarHeight = 40.dp
+  /**
+   * La barretta a riposo.
+   *
+   * Cinque per cinquanta, non quattro per quaranta: a quattro dp, con l'alfa di un indicatore
+   * discreto, sopra una lavata chiara e a filo del bordo destro, era **invisibile** — misurata su
+   * una registrazione, non c'era una sola colonna di pixel che si staccasse dallo sfondo.
+   */
+  val RestBarWidth = 5.dp
+  val RestBarHeight = 50.dp
 
   /** Quanta altezza percorre la barretta a riposo, e i limiti entro cui resta leggibile. */
   const val RestTrackFraction: Float = 0.42f
@@ -650,4 +665,69 @@ private fun Modifier.sectionIndexSemantics(
       null
     },
   )
+}
+
+
+/**
+ * `pointerInput` that lets the nodes **underneath** see the same gesture.
+ *
+ * Compose stops hit-testing at the first sibling it lands on. That is the right default and it was
+ * the wrong one here: this strip stands over a scrolling list, so every touch that fell on it was a
+ * touch the list never heard about """ + D + u""" and since the rail only claims a gesture after a long press,
+ * a finger that landed on the bar and immediately dragged got **nothing at all**. Not a scroll, not
+ * an index: a gesture that vanished. Shrinking the target made it rarer without making it right.
+ *
+ * Sharing removes the choice from geometry entirely. Both nodes receive every event; the list acts
+ * on movement, the rail acts on stillness, and whichever recognises its own gesture first consumes
+ * it. Nothing has to be small any more to be safe.
+ */
+private fun Modifier.sharedPointerInput(
+  key1: Any?,
+  key2: Any?,
+  key3: Any?,
+  block: suspend PointerInputScope.() -> Unit,
+): Modifier = this then SharedPointerElement(key1, key2, key3, block)
+
+private data class SharedPointerElement(
+  private val key1: Any?,
+  private val key2: Any?,
+  private val key3: Any?,
+  private val block: suspend PointerInputScope.() -> Unit,
+) : ModifierNodeElement<SharedPointerNode>() {
+  override fun create(): SharedPointerNode = SharedPointerNode(block)
+
+  override fun update(node: SharedPointerNode) {
+    node.update(block)
+  }
+
+  override fun InspectorInfo.inspectableProperties() {
+    name = "sharedPointerInput"
+  }
+}
+
+private class SharedPointerNode(
+  block: suspend PointerInputScope.() -> Unit,
+) : DelegatingNode(), PointerInputModifierNode {
+
+  private var pointer = delegate(SuspendingPointerInputModifierNode(block))
+
+  fun update(block: suspend PointerInputScope.() -> Unit) {
+    undelegate(pointer)
+    pointer = delegate(SuspendingPointerInputModifierNode(block))
+  }
+
+  override fun onPointerEvent(
+    pointerEvent: PointerEvent,
+    pass: PointerEventPass,
+    bounds: IntSize,
+  ) {
+    pointer.onPointerEvent(pointerEvent, pass, bounds)
+  }
+
+  override fun onCancelPointerInput() {
+    pointer.onCancelPointerInput()
+  }
+
+  /** The whole point. See [sharedPointerInput]. */
+  override fun sharePointerInputWithSiblings(): Boolean = true
 }

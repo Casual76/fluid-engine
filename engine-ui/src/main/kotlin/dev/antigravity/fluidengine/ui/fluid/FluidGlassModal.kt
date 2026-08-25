@@ -351,7 +351,11 @@ fun Modifier.fluidExpandOrigin(
       grace = true
       alpha.animateTo(0f, FluidMotion.fadeOut(FluidAnchorFadeMillis))
     } else if (grace) {
-      delay(FluidPopoverExitGraceMillis)
+      // **Subito, non dopo un'attesa.** L'attesa doveva coprire il rientro del pannello, e invece
+      // lasciava la riga assente per quattrocento millisecondi buoni, dopo i quali ricompariva dal
+      // niente: misurato fotogramma per fotogramma, e' il difetto peggiore dell'intera chiusura.
+      // Un pannello che si sta gia' rimpicciolendo e dissolvendo sopra la riga che riappare non
+      // somiglia neanche da lontano al doppio bordo che l'attesa doveva evitare.
       alpha.animateTo(1f, FluidMotion.fadeIn(FluidAnchorFadeMillis))
       grace = false
     }
@@ -370,7 +374,6 @@ private const val FluidAnchorFadeMillis = 120
  * Un filo piu' della molla di uscita: la riga torna quando il pannello e' gia' tornato dentro di
  * lei, non prima — e non dopo, perche' dopo e' un buco nella lista.
  */
-private const val FluidPopoverExitGraceMillis = 260L
 
 /**
  * Hides everything under it from accessibility while a modal is open.

@@ -279,6 +279,27 @@ private class DrawBackdropElement(
     }
 }
 
+/**
+ * Shrinks [requested] until a surface [width] x [height] fits inside one capture.
+ *
+ * The ceiling is deliberately well under what any current GPU reports. Padding is added to the
+ * recording on top of this, the number is not queryable from a draw scope without a GL context, and
+ * being conservative costs a quarter of the resolution on a blurred wash — while being wrong
+ * costs the whole pane.
+ */
+internal fun fitToTexture(requested: Float, width: Float, height: Float): Float {
+    val longest = maxOf(width, height)
+    if (!longest.isFinite() || longest <= 0f) return requested
+    val cap = MaxBackdropTextureDimension / longest
+    return requested.coerceAtMost(cap).coerceAtLeast(MinBackdropScale)
+}
+
+/** Pixels. Half of the 8192 that has been the floor of the Android hardware requirement for years. */
+internal const val MaxBackdropTextureDimension = 4096f
+
+/** Below this the capture is too coarse to be worth running the chain over at all. */
+internal const val MinBackdropScale = 0.05f
+
 private class DrawBackdropNode(
     var backdrop: Backdrop,
     var shapeProvider: ShapeProvider,
@@ -351,10 +372,26 @@ private class DrawBackdropNode(
         return offsets
     }
 
+    /**
+     * The scale this frame actually records at, which is [backdropScale] unless the surface is too
+     * big to capture.
+     *
+     * A capture is a GPU texture, and a texture has a hard ceiling — a few thousand pixels on
+     * each side, device by device. Past it the record does not fail loudly: it comes back empty,
+     * and an empty capture under a translucent tint is a **black rectangle** where the content was.
+     * A grouped list is exactly the surface that reaches it, because a group is as tall as the
+     * number of rows someone happens to have.
+     *
+     * Recording smaller is the one response that keeps the material. What such a pane is standing
+     * over is an ambient wash, which is soft by construction and has nothing in it that a quarter of
+     * the resolution can lose.
+     */
+    private var effectiveScale: Float = 1f
+
     private val recordBackdropBlock: (DrawScope.() -> Unit) = {
         val canvas = drawContext.canvas
         val padding = padding
-        val scale = backdropScale
+        val scale = effectiveScale
 
         if (padding != 0f) {
             canvas.translate(padding, padding)
@@ -388,7 +425,7 @@ private class DrawBackdropNode(
             val padding = padding
             // Not named `scale`: that shadows the DrawScope transform of the same name, which is
             // what un-scales the draw below.
-            val contentScale = backdropScale
+            val contentScale = effectiveScale
             val recordSize = IntSize(
                 ((size.width * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1),
                 ((size.height * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1)
@@ -445,7 +482,8 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
-        if (effectScope.update(this, backdropScale)) {
+        effectiveScale = fitToTexture(backdropScale, size.width, size.height)
+        if (effectScope.update(this, effectiveScale)) {
             updateEffects()
         }
 

@@ -87,6 +87,22 @@ Il vetro nel contenuto e' arrivato con la 1.5.0 e vuole due cose, non una:
 `glass = true` e' una **richiesta**, non un obbligo: senza canvas in scope, o sotto API 31, il
 componente disegna esattamente la superficie opaca di sempre.
 
+## Un pannello di vetro e' una texture, e una texture ha un tetto
+
+Ogni superficie di vetro registra un `GraphicsLayer` grande quanto se stessa, e un layer e' una
+texture della GPU: qualche migliaio di pixel per lato, dipende dal dispositivo. Oltre quel limite la
+registrazione non fallisce rumorosamente, torna **vuota** — e una registrazione vuota sotto una tinta
+traslucida e' un rettangolo nero al posto del contenuto.
+
+La superficie che ci arriva e' sempre la stessa: **un gruppo lista**, perche' un gruppo e' alto
+quanto il numero di righe che l'utente si trova ad avere. Ottantaquattro voti in un pannello sono
+sedicimila pixel, ed e' successo davvero.
+
+Dalla 1.5.1 l'engine se ne accorge da solo e registra piu' in piccolo invece di annerire
+(`fitToTexture`): quello che c'e' dietro un pannello di contenuto e' una lavata ambientale, morbida
+per costruzione, che a un quarto della risoluzione non perde niente. Non e' un permesso per fare
+gruppi infiniti: e' la garanzia che una lista lunga resti guardabile.
+
 ## Il vetro si tara con la lente, non con la sfocatura
 
 Il raggio di riferimento e' **2 dp**. E' passato da 8 a 16 e poi a 2, e il giro di mezzo e' l'errore

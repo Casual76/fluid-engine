@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.5.1 - 2026-08-25
+
+- Una superficie di vetro piu' grande di una texture non annerisce piu'. Il layer che ogni pannello registra e' una texture della GPU, e oltre il tetto la registrazione torna vuota: sotto una tinta traslucida diventa un rettangolo nero al posto del contenuto. Ci arriva sempre un gruppo lista, perche' un gruppo e' alto quanto le righe che uno si trova ad avere - ottantaquattro voti sono sedicimila pixel. Ora l'engine registra piu' in piccolo invece di sparire (fitToTexture), e quello che c'e' dietro un pannello di contenuto e' una lavata morbida che a un quarto della risoluzione non perde niente
+
+
 ## 1.5.0 - 2026-08-25
 
 - FluidScreen prende un canvas ambientale: FluidScreen(ambient = FluidAmbient(tone, motif)) dipinge sotto la pagina tre lavate radiali sull accento piu il motivo dell hero. Serve perche il vetro sopra una pagina grigia piatta e invisibile per costruzione: una lente che rifrange una superficie piatta produce una superficie piatta

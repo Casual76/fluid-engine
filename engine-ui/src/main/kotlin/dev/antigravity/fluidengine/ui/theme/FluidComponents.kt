@@ -74,6 +74,7 @@ import androidx.compose.ui.Modifier
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSheet
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidContextMenu
@@ -229,73 +230,22 @@ fun FluidPillTabs(
   onSelect: (String) -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  if (options.isEmpty()) return
-
-  val selectedIndex = options.indexOf(selected).coerceAtLeast(0)
-  val capsule = FluidCapsuleShape
-  BoxWithConstraints(
-    modifier = modifier
-      .fillMaxWidth()
-      .height(48.dp)
-      .clip(capsule)
-      .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-      .padding(3.dp),
-  ) {
-    val itemWidth = maxWidth / options.size
-    val indicatorOffset by animateDpAsState(
-      targetValue = itemWidth * selectedIndex,
-      animationSpec = FluidMotion.dp(
-        dampingRatio = FluidMotion.DampingStandard,
-        stiffness = FluidMotion.ResponseSmooth,
-      ),
-      label = "pill selection position",
-    )
-
-    Box(
-      modifier = Modifier
-        .width(itemWidth)
-        .fillMaxSize()
-        .offset(x = indicatorOffset)
-        .shadow(
-          elevation = 2.dp,
-          shape = capsule,
-          ambientColor = Color.Black.copy(alpha = 0.12f),
-          spotColor = Color.Black.copy(alpha = 0.16f),
-        )
-        .background(MaterialTheme.colorScheme.surface, capsule),
-    )
-
-    Row(modifier = Modifier.fillMaxSize()) {
-      options.forEachIndexed { index, option ->
-        val isSelected = index == selectedIndex
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .fillMaxSize()
-            .clip(capsule)
-            .selectable(
-              selected = isSelected,
-              onClick = { onSelect(option) },
-              role = Role.Tab,
-            ),
-          contentAlignment = Alignment.Center,
-        ) {
-          Text(
-            text = option,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (isSelected) {
-              MaterialTheme.colorScheme.onSurface
-            } else {
-              MaterialTheme.colorScheme.onSurfaceVariant
-            },
-          )
-        }
-      }
-    }
-  }
+  // Lo stesso controllo segmentato del resto del design system, non un secondo disegno.
+  //
+  // Questo era un guscio solido con una pastiglia bianca e un'ombra sotto: la sola superficie
+  // dell'interfaccia rimasta a fingere il rilievo invece di averlo. La differenza non e' l'aspetto,
+  // e' che [FluidSegmentedControl] tiene *una copia invisibile delle etichette tinte d'accento*
+  // sotto una lente, quindi il segmento scelto non viene colorato, viene **visto attraverso il
+  // vetro** — ed e' trascinabile fra i segmenti come la pastiglia della tab bar.
+  //
+  // Il nome resta perche' e' quello che le app chiamano.
+  FluidSegmentedControl(
+    options = options,
+    selected = selected,
+    onSelect = onSelect,
+    modifier = modifier,
+    label = { it },
+  )
 }
 
 @Composable

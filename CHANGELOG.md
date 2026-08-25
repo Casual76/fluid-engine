@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.5.4 - 2026-08-25
+
+- Il morph del titolo usa ancore locali allo schermo invece che alla finestra. Su tablet ogni pagina e' rientrata della larghezza del rail di navigazione, e la differenza fra i due sistemi diventava una traslazione: il titolo grande a riposo finiva sotto il rail. Qualunque inset l'app metta attorno alla pagina ora si annulla da solo
+
+
 ## 1.5.3 - 2026-08-25
 
 - Il pannello di vetro compone in place: il compositing Offscreen del nodo ri-rasterizzava l'intero pannello, testo compreso, a ogni fotogramma di scorrimento, per un isolamento che su una pila tutta SrcOver non cambiava un pixel. Sul tablet la pagina Voti passa da 85 a 27 ms per frame (p90). Sparito il layer offscreen, sparisce anche la seconda texture che poteva sfondare il tetto della GPU

@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.3 - 2026-08-26
+
+- L'alone della fusione: smin(a,a,k) = a - k/4, quindi la fine di ogni fusione gonfiava il materiale di un quarto del raggio oltre il bordo. Il raggio di fusione effettivo ora si spegne con la compenetrazione dei pezzi: pieno quando sono vicini e staccati (il ponte), zero quando coincidono.
+- Il traguardo non lampeggia piu': il progresso appartiene al transito (ogni viaggio nasce col suo Animatable a zero), cosi' nessun fotogramma puo' mostrare il viaggio nuovo col valore del vecchio.
+
+
 ## 1.9.2 - 2026-08-26
 
 - Il contenuto viaggia con la superficie: fluidPhysicsContent (Incoming) trasla sul centro corrente della silhouette e scala sulla taglia vera del pannello, non sull'orologio. Il testo e' attaccato al vetro per costruzione, mai una tendina tirata su un cartello gia' scritto.

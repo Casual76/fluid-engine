@@ -64,6 +64,15 @@ class GlassMaterialStateTest {
 
     // Every preset transmits more colour than it receives, or glass reads as grey plastic.
     listOf(bar, floating, interactive, modal).forEach { assertTrue(it.vibrancy > 1f) }
+
+    // Content is the one role allowed to trade backdrop resolution for cost: what it refracts is
+    // the ambient wash, and a gradient downsampled to half comes back up identical. Everything that
+    // stands over *content* — sharp text scrolling under a bar — keeps full resolution, because
+    // half resolution there reads as smear.
+    assertTrue(content.backdropResolution < 1f)
+    listOf(bar, floating, interactive, modal).forEach {
+      assertEquals(1f, it.backdropResolution, 0f)
+    }
   }
 
   @Test
@@ -91,6 +100,7 @@ class GlassMaterialStateTest {
       shadowRadius = Float.NEGATIVE_INFINITY.dp,
       shadowAlpha = Float.NaN,
       pressedDepthBoost = 9f,
+      backdropResolution = Float.NaN,
     ).sanitized()
 
     assertEquals(0f, sanitized.blurScale, 0f)
@@ -105,6 +115,7 @@ class GlassMaterialStateTest {
     assertEquals(0.dp, sanitized.shadowRadius)
     assertEquals(0f, sanitized.shadowAlpha, 0f)
     assertEquals(2f, sanitized.pressedDepthBoost, 0f)
+    assertEquals(1f, sanitized.backdropResolution, 0f)
   }
 
   @Test

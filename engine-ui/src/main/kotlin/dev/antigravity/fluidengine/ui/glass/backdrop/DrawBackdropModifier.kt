@@ -294,17 +294,6 @@ internal fun fitToTexture(requested: Float, width: Float, height: Float): Float 
     return requested.coerceAtMost(cap).coerceAtLeast(MinBackdropScale)
 }
 
-/**
- * Whether a surface of [width] x [height] can be composited through a single offscreen texture.
- *
- * A degenerate size (the first frame's zero, an unspecified NaN) answers yes, because the question
- * only exists to catch surfaces that are genuinely, measurably too big.
- */
-internal fun fitsOneTexture(width: Float, height: Float): Boolean {
-    val longest = maxOf(width, height)
-    return !longest.isFinite() || longest <= MaxBackdropTextureDimension
-}
-
 /** Pixels. Half of the 8192 that has been the floor of the Android hardware requirement for years. */
 internal const val MaxBackdropTextureDimension = 4096f
 
@@ -335,17 +324,18 @@ private class DrawBackdropNode(
     private val layoutLayerBlock: GraphicsLayerScope.() -> Unit = {
         clip = true
         shape = shapeProvider.shape
-        // Fluid Engine addition — the other half of [fitToTexture]'s defense. An offscreen
-        // compositing layer is itself a GPU texture sized to this surface, and past the ceiling it
-        // cannot be allocated: the capture cap alone would leave a correctly refracted pane with
-        // nothing printed on it, because it is the surface's *own content* that lives in this layer.
-        // Compositing in place changes how translucent children blend against each other, which on a
-        // pane this size nobody can point to; a pane with no content on it, everybody can.
-        compositingStrategy = if (fitsOneTexture(size.width, size.height)) {
-            androidx.compose.ui.graphics.CompositingStrategy.Offscreen
-        } else {
-            androidx.compose.ui.graphics.CompositingStrategy.Auto
-        }
+        // Fluid Engine change: upstream forces `CompositingStrategy.Offscreen` here. That routes the
+        // whole surface — backdrop draw, tint, and every child — through a texture the size of the
+        // node, re-rasterised on every frame in which the refracted image changes... which while the
+        // page scrolls is every frame, of every pane, text and all. On a tablet's grouped-list page
+        // that texture traffic alone took the frame time from 18 ms to 85 ms; it is also a second
+        // way for an oversized pane to hit the GPU texture ceiling and lose its content.
+        //
+        // The group buys nothing optically: the stack this node draws (backdrop layer, tint,
+        // content) is plain `SrcOver`, which composites identically with or without isolation, the
+        // clip above antialiases on its own, and `Auto` still promotes to a layer in the one case
+        // that genuinely needs one — an animated `alpha` on the pane.
+        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Auto
     }
 
     private var layoutCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())

@@ -48,6 +48,11 @@ Le modifiche fatte finora:
    sfocatura e vividezza. Un design system che finisce in cinque app deve degradare, non chiudersi.
 6. **`@SuppressLint("NewApi")` sulla cache degli shader**, con il contratto scritto accanto: la
    libreria a monte è un modulo multipiattaforma e non passa mai dal lint di Android.
+7. **Le superfici grandi non muoiono e non strozzano.** La cattura del backdrop si stringe da sola
+   quando la superficie supera il tetto delle texture GPU (`fitToTexture`, altrimenti torna vuota e
+   si vede un rettangolo nero), e il compositing del nodo è `Auto` invece di `Offscreen`: la pila
+   del vetro è tutta `SrcOver` e l'isolamento non cambiava un pixel, ma ri-rasterizzava l'intero
+   pannello a ogni fotogramma di scorrimento.
 
 ## Cosa fare in pratica
 

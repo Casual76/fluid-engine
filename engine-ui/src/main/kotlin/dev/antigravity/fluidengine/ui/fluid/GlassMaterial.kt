@@ -284,6 +284,23 @@ data class GlassOptics(
   val shadowAlpha: Float,
   /** Extra displacement while a finger is down, as a fraction of [refractionAmount]. */
   val pressedDepthBoost: Float,
+  /**
+   * Fraction of its own resolution this surface processes its backdrop at, **on top of** the
+   * blur-driven scale every pane already gets (see `glassResolutionScale`).
+   *
+   * The blur-driven scale answers "how much can the frosting hide": a nearly clear pane keeps
+   * nearly full resolution, because its lens edge is sharp. This one answers a different question —
+   * "how much detail does the *backdrop* have to lose": a content pane stands over an ambient wash,
+   * which is three radial gradients and a faded motif, and a gradient downsampled to half comes
+   * back up identical. What that buys is the whole page: the effect chain is charged per pixel,
+   * and a grades list on a tablet holds four megapixels of content glass — at full resolution that
+   * chain alone is the difference between a scroll and a slideshow.
+   *
+   * Keep it at 1 for anything that stands over *content* — a bar over scrolling text at half
+   * resolution reads as smeared, which is exactly the artefact the blur-driven scale exists to
+   * avoid.
+   */
+  val backdropResolution: Float = 1f,
 )
 
 internal fun clampGlassUnit(value: Float): Float =
@@ -319,6 +336,11 @@ internal fun GlassOptics.sanitized(): GlassOptics = copy(
     pressedDepthBoost.coerceIn(0f, 2f)
   } else {
     0f
+  },
+  backdropResolution = if (backdropResolution.isFinite()) {
+    backdropResolution.coerceIn(0.1f, 1f)
+  } else {
+    1f
   },
 )
 
@@ -482,6 +504,10 @@ object GlassDefaults {
     shadowRadius = 0.dp,
     shadowAlpha = 0f,
     pressedDepthBoost = 0f,
+    // Half, and it is the one preset that can afford it: what a content pane refracts is the
+    // ambient wash, and a radial gradient survives a downsample untouched. This is what keeps a
+    // tablet's grades page — megapixels of grouped-list glass — scrolling instead of slideshowing.
+    backdropResolution = 0.5f,
   )
 
   /** Stable, allocation-free presets. Custom callers can use `copy` and are sanitized at use. */
@@ -809,7 +835,7 @@ fun Modifier.glassSurface(
       backdropScale = if (layerBlock != null) {
         1f
       } else {
-        glassResolutionScale(blurRadius.value * resolved.blurScale)
+        glassResolutionScale(blurRadius.value * resolved.blurScale) * resolved.backdropResolution
       },
     )
 }

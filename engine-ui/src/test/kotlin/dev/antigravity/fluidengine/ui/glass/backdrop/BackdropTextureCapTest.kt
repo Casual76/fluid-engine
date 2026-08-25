@@ -38,23 +38,6 @@ class BackdropTextureCapTest {
   }
 
   @Test
-  fun offscreenCompositingIsKeptOnlyWhileTheSurfaceFitsATexture() {
-    // The capture cap is half the defense: the surface's own content is composited through a second
-    // offscreen texture, and past the ceiling that one fails too — a refracted pane with nothing
-    // printed on it. Oversized surfaces give up the offscreen strategy instead of the content.
-    assertTrue(fitsOneTexture(1080f, 2340f))
-    assertTrue(!fitsOneTexture(1080f, 16800f))
-    assertTrue(!fitsOneTexture(16800f, 200f))
-  }
-
-  @Test
-  fun degenerateSizesStillCompositeOffscreen() {
-    // The first frame measures nothing; the question only exists for surfaces measurably too big.
-    assertTrue(fitsOneTexture(0f, 0f))
-    assertTrue(fitsOneTexture(Float.NaN, Float.NaN))
-  }
-
-  @Test
   fun anAbsurdSurfaceStopsAtTheFloorRatherThanAtZero() {
     // A scale of zero is a layer of one pixel and a division by nothing downstream. Whatever the
     // caller has built, the answer stays a number the effect chain can use.

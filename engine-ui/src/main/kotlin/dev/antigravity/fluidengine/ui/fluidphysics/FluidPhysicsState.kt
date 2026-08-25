@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
@@ -256,9 +257,13 @@ internal fun physicsLayoverFor(origin: FluidForm, target: FluidForm): FluidForm.
   val polyToGroup = origin is FluidForm.Poly && target is FluidForm.Group
   if (!groupToPoly && !polyToGroup) return null
   val anchor = (if (groupToPoly) target else origin) as FluidForm.Poly
+  // Raggio pieno: lo scalo è una GOCCIA, non un pannello. Un quadrato arrotondato in mezzo al
+  // viaggio si legge come "è tornato al quadrato, poi ha fatto altro" — un'altra forma, non una
+  // tappa. Una goccia sul footprint della sagoma si legge come materiale che si raccoglie prima
+  // di prendere la pelle nuova, che è esattamente quello che sta succedendo.
   return FluidForm.Slab(
     frame = anchor.frame,
-    cornerRadii = FluidCornerRadii.all(anchor.frame.minDimension / 4f),
+    cornerRadii = FluidCornerRadii.all(anchor.frame.minDimension / 2f),
   )
 }
 
@@ -290,8 +295,12 @@ private fun matchSlabPairs(
 internal const val PlanModeSlabs = 0
 internal const val PlanModePoly = 1
 
-/** Quanto si erode il campo poligonale per sciogliere le faccette del campionamento, in px di layout. */
-internal const val PolySoftenPx = 1.5f
+/**
+ * Quanto si erode il campo poligonale per sciogliere le faccette del campionamento, in px di
+ * layout. Tre pixel, non uno e mezzo: su un cerchio grande la corda fra due campioni dell'anello
+ * arriva a qualche pixel, e l'erosione deve coprirla o il bordo della rifrazione mostra i vertici.
+ */
+internal const val PolySoftenPx = 3f
 
 /**
  * Tutto quello che serve a disegnare un fotogramma, in array riusati: il piano si riscrive, non si
@@ -308,6 +317,14 @@ internal class PhysicsRenderPlan {
   val verts = FloatArray(PhysicsMaxVertices * 2)
   var soften: Float = 0f
   val silhouette = Path()
+
+  /**
+   * Il path d'appoggio per l'unione: i pezzi entrano qui uno alla volta e si fondono nella
+   * [silhouette] con `Path.op`. Sotto-path separati NON bastano: due pezzi che si sovrappongono
+   * — cioè quasi tutto il viaggio di una fusione — farebbero tracciare al bordo speculare
+   * entrambi i contorni, una doppia linea che attraversa il pannello.
+   */
+  val scratchPiece = Path()
   var clipToBounds: Boolean = true
   var shape: Shape = FluidPhysicsSilhouetteShape(silhouette, clipToBounds)
   var bounds: Rect = Rect.Zero
@@ -361,9 +378,21 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
   ring.copyInto(verts, endIndex = count * 2)
   soften = PolySoftenPx
   silhouette.rewind()
-  if (count > 0) {
-    silhouette.moveTo(ring[0], ring[1])
-    for (i in 1 until count) silhouette.lineTo(ring[i * 2], ring[i * 2 + 1])
+  if (count > 2) {
+    // Quadratiche per i punti medi, non segmenti: la spezzata dell'anello sta dentro il pixel nel
+    // campo di distanza (che la fonde con l'erosione), ma la tinta e il bordo speculare la
+    // *tracciano* — e una corda di quattro pixel su un cerchio grande si vede come un vertice.
+    // La curva passa per i punti medi dei lati usando i vertici come controlli: liscia ovunque,
+    // dentro la corda per costruzione, e costa niente.
+    fun x(i: Int) = ring[(i % count) * 2]
+    fun y(i: Int) = ring[(i % count) * 2 + 1]
+    silhouette.moveTo((x(0) + x(1)) / 2f, (y(0) + y(1)) / 2f)
+    for (i in 1..count) {
+      silhouette.quadraticTo(
+        x(i), y(i),
+        (x(i) + x(i + 1)) / 2f, (y(i) + y(i + 1)) / 2f,
+      )
+    }
     silhouette.close()
   }
   var left = Float.POSITIVE_INFINITY
@@ -391,7 +420,8 @@ internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Floa
         // In viaggio la sagoma passa per angoli circolari: è l'eccezione documentata — un path
         // continuo ricalcolato a ogni fotogramma è esattamente quello che non ci si può permettere,
         // e in movimento le due curve stanno dentro il pixel.
-        plan.silhouette.addRoundRect(
+        plan.scratchPiece.rewind()
+        plan.scratchPiece.addRoundRect(
           RoundRect(
             rect = Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]),
             topLeft = CornerRadius(v[4]),
@@ -400,6 +430,7 @@ internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Floa
             bottomLeft = CornerRadius(v[7]),
           ),
         )
+        plan.mergePieceIntoSilhouette(index)
       }
       plan.finishSlabs(transit.pairs.size, transit.blendRadius)
     }
@@ -448,7 +479,8 @@ private fun writeRestSlab(plan: PhysicsRenderPlan, slab: FluidForm.Slab, index: 
   )
   plan.writeSlabPiece(index, values)
   // A riposo la silhouette è quella della casa: raccordo continuo, alla posizione vera del pezzo.
-  plan.silhouette.addContinuousRoundRect(
+  plan.scratchPiece.rewind()
+  plan.scratchPiece.addContinuousRoundRect(
     rect = f,
     topLeft = values[4],
     topRight = values[5],
@@ -456,4 +488,14 @@ private fun writeRestSlab(plan: PhysicsRenderPlan, slab: FluidForm.Slab, index: 
     bottomLeft = values[7],
     smoothing = slab.smoothing,
   )
+  plan.mergePieceIntoSilhouette(index)
+}
+
+/** Fonde [PhysicsRenderPlan.scratchPiece] nella silhouette: il primo pezzo entra diretto, gli altri per unione. */
+private fun PhysicsRenderPlan.mergePieceIntoSilhouette(index: Int) {
+  if (index == 0) {
+    silhouette.addPath(scratchPiece)
+  } else {
+    silhouette.op(silhouette, scratchPiece, PathOperation.Union)
+  }
 }

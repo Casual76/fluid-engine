@@ -172,17 +172,7 @@ half4 main(float2 coord) {
     float2 centeredCoord = coord - halfSize;
     float radius = radiusAt(coord, cornerRadii);
     
-    // Fluid Engine change: il riflesso segue la sagoma VERA, non una piu' grande. Era radius * 1.5.
-    // Su un controllo quel gonfiore non si vede mai, perche' il min qui lo ricaccia giu': una
-    // capsula alta 44 px ha halfSize.y = 22, cioe' esattamente il suo raggio. Su un pannello di
-    // contenuto invece non c'e' niente che lo limiti - halfSize e' meta' della larghezza, centinaia
-    // di pixel - quindi il riflesso disegna un rettangolo arrotondato piu' grande del pannello e
-    // rientrato rispetto ai suoi bordi. Misurato sul telefono, cima di un gruppo lista: il bordo
-    // del pannello arriva a filo in 36 px, il riflesso ci mette 168, e sul lato destro si ferma 23
-    // px dentro senza arrivarci mai. Da fuori e' un bordo di vetro che non coincide con le righe -
-    // e siccome dipende dalla taglia, compare solo su alcuni pannelli, che si legge come un difetto
-    // casuale invece che come una regola.
-    float gradRadius = min(radius, min(halfSize.x, halfSize.y));
+    float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
     float2 grad = gradSdRoundedRect(centeredCoord, halfSize, gradRadius);
     float2 normal = float2(cos(angle), sin(angle));
     float d = dot(grad, normal);
@@ -204,17 +194,7 @@ half4 main(float2 coord) {
     float2 centeredCoord = coord - halfSize;
     float radius = radiusAt(coord, cornerRadii);
     
-    // Fluid Engine change: il riflesso segue la sagoma VERA, non una piu' grande. Era radius * 1.5.
-    // Su un controllo quel gonfiore non si vede mai, perche' il min qui lo ricaccia giu': una
-    // capsula alta 44 px ha halfSize.y = 22, cioe' esattamente il suo raggio. Su un pannello di
-    // contenuto invece non c'e' niente che lo limiti - halfSize e' meta' della larghezza, centinaia
-    // di pixel - quindi il riflesso disegna un rettangolo arrotondato piu' grande del pannello e
-    // rientrato rispetto ai suoi bordi. Misurato sul telefono, cima di un gruppo lista: il bordo
-    // del pannello arriva a filo in 36 px, il riflesso ci mette 168, e sul lato destro si ferma 23
-    // px dentro senza arrivarci mai. Da fuori e' un bordo di vetro che non coincide con le righe -
-    // e siccome dipende dalla taglia, compare solo su alcuni pannelli, che si legge come un difetto
-    // casuale invece che come una regola.
-    float gradRadius = min(radius, min(halfSize.x, halfSize.y));
+    float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
     float2 grad = gradSdRoundedRect(centeredCoord, halfSize, gradRadius);
     float2 normal = float2(cos(angle), sin(angle));
     float d = dot(grad, normal);

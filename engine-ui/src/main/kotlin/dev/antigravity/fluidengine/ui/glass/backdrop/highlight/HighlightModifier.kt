@@ -251,7 +251,22 @@ internal class HighlightNode(
             val shader =
                 with(highlight.style) {
                     createShader(
-                        shape = shapeProvider.shape,
+                        // Fluid Engine change: la sagoma VERA, non l'involucro che la memorizza.
+                        //
+                        // `shapeProvider.shape` e' un `object : Shape` anonimo che tiene in cache
+                        // l'outline. Lo shader del riflesso pero' non gli chiede un outline: gli
+                        // chiede i RAGGI, con `shape as? CornerBasedShape ?: FloatArray(4) { maxRadius }`.
+                        // L'involucro non e' una CornerBasedShape, quindi si finiva sempre nel ramo
+                        // di riserva e il riflesso disegnava una capsula: raggio = meta' del lato
+                        // corto, su tutti e quattro gli angoli, qualunque forma avesse il pannello.
+                        //
+                        // Su un controllo non si vede, ed e' per questo che e' passato: una capsula
+                        // alta 44 px ha meta' lato corto 22, cioe' esattamente il suo raggio, e il
+                        // ramo di riserva indovina la risposta giusta. Su un gruppo lista largo
+                        // mille pixel indovina 498 invece di 58, e quello che si vede e' un arco
+                        // chiaro che taglia il pannello a mezza altezza e non coincide con niente.
+                        // "Solo in alcuni casi" era esattamente questo: i casi sono le taglie.
+                        shape = shapeProvider.innerShape,
                         runtimeShaderCache = runtimeShaderCache
                     )
                 }

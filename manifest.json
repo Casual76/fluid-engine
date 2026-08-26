@@ -15,22 +15,30 @@
       "ref": ""
     },
     "stable": {
-      "version": "1.0.1",
-      "releaseDate": "2026-08-25",
-      "changelog": "Le trasformazioni si posano come devono: via l'alone di materiale oltre il bordo durante le fusioni, via il lampeggio della sagoma d'arrivo all'inizio di ogni viaggio, e il contenuto ora viaggia attaccato al pannello invece di aspettarlo. Piu' la goccia negli scali, un contorno solo nelle fusioni, e le sagome libere senza vertici visibili.",
-      "releaseTag": "stable-fluid-glass-v1.0.1",
-      "apkAsset": "fluid-glass-1.0.1.apk",
-      "sizeBytes": 2791873
+      "version": "1.0.2",
+      "releaseDate": "2026-08-26",
+      "changelog": "Le trasformazioni hanno la loro voce: partono piano, accelerano, e si posano con un rimbalzo leggero. Il tasto Azione ora SI ESPANDE nel proprio menu contestuale (tienilo premuto): stessa superficie, andata e ritorno. E i viaggi verso i gruppi non tornano piu' indietro: la goccia si raccoglie mentre va.",
+      "releaseTag": "stable-fluid-glass-v1.0.2",
+      "apkAsset": "fluid-glass-1.0.2.apk",
+      "sizeBytes": 2791881
     },
     "beta": {
-      "version": "1.0.1",
-      "releaseDate": "2026-08-25",
-      "changelog": "Le trasformazioni si posano come devono: via l'alone di materiale oltre il bordo durante le fusioni, via il lampeggio della sagoma d'arrivo all'inizio di ogni viaggio, e il contenuto ora viaggia attaccato al pannello invece di aspettarlo. Piu' la goccia negli scali, un contorno solo nelle fusioni, e le sagome libere senza vertici visibili.",
-      "releaseTag": "stable-fluid-glass-v1.0.1",
-      "apkAsset": "fluid-glass-1.0.1.apk",
-      "sizeBytes": 2791873
+      "version": "1.0.2",
+      "releaseDate": "2026-08-26",
+      "changelog": "Le trasformazioni hanno la loro voce: partono piano, accelerano, e si posano con un rimbalzo leggero. Il tasto Azione ora SI ESPANDE nel proprio menu contestuale (tienilo premuto): stessa superficie, andata e ritorno. E i viaggi verso i gruppi non tornano piu' indietro: la goccia si raccoglie mentre va.",
+      "releaseTag": "stable-fluid-glass-v1.0.2",
+      "apkAsset": "fluid-glass-1.0.2.apk",
+      "sizeBytes": 2791881
     },
     "history": [
+      {
+        "version": "1.0.1",
+        "releaseDate": "2026-08-25",
+        "changelog": "Le trasformazioni si posano come devono: via l'alone di materiale oltre il bordo durante le fusioni, via il lampeggio della sagoma d'arrivo all'inizio di ogni viaggio, e il contenuto ora viaggia attaccato al pannello invece di aspettarlo. Piu' la goccia negli scali, un contorno solo nelle fusioni, e le sagome libere senza vertici visibili.",
+        "releaseTag": "stable-fluid-glass-v1.0.1",
+        "apkAsset": "fluid-glass-1.0.1.apk",
+        "sizeBytes": 2791873
+      },
       {
         "version": "1.0.0",
         "releaseDate": "2026-08-25",

@@ -71,6 +71,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
@@ -852,6 +856,14 @@ private val lastSyncDateFormatter: DateTimeFormatter =
  * lo e': nei dati, li', non cambia niente. Quindi i pezzi arrotondano solo gli angoli che sono
  * davvero l'inizio e la fine, e chi li emette richiude il vuoto in mezzo.
  */
+/**
+ * Quanto ritaglia un lato aperto di [FluidListGroup], e quanto devono sovrapporsi due pezzi.
+ *
+ * E' lo spessore che serve a togliere di mezzo il bordo speculare del vetro senza mangiare niente
+ * che si veda: il bordo e' 0.8 dp piu' la propria sfocatura.
+ */
+val FluidGroupOpenEdge: Dp = 2.dp
+
 enum class FluidGroupSegment {
   /** Tutta la lista sta in un pannello: arrotonda tutto. */
   Whole,
@@ -897,11 +909,38 @@ fun FluidListGroup(
     FluidGroupSegment.Middle -> ContinuousCornerShape()
     FluidGroupSegment.Last -> ContinuousCornerShape(bottomEnd = radius, bottomStart = radius)
   }
+  // Un lato aperto non porta bordo.
+  //
+  // Togliere gli angoli e chiudere il vuoto non bastava: il vetro disegna il proprio bordo
+  // speculare tutto intorno alla sagoma, quindi due pezzi a filo mettevano due bordi uno contro
+  // l'altro e la giuntura tornava a vedersi — misurata, una banda BIANCA di sei pixel dove un
+  // separatore normale e' una riga scura di uno. Il bordo pero' non e' un parametro: e' dentro il
+  // materiale. Quello che si puo' fare dall'esterno e' non farlo arrivare allo schermo, ritagliando
+  // il lato aperto di [FluidGroupOpenEdge]. Costano due dp di riempimento della prima o dell'ultima
+  // riga, che nessuno vede, e chi taglia la lista li riassorbe sovrapponendo i pezzi.
+  val openTop = segment == FluidGroupSegment.Middle || segment == FluidGroupSegment.Last
+  val openBottom = segment == FluidGroupSegment.Middle || segment == FluidGroupSegment.First
+  val trimPx = with(LocalDensity.current) { FluidGroupOpenEdge.toPx() }
   val onGlass = contentGlassAvailable(glass)
   Surface(
     // Surface already clips its children to [shape]. A second clip created another large offscreen
     // layer for the whole group, which was especially expensive for long catalog lists.
-    modifier = modifier.fillMaxWidth().fluidContentGlass(glass, shape),
+    modifier = modifier
+      .fillMaxWidth()
+      .then(
+        if (!openTop && !openBottom) {
+          Modifier
+        } else {
+          Modifier.drawWithContent {
+            val top = if (openTop) trimPx else 0f
+            val bottom = size.height - if (openBottom) trimPx else 0f
+            clipRect(left = 0f, top = top, right = size.width, bottom = bottom) {
+              this@drawWithContent.drawContent()
+            }
+          }
+        },
+      )
+      .fluidContentGlass(glass, shape),
     shape = shape,
     color = if (onGlass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
     contentColor = MaterialTheme.colorScheme.onSurface,

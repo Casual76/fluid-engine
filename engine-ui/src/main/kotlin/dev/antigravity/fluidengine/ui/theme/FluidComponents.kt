@@ -840,6 +840,33 @@ private val lastSyncDateFormatter: DateTimeFormatter =
   DateTimeFormatter.ofPattern("dd/MM HH:mm").withZone(ZoneId.systemDefault())
 
 /**
+ * Where a piece sits inside a list that had to be cut up. See [FluidListGroup].
+ *
+ * A grouped list is meant to be **one** pane, but a pane is a `GraphicsLayer` and a layer is a GPU
+ * texture: past the ceiling the registration comes back empty and the pane draws black, and
+ * everything in a pane composes in the single frame the pane enters. So a long section gets cut
+ * into several panes, and both of those are facts about the machine.
+ *
+ * They must not become facts about the design. A month of notices is one list; a seam landing
+ * between two entries of the same day reads as a mistake, because from the reader's side it is
+ * one — nothing in the data changes there. So the pieces round only the corners that are the real
+ * beginning and the real end, and whoever emits them closes the gap in between.
+ */
+enum class FluidGroupSegment {
+  /** The whole list fits in one pane: round everything. */
+  Whole,
+
+  /** Opens the list: round the top only. */
+  First,
+
+  /** Neither end: no rounding at all. */
+  Middle,
+
+  /** Closes the list: round the bottom only. */
+  Last,
+}
+
+/**
  * A grouped list: rows share one rounded container, the way an inset-grouped table view does.
  *
  * The container clips, so a row's press highlight is trimmed to the group's corners instead of
@@ -853,9 +880,23 @@ fun FluidListGroup(
    * whole group, whatever number of rows it happens to hold.
    */
   glass: Boolean = false,
+  /**
+   * Which piece of a longer list this is, when the list was too long for one pane.
+   *
+   * Leave it [FluidGroupSegment.Whole] unless you are the code doing the cutting: a group that
+   * rounds only two of its corners for any other reason is a group that will look broken the day
+   * the list above or below it changes length.
+   */
+  segment: FluidGroupSegment = FluidGroupSegment.Whole,
   content: @Composable ColumnScope.() -> Unit,
 ) {
-  val shape = ContinuousCornerShape(FluidRadius.Group)
+  val radius = FluidRadius.Group
+  val shape = when (segment) {
+    FluidGroupSegment.Whole -> ContinuousCornerShape(radius)
+    FluidGroupSegment.First -> ContinuousCornerShape(topStart = radius, topEnd = radius)
+    FluidGroupSegment.Middle -> ContinuousCornerShape()
+    FluidGroupSegment.Last -> ContinuousCornerShape(bottomEnd = radius, bottomStart = radius)
+  }
   val onGlass = contentGlassAvailable(glass)
   Surface(
     // Surface already clips its children to [shape]. A second clip created another large offscreen

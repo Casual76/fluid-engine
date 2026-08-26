@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
@@ -64,6 +65,29 @@ fun FluidTextField(
   val scheme = MaterialTheme.colorScheme
   val interactionSource = remember { MutableInteractionSource() }
 
+  // Il pozzo del campo, e perche' sopra il vetro non puo' essere lo stesso.
+  //
+  // Su una pagina opaca una velatura del 6 per cento basta: sotto c'e' una superficie piatta, e il
+  // sei per cento si legge come un incavo. Dentro un pannello di vetro sotto NON c'e' una superficie
+  // piatta — c'e' la pagina dell'app, trasmessa a circa meta'. La stessa velatura si modula con lei,
+  // e un campo vuoto smette di essere un campo: diventa una finestra sulla lista che sta dietro.
+  // Misurato sul modulo del voto simulato: dentro un campo che dovrebbe essere una costante la
+  // luminanza andava da 175 a 215, cioe' il contenuto della pagina, riconoscibile, dentro la casella
+  // in cui si deve scrivere.
+  //
+  // Sopra il vetro il campo si dipinge quindi un fondo **opaco**, del colore del pannello scurito di
+  // un decimo. Opaco perche' e' l'unica cosa che ferma la pagina; del colore del pannello perche' un
+  // grigio qualunque diventerebbe un rettangolo appiccicato sopra il vetro invece di un incavo
+  // scavato dentro. E' la stessa regola dell'impilamento: sopra il vetro tutto sale, non scende.
+  val onGlass = LocalFluidCanvasIsGlass.current
+  val film = GlassDefaults.glassFilm()
+  val wellColor = when {
+    onGlass && isError -> lerp(film, scheme.error, 0.20f)
+    onGlass -> lerp(film, scheme.onSurface, 0.10f)
+    isError -> scheme.error.copy(alpha = 0.10f)
+    else -> scheme.onSurface.copy(alpha = 0.06f)
+  }
+
   Column(
     modifier = modifier.fillMaxWidth(),
     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -97,9 +121,7 @@ fun FluidTextField(
           modifier = Modifier
             .fillMaxWidth()
             .clip(ContinuousCornerShape(FluidRadius.Control))
-            .background(
-              if (isError) scheme.error.copy(alpha = 0.10f) else scheme.onSurface.copy(alpha = 0.06f),
-            )
+            .background(wellColor)
             .heightIn(min = minHeight)
             .padding(horizontal = 12.dp, vertical = 10.dp),
           verticalAlignment = Alignment.CenterVertically,

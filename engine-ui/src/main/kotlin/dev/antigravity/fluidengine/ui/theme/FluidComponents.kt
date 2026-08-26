@@ -840,6 +840,33 @@ private val lastSyncDateFormatter: DateTimeFormatter =
   DateTimeFormatter.ofPattern("dd/MM HH:mm").withZone(ZoneId.systemDefault())
 
 /**
+ * Where a piece sits inside a list that had to be cut up. See [FluidListGroup].
+ *
+ * Una lista raggruppata vuole essere **un** pannello, ma un pannello e' un `GraphicsLayer` e un
+ * layer e' una texture: oltre il tetto la registrazione torna vuota e il pannello disegna nero, e
+ * tutto quello che ci sta dentro si compone nel singolo fotogramma in cui il pannello entra. Per
+ * questo una sezione lunga viene tagliata in piu' pannelli — e sono due fatti sulla macchina.
+ *
+ * Non devono diventare fatti sul disegno. Un mese di comunicazioni e' una lista sola; una giuntura
+ * che cade fra due voci dello stesso giorno si legge come un errore, perche' dal lato di chi guarda
+ * lo e': nei dati, li', non cambia niente. Quindi i pezzi arrotondano solo gli angoli che sono
+ * davvero l'inizio e la fine, e chi li emette richiude il vuoto in mezzo.
+ */
+enum class FluidGroupSegment {
+  /** Tutta la lista sta in un pannello: arrotonda tutto. */
+  Whole,
+
+  /** Apre la lista: arrotonda solo in alto. */
+  First,
+
+  /** Ne' inizio ne' fine: nessun angolo tondo. */
+  Middle,
+
+  /** Chiude la lista: arrotonda solo in basso. */
+  Last,
+}
+
+/**
  * A grouped list: rows share one rounded container, the way an inset-grouped table view does.
  *
  * The container clips, so a row's press highlight is trimmed to the group's corners instead of
@@ -853,9 +880,23 @@ fun FluidListGroup(
    * whole group, whatever number of rows it happens to hold.
    */
   glass: Boolean = false,
+  /**
+   * Quale pezzo di una lista piu' lunga e' questo, quando la lista era troppo lunga per un pannello.
+   *
+   * Lascialo [FluidGroupSegment.Whole] a meno che tu non sia il codice che taglia: un gruppo che
+   * arrotonda solo due angoli per qualunque altro motivo e' un gruppo che sembrera' rotto il giorno
+   * in cui la lista sopra o sotto cambia lunghezza.
+   */
+  segment: FluidGroupSegment = FluidGroupSegment.Whole,
   content: @Composable ColumnScope.() -> Unit,
 ) {
-  val shape = ContinuousCornerShape(FluidRadius.Group)
+  val radius = FluidRadius.Group
+  val shape = when (segment) {
+    FluidGroupSegment.Whole -> ContinuousCornerShape(radius)
+    FluidGroupSegment.First -> ContinuousCornerShape(topStart = radius, topEnd = radius)
+    FluidGroupSegment.Middle -> ContinuousCornerShape()
+    FluidGroupSegment.Last -> ContinuousCornerShape(bottomEnd = radius, bottomStart = radius)
+  }
   val onGlass = contentGlassAvailable(glass)
   Surface(
     // Surface already clips its children to [shape]. A second clip created another large offscreen

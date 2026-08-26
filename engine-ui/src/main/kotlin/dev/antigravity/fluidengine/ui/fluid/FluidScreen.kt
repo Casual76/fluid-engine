@@ -293,6 +293,14 @@ val LocalFluidScrollToTop: ProvidableCompositionLocal<FluidScrollToTopBus?> =
  */
 val LocalFluidBottomInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
 
+/**
+ * Quanto spazio questa schermata mette fra due item della sua lista.
+ *
+ * Pubblicato perche' un helper che emette PIU' item che devono leggersi come UNO solo non ha altro
+ * modo di sapere quanta aria deve richiudere. Vedi `FluidGroupSegment`.
+ */
+val LocalFluidItemSpacing = compositionLocalOf { FluidScreenDefaults.ItemSpacing }
+
 object FluidScreenDefaults {
   /** Height of the control row of the bar, matching the 44pt UIKit navigation bar. */
   val ControlRowHeight: Dp = 44.dp
@@ -714,6 +722,7 @@ fun FluidScreen(
     }
 
     val body: @Composable () -> Unit = {
+      CompositionLocalProvider(LocalFluidItemSpacing provides itemSpacing) {
       LazyColumn(
         modifier = Modifier
           .fillMaxSize()
@@ -762,6 +771,7 @@ fun FluidScreen(
           )
         }
         content()
+      }
       }
     }
 

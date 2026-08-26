@@ -1053,7 +1053,11 @@ private fun FluidAnchoredPopover(
   // da (1 - presence): a modale fermo la finestra porta lo scrim intero, lungo le dissolvenze
   // esattamente la frazione che lo scrim ha sullo schermo.
   val windowDark = GlassDefaults.isDarkSurface()
-  val windowFloatingTint = GlassDefaults.floatingTint()
+  // La pellicola a riposo: quella tinta quando la finestra porta il colore della cosa da cui e'
+  // nata, altrimenti quella flottante di sempre. E' **questa** che si vede a modale aperto —
+  // `tintBlend` vale 0 con la presenza piena, cioe' sceglie `tintFrom`.
+  val windowFloatingTint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
+    ?: GlassDefaults.floatingTint()
   val windowTintWithScrim = remember(windowFloatingTint, windowDark) {
     windowFloatingTint.copy(
       overlay = windowFloatingTint.overlay.compositeOver(

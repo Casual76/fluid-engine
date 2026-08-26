@@ -6,6 +6,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.7 - 2026-08-26
+
+- Il tasto DIVENTA il pop-up: fluidExpandOrigin registra l'immagine della riga (al primo draw da nascosta, mai al tocco: un tap iniettato dura meno di un fotogramma) e la nasconde mentre la finestra e' in scena; l'immagine viaggia con la silhouette all'andata e la ricopre al ritorno, cosi' lo scambio finale non ha niente da mostrare. Ogni app la eredita aggiornando l'engine, senza cambiare i call-site.
+- Un moto solo, detto parola per parola: rincorsa tutta in ease-in (130ms al 92 per cento) che consegna la velocita' alla molla, e l'oltrepasso e' gonfiore geometrico della silhouette su tutti i lati (overshootInflation per asse in driveExternally) - grande quanto il viaggio (scala con l'altezza del pannello) e coi fianchi che non toccano mai i bordi dello schermo.
+- Niente piu' lampi ai confini: cancello in drawWithContent su scrim e finestra (a materiale zero non si registra niente), misurato alla luminanza sul video di Alessio (214.6 -> 190.9 -> 204.1 al primo fotogramma: sparito). La finestra campiona la pagina CRUDA e la quota di scrim se la dipinge da sola alla forza corrente - la card non resta piu' scura durante la chiusura.
+- Chiusura naturale: materiale e ombra muoiono con l'atterraggio, lo scrim sfuma gradualmente fino alla fine, e molla i tocchi alla richiesta di congedo (si scorre subito). Ombra pre-sfocata in bitmap per taglia (il BlurMaskFilter per fotogramma era il lag). Card ancorata a 360dp, bordo pronunciato, haptic ContextClick all'apertura.
+- FluidMorphMenu: glow del tocco ripristinato, apertura con molla sola (la rincorsa l'ha gia' pagata il dito), e al ritorno l'etichetta compare in posa senza traslazione.
+
+
 ## 1.9.6 - 2026-08-26
 
 - La finestra dei modali ancorati apre con un POP: niente rincorsa, due molle spaiate piu' vive (0.58/0.68 a 330). Il pannello e' una card stretta (320dp), non una fascia larga quanto la riga: il morph raccoglie i fianchi della riga mentre cresce. Sotto la finestra c'e' un'ombra disegnata sul path della silhouette corrente, che segue il morph fotogramma per fotogramma: prima il pannello aperto galleggiava piatto.

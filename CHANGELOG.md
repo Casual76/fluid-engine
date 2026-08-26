@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.12.2 - 2026-08-27
+
+- La finestra tinta resta tinta da aperta: a presenza piena vince tintFrom, ed e' li' che serviva il colore
+
+
 ## 1.12.1 - 2026-08-27
 
 - paneTint arriva anche alla finestra Fluid-physics, che e' il caso in cui una finestra nasce da un'ancora — cioe' quello in cui il colore serve

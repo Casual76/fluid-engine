@@ -224,11 +224,21 @@ fun FluidRouteMotionHost(
 ) {
   // Vale in entrambi i rami: la barra deve sapere chi e' davanti anche quando il movimento e'
   // disattivato, perche' il problema e' la sorgente del vetro, non l'animazione.
-  val isFront = with(animatedVisibilityScope) {
-    remember(transition) {
-      derivedStateOf { transition.currentState == EnterExitState.Visible }
-    }
+  //
+  // **Il passaggio di consegne avviene a meta' strada, e serve una frazione per saperlo.** Con il
+  // solo `currentState` la pagina che se ne va resta "davanti" per tutto il gesto: a back trascinato
+  // fino in fondo la barra rifrangeva ancora la pagina che non si vede quasi piu'. Con il solo
+  // `targetState` il difetto e' speculare, ed e' quello di partenza: la destinazione vince dal primo
+  // fotogramma, quando sullo schermo non c'e' ancora. La transizione anima questa frazione con il
+  // dito — il back predittivo la guida davvero — quindi superato il mezzo vince chi sta arrivando, e
+  // se il gesto viene annullato la frazione torna indietro da sola.
+  val frontness = with(animatedVisibilityScope) {
+    transition.animateFloat(
+      transitionSpec = { tween(FluidMotion.DurationExpand, easing = FluidMotion.EaseEmphasized) },
+      label = "route frontness",
+    ) { state -> if (state == EnterExitState.Visible) 1f else 0f }
   }
+  val isFront = remember(frontness) { derivedStateOf { frontness.value > 0.5f } }
 
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   if (reducedMotion || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {

@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -124,14 +125,16 @@ fun FluidMorphMenuButton(
       // Sparizione secca, non dissolvenza: la superficie dell'host appare nello stesso fotogramma
       // allo stesso posto con la stessa sagoma — è un cambio di proprietario, non un'uscita.
       .graphicsLayer { alpha = if (state.isOnScreen) 0f else 1f }
-      .glassControlSurface(backdrop = backdrop, interactive = enabled)
+      // interactive = false, deliberato: il lampo bianco del tocco scattava anche su un dito che
+      // voleva solo scorrere. Il feedback di questo tasto è una scala leggera al press — e il
+      // morph stesso: un tasto che diventa un pannello non ha bisogno di annunciarsi.
+      .glassControlSurface(backdrop = backdrop, interactive = false)
       .fluidPressable(
         onClick = onClick,
         onLongClick = {
           bounds?.let { state.open(it, text, icon, actions()) }
         },
         enabled = enabled,
-        pressedScale = 1f,
         role = Role.Button,
       )
       // Stessa altezza e stesso passo orizzontale di FluidGlassButton: l'ancora È quel tasto,
@@ -225,6 +228,14 @@ fun FluidMorphMenuHost(
             shadowRadius = 0.dp,
             shadowAlpha = 0f,
           ),
+          // La pellicola è parte del viaggio: capsula col colore del tasto, pannello col colore
+          // del menù — e al ritorno la strada inversa, così il tasto riappare senza salti di
+          // colore nell'ultimo fotogramma.
+          tintFrom = GlassDefaults.controlTint(),
+          tintBlend = {
+            val t = state.physics.progress.coerceIn(0f, 1f)
+            if (state.isOpen) t else 1f - t
+          },
         ),
     )
 
@@ -263,7 +274,17 @@ fun FluidMorphMenuHost(
             .padding(vertical = MorphMenuPanelPadding),
           verticalArrangement = Arrangement.Top,
         ) {
-          state.actions.forEach { action ->
+          state.actions.forEachIndexed { index, action ->
+            if (index > 0) {
+              // La riga sottile che separa le voci: la stessa grammatica delle liste raggruppate.
+              Box(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 18.dp)
+                  .height(0.5.dp)
+                  .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+              )
+            }
             MorphMenuRow(
               action = action,
               onPicked = {

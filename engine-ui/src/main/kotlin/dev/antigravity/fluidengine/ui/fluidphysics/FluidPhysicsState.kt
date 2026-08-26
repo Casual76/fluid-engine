@@ -58,7 +58,31 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * di disegno — dentro `graphicsLayer {}` o un draw block — mai in composizione: è lo stato che
    * cambia a ogni fotogramma.
    */
-  val progress: Float get() = activeTransit?.progress?.value ?: 1f
+  val progress: Float
+    get() = externalDrive?.progress?.invoke() ?: activeTransit?.progress?.value ?: 1f
+
+  private var externalDrive by mutableStateOf<ExternalWindowDrive?>(null)
+
+  /**
+   * Mette lo stato al servizio di un orologio ALTRUI: la silhouette è il lerp [from]→[to] al
+   * [progress] fornito, e morphTo/snapTo non c'entrano più.
+   *
+   * Esiste per i componenti che un orologio ce l'hanno già — il modale, con le sue molle legate a
+   * dissolvenze, scrim e ritirata del back predittivo — e a cui serve solo la *finestra* di
+   * Fluid-physics: la sagoma che viaggia con la rifrazione addosso. Due orologi sulla stessa
+   * superficie sarebbero un disallineamento garantito; qui l'orologio resta uno, il loro.
+   */
+  internal fun driveExternally(from: FluidForm.Slab, to: FluidForm.Slab, progress: () -> Float) {
+    val current = externalDrive
+    if (current != null && current.from == from && current.to == to) return
+    externalDrive = ExternalWindowDrive(
+      transit = SlabTransit(listOf(from to to), blendRadius = 0f),
+      from = from,
+      to = to,
+      progress = progress,
+    )
+    transitPlanStamp = Float.NaN
+  }
 
   /** Grossolano e sicuro da leggere in composizione: dietro c'è un derivedStateOf. */
   val isMorphing: Boolean by derivedStateOf { activeTransit != null }
@@ -216,6 +240,17 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   /** Il piano di resa per il fotogramma corrente. Solo fase di disegno. */
   internal fun ensurePlan(): PhysicsRenderPlan {
+    val drive = externalDrive
+    if (drive != null) {
+      val t = drive.progress()
+      if (transitPlanTransit !== drive.transit || transitPlanStamp != t) {
+        transitPlan.clipToBounds = maskInShader
+        buildTransitPlan(transitPlan, drive.transit, t)
+        transitPlanTransit = drive.transit
+        transitPlanStamp = t
+      }
+      return transitPlan
+    }
     val transit = activeTransit
     if (transit == null) {
       val form = formState
@@ -245,6 +280,14 @@ fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
   return state
 }
 
+/** La guida esterna: un transito a un pezzo il cui orologio appartiene al chiamante. */
+private class ExternalWindowDrive(
+  val transit: SlabTransit,
+  val from: FluidForm.Slab,
+  val to: FluidForm.Slab,
+  val progress: () -> Float,
+)
+
 // --- La coreografia della casa ------------------------------------------------
 //
 // "Parte piano, accelera, rimbalza alla fine e arriva nella figura finale." I numeri sono la
@@ -255,8 +298,8 @@ fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
 /** Dove finisce la rincorsa e comincia la molla, in frazione di viaggio. */
 internal const val JourneyRunUpEnd = 0.80f
 
-/** Durata della rincorsa. */
-internal const val JourneyRunUpMillis = 250
+/** Durata della rincorsa. Accorciata su richiesta: "hanno solo bisogno di essere accelerate". */
+internal const val JourneyRunUpMillis = 180
 
 /** Piano in partenza, ripido in uscita: la pendenza finale È il rimbalzo. */
 internal val JourneyRunUpEasing = CubicBezierEasing(0.55f, 0f, 0.72f, 0.4f)
@@ -264,8 +307,8 @@ internal val JourneyRunUpEasing = CubicBezierEasing(0.55f, 0f, 0.72f, 0.4f)
 /** Sottosmorzata quanto basta per UN rimbalzo leggero, non un tremolio. */
 internal const val JourneyBounceDamping = 0.58f
 
-/** La rigidità della posata: scattante, così la coda non trascina il viaggio. */
-internal val JourneyBounceStiffness = FluidMotion.ResponseSnappy
+/** La rigidità della posata: quasi istantanea — la coda non deve trascinare il viaggio. */
+internal val JourneyBounceStiffness = FluidMotion.ResponseInstant
 
 // --- Transiti ----------------------------------------------------------------
 //

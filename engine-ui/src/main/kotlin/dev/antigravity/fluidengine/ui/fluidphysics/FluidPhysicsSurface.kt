@@ -66,6 +66,14 @@ fun Modifier.fluidPhysicsSurface(
   /** null = il tetto del dispositivo. Una richiesta può solo scendere di livello, mai salire. */
   tier: FluidPhysicsTier? = null,
   intensity: () -> Float = { 1f },
+  /**
+   * Tinta di partenza opzionale: la pellicola scivola da questa a [tint] secondo [tintBlend]
+   * (0 = tintFrom, 1 = tint), letto in fase di disegno. Esiste per le superfici che *diventano*
+   * un'altra cosa — un tasto che si espande in un pannello non può cambiare pellicola in un
+   * fotogramma solo: il colore è parte del viaggio.
+   */
+  tintFrom: GlassTint? = null,
+  tintBlend: () -> Float = { 1f },
   sampleOnce: Boolean = false,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
@@ -93,7 +101,7 @@ fun Modifier.fluidPhysicsSurface(
   val layoutWidth = remember { mutableFloatStateOf(0f) }
   val shapeBlock: () -> Shape = remember(state) { { state.ensurePlan().shape } }
 
-  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius, quality, state, resolvedTier, tint) {
+  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius, quality, state, resolvedTier, tint, tintFrom) {
     {
       val amount = clampGlassUnit(currentIntensity())
       if (amount > 0.001f) {
@@ -112,7 +120,16 @@ fun Modifier.fluidPhysicsSurface(
           // cattura non viene mai sporcata.
           val depth = amount * q
           val shaderTint = if (plan.tintInShader) {
-            tint.overlay.copy(alpha = tint.overlay.alpha * amount)
+            val overlay = if (tintFrom == null) {
+              tint.overlay
+            } else {
+              androidx.compose.ui.graphics.lerp(
+                tintFrom.overlay,
+                tint.overlay,
+                clampGlassUnit(tintBlend()),
+              )
+            }
+            overlay.copy(alpha = overlay.alpha * amount)
           } else {
             Color.Transparent
           }
@@ -142,14 +159,23 @@ fun Modifier.fluidPhysicsSurface(
     }
   }
 
-  val onDrawSurface: DrawScope.() -> Unit = remember(tint, state, resolvedTier) {
+  val onDrawSurface: DrawScope.() -> Unit = remember(tint, tintFrom, state, resolvedTier) {
     {
       val amount = clampGlassUnit(currentIntensity())
       if (amount > 0.001f) {
         val plan = state.ensurePlan()
         val tintCarriedByShader = resolvedTier == FluidPhysicsTier.Full && plan.tintInShader
         if (!tintCarriedByShader) {
-          drawPath(plan.silhouette, tint.overlay.copy(alpha = tint.overlay.alpha * amount))
+          val overlay = if (tintFrom == null) {
+            tint.overlay
+          } else {
+            androidx.compose.ui.graphics.lerp(
+              tintFrom.overlay,
+              tint.overlay,
+              clampGlassUnit(tintBlend()),
+            )
+          }
+          drawPath(plan.silhouette, overlay.copy(alpha = overlay.alpha * amount))
         }
       }
     }

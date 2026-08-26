@@ -745,6 +745,7 @@ private fun FluidGlassModalLayer(
       FluidLiftedPreview(
         preview = lastPreview,
         bounds = lastPreviewBounds,
+        paneTint = lastPaneTint,
         backdrop = popoverBackdrop,
         // Never faded. The real row hides the moment the menu opens and comes back only at
         // [exitFinished] — the preview is the row for that whole stretch, and fading it out on the
@@ -773,7 +774,10 @@ private fun FluidGlassModalLayer(
     FluidAnchoredPopover(
       anchor = lastOrigin,
       paneTitle = lastPaneTitle ?: if (menu || expand) "Azioni" else null,
-      paneTint = lastPaneTint,
+      // Il menu contestuale no: il colore sta sulla riga sollevata, che e' l'oggetto. Una lista di
+      // azioni tinta come la cosa da cui nasce diventa il secondo oggetto colorato della scena, e
+      // a quel punto non si capisce piu' quale dei due si stia guardando.
+      paneTint = if (menu) null else lastPaneTint,
       backdrop = popoverBackdrop,
       compact = menu || expand,
       // Tutto quello che nasce da un'ancora si apre **sopra di lei**, tranne il menu contestuale:
@@ -1475,6 +1479,15 @@ private fun FluidAnchoredPopover(
 private fun FluidLiftedPreview(
   preview: GraphicsLayer?,
   bounds: Rect?,
+  /**
+   * Il colore della riga che si e' sollevata.
+   *
+   * E' **qui** che il colore serve, non sul pannello delle azioni: la riga sollevata e' l'oggetto —
+   * "quello che tenevi in mano diventa la stessa card di vetro" dice il commento qui sopra — e una
+   * card colorata che diventa vetro grigio smette di essere quella card. Il menu sotto invece e'
+   * chrome, e la chrome non prende il colore di cio' che l'ha chiamata.
+   */
+  paneTint: Color?,
   backdrop: GlassBackdropState?,
   presence: () -> Float,
   scaleX: () -> Float,
@@ -1510,7 +1523,8 @@ private fun FluidLiftedPreview(
         if (backdrop != null) {
           Modifier.glassSurface(
             state = backdrop,
-            tint = GlassDefaults.modalTint(),
+            tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
+              ?: GlassDefaults.modalTint(),
             shape = shape,
             role = GlassRole.Modal,
             optics = FluidPopoverOptics,

@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.12.5 - 2026-08-27
+
+- La tinta di un menu contestuale sta sulla riga sollevata — che e' l'oggetto — e non sul pannello delle azioni, che e' chrome
+
+
 ## 1.12.4 - 2026-08-27
 
 - La tinta della finestra regge anche quando dietro c'e' un'altra superficie satura

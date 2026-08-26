@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.12.4 - 2026-08-27
+
+- La tinta della finestra regge anche quando dietro c'e' un'altra superficie satura
+
+
 ## 1.12.3 - 2026-08-27
 
 - Il passaggio di consegne del vetro della chrome avviene a meta' gesto: ne' al primo fotogramma ne' mai

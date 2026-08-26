@@ -1267,12 +1267,16 @@ private fun FluidAnchoredPopover(
                 shape = shape,
                 role = GlassRole.Modal,
                 optics = if (compact) FluidCompactPopoverOptics else FluidPopoverOptics,
-                // Captured once and carried. The pane spends both of its journeys being scaled and
-                // translated by the layer above, and a re-capture computed mid-transform maps the
-                // sources wrongly — which on every close stripped the pane of its glass and left a
-                // milky card travelling down the screen. The recording's sources stay live by
-                // reference, so what is frozen is only the geometry.
-                sampleOnce = true,
+                // Congelata **solo per i pannelli che viaggiano**. Una finestra che attraversa lo
+                // schermo non puo' ricalcolare la mappatura a meta' volo: su ogni chiusura restava
+                // spogliata del vetro, una card lattiginosa in viaggio.
+                //
+                // Un menu contestuale pero' non viaggia, cresce sul posto — e li' congelare fa il
+                // danno opposto: la geometria si fissa quando il pannello e' ancora una capsula
+                // all'ancora, e quando ha finito di crescere sta mostrando l'immagine di dov'era
+                // prima. Sono i **due oggetti** che si vedevano dentro il vetro: quello vero fuori
+                // dal pannello e la sua copia sfasata dentro.
+                sampleOnce = !compact,
                 exports = paneGlass,
               )
             } else if (backdrop == null) {

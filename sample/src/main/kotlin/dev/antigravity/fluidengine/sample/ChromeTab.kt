@@ -78,14 +78,12 @@ internal fun ChromeTab(bottomInset: Dp) {
         fontWeight = FontWeight.Bold,
       )
       Text(
-        text = "Si apre esattamente sulla riga che hai toccato, con la misura del proprio " +
-          "contenuto, e cresce dall'angolo più vicino con le stesse due molle della pastiglia " +
-          "della tab bar. La pagina dietro resta a colori: la separa il bordo del vetro, non un " +
-          "velo nero.",
+        text = "Nasce dalla riga che hai toccato e LIEVITA fino a qui: la sagoma viaggia con la " +
+          "rifrazione addosso, il contenuto le sta attaccato, e la pagina dietro resta a colori " +
+          "— la separa il bordo del vetro, non un velo nero. Per chiudere tocca fuori.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
-      FluidButton(text = "Chiudi", onClick = { cardOpen = false }, fillWidth = true)
     }
   }
 
@@ -111,7 +109,6 @@ internal fun ChromeTab(bottomInset: Dp) {
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
       }
-      FluidButton(text = "Chiudi", onClick = { sheetOpen = false }, fillWidth = true)
     }
   }
 

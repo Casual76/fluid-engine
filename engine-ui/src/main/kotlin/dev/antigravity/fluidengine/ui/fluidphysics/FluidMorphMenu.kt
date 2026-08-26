@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -190,7 +191,15 @@ fun FluidMorphMenuHost(
       )
       state.panelFrame = panel
       state.physics.snapTo(capsule)
-      state.physics.morphTo(FluidForm.Slab(panel, FluidCornerRadii.all(groupRadiusPx)))
+      // NON il viaggio della casa: la rincorsa l'ha gia' pagata il dito — quattrocento
+      // millisecondi di pressione sono la partenza lenta. Da li' la superficie deve ARRIVARE:
+      // molla sola, sottosmorzata, che parte alla velocita' massima e rimbalza sul traguardo.
+      // Il viaggio completo resta ai morph avviati da un tocco secco, dove la partenza lenta
+      // si vede davvero (il Playground, promosso cosi' com'e').
+      state.physics.morphTo(
+        FluidForm.Slab(panel, FluidCornerRadii.all(groupRadiusPx)),
+        spring(dampingRatio = 0.6f, stiffness = 400f, visibilityThreshold = 0.001f),
+      )
     } else if (state.isOnScreen) {
       // Ritorno di servizio: rapido e senza rimbalzo — un congedo che rimbalza trattiene.
       state.physics.morphTo(capsule, FluidMotion.snappy())

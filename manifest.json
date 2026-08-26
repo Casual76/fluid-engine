@@ -15,22 +15,30 @@
       "ref": ""
     },
     "stable": {
-      "version": "1.0.3",
+      "version": "1.0.4",
       "releaseDate": "2026-08-26",
-      "changelog": "La card che si espande apre con un POP: piu' stretta, con l'ombra, e il testo viaggia dentro il vetro invece di sbordare. Il menu del tasto Azione arriva subito dopo la pressione. Niente piu' tasto Chiudi: per chiudere si tocca fuori.",
-      "releaseTag": "stable-fluid-glass-v1.0.3",
-      "apkAsset": "fluid-glass-1.0.3.apk",
-      "sizeBytes": 2791872
+      "changelog": "Il tasto DIVENTA il pop-up: la riga si trasforma nella card col suo testo addosso, e ci ritorna. Un moto solo: accelera, oltrepassa gonfiandosi su tutti i lati (quanto e' grande il viaggio), si posa. Niente piu' lampi scuri all'apertura e alla chiusura, la card non resta piu' scura mentre si richiude, e lo sfondo torna a colori gradualmente fino alla fine. Durante la chiusura si puo' gia' scorrere. Il tasto Azione si illumina di nuovo sotto il dito.",
+      "releaseTag": "stable-fluid-glass-v1.0.4",
+      "apkAsset": "fluid-glass-1.0.4.apk",
+      "sizeBytes": 2808256
     },
     "beta": {
-      "version": "1.0.3",
+      "version": "1.0.4",
       "releaseDate": "2026-08-26",
-      "changelog": "La card che si espande apre con un POP: piu' stretta, con l'ombra, e il testo viaggia dentro il vetro invece di sbordare. Il menu del tasto Azione arriva subito dopo la pressione. Niente piu' tasto Chiudi: per chiudere si tocca fuori.",
-      "releaseTag": "stable-fluid-glass-v1.0.3",
-      "apkAsset": "fluid-glass-1.0.3.apk",
-      "sizeBytes": 2791872
+      "changelog": "Il tasto DIVENTA il pop-up: la riga si trasforma nella card col suo testo addosso, e ci ritorna. Un moto solo: accelera, oltrepassa gonfiandosi su tutti i lati (quanto e' grande il viaggio), si posa. Niente piu' lampi scuri all'apertura e alla chiusura, la card non resta piu' scura mentre si richiude, e lo sfondo torna a colori gradualmente fino alla fine. Durante la chiusura si puo' gia' scorrere. Il tasto Azione si illumina di nuovo sotto il dito.",
+      "releaseTag": "stable-fluid-glass-v1.0.4",
+      "apkAsset": "fluid-glass-1.0.4.apk",
+      "sizeBytes": 2808256
     },
     "history": [
+      {
+        "version": "1.0.3",
+        "releaseDate": "2026-08-26",
+        "changelog": "La card che si espande apre con un POP: piu' stretta, con l'ombra, e il testo viaggia dentro il vetro invece di sbordare. Il menu del tasto Azione arriva subito dopo la pressione. Niente piu' tasto Chiudi: per chiudere si tocca fuori.",
+        "releaseTag": "stable-fluid-glass-v1.0.3",
+        "apkAsset": "fluid-glass-1.0.3.apk",
+        "sizeBytes": 2791872
+      },
       {
         "version": "1.0.2",
         "releaseDate": "2026-08-26",

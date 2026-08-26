@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.5 - 2026-08-26
+
+- La finestra dei modali e' di Fluid-physics: tutto quello che nasce da un'ancora (pop-up con origine, Expand) viaggia dal rettangolo dell'ancora al pannello con la rifrazione addosso, sull'orologio che il modale aveva gia' (driveExternally). Il contenuto trasla col centro della sagoma. Ogni app lo eredita aggiornando l'engine; menu contestuale e foglio restano com'erano, per scelta.
+- Il viaggio della casa e' piu' rapido (rincorsa 180ms, posata quasi istantanea) ed entra anche nei modali ancorati.
+- FluidMorphMenu rifinito: righe separate dalla linea sottile, pellicola che scivola dal colore del tasto a quello del pannello e ritorno (tintFrom/tintBlend in fluidPhysicsSurface), e niente lampo bianco al solo tocco.
+
+
 ## 1.9.4 - 2026-08-26
 
 - Il viaggio della casa: parte piano, accelera, rimbalza alla fine. E' il default di morphTo: una rincorsa in ease-in fino all'80% e una molla sottosmorzata che ne eredita la velocita'. Anche le fusioni rimbalzano: il clamp non serve piu', lo coprono l'unione geometrica e il ponte che si spegne.

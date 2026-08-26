@@ -761,14 +761,22 @@ object GlassDefaults {
     val dark = isDarkSurface()
     val base = modalTint()
     return base.copy(
-      overlay = lerp(base.overlay, colour, ColourShare).copy(alpha = if (dark) 0.58f else 0.62f),
+      overlay = lerp(base.overlay, colour, ColourShare).copy(alpha = if (dark) 0.72f else 0.76f),
       fallback = lerp(base.fallback, colour, 0.82f).copy(alpha = if (dark) 0.97f else 0.98f),
       hairline = lerp(base.hairline, colour, 0.30f),
     )
   }
 
-  /** Quanto del colore d'origine entra nel film del vetro prima che smetta di trasmettere. */
-  private const val ColourShare = 0.62f
+  /**
+   * Quanto del colore d'origine entra nel film del vetro.
+   *
+   * Tarato guardando il caso peggiore e non quello facile: sopra una pagina chiara bastava poco,
+   * ma un menu contestuale si apre spesso **sopra un'altra superficie satura** — e li' un film
+   * timido perdeva contro il colore che aveva dietro, tanto da sembrare non applicato affatto. Il
+   * vetro trasmette ancora: si vede cosa c'e' sotto, ma di chi sia la finestra non e' piu' in
+   * discussione.
+   */
+  private const val ColourShare = 0.78f
 
   /**
    * Whether the app is painting a dark surface.

@@ -71,19 +71,26 @@ fun FluidTextField(
   // sei per cento si legge come un incavo. Dentro un pannello di vetro sotto NON c'e' una superficie
   // piatta — c'e' la pagina dell'app, trasmessa a circa meta'. La stessa velatura si modula con lei,
   // e un campo vuoto smette di essere un campo: diventa una finestra sulla lista che sta dietro.
-  // Misurato sul modulo del voto simulato: dentro un campo che dovrebbe essere una costante la
-  // luminanza andava da 175 a 215, cioe' il contenuto della pagina, riconoscibile, dentro la casella
+  // Misurato su un modulo dentro un pannello: in una casella che dovrebbe essere una costante la
+  // luminanza andava da 175 a 215, cioe' il contenuto della pagina, riconoscibile, dentro lo spazio
   // in cui si deve scrivere.
   //
-  // Sopra il vetro il campo si dipinge quindi un fondo **opaco**, del colore del pannello scurito di
-  // un decimo. Opaco perche' e' l'unica cosa che ferma la pagina; del colore del pannello perche' un
-  // grigio qualunque diventerebbe un rettangolo appiccicato sopra il vetro invece di un incavo
-  // scavato dentro. E' la stessa regola dell'impilamento: sopra il vetro tutto sale, non scende.
+  // Sopra il vetro il campo si dipinge quindi un fondo **opaco**, del colore del pannello scurito.
+  // Opaco perche' e' l'unica cosa che ferma la pagina; del colore del pannello perche' un grigio
+  // qualunque diventerebbe un rettangolo appiccicato sopra il vetro invece di un incavo scavato
+  // dentro. E' la stessa regola dell'impilamento: sopra il vetro tutto sale, non scende.
+  //
+  // E di quanto si scurisce si misura, non si sceglie. Il film e' un colore quasi bianco che il
+  // pannello rende a circa meta', quindi un pannello che a schermo sta a 230 di luminanza nasce da
+  // un film a 250. Un decimo verso onSurface lasciava il campo a 224: piatto, finalmente, ma sei
+  // punti sotto il pannello, cioe' MENO stacco della velatura che aveva prima. Piatto e
+  // indistinguibile non e' un incavo, e' una toppa. Diciotto centesimi lo portano a circa 210: i
+  // venti punti che l'incavo aveva sulla pagina opaca, questa volta senza la pagina dentro.
   val onGlass = LocalFluidCanvasIsGlass.current
   val film = GlassDefaults.glassFilm()
   val wellColor = when {
-    onGlass && isError -> lerp(film, scheme.error, 0.20f)
-    onGlass -> lerp(film, scheme.onSurface, 0.10f)
+    onGlass && isError -> lerp(film, scheme.error, 0.22f)
+    onGlass -> lerp(film, scheme.onSurface, 0.18f)
     isError -> scheme.error.copy(alpha = 0.10f)
     else -> scheme.onSurface.copy(alpha = 0.06f)
   }

@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.12.1 - 2026-08-27
+
+- paneTint arriva anche alla finestra Fluid-physics, che e' il caso in cui una finestra nasce da un'ancora — cioe' quello in cui il colore serve
+
+
 ## 1.12.0 - 2026-08-27
 
 - FluidGlassModalPortal(paneTint) e GlassDefaults.tintedModalTint: una finestra in vetro tinta dal colore della cosa da cui nasce

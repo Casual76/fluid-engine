@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.12.6 - 2026-08-27
+
+- La lente e' proporzionata al pannello: un menu contestuale non mostra piu' due versioni di cio' che ha dietro
+
+
 ## 1.12.5 - 2026-08-27
 
 - La tinta di un menu contestuale sta sulla riga sollevata — che e' l'oggetto — e non sul pannello delle azioni, che e' chrome

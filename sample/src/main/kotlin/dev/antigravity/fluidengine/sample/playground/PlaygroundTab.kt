@@ -77,7 +77,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
   var stage by remember { mutableStateOf(IntSize.Zero) }
   var selectedPreset by remember { mutableStateOf(PresetCircle) }
   var drawing by remember { mutableStateOf(false) }
-  var springLabel by remember { mutableStateOf("Standard") }
+  var springLabel by remember { mutableStateOf("Casa") }
   var tierLabel by remember { mutableStateOf("Auto") }
   var loopLabel by remember { mutableStateOf("No") }
   var blobSeed by remember { mutableIntStateOf(7) }
@@ -89,11 +89,12 @@ internal fun PlaygroundTab(bottomInset: Dp) {
   fun presetForm(name: String): FluidForm? =
     playgroundPresetForm(name, stage, cardRadiusPx, groupRadiusPx, blobSeed)
 
-  fun springSpec(): AnimationSpec<Float> = when (springLabel) {
+  // Null = la coreografia della casa: rincorsa piano→veloce e rimbalzo di molla sul finale.
+  fun springSpec(): AnimationSpec<Float>? = when (springLabel) {
     "Scattante" -> FluidMotion.snappy()
     "Standard" -> FluidMotion.standard()
     "Dolce" -> FluidMotion.smooth()
-    else -> FluidMotion.fluid()
+    else -> null
   }
 
   val tierOverride: FluidPhysicsTier? = when (tierLabel) {
@@ -191,7 +192,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
     item(key = "motion") {
       FluidCard(glass = true) {
         FluidSegmentedControl(
-          options = listOf("Scattante", "Standard", "Fluida", "Dolce"),
+          options = listOf("Casa", "Scattante", "Standard", "Dolce"),
           selected = springLabel,
           onSelect = { springLabel = it },
           label = { it },

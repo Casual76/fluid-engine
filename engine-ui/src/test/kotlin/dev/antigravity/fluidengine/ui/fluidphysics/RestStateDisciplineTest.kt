@@ -97,11 +97,14 @@ class RestStateDisciplineTest {
     assertEquals(null, physicsLayoverFor(group, circle))
     assertEquals(null, physicsLayoverFor(group, group))
 
-    // Gruppo↔sagoma: lo scalo esiste ed è posato sul footprint della sagoma.
+    // Gruppo↔sagoma: lo scalo esiste ed è posato sul footprint della DESTINAZIONE — la goccia
+    // si raccoglie mentre viaggia, mai tornando indietro.
     val outbound = physicsLayoverFor(group, poly)
     val inbound = physicsLayoverFor(poly, group)
     assertEquals(poly.frame, outbound?.frame)
-    assertEquals(poly.frame, inbound?.frame)
+    assertEquals(group.frame, inbound?.frame)
+    // E la goccia è una goccia: raggio pieno del lato corto.
+    assertEquals(poly.frame.minDimension / 2f, outbound!!.cornerRadii.topLeft, 0.001f)
   }
 
   @Test
@@ -127,24 +130,19 @@ class RestStateDisciplineTest {
   }
 
   @Test
-  fun aMergeNeverOvershootsPastCoincidence() {
-    // Due sorgenti, una destinazione: a t=1 coincidono; l'overshoot deve fermarsi lì, perché due
-    // pezzi che si ri-separano dopo essersi fusi sono un doppio bordo che si vede.
+  fun aMergeOvershootStaysSaneBecauseTheBlendIsDead() {
+    // Oltre il coincidere i pezzi di una fusione si oltrepassano in direzioni opposte: e' il
+    // rimbalzo del pannello. Quello che NON deve succedere e' l'alone: a compenetrazione piena il
+    // ponte deve essere spento, cosi' l'unione resta l'unione.
     val target = square
     val transit = SlabTransit(listOf(circle to target, square to target), blendRadius = 40f)
-    assertTrue(transit.isMerge)
 
     val plan = PhysicsRenderPlan()
-    buildTransitPlan(plan, transit, 1.08f)
-    // Entrambi i pezzi esattamente sulla destinazione, nonostante t > 1.
-    assertEquals(target.frame.center.x, plan.pieceRects[0], 0.001f)
-    assertEquals(target.frame.center.x, plan.pieceRects[4], 0.001f)
-    assertEquals(target.frame.center.y, plan.pieceRects[1], 0.001f)
-    assertEquals(plan.pieceRects[2], plan.pieceRects[6], 0.001f)
-
-    // Un viaggio senza fusione invece estrapola: è la vita della molla.
-    val direct = SlabTransit(listOf(circle to square), blendRadius = 0f)
-    assertFalse(direct.isMerge)
+    buildTransitPlan(plan, transit, 1.06f)
+    // I pezzi sono quasi coincidenti (oltrepasso simmetrico piccolo)...
+    assertTrue(kotlin.math.abs(plan.pieceRects[0] - plan.pieceRects[4]) < target.frame.width * 0.2f)
+    // ...e il ponte e' spento: niente gonfiore smin sul bordo comune.
+    assertEquals(0f, plan.blendRadius, 0.001f)
   }
 
   @Test

@@ -45,7 +45,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFoldingTabBar
 import dev.antigravity.fluidengine.ui.fluid.FluidFoldingTabBarDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
-import dev.antigravity.fluidengine.ui.fluid.FluidGlassMenuButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidNotificationHost
 import dev.antigravity.fluidengine.ui.fluid.FluidScrollToTopBus
@@ -61,6 +60,10 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidChromeController
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
+import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 
 /**
@@ -121,6 +124,7 @@ private fun Gallery() {
   val notificationHost = rememberFluidNotificationHostState()
   val fallbackBackdrop = rememberGlassBackdrop()
   val backdrop = chromeController.activeBackdrop.value ?: fallbackBackdrop
+  val morphMenu = rememberFluidMorphMenuState()
 
   val barFold = rememberFluidBarFold()
 
@@ -173,6 +177,7 @@ private fun Gallery() {
       if (route == RouteMaterial) {
         GalleryFloatingControls(
           backdrop = backdrop,
+          morphMenu = morphMenu,
           bottomInset = bottomInset,
           fold = { barFold.progress.value },
           modifier = Modifier.align(Alignment.BottomCenter),
@@ -182,6 +187,9 @@ private fun Gallery() {
       // Above the tab bar, and that placement is the whole reason the modal is in-root: a pop-up
       // that a floating navigation capsule can sit on top of is not a modal.
       FluidGlassModalHost(state = modalHost, backdrop = backdrop)
+      // Il tasto che diventa il proprio menù: la superficie che si trasforma vive qui, alla
+      // radice, per la stessa ragione dei modali.
+      FluidMorphMenuHost(state = morphMenu, backdrop = backdrop)
       FluidNotificationHost(
         state = notificationHost,
         backdrop = backdrop,
@@ -201,6 +209,7 @@ private fun Gallery() {
 @Composable
 private fun GalleryFloatingControls(
   backdrop: GlassBackdropState,
+  morphMenu: FluidMorphMenuState,
   bottomInset: androidx.compose.ui.unit.Dp,
   fold: () -> Float,
   modifier: Modifier = Modifier,
@@ -229,9 +238,10 @@ private fun GalleryFloatingControls(
       verticalAlignment = Alignment.CenterVertically,
     ) {
       FluidGlassButton(text = "Attiva", onClick = {}, backdrop = backdrop, selected = true)
-      // Tap for the action, hold and it turns into its own menu. The one control here that is not
-      // simply made of glass but *changes shape* out of it.
-      FluidGlassMenuButton(
+      // Tenuto premuto, il tasto SI ESPANDE nel proprio menù: Fluid-physics al lavoro in un
+      // componente vero — la capsula viaggia fino a essere il pannello, e torna.
+      FluidMorphMenuButton(
+        state = morphMenu,
         text = "Azione",
         onClick = {},
         backdrop = backdrop,

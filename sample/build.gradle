@@ -39,11 +39,11 @@ android {
     applicationId 'dev.antigravity.fluidglass'
     minSdk engine.minSdk
     targetSdk engine.compileSdk
-    versionCode 3
+    versionCode 4
     // Letterale, non `engine.version`: l'app ha la sua vita (il motore è alla 1.9.x mentre questa
     // è alla 1.0.x), e il publisher dello store legge questa riga con una regex che capisce solo
     // stringhe.
-    versionName '1.0.1'
+    versionName '1.0.2'
   }
 
   signingConfigs {

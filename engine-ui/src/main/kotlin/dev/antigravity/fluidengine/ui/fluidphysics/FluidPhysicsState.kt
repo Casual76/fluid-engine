@@ -2,6 +2,9 @@ package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -95,13 +98,19 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * e il pannello diventa la sagoma (o il percorso inverso). Un gesto legittimo non è mai
    * un'eccezione.
    */
+  /**
+   * Fa viaggiare la superficie verso [target] e sospende finché non si è posata.
+   *
+   * Con [spec] nullo — il default — il viaggio usa la coreografia della casa, chiesta da Alessio
+   * così: **parte piano, accelera a metà, e si posa con un rimbalzo leggero di molla.** Una molla
+   * sola non sa partire piano (nasce alla massima accelerazione), quindi il viaggio è in due
+   * tempi: una rincorsa in ease-in fino a [JourneyRunUpEnd], e da lì una molla sottosmorzata che
+   * eredita la velocità della rincorsa — il passaggio è invisibile perché `Animatable` porta con
+   * sé la velocità, e l'oltrepasso finale è il rimbalzo. Un [spec] esplicito scavalca tutto.
+   */
   suspend fun morphTo(
     target: FluidForm,
-    // Standard, non fluid: è la molla dei contenitori. Nei fotogrammi delle transizioni Apple i
-    // pannelli attaccano in fretta e si posano con una coda lunga, ma non rimbalzano MAI — il
-    // rimbalzo è degli elementi piccoli. Una sagoma intera che oltrepassa e torna è la cosa che
-    // l'occhio legge come "poco naturale" pur non sapendo dire perché.
-    spec: AnimationSpec<Float> = FluidMotion.standard(),
+    spec: AnimationSpec<Float>? = null,
   ) {
     if (activeTransit == null && target == formState) return
     val layover = physicsLayoverFor(currentForm(), target)
@@ -114,7 +123,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     morphLeg(target, spec)
   }
 
-  private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>) {
+  private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>?) {
     val transit = buildTransit(currentForm(), target)
     // L'installazione e il progresso zero DEVONO atterrare nello stesso snapshot, ed è per questo
     // che ogni transito possiede il proprio Animatable, nato a zero: con un progresso condiviso
@@ -128,10 +137,21 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // Il viaggio sostituito è orfano: fermarlo libera la coroutine che lo stava animando, senza
       // aspettare la coda della sua molla.
       previous?.progress?.stop()
-      if (reducedMotion) {
-        transit.progress.snapTo(1f)
-      } else {
-        transit.progress.animateTo(1f, spec)
+      when {
+        reducedMotion -> transit.progress.snapTo(1f)
+        spec != null -> transit.progress.animateTo(1f, spec)
+        else -> {
+          // La rincorsa: piano in partenza, in accelerazione piena all'uscita. L'easing finisce
+          // ripido apposta — è la velocità che la molla eredita, ed è quella a fare il rimbalzo.
+          transit.progress.animateTo(
+            JourneyRunUpEnd,
+            tween(durationMillis = JourneyRunUpMillis, easing = JourneyRunUpEasing),
+          )
+          transit.progress.animateTo(
+            1f,
+            spring(dampingRatio = JourneyBounceDamping, stiffness = JourneyBounceStiffness),
+          )
+        }
       }
     } finally {
       // Se un nuovo morphTo ci ha interrotti ha già sostituito il transito: il viaggio vivo è il
@@ -225,6 +245,28 @@ fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
   return state
 }
 
+// --- La coreografia della casa ------------------------------------------------
+//
+// "Parte piano, accelera, rimbalza alla fine e arriva nella figura finale." I numeri sono la
+// taratura di quella frase: la rincorsa copre i quattro quinti del viaggio in un quarto di
+// secondo con un easing che finisce a pendenza ~2.4 (la velocità consegnata alla molla), e la
+// molla sottosmorzata trasforma quella velocità in UN oltrepasso visibile che si posa.
+
+/** Dove finisce la rincorsa e comincia la molla, in frazione di viaggio. */
+internal const val JourneyRunUpEnd = 0.80f
+
+/** Durata della rincorsa. */
+internal const val JourneyRunUpMillis = 250
+
+/** Piano in partenza, ripido in uscita: la pendenza finale È il rimbalzo. */
+internal val JourneyRunUpEasing = CubicBezierEasing(0.55f, 0f, 0.72f, 0.4f)
+
+/** Sottosmorzata quanto basta per UN rimbalzo leggero, non un tremolio. */
+internal const val JourneyBounceDamping = 0.58f
+
+/** La rigidità della posata: scattante, così la coda non trascina il viaggio. */
+internal val JourneyBounceStiffness = FluidMotion.ResponseSnappy
+
 // --- Transiti ----------------------------------------------------------------
 //
 // Interni e non privati: i test del modulo esercitano buildTransitPlan direttamente, perché il
@@ -243,17 +285,7 @@ internal sealed class Transit {
 internal class SlabTransit(
   val pairs: List<Pair<FluidForm.Slab, FluidForm.Slab>>,
   val blendRadius: Float,
-) : Transit() {
-  /**
-   * Vero quando due sorgenti viaggiano verso la STESSA destinazione: una fusione. Lì l'overshoot
-   * della molla va tagliato sulla geometria: due pezzi che coincidono a t=1 e poi estrapolano a
-   * t=1.05 si *ri-separano* per un fotogramma — un doppio bordo che si vede, e che nessuna
-   * fusione vera produce.
-   */
-  val isMerge: Boolean = pairs.map { it.second }.let { targets ->
-    targets.size != targets.distinct().size
-  }
-}
+) : Transit()
 
 internal class RingTransit(val rings: MatchedRings) : Transit()
 
@@ -269,14 +301,14 @@ internal fun physicsLayoverFor(origin: FluidForm, target: FluidForm): FluidForm.
   val groupToPoly = origin is FluidForm.Group && target is FluidForm.Poly
   val polyToGroup = origin is FluidForm.Poly && target is FluidForm.Group
   if (!groupToPoly && !polyToGroup) return null
-  val anchor = (if (groupToPoly) target else origin) as FluidForm.Poly
-  // Raggio pieno: lo scalo è una GOCCIA, non un pannello. Un quadrato arrotondato in mezzo al
-  // viaggio si legge come "è tornato al quadrato, poi ha fatto altro" — un'altra forma, non una
-  // tappa. Una goccia sul footprint della sagoma si legge come materiale che si raccoglie prima
-  // di prendere la pelle nuova, che è esattamente quello che sta succedendo.
+  // Raggio pieno: lo scalo è una GOCCIA, non un pannello — materiale che si raccoglie, non
+  // un'altra forma. E la goccia sta sul footprint della DESTINAZIONE, sempre: così il viaggio è
+  // "raccogliersi mentre si va, poi prendere la pelle nuova sul posto". Ancorata all'origine si
+  // leggeva al contrario — la forma tornava indietro, poi ripartiva — ed è esattamente la
+  // transizione strana che Alessio ha descritto sui viaggi verso i gruppi.
   return FluidForm.Slab(
-    frame = anchor.frame,
-    cornerRadii = FluidCornerRadii.all(anchor.frame.minDimension / 2f),
+    frame = target.frame,
+    cornerRadii = FluidCornerRadii.all(target.frame.minDimension / 2f),
   )
 }
 
@@ -427,10 +459,13 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
 internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Float) {
   when (transit) {
     is SlabTransit -> {
-      val clamped = if (transit.isMerge) t.coerceAtMost(1f) else t
+      // Anche una fusione estrapola: oltre il coincidere i pezzi si oltrepassano di poco in
+      // direzioni opposte, e l'unione — un contorno solo, col ponte ormai spento — si legge come
+      // il pannello che rimbalza appena più largo. È il rimbalzo chiesto, gratis; il doppio bordo
+      // di una volta lo impediscono l'unione geometrica e effectiveBlendRadius, non un clamp.
       plan.silhouette.rewind()
       transit.pairs.forEachIndexed { index, (from, to) ->
-        val v = lerpSlab(from, to, clamped)
+        val v = lerpSlab(from, to, t)
         plan.writeSlabPiece(index, v)
         // In viaggio la sagoma passa per angoli circolari: è l'eccezione documentata — un path
         // continuo ricalcolato a ogni fotogramma è esattamente quello che non ci si può permettere,

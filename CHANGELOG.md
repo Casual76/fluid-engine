@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.12.0 - 2026-08-27
+
+- FluidGlassModalPortal(paneTint) e GlassDefaults.tintedModalTint: una finestra in vetro tinta dal colore della cosa da cui nasce
+- rememberFluidContextMenu(tint) — e FluidVividCard lo passa da sola, cosi' il menu di una card satura non arriva grigio
+
+
 ## 1.11.0 - 2026-08-27
 
 - La chrome in vetro rifrange la pagina davanti invece dell'ultima composta: durante un back predittivo la barra non cambia piu' colore prima che il gesto sia confermato

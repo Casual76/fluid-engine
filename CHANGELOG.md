@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.6 - 2026-08-26
+
+- La finestra dei modali ancorati apre con un POP: niente rincorsa, due molle spaiate piu' vive (0.58/0.68 a 330). Il pannello e' una card stretta (320dp), non una fascia larga quanto la riga: il morph raccoglie i fianchi della riga mentre cresce. Sotto la finestra c'e' un'ombra disegnata sul path della silhouette corrente, che segue il morph fotogramma per fotogramma: prima il pannello aperto galleggiava piatto.
+- Il contenuto della finestra viaggia col contratto di fluidPhysicsContent: scala uniforme sulla min-dimension (limiti 0.72..1.12), scritta che si materializza nella seconda meta' del viaggio. Prima sbordava a taglia piena dal vetro ancora piccolo.
+- FluidMorphMenu apre con una molla sola sottosmorzata (0.6 a 400): la partenza lenta l'ha gia' pagata il dito che tiene premuto. Il viaggio completo della casa resta ai morph avviati da un tocco secco.
+
+
 ## 1.9.5 - 2026-08-26
 
 - La finestra dei modali e' di Fluid-physics: tutto quello che nasce da un'ancora (pop-up con origine, Expand) viaggia dal rettangolo dell'ancora al pannello con la rifrazione addosso, sull'orologio che il modale aveva gia' (driveExternally). Il contenuto trasla col centro della sagoma. Ogni app lo eredita aggiornando l'engine; menu contestuale e foglio restano com'erano, per scelta.

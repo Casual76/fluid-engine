@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.11 - 2026-08-26
+
+- FluidGroupSegment: il taglio di una lista lunga in piu pannelli non si vede piu. I pezzi arrotondano solo gli angoli che sono davvero linizio e la fine, un lato aperto non disegna il bordo speculare (FluidGroupOpenEdge lo ritaglia, due dp di riempimento che nessuno vede) e chi taglia richiude il vuoto facendo dichiarare al pezzo unaltezza minore di quella che disegna. Prima la giuntura cadeva ogni otto righe con due angoli tondi e un buco in mezzo, anche fra due voci dello stesso giorno; ora e un separatore come tutti gli altri. LocalFluidItemSpacing dice quanta aria cera da richiudere.
+
+
 ## 1.9.10 - 2026-08-26
 
 - Il bordo chiaro del vetro coincide con la superficie che borda: anello del riflesso e ombra interna si registravano in un layer ridotto senza ridurre la geometria, quindi oltre i 1024 px di lato lungo un angolo da 22dp tornava su tre volte piu grande. Misurato sul telefono, scarto fra bordo e riflesso allangolo: da 133 px a 0.

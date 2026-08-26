@@ -170,7 +170,14 @@ internal class InnerShadowNode(
                 recordedColor != shadow.color
 
             if (needsRecord) {
-                val scaledOutline = shape.createOutline(scaledSize, layoutDirection, density)
+                // Fluid Engine change: densita' ridotta insieme al layer. Stessa correzione di
+                // HighlightModifier, stesso difetto: un raggio in Dp non sa di essere finito in un
+                // layer al quaranta per cento, quindi l'anello usciva con l'angolo moltiplicato per
+                // l'inverso della riduzione. La riduzione scatta solo oltre i 1024 px di lato lungo,
+                // percio' capitava ai pannelli alti e non a quelli corti: due gruppi identici, uno
+                // giusto e uno storto.
+                val scaledDensity = Density(density.density * resScale, density.fontScale)
+                val scaledOutline = shape.createOutline(scaledSize, layoutDirection, scaledDensity)
                 val scaledClip =
                     if (scaledOutline is Outline.Rounded) {
                         this@InnerShadowNode.clipPath ?: Path().also { this@InnerShadowNode.clipPath = it }

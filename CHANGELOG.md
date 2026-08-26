@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.10 - 2026-08-26
+
+- Il bordo chiaro del vetro coincide con la superficie che borda: anello del riflesso e ombra interna si registravano in un layer ridotto senza ridurre la geometria, quindi oltre i 1024 px di lato lungo un angolo da 22dp tornava su tre volte piu grande. Misurato sul telefono, scarto fra bordo e riflesso allangolo: da 133 px a 0.
+
+
 ## 1.9.9 - 2026-08-26
 
 - Il bordo chiaro del vetro coincide con la superficie che sta bordando. Lo shader del riflesso riceveva linvolucro che memorizza loutline invece della forma dichiarata: non essendo una CornerBasedShape la conversione falliva sempre e il riflesso disegnava una capsula, raggio uguale a meta del lato corto su tutti e quattro gli angoli. Su un controllo il ramo di riserva indovina (una capsula alta 44 px ha meta lato corto 22, cioe il suo raggio) e infatti non si vedeva; su un gruppo lista largo mille pixel diceva 498 dove il pannello ha 58, e quello che si vedeva era un arco chiaro che taglia il pannello e non coincide con le righe. Compariva solo su alcune superfici perche i casi erano le taglie.

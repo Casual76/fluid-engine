@@ -1142,7 +1142,10 @@ private fun FluidAnchoredPopover(
           // al bordo, non il latte — ma il blur non scende sotto la leggibilita', e il bordo e'
           // PRONUNCIATO: e' il bordo a dire "abbiamo selezionato questo", come sul menu
           // contestuale.
-          tint = GlassDefaults.floatingTint(),
+          // La finestra che nasce da una superficie colorata porta il suo colore: e' la stessa
+          // card che si sta trasformando, non un pannello che la contiene.
+          tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
+            ?: GlassDefaults.floatingTint(),
           role = GlassRole.Modal,
           optics = FluidPopoverOptics.copy(
             blurScale = 2.2f,

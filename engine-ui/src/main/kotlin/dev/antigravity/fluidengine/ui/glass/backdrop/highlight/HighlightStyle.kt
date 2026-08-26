@@ -33,6 +33,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.LayoutDirection
@@ -62,6 +63,8 @@ interface HighlightStyle {
          * degli angoli usciva moltiplicato per l'inverso della riduzione.
          */
         size: Size,
+        /** La densita' del layer ridotto: e' lei che converte i Dp nei pixel che ci stanno. */
+        density: Density,
         runtimeShaderCache: RuntimeShaderCache
     ): RuntimeShader?
 
@@ -74,6 +77,7 @@ interface HighlightStyle {
         override fun DrawScope.createShader(
             shape: Shape,
             size: Size,
+            density: Density,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? = null
     }
@@ -89,6 +93,7 @@ interface HighlightStyle {
         override fun DrawScope.createShader(
             shape: Shape,
             size: Size,
+            density: Density,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? {
             return if (isRuntimeShaderSupported()) {
@@ -97,7 +102,7 @@ interface HighlightStyle {
                     DefaultHighlightShaderString
                 ).apply {
                     setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape, size))
+                    setFloatUniform("cornerRadii", getCornerRadii(shape, size, density))
                     setColorUniform("color", color.copy(alpha = 1f))
                     setFloatUniform("angle", angle * (PI / 180f).toFloat())
                     setFloatUniform("falloff", falloff)
@@ -120,6 +125,7 @@ interface HighlightStyle {
         override fun DrawScope.createShader(
             shape: Shape,
             size: Size,
+            density: Density,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? {
             return if (isRuntimeShaderSupported()) {
@@ -128,7 +134,7 @@ interface HighlightStyle {
                     AmbientHighlightShaderString
                 ).apply {
                     setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape, size))
+                    setFloatUniform("cornerRadii", getCornerRadii(shape, size, density))
                     setFloatUniform("angle", 45f * (PI / 180f).toFloat())
                     setFloatUniform("falloff", 1f)
                 }
@@ -151,22 +157,22 @@ interface HighlightStyle {
     }
 }
 
-private fun DrawScope.getCornerRadii(shape: Shape, size: Size): FloatArray {
+private fun DrawScope.getCornerRadii(shape: Shape, size: Size, density: Density): FloatArray {
     val maxRadius = size.minDimension / 2f
     val shape = shape as? CornerBasedShape ?: return FloatArray(4) { maxRadius }
     val isLtr = layoutDirection == LayoutDirection.Ltr
     val topLeft =
-        if (isLtr) shape.topStart.toPx(size, this)
-        else shape.topEnd.toPx(size, this)
+        if (isLtr) shape.topStart.toPx(size, density)
+        else shape.topEnd.toPx(size, density)
     val topRight =
-        if (isLtr) shape.topEnd.toPx(size, this)
-        else shape.topStart.toPx(size, this)
+        if (isLtr) shape.topEnd.toPx(size, density)
+        else shape.topStart.toPx(size, density)
     val bottomRight =
-        if (isLtr) shape.bottomEnd.toPx(size, this)
-        else shape.bottomStart.toPx(size, this)
+        if (isLtr) shape.bottomEnd.toPx(size, density)
+        else shape.bottomStart.toPx(size, density)
     val bottomLeft =
-        if (isLtr) shape.bottomStart.toPx(size, this)
-        else shape.bottomEnd.toPx(size, this)
+        if (isLtr) shape.bottomStart.toPx(size, density)
+        else shape.bottomEnd.toPx(size, density)
     return floatArrayOf(
         topLeft.fastCoerceAtMost(maxRadius),
         topRight.fastCoerceAtMost(maxRadius),

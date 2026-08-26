@@ -185,7 +185,15 @@ internal class HighlightNode(
             highlightLayer.blendMode = highlight.style.blendMode
 
             if (needsRecord) {
-                val outline = shape.createOutline(scaledSize, layoutDirection, density)
+                // Fluid Engine change: nel layer ridotto si riduce anche la GEOMETRIA.
+                //
+                // L'anello si registra piccolo e si ridisegna grande, ma un raggio in Dp non lo sa:
+                // `createOutline(scaledSize, ..., density)` produceva 58 px di angolo dentro un
+                // layer al 40 per cento, e riportato in su diventavano 145. Da fuori: un arco chiaro
+                // con un raggio che non e' quello del pannello. Con la densita' ridotta i Dp
+                // atterrano in scala, e l'anello e' la stessa forma solo piu' piccola.
+                val scaledDensity = Density(density.density * resScale, density.fontScale)
+                val outline = shape.createOutline(scaledSize, layoutDirection, scaledDensity)
                 val clipPath =
                     if (outline is Outline.Rounded) {
                         clipPath ?: Path().also { clipPath = it }
@@ -193,7 +201,7 @@ internal class HighlightNode(
                         null
                     }
 
-                configurePaint(highlight, widthPx, blurPx, scaledSize)
+                configurePaint(highlight, widthPx, blurPx, scaledSize, scaledDensity)
 
                 highlightLayer.record(safeSize) {
                     translate(1f, 1f) {
@@ -248,6 +256,7 @@ internal class HighlightNode(
         strokeWidthPx: Float,
         blurPx: Float,
         shaderSize: Size,
+        shaderDensity: Density,
     ) {
         paint.color = highlight.style.color
         paint.strokeWidth = strokeWidthPx
@@ -279,6 +288,7 @@ internal class HighlightNode(
                         // non coincideva con la superficie. E siccome la riduzione scatta solo
                         // sopra un tetto d'area, capitava solo alle superfici grandi.
                         size = shaderSize,
+                        density = shaderDensity,
                         runtimeShaderCache = runtimeShaderCache
                     )
                 }

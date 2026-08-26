@@ -32,6 +32,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.LayoutDirection
@@ -52,6 +53,15 @@ interface HighlightStyle {
 
     fun DrawScope.createShader(
         shape: Shape,
+        /**
+         * Fluid Engine change: la taglia su cui lo shader lavora davvero.
+         *
+         * Non e' `DrawScope.size`: il riflesso si registra in un layer ridotto (vedi il tetto d'area
+         * in HighlightModifier) e viene poi ridisegnato in grande. Passandogli la taglia intera, lo
+         * shader descriveva un rettangolo piu' grande dei pixel su cui stava girando, e il raggio
+         * degli angoli usciva moltiplicato per l'inverso della riduzione.
+         */
+        size: Size,
         runtimeShaderCache: RuntimeShaderCache
     ): RuntimeShader?
 
@@ -63,6 +73,7 @@ interface HighlightStyle {
 
         override fun DrawScope.createShader(
             shape: Shape,
+            size: Size,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? = null
     }
@@ -77,6 +88,7 @@ interface HighlightStyle {
 
         override fun DrawScope.createShader(
             shape: Shape,
+            size: Size,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? {
             return if (isRuntimeShaderSupported()) {
@@ -85,7 +97,7 @@ interface HighlightStyle {
                     DefaultHighlightShaderString
                 ).apply {
                     setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape))
+                    setFloatUniform("cornerRadii", getCornerRadii(shape, size))
                     setColorUniform("color", color.copy(alpha = 1f))
                     setFloatUniform("angle", angle * (PI / 180f).toFloat())
                     setFloatUniform("falloff", falloff)
@@ -107,6 +119,7 @@ interface HighlightStyle {
 
         override fun DrawScope.createShader(
             shape: Shape,
+            size: Size,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? {
             return if (isRuntimeShaderSupported()) {
@@ -115,7 +128,7 @@ interface HighlightStyle {
                     AmbientHighlightShaderString
                 ).apply {
                     setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape))
+                    setFloatUniform("cornerRadii", getCornerRadii(shape, size))
                     setFloatUniform("angle", 45f * (PI / 180f).toFloat())
                     setFloatUniform("falloff", 1f)
                 }
@@ -138,8 +151,7 @@ interface HighlightStyle {
     }
 }
 
-private fun DrawScope.getCornerRadii(shape: Shape): FloatArray {
-    val size = size
+private fun DrawScope.getCornerRadii(shape: Shape, size: Size): FloatArray {
     val maxRadius = size.minDimension / 2f
     val shape = shape as? CornerBasedShape ?: return FloatArray(4) { maxRadius }
     val isLtr = layoutDirection == LayoutDirection.Ltr

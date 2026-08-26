@@ -193,7 +193,7 @@ internal class HighlightNode(
                         null
                     }
 
-                configurePaint(highlight, widthPx, blurPx)
+                configurePaint(highlight, widthPx, blurPx, scaledSize)
 
                 highlightLayer.record(safeSize) {
                     translate(1f, 1f) {
@@ -243,7 +243,12 @@ internal class HighlightNode(
         prevStyle = null
     }
 
-    private fun DrawScope.configurePaint(highlight: Highlight, strokeWidthPx: Float, blurPx: Float) {
+    private fun DrawScope.configurePaint(
+        highlight: Highlight,
+        strokeWidthPx: Float,
+        blurPx: Float,
+        shaderSize: Size,
+    ) {
         paint.color = highlight.style.color
         paint.strokeWidth = strokeWidthPx
         paint.blur(blurPx)
@@ -267,6 +272,13 @@ internal class HighlightNode(
                         // chiaro che taglia il pannello a mezza altezza e non coincide con niente.
                         // "Solo in alcuni casi" era esattamente questo: i casi sono le taglie.
                         shape = shapeProvider.innerShape,
+                        // La taglia del layer ridotto, non quella del nodo: e' su quei pixel che lo
+                        // shader gira. Con la taglia intera il rettangolo che descriveva era piu'
+                        // grande dei pixel disponibili, e dopo il riscalo in su il raggio degli
+                        // angoli usciva gonfiato dell'inverso della riduzione - un arco chiaro che
+                        // non coincideva con la superficie. E siccome la riduzione scatta solo
+                        // sopra un tetto d'area, capitava solo alle superfici grandi.
+                        size = shaderSize,
                         runtimeShaderCache = runtimeShaderCache
                     )
                 }

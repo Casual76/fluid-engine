@@ -15,22 +15,30 @@
       "ref": ""
     },
     "stable": {
-      "version": "1.0.2",
+      "version": "1.0.3",
       "releaseDate": "2026-08-26",
-      "changelog": "Le trasformazioni hanno la loro voce: partono piano, accelerano, e si posano con un rimbalzo leggero. Il tasto Azione ora SI ESPANDE nel proprio menu contestuale (tienilo premuto): stessa superficie, andata e ritorno. E i viaggi verso i gruppi non tornano piu' indietro: la goccia si raccoglie mentre va.",
-      "releaseTag": "stable-fluid-glass-v1.0.2",
-      "apkAsset": "fluid-glass-1.0.2.apk",
-      "sizeBytes": 2791881
+      "changelog": "La card che si espande apre con un POP: piu' stretta, con l'ombra, e il testo viaggia dentro il vetro invece di sbordare. Il menu del tasto Azione arriva subito dopo la pressione. Niente piu' tasto Chiudi: per chiudere si tocca fuori.",
+      "releaseTag": "stable-fluid-glass-v1.0.3",
+      "apkAsset": "fluid-glass-1.0.3.apk",
+      "sizeBytes": 2791872
     },
     "beta": {
-      "version": "1.0.2",
+      "version": "1.0.3",
       "releaseDate": "2026-08-26",
-      "changelog": "Le trasformazioni hanno la loro voce: partono piano, accelerano, e si posano con un rimbalzo leggero. Il tasto Azione ora SI ESPANDE nel proprio menu contestuale (tienilo premuto): stessa superficie, andata e ritorno. E i viaggi verso i gruppi non tornano piu' indietro: la goccia si raccoglie mentre va.",
-      "releaseTag": "stable-fluid-glass-v1.0.2",
-      "apkAsset": "fluid-glass-1.0.2.apk",
-      "sizeBytes": 2791881
+      "changelog": "La card che si espande apre con un POP: piu' stretta, con l'ombra, e il testo viaggia dentro il vetro invece di sbordare. Il menu del tasto Azione arriva subito dopo la pressione. Niente piu' tasto Chiudi: per chiudere si tocca fuori.",
+      "releaseTag": "stable-fluid-glass-v1.0.3",
+      "apkAsset": "fluid-glass-1.0.3.apk",
+      "sizeBytes": 2791872
     },
     "history": [
+      {
+        "version": "1.0.2",
+        "releaseDate": "2026-08-26",
+        "changelog": "Le trasformazioni hanno la loro voce: partono piano, accelerano, e si posano con un rimbalzo leggero. Il tasto Azione ora SI ESPANDE nel proprio menu contestuale (tienilo premuto): stessa superficie, andata e ritorno. E i viaggi verso i gruppi non tornano piu' indietro: la goccia si raccoglie mentre va.",
+        "releaseTag": "stable-fluid-glass-v1.0.2",
+        "apkAsset": "fluid-glass-1.0.2.apk",
+        "sizeBytes": 2791881
+      },
       {
         "version": "1.0.1",
         "releaseDate": "2026-08-25",

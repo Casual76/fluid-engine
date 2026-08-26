@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.10.0 - 2026-08-26
+
+- AccentPoles: poli secondari/terziari opzionali sui preset, per gli accenti vicini alle ancore storiche
+- FluidTheme e fluidColorScheme accettano la lista preset dell'app (presets =)
+- FluidHeroBand: la fascia di sezione satura, un fatto solo
+- FluidVividCard + FluidVividColors.from: la superficie interamente del proprio colore, sheen gated su policy e viewport
+
+
 ## 1.9.11 - 2026-08-26
 
 - FluidGroupSegment: il taglio di una lista lunga in piu pannelli non si vede piu. I pezzi arrotondano solo gli angoli che sono davvero linizio e la fine, un lato aperto non disegna il bordo speculare (FluidGroupOpenEdge lo ritaglia, due dp di riempimento che nessuno vede) e chi taglia richiude il vuoto facendo dichiarare al pezzo unaltezza minore di quella che disegna. Prima la giuntura cadeva ogni otto righe con due angoli tondi e un buco in mezzo, anche fra due voci dello stesso giorno; ora e un separatore come tutti gli altri. LocalFluidItemSpacing dice quanta aria cera da richiudere.

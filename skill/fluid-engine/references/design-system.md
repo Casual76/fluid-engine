@@ -168,7 +168,7 @@ fun SchermataDemo(state: DemoUiState, onApri: (String) -> Unit) {
 }
 ```
 
-## Fluid-physics — il vetro che cambia forma (1.9.0)
+## Fluid-physics — il vetro che cambia forma (1.9.0, adottato dai preset in 1.9.7)
 
 `dev.antigravity.fluidengine.ui.fluidphysics`: qualsiasi silhouette di vetro diventa qualsiasi
 altra, con la rifrazione che segue la forma. Il vocabolario:
@@ -179,12 +179,46 @@ altra, con la rifrazione che segue la forma. Il vocabolario:
 - `rememberFluidPhysicsState(initial)` + `state.morphTo(target, spec)` — sospende fino alla
   posa; ritargeting a metà volo legittimo; nessuna coppia vietata (gruppo↔sagoma passa da uno
   scalo automatico).
-- `Modifier.fluidPhysicsSurface(state, backdrop, tint, role, optics, tier)` — stessa grammatica di
-  `glassSurface`. `Modifier.fluidPhysicsContent(state, role)` per il contenuto: dissolvenza e zoom
-  uniforme, mai stirato.
+- `Modifier.fluidPhysicsSurface(state, backdrop, tint, role, optics, tier, tintFrom, tintBlend)` —
+  stessa grammatica di `glassSurface`. `Modifier.fluidPhysicsContent(state, role)` per il
+  contenuto: viaggia col centro della sagoma, zoom uniforme, mai stirato.
 - `FluidPhysicsTier`: Full (SDK 33+) / Balanced / Lite. La geometria è identica su tutti e tre.
 
-Le regole che porta con sé: il morphing vive SOLO qui (la proibizione per le schermate resta); la
-molla dei contenitori è `FluidMotion.standard()` — i pannelli non rimbalzano mai, il rimbalzo è
-degli elementi piccoli; il contenuto non si stira, cambia strato. Il banco di prova è la scheda
-Playground dell'app Fluid Glass (il modulo `sample/` del repo dell'engine).
+### Quello che arriva gratis aggiornando l'engine (1.9.7)
+
+**Non serve chiamare niente di nuovo.** I preset che già usi sono passati al motore, quindi ogni
+app che aggiorna se li ritrova trasformati:
+
+- **La card che si espande** (`FluidGlassModalPortal` con `origin`, e la presentazione `Expand`):
+  la finestra è una superficie Fluid-physics che viaggia dal rettangolo dell'ancora al pannello con
+  la rifrazione addosso. `Modifier.fluidExpandOrigin` fa il resto **da solo**: registra l'immagine
+  della riga e la nasconde mentre la finestra è in scena, così il tasto *diventa* il pop-up invece
+  di restare lì sotto. Il call-site non cambia di una riga.
+- **`FluidMorphMenu`** (`FluidMorphMenuButton` + `FluidMorphMenuHost` alla radice): il tasto che si
+  espande nel proprio menù contestuale. Questo va chiamato, ed è il sostituto di
+  `FluidGlassMenuButton` dove serve la trasformazione.
+- **Restano com'erano, per scelta**: il menù contestuale delle righe (`fluidContextMenu`, la sua
+  riga sollevata è già la sua storia) e `FluidGlassModalPresentation.Sheet`.
+
+`state.driveExternally(from, to, progress, overshootInflationX/Y)` è il gancio per un componente
+che un orologio ce l'ha già: la fisica diventa la *finestra* e il progresso resta quello delle
+molle del chiamante. Due orologi sulla stessa superficie sono un disallineamento garantito.
+
+### La molla, e quando i contenitori rimbalzano
+
+Due tempi, e la differenza è **chi sta aspettando**:
+
+- **Morph avviati da un tocco secco** (il Playground): il viaggio della casa, cioè il default di
+  `morphTo` con `spec = null` — rincorsa in accelerazione, molla sottosmorzata, una posata sola.
+- **Cose che l'utente sta già aspettando** (un long-press di 400 ms, un modale che si apre): la
+  rincorsa lunga si legge come lentezza. Molla sola, o rincorsa breve e ripida.
+
+E la correzione a una regola che questa nota dava per assoluta: **la card ancorata rimbalza, ed è
+voluto** — richiesta esplicita di Alessio, "eccessivamente in fuori su tutti i lati, poi torna".
+Il rimbalzo è *geometrico* (`overshootInflation`, un gonfiore uniforme della silhouette che si
+posa) e scala con la taglia del pannello, con un tetto sull'asse X perché al picco la card non
+finisca a ridosso dei bordi. Resta vero che una superficie di vetro **non si scala col layer** per
+ottenere un rimbalzo: vedi le tre trappole in `regole.md`.
+
+Il banco di prova è la scheda Playground dell'app Fluid Glass (il modulo `sample/` del repo
+dell'engine), pubblicata sul Pampa Store.

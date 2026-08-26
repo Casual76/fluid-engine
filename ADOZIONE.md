@@ -311,9 +311,10 @@ transiente, e la vecchia proibizione resta valida per le schermate.
 Le lezioni pagate sul dispositivo, coi collage dei fotogrammi (nostri e di iOS 18 al
 rallentatore): AGSL vuole indici costanti negli array uniform (il vertice precedente si trasporta,
 non si indicizza); una fusione non estrapola oltre il coincidere (il doppio bordo si vede); la
-molla dei contenitori è `standard`, mai `fluid` — **i pannelli Apple non rimbalzano, il rimbalzo è
-degli elementi piccoli**; e il termine a cupola (depthEffect) è quello che fa leggere un pezzo da
-dimostrazione come palla di vetro invece che adesivo lucido.
+molla dei contenitori è `standard`, mai `fluid` — i pannelli Apple non rimbalzano, il rimbalzo è
+degli elementi piccoli (**corretto nella Fase 11**: la card ancorata rimbalza, per richiesta
+esplicita, e il rimbalzo è geometrico); e il termine a cupola (depthEffect) è quello che fa
+leggere un pezzo da dimostrazione come palla di vetro invece che adesivo lucido.
 
 La `sample/` è diventata **Fluid Glass** (`dev.antigravity.fluidglass`, slug store `fluid-glass`):
 cinque schede — la nuova è il Playground, il banco di prova del motore con preset, disegno a mano
@@ -328,6 +329,43 @@ aggancio.
 **Rimandato, deliberatamente**: la migrazione dei componenti reali (FluidGlassModal, menù
 contestuale) sopra Fluid-physics — il ramo 1.8.x è appena stato stabilizzato in sei release, e il
 motore doveva prima dimostrarsi nel Playground. È la prossima fase naturale.
+
+---
+
+## Fase 11 — i preset passano a Fluid-physics (2026-08-26, engine 1.9.7, Fluid Glass 1.0.4)
+
+La fase che la 10 aveva rimandato: **il tasto diventa davvero il pop-up**, e lo diventa in ogni app
+che aggiorna l'engine, senza toccare i call-site. `FluidGlassModalPortal` con `origin` e la
+presentazione `Expand` aprono una finestra Fluid-physics che viaggia dal rettangolo dell'ancora al
+pannello con la rifrazione addosso; `fluidExpandOrigin` registra l'immagine della riga e la
+nasconde mentre la finestra è in scena, così quello che l'occhio segue è **una** cosa che si
+trasforma. Il gancio per i componenti che un orologio ce l'hanno già è
+`FluidPhysicsState.driveExternally`: la fisica fa la finestra, il progresso resta delle molle del
+chiamante. Nuovo anche `FluidMorphMenu` (il tasto che si espande nel proprio menù). Menù
+contestuale delle righe e `Sheet` restano com'erano, per scelta.
+
+**La molla, rivista.** Due tempi, e la differenza è chi sta aspettando: i morph avviati da un tocco
+secco tengono il viaggio della casa (rincorsa lunga, molla, posata); tutto ciò che l'utente sta già
+aspettando — un long-press di 400 ms, un modale — con la rincorsa lunga si legge come lentezza, e
+vuole una rincorsa breve e ripida o una molla sola. E la card ancorata **rimbalza**, richiesta
+esplicita di Alessio ("eccessivamente in fuori su tutti i lati, poi torna"): il rimbalzo è
+geometrico (`overshootInflation`, gonfiore uniforme della silhouette), scala con la taglia del
+pannello e ha un tetto sull'asse X perché al picco non finisca a ridosso dei bordi.
+
+**Tre trappole, pagate una per una sui fotogrammi** — ora in `references/regole.md`, perché nessuna
+si vede ragionando: (1) scalare il layer di una superficie di vetro scala anche il fondale
+campionato, e il testo *dietro* il vetro si muove; (2) il primo e l'ultimo fotogramma di vita di un
+nodo possono disegnare con le proprietà di default, che su uno scrim è un lampo a piena forza —
+misurato, 190 di luminanza in una serie a 214; (3) gli `exports` di uno scrim registrano il
+materiale a forza piena, quindi chi campiona quel composito resta scuro mentre lo scrim vero sfuma.
+
+**Metodo di verifica, aggiornato**: estrarre i fotogrammi con `-fps_mode passthrough` (`fps=30` su
+un video a frame rate variabile riordina e duplica, e una cronologia sbagliata porta a diagnosi
+sbagliate), e per i difetti di un fotogramma solo usare `signalstats,metadata=print` — la luminanza
+per frame, dove un lampo è un picco isolato in una serie che dovrebbe essere monotona.
+
+**Aperto**: Tab S9 mai guardato (scollegato per tutta la sessione); dentro la finestra morph il
+`paneGlass` non esporta, quindi il vetro-su-vetro interno non rifrange.
 
 ---
 

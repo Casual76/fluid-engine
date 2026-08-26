@@ -1,6 +1,6 @@
 ---
 name: fluid-engine
-description: Istruzioni per lavorare con il Fluid Engine, le fondamenta condivise delle app Android di Antigravity (design system Fluid, tema, widget Glance, aggiornamento in-app, feature flag remoti). USARE SEMPRE quando il progetto contiene una cartella engine/ con ENGINE_VERSION, un file engine.properties, o import da dev.antigravity.fluidengine.*. Triggerare anche per richieste come "aggiorna l'engine", "integra l'engine in questa app", "aggiungi un componente all'engine", "aggiungi un feature flag", "nuova versione dell'engine", "il widget non segue il tema", "FluidTheme", "FluidScreen", "engine-ui", oppure quando si crea una nuova app Android che deve partire dalle stesse fondamenta.
+description: Istruzioni per lavorare con il Fluid Engine, le fondamenta condivise delle app Android di Antigravity (design system Fluid, tema, vetro liquido e morphing Fluid-physics, widget Glance, aggiornamento in-app, feature flag remoti). USARE SEMPRE quando il progetto contiene una cartella engine/ con ENGINE_VERSION, un file engine.properties, o import da dev.antigravity.fluidengine.*. Triggerare anche per richieste come "aggiorna l'engine", "integra l'engine in questa app", "aggiungi un componente all'engine", "aggiungi un feature flag", "nuova versione dell'engine", "il widget non segue il tema", "FluidTheme", "FluidScreen", "engine-ui", "Fluid-physics", "il tasto che diventa un pop-up", "la card che si espande", "morphing", oppure quando si crea una nuova app Android che deve partire dalle stesse fondamenta.
 ---
 
 # Fluid Engine
@@ -94,6 +94,22 @@ una versione dell'engine e si aggancia l'app: vedi `references/aggiornamenti.md`
 
 Se è specifico dell'app — conosce il dominio, i suoi dati, le sue schermate — resta nell'app.
 
+### Far trasformare il vetro (Fluid-physics)
+
+Il motore che trasforma qualsiasi silhouette di vetro in qualsiasi altra, con la rifrazione che
+segue la forma. Dalla **1.9.7 i preset lo usano già**, quindi la domanda giusta è di solito
+*nessuna*: un'app che aggiorna l'engine si ritrova la card che si espande trasformata — la riga
+toccata diventa il pop-up e ci ritorna — senza cambiare una riga al call-site.
+
+Serve chiamare qualcosa solo per il tasto che si apre nel proprio menù (`FluidMorphMenuButton` +
+`FluidMorphMenuHost` alla radice) o per una forma inventata: `rememberFluidPhysicsState` e
+`Modifier.fluidPhysicsSurface`. Vocabolario, tier e la questione della molla stanno in
+`references/design-system.md`; le tre trappole del vetro in movimento — e non sono ovvie — in
+`references/regole.md`.
+
+Se stai animando una sagoma di vetro, **giudica dai fotogrammi**: la ricetta di cattura e misura è
+in fondo a `references/regole.md`. "È giusto per costruzione" qui non è mai bastato.
+
 ### Aggiungere un feature flag
 
 ```kotlin
@@ -146,12 +162,22 @@ perdere. `engine-doctor` te lo dice, ma solo se lo esegui.
 
 ## Dove vive questa skill
 
-Dentro il repo dell'engine, in `skill/fluid-engine/`. E' installata copiandola in
-`~/.claude/skills/fluid-engine`, quindi **la copia installata e' una copia**: le correzioni vanno
-fatte nel repo dell'engine e poi reinstallate, altrimenti al primo aggiornamento tornano indietro.
+Dentro il repo dell'engine, in `skill/fluid-engine/`. Le correzioni si fanno **sempre qui**: se
+l'installazione è una copia, una modifica fatta altrove torna indietro al primo aggiornamento.
+
+Come è installata, va verificato prima di toccarla — sono due mondi diversi:
 
 ```powershell
-Copy-Item -Recurse -Force <engine>\skillluid-engine "$env:USERPROFILE\.claude\skills\"
+Get-Item "$env:USERPROFILE\.claude\skills\fluid-engine" -Force | Select-Object LinkType, Target
+```
+
+- **`LinkType: Junction`** (com'è sulla macchina di Alessio, verificato): l'installazione *è* il
+  repo. Le modifiche sono già live, non c'è niente da reinstallare — e `Copy-Item` lì sopra
+  fallisce sempre, perché copierebbe i file su se stessi.
+- **`LinkType` vuoto**: è una copia vera, e va rifatta dopo ogni modifica:
+
+```powershell
+Copy-Item -Recurse -Force <engine>\skill\fluid-engine "$env:USERPROFILE\.claude\skills\"
 ```
 
 ## Il piano di adozione in corso

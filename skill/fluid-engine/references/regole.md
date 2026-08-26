@@ -176,3 +176,28 @@ prima; una forma che deve trasformarsi chiede un `FluidPhysicsState`.
 Vale anche per gli shader: "nessuno shader di vetro nuovo accanto a GlassMaterial" resta la
 regola, e la famiglia SDF di Fluid-physics è la deroga deliberata, nel suo package, annotata in
 `LICENSES/AndroidLiquidGlass.md` (il preludio deriva da quello Apache-2.0 di Kyant).
+
+## Tre trappole del vetro in movimento
+
+Pagate una per una sui fotogrammi, migrando la card che si espande (1.9.7). Chi tocca una
+superficie di vetro animata le incontra tutte e tre.
+
+1. **Non scalare mai il layer di una superficie di vetro per farle fare un rimbalzo.** Un
+   `graphicsLayer { scaleX = … }` scala anche il fondale campionato dentro il vetro: il testo della
+   pagina *dietro* si muove, e non ha senso — quel testo sta fermo. L'oltrepasso va nella
+   geometria della sagoma (`overshootInflation`), non nella trasformazione del nodo.
+2. **Il primo e l'ultimo fotogramma di vita di un nodo possono disegnare con le proprietà di
+   default.** Su una superficie il cui arrivo è un alpha (scrim, finestra dei modali) questo è un
+   lampo a piena forza — misurato: un fotogramma a 190 di luminanza in mezzo a una serie a 214. Il
+   cancello è `drawWithContent { if (amount > 0.004f) drawContent() }`: a materiale zero non si
+   registra niente, e una displaylist vuota non ha lampi da rigiocare.
+3. **Gli `exports` di uno scrim registrano il suo materiale a forza PIENA**, perché il suo arrivo
+   è un alpha sul pannello finito. Chi campiona quel composito resta scuro mentre lo scrim vero
+   sfuma. Meglio campionare la pagina cruda e dipingersi la propria quota di scurimento alla forza
+   corrente (`tintFrom` + `tintBlend`).
+
+E il metodo, perché nessuna delle tre si vede "ragionando": si vedono nei fotogrammi. Video con
+`screenrecord`, estrazione con **`-fps_mode passthrough`** (`fps=30` su un video a frame rate
+variabile riordina e duplica i fotogrammi, e una cronologia sbagliata porta a diagnosi sbagliate),
+e per i difetti di un fotogramma solo la misura batte l'occhio: `signalstats,metadata=print` dà la
+luminanza per frame, e un lampo è un picco isolato in una serie che dovrebbe essere monotona.

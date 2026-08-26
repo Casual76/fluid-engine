@@ -23,9 +23,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
+import dev.antigravity.fluidengine.ui.fluid.FluidHeroBand
+import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
+import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.FluidTextStyles
+import dev.antigravity.fluidengine.ui.fluid.FluidVividCard
+import dev.antigravity.fluidengine.ui.fluid.FluidVividColors
+import dev.antigravity.fluidengine.ui.fluid.FluidVividEffect
 
 /**
  * Tab one: the material itself, over content with hard edges in it.
@@ -52,6 +59,45 @@ internal fun MaterialTab(bottomInset: Dp) {
       )
     },
   ) {
+    item(key = "band-header") { FluidSectionHeader(title = "La fascia satura") }
+    item(key = "band") {
+      FluidHeroBand(
+        tone = FluidHeroTone.Tertiary,
+        motif = FluidHeroMotif.Bars,
+        eyebrow = "Fascia di sezione",
+        value = "7",
+        label = "toni sull'anello",
+        icon = Icons.Rounded.Notifications,
+      )
+    }
+    item(key = "vivid-header") { FluidSectionHeader(title = "La card vivida") }
+    item(key = "vivid-sheen") {
+      FluidVividCard(
+        colors = FluidVividColors.from(Color(0xFF00A86B), Color(0xFF00C7BE)),
+        effect = FluidVividEffect.Sheen,
+      ) {
+        Text(
+          text = "8,5",
+          style = FluidTextStyles.largeNumeric,
+        )
+        Text(
+          text = "Con lo sheen: la banda di luce passa solo quando la card e' a schermo.",
+          style = MaterialTheme.typography.bodyMedium,
+        )
+      }
+    }
+    item(key = "vivid-plain") {
+      FluidVividCard(colors = FluidVividColors.from(Color(0xFFFF9500), Color(0xFFFF6B00))) {
+        Text(
+          text = "5,5",
+          style = FluidTextStyles.largeNumeric,
+        )
+        Text(
+          text = "Senza effetto, e con il contenuto scelto dal contrasto: qui e' scuro.",
+          style = MaterialTheme.typography.bodyMedium,
+        )
+      }
+    }
     item(key = "intro") { FluidSectionHeader(title = "Sotto il vetro") }
     items(12) { index -> LoudCard(index) }
   }

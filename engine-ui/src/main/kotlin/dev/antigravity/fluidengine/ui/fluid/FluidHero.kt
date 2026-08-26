@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -43,6 +45,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -204,7 +207,11 @@ fun FluidHero(
           modifier = Modifier.widthIn(max = 330.dp),
           verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-          RollingHeroValue(value = value, color = colors.content)
+          RollingHeroValue(
+            value = value,
+            color = colors.content,
+            style = MaterialTheme.typography.displaySmall,
+          )
           Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
@@ -283,6 +290,7 @@ private fun FluidHeroAction(
 private fun RollingHeroValue(
   value: String,
   color: Color,
+  style: TextStyle,
 ) {
   val spatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
   AnimatedContent(
@@ -301,7 +309,7 @@ private fun RollingHeroValue(
   ) { animatedValue ->
     Text(
       text = animatedValue,
-      style = MaterialTheme.typography.displaySmall,
+      style = style,
       fontWeight = FontWeight.Bold,
       color = color,
       maxLines = 1,
@@ -512,6 +520,143 @@ internal fun fluidHeroColors(
       washStrength = 0.11f,
     )
   }
+}
+
+/**
+ * L'apertura di una schermata quando lo spazio conta: una fascia, non un pannello.
+ *
+ * Stesso anello di toni e stessi motivi di [FluidHero], ma sul colore PIENO della sezione invece
+ * che sul suo contenitore slavato: la fascia e' l'elemento che dichiara "sei nella sezione X" e lo
+ * fa in un'ottantina di dp, lasciando il resto del viewport ai dati. Il gradiente scivola verso la
+ * famiglia successiva sull'anello, cosi' due fasce adiacenti si distinguono anche con lo stesso
+ * accento di partenza.
+ *
+ * Un solo fatto (valore + etichetta): i fatti secondari stanno nella pagina, non nell'intestazione.
+ * [urgent] promuove all'errore pieno, come ovunque.
+ */
+@Composable
+fun FluidHeroBand(
+  tone: FluidHeroTone,
+  motif: FluidHeroMotif,
+  eyebrow: String,
+  value: String,
+  label: String,
+  icon: ImageVector,
+  modifier: Modifier = Modifier,
+  urgent: Boolean = false,
+  trailing: (@Composable RowScope.() -> Unit)? = null,
+) {
+  val colors = fluidHeroBandColors(MaterialTheme.colorScheme, tone, urgent)
+  val shape = ContinuousCornerShape(FluidRadius.Group)
+
+  Box(
+    modifier = modifier
+      .fillMaxWidth()
+      .clip(shape)
+      .background(
+        Brush.linearGradient(
+          colors = listOf(colors.start, colors.end),
+          start = Offset.Zero,
+          end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+        ),
+      ),
+  ) {
+    FluidHeroDecoration(
+      motif = motif,
+      color = colors.content,
+      modifier = Modifier
+        .align(Alignment.CenterEnd)
+        .size(width = 110.dp, height = 88.dp),
+    )
+
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 14.dp),
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Box(
+        modifier = Modifier
+          .size(38.dp)
+          .background(colors.content.copy(alpha = 0.12f), ContinuousCornerShape(12.dp)),
+        contentAlignment = Alignment.Center,
+      ) {
+        Icon(
+          imageVector = icon,
+          contentDescription = null,
+          modifier = Modifier.size(20.dp),
+          tint = colors.content,
+        )
+      }
+
+      Column(
+        modifier = Modifier.weight(1f),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+      ) {
+        Text(
+          text = eyebrow.uppercase(),
+          style = MaterialTheme.typography.labelMedium,
+          fontWeight = FontWeight.Bold,
+          color = colors.content.copy(alpha = 0.8f),
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(7.dp),
+          verticalAlignment = Alignment.Bottom,
+        ) {
+          RollingHeroValue(
+            value = value,
+            color = colors.content,
+            style = FluidTextStyles.largeNumeric,
+          )
+          Text(
+            text = label,
+            modifier = Modifier.padding(bottom = 5.dp),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.content.copy(alpha = 0.86f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
+      }
+
+      trailing?.invoke(this)
+    }
+  }
+}
+
+/**
+ * La fascia sul colore pieno, risolta come funzione della palette per la stessa ragione di
+ * [fluidHeroColors]: la proprieta' che conta — sette toni, sette partenze davvero diverse, e un
+ * contenuto leggibile su entrambi i capi del gradiente — si verifica in un test, non in una
+ * composizione. Il contenuto lo sceglie [FluidVividColors.from] sul capo peggiore.
+ */
+internal fun fluidHeroBandColors(
+  scheme: ColorScheme,
+  tone: FluidHeroTone,
+  urgent: Boolean,
+): FluidVividColors {
+  if (urgent) {
+    // A restrained drift: at 0.35 towards a warm tertiary the far corner brightened enough to
+    // leave both content candidates below readable on presets that sit near orange.
+    return FluidVividColors.from(
+      start = scheme.error,
+      end = lerp(scheme.error, scheme.tertiary, 0.15f),
+    )
+  }
+  val (start, next) = when (tone) {
+    FluidHeroTone.Primary -> scheme.primary to scheme.secondary
+    FluidHeroTone.PrimaryToSecondary -> lerp(scheme.primary, scheme.secondary, 0.5f) to scheme.secondary
+    FluidHeroTone.Secondary -> scheme.secondary to scheme.tertiary
+    FluidHeroTone.SecondaryToTertiary -> lerp(scheme.secondary, scheme.tertiary, 0.5f) to scheme.tertiary
+    FluidHeroTone.Tertiary -> scheme.tertiary to scheme.primary
+    FluidHeroTone.TertiaryToPrimary -> lerp(scheme.tertiary, scheme.primary, 0.5f) to scheme.primary
+    FluidHeroTone.Alert -> lerp(scheme.secondary, scheme.error, 0.30f) to scheme.error
+  }
+  return FluidVividColors.from(start = start, end = lerp(start, next, 0.35f))
 }
 
 @Composable

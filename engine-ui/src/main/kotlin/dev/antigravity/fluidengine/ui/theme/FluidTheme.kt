@@ -35,6 +35,11 @@ import dev.antigravity.fluidengine.foundation.ThemeMode
  * Large surfaces stay restrained, while containers inherit a progressively stronger trace of this
  * hue. A preset holds separate light and dark values because the same RGB colour rarely keeps its
  * character and contrast on both backgrounds.
+ *
+ * [poles] is optional because most accents do not need it: the historic poles (iOS indigo and
+ * orange) give any blue-through-green accent a distinct secondary and tertiary for free. An accent
+ * that lives *near* one of those poles — a violet next to indigo — collapses the ring instead, and
+ * only then does the preset have something to say about where its relatives sit.
  */
 @Immutable
 data class AccentPreset(
@@ -42,9 +47,29 @@ data class AccentPreset(
   val label: String,
   val light: Color,
   val dark: Color,
+  val poles: AccentPoles? = null,
 ) {
   fun resolve(isDark: Boolean): Color = if (isDark) dark else light
 }
+
+/**
+ * Where an accent's secondary and tertiary families are pulled towards.
+ *
+ * The fixed palette derives three families from one accent by blending it towards two anchor
+ * colours. The anchors are constants tuned for the system presets; an accent too close to one of
+ * them ends up with a secondary indistinguishable from its primary. A preset that knows its own
+ * neighbourhood supplies its own anchors — and blend strengths, because an anchor chosen to
+ * contrast needs a stronger pull than one chosen to harmonise.
+ */
+@Immutable
+data class AccentPoles(
+  val secondaryLight: Color,
+  val secondaryDark: Color,
+  val tertiaryLight: Color,
+  val tertiaryDark: Color,
+  val secondaryBlend: Float = 0.26f,
+  val tertiaryBlend: Float = 0.22f,
+)
 
 /**
  * Names are kept from the previous palette so a stored preference still resolves; the colours are
@@ -70,9 +95,9 @@ val FluidDefaultBrand: AccentPreset =
 fun fluidBrandAccent(isDark: Boolean, brand: AccentPreset = FluidDefaultBrand): Color =
   brand.resolve(isDark)
 
-private fun presetFor(name: String): AccentPreset {
-  return fluidAccentPresets.firstOrNull { it.name.equals(name, ignoreCase = true) }
-    ?: fluidAccentPresets.first()
+private fun presetFor(name: String, presets: List<AccentPreset>): AccentPreset {
+  val pool = presets.ifEmpty { fluidAccentPresets }
+  return pool.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: pool.first()
 }
 
 private val FluidShapes = Shapes(
@@ -88,6 +113,7 @@ private val FluidShapes = Shapes(
 fun FluidTheme(
   settings: EngineSettings,
   brand: AccentPreset = FluidDefaultBrand,
+  presets: List<AccentPreset> = fluidAccentPresets,
   content: @Composable () -> Unit,
 ) {
   val context = LocalContext.current
@@ -110,6 +136,7 @@ fun FluidTheme(
     settings = settings,
     isDark = isDark,
     brand = brand,
+    presets = presets,
     dynamicScheme = dynamicScheme,
   )
 
@@ -190,11 +217,13 @@ fun fluidColorScheme(
   settings: EngineSettings,
   isDark: Boolean,
   brand: AccentPreset = FluidDefaultBrand,
+  presets: List<AccentPreset> = fluidAccentPresets,
   dynamicScheme: ColorScheme? = null,
 ): ColorScheme = resolveFluidColorScheme(
   settings = settings,
   isDark = isDark,
   brand = brand,
+  presets = presets,
   dynamicScheme = dynamicScheme,
 )
 
@@ -209,20 +238,22 @@ internal fun resolveFluidColorScheme(
   settings: EngineSettings,
   isDark: Boolean,
   brand: AccentPreset = FluidDefaultBrand,
+  presets: List<AccentPreset> = fluidAccentPresets,
   dynamicScheme: ColorScheme? = null,
 ): ColorScheme {
   val amoled = isDark && (settings.themeMode == ThemeMode.AMOLED || settings.amoledEnabled)
   val dynamic = dynamicScheme.takeIf {
     settings.dynamicColorEnabled && settings.accentMode == AccentMode.DYNAMIC
   }
-  val accent = dynamic?.primary ?: when (settings.accentMode) {
+  val preset = when (settings.accentMode) {
     AccentMode.BRAND,
     AccentMode.DYNAMIC,
-    -> brand.resolve(isDark)
-    AccentMode.CUSTOM_PRESET -> presetFor(settings.customAccentName).resolve(isDark)
+    -> brand
+    AccentMode.CUSTOM_PRESET -> presetFor(settings.customAccentName, presets)
   }
+  val accent = dynamic?.primary ?: preset.resolve(isDark)
   val surfaces = surfacePalette(accent = accent, isDark = isDark, amoled = amoled)
-  val roles = dynamic?.toAccentRoles() ?: fixedAccentRoles(accent, surfaces, isDark)
+  val roles = dynamic?.toAccentRoles() ?: fixedAccentRoles(accent, preset.poles, surfaces, isDark)
   return buildColorScheme(roles = roles, surfaces = surfaces, isDark = isDark)
 }
 
@@ -243,20 +274,24 @@ private fun ColorScheme.toAccentRoles(): AccentRoles = AccentRoles(
 
 private fun fixedAccentRoles(
   accent: Color,
+  poles: AccentPoles?,
   surfaces: SurfacePalette,
   isDark: Boolean,
 ): AccentRoles {
   // Fixed palettes still need more than one note. These restrained blends keep the chosen accent
-  // recognisable while giving temporal and insight surfaces their own related identity.
+  // recognisable while giving temporal and insight surfaces their own related identity. A preset
+  // that supplies its own poles is claiming the anchors don't contrast with *its* accent.
   val secondary = lerp(
     accent,
-    if (isDark) Color(0xFF5E5CE6) else Color(0xFF5856D6),
-    0.26f,
+    poles?.let { if (isDark) it.secondaryDark else it.secondaryLight }
+      ?: if (isDark) Color(0xFF5E5CE6) else Color(0xFF5856D6),
+    poles?.secondaryBlend ?: 0.26f,
   )
   val tertiary = lerp(
     accent,
-    if (isDark) Color(0xFFFF9F0A) else Color(0xFFFF9500),
-    0.22f,
+    poles?.let { if (isDark) it.tertiaryDark else it.tertiaryLight }
+      ?: if (isDark) Color(0xFFFF9F0A) else Color(0xFFFF9500),
+    poles?.tertiaryBlend ?: 0.22f,
   )
   val primaryContainer = lerp(surfaces.low, accent, if (isDark) 0.28f else 0.17f)
   val secondaryContainer = lerp(surfaces.container, secondary, if (isDark) 0.22f else 0.14f)
@@ -389,7 +424,7 @@ private fun buildColorScheme(
   )
 }
 
-private fun highestContrastContent(background: Color): Color {
+internal fun highestContrastContent(background: Color): Color {
   val dark = Color(0xFF121214)
   val light = Color(0xFFFDFDFF)
   fun ratio(foreground: Color): Float {

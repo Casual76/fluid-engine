@@ -99,6 +99,81 @@ class AppThemeColorSchemeTest {
   }
 
   @Test
+  fun presetWithoutPoles_keepsTheHistoricDerivationExactly() {
+    val accent = Color(0xFF1F9E6E)
+    val resolved = resolveFluidColorScheme(
+      settings = EngineSettings(accentMode = AccentMode.BRAND),
+      isDark = false,
+      brand = AccentPreset("test", "Test", accent, accent),
+    )
+
+    // The historic anchors, verbatim: a preset that says nothing about poles must keep producing
+    // bit-identical roles, or every app that never asked for poles changes colour on update.
+    assertEquals(
+      androidx.compose.ui.graphics.lerp(accent, Color(0xFF5856D6), 0.26f),
+      resolved.secondary,
+    )
+    assertEquals(
+      androidx.compose.ui.graphics.lerp(accent, Color(0xFFFF9500), 0.22f),
+      resolved.tertiary,
+    )
+  }
+
+  @Test
+  fun violetBrandWithPoles_keepsTheAccentFamiliesApart() {
+    val violet = AccentPreset(
+      name = "amethyst",
+      label = "Ametista",
+      light = Color(0xFF9966CC),
+      dark = Color(0xFFB88CE8),
+      poles = AccentPoles(
+        secondaryLight = Color(0xFF007AFF),
+        secondaryDark = Color(0xFF0A84FF),
+        tertiaryLight = Color(0xFFFF2D55),
+        tertiaryDark = Color(0xFFFF375F),
+        secondaryBlend = 0.45f,
+        tertiaryBlend = 0.40f,
+      ),
+    )
+
+    listOf(false, true).forEach { isDark ->
+      val resolved = resolveFluidColorScheme(
+        settings = EngineSettings(accentMode = AccentMode.BRAND),
+        isDark = isDark,
+        brand = violet,
+      )
+      // Exact inequality is not enough — that is what the ring collapse slipped past. The three
+      // families must stay visibly apart, measured as summed per-channel distance.
+      listOf(
+        Triple("primary/secondary", resolved.primary, resolved.secondary),
+        Triple("primary/tertiary", resolved.primary, resolved.tertiary),
+        Triple("secondary/tertiary", resolved.secondary, resolved.tertiary),
+      ).forEach { (pair, first, second) ->
+        val distance = channelDistance(first, second)
+        assertTrue(
+          "$pair too close (isDark=$isDark): distance $distance",
+          distance >= 0.20f,
+        )
+      }
+    }
+  }
+
+  @Test
+  fun customPresetName_resolvesAgainstTheInjectedList() {
+    val appPresets = listOf(
+      AccentPreset("expressive", "Blu", Color(0xFF007AFF), Color(0xFF0A84FF)),
+      AccentPreset("rose", "Rosa", Color(0xFFFF2D55), Color(0xFFFF375F)),
+    )
+    val resolved = resolveFluidColorScheme(
+      settings = EngineSettings(accentMode = AccentMode.CUSTOM_PRESET, customAccentName = "rose"),
+      isDark = false,
+      presets = appPresets,
+    )
+
+    assertEquals(Color(0xFFFF2D55), resolved.primary)
+  }
+
+  @Test
   fun amoledMode_keepsTheBackgroundTrulyBlack() {
     val resolved = resolveFluidColorScheme(
       settings = EngineSettings(themeMode = ThemeMode.AMOLED, accentMode = AccentMode.BRAND),
@@ -113,4 +188,9 @@ class AppThemeColorSchemeTest {
     val low = minOf(foreground.luminance(), background.luminance())
     return (high + 0.05f) / (low + 0.05f)
   }
+
+  private fun channelDistance(first: Color, second: Color): Float =
+    kotlin.math.abs(first.red - second.red) +
+      kotlin.math.abs(first.green - second.green) +
+      kotlin.math.abs(first.blue - second.blue)
 }

@@ -10,7 +10,7 @@ package dev.antigravity.fluidengine.foundation
  * and checked by `tools/engine-doctor.ps1`.
  */
 object EngineBuild {
-  const val VERSION: String = "1.9.7"
+  const val VERSION: String = "1.9.8"
 }
 
 /**

@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.8 - 2026-08-26
+
+- Un campo di testo dentro un pannello di vetro si dipinge un fondo opaco invece di una velatura del sei per cento. Sotto il vetro non ce una superficie piatta ma la pagina trasmessa a meta, e la stessa velatura si modulava con lei: dentro una casella che deve essere una costante la luminanza andava da 175 a 215. Ora e piatta e staccata dal pannello di una ventina di punti.
+- Tentato e ritirato: FluidGroupSegment. Un pannello con angoli misti disegna due sagome, il clip segue quella giusta e il bordo speculare resta staccato verso linterno per oltre centocinquanta pixel. Con quattro angoli uguali bordo e rim coincidono.
+
+
 ## 1.9.7 - 2026-08-26
 
 - Il tasto DIVENTA il pop-up: fluidExpandOrigin registra l'immagine della riga (al primo draw da nascosta, mai al tocco: un tap iniettato dura meno di un fotogramma) e la nasconde mentre la finestra e' in scena; l'immagine viaggia con la silhouette all'andata e la ricopre al ritorno, cosi' lo scambio finale non ha niente da mostrare. Ogni app la eredita aggiornando l'engine, senza cambiare i call-site.

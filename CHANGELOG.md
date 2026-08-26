@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.10.1 - 2026-08-26
+
+- Una finestra ancorata disegna le azioni quando ce ne sono e il contenuto quando non ce ne sono. Expand e ContextMenu passavano sempre per la lista di azioni, quindi chi dichiarava Expand e gli dava un content vedeva il pannello aprirsi vuoto: sagoma in viaggio, scrim, ancora nascosta, e dentro niente. Il contenuto non veniva rifiutato, veniva ignorato in silenzio. Le azioni restano la ragione per cui quelle presentazioni esistono e vincono quando ci sono; una lista vuota pero' non e' una presentazione.
+
+
 ## 1.10.0 - 2026-08-26
 
 - AccentPoles: poli secondari/terziari opzionali sui preset, per gli accenti vicini alle ancore storiche

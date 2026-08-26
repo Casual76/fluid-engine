@@ -225,6 +225,12 @@ enum class FluidGlassModalPresentation {
    * and grows out of it while the anchor itself steps aside — so what the eye follows is one object
    * changing size, not a second object arriving next to the first. It is the shape of a button that
    * unfolds into its own menu and folds back once something is chosen.
+   *
+   * Presenta le **azioni** quando ce ne sono — è il caso per cui esiste, il tasto che diventa il
+   * proprio menù — e altrimenti il `content` del portale. Nota che un [Popover] con un'origine
+   * fa già viaggiare la sagoma dall'ancora al pannello con la rifrazione addosso: se quello che
+   * serve è un pannello di contenuto che nasce da una riga, quello basta, e questa presentazione
+   * aggiunge solo la forma a capsula e la larghezza del menù.
    */
   Expand,
 }
@@ -239,6 +245,29 @@ data class FluidContextAction(
   val enabled: Boolean = true,
   val onClick: () -> Unit,
 )
+
+/**
+ * Se una finestra ancorata disegna le proprie azioni o il contenuto che le è stato passato.
+ *
+ * La regola stava scritta come `menu || expand` dentro il disegno, e siccome quelle due
+ * presentazioni passavano **sempre** per le azioni, chi dichiarava [FluidGlassModalPresentation.Expand]
+ * e gli dava un `content` vedeva il pannello aprirsi vuoto: la sagoma viaggiava, lo scrim c'era,
+ * l'ancora si nascondeva, e dentro non c'era niente. Il contenuto non veniva rifiutato — veniva
+ * ignorato in silenzio, che è il modo in cui un'API costa un pomeriggio invece di un errore.
+ *
+ * Le azioni restano la ragione per cui quelle due presentazioni esistono e vincono quando ci sono.
+ * Ma una lista vuota non è una presentazione: senza niente da elencare, ciò che il chiamante ha
+ * effettivamente passato è l'unica cosa che ha senso disegnare.
+ *
+ * È una funzione a sé perché è l'unica parte di quel ramo che si possa verificare senza disegnare.
+ */
+internal fun fluidModalShowsActions(
+  presentation: FluidGlassModalPresentation,
+  hasActions: Boolean,
+): Boolean = hasActions && when (presentation) {
+  FluidGlassModalPresentation.ContextMenu, FluidGlassModalPresentation.Expand -> true
+  FluidGlassModalPresentation.Popover, FluidGlassModalPresentation.Sheet -> false
+}
 
 @Stable
 internal class FluidGlassModalEntry {
@@ -750,7 +779,7 @@ private fun FluidGlassModalLayer(
       growthCross = { scaleY.value },
       retreat = { backProgress },
     ) {
-      if (menu || expand) {
+      if (fluidModalShowsActions(entry.presentation, lastActions.isNotEmpty())) {
         lastActions.forEachIndexed { index, action ->
           if (index > 0) FluidHairline(startInset = 14.dp)
           FluidContextMenuRow(action = action, onDismiss = entry.onDismissRequest)

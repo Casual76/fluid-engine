@@ -2,7 +2,9 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
@@ -63,10 +65,11 @@ import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -93,6 +96,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -101,6 +105,7 @@ import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -127,6 +132,18 @@ import kotlin.math.roundToInt
 class FluidGlassModalHostState internal constructor() {
 
   internal val entries = mutableStateListOf<FluidGlassModalEntry>()
+
+  /**
+   * Le ancore registrate da [fluidExpandOrigin], coi loro limiti e la loro registrazione.
+   *
+   * Esiste perche' "il tasto stesso diventa il pop-up" ha bisogno di due cose che il solo
+   * rettangolo di `origin` non puo' dare: nascondere DAVVERO la riga mentre la finestra e' in
+   * scena (non una dissolvenza accanto: la stessa sparizione secca del menu che si espande), e
+   * un'immagine registrata della riga da far viaggiare con la finestra. Il layer del modale
+   * ritrova l'ancora per coincidenza di rettangoli — e' la stessa geometria che `origin` riporta.
+   */
+  internal val expandAnchors = mutableStateListOf<FluidExpandAnchorNode>()
+
   private var sequence = 0
 
   /** Whether anything is currently open. An app can use it to obscure the page behind. */
@@ -160,6 +177,18 @@ class FluidGlassModalHostState internal constructor() {
   fun dismissTop() {
     topEntry()?.onDismissRequest?.invoke()
   }
+}
+
+/** Un'ancora di [fluidExpandOrigin]: dove sta, la sua immagine registrata, e chi la nasconde. */
+@Stable
+internal class FluidExpandAnchorNode(val layer: GraphicsLayer) {
+  var bounds: Rect = Rect.Zero
+
+  /**
+   * Vero mentre la finestra nata da questa ancora e' in scena: la riga non disegna niente — e
+   * nel primo draw da nascosta si registra nel [layer], che e' l'immagine che viaggia.
+   */
+  var hidden by mutableStateOf(false)
 }
 
 @Composable
@@ -335,22 +364,9 @@ fun Modifier.fluidExpandOrigin(
   onMeasured: (Rect) -> Unit,
 ): Modifier {
   val requested = open()
-  // Held for the length of the exit, and **on a clock rather than on a condition**.
-  //
-  // The pane needs the rest of its fold-back to land on a rectangle that is still empty, so the row
-  // cannot simply reappear when the dismiss is requested. The first version asked the host whether
-  // anything was still on screen, which is a fact about the *whole app*: any modal anywhere that
-  // failed to clear its flag left every anchored row in every list invisible, and what that looks
-  // like is a group with a hole in it that never fills back in.
-  //
-  // A timer cannot get stuck. It is the same duration the fold-back runs for, it starts when the
-  // dismiss is asked for, and the worst it can ever do is give the row back a frame early.
-  //
-  // E se ne va **in dissolvenza**, non di colpo. Sparire nel fotogramma stesso in cui il pannello
-  // comincia a crescere lasciava un buco: il pannello parte piccolo e trasparente, quindi per una
-  // novantina di millisecondi al posto della riga non c'era ne' la riga ne' il pannello. Una
-  // sovrapposizione cosi' breve, per giunta fra due cose entrambe semitrasparenti, non ha niente a
-  // che vedere col doppio bordo che si vedeva quando la riga restava opaca sotto un pannello fermo.
+  // La dissolvenza legacy per chi passa `open`: resta onorata, ma il lavoro vero oggi lo fa il
+  // registro delle ancore qui sotto — la finestra nasconde la riga DA SOLA, senza che il chiamante
+  // debba cablare niente. E' cosi' che ogni app eredita la trasformazione aggiornando l'engine.
   val alpha = remember { Animatable(1f) }
   var grace by remember { mutableStateOf(false) }
   LaunchedEffect(requested) {
@@ -358,29 +374,53 @@ fun Modifier.fluidExpandOrigin(
       grace = true
       alpha.animateTo(0f, FluidMotion.fadeOut(FluidAnchorFadeMillis))
     } else if (grace) {
-      // **Subito, non dopo un'attesa.** L'attesa doveva coprire il rientro del pannello, e invece
-      // lasciava la riga assente per quattrocento millisecondi buoni, dopo i quali ricompariva dal
-      // niente: misurato fotogramma per fotogramma, e' il difetto peggiore dell'intera chiusura.
-      // Un pannello che si sta gia' rimpicciolendo e dissolvendo sopra la riga che riappare non
-      // somiglia neanche da lontano al doppio bordo che l'attesa doveva evitare.
       alpha.animateTo(1f, FluidMotion.fadeIn(FluidAnchorFadeMillis))
       grace = false
     }
   }
+
+  // Il pezzo che mancava a "il tasto stesso diventa il pop-up": la riga si registra presso l'host,
+  // si dipinge in un GraphicsLayer mentre un dito la tocca (lo stesso mestiere dell'ancora del
+  // menu contestuale: il tocco che apre il modale e' anche quello che scatta la fotografia), e
+  // quando la finestra e' in scena smette di disegnarsi DI COLPO — l'immagine continua il viaggio
+  // nella finestra, quindi il cambio di proprietario non ha niente da mostrare.
+  val host = LocalFluidGlassModalHostState.current
+  val layer = rememberGraphicsLayer()
+  val node = remember(layer) { FluidExpandAnchorNode(layer) }
+  DisposableEffect(host, node) {
+    host?.expandAnchors?.add(node)
+    onDispose {
+      node.hidden = false
+      host?.expandAnchors?.remove(node)
+    }
+  }
   return this
-    .onGloballyPositioned { onMeasured(it.boundsInRoot()) }
+    .onGloballyPositioned {
+      val rect = it.boundsInRoot()
+      node.bounds = rect
+      onMeasured(rect)
+    }
     .graphicsLayer { this.alpha = alpha.value }
+    .drawWithContent {
+      // In scena: la riga E' la finestra adesso, e disegnarla anche qui era il difetto numero
+      // uno dell'apertura — "il tasto rimane li', non si e' trasformato". Lo spazio resta
+      // riservato (e' un draw, non un layout), quindi il rientro atterra su un rettangolo vuoto.
+      //
+      // E la registrazione avviene QUI, nel primo draw da nascosta: niente registrazione al
+      // tocco — un tap iniettato dura meno di un fotogramma e non lasciava mai un'istantanea
+      // (layer 0x0, verificato a logcat). Nascondere invalida il draw, quindi questo ramo corre
+      // nello stesso fotogramma in cui la finestra appare, sempre PRIMA che l'overlay la
+      // ridisegni: l'immagine che parte col viaggio e' quella vera, di quel momento.
+      if (node.hidden) {
+        node.layer.record { this@drawWithContent.drawContent() }
+        return@drawWithContent
+      }
+      drawContent()
+    }
 }
 
-/** Quanto ci mette la riga a togliersi di mezzo, e a tornare. */
+/** Quanto ci mette la riga a togliersi di mezzo, e a tornare (solo dissolvenza legacy di `open`). */
 private const val FluidAnchorFadeMillis = 120
-
-/**
- * Quanto la riga resta nascosta dopo che il pannello ha ricevuto l'ordine di chiudersi.
- *
- * Un filo piu' della molla di uscita: la riga torna quando il pannello e' gia' tornato dentro di
- * lei, non prima — e non dopo, perche' dopo e' un buco nella lista.
- */
 
 /**
  * Hides everything under it from accessibility while a modal is open.
@@ -413,7 +453,7 @@ fun FluidGlassModalHost(
     // sits over it instead of replacing it. An entry that is closed and finished animating draws
     // nothing at all and costs one float animation.
     state.entries.sortedBy { it.openedAt }.forEach { entry ->
-      key(entry) { FluidGlassModalLayer(entry = entry, backdrop = backdrop) }
+      key(entry) { FluidGlassModalLayer(entry = entry, backdrop = backdrop, host = state) }
     }
   }
 }
@@ -431,8 +471,10 @@ fun FluidGlassModalHost(
 private fun FluidGlassModalLayer(
   entry: FluidGlassModalEntry,
   backdrop: GlassBackdropState?,
+  host: FluidGlassModalHostState,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val haptics = LocalHapticFeedback.current
   // 0 = at the anchor's size, 1 = at its own. What "0" actually means in pixels is solved by the
   // layout below, per axis, from the two rectangles.
   val scaleX = remember { Animatable(0f) }
@@ -460,21 +502,42 @@ private fun FluidGlassModalLayer(
       // arriving while the content is already legible.
       launch { fade.animateTo(1f, FluidMotion.fadeIn(FluidPopoverFadeInMillis)) }
       if (journeyMode && entry.origin() != null) {
-        // Il POP del menu contestuale, non il viaggio della casa. La rincorsa e' stata provata
-        // (tween di 180ms prima della molla) e bocciata: "lineare", "lenta". Qui la molla parte
-        // subito, alla velocita' massima — due molle spaiate, come quelle del modale classico ma
-        // piu' vive: l'oltrepasso porta la sagoma un soffio oltre il pannello, verso l'esterno,
-        // e la partenza ribassata di [FluidPopoverEntryDrop] lo orienta verso l'alto.
+        // Il tocco che diventa una finestra merita la conferma sul dito — il menu contestuale ce
+        // l'ha (LongPress) ed e' parte del perche' "e' piu' bello". Qui un click leggero: e' un
+        // tocco secco, non una pressione.
+        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+        // La formula, detta parola per parola: ACCELERAZIONE CONTINUA finche' non raggiunge il
+        // bordo, poi oltre, frena, e torna alla posizione finale. Quindi: una rincorsa tutta in
+        // ease-in che copre quasi l'intero viaggio ancora in accelerazione, e una molla che ne
+        // eredita la velocita' — l'oltrepasso e' slancio vero, non un calcio dato alla fine.
         launch {
+          scaleX.animateTo(
+            FluidPopoverWindowRunUpEnd,
+            tween(FluidPopoverWindowRunUpMillis, easing = FluidPopoverWindowRunUpEasing),
+          )
           scaleX.animateTo(1f, spring(FluidPopoverWindowDampingX, FluidPopoverWindowStiffness, 0.001f))
         }
         launch {
+          scaleY.animateTo(
+            FluidPopoverWindowRunUpEnd,
+            tween(FluidPopoverWindowRunUpMillis, easing = FluidPopoverWindowRunUpEasing),
+          )
           scaleY.animateTo(1f, spring(FluidPopoverWindowDampingY, FluidPopoverWindowStiffness, 0.001f))
         }
       } else {
         launch { scaleX.animateTo(1f, spring(FluidPopoverDampingX, FluidPopoverStiffness, 0.001f)) }
         launch { scaleY.animateTo(1f, spring(FluidPopoverDampingY, FluidPopoverStiffness, 0.001f)) }
       }
+    } else if (journeyMode && entry.origin() != null) {
+      // La chiusura della finestra e' UN gesto: la sagoma rientra nella riga (piu' rigida che
+      // altrove, cosi' atterra PRIMA che la dissolvenza finisca) e l'immagine della riga le
+      // riappare dentro strada facendo — quando il layer si smonta, quello che c'e' sotto e'
+      // gia' identico. La versione morbida chiudeva la dissolvenza con la sagoma ancora a meta'
+      // corsa: il pannello svaniva PER ARIA e la riga ricompariva di colpo — "fa degli effetti
+      // pop", ed era vero.
+      launch { fade.animateTo(0f, FluidMotion.fadeOut(FluidPopoverJourneyFadeOutMillis)) }
+      launch { scaleX.animateTo(0f, spring(1f, FluidPopoverJourneyExitStiffness, 0.001f)) }
+      launch { scaleY.animateTo(0f, spring(1f, FluidPopoverJourneyExitStiffness, 0.001f)) }
     } else {
       // Leaving is critically damped: an overshoot on the way out reads as the pop-up bouncing off
       // the screen rather than being put away. But not *stiff* — at 900 the pane crossed most of
@@ -536,11 +599,35 @@ private fun FluidGlassModalLayer(
     entry.lifted = true
   }
 
+  // L'ancora VERA — la riga registrata da fluidExpandOrigin i cui limiti coincidono con l'origine.
+  // Trovarla e' cio' che trasforma "un pannello compare dov'era la riga" in "la riga diventa il
+  // pannello": la riga smette di disegnarsi nello stesso fotogramma in cui la finestra appare
+  // sulla sua sagoma, e la sua immagine registrata parte col viaggio.
+  var anchorNode by remember { mutableStateOf<FluidExpandAnchorNode?>(null) }
+  if (entry.visible && journeyMode && entry.presentation != FluidGlassModalPresentation.ContextMenu) {
+    val origin = lastOrigin
+    if (origin != null && anchorNode == null) {
+      anchorNode = host.expandAnchors.firstOrNull { node ->
+        (node.bounds.center - origin.center).getDistance() < 4f &&
+          abs(node.bounds.width - origin.width) < 4f &&
+          abs(node.bounds.height - origin.height) < 4f
+      }
+    }
+    anchorNode?.hidden = true
+  }
+  DisposableEffect(entry) {
+    onDispose { anchorNode?.hidden = false }
+  }
+
   // The fade is short and the springs are not, and a sheet slides out on the springs. Dropping
   // the layer the moment the alpha reached zero cut every exit in half.
   if (!entry.visible && exitFinished) {
     // Whatever was lifted out of the page is handed back to it here, and not one frame earlier.
-    SideEffect { entry.lifted = false }
+    SideEffect {
+      entry.lifted = false
+      anchorNode?.hidden = false
+      anchorNode = null
+    }
     return
   }
 
@@ -582,6 +669,9 @@ private fun FluidGlassModalLayer(
       backdrop = backdrop,
       exports = scrimGlass,
       intensity = { presence() * (1f - backProgress * 0.6f) },
+      // A congedo richiesto lo scrim smette di mangiare i tocchi: la pagina sotto e' gia' sua
+      // — si puo' scorrere mentre la chiusura finisce di sfumare.
+      interactive = entry.visible,
       onDismiss = entry.onDismissRequest,
     )
 
@@ -652,6 +742,9 @@ private fun FluidGlassModalLayer(
       overAnchor = !menu,
       morphWindow = journeyMode,
       anchorRadiusPx = anchorRadiusPx,
+      outgoing = anchorNode?.layer,
+      windowBackdrop = backdrop,
+      open = { entry.visible },
       presence = presence,
       growth = { scaleX.value },
       growthCross = { scaleY.value },
@@ -687,6 +780,7 @@ private fun FluidGlassModalScrim(
   backdrop: GlassBackdropState?,
   exports: GlassBackdropState,
   intensity: () -> Float,
+  interactive: Boolean,
   onDismiss: () -> Unit,
 ) {
   val dark = GlassDefaults.isDarkSurface()
@@ -723,7 +817,18 @@ private fun FluidGlassModalScrim(
     // the fade — on the largest surface in the system, at the exact moment something is trying to
     // animate. Fading the result instead costs one composited layer and looks identical.
     .graphicsLayer { alpha = intensity().coerceIn(0f, 1f) }
-    .pointerInput(onDismiss) { detectTapGestures { onDismiss() } }
+    // Il cancello del fotogramma di confine: al primo e all'ultimo fotogramma di vita del nodo
+    // il layer qui sopra puo' disegnare con l'alpha di default (1) — e' il lampo scuro+blur di
+    // un fotogramma misurato nel video dell'apertura E della chiusura. Con l'alpha a zero non
+    // si registra niente, e una displaylist vuota non ha lampi da rigiocare.
+    .drawWithContent { if (intensity() > 0.004f) drawContent() }
+    .then(
+      if (interactive) {
+        Modifier.pointerInput(onDismiss) { detectTapGestures { onDismiss() } }
+      } else {
+        Modifier
+      },
+    )
 
   if (backdrop == null) {
     Box(
@@ -784,6 +889,10 @@ private class FluidPopoverPlacement {
   var anchorTop by mutableStateOf(0f)
   var anchorWidth by mutableStateOf(0f)
   var anchorHeight by mutableStateOf(0f)
+
+  /** La taglia risolta del pannello: serve a ombra e immagine in uscita, che vivono fuori dal Layout. */
+  var paneWidth by mutableStateOf(0f)
+  var paneHeight by mutableStateOf(0f)
 }
 
 /**
@@ -858,6 +967,16 @@ private fun FluidAnchoredPopover(
    */
   morphWindow: Boolean,
   anchorRadiusPx: Float,
+  /**
+   * L'immagine registrata della riga che ha aperto la finestra, da [fluidExpandOrigin]. Viaggia
+   * con la silhouette e svanisce nel primo terzo del percorso: e' la meta' "in uscita" del
+   * contratto dei contenuti — la riga non sparisce, PARTE.
+   */
+  outgoing: GraphicsLayer?,
+  /** La pagina cruda, per la finestra morph: il composito con lo scrim mente (vedi sotto). */
+  windowBackdrop: GlassBackdropState?,
+  /** Vero finche' il modale e' aperto: la chiusura cambia il clock del materiale della finestra. */
+  open: () -> Boolean,
   presence: () -> Float,
   growth: () -> Float,
   growthCross: () -> Float,
@@ -887,59 +1006,153 @@ private fun FluidAnchoredPopover(
   val paneGlass = rememberGlassBackdrop()
   val windowPhysics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   val useMorphWindow = morphWindow && anchor != null && backdrop != null
+  // La pellicola della finestra con dentro la quota di scrim: lo stesso nero dello scrim vero,
+  // composto sotto la tinta flottante. E' il punto di partenza del lerp tintFrom->tint guidato
+  // da (1 - presence): a modale fermo la finestra porta lo scrim intero, lungo le dissolvenze
+  // esattamente la frazione che lo scrim ha sullo schermo.
+  val windowDark = GlassDefaults.isDarkSurface()
+  val windowFloatingTint = GlassDefaults.floatingTint()
+  val windowTintWithScrim = remember(windowFloatingTint, windowDark) {
+    windowFloatingTint.copy(
+      overlay = windowFloatingTint.overlay.compositeOver(
+        Color.Black.copy(alpha = if (windowDark) 0.20f else 0.12f),
+      ),
+    )
+  }
 
   if (useMorphWindow && backdrop != null) {
     val shadowBlurPx = with(density) { FluidPopoverOptics.shadowRadius.toPx() }
     val shadowDropPx = with(density) { FluidPopoverShadowDrop.toPx() }
-    val shadowPaint = remember(shadowBlurPx) {
-      Paint().also { paint ->
-        paint.asFrameworkPaint().apply {
-          isAntiAlias = true
-          color = android.graphics.Color.BLACK
-          maskFilter = android.graphics.BlurMaskFilter(
-            shadowBlurPx,
-            android.graphics.BlurMaskFilter.Blur.NORMAL,
-          )
-        }
-      }
+    val shadowCache = remember { FluidPopoverShadowCache() }
+    // Il materiale della finestra: la dissolvenza del modale, e in CHIUSURA anche il viaggio —
+    // pellicola e ombra muoiono mentre la sagoma atterra sulla riga, non dopo. In apertura il
+    // viaggio non c'entra: il materiale e' costante, cosi' quello che si vede attraverso il
+    // vetro non pulsa ("il testo dietro non deve muoversi").
+    val windowAmount: () -> Float = {
+      presence() * (if (open()) 1f else minOf(growth(), growthCross()).coerceIn(0f, 1f))
     }
     // La finestra: una superficie a tutto schermo la cui silhouette e' il lerp ancora->pannello
     // al passo delle molle del modale. Il clip del layer resta fermo, la sagoma la scolpisce lo
     // shader — e' il contratto di Fluid-physics, quindi questo non ricattura e non ri-clippa mai.
+    //
+    // NIENTE scala sul layer: scalare il nodo scala anche il fondale campionato dentro il vetro
+    // — "il testo dietro si muove", ed era vero. L'oltrepasso vive nella GEOMETRIA della
+    // silhouette (overshootInflation di driveExternally): un moto solo, su tutti i lati.
     Box(
       modifier = Modifier
         .fillMaxSize()
+        .drawWithContent {
+          // Il cancello del fotogramma di confine: al primo e all'ultimo fotogramma di vita del
+          // nodo, il layer esterno puo' disegnare con le proprieta' di default — un lampo a
+          // piena intensita', misurato alla luminanza nel video (214.6 -> 190.9 -> 204.1: un
+          // fotogramma di scrim pieno, poi la dissolvenza che riparte da zero). Se il materiale
+          // e' a zero non si disegna NIENTE, e una displaylist vuota non ha lampi da rigiocare.
+          if (windowAmount() > 0.004f) drawContent()
+        }
         .drawBehind {
-          // L'ombra della finestra. La superficie fisica non ne porta una sua (le ombre del
-          // renderer hanno memoria fotografica della sagoma di partenza), e senza niente il
-          // pannello aperto galleggiava PIATTO su una pagina appena scurita — "qualcosa di
-          // brutto" che nessuno sapeva nominare. Disegnata sul path della silhouette corrente,
-          // segue il morph per costruzione e svanisce con la dissolvenza del modale.
-          val amount = presence()
+          // L'ombra della finestra: senza, il pannello aperto galleggiava piatto. La prima
+          // versione passava un BlurMaskFilter sul path della silhouette A OGNI FOTOGRAMMA, e
+          // HWUI ri-rasterizza la maschera ogni volta che il path cambia — era il lag che si
+          // vedeva a occhio nudo. Qui la sfocatura si paga una volta sola, in un bitmap per
+          // taglia di pannello, e ogni fotogramma e' un drawImage stirato sui bounds correnti:
+          // un'ombra morbida stirata e una esatta sono indistinguibili.
+          // Muore CON l'atterraggio, non col proprio orologio: un'ombra ancora accesa attorno a
+          // una sagoma gia' posata sulla riga e' "il tasto resta scurito fino all'ultimo frame".
+          val amount = windowAmount()
           if (amount > 0.02f) {
-            shadowPaint.asFrameworkPaint().alpha =
-              (255f * FluidPopoverOptics.shadowAlpha * amount).toInt()
-            drawIntoCanvas { canvas ->
-              canvas.save()
-              canvas.translate(0f, shadowDropPx)
-              canvas.drawPath(windowPhysics.ensurePlan().silhouette, shadowPaint)
-              canvas.restore()
+            val bounds = windowPhysics.ensurePlan().bounds
+            val shadow = shadowCache.obtain(
+              paneWidth = placement.paneWidth,
+              paneHeight = placement.paneHeight,
+              cornerRadius = paneRadiusPx,
+              blur = shadowBlurPx,
+            )
+            if (shadow != null && bounds.width > 1f && bounds.height > 1f) {
+              val pad = shadowBlurPx * 2f
+              val sx = bounds.width / placement.paneWidth
+              val sy = bounds.height / placement.paneHeight
+              drawImage(
+                image = shadow,
+                dstOffset = IntOffset(
+                  (bounds.left - pad * sx).roundToInt(),
+                  (bounds.top - pad * sy + shadowDropPx).roundToInt(),
+                ),
+                dstSize = IntSize(
+                  (bounds.width + pad * 2f * sx).roundToInt().coerceAtLeast(1),
+                  (bounds.height + pad * 2f * sy).roundToInt().coerceAtLeast(1),
+                ),
+                alpha = (FluidPopoverOptics.shadowAlpha * amount).coerceIn(0f, 1f),
+              )
             }
           }
         }
         .fluidPhysicsSurface(
           state = windowPhysics,
-          backdrop = backdrop,
+          // La pagina CRUDA, non il composito pagina+scrim. Gli exports dello scrim registrano
+          // il suo materiale a forza PIENA (l'arrivo dello scrim e' un alpha sul pannello
+          // finito), quindi campionare il composito significava mostrare dentro la card uno
+          // scrim sempre pieno mentre quello sullo schermo sfumava — la card restava SCURA per
+          // tutta la chiusura, misurato sui fotogrammi. Lo scurimento dello scrim la finestra
+          // se lo dipinge da sola, qui sotto, alla forza CORRENTE.
+          backdrop = windowBackdrop ?: backdrop,
           // Piu' leggero del modale classico, deliberato: "troppo glassoso" e' stato il verdetto
           // sulla prima versione. Pellicola da capsula flottante — il vetro lo fa la rifrazione
-          // al bordo, non il latte — ma il blur non scende sotto la leggibilita': dietro un
-          // paragrafo la pagina deve diventare tessitura, non restare testo.
+          // al bordo, non il latte — ma il blur non scende sotto la leggibilita', e il bordo e'
+          // PRONUNCIATO: e' il bordo a dire "abbiamo selezionato questo", come sul menu
+          // contestuale.
           tint = GlassDefaults.floatingTint(),
           role = GlassRole.Modal,
-          optics = FluidPopoverOptics.copy(blurScale = 2.2f),
-          intensity = presence,
+          optics = FluidPopoverOptics.copy(
+            blurScale = 2.2f,
+            highlightWidth = 1.1.dp,
+            highlightAlpha = 0.62f,
+          ),
+          // La pellicola porta anche la quota di scrim che spetta alla finestra, alla forza a
+          // cui lo scrim sta DAVVERO in questo fotogramma: piena a modale aperto, a scalare
+          // lungo le dissolvenze. Cosi' il vetro non e' mai ne' piu' scuro ne' piu' chiaro
+          // della pagina scrimmata che lo circonda.
+          tintFrom = windowTintWithScrim,
+          tintBlend = { 1f - presence().coerceIn(0f, 1f) },
+          intensity = windowAmount,
         ),
     )
+    // L'immagine della riga, in viaggio: parte dalla sua posizione esatta, segue il centro della
+    // silhouette e svanisce nel primo terzo — la riga vera ha smesso di disegnarsi nello stesso
+    // fotogramma, quindi quello che l'occhio segue e' UNA cosa che si trasforma.
+    if (outgoing != null && anchor != null) {
+      Box(
+        modifier = Modifier
+          .offset { IntOffset(anchor.left.roundToInt(), anchor.top.roundToInt()) }
+          .size(
+            width = with(density) { anchor.width.toDp() },
+            height = with(density) { anchor.height.toDp() },
+          )
+          .graphicsLayer {
+            val g = growth()
+            val gc = growthCross()
+            val travel = minOf(g, gc)
+            // MAI moltiplicata per la dissolvenza del modale: al primo fotogramma la riga vera
+            // e' gia' nascosta e la dissolvenza e' a zero — con `presence` qui dentro il vetro
+            // partiva VUOTO. E in chiusura e' questa immagine, riapparendo lungo il ritorno, a
+            // coprire lo scambio con la riga vera: quando il layer si smonta sono gia' identiche.
+            // Vive fino a meta' viaggio: e' il titolo della riga che TRASLA dentro la card,
+            // mentre il testo della card subentra sotto — e all'inverso in chiusura.
+            alpha = (1f - travel / 0.5f).coerceIn(0f, 1f)
+            val paneCenterX = anchor.left - placement.anchorLeft + placement.paneWidth / 2f
+            val paneCenterY = anchor.top - placement.anchorTop + placement.paneHeight / 2f
+            translationX = g.coerceAtMost(1f) * (paneCenterX - anchor.center.x)
+            translationY = gc.coerceAtMost(1f) * (paneCenterY - anchor.center.y)
+            val shrink = 1f - 0.06f * travel.coerceIn(0f, 1f)
+            scaleX = shrink
+            scaleY = shrink
+          }
+          .drawWithContent {
+            // Un layer rilasciato non si ridisegna: se la lista sotto ha smontato la riga, la
+            // finestra apre semplicemente senza immagine in uscita. Niente qui vale un crash.
+            runCatching { drawLayer(outgoing) }
+          },
+      )
+    }
   }
 
   Layout(
@@ -959,16 +1172,22 @@ private fun FluidAnchoredPopover(
               // La versione precedente teneva il testo a taglia piena dall'inizio: sbordava dal
               // vetro ancora piccolo, ed era "il testo che appare in maniera strana".
               val travel = minOf(g, gc)
-              alpha = presence() * ((travel - 0.25f) / 0.5f).coerceIn(0f, 1f)
+              // Subentra TARDI (45%..90% del viaggio): prima e' l'immagine della riga a viaggiare
+              // — il titolo che trasla dentro la card — e solo poi si materializza il testo,
+              // sotto. La staffetta delle due scritte e' cio' che toglie il popping del testo.
+              alpha = presence() * ((travel - 0.45f) / 0.45f).coerceIn(0f, 1f)
               val anchorCenterX = placement.anchorLeft + placement.anchorWidth / 2f
-              val anchorCenterY = placement.anchorTop + placement.anchorHeight / 2f +
-                FluidPopoverEntryDrop.toPx()
-              translationX = (1f - g) * (anchorCenterX - size.width / 2f)
-              translationY = (1f - gc) * (anchorCenterY - size.height / 2f)
+              val anchorCenterY = placement.anchorTop + placement.anchorHeight / 2f
+              translationX = (1f - g.coerceAtMost(1f)) * (anchorCenterX - size.width / 2f)
+              translationY = (1f - gc.coerceAtMost(1f)) * (anchorCenterY - size.height / 2f)
               val endMin = minOf(size.width, size.height)
+              // Zoom di pochi punti percentuali, e NIENTE gonfiore del pop sul testo: la
+              // trasformazione la racconta gia' l'immagine della riga in viaggio, e un
+              // paragrafo che zooma da 0.72 gonfiando oltre l'1 era "il testo esplode".
+              // Il pop resta al vetro; la scritta arriva in posa.
               val travelScale = if (endMin > 0f) {
                 val startMin = minOf(placement.anchorWidth, placement.anchorHeight)
-                (lerp(startMin, endMin, travel) / endMin).coerceIn(0.72f, 1.12f)
+                (lerp(startMin, endMin, travel.coerceIn(0f, 1f)) / endMin).coerceIn(0.90f, 1f)
               } else {
                 1f
               }
@@ -1139,6 +1358,8 @@ private fun FluidAnchoredPopover(
     placement.anchorTop = anchor.top - y
     placement.anchorWidth = anchor.width
     placement.anchorHeight = anchor.height
+    placement.paneWidth = placeable.width.toFloat()
+    placement.paneHeight = placeable.height.toFloat()
     placement.startScaleX = FluidPopoverStartScale
     placement.startScaleY = FluidPopoverStartScale
     placement.startOffsetX = 0f
@@ -1147,12 +1368,12 @@ private fun FluidAnchoredPopover(
     if (useMorphWindow && placeable.width > 0 && placeable.height > 0) {
       // La geometria della finestra si risolve QUI, dove si risolve tutto il resto: l'ancora com'e'
       // davvero, il pannello dov'e' davvero. L'orologio e' `growth` — le molle del modale.
-      // La partenza sta un soffio SOTTO l'ancora: e' la spinta verso l'alto del viaggio, vedi
-      // [FluidPopoverEntryDrop].
-      val dropPx = FluidPopoverEntryDrop.toPx()
+      // La partenza e' il rettangolo ESATTO dell'ancora: partire ribassato dava una spinta verso
+      // l'alto all'andata, ma al ritorno la finestra atterrava quattordici punti sotto la riga —
+      // "non ritorna al punto originale", ed e' vero. La vita verticale la danno gia' le molle.
       windowPhysics.driveExternally(
         from = FluidForm.Slab(
-          frame = anchor.translate(0f, dropPx),
+          frame = anchor,
           cornerRadii = FluidCornerRadii.all(
             anchorRadiusPx.coerceAtMost(anchor.minDimension / 2f),
           ),
@@ -1162,6 +1383,10 @@ private fun FluidAnchoredPopover(
           cornerRadii = FluidCornerRadii.all(paneRadiusPx),
         ),
         progress = growth,
+        // Oltre l'1 la sagoma NON prosegue lungo il lerp (fianchi in dentro, fondo in fuori —
+        // la direzione del viaggio, non un pop): e' il pannello gonfiato uniformemente attorno
+        // al centro, su tutti i lati, che poi si posa. Un moto solo, nella geometria.
+        overshootInflation = FluidPopoverWindowPopGain,
       )
     }
 
@@ -1709,22 +1934,35 @@ private val FluidPopoverOptics = GlassOptics(
  * always a pill however hard it is squashed.
  */
 /**
- * Le molle della finestra ancorata: il POP del menu contestuale, non il viaggio della casa. La
- * rincorsa (180ms di tween prima della molla) e' stata provata due volte e bocciata due volte —
- * "lineare", "lenta". Spaiate come quelle del modale classico, perche' due molle uguali fanno un
- * palloncino; piu' rigide e piu' vive delle sue, perche' un pannello che nasce da una riga deve
- * ARRIVARE con un oltrepasso visibile — verso l'esterno, e con la partenza ribassata verso l'alto.
+ * Il moto della finestra ancorata, detto parola per parola: "accelerazione continua finche' non
+ * raggiunge il bordo, e allora inizia a rallentare, oltre, fino a ritornare alla posizione
+ * finale". Quindi: una rincorsa TUTTA in ease-in che copre il novanta per cento del viaggio
+ * ancora in accelerazione (130ms, curva che finisce ripida), e una molla che ne eredita la
+ * velocita' — l'oltrepasso e' slancio vero, non un calcio dato alla fine. La prima rincorsa
+ * (180ms all'80%, easing molle) era stata bocciata come "lineare, lenta": il difetto era il
+ * ritmo, non l'idea.
  */
-private const val FluidPopoverWindowDampingX = 0.58f
-private const val FluidPopoverWindowDampingY = 0.68f
-private const val FluidPopoverWindowStiffness = 330f
+private const val FluidPopoverWindowRunUpMillis = 130
+private const val FluidPopoverWindowRunUpEnd = 0.92f
+private val FluidPopoverWindowRunUpEasing = CubicBezierEasing(0.55f, 0f, 0.85f, 0.55f)
+private const val FluidPopoverWindowDampingX = 0.55f
+private const val FluidPopoverWindowDampingY = 0.62f
+private const val FluidPopoverWindowStiffness = 300f
 
 /**
- * Di quanto la finestra parte piu' in basso della propria ancora. E' la spinta "verso l'alto":
- * il viaggio acquista una componente ascendente, l'oltrepasso della molla la porta un soffio
- * oltre il traguardo, e la posata ridiscende — il pannello LIEVITA, non compare.
+ * Quanto dell'oltrepasso della molla diventa GONFIORE della card (via overshootInflation di
+ * driveExternally): geometria, non scala del layer — scalare il layer zoomava anche il fondale
+ * campionato dentro il vetro, "il testo dietro si muove". Uniforme, su tutti i lati.
  */
-private val FluidPopoverEntryDrop = 14.dp
+private const val FluidPopoverWindowPopGain = 0.6f
+
+/**
+ * L'uscita della finestra: piu' rigida di quella classica, perche' la sagoma deve ATTERRARE
+ * sulla riga prima che la dissolvenza (280ms, sotto) finisca — e' l'ordine delle due cose che
+ * rende la chiusura un gesto solo invece di una sparizione per aria.
+ */
+private const val FluidPopoverJourneyExitStiffness = 620f
+private const val FluidPopoverJourneyFadeOutMillis = 280
 
 private const val FluidPopoverStartScale = 0.42f
 
@@ -1759,14 +1997,68 @@ private val FluidPopoverGap = 10.dp
 private val FluidPopoverMaxWidth = 620.dp
 
 /**
- * Il pop-up ANCORATO invece e' una card, non una fascia: piu' stretto della riga da cui nasce,
- * cosi' il morph ha una componente laterale — i fianchi della riga si raccolgono mentre il
- * pannello cresce — e non "si apre solo verso l'alto e verso il basso".
+ * Il pop-up ANCORATO e' una card, non una fascia: un po' piu' stretto della riga da cui nasce,
+ * cosi' il morph ha una componente laterale — ma di POCO. A 320 la strizzata dominava e il
+ * pannello sembrava rimpicciolirsi invece di crescere; la crescita la deve raccontare l'altezza.
  */
-private val FluidPopoverAnchoredMaxWidth = 320.dp
+private val FluidPopoverAnchoredMaxWidth = 360.dp
 
 /** Di quanto l'ombra della finestra sta sotto la silhouette: il pannello e' sospeso, non incollato. */
 private val FluidPopoverShadowDrop = 6.dp
+
+/**
+ * L'ombra della finestra, sfocata UNA volta per taglia di pannello.
+ *
+ * Il BlurMaskFilter passato sul path della silhouette a ogni fotogramma era il lag dell'apertura:
+ * HWUI rasterizza la maschera daccapo ogni volta che il path cambia, e in un morph il path cambia
+ * sempre. Qui il blur si paga alla prima richiesta, in un bitmap a mezza risoluzione (l'ombra e'
+ * morbida per definizione: mezza risoluzione non si vede), e il fotogramma costa un drawImage.
+ */
+private class FluidPopoverShadowCache {
+  private var image: ImageBitmap? = null
+  private var keyWidth = -1f
+  private var keyHeight = -1f
+  private var keyRadius = -1f
+  private var keyBlur = -1f
+
+  fun obtain(paneWidth: Float, paneHeight: Float, cornerRadius: Float, blur: Float): ImageBitmap? {
+    if (paneWidth < 1f || paneHeight < 1f || blur < 1f) return null
+    if (image == null || paneWidth != keyWidth || paneHeight != keyHeight ||
+      cornerRadius != keyRadius || blur != keyBlur
+    ) {
+      keyWidth = paneWidth
+      keyHeight = paneHeight
+      keyRadius = cornerRadius
+      keyBlur = blur
+      val pad = blur * 2f
+      val scale = 0.5f
+      val bitmap = android.graphics.Bitmap.createBitmap(
+        (((paneWidth + pad * 2f) * scale).toInt()).coerceAtLeast(2),
+        (((paneHeight + pad * 2f) * scale).toInt()).coerceAtLeast(2),
+        android.graphics.Bitmap.Config.ARGB_8888,
+      )
+      val canvas = android.graphics.Canvas(bitmap)
+      val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.BLACK
+        maskFilter = android.graphics.BlurMaskFilter(
+          (blur * scale).coerceAtLeast(1f),
+          android.graphics.BlurMaskFilter.Blur.NORMAL,
+        )
+      }
+      canvas.drawRoundRect(
+        pad * scale,
+        pad * scale,
+        (pad + paneWidth) * scale,
+        (pad + paneHeight) * scale,
+        cornerRadius * scale,
+        cornerRadius * scale,
+        paint,
+      )
+      image = bitmap.asImageBitmap()
+    }
+    return image
+  }
+}
 private const val FluidPopoverMaxHeightFraction = 0.78f
 /**
  * The pop-up's corner, and it is [FluidRadius.Group] on purpose.

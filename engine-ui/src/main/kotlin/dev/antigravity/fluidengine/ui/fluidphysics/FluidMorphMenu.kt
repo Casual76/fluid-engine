@@ -126,10 +126,10 @@ fun FluidMorphMenuButton(
       // Sparizione secca, non dissolvenza: la superficie dell'host appare nello stesso fotogramma
       // allo stesso posto con la stessa sagoma — è un cambio di proprietario, non un'uscita.
       .graphicsLayer { alpha = if (state.isOnScreen) 0f else 1f }
-      // interactive = false, deliberato: il lampo bianco del tocco scattava anche su un dito che
-      // voleva solo scorrere. Il feedback di questo tasto è una scala leggera al press — e il
-      // morph stesso: un tasto che diventa un pannello non ha bisogno di annunciarsi.
-      .glassControlSurface(backdrop = backdrop, interactive = false)
+      // interactive = true, di nuovo: senza, il tasto era l'unico della fila a non accendersi
+      // sotto il dito — "ha perso quella capacità", ed è vero. La coerenza con gli altri
+      // controlli vale più del lampo occasionale su un dito che voleva solo scorrere.
+      .glassControlSurface(backdrop = backdrop)
       .fluidPressable(
         onClick = onClick,
         onLongClick = {
@@ -253,10 +253,21 @@ fun FluidMorphMenuHost(
     if (anchor != null) {
       MorphMenuFrameBox(frame = anchor) {
         Row(
-          modifier = Modifier.fluidPhysicsContent(
-            state.physics,
-            if (state.isOpen) FluidPhysicsContentRole.Outgoing else FluidPhysicsContentRole.Incoming,
-          ),
+          modifier = if (state.isOpen) {
+            Modifier.fluidPhysicsContent(state.physics, FluidPhysicsContentRole.Outgoing)
+          } else {
+            // Ritorno: NIENTE traslazione. La superficie sta già tornando lei sulla capsula;
+            // l'etichetta deve solo trovarsi lì quando il vetro arriva — compare tardi, in posa,
+            // con un filo di zoom. La traslazione del contratto Incoming, pensata per contenuti
+            // che inseguono una silhouette in arrivo, qui si leggeva come uno scivolone.
+            Modifier.graphicsLayer {
+              val p = state.physics.progress.coerceIn(0f, 1f)
+              alpha = ((p - 0.55f) / 0.45f).coerceIn(0f, 1f)
+              val settle = 0.92f + 0.08f * p
+              scaleX = settle
+              scaleY = settle
+            }
+          },
           horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
           verticalAlignment = Alignment.CenterVertically,
         ) {

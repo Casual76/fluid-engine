@@ -1366,6 +1366,9 @@ private fun FluidAnchoredPopover(
     placement.startOffsetY = 0f
 
     if (useMorphWindow && placeable.width > 0 && placeable.height > 0) {
+      val popGainY = FluidPopoverWindowPopGain *
+        (placeable.height / FluidPopoverPopReferenceHeight.toPx()).coerceIn(0.55f, 1.6f)
+      val popEdgeMinPx = FluidPopoverPopEdgeMin.toPx()
       // La geometria della finestra si risolve QUI, dove si risolve tutto il resto: l'ancora com'e'
       // davvero, il pannello dov'e' davvero. L'orologio e' `growth` — le molle del modale.
       // La partenza e' il rettangolo ESATTO dell'ancora: partire ribassato dava una spinta verso
@@ -1384,9 +1387,20 @@ private fun FluidAnchoredPopover(
         ),
         progress = growth,
         // Oltre l'1 la sagoma NON prosegue lungo il lerp (fianchi in dentro, fondo in fuori —
-        // la direzione del viaggio, non un pop): e' il pannello gonfiato uniformemente attorno
-        // al centro, su tutti i lati, che poi si posa. Un moto solo, nella geometria.
-        overshootInflation = FluidPopoverWindowPopGain,
+        // la direzione del viaggio, non un pop): e' il pannello gonfiato attorno al centro, su
+        // tutti i lati, che poi si posa. Un moto solo, nella geometria.
+        //
+        // La molla e' GRANDE QUANTO IL VIAGGIO: un pannello alto arriva con piu' slancio di un
+        // biglietto, quindi il gonfiore scala con l'altezza del pannello rispetto a una taglia
+        // di riferimento. E i fianchi hanno un tetto loro: al picco d'oltrepasso la card non
+        // deve finire a ridosso dei bordi dello schermo, quindi la X e' limitata dallo spazio
+        // che resta davvero fra pannello e margine minimo.
+        overshootInflationY = popGainY,
+        overshootInflationX = minOf(
+          popGainY,
+          ((width - 2f * popEdgeMinPx - placeable.width).coerceAtLeast(0f) / placeable.width) /
+            FluidPopoverPeakOvershoot,
+        ),
       )
     }
 
@@ -1952,9 +1966,22 @@ private const val FluidPopoverWindowStiffness = 300f
 /**
  * Quanto dell'oltrepasso della molla diventa GONFIORE della card (via overshootInflation di
  * driveExternally): geometria, non scala del layer — scalare il layer zoomava anche il fondale
- * campionato dentro il vetro, "il testo dietro si muove". Uniforme, su tutti i lati.
+ * campionato dentro il vetro, "il testo dietro si muove". Su tutti i lati.
  */
 private const val FluidPopoverWindowPopGain = 0.6f
+
+/**
+ * La taglia a cui il gonfiore vale [FluidPopoverWindowPopGain] esatto: un pannello piu' alto
+ * arriva con piu' slancio e rimbalza di piu', uno piu' basso di meno — "la molla e' grande
+ * quanto il viaggio". Il fattore e' bloccato in 0.55..1.6.
+ */
+private val FluidPopoverPopReferenceHeight = 240.dp
+
+/** Sotto questa distanza dai bordi laterali il gonfiore non deve mai portare la card. */
+private val FluidPopoverPopEdgeMin = 6.dp
+
+/** Il picco atteso di (progress − 1) con la rincorsa e la molla di casa: taratura del tetto X. */
+private const val FluidPopoverPeakOvershoot = 0.15f
 
 /**
  * L'uscita della finestra: piu' rigida di quella classica, perche' la sagoma deve ATTERRARE

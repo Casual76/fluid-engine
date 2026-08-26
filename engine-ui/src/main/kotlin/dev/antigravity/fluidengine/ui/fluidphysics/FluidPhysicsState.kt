@@ -80,14 +80,18 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
      * Come rendere l'oltrepasso della molla (progress > 1). A zero, il lerp estrapola oltre il
      * traguardo NELLA DIREZIONE del viaggio — che per una riga larga che diventa una card
      * stretta significa fianchi in dentro e fondo in fuori. Con un valore positivo, oltre l'1
-     * la sagoma e' il traguardo GONFIATO uniformemente attorno al proprio centro, su tutti i
-     * lati: (progress − 1) · overshootInflation e' la frazione di gonfiore.
+     * la sagoma e' il traguardo GONFIATO attorno al proprio centro:
+     * (progress − 1) · overshootInflation e' la frazione di gonfiore per asse. I due assi sono
+     * separati perche' hanno vincoli diversi: lo schermo limita i fianchi, non il fondo — il
+     * chiamante puo' smorzare la X senza togliere vita alla Y.
      */
-    overshootInflation: Float = 0f,
+    overshootInflationX: Float = 0f,
+    overshootInflationY: Float = 0f,
   ) {
     val current = externalDrive
     if (current != null && current.from == from && current.to == to &&
-      current.overshootInflation == overshootInflation
+      current.overshootInflationX == overshootInflationX &&
+      current.overshootInflationY == overshootInflationY
     ) {
       return
     }
@@ -96,7 +100,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       from = from,
       to = to,
       progress = progress,
-      overshootInflation = overshootInflation,
+      overshootInflationX = overshootInflationX,
+      overshootInflationY = overshootInflationY,
     )
     transitPlanStamp = Float.NaN
   }
@@ -262,13 +267,14 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       val t = drive.progress()
       if (transitPlanTransit !== drive.transit || transitPlanStamp != t) {
         transitPlan.clipToBounds = maskInShader
-        if (t > 1f && drive.overshootInflation > 0f) {
+        if (t > 1f && (drive.overshootInflationX > 0f || drive.overshootInflationY > 0f)) {
           // L'oltrepasso e' un GONFIORE, non un proseguimento: la sagoma al traguardo, scalata
-          // uniformemente attorno al suo centro. Un moto solo, continuo, su tutti i lati.
-          val scale = 1f + (t - 1f) * drive.overshootInflation
+          // attorno al suo centro. Un moto solo, continuo, su tutti i lati.
+          val scaleX = 1f + (t - 1f) * drive.overshootInflationX
+          val scaleY = 1f + (t - 1f) * drive.overshootInflationY
           val frame = drive.to.frame
-          val halfW = frame.width * scale / 2f
-          val halfH = frame.height * scale / 2f
+          val halfW = frame.width * scaleX / 2f
+          val halfH = frame.height * scaleY / 2f
           val center = frame.center
           buildRestPlan(
             transitPlan,
@@ -321,7 +327,8 @@ private class ExternalWindowDrive(
   val from: FluidForm.Slab,
   val to: FluidForm.Slab,
   val progress: () -> Float,
-  val overshootInflation: Float,
+  val overshootInflationX: Float,
+  val overshootInflationY: Float,
 )
 
 // --- La coreografia della casa ------------------------------------------------

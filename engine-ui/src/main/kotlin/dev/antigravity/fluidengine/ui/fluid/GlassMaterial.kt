@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.graphicsLayer
@@ -741,6 +742,33 @@ object GlassDefaults {
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.14f else 0.08f),
     )
   }
+
+  /**
+   * Il materiale di una finestra che porta il colore della cosa da cui e' nata.
+   *
+   * Una card colorata che si apre in un pannello neutro diventa una card dentro una card: due
+   * bordi, due superfici, e il colore che era l'informazione principale si ritrova relegato a un
+   * rettangolo interno. Tingendo il **materiale**, invece, la card non entra nella finestra: la
+   * finestra *e'* la card, ingrandita.
+   *
+   * Il colore entra al [ColourShare] e non intero: il vetro deve restare vetro — sopra questa
+   * quota smette di trasmettere l'immagine di cio' che ha dietro e diventa un rettangolo colorato,
+   * che e' precisamente cio' che non stiamo cercando di fare. Il ripiego sotto API 31 invece prende
+   * il colore quasi pieno, perche' li' non c'e' nessuna immagine da trasmettere.
+   */
+  @Composable
+  fun tintedModalTint(colour: Color): GlassTint {
+    val dark = isDarkSurface()
+    val base = modalTint()
+    return base.copy(
+      overlay = lerp(base.overlay, colour, ColourShare).copy(alpha = if (dark) 0.58f else 0.62f),
+      fallback = lerp(base.fallback, colour, 0.82f).copy(alpha = if (dark) 0.97f else 0.98f),
+      hairline = lerp(base.hairline, colour, 0.30f),
+    )
+  }
+
+  /** Quanto del colore d'origine entra nel film del vetro prima che smetta di trasmettere. */
+  private const val ColourShare = 0.62f
 
   /**
    * Whether the app is painting a dark surface.

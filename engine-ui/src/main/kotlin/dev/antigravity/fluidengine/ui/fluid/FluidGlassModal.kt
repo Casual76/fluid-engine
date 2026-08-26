@@ -277,6 +277,7 @@ internal class FluidGlassModalEntry {
   var origin: () -> Rect? by mutableStateOf({ null })
   var presentation by mutableStateOf(FluidGlassModalPresentation.Popover)
   var paneTitle: String? by mutableStateOf(null)
+  var paneTint: Color? by mutableStateOf(null)
   var content: (@Composable ColumnScope.() -> Unit) by mutableStateOf({})
 
   /**
@@ -312,6 +313,7 @@ fun FluidGlassModalPortal(
   origin: () -> Rect? = { null },
   presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover,
   paneTitle: String? = null,
+  paneTint: Color? = null,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   val host = LocalFluidGlassModalHostState.current ?: return
@@ -327,6 +329,7 @@ fun FluidGlassModalPortal(
     entry.origin = origin
     entry.presentation = presentation
     entry.paneTitle = paneTitle
+    entry.paneTint = paneTint
     entry.content = content
   }
 
@@ -354,6 +357,7 @@ fun <T : Any> FluidGlassModalPortal(
   origin: () -> Rect? = { null },
   presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover,
   paneTitle: String? = null,
+  paneTint: Color? = null,
   content: @Composable ColumnScope.(T) -> Unit,
 ) {
   var lastItem by remember { mutableStateOf(item) }
@@ -364,6 +368,7 @@ fun <T : Any> FluidGlassModalPortal(
     origin = origin,
     presentation = presentation,
     paneTitle = paneTitle,
+    paneTint = paneTint,
   ) {
     lastItem?.let { content(it) }
   }
@@ -616,6 +621,9 @@ private fun FluidGlassModalLayer(
   var lastPreviewBounds by remember { mutableStateOf(entry.previewSize) }
   var lastOrigin by remember { mutableStateOf<Rect?>(null) }
   var lastPaneTitle by remember { mutableStateOf(entry.paneTitle) }
+  // Tenuto come tutto il resto: alla chiusura la finestra deve continuare a essere del colore da
+  // cui e' nata per tutto il viaggio di ritorno, non tornare grigia a meta' strada.
+  var lastPaneTint by remember { mutableStateOf(entry.paneTint) }
   if (entry.visible) {
     lastContent = entry.content
     lastActions = entry.actions
@@ -623,6 +631,7 @@ private fun FluidGlassModalLayer(
     lastPreviewBounds = entry.previewSize
     lastOrigin = entry.origin()
     lastPaneTitle = entry.paneTitle
+    lastPaneTint = entry.paneTint
     // Not only a context menu lifts its row out of the page: anything that morphs out of an anchor
     // does, because the pane is glass and the anchor would otherwise be legible through it.
     entry.lifted = true
@@ -717,6 +726,7 @@ private fun FluidGlassModalLayer(
     if (entry.presentation == FluidGlassModalPresentation.Sheet) {
       FluidGlassModalSheet(
         paneTitle = lastPaneTitle,
+        paneTint = lastPaneTint,
         backdrop = popoverBackdrop,
         // Sheets arrive by *travelling*, not by fading: the spring is the animation, and the alpha
         // only exists so the last few pixels of the exit do not pop.
@@ -763,6 +773,7 @@ private fun FluidGlassModalLayer(
     FluidAnchoredPopover(
       anchor = lastOrigin,
       paneTitle = lastPaneTitle ?: if (menu || expand) "Azioni" else null,
+      paneTint = lastPaneTint,
       backdrop = popoverBackdrop,
       compact = menu || expand,
       // Tutto quello che nasce da un'ancora si apre **sopra di lei**, tranne il menu contestuale:
@@ -984,6 +995,8 @@ private class FluidPopoverMorphWindow(
 private fun FluidAnchoredPopover(
   anchor: Rect?,
   paneTitle: String?,
+  /** Il colore della cosa da cui la finestra e' nata, se ne ha uno: vedi [GlassDefaults.tintedModalTint]. */
+  paneTint: Color?,
   backdrop: GlassBackdropState?,
   compact: Boolean,
   /** True for [FluidGlassModalPresentation.Expand]: sit *on* the anchor rather than beside it. */
@@ -1238,7 +1251,8 @@ private fun FluidAnchoredPopover(
             if (backdrop != null && !useMorphWindow) {
               Modifier.glassSurface(
                 state = backdrop,
-                tint = GlassDefaults.modalTint(),
+                tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
+                  ?: GlassDefaults.modalTint(),
                 shape = shape,
                 role = GlassRole.Modal,
                 optics = FluidPopoverOptics,
@@ -1586,6 +1600,7 @@ private fun FluidContextMenuRow(
 @Composable
 private fun FluidGlassModalSheet(
   paneTitle: String?,
+  paneTint: Color?,
   backdrop: GlassBackdropState?,
   slide: () -> Float,
   backProgress: () -> Float,
@@ -1685,7 +1700,8 @@ private fun FluidGlassModalSheet(
           if (backdrop != null) {
             Modifier.glassSurface(
               state = backdrop,
-              tint = GlassDefaults.modalTint(),
+              tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
+                ?: GlassDefaults.modalTint(),
               shape = shape,
               role = GlassRole.Modal,
               optics = FluidPopoverOptics,
@@ -1785,6 +1801,14 @@ class FluidContextMenuController internal constructor(
 @Composable
 fun rememberFluidContextMenu(
   actions: () -> List<FluidContextAction>,
+  /**
+   * Il colore della cosa che ha alzato il menu, se ne ha uno.
+   *
+   * Un menu che nasce da una superficie colorata e arriva grigio si stacca da cio' che l'ha
+   * chiamato: il vetro tinto lo tiene attaccato all'oggetto, che e' l'unico motivo per cui quel
+   * menu e' li'.
+   */
+  tint: Color? = null,
 ): FluidContextMenuController {
   val host = LocalFluidGlassModalHostState.current
   val entry = remember { FluidGlassModalEntry() }
@@ -1796,6 +1820,7 @@ fun rememberFluidContextMenu(
   SideEffect {
     controller.actionsProvider = actions
     entry.presentation = FluidGlassModalPresentation.ContextMenu
+    entry.paneTint = tint
     entry.onDismissRequest = controller::dismiss
   }
 

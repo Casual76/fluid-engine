@@ -104,7 +104,9 @@ fun FluidVividCard(
   val shape = ContinuousCornerShape(FluidRadius.Group)
   // Same split as FluidListRow: the menu must be raised from the card's own long-press, because a
   // separate detector next to a clickable never fires.
-  val contextMenu = contextActions?.let { rememberFluidContextMenu(it) }
+  // Il menu prende il colore della card: nasce da lei, e un pannello grigio sopra una superficie
+  // satura si legge come una cosa arrivata da un'altra parte.
+  val contextMenu = contextActions?.let { rememberFluidContextMenu(it, tint = colors.start) }
 
   var inViewport by remember { mutableStateOf(false) }
   val wantsSheen = effect == FluidVividEffect.Sheen

@@ -1266,7 +1266,7 @@ private fun FluidAnchoredPopover(
                   ?: GlassDefaults.modalTint(),
                 shape = shape,
                 role = GlassRole.Modal,
-                optics = FluidPopoverOptics,
+                optics = if (compact) FluidCompactPopoverOptics else FluidPopoverOptics,
                 // Captured once and carried. The pane spends both of its journeys being scaled and
                 // translated by the layer above, and a re-capture computed mid-transform maps the
                 // sources wrongly — which on every close stripped the pane of its glass and left a
@@ -2013,6 +2013,25 @@ private val FluidPopoverOptics = GlassOptics(
   shadowRadius = 18.dp,
   shadowAlpha = 0.36f,
   pressedDepthBoost = 0f,
+)
+
+/**
+ * La lente di un pannello piccolo.
+ *
+ * La lente e' una misura assoluta, la superficie no: diciotto dp di spostamento su una finestra
+ * larga sono un bordo, sugli stessi diciotto dp di un menu contestuale — due righe, poco piu' di
+ * duecento dp di lato — sono un terzo del pannello. E quando la lente e' cosi' grande rispetto a
+ * cio' che sta piegando, l'immagine ripiegata sul bordo si stacca da quella dritta al centro: si
+ * vedono **due versioni** dello stesso oggetto dentro lo stesso vetro, una schiacciata al margine e
+ * una al suo posto. Non e' un difetto della rifrazione, e' la rifrazione applicata a una taglia per
+ * cui non era tarata.
+ *
+ * Era gia' successo una volta — la nota qui sopra racconta i ventotto dp diventati diciotto — ma la
+ * correzione era stata fatta guardando la finestra grande.
+ */
+private val FluidCompactPopoverOptics = FluidPopoverOptics.copy(
+  refractionHeight = 7.dp,
+  refractionAmount = 9.dp,
 )
 
 /**

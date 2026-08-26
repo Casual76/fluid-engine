@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.11.0 - 2026-08-27
+
+- La chrome in vetro rifrange la pagina davanti invece dell'ultima composta: durante un back predittivo la barra non cambia piu' colore prima che il gesto sia confermato
+- LocalFluidRouteFront: una schermata sa se sta occupando davvero lo schermo
+- revealBottomBar non scatta piu' all'ingresso in composizione
+
+
 ## 1.10.1 - 2026-08-26
 
 - Una finestra ancorata disegna le azioni quando ce ne sono e il contenuto quando non ce ne sono. Expand e ContextMenu passavano sempre per la lista di azioni, quindi chi dichiarava Expand e gli dava un content vedeva il pannello aprirsi vuoto: sagoma in viaggio, scrim, ancora nascosta, e dentro niente. Il contenuto non veniva rifiutato, veniva ignorato in silenzio. Le azioni restano la ragione per cui quelle presentazioni esistono e vincono quando ci sono; una lista vuota pero' non e' una presentazione.

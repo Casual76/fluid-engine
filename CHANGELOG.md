@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.9.4 - 2026-08-26
+
+- Il viaggio della casa: parte piano, accelera, rimbalza alla fine. E' il default di morphTo: una rincorsa in ease-in fino all'80% e una molla sottosmorzata che ne eredita la velocita'. Anche le fusioni rimbalzano: il clamp non serve piu', lo coprono l'unione geometrica e il ponte che si spegne.
+- Lo scalo dei viaggi gruppo<->sagoma e' ancorato alla destinazione: la goccia si raccoglie mentre va, mai tornando indietro.
+- FluidMorphMenu: il tasto che SI ESPANDE nel proprio menu contestuale, la prima integrazione di Fluid-physics in un componente vero. Architettura portale/host come i modali; la capsula viaggia fino a essere il pannello e torna, contenuto a strati, mai stirato.
+
+
 ## 1.9.3 - 2026-08-26
 
 - L'alone della fusione: smin(a,a,k) = a - k/4, quindi la fine di ogni fusione gonfiava il materiale di un quarto del raggio oltre il bordo. Il raggio di fusione effettivo ora si spegne con la compenetrazione dei pezzi: pieno quando sono vicini e staccati (il ponte), zero quando coincidono.

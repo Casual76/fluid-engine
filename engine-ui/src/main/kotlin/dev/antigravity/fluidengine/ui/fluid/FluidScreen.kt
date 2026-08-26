@@ -101,22 +101,41 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.material3.LocalContentColor
+import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
 
 /**
  * Coordinates chrome that lives above the navigation host without sharing render layers between
  * destinations.
  *
- * Every [FluidScreen] owns its own [GlassBackdropState]. Screens register that state while composed;
- * the most recently registered destination becomes the source sampled by the floating tab bar. A
- * predictive-back cancellation simply disposes the briefly revealed destination and restores the
- * previous registration, so no two screens ever write into the same graphics-layer instances.
+ * Every [FluidScreen] owns its own [GlassBackdropState]. Screens register that state while composed,
+ * and the one that is actually **in front** becomes the source sampled by the floating tab bar, so
+ * no two screens ever write into the same graphics-layer instances.
+ *
+ * "In front" is not "registered last", and the difference is a whole gesture long. During a
+ * predictive back both destinations are composed for as long as the finger stays down: electing the
+ * newest registration made the bar refract the destination from the very first frame, so the pill
+ * changed colour while the page underneath had not moved at all. The screen tells the controller
+ * whether it is in front — see `LocalFluidRouteFront` — and the last registration wins only among
+ * those that say yes. With no route host in the tree nobody says no, and the old behaviour stands.
  */
+/**
+ * Quale registrazione la chrome deve rifrangere: l'ultima fra quelle davanti, e se nessuna si
+ * dichiara davanti l'ultima e basta.
+ *
+ * Funzione a se' perche' e' l'unica cosa che vale la pena verificare del registro, ed e' quella che
+ * si rompe in silenzio: sbagliarla non fa fallire niente, fa solo cambiare colore alla pillola nel
+ * momento sbagliato di un gesto.
+ */
+internal fun <K> frontMostBackdropKey(order: List<K>, front: Set<K>): K? =
+  order.lastOrNull { it in front } ?: order.lastOrNull()
+
 @Stable
 class FluidChromeController internal constructor(
   private val bottomBarVelocityThresholdPx: Float,
   private val densityPx: Float,
 ) {
   private val backdrops = LinkedHashMap<Any, GlassBackdropState>()
+  private val frontKeys = mutableSetOf<Any>()
   private val _activeBackdrop = mutableStateOf<GlassBackdropState?>(null)
   private val _bottomBarOffsetPx = mutableFloatStateOf(0f)
   private var bottomBarTravelPx = 0f
@@ -128,15 +147,42 @@ class FluidChromeController internal constructor(
   internal fun registerBackdrop(key: Any, backdrop: GlassBackdropState) {
     backdrops.remove(key)
     backdrops[key] = backdrop
-    _activeBackdrop.value = backdrop
-    revealBottomBar()
+    electActiveBackdrop()
+  }
+
+  /**
+   * Dice se la schermata sta occupando davvero lo schermo.
+   *
+   * Separata dalla registrazione perche' i due momenti non coincidono: una schermata entra in
+   * composizione all'inizio di una transizione e diventa davanti solo quando la transizione si
+   * compie — o non lo diventa mai, se il gesto viene annullato.
+   */
+  internal fun setBackdropFront(key: Any, isFront: Boolean) {
+    if (!backdrops.containsKey(key)) return
+    val changed = if (isFront) frontKeys.add(key) else frontKeys.remove(key)
+    if (changed) {
+      electActiveBackdrop()
+      // La barra si rivela quando una pagina arriva davvero davanti, non quando entra in scena:
+      // altrimenti bastava iniziare un gesto di back per farla ricomparire.
+      if (isFront) revealBottomBar()
+    }
   }
 
   internal fun unregisterBackdrop(key: Any) {
-    val removed = backdrops.remove(key) ?: return
-    if (_activeBackdrop.value === removed) {
-      _activeBackdrop.value = backdrops.entries.lastOrNull()?.value
-    }
+    backdrops.remove(key) ?: return
+    frontKeys.remove(key)
+    electActiveBackdrop()
+  }
+
+  /**
+   * L'ultima registrazione fra quelle davanti, e se nessuna lo dichiara l'ultima e basta.
+   *
+   * Il ripiego tiene in piedi tutto cio' che non vive dentro un host di rotta: anteprime, la
+   * gallery di esempio, una schermata sola dentro un'Activity.
+   */
+  private fun electActiveBackdrop() {
+    val key = frontMostBackdropKey(backdrops.keys.toList(), frontKeys)
+    _activeBackdrop.value = key?.let(backdrops::get)
   }
 
   fun updateBottomBarTravel(travelPx: Float) {
@@ -577,6 +623,13 @@ fun FluidScreen(
   DisposableEffect(chromeController, chromeRegistration, backdrop) {
     chromeController?.registerBackdrop(chromeRegistration, backdrop)
     onDispose { chromeController?.unregisterBackdrop(chromeRegistration) }
+  }
+
+  // Chi e' davanti lo decide la transizione di rotta, non l'ordine di composizione: durante un back
+  // predittivo questa schermata resta la sorgente del vetro finche' il gesto non e' confermato.
+  val isRouteFront by LocalFluidRouteFront.current
+  LaunchedEffect(chromeController, chromeRegistration, isRouteFront) {
+    chromeController?.setBackdropFront(chromeRegistration, isRouteFront)
   }
 
   LaunchedEffect(chromeController, listState) {

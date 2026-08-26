@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.Stable
@@ -194,14 +197,42 @@ fun rememberRouteMotionSignals(): RouteMotionSignals = remember { RouteMotionSig
  * expensive frame in the app for no legibility gain — and the arriving page is the one the user is
  * trying to read.
  */
+/**
+ * Se questa schermata e' quella che occupa davvero lo schermo, adesso.
+ *
+ * Durante una transizione di rotta — e per tutta la durata di un back predittivo, che puo' essere
+ * lunga quanto il dito resta appoggiato — **due schermate sono composte insieme**. La chrome che
+ * sta sopra il navigation host (la barra in vetro) ne rifrange una sola, e senza questo segnale
+ * sceglierebbe l'ultima entrata in composizione: cioe' la destinazione, dal primo fotogramma del
+ * gesto, mentre l'utente sta ancora decidendo se confermarlo.
+ *
+ * Il criterio e' `currentState` e non `targetState`: durante un back predittivo la pagina in arrivo
+ * ha gia' `targetState == Visible` ma resta `currentState == PreEnter` fino a che la transizione
+ * non si compie, mentre quella che si sta lasciando e' `Visible` per tutto il gesto. Se il gesto
+ * viene annullato, la pagina in arrivo non diventa mai davanti — che e' esattamente quello che si
+ * vede sullo schermo.
+ *
+ * Fuori da un navigation host il valore e' `true`: chi non ha una transizione e' sempre davanti.
+ */
+val LocalFluidRouteFront: ProvidableCompositionLocal<State<Boolean>> =
+  staticCompositionLocalOf { mutableStateOf(true) }
+
 @Composable
 fun FluidRouteMotionHost(
   animatedVisibilityScope: AnimatedVisibilityScope,
   content: @Composable () -> Unit,
 ) {
+  // Vale in entrambi i rami: la barra deve sapere chi e' davanti anche quando il movimento e'
+  // disattivato, perche' il problema e' la sorgente del vetro, non l'animazione.
+  val isFront = with(animatedVisibilityScope) {
+    remember(transition) {
+      derivedStateOf { transition.currentState == EnterExitState.Visible }
+    }
+  }
+
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   if (reducedMotion || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-    content()
+    CompositionLocalProvider(LocalFluidRouteFront provides isFront) { content() }
     return
   }
 
@@ -254,6 +285,6 @@ fun FluidRouteMotionHost(
         }
       },
   ) {
-    content()
+    CompositionLocalProvider(LocalFluidRouteFront provides isFront) { content() }
   }
 }

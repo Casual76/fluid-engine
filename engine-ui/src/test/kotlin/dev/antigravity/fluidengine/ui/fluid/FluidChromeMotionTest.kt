@@ -85,4 +85,37 @@ class FluidChromeMotionTest {
     assertEquals(0f, calculateBottomBarSettleTarget(4f, 64f, -150f, mdpiThreshold), 0f)
     assertEquals(0f, calculateBottomBarSettleTarget(4f, 64f, -600f, xxxhdpiThreshold), 0f)
   }
+
+  @Test
+  fun frontMostBackdrop_isTheFrontOne_notTheNewest() {
+    // La sequenza di un back predittivo: "grades" e' davanti, "home" entra in composizione al primo
+    // fotogramma del gesto ma non e' ancora davanti. La barra deve continuare a rifrangere grades,
+    // altrimenti la pillola cambia colore mentre la pagina sotto non si e' mossa di un pixel.
+    assertEquals("grades", frontMostBackdropKey(listOf("grades", "home"), setOf("grades")))
+  }
+
+  @Test
+  fun frontMostBackdrop_handsOverWhenTheGestureIsConfirmed() {
+    // Confermato: grades e' stata disposta, home e' diventata davanti.
+    assertEquals("home", frontMostBackdropKey(listOf("home"), setOf("home")))
+  }
+
+  @Test
+  fun frontMostBackdrop_staysPutWhenTheGestureIsCancelled() {
+    // Annullato: home e' stata disposta senza mai diventare davanti.
+    assertEquals("grades", frontMostBackdropKey(listOf("grades"), setOf("grades")))
+  }
+
+  @Test
+  fun frontMostBackdrop_fallsBackToTheNewestWhenNobodyClaimsToBeInFront() {
+    // Fuori da un host di rotta nessuno dichiara niente: anteprime, gallery, una schermata sola
+    // dentro un'Activity. Li' vale il comportamento di sempre.
+    assertEquals("second", frontMostBackdropKey(listOf("first", "second"), emptySet()))
+    assertEquals(null, frontMostBackdropKey(emptyList<String>(), emptySet()))
+  }
+
+  @Test
+  fun frontMostBackdrop_prefersTheLatestAmongSeveralInFront() {
+    assertEquals("third", frontMostBackdropKey(listOf("first", "second", "third"), setOf("first", "third")))
+  }
 }

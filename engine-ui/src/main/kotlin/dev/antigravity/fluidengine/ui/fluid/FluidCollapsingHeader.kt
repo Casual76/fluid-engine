@@ -47,7 +47,7 @@ class FluidTitleCollapse internal constructor(
   internal val morph: FluidTitleMorphState,
   internal val progress: State<Float>,
   internal val glassIntensity: State<Float>,
-  internal val listState: LazyListState,
+  internal val scroll: FluidCollapseScroll,
 ) {
   /**
    * 0 while the large title is at rest, 1 once it has docked in the bar.
@@ -74,6 +74,27 @@ fun rememberFluidTitleCollapse(
   listState: LazyListState,
   horizontalPadding: Dp = FluidScreenDefaults.HorizontalPadding,
   topBarHeight: Dp = FluidScreenDefaults.topBarHeight(),
+): FluidTitleCollapse = rememberFluidTitleCollapse(
+  title = title,
+  scroll = remember(listState) { LazyListCollapseScroll(listState) },
+  horizontalPadding = horizontalPadding,
+  topBarHeight = topBarHeight,
+)
+
+/**
+ * The same, for a list that is not a `LazyColumn`.
+ *
+ * A grid answers all three of these questions and shares no type with a list, so the collapse is
+ * defined against the questions rather than against either implementation. Everything the handover
+ * needs is here: which item is first, how far into it the scroll is, whether anything has been laid
+ * out yet, and how to get back to the top.
+ */
+@Composable
+fun rememberFluidTitleCollapse(
+  title: String,
+  scroll: FluidCollapseScroll,
+  horizontalPadding: Dp = FluidScreenDefaults.HorizontalPadding,
+  topBarHeight: Dp = FluidScreenDefaults.topBarHeight(),
 ): FluidTitleCollapse {
   val density = LocalDensity.current
   val titleLeftPx = with(density) { horizontalPadding.toPx() }
@@ -81,15 +102,32 @@ fun rememberFluidTitleCollapse(
   val morph = remember(title, density.fontScale, titleLeftPx, titleTopPx) {
     FluidTitleMorphState(expandedLeftInScreen = titleLeftPx, expandedTopInScreen = titleTopPx)
   }
-  val progress = rememberCollapseProgress(listState, morph)
+  val progress = remember(scroll, morph) {
+    derivedStateOf {
+      // Before the first layout there is no evidence that the title has collapsed. Reporting one
+      // here made the compact title and full-strength blur flash over every entering screen.
+      if (!scroll.hasItems) return@derivedStateOf 0f
+      if (!morph.isMeasured) {
+        return@derivedStateOf if (scroll.firstVisibleItemIndex > 0) 1f else 0f
+      }
+      titleCollapseProgress(
+        scrolledPx = if (scroll.firstVisibleItemIndex > 0) {
+          Float.POSITIVE_INFINITY
+        } else {
+          scroll.firstVisibleItemScrollOffset.toFloat()
+        },
+        travelPx = morph.travelPx,
+      )
+    }
+  }
 
   val deadZonePx = with(density) { FluidScreenDefaults.ShieldDeadZone.toPx() }
   val rampPx = with(density) { FluidScreenDefaults.ShieldRampDistance.toPx() }
-  val glassIntensity = remember(listState, progress, deadZonePx, rampPx) {
+  val glassIntensity = remember(scroll, progress, deadZonePx, rampPx) {
     derivedStateOf {
       calculateGlassIntensity(
-        firstVisibleItemIndex = listState.firstVisibleItemIndex,
-        firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+        firstVisibleItemIndex = scroll.firstVisibleItemIndex,
+        firstVisibleItemScrollOffset = scroll.firstVisibleItemScrollOffset,
         collapseProgress = progress.value,
         deadZonePx = deadZonePx,
         rampDistancePx = rampPx,
@@ -97,8 +135,50 @@ fun rememberFluidTitleCollapse(
     }
   }
 
-  return remember(morph, progress, glassIntensity, listState) {
-    FluidTitleCollapse(morph, progress, glassIntensity, listState)
+  return remember(morph, progress, glassIntensity, scroll) {
+    FluidTitleCollapse(morph, progress, glassIntensity, scroll)
+  }
+}
+
+/**
+ * The four things the handover needs to know about a scrolling body.
+ *
+ * `LazyListState` and `LazyGridState` answer all of them and share no supertype that says so, which
+ * is the entire reason this exists.
+ */
+@Stable
+interface FluidCollapseScroll {
+  val firstVisibleItemIndex: Int
+  val firstVisibleItemScrollOffset: Int
+
+  /** False before the first layout pass, when nothing about the title's position is known yet. */
+  val hasItems: Boolean
+
+  suspend fun scrollToTop()
+}
+
+@Stable
+private class LazyListCollapseScroll(private val state: LazyListState) : FluidCollapseScroll {
+  override val firstVisibleItemIndex: Int get() = state.firstVisibleItemIndex
+  override val firstVisibleItemScrollOffset: Int get() = state.firstVisibleItemScrollOffset
+  override val hasItems: Boolean get() = state.layoutInfo.visibleItemsInfo.isNotEmpty()
+  override suspend fun scrollToTop() {
+    state.animateScrollToItem(0)
+  }
+}
+
+/** [FluidCollapseScroll] over a `LazyGridState`, so a grid can carry the same header as a list. */
+@Composable
+fun rememberFluidCollapseScroll(
+  state: androidx.compose.foundation.lazy.grid.LazyGridState,
+): FluidCollapseScroll = remember(state) {
+  object : FluidCollapseScroll {
+    override val firstVisibleItemIndex: Int get() = state.firstVisibleItemIndex
+    override val firstVisibleItemScrollOffset: Int get() = state.firstVisibleItemScrollOffset
+    override val hasItems: Boolean get() = state.layoutInfo.visibleItemsInfo.isNotEmpty()
+    override suspend fun scrollToTop() {
+      state.animateScrollToItem(0)
+    }
   }
 }
 
@@ -185,7 +265,7 @@ fun FluidCollapsingTopBar(
         if (onTapTitle != null) {
           onTapTitle()
         } else {
-          scope.launch { collapse.listState.animateScrollToItem(0) }
+          scope.launch { collapse.scroll.scrollToTop() }
         }
       },
     )
@@ -207,7 +287,19 @@ fun rememberFluidTitleSnapFling(collapse: FluidTitleCollapse): FlingBehavior {
     FluidTitleSnapFlingBehavior(
       delegate = platform,
       animated = !reducedMotion,
-      snapDeltaPx = { titleSnapDeltaPx(collapse.listState, collapse.morph) },
+      snapDeltaPx = {
+        val travel = collapse.morph.travelPx
+        val scroll = collapse.scroll
+        when {
+          !travel.isFinite() || travel <= 1f -> 0f
+          scroll.firstVisibleItemIndex != 0 -> 0f
+          else -> {
+            val scrolled = scroll.firstVisibleItemScrollOffset.toFloat()
+            if (scrolled <= 0f || scrolled >= travel) 0f
+            else titleSnapTarget(scrolled, travel) - scrolled
+          }
+        }
+      },
     )
   }
 }

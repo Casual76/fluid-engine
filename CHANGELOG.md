@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.15.1 - 2026-08-27
+
+- FluidCollapseScroll: il titolo che sale nella barra vale anche per LazyGridState
+
+
 ## 1.15.0 - 2026-08-27
 
 - FluidCollapsingTitle / FluidCollapsingTopBar / rememberFluidTitleCollapse: il titolo che sale nella barra, riusabile fuori da FluidScreen

@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.16.0 - 2026-08-28
+
+- GlassDefaults.darkBarTint + barTint su FluidCollapsingTopBar; selezione dei controlli di vetro piu marcata
+
+
 ## 1.15.2 - 2026-08-27
 
 - rememberFluidCollapseScroll(LazyListState) pubblico

@@ -88,7 +88,13 @@ class FluidMorphMenuState internal constructor() {
     isOpen = false
   }
 
-  internal fun open(bounds: Rect, text: String?, icon: ImageVector?, items: List<FluidContextAction>) {
+  /**
+   * Apre il menu dalla sagoma di [bounds]. Il gesto e' affare del chiamante: l'ancora di casa
+   * ([FluidMorphMenuButton]) apre col tenuto premuto, ma un tasto il cui UNICO mestiere e' il
+   * menu puo' legittimamente aprirlo al tocco — pubblico dalla 1.13.0 per quello. Chi chiama da
+   * un'ancora propria deve anche nascondersi mentre [isOnScreen] e' vero, come fa quella di casa.
+   */
+  fun open(bounds: Rect, text: String?, icon: ImageVector?, items: List<FluidContextAction>) {
     if (items.isEmpty() || isOnScreen) return
     anchorBounds = bounds
     anchorText = text

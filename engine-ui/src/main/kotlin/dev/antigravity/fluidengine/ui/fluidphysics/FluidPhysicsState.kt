@@ -72,7 +72,14 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * Fluid-physics: la sagoma che viaggia con la rifrazione addosso. Due orologi sulla stessa
    * superficie sarebbero un disallineamento garantito; qui l'orologio resta uno, il loro.
    */
-  internal fun driveExternally(
+  /**
+   * Il gancio per un componente che un orologio ce l'ha gia': la fisica diventa la *finestra* e il
+   * progresso resta quello delle molle del chiamante — due orologi sulla stessa superficie sono un
+   * disallineamento garantito. Pubblico dalla 1.13.0: e' cosi' che un'app aggancia il viaggio
+   * pill→player al proprio `Animatable`, drag compreso. Il drive resta installato finche' la
+   * superficie vive; richiamarlo con gli stessi estremi e' gratis.
+   */
+  fun driveExternally(
     from: FluidForm.Slab,
     to: FluidForm.Slab,
     progress: () -> Float,

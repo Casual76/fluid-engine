@@ -651,6 +651,29 @@ object GlassDefaults {
     )
   }
 
+  /**
+   * The bar, when the page beneath it is a picture rather than a colour.
+   *
+   * The dark twin of [barTint], and it exists because the family's film is a
+   * *bright* material by design: even its dark branch lightens, to a mid grey,
+   * because that is what makes a bar read as frosted glass over a page. Over a
+   * full-bleed cover it does the opposite of its job — it raises the floor
+   * exactly where the controls have to stay legible, and the bar ends up the
+   * brightest thing on the screen.
+   *
+   * The colours are fixed rather than derived, and that is deliberate twice
+   * over: this is a scrim, and a scrim's whole trade is to darken whatever is
+   * behind it, so there is no palette to take it from; and deriving it would
+   * put it back through the same light/dark detection that a translucent
+   * `surface` colour can already fool.
+   */
+  @Composable
+  fun darkBarTint(): GlassTint = GlassTint(
+    overlay = Color.Black.copy(alpha = 0.42f),
+    fallback = Color(0xFF101012).copy(alpha = 0.95f),
+    hairline = Color.White.copy(alpha = 0.12f),
+  )
+
   /** Floating navigation: a little denser, because it travels over arbitrary content. */
   @Composable
   fun floatingTint(): GlassTint {

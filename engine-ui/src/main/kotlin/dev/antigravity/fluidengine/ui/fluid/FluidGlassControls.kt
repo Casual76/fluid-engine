@@ -110,9 +110,18 @@ fun Modifier.glassControlSurface(
       tint
     } else {
       // Selection is carried by the accent joining the material, not by an opaque fill replacing it.
+      //
+      // At a fifth of an alpha this was calibrated for a control standing on a
+      // page, where the material has a quiet ground to tint. Over a photograph
+      // the ground is already loud — and when the accent is drawn *from* that
+      // photograph, which is what an app that takes its colour from the artwork
+      // does, the tinted one and the plain one came out the same colour. A
+      // third survives that, and it is still the accent joining the material
+      // rather than a fill replacing it: the picture goes on showing through.
       tint.copy(
-        overlay = accent.copy(alpha = 0.22f),
+        overlay = accent.copy(alpha = 0.36f),
         fallback = accent.copy(alpha = 0.9f),
+        hairline = accent.copy(alpha = 0.45f),
       )
     }
   }

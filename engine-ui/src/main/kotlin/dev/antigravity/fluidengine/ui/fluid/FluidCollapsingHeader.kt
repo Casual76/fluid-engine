@@ -240,6 +240,13 @@ fun FluidCollapsingTopBar(
   collapse: FluidTitleCollapse,
   backdrop: GlassBackdropState,
   modifier: Modifier = Modifier,
+  /**
+   * What the bar is made of, when the family's own film is the wrong answer.
+   *
+   * Null is [GlassDefaults.barTint], which lightens — right over a page, wrong
+   * over a full-bleed picture. See [GlassDefaults.darkBarTint].
+   */
+  barTint: GlassTint? = null,
   onBack: (() -> Unit)? = null,
   /** Short facts the bar cycles through once the title has docked. */
   titleFacets: List<String> = emptyList(),
@@ -260,6 +267,7 @@ fun FluidCollapsingTopBar(
     FluidTopBar(
       title = title,
       backdrop = backdrop,
+      barTint = barTint,
       collapseProgress = collapse.progress,
       activeFacet = activeFacet,
       morphState = collapse.morph,

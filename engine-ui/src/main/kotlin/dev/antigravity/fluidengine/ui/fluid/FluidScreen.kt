@@ -854,6 +854,7 @@ fun FluidScreen(
     FluidTopBar(
       title = title,
       backdrop = backdrop,
+      barTint = null,
       collapseProgress = collapseProgress,
       activeFacet = activeFacet,
       morphState = titleMorphState,
@@ -1049,6 +1050,8 @@ internal fun FluidLargeTitle(
 internal fun FluidTopBar(
   title: String,
   backdrop: GlassBackdropState,
+  /** What the bar is made of. Null takes the family's own; see GlassDefaults.barTint. */
+  barTint: GlassTint?,
   collapseProgress: State<Float>,
   activeFacet: State<String?>,
   morphState: FluidTitleMorphState,
@@ -1062,7 +1065,7 @@ internal fun FluidTopBar(
   onTapTitle: () -> Unit,
 ) {
   val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-  val tint = GlassDefaults.barTint()
+  val tint = barTint ?: GlassDefaults.barTint()
   val interactionSource = remember { MutableInteractionSource() }
   // The bar publishes its own finished material so the actions standing on it refract *it* rather
   // than the page three layers down — a lens resting on frosted glass shows the frosting.

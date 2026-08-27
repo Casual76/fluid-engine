@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.13.0 - 2026-08-27
+
+- driveExternally e FluidMorphMenuState.open pubblici: i ganci del morphing per le app (finestra guidata da un orologio esterno, menu apribile al tocco)
+
+
 ## 1.12.7 - 2026-08-27
 
 - Il vetro di un pannello che non viaggia ricampiona invece di congelare: niente piu' copia sfasata dentro il menu contestuale

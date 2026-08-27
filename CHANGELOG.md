@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.14.0 - 2026-08-27
+
+- Bordo elastico pubblico (rememberFluidEdgeOverscroll + fluidOverscrollEdge/Content) per schermate che non sono FluidScreen
+- FluidMorphMenuState.open accetta anchorContent: la superficie che viaggia porta il volto vero dell ancora
+
+
 ## 1.13.0 - 2026-08-27
 
 - driveExternally e FluidMorphMenuState.open pubblici: i ganci del morphing per le app (finestra guidata da un orologio esterno, menu apribile al tocco)

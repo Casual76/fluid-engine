@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.15.2 - 2026-08-27
+
+- rememberFluidCollapseScroll(LazyListState) pubblico
+
+
 ## 1.15.1 - 2026-08-27
 
 - FluidCollapseScroll: il titolo che sale nella barra vale anche per LazyGridState

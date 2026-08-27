@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.14.1 - 2026-08-27
+
+- FluidMorphMenu: niente scatto di un fotogramma al congedo (la faccia dell ancora e le voci seguono il viaggio, non l intenzione)
+
+
 ## 1.14.0 - 2026-08-27
 
 - Bordo elastico pubblico (rememberFluidEdgeOverscroll + fluidOverscrollEdge/Content) per schermate che non sono FluidScreen

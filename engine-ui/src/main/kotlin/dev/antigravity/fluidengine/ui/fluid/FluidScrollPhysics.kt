@@ -177,7 +177,7 @@ internal fun compactTitleAlpha(
  *    end of a list into one physical excursion.
  */
 @Stable
-internal class FluidEdgeOverscrollState(
+class FluidEdgeOverscrollState(
   private val reducedMotion: Boolean,
   /**
    * Whether the list has anywhere to go at all.

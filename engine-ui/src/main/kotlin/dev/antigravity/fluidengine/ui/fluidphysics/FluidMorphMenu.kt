@@ -70,6 +70,20 @@ class FluidMorphMenuState internal constructor() {
   internal var anchorBounds by mutableStateOf<Rect?>(null)
   internal var anchorText by mutableStateOf<String?>(null)
   internal var anchorIcon by mutableStateOf<ImageVector?>(null)
+
+  /**
+   * What the anchor actually looks like, when a label cannot say it.
+   *
+   * The travelling surface has to carry the anchor's own face, or the last
+   * frame of the return journey swaps one picture for another: an app whose
+   * anchor is a capsule of two icons and a divider was seeing exactly that,
+   * because [anchorText]/[anchorIcon] can only describe one label. Given this,
+   * the surface draws the caller's composable and the hand-over is invisible.
+   *
+   * Must be inert — icons, a divider, no captured state: it lives in a state
+   * object, not in a composition.
+   */
+  internal var anchorContent by mutableStateOf<(@Composable () -> Unit)?>(null)
   internal var actions by mutableStateOf<List<FluidContextAction>>(emptyList())
   internal var panelFrame by mutableStateOf<Rect?>(null)
 
@@ -94,11 +108,19 @@ class FluidMorphMenuState internal constructor() {
    * menu puo' legittimamente aprirlo al tocco — pubblico dalla 1.13.0 per quello. Chi chiama da
    * un'ancora propria deve anche nascondersi mentre [isOnScreen] e' vero, come fa quella di casa.
    */
-  fun open(bounds: Rect, text: String?, icon: ImageVector?, items: List<FluidContextAction>) {
+  fun open(
+    bounds: Rect,
+    text: String?,
+    icon: ImageVector?,
+    items: List<FluidContextAction>,
+    /** The anchor's own face; see [anchorContent]. Null falls back to text and icon. */
+    content: (@Composable () -> Unit)? = null,
+  ) {
     if (items.isEmpty() || isOnScreen) return
     anchorBounds = bounds
     anchorText = text
     anchorIcon = icon
+    anchorContent = content
     actions = items
     isOpen = true
   }
@@ -277,11 +299,16 @@ fun FluidMorphMenuHost(
           horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          MorphMenuAnchorLabel(
-            text = state.anchorText,
-            icon = state.anchorIcon,
-            color = MaterialTheme.colorScheme.onSurface,
-          )
+          val face = state.anchorContent
+          if (face != null) {
+            face()
+          } else {
+            MorphMenuAnchorLabel(
+              text = state.anchorText,
+              icon = state.anchorIcon,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+          }
         }
       }
     }

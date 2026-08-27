@@ -167,6 +167,17 @@ private class LazyListCollapseScroll(private val state: LazyListState) : FluidCo
   }
 }
 
+/**
+ * [FluidCollapseScroll] over a `LazyListState`.
+ *
+ * The [rememberFluidTitleCollapse] overload that takes a list state makes one of these for itself;
+ * this is for a screen that has both a list and a grid and has to choose between them, where the
+ * two have to arrive at the collapse as the same kind of thing.
+ */
+@Composable
+fun rememberFluidCollapseScroll(state: LazyListState): FluidCollapseScroll =
+  remember(state) { LazyListCollapseScroll(state) }
+
 /** [FluidCollapseScroll] over a `LazyGridState`, so a grid can carry the same header as a list. */
 @Composable
 fun rememberFluidCollapseScroll(

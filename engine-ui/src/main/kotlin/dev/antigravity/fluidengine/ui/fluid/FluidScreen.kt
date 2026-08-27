@@ -414,7 +414,7 @@ private val RefreshIndicatorSize: Dp = 24.dp
  * left of its page, underneath the rail.
  */
 @Stable
-private class FluidTitleMorphState(
+internal class FluidTitleMorphState(
   val expandedLeftInScreen: Float,
   private val expandedTopInScreen: Float,
 ) {
@@ -518,7 +518,7 @@ private const val SubtitleFadeFraction = 0.72f
 private const val TitleFacetShiftFraction = 0.55f
 
 @Composable
-private fun rememberCompactTitleStyle(expanded: TextStyle): TextStyle = remember(expanded) {
+internal fun rememberCompactTitleStyle(expanded: TextStyle): TextStyle = remember(expanded) {
   expanded.copy(
     fontSize = expanded.fontSize.scaleBy(CompactTitleScale),
     lineHeight = expanded.lineHeight.scaleBy(CompactTitleScale),
@@ -882,7 +882,7 @@ fun FluidScreen(
  * subtitle.
  */
 @Composable
-private fun rememberCollapseProgress(
+internal fun rememberCollapseProgress(
   listState: LazyListState,
   titleMorphState: FluidTitleMorphState,
 ): State<Float> = remember(listState, titleMorphState) {
@@ -914,7 +914,7 @@ private fun LazyListState.titleScrollOffsetPx(): Float =
  * expanded state of every screen is unconditionally its own title.
  */
 @Composable
-private fun rememberTitleFacet(
+internal fun rememberTitleFacet(
   facets: List<String>,
   collapseProgress: State<Float>,
 ): State<String?> {
@@ -942,7 +942,7 @@ private fun rememberTitleFacet(
 }
 
 /** How far the list still has to move for the title to be all the way to one side or the other. */
-private fun titleSnapDeltaPx(
+internal fun titleSnapDeltaPx(
   listState: LazyListState,
   morphState: FluidTitleMorphState,
 ): Float {
@@ -985,7 +985,7 @@ internal fun smoothStep(value: Float): Float {
 }
 
 @Composable
-private fun FluidLargeTitle(
+internal fun FluidLargeTitle(
   title: String,
   subtitle: String?,
   style: TextStyle,
@@ -1046,7 +1046,7 @@ private fun FluidLargeTitle(
 }
 
 @Composable
-private fun FluidTopBar(
+internal fun FluidTopBar(
   title: String,
   backdrop: GlassBackdropState,
   collapseProgress: State<Float>,

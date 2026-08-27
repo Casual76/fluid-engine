@@ -95,6 +95,23 @@ class FluidMorphMenuState internal constructor() {
   var isOnScreen by mutableStateOf(false)
     internal set
 
+  /**
+   * Which shape the surface is currently travelling towards: the panel, or the
+   * capsule of the anchor.
+   *
+   * Not the same question as [isOpen], and the difference is one frame long.
+   * [isOpen] is the intent and flips inside the gesture; the journey it asks
+   * for only starts in the effect that follows, and until then `physics`
+   * still reports the *previous* journey — finished, so progress 1. Drawing
+   * the return contract against that stale 1 evaluates it at its end state:
+   * the anchor's face at full opacity over a panel that has not moved, the
+   * menu's items already gone, the tint already back to the button's. One
+   * frame of the wrong picture, which is exactly the flick this was reported
+   * as. This flag is set beside each `morphTo`, so the drawing changes its
+   * mind in the same snapshot as the physics, never before.
+   */
+  internal var showingPanel by mutableStateOf(false)
+
   internal val physics = FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f))
 
   /** Chiede il viaggio di ritorno. Il tasto riappare quando la superficie è tornata capsula. */
@@ -218,6 +235,7 @@ fun FluidMorphMenuHost(
         marginPx = marginPx,
       )
       state.panelFrame = panel
+      state.showingPanel = true
       state.physics.snapTo(capsule)
       // NON il viaggio della casa: la rincorsa l'ha gia' pagata il dito — quattrocento
       // millisecondi di pressione sono la partenza lenta. Da li' la superficie deve ARRIVARE:
@@ -230,6 +248,7 @@ fun FluidMorphMenuHost(
       )
     } else if (state.isOnScreen) {
       // Ritorno di servizio: rapido e senza rimbalzo — un congedo che rimbalza trattiene.
+      state.showingPanel = false
       state.physics.morphTo(capsule, FluidMotion.snappy())
       state.isOnScreen = false
       state.panelFrame = null
@@ -271,7 +290,7 @@ fun FluidMorphMenuHost(
           tintFrom = GlassDefaults.controlTint(),
           tintBlend = {
             val t = state.physics.progress.coerceIn(0f, 1f)
-            if (state.isOpen) t else 1f - t
+            if (state.showingPanel) t else 1f - t
           },
         ),
     )
@@ -281,7 +300,7 @@ fun FluidMorphMenuHost(
     if (anchor != null) {
       MorphMenuFrameBox(frame = anchor) {
         Row(
-          modifier = if (state.isOpen) {
+          modifier = if (state.showingPanel) {
             Modifier.fluidPhysicsContent(state.physics, FluidPhysicsContentRole.Outgoing)
           } else {
             // Ritorno: NIENTE traslazione. La superficie sta già tornando lei sulla capsula;
@@ -322,7 +341,11 @@ fun FluidMorphMenuHost(
             .fillMaxSize()
             .fluidPhysicsContent(
               state.physics,
-              if (state.isOpen) FluidPhysicsContentRole.Incoming else FluidPhysicsContentRole.Outgoing,
+              if (state.showingPanel) {
+                FluidPhysicsContentRole.Incoming
+              } else {
+                FluidPhysicsContentRole.Outgoing
+              },
             )
             .padding(vertical = MorphMenuPanelPadding),
           verticalArrangement = Arrangement.Top,

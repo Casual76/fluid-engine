@@ -6,6 +6,18 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.18.0 - 2026-08-29
+
+- `layerBackdrop` e `glassBackdropSource` accettano `frozen`: finché risponde true il sottoalbero
+  non viene registrato di nuovo e il vetro sopra tiene la cattura che ha già. Additivo — il valore
+  predefinito è `{ false }`, cioè il comportamento di prima, e nessun chiamante esistente cambia.
+- Il perché: registrare un sottoalbero in un layer è una traversata intera per fotogramma, e costa
+  in proporzione alle operazioni di disegno, non ai pixel. Una lista lanciata paga ogni riga che
+  contiene a ogni fotogramma, oltre a disegnarla. Misurato sulla Home di un'app che lo usa: 47 ms di
+  record contro 1,9 ms senza. Ciò che si perde è un riflesso che smette di seguire il contenuto
+  mentre scorre, che sotto la sfocatura di un pannello è quasi invisibile.
+
+
 ## 1.17.0 - 2026-08-28
 
 - Modifier.fluidPhysicsClip: il contenuto si ritaglia sulla silhouette viva della fisica

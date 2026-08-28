@@ -36,15 +36,30 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.recordLayer
 
-fun Modifier.layerBackdrop(backdrop: LayerBackdrop): Modifier =
-    this then LayerBackdropElement(backdrop)
+fun Modifier.layerBackdrop(
+    backdrop: LayerBackdrop,
+    /**
+     * While this answers true the subtree is not recorded again, and the glass sampling it keeps
+     * the capture it already has.
+     *
+     * Recording is a full traversal of the subtree, and its cost scales with the number of draw
+     * operations in it rather than with pixels — so a list being flung pays for every row it holds
+     * on every frame, on top of drawing them. That traversal is the dominant cost of a scroll.
+     *
+     * What freezing costs is a reflection that stops following while the content slides past.
+     * Under the blur a pane applies, that is close to invisible; what it buys back is most of a
+     * frame.
+     */
+    frozen: () -> Boolean = { false },
+): Modifier = this then LayerBackdropElement(backdrop, frozen)
 
 private class LayerBackdropElement(
-    val backdrop: LayerBackdrop
+    val backdrop: LayerBackdrop,
+    val frozen: () -> Boolean,
 ) : ModifierNodeElement<LayerBackdropNode>() {
 
     override fun create(): LayerBackdropNode {
-        return LayerBackdropNode(backdrop)
+        return LayerBackdropNode(backdrop, frozen)
     }
 
     override fun update(node: LayerBackdropNode) {
@@ -52,6 +67,7 @@ private class LayerBackdropElement(
             node.backdrop.layerCoordinates = null
             node.backdrop = backdrop
         }
+        node.frozen = frozen
         node.invalidateDraw()
     }
 
@@ -65,22 +81,31 @@ private class LayerBackdropElement(
         if (other !is LayerBackdropElement) return false
 
         if (backdrop != other.backdrop) return false
+        if (frozen != other.frozen) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return backdrop.hashCode()
+        return 31 * backdrop.hashCode() + frozen.hashCode()
     }
 }
 
 private class LayerBackdropNode(
-    var backdrop: LayerBackdrop
+    var backdrop: LayerBackdrop,
+    var frozen: () -> Boolean,
 ) : DrawModifierNode, GlobalPositionAwareModifierNode, Modifier.Node() {
+
+    /** Whether there is a capture to keep. The first frame always records. */
+    private var recorded = false
 
     override fun ContentDrawScope.draw() {
         drawContent()
+        // Held still: the tree is drawn the ordinary way, which reuses every child that did not
+        // change, and the glass goes on sampling the capture from before the movement started.
+        if (recorded && frozen()) return
         recordLayer(this@LayerBackdropNode, backdrop.graphicsLayer) { backdrop.onDraw(this@draw) }
+        recorded = true
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {

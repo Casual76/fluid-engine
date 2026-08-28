@@ -155,11 +155,26 @@ fun rememberCombinedGlassBackdrop(
  * region: a recording of text on transparency refracts into a smear that the sharp original still
  * shows through.
  */
-fun Modifier.glassBackdropSource(state: GlassBackdropState): Modifier {
+fun Modifier.glassBackdropSource(
+  state: GlassBackdropState,
+  /**
+   * While this answers true, the body is not re-recorded and the glass over it keeps the capture
+   * it already has.
+   *
+   * For content that moves. Recording costs one traversal of the whole subtree per frame and scales
+   * with the number of draw ops in it, so a list being flung pays for every row it holds on every
+   * frame — see `LayerBackdropModifier`, where the same measurement is written down. Held still,
+   * Compose takes its ordinary draw path and reuses every child that did not change.
+   *
+   * What it costs is a reflection that stops following while the content slides past. Under the
+   * blur a pane applies that is close to invisible, and it buys back most of a frame.
+   */
+  frozen: () -> Boolean = { false },
+): Modifier {
   // A combined state has no layer of its own; the states it was built from record theirs.
   val layer = state.layerBackdrop ?: return this
   return this
-    .layerBackdrop(layer)
+    .layerBackdrop(layer, frozen)
     // Rasterised **once**, sampled many times. A recording holds its content by reference, so
     // every pane replaying it re-executes the source's entire op stream — and a screen's chrome
     // holds many panes: a bar, a rail, the controls sitting on them. On a tablet's notice board

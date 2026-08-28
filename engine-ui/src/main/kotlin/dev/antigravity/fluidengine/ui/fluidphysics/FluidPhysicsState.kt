@@ -268,6 +268,15 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   }
 
   /** Il piano di resa per il fotogramma corrente. Solo fase di disegno. */
+  /**
+   * La sagoma del clip per QUESTO fotogramma; vedi [Modifier.fluidPhysicsClip].
+   *
+   * Passa da [ensurePlan] come tutto il resto del disegno, cosi' il contenuto ritaglia esattamente
+   * la silhouette che la superficie sta disegnando — non una ricostruita accanto, che divergerebbe
+   * al primo cambio di geometria e nessuno saprebbe dire quale delle due ha ragione.
+   */
+  internal fun clipShapeNow(): Shape = ensurePlan().clipShape
+
   internal fun ensurePlan(): PhysicsRenderPlan {
     val drive = externalDrive
     if (drive != null) {
@@ -467,6 +476,23 @@ internal class PhysicsRenderPlan {
   var shape: Shape = FluidPhysicsSilhouetteShape(silhouette, clipToBounds)
   var bounds: Rect = Rect.Zero
 
+  /**
+   * La sagoma corrente come rettangolo arrotondato, quando lo e' davvero: un solo pezzo di famiglia
+   * Slab. Null per un gruppo o per una sagoma libera.
+   *
+   * Esiste per [Modifier.fluidPhysicsClip]: un `Outline.Rounded` prende il clip hardware del
+   * RenderNode, un `Outline.Generic` fa mascherare l'intero nodo fuori schermo a ogni fotogramma —
+   * la stessa distinzione, e la stessa scelta, di `FluidPhysicsSilhouetteShape.fastClipOutline`.
+   */
+  var silhouetteRoundRect: RoundRect? = null
+
+  /**
+   * La sagoma da dare a un clip di layer. Istanza nuova a ogni cambio di progresso — l'identita'
+   * diversa e' cio' che invalida la cache dell'`Outline` esattamente quando deve, e a riposo
+   * l'identita' stabile e' cio' che la fa riusare.
+   */
+  var clipShape: Shape = FluidPhysicsClipShape(silhouette, null)
+
   /** Con più pezzi la tinta deve stare nello shader: il ponte dello smin non ha un path. */
   val tintInShader: Boolean get() = mode == PlanModeSlabs && pieceCount > 1
 }
@@ -509,6 +535,21 @@ private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
   }
   bounds = union ?: Rect.Zero
   shape = FluidPhysicsSilhouetteShape(silhouette, clipToBounds)
+  silhouetteRoundRect = if (count == 1) {
+    RoundRect(
+      left = pieceRects[0] - pieceRects[2],
+      top = pieceRects[1] - pieceRects[3],
+      right = pieceRects[0] + pieceRects[2],
+      bottom = pieceRects[1] + pieceRects[3],
+      topLeftCornerRadius = CornerRadius(pieceRadii[0]),
+      topRightCornerRadius = CornerRadius(pieceRadii[1]),
+      bottomRightCornerRadius = CornerRadius(pieceRadii[2]),
+      bottomLeftCornerRadius = CornerRadius(pieceRadii[3]),
+    )
+  } else {
+    null
+  }
+  clipShape = FluidPhysicsClipShape(silhouette, silhouetteRoundRect)
 }
 
 private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
@@ -547,6 +588,8 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
   }
   bounds = if (count > 0) Rect(left, top, right, bottom) else Rect.Zero
   shape = FluidPhysicsSilhouetteShape(silhouette, clipToBounds)
+  silhouetteRoundRect = null
+  clipShape = FluidPhysicsClipShape(silhouette, null)
 }
 
 internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Float) {

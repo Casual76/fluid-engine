@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -37,6 +38,26 @@ internal interface GlassClipGeometry {
  * a mascherare, quindi il clip deve tornare a essere la sagoma esatta — più caro, su un morph
  * transiente, e comunque l'unica cosa onesta che un dispositivo senza AGSL può fare.
  */
+/**
+ * La sagoma di un clip di layer, in un certo istante.
+ *
+ * Diversa da [FluidPhysicsSilhouetteShape] per un motivo solo, ed e' lo stesso motivo per cui
+ * quella esiste: [FluidPhysicsSilhouetteShape] serve la SUPERFICIE, dove la silhouette la scolpisce
+ * l'alpha dello shader e il clip del layer deve restare il rettangolo del nodo. Questa serve il
+ * CONTENUTO, che un clip vero ce l'ha da avere — e glielo da' nella forma piu' economica che la
+ * geometria di quel fotogramma consente: sul viaggio di uno slab solo (che e' ogni morph da un
+ * controllo alla pagina) l'`Outline.Rounded` a raggi uguali prende il clip hardware del RenderNode;
+ * per un gruppo o una sagoma libera si torna al path, che fa mascherare il nodo fuori schermo a
+ * ogni fotogramma ed e' l'unica cosa onesta che quella geometria consente.
+ */
+internal class FluidPhysicsClipShape(
+  private val path: Path,
+  private val roundRect: RoundRect?,
+) : Shape {
+  override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+    roundRect?.let { Outline.Rounded(it) } ?: Outline.Generic(path)
+}
+
 internal class FluidPhysicsSilhouetteShape(
   val path: Path,
   private val clipToBounds: Boolean = true,

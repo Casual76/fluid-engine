@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.17.0 - 2026-08-28
+
+- Modifier.fluidPhysicsClip: il contenuto si ritaglia sulla silhouette viva della fisica
+
+
 ## 1.16.0 - 2026-08-28
 
 - GlassDefaults.darkBarTint + barTint su FluidCollapsingTopBar; selezione dei controlli di vetro piu marcata

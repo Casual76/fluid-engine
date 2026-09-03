@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!--
+    FluidHaptics compone le vibrazioni col Vibrator, e il Vibrator vuole questo permesso: senza,
+    ogni vibrazione fallisce in silenzio (SecurityException, che il motore ingoia per non far
+    cadere l'app per un feedback). Lo dichiara il modulo che ne ha bisogno, cosi' un'app che
+    prende engine-ui non deve sapere di doverlo aggiungere: e' un permesso normale, non chiede
+    niente all'utente.
+  -->
+  <uses-permission android:name="android.permission.VIBRATE" />
+
+</manifest>

@@ -170,7 +170,7 @@ fun FluidTutorialHost(
   }
 
   val tutorial = state.presenting
-  val anchor = tutorial?.let { state.anchors[it.anchorId] }
+  val anchor = state.presentingAnchor
   // L'ultimo mostrato resta finche' l'uscita non e' finita: senza, il callout sparirebbe di colpo
   // lasciando in scena solo la sua ombra che si spegne.
   var shown by remember { mutableStateOf<FluidTutorial?>(null) }

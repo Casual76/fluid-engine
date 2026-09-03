@@ -25,7 +25,8 @@ interface HapticPort {
   /** Quali delle primitive chieste il device sa fare; vuoto sotto API 30. */
   fun supportedPrimitives(ids: IntArray): Set<Int>
 
-  fun vibrate(steps: List<HapticPrimitiveStep>, attention: Boolean)
+  /** Vero se la vibrazione e' partita davvero: falso lascia la parola alla costante di piattaforma. */
+  fun vibrate(steps: List<HapticPrimitiveStep>, attention: Boolean): Boolean
 
   fun platform(type: androidx.compose.ui.hapticfeedback.HapticFeedbackType)
 
@@ -63,7 +64,11 @@ class FluidHapticsImpl(
   override fun play(event: FluidHapticEvent) {
     if (!enabled()) return
     if (!port.hasVibrator) return
-    if (!port.systemHapticsEnabled) return
+    // Niente cancello sull'impostazione tattile di sistema: il valore di
+    // `Settings.System.HAPTIC_FEEDBACK_ENABLED` non e' affidabile (su One UI resta a zero mentre
+    // il telefono vibra benissimo, perche' Samsung tiene la sua impostazione altrove), e a
+    // filtrare le vibrazioni di tocco ci pensa gia' il sistema attraverso `VibrationAttributes`.
+    // Leggerlo per zittire tutto significava zittire tutto, e basta: successo davvero.
     if (event.continuous) {
       if (port.powerSave) return
       val now = clock()
@@ -71,9 +76,9 @@ class FluidHapticsImpl(
       lastContinuousAt = now
     }
     val attention = event == FluidHapticEvent.AlertAlarm || event == FluidHapticEvent.AlertWatch || event == FluidHapticEvent.AlertClear
-    if (usesComposition(event)) {
-      port.vibrate(FluidHapticPatterns.composition(event), attention)
-    } else {
+    // Se la composizione non parte (permesso mancante, device che la rifiuta) resta la costante
+    // di piattaforma: meglio un feedback diverso da quello disegnato che nessun feedback.
+    if (!usesComposition(event) || !port.vibrate(FluidHapticPatterns.composition(event), attention)) {
       port.platform(FluidHapticPatterns.fallback(event))
     }
   }
@@ -122,20 +127,20 @@ class AndroidHapticPort(private val context: Context, private val platformHaptic
     return ids.filterIndexed { index, _ -> flags.getOrNull(index) == true }.toSet()
   }
 
-  override fun vibrate(steps: List<HapticPrimitiveStep>, attention: Boolean) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
-    val v = vibrator ?: return
+  override fun vibrate(steps: List<HapticPrimitiveStep>, attention: Boolean): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+    val v = vibrator ?: return false
     val composition = VibrationEffect.startComposition()
     steps.forEach { composition.addPrimitive(it.id, it.scale.coerceIn(0f, 1f), it.delayMillis.coerceAtLeast(0)) }
     val effect = composition.compose()
-    runCatching {
+    return runCatching {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val usage = if (attention) VibrationAttributes.USAGE_NOTIFICATION else VibrationAttributes.USAGE_TOUCH
         v.vibrate(effect, VibrationAttributes.createForUsage(usage))
       } else {
         v.vibrate(effect)
       }
-    }
+    }.isSuccess
   }
 
   override fun platform(type: androidx.compose.ui.hapticfeedback.HapticFeedbackType) {

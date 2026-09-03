@@ -232,6 +232,11 @@ menu che si apre `Open`, l'indice di sezione `Tick`), le app aggiungono i loro m
 `GestureStart`/`GestureEnd` per un trascinamento, `Success`/`Warning`/`Error` per gli esiti,
 `AlertWatch`/`AlertAlarm`/`AlertClear` per un'allerta che cambia livello.
 
+Il permesso `VIBRATE` lo dichiara `engine-ui`: senza, ogni composizione fallisce con una
+SecurityException che il motore ingoia, e l'aptica non si sente da nessuna parte (successo davvero,
+1.20.2 -> 1.21.0). L'impostazione tattile di sistema non si legge per decidere: su One UI resta a
+zero mentre il telefono vibra, e le vibrazioni di tocco le filtra gia' il sistema.
+
 Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabolario e' uno);
 `fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (una pillola che fa
 `Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`) spariscono in

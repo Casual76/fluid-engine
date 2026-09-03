@@ -5,7 +5,6 @@ import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -98,7 +97,14 @@ class FluidTutorialHostState internal constructor(
   private val clock: () -> Long,
 ) {
 
-  internal val anchors = mutableStateMapOf<String, Rect>()
+  /**
+   * I limiti degli elementi ancorati. Una mappa NORMALE, non uno stato: `onGloballyPositioned`
+   * scrive qui a ogni passata di layout (a ogni fotogramma, mentre una lista scorre), e una mappa
+   * di snapshot avrebbe invalidato chiunque l'avesse letta ogni volta — il padrone di casa, cioe'
+   * la radice dell'app. La home ne usciva a scatti. Quello che serve alla composizione e' una cosa
+   * sola, ed e' [presentingAnchor].
+   */
+  private val anchorBounds = HashMap<String, Rect>()
   private val candidates = mutableStateListOfCandidates()
   private var screenKey by mutableStateOf<String?>(null)
   private var loadingCount by mutableIntStateOf(0)
@@ -129,12 +135,23 @@ class FluidTutorialHostState internal constructor(
   /** Toglie un candidato dalla coda (l'app l'ha appena segnato visto, o non serve piu'). */
   fun withdraw(id: String) {
     candidates.removeAll { it.id == id }
-    if (presenting?.id == id) presenting = null
+    if (presenting?.id == id) {
+      presenting = null
+      presentingAnchor = null
+    }
   }
+
+  /**
+   * Dove sta l'elemento del suggerimento in scena. Questo si' e' uno stato: il callout lo segue
+   * se l'elemento si sposta, e assegnare un valore uguale non ricompone niente.
+   */
+  var presentingAnchor: Rect? by mutableStateOf(null)
+    private set
 
   /** I limiti dell'elemento, in coordinate della radice; null quando esce di scena. */
   fun anchorBounds(id: String, bounds: Rect?) {
-    if (bounds == null) anchors.remove(id) else anchors[id] = bounds
+    if (bounds == null) anchorBounds.remove(id) else anchorBounds[id] = bounds
+    if (id == presenting?.anchorId) presentingAnchor = bounds
   }
 
   /**
@@ -174,6 +191,7 @@ class FluidTutorialHostState internal constructor(
     screenKey = key
     candidates.clear()
     presenting = null
+    presentingAnchor = null
     awaitingInteraction = false
     lastInteractionAt = clock()
   }
@@ -186,6 +204,7 @@ class FluidTutorialHostState internal constructor(
   fun dismiss(optOut: Boolean = false) {
     val current = presenting ?: return
     presenting = null
+    presentingAnchor = null
     awaitingInteraction = true
     lastInteractionAt = clock()
     onDismissed(current.id, optOut)
@@ -196,7 +215,7 @@ class FluidTutorialHostState internal constructor(
     if (presenting != null) return
     val chosen = policy.choose(
       candidates = candidates.toList(),
-      anchors = anchors,
+      anchors = anchorBounds,
       nowMillis = clock(),
       lastInteractionMillis = lastInteractionAt,
       loading = loadingCount > 0,
@@ -205,6 +224,7 @@ class FluidTutorialHostState internal constructor(
     ) ?: return
     candidates.removeAll { it.id == chosen.id }
     presenting = chosen
+    presentingAnchor = anchorBounds[chosen.anchorId]
     onShown(chosen.id)
   }
 }

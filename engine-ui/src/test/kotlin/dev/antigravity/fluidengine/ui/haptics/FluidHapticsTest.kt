@@ -17,9 +17,14 @@ private class FakePort(
 
   override fun supportedPrimitives(ids: IntArray): Set<Int> = ids.filter { it in primitives }.toSet()
 
-  override fun vibrate(steps: List<HapticPrimitiveStep>, attention: Boolean) {
+  /** Falso come un vibratore senza permesso: il motore deve ripiegare sulla costante. */
+  var vibrateSucceeds: Boolean = true
+
+  override fun vibrate(steps: List<HapticPrimitiveStep>, attention: Boolean): Boolean {
+    if (!vibrateSucceeds) return false
     compositions += steps
     attentions += attention
+    return true
   }
 
   override fun platform(type: HapticFeedbackType) {
@@ -68,18 +73,34 @@ class FluidHapticsTest {
   }
 
   @Test
-  fun `l'interruttore dell'app e quello di sistema zittiscono tutto`() {
+  fun `l'interruttore dell'app zittisce tutto`() {
     val port = FakePort()
     var enabled = false
     val haptics = FluidHapticsImpl(port, enabled = { enabled })
     haptics.play(FluidHapticEvent.Tap)
-    enabled = true
-    port.systemHapticsEnabled = false
-    haptics.play(FluidHapticEvent.Tap)
     assertTrue(port.compositions.isEmpty() && port.platforms.isEmpty())
-    port.systemHapticsEnabled = true
+    enabled = true
     haptics.play(FluidHapticEvent.Tap)
     assertEquals(1, port.compositions.size)
+  }
+
+  @Test
+  fun `l'impostazione tattile di sistema non zittisce piu' niente da sola`() {
+    // Su One UI resta a zero mentre il telefono vibra: darle retta significava non vibrare mai.
+    val port = FakePort(systemHapticsEnabled = false)
+    val haptics = FluidHapticsImpl(port, enabled = { true })
+    haptics.play(FluidHapticEvent.Tap)
+    assertEquals(1, port.compositions.size)
+  }
+
+  @Test
+  fun `se la composizione non parte resta la costante di piattaforma`() {
+    val port = FakePort()
+    port.vibrateSucceeds = false
+    val haptics = FluidHapticsImpl(port, enabled = { true })
+    haptics.play(FluidHapticEvent.Tap)
+    assertTrue(port.compositions.isEmpty())
+    assertEquals(listOf(HapticFeedbackType.VirtualKey), port.platforms)
   }
 
   @Test

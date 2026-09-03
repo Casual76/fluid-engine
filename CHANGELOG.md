@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.19.1 - 2026-09-03
+
+- ui: `FluidMorphMenuButton` fa `Open` al tocco invece di `Tap`. Il tasto che apre il menu che si trasforma e un apertura come le altre, e sentirlo come un interruttore qualsiasi rompeva l unica regola dell aptica: lo stesso evento vuol dire la stessa cosa ovunque.
+
+
 ## 1.19.0 - 2026-09-03
 
 - ui: `FluidHaptics`, il vocabolario aptico del design system: `FluidHapticEvent` (Tap, Confirm, Reject, ToggleOn/Off, Threshold, Tick, GestureStart/End, Open, Close, Success, Warning, Error, gli eventi di un assistente vocale, le tre allerte); `LocalFluidHaptics` lo fornisce `FluidTheme`, `rememberFluidHaptics()` lo legge. Composizioni di primitive (`VibrationEffect.Composition`) dove il device le sa fare, costanti di Compose altrove; nessun pattern oltre i 400 ms.

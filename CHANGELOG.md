@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.19.0 - 2026-09-03
+
+- ui: `FluidHaptics`, il vocabolario aptico del design system: `FluidHapticEvent` (Tap, Confirm, Reject, ToggleOn/Off, Threshold, Tick, GestureStart/End, Open, Close, Success, Warning, Error, gli eventi di un assistente vocale, le tre allerte); `LocalFluidHaptics` lo fornisce `FluidTheme`, `rememberFluidHaptics()` lo legge. Composizioni di primitive (`VibrationEffect.Composition`) dove il device le sa fare, costanti di Compose altrove; nessun pattern oltre i 400 ms.
+- foundation: `EngineSettings.hapticsEnabled` (default true) e `EngineSettingsStore.setHapticsEnabled`, un interruttore condiviso fra le app Pampa. Sopra ci sono l'impostazione tattile di sistema e, per i soli tick continui, il risparmio energetico; due tick continui non distano mai meno di 40 ms.
+- ui: i componenti vibrano da soli. `fluidPressable`/`fluidRowPressable` fanno `Tap` al rilascio (parametro `haptic`, null per zittirli) e `GestureStart` alla pressione lunga; `FluidSwitch` `ToggleOn`/`ToggleOff`; menu, pannelli e schermate `Open`; l'indice di sezione `Tick`. Additivo: chi aggiorna e non passa niente sente quello di prima, piu' il tap.
+
+
 ## 1.18.0 - 2026-08-29
 
 - `layerBackdrop` e `glassBackdropSource` accettano `frozen`: finché risponde true il sottoalbero

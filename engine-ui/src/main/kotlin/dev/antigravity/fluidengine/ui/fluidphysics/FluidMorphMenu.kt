@@ -46,6 +46,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 
 /**
@@ -182,6 +183,9 @@ fun FluidMorphMenuButton(
         },
         enabled = enabled,
         role = Role.Button,
+        // Questo tasto apre: il menu che si trasforma, o la pagina che il chiamante gli mette
+        // sotto. Un Tap lo farebbe sentire come un interruttore qualsiasi.
+        haptic = FluidHapticEvent.Open,
       )
       // Stessa altezza e stesso passo orizzontale di FluidGlassButton: l'ancora È quel tasto,
       // con un mestiere in più.

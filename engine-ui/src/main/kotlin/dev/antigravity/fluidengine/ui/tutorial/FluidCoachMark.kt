@@ -200,24 +200,12 @@ fun FluidTutorialHost(
       )
     }
 
-    Box(
-      Modifier
-        .fillMaxSize()
-        .pointerInput(tutorial?.id, placement) {
-          awaitPointerEventScope {
-            while (true) {
-              val event = awaitPointerEvent(PointerEventPass.Initial)
-              val down = event.changes.firstOrNull { it.pressed && it.previousPressed.not() } ?: continue
-              state.interacted()
-              if (state.presenting == null) continue
-              val bounds = placement?.let {
-                Rect(it.x, it.y, it.x + calloutSize.width, it.y + calloutSize.height)
-              }
-              if (bounds == null || !bounds.contains(down.position)) state.dismiss()
-            }
-          }
-        },
-    )
+    // I limiti del callout li legge chi osserva i tocchi: il padrone di casa non mette nulla
+    // sopra la pagina. Un fratello a tutto schermo che intercetta i puntatori si prende l'intero
+    // percorso di hit test, e l'app sotto smette di rispondere al dito: e' successo davvero.
+    state.calloutBounds = placement?.let {
+      Rect(it.x, it.y, it.x + calloutSize.width, it.y + calloutSize.height)
+    }
 
     AnimatedVisibility(
       visible = tutorial != null && anchor != null,
@@ -234,6 +222,21 @@ fun FluidTutorialHost(
         onDismiss = { state.dismiss() },
         onOptOut = { state.dismiss(optOut = true) },
       )
+    }
+  }
+}
+
+/**
+ * L'osservatore dei tocchi, da mettere sul **contenitore** della pagina e mai sopra di essa: un
+ * nodo genitore vede il tocco nel giro iniziale senza consumarlo, e i figli lo ricevono lo stesso.
+ * Sopra la pagina, invece, lo intercetterebbe e basta.
+ */
+fun Modifier.fluidTutorialTouches(state: FluidTutorialHostState): Modifier = this.pointerInput(state) {
+  awaitPointerEventScope {
+    while (true) {
+      val event = awaitPointerEvent(PointerEventPass.Initial)
+      val down = event.changes.firstOrNull { it.pressed && !it.previousPressed } ?: continue
+      state.touchAt(down.position)
     }
   }
 }
@@ -275,6 +278,15 @@ fun FluidCoachMark(
       .alpha(if (placement == null) 0f else 1f)
       .widthIn(max = 320.dp)
       .onSizeChanged(onMeasured)
+      // Il callout e' l'unica cosa che si prende i propri tocchi: senza, toccarne il testo
+      // premerebbe quello che ci sta dietro.
+      .pointerInput(Unit) {
+        awaitPointerEventScope {
+          while (true) {
+            awaitPointerEvent().changes.forEach { it.consume() }
+          }
+        }
+      }
       .then(surface)
       .drawWithContent {
         drawContent()

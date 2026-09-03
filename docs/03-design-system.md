@@ -249,9 +249,13 @@ da esporre in Aspetto accanto al vetro.
 una persona incontra una funzione. Il componente sa disegnare e decidere il momento; **cosa e' gia'
 stato visto lo ricorda l'app**.
 
-Come si monta: alla radice, sopra il resto,
-`CompositionLocalProvider(LocalFluidTutorialHostState provides state) { ... }` e in fondo
-`FluidTutorialHost(state, labels, backdrop) { modalHost.isOnScreen }`. Ogni schermata dichiara la
+Come si monta: alla radice,
+`CompositionLocalProvider(LocalFluidTutorialHostState provides state) { ... }`, il contenuto dentro
+un `Box(Modifier.fillMaxSize().fluidTutorialTouches(state))` e in fondo
+`FluidTutorialHost(state, labels, backdrop) { modalHost.isOnScreen }`. I tocchi si osservano dal
+**contenitore** e mai da sopra: un fratello a tutto schermo con un `pointerInput` si prende
+l'intero percorso di hit test, e l'app sotto smette di rispondere al dito (successo davvero,
+1.20.1 -> 1.20.2). Ogni schermata dichiara la
 sua chiave (`state.screenChanged("home")`), offre i candidati non ancora visti (`state.offer(...)`)
 e marca gli elementi con `Modifier.fluidTutorialAnchor("id")`.
 

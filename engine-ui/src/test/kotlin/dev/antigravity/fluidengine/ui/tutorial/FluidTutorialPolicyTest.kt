@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.tutorial
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -147,6 +148,35 @@ class FluidTutorialHostStateTest {
     state.dismiss(optOut = true)
     assertEquals(true, optOut)
     assertNull(state.presenting)
+  }
+
+  @Test
+  fun `un tocco fuori dal callout lo chiude, uno dentro no`() {
+    state.screenChanged("schermata")
+    ready("a")
+    now = 2_000
+    state.evaluate(modalPresenting = false)
+    state.calloutBounds = Rect(100f, 400f, 400f, 600f)
+
+    state.touchAt(Offset(200f, 500f))
+    assertEquals("il tocco sul callout non lo chiude", "a", state.presenting?.id)
+
+    state.touchAt(Offset(50f, 50f))
+    assertNull("il tocco sulla pagina lo chiude", state.presenting)
+  }
+
+  @Test
+  fun `senza niente in scena un tocco vale solo come interazione`() {
+    state.screenChanged("schermata")
+    ready("a")
+    now = 2_000
+    state.touchAt(Offset(10f, 10f))
+    // Il tocco ha rimesso a zero la quiete: il suggerimento aspetta ancora.
+    state.evaluate(modalPresenting = false)
+    assertNull(state.presenting)
+    now = 3_000
+    state.evaluate(modalPresenting = false)
+    assertEquals("a", state.presenting?.id)
   }
 
   @Test

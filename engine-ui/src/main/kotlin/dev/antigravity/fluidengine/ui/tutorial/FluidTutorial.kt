@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 
 /**
@@ -134,6 +135,26 @@ class FluidTutorialHostState internal constructor(
   /** I limiti dell'elemento, in coordinate della radice; null quando esce di scena. */
   fun anchorBounds(id: String, bounds: Rect?) {
     if (bounds == null) anchors.remove(id) else anchors[id] = bounds
+  }
+
+  /**
+   * Dove sta il callout adesso, in coordinate della radice: serve a capire se un tocco e' sul
+   * callout o sulla pagina. Lo scrive il padrone di casa quando lo posiziona.
+   */
+  internal var calloutBounds: Rect? = null
+
+  /**
+   * Un tocco sulla pagina, visto da chi ospita i suggerimenti. Vale come interazione (e quindi
+   * sblocca il suggerimento successivo) e, se cade fuori dal callout, lo chiude.
+   *
+   * Sta qui e non dentro un modificatore perche' e' la regola, non il gesto: cosi' si prova senza
+   * un dito e senza uno schermo.
+   */
+  fun touchAt(position: Offset) {
+    interacted()
+    if (presenting == null) return
+    val bounds = calloutBounds
+    if (bounds == null || !bounds.contains(position)) dismiss()
   }
 
   /** Un dito, uno scorrimento, un tasto: il conto della quiete riparte da qui. */

@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.22.0 - 2026-09-03
+
+- ui: `glassSurface(resampleIntervalMillis = ...)`. Un pannello sopra uno sfondo che si muove rifaceva la propria cattura a OGNI fotogramma: nove pannelli su una schermata sono nove replay dello schermo per fotogramma. Misurato su un Galaxy S25: 44 ms per fotogramma con una cattura ciascuno, 61 ms con nove vive. Con un intervallo di 100 ms la cattura e vecchia di un decimo di secondo, cosa che sotto una sfocatura da 10 dp non si distingue, e costa un dodicesimo. Zero (il default) = comportamento di prima.
+- ui: una cattura conta solo se la sorgente aveva qualcosa da dare (`Backdrop.isReadyToSample`, con corpo di default). Un `LayerBackdrop` con le coordinate non ancora agganciate esce da `drawBackdrop` senza disegnare, in silenzio: con `sampleOnce` quella cattura vuota restava per tutta la vita del nodo, e la tessera era un rettangolo di tinta piatta per sempre, senza nessuna strada per tornare indietro.
+- ui: `DrawBackdropNode.onReset` e `LayerBackdropNode.onReset`. Una lista riusa il nodo per un altro elemento, e quello che il nodo ricorda della cattura appartiene all elemento che non c e piu: una tessera riciclata della stessa misura ereditava l immagine di quella prima, presa dove stava quella prima. Da fuori: il vetro che si ferma, o la tessera senza vetro.
+- ui: `ShapeProvider` ha equals e hashCode. Senza, `DrawBackdropElement.equals` era falso SEMPRE (il provider si costruisce a ogni chiamata di un modificatore non componibile), quindi ogni ricomposizione di ogni pannello ricostruiva l intera catena di RenderEffect: sfocatura, lente, dispersione, per niente. Vale per tutte le app che ospitano l engine.
+
+
 ## 1.21.0 - 2026-09-03
 
 - ui: `engine-ui` dichiara il permesso `VIBRATE`. Senza, ogni composizione del Vibrator falliva con una SecurityException che il motore ingoiava: l aptica non si sentiva, da nessuna parte, su nessun device. Le app che aggiornano non devono fare niente: il permesso arriva col modulo.

@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.21.0 - 2026-09-03
+
+- ui: `engine-ui` dichiara il permesso `VIBRATE`. Senza, ogni composizione del Vibrator falliva con una SecurityException che il motore ingoiava: l aptica non si sentiva, da nessuna parte, su nessun device. Le app che aggiornano non devono fare niente: il permesso arriva col modulo.
+- ui: `FluidHaptics` non guarda piu' `Settings.System.HAPTIC_FEEDBACK_ENABLED`. Su One UI resta a zero mentre il telefono vibra benissimo, e a filtrare le vibrazioni di tocco ci pensa gia' il sistema attraverso VibrationAttributes. Se una composizione non parte, adesso si ripiega sulla costante di piattaforma invece di restare muti.
+- ui: i limiti degli elementi ancorati ai suggerimenti non passano piu' dallo snapshot. onGloballyPositioned li scrive a ogni passata di layout, e una mappa di stato invalidava il padrone di casa (la radice dell app) a ogni fotogramma di scorrimento: la home andava a scatti. In composizione entra solo `presentingAnchor`, l ancora del suggerimento in scena.
+
+
 ## 1.20.2 - 2026-09-03
 
 - ui: BREAKING (di fatto) `FluidTutorialHost` non mette piu' niente sopra la pagina. Il Box a tutto schermo che osservava i tocchi si prendeva l intero percorso di hit test e l app sotto smetteva di rispondere al dito. Ora i tocchi si osservano dal contenitore con `Modifier.fluidTutorialTouches(state)`, che va messo sul Box che avvolge il contenuto: chi montava il padrone di casa deve aggiungerlo.

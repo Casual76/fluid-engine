@@ -76,7 +76,6 @@ import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -87,7 +86,8 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.paneTitle
@@ -508,7 +508,7 @@ private fun FluidGlassModalLayer(
   host: FluidGlassModalHostState,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val haptics = LocalHapticFeedback.current
+  val haptics = LocalFluidHaptics.current
   // 0 = at the anchor's size, 1 = at its own. What "0" actually means in pixels is solved by the
   // layout below, per axis, from the two rectangles.
   val scaleX = remember { Animatable(0f) }
@@ -539,7 +539,7 @@ private fun FluidGlassModalLayer(
         // Il tocco che diventa una finestra merita la conferma sul dito — il menu contestuale ce
         // l'ha (LongPress) ed e' parte del perche' "e' piu' bello". Qui un click leggero: e' un
         // tocco secco, non una pressione.
-        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+        haptics.play(FluidHapticEvent.Open)
         // La formula, detta parola per parola: ACCELERAZIONE CONTINUA finche' non raggiunge il
         // bordo, poi oltre, frena, e torna alla posizione finale. Quindi: una rincorsa tutta in
         // ease-in che copre quasi l'intero viaggio ancora in accelerazione, e una molla che ne
@@ -1960,14 +1960,14 @@ fun Modifier.fluidContextMenu(
   enabled: Boolean = true,
 ): Modifier {
   val controller = rememberFluidContextMenu(actions)
-  val haptics = LocalHapticFeedback.current
+  val haptics = LocalFluidHaptics.current
   if (!enabled) return this
   return this
     .fluidContextMenuAnchor(controller)
     .pointerInput(controller) {
       detectTapGestures(
         onLongPress = {
-          if (controller.open()) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+          if (controller.open()) haptics.play(FluidHapticEvent.Open)
         },
       )
     }

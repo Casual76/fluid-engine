@@ -45,6 +45,7 @@ class EngineSettingsStore(private val context: Context) {
       preferences[Keys.CustomAccentName] = next.customAccentName
       preferences[Keys.DynamicColorEnabled] = next.dynamicColorEnabled
       preferences[Keys.AmoledEnabled] = next.amoledEnabled
+      preferences[Keys.HapticsEnabled] = next.hapticsEnabled
     }
   }
 
@@ -60,6 +61,8 @@ class EngineSettingsStore(private val context: Context) {
 
   suspend fun setAmoledEnabled(enabled: Boolean) = update { it.copy(amoledEnabled = enabled) }
 
+  suspend fun setHapticsEnabled(enabled: Boolean) = update { it.copy(hapticsEnabled = enabled) }
+
   private fun Preferences.toSettings(): EngineSettings {
     val defaults = EngineSettings()
     return EngineSettings(
@@ -74,6 +77,7 @@ class EngineSettingsStore(private val context: Context) {
       customAccentName = this[Keys.CustomAccentName] ?: defaults.customAccentName,
       dynamicColorEnabled = this[Keys.DynamicColorEnabled] ?: defaults.dynamicColorEnabled,
       amoledEnabled = this[Keys.AmoledEnabled] ?: defaults.amoledEnabled,
+      hapticsEnabled = this[Keys.HapticsEnabled] ?: defaults.hapticsEnabled,
     )
   }
 
@@ -83,6 +87,7 @@ class EngineSettingsStore(private val context: Context) {
     val CustomAccentName = stringPreferencesKey("custom_accent_name")
     val DynamicColorEnabled = booleanPreferencesKey("dynamic_color_enabled")
     val AmoledEnabled = booleanPreferencesKey("amoled_enabled")
+    val HapticsEnabled = booleanPreferencesKey("haptics_enabled")
   }
 }
 

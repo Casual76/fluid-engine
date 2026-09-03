@@ -60,13 +60,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1300,7 +1300,7 @@ fun FluidBarAction(
 
   val host = LocalFluidGlassModalHostState.current
   val entry = remember { FluidGlassModalEntry() }
-  val haptics = LocalHapticFeedback.current
+  val haptics = LocalFluidHaptics.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   var open by remember { mutableStateOf(false) }
 
@@ -1348,7 +1348,7 @@ fun FluidBarAction(
     enabled = enabled,
     onLongClick = {
       if (host != null && actions().isNotEmpty()) {
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        haptics.play(FluidHapticEvent.Open)
         open = true
       }
     },

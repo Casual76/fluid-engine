@@ -43,7 +43,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
@@ -57,7 +56,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -124,7 +124,7 @@ fun FluidSectionIndex(
     .coerceIn(0, sampledSections.lastIndex)
   val activeSection = sampledSections[selectedIndex]
   val currentOnSelect by rememberUpdatedState(onSelectSection)
-  val haptics = LocalHapticFeedback.current
+  val haptics = LocalFluidHaptics.current
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val markColor = MaterialTheme.colorScheme.primary
   val floatingTint = GlassDefaults.floatingTint()
@@ -412,7 +412,7 @@ fun FluidSectionIndex(
             sections = sampledSections,
             selectedIndex = selectedIndex,
             onSelect = { index ->
-              haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+              haptics.play(FluidHapticEvent.Tick)
               currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Animated)
             },
           )
@@ -448,7 +448,7 @@ fun FluidSectionIndex(
               } ?: true
               if (!held) return@awaitEachGesture
 
-              haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+              haptics.play(FluidHapticEvent.GestureStart)
               // Il nastro si apre *dove sei*, e il trascinamento e' relativo a quel punto. Mappare
               // la y del dito in assoluto sul nastro aperto significherebbe che il solo aprirlo
               // sposta la selezione, perche' la barretta a riposo e il nastro aperto non hanno la
@@ -479,7 +479,7 @@ fun FluidSectionIndex(
                 val index = indexForFraction(fraction)
                 if (index != lastDragIndex) {
                   lastDragIndex = index
-                  haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                  haptics.play(FluidHapticEvent.Tick)
                   currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Immediate)
                 }
                 if (change.changedToUpIgnoreConsumed() || !change.pressed) break

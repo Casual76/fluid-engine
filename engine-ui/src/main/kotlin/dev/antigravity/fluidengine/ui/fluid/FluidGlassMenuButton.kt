@@ -28,11 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalHapticFeedback
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -71,7 +71,7 @@ fun FluidGlassMenuButton(
 ) {
   val host = LocalFluidGlassModalHostState.current
   val entry = remember { FluidGlassModalEntry() }
-  val haptics = LocalHapticFeedback.current
+  val haptics = LocalFluidHaptics.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   var open by remember { mutableStateOf(false) }
 
@@ -133,7 +133,7 @@ fun FluidGlassMenuButton(
           onLongPress = {
             if (!enabled || host == null) return@detectTapGestures
             if (actions().isEmpty()) return@detectTapGestures
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            haptics.play(FluidHapticEvent.Open)
             open = true
           },
         )

@@ -18,8 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 
 /**
  * Press feedback in the shape Apple gives it: the element itself yields under the finger.
@@ -51,13 +51,15 @@ fun Modifier.fluidPressable(
   pressedScale: Float = 0.974f,
   role: androidx.compose.ui.semantics.Role? = null,
   interactionSource: MutableInteractionSource? = null,
+  /** Cosa si sente al rilascio; null per un controllo che vibra gia' per conto suo. */
+  haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
 ): Modifier {
   if (onClick == null && onLongClick == null) return this
 
   val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
   val pressed by resolvedInteractionSource.collectIsPressedAsState()
   val scale = remember { Animatable(1f) }
-  val haptics = LocalHapticFeedback.current
+  val haptics = LocalFluidHaptics.current
 
   LaunchedEffect(pressed, pressedScale) {
     if (pressed) {
@@ -84,11 +86,12 @@ fun Modifier.fluidPressable(
       enabled = enabled,
       role = role,
       onClick = {
+        haptic?.let { haptics.play(it) }
         onClick?.invoke()
       },
       onLongClick = onLongClick?.let {
         {
-          haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+          haptics.play(FluidHapticEvent.GestureStart)
           it()
         }
       },
@@ -111,12 +114,13 @@ fun Modifier.fluidRowPressable(
   animateFeedback: Boolean = true,
   shape: Shape? = null,
   highlightColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+  haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
 ): Modifier {
   if (onClick == null && onLongClick == null) return this
 
   val interactionSource = remember { MutableInteractionSource() }
   val pressed by interactionSource.collectIsPressedAsState()
-  val haptics = LocalHapticFeedback.current
+  val haptics = LocalFluidHaptics.current
   val highlight by animateFloatAsState(
     targetValue = if (pressed && animateFeedback) 1f else 0f,
     // Appearing instantly and fading out unhurriedly is what stops a quick tap from looking like a
@@ -140,11 +144,12 @@ fun Modifier.fluidRowPressable(
       indication = null,
       enabled = enabled,
       onClick = {
+        haptic?.let { haptics.play(it) }
         onClick?.invoke()
       },
       onLongClick = onLongClick?.let {
         {
-          haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+          haptics.play(FluidHapticEvent.GestureStart)
           it()
         }
       },

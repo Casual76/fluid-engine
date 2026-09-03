@@ -227,3 +227,18 @@ preludio SDF di Kyant e annotata in `LICENSES/AndroidLiquidGlass.md`.
 ## Cosa non c'è, e perché
 
 Niente `FeatureHero`, niente `GradePill`, niente componente che sappia cos'è una materia o un voto. Erano nell'app da cui l'engine è stato estratto e ci sono rimasti: un componente che conosce il dominio non è un componente di design system, è una schermata scritta a metà.
+
+## Aptica (1.19.0)
+
+`FluidHaptics` e' il vocabolario di cio' che si sente sotto il dito, uno per tema: i componenti
+dell'engine lo usano da soli (un tasto di vetro fa `Tap`, uno switch `ToggleOn`/`ToggleOff`, un
+menu che si apre `Open`, l'indice di sezione `Tick`), le app aggiungono i loro momenti con
+`rememberFluidHaptics().play(FluidHapticEvent.X)`: `Threshold` per una soglia raggiunta,
+`GestureStart`/`GestureEnd` per un trascinamento, `Success`/`Warning`/`Error` per gli esiti,
+`AlertWatch`/`AlertAlarm`/`AlertClear` per un'allerta che cambia livello.
+
+Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabolario e' uno);
+`fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (una pillola che fa
+`Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`) spariscono in
+risparmio energetico e si diradano a 40 ms da soli. L'interruttore e' `EngineSettings.hapticsEnabled`,
+da esporre in Aspetto accanto al vetro.

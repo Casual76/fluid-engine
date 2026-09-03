@@ -30,6 +30,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -216,6 +218,7 @@ fun FluidSwitch(
   val interactionSource = remember { MutableInteractionSource() }
   val pressed by interactionSource.collectIsPressedAsState()
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val haptics = LocalFluidHaptics.current
 
   // The track publishes its own finished picture. The thumb is the only thing that reads it, and it
   // is drawn outside the recorded node, so there is no way for the recording to contain the lens.
@@ -274,7 +277,10 @@ fun FluidSwitch(
             role = Role.Switch,
             interactionSource = interactionSource,
             indication = null,
-            onValueChange = onCheckedChange,
+            onValueChange = { value ->
+              haptics.play(if (value) FluidHapticEvent.ToggleOn else FluidHapticEvent.ToggleOff)
+              onCheckedChange(value)
+            },
           )
         } else {
           Modifier

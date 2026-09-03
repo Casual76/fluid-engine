@@ -46,4 +46,10 @@ data class EngineSettings(
    * a fourth radio button; either route produces the same palette.
    */
   val amoledEnabled: Boolean = false,
+  /**
+   * The design system's haptic vocabulary (1.19.0), on or off. Default on: apps vibrated on long
+   * presses before this switch existed, and a setting that appears must not change what a phone
+   * already did.
+   */
+  val hapticsEnabled: Boolean = true,
 )

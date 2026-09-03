@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -123,6 +124,11 @@ fun Modifier.fluidTutorialAnchor(id: String): Modifier {
   val state = LocalFluidTutorialHostState.current ?: return this
   val highlighted = state.presenting?.anchorId == id
   val ring = MaterialTheme.colorScheme.primary
+  // Un elemento che esce di scena porta via i suoi limiti: senza, un callout finirebbe per
+  // indicare il punto dove c'era un tasto che ora non c'e' piu'.
+  DisposableEffect(state, id) {
+    onDispose { state.anchorBounds(id, null) }
+  }
   return this
     .onGloballyPositioned { state.anchorBounds(id, it.boundsInRoot()) }
     .drawWithContent {

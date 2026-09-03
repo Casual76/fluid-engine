@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.20.1 - 2026-09-03
+
+- ui: `Modifier.fluidTutorialAnchor` dimentica i limiti dell elemento quando questo esce di scena. Senza, un callout poteva indicare il punto dove c era un tasto che intanto era sparito (un tasto dentro un AnimatedVisibility, una schermata lasciata).
+
+
 ## 1.20.0 - 2026-09-03
 
 - ui: `FluidCoachMark` e `FluidTutorialHost`, i suggerimenti al primo uso. Un callout per volta, agganciato a un elemento con `Modifier.fluidTutorialAnchor`, con due parole di titolo, una frase e il gesto disegnato (`FluidGestureHint`). Non e un modale: nessuno scrim, e un tocco fuori chiude senza consumare il tocco.

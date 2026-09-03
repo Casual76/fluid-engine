@@ -72,6 +72,10 @@ private class Combined2Backdrops(
     override val isCoordinatesDependent: Boolean =
         backdrop1.isCoordinatesDependent || backdrop2.isCoordinatesDependent
 
+    /** Un impilamento vale quanto il piu' impreparato dei suoi. */
+    override fun isReadyToSample(): Boolean =
+        backdrop1.isReadyToSample() && backdrop2.isReadyToSample()
+
     // Fluid Engine addition: a stack is only cacheable if everything in it is.
     override val layerSources: List<Any> =
         if (backdrop1.layerSources.isEmpty() || backdrop2.layerSources.isEmpty()) {

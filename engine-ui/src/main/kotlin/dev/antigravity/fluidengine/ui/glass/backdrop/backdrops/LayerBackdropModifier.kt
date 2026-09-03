@@ -114,6 +114,14 @@ private class LayerBackdropNode(
         }
     }
 
+    /**
+     * Fluid Engine addition: a reused node has nothing to do with the subtree that was here before,
+     * and `recorded` (the flag that makes `frozen` keep the registration) belonged to that one.
+     */
+    override fun onReset() {
+        recorded = false
+    }
+
     override fun onDetach() {
         backdrop.layerCoordinates = null
     }

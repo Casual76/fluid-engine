@@ -79,6 +79,9 @@ class LayerBackdrop internal constructor(
     // happens to redraw the pane.
     internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())
 
+    /** Senza le coordinate del layer, `drawBackdrop` esce senza disegnare: non c'e' niente da tenere. */
+    override fun isReadyToSample(): Boolean = layerCoordinates != null
+
     private var inverseLayerScope: InverseLayerScope? = null
 
     override fun DrawScope.drawBackdrop(

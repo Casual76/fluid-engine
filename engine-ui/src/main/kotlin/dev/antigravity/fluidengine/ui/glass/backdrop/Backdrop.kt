@@ -51,6 +51,18 @@ interface Backdrop {
      */
     val layerSources: List<Any> get() = emptyList()
 
+    /**
+     * Fluid Engine addition: whether this backdrop, **right now**, has something to draw.
+     *
+     * A [LayerBackdrop] whose coordinates are not attached yet returns from `drawBackdrop` without
+     * drawing anything, silently — and a surface that took its one and only capture in that frame
+     * kept an empty picture for the life of the node. There was no way back: nothing in the
+     * bookkeeping could tell "captured a wash" from "captured nothing".
+     *
+     * Default true, so every existing backdrop keeps behaving exactly as before.
+     */
+    fun isReadyToSample(): Boolean = true
+
     fun DrawScope.drawBackdrop(
         density: Density,
         coordinates: LayoutCoordinates?,

@@ -46,7 +46,20 @@ import dev.antigravity.fluidengine.ui.fluidphysics.GlassClipGeometry
 import androidx.compose.ui.unit.LayoutDirection
 
 @Immutable
+/**
+ * Fluid Engine change: [equals]/[hashCode] on the block.
+ *
+ * `Modifier.drawBackdrop` is not composable, so it builds a fresh `ShapeProvider` on every call —
+ * and without identity that made `DrawBackdropElement.equals` false **always**. Every recomposition
+ * of every pane therefore ran `update(node)`, which invalidates the draw cache, which rebuilds the
+ * whole `RenderEffect` chain: blur, lens, dispersion, per pane, for nothing. A caller that
+ * remembers its shape now gets a provider that compares equal, and the chain is left alone.
+ */
 internal class ShapeProvider(val shapeBlock: () -> Shape) {
+
+    override fun equals(other: Any?): Boolean = other is ShapeProvider && shapeBlock == other.shapeBlock
+
+    override fun hashCode(): Int = shapeBlock.hashCode()
 
     private var _shape: Shape? = null
     private var _outline: Outline? = null

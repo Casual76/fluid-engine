@@ -883,6 +883,14 @@ fun Modifier.glassSurface(
    * scrolling body must keep re-sampling or it carries a stale copy of the page around.
    */
   sampleOnce: Boolean = role == GlassRole.Content,
+  /**
+   * Ogni quanto, al massimo, questo pannello puo' rifare la propria cattura dello sfondo. Zero
+   * (il default) vuol dire "quando serve", che sopra uno sfondo animato significa **a ogni
+   * fotogramma**: nove pannelli su una schermata sono nove replay dello schermo per fotogramma.
+   * Con un fondale che si muove piano, 100 ms non si distinguono sotto la sfocatura e costano un
+   * dodicesimo.
+   */
+  resampleIntervalMillis: Long = 0L,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
 
@@ -1020,6 +1028,7 @@ fun Modifier.glassSurface(
         glassResolutionScale(blurRadius.value * resolved.blurScale) * resolved.backdropResolution
       },
       sampleOnce = sampleOnce,
+      resampleIntervalMillis = resampleIntervalMillis,
       // La leva più grande che il materiale ha, e la ragione per cui vale la pena avere un livello
       // di qualità: la catena si paga per pixel, quindi dimezzare la cattura è un quarto del
       // lavoro. Vedi [FluidGlassQuality] e `quantiseScaleFactor`.

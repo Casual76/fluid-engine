@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.20.0 - 2026-09-03
+
+- ui: `FluidCoachMark` e `FluidTutorialHost`, i suggerimenti al primo uso. Un callout per volta, agganciato a un elemento con `Modifier.fluidTutorialAnchor`, con due parole di titolo, una frase e il gesto disegnato (`FluidGestureHint`). Non e un modale: nessuno scrim, e un tocco fuori chiude senza consumare il tocco.
+- ui: `FluidTutorialPolicy` decide il momento ed e pura: l ancora sullo schermo, 600 ms di quiete dall ultima interazione e dall ultimo caricamento, nessun pannello dell engine in scena, e un interazione fra un suggerimento e il successivo. Cosa e gia stato visto lo ricorda l app, non il componente.
+
+
 ## 1.19.1 - 2026-09-03
 
 - ui: `FluidMorphMenuButton` fa `Open` al tocco invece di `Tap`. Il tasto che apre il menu che si trasforma e un apertura come le altre, e sentirlo come un interruttore qualsiasi rompeva l unica regola dell aptica: lo stesso evento vuol dire la stessa cosa ovunque.

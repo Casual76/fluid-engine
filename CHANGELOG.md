@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.20.2 - 2026-09-03
+
+- ui: BREAKING (di fatto) `FluidTutorialHost` non mette piu' niente sopra la pagina. Il Box a tutto schermo che osservava i tocchi si prendeva l intero percorso di hit test e l app sotto smetteva di rispondere al dito. Ora i tocchi si osservano dal contenitore con `Modifier.fluidTutorialTouches(state)`, che va messo sul Box che avvolge il contenuto: chi montava il padrone di casa deve aggiungerlo.
+- ui: `FluidTutorialHostState.touchAt(position)` e' la regola del tocco (vale come interazione, e chiude il callout se cade fuori), provata sul computer; il callout consuma i propri tocchi, cosi' toccarne il testo non preme quello che ci sta dietro.
+
+
 ## 1.20.1 - 2026-09-03
 
 - ui: `Modifier.fluidTutorialAnchor` dimentica i limiti dell elemento quando questo esce di scena. Senza, un callout poteva indicare il punto dove c era un tasto che intanto era sparito (un tasto dentro un AnimatedVisibility, una schermata lasciata).

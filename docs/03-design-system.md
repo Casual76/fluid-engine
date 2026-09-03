@@ -242,3 +242,26 @@ Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabo
 `Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`) spariscono in
 risparmio energetico e si diradano a 40 ms da soli. L'interruttore e' `EngineSettings.hapticsEnabled`,
 da esporre in Aspetto accanto al vetro.
+
+## Suggerimenti al primo uso (1.20.0)
+
+`FluidTutorialHost` mostra **un callout per volta**, agganciato a un elemento, la prima volta che
+una persona incontra una funzione. Il componente sa disegnare e decidere il momento; **cosa e' gia'
+stato visto lo ricorda l'app**.
+
+Come si monta: alla radice, sopra il resto,
+`CompositionLocalProvider(LocalFluidTutorialHostState provides state) { ... }` e in fondo
+`FluidTutorialHost(state, labels, backdrop) { modalHost.isOnScreen }`. Ogni schermata dichiara la
+sua chiave (`state.screenChanged("home")`), offre i candidati non ancora visti (`state.offer(...)`)
+e marca gli elementi con `Modifier.fluidTutorialAnchor("id")`.
+
+Quando parla, in `FluidTutorialPolicy`: l'ancora e' sullo schermo, sono passati 600 ms dall'ultima
+interazione e dall'ultimo caricamento, non c'e' un pannello dell'engine in scena, e dalla chiusura
+del precedente c'e' stata almeno un'interazione. Fra piu' candidati vince la priorita' piu' alta.
+Tutto puro e provato con un orologio finto: `FluidTutorialPolicyTest`.
+
+Il callout non e' un modale: nessuno scrim, la pagina resta leggibile e **un tocco fuori chiude
+senza consumare il tocco**. Dentro: due parole di titolo, una frase sola, il gesto disegnato
+(`FluidGestureHint`: `Tap`, `LongPress`, `SwipeHorizontal`, `DragReorder`, `Scrub`,
+`LongPressAndTap`, fermo immagine con le animazioni ridotte), "Ok" e il link che li spegne tutti
+(`onDismissed(id, optOut = true)`).

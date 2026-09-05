@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.23.0 - 2026-09-05
+
+- ai: engine-ai, il trasporto dell'assistente senza dominio: provider BYOK (Groq, Gemini, OpenRouter), chiavi cifrate, SSE, failover, catalogo dei modelli su tre livelli, parti di contenuto per immagini e documenti, AiRouter e AiOrchestrator<C> con escalation al livello profondo e riprova senza stream quando il flusso si spezza. Nessun modulo esistente cambia; docs/07-ai.md e references/ai.md nella skill.
+
+
 ## 1.22.0 - 2026-09-03
 
 - ui: `glassSurface(resampleIntervalMillis = ...)`. Un pannello sopra uno sfondo che si muove rifaceva la propria cattura a OGNI fotogramma: nove pannelli su una schermata sono nove replay dello schermo per fotogramma. Misurato su un Galaxy S25: 44 ms per fotogramma con una cattura ciascuno, 61 ms con nove vive. Con un intervallo di 100 ms la cattura e vecchia di un decimo di secondo, cosa che sotto una sfocatura da 10 dp non si distingue, e costa un dodicesimo. Zero (il default) = comportamento di prima.

@@ -1,0 +1,38 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace 'dev.antigravity.fluidengine.ai'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  api project(':engine-foundation')
+
+  // Le chiavi e le impostazioni dell'assistente stanno in due file DataStore propri.
+  api "androidx.datastore:datastore-preferences:${engine.datastore}"
+  // Solo il runtime (JsonElement): i JSON dei provider si navigano a mano, e ogni campo mancante
+  // e' una decisione, non una eccezione.
+  api "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
+  api "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+}

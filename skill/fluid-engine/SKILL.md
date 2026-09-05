@@ -37,6 +37,8 @@ engine-net          EngineHttp: leggi un documento, scarica un file
 engine-config       EngineRemoteConfig: feature flag, versione minima, kill switch
 engine-update       EngineAppUpdater: aggiornamento in-app via PackageInstaller
 engine-widget       palette e componenti Glance con lo stesso aspetto dell'app
+engine-ai           l'assistente senza dominio: provider BYOK (Groq, Gemini, OpenRouter), chiavi
+                    cifrate, SSE, failover, tipi dei tool, router e orchestratore a livelli, voce
 ```
 
 Tutto sotto `dev.antigravity.fluidengine.*`.
@@ -109,6 +111,15 @@ Serve chiamare qualcosa solo per il tasto che si apre nel proprio menù (`FluidM
 
 Se stai animando una sagoma di vetro, **giudica dai fotogrammi**: la ricetta di cattura e misura è
 in fondo a `references/regole.md`. "È giusto per costruzione" qui non è mai bastato.
+
+### Dare un assistente IA a un'app
+
+`engine-ai` porta tutto cio' che non sa cosa fa l'app: i tre provider a chiave dell'utente, il
+Keystore, lo stream SSE, il failover, il catalogo dei modelli su tre livelli (router, chat,
+profondo), il router dei gruppi di strumenti e l'orchestratore generico `AiOrchestrator<C>`.
+L'app scrive **solo** il suo dominio: i gruppi (un enum che implementa `AiToolGroup`), i tool
+(`AiTool<C>` col proprio contesto `C`), il prompt, le azioni e la UI. Un tool che sa cos'e' un
+voto non entra mai nell'engine. Ricetta, contratto e trappole in `references/ai.md`.
 
 ### Aggiungere un feature flag
 
@@ -202,3 +213,4 @@ design system".
 - `references/config-remota.md` — manifest, flag, kill switch, compatibilità
 - `references/widget.md` — il kit Glance
 - `references/limiti.md` — cosa non si può fare, e cosa rispondere quando viene chiesto
+- `references/ai.md` — l'assistente: cosa da' `engine-ai`, cosa resta all'app, come si scrive un tool

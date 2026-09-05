@@ -86,7 +86,7 @@ Il blocco che finisce nel `settings.gradle` è questo (e si può anche scrivere 
 def engineDir = file('engine')
 if (engineDir.exists()) {
   ['engine-foundation', 'engine-ui', 'engine-storage',
-   'engine-net', 'engine-config', 'engine-update', 'engine-widget'].each { name ->
+   'engine-net', 'engine-config', 'engine-update', 'engine-widget', 'engine-ai'].each { name ->
     include ":$name"
     project(":$name").projectDir = new File(engineDir, name)
   }
@@ -162,6 +162,7 @@ implementation project(':engine-storage')  // impostazioni su DataStore
 implementation project(':engine-config')   // feature flag remoti
 implementation project(':engine-update')   // aggiornamento in-app
 implementation project(':engine-widget')   // widget Glance
+implementation project(':engine-ai')       // assistente IA (provider, chiavi, orchestratore)
 ```
 
 In un'app con `build.gradle.kts` la sintassi e' quella Kotlin, e `engine-install.ps1` la stampa gia'

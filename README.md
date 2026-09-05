@@ -12,6 +12,7 @@ engine-net          le due chiamate HTTP che l'engine fa da solo (leggi document
 engine-config       il manifest remoto: feature flag, kill switch, versione minima
 engine-update       aggiornamento in-app via PackageInstaller (modello Pampa Store)
 engine-widget       palette e componenti Glance con lo stesso aspetto dell'app
+engine-ai           l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore
 ```
 
 ## Partire in cinque minuti

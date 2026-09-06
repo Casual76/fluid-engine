@@ -153,7 +153,10 @@ class AiOrchestrator<C>(
       }
     }
     conversation.lastGroups = groups
-    var tools: List<ToolSpec> = specsFor(groups, input)
+    // Il tool "modello_avanzato" si offre solo finche' c'e' qualcosa da guadagnarci: si sta ancora
+    // lavorando col modello della chat, e il provider ne ha davvero uno piu' capace.
+    fun deepOffered(): Boolean = tier == ModelTier.CHAT && attempt.provider.model(ModelTier.DEEP) != attempt.provider.model(ModelTier.CHAT)
+    var tools: List<ToolSpec> = specsFor(groups, input, deepOffered())
     var moreToolsUsed = 0
 
     val messages = mutableListOf<Message>()
@@ -246,18 +249,26 @@ class AiOrchestrator<C>(
         neutralize(messages)
       }
 
+      // L'ha chiesto il modello (o un tool che sa di aver portato roba pesante): il resto del giro
+      // lo fa quello piu' capace. Cambiare modello a meta' e' come cambiare provider, quindi i
+      // pezzi grezzi scritti dall'altro modello non possono restare nella storia.
+      if (runs.any { it.output.escalate } && deepOffered()) {
+        tier = ModelTier.DEEP
+        neutralize(messages)
+      }
+
       // altri_tool: i gruppi chiesti entrano nel giro dopo, al massimo due volte per domanda.
       outcome.calls.filter { it.name == ToolRegistry.MORE_TOOLS }.forEach { call ->
         if (moreToolsUsed < config.maxMoreTools) {
           registry.group(call.arguments["gruppo"].string())?.let { group ->
             if (group !in groups && (group != registry.actionGroup || input.actionsEnabled)) {
               groups = groups + group
-              tools = specsFor(groups, input)
               moreToolsUsed++
             }
           }
         }
       }
+      tools = specsFor(groups, input, deepOffered())
     }
     val finalAnswer = answer ?: throw AssistantFailure(FailureKind.TIMEOUT, null)
     val (cleanText, chips) = ChipParser.extract(finalAnswer, input.chipFilter)
@@ -291,11 +302,14 @@ class AiOrchestrator<C>(
 
   private fun allGroups(input: AskInput<C>): Set<AiToolGroup> = registry.visibleGroups(input.actionsEnabled).toSet()
 
-  private fun specsFor(groups: Set<AiToolGroup>, input: AskInput<C>): List<ToolSpec> {
+  private fun specsFor(groups: Set<AiToolGroup>, input: AskInput<C>, deep: Boolean = false): List<ToolSpec> {
     val visible = groups.filter { it != registry.actionGroup || input.actionsEnabled }.toSet()
     val specs = registry.specsFor(visible)
     val missing = registry.visibleGroups(input.actionsEnabled).any { it !in visible }
-    return if (missing) specs + registry.moreTools else specs
+    return specs + listOfNotNull(
+      registry.moreTools.takeIf { missing },
+      registry.deepTool.takeIf { deep },
+    )
   }
 
   private fun historyBudget(provider: ProviderId): Int = if (provider == ProviderId.GROQ) config.historyBudgetGroq else config.historyBudgetOther
@@ -308,6 +322,7 @@ class AiOrchestrator<C>(
 
   private fun statusKeyFor(calls: List<ToolCall>): String {
     val first = calls.firstOrNull() ?: return "thinking"
+    if (first.name == ToolRegistry.DEEP_MODEL) return "deep_model"
     if (first.name == ToolRegistry.MORE_TOOLS) return "more_tools"
     return registry.find(first.name)?.group?.statusKey ?: "thinking"
   }
@@ -501,7 +516,9 @@ class AiOrchestrator<C>(
       async(Dispatchers.IO) {
         semaphore.withPermit {
           val started = clock()
-          val output = if (call.name == ToolRegistry.MORE_TOOLS) {
+          val output = if (call.name == ToolRegistry.DEEP_MODEL) {
+            ToolOutput("ok: dal prossimo passo rispondi tu, con il modello piu' capace; continua da dove sei, non ricominciare", escalate = true)
+          } else if (call.name == ToolRegistry.MORE_TOOLS) {
             ToolOutput("ok: gli strumenti del gruppo ${call.arguments["gruppo"].string()} saranno disponibili dal prossimo passo")
           } else {
             val tool = registry.find(call.name)

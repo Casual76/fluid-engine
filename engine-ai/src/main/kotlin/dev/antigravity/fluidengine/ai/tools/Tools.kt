@@ -30,8 +30,12 @@ interface AiToolGroup {
  * Cio' che un tool restituisce: testo compatto per il modello e, se l'ha trovato, un allegato
  * (immagini, un documento) che l'orchestratore passa al modello come parte di un messaggio se il
  * modello lo regge, o fa tradurre in testo dall'app se non lo regge.
+ *
+ * [escalate] e' la richiesta di finire il lavoro col modello piu' capace: la alza il tool built-in
+ * [ToolRegistry.DEEP_MODEL], e puo' alzarla un tool dell'app che sa di aver appena portato roba da
+ * ragionarci sopra. Vale per il resto della domanda, e indietro non si torna.
  */
-data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList()) {
+data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList(), val escalate: Boolean = false) {
   companion object {
     fun error(message: String): ToolOutput = ToolOutput("errore: $message")
   }
@@ -94,8 +98,22 @@ class ToolRegistry<C>(
     ),
   )
 
+  /**
+   * Il tool con cui il modello dice "questa e' difficile": l'orchestratore lo mostra solo finche'
+   * si sta lavorando col modello della chat e solo se il provider ne ha davvero uno piu' capace,
+   * e dal giro dopo il lavoro continua li', con la stessa storia.
+   */
+  val deepTool: ToolSpec = ToolSpec(
+    name = DEEP_MODEL,
+    description = "Passa al modello piu' capace per il resto della risposta. Chiamalo SUBITO, prima degli altri strumenti, " +
+      "quando il compito e' difficile: confronti su molti dati, un documento da analizzare, un ragionamento in piu' passaggi, " +
+      "una domanda aperta. Non serve rifare il lavoro gia' fatto: quello che hai raccolto resta.",
+    parameters = Schema.obj(mapOf("motivo" to Schema.str("perche' serve, in poche parole"))),
+  )
+
   companion object {
     const val MORE_TOOLS = "altri_tool"
+    const val DEEP_MODEL = "modello_avanzato"
   }
 }
 

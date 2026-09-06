@@ -55,6 +55,11 @@ class VotiMediaTool : AiTool<AssistantToolContext> {
   conferma a parole e di non fermarsi ad aspettare.
 - `Args.str/int/bool/list` leggono gli argomenti in modo tollerante: il modello scrive numeri come
   stringhe e viceversa.
+- Un tool che porta roba da ragionarci sopra puo' chiedere il modello piu' capace per il resto della
+  domanda: `ToolOutput(text, escalate = true)`. E' la stessa strada del tool built-in
+  `modello_avanzato`, che l'orchestratore offre da se' al modello finche' si lavora col livello
+  della chat e il provider ne ha davvero uno migliore. Indietro non si torna, e il lavoro gia' fatto
+  resta: cambia solo chi risponde dal giro dopo.
 
 ## Il giro, e dove l'app lo orienta
 

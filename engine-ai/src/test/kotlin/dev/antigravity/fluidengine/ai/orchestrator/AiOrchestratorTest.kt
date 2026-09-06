@@ -167,6 +167,30 @@ class AiOrchestratorTest {
   private fun args(x: String) = buildJsonObject { put("x", JsonPrimitive(x)) }
 
   @Test
+  fun `il tool del modello avanzato porta il resto del giro sul livello profondo`() = runBlocking {
+    val groq = FakeProvider(
+      ProviderId.GROQ,
+      listOf(
+        Scripted.Calls(listOf(ToolRegistry.DEEP_MODEL to buildJsonObject { put("motivo", JsonPrimitive("tanti dati")) })),
+        Scripted.Calls(listOf("adesso" to args("a"))),
+        Scripted.Text("Fatto."),
+      ),
+    )
+    val result = orchestrator().ask(input("una domanda difficile", groq), MutableStateFlow(AssistantState.Idle))
+
+    assertEquals("Fatto.", result.answer)
+    assertEquals(ModelTier.DEEP, result.tierReached)
+    // Il primo giro col modello della chat, i successivi con quello profondo.
+    assertEquals("modello-groq", groq.streamed.first().model)
+    assertEquals("profondo-groq", groq.streamed.last().model)
+    // E il tool si offre una volta sola: dal livello profondo non ha piu' senso.
+    assertTrue(groq.streamed.first().tools.any { it.name == ToolRegistry.DEEP_MODEL })
+    assertFalse(groq.streamed.last().tools.any { it.name == ToolRegistry.DEEP_MODEL })
+    // Il lavoro continua: il tool del giro dopo e' stato eseguito lo stesso.
+    assertEquals(listOf(args("a")), now.calls)
+  }
+
+  @Test
   fun `due giri con chiamate parallele, poi la risposta in streaming, con gli stati in ordine`() = runBlocking {
     val groq = FakeProvider(
       ProviderId.GROQ,

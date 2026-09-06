@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.24.0 - 2026-09-06
+
+- ai: il modello puo' chiedere da se' il livello profondo, con il tool built-in `modello_avanzato` (accanto ad `altri_tool`). Prima l'escalation era solo automatica — un allegato, o dodicimila caratteri di risultati — e un compito difficile ma leggero (confronta tutte le materie dell'anno e dimmi quale e' migliorata di piu') restava al modello della chat, che lo sbrigava con una chiamata sola. Il tool si offre solo finche' si lavora col modello della chat e solo se il provider ne ha davvero uno piu' capace; dal giro dopo il lavoro continua li', con la stessa storia e senza rifare i tool gia' eseguiti.
+- ai: `ToolOutput(escalate = true)`. Un tool dell'app che sa di aver portato roba da ragionarci sopra puo' chiedere lo stesso passaggio, senza aspettare la soglia dei caratteri.
+- ai: la chiave di stato `deep_model` mentre si cambia livello, per chi vuole scriverlo nella UI.
+
 ## 1.23.0 - 2026-09-05
 
 - ai: engine-ai, il trasporto dell'assistente senza dominio: provider BYOK (Groq, Gemini, OpenRouter), chiavi cifrate, SSE, failover, catalogo dei modelli su tre livelli, parti di contenuto per immagini e documenti, AiRouter e AiOrchestrator<C> con escalation al livello profondo e riprova senza stream quando il flusso si spezza. Nessun modulo esistente cambia; docs/07-ai.md e references/ai.md nella skill.

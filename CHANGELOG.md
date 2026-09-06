@@ -6,6 +6,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.26.0 - 2026-09-06
+
+- ai: `AskInput.attachments`, le parti (screenshot, foto, PDF) che l utente mette nella domanda: entrano nel suo messaggio se il modello della chat le regge, si parte dal profondo se le regge solo lui, passano da `attachmentFallback` se non le regge nessuno. L ultimo scambio le ricorda (`Exchange.attachments`) e il compattatore le ripropone solo per lui; cambiando provider un allegato illeggibile diventa una riga che dice che c era.
+- ai: catalogo gerarchico. `AiToolCategory`, `AiToolGroup.category/parent/loadsWithCategory`, `AiRouter(categories = ...)`: lo stadio 1 sceglie una categoria (o "nessuna") e fino a quattro sue sottocategorie; al posto di `altri_tool` il modello riceve `apri_categoria` e `apri_sottocategoria`; cio che si apre resta in `Conversation.loadedGroups` per tutta la conversazione, con il tetto `AiOrchestratorConfig.maxLoadedTools` (LRU) e `maxOpens`. Su OpenRouter il catalogo gerarchico non parte intero. Senza categorie niente cambia.
+- ai: `ChatRequest.webSearch` -> `ChatTurn.citations` / `ChatDelta.Finish.citations`: Google Search su Gemini, plugin `web` su OpenRouter (`webSearchMaxResults`), `groq/compound-mini` su Groq (che non accetta strumenti: la ricerca va fatta in una chiamata a parte). `GroqProvider` e `OpenRouterProvider` sono `open`.
+- ai: `AiOrchestrator(usageSink = AiUsageSink { ... })`: un `AiUsageEvent` per ogni chiamata a un provider (router, ogni giro, riprova senza stream, chiamate fallite con errore e limiti), per il tracker dei consumi dell app.
+- ai: `AiTool.needsConfirmation`, `longRunning`, `isAction`, `describe(args, ctx)`: metadati per chi esegue un tool da fuori dell app; dentro l app non cambiano niente. `ToolRegistry` rifiuta gruppi con lo stesso id.
+
+
 ## 1.25.0 - 2026-09-06
 
 - ai: il tetto del testo di un tool si puo' alzare

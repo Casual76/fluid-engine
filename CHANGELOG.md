@@ -8,6 +8,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 1.25.0 - 2026-09-06
 
+- ai: il tetto del testo di un tool si puo' alzare
+
+
+## 1.25.0 - 2026-09-06
+
 - ai: `AiOrchestratorConfig.toolTextChars` e `ToolText.output(maxChars) { … }`. Il tetto di duemilaquattrocento caratteri per risultato nasceva per Groq e per una card a schermo; un tool che raccoglie tutti i voti dell'anno o tutte le materie insieme ci finiva dentro a meta', e il modello rispondeva su quello che era rimasto senza sapere di essere stato troncato. Il default non cambia: chi non tocca niente si comporta come prima.
 
 ## 1.24.0 - 2026-09-06

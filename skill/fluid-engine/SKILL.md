@@ -39,6 +39,8 @@ engine-update       EngineAppUpdater: aggiornamento in-app via PackageInstaller
 engine-widget       palette e componenti Glance con lo stesso aspetto dell'app
 engine-ai           l'assistente senza dominio: provider BYOK (Groq, Gemini, OpenRouter), chiavi
                     cifrate, SSE, failover, tipi dei tool, router e orchestratore a livelli, voce
+engine-ai-bridge    tool federati: un'app espone i suoi tool a un assistente esterno con la stessa
+                    firma (ContentProvider a permesso signature), o li chiama
 ```
 
 Tutto sotto `dev.antigravity.fluidengine.*`.

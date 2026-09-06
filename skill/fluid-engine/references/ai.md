@@ -110,3 +110,27 @@ con quattro minuti.
   `attachmentFallback`, o non passa.
 - **`RECORD_AUDIO` arriva col modulo.** Chi include `engine-ai` lo ha nel manifest fuso: il
   permesso a runtime si chiede solo dall'onboarding o dalle impostazioni, mai a sorpresa.
+
+## Dalla 1.27.0: i tool federati (`engine-ai-bridge`)
+
+Un'app espone i suoi tool a un assistente esterno con la stessa firma (PampAI/Aria) e li esegue nel
+proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge` (porta con se'
+`engine-ai`). La ricetta intera e' in `docs/08-ai-bridge.md`; il riassunto:
+
+- **Ospite**: un `<provider>` con `android:authorities="${applicationId}.ai.tools"`, il permesso
+  `dev.antigravity.fluidengine.permission.AI_TOOLS` (`signature`), `grantUriPermissions="true"` e il
+  meta-data `dev.antigravity.fluidengine.ai.TOOL_HOST=1`; una sottoclasse di
+  `AiToolHostProvider<C>` che da' `registry()`, `context(call)` **con il gate pre-confermato**,
+  `domain()` (il prefisso: `cv`, `meteo`, `bus`), `routerHint()`, `vocabulary()`, `ready()`,
+  `partsAuthority()` (il FileProvider per screenshot e PDF, cartella `cacheDir/ai-bridge/`).
+- **Cliente**: `AiToolClient(context).discover()` → `catalog(host)` → `RemoteToolSet.of(client,
+  catalog, host)`: gruppi `RemoteGroup` e tool `RemoteTool<C>` con il prefisso, da fondere nel
+  proprio `ToolRegistry`. `RemoteToolHost<C>` e' la parte del cliente: la conferma con il suo
+  cancello, la lingua, le azioni spente, il timeout dei lavori lunghi.
+- **Conferme**: le chiede il cliente prima (`describe` dell'ospite), poi chiama con
+  `confirmed = true`; l'ospite rifiuta comunque un tool con `needsConfirmation` senza `confirmed`.
+- **Lavori lunghi** (`longRunning`): `run` torna `{jobId}`, il cliente segue con `status` ogni
+  secondo; l'ospite li tiene in `BridgeJobs`.
+- **Trappole**: la firma (una build di debug di Studio e' `NO_PERMISSION`); `call` occupa un thread
+  Binder fino a `callTimeoutMillis`; il processo ospite puo' morire (client *unstable*, errore
+  pulito); il cliente deve vedere i provider (`QUERY_ALL_PACKAGES` o `<queries>`).

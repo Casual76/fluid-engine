@@ -75,6 +75,7 @@ $EngineModules = [ordered]@{
   "engine-update"     = @("engine-foundation", "engine-net")
   "engine-widget"     = @("engine-foundation", "engine-ui")
   "engine-ai"         = @("engine-foundation")
+  "engine-ai-bridge"  = @("engine-foundation", "engine-ai")
 }
 
 function Fail($message) {
@@ -234,7 +235,8 @@ $notes = @(
   @("engine-config", "feature flag remoti"),
   @("engine-update", "aggiornamento in-app"),
   @("engine-widget", "widget Glance"),
-  @("engine-ai", "assistente IA: provider, chiavi, orchestratore")
+  @("engine-ai", "assistente IA: provider, chiavi, orchestratore"),
+  @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli")
 )
 foreach ($note in $notes) {
   $module = $note[0]

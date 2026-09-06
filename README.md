@@ -13,6 +13,8 @@ engine-config       il manifest remoto: feature flag, kill switch, versione mini
 engine-update       aggiornamento in-app via PackageInstaller (modello Pampa Store)
 engine-widget       palette e componenti Glance con lo stesso aspetto dell'app
 engine-ai           l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore
+engine-ai-bridge    tool federati: un'app espone i suoi tool a un assistente esterno con la stessa
+                    firma (ContentProvider a permesso signature), o li chiama
 ```
 
 ## Partire in cinque minuti
@@ -77,6 +79,8 @@ Copy-Item -Recurse -Force skillluid-engine "$env:USERPROFILE\.claude\skills\"
 | [04 · Config remota](docs/04-config-remota.md) | manifest, flag, kill switch |
 | [05 · Widget](docs/05-widget.md) | il kit Glance |
 | [06 · Limiti](docs/06-limiti.md) | cosa si aggiorna da remoto e cosa no, senza giri di parole |
+| [07 · Assistente](docs/07-ai.md) | `engine-ai`: provider, chiavi, orchestratore, tool |
+| [08 · Tool federati](docs/08-ai-bridge.md) | `engine-ai-bridge`: esporre i tool di un'app a un assistente esterno, o chiamarli |
 
 ## Fluid-physics e l'app Fluid Glass
 

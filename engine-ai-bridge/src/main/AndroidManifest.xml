@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Il permesso che protegge i tool federati: `signature`, quindi lo tengono solo le app firmate
+       con la stessa chiave (tutte le app Pampa). Lo dichiara ogni app che include il modulo, e la
+       prima installata lo definisce per le altre: stesso nome, stesso livello, nessun conflitto. -->
+  <permission
+      android:name="dev.antigravity.fluidengine.permission.AI_TOOLS"
+      android:protectionLevel="signature" />
+
+  <!-- Chi include il modulo puo' essere ospite (espone i tool) o cliente (li chiama): entrambi
+       hanno bisogno del permesso, che con `signature` e' concesso all'installazione. -->
+  <uses-permission android:name="dev.antigravity.fluidengine.permission.AI_TOOLS" />
+
+</manifest>

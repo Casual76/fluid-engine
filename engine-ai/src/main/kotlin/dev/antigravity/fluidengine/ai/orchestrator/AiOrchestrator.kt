@@ -90,6 +90,8 @@ data class AiOrchestratorConfig(
   val historyBudgetOther: Int = 60_000,
   /** Oltre questi caratteri di risultati dei tool si passa al livello profondo, se c'e'. */
   val escalationChars: Int = 12_000,
+  /** Il tetto di un singolo risultato di tool: l'ultimo argine, sopra a quello che si da' il tool. */
+  val toolTextChars: Int = ToolText.MAX_CHARS,
   /** Quanto testo di un allegato tradotto dall'app puo' entrare nel giro. */
   val attachmentTextChars: Int = 12_000,
   val publishMinChars: Int = 24,
@@ -534,7 +536,7 @@ class AiOrchestrator<C>(
               } ?: ToolOutput.error("lo strumento non ha risposto in tempo")
             }
           }
-          val limited = output.copy(text = ToolText.limit(output.text))
+          val limited = output.copy(text = ToolText.limit(output.text, config.toolTextChars))
           ToolRun(call, limited) to ToolTrace(call.name, clock() - started, !limited.text.startsWith("errore"), limited.text.length)
         }
       }

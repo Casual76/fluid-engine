@@ -181,16 +181,21 @@ object ToolText {
     return kept.toString().trimEnd() + "\n… (altre $missing righe omesse)"
   }
 
-  class Builder {
+  class Builder(private val maxChars: Int = MAX_CHARS) {
     private val lines = mutableListOf<String>()
     fun line(text: String) { lines += text }
     fun line(key: String, value: Any?) { lines += "$key: ${value ?: "—"}" }
     fun blank() { lines += "" }
-    fun build(): String = limit(lines.joinToString("\n").trim())
+    fun build(): String = limit(lines.joinToString("\n").trim(), maxChars)
   }
 
-  inline fun build(block: Builder.() -> Unit): String = Builder().apply(block).build()
+  inline fun build(maxChars: Int = MAX_CHARS, block: Builder.() -> Unit): String = Builder(maxChars).apply(block).build()
 
-  /** La scorciatoia per il caso comune: un tool che risponde con solo testo. */
-  inline fun output(block: Builder.() -> Unit): ToolOutput = ToolOutput(build(block))
+  /**
+   * La scorciatoia per il caso comune: un tool che risponde con solo testo. [maxChars] serve al
+   * tool che raccoglie davvero tanto (tutti i voti dell'anno, tutte le materie insieme) e che
+   * troncato a duemila caratteri farebbe rispondere il modello su meta' dei dati — ma deve restare
+   * sotto al tetto dell'orchestratore (`AiOrchestratorConfig.toolTextChars`), che ha l'ultima parola.
+   */
+  inline fun output(maxChars: Int = MAX_CHARS, block: Builder.() -> Unit): ToolOutput = ToolOutput(build(maxChars, block))
 }

@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.27.0 - 2026-09-06
+
+- ai-bridge: nuovo modulo engine-ai-bridge, i tool federati: un app espone i suoi tool a un assistente esterno con la stessa firma (AiToolHostProvider, ContentProvider a permesso signature, conferme chieste dal cliente, lavori lunghi, parti via FileProvider) e un assistente li scopre e li chiama (AiToolClient, RemoteToolSet). docs/08-ai-bridge.md. Nessun modulo esistente cambia.
+
+
 ## 1.26.0 - 2026-09-06
 
 - ai: `AskInput.attachments`, le parti (screenshot, foto, PDF) che l utente mette nella domanda: entrano nel suo messaggio se il modello della chat le regge, si parte dal profondo se le regge solo lui, passano da `attachmentFallback` se non le regge nessuno. L ultimo scambio le ricorda (`Exchange.attachments`) e il compattatore le ripropone solo per lui; cambiando provider un allegato illeggibile diventa una riga che dice che c era.

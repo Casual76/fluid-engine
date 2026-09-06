@@ -187,14 +187,37 @@ object OpenAiCompatCodec {
       finishReason = finishReason(choice["finish_reason"].string(), calls.isNotEmpty()),
       usage = usage(body["usage"]),
       rateLimit = rateLimit,
+      citations = citations(message),
     )
   }
 
-  /** Lo stato che uno stream accumula fra un pezzo e l'altro: la ragione, l'uso, i dettagli grezzi. */
+  /**
+   * Le fonti di una risposta con ricerca web, nei due dialetti: le `annotations` di tipo
+   * `url_citation` di OpenRouter, e i `search_results` dentro `executed_tools` di Groq compound.
+   * Deduplicate per indirizzo, nell'ordine in cui compaiono.
+   */
+  fun citations(message: JsonElement?): List<Citation> {
+    val found = linkedMapOf<String, Citation>()
+    message["annotations"].asArray().forEach { annotation ->
+      val citation = annotation["url_citation"] ?: return@forEach
+      val url = citation["url"].string()?.takeIf { it.isNotBlank() } ?: return@forEach
+      found.putIfAbsent(url, Citation(url, citation["title"].string(), citation["content"].string()))
+    }
+    message["executed_tools"].asArray().forEach { tool ->
+      tool["search_results"]["results"].asArray().forEach { result ->
+        val url = result["url"].string()?.takeIf { it.isNotBlank() } ?: return@forEach
+        found.putIfAbsent(url, Citation(url, result["title"].string(), result["content"].string()))
+      }
+    }
+    return found.values.toList()
+  }
+
+  /** Lo stato che uno stream accumula fra un pezzo e l'altro: la ragione, l'uso, i dettagli grezzi, le fonti. */
   class StreamState {
     var finish: String? = null
     var usage: Usage? = null
     val reasoningDetails = mutableListOf<JsonElement>()
+    val citations = linkedMapOf<String, Citation>()
   }
 
   /**
@@ -219,6 +242,7 @@ object OpenAiCompatCodec {
       )
     }
     (delta["reasoning_details"] as? JsonArray)?.let { state.reasoningDetails.addAll(it) }
+    citations(delta).forEach { state.citations.putIfAbsent(it.url, it) }
     choice["finish_reason"].string()?.let { reason ->
       if (reason == "error") throw AiError.Server(200, choice["error"]["message"].string() ?: "errore del provider durante lo stream")
       state.finish = reason

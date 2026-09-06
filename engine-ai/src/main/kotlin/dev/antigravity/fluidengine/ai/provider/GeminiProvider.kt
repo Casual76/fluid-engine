@@ -67,7 +67,7 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
           GeminiCodec.parseStreamChunk(payload, state).forEach { emit(it) }
         }
         state.raw()?.let { emit(ChatDelta.Raw(it)) }
-        emit(ChatDelta.Finish(state.finish ?: FinishReason.STOP, state.usage, rateLimit))
+        emit(ChatDelta.Finish(state.finish ?: FinishReason.STOP, state.usage, rateLimit, state.citations.values.toList()))
         return@flow
       } catch (e: AiError.BadRequest) {
         if (started) throw e
@@ -89,8 +89,17 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
   private fun body(request: ChatRequest, fallbacks: Set<Fallback>): JsonObject = buildJsonObject {
     GeminiCodec.systemInstruction(request.messages)?.let { put("systemInstruction", it) }
     put("contents", GeminiCodec.contents(request.messages))
+    // Le funzioni dell'app e la ricerca di Google sono due voci dello stesso elenco.
+    if (request.tools.isNotEmpty() || request.webSearch) {
+      put(
+        "tools",
+        buildJsonArray {
+          if (request.tools.isNotEmpty()) add(buildJsonObject { put("functionDeclarations", GeminiCodec.declarations(request.tools)) })
+          if (request.webSearch) add(buildJsonObject { put("google_search", buildJsonObject {}) })
+        },
+      )
+    }
     if (request.tools.isNotEmpty()) {
-      put("tools", buildJsonArray { add(buildJsonObject { put("functionDeclarations", GeminiCodec.declarations(request.tools)) }) })
       put("toolConfig", buildJsonObject { put("functionCallingConfig", GeminiCodec.callingConfig(request.toolChoice)) })
     }
     put(
@@ -352,7 +361,19 @@ object GeminiCodec {
       finishReason = if (reason == "MALFORMED_FUNCTION_CALL") FinishReason.OTHER else finishReason(reason, calls.isNotEmpty()),
       usage = usage(body["usageMetadata"]),
       rateLimit = rateLimit,
+      citations = citations(candidate),
     )
+  }
+
+  /** Le fonti della ricerca di Google: i `groundingChunks` del candidato che vengono dal web. */
+  fun citations(candidate: JsonElement?): List<Citation> {
+    val found = linkedMapOf<String, Citation>()
+    candidate["groundingMetadata"]["groundingChunks"].asArray().forEach { chunk ->
+      val web = chunk["web"] ?: return@forEach
+      val url = web["uri"].string()?.takeIf { it.isNotBlank() } ?: return@forEach
+      found.putIfAbsent(url, Citation(url, web["title"].string()))
+    }
+    return found.values.toList()
   }
 
   class StreamState {
@@ -360,6 +381,7 @@ object GeminiCodec {
     var callIndex = 0
     var finish: FinishReason? = null
     var usage: Usage? = null
+    val citations = linkedMapOf<String, Citation>()
     fun raw(): JsonArray? = parts.takeIf { it.isNotEmpty() }?.let { JsonArray(it) }
   }
 
@@ -383,6 +405,7 @@ object GeminiCodec {
         )
       }
     }
+    citations(candidate).forEach { state.citations.putIfAbsent(it.url, it) }
     candidate["finishReason"].string()?.let { reason ->
       state.finish = if (reason == "MALFORMED_FUNCTION_CALL") FinishReason.OTHER else finishReason(reason, state.callIndex > 0)
     }

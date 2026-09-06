@@ -27,7 +27,7 @@ data class OpenRouterKeyInfo(
  * privacy), il `reasoning` unificato, l'uso col costo. Le trascrizioni viaggiano in JSON base64
  * su `/audio/transcriptions`. Il catalogo e' pubblico e grande: lo legge [ModelCatalog].
  */
-class OpenRouterProvider(
+open class OpenRouterProvider(
   http: AiHttp,
   apiKey: String,
   private val referer: String,
@@ -49,11 +49,13 @@ class OpenRouterProvider(
     }
     // Un PDF nel messaggio: il parser di OpenRouter lo trasforma in testo per qualsiasi modello.
     // `pdf-text` e' il motore gratuito; per le scansioni ci pensa l'app con le immagini.
-    if (request.hasDocuments) {
+    // La ricerca web e' un altro plugin: OpenRouter cerca, mette i risultati nel prompt e cita.
+    if (request.hasDocuments || request.webSearch) {
       put(
         "plugins",
         buildJsonArray {
-          add(buildJsonObject { put("id", "file-parser"); put("pdf", buildJsonObject { put("engine", "pdf-text") }) })
+          if (request.hasDocuments) add(buildJsonObject { put("id", "file-parser"); put("pdf", buildJsonObject { put("engine", "pdf-text") }) })
+          if (request.webSearch) add(buildJsonObject { put("id", "web"); put("max_results", request.webSearchMaxResults) })
         },
       )
     }

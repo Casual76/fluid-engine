@@ -23,6 +23,14 @@ sealed interface ContentPart {
   val isText: Boolean get() = this is Text
 }
 
+/** Il nome con cui parlare di una parte all'utente: quello del documento, o cos'e'. */
+val ContentPart.displayName: String?
+  get() = when (this) {
+    is ContentPart.Document -> name
+    is ContentPart.Image -> "immagine"
+    is ContentPart.Text -> null
+  }
+
 /**
  * Il modello neutro della conversazione: quello che l'orchestratore vede, qualunque provider ci
  * sia sotto. Gli adapter lo traducono nel dialetto di ciascuno (OpenAI per Groq e OpenRouter,
@@ -95,6 +103,13 @@ data class ModelCapabilities(val vision: Boolean, val documents: Boolean) {
   }
 }
 
+/**
+ * Una fonte dal web citata da una risposta con ricerca (1.26.0): Gemini la chiama grounding chunk,
+ * OpenRouter url citation, Groq search result. Qui e' un indirizzo con, se ci sono, titolo e
+ * frammento.
+ */
+data class Citation(val url: String, val title: String? = null, val snippet: String? = null)
+
 data class ChatRequest(
   val model: String,
   val messages: List<Message>,
@@ -106,6 +121,14 @@ data class ChatRequest(
   val jsonSchema: JsonObject? = null,
   val maxOutputTokens: Int? = null,
   val temperature: Double? = null,
+  /**
+   * Chiede al provider di cercare sul web prima di rispondere (1.26.0): Gemini con Google Search,
+   * OpenRouter col plugin `web`, Groq col suo modello compound (che non accetta [tools]: la
+   * ricerca va fatta in una chiamata a parte, senza strumenti). Le fonti tornano in
+   * [ChatTurn.citations] o in [ChatDelta.Finish.citations].
+   */
+  val webSearch: Boolean = false,
+  val webSearchMaxResults: Int = 5,
 ) {
   /** Vero se qualche messaggio porta un documento: OpenRouter allora vuole il plugin che li legge. */
   val hasDocuments: Boolean get() = messages.any { it is Message.User && it.parts.any { p -> p is ContentPart.Document } }
@@ -133,6 +156,8 @@ data class ChatTurn(
   val finishReason: FinishReason,
   val usage: Usage?,
   val rateLimit: RateLimitInfo,
+  /** Le fonti, quando la richiesta aveva la ricerca web e il provider le ha dette. */
+  val citations: List<Citation> = emptyList(),
 )
 
 /** I pezzi di uno stream, nell'ordine in cui arrivano. */
@@ -151,7 +176,12 @@ sealed interface ChatDelta {
   /** Parti grezze del provider da conservare (thought signature, reasoning_details). */
   data class Raw(val raw: JsonElement) : ChatDelta
 
-  data class Finish(val reason: FinishReason, val usage: Usage?, val rateLimit: RateLimitInfo) : ChatDelta
+  data class Finish(
+    val reason: FinishReason,
+    val usage: Usage?,
+    val rateLimit: RateLimitInfo,
+    val citations: List<Citation> = emptyList(),
+  ) : ChatDelta
 }
 
 data class Transcript(val text: String, val language: String?)

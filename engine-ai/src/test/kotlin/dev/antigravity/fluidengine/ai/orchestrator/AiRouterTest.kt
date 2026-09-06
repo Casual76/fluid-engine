@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ai.orchestrator
 
+import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +15,17 @@ private enum class RG(override val id: String, override val statusKey: String, o
   LESSONS("orario", "lessons", "orario e lezioni"),
   STATS("statistiche", "stats", "statistiche"),
   APP("app", "app", "azioni nell'app"),
+}
+
+private enum class Area(override val id: String, override val label: String, override val hint: String) : AiToolCategory {
+  METEO("meteo", "Meteo", "previsioni e pioggia"),
+  BUS("bus", "Bus", "autobus e fermate"),
+}
+
+private enum class RouterGroup(override val id: String, override val statusKey: String, override val hint: String, override val category: AiToolCategory) : AiToolGroup {
+  ORARIO("meteo_orario", "hourly", "ora per ora", Area.METEO),
+  RADAR("meteo_radar", "radar", "pioggia in arrivo", Area.METEO),
+  ORARI("bus_orari", "schedule", "passaggi", Area.BUS),
 }
 
 class AiRouterTest {
@@ -40,6 +52,46 @@ class AiRouterTest {
     assertNull(router.parse("""{"gruppi":[]}""", actionsEnabled = false))
     val fallback = router.fallback(setOf(RG.STATS))
     assertTrue(fallback.containsAll(setOf(RG.GRADES, RG.AGENDA, RG.STATS)))
+  }
+
+  private val hierarchical = AiRouter(RouterGroup.entries, null, "un assistente a piu' app", defaultGroups = listOf(RouterGroup.ORARIO), categories = Area.entries)
+
+  @Test
+  fun `col catalogo gerarchico lo schema chiede categoria e sottocategorie, e il prompt le elenca`() {
+    assertTrue(hierarchical.hierarchical)
+    val schema = hierarchical.schema.toString()
+    assertTrue(schema.contains("\"categoria\""))
+    assertTrue(schema.contains("\"nessuna\""))
+    assertTrue(schema.contains("\"sottocategorie\""))
+    assertFalse(schema.contains("\"gruppi\""))
+    val prompt = hierarchical.prompt("it", actionsEnabled = true)
+    assertTrue(prompt.contains("- meteo: previsioni e pioggia"))
+    assertTrue(prompt.contains("meteo_radar = pioggia in arrivo"))
+    assertTrue(prompt.contains("\"nessuna\""))
+    assertFalse(prompt.contains("gia' aperte"))
+    assertTrue(hierarchical.prompt("it", actionsEnabled = true, loadedCategories = setOf(Area.BUS)).contains("gia' aperte in questa conversazione, i cui strumenti restano disponibili: bus"))
+  }
+
+  @Test
+  fun `il verdetto gerarchico tiene solo le sottocategorie della categoria scelta o gia' aperte`() {
+    val meteo = hierarchical.parse("""{"categoria":"meteo","sottocategorie":["meteo_radar","bus_orari"],"profondo":false}""", actionsEnabled = true)!!
+    assertEquals(Area.METEO, meteo.category)
+    assertEquals(setOf(RouterGroup.RADAR), meteo.groups)
+    assertFalse(meteo.none)
+    val withBusOpen = hierarchical.parse("""{"categoria":"meteo","sottocategorie":["meteo_radar","bus_orari"],"profondo":true}""", actionsEnabled = true, loadedCategories = setOf(Area.BUS))!!
+    assertEquals(setOf(RouterGroup.RADAR, RouterGroup.ORARI), withBusOpen.groups)
+    assertTrue(withBusOpen.deep)
+    // Solo la categoria: i gruppi li decide l'orchestratore (quelli di partenza).
+    val onlyCategory = hierarchical.parse("""{"categoria":"bus","sottocategorie":[],"profondo":false}""", actionsEnabled = true)!!
+    assertEquals(Area.BUS, onlyCategory.category)
+    assertTrue(onlyCategory.groups.isEmpty())
+    val none = hierarchical.parse("""{"categoria":"nessuna","sottocategorie":[],"profondo":false}""", actionsEnabled = true)!!
+    assertTrue(none.none)
+    assertTrue(none.groups.isEmpty())
+    assertNull(none.category)
+    // Categoria ignota e niente sottocategorie valide: si ripiega.
+    assertNull(hierarchical.parse("""{"categoria":"cucina","sottocategorie":["pasta"],"profondo":false}""", actionsEnabled = true))
+    assertNull(hierarchical.parse("boh", actionsEnabled = true))
   }
 
   @Test

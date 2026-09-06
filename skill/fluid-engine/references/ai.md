@@ -77,6 +77,24 @@ class VotiMediaTool : AiTool<AssistantToolContext> {
 riserva finale, soglia di escalation. Una card a schermo vive con 90 secondi; un foreground service
 con quattro minuti.
 
+## Dalla 1.26.0
+
+- `AskInput.attachments`: le parti (screenshot, foto, PDF) messe dall'utente nella domanda. Il
+  livello di partenza si adegua (profondo se solo lui le vede), il resto passa da
+  `attachmentFallback`. L'ultimo scambio le ricorda per il "e a destra?".
+- Catalogo gerarchico: `AiToolGroup.category` (`AiToolCategory`), `parent`, `loadsWithCategory`;
+  `AiRouter(..., categories = ...)`. Lo stadio 1 sceglie una categoria (o "nessuna") e le sue
+  sottocategorie; il modello apre il resto con `apri_categoria`/`apri_sottocategoria`; cio' che e'
+  aperto resta in `Conversation.loadedGroups` (salvarne gli id insieme alla conversazione e
+  ridarli con `registry.group(id)`). Tetto `AiOrchestratorConfig.maxLoadedTools`, aperture
+  `maxOpens`. Senza categorie tutto e' come prima.
+- `ChatRequest.webSearch` → `ChatTurn.citations`: Google Search su Gemini, plugin `web` su
+  OpenRouter, `groq/compound-mini` su Groq (senza tool: farla in una chiamata a parte).
+- `AiOrchestrator(usageSink = AiUsageSink { … })`: un `AiUsageEvent` per ogni chiamata, router e
+  fallimenti compresi, per il tracker dei consumi dell'app.
+- `AiTool.needsConfirmation/longRunning/isAction/describe`: metadati per chi esegue il tool da
+  fuori dell'app; dentro l'app non cambiano niente.
+
 ## Le trappole
 
 - **L'alias del Keystore.** `KeystoreCipher()` usa `fluidengine.ai`. Un'app che aveva gia' le

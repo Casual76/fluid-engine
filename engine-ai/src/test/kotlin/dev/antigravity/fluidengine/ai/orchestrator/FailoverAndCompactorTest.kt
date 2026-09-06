@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ai.orchestrator
 
 import dev.antigravity.fluidengine.ai.net.AiError
 import dev.antigravity.fluidengine.ai.net.RateLimitInfo
+import dev.antigravity.fluidengine.ai.provider.ContentPart
 import dev.antigravity.fluidengine.ai.provider.Message
 import dev.antigravity.fluidengine.ai.provider.ProviderId
 import dev.antigravity.fluidengine.ai.provider.ToolCall
@@ -85,6 +86,35 @@ class FailoverAndCompactorTest {
     assertTrue(tight.none { it is Message.ToolResult })
     assertTrue(tight.size <= 2)
     assertTrue(tight.first() is Message.User && (tight.first() as Message.User).text == "domanda 2")
+  }
+
+  @Test
+  fun `il compattatore ripropone gli allegati solo dell'ultima domanda, e li fa cadere per primi`() {
+    val conversation = Conversation(1L, 0L)
+    val image = ContentPart.Image(byteArrayOf(1, 2), "image/png")
+    conversation.exchanges += Exchange("prima", "risposta 1", emptyList(), ProviderId.GEMINI, 0L, attachments = listOf(image))
+    conversation.exchanges += Exchange("cosa vedi?", "Una foto.", emptyList(), ProviderId.GEMINI, 1L, attachments = listOf(image))
+    val full = HistoryCompactor.compact(conversation, budgetTokens = 60_000)
+    assertEquals(4, full.size)
+    assertTrue(!(full[0] as Message.User).hasBinaryParts)
+    assertTrue((full[2] as Message.User).hasBinaryParts)
+    assertEquals("cosa vedi?", (full[2] as Message.User).text)
+    // Un budget che non regge l'immagine (stimata quattromila caratteri) la lascia a casa, ma tiene la domanda.
+    val tight = HistoryCompactor.compact(conversation, budgetTokens = 200)
+    assertTrue(tight.none { it is Message.User && it.hasBinaryParts })
+    assertTrue(tight.any { it is Message.User && it.text == "cosa vedi?" })
+    val without = HistoryCompactor.compact(conversation, budgetTokens = 60_000, includeAttachments = false)
+    assertTrue(without.none { it is Message.User && it.hasBinaryParts })
+  }
+
+  @Test
+  fun `i gruppi aperti si toccano in ordine d'uso`() {
+    val conversation = Conversation(1L, 0L)
+    val a = object : dev.antigravity.fluidengine.ai.tools.AiToolGroup { override val id = "a"; override val statusKey = "a"; override val hint = "a" }
+    val b = object : dev.antigravity.fluidengine.ai.tools.AiToolGroup { override val id = "b"; override val statusKey = "b"; override val hint = "b" }
+    conversation.touch(listOf(a, b))
+    conversation.touch(listOf(a))
+    assertEquals(listOf(b, a), conversation.loadedGroups.toList())
   }
 
   @Test

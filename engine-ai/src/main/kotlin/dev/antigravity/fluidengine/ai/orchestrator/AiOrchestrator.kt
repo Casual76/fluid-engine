@@ -10,6 +10,7 @@ import dev.antigravity.fluidengine.ai.provider.ChatRequest
 import dev.antigravity.fluidengine.ai.provider.ContentPart
 import dev.antigravity.fluidengine.ai.provider.FinishReason
 import dev.antigravity.fluidengine.ai.provider.Message
+import dev.antigravity.fluidengine.ai.provider.ModelCapabilities
 import dev.antigravity.fluidengine.ai.provider.ModelTier
 import dev.antigravity.fluidengine.ai.provider.ProviderId
 import dev.antigravity.fluidengine.ai.provider.ReadyProvider
@@ -19,6 +20,8 @@ import dev.antigravity.fluidengine.ai.provider.ToolCallAssembler
 import dev.antigravity.fluidengine.ai.provider.ToolChoice
 import dev.antigravity.fluidengine.ai.provider.ToolSpec
 import dev.antigravity.fluidengine.ai.provider.Usage
+import dev.antigravity.fluidengine.ai.provider.displayName
+import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
 import dev.antigravity.fluidengine.ai.tools.ToolOutput
 import dev.antigravity.fluidengine.ai.tools.ToolRegistry
@@ -75,6 +78,12 @@ class AskInput<C>(
    * (estrarre un PDF, descrivere un'immagine); null se non sa farlo.
    */
   val attachmentFallback: suspend (ContentPart) -> String? = { null },
+  /**
+   * Le parti che l'utente ha messo nella domanda (1.26.0): uno screenshot, una foto, un PDF. Vanno
+   * al modello nel suo messaggio se lo regge; se le regge solo il livello profondo si parte da li';
+   * se non le regge nessuno passano da [attachmentFallback], come gli allegati dei tool.
+   */
+  val attachments: List<ContentPart> = emptyList(),
 )
 
 /** I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso. */
@@ -97,6 +106,14 @@ data class AiOrchestratorConfig(
   val publishMinChars: Int = 24,
   val publishMinMillis: Long = 150L,
   val temperature: Double = 0.3,
+  /**
+   * Catalogo gerarchico (1.26.0): quanti tool possono restare aperti in una conversazione. Oltre,
+   * cadono i gruppi usati meno di recente. Ottanta strumenti sono cinque-seimila token di schema:
+   * il tetto di quello che un giro su Groq gratuito regge.
+   */
+  val maxLoadedTools: Int = 80,
+  /** Quante categorie o sottocategorie il modello puo' aprire da se' in una domanda. */
+  val maxOpens: Int = 4,
 )
 
 /**
@@ -106,6 +123,10 @@ data class AiOrchestratorConfig(
  * orchestratore: tre livelli di modello con l'escalation al profondo quando un tool porta un
  * allegato o i risultati si fanno lunghi, e la riprova senza stream quando il flusso si spezza a
  * meta'. Tutto lo stato osservabile passa da [ask]'s `state`.
+ *
+ * Con un catalogo gerarchico ([ToolRegistry.hierarchical]) lo stadio 1 sceglie una categoria e le
+ * sue sottocategorie, il modello ne apre altre con `apri_categoria` e `apri_sottocategoria`, e
+ * quello che e' stato aperto resta nella [Conversation] per le domande dopo.
  */
 class AiOrchestrator<C>(
   private val registry: ToolRegistry<C>,
@@ -114,6 +135,8 @@ class AiOrchestrator<C>(
   private val failover: FailoverPolicy = FailoverPolicy(),
   private val config: AiOrchestratorConfig = AiOrchestratorConfig(),
   private val clock: () -> Long = System::currentTimeMillis,
+  /** Dove versare un evento per ogni chiamata a un provider; null = nessuno lo vuole. */
+  private val usageSink: AiUsageSink? = null,
 ) {
 
   private class Attempt(var provider: ReadyProvider, val switched: MutableList<ProviderId> = mutableListOf(), var waits: Int = 0, var retries: Int = 0)
@@ -121,6 +144,9 @@ class AiOrchestrator<C>(
   private class TurnOutcome(val text: String?, val calls: List<ToolCall>, val raw: JsonElement?, val usage: Usage?, val rateLimit: RateLimitInfo, val finish: FinishReason)
 
   private class ToolRun(val call: ToolCall, val output: ToolOutput)
+
+  /** Il messaggio dell'utente com'e' pronto per il modello, e il livello con cui partire. */
+  private class UserTurn(val parts: List<ContentPart>, val tier: ModelTier)
 
   val maxRounds: Int get() = config.maxRounds
 
@@ -137,22 +163,34 @@ class AiOrchestrator<C>(
     var routerUsed = false
     var lastRateLimit: RateLimitInfo? = null
     var tier = if (input.deepRequested) ModelTier.DEEP else ModelTier.CHAT
+    // Gli allegati dell'utente decidono il livello prima di tutto: uno screenshot che vede solo
+    // il modello profondo fa partire il giro da li'.
+    val userTurn = prepareUserTurn(input, attempt.provider, tier)
+    tier = userTurn.tier
     var tierReached = tier
     val modelsUsed = linkedMapOf<ModelTier, String>()
+    val hierarchical = registry.hierarchical
 
-    // Stadio 1: i gruppi. Il pre-router dell'app, se ha deciso, vince; su OpenRouter il catalogo va intero.
+    // Stadio 1: i gruppi. Il pre-router dell'app, se ha deciso, vince; su OpenRouter il catalogo
+    // piatto va intero (una chiamata in meno sul tetto giornaliero), quello gerarchico no: li'
+    // valgono i gruppi gia' aperti e il suggerimento del pre-router, e il modello apre il resto.
     val preselected = input.preselectedGroups?.filter { input.actionsEnabled || it != registry.actionGroup }?.toSet()
     var groups: Set<AiToolGroup> = when {
-      attempt.provider.provider.id == ProviderId.OPENROUTER -> allGroups(input)
+      attempt.provider.provider.id == ProviderId.OPENROUTER && !hierarchical -> allGroups(input)
       !preselected.isNullOrEmpty() -> preselected
+      attempt.provider.provider.id == ProviderId.OPENROUTER -> input.routerHint.filter { input.actionsEnabled || it != registry.actionGroup }.toSet()
       else -> {
         state.value = AssistantState.Classifying(question, attempt.provider.provider.id)
         routerUsed = true
         modelsUsed[ModelTier.ROUTER] = attempt.provider.model(ModelTier.ROUTER)
         val verdict = classifyWithFailover(input, attempt, budget, state, conversation)
         if (verdict.deep && tier == ModelTier.CHAT) tier = ModelTier.DEEP
-        verdict.groups
+        resolve(verdict, input)
       }
+    }
+    if (hierarchical) {
+      open(conversation, groups)
+      groups = activeGroups(conversation, input)
     }
     conversation.lastGroups = groups
     // Il tool "modello_avanzato" si offre solo finche' c'e' qualcosa da guadagnarci: si sta ancora
@@ -160,11 +198,12 @@ class AiOrchestrator<C>(
     fun deepOffered(): Boolean = tier == ModelTier.CHAT && attempt.provider.model(ModelTier.DEEP) != attempt.provider.model(ModelTier.CHAT)
     var tools: List<ToolSpec> = specsFor(groups, input, deepOffered())
     var moreToolsUsed = 0
+    var opens = 0
 
     val messages = mutableListOf<Message>()
     messages += Message.System(input.systemPrompt)
-    messages += HistoryCompactor.compact(conversation, budgetTokens = historyBudget(attempt.provider.provider.id))
-    messages += Message.User(question)
+    messages += fit(HistoryCompactor.compact(conversation, budgetTokens = historyBudget(attempt.provider.provider.id)), capabilities(attempt.provider, tier), input.language)
+    messages += Message.User(userTurn.parts)
     val toolRound = mutableListOf<Message>()
     var answer: String? = null
     var answerProvider = attempt.provider.provider.id
@@ -205,7 +244,60 @@ class AiOrchestrator<C>(
       messages += assistant
       toolRound += assistant
       state.value = AssistantState.Working(question, step, config.maxRounds, statusKeyFor(outcome.calls), outcome.calls.size - 1, attempt.provider.provider.id, tier)
-      val runs = executeParallel(outcome.calls, input.toolContext, budget, toolTraces)
+
+      // Le aperture di categorie e sottocategorie si decidono prima di eseguire: il testo che
+      // torna al modello deve dire la verita' su cosa avra' al giro dopo.
+      val opened = mutableMapOf<String, ToolOutput>()
+      outcome.calls.forEach { call ->
+        when (call.name) {
+          ToolRegistry.MORE_TOOLS -> {
+            val group = registry.group(call.arguments["gruppo"].string())
+            opened[call.id] = when {
+              group == null -> ToolOutput.error("gruppo sconosciuto")
+              group !in groups && (group != registry.actionGroup || input.actionsEnabled) && moreToolsUsed < config.maxMoreTools -> {
+                groups = groups + group
+                moreToolsUsed++
+                if (hierarchical) open(conversation, listOf(group))
+                ToolOutput("ok: gli strumenti del gruppo ${group.id} saranno disponibili dal prossimo passo")
+              }
+              group in groups -> ToolOutput("ok: gli strumenti del gruppo ${group.id} sono gia' disponibili")
+              else -> ToolOutput.error("non si possono aprire altri gruppi in questa domanda: rispondi con quello che hai")
+            }
+          }
+          ToolRegistry.OPEN_CATEGORY -> {
+            val category = registry.category(call.arguments["categoria"].string())
+            opened[call.id] = when {
+              category == null -> ToolOutput.error("categoria sconosciuta; quelle che esistono: ${registry.categories.joinToString(", ") { it.id }}")
+              opens >= config.maxOpens -> ToolOutput.error("non si possono aprire altre categorie in questa domanda: rispondi con quello che hai")
+              else -> {
+                opens++
+                val initial = registry.initialGroupsOf(category).filter { input.actionsEnabled || it != registry.actionGroup }
+                open(conversation, initial, category)
+                ToolOutput(
+                  "ok: gli strumenti della categoria ${category.id} saranno disponibili dal prossimo passo" +
+                    " (sottocategorie: ${registry.topGroupsOf(category).joinToString(", ") { it.id }})",
+                )
+              }
+            }
+          }
+          ToolRegistry.OPEN_GROUP -> {
+            val group = registry.group(call.arguments["sottocategoria"].string())
+            opened[call.id] = when {
+              group == null -> ToolOutput.error("sottocategoria sconosciuta")
+              group == registry.actionGroup && !input.actionsEnabled -> ToolOutput.error("le azioni nell'app sono disattivate dall'utente")
+              group in groups -> ToolOutput("ok: gli strumenti di ${group.id} sono gia' disponibili")
+              opens >= config.maxOpens -> ToolOutput.error("non si possono aprire altre sottocategorie in questa domanda: rispondi con quello che hai")
+              else -> {
+                opens++
+                open(conversation, listOf(group))
+                ToolOutput("ok: gli strumenti di ${group.id} saranno disponibili dal prossimo passo")
+              }
+            }
+          }
+        }
+      }
+
+      val runs = executeParallel(outcome.calls, input.toolContext, budget, toolTraces, opened)
       val parts = mutableListOf<ContentPart>()
       runs.forEach { run ->
         val message = Message.ToolResult(run.call.id, run.call.name, run.output.text)
@@ -213,6 +305,7 @@ class AiOrchestrator<C>(
         toolRound += message
         toolChars += run.output.text.length
         parts += run.output.parts
+        if (hierarchical) registry.find(run.call.name)?.let { conversation.touch(listOf(it.group)) }
       }
 
       // Un allegato: va al modello come parte di un messaggio se il livello profondo lo regge,
@@ -259,22 +352,12 @@ class AiOrchestrator<C>(
         neutralize(messages)
       }
 
-      // altri_tool: i gruppi chiesti entrano nel giro dopo, al massimo due volte per domanda.
-      outcome.calls.filter { it.name == ToolRegistry.MORE_TOOLS }.forEach { call ->
-        if (moreToolsUsed < config.maxMoreTools) {
-          registry.group(call.arguments["gruppo"].string())?.let { group ->
-            if (group !in groups && (group != registry.actionGroup || input.actionsEnabled)) {
-              groups = groups + group
-              moreToolsUsed++
-            }
-          }
-        }
-      }
+      if (hierarchical) groups = activeGroups(conversation, input)
       tools = specsFor(groups, input, deepOffered())
     }
     val finalAnswer = answer ?: throw AssistantFailure(FailureKind.TIMEOUT, null)
     val (cleanText, chips) = ChipParser.extract(finalAnswer, input.chipFilter)
-    conversation.exchanges += Exchange(question, cleanText, chips, answerProvider, clock())
+    conversation.exchanges += Exchange(question, cleanText, chips, answerProvider, clock(), attachments = input.attachments)
     conversation.lastToolRound = toolRound.toList()
     conversation.lastActivityMillis = clock()
     conversation.provider = answerProvider
@@ -302,11 +385,109 @@ class AiOrchestrator<C>(
     return AskResult(cleanText, chips, answerProvider, usageTotal, toolTraces.map { it.name }.distinct(), log, tierReached)
   }
 
+  /**
+   * Il messaggio dell'utente con i suoi allegati: entrano come parti se il livello con cui si parte
+   * li regge; se li regge solo il profondo, si parte dal profondo; se non li regge nessuno, l'app
+   * li traduce in testo (o il modello viene avvertito che non li puo' leggere).
+   */
+  private suspend fun prepareUserTurn(input: AskInput<C>, ready: ReadyProvider, startTier: ModelTier): UserTurn {
+    val attachments = input.attachments
+    if (attachments.isEmpty()) return UserTurn(listOf(ContentPart.Text(input.question)), startTier)
+    var tier = startTier
+    val chatCapabilities = ready.capabilities(ready.model(ModelTier.CHAT))
+    val deepCapabilities = ready.capabilities(ready.model(ModelTier.DEEP))
+    val deepIsDifferent = ready.model(ModelTier.DEEP) != ready.model(ModelTier.CHAT)
+    if (tier == ModelTier.CHAT && deepIsDifferent && attachments.any { !chatCapabilities.accepts(it) && deepCapabilities.accepts(it) }) {
+      tier = ModelTier.DEEP
+    }
+    val capabilities = if (tier == ModelTier.DEEP) deepCapabilities else chatCapabilities
+    val parts = mutableListOf<ContentPart>()
+    val notes = StringBuilder()
+    attachments.forEach { part ->
+      if (capabilities.accepts(part)) {
+        parts += part
+      } else {
+        val translated = input.attachmentFallback(part)?.takeIf { it.isNotBlank() }
+        notes.append("\n\n").append(
+          if (translated != null) {
+            AiPrompts.userAttachmentText(input.language, part.displayName) + "\n" + ToolText.limit(translated, config.attachmentTextChars)
+          } else {
+            AiPrompts.attachmentUnreadable(input.language, part.displayName)
+          },
+        )
+      }
+    }
+    return UserTurn(listOf(ContentPart.Text(input.question + notes)) + parts, tier)
+  }
+
+  private fun capabilities(ready: ReadyProvider, tier: ModelTier): ModelCapabilities = ready.capabilities(ready.model(tier))
+
+  /**
+   * La storia riletta per il modello di adesso: le parti che non regge (lo screenshot di prima,
+   * dopo un cambio di provider) diventano una riga che dice che c'erano. Meglio di un 400.
+   */
+  private fun fit(messages: List<Message>, capabilities: ModelCapabilities, language: String): List<Message> = messages.map { message ->
+    if (message !is Message.User || !message.hasBinaryParts || message.parts.all { capabilities.accepts(it) }) return@map message
+    val kept = message.parts.filter { capabilities.accepts(it) }
+    val dropped = message.parts.filter { !capabilities.accepts(it) }
+    Message.User(kept + ContentPart.Text(dropped.joinToString("\n") { AiPrompts.attachmentDropped(language, it.displayName) }))
+  }
+
+  /** Cosa lo stadio 1 ha aperto davvero: i gruppi detti, o quelli di partenza della categoria. */
+  private fun resolve(verdict: RouterVerdict, input: AskInput<C>): Set<AiToolGroup> {
+    if (!registry.hierarchical) return verdict.groups
+    val category = verdict.category
+    return when {
+      verdict.groups.isNotEmpty() -> {
+        category?.let { input.conversation.loadedCategories += it }
+        verdict.groups
+      }
+      category != null -> registry.initialGroupsOf(category).filter { input.actionsEnabled || it != registry.actionGroup }.toSet()
+      else -> emptySet()
+    }
+  }
+
+  /** Apre dei gruppi nella conversazione: da adesso restano, e la loro categoria con loro. */
+  private fun open(conversation: Conversation, groups: Collection<AiToolGroup>, category: AiToolCategory? = null) {
+    conversation.touch(groups)
+    groups.forEach { group -> group.categoryOrNull()?.let { conversation.loadedCategories += it } }
+    category?.let { conversation.loadedCategories += it }
+  }
+
+  private fun AiToolGroup.categoryOrNull(): AiToolCategory? = category ?: parent?.categoryOrNull()
+
+  /**
+   * I gruppi aperti che entrano nel giro: tutti, dal piu' recente, finche' i loro tool stanno nel
+   * tetto; gli altri escono dalla conversazione (e si riaprono con una chiamata, se servono).
+   */
+  private fun activeGroups(conversation: Conversation, input: AskInput<C>): Set<AiToolGroup> {
+    val visible = conversation.loadedGroups.filter { input.actionsEnabled || it != registry.actionGroup }
+    val kept = mutableListOf<AiToolGroup>()
+    var count = 0
+    for (group in visible.asReversed()) {
+      val size = registry.toolCount(setOf(group))
+      if (kept.isNotEmpty() && count + size > config.maxLoadedTools) break
+      kept += group
+      count += size
+    }
+    conversation.loadedGroups.removeAll((visible - kept.toSet()).toSet())
+    return kept.toSet()
+  }
+
   private fun allGroups(input: AskInput<C>): Set<AiToolGroup> = registry.visibleGroups(input.actionsEnabled).toSet()
 
   private fun specsFor(groups: Set<AiToolGroup>, input: AskInput<C>, deep: Boolean = false): List<ToolSpec> {
     val visible = groups.filter { it != registry.actionGroup || input.actionsEnabled }.toSet()
     val specs = registry.specsFor(visible)
+    if (registry.hierarchical) {
+      val loadedCategories = input.conversation.loadedCategories.toSet()
+      val categoriesMissing = registry.categories.any { it !in loadedCategories }
+      return specs + listOfNotNull(
+        registry.openCategoryTool.takeIf { categoriesMissing },
+        registry.openGroupTool(loadedCategories, visible, input.actionsEnabled),
+        registry.deepTool.takeIf { deep },
+      )
+    }
     val missing = registry.visibleGroups(input.actionsEnabled).any { it !in visible }
     return specs + listOfNotNull(
       registry.moreTools.takeIf { missing },
@@ -325,7 +506,7 @@ class AiOrchestrator<C>(
   private fun statusKeyFor(calls: List<ToolCall>): String {
     val first = calls.firstOrNull() ?: return "thinking"
     if (first.name == ToolRegistry.DEEP_MODEL) return "deep_model"
-    if (first.name == ToolRegistry.MORE_TOOLS) return "more_tools"
+    if (first.name == ToolRegistry.MORE_TOOLS || first.name == ToolRegistry.OPEN_CATEGORY || first.name == ToolRegistry.OPEN_GROUP) return "more_tools"
     return registry.find(first.name)?.group?.statusKey ?: "thinking"
   }
 
@@ -337,6 +518,32 @@ class AiOrchestrator<C>(
     }
   }
 
+  private fun usageEvent(
+    input: AskInput<C>,
+    ready: ReadyProvider,
+    model: String,
+    tier: ModelTier,
+    startedAt: Long,
+    usage: Usage?,
+    rateLimit: RateLimitInfo,
+    error: AiError? = null,
+  ) {
+    val sink = usageSink ?: return
+    sink.onTurn(
+      AiUsageEvent(
+        atMillis = startedAt,
+        conversationId = input.conversation.id,
+        provider = ready.provider.id,
+        model = model,
+        tier = tier,
+        usage = usage,
+        rateLimit = rateLimit,
+        durationMillis = clock() - startedAt,
+        error = error,
+      ),
+    )
+  }
+
   private suspend fun classifyWithFailover(
     input: AskInput<C>,
     attempt: Attempt,
@@ -346,28 +553,37 @@ class AiOrchestrator<C>(
   ): RouterVerdict {
     while (true) {
       val ready = attempt.provider
+      val model = ready.model(ModelTier.ROUTER)
+      val started = clock()
       try {
-        return router.classify(
+        val (verdict, turn) = router.classifyWithTurn(
           provider = ready.provider,
-          model = ready.model(ModelTier.ROUTER),
+          model = model,
           question = input.question,
           previousQuestion = conversation.exchanges.lastOrNull()?.question,
           previousGroups = conversation.lastGroups,
           language = input.language,
           actionsEnabled = input.actionsEnabled,
           hint = input.routerHint,
+          loadedCategories = conversation.loadedCategories.toSet(),
         )
+        usageEvent(input, ready, model, ModelTier.ROUTER, started, turn.usage, turn.rateLimit)
+        return verdict
       } catch (e: CancellationException) {
         throw e
       } catch (e: AiError.Unauthorized) {
+        usageEvent(input, ready, model, ModelTier.ROUTER, started, null, RateLimitInfo.EMPTY, e)
         throw AssistantFailure(FailureKind.UNAUTHORIZED, e)
       } catch (e: Throwable) {
+        usageEvent(input, ready, model, ModelTier.ROUTER, started, null, (e as? AiError.RateLimited)?.rateLimit ?: RateLimitInfo.EMPTY, e as? AiError)
         // Lo stadio 1 non fa fallire la domanda: si prova il prossimo provider, poi il ripiego.
         val decision = failover.decide(e, ready.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis)
         when (decision) {
           is FailoverDecision.Switch -> {
             switchTo(input, attempt, decision.to, state)
-            if (attempt.provider.provider.id == ProviderId.OPENROUTER) return RouterVerdict(allGroups(input))
+            if (attempt.provider.provider.id == ProviderId.OPENROUTER) {
+              return if (registry.hierarchical) RouterVerdict(input.routerHint) else RouterVerdict(allGroups(input))
+            }
           }
           is FailoverDecision.RetrySame -> attempt.retries++
           else -> return RouterVerdict(router.fallback(conversation.lastGroups + input.routerHint))
@@ -402,13 +618,15 @@ class AiOrchestrator<C>(
   ): TurnOutcome {
     var current = request
     while (true) {
+      val started = clock()
       try {
-        return runTurn(attempt.provider, current, input, state, tier)
+        return runTurn(attempt.provider, current, input, state, tier, started)
       } catch (e: CancellationException) {
         throw e
       } catch (e: AssistantFailure) {
         throw e
       } catch (e: Throwable) {
+        usageEvent(input, attempt.provider, current.model, tier, started, null, (e as? AiError.RateLimited)?.rateLimit ?: RateLimitInfo.EMPTY, e as? AiError)
         val decision = failover.decide(e, attempt.provider.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis)
         when (decision) {
           is FailoverDecision.Wait -> {
@@ -423,13 +641,15 @@ class AiOrchestrator<C>(
           }
           is FailoverDecision.Switch -> {
             switchTo(input, attempt, decision.to, state)
-            // La stessa conversazione, riscritta per il nuovo provider: le parti grezze dell'altro non servono piu'.
-            val neutral = messages.map { if (it is Message.Assistant) it.copy(raw = null, rawProvider = null) else it }
+            // La stessa conversazione, riscritta per il nuovo provider: le parti grezze dell'altro
+            // non servono piu', e gli allegati che il suo modello non regge diventano una riga.
+            val capabilities = capabilities(attempt.provider, tier)
+            val neutral = fit(messages.map { if (it is Message.Assistant) it.copy(raw = null, rawProvider = null) else it }, capabilities, input.language)
             val onOpenRouter = attempt.provider.provider.id == ProviderId.OPENROUTER
             current = current.copy(
               model = attempt.provider.model(tier),
-              messages = if (current.messages.size > messages.size) neutral + current.messages.drop(messages.size) else neutral,
-              tools = if (onOpenRouter && current.tools.isNotEmpty()) specsFor(allGroups(input), input) else current.tools,
+              messages = if (current.messages.size > messages.size) neutral + fit(current.messages.drop(messages.size), capabilities, input.language) else neutral,
+              tools = if (onOpenRouter && !registry.hierarchical && current.tools.isNotEmpty()) specsFor(allGroups(input), input) else current.tools,
             )
           }
           FailoverDecision.RetrySame -> {
@@ -448,7 +668,14 @@ class AiOrchestrator<C>(
    * aver gia' portato qualcosa, si rifa' lo stesso giro senza stream, una volta: costa una richiesta
    * e risparmia i minuti gia' spesi nei tool. Un rifiuto (chiave, 400) non si riprova.
    */
-  private suspend fun runTurn(ready: ReadyProvider, request: ChatRequest, input: AskInput<C>, state: MutableStateFlow<AssistantState>, tier: ModelTier): TurnOutcome {
+  private suspend fun runTurn(
+    ready: ReadyProvider,
+    request: ChatRequest,
+    input: AskInput<C>,
+    state: MutableStateFlow<AssistantState>,
+    tier: ModelTier,
+    startedAt: Long,
+  ): TurnOutcome {
     val assembler = ToolCallAssembler()
     val text = StringBuilder()
     var firstTextAt = 0L
@@ -484,8 +711,11 @@ class AiOrchestrator<C>(
       val brokenMidway = (text.isNotEmpty() || !assembler.isEmpty) &&
         (e is AiError.Network || e is AiError.Timeout || e is AiError.Server || e is AiError.Parse)
       if (!brokenMidway) throw e
+      usageEvent(input, ready, request.model, tier, startedAt, null, RateLimitInfo.EMPTY, e)
       state.value = AssistantState.Working(input.question, 0, config.maxRounds, "thinking", 0, ready.provider.id, tier)
+      val retryStarted = clock()
       val turn = ready.provider.complete(request)
+      usageEvent(input, ready, request.model, tier, retryStarted, turn.usage, turn.rateLimit)
       val message = turn.message
       val fullText = message.text?.takeIf { it.isNotBlank() }
       if (message.toolCalls.isEmpty() && fullText != null) {
@@ -497,6 +727,7 @@ class AiOrchestrator<C>(
     if (calls.isEmpty() && text.isNotEmpty() && !published) {
       state.value = AssistantState.Answering(input.question, text.toString(), ready.provider.id, tier)
     }
+    usageEvent(input, ready, request.model, tier, startedAt, finish?.usage, finish?.rateLimit ?: RateLimitInfo.EMPTY)
     return TurnOutcome(
       text = text.toString().takeIf { it.isNotBlank() },
       calls = calls,
@@ -512,16 +743,16 @@ class AiOrchestrator<C>(
     ctx: C,
     budget: TimeBudget,
     traces: MutableList<ToolTrace>,
+    /** Le risposte gia' decise per le chiamate built-in (aperture di gruppi e categorie). */
+    decided: Map<String, ToolOutput>,
   ): List<ToolRun> = coroutineScope {
     val semaphore = Semaphore(config.parallelTools)
     val outcomes = calls.map { call ->
       async(Dispatchers.IO) {
         semaphore.withPermit {
           val started = clock()
-          val output = if (call.name == ToolRegistry.DEEP_MODEL) {
+          val output = decided[call.id] ?: if (call.name == ToolRegistry.DEEP_MODEL) {
             ToolOutput("ok: dal prossimo passo rispondi tu, con il modello piu' capace; continua da dove sei, non ricominciare", escalate = true)
-          } else if (call.name == ToolRegistry.MORE_TOOLS) {
-            ToolOutput("ok: gli strumenti del gruppo ${call.arguments["gruppo"].string()} saranno disponibili dal prossimo passo")
           } else {
             val tool = registry.find(call.name)
             if (tool == null) {

@@ -12,9 +12,17 @@ import kotlinx.serialization.json.put
  * multipart, catalogo in `GET /models`. Free tier: 30 richieste e 8K token al minuto per modello —
  * il motivo di meta' delle scelte dell'orchestratore.
  */
-class GroqProvider(http: AiHttp, apiKey: String) : OpenAiCompatProvider(http, BASE_URL, apiKey) {
+open class GroqProvider(http: AiHttp, apiKey: String) : OpenAiCompatProvider(http, BASE_URL, apiKey) {
 
   override val id: ProviderId = ProviderId.GROQ
+
+  /**
+   * La ricerca web su Groq e' un altro modello: il compound cerca da se' e non accetta strumenti
+   * ne' ragionamento configurabile. Chi la chiede lo fa in una chiamata senza tool, quindi qui
+   * si cambia solo il modello e si spegne il resto.
+   */
+  override fun effectiveRequest(request: ChatRequest): ChatRequest =
+    if (request.webSearch) request.copy(model = SEARCH_MODEL, tools = emptyList(), reasoning = ReasoningLevel.NONE) else request
 
   override fun JsonObjectBuilder.providerFields(request: ChatRequest, stream: Boolean, dropped: Set<String>) {
     if ("reasoning_effort" !in dropped) {
@@ -54,6 +62,9 @@ class GroqProvider(http: AiHttp, apiKey: String) : OpenAiCompatProvider(http, BA
 
   companion object {
     const val BASE_URL = "https://api.groq.com/openai/v1"
+
+    /** Il sistema compound di Groq che cerca sul web da solo; il piccolo basta per cinque fonti. */
+    const val SEARCH_MODEL = "groq/compound-mini"
 
     /** Il prompt di Whisper vale al massimo 224 token: 800 caratteri di nomi di posti ci stanno. */
     const val PROMPT_MAX_CHARS = 800

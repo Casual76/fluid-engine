@@ -36,7 +36,14 @@ abstract class OpenAiCompatProvider(
   /** I nomi dei campi opzionali che un 400 puo' farci togliere, in ordine di sospetto. */
   protected open val optionalFields: List<String> = listOf("reasoning_effort", "reasoning_format", "reasoning", "response_format", "parallel_tool_calls", "stream_options")
 
-  protected fun body(request: ChatRequest, stream: Boolean, dropped: Set<String>): JsonObject = buildJsonObject {
+  /**
+   * L'ultima parola sulla richiesta prima di scriverla: un provider che per la ricerca web vuole un
+   * altro modello, o niente strumenti, la riscrive qui (Groq e il suo compound).
+   */
+  protected open fun effectiveRequest(request: ChatRequest): ChatRequest = request
+
+  protected fun body(original: ChatRequest, stream: Boolean, dropped: Set<String>): JsonObject = buildJsonObject {
+    val request = effectiveRequest(original)
     put("model", request.model)
     put("messages", OpenAiCompatCodec.messages(request.messages, fileParts = supportsFileParts))
     if (request.tools.isNotEmpty()) {
@@ -85,7 +92,7 @@ abstract class OpenAiCompatProvider(
           OpenAiCompatCodec.parseStreamChunk(payload, state).forEach { emit(it) }
         }
         OpenAiCompatCodec.rawFromStream(state)?.let { emit(ChatDelta.Raw(it)) }
-        emit(ChatDelta.Finish(OpenAiCompatCodec.finishReason(state.finish, hasToolCalls = false), state.usage, rateLimit))
+        emit(ChatDelta.Finish(OpenAiCompatCodec.finishReason(state.finish, hasToolCalls = false), state.usage, rateLimit, state.citations.values.toList()))
         return@flow
       } catch (e: AiError.BadRequest) {
         if (started) throw e

@@ -124,6 +124,10 @@ class ModelCatalogStore(private val directory: File) {
  * La verifica di una chiave e' una chiamata vera (`GET /models`), come in KeyVoice: se risponde,
  * la chiave si segna verificata e il catalogo si salva. Per OpenRouter si leggono anche i
  * crediti e, la prima volta, si sceglie il modello gratuito con tool secondo l'euristica.
+ *
+ * I modelli dei tre livelli si riallineano al catalogo ([reconcile]) sia alla verifica sia al
+ * rinfresco quotidiano: una scelta dell'utente vale finche' esiste e non e' fra quelli da
+ * evitare ([AiDefaults.OPENROUTER_AVOID]); altrimenti si riassegna il default.
  */
 class AiKeyVerifier(
   private val keys: AiKeyStore,
@@ -147,29 +151,17 @@ class AiKeyVerifier(
       settings.markModelsRefreshed(provider, clock())
       keys.markVerified(provider, clock())
       var keyInfo: OpenRouterKeyInfo? = null
-      var chosen: String? = null
-      var chosenIsFree = false
       if (provider == ProviderId.OPENROUTER) {
         keyInfo = runCatching { (client as? OpenRouterProvider)?.keyInfo() }.getOrNull()
         keyInfo?.let { info.value = info.value + (provider to it) }
-        val current = settings.current().chatModels[ProviderId.OPENROUTER]
-        if (current == null || catalogue.chat.none { it.id == current }) {
-          val preferred = AiDefaults.OPENROUTER_CHAT_PREFERRED.firstNotNullOfOrNull { id -> catalogue.chat.firstOrNull { it.id == id && it.free && it.supportsTools } }
-          val free = preferred ?: OpenRouterCatalog.pickDefaultFree(catalogue)
-          chosen = free?.id ?: catalogue.chat.firstOrNull { it.id == AiDefaults.OPENROUTER_CHAT_FALLBACK }?.id ?: catalogue.chat.firstOrNull()?.id
-          chosenIsFree = free != null
-          settings.setChatModel(ProviderId.OPENROUTER, chosen)
-        } else {
-          chosen = current
-          chosenIsFree = catalogue.chat.firstOrNull { it.id == current }?.free == true
-        }
-        ensureClassifier(ProviderId.OPENROUTER, catalogue) { ids -> AiDefaults.OPENROUTER_CLASSIFIER_PREFERRED.firstOrNull { it in ids } }
       }
-      if (provider == ProviderId.GEMINI) {
-        ensureChat(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash") }
-        ensureClassifier(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash-lite") }
+      reconcile(provider, catalogue)
+      var chosen: String? = null
+      var chosenIsFree = false
+      if (provider == ProviderId.OPENROUTER) {
+        chosen = settings.current().chatModels[ProviderId.OPENROUTER]
+        chosenIsFree = catalogue.chat.firstOrNull { it.id == chosen }?.free == true
       }
-      ensureDeepModel(provider, catalogue)
       VerifyResult.Ok(catalogue, keyInfo, chosen, chosenIsFree)
     } catch (e: CancellationException) {
       throw e
@@ -183,38 +175,77 @@ class AiKeyVerifier(
   }
 
   /**
-   * La chat, se l'utente non l'ha scelta (o la sua scelta e' sparita dal catalogo), segue
-   * [pick]: su Gemini l'ultimo flash. Una scelta ancora valida non si tocca.
+   * Riallinea i tre livelli di [provider] al [catalogue] (1.29.0, prima era dentro [verify]). Una
+   * scelta vale finche' esiste nel catalogo e non e' da evitare; se non vale piu' si riassegna il
+   * default di quel livello: per la chat di OpenRouter i gratuiti preferiti, poi l'euristica, poi
+   * il flash a pagamento; per Gemini l'ultimo flash e flash-lite; per il profondo
+   * [TierDefaults.pickDeep]. Lo chiama anche [refreshIfStale]: cosi' un telefono con un modello
+   * ritirato o sconsigliato si ripara al primo rinfresco, senza reinserire la chiave.
+   */
+  suspend fun reconcile(provider: ProviderId, catalogue: ModelCatalogue) {
+    if (provider == ProviderId.OPENROUTER) {
+      ensureChat(ProviderId.OPENROUTER, catalogue) { _ ->
+        val preferred = AiDefaults.OPENROUTER_CHAT_PREFERRED.firstNotNullOfOrNull { id -> catalogue.chat.firstOrNull { it.id == id && it.free && it.supportsTools } }
+        (preferred ?: OpenRouterCatalog.pickDefaultFree(catalogue))?.id
+          ?: catalogue.chat.firstOrNull { it.id == AiDefaults.OPENROUTER_CHAT_FALLBACK }?.id
+          ?: catalogue.chat.firstOrNull { !AiDefaults.avoided(it.id) }?.id
+      }
+      ensureClassifier(ProviderId.OPENROUTER, catalogue) { ids -> AiDefaults.OPENROUTER_CLASSIFIER_PREFERRED.firstOrNull { it in ids } }
+    }
+    if (provider == ProviderId.GEMINI) {
+      ensureChat(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash") }
+      ensureClassifier(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash-lite") }
+    }
+    ensureDeepModel(provider, catalogue)
+  }
+
+  /**
+   * Una scelta salvata vale se e' nel catalogo e non e' da evitare. Una scelta da evitare si
+   * sostituisce sempre, anche con "nessuna" (null: il livello ricade sul suo ripiego); una che e'
+   * solo sparita dal catalogo resta se non c'e' niente di meglio da mettere al suo posto.
+   */
+  private fun valid(model: String?, catalogue: ModelCatalogue): Boolean =
+    model != null && !AiDefaults.avoided(model) && catalogue.chat.any { it.id == model }
+
+  private fun mustReplace(model: String?, picked: String?): Boolean = picked != null || AiDefaults.avoided(model)
+
+  /**
+   * La chat, se l'utente non l'ha scelta (o la sua scelta non vale piu'), segue [pick]: su Gemini
+   * l'ultimo flash. Una scelta ancora valida non si tocca.
    */
   private suspend fun ensureChat(provider: ProviderId, catalogue: ModelCatalogue, pick: (List<String>) -> String?) {
     val current = settings.current().chatModels[provider]
-    if (current != null && catalogue.chat.any { it.id == current }) return
-    val picked = pick(catalogue.chat.map { it.id }) ?: return
-    settings.setChatModel(provider, picked)
+    if (valid(current, catalogue)) return
+    val picked = pick(catalogue.chat.map { it.id })
+    if (mustReplace(current, picked)) settings.setChatModel(provider, picked)
   }
 
   /** Il router come la chat: la scelta dell'utente vale finche' esiste, poi decide [pick]. */
   private suspend fun ensureClassifier(provider: ProviderId, catalogue: ModelCatalogue, pick: (List<String>) -> String?) {
     val current = settings.current().classifierModels[provider]
-    if (current != null && catalogue.chat.any { it.id == current }) return
-    val picked = pick(catalogue.chat.map { it.id }) ?: return
-    settings.setModel(provider, ModelTier.ROUTER, picked)
+    if (valid(current, catalogue)) return
+    val picked = pick(catalogue.chat.map { it.id })
+    if (mustReplace(current, picked)) settings.setModel(provider, ModelTier.ROUTER, picked)
   }
 
   /**
    * Il livello profondo non ha un default scritto nel codice: la prima volta, o se il modello
-   * scelto e' sparito dal catalogo, lo sceglie l'euristica. Una scelta dell'utente ancora valida
-   * non si tocca.
+   * scelto non vale piu', lo sceglie l'euristica. Una scelta dell'utente ancora valida non si
+   * tocca; una da evitare se ne va anche se l'euristica non trova niente (la chat fa da profondo).
    */
   private suspend fun ensureDeepModel(provider: ProviderId, catalogue: ModelCatalogue) {
     val current = settings.current()
     val chosen = current.deepModels[provider]
-    if (chosen != null && catalogue.chat.any { it.id == chosen }) return
-    val picked = TierDefaults.pickDeep(provider, catalogue, current.chatModel(provider)) ?: return
-    settings.setDeepModel(provider, picked.id)
+    if (valid(chosen, catalogue)) return
+    val picked = TierDefaults.pickDeep(provider, catalogue, current.chatModel(provider))?.id
+    if (mustReplace(chosen, picked)) settings.setDeepModel(provider, picked)
   }
 
-  /** Rinfresca un catalogo se e' vecchio piu' di un giorno (o subito, se [force]). */
+  /**
+   * Rinfresca un catalogo se e' vecchio piu' di un giorno (o subito, se [force]), e riallinea i
+   * modelli al catalogo nuovo: un modello sparito o sconsigliato si sostituisce qui, non solo alla
+   * verifica della chiave.
+   */
   suspend fun refreshIfStale(provider: ProviderId, force: Boolean = false): ModelCatalogue? {
     val current = settings.current()
     val refreshedAt = current.modelsRefreshedAt[provider] ?: 0L
@@ -228,6 +259,7 @@ class AiKeyVerifier(
       if (provider == ProviderId.OPENROUTER) {
         runCatching { (client as? OpenRouterProvider)?.keyInfo() }.getOrNull()?.let { info.value = info.value + (provider to it) }
       }
+      reconcile(provider, catalogue)
       catalogue
     } catch (e: CancellationException) {
       throw e

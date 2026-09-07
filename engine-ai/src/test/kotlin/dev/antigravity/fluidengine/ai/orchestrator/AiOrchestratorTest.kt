@@ -36,6 +36,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -63,6 +64,8 @@ private class FakeProvider(
   turns: List<Scripted>,
   private val classifier: String = """{"gruppi":["orario"],"profondo":false}""",
   completes: List<String> = emptyList(),
+  /** Se c'e', lo stadio 1 fallisce cosi' invece di rispondere. */
+  private val classifierError: Throwable? = null,
 ) : ChatProvider {
   private val queue = ArrayDeque(turns)
   private val completeQueue = ArrayDeque(completes)
@@ -72,6 +75,7 @@ private class FakeProvider(
   override suspend fun complete(request: ChatRequest): ChatTurn {
     requests += request
     if (request.jsonSchema != null) {
+      classifierError?.let { throw it }
       return ChatTurn(Message.Assistant(classifier), FinishReason.STOP, null, RateLimitInfo.EMPTY)
     }
     val text = completeQueue.removeFirstOrNull() ?: error("complete() non previsto nel giro dei tool")
@@ -149,6 +153,8 @@ class AiOrchestratorTest {
     hint: Set<AiToolGroup> = emptySet(),
     fallback: suspend (ContentPart) -> String? = { null },
     actions: Boolean = false,
+    deep: Boolean = false,
+    pin: Boolean = false,
   ) = AskInput(
     question = question,
     mode = AskMode.TEXT,
@@ -162,6 +168,8 @@ class AiOrchestratorTest {
     preselectedGroups = preselected,
     routerHint = hint,
     attachmentFallback = fallback,
+    deepRequested = deep,
+    pinProvider = pin,
   )
 
   private fun args(x: String) = buildJsonObject { put("x", JsonPrimitive(x)) }
@@ -188,6 +196,11 @@ class AiOrchestratorTest {
     assertFalse(groq.streamed.last().tools.any { it.name == ToolRegistry.DEEP_MODEL })
     // Il lavoro continua: il tool del giro dopo e' stato eseguito lo stesso.
     assertEquals(listOf(args("a")), now.calls)
+    // I modelli che hanno risposto, in ordine, senza ripetere il profondo che ha fatto due giri.
+    assertEquals(
+      listOf(ModelUse(ProviderId.GROQ, ModelTier.ROUTER, "piccolo"), ModelUse(ProviderId.GROQ, ModelTier.CHAT, "modello-groq"), ModelUse(ProviderId.GROQ, ModelTier.DEEP, "profondo-groq")),
+      result.log.modelsUsed,
+    )
   }
 
   @Test
@@ -420,5 +433,72 @@ class AiOrchestratorTest {
     val tools = openRouter.streamed.single().tools.map { it.name }
     assertTrue(tools.containsAll(listOf("adesso", "sole", "allegato")))
     assertTrue(tools.none { it == ToolRegistry.MORE_TOOLS })
+  }
+
+  @Test
+  fun `col servizio fissato un 429 aspetta anche se c'e' una riserva, e non si cambia mai provider`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Fail(AiError.RateLimited(1.0, RateLimitInfo.EMPTY, message = "429")), Scripted.Text("Ora va.")))
+    val gemini = FakeProvider(ProviderId.GEMINI, listOf(Scripted.Text("mai")))
+    val state = MutableStateFlow<AssistantState>(AssistantState.Idle)
+    val seen = mutableListOf<AssistantState>()
+    val collector = launch(Dispatchers.Unconfined) { state.collect { seen += it } }
+    val result = orchestrator().ask(input("?", groq, gemini, pin = true), state)
+    collector.cancel()
+    assertEquals("Ora va.", result.answer)
+    assertEquals(ProviderId.GROQ, result.provider)
+    assertTrue(result.log.switchedTo.isEmpty())
+    assertTrue(seen.any { it is AssistantState.WaitingRateLimit })
+    assertTrue(seen.none { it is AssistantState.SwitchingProvider })
+    assertTrue(gemini.streamed.isEmpty() && gemini.requests.isEmpty())
+    assertEquals(listOf(ModelUse(ProviderId.GROQ, ModelTier.ROUTER, "piccolo"), ModelUse(ProviderId.GROQ, ModelTier.CHAT, "modello-groq")), result.log.modelsUsed)
+  }
+
+  @Test
+  fun `col servizio fissato un 429 che non passa fallisce con RATE_LIMITED senza toccare la riserva`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Fail(AiError.RateLimited(70.0, RateLimitInfo.EMPTY, message = "429"))))
+    val gemini = FakeProvider(ProviderId.GEMINI, listOf(Scripted.Text("mai")))
+    val state = MutableStateFlow<AssistantState>(AssistantState.Idle)
+    val error = runCatching { orchestrator().ask(input("?", groq, gemini, pin = true), state) }.exceptionOrNull()
+    assertTrue(error is AssistantFailure && (error as AssistantFailure).kind == FailureKind.RATE_LIMITED)
+    assertEquals(70, (error as AssistantFailure).retryAfterSec)
+    assertTrue(gemini.streamed.isEmpty())
+  }
+
+  @Test
+  fun `col servizio fissato lo stadio 1 che fallisce non fa fallire la domanda`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Text("Sereno.")), classifierError = AiError.Server(503, "down"))
+    val gemini = FakeProvider(ProviderId.GEMINI, listOf(Scripted.Text("mai")))
+    val state = MutableStateFlow<AssistantState>(AssistantState.Idle)
+    val result = orchestrator().ask(input("quando tramonta?", groq, gemini, hint = setOf(G.SKY), pin = true), state)
+    assertEquals("Sereno.", result.answer)
+    assertEquals(ProviderId.GROQ, result.provider)
+    assertTrue(gemini.requests.isEmpty() && gemini.streamed.isEmpty())
+    // Una riprova sul router, poi il ripiego: i gruppi di default e il suggerimento dell'app.
+    assertEquals(2, groq.requests.count { it.jsonSchema != null })
+    val tools = groq.streamed.single().tools.map { it.name }
+    assertTrue(tools.containsAll(listOf("adesso", "sole")))
+    assertTrue(result.log.classifierUsed)
+    assertTrue(result.log.modelsUsed.none { it.tier == ModelTier.ROUTER })
+  }
+
+  @Test
+  fun `la riserva riparte dalla chat, non dal profondo del provider di prima`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Fail(AiError.RateLimited(3.0, RateLimitInfo.EMPTY, message = "429"))), classifier = """{"gruppi":["orario"],"profondo":true}""")
+    val gemini = FakeProvider(ProviderId.GEMINI, listOf(Scripted.Text("Da Gemini.")))
+    val state = MutableStateFlow<AssistantState>(AssistantState.Idle)
+    val result = orchestrator().ask(input("una domanda difficile", groq, gemini), state)
+    assertEquals("profondo-groq", groq.streamed.single().model)
+    assertEquals("modello-gemini", gemini.streamed.single().model)
+    assertEquals(ModelTier.CHAT, result.tierReached)
+    assertEquals(listOf(ModelUse(ProviderId.GROQ, ModelTier.ROUTER, "piccolo"), ModelUse(ProviderId.GEMINI, ModelTier.CHAT, "modello-gemini")), result.log.modelsUsed)
+    assertEquals("modello-gemini", result.log.models[ModelTier.CHAT])
+    assertNull(result.log.models[ModelTier.DEEP])
+
+    // Se invece il profondo l'ha chiesto l'app, sulla riserva resta il profondo.
+    val groq2 = FakeProvider(ProviderId.GROQ, listOf(Scripted.Fail(AiError.RateLimited(3.0, RateLimitInfo.EMPTY, message = "429"))))
+    val gemini2 = FakeProvider(ProviderId.GEMINI, listOf(Scripted.Text("Da Gemini, a fondo.")))
+    val deep = orchestrator().ask(input("?", groq2, gemini2, deep = true), state)
+    assertEquals("profondo-gemini", gemini2.streamed.single().model)
+    assertEquals(ModelTier.DEEP, deep.tierReached)
   }
 }

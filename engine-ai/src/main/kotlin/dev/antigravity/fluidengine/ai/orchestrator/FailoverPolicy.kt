@@ -39,6 +39,12 @@ sealed interface FailoverDecision {
  * c'e' nessuno si aspetta il `retry-after` (al massimo due volte, mai piu' del budget); 5xx e
  * rete -> un secondo tentativo, poi il prossimo; chiave sbagliata -> ci si ferma e lo si dice,
  * perche' un ripiego silenzioso nasconderebbe l'errore di configurazione.
+ *
+ * Con [pinned] (1.29.0) la lista dei prossimi non esiste: e' la stessa tabella di quando si e'
+ * soli — 429 -> attesa del `retry-after`, poi [FailureKind.RATE_LIMITED]; 5xx e rete -> una
+ * riprova, poi il fallimento. Serve a chi ha scelto un servizio e vuole quello: un 429 sul
+ * modello profondo di Gemini che porta la domanda sul profondo di OpenRouter non e' una riserva,
+ * e' un altro modello che risponde al posto di quello scelto.
  */
 class FailoverPolicy(
   private val maxWaits: Int = 2,
@@ -52,8 +58,10 @@ class FailoverPolicy(
     waitsDone: Int,
     retriesDone: Int,
     budgetRemainingMillis: Long,
+    /** Vero = non si cambia mai provider: si aspetta, si riprova, o si fallisce. */
+    pinned: Boolean = false,
   ): FailoverDecision {
-    val next = remaining.firstOrNull { it != current }
+    val next = if (pinned) null else remaining.firstOrNull { it != current }
     return when (error) {
       is AiError.RateLimited -> when {
         next != null -> FailoverDecision.Switch(next)

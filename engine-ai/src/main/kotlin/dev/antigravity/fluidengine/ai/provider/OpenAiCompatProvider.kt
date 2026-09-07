@@ -33,8 +33,16 @@ abstract class OpenAiCompatProvider(
   /** I campi che solo questo provider aggiunge (reasoning nel suo formato, routing, uso). */
   protected abstract fun JsonObjectBuilder.providerFields(request: ChatRequest, stream: Boolean, dropped: Set<String>)
 
-  /** I nomi dei campi opzionali che un 400 puo' farci togliere, in ordine di sospetto. */
-  protected open val optionalFields: List<String> = listOf("reasoning_effort", "reasoning_format", "reasoning", "response_format", "parallel_tool_calls", "stream_options")
+  /**
+   * I nomi dei campi opzionali che un 400 puo' farci togliere, in ordine di sospetto. Dalla 1.29.0
+   * anche `temperature`, `top_p`, `tool_choice` e `max_completion_tokens`: i modelli di solo
+   * ragionamento rifiutano la temperatura, e qualche gratuito di OpenRouter il `tool_choice`
+   * esplicito o il nome nuovo del tetto di uscita. Senza, quel 400 era la fine della domanda.
+   */
+  protected open val optionalFields: List<String> = listOf(
+    "reasoning_effort", "reasoning_format", "reasoning", "response_format", "parallel_tool_calls", "stream_options",
+    "temperature", "top_p", "tool_choice", "max_completion_tokens",
+  )
 
   /**
    * L'ultima parola sulla richiesta prima di scriverla: un provider che per la ricerca web vuole un
@@ -48,12 +56,12 @@ abstract class OpenAiCompatProvider(
     put("messages", OpenAiCompatCodec.messages(request.messages, fileParts = supportsFileParts))
     if (request.tools.isNotEmpty()) {
       put("tools", OpenAiCompatCodec.tools(request.tools))
-      put("tool_choice", OpenAiCompatCodec.toolChoice(request.toolChoice))
+      if ("tool_choice" !in dropped) put("tool_choice", OpenAiCompatCodec.toolChoice(request.toolChoice))
       if ("parallel_tool_calls" !in dropped) put("parallel_tool_calls", request.parallelToolCalls)
     }
     request.jsonSchema?.let { if ("response_format" !in dropped) put("response_format", OpenAiCompatCodec.responseFormat(it)) }
-    request.maxOutputTokens?.let { put("max_completion_tokens", it) }
-    request.temperature?.let { put("temperature", it) }
+    request.maxOutputTokens?.let { if ("max_completion_tokens" !in dropped) put("max_completion_tokens", it) }
+    request.temperature?.let { if ("temperature" !in dropped) put("temperature", it) }
     if (stream) {
       put("stream", true)
       if ("stream_options" !in dropped) put("stream_options", buildJsonObject { put("include_usage", true) })

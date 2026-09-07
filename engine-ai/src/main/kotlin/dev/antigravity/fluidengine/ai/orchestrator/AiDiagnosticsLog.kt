@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 /** Una chiamata a un tool, com'e' andata. */
 data class ToolTrace(val name: String, val millis: Long, val ok: Boolean, val chars: Int)
 
+/** Un modello che ha risposto davvero in una domanda (1.29.0): quale provider, a quale livello, quale modello. */
+data class ModelUse(val provider: ProviderId, val tier: ModelTier, val model: String)
+
 /** Una domanda intera, per la pagina Diagnostica: chi ha risposto, con cosa, quanto e' costata. */
 data class AiRequestLog(
   val startedAtMillis: Long,
@@ -32,6 +35,13 @@ data class AiRequestLog(
   /** Il livello piu' alto raggiunto e i modelli usati per ciascuno. */
   val tierReached: ModelTier = ModelTier.CHAT,
   val models: Map<ModelTier, String> = emptyMap(),
+  /**
+   * Tutti i modelli che hanno risposto, nell'ordine in cui l'hanno fatto (1.29.0), senza ripetere
+   * un modello che risponde due giri di fila. [models] tiene una voce per livello, quindi un
+   * cambio di provider sovrascrive il profondo di prima: "Gemini pro, poi il profondo di
+   * OpenRouter" li' si legge come "il profondo di OpenRouter". Qui no.
+   */
+  val modelsUsed: List<ModelUse> = emptyList(),
 )
 
 /** Le ultime dieci domande, in memoria: nessun contenuto sopravvive alla chiusura dell'app. */

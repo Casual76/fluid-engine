@@ -84,6 +84,17 @@ class AskInput<C>(
    * se non le regge nessuno passano da [attachmentFallback], come gli allegati dei tool.
    */
   val attachments: List<ContentPart> = emptyList(),
+  /**
+   * Restare sul servizio scelto (1.29.0): nessun cambio di provider, mai, anche se in [providers]
+   * ce ne sono altri. Un 429 aspetta il `retry-after` (al massimo due volte, entro il budget) e
+   * poi la domanda fallisce con [FailureKind.RATE_LIMITED]; un 5xx o la rete riprovano una volta
+   * e poi falliscono. Lo stadio 1 che fallisce non fa fallire la domanda: si prosegue col ripiego
+   * del router ([routerHint] e i gruppi di prima). E' il contrario della riserva: chi ha scelto
+   * Gemini vuole Gemini, non "chi risponde per primo" — e senza questo un 429 sul profondo di
+   * Gemini portava ogni domanda complessa sul profondo di OpenRouter, qualunque cosa avesse
+   * scelto l'utente.
+   */
+  val pinProvider: Boolean = false,
 )
 
 /** I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso. */
@@ -127,6 +138,11 @@ data class AiOrchestratorConfig(
  * Con un catalogo gerarchico ([ToolRegistry.hierarchical]) lo stadio 1 sceglie una categoria e le
  * sue sottocategorie, il modello ne apre altre con `apri_categoria` e `apri_sottocategoria`, e
  * quello che e' stato aperto resta nella [Conversation] per le domande dopo.
+ *
+ * Dalla 1.29.0 il cambio di provider si puo' spegnere ([AskInput.pinProvider]: si aspetta, si
+ * riprova, o si fallisce, mai si migra), e quando invece avviene la riserva **riparte dalla chat**
+ * e non eredita il profondo di prima ([tierAfterSwitch]). Ogni modello che ha risposto finisce,
+ * in ordine, in [AiRequestLog.modelsUsed].
  */
 class AiOrchestrator<C>(
   private val registry: ToolRegistry<C>,
@@ -141,7 +157,8 @@ class AiOrchestrator<C>(
 
   private class Attempt(var provider: ReadyProvider, val switched: MutableList<ProviderId> = mutableListOf(), var waits: Int = 0, var retries: Int = 0)
 
-  private class TurnOutcome(val text: String?, val calls: List<ToolCall>, val raw: JsonElement?, val usage: Usage?, val rateLimit: RateLimitInfo, val finish: FinishReason)
+  /** Com'e' finito un giro, e chi l'ha fatto davvero: dopo un cambio di provider [tier] e [model] possono differire da quelli chiesti. */
+  private class TurnOutcome(val text: String?, val calls: List<ToolCall>, val raw: JsonElement?, val usage: Usage?, val rateLimit: RateLimitInfo, val finish: FinishReason, val tier: ModelTier, val model: String)
 
   private class ToolRun(val call: ToolCall, val output: ToolOutput)
 
@@ -169,6 +186,12 @@ class AiOrchestrator<C>(
     tier = userTurn.tier
     var tierReached = tier
     val modelsUsed = linkedMapOf<ModelTier, String>()
+    // Tutti i modelli che hanno risposto, in ordine, senza ripetere chi risponde due giri di fila.
+    val used = mutableListOf<ModelUse>()
+    fun use(provider: ProviderId, usedTier: ModelTier, model: String) {
+      val entry = ModelUse(provider, usedTier, model)
+      if (used.lastOrNull() != entry) used += entry
+    }
     val hierarchical = registry.hierarchical
 
     // Stadio 1: i gruppi. Il pre-router dell'app, se ha deciso, vince; su OpenRouter il catalogo
@@ -183,7 +206,7 @@ class AiOrchestrator<C>(
         state.value = AssistantState.Classifying(question, attempt.provider.provider.id)
         routerUsed = true
         modelsUsed[ModelTier.ROUTER] = attempt.provider.model(ModelTier.ROUTER)
-        val verdict = classifyWithFailover(input, attempt, budget, state, conversation)
+        val verdict = classifyWithFailover(input, attempt, budget, state, conversation, ::use)
         if (verdict.deep && tier == ModelTier.CHAT) tier = ModelTier.DEEP
         resolve(verdict, input)
       }
@@ -214,8 +237,6 @@ class AiOrchestrator<C>(
       steps = step
       val forceFinal = step == config.maxRounds || budget.forceFinal
       val model = attempt.provider.model(tier)
-      modelsUsed[tier] = model
-      if (tier.ordinal > tierReached.ordinal) tierReached = tier
       val request = ChatRequest(
         model = model,
         messages = if (forceFinal) messages + Message.System(input.forceFinalPrompt) else messages,
@@ -229,6 +250,15 @@ class AiOrchestrator<C>(
       val outcome = runTurnWithFailover(input, attempt, budget, state, request, messages, tier) { s ->
         waitedSeconds += s
       }
+      // Chi ha risposto davvero: dopo un cambio di provider puo' essere un altro modello, e anche
+      // un altro livello (la riserva riparte dalla chat: [tierAfterSwitch]).
+      if (outcome.tier != tier) {
+        tier = outcome.tier
+        neutralize(messages)
+      }
+      modelsUsed[tier] = outcome.model
+      use(attempt.provider.provider.id, tier, outcome.model)
+      if (tier.ordinal > tierReached.ordinal) tierReached = tier
       outcome.usage?.let { usageTotal = usageTotal?.plus(it) ?: it }
       lastRateLimit = outcome.rateLimit
       diagnostics.rateLimit(attempt.provider.provider.id, outcome.rateLimit)
@@ -380,6 +410,7 @@ class AiOrchestrator<C>(
       waitedSeconds = waitedSeconds,
       tierReached = tierReached,
       models = modelsUsed.toMap(),
+      modelsUsed = used.toList(),
     )
     diagnostics.add(log)
     return AskResult(cleanText, chips, answerProvider, usageTotal, toolTraces.map { it.name }.distinct(), log, tierReached)
@@ -550,6 +581,8 @@ class AiOrchestrator<C>(
     budget: TimeBudget,
     state: MutableStateFlow<AssistantState>,
     conversation: Conversation,
+    /** Dove segnare il modello del router quando ha risposto davvero. */
+    used: (ProviderId, ModelTier, String) -> Unit,
   ): RouterVerdict {
     while (true) {
       val ready = attempt.provider
@@ -568,6 +601,7 @@ class AiOrchestrator<C>(
           loadedCategories = conversation.loadedCategories.toSet(),
         )
         usageEvent(input, ready, model, ModelTier.ROUTER, started, turn.usage, turn.rateLimit)
+        used(ready.provider.id, ModelTier.ROUTER, model)
         return verdict
       } catch (e: CancellationException) {
         throw e
@@ -576,8 +610,9 @@ class AiOrchestrator<C>(
         throw AssistantFailure(FailureKind.UNAUTHORIZED, e)
       } catch (e: Throwable) {
         usageEvent(input, ready, model, ModelTier.ROUTER, started, null, (e as? AiError.RateLimited)?.rateLimit ?: RateLimitInfo.EMPTY, e as? AiError)
-        // Lo stadio 1 non fa fallire la domanda: si prova il prossimo provider, poi il ripiego.
-        val decision = failover.decide(e, ready.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis)
+        // Lo stadio 1 non fa fallire la domanda: si prova il prossimo provider (mai col servizio
+        // fissato: un'attesa o un fallimento qui valgono come "nessun verdetto"), poi il ripiego.
+        val decision = failover.decide(e, ready.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis, pinned = input.pinProvider)
         when (decision) {
           is FailoverDecision.Switch -> {
             switchTo(input, attempt, decision.to, state)
@@ -613,10 +648,11 @@ class AiOrchestrator<C>(
     state: MutableStateFlow<AssistantState>,
     request: ChatRequest,
     messages: List<Message>,
-    tier: ModelTier,
+    startTier: ModelTier,
     onWaited: (Int) -> Unit,
   ): TurnOutcome {
     var current = request
+    var tier = startTier
     while (true) {
       val started = clock()
       try {
@@ -627,7 +663,7 @@ class AiOrchestrator<C>(
         throw e
       } catch (e: Throwable) {
         usageEvent(input, attempt.provider, current.model, tier, started, null, (e as? AiError.RateLimited)?.rateLimit ?: RateLimitInfo.EMPTY, e as? AiError)
-        val decision = failover.decide(e, attempt.provider.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis)
+        val decision = failover.decide(e, attempt.provider.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis, pinned = input.pinProvider)
         when (decision) {
           is FailoverDecision.Wait -> {
             attempt.waits++
@@ -641,6 +677,7 @@ class AiOrchestrator<C>(
           }
           is FailoverDecision.Switch -> {
             switchTo(input, attempt, decision.to, state)
+            tier = tierAfterSwitch(input, attempt.provider, tier, messages)
             // La stessa conversazione, riscritta per il nuovo provider: le parti grezze dell'altro
             // non servono piu', e gli allegati che il suo modello non regge diventano una riga.
             val capabilities = capabilities(attempt.provider, tier)
@@ -660,6 +697,25 @@ class AiOrchestrator<C>(
         }
       }
     }
+  }
+
+  /**
+   * Il livello con cui la riserva riparte (1.29.0). Il profondo era una scelta sui modelli del
+   * provider di prima — il router che lo giudicava necessario, i risultati lunghi, il tool
+   * `modello_avanzato` — e sulla riserva il profondo e' il modello piu' grosso, quello che si trova
+   * al limite per primo: ereditarlo alla cieca mandava ogni domanda complessa sul profondo di
+   * OpenRouter, qualunque cosa avesse scelto l'utente. Quindi si riparte dalla chat, e le
+   * escalation si rivalutano li' (i risultati lunghi e il tool si ripresentano da soli), tranne
+   * quando il profondo serve per forza: l'app l'ha chiesto ([AskInput.deepRequested]), o nella
+   * storia ci sono allegati che sulla riserva legge solo lui. Dalla chat non si scende comunque.
+   */
+  private fun tierAfterSwitch(input: AskInput<C>, next: ReadyProvider, tier: ModelTier, messages: List<Message>): ModelTier {
+    if (tier != ModelTier.DEEP) return tier
+    if (input.deepRequested) return ModelTier.DEEP
+    val chat = next.capabilities(next.model(ModelTier.CHAT))
+    val deep = next.capabilities(next.model(ModelTier.DEEP))
+    val onlyDeepReads = messages.any { it is Message.User && it.hasBinaryParts && it.parts.any { part -> !chat.accepts(part) && deep.accepts(part) } }
+    return if (onlyDeepReads) ModelTier.DEEP else ModelTier.CHAT
   }
 
   /**
@@ -721,7 +777,7 @@ class AiOrchestrator<C>(
       if (message.toolCalls.isEmpty() && fullText != null) {
         state.value = AssistantState.Answering(input.question, fullText, ready.provider.id, tier)
       }
-      return TurnOutcome(fullText, message.toolCalls, message.raw, turn.usage, turn.rateLimit, turn.finishReason)
+      return TurnOutcome(fullText, message.toolCalls, message.raw, turn.usage, turn.rateLimit, turn.finishReason, tier, request.model)
     }
     val calls = assembler.build()
     if (calls.isEmpty() && text.isNotEmpty() && !published) {
@@ -735,6 +791,8 @@ class AiOrchestrator<C>(
       usage = finish?.usage,
       rateLimit = finish?.rateLimit ?: RateLimitInfo.EMPTY,
       finish = finish?.reason ?: if (calls.isNotEmpty()) FinishReason.TOOL_CALLS else FinishReason.STOP,
+      tier = tier,
+      model = request.model,
     )
   }
 

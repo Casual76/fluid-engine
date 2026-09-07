@@ -134,3 +134,25 @@ proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge`
 - **Trappole**: la firma (una build di debug di Studio e' `NO_PERMISSION`); `call` occupa un thread
   Binder fino a `callTimeoutMillis`; il processo ospite puo' morire (client *unstable*, errore
   pulito); il cliente deve vedere i provider (`QUERY_ALL_PACKAGES` o `<queries>`).
+
+## Dalla 1.29.0: il servizio fissato, la lista da evitare
+
+- `AskInput.pinProvider = true`: **nessun cambio di provider, mai**. 429 -> attesa del `retry-after`
+  (due volte, entro il budget) poi `RATE_LIMITED` con `retryAfterSec`; 5xx/rete -> una riprova poi
+  il fallimento; lo stadio 1 che fallisce non fa fallire la domanda (si prosegue con `routerHint` e i
+  gruppi di prima). Un'app lo lega a un interruttore "riserva automatica" e lo forza a vero quando
+  l'utente ha scelto un servizio per quella domanda. `FailoverPolicy.decide(..., pinned = true)` e'
+  la stessa tabella.
+- Quando il provider **cambia** e il livello era profondo, la riserva **riparte dalla chat**: le
+  escalation si rivalutano li'. Resta profondo solo con `deepRequested` o con allegati che sulla
+  riserva legge solo lui. Prima un 429 sul profondo di Gemini finiva sul profondo di OpenRouter,
+  qualunque cosa avesse scelto l'utente.
+- `AiDefaults.OPENROUTER_AVOID` / `AiDefaults.avoided(id)`: i modelli che non si propongono mai e
+  che una scelta salvata non tiene in vita (Inkling: risponde solo in un harness agentico). Vale in
+  `TierDefaults.pickDeep`, `OpenRouterCatalog.*` e in `AiKeyVerifier`, che riallinea le scelte al
+  catalogo anche al rinfresco quotidiano (`reconcile`, pubblico). Un'app non deve fare niente: i
+  telefoni si riparano da soli.
+- `AiRequestLog.modelsUsed: List<ModelUse>`: i modelli che hanno risposto, in ordine, con provider
+  e livello. `models` resta com'era.
+- `OpenAiCompatProvider.optionalFields` toglie anche `temperature`, `top_p`, `tool_choice`,
+  `max_completion_tokens` dopo un 400.

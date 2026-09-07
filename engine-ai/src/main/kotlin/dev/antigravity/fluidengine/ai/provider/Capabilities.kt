@@ -30,11 +30,12 @@ object ProviderCapabilities {
  * Quale modello del catalogo fa da livello profondo, se l'utente non ne ha scelto uno: quello che
  * legge documenti e vede immagini, col contesto piu' grande, e che ragiona; sui gratuiti prima
  * dove i gratuiti esistono. Null se il catalogo e' vuoto: allora il livello profondo e' la chat.
+ * I modelli di [AiDefaults.OPENROUTER_AVOID] non sono mai candidati, nemmeno come ripiego.
  */
 object TierDefaults {
 
   fun pickDeep(provider: ProviderId, catalogue: ModelCatalogue, chatModel: String?): ModelInfo? {
-    val candidates = catalogue.chat.filter { it.supportsTools }
+    val candidates = catalogue.chat.filter { it.supportsTools && !AiDefaults.avoided(it.id) }
     if (candidates.isEmpty()) return null
     // Prima le scelte di prodotto, quando il catalogo le ha: su Gemini l'ultimo "pro" (l'alias
     // `gemini-pro-latest` se c'e', se no la versione piu' alta), su OpenRouter i gratuiti
@@ -54,7 +55,7 @@ object TierDefaults {
     )?.first ?: return null
     // Se il migliore e' peggio della chat su tutto, tanto vale la chat: un livello in piu' che non
     // aggiunge niente e' solo un modello in piu' da spiegare.
-    val chat = chatModel?.let { catalogue.chat(it) }
+    val chat = chatModel?.takeUnless { AiDefaults.avoided(it) }?.let { catalogue.chat(it) }
     if (chat != null && score(provider, best) <= score(provider, chat)) return chat
     return best
   }

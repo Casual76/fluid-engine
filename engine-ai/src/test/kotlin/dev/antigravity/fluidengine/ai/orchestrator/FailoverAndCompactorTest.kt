@@ -49,6 +49,21 @@ class FailoverAndCompactorTest {
   }
 
   @Test
+  fun `col servizio fissato non si cambia mai provider, si aspetta, si riprova, o si fallisce`() {
+    val others = listOf(ProviderId.GEMINI, ProviderId.OPENROUTER)
+    assertEquals(FailoverDecision.Wait(5), policy.decide(limited(), ProviderId.GROQ, others, 0, 0, 80_000, pinned = true))
+    val exhausted = policy.decide(limited(), ProviderId.GROQ, others, 2, 0, 80_000, pinned = true)
+    assertEquals(FailureKind.RATE_LIMITED, (exhausted as FailoverDecision.Fail).kind)
+    val server = AiError.Server(503, "down")
+    assertEquals(FailoverDecision.RetrySame, policy.decide(server, ProviderId.GROQ, others, 0, 0, 80_000, pinned = true))
+    val failed = policy.decide(server, ProviderId.GROQ, others, 0, 1, 80_000, pinned = true)
+    assertEquals(FailureKind.PROVIDER, (failed as FailoverDecision.Fail).kind)
+    assertTrue(policy.decide(AiError.Parse("?"), ProviderId.GROQ, others, 0, 0, 80_000, pinned = true) is FailoverDecision.Fail)
+    // Senza il fissaggio la stessa tabella cambia provider.
+    assertEquals(FailoverDecision.Switch(ProviderId.GEMINI), policy.decide(limited(), ProviderId.GROQ, others, 0, 0, 80_000))
+  }
+
+  @Test
   fun `chiave sbagliata e richiesta bloccata non si mascherano`() {
     val unauthorized = policy.decide(AiError.Unauthorized("no"), ProviderId.GROQ, listOf(ProviderId.GEMINI), 0, 0, 80_000)
     assertEquals(FailureKind.UNAUTHORIZED, (unauthorized as FailoverDecision.Fail).kind)

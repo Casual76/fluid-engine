@@ -41,14 +41,31 @@ object AiDefaults {
 
   /**
    * I gratuiti di OpenRouter che si preferiscono, in ordine, quando ci sono nel catalogo
-   * (2026-09-07). Il tetto giornaliero del gratuito e' lo stesso per qualunque modello, quindi
-   * conviene il piu' capace: per la chat uno svelto ma grosso, per il profondo il piu' capace che
-   * veda immagini e legga documenti, per il router uno leggero ma non stupido. Quando nessuno
-   * c'e' piu', decide l'euristica di [dev.antigravity.fluidengine.ai.provider.OpenRouterCatalog].
+   * (2026-09-07, rivisti nella 1.29.0). Il tetto giornaliero del gratuito e' lo stesso per
+   * qualunque modello, quindi conviene il piu' capace: per la chat uno svelto ma grosso, per il
+   * profondo il piu' capace che veda immagini e legga documenti, per il router uno leggero ma non
+   * stupido. Quando nessuno c'e' piu', decide l'euristica di
+   * [dev.antigravity.fluidengine.ai.provider.OpenRouterCatalog].
    */
   val OPENROUTER_CHAT_PREFERRED = listOf("minimax/minimax-m3:free", "minimax/minimax-m2.7:free", "nvidia/nemotron-3.5-lightning:free")
-  val OPENROUTER_DEEP_PREFERRED = listOf("thinkingmachines/inkling:free", "minimax/minimax-m3:free", "nvidia/nemotron-3-ultra-550b-a55b:free")
-  val OPENROUTER_CLASSIFIER_PREFERRED = listOf("google/gemma-4-26b-a4b-it:free", "thinkingmachines/inkling-small:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
+  val OPENROUTER_DEEP_PREFERRED = listOf("minimax/minimax-m3:free", "nvidia/nemotron-3-ultra-550b-a55b:free")
+  val OPENROUTER_CLASSIFIER_PREFERRED = listOf("google/gemma-4-26b-a4b-it:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
+
+  /**
+   * I modelli di OpenRouter che non si propongono mai, e che una scelta salvata non tiene in vita
+   * (1.29.0). Inkling (Thinking Machines) risponde solo dentro un harness agentico: a una domanda
+   * di chat si rifiuta, e un telefono che lo aveva come profondo — era il primo dei preferiti
+   * fino alla 1.28.0 — rispondeva "non posso" a ogni domanda complessa. Cambiare la lista dei
+   * preferiti non bastava: [AiKeyVerifier] conserva una scelta finche' esiste nel catalogo, e
+   * Inkling nel catalogo c'e'. Quindi chi sceglie fra i modelli
+   * ([dev.antigravity.fluidengine.ai.provider.TierDefaults],
+   * [dev.antigravity.fluidengine.ai.provider.OpenRouterCatalog], [AiKeyVerifier]) li tratta come
+   * assenti: mai candidati, e una scelta salvata su di loro vale come nessuna scelta.
+   */
+  val OPENROUTER_AVOID: Set<String> = setOf("thinkingmachines/inkling:free", "thinkingmachines/inkling-small:free")
+
+  /** Vero se [model] e' fra quelli da non usare mai ([OPENROUTER_AVOID]); null non lo e'. */
+  fun avoided(model: String?): Boolean = model != null && model in OPENROUTER_AVOID
 
   /**
    * L'ultimo modello di una famiglia Gemini nel catalogo: `gemini-flash-latest` se Google espone

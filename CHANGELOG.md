@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.28.0 - 2026-09-07
+
+- ai: i modelli predefiniti seguono il catalogo. Gemini: chat = ultimo flash (alias gemini-flash-latest o versione piu alta), router = ultimo flash-lite, profondo = ultimo pro (AiDefaults.latestGemini); prima il profondo finiva su gemini-2.5-pro, ritirato per le chiavi nuove. OpenRouter: liste di gratuiti preferiti per chat, profondo e router (AiDefaults.OPENROUTER_*_PREFERRED), usate quando ci sono nel catalogo; l euristica a punteggio resta come ripiego. AiKeyVerifier applica la regola a ogni livello: una scelta dell utente vale finche esiste nel catalogo.
+
+
 ## 1.27.0 - 2026-09-06
 
 - ai-bridge: nuovo modulo engine-ai-bridge, i tool federati: un app espone i suoi tool a un assistente esterno con la stessa firma (AiToolHostProvider, ContentProvider a permesso signature, conferme chieste dal cliente, lavori lunghi, parti via FileProvider) e un assistente li scopre e li chiama (AiToolClient, RemoteToolSet). docs/08-ai-bridge.md. Nessun modulo esistente cambia.

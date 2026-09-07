@@ -8,6 +8,7 @@ import dev.antigravity.fluidengine.ai.provider.OpenRouterCatalog
 import dev.antigravity.fluidengine.ai.provider.OpenRouterKeyInfo
 import dev.antigravity.fluidengine.ai.provider.OpenRouterProvider
 import dev.antigravity.fluidengine.ai.provider.ProviderFactory
+import dev.antigravity.fluidengine.ai.provider.ModelTier
 import dev.antigravity.fluidengine.ai.provider.ProviderId
 import dev.antigravity.fluidengine.ai.provider.TierDefaults
 import dev.antigravity.fluidengine.ai.net.asArray
@@ -153,7 +154,8 @@ class AiKeyVerifier(
         keyInfo?.let { info.value = info.value + (provider to it) }
         val current = settings.current().chatModels[ProviderId.OPENROUTER]
         if (current == null || catalogue.chat.none { it.id == current }) {
-          val free = OpenRouterCatalog.pickDefaultFree(catalogue)
+          val preferred = AiDefaults.OPENROUTER_CHAT_PREFERRED.firstNotNullOfOrNull { id -> catalogue.chat.firstOrNull { it.id == id && it.free && it.supportsTools } }
+          val free = preferred ?: OpenRouterCatalog.pickDefaultFree(catalogue)
           chosen = free?.id ?: catalogue.chat.firstOrNull { it.id == AiDefaults.OPENROUTER_CHAT_FALLBACK }?.id ?: catalogue.chat.firstOrNull()?.id
           chosenIsFree = free != null
           settings.setChatModel(ProviderId.OPENROUTER, chosen)
@@ -161,6 +163,11 @@ class AiKeyVerifier(
           chosen = current
           chosenIsFree = catalogue.chat.firstOrNull { it.id == current }?.free == true
         }
+        ensureClassifier(ProviderId.OPENROUTER, catalogue) { ids -> AiDefaults.OPENROUTER_CLASSIFIER_PREFERRED.firstOrNull { it in ids } }
+      }
+      if (provider == ProviderId.GEMINI) {
+        ensureChat(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash") }
+        ensureClassifier(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash-lite") }
       }
       ensureDeepModel(provider, catalogue)
       VerifyResult.Ok(catalogue, keyInfo, chosen, chosenIsFree)
@@ -173,6 +180,25 @@ class AiKeyVerifier(
     } catch (e: Throwable) {
       VerifyResult.Failed(null)
     }
+  }
+
+  /**
+   * La chat, se l'utente non l'ha scelta (o la sua scelta e' sparita dal catalogo), segue
+   * [pick]: su Gemini l'ultimo flash. Una scelta ancora valida non si tocca.
+   */
+  private suspend fun ensureChat(provider: ProviderId, catalogue: ModelCatalogue, pick: (List<String>) -> String?) {
+    val current = settings.current().chatModels[provider]
+    if (current != null && catalogue.chat.any { it.id == current }) return
+    val picked = pick(catalogue.chat.map { it.id }) ?: return
+    settings.setChatModel(provider, picked)
+  }
+
+  /** Il router come la chat: la scelta dell'utente vale finche' esiste, poi decide [pick]. */
+  private suspend fun ensureClassifier(provider: ProviderId, catalogue: ModelCatalogue, pick: (List<String>) -> String?) {
+    val current = settings.current().classifierModels[provider]
+    if (current != null && catalogue.chat.any { it.id == current }) return
+    val picked = pick(catalogue.chat.map { it.id }) ?: return
+    settings.setModel(provider, ModelTier.ROUTER, picked)
   }
 
   /**

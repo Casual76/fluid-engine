@@ -39,6 +39,34 @@ object AiDefaults {
   /** Se nessun modello gratuito con tool esiste nel catalogo: un flash a pagamento, con avviso. */
   const val OPENROUTER_CHAT_FALLBACK = "google/gemini-3.6-flash"
 
+  /**
+   * I gratuiti di OpenRouter che si preferiscono, in ordine, quando ci sono nel catalogo
+   * (2026-09-07). Il tetto giornaliero del gratuito e' lo stesso per qualunque modello, quindi
+   * conviene il piu' capace: per la chat uno svelto ma grosso, per il profondo il piu' capace che
+   * veda immagini e legga documenti, per il router uno leggero ma non stupido. Quando nessuno
+   * c'e' piu', decide l'euristica di [dev.antigravity.fluidengine.ai.provider.OpenRouterCatalog].
+   */
+  val OPENROUTER_CHAT_PREFERRED = listOf("minimax/minimax-m3:free", "minimax/minimax-m2.7:free", "nvidia/nemotron-3.5-lightning:free")
+  val OPENROUTER_DEEP_PREFERRED = listOf("thinkingmachines/inkling:free", "minimax/minimax-m3:free", "nvidia/nemotron-3-ultra-550b-a55b:free")
+  val OPENROUTER_CLASSIFIER_PREFERRED = listOf("google/gemma-4-26b-a4b-it:free", "thinkingmachines/inkling-small:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
+
+  /**
+   * L'ultimo modello di una famiglia Gemini nel catalogo: `gemini-flash-latest` se Google espone
+   * l'alias, altrimenti quello con la versione piu' alta (`gemini-3.6-flash` > `gemini-2.5-flash`),
+   * a parita' di versione quello senza "preview". Null se nel catalogo non c'e' nessuno.
+   *
+   * [family] e' "flash", "pro" o "flash-lite"; le altre varianti ("flash-lite" quando si cerca
+   * "flash", "flash-image", "tts") non contano.
+   */
+  fun latestGemini(ids: List<String>, family: String): String? {
+    val alias = "gemini-$family-latest"
+    if (ids.any { it == alias }) return alias
+    val pattern = Regex("^gemini-(\\d+(?:\\.\\d+)?)-$family(-preview)?(?:-\\d+)?$")
+    return ids.mapNotNull { id -> pattern.matchEntire(id)?.let { m -> Triple(m.groupValues[1].toDoubleOrNull() ?: 0.0, m.groupValues[2].isEmpty(), id) } }
+      .maxWithOrNull(compareBy<Triple<Double, Boolean, String>> { it.first }.thenBy { it.second })
+      ?.third
+  }
+
   fun chatModel(provider: ProviderId): String? = when (provider) {
     ProviderId.GROQ -> GROQ_CHAT
     ProviderId.GEMINI -> GEMINI_CHAT

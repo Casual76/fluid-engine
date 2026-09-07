@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ai.provider
 
+import dev.antigravity.fluidengine.ai.keys.AiDefaults
+
 /**
  * Cosa un modello sa prendere in ingresso, quando il catalogo non lo dice. Gemini e' multimodale
  * per intero; OpenRouter legge i documenti di chiunque col suo parser e vede le immagini dove il
@@ -34,6 +36,16 @@ object TierDefaults {
   fun pickDeep(provider: ProviderId, catalogue: ModelCatalogue, chatModel: String?): ModelInfo? {
     val candidates = catalogue.chat.filter { it.supportsTools }
     if (candidates.isEmpty()) return null
+    // Prima le scelte di prodotto, quando il catalogo le ha: su Gemini l'ultimo "pro" (l'alias
+    // `gemini-pro-latest` se c'e', se no la versione piu' alta), su OpenRouter i gratuiti
+    // preferiti in ordine. L'euristica a punteggio resta per quando non ci sono: e' quella che
+    // sceglieva `gemini-2.5-pro`, ritirato da Google per le chiavi nuove.
+    val preferred: ModelInfo? = when (provider) {
+      ProviderId.GEMINI -> AiDefaults.latestGemini(candidates.map { it.id }, "pro")?.let { id -> candidates.firstOrNull { it.id == id } }
+      ProviderId.OPENROUTER -> AiDefaults.OPENROUTER_DEEP_PREFERRED.firstNotNullOfOrNull { id -> candidates.firstOrNull { it.id == id && it.free } }
+      ProviderId.GROQ -> null
+    }
+    if (preferred != null) return preferred
     val scored = candidates.map { it to score(provider, it) }
     val best = scored.maxWithOrNull(
       compareBy<Pair<ModelInfo, Int>> { it.second }

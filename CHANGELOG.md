@@ -6,6 +6,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.29.0 - 2026-09-08
+
+- ai: AiDefaults.OPENROUTER_AVOID (+ AiDefaults.avoided): i modelli di OpenRouter che non si propongono mai e che una scelta salvata non tiene in vita. Dentro thinkingmachines/inkling:free e inkling-small:free, che rispondono solo in un harness agentico. Vale in TierDefaults.pickDeep, OpenRouterCatalog (pickDefaultFree, recommended, score; inkling tolto dalle famiglie note) e in AiKeyVerifier, dove una scelta salvata su un modello da evitare vale come assente. Il riallineamento delle scelte al catalogo (AiKeyVerifier.reconcile, pubblico) avviene anche al rinfresco quotidiano, non solo alla verifica della chiave: un telefono con Inkling salvato come profondo si ripara da solo. Preferiti rivisti: profondo minimax-m3 e nemotron-3-ultra, router gemma-4-26b e nemotron-3-nano-omni.
+- ai: AskInput.pinProvider, restare sul servizio scelto. Nessun cambio di provider, mai: 429 -> attesa del retry-after (due volte, entro il budget) poi RATE_LIMITED con retryAfterSec; 5xx e rete -> una riprova poi il fallimento. Lo stadio 1 che fallisce non fa fallire la domanda (si prosegue con routerHint e i gruppi di prima). FailoverPolicy.decide(pinned). Senza, un 429 sul profondo di Gemini portava ogni domanda complessa sul profondo di OpenRouter, qualunque cosa avesse scelto l utente.
+- ai: quando il provider cambia davvero, la riserva riparte dalla chat e non eredita il profondo di prima (AiOrchestrator.tierAfterSwitch); resta profondo solo con deepRequested o con allegati nella storia che sulla riserva legge solo il profondo. tierReached e models nel log dicono chi ha risposto davvero.
+- ai: AiRequestLog.modelsUsed (List<ModelUse>: provider, livello, modello), tutti i modelli che hanno risposto nell ordine in cui l hanno fatto. Additivo, models resta.
+- ai: OpenAiCompatProvider.optionalFields toglie anche temperature, top_p, tool_choice e max_completion_tokens dopo un 400.
+
+
 ## 1.28.0 - 2026-09-07
 
 - ai: i modelli predefiniti seguono il catalogo. Gemini: chat = ultimo flash (alias gemini-flash-latest o versione piu alta), router = ultimo flash-lite, profondo = ultimo pro (AiDefaults.latestGemini); prima il profondo finiva su gemini-2.5-pro, ritirato per le chiavi nuove. OpenRouter: liste di gratuiti preferiti per chat, profondo e router (AiDefaults.OPENROUTER_*_PREFERRED), usate quando ci sono nel catalogo; l euristica a punteggio resta come ripiego. AiKeyVerifier applica la regola a ogni livello: una scelta dell utente vale finche esiste nel catalogo.

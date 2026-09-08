@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.antigravity.fluidengine.ai.provider.ModelTier
+import dev.antigravity.fluidengine.ai.provider.OpenRouterDataPolicy
 import dev.antigravity.fluidengine.ai.provider.ProviderId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -114,7 +115,8 @@ data class AiSettings(
   val deepModels: Map<ProviderId, String> = emptyMap(),
   /** Fino a due modelli di riserva che OpenRouter prova da solo se il primario fallisce. */
   val openRouterFallbacks: List<String> = emptyList(),
-  val openRouterAllowDataCollection: Boolean = false,
+  /** Cosa dire a OpenRouter sull'addestramento: niente (vale l'account) o `deny`. */
+  val openRouterDataPolicy: OpenRouterDataPolicy = OpenRouterDataPolicy.ACCOUNT,
   val thinking: ThinkingLevel = ThinkingLevel.MEDIUM,
   val speakReplies: Boolean = false,
   val actionsEnabled: Boolean = false,
@@ -182,7 +184,7 @@ class AiSettingsStore(private val store: DataStore<Preferences>) {
   suspend fun setOpenRouterFallbacks(models: List<String>) =
     edit { it[OpenRouterFallbacks] = models.take(2).joinToString("\n") }
 
-  suspend fun setOpenRouterAllowDataCollection(allow: Boolean) = edit { it[OpenRouterDataCollection] = allow }
+  suspend fun setOpenRouterDataPolicy(policy: OpenRouterDataPolicy) = edit { it[OpenRouterDataPolicyKey] = policy.name }
   suspend fun setThinking(level: ThinkingLevel) = edit { it[Thinking] = level.name }
   suspend fun setSpeakReplies(speak: Boolean) = edit { it[SpeakReplies] = speak }
   suspend fun setActionsEnabled(enabled: Boolean) = edit { it[ActionsEnabled] = enabled }
@@ -208,7 +210,8 @@ class AiSettingsStore(private val store: DataStore<Preferences>) {
     classifierModels = modelsFor("classifier_model_"),
     deepModels = modelsFor("deep_model_"),
     openRouterFallbacks = this[OpenRouterFallbacks]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
-    openRouterAllowDataCollection = this[OpenRouterDataCollection] ?: false,
+    openRouterDataPolicy = this[OpenRouterDataPolicyKey]?.let { name -> OpenRouterDataPolicy.entries.firstOrNull { it.name == name } }
+      ?: OpenRouterDataPolicy.ACCOUNT,
     thinking = this[Thinking]?.let { name -> ThinkingLevel.entries.firstOrNull { it.name == name } }
       ?: ThinkingLevel.MEDIUM,
     speakReplies = this[SpeakReplies] ?: false,
@@ -229,7 +232,7 @@ class AiSettingsStore(private val store: DataStore<Preferences>) {
     private val ChatOrder = stringPreferencesKey("chat_order")
     private val SttOrder = stringPreferencesKey("stt_order")
     private val OpenRouterFallbacks = stringPreferencesKey("openrouter_fallbacks")
-    private val OpenRouterDataCollection = booleanPreferencesKey("openrouter_data_collection")
+    private val OpenRouterDataPolicyKey = stringPreferencesKey("openrouter_data_policy")
     private val Thinking = stringPreferencesKey("thinking")
     private val SpeakReplies = booleanPreferencesKey("speak_replies")
     private val ActionsEnabled = booleanPreferencesKey("actions_enabled")

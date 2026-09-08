@@ -59,7 +59,7 @@ class ProviderFactory(
         referer = referer,
         title = appTitle,
         fallbackModels = settings.openRouterFallbacks,
-        allowDataCollection = settings.openRouterAllowDataCollection,
+        dataPolicy = settings.openRouterDataPolicy,
       )
     }
     return ReadyProvider(

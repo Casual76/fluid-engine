@@ -23,6 +23,24 @@ data class OpenRouterKeyInfo(
 )
 
 /**
+ * Cosa dire a OpenRouter sull'addestramento, quando si manda una domanda.
+ *
+ * L'account ha gia' la sua politica, scelta dall'utente su openrouter.ai: e' quella che decide a
+ * quali endpoint la chiave puo' arrivare. Un'app che manda `data_collection: "deny"` a ogni
+ * richiesta non la rende piu' sicura -- la **sovrascrive con la piu' stretta**, e su un modello i
+ * cui endpoint gratuiti registrano i prompt il conto e' zero endpoint disponibili: "No endpoints
+ * found matching your data policy", e il modello smette di funzionare senza che nessuno abbia
+ * cambiato niente.
+ */
+enum class OpenRouterDataPolicy {
+  /** Non si dice niente: vale quella dell'account, cioe' la scelta che l'utente ha gia' fatto. */
+  ACCOUNT,
+
+  /** Si chiede esplicitamente `deny`: piu' stretta dell'account, e taglia fuori chi registra. */
+  DENY,
+}
+
+/**
  * OpenRouter: lo stesso dialetto di Groq piu' il routing (`models` di riserva, `provider` con la
  * privacy), il `reasoning` unificato, l'uso col costo. Le trascrizioni viaggiano in JSON base64
  * su `/audio/transcriptions`. Il catalogo e' pubblico e grande: lo legge [ModelCatalog].
@@ -34,7 +52,7 @@ open class OpenRouterProvider(
   private val title: String,
   /** Fino a due modelli che OpenRouter prova da solo se il primario fallisce. */
   private val fallbackModels: List<String> = emptyList(),
-  private val allowDataCollection: Boolean = false,
+  private val dataPolicy: OpenRouterDataPolicy = OpenRouterDataPolicy.ACCOUNT,
 ) : OpenAiCompatProvider(http, BASE_URL, apiKey) {
 
   override val id: ProviderId = ProviderId.OPENROUTER
@@ -62,7 +80,9 @@ open class OpenRouterProvider(
     put(
       "provider",
       buildJsonObject {
-        put("data_collection", if (allowDataCollection) "allow" else "deny")
+        // Solo la richiesta piu' stretta si manda: "allow" non serve dirlo (l'account lo dice gia'),
+        // e "deny" imposto sempre e comunque e' quello che lasciava senza endpoint.
+        if (dataPolicy == OpenRouterDataPolicy.DENY) put("data_collection", "deny")
         put("sort", "price")
       },
     )

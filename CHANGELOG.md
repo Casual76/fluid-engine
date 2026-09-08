@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.29.1 - 2026-09-08
+
+- Il riallineamento delle scelte avviene anche sul catalogo gia' in cache: senza, un telefono che aveva verificato la chiave il giorno prima teneva per sempre un modello della lista da evitare.
+
+
 ## 1.29.0 - 2026-09-08
 
 - ai: AiDefaults.OPENROUTER_AVOID (+ AiDefaults.avoided): i modelli di OpenRouter che non si propongono mai e che una scelta salvata non tiene in vita. Dentro thinkingmachines/inkling:free e inkling-small:free, che rispondono solo in un harness agentico. Vale in TierDefaults.pickDeep, OpenRouterCatalog (pickDefaultFree, recommended, score; inkling tolto dalle famiglie note) e in AiKeyVerifier, dove una scelta salvata su un modello da evitare vale come assente. Il riallineamento delle scelte al catalogo (AiKeyVerifier.reconcile, pubblico) avviene anche al rinfresco quotidiano, non solo alla verifica della chiave: un telefono con Inkling salvato come profondo si ripara da solo. Preferiti rivisti: profondo minimax-m3 e nemotron-3-ultra, router gemma-4-26b e nemotron-3-nano-omni.

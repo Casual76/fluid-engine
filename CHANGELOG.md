@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.30.0 - 2026-09-08
+
+- La politica sui dati di OpenRouter non si impone piu' a ogni richiesta: vale quella dell'account, e chi vuole di piu' chiede deny.
+
+
 ## 1.29.1 - 2026-09-08
 
 - Il riallineamento delle scelte avviene anche sul catalogo gia' in cache: senza, un telefono che aveva verificato la chiave il giorno prima teneva per sempre un modello della lista da evitare.

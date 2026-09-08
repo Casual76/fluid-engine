@@ -69,15 +69,20 @@ class AvoidListTest {
     assertEquals("minimax/minimax-m3:free", TierDefaults.pickDeep(ProviderId.OPENROUTER, preferred, "nvidia/nemotron-3.5-lightning:free")?.id)
   }
 
-  private fun verifier(): Pair<AiKeyVerifier, AiSettingsStore> {
+  /** Un verificatore su file temporanei: senza chiavi, quindi senza nessuna chiamata di rete. */
+  private data class Fixture(val verifier: AiKeyVerifier, val settings: AiSettingsStore, val catalogs: ModelCatalogStore)
+
+  private fun fixture(): Fixture {
     val dir = Files.createTempDirectory("ai-avoid").toFile()
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val settings = AiSettingsStore(PreferenceDataStoreFactory.create(scope = scope, produceFile = { File(dir, "ai.preferences_pb") }))
     val keys = AiKeyStore(PreferenceDataStoreFactory.create(scope = scope, produceFile = { File(dir, "keys.preferences_pb") }), NoopCipher())
     val catalogs = ModelCatalogStore(File(dir, "models"))
     val factory = ProviderFactory(AiHttp("test"), keys, settings, "https://test.invalid", "test", catalogs)
-    return AiKeyVerifier(keys, settings, factory, catalogs) to settings
+    return Fixture(AiKeyVerifier(keys, settings, factory, catalogs), settings, catalogs)
   }
+
+  private fun verifier(): Pair<AiKeyVerifier, AiSettingsStore> = fixture().let { it.verifier to it.settings }
 
   @Test
   fun `una scelta salvata su Inkling si sostituisce al riallineamento, una valida resta`() = runBlocking {
@@ -101,6 +106,50 @@ class AvoidListTest {
     // Un secondo riallineamento non cambia niente: le scelte adesso valgono.
     verifier.reconcile(ProviderId.OPENROUTER, catalogue)
     assertEquals(after, settings.current())
+  }
+
+  /**
+   * Il buco vero della 1.29.0: [AiKeyVerifier.reconcile] era giusto, ma nessuno lo chiamava.
+   *
+   * L'app invoca solo [AiKeyVerifier.refreshIfStale] (all'apertura delle impostazioni), e quello
+   * tornava il catalogo dalla cache senza riallineare finche' era fresco di meno di un giorno.
+   * Un telefono che aveva verificato la chiave ieri teneva Inkling come profondo per sempre —
+   * la correzione arrivava con l'aggiornamento e non cambiava niente. Qui si passa dalla porta
+   * da cui entra l'app, non da [AiKeyVerifier.reconcile] direttamente.
+   */
+  @Test
+  fun `il riallineamento avviene anche quando il catalogo e' ancora fresco e non si scarica niente`() = runBlocking {
+    val (verifier, settings, catalogs) = fixture()
+    val catalogue = ModelCatalogue(
+      chat = listOf(free(inkling), free(inklingSmall), free("minimax/minimax-m3:free"), free("google/gemma-4-26b-a4b-it:free")),
+      stt = emptyList(),
+    )
+    catalogs.save(ProviderId.OPENROUTER, catalogue)
+    // Fresco di un minuto: nessuna rete, e nessuna chiave con cui farla comunque.
+    settings.markModelsRefreshed(ProviderId.OPENROUTER, System.currentTimeMillis() - 60_000L)
+    settings.setChatModel(ProviderId.OPENROUTER, inklingSmall)
+    settings.setDeepModel(ProviderId.OPENROUTER, inkling)
+
+    assertEquals(catalogue, verifier.refreshIfStale(ProviderId.OPENROUTER))
+
+    val after = settings.current()
+    assertFalse(AiDefaults.avoided(after.chatModel(ProviderId.OPENROUTER)))
+    assertFalse(AiDefaults.avoided(after.deepModel(ProviderId.OPENROUTER)))
+    assertEquals("minimax/minimax-m3:free", after.chatModel(ProviderId.OPENROUTER))
+  }
+
+  /** Offline, o senza chiave: si riallinea lo stesso, sul catalogo che si ha su disco. */
+  @Test
+  fun `senza client il riallineamento usa comunque il catalogo salvato`() = runBlocking {
+    val (verifier, settings, catalogs) = fixture()
+    catalogs.save(ProviderId.OPENROUTER, ModelCatalogue(chat = listOf(free(inkling), free("minimax/minimax-m3:free")), stt = emptyList()))
+    // Vecchio di due giorni: si proverebbe la rete, ma senza chiave non c'e' nessun client.
+    settings.markModelsRefreshed(ProviderId.OPENROUTER, System.currentTimeMillis() - 2 * AiKeyVerifier.DAY_MILLIS)
+    settings.setDeepModel(ProviderId.OPENROUTER, inkling)
+
+    verifier.refreshIfStale(ProviderId.OPENROUTER)
+
+    assertEquals("minimax/minimax-m3:free", settings.current().deepModel(ProviderId.OPENROUTER))
   }
 
   @Test

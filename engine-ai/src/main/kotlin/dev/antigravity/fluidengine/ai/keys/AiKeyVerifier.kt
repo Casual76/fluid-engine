@@ -250,6 +250,12 @@ class AiKeyVerifier(
     val current = settings.current()
     val refreshedAt = current.modelsRefreshedAt[provider] ?: 0L
     val cached = catalogs.load(provider)
+    // Il riallineamento va fatto **su qualunque catalogo si abbia**, non solo su uno appena
+    // scaricato: un telefono che ha verificato la chiave ieri non ripassa mai dalla rete, e senza
+    // questa riga una scelta finita su un modello da evitare (Inkling, che risponde solo dentro un
+    // harness agentico) resterebbe li' per sempre -- la correzione arriverebbe con l'aggiornamento
+    // e non cambierebbe niente.
+    if (cached != null) reconcile(provider, cached)
     if (!force && cached != null && clock() - refreshedAt < DAY_MILLIS) return cached
     val client = providers.forVerification(provider) ?: return cached
     return try {

@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.ui.tutorial
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -31,6 +32,17 @@ class FluidTutorialPolicyTest {
   @Test
   fun `senza candidati non succede niente`() {
     assertNull(choose(emptyList()))
+  }
+
+  @Test
+  fun `due politiche uguali sono la stessa chiave per remember`() {
+    // Non e' una prova di stile. `rememberFluidTutorialHostState` costruisce la politica come
+    // argomento di default e ci fa sopra un `remember(policy)`: se due politiche identiche non
+    // risultano uguali, ogni ricomposizione rifa' il padrone di casa da zero e **nessun
+    // suggerimento compare mai**. E' successo in un'app, ed era invisibile da fuori.
+    assertEquals(FluidTutorialPolicy(), FluidTutorialPolicy())
+    assertEquals(FluidTutorialPolicy(900), FluidTutorialPolicy(900))
+    assertNotEquals(FluidTutorialPolicy(600), FluidTutorialPolicy(900))
   }
 
   @Test

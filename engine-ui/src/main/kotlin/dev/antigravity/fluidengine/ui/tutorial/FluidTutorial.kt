@@ -44,12 +44,20 @@ data class FluidTutorialLabels(
  * Quando un suggerimento puo' comparire. Pura di proposito: le regole sono tutte di tempo e di
  * stato, e un tempo si prova con un orologio finto meglio che con un dito.
  *
+ * **`data class` non e' un vezzo: e' l'unica cosa che tiene in piedi
+ * [rememberFluidTutorialHostState]** (1.30.1). Quella funzione la costruisce come argomento di
+ * default e ci fa sopra un `remember(policy)`; senza uguaglianza di valore ogni ricomposizione ne
+ * produce una diversa, il `remember` la legge come chiave nuova e **rifa' il padrone di casa da
+ * zero**. Il difetto e' invisibile e totale: ogni suggerimento offerto finisce in un'istanza che
+ * verra' buttata, e sullo schermo non compare mai niente. Chi lo trova pensa di aver sbagliato a
+ * offrire, e guarda dalla parte sbagliata per mezza giornata.
+ *
  * Le condizioni, tutte insieme: l'ancora e' sullo schermo; sono passati [quietMillis] dall'ultima
  * interazione (nessun dito, nessuno scorrimento) e dall'ultimo caricamento; non c'e' un pannello
  * dell'engine in scena; dalla chiusura del precedente c'e' stata almeno un'interazione. Fra piu'
  * candidati vince la priorita' piu' alta, a parita' l'ordine in cui sono stati offerti.
  */
-class FluidTutorialPolicy(val quietMillis: Long = DEFAULT_QUIET_MILLIS) {
+data class FluidTutorialPolicy(val quietMillis: Long = DEFAULT_QUIET_MILLIS) {
 
   fun choose(
     candidates: List<FluidTutorial>,

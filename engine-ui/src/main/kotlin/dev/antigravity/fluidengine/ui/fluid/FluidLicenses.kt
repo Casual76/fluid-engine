@@ -60,7 +60,11 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
   FluidLicense(
     name = "Square",
     author = "Lelonio",
-    licence = "GPL-3.0 — nessun codice ripreso",
+    // La qualifica sta dentro la licenza e non altrove perche' va letta **insieme** al nome:
+    // "GPL-3.0" da solo, in un elenco di crediti, si legge come "hanno preso del codice GPL", che
+    // non e' vero. In inglese come le altre due: un identificativo di licenza non si traduce, e
+    // un'app tradotta non deve trovarsi una riga italiana in mezzo alle altre.
+    licence = "GPL-3.0 (no code taken)",
     url = "https://github.com/Lelonio/Square",
     role = "Da qui abbiamo imparato come si porta davvero il vetro su Android.",
   ),
@@ -72,6 +76,11 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
  * A `LazyListScope` extension rather than a screen, because every app already has an "informazioni"
  * page with its own header, its own version row and its own order, and a second screen would be one
  * more place to navigate to and forget about.
+ *
+ * The default [title] and [footnote] are **in Italian**, so a single-language app writes nothing.
+ * A translated app passes its own strings: leave the defaults and it ends up with two Italian
+ * sentences in the middle of an English page — that happened, and nobody notices until the phone
+ * is turned to English.
  */
 fun LazyListScope.fluidLicensesSection(
   title: String = "Licenze e crediti",

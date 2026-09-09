@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.30.1 - 2026-09-09
+
+- ui: FluidTutorialPolicy e una data class. rememberFluidTutorialHostState la costruisce come argomento di default e ci fa sopra remember(policy): senza uguaglianza di valore ogni ricomposizione ne produceva una nuova, il remember rifaceva il padrone di casa da zero, e nessun suggerimento compariva mai. Invisibile da fuori: le offerte partivano e la coda restava vuota.
+- ui: nei crediti la licenza di Square e GPL-3.0 (no code taken). La qualifica era in italiano e su un telefono in inglese era l unica riga non tradotta della pagina. La KDoc di fluidLicensesSection dice adesso che i default italiani vanno sostituiti da chi traduce l app.
+
+
 ## 1.30.0 - 2026-09-08
 
 - La politica sui dati di OpenRouter non si impone piu' a ogni richiesta: vale quella dell'account, e chi vuole di piu' chiede deny.

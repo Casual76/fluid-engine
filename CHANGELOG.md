@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.31.0 - 2026-09-10
+
+- ui: `FluidGlassModalSheet` tiene conto degli inset della tastiera. Le app girano edge-to-edge, quindi `adjustResize` non ridimensiona piu' la finestra: il pannello restava ancorato in fondo allo schermo e la tastiera copriva ogni campo di testo che conteneva.
+- ui: `rememberCurrentDate()`, la data di oggi che resta oggi. `remember { LocalDate.now() }` si congela alla prima composizione, e la composizione sopravvive al passaggio in background: dopo mezzanotte la schermata continua a chiamare "oggi" il giorno prima. Si rilegge al ritorno in primo piano e allo scoccare della mezzanotte successiva, senza nessun timer che gira in mezzo.
+
+Le stesse due voci sono uscite anche come 1.27.2, la patch per le app ferme sulla linea 1.27.
+
+
 ## 1.30.1 - 2026-09-09
 
 - ui: FluidTutorialPolicy e una data class. rememberFluidTutorialHostState la costruisce come argomento di default e ci fa sopra remember(policy): senza uguaglianza di valore ogni ricomposizione ne produceva una nuova, il remember rifaceva il padrone di casa da zero, e nessun suggerimento compariva mai. Invisibile da fuori: le offerte partivano e la coda restava vuota.

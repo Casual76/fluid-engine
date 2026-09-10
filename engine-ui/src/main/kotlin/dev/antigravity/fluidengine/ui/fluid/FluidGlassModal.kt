@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -1693,7 +1694,9 @@ private fun FluidGlassModalSheet(
     }
   }
 
-  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+  // Il pannello sta in fondo allo schermo e le app girano edge-to-edge, quindi la finestra non si
+  // ridimensiona da sola: senza questo, la tastiera copre i campi di testo che il pannello contiene.
+  Box(modifier = Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.BottomCenter) {
     Column(
       modifier = Modifier
         .fillMaxWidth()

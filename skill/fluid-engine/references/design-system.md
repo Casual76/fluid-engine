@@ -41,7 +41,11 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 `FluidSwitch(checked, onCheckedChange)` — passa `onCheckedChange = null` quando è la riga a possedere
 il `toggleable` e il target da 48dp.
 
-`FluidSegmentedControl(options, selected, onSelect, label)`, `FluidChip(label, selected, onClick)`,
+`FluidSlider(value, onValueChange, valueRange)` — il fratello dell'interruttore: pista che si
+riempie, maniglia che rifrange la pista, e tutta la larghezza tocca (non solo la maniglia).
+
+`FluidSegmentedControl(options, selected, onSelect, label)` — `content = { opzione, selezionato -> }`
+per i segmenti a sole icone; `label` resta e diventa la descrizione per chi legge lo schermo, `FluidChip(label, selected, onClick)`,
 `FluidTextField`, `FluidColorDot`, `FluidBarAction(icon, contentDescription, onClick)`,
 `FluidGlassIconButton`, `FluidGlassButton`, `glassControlSurface`, `fluidStaticGlassSurface`,
 `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`, `FluidHairline`, `FluidRowValue`.

@@ -6,6 +6,23 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.33.0 - 2026-09-18
+
+- ui: `FluidSlider`, un numero su una pista con una lente per maniglia. Le stesse tre idee di
+  `FluidSwitch`, che e' il controllo di cui e' fratello: la pista si riempie invece di ricolorarsi,
+  la maniglia rifrange la pista (registrata in un layer suo) invece di essere un disco, e si allunga
+  mentre viaggia. Tutta la larghezza e' viva, non solo la maniglia: un cursore che bisogna centrare
+  e' un cursore che il pollice manca. I tick sono `Tick` a ogni ventesimo e `Threshold` ai due
+  estremi, dove il pavimento di quaranta millisecondi dell'aptica fa il suo mestiere — su un
+  trascinamento veloce gli attraversamenti sono molti piu' di quanti un motore ne sappia rendere, e
+  chiederli tutti da un ronzio invece di un conteggio.
+- ui: `FluidSegmentedControl(content =)`, il segmento disegnato dall'app — per un controllo a sole
+  icone, dove una parola non e' quello che ci va. `label` resta obbligatorio e diventa la
+  descrizione per chi legge lo schermo, che altrimenti non avrebbe niente. Attenzione: il contenuto
+  di un segmento viene composto **due volte**, una per la barra e una per la copia invisibile che la
+  lente rifrange, quindi dev'essere il ritratto di un segmento e non il posto dove si lavora.
+
+
 ## 1.32.1 - 2026-09-18
 
 - ui: la banda dell accessorio prende l altezza della fila una volta ripiegata, invece di restare alla sua e sedercisi dentro per un pelo. Un pelo di margine e' esattamente cio' che fa leggere due cose come due cose, e il viaggio e' lo stesso numero su cui si stringe la capsula accanto.

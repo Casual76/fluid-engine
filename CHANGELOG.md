@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.32.0 - 2026-09-18
+
+- ui: `FluidScreen` ha `contentMaxWidth` (760 dp): oltre quella larghezza il margine cresce e la colonna resta centrata, titolo grande compreso. E' l'unica riga che distingue una pagina da telefono allargata da una pagina da tablet, e vale per ogni schermata che passa da `FluidScreen`. `Modifier.fluidReadingWidth()` fa lo stesso per chi non ci passa; la funzione pura e' `fluidScreenPadding`.
+- ui: `FluidGlassModalPresentation.FullScreen`, la pagina intera: nasce dal basso, barra in cima con titolo e chiusura, contenuto che scorre, `footer` fermo sotto, congedo trascinando. A filo sotto i 600 dp, staccata sopra. Opaca di proposito: il vetro sta su quello che galleggia, e una pagina non galleggia, copre. `FluidGlassModalPortal` ha il parametro `footer`, additivo.
+- ui: `FluidTextField` ha l'overload a `TextFieldValue`; quello a `String` ne e' un guscio e nessuna chiamata cambia. `FluidTextEdit` (`insert`, `wrap`, `toggleLinePrefix`): le operazioni di un editor, pure e provate.
+- docs: in 03-design-system la sezione 1.32.0 e «Come si varia, senza perdere la parentela», le manopole che esistono e che nessuna app gira.
+
+
 ## 1.31.0 - 2026-09-10
 
 - ui: `FluidGlassModalSheet` tiene conto degli inset della tastiera. Le app girano edge-to-edge, quindi `adjustResize` non ridimensiona piu' la finestra: il pannello restava ancorato in fondo allo schermo e la tastiera copriva ogni campo di testo che conteneva.

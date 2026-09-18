@@ -344,6 +344,24 @@ condivisa non viene dipinto: una finestra, un fondale.
 Su una pagina sola non cambia niente: senza superficie condivisa, ogni schermata si dipinge il suo
 come prima.
 
+## Il testo che si accende (1.35.0)
+
+`FluidSpokenText(text, words, positionMs)`: quello che e' gia' stato detto e' nel colore pieno,
+quello che deve ancora venire e' velato, e il confine si muove parola per parola. Per un'app che
+tiene insieme una registrazione e la sua trascrizione e' l'unica cosa che dice «sei qui» senza che
+nessuno debba cercarlo.
+
+Due dettagli che sono tutto il componente. **La posizione arriva come lambda**, non come parametro:
+a cinque battiti al secondo un parametro rimisurerebbe il testo cinque volte al secondo, mentre
+letta dentro il disegno invalida solo il disegno. E il testo si disegna **due volte**: il `Text`
+vero e proprio nel colore velato — quindi accessibilita', selezione e layout restano quelli di
+sempre — e poi la parte gia' detta, ritagliata sulle righe intere piu' il rettangolo parziale della
+riga corrente, ridipinta nel colore pieno.
+
+`fluidSpokenChars(words, positionMs)` e' la funzione pura che dice fin dove: ricerca binaria sulle
+parole, e dentro una parola il confine avanza in proporzione, cosi' l'evidenziazione scorre invece
+di scattare. Ha i suoi test.
+
 ## Come si varia, senza perdere la parentela
 
 Tutte le regole di questo documento sono regole di uniformità, e un'app che le segue tutte somiglia

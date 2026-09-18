@@ -99,10 +99,12 @@ fun Modifier.glassControlSurface(
   val accent = MaterialTheme.colorScheme.primary
   val scope = rememberCoroutineScope()
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val highlight = remember(scope, reducedMotion) {
+  val onDark = GlassDefaults.isDarkSurface()
+  val highlight = remember(scope, reducedMotion, onDark) {
     GlassTouchHighlight(
       animationScope = scope,
       strength = { if (reducedMotion) 0.4f else 1f },
+      onDarkSurface = onDark,
     )
   }
   val selectionTint = remember(tint, selected, accent) {

@@ -225,10 +225,12 @@ fun FluidTabBar(
       }
     }
 
-    val highlight = remember(scope, tabWidth, isLtr, reducedMotion) {
+    val onDark = GlassDefaults.isDarkSurface()
+    val highlight = remember(scope, tabWidth, isLtr, reducedMotion, onDark) {
       GlassTouchHighlight(
         animationScope = scope,
         strength = { if (reducedMotion) 0f else 1f },
+        onDarkSurface = onDark,
         // The hotspot rides the indicator rather than the finger: on a tab bar the thing being
         // pushed is the lens, and lighting up somewhere else would break that.
         position = { size, _ ->

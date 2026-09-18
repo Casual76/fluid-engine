@@ -109,6 +109,8 @@ fun Modifier.drawPlainBackdrop(
                 backdropScale = backdropScale.coerceIn(0.1f, 1f),
                 sampleOnce = false,
                 resampleIntervalMillis = 0L,
+                frozen = NeverFrozen,
+                heldWhileMoving = NeverFrozen,
                 backdropScaleFactor = OneScale
             )
         )
@@ -165,7 +167,34 @@ fun Modifier.drawBackdrop(
      * the one thing that forces a re-capture. Two steps mean two re-captures per fling instead of
      * sixty.
      */
-    backdropScaleFactor: () -> Float = OneScale
+    backdropScaleFactor: () -> Float = OneScale,
+    /**
+     * While this returns true the surface holds the capture it has instead of taking a new one.
+     *
+     * Not the same thing as [sampleOnce], which is about a backdrop that does not move. This is
+     * about a surface whose *own* bounds are being animated: a bar folding, a pane growing into a
+     * window. Every frame of that changes the capture rectangle, so the ordinary rule — re-record
+     * when the geometry moved — asks for a full replay of the screen plus the whole effect chain on
+     * every single frame, at exactly the moment there is least to spare. Measured on the bar this
+     * came from: 9 frames of 250-450 ms, against 77 frames of 42 ms with the hold.
+     *
+     * Held, but not indefinitely. A capture frozen for a whole animation is a reflection that has to
+     * be corrected at the end of it, and that correction is a visible jump however it is dressed up.
+     * So a held surface still refreshes a few times a second: three or four recordings across a fold
+     * instead of one per frame, and nothing left at the end big enough to see.
+     */
+    frozen: () -> Boolean = NeverFrozen,
+    /**
+     * Hold the capture even while this surface is moving.
+     *
+     * [frozen] on its own holds only while the surface is where it was when it took the capture: a
+     * pane that has moved and kept its old recording is reflecting somewhere else on the screen, and
+     * that reads as the glass showing the wrong part of the page. For a surface in the middle of
+     * changing *shape* it is worth it anyway — a reflection that lags for the length of a morph is
+     * not something anyone can see, and the alternative, taking the glass away and putting it back,
+     * is.
+     */
+    heldWhileMoving: () -> Boolean = NeverFrozen,
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -220,7 +249,9 @@ fun Modifier.drawBackdrop(
                 backdropScale = if (layerBlock != null) 1f else backdropScale.coerceIn(0.1f, 1f),
                 sampleOnce = sampleOnce,
                 resampleIntervalMillis = resampleIntervalMillis,
-                backdropScaleFactor = backdropScaleFactor
+                backdropScaleFactor = backdropScaleFactor,
+                frozen = frozen,
+                heldWhileMoving = heldWhileMoving
             )
         )
 }
@@ -238,6 +269,8 @@ private class DrawBackdropElement(
     val backdropScale: Float,
     val sampleOnce: Boolean,
     val resampleIntervalMillis: Long,
+    val frozen: () -> Boolean,
+    val heldWhileMoving: () -> Boolean,
     val backdropScaleFactor: () -> Float
 ) : ModifierNodeElement<DrawBackdropNode>() {
 
@@ -255,7 +288,9 @@ private class DrawBackdropElement(
             backdropScale = backdropScale,
             sampleOnce = sampleOnce,
             resampleIntervalMillis = resampleIntervalMillis,
-            backdropScaleFactor = backdropScaleFactor
+            backdropScaleFactor = backdropScaleFactor,
+            frozen = frozen,
+            heldWhileMoving = heldWhileMoving
         )
     }
 
@@ -283,6 +318,11 @@ private class DrawBackdropElement(
         node.backdropScale = backdropScale
         node.sampleOnce = sampleOnce
         node.resampleIntervalMillis = resampleIntervalMillis
+        // Lambdas, and deliberately not part of equals: a caller that rebuilds them every
+        // composition would make this element unequal every time and undo the whole point of
+        // the gate they feed.
+        node.frozen = frozen
+        node.heldWhileMoving = heldWhileMoving
         node.backdropScaleFactor = backdropScaleFactor
         node.invalidateDrawCache()
     }
@@ -379,6 +419,18 @@ internal const val MaxBackdropTextureDimension = 4096f
 /** Below this the capture is too coarse to be worth running the chain over at all. */
 internal const val MinBackdropScale = 0.05f
 
+/** Never held. The default for `frozen` and `heldWhileMoving` in [drawBackdrop]. */
+private val NeverFrozen: () -> Boolean = { false }
+
+/**
+ * How long a held capture may go without a refresh.
+ *
+ * A hundred and ten milliseconds: short enough that what it has to correct at the end of a hold is
+ * never big enough to read as a jump, long enough that a fold costs three or four recordings
+ * instead of one per frame.
+ */
+private const val HoldRefreshMillis = 110L
+
 private class DrawBackdropNode(
     var backdrop: Backdrop,
     var shapeProvider: ShapeProvider,
@@ -392,6 +444,8 @@ private class DrawBackdropNode(
     var backdropScale: Float,
     var sampleOnce: Boolean,
     var resampleIntervalMillis: Long,
+    var frozen: () -> Boolean,
+    var heldWhileMoving: () -> Boolean,
     var backdropScaleFactor: () -> Float
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode, Modifier.Node() {
 
@@ -452,6 +506,9 @@ private class DrawBackdropNode(
 
     /** Quando e' stata presa l'ultima cattura valida, per [resampleIntervalMillis]. */
     private var lastRecordedAt = 0L
+
+    /** Se il fotogramma prima si stava tenendo ferma la cattura. Vedi [frozen]. */
+    private var wasHolding = false
 
     /**
      * Where every source sits relative to this surface, which is the only thing a capture depends on.
@@ -563,13 +620,34 @@ private class DrawBackdropNode(
             // a Galaxy S25: 44 ms per frame with one capture each, 61 ms with nine live ones).
             // Under a 10 dp blur a capture 100 ms old is indistinguishable from a fresh one, so the
             // interval buys back almost all of that cost and gives up nothing the eye can see.
-            val now = if (resampleIntervalMillis > 0L) System.currentTimeMillis() else 0L
+            // Read unconditionally: the hold below needs a clock even when no resample
+            // interval was asked for.
+            val now = System.currentTimeMillis()
             val tooSoon = resampleIntervalMillis > 0L &&
                 lastRecordedAt != 0L &&
                 now - lastRecordedAt < resampleIntervalMillis &&
                 // Una cattura di misura sbagliata non e' rinviabile: si vedrebbe subito.
                 !surfaceDirty && recordedSize == recordSize
-            val needsRecord = wanted && !tooSoon
+            // Held: see [frozen]. Only when there is something to hold — a surface frozen
+            // before it ever recorded would draw an empty layer — and only while it has not
+            // drifted too far, which is what keeps the correction at the end too small to see.
+            val heldLongEnough =
+                lastRecordedAt != 0L && now - lastRecordedAt >= HoldRefreshMillis
+            val holding = frozen() &&
+                sampled &&
+                !heldLongEnough &&
+                (!wanted || heldWhileMoving())
+            // Coming out of a hold always takes a fresh capture, whether or not anything else
+            // asks for one. Without this a held reflection could last for good: a backdrop
+            // changes when it redraws, and a page that has stopped scrolling does not redraw.
+            val refreshAfterHold = wasHolding && !holding
+            wasHolding = holding
+
+            val needsRecord = when {
+                holding -> false
+                refreshAfterHold -> true
+                else -> wanted && !tooSoon
+            }
 
             if (needsRecord) {
                 recordLayer(

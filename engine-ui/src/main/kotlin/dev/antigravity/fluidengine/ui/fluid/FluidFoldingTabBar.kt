@@ -19,6 +19,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.State
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -114,6 +116,53 @@ fun FluidFoldingTabBar(
   onExpandRequest: (() -> Unit)? = null,
   /** A control that keeps its size through the fold — a search button, a profile, an overflow. */
   trailing: (@Composable () -> Unit)? = null,
+  /**
+   * The glyph a tab is drawn with, when [FluidTabItem.icon] is not enough.
+   *
+   * One slot for every tab rather than a lambda inside [FluidTabItem], and that is deliberate: a
+   * lambda in the item makes the list a different list on every recomposition, and this bar keys
+   * real work — the indicator's spring, the drag animation — on that list. An app whose tabs swap
+   * between a filled and an outlined glyph passes it here and keeps its items a value type.
+   */
+  tabIcon: (@Composable (item: FluidTabItem, selected: Boolean) -> Unit)? = null,
+  /**
+   * A band that rides above the row — a now-playing pill, a download strip, an offer.
+   *
+   * It travels with the fold instead of going away, and that is the whole reason it is here rather
+   * than in a `Column` above the bar. Folded, the capsule closes to a square and the accessory takes
+   * the width it gave up, so the two of them are one object contracting: nothing appears, nothing
+   * vanishes, and a surface growing out of the accessory's rectangle keeps growing out of it the
+   * whole way.
+   *
+   * Two consequences worth knowing before reaching for it. The bar keeps its full width while it is
+   * folded — there is nothing left over to push to one side — so [foldAlignment] has no work to do
+   * and is ignored. And the accessory is measured, never asked how tall it is: it gets
+   * [accessoryHeight] open and folded alike, because a band that also changes height while it moves
+   * reads as two animations disagreeing.
+   *
+   * The content is the caller's, and so is what it knows about itself: an app that needs the
+   * accessory's rectangle on screen puts its own `onGloballyPositioned` inside this slot.
+   */
+  accessory: (@Composable () -> Unit)? = null,
+  /** How tall [accessory] is drawn, open and folded alike. */
+  accessoryHeight: Dp = FluidFoldingTabBarDefaults.AccessoryHeight,
+  /**
+   * Whether the bar is a search field right now.
+   *
+   * The field is not a second bar: [trailing] grows into it, the capsule closes onto the tab you
+   * came from, and the way back is that same tab. One surface and one number, like the fold — which
+   * is why the two must not run at once: lock the fold (`FluidBarFold.locked`) while searching, or
+   * the capsule is being squeezed by two things that disagree about how far.
+   */
+  searchMode: Boolean = false,
+  /**
+   * The field itself, handed the modifier it has to wear so the bar can size it.
+   *
+   * Passed **always**, not only while [searchMode] is true: the bar composes it when the search is
+   * on screen and drops it when the travel is over, and a slot that arrives null cannot be animated
+   * out — it would simply be gone for the half second it should have been closing.
+   */
+  searchContent: (@Composable (Modifier) -> Unit)? = null,
   /** Dove finisce la barra una volta ripiegata. Vedi [FluidFoldAlignment]. */
   foldAlignment: FluidFoldAlignment = FluidFoldAlignment.Center,
 ) {
@@ -123,6 +172,32 @@ fun FluidFoldingTabBar(
   val openPx = with(density) { FluidFoldingTabBarDefaults.OpenHeight.roundToPx() }
   val foldedPx = with(density) { FluidFoldingTabBarDefaults.FoldedHeight.roundToPx() }
   val spacingPx = with(density) { FluidFoldingTabBarDefaults.Spacing.roundToPx() }
+  val accessoryPx = with(density) { accessoryHeight.roundToPx() }
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+
+  // The search's own number, animated here rather than by the caller, because unlike the fold
+  // nothing outside the bar has any use for it. Read in measure like the fold is; the only thing
+  // composition is told is whether the field is on screen at all.
+  val searchTravel = remember { Animatable(0f) }
+  val wantsSearch = searchMode && searchContent != null
+  LaunchedEffect(wantsSearch, reducedMotion) {
+    if (reducedMotion) {
+      searchTravel.snapTo(if (wantsSearch) 1f else 0f)
+    } else {
+      searchTravel.animateTo(
+        if (wantsSearch) 1f else 0f,
+        spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
+      )
+    }
+  }
+  val search: () -> Float = { searchTravel.value }
+  // Two recompositions for a whole transition — one when it starts, one when it stops — instead of
+  // one per frame, which is what reading `value` up here would have cost.
+  val searchOnScreen = wantsSearch || searchTravel.isRunning
+
+  // What squeezes the capsule: the fold, the search, or whichever is further along. The capsule
+  // still reads `fold` for what a tap *means*, and that is not the same question.
+  val squeeze: () -> Float = { maxOf(fold(), search()) }
 
   Layout(
     modifier = modifier,
@@ -136,46 +211,95 @@ fun FluidFoldingTabBar(
           onExpandRequest = onExpandRequest,
           backdrop = backdrop,
           fold = fold,
+          squeeze = squeeze,
+          tabIcon = tabIcon,
         )
       }
       if (trailing != null) {
         Box(modifier = Modifier.layoutId(SlotTrailing)) { trailing() }
+      }
+      if (accessory != null) {
+        Box(modifier = Modifier.layoutId(SlotAccessory)) { accessory() }
+      }
+      if (searchContent != null && searchOnScreen) {
+        Box(modifier = Modifier.layoutId(SlotSearch)) { searchContent(Modifier.fillMaxSize()) }
       }
     },
   ) { measurables, constraints ->
     // Read here, in measure. Nothing above this line depends on the fold, so nothing above this line
     // runs again when it moves.
     val f = fold().fastCoerceIn(0f, 1f)
+    val s = search().fastCoerceIn(0f, 1f)
+    val shrink = maxOf(f, s)
     val width = constraints.maxWidth
     val rowHeight = lerp(openPx, foldedPx, f)
 
+    val accessoryMeasurable = measurables.firstOrNull { it.layoutId == SlotAccessory }
+    val searchMeasurable = measurables.firstOrNull { it.layoutId == SlotSearch }
+
+    // The band above the row, and the height it takes out of the bar. Both go to nothing as the
+    // accessory moves down into the row, which is why the bar's own height is a single lerp.
+    val bandHeight = if (accessoryMeasurable != null) accessoryPx + spacingPx else 0
+    val barHeight = fluidBarHeight(openPx, rowHeight, bandHeight, if (bandHeight > 0) f else 1f)
+    val rowTop = barHeight - rowHeight
+
+    val gap = if (trailing != null) spacingPx else 0
+    // Open, the trailing control is a square of the row's height. Searching, it is everything the
+    // capsule has just given up: the button *is* the field, grown.
+    val trailingSquare = rowHeight
+    val trailingGrown = (width - rowHeight - gap).coerceAtLeast(1)
+    val trailingWidth = if (trailing != null) lerp(trailingSquare, trailingGrown, s) else 0
     val trailingPlaceable = measurables
       .firstOrNull { it.layoutId == SlotTrailing }
-      ?.measure(Constraints.fixed(rowHeight, rowHeight))
-    val trailingWidth = trailingPlaceable?.width ?: 0
-    val gap = if (trailingPlaceable != null) spacingPx else 0
+      ?.measure(Constraints.fixed(trailingWidth, rowHeight))
 
-    val capsuleOpen = (width - trailingWidth - gap).coerceAtLeast(1)
-    val capsuleWidth = fluidFoldedCapsuleWidth(capsuleOpen, rowHeight, f)
+    val capsuleOpen = (width - trailingSquare - gap).coerceAtLeast(1)
+    val capsuleWidth = fluidFoldedCapsuleWidth(capsuleOpen, rowHeight, shrink)
     val capsulePlaceable = measurables
       .first { it.layoutId == SlotCapsule }
       .measure(Constraints.fixed(capsuleWidth, rowHeight))
 
-    layout(width, rowHeight) {
-      // Open, the pair spans the whole width and this is the identity — every alignment gives the
-      // same answer, because there is no slack to distribute. Folded, the slack is the whole point:
-      // [foldAlignment] decides where the shrunken pair ends up, and the travel is interpolated so
+    // The accessory: the whole width above the row when the bar is open, and the room between the
+    // closed capsule and the trailing control when it is folded.
+    val accessoryWidth = fluidAccessoryWidth(width, capsuleWidth, gap, trailingWidth, f)
+    val accessoryPlaceable = accessoryMeasurable
+      ?.measure(Constraints.fixed(accessoryWidth, accessoryPx))
+
+    val searchPlaceable = searchMeasurable
+      ?.measure(Constraints.fixed(trailingWidth.coerceAtLeast(1), rowHeight))
+
+    layout(width, barHeight) {
+      // With an accessory the row is always the full width — there is nothing left over to push to
+      // one side — so [foldAlignment] has nothing to decide and is ignored. Without one: open, the
+      // pair spans the whole width and every alignment gives the same answer, because there is no
+      // slack to distribute. Folded, the slack is the whole point, and the travel is interpolated so
       // the fold reads as one object contracting rather than as a control that jumps.
-      val pairWidth = capsuleWidth + gap + trailingWidth
-      val slack = (width - pairWidth).coerceAtLeast(0)
-      val foldedLeft = when (foldAlignment) {
-        FluidFoldAlignment.Start -> 0
-        FluidFoldAlignment.Center -> slack / 2
-        FluidFoldAlignment.End -> slack
+      val pairLeft = if (accessoryPlaceable != null) {
+        0
+      } else {
+        val pairWidth = capsuleWidth + gap + trailingWidth
+        val slack = (width - pairWidth).coerceAtLeast(0)
+        val foldedLeft = when (foldAlignment) {
+          FluidFoldAlignment.Start -> 0
+          FluidFoldAlignment.Center -> slack / 2
+          FluidFoldAlignment.End -> slack
+        }
+        lerp(0, foldedLeft, f)
       }
-      val pairLeft = lerp(0, foldedLeft, f)
-      capsulePlaceable.place(pairLeft, 0)
-      trailingPlaceable?.place(pairLeft + capsuleWidth + gap, 0)
+      capsulePlaceable.place(pairLeft, rowTop)
+      val trailingLeft = pairLeft + capsuleWidth + gap
+      trailingPlaceable?.place(width - trailingWidth, rowTop)
+      // The field rides exactly where the trailing control is, because it *is* it.
+      searchPlaceable?.place(width - trailingWidth, rowTop)
+
+      if (accessoryPlaceable != null) {
+        val openLeft = 0
+        val foldedLeft = trailingLeft
+        val left = lerp(openLeft, foldedLeft, f)
+        val openTop = 0
+        val foldedTop = (rowHeight - accessoryPx) / 2
+        accessoryPlaceable.place(left, lerp(openTop, foldedTop, f))
+      }
     }
   }
 }
@@ -195,7 +319,17 @@ private fun FluidFoldingTabCapsule(
   onReselect: (FluidTabItem) -> Unit,
   onExpandRequest: (() -> Unit)?,
   backdrop: GlassBackdropState,
+  /** What a tap means: folded, it means "open me". */
   fold: () -> Float,
+  /**
+   * How far the capsule is closed, which is not the same question.
+   *
+   * The fold closes it and so does the search, and while the search has it closed a tap on the one
+   * tab left is not a request to open the bar — it is the way back to that tab. Keeping the two
+   * apart is the difference between those two behaviours.
+   */
+  squeeze: () -> Float,
+  tabIcon: (@Composable (item: FluidTabItem, selected: Boolean) -> Unit)?,
 ) {
   val accent = MaterialTheme.colorScheme.primary
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
@@ -239,7 +373,7 @@ private fun FluidFoldingTabCapsule(
       // `size` here is the lens's own box, and while the bar is open the lens is exactly one tab
       // wide: it *is* the pitch, so no measurement has to be plumbed down from the layout.
       onDrag = { size, dragAmount ->
-        if (fold() <= FoldedEnough) {
+        if (squeeze() <= FoldedEnough) {
           updateValue(
             fluidTabDragTarget(
               from = targetValue,
@@ -281,7 +415,8 @@ private fun FluidFoldingTabCapsule(
       FluidFoldingTab(
         item = item,
         selected = item.route == selectedRoute,
-        fold = fold,
+        fold = squeeze,
+        tabIcon = tabIcon,
         onClick = {
           when {
             fold() > FoldedEnough && onExpandRequest != null -> onExpandRequest()
@@ -307,7 +442,7 @@ private fun FluidFoldingTabCapsule(
         ),
     ) {
       FluidFoldingTabRow(
-        fold = fold,
+        fold = squeeze,
         selectedIndex = selectedIndex,
         insetPx = insetPx,
         content = tabs,
@@ -324,7 +459,7 @@ private fun FluidFoldingTabCapsule(
         .graphicsLayer(colorFilter = ColorFilter.tint(accent)),
     ) {
       FluidFoldingTabRow(
-        fold = fold,
+        fold = squeeze,
         selectedIndex = selectedIndex,
         insetPx = insetPx,
         content = tabs,
@@ -335,7 +470,7 @@ private fun FluidFoldingTabCapsule(
     Box(
       modifier = Modifier
         .fluidFoldingIndicatorLayout(
-          fold = fold,
+          fold = squeeze,
           position = { indicator.value },
           count = items.size,
           insetPx = insetPx,
@@ -419,6 +554,7 @@ private fun FluidFoldingTab(
   item: FluidTabItem,
   selected: Boolean,
   fold: () -> Float,
+  tabIcon: (@Composable (item: FluidTabItem, selected: Boolean) -> Unit)?,
   onClick: () -> Unit,
 ) {
   val contentColor = if (selected) {
@@ -441,12 +577,18 @@ private fun FluidFoldingTab(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-      Icon(
-        imageVector = item.icon,
-        contentDescription = null,
-        tint = contentColor,
-        modifier = Modifier.size(24.dp),
-      )
+      if (tabIcon != null) {
+        // The app draws it, and the tint is its business: it is being given the selection precisely
+        // so it can answer with a different glyph, and a colour imposed here would fight that.
+        tabIcon(item, selected)
+      } else {
+        Icon(
+          imageVector = item.icon,
+          contentDescription = null,
+          tint = contentColor,
+          modifier = Modifier.size(24.dp),
+        )
+      }
       Text(
         text = item.label,
         modifier = Modifier
@@ -570,6 +712,29 @@ internal fun fluidTabDragTarget(
 internal fun fluidFoldedIndicatorTravel(position: Float, tabWidth: Int, fold: Float): Int =
   lerp((position * tabWidth).roundToInt(), 0, fold.fastCoerceIn(0f, 1f))
 
+/**
+ * The accessory band's width: the whole bar above the row, or the room left between the closed
+ * capsule and the trailing control.
+ *
+ * Kept out here with the rest of the fold's arithmetic for the same reason they are: it runs on the
+ * measure pass of every frame, and it is the number that decides whether the band clears the
+ * capsule or sits on top of it — which is not something a screenshot makes obvious.
+ */
+internal fun fluidAccessoryWidth(
+  width: Int,
+  capsuleWidth: Int,
+  gap: Int,
+  trailingWidth: Int,
+  fold: Float,
+): Int {
+  val folded = (width - capsuleWidth - gap - trailingWidth - gap).coerceAtLeast(1)
+  return lerp(width.coerceAtLeast(1), folded, fold.fastCoerceIn(0f, 1f))
+}
+
+/** How tall the whole bar is: the band plus the open row, contracting to the folded row alone. */
+internal fun fluidBarHeight(openHeight: Int, rowHeight: Int, bandHeight: Int, fold: Float): Int =
+  lerp(bandHeight + openHeight, rowHeight, fold.fastCoerceIn(0f, 1f))
+
 object FluidFoldingTabBarDefaults {
   val OpenHeight: Dp = 64.dp
 
@@ -583,6 +748,15 @@ object FluidFoldingTabBarDefaults {
   val FoldedHeight: Dp = 58.dp
   val Spacing: Dp = 8.dp
   val Inset: Dp = 4.dp
+
+  /**
+   * How tall an accessory band is, open and folded alike.
+   *
+   * A hair shorter than the folded row, so that folded it sits *inside* the row with a margin all
+   * round instead of matching its edges — which would read as a second bar butted against the first
+   * rather than as something carried by it.
+   */
+  val AccessoryHeight: Dp = 50.dp
   val HorizontalMargin: Dp = 14.dp
 
   /**
@@ -596,6 +770,10 @@ object FluidFoldingTabBarDefaults {
 
   /** Vertical space a screen must leave free so its content clears the bar at its tallest. */
   val ContentInset: Dp = OpenHeight + BottomMargin
+
+  /** The same, for a bar carrying an accessory band of [AccessoryHeight]. */
+  fun contentInsetWithAccessory(accessoryHeight: Dp = AccessoryHeight): Dp =
+    ContentInset + accessoryHeight + Spacing
 }
 
 /**
@@ -621,10 +799,25 @@ class FluidBarFold internal constructor(
 ) {
   val folded: Boolean get() = target.floatValue > 0.5f
 
+  /**
+   * While this is true the bar stops answering the page, and stays exactly where it is.
+   *
+   * It is not a convenience. Something else can be *measuring* the bar — a surface growing out of
+   * an accessory's rectangle, a shared element mid-flight — and a bar that folds under it moves the
+   * very thing that journey is being drawn from, which shows up as a window that starts from the
+   * wrong place and arrives crooked. A scroll during the lock is dropped, not stored: releasing the
+   * lock must not replay a fold nobody is asking for any more.
+   */
+  var locked: Boolean by mutableStateOf(false)
+
   private var pending = 0f
 
   val connection: NestedScrollConnection = object : NestedScrollConnection {
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+      if (locked) {
+        pending = 0f
+        return Offset.Zero
+      }
       // The finger only. A fling settles by reporting deltas of its own, and the last of those
       // points the other way — which would reopen the bar at the end of every downward throw.
       if (source != NestedScrollSource.UserInput || available.y == 0f) return Offset.Zero
@@ -680,4 +873,6 @@ private const val RevealCommitDp = 10f
 
 private const val SlotCapsule = "fluid:folding-capsule"
 private const val SlotTrailing = "fluid:folding-trailing"
+private const val SlotAccessory = "fluid:folding-accessory"
+private const val SlotSearch = "fluid:folding-search"
 

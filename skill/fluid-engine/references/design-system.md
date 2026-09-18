@@ -60,13 +60,20 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `FluidMotion` (molle), `FluidMotionScheme` (le passa a Material), `FluidMotionPolicy`
 - `GlassDefaults`, `rememberGlassBackdrop`, `rememberCombinedGlassBackdrop`, `LocalGlassBackdrop`,
   `LocalFluidCanvasBackdrop`, `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
+- `LocalFluidSurfaceSide` — da che parte sta l'app, quando la palette non si puo' interrogare. Serve
+  solo a chi mette una **pellicola traslucida** in `colorScheme.surface`: la luminanza ignora
+  l'alpha, quindi quel design viene letto come chiaro sempre. `FluidTheme` lo fornisce da se'
 - `FluidAmbient`, `FluidAmbientCanvas` — il fondale per schermata; `FluidScreen(ambient = ...)`
 - `FluidGlassModalHost`, `FluidGlassModalPortal`, `FluidGlassModalPresentation`,
   `fluidExpandOrigin`, `fluidGlassModalObscured` — il pop-up in vetro dentro la composizione
 - `FluidContextAction`, `fluidContextMenu`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`,
   e `FluidListRow(contextActions = ...)` — il menu contestuale iOS
 - `FluidGlassMenuButton` — il tasto che si trasforma nel proprio menu
-- `FluidFoldingTabBar`, `rememberFluidBarFold` — la barra che si piega scorrendo
+- `FluidFoldingTabBar`, `rememberFluidBarFold` — la barra che si piega scorrendo. Dalla 1.31.0 sa
+  portare una banda sopra la fila (`accessory`, che ripiegandosi entra *nella* fila invece di
+  sparire), diventare un campo di ricerca (`searchMode` + `searchContent`: cresce il `trailing`),
+  farsi disegnare le schede dall'app (`tabIcon`) e stare ferma mentre qualcuno la misura
+  (`FluidBarFold.locked`)
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche

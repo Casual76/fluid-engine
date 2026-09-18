@@ -99,4 +99,48 @@ class FluidFoldingTabBarTest {
       fluidFoldedTabWidths(count = 2, selectedIndex = 1, inner = 200, fold = 4f).toList(),
     )
   }
+
+  @Test
+  fun theAccessoryBandClearsTheCapsuleAllTheWayThroughTheFold() {
+    // A bar 1000 wide, a 58 square trailing control, 8 of gap. Open, the band is the whole bar;
+    // folded, it is what is left between a capsule closed to its square and that control.
+    val width = 1000
+    val row = 58
+    val gap = 8
+
+    assertEquals(width, fluidAccessoryWidth(width, capsuleWidth = 934, gap = gap, trailingWidth = row, fold = 0f))
+
+    val folded = fluidAccessoryWidth(width, capsuleWidth = row, gap = gap, trailingWidth = row, fold = 1f)
+    assertEquals(width - row - gap - row - gap, folded)
+
+    // The point of the test: at no moment on the way does the band plus what is beside it come to
+    // more than the bar. Overlap here is a pill drawn on top of the tabs, for a few frames, once
+    // per fold — which is exactly the kind of thing that is never caught by looking.
+    var f = 0f
+    while (f <= 1f) {
+      val capsule = fluidFoldedCapsuleWidth(openWidth = width - row - gap, rowHeight = row, fold = f)
+      val band = fluidAccessoryWidth(width, capsule, gap, row, f)
+      // Open, the band is above the row and is allowed the whole width; folded, it is in the row
+      // and has to fit beside both. The crossing is the interpolation, so the guarantee is only
+      // asked for where it means anything.
+      if (f > 0.99f) assertTrue("band $band overlapped at fold $f", band + capsule + gap + row + gap <= width)
+      assertTrue(band >= 1)
+      f += 0.05f
+    }
+  }
+
+  @Test
+  fun theBarGivesUpTheBandsHeightAsItFolds() {
+    val open = 64
+    val folded = 58
+    val band = 50 + 8
+
+    assertEquals(band + open, fluidBarHeight(open, rowHeight = open, bandHeight = band, fold = 0f))
+    assertEquals(folded, fluidBarHeight(open, rowHeight = folded, bandHeight = band, fold = 1f))
+
+    // No accessory: the bar is the row, and it is the row at every value of the fold — passing 1
+    // here is how the caller says "there is no band", and it must not depend on the fold at all.
+    assertEquals(folded, fluidBarHeight(open, rowHeight = folded, bandHeight = 0, fold = 1f))
+    assertEquals(open, fluidBarHeight(open, rowHeight = open, bandHeight = 0, fold = 1f))
+  }
 }

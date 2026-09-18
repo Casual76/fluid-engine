@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -132,5 +133,27 @@ class GlassMaterialStateTest {
     assertEquals(0f, clampGlassUnit(-3f), 0f)
     assertEquals(1f, clampGlassUnit(3f), 0f)
     assertEquals(0.5f, clampGlassUnit(0.5f), 0f)
+  }
+
+  @Test
+  fun surfaceSide_isGuessedFromLuminance_untilTheAppSaysOtherwise() {
+    // The ordinary case, and the one that must not change: an app with an opaque page gets the
+    // answer it always got, without declaring anything.
+    assertTrue(GlassDefaults.darkSurface(null, Color(0xFF101114)))
+    assertFalse(GlassDefaults.darkSurface(null, Color(0xFFF4F4F6)))
+
+    // The case this exists for. A design whose surfaces are translucent films files a film in
+    // `surface`; luminance does not look at alpha, so a white at ten percent reads as 1.0 and a
+    // black app is called a light one. Every pane of glass takes the wrong branch at once.
+    val film = Color.White.copy(alpha = 0.10f)
+    assertFalse(
+      "guessed light from a film that is painted over black: that is the whole reason for this",
+      GlassDefaults.darkSurface(null, film),
+    )
+
+    // Declared, it is believed — both ways round, so this is a hand-over and not a dark switch.
+    assertTrue(GlassDefaults.darkSurface(true, film))
+    assertFalse(GlassDefaults.darkSurface(false, film))
+    assertFalse(GlassDefaults.darkSurface(false, Color(0xFF101114)))
   }
 }

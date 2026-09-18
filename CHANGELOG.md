@@ -6,6 +6,40 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.31.0 - 2026-09-18
+
+- ui: `LocalFluidSurfaceSide`. `GlassDefaults.isDarkSurface()` chiedeva la luminanza di
+  `colorScheme.surface`, e un design in cui ogni superficie e' una pellicola traslucida ci mette
+  dentro una pellicola: un bianco al dieci percento ha luminanza 1.0, perche' l'alpha non fa parte
+  della luminanza. L'app piu' nera del mondo veniva chiamata chiara, e ogni pannello di vetro
+  prendeva il ramo sbagliato insieme, in silenzio. Ora l'app che sa da che parte sta lo dice, e
+  `FluidTheme` lo dice gia' da se': chi non passa niente tiene esattamente la stima di prima. La
+  regola e' `GlassDefaults.darkSurface(lato, superficie)`, pura e provata.
+- ui: le icone delle barre di sistema le decide il tema, non `colorScheme.background.luminance()`.
+  Un fondo lasciato trasparente perche' ci passi un'immagine ha luminanza zero, quindi un'app
+  chiara si prendeva icone chiare sopra una pagina chiara.
+- ui: `FluidFoldingTabBar(accessory =, accessoryHeight =)`, una banda che viaggia sopra la fila: una
+  pillola di riproduzione, una striscia di download, un'offerta. Ripiegandosi, la capsula si chiude
+  a quadrato e l'accessorio prende la larghezza che lascia, cosi' i due sono un oggetto solo che si
+  contrae: niente compare e niente sparisce, e una superficie che cresce dal rettangolo
+  dell'accessorio continua a crescere da li' per tutto il viaggio. Con un accessorio la barra tiene
+  la larghezza intera e `foldAlignment` non ha piu' niente da decidere, quindi viene ignorato.
+- ui: `FluidFoldingTabBar(searchMode =, searchContent =)`: il controllo `trailing` cresce fino a
+  diventare il campo di ricerca e ci ritorna, mentre la capsula si chiude sulla scheda da cui si e'
+  partiti — che resta la strada per tornare indietro. Una superficie sola e un numero, come la
+  piega. I due non vanno fatti correre insieme: si blocca la piega mentre si cerca.
+- ui: `FluidBarFold.locked`. Mentre qualcosa sta misurando la barra — una finestra che cresce dal
+  rettangolo di un accessorio, un elemento condiviso a mezz'aria — una piega che parte sposta la
+  cosa stessa da cui il viaggio e' disegnato. Uno scorrimento durante il blocco viene buttato, non
+  messo da parte: togliere il blocco non deve rigiocare una piega che non chiede piu' nessuno.
+- ui: `FluidFoldingTabBar(tabIcon =)`, il disegno di una scheda deciso dall'app — per chi scambia
+  glifo pieno e glifo vuoto con la selezione. Una fessura sola per tutte le schede invece di una
+  lambda dentro `FluidTabItem`, che farebbe di `items` una lista diversa a ogni ricomposizione, e
+  su quella lista questa barra tiene la molla dell'indicatore.
+- ui: `FluidFoldingTabBarDefaults.AccessoryHeight` e `contentInsetWithAccessory()`, lo spazio che
+  una pagina deve lasciare libera quando la barra porta una banda.
+
+
 ## 1.30.1 - 2026-09-09
 
 - ui: FluidTutorialPolicy e una data class. rememberFluidTutorialHostState la costruisce come argomento di default e ci fa sopra remember(policy): senza uguaglianza di valore ogni ricomposizione ne produceva una nuova, il remember rifaceva il padrone di casa da zero, e nessun suggerimento compariva mai. Invisibile da fuori: le offerte partivano e la coda restava vuota.

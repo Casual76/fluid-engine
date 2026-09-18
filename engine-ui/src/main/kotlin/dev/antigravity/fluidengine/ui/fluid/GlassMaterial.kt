@@ -240,6 +240,27 @@ val LocalFluidCanvasBackdrop = compositionLocalOf<GlassBackdropState?> { null }
  */
 val LocalFluidCanvasIsGlass = compositionLocalOf { false }
 
+/**
+ * Which side the app is painting on, when the palette cannot be asked.
+ *
+ * Null, the default, means "work it out from the palette", which is what every app did before this
+ * existed and what almost every app should go on doing.
+ *
+ * It exists because the palette can lie, and it lies in exactly one way. A design where every
+ * surface is a translucent *film* puts that film in `colorScheme.surface` — that is the honest
+ * place for it — and a film is a white at ten percent alpha. `Color.luminance()` does not look at
+ * alpha: it reports 1.0, the luminance of the white, and the test below calls a black app a light
+ * one. Every pane of glass then takes the wrong branch at once, and the symptom is a bar that
+ * lightens where it should darken, on a page that is already as bright as it gets.
+ *
+ * The failure is silent and it is total, so it is not something an app should have to discover:
+ * an app that knows which side it is on says so here, and the guess is skipped.
+ *
+ * [dev.antigravity.fluidengine.ui.theme.FluidTheme] provides it already, resolved from the theme
+ * mode it was given, so an app that gets its colours from the engine never touches this.
+ */
+val LocalFluidSurfaceSide = compositionLocalOf<Boolean?> { null }
+
 
 /** The ambient recording in scope, or null when the screen has no canvas. */
 @Composable
@@ -822,9 +843,23 @@ object GlassDefaults {
    * Read from the palette rather than from `isSystemInDarkTheme()`: the app carries its own theme
    * setting, so with the system light and the app forced to AMOLED the bars would otherwise mix a
    * white tint into a black backdrop.
+   *
+   * [LocalFluidSurfaceSide] comes first, and only because the palette can be unreadable: a design
+   * whose surfaces are translucent films files a film in `surface`, and luminance ignores alpha.
+   * An app that says which side it is on is believed; everyone else keeps the guess they had.
    */
   @Composable
-  internal fun isDarkSurface(): Boolean = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+  internal fun isDarkSurface(): Boolean =
+    darkSurface(LocalFluidSurfaceSide.current, MaterialTheme.colorScheme.surface)
+
+  /**
+   * The rule itself, out where it can be read and tested without a composition.
+   *
+   * Pure on purpose: the interesting case is a `surface` that cannot be believed, and a test that
+   * has to stand up a theme to reach it is a test nobody writes.
+   */
+  internal fun darkSurface(declaredSide: Boolean?, surface: Color): Boolean =
+    declaredSide ?: (surface.luminance() < 0.5f)
 }
 
 /** Which edge, if any, carries the hairline that separates glass from content. */

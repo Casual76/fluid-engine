@@ -56,25 +56,33 @@ data class FluidPaneLayout(
   val sideWidth: Dp,
   val listWidth: Dp,
   val detailWidth: Dp,
+  /**
+   * La finestra tiene l'elenco e la cosa aperta come due posti distinti.
+   *
+   * E' una **capacita'**, non cio' che si vede: dice all'app che aprire una nota non deve impilarla
+   * sopra l'elenco ma metterla nell'altro posto, anche quando in quel momento l'elenco e' fuori
+   * scena. Senza questa distinzione, un pannello nascosto diventerebbe una rotta persa.
+   */
+  val splits: Boolean = false,
 ) {
   val showSide: Boolean get() = FluidPaneRole.Side in panes
   val showList: Boolean get() = FluidPaneRole.List in panes
   val showDetail: Boolean get() = FluidPaneRole.Detail in panes
-
-  /** Lista e dettaglio insieme: la navigazione ha due padroni di casa. */
-  val twoPane: Boolean get() = showList && showDetail
 }
 
 /**
  * Quali pannelli stanno in [available] dp, e quanto larghi.
  *
- * Tre regimi. Sotto [FluidPaneDefaults.MediumBreakpoint] un pannello solo, e la barra in basso
- * e' affare dell'app. Fino a [FluidPaneDefaults.ExpandedBreakpoint] il rail di fianco a un
- * pannello. Oltre, lista e dettaglio affiancati con la barra laterale al posto del rail — e se il
- * dettaglio scenderebbe sotto [FluidPaneSizes.detailMin], si sfila prima la barra laterale (torna
- * il rail), poi la lista. Il dettaglio non si comprime mai: e' quello che si legge.
+ * **Due pannelli al massimo, e la barra laterale e' uno dei due.** Tre cose aperte insieme — le
+ * materie, l'elenco e la nota — si leggono come tre pagine appiccicate, e con le impostazioni
+ * diventano tre livelli della stessa gerarchia visibili tutti in una volta: l'indice, la sezione, e
+ * un menu che con quella sezione non c'entra niente. Quindi la barra laterale resta sempre, perche'
+ * e' da li' che si cambia materia, e accanto sta **o** l'elenco **o** quello che si e' aperto.
  *
- * [showDetail] conta solo quando c'e' posto per un pannello: dice quale dei due.
+ * Tre regimi. Sotto [FluidPaneDefaults.MediumBreakpoint] un pannello solo, e la barra in basso e'
+ * affare dell'app. Fino a [FluidPaneDefaults.ExpandedBreakpoint] il rail di fianco a un pannello.
+ * Oltre, la barra laterale piu' uno — e se quel pannello scenderebbe sotto [FluidPaneSizes.detailMin],
+ * la barra laterale si sfila e torna il rail: quello che si legge non si comprime mai.
  */
 fun fluidPaneLayout(
   available: Dp,
@@ -89,26 +97,21 @@ fun fluidPaneLayout(
   }
   val railWidth = if (hasRail) sizes.rail else 0.dp
   if (available >= FluidPaneDefaults.ExpandedBreakpoint) {
-    if (hasSide && available - sizes.side - sizes.list >= sizes.detailMin) {
+    val splits = available - sizes.list >= sizes.detailMin
+    if (hasSide && available - sizes.side >= sizes.detailMin) {
+      val pane = available - sizes.side
       return FluidPaneLayout(
-        panes = listOf(FluidPaneRole.Side, FluidPaneRole.List, FluidPaneRole.Detail),
+        panes = listOf(FluidPaneRole.Side) + single,
         showRail = false,
         railWidth = 0.dp,
         sideWidth = sizes.side,
-        listWidth = sizes.list,
-        detailWidth = available - sizes.side - sizes.list,
+        listWidth = pane,
+        detailWidth = pane,
+        splits = splits,
       )
     }
-    if (available - railWidth - sizes.list >= sizes.detailMin) {
-      return FluidPaneLayout(
-        panes = listOf(FluidPaneRole.List, FluidPaneRole.Detail),
-        showRail = hasRail,
-        railWidth = railWidth,
-        sideWidth = 0.dp,
-        listWidth = sizes.list,
-        detailWidth = available - railWidth - sizes.list,
-      )
-    }
+    val pane = available - railWidth
+    return FluidPaneLayout(single, showRail = hasRail, railWidth, 0.dp, pane, pane, splits = splits)
   }
   val pane = available - railWidth
   return FluidPaneLayout(single, showRail = hasRail, railWidth, 0.dp, pane, pane)
@@ -143,15 +146,25 @@ fun FluidPaneScaffold(
     if (layout.showSide && side != null) {
       FluidPane(role = FluidPaneRole.Side, modifier = Modifier.width(layout.sideWidth), content = side)
     }
-    if (layout.showList) {
+    // Fuori scena non vuol dire smontato. Quando la finestra tiene i due posti distinti
+    // ([FluidPaneLayout.splits]) il pannello che non si vede resta **composto**, largo zero: il suo
+    // navigation host conserva il grafo e lo stack, e mostrarlo di nuovo e' un cambio di misura.
+    // Smontarlo significherebbe un controller senza grafo, e una rotta verso di lui che esplode.
+    if (layout.showList || layout.splits) {
       FluidPane(
         role = FluidPaneRole.List,
-        modifier = if (layout.showDetail) Modifier.width(layout.listWidth) else Modifier.weight(1f),
+        modifier = if (layout.showList) Modifier.weight(1f) else Modifier.width(0.dp),
+        front = layout.showList,
         content = list,
       )
     }
-    if (layout.showDetail) {
-      FluidPane(role = FluidPaneRole.Detail, modifier = Modifier.weight(1f), content = detail)
+    if (layout.showDetail || layout.splits) {
+      FluidPane(
+        role = FluidPaneRole.Detail,
+        modifier = if (layout.showDetail) Modifier.weight(1f) else Modifier.width(0.dp),
+        front = layout.showDetail,
+        content = detail,
+      )
     }
   }
 }
@@ -161,12 +174,20 @@ private fun RowScope.FluidPane(
   role: FluidPaneRole,
   modifier: Modifier,
   content: @Composable () -> Unit,
+  /**
+   * Se questo pannello e' in scena.
+   *
+   * Un pannello composto ma largo zero non e' davanti a niente, e dirlo conta: e' cosi' che la
+   * chrome sa quale fondale rifrangere, e che una schermata fuori scena non si prende il vetro.
+   */
+  front: Boolean = true,
 ) {
-  val front = remember { mutableStateOf(true) }
+  val isFront = remember { mutableStateOf(front) }
+  isFront.value = front
   Box(modifier = modifier.fillMaxHeight()) {
     CompositionLocalProvider(
       LocalFluidPaneRole provides role,
-      LocalFluidRouteFront provides front,
+      LocalFluidRouteFront provides isFront,
     ) {
       content()
     }

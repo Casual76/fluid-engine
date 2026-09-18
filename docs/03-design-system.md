@@ -308,9 +308,17 @@ tutto in una funzione pura più tre componenti.
 
 **`fluidPaneLayout(available, sizes, hasSide, hasRail, showDetail)`** decide cosa sta in scena:
 sotto i 600 dp un pannello solo (e la barra in basso è affare dell'app); fino a 1000 dp il rail di
-fianco a un pannello; oltre, lista e dettaglio affiancati con la barra laterale al posto del rail.
-Se il dettaglio scenderebbe sotto il suo minimo, si sfila prima la barra laterale, poi la lista: il
-dettaglio non si comprime mai, è quello che si legge. I test coprono i tre regimi e i due sfilamenti.
+fianco a un pannello; oltre, **la barra laterale più uno** — o l'elenco, o quello che si è aperto.
+
+Due pannelli al massimo, e la barra laterale è uno dei due. Tre cose aperte insieme si leggono come
+tre pagine appiccicate, e con una pagina di impostazioni diventano tre livelli della stessa gerarchia
+visibili in una volta: l'indice, la sezione, e un menù che con quella sezione non c'entra niente.
+Con due, c'è anche **un solo tasto indietro**, che è l'altra metà dello stesso difetto.
+
+`FluidPaneLayout.splits` dice che la finestra tiene elenco e dettaglio come due posti distinti: è una
+capacità, non ciò che si vede, e serve all'app per sapere dove mandare una rotta. Il pannello fuori
+scena resta **composto**, largo zero, così il suo navigation host conserva grafo e stack — smontarlo
+significa un controller senza grafo e una rotta che esplode, che è esattamente come si è scoperto.
 
 **`FluidPaneScaffold(layout, list, detail, side, rail)`** emette **solo** i pannelli in scena — un
 pannello nascosto non è un pannello largo zero, è un pannello che non c'è, così la sua `FluidScreen`

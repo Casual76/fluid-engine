@@ -74,6 +74,15 @@ data class FluidTabItem(
   val icon: ImageVector,
 )
 
+/**
+ * How much rim and shadow a tab indicator keeps when nobody is holding it.
+ *
+ * The vendored bar's own numbers — half a rim, a third of a shadow — kept because they are the
+ * answer to a question that was asked against a real screen: below this the indicator stops having
+ * an edge of its own and starts borrowing its shape from whatever the bar happens to be over.
+ */
+internal const val FluidTabIndicatorEdgeFloor = 0.5f
+
 object FluidTabBarDefaults {
   val Height = 64.dp
   val HorizontalMargin = 14.dp
@@ -182,6 +191,9 @@ fun FluidTabBar(
         initialScale = 1f,
         // Grows to the full height of the bar while held: the lens is being lifted off the surface.
         pressedScale = if (reducedMotion) 1f else 62f / 56f,
+        // Critically damped, so the stretch tracks the drag instead of ringing after it; see
+        // GlassDragAnimation.velocityDampingRatio.
+        velocityDampingRatio = 1f,
         onDragStopped = {
           val target = targetValue.fastRoundToInt().fastCoerceIn(0, currentItems.size - 1)
           animateToValue(target.toFloat())
@@ -317,7 +329,26 @@ fun FluidTabBar(
           role = GlassRole.Interactive,
           // No frosting, ever. The lens is standing on a label six pixels tall: any blur at all and
           // the selected tab is the one word in the bar you cannot read.
-          optics = remember { GlassDefaults.optics(GlassRole.Interactive).copy(blurScale = 0f) },
+          // The lens the vendored bar this design comes from had, and the engine did not.
+          //
+          // Three things, and they are one thing: the indicator has to read as a *piece of glass*
+          // sitting on the bar even when nobody is touching it. The bend is rightly a press —
+          // holding it is what asks for it — but the rim and the shadow were multiplied down by the
+          // same number, so at rest there was neither, and the shape came entirely from its own
+          // wash. Over a bar standing on a bright cover that wash is nearly the cover's colour and
+          // the selection simply disappeared. The floor is the vendored bar's own (half a rim,
+          // a third of a shadow), and the press takes both the rest of the way.
+          //
+          // The inner shadow is the other half: it is the thickness of the pane, seen from inside,
+          // and it is what makes the press read as pressing *into* something.
+          optics = remember {
+            GlassDefaults.optics(GlassRole.Interactive).copy(
+              blurScale = 0f,
+              edgeFloor = FluidTabIndicatorEdgeFloor,
+              innerShadowRadius = 8.dp,
+              innerShadowAlpha = 1f,
+            )
+          },
           // And no lens at rest either. Held still, the indicator draws the bar back exactly as it
           // is, so the tab underneath shows through crisp and in the accent colour — the selection
           // *is* that, not a coloured pill. The glass thickens only while a finger is on it.
@@ -521,7 +552,26 @@ fun FluidTabRail(
           tint = GlassDefaults.selectionTint(),
           shape = ContinuousCornerShape(22.dp),
           role = GlassRole.Interactive,
-          optics = remember { GlassDefaults.optics(GlassRole.Interactive).copy(blurScale = 0f) },
+          // The lens the vendored bar this design comes from had, and the engine did not.
+        //
+        // Three things, and they are one thing: the indicator has to read as a *piece of glass*
+        // sitting on the bar even when nobody is touching it. The bend is rightly a press —
+        // holding it is what asks for it — but the rim and the shadow were multiplied down by the
+        // same number, so at rest there was neither, and the shape came entirely from its own
+        // wash. Over a bar standing on a bright cover that wash is nearly the cover's colour and
+        // the selection simply disappeared. The floor is the vendored bar's own (half a rim,
+        // a third of a shadow), and the press takes both the rest of the way.
+        //
+        // The inner shadow is the other half: it is the thickness of the pane, seen from inside,
+        // and it is what makes the press read as pressing *into* something.
+        optics = remember {
+          GlassDefaults.optics(GlassRole.Interactive).copy(
+            blurScale = 0f,
+            edgeFloor = FluidTabIndicatorEdgeFloor,
+            innerShadowRadius = 8.dp,
+            innerShadowAlpha = 1f,
+          )
+        },
           opticalDepth = { 0f },
         )
         .fillMaxWidth()

@@ -156,4 +156,24 @@ class GlassMaterialStateTest {
     assertFalse(GlassDefaults.darkSurface(false, film))
     assertFalse(GlassDefaults.darkSurface(false, Color(0xFF101114)))
   }
+
+  @Test
+  fun anIndicatorKeepsItsEdgeWhenNobodyIsTouchingIt() {
+    // No floor is the behaviour every surface had before this existed: the rim and the shadow go
+    // exactly where the bend goes, which for a press-driven surface means nowhere at rest.
+    assertEquals(0f, glassEdgeDepth(0f, 0f), 0f)
+    assertEquals(1f, glassEdgeDepth(0f, 1f), 0f)
+
+    // With one, the edge starts there and the press takes it the rest of the way. The point is the
+    // first of these: a tab indicator with no rim over a bar standing on a bright cover has no
+    // shape of its own at all.
+    assertEquals(0.5f, glassEdgeDepth(0.5f, 0f), 0.0001f)
+    assertEquals(0.75f, glassEdgeDepth(0.5f, 0.5f), 0.0001f)
+    assertEquals(1f, glassEdgeDepth(0.5f, 1f), 0.0001f)
+
+    // A floor is never a ceiling, and nonsense from a hand-written optics is corrected rather than
+    // propagated into a RenderEffect chain.
+    assertEquals(1f, glassEdgeDepth(2f, 0f), 0f)
+    assertEquals(0.5f, glassEdgeDepth(0.5f, Float.NaN), 0.0001f)
+  }
 }

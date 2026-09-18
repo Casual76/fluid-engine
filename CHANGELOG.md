@@ -6,6 +6,30 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.34.0 - 2026-09-18
+
+- ui: `GlassDragAnimation(velocityDampingRatio = ...)`, quanto e' smorzata la velocita' da cui nasce
+  lo stiramento. Lo 0.5 della libreria e' sotto-smorzato, ed e' una scelta che si sente: la velocita'
+  **risuona** dopo ogni cambio di ritmo, quindi tutto cio' che ne dipende continua a oscillare quando
+  il dito si e' gia' fermato. Su una lente trascinata lungo una fila di schede si legge come
+  l'indicatore che fa la gelatina a ogni attraversamento invece di seguire la mano. Le tre barre
+  passano 1 (critico); il default resta quello di prima, cosi' non cambia niente sotto i piedi a
+  nessuno.
+- ui: `GlassOptics.edgeFloor`, quanto bordo speculare e quanta ombra restano a profondita' ottica
+  zero. Una superficie la cui profondita' e' guidata dalla pressione — l'indicatore di una barra,
+  per dirne una — si vedeva moltiplicare a **niente** bordo e ombra mentre nessuno la tocca. Per la
+  curvatura e' giusto, che e' quello che una pressione chiede; per il bordo no: senza bordo la forma
+  dell'indicatore veniva tutta dal suo stesso velo, e spariva dentro la barra ogni volta che la
+  barra stava sopra qualcosa di luminoso. Un bordo speculare si legge sul chiaro come sullo scuro,
+  ed e' l'unico motivo per cui si disegna un bordo invece di schiarire il riempimento. Zero (il
+  default) e' il comportamento di prima.
+- ui: gli indicatori di `FluidTabBar`, `FluidFoldingTabBar` e `FluidTabRail` prendono tutti e due,
+  piu' un'ombra interna che cresce con la pressione — lo spessore del vetro visto da dentro, che e'
+  cio' che fa leggere la pressione come premere *dentro* qualcosa. I numeri del pavimento (mezzo
+  bordo, un terzo di ombra) sono quelli a cui era arrivata la barra di terze parti da cui questo
+  disegno viene, guardando uno schermo vero.
+
+
 ## 1.33.0 - 2026-09-18
 
 - ui: `FluidSlider`, un numero su una pista con una lente per maniglia. Le stesse tre idee di

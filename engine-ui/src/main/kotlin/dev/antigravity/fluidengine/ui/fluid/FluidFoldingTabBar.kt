@@ -377,6 +377,10 @@ private fun FluidFoldingTabCapsule(
       visibilityThreshold = 0.001f,
       initialScale = 1f,
       pressedScale = if (reducedMotion) 1f else 1.06f,
+      // Critically damped, so the stretch tracks the drag instead of ringing after it. The
+      // library's underdamped default is what made the indicator wobble as it crossed each tab;
+      // see GlassDragAnimation.velocityDampingRatio.
+      velocityDampingRatio = 1f,
       // Holding the lens and pushing it sideways moves the selection with the finger, tab by tab,
       // and lets go on whichever one it is nearest. This is the whole reason the indicator is a
       // `GlassDragAnimation` and not an `Animatable`, and leaving it off — which it was — turned
@@ -496,7 +500,26 @@ private fun FluidFoldingTabCapsule(
           role = GlassRole.Interactive,
           // No frosting, ever. The lens is standing on a label six pixels tall: any blur at all and
           // the selected tab is the one word in the bar you cannot read.
-          optics = remember { GlassDefaults.optics(GlassRole.Interactive).copy(blurScale = 0f) },
+          // The lens the vendored bar this design comes from had, and the engine did not.
+          //
+          // Three things, and they are one thing: the indicator has to read as a *piece of glass*
+          // sitting on the bar even when nobody is touching it. The bend is rightly a press —
+          // holding it is what asks for it — but the rim and the shadow were multiplied down by the
+          // same number, so at rest there was neither, and the shape came entirely from its own
+          // wash. Over a bar standing on a bright cover that wash is nearly the cover's colour and
+          // the selection simply disappeared. The floor is the vendored bar's own (half a rim,
+          // a third of a shadow), and the press takes both the rest of the way.
+          //
+          // The inner shadow is the other half: it is the thickness of the pane, seen from inside,
+          // and it is what makes the press read as pressing *into* something.
+          optics = remember {
+            GlassDefaults.optics(GlassRole.Interactive).copy(
+              blurScale = 0f,
+              edgeFloor = FluidTabIndicatorEdgeFloor,
+              innerShadowRadius = 8.dp,
+              innerShadowAlpha = 1f,
+            )
+          },
           // And no lens at rest either. Held still it draws the bar back exactly as it is, so the
           // tab underneath shows through crisp and in the accent colour — the selection *is* that.
           opticalDepth = { indicator.pressProgress },

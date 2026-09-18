@@ -77,7 +77,9 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
   portare una banda sopra la fila (`accessory`, che ripiegandosi entra *nella* fila invece di
   sparire), diventare un campo di ricerca (`searchMode` + `searchContent`: cresce il `trailing`),
   farsi disegnare le schede dall'app (`tabIcon`) e stare ferma mentre qualcuno la misura
-  (`FluidBarFold.locked`), e farsi scegliere il materiale (`tint`)
+  (`FluidBarFold.locked`), e farsi scegliere il materiale (`tint`). L'indicatore tiene un bordo
+  anche a riposo (`GlassOptics.edgeFloor`) e il trascinamento e' criticamente smorzato
+  (`GlassDragAnimation.velocityDampingRatio`)
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche

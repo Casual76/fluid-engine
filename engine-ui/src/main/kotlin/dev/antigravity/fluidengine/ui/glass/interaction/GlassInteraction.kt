@@ -158,10 +158,23 @@ class GlassDragAnimation(
   val onDragStarted: GlassDragAnimation.(position: Offset) -> Unit = {},
   val onDragStopped: GlassDragAnimation.() -> Unit = {},
   val onDrag: GlassDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit = { _, _ -> },
+  /**
+   * How hard the tracked velocity is damped — the number the stretch is built out of.
+   *
+   * The library's own 0.5 is underdamped, and underdamped is a choice with a sound: the velocity
+   * *rings* after every change of speed, so anything driven by it keeps wobbling once the finger
+   * has stopped. On a lens dragged across a row of tabs that reads as the indicator jelly-ing at
+   * each crossing rather than following the hand.
+   *
+   * 1 is critically damped: the stretch tracks the drag and stops when the drag stops. The default
+   * is left where it was so nothing that already depends on the ring changes underneath it.
+   */
+  val velocityDampingRatio: Float = 0.5f,
 ) {
 
   private val valueAnimationSpec = spring(1f, 1000f, visibilityThreshold)
-  private val velocityAnimationSpec = spring(0.5f, 300f, visibilityThreshold * 10f)
+  private val velocityAnimationSpec =
+    spring(velocityDampingRatio, 300f, visibilityThreshold * 10f)
   private val pressProgressAnimationSpec = spring(1f, 1000f, 0.001f)
   private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)
   private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)

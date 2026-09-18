@@ -328,6 +328,22 @@ numero di colonne ne discende. Mai zero, mai più di cinque.
 **`FluidVividEffect.Ruled`**: righe di quaderno, tenuissime, sul colore pieno, con il margine a
 sinistra. Su tutte le tessere di una griglia va bene: non è una decorazione, è quello che sono.
 
+## Un fondale solo (1.34.0)
+
+Il primo tablet a tre pannelli ha reso evidente una cosa che su una pagina sola non si vedeva: se
+ogni pannello dipinge il proprio fondale, la finestra si legge come **tre telefoni appoggiati uno
+accanto all'altro**, con due cuciture verticali nel mezzo e tre colori che non c'entrano fra loro.
+
+`FluidAmbientSurface(ambient) { … }` dipinge un fondale solo, continuo da bordo a bordo, e lo offre
+al sottoalbero come `LocalFluidCanvasBackdrop`. Ogni `FluidScreen` dentro lo trova, **smette di
+dipingere il proprio fondo opaco** e lo combina con la registrazione del proprio corpo: il vetro
+della chrome continua a rifrangere un'immagine opaca — fondale più contenuto — che è la condizione
+che il materiale ha sempre avuto. Un `ambient` passato a una schermata che sta dentro una superficie
+condivisa non viene dipinto: una finestra, un fondale.
+
+Su una pagina sola non cambia niente: senza superficie condivisa, ogni schermata si dipinge il suo
+come prima.
+
 ## Come si varia, senza perdere la parentela
 
 Tutte le regole di questo documento sono regole di uniformità, e un'app che le segue tutte somiglia

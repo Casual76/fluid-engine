@@ -645,14 +645,24 @@ private fun FluidScreenLayout(
   // A render layer may have only one writer. Keeping this state local is what makes overlapping
   // NavHost destinations (including predictive back) safe: each screen records into its own layers.
   val bodyBackdrop = rememberGlassBackdrop()
+  /**
+   * Il fondale che qualcun altro sta gia' dipingendo, se c'e': [FluidAmbientSurface].
+   *
+   * Quando c'e', **vince sul proprio**, e non e' una preferenza: una finestra a piu' pannelli in cui
+   * ogni pannello dipinge il suo fondale si legge come tre telefoni appoggiati uno accanto all'altro,
+   * con due cuciture verticali nel mezzo. Una finestra, un fondale; i pannelli ci stanno sopra.
+   */
+  val inheritedCanvas = LocalFluidCanvasBackdrop.current
+  val paintsOwnCanvas = ambient != null && inheritedCanvas == null
   // Only allocated when there is actually a canvas. Holding the layer unconditionally was simpler
   // and cost every screen in the family a spare `RenderNode` it would never draw into — which is
   // exactly the kind of "it is only one" that adds up to a tab switch you can see. The `key` is what
   // makes the conditional `remember` safe: turning a canvas on or off discards this slot rather than
   // shifting the composition's shape under it.
-  val canvasBackdrop = key(ambient != null) {
-    if (ambient == null) null else rememberGlassBackdrop()
+  val ownCanvas = key(paintsOwnCanvas) {
+    if (paintsOwnCanvas) rememberGlassBackdrop() else null
   }
+  val canvasBackdrop = ownCanvas ?: inheritedCanvas
   // What the *chrome* refracts. With a canvas that has to be both layers, because the body alone is
   // now transparent everywhere the content is not — and a bar blurring transparency produces a smear
   // the sharp original still shows through, which is the artefact the recording exists to avoid.
@@ -813,7 +823,9 @@ private fun FluidScreenLayout(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(MaterialTheme.colorScheme.background)
+      // Opaca solo quando il fondale e' suo: dentro un pannello lo dipinge la finestra, e coprirlo
+      // qui rimetterebbe la cucitura che la superficie condivisa esiste per togliere.
+      .then(if (inheritedCanvas == null) Modifier.background(MaterialTheme.colorScheme.background) else Modifier)
       // The origin of the title morph's coordinate space. See [FluidTitleMorphState]: anchors are
       // screen-local, so the compact slot's measurement is converted against these coordinates.
       .onGloballyPositioned(titleMorphState::onScreenPositioned),
@@ -823,11 +835,11 @@ private fun FluidScreenLayout(
     // The canvas, and its recording, come first — which is the whole of why a card in the list can
     // be glass. This layer is closed before a single item of the body is composed, so it is
     // structurally incapable of containing one.
-    if (ambient != null && canvasBackdrop != null) {
+    if (ambient != null && ownCanvas != null) {
       Box(
         modifier = Modifier
           .fillMaxSize()
-          .glassBackdropSource(canvasBackdrop),
+          .glassBackdropSource(ownCanvas),
       ) {
         FluidAmbientCanvas(ambient)
       }
@@ -853,7 +865,7 @@ private fun FluidScreenLayout(
           // itself opaque and is recorded behind this one, so the pair is still a solid image and
           // the body is free to let it through.
           .then(
-            if (ambient != null) {
+            if (canvasBackdrop != null) {
               Modifier
             } else {
               Modifier.background(MaterialTheme.colorScheme.background)

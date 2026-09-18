@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.35.0 - 2026-09-18
+
+- ui: `FluidSpokenText(text, words, positionMs)`, il testo che si accende mentre l'audio va: quello gia' detto nel colore pieno, quello che deve venire velato, il confine che si muove parola per parola. La posizione arriva come lambda (a cinque battiti al secondo un parametro rimisurerebbe il testo), e il testo si disegna due volte: il `Text` vero nel colore velato, e la parte gia' detta ritagliata sopra. `fluidSpokenChars` e' la funzione pura che dice fin dove, con i suoi test.
+
+
 ## 1.34.0 - 2026-09-18
 
 - ui: `FluidAmbientSurface(ambient)`, un fondale solo sotto tutta la finestra. Con piu' pannelli, ognuno che dipingeva il suo faceva leggere la finestra come tre telefoni appoggiati uno accanto all'altro. La superficie offre il canvas al sottoalbero come `LocalFluidCanvasBackdrop`; ogni `FluidScreen` che ne trova uno smette di dipingere il proprio fondo opaco e lo combina con la registrazione del proprio corpo, cosi' il vetro continua a rifrangere un'immagine opaca. Su una pagina sola non cambia niente.

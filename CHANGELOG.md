@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.34.0 - 2026-09-18
+
+- ui: `FluidAmbientSurface(ambient)`, un fondale solo sotto tutta la finestra. Con piu' pannelli, ognuno che dipingeva il suo faceva leggere la finestra come tre telefoni appoggiati uno accanto all'altro. La superficie offre il canvas al sottoalbero come `LocalFluidCanvasBackdrop`; ogni `FluidScreen` che ne trova uno smette di dipingere il proprio fondo opaco e lo combina con la registrazione del proprio corpo, cosi' il vetro continua a rifrangere un'immagine opaca. Su una pagina sola non cambia niente.
+
+
 ## 1.33.0 - 2026-09-18
 
 - ui: `fluidPaneLayout` e `FluidPaneScaffold`, il layer adattivo: un pannello sotto i 600 dp, il rail di fianco a un pannello fino a 1000, oltre lista e dettaglio con la barra laterale. Se il dettaglio scenderebbe sotto il minimo si sfila prima la barra laterale, poi la lista. Emette solo i pannelli in scena e dichiara per ognuno `LocalFluidPaneRole` e `LocalFluidRouteFront`.

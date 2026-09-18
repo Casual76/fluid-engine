@@ -6,6 +6,21 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.32.0 - 2026-09-18
+
+- ui: `GlassDefaults.darkFloatingTint()`, il gemello scuro di `floatingTint()` — come `darkBarTint()`
+  lo e' di `barTint()`, un passo piu' denso perche' un controllo che galleggia ha contenuto che gli
+  passa da tutti i lati e non solo sotto. La pellicola della famiglia e' un materiale *luminoso* per
+  scelta, e sopra una copertina a tutto schermo alza il pavimento proprio dove i comandi devono
+  restare leggibili: la pillola diventa la cosa piu' chiara dello schermo, e la copertina e' quello
+  che dovrebbe lasciar passare.
+- ui: `FluidFoldingTabBar(tint =)`, cosi' la capsula si puo' fare dello stesso materiale di cio' che
+  porta. Serviva perche' con l'accessorio della 1.31.0 la barra, la pillola che ci sta sopra e la
+  finestra che cresce da quella pillola devono essere **lo stesso vetro**: la capsula non lasciava
+  scegliere, e un'app che scurisce due dei tre pezzi si e' appena costruita la giuntura che voleva
+  nascondere. Il default non cambia niente per nessuno.
+
+
 ## 1.31.0 - 2026-09-18
 
 - ui: `LocalFluidSurfaceSide`. `GlassDefaults.isDarkSurface()` chiedeva la luminanza di

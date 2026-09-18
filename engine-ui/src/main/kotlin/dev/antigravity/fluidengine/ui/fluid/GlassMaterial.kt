@@ -710,6 +710,25 @@ object GlassDefaults {
     hairline = Color.White.copy(alpha = 0.12f),
   )
 
+  /**
+   * Floating navigation, when what it floats over is a picture.
+   *
+   * The same argument as [darkBarTint], one step denser, because a floating control has content
+   * passing on every side of it rather than only underneath. A pill of the family's bright film,
+   * sitting on a full-bleed cover, is the brightest object on the screen and the cover is what it
+   * is supposed to be letting through.
+   *
+   * Use it for the whole family at once or not at all. Its reason for existing is that a bar, the
+   * pill it carries and a window growing out of that pill have to be the same material — and an app
+   * that darkens one of the three has just built the join it was trying to hide.
+   */
+  @Composable
+  fun darkFloatingTint(): GlassTint = GlassTint(
+    overlay = Color.Black.copy(alpha = 0.48f),
+    fallback = Color(0xFF141416).copy(alpha = 0.95f),
+    hairline = Color.White.copy(alpha = 0.16f),
+  )
+
   /** Floating navigation: a little denser, because it travels over arbitrary content. */
   @Composable
   fun floatingTint(): GlassTint {

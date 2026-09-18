@@ -165,6 +165,14 @@ fun FluidFoldingTabBar(
   searchContent: (@Composable (Modifier) -> Unit)? = null,
   /** Dove finisce la barra una volta ripiegata. Vedi [FluidFoldAlignment]. */
   foldAlignment: FluidFoldAlignment = FluidFoldAlignment.Center,
+  /**
+   * What the capsule is made of.
+   *
+   * The default is the family's floating film, which is right over a page. An app whose pages are
+   * full-bleed pictures wants [GlassDefaults.darkFloatingTint] instead — and wants it on everything
+   * this bar touches, including whatever it carries in [accessory], or the two stop matching.
+   */
+  tint: GlassTint = GlassDefaults.floatingTint(),
 ) {
   if (items.isEmpty()) return
 
@@ -213,6 +221,7 @@ fun FluidFoldingTabBar(
           fold = fold,
           squeeze = squeeze,
           tabIcon = tabIcon,
+          tint = tint,
         )
       }
       if (trailing != null) {
@@ -330,6 +339,7 @@ private fun FluidFoldingTabCapsule(
    */
   squeeze: () -> Float,
   tabIcon: (@Composable (item: FluidTabItem, selected: Boolean) -> Unit)?,
+  tint: GlassTint,
 ) {
   val accent = MaterialTheme.colorScheme.primary
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
@@ -435,7 +445,7 @@ private fun FluidFoldingTabCapsule(
         .fillMaxSize()
         .glassSurface(
           state = backdrop,
-          tint = GlassDefaults.floatingTint(),
+          tint = tint,
           shape = FluidCapsuleShape,
           role = GlassRole.Floating,
           exports = barGlass,

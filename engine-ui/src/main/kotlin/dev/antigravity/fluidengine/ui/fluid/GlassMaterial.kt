@@ -1033,9 +1033,27 @@ fun Modifier.glassSurface(
     { glassEdgeDepth(resolved.edgeFloor, currentDepth()) }
   }
 
-  val highlight: () -> Highlight? = remember(resolved, quality, edgeDepth) {
+  // A specular rim is drawn *additively*, and that is what makes it read as light
+  // caught on an edge rather than as a line painted along one. On a light surface
+  // there is no light left to add — white plus white is white — so every pane in
+  // an app on its light side simply ended where its film ended, with no edge at
+  // all. The edge is most of what says "glass" at a glance, so this is not a
+  // detail of the material; it is the material failing to appear.
+  //
+  // The turn-over is both halves at once: a dark rim, and an ordinary blend to
+  // put it down with. Turning the colour over on its own changes nothing, which
+  // is the trap — it compiles, it runs, and it draws exactly nothing.
+  val darkSide = GlassDefaults.isDarkSurface()
+  val highlight: () -> Highlight? = remember(resolved, quality, edgeDepth, darkSide) {
     val style = HighlightStyle.Default(
-      color = Color.White.copy(alpha = 0.5f),
+      color = if (darkSide) {
+        Color.White.copy(alpha = 0.5f)
+      } else {
+        // Quieter than its white twin: a dark line on paper is read at a lower
+        // contrast than a light line in the dark.
+        Color.Black.copy(alpha = 0.28f)
+      },
+      blendMode = if (darkSide) BlendMode.Plus else BlendMode.SrcOver,
       angle = resolved.highlightAngle,
       falloff = 1f,
     );

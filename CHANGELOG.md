@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.36.0 - 2026-09-18
+
+- ui: due pannelli al massimo, e uno e' la barra laterale. Oltre i 1000 dp stanno la barra laterale e uno solo fra elenco e dettaglio: tre pannelli si leggono come tre pagine appiccicate, e portano due tasti indietro sullo stesso schermo. Il pannello fuori scena resta composto, largo zero, cosi' il suo navigation host conserva grafo e stack.
+- BREAKING: `FluidPaneLayout.twoPane` non c'e' piu'. Per sapere dove mandare una rotta si usa `splits` (la finestra tiene i due posti distinti); per sapere cosa si vede, `showList` e `showDetail`.
+
+
 ## 1.35.0 - 2026-09-18
 
 - ui: `FluidSpokenText(text, words, positionMs)`, il testo che si accende mentre l'audio va: quello gia' detto nel colore pieno, quello che deve venire velato, il confine che si muove parola per parola. La posizione arriva come lambda (a cinque battiti al secondo un parametro rimisurerebbe il testo), e il testo si disegna due volte: il `Text` vero nel colore velato, e la parte gia' detta ritagliata sopra. `fluidSpokenChars` e' la funzione pura che dice fin dove, con i suoi test.

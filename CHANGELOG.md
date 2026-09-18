@@ -6,6 +6,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.33.0 - 2026-09-18
+
+- ui: `fluidPaneLayout` e `FluidPaneScaffold`, il layer adattivo: un pannello sotto i 600 dp, il rail di fianco a un pannello fino a 1000, oltre lista e dettaglio con la barra laterale. Se il dettaglio scenderebbe sotto il minimo si sfila prima la barra laterale, poi la lista. Emette solo i pannelli in scena e dichiara per ognuno `LocalFluidPaneRole` e `LocalFluidRouteFront`.
+- ui: `FluidSidebar`, `FluidSidebarRow`, `FluidSidebarSection`: la barra laterale e' chrome, quindi di vetro; la selezione e' un velo dell'accento, non un secondo vetro dentro il vetro.
+- ui: `fluidGridColumns(available, minItem = 150 dp)`: la misura della tessera e' la costante, le colonne ne discendono, mai zero e mai oltre cinque. `FluidVividEffect.Ruled`: righe di quaderno con il margine, ferme.
+- ui: `FluidTabRail` non mostra la lente quando nessuna scheda corrisponde alla rotta: una lente parcheggiata sulla prima scheda direbbe una cosa falsa.
+- docs: in 03-design-system la sezione «I pannelli (1.33.0)».
+
+
 ## 1.32.0 - 2026-09-18
 
 - ui: `FluidScreen` ha `contentMaxWidth` (760 dp): oltre quella larghezza il margine cresce e la colonna resta centrata, titolo grande compreso. E' l'unica riga che distingue una pagina da telefono allargata da una pagina da tablet, e vale per ogni schermata che passa da `FluidScreen`. `Modifier.fluidReadingWidth()` fa lo stesso per chi non ci passa; la funzione pura e' `fluidScreenPadding`.

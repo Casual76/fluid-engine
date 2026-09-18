@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -71,6 +72,13 @@ enum class FluidVividEffect {
    * page that has earned looking precious — on every card it is wallpaper.
    */
   Sheen,
+
+  /**
+   * Righe di quaderno, tenuissime, sul colore pieno, con il margine a sinistra: una tessera che
+   * somiglia a un raccoglitore di appunti. Ferme, perche' la carta non si muove; e su tutte le
+   * tessere di una griglia va bene, perche' non e' una decorazione, e' quello che sono.
+   */
+  Ruled,
 }
 
 /**
@@ -148,6 +156,7 @@ fun FluidVividCard(
         when {
           wantsSheen && allowMotion && inViewport -> Modifier.animatedSheen(colors.content)
           wantsSheen -> Modifier.staticSheen(colors.content)
+          effect == FluidVividEffect.Ruled -> Modifier.drawRuled(colors.content)
           else -> Modifier
         },
       )
@@ -157,6 +166,35 @@ fun FluidVividCard(
       content()
     }
   }
+}
+
+/** Le righe del quaderno: la prima sotto lo spazio dell'icona, poi una ogni riga di testo. */
+private val RuleFirst = 52.dp
+private val RuleSpacing = 22.dp
+
+/** Il margine: appena fuori dal contenuto, come su un foglio a righe. */
+private val RuleMargin = 14.dp
+private const val RuleAlpha = 0.11f
+
+/**
+ * Righe dietro il contenuto e sopra il colore. `drawBehind` e non `drawWithContent`: il testo
+ * della tessera deve stare sopra le righe, come l'inchiostro sulla carta.
+ */
+private fun Modifier.drawRuled(content: Color): Modifier = drawBehind {
+  val stroke = 1.dp.toPx()
+  val rule = content.copy(alpha = RuleAlpha)
+  var y = RuleFirst.toPx()
+  while (y < size.height) {
+    drawLine(color = rule, start = Offset(0f, y), end = Offset(size.width, y), strokeWidth = stroke)
+    y += RuleSpacing.toPx()
+  }
+  val margin = RuleMargin.toPx()
+  drawLine(
+    color = content.copy(alpha = RuleAlpha * 1.5f),
+    start = Offset(margin, 0f),
+    end = Offset(margin, size.height),
+    strokeWidth = stroke,
+  )
 }
 
 /** How far past both corners the band starts and ends, as a fraction of the diagonal. */

@@ -300,6 +300,34 @@ guscio e nessuna chiamata esistente cambia. `FluidTextEdit` (`insert`, `wrap`, `
 sono le operazioni di un editor, pure: un pulsante «grassetto» che scrive in fondo al testo invece
 che al cursore è peggio di nessun pulsante, e con queste non c'è più motivo di scriverlo così.
 
+## I pannelli (1.33.0)
+
+Fino a qui l'engine non aveva un layer adattivo: niente split view, niente sidebar, nessuna misura
+oltre la quale una pagina smettesse di essere una pagina da telefono allargata. Adesso c'è, e sta
+tutto in una funzione pura più tre componenti.
+
+**`fluidPaneLayout(available, sizes, hasSide, hasRail, showDetail)`** decide cosa sta in scena:
+sotto i 600 dp un pannello solo (e la barra in basso è affare dell'app); fino a 1000 dp il rail di
+fianco a un pannello; oltre, lista e dettaglio affiancati con la barra laterale al posto del rail.
+Se il dettaglio scenderebbe sotto il suo minimo, si sfila prima la barra laterale, poi la lista: il
+dettaglio non si comprime mai, è quello che si legge. I test coprono i tre regimi e i due sfilamenti.
+
+**`FluidPaneScaffold(layout, list, detail, side, rail)`** emette **solo** i pannelli in scena — un
+pannello nascosto non è un pannello largo zero, è un pannello che non c'è, così la sua `FluidScreen`
+non registra un fondale che nessuno vede — e per ognuno dichiara `LocalFluidPaneRole` e
+`LocalFluidRouteFront`. I controller di navigazione stanno fuori, nella shell dell'app: un
+`NavHost` che sparisce perché il suo pannello non c'è conserva lo stack.
+
+**`FluidSidebar`**, **`FluidSidebarRow`**, **`FluidSidebarSection`**: la barra laterale è chrome,
+quindi di vetro come il rail e la pillola, mentre le liste della pagina non lo sono più. La
+selezione è un velo dell'accento, non un secondo vetro dentro il vetro.
+
+**`fluidGridColumns(available, minItem = 150 dp)`**: la misura della tessera è la costante, il
+numero di colonne ne discende. Mai zero, mai più di cinque.
+
+**`FluidVividEffect.Ruled`**: righe di quaderno, tenuissime, sul colore pieno, con il margine a
+sinistra. Su tutte le tessere di una griglia va bene: non è una decorazione, è quello che sono.
+
 ## Come si varia, senza perdere la parentela
 
 Tutte le regole di questo documento sono regole di uniformità, e un'app che le segue tutte somiglia

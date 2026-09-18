@@ -451,7 +451,11 @@ fun FluidTabRail(
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val density = LocalDensity.current
   val timing = tabIndicatorTiming(reducedMotion)
+  // Senza una scheda che corrisponda alla rotta, la lente non si mostra: il rail resta in scena
+  // anche su una nota, e una lente parcheggiata sulla prima scheda direbbe una cosa falsa.
+  val hasSelection = items.any { it.route == selectedRoute }
   val selectedIndex = items.indexOfFirst { it.route == selectedRoute }.coerceAtLeast(0)
+  val lensAlpha by animateFloatAsState(if (hasSelection) 1f else 0f, label = "fluidTabRailLens")
 
   val railGlass = rememberGlassBackdrop()
   val tabsGlass = rememberGlassBackdrop()
@@ -514,7 +518,10 @@ fun FluidTabRail(
 
     Box(
       modifier = Modifier
-        .graphicsLayer { translationY = pillTop.value }
+        .graphicsLayer {
+          translationY = pillTop.value
+          alpha = lensAlpha
+        }
         .padding(horizontal = 8.dp, vertical = 6.dp)
         .glassSurface(
           state = indicatorBackdrop,

@@ -108,6 +108,20 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 
 /**
  * A modal that lives *inside* the app's composition.
@@ -234,6 +248,22 @@ enum class FluidGlassModalPresentation {
    * aggiunge solo la forma a capsula e la larghezza del menù.
    */
   Expand,
+
+  /**
+   * Una pagina intera, per un compito che ha piu' di tre campi.
+   *
+   * Nasce dal basso come [Sheet] ma prende tutta l'altezza, e porta con se' quello che un foglio
+   * lascia al chiamante: una barra in cima con il titolo e la chiusura, il contenuto che scorre da
+   * solo, il congedo trascinando. Sotto i 600 dp di larghezza sta a filo dei bordi come un foglio;
+   * sopra si stacca, con un margine tutto intorno e la larghezza di lettura, perche' un modulo
+   * largo milleduecento dp non e' una pagina, e' un muro. Dentro non va una `LazyColumn`: il
+   * contenuto scorre gia'.
+   *
+   * Ed e' **opaca**, l'unica presentazione che lo e': il vetro sta sulle cose che galleggiano
+   * sopra un contenuto, e una pagina non galleggia, copre. Di vetro sarebbe l'intera interfaccia
+   * sfocata, con la pagina di sotto che si legge attraverso il titolo.
+   */
+  FullScreen,
 }
 
 /** One action in a context menu. */
@@ -267,8 +297,15 @@ internal fun fluidModalShowsActions(
   hasActions: Boolean,
 ): Boolean = hasActions && when (presentation) {
   FluidGlassModalPresentation.ContextMenu, FluidGlassModalPresentation.Expand -> true
-  FluidGlassModalPresentation.Popover, FluidGlassModalPresentation.Sheet -> false
+  FluidGlassModalPresentation.Popover,
+  FluidGlassModalPresentation.Sheet,
+  FluidGlassModalPresentation.FullScreen,
+  -> false
 }
+
+/** Le presentazioni che arrivano viaggiando dal basso: la molla e' l'animazione, non la dissolvenza. */
+internal fun fluidModalSlidesUp(presentation: FluidGlassModalPresentation): Boolean =
+  presentation == FluidGlassModalPresentation.Sheet || presentation == FluidGlassModalPresentation.FullScreen
 
 @Stable
 internal class FluidGlassModalEntry {
@@ -280,6 +317,9 @@ internal class FluidGlassModalEntry {
   var paneTitle: String? by mutableStateOf(null)
   var paneTint: Color? by mutableStateOf(null)
   var content: (@Composable ColumnScope.() -> Unit) by mutableStateOf({})
+
+  /** I tasti in fondo a una pagina intera, fermi mentre il contenuto scorre. Null: non ce ne sono. */
+  var footer: (@Composable ColumnScope.() -> Unit)? by mutableStateOf(null)
 
   /**
    * Whether the anchored element has been lifted into the overlay and must stop drawing itself.
@@ -315,6 +355,15 @@ fun FluidGlassModalPortal(
   presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover,
   paneTitle: String? = null,
   paneTint: Color? = null,
+  /**
+   * I tasti che chiudono il compito, sotto il contenuto.
+   *
+   * In una [FluidGlassModalPresentation.FullScreen] restano fermi mentre il contenuto scorre: un
+   * modulo in cui «Salva» sta sotto il bordo dello schermo e' un modulo in cui meta' delle persone
+   * non trova il tasto, perche' la lista dei campi sembra la fine della pagina. Nelle altre
+   * presentazioni vengono semplicemente dopo il contenuto.
+   */
+  footer: (@Composable ColumnScope.() -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   val host = LocalFluidGlassModalHostState.current ?: return
@@ -331,6 +380,7 @@ fun FluidGlassModalPortal(
     entry.presentation = presentation
     entry.paneTitle = paneTitle
     entry.paneTint = paneTint
+    entry.footer = footer
     entry.content = content
   }
 
@@ -359,6 +409,7 @@ fun <T : Any> FluidGlassModalPortal(
   presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover,
   paneTitle: String? = null,
   paneTint: Color? = null,
+  footer: (@Composable ColumnScope.(T) -> Unit)? = null,
   content: @Composable ColumnScope.(T) -> Unit,
 ) {
   var lastItem by remember { mutableStateOf(item) }
@@ -370,6 +421,7 @@ fun <T : Any> FluidGlassModalPortal(
     presentation = presentation,
     paneTitle = paneTitle,
     paneTint = paneTint,
+    footer = footer?.let { footer -> { lastItem?.let { footer(it) } } },
   ) {
     lastItem?.let { content(it) }
   }
@@ -522,7 +574,7 @@ private fun FluidGlassModalLayer(
   // storia. Il foglio pure.
   val journeyMode = backdrop != null &&
     entry.presentation != FluidGlassModalPresentation.ContextMenu &&
-    entry.presentation != FluidGlassModalPresentation.Sheet
+    !fluidModalSlidesUp(entry.presentation)
 
   LaunchedEffect(entry.visible, reducedMotion) {
     if (reducedMotion) {
@@ -602,7 +654,7 @@ private fun FluidGlassModalLayer(
   // Quello che si vedeva era un buco al posto della riga per un terzo di secondo, e poi la riga che
   // ricompariva di colpo. Il foglio invece *e'* la sua molla: la sua opacita' dipende da quanto ha
   // ancora da viaggiare, quindi li' la coda va aspettata.
-  val waitsForSprings = entry.presentation == FluidGlassModalPresentation.Sheet
+  val waitsForSprings = fluidModalSlidesUp(entry.presentation)
   val exitFinished by remember(waitsForSprings) {
     derivedStateOf {
       fade.value <= 0.001f && !fade.isRunning && (!waitsForSprings || !scaleY.isRunning)
@@ -617,6 +669,7 @@ private fun FluidGlassModalLayer(
   // overload of [FluidGlassModalPortal], which freezes the last shown item and hands it back to the
   // very same lambda.
   var lastContent by remember { mutableStateOf(entry.content) }
+  var lastFooter by remember { mutableStateOf(entry.footer) }
   var lastActions by remember { mutableStateOf(entry.actions) }
   var lastPreview by remember { mutableStateOf(entry.preview) }
   var lastPreviewBounds by remember { mutableStateOf(entry.previewSize) }
@@ -627,6 +680,7 @@ private fun FluidGlassModalLayer(
   var lastPaneTint by remember { mutableStateOf(entry.paneTint) }
   if (entry.visible) {
     lastContent = entry.content
+    lastFooter = entry.footer
     lastActions = entry.actions
     lastPreview = entry.preview
     lastPreviewBounds = entry.previewSize
@@ -724,7 +778,7 @@ private fun FluidGlassModalLayer(
         .focusable(),
     )
 
-    if (entry.presentation == FluidGlassModalPresentation.Sheet) {
+    if (fluidModalSlidesUp(entry.presentation)) {
       FluidGlassModalSheet(
         paneTitle = lastPaneTitle,
         paneTint = lastPaneTint,
@@ -734,7 +788,9 @@ private fun FluidGlassModalLayer(
         slide = { scaleY.value },
         backProgress = { backProgress },
         reducedMotion = reducedMotion,
+        fullScreen = entry.presentation == FluidGlassModalPresentation.FullScreen,
         onDismiss = entry.onDismissRequest,
+        footer = lastFooter,
         content = lastContent,
       )
       return@Box
@@ -1631,10 +1687,12 @@ private fun FluidGlassModalSheet(
   slide: () -> Float,
   backProgress: () -> Float,
   reducedMotion: Boolean,
+  /** [FluidGlassModalPresentation.FullScreen]: tutta l'altezza, la barra in cima, lo scorrimento. */
+  fullScreen: Boolean,
   onDismiss: () -> Unit,
+  footer: (@Composable ColumnScope.() -> Unit)?,
   content: @Composable ColumnScope.() -> Unit,
 ) {
-  val shape = ContinuousCornerShape(topStart = FluidRadius.Sheet, topEnd = FluidRadius.Sheet)
   val density = LocalDensity.current
   val scope = rememberCoroutineScope()
   val dismissThresholdPx = with(density) { FluidSheetDismissTravel.toPx() }
@@ -1696,11 +1754,34 @@ private fun FluidGlassModalSheet(
 
   // Il pannello sta in fondo allo schermo e le app girano edge-to-edge, quindi la finestra non si
   // ridimensiona da sola: senza questo, la tastiera copre i campi di testo che il pannello contiene.
-  Box(modifier = Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.BottomCenter) {
+  BoxWithConstraints(modifier = Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.BottomCenter) {
+    // Una pagina intera su uno schermo largo si stacca dai bordi. Un modulo a tutta larghezza su un
+    // tablet e' un muro, e il margine intorno e' quello che lo fa leggere come una cosa sopra la
+    // pagina invece che come un'altra pagina.
+    val detached = fullScreen && maxWidth >= FluidFullScreenDetachWidth
+    val shape = if (detached) {
+      ContinuousCornerShape(FluidRadius.Sheet)
+    } else {
+      ContinuousCornerShape(topStart = FluidRadius.Sheet, topEnd = FluidRadius.Sheet)
+    }
     Column(
       modifier = Modifier
-        .fillMaxWidth()
-        .heightIn(max = FluidSheetMaxHeight)
+        .then(
+          when {
+            !fullScreen -> Modifier.fillMaxWidth().heightIn(max = FluidSheetMaxHeight)
+            // I margini stanno PRIMA del materiale nella catena: la superficie si disegna dentro
+            // di essi, e la molla che porta il pannello in scena muove solo il pannello.
+            detached -> Modifier
+              .fillMaxHeight()
+              .windowInsetsPadding(WindowInsets.systemBars)
+              .padding(FluidFullScreenDetachedMargin)
+              .widthIn(max = FluidScreenDefaults.ContentMaxWidth)
+              .fillMaxWidth()
+            else -> Modifier
+              .fillMaxSize()
+              .windowInsetsPadding(WindowInsets.statusBars)
+          },
+        )
         .onSizeChanged { height = it.height.toFloat() }
         .nestedScroll(nested)
         .draggable(
@@ -1725,7 +1806,7 @@ private fun FluidGlassModalSheet(
           transformOrigin = TransformOrigin(0.5f, 1f)
         }
         .then(
-          if (backdrop != null) {
+          if (backdrop != null && !fullScreen) {
             Modifier.glassSurface(
               state = backdrop,
               tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
@@ -1734,6 +1815,15 @@ private fun FluidGlassModalSheet(
               role = GlassRole.Modal,
               optics = FluidPopoverOptics,
             )
+          } else if (fullScreen) {
+            // Una pagina intera e' opaca di proposito. Il vetro sta sulle cose che galleggiano
+            // sopra un contenuto, e una pagina non galleggia: copre. Di vetro sarebbe l'intera
+            // interfaccia sfocata, con la pagina di sotto che si legge attraverso il titolo — cioe'
+            // esattamente il difetto per cui il vetro va tenuto sugli elementi piccoli. La tinta,
+            // se c'e', resta come un velo: e' il colore da cui la pagina e' nata.
+            val surface = MaterialTheme.colorScheme.surface
+            val page = paneTint?.let { androidx.compose.ui.graphics.lerp(surface, it, 0.08f) } ?: surface
+            Modifier.background(page, shape)
           } else {
             Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
           },
@@ -1745,7 +1835,87 @@ private fun FluidGlassModalSheet(
         },
     ) {
       FluidGrabber()
-      content()
+      if (fullScreen) {
+        FluidFullScreenHeader(title = paneTitle, onDismiss = onDismiss)
+        // Lo scorrimento sta qui e non nel contenuto, perche' e' un compito della pagina: il
+        // chiamante mette i suoi campi e basta. La chiusura trascinando passa di qui lo stesso —
+        // quando la colonna non ha piu' niente da scorrere verso l'alto, il resto del gesto arriva
+        // alla connessione del pannello.
+        // La barra di sistema in fondo la scavalca l'ultima cosa della pagina: i tasti se ci sono,
+        // altrimenti la coda del contenuto. Staccata dai bordi non serve: il margine e' gia' fuori.
+        val clearsSystemBar = if (detached) Modifier else Modifier.navigationBarsPadding()
+        Column(
+          modifier = Modifier
+            .weight(1f)
+            .verticalScroll(rememberScrollState())
+            .then(if (footer == null) clearsSystemBar else Modifier),
+          content = content,
+        )
+        if (footer != null) {
+          Column(modifier = Modifier.fillMaxWidth().then(clearsSystemBar), content = footer)
+        }
+      } else {
+        content()
+        footer?.invoke(this)
+      }
+    }
+  }
+}
+
+/**
+ * La barra in cima a una pagina intera: il titolo nel mezzo, la chiusura a destra.
+ *
+ * La chiusura e' un cerchio pieno con la croce, non una lente di vetro: la pagina e' gia' vetro, e
+ * vetro sopra vetro non rifrange niente di leggibile. E' lo stesso segno del tasto che svuota un
+ * campo, alla misura di un comando.
+ */
+@Composable
+private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
+  Box(
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(FluidScreenDefaults.ControlRowHeight)
+      .padding(horizontal = 8.dp),
+  ) {
+    if (title != null) {
+      Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+          .align(Alignment.Center)
+          .padding(horizontal = FluidFullScreenCloseTouchTarget),
+      )
+    }
+    FluidFullScreenCloseButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
+  }
+}
+
+@Composable
+private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+  val fill = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+  val glyph = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
+  Box(
+    modifier = modifier
+      .size(FluidFullScreenCloseTouchTarget)
+      .fluidPressable(onClick = onClick, pressedScale = 0.9f, role = Role.Button)
+      .semantics { contentDescription = "Chiudi" },
+    contentAlignment = Alignment.Center,
+  ) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(FluidFullScreenCloseSize)) {
+      val radius = size.minDimension / 2f
+      drawCircle(color = fill, radius = radius)
+      val arm = radius * 0.36f
+      val stroke = radius * 0.14f
+      listOf(
+        Offset(-arm, -arm) to Offset(arm, arm),
+        Offset(-arm, arm) to Offset(arm, -arm),
+      ).forEach { (from, to) ->
+        drawLine(color = glyph, start = center + from, end = center + to, strokeWidth = stroke, cap = StrokeCap.Round)
+      }
     }
   }
 }
@@ -2199,6 +2369,12 @@ private const val FluidPopoverMaxHeightFraction = 0.78f
 private val FluidPopoverRadius = FluidRadius.Group
 
 private val FluidSheetMaxHeight = 640.dp
+
+/** Da questa larghezza in su una pagina intera si stacca dai bordi invece di stare a filo. */
+private val FluidFullScreenDetachWidth = 600.dp
+private val FluidFullScreenDetachedMargin = 24.dp
+private val FluidFullScreenCloseSize = 30.dp
+private val FluidFullScreenCloseTouchTarget = 44.dp
 
 /** How far the sheet must be pushed down before letting go dismisses instead of springing back. */
 private val FluidSheetDismissTravel = 110.dp

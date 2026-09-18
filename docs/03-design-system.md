@@ -274,3 +274,46 @@ senza consumare il tocco**. Dentro: due parole di titolo, una frase sola, il ges
 (`FluidGestureHint`: `Tap`, `LongPress`, `SwipeHorizontal`, `DragReorder`, `Scrub`,
 `LongPressAndTap`, fermo immagine con le animazioni ridotte), "Ok" e il link che li spegne tutti
 (`onDismissed(id, optOut = true)`).
+
+## Misura, pagine intere, cursore (1.32.0)
+
+Tre aggiunte nate dalla stessa app su un tablet, e dallo stesso giudizio: «su tablet è brutta».
+
+**La misura di lettura.** `FluidScreen` ha `contentMaxWidth` (760 dp): oltre quella larghezza il
+margine cresce e la colonna resta centrata, titolo grande compreso. È una riga sola, in un posto
+solo, e sistema ogni schermata dell'app che passa da `FluidScreen`. Chi non ci passa — un overlay,
+un pannello — ha `Modifier.fluidReadingWidth()`, che fa lo stesso con `layout {}` e funziona in
+qualunque genitore. La funzione pura è `fluidScreenPadding(available, horizontalPadding,
+contentMaxWidth)`, con i suoi test. Una schermata che vuole davvero tutta la larghezza passa
+`Dp.Infinity`.
+
+**La pagina intera.** `FluidGlassModalPresentation.FullScreen` è un foglio che prende tutta
+l'altezza e porta con sé quello che un foglio lascia al chiamante: barra in cima con titolo e
+chiusura, contenuto che scorre, congedo trascinando. Sotto i 600 dp sta a filo dei bordi; sopra si
+stacca con un margine e la misura di lettura. È **opaca**, l'unica presentazione che lo è: il vetro
+sta sulle cose che galleggiano sopra un contenuto, e una pagina non galleggia, copre. Il criterio
+per sceglierla è il compito: un modulo
+con più di tre campi è una pagina, una scelta fra due opzioni è un `Popover` sul tasto.
+
+**Il cursore.** `FluidTextField` ha l'overload a `TextFieldValue`; quello a `String` ne è un
+guscio e nessuna chiamata esistente cambia. `FluidTextEdit` (`insert`, `wrap`, `toggleLinePrefix`)
+sono le operazioni di un editor, pure: un pulsante «grassetto» che scrive in fondo al testo invece
+che al cursore è peggio di nessun pulsante, e con queste non c'è più motivo di scriverlo così.
+
+## Come si varia, senza perdere la parentela
+
+Tutte le regole di questo documento sono regole di uniformità, e un'app che le segue tutte somiglia
+alle altre che le seguono. Va bene fino a quando qualcuno dice «le mie app sono tutte uguali». Allora
+la domanda è quali manopole esistono, e la risposta è: più di quante se ne usino.
+
+| Manopola | Dove | Cosa cambia |
+|---|---|---|
+| L'accento | `FluidTheme(brand = AccentPreset)` con `AccentMode.BRAND` | Tutta l'app, coerentemente: tasti, pillola, selezioni, tinte del vetro. È la manopola che nessuna app gira, e quella che si vede di più. Un accento **che cambia con il contesto** — la materia, il progetto, la persona — è quello che rende un'app riconoscibile a colpo d'occhio. |
+| Tono × motivo | `FluidAmbient(tone, motif, intensity)` su ogni `FluidScreen` | Il fondale della pagina: 49 combinazioni, più l'intensità continua. Una schermata senza `ambient` è una pagina bianca; con l'ambient è *quella* pagina. |
+| La card viva | `FluidVividCard`, `FluidHeroBand` | Colore pieno con la luce sopra (`Sheen`) o un motivo. Per la cosa che la pagina presenta, non per l'elenco. |
+| Il vetro | `glass = true`, `FluidGlassIconButton`, i modali | Solo sugli elementi che galleggiano: comandi, barre, pannelli. Il contenuto resta opaco, altrimenti il vetro non ha niente da rifrangere. |
+| La forma | i preset di `FluidRadius` | Angoli continui sempre, ma la scala cambia la voce: `Control` è secco, `Group` è morbido, `Sheet` è un oggetto. |
+
+Quello che **non** si tocca: Inter, le molle di `FluidMotion`, le liste raggruppate, gli angoli
+continui. È la grammatica che rende le app parenti. Variare il lessico e tenere la grammatica: le
+app si riconoscono come una famiglia, e ognuna come sé stessa.

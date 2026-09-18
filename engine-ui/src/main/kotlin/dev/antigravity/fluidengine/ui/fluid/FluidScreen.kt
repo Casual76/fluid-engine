@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -367,6 +368,16 @@ object FluidScreenDefaults {
   val CompactTitleInset: Dp = 76.dp
 
   val HorizontalPadding: Dp = 20.dp
+
+  /**
+   * Quanto puo' allargarsi il contenuto di una pagina prima che il margine cresca al posto suo.
+   *
+   * Una riga di testo oltre gli ottanta caratteri si legge peggio, e su un tablet in orizzontale
+   * una lista a tutta larghezza ne fa duecento. Il numero e' quello di una colonna di lettura comoda
+   * a bodyLarge; una schermata che vuole davvero tutta la larghezza passa [Dp.Infinity].
+   */
+  val ContentMaxWidth: Dp = 760.dp
+
   val ItemSpacing: Dp = 14.dp
   val TitleTopSpacing: Dp = 4.dp
 
@@ -558,6 +569,14 @@ fun FluidScreen(
   isRefreshing: Boolean = false,
   onRefresh: (() -> Unit)? = null,
   horizontalPadding: Dp = FluidScreenDefaults.HorizontalPadding,
+  /**
+   * La misura di lettura: oltre questa larghezza il contenuto resta centrato e il margine cresce.
+   *
+   * Vale per la lista, titolo grande compreso, perche' il titolo e' un item della lista e sta
+   * allineato con quello che introduce. Non vale per la barra agganciata e per l'[overlay], che
+   * appartengono allo schermo e non alla colonna. Vedi [fluidScreenPadding].
+   */
+  contentMaxWidth: Dp = FluidScreenDefaults.ContentMaxWidth,
   itemSpacing: Dp = FluidScreenDefaults.ItemSpacing,
   extraBottomPadding: Dp = 0.dp,
   /**
@@ -581,6 +600,46 @@ fun FluidScreen(
    * in [content] and must stay solid.
    */
   overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {},
+  content: LazyListScope.() -> Unit,
+) {
+  // La larghezza si legge qui, una volta, e diventa un margine: e' l'unica riga che distingue una
+  // pagina da telefono allargata da una pagina da tablet. Tutto il resto della schermata non sa
+  // di essere su un tablet, e non deve saperlo.
+  BoxWithConstraints(modifier = modifier) {
+    FluidScreenLayout(
+      title = title,
+      subtitle = subtitle,
+      onBack = onBack,
+      actions = actions,
+      titleFacets = titleFacets,
+      listState = listState,
+      isRefreshing = isRefreshing,
+      onRefresh = onRefresh,
+      horizontalPadding = fluidScreenPadding(maxWidth, horizontalPadding, contentMaxWidth),
+      itemSpacing = itemSpacing,
+      extraBottomPadding = extraBottomPadding,
+      ambient = ambient,
+      overlay = overlay,
+      content = content,
+    )
+  }
+}
+
+@Composable
+private fun FluidScreenLayout(
+  title: String,
+  subtitle: String?,
+  onBack: (() -> Unit)?,
+  actions: @Composable RowScope.() -> Unit,
+  titleFacets: List<String>,
+  listState: LazyListState,
+  isRefreshing: Boolean,
+  onRefresh: (() -> Unit)?,
+  horizontalPadding: Dp,
+  itemSpacing: Dp,
+  extraBottomPadding: Dp,
+  ambient: FluidAmbient?,
+  overlay: @Composable BoxScope.(GlassBackdropState) -> Unit,
   content: LazyListScope.() -> Unit,
 ) {
   // A render layer may have only one writer. Keeping this state local is what makes overlapping
@@ -752,7 +811,7 @@ fun FluidScreen(
     LocalFluidGlassQuality provides glassQuality,
   ) {
   Box(
-    modifier = modifier
+    modifier = Modifier
       .fillMaxSize()
       .background(MaterialTheme.colorScheme.background)
       // The origin of the title morph's coordinate space. See [FluidTitleMorphState]: anchors are

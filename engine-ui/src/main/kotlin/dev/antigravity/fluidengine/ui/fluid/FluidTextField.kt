@@ -23,12 +23,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
@@ -39,11 +45,86 @@ import androidx.compose.ui.unit.dp
  * line, and a focus colour change — three moving parts announcing a box you can type in. iOS gives
  * it a quiet filled rect and lets the caret do the talking. The one piece of interaction it does add
  * is the clear button, which appears only while there is something to clear.
+ *
+ * Questa e' la forma a [String]: comoda per un campo che vuole solo il testo. Chi ha bisogno del
+ * cursore — un editor con i pulsanti di formattazione, che devono scrivere dove si sta scrivendo e
+ * non in fondo — usa l'overload a [TextFieldValue], di cui questo e' un guscio: la selezione vive
+ * qui dentro e il chiamante continua a vedere una stringa.
  */
 @Composable
 fun FluidTextField(
   value: String,
   onValueChange: (String) -> Unit,
+  modifier: Modifier = Modifier,
+  placeholder: String? = null,
+  label: String? = null,
+  enabled: Boolean = true,
+  readOnly: Boolean = false,
+  singleLine: Boolean = true,
+  minLines: Int = 1,
+  maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+  isError: Boolean = false,
+  supportingText: String? = null,
+  minHeight: androidx.compose.ui.unit.Dp = 44.dp,
+  keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+  keyboardActions: KeyboardActions = KeyboardActions.Default,
+  visualTransformation: VisualTransformation = VisualTransformation.None,
+  showClearButton: Boolean = singleLine,
+  leading: (@Composable () -> Unit)? = null,
+  trailing: (@Composable () -> Unit)? = null,
+) {
+  // Lo stesso accorgimento di BasicTextField(String): la selezione e la composizione IME stanno in
+  // uno stato locale, il testo e' sempre quello del chiamante. Se il chiamante cambia il testo da
+  // fuori, la selezione locale si tiene (e il campo la riporta nei limiti da solo).
+  var fieldValue by remember { mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) }
+  val current = fieldValue.copy(text = value)
+  SideEffect {
+    if (current.selection != fieldValue.selection || current.composition != fieldValue.composition) {
+      fieldValue = current
+    }
+  }
+  var lastText by remember(value) { mutableStateOf(value) }
+
+  FluidTextField(
+    value = current,
+    onValueChange = { new ->
+      fieldValue = new
+      // Il chiamante sente solo i cambi di testo: muovere il cursore non e' un valore nuovo.
+      val changed = lastText != new.text
+      lastText = new.text
+      if (changed) onValueChange(new.text)
+    },
+    modifier = modifier,
+    placeholder = placeholder,
+    label = label,
+    enabled = enabled,
+    readOnly = readOnly,
+    singleLine = singleLine,
+    minLines = minLines,
+    maxLines = maxLines,
+    isError = isError,
+    supportingText = supportingText,
+    minHeight = minHeight,
+    keyboardOptions = keyboardOptions,
+    keyboardActions = keyboardActions,
+    visualTransformation = visualTransformation,
+    showClearButton = showClearButton,
+    leading = leading,
+    trailing = trailing,
+  )
+}
+
+/**
+ * The text field, with the caret.
+ *
+ * E' la forma da usare quando qualcosa fuori dal campo deve sapere dov'e' il cursore o cambiare la
+ * selezione: i pulsanti di un editor Markdown, un «inserisci qui». Le operazioni tipiche stanno in
+ * [FluidTextEdit], pure, cosi' il chiamante non ricalcola gli indici a mano.
+ */
+@Composable
+fun FluidTextField(
+  value: TextFieldValue,
+  onValueChange: (TextFieldValue) -> Unit,
   modifier: Modifier = Modifier,
   placeholder: String? = null,
   label: String? = null,
@@ -140,7 +221,7 @@ fun FluidTextField(
             }
           }
           Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (value.isEmpty() && placeholder != null) {
+            if (value.text.isEmpty() && placeholder != null) {
               Text(
                 text = placeholder,
                 style = MaterialTheme.typography.bodyLarge,
@@ -151,11 +232,11 @@ fun FluidTextField(
           }
           if (showClearButton) {
             AnimatedVisibility(
-              visible = value.isNotEmpty() && enabled,
+              visible = value.text.isNotEmpty() && enabled,
               enter = fadeIn(FluidMotion.fadeIn(140)) + scaleIn(FluidMotion.snappy(), initialScale = 0.6f),
               exit = fadeOut(FluidMotion.fadeOut(120)) + scaleOut(FluidMotion.fadeOut(120), targetScale = 0.6f),
             ) {
-              FluidClearButton(onClick = { onValueChange("") })
+              FluidClearButton(onClick = { onValueChange(TextFieldValue("")) })
             }
           }
           if (trailing != null) {

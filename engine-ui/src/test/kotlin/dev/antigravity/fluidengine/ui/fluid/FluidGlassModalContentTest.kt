@@ -42,5 +42,15 @@ class FluidGlassModalContentTest {
     // che non le ha mai chieste non deve ereditarle da un'apertura precedente.
     assertFalse(fluidModalShowsActions(FluidGlassModalPresentation.Popover, hasActions = true))
     assertFalse(fluidModalShowsActions(FluidGlassModalPresentation.Sheet, hasActions = true))
+    assertFalse(fluidModalShowsActions(FluidGlassModalPresentation.FullScreen, hasActions = true))
+  }
+
+  @Test
+  fun `il foglio e la pagina intera arrivano dal basso, tutto il resto nasce da un'ancora`() {
+    assertTrue(fluidModalSlidesUp(FluidGlassModalPresentation.Sheet))
+    assertTrue(fluidModalSlidesUp(FluidGlassModalPresentation.FullScreen))
+    assertFalse(fluidModalSlidesUp(FluidGlassModalPresentation.Popover))
+    assertFalse(fluidModalSlidesUp(FluidGlassModalPresentation.Expand))
+    assertFalse(fluidModalSlidesUp(FluidGlassModalPresentation.ContextMenu))
   }
 }

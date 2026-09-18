@@ -137,14 +137,15 @@ fun FluidFoldingTabBar(
    * Two consequences worth knowing before reaching for it. The bar keeps its full width while it is
    * folded — there is nothing left over to push to one side — so [foldAlignment] has no work to do
    * and is ignored. And the accessory is measured, never asked how tall it is: it gets
-   * [accessoryHeight] open and folded alike, because a band that also changes height while it moves
-   * reads as two animations disagreeing.
+   * [accessoryHeight] with the bar open and the row's own height once it is folded, which is the
+   * same travel the capsule beside it is making. A band left at its open height inside the folded
+   * row sits in it by a hair, and a hair of margin is what makes two things read as two things.
    *
    * The content is the caller's, and so is what it knows about itself: an app that needs the
    * accessory's rectangle on screen puts its own `onGloballyPositioned` inside this slot.
    */
   accessory: (@Composable () -> Unit)? = null,
-  /** How tall [accessory] is drawn, open and folded alike. */
+  /** How tall [accessory] is drawn while the bar is open. Folded, it takes the row. */
   accessoryHeight: Dp = FluidFoldingTabBarDefaults.AccessoryHeight,
   /**
    * Whether the bar is a search field right now.
@@ -271,8 +272,11 @@ fun FluidFoldingTabBar(
     // The accessory: the whole width above the row when the bar is open, and the room between the
     // closed capsule and the trailing control when it is folded.
     val accessoryWidth = fluidAccessoryWidth(width, capsuleWidth, gap, trailingWidth, f)
+    // Open it is its own height; folded it is the row, travelling there on the same number the
+    // capsule shrinks on.
+    val accessoryHeightNow = lerp(accessoryPx, rowHeight, f)
     val accessoryPlaceable = accessoryMeasurable
-      ?.measure(Constraints.fixed(accessoryWidth, accessoryPx))
+      ?.measure(Constraints.fixed(accessoryWidth, accessoryHeightNow))
 
     val searchPlaceable = searchMeasurable
       ?.measure(Constraints.fixed(trailingWidth.coerceAtLeast(1), rowHeight))
@@ -305,9 +309,7 @@ fun FluidFoldingTabBar(
         val openLeft = 0
         val foldedLeft = trailingLeft
         val left = lerp(openLeft, foldedLeft, f)
-        val openTop = 0
-        val foldedTop = (rowHeight - accessoryPx) / 2
-        accessoryPlaceable.place(left, lerp(openTop, foldedTop, f))
+        accessoryPlaceable.place(left, lerp(0, (rowHeight - accessoryHeightNow) / 2, f))
       }
     }
   }

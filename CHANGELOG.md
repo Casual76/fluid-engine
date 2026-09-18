@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 1.32.1 - 2026-09-18
+
+- ui: la banda dell accessorio prende l altezza della fila una volta ripiegata, invece di restare alla sua e sedercisi dentro per un pelo. Un pelo di margine e' esattamente cio' che fa leggere due cose come due cose, e il viaggio e' lo stesso numero su cui si stringe la capsula accanto.
+
+
 ## 1.32.0 - 2026-09-18
 
 - ui: `GlassDefaults.darkFloatingTint()`, il gemello scuro di `floatingTint()` — come `darkBarTint()`

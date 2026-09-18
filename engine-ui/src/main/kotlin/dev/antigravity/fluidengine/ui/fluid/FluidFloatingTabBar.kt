@@ -133,6 +133,8 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
@@ -1414,6 +1416,9 @@ private fun SharedTransitionScope.ExpandedTabs(
     // destination) on top of whatever the tapped tab's own tapClickable just
     // navigated to. Gate the puck's own navigate-on-release to genuine drags.
     var hasDraggedPuck = false
+    // Read out here: what is below is a remembered object, not composition, and
+    // a local cannot be asked for from inside one.
+    val crossingHaptics = LocalFluidHaptics.current
     val dampedDragAnimation = remember(animationScope, tabsCount) {
         GlassDragAnimation(
             animationScope = animationScope,
@@ -1446,10 +1451,18 @@ private fun SharedTransitionScope.ExpandedTabs(
             },
             onDrag = { _, dragAmount ->
                 if (dragAmount != Offset.Zero) hasDraggedPuck = true
+                val before = targetValue.fastRoundToInt()
                 updateValue(
                     (targetValue + dragAmount.x / tabWidthPx * if (isLtr) 1f else -1f)
                         .fastCoerceIn(0f, (tabsCount - 1).toFloat())
                 )
+                // One tick per tab crossed, which is the only moment in a drag
+                // that means anything: the puck is continuous and the thing it is
+                // choosing is not. Read off the rounded value rather than off a
+                // threshold of our own, so what the finger feels is the same
+                // instant the puck would settle on if it were let go.
+                val after = targetValue.fastRoundToInt()
+                if (after != before) crossingHaptics.play(FluidHapticEvent.Tick)
                 animationScope.launch {
                     offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
                 }

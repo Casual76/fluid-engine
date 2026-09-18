@@ -6,6 +6,37 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.0.0 - 2026-09-18
+
+- **BREAKING** ui: `FluidFoldingTabBar` non c'e' piu'. Al suo posto `FluidFloatingTabBar`, che e' la
+  barra dell'app Fluidify portata qui: il suo vetro e' un livello sopra quello che l'engine sapeva
+  fare da solo - la rifrazione sotto il puck, la fila di schede nascosta e tinta che il puck si
+  ricampiona attraverso, lo stiramento che segue il dito che trascina. Un engine i cui componenti
+  sono peggio di quelli delle app che lo usano non lo apre nessuno. C'e' anche la firma a lista di
+  destinazioni che aveva la barra di prima - `items`, `selectedRoute`, `onSelect`, `onReselect` -
+  quindi per il caso comune si cambia il nome del componente e il `fold` diventa uno
+  `scrollConnection`, che e' anche la cosa a cui si aggancia il `nestedScroll` della pagina.
+  `FluidBarFold` se ne va con lei: la nuova barra si piega da sola.
+- **BREAKING** ui: `FluidTabBar` e `FluidTabRail` restano dove sono - sono la barra agganciata e il
+  binario, due cose diverse da una capsula che galleggia - ma perdono il compagno che stava in mezzo.
+- ui: il bordo del vetro si vede anche sulla pagina chiara. Un bordo speculare si disegna in
+  additivo, ed e' questo che lo fa leggere come luce presa da uno spigolo invece che come una linea
+  tirata lungo di esso; su una superficie chiara non c'e' piu' luce da aggiungere, quindi ogni
+  pannello di un'app sul lato chiaro finiva dove finiva il suo velo. Vale per `glassSurface`, quindi
+  per tutto: interruttori, cursori, segmentati, barre, fogli. Chi era gia' sul chiaro vedra' comparire
+  un bordo scuro sottile che prima non c'era, ed e' il punto.
+- ui: `GlassTouchHighlight(onDarkSurface = ...)`. Stessa trappola del bordo e stessa meta' mancante:
+  il bagliore che segue il dito era additivo e basta, quindi una pressione su un pannello di vetro
+  chiaro semplicemente non succedeva. Il default resta il comportamento di prima; le superfici
+  dell'engine lo chiedono ora a `GlassDefaults.isDarkSurface()`.
+- ui: `drawBackdrop(frozen = ..., heldWhileMoving = ...)`. La cattura tenuta ferma mentre sono i
+  *propri* limiti ad animarsi, che non e' `sampleOnce` - quello parla di uno sfondo che non si muove,
+  questo di una superficie che cambia forma. Senza, una piega costa un replay dello schermo piu'
+  tutta la catena di effetti a ogni fotogramma. Tenuta ma non per sempre: si rinfresca qualche volta
+  al secondo, perche' una cattura ferma per un'intera animazione va corretta alla fine e quella
+  correzione e' un salto comunque la si vesta.
+- ui: il puck della barra batte un colpo di aptica per ogni scheda che attraversa.
+
 ## 1.34.0 - 2026-09-18
 
 - ui: `GlassDragAnimation(velocityDampingRatio = ...)`, quanto e' smorzata la velocita' da cui nasce

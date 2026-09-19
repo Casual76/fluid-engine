@@ -6,6 +6,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.3.0 - 2026-09-19
+
+- ui: il puck trascinato sta sotto il dito. Il calcolo che trasforma il movimento del dito in posizione divideva per una larghezza di scheda **congelata alla prima composizione**: sizes arriva gia' adattato alla larghezza misurata della barra, ma quella misura atterra un fotogramma dopo, quindi la lambda del trascinamento si teneva per sempre il massimale di 88dp mentre il puck veniva disegnato con i 75 veri. Un dito che attraversava una scheda ne muoveva 75/88, e lo scarto cresceva a ogni scheda attraversata. Misurato: un trascinamento di esattamente quattro schede adesso atterra sulla quarta.
+- ui: toccare una scheda fa lo stesso vetro del trascinarla. La 2.2.0 aveva messo una molla secca al posto di premi-viaggia-rilascia, e il risultato era una pastiglia colorata che scivolava senza mai diventare il materiale: toccare e trascinare producevano due controlli diversi. Quello che si leggeva male non era mai la pressione, era che non poteva cominciare finche' l'app non aveva navigato.
+- ui: l'interruttore si trascina di nuovo, oltre che toccare. Il rilevatore del trascinamento ispeziona senza consumare, quindi il 	oggleable sul controllo vede lo stesso tocco e scatta sullo stesso rilascio: la 2.2.0 li faceva litigare e vinceva sempre il tocco, cioe' il trascinamento commetteva e il clic subito dopo rimetteva tutto com'era. Adesso entrambi leggono lo stesso contatore di percorso, azzerato sul dito che scende nella passata Initial - che va genitore prima di figlio, quindi e' l'unico posto in cui il conto e' certo.
+- **BREAKING** ui: la barra ripiegata si raccoglie a **sinistra**, non al centro. FluidFloatingTabBar(foldAlignment = ...) e FluidFoldingTabBar(foldAlignment = ...), che finora era accettato e ignorato, con il default a Start. Non e' una preferenza estetica: ripiegata, la capsula e' l'unico bersaglio di navigazione rimasto, e dove si posa decide se il pollice ci arriva.
+- ui: e ripiegata da sola e' piu' grande. FluidFloatingTabBarDefaults.FoldedSoloHeight = 64 (contro i 52 di FoldedHeight), usata quando accanto non c'e' ne' un accessorio ne' il cerchio della ricerca. Con qualcosa accanto resta della misura della fila, perche' li' e' una di piu' e deve corrispondere. Regolabile da FluidFloatingTabBarSizes.inlineSoloHeight.
+
+
 ## 2.2.0 - 2026-09-19
 
 - **BREAKING** ui: `FluidSwitch` e' il LiquidToggle di Kyant0. Il CHANGELOG della 2.0.0 lo dichiarava gia' e nel sorgente non lo era: era rimasto il 56x31 col pomello tondo, vittima della fusione delle due linee che quella stessa versione racconta. Adesso corrisponde. La pista si registra in un proprio livello e il pomello e' l'unica lastra: a riposo bianco pieno, tenuto premuto il bianco sparisce e sotto si apre la copia schiacciata della pista, che e' quello che rifrange. 64x28 con pomello a pillola 40x24, e `FluidSwitchWidth` vale 64 (era 56) - chi riservava lo spazio a mano lo rilegga. La firma non cambia, quindi nessun chiamante tocca niente.

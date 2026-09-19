@@ -128,7 +128,6 @@ fun FluidGlassSwitch(
   val animationScope = rememberCoroutineScope()
   val currentChecked by rememberUpdatedState(checked)
   val currentOnCheckedChange by rememberUpdatedState(onCheckedChange)
-  val currentEnabled by rememberUpdatedState(enabled)
 
   var didDrag by remember { mutableStateOf(false) }
   var fraction by remember { mutableFloatStateOf(if (checked) 1f else 0f) }
@@ -174,7 +173,11 @@ fun FluidGlassSwitch(
   // caller that refuses the change (a switch whose state is owned elsewhere and did not move) puts
   // the thumb back where it belongs instead of leaving it lying about a state that never happened.
   LaunchedEffect(dragAnimation, reducedMotion) {
-    snapshotFlow { checked }.collectLatest { isChecked ->
+    // `currentChecked` and not `checked`: this effect is keyed on the animation, so it is not
+    // restarted when the parameter changes, and a captured parameter is frozen at the composition
+    // that started it. Reading the `rememberUpdatedState` is a snapshot read, which is the thing
+    // `snapshotFlow` can actually see.
+    snapshotFlow { currentChecked }.collectLatest { isChecked ->
       val target = if (isChecked) 1f else 0f
       if (target != fraction) {
         fraction = target

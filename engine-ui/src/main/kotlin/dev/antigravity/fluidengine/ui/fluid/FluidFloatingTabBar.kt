@@ -92,6 +92,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -148,6 +150,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.effects.vibrancy
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
@@ -960,6 +963,11 @@ private fun SharedTransitionScope.InlineTab(
     tabBarContentModifier: Modifier
 ) {
     Box(
+        // Centred, and it only started to matter when the folded pill grew. While this box was
+        // exactly the size of the icon inside it the default top-start placement was invisible;
+        // give it a square bigger than its content — which is what the solo folded button is —
+        // and the icon goes and sits in the top-left corner of it.
+        contentAlignment = Alignment.Center,
         modifier = modifier
             .sharedElement(
                 sharedContentState = rememberSharedContentState("tabGroup"),
@@ -1552,9 +1560,6 @@ private fun SharedTransitionScope.ExpandedTabs(
     // destination) on top of whatever the tapped tab's own tapClickable just
     // navigated to. Gate the puck's own navigate-on-release to genuine drags.
     var hasDraggedPuck = false
-    // Whether a finger is on the puck right now — as opposed to the puck being animated by a tap
-    // somewhere else in the row. It gates the hidden tinted row below; see `tabsTinted`.
-    var puckHeld by remember(tabsCount) { mutableStateOf(false) }
     // Read out here: what is below is a remembered object, not composition, and
     // a local cannot be asked for from inside one.
     val crossingHaptics = LocalFluidHaptics.current
@@ -1569,9 +1574,8 @@ private fun SharedTransitionScope.ExpandedTabs(
             // fraction of our own tab width — a proportional scale factor, not
             // an absolute size, so it should track the source value directly.
             pressedScale = 78f / 56f,
-            onDragStarted = { hasDraggedPuck = false; puckHeld = true },
+            onDragStarted = { hasDraggedPuck = false },
             onDragStopped = {
-                puckHeld = false
                 val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
                 currentIndex = targetIndex
                 // updateValue (not animateToValue): the modifier's own
@@ -1673,19 +1677,35 @@ private fun SharedTransitionScope.ExpandedTabs(
     val tabsBackdrop = rememberLayerBackdrop()
     // Whether the accent-tinted copy of the tabs is worth keeping alive; see
     // where it is composed below.
-    // A finger on the puck, and not merely a puck that is moving.
+    // Whenever the puck is pressed, by a finger or by a tap on a tab — because that copy of the
+    // tab row is *what the puck is made of*, and gating it on a real finger took the glass out of
+    // every tap. Which was the whole point of pressing on a tap in the first place.
     //
-    // This used to be the press ramp alone, which was right while the only thing that ever
-    // pressed the puck was a finger. A tap on a tab presses it too now — that is what gives a tap
-    // the same material a drag has — and the ramp therefore fired on every navigation, standing
-    // up a whole second copy of the tab row, measuring it and recording it into a layer at the
-    // exact moment the app was building a new page. Two heavy things in the same frame is the lag
-    // that showed up when changing page.
+    // `derivedStateOf`, and it is not a flourish: reading `pressProgress` straight into a local
+    // registers this whole composable as a reader of an animation, so it recomposed on every
+    // frame of every press — the row, its tabs, their icons and labels, sixty times a second,
+    // for a Boolean that changes exactly twice per gesture.
+    val tabsTinted by remember(dampedDragAnimation) {
+        derivedStateOf { dampedDragAnimation.pressProgress > 0f }
+    }
+
+    // It only needs to be recorded once, though, and that is the difference between this row
+    // being affordable and not.
     //
-    // What the hidden row buys is the accent-tinted icon seen *through* the puck's glass while it
-    // is being held and dragged, which is a detail nobody is looking at during a 200 ms tap. So
-    // it is composed for the gesture it exists for and for nothing else.
-    val tabsTinted = puckHeld && dampedDragAnimation.pressProgress > 0f
+    // Left alone it re-records its subtree *and re-captures the whole screen* on every frame it
+    // exists, for the length of the press ramp — and after a tap those frames are exactly the
+    // ones in which the app is building the page it just navigated to. What the puck needs is an
+    // image to refract, not a live one: the row itself does not move while the puck slides over
+    // it, so a single capture serves the whole gesture. Two frames in, it stops.
+    val tintedRowSettled = remember { mutableStateOf(false) }
+    LaunchedEffect(tabsTinted) {
+        tintedRowSettled.value = false
+        if (tabsTinted) {
+            withFrameNanos {}
+            withFrameNanos {}
+            tintedRowSettled.value = true
+        }
+    }
 
     Box(
         modifier
@@ -1764,9 +1784,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                     isInline = false,
                     isStandalone = false,
                     contentScale = if (index == currentIndex) {
-                        lerp(1f, 1.12f, dampedDragAnimation.pressProgress)
+                        { lerp(1f, 1.12f, dampedDragAnimation.pressProgress) }
                     } else {
-                        1f
+                        null
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -1801,8 +1821,33 @@ private fun SharedTransitionScope.ExpandedTabs(
                                     // was never the press, it was that none of this could start
                                     // until the app had navigated.
                                     dampedDragAnimation.animateToValue(index.toFloat())
+                                    // And the page waits for it.
+                                    //
+                                    // Not politeness: the puck's animation is driven by wall
+                                    // clock, and composing a new page takes the main thread for
+                                    // long enough that the next frame to reach the screen can be
+                                    // eighty milliseconds late. The animation is correct across
+                                    // that gap — it simply advances all eighty at once — so what
+                                    // you see is the puck on the tab you left, and then the puck
+                                    // three quarters of the way across, with nothing in between.
+                                    // Measured going from the fifth tab to the first: one frame
+                                    // on tab five, the next already on tab two.
+                                    //
+                                    // Nothing can make an animation survive not being drawn, so
+                                    // the two are put in order instead of in competition: the
+                                    // journey runs on cheap frames, and the page starts building
+                                    // as it lands. The cost is [PuckLeadMs] before the page
+                                    // changes, which is the length of the movement that is now
+                                    // visible for it.
+                                    animationScope.launch {
+                                        delay(PuckLeadMs)
+                                        tab.onClick()
+                                    }
+                                } else {
+                                    // Re-selecting the tab you are on is "take me to the top",
+                                    // and nothing moves, so there is nothing to wait for.
+                                    tab.onClick()
                                 }
-                                tab.onClick()
                             },
                         )
                         .padding(sizes.tabExpandedContentPadding)
@@ -1834,7 +1879,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     .fillMaxWidth()
                     .clearAndSetSemantics {}
                     .alpha(0f)
-                    .layerBackdrop(tabsBackdrop)
+                    .layerBackdrop(tabsBackdrop, frozen = { tintedRowSettled.value })
                     .graphicsLayer { translationX = panelOffset }
                     // Padding here (not after drawBackdrop, like the tail
                     // .padding below) so it actually shrinks this row's own
@@ -1871,7 +1916,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                         },
                         onDrawSurface = { drawRect(colors.backgroundColor) },
                         backdropScale = tabsBackdropScale,
-                        frozen = LocalFluidTabBarBackdropFrozen.current,
+                        frozen = rememberFrozenOr(LocalFluidTabBarBackdropFrozen.current, tintedRowSettled),
                         // Same GPU-saving trick as Modifier.liquidGlass: record this
                         // hidden row at a fraction of surface resolution and let the
                         // blur hide the upscale — was left at the 1f (full-res)
@@ -1899,9 +1944,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                         // press/drag, the accent-tinted copy visibly drifts from the
                         // real icon on top, reading as a ghosted double image.
                         contentScale = if (index == currentIndex) {
-                            lerp(1f, 1.12f, dampedDragAnimation.pressProgress)
+                            { lerp(1f, 1.12f, dampedDragAnimation.pressProgress) }
                         } else {
-                            1f
+                            null
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -2182,7 +2227,12 @@ private fun Tab(
     isStandalone: Boolean = false,
     // Vendored addition: press-zoom scale for the icon+label, driven by the
     // drag puck's press progress (Kyant's LocalLiquidBottomTabScale trick).
-    contentScale: Float = 1f
+    //
+    // A lambda and not a Float, because the Float was read where it was passed — in composition —
+    // and that made the press ramp recompose every tab in the bar on every frame. Read inside the
+    // layer block it is a draw-phase read: the animation invalidates a draw and nothing else.
+    // Null for a tab that never zooms, so only the selected one carries a layer.
+    contentScale: (() -> Float)? = null
 ) {
     val showTitle = !isStandalone && !isInline
     Column(
@@ -2198,10 +2248,11 @@ private fun Tab(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .then(
-                if (contentScale != 1f) {
+                if (contentScale != null) {
                     Modifier.graphicsLayer {
-                        scaleX = contentScale
-                        scaleY = contentScale
+                        val amount = contentScale()
+                        scaleX = amount
+                        scaleY = amount
                     }
                 } else {
                     Modifier
@@ -2257,6 +2308,26 @@ private fun OneLine(modifier: Modifier = Modifier, content: @Composable () -> Un
         }
     }
 }
+
+/**
+ * Two reasons to hold a capture, as one lambda the draw phase can ask.
+ *
+ * Remembered rather than built inline because a surface reads this during draw: a fresh lambda
+ * every composition would be a new identity for the modifier to compare against, which is the
+ * cheap way to make a thing that exists to avoid work start causing it.
+ */
+@Composable
+private fun rememberFrozenOr(base: () -> Boolean, extra: State<Boolean>): () -> Boolean =
+    remember(base, extra) { { base() || extra.value } }
+
+/**
+ * How long the puck gets to itself before the page it chose starts being built.
+ *
+ * The travel is a spring and settles in about this, whatever the distance — a spring reaches most
+ * of the way in the same time whether it crosses one tab or four, which is also why the cut this
+ * prevents looked worst on the longest journey and passed unnoticed between neighbours.
+ */
+private const val PuckLeadMs = 160L
 
 /** How far a label may be shrunk to stay on one line before it is cut instead. */
 internal const val MinLabelScale = 0.75f

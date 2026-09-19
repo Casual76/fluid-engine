@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.1.1 - 2026-09-19
+
+- ui: `FluidGlassSwitch` guarda lo stato vivo invece di quello della composizione che l'ha avviato. L'effetto che riporta il pomello dove dice il chiamante e' agganciato all'animazione, quindi non riparte quando cambia il parametro, e uno `snapshotFlow` su un parametro catturato osserva un valore congelato. Senza, un interruttore mosso da fuori (o un chiamante che rifiuta il cambio) non spostava mai il pomello.
+
+
 ## 2.1.0 - 2026-09-19
 
 - ui: la pillola di navigazione sta in cinque schede. Il calcolo che restringe le schede alla larghezza disponibile pretendeva anche il cerchio della ricerca, quindi una barra senza cerchio non lo faceva mai: cinque schede da 88 fanno 448, un telefono gliene da 383, e una Row non stringe quello che non ci sta. L'ultima scheda finiva fuori dalla pillola, le etichette delle altre andavano a capo, e la barra cresceva per contenere il capo. Tutti e tre i sintomi vengono da li'.

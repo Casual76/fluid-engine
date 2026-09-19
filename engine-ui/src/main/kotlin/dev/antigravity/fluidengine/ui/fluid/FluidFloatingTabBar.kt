@@ -242,6 +242,15 @@ fun FluidFloatingTabBar(
      */
     backdrop: GlassBackdropState? = null,
     accentColor: Color? = null,
+    /**
+     * Which way the bar packs itself once a scroll has folded it.
+     *
+     * [Alignment.Start] by default, and that is a question about which hand is holding the phone
+     * rather than an aesthetic one: folded, the pill is the only navigation target left, and where
+     * it comes to rest decides whether a thumb reaches it. Ignored when the bar carries an
+     * accessory — that row spans the full width and has nowhere to pack to.
+     */
+    foldAlignment: Alignment.Horizontal = Alignment.Start,
     // Vendored addition: when true (and searchBarContent non-null), the
     // expanded state renders SearchExpandedBar instead of ExpandedBar — the
     // tab group shrinks to the current screen's own icon and the standalone
@@ -394,7 +403,8 @@ fun FluidFloatingTabBar(
                     sizes = sizes,
                     elevations = elevations,
                     tabBarContentModifier = ownGlass,
-                    animatedVisibilityScope = this@AnimatedContent
+                    animatedVisibilityScope = this@AnimatedContent,
+                    foldAlignment = foldAlignment
                 )
                 FluidFloatingTabBarVisual.EXPANDED -> ExpandedBar(
                     scope = scope,
@@ -716,6 +726,7 @@ fun FluidFloatingTabBar(
     onReselect: (FluidTabItem) -> Unit = {},
     glass: FluidFloatingTabBarGlass = FluidFloatingTabBarGlass(),
     accentColor: Color? = null,
+    foldAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
     if (items.isEmpty()) return
     FluidFloatingTabBar(
@@ -725,6 +736,7 @@ fun FluidFloatingTabBar(
         backdrop = backdrop,
         glass = glass,
         accentColor = accentColor,
+        foldAlignment = foldAlignment,
     ) {
         items.forEach { item ->
             tab(
@@ -813,27 +825,38 @@ private fun SharedTransitionScope.InlineBar(
     sizes: FluidFloatingTabBarSizes,
     elevations: FluidFloatingTabBarElevations,
     tabBarContentModifier: Modifier,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    foldAlignment: Alignment.Horizontal,
 ) {
     val inlineTab = scope.getInlineTab(selectedTabKey)
     val standaloneTab = scope.standaloneTab
     val hasInlineTab = inlineTab != null
 
+    // Alone on the screen, and therefore bigger.
+    //
+    // Folded, this pill is the *only* navigation left: everything else has gone, and what remains
+    // has to be found and hit without looking. At the open bar's tab height it reads as a leftover
+    // rather than as the way back, which is a strange thing for the one control on screen to be.
+    // Not when something stands beside it — an accessory band or the search circle — because then
+    // it is one of a row and has to match the row.
+    val solo = accessory == null && standaloneTab == null
+    val inlineFloor = if (solo) sizes.inlineSoloHeight else sizes.inlineHeight
+
     // With an accessory the row spans the full width ([tab][accessory][standalone],
-    // iOS 26 Apple Music style); without one, the cluster is packed and centered.
+    // iOS 26 Apple Music style); without one it packs to [foldAlignment].
     Row(
         horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (accessory == null) Modifier.wrapContentWidth() else Modifier)
+            .then(if (accessory == null) Modifier.wrapContentWidth(foldAlignment) else Modifier)
             .height(IntrinsicSize.Max)
             // Only without an accessory. With one, the band — a now-playing pill, two lines of
             // text and a progress line — is what decides how tall this row is, and a floor that
             // disagreed with it would leave the accessory and the tab beside it different heights.
             .then(
                 if (accessory == null) {
-                    Modifier.defaultMinSize(minHeight = sizes.inlineHeight)
+                    Modifier.defaultMinSize(minHeight = inlineFloor)
                 } else {
                     Modifier
                 }
@@ -849,7 +872,16 @@ private fun SharedTransitionScope.InlineBar(
                 elevations = elevations,
                 animatedVisibilityScope = animatedVisibilityScope,
                 tabBarContentModifier = tabBarContentModifier,
-                modifier = Modifier
+                // Alone, it takes the whole floor and squares itself off, so the bigger height
+                // is a bigger *button* and not a bigger gap around the same icon. In a row it
+                // stays content-sized, because there the thing it has to match is its neighbour.
+                modifier = if (solo) {
+                    Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(1f, matchHeightConstraintsFirst = true)
+                } else {
+                    Modifier
+                }
             )
         }
 
@@ -1452,6 +1484,17 @@ private fun SharedTransitionScope.ExpandedTabs(
     val puckRestAlpha = glassConfig.puckOpacity.coerceIn(0f, 1f)
 
     val tabWidthPx = with(density) { sizes.tabWidth.toPx() }
+    // The same number, readable from inside a remembered object, and it is the fix for a puck
+    // that drifted left of the finger dragging it.
+    //
+    // `sizes` arrives here already fitted to the bar's measured width, and that measurement lands
+    // a frame *after* the first composition — so the tab width starts at the 88 dp ceiling and
+    // becomes the real 75-ish a frame later. The drag animation below is `remember`ed, so its
+    // `onDrag` closed over the ceiling and went on dividing the finger's travel by it forever,
+    // while the puck was drawn with the live value. A finger moving one real tab across therefore
+    // moved the puck 75/88 of a tab, and the gap grew with every tab crossed. Read as state and
+    // the closure sees what the draw sees.
+    val liveTabWidthPx by rememberUpdatedState(tabWidthPx)
     // The row's own content padding insets the tabs from the pill's edges, so
     // the puck (a sibling, not a row child) has to account for it explicitly —
     // otherwise it drifts out of alignment with where the tabs actually sit.
@@ -1525,7 +1568,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                 if (dragAmount != Offset.Zero) hasDraggedPuck = true
                 val before = targetValue.fastRoundToInt()
                 updateValue(
-                    (targetValue + dragAmount.x / tabWidthPx * if (isLtr) 1f else -1f)
+                    (targetValue + dragAmount.x / liveTabWidthPx * if (isLtr) 1f else -1f)
                         .fastCoerceIn(0f, (tabsCount - 1).toFloat())
                 )
                 // One tick per tab crossed, which is the only moment in a drag
@@ -1711,10 +1754,16 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // change, the sync effect below is what puts the puck back.
                                 if (index != currentIndex) {
                                     currentIndex = index
-                                    // updateValue, not animateToValue: a plain spring to the new
-                                    // position. animateToValue also presses and releases, which
-                                    // is the drag's own gesture and reads as a flinch on a tap.
-                                    dampedDragAnimation.updateValue(index.toFloat())
+                                    // animateToValue, which is press-travel-release: the puck
+                                    // grows into glass, crosses, and settles, exactly as if a
+                                    // finger had dragged it there and let go. A bare spring to
+                                    // the new position was the first answer here and it was the
+                                    // wrong one — it slid a coloured pill across without ever
+                                    // becoming the material, so tapping and dragging produced two
+                                    // different controls. What made the old behaviour read badly
+                                    // was never the press, it was that none of this could start
+                                    // until the app had navigated.
+                                    dampedDragAnimation.animateToValue(index.toFloat())
                                 }
                                 tab.onClick()
                             },
@@ -2401,6 +2450,8 @@ data class FluidFloatingTabBarSizes(
     val barHeight: Dp = FluidFloatingTabBarDefaults.OpenHeight,
     /** The same, folded — where there is an icon and no label. */
     val inlineHeight: Dp = FluidFloatingTabBarDefaults.FoldedHeight,
+    /** And folded with nothing beside it, where the pill is the only navigation on screen. */
+    val inlineSoloHeight: Dp = FluidFloatingTabBarDefaults.FoldedSoloHeight,
 )
 
 /**
@@ -2431,6 +2482,16 @@ object FluidFloatingTabBarDefaults {
 
     /** How tall it stands once a scroll has folded it back to its inline shape. */
     val FoldedHeight: Dp = 52.dp
+
+    /**
+     * The same, when the folded pill has nothing beside it.
+     *
+     * Bigger than the open bar's tab, not smaller. Folded with no accessory and no search circle,
+     * this one capsule is the entire navigation: it has to be found and hit without looking, and
+     * at 52 it read as what was left over rather than as the way back. With something beside it —
+     * a now-playing band, the search circle — it goes back to matching that row instead.
+     */
+    val FoldedSoloHeight: Dp = 64.dp
 
     /** The gap between the bar and the accessory band above it. */
     val Spacing: Dp = 8.dp
@@ -2510,6 +2571,7 @@ object FluidFloatingTabBarDefaults {
         tabWidth: Dp = TabWidth,
         barHeight: Dp = OpenHeight,
         inlineHeight: Dp = FoldedHeight,
+        inlineSoloHeight: Dp = FoldedSoloHeight,
     ): FluidFloatingTabBarSizes = FluidFloatingTabBarSizes(
         tabBarContentPadding = tabBarContentPadding,
         tabInlineContentPadding = tabInlineContentPadding,
@@ -2519,6 +2581,7 @@ object FluidFloatingTabBarDefaults {
         tabWidth = tabWidth,
         barHeight = barHeight,
         inlineHeight = inlineHeight,
+        inlineSoloHeight = inlineSoloHeight,
     )
 
     /**

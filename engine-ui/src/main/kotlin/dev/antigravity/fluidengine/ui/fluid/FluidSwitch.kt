@@ -18,6 +18,8 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
@@ -42,6 +44,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -85,10 +89,10 @@ import kotlin.math.abs
  *  * **It stretches.** Dragged fast it thins along its direction of travel and swells across it,
  *    by how fast it is going. It is most of why the thing feels like an object being pushed.
  *
- * **A tap anywhere on it flips it** — on the thumb, on the empty half of the track, on the rim.
- * The source only answered a drag on the thumb, which meant a switch that quite often did nothing
- * when you tapped it; dragging is the flourish, not the way to use it. Past [TapSlop] the gesture
- * becomes a drag and the thumb lands on whichever side it was let go nearest.
+ * **Tap it or drag it, either works.** A tap anywhere flips it — on the thumb, on the empty half
+ * of the track, on the rim; the source only answered a drag on the thumb, which meant a switch
+ * that quite often did nothing when you tapped it. Past [TapSlop] the same gesture is a drag
+ * instead, the thumb follows the finger, and it lands on whichever side it was let go nearest.
  *
  * The colour is the app's [androidx.compose.material3.ColorScheme.primary], so it belongs to
  * whatever palette the app is wearing, Material You included.
@@ -147,12 +151,15 @@ fun FluidSwitch(
       pressedScale = 1.5f,
       onDragStarted = { travelled = 0f },
       onDragStopped = {
-        val dragged = travelled > slop
-        travelled = 0f
-        // A tap. The `toggleable` on the whole control has it — this gesture detector inspects
-        // without consuming, so both see the same touch, and if both acted on it the switch
-        // would flip twice and land where it started.
-        if (!dragged) return@GlassDragAnimation
+        // NOT reset here, and that is the whole of how tap and drag coexist. This detector
+        // inspects without consuming, so the `toggleable` on the control sees the same touch and
+        // fires its own click on the same release — the two run in an order nothing guarantees.
+        // Leaving `travelled` standing until the next finger goes down means both sides can ask
+        // the same question, "was this a drag", and get the same answer whichever goes first.
+        // Clearing it here made the answer depend on who asked first, and what that produced was
+        // a switch that could only be tapped: a drag ended, this committed, and then the click
+        // arrived, read a zeroed counter, called it a tap and flipped it straight back.
+        if (travelled <= slop) return@GlassDragAnimation
         val wanted = targetValue >= 0.5f
         fraction = if (wanted) 1f else 0f
         if (wanted != currentChecked) {
@@ -220,10 +227,28 @@ fun FluidSwitch(
   val interactive = enabled && onCheckedChange != null
   val interactionSource = remember { MutableInteractionSource() }
 
+  // Every gesture starts the counter from zero, deterministically.
+  //
+  // It cannot be done from the interaction source, which was the first attempt: `clickable`
+  // emits its press into a flow, a collector picks it up on some later frame, and the click
+  // itself fires synchronously from the pointer handler — so the reset lost the race and a tap
+  // that followed a drag inherited the drag's travel and was thrown away as a drag. Measured on
+  // the device: drag, then tap, and the tap did nothing.
+  //
+  // The Initial pass runs parent before child, so this sees the finger go down before the thumb's
+  // own detector does, on every gesture, whether it lands on the thumb or on the bare track.
+  val resetOnDown = Modifier.pointerInput(Unit) {
+    awaitEachGesture {
+      awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+      travelled = 0f
+    }
+  }
+
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.5f)
       .size(TrackWidth, TrackHeight)
+      .then(if (interactive) resetOnDown else Modifier)
       .then(
         if (interactive) {
           Modifier.toggleable(
@@ -235,6 +260,10 @@ fun FluidSwitch(
             // capsule is a second answer to the same touch.
             indication = null,
             onValueChange = { value ->
+              // The drag has it. See `onDragStopped`: the counter is still standing from the
+              // gesture that just ended, so this can tell a released drag from a tap without
+              // caring which of the two was told first.
+              if (travelled > slop) return@toggleable
               // Optimistic, like every other indicator in this design: the tap is the statement,
               // the caller's state change is how it gets recorded, and making the thumb wait for
               // the round trip is what reads as lag. The effect above puts it back if the caller

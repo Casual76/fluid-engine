@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
@@ -64,11 +65,16 @@ enum class FluidFoldAlignment { Start, Center, End }
  * the number is turned back into a decision here, at the same halfway point this bar always used. A
  * caller driving it from [FluidBarFold] sees what it saw.
  *
- * Three arguments are accepted and ignored, and saying so is better than pretending otherwise:
- * [tint], because the new bar's material is its own and no longer a colour a caller passes;
- * [foldAlignment], because the new bar folds to a shape rather than towards a side; and [trailing],
- * which has no equivalent - the new bar's standalone tab is a *tab*, with a key and a selection, and
- * quietly turning an arbitrary composable into one would be a worse surprise than leaving it out.
+ * Two arguments are accepted and ignored, and saying so is better than pretending otherwise:
+ * [tint], because the new bar's material is its own and no longer a colour a caller passes; and
+ * [trailing], which has no equivalent - the new bar's standalone tab is a *tab*, with a key and a
+ * selection, and quietly turning an arbitrary composable into one would be a worse surprise than
+ * leaving it out.
+ *
+ * [foldAlignment] used to be a third, on the reasoning that the new bar folds to a shape rather
+ * than towards a side. It folds towards a side as well, and it always did — it simply packed to
+ * the centre with no way to say otherwise. It is honoured now, and its default has moved with the
+ * new bar's: [FluidFoldAlignment.Start].
  */
 @Deprecated(
   "Use FluidFloatingTabBar, which this now is. It also does what this signature cannot ask for: " +
@@ -91,7 +97,7 @@ fun FluidFoldingTabBar(
   @Suppress("UNUSED_PARAMETER") accessoryHeight: Dp = FluidFoldingTabBarDefaults.AccessoryHeight,
   searchMode: Boolean = false,
   searchContent: (@Composable (Modifier) -> Unit)? = null,
-  @Suppress("UNUSED_PARAMETER") foldAlignment: FluidFoldAlignment = FluidFoldAlignment.Center,
+  foldAlignment: FluidFoldAlignment = FluidFoldAlignment.Start,
   @Suppress("UNUSED_PARAMETER") tint: GlassTint = GlassDefaults.floatingTint(),
 ) {
   if (items.isEmpty()) return
@@ -118,6 +124,11 @@ fun FluidFoldingTabBar(
     expandedAccessory = accessory?.let { band -> { _, _ -> band() } },
     searchMode = searchMode,
     searchBarContent = searchContent,
+    foldAlignment = when (foldAlignment) {
+      FluidFoldAlignment.Start -> Alignment.Start
+      FluidFoldAlignment.Center -> Alignment.CenterHorizontally
+      FluidFoldAlignment.End -> Alignment.End
+    },
   ) {
     items.forEach { item ->
       val selected = item.route == selectedRoute
@@ -147,6 +158,7 @@ fun FluidFoldingTabBar(
 object FluidFoldingTabBarDefaults {
   val OpenHeight: Dp get() = FluidFloatingTabBarDefaults.OpenHeight
   val FoldedHeight: Dp get() = FluidFloatingTabBarDefaults.FoldedHeight
+  val SoloFoldedHeight: Dp get() = FluidFloatingTabBarDefaults.FoldedSoloHeight
   val Spacing: Dp get() = FluidFloatingTabBarDefaults.Spacing
   val Inset: Dp = 4.dp
   val AccessoryHeight: Dp = 50.dp

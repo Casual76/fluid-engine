@@ -6,6 +6,16 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.2.0 - 2026-09-19
+
+- **BREAKING** ui: `FluidSwitch` e' il LiquidToggle di Kyant0. Il CHANGELOG della 2.0.0 lo dichiarava gia' e nel sorgente non lo era: era rimasto il 56x31 col pomello tondo, vittima della fusione delle due linee che quella stessa versione racconta. Adesso corrisponde. La pista si registra in un proprio livello e il pomello e' l'unica lastra: a riposo bianco pieno, tenuto premuto il bianco sparisce e sotto si apre la copia schiacciata della pista, che e' quello che rifrange. 64x28 con pomello a pillola 40x24, e `FluidSwitchWidth` vale 64 (era 56) - chi riservava lo spazio a mano lo rilegga. La firma non cambia, quindi nessun chiamante tocca niente.
+- ui: un tocco **ovunque** sull'interruttore lo commuta. Il sorgente ascolta solo un trascinamento sul pomello, quindi meta' del controllo non rispondeva, e un tocco che scivolava di due pixel diventava un trascinamento che non aveva superato la meta' e tornava indietro - cioe' un interruttore che ogni tanto non faceva niente. Sotto gli 8dp di scarto e' un tocco; sopra e' un trascinamento e il pomello atterra dalla parte dove l'hai lasciato.
+- **BREAKING** ui: lo stato spento dell'interruttore non ha piu' il contorno al 55% che l'engine gli aveva aggiunto, perche' il controllo del catalogo non ce l'ha: la pista spenta e' il grigio piatto che disegnano entrambe le piattaforme, e quel bordo sta a circa 1.2:1 invece che a 3:1. E' una perdita di contrasto vera ed e' voluta; il test che la misurava e' stato tolto invece di essere abbassato.
+- ui: `FluidGlassSwitch` deprecato. Era il nome che questo controllo ha avuto per una versione, quando stava accanto al vecchio interruttore invece di esserlo.
+- ui: il puck della barra parte col dito. Poteva muoversi solo quando l'app aveva navigato e aveva ridato alla barra un `selectedTabKey` nuovo, un giro intero dopo il tocco; e la scheda toccata intanto accendeva il proprio ripple. Quello che si vedeva era il tasto che si illuminava e la pillola che arrivava dopo. Adesso il tocco muove il puck e *poi* naviga, e se l'app rifiuta il cambio e' la sincronizzazione a rimetterlo dov'era.
+- ui: niente ripple sulle schede della barra aperta. Il puck **e'** l'indicazione di selezione, e un ripple sotto di lui e' la stessa risposta data due volte e mezzo tempo in anticipo. La scheda ripiegata e il cerchio della ricerca tengono la loro, che non hanno un puck a parlare per loro: il parametro `indication` di `tab()` vale li'.
+
+
 ## 2.1.1 - 2026-09-19
 
 - ui: `FluidGlassSwitch` guarda lo stato vivo invece di quello della composizione che l'ha avviato. L'effetto che riporta il pomello dove dice il chiamante e' agganciato all'animazione, quindi non riparte quando cambia il parametro, e uno `snapshotFlow` su un parametro catturato osserva un valore congelato. Senza, un interruttore mosso da fuori (o un chiamante che rifiuta il cambio) non spostava mai il pomello.

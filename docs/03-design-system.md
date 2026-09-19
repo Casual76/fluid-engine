@@ -173,7 +173,7 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 
 **Controlli**
 
-`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch`, `FluidGlassSwitch` (la pista trasmette e prende l'accento, il pomello rifrange pista e pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassIconButton`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`.
+`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassIconButton`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`.
 
 **Token**
 

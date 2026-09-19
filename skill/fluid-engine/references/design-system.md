@@ -38,16 +38,13 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 `FluidButton(text, onClick, style, size, enabled, loading, fillWidth, leading)` con
 `FluidButtonStyle` = Filled / Tinted / Plain / Destructive.
 
-`FluidSwitch(checked, onCheckedChange)` — passa `onCheckedChange = null` quando è la riga a possedere
-il `toggleable` e il target da 48dp.
-
-`FluidGlassSwitch(checked, onCheckedChange, backdrop)` — lo stesso interruttore fatto di vetro vero:
-la pista **trasmette** (il canvas si vede attraverso, e da acceso il film prende l'accento invece di
-essere riempito) e il pomello rifrange pista e pagina insieme. Non sostituisce `FluidSwitch`: quello
-ha la pista opaca ed è giusto in una colonna di venti righe di impostazioni, dove un interruttore
-traslucido prenderebbe il colore di qualunque riga gli capiti sotto. Questo è per dove l'interruttore
-sta su qualcosa che vale la pena vedere — una barra di vetro, un modale, una card sopra una
-copertina. `backdrop` di default è il canvas della schermata in cui si trova.
+`FluidSwitch(checked, onCheckedChange, enabled, backdrop)` — il LiquidToggle di Kyant0, 64x28 con
+pomello a pillola 40x24. Il **pomello è l'unica lastra**: a riposo è bianco pieno, tenuto premuto il
+bianco sparisce e sotto si apre una copia della pista schiacciata, che è ciò che rifrange. Un tocco
+ovunque sul controllo lo commuta; trascinarlo è il di più. `onCheckedChange = null` quando è la riga
+a possedere il `toggleable` e il target da 48dp. `backdrop` di default è il canvas della schermata.
+`FluidSwitchWidth` vale 64 adesso (era 56): chi riservava lo spazio a mano lo rilegga.
+`FluidGlassSwitch` è deprecato — era il nome che questo controllo ha avuto per una versione.
 
 `FluidSlider(value, onValueChange, valueRange)` — il fratello dell'interruttore: pista che si
 riempie, maniglia che rifrange la pista, e tutta la larghezza tocca (non solo la maniglia).

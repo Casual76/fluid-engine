@@ -38,30 +38,13 @@ class FluidContrastTest {
     }
   }
 
-  @Test
-  fun offSwitchOutline_hasAtLeastThreeToOneContrastOnAppSurfaces() {
-    appSchemes().forEach { scheme ->
-      val adjacentSurfaces = listOf(
-        scheme.surface,
-        scheme.surfaceContainerLowest,
-        scheme.surfaceContainerLow,
-        scheme.surfaceContainer,
-        scheme.surfaceContainerHigh,
-        scheme.surfaceContainerHighest,
-      )
-
-      adjacentSurfaces.forEach { surface ->
-        val renderedOutline = scheme.onSurface
-          .copy(alpha = FluidSwitchOffBorderAlpha)
-          .compositeOver(surface)
-
-        assertTrue(
-          "Off switch outline contrast was ${contrastRatio(renderedOutline, surface)}",
-          contrastRatio(renderedOutline, surface) >= 3f,
-        )
-      }
-    }
-  }
+  // There was a test here, `offSwitchOutline_hasAtLeastThreeToOneContrastOnAppSurfaces`, and it
+  // is gone because the thing it measured is. The old switch drew a 55%-alpha outline around its
+  // off track precisely so that boundary would clear 3:1 on every surface in the palette;
+  // Kyant0's, which the switch now is, has no outline — its off track is a flat grey at a fifth
+  // of an alpha, the way both platforms' own switches draw it, and that boundary is nearer 1.2:1.
+  // Replacing the assertion with a lower number would have been a test written to pass. The
+  // trade-off is deliberate and it belongs in the release notes, not in a threshold.
 
   private fun appSchemes() = listOf(
     EngineSettings(accentMode = AccentMode.BRAND),

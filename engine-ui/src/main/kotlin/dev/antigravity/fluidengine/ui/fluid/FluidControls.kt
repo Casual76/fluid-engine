@@ -197,196 +197,21 @@ private fun Color.luminanceIsLight(): Boolean =
   (0.299f * red + 0.587f * green + 0.114f * blue) > 0.65f
 
 /**
- * The switch.
+ * The handle's colour.
  *
- * Probably the single most recognisable control in either platform's kit, and the fastest tell that
- * an app is wearing someone else's clothes. The details that matter, in order:
+ * White, because a handle is white on both platforms and the material is not an excuse to change
+ * what a control *is*. But at 78% rather than solid: the remaining fraction is the track seen
+ * through it, which is the entire point of making the handle a lens. Without `RenderEffect` the
+ * fallback is opaque white, which is exactly the handle this control had before.
  *
- *  * **Proportions.** 51 x 31 with a 27 thumb. A Material switch is wider relative to its height and
- *    has a much smaller thumb, and no amount of colour makes it read as the other thing.
- *  * **The track fills, it does not recolour.** Off is a neutral fill, on is the accent, and the
- *    crossfade runs slightly behind the thumb so the movement leads the colour.
- *  * **The thumb is a lens, not a disc.** The track records itself into its own layer and the thumb
- *    refracts *it*: the accent bends around the thumb's edge and the boundary between the filled and
- *    the unfilled part of the track visibly distorts as it passes underneath. This is the one place
- *    in the interface small enough for chromatic dispersion to be worth its seven samples per pixel.
- *  * **The thumb stretches.** Held down it widens by 4 dp, and while it is travelling it stretches
- *    along its direction of travel and thins across it, by how fast it is going. That single detail
- *    is most of why the real one feels like a physical object rather than a state being drawn twice.
- *
- * Nothing about the public signature changed, so no call site anywhere had to.
+ * It used to belong to [FluidSwitch] and be borrowed by the slider. The switch is Kyant0's now and
+ * builds its thumb differently, so the constant lives where its one remaining user is.
  */
-@Composable
-fun FluidSwitch(
-  checked: Boolean,
-  onCheckedChange: ((Boolean) -> Unit)?,
-  modifier: Modifier = Modifier,
-  enabled: Boolean = true,
-) {
-  val scheme = MaterialTheme.colorScheme
-  val interactionSource = remember { MutableInteractionSource() }
-  val pressed by interactionSource.collectIsPressedAsState()
-  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val haptics = LocalFluidHaptics.current
-
-  // The track publishes its own finished picture. The thumb is the only thing that reads it, and it
-  // is drawn outside the recorded node, so there is no way for the recording to contain the lens.
-  val trackGlass = rememberGlassBackdrop(blurRadius = 0.dp)
-
-  val trackOff = scheme.onSurface.copy(alpha = FluidSwitchOffTrackAlpha)
-  val track by animateColorAsState(
-    targetValue = if (checked) scheme.primary else trackOff,
-    animationSpec = FluidMotion.color(200),
-    label = "switch track",
-  )
-  val trackBorder by animateColorAsState(
-    targetValue = if (checked) {
-      Color.Transparent
-    } else {
-      scheme.onSurface.copy(alpha = FluidSwitchOffBorderAlpha)
-    },
-    animationSpec = FluidMotion.color(200),
-    label = "switch track border",
-  )
-  val progress = remember { Animatable(if (checked) 1f else 0f) }
-  LaunchedEffect(checked, reducedMotion) {
-    val target = if (checked) 1f else 0f
-    if (reducedMotion) progress.snapTo(target) else progress.animateTo(target, FluidMotion.snappy())
-  }
-  val thumbWidth by animateDpAsState(
-    targetValue = if (pressed && enabled) ThumbSize + 4.dp else ThumbSize,
-    animationSpec = FluidMotion.dp(FluidMotion.DampingChrome, FluidMotion.ResponseSnappy),
-    label = "switch thumb width",
-  )
-  val press by animateFloatAsState(
-    targetValue = if (pressed && enabled) 1f else 0f,
-    animationSpec = FluidMotion.snappy(),
-    label = "switch thumb press",
-  )
-
-  Box(
-    modifier = modifier
-      .alpha(if (enabled) 1f else 0.5f)
-      .graphicsLayer {
-        if (reducedMotion) return@graphicsLayer
-        // The whole control swells while it is held and settles back when it is let go — the same
-        // thing the navigation pill does, at the scale of a switch. Held glass that does not move at
-        // all is the tell that it is a picture of glass.
-        val swell = 1f + SwitchPressSwellDp.dp.toPx() / size.width
-        val amount = 1f + (swell - 1f) * press
-        scaleX = amount
-        scaleY = amount
-      }
-      .size(TrackWidth, TrackHeight)
-      .then(
-        if (onCheckedChange != null) {
-          Modifier.toggleable(
-            value = checked,
-            enabled = enabled,
-            role = Role.Switch,
-            interactionSource = interactionSource,
-            indication = null,
-            onValueChange = { value ->
-              haptics.play(if (value) FluidHapticEvent.ToggleOn else FluidHapticEvent.ToggleOff)
-              onCheckedChange(value)
-            },
-          )
-        } else {
-          Modifier
-        },
-      ),
-    contentAlignment = Alignment.CenterStart,
-  ) {
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .glassBackdropSource(trackGlass)
-        .background(track, FluidCapsuleShape)
-        .border(1.dp, trackBorder, FluidCapsuleShape),
-    )
-
-    val travel = TrackWidth - ThumbInset * 2 - thumbWidth
-    Box(
-      modifier = Modifier
-        .offset(x = ThumbInset)
-        .size(width = thumbWidth, height = ThumbSize)
-        // The shadow is the material's own, not a `Modifier.shadow`. `Modifier.shadow` clips its
-        // content to the shape by default, at the thumb's *untransformed* position — so the pane,
-        // once translated along the track, was cut down to the sliver where the two overlapped and
-        // the thumb came out as a leaf floating in the middle of the switch. Everything optical has
-        // to live inside the renderer, which knows about the travel.
-        .glassSurface(
-          state = trackGlass,
-          tint = FluidSwitchThumbTint,
-          shape = FluidCapsuleShape,
-          role = GlassRole.Interactive,
-          // No frosting at all. The track is a flat fill and there is nothing in it to hide; what
-          // identifies the material here is the bend at the thumb's edge, so the blur comes off and
-          // the lens comes all the way up.
-          optics = remember {
-            GlassDefaults.optics(GlassRole.Interactive).copy(
-              blurScale = 0f,
-              // Held to a small fraction of a 27 dp thumb. The stock Interactive numbers displace
-              // 16 dp, and inside a 27 dp capsule that drags the green of the track most of the way
-              // across the thumb's own silhouette.
-              refractionHeight = 8.dp,
-              refractionAmount = 5.dp,
-              // A dome needs somewhere to be a dome. On something this small it only rounds the
-              // whole thumb into a bead and takes its edges with it.
-              depthEffect = false,
-              // The thumb is the one element in the app that genuinely sits above its surface, so
-              // it is one of the few places a shadow is spent — but tight, at the scale of a switch
-              // rather than of a floating button.
-              shadowRadius = 5.dp,
-              shadowAlpha = 0.45f,
-              innerShadowRadius = 3.dp,
-              innerShadowAlpha = 0.14f,
-            )
-          },
-          pressed = { press },
-          layerBlock = {
-            // The position lives in the layer rather than in the layout so that moving the thumb
-            // invalidates a draw and nothing else — and so that the renderer, which inverts this
-            // block when it samples, keeps handing the thumb the image the track actually has
-            // behind it at every point of the travel.
-            translationX = travel.toPx() * progress.value
-            if (!reducedMotion) {
-              val speed = (progress.velocity * 0.09f).coerceIn(-0.22f, 0.22f)
-              scaleX = 1f / (1f - speed) * (1f + 0.04f * press)
-              scaleY = (1f - speed * 0.35f) * (1f + 0.04f * press)
-            }
-          },
-        ),
-    )
-  }
-}
-
-/**
- * The thumb's colour.
- *
- * Still white, because a switch thumb is white on both platforms and the material is not an excuse
- * to change what a control *is*. But at 62% rather than solid: the remaining 38% is the track seen
- * through it, which is the entire point of making the thumb a lens. On a device without
- * `RenderEffect` the fallback is opaque white, which is exactly the thumb this control had before.
- */
-private val FluidSwitchThumbTint = GlassTint(
+private val FluidLensThumbTint = GlassTint(
   overlay = Color.White.copy(alpha = 0.78f),
   fallback = Color.White,
   hairline = Color.Transparent,
 )
-
-/**
- * 56 x 31 with a 27 thumb.
- *
- * Wider than UIKit's 51, and the extra five dp are all travel. At 51 the thumb moves twenty dp and
- * the two states differ by less than the thumb's own width, which is legible at a glance and not at
- * a *glance across a settings page*: a column of switches all read as one texture. Twenty-five dp of
- * travel is where on and off stop having to be compared to each other to be told apart.
- */
-private val TrackWidth = 56.dp
-private val TrackHeight = 31.dp
-private val ThumbSize = 27.dp
-private val ThumbInset = 2.dp
 
 /**
  * One number, on a track, with a lens for a handle.
@@ -608,13 +433,7 @@ internal fun fluidSliderFractionAt(x: Float, thumbPx: Float, insetPx: Float, tra
   return ((x - insetPx - thumbPx / 2f) / travelPx).fastCoerceIn(0f, 1f)
 }
 
-/**
- * The handle's colour, and it is the switch's thumb.
- *
- * Deliberately the same value rather than a second constant that happens to match: they are the same
- * object at two sizes, and the day one of them is retuned the other has to move with it.
- */
-private val FluidSliderThumbTint = FluidSwitchThumbTint
+private val FluidSliderThumbTint = FluidLensThumbTint
 
 /** How much of the track is left unfilled to read as a track at all. */
 private const val FluidSliderTrackAlpha = 0.16f
@@ -633,14 +452,6 @@ private val SliderTrackHeight = 30.dp
 private val SliderThumbSize = 26.dp
 private val SliderThumbInset = 2.dp
 
-/** How much the whole switch grows under a finger, in dp added to its width. */
-private const val SwitchPressSwellDp = 5f
-
-/** Keeps the neutral fill quiet; the outline carries the off-state boundary contrast. */
-internal const val FluidSwitchOffTrackAlpha = 0.12f
-
-/** Produces a >= 3:1 off-state outline against every app surface in light and dark themes. */
-internal const val FluidSwitchOffBorderAlpha = 0.55f
 
 /**
  * A segmented control.
@@ -1030,5 +841,3 @@ fun FluidColorDot(
 /** Final-state contrast is at least 3:1 on the light and dark app container surfaces. */
 internal const val FluidSelectedRingAlpha = 0.55f
 
-/** Width helper so a row of controls can reserve the switch's footprint without instantiating one. */
-val FluidSwitchWidth: Dp = TrackWidth

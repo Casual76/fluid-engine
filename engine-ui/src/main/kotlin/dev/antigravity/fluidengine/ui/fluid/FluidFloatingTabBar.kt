@@ -745,7 +745,11 @@ interface FluidFloatingTabBarScope {
      * @param title Composable content for the tab title
      * @param icon Composable content for the tab icon
      * @param onClick Callback invoked when the tab is clicked
-     * @param indication Optional indication provider for touch feedback, defaults to LocalIndication.current
+     * @param indication Touch feedback for this tab **in the inline bar**, where the tab is the
+     * only thing on screen and nothing else answers a touch. The expanded row ignores it and
+     * draws none: there the puck is the indication, and it now leaves with the finger rather than
+     * waiting for the navigation, so a ripple underneath is the same answer given twice and half
+     * a beat early.
      */
     fun tab(
         key: Any,
@@ -1562,18 +1566,21 @@ private fun SharedTransitionScope.ExpandedTabs(
                 dampedDragAnimation.updateValue(index.toFloat())
                 return@LaunchedEffect
             }
-            // Re-pin on EVERY selection change, not only when currentIndex differs:
-            // the puck's animated value can drift out from under a matching currentIndex
-            // (a cancelled drag, an interrupted settle) and strand the indicator on the
-            // wrong tab — the "selected icon doesn't update" bug. Forcing this here
-            // always snaps it back to the actually-selected route.
+            // Already on its way there, so leave it alone. A tap moves the puck itself (see
+            // the tab's own onClick) and the navigation arrives here a round trip later; running
+            // a second animation on top of the first is what made a tapped tab move, stop and
+            // move again. This is the confirmation, not the instruction.
+            if (dampedDragAnimation.targetValue.fastRoundToInt() == index) return@LaunchedEffect
+
+            // Everything else is a selection that happened somewhere other than this bar — a
+            // deep link, a back gesture, a screen navigating on its own — and it is re-pinned on
+            // EVERY such change rather than only when currentIndex differs: the puck's animated
+            // value can drift out from under a matching currentIndex (a cancelled drag, an
+            // interrupted settle) and strand the indicator on the wrong tab.
             //
-            // animateToValue (not updateValue): a tap should feel like a drag-release —
-            // the same press/grow-then-settle the puck does when you actually drag it,
-            // not just a bare position slide. This used to fall back to updateValue
-            // because animateToValue's press-grow visibly doubled the selected icon
-            // against the puck's glass copy — that's fixed now (the hidden backdrop row's
-            // contentScale and padding are kept in sync with the visible row, see above).
+            // animateToValue (not updateValue) here, and only here: a selection the bar did not
+            // make should arrive the way a drag-release does, press-grow and settle, because
+            // nothing else announces it. A tap has the tap.
             dampedDragAnimation.animateToValue(index.toFloat())
         }
     }
@@ -1687,8 +1694,30 @@ private fun SharedTransitionScope.ExpandedTabs(
                         .skipToLookaheadSize()
                         .clip(shapes.tabShape)
                         .tapClickable(
-                            indication = tab.indication?.invoke(),
-                            onClick = tab.onClick
+                            // No ripple here, and this is the row where that matters: the puck
+                            // *is* the selection indicator, so a ripple under it is a second
+                            // answer to the same question, and the two do not arrive together.
+                            // The ripple starts on touch-down; the puck could not move until the
+                            // app had navigated and handed the bar a new `selectedTabKey`, a whole
+                            // round trip later. What that reads as is the tab lighting up and the
+                            // pill catching up afterwards. The inline tab and the standalone
+                            // circle keep their indication — they have no puck to speak for them.
+                            indication = null,
+                            onClick = {
+                                // And the puck leaves with the finger. Optimistic on purpose: the
+                                // tap is a statement about where the selection is going, the
+                                // navigation is how it gets there, and making the indicator wait
+                                // for the second is what put the lag in. If the app refuses the
+                                // change, the sync effect below is what puts the puck back.
+                                if (index != currentIndex) {
+                                    currentIndex = index
+                                    // updateValue, not animateToValue: a plain spring to the new
+                                    // position. animateToValue also presses and releases, which
+                                    // is the drag's own gesture and reads as a flinch on a tap.
+                                    dampedDragAnimation.updateValue(index.toFloat())
+                                }
+                                tab.onClick()
+                            },
                         )
                         .padding(sizes.tabExpandedContentPadding)
                 )

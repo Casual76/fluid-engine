@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.3.1 - 2026-09-19
+
+- ui: il vetro non sparisce piu' da sotto il puck quando lo si tiene premuto. Il riempimento della barra veniva dipinto due volte: dietro il vetro sulla fila visibile, dove e' overdraw invisibile, e dalla fila *nascosta* e tinta, che esiste apposta per essere la registrazione che il puck si guarda attraverso. Un surfaceContainerHigh opaco li' dentro e' un muro opaco nell'unica cosa che il puck puo' vedere, quindi premerlo scambiava la pagina rifratta con una lastra piatta. Quando la barra si fa il vetro da sola non ha piu' riempimento; chi passa il proprio pannello, e quindi gia' passava un colore trasparente, non vede differenze.
+- ui: cambiare pagina e' di nuovo fluido. La fila nascosta era legata alla rampa di pressione del puck, giusto finche' l'unica cosa che lo premeva era un dito; dalla 2.3.0 anche un tocco su una scheda lo preme, quindi a ogni navigazione si tirava su una seconda copia completa della fila di schede, misurata e registrata in un livello, nel fotogramma in cui l'app stava costruendo la pagina nuova. Adesso si compone solo con un dito appoggiato davvero sul puck, che e' l'unico momento in cui quel dettaglio si vede. Misurato sull'S25 su dieci cambi pagina: frame scattosi dal 6,57% all'1,75%, 95esimo percentile da 34ms a 20ms.
+
+
 ## 2.3.0 - 2026-09-19
 
 - ui: il puck trascinato sta sotto il dito. Il calcolo che trasforma il movimento del dito in posizione divideva per una larghezza di scheda **congelata alla prima composizione**: sizes arriva gia' adattato alla larghezza misurata della barra, ma quella misura atterra un fotogramma dopo, quindi la lambda del trascinamento si teneva per sempre il massimale di 88dp mentre il puck veniva disegnato con i 75 veri. Un dito che attraversava una scheda ne muoveva 75/88, e lo scarto cresceva a ogni scheda attraversata. Misurato: un trascinamento di esattamente quattro schede adesso atterra sulla quarta.

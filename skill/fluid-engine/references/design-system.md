@@ -41,7 +41,11 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 `FluidSwitch(checked, onCheckedChange)` — passa `onCheckedChange = null` quando è la riga a possedere
 il `toggleable` e il target da 48dp.
 
-`FluidSegmentedControl(options, selected, onSelect, label)`, `FluidChip(label, selected, onClick)`,
+`FluidSlider(value, onValueChange, valueRange)` — il fratello dell'interruttore: pista che si
+riempie, maniglia che rifrange la pista, e tutta la larghezza tocca (non solo la maniglia).
+
+`FluidSegmentedControl(options, selected, onSelect, label)` — `content = { opzione, selezionato -> }`
+per i segmenti a sole icone; `label` resta e diventa la descrizione per chi legge lo schermo, `FluidChip(label, selected, onClick)`,
 `FluidTextField`, `FluidColorDot`, `FluidBarAction(icon, contentDescription, onClick)`,
 `FluidGlassIconButton`, `FluidGlassButton`, `glassControlSurface`, `fluidStaticGlassSurface`,
 `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`, `FluidHairline`, `FluidRowValue`.
@@ -60,13 +64,22 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `FluidMotion` (molle), `FluidMotionScheme` (le passa a Material), `FluidMotionPolicy`
 - `GlassDefaults`, `rememberGlassBackdrop`, `rememberCombinedGlassBackdrop`, `LocalGlassBackdrop`,
   `LocalFluidCanvasBackdrop`, `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
+- `LocalFluidSurfaceSide` — da che parte sta l'app, quando la palette non si puo' interrogare. Serve
+  solo a chi mette una **pellicola traslucida** in `colorScheme.surface`: la luminanza ignora
+  l'alpha, quindi quel design viene letto come chiaro sempre. `FluidTheme` lo fornisce da se'
 - `FluidAmbient`, `FluidAmbientCanvas` — il fondale per schermata; `FluidScreen(ambient = ...)`
 - `FluidGlassModalHost`, `FluidGlassModalPortal`, `FluidGlassModalPresentation`,
   `fluidExpandOrigin`, `fluidGlassModalObscured` — il pop-up in vetro dentro la composizione
 - `FluidContextAction`, `fluidContextMenu`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`,
   e `FluidListRow(contextActions = ...)` — il menu contestuale iOS
 - `FluidGlassMenuButton` — il tasto che si trasforma nel proprio menu
-- `FluidFoldingTabBar`, `rememberFluidBarFold` — la barra che si piega scorrendo
+- `FluidFoldingTabBar`, `rememberFluidBarFold` — la barra che si piega scorrendo. Dalla 1.31.0 sa
+  portare una banda sopra la fila (`accessory`, che ripiegandosi entra *nella* fila invece di
+  sparire), diventare un campo di ricerca (`searchMode` + `searchContent`: cresce il `trailing`),
+  farsi disegnare le schede dall'app (`tabIcon`) e stare ferma mentre qualcuno la misura
+  (`FluidBarFold.locked`), e farsi scegliere il materiale (`tint`). L'indicatore tiene un bordo
+  anche a riposo (`GlassOptics.edgeFloor`) e il trascinamento e' criticamente smorzato
+  (`GlassDragAnimation.velocityDampingRatio`)
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche

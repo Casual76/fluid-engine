@@ -2055,10 +2055,12 @@ fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Mod
   // press is a blank half-second and then a whole overlay, with nothing in between to say the press
   // was even received — and half a second of nothing is how long it takes to decide a control
   // is broken and lift your finger off it.
-  val highlight = remember(scope, reducedMotion) {
+  val onDark = GlassDefaults.isDarkSurface()
+  val highlight = remember(scope, reducedMotion, onDark) {
     GlassTouchHighlight(
       animationScope = scope,
       strength = { if (reducedMotion) 0f else 1f },
+      onDarkSurface = onDark,
     )
   }
   return this

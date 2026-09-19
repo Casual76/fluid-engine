@@ -41,8 +41,11 @@ import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
-import dev.antigravity.fluidengine.ui.fluid.FluidFoldingTabBar
-import dev.antigravity.fluidengine.ui.fluid.FluidFoldingTabBarDefaults
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBar
+import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBarDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
@@ -55,7 +58,7 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.ProvideFluidChrome
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassModalObscured
-import dev.antigravity.fluidengine.ui.fluid.rememberFluidBarFold
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidChromeController
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidNotificationHostState
@@ -126,7 +129,16 @@ private fun Gallery() {
   val backdrop = chromeController.activeBackdrop.value ?: fallbackBackdrop
   val morphMenu = rememberFluidMorphMenuState()
 
-  val barFold = rememberFluidBarFold()
+  // The bar folds itself now: the connection is what the page scrolls through, and the bar
+  // reads it. What the floating controls below want is a number between the two states, so it is
+  // animated here rather than held by the bar — the bar's own transition is a shape change, not a
+  // value anybody else can borrow.
+  val tabBarScroll = rememberFluidFloatingTabBarScrollConnection()
+  val barFold by animateFloatAsState(
+    targetValue = if (tabBarScroll.isInline) 1f else 0f,
+    animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
+    label = "barFold",
+  )
 
   CompositionLocalProvider(
     LocalFluidGlassModalHostState provides modalHost,
@@ -135,13 +147,13 @@ private fun Gallery() {
     Box(modifier = Modifier.fillMaxSize()) {
       ProvideFluidChrome(
         controller = chromeController,
-        bottomInset = FluidFoldingTabBarDefaults.ContentInset,
+        bottomInset = FluidFloatingTabBarDefaults.ContentInset,
         scrollToTop = scrollToTop,
       ) {
         Box(
           modifier = Modifier
             .fillMaxSize()
-            .nestedScroll(barFold.connection)
+            .nestedScroll(tabBarScroll)
             .fluidGlassModalObscured(),
         ) {
           when (route) {
@@ -159,18 +171,17 @@ private fun Gallery() {
           .align(Alignment.BottomCenter)
           .navigationBarsPadding()
           .padding(
-            horizontal = FluidFoldingTabBarDefaults.HorizontalMargin,
-            vertical = FluidFoldingTabBarDefaults.BottomMargin,
+            horizontal = FluidFloatingTabBarDefaults.HorizontalMargin,
+            vertical = FluidFloatingTabBarDefaults.BottomMargin,
           ),
       ) {
-        FluidFoldingTabBar(
+        FluidFloatingTabBar(
           items = Tabs,
           selectedRoute = route,
           onSelect = { route = it.route },
           onReselect = { scrollToTop.request() },
-          onExpandRequest = barFold::unfold,
+          scrollConnection = tabBarScroll,
           backdrop = backdrop,
-          fold = { barFold.progress.value },
         )
       }
 
@@ -179,7 +190,7 @@ private fun Gallery() {
           backdrop = backdrop,
           morphMenu = morphMenu,
           bottomInset = bottomInset,
-          fold = { barFold.progress.value },
+          fold = { barFold },
           modifier = Modifier.align(Alignment.BottomCenter),
         )
       }
@@ -216,10 +227,11 @@ private fun GalleryFloatingControls(
 ) {
   val density = LocalDensity.current
   val openPx = with(density) {
-    (FluidFoldingTabBarDefaults.OpenHeight + FluidFoldingTabBarDefaults.BottomMargin + 18.dp).toPx()
+    (FluidFloatingTabBarDefaults.OpenHeight + FluidFloatingTabBarDefaults.BottomMargin + 18.dp)
+      .toPx()
   }
   val foldedPx = with(density) {
-    (FluidFoldingTabBarDefaults.FoldedHeight + FluidFoldingTabBarDefaults.BottomMargin + 18.dp)
+    (FluidFloatingTabBarDefaults.FoldedHeight + FluidFloatingTabBarDefaults.BottomMargin + 18.dp)
       .toPx()
   }
   CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {

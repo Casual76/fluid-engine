@@ -28,6 +28,7 @@ import androidx.core.view.WindowCompat
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.fluidTypography
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidSurfaceSide
 import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
@@ -143,11 +144,17 @@ fun FluidTheme(
     dynamicScheme = dynamicScheme,
   )
 
-  SystemBarsAppearance(colors)
+  SystemBarsAppearance(isDark)
 
   // L'aptica del design system (1.19.0): un solo motore per tema, dietro l'interruttore condiviso.
   val haptics = rememberAndroidFluidHaptics(enabled = settings.hapticsEnabled)
-  CompositionLocalProvider(LocalFluidHaptics provides haptics) {
+  CompositionLocalProvider(
+    LocalFluidHaptics provides haptics,
+    // Il lato lo sa il tema, quindi il vetro non deve indovinarlo dalla luminanza di `surface`.
+    // Vedi LocalFluidSurfaceSide: un'app che mette una pellicola traslucida in `surface` non e'
+    // leggibile in quel modo, e questa e' la strada per cui non deve accorgersene.
+    LocalFluidSurfaceSide provides isDark,
+  ) {
     MaterialTheme(
       colorScheme = colors,
       motionScheme = FluidMotionScheme,
@@ -161,14 +168,19 @@ fun FluidTheme(
 /**
  * Keeps the status and navigation bar icons legible against whatever the app is actually painting.
  *
- * Driven by the resolved colour scheme rather than by the system's dark-mode flag, because the app
+ * Driven by the theme's own answer rather than by the system's dark-mode flag, because the app
  * carries its own theme setting: with the system in light mode and the app forced to AMOLED, dark
  * icons would be invisible against a black background.
+ *
+ * It used to read `colorScheme.background.luminance()`, which says the same thing for every app
+ * that paints an opaque page and the wrong thing for one that does not: a background left
+ * transparent so an image can show through has luminance zero, so a light app got light icons on a
+ * light page. The theme already knows which side it resolved to, and that answer cannot be faked.
  */
 @Composable
-private fun SystemBarsAppearance(colors: ColorScheme) {
+private fun SystemBarsAppearance(isDark: Boolean) {
   val view = LocalView.current
-  val lightBars = colors.background.luminance() > 0.5f
+  val lightBars = !isDark
   if (!view.isInEditMode) {
     SideEffect {
       val window = (view.context as? Activity)?.window ?: return@SideEffect

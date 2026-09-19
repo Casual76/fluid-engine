@@ -158,10 +158,23 @@ class GlassDragAnimation(
   val onDragStarted: GlassDragAnimation.(position: Offset) -> Unit = {},
   val onDragStopped: GlassDragAnimation.() -> Unit = {},
   val onDrag: GlassDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit = { _, _ -> },
+  /**
+   * How hard the tracked velocity is damped — the number the stretch is built out of.
+   *
+   * The library's own 0.5 is underdamped, and underdamped is a choice with a sound: the velocity
+   * *rings* after every change of speed, so anything driven by it keeps wobbling once the finger
+   * has stopped. On a lens dragged across a row of tabs that reads as the indicator jelly-ing at
+   * each crossing rather than following the hand.
+   *
+   * 1 is critically damped: the stretch tracks the drag and stops when the drag stops. The default
+   * is left where it was so nothing that already depends on the ring changes underneath it.
+   */
+  val velocityDampingRatio: Float = 0.5f,
 ) {
 
   private val valueAnimationSpec = spring(1f, 1000f, visibilityThreshold)
-  private val velocityAnimationSpec = spring(0.5f, 300f, visibilityThreshold * 10f)
+  private val velocityAnimationSpec =
+    spring(velocityDampingRatio, 300f, visibilityThreshold * 10f)
   private val pressProgressAnimationSpec = spring(1f, 1000f, 0.001f)
   private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)
   private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)
@@ -263,9 +276,12 @@ class GlassDragAnimation(
  * The bright spot that follows a finger across a pane of glass.
  *
  * Two things happen at once: the whole surface lifts slightly, and a soft radial hotspot tracks the
- * touch point. Both are additive (`BlendMode.Plus`), because a specular reflection *adds* light —
- * darkening a control to acknowledge a press is a plastic-button idiom, and using it here is most of
- * what made the previous controls read as ordinary buttons with a grey wash.
+ * touch point. On a dark surface both are additive (`BlendMode.Plus`), because a specular reflection
+ * *adds* light — darkening a control to acknowledge a press is a plastic-button idiom, and using it
+ * here is most of what made the previous controls read as ordinary buttons with a grey wash.
+ *
+ * On a light one there is no light left to add, so the same gesture has to take some away instead;
+ * see [onDarkSurface]. Left additive, a press on a pane of light glass simply did not happen.
  *
  * Below API 33 there is no AGSL, so the hotspot degrades to a flat lift. The control still responds;
  * it simply stops knowing where on itself it was touched.
@@ -277,7 +293,19 @@ class GlassTouchHighlight(
   val strength: () -> Float = { 1f },
   /** Where the hotspot sits. Defaults to the touch point; a tab bar pins it to the indicator. */
   val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset },
+  /**
+   * Whether the surface under the finger is a dark one.
+   *
+   * Not a colour but a flag, because the colour is only half of it: adding black adds nothing, so
+   * the blend has to turn over with the paint. Ask `GlassDefaults.isDarkSurface()` at the call site
+   * and pass the answer — this is not a composable, and the surface it lights is not always the one
+   * the theme is on.
+   */
+  val onDarkSurface: Boolean = true,
 ) {
+
+  private val glowTone = if (onDarkSurface) Color.White else Color.Black
+  private val glowBlend = if (onDarkSurface) BlendMode.Plus else BlendMode.SrcOver
 
   private val pressProgressAnimationSpec = spring(0.5f, 300f, 0.001f)
   private val positionAnimationSpec = spring(0.5f, 300f, Offset.VisibilityThreshold)
@@ -314,11 +342,11 @@ half4 main(float2 coord) {
     val progress = pressProgressAnimation.value * strength().coerceIn(0f, 1f)
     if (progress > 0f) {
       if (shader != null) {
-        drawRect(Color.White.copy(0.08f * progress), blendMode = BlendMode.Plus)
+        drawRect(glowTone.copy(0.08f * progress), blendMode = glowBlend)
         shader.apply {
           val position = position(size, positionAnimation.value)
           setFloatUniform("size", size.width, size.height)
-          setColorUniform("color", Color.White.copy(0.15f * progress))
+          setColorUniform("color", glowTone.copy(0.15f * progress))
           setFloatUniform("radius", size.minDimension * 1.5f)
           setFloatUniform(
             "position",
@@ -326,9 +354,9 @@ half4 main(float2 coord) {
             position.y.fastCoerceIn(0f, size.height),
           )
         }
-        drawRect(ShaderBrush(shader.asComposeShader()), blendMode = BlendMode.Plus)
+        drawRect(ShaderBrush(shader.asComposeShader()), blendMode = glowBlend)
       } else {
-        drawRect(Color.White.copy(0.25f * progress), blendMode = BlendMode.Plus)
+        drawRect(glowTone.copy(0.25f * progress), blendMode = glowBlend)
       }
     }
 

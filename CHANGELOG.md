@@ -6,6 +6,51 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.0.0 - 2026-09-19
+
+- ui: `FluidFloatingTabBar`, la barra dell'app Fluidify portata qui. Il suo vetro e' un livello
+  sopra quello che l'engine sapeva fare da solo: la rifrazione sotto il puck, la fila di schede
+  nascosta e tinta che il puck si ricampiona attraverso, lo stiramento che segue il dito che
+  trascina. Un engine i cui componenti sono peggio di quelli delle app che lo usano non lo apre
+  nessuno.
+- ui: `FluidFoldingTabBar` **resta**, e adesso e' la barra nuova sotto un altro nome. Chi la usa non
+  tocca niente e si ritrova il vetro migliore: e' il punto di avere un engine. Deprecata, perche' la
+  barra nuova sa fare cose che la sua firma non sa chiedere - un accessorio dentro la barra, una
+  ricerca che ci cresce dentro, una scheda che e' due composabili invece di un'icona e una parola.
+- **BREAKING** ui: l'interruttore e' quello del catalogo da cui viene il resto del vetro. Il pollice
+  si trascina lungo la pista, tenuto premuto smette di essere bianco e diventa vetro sopra una copia
+  schiacciata della pista, e si stira con la propria velocita'. La firma non cambia, quindi nessun
+  chiamante tocca niente; cambia come si sente, ed e' 64x28 invece di 56x31.
+- ui: il bordo del vetro si vede anche sulla pagina chiara. Un bordo speculare si disegna in
+  additivo, ed e' questo che lo fa leggere come luce presa da uno spigolo invece che come una linea
+  tirata lungo di esso; su una superficie chiara non c'e' piu' luce da aggiungere, quindi ogni
+  pannello di un'app sul lato chiaro finiva dove finiva il suo velo. Vale per `glassSurface`, quindi
+  per tutto: interruttori, cursori, segmentati, barre, fogli. Chi era gia' sul chiaro vedra'
+  comparire un bordo scuro sottile che prima non c'era, ed e' il punto.
+- ui: `GlassTouchHighlight(onDarkSurface = ...)`. Stessa trappola del bordo e stessa meta' mancante:
+  il bagliore che segue il dito era additivo e basta, quindi una pressione su un pannello di vetro
+  chiaro semplicemente non succedeva. Il default resta il comportamento di prima; le superfici
+  dell'engine lo chiedono ora a `GlassDefaults.isDarkSurface()`.
+- ui: `drawBackdrop(frozen = ..., heldWhileMoving = ...)`. La cattura tenuta ferma mentre sono i
+  *propri* limiti ad animarsi, che non e' `sampleOnce` - quello parla di uno sfondo che non si
+  muove, questo di una superficie che cambia forma. Senza, una piega costa un replay dello schermo
+  piu' tutta la catena di effetti a ogni fotogramma.
+- ui: il puck della barra batte un colpo di aptica per ogni scheda che attraversa.
+- ui: e con lei arriva tutto quello che la linea parallela aveva accumulato dalla 1.31 in poi e che
+  di qui non era mai passato: `LocalFluidSurfaceSide` e `GlassDefaults.isDarkSurface()`, da cui ogni
+  superficie chiede su che lato sta invece di dedurlo da una luminanza che ignora l'alfa;
+  `darkBarTint()` e `darkFloatingTint()`, per una barra che galleggia sopra una fotografia;
+  `GlassOptics.edgeFloor`, quanto bordo resta a profondita' ottica zero;
+  `GlassDragAnimation(velocityDampingRatio = ...)`, perche' lo 0.5 della libreria e' sotto-smorzato e
+  si sente; gli indicatori delle barre che prendono bordo e ombra interna; il cursore e il segmentato
+  che sanno portare un'icona e battere un tick; `FluidBarFold.locked` e
+  `contentInsetWithAccessory()`.
+
+Nota sul numero. Questa versione e' anche il punto in cui due storie dell'engine, andate avanti in
+parallelo con gli stessi numeri di versione dalla 1.30.1 in poi, tornano una sola. Le 1.31-1.34 di
+questa linea e quelle pubblicate erano engine diversi con lo stesso nome; da qui c'e' un solo engine
+e i numeri vogliono dire di nuovo qualcosa.
+
 ## 1.36.0 - 2026-09-18
 
 - ui: due pannelli al massimo, e uno e' la barra laterale. Oltre i 1000 dp stanno la barra laterale e uno solo fra elenco e dettaglio: tre pannelli si leggono come tre pagine appiccicate, e portano due tasti indietro sullo stesso schermo. Il pannello fuori scena resta composto, largo zero, cosi' il suo navigation host conserva grafo e stack.

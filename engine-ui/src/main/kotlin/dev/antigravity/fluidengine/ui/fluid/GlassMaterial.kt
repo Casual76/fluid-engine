@@ -240,6 +240,27 @@ val LocalFluidCanvasBackdrop = compositionLocalOf<GlassBackdropState?> { null }
  */
 val LocalFluidCanvasIsGlass = compositionLocalOf { false }
 
+/**
+ * Which side the app is painting on, when the palette cannot be asked.
+ *
+ * Null, the default, means "work it out from the palette", which is what every app did before this
+ * existed and what almost every app should go on doing.
+ *
+ * It exists because the palette can lie, and it lies in exactly one way. A design where every
+ * surface is a translucent *film* puts that film in `colorScheme.surface` — that is the honest
+ * place for it — and a film is a white at ten percent alpha. `Color.luminance()` does not look at
+ * alpha: it reports 1.0, the luminance of the white, and the test below calls a black app a light
+ * one. Every pane of glass then takes the wrong branch at once, and the symptom is a bar that
+ * lightens where it should darken, on a page that is already as bright as it gets.
+ *
+ * The failure is silent and it is total, so it is not something an app should have to discover:
+ * an app that knows which side it is on says so here, and the guess is skipped.
+ *
+ * [dev.antigravity.fluidengine.ui.theme.FluidTheme] provides it already, resolved from the theme
+ * mode it was given, so an app that gets its colours from the engine never touches this.
+ */
+val LocalFluidSurfaceSide = compositionLocalOf<Boolean?> { null }
+
 
 /** The ambient recording in scope, or null when the screen has no canvas. */
 @Composable
@@ -323,6 +344,20 @@ data class GlassOptics(
   /** Extra displacement while a finger is down, as a fraction of [refractionAmount]. */
   val pressedDepthBoost: Float,
   /**
+   * How much of the specular rim and the drop shadow survive at zero optical depth.
+   *
+   * A surface whose depth is driven by a press — a tab bar's indicator, most obviously — has its
+   * rim and its shadow multiplied down to *nothing* while nobody is touching it. That is right for
+   * the bend, which is what a press is asking for, and wrong for the edge: with no rim the
+   * indicator's shape comes entirely from its own wash, so it disappears into the bar the moment
+   * the bar is sitting over something bright. A specular rim reads against light and dark alike,
+   * which is the whole reason a rim is drawn rather than a lighter fill.
+   *
+   * Zero, the default, is the behaviour every existing surface has. A fraction floors the rim and
+   * the shadow there and lets the press take them the rest of the way.
+   */
+  val edgeFloor: Float = 0f,
+  /**
    * Fraction of its own resolution this surface processes its backdrop at, **on top of** the
    * blur-driven scale every pane already gets (see `glassResolutionScale`).
    *
@@ -340,6 +375,17 @@ data class GlassOptics(
    */
   val backdropResolution: Float = 1f,
 )
+
+/**
+ * How much of the edge a surface is showing, given how deep its lens currently is.
+ *
+ * Out here with the rest of the arithmetic because it is the one line that decides whether an
+ * indicator has an edge at rest, and it is easier to be sure of it in a test than on a screen.
+ */
+internal fun glassEdgeDepth(floor: Float, depth: Float): Float {
+  val f = clampGlassUnit(floor)
+  return f + (1f - f) * clampGlassUnit(depth)
+}
 
 internal fun clampGlassUnit(value: Float): Float =
   if (value.isFinite()) value.coerceIn(0f, 1f) else 0f
@@ -375,6 +421,7 @@ internal fun GlassOptics.sanitized(): GlassOptics = copy(
   } else {
     0f
   },
+  edgeFloor = clampGlassUnit(edgeFloor),
   backdropResolution = if (backdropResolution.isFinite()) {
     backdropResolution.coerceIn(0.1f, 1f)
   } else {
@@ -689,6 +736,25 @@ object GlassDefaults {
     hairline = Color.White.copy(alpha = 0.12f),
   )
 
+  /**
+   * Floating navigation, when what it floats over is a picture.
+   *
+   * The same argument as [darkBarTint], one step denser, because a floating control has content
+   * passing on every side of it rather than only underneath. A pill of the family's bright film,
+   * sitting on a full-bleed cover, is the brightest object on the screen and the cover is what it
+   * is supposed to be letting through.
+   *
+   * Use it for the whole family at once or not at all. Its reason for existing is that a bar, the
+   * pill it carries and a window growing out of that pill have to be the same material — and an app
+   * that darkens one of the three has just built the join it was trying to hide.
+   */
+  @Composable
+  fun darkFloatingTint(): GlassTint = GlassTint(
+    overlay = Color.Black.copy(alpha = 0.48f),
+    fallback = Color(0xFF141416).copy(alpha = 0.95f),
+    hairline = Color.White.copy(alpha = 0.16f),
+  )
+
   /** Floating navigation: a little denser, because it travels over arbitrary content. */
   @Composable
   fun floatingTint(): GlassTint {
@@ -822,9 +888,23 @@ object GlassDefaults {
    * Read from the palette rather than from `isSystemInDarkTheme()`: the app carries its own theme
    * setting, so with the system light and the app forced to AMOLED the bars would otherwise mix a
    * white tint into a black backdrop.
+   *
+   * [LocalFluidSurfaceSide] comes first, and only because the palette can be unreadable: a design
+   * whose surfaces are translucent films files a film in `surface`, and luminance ignores alpha.
+   * An app that says which side it is on is believed; everyone else keeps the guess they had.
    */
   @Composable
-  internal fun isDarkSurface(): Boolean = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+  internal fun isDarkSurface(): Boolean =
+    darkSurface(LocalFluidSurfaceSide.current, MaterialTheme.colorScheme.surface)
+
+  /**
+   * The rule itself, out where it can be read and tested without a composition.
+   *
+   * Pure on purpose: the interesting case is a `surface` that cannot be believed, and a test that
+   * has to stand up a theme to reach it is a test nobody writes.
+   */
+  internal fun darkSurface(declaredSide: Boolean?, surface: Color): Boolean =
+    declaredSide ?: (surface.luminance() < 0.5f)
 }
 
 /** Which edge, if any, carries the hairline that separates glass from content. */
@@ -947,14 +1027,38 @@ fun Modifier.glassSurface(
     }
   }
 
-  val highlight: () -> Highlight? = remember(resolved, quality) {
+  // The depth the *edge* answers to, which is not the one the bend answers to: see
+  // [GlassOptics.edgeFloor].
+  val edgeDepth: () -> Float = remember(resolved) {
+    { glassEdgeDepth(resolved.edgeFloor, currentDepth()) }
+  }
+
+  // A specular rim is drawn *additively*, and that is what makes it read as light
+  // caught on an edge rather than as a line painted along one. On a light surface
+  // there is no light left to add — white plus white is white — so every pane in
+  // an app on its light side simply ended where its film ended, with no edge at
+  // all. The edge is most of what says "glass" at a glance, so this is not a
+  // detail of the material; it is the material failing to appear.
+  //
+  // The turn-over is both halves at once: a dark rim, and an ordinary blend to
+  // put it down with. Turning the colour over on its own changes nothing, which
+  // is the trap — it compiles, it runs, and it draws exactly nothing.
+  val darkSide = GlassDefaults.isDarkSurface()
+  val highlight: () -> Highlight? = remember(resolved, quality, edgeDepth, darkSide) {
     val style = HighlightStyle.Default(
-      color = Color.White.copy(alpha = 0.5f),
+      color = if (darkSide) {
+        Color.White.copy(alpha = 0.5f)
+      } else {
+        // Quieter than its white twin: a dark line on paper is read at a lower
+        // contrast than a light line in the dark.
+        Color.Black.copy(alpha = 0.28f)
+      },
+      blendMode = if (darkSide) BlendMode.Plus else BlendMode.SrcOver,
       angle = resolved.highlightAngle,
       falloff = 1f,
     );
     {
-      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth()) *
+      val amount = clampGlassUnit(currentIntensity()) * edgeDepth() *
         (quality?.level ?: 1f)
       if (resolved.highlightAlpha <= 0f || amount <= 0.001f) {
         null
@@ -969,9 +1073,9 @@ fun Modifier.glassSurface(
     }
   }
 
-  val shadow: () -> Shadow? = remember(resolved, quality) {
+  val shadow: () -> Shadow? = remember(resolved, quality, edgeDepth) {
     {
-      val amount = clampGlassUnit(currentIntensity()) * clampGlassUnit(currentDepth()) *
+      val amount = clampGlassUnit(currentIntensity()) * edgeDepth() *
         (quality?.level ?: 1f)
       if (resolved.shadowAlpha <= 0f || amount <= 0.001f) {
         null

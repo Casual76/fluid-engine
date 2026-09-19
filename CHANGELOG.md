@@ -6,6 +6,16 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.1.0 - 2026-09-19
+
+- ui: la pillola di navigazione sta in cinque schede. Il calcolo che restringe le schede alla larghezza disponibile pretendeva anche il cerchio della ricerca, quindi una barra senza cerchio non lo faceva mai: cinque schede da 88 fanno 448, un telefono gliene da 383, e una Row non stringe quello che non ci sta. L'ultima scheda finiva fuori dalla pillola, le etichette delle altre andavano a capo, e la barra cresceva per contenere il capo. Tutti e tre i sintomi vengono da li'.
+- ui: le etichette delle schede le detta la barra, non chi la chiama. `Text(item.label)` senza stile prende bodyLarge, sedici punti; un'etichetta di navigazione e' un'etichetta, e tredici punti e' quanto e' grande una. Quella troppo lunga per la sua fetta si rimpicciolisce per restare su una riga invece di alzare tutta la barra. Chi imposta un colore sul proprio `Text` continua a vincere.
+- **BREAKING** ui: `FluidFloatingTabBarDefaults.OpenHeight` e' 60 (era 64) e `FoldedHeight` 52 (era 58), e adesso sono numeri che la barra mantiene davvero: un pavimento e non un'altezza fissa, cosi' al 130% di testo cresce invece di tagliare. Diceva 64 mentre la barra ne stava 90, quindi ogni schermata che si fidava di `ContentInset` aveva l'ultima riga sotto la barra. Chi ha scritto a mano un inset copiato da quei numeri lo rilegga.
+- ui: il puck della barra prende l'accento dell'app. Era un grigio quasi nero sul tema chiaro e un quasi bianco su quello scuro, scelti perche' si vedessero comunque; si vedevano, e sul chiaro la scheda scelta stava sotto un disco grigio-nero che non apparteneva a nessuna parte dell'app. Adesso e' `primary` a un quarto di alfa. Stessa storia per `accentColor`: senza un valore esplicito era `colors.backgroundColor`, cioe' la fila nascosta che il puck si ricampiona era tinta col colore esatto della superficie su cui sta.
+- ui: `FluidFloatingTabBarSizes.barHeight` e `inlineHeight`, per chi vuole una barra piu' bassa o piu' alta di quella predefinita.
+- ui: `FluidGlassSwitch`, il LiquidToggle di Kyant0 portato qui. Non sostituisce `FluidSwitch`: quello ha la pista piena, e in una colonna di venti righe di impostazioni e' il controllo giusto. Questo e' una costruzione diversa, la pista si registra in un proprio livello e il pomello e' l'unica lastra. A riposo e' bianco pieno; tenuto premuto il bianco sparisce del tutto e resta una lente sopra una copia della pista schiacciata a niente, che si apre sotto il dito. 64x28 con pomello a pillola 40x24, si trascina, e l'unica cosa cambiata dal sorgente e' il colore: l'accento dell'app invece del verde iOS fisso.
+
+
 ## 2.0.1 - 2026-09-19
 
 - ui: `FluidFloatingTabBar` si fa il vetro da sola quando chi la chiama non gliene passa uno. Non lo

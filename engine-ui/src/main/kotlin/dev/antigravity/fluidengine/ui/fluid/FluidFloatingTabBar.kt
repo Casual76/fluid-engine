@@ -349,7 +349,8 @@ fun FluidFloatingTabBar(
         // Frozen while the bar changes shape, for the reason the note above gives: the caller's own
         // pane reads the scroll connection, and this one has to be held by the same fact or the fold
         // costs a full-screen capture per frame.
-        val ownGlass = if (tabBarContentModifier === Modifier && backdropState != null) {
+        val makesOwnGlass = tabBarContentModifier === Modifier && backdropState != null
+        val ownGlass = if (makesOwnGlass) {
             Modifier.glassSurface(
                 state = backdropState,
                 tint = GlassDefaults.floatingTint(),
@@ -358,6 +359,26 @@ fun FluidFloatingTabBar(
             )
         } else {
             tabBarContentModifier
+        }
+
+        // And when the bar makes its own glass, the bar has no fill.
+        //
+        // This is what took the glass out from under the puck the moment a finger landed on it,
+        // and the app that built its own pane was the only one that never saw it — because the
+        // first thing such an app does is pass `backgroundColor = Transparent`.
+        //
+        // The fill is painted twice. Once behind the glass on the visible row, where it is simply
+        // invisible overdraw; and once by the *hidden* tinted row, whose whole job is to be a
+        // recording the puck looks through. An opaque `surfaceContainerHigh` in that recording is
+        // an opaque wall in the only thing the puck can see, so pressing the puck swapped the
+        // refracted page for a flat accent-tinted slab. A pane of glass and a fill behind it are
+        // two answers to the same question, and the glass is the one this bar chose.
+        val colors = if (makesOwnGlass) {
+            // Only the bar's own. The accessory band paints its own background and is handed no
+            // glass to replace it with, so zeroing that one would delete it.
+            remember(colors) { colors.copy(backgroundColor = Color.Transparent) }
+        } else {
+            colors
         }
         CompositionLocalProvider(
             LocalFluidTabBarBackdropFrozen provides frozenWhileAnimating,
@@ -1531,6 +1552,9 @@ private fun SharedTransitionScope.ExpandedTabs(
     // destination) on top of whatever the tapped tab's own tapClickable just
     // navigated to. Gate the puck's own navigate-on-release to genuine drags.
     var hasDraggedPuck = false
+    // Whether a finger is on the puck right now — as opposed to the puck being animated by a tap
+    // somewhere else in the row. It gates the hidden tinted row below; see `tabsTinted`.
+    var puckHeld by remember(tabsCount) { mutableStateOf(false) }
     // Read out here: what is below is a remembered object, not composition, and
     // a local cannot be asked for from inside one.
     val crossingHaptics = LocalFluidHaptics.current
@@ -1545,8 +1569,9 @@ private fun SharedTransitionScope.ExpandedTabs(
             // fraction of our own tab width — a proportional scale factor, not
             // an absolute size, so it should track the source value directly.
             pressedScale = 78f / 56f,
-            onDragStarted = { hasDraggedPuck = false },
+            onDragStarted = { hasDraggedPuck = false; puckHeld = true },
             onDragStopped = {
+                puckHeld = false
                 val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
                 currentIndex = targetIndex
                 // updateValue (not animateToValue): the modifier's own
@@ -1648,7 +1673,19 @@ private fun SharedTransitionScope.ExpandedTabs(
     val tabsBackdrop = rememberLayerBackdrop()
     // Whether the accent-tinted copy of the tabs is worth keeping alive; see
     // where it is composed below.
-    val tabsTinted = dampedDragAnimation.pressProgress > 0f
+    // A finger on the puck, and not merely a puck that is moving.
+    //
+    // This used to be the press ramp alone, which was right while the only thing that ever
+    // pressed the puck was a finger. A tap on a tab presses it too now — that is what gives a tap
+    // the same material a drag has — and the ramp therefore fired on every navigation, standing
+    // up a whole second copy of the tab row, measuring it and recording it into a layer at the
+    // exact moment the app was building a new page. Two heavy things in the same frame is the lag
+    // that showed up when changing page.
+    //
+    // What the hidden row buys is the accent-tinted icon seen *through* the puck's glass while it
+    // is being held and dragged, which is a detail nobody is looking at during a 200 ms tap. So
+    // it is composed for the gesture it exists for and for nothing else.
+    val tabsTinted = puckHeld && dampedDragAnimation.pressProgress > 0f
 
     Box(
         modifier

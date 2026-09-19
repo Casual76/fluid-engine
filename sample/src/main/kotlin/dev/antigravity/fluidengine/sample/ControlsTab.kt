@@ -20,6 +20,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassSwitch
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
@@ -38,6 +39,8 @@ import dev.antigravity.fluidengine.ui.theme.FluidTone
 internal fun ControlsTab(bottomInset: Dp) {
   var switchOne by remember { mutableStateOf(true) }
   var switchTwo by remember { mutableStateOf(false) }
+  var glassOne by remember { mutableStateOf(true) }
+  var glassTwo by remember { mutableStateOf(false) }
   var segment by remember { mutableStateOf("Mese") }
   var chip by remember { mutableStateOf("Tutti") }
   var query by remember { mutableStateOf("") }
@@ -58,6 +61,27 @@ internal fun ControlsTab(bottomInset: Dp) {
         FluidListDivider()
         SwitchRow("Disabilitato", true, enabled = false) {}
       }
+    }
+
+    item(key = "glass-switch-header") { FluidSectionHeader(title = "Interruttore di vetro") }
+    item(key = "glass-switches") {
+      FluidListGroup(glass = true) {
+        GlassSwitchRow("Vetro acceso", glassOne) { glassOne = it }
+        FluidListDivider()
+        GlassSwitchRow("Vetro spento", glassTwo) { glassTwo = it }
+        FluidListDivider()
+        GlassSwitchRow("Disabilitato", true, enabled = false) {}
+      }
+    }
+    item(key = "glass-switch-note") {
+      Text(
+        text = "Il pomello e' l'unica lastra: a riposo e' bianco pieno, tenuto premuto il " +
+          "bianco sparisce e sotto si apre una copia schiacciata della pista. Tienilo giu' " +
+          "e trascinalo — la pista si vede solo attraverso di lui.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp),
+      )
     }
 
     item(key = "segments-header") { FluidSectionHeader(title = "Segmenti") }
@@ -159,5 +183,29 @@ internal fun SwitchRow(
       style = MaterialTheme.typography.bodyLarge,
     )
     FluidSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+  }
+}
+
+/** The same row, with the pane-of-glass switch instead of the filled one. */
+@Composable
+internal fun GlassSwitchRow(
+  label: String,
+  checked: Boolean,
+  enabled: Boolean = true,
+  onCheckedChange: (Boolean) -> Unit,
+) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(horizontal = 16.dp, vertical = 12.dp),
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Text(
+      text = label,
+      modifier = Modifier.weight(1f),
+      style = MaterialTheme.typography.bodyLarge,
+    )
+    FluidGlassSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
   }
 }

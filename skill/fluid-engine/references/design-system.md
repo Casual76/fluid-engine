@@ -41,6 +41,14 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 `FluidSwitch(checked, onCheckedChange)` — passa `onCheckedChange = null` quando è la riga a possedere
 il `toggleable` e il target da 48dp.
 
+`FluidGlassSwitch(checked, onCheckedChange, backdrop)` — lo stesso interruttore fatto di vetro vero:
+la pista **trasmette** (il canvas si vede attraverso, e da acceso il film prende l'accento invece di
+essere riempito) e il pomello rifrange pista e pagina insieme. Non sostituisce `FluidSwitch`: quello
+ha la pista opaca ed è giusto in una colonna di venti righe di impostazioni, dove un interruttore
+traslucido prenderebbe il colore di qualunque riga gli capiti sotto. Questo è per dove l'interruttore
+sta su qualcosa che vale la pena vedere — una barra di vetro, un modale, una card sopra una
+copertina. `backdrop` di default è il canvas della schermata in cui si trova.
+
 `FluidSlider(value, onValueChange, valueRange)` — il fratello dell'interruttore: pista che si
 riempie, maniglia che rifrange la pista, e tutta la larghezza tocca (non solo la maniglia).
 

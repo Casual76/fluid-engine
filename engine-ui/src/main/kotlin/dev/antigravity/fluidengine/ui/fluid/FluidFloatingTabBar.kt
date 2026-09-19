@@ -84,6 +84,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -116,10 +117,14 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
@@ -128,7 +133,6 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.graphics.isSpecified
-import androidx.compose.ui.graphics.luminance
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
@@ -820,6 +824,16 @@ private fun SharedTransitionScope.InlineBar(
             .fillMaxWidth()
             .then(if (accessory == null) Modifier.wrapContentWidth() else Modifier)
             .height(IntrinsicSize.Max)
+            // Only without an accessory. With one, the band — a now-playing pill, two lines of
+            // text and a progress line — is what decides how tall this row is, and a floor that
+            // disagreed with it would leave the accessory and the tab beside it different heights.
+            .then(
+                if (accessory == null) {
+                    Modifier.defaultMinSize(minHeight = sizes.inlineHeight)
+                } else {
+                    Modifier
+                }
+            )
     ) {
         if (hasInlineTab) {
             InlineTab(
@@ -1074,15 +1088,24 @@ private fun SharedTransitionScope.ExpandedBar(
     var barWidthPx by remember { mutableIntStateOf(0) }
     var circleWidthPx by remember { mutableIntStateOf(0) }
     val tabsCount = scope.tabs.size
-    val fittedSizes = if (barWidthPx > 0 && circleWidthPx > 0 && tabsCount > 0) {
-        val inset = sizes.tabBarContentPadding.calculateStartPadding(layoutDirection) +
-            sizes.tabBarContentPadding.calculateEndPadding(layoutDirection)
-        val room = with(density) {
-            ((barWidthPx - circleWidthPx).toDp() - sizes.componentSpacing - inset) / tabsCount
-        }
-        if (room < sizes.tabWidth) sizes.copy(tabWidth = room.coerceAtLeast(0.dp)) else sizes
-    } else {
-        sizes
+    // The circle is optional, and for a long time this line behaved as though it were not:
+    // requiring `circleWidthPx > 0` meant a bar with no standalone tab never fitted its tabs at
+    // all. Five tabs at the full 88 dp come to 448 dp, a phone gives the bar about 383 dp, and a
+    // Row does not shrink what does not fit — so the last tab was measured outside the pill, the
+    // labels of the ones before it wrapped onto a second line, and the bar grew to swallow the
+    // wrap. Every symptom of "too tall with five items" starts here, not in the height.
+    val fittedSizes = with(density) {
+        val fitted = fittedTabWidth(
+            barWidth = barWidthPx.toDp(),
+            standaloneWidth = circleWidthPx.toDp(),
+            // No circle, no gap to leave for one.
+            gap = if (standaloneTab != null) sizes.componentSpacing else 0.dp,
+            inset = sizes.tabBarContentPadding.calculateStartPadding(layoutDirection) +
+                sizes.tabBarContentPadding.calculateEndPadding(layoutDirection),
+            tabsCount = tabsCount,
+            preferred = sizes.tabWidth,
+        )
+        if (fitted != sizes.tabWidth) sizes.copy(tabWidth = fitted) else sizes
     }
 
     // The standalone tab (search) is always its own floating circle — same as
@@ -1117,6 +1140,12 @@ private fun SharedTransitionScope.ExpandedBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .height(IntrinsicSize.Max)
+                // A floor, not a fixed height, and the difference is a font scale away: at 130%
+                // text a one-line label is genuinely taller than the bar's nominal height, and a
+                // hard `height` would cut it in half. `defaultMinSize` only ever adds, so the bar
+                // is [FluidFloatingTabBarSizes.barHeight] on every ordinary device and grows for
+                // the people who need it to.
+                .defaultMinSize(minHeight = sizes.barHeight)
                 .onSizeChanged {
                     tabRowWidthPx = it.width
                     onWidthMeasured?.invoke(it.width)
@@ -1133,7 +1162,11 @@ private fun SharedTransitionScope.ExpandedBar(
                     animatedVisibilityScope = animatedVisibilityScope,
                     tabBarContentModifier = tabBarContentModifier,
                     backdrop = backdrop,
-                    accentColor = accentColor ?: colors.backgroundColor,
+                    // The app's accent, when the caller has not named one. It used to be
+                    // `colors.backgroundColor` — the bar's own fill — which tinted the hidden row
+                    // the exact colour of the surface it sits on, so the accent-tinted copy of the
+                    // icon the puck exists to show was tinted into invisibility.
+                    accentColor = accentColor ?: MaterialTheme.colorScheme.primary,
                     // Weighted, so the row can never hand it more than what is
                     // left beside the circle; fill = false so a wide screen
                     // does not stretch it past its own width either.
@@ -1394,20 +1427,23 @@ private fun SharedTransitionScope.ExpandedTabs(
     val isLtr = layoutDirection == LayoutDirection.Ltr
     val animationScope = rememberCoroutineScope()
     val glassConfig = LocalFluidFloatingTabBarGlass.current
-    // Puck wash. Unset follows the surface rather than assuming a dark bar: a light
-    // scheme gets a dark wash, so the pill still reads as a chosen tab instead of
-    // a patch of nothing.
+    // Puck wash. Unset, it is the app's accent.
     //
-    // Asked, not guessed. This used to read `colorScheme.surface.luminance()`, and
-    // every surface in this design is a translucent film: luminance ignores alpha,
-    // so that test answered "light" on both sides and the branch under it never
-    // ran. See GlassDefaults.isDarkSurface.
+    // It used to be a pair of hard greys — near-white on a dark bar, near-black on a light one —
+    // chosen so the chosen tab would be visible whatever the palette did. Visible it was: on a
+    // light theme the selected tab sat under a grey-black disc that belonged to no part of the
+    // app, which is a thing people notice long before they notice it is legible. An accent at a
+    // quarter alpha is visible for the same structural reason (it is a wash over a film that is
+    // near-white on one side and a mid grey on the other, so it darkens or lightens accordingly)
+    // and it is the app's own colour instead of a stranger's.
+    //
+    // `primary` and not `secondaryContainer`: this is a translucent wash, not a filled Material
+    // indicator, and a container colour — already most of the way to the surface — has nothing
+    // left to say at a quarter strength.
     val puckWash = if (glassConfig.puckColor.isSpecified) {
         glassConfig.puckColor
-    } else if (GlassDefaults.isDarkSurface()) {
-        Color(0xFFF2F2F2)
     } else {
-        Color(28, 27, 28)
+        MaterialTheme.colorScheme.primary
     }
     val puckRestAlpha = glassConfig.puckOpacity.coerceIn(0f, 1f)
 
@@ -2059,9 +2095,86 @@ private fun Tab(
     ) {
         icon()
         if (showTitle) {
-            title()
+            CompositionLocalProvider(
+                LocalTextStyle provides FluidFloatingTabBarDefaults.labelStyle()
+            ) {
+                OneLine { title() }
+            }
         }
     }
+}
+
+/**
+ * A slot that a label cannot wrap in.
+ *
+ * Imposing a smaller text style stops the ordinary word from wrapping, and that is most of the
+ * problem; it is not all of it, because "Impostazioni" in a five-tab bar on a 360 dp phone still
+ * does not fit in the fifty-odd dp a tab gets, and one wrapped label anywhere in the row makes the
+ * whole bar taller. Clipping it would be the cheap answer and it is the wrong one — the label is
+ * how somebody who does not recognise the icon knows what the tab is.
+ *
+ * So the child is measured at unbounded width, which is the width it wants on one line, and then
+ * scaled down to the width it has. Down to [MinLabelScale]; past that the word is simply too long
+ * to be a tab label and it gets cut, which is the honest outcome and the rare one. The height that
+ * comes out is always one line's, whatever the text, so nothing here can move the bar.
+ */
+@Composable
+private fun OneLine(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val free = Constraints(maxHeight = constraints.maxHeight)
+        val placeables = measurables.map { it.measure(free) }
+        if (placeables.isEmpty()) return@Layout layout(0, 0) {}
+        val wanted = placeables.maxOf { it.width }
+        val room = constraints.maxWidth
+        val scale = labelScale(wanted = wanted, room = room)
+        val width = minOf(room, (wanted * scale).fastRoundToInt())
+        val height = (placeables.maxOf { it.height } * scale).fastRoundToInt()
+        layout(width, height) {
+            placeables.forEach { placeable ->
+                placeable.placeWithLayer(
+                    x = (width - placeable.width) / 2,
+                    y = (height - placeable.height) / 2,
+                ) {
+                    scaleX = scale
+                    scaleY = scale
+                }
+            }
+        }
+    }
+}
+
+/** How far a label may be shrunk to stay on one line before it is cut instead. */
+internal const val MinLabelScale = 0.75f
+
+/**
+ * How much a one-line label has to shrink to fit the slot it was given.
+ *
+ * Out here rather than inside the layout because the interesting cases are arithmetic — a label
+ * that fits, one that is a little over, one that is hopeless — and none of them need a device.
+ */
+internal fun labelScale(wanted: Int, room: Int): Float =
+    if (room in 1..<wanted) (room.toFloat() / wanted).coerceAtLeast(MinLabelScale) else 1f
+
+/**
+ * The width one expanded tab actually gets.
+ *
+ * [preferred] is a ceiling and never a promise: the bar gets the width the screen has, and what is
+ * left after the standalone circle and the pill's own padding is what the tabs divide between
+ * them. Returning [preferred] unchanged when there is nothing measured yet is deliberate — the
+ * first frame has no measurement, and the weighted child in the row is what holds it together
+ * until one arrives.
+ */
+internal fun fittedTabWidth(
+    barWidth: Dp,
+    standaloneWidth: Dp,
+    gap: Dp,
+    inset: Dp,
+    tabsCount: Int,
+    preferred: Dp,
+): Dp {
+    if (tabsCount <= 0 || barWidth <= 0.dp) return preferred
+    val room = (barWidth - standaloneWidth - gap - inset) / tabsCount
+    return if (room < preferred) room.coerceAtLeast(0.dp) else preferred
 }
 
 /**
@@ -2255,6 +2368,10 @@ data class FluidFloatingTabBarSizes(
     // indicator needs a known per-tab width to map drag offset to tab index,
     // so expanded tabs are equal-width instead of sized to their content.
     val tabWidth: Dp = FluidFloatingTabBarDefaults.TabWidth,
+    /** How tall the open bar stands. A floor, so large text can still grow it. */
+    val barHeight: Dp = FluidFloatingTabBarDefaults.OpenHeight,
+    /** The same, folded — where there is an icon and no label. */
+    val inlineHeight: Dp = FluidFloatingTabBarDefaults.FoldedHeight,
 )
 
 /**
@@ -2269,11 +2386,22 @@ object FluidFloatingTabBarDefaults {
      */
     val TabWidth: Dp = 88.dp
 
-    /** How tall the bar stands when it is open. */
-    val OpenHeight: Dp = 64.dp
+    /**
+     * How tall the bar stands when it is open.
+     *
+     * A number the bar now actually keeps. It used to be advisory — nothing enforced it, the bar
+     * took whatever its content asked for, and with labels at body size wrapping onto two lines
+     * that came to about ninety dp against a constant that said sixty-four. So every screen using
+     * [ContentInset] left a third less room than the bar occupied, and the bar itself read as a
+     * slab rather than a pill.
+     *
+     * Sixty is what the content comes to: four of the bar's own padding, six of the tab's, a
+     * twenty-four dp icon, and one line of [labelStyle] under it.
+     */
+    val OpenHeight: Dp = 60.dp
 
     /** How tall it stands once a scroll has folded it back to its inline shape. */
-    val FoldedHeight: Dp = 58.dp
+    val FoldedHeight: Dp = 52.dp
 
     /** The gap between the bar and the accessory band above it. */
     val Spacing: Dp = 8.dp
@@ -2351,6 +2479,8 @@ object FluidFloatingTabBarDefaults {
         componentSpacing: Dp = 8.dp,
         tabSpacing: Dp = 0.dp,
         tabWidth: Dp = TabWidth,
+        barHeight: Dp = OpenHeight,
+        inlineHeight: Dp = FoldedHeight,
     ): FluidFloatingTabBarSizes = FluidFloatingTabBarSizes(
         tabBarContentPadding = tabBarContentPadding,
         tabInlineContentPadding = tabInlineContentPadding,
@@ -2358,6 +2488,26 @@ object FluidFloatingTabBarDefaults {
         componentSpacing = componentSpacing,
         tabSpacing = tabSpacing,
         tabWidth = tabWidth,
+        barHeight = barHeight,
+        inlineHeight = inlineHeight,
+    )
+
+    /**
+     * What a tab's label is written in.
+     *
+     * The bar imposes this rather than inheriting whatever text style is in scope, and that is the
+     * whole fix for the bar that was too tall. A caller writes `title = { Text(item.label) }` —
+     * the obvious thing to write — and `Text` with no style takes `bodyLarge`: sixteen points, a
+     * twenty-four point line. Five of those across a phone and "Bacheca" wraps, the wrap doubles
+     * the label's height, and the bar grows thirty dp to hold a word that had simply been set too
+     * big. A navigation label is a label; thirteen points is what one is.
+     *
+     * Only the size and the weight are imposed. A caller that sets a colour on its own `Text`
+     * still wins, because the colour is the one thing a tab bar's owner legitimately varies.
+     */
+    @Composable
+    fun labelStyle(): TextStyle = MaterialTheme.typography.labelMedium.copy(
+        textAlign = TextAlign.Center,
     )
 
     /**

@@ -118,6 +118,17 @@ fun FluidTheme(
   settings: EngineSettings,
   brand: AccentPreset = FluidDefaultBrand,
   presets: List<AccentPreset> = fluidAccentPresets,
+  /**
+   * Whether this theme also claims the window's status and navigation bars.
+   *
+   * True for a theme that *is* the screen. False for one applied to a patch of it — a header
+   * standing on a full-bleed cover, say, which is a dark surface for the controls drawn on it and
+   * has no business deciding what the clock looks like. Left true, the innermost theme on screen
+   * wins the window's glyphs, and for a patch that means whichever patch recomposed last: a light
+   * app showing a dark sleeve came out with white glyphs on a white page the moment the header
+   * asked for its own side.
+   */
+  systemBars: Boolean = true,
   content: @Composable () -> Unit,
 ) {
   val context = LocalContext.current
@@ -144,7 +155,7 @@ fun FluidTheme(
     dynamicScheme = dynamicScheme,
   )
 
-  SystemBarsAppearance(isDark)
+  if (systemBars) SystemBarsAppearance(isDark)
 
   // L'aptica del design system (1.19.0): un solo motore per tema, dietro l'interruttore condiviso.
   val haptics = rememberAndroidFluidHaptics(enabled = settings.hapticsEnabled)

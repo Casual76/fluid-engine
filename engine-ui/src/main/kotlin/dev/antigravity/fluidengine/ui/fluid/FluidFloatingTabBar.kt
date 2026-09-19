@@ -202,6 +202,20 @@ fun FluidFloatingTabBar(
     selectedTabKey: Any?,
     scrollConnection: FluidFloatingTabBarScrollConnection,
     modifier: Modifier = Modifier,
+    /**
+     * What the bar's own pane is made of.
+     *
+     * Left alone, the bar makes its own glass out of [backdrop] — which is the only sensible default
+     * for a component in an engine. It did not, and the consequence is the reason this parameter now
+     * has a note: the app this bar was ported from builds its pane itself and hands it in here, so
+     * everything looked right there, while every *other* app got a flat capsule of
+     * `colors.backgroundColor` and a puck of real glass sitting on it. A bar that is only glass for
+     * the one app that already had it is not a component anybody inherits.
+     *
+     * An app still passes its own when it has one: Fluidify's bar, its pill and the window that
+     * grows out of that pill have to be the same material, and an app that lets one of the three be
+     * made somewhere else has built the join it was trying to hide.
+     */
     tabBarContentModifier: Modifier = Modifier,
     inlineAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
     expandedAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
@@ -250,8 +264,10 @@ fun FluidFloatingTabBar(
     val scope = FluidFloatingTabBarScopeImpl().apply { content() }
 
     // Unwrapped once here. Everything below this point is private to the file and talks to
-    // `drawBackdrop` directly, which is the layer a state is a handle on.
-    val backdrop = backdrop?.backdrop
+    // `drawBackdrop` directly, which is the layer a state is a handle on — except the bar's own
+    // pane, which is built with `glassSurface` and wants the state itself.
+    val backdropState = backdrop
+    val backdrop = backdropState?.backdrop
 
     val isAccessoryShared = inlineAccessory != null && expandedAccessory != null
 
@@ -314,6 +330,22 @@ fun FluidFloatingTabBar(
         LaunchedEffect(scrollConnection, morphing) {
             scrollConnection.morphing = morphing
         }
+
+        // The bar's own pane, when the caller has not built one. See `tabBarContentModifier`.
+        //
+        // Frozen while the bar changes shape, for the reason the note above gives: the caller's own
+        // pane reads the scroll connection, and this one has to be held by the same fact or the fold
+        // costs a full-screen capture per frame.
+        val ownGlass = if (tabBarContentModifier === Modifier && backdropState != null) {
+            Modifier.glassSurface(
+                state = backdropState,
+                tint = GlassDefaults.floatingTint(),
+                shape = shapes.tabBarShape,
+                role = GlassRole.Floating,
+            )
+        } else {
+            tabBarContentModifier
+        }
         CompositionLocalProvider(
             LocalFluidTabBarBackdropFrozen provides frozenWhileAnimating,
             LocalFluidFloatingTabBarGlass provides glass,
@@ -357,7 +389,7 @@ fun FluidFloatingTabBar(
                     shapes = shapes,
                     sizes = sizes,
                     elevations = elevations,
-                    tabBarContentModifier = tabBarContentModifier,
+                    tabBarContentModifier = ownGlass,
                     animatedVisibilityScope = this@AnimatedContent
                 )
                 FluidFloatingTabBarVisual.EXPANDED -> ExpandedBar(
@@ -369,7 +401,7 @@ fun FluidFloatingTabBar(
                     shapes = shapes,
                     sizes = sizes,
                     elevations = elevations,
-                    tabBarContentModifier = tabBarContentModifier,
+                    tabBarContentModifier = ownGlass,
                     animatedVisibilityScope = this@AnimatedContent,
                     backdrop = backdrop,
                     accentColor = accentColor,
@@ -384,7 +416,7 @@ fun FluidFloatingTabBar(
                     shapes = shapes,
                     sizes = sizes,
                     elevations = elevations,
-                    tabBarContentModifier = tabBarContentModifier,
+                    tabBarContentModifier = ownGlass,
                     animatedVisibilityScope = this@AnimatedContent,
                     searchBarContent = searchBarContent ?: {},
                     targetWidthPx = expandedContentWidthPx

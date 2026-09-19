@@ -6,6 +6,16 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.0.1 - 2026-09-19
+
+- ui: `FluidFloatingTabBar` si fa il vetro da sola quando chi la chiama non gliene passa uno. Non lo
+  faceva, e la conseguenza e' il motivo per cui questa riga esiste: l'app da cui la barra viene
+  costruisce il proprio pannello e glielo consegna, quindi li' era tutto giusto, mentre **ogni altra
+  app** riceveva una capsula piatta di `colors.backgroundColor` con sopra un puck di vetro vero. Una
+  barra che e' di vetro solo per l'app che il vetro ce l'aveva gia' non e' un componente che si
+  eredita. Chi passa ancora il proprio continua a vincere, e deve: barra, pillola e finestra che
+  nasce dalla pillola devono essere lo stesso materiale.
+
 ## 2.0.0 - 2026-09-19
 
 - ui: `FluidFloatingTabBar`, la barra dell'app Fluidify portata qui. Il suo vetro e' un livello

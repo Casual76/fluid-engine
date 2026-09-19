@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.3.2 - 2026-09-19
+
+- ui: il vetro torna sul tocco. La 2.3.1 legava la fila nascosta e tinta - quella che il puck si guarda attraverso, cioe' di cosa il puck e' fatto - a un dito davvero appoggiato, e cosi' ogni tocco su una scheda muoveva una pastiglia colorata senza materiale. Adesso c'e' su entrambi.
+- ui: e costa meno di prima comunque, perche' il prezzo non era dove pensavo. pressProgress veniva letto **in composizione** in due punti - il 	absTinted e il contentScale di ogni scheda - quindi la rampa di pressione ricomponeva tutte le schede della barra, icone ed etichette, sessanta volte al secondo. Il primo e' un derivedStateOf (cambia due volte per gesto invece che a ogni fotogramma) e il secondo e' una lambda letta dentro il blocco di livello, cioe' in fase di disegno.
+- ui: il viaggio del puck si vede tutto. Non era l'animazione a sbagliare: e' guidata dall'orologio, e comporre la pagina nuova tiene il thread principale tanto che il fotogramma dopo arriva ottanta millisecondi piu' tardi - e la molla avanza tutti e ottanta in una volta, che per la sua rigidita' e' il 71% della corsa. Si vedeva il puck sulla scheda lasciata e poi a tre quarti di strada, senza niente in mezzo. Le due cose adesso vanno in fila: il viaggio gira su fotogrammi leggeri e la pagina comincia a costruirsi quando atterra, 160ms dopo il tocco.
+- ui: l'icona del tasto ripiegato sta al centro. Il Box di InlineTab non ha mai avuto un contentAlignment; finche' era grande quanto il suo contenuto non si notava, ma dalla 2.3.0 il tasto solo e' un quadrato piu' grande e l'icona e' andata a sedersi nell'angolo in alto a sinistra.
+
+
 ## 2.3.1 - 2026-09-19
 
 - ui: il vetro non sparisce piu' da sotto il puck quando lo si tiene premuto. Il riempimento della barra veniva dipinto due volte: dietro il vetro sulla fila visibile, dove e' overdraw invisibile, e dalla fila *nascosta* e tinta, che esiste apposta per essere la registrazione che il puck si guarda attraverso. Un surfaceContainerHigh opaco li' dentro e' un muro opaco nell'unica cosa che il puck puo' vedere, quindi premerlo scambiava la pagina rifratta con una lastra piatta. Quando la barra si fa il vetro da sola non ha piu' riempimento; chi passa il proprio pannello, e quindi gia' passava un colore trasparente, non vede differenze.

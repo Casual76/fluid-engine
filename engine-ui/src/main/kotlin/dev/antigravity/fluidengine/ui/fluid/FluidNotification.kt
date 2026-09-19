@@ -488,7 +488,10 @@ private fun FluidNotificationCard(
   val surface = lerp(
     MaterialTheme.colorScheme.surfaceContainerHigh,
     accent,
-    if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) 0.09f else 0.045f,
+    // Asked of the theme, not of a colour. `surface` in an app built on this design is a
+    // *translucent film* — white at a tenth over a dark page — and `luminance()` ignores alpha,
+    // so it answered "light" for the blackest configuration there is and this branch was dead.
+    if (GlassDefaults.isDarkSurface()) 0.09f else 0.045f,
   )
 
   val shape = FluidGlassRoundedShape(20.dp)

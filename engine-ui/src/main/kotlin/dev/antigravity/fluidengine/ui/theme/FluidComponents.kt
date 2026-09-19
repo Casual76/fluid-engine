@@ -1112,8 +1112,13 @@ private data class ToneColors(
 
 @Composable
 private fun toneColors(tone: FluidTone): ToneColors {
-  // The app can force Light, Dark or AMOLED independently from the operating-system theme.
-  val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+  // The app can force Light, Dark or AMOLED independently from the operating-system theme, so
+  // this cannot ask the system. It used to ask `background.luminance()` instead, which is worse:
+  // an app that paints an image behind its pages leaves `background` transparent so the image can
+  // show through, and a transparent colour has luminance zero — so this said "dark" on every side
+  // and the light theme got dark containers with light text in them. The theme knows which side it
+  // resolved to, and that answer cannot be faked.
+  val isDark = dev.antigravity.fluidengine.ui.fluid.GlassDefaults.isDarkSurface()
   return when (tone) {
     FluidTone.Primary -> ToneColors(
       MaterialTheme.colorScheme.primaryContainer,

@@ -755,6 +755,60 @@ object GlassDefaults {
     hairline = Color.White.copy(alpha = 0.16f),
   )
 
+  /**
+   * The bar over a picture, on the side the page is actually on.
+   *
+   * [darkBarTint] existed alone for a long time and that was the whole fault. It is documented as
+   * "the bar, when the page beneath it is a picture rather than a colour" — and a page can be a
+   * picture on either side. An app on the light side asking for the right tint over a cover got the
+   * *family* tint back, which is built for a flat page, and the two ways that fails are both bad:
+   *
+   * - over a bright cover the film lands within a percent or two of the page and the bar disappears;
+   * - over a dark cover it lands at a mid grey with dark ink on top, which is the one that makes a
+   *   library unreadable.
+   *
+   * Prefer this to naming either arm by hand. An app that darkens the bar and leaves the pill has
+   * built the join it was trying to hide — see [darkFloatingTint].
+   */
+  @Composable
+  fun barTintOnPhoto(): GlassTint = if (isDarkSurface()) darkBarTint() else lightBarTint()
+
+  /** [barTintOnPhoto] for the floating family. Use the pair together or neither. */
+  @Composable
+  fun floatingTintOnPhoto(): GlassTint =
+    if (isDarkSurface()) darkFloatingTint() else lightFloatingTint()
+
+  /**
+   * The light twin of [darkBarTint]: a white scrim, at the weight a photograph asks for.
+   *
+   * Denser than a mirror of its dark twin would be, and the ratio is not invented here — it is the
+   * one a veil over a cover already uses. Dark ink needs more of a picture taken away than light ink
+   * does, because the bright parts of a photograph are far brighter than any dark wash lets them be,
+   * and it is the bright parts that swallow dark letters. Black at 0.42 answers as white at 0.56.
+   *
+   * The hairline turns over with it, and it is the half that matters most here: over a *bright*
+   * cover the overlay has nothing left to do — the page is already near paper — so the line is the
+   * only thing saying a bar is there at all.
+   *
+   * Fixed rather than derived, for [darkBarTint]'s two reasons: a scrim has no palette to come from,
+   * and deriving it would put it back through the same light/dark detection that a translucent
+   * `surface` colour can fool.
+   */
+  @Composable
+  fun lightBarTint(): GlassTint = GlassTint(
+    overlay = Color.White.copy(alpha = 0.56f),
+    fallback = Color(0xFFFBFBFD).copy(alpha = 0.96f),
+    hairline = Color.Black.copy(alpha = 0.16f),
+  )
+
+  /** The light twin of [darkFloatingTint]. One step denser, for that one's reason. */
+  @Composable
+  fun lightFloatingTint(): GlassTint = GlassTint(
+    overlay = Color.White.copy(alpha = 0.64f),
+    fallback = Color(0xFFFDFDFF).copy(alpha = 0.96f),
+    hairline = Color.Black.copy(alpha = 0.20f),
+  )
+
   /** Floating navigation: a little denser, because it travels over arbitrary content. */
   @Composable
   fun floatingTint(): GlassTint {
@@ -1073,7 +1127,14 @@ fun Modifier.glassSurface(
     }
   }
 
-  val shadow: () -> Shadow? = remember(resolved, quality, edgeDepth) {
+  // Heavier on paper, and it is not a preference.
+  //
+  // On a dark page a black shadow is a black square on a black floor: it does nothing, and the
+  // film is what lifts the pane. On a light one it is the opposite — the film has no headroom
+  // left, because the page is already near white — so the shadow and the hairline are the whole
+  // of what says a surface is floating. Half the weight of the two-sided value was chosen when
+  // only one side existed.
+  val shadow: () -> Shadow? = remember(resolved, quality, edgeDepth, darkSide) {
     {
       val amount = clampGlassUnit(currentIntensity()) * edgeDepth() *
         (quality?.level ?: 1f)
@@ -1082,7 +1143,7 @@ fun Modifier.glassSurface(
       } else {
         Shadow(
           radius = resolved.shadowRadius,
-          color = Color.Black.copy(alpha = 0.1f),
+          color = Color.Black.copy(alpha = if (darkSide) 0.1f else 0.16f),
           alpha = resolved.shadowAlpha * amount,
         )
       }

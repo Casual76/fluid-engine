@@ -581,6 +581,7 @@ fun <T> FluidSegmentedControl(
               },
               enabled = enabled,
               pressedScale = 0.96f,
+              focusShape = FluidCapsuleShape,
             ),
           contentAlignment = Alignment.Center,
         ) {
@@ -735,7 +736,7 @@ fun FluidChip(
       .clip(FluidCapsuleShape)
       .background(container)
       .semantics { this.selected = selected }
-      .fluidPressable(onClick = onClick, enabled = enabled, role = Role.Button)
+      .fluidPressable(onClick = onClick, enabled = enabled, role = Role.Button, focusShape = FluidCapsuleShape)
       .padding(horizontal = 14.dp, vertical = 6.dp),
     contentAlignment = Alignment.Center,
   ) {

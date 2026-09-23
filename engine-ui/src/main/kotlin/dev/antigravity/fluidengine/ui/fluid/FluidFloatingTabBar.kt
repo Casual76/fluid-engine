@@ -65,6 +65,7 @@ import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -830,11 +831,18 @@ private fun Modifier.tapClickable(
     onClick: () -> Unit,
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
-    return clickable(
-        onClick = onClick,
-        indication = indication,
-        interactionSource = interactionSource
-    )
+    // Il fuoco da tastiera: Tab entra prima nella barra, e una scheda col fuoco non si
+    // distingueva dalle altre. Un velo dell'accento dentro la sagoma della scheda (il clip sta
+    // prima di questo modificatore); al tocco il fuoco non arriva, e niente cambia.
+    val focused by interactionSource.collectIsFocusedAsState()
+    val focusWash = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+    return this
+        .drawBehind { if (focused) drawRect(focusWash) }
+        .clickable(
+            onClick = onClick,
+            indication = indication,
+            interactionSource = interactionSource
+        )
 }
 
 @Composable

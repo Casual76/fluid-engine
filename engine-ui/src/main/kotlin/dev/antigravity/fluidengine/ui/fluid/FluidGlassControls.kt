@@ -297,6 +297,7 @@ fun FluidGlassIconButton(
           enabled = enabled,
           pressedScale = 1f,
           role = Role.Button,
+          focusShape = shape,
         ),
       contentAlignment = Alignment.Center,
       content = content,
@@ -342,6 +343,7 @@ fun FluidGlassButton(
         enabled = enabled,
         pressedScale = 1f,
         role = Role.Button,
+        focusShape = shape,
       )
       .height(FluidGlassButtonHeight)
       .padding(horizontal = 20.dp),

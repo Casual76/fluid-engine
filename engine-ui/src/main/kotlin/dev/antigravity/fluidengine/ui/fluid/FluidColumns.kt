@@ -1,6 +1,12 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -51,6 +57,12 @@ object FluidColumnsDefaults {
 
   /** Lo spazio fra due colonne: quello fra due sezioni della stessa pagina, un po' piu' largo. */
   val Spacing: Dp = 20.dp
+
+  /** Fra due card affiancate: quello fra due card impilate, cosi' la griglia ha un passo solo. */
+  val GridSpacing: Dp = 14.dp
+
+  /** La card piu' stretta che regge un voto: il numero, la materia su due righe, il tipo e la data. */
+  val MinCard: Dp = 300.dp
 
   /** Oltre tre colonne una pagina smette di essere una pagina e diventa un pannello di controllo. */
   const val MaxColumns: Int = 3
@@ -115,6 +127,44 @@ fun LazyListScope.fluidColumns(
       verticalSpacing = verticalSpacing,
     ) {
       sections.forEach { section -> section.content() }
+    }
+  }
+}
+
+/**
+ * Card dello stesso genere — voti, materie, file — in righe da [columns], dentro una lista pigra.
+ *
+ * Con una colonna e' esattamente `items(items, key)`: sul telefono niente cambia. Con piu' colonne
+ * ogni *riga* e' un item, quindi la lista resta pigra anche con ottanta card: si compone la riga
+ * che entra, non la pagina intera. Le card di una riga hanno la stessa larghezza; l'ultima riga,
+ * se non e' piena, lascia vuoto il posto di quelle che mancano invece di allargare le altre, che
+ * una card grande il doppio delle sue sorelle sembra piu' importante senza esserlo.
+ *
+ * Le altezze di una riga non vengono pareggiate: una card con una nota in piu' e' piu' alta, e va
+ * bene cosi' — allungare le vicine a vuoto sarebbe decorazione.
+ */
+fun <T> LazyListScope.fluidGridItems(
+  items: List<T>,
+  columns: Int,
+  key: (T) -> Any,
+  spacing: Dp = FluidColumnsDefaults.GridSpacing,
+  contentType: Any? = null,
+  itemContent: @Composable (T) -> Unit,
+) {
+  if (columns <= 1) {
+    items(items, key = key, contentType = { contentType }) { value -> itemContent(value) }
+    return
+  }
+  val rows = items.chunked(columns)
+  items(rows, key = { row -> "fluid:grid-row:" + key(row.first()) }, contentType = { "fluid:grid-row" }) { row ->
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(spacing),
+    ) {
+      row.forEach { value ->
+        Box(modifier = Modifier.weight(1f)) { itemContent(value) }
+      }
+      repeat(columns - row.size) { Spacer(modifier = Modifier.weight(1f)) }
     }
   }
 }

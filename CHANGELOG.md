@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.5.4 - 2026-09-23
+
+- fix: `FluidListDetailScaffold` sposta l'elenco invece di ricomporlo quando la finestra passa da uno a due pannelli. Scritto in due punti dell'albero, perdeva tutto cio' che ricordava — lo scorrimento, la scheda scelta — a ogni rotazione del tablet che attraversa la soglia.
+
+
 ## 2.5.3 - 2026-09-23
 
 - ui: `FluidContainerScaffold(ambient)`. La pagina di dettaglio prende il fondale della sezione da cui si arriva: era l'unica grigia in un'app in cui ogni pagina ha la sua lavata di colore. Null, il default, e' la pagina di prima.

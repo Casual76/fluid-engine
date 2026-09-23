@@ -1058,13 +1058,18 @@ fun FluidListRow(
           fontWeight = FontWeight.SemiBold,
         )
       },
-      supportingContent = {
+      // Un sottotitolo vuoto non e' una riga vuota: occupava comunque l'altezza di una riga di
+      // testo, e una voce con solo il titolo sembrava avere un buco sotto.
+      supportingContent = if (subtitle.isBlank() && meta.isNullOrBlank()) null else {
+        {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
+          if (subtitle.isNotBlank()) {
+            Text(
+              text = subtitle,
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
           meta?.takeIf { it.isNotBlank() }?.let {
             Text(
               text = it,
@@ -1072,6 +1077,7 @@ fun FluidListRow(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
+        }
         }
       },
       leadingContent = leading?.let {

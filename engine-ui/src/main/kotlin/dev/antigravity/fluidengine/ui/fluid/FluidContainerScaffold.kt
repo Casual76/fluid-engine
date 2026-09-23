@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun FluidContainerScaffold(
   title: String,
-  onBack: () -> Unit,
+  onBack: (() -> Unit)?,
   modifier: Modifier = Modifier,
   hero: @Composable ColumnScope.() -> Unit,
   secondary: @Composable ColumnScope.() -> Unit = {},

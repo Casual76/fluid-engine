@@ -37,12 +37,20 @@ class FluidScreenMetrics internal constructor() {
   var contentWidth: Dp by mutableStateOf(Dp.Unspecified)
     internal set
 
-  /** Quante colonne stanno nella colonna di contenuto, larghe almeno [minColumn]. */
+  /**
+   * La scala del testo di sistema. Una colonna larga abbastanza per una riga a testo normale non lo
+   * e' piu' a 1.3: le parole cominciano ad andare a capo a meta', e tre colonne diventano tre
+   * colonne di sillabe. La misura minima cresce con il testo, e le colonne calano da sole.
+   */
+  var fontScale: Float by mutableStateOf(1f)
+    internal set
+
+  /** Quante colonne stanno nella colonna di contenuto, larghe almeno [minColumn] a testo normale. */
   fun columns(
     minColumn: Dp = FluidColumnsDefaults.MinColumn,
     spacing: Dp = FluidColumnsDefaults.Spacing,
     maxColumns: Int = FluidColumnsDefaults.MaxColumns,
-  ): Int = fluidContentColumns(contentWidth, minColumn, spacing, maxColumns)
+  ): Int = fluidContentColumns(contentWidth, minColumn * fontScale.coerceAtLeast(1f), spacing, maxColumns)
 }
 
 @Composable

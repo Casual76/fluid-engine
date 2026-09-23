@@ -619,6 +619,8 @@ fun FluidScreen(
       // mostrarne una e poi saltare.
       val width = if (maxWidth.isFinite) maxWidth - padding * 2 else Dp.Unspecified
       if (metrics.contentWidth != width) metrics.contentWidth = width
+      val fontScale = LocalDensity.current.fontScale
+      if (metrics.fontScale != fontScale) metrics.fontScale = fontScale
     }
     FluidScreenLayout(
       title = title,

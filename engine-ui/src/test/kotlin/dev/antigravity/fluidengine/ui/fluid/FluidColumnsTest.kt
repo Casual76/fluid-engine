@@ -39,4 +39,15 @@ class FluidColumnsTest {
     assertEquals(1, fluidMasonryColumn(intArrayOf(300, 120, 120)))
     assertEquals(2, fluidMasonryColumn(intArrayOf(300, 200, 100)))
   }
+
+  @Test
+  fun `con il testo grande le colonne calano`() {
+    val metrics = FluidScreenMetrics()
+    metrics.contentWidth = 1120.dp
+    assertEquals(3, metrics.columns())
+    metrics.fontScale = 1.3f
+    assertEquals(2, metrics.columns())
+    metrics.fontScale = 0.85f
+    assertEquals(3, metrics.columns())
+  }
 }

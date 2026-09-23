@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.6.0 - 2026-09-23
+
+- ui: `FluidChromeController.refreshFront()`, l'aggiornamento della pagina che sta davanti — la stessa che la barra delle schede rifrange — chiamando il suo `onRefresh`. E' il gesto di tirare giu' la pagina per chi ha una tastiera: l'app lo lega a Ctrl+R o F5. Una pagina che sta gia' aggiornando non viene richiamata, e nel caso dei due pannelli si aggiorna l'elenco, cioe' la sezione.
+
+
 ## 2.5.4 - 2026-09-23
 
 - fix: `FluidListDetailScaffold` sposta l'elenco invece di ricomporlo quando la finestra passa da uno a due pannelli. Scritto in due punti dell'albero, perdeva tutto cio' che ricordava — lo scorrimento, la scheda scelta — a ogni rotazione del tablet che attraversa la soglia.

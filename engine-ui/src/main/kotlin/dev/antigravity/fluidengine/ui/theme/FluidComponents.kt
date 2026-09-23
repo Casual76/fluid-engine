@@ -1162,9 +1162,13 @@ private fun toneColors(tone: FluidTone): ToneColors {
     } else {
       ToneColors(Color(0xFFFFF3E0), Color(0xFFE65100))
     }
+    // Il contenuto e' `error`, non `onErrorContainer`: questo colore va sulla piastrella di una riga
+    // e sul suo occhiello, sopra il gruppo, e `onErrorContainer` sul chiaro e' un bruno quasi nero.
+    // Una verifica o una nota disciplinare finivano con la piastrella grigio scuro accanto al badge
+    // rosso della stessa riga: due segni per la stessa cosa, di due colori diversi.
     FluidTone.Danger -> ToneColors(
       MaterialTheme.colorScheme.errorContainer,
-      MaterialTheme.colorScheme.onErrorContainer,
+      MaterialTheme.colorScheme.error,
     )
     FluidTone.Info -> ToneColors(
       MaterialTheme.colorScheme.secondaryContainer,

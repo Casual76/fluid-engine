@@ -6,6 +6,18 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.5.0 - 2026-09-23
+
+- ui: `FluidListDetailScaffold` e `fluidListDetailLayout`, l'elenco con accanto la cosa scelta su uno schermo largo e l'elenco da solo su uno stretto. Due pannelli solo quando tutti e due restano quello che sono (elenco >= 360 dp, dettaglio >= 480 dp): un tablet in verticale resta una pagina sola. Un fondale per la finestra (i pannelli stanno in una `FluidAmbientSurface`), la pillola rifrange l'elenco che ha sotto e non il dettaglio, e il dettaglio non viene composto su un pannello solo.
+- ui: `FluidDetailContent`, il cambio di cosa mostrata nel pannello di dettaglio come movimento fra pari. La pagina che arriva compare quando quella che esce se n'e' quasi andata: dentro un fondale condiviso nessuna pagina e' opaca, e due trasparenti non devono leggersi insieme. `FluidDetailPlaceholder` per il pannello vuoto.
+- ui: `FluidListRow(selected, disclosure)`. Un velo dell'accento sulla riga mostrata accanto, e la freccia che si puo' togliere dove una riga sceglie invece di aprire. Una riga col sottotitolo vuoto non lascia piu' una riga vuota sotto il titolo.
+- ui: pagine a colonne. `FluidScreen(metrics)` scrive la larghezza della sua colonna per il contenuto, che la legge come uno stato; `fluidColumns` dispone sezioni brevi a muratura (`FluidMasonry`), `fluidGridItems` mette card in righe restando pigra; `FluidColumnsDefaults.WideContentMaxWidth` e' la misura di una pagina a colonne. Con una colonna sono gli item di sempre: sul telefono niente cambia.
+- ui: `FluidAmbient.showMotif`. Una `FluidScreen` allargata oltre la misura di lettura spegne da se' il motivo del fondale: l'angolo dove sta e' occupato dalla fascia in cima, e due figure accostate si leggevano come un fondale doppio.
+- ui: la presentazione `Sheet` si ferma a 620 dp e resta in mezzo, invece di stirarsi da bordo a bordo su un tablet.
+- ui: il tono `Danger` usa `error` per il contenuto. `onErrorContainer` sul chiaro e' un bruno quasi nero, e piastrelle e occhielli delle righe "rosse" uscivano grigio scuro accanto al badge rosso della stessa riga.
+- ui: `FluidContainerScaffold(onBack)` accetta null, per un dettaglio che sta in un pannello e non ha un indietro.
+
+
 ## 2.4.0 - 2026-09-19
 
 - ui: il vetro sopra una fotografia ha un lato chiaro, che non c'era. `darkBarTint` e `darkFloatingTint` sono documentati come «la barra, quando sotto c'e' una figura invece di un colore», ma una pagina puo' essere una fotografia da tutti e due i lati: un'app sul chiaro che chiedeva la tinta giusta sopra una copertina si riprendeva quella di famiglia, costruita per una pagina piatta. Sopra una copertina chiara la pellicola finisce a un punto percentuale dalla pagina e la barra sparisce; sopra una scura finisce a un grigio medio con sopra l'inchiostro scuro, misurato a 3.7 di contrasto, sotto la soglia. Arrivano `lightBarTint` e `lightFloatingTint` — scrim bianchi, al peso che chiede una fotografia, con il capello girato a scuro — e `barTintOnPhoto` / `floatingTintOnPhoto` che scelgono il braccio. Stessa misura dopo: 5.7. I nomi vecchi restano e sono il braccio scuro.

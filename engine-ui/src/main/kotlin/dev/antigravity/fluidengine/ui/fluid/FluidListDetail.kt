@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -114,16 +118,21 @@ fun FluidListDetailScaffold(
   list: @Composable (twoPane: Boolean) -> Unit,
   detail: @Composable () -> Unit,
 ) {
+  // L'elenco e' lo stesso nei due mondi, e deve restarlo: scritto due volte, in due punti diversi
+  // dell'albero, ogni cosa ricordata dentro (lo scorrimento, la scheda scelta) ricominciava da capo
+  // a ogni rotazione che attraversa la soglia. Spostato, se la porta dietro.
+  val currentList by rememberUpdatedState(list)
+  val movableList = remember { movableContentOf { twoPane: Boolean -> currentList(twoPane) } }
   BoxWithConstraints(modifier = modifier.fillMaxSize()) {
     val layout = fluidListDetailLayout(maxWidth, sizes)
     if (!layout.twoPane) {
-      list(false)
+      movableList(false)
       return@BoxWithConstraints
     }
     FluidAmbientSurface(ambient = ambient) {
       Row(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.width(layout.listWidth).fillMaxHeight()) {
-          CompositionLocalProvider(LocalFluidPaneRole provides FluidPaneRole.List) { list(true) }
+          CompositionLocalProvider(LocalFluidPaneRole provides FluidPaneRole.List) { movableList(true) }
         }
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
           CompositionLocalProvider(

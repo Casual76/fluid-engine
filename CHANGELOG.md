@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.5.2 - 2026-09-23
+
+- fix: `FluidTextField` con `minLines` maggiore di uno e' un campo su piu' righe anche senza passare `singleLine = false`. Il default di `singleLine` e' vero, e con `singleLine` il campo di testo ignora `minLines`: i campi descrizione, risposta e dettagli uscivano alti una riga sola. Il tasto che svuota compare solo sui campi a una riga.
+
+
 ## 2.5.1 - 2026-09-23
 
 - ui: le colonne di una pagina tengono conto della scala del testo. `FluidScreenMetrics.columns()` moltiplica la misura minima per `fontScale`: a 1.3 una colonna larga abbastanza per una riga a testo normale andava a capo a meta' delle parole, e tre colonne diventavano tre colonne di sillabe. Ora a 1.3 su un tablet in orizzontale le colonne sono due.

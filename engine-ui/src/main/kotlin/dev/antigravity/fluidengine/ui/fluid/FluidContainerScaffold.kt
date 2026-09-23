@@ -27,11 +27,18 @@ fun FluidContainerScaffold(
   modifier: Modifier = Modifier,
   hero: @Composable ColumnScope.() -> Unit,
   secondary: @Composable ColumnScope.() -> Unit = {},
+  /**
+   * Il fondale della sezione da cui si arriva. Senza, la pagina di dettaglio era l'unica grigia
+   * in un'app in cui ogni pagina ha la sua lavata di colore: aprire un compito era come uscire
+   * dall'app per un momento.
+   */
+  ambient: FluidAmbient? = null,
 ) {
   FluidScreen(
     title = title,
     modifier = modifier,
     onBack = onBack,
+    ambient = ambient,
   ) {
     item(key = "container-detail") {
       Column(

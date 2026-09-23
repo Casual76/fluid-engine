@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.5.3 - 2026-09-23
+
+- ui: `FluidContainerScaffold(ambient)`. La pagina di dettaglio prende il fondale della sezione da cui si arriva: era l'unica grigia in un'app in cui ogni pagina ha la sua lavata di colore. Null, il default, e' la pagina di prima.
+
+
 ## 2.5.2 - 2026-09-23
 
 - fix: `FluidTextField` con `minLines` maggiore di uno e' un campo su piu' righe anche senza passare `singleLine = false`. Il default di `singleLine` e' vero, e con `singleLine` il campo di testo ignora `minLines`: i campi descrizione, risposta e dettagli uscivano alti una riga sola. Il tasto che svuota compare solo sui campi a una riga.

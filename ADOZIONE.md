@@ -401,5 +401,8 @@ era collegato.
 - **Installare sempre la build di release**, mai la debug: le app hanno
   `applicationIdSuffix = ".debug"`, quindi una debug si installa *accanto* a quella vera e non
   sostituisce niente. È il modo più facile di credere di aver consegnato qualcosa che nessuno vede.
+  **ClasseViva Expressive fa eccezione**: la sua debug ha lo stesso id e un'altra firma, quindi non
+  si installa affatto sopra la vera (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) — e disinstallare la vera
+  per farci stare la debug fa perdere il login.
 - **Una fase è finita quando la si è guardata sul telefono**, non quando compila.
 - Le cinque regole del design system sono in `skill/fluid-engine/references/regole.md`.

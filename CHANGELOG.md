@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.5.1 - 2026-09-23
+
+- ui: le colonne di una pagina tengono conto della scala del testo. `FluidScreenMetrics.columns()` moltiplica la misura minima per `fontScale`: a 1.3 una colonna larga abbastanza per una riga a testo normale andava a capo a meta' delle parole, e tre colonne diventavano tre colonne di sillabe. Ora a 1.3 su un tablet in orizzontale le colonne sono due.
+
+
 ## 2.5.0 - 2026-09-23
 
 - ui: `FluidListDetailScaffold` e `fluidListDetailLayout`, l'elenco con accanto la cosa scelta su uno schermo largo e l'elenco da solo su uno stretto. Due pannelli solo quando tutti e due restano quello che sono (elenco >= 360 dp, dettaglio >= 480 dp): un tablet in verticale resta una pagina sola. Un fondale per la finestra (i pannelli stanno in una `FluidAmbientSurface`), la pillola rifrange l'elenco che ha sotto e non il dettaglio, e il dettaglio non viene composto su un pannello solo.

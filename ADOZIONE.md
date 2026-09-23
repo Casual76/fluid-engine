@@ -367,6 +367,30 @@ per frame, dove un lampo è un picco isolato in una serie che dovrebbe essere mo
 **Aperto**: Tab S9 mai guardato (scollegato per tutta la sessione); dentro la finestra morph il
 `paneGlass` non esporta, quindi il vetro-su-vetro interno non rifrange.
 
+## Fase 12 — il tablet usa lo spazio (2026-09-23, engine 2.5.0 → 2.5.2, app 7.12.0 beta)
+
+Richiesta di Alessio: «migliorare l'app per tablet facendo uso migliore dello spazio», con una nota
+presa da altre app: **attento al fondale, che non diventi strano o doppio**. Due decisioni sue:
+la navigazione resta **una sola, la pillola** (il rail era gia' stato tolto), e lo spazio si
+guadagna dentro le pagine; e sulle pagine larghe **il motivo del fondale si spegne**, perche'
+accanto alla fascia in cima si leggeva come un secondo motivo.
+
+Nell'engine: `FluidListDetailScaffold` (elenco+dettaglio su un fondale solo, la pillola che
+rifrange l'elenco), `FluidDetailContent`/`FluidDetailPlaceholder`, `FluidListRow(selected,
+disclosure)`, le pagine a colonne (`FluidScreen(metrics)`, `fluidColumns`, `fluidGridItems`,
+`FluidMasonry`), il foglio che si ferma a 620 dp, il tono Danger rosso davvero, le colonne che
+calano col testo grande, e `FluidTextField` che con `minLines > 1` e' finalmente su piu' righe.
+
+Nell'app, sul tablet in orizzontale: Bacheca, Agenda (calendario largo, giorno accanto),
+Impostazioni, Compiti, Didattica, Documenti e Professori a due pannelli; Home, Voti, Assenze e
+Altro a colonne; Orario e lezioni svolte come settimana intera; il widget su due colonne nelle
+celle larghe. In verticale (800 dp) resta una pagina sola, piu' larga; sul telefono niente cambia —
+verificato sullo stesso emulatore con `wm size 1080x2340`.
+
+**Guardato sull'emulatore tablet** (2560x1600, 320 dpi): chiaro e scuro, testo a 1.3, finestra
+divisa (1280x1600), rotazione, Esc da tastiera, deep link di un compito nel pannello. Il Tab S9 non
+era collegato.
+
 ---
 
 ## Regole che valgono per ogni fase

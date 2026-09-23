@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -160,8 +161,16 @@ fun Modifier.fluidRowPressable(
   )
   val focusColor = MaterialTheme.colorScheme.primary
   val haptics = LocalFluidHaptics.current
+  // Con un mouse o un trackpad la riga sotto il puntatore si accende a meta': dice cosa si
+  // aprirebbe cliccando, come nelle liste di iPadOS. Col dito non c'e' hover.
+  val hovered by interactionSource.collectIsHoveredAsState()
   val highlight by animateFloatAsState(
-    targetValue = if (pressed && animateFeedback) 1f else 0f,
+    targetValue = when {
+      !animateFeedback -> 0f
+      pressed -> 1f
+      hovered -> 0.5f
+      else -> 0f
+    },
     // Appearing instantly and fading out unhurriedly is what stops a quick tap from looking like a
     // flicker: the highlight is always visible for at least the length of the fade.
     animationSpec = if (pressed) FluidMotion.instant() else FluidMotion.fadeOut(260),

@@ -138,6 +138,7 @@ class FluidChromeController internal constructor(
 ) {
   private val backdrops = LinkedHashMap<Any, GlassBackdropState>()
   private val frontKeys = mutableSetOf<Any>()
+  private val refreshers = HashMap<Any, () -> Unit>()
   private val _activeBackdrop = mutableStateOf<GlassBackdropState?>(null)
   private val _bottomBarOffsetPx = mutableFloatStateOf(0f)
   private var bottomBarTravelPx = 0f
@@ -171,6 +172,7 @@ class FluidChromeController internal constructor(
   }
 
   internal fun unregisterBackdrop(key: Any) {
+    refreshers.remove(key)
     backdrops.remove(key) ?: return
     frontKeys.remove(key)
     electActiveBackdrop()
@@ -185,6 +187,28 @@ class FluidChromeController internal constructor(
   private fun electActiveBackdrop() {
     val key = frontMostBackdropKey(backdrops.keys.toList(), frontKeys)
     _activeBackdrop.value = key?.let(backdrops::get)
+  }
+
+  /** L'aggiornamento della pagina registrata sotto [key], o null se non ne ha (o ne ha uno in corso). */
+  internal fun setRefresh(key: Any, onRefresh: (() -> Unit)?) {
+    if (onRefresh == null) refreshers.remove(key) else refreshers[key] = onRefresh
+  }
+
+  /**
+   * Aggiorna la pagina che sta davanti, la stessa che la barra delle schede rifrange: e' quello che
+   * fa Ctrl+R su una tastiera fisica, cioe' il gesto di tirare giu' la pagina senza toccarla.
+   *
+   * Davanti vuol dire la stessa elezione del fondale della barra: durante un gesto di back la
+   * pagina che sta uscendo resta quella davanti finche' il gesto non si chiude, e il dettaglio di
+   * una pagina a due pannelli non si registra, quindi si aggiorna l'elenco — cioe' la sezione.
+   *
+   * @return false se la pagina davanti non si aggiorna (non ha un `onRefresh`, o lo sta gia' facendo).
+   */
+  fun refreshFront(): Boolean {
+    val key = frontMostBackdropKey(backdrops.keys.toList(), frontKeys) ?: return false
+    val refresh = refreshers[key] ?: return false
+    refresh()
+    return true
   }
 
   fun updateBottomBarTravel(travelPx: Float) {
@@ -819,6 +843,8 @@ private fun FluidScreenLayout(
   LaunchedEffect(overscroll, isRefreshing) {
     if (!isRefreshing) overscroll.endRefresh()
   }
+  // Lo stesso aggiornamento, raggiungibile anche senza il dito: vedi [FluidChromeController.refreshFront].
+  SideEffect { chromeController?.setRefresh(chromeRegistration, onRefresh.takeUnless { isRefreshing }) }
 
   // Chi dipinge il fondo dichiara anche il colore di quello che ci va sopra, **barra compresa**.
   //

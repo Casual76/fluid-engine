@@ -330,3 +330,8 @@ FluidScreen(title = "Home", contentMaxWidth = FluidColumnsDefaults.WideContentMa
 Regole: **un fondale per finestra** (lo scaffold lo fa da se'); **sul telefono non cambia niente**
 (una colonna = gli item di sempre); un elenco lungo non va in `fluidColumns`, va in
 `fluidGridItems` o resta un elenco. Dettagli in `docs/03-design-system.md`.
+
+**Tastiera.** `FluidChromeController.refreshFront()` aggiorna la pagina davanti (la stessa che la
+barra rifrange) chiamando il suo `onRefresh`: l'app lo lega a Ctrl+R / F5 nell'`onKeyDown`
+dell'Activity. Una pagina che sta gia' aggiornando non viene richiamata; il dettaglio di due
+pannelli non si registra, quindi si aggiorna l'elenco.

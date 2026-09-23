@@ -352,6 +352,49 @@ condivisa non viene dipinto: una finestra, un fondale.
 Su una pagina sola non cambia niente: senza superficie condivisa, ogni schermata si dipinge il suo
 come prima.
 
+## Elenco+dettaglio e pagine a colonne (2.5.0)
+
+Nate da ClasseViva Expressive su un tablet in orizzontale, con una decisione di Alessio che vale
+per tutte le app: **la navigazione resta una sola** (la pillola in basso), e lo spazio si guadagna
+*dentro* le pagine. La sidebar di `fluidPaneLayout` resta per chi la vuole, ma non e' questa strada.
+
+**`FluidListDetailScaffold(ambient, list = { twoPane -> }, detail = { })`**: su uno schermo largo
+l'elenco a sinistra e la cosa scelta accanto, su uno stretto l'elenco e basta. Le misure stanno in
+`fluidListDetailLayout(available, sizes)`, pura e provata: due pannelli solo se *entrambi* restano
+quello che sono (elenco >= 360 dp, dettaglio >= 480 dp), quindi un tablet in verticale resta una
+pagina sola. Tre decisioni dentro:
+
+- **un fondale solo**: i due pannelli stanno in una `FluidAmbientSurface`, il motivo compare una
+  volta per la finestra e non cambia scegliendo un'altra cosa;
+- **la chrome guarda l'elenco**: il dettaglio non si registra presso il controller, cosi' la pillola
+  in basso a sinistra rifrange la pagina che ha davvero sotto;
+- **il dettaglio non esiste finche' non serve**: su un pannello solo non e' composto, e `list`
+  riceve `twoPane` per decidere se una riga *seleziona* o *apre*.
+
+`FluidDetailContent(item, key, order)` e' il cambio di cosa mostrata: un movimento fra pari, e la
+pagina che arriva compare quando quella che esce se n'e' quasi andata — dentro un fondale condiviso
+nessuna pagina e' opaca, e due pagine trasparenti non devono mai leggersi insieme.
+`FluidDetailPlaceholder` e' il pannello quando non c'e' niente di scelto. `FluidListRow` ha
+`selected` (un velo dell'accento) e `disclosure` (la freccia, che in un elenco+dettaglio promette
+una pagina che non arriva).
+
+**Pagine a colonne.** `FluidScreen(metrics = rememberFluidScreenMetrics())` scrive quanto e' larga
+la sua colonna, e il contenuto — che e' un `LazyListScope` e non puo' chiederlo — lo legge come uno
+stato. Con quello:
+
+- `fluidColumns(key, columns, sections)`: sezioni brevi a muratura (`FluidMasonry`); con una colonna
+  sono item uno per uno, esattamente come prima;
+- `fluidGridItems(items, columns, key)`: card dello stesso genere in righe, pigre riga per riga;
+- `FluidColumnsDefaults.WideContentMaxWidth` (1120 dp): la misura di una pagina a colonne, contro i
+  760 della colonna di lettura.
+
+Quando una pagina si allarga oltre la misura di lettura, `FluidScreen` spegne il motivo del proprio
+fondale (`FluidAmbient.showMotif`): l'angolo in alto a destra e' occupato dalla fascia in cima, e
+due figure dello stesso disegno accostate si leggono come un fondale doppio.
+
+**Fogli.** La presentazione `Sheet` si ferma a 620 dp e resta in mezzo: a tutta larghezza su un
+tablet era una striscia bassa e larga quanto la finestra.
+
 ## Il testo che si accende (1.35.0)
 
 `FluidSpokenText(text, words, positionMs)`: quello che e' gia' stato detto e' nel colore pieno,

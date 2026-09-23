@@ -287,3 +287,46 @@ senza consumare il tocco**. Dentro: due parole di titolo, una frase sola, il ges
 (`FluidGestureHint`: `Tap`, `LongPress`, `SwipeHorizontal`, `DragReorder`, `Scrub`,
 `LongPressAndTap`, fermo immagine con le animazioni ridotte), "Ok" e il link che li spegne tutti
 (`onDismissed(id, optOut = true)`).
+
+## Schermi larghi (2.5.0)
+
+Una navigazione sola su ogni formato: la pillola. Lo spazio di un tablet si usa dentro le pagine.
+
+```kotlin
+// Elenco che apre cose: due pannelli su uno schermo largo, l'elenco e basta su uno stretto.
+FluidListDetailScaffold(
+  ambient = identita.ambient(),
+  list = { twoPane ->
+    FluidScreen(title = "Elenco") {
+      items(cose) { cosa ->
+        FluidListRow(
+          title = cosa.titolo, subtitle = cosa.sotto,
+          selected = twoPane && cosa.id == scelta?.id,
+          disclosure = !twoPane,
+          onClick = { scelta = cosa },          // su un pannello solo: apri come prima
+        )
+      }
+    }
+  },
+  detail = {
+    FluidDetailContent(item = scelta, key = { it?.id }) { cosa ->
+      if (cosa == null) FluidDetailPlaceholder("Niente di aperto", "Scegli qualcosa dall'elenco.")
+      else FluidScreen(title = cosa.titolo) { /* ... */ }
+    }
+  },
+)
+
+// Cruscotto: sezioni in colonne quando c'e' posto.
+val metrics = rememberFluidScreenMetrics()
+FluidScreen(title = "Home", contentMaxWidth = FluidColumnsDefaults.WideContentMaxWidth, metrics = metrics) {
+  fluidColumns("home", metrics.columns(), listOf(
+    FluidColumnSection("a") { /* header + gruppo */ },
+    FluidColumnSection("b") { /* ... */ },
+  ))
+  fluidGridItems(card, metrics.columns(FluidColumnsDefaults.MinCard), key = { it.id }) { Card(it) }
+}
+```
+
+Regole: **un fondale per finestra** (lo scaffold lo fa da se'); **sul telefono non cambia niente**
+(una colonna = gli item di sempre); un elenco lungo non va in `fluidColumns`, va in
+`fluidGridItems` o resta un elenco. Dettagli in `docs/03-design-system.md`.

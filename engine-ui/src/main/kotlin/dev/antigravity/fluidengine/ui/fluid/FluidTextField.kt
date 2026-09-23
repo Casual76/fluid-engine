@@ -145,6 +145,13 @@ fun FluidTextField(
 ) {
   val scheme = MaterialTheme.colorScheme
   val interactionSource = remember { MutableInteractionSource() }
+  // Chi chiede almeno due righe vuole un campo su piu' righe, anche se non ha tolto `singleLine`
+  // (che di default e' vero): con `singleLine` il campo di testo ignora `minLines`, e i campi
+  // «descrizione» e «dettagli» uscivano alti una riga sola. Lo stesso per il tasto che svuota, che
+  // sta bene su una riga di ricerca e male in un paragrafo.
+  val oneLine = singleLine && minLines <= 1
+  val lineCap = if (oneLine) 1 else maxLines.takeIf { it > 1 && it >= minLines } ?: Int.MAX_VALUE
+  val clearButton = showClearButton && oneLine
 
   // Il pozzo del campo, e perche' sopra il vetro non puo' essere lo stesso.
   //
@@ -195,9 +202,9 @@ fun FluidTextField(
       modifier = Modifier.fillMaxWidth(),
       enabled = enabled,
       readOnly = readOnly,
-      singleLine = singleLine,
+      singleLine = oneLine,
       minLines = minLines,
-      maxLines = maxLines,
+      maxLines = lineCap,
       textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
       cursorBrush = SolidColor(scheme.primary),
       keyboardOptions = keyboardOptions,
@@ -230,7 +237,7 @@ fun FluidTextField(
             }
             innerTextField()
           }
-          if (showClearButton) {
+          if (clearButton) {
             AnimatedVisibility(
               visible = value.text.isNotEmpty() && enabled,
               enter = fadeIn(FluidMotion.fadeIn(140)) + scaleIn(FluidMotion.snappy(), initialScale = 0.6f),

@@ -1768,7 +1768,13 @@ private fun FluidGlassModalSheet(
       modifier = Modifier
         .then(
           when {
-            !fullScreen -> Modifier.fillMaxWidth().heightIn(max = FluidSheetMaxHeight)
+            // Un foglio a tutta larghezza su un tablet in orizzontale e' una striscia bassa e larga
+            // quanto la finestra: le righe dentro diventano lunghe un braccio. Oltre la misura del
+            // pop-up si ferma e resta in mezzo, come un foglio posato sulla pagina.
+            !fullScreen -> Modifier
+              .widthIn(max = FluidSheetMaxWidth)
+              .fillMaxWidth()
+              .heightIn(max = FluidSheetMaxHeight)
             // I margini stanno PRIMA del materiale nella catena: la superficie si disegna dentro
             // di essi, e la molla che porta il pannello in scena muove solo il pannello.
             detached -> Modifier
@@ -2371,6 +2377,9 @@ private const val FluidPopoverMaxHeightFraction = 0.78f
 private val FluidPopoverRadius = FluidRadius.Group
 
 private val FluidSheetMaxHeight = 640.dp
+
+/** Oltre questa larghezza un foglio non si stira: resta in mezzo, largo quanto un pop-up. */
+private val FluidSheetMaxWidth = 620.dp
 
 /** Da questa larghezza in su una pagina intera si stacca dai bordi invece di stare a filo. */
 private val FluidFullScreenDetachWidth = 600.dp

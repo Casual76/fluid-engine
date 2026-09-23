@@ -102,6 +102,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -983,8 +985,26 @@ fun FluidListRow(
   contextActions: (() -> List<FluidContextAction>)? = null,
   animatePress: Boolean = true,
   animateContent: Boolean = false,
+  /**
+   * La riga e' quella mostrata accanto, in un elenco+dettaglio ([FluidListDetailScaffold]).
+   *
+   * Un velo dell'accento dietro la riga, come nella barra laterale: sullo schermo largo l'elenco
+   * resta visibile mentre si legge, e senza un segno non si sa da che riga viene quello che si sta
+   * leggendo.
+   */
+  selected: Boolean = false,
+  /**
+   * La freccia a destra, che dice «si apre una pagina». In un elenco+dettaglio non si apre niente:
+   * la riga sceglie cosa mostrare accanto, e la freccia promettere un'altra cosa.
+   */
+  disclosure: Boolean = true,
 ) {
   val colors = toneColors(tone)
+  val selectionWash by animateColorAsState(
+    targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+    animationSpec = FluidMotion.crossFade(),
+    label = "fluidListRowSelection",
+  )
   // The menu has to be raised from the row's *own* long-press. A separate long-press detector next
   // to a `combinedClickable` never fires — the click handler consumes the gesture first — which is
   // why the controller and the gesture are two things in the engine rather than one modifier.
@@ -1002,6 +1022,8 @@ fun FluidListRow(
       .then(
         if (contextMenu != null) Modifier.fluidContextMenuAnchor(contextMenu) else Modifier,
       )
+      .drawBehind { if (selectionWash.alpha > 0f) drawRect(selectionWash) }
+      .semantics { if (selected) this.selected = true }
       // A row inside a grouped list tints instead of scaling: shrinking one row of a stack breaks
       // the group's silhouette and is what made the previous treatment look unsettled.
       .fluidRowPressable(
@@ -1055,14 +1077,14 @@ fun FluidListRow(
       leadingContent = leading?.let {
         { ToneIconTile(tone = tone, content = it) }
       },
-      trailingContent = if (badge != null || onClick != null) {
+      trailingContent = if (badge != null || (onClick != null && disclosure)) {
         {
           Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
           ) {
             badge?.invoke()
-            if (onClick != null) {
+            if (onClick != null && disclosure) {
               // The disclosure chevron is the one affordance that tells a row apart from a label
               // without needing colour, weight or a border to do it.
               Icon(

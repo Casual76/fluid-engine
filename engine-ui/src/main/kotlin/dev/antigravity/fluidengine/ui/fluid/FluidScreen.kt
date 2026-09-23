@@ -80,6 +80,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.isFinite
 import androidx.compose.ui.util.lerp
 import androidx.compose.foundation.background
 import androidx.compose.runtime.LaunchedEffect
@@ -600,12 +601,25 @@ fun FluidScreen(
    * in [content] and must stay solid.
    */
   overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {},
+  /**
+   * Dove la schermata scrive quanto e' larga la sua colonna, per il [content] che vuole disporsi in
+   * colonne ([fluidColumns]). Null — il default — e la schermata non scrive niente.
+   */
+  metrics: FluidScreenMetrics? = null,
   content: LazyListScope.() -> Unit,
 ) {
   // La larghezza si legge qui, una volta, e diventa un margine: e' l'unica riga che distingue una
   // pagina da telefono allargata da una pagina da tablet. Tutto il resto della schermata non sa
-  // di essere su un tablet, e non deve saperlo.
+  // di essere su un tablet, e non deve saperlo — salvo chi lo chiede con [metrics].
   BoxWithConstraints(modifier = modifier) {
+    val padding = fluidScreenPadding(maxWidth, horizontalPadding, contentMaxWidth)
+    if (metrics != null) {
+      // Scritto in composizione e non in un effetto: la lista che lo legge si misura dopo, nello
+      // stesso passaggio, e cosi' il primo fotogramma ha gia' le colonne giuste invece di
+      // mostrarne una e poi saltare.
+      val width = if (maxWidth.isFinite) maxWidth - padding * 2 else Dp.Unspecified
+      if (metrics.contentWidth != width) metrics.contentWidth = width
+    }
     FluidScreenLayout(
       title = title,
       subtitle = subtitle,
@@ -615,7 +629,7 @@ fun FluidScreen(
       listState = listState,
       isRefreshing = isRefreshing,
       onRefresh = onRefresh,
-      horizontalPadding = fluidScreenPadding(maxWidth, horizontalPadding, contentMaxWidth),
+      horizontalPadding = padding,
       itemSpacing = itemSpacing,
       extraBottomPadding = extraBottomPadding,
       ambient = ambient,

@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.7.1 - 2026-09-23
+
+- ui: con un mouse o un trackpad, la riga di un gruppo sotto il puntatore si accende a meta' del velo della pressione — dice cosa si aprirebbe cliccando, come nelle liste di iPadOS. Col dito non c'e' hover e niente cambia.
+
+
 ## 2.7.0 - 2026-09-23
 
 - ui: il fuoco da tastiera si vede. Con una tastiera attaccata al tablet, Tab spostava il fuoco su elementi che non lo mostravano: tutti i controlli dell'engine avevano `indication = null`. Ora `fluidPressable` si fa avanti del 3% (il gesto opposto alla pressione, come su tvOS) e con `focusShape` mostra anche un velo dell'accento nella sagoma — usato da segmenti, chip e tasti di vetro, che non hanno una superficie propria che si veda avanzare. `fluidRowPressable` disegna un bordo dell'accento lungo la riga, e le schede della barra un velo. Al tocco non cambia niente: in modalita' touch un clickable non prende il fuoco.

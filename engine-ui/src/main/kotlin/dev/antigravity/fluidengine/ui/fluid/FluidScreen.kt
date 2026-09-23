@@ -632,7 +632,13 @@ fun FluidScreen(
       horizontalPadding = padding,
       itemSpacing = itemSpacing,
       extraBottomPadding = extraBottomPadding,
-      ambient = ambient,
+      // Una pagina che si e' allargata oltre la misura di lettura ha il contenuto fino all'angolo
+      // dove il fondale mette il suo motivo: li' c'e' gia' la fascia col proprio, e due figure
+      // accostate sono un fondale doppio. La lavata resta, il motivo no. Vedi FluidAmbient.showMotif.
+      ambient = ambient?.let {
+        val wide = maxWidth.isFinite && maxWidth - padding * 2 > FluidScreenDefaults.ContentMaxWidth
+        if (wide) it.copy(showMotif = false) else it
+      },
       overlay = overlay,
       content = content,
     )

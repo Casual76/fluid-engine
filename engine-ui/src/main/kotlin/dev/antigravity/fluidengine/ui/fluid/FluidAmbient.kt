@@ -50,6 +50,16 @@ data class FluidAmbient(
   val intensity: Float = 1f,
   /** Promuove qualunque tono alla famiglia dell'errore, come fa [FluidHero]. */
   val urgent: Boolean = false,
+  /**
+   * Se il motivo si disegna. La lavata resta comunque.
+   *
+   * Il motivo sta nell'angolo in alto a destra, e su un telefono o accanto a una colonna di lettura
+   * quell'angolo e' margine. Quando il contenuto si allarga fino al bordo — una pagina a colonne su
+   * un tablet — l'angolo e' occupato dalla fascia in cima, che ha il suo motivo: due figure dello
+   * stesso disegno una accanto all'altra si leggono come un fondale doppio. [FluidScreen] lo spegne
+   * da se' in quel caso.
+   */
+  val showMotif: Boolean = true,
 )
 
 /**
@@ -145,7 +155,7 @@ fun FluidAmbientCanvas(
           )
         },
     )
-    if (amount > 0.001f) {
+    if (amount > 0.001f && ambient.showMotif) {
       FluidHeroDecoration(
         motif = ambient.motif,
         color = colors.motif,

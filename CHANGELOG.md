@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.7.0 - 2026-09-23
+
+- ui: il fuoco da tastiera si vede. Con una tastiera attaccata al tablet, Tab spostava il fuoco su elementi che non lo mostravano: tutti i controlli dell'engine avevano `indication = null`. Ora `fluidPressable` si fa avanti del 3% (il gesto opposto alla pressione, come su tvOS) e con `focusShape` mostra anche un velo dell'accento nella sagoma — usato da segmenti, chip e tasti di vetro, che non hanno una superficie propria che si veda avanzare. `fluidRowPressable` disegna un bordo dell'accento lungo la riga, e le schede della barra un velo. Al tocco non cambia niente: in modalita' touch un clickable non prende il fuoco.
+
+
 ## 2.6.0 - 2026-09-23
 
 - ui: `FluidChromeController.refreshFront()`, l'aggiornamento della pagina che sta davanti — la stessa che la barra delle schede rifrange — chiamando il suo `onRefresh`. E' il gesto di tirare giu' la pagina per chi ha una tastiera: l'app lo lega a Ctrl+R o F5. Una pagina che sta gia' aggiornando non viene richiamata, e nel caso dei due pannelli si aggiorna l'elenco, cioe' la sezione.

@@ -24,22 +24,32 @@ class FluidListRowLabelsTest {
   }
 
   @Test
-  fun `una pillola sola resta accanto a un titolo lungo`() {
+  fun `una pillola stretta resta accanto a un titolo lungo`() {
+    // Il pannello dell'agenda sul tablet: "Compito" ne prende un quinto.
     assertEquals(
       FluidRowLabelPlacement.Inline,
-      fluidRowLabelPlacement(availableWidth = 600, titleWidth = 2400, labelsWidth = 140, gap = 8),
+      fluidRowLabelPlacement(availableWidth = 600, titleWidth = 2400, labelsWidth = 120, gap = 8),
     )
   }
 
   @Test
-  fun `la soglia e' quattro decimi della riga, spazio compreso`() {
+  fun `in una colonna stretta la stessa pillola va sotto un titolo lungo`() {
+    // La colonna della home a tre colonne: "Compito" ne prende un terzo.
+    assertEquals(
+      FluidRowLabelPlacement.Below,
+      fluidRowLabelPlacement(availableWidth = 440, titleWidth = 2400, labelsWidth = 130, gap = 8),
+    )
+  }
+
+  @Test
+  fun `la soglia e' un quarto della riga, spazio compreso`() {
     assertEquals(
       FluidRowLabelPlacement.Inline,
-      fluidRowLabelPlacement(availableWidth = 1000, titleWidth = 5000, labelsWidth = 392, gap = 8),
+      fluidRowLabelPlacement(availableWidth = 1000, titleWidth = 5000, labelsWidth = 242, gap = 8),
     )
     assertEquals(
       FluidRowLabelPlacement.Below,
-      fluidRowLabelPlacement(availableWidth = 1000, titleWidth = 5000, labelsWidth = 393, gap = 8),
+      fluidRowLabelPlacement(availableWidth = 1000, titleWidth = 5000, labelsWidth = 243, gap = 8),
     )
   }
 

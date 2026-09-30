@@ -18,12 +18,16 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.max
 
 /**
- * La quota della riga che le etichette accanto al titolo possono prendere, oltre la quale vanno sotto.
+ * La quota della riga che le etichette accanto a un titolo lungo possono prendere, oltre la quale
+ * vanno sotto.
  *
- * Meno della meta': un titolo che scorre in quello che resta — sei decimi — va a capo fra le parole.
- * Con la meta' e una scala del testo grande si tornava alle parole spezzate a meta'.
+ * Un quarto. Accanto a un titolo di piu' righe l'etichetta toglie la sua larghezza a ognuna di
+ * quelle righe, non solo alla prima: con quattro decimi, nella colonna stretta di un tablet a tre
+ * colonne, il titolo restava una striscia di due parole per riga. Misurato sul Tab S9: "Compito"
+ * prende un quinto del pannello dell'agenda (resta accanto) e un terzo della colonna della home
+ * (va sotto).
  */
-internal const val FluidRowLabelsMaxShare = 0.4f
+internal const val FluidRowLabelsMaxShare = 0.25f
 
 /** Dove stanno le etichette di una [FluidListRow] rispetto al titolo. */
 internal enum class FluidRowLabelPlacement { Inline, Below }

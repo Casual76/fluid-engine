@@ -6,6 +6,18 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.9.0 - 2026-09-30
+
+- ai: un 400 non e' piu' "il servizio ha risposto con un errore". `AiError.BadRequest.reason` (`BadReason`: TOOL_USE_FAILED, MODEL_UNAVAILABLE, CONTEXT_TOO_LONG, BLOCKED, GENERIC) letto da codice e corpo dei tre provider, anche dentro uno stream aperto; ogni `AiError` ha `httpCode` e `providerMessage` (corto, senza chiavi) per un foglio "Dettagli". Un 413 e' CONTEXT_TOO_LONG, la moderazione di OpenRouter e' BLOCKED.
+- ai: `FailoverPolicy` legge il perche': tool_use_failed riprova una volta poi passa; modello sparito passa e chiama `AskInput.onModelUnavailable`; richiesta troppo lunga si accorcia una volta (`FailoverDecision.TrimAndRetry`); 400 generico passa. Col servizio fissato: PROVIDER, MODEL_UNAVAILABLE, CONTEXT_TOO_LONG. I `when` esaustivi su `FailureKind` (nuovi MODEL_UNAVAILABLE, CONTEXT_TOO_LONG) e su `FailoverDecision` vanno completati.
+- ai: una risposta finale vuota non e' mai un successo: riprova (con fine LENGTH piu' token o meno ragionamento), riserva, poi PROVIDER. La chiamata malformata di Gemini non diventa piu' la frase "(chiamata malformata, riprovo)".
+- ai: timeout di lettura per richiesta (`ChatRequest.readTimeoutMillis`, `AiOrchestratorConfig.readTimeoutFor`): 120 s quando il modello pensa o col profondo, 45 s altrimenti, entro il budget. Il thinking di Gemini non finisce piu' in TIMEOUT. Il default di `AiHttp` in streaming passa da 30 a 45 s.
+- ai: il failover si vede: `AiRequestLog.switches` (`ProviderSwitch`), `SwitchingProvider.reason`, `Done.switches`, `AssistantFailure`/`Failed` con `provider` e `reason` (`SwitchReason`).
+- ai: `AiKeyVerifier.reconcile` riallinea anche chat e router di Groq; `markUnavailable(provider, modello)` esclude un modello sparito e riallinea subito. Il router di default di Groq (`llama-3.1-8b-instant`) non esiste piu': con il catalogo di oggi (`qwen3.8-27b`, `gpt-oss-120b`, `gpt-oss-20b`, `allam-2-7b`) non veniva mai sostituito e ogni domanda a Groq cominciava con un 404 del router; ora prende `openai/gpt-oss-20b`, e se manca anche quello il router lo fa la chat.
+- ai: `ProviderFactory(decorate = …)` per iniettare guasti nelle build di debug.
+- ui: `fluidPhysicsSurface(exports = …)`, come `glassSurface`: i tasti dentro una capsula che si trasforma possono rifrangerne il materiale.
+
+
 ## 2.8.0 - 2026-09-30
 
 - ui: FluidListRow(labels) - le pillole di stato stanno accanto al titolo quando il titolo ci sta su una riga o quando prendono al massimo un quarto della riga, altrimenti vanno sotto. Nello slot badge, misurato per primo da ListItem, due pillole e la freccia lasciavano al titolo una colonna di sillabe. badge resta per valori e controlli.

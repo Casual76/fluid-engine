@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.8.0 - 2026-09-30
+
+- ui: FluidListRow(labels) - le pillole di stato stanno accanto al titolo quando il titolo ci sta su una riga o quando prendono al massimo un quarto della riga, altrimenti vanno sotto. Nello slot badge, misurato per primo da ListItem, due pillole e la freccia lasciavano al titolo una colonna di sillabe. badge resta per valori e controlli.
+- ui: FluidListRow(titleMaxLines) con i puntini, e un overload con title AnnotatedString per le righe che evidenziano parte del titolo.
+
+
 ## 2.7.1 - 2026-09-23
 
 - ui: con un mouse o un trackpad, la riga di un gruppo sotto il puntatore si accende a meta' del velo della pressione — dice cosa si aprirebbe cliccando, come nelle liste di iPadOS. Col dito non c'e' hover e niente cambia.

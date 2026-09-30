@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.ai.orchestrator
 import dev.antigravity.fluidengine.ai.keys.AiSettings
 import dev.antigravity.fluidengine.ai.keys.ThinkingLevel
 import dev.antigravity.fluidengine.ai.net.AiError
+import dev.antigravity.fluidengine.ai.net.BadReason
 import dev.antigravity.fluidengine.ai.net.RateLimitInfo
 import dev.antigravity.fluidengine.ai.net.string
 import dev.antigravity.fluidengine.ai.provider.ChatDelta
@@ -95,6 +96,14 @@ class AskInput<C>(
    * scelto l'utente.
    */
   val pinProvider: Boolean = false,
+  /**
+   * Un provider ha detto che un modello non c'e' piu' (2.8.0): ritirato, rinominato, senza endpoint
+   * per questa chiave. Riceve il provider e il modello, per qualunque livello (anche il router), e
+   * arriva prima della decisione di failover. L'app ci riallinea le scelte salvate — di solito con
+   * `AiKeyVerifier.markUnavailable` — cosi' la domanda dopo non ci ribatte contro. Non sospende:
+   * un lavoro lungo l'app lo lancia nel suo scope.
+   */
+  val onModelUnavailable: (ProviderId, String) -> Unit = { _, _ -> },
 )
 
 /** I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso. */
@@ -125,7 +134,37 @@ data class AiOrchestratorConfig(
   val maxLoadedTools: Int = 80,
   /** Quante categorie o sottocategorie il modello puo' aprire da se' in una domanda. */
   val maxOpens: Int = 4,
-)
+  /**
+   * La pazienza di un giro che non pensa (2.8.0): il silenzio massimo fra due pezzi dello stream,
+   * e l'attesa della risposta intera nella riprova senza stream.
+   */
+  val streamChunkTimeoutMillis: Int = 45_000,
+  /**
+   * La pazienza di un giro che pensa o lavora col profondo (2.8.0). Il thinking di Gemini tace anche
+   * oltre mezzo minuto prima del primo pezzo: con i trenta secondi di prima quel silenzio era un
+   * timeout, poi una riprova, poi un fallimento TIMEOUT su una domanda che stava andando benissimo.
+   */
+  val thinkingChunkTimeoutMillis: Int = 120_000,
+) {
+
+  /**
+   * Il timeout di lettura di un giro (2.8.0): [thinkingChunkTimeoutMillis] se il modello pensa
+   * ([reasoning] diverso da NONE) o il livello e' il profondo, [streamChunkTimeoutMillis] altrimenti.
+   *
+   * E si misura sul budget. [TimeBudget] si controlla solo fra un giro e l'altro — uno stream gia'
+   * partito lo ferma soltanto questo timeout — quindi con una card da novanta secondi un silenzio da
+   * centoventi sforerebbe di mezzo minuto. Il timeout lungo vale finche' il budget ha quel tempo;
+   * sotto, il timeout e' quel che resta del budget, e mai meno di quello corto: un giro partito a
+   * budget quasi finito aspetta quanto uno normale, invece di morire subito. Col budget di default
+   * (240 s) il profondo ha i suoi centoventi secondi pieni; un'app che vuole lasciar pensare a lungo
+   * una card a schermo alza [totalBudgetMillis].
+   */
+  fun readTimeoutFor(tier: ModelTier, reasoning: ReasoningLevel, budgetRemainingMillis: Long): Int {
+    val wanted = if (tier == ModelTier.DEEP || reasoning != ReasoningLevel.NONE) thinkingChunkTimeoutMillis else streamChunkTimeoutMillis
+    val room = budgetRemainingMillis.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+    return minOf(wanted, maxOf(streamChunkTimeoutMillis, room))
+  }
+}
 
 /**
  * Il cervello: stadio 1 (gruppi, o il pre-router dell'app) -> giro dei tool in stream con
@@ -143,6 +182,13 @@ data class AiOrchestratorConfig(
  * riprova, o si fallisce, mai si migra), e quando invece avviene la riserva **riparte dalla chat**
  * e non eredita il profondo di prima ([tierAfterSwitch]). Ogni modello che ha risposto finisce,
  * in ordine, in [AiRequestLog.modelsUsed].
+ *
+ * Dalla 2.8.0 un 400 si legge ([dev.antigravity.fluidengine.ai.net.BadReason]): un `tool_use_failed`
+ * si riprova, un modello sparito si dice all'app ([AskInput.onModelUnavailable]) e si passa oltre,
+ * una richiesta troppo lunga si accorcia una volta ([FailoverDecision.TrimAndRetry]). Una risposta
+ * finale vuota non e' mai un successo. Ogni cambio di provider ha il suo perche'
+ * ([AiRequestLog.switches], [AssistantState.SwitchingProvider.reason]), e il timeout di lettura di
+ * un giro dipende da cosa si chiede ([AiOrchestratorConfig.readTimeoutFor]).
  */
 class AiOrchestrator<C>(
   private val registry: ToolRegistry<C>,
@@ -155,7 +201,19 @@ class AiOrchestrator<C>(
   private val usageSink: AiUsageSink? = null,
 ) {
 
-  private class Attempt(var provider: ReadyProvider, val switched: MutableList<ProviderId> = mutableListOf(), var waits: Int = 0, var retries: Int = 0)
+  /**
+   * Lo stato del failover di una domanda. [retries], [trims] ed [emptyRetries] valgono per il
+   * provider corrente e ripartono da zero a ogni cambio; [switches] tiene la storia per il log.
+   */
+  private class Attempt(
+    var provider: ReadyProvider,
+    val switched: MutableList<ProviderId> = mutableListOf(),
+    var waits: Int = 0,
+    var retries: Int = 0,
+    var trims: Int = 0,
+    var emptyRetries: Int = 0,
+    val switches: MutableList<ProviderSwitch> = mutableListOf(),
+  )
 
   /** Com'e' finito un giro, e chi l'ha fatto davvero: dopo un cambio di provider [tier] e [model] possono differire da quelli chiesti. */
   private class TurnOutcome(val text: String?, val calls: List<ToolCall>, val raw: JsonElement?, val usage: Usage?, val rateLimit: RateLimitInfo, val finish: FinishReason, val tier: ModelTier, val model: String)
@@ -223,10 +281,43 @@ class AiOrchestrator<C>(
     var moreToolsUsed = 0
     var opens = 0
 
+    val system = Message.System(input.systemPrompt)
     val messages = mutableListOf<Message>()
-    messages += Message.System(input.systemPrompt)
+    messages += system
     messages += fit(HistoryCompactor.compact(conversation, budgetTokens = historyBudget(attempt.provider.provider.id)), capabilities(attempt.provider, tier), input.language)
+    // Dove finisce la storia e comincia questa domanda: [trimForContext] riscrive solo la prima parte.
+    var historyEnd = messages.size
     messages += Message.User(userTurn.parts)
+
+    /**
+     * La richiesta non ci stava (2.8.0, [FailoverDecision.TrimAndRetry]): la storia si ricompatta
+     * a meta' del budget del provider di adesso, senza il traffico tool della domanda prima e senza
+     * i suoi allegati, e i risultati dei tool di questa domanda (e gli allegati tradotti in testo)
+     * scendono a un terzo del loro tetto. La domanda dell'utente e le coppie chiamata/risultato
+     * restano intere: un risultato orfano e' un 400.
+     */
+    fun trimForContext() {
+      val shorter = HistoryCompactor.compact(
+        conversation,
+        budgetTokens = historyBudget(attempt.provider.provider.id) / 2,
+        includeToolRound = false,
+        includeAttachments = false,
+      )
+      val limit = (config.toolTextChars / 3).coerceAtLeast(TRIMMED_TOOL_TEXT_MIN)
+      val tail = messages.drop(historyEnd).mapIndexed { index, message ->
+        when {
+          message is Message.ToolResult -> message.copy(content = ToolText.limit(message.content, limit))
+          index > 0 && message is Message.User && !message.hasBinaryParts -> Message.User(ToolText.limit(message.text, limit))
+          else -> message
+        }
+      }
+      messages.clear()
+      messages += system
+      messages += shorter
+      historyEnd = messages.size
+      messages += tail
+    }
+
     val toolRound = mutableListOf<Message>()
     var answer: String? = null
     var answerProvider = attempt.provider.provider.id
@@ -237,17 +328,19 @@ class AiOrchestrator<C>(
       steps = step
       val forceFinal = step == config.maxRounds || budget.forceFinal
       val model = attempt.provider.model(tier)
+      val reasoning = reasoningFor(input.settings.thinking, final = forceFinal)
       val request = ChatRequest(
         model = model,
         messages = if (forceFinal) messages + Message.System(input.forceFinalPrompt) else messages,
         tools = if (forceFinal) emptyList() else tools,
         toolChoice = if (forceFinal) ToolChoice.None else ToolChoice.Auto,
-        reasoning = reasoningFor(input.settings.thinking, final = forceFinal),
+        reasoning = reasoning,
         maxOutputTokens = config.maxOutputTokens,
         temperature = config.temperature,
+        readTimeoutMillis = config.readTimeoutFor(tier, reasoning, budget.remainingMillis),
       )
       state.value = AssistantState.Working(question, step, config.maxRounds, "thinking", 0, attempt.provider.provider.id, tier)
-      val outcome = runTurnWithFailover(input, attempt, budget, state, request, messages, tier) { s ->
+      val outcome = runTurnWithFailover(input, attempt, budget, state, request, messages, tier, forceFinal, ::trimForContext) { s ->
         waitedSeconds += s
       }
       // Chi ha risposto davvero: dopo un cambio di provider puo' essere un altro modello, e anche
@@ -264,10 +357,13 @@ class AiOrchestrator<C>(
       diagnostics.rateLimit(attempt.provider.provider.id, outcome.rateLimit)
       answerProvider = attempt.provider.provider.id
       // Al giro forzato non ci sono tool: una chiamata che arriva lo stesso si ignora e vale il testo.
+      // Una risposta vuota qui non arriva mai (2.8.0): [runTurnWithFailover] la riprova, cambia
+      // provider o fallisce. Il controllo resta come argine: una bolla vuota non e' un successo.
       if (outcome.calls.isEmpty() || forceFinal) {
         answer = outcome.text?.trim().orEmpty()
-        if (answer.isBlank() && outcome.finish == FinishReason.BLOCKED) throw AssistantFailure(FailureKind.BLOCKED, null)
-        if (answer.isBlank() && forceFinal) throw AssistantFailure(FailureKind.TIMEOUT, null)
+        if (answer.isBlank()) {
+          throw AssistantFailure(FailureKind.PROVIDER, null, provider = attempt.provider.provider.id, reason = SwitchReason.EMPTY_ANSWER, switches = attempt.switches.toList())
+        }
         break
       }
       val assistant = Message.Assistant(outcome.text, outcome.calls, raw = outcome.raw, rawProvider = attempt.provider.provider.id)
@@ -385,7 +481,7 @@ class AiOrchestrator<C>(
       if (hierarchical) groups = activeGroups(conversation, input)
       tools = specsFor(groups, input, deepOffered())
     }
-    val finalAnswer = answer ?: throw AssistantFailure(FailureKind.TIMEOUT, null)
+    val finalAnswer = answer ?: throw AssistantFailure(FailureKind.TIMEOUT, null, provider = attempt.provider.provider.id, switches = attempt.switches.toList())
     val (cleanText, chips) = ChipParser.extract(finalAnswer, input.chipFilter)
     conversation.exchanges += Exchange(question, cleanText, chips, answerProvider, clock(), attachments = input.attachments)
     conversation.lastToolRound = toolRound.toList()
@@ -411,6 +507,7 @@ class AiOrchestrator<C>(
       tierReached = tierReached,
       models = modelsUsed.toMap(),
       modelsUsed = used.toList(),
+      switches = attempt.switches.toList(),
     )
     diagnostics.add(log)
     return AskResult(cleanText, chips, answerProvider, usageTotal, toolTraces.map { it.name }.distinct(), log, tierReached)
@@ -607,7 +704,14 @@ class AiOrchestrator<C>(
         throw e
       } catch (e: AiError.Unauthorized) {
         usageEvent(input, ready, model, ModelTier.ROUTER, started, null, RateLimitInfo.EMPTY, e)
-        throw AssistantFailure(FailureKind.UNAUTHORIZED, e)
+        throw AssistantFailure(FailureKind.UNAUTHORIZED, e, provider = ready.provider.id, switches = attempt.switches.toList())
+      } catch (e: AiError.BadRequest) {
+        usageEvent(input, ready, model, ModelTier.ROUTER, started, null, RateLimitInfo.EMPTY, e)
+        // Un 400 del router riguarda il suo modello, non la chat dello stesso provider: nessun
+        // cambio di provider per lui (2.8.0), il ripiego del router c'e' gia'. Un modello sparito
+        // pero' si dice all'app, che lo toglie dalle scelte.
+        if (e.reason == BadReason.MODEL_UNAVAILABLE) input.onModelUnavailable(ready.provider.id, model)
+        return RouterVerdict(router.fallback(conversation.lastGroups + input.routerHint))
       } catch (e: Throwable) {
         usageEvent(input, ready, model, ModelTier.ROUTER, started, null, (e as? AiError.RateLimited)?.rateLimit ?: RateLimitInfo.EMPTY, e as? AiError)
         // Lo stadio 1 non fa fallire la domanda: si prova il prossimo provider (mai col servizio
@@ -615,7 +719,7 @@ class AiOrchestrator<C>(
         val decision = failover.decide(e, ready.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis, pinned = input.pinProvider)
         when (decision) {
           is FailoverDecision.Switch -> {
-            switchTo(input, attempt, decision.to, state)
+            switchTo(input, attempt, decision.to, state, SwitchReason.of(e) ?: SwitchReason.SERVER)
             if (attempt.provider.provider.id == ProviderId.OPENROUTER) {
               return if (registry.hierarchical) RouterVerdict(input.routerHint) else RouterVerdict(allGroups(input))
             }
@@ -633,14 +737,25 @@ class AiOrchestrator<C>(
     return if (index < 0) order else order.drop(index + 1)
   }
 
-  private fun switchTo(input: AskInput<C>, attempt: Attempt, to: ProviderId, state: MutableStateFlow<AssistantState>) {
+  private fun switchTo(input: AskInput<C>, attempt: Attempt, to: ProviderId, state: MutableStateFlow<AssistantState>, reason: SwitchReason) {
     val next = input.providers.first { it.provider.id == to }
-    state.value = AssistantState.SwitchingProvider(input.question, attempt.provider.provider.id, to)
+    val from = attempt.provider.provider.id
+    state.value = AssistantState.SwitchingProvider(input.question, from, to, reason)
     attempt.switched += to
+    attempt.switches += ProviderSwitch(from, to, reason)
     attempt.provider = next
     attempt.retries = 0
+    attempt.trims = 0
+    attempt.emptyRetries = 0
   }
 
+  /**
+   * Un giro con il suo failover: gli errori passano da [FailoverPolicy.decide], e dalla 2.8.0 anche
+   * una risposta finale vuota ([FailoverPolicy.decideEmpty]) — un giro che chiude senza tool call
+   * e senza una parola non torna mai come risposta. [messages] e' la conversazione della domanda,
+   * che [trim] puo' riscrivere al suo posto quando la richiesta non ci sta; [forceFinal] dice se e'
+   * il giro senza strumenti, dove una tool call non vale come risposta.
+   */
   private suspend fun runTurnWithFailover(
     input: AskInput<C>,
     attempt: Attempt,
@@ -649,21 +764,66 @@ class AiOrchestrator<C>(
     request: ChatRequest,
     messages: List<Message>,
     startTier: ModelTier,
+    forceFinal: Boolean,
+    trim: () -> Unit,
     onWaited: (Int) -> Unit,
   ): TurnOutcome {
     var current = request
     var tier = startTier
+    // Quanti messaggi di [current] vengono da [messages]: il resto (il prompt del giro forzato) si
+    // riattacca in coda a ogni riscrittura.
+    var baseSize = messages.size
+
+    /**
+     * [messages] piu' [extra] per il provider e il livello di adesso: le parti grezze scritte da un
+     * altro provider si buttano, gli allegati che il modello non regge diventano una riga.
+     */
+    fun rewritten(extra: List<Message>): List<Message> {
+      val own = attempt.provider.provider.id
+      val capabilities = capabilities(attempt.provider, tier)
+      val neutral = messages.map { if (it is Message.Assistant && it.rawProvider != null && it.rawProvider != own) it.copy(raw = null, rawProvider = null) else it }
+      return fit(neutral, capabilities, input.language) + fit(extra, capabilities, input.language)
+    }
+
+    fun switchProvider(to: ProviderId, reason: SwitchReason) {
+      val extra = current.messages.drop(baseSize)
+      switchTo(input, attempt, to, state, reason)
+      tier = tierAfterSwitch(input, attempt.provider, tier, messages)
+      // La stessa conversazione, riscritta per il nuovo provider. Tetto di uscita e ragionamento
+      // tornano quelli del giro: una riprova dopo una risposta vuota li aveva adattati al modello
+      // di prima, non a questo.
+      val onOpenRouter = attempt.provider.provider.id == ProviderId.OPENROUTER
+      current = current.copy(
+        model = attempt.provider.model(tier),
+        messages = rewritten(extra),
+        tools = if (onOpenRouter && !registry.hierarchical && current.tools.isNotEmpty()) specsFor(allGroups(input), input) else current.tools,
+        maxOutputTokens = request.maxOutputTokens,
+        reasoning = request.reasoning,
+        readTimeoutMillis = config.readTimeoutFor(tier, request.reasoning, budget.remainingMillis),
+      )
+    }
+
     while (true) {
       val started = clock()
-      try {
-        return runTurn(attempt.provider, current, input, state, tier, started)
+      val outcome: TurnOutcome? = try {
+        runTurn(attempt.provider, current, input, state, tier, started)
       } catch (e: CancellationException) {
         throw e
       } catch (e: AssistantFailure) {
         throw e
       } catch (e: Throwable) {
         usageEvent(input, attempt.provider, current.model, tier, started, null, (e as? AiError.RateLimited)?.rateLimit ?: RateLimitInfo.EMPTY, e as? AiError)
-        val decision = failover.decide(e, attempt.provider.provider.id, remaining(input, attempt), attempt.waits, attempt.retries, budget.remainingMillis, pinned = input.pinProvider)
+        if (e is AiError.BadRequest && e.reason == BadReason.MODEL_UNAVAILABLE) input.onModelUnavailable(attempt.provider.provider.id, current.model)
+        val decision = failover.decide(
+          e,
+          attempt.provider.provider.id,
+          remaining(input, attempt),
+          attempt.waits,
+          attempt.retries,
+          budget.remainingMillis,
+          pinned = input.pinProvider,
+          trimsDone = attempt.trims,
+        )
         when (decision) {
           is FailoverDecision.Wait -> {
             attempt.waits++
@@ -675,27 +835,73 @@ class AiOrchestrator<C>(
               left--
             }
           }
-          is FailoverDecision.Switch -> {
-            switchTo(input, attempt, decision.to, state)
-            tier = tierAfterSwitch(input, attempt.provider, tier, messages)
-            // La stessa conversazione, riscritta per il nuovo provider: le parti grezze dell'altro
-            // non servono piu', e gli allegati che il suo modello non regge diventano una riga.
-            val capabilities = capabilities(attempt.provider, tier)
-            val neutral = fit(messages.map { if (it is Message.Assistant) it.copy(raw = null, rawProvider = null) else it }, capabilities, input.language)
-            val onOpenRouter = attempt.provider.provider.id == ProviderId.OPENROUTER
-            current = current.copy(
-              model = attempt.provider.model(tier),
-              messages = if (current.messages.size > messages.size) neutral + fit(current.messages.drop(messages.size), capabilities, input.language) else neutral,
-              tools = if (onOpenRouter && !registry.hierarchical && current.tools.isNotEmpty()) specsFor(allGroups(input), input) else current.tools,
-            )
-          }
+          is FailoverDecision.Switch -> switchProvider(decision.to, SwitchReason.of(e) ?: SwitchReason.BAD_REQUEST)
           FailoverDecision.RetrySame -> {
             attempt.retries++
             delay(1_500)
           }
-          is FailoverDecision.Fail -> throw AssistantFailure(decision.kind, e as? AiError, decision.retryAfterSec)
+          FailoverDecision.TrimAndRetry -> {
+            attempt.trims++
+            val extra = current.messages.drop(baseSize)
+            trim()
+            baseSize = messages.size
+            current = current.copy(messages = rewritten(extra))
+          }
+          is FailoverDecision.Fail -> throw AssistantFailure(
+            decision.kind,
+            e as? AiError,
+            decision.retryAfterSec,
+            provider = attempt.provider.provider.id,
+            reason = SwitchReason.of(e),
+            switches = attempt.switches.toList(),
+          )
         }
+        null
       }
+      if (outcome == null) continue
+
+      // Una risposta finale vuota non e' mai un successo (2.8.0): prima diventava una bolla vuota
+      // salvata come DONE, tranne sul giro forzato.
+      val final = outcome.calls.isEmpty() || forceFinal
+      if (!final || !outcome.text.isNullOrBlank()) return outcome
+      val decision = failover.decideEmpty(outcome.finish, attempt.provider.provider.id, remaining(input, attempt), attempt.emptyRetries, budget.remainingMillis, pinned = input.pinProvider)
+      when (decision) {
+        FailoverDecision.RetrySame -> {
+          attempt.emptyRetries++
+          current = retryAfterEmpty(current, outcome.finish, attempt.provider)
+        }
+        is FailoverDecision.Switch -> switchProvider(decision.to, SwitchReason.EMPTY_ANSWER)
+        is FailoverDecision.Fail -> {
+          // Sul giro forzato dal budget il vuoto e' il tempo che e' finito, come prima della 2.8.0.
+          val kind = if (decision.kind == FailureKind.PROVIDER && forceFinal && budget.forceFinal) FailureKind.TIMEOUT else decision.kind
+          throw AssistantFailure(
+            kind,
+            null,
+            provider = attempt.provider.provider.id,
+            reason = if (kind == FailureKind.BLOCKED) null else SwitchReason.EMPTY_ANSWER,
+            switches = attempt.switches.toList(),
+          )
+        }
+        is FailoverDecision.Wait, FailoverDecision.TrimAndRetry -> error("decideEmpty non aspetta e non accorcia")
+      }
+    }
+  }
+
+  /**
+   * La riprova di una risposta vuota (2.8.0). Con la fine `LENGTH` il modello ha speso tutti i token
+   * a pensare (su Gemini il thinking conta nel tetto di uscita): si triplica il tetto, fin dove il
+   * catalogo dice che il modello arriva; se non si puo' salire, si pensa meno. Con `OTHER` (la
+   * chiamata malformata di Gemini) o `STOP` la stessa richiesta: e' un'estrazione andata male.
+   */
+  private fun retryAfterEmpty(request: ChatRequest, finish: FinishReason, ready: ReadyProvider): ChatRequest {
+    if (finish != FinishReason.LENGTH) return request
+    val tokens = request.maxOutputTokens ?: config.maxOutputTokens
+    val ceiling = ready.catalogue?.chat(request.model)?.maxOutputTokens
+    val raised = (tokens * 3).let { if (ceiling != null) minOf(it, ceiling) else it }
+    return when {
+      raised > tokens -> request.copy(maxOutputTokens = raised)
+      request.reasoning != ReasoningLevel.NONE -> request.copy(reasoning = if (request.reasoning == ReasoningLevel.LOW) ReasoningLevel.NONE else ReasoningLevel.LOW)
+      else -> request
     }
   }
 
@@ -835,8 +1041,23 @@ class AiOrchestrator<C>(
   }
 }
 
-/** La fine di una domanda che non ha risposta: la sessione la traduce in [AssistantState.Failed]. */
-class AssistantFailure(val kind: FailureKind, val error: AiError?, val retryAfterSec: Int? = null) : Exception(error?.message ?: kind.name)
+/** Sotto questo tetto un risultato di tool accorciato non dice piu' niente: e' il pavimento di [AiOrchestrator]'s trim. */
+private const val TRIMMED_TOOL_TEXT_MIN = 400
+
+/**
+ * La fine di una domanda che non ha risposta: la sessione la traduce in [AssistantState.Failed].
+ * Dalla 2.8.0 dice anche chi ha fallito per ultimo ([provider]), cosa gli e' successo ([reason]:
+ * un `tool_use_failed`, un modello sparito, una risposta vuota) e i cambi di servizio fatti prima
+ * ([switches]), per la frase della card e per il foglio "Dettagli".
+ */
+class AssistantFailure(
+  val kind: FailureKind,
+  val error: AiError?,
+  val retryAfterSec: Int? = null,
+  val provider: ProviderId? = null,
+  val reason: SwitchReason? = null,
+  val switches: List<ProviderSwitch> = emptyList(),
+) : Exception(error?.message ?: kind.name)
 
 /**
  * I marcatori `[[id]]` e `[[id:valore]]` in fondo alla risposta diventano chip; il testo mostrato

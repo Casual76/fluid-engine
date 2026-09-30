@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ai.orchestrator
 
+import dev.antigravity.fluidengine.ai.net.AiError
+import dev.antigravity.fluidengine.ai.net.BadReason
 import dev.antigravity.fluidengine.ai.net.RateLimitInfo
 import dev.antigravity.fluidengine.ai.provider.ModelTier
 import dev.antigravity.fluidengine.ai.provider.ProviderId
@@ -12,6 +14,52 @@ data class ToolTrace(val name: String, val millis: Long, val ok: Boolean, val ch
 
 /** Un modello che ha risposto davvero in una domanda (1.29.0): quale provider, a quale livello, quale modello. */
 data class ModelUse(val provider: ProviderId, val tier: ModelTier, val model: String)
+
+/**
+ * Cosa e' successo a un servizio, in termini che si dicono all'utente (2.8.0): perche' si e' passati
+ * a un altro ([ProviderSwitch]), o perche' la domanda e' finita li' (`AssistantFailure.reason`).
+ */
+enum class SwitchReason {
+  RATE_LIMITED,
+  SERVER,
+  TIMEOUT,
+  NETWORK,
+  TOOL_USE_FAILED,
+  MODEL_UNAVAILABLE,
+  CONTEXT_TOO_LONG,
+
+  /** Un 400 che non si sa leggere meglio. */
+  BAD_REQUEST,
+
+  /** Il modello ha chiuso senza scrivere niente (fine dei token, chiamata malformata). */
+  EMPTY_ANSWER,
+
+  /** Una risposta che non si capisce. */
+  PARSE,
+  ;
+
+  companion object {
+    /** Il perche' di un errore; null per quelli che non riguardano il servizio (chiave, contenuto bloccato, altro). */
+    fun of(error: Throwable?): SwitchReason? = when (error) {
+      is AiError.RateLimited -> RATE_LIMITED
+      is AiError.Server -> SERVER
+      is AiError.Timeout -> TIMEOUT
+      is AiError.Network -> NETWORK
+      is AiError.Parse -> PARSE
+      is AiError.BadRequest -> when (error.reason) {
+        BadReason.TOOL_USE_FAILED -> TOOL_USE_FAILED
+        BadReason.MODEL_UNAVAILABLE -> MODEL_UNAVAILABLE
+        BadReason.CONTEXT_TOO_LONG -> CONTEXT_TOO_LONG
+        BadReason.GENERIC -> BAD_REQUEST
+        BadReason.BLOCKED -> null
+      }
+      else -> null
+    }
+  }
+}
+
+/** Un cambio di servizio a meta' domanda (2.8.0): da chi, a chi, e perche'. */
+data class ProviderSwitch(val from: ProviderId, val to: ProviderId, val reason: SwitchReason)
 
 /** Una domanda intera, per la pagina Diagnostica: chi ha risposto, con cosa, quanto e' costata. */
 data class AiRequestLog(
@@ -42,6 +90,11 @@ data class AiRequestLog(
    * OpenRouter" li' si legge come "il profondo di OpenRouter". Qui no.
    */
   val modelsUsed: List<ModelUse> = emptyList(),
+  /**
+   * I cambi di servizio, in ordine e col loro perche' (2.8.0). [switchedTo] dice solo dove si e'
+   * andati; qui c'e' anche da dove e per cosa, che e' la frase che la card vuole dire.
+   */
+  val switches: List<ProviderSwitch> = emptyList(),
 )
 
 /** Le ultime dieci domande, in memoria: nessun contenuto sopravvive alla chiusura dell'app. */

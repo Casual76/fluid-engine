@@ -156,3 +156,21 @@ proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge`
   e livello. `models` resta com'era.
 - `OpenAiCompatProvider.optionalFields` toglie anche `temperature`, `top_p`, `tool_choice`,
   `max_completion_tokens` dopo un 400.
+
+## Dalla 2.8.0: i 400 si leggono, il failover si vede
+
+- `AiError.BadRequest.reason` (`BadReason`: `TOOL_USE_FAILED`, `MODEL_UNAVAILABLE`,
+  `CONTEXT_TOO_LONG`, `BLOCKED`, `GENERIC`); ogni `AiError` ha `httpCode` e `providerMessage` per un
+  foglio "Dettagli". `FailureKind` ha due valori nuovi in coda, `MODEL_UNAVAILABLE` e
+  `CONTEXT_TOO_LONG`: **un `when` esaustivo su `FailureKind` nell'app va completato**, come uno su
+  `FailoverDecision` (nuovo `TrimAndRetry`).
+- `AskInput.onModelUnavailable = { p, m -> scope.launch { verifier.markUnavailable(p, m) } }`: il
+  riallineamento dei modelli salvati quando un provider dice che uno non c'e' piu'.
+- Una risposta vuota non e' mai `Done`: riprova, riserva, poi `AssistantFailure(PROVIDER, reason =
+  EMPTY_ANSWER)`.
+- La card dice chi ha risposto e perche' si e' cambiato: `AssistantState.Done.switches` (da
+  `AskResult.log.switches`), `SwitchingProvider.reason`, `Failed.provider/reason` (da
+  `AssistantFailure`). L'app li passa quando costruisce gli stati.
+- Timeout per richiesta (`ChatRequest.readTimeoutMillis`, `AiOrchestratorConfig.readTimeoutFor`):
+  120 s se il modello pensa o col profondo, 45 s altrimenti, entro il budget.
+- `ProviderFactory(decorate = ...)` per un iniettore di guasti nelle build di debug.

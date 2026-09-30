@@ -75,6 +75,16 @@ fun Modifier.fluidPhysicsSurface(
   tintFrom: GlassTint? = null,
   tintBlend: () -> Float = { 1f },
   sampleOnce: Boolean = false,
+  /**
+   * Come in `glassSurface` (2.8.0): se c'e', la superficie registra anche *se stessa* — materiale,
+   * tinta, bordo — in quello stato, cosi' un'altra superficie la puo' rifrangere. Serve ai tasti
+   * tondi dentro una capsula che si trasforma: senza, rifrangevano la pagina sotto la capsula, cioe'
+   * un vetro che attraversa un altro vetro senza vederlo. Si abbina a `rememberCombinedGlassBackdrop`.
+   * Al tier [FluidPhysicsTier.Lite] non si registra niente, come il ripiego di `glassSurface`. La
+   * registrazione segue [intensity]; un alpha messo da fuori sul nodo no — e' la terza trappola del
+   * vetro in movimento: chi campiona vedrebbe il materiale a forza piena.
+   */
+  exports: GlassBackdropState? = null,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedTier = remember(tier) {
@@ -218,6 +228,7 @@ fun Modifier.fluidPhysicsSurface(
       highlight = null,
       shadow = null,
       innerShadow = null,
+      exportedBackdrop = exports?.layerBackdrop,
       onDrawSurface = onDrawSurface,
       onDrawFront = onDrawFront,
       backdropScale = glassResolutionScale(blurRadius.value * resolved.blurScale) *

@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ai.provider
 
 import dev.antigravity.fluidengine.ai.net.AiError
+import dev.antigravity.fluidengine.ai.net.AiErrorMapper
 import dev.antigravity.fluidengine.ai.net.RateLimitInfo
 import dev.antigravity.fluidengine.ai.net.asArray
 import dev.antigravity.fluidengine.ai.net.at
@@ -165,7 +166,7 @@ object OpenAiCompatCodec {
 
   /** Una risposta intera: il primo `choice`, il suo messaggio, la ragione, l'uso. */
   fun parseCompletion(body: JsonElement?, rateLimit: RateLimitInfo, provider: ProviderId): ChatTurn {
-    body["error"]?.let { throw AiError.Server(200, body["error"]["message"].string() ?: "errore del provider") }
+    body["error"]?.let { throw AiErrorMapper.inBandError(it, "errore del provider") }
     val choice = body["choices"].at(0) ?: throw AiError.Parse("nessun choice nella risposta")
     val message = choice["message"] ?: throw AiError.Parse("choice senza message")
     val calls = message["tool_calls"].asArray().mapIndexedNotNull { index, call ->
@@ -222,13 +223,13 @@ object OpenAiCompatCodec {
 
   /**
    * Un pezzo di stream -> i delta che contiene. Un `error` a stream gia' aperto (Groq lo fa) e un
-   * choice con `finish_reason: "error"` (OpenRouter) sono errori del server, non testo.
+   * choice con `finish_reason: "error"` (OpenRouter) sono errori, non testo: del server in generale,
+   * un [AiError.BadRequest] col suo perche' quando si sa leggere (2.8.0) — il `tool_use_failed` di
+   * Groq arriva proprio cosi', a stream aperto.
    */
   fun parseStreamChunk(payload: String, state: StreamState): List<ChatDelta> {
     val chunk = runCatching { Json.parseToJsonElement(payload) }.getOrElse { throw AiError.Parse("pezzo di stream non JSON", it) }
-    chunk["error"]?.let { error ->
-      throw AiError.Server(200, error["message"].string() ?: "errore del provider durante lo stream")
-    }
+    chunk["error"]?.let { error -> throw AiErrorMapper.inBandError(error, "errore del provider durante lo stream") }
     val deltas = mutableListOf<ChatDelta>()
     val choice = chunk["choices"].at(0)
     val delta = choice["delta"]
@@ -244,7 +245,7 @@ object OpenAiCompatCodec {
     (delta["reasoning_details"] as? JsonArray)?.let { state.reasoningDetails.addAll(it) }
     citations(delta).forEach { state.citations.putIfAbsent(it.url, it) }
     choice["finish_reason"].string()?.let { reason ->
-      if (reason == "error") throw AiError.Server(200, choice["error"]["message"].string() ?: "errore del provider durante lo stream")
+      if (reason == "error") throw AiErrorMapper.inBandError(choice["error"], "errore del provider durante lo stream")
       state.finish = reason
     }
     usage(chunk["usage"])?.let { state.usage = it }

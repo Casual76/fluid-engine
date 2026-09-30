@@ -18,8 +18,13 @@ enum class AskMode { VOICE, TEXT }
  */
 data class AnswerChip(val id: String, val value: String? = null)
 
-/** Perche' e' andata male, in termini che la UI sa tradurre in una frase. */
-enum class FailureKind { NO_KEYS, UNAUTHORIZED, RATE_LIMITED, NETWORK, TIMEOUT, BLOCKED, PROVIDER, MICROPHONE, TRANSCRIPTION, UNKNOWN }
+/**
+ * Perche' e' andata male, in termini che la UI sa tradurre in una frase. Dalla 2.8.0 anche
+ * [MODEL_UNAVAILABLE] (il modello scelto non c'e' piu' e non c'era un altro servizio a cui passare)
+ * e [CONTEXT_TOO_LONG] (la domanda non ci stava nemmeno con la storia accorciata): in coda, perche'
+ * un'app che avesse salvato un ordinale non ne veda cambiare nessuno.
+ */
+enum class FailureKind { NO_KEYS, UNAUTHORIZED, RATE_LIMITED, NETWORK, TIMEOUT, BLOCKED, PROVIDER, MICROPHONE, TRANSCRIPTION, UNKNOWN, MODEL_UNAVAILABLE, CONTEXT_TOO_LONG }
 
 /**
  * Un'azione che aspetta il si' dell'utente: solo le parole con cui mostrarla. L'oggetto vero
@@ -65,7 +70,8 @@ sealed interface AssistantState {
 
   data class WaitingRateLimit(val question: String, val provider: ProviderId, val secondsLeft: Int) : AssistantState
 
-  data class SwitchingProvider(val question: String, val from: ProviderId, val to: ProviderId) : AssistantState
+  /** Si passa a un altro servizio; [reason] dice perche' (2.8.0), cosi' la card puo' dirlo ("Groq e' al limite"). */
+  data class SwitchingProvider(val question: String, val from: ProviderId, val to: ProviderId, val reason: SwitchReason? = null) : AssistantState
 
   data class Answering(val question: String, val partial: String, val provider: ProviderId, val tier: ModelTier = ModelTier.CHAT) : AssistantState
 
@@ -82,9 +88,27 @@ sealed interface AssistantState {
     val toolsUsed: List<String>,
     val durationMillis: Long,
     val tierReached: ModelTier = ModelTier.CHAT,
+    /**
+     * I cambi di servizio di questa domanda, in ordine (2.8.0; da `AskResult.log.switches`): la card
+     * dice "Ha risposto Gemini: Groq era al limite" invece di cambiare nome in silenzio.
+     */
+    val switches: List<ProviderSwitch> = emptyList(),
   ) : AssistantState
 
-  data class Failed(val question: String?, val kind: FailureKind, val error: AiError?, val retryAfterSec: Int?, val partial: String?) : AssistantState
+  /**
+   * La domanda e' finita senza risposta. Dalla 2.8.0 [provider] e' il servizio che ha fallito per
+   * ultimo e [reason] cosa gli e' successo (da [AssistantFailure]): con [AiError.httpCode] e
+   * [AiError.providerMessage] sono la materia di un foglio "Dettagli".
+   */
+  data class Failed(
+    val question: String?,
+    val kind: FailureKind,
+    val error: AiError?,
+    val retryAfterSec: Int?,
+    val partial: String?,
+    val provider: ProviderId? = null,
+    val reason: SwitchReason? = null,
+  ) : AssistantState
 
   data class Cancelled(val question: String?, val partial: String?) : AssistantState
 

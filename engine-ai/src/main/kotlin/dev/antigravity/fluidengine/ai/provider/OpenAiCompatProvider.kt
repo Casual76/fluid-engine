@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.ai.provider
 import dev.antigravity.fluidengine.ai.net.AiError
 import dev.antigravity.fluidengine.ai.net.AiErrorMapper
 import dev.antigravity.fluidengine.ai.net.AiHttp
+import dev.antigravity.fluidengine.ai.net.BadReason
 import dev.antigravity.fluidengine.ai.net.RateLimitInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -73,14 +74,23 @@ abstract class OpenAiCompatProvider(
     var dropped = emptySet<String>()
     while (true) {
       try {
-        val response = http.postJson("$baseUrl/chat/completions", headers(), body(request, stream = false, dropped))
+        val response = http.postJson("$baseUrl/chat/completions", headers(), body(request, stream = false, dropped), request.readTimeoutMillis)
         return OpenAiCompatCodec.parseCompletion(response.body, response.rateLimit, id)
       } catch (e: AiError.BadRequest) {
-        val culprit = optionalFields.firstOrNull { it !in dropped && it in e.message.orEmpty().lowercase() }
-          ?: throw e
-        dropped = dropped + culprit
+        dropped = dropped + (culprit(e, dropped) ?: throw e)
       }
     }
+  }
+
+  /**
+   * Il campo opzionale che un 400 nomina, da togliere prima di riprovare. Mai per un
+   * `tool_use_failed` o un contenuto bloccato (2.8.0): il loro messaggio puo' citare per caso un
+   * parametro dello schema di un tool ("temperature"), e togliere quel campo non aggiusterebbe
+   * niente — costerebbe solo una richiesta e nasconderebbe l'errore vero.
+   */
+  private fun culprit(e: AiError.BadRequest, dropped: Set<String>): String? {
+    if (e.reason == BadReason.TOOL_USE_FAILED || e.reason == BadReason.BLOCKED) return null
+    return optionalFields.firstOrNull { it !in dropped && it in e.message.orEmpty().lowercase() }
   }
 
   override fun stream(request: ChatRequest): Flow<ChatDelta> = flow {
@@ -94,6 +104,7 @@ abstract class OpenAiCompatProvider(
           url = "$baseUrl/chat/completions",
           headers = headers(),
           body = body(request, stream = true, dropped),
+          chunkTimeoutMillis = request.readTimeoutMillis,
           onHeaders = { rateLimit = AiErrorMapper.parseRateLimit(it) },
         ).collect { payload ->
           started = true
@@ -104,9 +115,7 @@ abstract class OpenAiCompatProvider(
         return@flow
       } catch (e: AiError.BadRequest) {
         if (started) throw e
-        val culprit = optionalFields.firstOrNull { it !in dropped && it in e.message.orEmpty().lowercase() }
-          ?: throw e
-        dropped = dropped + culprit
+        dropped = dropped + (culprit(e, dropped) ?: throw e)
       }
     }
   }

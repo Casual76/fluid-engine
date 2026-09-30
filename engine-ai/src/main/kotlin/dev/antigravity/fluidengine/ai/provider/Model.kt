@@ -129,6 +129,14 @@ data class ChatRequest(
    */
   val webSearch: Boolean = false,
   val webSearchMaxResults: Int = 5,
+  /**
+   * La pazienza per questa richiesta (2.8.0): in streaming il silenzio massimo fra due pezzi,
+   * senza stream l'attesa massima della risposta intera. Null = i default di `AiHttp`.
+   * L'orchestratore la alza quando il modello pensa o lavora col livello profondo
+   * (`AiOrchestratorConfig.readTimeoutFor`): il thinking di Gemini puo' tacere oltre mezzo minuto
+   * prima del primo pezzo, e un timeout di trenta secondi lo scambiava per una connessione morta.
+   */
+  val readTimeoutMillis: Int? = null,
 ) {
   /** Vero se qualche messaggio porta un documento: OpenRouter allora vuole il plugin che li legge. */
   val hasDocuments: Boolean get() = messages.any { it is Message.User && it.parts.any { p -> p is ContentPart.Document } }

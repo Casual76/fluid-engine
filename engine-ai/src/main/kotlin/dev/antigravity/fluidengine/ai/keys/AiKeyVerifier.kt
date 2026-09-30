@@ -142,6 +142,34 @@ class AiKeyVerifier(
   /** L'ultimo `GET /key` di OpenRouter, per la scheda delle impostazioni. */
   val keyInfo: StateFlow<Map<ProviderId, OpenRouterKeyInfo>> = info
 
+  private val gone = MutableStateFlow<Map<ProviderId, Set<String>>>(emptyMap())
+
+  /**
+   * I modelli che un provider ha detto non disponibili in questo processo (2.8.0, da
+   * [markUnavailable]): [reconcile] li tratta come assenti dal catalogo.
+   */
+  val unavailable: StateFlow<Map<ProviderId, Set<String>>> = gone
+
+  /**
+   * Un provider ha risposto che [model] non c'e' (2.8.0): e' il gancio per
+   * `AskInput.onModelUnavailable`. Il modello si segna come assente e le scelte si riallineano
+   * subito sul catalogo salvato, cosi' la domanda dopo non ci ribatte contro.
+   *
+   * L'insieme vive **in memoria**, ed e' voluto: cio' che serve davvero sopravvivere e' il
+   * sostituto, e quello [reconcile] lo scrive nelle impostazioni come ogni altra scelta. Un catalogo
+   * a volte elenca per un giorno un modello gia' ritirato (quello di Groq si rinfresca una volta al
+   * giorno; Gemini elenca modelli che `generateContent` rifiuta): per quel giorno basta la memoria,
+   * e al riavvio l'impostazione salvata punta gia' altrove. Un modello tornato disponibile non resta
+   * escluso per sempre.
+   */
+  suspend fun markUnavailable(provider: ProviderId, model: String) {
+    val current = gone.value[provider].orEmpty()
+    if (model !in current) gone.value = gone.value + (provider to current + model)
+    catalogs.load(provider)?.let { reconcile(provider, it) }
+  }
+
+  private fun isUnavailable(provider: ProviderId, model: String?): Boolean = model != null && model in gone.value[provider].orEmpty()
+
   suspend fun verify(provider: ProviderId): VerifyResult {
     val client = providers.forVerification(provider) ?: return VerifyResult.Invalid
     return try {
@@ -181,22 +209,52 @@ class AiKeyVerifier(
    * il flash a pagamento; per Gemini l'ultimo flash e flash-lite; per il profondo
    * [TierDefaults.pickDeep]. Lo chiama anche [refreshIfStale]: cosi' un telefono con un modello
    * ritirato o sconsigliato si ripara al primo rinfresco, senza reinserire la chiave.
+   *
+   * Dalla 2.8.0 anche Groq, che prima non si riallineava mai: un modello di Groq ritirato restava
+   * la chat o il router finche' l'utente non lo cambiava a mano, e ogni domanda finiva in un 400.
+   * I suoi default sono scritti nel codice e non si salvano: si interviene solo quando il modello
+   * in uso — scelto o predefinito — non c'e' piu'. E i modelli segnati con [markUnavailable] valgono
+   * come assenti dal catalogo, per tutti e tre i provider.
    */
   suspend fun reconcile(provider: ProviderId, catalogue: ModelCatalogue) {
+    val usable = catalogue.copy(chat = catalogue.chat.filterNot { isUnavailable(provider, it.id) })
     if (provider == ProviderId.OPENROUTER) {
-      ensureChat(ProviderId.OPENROUTER, catalogue) { _ ->
-        val preferred = AiDefaults.OPENROUTER_CHAT_PREFERRED.firstNotNullOfOrNull { id -> catalogue.chat.firstOrNull { it.id == id && it.free && it.supportsTools } }
-        (preferred ?: OpenRouterCatalog.pickDefaultFree(catalogue))?.id
-          ?: catalogue.chat.firstOrNull { it.id == AiDefaults.OPENROUTER_CHAT_FALLBACK }?.id
-          ?: catalogue.chat.firstOrNull { !AiDefaults.avoided(it.id) }?.id
+      ensureChat(ProviderId.OPENROUTER, usable) { _ ->
+        val preferred = AiDefaults.OPENROUTER_CHAT_PREFERRED.firstNotNullOfOrNull { id -> usable.chat.firstOrNull { it.id == id && it.free && it.supportsTools } }
+        (preferred ?: OpenRouterCatalog.pickDefaultFree(usable))?.id
+          ?: usable.chat.firstOrNull { it.id == AiDefaults.OPENROUTER_CHAT_FALLBACK }?.id
+          ?: usable.chat.firstOrNull { !AiDefaults.avoided(it.id) }?.id
       }
-      ensureClassifier(ProviderId.OPENROUTER, catalogue) { ids -> AiDefaults.OPENROUTER_CLASSIFIER_PREFERRED.firstOrNull { it in ids } }
+      ensureClassifier(ProviderId.OPENROUTER, usable) { ids -> AiDefaults.OPENROUTER_CLASSIFIER_PREFERRED.firstOrNull { it in ids } }
     }
     if (provider == ProviderId.GEMINI) {
-      ensureChat(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash") }
-      ensureClassifier(ProviderId.GEMINI, catalogue) { ids -> AiDefaults.latestGemini(ids, "flash-lite") }
+      ensureChat(ProviderId.GEMINI, usable) { ids -> AiDefaults.latestGemini(ids, "flash") }
+      ensureClassifier(ProviderId.GEMINI, usable) { ids -> AiDefaults.latestGemini(ids, "flash-lite") }
     }
-    ensureDeepModel(provider, catalogue)
+    if (provider == ProviderId.GROQ) {
+      ensureChat(ProviderId.GROQ, usable, default = AiDefaults.GROQ_CHAT) { ids -> AiDefaults.GROQ_CHAT.takeIf { it in ids } ?: groqChat(usable) }
+      ensureClassifier(ProviderId.GROQ, usable, default = AiDefaults.GROQ_CLASSIFIER) { ids -> AiDefaults.GROQ_CLASSIFIER.takeIf { it in ids } ?: groqRouter(usable) }
+    }
+    ensureDeepModel(provider, usable)
+  }
+
+  /**
+   * La chat di Groq quando il default non c'e' piu': un modello con tool che non sia di quelli
+   * piccoli, che ragioni, col contesto piu' grande. Groq non ha gratuiti e a pagamento, e il suo
+   * catalogo non dice altro.
+   */
+  private fun groqChat(catalogue: ModelCatalogue): String? =
+    catalogue.chat.filter { it.supportsTools && !AiDefaults.avoided(it.id) }
+      .maxWithOrNull(compareBy<ModelInfo>({ !isSmall(it.id) }, { it.supportsReasoning }, { it.contextWindow ?: 0 }).thenByDescending { it.id })
+      ?.id
+
+  /** Il router di Groq quando il default non c'e' piu': il primo dei piccoli; nessuno = la chat fa anche da router. */
+  private fun groqRouter(catalogue: ModelCatalogue): String? =
+    catalogue.chat.filter { isSmall(it.id) && !AiDefaults.avoided(it.id) }.minByOrNull { it.id }?.id
+
+  private fun isSmall(id: String): Boolean {
+    val lower = id.lowercase()
+    return SMALL_HINTS.any { it in lower }
   }
 
   /**
@@ -211,34 +269,38 @@ class AiKeyVerifier(
 
   /**
    * La chat, se l'utente non l'ha scelta (o la sua scelta non vale piu'), segue [pick]: su Gemini
-   * l'ultimo flash. Una scelta ancora valida non si tocca.
+   * l'ultimo flash. Una scelta ancora valida non si tocca. Con un [default] (Groq, 2.8.0) vale
+   * anche lui: se nessuno ha scelto e il default e' nel catalogo, non si salva niente, cosi' il
+   * default resta quello del codice e cambia con l'engine.
    */
-  private suspend fun ensureChat(provider: ProviderId, catalogue: ModelCatalogue, pick: (List<String>) -> String?) {
+  private suspend fun ensureChat(provider: ProviderId, catalogue: ModelCatalogue, default: String? = null, pick: (List<String>) -> String?) {
     val current = settings.current().chatModels[provider]
-    if (valid(current, catalogue)) return
+    if (valid(current ?: default, catalogue)) return
     val picked = pick(catalogue.chat.map { it.id })
-    if (mustReplace(current, picked)) settings.setChatModel(provider, picked)
+    // Tornare al default vuol dire togliere la scelta, non scriverlo: resta quello del codice.
+    if (mustReplace(current, picked) || isUnavailable(provider, current)) settings.setChatModel(provider, picked.takeUnless { it == default })
   }
 
-  /** Il router come la chat: la scelta dell'utente vale finche' esiste, poi decide [pick]. */
-  private suspend fun ensureClassifier(provider: ProviderId, catalogue: ModelCatalogue, pick: (List<String>) -> String?) {
+  /** Il router come la chat: la scelta dell'utente (o il [default]) vale finche' esiste, poi decide [pick]. */
+  private suspend fun ensureClassifier(provider: ProviderId, catalogue: ModelCatalogue, default: String? = null, pick: (List<String>) -> String?) {
     val current = settings.current().classifierModels[provider]
-    if (valid(current, catalogue)) return
+    if (valid(current ?: default, catalogue)) return
     val picked = pick(catalogue.chat.map { it.id })
-    if (mustReplace(current, picked)) settings.setModel(provider, ModelTier.ROUTER, picked)
+    if (mustReplace(current, picked) || isUnavailable(provider, current)) settings.setModel(provider, ModelTier.ROUTER, picked.takeUnless { it == default })
   }
 
   /**
    * Il livello profondo non ha un default scritto nel codice: la prima volta, o se il modello
    * scelto non vale piu', lo sceglie l'euristica. Una scelta dell'utente ancora valida non si
    * tocca; una da evitare se ne va anche se l'euristica non trova niente (la chat fa da profondo).
+   * Cosi' un modello segnato non disponibile (2.8.0): il profondo ha sempre il ripiego della chat.
    */
   private suspend fun ensureDeepModel(provider: ProviderId, catalogue: ModelCatalogue) {
     val current = settings.current()
     val chosen = current.deepModels[provider]
     if (valid(chosen, catalogue)) return
     val picked = TierDefaults.pickDeep(provider, catalogue, current.chatModel(provider))?.id
-    if (mustReplace(chosen, picked)) settings.setDeepModel(provider, picked)
+    if (mustReplace(chosen, picked) || isUnavailable(provider, chosen)) settings.setDeepModel(provider, picked)
   }
 
   /**
@@ -276,5 +338,8 @@ class AiKeyVerifier(
 
   companion object {
     const val DAY_MILLIS = 24 * 3_600_000L
+
+    /** Come si riconosce nel nome un modello piccolo e svelto: buono da router, non da chat. */
+    private val SMALL_HINTS = listOf("instant", "8b", "mini", "nano", "lite", "1b", "3b")
   }
 }

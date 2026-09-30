@@ -43,6 +43,16 @@ class ProviderFactory(
   private val appTitle: String,
   /** I cataloghi salvati, per sapere cosa vede e cosa legge ogni modello; opzionale. */
   private val catalogs: ModelCatalogStore? = null,
+  /**
+   * Un involucro attorno a ogni client costruito qui (2.8.0), per la chat come per la verifica:
+   * [ReadyProvider.provider] e' quello che torna da qui. Esiste per le build di debug, che ci
+   * mettono un iniettore di guasti (un 400 `tool_use_failed`, un 404 da modello ritirato, un 413,
+   * un 429, uno stream che tace) per vedere sul telefono vero il failover e il foglio "Dettagli"
+   * senza aspettare che un provider sbagli davvero. Il default non cambia niente. Un involucro
+   * nasconde il tipo concreto: con lui attivo `AiKeyVerifier` non legge i crediti di OpenRouter
+   * (`keyInfo` resta vuoto), e va bene cosi' per una build di prova.
+   */
+  private val decorate: (ChatProvider) -> ChatProvider = { it },
 ) {
 
   enum class Kind { CHAT, STT }
@@ -50,7 +60,7 @@ class ProviderFactory(
   suspend fun build(provider: ProviderId, settings: AiSettings): ReadyProvider? {
     val key = keys.key(provider) ?: return null
     val chat = settings.chatModel(provider) ?: if (provider == ProviderId.OPENROUTER) AiDefaults.OPENROUTER_CHAT_FALLBACK else return null
-    val client: ChatProvider = when (provider) {
+    val built: ChatProvider = when (provider) {
       ProviderId.GROQ -> GroqProvider(http, key)
       ProviderId.GEMINI -> GeminiProvider(http, key)
       ProviderId.OPENROUTER -> OpenRouterProvider(
@@ -62,6 +72,7 @@ class ProviderFactory(
         dataPolicy = settings.openRouterDataPolicy,
       )
     }
+    val client = decorate(built)
     return ReadyProvider(
       provider = client,
       chatModel = chat,

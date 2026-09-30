@@ -36,19 +36,29 @@ class AiResponse(
  * `readLine()` non vede la cancellazione, e una socket non si interrompe — l'unico modo affidabile
  * di fermare una lettura e' `disconnect()` da un altro thread, che fa fallire la `readLine()`.
  * `awaitClose` fa esattamente quello quando chi raccoglie il flusso se ne va.
+ *
+ * I timeout di lettura del costruttore sono i default; dalla 2.8.0 una richiesta puo' portare il
+ * suo (`readTimeoutMillis` / `chunkTimeoutMillis`), perche' la pazienza giusta dipende da cosa si
+ * chiede: un modello che pensa tace anche per un minuto prima del primo pezzo, e con un solo numero
+ * per tutti o si aspettava troppo un server morto o si uccideva un pensiero a meta'.
  */
 class AiHttp(
   private val userAgent: String,
   private val connectTimeoutMillis: Int = 10_000,
   private val readTimeoutMillis: Int = 60_000,
-  /** Per lettura, in streaming: il thinking puo' tacere per un po', ma non per mezzo minuto. */
-  private val streamChunkTimeoutMillis: Int = 30_000,
+  /**
+   * Per lettura, in streaming, quando la richiesta non dice altro. 45 secondi (erano 30): il
+   * thinking di Gemini tace anche piu' di mezzo minuto, e chi sa che si pensera' a lungo passa il
+   * suo numero con la richiesta.
+   */
+  private val streamChunkTimeoutMillis: Int = 45_000,
   private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
-  suspend fun postJson(url: String, headers: Map<String, String>, body: JsonObject): AiResponse =
+  /** [readTimeoutMillis]: l'attesa massima della risposta per questa richiesta; null = il default del client. */
+  suspend fun postJson(url: String, headers: Map<String, String>, body: JsonObject, readTimeoutMillis: Int? = null): AiResponse =
     withContext(io) {
-      val connection = open(url, "POST", headers, streaming = false)
+      val connection = open(url, "POST", headers, streaming = false, readTimeoutOverride = readTimeoutMillis)
       try {
         writeJson(connection, body)
         readResponse(connection)
@@ -107,10 +117,12 @@ class AiHttp(
     url: String,
     headers: Map<String, String>,
     body: JsonObject,
+    /** Il silenzio massimo fra due righe dello stream, per questa richiesta; null = il default del client. */
+    chunkTimeoutMillis: Int? = null,
     /** Gli header della risposta 2xx (minuscoli), appena arrivano: i limiti stanno li'. */
     onHeaders: (Map<String, String>) -> Unit = {},
   ): Flow<String> = callbackFlow {
-    val connection = open(url, "POST", headers, streaming = true)
+    val connection = open(url, "POST", headers, streaming = true, readTimeoutOverride = chunkTimeoutMillis)
     val reader = launch(io) {
       try {
         writeJson(connection, body)
@@ -141,11 +153,17 @@ class AiHttp(
     }
   }
 
-  private fun open(url: String, method: String, headers: Map<String, String>, streaming: Boolean): HttpURLConnection =
+  private fun open(
+    url: String,
+    method: String,
+    headers: Map<String, String>,
+    streaming: Boolean,
+    readTimeoutOverride: Int? = null,
+  ): HttpURLConnection =
     (URL(url).openConnection() as HttpURLConnection).apply {
       requestMethod = method
       connectTimeout = connectTimeoutMillis
-      readTimeout = if (streaming) streamChunkTimeoutMillis else readTimeoutMillis
+      readTimeout = readTimeoutOverride?.takeIf { it > 0 } ?: if (streaming) streamChunkTimeoutMillis else readTimeoutMillis
       // Mai ri-inviare un corpo con Authorization dietro a un redirect.
       instanceFollowRedirects = false
       useCaches = false

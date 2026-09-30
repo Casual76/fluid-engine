@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ai.provider
 
 import dev.antigravity.fluidengine.ai.net.AiError
 import dev.antigravity.fluidengine.ai.net.AiErrorMapper
+import dev.antigravity.fluidengine.ai.net.BadReason
 import dev.antigravity.fluidengine.ai.net.AiHttp
 import dev.antigravity.fluidengine.ai.net.RateLimitInfo
 import dev.antigravity.fluidengine.ai.net.asArray
@@ -42,7 +43,7 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
     var fallbacks = emptySet<Fallback>()
     while (true) {
       try {
-        val response = http.postJson(url(request.model, "generateContent"), headers(), body(request, fallbacks))
+        val response = http.postJson(url(request.model, "generateContent"), headers(), body(request, fallbacks), request.readTimeoutMillis)
         return GeminiCodec.parseResponse(response.body, response.rateLimit)
       } catch (e: AiError.BadRequest) {
         fallbacks = nextFallback(e, fallbacks) ?: throw e
@@ -61,6 +62,7 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
           url = url(request.model, "streamGenerateContent") + "?alt=sse",
           headers = headers(),
           body = body(request, fallbacks),
+          chunkTimeoutMillis = request.readTimeoutMillis,
           onHeaders = { rateLimit = AiErrorMapper.parseRateLimit(it) },
         ).collect { payload ->
           started = true
@@ -76,7 +78,12 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
     }
   }
 
+  /**
+   * Solo per i rifiuti generici: un modello sparito il cui nome contiene "thinking", o un contesto
+   * troppo lungo, non si aggiustano togliendo il thinking — si riproverebbe due volte per niente.
+   */
   private fun nextFallback(e: AiError.BadRequest, current: Set<Fallback>): Set<Fallback>? {
+    if (e.reason != BadReason.GENERIC) return null
     val message = e.message.orEmpty().lowercase()
     return when {
       "thinking" in message && Fallback.THINKING_LOW !in current -> current + Fallback.THINKING_LOW
@@ -336,7 +343,8 @@ object GeminiCodec {
   }
 
   fun parseResponse(body: JsonElement?, rateLimit: RateLimitInfo): ChatTurn {
-    body["promptFeedback"]["blockReason"].string()?.let { throw AiError.BadRequest(200, "bloccato: $it") }
+    body["error"]?.let { throw AiErrorMapper.inBandError(it, "errore Gemini") }
+    body["promptFeedback"]["blockReason"].string()?.let { throw AiError.BadRequest(200, "bloccato: $it", BadReason.BLOCKED) }
     val candidate = body["candidates"].at(0) ?: throw AiError.Parse("nessun candidato nella risposta")
     val parts = candidate["content"]["parts"].asArray().filter { it["thought"].string()?.toBooleanStrictOrNull() != true }
     val text = parts.mapNotNull { it["text"].string() }.joinToString("").takeIf { it.isNotEmpty() }
@@ -351,8 +359,11 @@ object GeminiCodec {
       )
     }
     val reason = candidate["finishReason"].string()
+    // Una chiamata malformata e' una risposta vuota con la ragione OTHER: e' l'orchestratore a
+    // riprovarla (2.8.0). Prima qui c'era una frase segnaposto, che sulla riprova senza stream
+    // diventava la risposta mostrata all'utente.
     val assistant = if (reason == "MALFORMED_FUNCTION_CALL") {
-      Message.Assistant(text = "(chiamata malformata, riprovo)", toolCalls = emptyList())
+      Message.Assistant(text = null, toolCalls = emptyList())
     } else {
       Message.Assistant(text, calls, raw = JsonArray(parts), rawProvider = ProviderId.GEMINI)
     }
@@ -387,8 +398,8 @@ object GeminiCodec {
 
   fun parseStreamChunk(payload: String, state: StreamState): List<ChatDelta> {
     val chunk = runCatching { Json.parseToJsonElement(payload) }.getOrElse { throw AiError.Parse("pezzo di stream non JSON", it) }
-    chunk["error"]?.let { throw AiError.Server(200, it["message"].string() ?: "errore Gemini durante lo stream") }
-    chunk["promptFeedback"]["blockReason"].string()?.let { throw AiError.BadRequest(200, "bloccato: $it") }
+    chunk["error"]?.let { throw AiErrorMapper.inBandError(it, "errore Gemini durante lo stream") }
+    chunk["promptFeedback"]["blockReason"].string()?.let { throw AiError.BadRequest(200, "bloccato: $it", BadReason.BLOCKED) }
     val deltas = mutableListOf<ChatDelta>()
     val candidate = chunk["candidates"].at(0)
     candidate["content"]["parts"].asArray().forEach { part ->

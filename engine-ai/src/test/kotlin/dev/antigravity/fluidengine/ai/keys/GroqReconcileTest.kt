@@ -108,6 +108,34 @@ class GroqReconcileTest {
     assertEquals(gptOss, settings.current().chatModel(ProviderId.GROQ))
   }
 
+  /**
+   * Il catalogo che Groq dava davvero a una chiave il 2026-09-30: il router di default
+   * (`llama-3.1-8b-instant`) non c'e' piu', e nessun modello ha un nome da "piccolo". Prima nessuna
+   * scelta veniva salvata, il default sparito restava in uso, e ogni domanda cominciava con un 404
+   * del router.
+   */
+  @Test
+  fun `il router di default sparito senza piccoli nel catalogo prende gpt-oss-20b`() = runBlocking {
+    val (verifier, settings) = fixture()
+    val catalogue = ModelCatalogue(
+      chat = listOf(model(AiDefaults.GROQ_CHAT, reasoning = true), model(gptOss, reasoning = true), model("openai/gpt-oss-20b", reasoning = true), model("allam-2-7b", ctx = 4_096)),
+      stt = emptyList(),
+    )
+    verifier.reconcile(ProviderId.GROQ, catalogue)
+    assertEquals("openai/gpt-oss-20b", settings.current().classifierModel(ProviderId.GROQ))
+    // Stabile: al giro dopo non cambia.
+    verifier.reconcile(ProviderId.GROQ, catalogue)
+    assertEquals("openai/gpt-oss-20b", settings.current().classifierModel(ProviderId.GROQ))
+  }
+
+  @Test
+  fun `senza nessun candidato il router lo fa la chat, non il default sparito`() = runBlocking {
+    val (verifier, settings) = fixture()
+    val catalogue = ModelCatalogue(chat = listOf(model(AiDefaults.GROQ_CHAT, reasoning = true)), stt = emptyList())
+    verifier.reconcile(ProviderId.GROQ, catalogue)
+    assertEquals(AiDefaults.GROQ_CHAT, settings.current().classifierModel(ProviderId.GROQ))
+  }
+
   @Test
   fun `un profondo segnato non disponibile se ne va anche senza un sostituto`() = runBlocking {
     val (verifier, settings, catalogs) = fixture()

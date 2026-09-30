@@ -249,8 +249,15 @@ class AiKeyVerifier(
       ?.id
 
   /** Il router di Groq quando il default non c'e' piu': il primo dei piccoli; nessuno = la chat fa anche da router. */
+  /**
+   * Il router di Groq quando il default non c'e': il primo dei piccoli, poi quelli noti per fare
+   * bene da router anche senza un nome da piccolo ([GROQ_ROUTER_FALLBACKS]). Non "il piu' piccolo
+   * del catalogo" a qualunque costo: `allam-2-7b` e' piccolo ma e' un modello per l'arabo, con 4k
+   * di contesto, e un router in italiano non lo vuole.
+   */
   private fun groqRouter(catalogue: ModelCatalogue): String? =
     catalogue.chat.filter { isSmall(it.id) && !AiDefaults.avoided(it.id) }.minByOrNull { it.id }?.id
+      ?: GROQ_ROUTER_FALLBACKS.firstOrNull { id -> catalogue.chat.any { it.id == id } && !AiDefaults.avoided(id) }
 
   private fun isSmall(id: String): Boolean {
     val lower = id.lowercase()
@@ -283,10 +290,20 @@ class AiKeyVerifier(
 
   /** Il router come la chat: la scelta dell'utente (o il [default]) vale finche' esiste, poi decide [pick]. */
   private suspend fun ensureClassifier(provider: ProviderId, catalogue: ModelCatalogue, default: String? = null, pick: (List<String>) -> String?) {
-    val current = settings.current().classifierModels[provider]
-    if (valid(current ?: default, catalogue)) return
+    val now = settings.current()
+    val current = now.classifierModels[provider]
+    val effective = current ?: default
+    if (valid(effective, catalogue)) return
     val picked = pick(catalogue.chat.map { it.id })
-    if (mustReplace(current, picked) || isUnavailable(provider, current)) settings.setModel(provider, ModelTier.ROUTER, picked.takeUnless { it == default })
+    when {
+      mustReplace(current, picked) || isUnavailable(provider, current) -> settings.setModel(provider, ModelTier.ROUTER, picked.takeUnless { it == default })
+      // Nessuno ha scelto, il default non c'e' piu' e [pick] non trova niente (2.8.1): il router lo
+      // fa la chat. Prima non si salvava niente, il default sparito restava in uso e ogni domanda
+      // cominciava con un 404 del router — con il catalogo vero di Groq del 2026-09-30, senza piu'
+      // nessun modello dal nome "piccolo". Solo per il default: una scelta dell'utente sparita dal
+      // catalogo resta, come prima (i modelli gratuiti di OpenRouter vanno e vengono).
+      current == null && effective != null -> now.chatModel(provider)?.takeIf { valid(it, catalogue) }?.let { settings.setModel(provider, ModelTier.ROUTER, it) }
+    }
   }
 
   /**
@@ -341,5 +358,8 @@ class AiKeyVerifier(
 
     /** Come si riconosce nel nome un modello piccolo e svelto: buono da router, non da chat. */
     private val SMALL_HINTS = listOf("instant", "8b", "mini", "nano", "lite", "1b", "3b")
+
+    /** Router di Groq di riserva, in ordine: modelli piccoli di fatto, anche se il nome non lo dice. */
+    private val GROQ_ROUTER_FALLBACKS = listOf("openai/gpt-oss-20b")
   }
 }

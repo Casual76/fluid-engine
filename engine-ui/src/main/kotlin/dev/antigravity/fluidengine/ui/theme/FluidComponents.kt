@@ -104,6 +104,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -962,7 +963,6 @@ fun FluidListDivider(modifier: Modifier = Modifier) {
 }
 
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FluidListRow(
   title: String,
@@ -972,6 +972,64 @@ fun FluidListRow(
   meta: String? = null,
   tone: FluidTone = FluidTone.Neutral,
   badge: (@Composable () -> Unit)? = null,
+  labels: (@Composable () -> Unit)? = null,
+  titleMaxLines: Int = Int.MAX_VALUE,
+  leading: (@Composable () -> Unit)? = null,
+  onClick: (() -> Unit)? = null,
+  onLongClick: (() -> Unit)? = null,
+  contextActions: (() -> List<FluidContextAction>)? = null,
+  animatePress: Boolean = true,
+  animateContent: Boolean = false,
+  selected: Boolean = false,
+  disclosure: Boolean = true,
+) {
+  FluidListRow(
+    title = AnnotatedString(title),
+    subtitle = subtitle,
+    modifier = modifier,
+    eyebrow = eyebrow,
+    meta = meta,
+    tone = tone,
+    badge = badge,
+    labels = labels,
+    titleMaxLines = titleMaxLines,
+    leading = leading,
+    onClick = onClick,
+    onLongClick = onLongClick,
+    contextActions = contextActions,
+    animatePress = animatePress,
+    animateContent = animateContent,
+    selected = selected,
+    disclosure = disclosure,
+  )
+}
+
+/**
+ * La riga di un gruppo, con un titolo che puo' portare stili propri — per esempio le parole che
+ * sono cambiate dall'ultima volta.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FluidListRow(
+  title: AnnotatedString,
+  subtitle: String,
+  modifier: Modifier = Modifier,
+  eyebrow: String? = null,
+  meta: String? = null,
+  tone: FluidTone = FluidTone.Neutral,
+  /**
+   * Quello che sta a destra, accanto alla freccia: un valore, un interruttore, un tasto. Prende la
+   * sua larghezza per primo, quindi va tenuto stretto — per le pillole di stato c'e' [labels].
+   */
+  badge: (@Composable () -> Unit)? = null,
+  /**
+   * Le pillole di stato della riga ("Compito", "Nuova", "Firmata"). Stanno accanto al titolo quando
+   * c'e' posto e vanno sotto quando ruberebbero la riga: nel [badge] due pillole e la freccia
+   * lasciavano al titolo una colonna di sillabe.
+   */
+  labels: (@Composable () -> Unit)? = null,
+  /** Oltre queste righe il titolo finisce con i puntini; il testo intero sta nel dettaglio. */
+  titleMaxLines: Int = Int.MAX_VALUE,
   leading: (@Composable () -> Unit)? = null,
   onClick: (() -> Unit)? = null,
   onLongClick: (() -> Unit)? = null,
@@ -1052,11 +1110,7 @@ fun FluidListRow(
         }
       },
       headlineContent = {
-        Text(
-          text = title,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.SemiBold,
-        )
+        FluidRowHeadline(title = title, maxLines = titleMaxLines, labels = labels)
       },
       // Un sottotitolo vuoto non e' una riga vuota: occupava comunque l'altezza di una riga di
       // testo, e una voce con solo il titolo sembrava avere un buco sotto.

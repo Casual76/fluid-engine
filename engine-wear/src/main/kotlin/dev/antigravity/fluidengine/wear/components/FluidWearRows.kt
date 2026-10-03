@@ -14,8 +14,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.LocalContentColor
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
@@ -37,6 +44,9 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  * scale, and the leading tile carries the shape so the eye still finds an edge.
  *
  * @param leading the 40 dp tile at the start: a cover, an icon tile. Clipped to a continuous corner.
+ * @param selected the row that is the current one — the song playing in a queue, the device the
+ *   sound comes out of: its title takes the accent and, with no [trailing] of its own, a check.
+ *   Since 2.11.0.
  */
 @Composable
 fun FluidWearListRow(
@@ -47,6 +57,7 @@ fun FluidWearListRow(
   onLongClick: (() -> Unit)? = null,
   leading: (@Composable () -> Unit)? = null,
   trailing: (@Composable RowScope.() -> Unit)? = null,
+  selected: Boolean = false,
 ) {
   Row(
     modifier = modifier
@@ -68,6 +79,7 @@ fun FluidWearListRow(
       Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
       )
@@ -81,8 +93,35 @@ fun FluidWearListRow(
         )
       }
     }
-    trailing?.invoke(this)
+    when {
+      trailing != null -> trailing.invoke(this)
+      selected -> Icon(
+        imageVector = SelectedCheck,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(FluidWearDimens.IconSmall),
+      )
+    }
   }
+}
+
+/** A plain check mark, drawn here so the engine needs no icon set. */
+private val SelectedCheck: ImageVector by lazy {
+  ImageVector.Builder(
+    name = "FluidSelectedCheck",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f,
+  ).apply {
+    addPath(
+      pathData = PathParser().parsePathString("M4.5,12.5 L9.5,17.5 L19.5,6.5").toNodes(),
+      stroke = SolidColor(Color.Black),
+      strokeLineWidth = 2.4f,
+      strokeLineCap = StrokeCap.Round,
+      strokeLineJoin = StrokeJoin.Round,
+    )
+  }.build()
 }
 
 /**

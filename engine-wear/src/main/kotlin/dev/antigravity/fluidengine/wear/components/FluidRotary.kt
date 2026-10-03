@@ -3,16 +3,14 @@ package dev.antigravity.fluidengine.wear.components
 import android.content.Context
 import androidx.compose.foundation.focusable
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.foundation.requestFocusOnHierarchyActive
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 
@@ -40,8 +38,8 @@ fun Modifier.fluidRotarySteps(
   val lowRes = remember(context) { hasLowResRotary(context) }
   val accumulator = remember { RotaryAccumulator(stepPx, lowRes) }
   val callback = rememberUpdatedState(onSteps)
-  val focus = remember { FocusRequester() }
-  LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+  // Focus follows Wear's hierarchy rather than being grabbed: on a pager the page in front takes
+  // the bezel and the ones beside it let go, which a plain requestFocus() would fight.
   return this
     .onRotaryScrollEvent { event ->
       val steps = accumulator.add(event.verticalScrollPixels)
@@ -51,7 +49,7 @@ fun Modifier.fluidRotarySteps(
       }
       true
     }
-    .focusRequester(focus)
+    .requestFocusOnHierarchyActive()
     .focusable()
 }
 

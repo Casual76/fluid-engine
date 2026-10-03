@@ -6,6 +6,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.10.0 - 2026-10-03
+
+- wear: nuovo modulo `engine-wear`, opt-in (`engine-install.ps1 -Modules ...,engine-wear`): il design system su Wear OS. `FluidWearTheme` mette `FluidTheme` fuori e Material 3 per Wear dentro, con schema colori, tipografia Inter e forme continue ricavati dagli stessi token; `FluidWearDimens`; `FluidGlassDisc` (il controllo rotondo di vetro) con `FluidGlassBurst` (un anello di luce dal punto toccato, disegnato sopra il vetro senza ricatture); `FluidGlassCapsule`; `FluidEdgeProgressRing`, che si ridisegna solo quando l'arco si sposta di mezzo pixel; `FluidArcRow`; `Modifier.fluidRotarySteps` per ghiera a scatti e corona continua; `FluidWearListRow`, `FluidWearPill`; `rememberFluidAmbientState`, `LocalFluidWearAmbient`, `Modifier.fluidBurnInShift`. Wear Compose Material 3 1.6.2: la 1.7 richiede AGP 9.1. Documentazione in `docs/09-wear.md`.
+- ui: una lastra di vetro ricattura lo sfondo solo se si e' spostata **rispetto** a lui. Prima contava anche la posizione assoluta, e uno swipe di pagina, in cui pagina e lastre si muovono insieme, faceva ricalcolare ogni lastra a ogni fotogramma per un'immagine identica.
+- ui: `glassSurface` e `glassControlSurface` accettano `frozen` e `heldWhileMoving`; `GlassTouchHighlight.isAnimating` e `GlassDragAnimation.isAnimating`; `GlassDefaults.isDarkSurface()` e' pubblico; `FluidGlassDiagnostics` conta le ricatture in una build di debug, per verificare su un dispositivo che a schermo fermo il vetro non lavori.
+- update: `AndroidAppUpdateInstaller.download()` e `installFile()` separati da `install()`, che resta identico: un telefono puo' scaricare l'APK del suo orologio senza installarlo, e un orologio installare un APK ricevuto. `sha256` facoltativo nel manifest (`AppRelease`, `AvailableAppUpdate`), verificato quando c'e'.
+- install: `engine-wear` non entra piu' nel default "tutti i moduli".
+
+
 ## 2.9.0 - 2026-09-30
 
 - ai: un 400 non e' piu' "il servizio ha risposto con un errore". `AiError.BadRequest.reason` (`BadReason`: TOOL_USE_FAILED, MODEL_UNAVAILABLE, CONTEXT_TOO_LONG, BLOCKED, GENERIC) letto da codice e corpo dei tre provider, anche dentro uno stream aperto; ogni `AiError` ha `httpCode` e `providerMessage` (corto, senza chiavi) per un foglio "Dettagli". Un 413 e' CONTEXT_TOO_LONG, la moderazione di OpenRouter e' BLOCKED.

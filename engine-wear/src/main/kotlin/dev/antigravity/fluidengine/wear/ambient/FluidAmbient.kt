@@ -46,6 +46,17 @@ class FluidAmbientState internal constructor() {
   companion object {
     /** A state that is never ambient: previews, tests, phone-sized hosts. */
     fun interactive(): FluidAmbientState = FluidAmbientState()
+
+    /** A fixed state for previews and screenshot tests, which have no activity to observe. */
+    fun preview(
+      isAmbient: Boolean,
+      burnInProtectionRequired: Boolean = false,
+      lowBitAmbient: Boolean = false,
+    ): FluidAmbientState = FluidAmbientState().also {
+      it.isAmbient = isAmbient
+      it.burnInProtectionRequired = burnInProtectionRequired
+      it.lowBitAmbient = lowBitAmbient
+    }
   }
 }
 

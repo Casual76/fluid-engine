@@ -6,7 +6,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
-## Non rilasciato (2.11.0)
+## 2.11.0 - 2026-10-03
 
 - wear: un solo vetro per l'orologio. `FluidWearGlass` (`Optics`, `WideOptics`, `tint()`, `pageTint()`): un velo fumé con un sesto dell'accento, lo stesso filo e la stessa lente per capsula, dischi, orologio, volume e pillole. Prima la capsula era il velo nero del ruolo Floating e i dischi la pellicola grigia dei controlli, e sul polso sembravano due materiali. `FluidGlassDisc` e `FluidGlassCapsule` lo usano di default (cambia l'aspetto, non l'API); niente dispersione.
 - wear: `FluidGlassDisc` non spara piu' `FluidGlassBurst` a ogni pressione (`burst` ora e' facoltativo, `null` di default): sul dispositivo una fila di dischi che esplodono sembrava un difetto. La pressione e' quella del vetro (rigonfiamento, inclinazione, punto luce). Il glifo di un disco disabilitato si attenua.

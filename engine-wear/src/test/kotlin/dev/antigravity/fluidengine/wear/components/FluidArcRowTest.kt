@@ -38,4 +38,11 @@ class FluidArcRowTest {
     assertEquals(100f, x, 1e-3f)
     assertEquals(150f, y, 1e-3f)
   }
+
+  @Test
+  fun huggingKeepsTheOuterSideClearOfTheEdge() {
+    // 120 px screen radius, 12 px clearance, a 50 px disc: its centre at 120 - 12 - 25.
+    assertEquals(83f, huggingRadius(120f, 12f, 50f), 1e-4f)
+    assertEquals(0f, huggingRadius(20f, 12f, 50f), 0f)
+  }
 }

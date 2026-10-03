@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## Non rilasciato (2.11.0)
+
+- wear: un solo vetro per l'orologio. `FluidWearGlass` (`Optics`, `WideOptics`, `tint()`, `pageTint()`): un velo fumé con un sesto dell'accento, lo stesso filo e la stessa lente per capsula, dischi, orologio, volume e pillole. Prima la capsula era il velo nero del ruolo Floating e i dischi la pellicola grigia dei controlli, e sul polso sembravano due materiali. `FluidGlassDisc` e `FluidGlassCapsule` lo usano di default (cambia l'aspetto, non l'API); niente dispersione.
+- wear: `FluidGlassDisc` non spara piu' `FluidGlassBurst` a ogni pressione (`burst` ora e' facoltativo, `null` di default): sul dispositivo una fila di dischi che esplodono sembrava un difetto. La pressione e' quella del vetro (rigonfiamento, inclinazione, punto luce). Il glifo di un disco disabilitato si attenua.
+- wear: `FluidEdgeProgressRing(clearTop, glow, head)`: varco a mezzogiorno per l'orologio, alone che cresce verso l'interno col riempimento (gradiente radiale, l'inizio sfuma con una maschera a spazzata) e testa luminosa; default invariati. `FluidEdgeGlowRing` lo preimposta sul bordo vero dello schermo. `FluidEdgeLevelArc`: un livello (volume) con lo stesso tratto sul bordo.
+- wear: `FluidGlassTimePill` (l'ora in una capsula di vetro sopra una copertina), `FluidGlassBadge` (un disco di vetro non premibile, per un segno che compare e svanisce), `FluidWearAccent` + `liftForBlack` (accento preso da una copertina, alzato finche' si legge sul nero, per entrambi i temi).
+- wear: `FluidArcRow(edgeClearance)`: i figli stanno a quella distanza dal bordo qualunque sia lo schermo. `FluidWearDimens`: `DiscArc` (50 dp), `TransportGap`, `ArcEdgeClearance`, `IconLarge/Medium/Small`, `EdgeRingStroke/Glow/ClockMargin`, `TimePill*`.
+
 ## 2.10.1 - 2026-10-03
 
 - wear: `Modifier.fluidRotarySteps` prende la ghiera con `requestFocusOnHierarchyActive()` invece di un `requestFocus()` all'avvio: in un pager la pagina accanto, composta in anticipo, poteva rubare la ghiera a quella in primo piano.

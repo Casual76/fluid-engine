@@ -3,7 +3,9 @@ package dev.antigravity.fluidengine.wear.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Dp
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -21,6 +23,10 @@ import kotlin.math.sin
  * @param centerAngle where the middle of the row sits, in degrees, clockwise from three o'clock:
  *   90 is the bottom of the screen, 270 the top.
  * @param spacing degrees between neighbouring children.
+ * @param edgeClearance when set, [radiusFraction] is ignored and each child sits as close to the
+ *   edge of the screen as this allows: its outer side this far in from the bezel, whatever the
+ *   screen's size. That is what keeps a row of thumb-sized discs clear of the transport on a
+ *   192 dp watch and still hugging the bezel on a 240 dp one. Since 2.11.0.
  */
 @Composable
 fun FluidArcRow(
@@ -28,6 +34,7 @@ fun FluidArcRow(
   radiusFraction: Float = DefaultArcRadiusFraction,
   centerAngle: Float = 90f,
   spacing: Float = 45f,
+  edgeClearance: Dp? = null,
   content: @Composable () -> Unit,
 ) {
   Layout(content = content, modifier = modifier) { measurables, constraints ->
@@ -35,10 +42,16 @@ fun FluidArcRow(
     val placeables = measurables.map { it.measure(loose) }
     val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeables.sumOf { it.width }
     val height = if (constraints.hasBoundedHeight) constraints.maxHeight else width
-    val radius = min(width, height) / 2f * radiusFraction
+    val screenRadius = min(width, height) / 2f
+    val clearancePx = edgeClearance?.toPx()
     val angles = arcAngles(placeables.size, centerAngle, spacing)
     layout(width, height) {
       placeables.forEachIndexed { index, placeable ->
+        val radius = if (clearancePx == null) {
+          screenRadius * radiusFraction
+        } else {
+          huggingRadius(screenRadius, clearancePx, max(placeable.width, placeable.height).toFloat())
+        }
         val (x, y) = arcPoint(width / 2f, height / 2f, radius, angles[index])
         placeable.place((x - placeable.width / 2f).roundToInt(), (y - placeable.height / 2f).roundToInt())
       }
@@ -66,6 +79,10 @@ internal fun arcPoint(centerX: Float, centerY: Float, radius: Float, angle: Floa
   val radians = Math.toRadians(angle.toDouble())
   return (centerX + radius * cos(radians).toFloat()) to (centerY + radius * sin(radians).toFloat())
 }
+
+/** The distance from the centre that puts a child of [extentPx] [clearancePx] in from the edge. */
+internal fun huggingRadius(screenRadius: Float, clearancePx: Float, extentPx: Float): Float =
+  (screenRadius - clearancePx - extentPx / 2f).coerceAtLeast(0f)
 
 /** Where the bottom row of a player sits: inside the bezel, clear of the transport. */
 const val DefaultArcRadiusFraction = 0.71f

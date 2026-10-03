@@ -26,6 +26,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.fluid.rememberEmptyGlassBackdrop
+import dev.antigravity.fluidengine.wear.glass.FluidWearGlass
 import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
 
 /**
@@ -90,7 +91,8 @@ fun FluidWearListRow(
  *
  * Control glass over whatever [backdrop] it is given — on a black page that is an empty backdrop,
  * and the pill shows its rim, its film and its touch light, which is the material without anything
- * to bend. Put it over a picture and the same pill refracts it.
+ * to bend. Put it over a picture and the same pill refracts it. Since 2.11.0 it is the watch's one
+ * glass ([FluidWearGlass.pageTint], no dispersion) rather than the phone's control film.
  */
 @Composable
 fun FluidWearPill(
@@ -103,7 +105,12 @@ fun FluidWearPill(
   Row(
     modifier = modifier
       .height(FluidWearDimens.PillHeight)
-      .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
+      .glassControlSurface(
+        backdrop = backdrop,
+        shape = FluidCapsuleShape,
+        tint = FluidWearGlass.pageTint(),
+        optics = FluidWearGlass.WideOptics,
+      )
       .fluidPressable(onClick = onClick)
       .padding(horizontal = PillPadding),
     verticalAlignment = Alignment.CenterVertically,

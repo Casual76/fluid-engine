@@ -26,6 +26,7 @@ import androidx.wear.compose.material3.MaterialTheme
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
@@ -37,18 +38,21 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  * A round control made of glass: the transport buttons of a watch player, and any other action
  * that has to be a thumb-press on a moving wrist.
  *
- * It is the phone's [glassControlSurface] in a circle — it refracts what is behind it, leans
- * towards the finger, swells while held and lights up where it was touched — plus a
- * [FluidGlassBurst] on the press, which is what a watch needs that a phone does not: on a wrist
- * the finger covers most of the control, and the light that escapes around it is the confirmation.
+ * It is the phone's [glassControlSurface] in a circle, made of [FluidWearGlass]: it refracts what
+ * is behind it, leans towards the finger, swells while held and lights up where it was touched.
+ * That is the whole press. Until 2.11.0 every disc also fired a [FluidGlassBurst] — a ring and
+ * eight sparks — and on a real watch a row of discs going off like that read as a glitch rather
+ * than as a confirmation; pass [burst] to have it back on the one control that deserves it.
  *
  * The glass stays still when nothing touches it: the pane re-captures its backdrop only while its
- * own lean and swell are animating or what is behind it actually changes, and the burst is drawn
- * over the glass without re-capturing anything.
+ * own lean and swell are animating or what is behind it actually changes.
  *
  * @param size the disc as drawn; the touch target never shrinks below
  *   [FluidWearDimens.MinTouchTarget].
  * @param haptic what the press feels like; play/pause wants `Confirm`, the rest `Tap`.
+ * @param burst a burst of light on the press; none by default since 2.11.0.
+ * @param tint [FluidWearGlass.tint] by default since 2.11.0, the same smoke as every other watch pane.
+ * @param optics [FluidWearGlass.Optics] by default. Since 2.11.0.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -62,8 +66,9 @@ fun FluidGlassDisc(
   selected: Boolean = false,
   onLongClick: (() -> Unit)? = null,
   haptic: FluidHapticEvent = FluidHapticEvent.Tap,
-  burst: FluidGlassBurstState = rememberFluidGlassBurstState(),
-  tint: GlassTint = GlassDefaults.controlTint(),
+  burst: FluidGlassBurstState? = null,
+  tint: GlassTint = FluidWearGlass.tint(),
+  optics: GlassOptics = FluidWearGlass.Optics,
   contentColor: Color = MaterialTheme.colorScheme.onSurface,
   content: @Composable BoxScope.() -> Unit,
 ) {
@@ -84,18 +89,26 @@ fun FluidGlassDisc(
           backdrop = backdrop,
           shape = FluidCapsuleShape,
           tint = tint,
+          optics = optics,
           selected = selected,
           interactive = enabled,
         )
-        .fluidGlassBurst(burst, onDarkSurface = onDark, enabled = !ambient.isAmbient)
-        .pointerInput(Unit) {
-          // Only remembers where the press landed, for the burst; never consumes.
-          awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            lastDown[0] = down.position.x
-            lastDown[1] = down.position.y
-          }
-        }
+        .then(
+          if (burst == null) {
+            Modifier
+          } else {
+            Modifier
+              .fluidGlassBurst(burst, onDarkSurface = onDark, enabled = !ambient.isAmbient)
+              .pointerInput(Unit) {
+                // Only remembers where the press landed, for the burst; never consumes.
+                awaitEachGesture {
+                  val down = awaitFirstDown(requireUnconsumed = false)
+                  lastDown[0] = down.position.x
+                  lastDown[1] = down.position.y
+                }
+              }
+          },
+        )
         .combinedClickable(
           interactionSource = interactionSource,
           indication = null,
@@ -109,7 +122,7 @@ fun FluidGlassDisc(
           },
           onClick = {
             val at = if (lastDown[0].isNaN()) null else Offset(lastDown[0], lastDown[1])
-            burst.fire(at)
+            burst?.fire(at)
             haptics.play(haptic)
             onClick()
           },
@@ -117,9 +130,12 @@ fun FluidGlassDisc(
         .semantics { if (contentDescription != null) this.contentDescription = contentDescription },
       contentAlignment = Alignment.Center,
     ) {
-      CompositionLocalProvider(LocalContentColor provides contentColor) {
+      // A disc that cannot be pressed says so with its glyph; the glass itself stays the same pane.
+      CompositionLocalProvider(LocalContentColor provides if (enabled) contentColor else contentColor.copy(alpha = DisabledContentAlpha)) {
         content()
       }
     }
   }
 }
+
+private const val DisabledContentAlpha = 0.38f

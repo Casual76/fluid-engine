@@ -13,7 +13,7 @@ import androidx.wear.compose.material3.LocalContentColor
 import androidx.wear.compose.material3.MaterialTheme
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
-import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
@@ -28,8 +28,10 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  * eye is text nobody can read. When it is tappable it answers with the design system's press scale
  * instead.
  *
- * @param tint defaults to the on-photo floating tint: on a watch this capsule almost always sits on
- *   a cover, and the tint built for a page would wash the picture out.
+ * @param tint [FluidWearGlass.tint] by default since 2.11.0 — the same smoke as the discs beside it.
+ *   Before that it was the phone's floating tint, a black scrim, and the capsule and the discs
+ *   under it read as two different materials.
+ * @param optics [FluidWearGlass.WideOptics] by default. Since 2.11.0.
  */
 @Composable
 fun FluidGlassCapsule(
@@ -37,7 +39,8 @@ fun FluidGlassCapsule(
   modifier: Modifier = Modifier,
   onClick: (() -> Unit)? = null,
   onLongClick: (() -> Unit)? = null,
-  tint: GlassTint = GlassDefaults.floatingTintOnPhoto(),
+  tint: GlassTint = FluidWearGlass.tint(),
+  optics: GlassOptics = FluidWearGlass.WideOptics,
   contentColor: Color = MaterialTheme.colorScheme.onSurface,
   content: @Composable RowScope.() -> Unit,
 ) {
@@ -55,6 +58,7 @@ fun FluidGlassCapsule(
         tint = tint,
         shape = FluidCapsuleShape,
         role = GlassRole.Floating,
+        optics = optics,
       )
       .padding(
         horizontal = FluidWearDimens.CapsulePaddingHorizontal,

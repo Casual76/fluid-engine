@@ -89,6 +89,19 @@ object FluidWearGlass {
     )
   }
 
+  /**
+   * A notice that can land over anything — a cover, a list, a sheet — and has to be read the
+   * moment it does. The page film made nearly opaque: the one pane that should not show through.
+   */
+  @Composable
+  fun noticeTint(accent: Color = MaterialTheme.colorScheme.primary): GlassTint = remember(accent) {
+    GlassTint(
+      overlay = lerp(FallbackBase, accent, AccentShare).copy(alpha = NoticeAlpha),
+      fallback = lerp(FallbackBase, accent, AccentShare).copy(alpha = FallbackAlpha),
+      hairline = Color.White.copy(alpha = HairlineAlpha),
+    )
+  }
+
   /** Enough to hold white text over a bright cover, little enough to leave it a cover. */
   private const val SmokeAlpha = 0.42f
   private const val AccentShare = 0.16f
@@ -97,4 +110,5 @@ object FluidWearGlass {
   private val FallbackBase = Color(0xFF141416)
   private val PageFilm = Color(0xFF4A4A4E)
   private const val PageFilmAlpha = 0.36f
+  private const val NoticeAlpha = 0.88f
 }

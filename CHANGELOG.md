@@ -6,6 +6,10 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.10.1 - 2026-10-03
+
+- wear: `Modifier.fluidRotarySteps` prende la ghiera con `requestFocusOnHierarchyActive()` invece di un `requestFocus()` all'avvio: in un pager la pagina accanto, composta in anticipo, poteva rubare la ghiera a quella in primo piano.
+
 ## 2.10.0 - 2026-10-03
 
 - wear: nuovo modulo `engine-wear`, opt-in (`engine-install.ps1 -Modules ...,engine-wear`): il design system su Wear OS. `FluidWearTheme` mette `FluidTheme` fuori e Material 3 per Wear dentro, con schema colori, tipografia Inter e forme continue ricavati dagli stessi token; `FluidWearDimens`; `FluidGlassDisc` (il controllo rotondo di vetro) con `FluidGlassBurst` (un anello di luce dal punto toccato, disegnato sopra il vetro senza ricatture); `FluidGlassCapsule`; `FluidEdgeProgressRing`, che si ridisegna solo quando l'arco si sposta di mezzo pixel; `FluidArcRow`; `Modifier.fluidRotarySteps` per ghiera a scatti e corona continua; `FluidWearListRow`, `FluidWearPill`; `rememberFluidAmbientState`, `LocalFluidWearAmbient`, `Modifier.fluidBurnInShift`. Wear Compose Material 3 1.6.2: la 1.7 richiede AGP 9.1. Documentazione in `docs/09-wear.md`.

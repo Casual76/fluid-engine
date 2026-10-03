@@ -335,3 +335,31 @@ Regole: **un fondale per finestra** (lo scaffold lo fa da se'); **sul telefono n
 barra rifrange) chiamando il suo `onRefresh`: l'app lo lega a Ctrl+R / F5 nell'`onKeyDown`
 dell'Activity. Una pagina che sta gia' aggiornando non viene richiamata; il dettaglio di due
 pannelli non si registra, quindi si aggiorna l'elenco.
+
+## Wear OS (2.10.0)
+
+`engine-wear`, opt-in: entra solo nel modulo dell'orologio (`engine-install.ps1 -Modules ...,engine-wear`).
+Dettagli in `docs/09-wear.md`.
+
+- **Tema**: `FluidWearTheme(brand)` mette `FluidTheme` fuori (il vetro, l'aptica e `fluidPressable` lo
+  leggono da li') e Material 3 per Wear dentro, con schema colori mappato dal telefono
+  (`fluidWearColorScheme`), tipografia Wear in Inter (`fluidWearTypography`) e forme continue
+  (`fluidWearShapes`). Le schermate leggono `androidx.wear.compose.material3.MaterialTheme`.
+- **Componenti**: `FluidGlassDisc` (controllo rotondo: `glassControlSurface` + `FluidGlassBurst`),
+  `FluidGlassCapsule` (vetro flottante con testo), `FluidEdgeProgressRing` (si ridisegna solo quando
+  l'arco si sposta di mezzo pixel), `FluidArcRow` (azioni lungo il bordo), `Modifier.fluidRotarySteps`
+  (ghiera a scatti e corona continua, entrambe in passi), `FluidWearListRow`, `FluidWearPill`.
+- **Misure**: `FluidWearDimens`, mai dp a mano in una schermata dell'orologio.
+- **Always-on**: `rememberFluidAmbientState(activity)` + `LocalFluidWearAmbient`; in ambient niente
+  vetro vivo, niente animazioni; `Modifier.fluidBurnInShift` solo dove il pannello lo chiede.
+
+**Il vetro fermo.** Una lastra ricattura lo sfondo solo se lo sfondo si e' ridisegnato o se lei si e'
+spostata *rispetto* allo sfondo (2.10.0: prima contava anche la posizione assoluta, e ogni swipe di
+pagina ricalcolava tutte le lastre a ogni fotogramma per un'immagine identica). Quindi:
+
+- quello che cambia spesso (anello, orologio, testo che scorre) sta **fuori** dalla sorgente del vetro,
+  o ogni suo fotogramma ricalcola ogni lastra;
+- gli effetti disegnati *sopra* il vetro (`GlassTouchHighlight`, `FluidGlassBurst`) non ricatturano
+  niente;
+- `FluidGlassDiagnostics.enabled` + `totalCaptures` in una build di debug: a schermo fermo il numero
+  non deve muoversi.

@@ -39,6 +39,10 @@ ext.engine = [
   navigation     : '2.9.8',
   datastore      : '1.1.1',
   glance         : '1.1.1',
+  // Wear OS (engine-wear). Material 3 for Wear is a separate library from the phone's, with its own
+  // colour scheme and type scale; androidx.wear carries the ambient-mode observer.
+  wearCompose    : '1.6.2',
+  wear           : '1.4.0',
   coroutines     : '1.8.1',
   serialization  : '1.6.3',
 

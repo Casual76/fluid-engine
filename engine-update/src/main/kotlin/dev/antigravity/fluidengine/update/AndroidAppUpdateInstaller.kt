@@ -14,6 +14,7 @@ import dev.antigravity.fluidengine.foundation.AppUpdateInstallState
 import dev.antigravity.fluidengine.foundation.AvailableAppUpdate
 import dev.antigravity.fluidengine.net.EngineHttp
 import java.io.File
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -40,49 +41,78 @@ class AndroidAppUpdateInstaller(
   override fun install(update: AvailableAppUpdate): Flow<AppUpdateInstallState> = channelFlow {
     send(AppUpdateInstallState.Verifying("Preparazione aggiornamento..."))
 
-    if (!context.packageManager.canRequestPackageInstalls()) {
-      // Sending the user to the setting is the only way forward, and the screen does not report
-      // back: the flow ends here and the next attempt finds the permission granted.
-      runCatching {
-        context.startActivity(
-          Intent(
-            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-            Uri.parse("package:${context.packageName}"),
-          ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
-      }
-      send(
-        AppUpdateInstallState.Error(
-          "Abilita l'installazione da questa app nelle impostazioni di Android e riprova.",
-        ),
-      )
-      return@channelFlow
-    }
+    // Asked before the download as well as before the commit: finding out after a 30 MB download
+    // that the APK cannot be installed is the same outcome with a wasted download in front of it.
+    if (!ensureInstallPermission { send(it) }) return@channelFlow
 
     val apk = runCatching {
-      val directory = File(context.cacheDir, "engine_updates").apply { mkdirs() }
-      val target = File(directory, update.apkAsset.ifBlank { "update-${update.version}.apk" })
-      http.download(
-        url = update.downloadUrl,
-        target = target,
-        expectedBytes = update.sizeBytes,
-      ) { progress, downloaded, total ->
-        trySend(AppUpdateInstallState.Downloading(progress, downloaded, total))
-      }
+      download(update) { state -> trySend(state) }
     }.getOrElse { error ->
       send(AppUpdateInstallState.Error(error.message ?: "Download aggiornamento non riuscito."))
       return@channelFlow
     }
 
+    installFile(
+      file = apk,
+      expectedVersionName = update.version,
+      sha256 = update.sha256,
+    ).collect { send(it) }
+  }
+
+  /**
+   * Downloads [update]'s APK into this app's cache and returns the file, without installing it.
+   *
+   * The half of [install] an app needs when the APK is not for this device: a phone fetching the
+   * build of its watch companion, to hand it over itself. Since 2.10.0.
+   */
+  suspend fun download(
+    update: AvailableAppUpdate,
+    onProgress: (AppUpdateInstallState.Downloading) -> Unit = {},
+  ): File {
+    val directory = File(context.cacheDir, "engine_updates").apply { mkdirs() }
+    val target = File(directory, update.apkAsset.ifBlank { "update-${update.version}.apk" })
+    return http.download(
+      url = update.downloadUrl,
+      target = target,
+      expectedBytes = update.sizeBytes,
+    ) { progress, downloaded, total ->
+      onProgress(AppUpdateInstallState.Downloading(progress, downloaded, total))
+    }
+  }
+
+  /**
+   * Verifies an APK already on disk and installs it.
+   *
+   * The other half of [install]: the same three checks (package, version and, when [sha256] is
+   * given, checksum), then the same `PackageInstaller` session. For an APK that arrived some other
+   * way than a download — handed over by a companion device, picked by the user in a debug build.
+   * [expectedPackageName] defaults to this app, which is the only package a self-updater should
+   * ever install. Since 2.10.0.
+   */
+  fun installFile(
+    file: File,
+    expectedVersionName: String,
+    expectedPackageName: String = context.packageName,
+    sha256: String = "",
+  ): Flow<AppUpdateInstallState> = channelFlow {
+    if (!ensureInstallPermission { send(it) }) return@channelFlow
+
     send(AppUpdateInstallState.Verifying("Verifica APK..."))
-    val packageInfo = context.packageManager.readArchiveInfo(apk.absolutePath)
+    if (sha256.isNotBlank()) {
+      val actual = withContext(Dispatchers.IO) { sha256Of(file) }
+      rejectChecksum(sha256, actual)?.let { rejection ->
+        send(AppUpdateInstallState.Error(rejection))
+        return@channelFlow
+      }
+    }
+    val packageInfo = context.packageManager.readArchiveInfo(file.absolutePath)
     if (packageInfo == null) {
       send(AppUpdateInstallState.Error("Android non riesce a leggere l'APK scaricato."))
       return@channelFlow
     }
     val rejection = rejectApk(
-      expectedPackageName = context.packageName,
-      expectedVersionName = update.version,
+      expectedPackageName = expectedPackageName,
+      expectedVersionName = expectedVersionName,
       actualPackageName = packageInfo.packageName,
       actualVersionName = packageInfo.versionName,
     )
@@ -92,10 +122,32 @@ class AndroidAppUpdateInstaller(
     }
 
     runCatching {
-      commitSession(apk, packageInfo) { state -> send(state) }
+      commitSession(file, packageInfo) { state -> send(state) }
     }.onFailure { error ->
       send(AppUpdateInstallState.Error(error.message ?: "Installazione non riuscita."))
     }
+  }
+
+  /** False, after reporting why, when this app may not install packages yet. */
+  private suspend fun ensureInstallPermission(report: suspend (AppUpdateInstallState) -> Unit): Boolean {
+    if (context.packageManager.canRequestPackageInstalls()) return true
+    // Sending the user to the setting is the only way forward, and the screen does not report
+    // back: the flow ends here and the next attempt finds the permission granted. Some devices
+    // (Wear OS among them) hide the screen entirely; there the grant has to come from adb.
+    runCatching {
+      context.startActivity(
+        Intent(
+          Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+          Uri.parse("package:${context.packageName}"),
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+      )
+    }
+    report(
+      AppUpdateInstallState.Error(
+        "Abilita l'installazione da questa app nelle impostazioni di Android e riprova.",
+      ),
+    )
+    return false
   }
 
   private suspend fun commitSession(
@@ -267,6 +319,36 @@ internal fun rejectApk(
     return "Versione APK inattesa: $actualVersion."
   }
   return null
+}
+
+/**
+ * Perche' questo APK non va installato secondo il checksum, o `null` se combacia.
+ *
+ * Il confronto ignora maiuscole e spazi: un manifest scritto a mano o da un altro strumento
+ * non deve far rifiutare un file giusto.
+ */
+internal fun rejectChecksum(expectedSha256: String, actualSha256: String): String? {
+  val expected = expectedSha256.trim().lowercase()
+  if (expected.isEmpty()) return null
+  return if (expected == actualSha256.trim().lowercase()) {
+    null
+  } else {
+    "Il file ricevuto non corrisponde a quello pubblicato."
+  }
+}
+
+/** Hex SHA-256 of [file]. */
+internal fun sha256Of(file: File): String {
+  val digest = MessageDigest.getInstance("SHA-256")
+  file.inputStream().use { input ->
+    val buffer = ByteArray(64 * 1024)
+    while (true) {
+      val read = input.read(buffer)
+      if (read < 0) break
+      digest.update(buffer, 0, read)
+    }
+  }
+  return digest.digest().joinToString("") { "%02x".format(it) }
 }
 
 @Suppress("DEPRECATION")

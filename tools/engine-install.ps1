@@ -76,7 +76,13 @@ $EngineModules = [ordered]@{
   "engine-widget"     = @("engine-foundation", "engine-ui")
   "engine-ai"         = @("engine-foundation")
   "engine-ai-bridge"  = @("engine-foundation", "engine-ai")
+  "engine-wear"       = @("engine-foundation", "engine-ui")
 }
+
+# Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
+# un'app per telefono che lo ricevesse di default pagherebbe dipendenze e tempo di build per uno
+# schermo che non ha. Un'app con una versione orologio lo chiede: -Modules ...,engine-wear.
+$OptInModules = @("engine-wear")
 
 function Fail($message) {
   Write-Host "ERRORE: $message" -ForegroundColor Red
@@ -103,7 +109,9 @@ function Resolve-Modules {
   return @($EngineModules.Keys | Where-Object { $selected.Contains($_) })
 }
 
-if (-not $Modules -or $Modules.Count -eq 0) { $Modules = @($EngineModules.Keys) }
+if (-not $Modules -or $Modules.Count -eq 0) {
+  $Modules = @($EngineModules.Keys | Where-Object { $OptInModules -notcontains $_ })
+}
 $Modules = Resolve-Modules -Requested $Modules
 
 $appRootFull = (Resolve-Path -LiteralPath $AppRoot).Path
@@ -236,7 +244,8 @@ $notes = @(
   @("engine-update", "aggiornamento in-app"),
   @("engine-widget", "widget Glance"),
   @("engine-ai", "assistente IA: provider, chiavi, orchestratore"),
-  @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli")
+  @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli"),
+  @("engine-wear", "design system su Wear OS (solo nel modulo dell'orologio)")
 )
 foreach ($note in $notes) {
   $module = $note[0]

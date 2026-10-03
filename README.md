@@ -12,6 +12,8 @@ engine-net          le due chiamate HTTP che l'engine fa da solo (leggi document
 engine-config       il manifest remoto: feature flag, kill switch, versione minima
 engine-update       aggiornamento in-app via PackageInstaller (modello Pampa Store)
 engine-widget       palette e componenti Glance con lo stesso aspetto dell'app
+engine-wear         il design system su Wear OS: FluidWearTheme, dischi e capsule di vetro, anello,
+                    riga ad arco, ghiera, always-on (opt-in: solo nel modulo dell'orologio)
 engine-ai           l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore
 engine-ai-bridge    tool federati: un'app espone i suoi tool a un assistente esterno con la stessa
                     firma (ContentProvider a permesso signature), o li chiama
@@ -81,6 +83,7 @@ Copy-Item -Recurse -Force skillluid-engine "$env:USERPROFILE\.claude\skills\"
 | [06 · Limiti](docs/06-limiti.md) | cosa si aggiorna da remoto e cosa no, senza giri di parole |
 | [07 · Assistente](docs/07-ai.md) | `engine-ai`: provider, chiavi, orchestratore, tool |
 | [08 · Tool federati](docs/08-ai-bridge.md) | `engine-ai-bridge`: esporre i tool di un'app a un assistente esterno, o chiamarli |
+| [09 · Wear OS](docs/09-wear.md) | `engine-wear`: lo stesso vetro su un orologio, e il vetro che sta fermo quando niente si muove |
 
 ## Fluid-physics e l'app Fluid Glass
 

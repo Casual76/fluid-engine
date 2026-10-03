@@ -197,6 +197,14 @@ class GlassDragAnimation(
   val scaleY: Float get() = scaleYAnimation.value
   val velocity: Float get() = velocityAnimation.value
 
+  /**
+   * True while any of the springs is moving: the thumb following a drag, the squash, the press.
+   * The window in which the glass this animation drives is genuinely live. Since 2.10.0.
+   */
+  val isAnimating: Boolean
+    get() = valueAnimation.isRunning || velocityAnimation.isRunning ||
+      pressProgressAnimation.isRunning || scaleXAnimation.isRunning || scaleYAnimation.isRunning
+
   val modifier: Modifier = Modifier.pointerInput(Unit) {
     inspectDragGestures(
       onDragStart = { down ->
@@ -318,6 +326,14 @@ class GlassTouchHighlight(
 
   val pressProgress: Float get() = pressProgressAnimation.value
   val offset: Offset get() = positionAnimation.value - startPosition
+
+  /**
+   * True while the highlight is on screen or moving: pressed, following the finger, or settling
+   * back after a release. The window in which the glass under it is genuinely live. Since 2.10.0.
+   */
+  val isAnimating: Boolean
+    get() = pressProgressAnimation.isRunning || positionAnimation.isRunning ||
+      pressProgressAnimation.value > 0f
 
   private val shader =
     if (isRuntimeShaderSupported()) {

@@ -37,6 +37,8 @@ engine-net          EngineHttp: leggi un documento, scarica un file
 engine-config       EngineRemoteConfig: feature flag, versione minima, kill switch
 engine-update       EngineAppUpdater: aggiornamento in-app via PackageInstaller
 engine-widget       palette e componenti Glance con lo stesso aspetto dell'app
+engine-wear         il design system su Wear OS: FluidWearTheme, dischi e capsule di vetro, anello,
+                    riga ad arco, ghiera, always-on (opt-in: solo nel modulo dell'orologio)
 engine-ai           l'assistente senza dominio: provider BYOK (Groq, Gemini, OpenRouter), chiavi
                     cifrate, SSE, failover, tipi dei tool, router e orchestratore a livelli, voce
 engine-ai-bridge    tool federati: un'app espone i suoi tool a un assistente esterno con la stessa

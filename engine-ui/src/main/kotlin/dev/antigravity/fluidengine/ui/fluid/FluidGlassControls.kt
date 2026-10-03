@@ -95,6 +95,10 @@ fun Modifier.glassControlSurface(
   interactive: Boolean = true,
   /** Independent optical weight, so a control can rest almost invisible and thicken on demand. */
   depth: () -> Float = { 1f },
+  /** See [glassSurface]. Since 2.10.0. */
+  frozen: () -> Boolean = { false },
+  /** See [glassSurface]. Since 2.10.0. */
+  heldWhileMoving: () -> Boolean = { false },
 ): Modifier {
   val accent = MaterialTheme.colorScheme.primary
   val scope = rememberCoroutineScope()
@@ -137,6 +141,8 @@ fun Modifier.glassControlSurface(
       optics = optics,
       opticalDepth = depth,
       pressed = { highlight.pressProgress },
+      frozen = frozen,
+      heldWhileMoving = heldWhileMoving,
       layerBlock = if (interactive && !reducedMotion) {
         {
           val progress = highlight.pressProgress

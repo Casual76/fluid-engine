@@ -16,6 +16,8 @@ data class AvailableAppUpdate(
   val apkAsset: String,
   val downloadUrl: String,
   val sizeBytes: Long,
+  /** Hex SHA-256 the APK must have, or blank when the manifest did not say. Since 2.10.0. */
+  val sha256: String = "",
 )
 
 /**

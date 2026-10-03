@@ -102,7 +102,9 @@ I percorsi dei progetti sono piatti (`:engine-ui`, non `:engine:engine-ui`) di p
 powershell -ExecutionPolicy Bypass -File engine/tools/engine-install.ps1 -AppRoot . -Modules engine-update
 ```
 
-Il default e' "tutti", e per un'app Compose va bene. Per le altre no: `engine-ui` e `engine-widget`
+Il default e' "tutti tranne `engine-wear`", e per un'app Compose va bene. `engine-wear` entra solo
+se chiesto per nome, nel modulo dell'orologio di un'app che ne ha uno: porta Material 3 per Wear, che
+a un'app per telefono costerebbe dipendenze e tempo di build per niente. Per le altre no: `engine-ui` e `engine-widget`
 applicano il plugin Compose, e in un'app che non lo dichiara nel proprio build root quei moduli non
 riescono nemmeno a **configurarsi** — non e' un modulo inutilizzato che pesa, e' un build che non
 parte. `-Modules` esiste per quel caso.

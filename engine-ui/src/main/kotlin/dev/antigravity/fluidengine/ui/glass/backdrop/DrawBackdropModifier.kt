@@ -606,9 +606,17 @@ private class DrawBackdropNode(
             // Unless the surface asked to [sampleOnce]: then movement is deliberately not a reason —
             // its backdrop is a static wash, and a wash riding along with the pane is
             // indistinguishable from one fixed to the screen. See `drawBackdrop`.
+            //
+            // Fluid Engine 2.10.0: when every source is a recording, only the *relative* offsets
+            // count. The capture draws each source translated by where it sits relative to this
+            // surface, so a surface and its backdrop that move together — a page swiped sideways
+            // with its glass on it, a sheet sliding up with the cover it carries — have exactly the
+            // capture they had. Comparing the absolute position as well made every pane on a page
+            // replay the whole screen on every frame of every swipe, for a picture that came out
+            // identical. A layer transform on the surface (the lean of a pressed control) still
+            // counts: it moves the surface relative to its source, and `localPositionOf` sees it.
             val moved = sourceOffsets == null ||
-                recordedSourceOffsets != sourceOffsets ||
-                recordedSelfOffset != selfOffset
+                recordedSourceOffsets != sourceOffsets
             val wanted = surfaceDirty ||
                 recordedSize != recordSize ||
                 if (sampleOnce) !sampled else moved
@@ -668,6 +676,7 @@ private class DrawBackdropNode(
                     surfaceDirty = false
                     sampled = true
                     lastRecordedAt = now
+                    FluidGlassDiagnostics.onCapture()
                 }
             }
 

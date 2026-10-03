@@ -92,6 +92,7 @@ class EngineAppUpdater(
       apkAsset = asset,
       downloadUrl = url,
       sizeBytes = release.sizeBytes,
+      sha256 = release.sha256,
     )
   }
 }

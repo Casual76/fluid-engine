@@ -1,0 +1,51 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace 'dev.antigravity.fluidengine.wear'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+
+  buildFeatures {
+    compose true
+  }
+
+  testOptions {
+    unitTests {
+      returnDefaultValues = true
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  api project(':engine-foundation')
+  // The watch is the same material as the phone: the glass, the motion vocabulary, the shapes, the
+  // Inter cuts and the haptics all come from engine-ui unchanged. What this module adds is the
+  // Wear-specific half - a Material 3 for Wear theme mapped from the same tokens, and the round-
+  // screen components a phone never needed.
+  api project(':engine-ui')
+
+  api "androidx.wear.compose:compose-material3:${engine.wearCompose}"
+  api "androidx.wear.compose:compose-foundation:${engine.wearCompose}"
+  api "androidx.wear:wear:${engine.wear}"
+
+  testImplementation "junit:junit:${engine.junit}"
+}

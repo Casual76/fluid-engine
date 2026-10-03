@@ -23,7 +23,8 @@ class EngineConfigTest {
           "changelog": "Cose nuove.",
           "releaseTag": "stable-demo-v2.1.0",
           "apkAsset": "demo-2.1.0.apk",
-          "sizeBytes": 12345
+          "sizeBytes": 12345,
+          "sha256": "ABC123"
         }
       },
       "engine": {
@@ -50,6 +51,7 @@ class EngineConfigTest {
     assertEquals("2.1.0", parsed.app?.stable?.version)
     assertEquals("owner", parsed.app?.repository?.owner)
     assertEquals(12345L, parsed.app?.stable?.sizeBytes)
+    assertEquals("ABC123", parsed.app?.stable?.sha256)
     assertEquals("1.2.0", parsed.engine?.recommendedVersion)
   }
 

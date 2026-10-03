@@ -44,6 +44,8 @@ data class AppRelease(
   val apkAsset: String = "",
   val sizeBytes: Long = 0L,
   val releaseDate: String = "",
+  /** Hex SHA-256 of the APK, when the publisher wrote one. Blank: not checked. Since 2.10.0. */
+  val sha256: String = "",
 )
 
 /**
@@ -126,6 +128,7 @@ object EngineManifestParser {
       apkAsset = string("apkAsset").orEmpty(),
       sizeBytes = long("sizeBytes") ?: 0L,
       releaseDate = string("releaseDate").orEmpty(),
+      sha256 = string("sha256").orEmpty(),
     )
   }
 

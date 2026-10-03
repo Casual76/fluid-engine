@@ -946,9 +946,12 @@ object GlassDefaults {
    * [LocalFluidSurfaceSide] comes first, and only because the palette can be unreadable: a design
    * whose surfaces are translucent films files a film in `surface`, and luminance ignores alpha.
    * An app that says which side it is on is believed; everyone else keeps the guess they had.
+   *
+   * Public since 2.10.0, for the effects an app draws *over* glass — a touch highlight, a burst of
+   * light — which have to turn over with the material exactly as its rim does.
    */
   @Composable
-  internal fun isDarkSurface(): Boolean =
+  fun isDarkSurface(): Boolean =
     darkSurface(LocalFluidSurfaceSide.current, MaterialTheme.colorScheme.surface)
 
   /**
@@ -1025,6 +1028,14 @@ fun Modifier.glassSurface(
    * dodicesimo.
    */
   resampleIntervalMillis: Long = 0L,
+  /**
+   * While this answers true the pane keeps the capture it has instead of taking a new one. See
+   * `drawBackdrop(frozen)`: still refreshed a few times a second, and always fresh once released.
+   * Since 2.10.0.
+   */
+  frozen: () -> Boolean = { false },
+  /** Hold the capture even while the pane moves. See `drawBackdrop(heldWhileMoving)`. Since 2.10.0. */
+  heldWhileMoving: () -> Boolean = { false },
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
 
@@ -1198,6 +1209,8 @@ fun Modifier.glassSurface(
       // di qualità: la catena si paga per pixel, quindi dimezzare la cattura è un quarto del
       // lavoro. Vedi [FluidGlassQuality] e `quantiseScaleFactor`.
       backdropScaleFactor = qualityFactor,
+      frozen = frozen,
+      heldWhileMoving = heldWhileMoving,
     )
 }
 

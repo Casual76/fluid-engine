@@ -33,9 +33,15 @@ import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidMetricTile
 import dev.antigravity.fluidengine.ui.theme.FluidTone
 
-/** Tab two: every control the engine has, standing on a real canvas instead of on grey. */
+/**
+ * Tab two: every control the engine has, standing on a real canvas instead of on grey.
+ *
+ * It opens with the touch lab of 2.11.0 (see [touchLabItems]): the buttons that grow under the
+ * finger and the sliders that hold the page still, on a page long enough to scroll.
+ */
 @Composable
 internal fun ControlsTab(bottomInset: Dp) {
+  val touchLab = remember { TouchLabState() }
   var switchOne by remember { mutableStateOf(true) }
   var switchTwo by remember { mutableStateOf(false) }
   var segment by remember { mutableStateOf("Mese") }
@@ -44,12 +50,15 @@ internal fun ControlsTab(bottomInset: Dp) {
 
   FluidScreen(
     title = "Controlli",
-    subtitle = "Interruttore, segmenti, pillole, pulsanti e campi, sul canvas ambientale.",
+    subtitle = "Tocco, cursori, interruttore, segmenti, pillole, pulsanti e campi, sul canvas ambientale.",
     extraBottomPadding = bottomInset,
     ambient = remember {
       FluidAmbient(tone = FluidHeroTone.Secondary, motif = FluidHeroMotif.Dots)
     },
   ) {
+    touchLabItems(touchLab)
+
+    item(key = "switches-header") { FluidSectionHeader(title = "Interruttori") }
     item(key = "switches") {
       FluidListGroup(glass = true) {
         SwitchRow("Interruttore acceso", switchOne) { switchOne = it }

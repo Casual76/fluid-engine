@@ -48,4 +48,6 @@ ext.engine = [
 
   junit          : '4.13.2',
   coroutinesTest : '1.8.1',
+  // Solo per i test Compose del modulo sample, che non entra mai in un'app: vedi sample/build.gradle.
+  robolectric    : '4.17',
 ]

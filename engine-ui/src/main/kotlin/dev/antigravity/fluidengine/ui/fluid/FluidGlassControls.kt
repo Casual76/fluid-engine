@@ -30,32 +30,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastCoerceAtMost
-import androidx.compose.ui.util.lerp
+import androidx.compose.ui.util.fastCoerceIn
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
-import kotlin.math.abs
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.tanh
 
 internal val FluidGlassIconTouchTargetSize: Dp = 48.dp
 internal val FluidGlassIconLensSize: Dp = 44.dp
 
 /** Height of a glass action button, matching [FluidButtonDefaults] at `Medium`. */
 internal val FluidGlassButtonHeight: Dp = 48.dp
-
-/**
- * How far a glass control may lean toward the finger, in dp.
- *
- * Small on purpose. The lean is not meant to be seen as movement — it is meant to be *felt* as the
- * control being made of something. Anything past a few dp stops reading as compliance and starts
- * reading as a bug.
- */
-private const val LeanReachDp = 12f
-
-/** How much the control swells while it is held, in dp added to its height. */
-private const val PressSwellDp = 4f
 
 /**
  * A pane of glass that behaves like a control.
@@ -70,10 +52,16 @@ private const val PressSwellDp = 4f
  *    behind the control bends and splits at its edge as the control passes over it.
  *  * **It leans.** The whole pane translates toward the touch point through a `tanh`, so it moves
  *    freely at first and then refuses — the shape of pushing on something soft that is attached.
- *  * **It swells and squashes.** Held, it grows a few dp; pushed off-axis, it stretches along the
- *    direction of the push and thins across it.
+ *  * **It swells and stretches.** Held, it grows — since 2.11.0 by up to 6 dp on its short side,
+ *    see [fluidPressExpansion], where it used to be 4 dp of height; pushed off-axis, it stretches
+ *    along the direction of the push and thins across it. A finger sliding over it ticks.
  *  * **It lights up where you touched it.** An additive hotspot follows the finger, because a
  *    specular reflection adds light. Darkening on press is the plastic-button idiom.
+ *
+ * All of it is one [FluidPressState], the same one [fluidPressable] drives: the press always
+ * arrives before it is released, so a quick tap swells the glass fully instead of a tenth of the
+ * way, and the swell, the lean, the light and the optics all read the same number. With reduced
+ * motion the swell is halved and the lean dropped, but the press still happens, start to end.
  *
  * The lean and the swell are applied through the renderer's own layer block, which means the
  * refraction is computed *after* the transform and corrected for it: the control slides across the
@@ -84,6 +72,9 @@ private const val PressSwellDp = 4f
  *   [rememberCombinedGlassBackdrop] — not the page underneath that surface.
  * @param interactive false for a control that is only decorative or disabled; it keeps the material
  *   and drops every gesture, rather than needing a second, quieter component to exist.
+ * @param pressState the press of the control this glass belongs to, driven by its
+ *   [fluidPressable] (`pressState = ` the same one). Null: the glass follows the finger by itself,
+ *   from the moment it lands, as it always did. Since 2.11.0.
  */
 @Composable
 fun Modifier.glassControlSurface(
@@ -99,16 +90,21 @@ fun Modifier.glassControlSurface(
   frozen: () -> Boolean = { false },
   /** See [glassSurface]. Since 2.10.0. */
   heldWhileMoving: () -> Boolean = { false },
+  pressState: FluidPressState? = null,
 ): Modifier {
   val accent = MaterialTheme.colorScheme.primary
   val scope = rememberCoroutineScope()
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val onDark = GlassDefaults.isDarkSurface()
-  val highlight = remember(scope, reducedMotion, onDark) {
+  val ownPress = rememberFluidPressState(FluidPressFeedback.Expand)
+  val press = pressState ?: ownPress
+  val highlight = remember(scope, reducedMotion, onDark, press) {
     GlassTouchHighlight(
       animationScope = scope,
       strength = { if (reducedMotion) 0.4f else 1f },
       onDarkSurface = onDark,
+      progress = { press.progress },
+      touch = { press.touch },
     )
   }
   val selectionTint = remember(tint, selected, accent) {
@@ -140,36 +136,36 @@ fun Modifier.glassControlSurface(
       role = GlassRole.Interactive,
       optics = optics,
       opticalDepth = depth,
-      pressed = { highlight.pressProgress },
+      pressed = { press.progress.fastCoerceIn(0f, 1f) },
       frozen = frozen,
       heldWhileMoving = heldWhileMoving,
-      layerBlock = if (interactive && !reducedMotion) {
+      layerBlock = if (interactive) {
         {
-          val progress = highlight.pressProgress
-          val swell = lerp(1f, 1f + PressSwellDp.dp.toPx() / size.height, progress)
-
-          // A linear follow would let the control run away with the finger. tanh keeps the first
-          // few pixels nearly free and then hardens, which is what "attached but soft" feels like.
-          val reach = size.minDimension
-          val offset = highlight.offset
-          translationX = reach * tanh(0.05f * offset.x / reach)
-          translationY = reach * tanh(0.05f * offset.y / reach)
-
-          // Stretch along the push, thin across it. The two axes are scaled by the *other*
-          // dimension's ratio so a wide button does not distort more than a square one.
-          val stretch = LeanReachDp.dp.toPx() / size.height
-          val angle = atan2(offset.y, offset.x)
-          scaleX = swell + stretch * abs(cos(angle) * offset.x / size.maxDimension) *
-            (size.width / size.height).fastCoerceAtMost(1f)
-          scaleY = swell + stretch * abs(sin(angle) * offset.y / size.maxDimension) *
-            (size.height / size.width).fastCoerceAtMost(1f)
+          // The same transform a solid button draws, here in the layer the renderer corrects for:
+          // grow, lean toward the finger through a tanh, stretch along its drag. See
+          // fluidPressTransform for the numbers and the reasons.
+          val transform = fluidPressTransform(
+            feedback = press.feedback,
+            progress = press.progress,
+            lean = press.lean,
+            width = size.width,
+            height = size.height,
+            dp = density,
+            reducedMotion = reducedMotion,
+          )
+          scaleX = transform.scaleX
+          scaleY = transform.scaleY
+          translationX = transform.translationX
+          translationY = transform.translationY
         }
       } else {
         null
       },
     )
     .then(if (interactive) highlight.modifier else Modifier)
-    .then(if (interactive) highlight.gestureModifier else Modifier)
+    // Followed by itself only when nobody drives it: a shared press is moved by the control's own
+    // fluidPressable, and two trackers on one press would tick twice for every step of the finger.
+    .then(if (interactive && pressState == null) Modifier.fluidPressTracking(ownPress, ownsPress = true) else Modifier)
 }
 
 /**
@@ -281,6 +277,9 @@ fun FluidGlassIconButton(
   onLongClick: (() -> Unit)? = null,
   content: @Composable BoxScope.() -> Unit,
 ) {
+  // One press for the click and the glass: the lens swells, leans and lights up on the same
+  // timeline the action is confirmed on, and a finger sliding over it ticks once, not twice.
+  val press = rememberFluidPressState(FluidPressFeedback.Expand)
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
@@ -295,15 +294,16 @@ fun FluidGlassIconButton(
           shape = shape,
           selected = selected,
           interactive = enabled,
+          pressState = press,
         )
         // The click sits inside the material, so the glass reacts to the same press the action does.
         .fluidPressable(
           onClick = onClick,
           onLongClick = onLongClick,
           enabled = enabled,
-          pressedScale = 1f,
           role = Role.Button,
           focusShape = shape,
+          pressState = press,
         ),
       contentAlignment = Alignment.Center,
       content = content,
@@ -335,6 +335,7 @@ fun FluidGlassButton(
   } else {
     MaterialTheme.colorScheme.onSurface
   }
+  val press = rememberFluidPressState(FluidPressFeedback.Expand)
   Row(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
@@ -343,13 +344,14 @@ fun FluidGlassButton(
         shape = shape,
         selected = selected,
         interactive = enabled,
+        pressState = press,
       )
       .fluidPressable(
         onClick = onClick,
         enabled = enabled,
-        pressedScale = 1f,
         role = Role.Button,
         focusShape = shape,
+        pressState = press,
       )
       .height(FluidGlassButtonHeight)
       .padding(horizontal = 20.dp),

@@ -253,10 +253,11 @@ private fun FluidHeroAction(
   Row(
     modifier = Modifier
       .heightIn(min = 48.dp)
+      // A capsule button: it grows, like every button of the engine (2.11.0).
       .fluidPressable(
         onClick = onClick,
-        pressedScale = 0.965f,
         role = Role.Button,
+        feedback = FluidPressFeedback.Expand,
       )
       .background(contentColor.copy(alpha = 0.11f), FluidCapsuleShape)
       .padding(horizontal = 15.dp, vertical = 10.dp),

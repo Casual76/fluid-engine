@@ -15,6 +15,9 @@
  *   - kotlin.time.Clock, which is still experimental, was replaced with SystemClock.uptimeMillis();
  *   - the highlight gained a `strength` control and an `enabled` gate, so a disabled or
  *     reduced-motion control can hold still without a second implementation existing;
+ *   - 2.11.0: a release no longer cuts a press short. The highlight's press goes through the
+ *     engine's FluidPressMotion and can be driven from outside (`progress`, `touch`); the drag
+ *     animation's release waits for its press to arrive before relaxing;
  *   - the engine's formatting.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,6 +63,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastFirstOrNull
+import dev.antigravity.fluidengine.ui.fluid.FluidPressMotion
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.asComposeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
@@ -224,7 +228,13 @@ class GlassDragAnimation(
     }
   }
 
+  // Which press a pending release belongs to. A release waits (for the value, for the press to
+  // arrive), and a new press during the wait used to be relaxed by the old release as soon as the
+  // wait ended — the thumb deflating under a finger that was still on it.
+  private var pressGeneration = 0
+
   fun press() {
+    pressGeneration++
     velocityTracker.resetTracking()
     animationScope.launch {
       launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
@@ -234,6 +244,7 @@ class GlassDragAnimation(
   }
 
   fun release() {
+    val generation = pressGeneration
     animationScope.launch {
       if (value != targetValue) {
         val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
@@ -241,6 +252,19 @@ class GlassDragAnimation(
           .filter { abs(it - valueAnimation.targetValue) < threshold }
           .first()
       }
+      // A tap is shorter than the press. Letting go now would relax a thumb that had swollen a
+      // tenth of the way, so the press is allowed to arrive first — the rule FluidPressMotion
+      // applies to every button, here for the thumbs and lenses that are dragged. Since 2.11.0.
+      if (pressProgressAnimation.targetValue == 1f &&
+        pressProgressAnimation.value < FluidPressMotion.ArrivalFraction
+      ) {
+        snapshotFlow { pressProgressAnimation.value }
+          .filter {
+            it >= FluidPressMotion.ArrivalFraction || pressProgressAnimation.targetValue != 1f
+          }
+          .first()
+      }
+      if (generation != pressGeneration) return@launch
       launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
       launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
       launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
@@ -310,21 +334,34 @@ class GlassTouchHighlight(
    * the theme is on.
    */
   val onDarkSurface: Boolean = true,
+  /**
+   * A press driven by someone else, 0..1. Given, the highlight lights up with it instead of with
+   * its own spring, and [gestureModifier] is not needed: the control that owns the press — see
+   * `FluidPressState` — tells the glass and the light the same thing. Since 2.11.0.
+   */
+  val progress: (() -> Float)? = null,
+  /** Where the finger is, for a press driven by someone else. Since 2.11.0. */
+  val touch: (() -> Offset)? = null,
 ) {
 
   private val glowTone = if (onDarkSurface) Color.White else Color.Black
   private val glowBlend = if (onDarkSurface) BlendMode.Plus else BlendMode.SrcOver
 
-  private val pressProgressAnimationSpec = spring(0.5f, 300f, 0.001f)
   private val positionAnimationSpec = spring(0.5f, 300f, Offset.VisibilityThreshold)
 
-  private val pressProgressAnimation = Animatable(0f, 0.001f)
+  // Its own press, when nobody drives it, goes through the engine's press motion: the light waits
+  // for the rise to arrive before it fades, so a quick tap lights the glass fully instead of
+  // blinking a tenth of the way up. Same spring both ways as before. Since 2.11.0.
+  private val pressMotion = FluidPressMotion(animationScope).apply {
+    pressSpec = spring(0.5f, 300f, 0.001f)
+    releaseSpec = spring(0.5f, 300f, 0.001f)
+  }
   private val positionAnimation =
     Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold)
 
   private var startPosition = Offset.Zero
 
-  val pressProgress: Float get() = pressProgressAnimation.value
+  val pressProgress: Float get() = progress?.invoke() ?: pressMotion.value
   val offset: Offset get() = positionAnimation.value - startPosition
 
   /**
@@ -332,8 +369,7 @@ class GlassTouchHighlight(
    * back after a release. The window in which the glass under it is genuinely live. Since 2.10.0.
    */
   val isAnimating: Boolean
-    get() = pressProgressAnimation.isRunning || positionAnimation.isRunning ||
-      pressProgressAnimation.value > 0f
+    get() = pressMotion.isRunning || positionAnimation.isRunning || pressProgress > 0f
 
   private val shader =
     if (isRuntimeShaderSupported()) {
@@ -355,14 +391,15 @@ half4 main(float2 coord) {
     }
 
   val modifier: Modifier = Modifier.drawWithContent {
-    val progress = pressProgressAnimation.value * strength().coerceIn(0f, 1f)
-    if (progress > 0f) {
+    // Clamped: a driven press comes from a spring that may pass its ends, and light does not.
+    val glow = pressProgress.coerceIn(0f, 1f) * strength().coerceIn(0f, 1f)
+    if (glow > 0f) {
       if (shader != null) {
-        drawRect(glowTone.copy(0.08f * progress), blendMode = glowBlend)
+        drawRect(glowTone.copy(0.08f * glow), blendMode = glowBlend)
         shader.apply {
-          val position = position(size, positionAnimation.value)
+          val position = position(size, touch?.invoke() ?: positionAnimation.value)
           setFloatUniform("size", size.width, size.height)
-          setColorUniform("color", glowTone.copy(0.15f * progress))
+          setColorUniform("color", glowTone.copy(0.15f * glow))
           setFloatUniform("radius", size.minDimension * 1.5f)
           setFloatUniform(
             "position",
@@ -372,7 +409,7 @@ half4 main(float2 coord) {
         }
         drawRect(ShaderBrush(shader.asComposeShader()), blendMode = glowBlend)
       } else {
-        drawRect(glowTone.copy(0.25f * progress), blendMode = glowBlend)
+        drawRect(glowTone.copy(0.25f * glow), blendMode = glowBlend)
       }
     }
 
@@ -383,10 +420,8 @@ half4 main(float2 coord) {
     inspectDragGestures(
       onDragStart = { down ->
         startPosition = down.position
-        animationScope.launch {
-          launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
-          launch { positionAnimation.snapTo(startPosition) }
-        }
+        pressMotion.press()
+        animationScope.launch { positionAnimation.snapTo(startPosition) }
       },
       onDragEnd = { relax() },
       onDragCancel = { relax() },
@@ -396,9 +431,7 @@ half4 main(float2 coord) {
   }
 
   private fun relax() {
-    animationScope.launch {
-      launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
-      launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
-    }
+    pressMotion.release()
+    animationScope.launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
   }
 }

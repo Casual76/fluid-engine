@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
@@ -48,6 +49,7 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 
 /**
  * Il tasto che SI ESPANDE nel proprio menù contestuale — la prima integrazione vera di
@@ -165,6 +167,9 @@ fun FluidMorphMenuButton(
 ) {
   var bounds by remember { mutableStateOf<Rect?>(null) }
   val contentColor = MaterialTheme.colorScheme.onSurface
+  // Una pressione sola per il click e per il vetro, come FluidGlassButton: la capsula cresce e si
+  // illumina sullo stesso orologio con cui l'azione viene confermata.
+  val press = rememberFluidPressState(FluidPressFeedback.Expand)
 
   Row(
     modifier = modifier
@@ -175,8 +180,9 @@ fun FluidMorphMenuButton(
       // interactive = true, di nuovo: senza, il tasto era l'unico della fila a non accendersi
       // sotto il dito — "ha perso quella capacità", ed è vero. La coerenza con gli altri
       // controlli vale più del lampo occasionale su un dito che voleva solo scorrere.
-      .glassControlSurface(backdrop = backdrop)
+      .glassControlSurface(backdrop = backdrop, pressState = press)
       .fluidPressable(
+        pressState = press,
         onClick = onClick,
         onLongClick = {
           bounds?.let { state.open(it, text, icon, actions()) }

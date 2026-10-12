@@ -56,6 +56,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
@@ -342,7 +343,7 @@ fun FluidCoachMark(
         style = MaterialTheme.typography.labelMedium,
         color = scheme.onSurfaceVariant.copy(alpha = 0.85f),
         modifier = Modifier
-          .fluidPressable(onClick = onOptOut, role = Role.Button)
+          .fluidPressable(onClick = onOptOut, role = Role.Button, feedback = FluidPressFeedback.Expand)
           .padding(vertical = 6.dp, horizontal = 2.dp),
       )
       Spacer(Modifier.width(12.dp))
@@ -351,9 +352,15 @@ fun FluidCoachMark(
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
         color = scheme.onPrimaryContainer,
+        // The press outside the fill, so the capsule grows and not only its word (2.11.0).
         modifier = Modifier
+          .fluidPressable(
+            onClick = onDismiss,
+            role = Role.Button,
+            haptic = FluidHapticEvent.Close,
+            feedback = FluidPressFeedback.Expand,
+          )
           .background(scheme.primaryContainer, FluidCapsuleShape)
-          .fluidPressable(onClick = onDismiss, role = Role.Button, haptic = FluidHapticEvent.Close)
           .padding(horizontal = 18.dp, vertical = 8.dp),
       )
     }

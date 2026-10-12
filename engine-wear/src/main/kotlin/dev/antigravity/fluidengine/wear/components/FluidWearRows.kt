@@ -23,7 +23,9 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.fluid.rememberEmptyGlassBackdrop
 import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
@@ -100,11 +102,15 @@ fun FluidWearPill(
   label: String? = null,
   icon: @Composable () -> Unit,
 ) {
+  // One press for the glass and the click, as on the phone's glass buttons (2.11.0): the pill grows
+  // and lights up on the timeline the tap is confirmed on, instead of the glass swelling while the
+  // label inside it shrank on a clock of its own.
+  val press = rememberFluidPressState(FluidPressFeedback.Expand)
   Row(
     modifier = modifier
       .height(FluidWearDimens.PillHeight)
-      .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
-      .fluidPressable(onClick = onClick)
+      .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape, pressState = press)
+      .fluidPressable(onClick = onClick, pressState = press)
       .padding(horizontal = PillPadding),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(RowGap, Alignment.CenterHorizontally),

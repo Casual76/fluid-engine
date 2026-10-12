@@ -44,6 +44,7 @@
 
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
@@ -309,6 +310,8 @@ fun FluidFloatingTabBar(
     // which is what made the animation stutter on a mid-range phone. The
     // modifier below reads it inside its own graphicsLayer block instead, so a
     // frame of the fold costs a draw and nothing more.
+    // The target is always 0 — the keyframes carry the peak — so the state is deliberately unused.
+    @SuppressLint("UnusedTransitionTargetStateParameter")
     val gooeyProgress = transition.animateFloat(
         transitionSpec = {
             keyframes {

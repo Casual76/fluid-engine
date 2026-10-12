@@ -173,7 +173,7 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 
 **Controlli**
 
-`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassIconButton`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`.
+`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidSlider` (la maniglia e' una lente sulla pista, e un trascinamento non lascia scorrere la pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`. Come rispondono al dito: vedi "La pressione" qui sotto.
 
 **Token**
 
@@ -185,8 +185,45 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 - Testo solo da `MaterialTheme.typography` o `FluidTextStyles`. Niente `fontSize` a mano.
 - Angoli da `FluidRadius` attraverso `ContinuousCornerShape`, o da `MaterialTheme.shapes` (che è già mappato su quelli).
 - Animazioni da `FluidMotion`. Una `tween` scritta a mano nel mezzo di una schermata è il modo più rapido per far sembrare quella schermata di un'altra app.
-- Feedback al tocco con `fluidPressable` (scala) o `fluidRowPressable` (tinta, per le righe di una lista raggruppata). Una riga che si rimpicciolisce rompe la sagoma del gruppo.
+- Feedback al tocco con `fluidPressable` o `fluidRowPressable` (tinta, per le righe di una lista raggruppata). Una riga che cambia misura rompe la sagoma del gruppo. Un pulsante cresce (`feedback = FluidPressFeedback.Expand`), una superficie cede: vedi "La pressione".
 - Il contrasto è testato: `FluidContrastTest` verifica le coppie. Se aggiungi un ruolo, aggiungi il caso.
+
+## La pressione (2.11.0)
+
+Un posto solo, `ui/fluid/FluidPress.kt`, per come un elemento risponde al dito. Due famiglie
+(`FluidPressFeedback`), e la differenza e' di sagoma:
+
+- **i pulsanti crescono** (`FluidPressFeedback.Expand`): 6 dp sul lato corto, al massimo 14 sul
+  lungo, mai oltre il 14% — un'icona cresce del 13%, un pulsante a tutta larghezza del 4%. Si
+  inclinano verso il dito (una `tanh`: libera all'inizio, poi rigida, mai oltre 8 dp), si allungano
+  nel verso in cui scorre e lo fanno sentire con tacche `DragTick`, una ogni 10 dp e mai piu' di
+  una ogni 55 ms. Li usano `FluidButton`, `FluidChip`, `FluidColorDot`, i tasti di vetro
+  (`FluidGlassButton`, `FluidGlassIconButton`, `FluidBarAction`, `FluidMorphMenuButton`) e i tasti
+  piccoli dei componenti;
+- **le superfici cedono** (`FluidPressFeedback.yielding(scala)`, il default di `fluidPressable`):
+  card, tessere, celle. Una card che crescesse invaderebbe le vicine.
+
+Per entrambe **la pressione arriva sempre in fondo**: un rilascio che cade mentre la corsa sta
+ancora salendo aspetta che arrivi (`FluidPressMotion`), quindi un tap di 20 ms mostra la stessa
+pressione di uno tenuto. Prima un tap vero muoveva il tasto di un decimo, e dentro una lista — dove
+`clickable` ritarda la pressione di 100 ms — un tap rapido non lo muoveva affatto. Con le animazioni
+ridotte un pulsante cresce la meta' e non segue il dito, ma la pressione resta intera.
+
+Due regole pratiche:
+
+- **`fluidPressable` va prima del clip e dello sfondo** di cio' che preme. Dentro, si muove solo il
+  contenuto: `FluidButton` ha rimpicciolito per anni la sola etichetta, con il contenitore fermo.
+- **Un pulsante di vetro ha una pressione sola**: `val p = rememberFluidPressState()`, poi
+  `glassControlSurface(pressState = p)` e `fluidPressable(pressState = p)`. Il click la guida, il
+  vetro la disegna nel suo layer (che il renderer corregge), e il dito che scorre scatta una volta
+  sola. Senza `pressState` il vetro segue il dito da solo, come sempre.
+
+**Lo slider tiene la pagina.** `FluidSlider` non e' piu' un `draggable` orizzontale in gara con la
+pagina: un dito sulla maniglia e' suo subito, e ogni movimento di quel dito viene consumato fino al
+rilascio, su entrambi gli assi; un dito sulla pista nuda diventa suo a mezzo slop di lato, e una
+passata che va in verticale per prima resta della pagina. Tacche `DragTick` a ogni ventesimo,
+`Threshold` alle estremita'. Per un lettore di schermo e' uno slider (`progressBarRangeInfo` e
+`setProgress`), non piu' un interruttore.
 
 ## Fluid-physics — il vetro che cambia forma
 
@@ -240,12 +277,16 @@ menu che si apre `Open`, l'indice di sezione `Tick`), le app aggiungono i loro m
 Il permesso `VIBRATE` lo dichiara `engine-ui`: senza, ogni composizione fallisce con una
 SecurityException che il motore ingoia, e l'aptica non si sente da nessuna parte (successo davvero,
 1.20.2 -> 1.21.0). L'impostazione tattile di sistema non si legge per decidere: su One UI resta a
-zero mentre il telefono vibra, e le vibrazioni di tocco le filtra gia' il sistema.
+zero mentre il telefono vibra, e le vibrazioni di tocco le filtra gia' il sistema — dalla 2.11.0
+anche fra Android 11 e 12, dove ora partono come uso "tocco" (`AudioAttributes`
+`ASSISTANCE_SONIFICATION`) e il "Feedback tattile" spento le spegne.
 
 Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabolario e' uno);
 `fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (una pillola che fa
-`Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`) spariscono in
-risparmio energetico e si diradano a 40 ms da soli. L'interruttore e' `EngineSettings.hapticsEnabled`,
+`Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`, `DragTick`)
+spariscono in risparmio energetico e si diradano a 40 ms da soli. `DragTick` (2.11.0) e' il dito
+che scorre su un controllo premuto o la maniglia di uno slider che passa un passo: il piu' leggero
+dei tick, perche' arriva a raffica. L'interruttore e' `EngineSettings.hapticsEnabled`,
 da esporre in Aspetto accanto al vetro.
 
 ## Suggerimenti al primo uso (1.20.0)

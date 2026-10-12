@@ -36,7 +36,8 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 ## Controlli
 
 `FluidButton(text, onClick, style, size, enabled, loading, fillWidth, leading)` con
-`FluidButtonStyle` = Filled / Tinted / Plain / Destructive.
+`FluidButtonStyle` = Filled / Tinted / Plain / Destructive. Dalla 2.11.0 **cresce** sotto il dito
+(vedi "La pressione" qui sotto), contenitore compreso: prima cedeva solo l'etichetta.
 
 `FluidSwitch(checked, onCheckedChange, enabled, backdrop)` — il LiquidToggle di Kyant0, 64x28 con
 pomello a pillola 40x24. Il **pomello è l'unica lastra**: a riposo è bianco pieno, tenuto premuto il
@@ -47,7 +48,11 @@ a possedere il `toggleable` e il target da 48dp. `backdrop` di default è il can
 `FluidGlassSwitch` è deprecato — era il nome che questo controllo ha avuto per una versione.
 
 `FluidSlider(value, onValueChange, valueRange)` — il fratello dell'interruttore: pista che si
-riempie, maniglia che rifrange la pista, e tutta la larghezza tocca (non solo la maniglia).
+riempie, maniglia che rifrange la pista, e tutta la larghezza tocca (non solo la maniglia). Dalla
+2.11.0 un trascinamento **non fa scorrere la pagina**: un dito sulla maniglia e' suo subito e ogni
+suo movimento e' consumato fino al rilascio; sulla pista nuda diventa suo a mezzo slop di lato,
+mentre una passata verticale resta della pagina. Tacche `DragTick` a ogni ventesimo, `Threshold`
+in fondo. Per TalkBack e' uno slider (`setProgress`), non piu' un interruttore.
 
 `FluidSegmentedControl(options, selected, onSelect, label)` — `content = { opzione, selezionato -> }`
 per i segmenti a sole icone; `label` resta e diventa la descrizione per chi legge lo schermo, `FluidChip(label, selected, onClick)`,
@@ -88,7 +93,9 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche
-- Modificatori: `fluidPressable`, `fluidRowPressable`
+- Modificatori: `fluidPressable` (con `feedback` e `pressState` dalla 2.11.0), `fluidRowPressable`
+- La pressione (2.11.0): `FluidPressFeedback` (`Expand` per i pulsanti, `yielding(scala)` per le
+  superfici, `None`), `rememberFluidPressState`, `FluidPressState.progress`
 
 ## Regola del vetro
 
@@ -241,6 +248,23 @@ ottenere un rimbalzo: vedi le tre trappole in `regole.md`.
 Il banco di prova è la scheda Playground dell'app Fluid Glass (il modulo `sample/` del repo
 dell'engine), pubblicata sul Pampa Store.
 
+## La pressione (2.11.0)
+
+Tutto in `ui/fluid/FluidPress.kt`. **I pulsanti crescono** (`FluidPressFeedback.Expand`: 6 dp sul
+lato corto, max 14 sul lungo, mai oltre il 14%), si inclinano verso il dito, si allungano nel verso
+in cui scorre e scattano (`DragTick` ogni 10 dp, mai piu' di uno ogni 55 ms). **Le superfici
+cedono** (`yielding`, il default di `fluidPressable`): una card che crescesse invaderebbe le vicine.
+Per tutti, **la pressione arriva sempre in fondo**: un rilascio a meta' corsa aspetta (un tap di
+20 ms mostra la pressione intera, anche dentro una lista dove `clickable` la ritarda di 100 ms).
+Animazioni ridotte: crescita dimezzata, niente inclinazione, pressione comunque intera.
+
+Regole: `fluidPressable` va **prima** di `clip`/`background`, o si muove solo il contenuto. Un tasto
+di vetro ha **una** pressione: `val p = rememberFluidPressState()` passato sia a
+`glassControlSurface(pressState = p)` sia a `fluidPressable(pressState = p)`; senza, il vetro segue
+il dito da solo come sempre. Il banco di prova e' la sezione "Tocco" della scheda Controlli del
+sample; i test Compose (slider in `LazyColumn`/`verticalScroll`, tap rapido in lista) stanno in
+`sample/src/testDebug` per non portare Robolectric nelle app.
+
 ## Aptica (1.19.0)
 
 `FluidHaptics` e' il vocabolario di cio' che si sente sotto il dito, uno per tema: i componenti
@@ -253,12 +277,14 @@ menu che si apre `Open`, l'indice di sezione `Tick`), le app aggiungono i loro m
 Il permesso `VIBRATE` lo dichiara `engine-ui`: senza, ogni composizione fallisce con una
 SecurityException che il motore ingoia, e l'aptica non si sente da nessuna parte (successo davvero,
 1.20.2 -> 1.21.0). L'impostazione tattile di sistema non si legge per decidere: su One UI resta a
-zero mentre il telefono vibra, e le vibrazioni di tocco le filtra gia' il sistema.
+zero mentre il telefono vibra, e le vibrazioni di tocco le filtra gia' il sistema (dalla 2.11.0
+anche su Android 11-12, dove partono come `AudioAttributes.USAGE_ASSISTANCE_SONIFICATION`).
 
 Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabolario e' uno);
 `fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (una pillola che fa
-`Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`) spariscono in
-risparmio energetico e si diradano a 40 ms da soli. L'interruttore e' `EngineSettings.hapticsEnabled`,
+`Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`, `DragTick`)
+spariscono in risparmio energetico e si diradano a 40 ms da soli. `DragTick` (2.11.0) e' la tacca
+di un dito che scorre su un controllo premuto o di uno slider che passa un passo. L'interruttore e' `EngineSettings.hapticsEnabled`,
 da esporre in Aspetto accanto al vetro.
 
 ## Suggerimenti al primo uso (1.20.0)

@@ -94,6 +94,13 @@ android {
   kotlinOptions {
     jvmTarget = engine.jvmTarget
   }
+
+  testOptions {
+    unitTests {
+      // Robolectric legge manifest e risorse dell'app (i font del tema, l'attivita' di prova).
+      includeAndroidResources = true
+    }
+  }
 }
 
 dependencies {
@@ -101,4 +108,19 @@ dependencies {
   // L'aggiornamento in-app: lo stesso manifest.json che il Pampa Store legge, una sola fonte.
   implementation project(':engine-update')
   implementation "androidx.activity:activity-compose:${engine.activityCompose}"
+
+  // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
+  // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi
+  // test, e avrebbe dovuto scaricare Robolectric e un'immagine di Android per un controllo che
+  // non e' suo. Il sample esiste solo nel build dell'engine, e nessuna app lo vede mai.
+  //
+  // Solo sul debug (src/testDebug): Robolectric cerca l'attivita' vuota dei test nel manifest
+  // dell'app, quindi ui-test-manifest deve entrare nell'APK — in quello di debug, che ha il suo
+  // suffisso, e mai in quello pubblicato sullo store.
+  debugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  debugImplementation 'androidx.compose.ui:ui-test-manifest'
+  testDebugImplementation "junit:junit:${engine.junit}"
+  testDebugImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testDebugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  testDebugImplementation 'androidx.compose.ui:ui-test-junit4'
 }

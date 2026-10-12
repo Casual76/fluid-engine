@@ -68,15 +68,25 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import kotlin.math.roundToInt
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastFirstOrNull
+import dev.antigravity.fluidengine.ui.haptics.FluidDetent
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticDetents
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * How much a control's colour says about it.
@@ -124,10 +134,16 @@ object FluidButtonDefaults {
  * A button.
  *
  * Three things separate this from the Material one, and all three are things a person notices
- * without being able to name them: it scales under the finger instead of rippling, its corners are
- * continuous, and a disabled button fades rather than turning grey — the greyed-out disabled state
- * is a Material signature, and it also destroys the colour relationship the rest of the screen is
- * built on.
+ * without being able to name them: it answers the finger with its whole body instead of rippling,
+ * its corners are continuous, and a disabled button fades rather than turning grey — the greyed-out
+ * disabled state is a Material signature, and it also destroys the colour relationship the rest of
+ * the screen is built on.
+ *
+ * Since 2.11.0 the answer is [FluidPressFeedback.Expand]: the button grows under the finger, leans
+ * toward it, stretches along a drag and ticks under a finger sliding across it, and a tap however
+ * quick plays the whole press. Before, it shrank to 0.974 — and only its label did, because the
+ * press sat *inside* the clip and the background, so the container never moved at all. The press
+ * is now outside both, and the container is what grows.
  */
 @Composable
 fun FluidButton(
@@ -160,9 +176,14 @@ fun FluidButton(
     modifier = modifier
       .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
       .alpha(if (enabled) 1f else 0.4f)
+      .fluidPressable(
+        onClick = onClick,
+        enabled = enabled && !loading,
+        role = Role.Button,
+        feedback = FluidPressFeedback.Expand,
+      )
       .clip(shape)
       .background(container)
-      .fluidPressable(onClick = onClick, enabled = enabled && !loading, role = Role.Button)
       .height(FluidButtonDefaults.height(size))
       .padding(horizontal = FluidButtonDefaults.horizontalPadding(size)),
     contentAlignment = Alignment.Center,
@@ -225,18 +246,36 @@ private val FluidLensThumbTint = GlassTint(
  *    handle refracts *it*, so the accent visibly distorts underneath the handle and the boundary
  *    pulls as it crosses. Made a flat circle instead, this is a Material slider wearing a different
  *    colour.
- *  * **The handle stretches.** Dragged fast it thins along its travel, the way the switch's thumb
- *    does. It is most of why the control feels like an object being pushed rather than a number
- *    being redrawn.
+ *  * **The handle stretches and swells.** Dragged fast it thins along its travel, the way the
+ *    switch's thumb does; held, it grows by a quarter. It is most of why the control feels like an
+ *    object being pushed rather than a number being redrawn.
  *
  * The whole width is live, not only the handle: a tap anywhere on the track takes the value there.
  * A slider you have to hit the handle of is one a thumb misses, and on a settings page it is the
- * difference between adjusting something and hunting for it.
+ * difference between adjusting something and hunting for it. The touch target is the track's
+ * 30 dp stretched to 48 by Compose's minimum-touch-target expansion, which applies to this
+ * control's pointer input like to any other.
  *
- * Ticks come from [FluidHapticEvent.Tick] at every twentieth of the range and
- * [FluidHapticEvent.Threshold] at each end, which is where the engine's own floor of forty
- * milliseconds between continuous ticks is doing the work: on a fast drag there are far more
- * crossings than a motor can answer, and asking for all of them produces a buzz rather than a count.
+ * **A drag belongs to the slider, all of it (2.11.0).** It used to be a horizontal `draggable`,
+ * which the page under it raced for every gesture: a thumb moving the handle never moves in a
+ * straight line, and as soon as the vertical part of the drift crossed the touch slop first the
+ * page started scrolling under the finger, or the handle froze and the page took over. Now:
+ *
+ *  * a finger that lands **on the handle** has it at once — every change of that pointer is
+ *    consumed from the first move to the lift, both axes, so the page under it never sees a
+ *    movement it could scroll by;
+ *  * a finger that lands **on the bare track** may still be someone scrolling past. It is claimed
+ *    as soon as it has moved half a touch slop sideways and more sideways than up or down, and only
+ *    then consumed; a gesture that goes vertical first is left to the page, so a full-width slider
+ *    is not a band of the screen that cannot be scrolled from. Lifted without moving, it is a tap;
+ *  * the slider reads the pointer before its parents do (the main pass runs child first), which is
+ *    what makes "claimed" mean the page never got the gesture rather than lost it halfway.
+ *
+ * Ticks are [FluidHapticEvent.DragTick] at every twentieth of the range and
+ * [FluidHapticEvent.Threshold] at each end, the same grain a finger feels sliding over a pressed
+ * button. Through `FluidHapticDetents`: on a fast drag there are far more crossings than a motor
+ * can answer, and asking for all of them produces a buzz rather than a count, so a tick waits
+ * 55 ms after the previous one — except the ends, which always land.
  */
 @Composable
 fun FluidSlider(
@@ -266,43 +305,58 @@ fun FluidSlider(
   val currentRange by rememberUpdatedState(valueRange)
 
   var dragging by remember { mutableStateOf(false) }
-  val press by animateFloatAsState(
-    targetValue = if (dragging && enabled) 1f else 0f,
-    animationSpec = FluidMotion.snappy(),
-    label = "slider press",
-  )
+  // The handle's press goes through the same motion as every button: a tap on the track swells it
+  // fully and lets it go, instead of a tenth of a swell that nobody sees.
+  val press = remember(scope) { FluidPressMotion(scope) }
+  SideEffect { FluidPressSprings.configure(press, FluidPressFeedback.Expand, reducedMotion) }
 
-  // Where the handle is, as its own animated value, so the stretch has a velocity to read. While a
-  // finger is on it the position *is* the finger, so it snaps; a value arriving from elsewhere — a
-  // preference restored, a reset — travels.
+  // Where the handle is, as its own animated value. While a finger is on it the position *is* the
+  // finger, so it snaps; a value arriving from elsewhere — a tap, a preference restored, a reset —
+  // travels.
   val position = remember { Animatable(fraction) }
   LaunchedEffect(fraction, dragging, reducedMotion) {
     if (dragging || reducedMotion) position.snapTo(fraction) else position.animateTo(fraction, FluidMotion.snappy())
   }
+  // How fast the finger moves the handle, in ranges per second, smoothed. A snapped position has no
+  // velocity of its own, so the stretch under a drag reads this instead (before 2.11.0 it read the
+  // snapped one, and a dragged handle never stretched at all).
+  val dragVelocity = remember { Animatable(0f) }
 
-  var lastTick by remember { mutableIntStateOf((fraction * SliderTickSteps).roundToInt()) }
+  val detents = remember { FluidHapticDetents() }
 
   BoxWithConstraints(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.5f)
       .fillMaxWidth()
       .height(SliderTrackHeight)
-      .semantics { this.role = Role.Switch },
+      .semantics {
+        // A slider, to a screen reader: its value in its range, and the action to set it. It used
+        // to call itself a switch, which is the one thing it is not.
+        progressBarRangeInfo = ProgressBarRangeInfo(value.coerceIn(valueRange), valueRange)
+        if (enabled) {
+          setProgress { target ->
+            currentOnValueChange(target.coerceIn(currentRange.start, currentRange.endInclusive))
+            currentFinished?.invoke()
+            true
+          }
+        } else {
+          disabled()
+        }
+      },
     contentAlignment = Alignment.CenterStart,
   ) {
     val widthPx = constraints.maxWidth.toFloat()
     val thumbPx = with(density) { SliderThumbSize.toPx() }
     val insetPx = with(density) { SliderThumbInset.toPx() }
+    val grabPx = with(density) { SliderGrabMargin.toPx() }
     val travelPx = (widthPx - thumbPx - insetPx * 2f).coerceAtLeast(1f)
 
-    fun report(next: Float) {
+    fun report(next: Float, uptimeMillis: Long) {
       val clamped = next.fastCoerceIn(0f, 1f)
-      val step = (clamped * SliderTickSteps).roundToInt()
-      if (step != lastTick) {
-        lastTick = step
-        haptics.play(
-          if (clamped <= 0f || clamped >= 1f) FluidHapticEvent.Threshold else FluidHapticEvent.Tick,
-        )
+      when (detents.step(clamped, SliderTickSteps, uptimeMillis)) {
+        FluidDetent.Edge -> haptics.play(FluidHapticEvent.Threshold)
+        FluidDetent.Tick -> haptics.play(FluidHapticEvent.DragTick)
+        FluidDetent.None -> Unit
       }
       currentOnValueChange(fluidSliderValue(clamped, currentRange))
     }
@@ -312,26 +366,86 @@ fun FluidSlider(
     Box(
       modifier = Modifier
         .fillMaxSize()
-        .pointerInput(enabled, travelPx, thumbPx, insetPx) {
+        .pointerInput(enabled, travelPx, thumbPx, insetPx, grabPx) {
           if (!enabled) return@pointerInput
-          detectTapGestures { offset ->
-            scope.launch { position.snapTo(fractionAt(offset.x)) }
-            report(fractionAt(offset.x))
-            currentFinished?.invoke()
+          val tracker = VelocityTracker()
+          awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val handleCenter = insetPx + thumbPx / 2f + position.value * travelPx
+            // Where on the handle the finger took it: the handle keeps that offset instead of
+            // jumping its centre under the finger, so grabbing it by an edge does not move it.
+            var grab = 0f
+            if (abs(down.position.x - handleCenter) <= thumbPx / 2f + grabPx) {
+              grab = down.position.x - handleCenter
+              down.consume()
+            } else {
+              // On the bare track: a tap, a sideways drag, or a page being scrolled past.
+              var travel = Offset.Zero
+              while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.fastFirstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                // Someone else has it: the page started scrolling on a gesture that went vertical.
+                if (change.isConsumed) return@awaitEachGesture
+                if (!change.pressed) {
+                  change.consume()
+                  detents.restartAt(position.value, SliderTickSteps)
+                  press.press()
+                  report(fractionAt(down.position.x), change.uptimeMillis)
+                  press.release()
+                  currentFinished?.invoke()
+                  return@awaitEachGesture
+                }
+                travel += change.positionChange()
+                when (fluidSliderClaim(travel, viewConfiguration.touchSlop)) {
+                  FluidSliderClaim.Slider -> {
+                    change.consume()
+                    break
+                  }
+                  FluidSliderClaim.Page -> return@awaitEachGesture
+                  FluidSliderClaim.Undecided -> Unit
+                }
+              }
+            }
+
+            dragging = true
+            press.press()
+            detents.restartAt(position.value, SliderTickSteps)
+            tracker.resetTracking()
+            var pointer = down.id
+            var last = currentEvent.changes.fastFirstOrNull { it.id == pointer }
+            // Claimed from the track, the handle comes to the finger now, not on the next move.
+            if (last != null && last.position.x != down.position.x) {
+              report(fractionAt(last.position.x - grab), last.uptimeMillis)
+            }
+            try {
+              while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.fastFirstOrNull { it.id == pointer }
+                  ?: event.changes.fastFirstOrNull { it.pressed }?.also { pointer = it.id }
+                  ?: break
+                if (!change.pressed) {
+                  change.consume()
+                  break
+                }
+                if (change.positionChanged()) {
+                  val next = fractionAt(change.position.x - grab)
+                  report(next, change.uptimeMillis)
+                  tracker.addPosition(change.uptimeMillis, Offset(next, 0f))
+                  val velocity = tracker.calculateVelocity().x
+                  scope.launch { dragVelocity.animateTo(velocity, SliderVelocitySpring) }
+                }
+                // Both axes, every change, to the lift: the page under a slider being dragged
+                // does not move, whatever the finger's drift.
+                change.consume()
+              }
+            } finally {
+              dragging = false
+              press.release()
+              scope.launch { dragVelocity.animateTo(0f, SliderVelocitySpring) }
+              currentFinished?.invoke()
+            }
           }
-        }
-        .draggable(
-          enabled = enabled,
-          orientation = Orientation.Horizontal,
-          state = rememberDraggableState { delta ->
-            report((position.value + delta / travelPx).fastCoerceIn(0f, 1f))
-          },
-          onDragStarted = { dragging = true },
-          onDragStopped = {
-            dragging = false
-            currentFinished?.invoke()
-          },
-        ),
+        },
     ) {
       // 1. The track, recorded. Two flat fills meeting at an edge, and that edge is what the lens
       // is here to bend.
@@ -382,16 +496,21 @@ fun FluidSlider(
                 innerShadowAlpha = 0.14f,
               )
             },
-            pressed = { press },
+            pressed = { press.value.fastCoerceIn(0f, 1f) },
             layerBlock = {
               // In the layer, not the layout: moving the handle invalidates a draw and nothing
               // else, and the renderer inverts this block when it samples, so at every point of the
               // travel the handle is handed the image the track actually has behind it.
               translationX = travelPx * position.value
-              if (!reducedMotion) {
-                val speed = (position.velocity * 0.09f).coerceIn(-0.22f, 0.22f)
-                scaleX = 1f / (1f - speed) * (1f + 0.06f * press)
-                scaleY = (1f - speed * 0.35f) * (1f + 0.06f * press)
+              val swell = 1f + (if (reducedMotion) SliderThumbSwellReduced else SliderThumbSwell) * press.value
+              if (reducedMotion) {
+                scaleX = swell
+                scaleY = swell
+              } else {
+                val velocity = if (dragging) dragVelocity.value else position.velocity
+                val speed = (velocity * 0.09f).coerceIn(-0.22f, 0.22f)
+                scaleX = swell / (1f - abs(speed))
+                scaleY = swell * (1f - abs(speed) * 0.35f)
               }
             },
           ),
@@ -399,6 +518,42 @@ fun FluidSlider(
     }
   }
 }
+
+/**
+ * Who a gesture that landed on the bare track of a [FluidSlider] belongs to, after [travel].
+ *
+ * The slider gets it at **half** a touch slop sideways, as long as it is more sideways than not:
+ * it reads the pointer before the page does, and claiming earlier than the page's own slop is what
+ * lets it take a diagonal drift before the page would have. The page gets it once the vertical part
+ * alone passes a whole slop — the same test its own `scrollable` applies, at the same moment.
+ */
+internal fun fluidSliderClaim(travel: Offset, touchSlop: Float): FluidSliderClaim {
+  val sideways = abs(travel.x)
+  val vertical = abs(travel.y)
+  return when {
+    sideways >= touchSlop * SliderClaimSlopFraction && sideways >= vertical -> FluidSliderClaim.Slider
+    vertical > touchSlop -> FluidSliderClaim.Page
+    else -> FluidSliderClaim.Undecided
+  }
+}
+
+internal enum class FluidSliderClaim { Undecided, Slider, Page }
+
+/** How much of a touch slop a sideways drift on the track needs before the slider takes it. */
+internal const val SliderClaimSlopFraction = 0.5f
+
+/** Held, the handle grows by a quarter; with reduced motion by a tenth. */
+private const val SliderThumbSwell = 0.25f
+private const val SliderThumbSwellReduced = 0.1f
+
+/**
+ * How far outside the handle a finger still takes it. A 26 dp handle under a fingertip is mostly
+ * hidden by it, and a touch that lands just beside it means the handle, not the track.
+ */
+private val SliderGrabMargin = 10.dp
+
+/** Critically damped: the stretch follows the drag and stops when it stops, without ringing. */
+private val SliderVelocitySpring = spring<Float>(dampingRatio = 1f, stiffness = 300f, visibilityThreshold = 0.01f)
 
 // ---------------------------------------------------------------------------------------------
 // The arithmetic of the slider
@@ -733,10 +888,18 @@ fun FluidChip(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.4f)
       .defaultMinSize(minHeight = 48.dp)
+      .semantics { this.selected = selected }
+      // Outside the clip and the fill, so the pill is what grows (2.11.0): inside them only the
+      // label moved, and a chip pressed under a thumb showed nothing at all.
+      .fluidPressable(
+        onClick = onClick,
+        enabled = enabled,
+        role = Role.Button,
+        focusShape = FluidCapsuleShape,
+        feedback = FluidPressFeedback.Expand,
+      )
       .clip(FluidCapsuleShape)
       .background(container)
-      .semantics { this.selected = selected }
-      .fluidPressable(onClick = onClick, enabled = enabled, role = Role.Button, focusShape = FluidCapsuleShape)
       .padding(horizontal = 14.dp, vertical = 6.dp),
     contentAlignment = Alignment.Center,
   ) {
@@ -818,7 +981,7 @@ fun FluidColorDot(
         contentDescription = label
         this.selected = selected
       }
-      .fluidPressable(onClick = onClick, role = Role.RadioButton)
+      .fluidPressable(onClick = onClick, role = Role.RadioButton, feedback = FluidPressFeedback.Expand)
       .drawBehind {
         if (ringAlpha > 0.001f) {
           drawCircle(

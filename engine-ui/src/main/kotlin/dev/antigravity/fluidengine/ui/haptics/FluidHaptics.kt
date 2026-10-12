@@ -56,6 +56,15 @@ enum class FluidHapticEvent(val continuous: Boolean = false) {
   AlertWatch,
   AlertAlarm,
   AlertClear,
+
+  /**
+   * Il dito che scorre su un controllo premuto, o la maniglia di uno slider che passa un passo
+   * (2.11.0). Il piu' leggero e il piu' corto dei tick, perche' arriva a raffica: [Tick] e' tarato
+   * per un aggancio che si sente da solo (una riga dell'indice), e ripetuto a ogni passo di un
+   * trascinamento diventava un ronzio. In coda all'elenco, non accanto a [Tick], cosi' gli ordinali
+   * di chi c'era gia' non si spostano.
+   */
+  DragTick(continuous = true),
 }
 
 /** Con cosa si vibra: le composizioni di primitive (ricche), le costanti di piattaforma, o niente. */
@@ -162,6 +171,10 @@ object FluidHapticPatterns {
     FluidHapticEvent.AlertWatch -> listOf(HapticPrimitiveStep(HapticPrimitive.TICK, 0.45f), HapticPrimitiveStep(HapticPrimitive.TICK, 0.45f, 90))
     FluidHapticEvent.AlertAlarm -> listOf(HapticPrimitiveStep(HapticPrimitive.THUD, 1f), HapticPrimitiveStep(HapticPrimitive.TICK, 0.8f, 90))
     FluidHapticEvent.AlertClear -> listOf(HapticPrimitiveStep(HapticPrimitive.QUICK_FALL, 0.5f))
+    // TICK e non LOW_TICK: il basso e' il tonfo di un aggancio, e a raffica si somma in una vibrazione
+    // continua; il TICK e' il piu' secco che il motore sappia fare, e a un terzo resta una grana sotto
+    // il dito invece che un rumore.
+    FluidHapticEvent.DragTick -> listOf(HapticPrimitiveStep(HapticPrimitive.TICK, 0.3f))
   }
 
   /** Le costanti di Compose per i device senza primitive; sotto API 30 Compose degrada da solo. */
@@ -173,7 +186,7 @@ object FluidHapticPatterns {
     FluidHapticEvent.ToggleOff -> HapticFeedbackType.ToggleOff
     FluidHapticEvent.Threshold -> HapticFeedbackType.GestureThresholdActivate
     FluidHapticEvent.Tick, FluidHapticEvent.WaitTick, FluidHapticEvent.SpeechDetected -> HapticFeedbackType.SegmentTick
-    FluidHapticEvent.FrequentTick -> HapticFeedbackType.SegmentFrequentTick
+    FluidHapticEvent.FrequentTick, FluidHapticEvent.DragTick -> HapticFeedbackType.SegmentFrequentTick
     FluidHapticEvent.GestureStart, FluidHapticEvent.Open, FluidHapticEvent.ListenStart -> HapticFeedbackType.ContextClick
     FluidHapticEvent.GestureEnd, FluidHapticEvent.Close, FluidHapticEvent.AlertClear, FluidHapticEvent.ListenEnd, FluidHapticEvent.Stop -> HapticFeedbackType.GestureEnd
     FluidHapticEvent.Warning, FluidHapticEvent.AlertWatch, FluidHapticEvent.AlertAlarm, FluidHapticEvent.ProviderSwitched -> HapticFeedbackType.LongPress
@@ -187,6 +200,7 @@ object FluidHapticPatterns {
   val controlEvents: Set<FluidHapticEvent> = setOf(
     FluidHapticEvent.Tap, FluidHapticEvent.Confirm, FluidHapticEvent.Reject, FluidHapticEvent.ToggleOn, FluidHapticEvent.ToggleOff,
     FluidHapticEvent.Threshold, FluidHapticEvent.Tick, FluidHapticEvent.FrequentTick, FluidHapticEvent.Open, FluidHapticEvent.Close,
+    FluidHapticEvent.DragTick,
   )
 
   /** Tutte le primitive che i pattern usano: il motore le chiede al device una volta sola. */

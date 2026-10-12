@@ -274,7 +274,7 @@ private fun FluidClearButton(onClick: () -> Unit) {
   Box(
     modifier = Modifier
       .size(28.dp)
-      .fluidPressable(onClick = onClick, pressedScale = 0.86f),
+      .fluidPressable(onClick = onClick, feedback = FluidPressFeedback.Expand),
     contentAlignment = Alignment.Center,
   ) {
     androidx.compose.foundation.Canvas(modifier = Modifier.size(17.dp)) {

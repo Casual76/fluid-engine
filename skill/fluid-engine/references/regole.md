@@ -66,6 +66,23 @@ che rendeva l'app "colorata" invece che leggibile.
 Il feedback al tocco per una riga è `fluidRowPressable` (tinta), non `fluidPressable` (scala): una
 riga che si rimpicciolisce rompe la sagoma del gruppo e fa sembrare la lista instabile.
 
+## I pulsanti crescono, le superfici cedono (2.11.0)
+
+Un pulsante è una cosa piccola e sola: sotto il dito **cresce** (`FluidPressFeedback.Expand`), gli
+si inclina incontro e scatta mentre il dito ci scorre sopra. Una card, una tessera, una cella
+**cedono** di pochi centesimi (`yielding`): crescendo invaderebbero le vicine, e seguendo il dito
+farebbero ballare la griglia. Non scrivere una terza risposta al dito in una schermata: è
+`FluidPress.kt`, o non è.
+
+Due cose da sapere, entrambe pagate:
+
+- **la pressione arriva sempre in fondo.** Un tap vero dura meno della corsa di qualsiasi molla, e
+  un rilascio che ripartiva da dove la corsa era arrivata faceva vedere un decimo di pressione — in
+  una lista, dove `clickable` ritarda la pressione di 100 ms, niente del tutto. Il rilascio aspetta;
+- **`fluidPressable` sta prima di `clip` e `background`.** Dopo, la scala si applica solo a ciò che
+  sta dentro: `FluidButton` ha rimpicciolito per anni la sua etichetta dentro un contenitore fermo,
+  e nessuno lo vedeva perché era il 2.6% di una parola.
+
 ## Il vetro va sul contenitore, mai sulla riga
 
 Un `FluidListGroup` di dodici righe e' **un** nodo di vetro, non dodici. Ogni superficie costa una

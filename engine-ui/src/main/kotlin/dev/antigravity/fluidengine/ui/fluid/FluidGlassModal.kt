@@ -1907,7 +1907,7 @@ private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier =
   Box(
     modifier = modifier
       .size(FluidFullScreenCloseTouchTarget)
-      .fluidPressable(onClick = onClick, pressedScale = 0.9f, role = Role.Button)
+      .fluidPressable(onClick = onClick, role = Role.Button, feedback = FluidPressFeedback.Expand)
       .semantics { contentDescription = "Chiudi" },
     contentAlignment = Alignment.Center,
   ) {

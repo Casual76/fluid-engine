@@ -125,6 +125,29 @@ class FluidHapticsTest {
   }
 
   @Test
+  fun `le tacche di trascinamento sono tick continui, secchi e corti`() {
+    assertTrue(FluidHapticEvent.DragTick.continuous)
+    assertTrue(FluidHapticEvent.DragTick in FluidHapticPatterns.controlEvents)
+    // Il piu' leggero dei tick: piu' leggero di quello che si sente da solo.
+    val drag = FluidHapticPatterns.composition(FluidHapticEvent.DragTick).single()
+    val tick = FluidHapticPatterns.composition(FluidHapticEvent.Tick).single()
+    assertEquals(HapticPrimitive.TICK, drag.id)
+    assertTrue(drag.scale < tick.scale)
+    assertTrue(FluidHapticPatterns.durationMillis(FluidHapticEvent.DragTick) <= 20)
+
+    var now = 0L
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { now })
+    repeat(10) { haptics.play(FluidHapticEvent.DragTick); now += 16 }
+    // 10 richieste in 160 ms: il motore ne lascia passare una ogni 40 ms.
+    assertEquals(4, port.compositions.size)
+
+    val saving = FakePort(powerSave = true)
+    FluidHapticsImpl(saving, enabled = { true }).play(FluidHapticEvent.DragTick)
+    assertTrue(saving.compositions.isEmpty() && saving.platforms.isEmpty())
+  }
+
+  @Test
   fun `le allerte vibrano con l'attenzione delle notifiche, i controlli col tocco`() {
     val port = FakePort()
     val haptics = FluidHapticsImpl(port, enabled = { true })

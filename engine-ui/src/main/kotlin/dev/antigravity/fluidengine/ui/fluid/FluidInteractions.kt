@@ -7,6 +7,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -23,18 +24,18 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.withTransform
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 
 /**
- * Press feedback in the shape Apple gives it: the element itself yields under the finger.
+ * Press feedback in the shape Apple gives it: the element itself answers the finger.
  *
  * Deliberately different from the Material default in three ways, each of which is a reason the
  * previous treatment read as "off":
  *
- *  * **No ripple.** A ripple announces a touch point; a scale announces that the *thing you touched*
- *    responded. The second is what makes a surface feel physical.
+ *  * **No ripple.** A ripple announces a touch point; a change of size announces that the *thing you
+ *    touched* responded. The second is what makes a surface feel physical.
  *  * **No shape morphing here.** Animating a corner radius from a screen forces a re-clip every
  *    frame and makes the element's silhouette wobble against its neighbours. Since 1.9.0 shape
  *    morphing exists, but it lives in ONE place — Fluid-physics
@@ -42,11 +43,31 @@ import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
  *    layer clip never chases the shape (the shader's alpha mask sculpts the silhouette), and the
  *    morph is transient by contract (at rest the surface holds one stable Shape instance). A
  *    corner radius animated ad hoc in a screen is still the bug it always was.
- *  * **Asymmetric timing.** Pressing in is near-instant so the response beats the finger; releasing
- *    is slower and slightly springy, which is what sells the elasticity.
+ *  * **The press always finishes.** Since 2.11.0 the movement is a [FluidPressState]: a release
+ *    that arrives while the press is still travelling waits for it to arrive, so a 20 ms tap shows
+ *    the same complete press as a held one. Before, the release restarted from wherever the press
+ *    had got to — a tenth of the way, on a real tap — and inside a list, where `clickable` holds
+ *    the press back 100 ms, a quick tap delivered press and release in the same frame and nothing
+ *    moved at all.
  *
- * The scale is applied in the draw phase, so a press invalidates only this node without recomposing
- * anything or keeping a separate RenderNode alive for every clickable card while it is at rest.
+ * Two families of feedback, see [FluidPressFeedback]: surfaces **yield** a few hundredths
+ * ([pressedScale], the behaviour this modifier always had), buttons **expand** — they grow under
+ * the finger, lean toward it, stretch along its drag and tick under it as it slides
+ * ([FluidPressFeedback.Expand], what every button of the engine uses since 2.11.0).
+ *
+ * The transform is applied in the draw phase from state read there, so a press — and a finger
+ * dragged across a pressed button — invalidates only this node's drawing: nothing recomposes, and
+ * no separate RenderNode is kept alive for every clickable card while it is at rest. Put this
+ * modifier *before* the clip and the background of what it presses, or only the content inside
+ * them will move.
+ *
+ * @param pressedScale how far a surface yields, when [feedback] is not given.
+ * @param feedback how the element answers the finger. Null keeps the historical behaviour:
+ *   `FluidPressFeedback.yielding(pressedScale)`. Since 2.11.0.
+ * @param pressState a press shared with whoever *draws* it — a pane of glass reads it in its own
+ *   layer, see [glassControlSurface]. Given one, this modifier drives it (press, release, finger,
+ *   ticks) and draws no transform of its own; its feedback is the state's, and [feedback] and
+ *   [pressedScale] are ignored. Since 2.11.0.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -54,7 +75,7 @@ fun Modifier.fluidPressable(
   onClick: (() -> Unit)? = null,
   onLongClick: (() -> Unit)? = null,
   enabled: Boolean = true,
-  pressedScale: Float = 0.974f,
+  pressedScale: Float = FluidPressFeedback.DefaultYieldScale,
   role: androidx.compose.ui.semantics.Role? = null,
   interactionSource: MutableInteractionSource? = null,
   /** Cosa si sente al rilascio; null per un controllo che vibra gia' per conto suo. */
@@ -65,17 +86,21 @@ fun Modifier.fluidPressable(
    * di vetro — e dove il 3% su un'etichetta non si nota. Null: solo il farsi avanti.
    */
   focusShape: Shape? = null,
+  feedback: FluidPressFeedback? = null,
+  pressState: FluidPressState? = null,
 ): Modifier {
   if (onClick == null && onLongClick == null) return this
 
   val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-  val pressed by resolvedInteractionSource.collectIsPressedAsState()
+  val ownState = rememberFluidPressState(feedback ?: FluidPressFeedback.yielding(pressedScale))
+  val press = pressState ?: ownState
+  val drawsPress = pressState == null
   // Il fuoco da tastiera e' il gesto opposto alla pressione: la cosa si fa avanti invece di
   // cedere, come su tvOS. Senza, con una tastiera attaccata al tablet Tab spostava il fuoco su
   // elementi che non lo mostravano in nessun modo. Col dito il fuoco non arriva mai qui (in
   // modalita' touch un clickable non lo prende), quindi al tocco non cambia niente.
   val focused by resolvedInteractionSource.collectIsFocusedAsState()
-  val scale = remember { Animatable(1f) }
+  val focusLift = remember { Animatable(1f) }
   val haptics = LocalFluidHaptics.current
 
   val focusWash by animateFloatAsState(
@@ -85,13 +110,23 @@ fun Modifier.fluidPressable(
   )
   val focusColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
 
-  LaunchedEffect(pressed, focused, pressedScale) {
-    when {
-      pressed -> scale.animateTo(pressedScale, FluidMotion.instant())
-      focused -> scale.animateTo(FocusedScale, FluidMotion.fluid())
-      else -> scale.animateTo(1f, FluidMotion.fluid())
+  LaunchedEffect(focused) {
+    focusLift.animateTo(if (focused) FocusedScale else 1f, FluidMotion.fluid())
+  }
+
+  // The press comes from `clickable`'s own interactions, not from a pointer handler of ours: it
+  // already knows when a touch is a press (after its delay inside a scrolling container, so a
+  // scroll that starts on a button never flashes it) and when one has been taken away. Collected
+  // rather than read through `collectIsPressedAsState`, so a press recomposes nothing.
+  LaunchedEffect(resolvedInteractionSource, press) {
+    resolvedInteractionSource.interactions.collect { interaction ->
+      when (interaction) {
+        is PressInteraction.Press -> press.press()
+        is PressInteraction.Release, is PressInteraction.Cancel -> press.release()
+      }
     }
   }
+  val tracksFinger = press.feedback.followsFinger || press.feedback.dragHaptics
 
   return this
     .drawWithContent {
@@ -101,15 +136,32 @@ fun Modifier.fluidPressable(
           focusColor.copy(alpha = focusColor.alpha * focusWash),
         )
       }
-      val value = scale.value
-      if (value == 1f) {
+      val transform = if (drawsPress) {
+        fluidPressTransform(
+          feedback = press.feedback,
+          progress = press.progress,
+          lean = press.lean,
+          width = size.width,
+          height = size.height,
+          dp = density,
+          reducedMotion = press.reducedMotion,
+        )
+      } else {
+        FluidPressTransform.Identity
+      }
+      val lift = focusLift.value
+      if (transform.isIdentity && lift == 1f) {
         drawContent()
       } else {
-        scale(scaleX = value, scaleY = value, pivot = center) {
+        withTransform({
+          translate(transform.translationX, transform.translationY)
+          scale(transform.scaleX * lift, transform.scaleY * lift, pivot = center)
+        }) {
           this@drawWithContent.drawContent()
         }
       }
     }
+    .then(if (enabled && tracksFinger) Modifier.fluidPressTracking(press, ownsPress = false) else Modifier)
     .combinedClickable(
       interactionSource = resolvedInteractionSource,
       indication = null,

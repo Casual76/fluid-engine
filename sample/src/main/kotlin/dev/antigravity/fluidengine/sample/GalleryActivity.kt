@@ -79,7 +79,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
  *
  *  | Materiale    | i quattro `GlassRole` sopra contenuto volutamente rumoroso                  |
  *  | Playground   | Fluid-physics: preset, disegno a mano, molle, livelli, tasti→menù→pop-up   |
- *  | Controlli    | interruttori, segmenti, pillole, pulsanti e campi sul canvas ambientale     |
+ *  | Controlli    | tocco e cursori (2.11.0), interruttori, segmenti, pillole, pulsanti, campi  |
  *  | Chrome       | modale in-root, menù contestuale, notifiche, e il confine di piattaforma    |
  *  | Impostazioni | canvas ambientale più contenuto in vetro, con versione e crediti            |
  */

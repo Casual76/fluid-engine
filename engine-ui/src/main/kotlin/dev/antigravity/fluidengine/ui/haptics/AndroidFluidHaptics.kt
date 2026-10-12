@@ -1,6 +1,8 @@
 package dev.antigravity.fluidengine.ui.haptics
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.media.AudioAttributes
 import android.os.Build
 import android.os.PowerManager
 import android.os.VibrationAttributes
@@ -120,6 +122,9 @@ class AndroidHapticPort(private val context: Context, private val platformHaptic
 
   override val hasVibrator: Boolean get() = vibrator?.hasVibrator() == true
 
+  // I numeri sono quelli di VibrationEffect.Composition.PRIMITIVE_*, copiati in HapticPrimitive
+  // perche' i pattern si provano sul computer: lint non puo' sapere che coincidono.
+  @SuppressLint("WrongConstant")
   override fun supportedPrimitives(ids: IntArray): Set<Int> {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return emptySet()
     val v = vibrator ?: return emptySet()
@@ -138,7 +143,18 @@ class AndroidHapticPort(private val context: Context, private val platformHaptic
         val usage = if (attention) VibrationAttributes.USAGE_NOTIFICATION else VibrationAttributes.USAGE_TOUCH
         v.vibrate(effect, VibrationAttributes.createForUsage(usage))
       } else {
-        v.vibrate(effect)
+        // Fra Android 11 e 12 le VibrationAttributes non si possono passare, ma il sistema ricava lo
+        // stesso uso da un AudioAttributes: ASSISTANCE_SONIFICATION e' il "tocco", e una vibrazione di
+        // tocco e' quella che l'impostazione "Feedback tattile" spegne. Senza attributi la vibrazione
+        // era di uso sconosciuto e partiva anche a feedback spento (fino alla 2.10.x): il cancello
+        // resta del sistema, come sopra, invece di leggere un'impostazione che su One UI mente.
+        val usage = if (attention) AudioAttributes.USAGE_NOTIFICATION_EVENT else AudioAttributes.USAGE_ASSISTANCE_SONIFICATION
+        val audio = AudioAttributes.Builder()
+          .setUsage(usage)
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .build()
+        @Suppress("DEPRECATION") // sostituita dalla variante con VibrationAttributes, che qui non c'e'
+        v.vibrate(effect, audio)
       }
     }.isSuccess
   }

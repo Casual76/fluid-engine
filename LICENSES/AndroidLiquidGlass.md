@@ -64,6 +64,11 @@ Le modifiche fatte finora:
    struttura di rifrazione (`circleMap`, banda di displacement al bordo), perché il materiale deve
    restare lo stesso vetro anche mentre cambia forma. Apache-2.0, Copyright 2025 Kyant, come il
    resto.
+10. **Una pressione arriva sempre in fondo** (2.11.0, `GlassInteraction.kt`). A monte un rilascio
+    riparte da dove la pressione era arrivata, e un tap rapido accende il vetro di un decimo. Qui
+    la luce di `GlassTouchHighlight` passa dalla corsa di pressione dell'engine (`FluidPressMotion`,
+    first-party) e puo' essere guidata da fuori (`progress`, `touch`), e il rilascio di
+    `GlassDragAnimation` aspetta che la pressione sia arrivata prima di sgonfiare il pomello.
 
 ## Cosa fare in pratica
 

@@ -111,8 +111,10 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
   onClick); standaloneTab(…) }`, che porta anche una banda sopra la fila (`inlineAccessory` /
   `expandedAccessory`), un campo di ricerca che cresce nella barra (`searchMode` +
   `searchBarContent`), il lato in cui si raccoglie (`foldAlignment`) e il materiale (`glass`,
-  `accentColor`; `FluidFloatingTabBarGlass.blurRadius` e' il raggio di *base*, 2,5 dp, che la riga
-  nascosta moltiplica come il pannello: un valore tuo da' piu' sfocatura di prima). Margini e
+  `accentColor`; `FluidFloatingTabBarGlass.blurRadius` dipende da chi dipinge il pannello: se lo fa
+  la barra e' il raggio di *base*, 2,5 dp, che la riga nascosta e il puck moltiplicano come il
+  pannello; se lo passi tu con `tabBarContentModifier` e' il raggio *finale* del tuo pannello, preso
+  tal quale). Margini e
   `navigationBarsPadding()` li mette chi la posa
   (`FluidFloatingTabBarDefaults.HorizontalMargin` / `BottomMargin`, e `ContentInset` per lo spazio
   che la pagina deve lasciare). L'indicatore tiene un bordo anche a riposo

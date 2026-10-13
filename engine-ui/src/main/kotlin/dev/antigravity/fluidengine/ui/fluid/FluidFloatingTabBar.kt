@@ -361,6 +361,9 @@ fun FluidFloatingTabBar(
         // pane reads the scroll connection, and this one has to be held by the same fact or the fold
         // costs a full-screen capture per frame.
         val makesOwnGlass = tabBarContentModifier === Modifier && backdropState != null
+        // E il caso opposto: il pannello l'ha costruito l'app. La barra non puo' vedere come sfoca,
+        // quindi `FluidFloatingTabBarGlass.blurRadius` e' il suo raggio finale (vedi il KDoc).
+        val appSuppliesPane = tabBarContentModifier !== Modifier
         val ownGlass = if (makesOwnGlass) {
             Modifier.glassSurface(
                 state = backdropState,
@@ -448,6 +451,7 @@ fun FluidFloatingTabBar(
                     sizes = sizes,
                     elevations = elevations,
                     tabBarContentModifier = ownGlass,
+                    appSuppliesPane = appSuppliesPane,
                     animatedVisibilityScope = this@AnimatedContent,
                     backdrop = backdrop,
                     accentColor = accentColor,
@@ -503,12 +507,24 @@ data class FluidFloatingTabBarGlass(
     /**
      * How frosted the bar reads. Feeds the hidden row's blur, which is what the puck refracts.
      *
-     * Il raggio di *base*, lo stesso numero di `GlassBackdropState.blurRadius`
-     * ([DefaultGlassBlurRadius] se non lo cambi): la riga nascosta lo moltiplica come il pannello
-     * della barra, col moltiplicatore del ruolo `Floating` e con la regola della taglia, perche'
-     * deve sfocare *esattamente* quanto lo sfondo che il puck sta coprendo. Prima era il raggio
-     * finale, e la riga sfocava meno del pannello: pigiando il puck la barra perdeva vetro. Se
-     * hai messo un valore tuo, e' ora il raggio di base come per ogni altra superficie.
+     * Cosa vuol dire dipende da chi dipinge il pannello della barra, perche' la riga nascosta e il
+     * puck a riposo devono sfocare *esattamente* quanto lo sfondo che stanno coprendo, e per saperlo
+     * devono poter vedere come sfoca il pannello:
+     *
+     *  - **Il pannello lo fa la barra** (nessun `tabBarContentModifier`, e un `backdrop`): e' il
+     *    raggio di *base*, lo stesso numero di `GlassBackdropState.blurRadius`
+     *    ([DefaultGlassBlurRadius] se non lo cambi). Il pannello lo moltiplica col ruolo `Floating`
+     *    (x1,8) e con la regola della taglia, e la riga nascosta e il puck fanno lo stesso conto —
+     *    con la qualita' di scorrimento —, quindi con il valore di serie sfocano 4,5 dp come lui.
+     *    Prima della 2.12.0 era il raggio finale, la riga sfocava meno del pannello e pigiando il
+     *    puck la barra perdeva vetro.
+     *  - **Il pannello lo passa l'app** (`tabBarContentModifier`, per esempio un `liquidGlass`): la
+     *    barra non puo' vedere come sfoca, quindi non puo' rifare il conto. E' il raggio *finale*,
+     *    in dp, con cui il pannello dell'app sfoca la pagina: la riga nascosta e il puck a riposo
+     *    sfocano esattamente quello, senza moltiplicatore del ruolo, senza regola della taglia e
+     *    senza qualita'. E' il significato che aveva fino alla 2.11.0; nella 2.12.0 era diventato
+     *    il raggio di base anche qui, e il puck sfocava 1,8 volte piu' del pannello che copriva.
+     *    L'app passa lo stesso numero che da' al suo pannello.
      */
     val blurRadius: Dp = DefaultGlassBlurRadius,
     /** The wash under the chosen tab. [Color.Unspecified] follows the surface side. */
@@ -1153,6 +1169,7 @@ private fun SharedTransitionScope.ExpandedBar(
     sizes: FluidFloatingTabBarSizes,
     elevations: FluidFloatingTabBarElevations,
     tabBarContentModifier: Modifier,
+    appSuppliesPane: Boolean,
     animatedVisibilityScope: AnimatedVisibilityScope,
     backdrop: Backdrop?,
     accentColor: Color?,
@@ -1263,6 +1280,7 @@ private fun SharedTransitionScope.ExpandedBar(
                     elevations = elevations,
                     animatedVisibilityScope = animatedVisibilityScope,
                     tabBarContentModifier = tabBarContentModifier,
+                    appSuppliesPane = appSuppliesPane,
                     backdrop = backdrop,
                     // The app's accent, when the caller has not named one. It used to be
                     // `colors.backgroundColor` — the bar's own fill — which tinted the hidden row
@@ -1511,6 +1529,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier,
     tabBarContentModifier: Modifier,
+    appSuppliesPane: Boolean,
     backdrop: Backdrop?,
     accentColor: Color
 ) {
@@ -1562,6 +1581,12 @@ private fun SharedTransitionScope.ExpandedTabs(
     // il passaggio dall'una all'altra non cambia quanto si vede sfocato. Prima il puck faceva
     // `3dp * (1 - pressione)` sopra una riga che sfocava 2 dp: a riposo 3, premuto 2, mentre la
     // barra intorno ne aveva 3.6.
+    //
+    // "Il raggio del pannello" ha due risposte, e dipende da chi lo dipinge (`appSuppliesPane`).
+    // Se il pannello e' della barra lo sappiamo rifare: ruolo, taglia, qualita'. Se e' dell'app non
+    // lo vediamo, e quello che l'app ha messo in `FluidFloatingTabBarGlass.blurRadius` e' gia' il
+    // raggio con cui sfoca la pagina: applicarci sopra il x1.8 del ruolo faceva sfocare il puck
+    // quasi il doppio della barra intorno (2.12.0). Vedi [floatingBarBlurPx].
     val paneOptics = remember { GlassDefaults.optics(GlassRole.Floating).sanitized() }
     val glassQuality = LocalFluidGlassQuality.current
     // L'altezza del pannello e' quella del nodo piu' il padding che il pannello ha e il nodo no: il
@@ -1947,7 +1972,8 @@ private fun SharedTransitionScope.ExpandedTabs(
             // Dal raggio di base e dal ruolo, come il pannello della barra (`glassSurface` fa la
             // stessa moltiplicazione): una frazione stabile, non qualcosa da ricalcolare a ogni
             // fotogramma. La regola della taglia non entra: e' dinamica, e sotto i 64 dp di una
-            // barra normale vale zero.
+            // barra normale vale zero. Se il pannello e' dell'app il raggio e' gia' quello finale,
+            // e la risoluzione e' quella a cui registra il suo (`glassResolutionScale` del raggio).
             //
             // Passed to `backdropScale` and nowhere else. In the fork this row
             // came from, `backdropScale` shrank only the recorded *size* and the
@@ -1956,7 +1982,11 @@ private fun SharedTransitionScope.ExpandedTabs(
             // multiplications would land squared. It compiles either way and it
             // shows up only as glass that looks wrong.
             val tabsBackdropScale = glassResolutionScale(
-                glassConfig.blurRadius.value * paneOptics.blurScale
+                floatingBarBlurDp(
+                    appSuppliesPane = appSuppliesPane,
+                    blurRadiusDp = glassConfig.blurRadius.value,
+                    blurScale = paneOptics.blurScale,
+                )
             )
             Row(
                 Modifier
@@ -1990,11 +2020,14 @@ private fun SharedTransitionScope.ExpandedTabs(
                             // row (8dp on both); we drive it from the user's own
                             // glass blur setting, and from the bar's own role and
                             // size, so it is the pane's blur and not a lighter one.
+                            // When the app built the pane the setting already is its
+                            // blur, and it is used as it stands.
                             //
                             // Il puck non ne aggiunge altra: questo e' tutto il vetro
                             // che vede, e lo vede con le icone sopra.
                             blur(
                                 floatingPaneBlurPx(
+                                    appSuppliesPane = appSuppliesPane,
                                     optics = paneOptics,
                                     baseBlur = glassConfig.blurRadius,
                                     paneHeightPx = size.height + paneExtraHeight.toPx(),
@@ -2172,6 +2205,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 if (!sampledRowIsHidden) {
                                     blur(
                                         floatingPaneBlurPx(
+                                            appSuppliesPane = appSuppliesPane,
                                             optics = paneOptics,
                                             baseBlur = glassConfig.blurRadius,
                                             paneHeightPx = size.height + paneExtraHeight.toPx(),
@@ -2351,28 +2385,78 @@ private fun SharedTransitionScope.ExpandedTabs(
 }
 
 /**
- * Il raggio di sfocatura che il pannello della barra (ruolo `Floating`) ha adesso, in pixel dello
- * scope.
+ * Il raggio di sfocatura che il pannello della barra ha adesso, in pixel dello scope.
  *
- * La riga nascosta e il puck a riposo lo chiedono qui invece di rifare la moltiplicazione da soli:
- * e' la stessa formula di `glassSurface` (`glassSizedOptics`), quindi regola della taglia e qualita'
- * di scorrimento arrivano gratis, e se il pannello cambia cambiano anche loro. Il pannello e'
- * sempre a materiale pieno (intensita' 1).
+ * La riga nascosta e il puck a riposo lo chiedono qui invece di rifare il conto da soli. Vedi
+ * [floatingBarBlurPx] per i due casi.
  */
 private fun BackdropEffectScope.floatingPaneBlurPx(
+    appSuppliesPane: Boolean,
     optics: GlassOptics,
     baseBlur: Dp,
     paneHeightPx: Float,
     quality: FluidGlassQuality?,
-): Float = glassSizedOptics(
+): Float = floatingBarBlurPx(
+    appSuppliesPane = appSuppliesPane,
     optics = optics,
-    baseBlurPx = baseBlur.toPx(),
-    amount = 1f,
+    blurRadiusPx = baseBlur.toPx(),
+    paneHeightPx = paneHeightPx,
     quality = quality?.level ?: 1f,
-    minDimPx = paneHeightPx,
     density = density,
     lensAvailable = isRuntimeShaderSupported(),
-).blurPx
+)
+
+/**
+ * Di quanto sfocano la riga nascosta e il puck a riposo, in pixel dello scope: la decisione, pura e
+ * fuori dalla composizione perche' e' aritmetica da provare, non da guardare su un telefono.
+ *
+ * Devono sfocare *esattamente* quanto il pannello che coprono, e quanto sfoca il pannello lo sa
+ * solo chi lo dipinge:
+ *  - il pannello lo fa la barra (`glassSurface`, ruolo `Floating`): [blurRadiusPx] e' il raggio di
+ *    base e qui si rifa' la sua stessa formula (`glassSizedOptics`), quindi moltiplicatore del
+ *    ruolo, regola della taglia e qualita' di scorrimento arrivano gratis, e se il pannello cambia
+ *    cambiano anche loro. Il pannello e' sempre a materiale pieno (intensita' 1);
+ *  - il pannello lo passa l'app (`tabBarContentModifier`): la barra non vede come sfoca, e
+ *    [blurRadiusPx] e' gia' il raggio con cui lo fa lui. Va usato tal quale: niente ruolo, niente
+ *    taglia, niente qualita' (la riga nascosta non l'ha mai applicata, e il numero dell'app e' gia'
+ *    quello che il suo pannello usa). Era cosi' fino alla 2.11.0.
+ *
+ * @param blurRadiusPx `FluidFloatingTabBarGlass.blurRadius` in pixel dello scope.
+ * @param paneHeightPx altezza del pannello, per la regola della taglia; conta solo se lo fa la barra.
+ */
+internal fun floatingBarBlurPx(
+    appSuppliesPane: Boolean,
+    optics: GlassOptics,
+    blurRadiusPx: Float,
+    paneHeightPx: Float,
+    quality: Float,
+    density: Float,
+    lensAvailable: Boolean,
+): Float = if (appSuppliesPane) {
+    blurRadiusPx
+} else {
+    glassSizedOptics(
+        optics = optics,
+        baseBlurPx = blurRadiusPx,
+        amount = 1f,
+        quality = quality,
+        minDimPx = paneHeightPx,
+        density = density,
+        lensAvailable = lensAvailable,
+    ).blurPx
+}
+
+/**
+ * Lo stesso raggio in dp, senza regola della taglia e senza qualita', per scegliere a che frazione
+ * della risoluzione registrare la riga nascosta (`glassResolutionScale`): una frazione stabile, che
+ * non si ricalcola a ogni fotogramma. Il x[blurScale] del ruolo vale solo se il pannello e' della
+ * barra; se e' dell'app il raggio e' gia' finale, e la risoluzione e' quella a cui registra il suo.
+ */
+internal fun floatingBarBlurDp(
+    appSuppliesPane: Boolean,
+    blurRadiusDp: Float,
+    blurScale: Float,
+): Float = if (appSuppliesPane) blurRadiusDp else blurRadiusDp * blurScale
 
 @Composable
 private fun Tab(

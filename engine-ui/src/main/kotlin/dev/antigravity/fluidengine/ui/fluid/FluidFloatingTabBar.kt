@@ -137,6 +137,8 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
@@ -1058,8 +1060,11 @@ private fun SharedTransitionScope.InlineStandaloneTab(
     // (NavBarSearchInputBar) — a soft radial light following the touch point.
     val glowScope = rememberCoroutineScope()
     val onDark = GlassDefaults.isDarkSurface()
-    val glow = remember(glowScope, onDark) {
-        GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark)
+    // Un pannello c'e' (quello della barra, o quello che l'app ha passato): la luce del dito si
+    // somma invece di stendere nero su una faccia che trasmette. Vedi il puck in `ExpandedTabs`.
+    val onGlass = tabBarContentModifier !== Modifier
+    val glow = remember(glowScope, onDark, onGlass) {
+        GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark, onGlass = onGlass)
     }
 
     Tab(
@@ -1416,8 +1421,11 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
     // (NavBarSearchInputBar) — a soft radial light following the touch point.
     val glowScope = rememberCoroutineScope()
     val onDark = GlassDefaults.isDarkSurface()
-    val glow = remember(glowScope, onDark) {
-        GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark)
+    // Un pannello c'e' (quello della barra, o quello che l'app ha passato): la luce del dito si
+    // somma invece di stendere nero su una faccia che trasmette. Vedi il puck in `ExpandedTabs`.
+    val onGlass = tabBarContentModifier !== Modifier
+    val glow = remember(glowScope, onDark, onGlass) {
+        GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark, onGlass = onGlass)
     }
 
     Tab(
@@ -1707,10 +1715,23 @@ private fun SharedTransitionScope.ExpandedTabs(
     }
 
     val onDarkBar = GlassDefaults.isDarkSurface()
-    val interactiveHighlight = remember(animationScope, onDarkBar) {
+    // Il pannello esiste se la barra se lo fa da sola (c'e' un fondale) o se l'app ne ha passato uno.
+    val onGlass = tabBarContentModifier !== Modifier
+    val interactiveHighlight = remember(animationScope, onDarkBar, onGlass) {
         GlassTouchHighlight(
             animationScope = animationScope,
             onDarkSurface = onDarkBar,
+            // La barra e' vetro, non una riga opaca: sul chiaro la luce del dito si somma (bianca,
+            // stretta, ~18 livelli di picco) invece di stendere nero sopra. Il nero all'8% su tutta
+            // la superficie piu' il punto al 15% era la regola di `GlassTouchHighlight` per le
+            // superfici opache; su un vetro e' inchiostro su una faccia che trasmette, e tenere
+            // premuto il puck su una barra chiara abbassava di un 8% la luminanza di tutta la barra e
+            // faceva diventare grigia la fascia chiara in alto (211 -> 195, e 187 -> 171 sul verde
+            // della galleria), scurendo anche il fondo che deve restare chiaro dietro le icone tinte.
+            // Misurato sull'S25: spenta questa luce la barra premuta torna identica a quella a
+            // riposo; l'ombra di piattaforma (`.shadow`), sospettata, non c'entra: tolta, non cambia
+            // un pixel dentro la sagoma. Sullo scuro non cambia niente.
+            onGlass = onGlass,
             position = { size, offset ->
                 Offset(
                     if (isLtr) paddingStartPx + (dampedDragAnimation.value + 0.5f) * tabWidthPx + panelOffset
@@ -1724,6 +1745,12 @@ private fun SharedTransitionScope.ExpandedTabs(
     // Invisible tinted copy of the tabs, sampled by the puck below so the
     // selected icon shows through the glass in the accent color.
     val tabsBackdrop = rememberLayerBackdrop()
+    // Quello che c'e' *sotto* le icone tinte, dentro il puck: la pellicola del pannello, e l'inchiostro
+    // che su quella pellicola si legge. Vedi [legibleInk] e il commento sulla riga nascosta.
+    val paneFilm = GlassDefaults.floatingTint().overlay
+    val puckInk = remember(accentColor, paneFilm, onDarkBar) {
+        legibleInk(accentColor, paneFilm, onDarkBar)
+    }
     // Whether the accent-tinted copy of the tabs is worth keeping alive; see
     // where it is composed below.
     // Whenever the puck is pressed, by a finger or by a tap on a tab — because that copy of the
@@ -1983,7 +2010,19 @@ private fun SharedTransitionScope.ExpandedTabs(
                             val progress = dampedDragAnimation.pressProgress
                             Highlight.Default.copy(alpha = progress)
                         },
-                        onDrawSurface = { drawRect(colors.backgroundColor) },
+                        // La stessa pellicola del pannello della barra, sotto le icone. In Kyant la
+                        // riga nascosta ha il `containerColor` della barra, e per costruzione il puck
+                        // e' fatto del *materiale della barra*; qui il riempimento e' trasparente
+                        // (`makesOwnGlass`, 2.3.1) e la tinta del pannello la dipinge `glassSurface`,
+                        // che la riga non vede: il puck premuto era piu' vivido della barra attorno, e
+                        // l'icona tinta d'accento stava su una pagina non filmata. Sopra un riquadro
+                        // verde, accento verde su verde: 1.1:1, quasi invisibile. Non e' un muro
+                        // opaco come il `surfaceContainerHigh` della 2.3.1: e' una pellicola al 50%,
+                        // la pagina rifratta ci passa attraverso.
+                        onDrawSurface = {
+                            drawRect(colors.backgroundColor)
+                            drawRect(paneFilm)
+                        },
                         backdropScale = tabsBackdropScale,
                         frozen = rememberFrozenOr(LocalFluidTabBarBackdropFrozen.current, tintedRowSettled),
                         // Same GPU-saving trick as Modifier.liquidGlass: record this
@@ -1998,7 +2037,12 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // row (the visible row above applies it exactly once), shifting
                     // its tabs right of their real counterparts — the puck's sampled
                     // icon then visibly drifted from the real icon under it.
-                    .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
+                    // L'accento, ma letto: `puckInk` e' l'accento portato (verso il nero sul chiaro,
+                    // verso il bianco sullo scuro) fin dove regge 3:1 contro la pellicola sopra la
+                    // peggiore delle pagine. L'accento tal quale e' piu' chiaro di quasi ogni fondo
+                    // di mezzo tono, e con la pellicola sola non arriva a 3:1 sopra un riquadro
+                    // vivido (a conti fatti 2.2:1 sul verde della galleria; senza pellicola, misurato, 1.1:1).
+                    .graphicsLayer(colorFilter = ColorFilter.tint(puckInk)),
                 horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
             ) {
                 allTabs.forEachIndexed { index, tab ->
@@ -2452,6 +2496,62 @@ internal const val MinLabelScale = 0.75f
  */
 internal fun labelScale(wanted: Int, room: Int): Float =
     if (room in 1..<wanted) (room.toFloat() / wanted).coerceAtLeast(MinLabelScale) else 1f
+
+/** Il contrasto minimo fra l'icona tinta del puck e il fondo che ha dietro. */
+internal const val PuckInkMinContrast = 3f
+
+/**
+ * L'inchiostro con cui il puck premuto stampa l'icona e l'etichetta della scheda scelta.
+ *
+ * Il puck guarda la riga nascosta, che porta le icone nel colore d'accento; l'accento sta bene a
+ * riposo — dove l'icona vera, in colore di contenuto, e' disegnata sopra — ma premuto e' l'unica
+ * cosa che resta, e deve leggersi su quello che c'e' sotto: la pagina sfocata con la pellicola del
+ * pannello sopra. Pagina e accento sono spesso della stessa famiglia (un verde su un riquadro
+ * verde), e un accento medio non fa 3:1 con nessun fondo di mezzo tono: o lo si porta oltre, o
+ * l'icona sparisce.
+ *
+ * Si porta verso il nero sul chiaro e verso il bianco sullo scuro, del minimo che serve, cosi'
+ * l'accento si riconosce ancora e non diventa il colore del testo. Il fondo di riferimento e' il
+ * *peggiore*: la pellicola sopra una pagina nera sul chiaro (la piu' scura che un'icona scura puo'
+ * trovare), sopra un grigio chiaro sullo scuro (un bianco pieno non lo regge nessuna icona chiara
+ * sotto una pellicola scura: 2.4:1 al massimo). Su una pagina piu' chiara di quella di riferimento
+ * l'inchiostro fa piu' contrasto del necessario, mai meno.
+ *
+ * Pura e fuori dalla composizione perche' e' aritmetica di colori da verificare su tutti gli
+ * accenti della palette, non su un telefono.
+ *
+ * @param film la pellicola del pannello, con la sua trasparenza.
+ * @param onDarkSide la barra e' su una superficie scura.
+ */
+internal fun legibleInk(
+    accent: Color,
+    film: Color,
+    onDarkSide: Boolean,
+    minContrast: Float = PuckInkMinContrast,
+): Color {
+    val worstPage = if (onDarkSide) Color(0xFFCCCCCC) else Color.Black
+    val worstBackground = film.compositeOver(worstPage)
+    if (inkContrast(accent, worstBackground) >= minContrast) return accent
+    val toward = if (onDarkSide) Color.White else Color.Black
+    // Il contrasto cresce monotono verso l'estremo: una ricerca binaria trova il minimo spostamento.
+    var low = 0f
+    var high = 1f
+    repeat(14) {
+        val mid = (low + high) / 2f
+        if (inkContrast(androidx.compose.ui.graphics.lerp(accent, toward, mid), worstBackground) >= minContrast) {
+            high = mid
+        } else {
+            low = mid
+        }
+    }
+    return androidx.compose.ui.graphics.lerp(accent, toward, high)
+}
+
+internal fun inkContrast(foreground: Color, background: Color): Float {
+    val high = maxOf(foreground.luminance(), background.luminance())
+    val low = minOf(foreground.luminance(), background.luminance())
+    return (high + 0.05f) / (low + 0.05f)
+}
 
 /**
  * The width one expanded tab actually gets.

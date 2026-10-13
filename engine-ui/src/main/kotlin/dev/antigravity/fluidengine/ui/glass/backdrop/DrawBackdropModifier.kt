@@ -431,6 +431,41 @@ private val NeverFrozen: () -> Boolean = { false }
  */
 private const val HoldRefreshMillis = 110L
 
+/**
+ * Quanto a lungo un pannello tiene la cattura che ha mentre la sua sorgente non c'e'.
+ *
+ * Il caso vero dura un fotogramma: un cambio pagina smonta la sorgente vecchia nello stesso
+ * fotogramma in cui monta la nuova, e il chrome condiviso (barra, pillola) riceve il fondale nuovo
+ * da una ricomposizione che arriva solo al fotogramma dopo. Il margine e' largo apposta, perche' un
+ * fotogramma che compone una pagina intera puo' durare ottanta millisecondi: oltre, una sorgente
+ * che non torna non e' piu' un ritardo ma un'assenza, e tenere un'immagine ormai falsa a tempo
+ * indeterminato sarebbe peggio di un vetro vuoto.
+ */
+internal const val SourceGoneGraceMillis = 400L
+
+/**
+ * Se un pannello deve tenere la cattura che ha invece di rifarne una.
+ *
+ * Ricatturare con la sorgente sparita non registra niente: `LayerBackdrop.drawBackdrop` esce senza
+ * disegnare se non ha piu' le coordinate, e `recordLayer` svuota il layer prima di chiamarla. Il
+ * risultato e' una cattura **vuota** sotto una tinta traslucida, cioe' la pagina cruda e nitida
+ * dentro la sagoma del vetro: un fotogramma di testo leggibile sotto la barra, e dal fotogramma
+ * dopo (fondale nuovo, `surfaceDirty`) di nuovo sfocato. La cattura vecchia invece e' ancora
+ * buona da guardare — il `GraphicsLayer` rilasciato resta vivo finche' un layer genitore lo
+ * disegna — e un fondale appena scaduto sfocato e' un ritardo che nessuno vede.
+ *
+ * Solo con una cattura valida da tenere ([sampled]): chi non ne ha mai presa una non ha niente da
+ * perdere, e registrare e' l'unico modo di accorgersi che la sorgente e' tornata.
+ *
+ * @param ready il fondale ha qualcosa da disegnare adesso (`Backdrop.isReadyToSample`).
+ * @param notReadyForMillis da quanto non e' pronto; ignorato quando lo e'.
+ */
+internal fun holdsCaptureOfGoneSource(
+    ready: Boolean,
+    sampled: Boolean,
+    notReadyForMillis: Long,
+): Boolean = !ready && sampled && notReadyForMillis < SourceGoneGraceMillis
+
 private class DrawBackdropNode(
     var backdrop: Backdrop,
     var shapeProvider: ShapeProvider,
@@ -509,6 +544,9 @@ private class DrawBackdropNode(
 
     /** Se il fotogramma prima si stava tenendo ferma la cattura. Vedi [frozen]. */
     private var wasHolding = false
+
+    /** Da quando il fondale non e' pronto, o zero se lo e'. Vedi [holdsCaptureOfGoneSource]. */
+    private var notReadySince = 0L
 
     /**
      * Where every source sits relative to this surface, which is the only thing a capture depends on.
@@ -651,8 +689,21 @@ private class DrawBackdropNode(
             val refreshAfterHold = wasHolding && !holding
             wasHolding = holding
 
+            // La sorgente e' sparita (pagina smontata) e il fondale nuovo non e' ancora arrivato: si
+            // tiene la cattura vecchia invece di svuotarla. Vedi [holdsCaptureOfGoneSource].
+            val ready = backdrop.isReadyToSample()
+            if (ready) {
+                notReadySince = 0L
+            } else if (notReadySince == 0L) {
+                notReadySince = now
+            }
+            val sourceGone = holdsCaptureOfGoneSource(ready, sampled, now - notReadySince)
+            // Quando la sorgente torna (o ne arriva una nuova) si registra da capo, comunque.
+            if (sourceGone) surfaceDirty = true
+
             val needsRecord = when {
                 holding -> false
+                sourceGone -> false
                 refreshAfterHold -> true
                 else -> wanted && !tooSoon
             }
@@ -796,6 +847,7 @@ private class DrawBackdropNode(
     override fun onReset() {
         surfaceDirty = true
         sampled = false
+        notReadySince = 0L
         lastRecordedAt = 0L
         recordedSize = IntSize.Zero
         recordedSelfOffset = null

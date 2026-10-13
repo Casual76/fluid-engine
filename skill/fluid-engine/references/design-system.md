@@ -13,10 +13,20 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 | `FluidGlassModalPortal` (+ `FluidGlassModalHost` alla radice), `FluidAlert`, `FluidGrabber` | pop-up e fogli in vetro dentro la composizione, e avvisi (`FluidAlertAction`) |
 | `FluidContainerScaffold` | contenitore + dettaglio |
 | `FluidSectionIndex` | indice laterale per liste lunghe (`FluidSectionAnchor`) |
-| `FluidNotificationHost`, `rememberFluidNotificationHostState` | notifiche contestuali dentro l'app (`FluidNotification`, `FluidNotificationTone`) |
+| `FluidNotificationHost`, `rememberFluidNotificationHostState` | notifiche contestuali dentro l'app (`FluidNotification`, `FluidNotificationTone`, `FluidNotificationAction`); la card si trascina, vedi sotto |
 | `ProvideFluidChrome`, `rememberFluidChromeController` | registro della barra, inset della tab bar, bus "torna in cima" |
 | `FluidRouteMotionHost`, `FluidRouteMotion`, `rememberRouteMotionSignals` | transizioni di rotta |
 | `rememberFluidTouchOrigin`, `MotionOrigin` | apertura dal punto toccato |
+
+**La notifica si tocca (2.12.0).** `FluidNotification(id, title, message, tone, durationMillis,
+actions)`: un dito sulla card ferma il tempo di lettura, che al rilascio riparte da quello che
+restava (mai meno di 1,5 s). Tirata in giù segue il dito con la curva elastica di
+`FluidScrollPhysics` e si allunga di layout; oltre 72 dp, o con una spinta sopra i 1000 dp/s, si
+apre: testo intero, `actions` (una o due `FluidNotificationAction(label, onClick)`, che toccate
+eseguono e chiudono) e nessuna scadenza. Spinta in su, oltre 40 dp o con una spinta, viene lanciata
+via e si chiude; altrimenti torna con una molla senza rimbalzi. Per TalkBack le azioni «Espandi» e
+«Chiudi». **A card chiusa il messaggio mostra due righe**: il testo lungo si legge aprendola, e le
+azioni compaiono solo allora.
 
 ## Contenuto
 
@@ -41,17 +51,24 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 `FluidSwitch(checked, onCheckedChange, enabled, backdrop)` — il LiquidToggle di Kyant0, 64x28 con
 pomello a pillola 40x24. Il **pomello è l'unica lastra**: a riposo è bianco pieno, tenuto premuto il
 bianco sparisce e sotto si apre una copia della pista schiacciata, che è ciò che rifrange. Un tocco
-ovunque sul controllo lo commuta; trascinarlo è il di più. `onCheckedChange = null` quando è la riga
+ovunque sul controllo lo commuta; trascinarlo è il di più, e dalla 2.12.0 un pomello trascinato non
+fa scorrere la pagina (un dito caduto sul pomello e mosso di uno slop è suo fino al rilascio; sotto
+lo slop il tocco commuta ancora). `onCheckedChange = null` quando è la riga
 a possedere il `toggleable` e il target da 48dp. `backdrop` di default è il canvas della schermata.
 `FluidSwitchWidth` vale 64 adesso (era 56): chi riservava lo spazio a mano lo rilegga.
 `FluidGlassSwitch` è deprecato — era il nome che questo controllo ha avuto per una versione.
 
-`FluidSlider(value, onValueChange, valueRange)` — il fratello dell'interruttore: pista che si
-riempie, maniglia che rifrange la pista, e tutta la larghezza tocca (non solo la maniglia). Dalla
-2.11.0 un trascinamento **non fa scorrere la pagina**: un dito sulla maniglia e' suo subito e ogni
-suo movimento e' consumato fino al rilascio; sulla pista nuda diventa suo a mezzo slop di lato,
-mentre una passata verticale resta della pagina. Tacche `DragTick` a ogni ventesimo, `Threshold`
-in fondo. Per TalkBack e' uno slider (`setProgress`), non piu' un interruttore.
+`FluidSlider(value, onValueChange, valueRange, snapValues, snapThreshold, contentDescription,
+stateDescription)` — il LiquidSlider di Kyant0 (dalla 2.12.0), il fratello dell'interruttore: pista
+sottile da 6 dp e una pillola 40x24 **bianca e opaca a riposo** che, tenuta, diventa lente e
+rifrange la pagina più una copia della pista che si dispiega. Tutta la riga (48 dp) tocca, non solo
+la pillola. Un trascinamento **non fa scorrere la pagina**: un dito sulla pillola, o a 10 dp dal suo
+bordo, e' suo subito e ogni suo movimento e' consumato fino al rilascio; sulla pista nuda diventa suo
+a mezzo slop di lato, mentre una passata verticale resta della pagina. Con `snapValues` il valore si
+attacca alla tacca piu' vicina entro `snapThreshold` (frazione dell'intervallo, 0,03 di default; `1f`
+= a gradini), con un puntino sotto la pista e un tocco aptico per tacca; senza, `DragTick` a ogni
+ventesimo e `Threshold` in fondo. Per TalkBack e' uno slider (`setProgress`), e
+`stateDescription` («30 minuti») gli dice il valore al posto di una percentuale.
 
 `FluidSegmentedControl(options, selected, onSelect, label)` — `content = { opzione, selezionato -> }`
 per i segmenti a sole icone; `label` resta e diventa la descrizione per chi legge lo schermo, `FluidChip(label, selected, onClick)`,
@@ -94,15 +111,19 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
   onClick); standaloneTab(…) }`, che porta anche una banda sopra la fila (`inlineAccessory` /
   `expandedAccessory`), un campo di ricerca che cresce nella barra (`searchMode` +
   `searchBarContent`), il lato in cui si raccoglie (`foldAlignment`) e il materiale (`glass`,
-  `accentColor`). Margini e `navigationBarsPadding()` li mette chi la posa
+  `accentColor`; `FluidFloatingTabBarGlass.blurRadius` e' il raggio di *base*, 2,5 dp, che la riga
+  nascosta moltiplica come il pannello: un valore tuo da' piu' sfocatura di prima). Margini e
+  `navigationBarsPadding()` li mette chi la posa
   (`FluidFloatingTabBarDefaults.HorizontalMargin` / `BottomMargin`, e `ContentInset` per lo spazio
   che la pagina deve lasciare). L'indicatore tiene un bordo anche a riposo
   (`GlassOptics.edgeFloor`) e il trascinamento e' criticamente smorzato
   (`GlassDragAnimation.velocityDampingRatio`)
 - **Deprecati** (restano fino alla 3.0): `FluidTabBar` e `FluidFoldingTabBar` — delegano a
   `FluidFloatingTabBar`, quindi chi li chiama prende il vetro nuovo senza toccare niente, ma la
-  barra e' una capsula grande quanto le schede (non da lato a lato) e si ripiega solo se le dai una
-  connessione; `FluidGlassMenuButton` → `FluidMorphMenuButton` + host (non delega: serve lo
+  barra e' una capsula grande quanto le schede (non da lato a lato, 60 dp e non 64) e si ripiega solo
+  se le dai una connessione. Le sue schede dicono ancora `selected` ma non portano più il ruolo `Tab`
+  né il tag di test `top_level_<rotta>` (il rail li tiene): un test cerca l'etichetta;
+  `FluidGlassMenuButton` → `FluidMorphMenuButton` + host (non delega: serve lo
   stato); `FluidSheet` → `FluidGlassModalPortal`; `FluidGlassSwitch` → `FluidSwitch`;
   `FluidQuickAction` → `FluidChip(selected = false)`; `FluidListItem` → `FluidListRow` (il vecchio
   `subtitle` e' l'`eyebrow`, `supporting` e' il `subtitle`, `trailing` e' il `badge`);
@@ -113,7 +134,8 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche
-- Modificatori: `fluidPressable` (con `feedback` e `pressState` dalla 2.11.0), `fluidRowPressable`
+- Modificatori: `fluidPressable` (con `feedback` e `pressState` dalla 2.11.0, `longClickHaptic` dalla
+  2.12.0), `fluidRowPressable`; `LocalFluidPressImmediate` per la chrome in cui non scorre niente
 - La pressione (2.11.0): `FluidPressFeedback` (`Expand` per i pulsanti, `yielding(scala)` per le
   superfici, `None`), `rememberFluidPressState`, `FluidPressState.progress`
 
@@ -146,10 +168,15 @@ ci sta sopra lo compone con `rememberCombinedGlassBackdrop(pagina, barra)`. `Flu
 la tab bar lo fanno già e passano il risultato in `LocalGlassBackdrop`, quindi un
 `FluidBarAction` dentro `actions` è a posto senza che l'app tocchi niente.
 
-**La taratura sta nella lente, non nella sfocatura.** Il raggio di riferimento e' 2 dp: sopra gli
-~8 dp il vetro trasmette la media di quello che ha dietro invece dell'immagine, e una media e' un
-riempimento. La lente invece e' grande (19/29 dp sulla capsula). Chi deve davvero nascondere qualcosa
-— la barra superiore, con testo nitido che le scorre sotto — chiede un multiplo con `blurScale`.
+**La taratura sta nella lente, non nella sfocatura.** Il raggio di riferimento e' 2,5 dp (2 fino alla
+2.11.0): sopra gli ~8 dp il vetro trasmette la media di quello che ha dietro invece dell'immagine, e
+una media e' un riempimento. La lente invece e' grande (19/29 dp sulla capsula). Chi deve davvero
+nascondere qualcosa — la barra superiore, con testo nitido che le scorre sotto — chiede un multiplo
+con `blurScale`. Per ruolo, col riferimento di serie: Bar 12,5 dp, Floating 4,5, Interactive 3,5,
+Modal 8,75, Content 2, StackedContent 4,5. **I pannelli grandi pagano di piu'** (regola della taglia,
+2.12.0): sotto i 64 dp di lato corto niente cambia, fino ai 320 dp sfocatura ×2, altezza di
+rifrazione ×1,6 e spostamento al bordo ×1,8; `GlassOptics.sizeResponse = 0` se ne tira fuori (lo
+scrim). Il dettaglio e il perche' sono in `regole.md`.
 E il film non e' `MaterialTheme.surface`: vedi `GlassDefaults.glassFilm()` e la regola in
 `regole.md`, perche' una barra del colore del fondo su AMOLED semplicemente sparisce.
 
@@ -268,22 +295,42 @@ ottenere un rimbalzo: vedi le tre trappole in `regole.md`.
 Il banco di prova è la scheda Playground dell'app Fluid Glass (il modulo `sample/` del repo
 dell'engine), pubblicata sul Pampa Store.
 
-## La pressione (2.11.0)
+## La pressione (2.11.0, e di chi è il dito dalla 2.12.0)
 
 Tutto in `ui/fluid/FluidPress.kt`. **I pulsanti crescono** (`FluidPressFeedback.Expand`: 6 dp sul
 lato corto, max 14 sul lungo, mai oltre il 14%), si inclinano verso il dito, si allungano nel verso
 in cui scorre e scattano (`DragTick` ogni 10 dp, mai piu' di uno ogni 55 ms). **Le superfici
 cedono** (`yielding`, il default di `fluidPressable`): una card che crescesse invaderebbe le vicine.
 Per tutti, **la pressione arriva sempre in fondo**: un rilascio a meta' corsa aspetta (un tap di
-20 ms mostra la pressione intera, anche dentro una lista dove `clickable` la ritarda di 100 ms).
-Animazioni ridotte: crescita dimezzata, niente inclinazione, pressione comunque intera.
+20 ms mostra la pressione intera). Animazioni ridotte: crescita dimezzata, niente inclinazione,
+pressione comunque intera.
+
+**Un pulsante si trascina sempre (2.12.0).** Per i pulsanti che crescono il puntatore e'
+`fluidButtonGesture`, non `clickable`: per **100 ms** il gesto non e' di nessuno e non si consuma
+niente (una passata veloce che parte sul pulsante scorre ancora la pagina, senza pressione ne'
+click); un dito che resta giu' quel tanto senza che la pagina se lo sia preso ha *premuto* il
+pulsante, e da li' il gesto e' **suo fino al rilascio** — segue il dito anche fuori dai bordi, si
+inclina, scatta, e ogni cambio e' consumato, quindi una `LazyColumn` o un `verticalScroll` attorno
+non partono. Al rilascio il click scatta se il dito e' dentro il pulsante **piu' 16 dp** (o il
+margine dell'area di tocco minima, se maggiore), altrimenti la pressione si scioglie e basta; un tap
+piu' breve di 100 ms mostra la pressione intera e clicca. Il click lungo scatta solo se il dito e'
+rimasto entro lo slop da dove e' sceso (`fluidPressable(longClickHaptic = ...)`, `null` per un
+controllo col suo colpo), e dopo non c'e' click. Un mouse e' del pulsante subito. `clickable` resta
+per ruolo, TalkBack, tastiera e fuoco; le superfici che cedono (card, tessere, `fluidRowPressable`)
+non cambiano.
+
+**Nella chrome, subito.** Dove non scorre niente — una barra, un'intestazione, un foglio — i 100 ms
+sono solo una pressione in ritardo: `LocalFluidPressImmediate provides true` li azzera. L'engine se lo
+da' da solo (tasto indietro e azioni della barra di `FluidScreen`, intestazione dei pannelli a pagina
+intera; il corpo di `FluidScreen` lo rimette a `false`, `FluidHero` resta com'e'); un'app lo da' alla
+sua chrome fissa e **mai attorno a qualcosa che scorre**, o la lista si scorrerebbe solo dai margini.
 
 Regole: `fluidPressable` va **prima** di `clip`/`background`, o si muove solo il contenuto. Un tasto
 di vetro ha **una** pressione: `val p = rememberFluidPressState()` passato sia a
 `glassControlSurface(pressState = p)` sia a `fluidPressable(pressState = p)`; senza, il vetro segue
 il dito da solo come sempre. Il banco di prova e' la sezione "Tocco" della scheda Controlli del
-sample; i test Compose (slider in `LazyColumn`/`verticalScroll`, tap rapido in lista) stanno in
-`sample/src/testDebug` per non portare Robolectric nelle app.
+sample; i test Compose (pulsante, slider e interruttore in `LazyColumn`/`verticalScroll`, tap rapido
+in lista, notifica trascinata) stanno in `sample/src/testDebug` per non portare Robolectric nelle app.
 
 ## Aptica (1.19.0)
 

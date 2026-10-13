@@ -53,14 +53,29 @@ di dodici righe è *un* nodo di vetro, non dodici.
 
 ### La taratura
 
-Il raggio di riferimento è **2 dp**, non 16. Il numero è andato 8 → 16 → 2, e il giro di mezzo è
-l'errore che vale la pena non rifare: sopra gli ~8 dp un pannello smette di trasmettere un'immagine e
-trasmette la sua *media*, e un pannello che tiene una media è un riempimento — tutto il lavoro che la
-lente fa sul bordo sta allora piegando un colore piatto in un altro colore piatto. Quello che
+Il raggio di riferimento è **2,5 dp**, non 16. Il numero è andato 8 → 16 → 2 → 2,5 (il mezzo dp
+dell'ultimo passo è una taratura a occhio: il vetro di base un filo più smerigliato), e il giro di
+mezzo è l'errore che vale la pena non rifare: sopra gli ~8 dp un pannello smette di trasmettere
+un'immagine e trasmette la sua *media*, e un pannello che tiene una media è un riempimento — tutto il
+lavoro che la lente fa sul bordo sta allora piegando un colore piatto in un altro colore piatto. Quello che
 identifica il materiale è la **dislocazione** al perimetro, non la brina, quindi la lente sale a
 19/29 dp (i numeri della capsula di Kyant) e il raggio scende. Le poche superfici che devono davvero
 nascondere qualcosa — la barra superiore, con testo nitido che le scorre sotto — chiedono un multiplo
 con `blurScale` invece di farlo pagare a tutte.
+
+**La taglia conta (2.12.0).** Un pannello grande smerigliato come uno piccolo sembra un pannello
+piccolo ingrandito: il bordo piega l'immagine di pochi dp su una superficie larga mezzo schermo, e lo
+spessore non si legge più. Quindi sotto i 64 dp di lato corto un pannello resta com'è (tasti, chip,
+pomelli e la pillola di navigazione: guadagno esattamente zero), e sopra il guadagno sale a
+smoothstep fino ai 320 dp, dove la sfocatura è ×2, l'altezza di rifrazione ×1,6 (mai oltre mezzo lato
+corto) e lo spostamento al bordo ×1,8. Una formula sola, `glassSizedOptics`, per `glassSurface` e
+`fluidPhysicsSurface` (nel morph conta la taglia della sagoma, non quella del layer). La sfocatura
+non supera mai l'altezza di lente che la copre, quindi il padding della cattura resta zero a ogni
+taglia, anche mentre una sagoma cresce. `GlassOptics.sizeResponse = 0` tira fuori una superficie
+dalla regola (lo scrim dei modali copre lo schermo ma non è un pannello grande, e lo fa); sotto API
+33, senza lente, la regola è spenta. I numeri per ruolo a taglia piena sono nel codice, con il
+motivo accanto, perché sono valori di partenza da giudicare su un dispositivo: un `Modal` grande
+arriva a 17,5 dp di sfocatura, oltre gli ~8 dp di cui sopra, ed è voluto solo per i pannelli grandi.
 
 E il film del vetro **non è `MaterialTheme.surface`**. Una barra dello stesso colore del fondo non è
 un materiale traslucido, è niente: su un tema AMOLED la pillola di navigazione spariva. Il Liquid
@@ -92,8 +107,9 @@ Un pannello, nell'ordine in cui lo vedono i pixel:
    ogni pannello campiona la stessa registrazione, trasformata nelle proprie coordinate;
 2. **vividezza** — la saturazione sale sopra 1: il vetro concentra il colore che trasmette, e senza
    questo passaggio un pannello sopra una foto sembra plastica grigia;
-3. **sfocatura** — piccola (2 dp di riferimento): è il film, non il raggio, a tenere leggibile
-   quello che sta sopra, e un raggio grande cancella l'immagine invece di trasmetterla;
+3. **sfocatura** — piccola (2,5 dp di riferimento, che i pannelli grandi moltiplicano con la regola
+   della taglia): è il film, non il raggio, a tenere leggibile quello che sta sopra, e un raggio
+   grande cancella l'immagine invece di trasmetterla;
 4. **lente** — un campo di distanza della forma stessa del pannello sposta il campione sempre di più
    verso il bordo, così lo sfondo si *piega* dentro il perimetro. È il passaggio che mancava;
 5. **tinta, bordo speculare, ombre** — anello illuminato da un angolo, ombra interna che dà spessore,
@@ -157,8 +173,18 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 | `FluidGlassModalPortal` (+ `FluidGlassModalHost` alla radice), `FluidAlert`, `FluidGrabber` | pop-up e fogli in vetro dentro la composizione, e avvisi |
 | `FluidContainerScaffold` | contenitore + dettaglio |
 | `FluidSectionIndex` | indice laterale per liste lunghe |
-| `FluidNotificationHost` | notifiche contestuali dentro l'app |
+| `FluidNotificationHost` | notifiche contestuali dentro l'app (`FluidNotification`, con `actions` dalla 2.12.0): la card si trascina, vedi sotto |
 | `ProvideFluidChrome`, `rememberFluidChromeController` | il registro della barra e del bus "torna in cima" |
+
+**La notifica si tocca (2.12.0).** Un dito sulla card ferma il tempo di lettura, e al rilascio
+riparte da quello che restava, mai da meno di 1,5 s. Tirata in giù segue il dito con la curva
+elastica di `FluidScrollPhysics` e si allunga di layout (mai di scala): oltre 72 dp, o con una
+spinta sopra i 1000 dp/s, si apre — testo intero, `FluidNotification.actions` (una o due
+`FluidNotificationAction(label, onClick)`, che toccate eseguono e chiudono) e nessuna scadenza.
+Spinta in su segue il dito uno a uno: oltre 40 dp, o con una spinta, viene lanciata via e la
+notifica si chiude. Altrimenti torna con una molla senza rimbalzi. Tick aptico alla soglia di
+apertura, `Threshold` al lancio; per TalkBack le azioni «Espandi» e «Chiudi». A card chiusa il
+messaggio mostra al massimo due righe: scriverlo più lungo va bene, il resto si legge aprendola.
 
 **Contenuto**
 
@@ -173,7 +199,7 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 
 **Controlli**
 
-`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidSlider` (la maniglia e' una lente sulla pista, e un trascinamento non lascia scorrere la pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidMorphMenuButton` (+ `FluidMorphMenuHost` alla radice: il tasto che diventa il proprio menù), `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`. Come rispondono al dito: vedi "La pressione" qui sotto.
+`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidSlider` (il LiquidSlider di Kyant0: una pillola bianca a riposo che sotto il dito diventa lente sulla pista, con tacche di scatto facoltative, e un trascinamento non lascia scorrere la pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidMorphMenuButton` (+ `FluidMorphMenuHost` alla radice: il tasto che diventa il proprio menù), `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`. Come rispondono al dito: vedi "La pressione" qui sotto.
 
 **Token**
 
@@ -206,7 +232,7 @@ Restano, compilano e funzionano — la rimozione è prevista per la 3.0 — ma n
 - Feedback al tocco con `fluidPressable` o `fluidRowPressable` (tinta, per le righe di una lista raggruppata). Una riga che cambia misura rompe la sagoma del gruppo. Un pulsante cresce (`feedback = FluidPressFeedback.Expand`), una superficie cede: vedi "La pressione".
 - Il contrasto è testato: `FluidContrastTest` verifica le coppie. Se aggiungi un ruolo, aggiungi il caso.
 
-## La pressione (2.11.0)
+## La pressione (2.11.0, e di chi è il dito dalla 2.12.0)
 
 Un posto solo, `ui/fluid/FluidPress.kt`, per come un elemento risponde al dito. Due famiglie
 (`FluidPressFeedback`), e la differenza e' di sagoma:
@@ -232,16 +258,56 @@ Due regole pratiche:
 - **`fluidPressable` va prima del clip e dello sfondo** di cio' che preme. Dentro, si muove solo il
   contenuto: `FluidButton` ha rimpicciolito per anni la sola etichetta, con il contenitore fermo.
 - **Un pulsante di vetro ha una pressione sola**: `val p = rememberFluidPressState()`, poi
-  `glassControlSurface(pressState = p)` e `fluidPressable(pressState = p)`. Il click la guida, il
-  vetro la disegna nel suo layer (che il renderer corregge), e il dito che scorre scatta una volta
-  sola. Senza `pressState` il vetro segue il dito da solo, come sempre.
+  `glassControlSurface(pressState = p)` e `fluidPressable(pressState = p)`. Il gesto del pulsante
+  la guida, il vetro la disegna nel suo layer (che il renderer corregge), e il dito che scorre
+  scatta una volta sola. Senza `pressState` il vetro segue il dito da solo, come sempre.
 
-**Lo slider tiene la pagina.** `FluidSlider` non e' piu' un `draggable` orizzontale in gara con la
-pagina: un dito sulla maniglia e' suo subito, e ogni movimento di quel dito viene consumato fino al
-rilascio, su entrambi gli assi; un dito sulla pista nuda diventa suo a mezzo slop di lato, e una
-passata che va in verticale per prima resta della pagina. Tacche `DragTick` a ogni ventesimo,
+**Un pulsante si trascina sempre (2.12.0).** Per i pulsanti che crescono il puntatore non e' piu' di
+`clickable` ma di `fluidButtonGesture` (in `FluidPress.kt`; la logica pura e' `FluidPressGesture`, con
+i suoi test). La regola viene dalla mano: una passata veloce e' della pagina, un dito che si ferma un
+attimo e' del tasto.
+
+- per **100 ms** il gesto non e' di nessuno e non si consuma niente: una passata che parte su un
+  pulsante scorre ancora la pagina, senza pressione e senza click;
+- un dito che resta giu' quei 100 ms senza che la pagina se lo sia preso ha **premuto** il
+  pulsante, e da li' il gesto e' **suo fino al rilascio**: si inclina, si allunga, scatta, segue il
+  dito anche fuori dai bordi, e ogni cambio e' consumato, quindi una `LazyColumn` o un
+  `verticalScroll` attorno non partono mai;
+- al rilascio il click scatta se il dito e' dentro il pulsante **piu' 16 dp** (o il margine
+  dell'area di tocco minima, se maggiore), altrimenti la pressione si scioglie e basta. Un tap piu'
+  breve di 100 ms mostra comunque la pressione intera e clicca;
+- il click lungo scatta solo se il dito e' rimasto entro lo slop da dove e' sceso, e dopo non c'e'
+  click al rilascio (`fluidPressable(longClickHaptic = ...)`, `null` per un controllo che ha gia' il
+  suo colpo). Un mouse e' del pulsante subito;
+- `clickable` resta per la semantica: ruolo, TalkBack, tastiera, fuoco. Le superfici che cedono
+  (card, tessere, `fluidRowPressable`) non cambiano, e restano di `clickable` anche per il puntatore.
+
+**Nella chrome, subito.** I 100 ms servono a un pulsante dentro una pagina che scorre; in una barra,
+in un'intestazione, in un foglio erano solo una pressione in ritardo. `LocalFluidPressImmediate`
+(default `false`) a `true` li azzera, e il pulsante e' del dito dal primo istante, come con un mouse.
+L'engine se lo da' dove non scorre niente — tasto indietro e azioni della barra di `FluidScreen`,
+intestazione dei pannelli a pagina intera — e il corpo di `FluidScreen` lo rimette a `false`.
+`FluidHero` resta com'e': le sue azioni stanno dentro la lista. Un'app lo da' alla sua chrome fissa
+con `CompositionLocalProvider(LocalFluidPressImmediate provides true) { ... }`, e **mai attorno a
+qualcosa che scorre**: un pulsante cosi' tiene il dito dal primo istante, e la lista si scorrerebbe
+solo dai margini.
+
+**Lo slider e' il LiquidSlider di Kyant0 (2.12.0).** Una pista sottile da 6 dp, registrata nel suo
+layer, e una pillola 40x24 **bianca e opaca a riposo** che, tenuta, diventa una lente: rifrange la
+pagina piu' una copia della pista che si dispiega, e si allunga con la velocita' (col modulo, non col
+segno). La riga e' alta 48 dp. Con `snapValues` il valore si attacca alla tacca piu' vicina entro
+`snapThreshold` (una frazione dell'intervallo, 0,03 di default; `1f` e' uno slider a gradini), con un
+puntino sotto la pista e un solo tocco aptico per tacca; senza, `DragTick` a ogni ventesimo e
 `Threshold` alle estremita'. Per un lettore di schermo e' uno slider (`progressBarRangeInfo` e
-`setProgress`), non piu' un interruttore.
+`setProgress`), con `contentDescription` e `stateDescription` («30 minuti») dati dall'app.
+
+Il dito non e' della pagina: un dito sulla pillola, o a 10 dp dal suo bordo, e' suo subito, e ogni
+cambio di quel puntatore viene consumato fino al rilascio, su entrambi gli assi; un dito sulla pista
+nuda diventa suo a mezzo slop di lato (e piu' di lato che in verticale), mentre una passata che va in
+verticale per prima resta della pagina; sollevato senza essersi mosso e' un tocco, e porta li' la
+pillola. Lo stesso vale per il pomello di `FluidSwitch`: un puntatore caduto sul pomello e mosso di
+uno slop in qualunque verso e' suo fino al rilascio. Sotto lo slop non si consuma niente, e il tocco
+commuta ancora.
 
 ## Fluid-physics — il vetro che cambia forma
 

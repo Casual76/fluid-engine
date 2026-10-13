@@ -20,7 +20,7 @@ Questo documento è il piano per arrivare ai **componenti**, e lo stato di ogni 
 |---|---|---|---|
 | ClasseViva Expressive | ✅ | ✅ | li aveva gia': la migrazione ha tolto la copia locale |
 | universal_converter | ✅ | ✅ | `FluidScreen` su principale, impostazioni e log |
-| Pampa widgets | ✅ | ✅ | `FluidScreen` + `FluidTabBar` in vetro |
+| Pampa widgets | ✅ | ✅ | `FluidScreen` + la barra flottante in vetro (`FluidTabBar`, deprecata dalla 2.12.0: delega a `FluidFloatingTabBar`) |
 | Pampa Store | ✅ | ✅ | Android Compose nativo: `FluidScreen`, tab bar/rail, componenti e vetro condivisi |
 | KeyVoice | — | — | e' tutta View: prendere i componenti significa riscriverla in Compose |
 
@@ -74,8 +74,9 @@ altro guardate una per una. Si vede identica a prima — che era il risultato at
 
 Il vecchio client Compose Multiplatform e' stato rimosso. Pampa Store e' ora un'app Android Compose
 nativa che include direttamente `engine-ui`: Home, Catalogo, Dettaglio e Altro usano `FluidScreen`,
-la navigazione adattiva usa `FluidTabBar`/`FluidTabRail`, e liste, controlli, motion e backdrop sono
-gli stessi di ClasseViva. Non esiste piu' un porto del look da riallineare a mano.
+la navigazione adattiva usa la barra in basso (allora `FluidTabBar`, oggi `FluidFloatingTabBar`) e
+`FluidTabRail`, e liste, controlli, motion e backdrop sono gli stessi di ClasseViva. Non esiste piu'
+un porto del look da riallineare a mano.
 
 Con Fluid Engine 1.3.0 il chrome passa al nuovo Fluid Glass ottico. Le azioni refresh della barra
 usano `FluidBarAction`; ricerca, filtri, hero, righe e pulsanti dentro le pagine restano solidi per
@@ -115,10 +116,11 @@ che scorre, e `FluidScreen` e' una lista.
 
 ## Fase 5 — Pampa widgets ✅ fatta (2026-08-24, engine 1.2.0)
 
-`FluidTabBar` al posto di `NavigationBar`: la barra fluttua sopra il contenuto invece di occupare
-una fascia in fondo, ed e' per questo che il contenuto le scorre sotto e si vede sfocato attraverso.
-Lo `Scaffold` sparisce perche' la sua `bottomBar` toglie spazio; lo spazio torna al contenuto come
-`bottomInset`, cosi' le liste finiscono sopra la barra e non dietro.
+`FluidTabBar` (oggi `FluidFloatingTabBar`; il vecchio nome è deprecato e delega) al posto di
+`NavigationBar`: la barra fluttua sopra il contenuto invece di occupare una fascia in fondo, ed e'
+per questo che il contenuto le scorre sotto e si vede sfocato attraverso. Lo `Scaffold` sparisce
+perche' la sua `bottomBar` toglie spazio; lo spazio torna al contenuto come `bottomInset`, cosi' le
+liste finiscono sopra la barra e non dietro.
 
 `FluidScreen` su store e impostazioni. Il conteggio dei widget passa da pastiglia accanto al titolo
 a **faccetta della barra**, dove scorre quando il titolo si e' ritirato.
@@ -148,8 +150,8 @@ non disegna più niente: sceglie quanta ottica riceve ogni ruolo. La tinta è sc
 sfocatura è raddoppiata — la leggibilità si compra con il raggio, non con l'opacità.
 
 **Cosa cambia per chi usa l'engine.** Le firme pubbliche (`rememberGlassBackdrop`,
-`glassBackdropSource`, `glassSurface`, `FluidTabBar`, `FluidBarAction`) sono le stesse. Cambia
-`GlassOptics`, che ora parla di altezza e quantità di rifrazione invece di larghezze di rim, e
+`glassBackdropSource`, `glassSurface`, la barra (`FluidTabBar`, oggi `FluidFloatingTabBar`),
+`FluidBarAction`) sono le stesse. Cambia `GlassOptics`, che ora parla di altezza e quantità di rifrazione invece di larghezze di rim, e
 `glassControlSurface`, che vuole il backdrop da rifrangere. Nessuna app le usava direttamente.
 
 **Il pezzo che si sbaglia.** Un controllo appoggiato a una barra deve rifrangere la barra. Passargli
@@ -204,6 +206,14 @@ pop-up 5, capsula 3.6, controlli 2.8, contenuto 1.6. Il pop-up stava a 12 dp **s
 aveva già sfocato gli stessi pixel, e il risultato non era vetro: era una card grigio chiaro con
 attorno un bordo bianco. Il materiale è la *piega*, la brina serve solo a tenere leggibile il testo
 sopra.
+
+*Aggiornamento, engine 2.12.0.* Quei numeri sono quelli del riferimento di allora, 2 dp. Dalla 2.12.0
+il riferimento è **2,5 dp** e ognuno sale di un quarto: barra 12,5 dp, modale 8,75, pop-up 6,25,
+capsula (`Floating`) 4,5, controlli (`Interactive`) 3,5, contenuto 2, contenuto impilato
+(`StackedContent`) 4,5. In più c'è la regola della taglia: sotto i 64 dp di lato corto un pannello
+non cambia, e fino ai 320 dp sfoca fino al doppio e rifrange di più (altezza ×1,6, spostamento al
+bordo ×1,8), quindi un modale grande arriva a 17,5 dp. Il perché, e il vincolo del padding della
+cattura, sono in `skill/fluid-engine/references/regole.md`.
 
 **Il difetto che si vedeva di più.** Il menù contestuale mostrava ogni riga due volte: la riga
 sollevata è un pannello di vetro, e la riga vera era ancora nella pagina sotto di lei, quindi
@@ -341,8 +351,10 @@ pannello con la rifrazione addosso; `fluidExpandOrigin` registra l'immagine dell
 nasconde mentre la finestra è in scena, così quello che l'occhio segue è **una** cosa che si
 trasforma. Il gancio per i componenti che un orologio ce l'hanno già è
 `FluidPhysicsState.driveExternally`: la fisica fa la finestra, il progresso resta delle molle del
-chiamante. Nuovo anche `FluidMorphMenu` (il tasto che si espande nel proprio menù). Menù
-contestuale delle righe e `Sheet` restano com'erano, per scelta.
+chiamante. Nuovo anche `FluidMorphMenu` (il tasto che si espande nel proprio menù; dalla 2.12.0
+`FluidGlassMenuButton`, che mostrava il pannello *sopra* il tasto, è deprecato in suo favore, e la
+migrazione vuole uno stato e un host alla radice). Menù contestuale delle righe e `Sheet` restano
+com'erano, per scelta.
 
 **La molla, rivista.** Due tempi, e la differenza è chi sta aspettando: i morph avviati da un tocco
 secco tengono il viaggio della casa (rincorsa lunga, molla, posata); tutto ciò che l'utente sta già
@@ -390,6 +402,27 @@ verificato sullo stesso emulatore con `wm size 1080x2340`.
 **Guardato sull'emulatore tablet** (2560x1600, 320 dpi): chiaro e scuro, testo a 1.3, finestra
 divisa (1280x1600), rotazione, Esc da tastiera, deep link di un compito nel pannello. Il Tab S9 non
 era collegato.
+
+## Fase 13 — i duplicati deprecati, e chi dovrà migrare (engine 2.12.0)
+
+L'engine aveva più nomi per la stessa cosa. Con la 2.12.0 i vecchi restano — compilano, funzionano, la
+rimozione è prevista per la 3.0 — ma sono deprecati, e dove la sostituzione è fedele *delegano* al
+nuovo: un'app che aggiorna prende il look giusto senza toccare una riga. Nessuna app deve fare
+niente adesso; si migra quando c'è un motivo per toccare quella schermata. L'elenco di chi chiama
+cosa, per non doverlo ricercare:
+
+| deprecato | usa | lo chiamano oggi |
+|---|---|---|
+| `FluidTabBar` | `FluidFloatingTabBar` | Fluid-transit, Pampa widgets, Codex |
+| `FluidQuickAction` | `FluidChip(selected = false)` | classeviva, Pampa notes |
+| `FluidHeroCard` | `FluidHero`, o `FluidCard(highlighted = true)` | classeviva, PampAI, KeyVoice |
+
+`FluidTabBar` è l'unico che si **vede** cambiare: la barra diventa una capsula grande quanto le
+schede, al centro e alta 60 dp (non da lato a lato, 64 dp), e non si ripiega senza una
+`rememberFluidFloatingTabBarScrollConnection()` attaccata alla pagina. Le schede perdono il ruolo
+`Tab` e il tag di test `top_level_<rotta>`: un test che li cercava cerca l'etichetta. `FluidQuickAction`
+diventa la pillola di `FluidChip`, alta almeno 48 dp (erano 32). Il dettaglio di tutti i deprecati,
+con la sostituzione, è in `docs/03-design-system.md`.
 
 ---
 

@@ -147,4 +147,6 @@ ed è giusto scriverlo.
 Lo stesso vale per **[LibrePods](https://github.com/librepods-org/librepods)**: i pulsanti che
 crescono sotto il dito e gli slider che tengono ferma la pagina della 2.11.0 sono nati guardando
 come si comportano i suoi controlli. Del comportamento, non del codice: LibrePods è GPL-3.0, e
-`FluidPress.kt` e lo slider sono scritti da capo con le API standard di Compose.
+`FluidPress.kt` e il gesto dello slider sono scritti da capo con le API standard di Compose. Lo
+slider come si vede, dalla 2.12.0, è invece il `LiquidSlider` di Kyant (Apache-2.0, come il vetro:
+`LICENSES/AndroidLiquidGlass.md`).

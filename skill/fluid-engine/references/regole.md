@@ -74,14 +74,22 @@ si inclina incontro e scatta mentre il dito ci scorre sopra. Una card, una tesse
 farebbero ballare la griglia. Non scrivere una terza risposta al dito in una schermata: è
 `FluidPress.kt`, o non è.
 
-Due cose da sapere, entrambe pagate:
+Tre cose da sapere, tutte pagate:
 
 - **la pressione arriva sempre in fondo.** Un tap vero dura meno della corsa di qualsiasi molla, e
   un rilascio che ripartiva da dove la corsa era arrivata faceva vedere un decimo di pressione — in
-  una lista, dove `clickable` ritarda la pressione di 100 ms, niente del tutto. Il rilascio aspetta;
+  una lista, dove la pressione parte 100 ms dopo il tocco, niente del tutto. Il rilascio aspetta;
 - **`fluidPressable` sta prima di `clip` e `background`.** Dopo, la scala si applica solo a ciò che
   sta dentro: `FluidButton` ha rimpicciolito per anni la sua etichetta dentro un contenitore fermo,
-  e nessuno lo vedeva perché era il 2.6% di una parola.
+  e nessuno lo vedeva perché era il 2.6% di una parola;
+- **un pulsante è di chi lo tiene premuto (2.12.0).** Per 100 ms il dito non è di nessuno e non si
+  consuma niente, così una passata veloce che parte su un pulsante scorre la pagina; passato quel
+  momento, se la pagina non l'ha preso, il pulsante è premuto e il gesto è suo fino al rilascio:
+  segue il dito anche fuori dai bordi, ogni cambio è consumato (la lista sotto non parte), e il click
+  scatta solo se il dito si solleva dentro il pulsante più 16 dp. Lo decide `fluidButtonGesture`;
+  `clickable` resta per ruolo, tastiera e TalkBack. Dove non scorre niente (una barra, un'intestazione)
+  `LocalFluidPressImmediate` azzera i 100 ms — e non va mai attorno a qualcosa che scorre, o quella
+  cosa si scorre solo dai margini.
 
 ## Il vetro va sul contenitore, mai sulla riga
 
@@ -127,16 +135,39 @@ infiniti: e' la garanzia che una lista lunga resti guardabile.
 
 ## Il vetro si tara con la lente, non con la sfocatura
 
-Il raggio di riferimento e' **2 dp**. E' passato da 8 a 16 e poi a 2, e il giro di mezzo e' l'errore
-che vale la pena non rifare: sopra circa 8 dp un pannello smette di trasmettere un'immagine e
-trasmette la sua *media*, e un pannello che tiene una media e' un riempimento. Tutto il lavoro che la
-lente fa sul bordo sta allora piegando un colore piatto in un altro colore piatto.
+Il raggio di riferimento e' **2,5 dp**. E' passato da 8 a 16, poi a 2, poi a 2,5 (il mezzo dp
+dell'ultimo passo e' una taratura a occhio: il vetro di base un filo piu' smerigliato), e il giro di
+mezzo e' l'errore che vale la pena non rifare: sopra circa 8 dp un pannello smette di trasmettere
+un'immagine e trasmette la sua *media*, e un pannello che tiene una media e' un riempimento. Tutto
+il lavoro che la lente fa sul bordo sta allora piegando un colore piatto in un altro colore piatto.
 
 Quello che identifica il materiale e' la **dislocazione** al perimetro e la riga speculare sopra, non
 la brina. Quindi il raggio resta minuscolo e la lente sale (19 e 29 dp sulla capsula flottante, i
 numeri della capsula di Kyant). Le superfici che devono davvero nascondere qualcosa — la barra
 superiore, sotto cui scorre testo nitido — chiedono un multiplo con `GlassOptics.blurScale`, invece
 di farlo pagare a tutte.
+
+**La taglia cambia il conto (2.12.0).** Un pannello grande smerigliato come uno piccolo sembra un
+pannello piccolo ingrandito: il bordo piega l'immagine di pochi dp su una superficie larga mezzo
+schermo, e lo spessore non si legge piu'. Quindi le superfici *piccole* (lato corto fino a 64 dp: tasti,
+chip, pomelli, la pillola di navigazione) restano com'erano — guadagno esattamente zero, non "quasi
+zero" — e sopra il guadagno sale a smoothstep fino ai 320 dp, dove la sfocatura e' **x2**, l'altezza
+di rifrazione **x1,6** (mai oltre mezzo lato corto, dove lo shader satura) e lo spostamento al bordo
+**x1,8**. La formula e' una sola, `glassSizedOptics`, per `glassSurface` e `fluidPhysicsSurface`; nel
+morph conta la taglia della *sagoma*, non quella del layer che la ospita. Due vincoli che non si
+toccano: **la sfocatura non cresce oltre l'altezza di lente che la copre**, perche' il padding della
+cattura vale `max(0, sfocatura - altezza)` e deve restare zero anche mentre una sagoma cambia taglia
+(un padding che si muove sporca la cattura a ogni fotogramma del morph); e **sotto API 33, senza
+lente, la regola e' spenta**. Si esce con `GlassOptics.sizeResponse = 0`: lo scrim dei modali lo fa,
+perche' copre lo schermo senza essere un pannello grande, e sfocato fino alla media farebbe il
+contrario del suo mestiere. Il tetto `blurScale` 16 vale anche per il prodotto finale.
+
+Questo **tende la regola di sopra**, e va detto: sopra circa 8 dp un pannello trasmette la media e
+non l'immagine, e un `Modal` grande a taglia piena arriva a 17,5 dp (`Floating` 9, `Content` 4).
+E' voluto per i pannelli grandi (il catalogo di Kyant tiene una finestra da 250-300 dp a 16 e 8 dp),
+ma oltre il doppio sarebbe l'errore del 16 dp un'altra volta: i tre massimi (x2, x1,6, x1,8) sono
+numeri di partenza **da giudicare su un dispositivo**, non verita', e stanno in `GlassMaterial.kt`
+con il motivo accanto perche' e' li' che si ritoccano.
 
 **E il film del vetro non e' `MaterialTheme.surface`.** Una barra dello stesso colore del fondo non e'
 un materiale traslucido, e' niente: su un tema AMOLED spariva del tutto. Il Liquid Glass e' un

@@ -1,10 +1,7 @@
 package dev.antigravity.fluidengine.wear.glass
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.size
@@ -24,12 +21,14 @@ import androidx.compose.ui.unit.max
 import androidx.wear.compose.material3.LocalContentColor
 import androidx.wear.compose.material3.MaterialTheme
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
-import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.wear.ambient.LocalFluidWearAmbient
 import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
 
@@ -42,6 +41,14 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  * [FluidGlassBurst] on the press, which is what a watch needs that a phone does not: on a wrist
  * the finger covers most of the control, and the light that escapes around it is the confirmation.
  *
+ * The press is the phone's too: one [dev.antigravity.fluidengine.ui.fluid.FluidPressState] shared
+ * by the glass and by [fluidPressable], so the disc behaves like every glass button of the engine.
+ * A quick flick that starts on it scrolls the list it sits in; a finger that stays down for 100 ms
+ * has pressed it, and from there the gesture is the disc's until the lift — it follows the finger
+ * even off its rim, nothing under it scrolls, and the click fires if the finger lifts on the disc
+ * (plus 16 dp). Before, the disc answered at the first touch and let go of the finger at the first
+ * movement.
+ *
  * The glass stays still when nothing touches it: the pane re-captures its backdrop only while its
  * own lean and swell are animating or what is behind it actually changes, and the burst is drawn
  * over the glass without re-capturing anything.
@@ -50,7 +57,6 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  *   [FluidWearDimens.MinTouchTarget].
  * @param haptic what the press feels like; play/pause wants `Confirm`, the rest `Tap`.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FluidGlassDisc(
   onClick: () -> Unit,
@@ -67,10 +73,10 @@ fun FluidGlassDisc(
   contentColor: Color = MaterialTheme.colorScheme.onSurface,
   content: @Composable BoxScope.() -> Unit,
 ) {
-  val haptics = LocalFluidHaptics.current
   val ambient = LocalFluidWearAmbient.current
   val onDark = GlassDefaults.isDarkSurface()
-  val interactionSource = remember { MutableInteractionSource() }
+  // Una pressione sola per il vetro e per il click, come ogni tasto di vetro del telefono.
+  val press = rememberFluidPressState(FluidPressFeedback.Expand)
   val lastDown = remember { floatArrayOf(Float.NaN, Float.NaN) }
 
   Box(
@@ -86,33 +92,32 @@ fun FluidGlassDisc(
           tint = tint,
           selected = selected,
           interactive = enabled,
+          pressState = press,
         )
         .fluidGlassBurst(burst, onDarkSurface = onDark, enabled = !ambient.isAmbient)
         .pointerInput(Unit) {
-          // Only remembers where the press landed, for the burst; never consumes.
+          // Only remembers where the press landed, for the burst; never consumes. Sta fuori da
+          // fluidPressable, che il down lo consuma: lo legge comunque.
           awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             lastDown[0] = down.position.x
             lastDown[1] = down.position.y
           }
         }
-        .combinedClickable(
-          interactionSource = interactionSource,
-          indication = null,
-          enabled = enabled,
-          role = Role.Button,
-          onLongClick = onLongClick?.let { long ->
-            {
-              haptics.play(FluidHapticEvent.Threshold)
-              long()
-            }
-          },
+        .fluidPressable(
           onClick = {
             val at = if (lastDown[0].isNaN()) null else Offset(lastDown[0], lastDown[1])
             burst.fire(at)
-            haptics.play(haptic)
             onClick()
           },
+          onLongClick = onLongClick,
+          enabled = enabled,
+          role = Role.Button,
+          haptic = haptic,
+          // Il disco ha sempre fatto sentire la soglia, non l'inizio di un gesto.
+          longClickHaptic = FluidHapticEvent.Threshold,
+          focusShape = FluidCapsuleShape,
+          pressState = press,
         )
         .semantics { if (contentDescription != null) this.contentDescription = contentDescription },
       contentAlignment = Alignment.Center,

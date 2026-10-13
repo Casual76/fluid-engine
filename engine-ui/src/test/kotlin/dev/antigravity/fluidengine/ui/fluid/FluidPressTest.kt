@@ -5,6 +5,7 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
@@ -19,6 +20,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
@@ -168,7 +170,7 @@ class FluidPressStateTest {
     val state = FluidPressState(scope, FluidPressFeedback.Expand)
     state.update(FluidPressFeedback.Expand, haptics, reducedMotion = false)
 
-    // Prima che clickable confermi la pressione il dito puo' stare iniziando uno scorrimento.
+    // Prima che il tasto sia premuto davvero il dito puo' stare iniziando uno scorrimento.
     state.touchDown(Offset.Zero)
     state.touchMove(Offset(25f, 0f), uptimeMillis = 0L, stepPx = 10f)
     assertTrue(haptics.played.isEmpty())
@@ -266,5 +268,174 @@ class FluidPressTransformTest {
     assertTrue(t.scaleX < 1f)
     assertEquals(t.scaleX, t.scaleY, 0f)
     assertEquals(0f, t.translationX, 0f)
+  }
+}
+
+class FluidPressGestureTest {
+
+  private fun gesture(
+    ownDelay: Long = FluidPressGesture.OwnDelayMillis,
+    longPress: Long = FluidPressGesture.NoLongPress,
+    slop: Float = 20f,
+  ) = FluidPressGesture(
+    downUptime = 1_000L,
+    origin = Offset(50f, 20f),
+    touchSlop = slop,
+    ownDelayMillis = ownDelay,
+    longPressMillis = longPress,
+  )
+
+  private val size = Size(120f, 48f)
+  private val slack = Size(16f, 16f)
+
+  @Test
+  fun `non e' del tasto prima dei cento millisecondi, e lo diventa dopo`() {
+    val g = gesture()
+    assertEquals(0, g.advance(1_000L))
+    assertEquals(0, g.advance(1_099L))
+    assertEquals(FluidPressGesture.Phase.Pending, g.phase)
+
+    assertEquals(FluidPressGesture.BecameOwned, g.advance(1_100L))
+    assertTrue(g.owned)
+    // Una volta sola.
+    assertEquals(0, g.advance(1_250L))
+  }
+
+  @Test
+  fun `il prossimo scadere e' il possesso, poi la pressione lunga, poi niente`() {
+    val g = gesture(longPress = 400L)
+    assertEquals(1_100L, g.nextDeadline)
+    g.advance(1_100L)
+    assertEquals(1_400L, g.nextDeadline)
+    g.advance(1_400L)
+    assertEquals(Long.MAX_VALUE, g.nextDeadline)
+    assertEquals(Long.MAX_VALUE, gesture().also { it.advance(1_100L) }.nextDeadline)
+  }
+
+  @Test
+  fun `se la pagina se lo prende prima, il tasto non lo ha mai avuto`() {
+    val g = gesture()
+    g.advance(1_030L)
+    g.taken()
+
+    assertTrue(g.over)
+    // Il tempo che passa dopo non lo rende del tasto.
+    assertEquals(0, g.advance(1_500L))
+    assertFalse(g.owned)
+    assertEquals(Long.MAX_VALUE, g.nextDeadline)
+    assertFalse("scorrimento: nessun click al rilascio", g.lifted(Offset(60f, 24f), size, slack))
+  }
+
+  @Test
+  fun `una volta del tasto il dito puo' andare ovunque e il gesto resta suo`() {
+    val g = gesture()
+    g.advance(1_100L)
+    g.moved(Offset(900f, -700f))
+    g.advance(2_000L)
+
+    assertTrue(g.owned)
+    assertFalse("fuori di centinaia di pixel: nessun click", g.lifted(Offset(900f, -700f), size, slack))
+    // Ma se torna sul tasto prima di alzarsi, il click c'e'.
+    assertTrue(g.lifted(Offset(60f, 24f), size, slack))
+  }
+
+  @Test
+  fun `un mouse e' del tasto subito`() {
+    val g = gesture(ownDelay = 0L)
+    assertEquals(FluidPressGesture.BecameOwned, g.advance(1_000L))
+    assertTrue(g.owned)
+  }
+
+  @Test
+  fun `la pressione lunga scatta al suo tempo se il dito e' rimasto nello slop`() {
+    val g = gesture(longPress = 400L)
+    g.advance(1_100L)
+    g.moved(Offset(55f, 25f))
+    assertEquals(0, g.advance(1_399L))
+    assertEquals(FluidPressGesture.LongPressed, g.advance(1_400L))
+    assertTrue(g.longPressed)
+    // Non scatta due volte.
+    assertEquals(0, g.advance(2_000L))
+  }
+
+  @Test
+  fun `un dito che ha superato lo slop non sta tenendo premuto`() {
+    val g = gesture(longPress = 400L, slop = 20f)
+    g.advance(1_100L)
+    g.moved(Offset(50f, 41f))
+    assertEquals(0, g.advance(1_500L))
+    assertFalse(g.longPressed)
+
+    // E tornare al punto di partenza non lo riarma.
+    g.moved(Offset(50f, 20f))
+    assertEquals(0, g.advance(3_000L))
+    // Ma il suo gesto resta del tasto, e al rilascio dentro clicca.
+    assertTrue(g.owned)
+    assertTrue(g.lifted(Offset(50f, 20f), size, slack))
+  }
+
+  @Test
+  fun `un tasto senza pressione lunga non ne ha mai una`() {
+    val g = gesture()
+    g.advance(1_100L)
+    assertEquals(0, g.advance(60_000L))
+    assertFalse(g.longPressed)
+  }
+
+  @Test
+  fun `dopo la pressione lunga il rilascio non clicca`() {
+    val g = gesture(longPress = 400L)
+    g.advance(1_450L)
+    assertTrue(g.longPressed)
+    assertFalse(g.lifted(Offset(60f, 24f), size, slack))
+  }
+
+  @Test
+  fun `se fra due eventi e' passato tutto, il possesso viene prima della pressione lunga`() {
+    val g = gesture(longPress = 400L)
+    assertEquals(FluidPressGesture.BecameOwned or FluidPressGesture.LongPressed, g.advance(1_700L))
+    assertTrue(g.owned)
+    assertTrue(g.longPressed)
+  }
+
+  @Test
+  fun `un tap rapido clicca senza essere stato del tasto`() {
+    val g = gesture(longPress = 400L)
+    g.advance(1_060L)
+    assertFalse(g.owned)
+    assertTrue(g.lifted(Offset(60f, 24f), size, slack))
+  }
+
+  @Test
+  fun `un gesto annullato da fuori non clicca`() {
+    val g = gesture()
+    g.advance(1_300L)
+    g.end()
+    assertFalse(g.lifted(Offset(60f, 24f), size, slack))
+  }
+
+  @Test
+  fun `il click al rilascio vale dentro il tasto piu' lo slack, non oltre`() {
+    assertTrue(fluidPressInside(Offset(0f, 0f), size, slack))
+    assertTrue(fluidPressInside(Offset(120f, 48f), size, slack))
+    // A filo dello slack, dentro.
+    assertTrue(fluidPressInside(Offset(-16f, 24f), size, slack))
+    assertTrue(fluidPressInside(Offset(136f, 24f), size, slack))
+    assertTrue(fluidPressInside(Offset(60f, 64f), size, slack))
+    // Mezzo pixel oltre, fuori.
+    assertFalse(fluidPressInside(Offset(-16.5f, 24f), size, slack))
+    assertFalse(fluidPressInside(Offset(136.5f, 24f), size, slack))
+    assertFalse(fluidPressInside(Offset(60f, -16.5f), size, slack))
+    assertFalse(fluidPressInside(Offset(60f, 64.5f), size, slack))
+    // Senza slack, il rettangolo e' il rettangolo.
+    assertFalse(fluidPressInside(Offset(-1f, 24f), size, Size.Zero))
+  }
+
+  @Test
+  fun `lo slack e' il piu' grande fra l'area di tocco minima e quello fisso`() {
+    // Un tasto grande: il suo margine di tocco e' zero, comanda lo slack fisso.
+    assertEquals(Size(48f, 48f), fluidPressSlack(Size.Zero, 48f))
+    // Un'icona piccola: Compose le da' di piu' per lato, e lo teniamo.
+    assertEquals(Size(60f, 48f), fluidPressSlack(Size(60f, 10f), 48f))
   }
 }

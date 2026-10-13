@@ -72,9 +72,12 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  *   [rememberCombinedGlassBackdrop] — not the page underneath that surface.
  * @param interactive false for a control that is only decorative or disabled; it keeps the material
  *   and drops every gesture, rather than needing a second, quieter component to exist.
- * @param pressState the press of the control this glass belongs to, driven by its
- *   [fluidPressable] (`pressState = ` the same one). Null: the glass follows the finger by itself,
- *   from the moment it lands, as it always did. Since 2.11.0.
+ * @param pressState la pressione del controllo a cui questo vetro appartiene, guidata dal suo
+ *   [fluidPressable] (`pressState = ` la stessa). Il vetro risponde allora quando il pulsante e'
+ *   *premuto* — dopo 100 ms di dito fermo, o al rilascio di un tap piu' rapido — e da li' il gesto
+ *   e' suo fino al rilascio, anche col dito fuori dal vetro: vedi [fluidButtonGesture]. Null: il
+ *   vetro segue il dito da solo, dal momento in cui scende, come ha sempre fatto, e non consuma
+ *   niente. Dalla 2.11.0.
  */
 @Composable
 fun Modifier.glassControlSurface(
@@ -163,8 +166,9 @@ fun Modifier.glassControlSurface(
       },
     )
     .then(if (interactive) highlight.modifier else Modifier)
-    // Followed by itself only when nobody drives it: a shared press is moved by the control's own
-    // fluidPressable, and two trackers on one press would tick twice for every step of the finger.
+    // Segue il dito da solo solo quando nessuno lo guida: una pressione condivisa la muove il
+    // fluidPressable del controllo, e due inseguitori su una pressione scatterebbero due volte a
+    // ogni passo del dito.
     .then(if (interactive && pressState == null) Modifier.fluidPressTracking(ownPress, ownsPress = true) else Modifier)
 }
 

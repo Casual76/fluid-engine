@@ -5,6 +5,8 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
@@ -16,12 +18,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.fastFirstOrNull
+import androidx.compose.ui.util.fastForEach
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticDetents
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
@@ -46,12 +55,14 @@ import kotlin.math.tanh
 // di 100 ms per non accendere tutto quello che uno scorrimento attraversa, e un tap piu' rapido di
 // cosi' consegnava pressione e rilascio nello stesso fotogramma: nessuna animazione, del tutto.
 //
-// Qui ci sono tre pezzi, ognuno usato da tutti:
+// Qui ci sono quattro pezzi, ognuno usato da tutti:
 //
 //  * [FluidPressMotion] — la corsa che arriva sempre in cima prima di tornare;
 //  * [fluidPressTransform] — cosa diventa quella corsa, in scala e spostamento, per una taglia data;
 //  * [FluidPressState] — la corsa piu' il dito: dove sta rispetto a dove e' sceso, e le tacche
-//    aptiche mentre si sposta su un tasto premuto.
+//    aptiche mentre si sposta su un tasto premuto;
+//  * [FluidPressGesture] e [fluidButtonGesture] — di chi e' il dito: della pagina finche' un tasto
+//    non e' stato visibilmente premuto, del tasto da li' al rilascio.
 
 /**
  * Come un elemento risponde al dito.
@@ -283,8 +294,9 @@ class FluidPressState internal constructor(
 
   /**
    * Il dito si e' spostato in [position]. Le tacche arrivano solo a pressione in corso: prima che
-   * `clickable` la confermi (i suoi 100 ms dentro una lista) il dito potrebbe stare iniziando uno
-   * scorrimento, e una tacca li' direbbe "ti ho preso" a un gesto che non e' per questo tasto.
+   * il tasto sia stato premuto davvero (i 100 ms di [FluidPressGesture.OwnDelayMillis]) il dito
+   * potrebbe stare iniziando uno scorrimento, e una tacca li' direbbe "ti ho preso" a un gesto che
+   * non e' per questo tasto.
    */
   internal fun touchMove(position: Offset, uptimeMillis: Long, stepPx: Float) {
     val delta = (position - last).getDistance()
@@ -317,8 +329,12 @@ fun rememberFluidPressState(feedback: FluidPressFeedback = FluidPressFeedback.Ex
  * Legge nel passaggio Final e non consuma niente, quindi non toglie il gesto a nessuno — e vede per
  * ultimo se qualcuno se l'e' preso: un cambio consumato e' uno scorrimento partito, e da li' questo
  * tasto non segue piu' niente. Con [ownsPress] e' anche lui a premere e rilasciare (il vetro senza
- * un click proprio, che risponde subito come ha sempre fatto); senza, la pressione la decide
- * `clickable` attraverso le sue interazioni, ritardo nelle liste compreso.
+ * un click proprio, che risponde subito come ha sempre fatto); senza, la pressione la decide chi
+ * guida l'elemento: `clickable` attraverso le sue interazioni, ritardo nelle liste compreso, per
+ * le superfici che cedono.
+ *
+ * Non e' piu' il percorso dei pulsanti: quelli ([FluidPressFeedback.Expand] dentro
+ * `fluidPressable`) hanno [fluidButtonGesture], che il dito lo tiene invece di guardarlo passare.
  */
 internal fun Modifier.fluidPressTracking(
   state: FluidPressState,
@@ -344,6 +360,315 @@ internal fun Modifier.fluidPressTracking(
 
 /** Un passo fra due tacche sotto un dito che scorre su un tasto premuto. */
 internal val FluidPressDragStep: Dp = 10.dp
+
+// -------------------------------------------------------------------------------------------------
+// Il pulsante e' di chi lo tiene premuto (2.12.0)
+// -------------------------------------------------------------------------------------------------
+//
+// Un pulsante che si lascia strappare il dito dalla pagina non e' trascinabile: la pressione cresceva,
+// si inclinava, scattava sotto il dito, e al primo movimento in verticale la lista partiva e il tasto
+// restava li' a guardarla. `clickable` non puo' fare altro, e fa bene: per lui un gesto che si muove
+// e' uno scorrimento, e lo cede.
+//
+// La regola e' una sola, e viene dalla mano e non dal codice: **una passata veloce e' della pagina,
+// un dito che si ferma un attimo e' del tasto.** Per un centinaio di millisecondi il gesto non
+// appartiene a nessuno e non si consuma niente, quindi una pagina che deve scorrere scorre e un
+// tasto non lampeggia sotto una passata; passato quel momento — se la pagina non l'ha preso — il
+// tasto e' premuto davvero e da li' il gesto e' suo fino al rilascio, ovunque vada il dito: segue,
+// scatta, e ogni cambio e' consumato, cosi' la pagina sotto non vede mai un movimento con cui
+// partire. Come lo slider, che e' il primo controllo dell'engine a farlo.
+
+/**
+ * Di chi e' il gesto che parte da un pulsante, deciso solo da tempo e movimento.
+ *
+ * Pura e senza Compose attorno: sbagliata, si vede solo nella mano e mai in una revisione, quindi
+ * ogni regola qui sotto e' provata in `FluidPressTest`. Chi la guida ([fluidButtonGesture]) le dice
+ * cosa succede — l'ora di un evento, dove e' il dito, che la pagina se l'e' preso — e lei dice cosa
+ * ne segue.
+ *
+ *  * **In attesa.** Dal dito che scende ai [OwnDelayMillis]. Nessuno consuma niente: se la pagina
+ *    se lo prende ([taken]) il gesto finisce senza che il tasto si sia mai mosso.
+ *  * **Del tasto.** Dal momento in cui e' trascorso il ritardo senza che la pagina si facesse viva
+ *    fino al rilascio. Non torna indietro: il dito puo' uscire dal tasto quanto vuole, e il click
+ *    si decide solo al rilascio ([lifted]).
+ *  * **Finito.** [taken] o [end]: niente piu' click, niente piu' possesso.
+ *
+ * La pressione lunga e' un secondo orologio dentro il possesso: scatta a [longPressMillis] solo se
+ * il dito e' rimasto entro lo slop dal punto in cui e' sceso (un dito che trascina non sta tenendo
+ * premuto), e dopo non c'e' piu' click al rilascio.
+ */
+internal class FluidPressGesture(
+  downUptime: Long,
+  private val origin: Offset,
+  private val touchSlop: Float,
+  ownDelayMillis: Long = OwnDelayMillis,
+  longPressMillis: Long = NoLongPress,
+) {
+  enum class Phase { Pending, Owned, Over }
+
+  var phase: Phase = Phase.Pending
+    private set
+
+  /** Il tasto e' premuto e il gesto e' suo. */
+  val owned: Boolean get() = phase == Phase.Owned
+
+  /** Il gesto e' finito: la pagina l'ha preso, o e' stato annullato. */
+  val over: Boolean get() = phase == Phase.Over
+
+  /** La pressione lunga e' gia' scattata: al rilascio non c'e' click. */
+  var longPressed: Boolean = false
+    private set
+
+  private val ownAt: Long = downUptime + ownDelayMillis
+  private val longPressAt: Long =
+    if (longPressMillis == NoLongPress) Long.MAX_VALUE else downUptime + longPressMillis
+  private var longPressArmed: Boolean = longPressMillis != NoLongPress
+
+  /**
+   * Il prossimo istante in cui il tempo, da solo, cambia qualcosa — [Long.MAX_VALUE] se nessuno.
+   * E' quello che serve a un dito fermo: non arriva nessun evento, e il possesso deve scattare lo
+   * stesso.
+   */
+  val nextDeadline: Long
+    get() = when {
+      phase == Phase.Pending -> ownAt
+      phase == Phase.Owned && longPressArmed && !longPressed -> longPressAt
+      else -> Long.MAX_VALUE
+    }
+
+  /**
+   * Il tempo e' arrivato a [uptime]: scatta cio' che e' scaduto. Il risultato e' un insieme di
+   * [BecameOwned] e [LongPressed] (puo' valere entrambi, se fra due eventi e' passato tutto).
+   */
+  fun advance(uptime: Long): Int {
+    var out = 0
+    if (phase == Phase.Pending && uptime >= ownAt) {
+      phase = Phase.Owned
+      out = out or BecameOwned
+    }
+    if (phase == Phase.Owned && longPressArmed && !longPressed && uptime >= longPressAt) {
+      longPressed = true
+      out = out or LongPressed
+    }
+    return out
+  }
+
+  /** Il dito e' in [position]. Oltre lo slop dal punto di partenza non e' piu' una pressione lunga. */
+  fun moved(position: Offset) {
+    if (longPressArmed && (position - origin).getDistance() > touchSlop) longPressArmed = false
+  }
+
+  /** La pagina (o chiunque stia sopra) se l'e' preso mentre il tasto non lo aveva ancora. */
+  fun taken() {
+    phase = Phase.Over
+  }
+
+  /** Annullato da fuori: una pressione tolta, un puntatore sparito. */
+  fun end() {
+    phase = Phase.Over
+  }
+
+  /**
+   * Il dito si e' sollevato in [position]: e' un click? Si', se il gesto e' ancora vivo, la pressione
+   * lunga non e' gia' scattata e il dito e' dentro il tasto piu' [slack] ([fluidPressSlack]).
+   * Anche un gesto del tasto che ha viaggiato lontano e torna: conta solo dove si solleva.
+   */
+  fun lifted(position: Offset, size: Size, slack: Size): Boolean =
+    phase != Phase.Over && !longPressed && fluidPressInside(position, size, slack)
+
+  companion object {
+    /**
+     * Quanto il dito deve restare giu' prima che il tasto sia premuto: l'attesa di `clickable`
+     * dentro uno scorrevole (il tap timeout di Android, 100 ms), qui per tutti. Non c'e' un modo
+     * pubblico di sapere se si e' dentro un contenitore che scorre, e una regola sola — una passata
+     * e' della pagina ovunque — vale piu' di una pressione che in una lista parte 100 ms dopo e in
+     * un foglio no. Un tap piu' corto non aspetta: mostra la pressione intera e clicca.
+     */
+    const val OwnDelayMillis: Long = 100L
+
+    /** Nessuna pressione lunga: il tasto ha solo il click. */
+    const val NoLongPress: Long = Long.MAX_VALUE
+
+    const val BecameOwned: Int = 1
+    const val LongPressed: Int = 2
+  }
+}
+
+/**
+ * Il margine oltre il bordo in cui un dito sollevato conta ancora come un click.
+ *
+ * 16 dp, o il margine che Compose da' a un elemento piu' piccolo del suo tocco minimo se e' di piu'
+ * (la sua area di tocco: un'icona di 24 dp ne ha 12 per lato). Piccolo di proposito: un tasto che
+ * segue il dito fuori dai suoi bordi e' un tasto che si puo' annullare, e il gesto per farlo e'
+ * andarsene. Ma non a filo: un pollice che ha trascinato un tasto di 48 dp non si solleva al pixel.
+ */
+internal fun fluidPressSlack(minTouchTargetPadding: Size, extraPx: Float): Size =
+  Size(max(minTouchTargetPadding.width, extraPx), max(minTouchTargetPadding.height, extraPx))
+
+/** Vero se [position] sta nel rettangolo [size] allargato di [slack] da ogni lato. */
+internal fun fluidPressInside(position: Offset, size: Size, slack: Size): Boolean =
+  position.x >= -slack.width && position.x <= size.width + slack.width &&
+    position.y >= -slack.height && position.y <= size.height + slack.height
+
+/** Il margine di [fluidPressSlack] oltre l'area di tocco minima: ~16 dp, come si dice li'. */
+internal val FluidPressClickSlack: Dp = 16.dp
+
+/** Quante pressioni emesse dal gesto aspettano ancora di essere riconosciute dalla tastiera. */
+private const val EmittedCap = 16
+
+/**
+ * Il gesto di un pulsante, dal dito che scende al rilascio: la pressione, il seguire il dito, le
+ * tacche, la pressione lunga e il click. **L'unico click del tasto che arriva dal puntatore.**
+ *
+ *  * **Il down e' consumato subito, nel passaggio Initial** (genitori prima dei figli): il
+ *    `clickable` che sta sotto di noi nella catena legge il suo nel Main, lo trova consumato e lo
+ *    salta, quindi non ci sono due click. A lui restano tastiera, fuoco e TalkBack — la semantica
+ *    di un pulsante — che non passano da qui.
+ *  * **Finche' il tasto non e' premuto non si consuma altro.** Dopo ogni cambio si guarda anche il
+ *    passaggio Final (per ultimo, quindi dopo che la pagina ha deciso): un cambio consumato e' uno
+ *    scorrimento partito, il gesto e' suo e questo tasto non si e' mai mosso. Cosi' una passata
+ *    che parte su un tasto scorre, e non c'e' pressione ne' click.
+ *  * **Premuto, il gesto e' del tasto.** Ogni cambio e' consumato nell'Initial, prima che qualunque
+ *    scorrevole sopra lo legga nel Main: non vede mai un movimento con cui partire. Il tasto
+ *    cresce, si inclina, scatta, anche col dito fuori dai suoi bordi.
+ *  * **Al rilascio** il click scatta se il dito e' dentro il tasto piu' lo slack
+ *    ([fluidPressSlack]); fuori, la pressione si scioglie e basta. Un tap che si solleva prima del
+ *    possesso mostra comunque la pressione intera ([FluidPressMotion]) e clicca.
+ *  * **La pressione lunga** scatta a `viewConfiguration.longPressTimeoutMillis` se il dito non ha
+ *    superato lo slop; la pressione si scioglie in quel momento (il tasto "lascia andare" insieme
+ *    al colpo) ma il gesto resta del tasto fino al rilascio, e al rilascio non c'e' click.
+ *  * **Un mouse e' del tasto subito**: non c'e' pagina da far scorrere con un trascinamento.
+ *
+ * Il tempo viene dall'ora degli eventi ([PointerInputChange.uptimeMillis]) e, per il dito fermo
+ * che non ne produce, da un timer sul prossimo scadere ([FluidPressGesture.nextDeadline]). Non
+ * dall'interazione di `clickable`, che arriva un fotogramma dopo ed e' il motivo per cui prima la
+ * pressione e il suo rilascio potevano consegnarsi insieme.
+ *
+ * Le [emitted] sono le pressioni che questo gesto ha scritto sull'[interactionSource]: servono a
+ * chi ascolta la stessa sorgente per la tastiera, per non pressare due volte.
+ */
+internal fun Modifier.fluidButtonGesture(
+  state: FluidPressState,
+  interactionSource: MutableInteractionSource,
+  emitted: MutableSet<PressInteraction.Press>,
+  onClick: () -> Unit,
+  onLongClick: (() -> Unit)?,
+): Modifier = this.pointerInput(state, interactionSource, onLongClick != null) {
+  val stepPx = FluidPressDragStep.toPx()
+  val extraSlackPx = FluidPressClickSlack.toPx()
+  val longPressMillis =
+    if (onLongClick != null) viewConfiguration.longPressTimeoutMillis else FluidPressGesture.NoLongPress
+
+  awaitEachGesture {
+    val down = awaitFirstDown(requireUnconsumed = true, pass = PointerEventPass.Initial)
+    // Il tasto destro di un mouse non preme il tasto: resta com'era, a `clickable`.
+    if (down.type == PointerType.Mouse && !currentEvent.buttons.isPrimaryPressed) return@awaitEachGesture
+    down.consume()
+    val id = down.id
+    val gesture = FluidPressGesture(
+      downUptime = down.uptimeMillis,
+      origin = down.position,
+      touchSlop = viewConfiguration.touchSlop,
+      ownDelayMillis = if (down.type == PointerType.Mouse) 0L else FluidPressGesture.OwnDelayMillis,
+      longPressMillis = longPressMillis,
+    )
+    val slack = fluidPressSlack(extendedTouchPadding, extraSlackPx)
+    state.touchDown(down.position)
+
+    // La pressione sul tasto, e la stessa sull'interactionSource per chi la ascolta da fuori.
+    var shown: PressInteraction.Press? = null
+    fun show(at: Offset) {
+      if (shown != null) return
+      state.press()
+      val press = PressInteraction.Press(at)
+      if (emitted.size >= EmittedCap) emitted.clear()
+      emitted += press
+      interactionSource.tryEmit(press)
+      shown = press
+    }
+    fun hide(completed: Boolean) {
+      val press = shown ?: return
+      shown = null
+      state.release()
+      interactionSource.tryEmit(if (completed) PressInteraction.Release(press) else PressInteraction.Cancel(press))
+    }
+    fun act(flags: Int, at: Offset) {
+      if (flags and FluidPressGesture.BecameOwned != 0) show(at)
+      if (flags and FluidPressGesture.LongPressed != 0) {
+        hide(completed = true)
+        onLongClick?.invoke()
+      }
+    }
+
+    var lastUptime = down.uptimeMillis
+    var lastPosition = down.position
+    try {
+      act(gesture.advance(lastUptime), lastPosition)
+      while (true) {
+        val deadline = gesture.nextDeadline
+        val event = if (deadline == Long.MAX_VALUE) {
+          awaitPointerEvent(PointerEventPass.Initial)
+        } else {
+          withTimeoutOrNull(deadline - lastUptime) { awaitPointerEvent(PointerEventPass.Initial) }
+        }
+        if (event == null) {
+          // Nessun evento per tutto il tempo che serviva: e' il dito fermo, ed e' proprio il
+          // caso in cui il tempo decide da solo.
+          lastUptime = deadline
+          act(gesture.advance(deadline), lastPosition)
+          continue
+        }
+
+        val change = event.changes.fastFirstOrNull { it.id == id }
+        if (change == null) break
+        lastUptime = max(lastUptime, change.uptimeMillis)
+        lastPosition = change.position
+        act(gesture.advance(lastUptime), lastPosition)
+
+        if (!change.pressed) {
+          // Un cambio gia' consumato prima di noi, o il cancel sintetico di un gesto nostro (che
+          // eredita il consumo dell'ultimo evento): nessuno ha sollevato il dito.
+          if (change.isConsumed) {
+            gesture.end()
+            break
+          }
+          val clicks = gesture.lifted(change.position, size.toSize(), slack)
+          // Un tap piu' rapido del possesso: la pressione intera si vede lo stesso.
+          if (clicks && !gesture.owned) show(change.position)
+          if (clicks || gesture.owned) change.consume()
+          hide(completed = clicks || gesture.longPressed)
+          if (clicks) onClick()
+          break
+        }
+        if (change.isConsumed) {
+          // Qualcuno sopra di noi l'ha preso nell'Initial: e' suo.
+          gesture.taken()
+          break
+        }
+
+        if (change.position != change.previousPosition) {
+          gesture.moved(change.position)
+          state.touchMove(change.position, change.uptimeMillis, stepPx)
+        }
+        if (gesture.owned) {
+          // La rotella di un mouse non e' un movimento del dito: non e' nostra.
+          if (event.type != PointerEventType.Scroll) event.changes.fastForEach { it.consume() }
+        } else {
+          // Ancora di nessuno: aspettiamo il Final per vedere se la pagina l'ha preso. Se si', il
+          // tasto non si e' mai mosso e il gesto e' suo.
+          val after = awaitPointerEvent(PointerEventPass.Final)
+          val seen = after.changes.fastFirstOrNull { it.id == id }
+          if (seen == null || !seen.pressed || seen.isConsumed) {
+            gesture.taken()
+            break
+          }
+        }
+      }
+    } finally {
+      hide(completed = false)
+    }
+  }
+}
 
 /**
  * Cosa diventa una pressione, per un elemento di una certa taglia.

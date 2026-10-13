@@ -72,6 +72,9 @@ Le modifiche fatte finora:
     la luce di `GlassTouchHighlight` passa dalla corsa di pressione dell'engine (`FluidPressMotion`,
     first-party) e puo' essere guidata da fuori (`progress`, `touch`), e il rilascio di
     `GlassDragAnimation` aspetta che la pressione sia arrivata prima di sgonfiare il pomello.
+    Dalla 2.12.0 la ricetta della luce sta in `glowRecipe`, e con `onGlass` una superficie di vetro
+    chiara riceve luce bianca additiva, piu' leggera e stretta di quella della sorgente, invece
+    dell'inchiostro nero pensato per le righe opache.
 
 11. **I port dei controlli del catalogo** (`FluidSwitch.kt`, `FluidSlider.kt`). Le costruzioni e i
     numeri sono quelli della sorgente; cambia soltanto cio' che l'engine chiede a ogni controllo:

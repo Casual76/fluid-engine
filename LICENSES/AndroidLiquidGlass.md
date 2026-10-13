@@ -87,6 +87,15 @@ Le modifiche fatte finora:
     la riga e le tacche di scatto sono un'aggiunta nostra. `FluidSwitch` e `FluidSlider` consumano
     il puntatore della pillola trascinata, cosi' una pagina che scorre non glielo contende.
 
+12. **Vetro su vetro** (2.13.0). Un nodo di `drawBackdrop` e' anche un contenitore che gli altri
+    nodi trovano fra gli antenati (`TraversableNode`): pubblica il proprio materiale — sfondo,
+    cattura, superficie, contenuto escluso — in un layer creato al primo lettore, e campiona quello
+    del contenitore in cui sta, infilato nella propria pila (`Backdrop.stackedBackdrops`,
+    `Backdrop.forEachPart`). Un `LayerBackdrop` sa chi lo registra e puo' essere registrato solo su
+    richiesta (`onDemand`, conto dei lettori); il materiale esportato si registra di nuovo solo
+    quando cambia, e la manutenzione della cattura e' separata dal suo disegno, cosi' l'export non
+    la ripete. La logica sta in un file nostro, `GlassNesting.kt`, accanto ai sorgenti copiati.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

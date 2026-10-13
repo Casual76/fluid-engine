@@ -175,6 +175,60 @@ materiale *chiaro e riflettente*, che anche in tema scuro si legge come un panne
 fondo. `GlassDefaults.glassFilm()` parte da due grigi fissi e prende solo un terzo della palette,
 quel tanto che basta perche' segua l'accento senza farsi trascinare a fondo.
 
+## Vetro su vetro: si sfoca la sfocatura (2.13.0)
+
+Un tasto su un pop-up, una card su un foglio, la chiusura di una notifica, il pomello di un
+interruttore su una card di vetro: quasi ogni app ha almeno un vetro appoggiato su un altro vetro. Il
+vetro di sopra campiona il **materiale** di quello di sotto — il fondale come lo vede lui, sfocato,
+rifratto e tinto — e ci aggiunge la propria ottica. Non e' mai piu' nitido di quello su cui sta.
+
+Fino alla 2.12 non era cosi', e il motivo e' il piu' banale: un'app passa ai suoi controlli l'unico
+stato di vetro che ha in mano, quello della pagina (`backdrop = backdrop`), e un tasto dentro un
+pop-up campionava la pagina cruda con la sua sfocatura da tasto (3,5 dp) dentro un pannello che ne ha
+quattro o cinque volte tanto. Il pannello si vedeva smerigliato e il tasto ci apriva dentro una
+finestra nitida sulla pagina, piu' chiara dello scrim intorno. Misurato sulla galleria: dentro il tasto
+le righe del fondo passavano con un'ampiezza piu' di tre volte quella del pannello.
+
+Come funziona, perche' non va rifatto a mano:
+
+- **lo trova l'albero, non la composizione.** Ogni nodo di vetro (`drawBackdrop`, quindi
+  `glassSurface`, `glassControlSurface`, `fluidPhysicsSurface`, i pomelli) cerca il nodo di vetro
+  piu' vicino fra gli antenati e ne campiona il materiale. Un modificatore non puo' dare un
+  `CompositionLocal` al contenuto, un nodo puo' essere trovato da un nodo figlio: per questo vale
+  anche per il pannello che un'app si fa con `glassSurface` su un suo `Box`, senza toccare una riga;
+- **il materiale va nella pila al posto giusto**: sopra tutto cio' che lo stato passato contiene
+  e che sta *fuori* dal pannello (la pagina dietro il pop-up), sotto la prima cosa registrata
+  *dentro* (la pista di un interruttore). Il fondale passato resta quello che si vede oltre i bordi
+  del pannello;
+- **un cablaggio a mano vince.** Se lo stato passato contiene gia' il materiale di quel pannello
+  (`exports` + `rememberCombinedGlassBackdrop`: le azioni della barra, la chiusura della notifica,
+  l'indicatore della tab bar) non cambia niente;
+- **il materiale esclude il contenuto.** Dentro c'e' il vetro che lo campiona, e un tasto che
+  rifrange se stesso e' il feedback ottico che nel vetro non si nasconde. Testo e fratelli restano
+  fuori: un tasto non sta sopra il testo del pannello, e se ci stesse una copia nitida di quel testo
+  piegata nella lente sarebbe rumore;
+- **costa zero finche' dentro non c'e' vetro.** Un pannello registra il proprio materiale solo
+  mentre qualcuno lo campiona (il layer lo crea al primo lettore), e lo registra di nuovo solo se e'
+  cambiato (geometria, o uno stato che i suoi disegni hanno letto): la cattura dentro e' un
+  riferimento, e un materiale registrato a ogni fotogramma di uno scorrimento faceva rifare
+  sfocatura e lente a ogni tasto per un'immagine identica. A schermo fermo
+  `FluidGlassDiagnostics.totalExports`, come `totalCaptures`, non si muove;
+- **le ottiche si sommano da sole.** Due sfocature gaussiane fanno una sfocatura di raggio
+  √(r₁² + r₂²): un tasto da 3,5 dp su un pannello da 14 finisce a 14,4, quindi non diventa una
+  macchia — non aggiunge quasi niente al frost, e la sua identita' la portano bordo, lente, tinta e
+  ombra, che restano. Non serve una regola che tolga sfocatura al figlio: misurato, resta un oggetto.
+
+Le eccezioni sono due, e hanno un nome. Chi ricostruisce da se' il materiale del pannello su cui
+sta (il puck della barra flottante e la riga nascosta che guarda: sfocano come la barra partendo
+dalla pagina cruda) dichiara `nestInContainer = false`, altrimenti sfocherebbe due volte (il
+difetto della 2.12.1). E il contenuto che **non e' figlio** del vetro su cui sta — la finestra di
+Fluid-physics, il menu' che si trasforma, il pannello che un'app disegna con un altro motore — lo
+dice: la superficie esporta (`exports = stato`, o `glassMaterialSource(stato)` sul nodo che porta
+solo il materiale dell'app) e il contenuto si marca con `glassContainer(stato)`.
+
+Le tre trappole di sotto valgono anche qui: il materiale e' registrato alla forza corrente del
+pannello, non a quella del layer che lo fa sfumare.
+
 ## Un solo vocabolario di movimento
 
 Tutto passa da `FluidMotion`. `FluidMotionScheme` lo passa anche ai componenti Material, così uno

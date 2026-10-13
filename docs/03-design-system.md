@@ -130,6 +130,35 @@ esporta il proprio materiale con `exports`, e chi ci sta sopra lo compone con
 `rememberCombinedGlassBackdrop`. In pratica basta che la chrome fornisca `LocalGlassBackdrop`, cosa
 che `FluidScreen` fa da sola.
 
+**Vetro su vetro (2.13.0).** Dalla 2.13.0 non serve nemmeno quello: ogni superficie di vetro
+(`glassSurface`, `glassControlSurface`, `fluidPhysicsSurface`, i pomelli di interruttore e cursore)
+cerca il nodo di vetro piu' vicino fra i suoi antenati e ne campiona il **materiale** — il fondale
+come lo vede lui, sfocato, rifratto e tinto, contenuto escluso — sopra a quello che le e' stato
+passato. Un tasto su un pop-up, su un foglio, su una card di vetro o su una notifica sfoca quindi la
+sfocatura del pannello invece di bucarla, anche quando l'app gli passa lo stato della pagina. Il
+materiale entra nella pila sopra a cio' che sta fuori dal pannello e sotto a cio' che e' registrato
+dentro (la pista di un interruttore resta visibile); un cablaggio a mano che lo contiene gia' non
+viene toccato. Costa zero finche' dentro non c'e' vetro: un pannello registra il proprio materiale
+solo mentre qualcuno lo campiona, e solo quando cambia.
+
+Due casi lo dichiarano invece di ottenerlo da soli:
+
+```kotlin
+// Il contenuto non e' figlio del vetro su cui sta (una superficie che si trasforma, un fratello):
+val pane = rememberGlassBackdrop()
+Box(Modifier.fillMaxSize().fluidPhysicsSurface(state, backdrop, tint, exports = pane))
+Column(Modifier.glassContainer(pane)) { FluidGlassButton(...) }
+
+// Il pannello lo disegna l'app con un altro motore: un nodo con solo il materiale, poi il contenuto.
+Box(modifier) {
+  Box(Modifier.matchParentSize().glassMaterialSource(pane).liquidGlass(...))
+  Column(Modifier.glassContainer(pane)) { /* vetro dell'engine */ }
+}
+```
+
+`glassSurface(nestInContainer = false)` spegne il comportamento per la rara superficie che
+ricostruisce da se' il materiale del pannello su cui sta (il puck della barra flottante).
+
 Serve API 31 per sfocatura e vividezza, API 33 per la lente. Sotto la 31 `glassSurface` dipinge
 `GlassTint.fallback`: un materiale definito e quasi opaco, non una trasparenza rotta chiamata vetro.
 

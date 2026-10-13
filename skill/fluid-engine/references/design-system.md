@@ -88,6 +88,9 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `FluidFontFamily` (testo), `FluidDisplayFontFamily` (titoli ≥ 20sp)
 - `FluidTone`: Primary, Success, Warning, Danger, Info, Neutral
 - `FluidMotion` (molle), `FluidMotionScheme` (le passa a Material), `FluidMotionPolicy`
+- `glassContainer(stato)`, `glassMaterialSource(stato)`, `glassSurface(nestInContainer)`
+  (2.13.0) — vetro su vetro per il contenuto che non e' figlio del suo vetro e per i pannelli
+  disegnati dall'app; di serie non serve niente
 - `GlassDefaults`, `rememberGlassBackdrop`, `rememberCombinedGlassBackdrop`, `LocalGlassBackdrop`,
   `LocalFluidCanvasBackdrop`, `GlassTint`, `GlassEdge`, `GlassFalloff`, `GlassOptics`, `GlassRole`
 - `LocalFluidSurfaceSide` — da che parte sta l'app, quando la palette non si puo' interrogare. Serve
@@ -163,12 +166,20 @@ dodici. Testo e icone sopra il vetro restano opachi al 100%.
 
 Un overlay che deve campionare la schermata va nello slot `FluidScreen.overlay`.
 
-**Il vetro sta su quello che ha sotto, non su tre strati sotto.** Un controllo appoggiato a una
-barra deve rifrangere *la barra*: darle la pagina ci apre dentro un buco, ed è esattamente quello
-che sembra. La barra pubblica il proprio materiale con `exports = unAltroGlassBackdropState`, e chi
-ci sta sopra lo compone con `rememberCombinedGlassBackdrop(pagina, barra)`. `FluidScreen` e
-la tab bar lo fanno già e passano il risultato in `LocalGlassBackdrop`, quindi un
-`FluidBarAction` dentro `actions` è a posto senza che l'app tocchi niente.
+**Il vetro sta su quello che ha sotto, non su tre strati sotto** (vetro su vetro, automatico dalla
+2.13.0). Un tasto su un pop-up, una card su un foglio, il pomello di un interruttore su una card di
+vetro campionano il *materiale* del pannello su cui stanno — sfocato, rifratto, tinto — e non la
+pagina: sfocano la sfocatura invece di bucarla. Lo fa il nodo di vetro da solo, cercando il vetro
+piu' vicino fra gli antenati, quindi vale anche quando l'app passa ai controlli lo stato della
+pagina (`backdrop = backdrop`) e anche per un pannello che l'app si fa con `glassSurface`. Il
+materiale si registra solo se dentro c'e' vetro, e solo quando cambia. Un cablaggio a mano
+(`exports` + `rememberCombinedGlassBackdrop`, come fanno `FluidScreen`, la tab bar e la notifica)
+vince e non viene raddoppiato. Due casi lo dichiarano: il contenuto che non e' figlio del suo vetro
+(`exports = stato` sulla superficie, `glassContainer(stato)` sul contenuto: la finestra di
+Fluid-physics, il menu' che si trasforma) e il pannello che un'app disegna con un altro motore
+(`glassMaterialSource(stato)` sul nodo che porta solo il suo materiale). `nestInContainer = false`
+lo spegne per la superficie che ricostruisce da se' il materiale del pannello (il puck della barra
+flottante). Il perche' in `regole.md`.
 
 **La taratura sta nella lente, non nella sfocatura.** Il raggio di riferimento e' 2,5 dp (2 fino alla
 2.11.0): sopra gli ~8 dp il vetro trasmette la media di quello che ha dietro invece dell'immagine, e
@@ -456,5 +467,6 @@ pagina ricalcolava tutte le lastre a ogni fotogramma per un'immagine identica). 
   o ogni suo fotogramma ricalcola ogni lastra;
 - gli effetti disegnati *sopra* il vetro (`GlassTouchHighlight`, `FluidGlassBurst`) non ricatturano
   niente;
-- `FluidGlassDiagnostics.enabled` + `totalCaptures` in una build di debug: a schermo fermo il numero
+- `FluidGlassDiagnostics.enabled` + `totalCaptures` (e, dalla 2.13.0, `totalExports`: i materiali
+  registrati per il vetro su vetro) in una build di debug: a schermo fermo il numero
   non deve muoversi.

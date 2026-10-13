@@ -102,10 +102,10 @@ class GlassBackdropState internal constructor(
 }
 
 /**
- * Reference depth of the frosting. **Two dp.**
+ * Reference depth of the frosting. **Two and a half dp.**
  *
- * This number went 8 → 16 → 2, and the middle step is the mistake worth writing down. The reasoning
- * for widening it was sound in isolation — a wider kernel lets the tint come down, and it is the
+ * This number went 8 → 16 → 2 → 2.5, and the middle step is the mistake worth writing down. The
+ * reasoning for widening it was sound in isolation — a wider kernel lets the tint come down, and it is the
  * tint that made the old glass look like painted plastic — but it answered the wrong question. At 16
  * dp a pane stops transmitting an image and starts transmitting that image's *average*, and a pane
  * holding an average is a fill. All the work the lens does at the edge is then bending a flat colour
@@ -118,8 +118,13 @@ class GlassBackdropState internal constructor(
  *
  * Calibrated against Kyant's own catalogue and against Square (github.com/Lelonio/Square), which
  * ships the same renderer tuned by hand and lands on the same 2 dp.
+ *
+ * Il mezzo dp in piu' (2.5) e' una taratura chiesta a occhio: il vetro di base un filo piu'
+ * smerigliato, e ancora lontanissimo dagli otto dp oltre i quali un pannello trasmette la sua
+ * media invece di un'immagine. Questo e' il raggio dei pannelli *piccoli*: quelli grandi ne
+ * pagano di piu' per via della regola della taglia, vedi [glassSizeGain].
  */
-val DefaultGlassBlurRadius: Dp = 2.dp
+val DefaultGlassBlurRadius: Dp = 2.5.dp
 
 @Composable
 fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState {
@@ -374,6 +379,20 @@ data class GlassOptics(
    * avoid.
    */
   val backdropResolution: Float = 1f,
+  /**
+   * Quanto la regola della taglia si applica a questa ottica, da 0 (mai) a 1 (per intero).
+   *
+   * Un pannello grande smerigliato come uno piccolo sembra un pannello piccolo ingrandito: la
+   * sfocatura e la rifrazione al bordo crescono col lato corto, vedi [glassSizeGain]. Questo e'
+   * il peso di quella crescita su *questa* ottica, e 1, il default, e' quello che hanno tutti i
+   * ruoli.
+   *
+   * Si mette a 0 per una superficie che e' grande per ragioni che non c'entrano col vetro: lo scrim
+   * di un modale copre lo schermo intero, e se la regola lo trattasse da pannello gigante lo
+   * sfocherebbe fino a una media — che e' esattamente cio' che lo scrim ha il compito di non fare.
+   * Aggiunto dopo la 2.11.0; con il default nessuna ottica scritta a mano cambia struttura.
+   */
+  val sizeResponse: Float = 1f,
 )
 
 /**
@@ -405,7 +424,7 @@ internal fun GlassOptics.sanitized(): GlassOptics = copy(
   // hidden and every pixel still costs. With the reference down at 2 dp the same 4 silently halved
   // the top bar, which is the one surface that genuinely needs a wide kernel: the cap was quietly
   // deciding a design question instead of catching a malformed value, which is its only job.
-  blurScale = finiteNonNegative(blurScale).coerceAtMost(16f),
+  blurScale = finiteNonNegative(blurScale).coerceAtMost(GlassMaxBlurScale),
   refractionHeight = finiteNonNegative(refractionHeight.value).dp,
   refractionAmount = finiteNonNegative(refractionAmount.value).dp,
   vibrancy = if (vibrancy.isFinite()) vibrancy.coerceIn(0f, 3f) else 1f,
@@ -427,6 +446,9 @@ internal fun GlassOptics.sanitized(): GlassOptics = copy(
   } else {
     1f
   },
+  // Un valore malformato vale "nessuna regola", non "regola intera": la direzione sicura e' quella
+  // in cui il pannello si comporta come prima che la regola esistesse.
+  sizeResponse = clampGlassUnit(sizeResponse),
 )
 
 object GlassDefaults {
@@ -698,8 +720,8 @@ object GlassDefaults {
   /**
    * Bars.
    *
-   * Denser than it looks, and it has to be: with the frosting down at 2 dp the film is now doing all
-   * of the separating on its own. The old value tried the opposite trade — a very light film over a
+   * Denser than it looks, and it has to be: with the frosting down at 2.5 dp the film is now doing
+   * all of the separating on its own. The old value tried the opposite trade — a very light film over a
    * very wide blur — and produced a bar that hid its background completely while looking like
    * nothing in particular.
    */
@@ -1055,8 +1077,9 @@ fun Modifier.glassSurface(
   val currentPressed by rememberUpdatedState(pressed)
   val shapeBlock = remember(shape) { { shape } }
   val blurRadius = state.blurRadius
+  val lensAvailable = isRuntimeShaderSupported()
 
-  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius, quality) {
+  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius, quality, lensAvailable) {
     {
       val amount = clampGlassUnit(currentIntensity())
       if (amount > 0.001f) {
@@ -1077,11 +1100,24 @@ fun Modifier.glassSurface(
         // si legge niente. Quindi scende, ma non a zero e non fino in fondo: sotto una certa
         // frazione il vetro smette di sembrare vetro e il cambio si vedrebbe quando la pagina si
         // ferma. Vedi [FluidGlassQuality].
-        val blurQuality = FluidGlassBlurFloor + (1f - FluidGlassBlurFloor) * q
-        blur(blurRadius.toPx() * resolved.blurScale * amount * blurQuality)
+        //
+        // La taglia del pannello (lato corto, in dp veri: `size` e `density` dello scope sono
+        // scalati dello stesso fattore, quindi il rapporto non dipende dalla risoluzione della
+        // cattura) fa crescere sfocatura e lente. Senza la lente non c'e' niente che copra il
+        // margine in piu' della sfocatura, quindi sotto API 33 la regola resta spenta.
+        val sized = glassSizedOptics(
+          optics = resolved,
+          baseBlurPx = blurRadius.toPx(),
+          amount = amount,
+          quality = q,
+          minDimPx = size.minDimension,
+          density = density,
+          lensAvailable = lensAvailable,
+        )
+        blur(sized.blurPx)
         lens(
-          refractionHeight = resolved.refractionHeight.toPx() * depth,
-          refractionAmount = resolved.refractionAmount.toPx() * depth *
+          refractionHeight = sized.refractionHeightPx * depth,
+          refractionAmount = sized.refractionAmountPx * depth *
             (1f + press * resolved.pressedDepthBoost),
           depthEffect = resolved.depthEffect,
           // Sette campioni per pixel sono la prima cosa che se ne va: a pagina in movimento la
@@ -1242,6 +1278,169 @@ internal const val FluidGlassBlurFloor = 0.45f
 
 /** Radius at or above which that floor is safe, in dp. */
 internal const val GlassFullQualityBlurDp = 10f
+
+/**
+ * Il tetto di [GlassOptics.blurScale], e anche del prodotto finale dopo la regola della taglia.
+ *
+ * Non e' una scelta di design: e' la rete che prende un valore malformato (sessantaquattro dp di
+ * sfocatura, oltre i quali nulla si nasconde di piu' e ogni pixel costa comunque). La regola della
+ * taglia moltiplica il raggio, quindi senza questo tetto sul prodotto un `blurScale` gia' alto
+ * potrebbe raddoppiare oltre la rete. Con i ruoli di serie (il piu' alto e' 5) non scatta mai.
+ */
+internal const val GlassMaxBlurScale = 16f
+
+// ---------------------------------------------------------------------------------------------
+// La regola della taglia
+//
+// Un pannello grande smerigliato come uno piccolo sembra un pannello piccolo ingrandito: il bordo
+// piega l'immagine di pochi dp su una superficie larga mezzo schermo, e il suo spessore non si
+// legge piu'. Quindi piu' un pannello e' grande piu' sfoca e piu' rifrange al bordo; quelli
+// piccoli — tasti, chip, pomelli, la pillola di navigazione da 64 dp — restano esattamente come
+// erano, perche' sotto la soglia il guadagno e' zero e non "quasi zero".
+//
+// I tre massimi sono numeri di partenza da giudicare su un dispositivo, non verita': stanno qui,
+// con il motivo accanto, perche' e' qui che si ritoccano.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Lato corto, in dp, fino al quale un pannello e' "piccolo": guadagno esattamente zero.
+ *
+ * 64 dp e' l'altezza della pillola di navigazione, il pannello piu' grande che deve restare com'e'.
+ * La curva e' una smoothstep, che parte con pendenza zero: un lato di 64.0001 dp (un arrotondamento
+ * di pixel) guadagna zero virgola niente, quindi la soglia non puo' produrre uno scalino.
+ */
+internal const val GlassSizeSmallDp = 64f
+
+/**
+ * Lato corto, in dp, a cui il guadagno e' pieno. 320 dp e' la finestra di un alert o un gruppo
+ * lista a larghezza di telefono: sopra, un pannello non e' piu' "piu' grande" in modo che l'occhio
+ * distingua, e la curva smette di salire invece di continuare per sempre.
+ */
+internal const val GlassSizeLargeDp = 320f
+
+/**
+ * Di quanto cresce la sfocatura al guadagno pieno: 1.0 vuol dire il doppio.
+ *
+ * Il doppio e' il massimo che si e' voluto concedere: con il riferimento a 2.5 dp un pannello
+ * `Content` arriva a 4 dp, una capsula `Floating` a 9, un `Modal` a 17.5 (il catalogo di Kyant
+ * tiene una finestra da 250-300 dp a 16 e 8 dp). Oltre il doppio un pannello grande smette di
+ * trasmettere un'immagine e trasmette la sua media — l'errore del 16 dp, gia' pagato una volta.
+ * E non supera mai quello che la lente a profondita' piena copre: vedi [glassSizedOptics].
+ */
+internal const val GlassSizeBlurBoost = 1.0f
+
+/**
+ * Di quanto cresce l'altezza di rifrazione (quanto in dentro si sente il bordo) al guadagno pieno.
+ *
+ * Il playground di Kyant tiene l'altezza a ~0.1 del lato corto: a 320 dp sono 32 dp, e con 0.6 i
+ * ruoli `Floating` e `Modal` ci arrivano (30.4 e 32). Non puo' comunque superare meta' del lato
+ * corto — li' il campo del pannello e' tutto al centro e lo shader satura — ed e' anche cio' che
+ * copre il margine della sfocatura, quindi non scende mai sotto l'altezza di base.
+ */
+internal const val GlassSizeHeightBoost = 0.6f
+
+/**
+ * Di quanto cresce lo spostamento al bordo al guadagno pieno.
+ *
+ * Kyant tiene lo spostamento a ~0.2 del lato corto, cioe' 64 dp a 320; con 0.8 i ruoli arrivano a
+ * 40-52 dp (`Floating` 52.2, `Modal` 50.4, `Content` 39.6): dalla stessa parte, con meno slancio.
+ * E' il numero piu' delicato dei tre, perche' uno spostamento che cresce piu' dell'altezza si
+ * stacca dall'immagine dritta e fa vedere due versioni dello stesso oggetto nello stesso vetro (il
+ * difetto del "fisheye" gia' pagato sui pop-up): se sul dispositivo succede, si scende da qui.
+ */
+internal const val GlassSizeAmountBoost = 0.8f
+
+/**
+ * Il guadagno della regola della taglia per un pannello con questo lato corto, da 0 a 1.
+ *
+ * Una smoothstep fra [GlassSizeSmallDp] (zero) e [GlassSizeLargeDp] (uno). Pura e senza stato,
+ * perche' e' l'unica funzione che decide quanto cambia un pannello e conviene poterla leggere in un
+ * test. Un lato non finito o non positivo non e' una taglia: vale zero, cioe' "come prima".
+ */
+internal fun glassSizeGain(minDimDp: Float): Float {
+  if (!minDimDp.isFinite() || minDimDp <= GlassSizeSmallDp) return 0f
+  val t = ((minDimDp - GlassSizeSmallDp) / (GlassSizeLargeDp - GlassSizeSmallDp)).coerceIn(0f, 1f)
+  return t * t * (3f - 2f * t)
+}
+
+/** I tre numeri che la regola della taglia decide per un pannello, tutti in pixel dello scope. */
+@Immutable
+internal class GlassSizedOptics(
+  /** Il raggio da dare a `blur()`: gia' moltiplicato per intensita' e qualita'. */
+  val blurPx: Float,
+  /** L'altezza di rifrazione piena, da moltiplicare per la profondita' di chi la usa. */
+  val refractionHeightPx: Float,
+  /** Lo spostamento pieno al bordo, da moltiplicare per la profondita' di chi lo usa. */
+  val refractionAmountPx: Float,
+)
+
+/**
+ * La formula della taglia, in un posto solo: la usano `glassSurface` e `fluidPhysicsSurface`, e una
+ * regola scritta due volte e' una regola che prima o poi smette di essere la stessa.
+ *
+ * Tutti i parametri sono nello spazio dello scope degli effetti: [minDimPx] e [density] sono
+ * scalati dallo stesso fattore di risoluzione, quindi `minDimPx / density` sono dp veri anche
+ * quando la cattura e' a meta' risoluzione.
+ *
+ * @param optics ottica gia' passata da `sanitized()`.
+ * @param baseBlurPx il raggio di riferimento dello stato (`GlassBackdropState.blurRadius`) in px,
+ *   prima del moltiplicatore del ruolo.
+ * @param amount intensita' del materiale, 0..1.
+ * @param quality [FluidGlassQuality] corrente, 0..1: scala la sfocatura fra [FluidGlassBlurFloor]
+ *   e 1, come ha sempre fatto.
+ * @param minDimPx lato corto del pannello. Per un morph e' quello della *sagoma*, non quello del
+ *   layer che la ospita, che e' lo schermo intero.
+ * @param lensAvailable false sotto API 33. Senza lente niente copre il margine in piu' della
+ *   sfocatura, e un raggio che cambia con la taglia sposterebbe il padding a ogni fotogramma di un
+ *   morph: la regola resta spenta e il pannello e' quello di prima.
+ *
+ * **Il padding resta fermo.** Il margine della cattura vale `max(0, sfocatura - altezza * profondita')`,
+ * e durante un morph la taglia cambia a ogni fotogramma: se quel margine si muovesse, ogni
+ * fotogramma sporcherebbe la cattura (vedi il contratto in `FluidPhysicsEffects`). Percio' la
+ * sfocatura puo' crescere *solo fin dove la lente a profondita' piena la copre* — `cover` qui
+ * sotto — e mai sotto quella che il pannello aveva senza la regola. A materiale pieno e qualita'
+ * piena, con ogni ruolo di serie, il tetto non scatta (la sfocatura resta sotto 0.8 volte
+ * l'altezza), quindi il guadagno e' intero e il margine e' zero a ogni taglia; a qualita' piu'
+ * bassa il margine non e' mai maggiore di quello che il pannello aveva prima della regola.
+ */
+internal fun glassSizedOptics(
+  optics: GlassOptics,
+  baseBlurPx: Float,
+  amount: Float,
+  quality: Float,
+  minDimPx: Float,
+  density: Float,
+  lensAvailable: Boolean = true,
+): GlassSizedOptics {
+  val blurQuality = FluidGlassBlurFloor + (1f - FluidGlassBlurFloor) * quality
+  // L'espressione di sempre, nello stesso ordine: a guadagno zero il risultato e' identico bit per
+  // bit a quello che i due chiamanti calcolavano da soli.
+  val blur = baseBlurPx * optics.blurScale * amount * blurQuality
+  val height = optics.refractionHeight.value * density
+  val reach = optics.refractionAmount.value * density
+
+  val minDimDp = if (density > 0f && density.isFinite() && minDimPx > 0f) minDimPx / density else 0f
+  val gain = if (lensAvailable) glassSizeGain(minDimDp) * optics.sizeResponse else 0f
+  if (gain <= 0f) return GlassSizedOptics(blur, height, reach)
+
+  // Mai oltre meta' del lato corto: li' il campo del pannello e' al centro e lo shader satura. Il
+  // tetto non scende sotto l'altezza di base, perche' un'ottica che la voleva gia' piu' grande non
+  // deve diventare *piu' piccola* per via di una regola che serve a ingrandire.
+  val scaledHeight = minOf(
+    height * (1f + GlassSizeHeightBoost * gain),
+    maxOf(height, minDimPx * 0.5f),
+  )
+  val scaledReach = reach * (1f + GlassSizeAmountBoost * gain)
+
+  val ceiling = baseBlurPx * GlassMaxBlurScale * amount * blurQuality
+  val grown = minOf(blur * (1f + GlassSizeBlurBoost * gain), maxOf(blur, ceiling))
+  val cover = scaledHeight * amount * quality
+  return GlassSizedOptics(
+    blurPx = minOf(grown, maxOf(blur, cover)),
+    refractionHeightPx = scaledHeight,
+    refractionAmountPx = scaledReach,
+  )
+}
 
 private typealias DrawScopeBlock = DrawScope.() -> Unit
 

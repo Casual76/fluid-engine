@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
-import dev.antigravity.fluidengine.ui.fluid.FluidGlassBlurFloor
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
@@ -23,6 +22,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.fluid.glassResolutionScale
+import dev.antigravity.fluidengine.ui.fluid.glassSizedOptics
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
@@ -119,12 +119,30 @@ fun Modifier.fluidPhysicsSurface(
         if (resolved.vibrancy != 1f) {
           colorControls(saturation = 1f + (resolved.vibrancy - 1f) * amount)
         }
-        val blurQuality = FluidGlassBlurFloor + (1f - FluidGlassBlurFloor) * q
-        blur(blurRadius.toPx() * resolved.blurScale * amount * blurQuality)
+        val full = resolvedTier == FluidPhysicsTier.Full
+        val plan = if (full) state.ensurePlan() else null
+        val factor = scopeFactor(size.width, layoutWidth.floatValue)
+        // La taglia che conta e' quella della SAGOMA, non quella di `size`: lo scope di un morph e'
+        // il layer che lo ospita, grande quanto lo schermo, e il tasto che diventa pannello ha
+        // sempre la stessa "taglia" di schermo intero. `bounds` e' in pixel di layout; col fattore
+        // dello scope diventa pixel di scope, gli stessi di `density`, quindi il rapporto e' dp veri.
+        // Cresce con la sagoma: sfocatura e lente seguono il viaggio con continuita', e il padding
+        // no — a materiale e qualita' pieni vale zero a ogni taglia, perche' la sfocatura non
+        // supera mai l'altezza che la copre (vedi [glassSizedOptics]). Senza la lente (Balanced) la
+        // regola e' spenta: senza niente che copra il margine, un raggio che cresce con la sagoma
+        // lo sposterebbe a ogni fotogramma del viaggio.
+        val sized = glassSizedOptics(
+          optics = resolved,
+          baseBlurPx = blurRadius.toPx(),
+          amount = amount,
+          quality = q,
+          minDimPx = plan?.let { it.bounds.minDimension * factor } ?: 0f,
+          density = density,
+          lensAvailable = full,
+        )
+        blur(sized.blurPx)
 
-        if (resolvedTier == FluidPhysicsTier.Full) {
-          val plan = state.ensurePlan()
-          val factor = scopeFactor(size.width, layoutWidth.floatValue)
+        if (plan != null) {
           // Come glassSurface: la lente scala con intensità e qualità. Durante un morph puro
           // entrambe valgono 1, quindi l'altezza — e con lei il padding — non si muove, e la
           // cattura non viene mai sporcata.
@@ -148,8 +166,8 @@ fun Modifier.fluidPhysicsSurface(
               plan = plan,
               scopeFactor = factor,
               scratch = scratch,
-              refractionHeightPx = resolved.refractionHeight.toPx() * depth,
-              refractionAmountPx = resolved.refractionAmount.toPx() * depth,
+              refractionHeightPx = sized.refractionHeightPx * depth,
+              refractionAmountPx = sized.refractionAmountPx * depth,
               depthEffect = resolved.depthEffect,
               tintInShader = shaderTint,
             )
@@ -158,8 +176,8 @@ fun Modifier.fluidPhysicsSurface(
               plan = plan,
               scopeFactor = factor,
               scratch = scratch,
-              refractionHeightPx = resolved.refractionHeight.toPx() * depth,
-              refractionAmountPx = resolved.refractionAmount.toPx() * depth,
+              refractionHeightPx = sized.refractionHeightPx * depth,
+              refractionAmountPx = sized.refractionAmountPx * depth,
               depthEffect = resolved.depthEffect,
               tintInShader = shaderTint,
             )

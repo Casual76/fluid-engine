@@ -23,9 +23,14 @@ private const val MaskAntialiasPx = 1.25f
  * La lente di Fluid-physics per pezzi rettangolari (uno o molti, fusi con lo smin).
  *
  * Stessa disciplina di `lens()` (Lens.kt): salta sotto API 33 lasciando in piedi sfocatura e
- * vividezza già in catena, e sconta dal padding l'altezza di rifrazione — con blur e altezza
- * **costanti durante il morph**, così il padding non cambia mai a metà viaggio e la cattura non
- * viene mai sporcata (vedi il contratto in DrawBackdropModifier).
+ * vividezza già in catena, e sconta dal padding l'altezza di rifrazione — con un **padding che non
+ * cambia mai durante il morph**, così la cattura non viene mai sporcata a metà viaggio (vedi il
+ * contratto in DrawBackdropModifier).
+ *
+ * Blur e altezza, dalla regola della taglia (`glassSizedOptics`), crescono con la sagoma mentre
+ * viaggia, quindi non sono piu' costanti: a restare ferma e' la loro *differenza*. La sfocatura non
+ * supera mai l'altezza che la copre, e il padding (`max(0, sfocatura - altezza)`) vale zero a ogni
+ * taglia. Chi chiama questa funzione con numeri propri deve rispettare lo stesso patto.
  *
  * A differenza della lente di serie, qui lo shader porta anche la **maschera** della silhouette
  * (il clip del layer è un rettangolo fisso) e, quando i pezzi sono più d'uno, la **tinta**: il

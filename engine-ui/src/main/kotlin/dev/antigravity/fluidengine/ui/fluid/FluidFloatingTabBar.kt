@@ -138,6 +138,7 @@ import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.graphics.isSpecified
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
@@ -150,6 +151,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.vibrancy
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import kotlinx.coroutines.delay
@@ -496,8 +498,17 @@ val LocalFluidTabBarBackdropFrozen = staticCompositionLocalOf<() -> Boolean> { {
  */
 @Immutable
 data class FluidFloatingTabBarGlass(
-    /** How frosted the bar reads. Feeds the hidden row's blur, which is what the puck refracts. */
-    val blurRadius: Dp = 2.dp,
+    /**
+     * How frosted the bar reads. Feeds the hidden row's blur, which is what the puck refracts.
+     *
+     * Il raggio di *base*, lo stesso numero di `GlassBackdropState.blurRadius`
+     * ([DefaultGlassBlurRadius] se non lo cambi): la riga nascosta lo moltiplica come il pannello
+     * della barra, col moltiplicatore del ruolo `Floating` e con la regola della taglia, perche'
+     * deve sfocare *esattamente* quanto lo sfondo che il puck sta coprendo. Prima era il raggio
+     * finale, e la riga sfocava meno del pannello: pigiando il puck la barra perdeva vetro. Se
+     * hai messo un valore tuo, e' ora il raggio di base come per ogni altra superficie.
+     */
+    val blurRadius: Dp = DefaultGlassBlurRadius,
     /** The wash under the chosen tab. [Color.Unspecified] follows the surface side. */
     val puckColor: Color = Color.Unspecified,
     /** How much of that wash there is at rest. It eases towards clear while the puck is pressed. */
@@ -1523,6 +1534,23 @@ private fun SharedTransitionScope.ExpandedTabs(
     }
     val puckRestAlpha = glassConfig.puckOpacity.coerceIn(0f, 1f)
 
+    // La sfocatura del pannello della barra, che il puck non deve mai ridurre.
+    //
+    // Il puck non ha sfocatura sua: ne eredita una, e quale dipende da cosa campiona. A riposo la
+    // riga nascosta non esiste (vedi sotto) e il puck guarda la pagina cruda, quindi la sfocatura
+    // gliela da' lui; premuto guarda la riga nascosta, che ha gia' sfocato la pagina, e ogni raggio
+    // in piu' sfocherebbe anche le icone che la riga porta sopra. Il valore e' sempre lo stesso — il
+    // raggio del pannello (ruolo Floating, regola della taglia, qualita' di scorrimento) — cosi'
+    // il passaggio dall'una all'altra non cambia quanto si vede sfocato. Prima il puck faceva
+    // `3dp * (1 - pressione)` sopra una riga che sfocava 2 dp: a riposo 3, premuto 2, mentre la
+    // barra intorno ne aveva 3.6.
+    val paneOptics = remember { GlassDefaults.optics(GlassRole.Floating).sanitized() }
+    val glassQuality = LocalFluidGlassQuality.current
+    // L'altezza del pannello e' quella del nodo piu' il padding che il pannello ha e il nodo no: il
+    // lato corto di una barra e' sempre l'altezza.
+    val paneExtraHeight = sizes.tabBarContentPadding.calculateTopPadding() +
+        sizes.tabBarContentPadding.calculateBottomPadding()
+
     val tabWidthPx = with(density) { sizes.tabWidth.toPx() }
     // The same number, readable from inside a remembered object, and it is the fix for a puck
     // that drifted left of the finger dragging it.
@@ -1699,6 +1727,10 @@ private fun SharedTransitionScope.ExpandedTabs(
     val tabsTinted by remember(dampedDragAnimation) {
         derivedStateOf { dampedDragAnimation.pressProgress > 0f }
     }
+    // Letta una volta qui, in composizione, e passata al puck cosi': la scelta di cosa campionare e
+    // quella di quanto sfocare devono cambiare nello stesso fotogramma, e una lambda che rileggesse
+    // `tabsTinted` in fase di disegno non darebbe questa garanzia.
+    val sampledRowIsHidden = tabsTinted
 
     // It only needs to be recorded once, though, and that is the difference between this row
     // being affordable and not.
@@ -1875,8 +1907,10 @@ private fun SharedTransitionScope.ExpandedTabs(
         // measured at 8ms a frame on the home page, for a tint that only exists
         // while a finger is on the puck. Composed when that happens instead.
         if (backdrop != null && tabsTinted) {
-            // Fixed 1dp blur here (see the blur() call below), so this is a
-            // stable fraction, not something that needs recomputing per frame.
+            // Dal raggio di base e dal ruolo, come il pannello della barra (`glassSurface` fa la
+            // stessa moltiplicazione): una frazione stabile, non qualcosa da ricalcolare a ogni
+            // fotogramma. La regola della taglia non entra: e' dinamica, e sotto i 64 dp di una
+            // barra normale vale zero.
             //
             // Passed to `backdropScale` and nowhere else. In the fork this row
             // came from, `backdropScale` shrank only the recorded *size* and the
@@ -1884,7 +1918,9 @@ private fun SharedTransitionScope.ExpandedTabs(
             // here the effect scope is handed a scaled density, so the same
             // multiplications would land squared. It compiles either way and it
             // shows up only as glass that looks wrong.
-            val tabsBackdropScale = glassResolutionScale(1f)
+            val tabsBackdropScale = glassResolutionScale(
+                glassConfig.blurRadius.value * paneOptics.blurScale
+            )
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -1913,9 +1949,21 @@ private fun SharedTransitionScope.ExpandedTabs(
                             // distortion (below) samples the raw, sharp backdrop —
                             // that's what made the puck look like undistorted,
                             // "blur gone" background while dragging. Kyant's source
-                            // uses a fixed 8dp; we drive it from the user's own
-                            // glass blur-intensity setting instead of hardcoding.
-                            blur(glassConfig.blurRadius.toPx())
+                            // uses the SAME blur as the bar's own pane on its hidden
+                            // row (8dp on both); we drive it from the user's own
+                            // glass blur setting, and from the bar's own role and
+                            // size, so it is the pane's blur and not a lighter one.
+                            //
+                            // Il puck non ne aggiunge altra: questo e' tutto il vetro
+                            // che vede, e lo vede con le icone sopra.
+                            blur(
+                                floatingPaneBlurPx(
+                                    optics = paneOptics,
+                                    baseBlur = glassConfig.blurRadius,
+                                    paneHeightPx = size.height + paneExtraHeight.toPx(),
+                                    quality = glassQuality,
+                                )
+                            )
                             lens(
                                 15f.dp.toPx() * progress,
                                 18f.dp.toPx() * progress
@@ -2051,13 +2099,32 @@ private fun SharedTransitionScope.ExpandedTabs(
                             // re-record the screen on every single frame — which
                             // is worse than the row it was meant to save.
                             backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
-                                .takeIf { tabsTinted } ?: backdrop,
+                                .takeIf { sampledRowIsHidden } ?: backdrop,
                             shape = { shapes.tabShape },
                             effects = {
                                 val progress = dampedDragAnimation.pressProgress
-                                // Soft frosted puck at rest (constant blur), deepening
-                                //
-                                blur(3f.dp.toPx() * (1f - progress))
+                                // Il puck non ha una sfocatura che cala con la pressione,
+                                // e quella che aveva era il bug: la riga nascosta qui
+                                // sotto sfocava 2 dp, quindi premendo il puck passava da
+                                // 3 a 2 e la barra intorno ne aveva 3.6. Quanto sfoca e'
+                                // deciso da cosa campiona, non dal gesto:
+                                //  - pagina cruda (riposo): sfoca come il pannello;
+                                //  - pagina piu' riga nascosta (premuto, trascinato): zero,
+                                //    perche' la riga ha gia' la sfocatura del pannello e
+                                //    un raggio in piu' sfocherebbe anche le icone che
+                                //    porta sopra. Come il puck di Kyant, che non sfoca mai.
+                                // `sampledRowIsHidden` cambia nella stessa composizione che
+                                // cambia `backdrop`, quindi i due non si sfasano.
+                                if (!sampledRowIsHidden) {
+                                    blur(
+                                        floatingPaneBlurPx(
+                                            optics = paneOptics,
+                                            baseBlur = glassConfig.blurRadius,
+                                            paneHeightPx = size.height + paneExtraHeight.toPx(),
+                                            quality = glassQuality,
+                                        )
+                                    )
+                                }
 
                                 // Refraction is weakest at REST and deepens while the
                                 // puck is held and dragged: at rest the sharp overlay
@@ -2228,6 +2295,30 @@ private fun SharedTransitionScope.ExpandedTabs(
         }
     }
 }
+
+/**
+ * Il raggio di sfocatura che il pannello della barra (ruolo `Floating`) ha adesso, in pixel dello
+ * scope.
+ *
+ * La riga nascosta e il puck a riposo lo chiedono qui invece di rifare la moltiplicazione da soli:
+ * e' la stessa formula di `glassSurface` (`glassSizedOptics`), quindi regola della taglia e qualita'
+ * di scorrimento arrivano gratis, e se il pannello cambia cambiano anche loro. Il pannello e'
+ * sempre a materiale pieno (intensita' 1).
+ */
+private fun BackdropEffectScope.floatingPaneBlurPx(
+    optics: GlassOptics,
+    baseBlur: Dp,
+    paneHeightPx: Float,
+    quality: FluidGlassQuality?,
+): Float = glassSizedOptics(
+    optics = optics,
+    baseBlurPx = baseBlur.toPx(),
+    amount = 1f,
+    quality = quality?.level ?: 1f,
+    minDimPx = paneHeightPx,
+    density = density,
+    lensAvailable = isRuntimeShaderSupported(),
+).blurPx
 
 @Composable
 private fun Tab(

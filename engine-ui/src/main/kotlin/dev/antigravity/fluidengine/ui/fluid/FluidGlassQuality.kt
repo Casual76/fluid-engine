@@ -30,9 +30,17 @@ import kotlin.math.abs
  * fermata ed è esattamente lì che si sta guardando.
  *
  * **Cosa scala e cosa no.** Scalano la lente e i suoi extra — dislocazione, dispersione, ombre,
- * bordo speculare — cioè le parti che descrivono la *forma* del materiale. La sfocatura e la tinta
- * restano intatte, perché sono le due che tengono leggibile il testo stampato sopra il vetro, e un
- * testo che perde contrasto mentre la lista scorre è peggio di qualunque fotogramma in ritardo.
+ * bordo speculare — cioè le parti che descrivono la *forma* del materiale. La tinta resta intatta,
+ * perché è quella che tiene leggibile il testo stampato sopra il vetro, e un testo che perde
+ * contrasto mentre la lista scorre è peggio di qualunque fotogramma in ritardo.
+ *
+ * La sfocatura scende, ma molto meno della lente: va da 1 a [FluidGlassBlurFloor] (0.45) lungo la
+ * stessa rampa, quindi a [ScrollingFloor] resta circa il 59% del raggio (0.45 + 0.55 × 0.25).
+ * È la parte più cara della catena e l'unica il cui compito — tenere illeggibile il testo nitido
+ * che passa sotto — durante un lancio non esiste, perché a quella velocità non si legge niente;
+ * ma sotto quella frazione il vetro smette di sembrare vetro e il cambio si vedrebbe quando la
+ * pagina si ferma. La regola della taglia (vedi [glassSizeGain]) lavora sul raggio già scalato
+ * dalla qualità.
  */
 @Stable
 class FluidGlassQuality internal constructor(

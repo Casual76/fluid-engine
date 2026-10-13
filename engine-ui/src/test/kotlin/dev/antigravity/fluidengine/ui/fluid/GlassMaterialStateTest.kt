@@ -102,6 +102,7 @@ class GlassMaterialStateTest {
       shadowAlpha = Float.NaN,
       pressedDepthBoost = 9f,
       backdropResolution = Float.NaN,
+      sizeResponse = Float.NaN,
     ).sanitized()
 
     assertEquals(0f, sanitized.blurScale, 0f)
@@ -117,6 +118,8 @@ class GlassMaterialStateTest {
     assertEquals(0f, sanitized.shadowAlpha, 0f)
     assertEquals(2f, sanitized.pressedDepthBoost, 0f)
     assertEquals(1f, sanitized.backdropResolution, 0f)
+    // Malformata vale "nessuna regola della taglia", la direzione in cui il pannello e' quello di prima.
+    assertEquals(0f, sanitized.sizeResponse, 0f)
   }
 
   @Test

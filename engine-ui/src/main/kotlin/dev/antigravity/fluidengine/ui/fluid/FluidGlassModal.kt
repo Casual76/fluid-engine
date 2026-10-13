@@ -896,9 +896,13 @@ private fun FluidGlassModalScrim(
   }
   val optics = remember {
     GlassDefaults.optics(GlassRole.Modal).copy(
-      // Two dp times two. Enough that the page reads as *behind* something rather than as
-      // merely darker, and far too little to average it away.
+      // Two and a half dp times one and a half. Enough that the page reads as *behind* something
+      // rather than as merely darker, and far too little to average it away.
       blurScale = 1.5f,
+      // Lo scrim e' grande quanto lo schermo, ma non e' un pannello grande: la regola della taglia
+      // (vedi [GlassOptics.sizeResponse]) lo porterebbe a raddoppiare la sfocatura, e un velo che
+      // deve restare appena sfocato diventerebbe la media della pagina.
+      sizeResponse = 0f,
       refractionHeight = 0.dp,
       refractionAmount = 0.dp,
       vibrancy = 1f,

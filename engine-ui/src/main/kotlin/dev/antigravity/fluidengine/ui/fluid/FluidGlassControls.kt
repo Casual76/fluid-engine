@@ -106,6 +106,10 @@ fun Modifier.glassControlSurface(
       animationScope = scope,
       strength = { if (reducedMotion) 0.4f else 1f },
       onDarkSurface = onDark,
+      // Questo e' vetro, non una riga: sul chiaro il bagliore aggiunge luce invece di stendere
+      // nero. Col nero il pulsante premuto diventava un riempimento grigio-verde (~#A8B3AE) con un
+      // gradiente duro verso il dito, e non rifrangeva piu' niente. Vedi glowRecipe.
+      onGlass = true,
       progress = { press.progress },
       touch = { press.touch },
     )

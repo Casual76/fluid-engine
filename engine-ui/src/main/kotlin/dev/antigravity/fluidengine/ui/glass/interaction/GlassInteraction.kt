@@ -18,6 +18,9 @@
  *   - 2.11.0: a release no longer cuts a press short. The highlight's press goes through the
  *     engine's FluidPressMotion and can be driven from outside (`progress`, `touch`); the drag
  *     animation's release waits for its press to arrive before relaxing;
+ *   - 2.12.0: on a light pane of glass the highlight no longer lays black over it; it adds a lighter,
+ *     narrower white spot instead (`onGlass`, `glowRecipe`). The numbers above stay Kyant's for
+ *     everything else;
  *   - the engine's formatting.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -305,6 +308,74 @@ class GlassDragAnimation(
 }
 
 /**
+ * Come si disegna il bagliore di [GlassTouchHighlight]: colore, modo di comporre e forma.
+ *
+ * Fuori dalla classe e senza Compose in mezzo perche' e' la parte che si e' sbagliata una volta, e
+ * una scelta che non si puo' leggere senza montare un pulsante e' una scelta che nessuno rilegge.
+ *
+ * @param veil peso della luce che alza tutta la faccia, ovunque sia il dito.
+ * @param spot peso del punto che segue il dito, al suo centro.
+ * @param radiusScale raggio del punto, in lati corti della superficie.
+ * @param core frazione del raggio dentro cui il punto e' al massimo: 0,5 lascia un plateau e poi
+ *   scende, 0 e' una campana che scende dal centro.
+ * @param flat peso del ripiego sotto API 33, dove non c'e' lo shader e il bagliore e' una lavata
+ *   uniforme.
+ */
+internal data class GlowRecipe(
+  val tone: Color,
+  val blend: BlendMode,
+  val veil: Float,
+  val spot: Float,
+  val radiusScale: Float,
+  val core: Float,
+  val flat: Float,
+)
+
+/** I numeri di Kyant (`InteractiveHighlight`), identici: tutto quello che non e' vetro chiaro. */
+private fun kyantGlow(tone: Color, blend: BlendMode) = GlowRecipe(
+  tone = tone,
+  blend = blend,
+  veil = 0.08f,
+  spot = 0.15f,
+  radiusScale = 1.5f,
+  core = 0.5f,
+  flat = 0.25f,
+)
+
+/**
+ * Il bagliore che si accende sotto il dito, deciso da due fatti: da che parte sta la superficie
+ * ([onDarkSurface]) e se quella superficie e' vetro ([onGlass]).
+ *
+ *  - **Scuro**: bianco additivo, com'e' sempre stato e com'e' in Kyant. Vale anche per il vetro.
+ *  - **Chiaro, ma non vetro** (una riga, un pannello opaco): nero sopra, perche' li' non c'e' luce
+ *    da aggiungere e non c'e' niente che debba restare trasparente. E' il comportamento di prima.
+ *  - **Chiaro e vetro**: bianco ancora additivo, ma piccolo e stretto. Il nero sopra un vetro non
+ *    era un bagliore, era inchiostro: stendeva ~22% di nero su una faccia che trasmette, e il
+ *    pulsante smetteva di essere vetro e diventava un riempimento grigio-verde con l'etichetta
+ *    spenta. Ma i numeri di Kyant non si possono riportare tali e quali: sono tarati su un fondo
+ *    medio, e sommano 0,23 (58 livelli su 255) su una faccia che ne ha 20-35 di margine. Il verde e
+ *    il blu arrivano al tetto per primi, quindi la faccia diventa un ciano-bianco piatto, e il
+ *    plateau largo mezzo raggio copre tutto un pulsante largo cento dp: un riempimento di un altro
+ *    colore. Qui il picco e' 0,07 (circa 18 livelli, sotto il margine di una faccia a 0,92) e il
+ *    punto e' una campana che scende dal dito e alla fine del pulsante e' gia' zero. Si era provato
+ *    `Screen`, che non taglia mai: ma aggiunge `alpha * (1 - fondo)`, cioe' pochissimo sul chiaro e
+ *    moltissimo su un vetro tinto di accento, dove sbiancava mezzo pulsante.
+ */
+internal fun glowRecipe(onDarkSurface: Boolean, onGlass: Boolean): GlowRecipe = when {
+  onDarkSurface -> kyantGlow(Color.White, BlendMode.Plus)
+  onGlass -> GlowRecipe(
+    tone = Color.White,
+    blend = BlendMode.Plus,
+    veil = 0.015f,
+    spot = 0.055f,
+    radiusScale = 1.15f,
+    core = 0f,
+    flat = 0.08f,
+  )
+  else -> kyantGlow(Color.Black, BlendMode.SrcOver)
+}
+
+/**
  * The bright spot that follows a finger across a pane of glass.
  *
  * Two things happen at once: the whole surface lifts slightly, and a soft radial hotspot tracks the
@@ -313,7 +384,9 @@ class GlassDragAnimation(
  * here is most of what made the previous controls read as ordinary buttons with a grey wash.
  *
  * On a light one there is no light left to add, so the same gesture has to take some away instead;
- * see [onDarkSurface]. Left additive, a press on a pane of light glass simply did not happen.
+ * see [onDarkSurface]. Left additive, a press on an opaque light surface simply did not happen.
+ * A pane of *glass* is the exception, and it is the reason for [onGlass]: it transmits, so laying
+ * ink over it turns it into a grey fill — see [glowRecipe].
  *
  * Below API 33 there is no AGSL, so the hotspot degrades to a flat lift. The control still responds;
  * it simply stops knowing where on itself it was touched.
@@ -335,6 +408,17 @@ class GlassTouchHighlight(
    */
   val onDarkSurface: Boolean = true,
   /**
+   * La superficie che il bagliore illumina e' un pannello di vetro, che trasmette lo sfondo.
+   *
+   * Su un fondo chiaro cambia il modo di accendersi: invece di stendere nero sopra, che su un vetro
+   * lo trasforma in un riempimento grigio, aggiunge luce bianca, piu' leggera e piu' stretta di
+   * quella di Kyant (vedi [glowRecipe]). Su un fondo scuro non cambia niente, e non cambia niente
+   * per chi non lo passa (una riga, un pannello opaco): il nero sopra e' ancora la risposta giusta
+   * dove non c'e' niente che debba restare trasparente.
+   * `glassControlSurface` lo passa. Dalla 2.12.0.
+   */
+  val onGlass: Boolean = false,
+  /**
    * A press driven by someone else, 0..1. Given, the highlight lights up with it instead of with
    * its own spring, and [gestureModifier] is not needed: the control that owns the press — see
    * `FluidPressState` — tells the glass and the light the same thing. Since 2.11.0.
@@ -344,8 +428,9 @@ class GlassTouchHighlight(
   val touch: (() -> Offset)? = null,
 ) {
 
-  private val glowTone = if (onDarkSurface) Color.White else Color.Black
-  private val glowBlend = if (onDarkSurface) BlendMode.Plus else BlendMode.SrcOver
+  private val recipe = glowRecipe(onDarkSurface, onGlass)
+  private val glowTone = recipe.tone
+  private val glowBlend = recipe.blend
 
   private val positionAnimationSpec = spring(0.5f, 300f, Offset.VisibilityThreshold)
 
@@ -378,11 +463,12 @@ class GlassTouchHighlight(
 uniform float2 size;
 layout(color) uniform half4 color;
 uniform float radius;
+uniform float core;
 uniform float2 position;
 
 half4 main(float2 coord) {
     float dist = distance(coord, position);
-    float intensity = smoothstep(radius, radius * 0.5, dist);
+    float intensity = smoothstep(radius, radius * core, dist);
     return color * intensity;
 }""",
       )
@@ -395,12 +481,13 @@ half4 main(float2 coord) {
     val glow = pressProgress.coerceIn(0f, 1f) * strength().coerceIn(0f, 1f)
     if (glow > 0f) {
       if (shader != null) {
-        drawRect(glowTone.copy(0.08f * glow), blendMode = glowBlend)
+        drawRect(glowTone.copy(recipe.veil * glow), blendMode = glowBlend)
         shader.apply {
           val position = position(size, touch?.invoke() ?: positionAnimation.value)
           setFloatUniform("size", size.width, size.height)
-          setColorUniform("color", glowTone.copy(0.15f * glow))
-          setFloatUniform("radius", size.minDimension * 1.5f)
+          setColorUniform("color", glowTone.copy(recipe.spot * glow))
+          setFloatUniform("radius", size.minDimension * recipe.radiusScale)
+          setFloatUniform("core", recipe.core)
           setFloatUniform(
             "position",
             position.x.fastCoerceIn(0f, size.width),
@@ -409,7 +496,7 @@ half4 main(float2 coord) {
         }
         drawRect(ShaderBrush(shader.asComposeShader()), blendMode = glowBlend)
       } else {
-        drawRect(glowTone.copy(0.25f * glow), blendMode = glowBlend)
+        drawRect(glowTone.copy(recipe.flat * glow), blendMode = glowBlend)
       }
     }
 

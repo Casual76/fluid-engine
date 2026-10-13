@@ -43,6 +43,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidPressState
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidPressImmediate
 import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
@@ -421,6 +422,47 @@ class FluidButtonDragTest {
     compose.waitForIdle()
     assertEquals(1, clicks)
     assertTrue("non si e' sciolta: ${state.progress}", abs(state.progress) < 0.02f)
+  }
+
+  // La chrome, dove non scorre niente: premuto al tocco ------------------------------------------
+
+  /**
+   * Un pulsante fuori da qualunque scorrevole, a orologio fermo: la pressione dopo ogni fotogramma
+   * che segue il dito sceso. [immediate] e' `LocalFluidPressImmediate`.
+   */
+  private fun pressAfterDown(immediate: Boolean, frames: Int): List<Float> {
+    lateinit var state: FluidPressState
+    compose.mainClock.autoAdvance = false
+    compose.setContent {
+      Themed {
+        CompositionLocalProvider(LocalFluidPressImmediate provides immediate) {
+          state = rememberFluidPressState()
+          Box(Modifier.size(200.dp, 48.dp).testTag("button").fluidPressable(onClick = { }, pressState = state))
+        }
+      }
+    }
+    compose.mainClock.advanceTimeByFrame()
+
+    compose.onNodeWithTag("button").performTouchInput { down(center) }
+    return List(frames) {
+      compose.mainClock.advanceTimeByFrame()
+      state.progress
+    }
+  }
+
+  @Test
+  fun `in una chrome che lo chiede il pulsante e' premuto entro un fotogramma dal tocco`() {
+    // Due fotogrammi (32 ms) dopo il dito sceso: ben prima dei 100 ms.
+    val seen = pressAfterDown(immediate = true, frames = 2)
+    assertTrue("la pressione non e' partita: $seen", seen.last() > 0.01f)
+  }
+
+  @Test
+  fun `di default il pulsante aspetta i 100 ms prima di essere premuto, poi lo e'`() {
+    val seen = pressAfterDown(immediate = false, frames = 14)
+    // Fino a 80 ms dal tocco non si sa ancora se e' uno scorrimento: nessuna pressione.
+    assertEquals("premuto prima dei 100 ms: ${seen.take(5)}", 0f, seen.take(5).max(), 0f)
+    assertTrue("non e' mai partita: $seen", seen.max() > 0.5f)
   }
 
   // (e) la pressione lunga ------------------------------------------------------------------------

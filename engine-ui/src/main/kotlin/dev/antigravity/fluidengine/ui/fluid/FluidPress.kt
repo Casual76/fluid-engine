@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -482,7 +483,8 @@ internal class FluidPressGesture(
      * dentro uno scorrevole (il tap timeout di Android, 100 ms), qui per tutti. Non c'e' un modo
      * pubblico di sapere se si e' dentro un contenitore che scorre, e una regola sola — una passata
      * e' della pagina ovunque — vale piu' di una pressione che in una lista parte 100 ms dopo e in
-     * un foglio no. Un tap piu' corto non aspetta: mostra la pressione intera e clicca.
+     * un foglio no. Un tap piu' corto non aspetta: mostra la pressione intera e clicca. Dove si sa
+     * che non scorre niente — la chrome — [LocalFluidPressImmediate] azzera l'attesa.
      */
     const val OwnDelayMillis: Long = 100L
 
@@ -513,6 +515,33 @@ internal fun fluidPressInside(position: Offset, size: Size, slack: Size): Boolea
 /** Il margine di [fluidPressSlack] oltre l'area di tocco minima: ~16 dp, come si dice li'. */
 internal val FluidPressClickSlack: Dp = 16.dp
 
+/**
+ * Se i pulsanti che stanno sotto sono premuti e **del tasto** gia' al tocco, invece che dopo i
+ * 100 ms di [FluidPressGesture.OwnDelayMillis]. Falso, il default: la regola di sempre, una passata
+ * veloce che parte su un pulsante e' della pagina.
+ *
+ * I 100 ms esistono perche' sotto un dito non si sa se arriva un tocco o uno scorrimento, e per un
+ * pulsante dentro una pagina che scorre e' il prezzo giusto. In una barra, in un'intestazione, in
+ * un foglio, dove non scorre niente, e' solo una pressione che parte in ritardo: il tasto si
+ * accende a dito sceso, come fa un mouse. L'engine lo da' a se stesso dove lo sa: le azioni e il
+ * tasto indietro della barra di [FluidScreen], l'intestazione dei pannelli a pagina intera. Un'app
+ * puo' darlo alla sua chrome:
+ *
+ * ```
+ * CompositionLocalProvider(LocalFluidPressImmediate provides true) {
+ *   MiaBarraFissa()
+ * }
+ * ```
+ *
+ * **Non va mai attorno a qualcosa che scorre.** Un pulsante cosi' tiene il dito dal primo istante:
+ * una passata che parte su di lui non arriva alla lista, e una lista fatta cosi' si scorre solo
+ * dai margini. Il corpo di [FluidScreen] lo rimette a falso da se' (un contenitore dell'engine che
+ * scorre non lo eredita); una `LazyColumn` o un `verticalScroll` di un'app dentro una chrome che lo
+ * da' devono farlo da soli. Vale per i pulsanti che crescono ([FluidPressFeedback.Expand]); le
+ * superfici che cedono non cambiano. Dalla 2.12.0.
+ */
+val LocalFluidPressImmediate = compositionLocalOf { false }
+
 /** Quante pressioni emesse dal gesto aspettano ancora di essere riconosciute dalla tastiera. */
 private const val EmittedCap = 16
 
@@ -537,7 +566,8 @@ private const val EmittedCap = 16
  *  * **La pressione lunga** scatta a `viewConfiguration.longPressTimeoutMillis` se il dito non ha
  *    superato lo slop; la pressione si scioglie in quel momento (il tasto "lascia andare" insieme
  *    al colpo) ma il gesto resta del tasto fino al rilascio, e al rilascio non c'e' click.
- *  * **Un mouse e' del tasto subito**: non c'e' pagina da far scorrere con un trascinamento.
+ *  * **Un mouse e' del tasto subito**: non c'e' pagina da far scorrere con un trascinamento. Lo e'
+ *    anche un pulsante sotto [LocalFluidPressImmediate], la chrome in cui non scorre niente: [immediate].
  *
  * Il tempo viene dall'ora degli eventi ([PointerInputChange.uptimeMillis]) e, per il dito fermo
  * che non ne produce, da un timer sul prossimo scadere ([FluidPressGesture.nextDeadline]). Non
@@ -553,7 +583,8 @@ internal fun Modifier.fluidButtonGesture(
   emitted: MutableSet<PressInteraction.Press>,
   onClick: () -> Unit,
   onLongClick: (() -> Unit)?,
-): Modifier = this.pointerInput(state, interactionSource, onLongClick != null) {
+  immediate: Boolean = false,
+): Modifier = this.pointerInput(state, interactionSource, onLongClick != null, immediate) {
   val stepPx = FluidPressDragStep.toPx()
   val extraSlackPx = FluidPressClickSlack.toPx()
   val longPressMillis =
@@ -569,7 +600,7 @@ internal fun Modifier.fluidButtonGesture(
       downUptime = down.uptimeMillis,
       origin = down.position,
       touchSlop = viewConfiguration.touchSlop,
-      ownDelayMillis = if (down.type == PointerType.Mouse) 0L else FluidPressGesture.OwnDelayMillis,
+      ownDelayMillis = if (immediate || down.type == PointerType.Mouse) 0L else FluidPressGesture.OwnDelayMillis,
       longPressMillis = longPressMillis,
     )
     val slack = fluidPressSlack(extendedTouchPadding, extraSlackPx)

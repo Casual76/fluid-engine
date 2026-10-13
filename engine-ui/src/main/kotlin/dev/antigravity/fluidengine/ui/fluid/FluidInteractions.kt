@@ -63,7 +63,10 @@ import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
  * *premuto* il pulsante, e da li' il gesto e' suo fino al rilascio: si inclina, si allunga, scatta,
  * segue il dito anche fuori dai suoi bordi, e ogni cambio e' consumato, quindi un `verticalScroll`
  * o una `LazyColumn` attorno non partono mai. Al rilascio il click scatta se il dito e' dentro il
- * pulsante piu' 16 dp, altrimenti la pressione si scioglie e basta. A `clickable` resta quello che
+ * pulsante piu' 16 dp, altrimenti la pressione si scioglie e basta. Dove non scorre niente — la
+ * barra di [FluidScreen], l'intestazione dei pannelli — il pulsante e' premuto gia' al tocco, non
+ * dopo i 100 ms: [LocalFluidPressImmediate], da non mettere mai attorno a qualcosa che scorre.
+ * A `clickable` resta quello che
  * non e' puntatore: la tastiera (Invio, Spazio, fuoco), il click e il click lungo di TalkBack, il
  * ruolo. Le superfici che cedono (card, tessere, [fluidRowPressable]) tengono `clickable` anche
  * per il puntatore: una card non e' qualcosa a cui aggrapparsi mentre si scorre.
@@ -116,6 +119,8 @@ fun Modifier.fluidPressable(
   // Un pulsante — tutto cio' che cresce sotto il dito — tiene il dito fino al rilascio; una
   // superficie che cede lo lascia alla pagina e a `clickable`, come ha sempre fatto.
   val ownsGesture = enabled && press.feedback.expands
+  // Nella chrome, dove non scorre niente, il tasto e' del dito dal primo istante: vedi sotto.
+  val immediate = LocalFluidPressImmediate.current
   // Le pressioni che il gesto scrive sulla sorgente: l'effetto qui sotto non deve premere due volte.
   val emitted = remember { HashSet<PressInteraction.Press>() }
   // Il fuoco da tastiera e' il gesto opposto alla pressione: la cosa si fa avanti invece di
@@ -213,6 +218,7 @@ fun Modifier.fluidPressable(
           emitted = emitted,
           onClick = { currentClick() },
           onLongClick = if (longClick != null) ({ currentLongClick?.invoke() }) else null,
+          immediate = immediate,
         )
         enabled && tracksFinger -> Modifier.fluidPressTracking(press, ownsPress = false)
         else -> Modifier

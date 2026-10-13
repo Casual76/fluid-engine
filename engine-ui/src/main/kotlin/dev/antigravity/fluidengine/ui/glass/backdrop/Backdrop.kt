@@ -63,6 +63,29 @@ interface Backdrop {
      */
     fun isReadyToSample(): Boolean = true
 
+    /**
+     * Fluid Engine addition (2.13.0): the backdrops this one draws, back to front, when it is a
+     * stack of them — or itself, when it is not.
+     *
+     * Exists for glass on glass: a surface standing on another pane slips that pane's material
+     * into its own stack, *between* what is outside the pane and what is inside it, and to do that
+     * it has to see the stack as a list. Only the stacks flatten; a backdrop that transforms
+     * another one (`rememberBackdrop`) stays a single entry, because its drawing is one gesture.
+     */
+    val stackedBackdrops: List<Backdrop> get() = listOf(this)
+
+    /**
+     * Fluid Engine addition (2.13.0): calls [block] on this backdrop and on every backdrop it is
+     * built from, at any depth.
+     *
+     * Used to find the recordings a surface reads, so that the ones recorded only on demand (the
+     * material a pane publishes, see `glassSurface(exports)`) know someone is looking. A backdrop
+     * that wraps another one must forward the call, or what it wraps is never recorded.
+     */
+    fun forEachPart(block: (Backdrop) -> Unit) {
+        block(this)
+    }
+
     fun DrawScope.drawBackdrop(
         density: Density,
         coordinates: LayoutCoordinates?,

@@ -41,9 +41,13 @@ fun rememberCombinedBackdrop(
     backdrop2: Backdrop
 ): Backdrop {
     return remember(backdrop1, backdrop2) {
-        Combined2Backdrops(backdrop1, backdrop2)
+        combinedBackdrop(backdrop1, backdrop2)
     }
 }
+
+/** Fluid Engine addition (2.13.0): the same stack outside a composition, for tests. */
+internal fun combinedBackdrop(backdrop1: Backdrop, backdrop2: Backdrop): Backdrop =
+    Combined2Backdrops(backdrop1, backdrop2)
 
 @Composable
 fun rememberCombinedBackdrop(
@@ -84,6 +88,16 @@ private class Combined2Backdrops(
             backdrop1.layerSources + backdrop2.layerSources
         }
 
+    // Fluid Engine addition (2.13.0): see Backdrop.stackedBackdrops and Backdrop.forEachPart.
+    override val stackedBackdrops: List<Backdrop>
+        get() = backdrop1.stackedBackdrops + backdrop2.stackedBackdrops
+
+    override fun forEachPart(block: (Backdrop) -> Unit) {
+        block(this)
+        backdrop1.forEachPart(block)
+        backdrop2.forEachPart(block)
+    }
+
     override fun DrawScope.drawBackdrop(
         density: Density,
         coordinates: LayoutCoordinates?,
@@ -117,6 +131,17 @@ private class Combined3Backdrops(
             backdrop1.layerSources + backdrop2.layerSources + backdrop3.layerSources
         }
 
+    // Fluid Engine addition (2.13.0): see Backdrop.stackedBackdrops and Backdrop.forEachPart.
+    override val stackedBackdrops: List<Backdrop>
+        get() = backdrop1.stackedBackdrops + backdrop2.stackedBackdrops + backdrop3.stackedBackdrops
+
+    override fun forEachPart(block: (Backdrop) -> Unit) {
+        block(this)
+        backdrop1.forEachPart(block)
+        backdrop2.forEachPart(block)
+        backdrop3.forEachPart(block)
+    }
+
     override fun DrawScope.drawBackdrop(
         density: Density,
         coordinates: LayoutCoordinates?,
@@ -135,6 +160,15 @@ private class CombinedBackdrops(
 
     override val isCoordinatesDependent: Boolean =
         backdrops.any { it.isCoordinatesDependent }
+
+    // Fluid Engine addition (2.13.0): see Backdrop.stackedBackdrops and Backdrop.forEachPart.
+    override val stackedBackdrops: List<Backdrop>
+        get() = backdrops.flatMap { it.stackedBackdrops }
+
+    override fun forEachPart(block: (Backdrop) -> Unit) {
+        block(this)
+        backdrops.forEach { it.forEachPart(block) }
+    }
 
     override fun DrawScope.drawBackdrop(
         density: Density,

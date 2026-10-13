@@ -2058,6 +2058,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                         },
                         backdropScale = tabsBackdropScale,
                         frozen = rememberFrozenOr(LocalFluidTabBarBackdropFrozen.current, tintedRowSettled),
+                        // Come il puck: la riga nascosta E' il materiale del pannello, rifatto
+                        // dalla pagina cruda. Appoggiata sul pannello sfocherebbe due volte.
+                        nestInContainer = false,
                         // Same GPU-saving trick as Modifier.liquidGlass: record this
                         // hidden row at a fraction of surface resolution and let the
                         // blur hide the upscale — was left at the 1f (full-res)
@@ -2293,6 +2296,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                             // for the frames it is arriving on, and freezes with
                             // the rest of the bar once it is there.
                             frozen = puckFrozen,
+                            // Vetro su vetro (2.13.0): no. Il puck il materiale della barra lo
+                            // ricostruisce da solo — a riposo sfoca la pagina cruda quanto il
+                            // pannello, premuto guarda la riga nascosta che lo e' gia' — e infilarci
+                            // anche il pannello lo sfocherebbe due volte (il difetto della 2.12.1).
+                            nestInContainer = false,
                         )
                     } else {
                         Modifier

@@ -65,7 +65,9 @@ private class LayerBackdropElement(
     override fun update(node: LayerBackdropNode) {
         if (node.backdrop != backdrop) {
             node.backdrop.layerCoordinates = null
+            if (node.backdrop.ownerNode === node) node.backdrop.ownerNode = null
             node.backdrop = backdrop
+            if (node.isAttached) backdrop.ownerNode = node
         }
         node.frozen = frozen
         node.invalidateDraw()
@@ -108,6 +110,11 @@ private class LayerBackdropNode(
         recorded = true
     }
 
+    override fun onAttach() {
+        // Fluid Engine addition (2.13.0): chi registra questo layer, per il vetro su vetro.
+        backdrop.ownerNode = this
+    }
+
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
         if (coordinates.isAttached) {
             backdrop.layerCoordinates = coordinates
@@ -124,5 +131,6 @@ private class LayerBackdropNode(
 
     override fun onDetach() {
         backdrop.layerCoordinates = null
+        if (backdrop.ownerNode === this) backdrop.ownerNode = null
     }
 }

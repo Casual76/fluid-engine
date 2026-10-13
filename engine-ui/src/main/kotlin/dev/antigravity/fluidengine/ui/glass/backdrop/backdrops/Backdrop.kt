@@ -41,9 +41,15 @@ fun rememberBackdrop(
     onDraw: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit
 ): Backdrop {
     return remember(backdrop, onDraw) {
-        Backdrop(backdrop, onDraw)
+        transformedBackdrop(backdrop, onDraw)
     }
 }
+
+/** Fluid Engine addition (2.13.0): the same wrapper outside a composition, for tests. */
+internal fun transformedBackdrop(
+    backdrop: Backdrop,
+    onDraw: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit
+): Backdrop = Backdrop(backdrop, onDraw)
 
 @Immutable
 private class Backdrop(
@@ -52,6 +58,13 @@ private class Backdrop(
 ) : Backdrop {
 
     override val isCoordinatesDependent: Boolean = backdrop.isCoordinatesDependent
+
+    // Fluid Engine addition (2.13.0): the wrapped backdrop is still read, so its recordings have to
+    // hear about it. It is deliberately *not* stacked: the transform applies to it as a whole.
+    override fun forEachPart(block: (Backdrop) -> Unit) {
+        block(this)
+        backdrop.forEachPart(block)
+    }
 
     override fun DrawScope.drawBackdrop(
         density: Density,

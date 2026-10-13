@@ -26,7 +26,10 @@
  */
 package dev.antigravity.fluidengine.ui.glass.backdrop
 
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
@@ -51,6 +54,8 @@ import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.ObserverModifierNode
+import androidx.compose.ui.node.findNearestAncestor
+import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
@@ -58,6 +63,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.emptyBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.materialLayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.HighlightElement
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.ShapeProvider
@@ -84,7 +91,9 @@ fun Modifier.drawPlainBackdrop(
     onDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit = DefaultOnDrawBackdrop,
     onDrawSurface: (DrawScope.() -> Unit)? = null,
     onDrawFront: (DrawScope.() -> Unit)? = null,
-    backdropScale: Float = 1f
+    backdropScale: Float = 1f,
+    /** See [drawBackdrop]. Since 2.13.0. */
+    nestInContainer: Boolean = true,
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -111,7 +120,8 @@ fun Modifier.drawPlainBackdrop(
                 resampleIntervalMillis = 0L,
                 frozen = NeverFrozen,
                 heldWhileMoving = NeverFrozen,
-                backdropScaleFactor = OneScale
+                backdropScaleFactor = OneScale,
+                nestInContainer = nestInContainer
             )
         )
 }
@@ -195,6 +205,20 @@ fun Modifier.drawBackdrop(
      * is.
      */
     heldWhileMoving: () -> Boolean = NeverFrozen,
+    /**
+     * Fluid Engine addition (2.13.0): vetro su vetro.
+     *
+     * Dentro un altro pannello di vetro (il nodo di vetro piu' vicino fra gli antenati, o un nodo
+     * marcato con `glassContainer`) la superficie campiona il *materiale* di quel pannello — il suo
+     * fondale sfocato, rifratto e tinto — infilato nella propria pila sopra a tutto cio' che sta
+     * fuori dal pannello e sotto a cio' che sta dentro. Un tasto su un pop-up sfoca cosi' la
+     * sfocatura del pop-up invece di bucarla. Se [backdrop] contiene gia' il materiale di quel
+     * pannello (un cablaggio fatto a mano con `exports`) non cambia niente.
+     *
+     * False per una superficie che ricostruisce il materiale del pannello da sola e lo sa: il puck
+     * della barra flottante, che sfoca come la barra partendo dalla pagina cruda.
+     */
+    nestInContainer: Boolean = true,
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -251,7 +275,8 @@ fun Modifier.drawBackdrop(
                 resampleIntervalMillis = resampleIntervalMillis,
                 backdropScaleFactor = backdropScaleFactor,
                 frozen = frozen,
-                heldWhileMoving = heldWhileMoving
+                heldWhileMoving = heldWhileMoving,
+                nestInContainer = nestInContainer
             )
         )
 }
@@ -271,7 +296,8 @@ private class DrawBackdropElement(
     val resampleIntervalMillis: Long,
     val frozen: () -> Boolean,
     val heldWhileMoving: () -> Boolean,
-    val backdropScaleFactor: () -> Float
+    val backdropScaleFactor: () -> Float,
+    val nestInContainer: Boolean
 ) : ModifierNodeElement<DrawBackdropNode>() {
 
     override fun create(): DrawBackdropNode {
@@ -290,27 +316,37 @@ private class DrawBackdropElement(
             resampleIntervalMillis = resampleIntervalMillis,
             backdropScaleFactor = backdropScaleFactor,
             frozen = frozen,
-            heldWhileMoving = heldWhileMoving
+            heldWhileMoving = heldWhileMoving,
+            nestInContainer = nestInContainer
         )
     }
 
     override fun update(node: DrawBackdropNode) {
-        if (node.backdrop != backdrop) {
+        val backdropChanged = node.backdrop != backdrop
+        if (backdropChanged) {
             // A record is a picture of one particular backdrop. Swapping the backdrop out — which
             // is what a tab change does, every screen bringing its own recording for the shared
             // chrome to sample — makes the held capture wrong by definition, and the offset
             // comparison below cannot be trusted to notice: the new screen's sources usually sit at
             // exactly the coordinates the old one's did.
             node.surfaceDirty = true
+            node.unregisterReads()
         }
         node.backdrop = backdrop
         node.shapeProvider = shapeProvider
         node.effects = effects
         node.layerBlock = layerBlock
         if (node.exportedBackdrop != exportedBackdrop) {
-            node.exportedBackdrop?.layerCoordinates = null
+            node.unbindExport()
             node.exportedBackdrop = exportedBackdrop
+            node.bindExport()
         }
+        // Lambde nuove (tinta, superficie) possono disegnare un materiale diverso.
+        node.exportDirty = true
+        val nestingChanged = node.nestInContainer != nestInContainer
+        node.nestInContainer = nestInContainer
+        if (backdropChanged) node.registerReads()
+        if (backdropChanged || nestingChanged) node.resolveContainer()
         node.onDrawBehind = onDrawBehind
         node.onDrawBackdrop = onDrawBackdrop
         node.onDrawSurface = onDrawSurface
@@ -357,6 +393,7 @@ private class DrawBackdropElement(
         if (sampleOnce != other.sampleOnce) return false
         if (resampleIntervalMillis != other.resampleIntervalMillis) return false
         if (backdropScaleFactor != other.backdropScaleFactor) return false
+        if (nestInContainer != other.nestInContainer) return false
 
         return true
     }
@@ -375,6 +412,7 @@ private class DrawBackdropElement(
         result = 31 * result + sampleOnce.hashCode()
         result = 31 * result + resampleIntervalMillis.hashCode()
         result = 31 * result + backdropScaleFactor.hashCode()
+        result = 31 * result + nestInContainer.hashCode()
         return result
     }
 }
@@ -481,8 +519,10 @@ private class DrawBackdropNode(
     var resampleIntervalMillis: Long,
     var frozen: () -> Boolean,
     var heldWhileMoving: () -> Boolean,
-    var backdropScaleFactor: () -> Float
-) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode, Modifier.Node() {
+    var backdropScaleFactor: () -> Float,
+    var nestInContainer: Boolean
+) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode,
+    GlassContainer, GlassContainerReader, Modifier.Node() {
 
     private val effectScope =
         object : BackdropEffectScopeImpl() {
@@ -548,6 +588,71 @@ private class DrawBackdropNode(
     /** Da quando il fondale non e' pronto, o zero se lo e'. Vedi [holdsCaptureOfGoneSource]. */
     private var notReadySince = 0L
 
+    // --- Fluid Engine addition (2.13.0), vetro su vetro: questa superficie come lettrice ---------
+
+    /**
+     * Quello che la superficie campiona davvero: [backdrop], oppure [backdrop] con il materiale del
+     * pannello su cui sta infilato nella pila. Vedi [resolveContainer].
+     */
+    private var sampledBackdrop: Backdrop = backdrop
+
+    /** Il pannello su cui sta, quando sta su un pannello, e il materiale che ne campiona. */
+    private var container: GlassContainer? = null
+    private var containerMaterial: LayerBackdrop? = null
+
+    /** I layer su richiesta che il fondale contiene: devono sapere che qualcuno li guarda. */
+    private var registeredReads: List<LayerBackdrop> = emptyList()
+
+    /** La domanda "su quale pannello sto?" va rifatta al prossimo disegno. */
+    private var containerDirty = false
+
+    // --- Fluid Engine addition (2.13.0), vetro su vetro: questa superficie come contenitore ------
+
+    /** Le superfici che campionano il materiale di questa. */
+    private val nestedReaders = ArrayList<GlassContainerReader>(0)
+
+    /**
+     * Il materiale che questa superficie pubblica per il vetro che le sta dentro, quando non ne
+     * esporta gia' uno ([exportedBackdrop]). Creato al primo lettore, mai prima: un pannello senza
+     * vetro dentro non ha un layer in piu'.
+     */
+    private var ownMaterial: LayerBackdrop? = null
+
+    /** Le ultime coordinate, per dare un posto al materiale creato dopo il posizionamento. */
+    private var lastCoordinates: LayoutCoordinates? = null
+
+    private val wakeExport: () -> Unit = {
+        exportDirty = true
+        if (isAttached) invalidateDraw()
+    }
+
+    /**
+     * Il materiale pubblicato va registrato di nuovo solo se e' cambiato, non a ogni disegno.
+     *
+     * Questa superficie si ridisegna a ogni fotogramma in cui si sposta (legge le proprie
+     * coordinate per sapere se la cattura vale ancora), e a ogni nuova registrazione del materiale
+     * il vetro che lo campiona e' "danneggiato" per la GPU: rifa' sfocatura e lente anche se
+     * l'immagine e' identica. Su un pannello che scorre con i suoi tasti era un ricalcolo per tasto
+     * per fotogramma, per niente — la stessa cosa che la 2.10.0 aveva tolto alle catture.
+     *
+     * Quindi si registra quando: e' la prima volta o c'e' un lettore nuovo ([wakeExport]), cambia
+     * la geometria (taglia, margine, risoluzione), l'elemento e' stato aggiornato, oppure cambia
+     * uno stato che i disegni del materiale hanno letto (intensita', tinta, pressione: osservati da
+     * [exportObserver]). La cattura dentro il materiale e' un riferimento, quindi quando lei si
+     * rifa' il materiale la segue senza essere registrato di nuovo.
+     */
+    var exportDirty = true
+    private var exportedInto: LayerBackdrop? = null
+    private var exportedWidth = -1f
+    private var exportedHeight = -1f
+    private var exportedPadding = -1f
+    private var exportedScale = -1f
+    private var exportObserver: SnapshotStateObserver? = null
+    private val onExportReadChanged: (DrawBackdropNode) -> Unit = { node ->
+        node.exportDirty = true
+        if (node.isAttached) node.invalidateDraw()
+    }
+
     /**
      * Where every source sits relative to this surface, which is the only thing a capture depends on.
      *
@@ -555,7 +660,7 @@ private class DrawBackdropNode(
      * is made of — either way the answer is to record, which is what every backdrop did before.
      */
     private fun currentSourceOffsets(): List<Offset>? {
-        val sources = backdrop.layerSources
+        val sources = sampledBackdrop.layerSources
         if (sources.isEmpty()) return null
         val self = layoutCoordinates ?: return null
         if (!self.isAttached) return null
@@ -604,7 +709,7 @@ private class DrawBackdropNode(
             canvas.scale(scale, scale)
         }
         onDrawBackdrop {
-            with(backdrop) {
+            with(sampledBackdrop) {
                 drawBackdrop(
                     density = effectScope,
                     coordinates = layoutCoordinates,
@@ -620,7 +725,14 @@ private class DrawBackdropNode(
         }
     }
 
-    private val drawBackdropLayer: DrawScope.() -> Unit = {
+    /**
+     * Fluid Engine change (2.13.0): la manutenzione della cattura, separata dal disegnarla.
+     *
+     * La cattura si disegna due volte quando qualcuno campiona il materiale di questa superficie
+     * (sullo schermo e nel materiale esportato), ma si decide e si rifa' una volta sola per
+     * fotogramma: prima la decisione stava dentro il disegno, e l'export la ripeteva.
+     */
+    private val refreshCapture: DrawScope.() -> Unit = {
         val layer = graphicsLayer
         if (layer != null) {
             val padding = padding
@@ -691,7 +803,7 @@ private class DrawBackdropNode(
 
             // La sorgente e' sparita (pagina smontata) e il fondale nuovo non e' ancora arrivato: si
             // tiene la cattura vecchia invece di svuotarla. Vedi [holdsCaptureOfGoneSource].
-            val ready = backdrop.isReadyToSample()
+            val ready = sampledBackdrop.isReadyToSample()
             if (ready) {
                 notReadySince = 0L
             } else if (notReadySince == 0L) {
@@ -720,7 +832,7 @@ private class DrawBackdropNode(
                 // attached yet, and with `sampleOnce` that empty capture used to be kept for the
                 // life of the node — a tile that came up in the wrong frame stayed a flat tint for
                 // ever, with no path back. Now the bookkeeping waits for a valid one.
-                if (backdrop.isReadyToSample()) {
+                if (sampledBackdrop.isReadyToSample()) {
                     recordedSize = recordSize
                     recordedSourceOffsets = sourceOffsets
                     recordedSelfOffset = selfOffset
@@ -730,7 +842,16 @@ private class DrawBackdropNode(
                     FluidGlassDiagnostics.onCapture()
                 }
             }
+        }
+    }
 
+    private val drawBackdropLayer: DrawScope.() -> Unit = {
+        val layer = graphicsLayer
+        if (layer != null) {
+            val padding = padding
+            // Not named `scale`: that shadows the DrawScope transform of the same name, which is
+            // what un-scales the draw below.
+            val contentScale = effectiveScale
             layer.topLeft =
                 if (padding != 0f) IntOffset(-padding.toInt(), -padding.toInt())
                 else IntOffset.Zero
@@ -755,6 +876,7 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
+        if (containerDirty) resolveContainer()
         effectiveScale = fitToTexture(
             backdropScale * quantiseScaleFactor(backdropScaleFactor()),
             size.width,
@@ -764,25 +886,55 @@ private class DrawBackdropNode(
             updateEffects()
         }
 
+        refreshCapture()
         onDrawBehind?.invoke(this)
         drawBackdropLayer()
         onDrawSurface?.invoke(this)
         drawContent()
         onDrawFront?.invoke(this)
 
-        exportedBackdrop?.graphicsLayer?.let { layer ->
-            recordLayer(this@DrawBackdropNode, layer) {
-                onDrawBehind?.invoke(this)
-                drawBackdropLayer()
-                onDrawSurface?.invoke(this)
-                onDrawFront?.invoke(this)
+        // Il materiale pubblicato: tutto quello che questa superficie disegna *tranne* il
+        // contenuto. Il contenuto resta fuori apposta, e non per risparmio: dentro c'e' il vetro che
+        // campiona questo materiale, e un tasto che rifrange se stesso e' il feedback ottico che
+        // nel vetro non si nasconde. Registrato solo se qualcuno lo guarda (2.13.0): un pannello
+        // senza vetro dentro non paga niente.
+        val export = exportedBackdrop ?: ownMaterial
+        if (export != null && export.wantsRecording) {
+            val stale = exportDirty ||
+                export !== exportedInto ||
+                exportedWidth != size.width ||
+                exportedHeight != size.height ||
+                exportedPadding != padding ||
+                exportedScale != effectiveScale
+            if (stale) {
+                exportDirty = false
+                exportedInto = export
+                exportedWidth = size.width
+                exportedHeight = size.height
+                exportedPadding = padding
+                exportedScale = effectiveScale
+                val observer = exportObserver
+                    ?: SnapshotStateObserver(OnMainThread).also {
+                        it.start()
+                        exportObserver = it
+                    }
+                observer.observeReads(this@DrawBackdropNode, onExportReadChanged) {
+                    recordLayer(this@DrawBackdropNode, export.graphicsLayer) {
+                        onDrawBehind?.invoke(this)
+                        drawBackdropLayer()
+                        onDrawSurface?.invoke(this)
+                        onDrawFront?.invoke(this)
+                    }
+                }
+                FluidGlassDiagnostics.onExport()
             }
         }
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
         if (coordinates.isAttached) {
-            if (backdrop.isCoordinatesDependent) {
+            lastCoordinates = coordinates
+            if (sampledBackdrop.isCoordinatesDependent) {
                 layoutCoordinates = coordinates
             } else {
                 if (layoutCoordinates != null) {
@@ -790,6 +942,7 @@ private class DrawBackdropNode(
                 }
             }
             exportedBackdrop?.layerCoordinates = coordinates
+            ownMaterial?.layerCoordinates = coordinates
         }
     }
 
@@ -834,6 +987,12 @@ private class DrawBackdropNode(
         recordedSourceOffsets = null
         recordedSelfOffset = null
 
+        bindExport()
+        registerReads()
+        resolveContainer()
+        // E come contenitore: il vetro che c'era gia' dentro adesso sta su questo pannello.
+        adoptNestedReaders()
+
         observeEffects()
     }
 
@@ -846,6 +1005,8 @@ private class DrawBackdropNode(
      */
     override fun onReset() {
         surfaceDirty = true
+        containerDirty = true
+        exportDirty = true
         sampled = false
         notReadySince = 0L
         lastRecordedAt = 0L
@@ -863,6 +1024,188 @@ private class DrawBackdropNode(
 
         effectScope.reset()
         layoutCoordinates = null
-        exportedBackdrop?.layerCoordinates = null
+        lastCoordinates = null
+        unbindExport()
+        exportObserver?.let {
+            it.stop()
+            it.clear()
+        }
+        exportObserver = null
+        exportedInto = null
+        exportDirty = true
+
+        // Come lettrice: non campiona piu' niente.
+        unregisterReads()
+        leaveContainer()
+        sampledBackdrop = backdrop
+
+        // Come contenitore: chi ci stava sopra rifa' la domanda al prossimo disegno, e il layer del
+        // materiale torna al contesto (chi lo sta ancora disegnando lo tiene vivo finche' serve).
+        val readers = nestedReaders.toList()
+        nestedReaders.clear()
+        readers.forEach { it.onContainerChanged() }
+        ownMaterial?.let { material ->
+            material.layerCoordinates = null
+            material.onFirstReader = null
+            graphicsContext.releaseGraphicsLayer(material.graphicsLayer)
+        }
+        ownMaterial = null
     }
+
+    // --- Fluid Engine addition (2.13.0): vetro su vetro -----------------------------------------
+
+    /** Il layer in cui questa superficie esporta: si fa conoscere come chi lo registra. */
+    fun bindExport() {
+        val export = exportedBackdrop ?: return
+        if (!isAttached) return
+        export.ownerNode = this
+        export.onFirstReader = wakeExport
+        lastCoordinates?.let { if (it.isAttached) export.layerCoordinates = it }
+        // Chi stava sul materiale proprio passa a quello esportato.
+        notifyNestedReaders()
+    }
+
+    fun unbindExport() {
+        val export = exportedBackdrop ?: return
+        export.layerCoordinates = null
+        if (export.ownerNode === this) export.ownerNode = null
+        if (export.onFirstReader === wakeExport) export.onFirstReader = null
+        notifyNestedReaders()
+    }
+
+    private fun notifyNestedReaders() {
+        if (nestedReaders.isEmpty()) return
+        nestedReaders.toList().forEach { it.onContainerChanged() }
+    }
+
+    /** Conta questa superficie fra i lettori dei layer su richiesta che campiona. */
+    fun registerReads() {
+        if (!isAttached || registeredReads.isNotEmpty()) return
+        val reads = ArrayList<LayerBackdrop>(0)
+        backdrop.forEachPart { part ->
+            if (part is LayerBackdrop && part.onDemand && part !in reads) reads += part
+        }
+        reads.forEach { it.addReader() }
+        registeredReads = reads
+    }
+
+    fun unregisterReads() {
+        registeredReads.forEach { it.removeReader() }
+        registeredReads = emptyList()
+    }
+
+    private fun leaveContainer() {
+        containerMaterial?.removeReader()
+        containerMaterial = null
+        container?.forgetReader(this)
+        container = null
+    }
+
+    override fun onContainerChanged() {
+        if (!isAttached) return
+        // La domanda si rifa' al prossimo disegno: chi avvisa puo' essere a meta' di un distacco,
+        // e un albero a meta' non e' un posto dove cercare antenati.
+        containerDirty = true
+        invalidateDraw()
+    }
+
+    /**
+     * Su quale pannello sta questa superficie, e come se ne campiona il materiale.
+     *
+     * Rifatta all'attacco, quando il fondale cambia, e quando il pannello di sopra cambia. Mai a ogni
+     * fotogramma: la risposta dipende dall'albero, non dal disegno.
+     */
+    fun resolveContainer() {
+        containerDirty = false
+        if (!isAttached) return
+        val found: GlassContainer? =
+            if (nestInContainer && isRenderEffectSupported()) {
+                findNearestAncestor(GlassContainerKey) as? GlassContainer
+            } else {
+                null
+            }
+        // Il fondale vuoto non ha niente da disegnare, e in una pila non serve.
+        val layers = backdrop.stackedBackdrops.filter { it !== EmptyStack }
+        val published = found?.publishedMaterial
+        val plan = planNesting(
+            layers = layers,
+            nestable = nestInContainer,
+            hasContainer = found != null,
+            includesMaterial = published != null && backdrop.containsPart(published),
+            isInside = { layer -> found != null && layer.liesInside(found) },
+        )
+        val next: Backdrop = when (plan) {
+            NestingPlan.Alone, NestingPlan.AlreadyIncluded -> {
+                leaveContainer()
+                backdrop
+            }
+            is NestingPlan.Insert -> {
+                val target = found!!
+                if (target !== container) leaveContainer()
+                val material = target.materialFor(this)
+                if (material == null) {
+                    leaveContainer()
+                    backdrop
+                } else {
+                    if (material !== containerMaterial) {
+                        containerMaterial?.removeReader()
+                        material.addReader()
+                        containerMaterial = material
+                    }
+                    container = target
+                    NestedBackdrop(layers, material, plan.index)
+                }
+            }
+        }
+        if (!sameSampling(next, sampledBackdrop)) {
+            sampledBackdrop = next
+            surfaceDirty = true
+            lastCoordinates?.let { coordinates ->
+                if (coordinates.isAttached && next.isCoordinatesDependent) layoutCoordinates = coordinates
+            }
+            invalidateDraw()
+        }
+    }
+
+    override val publishedMaterial: LayerBackdrop? get() = exportedBackdrop ?: ownMaterial
+
+    override fun materialFor(reader: GlassContainerReader): LayerBackdrop? {
+        if (!isAttached || !isRenderEffectSupported()) return null
+        val material = exportedBackdrop ?: ownMaterial ?: createOwnMaterial()
+        if (reader !in nestedReaders) nestedReaders += reader
+        return material
+    }
+
+    override fun forgetReader(reader: GlassContainerReader) {
+        nestedReaders -= reader
+    }
+
+    private fun createOwnMaterial(): LayerBackdrop {
+        val layer = requireGraphicsContext().createGraphicsLayer()
+        val material = materialLayerBackdrop(layer)
+        material.ownerNode = this
+        material.onFirstReader = wakeExport
+        lastCoordinates?.let { if (it.isAttached) material.layerCoordinates = it }
+        ownMaterial = material
+        return material
+    }
+}
+
+/**
+ * Dove arrivano le notifiche di uno stato cambiato: sul thread principale, che e' l'unico da cui si
+ * puo' chiedere un nuovo disegno. Quasi sempre ci sono gia'.
+ */
+private val MainHandler = Handler(Looper.getMainLooper())
+private val OnMainThread: (() -> Unit) -> Unit = { callback ->
+    if (Looper.myLooper() === Looper.getMainLooper()) callback() else MainHandler.post(callback)
+}
+
+/** Il fondale vuoto: in una pila non disegna niente, quindi non ci entra. */
+private val EmptyStack: Backdrop = emptyBackdrop()
+
+/** Due fondali che campionano la stessa cosa, per non sporcare una cattura per niente. */
+private fun sameSampling(a: Backdrop, b: Backdrop): Boolean {
+    if (a === b) return true
+    if (a !is NestedBackdrop || b !is NestedBackdrop) return false
+    return a.material === b.material && a.insertAt == b.insertAt && a.layers == b.layers
 }

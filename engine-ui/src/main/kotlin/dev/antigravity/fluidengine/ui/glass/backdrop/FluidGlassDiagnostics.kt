@@ -19,11 +19,24 @@ object FluidGlassDiagnostics {
   var enabled: Boolean = false
 
   private val captures = AtomicLong()
+  private val exports = AtomicLong()
 
   /** Captures taken since [enabled] was first switched on. */
   val totalCaptures: Long get() = captures.get()
 
+  /**
+   * Materiali pubblicati (registrati) da quando [enabled] e' acceso: un pannello che registra cio'
+   * che disegna dietro al contenuto perche' del vetro dentro di lui lo campioni. Dalla 2.13.0 si
+   * registra solo se qualcuno lo guarda, quindi su una schermata senza vetro su vetro questo numero
+   * non si muove, e a schermo fermo non si muove mai.
+   */
+  val totalExports: Long get() = exports.get()
+
   internal fun onCapture() {
     if (enabled) captures.incrementAndGet()
+  }
+
+  internal fun onExport() {
+    if (enabled) exports.incrementAndGet()
   }
 }

@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -82,6 +83,44 @@ class LayerBackdrop internal constructor(
     /** Senza le coordinate del layer, `drawBackdrop` esce senza disegnare: non c'e' niente da tenere. */
     override fun isReadyToSample(): Boolean = layerCoordinates != null
 
+    /**
+     * Fluid Engine addition (2.13.0): il nodo che registra questo layer, quando e' uno dei nostri.
+     *
+     * Serve al vetro su vetro per sapere se una registrazione sta *dentro* il pannello su cui una
+     * superficie appoggia (e quindi va sopra al materiale del pannello) o fuori (e quindi sotto).
+     */
+    internal var ownerNode: Modifier.Node? = null
+
+    /**
+     * Fluid Engine addition (2.13.0): registrato solo su richiesta.
+     *
+     * Vale per il materiale che un pannello pubblica (`exports`, e quello che pubblica da solo per
+     * il vetro che ci sta dentro): un pannello che nessuno rifrange non deve pagarne la
+     * registrazione. Chi lo campiona si fa contare con [addReader]; il pannello registra solo
+     * finche' [readerCount] e' sopra zero. Non tocca chi registra una *pagina*
+     * (`layerBackdrop`): quella resta registrata sempre, come prima.
+     */
+    internal var onDemand: Boolean = false
+
+    private val readers = ReaderCount()
+
+    /** Quante superfici stanno campionando questo layer adesso. Vedi [onDemand]. */
+    internal val readerCount: Int get() = readers.count
+
+    /** Chiamato quando arriva il primo lettore: il pannello deve tornare a registrare. */
+    internal var onFirstReader: (() -> Unit)? = null
+
+    internal fun addReader() {
+        if (readers.add()) onFirstReader?.invoke()
+    }
+
+    internal fun removeReader() {
+        readers.remove()
+    }
+
+    /** Se chi esporta in questo layer deve registrarlo a questo fotogramma. */
+    internal val wantsRecording: Boolean get() = exportWanted(onDemand, readerCount)
+
     private var inverseLayerScope: InverseLayerScope? = null
 
     override fun DrawScope.drawBackdrop(
@@ -113,3 +152,37 @@ class LayerBackdrop internal constructor(
             ?: InverseLayerScope().also { inverseLayerScope = it }
     }
 }
+
+/**
+ * Fluid Engine addition (2.13.0): un layer per il materiale che un pannello pubblica da solo, per il
+ * vetro che gli sta dentro. Su richiesta per costruzione: esiste solo perche' qualcuno lo ha chiesto.
+ */
+internal fun materialLayerBackdrop(graphicsLayer: GraphicsLayer): LayerBackdrop =
+    LayerBackdrop(graphicsLayer, DefaultOnDraw).apply { onDemand = true }
+
+/**
+ * Il conto dei lettori di un materiale pubblicato. A se', puro, per poterlo provare in un test: un
+ * conto che scende sotto zero o che non avvisa al primo lettore e' un pannello che smette di
+ * registrare per sempre, e da fuori si vede solo come "il tasto ha perso il vetro".
+ */
+internal class ReaderCount {
+
+    var count: Int = 0
+        private set
+
+    /** True quando questo e' il primo lettore: chi registra deve tornare a farlo. */
+    fun add(): Boolean {
+        count++
+        return count == 1
+    }
+
+    fun remove() {
+        if (count > 0) count--
+    }
+}
+
+/**
+ * La regola della registrazione pigra, scritta una volta: un layer normale si registra sempre, uno
+ * su richiesta solo se qualcuno lo sta guardando. Pura, per poterla provare in un test.
+ */
+internal fun exportWanted(onDemand: Boolean, readers: Int): Boolean = !onDemand || readers > 0

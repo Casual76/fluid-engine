@@ -45,6 +45,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.glassContainer
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
@@ -225,6 +227,10 @@ fun FluidMorphMenuHost(
   val gapPx = with(density) { MorphMenuAnchorGap.toPx() }
   val marginPx = with(density) { MorphMenuEdgeMargin.toPx() }
   val groupRadiusPx = with(density) { FluidRadius.Group.toPx() }
+  // Vetro su vetro (2.13.0): il menu' pubblica il proprio materiale per il vetro che ci sta dentro
+  // (una faccia del tasto fatta di vetro, per dire). Il contenuto e' in nodi fratelli della
+  // superficie, quindi lo dichiara con `glassContainer`. Senza vetro dentro non si registra niente.
+  val menuGlass = rememberGlassBackdrop()
 
   // Il conducente del viaggio: apre quando isOpen arriva, riporta a capsula quando se ne va.
   LaunchedEffect(state.isOpen, hostBounds) {
@@ -302,6 +308,7 @@ fun FluidMorphMenuHost(
             val t = state.physics.progress.coerceIn(0f, 1f)
             if (state.showingPanel) t else 1f - t
           },
+          exports = menuGlass,
         ),
     )
 
@@ -310,21 +317,23 @@ fun FluidMorphMenuHost(
     if (anchor != null) {
       MorphMenuFrameBox(frame = anchor) {
         Row(
-          modifier = if (state.showingPanel) {
-            Modifier.fluidPhysicsContent(state.physics, FluidPhysicsContentRole.Outgoing)
-          } else {
-            // Ritorno: NIENTE traslazione. La superficie sta già tornando lei sulla capsula;
-            // l'etichetta deve solo trovarsi lì quando il vetro arriva — compare tardi, in posa,
-            // con un filo di zoom. La traslazione del contratto Incoming, pensata per contenuti
-            // che inseguono una silhouette in arrivo, qui si leggeva come uno scivolone.
-            Modifier.graphicsLayer {
-              val p = state.physics.progress.coerceIn(0f, 1f)
-              alpha = ((p - 0.55f) / 0.45f).coerceIn(0f, 1f)
-              val settle = 0.92f + 0.08f * p
-              scaleX = settle
-              scaleY = settle
-            }
-          },
+          modifier = Modifier.glassContainer(menuGlass).then(
+            if (state.showingPanel) {
+              Modifier.fluidPhysicsContent(state.physics, FluidPhysicsContentRole.Outgoing)
+            } else {
+              // Ritorno: NIENTE traslazione. La superficie sta già tornando lei sulla capsula;
+              // l'etichetta deve solo trovarsi lì quando il vetro arriva — compare tardi, in posa,
+              // con un filo di zoom. La traslazione del contratto Incoming, pensata per contenuti
+              // che inseguono una silhouette in arrivo, qui si leggeva come uno scivolone.
+              Modifier.graphicsLayer {
+                val p = state.physics.progress.coerceIn(0f, 1f)
+                alpha = ((p - 0.55f) / 0.45f).coerceIn(0f, 1f)
+                val settle = 0.92f + 0.08f * p
+                scaleX = settle
+                scaleY = settle
+              }
+            },
+          ),
           horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
           verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -349,6 +358,7 @@ fun FluidMorphMenuHost(
         Column(
           modifier = Modifier
             .fillMaxSize()
+            .glassContainer(menuGlass)
             .fluidPhysicsContent(
               state.physics,
               if (state.showingPanel) {

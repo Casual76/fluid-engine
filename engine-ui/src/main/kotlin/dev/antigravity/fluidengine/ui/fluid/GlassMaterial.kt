@@ -37,6 +37,8 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedB
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassContainerScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassMaterialRecording
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.colorControls
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
@@ -130,6 +132,11 @@ val DefaultGlassBlurRadius: Dp = 2.5.dp
 fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState {
   val layerBackdrop = rememberLayerBackdrop()
   return remember(layerBackdrop, blurRadius) {
+    // Su richiesta (2.13.0): quando questo stato e' il materiale che un pannello esporta
+    // (`exports`), il pannello lo registra solo mentre del vetro lo sta campionando. Usato come
+    // registrazione di una pagina (`glassBackdropSource`) non cambia niente: quella si registra
+    // sempre, come prima.
+    layerBackdrop.onDemand = true
     GlassBackdropState(layerBackdrop, layerBackdrop, blurRadius)
   }
 }
@@ -141,6 +148,11 @@ fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdro
  * refract the *bar* — its material, its tint, the icons printed on it — and not the page three
  * layers down; combining the page's recording with the bar's own gives the control exactly the image
  * a real lens resting on that bar would find.
+ *
+ * Dalla 2.13.0 per il caso comune non serve piu': una superficie di vetro dentro un'altra ne
+ * campiona il materiale da sola (vedi `nestInContainer` in [glassSurface]). Resta per i cablaggi che
+ * vogliono qualcosa di diverso dal pannello che contiene il controllo — l'indicatore di una barra
+ * che guarda anche la copia accentata delle etichette — e un cablaggio a mano vince sempre.
  */
 @Composable
 fun rememberCombinedGlassBackdrop(
@@ -199,6 +211,51 @@ fun Modifier.glassBackdropSource(
  * their rim and their touch response without a backdrop to bend.
  */
 val LocalGlassBackdrop = compositionLocalOf<GlassBackdropState?> { null }
+
+/**
+ * Il vetro dentro questo nodo sta su [material]: lo campiona sopra a quello che gli e' stato dato,
+ * come se questo nodo fosse figlio della superficie che lo disegna. Dalla 2.13.0.
+ *
+ * Non serve per il caso normale: una superficie di vetro dentro un'altra (`glassSurface`,
+ * `glassControlSurface`, `fluidPhysicsSurface`, il pomello di un interruttore) trova da sola il
+ * pannello che la contiene. Serve quando il contenuto **non e' figlio** del vetro su cui sta:
+ *
+ * - una superficie che si trasforma e porta il contenuto in un nodo fratello (la finestra di
+ *   Fluid-physics, il menu' che nasce da un tasto): `exports = material` sulla superficie,
+ *   `glassContainer(material)` sul contenuto;
+ * - un pannello che l'app disegna con un altro motore: [glassMaterialSource] sul nodo che porta
+ *   solo il materiale, `glassContainer(material)` sul contenuto.
+ *
+ * [material] deve essere uno stato di [rememberGlassBackdrop], non uno combinato. Non costa niente
+ * finche' dentro non c'e' vetro: il materiale si registra solo quando qualcuno lo campiona.
+ */
+fun Modifier.glassContainer(material: GlassBackdropState): Modifier {
+  val layer = material.layerBackdrop ?: return this
+  return this.glassContainerScope(layer)
+}
+
+/**
+ * Registra in [state] quello che disegnano i modificatori che vengono dopo questo — il materiale di
+ * un pannello che l'app disegna da se' — cosi' il vetro dell'engine che ci sta sopra lo puo'
+ * campionare (vedi [glassContainer]). Dalla 2.13.0.
+ *
+ * Va su un nodo che porta **solo** il materiale, mai il contenuto: il contenuto finirebbe nel
+ * fondale di cio' che contiene, che e' il feedback ottico. In pratica un fratello sotto al contenuto:
+ *
+ *     val pane = rememberGlassBackdrop()
+ *     Box(modifier) {
+ *       Box(Modifier.matchParentSize().glassMaterialSource(pane).liquidGlass(...))
+ *       Column(Modifier.glassContainer(pane)) { /* tasti, interruttori, card di vetro */ }
+ *     }
+ *
+ * Diverso da [glassBackdropSource], che registra una *pagina*: questo registra solo finche' del
+ * vetro lo campiona, e non passa da un layer offscreen. Un pannello fatto con [glassSurface] non ne
+ * ha bisogno: pubblica il proprio materiale da solo.
+ */
+fun Modifier.glassMaterialSource(state: GlassBackdropState): Modifier {
+  val layer = state.layerBackdrop ?: return this
+  return this.glassMaterialRecording(layer)
+}
 
 /**
  * A backdrop with nothing in it.
@@ -1015,7 +1072,9 @@ enum class GlassFalloff {
  * @param pressed 0 = resting, 1 = fully pressed. Deepens the lens without re-recording anything.
  * @param exports when set, this pane also publishes *itself* — material, tint and all — into that
  *   state, so another pane can refract it. That is how a control on a bar bends the bar rather than
- *   the page underneath it. Pair it with [rememberCombinedGlassBackdrop].
+ *   the page underneath it. Pair it with [rememberCombinedGlassBackdrop] or [glassContainer]. Dalla
+ *   2.13.0 il materiale si registra solo mentre qualcuno lo campiona, e il vetro che sta *dentro*
+ *   questo pannello lo trova anche senza: vedi `nestInContainer`.
  * @param layerBlock transforms applied to the whole pane. The renderer inverts them when it samples,
  *   so a bar that scales or slides keeps holding the image the world actually has behind it.
  */
@@ -1058,6 +1117,18 @@ fun Modifier.glassSurface(
   frozen: () -> Boolean = { false },
   /** Hold the capture even while the pane moves. See `drawBackdrop(heldWhileMoving)`. Since 2.10.0. */
   heldWhileMoving: () -> Boolean = { false },
+  /**
+   * Vetro su vetro (2.13.0). Dentro un altro pannello di vetro questa superficie campiona il
+   * *materiale* di quel pannello — il fondale come lo vede lui: sfocato, rifratto, tinto — sopra a
+   * [state], invece di [state] e basta. Un tasto su un pop-up, una card su un foglio, un'azione su
+   * una notifica non sono mai piu' nitidi di quello su cui stanno: sfocano la sfocatura.
+   *
+   * Automatico: il pannello e' il nodo di vetro piu' vicino fra gli antenati (o un nodo marcato con
+   * [glassContainer]), e [state] resta quello che si vede fuori dai suoi bordi. Se [state] contiene
+   * gia' il materiale di quel pannello (un cablaggio a mano con [exports]) non cambia niente. False
+   * per la rara superficie che ricostruisce da sola il materiale del pannello su cui sta.
+   */
+  nestInContainer: Boolean = true,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
 
@@ -1247,6 +1318,7 @@ fun Modifier.glassSurface(
       backdropScaleFactor = qualityFactor,
       frozen = frozen,
       heldWhileMoving = heldWhileMoving,
+      nestInContainer = nestInContainer,
     )
 }
 

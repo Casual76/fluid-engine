@@ -1228,6 +1228,10 @@ private fun FluidAnchoredPopover(
           tintFrom = windowTintWithScrim,
           tintBlend = { 1f - presence().coerceIn(0f, 1f) },
           intensity = windowAmount,
+          // Vetro su vetro (2.13.0): la finestra pubblica il proprio materiale, come il pannello
+          // classico. Il contenuto vive in un nodo fratello, quindi non la trova da solo: lo dice
+          // `glassContainer(paneGlass)` qui sotto. Registrato solo se dentro c'e' del vetro.
+          exports = paneGlass,
         ),
     )
     // L'immagine della riga, in viaggio: parte dalla sua posizione esatta, segue il centro della
@@ -1365,27 +1369,32 @@ private fun FluidAnchoredPopover(
         // cui l'apertura di un'app su iOS si legge come una cosa sola che si avvicina invece che
         // come due cose che si scambiano il posto.
         Column(
-          modifier = Modifier.graphicsLayer {
-            if (!placement.morphFromAnchor) return@graphicsLayer
-            // Uniforme, e di pochi punti percentuali. Serve perche' il contenuto *cresca* col bordo
-            // invece di stare fermo mentre una tendina lo scopre — ma con un fattore solo per i due
-            // assi, che e' l'unica cosa che il testo non perdona.
-            val zoom = lerp(FluidPopoverContentStartScale, 1f, growth())
-            scaleX = zoom
-            scaleY = zoom
-            transformOrigin = TransformOrigin(
-              if (size.width > 0f) {
-                ((placement.anchorLeft + placement.anchorWidth / 2f) / size.width).coerceIn(0f, 1f)
-              } else {
-                0.5f
-              },
-              if (size.height > 0f) {
-                ((placement.anchorTop + placement.anchorHeight / 2f) / size.height).coerceIn(0f, 1f)
-              } else {
-                0.5f
-              },
-            )
-          },
+          modifier = Modifier
+            // Il vetro del contenuto sta sul pannello: ovvio quando il pannello e' il genitore
+            // (lo troverebbe da solo), necessario quando e' la finestra che si trasforma, che e'
+            // un fratello. Vedi `glassContainer`.
+            .glassContainer(paneGlass)
+            .graphicsLayer {
+              if (!placement.morphFromAnchor) return@graphicsLayer
+              // Uniforme, e di pochi punti percentuali. Serve perche' il contenuto *cresca* col bordo
+              // invece di stare fermo mentre una tendina lo scopre — ma con un fattore solo per i due
+              // assi, che e' l'unica cosa che il testo non perdona.
+              val zoom = lerp(FluidPopoverContentStartScale, 1f, growth())
+              scaleX = zoom
+              scaleY = zoom
+              transformOrigin = TransformOrigin(
+                if (size.width > 0f) {
+                  ((placement.anchorLeft + placement.anchorWidth / 2f) / size.width).coerceIn(0f, 1f)
+                } else {
+                  0.5f
+                },
+                if (size.height > 0f) {
+                  ((placement.anchorTop + placement.anchorHeight / 2f) / size.height).coerceIn(0f, 1f)
+                } else {
+                  0.5f
+                },
+              )
+            },
         ) {
           CompositionLocalProvider(
             LocalFluidCanvasBackdrop provides paneGlass,
@@ -1699,6 +1708,10 @@ private fun FluidGlassModalSheet(
 ) {
   val density = LocalDensity.current
   val scope = rememberCoroutineScope()
+  // Il foglio registra se stesso come il pop-up (2.13.0): una card di vetro, un interruttore, un
+  // tasto messi nel foglio rifrangono il foglio, non la pagina dietro lo scrim. Registrato solo se
+  // dentro c'e' del vetro che lo campiona.
+  val sheetGlass = rememberGlassBackdrop()
   val dismissThresholdPx = with(density) { FluidSheetDismissTravel.toPx() }
   val flingDismissPx = with(density) { FluidSheetDismissVelocity.toPx() }
 
@@ -1824,6 +1837,7 @@ private fun FluidGlassModalSheet(
               shape = shape,
               role = GlassRole.Modal,
               optics = FluidPopoverOptics,
+              exports = sheetGlass,
             )
           } else if (fullScreen) {
             // Una pagina intera e' opaca di proposito. Il vetro sta sulle cose che galleggiano
@@ -1863,6 +1877,16 @@ private fun FluidGlassModalSheet(
         )
         if (footer != null) {
           Column(modifier = Modifier.fillMaxWidth().then(clearsSystemBar), content = footer)
+        }
+      } else if (backdrop != null) {
+        // Come nel pop-up: il canvas del contenuto e' il foglio, e il vetro che ci sta sopra e'
+        // vetro impilato (`LocalFluidCanvasIsGlass`), non una card su una pagina.
+        CompositionLocalProvider(
+          LocalFluidCanvasBackdrop provides sheetGlass,
+          LocalFluidCanvasIsGlass provides true,
+        ) {
+          content()
+          footer?.invoke(this)
         }
       } else {
         content()

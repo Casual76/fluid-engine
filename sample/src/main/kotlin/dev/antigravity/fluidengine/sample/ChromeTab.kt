@@ -31,6 +31,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidNotification
+import dev.antigravity.fluidengine.ui.fluid.FluidNotificationAction
 import dev.antigravity.fluidengine.ui.fluid.FluidNotificationTone
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
@@ -192,6 +193,31 @@ internal fun ChromeTab(bottomInset: Dp) {
                   title = "Notifica $id",
                   message = "Anche questa rifrange la pagina invece di coprirla.",
                   tone = FluidNotificationTone.Success,
+                ),
+              )
+            }
+          },
+        )
+        FluidListDivider()
+        FluidListRow(
+          title = "Notifica da aprire",
+          // L'unico suggerimento del gesto: la card non ha una maniglia, e senza saperlo non si trova.
+          subtitle = "Tirala giù per aprirla, su per scartarla",
+          onClick = {
+            val id = ++notificationCount
+            scope.launch {
+              notificationHost?.show(
+                FluidNotification(
+                  id = "gallery-open-$id",
+                  title = "Sincronizzazione completata",
+                  message = "Sono arrivati quattordici nuovi voti e due comunicazioni della segreteria. " +
+                    "Chiusa, la notifica ne mostra due righe; tirata giù si apre e mostra il testo " +
+                    "per intero, con le azioni, e resta finché non la chiudi tu. Col dito sopra, " +
+                    "il tempo si ferma.",
+                  tone = FluidNotificationTone.Info,
+                  actions = listOf(
+                    FluidNotificationAction("Apri") { log = "Azione della notifica $id: Apri" },
+                  ),
                 ),
               )
             }

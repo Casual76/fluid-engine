@@ -1097,7 +1097,10 @@ private fun FluidNotificationCard(
     color = if (backdrop == null) surface else Color.Transparent,
     contentColor = MaterialTheme.colorScheme.onSurface,
     border = if (backdrop == null) BorderStroke(0.5.dp, accent.copy(alpha = 0.22f)) else null,
-    shadowElevation = 12.dp,
+    // Con il vetro l'ombra la disegna il vetro (`ShadowElement`). Quella di piattaforma, su una
+    // superficie trasparente, trapela dentro la sagoma: una fascia scura attorno a un rettangolo
+    // chiaro ad angoli vivi, che il testo e l'icona della card attraversano.
+    shadowElevation = if (backdrop == null) 12.dp else 0.dp,
   ) {
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
       Column(

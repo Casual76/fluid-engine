@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,14 +38,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PriorityHigh
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -76,6 +74,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithContent
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
+import dev.antigravity.fluidengine.ui.fluid.FluidChip
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
@@ -106,6 +108,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
@@ -162,6 +165,30 @@ private fun Modifier.fluidContentGlass(enabled: Boolean, shape: Shape): Modifier
 private fun contentGlassAvailable(enabled: Boolean): Boolean =
   enabled && LocalFluidCanvasBackdrop.current != null
 
+/**
+ * L'intestazione di Material, rimasta nel design system dal tempo in cui non ce n'era un'altra.
+ *
+ * È una `LargeTopAppBar`: una barra piena, senza vetro, il cui titolo grande si ripiega dentro di
+ * sé e non *dentro la pagina*. Tutto il resto dell'interfaccia ha un'altra idea di intestazione — il
+ * titolo vive nello scroll e, quando la pagina lo porta sotto la barra di stato, si aggancia a una
+ * barra di vetro che rifrange il contenuto — e questa è la sola superficie rimasta a dire
+ * un'altra cosa.
+ *
+ * Deprecata e non cancellata (la rimozione è prevista per la 3.0). Non c'è una sostituzione a una
+ * riga, perché la barra giusta non è un componente da mettere in cima: è la schermata.
+ *
+ *  - Se la pagina è una lista, il posto è [dev.antigravity.fluidengine.ui.fluid.FluidScreen]: titolo,
+ *    sottotitolo, freccia indietro e azioni (`actions`) li ha già, e porta la barra di vetro.
+ *  - Se la schermata è tua e il titolo sta in una pagina che non è una `LazyColumn` dell'engine,
+ *    [dev.antigravity.fluidengine.ui.fluid.FluidCollapsingTitle] come primo elemento dello scroll e
+ *    [dev.antigravity.fluidengine.ui.fluid.FluidCollapsingTopBar] in cima.
+ */
+@Deprecated(
+  message = "È una LargeTopAppBar di Material, senza vetro e col titolo che si ripiega nella barra " +
+    "invece che nella pagina. Usa FluidScreen (titolo, sottotitolo, indietro e azioni compresi) o, se " +
+    "la schermata è tua, FluidCollapsingTitle + FluidCollapsingTopBar.",
+  level = DeprecationLevel.WARNING,
+)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FluidTopHeader(
@@ -689,6 +716,13 @@ fun FluidSyncNotice(
  * A red dot that cannot be asked *why* is not a status, it is a rumour: the app already knew the
  * failure message and which sections it applied to, and showed neither. Tapping opens what it
  * knows, and offers the one action worth offering when something did not arrive.
+ *
+ * Il dettaglio si apre come un foglio di vetro dentro la composizione ([FluidGlassModalPortal]),
+ * quindi rifrange la pagina invece di dipingerne una copia, **se l'app ha già un host dei modali
+ * alla radice** (un `FluidGlassModalHost` e il suo stato in [LocalFluidGlassModalHostState]).
+ * Senza, non c'è dove disegnarlo: il portale tornerebbe in silenzio e il tocco non farebbe niente,
+ * quindi in quel caso — e solo in quel caso — resta il foglio di piattaforma di prima. L'app non
+ * deve aggiungere niente per averne uno o l'altro: aggiornare l'engine basta.
  */
 @Suppress("DEPRECATION")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -699,6 +733,7 @@ fun FluidSyncAction(
   onRetry: (() -> Unit)? = null,
 ) {
   var showDetails by remember { mutableStateOf(false) }
+  val modalHost = LocalFluidGlassModalHostState.current
 
   FluidSyncIndicator(
     status = status,
@@ -707,62 +742,97 @@ fun FluidSyncAction(
       .clickable(role = Role.Button) { showDetails = true },
   )
 
-  if (showDetails) {
+  if (modalHost != null) {
+    // La variante con l'elemento, non quella booleana: alla chiusura lo stato smette di essere
+    // "aperto" e il pannello deve uscire intero, col testo che aveva, mentre lo scrim sfuma.
+    FluidGlassModalPortal(
+      item = status.takeIf { showDetails },
+      onDismissRequest = { showDetails = false },
+      presentation = FluidGlassModalPresentation.Sheet,
+      paneTitle = SyncDetailsTitle,
+    ) { shown ->
+      // Il foglio di vetro non ha un titolo e non ha un margine per la barra di sistema: il primo lo
+      // metteva `FluidSheet`, il secondo la finestra di piattaforma.
+      Column(modifier = Modifier.navigationBarsPadding()) {
+        Text(
+          text = SyncDetailsTitle,
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+          style = MaterialTheme.typography.titleLarge,
+          textAlign = TextAlign.Center,
+        )
+        FluidSyncDetails(status = shown, onRetry = onRetry, onDone = { showDetails = false })
+      }
+    }
+  } else if (showDetails) {
     FluidSheet(
       onDismissRequest = { showDetails = false },
-      title = "Sincronizzazione",
+      title = SyncDetailsTitle,
     ) {
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(horizontal = 20.dp)
-          .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-      ) {
-        Text(
-          text = status.lastSyncLabel(),
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.SemiBold,
-        )
-        status.message?.takeIf(String::isNotBlank)?.let { message ->
-          FluidInlineMessage(
-            message = message,
-            title = if (status.state == SyncState.OFFLINE) "Nessuna connessione" else "Dettaglio",
-            tone = if (status.state == SyncState.PARTIAL) FluidTone.Warning else FluidTone.Danger,
-          )
-        }
-        if (status.failedSections.isNotEmpty()) {
-          Text(
-            text = "Non aggiornate: ${status.failedSections.joinToString(", ")}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-        if (status.notice != null) {
-          Text(
-            text = "L'anno selezionato non è ancora stato aperto dalla scuola: i dati mostrati sono quelli dell'anno precedente.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-        if (status.message.isNullOrBlank() && status.failedSections.isEmpty() && status.state != SyncState.SYNCING) {
-          Text(
-            text = "Tutti i dati risultano aggiornati.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-        if (onRetry != null) {
-          FluidButton(
-            text = "Riprova adesso",
-            onClick = {
-              showDetails = false
-              onRetry()
-            },
-            fillWidth = true,
-          )
-        }
-      }
+      FluidSyncDetails(status = status, onRetry = onRetry, onDone = { showDetails = false })
+    }
+  }
+}
+
+private const val SyncDetailsTitle = "Sincronizzazione"
+
+/** Quello che sta dentro il dettaglio della sincronizzazione, qualunque sia la superficie che lo porta. */
+@Composable
+private fun FluidSyncDetails(
+  status: SyncStatus,
+  onRetry: (() -> Unit)?,
+  onDone: () -> Unit,
+) {
+  Column(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(horizontal = 20.dp)
+      .padding(bottom = 24.dp),
+    verticalArrangement = Arrangement.spacedBy(14.dp),
+  ) {
+    Text(
+      text = status.lastSyncLabel(),
+      style = MaterialTheme.typography.titleMedium,
+      fontWeight = FontWeight.SemiBold,
+    )
+    status.message?.takeIf(String::isNotBlank)?.let { message ->
+      FluidInlineMessage(
+        message = message,
+        title = if (status.state == SyncState.OFFLINE) "Nessuna connessione" else "Dettaglio",
+        tone = if (status.state == SyncState.PARTIAL) FluidTone.Warning else FluidTone.Danger,
+      )
+    }
+    if (status.failedSections.isNotEmpty()) {
+      Text(
+        text = "Non aggiornate: ${status.failedSections.joinToString(", ")}",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+    if (status.notice != null) {
+      Text(
+        text = "L'anno selezionato non è ancora stato aperto dalla scuola: i dati mostrati sono quelli dell'anno precedente.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+    if (status.message.isNullOrBlank() && status.failedSections.isEmpty() && status.state != SyncState.SYNCING) {
+      Text(
+        text = "Tutti i dati risultano aggiornati.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+    if (onRetry != null) {
+      FluidButton(
+        text = "Riprova adesso",
+        onClick = {
+          onDone()
+          onRetry()
+        },
+        fillWidth = true,
+      )
     }
   }
 }
@@ -824,22 +894,40 @@ fun SyncStatus.lastSyncLabel(nowEpochMillis: Long = System.currentTimeMillis()):
   }
 }
 
+/**
+ * Il pulsante a pillola di prima, sotto il nome che le app già chiamano.
+ *
+ * Era una `AssistChip` di Material con i colori del contenitore secondario: l'unica pillola
+ * dell'interfaccia che non cresceva sotto il dito, non seguiva le molle di [FluidMotion] e non
+ * aveva la sagoma continua. Adesso è un [FluidChip] non selezionato: stessa etichetta, stesso
+ * `onClick`, stesso `modifier`, e il resto lo decide il design system.
+ *
+ * Cosa si vede cambiare: la pillola è quella di [FluidChip] — una velatura neutra al posto del
+ * contenitore secondario, e alta almeno 48 dp (la `AssistChip` ne disegnava 32 dentro un bersaglio
+ * da 48) — e l'etichetta sta su una riga sola. Un'azione che prima era un chip colorato diventa un
+ * chip quieto: se l'azione deve spiccare, è un [FluidButton] (`Tinted`).
+ *
+ * Deprecata e non cancellata (la rimozione è prevista per la 3.0).
+ */
+@Deprecated(
+  message = "Era una AssistChip di Material; adesso è un FluidChip non selezionato. Usa FluidChip " +
+    "(o FluidButton con stile Tinted, se l'azione deve spiccare).",
+  replaceWith = ReplaceWith(
+    "FluidChip(label = label, selected = false, onClick = onClick, modifier = modifier)",
+    "dev.antigravity.fluidengine.ui.fluid.FluidChip",
+  ),
+)
 @Composable
 fun FluidQuickAction(
   label: String,
   modifier: Modifier = Modifier,
   onClick: () -> Unit,
 ) {
-  AssistChip(
-    modifier = modifier,
+  FluidChip(
+    label = label,
+    selected = false,
     onClick = onClick,
-    label = { Text(label) },
-    colors = AssistChipDefaults.assistChipColors(
-      containerColor = MaterialTheme.colorScheme.secondaryContainer,
-      labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-      leadingIconContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-      trailingIconContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ),
+    modifier = modifier,
   )
 }
 
@@ -1232,6 +1320,28 @@ private fun toneColors(tone: FluidTone): ToneColors {
   }
 }
 
+/**
+ * La scheda in evidenza di prima: un titolo, una frase e un'icona su un contenitore tinto.
+ *
+ * È una `Surface` di Material con l'angolo `extraLarge`, cioè circolare — una violazione della
+ * prima regola del design system dentro il design system. Disegna un riquadro tinto e nient'altro:
+ * niente tono che segua la sezione, niente motivo, niente dati, e l'icona di default è un cappello
+ * da laureato — un'idea di dominio che l'engine non dovrebbe avere.
+ *
+ * Deprecata e non cancellata (la rimozione è prevista per la 3.0). Non c'è una sostituzione a una
+ * riga, perché le due strade che la rimpiazzano non hanno la stessa forma:
+ *
+ *  - dove la scheda apre una schermata piena di dati, è [dev.antigravity.fluidengine.ui.fluid.FluidHero]
+ *    (tono, motivo, un valore in primo piano, fatti di contorno, azione);
+ *  - dove serviva solo un riquadro che dica una cosa, è [FluidCard] con `highlighted = true` e il
+ *    testo dentro, con l'angolo continuo e la pressione dell'engine.
+ */
+@Deprecated(
+  message = "Surface di Material con l'angolo circolare e un'icona di default da scuola. Usa FluidHero " +
+    "(schermata piena di dati: tono, motivo, valore) oppure FluidCard(highlighted = true) per un " +
+    "riquadro che dice una cosa.",
+  level = DeprecationLevel.WARNING,
+)
 @Composable
 fun FluidHeroCard(
   title: String,
@@ -1370,6 +1480,34 @@ fun FluidLoading(
   )
 }
 
+/**
+ * La riga semplice di prima, sotto il nome che le app già chiamano.
+ *
+ * Era una `ListItem` di Material scritta a mano, con una gerarchia sua — il «sottotitolo» *sopra* il
+ * titolo, in tinta d'accento, e la frase sotto chiamata `supporting` — e una freccia di Material a
+ * destra. Adesso è [FluidListRow], la riga di tutto il design system: stessa disposizione dei testi
+ * (il vecchio `subtitle` è l'`eyebrow`, il vecchio `supporting` è il `subtitle`), stessa pressione a
+ * tinta, stessa freccia, e `trailing` va nel `badge`.
+ *
+ * Una cosa resta come prima: un `trailing` proprio sostituisce la freccia, non le sta accanto.
+ *
+ * Cosa si vede cambiare: i testi prendono la tipografia di [FluidListRow] (la frase di sostegno è
+ * `bodyMedium` e non più `bodySmall`), l'eyebrow ha la tinta del tono `Primary` invece dell'accento
+ * pieno, e la freccia è la chevron del design system. Fuori da un [FluidListGroup] resta una riga
+ * sola, senza il contenitore, come prima.
+ *
+ * Deprecata e non cancellata (la rimozione è prevista per la 3.0).
+ */
+@Deprecated(
+  message = "Era una ListItem di Material con una gerarchia sua; adesso è una FluidListRow. Usa " +
+    "FluidListRow (il vecchio subtitle è l'eyebrow, il vecchio supporting è il subtitle).",
+  replaceWith = ReplaceWith(
+    "FluidListRow(title = title, subtitle = supporting ?: \"\", modifier = modifier, " +
+      "eyebrow = subtitle, tone = FluidTone.Primary, badge = trailing, onClick = onClick)",
+    "dev.antigravity.fluidengine.ui.theme.FluidListRow",
+    "dev.antigravity.fluidengine.ui.theme.FluidTone",
+  ),
+)
 @Composable
 fun FluidListItem(
   title: String,
@@ -1379,47 +1517,17 @@ fun FluidListItem(
   onClick: (() -> Unit)? = null,
   trailing: (@Composable () -> Unit)? = null,
 ) {
-  Column(
-    modifier = modifier
-      .fillMaxWidth()
-      .fluidRowPressable(onClick = onClick),
-  ) {
-    ListItem(
-      colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-      headlineContent = {
-        Text(
-          text = title,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.SemiBold,
-        )
-      },
-      overlineContent = {
-        Text(
-          text = subtitle,
-          style = MaterialTheme.typography.labelLarge,
-          color = MaterialTheme.colorScheme.primary,
-        )
-      },
-      supportingContent = supporting?.let {
-        {
-          Text(
-            text = it,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-      },
-      trailingContent = trailing ?: if (onClick != null) {
-        {
-          Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-      } else {
-        null
-      },
-    )
-  }
+  FluidListRow(
+    title = title,
+    subtitle = supporting.orEmpty(),
+    modifier = modifier,
+    eyebrow = subtitle,
+    // L'eyebrow di una riga prende il colore del tono, e il tono di una riga senza icona non ha altro
+    // da colorare: Primary tiene la linea in cima all'accento, com'era.
+    tone = FluidTone.Primary,
+    badge = trailing,
+    // Un `trailing` proprio sostituiva la freccia; nella riga nuova il badge le sta accanto.
+    disclosure = trailing == null,
+    onClick = onClick,
+  )
 }

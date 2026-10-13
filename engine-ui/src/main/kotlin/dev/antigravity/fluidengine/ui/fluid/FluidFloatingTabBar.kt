@@ -781,7 +781,17 @@ fun FluidFloatingTabBar(
             tab(
                 key = item.route,
                 title = { Text(item.label) },
-                icon = { Icon(item.icon, contentDescription = null) },
+                // Se è la scheda scelta: lo diceva già FluidTabBar, che adesso passa di qui. Sul glifo
+                // e non sulla scheda, che la barra costruisce da sé e che è un `clickable`: unisce la
+                // semantica dei figli alla propria. Le copie nascoste della riga (quella che la
+                // pillola campiona) la cancellano, quindi non si raddoppia.
+                icon = {
+                    Icon(
+                        item.icon,
+                        contentDescription = null,
+                        modifier = Modifier.fluidTabSelected(item.route == selectedRoute),
+                    )
+                },
                 onClick = { if (item.route == selectedRoute) onReselect(item) else onSelect(item) },
             )
         }

@@ -153,8 +153,8 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 | `FluidScreen` | la schermata: titolo grande dentro lo scroll, barra di vetro che appare solo quando il titolo passa sotto |
 | `FluidScreen.overlay` | chrome flottante disegnato dopo il body, con il `GlassBackdropState` corretto per quella destinazione |
 | `FluidScreenSurface` | lo sfondo della finestra |
-| `FluidTabBar`, `FluidTabRail` | navigazione principale a pillola |
-| `FluidSheet`, `FluidAlert`, `FluidGrabber` | fogli modali e avvisi |
+| `FluidFloatingTabBar` (+ `rememberFluidFloatingTabBarScrollConnection`), `FluidTabRail` | navigazione principale a pillola: la barra in basso, che si ripiega scorrendo, e il rail per gli schermi larghi |
+| `FluidGlassModalPortal` (+ `FluidGlassModalHost` alla radice), `FluidAlert`, `FluidGrabber` | pop-up e fogli in vetro dentro la composizione, e avvisi |
 | `FluidContainerScaffold` | contenitore + dettaglio |
 | `FluidSectionIndex` | indice laterale per liste lunghe |
 | `FluidNotificationHost` | notifiche contestuali dentro l'app |
@@ -164,20 +164,38 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 
 | | |
 |---|---|
-| `FluidListGroup`, `FluidListRow`, `FluidListDivider`, `FluidListItem` | la lista raggruppata |
-| `FluidCard`, `FluidHeroCard`, `FluidEditorialCard` | superfici |
-| `FluidSectionHeader`, `FluidSectionTitle`, `FluidSectionFootnote` | intestazioni e note |
+| `FluidListGroup`, `FluidListRow`, `FluidListDivider` | la lista raggruppata |
+| `FluidCard`, `FluidHero`, `FluidEditorialCard` | superfici |
+| `FluidSectionHeader`, `FluidSectionTitle`, `FluidSectionFootnote` | intestazioni e note: `FluidSectionHeader` è la didascalia quieta sopra un gruppo; `FluidSectionTitle` (eyebrow in accento + titolo grande) apre una sezione di pagina |
 | `FluidStatusBadge`, `FluidStatChip`, `FluidMetricTile`, `FluidMiniChart` | dati in piccolo |
 | `FluidEmptyState`, `FluidLoading`, `FluidLoadingBlock`, `FluidInlineMessage` | stati |
 | `FluidSyncIndicator`, `FluidSyncNotice`, `FluidSyncAction` | stato della sincronizzazione |
 
 **Controlli**
 
-`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidSlider` (la maniglia e' una lente sulla pista, e un trascinamento non lascia scorrere la pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`. Come rispondono al dito: vedi "La pressione" qui sotto.
+`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidSlider` (la maniglia e' una lente sulla pista, e un trascinamento non lascia scorrere la pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidMorphMenuButton` (+ `FluidMorphMenuHost` alla radice: il tasto che diventa il proprio menù), `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`. Come rispondono al dito: vedi "La pressione" qui sotto.
 
 **Token**
 
 `FluidRadius` (Small 10, Control 12, Card 18, Group 22, Sheet 38), `FluidCapsuleShape`, `FluidTextStyles` (`uppercaseCaption`, `numeric`, `largeNumeric` con cifre tabulari), `FluidTone` (Primary/Success/Warning/Danger/Info/Neutral), `GlassDefaults`, `GlassOptics` e `GlassRole` per il materiale traslucido.
+
+**Deprecati**
+
+Restano, compilano e funzionano — la rimozione è prevista per la 3.0 — ma non vanno nel codice nuovo. Dove la sostituzione è fedele il vecchio nome *delega* al nuovo: chi aggiorna l'engine prende il look giusto senza toccare una riga, e il compilatore dice dove andare quando c'è un motivo per andarci.
+
+| Deprecato | Usa | |
+|---|---|---|
+| `FluidTabBar` | `FluidFloatingTabBar(items = …, scrollConnection = …)` | delega. La barra diventa una capsula grande quanto le schede, al centro (non più da lato a lato), alta 60 dp invece di 64; non si ripiega finché non le dai una `rememberFluidFloatingTabBarScrollConnection()` attaccata alla pagina con `nestedScroll`. Margini e `navigationBarsPadding()` restano di chi la posa. Le schede della barra dicono ancora se sono selezionate, ma non portano più il ruolo `Tab` né il tag di test `top_level_<rotta>` (il rail li tiene): un test cerca la scheda dall'etichetta. `FluidTabRail` resta |
+| `FluidFoldingTabBar` | `FluidFloatingTabBar` | delega (dalla 2.0.0) |
+| `FluidGlassMenuButton` | `FluidMorphMenuButton` + `FluidMorphMenuHost` | **non delega**: il nuovo vuole uno stato (`rememberFluidMorphMenuState()`) e un host alla radice, accanto a `FluidGlassModalHost`. `FluidBarAction(actions = …)` non passa di qui e non cambia |
+| `FluidSheet` | `FluidGlassModalPortal` | non delega: il foglio di piattaforma vive in una finestra sua e non rifrange la pagina. Resta per chi ha davvero bisogno di una finestra separata |
+| `FluidGlassSwitch` | `FluidSwitch` | delega |
+| `FluidQuickAction` | `FluidChip(selected = false)` | delega. La pillola è quella di `FluidChip`: velatura neutra, alta almeno 48 dp (erano 32), etichetta su una riga |
+| `FluidListItem` | `FluidListRow` | delega. Il vecchio `subtitle` (sopra il titolo) è l'`eyebrow`, il vecchio `supporting` è il `subtitle`, `trailing` va nel `badge` |
+| `FluidTopHeader` | `FluidScreen`, o `FluidCollapsingTitle` + `FluidCollapsingTopBar` | non delega: è una `LargeTopAppBar` di Material, e la barra giusta non è un componente da mettere in cima ma la schermata |
+| `FluidHeroCard` | `FluidHero`, o `FluidCard(highlighted = true)` | non delega: una `Surface` di Material con angolo circolare e un'icona di default da scuola |
+
+`FluidSyncAction` non è deprecato, ma cambia dentro: il dettaglio della sincronizzazione si apre come foglio di vetro (`FluidGlassModalPortal`) se l'app ha già un host dei modali alla radice, altrimenti resta il foglio di piattaforma di prima. Non serve aggiungere niente.
 
 ## Regole per chi scrive codice nuovo
 

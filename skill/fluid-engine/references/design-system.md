@@ -9,8 +9,8 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 |---|---|
 | `FluidScreen(title, subtitle, onBack, actions, titleFacets, isRefreshing, onRefresh, overlay) { LazyListScope }` | la schermata: titolo grande dentro lo scroll, barra di vetro che appare quando il titolo passa sotto; `overlay` riceve il backdrop per chrome flottante sicuro |
 | `FluidScreenSurface` | lo sfondo della finestra |
-| `FluidTabBar` / `FluidTabRail` | navigazione principale a pillola (`FluidTabItem`) |
-| `FluidSheet`, `FluidAlert`, `FluidGrabber` | fogli modali e avvisi (`FluidAlertAction`) |
+| `FluidFloatingTabBar` / `FluidTabRail` | navigazione principale a pillola (`FluidTabItem`): la barra in basso, che si ripiega scorrendo (vedi `rememberFluidFloatingTabBarScrollConnection` più sotto), e il rail per gli schermi larghi |
+| `FluidGlassModalPortal` (+ `FluidGlassModalHost` alla radice), `FluidAlert`, `FluidGrabber` | pop-up e fogli in vetro dentro la composizione, e avvisi (`FluidAlertAction`) |
 | `FluidContainerScaffold` | contenitore + dettaglio |
 | `FluidSectionIndex` | indice laterale per liste lunghe (`FluidSectionAnchor`) |
 | `FluidNotificationHost`, `rememberFluidNotificationHostState` | notifiche contestuali dentro l'app (`FluidNotification`, `FluidNotificationTone`) |
@@ -25,13 +25,12 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 | `FluidListGroup { }` | il contenitore della lista raggruppata |
 | `FluidListRow(title, subtitle, eyebrow, meta, tone, badge, leading, onClick, onLongClick)` | la riga |
 | `FluidListDivider()` | il separatore rientrato |
-| `FluidListItem` | riga semplice, senza gruppo |
-| `FluidCard`, `FluidHeroCard`, `FluidEditorialCard` | superfici |
-| `FluidSectionHeader`, `FluidSectionTitle`, `FluidSectionFootnote` | intestazioni e note |
+| `FluidCard`, `FluidHero`, `FluidEditorialCard` | superfici (`FluidCard(highlighted = true)` per un riquadro che dice una cosa, `FluidHero` per l'apertura di una schermata piena di dati) |
+| `FluidSectionHeader`, `FluidSectionTitle`, `FluidSectionFootnote` | intestazioni e note: `FluidSectionHeader` è la didascalia quieta sopra un gruppo, `FluidSectionTitle` (eyebrow in accento + titolo grande) apre una sezione di pagina |
 | `FluidStatusBadge`, `FluidStatChip`, `FluidMetricTile`, `FluidMiniChart` | dati in piccolo |
 | `FluidEmptyState(title, detail)`, `FluidLoading`, `FluidLoadingBlock`, `FluidInlineMessage` | stati |
 | `FluidSyncIndicator`, `FluidSyncNotice`, `FluidSyncAction`, `SyncStatus.noticeMessage()`, `SyncStatus.lastSyncLabel()` | stato della sincronizzazione |
-| `FluidQuickAction`, `FluidTopHeader`, `FluidPillTabs`, `FluidAccentLabel` | varie |
+| `FluidPillTabs`, `FluidAccentLabel` | varie |
 
 ## Controlli
 
@@ -82,14 +81,35 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
   `fluidExpandOrigin`, `fluidGlassModalObscured` — il pop-up in vetro dentro la composizione
 - `FluidContextAction`, `fluidContextMenu`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`,
   e `FluidListRow(contextActions = ...)` — il menu contestuale iOS
-- `FluidGlassMenuButton` — il tasto che si trasforma nel proprio menu
-- `FluidFoldingTabBar`, `rememberFluidBarFold` — la barra che si piega scorrendo. Dalla 1.31.0 sa
-  portare una banda sopra la fila (`accessory`, che ripiegandosi entra *nella* fila invece di
-  sparire), diventare un campo di ricerca (`searchMode` + `searchContent`: cresce il `trailing`),
-  farsi disegnare le schede dall'app (`tabIcon`) e stare ferma mentre qualcuno la misura
-  (`FluidBarFold.locked`), e farsi scegliere il materiale (`tint`). L'indicatore tiene un bordo
-  anche a riposo (`GlassOptics.edgeFloor`) e il trascinamento e' criticamente smorzato
+- `FluidMorphMenuButton` + `FluidMorphMenuHost` (con `rememberFluidMorphMenuState()`) — il tasto
+  che si trasforma nel proprio menu: una superficie sola, che viaggia dal tasto al pannello e torna
+  tasto. Lo stato e l'host stanno alla radice, accanto a `FluidGlassModalHost`. Sostituisce
+  `FluidGlassMenuButton`, che mostra il pannello *sopra* il tasto (due superfici)
+- `FluidFloatingTabBar`, `rememberFluidFloatingTabBarScrollConnection` — la barra di navigazione:
+  una capsula che si ripiega in una pillola mentre la pagina scorre. La connessione va attaccata
+  alla pagina (`Modifier.nestedScroll(connection)`); senza, la barra resta aperta. Due forme: **a
+  elenco**, `FluidFloatingTabBar(items = List<FluidTabItem>, selectedRoute, onSelect,
+  scrollConnection, backdrop)` per tre destinazioni con un'icona e una parola, e **a DSL**,
+  `FluidFloatingTabBar(selectedTabKey, scrollConnection, backdrop = …) { tab(key, title, icon,
+  onClick); standaloneTab(…) }`, che porta anche una banda sopra la fila (`inlineAccessory` /
+  `expandedAccessory`), un campo di ricerca che cresce nella barra (`searchMode` +
+  `searchBarContent`), il lato in cui si raccoglie (`foldAlignment`) e il materiale (`glass`,
+  `accentColor`). Margini e `navigationBarsPadding()` li mette chi la posa
+  (`FluidFloatingTabBarDefaults.HorizontalMargin` / `BottomMargin`, e `ContentInset` per lo spazio
+  che la pagina deve lasciare). L'indicatore tiene un bordo anche a riposo
+  (`GlassOptics.edgeFloor`) e il trascinamento e' criticamente smorzato
   (`GlassDragAnimation.velocityDampingRatio`)
+- **Deprecati** (restano fino alla 3.0): `FluidTabBar` e `FluidFoldingTabBar` — delegano a
+  `FluidFloatingTabBar`, quindi chi li chiama prende il vetro nuovo senza toccare niente, ma la
+  barra e' una capsula grande quanto le schede (non da lato a lato) e si ripiega solo se le dai una
+  connessione; `FluidGlassMenuButton` → `FluidMorphMenuButton` + host (non delega: serve lo
+  stato); `FluidSheet` → `FluidGlassModalPortal`; `FluidGlassSwitch` → `FluidSwitch`;
+  `FluidQuickAction` → `FluidChip(selected = false)`; `FluidListItem` → `FluidListRow` (il vecchio
+  `subtitle` e' l'`eyebrow`, `supporting` e' il `subtitle`, `trailing` e' il `badge`);
+  `FluidTopHeader` → `FluidScreen`, o `FluidCollapsingTitle` + `FluidCollapsingTopBar` (non
+  delega); `FluidHeroCard` → `FluidHero`, o `FluidCard(highlighted = true)` (non delega). Nel
+  codice nuovo non si scrivono. `FluidSyncAction` non e' deprecato: il suo dettaglio si apre come
+  foglio di vetro se c'e' un host dei modali, altrimenti come foglio di piattaforma
 - `AccentPreset`, `fluidAccentPresets`, `FluidDefaultBrand`, `fluidBrandAccent(isDark, brand)`
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche
@@ -123,7 +143,7 @@ Un overlay che deve campionare la schermata va nello slot `FluidScreen.overlay`.
 barra deve rifrangere *la barra*: darle la pagina ci apre dentro un buco, ed è esattamente quello
 che sembra. La barra pubblica il proprio materiale con `exports = unAltroGlassBackdropState`, e chi
 ci sta sopra lo compone con `rememberCombinedGlassBackdrop(pagina, barra)`. `FluidScreen` e
-`FluidTabBar` lo fanno già e passano il risultato in `LocalGlassBackdrop`, quindi un
+la tab bar lo fanno già e passano il risultato in `LocalGlassBackdrop`, quindi un
 `FluidBarAction` dentro `actions` è a posto senza che l'app tocchi niente.
 
 **La taratura sta nella lente, non nella sfocatura.** Il raggio di riferimento e' 2 dp: sopra gli
@@ -221,7 +241,7 @@ app che aggiorna se li ritrova trasformati:
   di restare lì sotto. Il call-site non cambia di una riga.
 - **`FluidMorphMenu`** (`FluidMorphMenuButton` + `FluidMorphMenuHost` alla radice): il tasto che si
   espande nel proprio menù contestuale. Questo va chiamato, ed è il sostituto di
-  `FluidGlassMenuButton` dove serve la trasformazione.
+  `FluidGlassMenuButton` (deprecato dalla 2.12.0) dove serve la trasformazione.
 - **Restano com'erano, per scelta**: il menù contestuale delle righe (`fluidContextMenu`, la sua
   riga sollevata è già la sua storia) e `FluidGlassModalPresentation.Sheet`.
 

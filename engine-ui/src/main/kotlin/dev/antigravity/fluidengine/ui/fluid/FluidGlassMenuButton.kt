@@ -56,7 +56,35 @@ import androidx.compose.ui.unit.dp
  * The unfolded pane is drawn by [FluidGlassModalHost] at the root of the app, so it clears the tab
  * bar and anything else the page is sitting under. With no host in scope the long press does
  * nothing and the button is an ordinary button — which is the right degradation, not a crash.
+ *
+ * **Deprecato** in favore di [dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton], e a
+ * dividerli è la forma del menù, non il nome. Qui il pannello dell'host *compare sopra* il tasto:
+ * sono due superfici e una staffetta fra loro, per quanto vicina. Il tasto nuovo è un'ancora sola, e
+ * la superficie che viaggia dal tasto al menù è una sola, scolpita da Fluid-physics: parte dalla
+ * capsula, arriva al pannello, e al congedo torna capsula.
+ *
+ * Non c'è una sostituzione a una riga, perché il nuovo ha bisogno di una cosa che questo non ha: un
+ * host suo alla radice dell'app. Per migrare:
+ *
+ *  1. alla radice, accanto al [FluidGlassModalHost], `val menu = rememberFluidMorphMenuState()` e
+ *     `FluidMorphMenuHost(state = menu, backdrop = backdrop)`, disegnato sopra la tab bar;
+ *  2. dove c'era `FluidGlassMenuButton(actions, onClick, text = …, icon = …)`, ora c'è
+ *     `FluidMorphMenuButton(state = menu, actions = actions, onClick = onClick, text = …,
+ *     icon = …, backdrop = backdrop)`. Lo stato arriva da un composition local o da un parametro,
+ *     come l'host dei modali.
+ *
+ * Due parametri non hanno corrispondente: [shape], perché la superficie che viaggia parte sempre da
+ * una capsula, e [contentDescription], perché l'etichetta del tasto è già quella che si legge.
+ *
+ * Le azioni di barra che una schermata dichiara con `FluidBarAction(actions = …)` **non passano di
+ * qui** e non cambiano: continuano a funzionare così come sono.
  */
+@Deprecated(
+  message = "Il menù compare sopra il tasto: due superfici. FluidMorphMenuButton (con " +
+    "FluidMorphMenuHost alla radice) fa viaggiare il tasto stesso fino a diventare il menù. " +
+    "Non ha una sostituzione a una riga: serve lo stato e l'host, vedi il KDoc.",
+  level = DeprecationLevel.WARNING,
+)
 @Composable
 fun FluidGlassMenuButton(
   actions: () -> List<FluidContextAction>,

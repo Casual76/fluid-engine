@@ -2,17 +2,13 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,24 +24,16 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -54,18 +42,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastCoerceIn
-import androidx.compose.ui.util.fastRoundToInt
-import androidx.compose.ui.util.lerp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
-import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
-import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
-import kotlin.math.abs
-import kotlin.math.sign
 
 @Immutable
 data class FluidTabItem(
@@ -83,6 +61,13 @@ data class FluidTabItem(
  */
 internal const val FluidTabIndicatorEdgeFloor = 0.5f
 
+/**
+ * Le misure della barra di prima e del rail.
+ *
+ * [Height] e [RailWidth] sono ancora quelle di [FluidTabRail]: 64 dp per scheda, 84 dp di larghezza.
+ * Per la barra in basso i numeri giusti sono quelli di [FluidFloatingTabBarDefaults], e
+ * [ContentInset] di qui ne riserva 4 dp in più di quanti la barra nuova ne occupi.
+ */
 object FluidTabBarDefaults {
   val Height = 64.dp
   val HorizontalMargin = 14.dp
@@ -113,21 +98,60 @@ internal fun tabIndicatorTiming(reducedMotion: Boolean): TabIndicatorTiming =
   }
 
 /**
- * The floating tab bar: a capsule of glass with a lens sliding inside it.
+ * La barra di prima, sotto il nome che le app già chiamano.
  *
- * Three surfaces, stacked, and the arrangement is the whole trick:
+ * Adesso è [FluidFloatingTabBar] nella sua forma a elenco: chi la chiamava prende il vetro vero senza
+ * toccare una riga — la rifrazione sotto la pillola, la riga tinta nascosta che la pillola campiona
+ * attraverso se stessa, l'allungamento che segue il dito trascinato. Qui dentro non si decide più
+ * niente su come appare la barra: è il motivo per cui un'app dipende da un engine invece di
+ * copiarne uno, e un engine che migliora un componente lasciandone indietro il nome non ha
+ * migliorato niente per chi lo usava.
  *
- *  1. **The bar.** Glass over the page, with the tabs printed on it in the resting colour.
- *  2. **A second copy of the tabs, invisible.** Drawn at zero alpha, tinted with the accent, and
- *     recorded into its own layer. Nobody ever sees it directly.
- *  3. **The indicator.** A lens that refracts the page *and* that invisible accent copy. Wherever it
- *     sits, the tab underneath appears through it — magnified by the lens and in the accent colour.
+ * Deprecata e non cancellata, perché cancellarla farebbe pagare a ogni app un miglioramento che non
+ * ha chiesto, con una scadenza che non ha scelto (la rimozione è prevista per la 3.0). Nel
+ * frattempo funziona, *è* la barra nuova, e la deprecazione dice dove andare quando c'è un motivo
+ * per andarci.
  *
- * So the selected tab is not painted a different colour. It is *seen through glass*, which is what
- * makes the selection look like it belongs to a physical object rather than to a stylesheet. The
- * indicator can also be dragged: it follows the finger, squashes in the direction it is travelling,
- * and settles on whichever tab it is nearest when you let go.
+ * **Cosa si vede cambiare**, letto da come le app la posano:
+ *
+ *  - **La larghezza.** Quella di prima riempiva la larghezza che le davi. La nuova è una capsula
+ *    grande quanto le sue schede (fino a [FluidFloatingTabBarDefaults.TabWidth] ciascuna, di meno
+ *    se non ci stanno) e sta al centro della larghezza offerta: con tre schede su un telefono è
+ *    più stretta di prima, non una barra da lato a lato.
+ *  - **L'altezza.** [FluidFloatingTabBarDefaults.OpenHeight] (60 dp) invece di 64. È un pavimento:
+ *    col carattere ingrandito la barra cresce invece di tagliare l'etichetta. Chi riserva lo spazio
+ *    con [FluidTabBarDefaults.ContentInset] ne lascia 4 dp in più del necessario;
+ *    [FluidFloatingTabBarDefaults.ContentInset] è il numero giusto.
+ *  - **I margini restano di chi la posa.** Né la barra di prima né la nuova portano dentro di sé il
+ *    margine laterale, quello in fondo o lo spazio della barra di sistema: `navigationBarsPadding()`
+ *    e [FluidFloatingTabBarDefaults.HorizontalMargin] / [FluidFloatingTabBarDefaults.BottomMargin]
+ *    li mette il contenitore, e restano gli stessi. Un'app che la posava senza margini la vedrà
+ *    ancora senza margini, ma capsula e centrata invece che a filo.
+ *  - **Non si ripiega.** La barra nuova sa ridursi a una pillola mentre la pagina scorre; qui
+ *    nessuno la guida e resta aperta, come prima. Per farla ripiegare serve [FluidFloatingTabBar]
+ *    chiamata direttamente, con una [rememberFluidFloatingTabBarScrollConnection] attaccata alla
+ *    pagina con `nestedScroll` — che è anche ciò che le permette di tenere fermo il vetro mentre la
+ *    pagina scorre.
+ *  - **Cosa dice a chi non la vede.** Ogni scheda dice ancora se è quella scelta (`selected`). Non
+ *    portano più il ruolo `Tab` né il tag di test `top_level_<rotta>`: sono proprietà del nodo
+ *    della scheda, che la barra nuova costruisce da sé, e una proprietà messa su un discendente non
+ *    ci sale. Un test che cercava il tag cerca la scheda dalla sua etichetta (`hasText`); [FluidTabRail]
+ *    li tiene entrambi.
+ *
+ * Il rail per gli schermi larghi, [FluidTabRail], non ha un equivalente e resta.
  */
+@Deprecated(
+  message = "È FluidFloatingTabBar con la lista di schede, e ne ha il vetro: usa quella. Cambia la " +
+    "forma (una capsula grande quanto le schede, al centro, non una barra da lato a lato) e non si " +
+    "ripiega finché non le dai una scroll connection; i margini restano di chi la posa.",
+  replaceWith = ReplaceWith(
+    "FluidFloatingTabBar(items = items, selectedRoute = selectedRoute, onSelect = onSelect, " +
+      "scrollConnection = rememberFluidFloatingTabBarScrollConnection(), backdrop = backdrop, " +
+      "modifier = modifier, onReselect = onReselect)",
+    "dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBar",
+    "dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection",
+  ),
+)
 @Composable
 fun FluidTabBar(
   items: List<FluidTabItem>,
@@ -137,243 +161,36 @@ fun FluidTabBar(
   modifier: Modifier = Modifier,
   onReselect: (FluidTabItem) -> Unit = {},
 ) {
-  if (items.isEmpty()) return
+  // Una connessione che nessuna pagina porta con sé: la barra non ha niente da cui lasciarsi
+  // ripiegare, e `Never` lo dice invece di lasciarlo dedurre.
+  val scroll = rememberFluidFloatingTabBarScrollConnection(
+    inlineBehavior = FluidFloatingTabBarInlineBehavior.Never,
+  )
+  FluidFloatingTabBar(
+    items = items,
+    selectedRoute = selectedRoute,
+    onSelect = onSelect,
+    scrollConnection = scroll,
+    backdrop = backdrop,
+    modifier = modifier,
+    onReselect = onReselect,
+  )
+}
 
-  val tint = GlassDefaults.floatingTint()
-  val accent = MaterialTheme.colorScheme.primary
-  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
-  val density = LocalDensity.current
-  val scope = rememberCoroutineScope()
-
-  // The bar's own finished material, and the accent-tinted copy of its contents. The indicator
-  // refracts both, in that order, so it holds the same image a real lens on this bar would.
-  val barGlass = rememberGlassBackdrop()
-  val tabsGlass = rememberGlassBackdrop()
-  // The lens sits on the *bar*, so what it refracts is the bar's finished material with the accent
-  // copy of the tabs laid over it — never the page directly. Handing it the page instead punches a
-  // hole straight through the bar, which is exactly what it looks like.
-  val indicatorBackdrop = rememberCombinedGlassBackdrop(barGlass, tabsGlass)
-
-  val selectedIndex = items.indexOfFirst { it.route == selectedRoute }.coerceAtLeast(0)
-
-  BoxWithConstraints(
-    modifier = modifier.fillMaxWidth().height(FluidTabBarDefaults.Height),
-    contentAlignment = Alignment.CenterStart,
-  ) {
-    val inset = FluidTabBarDefaults.IndicatorInset
-    val tabWidth = with(density) {
-      (constraints.maxWidth.toFloat() - inset.toPx() * 2f) / items.size
-    }
-
-    // How far the whole bar is dragged past its ends. Rubber-banded to a few dp, so pulling the
-    // indicator against the first or last tab moves the bar itself a little and then refuses.
-    val overscroll = remember { Animatable(0f) }
-    val barOffset by remember(density, constraints) {
-      derivedStateOf {
-        val fraction = (overscroll.value / constraints.maxWidth).fastCoerceIn(-1f, 1f)
-        with(density) { 4.dp.toPx() * fraction.sign * EaseOut.transform(abs(fraction)) }
-      }
-    }
-
-    var currentIndex by remember { mutableIntStateOf(selectedIndex) }
-    // Letti adesso, non catturati allora: l'animazione sopravvive alle ricomposizioni e le sue
-    // lambda vivono piu' a lungo di qualunque valore abbiano chiuso dentro. Vedi la nota gemella
-    // in FluidFoldingTabBar, dove la cattura stantia declassava ogni trascinamento a riselezione.
-    val currentItems by rememberUpdatedState(items)
-    val currentOnSelect by rememberUpdatedState(onSelect)
-    val indicator = remember(scope, items.size, tabWidth, isLtr) {
-      GlassDragAnimation(
-        animationScope = scope,
-        initialValue = selectedIndex.toFloat(),
-        valueRange = 0f..(items.size - 1).toFloat(),
-        visibilityThreshold = 0.001f,
-        initialScale = 1f,
-        // Grows to the full height of the bar while held: the lens is being lifted off the surface.
-        pressedScale = if (reducedMotion) 1f else 62f / 56f,
-        // Critically damped, so the stretch tracks the drag instead of ringing after it; see
-        // GlassDragAnimation.velocityDampingRatio.
-        velocityDampingRatio = 1f,
-        onDragStopped = {
-          val target = targetValue.fastRoundToInt().fastCoerceIn(0, currentItems.size - 1)
-          animateToValue(target.toFloat())
-          scope.launchOverscrollSettle(overscroll)
-          if (target != currentIndex) {
-            currentIndex = target
-            currentItems.getOrNull(target)?.let { currentOnSelect(it) }
-          }
-        },
-        onDrag = { _, dragAmount ->
-          if (tabWidth <= 0f) return@GlassDragAnimation
-          val direction = if (isLtr) 1f else -1f
-          updateValue(
-            (targetValue + dragAmount.x / tabWidth * direction)
-              .fastCoerceIn(0f, (items.size - 1).toFloat()),
-          )
-          scope.launchOverscrollDrag(overscroll, dragAmount.x)
-        },
-      )
-    }
-
-    // Selection can also arrive from outside — a deep link, the back stack, a restored state. The
-    // indicator follows it without reporting anything back: whoever changed the route already knows.
-    LaunchedEffect(selectedIndex, indicator) {
-      if (currentIndex != selectedIndex) {
-        currentIndex = selectedIndex
-        if (reducedMotion) indicator.snapToValue(selectedIndex.toFloat())
-        else indicator.animateToValue(selectedIndex.toFloat())
-      }
-    }
-
-    val onDark = GlassDefaults.isDarkSurface()
-    val highlight = remember(scope, tabWidth, isLtr, reducedMotion, onDark) {
-      GlassTouchHighlight(
-        animationScope = scope,
-        strength = { if (reducedMotion) 0f else 1f },
-        onDarkSurface = onDark,
-        // The hotspot rides the indicator rather than the finger: on a tab bar the thing being
-        // pushed is the lens, and lighting up somewhere else would break that.
-        position = { size, _ ->
-          val centre = (indicator.value + 0.5f) * tabWidth + barOffset
-          Offset(if (isLtr) centre else size.width - centre, size.height / 2f)
-        },
-      )
-    }
-
-    val tabs: @Composable RowScope.() -> Unit = {
-      items.forEachIndexed { index, item ->
-        key(item.route) {
-          FluidTabItemContent(
-            item = item,
-            selected = index == currentIndex,
-            modifier = Modifier.weight(1f),
-            onClick = {
-              if (item.route == selectedRoute) {
-                onReselect(item)
-              } else {
-                currentIndex = index
-                if (reducedMotion) indicator.snapToValue(index.toFloat())
-                else indicator.animateToValue(index.toFloat())
-                onSelect(item)
-              }
-            },
-          )
-        }
-      }
-    }
-
-    // 1. The bar.
-    Row(
-      modifier = Modifier
-        .graphicsLayer { translationX = barOffset }
-        .fillMaxSize()
-        .glassSurface(
-          state = backdrop,
-          tint = tint,
-          shape = FluidCapsuleShape,
-          role = GlassRole.Floating,
-          exports = barGlass,
-          layerBlock = if (reducedMotion) {
-            null
-          } else {
-            {
-              // The whole bar breathes with the press, a fraction of what the indicator does.
-              val swell = lerp(1f, 1f + 12.dp.toPx() / size.width, indicator.pressProgress)
-              scaleX = swell
-              scaleY = swell
-            }
-          },
-        )
-        .then(highlight.modifier)
-        .padding(horizontal = FluidTabBarDefaults.IndicatorInset),
-      verticalAlignment = Alignment.CenterVertically,
-      content = tabs,
-    )
-
-    // 2. The invisible accent copy the indicator reads.
-    CompositionLocalProvider(LocalFluidTabTint provides accent) {
-      Row(
-        modifier = Modifier
-          .clearAndSetSemantics {}
-          .alpha(0f)
-          .layerBackdrop(tabsGlass.layerBackdrop!!)
-          .graphicsLayer { translationX = barOffset }
-          .fillMaxSize()
-          .padding(horizontal = FluidTabBarDefaults.IndicatorInset)
-          .graphicsLayer(colorFilter = ColorFilter.tint(accent)),
-        verticalAlignment = Alignment.CenterVertically,
-        content = tabs,
-      )
-    }
-
-    // 3. The lens.
-    Box(
-      modifier = Modifier
-        .padding(
-          horizontal = FluidTabBarDefaults.IndicatorInset,
-          vertical = FluidTabBarDefaults.IndicatorInset,
-        )
-        .graphicsLayer {
-          translationX = tabIndicatorTranslation(
-            value = indicator.value,
-            tabWidth = tabWidth,
-            barOffset = barOffset,
-            containerWidth = size.width,
-            isLtr = isLtr,
-          )
-        }
-        .then(highlight.gestureModifier)
-        .then(indicator.modifier)
-        .glassSurface(
-          state = indicatorBackdrop,
-          tint = GlassDefaults.selectionTint(),
-          shape = FluidCapsuleShape,
-          role = GlassRole.Interactive,
-          // No frosting, ever. The lens is standing on a label six pixels tall: any blur at all and
-          // the selected tab is the one word in the bar you cannot read.
-          // The lens the vendored bar this design comes from had, and the engine did not.
-          //
-          // Three things, and they are one thing: the indicator has to read as a *piece of glass*
-          // sitting on the bar even when nobody is touching it. The bend is rightly a press —
-          // holding it is what asks for it — but the rim and the shadow were multiplied down by the
-          // same number, so at rest there was neither, and the shape came entirely from its own
-          // wash. Over a bar standing on a bright cover that wash is nearly the cover's colour and
-          // the selection simply disappeared. The floor is the vendored bar's own (half a rim,
-          // a third of a shadow), and the press takes both the rest of the way.
-          //
-          // The inner shadow is the other half: it is the thickness of the pane, seen from inside,
-          // and it is what makes the press read as pressing *into* something.
-          optics = remember {
-            GlassDefaults.optics(GlassRole.Interactive).copy(
-              blurScale = 0f,
-              edgeFloor = FluidTabIndicatorEdgeFloor,
-              innerShadowRadius = 8.dp,
-              innerShadowAlpha = 1f,
-            )
-          },
-          // And no lens at rest either. Held still, the indicator draws the bar back exactly as it
-          // is, so the tab underneath shows through crisp and in the accent colour — the selection
-          // *is* that, not a coloured pill. The glass thickens only while a finger is on it.
-          opticalDepth = { indicator.pressProgress },
-          pressed = { indicator.pressProgress },
-          layerBlock = if (reducedMotion) {
-            null
-          } else {
-            {
-              scaleX = indicator.scaleX
-              scaleY = indicator.scaleY
-              // Stretched along the direction of travel and thinned across it, by how fast it is
-              // going. This is the single detail that makes the indicator read as liquid.
-              val velocity = indicator.velocity / 10f
-              scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-              scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-            }
-          },
-        )
-        .fillMaxHeight()
-        .width(with(density) { tabWidth.toDp() }),
-    )
-  }
+/**
+ * Dice a chi non vede la barra se questa scheda è quella scelta.
+ *
+ * Per la barra a elenco di [FluidFloatingTabBar]: nasce da un DSL di composable e non ha il concetto
+ * di selezione, quindi chi la riempie da una lista di [FluidTabItem] lo rimette. Va su un
+ * discendente della scheda e non sulla scheda, che la barra costruisce al suo interno ed è un
+ * `clickable`: unisce la semantica dei figli alla propria.
+ *
+ * Solo `selected`, e non per scelta: provato su un albero vero, `selected` sale dal figlio al nodo
+ * unito, mentre `Role` e `testTag` no. Il ruolo `Tab` e il tag `top_level_<rotta>` restano quindi
+ * delle schede dove la scheda è il nodo stesso, cioè quelle del rail ([FluidTabItemContent]).
+ */
+internal fun Modifier.fluidTabSelected(selected: Boolean): Modifier = this.semantics {
+  this.selected = selected
 }
 
 /**
@@ -595,11 +412,3 @@ fun fluidTabBarPadding(): PaddingValues = PaddingValues(
   horizontal = FluidTabBarDefaults.HorizontalMargin,
   vertical = FluidTabBarDefaults.BottomMargin,
 )
-
-private fun CoroutineScope.launchOverscrollDrag(overscroll: Animatable<Float, *>, delta: Float) {
-  launch { overscroll.snapTo(overscroll.value + delta) }
-}
-
-private fun CoroutineScope.launchOverscrollSettle(overscroll: Animatable<Float, *>) {
-  launch { overscroll.animateTo(0f, spring(dampingRatio = 1f, stiffness = 300f)) }
-}

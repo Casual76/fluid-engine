@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 2.12.1 - 2026-10-13
+
+- fix: la riga nascosta e il puck a riposo della barra flottante sfocano come il pannello che l'app ha passato, non 1,8 volte di piu'. Nella 2.12.0 `FluidFloatingTabBarGlass.blurRadius` era diventato il raggio di *base* anche quando il pannello lo dipinge l'app (`tabBarContentModifier`): la barra lo moltiplicava per il ruolo `Floating` (x1,8) su un numero che l'app aveva gia' dato al suo pannello, e il puck risultava piu' sfocato della barra intorno. Ora, se l'app passa il suo pannello, `blurRadius` e' il raggio *finale* della riga nascosta e del puck, senza ruolo, taglia ne' qualita', come nella 2.11.0. Quando il pannello lo fa la barra non cambia niente (base 2,5 dp, 4,5 dp con il ruolo).
+
+
 ## 2.12.0 - 2026-10-13
 
 - ui: un pannello grande non sembra piu' un pannello piccolo ingrandito. Regola della taglia (`glassSizeGain` e `glassSizedOptics` in `GlassMaterial.kt`, una formula sola per `glassSurface` e `fluidPhysicsSurface`; nel morph conta la taglia della sagoma, non quella del layer): sotto i 64 dp di lato corto un pannello resta com'e' (guadagno esattamente zero, quindi tasti, chip, pomelli e la pillola di navigazione non cambiano), poi il guadagno sale a smoothstep fino ai 320 dp, dove la sfocatura e' x2, l'altezza di rifrazione x1,6 (mai oltre mezzo lato corto) e lo spostamento al bordo x1,8. La sfocatura non supera mai l'altezza di lente che la copre, quindi il padding della cattura resta zero per tutto un morph; sotto Android 13, senza lente, la regola e' spenta. **Cambia a vista** per ogni pannello e gruppo di vetro oltre i 64 dp.

@@ -1,6 +1,8 @@
 package dev.antigravity.fluidengine.sample
 
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
@@ -63,11 +67,13 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidChromeController
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
+import kotlinx.coroutines.delay
 
 /**
  * Fluid Glass.
@@ -128,6 +134,27 @@ private fun Gallery() {
   val fallbackBackdrop = rememberGlassBackdrop()
   val backdrop = chromeController.activeBackdrop.value ?: fallbackBackdrop
   val morphMenu = rememberFluidMorphMenuState()
+
+  // Solo nella build di debug: quante volte il vetro ricattura e quante registra il materiale che
+  // pubblica per il vetro su vetro (`adb logcat -s FluidGlassDiag`). Una riga quando i numeri
+  // cambiano, controllati una volta al secondo: a schermo fermo non deve uscirne nessuna.
+  val context = LocalContext.current
+  val debuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+  if (debuggable) {
+    LaunchedEffect(Unit) {
+      FluidGlassDiagnostics.enabled = true
+      var last = ""
+      while (true) {
+        delay(1_000L)
+        val now = "captures=${FluidGlassDiagnostics.totalCaptures} " +
+          "exports=${FluidGlassDiagnostics.totalExports}"
+        if (now != last) {
+          Log.d("FluidGlassDiag", now)
+          last = now
+        }
+      }
+    }
+  }
 
   // The bar folds itself now: the connection is what the page scrolls through, and the bar
   // reads it. What the floating controls below want is a number between the two states, so it is

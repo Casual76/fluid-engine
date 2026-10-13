@@ -44,6 +44,7 @@ internal class TouchLabState {
   var taps by mutableIntStateOf(0)
   var volume by mutableFloatStateOf(0.6f)
   var brightness by mutableFloatStateOf(40f)
+  var stops by mutableFloatStateOf(0.5f)
   var chip by mutableStateOf("Tutti")
 }
 
@@ -136,17 +137,33 @@ internal fun LazyListScope.touchLabItems(state: TouchLabState) {
           valueRange = 0f..120f,
         )
       }
+      SliderRow(
+        label = "A tacche",
+        value = "${(state.stops * 100).roundToInt()}%",
+      ) {
+        FluidSlider(
+          value = state.stops,
+          onValueChange = { state.stops = it },
+          modifier = Modifier.testTag("touch-stops"),
+          snapValues = TouchLabStops,
+        )
+      }
       SliderRow(label = "Disabilitato", value = "—") {
         FluidSlider(value = 0.3f, onValueChange = {}, enabled = false)
       }
       TouchNote(
-        "Trascina la maniglia anche in diagonale: il valore segue il dito e la pagina resta " +
-          "ferma. Una passata verticale partita sulla pista scorre la pagina, come deve. Un " +
-          "tick a ogni ventesimo, un colpo piu' deciso alle estremita'.",
+        "Il tuo dito e' sulla maniglia? Allora la pagina resta ferma, anche trascinando in " +
+          "diagonale. Una passata verticale partita sulla pista scorre la pagina, come deve. " +
+          "Un tick a ogni ventesimo, un colpo piu' deciso alle estremita'; sul cursore a tacche " +
+          "il valore si attacca ai puntini e suona una volta sola per ciascuno. Tenuta, la " +
+          "maniglia si fa lente e mostra la pista che si apre sotto il dito.",
       )
     }
   }
 }
+
+/** Cinque tacche a un quarto l'una: il valore ci si attacca da meno del 3% dell'intervallo. */
+private val TouchLabStops = listOf(0f, 0.25f, 0.5f, 0.75f, 1f)
 
 @Composable
 private fun SliderRow(label: String, value: String, slider: @Composable () -> Unit) {

@@ -69,17 +69,39 @@ class FluidGlassControlsTest {
     val empty = 5f..5f
     assertEquals(0f, fluidSliderFraction(7f, empty), 0f)
     assertEquals(5f, fluidSliderValue(0.7f, empty), 0f)
-    assertEquals(0f, fluidSliderFractionAt(x = 120f, thumbPx = 26f, insetPx = 2f, travelPx = 0f), 0f)
+    assertEquals(0f, fluidSliderFractionAt(x = 120f, edgePx = 20f, trackPx = 0f), 0f)
   }
 
   @Test
-  fun aTouchPutsTheHandlesCentreUnderTheFinger() {
-    // A 300 px track, a 26 px handle, 2 px of inset: 272 px of travel, and the middle of it is at
-    // 2 + 13 + 136 = 151.
-    val at = fluidSliderFractionAt(x = 151f, thumbPx = 26f, insetPx = 2f, travelPx = 272f)
-    assertEquals(0.5f, at, 0.001f)
-    // Pressing the very start does not leave the handle half a width short of it.
-    assertEquals(0f, fluidSliderFractionAt(x = 0f, thumbPx = 26f, insetPx = 2f, travelPx = 272f), 0f)
-    assertEquals(1f, fluidSliderFractionAt(x = 300f, thumbPx = 26f, insetPx = 2f, travelPx = 272f), 0f)
+  fun aTouchIsReadLinearlyOnTheTrackBetweenTheTwoEdges() {
+    // A 300 px row with 20 px of edge on each side: 260 px of track, and the middle of it is at
+    // 20 + 130 = 150.
+    assertEquals(0.5f, fluidSliderFractionAt(x = 150f, edgePx = 20f, trackPx = 260f), 0.001f)
+    assertEquals(0.25f, fluidSliderFractionAt(x = 85f, edgePx = 20f, trackPx = 260f), 0.001f)
+    // The edges belong to the row, so a finger pressed there still reaches the ends of the range.
+    assertEquals(0f, fluidSliderFractionAt(x = 0f, edgePx = 20f, trackPx = 260f), 0f)
+    assertEquals(0f, fluidSliderFractionAt(x = 20f, edgePx = 20f, trackPx = 260f), 0f)
+    assertEquals(1f, fluidSliderFractionAt(x = 300f, edgePx = 20f, trackPx = 260f), 0f)
+  }
+
+  @Test
+  fun theThumbFollowsTheValueButNeverGetsCloserToAnEndThanAQuarterOfItself() {
+    // A 40 dp thumb at 2x is 80 px: its centre stays 20 px inside either end of a 260 px track,
+    // which is the source's clamp, and it is what keeps the pill inside the control.
+    val thumb = 80f
+    val track = 260f
+    assertEquals(20f, fluidSliderThumbCentre(0f, track, thumb), 0f)
+    assertEquals(20f, fluidSliderThumbCentre(0.05f, track, thumb), 0f)
+    assertEquals(130f, fluidSliderThumbCentre(0.5f, track, thumb), 0.001f)
+    assertEquals(0.75f * track, fluidSliderThumbCentre(0.75f, track, thumb), 0.001f)
+    assertEquals(240f, fluidSliderThumbCentre(0.97f, track, thumb), 0f)
+    assertEquals(240f, fluidSliderThumbCentre(1f, track, thumb), 0f)
+  }
+
+  @Test
+  fun aTrackNarrowerThanTheThumbStillPlacesItInsteadOfThrowing() {
+    // The clamp's two ends cross when the track is shorter than half the thumb; the thumb then sits
+    // at the low end rather than the layout failing on an empty range.
+    assertEquals(20f, fluidSliderThumbCentre(0.5f, trackPx = 30f, thumbPx = 80f), 0f)
   }
 }

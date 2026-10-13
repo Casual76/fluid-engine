@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -53,6 +55,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
@@ -93,6 +96,16 @@ import kotlin.math.abs
  * of the track, on the rim; the source only answered a drag on the thumb, which meant a switch
  * that quite often did nothing when you tapped it. Past [TapSlop] the same gesture is a drag
  * instead, the thumb follows the finger, and it lands on whichever side it was let go nearest.
+ *
+ * **A thumb that is being dragged is not the page's to scroll.** The drag detector on the
+ * thumb only inspects: it never consumes, which is right for a tap and wrong for a knob inside a
+ * `LazyColumn`, where the vertical drift of any thumb moving sideways crossed the page's touch slop
+ * first and the page started scrolling under the finger. So a finger that lands on the thumb and
+ * moves one touch slop in any direction now owns its pointer: every change after that is consumed,
+ * both axes, to the lift (see [fluidThumbOwnsPointer]). It is claimed at the page's own distance
+ * and read before the page does, so "owned" means the page never saw it. Under that distance
+ * nothing is consumed, which is what keeps a tap that wobbled a pixel or two a tap. A swipe that
+ * starts anywhere else on the switch, or beside it, is still the page's.
  *
  * The colour is the app's [androidx.compose.material3.ColorScheme.primary], so it belongs to
  * whatever palette the app is wearing, Material You included.
@@ -297,7 +310,11 @@ fun FluidSwitch(
             lerp(-padding, -(padding + dragWidth), dragAnimation.value)
           }
         }
-        .then(if (interactive) dragAnimation.modifier else Modifier)
+        // Il possesso prima del rilevatore, cioe' fuori: il passaggio principale va dal figlio al
+        // padre, quindi il rilevatore (che non consuma) legge l'evento e solo dopo lo consuma questo.
+        // Messo dopo, consumerebbe per primo e il rilevatore vedrebbe un evento gia' preso: la sua
+        // `drag` lo legge come un annullamento e il pomello smetterebbe di seguire il dito.
+        .then(if (interactive) Modifier.ownDraggedThumb().then(dragAnimation.modifier) else Modifier)
         .then(
           if (isRenderEffectSupported()) {
             Modifier.drawBackdrop(
@@ -367,6 +384,51 @@ fun FluidGlassSwitch(
 ) {
   FluidSwitch(checked, onCheckedChange, modifier, enabled, backdrop)
 }
+
+/**
+ * Il pomello trascinato e' di chi lo trascina.
+ *
+ * Il puntatore che cade sul pomello e si muove di uno slop in qualunque direzione resta suo fino al
+ * rilascio: ogni cambiamento viene consumato sui due assi, cosi' un genitore che scorre
+ * (`verticalScroll`, `LazyColumn`) non lo vede mai come un movimento da cui scorrere. Sotto lo slop
+ * non si consuma niente, e un tocco che ha ballato di un pixel resta un tocco: lo consumerebbe il
+ * `toggleable` del controllo, che annulla il click appena un cambiamento e' stato consumato.
+ *
+ * Sta fuori dal rilevatore di trascinamento di proposito: quello legge senza consumare, e deve poter
+ * leggere ogni evento prima che questo lo consumi (vedi dove e' applicato).
+ */
+private fun Modifier.ownDraggedThumb(): Modifier = pointerInput(Unit) {
+  awaitEachGesture {
+    val down = awaitFirstDown(requireUnconsumed = false)
+    var travel = Offset.Zero
+    var owned = false
+    while (true) {
+      val event = awaitPointerEvent()
+      val change = event.changes.fastFirstOrNull { it.id == down.id } ?: return@awaitEachGesture
+      // Qualcun altro l'ha gia' preso, e non si litiga con lui.
+      if (change.isConsumed && !owned) return@awaitEachGesture
+      if (!change.pressed) {
+        if (owned) change.consume()
+        return@awaitEachGesture
+      }
+      if (!owned) {
+        travel += change.positionChange()
+        owned = fluidThumbOwnsPointer(travel, viewConfiguration.touchSlop)
+      }
+      if (owned) change.consume()
+    }
+  }
+}
+
+/**
+ * Se un puntatore caduto sul pomello, mosso di [travel], e' ormai del pomello.
+ *
+ * Alla distanza dello slop della pagina e non a meta': la pagina scorre quando la sola parte
+ * verticale supera uno slop, e la distanza totale e' sempre almeno quella, quindi il pomello se lo
+ * prende non dopo la pagina; nello stesso evento, e prima di lei, perche' lo legge per primo.
+ */
+internal fun fluidThumbOwnsPointer(travel: Offset, touchSlop: Float): Boolean =
+  travel.getDistance() >= touchSlop
 
 /**
  * 64 x 28, with a 40 x 24 thumb and two dp of padding.

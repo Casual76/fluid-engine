@@ -15,6 +15,9 @@
 |---|---|---|
 | `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/**` | il renderer: cattura del backdrop, catena di `RenderEffect`, shader AGSL della lente e del bordo speculare, ombra interna ed esterna | il modulo `backdrop` della libreria |
 | `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/interaction/GlassInteraction.kt` | le primitive di gesto: riconoscimento del drag senza soglia, molle di pressione e schiacciamento, evidenziazione che segue il dito | i componenti d'esempio dell'app *catalog* dello stesso repo |
+| `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidSwitch.kt` | `FluidSwitch`: il pomello come unica lastra, la copia schiacciata della pista che rifrange, le molle e lo stiramento con la velocita' | `LiquidToggle` dell'app *catalog* |
+| `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidSlider.kt` | `FluidSlider`: la pillola bianca che a riposo e' opaca e sotto il dito diventa lente, la pista registrata nel suo layer e la copia che si dispiega, le molle e lo stiramento | `LiquidSlider` dell'app *catalog*, arrivato passando da un port gia' fatto in Pampa notes |
+| `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidFloatingTabBar.kt` | il puck di vetro trascinabile, la riga nascosta che il puck campiona attraverso se' stesso, lo stiramento che segue il dito | `LiquidBottomTabs` / `LiquidBottomTab` dell'app *catalog*, innestati sul `FloatingTabBar` di Elyes Mansour (anche lui Apache-2.0, citato nell'intestazione del file) |
 
 Ogni file copiato porta in testa l'avviso Apache-2.0 e l'elenco delle modifiche, come richiede la
 sezione 4 della licenza.
@@ -69,6 +72,17 @@ Le modifiche fatte finora:
     la luce di `GlassTouchHighlight` passa dalla corsa di pressione dell'engine (`FluidPressMotion`,
     first-party) e puo' essere guidata da fuori (`progress`, `touch`), e il rilascio di
     `GlassDragAnimation` aspetta che la pressione sia arrivata prima di sgonfiare il pomello.
+
+11. **I port dei controlli del catalogo** (`FluidSwitch.kt`, `FluidSlider.kt`). Le costruzioni e i
+    numeri sono quelli della sorgente; cambia soltanto cio' che l'engine chiede a ogni controllo:
+    l'accento del tema al posto del colore fisso di iOS (e per lo slider il velo della pista preso da
+    `onSurface`, con alpha ricalcolati perche' cada dove cade il grigio originale), `enabled`, il
+    tocco aptico, la semantica per TalkBack, il movimento ridotto, un ripiego senza `RenderEffect`.
+    In `FluidSlider` in piu': lo stiramento usa il modulo della velocita' invece del segno (nella
+    sorgente un verso accorcia la pillola), la pista e la pillola stanno dentro i limiti del
+    controllo (un quarto di pillola di margine per lato, invece di sporgere), il gesto sta su tutta
+    la riga e le tacche di scatto sono un'aggiunta nostra. `FluidSwitch` e `FluidSlider` consumano
+    il puntatore della pillola trascinata, cosi' una pagina che scorre non glielo contende.
 
 ## Cosa fare in pratica
 

@@ -50,10 +50,16 @@ azioni compaiono solo allora.
 
 `FluidSwitch(checked, onCheckedChange, enabled, backdrop)` — il LiquidToggle di Kyant0, 64x28 con
 pomello a pillola 40x24. Il **pomello è l'unica lastra**: a riposo è bianco pieno, tenuto premuto il
-bianco sparisce e sotto si apre una copia della pista schiacciata, che è ciò che rifrange. Un tocco
-ovunque sul controllo lo commuta; trascinarlo è il di più, e dalla 2.12.0 un pomello trascinato non
-fa scorrere la pagina (un dito caduto sul pomello e mosso di uno slop è suo fino al rilascio; sotto
-lo slop il tocco commuta ancora). `onCheckedChange = null` quando è la riga
+bianco sparisce e sotto si apre una copia della pista schiacciata, che è ciò che rifrange. Dalla
+2.13.1 **un solo gesto su tutto il controllo** (prima erano tre pezzi, e sul telefono si poteva solo
+toccare): un tocco ovunque lo commuta; un dito sul pomello lo trascina subito, senza zona morta; un
+dito sulla pista vuota lo prende a mezzo slop di lato; una passata che va prima in verticale resta
+della pagina. Mentre si trascina la pagina è ferma (ogni cambio del puntatore preso è consumato). Al
+rilascio va dalla parte più vicina, o da quella verso cui correva se la spinta era veloce
+(`fluidSwitchLanding`). Vibra a ogni tocco che commuta e, trascinando, quando il pomello passa la metà
+(`fluidSwitchSide`, con margine); al rilascio non ripete. Il down è consumato nell'Initial: il
+`toggleable` resta solo per tastiera, fuoco e TalkBack, e una riga cliccabile attorno non scatta
+toccando l'interruttore. `onCheckedChange = null` quando è la riga
 a possedere il `toggleable` e il target da 48dp. `backdrop` di default è il canvas della schermata.
 `FluidSwitchWidth` vale 64 adesso (era 56): chi riservava lo spazio a mano lo rilegga.
 `FluidGlassSwitch` è deprecato — era il nome che questo controllo ha avuto per una versione.

@@ -334,9 +334,13 @@ Il dito non e' della pagina: un dito sulla pillola, o a 10 dp dal suo bordo, e' 
 cambio di quel puntatore viene consumato fino al rilascio, su entrambi gli assi; un dito sulla pista
 nuda diventa suo a mezzo slop di lato (e piu' di lato che in verticale), mentre una passata che va in
 verticale per prima resta della pagina; sollevato senza essersi mosso e' un tocco, e porta li' la
-pillola. Lo stesso vale per il pomello di `FluidSwitch`: un puntatore caduto sul pomello e mosso di
-uno slop in qualunque verso e' suo fino al rilascio. Sotto lo slop non si consuma niente, e il tocco
-commuta ancora.
+pillola. `FluidSwitch` segue la stessa regola (dalla 2.13.1, con un solo gesto su tutto il
+controllo): un dito sul pomello e' suo subito e il pomello lo segue senza zona morta; un dito sulla
+pista vuota lo prende a mezzo slop di lato e porta il pomello da dove sta; una passata che va prima
+in verticale resta della pagina; sollevato prima di uno slop e' un tocco e commuta, ovunque cada.
+Al rilascio il pomello va dalla parte piu' vicina, o da quella verso cui correva se la spinta era
+veloce. Vibra (`ToggleOn`/`ToggleOff`) a ogni tocco che commuta e, trascinando, quando il pomello
+passa la meta'; al rilascio non ripete la stessa vibrazione.
 
 ## Fluid-physics — il vetro che cambia forma
 

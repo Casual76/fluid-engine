@@ -41,21 +41,26 @@ class FluidSliderClaimTest {
   }
 
   @Test
-  fun `un pomello e' del dito che lo trascina appena questo ha fatto uno slop in qualunque verso`() {
-    assertFalse(fluidThumbOwnsPointer(Offset.Zero, slop))
-    // Un tocco che ha ballato: niente si consuma, e il click dell'interruttore resta un click.
-    assertFalse(fluidThumbOwnsPointer(Offset(3f, 3f), slop))
-    assertFalse(fluidThumbOwnsPointer(Offset(0f, 7.9f), slop))
-    assertTrue(fluidThumbOwnsPointer(Offset(8f, 0f), slop))
-    assertTrue(fluidThumbOwnsPointer(Offset(-5f, 6.5f), slop))
+  fun `l'interruttore passa la meta' solo oltre il margine, e una volta`() {
+    assertFalse(fluidSwitchSide(0.5f, current = false))
+    assertFalse(fluidSwitchSide(0.57f, current = false))
+    assertTrue(fluidSwitchSide(0.58f, current = false))
+    // Tornando indietro di poco resta acceso: un dito fermo sul centro non ronza.
+    assertTrue(fluidSwitchSide(0.5f, current = true))
+    assertTrue(fluidSwitchSide(0.43f, current = true))
+    assertFalse(fluidSwitchSide(0.42f, current = true))
   }
 
   @Test
-  fun `il pomello se lo prende non dopo la pagina, per qualunque deriva`() {
-    // La pagina scorre quando la sola parte verticale supera lo slop; la distanza totale e' sempre
-    // almeno quella, quindi nello stesso evento (e prima di lei) il pomello e' gia' suo.
-    for (dx in listOf(0f, 1f, 4f, 7f)) {
-      assertTrue(fluidThumbOwnsPointer(Offset(dx, slop + 0.1f), slop))
-    }
+  fun `il pomello lasciato va dalla parte piu' vicina, o da quella verso cui correva`() {
+    val fling = 12.5f
+    assertTrue(fluidSwitchLanding(0.6f, 0f, fling))
+    assertFalse(fluidSwitchLanding(0.4f, 0f, fling))
+    assertTrue(fluidSwitchLanding(0.5f, 0f, fling))
+    // Lento: conta dove sta.
+    assertFalse(fluidSwitchLanding(0.3f, 10f, fling))
+    // Una spinta veloce che non e' arrivata alla meta' e' comunque una spinta.
+    assertTrue(fluidSwitchLanding(0.3f, 20f, fling))
+    assertFalse(fluidSwitchLanding(0.8f, -20f, fling))
   }
 }

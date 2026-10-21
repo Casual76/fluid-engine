@@ -46,8 +46,10 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -73,7 +75,6 @@ import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlinx.coroutines.flow.collectLatest
-import kotlin.math.abs
 
 /**
  * The switch.
@@ -92,20 +93,27 @@ import kotlin.math.abs
  *  * **It stretches.** Dragged fast it thins along its direction of travel and swells across it,
  *    by how fast it is going. It is most of why the thing feels like an object being pushed.
  *
- * **Tap it or drag it, either works.** A tap anywhere flips it — on the thumb, on the empty half
- * of the track, on the rim; the source only answered a drag on the thumb, which meant a switch
- * that quite often did nothing when you tapped it. Past [TapSlop] the same gesture is a drag
- * instead, the thumb follows the finger, and it lands on whichever side it was let go nearest.
+ * **Si tocca o si trascina, da qualunque punto (2.13.1).** Un solo gesto su tutto il controllo:
  *
- * **A thumb that is being dragged is not the page's to scroll.** The drag detector on the
- * thumb only inspects: it never consumes, which is right for a tap and wrong for a knob inside a
- * `LazyColumn`, where the vertical drift of any thumb moving sideways crossed the page's touch slop
- * first and the page started scrolling under the finger. So a finger that lands on the thumb and
- * moves one touch slop in any direction now owns its pointer: every change after that is consumed,
- * both axes, to the lift (see [fluidThumbOwnsPointer]). It is claimed at the page's own distance
- * and read before the page does, so "owned" means the page never saw it. Under that distance
- * nothing is consumed, which is what keeps a tap that wobbled a pixel or two a tap. A swipe that
- * starts anywhere else on the switch, or beside it, is still the page's.
+ *  * **un tocco** — un dito che si solleva prima di uno slop — commuta, ovunque cada: sul pomello,
+ *    sulla meta' vuota della pista, nell'alone di bersaglio attorno;
+ *  * **un dito sul pomello** lo prende subito: il pomello si gonfia, segue il dito senza zona morta
+ *    dal primo pixel, e il gesto e' suo sui due assi fino al rilascio;
+ *  * **un dito sulla pista vuota** che va di lato per mezzo slop (prima che in verticale) prende il
+ *    pomello da dove sta e lo porta; se va prima in verticale e' la pagina che scorre, e una riga
+ *    con un interruttore non diventa una fascia da cui la lista non si muove.
+ *
+ * Al rilascio il pomello va dalla parte piu' vicina, o da quella verso cui correva se la spinta era
+ * veloce ([fluidSwitchLanding]).
+ *
+ * **Mentre si trascina la pagina e' ferma.** Ogni cambiamento del puntatore preso viene consumato,
+ * e lo legge prima di lei (il passaggio principale va dal figlio al padre): la `LazyColumn` o il
+ * `verticalScroll` attorno non vedono mai un movimento da cui partire, qualunque sia la deriva.
+ *
+ * **Si sente.** Una vibrazione leggera ([FluidHapticEvent.ToggleOn] / [FluidHapticEvent.ToggleOff])
+ * a ogni tocco che commuta, e durante un trascinamento nel momento in cui il pomello passa la meta',
+ * che e' quando l'interruttore si accende o si spegne sotto il dito. Al rilascio non si ripete, a
+ * meno che il pomello non finisca dall'altra parte rispetto all'ultima vibrazione.
  *
  * The colour is the app's [androidx.compose.material3.ColorScheme.primary], so it belongs to
  * whatever palette the app is wearing, Material You included.
@@ -142,18 +150,19 @@ fun FluidSwitch(
   val density = LocalDensity.current
   val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
   val dragWidth = with(density) { DragWidth.toPx() }
-  val slop = with(density) { TapSlop.toPx() }
   val animationScope = rememberCoroutineScope()
   val currentChecked by rememberUpdatedState(checked)
   val currentOnCheckedChange by rememberUpdatedState(onCheckedChange)
+  // Letti *ora* e non catturati allora: il gesto vive in un `pointerInput(Unit)` che sopravvive a
+  // ogni ricomposizione, e una lambda che ha chiuso il valore di allora lo tiene per sempre.
+  val currentHaptics by rememberUpdatedState(haptics)
+  val currentIsLtr by rememberUpdatedState(isLtr)
+  val currentReducedMotion by rememberUpdatedState(reducedMotion)
 
-  // How far the finger has travelled since it went down. A tap is not a zero-pixel gesture — a
-  // thumb on glass always slides a little — and the source treated any non-zero delta as a drag,
-  // so a tap that wobbled two pixels became a drag that had not crossed halfway and snapped back
-  // to where it started. Under the slop nothing moves and the tap below owns the gesture.
-  var travelled by remember { mutableFloatStateOf(0f) }
   var fraction by remember { mutableFloatStateOf(if (checked) 1f else 0f) }
 
+  // Solo la fisica: chi la muove e' il gesto qui sotto, non il rilevatore di Kyant che la classe si
+  // porta dietro (`dragAnimation.modifier` non e' applicato da nessuna parte, di proposito).
   val dragAnimation = remember(animationScope) {
     GlassDragAnimation(
       animationScope = animationScope,
@@ -162,34 +171,6 @@ fun FluidSwitch(
       visibilityThreshold = 0.001f,
       initialScale = 1f,
       pressedScale = 1.5f,
-      onDragStarted = { travelled = 0f },
-      onDragStopped = {
-        // NOT reset here, and that is the whole of how tap and drag coexist. This detector
-        // inspects without consuming, so the `toggleable` on the control sees the same touch and
-        // fires its own click on the same release — the two run in an order nothing guarantees.
-        // Leaving `travelled` standing until the next finger goes down means both sides can ask
-        // the same question, "was this a drag", and get the same answer whichever goes first.
-        // Clearing it here made the answer depend on who asked first, and what that produced was
-        // a switch that could only be tapped: a drag ended, this committed, and then the click
-        // arrived, read a zeroed counter, called it a tap and flipped it straight back.
-        if (travelled <= slop) return@GlassDragAnimation
-        val wanted = targetValue >= 0.5f
-        fraction = if (wanted) 1f else 0f
-        if (wanted != currentChecked) {
-          haptics.play(if (wanted) FluidHapticEvent.ToggleOn else FluidHapticEvent.ToggleOff)
-          currentOnCheckedChange?.invoke(wanted)
-        }
-      },
-      onDrag = { _, dragAmount ->
-        travelled += abs(dragAmount.x)
-        if (travelled <= slop) return@GlassDragAnimation
-        val delta = dragAmount.x / dragWidth
-        fraction = if (isLtr) {
-          (fraction + delta).fastCoerceIn(0f, 1f)
-        } else {
-          (fraction - delta).fastCoerceIn(0f, 1f)
-        }
-      },
     )
   }
 
@@ -240,20 +221,150 @@ fun FluidSwitch(
   val interactive = enabled && onCheckedChange != null
   val interactionSource = remember { MutableInteractionSource() }
 
-  // Every gesture starts the counter from zero, deterministically.
+  /**
+   * Il pomello si posa su [target]. Ottimista, come ogni indicatore di questo design: il gesto e'
+   * l'affermazione, il cambio di stato del chiamante e' come la si registra, e far aspettare il
+   * pomello il giro completo e' quello che si legge come ritardo. L'effetto qui sopra lo rimette a
+   * posto se il chiamante dice di no.
+   *
+   * [announced] e' il lato che il dito ha gia' sentito: un trascinamento vibra quando il pomello
+   * passa la meta', e al rilascio non vibra una seconda volta per la stessa cosa. Vibra solo se il
+   * pomello finisce da una parte diversa da quella che il dito ha sentito per ultima.
+   */
+  fun settle(target: Boolean, announced: Boolean) {
+    fraction = if (target) 1f else 0f
+    if (target != announced) currentHaptics.play(fluidSwitchHaptic(target))
+    if (target != currentChecked) currentOnCheckedChange?.invoke(target)
+  }
+
+  // Un solo rilevatore per tutto il controllo: tocco e trascinamento, sulla pista, sul pomello e
+  // nell'alone di bersaglio che Compose aggiunge attorno a un controllo piu' piccolo di 48 dp.
   //
-  // It cannot be done from the interaction source, which was the first attempt: `clickable`
-  // emits its press into a flow, a collector picks it up on some later frame, and the click
-  // itself fires synchronously from the pointer handler — so the reset lost the race and a tap
-  // that followed a drag inherited the drag's travel and was thrown away as a drag. Measured on
-  // the device: drag, then tap, and the tap did nothing.
-  //
-  // The Initial pass runs parent before child, so this sees the finger go down before the thumb's
-  // own detector does, on every gesture, whether it lands on the thumb or on the bare track.
-  val resetOnDown = Modifier.pointerInput(Unit) {
+  // Prima erano tre pezzi che si parlavano attraverso un contatore — un rilevatore sul solo pomello
+  // che leggeva senza consumare, un `toggleable` che faceva il suo click, e un modificatore che
+  // consumava per tenere ferma la pagina — e il risultato, sul telefono, era un interruttore che si
+  // poteva solo toccare: un trascinamento partito dalla pista non era di nessuno, e uno partito dal
+  // pomello buttava i primi otto dp nello slop e tornava indietro se non arrivava a diciotto.
+  val gestures = Modifier.pointerInput(Unit) {
     awaitEachGesture {
-      awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-      travelled = 0f
+      // Nell'Initial, dal padre al figlio: il `toggleable` qui sotto (e una riga cliccabile attorno)
+      // leggono il loro nel Main, lo trovano consumato e lo saltano. A loro restano tastiera, fuoco e
+      // TalkBack; il puntatore e' tutto di questo gesto, e non ci sono due click per un tocco.
+      // La pagina invece scorre ancora: il suo `scrollable` non chiede un down libero.
+      val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+      down.consume()
+
+      val slop = viewConfiguration.touchSlop
+      val dragPx = DragWidth.toPx()
+      val flingPx = FlingVelocity.toPx()
+      val ltr = currentIsLtr
+      // Tutto si misura dall'inizio del controllo: da destra a sinistra si specchia la x, qui.
+      fun startX(x: Float) = if (ltr) x else size.width - x
+
+      val thumbStart = ThumbInset.toPx() + dragPx * dragAnimation.value
+      val onThumb = startX(down.position.x) in
+        (thumbStart - ThumbGrabMargin.toPx())..(thumbStart + ThumbWidth.toPx() + ThumbGrabMargin.toPx())
+
+      // Il pomello sotto il dito e' gia' preso: si gonfia subito, e da qui in poi ogni movimento di
+      // questo puntatore e' suo, sui due assi, fino al rilascio. Sulla pista nuda invece puo' ancora
+      // essere qualcuno che scorre la pagina, e si decide col primo mezzo slop (come lo slider).
+      var owned = onThumb
+      var pressed = false
+      if (owned) {
+        dragAnimation.press()
+        pressed = true
+      }
+      var anchorX = startX(down.position.x)
+      var anchorFraction = fraction
+      var announced = currentChecked
+      var maxDistance = 0f
+      var travel = Offset.Zero
+      val velocity = VelocityTracker()
+      velocity.addPosition(down.uptimeMillis, Offset(startX(down.position.x), 0f))
+
+      try {
+        while (true) {
+          val event = awaitPointerEvent()
+          val change = event.changes.fastFirstOrNull { it.id == down.id }
+          if (change == null) {
+            // Il puntatore e' sparito senza un rilascio: se stava trascinando, il pomello va dalla
+            // parte piu' vicina; se no non e' successo niente.
+            if (owned && maxDistance >= slop) settle(fraction >= 0.5f, announced)
+            break
+          }
+          // Il primo evento del Main e' lo stesso down che abbiamo consumato nell'Initial: e' nostro,
+          // non di qualcun altro, e leggerlo come "preso" chiudeva il gesto prima che cominciasse.
+          if (change.changedToDownIgnoreConsumed()) continue
+          // Qualcuno sopra di noi l'ha preso prima che fosse nostro: e' suo.
+          if (!owned && change.isConsumed) break
+
+          if (!change.pressed) {
+            val tap = maxDistance < slop
+            if (owned || tap) change.consume()
+            when {
+              tap -> {
+                // Un tocco, ovunque sul controllo: commuta. Con la molla e la pressione della
+                // sorgente, cosi' anche un tocco mostra il vetro che si apre mentre il pomello va.
+                val target = !currentChecked
+                settle(target, announced)
+                if (!currentReducedMotion) {
+                  dragAnimation.animateToValue(if (target) 1f else 0f)
+                  // La pressione la chiude animateToValue, quando il pomello e' arrivato.
+                  pressed = false
+                }
+              }
+              owned -> {
+                velocity.addPosition(change.uptimeMillis, Offset(startX(change.position.x), 0f))
+                val speed = velocity.calculateVelocity().x / dragPx
+                settle(fluidSwitchLanding(fraction, speed, flingPx / dragPx), announced)
+              }
+            }
+            break
+          }
+
+          val moved = change.position - down.position
+          maxDistance = maxOf(maxDistance, moved.getDistance())
+          travel += change.positionChange()
+
+          if (!owned) {
+            when (fluidSliderClaim(travel, slop)) {
+              // Di lato prima che in verticale: e' un trascinamento dell'interruttore, e da qui il
+              // pomello segue il dito dal punto in cui e' stato preso, senza saltargli sotto.
+              FluidSliderClaim.Slider -> {
+                owned = true
+                anchorX = startX(change.position.x)
+                anchorFraction = fraction
+                dragAnimation.press()
+                pressed = true
+              }
+              // La pagina scorre: il gesto e' suo, e questo controllo non si e' mai mosso.
+              FluidSliderClaim.Page -> break
+              FluidSliderClaim.Undecided -> Unit
+            }
+          }
+
+          if (owned) {
+            val x = startX(change.position.x)
+            velocity.addPosition(change.uptimeMillis, Offset(x, 0f))
+            // Dal punto di presa, non sommando i passi: un dito che sborda oltre la fine della corsa
+            // e torna indietro non sposta il pomello finche' non ripassa da dove era uscito.
+            fraction = (anchorFraction + (x - anchorX) / dragPx).fastCoerceIn(0f, 1f)
+            val side = fluidSwitchSide(fraction, announced)
+            if (side != announced) {
+              // Il pomello ha passato la meta': e' li' che l'interruttore si accende o si spegne
+              // sotto il dito, e li' si sente. Una volta per passaggio, con un margine attorno al
+              // centro perche' un dito fermo li' sopra non ronzi.
+              announced = side
+              currentHaptics.play(fluidSwitchHaptic(side))
+            }
+            // I due assi, ogni cambiamento, fino al rilascio: la pagina sotto un interruttore che
+            // si trascina non si muove, qualunque sia la deriva del dito.
+            change.consume()
+          }
+        }
+      } finally {
+        if (pressed) dragAnimation.release()
+      }
     }
   }
 
@@ -261,7 +372,9 @@ fun FluidSwitch(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.5f)
       .size(TrackWidth, TrackHeight)
-      .then(if (interactive) resetOnDown else Modifier)
+      // Il gesto prima del `toggleable`, cioe' fuori: nell'Initial lo legge per primo e ne consuma
+      // il down. Vedi sopra.
+      .then(if (interactive) gestures else Modifier)
       .then(
         if (interactive) {
           Modifier.toggleable(
@@ -272,19 +385,8 @@ fun FluidSwitch(
             // The thumb is the feedback, and it moves on the way down. A ripple on a 64 x 28
             // capsule is a second answer to the same touch.
             indication = null,
-            onValueChange = { value ->
-              // The drag has it. See `onDragStopped`: the counter is still standing from the
-              // gesture that just ended, so this can tell a released drag from a tap without
-              // caring which of the two was told first.
-              if (travelled > slop) return@toggleable
-              // Optimistic, like every other indicator in this design: the tap is the statement,
-              // the caller's state change is how it gets recorded, and making the thumb wait for
-              // the round trip is what reads as lag. The effect above puts it back if the caller
-              // says no.
-              fraction = if (value) 1f else 0f
-              haptics.play(if (value) FluidHapticEvent.ToggleOn else FluidHapticEvent.ToggleOff)
-              currentOnCheckedChange?.invoke(value)
-            },
+            // Solo tastiera, fuoco e TalkBack: il puntatore lo prende il gesto qui sopra.
+            onValueChange = { value -> settle(value, announced = currentChecked) },
           )
         } else {
           Modifier
@@ -310,11 +412,6 @@ fun FluidSwitch(
             lerp(-padding, -(padding + dragWidth), dragAnimation.value)
           }
         }
-        // Il possesso prima del rilevatore, cioe' fuori: il passaggio principale va dal figlio al
-        // padre, quindi il rilevatore (che non consuma) legge l'evento e solo dopo lo consuma questo.
-        // Messo dopo, consumerebbe per primo e il rilevatore vedrebbe un evento gia' preso: la sua
-        // `drag` lo legge come un annullamento e il pomello smetterebbe di seguire il dito.
-        .then(if (interactive) Modifier.ownDraggedThumb().then(dragAnimation.modifier) else Modifier)
         .then(
           if (isRenderEffectSupported()) {
             Modifier.drawBackdrop(
@@ -386,51 +483,6 @@ fun FluidGlassSwitch(
 }
 
 /**
- * Il pomello trascinato e' di chi lo trascina.
- *
- * Il puntatore che cade sul pomello e si muove di uno slop in qualunque direzione resta suo fino al
- * rilascio: ogni cambiamento viene consumato sui due assi, cosi' un genitore che scorre
- * (`verticalScroll`, `LazyColumn`) non lo vede mai come un movimento da cui scorrere. Sotto lo slop
- * non si consuma niente, e un tocco che ha ballato di un pixel resta un tocco: lo consumerebbe il
- * `toggleable` del controllo, che annulla il click appena un cambiamento e' stato consumato.
- *
- * Sta fuori dal rilevatore di trascinamento di proposito: quello legge senza consumare, e deve poter
- * leggere ogni evento prima che questo lo consumi (vedi dove e' applicato).
- */
-private fun Modifier.ownDraggedThumb(): Modifier = pointerInput(Unit) {
-  awaitEachGesture {
-    val down = awaitFirstDown(requireUnconsumed = false)
-    var travel = Offset.Zero
-    var owned = false
-    while (true) {
-      val event = awaitPointerEvent()
-      val change = event.changes.fastFirstOrNull { it.id == down.id } ?: return@awaitEachGesture
-      // Qualcun altro l'ha gia' preso, e non si litiga con lui.
-      if (change.isConsumed && !owned) return@awaitEachGesture
-      if (!change.pressed) {
-        if (owned) change.consume()
-        return@awaitEachGesture
-      }
-      if (!owned) {
-        travel += change.positionChange()
-        owned = fluidThumbOwnsPointer(travel, viewConfiguration.touchSlop)
-      }
-      if (owned) change.consume()
-    }
-  }
-}
-
-/**
- * Se un puntatore caduto sul pomello, mosso di [travel], e' ormai del pomello.
- *
- * Alla distanza dello slop della pagina e non a meta': la pagina scorre quando la sola parte
- * verticale supera uno slop, e la distanza totale e' sempre almeno quella, quindi il pomello se lo
- * prende non dopo la pagina; nello stesso evento, e prima di lei, perche' lo legge per primo.
- */
-internal fun fluidThumbOwnsPointer(travel: Offset, touchSlop: Float): Boolean =
-  travel.getDistance() >= touchSlop
-
-/**
  * 64 x 28, with a 40 x 24 thumb and two dp of padding.
  *
  * The source's numbers, kept whole. They are not the 56 x 31 with a round 27 dp thumb this control
@@ -456,9 +508,49 @@ private val DragWidth: Dp = 20.dp
 val FluidSwitchWidth: Dp = TrackWidth
 
 /**
- * How far a finger may slide and still have meant a tap.
+ * Quanto oltre i bordi del pomello un dito lo afferra ancora.
  *
- * Compose's own touch slop, roughly, and for the same reason: below this the movement is the hand
- * rather than the intention.
+ * Sotto un polpastrello un pomello da 40 dp e' quasi tutto coperto, e il punto in cui il sistema
+ * dice che il dito e' sceso cade spesso un poco fuori. Poco, pero': la pista vuota accanto deve
+ * restare un posto da cui la pagina si scorre.
  */
-private val TapSlop: Dp = 8.dp
+private val ThumbGrabMargin: Dp = 4.dp
+
+/**
+ * La velocita' oltre la quale un rilascio va dalla parte verso cui il dito correva, e non da quella
+ * piu' vicina. Una spinta rapida che si ferma prima della meta' e' comunque una spinta.
+ */
+private val FlingVelocity: Dp = 250.dp
+
+/**
+ * Di quanto il pomello deve passare la meta' perche' il trascinamento la conti come passata.
+ *
+ * Senza margine un dito fermo proprio sul centro accenderebbe e spegnerebbe la vibrazione a ogni
+ * pixel di tremolio.
+ */
+internal const val FluidSwitchSideHysteresis = 0.08f
+
+/**
+ * Il lato che un pomello a [fraction] (0 spento, 1 acceso) mostra, se fino a ora mostrava [current].
+ * Cambia solo oltre la meta' piu' [FluidSwitchSideHysteresis].
+ */
+internal fun fluidSwitchSide(fraction: Float, current: Boolean): Boolean = when {
+  !current && fraction >= 0.5f + FluidSwitchSideHysteresis -> true
+  current && fraction <= 0.5f - FluidSwitchSideHysteresis -> false
+  else -> current
+}
+
+/**
+ * Da che parte si posa un pomello lasciato a [fraction] mentre correva a [velocity] (corse al
+ * secondo, positivo verso "acceso"): la parte verso cui andava se andava piu' veloce di
+ * [flingVelocity], altrimenti la piu' vicina.
+ */
+internal fun fluidSwitchLanding(fraction: Float, velocity: Float, flingVelocity: Float): Boolean = when {
+  velocity >= flingVelocity -> true
+  velocity <= -flingVelocity -> false
+  else -> fraction >= 0.5f
+}
+
+/** Cosa si sente quando l'interruttore si accende o si spegne: un colpo solo, leggero. */
+internal fun fluidSwitchHaptic(on: Boolean): FluidHapticEvent =
+  if (on) FluidHapticEvent.ToggleOn else FluidHapticEvent.ToggleOff

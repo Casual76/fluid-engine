@@ -26,12 +26,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
+import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
+import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidPressState
+import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidSwitch
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
@@ -40,6 +45,8 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
+import dev.antigravity.fluidengine.ui.theme.FluidListGroup
+import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -431,6 +438,215 @@ class FluidTouchTest {
       listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0,
     )
     assertTrue("la passata ha commutato l'interruttore", changes.isEmpty())
+  }
+
+  @Test
+  fun `un tocco sulla pista vuota commuta, e uno accanto all'interruttore anche`() {
+    val listState = LazyListState()
+    val changes = mutableListOf<Boolean>()
+    showSwitchInLazyColumn(listState, changes)
+
+    compose.onNodeWithTag("switch").performTouchInput { click(Offset(width - 8.dp.toPx(), centerY)) }
+    compose.waitForIdle()
+    // Pochi dp sopra il bordo: dentro l'alone di 48 dp che Compose da' a un controllo piu' basso.
+    compose.onNodeWithTag("switch").performTouchInput { click(Offset(centerX, -4.dp.toPx())) }
+    compose.waitForIdle()
+
+    assertEquals(listOf(true, false), changes)
+  }
+
+  @Test
+  fun `un trascinamento corto oltre la meta' accende, senza zona morta`() {
+    val listState = LazyListState()
+    val changes = mutableListOf<Boolean>()
+    showSwitchInLazyColumn(listState, changes)
+
+    // 24 px a xhdpi sono 12 dp: oltre la meta' dei 20 di corsa. Prima i primi otto dp finivano
+    // nello slop, il pomello ne faceva quattro e tornava indietro.
+    compose.onNodeWithTag("switch").performTouchInput {
+      down(Offset(22.dp.toPx(), centerY))
+      repeat(6) { moveBy(Offset(4f, 0f)) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(listOf(true), changes)
+  }
+
+  @Test
+  fun `dalla pista vuota un trascinamento di lato accende`() {
+    val listState = LazyListState()
+    val changes = mutableListOf<Boolean>()
+    showSwitchInLazyColumn(listState, changes)
+
+    compose.onNodeWithTag("switch").performTouchInput {
+      // Sulla meta' destra della pista, poi di lato e un po' in su, come un pollice.
+      down(Offset(width - 12.dp.toPx(), centerY))
+      repeat(10) { moveBy(Offset(-2f, -1f)) }
+      repeat(15) { moveBy(Offset(6f, -2f)) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(0, listState.firstVisibleItemIndex)
+    assertEquals(0, listState.firstVisibleItemScrollOffset)
+    assertEquals(listOf(true), changes)
+  }
+
+  @Test
+  fun `una spinta rapida che non arriva alla meta' accende lo stesso`() {
+    val listState = LazyListState()
+    val changes = mutableListOf<Boolean>()
+    showSwitchInLazyColumn(listState, changes)
+
+    compose.onNodeWithTag("switch").performTouchInput {
+      down(Offset(22.dp.toPx(), centerY))
+      // 16 px (8 dp, sotto la meta') in tre eventi da 4 ms: ben oltre 250 dp/s.
+      moveBy(Offset(6f, 0f), delayMillis = 4)
+      moveBy(Offset(5f, 0f), delayMillis = 4)
+      moveBy(Offset(5f, 0f), delayMillis = 4)
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(listOf(true), changes)
+  }
+
+  @Test
+  fun `l'interruttore vibra quando commuta, al tocco e al passaggio della meta'`() {
+    val listState = LazyListState()
+    val changes = mutableListOf<Boolean>()
+    showSwitchInLazyColumn(listState, changes)
+
+    compose.onNodeWithTag("switch").performTouchInput { click(Offset(22.dp.toPx(), centerY)) }
+    compose.waitForIdle()
+    assertEquals(listOf(true), changes)
+    assertEquals(listOf(FluidHapticEvent.ToggleOn), haptics.played)
+
+    haptics.played.clear()
+    // Acceso, il pomello e' a destra. Trascinato a sinistra fino in fondo: una vibrazione al
+    // passaggio della meta', e nessun'altra al rilascio.
+    compose.onNodeWithTag("switch").performTouchInput {
+      down(Offset(width - 22.dp.toPx(), centerY))
+      repeat(12) { moveBy(Offset(-5f, 0f)) }
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(listOf(true, false), changes)
+    assertEquals(listOf(FluidHapticEvent.ToggleOff), haptics.played)
+
+    haptics.played.clear()
+    // Avanti oltre la meta' e indietro: si accende e si spegne sotto il dito, e lo si sente due
+    // volte; lo stato non cambia.
+    compose.onNodeWithTag("switch").performTouchInput {
+      down(Offset(22.dp.toPx(), centerY))
+      repeat(8) { moveBy(Offset(5f, 0f)) }
+      repeat(8) { moveBy(Offset(-5f, 0f)) }
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(listOf(true, false), changes)
+    assertEquals(listOf(FluidHapticEvent.ToggleOn, FluidHapticEvent.ToggleOff), haptics.played)
+  }
+
+  @Test
+  fun `in una FluidScreen vera l'interruttore si trascina e la pagina resta ferma`() {
+    // La forma delle impostazioni di un'app: schermata con lo sfondo, gruppo di vetro, riga con
+    // l'interruttore nel badge, e una pagina lunga che puo' scorrere.
+    val listState = LazyListState()
+    val changes = mutableListOf<Boolean>()
+    compose.setContent {
+      Themed {
+        var checked by remember { mutableStateOf(false) }
+        FluidScreen(
+          title = "Altro",
+          listState = listState,
+          onRefresh = {},
+          ambient = FluidAmbient(tone = FluidHeroTone.Secondary, motif = FluidHeroMotif.Dots),
+        ) {
+          item {
+            FluidListGroup(glass = true) {
+              FluidListRow(
+                title = "Controllo automatico",
+                subtitle = "Cerca una nuova versione all'avvio.",
+                badge = {
+                  FluidSwitch(
+                    checked = checked,
+                    onCheckedChange = {
+                      checked = it
+                      changes += it
+                    },
+                    modifier = Modifier.testTag("switch"),
+                  )
+                },
+              )
+            }
+          }
+          items(30) { FluidListRow(title = "Riga", subtitle = "per far scorrere") }
+        }
+      }
+    }
+    compose.waitForIdle()
+
+    // Dalla pista vuota, di lato e in su.
+    compose.onNodeWithTag("switch").performTouchInput {
+      down(Offset(width - 10.dp.toPx(), centerY))
+      repeat(12) { moveBy(Offset(6f, -3f)) }
+      up()
+    }
+    compose.waitForIdle()
+    // E indietro dal pomello, che ora sta a destra.
+    compose.onNodeWithTag("switch").performTouchInput {
+      down(Offset(width - 22.dp.toPx(), centerY))
+      repeat(12) { moveBy(Offset(-6f, 8f)) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(listOf(true, false), changes)
+    assertEquals("la pagina ha preso il gesto", 0, listState.firstVisibleItemIndex)
+    assertEquals("la pagina ha preso il gesto", 0, listState.firstVisibleItemScrollOffset)
+  }
+
+  @Test
+  fun `l'interruttore in una riga cliccabile commuta solo lui`() {
+    var rowClicks = 0
+    val changes = mutableListOf<Boolean>()
+    compose.setContent {
+      Themed {
+        var checked by remember { mutableStateOf(false) }
+        Column(Modifier.fillMaxSize()) {
+          FluidListRow(
+            title = "Riga",
+            subtitle = "con un interruttore",
+            onClick = { rowClicks++ },
+            badge = {
+              FluidSwitch(
+                checked = checked,
+                onCheckedChange = {
+                  checked = it
+                  changes += it
+                },
+                modifier = Modifier.testTag("switch"),
+              )
+            },
+          )
+        }
+      }
+    }
+    compose.waitForIdle()
+
+    compose.onNodeWithTag("switch").performTouchInput { click(Offset(22.dp.toPx(), centerY)) }
+    compose.waitForIdle()
+    compose.onNodeWithTag("switch").performTouchInput {
+      down(Offset(width - 22.dp.toPx(), centerY))
+      repeat(10) { moveBy(Offset(-5f, 0f)) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(listOf(true, false), changes)
+    assertEquals("la riga non doveva cliccare", 0, rowClicks)
   }
 
   @Test

@@ -86,6 +86,10 @@ Le modifiche fatte finora:
     controllo (un quarto di pillola di margine per lato, invece di sporgere), il gesto sta su tutta
     la riga e le tacche di scatto sono un'aggiunta nostra. `FluidSwitch` e `FluidSlider` consumano
     il puntatore della pillola trascinata, cosi' una pagina che scorre non glielo contende.
+    Dalla 2.13.1 `FluidSwitch` non usa piu' il rilevatore di trascinamento della sorgente
+    (`DragGestureInspector`) ma un gesto suo su tutto il controllo, come lo slider: tocco e
+    trascinamento da qualunque punto, una spinta veloce che conta, e la vibrazione al passaggio della
+    meta'. Le molle (`GlassDragAnimation`) restano quelle della sorgente.
 
 12. **Vetro su vetro** (2.13.0). Un nodo di `drawBackdrop` e' anche un contenitore che gli altri
     nodi trovano fra gli antenati (`TraversableNode`): pubblica il proprio materiale — sfondo,

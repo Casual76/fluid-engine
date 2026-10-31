@@ -95,11 +95,44 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     overshootInflationX: Float = 0f,
     overshootInflationY: Float = 0f,
   ) {
+    driveExternally(from, to, progress, overshootInflationX, overshootInflationY, startFrame = null)
+  }
+
+  /**
+   * Come [driveExternally], con un fotogramma di PARTENZA vivo (3.0, per i menu).
+   *
+   * Un'ancora che si apre in un menu non parte da dove sta a riposo: parte da dove il dito l'ha
+   * spinta (il tasto premuto e' piu' grande) e, mentre il viaggio gia' corre, la pressione si scioglie
+   * e il fotogramma di partenza torna a riposo. Un `from` fisso farebbe un salto a ogni cambio di
+   * quel fotogramma; con [startFrame] il viaggio e' il lerp fra il rettangolo di QUESTO istante e
+   * [to], e la partenza si muove sotto la sagoma senza che si veda.
+   *
+   * Con [startFrame] presente `from` non decide la geometria (resta il segnaposto per il confronto
+   * "stessi estremi"): la partenza e' una capsula (raggio mezzo lato corto) sul rettangolo che la
+   * lambda restituisce, letta in fase di disegno — puo' leggere stati, e il piano si tiene in
+   * cache su (t, rettangolo), quindi a partenza ferma costa quanto prima. Richiamare con gli stessi
+   * estremi e una lambda diversa la sostituisce sul posto, gratis.
+   *
+   * Interna: l'API pubblica di Fluid-physics non cambia firma.
+   */
+  internal fun driveExternally(
+    from: FluidForm.Slab,
+    to: FluidForm.Slab,
+    progress: () -> Float,
+    overshootInflationX: Float = 0f,
+    overshootInflationY: Float = 0f,
+    startFrame: (() -> Rect)?,
+  ) {
     val current = externalDrive
     if (current != null && current.from == from && current.to == to &&
       current.overshootInflationX == overshootInflationX &&
-      current.overshootInflationY == overshootInflationY
+      current.overshootInflationY == overshootInflationY &&
+      (current.startFrame != null) == (startFrame != null)
     ) {
+      // Stessa corsa. Se il chiamante ha ricreato la lambda della partenza (cattura valori nuovi) la
+      // si prende: la cache del piano e' sul rettangolo, non sull'identita' della lambda, quindi
+      // un cambio di partenza si vede al disegno successivo senza reinstallare nulla.
+      if (startFrame != null) current.startFrame = startFrame
       return
     }
     externalDrive = ExternalWindowDrive(
@@ -109,8 +142,10 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       progress = progress,
       overshootInflationX = overshootInflationX,
       overshootInflationY = overshootInflationY,
+      startFrame = startFrame,
     )
     transitPlanStamp = Float.NaN
+    transitPlanStart = null
   }
 
   /** Grossolano e sicuro da leggere in composizione: dietro c'è un derivedStateOf. */
@@ -137,6 +172,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   private val transitPlan = PhysicsRenderPlan()
   private var transitPlanStamp = Float.NaN
   private var transitPlanTransit: Transit? = null
+
+  /** Il rettangolo di partenza con cui e' stato costruito il piano esterno (null: partenza fissa). */
+  private var transitPlanStart: Rect? = null
 
   /**
    * Fa viaggiare la superficie verso [target] e sospende finché la molla non si è posata.
@@ -210,6 +248,11 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // Se un nuovo morphTo ci ha interrotti ha già sostituito il transito: il viaggio vivo è il
       // suo, e cancellarglielo qui lo farebbe scattare a fine corsa.
       if (activeTransit === transit) {
+        // Cancellati a metà (3.0): la forma si ferma DOVE SI TROVA. Prima restava il traguardo in
+        // `formState`, e togliere il transito faceva scattare la sagoma a fine corsa per un
+        // fotogramma — il menu chiuso mentre si apriva saltava al pannello pieno e da lì tornava
+        // indietro. Il morphTo successivo parte da questa forma, come un ritargeting vero.
+        if (transit.progress.value != 1f) formState = currentForm()
         activeTransit = null
         restPlanForm = null
       }
@@ -229,26 +272,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    */
   private fun currentForm(): FluidForm {
     val transit = activeTransit ?: return formState
-    val t = transit.progress.value
-    return when (transit) {
-      is SlabTransit -> {
-        val slabs = transit.pairs.map { (from, to) ->
-          val v = lerpSlab(from, to, t)
-          FluidForm.Slab(
-            frame = Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]),
-            cornerRadii = FluidCornerRadii(v[4], v[5], v[6], v[7]),
-          )
-        }
-        if (slabs.size == 1) slabs[0] else FluidForm.Group(slabs, transit.blendRadius)
-      }
-
-      is RingTransit -> {
-        val count = transit.rings.count
-        val ring = FloatArray(count * 2)
-        for (i in ring.indices) ring[i] = lerp(transit.rings.start[i], transit.rings.end[i], t)
-        polyFromRing(ring, count)
-      }
-    }
+    return transit.formAt(transit.progress.value)
   }
 
   private fun buildTransit(origin: FluidForm, target: FluidForm): Transit {
@@ -281,7 +305,10 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     val drive = externalDrive
     if (drive != null) {
       val t = drive.progress()
-      if (transitPlanTransit !== drive.transit || transitPlanStamp != t) {
+      // La partenza viva si legge ADESSO, in fase di disegno: la cache vale per (t, rettangolo), non
+      // per t soltanto, perche' la pressione che si scioglie muove la partenza anche a progresso fermo.
+      val startRect = drive.startFrame?.invoke()
+      if (transitPlanTransit !== drive.transit || transitPlanStamp != t || transitPlanStart != startRect) {
         transitPlan.clipToBounds = maskInShader
         if (t > 1f && (drive.overshootInflationX > 0f || drive.overshootInflationY > 0f)) {
           // L'oltrepasso e' un GONFIORE, non un proseguimento: la sagoma al traguardo, scalata
@@ -300,11 +327,17 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
               smoothing = drive.to.smoothing,
             ),
           )
+        } else if (startRect != null) {
+          // Partenza viva: una capsula sul rettangolo di questo istante (il tasto, premuto o a
+          // riposo, e' tondo per costruzione), verso il traguardo del chiamante.
+          val from = FluidForm.Slab(startRect, FluidCornerRadii.all(startRect.minDimension / 2f))
+          buildSlabPlan(transitPlan, listOf(from to drive.to), blendRadius = 0f, t = t)
         } else {
           buildTransitPlan(transitPlan, drive.transit, t)
         }
         transitPlanTransit = drive.transit
         transitPlanStamp = t
+        transitPlanStart = startRect
       }
       return transitPlan
     }
@@ -345,6 +378,8 @@ private class ExternalWindowDrive(
   val progress: () -> Float,
   val overshootInflationX: Float,
   val overshootInflationY: Float,
+  /** La partenza viva, se c'e': vedi `driveExternally(…, startFrame)`. Sostituibile sul posto. */
+  var startFrame: (() -> Rect)? = null,
 )
 
 // --- La coreografia della casa ------------------------------------------------
@@ -592,34 +627,39 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
   clipShape = FluidPhysicsClipShape(silhouette, null)
 }
 
+/**
+ * La forma a progresso [t] di questo transito, come [FluidForm]: la geometria che [buildTransitPlan]
+ * disegnerebbe, in tipi di forma invece che in array.
+ *
+ * Estratta da `currentForm()` (3.0) perche' serve anche fuori: e' il punto di partenza di un
+ * ritargeting a meta' volo, e un test puo' confrontare il piano con il suo equivalente in forma
+ * senza un frame clock. Per un transito di Slab e' l'interpolazione a otto numeri di [lerpSlab]
+ * (un pezzo diventa [FluidForm.Slab], piu' pezzi un [FluidForm.Group] col raggio di fusione del
+ * transito); per un anello e' una [FluidForm.Poly] sintetica sul lerp dei vertici.
+ */
+internal fun Transit.formAt(t: Float): FluidForm = when (this) {
+  is SlabTransit -> {
+    val slabs = pairs.map { (from, to) ->
+      val v = lerpSlab(from, to, t)
+      FluidForm.Slab(
+        frame = Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]),
+        cornerRadii = FluidCornerRadii(v[4], v[5], v[6], v[7]),
+      )
+    }
+    if (slabs.size == 1) slabs[0] else FluidForm.Group(slabs, blendRadius)
+  }
+
+  is RingTransit -> {
+    val count = rings.count
+    val ring = FloatArray(count * 2)
+    for (i in ring.indices) ring[i] = lerp(rings.start[i], rings.end[i], t)
+    polyFromRing(ring, count)
+  }
+}
+
 internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Float) {
   when (transit) {
-    is SlabTransit -> {
-      // Anche una fusione estrapola: oltre il coincidere i pezzi si oltrepassano di poco in
-      // direzioni opposte, e l'unione — un contorno solo, col ponte ormai spento — si legge come
-      // il pannello che rimbalza appena più largo. È il rimbalzo chiesto, gratis; il doppio bordo
-      // di una volta lo impediscono l'unione geometrica e effectiveBlendRadius, non un clamp.
-      plan.silhouette.rewind()
-      transit.pairs.forEachIndexed { index, (from, to) ->
-        val v = lerpSlab(from, to, t)
-        plan.writeSlabPiece(index, v)
-        // In viaggio la sagoma passa per angoli circolari: è l'eccezione documentata — un path
-        // continuo ricalcolato a ogni fotogramma è esattamente quello che non ci si può permettere,
-        // e in movimento le due curve stanno dentro il pixel.
-        plan.scratchPiece.rewind()
-        plan.scratchPiece.addRoundRect(
-          RoundRect(
-            rect = Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]),
-            topLeft = CornerRadius(v[4]),
-            topRight = CornerRadius(v[5]),
-            bottomRight = CornerRadius(v[6]),
-            bottomLeft = CornerRadius(v[7]),
-          ),
-        )
-        plan.mergePieceIntoSilhouette(index)
-      }
-      plan.finishSlabs(transit.pairs.size, transit.blendRadius)
-    }
+    is SlabTransit -> buildSlabPlan(plan, transit.pairs, transit.blendRadius, t)
 
     is RingTransit -> {
       val count = transit.rings.count
@@ -628,6 +668,43 @@ internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Floa
       plan.writeRing(ring, count)
     }
   }
+}
+
+/**
+ * Il piano di una o piu' coppie di Slab a progresso [t]. Separato da [buildTransitPlan] perche' la
+ * partenza viva di `driveExternally(…, startFrame)` costruisce la coppia a ogni cambio di
+ * rettangolo, e un [SlabTransit] porta un `Animatable` che li' non serve.
+ */
+internal fun buildSlabPlan(
+  plan: PhysicsRenderPlan,
+  pairs: List<Pair<FluidForm.Slab, FluidForm.Slab>>,
+  blendRadius: Float,
+  t: Float,
+) {
+  // Anche una fusione estrapola: oltre il coincidere i pezzi si oltrepassano di poco in
+  // direzioni opposte, e l'unione — un contorno solo, col ponte ormai spento — si legge come
+  // il pannello che rimbalza appena più largo. È il rimbalzo chiesto, gratis; il doppio bordo
+  // di una volta lo impediscono l'unione geometrica e effectiveBlendRadius, non un clamp.
+  plan.silhouette.rewind()
+  pairs.forEachIndexed { index, (from, to) ->
+    val v = lerpSlab(from, to, t)
+    plan.writeSlabPiece(index, v)
+    // In viaggio la sagoma passa per angoli circolari: è l'eccezione documentata — un path
+    // continuo ricalcolato a ogni fotogramma è esattamente quello che non ci si può permettere,
+    // e in movimento le due curve stanno dentro il pixel.
+    plan.scratchPiece.rewind()
+    plan.scratchPiece.addRoundRect(
+      RoundRect(
+        rect = Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]),
+        topLeft = CornerRadius(v[4]),
+        topRight = CornerRadius(v[5]),
+        bottomRight = CornerRadius(v[6]),
+        bottomLeft = CornerRadius(v[7]),
+      ),
+    )
+    plan.mergePieceIntoSilhouette(index)
+  }
+  plan.finishSlabs(pairs.size, blendRadius)
 }
 
 internal fun buildRestPlan(plan: PhysicsRenderPlan, form: FluidForm) {

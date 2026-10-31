@@ -20,6 +20,23 @@ internal class PhysicsUniformScratch {
 private const val MaskAntialiasPx = 1.25f
 
 /**
+ * La profondità della lente come PESO (3.0): 0 è il bordo piatto, 1 la lente con profondità.
+ *
+ * Lo shader prendeva già un `float` (`grad + depthEffect * normalize(coord)`), era solo il Kotlin a
+ * passare 0 o 1. Con un peso la profondità si sfuma lungo un viaggio fra due materiali — il menu che
+ * parte da un tasto con profondità e arriva a un pannello senza — invece di accendersi di colpo a
+ * metà strada. Chi passa un Boolean ottiene 0f / 1f, cioè esattamente quello di prima.
+ */
+internal fun Boolean.asDepthWeight(): Float = if (this) 1f else 0f
+
+/**
+ * Il valore che arriva all'uniform: tenuto fra 0 e 1 perché oltre non sarebbe più una miscela fra
+ * la normale del bordo e quella radiale, ma una spinta che lo shader non ha mai avuto il compito di
+ * reggere (un peso che sfora per un'interpolazione con overshoot non deve rovesciare la rifrazione).
+ */
+internal fun depthEffectUniform(weight: Float): Float = weight.coerceIn(0f, 1f)
+
+/**
  * La lente di Fluid-physics per pezzi rettangolari (uno o molti, fusi con lo smin).
  *
  * Stessa disciplina di `lens()` (Lens.kt): salta sotto API 33 lasciando in piedi sfocatura e
@@ -43,7 +60,7 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
   scratch: PhysicsUniformScratch,
   refractionHeightPx: Float,
   refractionAmountPx: Float,
-  depthEffect: Boolean,
+  depthEffect: Float,
   tintInShader: Color,
 ) {
   if (!isRuntimeShaderSupported()) return
@@ -74,7 +91,7 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
     setFloatUniform("blendRadius", plan.blendRadius * scopeFactor)
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)
-    setFloatUniform("depthEffect", if (depthEffect) 1f else 0f)
+    setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
     setFloatUniform(
       "fieldCenter",
       plan.bounds.center.x * scopeFactor,
@@ -85,6 +102,25 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
   }
 }
 
+/**
+ * La stessa lente con la profondità come interruttore: lo era prima della 3.0 e i chiamanti che
+ * hanno ancora un `GlassOptics.depthEffect` booleano restano com'erano (0f / 1f, nessun cambio di
+ * resa). Il peso fra 0 e 1 è l'overload sopra.
+ */
+internal fun BackdropEffectScope.slabGroupMorphLens(
+  plan: PhysicsRenderPlan,
+  scopeFactor: Float,
+  scratch: PhysicsUniformScratch,
+  refractionHeightPx: Float,
+  refractionAmountPx: Float,
+  depthEffect: Boolean,
+  tintInShader: Color,
+) {
+  slabGroupMorphLens(
+    plan, scopeFactor, scratch, refractionHeightPx, refractionAmountPx, depthEffect.asDepthWeight(), tintInShader,
+  )
+}
+
 /** La lente di Fluid-physics per una sagoma libera: stesso contratto di quella sopra. */
 internal fun BackdropEffectScope.polyMorphLens(
   plan: PhysicsRenderPlan,
@@ -92,7 +128,7 @@ internal fun BackdropEffectScope.polyMorphLens(
   scratch: PhysicsUniformScratch,
   refractionHeightPx: Float,
   refractionAmountPx: Float,
-  depthEffect: Boolean,
+  depthEffect: Float,
   tintInShader: Color,
 ) {
   if (!isRuntimeShaderSupported()) return
@@ -118,7 +154,7 @@ internal fun BackdropEffectScope.polyMorphLens(
     setFloatUniform("soften", plan.soften * scopeFactor)
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)
-    setFloatUniform("depthEffect", if (depthEffect) 1f else 0f)
+    setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
     setFloatUniform(
       "fieldCenter",
       plan.bounds.center.x * scopeFactor,
@@ -127,4 +163,19 @@ internal fun BackdropEffectScope.polyMorphLens(
     setFloatUniform("aa", MaskAntialiasPx)
     setColorUniform("tintColor", tintInShader)
   }
+}
+
+/** La lente per sagoma libera con la profondità come interruttore: vedi l'overload a peso sopra. */
+internal fun BackdropEffectScope.polyMorphLens(
+  plan: PhysicsRenderPlan,
+  scopeFactor: Float,
+  scratch: PhysicsUniformScratch,
+  refractionHeightPx: Float,
+  refractionAmountPx: Float,
+  depthEffect: Boolean,
+  tintInShader: Color,
+) {
+  polyMorphLens(
+    plan, scopeFactor, scratch, refractionHeightPx, refractionAmountPx, depthEffect.asDepthWeight(), tintInShader,
+  )
 }

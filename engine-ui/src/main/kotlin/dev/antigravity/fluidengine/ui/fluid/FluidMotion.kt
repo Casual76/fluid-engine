@@ -83,6 +83,60 @@ object FluidMotion {
 
   fun <T> fluid(): SpringSpec<T> = spring(DampingFluid, ResponseStandard)
 
+  // --- Menus (3.0) ------------------------------------------------------------
+  //
+  // Un menu e' UN viaggio: l'ancora diventa il pannello e il pannello torna ancora, con la stessa
+  // geometria nei due versi (`FluidMenuJourney`). Qui i numeri di quel viaggio, tutti insieme, perche'
+  // il menu del morph, quello contestuale e l'avviso li condividono e non devono poter divergere.
+
+  /** ~0.36s: piu' viva della molla standard, perche' un menu risponde a un dito che aspetta. */
+  val MenuOpenStiffness = stiffnessForResponse(0.36)
+
+  /**
+   * Sottosmorzata di proposito: l'apertura oltrepassa il pannello e si posa — il "pop" del menu.
+   * Il picco di (progress − 1) per questo smorzamento e' [MenuPeakOvershoot].
+   */
+  const val MenuOpenDamping = 0.62f
+
+  /** L'apertura del menu: la molla sottosmorzata che porta l'ancora al pannello. */
+  fun <T> menuOpen(): SpringSpec<T> = spring(MenuOpenDamping, MenuOpenStiffness)
+
+  /** La chiusura: criticamente smorzata, nessun rimbalzo — un menu che si ritira non oscilla. */
+  fun <T> menuClose(): SpringSpec<T> = spring(DampingChrome, ResponseStandard)
+
+  /**
+   * Quanto gonfia il pannello oltre il traguardo per ogni unita' di oltrepasso: lo stesso 0,6 di
+   * `FluidPopoverWindowPopGain` nel modale, spostato fra i token perche' un numero solo decida il
+   * "pop" di ogni finestra di menu.
+   */
+  const val MenuInflationGain = 0.6f
+
+  /**
+   * Il picco atteso di (progress − 1) con [menuOpen]: `exp(−πζ / √(1 − ζ²))` per ζ = 0,62, cioe'
+   * 0,084. Sostituisce lo 0,15 che tarava il tetto sui fianchi per la rincorsa e la molla del
+   * morph: la molla del menu e' un'altra, e un tetto tarato su un picco piu' alto lasciava il
+   * pannello piu' stretto del margine che aveva.
+   */
+  const val MenuPeakOvershoot = 0.084f
+
+  /** Il contenuto del pannello entra fra questi due punti del viaggio (progress), mai prima. */
+  const val MenuContentOpenFrom = 0.25f
+  const val MenuContentOpenTo = 0.75f
+
+  /**
+   * In chiusura le voci seguono la sagoma e si spengono fra questi due punti: da ~0,92 a ~0,12. Era
+   * la finestra dell'apertura rovesciata e le voci sparivano in ~40 ms; cosi' restano leggibili per
+   * 60-200 ms mentre il pannello si ritira.
+   */
+  const val MenuContentCloseFrom = 0.12f
+  const val MenuContentCloseTo = 0.92f
+
+  /** La faccia dell'ancora (icona, etichetta) si spegne entro questo punto del viaggio. */
+  const val MenuFaceTo = 0.35f
+
+  /** La dissolvenza di uscita del menu (la goccia e il contenuto dopo una scelta), in millisecondi. */
+  const val MenuFadeOutMillis = 280
+
   // --- Typed variants -------------------------------------------------------
   //
   // Compose's default visibility threshold for a generic <T> is the Float one (0.01). Applied to

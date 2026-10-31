@@ -66,30 +66,61 @@ che rendeva l'app "colorata" invece che leggibile.
 Il feedback al tocco per una riga è `fluidRowPressable` (tinta), non `fluidPressable` (scala): una
 riga che si rimpicciolisce rompe la sagoma del gruppo e fa sembrare la lista instabile.
 
-## I pulsanti crescono, le superfici cedono (2.11.0)
+## I pulsanti crescono, le superfici cedono (2.11.0, come LibrePods dalla 3.0)
 
-Un pulsante è una cosa piccola e sola: sotto il dito **cresce** (`FluidPressFeedback.Expand`), gli
-si inclina incontro e scatta mentre il dito ci scorre sopra. Una card, una tessera, una cella
-**cedono** di pochi centesimi (`yielding`): crescendo invaderebbero le vicine, e seguendo il dito
-farebbero ballare la griglia. Non scrivere una terza risposta al dito in una schermata: è
-`FluidPress.kt`, o non è.
+Un pulsante è una cosa piccola e sola: sotto il dito **cresce** (`FluidPressFeedback.Expand`), lo
+segue e vibra mentre il dito ci scorre sopra. Una card, una tessera, una cella **cedono** di pochi
+centesimi (`yielding`): crescendo invaderebbero le vicine, e seguendo il dito farebbero ballare la
+griglia. Non scrivere una terza risposta al dito in una schermata: è `FluidPress.kt`, o non è.
+
+**Dalla 3.0 il pulsante è quello di LibrePods, e lo è davvero.** È una scelta di Alessio: il
+riferimento è un'app che, in mano, risponde meglio della nostra, e le differenze erano poche e tutte
+nello stesso verso — un tasto che aspettava, che si prendeva il dito, che vibrava una volta sola.
+L'engine ora porta il codice dei suoi pulsanti (GPL-3.0: vedi `LICENSES/LibrePods.md` e perché una
+app che lo distribuisce è GPL-3.0). Cosa vale, e cosa è cambiato dalla 2.12:
+
+- **la pressione parte al contatto.** Senza ritardo, senza soglia, in una lista come in una barra.
+  Prima, dentro una pagina che scorre, partiva 100 ms dopo (e il tasto "arrivava" invece di
+  "scattare"); `LocalFluidPressImmediate` non serve più a niente e non fa più niente;
+- **il pulsante non prende mai il gesto.** Non consuma niente: se il dito che è partito su un pulsante
+  scorre, la pagina scorre *e* il pulsante cresce, segue il dito e vibra, insieme, fino al
+  sollevamento. **Sostituisce la regola della 2.12** ("un pulsante è di chi lo tiene premuto":
+  100 ms di attesa, poi il gesto era suo e la pagina sotto non partiva), che aveva un prezzo — una
+  lista fatta di pulsanti si scorreva solo dai margini — e che la mano ha giudicato peggiore;
+- **il click è di `clickable`, come in LibrePods.** Scatta se il dito si solleva sul pulsante e
+  nessuno ha consumato: dopo uno scorrimento non c'è click. Tastiera, fuoco, TalkBack e ruolo sono
+  suoi, come prima. Il **click lungo resta** (ai menu serve): scatta se il dito è rimasto entro lo
+  slop per il tempo del click lungo, e dopo non c'è click al rilascio;
+- **i numeri sono i suoi.** Molla di pressione e di discesa (0,5; 300), deriva del dito
+  `m · tanh(0,05 · d / m)` col ritorno a molla critica (1; 300), allungamento direzionale lineare e
+  senza tetto, crescita `1 + maxScale`: 0,10 per un tasto con testo (`Expand`), **0,5 per un tasto
+  tondo** (`ExpandRound`: un tasto di vetro da 44 dp arriva a 66, al picco della molla a 70). Un
+  tetto sul lato lungo (16 dp) fa il lavoro del `maxScale = 0,05` che LibrePods dà a mano ai suoi
+  tasti a tutta larghezza. Il rilascio parte subito dal valore e dalla velocità che trova: **non
+  aspetta più** di arrivare in cima (restava la regola per le superfici e per le animazioni ridotte);
+- **l'aptica è una coreografia, con le costanti di sistema.** `PressDown` al contatto
+  (`SegmentFrequentTick`), un `SegmentFrequentTick` per ogni evento che si sposta di più di
+  sqrt(350) px (stile di grana `LibrePods`, di serie), `PressRelease` al rilascio (`Reject`), `PressClick`
+  al click (`ContextClick`). Un tap fa quindi tre colpi: **è l'unica eccezione a "una vibrazione per
+  momento"**, ed è voluta. Un tasto che apre qualcosa di suo (un menu) passa il proprio evento a
+  `fluidPressable(haptic = ...)` al posto di `PressClick`; `haptic = null` spegne tutto;
+- **sul vetro**, la lente sotto il dito è quella di LibrePods (12/24 dp, profondità, dispersione:
+  `GlassDefaults.buttonOptics()`, a riposo resta quella di sempre) e il bagliore è il suo (raggio il lato
+  lungo, velo 0,10, punto 0,15, `glassButtonGlowRecipe`). Su vetro chiaro il bianco additivo può
+  tornare a sbiancare la faccia, come prima del 2.12.0: va guardato in mano.
 
 Tre cose da sapere, tutte pagate:
 
-- **la pressione arriva sempre in fondo.** Un tap vero dura meno della corsa di qualsiasi molla, e
-  un rilascio che ripartiva da dove la corsa era arrivata faceva vedere un decimo di pressione — in
-  una lista, dove la pressione parte 100 ms dopo il tocco, niente del tutto. Il rilascio aspetta;
 - **`fluidPressable` sta prima di `clip` e `background`.** Dopo, la scala si applica solo a ciò che
   sta dentro: `FluidButton` ha rimpicciolito per anni la sua etichetta dentro un contenitore fermo,
   e nessuno lo vedeva perché era il 2.6% di una parola;
-- **un pulsante è di chi lo tiene premuto (2.12.0).** Per 100 ms il dito non è di nessuno e non si
-  consuma niente, così una passata veloce che parte su un pulsante scorre la pagina; passato quel
-  momento, se la pagina non l'ha preso, il pulsante è premuto e il gesto è suo fino al rilascio:
-  segue il dito anche fuori dai bordi, ogni cambio è consumato (la lista sotto non parte), e il click
-  scatta solo se il dito si solleva dentro il pulsante più 16 dp. Lo decide `fluidButtonGesture`;
-  `clickable` resta per ruolo, tastiera e TalkBack. Dove non scorre niente (una barra, un'intestazione)
-  `LocalFluidPressImmediate` azzera i 100 ms — e non va mai attorno a qualcosa che scorre, o quella
-  cosa si scorre solo dai margini.
+- **mai scalare un nodo di vetro da un antenato.** Un layer scalato sopra un vetro rifrange il
+  contenuto che non c'è più: la trasformazione del tasto di vetro sta nel `layerBlock` di
+  `drawBackdrop` (`glassControlSurface`), non in un `graphicsLayer` sopra;
+- **la deriva e l'allungamento sono la somma dei movimenti del dito sullo schermo, non la sua
+  posizione sul tasto.** Se la pagina scorre sotto un dito che sta fermo sul tasto, il tasto lo segue
+  lo stesso: il dito si è mosso, anche se non sul tasto. È voluto, e per questo il click lungo misura
+  lo slop sulla strada del dito e non sulla sua posizione.
 
 ## Il vetro va sul contenitore, mai sulla riga
 

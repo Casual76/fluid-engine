@@ -146,9 +146,10 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `fluidColorScheme(settings, isDark, brand, dynamicScheme)` — la palette fuori da una composizione,
   per widget e notifiche
 - Modificatori: `fluidPressable` (con `feedback` e `pressState` dalla 2.11.0, `longClickHaptic` dalla
-  2.12.0), `fluidRowPressable`; `LocalFluidPressImmediate` per la chrome in cui non scorre niente
-- La pressione (2.11.0): `FluidPressFeedback` (`Expand` per i pulsanti, `yielding(scala)` per le
-  superfici, `None`), `rememberFluidPressState`, `FluidPressState.progress`
+  2.12.0), `fluidRowPressable`; `LocalFluidPressImmediate` (dalla 3.0 non fa più niente)
+- La pressione (2.11.0): `FluidPressFeedback` (`Expand` per i pulsanti col testo, `ExpandRound` per
+  i tasti tondi dalla 3.0, `yielding(scala)` per le superfici, `None`), `rememberFluidPressState`,
+  `FluidPressState.progress`
 
 ## Regola del vetro
 
@@ -314,48 +315,65 @@ ottenere un rimbalzo: vedi le tre trappole in `regole.md`.
 Il banco di prova è la scheda Playground dell'app Fluid Glass (il modulo `sample/` del repo
 dell'engine), pubblicata sul Pampa Store.
 
-## La pressione (2.11.0, e di chi è il dito dalla 2.12.0)
+## La pressione (2.11.0, e come LibrePods dalla 3.0)
 
-Tutto in `ui/fluid/FluidPress.kt`. **I pulsanti crescono** (`FluidPressFeedback.Expand`: 6 dp sul
-lato corto, max 14 sul lungo, mai oltre il 14%), si inclinano verso il dito, si allungano nel verso
-in cui scorre e scattano (`DragTick` ogni 10 dp, mai piu' di uno ogni 55 ms). **Le superfici
+Tutto in `ui/fluid/FluidPress.kt` (la pressione, la trasformazione, lo stato) e
+`ui/fluid/FluidButtonGesture.kt` (il gesto). **I pulsanti crescono** (`FluidPressFeedback.Expand`
+col testo, `ExpandRound` per i tasti tondi solo icona), seguono il dito e vibrano. **Le superfici
 cedono** (`yielding`, il default di `fluidPressable`): una card che crescesse invaderebbe le vicine.
-Per tutti, **la pressione arriva sempre in fondo**: un rilascio a meta' corsa aspetta (un tap di
-20 ms mostra la pressione intera). Animazioni ridotte: crescita dimezzata, niente inclinazione,
-pressione comunque intera.
+Animazioni ridotte: crescita dimezzata, niente deriva né allungamento, pressione comunque intera.
 
-**Un pulsante si trascina sempre (2.12.0).** Per i pulsanti che crescono il puntatore e'
-`fluidButtonGesture`, non `clickable`: per **100 ms** il gesto non e' di nessuno e non si consuma
-niente (una passata veloce che parte sul pulsante scorre ancora la pagina, senza pressione ne'
-click); un dito che resta giu' quel tanto senza che la pagina se lo sia preso ha *premuto* il
-pulsante, e da li' il gesto e' **suo fino al rilascio** — segue il dito anche fuori dai bordi, si
-inclina, scatta, e ogni cambio e' consumato, quindi una `LazyColumn` o un `verticalScroll` attorno
-non partono. Al rilascio il click scatta se il dito e' dentro il pulsante **piu' 16 dp** (o il
-margine dell'area di tocco minima, se maggiore), altrimenti la pressione si scioglie e basta; un tap
-piu' breve di 100 ms mostra la pressione intera e clicca. Il click lungo scatta solo se il dito e'
-rimasto entro lo slop da dove e' sceso (`fluidPressable(longClickHaptic = ...)`, `null` per un
-controllo col suo colpo), e dopo non c'e' click. Un mouse e' del pulsante subito. `clickable` resta
-per ruolo, TalkBack, tastiera e fuoco; le superfici che cedono (card, tessere, `fluidRowPressable`)
-non cambiano.
+**Dalla 3.0 un pulsante è quello di LibrePods** — scelta di Alessio, e il codice è portato da lì
+(GPL-3.0, `LICENSES/LibrePods.md`). Quello che era diverso nella 2.12 e non lo è più:
 
-**Nella chrome, subito.** Dove non scorre niente — una barra, un'intestazione, un foglio — i 100 ms
-sono solo una pressione in ritardo: `LocalFluidPressImmediate provides true` li azzera. L'engine se lo
-da' da solo (tasto indietro e azioni della barra di `FluidScreen`, intestazione dei pannelli a pagina
-intera; il corpo di `FluidScreen` lo rimette a `false`, `FluidHero` resta com'e'); un'app lo da' alla
-sua chrome fissa e **mai attorno a qualcosa che scorre**, o la lista si scorrerebbe solo dai margini.
+- **Premuto al contatto.** Senza ritardo, dentro una lista come in una barra (prima: 100 ms di
+  attesa dentro una pagina che scorre, e `LocalFluidPressImmediate` per la chrome — oggi non fa più
+  niente).
+- **Non prende mai il gesto.** Non consuma niente: una passata che parte su un pulsante scorre la
+  lista, *e* il pulsante cresce, segue il dito e vibra mentre scorre, fino al rilascio. **La regola
+  della 2.12 ("un pulsante è di chi lo tiene premuto") non c'è più**: sostituita, perché una lista
+  fatta di pulsanti si scorreva solo dai margini e il tasto che aspettava 100 ms "arrivava" invece
+  di "scattare".
+- **Il click è di `clickable`**: scatta se il dito si solleva sul pulsante e nessuno ha consumato,
+  quindi non scatta dopo uno scorrimento. Tastiera (Invio, Spazio, fuoco, D-pad), TalkBack e ruolo
+  restano suoi. Il **click lungo** (`fluidPressable(onLongClick = ...)`) scatta se il dito è rimasto
+  entro lo slop per il tempo del click lungo — slop misurato sulla strada del dito sullo schermo —
+  e dopo non c'è click al rilascio.
+- **Numeri di LibrePods**: crescita `1 + maxScale` (0,10 col testo, **0,5 per un tasto tondo**; un
+  tetto di 16 dp sul lato lungo fa da 0,05 ai tasti a tutta larghezza), molla (0,5; 300) in salita e
+  in discesa che parte subito dal valore e dalla velocità del momento (non aspetta più di arrivare in
+  cima), deriva elastica `m · tanh(0,05 · d / m)` che torna con una molla critica (1; 300),
+  allungamento lineare e senza tetto. La deriva è la **somma dei movimenti del dito sullo schermo**:
+  se la pagina scorre sotto un dito fermo sul tasto, il tasto lo segue.
+- **Vetro**: la lente sotto il dito è quella di LibrePods (12/24 dp con profondità e dispersione,
+  `GlassDefaults.buttonOptics()`), il bagliore è il suo (raggio = lato lungo, velo 0,10, punto 0,15).
+  Un tasto di vetro ha **una** pressione: `val p = rememberFluidPressState()` passato sia a
+  `glassControlSurface(pressState = p)` sia a `fluidPressable(pressState = p)`; senza, il vetro segue
+  il dito da solo, e non consuma niente nemmeno lui.
+- **Aptica a coreografia**, con le costanti di sistema: `PressDown` (`SegmentFrequentTick`) al
+  contatto, un `SegmentFrequentTick` per ogni evento del dito sopra sqrt(350) px
+  (`FluidHapticGrainStyle.LibrePods`, di serie; `Fluid` è la grana a velocità misurata di prima),
+  `PressRelease` (`Reject`) al rilascio — anche di un tap che poi clicca —, `PressClick`
+  (`ContextClick`) al click. L'ordine di un tap è `PressDown`, `PressRelease`, `PressClick`. È
+  l'**unica eccezione a "una vibrazione per momento"**. `fluidPressable(haptic = X)` sostituisce
+  `PressClick` con X (un menu passa `Open`); `haptic = null` spegne tutto. Dopo un click lungo non c'è
+  `PressRelease`: quel momento ha il suo colpo.
 
-Regole: `fluidPressable` va **prima** di `clip`/`background`, o si muove solo il contenuto. Un tasto
-di vetro ha **una** pressione: `val p = rememberFluidPressState()` passato sia a
-`glassControlSurface(pressState = p)` sia a `fluidPressable(pressState = p)`; senza, il vetro segue
-il dito da solo come sempre. Il banco di prova e' la sezione "Tocco" della scheda Controlli del
-sample; i test Compose (pulsante, slider e interruttore in `LazyColumn`/`verticalScroll`, tap rapido
-in lista, notifica trascinata) stanno in `sample/src/testDebug` per non portare Robolectric nelle app.
+Le superfici che cedono (card, tessere, `fluidRowPressable`) non cambiano: `clickable` anche per il
+puntatore, ritardo nelle liste compreso, e un solo `Tap`.
+
+Regole: `fluidPressable` va **prima** di `clip`/`background`, o si muove solo il contenuto; il vetro
+non si scala mai da un antenato (la trasformazione sta nel `layerBlock` di `drawBackdrop`). Il banco
+di prova è la sezione "Tocco" della scheda Controlli del sample; i test Compose (pulsante, slider e
+interruttore in `LazyColumn`/`verticalScroll`, tap in lista, notifica trascinata) stanno in
+`sample/src/testDebug` per non portare Robolectric nelle app.
 
 ## Aptica (1.19.0)
 
 `FluidHaptics` e' il vocabolario di cio' che si sente sotto il dito, uno per tema: i componenti
-dell'engine lo usano da soli (un tasto di vetro fa `Tap`, uno switch `ToggleOn`/`ToggleOff`, un
-menu che si apre `Open`, l'indice di sezione `Tick`), le app aggiungono i loro momenti con
+dell'engine lo usano da soli (un tasto che cresce fa `PressDown`, `PressRelease` e `PressClick` dalla
+3.0 — solo costanti di piattaforma, come LibrePods —, una superficie che cede `Tap`, uno switch
+`ToggleOn`/`ToggleOff`, un menu che si apre `Open`, l'indice di sezione `Tick`), le app aggiungono i loro momenti con
 `rememberFluidHaptics().play(FluidHapticEvent.X)`: `Threshold` per una soglia raggiunta,
 `GestureStart`/`GestureEnd` per un trascinamento, `Success`/`Warning`/`Error` per gli esiti,
 `AlertWatch`/`AlertAlarm`/`AlertClear` per un'allerta che cambia livello.
@@ -367,7 +385,8 @@ zero mentre il telefono vibra, e le vibrazioni di tocco le filtra gia' il sistem
 anche su Android 11-12, dove partono come `AudioAttributes.USAGE_ASSISTANCE_SONIFICATION`).
 
 Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabolario e' uno);
-`fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (una pillola che fa
+`fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (per un tasto che cresce
+spegne anche il contatto, il rilascio e la grana) (una pillola che fa
 `Threshold` allo swipe); i tick continui (`Tick`, `FrequentTick`, `WaitTick`, `DragTick`)
 spariscono in risparmio energetico e si diradano a 40 ms da soli. `DragTick` (2.11.0) e' la tacca
 di un dito che scorre su un controllo premuto o di uno slider che passa un passo. L'interruttore e' `EngineSettings.hapticsEnabled`,

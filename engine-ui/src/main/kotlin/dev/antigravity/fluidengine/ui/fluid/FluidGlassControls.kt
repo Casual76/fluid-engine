@@ -50,18 +50,19 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  *
  *  * **It refracts.** Real displacement over a real recording, with dispersion, so the content
  *    behind the control bends and splits at its edge as the control passes over it.
- *  * **It leans.** The whole pane translates toward the touch point through a `tanh`, so it moves
+ *  * **It leans.** The whole pane translates toward the finger through a `tanh`, so it moves
  *    freely at first and then refuses — the shape of pushing on something soft that is attached.
- *  * **It swells and stretches.** Held, it grows — since 2.11.0 by up to 6 dp on its short side,
- *    see [fluidPressExpansion], where it used to be 4 dp of height; pushed off-axis, it stretches
- *    along the direction of the push and thins across it. A finger sliding over it ticks.
+ *  * **It swells and stretches.** Held, it grows — since 3.0 as LibrePods' buttons do, by 10% (a
+ *    button with a label) or 50% (a round icon button), see [fluidPressTransform]; pushed off-axis,
+ *    it stretches along the direction of the push. The lens deepens to LibrePods' 12/24 dp under
+ *    the finger, see [GlassDefaults.buttonOptics].
  *  * **It lights up where you touched it.** An additive hotspot follows the finger, because a
- *    specular reflection adds light. Darkening on press is the plastic-button idiom.
+ *    specular reflection adds light. Darkening on press is the plastic-button idiom. Since 3.0 it is
+ *    LibrePods' glow, see [glassButtonGlowRecipe].
  *
- * All of it is one [FluidPressState], the same one [fluidPressable] drives: the press always
- * arrives before it is released, so a quick tap swells the glass fully instead of a tenth of the
- * way, and the swell, the lean, the light and the optics all read the same number. With reduced
- * motion the swell is halved and the lean dropped, but the press still happens, start to end.
+ * All of it is one [FluidPressState], the same one [fluidPressable] drives, and the swell, the
+ * lean, the light and the optics all read the same number. With reduced motion the swell is
+ * halved and the lean dropped, but the press still happens, start to end.
  *
  * The lean and the swell are applied through the renderer's own layer block, which means the
  * refraction is computed *after* the transform and corrected for it: the control slides across the
@@ -73,18 +74,19 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  * @param interactive false for a control that is only decorative or disabled; it keeps the material
  *   and drops every gesture, rather than needing a second, quieter component to exist.
  * @param pressState la pressione del controllo a cui questo vetro appartiene, guidata dal suo
- *   [fluidPressable] (`pressState = ` la stessa). Il vetro risponde allora quando il pulsante e'
- *   *premuto* — dopo 100 ms di dito fermo, o al rilascio di un tap piu' rapido — e da li' il gesto
- *   e' suo fino al rilascio, anche col dito fuori dal vetro: vedi [fluidButtonGesture]. Null: il
- *   vetro segue il dito da solo, dal momento in cui scende, come ha sempre fatto, e non consuma
- *   niente. Dalla 2.11.0.
+ *   [fluidPressable] (`pressState = ` la stessa). Il vetro risponde allora dal contatto, come il
+ *   pulsante, e segue il dito finche' e' giu' — anche mentre la pagina scorre, anche fuori dal
+ *   vetro: vedi [fluidButtonGesture]. Null: il vetro segue il dito da solo, dal momento in cui
+ *   scende, e non consuma niente. Dalla 2.11.0.
+ * @param optics di serie [GlassDefaults.buttonOptics], dalla 3.0: la lente di sempre a riposo, e
+ *   quella di LibrePods sotto il dito.
  */
 @Composable
 fun Modifier.glassControlSurface(
   backdrop: GlassBackdropState,
   shape: Shape = FluidCapsuleShape,
   tint: GlassTint = GlassDefaults.controlTint(),
-  optics: GlassOptics = GlassDefaults.optics(GlassRole.Interactive),
+  optics: GlassOptics = GlassDefaults.buttonOptics(),
   selected: Boolean = false,
   interactive: Boolean = true,
   /** Independent optical weight, so a control can rest almost invisible and thicken on demand. */
@@ -110,8 +112,13 @@ fun Modifier.glassControlSurface(
       // nero. Col nero il pulsante premuto diventava un riempimento grigio-verde (~#A8B3AE) con un
       // gradiente duro verso il dito, e non rifrangeva piu' niente. Vedi glowRecipe.
       onGlass = true,
+      // Dalla 3.0 il bagliore di un pulsante e' quello di LibrePods, grande e luminoso, su chiaro e
+      // su scuro: vedi glassButtonGlowRecipe, che dice anche cosa si rischia a luce chiara.
+      button = true,
       progress = { press.progress },
-      touch = { press.touch },
+      // Dove e' sceso il dito piu' la strada che ha fatto: al rilascio torna al punto di discesa
+      // insieme al tasto, con la stessa molla.
+      touch = { press.glow },
     )
   }
   val selectionTint = remember(tint, selected, accent) {
@@ -287,7 +294,8 @@ fun FluidGlassIconButton(
 ) {
   // One press for the click and the glass: the lens swells, leans and lights up on the same
   // timeline the action is confirmed on, and a finger sliding over it ticks once, not twice.
-  val press = rememberFluidPressState(FluidPressFeedback.Expand)
+  // Tondo, solo icona: cresce del 50%, come `StyledIconButton` di LibrePods (3.0).
+  val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)

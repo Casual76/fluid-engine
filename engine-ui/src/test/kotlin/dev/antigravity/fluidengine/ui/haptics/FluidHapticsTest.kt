@@ -38,7 +38,12 @@ class FluidHapticsTest {
   fun `ogni evento ha una composizione, un ripiego e scale in 0-1`() {
     FluidHapticEvent.entries.forEach { event ->
       val steps = FluidHapticPatterns.composition(event)
-      assertTrue("composizione vuota per $event", steps.isNotEmpty())
+      // I tre colpi di un tasto che cresce (3.0) sono solo di piattaforma: nessuna composizione.
+      if (event in FluidHapticPatterns.platformOnly) {
+        assertTrue("$event e' solo di piattaforma e non ha una composizione", steps.isEmpty())
+      } else {
+        assertTrue("composizione vuota per $event", steps.isNotEmpty())
+      }
       steps.forEach { assertTrue("scala fuori range per $event", it.scale in 0f..1f) }
       FluidHapticPatterns.fallback(event)
     }
@@ -244,5 +249,109 @@ class FluidHapticsTest {
     assertEquals(FluidHapticEngine.Off, haptics.engine)
     haptics.play(FluidHapticEvent.Success)
     assertTrue(port.compositions.isEmpty() && port.platforms.isEmpty())
+  }
+
+  // -- I tre colpi di un tasto che cresce (3.0) ----------------------------------------------------
+
+  private val pressEvents = listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.PressClick)
+
+  @Test
+  fun `i tre colpi del tasto sono in coda al vocabolario, gli ordinali di prima non si spostano`() {
+    assertEquals(pressEvents, FluidHapticEvent.entries.takeLast(3))
+    // Il precedente ultimo evento e' rimasto dov'era: chi salva un ordinale non si ritrova un altro.
+    assertEquals(FluidHapticEvent.entries.size - 4, FluidHapticEvent.DragTick.ordinal)
+    assertEquals(0, FluidHapticEvent.Tap.ordinal)
+  }
+
+  @Test
+  fun `i tre colpi suonano la costante di piattaforma di LibrePods, mai una composizione`() {
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true })
+    // Un device con tutte le primitive: lo stesso, la costante e' il carattere di questi tre.
+    assertEquals(FluidHapticEngine.Composition, haptics.engine)
+    pressEvents.forEach { haptics.play(it) }
+    assertEquals(
+      listOf(HapticFeedbackType.SegmentFrequentTick, HapticFeedbackType.Reject, HapticFeedbackType.ContextClick),
+      port.platforms,
+    )
+    assertTrue(port.compositions.isEmpty())
+    pressEvents.forEach { assertTrue("$it non e' a composizione", !haptics.usesComposition(it)) }
+    assertEquals(pressEvents.toSet(), FluidHapticPatterns.platformOnly)
+  }
+
+  @Test
+  fun `i tre colpi non sono ne' continui ne' fondibili, e non armano la rete`() {
+    pressEvents.forEach {
+      assertTrue("$it non e' continuo", !it.continuous)
+      assertTrue("$it non e' fondibile", it !in FluidHapticPatterns.coalescible)
+      assertTrue("$it non e' un controllo secco", it !in FluidHapticPatterns.controlEvents)
+    }
+
+    var now = 1_000L
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { now })
+    // Rilascio e click cadono nello stesso istante, e suonano tutti e due: e' voluto.
+    haptics.play(FluidHapticEvent.PressRelease)
+    haptics.play(FluidHapticEvent.PressClick)
+    assertEquals(listOf(HapticFeedbackType.Reject, HapticFeedbackType.ContextClick), port.platforms)
+    // Non armano la rete dei 70 ms: un evento di controllo subito dopo suona...
+    haptics.play(FluidHapticEvent.Open)
+    assertEquals(1, port.compositions.size)
+    // ...e uno di controllo non ne fa scartare uno dei tre.
+    haptics.play(FluidHapticEvent.PressDown)
+    assertEquals(HapticFeedbackType.SegmentFrequentTick, port.platforms.last())
+    assertEquals(3, port.platforms.size)
+    now += 1
+    haptics.play(FluidHapticEvent.PressClick)
+    assertEquals(4, port.platforms.size)
+  }
+
+  @Test
+  fun `i tre colpi rispettano l'interruttore e il vibratore, non il risparmio energetico`() {
+    val off = FakePort()
+    val silent = FluidHapticsImpl(off, enabled = { false })
+    pressEvents.forEach { silent.play(it) }
+    assertTrue(off.platforms.isEmpty() && off.compositions.isEmpty())
+
+    val noVibrator = FakePort(hasVibrator = false)
+    pressEvents.forEach { FluidHapticsImpl(noVibrator, enabled = { true }).play(it) }
+    assertTrue(noVibrator.platforms.isEmpty())
+
+    // Come ogni vibrazione di controllo: il risparmio energetico toglie solo quelle che si ripetono.
+    val saving = FakePort(powerSave = true)
+    pressEvents.forEach { FluidHapticsImpl(saving, enabled = { true }).play(it) }
+    assertEquals(3, saving.platforms.size)
+  }
+
+  @Test
+  fun `la grana di LibrePods e' il tick di sistema a ogni evento, senza tetto e senza composizione`() {
+    var now = 1_000L
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { now })
+    // Dieci granelli nello stesso istante: tutti, senza il pavimento della grana dell'engine.
+    repeat(10) { haptics.grain(1f, FluidHapticGrainStyle.LibrePods) }
+    assertEquals(List(10) { HapticFeedbackType.SegmentFrequentTick }, port.platforms)
+    assertTrue(port.compositions.isEmpty())
+    now += 1
+    // L'intensita' non conta: il tick di sistema non si dosa.
+    haptics.grain(0.05f, FluidHapticGrainStyle.LibrePods)
+    assertEquals(11, port.platforms.size)
+
+    val saving = FakePort(powerSave = true)
+    FluidHapticsImpl(saving, enabled = { true }).grain(1f, FluidHapticGrainStyle.LibrePods)
+    assertTrue(saving.platforms.isEmpty())
+    val off = FakePort()
+    FluidHapticsImpl(off, enabled = { false }).grain(1f, FluidHapticGrainStyle.LibrePods)
+    assertTrue(off.platforms.isEmpty())
+  }
+
+  @Test
+  fun `la grana dell'engine resta una composizione dosata, col suo pavimento`() {
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { 1_000L })
+    haptics.grain(0.3f, FluidHapticGrainStyle.Fluid)
+    haptics.grain(0.3f, FluidHapticGrainStyle.Fluid)
+    assertEquals(listOf(HapticPrimitiveStep(HapticPrimitive.TICK, 0.3f)), port.compositions.single())
+    assertTrue(port.platforms.isEmpty())
   }
 }

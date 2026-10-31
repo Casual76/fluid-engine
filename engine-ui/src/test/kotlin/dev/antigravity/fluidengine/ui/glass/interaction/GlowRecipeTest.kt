@@ -119,4 +119,34 @@ class GlowRecipeTest {
       assertTrue(r.core in 0f..1f)
     }
   }
+
+  @Test
+  fun glassButton_isLibrePodsGlow_onLightAndDarkAlike() {
+    val r = glassButtonGlowRecipe()
+    assertEquals(Color.White, r.tone)
+    assertEquals(BlendMode.Plus, r.blend)
+    // I numeri di `StyledButton` di LibrePods: velo 0,10, punto 0,15, plateau a meta' raggio, ripiego 0,25.
+    assertEquals(0.10f, r.veil, 0f)
+    assertEquals(0.15f, r.spot, 0f)
+    assertEquals(0.5f, r.core, 0f)
+    assertEquals(0.25f, r.flat, 0f)
+    // E il raggio e' il lato lungo della superficie, non 1,5 lati corti come in Kyant.
+    assertTrue(r.radiusFromLongSide)
+    assertTrue(!glowRecipe(onDarkSurface = true, onGlass = true).radiusFromLongSide)
+    assertTrue(!glowRecipe(onDarkSurface = false, onGlass = true).radiusFromLongSide)
+  }
+
+  @Test
+  fun glassButton_isBrighterThanTheLightGlassRecipeItReplaces() {
+    val button = glassButtonGlowRecipe()
+    val gentle = glowRecipe(onDarkSurface = false, onGlass = true)
+    assertTrue(button.veil > gentle.veil && button.spot > gentle.spot)
+    // Il prezzo, in numeri: a luce chiara la faccia sale di piu' di quanto la ricetta morbida volesse
+    // (il rischio e' scritto in `glassButtonGlowRecipe`: si giudica in mano).
+    val levels = (lit(lightFace, button) - lightFace) * 255f
+    assertTrue("sale di $levels livelli", levels > 30f)
+    // Il resto del vetro (la barra a pillola, i controlli dei pop-up) tiene la sua ricetta.
+    assertEquals(0.015f, gentle.veil, 0f)
+    assertEquals(0.055f, gentle.spot, 0f)
+  }
 }

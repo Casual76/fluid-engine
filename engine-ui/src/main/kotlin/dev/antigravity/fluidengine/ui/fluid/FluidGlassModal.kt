@@ -1905,9 +1905,6 @@ private fun FluidGlassModalSheet(
  */
 @Composable
 private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
-  // L'intestazione non scorre: la chiusura e' premuta al tocco, non dopo i 100 ms di un pulsante
-  // dentro una pagina che scorre. Il contenuto che le sta sotto resta com'e' (LocalFluidPressImmediate).
-  CompositionLocalProvider(LocalFluidPressImmediate provides true) {
   Box(
     modifier = Modifier
       .fillMaxWidth()
@@ -1929,7 +1926,6 @@ private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
     }
     FluidFullScreenCloseButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
   }
-  }
 }
 
 @Composable
@@ -1939,7 +1935,7 @@ private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier =
   Box(
     modifier = modifier
       .size(FluidFullScreenCloseTouchTarget)
-      .fluidPressable(onClick = onClick, role = Role.Button, feedback = FluidPressFeedback.Expand)
+      .fluidPressable(onClick = onClick, role = Role.Button, feedback = FluidPressFeedback.ExpandRound)
       .semantics { contentDescription = "Chiudi" },
     contentAlignment = Alignment.Center,
   ) {

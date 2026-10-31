@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -26,6 +27,8 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.semantics.onLongClick as semanticsOnLongClick
+import androidx.compose.ui.semantics.semantics
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 
@@ -44,32 +47,32 @@ import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
  *    layer clip never chases the shape (the shader's alpha mask sculpts the silhouette), and the
  *    morph is transient by contract (at rest the surface holds one stable Shape instance). A
  *    corner radius animated ad hoc in a screen is still the bug it always was.
- *  * **The press always finishes.** Since 2.11.0 the movement is a [FluidPressState]: a release
- *    that arrives while the press is still travelling waits for it to arrive, so a 20 ms tap shows
- *    the same complete press as a held one. Before, the release restarted from wherever the press
- *    had got to — a tenth of the way, on a real tap — and inside a list, where `clickable` holds
- *    the press back 100 ms, a quick tap delivered press and release in the same frame and nothing
- *    moved at all.
+ *  * **The press is one thing.** Since 2.11.0 the movement is a [FluidPressState], shared by whoever
+ *    drives it and whoever draws it, so the click, the glass and the light all read the same number.
  *
  * Two families of feedback, see [FluidPressFeedback]: surfaces **yield** a few hundredths
- * ([pressedScale], the behaviour this modifier always had), buttons **expand** — they grow under
- * the finger, lean toward it, stretch along its drag and tick under it as it slides
+ * ([pressedScale], the behaviour this modifier always had), buttons **expand**
  * ([FluidPressFeedback.Expand], what every button of the engine uses since 2.11.0).
  *
- * **Un pulsante si trascina sempre (2.12.0).** Per [FluidPressFeedback.Expand] il puntatore non e'
- * piu' di `clickable`: decide [fluidButtonGesture], dall'ora degli eventi e dallo slop. Una passata
- * veloce che parte su un pulsante scorre ancora la pagina — non si consuma niente, non si preme
- * niente, nessun click. Un dito che resta giu' 100 ms senza che la pagina se lo sia preso ha
- * *premuto* il pulsante, e da li' il gesto e' suo fino al rilascio: si inclina, si allunga, scatta,
- * segue il dito anche fuori dai suoi bordi, e ogni cambio e' consumato, quindi un `verticalScroll`
- * o una `LazyColumn` attorno non partono mai. Al rilascio il click scatta se il dito e' dentro il
- * pulsante piu' 16 dp, altrimenti la pressione si scioglie e basta. Dove non scorre niente — la
- * barra di [FluidScreen], l'intestazione dei pannelli — il pulsante e' premuto gia' al tocco, non
- * dopo i 100 ms: [LocalFluidPressImmediate], da non mettere mai attorno a qualcosa che scorre.
- * A `clickable` resta quello che
- * non e' puntatore: la tastiera (Invio, Spazio, fuoco), il click e il click lungo di TalkBack, il
- * ruolo. Le superfici che cedono (card, tessere, [fluidRowPressable]) tengono `clickable` anche
- * per il puntatore: una card non e' qualcosa a cui aggrapparsi mentre si scorre.
+ * **Un pulsante e' LibrePods (3.0).** Per [FluidPressFeedback.Expand] il puntatore lo guida
+ * [fluidButtonGesture], e la regola e' quella di LibrePods, che Alessio ha scelto come riferimento:
+ *
+ *  * **La pressione parte al contatto**, senza ritardo e senza soglia, in una lista come in una barra.
+ *  * **Il pulsante non prende mai il gesto.** Non consuma niente: una passata che parte su un
+ *    pulsante in una `LazyColumn` scorre la lista *e* il pulsante cresce e segue il dito, insieme.
+ *    Sostituisce la regola della 2.12 ("un pulsante e' di chi lo tiene premuto": 100 ms di attesa e
+ *    poi il gesto era suo e la pagina non partiva).
+ *  * **Il click e' di `clickable`**, come in LibrePods: scatta se il dito si solleva sul pulsante e
+ *    nessuno ha consumato, quindi non scatta se la pagina ha scorso. Tastiera (Invio, Spazio, fuoco),
+ *    TalkBack e ruolo sono i suoi, e non sono cambiati.
+ *  * **Il click lungo resta** (ai menu serve): scatta se il dito e' rimasto entro lo slop per il tempo
+ *    del click lungo, e dopo non c'e' click al rilascio.
+ *  * **Tre colpi per tocco**, con le costanti di sistema: [FluidHapticEvent.PressDown] al contatto,
+ *    [FluidHapticEvent.PressRelease] al rilascio, [FluidHapticEvent.PressClick] al click, piu' la
+ *    grana mentre il dito corre. Vedi [haptic].
+ *
+ * Le superfici che cedono (card, tessere, [fluidRowPressable]) tengono `clickable` anche per il
+ * puntatore e non cambiano: una card non e' qualcosa a cui aggrapparsi mentre si scorre.
  *
  * The transform is applied in the draw phase from state read there, so a press — and a finger
  * dragged across a pressed button — invalidates only this node's drawing: nothing recomposes, and
@@ -84,9 +87,9 @@ import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
  *   layer, see [glassControlSurface]. Given one, this modifier drives it (press, release, finger,
  *   ticks) and draws no transform of its own; its feedback is the state's, and [feedback] and
  *   [pressedScale] are ignored. Since 2.11.0.
- * @param interactionSource riceve `PressInteraction.Press`/`Release`/`Cancel` per ogni pressione del
- *   puntatore — per un pulsante, quando e' premuto dopo i 100 ms di cui sopra e non al primo
- *   tocco — oltre al fuoco e alle pressioni da tastiera di `clickable`.
+ * @param interactionSource riceve le interazioni di `clickable`: `PressInteraction` (dal contatto, o
+ *   dopo il ritardo di `clickable` dentro uno scorrevole), il fuoco, la tastiera. Dalla 3.0 e'
+ *   `clickable` e basta, anche per un pulsante: non emette piu' niente di suo.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -97,7 +100,15 @@ fun Modifier.fluidPressable(
   pressedScale: Float = FluidPressFeedback.DefaultYieldScale,
   role: androidx.compose.ui.semantics.Role? = null,
   interactionSource: MutableInteractionSource? = null,
-  /** Cosa si sente al rilascio; null per un controllo che vibra gia' per conto suo. */
+  /**
+   * Cosa si sente al click; null per un controllo che vibra gia' per conto suo.
+   *
+   * Per un pulsante che cresce ([FluidPressFeedback.expands]) il default, [FluidHapticEvent.Tap],
+   * vuol dire il click di LibrePods, [FluidHapticEvent.PressClick]; un evento diverso (un tasto che
+   * apre un menu passa `Open`) lo **sostituisce**, e i colpi del contatto e del rilascio restano.
+   * `null` spegne tutto: contatto, rilascio, grana e click, perche' un controllo che ha il suo colpo
+   * non deve averne tre in piu'.
+   */
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   /**
    * La sagoma in cui mostrare il fuoco da tastiera con un velo dell'accento, oltre al farsi
@@ -116,13 +127,10 @@ fun Modifier.fluidPressable(
   val ownState = rememberFluidPressState(feedback ?: FluidPressFeedback.yielding(pressedScale))
   val press = pressState ?: ownState
   val drawsPress = pressState == null
-  // Un pulsante — tutto cio' che cresce sotto il dito — tiene il dito fino al rilascio; una
-  // superficie che cede lo lascia alla pagina e a `clickable`, come ha sempre fatto.
-  val ownsGesture = enabled && press.feedback.expands
-  // Nella chrome, dove non scorre niente, il tasto e' del dito dal primo istante: vedi sotto.
-  val immediate = LocalFluidPressImmediate.current
-  // Le pressioni che il gesto scrive sulla sorgente: l'effetto qui sotto non deve premere due volte.
-  val emitted = remember { HashSet<PressInteraction.Press>() }
+  // Un pulsante — tutto cio' che cresce sotto il dito — risponde al dito dal contatto e non lo
+  // prende mai; una superficie che cede lo lascia alla pagina e a `clickable`, come ha sempre fatto.
+  val expands = press.feedback.expands
+  val ownsGesture = enabled && expands
   // Il fuoco da tastiera e' il gesto opposto alla pressione: la cosa si fa avanti invece di
   // cedere, come su tvOS. Senza, con una tastiera attaccata al tablet Tab spostava il fuoco su
   // elementi che non lo mostravano in nessun modo. Col dito il fuoco non arriva mai qui (in
@@ -144,17 +152,19 @@ fun Modifier.fluidPressable(
 
   // La pressione di una superficie che cede viene dalle interazioni di `clickable`: sa gia' quando
   // un tocco e' una pressione (dopo il suo ritardo dentro uno scorrevole, cosi' uno scorrimento
-  // che parte su una card non la accende mai) e quando glielo hanno portato via. Quella di un
-  // pulsante viene dal suo gesto, deciso nel ciclo del puntatore — un'interazione arriva un
-  // fotogramma dopo, e il gesto deve sapere *adesso* se il dito e' del pulsante — e qui si
-  // raccoglie, per lui, la tastiera: Invio e Spazio premono e rilasciano dalla stessa sorgente.
-  // Raccolta, non letta con `collectIsPressedAsState`, cosi' una pressione non ricompone niente.
-  LaunchedEffect(resolvedInteractionSource, press) {
+  // che parte su una card non la accende mai) e quando glielo hanno portato via. Raccolta, non letta
+  // con `collectIsPressedAsState`, cosi' una pressione non ricompone niente.
+  //
+  // **Quella di un pulsante no**, ed e' il punto: se la pagina parte a scorrere `clickable` annulla
+  // e manda un `Cancel`, e il pulsante si scioglierebbe sotto un dito che e' ancora giu'. Il
+  // pulsante la prende dal suo gesto (il puntatore) e da `fluidButtonKeys` (la tastiera).
+  LaunchedEffect(resolvedInteractionSource, press, expands) {
+    if (expands) return@LaunchedEffect
     resolvedInteractionSource.interactions.collect { interaction ->
       when (interaction) {
-        is PressInteraction.Press -> if (interaction !in emitted) press.press()
-        is PressInteraction.Release -> if (!emitted.remove(interaction.press)) press.release()
-        is PressInteraction.Cancel -> if (!emitted.remove(interaction.press)) press.release()
+        is PressInteraction.Press -> press.press()
+        is PressInteraction.Release -> press.release()
+        is PressInteraction.Cancel -> press.release()
       }
     }
   }
@@ -162,8 +172,9 @@ fun Modifier.fluidPressable(
 
   // Le stesse due azioni per il puntatore, la tastiera e TalkBack. Il gesto le legge attraverso uno
   // State: il suo ciclo del puntatore sopravvive alle lambda di ogni singola composizione.
+  val clickHaptic = if (expands && haptic == FluidHapticEvent.Tap) FluidHapticEvent.PressClick else haptic
   val click: () -> Unit = {
-    haptic?.let { haptics.play(it) }
+    clickHaptic?.let { haptics.play(it) }
     onClick?.invoke()
   }
   val longClick: (() -> Unit)? = onLongClick?.let {
@@ -208,31 +219,53 @@ fun Modifier.fluidPressable(
         }
       }
     }
+    // La tastiera prima di `clickable` nella catena: l'anteprima dei tasti va dai genitori ai
+    // figli, e il fuoco e' sul nodo di `clickable`.
+    .then(if (ownsGesture) Modifier.fluidButtonKeys(press) else Modifier)
+    .then(
+      if (expands) {
+        // Il click e' di `clickable`, come in LibrePods. Il click lungo non passa da `clickable`
+        // (il suo scatterebbe senza lo slop, e in piu' il gesto qui sotto lo sa gia'): a lui
+        // resta solo il ruolo e, per TalkBack, l'azione.
+        Modifier
+          .clickable(
+            interactionSource = resolvedInteractionSource,
+            indication = null,
+            enabled = enabled,
+            role = role,
+            onClick = click,
+          )
+          .semantics {
+            if (enabled && longClick != null) {
+              semanticsOnLongClick(label = null) {
+                currentLongClick?.invoke()
+                true
+              }
+            }
+          }
+      } else {
+        Modifier.combinedClickable(
+          interactionSource = resolvedInteractionSource,
+          indication = null,
+          enabled = enabled,
+          role = role,
+          onClick = click,
+          onLongClick = longClick,
+        )
+      },
+    )
+    // Dopo `clickable` nella catena: e' piu' interno, quindi nel passaggio Main vede il puntatore
+    // *prima* di lui. Il rilascio passa di qui (`PressRelease`) e poi dal click (`PressClick`).
     .then(
       when {
-        // Prima di `clickable` nella catena: nell'Initial vede il puntatore per primo e consuma il
-        // down prima che `clickable` lo legga nel Main. Una sola sorgente di click.
         ownsGesture -> Modifier.fluidButtonGesture(
           state = press,
-          interactionSource = resolvedInteractionSource,
-          emitted = emitted,
-          onClick = { currentClick() },
+          playsHaptics = haptic != null,
           onLongClick = if (longClick != null) ({ currentLongClick?.invoke() }) else null,
-          immediate = immediate,
         )
         enabled && tracksFinger -> Modifier.fluidPressTracking(press, ownsPress = false)
         else -> Modifier
       },
-    )
-    // Per un pulsante non e' piu' il puntatore — il down l'ha preso il suo gesto — ma la semantica:
-    // ruolo, click e click lungo di TalkBack, `disabled`, la tastiera e il fuoco.
-    .combinedClickable(
-      interactionSource = resolvedInteractionSource,
-      indication = null,
-      enabled = enabled,
-      role = role,
-      onClick = click,
-      onLongClick = longClick,
     )
 }
 

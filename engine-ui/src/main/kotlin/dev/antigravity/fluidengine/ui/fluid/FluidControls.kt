@@ -117,10 +117,14 @@ object FluidButtonDefaults {
  * the screen is built on.
  *
  * Since 2.11.0 the answer is [FluidPressFeedback.Expand]: the button grows under the finger, leans
- * toward it, stretches along a drag and ticks under a finger sliding across it, and a tap however
- * quick plays the whole press. Before, it shrank to 0.974 — and only its label did, because the
- * press sat *inside* the clip and the background, so the container never moved at all. The press
+ * toward it and stretches along a drag. Before, it shrank to 0.974 — and only its label did, because
+ * the press sat *inside* the clip and the background, so the container never moved at all. The press
  * is now outside both, and the container is what grows.
+ *
+ * Since 3.0 it is LibrePods' button, and it behaves like it: pressed at the touch, never taking the
+ * gesture from a page that scrolls, three vibrations per tap. It grows by 10%, with the growth of
+ * its long side capped at 16 dp: a button that fills the width ([fillWidth]) grows by about 5%.
+ * See [fluidPressable] and [FluidPressFeedback.maxScale].
  */
 @Composable
 fun FluidButton(

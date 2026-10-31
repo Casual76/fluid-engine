@@ -25,6 +25,10 @@ import dev.antigravity.fluidengine.ui.theme.FluidListRow
  * asks for the notice to travel with the distribution, and the SIL OFL asks for the copyright line.
  * Putting the list in the engine rather than in each app is what stops it from being right in one
  * app and three versions stale in the other four.
+ *
+ * Since 3.0 one entry is not like the others: LibrePods is **GPL-3.0 and its code is in the engine**
+ * (the buttons, see LICENSES/LibrePods.md), so an app that ships the engine is distributed under
+ * GPL-3.0. The list is where the app says so.
  */
 @Immutable
 data class FluidLicense(
@@ -49,6 +53,16 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
     licence = "Apache License 2.0",
     url = "https://github.com/Kyant0/AndroidLiquidGlass",
     role = "Il vetro: cattura dello sfondo, lente rifrattiva, bordo speculare, spessore.",
+  ),
+  FluidLicense(
+    name = "LibrePods",
+    author = "LibrePods contributors — Copyright 2025",
+    // GPL e non Apache: a differenza di Square, qui il codice c'e'. Dalla 3.0 i pulsanti sono il suo,
+    // portati: chi distribuisce un'app con l'engine la distribuisce sotto GPL-3.0, e quest'elenco e'
+    // dove l'app lo dice. Vedi LICENSES/LibrePods.md.
+    licence = "GPL-3.0",
+    url = "https://github.com/librepods-org/librepods",
+    role = "I pulsanti: come crescono sotto il dito, lo seguono e vibrano.",
   ),
   FluidLicense(
     name = "Inter",

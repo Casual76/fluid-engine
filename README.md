@@ -123,14 +123,25 @@ Vedi `ENGINE_VERSION` e `CHANGELOG.md`. La stessa stringa è compilata in `Engin
 
 ## Crediti e licenze di terze parti
 
-`engine-ui` distribuisce dentro l'APK due opere di altri, e le rispettive licenze chiedono che
+`engine-ui` distribuisce dentro l'APK tre opere di altri, e le rispettive licenze chiedono che
 l'avviso viaggi con la distribuzione. `FluidEngineLicenses` e `fluidLicensesSection()` mettono
 l'elenco nella schermata "informazioni" di ogni app senza doverlo riscrivere cinque volte.
 
 | | | |
 |---|---|---|
 | [AndroidLiquidGlass (`backdrop`)](https://github.com/Kyant0/AndroidLiquidGlass) | Kyant, Copyright 2025 | Apache-2.0 — [`LICENSES/AndroidLiquidGlass.md`](LICENSES/AndroidLiquidGlass.md) |
+| [LibrePods](https://github.com/librepods-org/librepods) | LibrePods contributors, Copyright 2025 | **GPL-3.0** — [`LICENSES/LibrePods.md`](LICENSES/LibrePods.md) |
 | [Inter](https://github.com/rsms/inter) | Rasmus Andersson | SIL OFL 1.1 — [`LICENSES/Inter.md`](LICENSES/Inter.md) |
+
+**Dalla 3.0 l'engine contiene codice GPL-3.0, e un'app che lo distribuisce è distribuita sotto
+GPL-3.0.** È il codice dei pulsanti di LibrePods — la pressione che parte al contatto, la deriva
+elastica, i tre colpi aptici — portato com'è, con l'intestazione di provenienza e l'elenco di quello
+che abbiamo cambiato in ogni file (`FluidPress.kt`, `FluidButtonGesture.kt` e le parti delle
+vibrazioni, del bagliore e della lente che li accompagnano). È una scelta, fatta apposta: i tasti
+dell'engine si comportano esattamente come quelli di LibrePods perché sono i suoi. Chi aggiorna
+un'app a 3.0 la porta sotto GPL-3.0: i sorgenti a chi riceve l'APK, la stessa licenza, e la riga
+nella schermata "informazioni" che `fluidLicensesSection()` già scrive. Il resto dell'engine resta
+com'era (Apache-2.0 dove viene da Kyant).
 
 **Il vetro è di Kyant.** Tutta la rifrazione del Fluid Glass — cattura dello sfondo, lente, bordo
 speculare, spessore — è la sua libreria `backdrop`, copiata come sorgente in
@@ -144,9 +155,10 @@ Liquid Glass su Android che avessimo visto. Da Square non abbiamo preso codice �
 vetro è la stessa libreria Apache-2.0 che abbiamo preso direttamente da monte — ma il debito è reale
 ed è giusto scriverlo.
 
-Lo stesso vale per **[LibrePods](https://github.com/librepods-org/librepods)**: i pulsanti che
-crescono sotto il dito e gli slider che tengono ferma la pagina della 2.11.0 sono nati guardando
-come si comportano i suoi controlli. Del comportamento, non del codice: LibrePods è GPL-3.0, e
-`FluidPress.kt` e il gesto dello slider sono scritti da capo con le API standard di Compose. Lo
-slider come si vede, dalla 2.12.0, è invece il `LiquidSlider` di Kyant (Apache-2.0, come il vetro:
+**[LibrePods](https://github.com/librepods-org/librepods)** è il riferimento dei pulsanti: i tasti
+che crescono sotto il dito e le loro vibrazioni della 2.11.0 sono nati guardando come si comportano i
+suoi controlli, e fino alla 2.13 era solo comportamento: nessun codice. Dalla 3.0 è codice — la
+pressione, il gesto e l'aptica dei pulsanti sono il suo, portati — e per questo l'engine è GPL-3.0
+come ogni app che lo distribuisce (vedi sopra e [`LICENSES/LibrePods.md`](LICENSES/LibrePods.md)).
+Lo slider come si vede, dalla 2.12.0, è invece il `LiquidSlider` di Kyant (Apache-2.0, come il vetro:
 `LICENSES/AndroidLiquidGlass.md`).

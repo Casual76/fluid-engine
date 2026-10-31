@@ -21,6 +21,9 @@
  *   - 2.12.0: on a light pane of glass the highlight no longer lays black over it; it adds a lighter,
  *     narrower white spot instead (`onGlass`, `glowRecipe`). The numbers above stay Kyant's for
  *     everything else;
+ *   - 3.0: `glassButtonGlowRecipe` and `GlassTouchHighlight(button = true)`, the glow of a glass
+ *     button, are not Kyant's. See the note above that function: they come from LibrePods, GPL-3.0.
+ *     Everything else in this file is still Apache-2.0 and still Kyant's;
  *   - the engine's formatting.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -320,6 +323,8 @@ class GlassDragAnimation(
  *   scende, 0 e' una campana che scende dal centro.
  * @param flat peso del ripiego sotto API 33, dove non c'e' lo shader e il bagliore e' una lavata
  *   uniforme.
+ * @param radiusFromLongSide il raggio e' il lato lungo della superficie e non [radiusScale] lati
+ *   corti. Solo [glassButtonGlowRecipe].
  */
 internal data class GlowRecipe(
   val tone: Color,
@@ -329,6 +334,7 @@ internal data class GlowRecipe(
   val radiusScale: Float,
   val core: Float,
   val flat: Float,
+  val radiusFromLongSide: Boolean = false,
 )
 
 /** I numeri di Kyant (`InteractiveHighlight`), identici: tutto quello che non e' vetro chiaro. */
@@ -376,6 +382,34 @@ internal fun glowRecipe(onDarkSurface: Boolean, onGlass: Boolean): GlowRecipe = 
 }
 
 /**
+ * Il bagliore di un **pulsante di vetro** (3.0): quello di LibrePods, GPL-3.0.
+ *
+ * Portato da `StyledButton.kt` righe 277-311 di LibrePods (branch `android/rewrite`, commit
+ * 3d4d270; lo stesso numero nel tasto tondo non c'e': li' il vetro e' di Haze e non ha bagliore).
+ * Lo shader e' quello di Kyant, identico, e non cambia: cambiano i numeri dentro. Rispetto a Kyant
+ * (`kyantGlow`) il velo sale da 0,08 a 0,10 e il raggio non e' 1,5 lati corti ma **il lato lungo**
+ * della superficie: su un pulsante da 160x48 dp sono 160 dp invece di 72, e il plateau — meta' del
+ * raggio — copre da solo mezzo pulsante. Il punto resta 0,15, il core 0,5 e il ripiego 0,25.
+ *
+ * E' **bianco additivo anche su vetro chiaro**, dove la ricetta di [glowRecipe] con `onGlass`
+ * (2.12.0) metteva 0,015 + 0,055 con un raggio di 1,15 lati corti perche' i numeri di Kyant su una
+ * faccia chiara la portavano a un ciano-bianco piatto. Quella strada non c'e' piu' per i pulsanti:
+ * e' una scelta di Alessio, "come LibrePods", e il rischio e' scritto qui perche' si vede solo in
+ * mano, a luce chiara — se ritorna il bianco piatto, i numeri di prima sono in `glowRecipe`.
+ * Per tutto il resto del vetro (la barra a pillola, i controlli dei pop-up) `glowRecipe` non e' cambiata.
+ */
+internal fun glassButtonGlowRecipe(): GlowRecipe = GlowRecipe(
+  tone = Color.White,
+  blend = BlendMode.Plus,
+  veil = 0.10f,
+  spot = 0.15f,
+  radiusScale = 1f,
+  core = 0.5f,
+  flat = 0.25f,
+  radiusFromLongSide = true,
+)
+
+/**
  * The bright spot that follows a finger across a pane of glass.
  *
  * Two things happen at once: the whole surface lifts slightly, and a soft radial hotspot tracks the
@@ -419,6 +453,12 @@ class GlassTouchHighlight(
    */
   val onGlass: Boolean = false,
   /**
+   * La superficie e' un **pulsante di vetro**: il bagliore e' quello di LibrePods, [glassButtonGlowRecipe],
+   * e [onDarkSurface] e [onGlass] non contano. Dalla 3.0, e solo `glassControlSurface` lo passa: la
+   * barra a pillola e i controlli dei pop-up tengono la loro.
+   */
+  val button: Boolean = false,
+  /**
    * A press driven by someone else, 0..1. Given, the highlight lights up with it instead of with
    * its own spring, and [gestureModifier] is not needed: the control that owns the press — see
    * `FluidPressState` — tells the glass and the light the same thing. Since 2.11.0.
@@ -428,7 +468,7 @@ class GlassTouchHighlight(
   val touch: (() -> Offset)? = null,
 ) {
 
-  private val recipe = glowRecipe(onDarkSurface, onGlass)
+  private val recipe = if (button) glassButtonGlowRecipe() else glowRecipe(onDarkSurface, onGlass)
   private val glowTone = recipe.tone
   private val glowBlend = recipe.blend
 
@@ -486,7 +526,10 @@ half4 main(float2 coord) {
           val position = position(size, touch?.invoke() ?: positionAnimation.value)
           setFloatUniform("size", size.width, size.height)
           setColorUniform("color", glowTone.copy(recipe.spot * glow))
-          setFloatUniform("radius", size.minDimension * recipe.radiusScale)
+          setFloatUniform(
+            "radius",
+            if (recipe.radiusFromLongSide) size.maxDimension else size.minDimension * recipe.radiusScale,
+          )
           setFloatUniform("core", recipe.core)
           setFloatUniform(
             "position",

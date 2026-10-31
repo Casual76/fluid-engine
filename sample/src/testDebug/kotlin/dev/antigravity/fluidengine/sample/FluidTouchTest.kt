@@ -650,7 +650,7 @@ class FluidTouchTest {
   }
 
   @Test
-  fun `un tap piu' rapido del ritardo di una lista mostra comunque tutta la pressione`() {
+  fun `un tap in una lista parte al contatto e torna a riposo, senza il ritardo di clickable`() {
     lateinit var press: FluidPressState
     var clicks = 0
     compose.mainClock.autoAdvance = false
@@ -673,20 +673,22 @@ class FluidTouchTest {
     }
     compose.mainClock.advanceTimeByFrame()
 
-    // Giu' e su nello stesso istante: dentro una lista clickable consegna pressione e rilascio
-    // insieme, ed era il caso in cui il tasto non si muoveva affatto.
-    compose.onNodeWithTag("button").performTouchInput {
-      down(center)
-      up()
-    }
-    val seen = List(50) {
+    // Un tap vero di 48 ms in una lista. Fino alla 2.13 `clickable` ritardava la pressione di 100 ms
+    // e il tasto non si muoveva affatto; la regola "la pressione arriva sempre in fondo" faceva
+    // vedere comunque tutta la corsa. Dalla 3.0 il pulsante e' LibrePods: parte al contatto e il
+    // rilascio parte subito, quindi la pressione e' quella che la molla ha fatto in 48 ms.
+    compose.onNodeWithTag("button").performTouchInput { down(center) }
+    compose.mainClock.advanceTimeBy(48)
+    val atRelease = press.progress
+    compose.onNodeWithTag("button").performTouchInput { up() }
+    val seen = List(80) {
       compose.mainClock.advanceTimeByFrame()
       press.progress
     }
 
     assertEquals(1, clicks)
-    assertTrue("la pressione si e' fermata a ${seen.max()}", seen.max() >= 0.96f)
-    assertTrue("non e' tornata a riposo: ${seen.last()}", abs(seen.last()) < 0.02f)
+    assertTrue("non e' partita al contatto: $atRelease", atRelease > 0.05f)
     assertNotEquals("non e' mai partita", 0f, seen.max())
+    assertTrue("non e' tornata a riposo: ${seen.last()}", abs(seen.last()) < 0.02f)
   }
 }

@@ -43,11 +43,11 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  *
  * The press is the phone's too: one [dev.antigravity.fluidengine.ui.fluid.FluidPressState] shared
  * by the glass and by [fluidPressable], so the disc behaves like every glass button of the engine.
- * A quick flick that starts on it scrolls the list it sits in; a finger that stays down for 100 ms
- * has pressed it, and from there the gesture is the disc's until the lift — it follows the finger
- * even off its rim, nothing under it scrolls, and the click fires if the finger lifts on the disc
- * (plus 16 dp). Before, the disc answered at the first touch and let go of the finger at the first
- * movement.
+ * Since 3.0 it is LibrePods' button, like every glass button of the engine: pressed at the touch,
+ * and it never takes the gesture — a flick that starts on it scrolls the list it sits in while the
+ * disc keeps following the finger, and the click fires only if the finger lifts on the disc and
+ * nothing scrolled. Before (2.12.0) a finger had to stay down for 100 ms to press it, and from
+ * there the gesture was the disc's.
  *
  * The glass stays still when nothing touches it: the pane re-captures its backdrop only while its
  * own lean and swell are animating or what is behind it actually changes, and the burst is drawn
@@ -55,7 +55,8 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  *
  * @param size the disc as drawn; the touch target never shrinks below
  *   [FluidWearDimens.MinTouchTarget].
- * @param haptic what the press feels like; play/pause wants `Confirm`, the rest `Tap`.
+ * @param haptic what the click feels like; play/pause wants `Confirm`, the rest the default
+ *   `Tap`, which on a disc is `PressClick`. The touch and the lift have their own, see [fluidPressable].
  */
 @Composable
 fun FluidGlassDisc(

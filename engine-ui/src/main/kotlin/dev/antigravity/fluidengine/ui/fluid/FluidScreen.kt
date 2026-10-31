@@ -894,10 +894,8 @@ private fun FluidScreenLayout(
     }
 
     val body: @Composable () -> Unit = {
-      // La pagina scorre: qualunque chrome le stia attorno, qui i pulsanti aspettano i 100 ms.
       CompositionLocalProvider(
         LocalFluidItemSpacing provides itemSpacing,
-        LocalFluidPressImmediate provides false,
       ) {
       LazyColumn(
         modifier = Modifier
@@ -1215,11 +1213,8 @@ internal fun FluidTopBar(
         exports = barGlass,
         ),
     )
-    // La barra non scorre: il tasto indietro e le azioni sono premuti al tocco, non dopo i 100 ms
-    // che servono a un pulsante dentro una pagina che scorre (LocalFluidPressImmediate).
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
-      LocalFluidPressImmediate provides true,
     ) {
     Column(
       modifier = Modifier

@@ -6,7 +6,11 @@ import org.junit.Test
 
 class FluidHapticGrainTest {
 
-  private val config = FluidHapticGrainConfig.Default
+  // La grana dell'engine, non quella di serie: dalla 3.0 di serie e' LibrePods, e quella di prima si
+  // sceglie. I test sotto sono i suoi, invariati; quelli di LibrePods sono in fondo.
+  private val config = FluidHapticGrainConfig(style = FluidHapticGrainStyle.Fluid)
+
+  private fun fluidGrain() = FluidHapticGrain(config)
 
   /** Un dito a velocita' costante: [stepDp] ogni [everyMillis], per [steps] eventi. Ritorna gli istanti e le intensita' dei granelli. */
   private fun FluidHapticGrain.drag(
@@ -26,7 +30,7 @@ class FluidHapticGrainTest {
 
   @Test
   fun `a passo d'uomo non suona mai, per quanta strada faccia`() {
-    val grain = FluidHapticGrain()
+    val grain = fluidGrain()
     // 300 dp/s per due secondi: seicento dp di strada, zero granelli. Era una tacca ogni 10 dp.
     assertTrue(grain.drag(steps = 250, stepDp = 2.4f, everyMillis = 8).isEmpty())
     assertTrue(grain.speedDpPerSec in 280f..320f)
@@ -34,7 +38,7 @@ class FluidHapticGrainTest {
 
   @Test
   fun `veloce suona un treno, e mai due granelli piu' vicini del pavimento`() {
-    val grain = FluidHapticGrain()
+    val grain = fluidGrain()
     // 1500 dp/s a 120 Hz.
     val grains = grain.drag(steps = 120, stepDp = 12.5f, everyMillis = 8)
     assertTrue("nessun granello a 1500 dp/s", grains.size > 20)
@@ -46,8 +50,8 @@ class FluidHapticGrainTest {
 
   @Test
   fun `piu' corre il dito, piu' forte la grana`() {
-    val medium = FluidHapticGrain().drag(steps = 200, stepDp = 6.4f, everyMillis = 8) // 800 dp/s
-    val fast = FluidHapticGrain().drag(steps = 200, stepDp = 20f, everyMillis = 8) // 2500 dp/s
+    val medium = fluidGrain().drag(steps = 200, stepDp = 6.4f, everyMillis = 8) // 800 dp/s
+    val fast = fluidGrain().drag(steps = 200, stepDp = 20f, everyMillis = 8) // 2500 dp/s
     val mediumMean = medium.drop(5).map { it.second }.average()
     val fastMean = fast.drop(5).map { it.second }.average()
     assertTrue("media $mediumMean, veloce $fastMean", fastMean > mediumMean * 1.6)
@@ -56,7 +60,7 @@ class FluidHapticGrainTest {
 
   @Test
   fun `la soglia ha isteresi`() {
-    val grain = FluidHapticGrain()
+    val grain = fluidGrain()
     // Le fasi sono contigue: una pausa vera fra l'una e l'altra azzererebbe la velocita'.
     // Sale a 1000 dp/s: parte.
     val up = grain.drag(steps = 40, stepDp = 8f, everyMillis = 8)
@@ -74,20 +78,20 @@ class FluidHapticGrainTest {
 
   @Test
   fun `i passi non sono regolari, ma lo stesso seme da' lo stesso treno`() {
-    val a = FluidHapticGrain().apply { restart(seed = 42) }.drag(steps = 600, stepDp = 0.7f, everyMillis = 1)
-    val b = FluidHapticGrain().apply { restart(seed = 42) }.drag(steps = 600, stepDp = 0.7f, everyMillis = 1)
+    val a = fluidGrain().apply { restart(seed = 42) }.drag(steps = 600, stepDp = 0.7f, everyMillis = 1)
+    val b = fluidGrain().apply { restart(seed = 42) }.drag(steps = 600, stepDp = 0.7f, everyMillis = 1)
     assertEquals(a, b)
     // 700 dp/s a 1000 Hz: il passo oscilla fra 8 e 15 eventi, sopra il pavimento di 9 ms.
     val gaps = a.zipWithNext { x, y -> y.first - x.first }.toSet()
     assertTrue("un treno regolare e' un ticchettio: $gaps", gaps.size > 2)
     assertTrue(a.map { it.second }.toSet().size > 2)
-    val other = FluidHapticGrain().apply { restart(seed = 7) }.drag(steps = 600, stepDp = 0.7f, everyMillis = 1)
+    val other = fluidGrain().apply { restart(seed = 7) }.drag(steps = 600, stepDp = 0.7f, everyMillis = 1)
     assertTrue(a != other)
   }
 
   @Test
   fun `gli eventi dello stesso istante si sommano invece di dare velocita' infinita`() {
-    val grain = FluidHapticGrain()
+    val grain = fluidGrain()
     grain.onMove(0f, 2f, 0L)
     // Un gruppo di tre eventi allo stesso istante, poi uno 16 ms dopo: 12 dp in 16 ms = 750 dp/s.
     grain.onMove(8f, 2f, 16L)
@@ -100,11 +104,66 @@ class FluidHapticGrainTest {
 
   @Test
   fun `un gesto nuovo riparte da fermo`() {
-    val grain = FluidHapticGrain()
+    val grain = fluidGrain()
     grain.drag(steps = 60, stepDp = 12f, everyMillis = 8)
     grain.restart()
     assertEquals(0f, grain.speedDpPerSec)
     // Il primo evento del gesto nuovo non suona mai: non ha un prima.
     assertEquals(null, grain.onMove(50f, 2f, 10_000L))
+  }
+
+  // -- La grana di LibrePods (di serie dalla 3.0) -------------------------------------------------
+
+  private val librePods = FluidHapticGrainConfig()
+
+  @Test
+  fun `di serie la grana e' quella di LibrePods, con la sua soglia`() {
+    assertEquals(FluidHapticGrainStyle.LibrePods, FluidHapticGrainConfig.Default.style)
+    assertEquals(350f, FluidHapticGrainConfig.Default.librePodsSquaredPx, 0f)
+  }
+
+  @Test
+  fun `LibrePods suona per ogni evento la cui distanza al quadrato supera 350, e per nessun altro`() {
+    val grain = FluidHapticGrain(librePods)
+    val threshold = kotlin.math.sqrt(350f)
+    // Appena sotto: niente. Appena sopra: un granello.
+    assertEquals(null, grain.onMove(threshold - 0.05f, 2f, 0L))
+    assertEquals(1f, grain.onMove(threshold + 0.05f, 2f, 8L))
+    // Un granello alla volta e senza memoria: il piano dopo il veloce non suona.
+    assertEquals(null, grain.onMove(3f, 2f, 16L))
+    assertEquals(null, grain.onMove(0f, 2f, 24L))
+  }
+
+  @Test
+  fun `LibrePods non ha tetto di frequenza ne' un primo evento che non conta`() {
+    val grain = FluidHapticGrain(librePods)
+    // Il primo evento di un gesto, se e' grande, suona: l'originale non ha un "prima".
+    assertEquals(1f, grain.onMove(30f, 2f, 5_000L))
+    // Dieci eventi grandi nello stesso istante, o a un millisecondo l'uno dall'altro: dieci granelli.
+    repeat(10) { assertEquals(1f, grain.onMove(25f, 2f, 5_000L)) }
+    repeat(10) { i -> assertEquals(1f, grain.onMove(25f, 2f, 5_001L + i)) }
+  }
+
+  @Test
+  fun `la soglia di LibrePods e' in pixel, la densita' non c'entra`() {
+    for (density in listOf(1f, 2f, 3.5f)) {
+      val grain = FluidHapticGrain(librePods)
+      assertEquals(null, grain.onMove(15f, density, 0L))
+      assertEquals(1f, grain.onMove(20f, density, 8L))
+    }
+  }
+
+  @Test
+  fun `la soglia di LibrePods si tara`() {
+    val grain = FluidHapticGrain(librePods.copy(librePodsSquaredPx = 100f))
+    assertEquals(null, grain.onMove(9.9f, 2f, 0L))
+    assertEquals(1f, grain.onMove(10.1f, 2f, 8L))
+  }
+
+  @Test
+  fun `con LibrePods la velocita' si stima lo stesso, per chi la guarda`() {
+    val grain = FluidHapticGrain(librePods)
+    repeat(250) { i -> grain.onMove(4.8f, 2f, 8L * i) } // 300 dp/s
+    assertTrue(grain.speedDpPerSec in 280f..320f)
   }
 }

@@ -8,14 +8,19 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 /**
  * Il vocabolario aptico del design system (1.19.0): ogni evento e' una cosa che l'utente sente
  * sotto il dito e che vuol dire sempre la stessa cosa in ogni app Pampa. I componenti dell'engine
- * lo usano da soli (un tasto di vetro fa [Tap], uno switch [ToggleOn]/[ToggleOff], un menu che si
- * apre [Open]); le app aggiungono i loro momenti (una soglia raggiunta, un errore, un'allerta).
+ * lo usano da soli (un tasto che cresce fa [PressDown], [PressRelease] e [PressClick] dalla 3.0, una
+ * superficie che cede [Tap], uno switch [ToggleOn]/[ToggleOff], un menu che si apre [Open]); le app
+ * aggiungono i loro momenti (una soglia raggiunta, un errore, un'allerta).
  *
  * [continuous] marca i tick dei gesti che si ripetono (scorrere un indice, trascinare una griglia):
  * sono quelli che spariscono in risparmio energetico e che si diradano se arrivano troppo fitti.
  */
 enum class FluidHapticEvent(val continuous: Boolean = false) {
-  /** Il rilascio su un controllo: tasto di vetro, chip, riga. Leggero, mai invadente. */
+  /**
+   * Il rilascio su un controllo che cede: card, riga, tessera. Leggero, mai invadente. Un tasto che
+   * cresce ([dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback.Expand]) non lo suona piu':
+   * fa [PressDown], [PressRelease] e [PressClick].
+   */
   Tap,
   Confirm,
   Reject,
@@ -65,6 +70,38 @@ enum class FluidHapticEvent(val continuous: Boolean = false) {
    * di chi c'era gia' non si spostano.
    */
   DragTick(continuous = true),
+
+  // I tre colpi di un tasto che cresce (3.0). Il momento e la costante sono quelli di LibrePods
+  // (GPL-3.0, branch `android/rewrite`, commit 3d4d270: `StyledButton.kt:361` e `:336`,
+  // `StyledIconButton.kt:219` e `:198`, `StyledButton.kt:321`, `StyledIconButton.kt:154`), che la 3.0
+  // porta cosi' com'e': vedi LICENSES/LibrePods.md. Sono **solo di piattaforma**: non hanno una
+  // composizione, perche' il loro carattere e' proprio la costante che il produttore del telefono ha
+  // tarato (su Samsung `Reject` e `ContextClick` non sono un tick generico), e non si ricostruisce
+  // con le primitive. Non sono fra i [FluidHapticPatterns.coalescible]: rilascio e click cadono
+  // nello stesso istante, e il doppio colpo e' voluto. Appesi in coda, come sempre, perche' gli
+  // ordinali di chi c'era gia' non si spostino.
+
+  /**
+   * Il dito e' sceso su un tasto che cresce: un tick secco al contatto, prima di qualunque
+   * movimento (`SegmentFrequentTick` di sistema). E' cio' che dice "ti ho sentito" al momento in cui
+   * il tasto comincia a crescere.
+   */
+  PressDown,
+
+  /**
+   * Il dito si e' sollevato da un tasto che cresce, **anche per un tap che poi clicca** (`Reject` di
+   * sistema). Il nome e' sbagliato per il caso — significa "rifiutato" — ma suona a ogni
+   * rilascio, ed e' la coda che il tocco ha sul telefono.
+   */
+  PressRelease,
+
+  /**
+   * Il click di un tasto che cresce (`ContextClick` di sistema), dopo [PressRelease]: un tap fa
+   * quindi tre colpi in poco piu' di un centinaio di millisecondi, contatto, rilascio, click.
+   * Un tasto che apre qualcosa di suo (un menu) passa il proprio evento a `fluidPressable(haptic = ...)`
+   * al posto di questo.
+   */
+  PressClick,
 }
 
 /** Con cosa si vibra: le composizioni di primitive (ricche), le costanti di piattaforma, o niente. */
@@ -76,12 +113,13 @@ interface FluidHaptics {
   fun play(event: FluidHapticEvent)
 
   /**
-   * Un granello della grana di un trascinamento veloce (3.0), d'intensita' [intensity] (0..1). Non
-   * e' un evento del vocabolario perche' non ha un pattern fisso: la sua forza dipende da quanto
-   * corre il dito. Lo suona [FluidHapticGrain] attraverso i tasti che si trascinano; di serie non fa
-   * niente, cosi' un'implementazione scritta prima della 3.0 compila com'e'.
+   * Un granello della grana di un trascinamento veloce (3.0). Non e' un evento del vocabolario
+   * perche' non ha un pattern fisso: dipende dallo [style] e, per [FluidHapticGrainStyle.Fluid], da
+   * quanto corre il dito ([intensity], 0..1, che per [FluidHapticGrainStyle.LibrePods] non conta: il
+   * tick e' sempre la costante di sistema). Lo suona [FluidHapticGrain] attraverso i tasti che si
+   * trascinano; di serie non fa niente, cosi' un'implementazione scritta prima della 3.0 compila com'e'.
    */
-  fun grain(intensity: Float) = Unit
+  fun grain(intensity: Float, style: FluidHapticGrainStyle = FluidHapticGrainStyle.Fluid) = Unit
 }
 
 /** Fuori da un [dev.antigravity.fluidengine.ui.theme.FluidTheme] (anteprime, test) non si vibra. */
@@ -186,6 +224,9 @@ object FluidHapticPatterns {
     // continua; il TICK e' il piu' secco che il motore sappia fare, e a un terzo resta una grana sotto
     // il dito invece che un rumore.
     FluidHapticEvent.DragTick -> listOf(HapticPrimitiveStep(HapticPrimitive.TICK, 0.3f))
+    // Niente composizione, di proposito: vedi [platformOnly]. Una lista vuota e non un finto tick,
+    // che farebbe credere a un lettore (e a `primitivesUsed`) che questi tre abbiano un pattern.
+    FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.PressClick -> emptyList()
   }
 
   /** Le costanti di Compose per i device senza primitive; sotto API 30 Compose degrada da solo. */
@@ -201,7 +242,22 @@ object FluidHapticPatterns {
     FluidHapticEvent.GestureStart, FluidHapticEvent.Open, FluidHapticEvent.ListenStart -> HapticFeedbackType.ContextClick
     FluidHapticEvent.GestureEnd, FluidHapticEvent.Close, FluidHapticEvent.AlertClear, FluidHapticEvent.ListenEnd, FluidHapticEvent.Stop -> HapticFeedbackType.GestureEnd
     FluidHapticEvent.Warning, FluidHapticEvent.AlertWatch, FluidHapticEvent.AlertAlarm, FluidHapticEvent.ProviderSwitched -> HapticFeedbackType.LongPress
+    // Per questi tre il "ripiego" e' la regola: le costanti di LibrePods, le stesse (vedi sopra).
+    FluidHapticEvent.PressDown -> HapticFeedbackType.SegmentFrequentTick
+    FluidHapticEvent.PressRelease -> HapticFeedbackType.Reject
+    FluidHapticEvent.PressClick -> HapticFeedbackType.ContextClick
   }
+
+  /**
+   * Gli eventi che suonano **solo** la costante di piattaforma di [fallback], mai una composizione
+   * (3.0): i tre colpi di un tasto che cresce. Il motore li manda dritti a `performHapticFeedback`,
+   * dopo l'interruttore dell'app e il controllo del vibratore ma prima di qualunque rete: non
+   * contano per [coalescible] e non la armano, perche' rilascio e click cadono nello stesso istante
+   * e suonare entrambi e' il carattere di LibrePods.
+   */
+  val platformOnly: Set<FluidHapticEvent> = setOf(
+    FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.PressClick,
+  )
 
   /** Quanto dura un pattern, secondo le durate nominali: il test tiene i controlli sotto i 120 ms. */
   fun durationMillis(event: FluidHapticEvent): Int =

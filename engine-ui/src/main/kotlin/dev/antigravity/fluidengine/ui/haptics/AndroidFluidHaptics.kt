@@ -63,11 +63,20 @@ class FluidHapticsImpl(
 
   /** Vero se questo evento andra' a composizione (le sue primitive ci sono tutte). */
   fun usesComposition(event: FluidHapticEvent): Boolean =
-    port.hasVibrator && FluidHapticPatterns.composition(event).all { it.id in supported }
+    // `all` su una lista vuota e' vero: gli eventi solo di piattaforma non hanno composizione e non
+    // sono "a composizione" per nessun device.
+    event !in FluidHapticPatterns.platformOnly &&
+      port.hasVibrator && FluidHapticPatterns.composition(event).all { it.id in supported }
 
   override fun play(event: FluidHapticEvent) {
     if (!enabled()) return
     if (!port.hasVibrator) return
+    if (event in FluidHapticPatterns.platformOnly) {
+      // I tre colpi di un tasto che cresce (3.0): la costante di sistema e basta, senza rete e
+      // senza orologio. Vedi [FluidHapticPatterns.platformOnly].
+      port.platform(FluidHapticPatterns.fallback(event))
+      return
+    }
     // Niente cancello sull'impostazione tattile di sistema: il valore di
     // `Settings.System.HAPTIC_FEEDBACK_ENABLED` non e' affidabile (su One UI resta a zero mentre
     // il telefono vibra benissimo, perche' Samsung tiene la sua impostazione altrove), e a
@@ -93,8 +102,16 @@ class FluidHapticsImpl(
     }
   }
 
-  override fun grain(intensity: Float) {
+  override fun grain(intensity: Float, style: FluidHapticGrainStyle) {
     if (!enabled() || !port.hasVibrator || port.powerSave) return
+    if (style == FluidHapticGrainStyle.LibrePods) {
+      // Un tick di sistema per ogni evento che ha deciso [FluidHapticGrain], **senza tetto**: e'
+      // quello che fa LibrePods (`StyledButton.kt:382`), e il pavimento qui sotto trasformerebbe il
+      // suo "ronzio a ogni evento" in una cosa piu' educata che non e' la sua. Il risparmio
+      // energetico lo zittisce comunque, come ogni vibrazione che si ripete.
+      port.platform(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentFrequentTick)
+      return
+    }
     // Il pavimento della grana, non quello dei tick continui: a 40 ms la grana sarebbe di nuovo un
     // ticchettio. Il ritmo lo decide gia' FluidHapticGrain; questo e' solo il tetto del motore.
     val now = clock()

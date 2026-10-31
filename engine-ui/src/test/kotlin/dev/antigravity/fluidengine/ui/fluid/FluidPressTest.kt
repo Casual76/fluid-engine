@@ -2,13 +2,17 @@
 
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainConfig
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainStyle
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
+import dev.antigravity.fluidengine.ui.haptics.NoOpFluidHaptics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -23,7 +27,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.abs
 
 /** Un fotogramma ogni 16 ms di tempo virtuale: le molle vere, senza un Recomposer che giri. */
 private class VirtualFrames(private val scheduler: TestCoroutineScheduler) : MonotonicFrameClock {
@@ -150,50 +153,101 @@ class FluidPressMotionTest {
     motion.release()
     assertEquals(0f, frames(3).last(), 0f)
   }
+
+  @Test
+  fun `una pressione a dito gia' giu' non riparte`() = bench {
+    motion.press()
+    settle()
+    val rising = frames(3)
+    // La pressione da tastiera che segue quella del puntatore, o un evento ripetuto: la corsa e' in corso.
+    motion.press()
+    settle()
+    val after = frames(3)
+    assertTrue("e' ripartita da capo: $rising $after", after.first() > rising.last())
+    assertTrue(motion.held)
+  }
+
+  @Test
+  fun `i pulsanti rilasciano subito come LibrePods, e un tocco breve fa quel che la molla ha fatto`() = bench {
+    FluidPressSprings.configure(motion, FluidPressFeedback.Expand, reducedMotion = false)
+    assertFalse(motion.waitsForArrival)
+    motion.press()
+    settle()
+    val rising = frames(3) // ~48 ms: la molla di LibrePods e' a un quarto del percorso
+    assertTrue("doveva essere a meta' corsa: $rising", rising.last() in 0.05f..0.5f)
+
+    motion.release()
+    val after = frames(80)
+    // Non aspetta di arrivare a 0,96: il picco e' quello di una corsa interrotta, molto piu' basso
+    // del rimbalzo di una pressione tenuta (1,16), e poi il ritorno rimbalza sotto il riposo.
+    assertTrue("ha aspettato la cima: ${after.max()}", after.max() < FluidPressMotion.ArrivalFraction)
+    assertTrue("non e' tornata a riposo: ${after.last()}", kotlin.math.abs(after.last()) < 0.02f)
+  }
+
+  @Test
+  fun `le molle dei pulsanti sono quelle di LibrePods, in salita e in discesa`() {
+    // Smorzamento 0,5 e rigidezza 300, la stessa spec: prima erano due molle piu' corte e diverse.
+    assertEquals(FluidPressSprings.ExpandIn, FluidPressSprings.ExpandOut)
+    assertEquals(spring<Float>(0.5f, 300f, 0.001f), FluidPressSprings.ExpandIn)
+    // E la deriva torna con una molla critica, senza rimbalzo.
+    assertEquals(spring<Offset>(1f, 300f, Offset.VisibilityThreshold), FluidPressSprings.LeanReturn)
+  }
+
+  @Test
+  fun `le superfici e le animazioni ridotte tengono la regola della pressione che arriva`() = bench {
+    FluidPressSprings.configure(motion, FluidPressFeedback.yielding(), reducedMotion = false)
+    assertTrue(motion.waitsForArrival)
+    FluidPressSprings.configure(motion, FluidPressFeedback.Expand, reducedMotion = true)
+    assertTrue(motion.waitsForArrival)
+  }
 }
 
 private class CountingHaptics : FluidHaptics {
   override val engine: FluidHapticEngine = FluidHapticEngine.Composition
   val played = mutableListOf<FluidHapticEvent>()
   val grains = mutableListOf<Float>()
+  val styles = mutableListOf<FluidHapticGrainStyle>()
   override fun play(event: FluidHapticEvent) {
     played += event
   }
 
-  override fun grain(intensity: Float) {
+  override fun grain(intensity: Float, style: FluidHapticGrainStyle) {
     grains += intensity
+    styles += style
   }
 }
 
 class FluidPressStateTest {
 
+  /** Il dito a densita' 1: [steps] spostamenti di [step] ogni [everyMillis], dal contatto. */
+  private fun FluidPressState.run(fromMillis: Long, steps: Int, step: Offset, everyMillis: Long) {
+    touchDown(Offset.Zero)
+    repeat(steps) { i -> touchMove(step, fromMillis + everyMillis * (i + 1), pxPerDp = 1f) }
+  }
+
   @Test
-  fun `la grana arriva solo a pressione in corso, solo veloce e solo per chi la vuole`() = runTest {
+  fun `con LibrePods la grana e' un tick per ogni evento sopra la soglia, dal contatto`() = runTest {
     val job = SupervisorJob()
     val scope = CoroutineScope(coroutineContext.minusKey(Job) + job + VirtualFrames(testScheduler))
     val haptics = CountingHaptics()
     val state = FluidPressState(scope, FluidPressFeedback.Expand)
     state.update(FluidPressFeedback.Expand, haptics, reducedMotion = false)
 
-    // Un dito che corre: 12 dp ogni 8 ms (1500 dp/s), a densita' 1.
-    fun FluidPressState.run(fromMillis: Long, steps: Int, stepDp: Float, everyMillis: Long) {
-      touchDown(Offset.Zero)
-      repeat(steps) { i -> touchMove(Offset(stepDp * (i + 1), 0f), fromMillis + everyMillis * (i + 1), pxPerDp = 1f) }
-    }
-
-    // Prima che il tasto sia premuto davvero il dito puo' stare iniziando uno scorrimento.
-    state.run(fromMillis = 0L, steps = 20, stepDp = 12f, everyMillis = 8L)
-    assertTrue(haptics.grains.isEmpty())
-
+    // Il tasto e' premuto al contatto, non dopo un'attesa: la grana parte dal primo evento.
+    state.touchDown(Offset.Zero)
     state.press()
-    // A passo d'uomo (1 dp ogni 16 ms) niente, nemmeno dopo molta strada: era il ticchettio.
-    state.run(fromMillis = 1_000L, steps = 60, stepDp = 1f, everyMillis = 16L)
-    assertTrue(haptics.grains.isEmpty())
-    assertEquals(Offset(60f, 0f), state.lean)
-    // Veloce: la grana.
-    state.run(fromMillis = 3_000L, steps = 20, stepDp = 12f, everyMillis = 8L)
-    assertTrue(haptics.grains.isNotEmpty())
-    assertTrue(haptics.grains.all { it in 0f..1f })
+    state.touchMove(Offset(30f, 0f), 8L, pxPerDp = 1f)
+    assertEquals(1, haptics.grains.size)
+    assertEquals(listOf(FluidHapticGrainStyle.LibrePods), haptics.styles)
+
+    // A passo d'uomo (5 px per evento) niente, per quanta strada faccia: era il ticchettio.
+    state.run(fromMillis = 1_000L, steps = 60, step = Offset(5f, 0f), everyMillis = 16L)
+    state.press()
+    assertEquals(1, haptics.grains.size)
+
+    // Sopra la soglia (20 px: 400 > 350) ogni evento suona, senza memoria ne' tetto.
+    state.run(fromMillis = 3_000L, steps = 20, step = Offset(20f, 0f), everyMillis = 8L)
+    assertEquals(21, haptics.grains.size)
     assertTrue("niente DragTick dai tasti: ${haptics.played}", haptics.played.isEmpty())
 
     // Una superficie che cede non ha grana sotto il dito.
@@ -201,8 +255,85 @@ class FluidPressStateTest {
     val surface = FluidPressState(scope, FluidPressFeedback.yielding())
     surface.update(FluidPressFeedback.yielding(), haptics, reducedMotion = false)
     surface.press()
-    surface.run(fromMillis = 5_000L, steps = 20, stepDp = 12f, everyMillis = 8L)
+    surface.run(fromMillis = 5_000L, steps = 20, step = Offset(20f, 0f), everyMillis = 8L)
     assertEquals(before, haptics.grains.size)
+    job.cancel()
+  }
+
+  @Test
+  fun `un controllo che vibra per conto suo non ha grana`() = runTest {
+    val job = SupervisorJob()
+    val scope = CoroutineScope(coroutineContext.minusKey(Job) + job + VirtualFrames(testScheduler))
+    val haptics = CountingHaptics()
+    val state = FluidPressState(scope, FluidPressFeedback.Expand)
+    state.update(FluidPressFeedback.Expand, haptics, reducedMotion = false)
+    state.touchDown(Offset.Zero)
+    state.press()
+    state.touchMove(Offset(40f, 0f), 8L, pxPerDp = 1f, grainEnabled = false)
+    assertTrue(haptics.grains.isEmpty())
+    job.cancel()
+  }
+
+  @Test
+  fun `con lo stile dell'engine la grana e' ancora la velocita' misurata, e non parte da ferma`() = runTest {
+    val job = SupervisorJob()
+    val scope = CoroutineScope(coroutineContext.minusKey(Job) + job + VirtualFrames(testScheduler))
+    val haptics = CountingHaptics()
+    val state = FluidPressState(scope, FluidPressFeedback.Expand)
+    state.update(
+      FluidPressFeedback.Expand,
+      haptics,
+      reducedMotion = false,
+      grainConfig = FluidHapticGrainConfig(style = FluidHapticGrainStyle.Fluid),
+    )
+    state.press()
+    // 5 px ogni 16 ms sono 312 dp/s: l'engine non suona, LibrePods nemmeno.
+    state.run(fromMillis = 0L, steps = 60, step = Offset(5f, 0f), everyMillis = 16L)
+    assertTrue(haptics.grains.isEmpty())
+    // 12 px ogni 8 ms sono 1500 dp/s: un treno, e dello stile dell'engine.
+    state.run(fromMillis = 2_000L, steps = 20, step = Offset(12f, 0f), everyMillis = 8L)
+    assertTrue(haptics.grains.isNotEmpty())
+    assertTrue(haptics.styles.all { it == FluidHapticGrainStyle.Fluid })
+    assertTrue(haptics.grains.all { it in 0f..1f })
+    job.cancel()
+  }
+
+  @Test
+  fun `il dito e' una somma di spostamenti, torna a zero con una molla critica e si porta il bagliore`() = runTest {
+    val job = SupervisorJob()
+    val scope = CoroutineScope(coroutineContext.minusKey(Job) + job + VirtualFrames(testScheduler))
+    val state = FluidPressState(scope, FluidPressFeedback.Expand)
+    state.update(FluidPressFeedback.Expand, NoOpFluidHaptics, reducedMotion = false)
+
+    state.touchDown(Offset(40f, 20f))
+    state.press()
+    state.touchMove(Offset(10f, -4f), 8L, pxPerDp = 1f)
+    state.touchMove(Offset(5f, 0f), 16L, pxPerDp = 1f)
+    runCurrent()
+    // La somma dei movimenti, non la posizione: se la pagina scorre sotto il dito, il tasto segue.
+    assertEquals(Offset(15f, -4f), state.lean)
+    assertEquals(Offset(40f, 20f), state.origin)
+    assertEquals(Offset(55f, 16f), state.glow)
+
+    state.touchEnd()
+    state.release()
+    // Una molla critica: scende senza rimbalzare, mai oltre lo zero, e il bagliore torna dov'e' sceso il dito.
+    var previous = state.lean.getDistance()
+    repeat(60) {
+      advanceTimeBy(16L)
+      runCurrent()
+      val now = state.lean.getDistance()
+      assertTrue("la deriva non rimbalza: $previous -> $now", now <= previous + 1e-3f)
+      assertTrue(state.lean.x >= -1e-3f)
+      previous = now
+    }
+    assertEquals(0f, state.lean.getDistance(), 0.05f)
+    assertEquals(Offset(40f, 20f).x, state.glow.x, 0.05f)
+
+    // Un dito nuovo riparte da zero, anche col ritorno ancora in corso.
+    state.touchDown(Offset(10f, 10f))
+    runCurrent()
+    assertEquals(Offset.Zero, state.lean)
     job.cancel()
   }
 }
@@ -211,34 +342,55 @@ class FluidPressTransformTest {
 
   private val dp = 1f
 
+  private fun growth(feedback: FluidPressFeedback, w: Float, h: Float, density: Float = dp) =
+    fluidPressGrowth(feedback, w, h, density)
+
   @Test
-  fun `un pulsante cresce di 6 dp sul lato corto, al massimo 14 sul lungo e mai oltre il 14 per cento`() {
-    assertEquals(1f + 6f / 44f, fluidPressExpansion(44f, 44f, dp), 1e-4f)
-    // Un pulsante medio: 14 dp in larghezza, 7 per parte, che in una fila a 12 dp non tocca il vicino.
-    assertEquals(1f + 14f / 120f, fluidPressExpansion(120f, 42f, dp), 1e-4f)
-    assertEquals(1f + 14f / 360f, fluidPressExpansion(360f, 50f, dp), 1e-4f)
-    // Un quadrato piccolo: comanda il tetto del 14%.
-    assertEquals(ExpandMaxScale, fluidPressExpansion(40f, 40f, dp), 1e-4f)
-    assertEquals(ExpandMaxScale, fluidPressExpansion(28f, 28f, dp), 1e-4f)
+  fun `un tasto con testo cresce del 10 per cento, un tasto tondo del 50, i numeri di LibrePods`() {
+    assertEquals(0.10f, growth(FluidPressFeedback.Expand, 120f, 42f), 1e-5f)
+    assertEquals(0.5f, growth(FluidPressFeedback.ExpandRound, 44f, 44f), 1e-5f)
+    assertEquals(TextMaxScale, FluidPressFeedback.Expand.maxScale, 0f)
+    assertEquals(RoundMaxScale, FluidPressFeedback.ExpandRound.maxScale, 0f)
+    // Un tasto da 44 dp a pressione piena arriva a 66 dp, e al picco della molla (sorpasso del 16%) a ~70.
+    val full = fluidPressTransform(FluidPressFeedback.ExpandRound, 1f, Offset.Zero, 44f, 44f, dp, reducedMotion = false)
+    assertEquals(1.5f, full.scaleX, 1e-5f)
+    assertEquals(full.scaleX, full.scaleY, 0f)
+    val peak = fluidPressTransform(FluidPressFeedback.ExpandRound, 1.163f, Offset.Zero, 44f, 44f, dp, false)
+    assertEquals(1.58f, peak.scaleX, 0.01f)
+    // E scende sotto il riposo al rilascio: -16% del percorso fatto, come in LibrePods.
+    val under = fluidPressTransform(FluidPressFeedback.ExpandRound, -0.163f, Offset.Zero, 44f, 44f, dp, false)
+    assertEquals(0.92f, under.scaleX, 0.01f)
+  }
+
+  @Test
+  fun `un tasto largo cresce al massimo 16 dp sul lato lungo, cioe' 0,05 a larghezza piena come passa a mano LibrePods`() {
+    // Sotto il tetto, comanda il 10%.
+    assertEquals(0.10f, growth(FluidPressFeedback.Expand, 120f, 42f), 1e-5f)
+    assertEquals(0.10f, growth(FluidPressFeedback.Expand, 160f, 48f), 1e-5f)
+    // Sopra: i 16 dp sul lato lungo.
+    assertEquals(16f / 200f, growth(FluidPressFeedback.Expand, 200f, 48f), 1e-5f)
+    assertEquals(16f / 320f, growth(FluidPressFeedback.Expand, 320f, 48f), 1e-5f)
+    assertEquals(0.05f, growth(FluidPressFeedback.Expand, 320f, 48f), 1e-5f)
     // In px: la stessa crescita in dp su uno schermo a densita' 3.
-    assertEquals(1f + 6f / 44f, fluidPressExpansion(132f, 132f, 3f), 1e-4f)
-    assertEquals(1f, fluidPressExpansion(0f, 40f, dp), 0f)
+    assertEquals(16f / 200f, growth(FluidPressFeedback.Expand, 600f, 144f, density = 3f), 1e-5f)
+    // Il tasto tondo non ha tetto: non e' mai largo.
+    assertEquals(0.5f, growth(FluidPressFeedback.ExpandRound, 44f, 44f), 1e-5f)
+    assertEquals(0f, growth(FluidPressFeedback.Expand, 0f, 40f), 0f)
   }
 
   @Test
   fun `a pressione piena e senza dito che scorre la crescita e' uniforme`() {
     val t = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset.Zero, 120f, 42f, dp, reducedMotion = false)
-    assertEquals(fluidPressExpansion(120f, 42f, dp), t.scaleX, 1e-4f)
+    assertEquals(1.10f, t.scaleX, 1e-5f)
     assertEquals(t.scaleX, t.scaleY, 0f)
-    assertTrue(t.scaleX > 1.1f)
     assertEquals(0f, t.translationX, 0f)
-    assertTrue(fluidPressTransform(FluidPressFeedback.Expand, 0f, Offset(30f, 0f), 120f, 42f, dp, false).isIdentity)
+    assertTrue(fluidPressTransform(FluidPressFeedback.Expand, 0f, Offset.Zero, 120f, 42f, dp, false).isIdentity)
   }
 
   @Test
   fun `con le animazioni ridotte cresce la meta' e non segue il dito`() {
-    val full = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset.Zero, 44f, 44f, dp, reducedMotion = false)
-    val reduced = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(30f, 10f), 44f, 44f, dp, reducedMotion = true)
+    val full = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset.Zero, 120f, 42f, dp, reducedMotion = false)
+    val reduced = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(30f, 10f), 120f, 42f, dp, reducedMotion = true)
     assertEquals((full.scaleX - 1f) * ReducedAmplitude, reduced.scaleX - 1f, 1e-4f)
     assertEquals(reduced.scaleX, reduced.scaleY, 0f)
     assertEquals(0f, reduced.translationX, 0f)
@@ -255,32 +407,58 @@ class FluidPressTransformTest {
   }
 
   @Test
-  fun `l'inclinazione segue il dito ma non scappa`() {
-    val near = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(10f, -10f), 120f, 48f, dp, false)
-    assertTrue(near.translationX > 0f && near.translationY < 0f)
-    assertTrue("il primo tratto e' quasi libero", abs(near.translationX - 10f * LeanGain) < 0.1f)
-
-    val far = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(10_000f, 0f), 120f, 48f, dp, false)
-    assertTrue(far.translationX <= LeanMaxDp * dp + 1e-3f)
-    // Un'icona da 44 dp non si sposta piu' di un sesto del suo lato.
-    val icon = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(10_000f, 0f), 44f, 44f, dp, false)
-    assertTrue(icon.translationX <= 44f * LeanMaxFraction + 1e-3f)
+  fun `la deriva e' m per tanh di 0,05 d su m, senza tetto se non il lato corto`() {
+    fun drift(distance: Float, side: Float = 48f) = fluidPressTransform(
+      FluidPressFeedback.Expand, 1f, Offset(distance, 0f), 160f, side, dp, false,
+    ).translationX
+    // I numeri del riferimento, su un tasto da 48 dp di lato corto.
+    assertEquals(1.0f, drift(20f), 0.05f)
+    assertEquals(5.0f, drift(100f), 0.05f)
+    assertEquals(14.5f, drift(300f), 0.1f)
+    assertEquals(26.6f, drift(600f), 0.1f)
+    // Non c'era un tetto a 8 dp e a un sesto del lato: arriva oltre, e si ferma solo al lato corto.
+    assertTrue(drift(300f) > 8f)
+    assertTrue(drift(100_000f) <= 48f + 1e-3f)
+    // Su entrambi gli assi, con il segno del dito.
+    val t = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(-100f, 40f), 160f, 48f, dp, false)
+    assertTrue(t.translationX < 0f && t.translationY > 0f)
   }
 
   @Test
-  fun `si allunga nel verso del dito e si assottiglia di traverso`() {
-    val t = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(40f, 0f), 120f, 48f, dp, false)
-    val base = fluidPressExpansion(120f, 48f, dp)
-    assertTrue(t.scaleX > base)
-    assertTrue(t.scaleY < base)
-    assertTrue(t.scaleX <= base * (1f + StretchMax) + 1e-4f)
+  fun `la deriva non e' pesata dalla pressione, ha la sua molla di ritorno`() {
+    // A pressione zero, e anche sotto zero nel rimbalzo, il dito che sta tornando si vede ancora.
+    val zero = fluidPressTransform(FluidPressFeedback.Expand, 0f, Offset(40f, 0f), 120f, 48f, dp, false)
+    assertTrue(zero.translationX > 0f)
+    assertEquals(1f + StretchGain * (40f / 120f), zero.scaleX, 1e-5f)
+    val bounce = fluidPressTransform(FluidPressFeedback.Expand, -0.1f, Offset(40f, 0f), 120f, 48f, dp, false)
+    assertTrue(bounce.scaleX < zero.scaleX)
+    assertEquals(zero.translationX, bounce.translationX, 0f)
+    assertTrue(fluidPressTransform(FluidPressFeedback.Expand, 0f, Offset.Zero, 120f, 48f, dp, false).isIdentity)
   }
 
   @Test
-  fun `nel rimbalzo del ritorno scende sotto la misura e non trascina l'inclinazione`() {
-    val t = fluidPressTransform(FluidPressFeedback.Expand, -0.1f, Offset(40f, 0f), 120f, 48f, dp, false)
-    assertTrue(t.scaleX < 1f)
-    assertEquals(t.scaleX, t.scaleY, 0f)
+  fun `l'allungamento e' lineare e senza tetto, nel verso del dito`() {
+    // Il numero del riferimento: a 400 dp di trascinamento su un tasto da 160 dp, +25%.
+    val along = fluidPressTransform(FluidPressFeedback.Expand, 0f, Offset(400f, 0f), 160f, 48f, dp, false)
+    assertEquals(1.25f, along.scaleX, 1e-4f)
+    assertEquals(1f, along.scaleY, 1e-4f)
+    // Verticale: il fattore e' min(h/w, 1), cioe' meno di un tasto largo che si stira in alto.
+    val up = fluidPressTransform(FluidPressFeedback.Expand, 0f, Offset(0f, -400f), 160f, 48f, dp, false)
+    assertEquals(1f + StretchGain * (400f / 160f) * (48f / 160f), up.scaleY, 1e-4f)
+    assertEquals(1f, up.scaleX, 1e-4f)
+    // Senza tetto: ben oltre l'8% di prima.
+    val far = fluidPressTransform(FluidPressFeedback.Expand, 0f, Offset(4_000f, 0f), 160f, 48f, dp, false)
+    assertTrue(far.scaleX > 2f)
+    // Diagonale: tutti e due gli assi, ognuno con la sua parte.
+    val diagonal = fluidPressTransform(FluidPressFeedback.Expand, 1f, Offset(100f, 100f), 120f, 48f, dp, false)
+    assertTrue(diagonal.scaleX > 1.10f && diagonal.scaleY > 1.10f)
+  }
+
+  @Test
+  fun `un tasto che non segue il dito cresce e basta`() {
+    val feedback = FluidPressFeedback.Expand.copy(followsFinger = false)
+    val t = fluidPressTransform(feedback, 1f, Offset(200f, 0f), 120f, 42f, dp, false)
+    assertEquals(1.10f, t.scaleX, 1e-5f)
     assertEquals(0f, t.translationX, 0f)
   }
 }
@@ -288,168 +466,67 @@ class FluidPressTransformTest {
 class FluidPressGestureTest {
 
   private fun gesture(
-    ownDelay: Long = FluidPressGesture.OwnDelayMillis,
     longPress: Long = FluidPressGesture.NoLongPress,
     slop: Float = 20f,
-  ) = FluidPressGesture(
-    downUptime = 1_000L,
-    origin = Offset(50f, 20f),
-    touchSlop = slop,
-    ownDelayMillis = ownDelay,
-    longPressMillis = longPress,
-  )
-
-  private val size = Size(120f, 48f)
-  private val slack = Size(16f, 16f)
+  ) = FluidPressGesture(downUptime = 1_000L, touchSlop = slop, longPressMillis = longPress)
 
   @Test
-  fun `non e' del tasto prima dei cento millisecondi, e lo diventa dopo`() {
-    val g = gesture()
-    assertEquals(0, g.advance(1_000L))
-    assertEquals(0, g.advance(1_099L))
-    assertEquals(FluidPressGesture.Phase.Pending, g.phase)
-
-    assertEquals(FluidPressGesture.BecameOwned, g.advance(1_100L))
-    assertTrue(g.owned)
-    // Una volta sola.
-    assertEquals(0, g.advance(1_250L))
+  fun `la pressione lunga scatta al suo tempo se il dito e' rimasto nello slop, una volta sola`() {
+    val g = gesture(longPress = 400L)
+    g.moved(Offset(5f, 5f))
+    assertFalse(g.advance(1_399L))
+    assertTrue(g.advance(1_400L))
+    assertTrue(g.longPressed)
+    // Non scatta due volte.
+    assertFalse(g.advance(2_000L))
   }
 
   @Test
-  fun `il prossimo scadere e' il possesso, poi la pressione lunga, poi niente`() {
+  fun `il prossimo scadere e' la pressione lunga, poi niente`() {
     val g = gesture(longPress = 400L)
-    assertEquals(1_100L, g.nextDeadline)
-    g.advance(1_100L)
     assertEquals(1_400L, g.nextDeadline)
     g.advance(1_400L)
     assertEquals(Long.MAX_VALUE, g.nextDeadline)
-    assertEquals(Long.MAX_VALUE, gesture().also { it.advance(1_100L) }.nextDeadline)
+    // Senza pressione lunga non c'e' nessuna scadenza.
+    assertEquals(Long.MAX_VALUE, gesture().nextDeadline)
   }
 
   @Test
-  fun `se la pagina se lo prende prima, il tasto non lo ha mai avuto`() {
-    val g = gesture()
-    g.advance(1_030L)
-    g.taken()
-
-    assertTrue(g.over)
-    // Il tempo che passa dopo non lo rende del tasto.
-    assertEquals(0, g.advance(1_500L))
-    assertFalse(g.owned)
-    assertEquals(Long.MAX_VALUE, g.nextDeadline)
-    assertFalse("scorrimento: nessun click al rilascio", g.lifted(Offset(60f, 24f), size, slack))
-  }
-
-  @Test
-  fun `una volta del tasto il dito puo' andare ovunque e il gesto resta suo`() {
-    val g = gesture()
-    g.advance(1_100L)
-    g.moved(Offset(900f, -700f))
-    g.advance(2_000L)
-
-    assertTrue(g.owned)
-    assertFalse("fuori di centinaia di pixel: nessun click", g.lifted(Offset(900f, -700f), size, slack))
-    // Ma se torna sul tasto prima di alzarsi, il click c'e'.
-    assertTrue(g.lifted(Offset(60f, 24f), size, slack))
-  }
-
-  @Test
-  fun `un mouse e' del tasto subito`() {
-    val g = gesture(ownDelay = 0L)
-    assertEquals(FluidPressGesture.BecameOwned, g.advance(1_000L))
-    assertTrue(g.owned)
-  }
-
-  @Test
-  fun `la pressione lunga scatta al suo tempo se il dito e' rimasto nello slop`() {
-    val g = gesture(longPress = 400L)
-    g.advance(1_100L)
-    g.moved(Offset(55f, 25f))
-    assertEquals(0, g.advance(1_399L))
-    assertEquals(FluidPressGesture.LongPressed, g.advance(1_400L))
-    assertTrue(g.longPressed)
-    // Non scatta due volte.
-    assertEquals(0, g.advance(2_000L))
-  }
-
-  @Test
-  fun `un dito che ha superato lo slop non sta tenendo premuto`() {
+  fun `un dito che ha superato lo slop non sta tenendo premuto, e tornare non lo riarma`() {
     val g = gesture(longPress = 400L, slop = 20f)
-    g.advance(1_100L)
-    g.moved(Offset(50f, 41f))
-    assertEquals(0, g.advance(1_500L))
+    g.moved(Offset(0f, 21f))
+    assertEquals("disarmato: nessuna scadenza", Long.MAX_VALUE, g.nextDeadline)
+    assertFalse(g.advance(1_500L))
     assertFalse(g.longPressed)
+    g.moved(Offset.Zero)
+    assertFalse(g.advance(3_000L))
+  }
 
-    // E tornare al punto di partenza non lo riarma.
-    g.moved(Offset(50f, 20f))
-    assertEquals(0, g.advance(3_000L))
-    // Ma il suo gesto resta del tasto, e al rilascio dentro clicca.
-    assertTrue(g.owned)
-    assertTrue(g.lifted(Offset(50f, 20f), size, slack))
+  @Test
+  fun `lo slop e' la strada del dito sullo schermo, a filo non disarma`() {
+    val g = gesture(longPress = 400L, slop = 20f)
+    g.moved(Offset(12f, 16f)) // distanza 20, non oltre
+    assertTrue(g.advance(1_400L))
   }
 
   @Test
   fun `un tasto senza pressione lunga non ne ha mai una`() {
     val g = gesture()
-    g.advance(1_100L)
-    assertEquals(0, g.advance(60_000L))
+    assertFalse(g.advance(60_000L))
     assertFalse(g.longPressed)
   }
 
   @Test
-  fun `dopo la pressione lunga il rilascio non clicca`() {
+  fun `se fra due eventi e' passato tutto, scatta all'evento`() {
     val g = gesture(longPress = 400L)
-    g.advance(1_450L)
-    assertTrue(g.longPressed)
-    assertFalse(g.lifted(Offset(60f, 24f), size, slack))
-  }
-
-  @Test
-  fun `se fra due eventi e' passato tutto, il possesso viene prima della pressione lunga`() {
-    val g = gesture(longPress = 400L)
-    assertEquals(FluidPressGesture.BecameOwned or FluidPressGesture.LongPressed, g.advance(1_700L))
-    assertTrue(g.owned)
+    assertTrue(g.advance(1_700L))
     assertTrue(g.longPressed)
   }
 
   @Test
-  fun `un tap rapido clicca senza essere stato del tasto`() {
+  fun `un tap rapido non e' una pressione lunga`() {
     val g = gesture(longPress = 400L)
-    g.advance(1_060L)
-    assertFalse(g.owned)
-    assertTrue(g.lifted(Offset(60f, 24f), size, slack))
-  }
-
-  @Test
-  fun `un gesto annullato da fuori non clicca`() {
-    val g = gesture()
-    g.advance(1_300L)
-    g.end()
-    assertFalse(g.lifted(Offset(60f, 24f), size, slack))
-  }
-
-  @Test
-  fun `il click al rilascio vale dentro il tasto piu' lo slack, non oltre`() {
-    assertTrue(fluidPressInside(Offset(0f, 0f), size, slack))
-    assertTrue(fluidPressInside(Offset(120f, 48f), size, slack))
-    // A filo dello slack, dentro.
-    assertTrue(fluidPressInside(Offset(-16f, 24f), size, slack))
-    assertTrue(fluidPressInside(Offset(136f, 24f), size, slack))
-    assertTrue(fluidPressInside(Offset(60f, 64f), size, slack))
-    // Mezzo pixel oltre, fuori.
-    assertFalse(fluidPressInside(Offset(-16.5f, 24f), size, slack))
-    assertFalse(fluidPressInside(Offset(136.5f, 24f), size, slack))
-    assertFalse(fluidPressInside(Offset(60f, -16.5f), size, slack))
-    assertFalse(fluidPressInside(Offset(60f, 64.5f), size, slack))
-    // Senza slack, il rettangolo e' il rettangolo.
-    assertFalse(fluidPressInside(Offset(-1f, 24f), size, Size.Zero))
-  }
-
-  @Test
-  fun `lo slack e' il piu' grande fra l'area di tocco minima e quello fisso`() {
-    // Un tasto grande: il suo margine di tocco e' zero, comanda lo slack fisso.
-    assertEquals(Size(48f, 48f), fluidPressSlack(Size.Zero, 48f))
-    // Un'icona piccola: Compose le da' di piu' per lato, e lo teniamo.
-    assertEquals(Size(60f, 48f), fluidPressSlack(Size(60f, 10f), 48f))
+    assertFalse(g.advance(1_060L))
+    assertFalse(g.longPressed)
   }
 }

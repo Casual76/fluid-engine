@@ -42,6 +42,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.FluidPressState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidPressImmediate
 import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
@@ -52,6 +53,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainStyle
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
@@ -76,23 +78,26 @@ private class TickHaptics : FluidHaptics {
   /** I granelli della grana (3.0): il segno che il tasto ha seguito un dito che correva. */
   var grains = 0
     private set
+  val grainStyles = mutableListOf<FluidHapticGrainStyle>()
 
-  override fun grain(intensity: Float) {
+  override fun grain(intensity: Float, style: FluidHapticGrainStyle) {
     grains++
+    grainStyles += style
   }
 }
 
 /**
- * Un pulsante e' di chi lo tiene premuto (2.12.0), sotto un dito finto dentro un albero Compose vero.
+ * Un pulsante e' LibrePods (3.0), sotto un dito finto dentro un albero Compose vero.
  *
- * La regola: una passata veloce che parte su un pulsante e' della pagina; un dito che resta giu'
- * 100 ms senza che la pagina se lo sia preso ha premuto il pulsante, e da li' il gesto e' suo fino
- * al rilascio — segue il dito anche fuori dai suoi bordi, e la pagina sotto (una `LazyColumn` o una
- * `Column` con `verticalScroll`, le due che le app usano) non vede mai un movimento con cui partire.
- * Al rilascio il click scatta se il dito e' dentro il pulsante piu' 16 dp, altrimenti no.
+ * La regola, che sostituisce quella della 2.12 ("un pulsante e' di chi lo tiene premuto"): il
+ * pulsante e' premuto **al contatto**, senza ritardo, e **non prende mai il gesto**. Se il dito
+ * scorre, la pagina (una `LazyColumn` o una `Column` con `verticalScroll`, le due che le app
+ * usano) scorre e il pulsante risponde insieme: resta premuto, segue il dito, vibra, e al
+ * sollevamento si scioglie senza cliccare — il click e' di `clickable`, e `clickable` annulla se la
+ * pagina ha scorso. Tre colpi per tocco con le costanti di sistema: contatto, rilascio, click.
  *
- * Come in `FluidTouchTest`, e' quello che una funzione pura non puo' dire. La logica di possesso
- * pura (tempi, slop, slack) sta in `FluidPressTest`.
+ * Come in `FluidTouchTest`, e' quello che una funzione pura non puo' dire. La logica pura (la
+ * trasformazione, il click lungo) sta in `FluidPressTest`.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -155,11 +160,20 @@ class FluidButtonDragTest {
     FluidButton(text = "Vai", onClick = onClick, modifier = modifier, fillWidth = true)
   }
 
+  /** Un pulsante nudo con la sua pressione in mano: il test la legge per sapere quanto e' premuto. */
+  private fun probed(
+    onPress: (FluidPressState) -> Unit,
+    onClick: () -> Unit,
+  ): @Composable (Modifier) -> Unit = { modifier ->
+    val press = rememberFluidPressState()
+    SideEffect { onPress(press) }
+    Box(modifier.size(312.dp, 48.dp).fluidPressable(onClick = onClick, pressState = press))
+  }
+
   private fun scrolled(list: LazyListState) = list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset > 0
 
-  // Un passo ogni 8 ms: un dito che corre (sopra i 520 dp/s della grana anche coi passi piu' corti
-  // qui sotto), cosi' i granelli dicono che il tasto ha seguito il dito. Dalla 3.0 un dito lento non
-  // suona niente, apposta: lo prova il test della grana.
+  // Un passo ogni 8 ms: un dito che corre. Dalla 3.0 la grana di serie e' quella di LibrePods, un
+  // granello per ogni evento sopra sqrt(350) = 18,7 px: i passi qui sotto lo superano, o no, apposta.
   private fun SemanticsNodeInteraction.dragHeld(
     steps: Int,
     step: Offset,
@@ -173,50 +187,77 @@ class FluidButtonDragTest {
     if (lift) up()
   }
 
-  // (a) FluidButton in una LazyColumn ------------------------------------------------------------
+  // (a) il pulsante risponde mentre la pagina scorre -----------------------------------------------
 
   @Test
-  fun `un pulsante tenuto e trascinato in diagonale non fa scorrere la LazyColumn, e al rilascio dentro clicca`() {
+  fun `un dito che parte su un pulsante e trascina in verticale scorre la LazyColumn, e il pulsante risponde insieme`() {
     val list = LazyListState()
-    var clicks = 0
-    showInLazyColumn(list, counting { clicks++ })
-
-    // Un pollice vero: un po' di lato e molto in su (verso il fondo della lista, l'unica direzione
-    // in cui scorrerebbe), ben oltre lo slop della pagina (16 px). Finisce 24 px sopra il bordo del
-    // pulsante (alto 96 px) ma dentro i 32 di slack: il rilascio e' ancora un click.
-    compose.onNodeWithTag("button").dragHeld(steps = 8, step = Offset(10f, -9f))
-    compose.waitForIdle()
-
-    assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemIndex)
-    assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemScrollOffset)
-    assertEquals("un click, al rilascio", 1, clicks)
-    assertTrue("il pulsante non ha seguito il dito (nessun granello)", haptics.grains > 0)
-  }
-
-  @Test
-  fun `il pulsante segue il dito fuori dai suoi bordi senza far scorrere la pagina, e al rilascio fuori non clicca`() {
-    val list = LazyListState()
-    var clicks = 0
-    showInLazyColumn(list, counting { clicks++ })
-
-    // Quasi duecento pixel in su: fuori dal pulsante, dalla sua area di tocco e dallo slack.
-    compose.onNodeWithTag("button").dragHeld(steps = 12, step = Offset(6f, -18f))
-    compose.waitForIdle()
-
-    assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemIndex)
-    assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemScrollOffset)
-    assertEquals("rilasciato fuori, nessun click", 0, clicks)
-    assertTrue("il pulsante ha smesso di seguire il dito", haptics.grains > 0)
-  }
-
-  @Test
-  fun `la pressione resta in fondo finche' il dito c'e' e si scioglie al rilascio`() {
     lateinit var press: FluidPressState
     var clicks = 0
-    showInLazyColumn(LazyListState()) { modifier ->
-      press = rememberFluidPressState()
-      Box(modifier.size(312.dp, 48.dp).fluidPressable(onClick = { clicks++ }, pressState = press))
+    showInLazyColumn(list, probed({ press = it }, { clicks++ }))
+
+    // Un pollice vero: molto in su, verso il fondo della lista (l'unica direzione in cui scorre),
+    // ben oltre lo slop della pagina. Il dito resta giu'.
+    compose.onNodeWithTag("button").dragHeld(steps = 10, step = Offset(4f, -30f), lift = false)
+    compose.waitForIdle()
+
+    assertTrue("la pagina non ha scorso", scrolled(list))
+    assertTrue("il pulsante si e' sciolto sotto un dito ancora giu': ${press.progress}", press.progress >= 0.96f)
+    assertEquals("il pulsante non ha mai colpito: ${haptics.played}", FluidHapticEvent.PressDown, haptics.played.first())
+    assertTrue("il pulsante non ha seguito il dito (nessun granello)", haptics.grains > 0)
+    assertEquals("e' ancora giu': niente rilascio", listOf(FluidHapticEvent.PressDown), haptics.played)
+
+    compose.onNodeWithTag("button").performTouchInput { up() }
+    compose.waitForIdle()
+    assertEquals("la pagina ha scorso: nessun click", 0, clicks)
+    assertEquals(listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease), haptics.played)
+    assertTrue("non si e' sciolta: ${press.progress}", abs(press.progress) < 0.02f)
+  }
+
+  @Test
+  fun `un FluidButton vero trascinato in diagonale scorre la LazyColumn e non clicca`() {
+    val list = LazyListState()
+    var clicks = 0
+    showInLazyColumn(list, counting { clicks++ })
+
+    compose.onNodeWithTag("button").dragHeld(steps = 8, step = Offset(10f, -26f))
+    compose.waitForIdle()
+
+    assertTrue("la pagina non ha scorso", scrolled(list))
+    assertEquals(0, clicks)
+    assertTrue("il pulsante non ha seguito il dito (nessun granello)", haptics.grains > 0)
+    assertEquals(FluidHapticEvent.PressDown, haptics.played.first())
+    assertEquals(FluidHapticEvent.PressRelease, haptics.played.last())
+    assertTrue(FluidHapticEvent.PressClick !in haptics.played)
+  }
+
+  @Test
+  fun `un pulsante tenuto fermo dentro una lista e' premuto subito e non la fa scorrere`() {
+    val list = LazyListState()
+    lateinit var press: FluidPressState
+    var clicks = 0
+    showInLazyColumn(list, probed({ press = it }, { clicks++ }))
+
+    compose.onNodeWithTag("button").performTouchInput {
+      down(center)
+      advanceEventTime(300)
     }
+    compose.waitForIdle()
+    assertTrue("la pressione non e' arrivata: ${press.progress}", press.progress >= 0.96f)
+    assertEquals(0, list.firstVisibleItemIndex)
+    assertEquals(0, list.firstVisibleItemScrollOffset)
+
+    compose.onNodeWithTag("button").performTouchInput { up() }
+    compose.waitForIdle()
+    assertEquals("un tap tenuto clicca", 1, clicks)
+  }
+
+  @Test
+  fun `la pressione resta in fondo finche' il dito c'e' anche se la pagina scorre, e si scioglie al rilascio`() {
+    val list = LazyListState()
+    lateinit var press: FluidPressState
+    var clicks = 0
+    showInLazyColumn(list, probed({ press = it }, { clicks++ }))
 
     compose.onNodeWithTag("button").dragHeld(steps = 10, step = Offset(8f, -22f), lift = false)
     compose.waitForIdle()
@@ -225,45 +266,47 @@ class FluidButtonDragTest {
     compose.onNodeWithTag("button").performTouchInput { up() }
     compose.waitForIdle()
     assertTrue("non si e' sciolta: ${press.progress}", abs(press.progress) < 0.02f)
-    assertEquals("rilasciato lontano: nessun click", 0, clicks)
+    assertEquals("rilasciato dopo uno scorrimento: nessun click", 0, clicks)
   }
 
   @Test
-  fun `un pulsante trascinato piano non vibra, e trascinato veloce si', con la grana`() {
+  fun `un pulsante trascinato piano non vibra, e trascinato veloce si', col tick di LibrePods`() {
     var clicks = 0
     showInLazyColumn(LazyListState(), counting { clicks++ })
 
-    // A passo d'uomo (2 px ogni 16 ms, 62 dp/s): il tasto segue il dito in silenzio. Era il
-    // ticchettio fino alla 2.13.
+    // A passo d'uomo (2 px ogni 16 ms): il tasto segue il dito in silenzio. Il click c'e': il
+    // dito resta sul pulsante e la lista, in orizzontale, non parte.
     compose.onNodeWithTag("button").dragHeld(steps = 20, step = Offset(2f, 0f), stepMillis = 16L)
     compose.waitForIdle()
     assertEquals(1, clicks)
     assertEquals("un dito lento non deve suonare", 0, haptics.grains)
 
-    // Lo stesso tasto, un dito che corre (12 px ogni 8 ms, 750 dp/s): la grana.
-    compose.onNodeWithTag("button").dragHeld(steps = 12, step = Offset(12f, 0f), stepMillis = 8L)
+    // Lo stesso tasto, un dito che corre (20 px per evento: 400 > 350): un tick per ogni evento.
+    compose.onNodeWithTag("button").dragHeld(steps = 12, step = Offset(20f, 0f), stepMillis = 8L)
     compose.waitForIdle()
-    assertTrue("un dito veloce deve suonare la grana", haptics.grains > 0)
+    assertEquals("un tick per ogni evento sopra la soglia", 12, haptics.grains)
+    assertTrue(haptics.grainStyles.all { it == FluidHapticGrainStyle.LibrePods })
   }
 
   // (b) lo stesso dentro verticalScroll ----------------------------------------------------------
 
   @Test
-  fun `un pulsante tenuto e trascinato non fa scorrere una Column con verticalScroll`() {
+  fun `un pulsante trascinato dentro una Column con verticalScroll la scorre, e risponde`() {
     val scroll = ScrollState(0)
     var clicks = 0
     showInVerticalScroll(scroll, counting { clicks++ })
 
-    compose.onNodeWithTag("button").dragHeld(steps = 8, step = Offset(-14f, -6f))
+    compose.onNodeWithTag("button").dragHeld(steps = 8, step = Offset(-4f, -30f))
     compose.waitForIdle()
 
-    assertEquals("la pagina ha preso il gesto", 0, scroll.value)
-    assertEquals(1, clicks)
+    assertTrue("la pagina non ha scorso", scroll.value > 0)
+    assertEquals(0, clicks)
     assertTrue(haptics.grains > 0)
+    assertEquals(FluidHapticEvent.PressDown, haptics.played.first())
   }
 
   @Test
-  fun `in una Column con verticalScroll il pulsante segue il dito lontano e non clicca`() {
+  fun `un dito che esce dal pulsante scorrendo verticalScroll non clicca al rilascio`() {
     val scroll = ScrollState(0)
     var clicks = 0
     showInVerticalScroll(scroll, counting { clicks++ })
@@ -271,14 +314,14 @@ class FluidButtonDragTest {
     compose.onNodeWithTag("button").dragHeld(steps = 12, step = Offset(0f, -30f))
     compose.waitForIdle()
 
-    assertEquals("la pagina ha preso il gesto", 0, scroll.value)
+    assertTrue(scroll.value > 0)
     assertEquals(0, clicks)
   }
 
-  // (c) una passata veloce e' della pagina -------------------------------------------------------
+  // (c) una passata veloce -------------------------------------------------------------------------
 
   @Test
-  fun `una passata veloce che parte su un pulsante scorre la lista, senza pressione e senza click`() {
+  fun `una passata veloce che parte su un pulsante scorre la lista, e il pulsante risponde senza cliccare`() {
     val list = LazyListState()
     var clicks = 0
     showInLazyColumn(list, counting { clicks++ })
@@ -295,7 +338,9 @@ class FluidButtonDragTest {
 
     assertTrue("la pagina non ha scorso", scrolled(list))
     assertEquals("un flick non e' un click", 0, clicks)
-    assertEquals("il pulsante non doveva muoversi: ${haptics.played}", 0, haptics.grains)
+    // Il pulsante risponde dal contatto, anche se la pagina scorre: tre colpi non sono tre, sono due.
+    assertEquals(listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease), haptics.played)
+    assertTrue("il pulsante non ha seguito il dito", haptics.grains > 0)
   }
 
   @Test
@@ -322,11 +367,13 @@ class FluidButtonDragTest {
     val list = LazyListState()
     showInLazyColumn(list, counting { })
 
-    compose.onNodeWithTag("button").dragHeld(steps = 6, step = Offset(0f, -30f))
+    // Un gesto del pulsante che non e' uno scorrimento: in orizzontale, la lista sta ferma.
+    compose.onNodeWithTag("button").dragHeld(steps = 6, step = Offset(30f, 0f))
     compose.waitForIdle()
     assertEquals(0, list.firstVisibleItemIndex)
+    assertEquals(0, list.firstVisibleItemScrollOffset)
 
-    // Un dito che non e' su un pulsante, lo stesso gesto: la lista e' di nuovo di tutti.
+    // Un dito che non e' su un pulsante, lo stesso gesto in verticale: la lista e' di tutti.
     compose.onNodeWithTag("button").performTouchInput {
       down(Offset(centerX, centerY - 150f))
       repeat(10) { moveBy(Offset(0f, -40f), delayMillis = 16) }
@@ -336,7 +383,27 @@ class FluidButtonDragTest {
     assertTrue("la pagina non scorre piu'", scrolled(list))
   }
 
-  // (d) un tap e' un click solo -------------------------------------------------------------------
+  // (d) un tap e' un click solo, e tre colpi -----------------------------------------------------
+
+  @Test
+  fun `un tap suona contatto, rilascio e click, in quest'ordine, e niente altro`() {
+    var clicks = 0
+    showInLazyColumn(LazyListState(), counting { clicks++ })
+
+    compose.onNodeWithTag("button").performTouchInput {
+      down(center)
+      advanceEventTime(60)
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(1, clicks)
+    assertEquals(
+      listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.PressClick),
+      haptics.played,
+    )
+    assertEquals(0, haptics.grains)
+  }
 
   @Test
   fun `un tap rapido in una lista clicca una volta sola`() {
@@ -360,7 +427,7 @@ class FluidButtonDragTest {
   }
 
   @Test
-  fun `un tap tenuto oltre il possesso clicca una volta sola, senza raddoppiare`() {
+  fun `un tap tenuto a lungo clicca una volta sola, senza raddoppiare`() {
     var clicks = 0
     showInLazyColumn(LazyListState(), counting { clicks++ })
 
@@ -371,6 +438,10 @@ class FluidButtonDragTest {
     }
     compose.waitForIdle()
     assertEquals(1, clicks)
+    assertEquals(
+      listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.PressClick),
+      haptics.played,
+    )
   }
 
   @Test
@@ -392,26 +463,30 @@ class FluidButtonDragTest {
   }
 
   @Test
-  fun `un tap rapido mostra la pressione intera`() {
+  fun `un tap parte al contatto e rilascia subito come LibrePods, senza aspettare di arrivare in cima`() {
     lateinit var press: FluidPressState
     var clicks = 0
     compose.mainClock.autoAdvance = false
-    showInLazyColumnManual { modifier ->
-      press = rememberFluidPressState()
-      Box(modifier.size(312.dp, 48.dp).fluidPressable(onClick = { clicks++ }, pressState = press))
-    }
+    showInLazyColumnManual(probed({ press = it }, { clicks++ }))
 
-    compose.onNodeWithTag("button").performTouchInput {
-      down(center)
-      up()
-    }
-    val seen = List(50) {
+    compose.onNodeWithTag("button").performTouchInput { down(center) }
+    // Tre fotogrammi (48 ms): la molla di LibrePods e' a meta' strada, e il pulsante gia' cresce.
+    compose.mainClock.advanceTimeBy(48)
+    val atRelease = press.progress
+    assertTrue("non e' partita al contatto: $atRelease", atRelease > 0.05f)
+    assertTrue("a 48 ms non puo' essere in cima: $atRelease", atRelease < 0.96f)
+
+    compose.onNodeWithTag("button").performTouchInput { up() }
+    val seen = List(80) {
       compose.mainClock.advanceTimeByFrame()
       press.progress
     }
 
     assertEquals(1, clicks)
-    assertTrue("la pressione si e' fermata a ${seen.max()}", seen.max() >= 0.96f)
+    // Il rilascio parte dal valore e dalla velocita' che trova: il picco e' quello di una corsa
+    // interrotta, sotto l'arrivo, e poi il ritorno scende sotto il riposo.
+    assertTrue("ha aspettato di arrivare in cima: ${seen.max()}", seen.max() < 0.96f)
+    assertTrue("non e' scesa sotto il riposo: ${seen.min()}", seen.min() < -0.005f)
     assertTrue("non e' tornata a riposo: ${seen.last()}", abs(seen.last()) < 0.02f)
   }
 
@@ -443,7 +518,6 @@ class FluidButtonDragTest {
       press()
     }
     compose.waitForIdle()
-    // Niente attesa dei 100 ms: con un mouse non c'e' un trascinamento che la pagina deva poter prendere.
     assertTrue("la pressione non e' partita subito: ${state.progress}", state.progress >= 0.96f)
 
     compose.onNodeWithTag("button").performMouseInput { release() }
@@ -452,20 +526,33 @@ class FluidButtonDragTest {
     assertTrue("non si e' sciolta: ${state.progress}", abs(state.progress) < 0.02f)
   }
 
-  // La chrome, dove non scorre niente: premuto al tocco ------------------------------------------
+  // Premuto al contatto: in una lista come in una chrome ---------------------------------------------
 
   /**
    * Un pulsante fuori da qualunque scorrevole, a orologio fermo: la pressione dopo ogni fotogramma
-   * che segue il dito sceso. [immediate] e' `LocalFluidPressImmediate`.
+   * che segue il dito sceso. [immediate] e' `LocalFluidPressImmediate`, che dalla 3.0 non conta piu'.
    */
-  private fun pressAfterDown(immediate: Boolean, frames: Int): List<Float> {
+  private fun pressAfterDown(immediate: Boolean, inList: Boolean, frames: Int): List<Float> {
     lateinit var state: FluidPressState
     compose.mainClock.autoAdvance = false
-    compose.setContent {
-      Themed {
-        CompositionLocalProvider(LocalFluidPressImmediate provides immediate) {
-          state = rememberFluidPressState()
-          Box(Modifier.size(200.dp, 48.dp).testTag("button").fluidPressable(onClick = { }, pressState = state))
+    val button: @Composable (Modifier) -> Unit = { modifier ->
+      state = rememberFluidPressState()
+      Box(modifier.size(200.dp, 48.dp).fluidPressable(onClick = { }, pressState = state))
+    }
+    if (inList) {
+      compose.setContent {
+        Themed {
+          CompositionLocalProvider(LocalFluidPressImmediate provides immediate) {
+            LazyColumn(Modifier.fillMaxSize()) { item { button(Modifier.testTag("button")) } }
+          }
+        }
+      }
+    } else {
+      compose.setContent {
+        Themed {
+          CompositionLocalProvider(LocalFluidPressImmediate provides immediate) {
+            button(Modifier.testTag("button"))
+          }
         }
       }
     }
@@ -479,18 +566,22 @@ class FluidButtonDragTest {
   }
 
   @Test
-  fun `in una chrome che lo chiede il pulsante e' premuto entro un fotogramma dal tocco`() {
-    // Due fotogrammi (32 ms) dopo il dito sceso: ben prima dei 100 ms.
-    val seen = pressAfterDown(immediate = true, frames = 2)
-    assertTrue("la pressione non e' partita: $seen", seen.last() > 0.01f)
+  fun `il pulsante e' premuto entro tre fotogrammi dal tocco dentro una lista, senza aspettare i 100 ms`() {
+    // Dentro una lista la pressione partiva ai 100 ms: qui, a 48 ms dal dito, la molla e' gia' in viaggio.
+    val seen = pressAfterDown(immediate = false, inList = true, frames = 3)
+    assertTrue("la pressione non e' partita: $seen", seen.last() > 0.05f)
   }
 
   @Test
-  fun `di default il pulsante aspetta i 100 ms prima di essere premuto, poi lo e'`() {
-    val seen = pressAfterDown(immediate = false, frames = 14)
-    // Fino a 80 ms dal tocco non si sa ancora se e' uno scorrimento: nessuna pressione.
-    assertEquals("premuto prima dei 100 ms: ${seen.take(5)}", 0f, seen.take(5).max(), 0f)
-    assertTrue("non e' mai partita: $seen", seen.max() > 0.5f)
+  fun `il pulsante e' premuto entro tre fotogrammi dal tocco anche fuori da una lista`() {
+    val seen = pressAfterDown(immediate = false, inList = false, frames = 3)
+    assertTrue("la pressione non e' partita: $seen", seen.last() > 0.05f)
+  }
+
+  @Test
+  fun `LocalFluidPressImmediate a vero non cambia piu' niente perche' era gia' cosi'`() {
+    val seen = pressAfterDown(immediate = true, inList = true, frames = 3)
+    assertTrue("la pressione non e' partita: $seen", seen.last() > 0.05f)
   }
 
   // (e) la pressione lunga ------------------------------------------------------------------------
@@ -516,6 +607,8 @@ class FluidButtonDragTest {
 
     assertEquals(1, longClicks)
     assertEquals("dopo il click lungo non c'e' click al rilascio", 0, clicks)
+    // Contatto, e il colpo del click lungo: quel momento ha il suo, il rilascio non ne aggiunge un altro.
+    assertEquals(listOf(FluidHapticEvent.PressDown, FluidHapticEvent.GestureStart), haptics.played)
   }
 
   @Test
@@ -523,19 +616,22 @@ class FluidButtonDragTest {
     var clicks = 0
     var longClicks = 0
     showInLazyColumn(LazyListState()) { modifier ->
-      FluidGlassIconButton(
-        onClick = { clicks++ },
-        onLongClick = { longClicks++ },
-        modifier = modifier,
-      ) { Box(Modifier.size(20.dp)) }
+      // Largo 312 dp (624 px): il dito puo' fare molta strada e restare sul pulsante, che e' dove
+      // `clickable` conta il click. In un tasto di 44 dp lo slop dell'ambiente non si supera da dentro.
+      Box(
+        modifier.size(312.dp, 48.dp).fluidPressable(
+          onClick = { clicks++ },
+          onLongClick = { longClicks++ },
+          feedback = FluidPressFeedback.Expand,
+        ),
+      )
     }
 
     compose.onNodeWithTag("button").performTouchInput {
       down(center)
       advanceEventTime(150)
-      // 50 px a destra: oltre lo slop (32 px in questo ambiente), dentro i 44 dp (88 px) del tasto
-      // piu' lo slack.
-      moveBy(Offset(50f, 0f))
+      // 120 px a destra: ben oltre lo slop, ancora dentro il pulsante.
+      moveBy(Offset(120f, 0f))
       advanceEventTime(600)
       up()
     }
@@ -565,6 +661,27 @@ class FluidButtonDragTest {
     compose.waitForIdle()
 
     assertEquals(1, clicks)
+    assertEquals(0, longClicks)
+  }
+
+  @Test
+  fun `una pagina che scorre sotto il dito non e' un click lungo`() {
+    val list = LazyListState()
+    var longClicks = 0
+    showInLazyColumn(list) { modifier ->
+      FluidGlassIconButton(onClick = { }, onLongClick = { longClicks++ }, modifier = modifier) { Box(Modifier.size(20.dp)) }
+    }
+
+    compose.onNodeWithTag("button").performTouchInput {
+      down(center)
+      repeat(6) { moveBy(Offset(0f, -40f), delayMillis = 16) }
+      // Il dito si ferma, la pagina e' ferma, ma ha gia' percorso lo schermo: non tiene premuto.
+      advanceEventTime(700)
+      up()
+    }
+    compose.waitForIdle()
+
+    assertTrue(scrolled(list))
     assertEquals(0, longClicks)
   }
 
@@ -620,42 +737,50 @@ class FluidButtonDragTest {
 
     assertEquals(1, clicks)
     assertTrue(!menu.isOpen)
+    // Il tasto apre qualcosa di suo: `Open` prende il posto del click, contatto e rilascio restano.
+    assertEquals(
+      listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.Open),
+      haptics.played,
+    )
   }
 
   // (f) un tasto di vetro con la pressione condivisa ----------------------------------------------
 
   @Test
-  fun `un tasto di vetro tenuto e trascinato non fa scorrere la lista, segue il dito e al rilascio dentro clicca`() {
+  fun `un tasto di vetro trascinato in verticale scorre la lista, segue il dito e non clicca`() {
     val list = LazyListState()
     var clicks = 0
     showInLazyColumn(list) { modifier ->
       FluidGlassButton(text = "Vai", onClick = { clicks++ }, modifier = modifier.fillMaxWidth())
     }
 
-    // Il tasto di vetro e' alto 48 dp (96 px): 8 passi da 6 px in su restano dentro.
-    compose.onNodeWithTag("button").dragHeld(steps = 8, step = Offset(14f, -6f))
+    compose.onNodeWithTag("button").dragHeld(steps = 8, step = Offset(14f, -26f))
     compose.waitForIdle()
 
-    assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemIndex)
-    assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemScrollOffset)
-    assertEquals(1, clicks)
+    assertTrue("la pagina non ha scorso", scrolled(list))
+    assertEquals(0, clicks)
     assertTrue("il tasto di vetro non ha seguito il dito", haptics.grains > 0)
   }
 
   @Test
-  fun `un tasto di vetro rilasciato lontano dal dito che lo ha trascinato non clicca`() {
-    val list = LazyListState()
+  fun `un tap su un tasto di vetro e' un click`() {
     var clicks = 0
-    showInLazyColumn(list) { modifier ->
+    showInLazyColumn(LazyListState()) { modifier ->
       FluidGlassButton(text = "Vai", onClick = { clicks++ }, modifier = modifier.fillMaxWidth())
     }
 
-    compose.onNodeWithTag("button").dragHeld(steps = 12, step = Offset(0f, -24f))
+    compose.onNodeWithTag("button").performTouchInput {
+      down(center)
+      advanceEventTime(70)
+      up()
+    }
     compose.waitForIdle()
 
-    assertEquals(0, list.firstVisibleItemIndex)
-    assertEquals(0, list.firstVisibleItemScrollOffset)
-    assertEquals(0, clicks)
+    assertEquals(1, clicks)
+    assertEquals(
+      listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.PressClick),
+      haptics.played,
+    )
   }
 
   @Test
@@ -677,6 +802,66 @@ class FluidButtonDragTest {
 
     assertTrue(scrolled(list))
     assertEquals(0, clicks)
+  }
+
+  // (g) l'aptica: chi sceglie il suo colpo, chi non vuole niente, chi cede ---------------------------
+
+  @Test
+  fun `un pulsante che passa il suo evento non fa PressClick, e uno che passa null non vibra per niente`() {
+    var own = 0
+    var silent = 0
+    showInLazyColumn(LazyListState()) { modifier ->
+      Column {
+        Box(
+          modifier.size(312.dp, 48.dp).fluidPressable(onClick = { own++ }, haptic = FluidHapticEvent.Close, feedback = FluidPressFeedback.Expand),
+        )
+        Box(
+          Modifier.testTag("quiet").size(312.dp, 48.dp).fluidPressable(
+            onClick = { silent++ },
+            haptic = null,
+            feedback = FluidPressFeedback.Expand,
+          ),
+        )
+      }
+    }
+
+    compose.onNodeWithTag("button").performTouchInput { down(center); advanceEventTime(60); up() }
+    compose.waitForIdle()
+    assertEquals(1, own)
+    assertEquals(
+      listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.Close),
+      haptics.played,
+    )
+
+    haptics.played.clear()
+    compose.onNodeWithTag("quiet").performTouchInput {
+      down(center)
+      advanceEventTime(60)
+      moveBy(Offset(30f, 0f))
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(1, silent)
+    assertTrue("un controllo col suo colpo non vibra: ${haptics.played}", haptics.played.isEmpty())
+    assertEquals(0, haptics.grains)
+  }
+
+  @Test
+  fun `una superficie che cede fa ancora un Tap solo, senza i tre colpi del pulsante`() {
+    var clicks = 0
+    showInLazyColumn(LazyListState()) { modifier ->
+      Box(modifier.size(312.dp, 48.dp).fluidPressable(onClick = { clicks++ }))
+    }
+
+    compose.onNodeWithTag("button").performTouchInput {
+      down(center)
+      advanceEventTime(60)
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(1, clicks)
+    assertEquals(listOf(FluidHapticEvent.Tap), haptics.played)
   }
 
   // Quello che non e' il puntatore e non deve essersi perso ---------------------------------------
@@ -701,7 +886,7 @@ class FluidButtonDragTest {
   }
 
   @Test
-  fun `Invio su un pulsante col fuoco clicca`() {
+  fun `Invio su un pulsante col fuoco clicca, con il solo colpo del click`() {
     var clicks = 0
     keyboardAttached = true
     showInLazyColumn(LazyListState(), counting { clicks++ })
@@ -712,6 +897,8 @@ class FluidButtonDragTest {
     compose.waitForIdle()
 
     assertEquals(1, clicks)
+    // Dalla tastiera non c'e' un contatto ne' un rilascio: c'e' il click.
+    assertEquals(listOf(FluidHapticEvent.PressClick), haptics.played)
   }
 
   @Test
@@ -743,6 +930,7 @@ class FluidButtonDragTest {
 
     assertEquals(0, clicks)
     assertEquals(0, haptics.grains)
+    assertTrue("un pulsante spento non deve vibrare: ${haptics.played}", haptics.played.isEmpty())
     assertTrue("un pulsante spento non deve tenere la pagina", scrolled(list))
   }
 }

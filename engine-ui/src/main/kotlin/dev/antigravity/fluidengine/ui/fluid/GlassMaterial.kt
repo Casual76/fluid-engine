@@ -609,6 +609,28 @@ object GlassDefaults {
   )
 
   /**
+   * Un pulsante di vetro (3.0): [InteractiveOptics] con la lente di LibrePods **sotto il dito**.
+   *
+   * La lente di `StyledButton` di LibrePods (GPL-3.0, `StyledButton.kt:223-228`, branch
+   * `android/rewrite`, commit 3d4d270) e' `lens(refractionHeight = 12 dp, refractionAmount = 24 dp,
+   * depthEffect = true, chromaticAberration = true)`, sempre accesa. Qui a riposo il pulsante tiene
+   * la lente di sempre — 10 dp di altezza e 14 di spostamento, che a 24 "tira dentro tutto quello che
+   * e' a un centimetro e si legge come un alone colorato" — e **premuto** arriva a quella di
+   * LibrePods: 12 dp di altezza, e uno spostamento che sale da 14 a 24 dp con la pressione
+   * (`pressedDepthBoost` = 24 / 14 - 1). La profondita' e la dispersione c'erano gia'.
+   *
+   * Solo `glassControlSurface` la usa di serie: `GlassRole.Interactive` e' rimasto com'era per tutto
+   * il resto (il puck della barra, i pomelli, le lenti dei pop-up).
+   */
+  private val ButtonOptics = InteractiveOptics.copy(
+    refractionHeight = 12.dp,
+    pressedDepthBoost = 24f / InteractiveOptics.refractionAmount.value - 1f,
+  )
+
+  /** L'ottica di un pulsante di vetro: vedi [ButtonOptics]. */
+  fun buttonOptics(): GlassOptics = ButtonOptics
+
+  /**
    * A sheet or an alert.
    *
    * Deep frosting, because a sheet has to win an argument with a whole page of content behind it,

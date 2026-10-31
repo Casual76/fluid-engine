@@ -73,7 +73,13 @@ private class TickHaptics : FluidHaptics {
     played += event
   }
 
-  val ticks: Int get() = played.count { it == FluidHapticEvent.DragTick }
+  /** I granelli della grana (3.0): il segno che il tasto ha seguito un dito che correva. */
+  var grains = 0
+    private set
+
+  override fun grain(intensity: Float) {
+    grains++
+  }
 }
 
 /**
@@ -151,15 +157,19 @@ class FluidButtonDragTest {
 
   private fun scrolled(list: LazyListState) = list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset > 0
 
+  // Un passo ogni 8 ms: un dito che corre (sopra i 520 dp/s della grana anche coi passi piu' corti
+  // qui sotto), cosi' i granelli dicono che il tasto ha seguito il dito. Dalla 3.0 un dito lento non
+  // suona niente, apposta: lo prova il test della grana.
   private fun SemanticsNodeInteraction.dragHeld(
     steps: Int,
     step: Offset,
     holdMillis: Long = 150L,
     lift: Boolean = true,
+    stepMillis: Long = 8L,
   ) = performTouchInput {
     down(center)
     advanceEventTime(holdMillis)
-    repeat(steps) { moveBy(step) }
+    repeat(steps) { moveBy(step, delayMillis = stepMillis) }
     if (lift) up()
   }
 
@@ -180,7 +190,7 @@ class FluidButtonDragTest {
     assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemIndex)
     assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemScrollOffset)
     assertEquals("un click, al rilascio", 1, clicks)
-    assertTrue("il pulsante non ha seguito il dito (nessuna tacca)", haptics.ticks > 0)
+    assertTrue("il pulsante non ha seguito il dito (nessun granello)", haptics.grains > 0)
   }
 
   @Test
@@ -196,7 +206,7 @@ class FluidButtonDragTest {
     assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemIndex)
     assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemScrollOffset)
     assertEquals("rilasciato fuori, nessun click", 0, clicks)
-    assertTrue("il pulsante ha smesso di seguire il dito", haptics.ticks > 0)
+    assertTrue("il pulsante ha smesso di seguire il dito", haptics.grains > 0)
   }
 
   @Test
@@ -218,6 +228,24 @@ class FluidButtonDragTest {
     assertEquals("rilasciato lontano: nessun click", 0, clicks)
   }
 
+  @Test
+  fun `un pulsante trascinato piano non vibra, e trascinato veloce si', con la grana`() {
+    var clicks = 0
+    showInLazyColumn(LazyListState(), counting { clicks++ })
+
+    // A passo d'uomo (2 px ogni 16 ms, 62 dp/s): il tasto segue il dito in silenzio. Era il
+    // ticchettio fino alla 2.13.
+    compose.onNodeWithTag("button").dragHeld(steps = 20, step = Offset(2f, 0f), stepMillis = 16L)
+    compose.waitForIdle()
+    assertEquals(1, clicks)
+    assertEquals("un dito lento non deve suonare", 0, haptics.grains)
+
+    // Lo stesso tasto, un dito che corre (12 px ogni 8 ms, 750 dp/s): la grana.
+    compose.onNodeWithTag("button").dragHeld(steps = 12, step = Offset(12f, 0f), stepMillis = 8L)
+    compose.waitForIdle()
+    assertTrue("un dito veloce deve suonare la grana", haptics.grains > 0)
+  }
+
   // (b) lo stesso dentro verticalScroll ----------------------------------------------------------
 
   @Test
@@ -231,7 +259,7 @@ class FluidButtonDragTest {
 
     assertEquals("la pagina ha preso il gesto", 0, scroll.value)
     assertEquals(1, clicks)
-    assertTrue(haptics.ticks > 0)
+    assertTrue(haptics.grains > 0)
   }
 
   @Test
@@ -267,7 +295,7 @@ class FluidButtonDragTest {
 
     assertTrue("la pagina non ha scorso", scrolled(list))
     assertEquals("un flick non e' un click", 0, clicks)
-    assertEquals("il pulsante non doveva muoversi: ${haptics.played}", 0, haptics.ticks)
+    assertEquals("il pulsante non doveva muoversi: ${haptics.played}", 0, haptics.grains)
   }
 
   @Test
@@ -611,7 +639,7 @@ class FluidButtonDragTest {
     assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemIndex)
     assertEquals("la pagina ha preso il gesto", 0, list.firstVisibleItemScrollOffset)
     assertEquals(1, clicks)
-    assertTrue("il tasto di vetro non ha seguito il dito", haptics.ticks > 0)
+    assertTrue("il tasto di vetro non ha seguito il dito", haptics.grains > 0)
   }
 
   @Test
@@ -714,7 +742,7 @@ class FluidButtonDragTest {
     compose.waitForIdle()
 
     assertEquals(0, clicks)
-    assertEquals(0, haptics.ticks)
+    assertEquals(0, haptics.grains)
     assertTrue("un pulsante spento non deve tenere la pagina", scrolled(list))
   }
 }

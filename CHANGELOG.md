@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.0 - in lavorazione
+
+- ui: la grana. Un tasto trascinato (`FluidPressFeedback.Expand`: tasti, tasti di vetro, chip) non ticchetta piu' a ogni 10 dp: a passo d'uomo e' silenzioso, e quando il dito corre suona un treno fitto e irregolare di granelli leggeri, piu' forte quanto piu' corre — come strofinare una superficie ruvida (`FluidHapticGrain`: parte sopra 520 dp/s e si spegne sotto 380, un granello ogni ~8 dp ±30%, mai piu' di uno ogni 8-9 ms, intensita' 0,14-0,5). Nuovi: `FluidHaptics.grain(intensity)` (con default: un'implementazione scritta prima compila com'e'), `FluidHapticGrainConfig` e `LocalFluidHapticGrainConfig` per tararla. **Cambia al tatto** in ogni app con tasti trascinabili.
+- ui: una vibrazione per momento. Due eventi di controllo (Tap, Confirm, Reject, ToggleOn/Off, Threshold, Open, Close, GestureStart/End) entro 70 ms sono lo stesso momento detto da due componenti, e il secondo non suona piu': era il "toc-toc" che faceva sembrare un errore l'apertura dei menu. Esiti e allerte non si scartano mai, i tick continui hanno il loro cancello. `Open` e' un colpo solo (CLICK 0,6) invece di rampa + tick. **Cambia al tatto.**
+- test: `FluidHapticGrainTest`, `FluidHapticsTest` (rete dei 70 ms, `Open`, granello), `FluidPressStateTest` e `FluidButtonDragTest` riscritti sulla grana, con il caso nuovo "trascinato piano non vibra, veloce si'". Script QA dei gesti in `tools/qa/`.
+
 ## 2.13.1 - 2026-10-21
 
 - fix: `FluidSwitch` si trascina davvero. Sul telefono si poteva solo toccare: il trascinamento era di un rilevatore messo sul solo pomello, quindi un dito caduto sulla pista vuota (o appena accanto al pomello) non trascinava niente, e uno caduto sul pomello buttava i primi otto dp nello slop e tornava indietro se il dito non arrivava a diciotto dei venti di corsa. Ora un solo gesto su tutto il controllo (piu' l'alone di 48 dp): un tocco ovunque commuta; un dito sul pomello lo trascina subito, senza zona morta; un dito sulla pista vuota lo prende a mezzo slop di lato e lo porta da dove sta; una passata che va prima in verticale resta della pagina. Al rilascio il pomello va dalla parte piu' vicina, o da quella verso cui correva se la spinta superava 250 dp/s (`fluidSwitchLanding`).

@@ -51,6 +51,8 @@ class FluidHapticsImpl(
   private val supported: Set<Int> by lazy { port.supportedPrimitives(FluidHapticPatterns.primitivesUsed) }
   // Meta' del minimo, non zero: un orologio di prova che parte da 0 deve far passare il primo tick.
   private var lastContinuousAt = Long.MIN_VALUE / 2
+  private var lastDiscreteAt = Long.MIN_VALUE / 2
+  private var lastGrainAt = Long.MIN_VALUE / 2
 
   override val engine: FluidHapticEngine
     get() = when {
@@ -76,12 +78,33 @@ class FluidHapticsImpl(
       val now = clock()
       if (now - lastContinuousAt < CONTINUOUS_MIN_GAP_MILLIS) return
       lastContinuousAt = now
+    } else if (event in FluidHapticPatterns.coalescible) {
+      // Una vibrazione per momento (3.0): il secondo evento di controllo nello stesso istante e'
+      // lo stesso momento detto da un altro componente, e suonarlo troncherebbe il primo.
+      val now = clock()
+      if (fluidHapticCoalesces(lastDiscreteAt, now)) return
+      lastDiscreteAt = now
     }
     val attention = event == FluidHapticEvent.AlertAlarm || event == FluidHapticEvent.AlertWatch || event == FluidHapticEvent.AlertClear
     // Se la composizione non parte (permesso mancante, device che la rifiuta) resta la costante
     // di piattaforma: meglio un feedback diverso da quello disegnato che nessun feedback.
     if (!usesComposition(event) || !port.vibrate(FluidHapticPatterns.composition(event), attention)) {
       port.platform(FluidHapticPatterns.fallback(event))
+    }
+  }
+
+  override fun grain(intensity: Float) {
+    if (!enabled() || !port.hasVibrator || port.powerSave) return
+    // Il pavimento della grana, non quello dei tick continui: a 40 ms la grana sarebbe di nuovo un
+    // ticchettio. Il ritmo lo decide gia' FluidHapticGrain; questo e' solo il tetto del motore.
+    val now = clock()
+    if (now - lastGrainAt < GRAIN_MIN_GAP_MILLIS) return
+    lastGrainAt = now
+    val step = HapticPrimitiveStep(HapticPrimitive.TICK, intensity.coerceIn(0f, 1f))
+    if (HapticPrimitive.TICK !in supported || !port.vibrate(listOf(step), attention = false)) {
+      // Il tick di sistema che usa LibrePods per la stessa cosa: senza primitive non si dosa la forza,
+      // ma il treno resta un treno.
+      port.platform(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentFrequentTick)
     }
   }
 
@@ -96,6 +119,9 @@ class FluidHapticsImpl(
 
   companion object {
     const val CONTINUOUS_MIN_GAP_MILLIS = 40L
+
+    /** Il tetto della grana: un granello ogni 8 ms al massimo (sotto, il motore non li separa). */
+    const val GRAIN_MIN_GAP_MILLIS = 8L
   }
 }
 

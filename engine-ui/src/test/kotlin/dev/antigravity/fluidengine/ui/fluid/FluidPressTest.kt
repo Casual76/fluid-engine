@@ -155,40 +155,54 @@ class FluidPressMotionTest {
 private class CountingHaptics : FluidHaptics {
   override val engine: FluidHapticEngine = FluidHapticEngine.Composition
   val played = mutableListOf<FluidHapticEvent>()
+  val grains = mutableListOf<Float>()
   override fun play(event: FluidHapticEvent) {
     played += event
+  }
+
+  override fun grain(intensity: Float) {
+    grains += intensity
   }
 }
 
 class FluidPressStateTest {
 
   @Test
-  fun `le tacche arrivano solo a pressione in corso e solo per chi le vuole`() = runTest {
+  fun `la grana arriva solo a pressione in corso, solo veloce e solo per chi la vuole`() = runTest {
     val job = SupervisorJob()
     val scope = CoroutineScope(coroutineContext.minusKey(Job) + job + VirtualFrames(testScheduler))
     val haptics = CountingHaptics()
     val state = FluidPressState(scope, FluidPressFeedback.Expand)
     state.update(FluidPressFeedback.Expand, haptics, reducedMotion = false)
 
+    // Un dito che corre: 12 dp ogni 8 ms (1500 dp/s), a densita' 1.
+    fun FluidPressState.run(fromMillis: Long, steps: Int, stepDp: Float, everyMillis: Long) {
+      touchDown(Offset.Zero)
+      repeat(steps) { i -> touchMove(Offset(stepDp * (i + 1), 0f), fromMillis + everyMillis * (i + 1), pxPerDp = 1f) }
+    }
+
     // Prima che il tasto sia premuto davvero il dito puo' stare iniziando uno scorrimento.
-    state.touchDown(Offset.Zero)
-    state.touchMove(Offset(25f, 0f), uptimeMillis = 0L, stepPx = 10f)
-    assertTrue(haptics.played.isEmpty())
+    state.run(fromMillis = 0L, steps = 20, stepDp = 12f, everyMillis = 8L)
+    assertTrue(haptics.grains.isEmpty())
 
     state.press()
-    state.touchDown(Offset.Zero)
-    state.touchMove(Offset(12f, 0f), uptimeMillis = 100L, stepPx = 10f)
-    state.touchMove(Offset(24f, 0f), uptimeMillis = 200L, stepPx = 10f)
-    assertEquals(listOf(FluidHapticEvent.DragTick, FluidHapticEvent.DragTick), haptics.played)
-    assertEquals(Offset(24f, 0f), state.lean)
+    // A passo d'uomo (1 dp ogni 16 ms) niente, nemmeno dopo molta strada: era il ticchettio.
+    state.run(fromMillis = 1_000L, steps = 60, stepDp = 1f, everyMillis = 16L)
+    assertTrue(haptics.grains.isEmpty())
+    assertEquals(Offset(60f, 0f), state.lean)
+    // Veloce: la grana.
+    state.run(fromMillis = 3_000L, steps = 20, stepDp = 12f, everyMillis = 8L)
+    assertTrue(haptics.grains.isNotEmpty())
+    assertTrue(haptics.grains.all { it in 0f..1f })
+    assertTrue("niente DragTick dai tasti: ${haptics.played}", haptics.played.isEmpty())
 
-    // Una superficie che cede non scatta sotto il dito.
+    // Una superficie che cede non ha grana sotto il dito.
+    val before = haptics.grains.size
     val surface = FluidPressState(scope, FluidPressFeedback.yielding())
     surface.update(FluidPressFeedback.yielding(), haptics, reducedMotion = false)
     surface.press()
-    surface.touchDown(Offset.Zero)
-    surface.touchMove(Offset(50f, 0f), uptimeMillis = 300L, stepPx = 10f)
-    assertEquals(2, haptics.played.size)
+    surface.run(fromMillis = 5_000L, steps = 20, stepDp = 12f, everyMillis = 8L)
+    assertEquals(before, haptics.grains.size)
     job.cancel()
   }
 }

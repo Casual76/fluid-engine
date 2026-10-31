@@ -74,6 +74,14 @@ interface FluidHaptics {
   val engine: FluidHapticEngine
 
   fun play(event: FluidHapticEvent)
+
+  /**
+   * Un granello della grana di un trascinamento veloce (3.0), d'intensita' [intensity] (0..1). Non
+   * e' un evento del vocabolario perche' non ha un pattern fisso: la sua forza dipende da quanto
+   * corre il dito. Lo suona [FluidHapticGrain] attraverso i tasti che si trascinano; di serie non fa
+   * niente, cosi' un'implementazione scritta prima della 3.0 compila com'e'.
+   */
+  fun grain(intensity: Float) = Unit
 }
 
 /** Fuori da un [dev.antigravity.fluidengine.ui.theme.FluidTheme] (anteprime, test) non si vibra. */
@@ -155,7 +163,10 @@ object FluidHapticPatterns {
     FluidHapticEvent.FrequentTick -> listOf(HapticPrimitiveStep(HapticPrimitive.LOW_TICK, 0.2f))
     FluidHapticEvent.GestureStart -> listOf(HapticPrimitiveStep(HapticPrimitive.QUICK_RISE, 0.4f))
     FluidHapticEvent.GestureEnd -> listOf(HapticPrimitiveStep(HapticPrimitive.QUICK_FALL, 0.4f))
-    FluidHapticEvent.Open -> listOf(HapticPrimitiveStep(HapticPrimitive.QUICK_RISE, 0.3f), HapticPrimitiveStep(HapticPrimitive.TICK, 0.5f))
+    // Un colpo solo (3.0). Era rampa + tick: due cose in 60 ms, e quando un altro evento cadeva nello
+    // stesso momento (il tocco sul tasto, il layer del modale) ne uscivano tre, troncate dal
+    // vibratore — un "toc-toc" che si leggeva come Reject. Il click a 0,6 e' il "si apre" di iOS.
+    FluidHapticEvent.Open -> listOf(HapticPrimitiveStep(HapticPrimitive.CLICK, 0.6f))
     FluidHapticEvent.Close -> listOf(HapticPrimitiveStep(HapticPrimitive.QUICK_FALL, 0.3f))
     FluidHapticEvent.Success -> listOf(HapticPrimitiveStep(HapticPrimitive.TICK, 0.5f), HapticPrimitiveStep(HapticPrimitive.CLICK, 0.8f, 80))
     FluidHapticEvent.Warning -> listOf(HapticPrimitiveStep(HapticPrimitive.LOW_TICK, 0.8f), HapticPrimitiveStep(HapticPrimitive.LOW_TICK, 0.8f, 70))
@@ -203,6 +214,32 @@ object FluidHapticPatterns {
     FluidHapticEvent.DragTick,
   )
 
+  /**
+   * Gli eventi di un gesto su un controllo che non devono mai sovrapporsi (3.0): se ne arriva uno
+   * entro [CoalesceWindowMillis] dal precedente, il secondo non suona. Due eventi a pochi
+   * millisecondi l'uno dall'altro non sono due momenti, sono lo stesso momento detto da due
+   * componenti (il tasto e il pannello che apre), e il vibratore tronca il primo per suonare il
+   * secondo. Fuori: gli esiti e le allerte, che devono arrivare sempre, e i tick continui, che hanno
+   * il loro cancello e non contano qui.
+   */
+  val coalescible: Set<FluidHapticEvent> = setOf(
+    FluidHapticEvent.Tap, FluidHapticEvent.Confirm, FluidHapticEvent.Reject, FluidHapticEvent.ToggleOn, FluidHapticEvent.ToggleOff,
+    FluidHapticEvent.Threshold, FluidHapticEvent.Open, FluidHapticEvent.Close, FluidHapticEvent.GestureStart, FluidHapticEvent.GestureEnd,
+  )
+
+  /** La finestra entro cui due eventi di [coalescible] sono lo stesso momento. */
+  const val CoalesceWindowMillis = 70L
+
   /** Tutte le primitive che i pattern usano: il motore le chiede al device una volta sola. */
   val primitivesUsed: IntArray = FluidHapticEvent.entries.flatMap { composition(it).map { step -> step.id } }.distinct().toIntArray()
 }
+
+/**
+ * Vero se un evento di [FluidHapticPatterns.coalescible] che arriva a [now] cade nello stesso momento
+ * di quello suonato a [previousAt] (vedi [FluidHapticPatterns.CoalesceWindowMillis]).
+ */
+internal fun fluidHapticCoalesces(
+  previousAt: Long,
+  now: Long,
+  windowMillis: Long = FluidHapticPatterns.CoalesceWindowMillis,
+): Boolean = now - previousAt in 0 until windowMillis

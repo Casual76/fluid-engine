@@ -32,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.fastForEach
-import dev.antigravity.fluidengine.ui.haptics.FluidHapticDetents
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrain
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainConfig
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHapticGrainConfig
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
@@ -252,7 +254,8 @@ class FluidPressState internal constructor(
   internal var reducedMotion: Boolean = false
     private set
   private var haptics: FluidHaptics = NoOpFluidHaptics
-  private val detents = FluidHapticDetents()
+  private val grain = FluidHapticGrain()
+  private var gestures = 0
   private var origin = Offset.Zero
   private var last = Offset.Zero
 
@@ -271,13 +274,19 @@ class FluidPressState internal constructor(
   /** Quanto e' premuto: 0 a riposo, 1 premuto. Le molle possono uscire di poco da entrambi i lati. */
   val progress: Float get() = motion.value
 
-  internal fun update(feedback: FluidPressFeedback, haptics: FluidHaptics, reducedMotion: Boolean) {
+  internal fun update(
+    feedback: FluidPressFeedback,
+    haptics: FluidHaptics,
+    reducedMotion: Boolean,
+    grainConfig: FluidHapticGrainConfig = FluidHapticGrainConfig.Default,
+  ) {
     if (feedback != this.feedback || reducedMotion != this.reducedMotion) {
       FluidPressSprings.configure(motion, feedback, reducedMotion)
     }
     this.feedback = feedback
     this.haptics = haptics
     this.reducedMotion = reducedMotion
+    grain.config = grainConfig
   }
 
   internal fun press() = motion.press()
@@ -290,23 +299,28 @@ class FluidPressState internal constructor(
     last = position
     lean = Offset.Zero
     touch = position
-    detents.restart()
+    // Un seme diverso a ogni gesto: due trascinamenti uguali non suonano lo stesso treno, come due
+    // strofinii sulla stessa superficie.
+    gestures++
+    grain.restart(seed = gestures * 7919 + 1)
   }
 
   /**
-   * Il dito si e' spostato in [position]. Le tacche arrivano solo a pressione in corso: prima che
-   * il tasto sia stato premuto davvero (i 100 ms di [FluidPressGesture.OwnDelayMillis]) il dito
-   * potrebbe stare iniziando uno scorrimento, e una tacca li' direbbe "ti ho preso" a un gesto che
-   * non e' per questo tasto.
+   * Il dito si e' spostato in [position]. La grana arriva solo a pressione in corso: prima che il
+   * tasto sia stato premuto davvero (i 100 ms di [FluidPressGesture.OwnDelayMillis]) il dito potrebbe
+   * stare iniziando uno scorrimento, e un granello li' direbbe "ti ho preso" a un gesto che non e' per
+   * questo tasto. Dalla 3.0 non e' piu' una tacca ogni 10 dp ma la grana di [FluidHapticGrain]:
+   * silenzio a passo d'uomo, un treno leggero e irregolare solo quando il dito corre.
    */
-  internal fun touchMove(position: Offset, uptimeMillis: Long, stepPx: Float) {
+  internal fun touchMove(position: Offset, uptimeMillis: Long, pxPerDp: Float) {
     val delta = (position - last).getDistance()
     last = position
     lean = position - origin
     touch = position
-    if (motion.held && feedback.dragHaptics && detents.travel(delta, stepPx, uptimeMillis)) {
-      haptics.play(FluidHapticEvent.DragTick)
-    }
+    // La velocita' si misura sempre, anche prima della pressione: quando il tasto diventa del dito la
+    // grana sa gia' quanto corre, invece di ripartire da ferma.
+    val intensity = grain.onMove(delta, pxPerDp, uptimeMillis)
+    if (intensity != null && motion.held && feedback.dragHaptics) haptics.grain(intensity)
   }
 }
 
@@ -319,8 +333,9 @@ fun rememberFluidPressState(feedback: FluidPressFeedback = FluidPressFeedback.Ex
   val scope = rememberCoroutineScope()
   val haptics = LocalFluidHaptics.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val grainConfig = LocalFluidHapticGrainConfig.current
   val state = remember(scope) { FluidPressState(scope, feedback) }
-  SideEffect { state.update(feedback, haptics, reducedMotion) }
+  SideEffect { state.update(feedback, haptics, reducedMotion, grainConfig) }
   return state
 }
 
@@ -345,13 +360,12 @@ internal fun Modifier.fluidPressTracking(
     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
     state.touchDown(down.position)
     if (ownsPress) state.press()
-    val stepPx = FluidPressDragStep.toPx()
     try {
       while (true) {
         val event = awaitPointerEvent(PointerEventPass.Final)
         val change = event.changes.fastFirstOrNull { it.id == down.id } ?: break
         if (!change.pressed || change.isConsumed) break
-        if (change.positionChanged()) state.touchMove(change.position, change.uptimeMillis, stepPx)
+        if (change.positionChanged()) state.touchMove(change.position, change.uptimeMillis, density)
       }
     } finally {
       if (ownsPress) state.release()
@@ -359,8 +373,6 @@ internal fun Modifier.fluidPressTracking(
   }
 }
 
-/** Un passo fra due tacche sotto un dito che scorre su un tasto premuto. */
-internal val FluidPressDragStep: Dp = 10.dp
 
 // -------------------------------------------------------------------------------------------------
 // Il pulsante e' di chi lo tiene premuto (2.12.0)
@@ -585,7 +597,6 @@ internal fun Modifier.fluidButtonGesture(
   onLongClick: (() -> Unit)?,
   immediate: Boolean = false,
 ): Modifier = this.pointerInput(state, interactionSource, onLongClick != null, immediate) {
-  val stepPx = FluidPressDragStep.toPx()
   val extraSlackPx = FluidPressClickSlack.toPx()
   val longPressMillis =
     if (onLongClick != null) viewConfiguration.longPressTimeoutMillis else FluidPressGesture.NoLongPress
@@ -679,7 +690,7 @@ internal fun Modifier.fluidButtonGesture(
 
         if (change.position != change.previousPosition) {
           gesture.moved(change.position)
-          state.touchMove(change.position, change.uptimeMillis, stepPx)
+          state.touchMove(change.position, change.uptimeMillis, density)
         }
         if (gesture.owned) {
           // La rotella di un mouse non e' un movimento del dito: non e' nostra.

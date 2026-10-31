@@ -114,14 +114,95 @@ class FluidHapticsTest {
   }
 
   @Test
-  fun `i tick continui si diradano a 40 ms, i tap no`() {
+  fun `i tick continui si diradano a 40 ms, i tap a distanza di un momento passano tutti`() {
     var now = 0L
     val port = FakePort()
     val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { now })
     repeat(5) { haptics.play(FluidHapticEvent.Tick); now += 10 }
     assertEquals(2, port.compositions.size)
-    repeat(3) { haptics.play(FluidHapticEvent.Tap) }
+    // Tre tocchi veri, ognuno il suo momento: passano tutti.
+    repeat(3) { haptics.play(FluidHapticEvent.Tap); now += FluidHapticPatterns.CoalesceWindowMillis }
     assertEquals(5, port.compositions.size)
+  }
+
+  @Test
+  fun `due eventi di controllo nello stesso momento suonano una volta sola`() {
+    var now = 1_000L
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { now })
+    // Il tocco sul tasto e il pannello che si apre un fotogramma dopo: era il "toc-toc" dei menu.
+    haptics.play(FluidHapticEvent.Tap)
+    now += 16
+    haptics.play(FluidHapticEvent.Open)
+    now += 16
+    haptics.play(FluidHapticEvent.GestureStart)
+    assertEquals(listOf(FluidHapticPatterns.composition(FluidHapticEvent.Tap)), port.compositions)
+    // Passata la finestra, il momento dopo suona.
+    now += FluidHapticPatterns.CoalesceWindowMillis
+    haptics.play(FluidHapticEvent.Open)
+    assertEquals(2, port.compositions.size)
+  }
+
+  @Test
+  fun `esiti e allerte non si scartano mai e i tick non armano la rete`() {
+    var now = 1_000L
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { now })
+    haptics.play(FluidHapticEvent.Tap)
+    haptics.play(FluidHapticEvent.Success)
+    haptics.play(FluidHapticEvent.AlertAlarm)
+    assertEquals(3, port.compositions.size)
+    now += 200
+    haptics.play(FluidHapticEvent.Tick)
+    haptics.play(FluidHapticEvent.Tap)
+    assertEquals(5, port.compositions.size)
+  }
+
+  @Test
+  fun `la rete dei 70 ms e' una regola pura`() {
+    assertTrue(fluidHapticCoalesces(previousAt = 100, now = 100))
+    assertTrue(fluidHapticCoalesces(previousAt = 100, now = 169))
+    assertTrue(!fluidHapticCoalesces(previousAt = 100, now = 170))
+    assertTrue(!fluidHapticCoalesces(previousAt = Long.MIN_VALUE / 2, now = 0))
+    assertTrue(FluidHapticEvent.Success !in FluidHapticPatterns.coalescible)
+    assertTrue(FluidHapticEvent.Tick !in FluidHapticPatterns.coalescible)
+  }
+
+  @Test
+  fun `Open e' un colpo solo`() {
+    val open = FluidHapticPatterns.composition(FluidHapticEvent.Open).single()
+    assertEquals(HapticPrimitive.CLICK, open.id)
+  }
+
+  @Test
+  fun `il granello e' un TICK dosato, col suo pavimento, muto in risparmio energetico`() {
+    var now = 1_000L
+    val port = FakePort()
+    val haptics = FluidHapticsImpl(port, enabled = { true }, clock = { now })
+    haptics.grain(0.3f)
+    assertEquals(listOf(HapticPrimitiveStep(HapticPrimitive.TICK, 0.3f)), port.compositions.single())
+    // Piu' vicino del pavimento: niente.
+    now += FluidHapticsImpl.GRAIN_MIN_GAP_MILLIS - 1
+    haptics.grain(0.3f)
+    assertEquals(1, port.compositions.size)
+    now += 1
+    haptics.grain(2f)
+    assertEquals(1f, port.compositions.last().single().scale)
+    // La grana non arma la rete dei controlli: un Tap subito dopo suona.
+    haptics.play(FluidHapticEvent.Tap)
+    assertEquals(3, port.compositions.size)
+
+    val saving = FakePort(powerSave = true)
+    FluidHapticsImpl(saving, enabled = { true }).grain(0.4f)
+    assertTrue(saving.compositions.isEmpty() && saving.platforms.isEmpty())
+
+    val noPrimitives = FakePort(primitives = emptySet())
+    FluidHapticsImpl(noPrimitives, enabled = { true }).grain(0.4f)
+    assertEquals(listOf(HapticFeedbackType.SegmentFrequentTick), noPrimitives.platforms)
+
+    val off = FakePort()
+    FluidHapticsImpl(off, enabled = { false }).grain(0.4f)
+    assertTrue(off.compositions.isEmpty())
   }
 
   @Test

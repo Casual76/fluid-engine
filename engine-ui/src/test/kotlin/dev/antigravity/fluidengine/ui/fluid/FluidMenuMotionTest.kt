@@ -20,33 +20,42 @@ class FluidMenuMotionTest {
   // --- L'opacita' del contenuto ------------------------------------------------------------
 
   @Test
-  fun theOpeningContentArrivesBetweenAQuarterAndThreeQuarters() {
+  fun theOpeningContentArrivesOnceTheBodyHasMostlyFormed() {
+    // Il vetro liquido (3.0): le voci stanno dentro il vetro formato, mai sopra quello che si forma.
     assertEquals(0f, fluidMenuContentAlpha(0f, closing = false), 0f)
-    assertEquals(0f, fluidMenuContentAlpha(0.25f, closing = false), 0f)
-    assertEquals(0.5f, fluidMenuContentAlpha(0.5f, closing = false), 0.0001f)
-    assertEquals(1f, fluidMenuContentAlpha(0.75f, closing = false), 0f)
+    assertEquals(0f, fluidMenuContentAlpha(0.55f, closing = false), 0f)
+    assertEquals(0.5f, fluidMenuContentAlpha(0.725f, closing = false), 0.0001f)
+    assertEquals(1f, fluidMenuContentAlpha(0.9f, closing = false), 0f)
     assertEquals(1f, fluidMenuContentAlpha(1f, closing = false), 0f)
   }
 
   @Test
-  fun theClosingContentFollowsTheShapeFromNinetyTwoToTwelve() {
+  fun theClosingContentLeavesFirstFromNinetyFourToSixtyTwo() {
     assertEquals(1f, fluidMenuContentAlpha(1f, closing = true), 0f)
-    assertEquals(1f, fluidMenuContentAlpha(0.92f, closing = true), 0f)
-    assertEquals(0.5f, fluidMenuContentAlpha(0.52f, closing = true), 0.0001f)
-    assertEquals(0f, fluidMenuContentAlpha(0.12f, closing = true), 0f)
+    assertEquals(1f, fluidMenuContentAlpha(0.94f, closing = true), 0f)
+    assertEquals(0.5f, fluidMenuContentAlpha(0.78f, closing = true), 0.0001f)
+    assertEquals(0f, fluidMenuContentAlpha(0.62f, closing = true), 0f)
     assertEquals(0f, fluidMenuContentAlpha(0f, closing = true), 0f)
   }
 
   @Test
-  fun theClosingWindowIsWiderThanTheOpeningOne() {
-    // E' lo scopo: le voci restano leggibili piu' a lungo mentre il pannello si ritira.
-    val open = FluidMotion.MenuContentOpenTo - FluidMotion.MenuContentOpenFrom
-    val close = FluidMotion.MenuContentCloseTo - FluidMotion.MenuContentCloseFrom
-    assertTrue("finestra di chiusura $close, di apertura $open", close > open)
-
-    // A progresso basso le voci in chiusura sono ancora li' mentre in apertura non sono arrivate.
-    assertEquals(0f, fluidMenuContentAlpha(0.2f, closing = false), 0f)
-    assertTrue(fluidMenuContentAlpha(0.2f, closing = true) > 0.05f)
+  fun theClosingContentIsGoneBeforeTheBodyHasRetractedMuch() {
+    // Era il difetto: le voci restavano leggibili fino a 0,12, con la scala ferma a 0,72 in una
+    // sagoma che scendeva verso il 25% — fuori dal vetro, mezze trasparenti sulla pagina. Ora a
+    // meta' del ritiro non c'e' piu' niente da leggere.
+    assertEquals(0f, fluidMenuContentAlpha(0.6f, closing = true), 0f)
+    assertEquals(0f, fluidMenuContentAlpha(0.2f, closing = true), 0f)
+    // E dove il contenuto si legge ancora (oltre un quarto d'opacita'), la sua scala segue la sagoma
+    // del viaggio senza toccare il fermo a 0,72: il lato corto del corpo (dal tasto da 44 al pannello
+    // da 200) e' sempre oltre il 72% di quello del pannello. Sotto, lo ritaglia il corpo.
+    var p = 0.62f
+    while (p <= 1f) {
+      if (fluidMenuContentAlpha(p, closing = true) > 0.25f) {
+        val shortSide = 44f + (200f - 44f) * p
+        assertTrue("a p=$p la scala e' ferma al minimo", shortSide / 200f > 0.72f)
+      }
+      p += 0.01f
+    }
   }
 
   @Test
@@ -70,10 +79,10 @@ class FluidMenuMotionTest {
   @Test
   fun aReversedJourneyUsesTheWindowOfTheDirectionItIsGoingIn() {
     // La stessa p a meta' viaggio da' due opacita' diverse a seconda del verso: voluto.
-    val opening = fluidMenuContentAlpha(0.4f, closing = false)
-    val closing = fluidMenuContentAlpha(0.4f, closing = true)
-    assertEquals(0.3f, opening, 0.0001f)
-    assertEquals(0.35f, closing, 0.0001f)
+    val opening = fluidMenuContentAlpha(0.8f, closing = false)
+    val closing = fluidMenuContentAlpha(0.8f, closing = true)
+    assertEquals(0.25f / 0.35f, opening, 0.0001f)
+    assertEquals(0.18f / 0.32f, closing, 0.0001f)
   }
 
   @Test
@@ -88,12 +97,14 @@ class FluidMenuMotionTest {
 
   @Test
   fun theFaceIsGoneBeforeTheContentIsLegible() {
-    // I due testi non devono mai essere leggibili insieme: nel punto d'incrocio (p ~ 0,31) la faccia
-    // che se ne va e le voci che arrivano valgono entrambe ~0,12, cioe' quasi niente.
-    var p = FluidMotion.MenuContentOpenFrom
+    // I due testi non devono mai essere leggibili insieme: dalla 3.0 (il vetro liquido) non si
+    // incrociano nemmeno — la faccia e' spenta a 0,35, le voci entrano da 0,55 ed escono entro 0,62.
+    var p = 0f
     while (p <= 1f) {
-      val together = minOf(fluidMenuFaceAlpha(p), fluidMenuContentAlpha(p, closing = false))
-      assertTrue("faccia e voci insieme a p=$p ($together)", together < 0.13f)
+      for (closing in listOf(false, true)) {
+        val together = minOf(fluidMenuFaceAlpha(p), fluidMenuContentAlpha(p, closing))
+        assertEquals("faccia e voci insieme a p=$p ($together)", 0f, together, 0f)
+      }
       p += 0.01f
     }
   }

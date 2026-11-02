@@ -283,17 +283,29 @@ private fun FluidMenuLayerContent(
       // Un'apertura si prepara una volta (la sequenza la distingue dalla riapertura e dalle
       // ricomposizioni); in uscita non si tocca niente: il viaggio torna dove era partito.
       val prepared = remember { intArrayOf(-1) }
+      // Dove il dito ha tenuto premuto, fermato all'apertura: la goccia del contestuale nasce li' sotto
+      // e il menu ci torna. Seguire il dito mentre scorre sulle voci sposterebbe la partenza in volo.
+      val touch = remember { floatArrayOf(Float.NaN) }
       if (entry.visible) {
         val fresh = prepared[0] != entry.openedAt
         prepared[0] = entry.openedAt
+        if (fresh) touch[0] = entry.menuHandOff?.takeIf { it.pointerDown }?.lastRoot?.x ?: Float.NaN
         journey.prepare(
           anchor = anchor,
           hostOrigin = Offset.Zero,
           panel = panel,
           radius = metrics.radiusPx,
           inflation = fluidMenuInflation(panel.width, panel.height, host.width, metrics.edgeMinPx, metrics.refHeightPx),
+          // Il contestuale nasce da una goccia appesa alla riga, sotto il dito (3.0, il vetro liquido):
+          // il corpo esce dalla riga e la goccia resta un istante a svuotarsi, col collo fra le due.
           seed = if (anchor == null) {
-            fluidMenuSeedFrame(panel, fluidMenuPivot(panel, anchorRect), FluidMenuSeedScale)
+            fluidMenuDropSeed(
+              row = anchorRect,
+              panel = panel,
+              touchX = touch[0].takeIf { !it.isNaN() },
+              diameterPx = with(density) { FluidMenuDropSeedDiameter.toPx() },
+              overlapPx = with(density) { FluidMenuDropSeedOverlap.toPx() },
+            )
           } else {
             null
           },
@@ -317,12 +329,15 @@ private fun FluidMenuLayerContent(
           physics = previewPhysics,
           progress = progress,
           presence = fade,
+          swells = true,
         )
       }
 
       // Expand: la sagoma E' il tasto alla partenza e al ritorno, a piena forza (il tasto vero e'
-      // nascosto). Contestuale: il seme entra e se ne va con la dissolvenza.
-      val windowAmount: () -> Float = if (anchor != null) ({ 1f }) else fade
+      // nascosto). Contestuale: la goccia esce dalla riga mentre si accende e, al ritorno, si spegne
+      // mentre la riga la riassorbe — mai un seme fermo che sfuma da solo (era il rettangolo pallido
+      // che restava a mezz'aria dopo la chiusura).
+      val windowAmount: () -> Float = if (anchor != null) ({ 1f }) else ({ fade() * fluidMenuDropPresence(progress()) })
       Box(
         modifier = Modifier
           .fillMaxSize()
@@ -354,7 +369,7 @@ private fun FluidMenuLayerContent(
             )
             .graphicsLayer {
               alpha = fluidMenuFaceAlpha(progress())
-              val map = fluidMenuContentMap(target = rest, current = physics.ensurePlan().bounds)
+              val map = fluidMenuContentMap(target = rest, current = physics.contentBoundsNow())
               translationX = map.translation.x
               translationY = map.translation.y
               scaleX = map.scale
@@ -373,7 +388,7 @@ private fun FluidMenuLayerContent(
         panelMaterial = if (backdrop != null) paneGlass else null,
         pageBackdrop = backdrop,
         contentAlpha = { fluidMenuContentAlpha(progress(), closing = journey.closing) },
-        contentMap = { fluidMenuContentMap(target = panel, current = physics.ensurePlan().bounds) },
+        contentMap = { fluidMenuContentMap(target = panel, current = physics.contentBoundsNow(), minScale = FluidMenuLiquidContentMinScale) },
         onPick = pick,
         modifier = Modifier
           .offset { IntOffset(panel.left.roundToInt(), panel.top.roundToInt()) }
@@ -382,6 +397,13 @@ private fun FluidMenuLayerContent(
             height = with(density) { panel.height.toDp() },
           ),
         paneTitle = paneTitle ?: FluidMenuDefaultPaneTitle,
+        // Il pannello e' posato all'intero piu' vicino: il ritaglio parla le stesse coordinate.
+        travelClip = {
+          physics.travelClipIn(
+            Rect(panel.left.roundToInt().toFloat(), panel.top.roundToInt().toFloat(), panel.right, panel.bottom),
+            progress(),
+          )
+        },
       )
     }
   }
@@ -528,7 +550,7 @@ private fun FluidAlertLayerContent(
   val marginPx = with(density) { FluidAlertMargin.toPx() }
   val maxWidthPx = with(density) { FluidAlertWidth.toPx() }
   val contentMap: () -> FluidMenuContentMap = {
-    fluidMenuContentMap(target = pane.rect, current = physics.ensurePlan().bounds, minScale = 0.9f, maxScale = 1.1f)
+    fluidMenuContentMap(target = pane.rect, current = physics.contentBoundsNow(), minScale = 0.9f, maxScale = 1.1f)
   }
 
   Box(

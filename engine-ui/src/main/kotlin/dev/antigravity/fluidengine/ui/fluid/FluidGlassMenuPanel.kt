@@ -28,9 +28,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -40,6 +43,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -238,6 +243,9 @@ internal fun rememberFluidMenuDropState(selection: FluidMenuSelection, count: In
  *   fondale da piegare, API < 31), restano la scala della voce e i separatori che si spengono.
  * @param onPick una scelta da TalkBack o dalla tastiera (il `clickable` delle righe). Quella del dito
  *   passa da [FluidMenuSelection.onPick].
+ * @param travelClip la sagoma del corpo di vetro in questo istante, nelle coordinate del pannello, o
+ *   null a riposo (3.0): voci e goccia non escono mai dal vetro mentre si forma o si ritira. Letta in
+ *   disegno; un rettangolo arrotondato, quindi il ritaglio hardware del nodo, niente maschera.
  */
 @Composable
 internal fun FluidGlassMenuPanel(
@@ -251,6 +259,7 @@ internal fun FluidGlassMenuPanel(
   onPick: (Int) -> Unit,
   modifier: Modifier = Modifier,
   paneTitle: String? = null,
+  travelClip: (() -> RoundRect?)? = null,
 ) {
   val density = LocalDensity.current
   val coordinates = remember { FluidMenuCoordinates() }
@@ -279,7 +288,8 @@ internal fun FluidGlassMenuPanel(
       .semantics {
         paneTitle?.let { this.paneTitle = it }
         isTraversalGroup = true
-      },
+      }
+      .then(if (travelClip != null) Modifier.fluidMenuTravelClip(travelClip) else Modifier),
   ) {
     if (pageBackdrop != null && actions.isNotEmpty()) {
       FluidMenuDrop(
@@ -322,6 +332,30 @@ internal fun FluidGlassMenuPanel(
       }
     }
   }
+}
+
+/**
+ * Il ritaglio del contenuto sul corpo di vetro in viaggio (3.0): un layer col clip acceso solo mentre
+ * [clip] da' una sagoma. Nessuna trasformazione: le coordinate del pannello restano quelle del dito.
+ */
+private fun Modifier.fluidMenuTravelClip(clip: () -> RoundRect?): Modifier = graphicsLayer {
+  val r = clip()
+  if (r != null) {
+    shape = FluidMenuRoundRectShape(r)
+    this.clip = true
+  } else {
+    this.clip = false
+  }
+}
+
+/** Un rettangolo arrotondato gia' posato: l'outline e' lui, qualunque sia la taglia del nodo. */
+private class FluidMenuRoundRectShape(private val round: RoundRect) : Shape {
+  override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+    Outline.Rounded(round)
+
+  override fun equals(other: Any?): Boolean = other is FluidMenuRoundRectShape && other.round == round
+
+  override fun hashCode(): Int = round.hashCode()
 }
 
 /**

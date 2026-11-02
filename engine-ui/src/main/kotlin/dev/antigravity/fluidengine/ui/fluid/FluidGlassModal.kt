@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntRect
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
@@ -60,6 +62,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.CornerRadius
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidLiquid
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsShadow
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
@@ -157,6 +160,15 @@ class FluidGlassModalHostState internal constructor() {
    */
   internal val expandAnchors = mutableStateListOf<FluidExpandAnchorNode>()
 
+  /**
+   * Chi vuole sapere di un tocco FUORI da una zona dello schermo (3.0): il menu che si trasforma,
+   * quando il suo host non e' a schermo intero. L'host di quel menu prende i tocchi solo dentro i
+   * propri limiti — montato in un palco, un tocco sopra il palco non lo chiudeva — e l'unico posto
+   * che vede tutto lo schermo e' questo, alla radice. Qui si disegnano quattro fasce attorno alla
+   * zona: un tocco su una fascia chiude, dentro la zona i tocchi restano dell'host.
+   */
+  internal val outsideCatchers = mutableStateListOf<FluidOutsideTapCatcher>()
+
   private var sequence = 0
 
   /** Whether anything is currently open. An app can use it to obscure the page behind. */
@@ -207,6 +219,15 @@ class FluidGlassModalHostState internal constructor() {
   fun dismissTop() {
     topEntry()?.onDismissRequest?.invoke()
   }
+}
+
+/**
+ * Una zona dello schermo ([hole], pixel della radice) fuori dalla quale un tocco chiama [onTap]: vedi
+ * [FluidGlassModalHostState.outsideCatchers].
+ */
+@Stable
+internal class FluidOutsideTapCatcher(val onTap: () -> Unit) {
+  var hole by mutableStateOf(Rect.Zero)
 }
 
 /** Un'ancora di [fluidExpandOrigin]: dove sta, la sua immagine registrata, e chi la nasconde. */
@@ -576,13 +597,56 @@ fun FluidGlassModalHost(
   backdrop: GlassBackdropState?,
   modifier: Modifier = Modifier,
 ) {
-  if (state.entries.isEmpty()) return
+  if (state.entries.isEmpty() && state.outsideCatchers.isEmpty()) return
   Box(modifier = modifier.fillMaxSize()) {
     // Every registered entry, in the order they were opened, so a menu raised from inside a modal
     // sits over it instead of replacing it. An entry that is closed and finished animating draws
     // nothing at all and costs one float animation.
     state.entries.sortedBy { it.openedAt }.forEach { entry ->
       key(entry) { FluidGlassModalLayer(entry = entry, backdrop = backdrop, host = state) }
+    }
+    // Sopra tutto: un menu che si trasforma aperto in un palco si chiude toccando ovunque fuori.
+    state.outsideCatchers.forEach { catcher ->
+      key(catcher) { FluidOutsideTapStrips(catcher) }
+    }
+  }
+}
+
+/**
+ * Le quattro fasce attorno al buco di [catcher]: invisibili, prendono un tocco e chiamano chi le ha
+ * chieste. Dentro il buco non c'e' niente, quindi i tocchi arrivano a cio' che sta sotto (il menu e
+ * il suo host). Un trascinamento che parte su una fascia non scorre la pagina: con un menu aperto la
+ * pagina e' ferma, come quando l'host e' a schermo intero.
+ */
+@Composable
+private fun FluidOutsideTapStrips(catcher: FluidOutsideTapCatcher) {
+  Layout(
+    modifier = Modifier.fillMaxSize(),
+    content = {
+      repeat(4) {
+        Box(modifier = Modifier.pointerInput(catcher) { detectTapGestures(onTap = { catcher.onTap() }) })
+      }
+    },
+  ) { measurables, constraints ->
+    val w = constraints.maxWidth
+    val h = constraints.maxHeight
+    val hole = catcher.hole
+    val l = hole.left.roundToInt().coerceIn(0, w)
+    val t = hole.top.roundToInt().coerceIn(0, h)
+    val r = hole.right.roundToInt().coerceIn(l, w)
+    val b = hole.bottom.roundToInt().coerceIn(t, h)
+    // In alto, in basso, a sinistra, a destra.
+    val boxes = listOf(
+      IntRect(0, 0, w, t),
+      IntRect(0, b, w, h),
+      IntRect(0, t, l, b),
+      IntRect(r, t, w, b),
+    )
+    val placeables = measurables.mapIndexed { i, m ->
+      m.measure(Constraints.fixed(boxes[i].width.coerceAtLeast(0), boxes[i].height.coerceAtLeast(0)))
+    }
+    layout(w, h) {
+      placeables.forEachIndexed { i, p -> p.place(boxes[i].left, boxes[i].top) }
     }
   }
 }
@@ -1018,6 +1082,10 @@ private class FluidPopoverPlacement {
   /** La taglia risolta del pannello: serve a ombra e immagine in uscita, che vivono fuori dal Layout. */
   var paneWidth by mutableStateOf(0f)
   var paneHeight by mutableStateOf(0f)
+
+  /** Dove il pannello e' posato (pixel dell'host, all'intero): il ritaglio del contenuto in viaggio. */
+  var paneLeft by mutableStateOf(0f)
+  var paneTop by mutableStateOf(0f)
 }
 
 /**
@@ -1064,6 +1132,12 @@ private class FluidPopoverMorphWindow(
   }
 }
 
+
+/** Il ritaglio del contenuto sul corpo della finestra in viaggio: un rettangolo arrotondato posato. */
+private class FluidPopoverTravelClipShape(private val round: RoundRect) : Shape {
+  override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+    Outline.Rounded(round)
+}
 
 /**
  * A pop-up placed against [anchor], sized to its content, growing out of the corner nearest it.
@@ -1270,6 +1344,26 @@ private fun FluidAnchoredPopover(
     content = {
       Column(
         modifier = Modifier
+          .then(
+            if (useMorphWindow) {
+              // Il contenuto non esce mai dal vetro mentre si forma o si ritira (3.0): ritagliato sul
+              // corpo della finestra, nelle coordinate del pannello. A riposo niente ritaglio.
+              Modifier.graphicsLayer {
+                val round = windowPhysics.travelClipIn(
+                  Rect(placement.paneLeft, placement.paneTop, placement.paneLeft + 1f, placement.paneTop + 1f),
+                  if (open()) minOf(growth(), growthCross()) else 0f,
+                )
+                if (round != null) {
+                  this.shape = FluidPopoverTravelClipShape(round)
+                  clip = true
+                } else {
+                  clip = false
+                }
+              }
+            } else {
+              Modifier
+            },
+          )
           .graphicsLayer {
             val g = growth()
             val gc = growthCross()
@@ -1285,7 +1379,15 @@ private fun FluidAnchoredPopover(
               // Subentra TARDI (45%..90% del viaggio): prima e' l'immagine della riga a viaggiare
               // — il titolo che trasla dentro la card — e solo poi si materializza il testo,
               // sotto. La staffetta delle due scritte e' cio' che toglie il popping del testo.
-              alpha = presence() * ((travel - 0.45f) / 0.45f).coerceIn(0f, 1f)
+              // In chiusura se ne va PER PRIMO (3.0, il vetro liquido): dal 94% al 62% del ritorno,
+              // poi la card si ritira vuota. Prima usciva con la finestra d'apertura rovesciata, e la
+              // sua scala (mai sotto 0,9) non stava piu' nella sagoma che rientrava nella riga.
+              alpha = presence() * if (open()) {
+                ((travel - 0.45f) / 0.45f).coerceIn(0f, 1f)
+              } else {
+                ((travel - FluidLiquid.ContentCloseFrom) / (FluidLiquid.ContentCloseTo - FluidLiquid.ContentCloseFrom))
+                  .coerceIn(0f, 1f)
+              }
               val anchorCenterX = placement.anchorLeft + placement.anchorWidth / 2f
               val anchorCenterY = placement.anchorTop + placement.anchorHeight / 2f
               translationX = (1f - g.coerceAtMost(1f)) * (anchorCenterX - size.width / 2f)
@@ -1461,6 +1563,8 @@ private fun FluidAnchoredPopover(
     placement.anchorHeight = start.height
     placement.paneWidth = paneW
     placement.paneHeight = paneH
+    placement.paneLeft = x.roundToInt().toFloat()
+    placement.paneTop = y.roundToInt().toFloat()
     placement.startScaleX = FluidPopoverStartScale
     placement.startScaleY = FluidPopoverStartScale
     placement.startOffsetX = 0f
@@ -1491,6 +1595,10 @@ private fun FluidAnchoredPopover(
         progress = growth,
         overshootInflationX = inflation.x,
         overshootInflationY = inflation.y,
+        startFrame = null,
+        // La card nasce dalla riga (3.0, il vetro liquido): dove la riga sporge dalla card, resta un
+        // istante a svuotarsi nel corpo, e al ritorno la risucchia.
+        liquidAnchor = anchor != null,
       )
     }
 
@@ -1533,6 +1641,12 @@ internal fun FluidLiftedPreview(
   physics: FluidPhysicsState,
   progress: () -> Float,
   presence: () -> Float,
+  /**
+   * La card si gonfia oltre il sollevamento e si posa con la molla del menu (3.0, il vetro liquido):
+   * una goccia che si stacca dalla lista, non un ritaglio incollato sopra. Il gonfiore e' geometria,
+   * attorno al centro, e l'immagine lo segue con una scala sola.
+   */
+  swells: Boolean = false,
 ) {
   if (preview == null || bounds == null || bounds.width <= 0f || bounds.height <= 0f) return
   val density = LocalDensity.current
@@ -1544,11 +1658,15 @@ internal fun FluidLiftedPreview(
     bottom = bounds.bottom,
   )
   val lift: () -> Float = { progress().coerceIn(0f, 1f) }
+  // L'oltrepasso della molla del menu, come gonfiore della card (zero senza [swells]).
+  val swell: () -> Float = { if (swells) (progress() - 1f).coerceAtLeast(0f) else 0f }
   SideEffect {
     physics.driveExternally(
       from = FluidForm.Slab(bounds, FluidCornerRadii.all(radiusPx.coerceAtMost(bounds.minDimension / 2f))),
       to = FluidForm.Slab(lifted, FluidCornerRadii.all(radiusPx.coerceAtMost(lifted.minDimension / 2f))),
-      progress = lift,
+      progress = if (swells) ({ progress().coerceAtLeast(0f) }) else lift,
+      overshootInflationX = if (swells) FluidLiftedSwellX else 0f,
+      overshootInflationY = if (swells) FluidLiftedSwellY else 0f,
     )
   }
   val fallback = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -1584,8 +1702,9 @@ internal fun FluidLiftedPreview(
         height = with(density) { bounds.height.toDp() },
       )
       .graphicsLayer {
-        // L'immagine, non il vetro: scalarla e' lecito. Dal bordo basso, contro cui si apre il menu.
-        val s = lerp(1f, FluidLiftedPreviewScale, lift())
+        // L'immagine, non il vetro: scalarla e' lecito. Dal bordo basso, contro cui si apre il menu; il
+        // gonfiore dell'arrivo con una scala sola (il minore dei due assi), mai anamorfica.
+        val s = lerp(1f, FluidLiftedPreviewScale, lift()) * (1f + swell() * FluidLiftedSwellX)
         scaleX = s
         scaleY = s
         transformOrigin = TransformOrigin(0.5f, 1f)
@@ -2180,6 +2299,14 @@ private const val FluidPopoverStartScale = 0.42f
 
 /** How much the lifted row grows. Any more and it stops being the row and becomes a card. */
 private const val FluidLiftedPreviewScale = 1.03f
+
+/**
+ * Il gonfiore della riga sollevata all'oltrepasso della molla del menu, per asse: con il picco
+ * dell'8,4% e' ~2% sui fianchi (una riga larga quanto lo schermo non deve toccarne i bordi) e ~5% in
+ * altezza. Poi la molla lo riporta alla riga sollevata.
+ */
+private const val FluidLiftedSwellX = 0.25f
+private const val FluidLiftedSwellY = 0.6f
 
 /** Quanto e' piccolo il contenuto quando il bordo comincia ad aprirsi. Pochi punti percentuali. */
 private const val FluidPopoverContentStartScale = 0.90f

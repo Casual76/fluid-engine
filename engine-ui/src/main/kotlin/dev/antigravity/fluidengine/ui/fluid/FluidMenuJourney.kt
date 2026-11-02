@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidLiquid
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -45,24 +46,25 @@ import kotlin.math.min
 /**
  * L'opacita' del CONTENUTO del pannello (le voci) e della goccia, al progresso [p] del viaggio.
  *
- * In apertura le voci arrivano nella seconda parte del viaggio (da 0,25 a 0,75, la finestra di
- * `fluidPhysicsContent` Incoming), cosi' non sono mai leggibili mentre la sagoma e' ancora un tasto.
- * In chiusura ([closing]) la finestra e' piu' larga, da 0,92 a 0,12: le voci seguono la sagoma che si
- * ritira e restano leggibili ~60-200 ms invece di ~40 (era l'apertura rovesciata, e a una molla
- * critica che scende veloce cio' voleva dire sparire prima ancora di muoversi).
+ * **Il contenuto sta dentro il vetro formato, mai sopra il vetro che si forma** (3.0, il vetro
+ * liquido). In apertura le voci arrivano quando il corpo e' quasi il pannello (da 0,55 a 0,9); in
+ * chiusura se ne vanno PER PRIME (da 0,94 a 0,62, una sessantina di millisecondi con la molla del
+ * ritorno), attaccate al corpo e rimpicciolite verso l'ancora, e il liquido si ritira vuoto. Prima la
+ * chiusura le teneva leggibili fino a 0,12 mentre il pannello si ritirava: la scala del contenuto,
+ * fermata a 0,72, non stava piu' dentro una sagoma che scendeva verso il 25% — le scritte uscivano dal
+ * vetro e galleggiavano sulla pagina mezze trasparenti. Era "il testo che se ne va in modo strano".
  *
  * Due finestre e non una perche' un viaggio puo' essere invertito a meta': [closing] sceglie la
  * finestra del verso in cui si sta andando, e la stessa p da' due opacita' diverse nei due versi —
  * voluto, e' la differenza fra il tasto che si apre e quello che si chiude.
  *
- * Lineare e fermata ai capi: e' la stessa forma che hanno le finestre di Fluid-physics. [p] oltre 1
- * (l'oltrepasso della molla) e sotto 0 non cambiano niente.
+ * Lineare e fermata ai capi. [p] oltre 1 (l'oltrepasso della molla) e sotto 0 non cambiano niente.
  */
 internal fun fluidMenuContentAlpha(p: Float, closing: Boolean): Float =
   if (closing) {
-    unitRamp(p, FluidMotion.MenuContentCloseFrom, FluidMotion.MenuContentCloseTo)
+    unitRamp(p, FluidLiquid.ContentCloseFrom, FluidLiquid.ContentCloseTo)
   } else {
-    unitRamp(p, FluidMotion.MenuContentOpenFrom, FluidMotion.MenuContentOpenTo)
+    unitRamp(p, FluidLiquid.ContentOpenFrom, FluidLiquid.ContentOpenTo)
   }
 
 /**
@@ -129,6 +131,13 @@ internal fun fluidMenuContentMap(
     scale = (current.minDimension / target.minDimension).coerceIn(minScale, maxScale),
   )
 }
+
+/**
+ * Il fermo della scala delle voci di un menu di vetro liquido (3.0): un 14% al piu', "una lieve scala
+ * verso l'ancora" mentre se ne vanno o arrivano, non un menu in miniatura che rimpicciolisce col
+ * corpo. Dove il corpo e' piu' piccolo del contenuto lo ritaglia il corpo (`travelClip`).
+ */
+internal const val FluidMenuLiquidContentMinScale = 0.86f
 
 // --- Il gonfiore dell'oltrepasso -------------------------------------------------------
 
@@ -369,6 +378,48 @@ internal fun solveFluidMenuPanel(
  * sagoma, non un layer scalato sul vetro.
  */
 internal fun fluidMenuSeedFrame(panel: Rect, pivot: Offset, scale: Float): Rect =
+  fluidMenuScaledFrame(panel, pivot, scale)
+
+/**
+ * La goccia da cui nasce il menu contestuale (3.0, il vetro liquido): un cerchio di [diameterPx]
+ * appeso al bordo della riga che guarda il pannello, sotto il dito ([touchX], o il centro della riga),
+ * che entra nella riga di [overlapPx] — esce DALLA riga, non le compare accanto. Il corpo parte da qui,
+ * e la goccia resta un istante a svuotarsi nel corpo col collo fra i due (`liquidAnchor`).
+ *
+ * Prima il seme era il pannello stesso a 0,42 attorno al perno: un pannello piccolo che compariva
+ * sfumando dal nulla accanto alla riga, e la riga e il menu erano due oggetti.
+ */
+internal fun fluidMenuDropSeed(
+  row: Rect,
+  panel: Rect,
+  touchX: Float?,
+  diameterPx: Float,
+  overlapPx: Float,
+): Rect {
+  val d = diameterPx.coerceAtMost(row.minDimension.coerceAtLeast(1f))
+  val r = d / 2f
+  val minX = panel.left + r
+  val maxX = (panel.right - r).coerceAtLeast(minX)
+  val x = (touchX ?: row.center.x).coerceIn(minX, maxX)
+  val below = panel.center.y >= row.center.y
+  val top = if (below) row.bottom - overlapPx else row.top + overlapPx - d
+  return Rect(x - r, top, x + r, top + d)
+}
+
+/**
+ * Quanto della goccia del contestuale si vede al progresso [p]: niente sulla riga (p = 0), tutta da
+ * [FluidMenuDropEmerge] in poi. E' la goccia che ESCE dalla riga, e al ritorno ci rientra.
+ */
+internal fun fluidMenuDropPresence(p: Float): Float {
+  val x = (p / FluidMenuDropEmerge).coerceIn(0f, 1f)
+  return x * x * (3f - 2f * x)
+}
+
+/** Entro questo progresso la goccia del contestuale e' tutta fuori dalla riga. */
+internal const val FluidMenuDropEmerge = 0.15f
+
+/** [panel] scalato di [scale] attorno a [pivot]. */
+private fun fluidMenuScaledFrame(panel: Rect, pivot: Offset, scale: Float): Rect =
   Rect(
     pivot.x + (panel.left - pivot.x) * scale,
     pivot.y + (panel.top - pivot.y) * scale,
@@ -397,6 +448,10 @@ internal val FluidMenuInflationReferenceHeight = 240.dp
 
 /** Di quanto e' piccolo il seme del menu contestuale: quello del pop-up di sempre. */
 internal const val FluidMenuSeedScale = 0.42f
+
+/** La goccia da cui nasce il menu contestuale (vedi [fluidMenuDropSeed]). */
+internal val FluidMenuDropSeedDiameter = 28.dp
+internal val FluidMenuDropSeedOverlap = 4.dp
 
 // --- L'ancora ------------------------------------------------------------------------------
 
@@ -543,11 +598,10 @@ internal class FluidMenuJourney {
     // Il `from` e' fisso per un'apertura (il tasto premuto, o il seme): e' il segnaposto con cui
     // `driveExternally` riconosce la stessa corsa. La partenza vera, viva, la da' [startFrame].
     val start = if (a != null) a.pressedBounds.translate(-hostOrigin.x, -hostOrigin.y) else seed ?: to
+    // Tondo per costruzione: il tasto e' una capsula, la goccia del contestuale un cerchio.
     val from = FluidForm.Slab(
       frame = start,
-      cornerRadii = FluidCornerRadii.all(
-        if (a != null) start.minDimension / 2f else toRadius * FluidMenuSeedScale,
-      ),
+      cornerRadii = FluidCornerRadii.all(start.minDimension / 2f),
     )
     physics.driveExternally(
       from = from,
@@ -556,6 +610,9 @@ internal class FluidMenuJourney {
       overshootInflationX = inflation.x,
       overshootInflationY = inflation.y,
       startFrame = if (a != null) startFrameBlock else null,
+      // Il menu nasce dal tasto (o dalla goccia della riga): se ne esce, il tasto resta un istante a
+      // svuotarsi nel corpo col collo fra i due, e al ritorno lo risucchia (3.0, il vetro liquido).
+      liquidAnchor = true,
     )
   }
 

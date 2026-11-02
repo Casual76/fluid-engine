@@ -183,6 +183,30 @@ class FluidMenuJourneyTest {
   }
 
   @Test
+  fun aContextMenuIsBornFromADropHangingFromTheRowUnderTheFinger() {
+    // Il vetro liquido (3.0): il menu contestuale esce dalla riga, da una goccia sotto il dito.
+    val row = Rect(0f, 100f, 400f, 164f)
+    val below = Rect(20f, 176f, 272f, 400f)
+    val drop = fluidMenuDropSeed(row, below, touchX = 120f, diameterPx = 28f, overlapPx = 4f)
+    assertEquals(28f, drop.width, 0.001f)
+    assertEquals(28f, drop.height, 0.001f)
+    assertEquals(120f, drop.center.x, 0.001f)
+    // Appesa alla riga, ci entra di 4: esce DALLA riga, non le compare accanto.
+    assertEquals(row.bottom - 4f, drop.top, 0.001f)
+    // Il corpo ne esce davvero: la goccia ha la seconda goccia che si svuota.
+    assertTrue(dev.antigravity.fluidengine.ui.fluidphysics.liquidLeavesOrigin(drop, below))
+
+    // Un dito oltre il pannello: la goccia resta sopra il pannello.
+    val clamped = fluidMenuDropSeed(row, below, touchX = 390f, diameterPx = 28f, overlapPx = 4f)
+    assertEquals(below.right - 14f, clamped.center.x, 0.001f)
+
+    // Un pannello sopra la riga: la goccia sta sul bordo alto, e senza dito sotto il centro della riga.
+    val above = fluidMenuDropSeed(row, Rect(20f, 0f, 272f, 90f), touchX = null, diameterPx = 28f, overlapPx = 4f)
+    assertEquals(row.top + 4f, above.bottom, 0.001f)
+    assertEquals(200f, above.center.x, 0.001f)
+  }
+
+  @Test
   fun reducedMotionArrivesWithoutTravelling() = runTest {
     val journey = opened()
     journey.run(reducedMotion = true)

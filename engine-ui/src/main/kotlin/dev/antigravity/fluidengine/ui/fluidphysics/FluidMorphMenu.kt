@@ -44,11 +44,14 @@ import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassMenuPanel
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuJourney
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuLiquidContentMinScale
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelLayout
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuSelection
+import dev.antigravity.fluidengine.ui.fluid.FluidOutsideTapCatcher
 import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -364,6 +367,23 @@ fun FluidMorphMenuHost(
 
   BackHandler(enabled = state.isOpen) { state.dismiss() }
 
+  // Un tocco fuori dal menu, OVUNQUE sullo schermo, lo chiude (3.0). L'acchiappa-tocco qui sotto
+  // copre solo i limiti dell'host: montato in un palco (la galleria) o in una parte della pagina, un
+  // tocco sopra il palco non chiudeva niente. Fuori dai limiti i tocchi li prende l'host dei modali,
+  // l'unico alla radice, con quattro fasce attorno all'host; senza host dei modali resta com'era.
+  val modalHost = LocalFluidGlassModalHostState.current
+  val outside = remember(state) { FluidOutsideTapCatcher { state.dismiss() } }
+  val open = state.isOpen
+  DisposableEffect(modalHost, outside, open) {
+    if (modalHost != null && open) {
+      val origin = state.hostOrigin ?: Offset.Zero
+      val size = state.hostSize ?: Size.Zero
+      outside.hole = Rect(origin, size)
+      modalHost.outsideCatchers.add(outside)
+    }
+    onDispose { modalHost?.outsideCatchers?.remove(outside) }
+  }
+
   // Vetro su vetro (2.13.0): il menu' pubblica il proprio materiale per il vetro che ci sta dentro —
   // la goccia. Il contenuto e' in nodi fratelli della superficie, quindi lo dichiara con
   // `glassContainer`. Si registra solo mentre la goccia lo campiona.
@@ -423,7 +443,7 @@ fun FluidMorphMenuHost(
             .fillMaxSize()
             .graphicsLayer {
               alpha = fluidMenuFaceAlpha(progress())
-              val map = fluidMenuContentMap(target = anchorLocal, current = state.physics.ensurePlan().bounds)
+              val map = fluidMenuContentMap(target = anchorLocal, current = state.physics.contentBoundsNow())
               translationX = map.translation.x
               translationY = map.translation.y
               scaleX = map.scale
@@ -444,10 +464,14 @@ fun FluidMorphMenuHost(
         panelMaterial = menuGlass,
         pageBackdrop = backdrop,
         contentAlpha = { fluidMenuContentAlpha(progress(), closing = state.journey.closing) },
-        contentMap = { fluidMenuContentMap(target = panel, current = state.physics.ensurePlan().bounds) },
+        contentMap = {
+          fluidMenuContentMap(target = panel, current = state.physics.contentBoundsNow(), minScale = FluidMenuLiquidContentMinScale)
+        },
         onPick = { index -> state.pick(index, haptics) },
         modifier = Modifier.frame(panel),
         paneTitle = MorphMenuPaneTitle,
+        // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
+        travelClip = { state.physics.travelClipIn(panel, progress()) },
       )
     }
   }

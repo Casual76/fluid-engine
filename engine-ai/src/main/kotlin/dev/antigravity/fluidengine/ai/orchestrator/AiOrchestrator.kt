@@ -159,6 +159,18 @@ data class AiOrchestratorConfig(
    * ([AiOrchestrator]'s `gate`), che allora vale lui.
    */
   val confirmationTimeoutMillis: Long = AiConfirmationGate.DEFAULT_TIMEOUT_MILLIS,
+  /**
+   * Il livello profondo (3.0.0), acceso di serie. Spento, nessuna domanda esce mai dal modello della
+   * chat: il router che dice `profondo`, [AskInput.deepRequested], un allegato, molto testo dai tool
+   * ([escalationChars]) e un tool che chiede l'escalation non cambiano modello, e il tool
+   * `modello_avanzato` non si offre al modello. Un'app con un solo modello di chat (FluidWeather non
+   * ha allegati; Fluid-transit voleva i due modelli di sempre) lo diceva togliendo il modello profondo
+   * da ogni provider a ogni domanda, mentre la verifica della chiave continuava a sceglierne uno e a
+   * salvarlo: adesso e' una riga di configurazione, e i provider restano com'e' li' costruisce la
+   * `ProviderFactory`. Un allegato che il modello della chat regge entra lo stesso come parte del
+   * messaggio; uno che non regge passa da [AskInput.attachmentFallback].
+   */
+  val deepTierEnabled: Boolean = true,
 ) {
 
   /**
@@ -207,7 +219,8 @@ data class AiOrchestratorConfig(
  * Dalla 3.0.0 ogni tool ha il suo tetto di tempo ([toolTimeoutMillis]): quello del gruppo o del tool
  * (`AiToolGroup.toolTimeoutMillis`, `AiTool.timeoutMillis`) o quello della configurazione, e per un
  * tool che aspetta una conferma ([AiTool.awaitsConfirmation]) la finestra del cancello in piu', una
- * per ogni conferma che puo' esserci in fila nello stesso giro.
+ * per ogni conferma che puo' esserci in fila nello stesso giro. E il livello profondo si spegne con
+ * [AiOrchestratorConfig.deepTierEnabled].
  */
 class AiOrchestrator<C>(
   private val registry: ToolRegistry<C>,
@@ -258,13 +271,13 @@ class AiOrchestrator<C>(
     val question = input.question
     val conversation = input.conversation
     if (input.providers.isEmpty()) throw AssistantFailure(FailureKind.NO_KEYS, null)
-    val attempt = Attempt(input.providers.first())
+    val attempt = Attempt(providersOf(input).first())
     val toolTraces = mutableListOf<ToolTrace>()
     var usageTotal: Usage? = null
     var waitedSeconds = 0
     var routerUsed = false
     var lastRateLimit: RateLimitInfo? = null
-    var tier = if (input.deepRequested) ModelTier.DEEP else ModelTier.CHAT
+    var tier = if (input.deepRequested && config.deepTierEnabled) ModelTier.DEEP else ModelTier.CHAT
     // Gli allegati dell'utente decidono il livello prima di tutto: uno screenshot che vede solo
     // il modello profondo fa partire il giro da li'.
     val userTurn = prepareUserTurn(input, attempt.provider, tier)
@@ -292,7 +305,7 @@ class AiOrchestrator<C>(
         routerUsed = true
         modelsUsed[ModelTier.ROUTER] = attempt.provider.model(ModelTier.ROUTER)
         val verdict = classifyWithFailover(input, attempt, budget, state, conversation, ::use)
-        if (verdict.deep && tier == ModelTier.CHAT) tier = ModelTier.DEEP
+        if (verdict.deep && tier == ModelTier.CHAT && config.deepTierEnabled) tier = ModelTier.DEEP
         resolve(verdict, input)
       }
     }
@@ -469,7 +482,7 @@ class AiOrchestrator<C>(
         val rejected = parts.filter { !capabilities.accepts(it) }
         val name = parts.filterIsInstance<ContentPart.Document>().firstOrNull()?.name
         if (accepted.isNotEmpty()) {
-          if (tier != ModelTier.DEEP) {
+          if (config.deepTierEnabled && tier != ModelTier.DEEP) {
             tier = ModelTier.DEEP
             neutralize(messages)
           }
@@ -758,14 +771,22 @@ class AiOrchestrator<C>(
     }
   }
 
+  /**
+   * I provider della domanda come li vede l'orchestratore: senza il modello profondo se
+   * [AiOrchestratorConfig.deepTierEnabled] e' falso, cosi' `model(DEEP)` e' la chat e nessuno dei
+   * controlli sul livello ha niente da guadagnare. Quelli dell'app non si toccano.
+   */
+  private fun providersOf(input: AskInput<C>): List<ReadyProvider> =
+    if (config.deepTierEnabled) input.providers else input.providers.map { if (it.deepModel == null) it else it.copy(deepModel = null) }
+
   private fun remaining(input: AskInput<C>, attempt: Attempt): List<ProviderId> {
-    val order = input.providers.map { it.provider.id }
+    val order = providersOf(input).map { it.provider.id }
     val index = order.indexOf(attempt.provider.provider.id)
     return if (index < 0) order else order.drop(index + 1)
   }
 
   private fun switchTo(input: AskInput<C>, attempt: Attempt, to: ProviderId, state: MutableStateFlow<AssistantState>, reason: SwitchReason) {
-    val next = input.providers.first { it.provider.id == to }
+    val next = providersOf(input).first { it.provider.id == to }
     val from = attempt.provider.provider.id
     state.value = AssistantState.SwitchingProvider(input.question, from, to, reason)
     attempt.switched += to

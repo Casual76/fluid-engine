@@ -1,7 +1,5 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,20 +15,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.semantics.Role
@@ -100,69 +94,92 @@ fun FluidGlassMenuButton(
   val host = LocalFluidGlassModalHostState.current
   val entry = remember { FluidGlassModalEntry() }
   val haptics = LocalFluidHaptics.current
-  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  var open by remember { mutableStateOf(false) }
+  val anchor = remember { FluidMenuAnchor() }
+  // La pressione del vetro, condivisa: al click lungo serve il tasto COME IL DITO LO STA GONFIANDO,
+  // da cui parte la sagoma del menu (3.0).
+  val press = rememberFluidPressState(FluidPressFeedback.Expand)
+  val density = LocalDensity.current.density
+  val tint = GlassDefaults.controlTint()
+  val faceColor = MaterialTheme.colorScheme.onSurface
 
   SideEffect {
     entry.presentation = FluidGlassModalPresentation.Expand
     entry.paneTitle = text ?: contentDescription
-    entry.onDismissRequest = { open = false }
+    entry.onDismissRequest = { entry.visible = false }
+    entry.menuAnchor = anchor
+    entry.menuHandOff = anchor.handOff
+    anchor.face = {
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        icon?.let { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = faceColor) }
+        text?.let {
+          Text(
+            text = it,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = faceColor,
+            maxLines = 1,
+          )
+        }
+      }
+    }
+    anchor.tintFrom = tint
+    anchor.opticsFrom = GlassDefaults.buttonOptics()
   }
 
   DisposableEffect(host, entry) {
     host?.register(entry)
     onDispose {
       entry.visible = false
+      anchor.hidden = false
       host?.unregister(entry)
-    }
-  }
-
-  LaunchedEffect(open) {
-    entry.actions = if (open) actions() else entry.actions
-    if (open && host != null) entry.openedAt = host.nextSequence()
-    entry.visible = open && host != null
-  }
-
-  // The button gives up its pixels while the menu is out, and keeps its *space*. Removing it from
-  // the layout instead would reflow the row it sits in at the exact moment the menu is growing out
-  // of where it used to be, which is the one frame that has to be still.
-  val handover = remember { Animatable(1f) }
-  LaunchedEffect(open, reducedMotion) {
-    val target = if (open) 0f else 1f
-    if (reducedMotion) {
-      handover.snapTo(target)
-    } else {
-      handover.animateTo(target, spring(1f, if (open) 900f else 340f, 0.001f))
     }
   }
 
   Box(
     modifier = modifier
+      // Il relè in testa (3.0): il dito che tiene premuto passa al menu, e il menu si sceglie
+      // trascinando e rilasciando su una voce.
+      .fluidMenuPointerRelay(anchor.handOff)
       .onGloballyPositioned { coordinates ->
-        val rect = coordinates.boundsInRoot()
+        val rect = coordinates.unclippedBoundsInRoot()
+        anchor.restBounds = rect
         entry.previewSize = rect
         entry.origin = { rect }
       }
-      .graphicsLayer { alpha = handover.value }
+      // The button gives up its pixels while the menu is out, and keeps its *space*. Removing it from
+      // the layout instead would reflow the row it sits in at the exact moment the menu is growing out
+      // of where it used to be. Dalla 3.0 e' un cancello nel disegno, non una dissolvenza con una molla
+      // sua: la finestra compare sulla sua sagoma nello stesso fotogramma.
+      .drawWithContent { if (!anchor.hidden) drawContent() }
       .height(FluidGlassMenuButtonHeight)
       .defaultMinSize(minWidth = FluidGlassMenuButtonHeight)
       // The full control treatment, not a plain pane: it leans toward the finger, swells while it
-      // is held and lights up where it was touched. A button that is about to unfold into a menu is
-      // exactly the button that has to answer the half-second before it does.
+      // is held and lights up where it was touched.
       .glassControlSurface(
         backdrop = backdrop,
         shape = shape,
         interactive = enabled,
+        pressState = press,
       )
+      .then(if (enabled) Modifier.fluidPressTracking(press, ownsPress = true) else Modifier)
       .semantics { this.role = Role.Button }
       .pointerInput(enabled, host) {
         detectTapGestures(
           onTap = { if (enabled) onClick() },
           onLongPress = {
-            if (!enabled || host == null) return@detectTapGestures
-            if (actions().isEmpty()) return@detectTapGestures
+            if (!enabled || host == null || entry.visible) return@detectTapGestures
+            val list = actions()
+            if (list.isEmpty()) return@detectTapGestures
+            // Sincrono, nel gesto: niente LaunchedEffect che apre un fotogramma dopo.
+            anchor.pressedBounds = fluidPressedBounds(anchor.restBounds, press, density)
+            entry.actions = list
+            entry.openedAt = host.nextSequence()
+            entry.visible = true
+            entry.lifted = true
+            anchor.hidden = true
+            entry.selection.cancel()
+            anchor.handOff.attach(entry.selection)
             haptics.play(FluidHapticEvent.Open)
-            open = true
           },
         )
       }

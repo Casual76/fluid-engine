@@ -26,7 +26,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -382,12 +384,57 @@ fun FluidGlassIconButton(
   onLongClick: (() -> Unit)? = null,
   size: FluidGlassSize = FluidGlassSize.Regular,
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
+  /**
+   * Cosa si sente quando scatta il click lungo; null per un click lungo che ha il suo colpo (un menu
+   * che suona `Open` solo se si apre). Dalla 3.0.
+   */
+  longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
   content: @Composable BoxScope.() -> Unit,
 ) {
   // One press for the click and the glass: the lens swells, leans and lights up on the same
   // timeline the action is confirmed on, and a finger sliding over it ticks once, not twice.
   // Tondo, solo icona: cresce del 50%, come `StyledIconButton` di LibrePods (3.0).
   val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
+  FluidGlassIconButtonCore(
+    onClick = onClick,
+    modifier = modifier,
+    backdrop = backdrop,
+    enabled = enabled,
+    selected = selected,
+    shape = shape,
+    onLongClick = onLongClick,
+    size = size,
+    haptic = haptic,
+    longClickHaptic = longClickHaptic,
+    press = press,
+    content = content,
+  )
+}
+
+/**
+ * Il tasto tondo di vetro, con i ganci che servono a un'ancora di menu (3.0, fase 7): la pressione
+ * dal chiamante (per leggere il tasto gonfiato al click lungo), un modificatore sulla LENTE (il
+ * cancello `hidden`, che deve nascondere il vetro e non il riquadro da 48 dp) e la posizione della
+ * lente (il menu parte dalla sagoma del vetro, non dal bersaglio del tocco). Il pubblico
+ * [FluidGlassIconButton] ci delega senza ganci.
+ */
+@Composable
+internal fun FluidGlassIconButtonCore(
+  onClick: () -> Unit,
+  modifier: Modifier,
+  backdrop: GlassBackdropState,
+  enabled: Boolean,
+  selected: Boolean,
+  shape: Shape,
+  onLongClick: (() -> Unit)?,
+  size: FluidGlassSize,
+  haptic: FluidHapticEvent?,
+  longClickHaptic: FluidHapticEvent?,
+  press: FluidPressState,
+  lensModifier: Modifier = Modifier,
+  onLensPlaced: ((LayoutCoordinates) -> Unit)? = null,
+  content: @Composable BoxScope.() -> Unit,
+) {
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
@@ -397,6 +444,8 @@ fun FluidGlassIconButton(
     Box(
       modifier = Modifier
         .size(size.lens)
+        .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
+        .then(lensModifier)
         .glassControlSurface(
           backdrop = backdrop,
           shape = shape,
@@ -413,6 +462,7 @@ fun FluidGlassIconButton(
           haptic = haptic,
           focusShape = shape,
           pressState = press,
+          longClickHaptic = longClickHaptic,
         ),
       contentAlignment = Alignment.Center,
       content = content,

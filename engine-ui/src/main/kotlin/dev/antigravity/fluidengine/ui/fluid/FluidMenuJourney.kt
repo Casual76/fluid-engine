@@ -1,22 +1,43 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.lerp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlin.math.max
 import kotlin.math.min
 
 /*
  * Il viaggio di un menu (3.0): l'ancora che diventa il pannello e il pannello che torna ancora.
  *
- * Qui stanno SOLO le funzioni pure del viaggio — finestre di opacita', mappa del contenuto verso la
- * sagoma, gonfiore dell'oltrepasso — perche' sono le parti che si sbagliano senza che nessuno se ne
- * accorga (un numero sbagliato di un decimo e' un menu che "non sembra giusto") e si possono
- * inchiodare in JVM, senza un frame clock.
+ * Le funzioni pure del viaggio — finestre di opacita', mappa del contenuto verso la sagoma, gonfiore
+ * dell'oltrepasso, il rettangolo del tasto premuto, le misure e il posto del pannello — stanno qui
+ * perche' sono le parti che si sbagliano senza che nessuno se ne accorga (un numero sbagliato di un
+ * decimo e' un menu che "non sembra giusto") e si possono inchiodare in JVM, senza un frame clock.
  *
- * TODO(menu 3.0, passi 5-6): `fluidPressedBounds(rest, FluidPressTransform)` (il rettangolo del tasto
- * mentre il dito lo preme, letto al click lungo), `FluidMenuAnchor` e `FluidMenuJourney` (il
- * progresso con la sua molla, `anchorRelax`, `install(physics, anchor)`) arrivano dopo: poggiano su
- * `fluidButtonGesture` / `fluidPressTransform` di FluidPress.kt, che la fase dei tasti sta ancora
- * cambiando, e scriverli adesso vorrebbe dire scriverli due volte.
+ * Accanto, i due pezzi con stato che i due host condividono (fase 7): [FluidMenuAnchor], l'ancora che
+ * si nasconde e passa il dito, e [FluidMenuJourney], il progresso con la sua molla che guida la
+ * finestra di Fluid-physics. Un menu che nasce da un tasto, quello di una riga e quello di una barra
+ * fanno lo stesso viaggio perche' e' lo stesso oggetto a farlo.
  */
 
 // --- Finestre di opacita' -------------------------------------------------------------
@@ -152,4 +173,430 @@ internal fun fluidMenuInflation(
   val y = gain * (paneH / refHeightPx).coerceIn(0.55f, 1.6f)
   val room = ((availW - 2f * edgeMinPx - paneW).coerceAtLeast(0f) / paneW) / peakOvershoot
   return FluidMenuInflation(x = min(y, room), y = y)
+}
+
+// --- Il tasto premuto -----------------------------------------------------------------
+
+/**
+ * Il rettangolo di un tasto mentre il dito lo preme: [rest] trasformato da [transform], come lo
+ * trasforma il `layerBlock` di `glassControlSurface` (scala attorno al centro, poi la deriva).
+ *
+ * Si legge al click lungo, quando la pressione e' ancora ~1: e' da li' che la sagoma del menu parte.
+ * Partire dal rettangolo a riposo voleva dire un primo fotogramma piu' piccolo del tasto che il dito
+ * stava ancora gonfiando — un sussulto all'indietro proprio dove l'occhio guarda.
+ */
+internal fun fluidPressedBounds(rest: Rect, transform: FluidPressTransform): Rect {
+  if (rest.width <= 0f || rest.height <= 0f || transform.isIdentity) return rest
+  val cx = rest.center.x + transform.translationX
+  val cy = rest.center.y + transform.translationY
+  val hw = rest.width * transform.scaleX / 2f
+  val hh = rest.height * transform.scaleY / 2f
+  return Rect(cx - hw, cy - hh, cx + hw, cy + hh)
+}
+
+/** [fluidPressedBounds] con la pressione di adesso di [press]. Fuori dal disegno: e' un'istantanea. */
+internal fun fluidPressedBounds(rest: Rect, press: FluidPressState, density: Float): Rect =
+  fluidPressedBounds(
+    rest,
+    fluidPressTransform(
+      feedback = press.feedback,
+      progress = press.progress,
+      lean = press.lean,
+      width = rest.width,
+      height = rest.height,
+      dp = density,
+      reducedMotion = press.reducedMotion,
+    ),
+  )
+
+// --- Il pannello: misure e posto ----------------------------------------------------------
+
+/**
+ * Le misure del pannello di un menu, in pixel. UNA aritmetica per chi risolve il pannello (l'host,
+ * prima ancora di comporlo, perche' l'apertura e' sincrona) e per chi lo disegna e ne fa il
+ * hit-test: con due aritmetiche il dito sceglierebbe la riga sopra quella che vede.
+ */
+@Immutable
+internal data class FluidMenuPanelMetrics(
+  val widthPx: Float,
+  val rowHeightPx: Float,
+  val paddingPx: Float,
+  val sectionGapPx: Float,
+  val radiusPx: Float,
+  val gapPx: Float,
+  val marginPx: Float,
+  val edgeMinPx: Float,
+  val refHeightPx: Float,
+)
+
+/**
+ * L'altezza di una riga di menu: `max(48 dp, lineHeight + 24 dp)`. Segue il font (al testo grande
+ * la riga cresce invece di tagliare l'etichetta), e a 1× e' la riga di sempre.
+ */
+internal fun fluidMenuRowHeight(lineHeight: Dp): Dp = max(FluidMenuMinRowHeight.value, (lineHeight + 24.dp).value).dp
+
+/** Le misure di serie, dalla densita' e dal tipo del tema. */
+@Composable
+internal fun rememberFluidMenuPanelMetrics(): FluidMenuPanelMetrics {
+  val density = LocalDensity.current
+  val body = MaterialTheme.typography.bodyLarge
+  return remember(density, body) {
+    with(density) {
+      val line = if (body.lineHeight.isSpecified) body.lineHeight.toDp() else (body.fontSize.toDp() * 1.4f)
+      FluidMenuPanelMetrics(
+        widthPx = FluidMenuPanelWidth.toPx(),
+        rowHeightPx = fluidMenuRowHeight(line).toPx(),
+        paddingPx = FluidMenuPanelPadding.toPx(),
+        sectionGapPx = FluidMenuSectionGap.toPx(),
+        radiusPx = FluidRadius.Group.toPx(),
+        gapPx = FluidMenuAnchorGap.toPx(),
+        marginPx = FluidMenuEdgeMargin.toPx(),
+        edgeMinPx = FluidMenuInflationEdgeMin.toPx(),
+        refHeightPx = FluidMenuInflationReferenceHeight.toPx(),
+      )
+    }
+  }
+}
+
+/**
+ * Dove stanno le voci dentro il pannello: il bordo alto di ogni cella (coordinate del pannello) e
+ * l'altezza totale. Le sezioni sono uno spazio in piu' prima della voce che ne apre una (mai prima
+ * della prima): una banda, non una cella, quindi il dito che ci si ferma non sceglie niente.
+ */
+internal class FluidMenuPanelLayout(
+  val tops: FloatArray,
+  val rowHeightPx: Float,
+  val height: Float,
+  /** Il bordo alto di ogni banda di sezione, nell'ordine. */
+  val sectionBands: FloatArray,
+  val sectionGapPx: Float,
+)
+
+internal fun fluidMenuPanelLayout(
+  sectionStarts: List<Boolean>,
+  rowHeightPx: Float,
+  paddingPx: Float,
+  sectionGapPx: Float,
+): FluidMenuPanelLayout {
+  val tops = FloatArray(sectionStarts.size)
+  val bands = ArrayList<Float>()
+  var y = paddingPx
+  sectionStarts.forEachIndexed { i, starts ->
+    if (i > 0 && starts) {
+      bands += y
+      y += sectionGapPx
+    }
+    tops[i] = y
+    y += rowHeightPx
+  }
+  return FluidMenuPanelLayout(
+    tops = tops,
+    rowHeightPx = rowHeightPx,
+    height = y + paddingPx,
+    sectionBands = bands.toFloatArray(),
+    sectionGapPx = sectionGapPx,
+  )
+}
+
+/** [fluidMenuPanelLayout] con le misure di [m]. */
+internal fun fluidMenuPanelLayout(sectionStarts: List<Boolean>, m: FluidMenuPanelMetrics): FluidMenuPanelLayout =
+  fluidMenuPanelLayout(sectionStarts, m.rowHeightPx, m.paddingPx, m.sectionGapPx)
+
+/** La geometria del hit-test per un pannello che sta a [panel] (pixel della radice). */
+internal fun fluidMenuGeometryOf(layout: FluidMenuPanelLayout, enabled: List<Boolean>, panel: Rect): FluidMenuGeometry =
+  FluidMenuGeometry(
+    cells = List(layout.tops.size) { i ->
+      Rect(panel.left, panel.top + layout.tops[i], panel.right, panel.top + layout.tops[i] + layout.rowHeightPx)
+    },
+    enabled = enabled,
+    panel = panel,
+  )
+
+/** Dove si posa il pannello rispetto all'ancora. */
+internal enum class FluidMenuPlacement {
+  /** Sopra l'ancora se ci sta, altrimenti sotto (il menu che si trasforma: nasce da un tasto in basso). */
+  AboveOrBelow,
+
+  /** SULL'ancora: il pannello la copre e si apre sotto il dito (le azioni della barra, `Expand`). */
+  OverAnchor,
+
+  /** Accanto, sotto se c'e' posto: la riga sollevata resta visibile (il menu contestuale). */
+  BesideAnchor,
+}
+
+/**
+ * Il rettangolo del pannello, puro: largo [width] (mai oltre lo spazio fra i margini), alto [height],
+ * col centro orizzontale il piu' vicino possibile all'ancora e sempre dentro i margini dell'host.
+ */
+internal fun solveFluidMenuPanel(
+  anchor: Rect,
+  host: Size,
+  width: Float,
+  height: Float,
+  gapPx: Float,
+  marginPx: Float,
+  placement: FluidMenuPlacement,
+): Rect {
+  val w = width.coerceAtMost((host.width - marginPx * 2f).coerceAtLeast(1f))
+  val left = (anchor.center.x - w / 2f).coerceIn(marginPx, (host.width - marginPx - w).coerceAtLeast(marginPx))
+  val maxTop = (host.height - marginPx - height).coerceAtLeast(marginPx)
+  val top = when (placement) {
+    FluidMenuPlacement.AboveOrBelow -> {
+      val fitsAbove = anchor.top - gapPx - height >= marginPx
+      if (fitsAbove) anchor.top - gapPx - height else (anchor.bottom + gapPx).coerceAtMost(maxTop)
+    }
+
+    FluidMenuPlacement.OverAnchor -> {
+      // Il bordo da cui il pannello si allontana resta fermo: il tasto non salta nel fotogramma in
+      // cui si apre. Verso il basso se ci sta, se no verso l'alto dal bordo basso dell'ancora.
+      val fitsDown = anchor.top + height <= host.height - marginPx
+      if (fitsDown) anchor.top.coerceAtLeast(marginPx) else (anchor.bottom - height).coerceIn(marginPx, maxTop)
+    }
+
+    FluidMenuPlacement.BesideAnchor -> {
+      val spaceBelow = host.height - anchor.bottom - gapPx - marginPx
+      val spaceAbove = anchor.top - gapPx - marginPx
+      val below = height <= spaceBelow || spaceBelow >= spaceAbove
+      if (below) (anchor.bottom + gapPx).coerceAtMost(maxTop) else (anchor.top - gapPx - height).coerceAtLeast(marginPx)
+    }
+  }
+  return Rect(left, top, left + w, top + height)
+}
+
+/**
+ * Il seme da cui cresce un pannello SENZA ancora da cui trasformarsi (il menu contestuale, un pop-up
+ * senza origine): il pannello stesso scalato di [scale] attorno a [pivot]. Cresce per geometria — la
+ * sagoma, non un layer scalato sul vetro.
+ */
+internal fun fluidMenuSeedFrame(panel: Rect, pivot: Offset, scale: Float): Rect =
+  Rect(
+    pivot.x + (panel.left - pivot.x) * scale,
+    pivot.y + (panel.top - pivot.y) * scale,
+    pivot.x + (panel.right - pivot.x) * scale,
+    pivot.y + (panel.bottom - pivot.y) * scale,
+  )
+
+/** Il punto del pannello piu' vicino all'ancora: il perno della crescita del menu contestuale. */
+internal fun fluidMenuPivot(panel: Rect, anchor: Rect): Offset = Offset(
+  anchor.center.x.coerceIn(panel.left, panel.right),
+  if (panel.center.y >= anchor.center.y) panel.top else panel.bottom,
+)
+
+internal val FluidMenuPanelWidth = 252.dp
+internal val FluidMenuPanelPadding = 6.dp
+internal val FluidMenuSectionGap = 8.dp
+internal val FluidMenuMinRowHeight = 48.dp
+internal val FluidMenuAnchorGap = 12.dp
+internal val FluidMenuEdgeMargin = 16.dp
+
+/** Sotto questa distanza dai bordi laterali il gonfiore non porta mai il pannello (vedi [fluidMenuInflation]). */
+internal val FluidMenuInflationEdgeMin = 6.dp
+
+/** L'altezza a cui il gonfiore vale il guadagno esatto: quella della finestra dei modali. */
+internal val FluidMenuInflationReferenceHeight = 240.dp
+
+/** Di quanto e' piccolo il seme del menu contestuale: quello del pop-up di sempre. */
+internal const val FluidMenuSeedScale = 0.42f
+
+// --- L'ancora ------------------------------------------------------------------------------
+
+/**
+ * L'ancora di un menu: il tasto (o la lente di una barra) che DIVENTA il pannello.
+ *
+ * La tiene chi disegna il tasto, ricordata: il gesto che apre ci scrive dentro la pressione del
+ * momento, l'host ci legge dove partire. Due cose in piu' rispetto a un rettangolo:
+ *
+ * - [hidden], letto SOLO in disegno (`drawWithContent { if (!hidden) drawContent() }`): mentre il
+ *   menu e' in scena il tasto non disegna niente, e al suo posto sta la superficie dell'host con la
+ *   stessa sagoma. Un cambio di proprietario, non una dissolvenza; e niente `graphicsLayer` alpha,
+ *   che e' un layer sopra un vetro.
+ * - [handOff], il ponte del dito: `Modifier.fluidMenuPointerRelay(anchor.handOff)` in testa al tasto.
+ *
+ * [face] e' la faccia del tasto (icona, etichetta) che l'host porta lungo la prima parte del viaggio:
+ * deve essere inerte — icone e testo, nessuno stato catturato — perche' vive in un oggetto, non in una
+ * composizione.
+ */
+@Stable
+internal class FluidMenuAnchor {
+  /** Dove sta il tasto a riposo, in pixel della radice: lo scrive il suo layout. */
+  var restBounds: Rect = Rect.Zero
+
+  /** Dove stava al click lungo, gonfiato dal dito: vedi [fluidPressedBounds]. */
+  var pressedBounds: Rect = Rect.Zero
+
+  var face: (@Composable () -> Unit)? = null
+
+  /** Il materiale del tasto: la sagoma parte da qui e arriva a quello del pannello. */
+  var tintFrom: GlassTint? = null
+  var opticsFrom: GlassOptics? = null
+
+  val handOff = FluidMenuHandOff()
+
+  var hidden by mutableStateOf(false)
+}
+
+// --- Il viaggio ------------------------------------------------------------------------------
+
+/**
+ * Il viaggio di UN menu: un progresso geometrico per i due versi (0 = l'ancora, 1 = il pannello, puo'
+ * superare 1 con la molla d'apertura) che guida la finestra di Fluid-physics con `driveExternally`.
+ *
+ * - **Apertura**: [FluidMotion.menuOpen], sottosmorzata; l'oltrepasso e' un gonfiore uniforme attorno
+ *   al centro del pannello ([inflation]), mai il lerp oltre l'1.
+ * - **Partenza viva**: col tasto premuto la sagoma parte dal rettangolo GONFIATO dal dito e, mentre il
+ *   viaggio corre, la pressione si scioglie verso il riposo ([anchorRelax], criticamente smorzata).
+ * - **Chiusura e inversione**: dal valore corrente, con la sua velocita' ([retarget] la legge PRIMA che
+ *   la molla vecchia venga cancellata: cancellata, un `Animatable` la azzera). Un back a meta'
+ *   apertura torna indietro da dove si trova, non dal pannello pieno.
+ *
+ * [target] e' uno stato (la chiave dell'effetto dell'host); [progress] e [anchorRelax] si leggono
+ * solo in disegno.
+ */
+@Stable
+internal class FluidMenuJourney {
+
+  val progress = Animatable(0f, ProgressThreshold)
+
+  /** 0 = il fotogramma di partenza e' il tasto premuto, 1 = a riposo. Nuovo a ogni apertura. */
+  var anchorRelax = Animatable(1f, ProgressThreshold)
+    private set
+
+  var target by mutableFloatStateOf(0f)
+    private set
+
+  private var seedVelocity = 0f
+
+  /** L'ancora da cui si parte, o null per un pannello che cresce da un seme ([seed]). */
+  var anchor: FluidMenuAnchor? = null
+    private set
+
+  /** Dove sta l'host nella radice: le ancore parlano radice, la superficie parla host. */
+  var hostOrigin: Offset = Offset.Zero
+    private set
+
+  /** Il pannello, in coordinate dell'host. */
+  var to: Rect = Rect.Zero
+    private set
+
+  var toRadius: Float = 0f
+    private set
+
+  /** Il seme senza ancora, in coordinate dell'host. */
+  var seed: Rect? = null
+    private set
+
+  var inflation: FluidMenuInflation = FluidMenuInflation.None
+    private set
+
+  /** Il verso di adesso: le finestre di opacita' del contenuto dipendono da questo. */
+  val closing: Boolean get() = target == 0f
+
+  /** Il viaggio di ritorno e' finito: l'host puo' rimettere il tasto e smontare. */
+  val settledClosed: Boolean get() = target == 0f && !progress.isRunning && progress.value <= ProgressThreshold
+
+  private val startFrameBlock: () -> Rect = { startFrame() }
+  private val progressBlock: () -> Float = { progress.value }
+
+  /**
+   * Il fotogramma di partenza di QUESTO istante, in coordinate dell'host: il tasto premuto che torna
+   * a riposo mentre il viaggio corre. Fase di disegno.
+   */
+  fun startFrame(): Rect {
+    val a = anchor ?: return seed ?: to
+    val r = lerp(a.pressedBounds, a.restBounds, anchorRelax.value.coerceIn(0f, 1f))
+    return r.translate(-hostOrigin.x, -hostOrigin.y)
+  }
+
+  /**
+   * Prepara un'apertura: l'ancora (o il seme), il pannello e il gonfiore. Non tocca [progress]: un
+   * menu riaperto mentre si chiudeva riparte da dove si trova.
+   *
+   * @param freshStart un'apertura nuova (non la riapertura di un menu che si stava chiudendo, ne' una
+   *   seconda chiamata per la stessa apertura): la pressione dell'ancora riparte dal tasto premuto.
+   */
+  fun prepare(
+    anchor: FluidMenuAnchor?,
+    hostOrigin: Offset,
+    panel: Rect,
+    radius: Float,
+    inflation: FluidMenuInflation,
+    seed: Rect? = null,
+    freshStart: Boolean = true,
+  ) {
+    if (anchor != null && (freshStart || this.anchor !== anchor)) {
+      // Una partenza nuova: la pressione si scioglie da qui. Un `Animatable` nuovo e non uno snapTo,
+      // che e' sospeso: la partenza deve essere giusta gia' al primo fotogramma, che arriva prima di
+      // qualunque coroutine.
+      anchorRelax = Animatable(if (anchor.pressedBounds == anchor.restBounds) 1f else 0f, ProgressThreshold)
+    }
+    this.anchor = anchor
+    this.hostOrigin = hostOrigin
+    this.to = panel
+    this.toRadius = radius
+    this.inflation = inflation
+    this.seed = seed
+  }
+
+  /** Mette la finestra di [physics] al servizio di questo viaggio. Gratis se gli estremi non cambiano. */
+  fun install(physics: FluidPhysicsState) {
+    val a = anchor
+    // Il `from` e' fisso per un'apertura (il tasto premuto, o il seme): e' il segnaposto con cui
+    // `driveExternally` riconosce la stessa corsa. La partenza vera, viva, la da' [startFrame].
+    val start = if (a != null) a.pressedBounds.translate(-hostOrigin.x, -hostOrigin.y) else seed ?: to
+    val from = FluidForm.Slab(
+      frame = start,
+      cornerRadii = FluidCornerRadii.all(
+        if (a != null) start.minDimension / 2f else toRadius * FluidMenuSeedScale,
+      ),
+    )
+    physics.driveExternally(
+      from = from,
+      to = FluidForm.Slab(to, FluidCornerRadii.all(toRadius)),
+      progress = progressBlock,
+      overshootInflationX = inflation.x,
+      overshootInflationY = inflation.y,
+      startFrame = if (a != null) startFrameBlock else null,
+    )
+  }
+
+  /**
+   * Cambia verso. Chiamata nel momento in cui si decide (il gesto, il congedo, o la composizione che
+   * se ne accorge), MAI dopo: la velocita' si legge qui, finche' la molla vecchia e' viva.
+   */
+  fun retarget(t: Float) {
+    if (target == t) return
+    seedVelocity = progress.velocity
+    target = t
+  }
+
+  /** Corre verso [target]. Sospende finche' non arriva; cancellabile (un [retarget] la sostituisce). */
+  suspend fun run(reducedMotion: Boolean) {
+    val t = target
+    val v = seedVelocity
+    seedVelocity = 0f
+    if (reducedMotion) {
+      anchorRelax.snapTo(1f)
+      progress.snapTo(t)
+      return
+    }
+    if (t >= 1f) {
+      coroutineScope {
+        val relax = anchorRelax
+        if (relax.value < 1f) launch { relax.animateTo(1f, FluidMotion.snappy()) }
+        progress.animateTo(1f, FluidMotion.menuOpen(), initialVelocity = v)
+      }
+    } else {
+      progress.animateTo(0f, FluidMotion.menuClose(), initialVelocity = v)
+    }
+  }
+
+  /** Dimentica l'ancora a viaggio finito: un menu chiuso non tiene in mano un tasto che non c'e'. */
+  fun clearAnchor() {
+    anchor = null
+    seed = null
+  }
+
+  private companion object {
+    const val ProgressThreshold = 0.001f
+  }
 }

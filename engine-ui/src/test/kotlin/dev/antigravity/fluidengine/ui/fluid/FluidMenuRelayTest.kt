@@ -163,6 +163,34 @@ class FluidMenuRelayTest {
   }
 
   @Test
+  fun anAttachedFingerIsConsumedAlreadyInTheInitialPass() {
+    // Il tasto sotto (3.0) non prende mai il dito e legge nel Main: deve trovare il cambio consumato
+    // GIA' li', e finire il suo gesto — senza, il tasto nascosto continuava a seguire il dito sul
+    // menu e a suonare la sua grana sotto i tick delle voci.
+    val handOff = FluidMenuHandOff()
+    val relay = Relay(handOff)
+    relay.dispatch(down(1, Offset(10f, 20f)), mapper = mapper)
+    handOff.attach(FakeSink())
+    val m = move(1, Offset(10f, 20f), Offset(30f, 90f))
+
+    relay.tracker.initial(listOf(m), mapper)
+
+    assertTrue("consumato nell'Initial, prima di qualunque gesto del tasto", m.isConsumed)
+  }
+
+  @Test
+  fun beforeTheHandOffTheInitialPassConsumesNothing() {
+    val handOff = FluidMenuHandOff()
+    val relay = Relay(handOff)
+    relay.dispatch(down(1, Offset(10f, 20f)), mapper = mapper)
+    val m = move(1, Offset(10f, 20f), Offset(30f, 90f))
+
+    relay.tracker.initial(listOf(m), mapper)
+
+    assertFalse("senza menu il tasto e la pagina hanno il dito come sempre", m.isConsumed)
+  }
+
+  @Test
   fun aStationaryEventWithoutMovementIsNotForwardedButStillConsumedWhileActive() {
     val handOff = FluidMenuHandOff()
     val relay = Relay(handOff)

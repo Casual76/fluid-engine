@@ -84,6 +84,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSheet
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidContextMenu
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
@@ -1208,6 +1210,7 @@ fun FluidListRow(
   // to a `combinedClickable` never fires — the click handler consumes the gesture first — which is
   // why the controller and the gesture are two things in the engine rather than one modifier.
   val contextMenu = contextActions?.let { rememberFluidContextMenu(it) }
+  val haptics = LocalFluidHaptics.current
   Column(
     modifier = modifier
       .fillMaxWidth()
@@ -1228,11 +1231,22 @@ fun FluidListRow(
       .fluidRowPressable(
         onClick = onClick,
         onLongClick = if (contextMenu != null) {
-          { if (!contextMenu.open()) onLongClick?.invoke() }
+          {
+            // Un momento, un colpo (3.0): Open se il menu si apre — e il dito passa al menu, che si
+            // sceglie trascinando e rilasciando — altrimenti il click lungo dell'app col suo
+            // GestureStart. Prima suonavano GestureStart qui e Open nel menu.
+            if (contextMenu.open()) {
+              haptics.play(FluidHapticEvent.Open)
+            } else if (onLongClick != null) {
+              haptics.play(FluidHapticEvent.GestureStart)
+              onLongClick()
+            }
+          }
         } else {
           onLongClick
         },
         animateFeedback = animatePress,
+        longClickHaptic = if (contextMenu != null) null else FluidHapticEvent.GestureStart,
       ),
   ) {
     ListItem(

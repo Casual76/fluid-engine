@@ -26,7 +26,9 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -161,6 +163,15 @@ data class FluidAlertAction(
  *
  * Two actions sit side by side, three or more stack, exactly as UIKit does it, because at three the
  * labels stop fitting on one line.
+ *
+ * **Dentro l'host (3.0, fase 7).** Con un [FluidGlassModalHost] in scope l'avviso non apre piu' una
+ * finestra di piattaforma: sta nell'host, e il vetro e' vero — la pagina rifratta dietro, il materiale
+ * dei pannelli (`panelOptics`), l'arrivo che si posa come su iOS e l'uscita che si vede anche dopo che
+ * il chiamante l'ha tolto dalla composizione. I pulsanti hanno la goccia e l'aptica dei menu (un Tick
+ * per pulsante attraversato, un Tap alla scelta). Senza host, o con [inHost] falso, il Dialog di
+ * sempre: per un avviso che deve stare sopra le finestre di piattaforma (un foglio, una tastiera).
+ *
+ * @param inHost falso per restare nella finestra di piattaforma anche con l'host. Dalla 3.0.
  */
 @Composable
 fun FluidAlert(
@@ -169,7 +180,66 @@ fun FluidAlert(
   modifier: Modifier = Modifier,
   message: String? = null,
   actions: List<FluidAlertAction>,
+  inHost: Boolean = true,
   content: (@Composable ColumnScope.() -> Unit)? = null,
+) {
+  val host = LocalFluidGlassModalHostState.current
+  if (inHost && host != null) {
+    FluidAlertInHost(
+      host = host,
+      onDismissRequest = onDismissRequest,
+      spec = FluidAlertSpec(
+        title = title,
+        message = message,
+        actions = actions,
+        content = content,
+        modifier = modifier,
+      ),
+    )
+    return
+  }
+  FluidAlertDialog(onDismissRequest, title, modifier, message, actions, content)
+}
+
+/**
+ * L'avviso nell'host: una voce dell'host che dura quanto la composizione del chiamante, e un po' di
+ * piu' — al `onDispose` si ritira (`retire`) invece di sparire, e la toglie il layer a uscita finita.
+ */
+@Composable
+private fun FluidAlertInHost(
+  host: FluidGlassModalHostState,
+  onDismissRequest: () -> Unit,
+  spec: FluidAlertSpec,
+) {
+  val entry = remember { FluidGlassModalEntry() }
+  SideEffect {
+    entry.alert = spec
+    entry.onDismissRequest = onDismissRequest
+    entry.paneTitle = spec.title
+  }
+  DisposableEffect(host, entry) {
+    // Prima della registrazione, non dopo: il layer sceglie che cosa disegnare da `alert`, e una voce
+    // registrata senza sarebbe per un fotogramma un pop-up vuoto.
+    entry.alert = spec
+    entry.presentation = FluidGlassModalPresentation.Popover
+    entry.onDismissRequest = onDismissRequest
+    entry.paneTitle = spec.title
+    entry.retiring = false
+    entry.openedAt = host.nextSequence()
+    entry.visible = true
+    host.register(entry)
+    onDispose { host.retire(entry) }
+  }
+}
+
+@Composable
+private fun FluidAlertDialog(
+  onDismissRequest: () -> Unit,
+  title: String,
+  modifier: Modifier,
+  message: String?,
+  actions: List<FluidAlertAction>,
+  content: (@Composable ColumnScope.() -> Unit)?,
 ) {
   val scheme = MaterialTheme.colorScheme
   var visible by remember { mutableStateOf(false) }

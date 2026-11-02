@@ -251,6 +251,9 @@ fun Modifier.fluidPressable(
           role = role,
           onClick = click,
           onLongClick = longClick,
+          // Il click lungo ha gia' il suo colpo, dal vocabolario (`longClickHaptic`): quello di
+          // piattaforma che `combinedClickable` suona da se' gli si sommava sotto.
+          hapticFeedbackEnabled = false,
         )
       },
     )
@@ -286,6 +289,12 @@ fun Modifier.fluidRowPressable(
   shape: Shape? = null,
   highlightColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
+  /**
+   * Cosa si sente quando scatta il click lungo; null per chi ha un colpo suo (3.0). Una riga che
+   * apre il proprio menu contestuale passa null e suona `Open` lei, solo se il menu si e' aperto:
+   * prima suonavano GestureStart qui e Open nel menu, due colpi per un momento.
+   */
+  longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
 ): Modifier {
   if (onClick == null && onLongClick == null) return this
 
@@ -354,10 +363,13 @@ fun Modifier.fluidRowPressable(
       },
       onLongClick = onLongClick?.let {
         {
-          haptics.play(FluidHapticEvent.GestureStart)
+          longClickHaptic?.let { event -> haptics.play(event) }
           it()
         }
       },
+      // Il colpo del click lungo e' quello del vocabolario, qui sopra: niente LongPress di
+      // piattaforma sommato sotto.
+      hapticFeedbackEnabled = false,
     )
 }
 

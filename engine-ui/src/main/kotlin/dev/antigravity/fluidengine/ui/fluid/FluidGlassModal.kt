@@ -52,6 +52,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -179,6 +180,23 @@ class FluidGlassModalHostState internal constructor() {
     entries.removeAll { it === entry }
   }
 
+  /**
+   * Il chiamante se n'e' andato, ma l'uscita deve vedersi (3.0, per [FluidAlert] nell'host): la voce
+   * resta registrata, si chiude, e la toglie [finishExit] quando il layer ha finito di uscire. Con
+   * `unregister` l'avviso tolto dalla composizione spariva di colpo, testo e vetro insieme, nel
+   * fotogramma stesso in cui il chiamante l'aveva tolto.
+   */
+  internal fun retire(entry: FluidGlassModalEntry) {
+    if (entries.none { it === entry }) return
+    entry.retiring = true
+    entry.visible = false
+  }
+
+  /** L'uscita di una voce ritirata e' finita: ora la si toglie davvero. Non tocca le altre. */
+  internal fun finishExit(entry: FluidGlassModalEntry) {
+    if (entry.retiring) unregister(entry)
+  }
+
   /** The innermost open modal: the most recently *opened* one, not the most recently declared. */
   internal fun topEntry(): FluidGlassModalEntry? =
     entries.filter { it.visible }.maxByOrNull { it.openedAt }
@@ -271,6 +289,12 @@ data class FluidContextAction(
   /** Deletes, revokes, removes. Drawn in the error colour, and worth at most one per menu. */
   val destructive: Boolean = false,
   val enabled: Boolean = true,
+  /**
+   * La voce apre una sezione nuova (3.0): sopra di lei, al posto della riga sottile, una banda — come
+   * i gruppi di un menu di iOS ("Copia, Condividi" | "Elimina"). Sulla prima voce non conta. Prima di
+   * [onClick], cosi' la lambda in coda continua a essere l'azione.
+   */
+  val startsSection: Boolean = false,
   val onClick: () -> Unit,
 )
 
@@ -332,6 +356,27 @@ internal class FluidGlassModalEntry {
   var preview: GraphicsLayer? by mutableStateOf(null)
   var previewSize: Rect? by mutableStateOf(null)
   var actions: List<FluidContextAction> by mutableStateOf(emptyList())
+
+  /**
+   * Il tasto da cui un menu `Expand` nasce (3.0): la sua sagoma premuta, il suo materiale, la sua
+   * faccia e il cancello che lo nasconde. Null per il menu contestuale, che cresce da un seme.
+   */
+  var menuAnchor: FluidMenuAnchor? by mutableStateOf(null)
+
+  /** La scelta del menu di questa voce: il pannello le scrive la geometria, l'ancora le passa il dito. */
+  val selection = FluidMenuSelection()
+
+  /**
+   * Il ponte del dito di chi ha aperto il menu (l'ancora o la riga): il layer lo scollega al congedo, cosi'
+   * un dito ancora giu' dopo un back non tiene ferma la lista attorno.
+   */
+  var menuHandOff: FluidMenuHandOff? = null
+
+  /** Un [FluidAlert] nell'host: titolo, messaggio, pulsanti e contenuto. Null per tutto il resto. */
+  var alert: FluidAlertSpec? by mutableStateOf(null)
+
+  /** Ritirata con [FluidGlassModalHostState.retire]: il layer la toglie a uscita finita. */
+  var retiring: Boolean by mutableStateOf(false)
 }
 
 /**
@@ -557,8 +602,24 @@ private fun FluidGlassModalLayer(
   backdrop: GlassBackdropState?,
   host: FluidGlassModalHostState,
 ) {
+  // Tre famiglie, un host (3.0, fase 7): l'avviso, i menu (contestuale ed Expand con azioni: il
+  // pannello unico, il viaggio unico, la goccia) e i pannelli di contenuto di sempre.
+  val alert = entry.alert
+  when {
+    alert != null -> FluidAlertLayer(entry = entry, spec = alert, backdrop = backdrop, host = host)
+    fluidModalShowsActions(entry.presentation, entry.actions.isNotEmpty()) ->
+      FluidMenuLayer(entry = entry, backdrop = backdrop)
+    else -> FluidGlassModalPaneLayer(entry = entry, backdrop = backdrop, host = host)
+  }
+}
+
+@Composable
+private fun FluidGlassModalPaneLayer(
+  entry: FluidGlassModalEntry,
+  backdrop: GlassBackdropState?,
+  host: FluidGlassModalHostState,
+) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val haptics = LocalFluidHaptics.current
   // 0 = at the anchor's size, 1 = at its own. What "0" actually means in pixels is solved by the
   // layout below, per axis, from the two rectangles.
   val scaleX = remember { Animatable(0f) }
@@ -586,10 +647,8 @@ private fun FluidGlassModalLayer(
       // arriving while the content is already legible.
       launch { fade.animateTo(1f, FluidMotion.fadeIn(FluidPopoverFadeInMillis)) }
       if (journeyMode && entry.origin() != null) {
-        // Il tocco che diventa una finestra merita la conferma sul dito — il menu contestuale ce
-        // l'ha (LongPress) ed e' parte del perche' "e' piu' bello". Qui un click leggero: e' un
-        // tocco secco, non una pressione.
-        haptics.play(FluidHapticEvent.Open)
+        // Nessun colpo qui (3.0): un momento, un evento, e il momento e' il tocco sulla riga, che il
+        // suo colpo ce l'ha gia'. Il layer che suonava Open si sommava a quello di chi apriva.
         // La formula, detta parola per parola: ACCELERAZIONE CONTINUA finche' non raggiunge il
         // bordo, poi oltre, frena, e torna alla posizione finale. Quindi: una rincorsa tutta in
         // ease-in che copre quasi l'intero viaggio ancora in accelerazione, e una molla che ne
@@ -667,9 +726,6 @@ private fun FluidGlassModalLayer(
   // very same lambda.
   var lastContent by remember { mutableStateOf(entry.content) }
   var lastFooter by remember { mutableStateOf(entry.footer) }
-  var lastActions by remember { mutableStateOf(entry.actions) }
-  var lastPreview by remember { mutableStateOf(entry.preview) }
-  var lastPreviewBounds by remember { mutableStateOf(entry.previewSize) }
   var lastOrigin by remember { mutableStateOf<Rect?>(null) }
   var lastPaneTitle by remember { mutableStateOf(entry.paneTitle) }
   // Tenuto come tutto il resto: alla chiusura la finestra deve continuare a essere del colore da
@@ -678,9 +734,6 @@ private fun FluidGlassModalLayer(
   if (entry.visible) {
     lastContent = entry.content
     lastFooter = entry.footer
-    lastActions = entry.actions
-    lastPreview = entry.preview
-    lastPreviewBounds = entry.previewSize
     lastOrigin = entry.origin()
     lastPaneTitle = entry.paneTitle
     lastPaneTint = entry.paneTint
@@ -793,26 +846,10 @@ private fun FluidGlassModalLayer(
       return@Box
     }
 
+    // Le azioni (menu contestuale, Expand) hanno il loro layer, `FluidMenuLayer`: qui arrivano solo
+    // i pannelli di contenuto, anche quando dichiarano una di quelle presentazioni.
     val menu = entry.presentation == FluidGlassModalPresentation.ContextMenu
     val expand = entry.presentation == FluidGlassModalPresentation.Expand
-    if (menu) {
-      FluidLiftedPreview(
-        preview = lastPreview,
-        bounds = lastPreviewBounds,
-        paneTint = lastPaneTint,
-        backdrop = popoverBackdrop,
-        // Never faded. The real row hides the moment the menu opens and comes back only at
-        // [exitFinished] — the preview is the row for that whole stretch, and fading it out on the
-        // menu's clock opened a two-hundred-millisecond hole where the group pane showed through
-        // with no text in it. At both ends of its life the preview sits at scale 1 exactly over the
-        // row it recorded, so appearing and vanishing are pixel-identical swaps, not cuts.
-        presence = { 1f },
-        // The row is already its own size, so it only has the lift to travel: a few percent, on the
-        // same springs, so the row and the menu move as one object.
-        scaleX = { lerp(1f, FluidLiftedPreviewScale, scaleX.value) * (1f - backProgress * 0.05f) },
-        scaleY = { lerp(1f, FluidLiftedPreviewScale, scaleY.value) * (1f - backProgress * 0.05f) },
-      )
-    }
 
     val anchorRadiusPx = with(LocalDensity.current) {
       val origin = lastOrigin
@@ -838,7 +875,6 @@ private fun FluidGlassModalLayer(
       // quello ha la riga sollevata li' accanto, e crescere sopra la riga significherebbe coprire
       // proprio l'oggetto che il sollevamento sta presentando.
       overAnchor = !menu,
-      morphWindow = journeyMode,
       anchorRadiusPx = anchorRadiusPx,
       outgoing = anchorNode?.layer,
       windowBackdrop = backdrop,
@@ -848,14 +884,7 @@ private fun FluidGlassModalLayer(
       growthCross = { scaleY.value },
       retreat = { backProgress },
     ) {
-      if (fluidModalShowsActions(entry.presentation, lastActions.isNotEmpty())) {
-        lastActions.forEachIndexed { index, action ->
-          if (index > 0) FluidHairline(startInset = 14.dp)
-          FluidContextMenuRow(action = action, onDismiss = entry.onDismissRequest)
-        }
-      } else {
-        lastContent()
-      }
+      lastContent()
     }
   }
 }
@@ -874,7 +903,7 @@ private fun FluidGlassModalLayer(
  * and reads as a fisheye rather than as depth.
  */
 @Composable
-private fun FluidGlassModalScrim(
+internal fun FluidGlassModalScrim(
   backdrop: GlassBackdropState?,
   exports: GlassBackdropState,
   intensity: () -> Float,
@@ -1063,13 +1092,6 @@ private fun FluidAnchoredPopover(
   compact: Boolean,
   /** True for [FluidGlassModalPresentation.Expand]: sit *on* the anchor rather than beside it. */
   overAnchor: Boolean,
-  /**
-   * Fluid Engine, 1.9.5: la finestra e' di Fluid-physics. La sagoma viaggia dal rettangolo
-   * dell'ancora a quella del pannello con la rifrazione addosso — non un pannello scalato, la
-   * silhouette stessa che si trasforma. L'orologio resta quello del modale (molle, dissolvenze,
-   * back predittivo): la fisica e' guidata dall'esterno, vedi [FluidPhysicsState.driveExternally].
-   */
-  morphWindow: Boolean,
   anchorRadiusPx: Float,
   /**
    * L'immagine registrata della riga che ha aperto la finestra, da [fluidExpandOrigin]. Viaggia
@@ -1109,7 +1131,16 @@ private fun FluidAnchoredPopover(
   // della pagina, che sta dietro uno scrim e non e' affar suo.
   val paneGlass = rememberGlassBackdrop()
   val windowPhysics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
-  val useMorphWindow = morphWindow && anchor != null && backdrop != null
+  // Fluid Engine, 1.9.5: la finestra e' di Fluid-physics. La sagoma viaggia dal rettangolo
+  // dell'ancora a quella del pannello con la rifrazione addosso — non un pannello scalato, la
+  // silhouette stessa che si trasforma. L'orologio resta quello del modale (molle, dissolvenze, back
+  // predittivo): la fisica e' guidata dall'esterno, vedi [FluidPhysicsState.driveExternally].
+  //
+  // Dalla 3.0 (fase 7) OGNI pannello di vetro passa da qui: anche quello senza ancora (cresce da un
+  // seme al proprio centro) e quello accanto a una riga (da un seme sul perno piu' vicino). Il
+  // pannello classico scalava il layer del proprio vetro — la prima trappola del vetro in movimento,
+  // il fondale che si muove dentro la card — e resta solo per il ripiego opaco senza fondale.
+  val useMorphWindow = backdrop != null
   // La pellicola della finestra con dentro la quota di scrim: lo stesso nero dello scrim vero,
   // composto sotto la tinta flottante. E' il punto di partenza del lerp tintFrom->tint guidato
   // da (1 - presence): a modale fermo la finestra porta lo scrim intero, lungo le dissolvenze
@@ -1291,26 +1322,8 @@ private fun FluidAnchoredPopover(
             }
           }
           .then(
-            if (backdrop != null && !useMorphWindow) {
-              Modifier.glassSurface(
-                state = backdrop,
-                tint = GlassDefaults.panelTint(paneTint),
-                shape = shape,
-                role = GlassRole.Modal,
-                optics = GlassDefaults.panelOptics(compact = compact),
-                // Congelata **solo per i pannelli che viaggiano**. Una finestra che attraversa lo
-                // schermo non puo' ricalcolare la mappatura a meta' volo: su ogni chiusura restava
-                // spogliata del vetro, una card lattiginosa in viaggio.
-                //
-                // Un menu contestuale pero' non viaggia, cresce sul posto — e li' congelare fa il
-                // danno opposto: la geometria si fissa quando il pannello e' ancora una capsula
-                // all'ancora, e quando ha finito di crescere sta mostrando l'immagine di dov'era
-                // prima. Sono i **due oggetti** che si vedevano dentro il vetro: quello vero fuori
-                // dal pannello e la sua copia sfasata dentro.
-                sampleOnce = !compact,
-                exports = paneGlass,
-              )
-            } else if (backdrop == null) {
+            // Il vetro lo disegna la finestra qui sopra; senza fondale, il ripiego opaco.
+            if (backdrop == null) {
               Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
             } else {
               Modifier
@@ -1388,113 +1401,102 @@ private fun FluidAnchoredPopover(
       ),
     )
 
+    val paneW = placeable.width.toFloat()
+    val paneH = placeable.height.toFloat()
+    val below: Boolean
+    val x: Float
+    val y: Float
     if (anchor == null) {
-      placement.pivotX = 0.5f
-      placement.pivotY = 0.5f
-      placement.startScaleX = FluidPopoverStartScale
-      placement.startScaleY = FluidPopoverStartScale
-      placement.morphFromAnchor = false
-      return@Layout layout(width, height) {
-        placeable.place(
-          x = ((width - placeable.width) / 2f).roundToInt(),
-          y = ((height - placeable.height) / 2f).roundToInt(),
-        )
-      }
-    }
-
-    val spaceBelow = height - anchor.bottom - gapPx - marginPx
-    val spaceAbove = anchor.top - gapPx - marginPx
-    val below = placeable.height <= spaceBelow || spaceBelow >= spaceAbove
-
-    val maxX = (width - placeable.width - marginPx).coerceAtLeast(marginPx)
-    // Centred on what was touched, then clamped to the screen. A pop-up pinned to the leading edge
-    // of a full-width row looks like it belongs to the row text; pinned to its centre it looks like
-    // it belongs to the touch.
-    val x = (anchor.center.x - placeable.width / 2f).coerceIn(marginPx, maxX)
-    val y = if (overAnchor) {
-      // Sitting *on* the anchor: the edge the menu grows away from stays put, so the button does
-      // not appear to jump the moment it unfolds.
-      if (below) {
-        anchor.top.coerceAtMost((height - placeable.height - marginPx).coerceAtLeast(marginPx))
-      } else {
-        (anchor.bottom - placeable.height).coerceAtLeast(marginPx)
-      }
-    } else if (below) {
-      (anchor.bottom + gapPx)
-        .coerceAtMost((height - placeable.height - marginPx).coerceAtLeast(marginPx))
+      below = true
+      x = (width - paneW) / 2f
+      y = (height - paneH) / 2f
     } else {
-      (anchor.top - gapPx - placeable.height).coerceAtLeast(marginPx)
+      val spaceBelow = height - anchor.bottom - gapPx - marginPx
+      val spaceAbove = anchor.top - gapPx - marginPx
+      below = paneH <= spaceBelow || spaceBelow >= spaceAbove
+      val maxX = (width - paneW - marginPx).coerceAtLeast(marginPx)
+      // Centred on what was touched, then clamped to the screen. A pop-up pinned to the leading edge
+      // of a full-width row looks like it belongs to the row text; pinned to its centre it looks like
+      // it belongs to the touch.
+      x = (anchor.center.x - paneW / 2f).coerceIn(marginPx, maxX)
+      y = if (overAnchor) {
+        // Sitting *on* the anchor: the edge the menu grows away from stays put, so the button does
+        // not appear to jump the moment it unfolds.
+        if (below) {
+          anchor.top.coerceAtMost((height - paneH - marginPx).coerceAtLeast(marginPx))
+        } else {
+          (anchor.bottom - paneH).coerceAtLeast(marginPx)
+        }
+      } else if (below) {
+        (anchor.bottom + gapPx).coerceAtMost((height - paneH - marginPx).coerceAtLeast(marginPx))
+      } else {
+        (anchor.top - gapPx - paneH).coerceAtLeast(marginPx)
+      }
     }
+    val pane = Rect(x, y, x + paneW, y + paneH)
 
     // The pivot is the point on the pop-up closest to what was touched, expressed as a fraction of
     // its own box. Growing from there is the difference between a pop-up that opens *out of* the
     // anchor and one that merely happens to be next to it.
-    placement.pivotX = if (placeable.width <= 0) {
+    placement.pivotX = if (anchor == null || placeable.width <= 0) {
       0.5f
     } else {
-      ((anchor.center.x - x) / placeable.width).coerceIn(0f, 1f)
+      ((anchor.center.x - x) / paneW).coerceIn(0f, 1f)
     }
-    placement.pivotY = if (below) 0f else 1f
+    placement.pivotY = if (anchor == null) 0.5f else if (below) 0f else 1f
 
-    // **Una crescita sola, per ogni pop-up.**
-    //
-    // Ce n'erano due, e la seconda — quella che partiva dal rettangolo esatto dell'ancora — e'
-    // stata due volte un errore. Scalando i due assi con fattori diversi schiacciava il testo; e
-    // quando l'ho sostituita con una finestra che si apre, il contenuto ci compariva dentro mano a
-    // mano che il bordo ci passava sopra, che e' una tendina tirata su un cartello gia' scritto.
-    //
-    // Quella che restava — la crescita del menu contestuale — non ha nessuno dei due problemi,
-    // perche' e' **uniforme**. La tiene il menu; tutto il resto, che si apre *sopra* la propria
-    // ancora, torna a partire dal rettangolo di quell'ancora — ma facendo viaggiare il **bordo**
-    // invece di scalare il pannello, che era la ragione per cui il testo si schiacciava.
-    placement.morphFromAnchor = overAnchor && placeable.width > 0 && placeable.height > 0
-    placement.anchorLeft = anchor.left - x
-    placement.anchorTop = anchor.top - y
-    placement.anchorWidth = anchor.width
-    placement.anchorHeight = anchor.height
-    placement.paneWidth = placeable.width.toFloat()
-    placement.paneHeight = placeable.height.toFloat()
+    // **Una crescita sola, per ogni pop-up.** Sopra la propria ancora la finestra parte dal
+    // rettangolo ESATTO dell'ancora e ne fa viaggiare il bordo (mai il pannello scalato, che
+    // schiacciava il testo); accanto a una riga, o senza ancora, parte da un SEME — il pannello stesso
+    // a 0,42 attorno al perno piu' vicino a cio' che e' stato toccato, o al proprio centro — e cresce
+    // per geometria, non per un layer scalato sul vetro (3.0).
+    val start = when {
+      anchor != null && overAnchor -> anchor
+      anchor != null -> fluidMenuSeedFrame(pane, Offset(x + placement.pivotX * paneW, y + placement.pivotY * paneH), FluidPopoverStartScale)
+      else -> fluidMenuSeedFrame(pane, pane.center, FluidPopoverStartScale)
+    }
+    val startRadius = if (anchor != null && overAnchor) {
+      anchorRadiusPx.coerceAtMost(anchor.minDimension / 2f)
+    } else {
+      paneRadiusPx * FluidPopoverStartScale
+    }
+    placement.morphFromAnchor = anchor != null && overAnchor && placeable.width > 0 && placeable.height > 0
+    placement.anchorLeft = start.left - x
+    placement.anchorTop = start.top - y
+    placement.anchorWidth = start.width
+    placement.anchorHeight = start.height
+    placement.paneWidth = paneW
+    placement.paneHeight = paneH
     placement.startScaleX = FluidPopoverStartScale
     placement.startScaleY = FluidPopoverStartScale
     placement.startOffsetX = 0f
     placement.startOffsetY = 0f
 
     if (useMorphWindow && placeable.width > 0 && placeable.height > 0) {
-      val popGainY = FluidPopoverWindowPopGain *
-        (placeable.height / FluidPopoverPopReferenceHeight.toPx()).coerceIn(0.55f, 1.6f)
-      val popEdgeMinPx = FluidPopoverPopEdgeMin.toPx()
       // La geometria della finestra si risolve QUI, dove si risolve tutto il resto: l'ancora com'e'
       // davvero, il pannello dov'e' davvero. L'orologio e' `growth` — le molle del modale.
       // La partenza e' il rettangolo ESATTO dell'ancora: partire ribassato dava una spinta verso
       // l'alto all'andata, ma al ritorno la finestra atterrava quattordici punti sotto la riga —
       // "non ritorna al punto originale", ed e' vero. La vita verticale la danno gia' le molle.
+      //
+      // Oltre l'1 la sagoma NON prosegue lungo il lerp: e' il pannello gonfiato attorno al centro, su
+      // tutti i lati, con la molla grande quanto il viaggio e i fianchi tenuti dentro lo schermo —
+      // `fluidMenuInflation`, coi numeri della rincorsa di questa finestra (0,6 e il picco 0,15).
+      val inflation = fluidMenuInflation(
+        paneW = paneW,
+        paneH = paneH,
+        availW = width.toFloat(),
+        edgeMinPx = FluidPopoverPopEdgeMin.toPx(),
+        refHeightPx = FluidPopoverPopReferenceHeight.toPx(),
+        gain = FluidPopoverWindowPopGain,
+        peakOvershoot = FluidPopoverPeakOvershoot,
+      )
       windowPhysics.driveExternally(
-        from = FluidForm.Slab(
-          frame = anchor,
-          cornerRadii = FluidCornerRadii.all(
-            anchorRadiusPx.coerceAtMost(anchor.minDimension / 2f),
-          ),
-        ),
-        to = FluidForm.Slab(
-          frame = Rect(x, y, x + placeable.width, y + placeable.height),
-          cornerRadii = FluidCornerRadii.all(paneRadiusPx),
-        ),
+        from = FluidForm.Slab(frame = start, cornerRadii = FluidCornerRadii.all(startRadius)),
+        to = FluidForm.Slab(frame = pane, cornerRadii = FluidCornerRadii.all(paneRadiusPx)),
         progress = growth,
-        // Oltre l'1 la sagoma NON prosegue lungo il lerp (fianchi in dentro, fondo in fuori —
-        // la direzione del viaggio, non un pop): e' il pannello gonfiato attorno al centro, su
-        // tutti i lati, che poi si posa. Un moto solo, nella geometria.
-        //
-        // La molla e' GRANDE QUANTO IL VIAGGIO: un pannello alto arriva con piu' slancio di un
-        // biglietto, quindi il gonfiore scala con l'altezza del pannello rispetto a una taglia
-        // di riferimento. E i fianchi hanno un tetto loro: al picco d'oltrepasso la card non
-        // deve finire a ridosso dei bordi dello schermo, quindi la X e' limitata dallo spazio
-        // che resta davvero fra pannello e margine minimo.
-        overshootInflationY = popGainY,
-        overshootInflationX = minOf(
-          popGainY,
-          ((width - 2f * popEdgeMinPx - placeable.width).coerceAtLeast(0f) / placeable.width) /
-            FluidPopoverPeakOvershoot,
-        ),
+        overshootInflationX = inflation.x,
+        overshootInflationY = inflation.y,
       )
     }
 
@@ -1509,32 +1511,76 @@ private fun FluidAnchoredPopover(
  * larger, and what that reads as is the row *doubling* — there are suddenly two of it, one blurred
  * and one not, and neither has become anything. What actually happens on iOS is that the thing you
  * held **turns into** the same glass card the menu is made of, and keeps its own contents printed on
- * it. So the recording is drawn onto a real [GlassRole.Modal] surface with the menu's tint and the
- * menu's radius, and the pair grows out of the touch on the same two springs.
+ * it.
  *
- * The recording is what makes this one modifier rather than a second copy of the row's content:
- * whatever the row draws comes along, whatever it happens to be.
+ * Dalla 3.0 (fase 7) la card e' una superficie di Fluid-physics SORELLA dell'immagine: la sagoma va
+ * dalla riga alla riga gonfiata del 3% attorno al centro del bordo basso (quello contro cui si apre
+ * il menu), con lo stesso progresso del menu, e il suo materiale entra ed esce con [presence]. A
+ * scalare e' solo l'immagine registrata, che non e' vetro: prima si scalava il layer di un
+ * `glassSurface`, e il fondale dentro la card si muoveva con lei (la prima trappola).
+ *
+ * Mai sfumata, l'immagine: la riga vera e' nascosta finche' il layer non smonta, e a vita finita
+ * l'immagine e' a scala 1 esatta sulla riga che ha registrato — comparire e sparire sono scambi
+ * identici al pixel.
  */
 @Composable
-private fun FluidLiftedPreview(
+internal fun FluidLiftedPreview(
   preview: GraphicsLayer?,
   bounds: Rect?,
   /**
    * Il colore della riga che si e' sollevata.
    *
-   * E' **qui** che il colore serve, non sul pannello delle azioni: la riga sollevata e' l'oggetto —
-   * "quello che tenevi in mano diventa la stessa card di vetro" dice il commento qui sopra — e una
-   * card colorata che diventa vetro grigio smette di essere quella card. Il menu sotto invece e'
+   * E' **qui** che il colore serve, non sul pannello delle azioni: la riga sollevata e' l'oggetto, e
+   * una card colorata che diventa vetro grigio smette di essere quella card. Il menu invece e'
    * chrome, e la chrome non prende il colore di cio' che l'ha chiamata.
    */
   paneTint: Color?,
   backdrop: GlassBackdropState?,
+  physics: FluidPhysicsState,
+  progress: () -> Float,
   presence: () -> Float,
-  scaleX: () -> Float,
-  scaleY: () -> Float,
 ) {
-  if (preview == null || bounds == null) return
+  if (preview == null || bounds == null || bounds.width <= 0f || bounds.height <= 0f) return
   val density = LocalDensity.current
+  val radiusPx = with(density) { FluidPopoverRadius.toPx() }
+  val lifted = Rect(
+    left = bounds.center.x - bounds.width * FluidLiftedPreviewScale / 2f,
+    top = bounds.bottom - bounds.height * FluidLiftedPreviewScale,
+    right = bounds.center.x + bounds.width * FluidLiftedPreviewScale / 2f,
+    bottom = bounds.bottom,
+  )
+  val lift: () -> Float = { progress().coerceIn(0f, 1f) }
+  SideEffect {
+    physics.driveExternally(
+      from = FluidForm.Slab(bounds, FluidCornerRadii.all(radiusPx.coerceAtMost(bounds.minDimension / 2f))),
+      to = FluidForm.Slab(lifted, FluidCornerRadii.all(radiusPx.coerceAtMost(lifted.minDimension / 2f))),
+      progress = lift,
+    )
+  }
+  val fallback = MaterialTheme.colorScheme.surfaceContainerHigh
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .drawWithContent { if (presence() > 0.004f) drawContent() }
+      .then(
+        if (backdrop != null) {
+          Modifier.fluidPhysicsSurface(
+            state = physics,
+            backdrop = backdrop,
+            tint = GlassDefaults.panelTint(paneTint),
+            role = GlassRole.Modal,
+            optics = GlassDefaults.panelOptics(),
+            // Il materiale entra ed esce; l'immagine no. E' questa la transizione della chiusura: il
+            // colore torna quello di prima e il bordo si spegne, invece di essere scambiati di colpo.
+            intensity = presence,
+          )
+        } else {
+          Modifier.drawBehind {
+            drawPath(physics.ensurePlan().silhouette, fallback.copy(alpha = fallback.alpha * presence().coerceIn(0f, 1f)))
+          }
+        },
+      ),
+  )
   val shape = ContinuousCornerShape(FluidPopoverRadius)
   Box(
     modifier = Modifier
@@ -1544,42 +1590,14 @@ private fun FluidLiftedPreview(
         height = with(density) { bounds.height.toDp() },
       )
       .graphicsLayer {
-        // **Opaca sempre, finche' esiste.**
-        //
-        // Sfumare la copia sollevata voleva dire far sparire la riga: quella vera sotto e' nascosta
-        // fino a che il livello non viene smontato, quindi una copia che si dissolve lascia un
-        // rettangolo vuoto dove c'era la riga. Quello che deve dissolversi non e' l'immagine, e' il
-        // *materiale*: sotto, `intensity` porta a zero vetro, bordo e tinta, e quando arriva a zero
-        // questa copia e' identica alla riga — cosi' lo scambio, che avviene nello stesso istante,
-        // non ha niente da mostrare.
-        this.scaleX = scaleX()
-        this.scaleY = scaleY()
-        // Grown from its own bottom edge, because that is the edge the menu appears against: the
-        // row and the menu below it then open as one object rather than as two things that both
-        // happen to be arriving.
+        // L'immagine, non il vetro: scalarla e' lecito. Dal bordo basso, contro cui si apre il menu.
+        val s = lerp(1f, FluidLiftedPreviewScale, lift())
+        scaleX = s
+        scaleY = s
         transformOrigin = TransformOrigin(0.5f, 1f)
+        clip = true
+        this.shape = shape
       }
-      .then(
-        if (backdrop != null) {
-          Modifier.glassSurface(
-            state = backdrop,
-            tint = GlassDefaults.panelTint(paneTint),
-            shape = shape,
-            role = GlassRole.Modal,
-            optics = GlassDefaults.panelOptics(),
-            // Il materiale entra ed esce; l'immagine no. E' questa la transizione che mancava alla
-            // chiusura: il colore torna quello di prima e il bordo si spegne, invece di essere
-            // scambiati di colpo con la riga vera.
-            intensity = { presence() },
-          )
-        } else {
-          Modifier.background(
-            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = presence()),
-            shape,
-          )
-        },
-      )
-      .clip(shape)
       .drawWithContent {
         // Replaying a released layer is a crash, and the list underneath can dispose a row while
         // the menu is up. Nothing here is worth a crash: if the recording is gone, the pane simply
@@ -1587,59 +1605,6 @@ private fun FluidLiftedPreview(
         runCatching { drawLayer(preview) }
       },
   )
-}
-
-@Composable
-private fun FluidContextMenuRow(
-  action: FluidContextAction,
-  onDismiss: () -> Unit,
-) {
-  val color = if (action.destructive) {
-    MaterialTheme.colorScheme.error
-  } else {
-    MaterialTheme.colorScheme.onSurface
-  }
-  Row(
-    modifier = Modifier
-      .fillMaxWidth()
-      .heightIn(min = 48.dp)
-      .fluidRowPressable(
-        onClick = {
-          // A disabled action closing the menu would be indistinguishable from having performed it.
-          if (!action.enabled) return@fluidRowPressable
-          onDismiss()
-          action.onClick()
-        },
-        enabled = action.enabled,
-      )
-      .padding(horizontal = 16.dp, vertical = 12.dp),
-    horizontalArrangement = Arrangement.spacedBy(12.dp),
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    CompositionLocalProvider(LocalContentColor provides color) {
-      Text(
-        text = action.label,
-        modifier = Modifier
-          .weight(1f)
-          .graphicsLayer { alpha = if (action.enabled) 1f else 0.38f },
-        style = MaterialTheme.typography.bodyLarge,
-        fontWeight = FontWeight.Medium,
-        color = color,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-      )
-      action.icon?.let {
-        Icon(
-          imageVector = it,
-          contentDescription = null,
-          modifier = Modifier
-            .size(20.dp)
-            .graphicsLayer { alpha = if (action.enabled) 1f else 0.38f },
-          tint = color,
-        )
-      }
-    }
-  }
 }
 
 /**
@@ -1960,6 +1925,12 @@ class FluidContextMenuController internal constructor(
   /** Whether the element is currently painting itself into [layer] for the overlay to replay. */
   internal var recording by mutableStateOf(false)
 
+  /**
+   * Il ponte del dito (3.0): [fluidContextMenuAnchor] lo tiene aggiornato col relè, e [open] gli
+   * passa il dito che ha tenuto premuto — il menu si sceglie trascinando e rilasciando su una voce.
+   */
+  internal val handOff = FluidMenuHandOff()
+
   val isOpen: Boolean get() = entry.visible
 
   /** Starts capturing the element's picture. Called on touch-down, long before a menu can open. */
@@ -1968,9 +1939,16 @@ class FluidContextMenuController internal constructor(
     if (recording) entry.preview = layer
   }
 
-  /** Raises the menu. Returns false when there is nothing to show, so the caller can fall through. */
+  /**
+   * Raises the menu. Returns false when there is nothing to show, so the caller can fall through.
+   *
+   * Dalla 3.0, se c'e' ancora un dito giu' sull'elemento (il click lungo che apre), il menu se lo
+   * prende: trascinando su una voce e rilasciando la si sceglie; rilasciando senza muoversi, o fuori,
+   * il menu resta aperto. Il colpo (`Open`) e' di chi chiama, e solo se questa restituisce vero.
+   */
   fun open(): Boolean {
     val resolvedHost = host ?: return false
+    if (entry.visible) return false
     val list = actionsProvider()
     if (list.isEmpty()) return false
     entry.actions = list
@@ -1979,6 +1957,8 @@ class FluidContextMenuController internal constructor(
     entry.visible = true
     entry.lifted = true
     recording = true
+    entry.selection.cancel()
+    handOff.attach(entry.selection)
     return true
   }
 
@@ -2018,6 +1998,7 @@ fun rememberFluidContextMenu(
     entry.presentation = FluidGlassModalPresentation.ContextMenu
     entry.paneTint = tint
     entry.onDismissRequest = controller::dismiss
+    entry.menuHandOff = controller.handOff
   }
 
   DisposableEffect(host, entry) {
@@ -2067,6 +2048,10 @@ fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Mod
       controller.entry.previewSize = rect
       controller.entry.origin = { rect }
     }
+    // Il relè del dito, prima di qualunque gesto dell'elemento (3.0): e' sul percorso che Compose ha
+    // scelto al down, l'unico che vede i movimenti dopo che il menu e' comparso sopra. Mentre il menu
+    // ha il dito, consuma: la lista attorno resta ferma.
+    .fluidMenuPointerRelay(controller.handOff)
     .pointerInput(controller) {
       awaitPointerEventScope {
         while (true) {

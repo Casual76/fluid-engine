@@ -370,6 +370,22 @@ internal class FluidMenuSelection(
 /** Lo slop del tocco di Android a ~3x di densita', per chi non ha una `ViewConfiguration` in mano. */
 internal const val DefaultMenuTouchSlopPx = 24f
 
+/**
+ * Quale gesto apre il menu di un tasto (3.0, fase 7).
+ *
+ * Di serie il tenuto premuto: il tocco resta l'azione del tasto, e chi non scopre il menu non perde
+ * niente. Ma un tasto il cui UNICO mestiere e' il menu (i tre puntini, "Ordina", "Altro") lo apre al
+ * tocco, ed e' quello che cinque app si riscrivevano a mano. Il tenuto premuto apre comunque, in tutti
+ * e due i casi: e' lui che porta il dito sul menu e sceglie al rilascio.
+ */
+enum class FluidMenuOpensOn {
+  /** Il tocco e' l'azione del tasto; il menu si apre tenendo premuto. */
+  LongPress,
+
+  /** Il tocco apre il menu (e l'azione del tasto non c'e'); anche tenendo premuto. */
+  Tap,
+}
+
 // --- Il dito che passa dall'ancora al menu -----------------------------------------
 
 /**
@@ -454,9 +470,12 @@ internal fun interface FluidMenuRootMapper {
  *   [FluidMenuHandOff]. Legge tutto "ignorando il consumato" (`changedToDownIgnoreConsumed`): un
  *   discendente che ha gia' preso il gesto — il pulsante stesso, `clickable` — non deve privare il
  *   menu del dito, e nel passaggio Initial i genitori arrivano comunque prima dei figli.
- * - **Main**: consuma i cambiamenti di quel dito SOLO se il menu aveva preso il dito all'inizio
- *   dell'evento. Cosi' la `LazyColumn` attorno alla riga non parte mentre il dito trascina sul menu,
- *   e tutto il resto del tempo il relè non tocca niente. Il sollevamento che CHIUDE un hand-off conta
+ * - **Consumo**: i cambiamenti di quel dito si consumano SOLO se il menu aveva preso il dito
+ *   all'inizio dell'evento, e gia' nel passaggio **Initial** (3.0, fase 7). Cosi' la `LazyColumn`
+ *   attorno alla riga non parte mentre il dito trascina sul menu, e il gesto del tasto sotto (che dal
+ *   3.0 non prende mai il dito e legge nel Main) trova il cambio consumato e finisce: senza, il tasto
+ *   nascosto continuava a seguire il dito sul menu e a suonare la sua grana sotto i tick delle voci.
+ *   Tutto il resto del tempo il relè non tocca niente. Il sollevamento che CHIUDE un hand-off conta
  *   come hand-off: va consumato anch'esso, o `clickable` lo leggerebbe come un click sull'ancora.
  * - un puntatore che sparisce dall'evento senza un sollevamento e' un annullo, come
  *   `onCancelPointerInput`.
@@ -468,9 +487,14 @@ internal class FluidMenuRelayTracker(var handOff: FluidMenuHandOff) {
 
   fun initial(changes: List<PointerInputChange>, mapper: FluidMenuRootMapper) {
     // Decidere ORA se questo evento e' di un hand-off attivo: dopo aver inoltrato un sollevamento
-    // l'hand-off non e' piu' attivo, ma quel sollevamento va consumato lo stesso nel passaggio Main.
+    // l'hand-off non e' piu' attivo, ma quel sollevamento va consumato lo stesso.
     consumeId = if (handOff.isActive) trackedId else null
+    forward(changes, mapper)
+    val id = consumeId ?: return
+    changes.fastForEach { if (it.id == id) it.consume() }
+  }
 
+  private fun forward(changes: List<PointerInputChange>, mapper: FluidMenuRootMapper) {
     val id = trackedId
     if (id == null) {
       val down = changes.fastFirstOrNull { it.changedToDownIgnoreConsumed() } ?: return
@@ -496,6 +520,7 @@ internal class FluidMenuRelayTracker(var handOff: FluidMenuHandOff) {
     }
   }
 
+  /** Il passaggio Main: il consumo e' gia' avvenuto nell'Initial, qui si ripete (idempotente) e si chiude l'evento. */
   fun main(changes: List<PointerInputChange>) {
     val id = consumeId ?: return
     consumeId = null

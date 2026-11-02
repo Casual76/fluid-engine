@@ -49,6 +49,7 @@ import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
@@ -689,16 +690,30 @@ class FluidButtonDragTest {
   fun `il tasto che si trasforma in menu si apre ancora col tenuto premuto, senza click`() {
     lateinit var menu: FluidMorphMenuState
     var clicks = 0
-    showInLazyColumn(LazyListState()) { modifier ->
-      menu = rememberFluidMorphMenuState()
-      FluidMorphMenuButton(
-        state = menu,
-        actions = { listOf(FluidContextAction(label = "Uno", onClick = {})) },
-        onClick = { clicks++ },
-        modifier = modifier,
-        text = "Menu",
-        backdrop = currentGlassBackdrop(),
-      )
+    // Con il suo host (3.0): l'apertura e' sincrona e risolve il pannello con le misure dell'host, e
+    // senza un host composto il tasto non apre niente (e non vibra) invece di nascondersi per sempre.
+    compose.setContent {
+      Themed {
+        menu = rememberFluidMorphMenuState()
+        val backdrop = currentGlassBackdrop()
+        Box(Modifier.fillMaxSize()) {
+          LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(2) { Spacer(Modifier.fillMaxWidth().height(120.dp)) }
+            item {
+              FluidMorphMenuButton(
+                state = menu,
+                actions = { listOf(FluidContextAction(label = "Uno", onClick = {})) },
+                onClick = { clicks++ },
+                modifier = Modifier.padding(horizontal = 24.dp).testTag("button"),
+                text = "Menu",
+                backdrop = backdrop,
+              )
+            }
+            items(30) { Spacer(Modifier.fillMaxWidth().height(120.dp)) }
+          }
+          FluidMorphMenuHost(state = menu, backdrop = backdrop)
+        }
+      }
     }
 
     compose.onNodeWithTag("button").performTouchInput {
@@ -737,9 +752,10 @@ class FluidButtonDragTest {
 
     assertEquals(1, clicks)
     assertTrue(!menu.isOpen)
-    // Il tasto apre qualcosa di suo: `Open` prende il posto del click, contatto e rilascio restano.
+    // Il tocco e' il click del tasto, con i tre colpi di ogni tasto (3.0, fase 7): `Open` e' del
+    // momento in cui il menu si apre — il tenuto premuto, o il tocco di un tasto che apre al tocco.
     assertEquals(
-      listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.Open),
+      listOf(FluidHapticEvent.PressDown, FluidHapticEvent.PressRelease, FluidHapticEvent.PressClick),
       haptics.played,
     )
   }

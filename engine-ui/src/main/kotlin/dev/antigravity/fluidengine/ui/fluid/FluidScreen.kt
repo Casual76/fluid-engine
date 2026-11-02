@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1408,6 +1409,13 @@ fun FluidBarAction(
    * always was, so nothing is taken away from the person who never discovers the menu.
    */
   actions: (() -> List<FluidContextAction>)? = null,
+  /**
+   * Quale gesto apre il menu di [actions]: di serie il tenuto premuto, e il tocco resta [onClick]. Con
+   * [FluidMenuOpensOn.Tap] il tocco apre il menu e [onClick] non viene chiamato — per l'azione il cui
+   * unico mestiere e' il menu (i tre puntini, "Ordina"). Il tenuto premuto apre in tutti e due i casi,
+   * ed e' lui che porta il dito sul menu. Dalla 3.0.
+   */
+  opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress,
 ) {
   if (actions == null) {
     FluidGlassIconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
@@ -1424,62 +1432,80 @@ fun FluidBarAction(
   val host = LocalFluidGlassModalHostState.current
   val entry = remember { FluidGlassModalEntry() }
   val haptics = LocalFluidHaptics.current
-  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  var open by remember { mutableStateOf(false) }
+  val anchor = remember { FluidMenuAnchor() }
+  val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
+  val density = LocalDensity.current.density
+  val tint = GlassDefaults.controlTint()
+  val iconTint = MaterialTheme.colorScheme.primary
 
   SideEffect {
     entry.presentation = FluidGlassModalPresentation.Expand
     entry.paneTitle = contentDescription
-    entry.onDismissRequest = { open = false }
+    entry.onDismissRequest = { entry.visible = false }
+    entry.menuAnchor = anchor
+    entry.menuHandOff = anchor.handOff
+    anchor.face = { Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp)) }
+    anchor.tintFrom = tint
+    anchor.opticsFrom = GlassDefaults.buttonOptics()
   }
 
   DisposableEffect(host, entry) {
     host?.register(entry)
     onDispose {
       entry.visible = false
+      anchor.hidden = false
       host?.unregister(entry)
     }
   }
 
-  LaunchedEffect(open) {
-    entry.actions = if (open) actions() else entry.actions
-    if (open && host != null) entry.openedAt = host.nextSequence()
-    entry.visible = open && host != null
+  // L'apertura e' SINCRONA, nel gesto: azioni, ancora, sequenza e visibilita' nello stesso istante,
+  // e il tasto si nasconde nello stesso fotogramma in cui la finestra compare sulla sua sagoma. Prima
+  // passava da un LaunchedEffect (un fotogramma tardi) e il tasto sfumava con una molla sua: per un
+  // attimo c'erano il tasto e la finestra, o nessuno dei due.
+  val open: (Boolean) -> Boolean = open@{ withFinger ->
+    if (host == null || entry.visible) return@open false
+    val list = actions()
+    if (list.isEmpty()) return@open false
+    anchor.pressedBounds = if (withFinger) fluidPressedBounds(anchor.restBounds, press, density) else anchor.restBounds
+    entry.actions = list
+    entry.openedAt = host.nextSequence()
+    entry.visible = true
+    entry.lifted = true
+    anchor.hidden = true
+    entry.selection.cancel()
+    if (withFinger) anchor.handOff.attach(entry.selection)
+    true
   }
 
-  // The button gives up its pixels while the menu is out, and keeps its space — same handover as
-  // FluidGlassMenuButton, for the same reason: the frame the menu grows out of has to be still.
-  val handover = remember { Animatable(1f) }
-  LaunchedEffect(open, reducedMotion) {
-    val target = if (open) 0f else 1f
-    if (reducedMotion) {
-      handover.snapTo(target)
-    } else {
-      handover.animateTo(target, spring(1f, if (open) 900f else 340f, 0.001f))
-    }
-  }
-
-  FluidGlassIconButton(
-    onClick = onClick,
-    modifier = modifier
-      .onGloballyPositioned { coordinates ->
-        val rect = coordinates.boundsInRoot()
-        entry.previewSize = rect
-        entry.origin = { rect }
-      }
-      .graphicsLayer { alpha = handover.value },
+  val openTapped: () -> Unit = { open(false) }
+  FluidGlassIconButtonCore(
+    onClick = if (opensOn == FluidMenuOpensOn.Tap) openTapped else onClick,
+    // Il relè in testa: vede il dito prima del tasto, e lo passa al menu quando il click lungo apre.
+    modifier = modifier.fluidMenuPointerRelay(anchor.handOff),
+    backdrop = currentGlassBackdrop(),
     enabled = enabled,
-    onLongClick = {
-      if (host != null && actions().isNotEmpty()) {
-        haptics.play(FluidHapticEvent.Open)
-        open = true
-      }
+    selected = false,
+    shape = FluidCapsuleShape,
+    // Un Open solo, dal click lungo e solo se il menu si apre davvero: prima suonavano GestureStart
+    // dal tasto, Open qui e Open dal layer dei modali.
+    onLongClick = { if (open(true)) haptics.play(FluidHapticEvent.Open) },
+    size = FluidGlassSize.Regular,
+    haptic = if (opensOn == FluidMenuOpensOn.Tap) FluidHapticEvent.Open else FluidHapticEvent.Tap,
+    longClickHaptic = null,
+    press = press,
+    // Il cancello sulla LENTE: si nasconde il vetro (con la sua icona), non il riquadro da 48 dp.
+    lensModifier = Modifier.drawWithContent { if (!anchor.hidden) drawContent() },
+    onLensPlaced = { coordinates ->
+      val rect = coordinates.unclippedBoundsInRoot()
+      anchor.restBounds = rect
+      entry.previewSize = rect
+      entry.origin = { rect }
     },
   ) {
     Icon(
       imageVector = icon,
       contentDescription = contentDescription,
-      tint = MaterialTheme.colorScheme.primary,
+      tint = iconTint,
       modifier = Modifier.size(22.dp),
     )
   }

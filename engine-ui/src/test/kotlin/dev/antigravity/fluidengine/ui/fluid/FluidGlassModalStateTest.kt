@@ -82,4 +82,57 @@ class FluidGlassModalStateTest {
     val second = state.nextSequence()
     assertTrue(second > first)
   }
+
+  // --- retire / finishExit (3.0, l'avviso nell'host) -------------------------------------------
+
+  @Test
+  fun aRetiredEntryClosesButStaysRegisteredUntilItsExitIsDone() {
+    // L'avviso tolto dalla composizione deve ancora uscire: chiuso subito (non e' piu' "presente" per
+    // TalkBack e per il back), ma ancora nella lista che l'host disegna.
+    val state = FluidGlassModalHostState()
+    val entry = FluidGlassModalEntry().also { it.visible = true }
+    state.register(entry)
+
+    state.retire(entry)
+
+    assertFalse(entry.visible)
+    assertTrue(entry.retiring)
+    assertFalse(state.isPresenting)
+    assertTrue("la voce deve restare finche' l'uscita non e' finita", state.entries.any { it === entry })
+
+    state.finishExit(entry)
+    assertTrue(state.entries.none { it === entry })
+  }
+
+  @Test
+  fun finishExitOnlyRemovesARetiredEntry() {
+    // Un menu che finisce di chiudersi non si toglie dalla lista: la sua riga lo riapre domani.
+    val state = FluidGlassModalHostState()
+    val menu = FluidGlassModalEntry()
+    state.register(menu)
+
+    state.finishExit(menu)
+
+    assertEquals(1, state.entries.size)
+  }
+
+  @Test
+  fun retiringAnEntryThatWasNeverRegisteredDoesNothing() {
+    val state = FluidGlassModalHostState()
+    val stranger = FluidGlassModalEntry().also { it.visible = true }
+
+    state.retire(stranger)
+
+    assertTrue("non e' dell'host: non la si chiude", stranger.visible)
+    assertFalse(stranger.retiring)
+    assertTrue(state.entries.isEmpty())
+  }
+
+  @Test
+  fun eachEntryHasItsOwnSelection() {
+    // Due menu aperti uno sull'altro non devono condividere il dito.
+    val a = FluidGlassModalEntry()
+    val b = FluidGlassModalEntry()
+    assertFalse(a.selection === b.selection)
+  }
 }

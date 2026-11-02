@@ -610,19 +610,25 @@ cedono** (`yielding`, il default di `fluidPressable`): una card che crescesse in
 Animazioni ridotte: crescita dimezzata, niente deriva né allungamento, pressione comunque intera.
 
 **Dalla 3.0 un pulsante è quello di LibrePods** — scelta di Alessio, e il codice è portato da lì
-(GPL-3.0, `LICENSES/LibrePods.md`). Quello che era diverso nella 2.12 e non lo è più:
+(GPL-3.0, `LICENSES/LibrePods.md`). Quello che cambia rispetto alla 2.12:
 
 - **Premuto al contatto.** Senza ritardo, dentro una lista come in una barra (prima: 100 ms di
   attesa dentro una pagina che scorre, e `LocalFluidPressImmediate` per la chrome — oggi non fa più
   niente).
-- **Non prende mai il gesto.** Non consuma niente: una passata che parte su un pulsante scorre la
-  lista, *e* il pulsante cresce, segue il dito e vibra mentre scorre, fino al rilascio. **La regola
-  della 2.12 ("un pulsante è di chi lo tiene premuto") non c'è più**: sostituita, perché una lista
-  fatta di pulsanti si scorreva solo dai margini e il tasto che aspettava 100 ms "arrivava" invece
-  di "scattare".
-- **Il click è di `clickable`**: scatta se il dito si solleva sul pulsante e nessuno ha consumato,
-  quindi non scatta dopo uno scorrimento. Tastiera (Invio, Spazio, fuoco, D-pad), TalkBack e ruolo
-  restano suoi. Il **click lungo** (`fluidPressable(onLongClick = ...)`) scatta se il dito è rimasto
+- **Tiene il dito** (scelta di Alessio dopo la beta 2). Un dito che scende su un pulsante è del
+  pulsante fino al sollevamento: la lista sotto (`LazyColumn`, `verticalScroll`, un pager, il back a
+  scorrimento) non scorre, il pulsante cresce, segue il dito e vibra; per scorrere si parte fuori dai
+  pulsanti. È la regola della 2.12 senza i 100 ms di attesa (`FluidPressGrip.HoldsFinger`, di serie):
+  il gesto consuma gli spostamenti nel passaggio Main, prima di ogni antenato. LibrePods non prende mai
+  il gesto, e la pagina scorreva mentre si teneva un tasto: in mano non piaceva. **`FluidChip` e
+  `FluidColorDot` cedono il dito alla fila** (`fluidPressable(grip = FluidPressGrip.YieldsToScroll)`):
+  appena la fila prende il gesto si sciolgono (calano, smettono di seguire il dito, `PressRelease`) e
+  non cliccano, come in iOS. Righe e card non cambiano.
+- **Il click**: di `clickable` per un tocco, del gesto per un dito che ha trascinato (`clickable`
+  annulla alla vista di un cambio consumato): scatta se il dito si solleva sul pulsante più 16 dp
+  (`FluidPressClickSlack`, o il tocco minimo se più largo), anche dopo aver vagato, con lo stesso
+  `PressClick`; oltre il margine solo `PressRelease`. Tastiera (Invio, Spazio, fuoco, D-pad), TalkBack e
+  ruolo restano di `clickable`. Il **click lungo** (`fluidPressable(onLongClick = ...)`) scatta se il dito è rimasto
   entro lo slop per il tempo del click lungo — slop misurato sulla strada del dito sullo schermo —
   e dopo non c'è click al rilascio.
 - **Numeri di LibrePods**: crescita `1 + maxScale` (0,10 col testo, **0,5 per un tasto tondo**; un

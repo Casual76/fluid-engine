@@ -87,14 +87,19 @@ app che lo distribuisce è GPL-3.0). Cosa vale, e cosa è cambiato dalla 2.12:
 - **la pressione parte al contatto.** Senza ritardo, senza soglia, in una lista come in una barra.
   Prima, dentro una pagina che scorre, partiva 100 ms dopo (e il tasto "arrivava" invece di
   "scattare"); `LocalFluidPressImmediate` non serve più a niente e non fa più niente;
-- **il pulsante non prende mai il gesto.** Non consuma niente: se il dito che è partito su un pulsante
-  scorre, la pagina scorre *e* il pulsante cresce, segue il dito e vibra, insieme, fino al
-  sollevamento. **Sostituisce la regola della 2.12** ("un pulsante è di chi lo tiene premuto":
-  100 ms di attesa, poi il gesto era suo e la pagina sotto non partiva), che aveva un prezzo — una
-  lista fatta di pulsanti si scorreva solo dai margini — e che la mano ha giudicato peggiore;
-- **il click è di `clickable`, come in LibrePods.** Scatta se il dito si solleva sul pulsante e
-  nessuno ha consumato: dopo uno scorrimento non c'è click. Tastiera, fuoco, TalkBack e ruolo sono
-  suoi, come prima. Il **click lungo resta** (ai menu serve): scatta se il dito è rimasto entro lo
+- **il pulsante tiene il dito.** Un dito che scende su un pulsante è del pulsante fino al
+  sollevamento: la pagina sotto (`LazyColumn`, `verticalScroll`, un pager, il back a scorrimento) non
+  scorre, il pulsante cresce, segue il dito e vibra; per scorrere si parte fuori dai pulsanti. È la
+  regola della 2.12 **senza i 100 ms di attesa** (`FluidPressGrip.HoldsFinger`, di serie): il gesto
+  consuma gli spostamenti nel passaggio Main, prima di ogni antenato. Scelta di Alessio dopo la beta 2:
+  con LibrePods (il pulsante non prendeva mai il gesto) la pagina scorreva mentre si teneva un tasto.
+  **Il chip e il pallino di colore cedono il dito alla fila** (`grip = FluidPressGrip.YieldsToScroll`):
+  stanno in file che scorrono di lato, e appena la fila prende il gesto si sciolgono e non cliccano.
+  Righe e card non cambiano;
+- **il click**: di `clickable` per un tocco, del gesto per un dito che ha trascinato (`clickable`
+  annulla alla vista di un cambio consumato). Scatta se il dito si solleva sul pulsante più 16 dp
+  (`FluidPressClickSlack`), anche dopo aver vagato, con lo stesso `PressClick`; oltre il margine suona
+  solo `PressRelease`. Tastiera, fuoco, TalkBack e ruolo restano di `clickable`. Il **click lungo resta** (ai menu serve): scatta se il dito è rimasto entro lo
   slop per il tempo del click lungo, e dopo non c'è click al rilascio;
 - **i numeri sono i suoi.** Molla di pressione e di discesa (0,5; 300), deriva del dito
   `m · tanh(0,05 · d / m)` col ritorno a molla critica (1; 300), allungamento direzionale lineare e
@@ -453,9 +458,9 @@ dito vero non ha questo problema, e il sistema lo dà a ogni evento. Ne seguono 
 
 **Da qualunque punto, e i tasti non consumano.** `FluidBackSwipe.Anywhere` è di serie, come LibrePods:
 un figlio che consuma (un cursore, un interruttore, una lista che scorre di lato) vince, e uno
-scorrimento orizzontale arrivato al suo inizio passa la mano alla pagina. Poiché dalla 3.0 un tasto non
-prende mai il gesto, un trascinamento orizzontale che parte su un tasto fa partire il back: coerente con
-LibrePods, **da giudicare in mano**. `EdgeOnly` (i primi 20 dp) per le pagine piene di gesti propri,
+scorrimento orizzontale arrivato al suo inizio passa la mano alla pagina. Un trascinamento orizzontale
+che parte su un tasto non porta indietro: il tasto tiene il dito (e `clickable` consuma già il down, che
+il riconoscitore legge come "un figlio se l'è preso"); per il back si parte fuori dai tasti. `EdgeOnly` (i primi 20 dp) per le pagine piene di gesti propri,
 `Off`: mai col dito dentro l'app, restano il back di sistema e il tasto. Nessuna vibrazione nel gesto:
 una pagina che scorre non è un momento da sentire.
 

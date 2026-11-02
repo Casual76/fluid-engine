@@ -22,6 +22,8 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.fluid.glassResolutionScale
+import dev.antigravity.fluidengine.ui.fluid.glassRimRamp
+import dev.antigravity.fluidengine.ui.fluid.glassRimRecipe
 import dev.antigravity.fluidengine.ui.fluid.glassSizedOptics
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
@@ -209,28 +211,45 @@ fun Modifier.fluidPhysicsSurface(
     }
   }
 
-  val onDrawFront: DrawScope.() -> Unit = remember(resolved, quality, state) {
+  // Il bordo e' quello di `glassSurface`, non uno proprio: stessa ricetta per lato (chiaro e in `Plus`
+  // sul lato scuro, scuro e in `SrcOver` sul chiaro: `glassRimRecipe`) e stesso profilo. Prima era un
+  // gradiente bianco in entrambi i temi, quindi sul lato chiaro la stessa lastra aveva un bordo da
+  // ferma e un altro in viaggio — o nessuno, bianco su una faccia chiara.
+  val darkSide = GlassDefaults.isDarkSurface()
+  val rim = remember(darkSide) { glassRimRecipe(darkSide) }
+  val onDrawFront: DrawScope.() -> Unit = remember(resolved, quality, state, rim) {
     {
       val amount = clampGlassUnit(currentIntensity()) * qualityFactor()
-      val alpha = clampGlassUnit(resolved.highlightAlpha * amount)
-      if (alpha > 0.01f) {
+      val strength = clampGlassUnit(resolved.highlightAlpha * amount)
+      if (strength > 0.01f) {
+        // Il peso del bordo e' quello di `glassSurface`: l'alfa dell'ottica per quello del colore
+        // della ricetta (0,5 sul lato scuro, 0,28 sul chiaro). Il renderer li moltiplica nello
+        // stesso modo: l'alfa del layer del bordo per l'alfa del colore dello stile.
+        val alpha = strength * rim.color.alpha
         val plan = state.ensurePlan()
         val bounds = plan.bounds
         if (bounds.height > 0f) {
           // Il rim del renderer legge la luce dal gradiente del campo; qui lo approssima un
-          // gradiente lungo la sagoma — pieno sul bordo che guarda la luce, quasi niente sui
-          // fianchi, un riflesso più povero sotto. Su un morph transiente le due letture sono
-          // indistinguibili, e questa segue la sagoma a ogni fotogramma.
+          // gradiente lungo la sagoma, col profilo dello shader (`glassRimRamp`): pieno sul bordo
+          // che guarda in su e in giu', a zero sui fianchi, con la rampa che l'angolo gli da'. Su un
+          // morph transiente le due letture sono indistinguibili, e questa segue la sagoma a ogni
+          // fotogramma.
+          val topRamp = plan.rimRampTop()
+          val bottomRamp = plan.rimRampBottom()
+          val lit = rim.color.copy(alpha = alpha)
+          val dark = rim.color.copy(alpha = 0f)
           drawPath(
             path = plan.silhouette,
             brush = Brush.verticalGradient(
-              0f to Color.White.copy(alpha = alpha),
-              0.45f to Color.White.copy(alpha = alpha * 0.15f),
-              1f to Color.White.copy(alpha = alpha * 0.5f),
+              0f to lit,
+              topRamp to dark,
+              (1f - bottomRamp) to dark,
+              1f to lit,
               startY = bounds.top,
               endY = bounds.bottom,
             ),
             style = Stroke(width = resolved.highlightWidth.toPx()),
+            blendMode = rim.blendMode,
           )
         }
       }
@@ -255,6 +274,31 @@ fun Modifier.fluidPhysicsSurface(
       backdropScaleFactor = qualityFactor,
     )
 }
+
+/**
+ * Le rampe del bordo (in alto, in basso) della sagoma corrente, in frazione dell'altezza.
+ *
+ * Con un solo rettangolo arrotondato gli angoli sono quelli veri, sopra e sotto; per un gruppo o una
+ * sagoma libera l'angolo non c'e' da leggere, e si assume la capsula (mezzo lato corto), che e' anche
+ * il tetto oltre cui lo shader non allarga l'arco. Sempre almeno [MinRimRamp], cosi' le fermate del
+ * gradiente restano crescenti anche per un angolo vivo. Due funzioni e non una coppia: si chiamano a
+ * ogni fotogramma di un viaggio, e una coppia sono tre oggetti.
+ */
+private fun PhysicsRenderPlan.rimRampTop(): Float {
+  val rounded = silhouetteRoundRect
+  val radius = rounded?.let { maxOf(it.topLeftCornerRadius.x, it.topRightCornerRadius.x) }
+    ?: (minOf(bounds.width, bounds.height) / 2f)
+  return glassRimRamp(radius, bounds.width, bounds.height).coerceAtLeast(MinRimRamp)
+}
+
+private fun PhysicsRenderPlan.rimRampBottom(): Float {
+  val rounded = silhouetteRoundRect
+  val radius = rounded?.let { maxOf(it.bottomLeftCornerRadius.x, it.bottomRightCornerRadius.x) }
+    ?: (minOf(bounds.width, bounds.height) / 2f)
+  return glassRimRamp(radius, bounds.width, bounds.height).coerceAtLeast(MinRimRamp)
+}
+
+private const val MinRimRamp = 0.002f
 
 /** Il ripiego sotto API 31: la tinta piena, ritagliata sul path che si trasforma. */
 private fun Modifier.physicsFallback(

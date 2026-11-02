@@ -264,9 +264,11 @@ fun FluidCoachMark(
   val surface = if (backdrop != null) {
     Modifier.glassSurface(
       state = backdrop,
-      tint = GlassDefaults.modalTint(),
+      tint = GlassDefaults.panelTint(),
       shape = shape,
       role = GlassRole.Modal,
+      // Il pannello flottante di tutti, con la sfocatura di chi sta sopra una pagina nitida.
+      optics = GlassDefaults.panelOptics(overSharpPage = true),
     )
   } else {
     Modifier.background(scheme.surfaceContainerHigh, shape)

@@ -388,14 +388,15 @@ fun FluidTabRail(
         // the selection simply disappeared. The floor is the vendored bar's own (half a rim,
         // a third of a shadow), and the press takes both the rest of the way.
         //
-        // The inner shadow is the other half: it is the thickness of the pane, seen from inside,
-        // and it is what makes the press read as pressing *into* something.
+        // There is no inner shadow here, and there is not meant to be: the lens is mounted with
+        // `opticalDepth = { 0f }`, and the inner shadow answers to that depth, so it was never drawn
+        // (this note used to promise "the thickness of the pane, seen from inside" and the override
+        // that went with it was dead). Nor should it come back: a specular rim and an inner shadow
+        // on the same millimetre of perimeter read as two edges, see `GlassDefaults.optics`.
         optics = remember {
           GlassDefaults.optics(GlassRole.Interactive).copy(
             blurScale = 0f,
             edgeFloor = FluidTabIndicatorEdgeFloor,
-            innerShadowRadius = 8.dp,
-            innerShadowAlpha = 1f,
           )
         },
           opticalDepth = { 0f },

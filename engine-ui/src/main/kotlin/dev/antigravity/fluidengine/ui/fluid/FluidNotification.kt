@@ -1032,9 +1032,12 @@ private fun FluidNotificationCard(
   val glassModifier = if (backdrop != null) {
     Modifier.glassSurface(
       state = backdrop,
-      tint = GlassDefaults.modalTint(),
+      tint = GlassDefaults.panelTint(),
       shape = shape,
       role = GlassRole.Modal,
+      // Il pannello flottante di ogni altra cosa (popover, menu, foglio), con la sfocatura piu'
+      // alta di chi arriva sopra una pagina nitida: nessuno scrim l'ha sfocata prima.
+      optics = GlassDefaults.panelOptics(overSharpPage = true),
       exports = cardGlass,
     )
   } else {

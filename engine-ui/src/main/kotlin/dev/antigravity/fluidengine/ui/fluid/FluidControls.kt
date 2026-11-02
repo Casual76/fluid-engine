@@ -195,9 +195,6 @@ fun FluidButton(
   }
 }
 
-private fun Color.luminanceIsLight(): Boolean =
-  (0.299f * red + 0.587f * green + 0.114f * blue) > 0.65f
-
 /**
  * A segmented control.
  *
@@ -390,7 +387,9 @@ fun <T> FluidSegmentedControl(
         .then(pill.modifier)
         .glassSurface(
           state = pillBackdrop,
-          tint = FluidSegmentPillTint(scheme.background.luminanceIsLight()),
+          // Chiaro o scuro lo decide una domanda sola, `isDarkSurface()`: la soglia di luminanza a mano
+          // (0,65 sullo sfondo) dava un'altra risposta del resto del vetro a meta' tono.
+          tint = FluidSegmentPillTint(lightBackground = !GlassDefaults.isDarkSurface()),
           shape = pillShape,
           role = GlassRole.Interactive,
           // Never any frosting: the lens is standing on a label eight pixels tall, and any blur at

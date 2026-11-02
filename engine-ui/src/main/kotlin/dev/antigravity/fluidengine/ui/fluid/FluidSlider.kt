@@ -84,14 +84,11 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
-import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
-import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
-import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
-import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
-import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
-import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import dev.antigravity.fluidengine.ui.haptics.FluidDetent
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticDetents
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
@@ -490,44 +487,17 @@ fun FluidSlider(
         }
         .then(
           if (isRenderEffectSupported()) {
-            Modifier.drawBackdrop(
+            // La goccia di Kyant (`glass/interaction/GlassDrop.kt`): bianca a riposo, lente sotto il
+            // dito. Il pomello dello slider ha la lente 10/14 dp e lo squash dal MODULO della
+            // velocita': la sorgente dividendo per 1 - v allunga la pillola in un verso e la
+            // accorcia nell'altro, e qui si allunga sempre.
+            Modifier.glassDrop(
               backdrop = thumbBackdrop,
-              shape = { FluidCapsuleShape },
-              effects = {
-                val progress = dragAnimation.pressProgress
-                blur(8f.dp.toPx() * (1f - progress))
-                lens(10f.dp.toPx() * progress, 14f.dp.toPx() * progress, chromaticAberration = true)
-              },
-              highlight = {
-                val progress = dragAnimation.pressProgress
-                Highlight.Ambient.copy(
-                  width = Highlight.Ambient.width / 1.5f,
-                  blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                  alpha = progress,
-                )
-              },
-              shadow = { Shadow(radius = 4f.dp, color = Color.Black.copy(alpha = 0.05f)) },
-              innerShadow = {
-                val progress = dragAnimation.pressProgress
-                InnerShadow(radius = 4f.dp * progress, alpha = progress)
-              },
-              layerBlock = {
-                scaleX = dragAnimation.scaleX
-                scaleY = dragAnimation.scaleY
-                if (!currentReducedMotion) {
-                  // Il modulo, non il segno: vedi l'intestazione. La sorgente dividendo per 1 - v
-                  // allunga la pillola in un verso e la accorcia nell'altro.
-                  val speed = abs(dragAnimation.velocity / 10f)
-                  scaleX /= 1f - (speed * 0.75f).fastCoerceIn(0f, 0.2f)
-                  scaleY *= 1f - (speed * 0.25f).fastCoerceIn(0f, 0.2f)
-                }
-              },
-              // Bianca a riposo e sparita sotto il dito: e' questo bianco che la lente sostituisce.
-              // Il bianco e' voluto e non del tema, come quello della manopola di `FluidSwitch`:
-              // e' la superficie della lente, che resta una pillola chiara anche sul tema scuro.
-              onDrawSurface = {
-                drawRect(Color.White.copy(alpha = 1f - dragAnimation.pressProgress))
-              },
+              drag = dragAnimation,
+              lensSize = GlassDropLens.Slider,
+              squashDivisor = GlassDropRecipe.SquashDivisor,
+              squashSigned = false,
+              reducedMotion = { currentReducedMotion },
             )
           } else {
             Modifier

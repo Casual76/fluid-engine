@@ -147,6 +147,8 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBack
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDropSquash
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
@@ -357,9 +359,11 @@ fun FluidFloatingTabBar(
 
         // The bar's own pane, when the caller has not built one. See `tabBarContentModifier`.
         //
-        // Frozen while the bar changes shape, for the reason the note above gives: the caller's own
-        // pane reads the scroll connection, and this one has to be held by the same fact or the fold
-        // costs a full-screen capture per frame.
+        // NOT frozen while the bar changes shape: the call below passes no `frozen`, so this pane
+        // takes a new capture on every frame of a fold. The caller's own pane is different — it
+        // reads `scrollConnection.morphing`, the note above, and holds itself by that fact. Holding
+        // this one too is a change of behaviour and not of text, and is left for a pass that can
+        // measure what a fold costs.
         val makesOwnGlass = tabBarContentModifier === Modifier && backdropState != null
         // E il caso opposto: il pannello l'ha costruito l'app. La barra non puo' vedere come sfoca,
         // quindi `FluidFloatingTabBarGlass.blurRadius` e' il suo raggio finale (vedi il KDoc).
@@ -1000,6 +1004,33 @@ private fun SharedTransitionScope.InlineBar(
     }
 }
 
+/**
+ * L'ombra sotto un pannello della barra: quella del vetro se c'e' un pannello, quella di piattaforma
+ * se la barra e' una capsula piatta.
+ *
+ * Con un pannello di vetro (`tabBarContentModifier`: il suo, o quello che l'app ha passato) l'ombra
+ * di piattaforma sta sotto una superficie che trasmette e trapela dentro la sagoma, e non e' del
+ * materiale: non ha il colore del lato del tema ne' il peso del ruolo. Qui e' la stessa che disegna
+ * `glassSurface` ([glassShadow]), con il raggio del ruolo flottante alla quota di riferimento di
+ * [FluidFloatingTabBarDefaults.elevations] e proporzionale all'elevazione che l'app ha chiesto: una
+ * barra da 12 dp ha l'ombra del ruolo, una scheda in linea da 6 ne ha una piu' stretta. E' *qui*, fuori
+ * dal `clip` che segue, e non nel pannello: li' l'ombra del vetro cadrebbe dentro il ritaglio e non si
+ * vedrebbe.
+ *
+ * Senza pannello (nessun fondale, nessun modificatore) la barra e' una capsula piena di
+ * `colors.backgroundColor` e l'ombra di piattaforma e' quella giusta.
+ */
+@Composable
+private fun Modifier.barShadow(shape: Shape, elevation: Dp, hasGlassPane: Boolean): Modifier =
+    if (hasGlassPane) {
+        glassShadow(shape = shape, radiusScale = elevation / BarShadowReferenceElevation)
+    } else {
+        shadow(shape = shape, elevation = elevation)
+    }
+
+/** La quota a cui il raggio dell'ombra del ruolo flottante vale esatto: l'elevazione espansa di serie. */
+private val BarShadowReferenceElevation = 12.dp
+
 @Composable
 private fun SharedTransitionScope.InlineTab(
     inlineTab: FluidFloatingTabBarTab,
@@ -1024,9 +1055,10 @@ private fun SharedTransitionScope.InlineTab(
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .shadow(
+            .barShadow(
                 shape = shapes.tabBarShape,
-                elevation = elevations.inlineElevation
+                elevation = elevations.inlineElevation,
+                hasGlassPane = tabBarContentModifier !== Modifier
             )
             .background(
                 color = colors.backgroundColor,
@@ -1094,9 +1126,10 @@ private fun SharedTransitionScope.InlineStandaloneTab(
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .shadow(
+            .barShadow(
                 shape = shapes.standaloneTabShape,
-                elevation = elevations.inlineElevation
+                elevation = elevations.inlineElevation,
+                hasGlassPane = tabBarContentModifier !== Modifier
             )
             .background(
                 color = colors.backgroundColor,
@@ -1415,7 +1448,11 @@ private fun SharedTransitionScope.SearchExpandedBar(
                         animatedVisibilityScope = animatedVisibilityScope,
                         zIndexInOverlay = 1f
                     )
-                    .shadow(shape = shapes.tabBarShape, elevation = elevations.expandedElevation)
+                    .barShadow(
+                        shape = shapes.tabBarShape,
+                        elevation = elevations.expandedElevation,
+                        hasGlassPane = tabBarContentModifier !== Modifier
+                    )
                     .background(color = colors.backgroundColor, shape = shapes.tabBarShape)
                     .clip(shapes.tabBarShape)
                     .then(tabBarContentModifier)
@@ -1457,9 +1494,10 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .shadow(
+            .barShadow(
                 shape = shapes.standaloneTabShape,
-                elevation = elevations.expandedElevation
+                elevation = elevations.expandedElevation,
+                hasGlassPane = tabBarContentModifier !== Modifier
             )
             .background(
                 color = colors.backgroundColor,
@@ -1693,9 +1731,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                     offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
                 }
             },
-            // Critically damped, so the stretch tracks the drag instead of ringing
-            // after it: the library's underdamped default is what made the puck
-            // wobble as it crossed each tab.
+            // No `velocityDampingRatio`, so it is the library's 0.5: UNDERdamped, and on
+            // purpose. The stretch overshoots and rings a little after every change of
+            // speed — it is the jelly that feels right in the hand on this puck, and it is
+            // the same spring the slider and the switch thumbs have. (This note used to say
+            // the opposite, "critically damped", about a value that was never set to 1.)
         )
     }
     // False until this bar has run its selection sync once. Expanding back from
@@ -1834,9 +1874,10 @@ private fun SharedTransitionScope.ExpandedTabs(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer { translationX = panelOffset }
-                .shadow(
+                .barShadow(
                     shape = shapes.tabBarShape,
-                    elevation = elevations.expandedElevation
+                    elevation = elevations.expandedElevation,
+                    hasGlassPane = tabBarContentModifier !== Modifier
                 )
                 .background(
                     color = colors.backgroundColor,
@@ -2261,9 +2302,18 @@ private fun SharedTransitionScope.ExpandedTabs(
                             layerBlock = {
                                 scaleX = dampedDragAnimation.scaleX
                                 scaleY = dampedDragAnimation.scaleY
-                                val velocity = dampedDragAnimation.velocity / 10f
-                                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                                // Lo squash e' quello della goccia (`glassDropSquash`), coi numeri
+                                // di questa pillola: CON IL SEGNO e diviso per 10, e senza il
+                                // cancello delle animazioni ridotte. Non si tocca un numero: la
+                                // pillola e' uno dei tre metri.
+                                val squash = glassDropSquash(
+                                    velocity = dampedDragAnimation.velocity,
+                                    divisor = GlassDropRecipe.SquashDivisor,
+                                    signed = true,
+                                    reducedMotion = false
+                                )
+                                scaleX /= squash.xDivisor
+                                scaleY *= squash.yFactor
                             },
                             onDrawSurface = {
                                 // What shows inside the puck is the hidden tinted tab

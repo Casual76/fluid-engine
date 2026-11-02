@@ -33,6 +33,11 @@ class GlassSizeRuleTest {
           refractionHeight = 7.dp,
           refractionAmount = 9.dp,
         ).sanitized(),
+        // Il pannello flottante unico (3.0) e le sue varianti: popover, finestra, foglio, menu, notifica.
+        "Panel" to GlassDefaults.panelOptics().sanitized(),
+        "PanelCompact" to GlassDefaults.panelOptics(compact = true).sanitized(),
+        "PanelSharpPage" to GlassDefaults.panelOptics(overSharpPage = true).sanitized(),
+        "PanelCompactSharpPage" to GlassDefaults.panelOptics(compact = true, overSharpPage = true).sanitized(),
       )
 
   private val sizesDp = listOf(
@@ -282,10 +287,11 @@ class GlassSizeRuleTest {
       val result = sized(optics, size, density)
       val unlimited = base * density * optics.blurScale * (1f + GlassSizeBlurBoost * (
         glassSizeGain(size) * optics.sizeResponse))
-      // L'unica ottica qui che parte con la sfocatura a ridosso dell'altezza e' quella del menu
-      // compatto (6.25 dp contro 7): per lei il tetto scatta davvero, ed e' il suo compito. Un menu
+      // Le uniche ottiche qui che partono con la sfocatura a ridosso dell'altezza sono quelle del menu
+      // compatto (6.25 dp contro 7, e il pannello compatto che ha gli stessi numeri; l'altra variante
+      // compatta e' tarata proprio a 7 dp): per lei il tetto scatta davvero, ed e' il suo compito. Un menu
       // compatto non e' mai largo 300 dp, ma se lo diventasse il padding resterebbe zero lo stesso.
-      if (name != "CompactPopover") {
+      if (name != "CompactPopover" && name != "PanelCompact" && name != "PanelCompactSharpPage") {
         assertEquals(
           "$name a $size dp (x$density): il tetto di copertura ha tagliato la sfocatura",
           unlimited, result.blurPx, unlimited * 1e-5f + 1e-4f,

@@ -127,7 +127,9 @@ fun FluidSectionIndex(
   val haptics = LocalFluidHaptics.current
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val markColor = MaterialTheme.colorScheme.primary
-  val floatingTint = GlassDefaults.floatingTint()
+  // La bolla e' un pannello flottante: la sua pellicola e' quella di tutti (`panelTint`), non la
+  // flottante della navigazione.
+  val panelTint = GlassDefaults.panelTint()
   val controlTint = GlassDefaults.controlTint()
   val scheme = MaterialTheme.colorScheme
   val density = LocalDensity.current
@@ -362,7 +364,7 @@ fun FluidSectionIndex(
               if (backdrop != null) {
                 Modifier.glassSurface(
                   state = backdrop,
-                  tint = floatingTint,
+                  tint = panelTint,
                   shape = FluidCapsuleShape,
                   role = GlassRole.Modal,
                 )

@@ -52,7 +52,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -62,14 +61,13 @@ import androidx.compose.ui.geometry.CornerRadius
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsShadow
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -97,7 +95,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -1119,22 +1116,20 @@ private fun FluidAnchoredPopover(
   // esattamente la frazione che lo scrim ha sullo schermo.
   val windowDark = GlassDefaults.isDarkSurface()
   // La pellicola a riposo: quella tinta quando la finestra porta il colore della cosa da cui e'
-  // nata, altrimenti quella flottante di sempre. E' **questa** che si vede a modale aperto —
-  // `tintBlend` vale 0 con la presenza piena, cioe' sceglie `tintFrom`.
-  val windowFloatingTint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
-    ?: GlassDefaults.floatingTint()
-  val windowTintWithScrim = remember(windowFloatingTint, windowDark) {
-    windowFloatingTint.copy(
-      overlay = windowFloatingTint.overlay.compositeOver(
+  // nata, altrimenti quella del modale. E' la pellicola di ogni pannello flottante (`panelTint`),
+  // non una flottante propria: la finestra a riposo e' una lastra come il popover. E' **questa**
+  // che si vede a modale aperto — `tintBlend` vale 0 con la presenza piena, cioe' sceglie `tintFrom`.
+  val windowPanelTint = GlassDefaults.panelTint(paneTint)
+  val windowOptics = GlassDefaults.panelOptics()
+  val windowTintWithScrim = remember(windowPanelTint, windowDark) {
+    windowPanelTint.copy(
+      overlay = windowPanelTint.overlay.compositeOver(
         Color.Black.copy(alpha = if (windowDark) 0.20f else 0.12f),
       ),
     )
   }
 
   if (useMorphWindow && backdrop != null) {
-    val shadowBlurPx = with(density) { FluidPopoverOptics.shadowRadius.toPx() }
-    val shadowDropPx = with(density) { FluidPopoverShadowDrop.toPx() }
-    val shadowCache = remember { FluidPopoverShadowCache() }
     // Il materiale della finestra: la dissolvenza del modale, e in CHIUSURA anche il viaggio —
     // pellicola e ombra muoiono mentre la sagoma atterra sulla riga, non dopo. In apertura il
     // viaggio non c'entra: il materiale e' costante, cosi' quello che si vede attraverso il
@@ -1160,43 +1155,20 @@ private fun FluidAnchoredPopover(
           // e' a zero non si disegna NIENTE, e una displaylist vuota non ha lampi da rigiocare.
           if (windowAmount() > 0.004f) drawContent()
         }
-        .drawBehind {
-          // L'ombra della finestra: senza, il pannello aperto galleggiava piatto. La prima
-          // versione passava un BlurMaskFilter sul path della silhouette A OGNI FOTOGRAMMA, e
-          // HWUI ri-rasterizza la maschera ogni volta che il path cambia — era il lag che si
-          // vedeva a occhio nudo. Qui la sfocatura si paga una volta sola, in un bitmap per
-          // taglia di pannello, e ogni fotogramma e' un drawImage stirato sui bounds correnti:
-          // un'ombra morbida stirata e una esatta sono indistinguibili.
-          // Muore CON l'atterraggio, non col proprio orologio: un'ombra ancora accesa attorno a
-          // una sagoma gia' posata sulla riga e' "il tasto resta scurito fino all'ultimo frame".
-          val amount = windowAmount()
-          if (amount > 0.02f) {
-            val bounds = windowPhysics.ensurePlan().bounds
-            val shadow = shadowCache.obtain(
-              paneWidth = placement.paneWidth,
-              paneHeight = placement.paneHeight,
-              cornerRadius = paneRadiusPx,
-              blur = shadowBlurPx,
-            )
-            if (shadow != null && bounds.width > 1f && bounds.height > 1f) {
-              val pad = shadowBlurPx * 2f
-              val sx = bounds.width / placement.paneWidth
-              val sy = bounds.height / placement.paneHeight
-              drawImage(
-                image = shadow,
-                dstOffset = IntOffset(
-                  (bounds.left - pad * sx).roundToInt(),
-                  (bounds.top - pad * sy + shadowDropPx).roundToInt(),
-                ),
-                dstSize = IntSize(
-                  (bounds.width + pad * 2f * sx).roundToInt().coerceAtLeast(1),
-                  (bounds.height + pad * 2f * sy).roundToInt().coerceAtLeast(1),
-                ),
-                alpha = (FluidPopoverOptics.shadowAlpha * amount).coerceIn(0f, 1f),
-              )
-            }
-          }
-        }
+        // L'ombra della finestra: senza, il pannello aperto galleggiava piatto. E' quella di ogni
+        // lastra di vetro (colore, peso e distanza di `glassSurface`), ma sfocata una volta sola per
+        // taglia di pannello e stirata sulla sagoma a ogni fotogramma: il renderer la registrerebbe
+        // di nuovo a ogni fotogramma del viaggio, ed era il lag dell'apertura. Vedi
+        // [fluidPhysicsShadow].
+        // Muore CON l'atterraggio, non col proprio orologio: un'ombra ancora accesa attorno a
+        // una sagoma gia' posata sulla riga e' "il tasto resta scurito fino all'ultimo frame".
+        .fluidPhysicsShadow(
+          state = windowPhysics,
+          optics = windowOptics,
+          restSize = { Size(placement.paneWidth, placement.paneHeight) },
+          cornerRadiusPx = paneRadiusPx,
+          amount = windowAmount,
+        )
         .fluidPhysicsSurface(
           state = windowPhysics,
           // La pagina CRUDA, non il composito pagina+scrim. Gli exports dello scrim registrano
@@ -1206,21 +1178,16 @@ private fun FluidAnchoredPopover(
           // tutta la chiusura, misurato sui fotogrammi. Lo scurimento dello scrim la finestra
           // se lo dipinge da sola, qui sotto, alla forza CORRENTE.
           backdrop = windowBackdrop ?: backdrop,
-          // Piu' leggero del modale classico, deliberato: "troppo glassoso" e' stato il verdetto
-          // sulla prima versione. Pellicola da capsula flottante — il vetro lo fa la rifrazione
-          // al bordo, non il latte — ma il blur non scende sotto la leggibilita', e il bordo e'
-          // PRONUNCIATO: e' il bordo a dire "abbiamo selezionato questo", come sul menu
-          // contestuale.
+          // Il materiale e' quello del pannello flottante, `panelOptics`: la finestra aveva numeri
+          // suoi (sfocatura 2,2, bordo da 1,1 dp al 62%, scelti dopo il verdetto "troppo glassoso"
+          // sulla prima versione) e a riposo non si distingueva da un popover per il motivo
+          // sbagliato: non era la stessa lastra. Il vetro lo fa la rifrazione al bordo, non il
+          // latte, e il bordo e' quello di ogni lastra (`glassRimRecipe`).
           // La finestra che nasce da una superficie colorata porta il suo colore: e' la stessa
           // card che si sta trasformando, non un pannello che la contiene.
-          tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
-            ?: GlassDefaults.floatingTint(),
+          tint = windowPanelTint,
           role = GlassRole.Modal,
-          optics = FluidPopoverOptics.copy(
-            blurScale = 2.2f,
-            highlightWidth = 1.1.dp,
-            highlightAlpha = 0.62f,
-          ),
+          optics = windowOptics,
           // La pellicola porta anche la quota di scrim che spetta alla finestra, alla forza a
           // cui lo scrim sta DAVVERO in questo fotogramma: piena a modale aperto, a scalare
           // lungo le dissolvenze. Cosi' il vetro non e' mai ne' piu' scuro ne' piu' chiaro
@@ -1327,11 +1294,10 @@ private fun FluidAnchoredPopover(
             if (backdrop != null && !useMorphWindow) {
               Modifier.glassSurface(
                 state = backdrop,
-                tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
-                  ?: GlassDefaults.modalTint(),
+                tint = GlassDefaults.panelTint(paneTint),
                 shape = shape,
                 role = GlassRole.Modal,
-                optics = if (compact) FluidCompactPopoverOptics else FluidPopoverOptics,
+                optics = GlassDefaults.panelOptics(compact = compact),
                 // Congelata **solo per i pannelli che viaggiano**. Una finestra che attraversa lo
                 // schermo non puo' ricalcolare la mappatura a meta' volo: su ogni chiusura restava
                 // spogliata del vetro, una card lattiginosa in viaggio.
@@ -1597,11 +1563,10 @@ private fun FluidLiftedPreview(
         if (backdrop != null) {
           Modifier.glassSurface(
             state = backdrop,
-            tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
-              ?: GlassDefaults.modalTint(),
+            tint = GlassDefaults.panelTint(paneTint),
             shape = shape,
             role = GlassRole.Modal,
-            optics = FluidPopoverOptics,
+            optics = GlassDefaults.panelOptics(),
             // Il materiale entra ed esce; l'immagine no. E' questa la transizione che mancava alla
             // chiusura: il colore torna quello di prima e il bordo si spegne, invece di essere
             // scambiati di colpo con la riga vera.
@@ -1832,11 +1797,10 @@ private fun FluidGlassModalSheet(
           if (backdrop != null && !fullScreen) {
             Modifier.glassSurface(
               state = backdrop,
-              tint = paneTint?.let { GlassDefaults.tintedModalTint(it) }
-                ?: GlassDefaults.modalTint(),
+              tint = GlassDefaults.panelTint(paneTint),
               shape = shape,
               role = GlassRole.Modal,
-              optics = FluidPopoverOptics,
+              optics = GlassDefaults.panelOptics(),
               exports = sheetGlass,
             )
           } else if (fullScreen) {
@@ -2183,71 +2147,6 @@ fun Modifier.fluidContextMenu(
 }
 
 /**
- * The pop-up's own material.
- *
- * Real glass, with the lens on. A modal that is merely translucent is the failure this file exists
- * to avoid: now that the scrim barely frosts the page, a flat wash over it would show the page
- * straight through, unbent, and read as a semi-transparent rectangle rather than as a pane. The blur
- * stays modest and the *displacement* does the identifying — the page visibly bending into the
- * pop-up's perimeter is the whole tell that there is a thickness there.
- */
-private val FluidPopoverOptics = GlassOptics(
-  // The one surface here that *is* frosted, and the division of labour is deliberate: the scrim
-  // barely touches the page, the pop-up frosts hard. That is the way round Apple does it — the page
-  // stays itself and merely dims, and the thing in front of it is the pane you cannot read through.
-  // The reverse (a heavy scrim under a clear pop-up) hides the page and gains nothing.
-  //
-  // This was twelve dp, on top of a scrim that had already blurred the same pixels, and the result
-  // was the complaint that started this pass: a pop-up you cannot see anything through is not
-  // glass, it is a light grey card, and every one of the expensive things below — the bevel, the
-  // rim, the vibrancy — was being spent describing the edge of a blank. The material is the
-  // *bend*; frosting is only what keeps the text on top readable, and five dp over an
-  // already-dimmed page is enough for that.
-  blurScale = 2.5f,
-  // And the bevel comes in to match. Twenty-eight dp of displacement on a menu 210 dp wide meant a
-  // quarter of the pane was edge: what should read as a thick slab read as a fisheye, with the page
-  // smeared round the outside of it in a coloured halo.
-  refractionHeight = 14.dp,
-  refractionAmount = 18.dp,
-  depthEffect = false,
-  dispersion = false,
-  vibrancy = 1.6f,
-  highlightWidth = 0.8.dp,
-  // Bright enough to find the edge, dim enough that the pane is not outlined in white. At 0.7 the
-  // rim was the loudest thing on the screen and the pop-up read as a sticker.
-  highlightAlpha = 0.45f,
-  highlightAngle = 90f,
-  // Nessuna ombra interna: il rim speculare e l'ombra interna sono due trattamenti dello stesso
-  // millimetro di perimetro, e insieme si leggono come due bordi invece che come spessore.
-  innerShadowRadius = 0.dp,
-  innerShadowAlpha = 0f,
-  // Tight and soft. A wide dark shadow over a scrim that is already darkening the page reads as
-  // grime around the pop-up rather than as height.
-  shadowRadius = 18.dp,
-  shadowAlpha = 0.36f,
-  pressedDepthBoost = 0f,
-)
-
-/**
- * La lente di un pannello piccolo.
- *
- * La lente e' una misura assoluta, la superficie no: diciotto dp di spostamento su una finestra
- * larga sono un bordo, sugli stessi diciotto dp di un menu contestuale — due righe, poco piu' di
- * duecento dp di lato — sono un terzo del pannello. E quando la lente e' cosi' grande rispetto a
- * cio' che sta piegando, l'immagine ripiegata sul bordo si stacca da quella dritta al centro: si
- * vedono **due versioni** dello stesso oggetto dentro lo stesso vetro, una schiacciata al margine e
- * una al suo posto. Non e' un difetto della rifrazione, e' la rifrazione applicata a una taglia per
- * cui non era tarata.
- *
- * Era gia' successo una volta — la nota qui sopra racconta i ventotto dp diventati diciotto — ma la
- * correzione era stata fatta guardando la finestra grande.
- */
-private val FluidCompactPopoverOptics = FluidPopoverOptics.copy(
-  refractionHeight = 7.dp,
-  refractionAmount = 9.dp,
-)
-
-/**
  * How small the pop-up starts.
  *
  * Not zero. Growing from nothing is a zoom, and a zoom has no material in it — the pop-up has to be
@@ -2337,62 +2236,6 @@ private val FluidPopoverMaxWidth = 620.dp
  */
 private val FluidPopoverAnchoredMaxWidth = 360.dp
 
-/** Di quanto l'ombra della finestra sta sotto la silhouette: il pannello e' sospeso, non incollato. */
-private val FluidPopoverShadowDrop = 6.dp
-
-/**
- * L'ombra della finestra, sfocata UNA volta per taglia di pannello.
- *
- * Il BlurMaskFilter passato sul path della silhouette a ogni fotogramma era il lag dell'apertura:
- * HWUI rasterizza la maschera daccapo ogni volta che il path cambia, e in un morph il path cambia
- * sempre. Qui il blur si paga alla prima richiesta, in un bitmap a mezza risoluzione (l'ombra e'
- * morbida per definizione: mezza risoluzione non si vede), e il fotogramma costa un drawImage.
- */
-private class FluidPopoverShadowCache {
-  private var image: ImageBitmap? = null
-  private var keyWidth = -1f
-  private var keyHeight = -1f
-  private var keyRadius = -1f
-  private var keyBlur = -1f
-
-  fun obtain(paneWidth: Float, paneHeight: Float, cornerRadius: Float, blur: Float): ImageBitmap? {
-    if (paneWidth < 1f || paneHeight < 1f || blur < 1f) return null
-    if (image == null || paneWidth != keyWidth || paneHeight != keyHeight ||
-      cornerRadius != keyRadius || blur != keyBlur
-    ) {
-      keyWidth = paneWidth
-      keyHeight = paneHeight
-      keyRadius = cornerRadius
-      keyBlur = blur
-      val pad = blur * 2f
-      val scale = 0.5f
-      val bitmap = android.graphics.Bitmap.createBitmap(
-        (((paneWidth + pad * 2f) * scale).toInt()).coerceAtLeast(2),
-        (((paneHeight + pad * 2f) * scale).toInt()).coerceAtLeast(2),
-        android.graphics.Bitmap.Config.ARGB_8888,
-      )
-      val canvas = android.graphics.Canvas(bitmap)
-      val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.BLACK
-        maskFilter = android.graphics.BlurMaskFilter(
-          (blur * scale).coerceAtLeast(1f),
-          android.graphics.BlurMaskFilter.Blur.NORMAL,
-        )
-      }
-      canvas.drawRoundRect(
-        pad * scale,
-        pad * scale,
-        (pad + paneWidth) * scale,
-        (pad + paneHeight) * scale,
-        cornerRadius * scale,
-        cornerRadius * scale,
-        paint,
-      )
-      image = bitmap.asImageBitmap()
-    }
-    return image
-  }
-}
 private const val FluidPopoverMaxHeightFraction = 0.78f
 /**
  * The pop-up's corner, and it is [FluidRadius.Group] on purpose.

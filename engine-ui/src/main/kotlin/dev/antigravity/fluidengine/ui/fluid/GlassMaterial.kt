@@ -47,7 +47,9 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.HighlightStyle
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
+import dev.antigravity.fluidengine.ui.glass.backdrop.internal.ShapeProvider
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
+import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.ShadowElement
 
 /**
  * Fluid Glass — a real refracting material, not a translucent rectangle.
@@ -466,6 +468,83 @@ internal fun glassEdgeDepth(floor: Float, depth: Float): Float {
 internal fun clampGlassUnit(value: Float): Float =
   if (value.isFinite()) value.coerceIn(0f, 1f) else 0f
 
+/**
+ * Il bordo speculare di una lastra: colore e modo di comporre, per lato.
+ *
+ * **Uno solo.** Lo disegnano due strade — il renderer di `glassSurface` e il tratto di path di
+ * `fluidPhysicsSurface` — e finche' ognuna aveva la sua ricetta la stessa lastra, ferma o in viaggio,
+ * aveva due bordi: quello fisico era un gradiente bianco in entrambi i temi, e sul lato chiaro
+ * bianco su bianco non si vede. Chi disegna un bordo di vetro chiede qui il colore.
+ *
+ * Il lato scuro e' luce: bianco, in `Plus`, perche' la luce si somma. Il lato chiaro non ha luce da
+ * sommare, e il giro e' fatto di due meta' insieme — un bordo scuro e un modo ordinario di posarlo:
+ * girare il solo colore compila, gira, e non disegna niente. Piu' quieto del gemello bianco, perche'
+ * una riga scura su carta si legge a un contrasto piu' basso di una chiara al buio.
+ */
+internal data class GlassRimRecipe(val color: Color, val blendMode: BlendMode)
+
+internal fun glassRimRecipe(darkSide: Boolean): GlassRimRecipe =
+  if (darkSide) {
+    GlassRimRecipe(Color.White.copy(alpha = 0.5f), BlendMode.Plus)
+  } else {
+    GlassRimRecipe(Color.Black.copy(alpha = 0.28f), BlendMode.SrcOver)
+  }
+
+/**
+ * Il colore dell'ombra esterna di una lastra, per lato: nero al 16% sul chiaro, al 10% sullo scuro.
+ *
+ * Sul chiaro la pellicola non ha margine (la pagina e' gia' quasi bianca), quindi ombra e filetto
+ * sono tutto cio' che dice che una superficie galleggia; sullo scuro un'ombra nera su un fondo nero
+ * non fa niente e la alza la pellicola. Il peso del ruolo ([GlassOptics.shadowAlpha]) si moltiplica
+ * a questo, ed e' lo stesso conto per `glassSurface`, per l'ombra dei pannelli in viaggio
+ * (`fluidPhysicsShadow`) e per quella sotto la barra flottante.
+ */
+internal fun glassShadowColor(darkSide: Boolean): Color =
+  Color.Black.copy(alpha = if (darkSide) 0.10f else 0.16f)
+
+/**
+ * Di quanto lo shader del bordo allarga l'arco dell'angolo per leggere la normale:
+ * `gradRadius = min(raggio * 1,5, mezzo lato corto)` (`glass/backdrop/internal/Shaders.kt`).
+ */
+internal const val GlassRimCornerGain = 1.5f
+
+/**
+ * La rampa del bordo, in frazione dell'altezza, per un angolo di raggio [cornerRadiusPx] su una
+ * sagoma di [widthPx] x [heightPx].
+ *
+ * Il bordo di `glassSurface` e' `|normale . (0, 1)|`: pieno dove la sagoma guarda in su o in giu',
+ * zero sui fianchi. Lungo un fianco la normale gira solo dentro l'arco allargato di `gradRadius`, e li'
+ * l'intensita' scende da 1 a 0 quasi linearmente con la quota: e' questa lunghezza, vista dall'alto
+ * (o dal basso), la rampa. Una capsula la porta a mezza altezza (zero a meta' esatta); un angolo
+ * piccolo su un pannello alto la tiene corta, e i fianchi restano spenti. Il tratto di path del
+ * bordo fisico non puo' chiedere la normale a ogni pixel: ne disegna questo profilo, con un
+ * gradiente verticale.
+ */
+internal fun glassRimRamp(cornerRadiusPx: Float, widthPx: Float, heightPx: Float): Float {
+  if (!(heightPx > 0f) || !(widthPx > 0f)) return 0f
+  val gradRadius = minOf(
+    cornerRadiusPx.coerceAtLeast(0f) * GlassRimCornerGain,
+    minOf(widthPx, heightPx) / 2f,
+  )
+  return (gradRadius / heightPx).coerceIn(0f, 0.5f)
+}
+
+/**
+ * L'intensita' del bordo (0..1) a [position] dell'altezza (0 sopra, 1 sotto), data la rampa di sopra
+ * e quella di sotto: 1 al bordo, zero oltre la rampa, e lineare in mezzo.
+ *
+ * E' anche la tabella del gradiente fisico: le sue fermate sono esattamente (0, 1), (rampa, 0),
+ * (1 - rampa, 0), (1, 1).
+ */
+internal fun glassRimIntensity(position: Float, topRamp: Float, bottomRamp: Float): Float {
+  val p = position.coerceIn(0f, 1f)
+  return when {
+    topRamp > 0f && p < topRamp -> 1f - p / topRamp
+    bottomRamp > 0f && p > 1f - bottomRamp -> 1f - (1f - p) / bottomRamp
+    else -> 0f
+  }
+}
+
 private fun finiteNonNegative(value: Float): Float =
   if (value.isFinite()) value.coerceAtLeast(0f) else 0f
 
@@ -584,8 +663,11 @@ object GlassDefaults {
   private val InteractiveOptics = GlassOptics(
     // A control is a lens, and a lens is nearly clear — but a *label* on a lens still has to be
     // read against whatever the lens happens to be standing over. This is the least frosting that
-    // survives a button parked over a photograph. Surfaces that carry no text at all — the tab bar's
-    // indicator, a switch thumb — override it back to zero at their call sites.
+    // survives a button parked over a photograph. Chi non porta testo lo riporta a zero al sito di
+    // chiamata: oggi sono l'indicatore del rail (`FluidTabBar.kt`) e la pillola del segmentato
+    // (`FluidControls.kt`). I pomelli di slider e interruttore e la pillola della tab bar flottante
+    // non passano di qui affatto: chiamano `drawBackdrop` con una ricetta loro, la goccia
+    // (`glass/interaction/GlassDrop.kt`), e queste ottiche non le leggono mai.
     blurScale = 1.4f,
     refractionHeight = 10.dp,
     // Held to well under the radius of the smallest control the system has. A 44 dp lens displacing
@@ -594,7 +676,8 @@ object GlassDefaults {
     refractionAmount = 14.dp,
     // A dome, on the one kind of surface small enough for the eye to read the whole thing as a
     // single lens. Wrong for anything wider — see the note on [GlassOptics.depthEffect] — and wrong
-    // even here below about 40 dp, which is why a switch thumb turns it back off.
+    // even here below about 40 dp: la lente del pomello dell'interruttore e' infatti senza cupola,
+    // perche' la sua ricetta (la goccia) non l'ha mai accesa.
     depthEffect = true,
     dispersion = true,
     vibrancy = 1.6f,
@@ -739,6 +822,131 @@ object GlassDefaults {
 
   /** The optics a content surface takes when its canvas is another pane. See [LocalFluidCanvasIsGlass]. */
   fun stackedContentOptics(): GlassOptics = StackedContentOptics
+
+  /**
+   * Il pannello flottante (3.0): popover, menu contestuale, finestra che si espande, foglio,
+   * notifica, callout, menu che si trasforma. **Un solo materiale**, non uno per componente.
+   *
+   * Ognuno di questi aveva i suoi numeri: la finestra che si espande sfocava 2,2 con un bordo da
+   * 1,1 dp, il popover 2,5 con uno da 0,8, la notifica 3,5 con la lente di un `Modal`, il callout lo
+   * stesso. Messi uno accanto all'altro sullo schermo sono cinque vetri diversi per la stessa
+   * famiglia di cose. Sono qui, e un pannello nuovo chiede questi.
+   *
+   * Il punto di partenza e' quello che il popover aveva gia' dopo i suoi giri di taratura, e i
+   * commenti sotto sono la loro storia. La regola della taglia ([glassSizedOptics]) si applica
+   * sopra, come a ogni lastra: un menu piccolo e uno largo mezzo schermo escono dalla stessa ricetta
+   * con la sfocatura e la lente che la loro taglia chiede.
+   *
+   * Vetro vero, con la lente accesa. Un pannello che e' solo traslucido e' il difetto che questo
+   * file esiste per evitare: ora che lo scrim sfoca appena la pagina, una pellicola piatta la
+   * mostrerebbe dritta, senza piegarla, e si leggerebbe come un rettangolo semitrasparente e non
+   * come un pannello. La sfocatura resta modesta e a identificare e' la *dislocazione*: la pagina
+   * che si piega visibilmente nel perimetro del pannello e' tutto cio' che dice che li' c'e' uno
+   * spessore.
+   */
+  private val PanelOptics = GlassOptics(
+    // The one surface here that *is* frosted, and the division of labour is deliberate: the scrim
+    // barely touches the page, the pop-up frosts hard. That is the way round Apple does it — the page
+    // stays itself and merely dims, and the thing in front of it is the pane you cannot read through.
+    // The reverse (a heavy scrim under a clear pop-up) hides the page and gains nothing.
+    //
+    // This was twelve dp, on top of a scrim that had already blurred the same pixels, and the result
+    // was the complaint that started this pass: a pop-up you cannot see anything through is not
+    // glass, it is a light grey card, and every one of the expensive things below — the bevel, the
+    // rim, the vibrancy — was being spent describing the edge of a blank. The material is the
+    // *bend*; frosting is only what keeps the text on top readable, and five dp over an
+    // already-dimmed page is enough for that.
+    blurScale = PanelBlurScale,
+    // And the bevel comes in to match. Twenty-eight dp of displacement on a menu 210 dp wide meant a
+    // quarter of the pane was edge: what should read as a thick slab read as a fisheye, with the page
+    // smeared round the outside of it in a coloured halo.
+    refractionHeight = 14.dp,
+    refractionAmount = 18.dp,
+    depthEffect = false,
+    dispersion = false,
+    vibrancy = 1.6f,
+    highlightWidth = 0.8.dp,
+    // Bright enough to find the edge, dim enough that the pane is not outlined in white. At 0.7 the
+    // rim was the loudest thing on the screen and the pop-up read as a sticker.
+    highlightAlpha = 0.45f,
+    highlightAngle = 90f,
+    // Nessuna ombra interna: il rim speculare e l'ombra interna sono due trattamenti dello stesso
+    // millimetro di perimetro, e insieme si leggono come due bordi invece che come spessore.
+    innerShadowRadius = 0.dp,
+    innerShadowAlpha = 0f,
+    // Tight and soft. A wide dark shadow over a scrim that is already darkening the page reads as
+    // grime around the pop-up rather than as height.
+    shadowRadius = 18.dp,
+    shadowAlpha = 0.36f,
+    pressedDepthBoost = 0f,
+  )
+
+  /** La sfocatura di base del pannello: vedi [PanelOptics]. */
+  private const val PanelBlurScale = 2.5f
+
+  /**
+   * La sfocatura di un pannello che arriva sopra una pagina ancora nitida, senza scrim.
+   *
+   * Una notifica e un callout non hanno lo scrim che sfoca la pagina prima di loro: il testo che sta
+   * sotto passa nitido, e il pannello deve nasconderlo da solo. Alza solo la sfocatura, da 2,5 a 3,5
+   * — lo stesso numero che il ruolo `Modal` aveva per loro, e per la ragione data in [ModalOptics]:
+   * oltre, la pagina dietro diventa un colore e il pannello smette di stare *davanti* a qualcosa.
+   */
+  private const val PanelBlurScaleOverSharpPage = 3.5f
+
+  /**
+   * La lente di un pannello piccolo.
+   *
+   * La lente e' una misura assoluta, la superficie no: diciotto dp di spostamento su una finestra
+   * larga sono un bordo, sugli stessi diciotto dp di un menu contestuale — due righe, poco piu' di
+   * duecento dp di lato — sono un terzo del pannello. E quando la lente e' cosi' grande rispetto a
+   * cio' che sta piegando, l'immagine ripiegata sul bordo si stacca da quella dritta al centro: si
+   * vedono **due versioni** dello stesso oggetto dentro lo stesso vetro, una schiacciata al margine e
+   * una al suo posto. Non e' un difetto della rifrazione, e' la rifrazione applicata a una taglia per
+   * cui non era tarata.
+   *
+   * Era gia' successo una volta — la nota su [PanelOptics] racconta i ventotto dp diventati diciotto
+   * — ma la correzione era stata fatta guardando la finestra grande.
+   */
+  private val CompactPanelOptics = PanelOptics.copy(
+    refractionHeight = 7.dp,
+    refractionAmount = 9.dp,
+  )
+  private val SharpPagePanelOptics = PanelOptics.copy(blurScale = PanelBlurScaleOverSharpPage)
+
+  /**
+   * Compatto *e* su una pagina nitida: la sfocatura sale, ma non a 3,5.
+   *
+   * La lente compatta alta 7 dp copre al massimo 7 dp di sfocatura (2,8 volte il riferimento di
+   * 2,5 dp), e il padding della cattura vale `max(0, sfocatura - altezza)`: oltre, una superficie di
+   * Fluid-physics avrebbe un padding che si muove con la taglia, e sporcherebbe la cattura a ogni
+   * fotogramma del viaggio. Nessun pannello oggi e' le due cose insieme; se ne arriva uno, qui non
+   * trova la trappola.
+   */
+  private val CompactSharpPagePanelOptics = CompactPanelOptics.copy(blurScale = 2.8f)
+
+  /**
+   * L'ottica del pannello flottante: vedi [PanelOptics].
+   *
+   * @param compact un pannello piccolo (un menu di poche righe): lente 7/9 dp invece di 14/18.
+   * @param overSharpPage il pannello sta sopra una pagina nitida, senza scrim: solo la sfocatura sale
+   *   (da 2,5 a 3,5; da 2,5 a 2,8 se e' anche [compact], vedi [CompactSharpPagePanelOptics]).
+   */
+  fun panelOptics(compact: Boolean = false, overSharpPage: Boolean = false): GlassOptics = when {
+    compact && overSharpPage -> CompactSharpPagePanelOptics
+    compact -> CompactPanelOptics
+    overSharpPage -> SharpPagePanelOptics
+    else -> PanelOptics
+  }
+
+  /**
+   * La pellicola del pannello flottante: quella di un modale, o quella tinta col [colour] della cosa
+   * da cui il pannello e' nato (vedi [tintedModalTint]). Una sola, per tutti i pannelli di
+   * [panelOptics].
+   */
+  @Composable
+  fun panelTint(colour: Color? = null): GlassTint =
+    if (colour == null) modalTint() else tintedModalTint(colour)
 
   /**
    * The tint for the same case: denser than a page card's, because it is competing with a pane that
@@ -1237,17 +1445,16 @@ fun Modifier.glassSurface(
   // The turn-over is both halves at once: a dark rim, and an ordinary blend to
   // put it down with. Turning the colour over on its own changes nothing, which
   // is the trap — it compiles, it runs, and it draws exactly nothing.
+  //
+  // Colore e modo di comporre stanno in [glassRimRecipe], e non qui, perche' il bordo e' uno solo:
+  // `fluidPhysicsSurface` lo disegna da se' e leggeva un'altra ricetta (un gradiente bianco in
+  // entrambi i temi), cosi' la stessa lastra aveva due bordi che non andavano d'accordo.
   val darkSide = GlassDefaults.isDarkSurface()
   val highlight: () -> Highlight? = remember(resolved, quality, edgeDepth, darkSide) {
+    val rim = glassRimRecipe(darkSide)
     val style = HighlightStyle.Default(
-      color = if (darkSide) {
-        Color.White.copy(alpha = 0.5f)
-      } else {
-        // Quieter than its white twin: a dark line on paper is read at a lower
-        // contrast than a light line in the dark.
-        Color.Black.copy(alpha = 0.28f)
-      },
-      blendMode = if (darkSide) BlendMode.Plus else BlendMode.SrcOver,
+      color = rim.color,
+      blendMode = rim.blendMode,
       angle = resolved.highlightAngle,
       falloff = 1f,
     );
@@ -1283,7 +1490,7 @@ fun Modifier.glassSurface(
       } else {
         Shadow(
           radius = resolved.shadowRadius,
-          color = Color.Black.copy(alpha = if (darkSide) 0.1f else 0.16f),
+          color = glassShadowColor(darkSide),
           alpha = resolved.shadowAlpha * amount,
         )
       }
@@ -1342,6 +1549,50 @@ fun Modifier.glassSurface(
       heldWhileMoving = heldWhileMoving,
       nestInContainer = nestInContainer,
     )
+}
+
+/**
+ * L'ombra esterna del vetro, da sola: per un pannello che non e' il pannello di vetro a disegnarla.
+ *
+ * `glassSurface` disegna la propria ombra, ma dentro la propria superficie: se un antenato la ritaglia
+ * (la barra flottante mette un `clip` sulla sagoma prima del pannello, che puo' essere dell'app) fuori
+ * dalla sagoma non resta niente, e l'ombra che si vedeva era quella di piattaforma (`Modifier.shadow`).
+ * Quell'ombra su una superficie trasparente trapela dentro la sagoma, e non e' del materiale: non ha il
+ * colore del lato del tema ([glassShadowColor]) ne' il peso del ruolo. Questa e' la stessa che disegna
+ * il vetro — stesso nodo (`ShadowElement`), stesso colore, stessa distanza (un sesto del raggio) — ma
+ * messa dove si vede, **fuori** dal ritaglio.
+ *
+ * Si disegna sotto tutto cio' che la segue nella catena, e solo fuori dalla sagoma (il nodo scava
+ * l'ombra sotto di essa). Non dipende da `RenderEffect`: dove il vetro e' il ripiego, l'ombra c'e'
+ * comunque.
+ *
+ * @param optics il ruolo da cui prende raggio e peso; di serie quello flottante.
+ * @param radiusScale quanto scalare il raggio: un'ombra piu' bassa (un'elevazione minore) e' piu'
+ *   stretta, con lo stesso peso. 0 o meno non disegna niente.
+ */
+@Composable
+internal fun Modifier.glassShadow(
+  shape: Shape,
+  optics: GlassOptics = GlassDefaults.optics(GlassRole.Floating),
+  radiusScale: Float = 1f,
+): Modifier {
+  val resolved = remember(optics) { optics.sanitized() }
+  val darkSide = GlassDefaults.isDarkSurface()
+  val shapeBlock = remember(shape) { { shape } }
+  val shadow: () -> Shadow? = remember(resolved, radiusScale, darkSide) {
+    {
+      if (resolved.shadowAlpha <= 0f || !(radiusScale > 0f)) {
+        null
+      } else {
+        Shadow(
+          radius = resolved.shadowRadius * radiusScale,
+          color = glassShadowColor(darkSide),
+          alpha = resolved.shadowAlpha,
+        )
+      }
+    }
+  }
+  return this.then(ShadowElement(ShapeProvider(shapeBlock), shadow))
 }
 
 /**

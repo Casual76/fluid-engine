@@ -293,13 +293,12 @@ fun FluidMorphMenuHost(
         .fluidPhysicsSurface(
           state = state.physics,
           backdrop = backdrop,
-          tint = GlassDefaults.floatingTint(),
+          tint = GlassDefaults.panelTint(),
           role = GlassRole.Modal,
-          optics = GlassDefaults.optics(GlassRole.Modal).copy(
-            blurScale = 2.5f,
-            shadowRadius = 0.dp,
-            shadowAlpha = 0f,
-          ),
+          // Il pannello flottante, compatto: lo e' un menu di poche righe. Nessuna ombra: la
+          // superficie fisica non ne disegna (vedi `fluidPhysicsSurface`), che il pannello la
+          // chieda o no. Il menu verra' riscritto sul motore: qui solo il materiale.
+          optics = GlassDefaults.panelOptics(compact = true),
           // La pellicola è parte del viaggio: capsula col colore del tasto, pannello col colore
           // del menù — e al ritorno la strada inversa, così il tasto riappare senza salti di
           // colore nell'ultimo fotogramma.

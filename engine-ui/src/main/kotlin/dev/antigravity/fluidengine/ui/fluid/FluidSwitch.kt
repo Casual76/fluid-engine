@@ -64,14 +64,11 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
-import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
-import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
-import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
-import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
-import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
-import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlinx.coroutines.flow.collectLatest
@@ -414,39 +411,15 @@ fun FluidSwitch(
         }
         .then(
           if (isRenderEffectSupported()) {
-            Modifier.drawBackdrop(
+            // La goccia di Kyant (`glass/interaction/GlassDrop.kt`), coi numeri del port di
+            // `LiquidToggle`: lente 5/10 dp, e lo squash CON IL SEGNO e diviso per 50, senza il
+            // cancello delle animazioni ridotte. E' il metro della ricetta e conserva i suoi numeri.
+            Modifier.glassDrop(
               backdrop = thumbBackdrop,
-              shape = { FluidCapsuleShape },
-              effects = {
-                val progress = dragAnimation.pressProgress
-                blur(8f.dp.toPx() * (1f - progress))
-                lens(5f.dp.toPx() * progress, 10f.dp.toPx() * progress, chromaticAberration = true)
-              },
-              highlight = {
-                val progress = dragAnimation.pressProgress
-                Highlight.Ambient.copy(
-                  width = Highlight.Ambient.width / 1.5f,
-                  blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                  alpha = progress,
-                )
-              },
-              shadow = { Shadow(radius = 4f.dp, color = Color.Black.copy(alpha = 0.05f)) },
-              innerShadow = {
-                val progress = dragAnimation.pressProgress
-                InnerShadow(radius = 4f.dp * progress, alpha = progress)
-              },
-              layerBlock = {
-                scaleX = dragAnimation.scaleX
-                scaleY = dragAnimation.scaleY
-                val velocity = dragAnimation.velocity / 50f
-                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-              },
-              // Opaque at rest and gone under the finger: this white is what the lens replaces.
-              // Everything else here is the material; this one line is the state.
-              onDrawSurface = {
-                drawRect(Color.White.copy(alpha = 1f - dragAnimation.pressProgress))
-              },
+              drag = dragAnimation,
+              lensSize = GlassDropLens.Switch,
+              squashDivisor = GlassDropRecipe.SwitchSquashDivisor,
+              squashSigned = true,
             )
           } else {
             Modifier

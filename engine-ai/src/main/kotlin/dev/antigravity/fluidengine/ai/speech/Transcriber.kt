@@ -40,12 +40,15 @@ class Transcriber(private val providers: suspend () -> List<ReadyProvider>) {
     /** Il prompt di Whisper vale al massimo 224 token: 800 caratteri ci stanno. */
     const val HINT_MAX_CHARS = 800
 
+    /** Quanti nomi propri si danno a Whisper, di serie (3.0.0: e' un parametro di [hint]; FluidWeather ne dava 12). */
+    const val MAX_HINT_WORDS = 20
+
     /**
      * Il suggerimento di vocabolario per Whisper: una frase sul dominio dell'app ("Domande sul
      * registro elettronico: voti, compiti, ...") e i nomi propri che l'utente potrebbe dire.
      */
-    fun hint(domainHint: String, vocabulary: List<String>): String {
-      val words = vocabulary.filter { it.isNotBlank() }.take(20).joinToString(", ")
+    fun hint(domainHint: String, vocabulary: List<String>, maxWords: Int = MAX_HINT_WORDS): String {
+      val words = vocabulary.filter { it.isNotBlank() }.take(maxWords.coerceAtLeast(0)).joinToString(", ")
       return (if (words.isEmpty()) domainHint else "$domainHint $words.").take(HINT_MAX_CHARS)
     }
   }

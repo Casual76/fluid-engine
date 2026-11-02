@@ -18,7 +18,7 @@ object MultipartBody {
     fileFieldName: String,
     fileName: String,
     fileMime: String,
-    boundary: String = "----FluidWeather${System.nanoTime()}",
+    boundary: String = "----FluidEngine${System.nanoTime()}",
   ): Parts {
     require(fields.none { boundary in it.key || boundary in it.value }) { "boundary presente nei campi" }
     val prelude = ByteArrayOutputStream()

@@ -28,6 +28,7 @@ import dev.antigravity.fluidengine.ai.tools.AiToolGroup
 import dev.antigravity.fluidengine.ai.tools.ToolOutput
 import dev.antigravity.fluidengine.ai.tools.ToolRegistry
 import dev.antigravity.fluidengine.ai.tools.ToolText
+import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -1137,7 +1138,24 @@ class AssistantFailure(
   val provider: ProviderId? = null,
   val reason: SwitchReason? = null,
   val switches: List<ProviderSwitch> = emptyList(),
-) : Exception(error?.message ?: kind.name)
+) : Exception(error?.message ?: kind.name) {
+
+  companion object {
+    /**
+     * Il fallimento di un errore qualunque (3.0.0), per chi non passa dall'orchestratore: la
+     * trascrizione di una domanda parlata. [FailureKinds.of] sceglie la ragione ([other] per quelle
+     * che non sono di chiave, di limite o di rete), l'attesa del 429 diventa secondi interi (per
+     * eccesso: aspettare di meno non serve), e un [AssistantFailure] che c'e' gia' resta com'e'.
+     */
+    fun of(error: Throwable, other: FailureKind = FailureKind.UNKNOWN, provider: ProviderId? = null): AssistantFailure =
+      error as? AssistantFailure ?: AssistantFailure(
+        kind = FailureKinds.of(error, other),
+        error = error as? AiError,
+        retryAfterSec = (error as? AiError.RateLimited)?.retryAfterSec?.let { ceil(it).toInt() },
+        provider = provider,
+      )
+  }
+}
 
 /**
  * I marcatori `[[id]]` e `[[id:valore]]` in fondo alla risposta diventano chip; il testo mostrato

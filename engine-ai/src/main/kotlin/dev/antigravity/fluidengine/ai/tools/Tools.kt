@@ -343,9 +343,11 @@ object ToolText {
       kept.append(line).append('\n')
       count++
     }
-    val missing = lines.size - count
-    return kept.toString().trimEnd() + "\n… (altre $missing righe omesse)"
+    return kept.toString().trimEnd() + "\n… (${omitted(lines.size - count)})"
   }
+
+  /** Cosa manca, al singolare e al plurale (3.0.0): prima "altre 1 righe omesse". */
+  fun omitted(missing: Int): String = if (missing == 1) "un'altra riga omessa" else "altre $missing righe omesse"
 
   class Builder(private val maxChars: Int = MAX_CHARS) {
     private val lines = mutableListOf<String>()

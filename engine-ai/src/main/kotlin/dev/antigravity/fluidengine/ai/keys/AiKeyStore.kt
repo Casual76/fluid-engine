@@ -8,6 +8,10 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.antigravity.fluidengine.ai.provider.ProviderId
+import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -17,7 +21,10 @@ data class KeyState(val present: Boolean, val verifiedAtMillis: Long?) {
   val verified: Boolean get() = present && verifiedAtMillis != null
 }
 
-private val Context.aiKeysStore: DataStore<Preferences> by preferencesDataStore(name = "ai_keys")
+private val Context.aiKeysStore: DataStore<Preferences> by preferencesDataStore(
+  name = "ai_keys",
+  corruptionHandler = AiDataStores.corruptionHandler(),
+)
 
 /**
  * Le chiavi dei provider IA, cifrate col Keystore e in un file DataStore tutto loro (come
@@ -26,6 +33,10 @@ private val Context.aiKeysStore: DataStore<Preferences> by preferencesDataStore(
  *
  * Se il Keystore non riesce piu' a decifrare (telefono ripristinato, chiave invalidata) la voce
  * si cancella e l'utente vede "reinserisci la chiave": meglio di un errore 401 senza spiegazione.
+ *
+ * Dalla 3.0.0 anche un **file corrotto** si butta (il costruttore a `Context` e [open] usano
+ * [AiDataStores.corruptionHandler]): le chiavi vanno reinserite, ma l'app riparte invece di fallire
+ * ogni lettura e ogni scrittura per sempre.
  */
 class AiKeyStore(
   private val store: DataStore<Preferences>,
@@ -33,6 +44,19 @@ class AiKeyStore(
 ) {
 
   constructor(context: Context, cipher: SecretCipher = KeystoreCipher()) : this(context.aiKeysStore, cipher)
+
+  companion object {
+    /**
+     * Le chiavi in un file scelto dall'app (3.0.0), che deve finire in `.preferences_pb`: stesso
+     * file di prima per chi l'aveva gia' ([AiDataStores.open]), con la corruzione gestita. Una volta
+     * sola per file e per processo.
+     */
+    fun open(
+      file: File,
+      cipher: SecretCipher = KeystoreCipher(),
+      scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    ): AiKeyStore = AiKeyStore(AiDataStores.open(file, scope), cipher)
+  }
 
   val states: Flow<Map<ProviderId, KeyState>> = store.data.map { preferences ->
     ProviderId.entries.associateWith { provider ->

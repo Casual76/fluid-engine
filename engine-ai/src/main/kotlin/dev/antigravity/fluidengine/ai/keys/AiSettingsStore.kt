@@ -12,6 +12,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import dev.antigravity.fluidengine.ai.provider.ModelTier
 import dev.antigravity.fluidengine.ai.provider.OpenRouterDataPolicy
 import dev.antigravity.fluidengine.ai.provider.ProviderId
+import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -123,6 +127,13 @@ data class AiSettings(
   /** Quando l'utente ha letto e accettato cosa parte verso i provider; null se mai. */
   val consentAcceptedAtMillis: Long? = null,
   val modelsRefreshedAt: Map<ProviderId, Long> = emptyMap(),
+  /**
+   * Vero se l'utente ha mai toccato l'interruttore (3.0.0): [enabled] e' gia' risolto, e "spento
+   * perche' l'ha spento" non si distingue da "spento perche' non ha mai scelto". Chi accende
+   * l'assistente dopo una prima chiave verificata (`AiSettingsStore.enableIfNeverChosen`) guarda
+   * questo, non [enabled].
+   */
+  val enabledChosen: Boolean = false,
 ) {
   fun chatModel(provider: ProviderId): String? = chatModels[provider] ?: AiDefaults.chatModel(provider)
   fun sttModel(provider: ProviderId): String = sttModels[provider] ?: AiDefaults.sttModel(provider)
@@ -140,21 +151,76 @@ data class AiSettings(
   val consentAccepted: Boolean get() = consentAcceptedAtMillis != null
 }
 
-private val Context.aiSettingsStore: DataStore<Preferences> by preferencesDataStore(name = "ai")
+/**
+ * I valori che le impostazioni hanno finche' l'utente non sceglie (3.0.0). Ogni app aveva i suoi
+ * ("azioni nell'app accese: mostra subito, agisci con conferma"; "a OpenRouter sempre `deny`") e,
+ * dato che l'engine risolveva "mai scelto" in un altro modo, li imponeva riscrivendo il file con una
+ * migrazione. Qui sono un parametro: un valore **assente** dal file vale quello di
+ * [AiSettingsDefaults], uno **scritto** vale quello che l'utente ha scelto, e il file non si tocca.
+ *
+ * I default di serie sono quelli di prima (tutto spento, ordine Groq, Gemini, OpenRouter, pensiero
+ * medio, la politica sui dati dell'account).
+ */
+data class AiSettingsDefaults(
+  val enabled: Boolean = false,
+  val actionsEnabled: Boolean = false,
+  val speakReplies: Boolean = false,
+  val thinking: ThinkingLevel = ThinkingLevel.MEDIUM,
+  val openRouterDataPolicy: OpenRouterDataPolicy = OpenRouterDataPolicy.ACCOUNT,
+  val chatOrder: List<ProviderId> = ProviderId.defaultOrder,
+  val sttOrder: List<ProviderId> = ProviderId.defaultOrder,
+)
+
+private val Context.aiSettingsStore: DataStore<Preferences> by preferencesDataStore(
+  name = "ai",
+  corruptionHandler = AiDataStores.corruptionHandler(),
+)
 
 /**
  * Le preferenze dell'assistente, tutte in un file DataStore `ai`. Le chiavi stanno altrove
  * ([AiKeyStore]): qui non c'e' nulla di segreto, e l'export dei dati puo' includerlo.
+ *
+ * Dalla 3.0.0 l'app non ha piu' bisogno di aprirsi il file da se' per tre cose che l'engine non
+ * faceva:
+ *
+ *  - **i valori di partenza** sono un parametro ([AiSettingsDefaults]);
+ *  - **"mai scelto" non e' "spento"**: [enableIfNeverChosen] accende solo se l'utente non ha mai
+ *    toccato l'interruttore, e [AiSettings.enabledChosen] lo dice;
+ *  - **un file corrotto si butta**: il costruttore a `Context` e [open] ripartono da un file vuoto
+ *    ([AiDataStores]), invece di fallire ogni lettura e ogni scrittura per sempre.
+ *
+ * Un file si apre una volta sola per processo: chi passa il suo [DataStore] non deve poi usare anche
+ * il costruttore a `Context` (DataStore si rifiuta di avere due istanze sullo stesso file).
  */
-class AiSettingsStore(private val store: DataStore<Preferences>) {
+class AiSettingsStore(
+  private val store: DataStore<Preferences>,
+  private val defaults: AiSettingsDefaults = AiSettingsDefaults(),
+) {
 
-  constructor(context: Context) : this(context.aiSettingsStore)
+  constructor(context: Context, defaults: AiSettingsDefaults = AiSettingsDefaults()) : this(context.aiSettingsStore, defaults)
 
   val settings: Flow<AiSettings> = store.data.map { it.toSettings() }
 
   suspend fun current(): AiSettings = settings.first()
 
   suspend fun setEnabled(enabled: Boolean) = edit { it[Enabled] = enabled }
+
+  /**
+   * Accende l'assistente solo se l'utente non ha mai scelto (3.0.0); torna vero se l'ha acceso.
+   * Dopo una chiave verificata: chi incollava la chiave vedeva "ok" e tornava all'app senza sapere
+   * che mancava l'interruttore. Chi l'ha spento una volta lo trova spento, e [setEnabled] a `false`
+   * e' una scelta come un'altra.
+   */
+  suspend fun enableIfNeverChosen(): Boolean {
+    var changed = false
+    store.edit { prefs ->
+      if (Enabled !in prefs) {
+        prefs[Enabled] = true
+        changed = true
+      }
+    }
+    return changed
+  }
 
   suspend fun setChatOrder(order: List<ProviderId>) =
     edit { it[ChatOrder] = order.joinToString(",") { p -> p.id } }
@@ -202,24 +268,25 @@ class AiSettingsStore(private val store: DataStore<Preferences>) {
   }
 
   private fun Preferences.toSettings(): AiSettings = AiSettings(
-    enabled = this[Enabled] ?: false,
-    chatOrder = parseOrder(this[ChatOrder]),
-    sttOrder = parseOrder(this[SttOrder]),
+    enabled = this[Enabled] ?: defaults.enabled,
+    chatOrder = this[ChatOrder]?.let(::parseOrder) ?: completeOrder(defaults.chatOrder),
+    sttOrder = this[SttOrder]?.let(::parseOrder) ?: completeOrder(defaults.sttOrder),
     chatModels = modelsFor("chat_model_"),
     sttModels = modelsFor("stt_model_"),
     classifierModels = modelsFor("classifier_model_"),
     deepModels = modelsFor("deep_model_"),
     openRouterFallbacks = this[OpenRouterFallbacks]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
     openRouterDataPolicy = this[OpenRouterDataPolicyKey]?.let { name -> OpenRouterDataPolicy.entries.firstOrNull { it.name == name } }
-      ?: OpenRouterDataPolicy.ACCOUNT,
+      ?: defaults.openRouterDataPolicy,
     thinking = this[Thinking]?.let { name -> ThinkingLevel.entries.firstOrNull { it.name == name } }
-      ?: ThinkingLevel.MEDIUM,
-    speakReplies = this[SpeakReplies] ?: false,
-    actionsEnabled = this[ActionsEnabled] ?: false,
+      ?: defaults.thinking,
+    speakReplies = this[SpeakReplies] ?: defaults.speakReplies,
+    actionsEnabled = this[ActionsEnabled] ?: defaults.actionsEnabled,
     consentAcceptedAtMillis = this[ConsentAt],
     modelsRefreshedAt = ProviderId.entries.mapNotNull { p ->
       this[longPreferencesKey("models_refreshed_${p.id}")]?.let { p to it }
     }.toMap(),
+    enabledChosen = Enabled in this,
   )
 
   private fun Preferences.modelsFor(prefix: String): Map<ProviderId, String> =
@@ -243,5 +310,22 @@ class AiSettingsStore(private val store: DataStore<Preferences>) {
       val listed = raw?.split(",")?.mapNotNull { ProviderId.fromId(it.trim()) }?.distinct() ?: emptyList()
       return listed + ProviderId.defaultOrder.filterNot { it in listed }
     }
+
+    /** Lo stesso per un ordine di default dato dall'app: senza doppioni, con in coda i provider che non nomina. */
+    private fun completeOrder(order: List<ProviderId>): List<ProviderId> {
+      val listed = order.distinct()
+      return listed + ProviderId.defaultOrder.filterNot { it in listed }
+    }
+
+    /**
+     * Le preferenze in un file scelto dall'app (3.0.0), che deve finire in `.preferences_pb`: per chi
+     * non usa il file `ai` di serie, o vuole il proprio [DataStore] ([AiDataStores.open]) per
+     * metterci anche altro. Un file corrotto riparte da vuoto. Una volta sola per file e per processo.
+     */
+    fun open(
+      file: File,
+      defaults: AiSettingsDefaults = AiSettingsDefaults(),
+      scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    ): AiSettingsStore = AiSettingsStore(AiDataStores.open(file, scope), defaults)
   }
 }

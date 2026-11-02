@@ -35,6 +35,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
+import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidFormPresets
@@ -208,14 +209,26 @@ internal fun PlaygroundTab(bottomInset: Dp) {
     item(key = "motion-header") { FluidSectionHeader(title = "Molla e materiale") }
     item(key = "motion") {
       FluidCard(glass = true) {
-        // Il vetro liquido (3.0) contro la geometria di prima, per tutta la galleria: i menu, la card
-        // che si espande e questo palco. Vale finche' l'app e' aperta.
+        // La goccia (3.0) contro la geometria di prima, per tutta la galleria: i menu, la card che si
+        // espande e questo palco. Vale finche' l'app e' aperta.
         LocalGalleryTools.current?.let { tools ->
           FluidSegmentedControl(
             options = listOf(true, false),
             selected = tools.liquid,
             onSelect = { tools.liquid = it },
-            label = { if (it) "Vetro liquido" else "Geometrico (beta 2)" },
+            label = { if (it) "Goccia" else "Geometrico (beta 2)" },
+          )
+          // La tensione del bordo della goccia, dal vivo in tutta la galleria: 0,2 di serie (piu' tesa
+          // il bordo si smussa, meno tesa ogni punto segue da solo la sua molla).
+          Text(
+            text = "Tensione del bordo: ${"%.1f".format(tools.edgeTension).replace('.', ',')}",
+            style = MaterialTheme.typography.bodyMedium,
+          )
+          FluidSlider(
+            value = tools.edgeTension,
+            onValueChange = { tools.edgeTension = it },
+            valueRange = 0.2f..2f,
+            contentDescription = "Tensione del bordo della goccia",
           )
         }
         FluidSegmentedControl(

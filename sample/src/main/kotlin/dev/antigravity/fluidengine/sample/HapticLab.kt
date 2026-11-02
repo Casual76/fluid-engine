@@ -52,7 +52,10 @@ import dev.antigravity.fluidengine.ui.haptics.TracingFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsDropTuning
+import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidPhysicsDropTuning
 import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidPhysicsLiquid
+import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import kotlin.math.roundToInt
 
 /**
@@ -68,6 +71,8 @@ import kotlin.math.roundToInt
  * @property liquid il vetro liquido di Fluid-physics (3.0), letto da `LocalFluidPhysicsLiquid` alla
  *   radice: spento, ogni superficie che si trasforma — menu, card, Playground — torna alla geometria
  *   di prima, per confrontare i due in mano.
+ * @property edgeTension la tensione del bordo della goccia (frazione di quella del banco, 0,2-2), letta
+ *   da `LocalFluidPhysicsDropTuning` alla radice: la manopola con cui Alessio la tara sul telefono.
  */
 @Stable
 internal class GalleryTools(
@@ -76,6 +81,7 @@ internal class GalleryTools(
   var overlayVisible by mutableStateOf(false)
   var grain by mutableStateOf(FluidHapticGrainConfig.Default)
   var liquid by mutableStateOf(true)
+  var edgeTension by mutableFloatStateOf(FluidMotion.DropEdgeTensionDefault)
 }
 
 /** Nulla fuori dalla galleria (anteprime, test di un pezzo): le sezioni che li usano non compaiono. */
@@ -101,6 +107,7 @@ internal fun ProvideGalleryTools(tools: GalleryTools, content: @Composable () ->
     // statica), ed e' per questo che i cursori applicano solo al rilascio.
     LocalFluidHapticGrainConfig provides tools.grain,
     LocalFluidPhysicsLiquid provides tools.liquid,
+    LocalFluidPhysicsDropTuning provides FluidPhysicsDropTuning(edgeTension = tools.edgeTension),
   ) {
     ProvideFluidHapticTrace(tools.trace, content)
   }

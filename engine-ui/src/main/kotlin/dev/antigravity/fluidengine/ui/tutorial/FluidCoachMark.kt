@@ -3,8 +3,8 @@ package dev.antigravity.fluidengine.ui.tutorial
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +36,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -51,6 +50,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassSize
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -59,16 +60,27 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
-/** Dove finisce il callout e da che parte guarda la sua punta. Coordinate della radice, in pixel. */
+/** Di quanto il callout scivola nell'entrata e nell'uscita: pochi dp, verso l'elemento che spiega. */
+private val FluidCoachMarkRise = 8.dp
+
+/**
+ * Dove finisce il callout e da che parte sta rispetto al suo elemento. Coordinate della radice, in pixel.
+ *
+ * Dalla 3.0 (fase 9) il callout non disegna piu' una punta verso l'elemento: [pointerX] resta nella
+ * geometria — e' la x del centro dell'elemento nel sistema di riferimento del callout, e chi lo posiziona
+ * puo' ancora volerla — ma da qui non lo legge nessun disegno. Quanto a [below], decide anche da che
+ * parte il callout scivola entrando.
+ */
 data class FluidCoachMarkPlacement(
   val x: Float,
   val y: Float,
   val below: Boolean,
-  /** La punta, in coordinate del callout: sta sotto il centro dell'elemento, quando ci arriva. */
+  /** Il centro dell'elemento, in coordinate del callout, rientrato dagli angoli arrotondati. */
   val pointerX: Float,
 )
 
@@ -208,10 +220,18 @@ fun FluidTutorialHost(
       Rect(it.x, it.y, it.x + calloutSize.width, it.y + calloutSize.height)
     }
 
+    // L'ingresso e' di geometria e di alfa, mai di scala (3.0, fase 9): il callout e' un pannello di
+    // vetro, e un `scaleIn` su un nodo di vetro scala anche quello che il vetro sta rifrangendo — il
+    // testo della pagina dietro si ingrandisce di un 6% per il tempo dell'entrata, e quel testo sta
+    // fermo. Il callout arriva dalla parte del suo elemento: scende di qualche dp verso il posto che
+    // gli spetta se sta sotto, sale se sta sopra. Lo scivolamento e' un offset di layout (geometria:
+    // il vetro campiona dove sta davvero), e la dissolvenza e' l'unico layer sopra di lui.
+    val rise = with(density) { FluidCoachMarkRise.roundToPx() }
+    val towardsAnchor = if (placement?.below == false) rise else -rise
     AnimatedVisibility(
       visible = tutorial != null && anchor != null,
-      enter = fadeIn(FluidMotion.fadeIn(160)) + scaleIn(initialScale = 0.94f),
-      exit = fadeOut(FluidMotion.fadeOut(120)) + scaleOut(targetScale = 0.96f),
+      enter = fadeIn(FluidMotion.fadeIn(160)) + slideInVertically(FluidMotion.snappy()) { towardsAnchor },
+      exit = fadeOut(FluidMotion.fadeOut(120)) + slideOutVertically(FluidMotion.snappy()) { towardsAnchor },
     ) {
       val current = shown ?: return@AnimatedVisibility
       FluidCoachMark(
@@ -244,7 +264,11 @@ fun Modifier.fluidTutorialTouches(state: FluidTutorialHostState): Modifier = thi
 
 /**
  * Il callout: vetro, un titolo di due parole, una frase, il gesto disegnato quando serve, e i due
- * modi di chiuderlo — "Ok", e il link che li spegne tutti.
+ * modi di chiuderlo — "Ok" (un tasto di vetro), e il link che li spegne tutti.
+ *
+ * Tutto vetro, senza niente di dipinto accanto: il pannello e' il pannello flottante di tutti, il
+ * tasto "Ok" e' un tasto di vetro, e l'indicazione di quale elemento si sta spiegando non e' una
+ * punta ma l'alone attorno all'elemento ([fluidTutorialAnchor]) e la posizione del callout.
  *
  * Con [placement] nullo il callout e' gia' composto ma invisibile: la sua posizione dipende dalla
  * sua misura, e la misura si sa solo dopo averlo disegnato una volta.
@@ -273,7 +297,7 @@ fun FluidCoachMark(
   } else {
     Modifier.background(scheme.surfaceContainerHigh, shape)
   }
-  val pointerFill = scheme.surfaceContainerHigh.copy(alpha = 0.94f)
+  val dismissOnGlass = backdrop != null && isRenderEffectSupported()
 
   Column(
     modifier = Modifier
@@ -290,27 +314,15 @@ fun FluidCoachMark(
           }
         }
       }
+      // Niente punta (fase 9). Era un triangolo dipinto, opaco al 94%, appoggiato al bordo di un
+      // pannello di vetro: l'unica cosa del callout che non rifrangeva. Farne parte della sagoma non
+      // si puo': la lente e' la dislocazione di un rettangolo arrotondato (lo shader e' una SDF di
+      // rettangolo, e una sagoma qualsiasi perde la lente e tiene solo la sfocatura), e uno shader
+      // nuovo accanto a quello del vetro e' proprio cio' che la regola dei materiali vieta. Il suo
+      // mestiere — dare a "questo" un referente — lo fanno gia' due cose: l'alone che
+      // `fluidTutorialAnchor` disegna attorno all'elemento mentre e' lui quello spiegato, e il
+      // posizionamento (centrato sull'elemento, a un respiro di distanza, dal lato che ha posto).
       .then(surface)
-      .drawWithContent {
-        drawContent()
-        val place = placement ?: return@drawWithContent
-        // La punta verso l'elemento: e' quello che rende "questo" un pronome con un referente.
-        val half = 7.dp.toPx()
-        val depth = 7.dp.toPx()
-        val path = Path().apply {
-          if (place.below) {
-            moveTo(place.pointerX - half, 0f)
-            lineTo(place.pointerX, -depth)
-            lineTo(place.pointerX + half, 0f)
-          } else {
-            moveTo(place.pointerX - half, size.height)
-            lineTo(place.pointerX, size.height + depth)
-            lineTo(place.pointerX + half, size.height)
-          }
-          close()
-        }
-        drawPath(path, color = pointerFill)
-      }
       .padding(16.dp),
   ) {
     Text(
@@ -349,22 +361,37 @@ fun FluidCoachMark(
           .padding(vertical = 6.dp, horizontal = 2.dp),
       )
       Spacer(Modifier.width(12.dp))
-      Text(
-        text = labels.dismiss,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = scheme.onPrimaryContainer,
-        // The press outside the fill, so the capsule grows and not only its word (2.11.0).
-        modifier = Modifier
-          .fluidPressable(
-            onClick = onDismiss,
-            role = Role.Button,
-            haptic = FluidHapticEvent.Close,
-            feedback = FluidPressFeedback.Expand,
-          )
-          .background(scheme.primaryContainer, FluidCapsuleShape)
-          .padding(horizontal = 18.dp, vertical = 8.dp),
-      )
+      if (dismissOnGlass) {
+        // Un tasto di vetro, scelto: l'accento entra nel materiale invece di un riempimento che lo
+        // sostituisce, come ogni tasto di vetro scelto. Sta su un pannello di vetro, e ne campiona il
+        // materiale da solo (vetro su vetro, 2.13.0), non la pagina dietro. Il colpo e' `Close`, come
+        // la capsula che sostituisce.
+        FluidGlassButton(
+          text = labels.dismiss,
+          onClick = onDismiss,
+          backdrop = backdrop!!,
+          selected = true,
+          size = FluidGlassSize.Compact,
+          haptic = FluidHapticEvent.Close,
+        )
+      } else {
+        Text(
+          text = labels.dismiss,
+          style = MaterialTheme.typography.labelLarge,
+          fontWeight = FontWeight.SemiBold,
+          color = scheme.onPrimaryContainer,
+          // The press outside the fill, so the capsule grows and not only its word (2.11.0).
+          modifier = Modifier
+            .fluidPressable(
+              onClick = onDismiss,
+              role = Role.Button,
+              haptic = FluidHapticEvent.Close,
+              feedback = FluidPressFeedback.Expand,
+            )
+            .background(scheme.primaryContainer, FluidCapsuleShape)
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        )
+      }
     }
   }
 }

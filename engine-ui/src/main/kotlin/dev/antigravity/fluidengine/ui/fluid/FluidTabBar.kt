@@ -1,10 +1,9 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,11 +23,17 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
@@ -44,6 +49,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDropFace
+import kotlin.math.roundToInt
 
 @Immutable
 data class FluidTabItem(
@@ -222,6 +233,34 @@ private fun FluidTabItemContent(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  Box(
+    modifier = modifier
+      .fillMaxHeight()
+      .testTag("top_level_${item.route}")
+      .semantics {
+        this.role = Role.Tab
+        this.selected = selected
+      }
+      .fluidPressable(onClick = onClick, pressedScale = 0.96f),
+    contentAlignment = Alignment.Center,
+  ) {
+    FluidTabItemFace(item = item, selected = selected)
+  }
+}
+
+/**
+ * Come si vede una scheda del rail: l'icona e l'etichetta, senza tocco e senza semantica.
+ *
+ * Separata dal guscio che la rende premibile ([FluidTabItemContent]) perche' la goccia del rail, a
+ * riposo piena, copre la scheda che le sta sotto e ne ridisegna la faccia sopra di se': e quella
+ * copia non deve prendersi nessun tocco (una scheda gia' scelta che non risponde piu' al secondo
+ * tocco perde il suo "torna in cima") ne' dirsi due volte a chi ascolta lo schermo.
+ */
+@Composable
+private fun FluidTabItemFace(
+  item: FluidTabItem,
+  selected: Boolean,
+) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   // The accent copy is tinted wholesale by a colour filter, so its own colour animation would only
   // fight it. Everything there resolves to one flat colour and the filter does the rest.
@@ -244,47 +283,45 @@ private fun FluidTabItemContent(
     label = "tab settle",
   )
 
-  Box(
-    modifier = modifier
-      .fillMaxHeight()
-      .testTag("top_level_${item.route}")
-      .semantics {
-        this.role = Role.Tab
-        this.selected = selected
-      }
-      .fluidPressable(onClick = onClick, pressedScale = 0.96f),
-    contentAlignment = Alignment.Center,
+  Column(
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(2.dp),
   ) {
-    Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-      Icon(
-        imageVector = item.icon,
-        contentDescription = null,
-        tint = contentColor,
-        modifier = Modifier
-          .size(24.dp)
-          .graphicsLayer {
-            val scale = 0.94f + 0.06f * settle
-            scaleX = scale
-            scaleY = scale
-            translationY = selectedLiftPx * settle
-          },
-      )
-      Text(
-        text = item.label,
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Medium,
-        color = contentColor,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-      )
-    }
+    Icon(
+      imageVector = item.icon,
+      contentDescription = null,
+      tint = contentColor,
+      modifier = Modifier
+        .size(24.dp)
+        .graphicsLayer {
+          val scale = 0.94f + 0.06f * settle
+          scaleX = scale
+          scaleY = scale
+          translationY = selectedLiftPx * settle
+        },
+    )
+    Text(
+      text = item.label,
+      style = MaterialTheme.typography.labelSmall,
+      fontWeight = FontWeight.Medium,
+      color = contentColor,
+      maxLines = 1,
+      overflow = TextOverflow.Ellipsis,
+    )
   }
 }
 
-/** Wide-screen variant: the same material and the same lens, stood on its side. */
+/**
+ * Wide-screen variant: the same material and the same drop, stood on its side.
+ *
+ * The indicator is a **drop** (3.0, fase 9: [glassDropFace], Kyant's thumb, the recipe of the floating
+ * bar's puck and of `FluidSlider`): full at rest — white on a light surface, grey on a dark one — and
+ * a lens while it travels. It travels the way the puck does when a tab is tapped, press, cross and
+ * settle, so the glass appears exactly while the selection is moving and is quiet when it is not.
+ * Because a full face covers what is under it, the selected tab is drawn again on top of the resting
+ * drop; the copy fades as the lens comes in, and what the lens bends is the invisible accent-tinted
+ * copy of the tabs, so the label stays legible and takes the accent while it is held.
+ */
 @Composable
 fun FluidTabRail(
   items: List<FluidTabItem>,
@@ -300,7 +337,9 @@ fun FluidTabRail(
   val accent = MaterialTheme.colorScheme.primary
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val density = LocalDensity.current
-  val timing = tabIndicatorTiming(reducedMotion)
+  val scope = rememberCoroutineScope()
+  val dropFace = GlassDropFaces.forSurface(GlassDefaults.isDarkSurface())
+  val lensAvailable = isRenderEffectSupported()
   // Senza una scheda che corrisponda alla rotta, la lente non si mostra: il rail resta in scena
   // anche su una nota, e una lente parcheggiata sulla prima scheda direbbe una cosa falsa.
   val hasSelection = items.any { it.route == selectedRoute }
@@ -312,15 +351,44 @@ fun FluidTabRail(
   val indicatorBackdrop = rememberCombinedGlassBackdrop(railGlass, tabsGlass)
 
   val itemHeight = FluidTabBarDefaults.Height
-  val pillTop = remember { Animatable(0f) }
+  val itemHeightPx = with(density) { itemHeight.toPx() }
+  val liveItemHeightPx by rememberUpdatedState(itemHeightPx)
 
-  LaunchedEffect(selectedIndex, itemHeight, reducedMotion) {
-    val target = with(density) { (selectedIndex * itemHeight.toPx()) }
-    if (reducedMotion) {
-      pillTop.snapTo(target)
-    } else {
-      pillTop.animateTo(target, spring(dampingRatio = 0.85f, stiffness = 420f))
+  // La molla della goccia: il valore e' la scheda (0..n-1), la pressione e' quella che la fa lente.
+  // Con una scheda sola l'intervallo e' vuoto, e un intervallo vuoto fa dividere per zero la molla.
+  val drop = remember(scope, items.size) {
+    GlassDragAnimation(
+      animationScope = scope,
+      initialValue = selectedIndex.toFloat(),
+      valueRange = 0f..(items.size - 1).coerceAtLeast(1).toFloat(),
+      visibilityThreshold = 0.001f,
+      initialScale = 1f,
+      pressedScale = if (reducedMotion) 1f else RailDropPressedScale,
+    )
+  }
+  var syncedOnce by remember(drop) { mutableStateOf(false) }
+
+  LaunchedEffect(selectedIndex, drop, reducedMotion) {
+    // La prima volta la goccia nasce gia' al suo posto: premere e viaggiare senza andare da nessuna
+    // parte la farebbe lampeggiare da lente appena il rail compare.
+    if (!syncedOnce) {
+      syncedOnce = true
+      drop.snapToValue(selectedIndex.toFloat())
+      return@LaunchedEffect
     }
+    if (reducedMotion) {
+      drop.snapToValue(selectedIndex.toFloat())
+    } else if (drop.targetValue.roundToInt() != selectedIndex) {
+      // Press, travel, release: la goccia diventa lente mentre la selezione si muove, come la
+      // pillola della tab bar quando si tocca una scheda.
+      drop.animateToValue(selectedIndex.toFloat())
+    }
+  }
+
+  // Quale scheda sta sotto la goccia: quella che la faccia piena a riposo copre e che va ridisegnata
+  // sopra. Derivato, cosi' si ricompone quando la goccia entra in una scheda nuova e non a ogni passo.
+  val dropIndex by remember(drop, items.size) {
+    derivedStateOf { drop.value.roundToInt().coerceIn(0, items.size - 1) }
   }
 
   val tabs: @Composable () -> Unit = {
@@ -337,6 +405,10 @@ fun FluidTabRail(
       }
     }
   }
+
+  // L'indicatore sta in una fascia alta quanto la scheda meno un respiro sopra e sotto: il vetro e'
+  // centrato sulla scheda, come l'icona che ci sta dentro.
+  val indicatorHeight = itemHeight - RailIndicatorInset * 2
 
   Box(modifier = modifier.width(FluidTabBarDefaults.RailWidth)) {
     Column(
@@ -366,46 +438,67 @@ fun FluidTabRail(
       )
     }
 
+    // La goccia. La corsa sta in un layer *prima* del vetro (la scala e lo squash, invece, nel suo
+    // `layerBlock`): il renderer inverte quella trasformazione quando campiona, quindi in ogni punto
+    // la lente ha in mano la scheda che c'e' davvero dietro. L'alfa e' solo la sparizione della goccia
+    // quando nessuna scheda e' scelta, e non scala niente.
     Box(
       modifier = Modifier
         .graphicsLayer {
-          translationY = pillTop.value
+          translationY = drop.value * liveItemHeightPx
           alpha = lensAlpha
         }
-        .padding(horizontal = 8.dp, vertical = 6.dp)
-        .glassSurface(
-          state = indicatorBackdrop,
-          tint = GlassDefaults.selectionTint(),
-          shape = ContinuousCornerShape(22.dp),
-          role = GlassRole.Interactive,
-          // The lens the vendored bar this design comes from had, and the engine did not.
-        //
-        // Three things, and they are one thing: the indicator has to read as a *piece of glass*
-        // sitting on the bar even when nobody is touching it. The bend is rightly a press —
-        // holding it is what asks for it — but the rim and the shadow were multiplied down by the
-        // same number, so at rest there was neither, and the shape came entirely from its own
-        // wash. Over a bar standing on a bright cover that wash is nearly the cover's colour and
-        // the selection simply disappeared. The floor is the vendored bar's own (half a rim,
-        // a third of a shadow), and the press takes both the rest of the way.
-        //
-        // There is no inner shadow here, and there is not meant to be: the lens is mounted with
-        // `opticalDepth = { 0f }`, and the inner shadow answers to that depth, so it was never drawn
-        // (this note used to promise "the thickness of the pane, seen from inside" and the override
-        // that went with it was dead). Nor should it come back: a specular rim and an inner shadow
-        // on the same millimetre of perimeter read as two edges, see `GlassDefaults.optics`.
-        optics = remember {
-          GlassDefaults.optics(GlassRole.Interactive).copy(
-            blurScale = 0f,
-            edgeFloor = FluidTabIndicatorEdgeFloor,
-          )
-        },
-          opticalDepth = { 0f },
+        .padding(horizontal = RailIndicatorInset + 2.dp, vertical = RailIndicatorInset)
+        .then(
+          if (lensAvailable) {
+            Modifier.glassDropFace(
+              backdrop = indicatorBackdrop.backdrop,
+              drag = drop,
+              lensSize = GlassDropLens.Slider,
+              face = dropFace,
+              reducedMotion = { reducedMotion },
+              shape = ContinuousCornerShape(22.dp),
+            )
+          } else {
+            // Sotto API 31 non c'e' lente: la scheda scelta resta segnata da una pastiglia piena.
+            Modifier
+              .clip(ContinuousCornerShape(22.dp))
+              .background(dropFace)
+          },
         )
         .fillMaxWidth()
-        .height(itemHeight),
+        .height(indicatorHeight),
     )
+
+    // La scheda scelta, di nuovo, sopra la goccia a riposo. Decorativa e senza tocco: la scheda vera
+    // sta sotto e ha l'una e l'altra cosa. Segue la goccia (corsa e crescita) e sfuma tre volte piu'
+    // in fretta della sua pressione, come l'icona che la pillola della tab bar ridisegna sopra di se'.
+    Box(
+      modifier = Modifier
+        .clearAndSetSemantics {}
+        .graphicsLayer {
+          translationY = drop.value * liveItemHeightPx
+          scaleX = drop.scaleX
+          scaleY = drop.scaleY
+          alpha = lensAlpha * (1f - drop.pressProgress * 3f).coerceIn(0f, 1f)
+        }
+        .fillMaxWidth()
+        .height(itemHeight),
+      contentAlignment = Alignment.Center,
+    ) {
+      FluidTabItemFace(item = items[dropIndex], selected = true)
+    }
   }
 }
+
+/** Il respiro fra il bordo della scheda e la goccia: sopra e sotto. Ai lati sono due dp in piu'. */
+private val RailIndicatorInset = 6.dp
+
+/**
+ * Quanto cresce la goccia del rail sotto il dito: quanto la pillola della tab bar (`78/56`), di cui e'
+ * la parente piu' vicina. Un numero da giudicare in mano.
+ */
+private const val RailDropPressedScale = 78f / 56f
 
 /** Padding a floating tab bar needs around itself. */
 @Composable

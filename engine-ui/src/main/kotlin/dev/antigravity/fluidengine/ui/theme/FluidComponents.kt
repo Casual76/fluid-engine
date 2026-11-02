@@ -16,7 +16,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,6 +92,13 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasIsGlass
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
+import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
+import dev.antigravity.fluidengine.ui.fluid.FluidPressState
+import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -534,6 +540,35 @@ fun FluidSyncIndicator(
   status: SyncStatus,
   modifier: Modifier = Modifier,
 ) {
+  FluidSyncIndicatorSurface(status = status, modifier = modifier, press = null)
+}
+
+/**
+ * Se l'indicatore sta su una barra di vetro: il materiale della barra e' in scope
+ * ([LocalGlassBackdrop], che la barra superiore mette attorno alle sue azioni) e c'e' RenderEffect.
+ * Altrove — fuori da una barra, sotto API 31 — resta il cerchio pieno di sempre.
+ */
+@Composable
+private fun syncIndicatorBarGlass(): GlassBackdropState? =
+  LocalGlassBackdrop.current.takeIf { isRenderEffectSupported() }
+
+/**
+ * L'indicatore, con la pressione di chi lo rende premibile ([FluidSyncAction]).
+ *
+ * **Nella barra e' un tasto di vetro** (3.0, fase 9): la stessa capsula delle azioni accanto a lui
+ * ([glassControlSurface] sul fondale della barra), con la tinta del tono — non piu' un cerchio opaco
+ * in mezzo a lenti. Il tono non sparisce: entra nel materiale, come l'accento in un tasto di vetro
+ * scelto, e il glifo sta sopra, opaco. Fuori da una barra, o senza vetro, e' il cerchio colorato di prima.
+ *
+ * @param press la pressione condivisa col `fluidPressable` che lo avvolge: il vetro cresce, segue il dito e
+ *   si accende sulla stessa linea del tempo del click. Nulla per un indicatore che non si tocca.
+ */
+@Composable
+private fun FluidSyncIndicatorSurface(
+  status: SyncStatus,
+  modifier: Modifier,
+  press: FluidPressState?,
+) {
   val neverSynced = status.lastSuccessfulSyncEpochMillis == null
   // A year the school has not opened yet is not a fault: nothing is broken, nobody can fix it, and
   // it is the ordinary state of the source. Reporting it in the same colour as an expired session
@@ -570,10 +605,29 @@ fun FluidSyncIndicator(
     label = "sync content",
   )
 
+  val barGlass = syncIndicatorBarGlass()
+  // Il tono nel materiale: la sua tinta sopra la pellicola dei controlli, a meta' (il vetro resta
+  // vetro) — il ripiego sotto API 31 non serve, perche' li' non si arriva (`barGlass` e' nullo).
+  val glassTint = GlassDefaults.controlTint().let { base ->
+    base.copy(overlay = container.copy(alpha = SyncIndicatorToneShare), fallback = container, hairline = Color.Transparent)
+  }
+
   Box(
     modifier = modifier
       .size(SyncIndicatorSize)
-      .background(container, CircleShape)
+      .then(
+        if (barGlass != null) {
+          Modifier.glassControlSurface(
+            backdrop = barGlass,
+            shape = FluidCapsuleShape,
+            tint = glassTint,
+            interactive = press != null,
+            pressState = press,
+          )
+        } else {
+          Modifier.background(container, CircleShape)
+        },
+      )
       .semantics { contentDescription = label },
     contentAlignment = Alignment.Center,
   ) {
@@ -617,6 +671,9 @@ fun FluidSyncIndicator(
 }
 
 private val SyncIndicatorSize = 26.dp
+
+/** Quanto del tono entra nel vetro dell'indicatore: la meta' — il glifo sopra resta leggibile e il materiale resta vetro. */
+private const val SyncIndicatorToneShare = 0.55f
 
 /**
  * The sentence [FluidSyncNotice] would show, or null when there is nothing to say.
@@ -739,11 +796,21 @@ fun FluidSyncAction(
   var showDetails by remember { mutableStateOf(false) }
   val modalHost = LocalFluidGlassModalHostState.current
 
-  FluidSyncIndicator(
+  // Nella barra l'indicatore e' vetro e si tocca come ogni tasto di vetro: una pressione sola per il
+  // vetro e per il click, e niente increspatura di Material sopra a una lente. Altrove e' un cerchio
+  // pieno che cresce sotto il dito, come ogni tasto.
+  val onGlass = syncIndicatorBarGlass() != null
+  val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
+  FluidSyncIndicatorSurface(
     status = status,
-    modifier = modifier
-      .clip(CircleShape)
-      .clickable(role = Role.Button) { showDetails = true },
+    modifier = modifier.fluidPressable(
+      onClick = { showDetails = true },
+      role = Role.Button,
+      focusShape = CircleShape,
+      feedback = if (onGlass) null else FluidPressFeedback.ExpandRound,
+      pressState = if (onGlass) press else null,
+    ),
+    press = if (onGlass) press else null,
   )
 
   if (modalHost != null) {

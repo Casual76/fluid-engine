@@ -63,7 +63,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Indication
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -392,8 +391,10 @@ fun FluidFloatingTabBar(
         // refracted page for a flat accent-tinted slab. A pane of glass and a fill behind it are
         // two answers to the same question, and the glass is the one this bar chose.
         val colors = if (makesOwnGlass) {
-            // Only the bar's own. The accessory band paints its own background and is handed no
-            // glass to replace it with, so zeroing that one would delete it.
+            // Only the bar's own. The accessory band keeps its colour in the colours it is handed,
+            // and drops it by itself wherever it stands on glass (`accessoryBand`): there it is
+            // the bar's glass, like the pill and the circle, and without a pane it is the opaque
+            // capsule it always was.
             remember(colors) { colors.copy(backgroundColor = Color.Transparent) }
         } else {
             colors
@@ -832,14 +833,16 @@ interface FluidFloatingTabBarScope {
      * only thing on screen and nothing else answers a touch. The expanded row ignores it and
      * draws none: there the puck is the indication, and it now leaves with the finger rather than
      * waiting for the navigation, so a ripple underneath is the same answer given twice and half
-     * a beat early.
+     * a beat early. **Null by default since 3.0 (fase 9):** the inline tab answers with the finger's
+     * glow on its glass and a `Tap`, like every glass control, and a Material ripple under that is a
+     * third answer to one touch. An app that wants its own passes it here.
      */
     fun tab(
         key: Any,
         title: @Composable () -> Unit,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)? = { LocalIndication.current }
+        indication: (@Composable () -> Indication)? = null
     )
 
     /**
@@ -850,7 +853,9 @@ interface FluidFloatingTabBarScope {
      * @param key Unique identifier for the standalone tab
      * @param icon Composable content for the tab icon
      * @param onClick Callback invoked when the tab is clicked
-     * @param indication Optional indication provider for touch feedback, defaults to LocalIndication.current
+     * @param indication Optional indication provider for touch feedback. Null by default since 3.0
+     * (fase 9): the circle already answers with the finger's glow and a `Tap`, and a Material
+     * ripple on top was a second answer to the same touch.
      * @param title Composable content for the tab title. Never actually shown —
      * the standalone tab is always an icon-only floating circle, in both inline
      * and expanded states (see InlineStandaloneTab / ExpandedStandaloneTab).
@@ -859,7 +864,7 @@ interface FluidFloatingTabBarScope {
         key: Any,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)? = { LocalIndication.current },
+        indication: (@Composable () -> Indication)? = null,
         title: @Composable () -> Unit = {}
     )
 }
@@ -875,8 +880,17 @@ interface FluidFloatingTabBarScope {
 private fun Modifier.tapClickable(
     indication: Indication?,
     onClick: () -> Unit,
+    /**
+     * Cosa si sente al tocco: di serie `Tap`, un colpo (3.0, fase 9). Sulla riga aperta la pillola
+     * ha la sua aptica (un tick per scheda attraversata) ma un tocco su una scheda non la fa
+     * muovere finche' l'app non ha navigato: senza questo, toccare una scheda era l'unico gesto
+     * della barra a non dire niente alla mano. Un colpo, e solo dal vocabolario; la rete dei 70 ms
+     * lo fonde con quello che l'app suona a sua volta.
+     */
+    haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
+    val haptics = LocalFluidHaptics.current
     // Il fuoco da tastiera: Tab entra prima nella barra, e una scheda col fuoco non si
     // distingueva dalle altre. Un velo dell'accento dentro la sagoma della scheda (il clip sta
     // prima di questo modificatore); al tocco il fuoco non arriva, e niente cambia.
@@ -885,7 +899,10 @@ private fun Modifier.tapClickable(
     return this
         .drawBehind { if (focused) drawRect(focusWash) }
         .clickable(
-            onClick = onClick,
+            onClick = {
+                if (haptic != null) haptics.play(haptic)
+                onClick()
+            },
             indication = indication,
             interactionSource = interactionSource
         )
@@ -970,6 +987,7 @@ private fun SharedTransitionScope.InlineBar(
                 shapes = shapes,
                 colors = colors,
                 elevations = elevations,
+                tabBarContentModifier = tabBarContentModifier,
                 animatedVisibilityScope = animatedVisibilityScope,
                 modifier = Modifier
                     .weight(1f)
@@ -1031,6 +1049,41 @@ private fun Modifier.barShadow(shape: Shape, elevation: Dp, hasGlassPane: Boolea
 /** La quota a cui il raggio dell'ombra del ruolo flottante vale esatto: l'elevazione espansa di serie. */
 private val BarShadowReferenceElevation = 12.dp
 
+/**
+ * La banda accessoria (il pezzo in riproduzione, una striscia di stato) come il resto della barra.
+ *
+ * Era l'unica superficie della barra rimasta opaca: `accessoryBackgroundColor` pieno e un'ombra di
+ * piattaforma, accanto a una pillola e a un cerchio di vetro vero. Ora e' **il vetro della barra**:
+ * lo stesso pannello (`tabBarContentModifier`, quello che la barra si e' fatta o che l'app le ha
+ * passato), la stessa ombra di vetro, lo stesso ritaglio del cerchio autonomo. Il riempimento opaco
+ * sparisce quando c'e' un pannello, perche' sotto un vetro e' un muro che lo spegne; senza pannello (nessun
+ * fondale, nessun modificatore) e' la capsula piena di sempre, col suo riempimento e la sua ombra
+ * di piattaforma.
+ *
+ * Il contenuto della banda lo disegna l'app, che riceve questo modificatore e lo mette sulla sua
+ * radice: quello che ci mette sopra resta opaco al 100%.
+ */
+@Composable
+private fun Modifier.accessoryBand(
+    shapes: FluidFloatingTabBarShapes,
+    colors: FluidFloatingTabBarColors,
+    elevation: Dp,
+    tabBarContentModifier: Modifier,
+): Modifier {
+    val hasGlassPane = tabBarContentModifier !== Modifier
+    return this
+        .barShadow(shape = shapes.accessoryShape, elevation = elevation, hasGlassPane = hasGlassPane)
+        .then(
+            if (hasGlassPane) {
+                Modifier
+            } else {
+                Modifier.background(color = colors.accessoryBackgroundColor, shape = shapes.accessoryShape)
+            }
+        )
+        .clip(shapes.accessoryShape)
+        .then(tabBarContentModifier)
+}
+
 @Composable
 private fun SharedTransitionScope.InlineTab(
     inlineTab: FluidFloatingTabBarTab,
@@ -1043,6 +1096,16 @@ private fun SharedTransitionScope.InlineTab(
     modifier: Modifier,
     tabBarContentModifier: Modifier
 ) {
+    // La luce del dito, come il cerchio autonomo accanto a lei (fase 9): una scheda in linea senza
+    // pillola non aveva altra risposta al tocco che l'increspatura di Material, e una barra di vetro
+    // che risponde con un'onda di un altro materiale e' una barra che non e' tutta dello stesso vetro.
+    val glowScope = rememberCoroutineScope()
+    val onDark = GlassDefaults.isDarkSurface()
+    val onGlass = tabBarContentModifier !== Modifier
+    val glow = remember(glowScope, onDark, onGlass) {
+        GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark, onGlass = onGlass)
+    }
+
     Box(
         // Centred, and it only started to matter when the folded pill grew. While this box was
         // exactly the size of the icon inside it the default top-start placement was invisible;
@@ -1066,6 +1129,8 @@ private fun SharedTransitionScope.InlineTab(
             )
             .clip(shapes.tabBarShape)
             .then(tabBarContentModifier)
+            .then(glow.gestureModifier)
+            .then(glow.modifier)
             .tapClickable(
                 indication = inlineTab.indication?.invoke(),
                 onClick = {
@@ -1156,6 +1221,7 @@ private fun SharedTransitionScope.InlineAccessory(
     colors: FluidFloatingTabBarColors,
     shapes: FluidFloatingTabBarShapes,
     elevations: FluidFloatingTabBarElevations,
+    tabBarContentModifier: Modifier,
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier
 ) {
@@ -1179,12 +1245,12 @@ private fun SharedTransitionScope.InlineAccessory(
             accessory(
                 Modifier
                     .fillMaxSize()
-                    .shadow(
-                        shape = shapes.accessoryShape,
-                        elevation = elevations.inlineElevation
-                    )
-                    .background(color = colors.accessoryBackgroundColor, shapes.accessoryShape)
-                    .clip(shapes.accessoryShape),
+                    .accessoryBand(
+                        shapes = shapes,
+                        colors = colors,
+                        elevation = elevations.inlineElevation,
+                        tabBarContentModifier = tabBarContentModifier,
+                    ),
                 animatedVisibilityScope
             )
         }
@@ -1278,6 +1344,7 @@ private fun SharedTransitionScope.ExpandedBar(
                 shapes = shapes,
                 colors = colors,
                 elevations = elevations,
+                tabBarContentModifier = tabBarContentModifier,
                 animatedVisibilityScope = animatedVisibilityScope,
                 modifier = if (tabRowWidthPx > 0) {
                     Modifier.width(with(density) { tabRowWidthPx.toDp() })
@@ -1403,6 +1470,7 @@ private fun SharedTransitionScope.SearchExpandedBar(
                 shapes = shapes,
                 colors = colors,
                 elevations = elevations,
+                tabBarContentModifier = tabBarContentModifier,
                 animatedVisibilityScope = animatedVisibilityScope,
                 modifier = targetWidthModifier
             )
@@ -1524,6 +1592,7 @@ private fun SharedTransitionScope.ExpandedAccessory(
     colors: FluidFloatingTabBarColors,
     shapes: FluidFloatingTabBarShapes,
     elevations: FluidFloatingTabBarElevations,
+    tabBarContentModifier: Modifier,
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier
 ) {
@@ -1544,13 +1613,12 @@ private fun SharedTransitionScope.ExpandedAccessory(
             )
     ) {
         accessory(
-            Modifier
-                .shadow(
-                    shape = shapes.accessoryShape,
-                    elevation = elevations.expandedElevation
-                )
-                .background(color = colors.accessoryBackgroundColor, shapes.accessoryShape)
-                .clip(shapes.accessoryShape),
+            Modifier.accessoryBand(
+                shapes = shapes,
+                colors = colors,
+                elevation = elevations.expandedElevation,
+                tabBarContentModifier = tabBarContentModifier,
+            ),
             animatedVisibilityScope
         )
     }

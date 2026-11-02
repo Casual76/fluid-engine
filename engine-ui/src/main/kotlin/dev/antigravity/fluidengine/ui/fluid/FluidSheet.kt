@@ -32,6 +32,8 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +48,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * A modal sheet.
@@ -62,7 +66,18 @@ import androidx.compose.ui.window.DialogProperties
  * now the one surface in the interface made of a different material from everything around it.
  * [FluidGlassModalPortal] lives inside the app's composition and does not have the problem.
  *
- * Still here, still working, and still right for anything that genuinely needs its own window.
+ * **So with a host it is the glass sheet (3.0, fase 9).** When the app has a [FluidGlassModalHost]
+ * at its root (`LocalFluidGlassModalHostState`) this does not open a platform window at all: it asks
+ * the host for the glass sheet ([FluidGlassModalPresentation.Sheet]) and the content stands on a
+ * refracting pane instead of a painted copy, in the one material every other sheet has. What goes
+ * with the window is what the window was: [sheetState] and [modifier] are ignored (the glass sheet
+ * has its own drag, its own grabber and its own insets), and [showGrabber] is too — the glass sheet
+ * always carries its grabber. On dismissal (the scrim, back, a drag down) the sheet leaves with the
+ * animation of the host and **only then** calls [onDismissRequest], the order the platform sheet
+ * kept: whoever takes it out of composition sooner loses the exit, and nothing else.
+ *
+ * Without a host there is nowhere to draw it, and it is the platform sheet it has always been — still
+ * right for anything that genuinely needs its own window.
  */
 @Deprecated(
   message = "Un pop-up in vetro deve stare dentro la composizione dell'app: usa " +
@@ -81,6 +96,16 @@ fun FluidSheet(
   showGrabber: Boolean = true,
   content: @Composable ColumnScope.() -> Unit,
 ) {
+  // Un host nella radice: il foglio e' quello di vetro, dentro la composizione. Il ramo e' deciso da
+  // quello che c'e' in scope e non cambia mentre il foglio e' aperto (l'host sta alla radice).
+  if (LocalFluidGlassModalHostState.current != null) {
+    FluidSheetInHost(
+      onDismissRequest = onDismissRequest,
+      title = title,
+      content = content,
+    )
+    return
+  }
   val sheetShape = ContinuousCornerShape(topStart = FluidRadius.Sheet, topEnd = FluidRadius.Sheet)
   ModalBottomSheet(
     onDismissRequest = onDismissRequest,
@@ -120,6 +145,63 @@ fun FluidSheet(
     }
   }
 }
+
+/**
+ * Il foglio di [FluidSheet] nell'host: la presentazione `Sheet` del portale, per la durata della
+ * composizione di chi lo chiama.
+ *
+ * Chi chiama [FluidSheet] ne ha il contratto "composto = aperto", e il portale vuole un `visible`:
+ * il ponte e' uno stato locale. Alla richiesta di chiusura (scrim, indietro, trascinamento) lo stato
+ * passa a "chiuso", il foglio esce con l'animazione dell'host, e **a uscita finita** si chiama
+ * [onDismissRequest] — che e' l'ordine del foglio di piattaforma, e cio' che permette al chiamante di
+ * togliere il foglio dalla composizione senza che l'uscita diventi un taglio. Se e' il chiamante a
+ * toglierlo da solo (un tasto dentro il foglio che spegne il suo stato) il portale si ritira subito:
+ * uscita secca, come la `Dialog` di prima.
+ */
+@Composable
+private fun FluidSheetInHost(
+  onDismissRequest: () -> Unit,
+  title: String?,
+  content: @Composable ColumnScope.() -> Unit,
+) {
+  val scope = rememberCoroutineScope()
+  val currentDismiss by rememberUpdatedState(onDismissRequest)
+  var open by remember { mutableStateOf(true) }
+
+  FluidGlassModalPortal(
+    visible = open,
+    onDismissRequest = {
+      // Una volta sola: lo scrim, indietro e il trascinamento possono arrivare nello stesso istante.
+      if (open) {
+        open = false
+        scope.launch {
+          delay(FluidSheetExitMillis)
+          currentDismiss()
+        }
+      }
+    },
+    presentation = FluidGlassModalPresentation.Sheet,
+    paneTitle = title,
+  ) {
+    if (title != null) {
+      Text(
+        text = title,
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 20.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.titleLarge,
+        textAlign = TextAlign.Center,
+      )
+    }
+    content()
+  }
+}
+
+/**
+ * Quanto aspetta [FluidSheetInHost] prima di dire al chiamante che il foglio e' chiuso: l'uscita del
+ * foglio dell'host (dissolvenza di 240 ms, molla critica a 420) e' finita, o quasi, a questo punto.
+ */
+private const val FluidSheetExitMillis = 300L
 
 /**
  * The grabber.

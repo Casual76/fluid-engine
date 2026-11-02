@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -100,6 +102,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1828,9 +1831,11 @@ private fun FluidGlassModalSheet(
 /**
  * La barra in cima a una pagina intera: il titolo nel mezzo, la chiusura a destra.
  *
- * La chiusura e' un cerchio pieno con la croce, non una lente di vetro: la pagina e' gia' vetro, e
- * vetro sopra vetro non rifrange niente di leggibile. E' lo stesso segno del tasto che svuota un
- * campo, alla misura di un comando.
+ * La chiusura e' un **tasto di vetro** ([FluidGlassIconButton], la croce al centro), come ogni altro
+ * tasto di una barra: la pagina intera e' opaca di proposito, ma i comandi che le stanno sopra sono
+ * della stessa famiglia di quelli di ogni barra dell'app, e un cerchio dipinto accanto a un tasto di
+ * vetro e' la differenza che si legge. Sotto API 31 non c'e' un vetro da attraversare e resta il
+ * cerchio pieno con la croce di prima, lo stesso segno del tasto che svuota un campo.
  */
 @Composable
 private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
@@ -1859,6 +1864,23 @@ private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
 
 @Composable
 private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+  if (isRenderEffectSupported()) {
+    // Il tasto tondo di vetro delle barre: pressione di LibrePods, luce del dito, `Tap`. Il fondale e'
+    // quello che c'e' in scope, e su una pagina opaca e' vuoto — il tasto tiene il bordo, l'ombra e la
+    // risposta al dito, e niente da piegare, come ogni tasto di vetro su una pagina piatta.
+    FluidGlassIconButton(
+      onClick = onClick,
+      modifier = modifier,
+    ) {
+      Icon(
+        imageVector = Icons.Rounded.Close,
+        contentDescription = "Chiudi",
+        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.80f),
+        modifier = Modifier.size(FluidFullScreenCloseGlyph),
+      )
+    }
+    return
+  }
   val fill = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
   val glyph = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
   Box(
@@ -2242,6 +2264,9 @@ private val FluidFullScreenDetachWidth = 600.dp
 private val FluidFullScreenDetachedMargin = 24.dp
 private val FluidFullScreenCloseSize = 30.dp
 private val FluidFullScreenCloseTouchTarget = 44.dp
+
+/** La croce dentro il tasto di vetro: meta' del lato della lente (44 dp), come ogni icona di un tasto tondo. */
+private val FluidFullScreenCloseGlyph = 20.dp
 
 /** How far the sheet must be pushed down before letting go dismisses instead of springing back. */
 private val FluidSheetDismissTravel = 110.dp

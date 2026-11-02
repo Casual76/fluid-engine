@@ -71,6 +71,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropMotion
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDropFace
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -148,6 +153,21 @@ fun FluidSectionIndex(
   var fingerFraction by remember { mutableFloatStateOf(0f) }
 
   val compactTrackHeight = sectionIndexHeight(sampledSections.size)
+
+  // La lente e' una goccia di vetro dove il vetro c'e'; il fondale lo da' chi monta l'indice (vedi
+  // `backdrop`), e sotto API 31 non c'e' RenderEffect.
+  val lensIsGlass = backdrop != null && isRenderEffectSupported()
+  val lensFace = GlassDropFaces.forSurface(GlassDefaults.isDarkSurface())
+  // La pressione della goccia e' l'apertura del nastro, e la scala e' la sua: nasce piccola sotto il
+  // dito e arriva intera. Nessuna velocita': il dito la porta, e non c'e' una molla da cui leggerla.
+  val lensMotion = remember(expansion) {
+    GlassDropMotion(
+      progress = { expansion.value },
+      scaleX = { LensRestScale + (1f - LensRestScale) * expansion.value },
+      scaleY = { LensRestScale + (1f - LensRestScale) * expansion.value },
+      velocity = { 0f },
+    )
+  }
 
   AnimatedVisibility(
     visible = visible,
@@ -302,7 +322,13 @@ fun FluidSectionIndex(
           },
       )
 
-      // The lens: a ball of glass that rides the rail under the finger.
+      // The lens: a drop of glass that rides the rail under the finger.
+      //
+      // It is the drop of the recipe (3.0, fase 9: [glassDropFace], Kyant's thumb), and its pressure is
+      // the unfolding of the rail: it is born under the finger, so there is no "held" of its own to
+      // wait for. Full at the first frame of the unfolding, a lens by the last. The growth from 0.4 is
+      // in the drop's own `layerBlock` and not in a layer above it: a scaled layer over a pane of glass
+      // refracts what is no longer there, and this one is on the move the whole time it exists.
       Box(
         modifier = Modifier
           .align(Alignment.TopEnd)
@@ -314,18 +340,21 @@ fun FluidSectionIndex(
           .graphicsLayer {
             val t = expansion.value
             alpha = t
-            scaleX = 0.4f + 0.6f * t
-            scaleY = 0.4f + 0.6f * t
+            // Il ripiego senza vetro e' una pastiglia dipinta: li' una scala sul layer non rifrange
+            // niente di sbagliato, e resta com'era.
+            if (!lensIsGlass) {
+              scaleX = LensRestScale + (1f - LensRestScale) * t
+              scaleY = LensRestScale + (1f - LensRestScale) * t
+            }
           }
           .then(
-            if (backdrop != null) {
-              Modifier.glassSurface(
-                state = backdrop,
-                tint = controlTint,
+            if (lensIsGlass) {
+              Modifier.glassDropFace(
+                backdrop = backdrop!!.backdrop,
+                motion = lensMotion,
+                lensSize = GlassDropLens.Slider,
+                face = lensFace,
                 shape = FluidCapsuleShape,
-                role = GlassRole.Interactive,
-                opticalDepth = { expansion.value },
-                pressed = { expansion.value },
               )
             } else {
               Modifier
@@ -367,6 +396,11 @@ fun FluidSectionIndex(
                   tint = panelTint,
                   shape = FluidCapsuleShape,
                   role = GlassRole.Modal,
+                  // Il materiale di tutti i pannelli, non l'ottica del ruolo `Modal` (lente 20/28 dp su
+                  // una bolla alta trenta: non sarebbe una lente, sarebbe il pannello intero ripiegato).
+                  // Piccola, quindi `compact` (lente 7/9 dp), e sopra una pagina nitida senza scrim,
+                  // quindi la sfocatura sale: il testo che passa dietro lo deve nascondere lei.
+                  optics = GlassDefaults.panelOptics(compact = true, overSharpPage = true),
                 )
               } else {
                 Modifier
@@ -498,6 +532,9 @@ fun FluidSectionIndex(
     }
   }
 }
+
+/** Da quanto e' grande la lente nel primo fotogramma dell'apertura: il 40%, e arriva intera. */
+private const val LensRestScale = 0.4f
 
 object FluidSectionIndexDefaults {
   const val MaxVisibleAnchors: Int = 8

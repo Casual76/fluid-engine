@@ -508,6 +508,17 @@ Vale anche per gli shader: "nessuno shader di vetro nuovo accanto a GlassMateria
 regola, e la famiglia SDF di Fluid-physics è la deroga deliberata, nel suo package, annotata in
 `LICENSES/AndroidLiquidGlass.md` (il preludio deriva da quello Apache-2.0 di Kyant).
 
+## A riposo una superficie fisica è una lastra (3.0)
+
+Sfocatura, lente, cupola, frangia e pressione escono da `physicsLensUniforms`, gli stessi numeri di
+`glassSurface`; bordo e ombra sono registrati con la ricetta del renderer. Prima la superficie fisica non
+aveva ombra e il suo bordo era un tratto netto mezzo fuori dalla sagoma: era il motivo per cui non sembrava
+vetro come la pillola. In viaggio gli stessi numeri seguono la sagoma: niente scalino alla partenza né
+all'arrivo. Il materiale che cambia (`opticsFrom`) si sfuma con `lerpGlassOptics`, e il margine della cattura
+resta zero per costruzione (sotto un quarto di pixel è zero: l'arrotondamento non deve rifare la cattura).
+L'oltrepasso è un gonfiore attorno al centro del traguardo, mai il lerp oltre l'1, e la molla parte dalla
+velocità del momento: niente rincorse (la rincorsa della casa è il preset `FluidPhysicsJourney.House`).
+
 ## Tre trappole del vetro in movimento
 
 Pagate una per una sui fotogrammi, migrando la card che si espande (1.9.7). Chi tocca una

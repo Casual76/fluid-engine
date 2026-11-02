@@ -446,12 +446,13 @@ molle del chiamante. Due orologi sulla stessa superficie sono un disallineamento
 
 ### La molla, e quando i contenitori rimbalzano
 
-Due tempi, e la differenza è **chi sta aspettando**:
-
-- **Morph avviati da un tocco secco** (il Playground): il viaggio della casa, cioè il default di
-  `morphTo` con `spec = null` — rincorsa in accelerazione, molla sottosmorzata, una posata sola.
-- **Cose che l'utente sta già aspettando** (un long-press di 400 ms, un modale che si apre): la
-  rincorsa lunga si legge come lentezza. Molla sola, o rincorsa breve e ripida.
+Dalla 3.0 il default di `morphTo` è **una molla sola** (`FluidPhysicsJourney.Spring`: 0,62 / 0,36 s, i token
+del menu) che parte alla velocità del momento — un ritargeting eredita quella del viaggio interrotto, un gesto
+passa la sua con `initialVelocity`. La rincorsa della casa è un preset esplicito, `FluidPhysicsJourney.House`,
+per i morph dimostrativi avviati da un tocco secco (il Playground). Il rimbalzo è sempre geometrico: oltre l'1
+la sagoma è il traguardo gonfiato attorno al suo centro (guadagno 0,6, tetto 8% e 12 dp per lato). Nuovi su
+`fluidPhysicsSurface`: `opticsFrom`/`opticsBlend` (il materiale che viaggia) e `pressState` (lente e bagliore
+sotto il dito). A riposo una superficie fisica è una lastra: stessi numeri, bordo e ombra di `glassSurface`.
 
 E la correzione a una regola che questa nota dava per assoluta: **la card ancorata rimbalza, ed è
 voluto** — richiesta esplicita di Alessio, "eccessivamente in fuori su tutti i lati, poi torna".

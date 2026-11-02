@@ -109,6 +109,10 @@ val LocalFluidPageTransition: ProvidableCompositionLocal<FluidPageHostState?> =
  * - [onTransitionStart]: le due pagine che il dito comincia a separare (cima, sotto).
  * - [onSettled]: l'host e' tornato a riposo.
  * - [leaving]: le chiavi che hanno lasciato la pila ma si possono ancora disegnare (null: tutte).
+ * - [pageColor]: il fondo di ogni pagina, di serie `colorScheme.background`. Trasparente, o
+ *   [Color.Unspecified], l'host non dipinge niente e ogni pagina lascia vedere quello che c'e'
+ *   dietro: le due pagine di un movimento non sono piu' due strati opachi e si vedono per
+ *   trasparenza mentre una scivola sull'altra. `FluidNavHost` lo passa uguale.
  * - [content]: la pagina di una chiave, anche di una che ha appena lasciato la pila e sta uscendo.
  */
 @Composable

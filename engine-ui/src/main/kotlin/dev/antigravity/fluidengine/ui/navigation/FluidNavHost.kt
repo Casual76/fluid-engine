@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -61,6 +62,13 @@ fun rememberFluidNavController(
  *
  * - [peer]: l'ordine delle schede, se la pila ne contiene; due schede fanno il passo laterale.
  * - [state]: da leggere per le shell (la tab bar che cambia fra due pagine legge `progress`).
+ * - [pageColor]: il fondo di ogni pagina, di serie `colorScheme.background` (l'host la dipinge, la
+ *   pagina e' carta). Un colore trasparente — o [Color.Unspecified] — non dipinge niente: serve a
+ *   un'app che ha un fondale suo dietro l'host (un canvas ambientale condiviso, l'artwork di un
+ *   player) e vuole che ogni pagina lo lasci vedere. Il prezzo e' nelle transizioni: le pagine non
+ *   sono piu' due strati opachi, e mentre una scivola sopra l'altra si vedono per trasparenza; va
+ *   bene dove le pagine disegnano da se' il proprio fondo, o dove il fondale e' lo stesso per tutte.
+ *   Come in [dev.antigravity.fluidengine.ui.page.FluidPageHost]. Dalla 3.0.
  */
 @Composable
 fun FluidNavHost(
@@ -70,13 +78,14 @@ fun FluidNavHost(
   route: String? = null,
   peer: FluidPeerMove<NavBackStackEntry>? = null,
   state: FluidPageHostState = rememberFluidPageHostState(),
+  pageColor: Color = MaterialTheme.colorScheme.background,
   builder: NavGraphBuilder.() -> Unit,
 ) {
   ensurePageNavigator(navController)
   val graph = remember(route, startDestination, builder) {
     NavGraphBuilder(navController.navigatorProvider, startDestination, route).apply(builder).build()
   }
-  FluidNavHost(navController, graph, modifier, peer, state)
+  FluidNavHost(navController, graph, modifier, peer, state, pageColor)
 }
 
 /** Come sopra, con rotte tipizzate. */
@@ -89,6 +98,7 @@ fun FluidNavHost(
   typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
   peer: FluidPeerMove<NavBackStackEntry>? = null,
   state: FluidPageHostState = rememberFluidPageHostState(),
+  pageColor: Color = MaterialTheme.colorScheme.background,
   builder: NavGraphBuilder.() -> Unit,
 ) {
   ensurePageNavigator(navController)
@@ -97,7 +107,7 @@ fun FluidNavHost(
       .apply(builder)
       .build()
   }
-  FluidNavHost(navController, graph, modifier, peer, state)
+  FluidNavHost(navController, graph, modifier, peer, state, pageColor)
 }
 
 /**
@@ -111,6 +121,7 @@ fun FluidNavHost(
   modifier: Modifier = Modifier,
   peer: FluidPeerMove<NavBackStackEntry>? = null,
   state: FluidPageHostState = rememberFluidPageHostState(),
+  pageColor: Color = MaterialTheme.colorScheme.background,
 ) {
   val lifecycleOwner = LocalLifecycleOwner.current
   val viewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current) {
@@ -148,7 +159,7 @@ fun FluidNavHost(
     onSettled = { navigator.transitionsInProgress.value.forEach(navigator::onTransitionComplete) },
     leaving = leaving,
     state = state,
-    pageColor = MaterialTheme.colorScheme.background,
+    pageColor = pageColor,
     ownOwners = false,
   ) { entry ->
     // La voce da' alla pagina ViewModelStore, ciclo di vita (CREATED quando e' coperta) e stato

@@ -151,8 +151,18 @@ data class FluidHapticsInfo(
   val powerSave: Boolean,
 )
 
-/** Il vibratore vero, e le costanti di Compose per il ripiego. */
-class AndroidHapticPort(private val context: Context, private val platformHaptics: HapticFeedback) : HapticPort {
+/**
+ * Il vibratore vero, e le costanti di Compose per il ripiego.
+ *
+ * @param platformHaptics il `HapticFeedback` di Compose, da cui il ripiego chiede la costante di
+ *   tocco del sistema. Null (dalla 3.0): non c'e' composizione, e il ripiego e' l'effetto di fabbrica
+ *   piu' vicino suonato direttamente dal vibratore ([predefinedHapticFor]). E' la strada di
+ *   [fluidHapticsFor], per il codice a `View` che non ha `LocalHapticFeedback`.
+ */
+class AndroidHapticPort(
+  private val context: Context,
+  private val platformHaptics: HapticFeedback? = null,
+) : HapticPort {
 
   private val vibrator: Vibrator? by lazy {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -177,10 +187,18 @@ class AndroidHapticPort(private val context: Context, private val platformHaptic
 
   override fun vibrate(steps: List<HapticPrimitiveStep>, attention: Boolean): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
-    val v = vibrator ?: return false
     val composition = VibrationEffect.startComposition()
     steps.forEach { composition.addPrimitive(it.id, it.scale.coerceIn(0f, 1f), it.delayMillis.coerceAtLeast(0)) }
-    val effect = composition.compose()
+    return play(composition.compose(), attention)
+  }
+
+  /**
+   * Suona un effetto con l'uso giusto: "tocco" (che il sistema filtra con la sua impostazione) o, per
+   * le allerte, "notifica". Condivisa dalle composizioni e dagli effetti di fabbrica del ripiego
+   * senza `View`.
+   */
+  private fun play(effect: VibrationEffect, attention: Boolean): Boolean {
+    val v = vibrator ?: return false
     return runCatching {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val usage = if (attention) VibrationAttributes.USAGE_NOTIFICATION else VibrationAttributes.USAGE_TOUCH
@@ -203,7 +221,23 @@ class AndroidHapticPort(private val context: Context, private val platformHaptic
   }
 
   override fun platform(type: androidx.compose.ui.hapticfeedback.HapticFeedbackType) {
-    runCatching { platformHaptics.performHapticFeedback(type) }
+    val compose = platformHaptics
+    if (compose != null) {
+      runCatching { compose.performHapticFeedback(type) }
+      return
+    }
+    // Senza Compose non c'e' una costante di tocco da chiedere a un View: si suona l'effetto di
+    // fabbrica piu' vicino. Con la stessa rete di sempre sotto: un vibratore che rifiuta non deve
+    // far cadere chi sta scrivendo su una tastiera.
+    runCatching {
+      val predefined = predefinedHapticFor(type)
+      val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        VibrationEffect.createPredefined(predefined.effectId)
+      } else {
+        VibrationEffect.createWaveform(legacyWaveformFor(predefined), NO_REPEAT)
+      }
+      play(effect, attention = false)
+    }
   }
 
   override val systemHapticsEnabled: Boolean
@@ -212,6 +246,35 @@ class AndroidHapticPort(private val context: Context, private val platformHaptic
   override val powerSave: Boolean
     get() = (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
 }
+
+/** `VibrationEffect.createWaveform(timings, repeat)`: -1 e' "suona una volta e basta". */
+private const val NO_REPEAT = -1
+
+/**
+ * L'aptica dell'engine per il codice che non e' Compose: una tastiera (`InputMethodService`), un
+ * `View`, un servizio, un'attivita' a viste.
+ *
+ * E' lo stesso motore di quello che `FluidTheme` da' ai componenti — composizioni di primitive dove il
+ * telefono le ha, una vibrazione sola per momento, i tick continui che si diradano e spariscono in
+ * risparmio energetico, l'interruttore dell'app davanti a tutto — con una differenza: il ripiego dove le
+ * primitive mancano non e' la costante di tocco del sistema (serve un `View`, o il `HapticFeedback` di
+ * Compose, e qui non ci sono) ma l'effetto di fabbrica del vibratore piu' vicino ([predefinedHapticFor]).
+ * Una tastiera che chiamava `View.performHapticFeedback` a mano sceglieva da sola le costanti e non
+ * aveva nessuna di queste reti; adesso dice un evento del vocabolario, e il resto e' dell'engine.
+ *
+ * **Creala una volta** (un campo del servizio o della vista), non a ogni evento: tiene lo stato delle
+ * reti — i 70 ms che fanno dei due eventi di un controllo uno solo, i 40 ms dei tick, il tetto della
+ * grana — e chiede al telefono le primitive una volta sola. Un'istanza diversa da quella del tema non
+ * condivide le reti con lui: un'app che mescola Compose e viste suona due volte lo stesso istante
+ * se lo dice da due parti.
+ *
+ * Il permesso `VIBRATE` lo dichiara `engine-ui`.
+ *
+ * @param enabled letto a **ogni** evento: e' l'interruttore dell'app (`EngineSettings.hapticsEnabled`),
+ *   e cambiarlo dalle impostazioni vale subito, senza ricreare niente.
+ */
+fun fluidHapticsFor(context: Context, enabled: () -> Boolean = { true }): FluidHaptics =
+  FluidHapticsImpl(AndroidHapticPort(context.applicationContext ?: context), enabled = enabled)
 
 /** L'istanza per un tema: una per composizione del tema, che legge l'interruttore a ogni evento. */
 @Composable

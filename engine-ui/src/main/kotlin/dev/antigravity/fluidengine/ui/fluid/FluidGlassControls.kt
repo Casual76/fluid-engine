@@ -26,18 +26,97 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.coerceAtLeast
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 
 internal val FluidGlassIconTouchTargetSize: Dp = 48.dp
 internal val FluidGlassIconLensSize: Dp = 44.dp
 
 /** Height of a glass action button, matching [FluidButtonDefaults] at `Medium`. */
 internal val FluidGlassButtonHeight: Dp = 48.dp
+
+/**
+ * La taglia di un tasto di vetro ([FluidGlassIconButton], [FluidGlassButton]).
+ *
+ * Le app che avevano bisogno di un tasto tondo piu' piccolo (la riga di un composer, accanto a un
+ * campo) o piu' grande (la barra di una schermata) se lo sono riscritto a mano, perche' l'engine
+ * aveva una misura sola, 44 dp, e la riscrittura riscriveva anche la pressione, il vetro e l'aptica,
+ * cioe' le tre cose che il tasto esiste per non far riscrivere. Una taglia e' un numero, non un
+ * componente nuovo: la ricetta del tasto (cresce, segue il dito, vibra) e' la stessa e **in
+ * proporzione**. La crescita e' una frazione ([FluidPressFeedback.ExpandRound] fa 1,5 su un tasto
+ * tondo, [FluidPressFeedback.Expand] 1,1 con un tetto sul lato lungo), la deriva elastica e'
+ * misurata sul lato corto del vetro, il bagliore sul lato lungo: nessun numero in dp da riscalare.
+ *
+ * **Il bersaglio del tocco non scende mai sotto i 48 dp**, qualunque sia la taglia: un vetro da
+ * 40 dp sta dentro un riquadro da 48 che e' quello che occupa nel layout, e il tocco lo vede. Il
+ * vetro e' la parte che si disegna, il riquadro e' la parte che si tocca.
+ *
+ * @property lens il lato del vetro di un tasto tondo solo icona.
+ * @property buttonHeight l'altezza del vetro di un tasto con un testo. A [Regular] sono 48 dp e non
+ *   44: e' l'altezza che [FluidGlassButton] ha sempre avuto, e una riga con un'etichetta da 17 sp
+ *   ha bisogno di piu' aria di un'icona.
+ */
+enum class FluidGlassSize(val lens: Dp, val buttonHeight: Dp) {
+  /** 40 dp: accanto a un campo, dentro un composer, dove 44 sono gia' troppo. */
+  Compact(40.dp, 40.dp),
+
+  /** 44 dp (48 per un tasto con testo): la misura di sempre. */
+  Regular(FluidGlassIconLensSize, FluidGlassButtonHeight),
+
+  /** 54 dp: la barra flottante di una schermata, dove il tasto sta accanto a una pillola alta quanto lui. */
+  Large(54.dp, 54.dp),
+  ;
+
+  /** Il riquadro che il tasto tondo occupa nel layout e che il dito colpisce: mai meno di 48 dp. */
+  val touchTarget: Dp get() = lens.coerceAtLeast(FluidGlassIconTouchTargetSize)
+
+  /** Quanto sta bene un'icona dentro il vetro: la meta' del lato (20, 22, 27 dp). */
+  val iconSize: Dp get() = lens / 2
+}
+
+/** Il margine laterale dell'etichetta di un [FluidGlassButton]: cresce con l'altezza. */
+internal val FluidGlassSize.buttonPadding: Dp
+  get() = when (this) {
+    FluidGlassSize.Compact -> 16.dp
+    FluidGlassSize.Regular -> 20.dp
+    FluidGlassSize.Large -> 24.dp
+  }
+
+/** Il lato dell'icona davanti all'etichetta di un [FluidGlassButton]. */
+internal val FluidGlassSize.buttonLeading: Dp
+  get() = when (this) {
+    FluidGlassSize.Compact -> 18.dp
+    FluidGlassSize.Regular -> 20.dp
+    FluidGlassSize.Large -> 22.dp
+  }
+
+/**
+ * Porta il riquadro di un controllo ad almeno [min] per lato senza ingrandire quello che c'e'
+ * dentro: il contenuto resta della sua misura e si posa al centro, il layout ne occupa di piu'.
+ *
+ * Lo stesso gesto di `minimumInteractiveComponentSize` di Material, ma con la costante dell'engine
+ * e senza leggere `LocalMinimumInteractiveComponentSize`: un'app che spegne quella per i suoi
+ * componenti Material non toglie il bersaglio a un tasto che dice di averne uno da 48 dp.
+ */
+internal fun Modifier.fluidTouchTarget(min: Dp = FluidGlassIconTouchTargetSize): Modifier =
+  layout { measurable, constraints ->
+    val minPx = min.roundToPx()
+    val placeable = measurable.measure(constraints)
+    val width = constraints.constrainWidth(maxOf(placeable.width, minPx))
+    val height = constraints.constrainHeight(maxOf(placeable.height, minPx))
+    layout(width, height) {
+      placeable.place((width - placeable.width) / 2, (height - placeable.height) / 2)
+    }
+  }
 
 /**
  * A pane of glass that behaves like a control.
@@ -198,7 +277,10 @@ fun Modifier.fluidStaticGlassSurface(
   pressure: () -> Float = { 0f },
 ): Modifier {
   val scheme = MaterialTheme.colorScheme
-  val lightSurface = scheme.surface.luminanceIsLightForGlass()
+  // Chiaro o scuro lo decide una regola sola, `GlassDefaults.isDarkSurface()`: la luminanza di
+  // `surface` ignora l'alpha, quindi un'app con una pellicola traslucida in `surface` veniva
+  // letta come chiara sempre, e dichiarare da che parte sta (`LocalFluidSurfaceSide`) non serviva.
+  val lightSurface = !GlassDefaults.isDarkSurface()
   val body = if (selected) scheme.primary else scheme.surface
   val topLight = Color.White.copy(alpha = if (lightSurface) 0.86f else 0.58f)
   val quietLight = Color.White.copy(alpha = if (lightSurface) 0.24f else 0.16f)
@@ -280,6 +362,14 @@ fun Modifier.fluidStaticGlassSurface(
  *
  * 44 dp of material inside a 48 dp hit target: the lens is allowed to be the size Apple draws it
  * while the tappable area stays the size accessibility requires.
+ *
+ * @param size la taglia ([FluidGlassSize]): 40, 44 (di serie) o 54 dp di vetro. Il riquadro che il
+ *   tasto occupa e che il dito colpisce e' sempre almeno 48 dp ([FluidGlassSize.touchTarget]), e la
+ *   pressione e' la stessa di sempre in proporzione: vedi [FluidGlassSize]. Dalla 3.0.
+ * @param haptic cosa si sente al click, come in [fluidPressable]: di serie il click di LibrePods
+ *   (con `Tap` un tasto che cresce suona `PressClick`); un evento diverso lo sostituisce; `null`
+ *   spegne tutto — contatto, rilascio, grana e click — per un tasto la cui azione ha gia' il suo
+ *   colpo (un microfono che apre l'ascolto, un menu). Dalla 3.0.
  */
 @Composable
 fun FluidGlassIconButton(
@@ -290,6 +380,8 @@ fun FluidGlassIconButton(
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,
   onLongClick: (() -> Unit)? = null,
+  size: FluidGlassSize = FluidGlassSize.Regular,
+  haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   content: @Composable BoxScope.() -> Unit,
 ) {
   // One press for the click and the glass: the lens swells, leans and lights up on the same
@@ -299,12 +391,12 @@ fun FluidGlassIconButton(
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
-      .size(FluidGlassIconTouchTargetSize),
+      .size(size.touchTarget),
     contentAlignment = Alignment.Center,
   ) {
     Box(
       modifier = Modifier
-        .size(FluidGlassIconLensSize)
+        .size(size.lens)
         .glassControlSurface(
           backdrop = backdrop,
           shape = shape,
@@ -318,6 +410,7 @@ fun FluidGlassIconButton(
           onLongClick = onLongClick,
           enabled = enabled,
           role = Role.Button,
+          haptic = haptic,
           focusShape = shape,
           pressState = press,
         ),
@@ -334,6 +427,11 @@ fun FluidGlassIconButton(
  * typography, but the surface transmits instead of covering. Use it where a solid accent button
  * would sit on a photograph, a map or a hero image — and keep [FluidButton] for the one solid
  * primary action a form or a settings page is about, which should still look pressed into the page.
+ *
+ * @param size la taglia ([FluidGlassSize]): 40, 48 (di serie, l'altezza di sempre) o 54 dp. Sotto i
+ *   48 dp il layout occupa comunque 48 dp di altezza ([fluidTouchTarget]) e il vetro sta al centro:
+ *   il tasto e' piu' basso da vedere, non da toccare. Dalla 3.0.
+ * @param haptic come per [FluidGlassIconButton]: `null` per un tasto la cui azione ha gia' il suo colpo.
  */
 @Composable
 fun FluidGlassButton(
@@ -344,6 +442,8 @@ fun FluidGlassButton(
   enabled: Boolean = true,
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,
+  size: FluidGlassSize = FluidGlassSize.Regular,
+  haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   leading: (@Composable () -> Unit)? = null,
 ) {
   val contentColor = if (selected) {
@@ -352,8 +452,17 @@ fun FluidGlassButton(
     MaterialTheme.colorScheme.onSurface
   }
   val press = rememberFluidPressState(FluidPressFeedback.Expand)
+  // Il riquadro da 48 dp lo porta fuori dal vetro solo chi e' piu' basso: a 48 e 54 dp l'albero e'
+  // quello di prima, nodo per nodo.
+  val touchTarget = if (size.buttonHeight < FluidGlassIconTouchTargetSize) Modifier.fluidTouchTarget() else Modifier
+  val labelStyle = if (size == FluidGlassSize.Compact) {
+    MaterialTheme.typography.bodyMedium
+  } else {
+    MaterialTheme.typography.bodyLarge
+  }
   Row(
     modifier = modifier
+      .then(touchTarget)
       .alpha(if (enabled) 1f else 0.38f)
       .glassControlSurface(
         backdrop = backdrop,
@@ -366,25 +475,23 @@ fun FluidGlassButton(
         onClick = onClick,
         enabled = enabled,
         role = Role.Button,
+        haptic = haptic,
         focusShape = shape,
         pressState = press,
       )
-      .height(FluidGlassButtonHeight)
-      .padding(horizontal = 20.dp),
+      .height(size.buttonHeight)
+      .padding(horizontal = size.buttonPadding),
     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically,
   ) {
     CompositionLocalProvider(LocalContentColor provides contentColor) {
       if (leading != null) {
-        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) { leading() }
+        Box(modifier = Modifier.size(size.buttonLeading), contentAlignment = Alignment.Center) { leading() }
       }
       Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+        style = labelStyle.copy(fontWeight = FontWeight.SemiBold),
       )
     }
   }
 }
-
-private fun Color.luminanceIsLightForGlass(): Boolean =
-  (0.299f * red + 0.587f * green + 0.114f * blue) > 0.5f

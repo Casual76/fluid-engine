@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,6 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
@@ -50,6 +59,19 @@ import androidx.compose.ui.unit.dp
  * cursore — un editor con i pulsanti di formattazione, che devono scrivere dove si sta scrivendo e
  * non in fondo — usa l'overload a [TextFieldValue], di cui questo e' un guscio: la selezione vive
  * qui dentro e il chiamante continua a vedere una stringa.
+ *
+ * @param secret un campo che contiene un segreto (una password, una chiave, un token): il testo e'
+ *   puntini, e un occhio a destra lo mostra e lo nasconde. Dalla 3.0. MyCloud si era scritto il
+ *   suo "Mostra"/"Nascondi" sopra il campo perche' lo slot `trailing` era di 18 dp e un bersaglio
+ *   cosi' piccolo non si colpiva; adesso lo slot e' di 24 dp, che e' l'altezza del contenuto di un
+ *   campo da 44 (il campo non cresce), e il tocco ha comunque i 48 dp che Compose da' a ogni
+ *   bersaglio piccolo. Un campo segreto parte nascosto a ogni apertura, non ricorda di essere stato
+ *   mostrato, e non ha il tasto che svuota: l'occhio e' l'unica cosa a destra che si tocca. Di serie
+ *   la tastiera e' quella delle password, senza correzione automatica ([keyboardOptions] la
+ *   sostituisce se la passi). Per chi legge lo schermo il campo e' una password finche' ci sono i
+ *   puntini, e lo resta anche dopo l'occhio: e' la libreria di testo a fissare la semantica quando
+ *   il campo nasce nascosto, e un segreto mostrato resta un segreto. Se `trailing` c'e' sta prima
+ *   dell'occhio.
  */
 @Composable
 fun FluidTextField(
@@ -70,6 +92,7 @@ fun FluidTextField(
   keyboardActions: KeyboardActions = KeyboardActions.Default,
   visualTransformation: VisualTransformation = VisualTransformation.None,
   showClearButton: Boolean = singleLine,
+  secret: Boolean = false,
   leading: (@Composable () -> Unit)? = null,
   trailing: (@Composable () -> Unit)? = null,
 ) {
@@ -109,6 +132,7 @@ fun FluidTextField(
     keyboardActions = keyboardActions,
     visualTransformation = visualTransformation,
     showClearButton = showClearButton,
+    secret = secret,
     leading = leading,
     trailing = trailing,
   )
@@ -140,6 +164,7 @@ fun FluidTextField(
   keyboardActions: KeyboardActions = KeyboardActions.Default,
   visualTransformation: VisualTransformation = VisualTransformation.None,
   showClearButton: Boolean = singleLine,
+  secret: Boolean = false,
   leading: (@Composable () -> Unit)? = null,
   trailing: (@Composable () -> Unit)? = null,
 ) {
@@ -151,7 +176,19 @@ fun FluidTextField(
   // sta bene su una riga di ricerca e male in un paragrafo.
   val oneLine = singleLine && minLines <= 1
   val lineCap = if (oneLine) 1 else maxLines.takeIf { it > 1 && it >= minLines } ?: Int.MAX_VALUE
-  val clearButton = showClearButton && oneLine
+  // Un campo segreto non ha il tasto che svuota: a destra c'e' l'occhio, e due tasti piccoli
+  // accanto sono il modo piu' rapido per scoprire quale dei due si e' colpito. Un segreto si riscrive.
+  val clearButton = showClearButton && oneLine && !secret
+  // Parte nascosto a ogni composizione: ricordarsi di essere stato mostrato vorrebbe dire che una
+  // rotazione dello schermo, o il ritorno da un'altra app, rimette in chiaro una password.
+  var revealed by remember { mutableStateOf(false) }
+  val masked = secret && !revealed
+  val transformation = if (masked) PasswordVisualTransformation() else visualTransformation
+  val options = if (secret && keyboardOptions == KeyboardOptions.Default) {
+    FluidSecretKeyboardOptions
+  } else {
+    keyboardOptions
+  }
 
   // Il pozzo del campo, e perche' sopra il vetro non puo' essere lo stesso.
   //
@@ -207,9 +244,9 @@ fun FluidTextField(
       maxLines = lineCap,
       textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
       cursorBrush = SolidColor(scheme.primary),
-      keyboardOptions = keyboardOptions,
+      keyboardOptions = options,
       keyboardActions = keyboardActions,
-      visualTransformation = visualTransformation,
+      visualTransformation = transformation,
       interactionSource = interactionSource,
       decorationBox = { innerTextField ->
         Row(
@@ -246,9 +283,16 @@ fun FluidTextField(
               FluidClearButton(onClick = { onValueChange(TextFieldValue("")) })
             }
           }
+          // 24 dp, non 18: e' l'altezza che il contenuto di un campo da 44 ha comunque (44 meno i 10 dp
+          // di margine sopra e sotto), quindi il campo non cresce, e un'icona di 24 dp sta intera.
           if (trailing != null) {
             CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) {
-              Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) { trailing() }
+              Box(modifier = Modifier.size(FluidFieldTrailingSize), contentAlignment = Alignment.Center) { trailing() }
+            }
+          }
+          if (secret) {
+            CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) {
+              FluidRevealButton(revealed = revealed, enabled = enabled, onToggle = { revealed = !revealed })
             }
           }
         }
@@ -263,6 +307,45 @@ fun FluidTextField(
         modifier = Modifier.padding(start = 4.dp),
       )
     }
+  }
+}
+
+/** Il lato dello slot a destra di un campo: l'altezza del contenuto di un campo da 44 dp. */
+internal val FluidFieldTrailingSize = 24.dp
+
+/**
+ * La tastiera di un campo segreto quando il chiamante non ne ha scelta una: quella delle password
+ * (niente suggerimenti che finiscono nel dizionario dell'utente) e senza correzione automatica.
+ */
+internal val FluidSecretKeyboardOptions = KeyboardOptions(
+  keyboardType = KeyboardType.Password,
+  autoCorrectEnabled = false,
+)
+
+/**
+ * L'occhio che mostra e nasconde un campo segreto. Cresce sotto il dito come ogni pulsante, e per chi
+ * legge lo schermo dice cosa fara' toccandolo, non cosa e' adesso.
+ */
+@Composable
+private fun FluidRevealButton(revealed: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+  val description = if (revealed) "Nascondi il testo" else "Mostra il testo"
+  Box(
+    modifier = Modifier
+      .size(FluidFieldTrailingSize)
+      .semantics { contentDescription = description }
+      .fluidPressable(
+        onClick = onToggle,
+        enabled = enabled,
+        role = Role.Button,
+        feedback = FluidPressFeedback.Expand,
+      ),
+    contentAlignment = Alignment.Center,
+  ) {
+    Icon(
+      imageVector = if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+      contentDescription = null,
+      modifier = Modifier.size(FluidFieldTrailingSize),
+    )
   }
 }
 

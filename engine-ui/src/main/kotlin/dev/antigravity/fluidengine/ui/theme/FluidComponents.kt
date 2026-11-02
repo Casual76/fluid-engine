@@ -101,8 +101,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.drawBehind
@@ -837,6 +839,26 @@ private fun FluidSyncDetails(
   }
 }
 
+/**
+ * Un messaggio dentro la pagina: un titolo, una frase e, se serve, qualcosa da toccare.
+ *
+ * Senza [onClick] e' quello di sempre, un riquadro che dice una cosa. Con [onClick] **tutto il
+ * messaggio e' un bersaglio**: cede sotto il dito come ogni superficie ([FluidCard]) e dice che si
+ * puo' toccare con una freccia a destra, perche' un avviso toccabile senza un segno e' una
+ * promessa che nessuno scopre. Pampa Store si era fatto una riga di lista con un pannello suo per
+ * averlo, e aveva scritto perche': riscrivere a mano la superficie, i colori del tono e il tocco
+ * sono le tre cose che il design system esiste per non far riscrivere.
+ *
+ * @param onClick cosa succede toccando il messaggio. Dalla 3.0. Il ruolo per chi legge lo schermo
+ *   diventa "pulsante".
+ * @param action la parola di cio' che il tocco fa ("Apri le impostazioni", "Riprova"): una riga
+ *   nel colore del tono sotto la frase. Conta solo con [onClick]: da sola non sarebbe cliccabile,
+ *   quindi sarebbe una riga di testo che finge di esserlo. Dalla 3.0.
+ * @param leading un'icona davanti al titolo, nella piastrella del tono ([FluidToneTile]): il segno
+ *   che distingue un avviso da un errore senza leggere. Dalla 3.0.
+ * @param onDismiss il tasto "Nascondi". Con [onClick] sostituisce la freccia: un messaggio che si
+ *   puo' chiudere e toccare tiene la chiusura, che e' l'azione che non si puo' sbagliare.
+ */
 @Composable
 fun FluidInlineMessage(
   message: String,
@@ -844,16 +866,22 @@ fun FluidInlineMessage(
   title: String = "Messaggio",
   tone: FluidTone = FluidTone.Info,
   onDismiss: (() -> Unit)? = null,
+  onClick: (() -> Unit)? = null,
+  action: String? = null,
+  leading: (@Composable () -> Unit)? = null,
 ) {
+  val toneColor = toneColors(tone).content
   FluidCard(
-    modifier = modifier,
+    modifier = if (onClick != null) modifier.semantics { role = Role.Button } else modifier,
     highlighted = tone != FluidTone.Neutral,
+    onClick = onClick,
   ) {
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.spacedBy(12.dp),
       verticalAlignment = Alignment.Top,
     ) {
+      if (leading != null) FluidToneTile(tone = tone, content = leading)
       Column(
         modifier = Modifier.weight(1f),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -861,7 +889,7 @@ fun FluidInlineMessage(
         Text(
           text = title,
           style = MaterialTheme.typography.titleMedium,
-          color = toneColors(tone).content,
+          color = toneColor,
           fontWeight = FontWeight.SemiBold,
         )
         Text(
@@ -869,11 +897,27 @@ fun FluidInlineMessage(
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (onClick != null && !action.isNullOrBlank()) {
+          Text(
+            text = action,
+            style = MaterialTheme.typography.labelLarge,
+            color = toneColor,
+            fontWeight = FontWeight.SemiBold,
+          )
+        }
       }
-      onDismiss?.let {
-        IconButton(onClick = it) {
+      when {
+        onDismiss != null -> IconButton(onClick = onDismiss) {
           Icon(Icons.Rounded.Close, contentDescription = "Nascondi")
         }
+        onClick != null -> Icon(
+          imageVector = Icons.Rounded.ChevronRight,
+          contentDescription = null,
+          modifier = Modifier
+            .size(18.dp)
+            .align(Alignment.CenterVertically),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+        )
       }
     }
   }
@@ -1070,6 +1114,7 @@ fun FluidListRow(
   animateContent: Boolean = false,
   selected: Boolean = false,
   disclosure: Boolean = true,
+  leadingTile: Boolean = true,
 ) {
   FluidListRow(
     title = AnnotatedString(title),
@@ -1089,6 +1134,7 @@ fun FluidListRow(
     animateContent = animateContent,
     selected = selected,
     disclosure = disclosure,
+    leadingTile = leadingTile,
   )
 }
 
@@ -1144,6 +1190,13 @@ fun FluidListRow(
    * la riga sceglie cosa mostrare accanto, e la freccia promettere un'altra cosa.
    */
   disclosure: Boolean = true,
+  /**
+   * [leading] sta nella piastrella del [tone] ([FluidToneTile]). Falso: sta com'e', e il colore della
+   * piastrella lo sceglie l'app con un [FluidToneTile] suo - un colore per materia, per cartella, per
+   * conto - che prima si ottenevano solo disegnando fuori dai limiti del contenuto, o mettendo una
+   * piastrella dentro la piastrella. Dalla 3.0.
+   */
+  leadingTile: Boolean = true,
 ) {
   val colors = toneColors(tone)
   val selectionWash by animateColorAsState(
@@ -1223,7 +1276,7 @@ fun FluidListRow(
         }
       },
       leadingContent = leading?.let {
-        { ToneIconTile(tone = tone, content = it) }
+        { if (leadingTile) FluidToneTile(tone = tone, content = it) else it() }
       },
       trailingContent = if (badge != null || (onClick != null && disclosure)) {
         {
@@ -1251,26 +1304,75 @@ fun FluidListRow(
   }
 }
 
+/** Il lato della piastrella di un'icona ([FluidToneTile]): il contenuto sta in 19 dp al centro. */
+val FluidToneTileSize: Dp = 32.dp
+
+/** Quanto del colore del tono sta nel velo della piastrella: il sedici per cento. */
+internal const val FluidToneTileVeilAlpha = 0.16f
+
 /**
  * The rounded, filled square an icon sits in at the head of a list row.
  *
  * Carrying the row's tone here rather than on the row's background is what keeps a grouped list
  * looking like one object: the colour identifies the row without breaking the group into blocks.
+ *
+ * Pubblica dalla 3.0 (era `ToneIconTile`, privata): [FluidListRow] la usa da sola per il suo
+ * `leading`, ma un'app che mette un'icona colorata fuori da una riga - in una card, in un messaggio,
+ * in una lista tutta sua - se la riscriveva, e se la riscriveva di 30 dp, con un velo diverso e
+ * i colori del tono mappati a mano. Questa e' la forma con un tono dell'engine; per un colore
+ * qualunque c'e' l'altra, [FluidToneTile] con `color`.
+ *
+ * @param size il lato; il raggio dell'angolo e il contenuto scalano con lui (di serie [FluidToneTileSize]).
  */
 @Composable
-private fun ToneIconTile(
+fun FluidToneTile(
   tone: FluidTone,
+  modifier: Modifier = Modifier,
+  size: Dp = FluidToneTileSize,
   content: @Composable () -> Unit,
 ) {
   val colors = toneColors(tone)
+  FluidToneTile(
+    color = colors.content,
+    modifier = modifier,
+    size = size,
+    content = content,
+  )
+}
+
+/**
+ * La piastrella con un colore qualunque: l'icona (e il testo, via `LocalContentColor`) nel [color],
+ * e dietro un velo.
+ *
+ * E' il caso di chi ha un colore per cosa - una materia, una cartella, un conto - e non un tono
+ * dell'engine: la regola resta quella di una riga ben fatta, **il colore sta sulla piastrella e mai
+ * sullo sfondo**. Il [veil] e' separato dal [color] perche' non sempre sono lo stesso colore: una
+ * materia ha un riempimento e un inchiostro per l'icona scelti per leggersi l'uno sull'altro, e il
+ * sedici per cento dell'inchiostro non e' il suo riempimento.
+ *
+ * @param color il colore dell'icona.
+ * @param veil il velo dietro l'icona; di serie [color] al 16%, come la piastrella di un tono.
+ * @param size il lato; il raggio dell'angolo e il contenuto scalano con lui.
+ */
+@Composable
+fun FluidToneTile(
+  color: Color,
+  modifier: Modifier = Modifier,
+  size: Dp = FluidToneTileSize,
+  veil: Color = color.copy(alpha = FluidToneTileVeilAlpha),
+  content: @Composable () -> Unit,
+) {
+  // Il raggio e il contenuto seguono il lato: 10 dp e 19 dp a 32, che e' la piastrella di una riga,
+  // e la stessa forma a qualunque taglia (un 10 dp fisso su una piastrella da 56 e' un quadrato).
+  val scale = size / FluidToneTileSize
   Box(
-    modifier = Modifier
-      .size(32.dp)
-      .background(colors.content.copy(alpha = 0.16f), ContinuousCornerShape(FluidRadius.Small)),
+    modifier = modifier
+      .size(size)
+      .background(veil, ContinuousCornerShape(FluidRadius.Small * scale)),
     contentAlignment = Alignment.Center,
   ) {
-    CompositionLocalProvider(LocalContentColor provides colors.content) {
-      Box(modifier = Modifier.size(19.dp)) { content() }
+    CompositionLocalProvider(LocalContentColor provides color) {
+      Box(modifier = Modifier.size(19.dp * scale)) { content() }
     }
   }
 }
@@ -1441,28 +1543,55 @@ fun FluidStatChip(
   }
 }
 
+/**
+ * Uno stato vuoto: dice **perche'** non c'e' niente e cosa si puo' fare.
+ *
+ * @param illustration un disegno sopra il titolo: un'icona grande, un vettoriale, qualunque cosa
+ *   l'app abbia per riconoscere quella schermata vuota. Dalla 3.0. MyCloud si era scritto una
+ *   vista tutta sua per averlo, e l'engine non puo' decidere cosa disegnare (non conosce il
+ *   dominio) ma puo' dargli un posto: con l'illustrazione la colonna si centra, come un
+ *   disegno si aspetta, e prende un po' piu' di aria; senza, e' quella di sempre, allineata a
+ *   sinistra come una riga. L'illustrazione eredita un colore quieto (`onSurfaceVariant`) e
+ *   non e' letta da TalkBack: e' decorazione, il titolo dice tutto.
+ */
 @Composable
 fun FluidEmptyState(
   title: String,
   detail: String,
   modifier: Modifier = Modifier,
+  illustration: (@Composable () -> Unit)? = null,
 ) {
+  val centered = illustration != null
+  val textAlign = if (centered) TextAlign.Center else TextAlign.Start
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .padding(horizontal = 4.dp, vertical = 12.dp),
+      .padding(horizontal = 4.dp, vertical = if (centered) 24.dp else 12.dp),
+    horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
     verticalArrangement = Arrangement.spacedBy(4.dp),
   ) {
+    if (illustration != null) {
+      Box(
+        modifier = Modifier.padding(bottom = 12.dp).clearAndSetSemantics { },
+        contentAlignment = Alignment.Center,
+      ) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+          illustration()
+        }
+      }
+    }
     Text(
       text = title,
       style = MaterialTheme.typography.titleMedium,
       color = MaterialTheme.colorScheme.onSurface,
       fontWeight = FontWeight.SemiBold,
+      textAlign = textAlign,
     )
     Text(
       text = detail,
       style = MaterialTheme.typography.bodyMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
+      textAlign = textAlign,
     )
   }
 }

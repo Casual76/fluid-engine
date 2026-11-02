@@ -156,6 +156,10 @@ internal fun ControlsTab(bottomInset: Dp) {
         )
       }
     }
+
+    // I buchi che le app dichiaravano (fase 12a): taglie dei tasti di vetro, messaggio toccabile,
+    // campo segreto, barre leggibili, piastrella, stato vuoto, pannelli di vetro, aptica a viste.
+    gapsDemoItems()
   }
 }
 

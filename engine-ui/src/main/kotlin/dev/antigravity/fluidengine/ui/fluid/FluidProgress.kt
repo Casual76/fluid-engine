@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -94,6 +95,11 @@ private const val HalfPi = (PI / 2).toFloat()
  * A hairline-thin capsule rather than Material's segmented track: no stop indicator, no gap before
  * the remaining portion, and the track is the text colour at low opacity rather than a container
  * colour, so it works on any surface it lands on.
+ *
+ * Il riempimento si legge sempre sulla pista: **almeno 3:1** (dalla 3.0), qualunque sia [color]. Un
+ * accento di mezzo tono su una pista quasi della superficie faceva 1,7:1 e una barra al 60% non si
+ * distingueva da una al 100%. Se [color] gia' basta resta com'e'; altrimenti si scurisce (su fondo
+ * chiaro) o si schiarisce (su scuro) del minimo che serve, tenendo la tinta. Vedi [legibleFill].
  */
 @Composable
 fun FluidProgressBar(
@@ -102,7 +108,8 @@ fun FluidProgressBar(
   color: Color = MaterialTheme.colorScheme.primary,
   height: Dp = 4.dp,
 ) {
-  val track = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+  val track = MaterialTheme.colorScheme.onSurface.copy(alpha = FluidProgressTrackAlpha)
+  val fill = rememberProgressFill(color)
   Box(
     modifier = modifier
       .fillMaxWidth()
@@ -115,7 +122,7 @@ fun FluidProgressBar(
       if (fraction <= 0f) return@Canvas
       val radius = size.height / 2f
       drawRoundRect(
-        color = color,
+        color = fill,
         size = androidx.compose.ui.geometry.Size(size.width * fraction, size.height),
         cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius, radius),
       )
@@ -124,10 +131,25 @@ fun FluidProgressBar(
 }
 
 /**
+ * Il colore con cui una barra disegna il proprio riempimento: [color], portato a leggersi sulla
+ * pista ([legibleFill]). Calcolato una volta per accento e per palette, non a ogni fotogramma.
+ */
+@Composable
+private fun rememberProgressFill(color: Color): Color {
+  val scheme = MaterialTheme.colorScheme
+  // Sopra un pannello di vetro la pista poggia sulla pellicola del vetro, non sulla pagina.
+  val film = if (LocalFluidCanvasIsGlass.current) GlassDefaults.glassFilm() else null
+  return remember(color, scheme, film) { fluidProgressFill(color, scheme, film) }
+}
+
+/**
  * An indeterminate bar, for the rare case where something is loading but nothing knows how far.
  *
  * A short segment travelling the width, easing at both ends — Material's version accelerates out of
  * frame and restarts abruptly, which reads as a stutter at the loop point.
+ *
+ * Il segmento ha lo stesso contrasto minimo della barra determinata, 3:1 sulla pista: vedi
+ * [FluidProgressBar].
  */
 @Composable
 fun FluidIndeterminateBar(
@@ -145,7 +167,8 @@ fun FluidIndeterminateBar(
     ),
     label = "indeterminate travel",
   )
-  val track = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+  val track = MaterialTheme.colorScheme.onSurface.copy(alpha = FluidProgressTrackAlpha)
+  val fill = rememberProgressFill(color)
 
   Box(
     modifier = modifier
@@ -162,7 +185,7 @@ fun FluidIndeterminateBar(
       val end = (x + segment).coerceAtMost(size.width)
       if (end <= start) return@Canvas
       drawRoundRect(
-        color = color,
+        color = fill,
         topLeft = Offset(start, 0f),
         size = androidx.compose.ui.geometry.Size(end - start, size.height),
         cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius, radius),

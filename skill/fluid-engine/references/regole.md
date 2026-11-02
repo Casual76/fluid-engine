@@ -102,7 +102,8 @@ app che lo distribuisce è GPL-3.0). Cosa vale, e cosa è cambiato dalla 2.12:
   (`SegmentFrequentTick`), un `SegmentFrequentTick` per ogni evento che si sposta di più di
   sqrt(350) px (stile di grana `LibrePods`, di serie), `PressRelease` al rilascio (`Reject`), `PressClick`
   al click (`ContextClick`). Un tap fa quindi tre colpi: **è l'unica eccezione a "una vibrazione per
-  momento"**, ed è voluta. Un tasto che apre qualcosa di suo (un menu) passa il proprio evento a
+  momento"**, ed è voluta (la regola e il perché sono più sotto, in «Una vibrazione per momento»). Un tasto
+  che apre qualcosa di suo (un menu) passa il proprio evento a
   `fluidPressable(haptic = ...)` al posto di `PressClick`; `haptic = null` spegne tutto;
 - **sul vetro**, la lente sotto il dito è quella di LibrePods (12/24 dp, profondità, dispersione:
   `GlassDefaults.buttonOptics()`, a riposo resta quella di sempre) e il bagliore è il suo (raggio il lato
@@ -260,6 +261,109 @@ solo il materiale dell'app) e il contenuto si marca con `glassContainer(stato)`.
 Le tre trappole di sotto valgono anche qui: il materiale e' registrato alla forza corrente del
 pannello, non a quella del layer che lo fa sfumare.
 
+## Un materiale per i pannelli (3.0)
+
+Popover, menu contestuale, finestra che si espande, foglio, notifica, callout, bolla dell'indice di
+sezione, menu che si trasforma: **un pannello flottante è un pannello flottante**, e chiede
+`GlassDefaults.panelOptics(compact, overSharpPage)` e `GlassDefaults.panelTint(colour)`, mai numeri
+suoi. Prima ognuno ne aveva: la finestra sfocava 2,2 con un bordo da 1,1 dp, il popover 2,5 con uno da
+0,8, la notifica e il callout la lente del ruolo `Modal`. Messi uno accanto all'altro sullo schermo
+erano cinque vetri per la stessa famiglia di cose, e nessuno dei cinque era sbagliato da solo: era la
+somma che si leggeva.
+
+La ricetta è quella che il popover aveva dopo i suoi giri di taratura, e i commenti accanto ai numeri
+in `GlassMaterial.kt` ne sono la storia: sfocatura 2,5, lente 14/18 dp, bordo 0,8 dp al 45%, nessuna
+ombra interna, ombra 18 dp al 36%. Tre cose da sapere:
+
+- **la lente è una misura assoluta, il pannello no.** 18 dp di spostamento su una finestra larga sono
+  un bordo; sugli stessi 18 dp di un menu di due righe sono un terzo del pannello, e l'immagine
+  ripiegata sul margine si stacca da quella dritta al centro: si vedono **due versioni** dello stesso
+  oggetto nello stesso vetro. Non è un difetto della rifrazione, è la rifrazione a una taglia per cui
+  non era tarata. Per questo `compact` (lente 7/9 dp) per un menu di poche righe;
+- **sopra una pagina nitida, solo la sfocatura sale** (`overSharpPage`: da 2,5 a 3,5, o a 2,8 se
+  anche compatto). Un popover ha lo scrim che sfoca la pagina prima di lui; una notifica e un callout
+  no, e il testo che passa dietro nitido il pannello lo deve nascondere da solo. Ma non oltre quello
+  che la lente copre, perché il padding della cattura vale `max(0, sfocatura − altezza)` e deve restare
+  zero in un viaggio di Fluid-physics;
+- **la regola della taglia vale sopra**, come per ogni lastra: lo stesso pannello grande o piccolo esce
+  dalla stessa ricetta con la sfocatura e la lente che la sua taglia chiede.
+
+Vale per il pannello nuovo che qualcuno scrive domani: se non è nessuno di questi, è il caso che
+questa regola non aveva previsto e si discute; se lo è, non si ritocca un numero nel suo file. Provato
+da `GlassPanelMaterialTest` (la base è quella del popover, `compact` cambia solo la lente,
+`overSharpPage` solo la sfocatura, una istanza stabile per combinazione).
+
+## Il bordo è uno (3.0)
+
+Il bordo speculare di una lastra lo disegnavano due strade, il renderer di `glassSurface` e il tratto
+di path di `fluidPhysicsSurface`, e finché ognuna aveva la sua ricetta **la stessa lastra, ferma o in
+viaggio, aveva due bordi**: il fisico era un gradiente bianco in entrambi i temi, e sul chiaro bianco
+su bianco non si vede. Oggi la ricetta è una, `glassRimRecipe(darkSide)`:
+
+- sul **lato scuro** il bordo è luce: bianco al 50% in `Plus`, perché la luce si somma;
+- sul **lato chiaro** non c'è luce da sommare: è una riga **scura** (nero al 28%) posata in modo
+  ordinario, `SrcOver`. Più quieta del gemello bianco, perché una riga scura su carta si legge a un
+  contrasto più basso di una chiara al buio;
+- il profilo è quello dello shader: pieno dove la sagoma guarda in su o in giù, zero sui fianchi.
+  `fluidPhysicsSurface` non può chiedere la normale a ogni pixel e ne disegna il profilo con un
+  gradiente verticale (`glassRimRamp`: la rampa lunga un angolo e mezzo, mezza altezza per una capsula).
+
+La trappola è il giro, e vale la pena scriverla: **girare il solo colore compila, gira, e non disegna
+niente.** Un bordo scuro in `Plus` si somma a niente e sparisce; il lato chiaro sono due metà insieme,
+un colore scuro *e* un modo ordinario di posarlo. Chi disegna un bordo di vetro lo chiede a
+`glassRimRecipe` e prende le due cose.
+
+Due conseguenze, che sono la stessa regola vista dal lato dell'ombra:
+
+- **niente ombra interna insieme a un bordo speculare**: sono due trattamenti dello stesso millimetro
+  di perimetro, e insieme si leggono come due bordi invece che come spessore (`panelOptics` la tiene a
+  zero per questo);
+- **l'ombra esterna è del vetro, mai di piattaforma.** Un `Modifier.shadow` su una superficie
+  trasparente trapela dentro la sagoma, e non ha il colore del lato del tema né il peso del ruolo. Il
+  colore è `glassShadowColor` (nero al 16% sul chiaro, al 10% sullo scuro) e il peso quello del ruolo;
+  per un pannello che non è lui a disegnare la propria ombra (un antenato che la ritaglia: la barra
+  flottante) c'è `glassShadow`, e per la finestra di Fluid-physics `fluidPhysicsShadow`. La finestra che
+  si espande ha oggi un'ombra circa sei volte più leggera di quella di prima: è il numero da giudicare
+  in mano, e sta in una costante sola.
+
+Provato da `GlassRimRecipeTest` (la ricetta per lato, il giro nelle sue due metà, la rampa contro lo
+shader: una capsula coincide esattamente, un angolo di card entro pochi punti percento, e il colore
+dell'ombra è lo stesso conto per chiunque ne disegni una).
+
+## La goccia e la lastra (3.0)
+
+Il vetro dell'engine ha **due famiglie**, e ogni elemento è dell'una o dell'altra: la ricetta di
+ciascuna sta in `docs/10-coerenza.md`.
+
+- **La lastra** è ciò che sta: pannelli, barre, card, gruppi, menu, i tasti di vetro a riposo.
+  `glassSurface`, `glassControlSurface` o `fluidPhysicsSurface`, con ottica dal ruolo, bordo e ombra del
+  vetro.
+- **La goccia** è ciò che si afferra e scorre: i pomelli di slider e interruttore, la pillola della tab
+  bar, quella del segmentato, la goccia dei menu. A riposo è **piena** (bianca nel chiaro); sotto il dito
+  **diventa lente**: sfocatura `8 dp × (1 − p)`, lente che sale con la pressione, ombra interna solo
+  premuta. È la ricetta di Kyant, e sta in `glass/interaction/GlassDrop.kt` (`glassDrop`,
+  `glassDropSquash`), una volta sola: il pomello dello slider e quello dell'interruttore ne avevano una
+  copia ciascuno, la pillola della barra una scritta a mano.
+
+Non si mescolano. Una goccia non prende l'ottica di un ruolo (`GlassRole.Interactive` non è la goccia:
+è quasi trasparente con la lente al massimo, e la goccia piena a riposo non l'ha mai letta), e una
+lastra non si schiaccia con la velocità: **lo squash è della goccia**, dalla velocità della molla,
+`/10`, tetto 0,2, e non esiste per un pannello.
+
+Le eccezioni sono tre, hanno un nome, e stanno tutte nel verso del metro (R1: slider, interruttore e
+pillola cambiano solo verso i riferimenti, mai allontanandosene):
+
+- l'**interruttore** tiene i numeri del port di Kyant, squash **con segno** e `/50`
+  (`SwitchSquashDivisor`, contro il `SquashDivisor` di 10 degli altri): la sua corsa è di venti dp, e
+  la velocità della molla in intervalli al secondo è molto più alta di quella di uno slider;
+- la **pillola della tab bar** tiene lo squash **con segno**, `/10`, come aveva: la ricetta dice
+  assoluto, la pillola ha sempre fatto col segno, e cambiarlo sarebbe cambiare il metro;
+- l'interruttore e la pillola **non guardano le animazioni ridotte** per lo squash: erano così, e un
+  metro non si cambia per far tornare un conto. Lo slider le guarda, e la ricetta le guarda.
+
+`GlassDropSquashTest` rifà il conto *come stava scritto prima* per i tre e lo confronta bit per bit con
+la funzione condivisa: un'ultima cifra spostata sarebbe un metro cambiato.
+
 ## Un solo vocabolario di movimento
 
 Tutto passa da `FluidMotion`. `FluidMotionScheme` lo passa anche ai componenti Material, così uno
@@ -267,13 +371,99 @@ switch e la chrome custom si muovono con le stesse molle.
 
 Due invarianti:
 
-- **Una pagina in arrivo non sfuma mai.** Le transizioni di rotta sono opache e laterali; due pagine
-  leggibili sovrapposte, anche per 100ms, sono la cosa che fa sembrare l'app un prototipo.
+- **Una pagina in arrivo non sfuma mai.** Le pagine sono opache (da destra di serie) e quella che si
+  muove è una carta che sta sotto il dito (vedi «Le pagine non sfumano e seguono il dito»): due pagine
+  leggibili sovrapposte, anche per 100 ms, sono la cosa che fa sembrare l'app un prototipo.
 - **`FluidMotionPolicy` va rispettata.** Quando la scala di animazione di sistema è a zero, il
   movimento decorativo sparisce. È un'impostazione di accessibilità, non un suggerimento.
 
 Una `tween` scritta a mano dentro una schermata è il modo più rapido per far sembrare quella
 schermata di un'altra app.
+
+## Le pagine non sfumano e seguono il dito (3.0)
+
+Una pagina è la cosa più grande che si muove, e le regole sono due.
+
+**Opaca dal primo all'ultimo fotogramma.** Nessuna pagina sfuma, nessuna sfoca quella sotto, nessuno
+scrim: due pagine leggibili una attraverso l'altra, anche per 100 ms, sono la cosa che fa sembrare
+l'app un prototipo, e una sfocatura a tutto schermo è il fotogramma più caro che l'app possa disegnare
+proprio quando ne ha meno. Il vecchio involucro delle rotte (`FluidRouteMotionHost`) teneva opaca la
+pagina che entrava arrotondandola a 30 dp mentre cresceva, e sfocava di 6 dp quella che usciva: un blur
+a tutto schermo per fotogramma, il costo più alto di un cambio di rotta. Con `FluidNavHost` non serve:
+la pagina che si muove è una **carta**, con gli angoli del telefono (dove l'host tocca davvero un
+angolo dello schermo) e un'ombra da 36 dp, e una carta non ha niente da nascondere. A riposo il layer
+non ritaglia e non proietta niente. Fa eccezione, come sempre, il passo fra due schede,
+che non è una pagina: 13% della larghezza, opaca sopra, e la vecchia scivola e sfuma in 150 ms; quella
+che arriva non sfuma mai. Con le animazioni ridotte i moti autonomi saltano, e il dito segue comunque
+1:1.
+
+**Sotto il dito, pixel per pixel, finché il dito non la lascia.** Il back è quello di iOS: la pagina
+sta sulla **posizione vera** del dito (`touchX`), non sul `progress` del gesto di sistema. Il perché è
+il difetto che ha fatto nascere l'host: `NavHost` cerca la transizione sul `progress`, che il sistema
+smussa con una molla sua e scala sulla propria distanza massima, e poi lo passa per un easing. Con
+`EaseEmphasized`, `W · ease(p)` a un quinto del gesto (p = 0,20) porta la pagina a mezzo schermo (0,50 W):
+**due volte e mezzo il dito** (0,6× a p = 0,05, 1,6× a 0,10, 2,3× a 0,30). Una pagina che corre davanti al
+dito non è fluida, è scollegata, ed è come tornavano indietro FluidWeather, PampAI e Pampa widgets. Il
+dito vero non ha questo problema, e il sistema lo dà a ogni evento. Ne seguono le altre scelte:
+
+- **la molla parte dalla velocità del dito**, mai un `tween` di durata fissa: al rilascio la velocità
+  che il dito aveva non si butta, e la pagina continua il suo gesto invece di cominciarne un altro.
+  Criticamente smorzata: una pagina non rimbalza;
+- **il rilascio**: conferma oltre il 35% della larghezza (con un tetto di 180 dp, perché su un tablet
+  il 35% è mezzo braccio) o con una spinta di 400 dp/s; una spinta contraria della stessa forza annulla
+  anche oltre la distanza, perché il dito ha cambiato idea e la molla gli dà ragione;
+- **l'annullo del sistema si deduce.** Il sistema annulla un back con ~200 ms di ritardo: prima riporta
+  il suo `progress` a zero con un'animazione sua, a dito già alzato. Due eventi col dito fermo e il
+  progresso in calo vogliono dire che il dito non c'è più, e la pagina parte subito;
+- **il back di sistema passa dal dispatcher di navigationevent**, registrato prima delle pagine: i
+  `BackHandler` dell'app restano davanti a lui, e un'app che ne ha uno (la selezione, un modale) non lo
+  perde;
+- **un gesto confermato chiama `onBack()` prima della molla**, che continua mentre la pila si accorcia:
+  l'app non deve sapere che c'è una molla.
+
+**Da qualunque punto, e i tasti non consumano.** `FluidBackSwipe.Anywhere` è di serie, come LibrePods:
+un figlio che consuma (un cursore, un interruttore, una lista che scorre di lato) vince, e uno
+scorrimento orizzontale arrivato al suo inizio passa la mano alla pagina. Poiché dalla 3.0 un tasto non
+prende mai il gesto, un trascinamento orizzontale che parte su un tasto fa partire il back: coerente con
+LibrePods, **da giudicare in mano**. `EdgeOnly` (i primi 20 dp) per le pagine piene di gesti propri,
+`Off`: mai col dito dentro l'app, restano il back di sistema e il tasto. Nessuna vibrazione nel gesto:
+una pagina che scorre non è un momento da sentire.
+
+Il codice è `ui/page/` e `ui/navigation/`; la ricetta di migrazione sta in `docs/03-design-system.md`.
+`FluidRouteMotionHost` resta com'era per chi non migra, e sfoca ancora: dentro un `FluidNavHost` non va
+messo (vuole un `AnimatedVisibilityScope` che le pagine Fluid non hanno).
+
+## Una vibrazione per momento (e l'eccezione dei tasti)
+
+Due componenti che dicono lo stesso istante non vibrano due volte: **due eventi di controllo entro 70 ms
+sono lo stesso momento**, e il secondo non suona. Era il «toc-toc» che faceva sembrare un errore
+l'apertura di un menu: due componenti dicevano lo stesso istante, e il secondo colpo non aveva un
+motivo. La rete è nel motore (`FluidHaptics`), non nel call-site: nessun componente deve sapere cosa
+suona il suo vicino.
+
+- **Quali si fondono**: Tap, Confirm, Reject, ToggleOn/Off, Threshold, Open, Close, GestureStart/End.
+  **Quali no**: esiti e allerte (`Success`, `Warning`, `Error`, `Alert*`) non si scartano mai, e i tick
+  continui (`Tick`, `FrequentTick`, `WaitTick`, `DragTick`) hanno il loro cancello a 40 ms e non armano
+  la rete.
+- **`Open` è un colpo solo** (un click pieno a 0,6), non una rampa più un tick.
+- **Un tasto che apre qualcosa di suo** passa il proprio evento a `fluidPressable(haptic = ...)` al
+  posto del click; `haptic = null` spegne tutto, grana compresa. Una **riga che è l'interruttore**
+  (`FluidToggleRow`) suona `ToggleOn`/`ToggleOff` e non `Tap`: la pressione è di
+  `fluidRowPressable(haptic = null)`, perché fondere i due sceglie il primo, cioè quello sbagliato. Una
+  riga di scelta (`FluidChoiceRow`) suona un `Tick` solo se la scelta si sposta.
+
+**L'eccezione è una, voluta, ed è dei tasti.** Un tasto che cresce (`FluidPressFeedback.Expand`) fa la
+coreografia di LibrePods, con le costanti di sistema: `PressDown` (`SegmentFrequentTick`) al contatto,
+`PressRelease` (`Reject`) al rilascio, `PressClick` (`ContextClick`) al click. Un tap fa quindi **tre
+colpi**, e uno trascinato veloce ne fa uno per ogni evento sopra la soglia (la grana, stile
+`LibrePods`). Sono eventi **solo di piattaforma** e non fondibili, e non armano la rete dei 70 ms: se
+la armassero, il click di un tap sarebbe scartato dal suo stesso contatto. Il motivo per cui è l'unica
+eccezione è che lì la coreografia *è* il tasto: in mano è la differenza che si sente fra un tasto che
+risponde e uno che si limita a scattare. Ogni altro componente resta a un momento, un colpo.
+
+Provato da `FluidHapticsTest` (la rete, `Open`, i tre colpi in coda al vocabolario, solo di piattaforma,
+non fondibili) e da `FluidButtonDragTest` (un tap suona esattamente contatto, rilascio e click, in
+quest'ordine; una superficie che cede fa ancora un `Tap` solo).
 
 ## L'engine non conosce il dominio
 
@@ -305,6 +495,14 @@ mai la sagoma (la silhouette la scolpisce l'alpha dello shader), il padding dell
 fermo per tutto il viaggio, e a riposo la superficie tiene un'istanza di `Shape` stabile — il
 morphing è transiente per contratto. Un raggio animato a mano in una schermata è ancora il bug di
 prima; una forma che deve trasformarsi chiede un `FluidPhysicsState`.
+
+**Un viaggio che si cancella si ferma dove si trova (3.0).** Se il viaggio viene interrotto a metà
+(`morphTo` cancellato: il menu che si chiude mentre si sta ancora aprendo), la forma resta quella
+interpolata in quell'istante, e il `morphTo` successivo parte da lì. Prima saltava al traguardo per un
+fotogramma — il menu chiuso a metà apertura compariva come pannello pieno — e il test che lo avrebbe
+visto (`FluidPhysicsCancelTest`) non era mai stato eseguito. Vale per ogni superficie che si trasforma,
+non solo per i menu: l'inversione a metà viaggio dal punto in cui si è è un requisito della ricetta del
+pannello in movimento (`docs/10-coerenza.md`), e un fotogramma che salta al traguardo la rompe.
 
 Vale anche per gli shader: "nessuno shader di vetro nuovo accanto a GlassMaterial" resta la
 regola, e la famiglia SDF di Fluid-physics è la deroga deliberata, nel suo package, annotata in

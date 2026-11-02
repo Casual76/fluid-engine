@@ -23,12 +23,14 @@ Non è una guida di implementazione: è la specifica di comportamento da cui scr
   lettura è marcata **[dedotto]**; dove va guardata in mano prima di fidarsene è marcata **[verificare]**.
   L'elenco completo è in fondo, nell'Appendice B.
 - **Igiene di licenza.** Qui dentro non c'è codice GPL: ci sono comportamento, formule e numeri, con
-  parole nostre. Il codice di Kyant (Apache) si può citare, ed è citato poco. I riferimenti
-  `file:riga` verso LP servono a chi **rivede** per controllare un numero; chi **implementa** lavora
-  da questo documento e non apre LP. Vedi la sezione 6.
-- **Numeri di riga dell'engine.** Il working tree ha modifiche non committate a `fluid/FluidPress.kt`,
-  `haptics/FluidHaptics.kt` e `haptics/AndroidFluidHaptics.kt` (la grana aptica della 3.0, in corso):
-  le righe di quei file citate qui sono di oggi e possono slittare.
+  parole nostre. Il documento è stato scritto prima della scelta del 31 ottobre 2026 (il codice di LP
+  si porta, sotto GPL-3.0: vedi la sezione 6), e quella regola l'ha tenuto pulito. Il codice di Kyant
+  (Apache) si può citare, ed è citato poco. I riferimenti `file:riga` verso LP servono a controllare un
+  numero e, per i file portati, a ritrovare da dove vengono: l'intestazione di ognuno dice il commit e
+  le righe.
+- **Numeri di riga dell'engine.** Quelli citati sono del codice 2.13.1 (21 ottobre), cioè di prima
+  della 3.0: `fluid/FluidPress.kt`, `haptics/FluidHaptics.kt` e `haptics/AndroidFluidHaptics.kt`, fra gli
+  altri, sono stati riscritti dalla fase 4, e le righe di quei file non tornano più.
 
 ---
 
@@ -633,21 +635,32 @@ sfocatura (LP usa 2 dp, noi ≈ 3,5 dp, la stessa classe).
 
 ## 6. Licenza
 
-**Regola operativa.** LP è GPL-3.0. Un'opera derivata va rilasciata GPL-3.0, e le app dell'engine
-non lo sono. Quindi: dal codice di LP **non si copia niente**, e chi implementa lavora **da questo
-documento**, senza leggere LP (resta valida la pratica già usata per `fluidButtonGesture`:
-"Ispirato al comportamento di LibrePods (GPL-3.0): nessun codice", `CHANGELOG.md` 2.12.0). Numeri,
-formule matematiche e descrizioni di comportamento sono fatti, non espressione, e si possono
-riscrivere liberamente. Kyant e Haze sono Apache-2.0: si possono usare dalla fonte, con l'avviso e
-l'elenco delle modifiche come per il resto di `LICENSES/AndroidLiquidGlass.md`.
+**Regola operativa (cambiata il 31 ottobre 2026, a studio finito).** LP è GPL-3.0, e Alessio ha scelto
+di portarne il codice: l'engine e le app che lo aggiornano diventano GPL-3.0 (`LICENSES/LibrePods.md`).
+Quindi il codice di LP **si porta com'è scritto**, a tre condizioni: l'intestazione di provenienza in
+ogni file portato (i file e le righe di LP, il commit `3d4d270`, la licenza, l'elenco di quello che
+abbiamo cambiato), le righe in `LICENSES/LibrePods.md` e la voce in `FluidEngineLicenses`, quindi in
+`fluidLicensesSection()`. **Questa regola sostituisce quella che il documento aveva scritto**, e che
+valeva fino alla 2.13: dal codice di LP *non si copia niente*, chi implementa lavora da questo
+documento senza aprire LP, come per `fluidButtonGesture` della 2.12.0 («Ispirato al comportamento di
+LibrePods (GPL-3.0): nessun codice»). Il documento resta com'era perché ne è nato, e per questo non
+porta codice di LP, solo comportamento e numeri: sono fatti, non espressione, e si possono riscrivere
+liberamente anche da chi non porta. Cosa è stato portato finora: i pulsanti (`FluidPress.kt`,
+`FluidButtonGesture.kt` e le parti di aptica, bagliore e lente che li accompagnano, fase 4) e le pagine
+(`ui/page/*`: i due strati, la carta, il flusso avanti e indietro e la regola di rilascio, fase 8).
+Kyant e Haze sono Apache-2.0: si possono usare dalla fonte, con l'avviso e l'elenco delle modifiche
+come per il resto di `LICENSES/AndroidLiquidGlass.md`.
 
 `SwipeBack.kt` si dichiara "mostly AI generated" (`:32`) e, come i file di navigazione, non porta
 l'intestazione GPL dei file di primitive; il repository è GPL-3.0 per intero e va trattato così.
 
-Classi: **(i)** derivato da Kyant, lo prendiamo da Kyant; **(ii)** originale di LP ma sostanzialmente
+Classi, pensate per la regola di prima — cosa una riscrittura pulita avrebbe potuto eguagliare —:
+**(i)** derivato da Kyant, lo prendiamo da Kyant; **(ii)** originale di LP ma sostanzialmente
 parametri e taratura, si rifà dalla specifica; **(iii)** originale di LP con logica non banale
 (shader, algoritmo di gesto, architettura di navigazione) che una riscrittura pulita potrebbe non
-eguagliare.
+eguagliare. Con la scelta di portare la domanda non si pone più per i pezzi portati (pulsanti, aptica,
+gesto indietro e carta): resta una guida per quelli che non lo sono, come la barra ancorata, dove la
+costruzione che vogliamo è comunque un'altra.
 
 | Pezzo | Classe | Note |
 |---|---|---|

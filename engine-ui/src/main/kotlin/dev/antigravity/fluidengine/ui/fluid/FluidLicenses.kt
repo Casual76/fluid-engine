@@ -98,7 +98,9 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
  */
 fun LazyListScope.fluidLicensesSection(
   title: String = "Licenze e crediti",
-  footnote: String? = "Il Fluid Engine ${EngineBuild.VERSION} include queste opere di terze parti. " +
+  footnote: String? = "Il Fluid Engine ${EngineBuild.VERSION} include queste opere di terze parti, " +
+    "fra cui codice GPL-3.0 (LibrePods): quest'app si distribuisce con la stessa licenza, " +
+    "e i sorgenti sono a disposizione di chi la riceve. " +
     "Le licenze complete sono nel repository dell'engine, in LICENSES/.",
   licences: List<FluidLicense> = FluidEngineLicenses,
 ) {

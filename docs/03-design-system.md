@@ -12,7 +12,7 @@
 
 **4. Le liste sono raggruppate.** Righe dentro un unico contenitore arrotondato, separate da hairline da 0.5dp rientrate dove comincia il testo. La categoria della riga sta sulla piastrella dell'icona, mai sullo sfondo della riga: colorare le righe trasforma una lista ordinata in un patchwork.
 
-**5. Il movimento è un vocabolario, non un effetto.** Tutto passa da `FluidMotion` (molle) e `FluidMotionScheme` (che le passa anche ai componenti Material). Una pagina in arrivo non sfuma mai: le transizioni di rotta sono opache e laterali, così non ci sono mai due pagine leggibili sovrapposte. `FluidMotionPolicy` spegne il movimento decorativo quando la scala di animazione di sistema è a zero — va rispettata, non aggirata.
+**5. Il movimento è un vocabolario, non un effetto.** Tutto passa da `FluidMotion` (molle) e `FluidMotionScheme` (che le passa anche ai componenti Material). Una pagina in arrivo non sfuma mai: le pagine sono opache (da destra, di serie) e quella che si muove sta sotto il dito, così non ci sono mai due pagine leggibili sovrapposte né un back che corre davanti al dito (vedi «Le pagine e `FluidNavHost`»). `FluidMotionPolicy` spegne il movimento decorativo quando la scala di animazione di sistema è a zero — va rispettata, non aggirata.
 
 ## Fluid Glass: dove vive e dove no
 
@@ -82,6 +82,33 @@ un materiale traslucido, è niente: su un tema AMOLED la pillola di navigazione 
 Glass è un materiale chiaro e riflettente, che anche in tema scuro si legge come un pannello *più
 chiaro* del fondo. `GlassDefaults.glassFilm()` parte da due grigi fissi e prende un terzo della
 palette: abbastanza da seguire l'accento, non abbastanza da farsi trascinare a fondo.
+
+### Due famiglie, un bordo, un pannello (3.0)
+
+Dalla 3.0 il vetro ha **due famiglie**, e ogni elemento è dell'una o dell'altra. La **lastra** è ciò che
+sta: pannelli, barre, card, gruppi, menu, i tasti di vetro a riposo. La **goccia** è ciò che si afferra
+e scorre: i pomelli di slider e interruttore, la pillola della tab bar, quella del segmentato, la goccia
+dei menu; a riposo è piena, sotto il dito diventa lente (ricetta di Kyant, `glass/interaction/GlassDrop.kt`,
+interna). Cosa vale per l'una e per l'altra, le eccezioni note e lo stato di ogni componente sono in
+[`10-coerenza.md`](10-coerenza.md); il perché in `regole.md` della skill («La goccia e la lastra»).
+
+**Un materiale per i pannelli.** Popover, menu contestuale, finestra che si espande, foglio, anteprima
+sollevata, notifica, callout, menu che si trasforma: un pannello flottante chiede
+`GlassDefaults.panelOptics(compact = false, overSharpPage = false)` e `GlassDefaults.panelTint(colour = null)`,
+e non scrive numeri suoi. È la ricetta che il popover aveva dopo le sue tarature (sfocatura 2,5, lente
+14/18 dp, bordo 0,8 dp al 45%, nessuna ombra interna, ombra 18 dp al 36%) con la regola della taglia
+sopra. `compact` (lente 7/9 dp) per un menu di poche righe, dove 14/18 mostrava due versioni dello
+stesso oggetto nello stesso vetro; `overSharpPage` (sfocatura 3,5, o 2,8 se anche compatto) per un
+pannello che nessuno scrim ha sfocato prima, come una notifica o un callout. `colour` tinge la pellicola
+col colore della cosa da cui il pannello è nato. `modalTint()` e `floatingTint()` restano pubblici.
+
+**Un bordo solo, un'ombra del vetro.** `glassSurface` e `fluidPhysicsSurface` disegnano lo stesso bordo
+(`glassRimRecipe`, interna): luce bianca in `Plus` sul lato scuro, una riga scura (nero al 28%) in
+`SrcOver` sul chiaro, col profilo dello shader — pieno sopra e sotto, zero ai fianchi. Prima la stessa
+lastra, ferma o in viaggio, aveva due bordi. Niente ombra interna insieme a un bordo speculare. L'ombra
+esterna è del vetro (`glassShadowColor`: nero al 16% sul chiaro, al 10% sullo scuro, per il peso del ruolo):
+mai un `Modifier.shadow` sotto una superficie trasparente, che trapela dentro la sagoma. Sulla
+**finestra che si espande** l'ombra è ora circa sei volte più leggera di prima: si giudica in mano.
 
 ### Il costo, e come si tiene
 
@@ -204,6 +231,10 @@ se stesso. Non farlo: spostare il controllo nello slot `overlay` oppure lasciarl
 | `FluidSectionIndex` | indice laterale per liste lunghe |
 | `FluidNotificationHost` | notifiche contestuali dentro l'app (`FluidNotification`, con `actions` dalla 2.12.0): la card si trascina, vedi sotto |
 | `ProvideFluidChrome`, `rememberFluidChromeController` | il registro della barra e del bus "torna in cima" |
+| `FluidNavHost`, `rememberFluidNavController`, `composable(…)` · `FluidPageHost`, `FluidPageHostState` | le pagine della 3.0: opache, da destra, il back sotto il dito; vedi «Le pagine e `FluidNavHost`» |
+| `FluidFloatingCapsule`, `FluidCapsuleAction`, `fluidCapsuleInsets` | la capsula di vetro con poche azioni in fondo allo schermo: selezione, mini player, comandi di una foto |
+| `FluidSearchField` | il campo di ricerca di vetro, che si apre da un cerchio |
+| `FluidSheetScaffold`, `FluidConfirmSheet`, `FluidPromptAlert` | il contenuto di un foglio con i tasti fermi, la conferma, l'avviso che chiede una riga di testo |
 
 **La notifica si tocca (2.12.0).** Un dito sulla card ferma il tempo di lettura, e al rilascio
 riparte da quello che restava, mai da meno di 1,5 s. Tirata in giù segue il dito con la curva
@@ -223,16 +254,19 @@ messaggio mostra al massimo due righe: scriverlo più lungo va bene, il resto si
 | `FluidCard`, `FluidHero`, `FluidEditorialCard` | superfici |
 | `FluidSectionHeader`, `FluidSectionTitle`, `FluidSectionFootnote` | intestazioni e note: `FluidSectionHeader` è la didascalia quieta sopra un gruppo; `FluidSectionTitle` (eyebrow in accento + titolo grande) apre una sezione di pagina |
 | `FluidStatusBadge`, `FluidStatChip`, `FluidMetricTile`, `FluidMiniChart` | dati in piccolo |
-| `FluidEmptyState`, `FluidLoading`, `FluidLoadingBlock`, `FluidInlineMessage` | stati |
+| `FluidEmptyState` (con `illustration`), `FluidLoading`, `FluidLoadingBlock`, `FluidInlineMessage` (con `onClick`, `action`, `leading`) | stati |
 | `FluidSyncIndicator`, `FluidSyncNotice`, `FluidSyncAction` | stato della sincronizzazione |
+| `FluidToggleRow`, `FluidChoiceRow`, `fluidAppearanceSection`, `FluidAccentPicker` | le righe delle impostazioni (l'interruttore è la riga, la scelta ha la spunta a destra) e la sezione «Aspetto» |
+| `FluidToneTile`, `fluidGlassGroups`, `FluidGlassGroup` | la piastrella dell'icona, pubblica; una lista lunga in pannelli di vetro da otto righe |
+| `FluidLiveDot`, `FluidSkeleton*`, `FluidSelectionMark`, `FluidPagerDots`, `FluidStepProgress` | i pezzi piccoli: pallino dal vivo, scheletri che respirano, cerchio di selezione, punti del pager, passi |
 
 **Controlli**
 
-`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidSlider` (il LiquidSlider di Kyant0: una pillola bianca a riposo che sotto il dito diventa lente sulla pista, con tacche di scatto facoltative, e un trascinamento non lascia scorrere la pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField`, `FluidColorDot`, `FluidBarAction`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidMorphMenuButton` (+ `FluidMorphMenuHost` alla radice: il tasto che diventa il proprio menù), `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`. Come rispondono al dito: vedi "La pressione" qui sotto.
+`FluidButton` (Filled/Tinted/Plain/Destructive), `FluidSwitch` (il LiquidToggle di Kyant0: il pomello e' l'unica lastra, e un tocco ovunque lo commuta), `FluidSlider` (il LiquidSlider di Kyant0: una pillola bianca a riposo che sotto il dito diventa lente sulla pista, con tacche di scatto facoltative, e un trascinamento non lascia scorrere la pagina), `FluidChip`, `FluidSegmentedControl`, `FluidTextField` (con `secret`), `FluidColorDot`, `FluidBarAction`, `FluidGlassButton`, `FluidGlassIconButton` (con `FluidGlassSize` e `haptic`), `FluidMorphMenuButton` (+ `FluidMorphMenuHost` alla radice: il tasto che diventa il proprio menù), `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`. Come rispondono al dito: vedi "La pressione" qui sotto.
 
 **Token**
 
-`FluidRadius` (Small 10, Control 12, Card 18, Group 22, Sheet 38), `FluidCapsuleShape`, `FluidTextStyles` (`uppercaseCaption`, `numeric`, `largeNumeric` con cifre tabulari), `FluidTone` (Primary/Success/Warning/Danger/Info/Neutral), `GlassDefaults`, `GlassOptics` e `GlassRole` per il materiale traslucido.
+`FluidRadius` (Small 10, Control 12, Card 18, Group 22, Sheet 38), `FluidCapsuleShape`, `FluidTextStyles` (`uppercaseCaption`, `numeric`, `largeNumeric` con cifre tabulari), `FluidTone` (Primary/Success/Warning/Danger/Info/Neutral), `GlassDefaults` (`panelOptics`, `panelTint` per i pannelli flottanti), `GlassOptics` e `GlassRole` per il materiale traslucido.
 
 **Deprecati**
 
@@ -335,6 +369,133 @@ Al rilascio il pomello va dalla parte piu' vicina, o da quella verso cui correva
 veloce. Vibra (`ToggleOn`/`ToggleOff`) a ogni tocco che commuta e, trascinando, quando il pomello
 passa la meta'; al rilascio non ripete la stessa vibrazione.
 
+## Le pagine e `FluidNavHost` (3.0)
+
+`ui/page/` (l'host, senza dipendenze da navigation) e `ui/navigation/` (`FluidNavHost`). Le pagine hanno
+la loro meccanica, e non è più quella di `NavHost`, per un motivo preciso: il back predittivo di
+`NavHost` cerca la transizione sul `progress` di sistema, che il sistema smussa e scala, passato per un
+easing. Con `EaseEmphasized` a un quinto del gesto la pagina era a mezzo schermo: **fino a 2,5 volte il
+dito**. Con `FluidNavHost` la pagina sta sotto il dito.
+
+**Cosa fa.** Due strati **opachi** — la pagina in cima e quella sotto, composta ma non disegnata mentre è
+coperta — e un orologio solo (`travel`, i pixel percorsi verso l'uscita): il dito, la molla e il tasto
+indietro disegnano lo stesso fotogramma. Si apre da destra (da sinistra in RTL), la pagina sotto arretra di
+un terzo. Si torna indietro come in iOS: la pagina segue la **posizione vera del dito** (`touchX`, mai il
+`progress`), da un punto qualunque o dal bordo; il rilascio conferma oltre il 35% della larghezza (tetto
+180 dp) o con una spinta di 400 dp/s, una spinta contraria annulla; la molla parte dalla velocità del dito
+e non rimbalza. Mentre si muove la pagina è una **carta**: angoli del telefono, ombra da 36 dp; a riposo
+niente. Mai alpha, mai sfocatura, mai scrim. Fra due schede c'è il passo laterale di sempre (13%, la
+vecchia sfuma in 150 ms), senza gesto. Nessuna vibrazione nel gesto. Con le animazioni ridotte i moti
+autonomi saltano e il dito segue 1:1.
+
+**Gli stili e i gesti.** `FluidPageTransition`: `Slide` (di serie, da destra), `ShrinkSlide`
+(rimpicciolisce al 90% nel primo 30% della corsa, poi scivola: per la pagina che dice «sono una cosa sola
+che si chiude»), `Expand` (si apre dal punto toccato, scala 0,91 → 1, opaca). `FluidBackSwipe`:
+`Anywhere` (di serie: da qualunque punto, se nessun figlio — un cursore, un interruttore, una riga che
+scorre di lato — si è preso il dito; uno scorrimento orizzontale arrivato al suo inizio passa la mano),
+`EdgeOnly` (i primi 20 dp, per le pagine piene di gesti propri), `Off`. I tasti non consumano, quindi un
+trascinamento orizzontale che parte su un tasto fa partire il back: come in LibrePods, e da giudicare
+in mano.
+
+**L'inventario.**
+
+| | |
+|---|---|
+| `FluidNavHost(navController, startDestination, modifier, route, peer, state) { }` | il `NavHost` con le pagine Fluid; l'overload tipizzato (`startDestination: Any`, `route: KClass`, `typeMap`) e quello con un `graph: NavGraph` già costruito |
+| `rememberFluidNavController(vararg navigators)` | un `NavHostController` col navigator delle pagine già dentro, per chi costruisce il grafo da sé |
+| `NavGraphBuilder.composable(route, arguments, deepLinks, transition, backSwipe) { entry -> }` | una pagina del grafo; per stringa, per `KClass` e `composable<T>` con `reified`. **Stesso nome di quella di navigation-compose, altro import** (`dev.antigravity.fluidengine.ui.navigation.composable`) |
+| `FluidPageNavigator` ("fluidPage") | il navigator: `navigate` = `pushWithTransition`, `popBackStack` = `popWithTransition`, solo API pubbliche di `NavigatorState` |
+| `FluidPageHost(stack, onBack, modifier, transition, backSwipe, peer, onTransitionStart, onSettled, leaving, state, pageColor) { key -> }` | l'host senza navigation, per chi ha una pila sua: prende la pila obiettivo, fa il confronto (cima nuova = push, cima che c'era = pop, pari = passo fra schede) e un gesto confermato chiama `onBack` *prima* che la pagina finisca di uscire |
+| `FluidPageHostState` / `rememberFluidPageHostState()` | `kind`, `progress`, `velocity`, `isInteractive`, `isMoving`, `from`, `to`: si legge dalle shell che devono sapere cosa si muove (la tab bar che cambia visibilità fra due pagine); leggerne `progress` in composizione ricompone a ogni fotogramma |
+| `FluidPageScope`, `LocalFluidPageTransition` | dentro una pagina: `isCovered` (coperta, a riposo), `isFront` (davanti adesso, passa di mano a metà uscita), `transition` (lo stato dell'host) |
+| `FluidPageTransition`, `FluidBackSwipe`, `FluidPageMove`, `FluidPeerMove<K>` | gli stili, i gesti, il movimento in corso (`None`, `Push`, `Pop`, `Back`, `Peer`) e l'ordine fra le schede |
+| `FluidPageMotion` | le costanti e le funzioni pure dell'host (`CommitFraction`, `FlingDpPerSecond`, `backRelease`, `pageFrame`, `classifyStackChange`, …) |
+
+**La migrazione di un'app a `FluidNavHost`:**
+
+1. `NavHost(` → `FluidNavHost(`, con lo stesso `navController`, `startDestination`, `route` e grafo.
+   `rememberNavController()` resta, ma per un grafo costruito a mano con `NavGraph` serve
+   `rememberFluidNavController()`.
+2. L'import di `composable` diventa `dev.antigravity.fluidengine.ui.navigation.composable`: stesso nome,
+   quindi le etichette `this@composable` compilano. Se resta un `composable` di
+   `androidx.navigation.compose` nel grafo, in debug l'app si ferma con un errore che dice quali rotte
+   (in release un log: quelle destinazioni non si vedrebbero).
+3. Via le quattro transizioni (`enterTransition`, `exitTransition`, `popEnterTransition`,
+   `popExitTransition`) e i loro helper: c'è lo stile della pagina (`transition = …`, `backSwipe = …`).
+   `FluidPageTransition.Expand` dove si vuole tenere la crescita dal tocco, e via la tubatura
+   dell'origine in `savedStateHandle`.
+4. Via i `FluidRouteMotionHost` attorno alle destinazioni: vogliono un `AnimatedVisibilityScope` che le
+   pagine Fluid non hanno, quindi non compilano. `FluidRouteMotionHost` resta com'era per chi non migra,
+   e sfoca ancora di 6 dp la pagina che esce.
+5. `peer = FluidPeerMove { from, to -> … }` dalla funzione che ordina le schede, che l'app ha già
+   (positivo se `to` sta dopo `from`, zero se non sono pari).
+6. Una shell con una tab bar che cambia visibilità fra due pagine legge `FluidPageHostState.progress`
+   (si passa lo `state` a `FluidNavHost`).
+
+Resta tutto di navigation: deep link, stato salvato, `ViewModel` per voce, `savedStateHandle`,
+`navigation { }` annidati, `dialog { }`. `engine-ui` espone `navigation-compose` 2.9.8 come `api`: la
+versione che hanno già tutte le app tranne Fluidify (2.8.5, che passa a 2.9.8). Cosa cambia a vista in
+un'app che migra: pagine opache, angoli del telefono, la pagina sotto che arretra di un terzo, il back
+che non corre più davanti al dito. **Non c'è ancora la barra ancorata** (passo successivo): ogni
+`FluidScreen` disegna la sua barra, che quindi viaggia con la pagina. La demo è la riga «Pagine» nella
+scheda Chrome della galleria (`PagesDemoActivity`).
+
+## I pezzi che le app si riscrivevano da sole (3.0)
+
+Ogni app aveva scritto a mano un pezzo che l'engine non aveva, e nel proprio KDoc diceva perché. Qui sono
+tutti, con la ricetta della 3.0 (una pressione, una vibrazione, vetro su vetro da solo) e **nessuna firma
+rotta**: dove un componente esistente cambia, sono parametri con default in coda. Le demo stanno in
+`sample/…/catalog/` (`RowsAndSheetsDemo`, `CapsulesAndPartsDemo`, non ancora nella galleria) e nella
+scheda Controlli (`gapsDemoItems()`).
+
+### Righe, aspetto, fogli, avviso con un campo
+
+| | |
+|---|---|
+| `FluidToggleRow(title, checked, onCheckedChange, subtitle, enabled, tone, leading)` | la riga **è** l'interruttore: un bersaglio solo, `ToggleOn`/`ToggleOff` e niente `Tap` sopra, `Role.Switch` per TalkBack con un nodo solo («titolo, sottotitolo»); disattivata sfuma e non risponde. Cede, non cresce |
+| `FluidChoiceRow(title, selected, onSelect, subtitle, enabled, tone, leading)` | scelta singola con la **spunta a destra** (spazio sempre riservato), non un radio; `Role.RadioButton`, un `Tick` solo se la scelta si sposta, `onSelect` anche sulla riga già scelta (il chiamante è spesso un foglio che deve chiudersi). Il gruppo, `FluidListGroup(Modifier.selectableGroup())` |
+| `fluidAppearanceSection(settings, onSettingsChange, brand, presets, glassEnabled, onGlassEnabledChange, strings, glass, dynamicAccent, footnote, keyPrefix)` | la sezione «Aspetto» di una pagina di impostazioni (estensione di `LazyListScope`): tema in tre righe di scelta + «Nero assoluto» (spento nel chiaro), accento, aptica con un colpo di prova all'accensione, e il vetro **solo se l'app passa valore e callback** (non è un campo di `EngineSettings`). Non scrive se la scelta non cambia niente |
+| `FluidAccentPicker(selected, onSelect, …)` / `FluidAccentPicker(settings, onSettingsChange, …)` | la fila di pallini (`FluidColorDot` in un `selectableGroup`, il pallino dei colori di sistema mostra il colore vero); due forme: `FluidAccentChoice` (`Brand`, `Dynamic`, `Preset(name)`) per un'app col suo modello, `EngineSettings` per chi usa lo store |
+| `FluidAppearance`, `FluidAppearanceStrings` | la traduzione pura: `themeChoice`, `withThemeMode`, `isPureBlack`, `withPureBlack` (AMOLED = Scuro + nero, senza perdere il nero), `accentChoice`, `withAccent` (`DYNAMIC` senza supporto o spento è il marchio; scegliere i colori di sistema riaccende il colore dinamico), `presetName`, `accentLabel`, `hapticsPreview`; le parole, in italiano di serie |
+| `FluidSheetScaffold(title, message, icon, tone, maxWidth, contentPadding, scrollable, insetBottom, actions) { }` | il contenuto di un foglio o di un pop-up: testata con la piastrella dell'icona, corpo che scorre e **tasti che non scorrono** (testata e tasti si misurano per primi, il corpo prende il resto, con un tetto finito senza altezza massima); larghezza massima 560 dp, testo `onSurface` |
+| `FluidConfirmSheet(visible, onDismissRequest, title, onConfirm, message, icon, tone, confirmLabel, cancelLabel, destructive, confirmEnabled, presentation, origin) { }` | portale + scaffold: un tasto di conferma solo che dice cosa fa, `destructive` rosso con piastrella `Danger`; **non chiude da sé** (`onDismissRequest` = annulla, `onConfirm` = fatto: chiude chi lo possiede); le parole restano congelate mentre il foglio esce. Senza un `FluidGlassModalHost` non si apre e non va in crash |
+| `FluidPromptAlert(title, onDismissRequest, onConfirm, message, initialValue, placeholder, confirmLabel, cancelLabel, validate, keyboardOptions, trim, selectAll, singleLine)` | un `FluidAlert` che chiede una riga di testo: il tasto è la validazione (`FluidPromptValidation.Valid` / `Incomplete` — non ha ancora scritto, il campo tace — / `Invalid(message)`; di serie `fluidPromptNotBlank`), il testo si ritaglia, Invio conferma, si apre sul campo col testo selezionato. Finestra di piattaforma: dipinge il suo vetro |
+
+Una riga è **un nodo semantico solo**: il `ListItem` di Material fonde la propria semantica e Compose non
+fonde un figlio che a sua volta fonde, quindi la semantica interna è azzerata (`clearAndSetSemantics`) e
+conta solo ciò che la riga dice di sé (titolo e sottotitolo). L'informazione che serve a chi non vede sta
+nel sottotitolo.
+
+### La capsula, la ricerca e i pezzi piccoli
+
+| | |
+|---|---|
+| `FluidFloatingCapsule(modifier, backdrop, visible, placement, fillWidth, onPhoto, avoidKeyboard, minHeight, contentPadding, label, leading, trailing) { }` | la capsula di vetro con poche azioni (una selezione, un mini player, i comandi di una foto): `glassSurface` ruolo `Floating` con la pellicola della barra, `visible` con entrata e uscita dai token, **tiene i tocchi** che nessuna azione ha preso |
+| `FluidFloatingCapsulePlacement` · `fluidCapsuleInsets(placement, avoidKeyboard)` · `FluidFloatingCapsuleDefaults` | `Free`, `ReplacingTabBar` (stessi margini e altezza della barra), `AboveTabBar` (a `Spacing` sopra di lei); gli inset valgono per qualunque pezzo di vetro che galleggia lì; `contentInset()` dice lo spazio che la pagina si lascia |
+| `FluidCapsuleAction(icon, contentDescription, onClick, enabled, destructive, tint, onLongClick, size)` | l'icona piatta che cresce sotto il dito, bersaglio da 48 dp: **niente lente per azione**; per quella che deve staccarsi (il «Fatto», il play) si mette nella fessura un `FluidGlassIconButton`, vetro su vetro da solo |
+| `FluidSearchField(query, onQueryChange, modifier, backdrop, placeholder, labels, onSearch, expanded, onExpandedChange, navigation, autoFocus, onPhoto, keyboardOptions)` | il campo di ricerca di vetro: lente, testo, crocetta, e per la ricerca in pagina «3/12» con i due tasti (`FluidSearchNavigation(current, total, onPrevious, onNext)`, l'indice è da zero). **Si apre da un cerchio** (`onExpandedChange`, molla `standard`), prende il fuoco e la tastiera alla comparsa e li lascia alla chiusura. Le parole: `FluidSearchLabels` |
+| `FluidLiveDot(modifier, color, size, pulsing, contentDescription)` | il pallino dal vivo: un respiro solo (900 ms, in fase con l'orologio: tutti i pallini battono insieme), solo l'opacità fra 0,35 e pieno, fermo e pieno con le animazioni ridotte |
+| `FluidSkeleton`, `FluidSkeletonText`, `FluidSkeletonRow`, `FluidSkeletonTile`, `FluidSkeletonList` · `FluidSkeletonLeading` | gli scheletri di caricamento: **respirano**, non scorrono, tutti insieme, con l'altezza della riga vera; la lista dice una frase sola a TalkBack (`label`) |
+| `FluidSelectionMark(selected, size, onPhoto, tint, contentDescription)` | il cerchio di selezione: un nodo solo, molla `fluid`, spunta disegnata; `contentDescription = null` lo rende muto (quando è la riga a dire lo stato) |
+| `FluidPagerDots(state: PagerState, …)` / `FluidPagerDots(pageCount, position: () -> Float, …)` | i punti che seguono il dito (a metà scorrimento due punti sono mezzo correnti); oltre sette la fila scorre e i bordi si rimpiccioliscono |
+| `FluidStepProgress(step, steps, modifier, label, detail, segmented, pulseCurrent, color)` | «Passo 2 di 5» e una barra che dice a che punto si è (il passo 2 di 5 è il 40%); continua o a segmenti fino a dodici; il passo in corso può respirare |
+
+Il respiro (`FluidPulseMillis` 900, `FluidPulseLowAlpha` 0,35) è ancora una costante interna con un TODO:
+va portato in `FluidMotion` come token.
+
+### I buchi che le app dichiaravano
+
+| | |
+|---|---|
+| `FluidGlassSize` · `FluidGlassIconButton(size, haptic)`, `FluidGlassButton(size, haptic)` | `Compact` 40, `Regular` 44 (48 di altezza con un testo), `Large` 54 dp; la ricetta del tasto vale **in proporzione** e il **bersaglio del tocco non scende mai sotto i 48 dp** (`touchTarget`). `haptic = null` per un tasto la cui azione ha già il suo colpo. A `Regular` l'albero è quello di prima |
+| `FluidInlineMessage(…, onClick, action, leading)` | il messaggio che si tocca: tutto è un bersaglio, ruolo pulsante, freccia a destra (o la chiusura, con `onDismiss`), `action` dice cosa fa il tocco, `leading` è una piastrella |
+| `FluidTextField(…, secret)` | i puntini e un occhio che mostra e nasconde; parte nascosto a ogni apertura, niente tasto che svuota, tastiera delle password; lo slot a destra è da 24 dp (era 18) |
+| `FluidProgressBar`, `FluidIndeterminateBar` | il riempimento fa almeno 3:1 sulla pista, su pagina, card e pannello di vetro (`legibleFill`): del minimo che serve, tenendo la tinta |
+| `FluidToneTile(tone, …) { }` o `FluidToneTile(color, modifier, size, veil) { }` · `FluidListRow(leadingTile = false)` | la piastrella dell'icona, pubblica: un tono dell'engine o un colore qualunque; il colore sta sulla piastrella e mai sulla riga |
+| `FluidEmptyState(…, illustration)` | un disegno sopra il titolo; con l'illustrazione la colonna si centra |
+| `fluidGlassGroups(items, key, maxRows, row)` · `FluidGlassGroup(items)` | una lista lunga in pannelli di vetro da otto righe dal taglio invisibile (`FluidGlassGroupMaxRows`); il prezzo è `animateItem()`. `FluidGlassGroup` è un pannello solo per una sezione breve |
+| `fluidHapticsFor(context, enabled)` | l'aptica dell'engine per il codice a `View` (tastiera, servizio): ripiego sugli effetti di fabbrica del vibratore; da creare una volta |
+
 ## Fluid-physics — il vetro che cambia forma
 
 Dalla 1.9.0 l'engine sa trasformare qualsiasi silhouette di vetro in qualsiasi altra — rettangolo
@@ -391,6 +552,16 @@ SecurityException che il motore ingoia, e l'aptica non si sente da nessuna parte
 zero mentre il telefono vibra, e le vibrazioni di tocco le filtra gia' il sistema — dalla 2.11.0
 anche fra Android 11 e 12, dove ora partono come uso "tocco" (`AudioAttributes`
 `ASSISTANCE_SONIFICATION`) e il "Feedback tattile" spento le spegne.
+
+**Una vibrazione per momento (3.0).** Due eventi di controllo entro 70 ms (`Tap`, `Confirm`, `Reject`,
+`ToggleOn`/`ToggleOff`, `Threshold`, `Open`, `Close`, `GestureStart`/`GestureEnd`) sono lo stesso momento
+detto da due componenti, e il secondo non suona: era il «toc-toc» che faceva sembrare un errore l'apertura
+di un menu. Esiti e allerte non si scartano mai, i tick continui hanno il loro cancello a 40 ms, `Open` è
+un colpo solo (un click pieno, non una rampa più un tick). L'eccezione sono i tasti: `PressDown`,
+`PressRelease` e `PressClick` sono solo di piattaforma, non fondibili, e non armano la rete. Una riga che
+è l'interruttore (`FluidToggleRow`) suona solo `ToggleOn`/`ToggleOff`. Per il codice che non è Compose
+(una tastiera, un `View`, un servizio) `fluidHapticsFor(context, enabled)` dà lo stesso motore. Il perché
+è in `regole.md`.
 
 Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabolario e' uno);
 `fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (una pillola che fa

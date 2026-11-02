@@ -959,7 +959,7 @@ object GlassDefaults {
       overlay = glassFilm().copy(alpha = if (dark) 0.30f else 0.34f),
       fallback = MaterialTheme.colorScheme.surfaceContainerLow,
       hairline = Color.Transparent,
-    )
+    ).forSystemContrast()
   }
 
   /** Stable, allocation-free presets. Custom callers can use `copy` and are sanitized at use. */
@@ -1019,7 +1019,7 @@ object GlassDefaults {
       overlay = glassFilm().copy(alpha = if (dark) 0.40f else 0.44f),
       fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.95f else 0.96f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.16f else 0.10f),
-    )
+    ).forSystemContrast()
   }
 
   /**
@@ -1043,7 +1043,7 @@ object GlassDefaults {
     overlay = Color.Black.copy(alpha = 0.42f),
     fallback = Color(0xFF101012).copy(alpha = 0.95f),
     hairline = Color.White.copy(alpha = 0.12f),
-  )
+  ).forSystemContrast()
 
   /**
    * Floating navigation, when what it floats over is a picture.
@@ -1062,7 +1062,7 @@ object GlassDefaults {
     overlay = Color.Black.copy(alpha = 0.48f),
     fallback = Color(0xFF141416).copy(alpha = 0.95f),
     hairline = Color.White.copy(alpha = 0.16f),
-  )
+  ).forSystemContrast()
 
   /**
    * The bar over a picture, on the side the page is actually on.
@@ -1108,7 +1108,7 @@ object GlassDefaults {
     overlay = Color.White.copy(alpha = 0.56f),
     fallback = Color(0xFFFBFBFD).copy(alpha = 0.96f),
     hairline = Color.Black.copy(alpha = 0.16f),
-  )
+  ).forSystemContrast()
 
   /** The light twin of [darkFloatingTint]. One step denser, for that one's reason. */
   @Composable
@@ -1116,7 +1116,7 @@ object GlassDefaults {
     overlay = Color.White.copy(alpha = 0.64f),
     fallback = Color(0xFFFDFDFF).copy(alpha = 0.96f),
     hairline = Color.Black.copy(alpha = 0.20f),
-  )
+  ).forSystemContrast()
 
   /** Floating navigation: a little denser, because it travels over arbitrary content. */
   @Composable
@@ -1126,7 +1126,7 @@ object GlassDefaults {
       overlay = glassFilm().copy(alpha = if (dark) 0.48f else 0.52f),
       fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.96f else 0.97f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.18f else 0.08f),
-    )
+    ).forSystemContrast()
   }
 
   /**
@@ -1153,7 +1153,7 @@ object GlassDefaults {
         scheme.surface.copy(alpha = 0.90f)
       },
       hairline = Color.Transparent,
-    )
+    ).forSystemContrast()
   }
 
   /** How much of the accent a control's film takes. Enough to be felt, not enough to be a fill. */
@@ -1196,12 +1196,20 @@ object GlassDefaults {
       // glass, so an API 30 device sees the page it has always seen rather than a degraded copy.
       fallback = surface,
       hairline = Color.Transparent,
-    )
+    ).forSystemContrast()
   }
 
   /** Sheets and alerts. */
   @Composable
-  fun modalTint(): GlassTint {
+  fun modalTint(): GlassTint = modalTintBase().forSystemContrast()
+
+  /**
+   * Il modale a contrasto standard. [tintedModalTint] parte da qui e applica il contrasto del sistema
+   * una volta sola, alla fine: partendo da [modalTint] lo applicherebbe due volte sul ripiego e sul
+   * bordo, e la tinta, che ricalcola dall'inizio, non lo vedrebbe affatto.
+   */
+  @Composable
+  private fun modalTintBase(): GlassTint {
     val dark = isDarkSurface()
     return GlassTint(
       overlay = glassFilm().copy(alpha = if (dark) 0.50f else 0.54f),
@@ -1226,12 +1234,12 @@ object GlassDefaults {
   @Composable
   fun tintedModalTint(colour: Color): GlassTint {
     val dark = isDarkSurface()
-    val base = modalTint()
+    val base = modalTintBase()
     return base.copy(
       overlay = lerp(base.overlay, colour, ColourShare).copy(alpha = if (dark) 0.72f else 0.76f),
       fallback = lerp(base.fallback, colour, 0.82f).copy(alpha = if (dark) 0.97f else 0.98f),
       hairline = lerp(base.hairline, colour, 0.30f),
-    )
+    ).forSystemContrast()
   }
 
   /**

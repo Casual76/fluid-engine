@@ -225,7 +225,8 @@ fun Modifier.glassControlSurface(
       touch = { press.glow },
     )
   }
-  val selectionTint = remember(tint, selected, accent) {
+  val systemContrast = LocalFluidSystemContrast.current
+  val selectionTint = remember(tint, selected, accent, systemContrast) {
     if (!selected) {
       tint
     } else {
@@ -242,7 +243,7 @@ fun Modifier.glassControlSurface(
         overlay = accent.copy(alpha = 0.36f),
         fallback = accent.copy(alpha = 0.9f),
         hairline = accent.copy(alpha = 0.45f),
-      )
+      ).forContrast(systemContrast)
     }
   }
 

@@ -12,12 +12,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.FluidSystemContrast
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 
 /**
@@ -42,6 +46,43 @@ internal fun LazyListScope.glassGrowthContrastItems() {
         text = "44, 54, 62 e 76 dp di vetro (FluidGlassIconButton(size = ...dp)), a 8 dp l'uno dall'altro. " +
           "Tienili premuti: fino a 48 dp il tasto cresce di un mezzo, intero come LibrePods; oltre, di 24 dp " +
           "in tutto, 12 per lato. Il 76 arriva a 100 dp, non a 114.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+  }
+
+  // Il contrasto del sistema.
+  item(key = "contrast-header") { FluidSectionHeader(title = "Contrasto: il vetro si fa piu' denso") }
+  item(key = "contrast-levels") {
+    FluidCard(glass = true) {
+      Text(
+        text = "Contrasto del sistema adesso: ${"%.1f".format(LocalFluidSystemContrast.current)} " +
+          "(Impostazioni > Accessibilita' > Contrasto del colore, da Android 14).",
+        style = MaterialTheme.typography.bodyMedium,
+      )
+      listOf(
+        "Standard" to FluidSystemContrast.Standard,
+        "Medio" to FluidSystemContrast.Medium,
+        "Alto" to FluidSystemContrast.High,
+      ).forEach { (name, level) ->
+        // Il livello si forza qui dentro, dentro il tema: e' la stessa strada di quello del sistema.
+        CompositionLocalProvider(LocalFluidSystemContrast provides level) {
+          FluidCard(glass = true) {
+            Text(text = "$name (${"%.1f".format(level)})", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+              FluidGlassButton(text = "Tasto", onClick = {})
+              FluidGlassIconButton(onClick = {}) {
+                Icon(Icons.Rounded.PlayArrow, contentDescription = "Riproduci ($name)", modifier = Modifier.size(22.dp))
+              }
+            }
+          }
+        }
+      }
+      Text(
+        text = "Ogni pellicola di GlassDefaults sale verso il pieno (a medio il 40% della strada che le manca, ad " +
+          "alto l'85%) e il suo bordo si fa piu' netto; a standard non cambia niente. Cambia il contrasto " +
+          "di sistema con l'app aperta: segue.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )

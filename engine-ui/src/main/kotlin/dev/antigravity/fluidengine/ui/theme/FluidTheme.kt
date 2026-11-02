@@ -29,6 +29,8 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.fluidTypography
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSurfaceSide
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidSystemContrast
 import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
@@ -165,6 +167,8 @@ fun FluidTheme(
     // Vedi LocalFluidSurfaceSide: un'app che mette una pellicola traslucida in `surface` non e'
     // leggibile in quel modo, e questa e' la strada per cui non deve accorgersene.
     LocalFluidSurfaceSide provides isDark,
+    // Il contrasto del sistema (Android 14+): il vetro si fa piu' denso e il suo bordo piu' netto.
+    LocalFluidSystemContrast provides rememberFluidSystemContrast(),
   ) {
     MaterialTheme(
       colorScheme = colors,

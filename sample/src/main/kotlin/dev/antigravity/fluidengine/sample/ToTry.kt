@@ -113,6 +113,7 @@ private val MoreUpdate = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, a
 private val MoreReorder = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Riordino")
 private val MoreFastScroll = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Scorrimento rapido")
 private val MoreViewer = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Visualizzatore")
+private val MoreScrubber = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Scrubber")
 
 /** La beta 1: tasti e aptica come LibrePods, menù e pannelli a un materiale, pagine, e i pezzi nuovi. */
 private val Beta1 = TryRound(
@@ -468,6 +469,13 @@ private val Beta3 = TryRound(
         "un tick per segmento e sceglie dove la lasci (un tocco fermo sceglie come prima); giudica se la goccia " +
         "arriva senza strappo e se il dito in verticale scorre ancora la pagina.",
       GlassSegmented,
+    ),
+    TryItem(
+      "pezzi-scrubber", TryArea.AppParts, "Scrubber",
+      "Trascina la maniglia del brano mentre suona e lasciala, poi prova la cronologia a passi: la maniglia sta " +
+        "sotto il dito, al rilascio non torna indietro mentre il lettore la raggiunge e a passi c'è un tick per " +
+        "fotogramma; giudica se i tre secondi di attesa sono giusti e se il continuo senza vibrazione ti sembra morto.",
+      MoreScrubber,
     ),
   ),
 )

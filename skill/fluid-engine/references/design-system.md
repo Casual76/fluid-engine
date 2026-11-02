@@ -433,7 +433,7 @@ riempimento, `pulse()` per la molla): tutti i pezzi che respirano battono insiem
 | `fluidGlassGroups(items, key, maxRows, row)` · `FluidGlassGroup(items)` | una lista lunga in pannelli di vetro da otto righe dal taglio invisibile (`FluidGlassGroupMaxRows`); il prezzo è `animateItem()`. `FluidGlassGroup` è un pannello solo per una sezione breve |
 | `fluidHapticsFor(context, enabled)` | l'aptica dell'engine per il codice a `View` (tastiera, servizio): ripiego sugli effetti di fabbrica del vibratore; da creare una volta |
 
-### Aggiornamento in-app, riordino, scorrimento rapido, visore
+### Aggiornamento in-app, riordino, scorrimento rapido, visore, scrubber, Markdown
 
 | | |
 |---|---|
@@ -441,6 +441,7 @@ riempimento, `pulse()` per la molla): tutti i pezzi che respirano battono insiem
 | `rememberFluidReorderState(listState \| gridState, onMove, …)` · `LazyItemScope.fluidReorderable(state, key, …)` (anche griglia) · `fluidMoved` · `FluidReorder` | il riordino: tenuto premuto l'elemento si solleva come goccia di vetro, i vicini scalano, un `Tick` per posto, la lista scorre ai bordi; due azioni per TalkBack |
 | `FluidFastScroller(state, label, …)` · `FluidFastScrollTarget` · `FluidFastScroll` | lo scorrimento rapido: maniglia-goccia 1:1, bolla di vetro compatta con un `Tick` per etichetta, compare mentre si scorre |
 | `FluidImageViewer(visible, onDismissRequest, …, page)` · `Modifier.fluidZoomable` · `FluidZoomState` · `FluidZoom` | il visualizzatore nell'host dei modali: pizzico, doppio tocco, pager, congedo trascinando giù; le immagini le passa l'app |
+| `FluidScrubber(position: () -> Float, onSeek, valueRange, enabled, buffered, step, marks, onScrubStart, onScrub, onScrubEnd, startLabel, endLabel, contentDescription, valueDescription, keyStep, …)` · `FluidScrubbing` · `FluidScrubberDefaults` | la barra della posizione di un brano o di una cronologia: la goccia dello slider su una pista sottile. **La posizione non è sua**: a riposo mostra quella da fuori (lambda), col dito solo il dito, dopo il rilascio il punto lasciato finché il lettore non ci arriva. `onSeek` una volta; `onScrub` per l'anteprima viva; `step` per i fotogrammi (un `Tick` per passo, nessuna aptica nel continuo), `buffered` per il pronto, `marks` per l'«adesso»; testi sotto la pista dal valore mostrato; per TalkBack uno slider con «1:05 di 3:20», `setProgress` e due azioni |
 | `FluidMarkdown(markdown, …, streaming, animateFirst, style, strings, options, onLinkClick, selectable)` · `FluidMarkdownParser` · `FluidMarkdownStyle` · `FluidMarkdownDefaults.style(…)` / `documentHeadings()` · `FluidMarkdownOptions` · `FluidRevealingText` | il Markdown disegnato, senza libreria: titoli (due misure, o una per livello con `headings`), elenchi anche annidati, grassetto/corsivo/barrato, codice in linea e a blocco con «copia», link (con callback), citazioni, tabelle che scorrono, righe; `streaming` sfuma dentro le parole nuove, `selectable` per una nota; il parser è puro e si prova sul computer. I marcatori `[[chip]]` di serie restano (li toglie `engine-ai-ui`) |
 
 ## Tutto in vetro (3.0, fase 9)

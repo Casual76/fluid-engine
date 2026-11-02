@@ -2,13 +2,11 @@ package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -18,6 +16,7 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -39,9 +38,12 @@ import dev.antigravity.fluidengine.ui.fluid.addContinuousRoundRect
  * segue le sue regole — layout alla taglia d'arrivo, dissolvenza, zoom uniforme — attraverso
  * `Modifier.fluidPhysicsContent`.
  *
- * `progress` non è vincolato a 0..1: le molle della casa hanno overshoot, e l'overshoot in spazio
- * di forma è la vita del morph. I limiti fisici (lati minimi, raggi fra zero e mezzo lato) li
- * tengono le funzioni di interpolazione.
+ * `progress` non è vincolato a 0..1: le molle hanno overshoot, e l'overshoot è la vita del morph.
+ * Dalla 3.0 oltre l'1 la sagoma NON prosegue lungo il viaggio (fianchi in dentro e fondo in fuori,
+ * se il viaggio stringeva): è il traguardo gonfiato attorno al proprio centro, uniforme, con un tetto
+ * ([morphOvershootScale]). Sotto lo 0 — una partenza che eredita una velocità all'indietro — la
+ * sagoma prosegue per la strada che aveva, ed è giusto: è il moto di prima che si esaurisce. I limiti
+ * fisici (lati minimi, raggi fra zero e mezzo lato) li tengono le funzioni di interpolazione.
  */
 @Stable
 class FluidPhysicsState internal constructor(initial: FluidForm) {
@@ -155,6 +157,19 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   internal var reducedMotion: Boolean = false
 
   /**
+   * Pixel per dp, dalla composizione: tara il tetto del gonfiore oltre il traguardo
+   * ([MorphInflationCapDp]). 1 in un test costruito a mano: il tetto e' allora in pixel.
+   */
+  internal var density: Float = 1f
+
+  /**
+   * Quante `fluidPhysicsShadow` disegnano gia' l'ombra di questo stato da fuori (il modale, fino
+   * alla sua riscrittura). Finche' ce n'e' una, la superficie non disegna la propria: due ombre
+   * sotto lo stesso vetro sono il doppio del peso di una lastra.
+   */
+  internal var externalShadows by mutableIntStateOf(0)
+
+  /**
    * Se la silhouette la ritaglia lo shader (tier Full) o il clip del layer (tier Balanced).
    * Lo imposta la superficie, una volta: il tetto del tier è un fatto del processo, non cambia.
    */
@@ -192,16 +207,21 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   /**
    * Fa viaggiare la superficie verso [target] e sospende finché non si è posata.
    *
-   * Con [spec] nullo — il default — il viaggio usa la coreografia della casa, chiesta da Alessio
-   * così: **parte piano, accelera a metà, e si posa con un rimbalzo leggero di molla.** Una molla
-   * sola non sa partire piano (nasce alla massima accelerazione), quindi il viaggio è in due
-   * tempi: una rincorsa in ease-in fino a [JourneyRunUpEnd], e da lì una molla sottosmorzata che
-   * eredita la velocità della rincorsa — il passaggio è invisibile perché `Animatable` porta con
-   * sé la velocità, e l'oltrepasso finale è il rimbalzo. Un [spec] esplicito scavalca tutto.
+   * Con [spec] nullo — il default — il viaggio è **una molla sola**, [FluidPhysicsJourney.Spring]
+   * (3.0): parte alla velocità del momento e si posa con un gonfiore uniforme attorno al centro del
+   * traguardo. Fino alla 2.13 il default era la coreografia della casa (rincorsa piano→veloce, poi
+   * una molla secca): resta, esplicita, come [FluidPhysicsJourney.House], per i morph dimostrativi
+   * avviati da un tocco secco. Un [spec] qualsiasi scavalca il default.
+   *
+   * @param initialVelocity la velocità di partenza, in viaggi al secondo: quella di un gesto che il
+   *   chiamante conosce (un dito che lancia il pannello). Null — il default — vuol dire "quella del
+   *   viaggio che questo interrompe", proiettata sulla strada nuova ([inheritedProgressVelocity]):
+   *   un ritargeting non riparte mai da fermo. Zero da una superficie ferma.
    */
   suspend fun morphTo(
     target: FluidForm,
     spec: AnimationSpec<Float>? = null,
+    initialVelocity: Float? = null,
   ) {
     if (activeTransit == null && target == formState) return
     val layover = physicsLayoverFor(currentForm(), target)
@@ -209,18 +229,34 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // La tappa di scalo è servizio, non spettacolo: criticamente smorzata e rapida, così il
       // viaggio si legge come UNO — fondersi e cambiare pelle — e non come due animazioni con
       // una pausa in mezzo.
-      morphLeg(layover, FluidMotion.snappy())
+      morphLeg(layover, FluidMotion.snappy(), initialVelocity)
+      morphLeg(target, spec, initialVelocity = null)
+    } else {
+      morphLeg(target, spec, initialVelocity)
     }
-    morphLeg(target, spec)
   }
 
-  private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>?) {
-    val transit = buildTransit(currentForm(), target)
+  private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>?, initialVelocity: Float?) {
+    val origin = currentForm()
+    val transit = buildTransit(origin, target)
     // L'installazione e il progresso zero DEVONO atterrare nello stesso snapshot, ed è per questo
     // che ogni transito possiede il proprio Animatable, nato a zero: con un progresso condiviso
     // il transito nuovo si mostrava per un fotogramma col valore vecchio (1), cioè con la sagoma
     // d'arrivo a taglia piena — il bordo del traguardo che lampeggia e sparisce.
     val previous = activeTransit
+    // La velocità del viaggio interrotto si legge PRIMA di fermarlo: fermato, vale zero. È la
+    // partenza viva del viaggio nuovo — senza, ogni cambio d'idea era uno scalino di velocità.
+    val seed = initialVelocity
+      ?: previous?.let {
+        inheritedProgressVelocity(
+          previousStart = it.startFrame,
+          previousEnd = it.endFrame,
+          velocity = it.progress.velocity,
+          nextStart = transit.startFrame,
+          nextEnd = transit.endFrame,
+        )
+      }
+      ?: 0f
     formState = target
     activeTransit = transit
     transitPlanStamp = Float.NaN
@@ -228,21 +264,10 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // Il viaggio sostituito è orfano: fermarlo libera la coroutine che lo stava animando, senza
       // aspettare la coda della sua molla.
       previous?.progress?.stop()
-      when {
-        reducedMotion -> transit.progress.snapTo(1f)
-        spec != null -> transit.progress.animateTo(1f, spec)
-        else -> {
-          // La rincorsa: piano in partenza, in accelerazione piena all'uscita. L'easing finisce
-          // ripido apposta — è la velocità che la molla eredita, ed è quella a fare il rimbalzo.
-          transit.progress.animateTo(
-            JourneyRunUpEnd,
-            tween(durationMillis = JourneyRunUpMillis, easing = JourneyRunUpEasing),
-          )
-          transit.progress.animateTo(
-            1f,
-            spring(dampingRatio = JourneyBounceDamping, stiffness = JourneyBounceStiffness),
-          )
-        }
+      if (reducedMotion) {
+        transit.progress.snapTo(1f)
+      } else {
+        transit.progress.animateTo(1f, spec ?: FluidPhysicsJourney.Spring, initialVelocity = seed)
       }
     } finally {
       // Se un nuovo morphTo ci ha interrotti ha già sostituito il transito: il viaggio vivo è il
@@ -276,19 +301,54 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   }
 
   private fun buildTransit(origin: FluidForm, target: FluidForm): Transit {
+    val capPx = MorphInflationCapDp * density
     val originSlabs = slabPiecesOf(origin)
     val targetSlabs = slabPiecesOf(target)
-    if (originSlabs != null && targetSlabs != null) {
+    val transit = if (originSlabs != null && targetSlabs != null) {
       val pairs = matchSlabPairs(originSlabs, targetSlabs)
       val blend = maxOf(groupBlendOf(origin), groupBlendOf(target))
-      return SlabTransit(pairs, blend)
+      SlabTransit(pairs, blend, overshootCapPx = capPx)
+    } else {
+      // Invariante, non validazione: morphTo instrada le coppie gruppo↔sagoma dallo scalo PRIMA di
+      // arrivare qui. Se questo scatta, il bug è a monte.
+      check(origin !is FluidForm.Group && target !is FluidForm.Group) {
+        "Transito gruppo↔sagoma senza scalo: morphTo doveva passare da physicsLayoverFor."
+      }
+      RingTransit(buildMatchedRings(origin, target), overshootCapPx = capPx)
     }
-    // Invariante, non validazione: morphTo instrada le coppie gruppo↔sagoma dallo scalo PRIMA di
-    // arrivare qui. Se questo scatta, il bug è a monte.
-    check(origin !is FluidForm.Group && target !is FluidForm.Group) {
-      "Transito gruppo↔sagoma senza scalo: morphTo doveva passare da physicsLayoverFor."
-    }
-    return RingTransit(buildMatchedRings(origin, target))
+    transit.origin = origin
+    return transit
+  }
+
+  /**
+   * La lastra su cui la superficie riposa adesso, o null se viaggia o se non e' una lastra sola.
+   * Fase di disegno: legge lo stato del viaggio, quindi chi la chiama si ridisegna quando cambia.
+   *
+   * Una guida esterna arrivata esattamente all'1 e' a riposo anche lei: il modale aperto e' una
+   * lastra ferma, e la molla del chiamante, posata, vale 1 in punto.
+   */
+  internal fun restSlabNow(): FluidForm.Slab? = restFormNow() as? FluidForm.Slab
+
+  /** Come [restSlabNow], per ogni famiglia: la forma ferma di adesso, o null in viaggio. */
+  internal fun restFormNow(): FluidForm? {
+    val drive = externalDrive
+    if (drive != null) return if (drive.progress() == 1f) drive.to else null
+    if (activeTransit != null) return null
+    return formState
+  }
+
+  /** Da dove parte il viaggio in corso, o null a riposo (o per un transito costruito a mano). */
+  internal fun journeyOriginNow(): FluidForm? {
+    val drive = externalDrive
+    if (drive != null) return drive.from
+    return activeTransit?.origin
+  }
+
+  /** Dove arriva il viaggio in corso, o null a riposo. */
+  internal fun journeyTargetNow(): FluidForm? {
+    val drive = externalDrive
+    if (drive != null) return drive.to
+    return if (activeTransit != null) formState else null
   }
 
   /** Il piano di resa per il fotogramma corrente. Solo fase di disegno. */
@@ -307,24 +367,28 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       val t = drive.progress()
       // La partenza viva si legge ADESSO, in fase di disegno: la cache vale per (t, rettangolo), non
       // per t soltanto, perche' la pressione che si scioglie muove la partenza anche a progresso fermo.
-      val startRect = drive.startFrame?.invoke()
+      // Dall'1 in su la partenza non entra nella geometria, e quindi nemmeno nella cache: a riposo
+      // l'istanza resta una anche se il chiamante muove ancora il suo rettangolo.
+      val startRect = if (t >= 1f) null else drive.startFrame?.invoke()
       if (transitPlanTransit !== drive.transit || transitPlanStamp != t || transitPlanStart != startRect) {
         transitPlan.clipToBounds = maskInShader
-        if (t > 1f && (drive.overshootInflationX > 0f || drive.overshootInflationY > 0f)) {
-          // L'oltrepasso e' un GONFIORE, non un proseguimento: la sagoma al traguardo, scalata
-          // attorno al suo centro. Un moto solo, continuo, su tutti i lati.
-          val scaleX = 1f + (t - 1f) * drive.overshootInflationX
-          val scaleY = 1f + (t - 1f) * drive.overshootInflationY
-          val frame = drive.to.frame
-          val halfW = frame.width * scaleX / 2f
-          val halfH = frame.height * scaleY / 2f
-          val center = frame.center
+        if (t >= 1f) {
+          // All'1 e oltre la partenza non c'entra piu'. In punto all'1 e' la lastra ferma, con il
+          // raccordo continuo della casa (la stessa silhouette di `buildRestPlan`, non il cerchio
+          // del viaggio). Oltre, l'oltrepasso e' un GONFIORE, non un proseguimento: il traguardo
+          // scalato attorno al suo centro, un moto solo, su tutti i lati. Senza gonfiore chiesto
+          // resta il traguardo: estrapolare il lerp oltre l'1 voleva dire stirare la sagoma lungo
+          // il viaggio — fianchi in dentro e fondo in fuori — e questo non lo fa piu' nessuno.
+          val over = t - 1f
+          val center = drive.to.frame.center
           buildRestPlan(
             transitPlan,
-            FluidForm.Slab(
-              frame = Rect(center.x - halfW, center.y - halfH, center.x + halfW, center.y + halfH),
-              cornerRadii = drive.to.cornerRadii,
-              smoothing = drive.to.smoothing,
+            inflateSlab(
+              slab = drive.to,
+              centerX = center.x,
+              centerY = center.y,
+              scaleX = 1f + over * drive.overshootInflationX,
+              scaleY = 1f + over * drive.overshootInflationY,
             ),
           )
         } else if (startRect != null) {
@@ -367,6 +431,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
   val state = remember { FluidPhysicsState(initial) }
   state.reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  state.density = LocalDensity.current.density
   return state
 }
 
@@ -382,27 +447,8 @@ private class ExternalWindowDrive(
   var startFrame: (() -> Rect)? = null,
 )
 
-// --- La coreografia della casa ------------------------------------------------
-//
-// "Parte piano, accelera, rimbalza alla fine e arriva nella figura finale." I numeri sono la
-// taratura di quella frase: la rincorsa copre i quattro quinti del viaggio in un quarto di
-// secondo con un easing che finisce a pendenza ~2.4 (la velocità consegnata alla molla), e la
-// molla sottosmorzata trasforma quella velocità in UN oltrepasso visibile che si posa.
-
-/** Dove finisce la rincorsa e comincia la molla, in frazione di viaggio. */
-internal const val JourneyRunUpEnd = 0.80f
-
-/** Durata della rincorsa. Accorciata su richiesta: "hanno solo bisogno di essere accelerate". */
-internal const val JourneyRunUpMillis = 180
-
-/** Piano in partenza, ripido in uscita: la pendenza finale È il rimbalzo. */
-internal val JourneyRunUpEasing = CubicBezierEasing(0.55f, 0f, 0.72f, 0.4f)
-
-/** Sottosmorzata quanto basta per UN rimbalzo leggero, non un tremolio. */
-internal const val JourneyBounceDamping = 0.58f
-
-/** La rigidità della posata: quasi istantanea — la coda non deve trascinare il viaggio. */
-internal val JourneyBounceStiffness = FluidMotion.ResponseInstant
+// La coreografia della casa (rincorsa e molla secca, il default fino alla 2.13) vive in
+// FluidPhysicsJourney.kt come preset esplicito, `FluidPhysicsJourney.House`.
 
 // --- Transiti ----------------------------------------------------------------
 //
@@ -410,21 +456,82 @@ internal val JourneyBounceStiffness = FluidMotion.ResponseInstant
 // pezzo di disciplina che protegge — "in viaggio ogni cambio di progresso è un'istantanea nuova,
 // a riposo l'istanza è una sola" — è logica pura e va inchiodata senza un frame clock.
 
-internal sealed class Transit {
+internal sealed class Transit(
+  /**
+   * Di quanto, in pixel, un lato puo' uscire dal traguardo all'oltrepasso: vedi
+   * [morphOvershootScale]. Infinito per un transito costruito a mano (i test): resta il tetto in
+   * frazione.
+   */
+  val overshootCapPx: Float,
+) {
   /**
    * Il progresso è DEL transito, non dello stato: nasce a zero insieme a lui, così installazione
    * e partenza sono lo stesso fatto e nessun fotogramma può vedere il viaggio nuovo col valore
    * del vecchio.
    */
   val progress = Animatable(0f)
+
+  /** La forma da cui il viaggio e' partito; null per un transito costruito a mano. */
+  var origin: FluidForm? = null
+
+  /** Il riquadro della partenza e quello dell'arrivo: la direzione del viaggio, per l'eredita'. */
+  abstract val startFrame: Rect
+  abstract val endFrame: Rect
 }
 
 internal class SlabTransit(
   val pairs: List<Pair<FluidForm.Slab, FluidForm.Slab>>,
   val blendRadius: Float,
-) : Transit()
+  overshootCapPx: Float = Float.POSITIVE_INFINITY,
+) : Transit(overshootCapPx) {
+  override val startFrame: Rect = unionOf(pairs) { it.first.frame }
+  override val endFrame: Rect = unionOf(pairs) { it.second.frame }
+}
 
-internal class RingTransit(val rings: MatchedRings) : Transit()
+internal class RingTransit(
+  val rings: MatchedRings,
+  overshootCapPx: Float = Float.POSITIVE_INFINITY,
+) : Transit(overshootCapPx) {
+  override val startFrame: Rect = ringBounds(rings.start, rings.count)
+  override val endFrame: Rect = ringBounds(rings.end, rings.count)
+}
+
+private inline fun <T> unionOf(items: List<T>, frame: (T) -> Rect): Rect {
+  if (items.isEmpty()) return Rect.Zero
+  var union = frame(items[0])
+  for (i in 1 until items.size) {
+    val r = frame(items[i])
+    union = Rect(
+      minOf(union.left, r.left),
+      minOf(union.top, r.top),
+      maxOf(union.right, r.right),
+      maxOf(union.bottom, r.bottom),
+    )
+  }
+  return union
+}
+
+/**
+ * Le coppie di un transito di Slab all'oltrepasso [t] > 1: ogni traguardo gonfiato attorno al centro
+ * dell'ARRIVO intero (per un gruppo, il centro dell'unione: i pezzi si allontanano mentre crescono,
+ * come un'immagine ingrandita), della scala di [morphOvershootScale]. Le coppie diventano
+ * (traguardo gonfiato, traguardo gonfiato): a t = 1 il lerp le disegna esattamente.
+ */
+private fun SlabTransit.overshootPairs(t: Float): List<Pair<FluidForm.Slab, FluidForm.Slab>> {
+  val scale = morphOvershootScale(t, endFrame, overshootCapPx)
+  val center = endFrame.center
+  return pairs.map { (_, to) ->
+    val inflated = inflateSlab(to, center.x, center.y, scale, scale)
+    inflated to inflated
+  }
+}
+
+/** L'anello d'arrivo all'oltrepasso [t] > 1, gonfiato attorno al proprio centro. */
+private fun RingTransit.overshootRing(t: Float): FloatArray {
+  val scale = morphOvershootScale(t, endFrame, overshootCapPx)
+  val center = endFrame.center
+  return inflateRing(rings.end, rings.count, center.x, center.y, scale)
+}
 
 /**
  * Lo scalo di un viaggio che il renderer non sa fare in un colpo, o null se il viaggio è diretto.
@@ -635,12 +742,15 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
  * ritargeting a meta' volo, e un test puo' confrontare il piano con il suo equivalente in forma
  * senza un frame clock. Per un transito di Slab e' l'interpolazione a otto numeri di [lerpSlab]
  * (un pezzo diventa [FluidForm.Slab], piu' pezzi un [FluidForm.Group] col raggio di fusione del
- * transito); per un anello e' una [FluidForm.Poly] sintetica sul lerp dei vertici.
+ * transito); per un anello e' una [FluidForm.Poly] sintetica sul lerp dei vertici. Oltre l'1 e' il
+ * traguardo gonfiato (3.0), come lo disegna il piano.
  */
 internal fun Transit.formAt(t: Float): FluidForm = when (this) {
   is SlabTransit -> {
-    val slabs = pairs.map { (from, to) ->
-      val v = lerpSlab(from, to, t)
+    val source = if (t > 1f) overshootPairs(t) else pairs
+    val at = if (t > 1f) 1f else t
+    val slabs = source.map { (from, to) ->
+      val v = lerpSlab(from, to, at)
       FluidForm.Slab(
         frame = Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]),
         cornerRadii = FluidCornerRadii(v[4], v[5], v[6], v[7]),
@@ -651,20 +761,37 @@ internal fun Transit.formAt(t: Float): FluidForm = when (this) {
 
   is RingTransit -> {
     val count = rings.count
-    val ring = FloatArray(count * 2)
-    for (i in ring.indices) ring[i] = lerp(rings.start[i], rings.end[i], t)
+    val ring = if (t > 1f) {
+      overshootRing(t)
+    } else {
+      FloatArray(count * 2).also { for (i in it.indices) it[i] = lerp(rings.start[i], rings.end[i], t) }
+    }
     polyFromRing(ring, count)
   }
 }
 
+/**
+ * Il piano di un transito a progresso [t]. Fino all'1 e' il lerp; oltre, il traguardo gonfiato
+ * uniformemente attorno al proprio centro ([morphOvershootScale]) — mai il lerp estrapolato, che
+ * proseguiva il viaggio oltre l'arrivo e stirava la sagoma nella sua direzione.
+ */
 internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Float) {
   when (transit) {
-    is SlabTransit -> buildSlabPlan(plan, transit.pairs, transit.blendRadius, t)
+    is SlabTransit -> if (t > 1f) {
+      buildSlabPlan(plan, transit.overshootPairs(t), transit.blendRadius, 1f)
+    } else {
+      buildSlabPlan(plan, transit.pairs, transit.blendRadius, t)
+    }
 
     is RingTransit -> {
       val count = transit.rings.count
-      val ring = FloatArray(count * 2)
-      for (i in ring.indices) ring[i] = lerp(transit.rings.start[i], transit.rings.end[i], t)
+      val ring = if (t > 1f) {
+        transit.overshootRing(t)
+      } else {
+        FloatArray(count * 2).also {
+          for (i in it.indices) it[i] = lerp(transit.rings.start[i], transit.rings.end[i], t)
+        }
+      }
       plan.writeRing(ring, count)
     }
   }
@@ -681,10 +808,9 @@ internal fun buildSlabPlan(
   blendRadius: Float,
   t: Float,
 ) {
-  // Anche una fusione estrapola: oltre il coincidere i pezzi si oltrepassano di poco in
-  // direzioni opposte, e l'unione — un contorno solo, col ponte ormai spento — si legge come
-  // il pannello che rimbalza appena più largo. È il rimbalzo chiesto, gratis; il doppio bordo
-  // di una volta lo impediscono l'unione geometrica e effectiveBlendRadius, non un clamp.
+  // Una fusione all'oltrepasso non estrapola piu' (3.0): tutti i pezzi diventano il traguardo
+  // gonfiato, che coincidono — un contorno solo, col ponte spento da effectiveBlendRadius. Il doppio
+  // bordo di una volta lo impediscono l'unione geometrica e quel ponte spento, non un clamp.
   plan.silhouette.rewind()
   pairs.forEachIndexed { index, (from, to) ->
     val v = lerpSlab(from, to, t)

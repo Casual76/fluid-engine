@@ -37,6 +37,17 @@ internal fun Boolean.asDepthWeight(): Float = if (this) 1f else 0f
 internal fun depthEffectUniform(weight: Float): Float = weight.coerceIn(0f, 1f)
 
 /**
+ * Il peso della frangia che arriva allo shader: fra 0 e 1, e zero sotto un millesimo (la sorgente
+ * senza frangia costa un settimo dei campioni nella banda della lente) o se il driver ha rifiutato
+ * la variante con la frangia — la lente resta, la frangia no.
+ */
+internal fun dispersionUniform(weight: Float): Float {
+  if (!(weight > 0.001f)) return 0f
+  if (!FluidPhysicsShaderHealth.dispersionHealthy()) return 0f
+  return weight.coerceAtMost(1f)
+}
+
+/**
  * La lente di Fluid-physics per pezzi rettangolari (uno o molti, fusi con lo smin).
  *
  * Stessa disciplina di `lens()` (Lens.kt): salta sotto API 33 lasciando in piedi sfocatura e
@@ -62,12 +73,17 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
   refractionAmountPx: Float,
   depthEffect: Float,
   tintInShader: Color,
+  /**
+   * Il peso della frangia cromatica, 0..1 (3.0): quella di `glassSurface` per le ottiche che la
+   * chiedono. A zero — o se il driver ha rifiutato la variante — si usa la sorgente di sempre.
+   */
+  chromaticAberration: Float = 0f,
 ) {
   if (!isRuntimeShaderSupported()) return
 
   val height = refractionHeightPx.fastCoerceAtLeast(0.0001f)
   if (padding > 0f) {
-    padding = (padding - height).fastCoerceAtLeast(0f)
+    padding = physicsLensPadding(padding, height)
   }
 
   val count = plan.pieceCount.coerceIn(1, PhysicsMaxPieces)
@@ -83,6 +99,33 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
   }
 
   val currentPadding = padding
+  val chroma = dispersionUniform(chromaticAberration)
+  if (chroma > 0f) {
+    runtimeShaderEffect("FluidPhysicsSlabGroupDispersion", SlabGroupDispersionShaderString, "content") {
+      setFloatUniform("offset", -currentPadding, -currentPadding)
+      setFloatUniform("pieceCount", count.toFloat())
+      setFloatUniform("pieceRect", scratch.rects)
+      setFloatUniform("pieceRadii", scratch.radii)
+      setFloatUniform("blendRadius", plan.blendRadius * scopeFactor)
+      setFloatUniform("refractionHeight", height)
+      setFloatUniform("refractionAmount", -refractionAmountPx)
+      setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
+      setFloatUniform(
+        "fieldCenter",
+        plan.bounds.center.x * scopeFactor,
+        plan.bounds.center.y * scopeFactor,
+      )
+      setFloatUniform(
+        "fieldHalfSize",
+        plan.bounds.width / 2f * scopeFactor,
+        plan.bounds.height / 2f * scopeFactor,
+      )
+      setFloatUniform("chromaticAberration", chroma)
+      setFloatUniform("aa", MaskAntialiasPx)
+      setColorUniform("tintColor", tintInShader)
+    }
+    return
+  }
   runtimeShaderEffect("FluidPhysicsSlabGroup", SlabGroupRefractionShaderString, "content") {
     setFloatUniform("offset", -currentPadding, -currentPadding)
     setFloatUniform("pieceCount", count.toFloat())
@@ -130,12 +173,14 @@ internal fun BackdropEffectScope.polyMorphLens(
   refractionAmountPx: Float,
   depthEffect: Float,
   tintInShader: Color,
+  /** Il peso della frangia cromatica: vedi [slabGroupMorphLens]. */
+  chromaticAberration: Float = 0f,
 ) {
   if (!isRuntimeShaderSupported()) return
 
   val height = refractionHeightPx.fastCoerceAtLeast(0.0001f)
   if (padding > 0f) {
-    padding = (padding - height).fastCoerceAtLeast(0f)
+    padding = physicsLensPadding(padding, height)
   }
 
   val count = plan.vertCount.coerceIn(3, PhysicsMaxVertices)
@@ -147,6 +192,32 @@ internal fun BackdropEffectScope.polyMorphLens(
   }
 
   val currentPadding = padding
+  val chroma = dispersionUniform(chromaticAberration)
+  if (chroma > 0f) {
+    runtimeShaderEffect("FluidPhysicsPolyDispersion", PolyMorphDispersionShaderString, "content") {
+      setFloatUniform("offset", -currentPadding, -currentPadding)
+      setFloatUniform("vertCount", count.toFloat())
+      setFloatUniform("verts", scratch.verts)
+      setFloatUniform("soften", plan.soften * scopeFactor)
+      setFloatUniform("refractionHeight", height)
+      setFloatUniform("refractionAmount", -refractionAmountPx)
+      setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
+      setFloatUniform(
+        "fieldCenter",
+        plan.bounds.center.x * scopeFactor,
+        plan.bounds.center.y * scopeFactor,
+      )
+      setFloatUniform(
+        "fieldHalfSize",
+        plan.bounds.width / 2f * scopeFactor,
+        plan.bounds.height / 2f * scopeFactor,
+      )
+      setFloatUniform("chromaticAberration", chroma)
+      setFloatUniform("aa", MaskAntialiasPx)
+      setColorUniform("tintColor", tintInShader)
+    }
+    return
+  }
   runtimeShaderEffect("FluidPhysicsPoly", PolyMorphRefractionShaderString, "content") {
     setFloatUniform("offset", -currentPadding, -currentPadding)
     setFloatUniform("vertCount", count.toFloat())

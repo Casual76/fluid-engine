@@ -85,8 +85,33 @@ internal object FluidPhysicsShaderHealth {
     android.util.Log.w("FluidPhysics", "Shader di Fluid-physics rifiutati: tier Balanced.", it)
   }.isSuccess
 
+  @Volatile
+  private var dispersionVerdict: Boolean? = null
+
+  /**
+   * Le due varianti con la frangia cromatica (3.0), provate a parte e solo se le altre passano: un
+   * driver che le rifiutasse toglie la frangia e basta — la lente, la maschera e i ponti restano,
+   * perche' il loro verdetto e' quello di [healthy]. Chiesto solo da chi ha una frangia da disegnare.
+   */
+  fun dispersionHealthy(): Boolean {
+    if (!isRuntimeShaderSupported() || !healthy()) return false
+    dispersionVerdict?.let { return it }
+    val result = probeDispersion()
+    dispersionVerdict = result
+    return result
+  }
+
+  @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+  private fun probeDispersion(): Boolean = runCatching {
+    android.graphics.RuntimeShader(SlabGroupDispersionShaderString)
+    android.graphics.RuntimeShader(PolyMorphDispersionShaderString)
+  }.onFailure {
+    android.util.Log.w("FluidPhysics", "Frangia cromatica di Fluid-physics rifiutata: lente senza frangia.", it)
+  }.isSuccess
+
   /** Solo per i test dell'engine. */
   internal fun resetForTesting() {
     verdict = null
+    dispersionVerdict = null
   }
 }

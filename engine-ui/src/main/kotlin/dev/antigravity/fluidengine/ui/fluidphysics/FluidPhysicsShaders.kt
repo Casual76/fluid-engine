@@ -256,3 +256,228 @@ half4 main(float2 coord) {
     half4 tint = half4(tintColor.rgb * tintColor.a, tintColor.a);
     return (tint + sampled * (1.0 - tint.a)) * coverage;
 }"""
+
+/**
+ * La frangia cromatica di Kyant, come blocco AGSL condiviso dalle due varianti "con dispersione".
+ *
+ * E' il ramo `RoundedRectRefractionWithDispersionShaderString` del renderer vendored (Apache-2.0,
+ * `glass/backdrop/internal/Shaders.kt`), con due differenze soltanto: il centro e la mezza taglia
+ * sono quelli del campo (per un pezzo solo sono quelli del suo rettangolo, cioe' i numeri di Kyant
+ * alla lettera), e l'intensita' e' un PESO fra 0 e 1 invece di un interruttore — cosi' un tasto con
+ * la frangia che diventa un pannello senza la perde lungo il viaggio, invece che a meta' strada.
+ *
+ * Si aspetta nello scope: `coord`, `disp` (lo spostamento), `normal`, `toCenter` (= p - fieldCenter),
+ * e scrive `sampled`. Sette campioni per pixel, ma solo nella banda della lente: piu' dentro, dove la
+ * lente non arriva, il ramo non si esegue.
+ */
+private const val PhysicsDispersionBlock = """
+        float2 refracted = coord + disp * normal;
+        float2 halfField = max(fieldHalfSize, float2(0.0001));
+        float dispersionIntensity = chromaticAberration * ((toCenter.x * toCenter.y) / (halfField.x * halfField.y));
+        float2 dispersed = disp * normal * dispersionIntensity;
+
+        half4 color = half4(0.0);
+
+        half4 red = content.eval(refracted + dispersed);
+        color.r += red.r / 3.5;
+        color.a += red.a / 7.0;
+
+        half4 orange = content.eval(refracted + dispersed * (2.0 / 3.0));
+        color.r += orange.r / 3.5;
+        color.g += orange.g / 7.0;
+        color.a += orange.a / 7.0;
+
+        half4 yellow = content.eval(refracted + dispersed * (1.0 / 3.0));
+        color.r += yellow.r / 3.5;
+        color.g += yellow.g / 3.5;
+        color.a += yellow.a / 7.0;
+
+        half4 green = content.eval(refracted);
+        color.g += green.g / 3.5;
+        color.a += green.a / 7.0;
+
+        half4 cyan = content.eval(refracted - dispersed * (1.0 / 3.0));
+        color.g += cyan.g / 3.5;
+        color.b += cyan.b / 3.0;
+        color.a += cyan.a / 7.0;
+
+        half4 blue = content.eval(refracted - dispersed * (2.0 / 3.0));
+        color.b += blue.b / 3.0;
+        color.a += blue.a / 7.0;
+
+        half4 purple = content.eval(refracted - dispersed);
+        color.r += purple.r / 7.0;
+        color.b += purple.b / 3.0;
+        color.a += purple.a / 7.0;
+
+        sampled = color;"""
+
+/**
+ * [SlabGroupRefractionShaderString] con la frangia cromatica: la lente di `glassSurface` per i ruoli
+ * che la chiedono (`GlassOptics.dispersion`, i tasti), quindi la stessa lastra ferma o in viaggio.
+ *
+ * Una sorgente a parte, non un ramo dentro quella di sempre: chi non ha frangia non paga nemmeno il
+ * test, e un driver che rifiutasse questa variante toglie solo la frangia (vedi
+ * [FluidPhysicsShaderHealth.dispersionHealthy]), non la lente.
+ */
+@Language("AGSL")
+internal const val SlabGroupDispersionShaderString = """
+uniform shader content;
+
+uniform float2 offset;
+uniform float pieceCount;
+uniform float4 pieceRect[$PhysicsMaxPieces];
+uniform float4 pieceRadii[$PhysicsMaxPieces];
+uniform float blendRadius;
+uniform float refractionHeight;
+uniform float refractionAmount;
+uniform float depthEffect;
+uniform float2 fieldCenter;
+uniform float2 fieldHalfSize;
+uniform float chromaticAberration;
+uniform float aa;
+layout(color) uniform half4 tintColor;
+
+$PhysicsSdfPrelude
+
+half4 main(float2 coord) {
+    float2 p = coord + offset;
+
+    float d = 1000000.0;
+    float2 grad = float2(0.0);
+    float k = max(blendRadius, 0.0001);
+    for (int i = 0; i < $PhysicsMaxPieces; ++i) {
+        if (float(i) >= pieceCount) break;
+        float2 rel = p - pieceRect[i].xy;
+        float2 halfSize = pieceRect[i].zw;
+        float radius = min(physicsRadiusAt(rel, pieceRadii[i]), min(halfSize.x, halfSize.y));
+        float sd = physicsSdRoundedRect(rel, halfSize, radius);
+        float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
+        float2 sdGrad = physicsGradSdRoundedRect(rel, halfSize, gradRadius);
+        if (i == 0) {
+            d = sd;
+            grad = sdGrad;
+        } else {
+            float h = clamp(0.5 + 0.5 * (sd - d) / k, 0.0, 1.0);
+            d = sd + (d - sd) * h - k * h * (1.0 - h);
+            grad = mix(sdGrad, grad, h);
+        }
+    }
+
+    float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+    if (coverage <= 0.0) {
+        return half4(0.0);
+    }
+
+    half4 sampled;
+    if (-d >= refractionHeight) {
+        sampled = content.eval(coord);
+    } else {
+        float x = 1.0 - min(-d, refractionHeight) / refractionHeight;
+        float disp = physicsCircleMap(x) * refractionAmount;
+        float2 toCenter = p - fieldCenter;
+        float toCenterLen = length(toCenter);
+        float2 depthDir = toCenterLen > 0.0001 ? toCenter / toCenterLen : float2(0.0);
+        float2 normal = grad + depthEffect * depthDir;
+        float len = length(normal);
+        normal = len > 0.0001 ? normal / len : float2(0.0);
+$PhysicsDispersionBlock
+    }
+
+    half4 tint = half4(tintColor.rgb * tintColor.a, tintColor.a);
+    return (tint + sampled * (1.0 - tint.a)) * coverage;
+}"""
+
+/** [PolyMorphRefractionShaderString] con la frangia cromatica: vedi [SlabGroupDispersionShaderString]. */
+@Language("AGSL")
+internal const val PolyMorphDispersionShaderString = """
+uniform shader content;
+
+uniform float2 offset;
+uniform float vertCount;
+uniform float2 verts[$PhysicsMaxVertices];
+uniform float soften;
+uniform float refractionHeight;
+uniform float refractionAmount;
+uniform float depthEffect;
+uniform float2 fieldCenter;
+uniform float2 fieldHalfSize;
+uniform float chromaticAberration;
+uniform float aa;
+layout(color) uniform half4 tintColor;
+
+$PhysicsSdfPrelude
+
+half4 main(float2 coord) {
+    float2 p = coord + offset;
+
+    int count = int(vertCount);
+    float best = 1000000000.0;
+    float2 nearest = float2(0.0);
+    float winding = 1.0;
+    float2 first = verts[0];
+    float2 prev = first;
+    for (int i = 1; i < $PhysicsMaxVertices; ++i) {
+        if (i >= count) break;
+        float2 vi = verts[i];
+        float2 e = prev - vi;
+        float2 w = p - vi;
+        float t = clamp(dot(w, e) / max(dot(e, e), 0.000001), 0.0, 1.0);
+        float2 closest = vi + e * t;
+        float2 delta = p - closest;
+        float dd = dot(delta, delta);
+        if (dd < best) {
+            best = dd;
+            nearest = closest;
+        }
+        bool c1 = p.y >= vi.y;
+        bool c2 = p.y < prev.y;
+        bool c3 = e.x * w.y > e.y * w.x;
+        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) winding = -winding;
+        prev = vi;
+    }
+    {
+        float2 vi = first;
+        float2 e = prev - vi;
+        float2 w = p - vi;
+        float t = clamp(dot(w, e) / max(dot(e, e), 0.000001), 0.0, 1.0);
+        float2 closest = vi + e * t;
+        float2 delta = p - closest;
+        float dd = dot(delta, delta);
+        if (dd < best) {
+            best = dd;
+            nearest = closest;
+        }
+        bool c1 = p.y >= vi.y;
+        bool c2 = p.y < prev.y;
+        bool c3 = e.x * w.y > e.y * w.x;
+        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) winding = -winding;
+    }
+    float d = winding * sqrt(best) - soften;
+
+    float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+    if (coverage <= 0.0) {
+        return half4(0.0);
+    }
+
+    half4 sampled;
+    if (-d >= refractionHeight) {
+        sampled = content.eval(coord);
+    } else {
+        float2 away = p - nearest;
+        float awayLen = length(away);
+        float2 grad = awayLen > 0.0001 ? (away / awayLen) * winding : float2(0.0);
+        float2 toCenter = p - fieldCenter;
+        float toCenterLen = length(toCenter);
+        float2 depthDir = toCenterLen > 0.0001 ? toCenter / toCenterLen : float2(0.0);
+        float2 normal = grad + depthEffect * depthDir;
+        float nl = length(normal);
+        normal = nl > 0.0001 ? normal / nl : float2(0.0);
+        float x = 1.0 - min(-d, refractionHeight) / refractionHeight;
+        float disp = physicsCircleMap(x) * refractionAmount;
+$PhysicsDispersionBlock
+    }
+
+    half4 tint = half4(tintColor.rgb * tintColor.a, tintColor.a);
+    return (tint + sampled * (1.0 - tint.a)) * coverage;
+}"""

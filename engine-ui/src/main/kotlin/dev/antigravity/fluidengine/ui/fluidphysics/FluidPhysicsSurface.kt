@@ -6,25 +6,29 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidPressState
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.fluid.glassResolutionScale
-import dev.antigravity.fluidengine.ui.fluid.glassRimRamp
 import dev.antigravity.fluidengine.ui.fluid.glassRimRecipe
-import dev.antigravity.fluidengine.ui.fluid.glassSizedOptics
+import dev.antigravity.fluidengine.ui.fluid.glassShadowColor
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
@@ -32,27 +36,35 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.colorControls
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.interaction.GlowRecipe
+import dev.antigravity.fluidengine.ui.glass.interaction.glassButtonGlowRecipe
 
 /**
  * Un pannello di vetro la cui silhouette è quella di [state]: ferma quando lo stato riposa, viva
  * mentre viaggia — con la rifrazione che segue la forma, non un'istantanea di dov'era.
  *
  * Costruita su `drawBackdrop`, accanto a `glassSurface` e con la sua stessa grammatica (ruoli,
- * ottiche, tinte, qualità), ma con tre differenze deliberate che sono l'intero motivo per cui
- * esiste:
+ * ottiche, tinte, qualità). **A riposo è una lastra** (3.0): una forma ferma si disegna con i numeri
+ * di `glassSurface` per lo stesso ruolo, la stessa ottica e la stessa tinta — la stessa funzione per
+ * sfocatura, lente, frangia e pressione ([physicsLensUniforms]), il bordo e l'ombra registrati con
+ * la ricetta del renderer ([PhysicsRimRenderer], [PhysicsShadowLayers]). In viaggio gli stessi numeri
+ * seguono la sagoma, quindi alla partenza e all'arrivo non c'è nessuno scalino. Quello che resta
+ * diverso, e perché, è nel passaggio "Il pannello in movimento" di `docs/10-coerenza.md`.
+ *
+ * Tre cose la separano da `glassSurface`, e sono il motivo per cui esiste:
  *
  *  1. **Il clip del layer non insegue la sagoma.** Al tier [FluidPhysicsTier.Full] il layer resta
  *     ritagliato sul proprio rettangolo per tutta la vita della superficie, e la silhouette la
  *     scolpisce l'alpha dello shader — è ciò che rende un fotogramma di morph un aggiornamento di
- *     uniform invece di un re-clip.
- *  2. **Il bordo speculare è disegnato qui, non dal renderer.** L'anello del renderer vendored si
- *     ri-registra solo alla ricomposizione, quindi terrebbe in mano la fotografia della sagoma di
- *     partenza per tutto il viaggio. Un tratto di path con un gradiente direzionale segue invece
- *     la sagoma per costruzione, a un costo che non si misura.
- *  3. **Niente ombra esterna.** Le ombre del renderer hanno la stessa memoria fotografica del
- *     bordo, e un'ombra che resta indietro rispetto alla sagoma è il manufatto più visibile che un
- *     morph possa produrre. Il distacco lo raccontano la dislocazione al perimetro e il bordo — la
- *     stessa scelta di [GlassRole.Content], per la stessa ragione.
+ *     uniform invece di un re-clip. Lo shader della lente è quello di Kyant (lo stesso campo, la
+ *     stessa banda, la stessa cupola, la stessa frangia) con in più la maschera.
+ *  2. **Bordo e ombra li disegna lei, non il renderer.** Gli anelli del renderer vendored si
+ *     ri-registrano solo alla ricomposizione e solo sulla taglia del nodo, quindi terrebbero in mano
+ *     la fotografia della sagoma di partenza per tutto il viaggio. Qui a riposo si registrano una
+ *     volta come li registra il renderer, e in viaggio seguono la sagoma senza mai rifare una
+ *     maschera sfocata.
+ *  3. **Il nodo può essere più grande della sagoma** (il palco del Playground, lo schermo intero
+ *     del modale): tutta la geometria è nella forma, mai nella taglia del nodo.
  *
  * Il contenuto appoggiato sopra non viene MAI stirato dalla sagoma: passa da
  * [fluidPhysicsContent], che gli dà il contratto 1.8.x — layout alla taglia d'arrivo, dissolvenza,
@@ -76,6 +88,19 @@ fun Modifier.fluidPhysicsSurface(
    */
   tintFrom: GlassTint? = null,
   tintBlend: () -> Float = { 1f },
+  /**
+   * Ottica di partenza opzionale (3.0): il materiale scivola da questa a [optics] secondo
+   * [opticsBlend] (0 = opticsFrom, 1 = optics), letto in fase di disegno — sfocatura, lente, cupola,
+   * frangia, vividezza, bordo e ombra, tutti insieme ([lerpGlassOptics]). È il gemello di
+   * [tintFrom]: un tasto che diventa un menu cambia vetro lungo il viaggio, non a metà strada.
+   *
+   * Il patto del padding regge per costruzione: la sfocatura non supera mai l'altezza della lente
+   * che la copre, a nessun punto della miscela fra due ottiche di serie, quindi il margine della
+   * cattura resta zero e fermo per tutto il viaggio. Chi passa ottiche scritte a mano deve tenerle
+   * così ai due capi: in mezzo, la miscela lineare non lo rompe.
+   */
+  opticsFrom: GlassOptics? = null,
+  opticsBlend: () -> Float = { 1f },
   sampleOnce: Boolean = false,
   /**
    * Come in `glassSurface` (2.8.0): se c'e', la superficie registra anche *se stessa* — materiale,
@@ -87,8 +112,21 @@ fun Modifier.fluidPhysicsSurface(
    * vetro in movimento: chi campiona vedrebbe il materiale a forza piena.
    */
   exports: GlassBackdropState? = null,
+  /**
+   * La pressione di chi tocca questa superficie (3.0), guidata da un `fluidPressable(pressState = )`
+   * posato sulla sagoma: la lente si approfondisce come quella di un tasto di vetro
+   * (`1 + pressione * pressedDepthBoost` sullo spostamento) e sotto il dito si accende il bagliore
+   * dei tasti di vetro (`glassButtonGlowRecipe`: velo 0,10, punto 0,15 largo il lato lungo),
+   * ritagliato sulla sagoma. Il dito si legge nelle coordinate dell'elemento premuto, che si assume
+   * posato sul riquadro della sagoma. Niente crescita: scalare il layer di un vetro è la prima
+   * trappola, e una superficie che si trasforma cede, non si gonfia sotto il dito. Null: nessuna
+   * risposta, come prima della 3.0.
+   */
+  pressState: FluidPressState? = null,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
+  val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
+  val material = remember(resolved, resolvedFrom) { PhysicsMaterialSource(resolvedFrom, resolved) }
   val resolvedTier = remember(tier) {
     resolvePhysicsTier(
       renderEffectSupported = isRenderEffectSupported(),
@@ -104,8 +142,11 @@ fun Modifier.fluidPhysicsSurface(
   }
 
   val currentIntensity by rememberUpdatedState(intensity)
+  val currentTintBlend by rememberUpdatedState(tintBlend)
+  val currentOpticsBlend by rememberUpdatedState(opticsBlend)
   val quality = LocalFluidGlassQuality.current
   val qualityFactor: () -> Float = remember(quality) { { quality?.level ?: 1f } }
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val blurRadius = backdrop.blurRadius
   val scratch = remember(state) { PhysicsUniformScratch() }
   // Lo scope degli effetti può lavorare a risoluzione ridotta: ogni pixel di geometria va
@@ -113,81 +154,75 @@ fun Modifier.fluidPhysicsSurface(
   val layoutWidth = remember { mutableFloatStateOf(0f) }
   val shapeBlock: () -> Shape = remember(state) { { state.ensurePlan().shape } }
 
-  val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius, quality, state, resolvedTier, tint, tintFrom) {
-    {
-      val amount = clampGlassUnit(currentIntensity())
-      if (amount > 0.001f) {
-        val q = qualityFactor()
-        if (resolved.vibrancy != 1f) {
-          colorControls(saturation = 1f + (resolved.vibrancy - 1f) * amount)
-        }
-        val full = resolvedTier == FluidPhysicsTier.Full
-        val plan = if (full) state.ensurePlan() else null
-        val factor = scopeFactor(size.width, layoutWidth.floatValue)
-        // La taglia che conta e' quella della SAGOMA, non quella di `size`: lo scope di un morph e'
-        // il layer che lo ospita, grande quanto lo schermo, e il tasto che diventa pannello ha
-        // sempre la stessa "taglia" di schermo intero. `bounds` e' in pixel di layout; col fattore
-        // dello scope diventa pixel di scope, gli stessi di `density`, quindi il rapporto e' dp veri.
-        // Cresce con la sagoma: sfocatura e lente seguono il viaggio con continuita', e il padding
-        // no — a materiale e qualita' pieni vale zero a ogni taglia, perche' la sfocatura non
-        // supera mai l'altezza che la copre (vedi [glassSizedOptics]). Senza la lente (Balanced) la
-        // regola e' spenta: senza niente che copra il margine, un raggio che cresce con la sagoma
-        // lo sposterebbe a ogni fotogramma del viaggio.
-        val sized = glassSizedOptics(
-          optics = resolved,
-          baseBlurPx = blurRadius.toPx(),
-          amount = amount,
-          quality = q,
-          minDimPx = plan?.let { it.bounds.minDimension * factor } ?: 0f,
-          density = density,
-          lensAvailable = full,
-        )
-        blur(sized.blurPx)
+  val effects: BackdropEffectScope.() -> Unit =
+    remember(material, blurRadius, quality, state, resolvedTier, tint, tintFrom, pressState) {
+      {
+        val amount = clampGlassUnit(currentIntensity())
+        if (amount > 0.001f) {
+          val q = qualityFactor()
+          val m = material.at(currentOpticsBlend())
+          if (m.optics.vibrancy != 1f) {
+            colorControls(saturation = 1f + (m.optics.vibrancy - 1f) * amount)
+          }
+          val full = resolvedTier == FluidPhysicsTier.Full
+          val plan = if (full) state.ensurePlan() else null
+          val factor = scopeFactor(size.width, layoutWidth.floatValue)
+          // La taglia che conta e' quella della SAGOMA, non quella di `size`: lo scope di un morph e'
+          // il layer che lo ospita, grande quanto lo schermo, e il tasto che diventa pannello ha
+          // sempre la stessa "taglia" di schermo intero. `bounds` e' in pixel di layout; col fattore
+          // dello scope diventa pixel di scope, gli stessi di `density`, quindi il rapporto e' dp veri.
+          // Senza la lente (Balanced) la regola e' spenta: senza niente che copra il margine, un
+          // raggio che cresce con la sagoma lo sposterebbe a ogni fotogramma del viaggio.
+          //
+          // I numeri sono quelli di `glassSurface`, dalla stessa funzione: sfocatura, altezza,
+          // spostamento (con la pressione), cupola e frangia. A riposo la lastra e' quella; in
+          // viaggio gli stessi numeri seguono la sagoma, e all'arrivo non c'e' scalino.
+          val lens = physicsLensUniforms(
+            material = m,
+            baseBlurPx = blurRadius.toPx(),
+            amount = amount,
+            quality = q,
+            minDimPx = plan?.let { it.bounds.minDimension * factor } ?: 0f,
+            density = density,
+            lensAvailable = full,
+            press = pressState?.progress ?: 0f,
+          )
+          blur(lens.blurPx)
 
-        if (plan != null) {
-          // Come glassSurface: la lente scala con intensità e qualità. Durante un morph puro
-          // entrambe valgono 1, quindi l'altezza — e con lei il padding — non si muove, e la
-          // cattura non viene mai sporcata.
-          val depth = amount * q
-          val shaderTint = if (plan.tintInShader) {
-            val overlay = if (tintFrom == null) {
-              tint.overlay
+          if (plan != null) {
+            val shaderTint = if (plan.tintInShader) {
+              val overlay = blendedTint(tint, tintFrom, currentTintBlend())
+              overlay.copy(alpha = overlay.alpha * amount)
             } else {
-              androidx.compose.ui.graphics.lerp(
-                tintFrom.overlay,
-                tint.overlay,
-                clampGlassUnit(tintBlend()),
+              Color.Transparent
+            }
+            if (plan.mode == PlanModePoly) {
+              polyMorphLens(
+                plan = plan,
+                scopeFactor = factor,
+                scratch = scratch,
+                refractionHeightPx = lens.refractionHeightPx,
+                refractionAmountPx = lens.refractionAmountPx,
+                depthEffect = lens.depthEffect,
+                tintInShader = shaderTint,
+                chromaticAberration = lens.dispersion,
+              )
+            } else {
+              slabGroupMorphLens(
+                plan = plan,
+                scopeFactor = factor,
+                scratch = scratch,
+                refractionHeightPx = lens.refractionHeightPx,
+                refractionAmountPx = lens.refractionAmountPx,
+                depthEffect = lens.depthEffect,
+                tintInShader = shaderTint,
+                chromaticAberration = lens.dispersion,
               )
             }
-            overlay.copy(alpha = overlay.alpha * amount)
-          } else {
-            Color.Transparent
-          }
-          if (plan.mode == PlanModePoly) {
-            polyMorphLens(
-              plan = plan,
-              scopeFactor = factor,
-              scratch = scratch,
-              refractionHeightPx = sized.refractionHeightPx * depth,
-              refractionAmountPx = sized.refractionAmountPx * depth,
-              depthEffect = resolved.depthEffect,
-              tintInShader = shaderTint,
-            )
-          } else {
-            slabGroupMorphLens(
-              plan = plan,
-              scopeFactor = factor,
-              scratch = scratch,
-              refractionHeightPx = sized.refractionHeightPx * depth,
-              refractionAmountPx = sized.refractionAmountPx * depth,
-              depthEffect = resolved.depthEffect,
-              tintInShader = shaderTint,
-            )
           }
         }
       }
     }
-  }
 
   val onDrawSurface: DrawScope.() -> Unit = remember(tint, tintFrom, state, resolvedTier) {
     {
@@ -196,15 +231,7 @@ fun Modifier.fluidPhysicsSurface(
         val plan = state.ensurePlan()
         val tintCarriedByShader = resolvedTier == FluidPhysicsTier.Full && plan.tintInShader
         if (!tintCarriedByShader) {
-          val overlay = if (tintFrom == null) {
-            tint.overlay
-          } else {
-            androidx.compose.ui.graphics.lerp(
-              tintFrom.overlay,
-              tint.overlay,
-              clampGlassUnit(tintBlend()),
-            )
-          }
+          val overlay = blendedTint(tint, tintFrom, currentTintBlend())
           drawPath(plan.silhouette, overlay.copy(alpha = overlay.alpha * amount))
         }
       }
@@ -212,52 +239,91 @@ fun Modifier.fluidPhysicsSurface(
   }
 
   // Il bordo e' quello di `glassSurface`, non uno proprio: stessa ricetta per lato (chiaro e in `Plus`
-  // sul lato scuro, scuro e in `SrcOver` sul chiaro: `glassRimRecipe`) e stesso profilo. Prima era un
-  // gradiente bianco in entrambi i temi, quindi sul lato chiaro la stessa lastra aveva un bordo da
-  // ferma e un altro in viaggio — o nessuno, bianco su una faccia chiara.
+  // sul lato scuro, scuro e in `SrcOver` sul chiaro: `glassRimRecipe`), stessa banda dentro la sagoma,
+  // stesso profilo. A riposo e' registrato come lo registra il renderer; in viaggio e' la stessa banda
+  // senza la sfocatura di mezza larghezza (vedi [PhysicsRimRenderer]).
   val darkSide = GlassDefaults.isDarkSurface()
   val rim = remember(darkSide) { glassRimRecipe(darkSide) }
-  val onDrawFront: DrawScope.() -> Unit = remember(resolved, quality, state, rim) {
+  val rimLayer = rememberGraphicsLayer()
+  val rimRenderer = remember(rimLayer) { PhysicsRimRenderer(rimLayer) }
+  val onDrawFront: DrawScope.() -> Unit = remember(material, quality, state, rim, rimRenderer) {
     {
+      // Il peso del bordo e' quello di `glassSurface`: l'alfa dell'ottica per intensita' e qualita',
+      // e il renderer ci moltiplica sopra l'alfa del colore della ricetta (0,5 sul lato scuro, 0,28
+      // sul chiaro).
       val amount = clampGlassUnit(currentIntensity()) * qualityFactor()
-      val strength = clampGlassUnit(resolved.highlightAlpha * amount)
-      if (strength > 0.01f) {
-        // Il peso del bordo e' quello di `glassSurface`: l'alfa dell'ottica per quello del colore
-        // della ricetta (0,5 sul lato scuro, 0,28 sul chiaro). Il renderer li moltiplica nello
-        // stesso modo: l'alfa del layer del bordo per l'alfa del colore dello stile.
-        val alpha = strength * rim.color.alpha
-        val plan = state.ensurePlan()
-        val bounds = plan.bounds
-        if (bounds.height > 0f) {
-          // Il rim del renderer legge la luce dal gradiente del campo; qui lo approssima un
-          // gradiente lungo la sagoma, col profilo dello shader (`glassRimRamp`): pieno sul bordo
-          // che guarda in su e in giu', a zero sui fianchi, con la rampa che l'angolo gli da'. Su un
-          // morph transiente le due letture sono indistinguibili, e questa segue la sagoma a ogni
-          // fotogramma.
-          val topRamp = plan.rimRampTop()
-          val bottomRamp = plan.rimRampBottom()
-          val lit = rim.color.copy(alpha = alpha)
-          val dark = rim.color.copy(alpha = 0f)
-          drawPath(
-            path = plan.silhouette,
-            brush = Brush.verticalGradient(
-              0f to lit,
-              topRamp to dark,
-              (1f - bottomRamp) to dark,
-              1f to lit,
-              startY = bounds.top,
-              endY = bounds.bottom,
-            ),
-            style = Stroke(width = resolved.highlightWidth.toPx()),
-            blendMode = rim.blendMode,
-          )
-        }
+      val m = material.at(currentOpticsBlend())
+      if (m.optics.highlightAlpha > 0f && amount > 0.001f) {
+        rimRenderer.draw(
+          scope = this,
+          plan = state.ensurePlan(),
+          restSlab = state.restSlabNow(),
+          optics = m.optics,
+          strength = m.optics.highlightAlpha * amount,
+          rim = rim,
+        )
       }
     }
   }
 
+  // L'ombra del ruolo, disegnata da qui (3.0) e FUORI dal layer del vetro: sta prima di
+  // `drawBackdrop` nella catena, quindi non la ritaglia il rettangolo del nodo e la sagoma la copre
+  // con il proprio fondale. Colore del lato del tema, raggio dell'ottica dichiarata, peso del
+  // materiale di adesso: a riposo e' quella di `glassSurface`. Se il chiamante ne disegna gia' una
+  // (`fluidPhysicsShadow`, il modale), questa tace.
+  val shadowColor = glassShadowColor(darkSide)
+  val shadowRadius = if (resolved.shadowRadius.value > 0f) resolved.shadowRadius else resolvedFrom?.shadowRadius ?: 0.dp
+  val shadowFirst = rememberGraphicsLayer()
+  val shadowSecond = rememberGraphicsLayer()
+  val shadowLayers = remember(shadowFirst, shadowSecond) { PhysicsShadowLayers(shadowFirst, shadowSecond) }
+  val shadow = remember(state, material, shadowLayers, shadowColor, shadowRadius, qualityFactor) {
+    Modifier.drawBehind {
+      if (state.externalShadows > 0) return@drawBehind
+      val amount = clampGlassUnit(currentIntensity()) * qualityFactor()
+      if (amount <= 0.001f) return@drawBehind
+      val m = material.at(currentOpticsBlend())
+      shadowLayers.draw(
+        scope = this,
+        state = state,
+        radiusPx = shadowRadius.toPx(),
+        color = shadowColor,
+        alpha = m.optics.shadowAlpha * amount,
+      )
+    }
+  }
+
+  // Il bagliore del dito, dentro il layer del vetro e sotto il contenuto, come quello di
+  // `glassControlSurface`; fuori dal materiale pubblicato (`exports`), come il suo.
+  val glowRecipe = remember { glassButtonGlowRecipe() }
+  val glow = remember(state, pressState, reducedMotion, glowRecipe) {
+    if (pressState == null) {
+      Modifier
+    } else {
+      Modifier.drawWithContent {
+        val amount = clampGlassUnit(currentIntensity())
+        if (amount > 0.001f) {
+          drawPhysicsGlow(
+            plan = state.ensurePlan(),
+            press = pressState,
+            weight = amount * (if (reducedMotion) ReducedMotionGlow else 1f),
+            recipe = glowRecipe,
+          )
+        }
+        drawContent()
+      }
+    }
+  }
+
+  // La cattura si tara sul piu' nitido dei due capi: un tasto quasi trasparente letto alla
+  // risoluzione di un pannello smerigliato mostrerebbe i pixel che la sfocatura del pannello copre.
+  val backdropScale = maxOf(
+    glassResolutionScale(blurRadius.value * resolved.blurScale) * resolved.backdropResolution,
+    resolvedFrom?.let { glassResolutionScale(blurRadius.value * it.blurScale) * it.backdropResolution } ?: 0f,
+  )
+
   return this
     .onSizeChanged { layoutWidth.floatValue = it.width.toFloat() }
+    .then(shadow)
     .drawBackdrop(
       backdrop = backdrop.backdrop,
       shape = shapeBlock,
@@ -268,37 +334,84 @@ fun Modifier.fluidPhysicsSurface(
       exportedBackdrop = exports?.layerBackdrop,
       onDrawSurface = onDrawSurface,
       onDrawFront = onDrawFront,
-      backdropScale = glassResolutionScale(blurRadius.value * resolved.blurScale) *
-        resolved.backdropResolution,
+      backdropScale = backdropScale,
       sampleOnce = sampleOnce,
       backdropScaleFactor = qualityFactor,
     )
+    .then(glow)
 }
+
+/** La pellicola di adesso: [tint], o la miscela da [tintFrom] secondo [blend]. */
+private fun blendedTint(tint: GlassTint, tintFrom: GlassTint?, blend: Float): Color =
+  if (tintFrom == null) {
+    tint.overlay
+  } else {
+    androidx.compose.ui.graphics.lerp(tintFrom.overlay, tint.overlay, clampGlassUnit(blend))
+  }
+
+/** Il peso del bagliore con le animazioni ridotte: quello di `glassControlSurface`. */
+private const val ReducedMotionGlow = 0.4f
 
 /**
- * Le rampe del bordo (in alto, in basso) della sagoma corrente, in frazione dell'altezza.
- *
- * Con un solo rettangolo arrotondato gli angoli sono quelli veri, sopra e sotto; per un gruppo o una
- * sagoma libera l'angolo non c'e' da leggere, e si assume la capsula (mezzo lato corto), che e' anche
- * il tetto oltre cui lo shader non allarga l'arco. Sempre almeno [MinRimRamp], cosi' le fermate del
- * gradiente restano crescenti anche per un angolo vivo. Due funzioni e non una coppia: si chiamano a
- * ogni fotogramma di un viaggio, e una coppia sono tre oggetti.
+ * Le fermate del punto luce del bagliore: la campana dello shader di `GlassTouchHighlight`
+ * (`smoothstep(raggio, raggio * core, distanza)`), campionata in [GlowStops] tratti di un gradiente
+ * radiale. Piena fino a `core` del raggio, poi scende col profilo della smoothstep a zero sul bordo.
+ * Un gradiente e non lo shader: funziona anche sotto API 33, dove il bagliore di un tasto ripiega
+ * su una lavata piatta.
  */
-private fun PhysicsRenderPlan.rimRampTop(): Float {
-  val rounded = silhouetteRoundRect
-  val radius = rounded?.let { maxOf(it.topLeftCornerRadius.x, it.topRightCornerRadius.x) }
-    ?: (minOf(bounds.width, bounds.height) / 2f)
-  return glassRimRamp(radius, bounds.width, bounds.height).coerceAtLeast(MinRimRamp)
+internal fun physicsGlowStops(recipe: GlowRecipe, glow: Float): Array<Pair<Float, Color>> {
+  val core = recipe.core.coerceIn(0f, 0.999f)
+  return Array(GlowStops + 1) { i ->
+    val f = i / GlowStops.toFloat()
+    val intensity = if (f <= core) {
+      1f
+    } else {
+      val t = ((1f - f) / (1f - core)).coerceIn(0f, 1f)
+      t * t * (3f - 2f * t)
+    }
+    f to recipe.tone.copy(alpha = (recipe.spot * glow * intensity).coerceIn(0f, 1f))
+  }
 }
 
-private fun PhysicsRenderPlan.rimRampBottom(): Float {
-  val rounded = silhouetteRoundRect
-  val radius = rounded?.let { maxOf(it.bottomLeftCornerRadius.x, it.bottomRightCornerRadius.x) }
-    ?: (minOf(bounds.width, bounds.height) / 2f)
-  return glassRimRamp(radius, bounds.width, bounds.height).coerceAtLeast(MinRimRamp)
-}
+private const val GlowStops = 8
 
-private const val MinRimRamp = 0.002f
+/**
+ * Il bagliore sotto il dito, sulla sagoma di adesso: il velo su tutta la faccia e il punto che segue
+ * il dito, entrambi ritagliati dal path della silhouette (un `drawPath` con un pennello non esce dal
+ * proprio path), nel modo di comporre della ricetta.
+ */
+private fun DrawScope.drawPhysicsGlow(
+  plan: PhysicsRenderPlan,
+  press: FluidPressState,
+  weight: Float,
+  recipe: GlowRecipe,
+) {
+  val glow = press.progress.coerceIn(0f, 1f) * weight.coerceIn(0f, 1f)
+  if (glow <= 0f) return
+  val bounds = plan.bounds
+  if (bounds.minDimension <= 0f) return
+  drawPath(
+    path = plan.silhouette,
+    color = recipe.tone.copy(alpha = (recipe.veil * glow).coerceIn(0f, 1f)),
+    blendMode = recipe.blend,
+  )
+  val finger = press.glow
+  val center = Offset(
+    (bounds.left + finger.x).coerceIn(bounds.left, bounds.right),
+    (bounds.top + finger.y).coerceIn(bounds.top, bounds.bottom),
+  )
+  val radius = if (recipe.radiusFromLongSide) bounds.maxDimension else bounds.minDimension * recipe.radiusScale
+  if (radius <= 0f) return
+  drawPath(
+    path = plan.silhouette,
+    brush = Brush.radialGradient(
+      colorStops = physicsGlowStops(recipe, glow),
+      center = center,
+      radius = radius,
+    ),
+    blendMode = recipe.blend,
+  )
+}
 
 /** Il ripiego sotto API 31: la tinta piena, ritagliata sul path che si trasforma. */
 private fun Modifier.physicsFallback(

@@ -6,11 +6,9 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
-## 3.0.0 - in lavorazione
+## 3.0.0 - 2026-11-02
 
-Prima release candidate: `engine-3.0.0-rc.1` (2026-11-02, galleria Fluid Glass 2.0.0-beta.4), con tutto quello che segue. Le voci che arrivano dopo l'RC si aggiungono qui sotto e vanno nella 3.0.0.
-
-Seconda release candidate: `engine-3.0.0-rc.2` (2026-11-02): in piu' solo le correzioni di `engine-ai` e `engine-ai-bridge` (il ponte senza permesso `AI_TOOLS`, tempi, conferme, preferenze, livello profondo).
+Il grande step up: tutto l'engine della qualita' della pillola della tab bar. Uscita dopo quattro beta della galleria Fluid Glass (2.0.0-beta.1…4, giudicate in mano da Alessio) e due release candidate (`engine-3.0.0-rc.1`, `rc.2`, identiche alla 3.0.0 salvo il numero; la rc.2 aggiunge le correzioni di `engine-ai` e del ponte). **BREAKING** soprattutto per la licenza (GPL-3.0), le pagine (`FluidNavHost`) e il ponte dell'assistente; la ricetta e' in `ADOZIONE.md`, «Migrare alla 3.0».
 
 - ui: la grana. Un tasto trascinato (`FluidPressFeedback.Expand`: tasti, tasti di vetro, chip) non ticchetta piu' a ogni 10 dp: a passo d'uomo e' silenzioso, e quando il dito corre suona un treno fitto e irregolare di granelli leggeri, piu' forte quanto piu' corre — come strofinare una superficie ruvida (`FluidHapticGrain`: parte sopra 520 dp/s e si spegne sotto 380, un granello ogni ~8 dp ±30%, mai piu' di uno ogni 8-9 ms, intensita' 0,14-0,5). Nuovi: `FluidHaptics.grain(intensity)` (con default: un'implementazione scritta prima compila com'e'), `FluidHapticGrainConfig` e `LocalFluidHapticGrainConfig` per tararla. **Cambia al tatto** in ogni app con tasti trascinabili. Di serie, dalla fase 4, la grana e' quella di LibrePods (un tick per ogni evento sopra una soglia): questa e' lo stile `FluidHapticGrainStyle.Fluid`, vedi sotto.
 - ui: una vibrazione per momento. Due eventi di controllo (Tap, Confirm, Reject, ToggleOn/Off, Threshold, Open, Close, GestureStart/End) entro 70 ms sono lo stesso momento detto da due componenti, e il secondo non suona piu': era il "toc-toc" che faceva sembrare un errore l'apertura dei menu. Esiti e allerte non si scartano mai, i tick continui hanno il loro cancello. `Open` e' un colpo solo (CLICK 0,6) invece di rampa + tick. **Cambia al tatto.**

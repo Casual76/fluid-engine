@@ -426,10 +426,10 @@ con la sostituzione, è in `docs/03-design-system.md`.
 
 ---
 
-## Migrare alla 3.0 (engine 3.0, in lavorazione)
+## Migrare alla 3.0 (engine 3.0.0, 2 novembre 2026)
 
 La 3.0 non è un aggiornamento da prendere a occhi chiusi: cambia la licenza, le pagine e il gesto dei
-pulsanti. Nessuna app la deve prendere adesso; quando una lo fa, l'ordine è questo, e le voci
+pulsanti. Le app Pampa la prendono una alla volta; per ognuna l'ordine è questo, e le voci
 **Cambia a vista** del `CHANGELOG.md` (`## 3.0.0`) sono l'elenco di cosa guardare sul telefono.
 
 1. **La licenza, prima del resto.** L'engine contiene codice di LibrePods, **GPL-3.0** (pulsanti e pagine:

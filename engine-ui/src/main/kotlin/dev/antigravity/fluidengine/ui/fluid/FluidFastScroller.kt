@@ -241,15 +241,6 @@ object FluidFastScrollerDefaults {
 }
 
 /**
- * Quanto la maniglia resta dopo l'ultimo movimento della lista, in millisecondi.
- *
- * Una durata, e va fra i token: TODO token FluidMotion (`FluidMotion.FastScrollerHideMillis`). Sta qui
- * perche' questa fase non puo' toccare `FluidMotion`; il valore e' quello che le due app avevano scelto
- * (1,4 s in MyCloud, mezzo secondo di dissolvenza in Fluidify), un filo sotto.
- */
-private const val HideDelayMillis = 1_200L
-
-/**
  * Lo **scorrimento rapido**: una maniglia di vetro sul bordo di una lista lunga che la porta in un colpo
  * dove si vuole, con una bolla che dice dov'e' si e' arrivati.
  *
@@ -335,7 +326,7 @@ fun FluidFastScroller(
       if (active) {
         if (reducedMotion) appearance.snapTo(1f) else appearance.animateTo(1f, FluidMotion.fadeIn(160))
       } else {
-        delay(HideDelayMillis)
+        delay(FluidMotion.FastScrollerHideMillis)
         if (reducedMotion) appearance.snapTo(0f) else appearance.animateTo(0f, FluidMotion.fadeOut(300))
       }
     }

@@ -475,4 +475,30 @@ object FluidMotion {
       animation = tween(durationMillis = durationMillis, delayMillis = restMillis, easing = easing),
       repeatMode = RepeatMode.Restart,
     )
+
+  // --- Scorrimento rapido e scrubber (3.0, fase 12c) -------------------------------------------------
+  //
+  // Due durate di *attesa*, non di movimento: quanto un controllo aspetta prima di cambiare idea. Stanno
+  // qui perche' un numero di tempo nel file di un componente e' esattamente cio' che la fase 10 ha tolto.
+
+  /**
+   * Quanto la maniglia dello scorrimento rapido resta in vista dopo l'ultimo movimento della lista, in
+   * millisecondi. Il valore che le due app di partenza avevano scelto (1,4 s in MyCloud, mezzo secondo
+   * di dissolvenza in Fluidify), un filo sotto; prima era una costante privata di `FluidFastScroller`.
+   */
+  const val FastScrollerHideMillis: Long = 1_200L
+
+  /**
+   * Quanto un `FluidScrubber` tiene la maniglia dove e' stata lasciata, aspettando che la posizione
+   * che arriva da fuori la raggiunga, in millisecondi.
+   *
+   * Un salto di un lettore non e' istantaneo: fra il rilascio e la prima posizione nuova passa il
+   * tempo di un seek (decine di millisecondi in locale, qualche secondo su una rete che bufferizza), e
+   * in quel tempo la posizione che arriva e' ancora la vecchia. Senza un fermo la maniglia tornerebbe
+   * indietro per un attimo e poi ripartirebbe in avanti. Il fermo finisce da solo quando la posizione
+   * ha raggiunto il punto, e questo e' il tetto: un seek che l'app ha rifiutato non deve lasciare la
+   * maniglia dove nessuno sta riproducendo. Tre secondi sono un numero di partenza, da giudicare in
+   * mano con un seek lento.
+   */
+  const val ScrubberHoldMillis: Long = 3_000L
 }

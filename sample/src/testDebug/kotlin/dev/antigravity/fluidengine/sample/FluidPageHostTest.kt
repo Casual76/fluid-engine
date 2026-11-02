@@ -598,4 +598,38 @@ class FluidPageHostTest {
     // 108 px lenti, sotto il 35%: torna, senza animazione.
     assertEquals(PagesRouteB, route())
   }
+
+  // --- La bozza: un BackHandler nella demo ------------------------------------------------------
+
+  private fun openDraft() {
+    compose.runOnIdle { nav.navigate(PagesRouteDraft) }
+    compose.waitForIdle()
+    compose.onNodeWithText(PagesDraftDirty).assertExists()
+  }
+
+  @Test
+  fun `la bozza con modifiche chiede al back col dito, e Esci la toglie`() {
+    show()
+    openDraft()
+    // 0,40 W lenti: senza gestore toglierebbe la pagina.
+    drag(Offset(300f, 900f), steps = 72, stepPx = 4f)
+    compose.waitForIdle()
+    assertEquals(PagesRouteDraft, route())
+    assertTrue(isShown("Uscire senza salvare?"))
+    compose.onNodeWithText("Esci").performClick()
+    compose.waitForIdle()
+    assertEquals(PagesRouteA, route())
+  }
+
+  @Test
+  fun `la bozza senza modifiche esce col dito come le altre pagine`() {
+    show()
+    openDraft()
+    compose.onNodeWithText(PagesDraftDirty).performClick()
+    compose.waitForIdle()
+    drag(Offset(300f, 900f), steps = 72, stepPx = 4f)
+    compose.waitForIdle()
+    assertEquals(PagesRouteA, route())
+    assertTrue(!isShown("Uscire senza salvare?"))
+  }
 }

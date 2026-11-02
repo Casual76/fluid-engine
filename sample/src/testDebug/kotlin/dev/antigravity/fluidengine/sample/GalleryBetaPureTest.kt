@@ -222,7 +222,7 @@ class GalleryBetaPureTest {
   @Test
   fun `i giri hanno un id unico e il giro piu' nuovo e' l'ultimo`() {
     assertEquals(TryRounds.size, TryRounds.map { it.id }.toSet().size)
-    assertEquals(listOf("Beta 1", "Beta 2", "Beta 3"), TryRounds.map { it.title })
+    assertEquals(listOf("Beta 1", "Beta 2", "Beta 3", "Beta 4"), TryRounds.map { it.title })
     assertEquals(TryRounds.last().items.size, latestRoundSize())
   }
 

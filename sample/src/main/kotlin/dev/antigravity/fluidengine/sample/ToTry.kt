@@ -90,8 +90,11 @@ internal data class TryRound(
 private val ControlsTouch = TryTarget.Tab(RouteControls, "Controlli › Tocco")
 private val ControlsLog = TryTarget.Tab(RouteControls, "Controlli › Registro aptico")
 private val ControlsGrain = TryTarget.Tab(RouteControls, "Controlli › Grana")
+private val ControlsRound = TryTarget.Tab(RouteControls, "Controlli › Tasti tondi: crescono, ma con un tetto")
+private val ControlsContrast = TryTarget.Tab(RouteControls, "Controlli › Contrasto: il vetro si fa più denso")
 private val MaterialAction = TryTarget.Tab(RouteMaterial, "Materiale › tasto Azione")
 private val PhysicsSpring = TryTarget.Tab(RoutePlayground, "Fisica › Molla e materiale")
+private val ChromeExpand = TryTarget.Tab(RouteChrome, "Chrome › Card che si espande")
 private val PagesScreen = TryTarget.Screen("Chrome › Navigazione › Pagine (schermata a parte)")
 private val RowsPage = TryTarget.Page(GalleryPage.RowsAndSheets, "Righe e fogli")
 private val CapsulesPage = TryTarget.Page(GalleryPage.CapsulesAndParts, "Capsule e pezzi piccoli")
@@ -512,8 +515,63 @@ private val Beta3 = TryRound(
   ),
 )
 
+/** La beta 4: la goccia al posto del vetro geometrico, e i buchi trovati guardando le app. */
+private val Beta4 = TryRound(
+  id = "beta4",
+  title = "Beta 4",
+  intro = "Quarta prova della 3.0: la goccia e i pezzi che servivano alle app. Tocca una voce per aprire la sua demo.",
+  items = listOf(
+    TryItem(
+      "goccia-tasto", TryArea.Menus, "La goccia del tasto",
+      "Tieni premuto «Azione», lascia e poi tocca fuori: il pannello esce dal tasto come una goccia (l'alto arriva " +
+        "per ultimo) e ci rientra più piano, con le voci che se ne vanno per prime e sempre dentro il vetro; " +
+        "giudica se è liquido senza essere molle e se alla posa c'è uno scatto.",
+      MenusMorph,
+    ),
+    TryItem(
+      "goccia-contestuale", TryArea.Menus, "Il contestuale dal dito",
+      "Tieni premuta «Nota della riunione» a sinistra, al centro e a destra: il menu si stacca dal punto del dito " +
+        "e la coda lo tiene attaccato alla riga; giudica se riga e menu sembrano un vetro solo.",
+      MenusRows,
+    ),
+    TryItem(
+      "goccia-card", TryArea.Panels, "La card che rientra",
+      "Apri e chiudi la card: il vetro vuoto rientra nella riga come un liquido e il testo resta sempre dentro il " +
+        "vetro; giudica l'uscita del testo, che prima se ne andava in un modo strano.",
+      ChromeExpand,
+    ),
+    TryItem(
+      "goccia-tensione", TryArea.Panels, "Goccia e tensione",
+      "Confronta «Goccia» con «Geometrico (beta 2)» rifacendo i gesti sopra, poi muovi «Tensione del bordo» (0,2 " +
+        "di serie, fino a 2): dimmi se gli angoli sono giusti o se la vuoi più tesa.",
+      PhysicsSpring,
+    ),
+    TryItem(
+      "back-chiede", TryArea.Pages, "Il back che chiede",
+      "Apri «Apri una bozza» e torna indietro col dito oltre metà: la pagina torna sotto il dito e compare " +
+        "l'avviso, «Esci» la porta via e con «Modifiche non salvate» spento esce come le altre; giudica se il " +
+        "ritorno sotto il dito si legge come un no e non come un errore.",
+      PagesScreen,
+    ),
+    TryItem(
+      "tondi-tetto", TryArea.Buttons, "Tondi con un tetto",
+      "Tieni premuti i quattro dischi da 44 a 76 dp: fino a 48 dp crescono di metà come prima, oltre di 24 dp " +
+        "in tutto, così il 76 non copre il vicino; giudica se i grandi crescono abbastanza o se preferisci un " +
+        "tetto più basso (12 per lato ora, 8 l'alternativa).",
+      ControlsRound,
+    ),
+    TryItem(
+      "contrasto-sistema", TryArea.Panels, "Contrasto di sistema",
+      "Guarda le tre righe Standard, Medio e Alto, poi metti «Contrasto del colore» a medio e ad alto nelle " +
+        "impostazioni di Android con la galleria aperta: barra, tasti e pannelli si fanno più densi e il bordo " +
+        "più netto; giudica se ad alto il vetro si legge ancora come vetro.",
+      ControlsContrast,
+    ),
+  ),
+)
+
 /** Tutti i giri, dal piu' vecchio al piu' nuovo. Una beta nuova aggiunge qui il suo e basta. */
-internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3)
+internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3, Beta4)
 
 /**
  * La pagina "Da provare": quello che Alessio vede per prima, e la lista di cio' che va giudicato in mano.

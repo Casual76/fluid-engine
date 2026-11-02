@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.sample
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,10 +33,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.ui.fluid.FluidAlert
+import dev.antigravity.fluidengine.ui.fluid.FluidAlertAction
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSlider
+import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.navigation.FluidNavHost
@@ -54,7 +59,9 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
  * Un'attivita' a parte e non una scheda della galleria: qui il back di sistema deve arrivare all'host
  * delle pagine e non chiudere l'app. Le tre pagine hanno un numero diverso di azioni nella barra (una,
  * due, tre) per guardare i tasti di vetro che diventano quelli della pagina accanto, e "c" ha una riga
- * che scorre di lato e un cursore: dal suo inizio la riga passa la mano al back, il cursore mai.
+ * che scorre di lato e un cursore: dal suo inizio la riga passa la mano al back, il cursore mai. La
+ * "bozza" ha un `BackHandler` che chiede prima di uscire: il back a dito passa da lui come quello di
+ * sistema, e la pagina torna sotto il dito mentre l'avviso decide.
  */
 class PagesDemoActivity : ComponentActivity() {
 
@@ -72,11 +79,14 @@ class PagesDemoActivity : ComponentActivity() {
 internal const val PagesRouteA = "a"
 internal const val PagesRouteB = "b"
 internal const val PagesRouteC = "c"
+internal const val PagesRouteDraft = "bozza"
 
 /** Le righe che dicono dove sta ogni pagina (uniche: il titolo c'e' due volte, nella pagina e nella barra). */
 internal const val PagesMarkA = "Apri B"
 internal const val PagesMarkB = "Apri C sopra"
 internal const val PagesMarkC = "Torna alla radice"
+internal const val PagesMarkDraft = "Apri una bozza"
+internal const val PagesDraftDirty = "Modifiche non salvate"
 internal const val PagesChipsTag = "pages:chips"
 internal const val PagesSliderTag = "pages:slider"
 
@@ -112,6 +122,12 @@ internal fun PagesDemo(
               title = "Apri C",
               subtitle = "Prima si fa piccola, poi esce",
               onClick = { navController.navigate(PagesRouteC) },
+            )
+            FluidListDivider()
+            FluidListRow(
+              title = PagesMarkDraft,
+              subtitle = "Chiede prima di uscire, anche al back col dito",
+              onClick = { navController.navigate(PagesRouteDraft) },
             )
           }
         }
@@ -193,6 +209,48 @@ internal fun PagesDemo(
           }
         }
         fillerRows("c")
+      }
+    }
+    composable(PagesRouteDraft) {
+      var dirty by remember { mutableStateOf(true) }
+      var asking by remember { mutableStateOf(false) }
+      // Il gestore della pagina: abilitato solo con modifiche da perdere. Il back a dito oltre la soglia
+      // arriva qui come quello di sistema; senza modifiche la pagina esce come le altre.
+      BackHandler(enabled = dirty) { asking = true }
+      FluidScreen(
+        title = "Bozza",
+        subtitle = "Torna indietro col dito: con le modifiche accese la pagina torna sotto il dito e chiede.",
+        onBack = { if (dirty) asking = true else navController.popBackStack() },
+      ) {
+        item(key = "dirty") {
+          FluidListGroup {
+            FluidToggleRow(
+              title = PagesDraftDirty,
+              subtitle = "Spento, il back non chiede niente",
+              checked = dirty,
+              onCheckedChange = { dirty = it },
+            )
+          }
+        }
+        fillerRows("bozza")
+      }
+      if (asking) {
+        FluidAlert(
+          onDismissRequest = { asking = false },
+          title = "Uscire senza salvare?",
+          message = "Le modifiche alla bozza andranno perse.",
+          actions = listOf(
+            FluidAlertAction("Resta", onClick = { asking = false }, emphasis = FluidAlertAction.Emphasis.Preferred),
+            FluidAlertAction(
+              "Esci",
+              onClick = {
+                asking = false
+                navController.popBackStack()
+              },
+              emphasis = FluidAlertAction.Emphasis.Destructive,
+            ),
+          ),
+        )
       }
     }
   }

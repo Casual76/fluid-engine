@@ -34,6 +34,11 @@ enum class FluidPageTransition {
  *
  * Il back di sistema non c'entra: con la navigazione a gesti i tocchi sul bordo non arrivano
  * nemmeno all'app, e il gesto di sistema segue comunque il dito.
+ *
+ * **Un `BackHandler` non e' piu' un motivo per spegnerlo** (3.0). Il dito che supera la soglia manda
+ * "indietro" al dispatcher come il sistema, quindi una pagina con una conferma di uscita (un editor
+ * con modifiche, un'importazione a meta') la chiede anche al dito: la pagina segue il dito, torna a
+ * posto e il suo gestore decide. [Off] resta per chi non vuole che la pagina si muova affatto.
  */
 enum class FluidBackSwipe {
   /**

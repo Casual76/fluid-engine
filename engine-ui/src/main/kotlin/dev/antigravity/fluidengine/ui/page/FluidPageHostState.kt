@@ -146,6 +146,21 @@ class FluidPageHostState internal constructor() {
   internal var renderable: (Any) -> Boolean = { true }
   internal var backHandler: NavigationEventHandler<*>? = null
 
+  /**
+   * Manda al dispatcher del back un "indietro" completato, quello che il sistema manda a fine gesto
+   * e il tasto di navigazione manda subito: lo risponde il gestore abilitato registrato per ultimo.
+   * Se e' quello dell'host ([FluidPageBackHandler.onBackCompleted], poi [requestBack]) la pagina esce;
+   * se e' di qualcun altro — il `BackHandler` della pagina, un modale, una ricerca aperta — risponde
+   * lui, e l'host non fa niente. Null fuori da un dispatcher (l'host non e' dentro un'attivita').
+   */
+  internal var dispatchBack: (() -> Unit)? = null
+
+  /**
+   * La velocita' (px/s) del dito in-app che ha confermato un back e aspetta che il dispatcher scelga
+   * chi lo risponde, o null. Lo prende [requestBack] se risponde l'host; se resta, ha risposto altri.
+   */
+  private var awaitingAnswer: Float? = null
+
   // --- La macchina ---------------------------------------------------------------------------------
 
   internal enum class Phase { Idle, Pushing, Popping, Peer, Dragging, Committing, Cancelling }
@@ -429,12 +444,52 @@ class FluidPageHostState internal constructor() {
   /**
    * Il dito si e' alzato. [velocity] in px/s lungo l'uscita; [decided] e' la decisione del sistema
    * (il back di sistema conferma o annulla da se'), null per la regola del rilascio in-app.
+   *
+   * **Il dito dentro l'app non toglie la pagina da se': la chiede** (3.0). Oltre la soglia la sua
+   * conferma e' un "indietro" mandato al dispatcher, esattamente quello che il sistema manda a fine
+   * gesto ([confirmThroughDispatcher]): se non c'e' un `BackHandler` abilitato dopo l'host risponde
+   * l'host e la pagina esce come sempre; se c'e', risponde lui e la pagina torna sotto il dito. Un
+   * rilascio sotto la soglia e' un gesto annullato e non chiama nessuno. Il back di sistema ci e'
+   * gia' passato (e' lui a dirci [decided]).
    */
   internal fun release(token: Int, velocity: Float, decided: Boolean? = null) {
     if (!isDragging(token)) return
     isInteractive = false
-    val commit = decided ?: FluidPageMotion.backRelease(travelPx, velocity, width, density)
-    if (commit) commit(velocity) else cancelGesture(velocity)
+    val confirmed = decided ?: FluidPageMotion.backRelease(travelPx, velocity, width, density)
+    when {
+      !confirmed -> cancelGesture(velocity)
+      decided == null -> confirmThroughDispatcher(velocity)
+      else -> commit(velocity)
+    }
+  }
+
+  /**
+   * Chiede il back al dispatcher invece di togliere la pagina: chi risponde per primo e' l'ultimo
+   * gestore abilitato, e l'host (registrato prima delle pagine) e' sotto i loro. Senza dispatcher, o
+   * con il gestore dell'host spento (non dovrebbe: un gesto parte solo con due pagine), la pagina
+   * esce come prima.
+   *
+   * La risposta e' sincrona: [dispatchBack] torna dopo che il gestore ha girato. Se l'host ha risposto
+   * [requestBack] ha gia' preso la velocita' e fatto partire la molla di uscita; se la velocita' e'
+   * ancora qui, ha risposto un altro gestore e la pagina torna dov'era, con la molla di un annullo. Se
+   * quel gestore toglie la pagina da se' (un "salva e chiude"), la pila si accorcia al fotogramma
+   * dopo e [beginPop] riconosce il pop come quello del gesto: la molla riprende da dove e' arrivata.
+   */
+  private fun confirmThroughDispatcher(velocity: Float) {
+    val dispatch = dispatchBack
+    if (dispatch == null || backHandler?.isBackEnabled != true) {
+      commit(velocity)
+      return
+    }
+    awaitingAnswer = velocity
+    try {
+      dispatch()
+    } finally {
+      if (awaitingAnswer != null) {
+        awaitingAnswer = null
+        if (phase == Phase.Dragging) cancelGesture(velocity)
+      }
+    }
   }
 
   /** Il sistema ha confermato un back che avevamo gia' dato per annullato: si va fuori da qui. */
@@ -488,8 +543,18 @@ class FluidPageHostState internal constructor() {
     animateTravel(0f, FluidPageMotion.pageReturn(), velocity) { settle() }
   }
 
-  /** Back senza gesto (3 tasti, Android 13 e prima, tastiera): l'app toglie, la molla accompagna. */
+  /**
+   * Back senza gesto (3 tasti, Android 13 e prima, tastiera): l'app toglie, la molla accompagna. E' anche
+   * la risposta dell'host a un back che un dito in-app ha confermato ([confirmThroughDispatcher]):
+   * allora la pagina e' ancora sotto il dito, e esce con la sua velocita' invece di apparire sparita.
+   */
   internal fun requestBack() {
+    val fingerVelocity = awaitingAnswer
+    awaitingAnswer = null
+    if (fingerVelocity != null && phase == Phase.Dragging) {
+      commit(fingerVelocity)
+      return
+    }
     if (processed.size > 1) onBack()
   }
 

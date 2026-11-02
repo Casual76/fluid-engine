@@ -71,6 +71,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -105,7 +106,11 @@ val LocalFluidPageTransition: ProvidableCompositionLocal<FluidPageHostState?> =
  *   passo fra schede.
  * - [onBack]: un gesto confermato (o il back di sistema senza gesto) lo chiama *prima* che la pagina
  *   finisca di uscire; l'app accorcia la pila e la molla continua. Se l'app non la accorcia, la
- *   pagina torna dov'era.
+ *   pagina torna dov'era. **Non lo chiama se una pagina ha un `BackHandler` attivo** (3.0): un back
+ *   confermato — dal sistema o dal dito dentro l'app — passa dal dispatcher, e il gestore abilitato
+ *   registrato per ultimo risponde. Quello dell'host sta sotto i `BackHandler` delle pagine, quindi
+ *   un editor che chiede conferma prima di uscire la chiede anche al dito: la pagina segue il dito,
+ *   e se il gesto supera la soglia torna a posto mentre il gestore gira.
  * - [onTransitionStart]: le due pagine che il dito comincia a separare (cima, sotto).
  * - [onSettled]: l'host e' tornato a riposo.
  * - [leaving]: le chiavi che hanno lasciato la pila ma si possono ancora disegnare (null: tutte).
@@ -188,14 +193,24 @@ internal fun <K : Any> FluidPageHostImpl(
   DisposableEffect(dispatcherOwner, state) {
     val dispatcher = dispatcherOwner?.navigationEventDispatcher
     val handler = FluidPageBackHandler(state)
+    // L'ingresso da cui il dito dentro l'app manda il suo "indietro" confermato: allo stesso dispatcher
+    // del sistema, cosi' a rispondere e' chi risponderebbe a un back di sistema.
+    val fingerInput = DirectNavigationEventInput()
+    val dispatchBack: () -> Unit = { fingerInput.backCompleted() }
     if (dispatcher != null) {
       dispatcher.addHandler(handler)
+      dispatcher.addInput(fingerInput)
       handler.isBackEnabled = state.stackSize > 1
       state.backHandler = handler
+      state.dispatchBack = dispatchBack
     }
     onDispose {
-      if (dispatcher != null) handler.remove()
+      if (dispatcher != null) {
+        handler.remove()
+        dispatcher.removeInput(fingerInput)
+      }
       if (state.backHandler === handler) state.backHandler = null
+      if (state.dispatchBack === dispatchBack) state.dispatchBack = null
     }
   }
 

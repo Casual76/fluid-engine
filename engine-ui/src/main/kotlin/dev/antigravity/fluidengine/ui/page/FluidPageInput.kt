@@ -19,6 +19,9 @@
  *     l'uscita abbandona; uno scorrimento orizzontale al suo inizio passa la mano;
  *   - il back di sistema arriva dal dispatcher di navigationevent con `touchX` (non
  *     `PredictiveBackHandler` col `progress`), cosi' i gestori interni dell'app restano prima di noi;
+ *   - il dito dentro l'app, quando conferma, non toglie la pagina: manda al dispatcher lo stesso
+ *     "indietro" completato del sistema, e se un `BackHandler` della pagina risponde per primo la
+ *     pagina torna sotto il dito e il gestore decide (LibrePods non ha `BackHandler` da rispettare);
  *   - la velocita' e' misurata e passa alla molla; nessuna vibrazione durante il gesto.
  */
 package dev.antigravity.fluidengine.ui.page

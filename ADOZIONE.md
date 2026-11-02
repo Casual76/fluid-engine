@@ -477,7 +477,22 @@ pulsanti. Nessuna app la deve prendere adesso; quando una lo fa, l'ordine è que
    `grip = YieldsToScroll` (e `haptic = null` dove l'azione ha già il suo colpo); Fluidify prende
    `FluidNavHost(pageColor = Color.Transparent)` e `FluidGlassIconButton(size = 62.dp / 76.dp)`; FluidWeather e
    Fluid-transit passano i loro 54 dp con `size = 54.dp`.
-7. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
+7. **Gli adattatori dell'assistente si cancellano** (engine-ai 3.0.0). **Ospiti del ponte: togliere
+   `android:permission="...AI_TOOLS"` dal `<provider>`**, e dal manifest dell'app l'eventuale
+   `<uses-permission>` (PampAI lo tiene finche' c'e' un ospite 2.x). Fluid-transit: `TransitAiPreferences` ->
+   `AiSettingsStore(context, AiSettingsDefaults(actionsEnabled = true, openRouterDataPolicy = DENY))` +
+   `enableIfNeverChosen()`; `ToolLimits.timed` -> `toolTimeoutMillis`/`awaitsConfirmation` sui gruppi +
+   `AiConfirmationGate(config)` + `gate = gate` all'orchestratore; il lucchetto delle conferme e il watcher ->
+   `gate.bindState(stateFlow)`; `FailureKinds` -> `AssistantFailure.of`; `deepModel = null` ->
+   `deepTierEnabled = false`. FluidWeather: i due delegati DataStore e `AiPreferences` ->
+   `AiKeyStore(ctx, KeystoreCipher("fluidweather.ai"))`, `AiSettingsStore(ctx)` (per `migrateLegacy`:
+   `AiDataStores.open(...)`; il contatore dei gratuiti e' codice morto); `APP` con `awaitsConfirmation = true`;
+   `withoutDeepTier` -> `deepTierEnabled = false`; il collettore del cancello -> `bindState`. ClasseViva:
+   `toolTimeoutMillis = 90_000` -> 30_000 + `awaitsConfirmation` su `APP` + `AiConfirmationGate(config)`; il
+   collettore in `AssistantRuntime.init` -> `gate.bindState(stateFlow)`; i `catch` della voce ->
+   `AssistantFailure.of`. Da guardare in mano: il ponte fra due app con firme diverse (ora si installano
+   insieme), e due conferme nello stesso giro (una dopo l'altra, ognuna col suo minuto).
+8. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
    chiaro, la luce del dito sui tasti, il back sotto il dito. La galleria Fluid Glass («Da provare») è la
    lista di cosa giudicare, e il registro aptico (`FluidHapticTrace`) dice se un tocco ha parlato una volta
    sola.

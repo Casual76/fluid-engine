@@ -6,9 +6,14 @@ scopre a runtime, li fonde nel suo catalogo e li esegue **nel processo dell'app 
 sono i dati e la sessione. Nessun dato viaggia altrove: e' una chiamata Binder fra due app firmate
 con la stessa chiave.
 
-Package `dev.antigravity.fluidengine.ai.bridge`, dipende da `engine-ai`, senza Compose. Il manifest
-del modulo dichiara il permesso `dev.antigravity.fluidengine.permission.AI_TOOLS`
-(`protectionLevel="signature"`) e lo chiede: chi include il modulo lo ha nel manifest fuso.
+Package `dev.antigravity.fluidengine.ai.bridge`, dipende da `engine-ai`, senza Compose. Dalla 3.0.0
+**non c'e' un permesso**: il provider controlla a ogni chiamata che chi chiama abbia la stessa firma
+(`isCallerTrusted`: `checkSignatures(callingUid, myUid) == SIGNATURE_MATCH`) e altrimenti risponde con una
+`SecurityException`, che il cliente legge come `NO_PERMISSION`. Fino alla 2.13 il modulo dichiarava il
+permesso `AI_TOOLS` (`signature`) in ogni app, e una seconda app con un'altra firma non si installava
+(`INSTALL_FAILED_DUPLICATE_PERMISSION`). Un permesso per app non funziona (PampAI scopre gli ospiti mentre
+gira e non puo' chiedere permessi di cui non sa il nome), e una sola app che lo dichiara lega tutto
+all'ordine di installazione.
 
 ## Le due parti
 
@@ -26,8 +31,7 @@ del modulo dichiara il permesso `dev.antigravity.fluidengine.permission.AI_TOOLS
 <provider
     android:name=".pampai.RegistroToolHostProvider"
     android:authorities="${applicationId}.ai.tools"
-    android:exported="true"
-    android:permission="dev.antigravity.fluidengine.permission.AI_TOOLS"
+        android:exported="true"
     android:grantUriPermissions="true">
   <meta-data android:name="dev.antigravity.fluidengine.ai.TOOL_HOST" android:value="1" />
 </provider>

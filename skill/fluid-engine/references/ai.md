@@ -117,8 +117,9 @@ Un'app espone i suoi tool a un assistente esterno con la stessa firma (PampAI/Ar
 proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge` (porta con se'
 `engine-ai`). La ricetta intera e' in `docs/08-ai-bridge.md`; il riassunto:
 
-- **Ospite**: un `<provider>` con `android:authorities="${applicationId}.ai.tools"`, il permesso
-  `dev.antigravity.fluidengine.permission.AI_TOOLS` (`signature`), `grantUriPermissions="true"` e il
+- **Ospite**: un `<provider>` con `android:authorities="${applicationId}.ai.tools"`,
+  `exported="true"`, **senza `android:permission`** (dalla 3.0.0 non c'e' piu' un permesso: il provider
+  controlla la firma di chi chiama), `grantUriPermissions="true"` e il
   meta-data `dev.antigravity.fluidengine.ai.TOOL_HOST=1`; una sottoclasse di
   `AiToolHostProvider<C>` che da' `registry()`, `context(call)` **con il gate pre-confermato**,
   `domain()` (il prefisso: `cv`, `meteo`, `bus`), `routerHint()`, `vocabulary()`, `ready()`,
@@ -131,9 +132,23 @@ proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge`
   `confirmed = true`; l'ospite rifiuta comunque un tool con `needsConfirmation` senza `confirmed`.
 - **Lavori lunghi** (`longRunning`): `run` torna `{jobId}`, il cliente segue con `status` ogni
   secondo; l'ospite li tiene in `BridgeJobs`.
-- **Trappole**: la firma (una build di debug di Studio e' `NO_PERMISSION`); `call` occupa un thread
+- **Trappole**: la firma, che controlla il provider (`isCallerTrusted`: una build di debug di Studio e' `NO_PERMISSION`); `call` occupa un thread
   Binder fino a `callTimeoutMillis`; il processo ospite puo' morire (client *unstable*, errore
   pulito); il cliente deve vedere i provider (`QUERY_ALL_PACKAGES` o `<queries>`).
+
+## Dalla 3.0.0: gli adattatori delle app non servono piu'
+
+- **Tempi**: `AiToolGroup.toolTimeoutMillis` (lavoro, senza attesa) + `awaitsConfirmation`; l'orchestratore
+  somma la finestra del cancello. `AiConfirmationGate(config)` e `AiOrchestrator(..., gate = gate)`: stesso numero.
+- **Conferme**: il cancello le mette in fila (`queued`); `gate.bindState(stateFlow)` scrive
+  `AwaitingConfirmation` e lo rimette com'era.
+- **Preferenze**: `AiSettingsStore(context, AiSettingsDefaults(...))`; `enableIfNeverChosen()`; un file corrotto
+  riparte da vuoto. Un file e' aperto una volta sola per processo: niente delegato dell'app sullo stesso file. Per
+  un handle: `AiDataStores.open(file)`.
+- **Profondo spento**: `AiOrchestratorConfig(deepTierEnabled = false)`, non `copy(deepModel = null)`.
+- **Voce**: `AssistantFailure.of(e, other = FailureKind.TRANSCRIPTION)`; `Transcriber.hint(dominio, nomi, maxWords)`.
+- **Ponte**: niente permesso `AI_TOOLS`; l'ospite toglie `android:permission` dal `<provider>`, il provider
+  controlla la firma a ogni chiamata.
 
 ## Dalla 1.29.0: il servizio fissato, la lista da evitare
 

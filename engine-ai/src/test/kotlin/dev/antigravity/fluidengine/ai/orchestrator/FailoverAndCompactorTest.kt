@@ -153,7 +153,7 @@ class FailoverAndCompactorTest {
   }
 
   @Test
-  fun `il cancello delle conferme risponde a chi aspetta, e una seconda richiesta fa cadere la prima`() = runBlocking {
+  fun `il cancello delle conferme risponde a chi aspetta, e una scaduta lo lascia libero`() = runBlocking {
     val gate = AiConfirmationGate(timeoutMillis = 200)
     assertNull(gate.current.value)
     var outcome: ConfirmationOutcome? = null

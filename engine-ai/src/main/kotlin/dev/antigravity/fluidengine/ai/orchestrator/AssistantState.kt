@@ -118,3 +118,37 @@ sealed interface AssistantState {
       else -> false
     }
 }
+
+/**
+ * La domanda a cui lo stato si riferisce, se ne ha una (3.0.0): ogni app se ne scriveva una copia
+ * per riscrivere lo stato con una conferma o con un errore senza perdere il testo della domanda.
+ */
+fun AssistantState.questionOrNull(): String? = when (this) {
+  is AssistantState.Classifying -> question
+  is AssistantState.Working -> question
+  is AssistantState.WaitingRateLimit -> question
+  is AssistantState.SwitchingProvider -> question
+  is AssistantState.Answering -> question
+  is AssistantState.AwaitingConfirmation -> question
+  is AssistantState.Done -> question
+  is AssistantState.Failed -> question
+  is AssistantState.Cancelled -> question
+  else -> null
+}
+
+/**
+ * Il provider che lo stato dice di stare usando (3.0.0): quello di arrivo per un cambio di servizio,
+ * l'ultimo che ha fallito per un [AssistantState.Failed]; null dove non c'e' un provider (riposo,
+ * ascolto, trascrizione).
+ */
+fun AssistantState.providerOrNull(): ProviderId? = when (this) {
+  is AssistantState.Classifying -> provider
+  is AssistantState.Working -> provider
+  is AssistantState.WaitingRateLimit -> provider
+  is AssistantState.SwitchingProvider -> to
+  is AssistantState.Answering -> provider
+  is AssistantState.AwaitingConfirmation -> provider
+  is AssistantState.Done -> provider
+  is AssistantState.Failed -> provider
+  else -> null
+}

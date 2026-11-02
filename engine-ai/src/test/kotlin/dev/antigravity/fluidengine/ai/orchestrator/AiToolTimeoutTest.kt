@@ -240,6 +240,42 @@ class AiToolTimeoutTest {
     assertEquals("scrivi fatto", results.getValue("scrivi"))
   }
 
+  @Test
+  fun `due conferme nello stesso giro stanno in fila, e la seconda ha ancora tempo dopo la prima`() {
+    // Finestra da 600 ms, tempo di lavoro 150: con una finestra sola il tetto e' 750 ms. L'utente
+    // risponde 400 ms dopo che ogni scheda compare, quindi la seconda e' confermata a ~800 ms:
+    // oltre una finestra, dentro due. La prima non cade quando arriva la seconda.
+    val gate = AiConfirmationGate(timeoutMillis = 600)
+    val results = ask(
+      registry(TtWriter("uno", TtGroup.WRITE, gate), TtWriter("due", TtGroup.WRITE, gate)),
+      calls = listOf("uno", "due"),
+      gate = gate,
+      beside = { confirmEach(gate, afterMillis = 400) },
+    )
+    assertEquals("uno fatto", results.getValue("uno"))
+    assertEquals("due fatto", results.getValue("due"))
+  }
+
+  @Test
+  fun `una conferma rifiutata fra due non fa cadere l'altra`() {
+    val gate = AiConfirmationGate(timeoutMillis = 600)
+    val results = ask(
+      registry(TtWriter("uno", TtGroup.WRITE, gate), TtWriter("due", TtGroup.WRITE, gate)),
+      calls = listOf("uno", "due"),
+      gate = gate,
+      beside = {
+        // Dice no alla prima che compare, si' alla seconda.
+        val first = gate.current.filterNotNull().first()
+        delay(50)
+        gate.resolve(first.id, false)
+        confirmEach(gate, afterMillis = 50)
+      },
+    )
+    // Quale delle due arriva prima al cancello lo decide il caso: una e' rifiutata, l'altra fatta.
+    assertEquals(setOf("rifiutato", "fatto"), results.values.map { it.substringAfter(' ') }.toSet())
+    assertEquals(2, results.size)
+  }
+
   // ----------------------------------------------------------------- il conto, senza aspettare
 
   @Test

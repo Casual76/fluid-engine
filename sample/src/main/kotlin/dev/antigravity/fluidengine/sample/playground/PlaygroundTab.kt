@@ -41,6 +41,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidFormPresets
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsJourney
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsTier
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
+import dev.antigravity.fluidengine.sample.LocalGalleryTools
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
@@ -207,6 +208,16 @@ internal fun PlaygroundTab(bottomInset: Dp) {
     item(key = "motion-header") { FluidSectionHeader(title = "Molla e materiale") }
     item(key = "motion") {
       FluidCard(glass = true) {
+        // Il vetro liquido (3.0) contro la geometria di prima, per tutta la galleria: i menu, la card
+        // che si espande e questo palco. Vale finche' l'app e' aperta.
+        LocalGalleryTools.current?.let { tools ->
+          FluidSegmentedControl(
+            options = listOf(true, false),
+            selected = tools.liquid,
+            onSelect = { tools.liquid = it },
+            label = { if (it) "Vetro liquido" else "Geometrico (beta 2)" },
+          )
+        }
         FluidSegmentedControl(
           options = listOf(SpringDefault, SpringHouse, "Scattante", "Standard", "Dolce"),
           selected = springLabel,

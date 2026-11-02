@@ -52,6 +52,7 @@ import dev.antigravity.fluidengine.ui.haptics.TracingFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
+import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidPhysicsLiquid
 import kotlin.math.roundToInt
 
 /**
@@ -64,6 +65,9 @@ import kotlin.math.roundToInt
  * @property overlayVisible il registro in piccolo sopra a tutto, che non prende il tocco: per guardare
  *   un menù che si apre senza dover stare nella scheda del registro.
  * @property grain la grana in uso, letta da `LocalFluidHapticGrainConfig` alla radice.
+ * @property liquid il vetro liquido di Fluid-physics (3.0), letto da `LocalFluidPhysicsLiquid` alla
+ *   radice: spento, ogni superficie che si trasforma — menu, card, Playground — torna alla geometria
+ *   di prima, per confrontare i due in mano.
  */
 @Stable
 internal class GalleryTools(
@@ -71,6 +75,7 @@ internal class GalleryTools(
 ) {
   var overlayVisible by mutableStateOf(false)
   var grain by mutableStateOf(FluidHapticGrainConfig.Default)
+  var liquid by mutableStateOf(true)
 }
 
 /** Nulla fuori dalla galleria (anteprime, test di un pezzo): le sezioni che li usano non compaiono. */
@@ -95,6 +100,7 @@ internal fun ProvideGalleryTools(tools: GalleryTools, content: @Composable () ->
     // Letta qui, in composizione: cambiarla ricompone tutto cio' che sta sotto (e' una variabile
     // statica), ed e' per questo che i cursori applicano solo al rilascio.
     LocalFluidHapticGrainConfig provides tools.grain,
+    LocalFluidPhysicsLiquid provides tools.liquid,
   ) {
     ProvideFluidHapticTrace(tools.trace, content)
   }

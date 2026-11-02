@@ -171,6 +171,26 @@ half4 main(float2 coord) {
 }"""
 
 /**
+ * La fascia della goccia (3.0), come blocco AGSL condiviso dalle due varianti poligonali: il contorno
+ * della goccia non si allontana dalla sua sagoma a riposo (un rettangolo arrotondato) piu' di
+ * `dropReach` pixel, quindi fuori da quella fascia il loop sui lati non serve — oltre e' vuoto, piu'
+ * dentro della lente e' il vetro piatto, esattamente come lo darebbe il loop. Il loop gira solo dove
+ * il bordo puo' essere: a goccia quasi posata una striscia sottile, non tutto il pannello.
+ * `dropReach` negativo: non e' una goccia, nessuna scorciatoia.
+ */
+private const val PhysicsDropBandBlock = """
+    if (dropReach >= 0.0) {
+        float2 restRel = p - restCenter;
+        float restD = physicsSdRoundedRect(restRel, restHalfSize, physicsRadiusAt(restRel, restRadii));
+        if (restD - dropReach > aa) return half4(0.0);
+        if (restD + dropReach < -(refractionHeight + aa)) {
+            half4 flat = content.eval(coord + lensShift);
+            half4 flatTint = half4(tintColor.rgb * tintColor.a, tintColor.a);
+            return flatTint + flat * (1.0 - flatTint.a);
+        }
+    }"""
+
+/**
  * Una sagoma chiusa qualsiasi, come anello di vertici: distanza, segno per winding e direzione del
  * punto più vicino, tutto in un loop solo.
  *
@@ -187,6 +207,10 @@ uniform float vertCount;
 uniform float2 verts[$PhysicsMaxRingVertices];
 uniform float4 bbox;
 uniform float normalSmooth;
+uniform float2 restCenter;
+uniform float2 restHalfSize;
+uniform float4 restRadii;
+uniform float dropReach;
 uniform float soften;
 uniform float refractionHeight;
 uniform float refractionAmount;
@@ -205,6 +229,7 @@ half4 main(float2 coord) {
     // Fuori dal riquadro della sagoma non c'e' niente da disegnare: si esce prima del loop (3.0), che
     // con l'anello della goccia e' il conto piu' caro del sottosistema.
     if (p.x < bbox.x || p.y < bbox.y || p.x > bbox.z || p.y > bbox.w) return half4(0.0);
+$PhysicsDropBandBlock
 
     // AGSL accetta un indice di array uniform solo se costante — e la variabile d'induzione di un
     // loop a limiti costanti lo è, perché il compilatore srotola. Qualsiasi altro indice (il
@@ -436,6 +461,10 @@ uniform float vertCount;
 uniform float2 verts[$PhysicsMaxRingVertices];
 uniform float4 bbox;
 uniform float normalSmooth;
+uniform float2 restCenter;
+uniform float2 restHalfSize;
+uniform float4 restRadii;
+uniform float dropReach;
 uniform float soften;
 uniform float refractionHeight;
 uniform float refractionAmount;
@@ -454,6 +483,7 @@ half4 main(float2 coord) {
     // L'ingrandimento della goccia in moto (3.0): zero a riposo, quindi la lastra di sempre.
     float2 lensShift = (fieldCenter - p) * magnify;
     if (p.x < bbox.x || p.y < bbox.y || p.x > bbox.z || p.y > bbox.w) return half4(0.0);
+$PhysicsDropBandBlock
 
     int count = int(vertCount);
     float best = 1000000000.0;

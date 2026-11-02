@@ -198,6 +198,45 @@ class LiquidDropTest {
   }
 
   @Test
+  fun theDrawnRingNeverStraysFromItsRestShapeFartherThanItsReach() {
+    // La scorciatoia dello shader (la fascia della goccia): fuori dalla fascia larga `reach` attorno
+    // alla sagoma a riposo il campo della goccia ha lo stesso segno e la stessa "profondita'" del
+    // rettangolo arrotondato. Qui il campo vero (il poligono) e quello a riposo, su una griglia, a
+    // ogni fotogramma di un viaggio che deforma molto.
+    val drop = LiquidDrop()
+    val from = slab(100f, 600f, 300f, 644f, 22f)
+    val to = slab(40f, 200f, 292f, 400f, 26f)
+    val ring = FloatArray(DropRenderPoints * 2)
+    val perimeter = RoundedRectPerimeter()
+    val params = FloatArray(DropRenderPoints)
+    var maxReach = 0f
+    for (i in 0..30) {
+      val t = (i / 18f).coerceAtMost(1f)
+      val s = dropRestSlab(from, to, t, 0f, 0f)
+      drop.step(i * frame, contour(s), 200f, 622f, FluidMotion.DropAnchorReachDp * density, density)
+      val reach = buildDropRing(s, drop, DropRenderPoints, ring, perimeter, params)
+      maxReach = maxOf(maxReach, reach)
+      val poly = List(DropRenderPoints) { androidx.compose.ui.geometry.Offset(ring[it * 2], ring[it * 2 + 1]) }
+      val f = s.frame
+      var y = f.top - 60f
+      while (y <= f.bottom + 60f) {
+        var x = f.left - 60f
+        while (x <= f.right + 60f) {
+          val dp = sdPolygon(x, y, poly)
+          val dr = sdRoundedRect(x, y, f.center.x, f.center.y, f.width / 2f, f.height / 2f, s.cornerRadii.topLeft)
+          assertTrue(
+            "fotogramma $i, ($x, $y): poligono $dp, riposo $dr, fascia $reach",
+            abs(dp - dr) <= reach + DropReachMarginPx,
+          )
+          x += 7f
+        }
+        y += 7f
+      }
+    }
+    assertTrue("la goccia non si e' allontanata: $maxReach", maxReach > 10f)
+  }
+
+  @Test
   fun theEdgeTensionPullsNeighboursTogether() {
     // Con la tensione del bordo la goccia e' piu' liscia: lo scarto fra punti vicini e' piu' piccolo.
     fun roughness(tension: Float): Float {

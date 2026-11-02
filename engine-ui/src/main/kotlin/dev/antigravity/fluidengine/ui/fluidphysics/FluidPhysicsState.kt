@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -26,6 +27,7 @@ import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.addContinuousRoundRect
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 
@@ -559,7 +561,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * spostata dello scarto del baricentro, e si ritaglia sul suo rettangolo arrotondato.
    */
   private fun buildDropPlan(plan: PhysicsRenderPlan, rest: FluidForm.Slab) {
-    buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters)
+    val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters)
     plan.writeRing(dropRing, DropRenderPoints, smoothPath = false)
     plan.soften = 0f
     val dx = liquid.offsetX
@@ -575,6 +577,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       bottomLeft = CornerRadius(rest.cornerRadii.bottomLeft),
     )
     plan.dropRest = rest
+    plan.dropReach = reach
   }
 
   /**
@@ -650,6 +653,10 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * finche' non si e' posata — anche dopo che il viaggio e' finito, perche' la coda arriva dopo la
    * molla — e torna ad aspettare. Uno per stato: due conducenti alimenterebbero lo stesso fotogramma
    * due volte, e la goccia scarta il secondo (stesso istante, niente passo).
+   *
+   * Il tempo della goccia e' quello delle animazioni di Compose: diviso per la scala di durata del
+   * sistema ([MotionDurationScale], "Scala durata animatore"), come la molla del viaggio che la guida.
+   * Al rallentatore la coda resta indietro quanto a velocita' piena, e a scala zero non c'e' goccia.
    */
   internal suspend fun runLiquid() {
     try {
@@ -658,16 +665,17 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         liquid.forgetHistory()
         var alive = true
         while (alive) {
+          val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
           alive = withFrameNanos { now ->
             val slab = dropRestSlabNow()
-            if (slab == null || !liquidAllowed) {
+            if (slab == null || !liquidAllowed || !(scale > 0f)) {
               liquid.reset()
               false
             } else {
               sampleRestContour(slab, liquid.points, dropRest, dropPerimeter)
               val anchor = dropAnchorNow()
               liquid.step(
-                timeNanos = now,
+                timeNanos = if (scale == 1f) now else (now / scale.toDouble()).toLong(),
                 restContour = dropRest,
                 anchorX = anchor.x,
                 anchorY = anchor.y,
@@ -924,6 +932,12 @@ internal class PhysicsRenderPlan {
 
   /** La sagoma a riposo che la goccia insegue, se il piano e' una goccia: il bordo ne prende la luce. */
   var dropRest: FluidForm.Slab? = null
+
+  /**
+   * Quanto l'anello della goccia si allontana al piu' da [dropRest], in pixel: fuori da questa fascia
+   * attorno alla sagoma a riposo lo shader non ha lati da cercare. Senza goccia non conta.
+   */
+  var dropReach: Float = 0f
 
   /**
    * La sagoma corrente come rettangolo arrotondato, quando lo e' davvero: un solo pezzo di famiglia

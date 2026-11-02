@@ -463,11 +463,12 @@ internal fun buildDropRing(
   out: FloatArray,
   perimeter: RoundedRectPerimeter,
   parameters: FloatArray,
-) {
+): Float {
   perimeter.set(slab.frame, slab.cornerRadii)
   renderParameters(perimeter, count, parameters)
   val total = perimeter.total
   val n = drop.points
+  var reach = 0f
   for (i in 0 until count) {
     val u = parameters[i]
     perimeter.pointAt(u * total, out, i * 2)
@@ -477,9 +478,13 @@ internal fun buildDropRing(
     val i0 = (i1 + n - 1) % n
     val i2 = (i1 + 1) % n
     val i3 = (i1 + 2) % n
-    out[i * 2] += catmullRom(drop.displacementX[i0], drop.displacementX[i1], drop.displacementX[i2], drop.displacementX[i3], f)
-    out[i * 2 + 1] += catmullRom(drop.displacementY[i0], drop.displacementY[i1], drop.displacementY[i2], drop.displacementY[i3], f)
+    val dx = catmullRom(drop.displacementX[i0], drop.displacementX[i1], drop.displacementX[i2], drop.displacementX[i3], f)
+    val dy = catmullRom(drop.displacementY[i0], drop.displacementY[i1], drop.displacementY[i2], drop.displacementY[i3], f)
+    out[i * 2] += dx
+    out[i * 2 + 1] += dy
+    reach = maxOf(reach, sqrt(dx * dx + dy * dy))
   }
+  return reach
 }
 
 /** Catmull-Rom uniforme fra [b] e [c], con [a] e [d] come vicini. */

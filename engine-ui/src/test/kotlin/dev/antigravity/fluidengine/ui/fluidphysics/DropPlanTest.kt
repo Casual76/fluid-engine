@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.ui.fluidphysics
 import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import kotlinx.coroutines.delay
@@ -221,5 +222,41 @@ class DropPlanTest {
     assertEquals(settled, clock.requested)
     mover.cancel()
     driver.cancel()
+  }
+
+  private class Scale(override val scaleFactor: Float) : MotionDurationScale
+
+  /** Lo scarto massimo raggiunto dalla goccia in un viaggio di 30 fotogrammi, con la scala [scale]. */
+  private fun kotlinx.coroutines.test.TestScope.tailWith(scale: Float): Float {
+    val state = liquidState()
+    val clock = Frames(testScheduler)
+    val progress = mutableFloatStateOf(0f)
+    state.driveExternally(button, panel, progress = { progress.floatValue }, startFrame = null)
+    val driver = launch(clock + Scale(scale)) { state.runLiquid() }
+    runCurrent()
+    var maxTail = 0f
+    val mover = launch {
+      for (i in 1..30) {
+        progress.floatValue = (i / 24f).coerceAtMost(1f)
+        Snapshot.sendApplyNotifications()
+        delay(16L)
+        for (k in 0 until state.liquid.points) maxTail = maxOf(maxTail, abs(state.liquid.displacementY[k]))
+      }
+    }
+    advanceTimeBy(600L)
+    runCurrent()
+    mover.cancel()
+    driver.cancel()
+    return maxTail
+  }
+
+  @Test
+  fun theDropRunsOnTheTimeOfTheAnimations() = runTest {
+    // Il viaggio qui e' lo stesso a ogni scala (lo muove il test): con la scala 5 la goccia vive un
+    // quinto del tempo per fotogramma e resta piu' indietro; con la scala zero non c'e' goccia.
+    val normal = tailWith(1f)
+    val slow = tailWith(5f)
+    assertTrue("al rallentatore la coda non e' rimasta piu' indietro: $slow contro $normal", slow > normal * 1.2f)
+    assertEquals(0f, tailWith(0f), 0f)
   }
 }

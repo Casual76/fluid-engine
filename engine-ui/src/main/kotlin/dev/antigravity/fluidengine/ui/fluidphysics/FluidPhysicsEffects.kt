@@ -1,9 +1,11 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.runtimeShaderEffect
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 
@@ -216,6 +218,12 @@ internal fun BackdropEffectScope.polyMorphLens(
   val by1 = plan.bounds.bottom * scopeFactor + margin
   val smoothPx = PolyNormalSmooth.toPx() * scopeFactor
   val smooth = smoothPx * smoothPx
+  // La fascia della goccia: la sagoma a riposo e quanto il contorno se ne puo' allontanare, piu' la
+  // corda dell'anello e un pixel di margine. Negativa fuori dalla goccia: nessuna scorciatoia.
+  val rest = plan.dropRest
+  val restFrame = rest?.frame
+  val restRadii = rest?.cornerRadii
+  val reach = if (rest != null) (plan.dropReach + DropReachMarginPx) * scopeFactor else -1f
 
   val currentPadding = padding
   val chroma = dispersionUniform(chromaticAberration)
@@ -226,6 +234,7 @@ internal fun BackdropEffectScope.polyMorphLens(
       setFloatUniform("verts", scratch.verts)
       setFloatUniform("bbox", bx0, by0, bx1, by1)
       setFloatUniform("normalSmooth", smooth)
+      setDropBand(restFrame, restRadii, reach, scopeFactor)
       setFloatUniform("soften", plan.soften * scopeFactor)
       setFloatUniform("refractionHeight", height)
       setFloatUniform("refractionAmount", -refractionAmountPx)
@@ -253,6 +262,7 @@ internal fun BackdropEffectScope.polyMorphLens(
     setFloatUniform("verts", scratch.verts)
     setFloatUniform("bbox", bx0, by0, bx1, by1)
     setFloatUniform("normalSmooth", smooth)
+    setDropBand(restFrame, restRadii, reach, scopeFactor)
     setFloatUniform("soften", plan.soften * scopeFactor)
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)
@@ -267,6 +277,33 @@ internal fun BackdropEffectScope.polyMorphLens(
     setColorUniform("tintColor", tintInShader)
   }
 }
+
+/** Le uniform della fascia della goccia: vedi `PhysicsDropBandBlock`. */
+private fun RuntimeShader.setDropBand(frame: Rect?, radii: FluidCornerRadii?, reach: Float, scopeFactor: Float) {
+  if (frame == null || radii == null || reach < 0f) {
+    setFloatUniform("restCenter", 0f, 0f)
+    setFloatUniform("restHalfSize", 0f, 0f)
+    setFloatUniform("restRadii", 0f, 0f, 0f, 0f)
+    setFloatUniform("dropReach", -1f)
+    return
+  }
+  setFloatUniform("restCenter", frame.center.x * scopeFactor, frame.center.y * scopeFactor)
+  setFloatUniform("restHalfSize", frame.width / 2f * scopeFactor, frame.height / 2f * scopeFactor)
+  setFloatUniform(
+    "restRadii",
+    radii.topLeft * scopeFactor,
+    radii.topRight * scopeFactor,
+    radii.bottomRight * scopeFactor,
+    radii.bottomLeft * scopeFactor,
+  )
+  setFloatUniform("dropReach", reach)
+}
+
+/**
+ * Il margine della fascia della goccia oltre lo scarto massimo dei suoi vertici, in pixel di layout:
+ * la corda dell'anello sull'arco (meno di un quarto di pixel) e un pixel per gli arrotondamenti.
+ */
+internal const val DropReachMarginPx = 1.25f
 
 /** La lente per sagoma libera con la profondità come interruttore: vedi l'overload a peso sopra. */
 internal fun BackdropEffectScope.polyMorphLens(

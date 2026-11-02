@@ -179,6 +179,24 @@ class FluidMenuRelayTest {
   }
 
   @Test
+  fun aLongPressFiringDuringAnEventConsumesThatSameEvent() {
+    // Il click lungo scatta nel Main del tasto, un discendente che passa prima del relè. Un evento a
+    // scatti che lo fa scattare e porta il dito oltre lo slop (beta 2 sull'emulatore: la pagina
+    // scivolava di ~17 px sotto il menu) non deve arrivare alla lista attorno.
+    val handOff = FluidMenuHandOff()
+    val relay = Relay(handOff)
+    relay.dispatch(down(1, Offset(10f, 20f)), mapper = mapper)
+    val m = move(1, Offset(10f, 20f), Offset(10f, -20f))
+
+    relay.tracker.initial(listOf(m), mapper)
+    assertFalse(m.isConsumed)
+    handOff.attach(FakeSink())
+    relay.tracker.main(listOf(m))
+
+    assertTrue("preso a meta' evento, consumato prima dei genitori", m.isConsumed)
+  }
+
+  @Test
   fun beforeTheHandOffTheInitialPassConsumesNothing() {
     val handOff = FluidMenuHandOff()
     val relay = Relay(handOff)

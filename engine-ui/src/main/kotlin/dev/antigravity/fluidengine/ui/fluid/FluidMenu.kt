@@ -520,9 +520,16 @@ internal class FluidMenuRelayTracker(var handOff: FluidMenuHandOff) {
     }
   }
 
-  /** Il passaggio Main: il consumo e' gia' avvenuto nell'Initial, qui si ripete (idempotente) e si chiude l'evento. */
+  /**
+   * Il passaggio Main: il consumo e' gia' avvenuto nell'Initial, qui si ripete (idempotente) e si
+   * chiude l'evento. Con un'eccezione: il menu puo' aver preso il dito DURANTE questo evento, perche'
+   * il click lungo scatta nel Main del tasto, un discendente che passa prima di qui. Quel cambio va
+   * consumato adesso: un evento a scatti (un telefono che rallenta, un dito che parte proprio allo
+   * scadere) porta il dito oltre lo slop in un colpo solo, e la lista attorno partirebbe facendo
+   * scivolare la pagina sotto il menu.
+   */
   fun main(changes: List<PointerInputChange>) {
-    val id = consumeId ?: return
+    val id = consumeId ?: trackedId.takeIf { handOff.isActive } ?: return
     consumeId = null
     changes.fastForEach { if (it.id == id) it.consume() }
   }

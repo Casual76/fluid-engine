@@ -6,7 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownParser
+import dev.antigravity.fluidengine.aiui.markdown.FluidAssistantMarkdownOptions
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownParser
 import java.util.Locale
 
 /**
@@ -64,7 +65,7 @@ class FluidTtsSpeaker(
   }
 
   override fun speakNewSentences(fullText: String, final: Boolean) {
-    val plain = FluidMarkdownParser.plainText(fullText)
+    val plain = FluidMarkdownParser.plainText(fullText, options = FluidAssistantMarkdownOptions)
     val next = FluidSentences.next(plain, spokenChars, final)
     spokenChars = next.nextOffset
     next.sentences.forEach { speak(it) }

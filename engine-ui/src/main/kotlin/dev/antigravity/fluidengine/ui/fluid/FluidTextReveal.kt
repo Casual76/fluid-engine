@@ -1,4 +1,4 @@
-package dev.antigravity.fluidengine.aiui.markdown
+package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,8 +18,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
-import dev.antigravity.fluidengine.ui.fluid.FluidMotion
-import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 
 /** Quanto ci mette una parola nuova a sfumare dentro. */
 const val FluidRevealMillis = 180

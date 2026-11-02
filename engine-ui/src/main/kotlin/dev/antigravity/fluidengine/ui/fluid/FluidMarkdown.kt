@@ -1,4 +1,4 @@
-package dev.antigravity.fluidengine.aiui.markdown
+package dev.antigravity.fluidengine.ui.fluid
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -54,10 +55,6 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
-import dev.antigravity.fluidengine.ui.fluid.FluidHairline
-import dev.antigravity.fluidengine.ui.fluid.FluidRadius
-import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import kotlinx.coroutines.delay
 
 /**
@@ -76,13 +73,14 @@ data class FluidMarkdownStrings(
 )
 
 /**
- * Colori e misure del testo di una risposta. Di serie vengono dal tema ([FluidMarkdownDefaults.style]):
- * chi vuole la risposta su un altro fondo (sopra il cielo di un onboarding, dentro una bolla colorata)
+ * Colori e misure del testo Markdown. Di serie vengono dal tema ([FluidMarkdownDefaults.style]):
+ * chi vuole il testo su un altro fondo (sopra il cielo di un onboarding, dentro una bolla colorata)
  * cambia [textColor] e [mutedColor] e il resto segue.
  *
- * Due misure di titolo e non sei: in una risposta un titolo separa i paragrafi, non costruisce una
- * gerarchia. I default del Markdown da pagina (`displayLarge` per `#`) in mezzo a una chat sono un
- * cartello: "## Estate" a 45 sp.
+ * Di serie due misure di titolo e non sei: in una risposta un titolo separa i paragrafi, non
+ * costruisce una gerarchia. I default del Markdown da pagina (`displayLarge` per `#`) in mezzo a una
+ * chat sono un cartello: "## Estate" a 45 sp. Una nota o una pagina di testo vuole invece la
+ * gerarchia, e [headings] da' una misura a ogni livello ([FluidMarkdownDefaults.documentHeadings]).
  */
 @Immutable
 data class FluidMarkdownStyle(
@@ -101,20 +99,41 @@ data class FluidMarkdownStyle(
   val codeBackground: Color,
   val quoteBar: Color,
   val blockSpacing: Dp = 8.dp,
-)
+  /**
+   * Le misure dei titoli livello per livello: la prima e' per `#`, la seconda per `##`, e cosi' via;
+   * l'ultima vale anche per i livelli piu' profondi. Vuota (di serie), `#` e `##` sono [heading] e dal
+   * `###` in giu' e' [subheading].
+   */
+  val headings: List<TextStyle> = emptyList(),
+) {
+  /** La misura del titolo di [level] (da 1 a 6). */
+  fun headingFor(level: Int): TextStyle = when {
+    headings.isNotEmpty() -> headings[(level - 1).coerceIn(0, headings.lastIndex)]
+    level <= 2 -> heading
+    else -> subheading
+  }
+}
 
 object FluidMarkdownDefaults {
-  /** Lo stile del tema corrente. */
+  /**
+   * Lo stile del tema corrente.
+   *
+   * @param body la misura del corpo: di serie `bodyLarge`, una scheda piccola vuole `bodyMedium`.
+   * @param headings le misure dei titoli livello per livello (vedi [FluidMarkdownStyle.headings]);
+   *   vuota, i titoli sono due sole misure.
+   */
   @Composable
   fun style(
     textColor: Color = MaterialTheme.colorScheme.onSurface,
     mutedColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     blockSpacing: Dp = 8.dp,
+    body: TextStyle = MaterialTheme.typography.bodyLarge,
+    headings: List<TextStyle> = emptyList(),
   ): FluidMarkdownStyle {
     val typography = MaterialTheme.typography
     val scheme = MaterialTheme.colorScheme
     return FluidMarkdownStyle(
-      body = typography.bodyLarge,
+      body = body,
       heading = typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
       subheading = typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
       code = typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -125,25 +144,46 @@ object FluidMarkdownDefaults {
       codeBackground = scheme.surfaceVariant.copy(alpha = 0.6f),
       quoteBar = scheme.outlineVariant,
       blockSpacing = blockSpacing,
+      headings = headings,
+    )
+  }
+
+  /**
+   * I titoli di una pagina di testo, una nota o un changelog: quattro misure in semigrassetto, da
+   * `titleLarge` per `#` a `bodyLarge` dal `####`. Si passa a [style] come `headings`.
+   */
+  @Composable
+  fun documentHeadings(): List<TextStyle> {
+    val typography = MaterialTheme.typography
+    return listOf(
+      typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+      typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+      typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+      typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
     )
   }
 }
 
 /**
- * Il Markdown di una risposta, disegnato. Titoli, elenchi (anche annidati), corsivo, grassetto,
- * barrato, codice in linea e a blocco (con la lingua in testa e il tasto "copia", il testo che
- * scorre invece di essere tagliato), link, citazioni, tabelle che scorrono, righe.
+ * Il Markdown, disegnato: la risposta di un assistente come una nota, le novita' di una versione, il
+ * testo di una guida. Titoli, elenchi (anche annidati), corsivo, grassetto, barrato, codice in linea e
+ * a blocco (con la lingua in testa e il tasto "copia", il testo che scorre invece di essere
+ * tagliato), link, citazioni, tabelle che scorrono, righe. Niente libreria esterna, niente
+ * dipendenza dall'assistente: il parser e' [FluidMarkdownParser], puro Kotlin.
  *
  * **Un solo disegno per il testo che arriva e per quello arrivato.** Con [streaming] le parole nuove
  * sfumano dentro ([FluidRevealingText]); a risposta finita [streaming] torna falso e il nodo e' lo
  * stesso: non c'e' un secondo resa che prenda il posto del primo, quindi non c'e' un salto di misure
  * (PampAI ne aveva due, e un passaggio fra l'uno e l'altro da far sembrare uguali). Gli stili sono
  * quelli del testo in linea gia' a meta': `**` aperto resta `**` finche' il modello non lo chiude.
+ * Un testo che non arriva mai a pezzi (una nota) lascia [streaming] falso e non ha nessuna sfumatura.
  *
  * @param streaming il testo sta ancora arrivando: le parole nuove sfumano dentro.
  * @param animateFirst anche il primo testo si rivela (la risposta e' appena nata); falso per una
  *   risposta vecchia riaperta, che e' gia' letta e non si anima.
  * @param onLinkClick cosa fa un tocco su un link; null apre l'indirizzo col gestore di sistema.
+ * @param selectable il testo si puo' selezionare e copiare (una nota, un changelog). Di serie no: in una
+ *   card o in una bolla la selezione si prenderebbe il tocco lungo che e' del contenitore.
  */
 @Composable
 fun FluidMarkdown(
@@ -155,10 +195,28 @@ fun FluidMarkdown(
   strings: FluidMarkdownStrings = FluidMarkdownStrings(),
   options: FluidMarkdownOptions = FluidMarkdownOptions(),
   onLinkClick: ((String) -> Unit)? = null,
+  selectable: Boolean = false,
 ) {
   val blocks = remember(markdown, options) { FluidMarkdownParser.parse(markdown, options) }
   val reveal = RevealMode(streaming = streaming, animateFirst = animateFirst)
   val firstCount = remember { blocks.size }
+  if (selectable) {
+    SelectionContainer(modifier) { MarkdownBlocks(blocks, firstCount, reveal, style, strings, onLinkClick, Modifier) }
+  } else {
+    MarkdownBlocks(blocks, firstCount, reveal, style, strings, onLinkClick, modifier)
+  }
+}
+
+@Composable
+private fun MarkdownBlocks(
+  blocks: List<FluidMdBlock>,
+  firstCount: Int,
+  reveal: RevealMode,
+  style: FluidMarkdownStyle,
+  strings: FluidMarkdownStrings,
+  onLinkClick: ((String) -> Unit)?,
+  modifier: Modifier,
+) {
   Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(style.blockSpacing)) {
     blocks.forEachIndexed { index, block ->
       key(index) {
@@ -190,7 +248,7 @@ private fun FluidMarkdownBlock(
     is FluidMdBlock.Paragraph -> MarkdownText(block.inlines, style.body, style, reveal, onLinkClick)
     is FluidMdBlock.Heading -> MarkdownText(
       block.inlines,
-      if (block.level <= 2) style.heading else style.subheading,
+      style.headingFor(block.level),
       style,
       reveal,
       onLinkClick,

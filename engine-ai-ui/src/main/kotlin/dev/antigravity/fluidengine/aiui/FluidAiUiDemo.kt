@@ -43,7 +43,7 @@ import dev.antigravity.fluidengine.aiui.chat.fluidComposerAction
 import dev.antigravity.fluidengine.aiui.chat.rememberFluidComposerState
 import dev.antigravity.fluidengine.aiui.halo.FluidHaloMood
 import dev.antigravity.fluidengine.aiui.halo.FluidAssistantHalo
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdown
+import dev.antigravity.fluidengine.aiui.markdown.FluidAssistantMarkdownOptions
 import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantCard
 import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantDock
 import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantActions
@@ -51,6 +51,7 @@ import dev.antigravity.fluidengine.aiui.settings.FluidAiSettingsActions
 import dev.antigravity.fluidengine.aiui.settings.FluidAiSettingsState
 import dev.antigravity.fluidengine.aiui.settings.fluidAiSettingsSection
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdown
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
@@ -137,7 +138,7 @@ private fun MarkdownDemo() {
   }
   FluidCard {
     FluidChip(label = if (streaming) "In arrivo…" else "Ripeti lo stream", selected = streaming, onClick = { if (!streaming) streaming = true })
-    Box(Modifier.padding(top = 12.dp)) { FluidMarkdown(shown, streaming = streaming, animateFirst = streaming) }
+    Box(Modifier.padding(top = 12.dp)) { FluidMarkdown(shown, streaming = streaming, animateFirst = streaming, options = FluidAssistantMarkdownOptions) }
   }
 }
 

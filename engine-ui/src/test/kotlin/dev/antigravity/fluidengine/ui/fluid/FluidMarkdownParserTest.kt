@@ -1,17 +1,15 @@
-package dev.antigravity.fluidengine.aiui
+package dev.antigravity.fluidengine.ui.fluid
 
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownOptions
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownParser
-import dev.antigravity.fluidengine.aiui.markdown.FluidMdAlign
-import dev.antigravity.fluidengine.aiui.markdown.FluidMdBlock
-import dev.antigravity.fluidengine.aiui.markdown.FluidMdInline
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Il parser e' il pezzo che le quattro app avevano scritto quattro volte e che nessuna provava:
+ * Il parser e' il pezzo che le app avevano scritto ognuna per conto suo e che nessuna provava:
  * qui si prova tutto sul computer, comprese le letture del testo **a meta'** che uno stream produce.
  */
 class FluidMarkdownParserTest {
@@ -126,10 +124,24 @@ class FluidMarkdownParserTest {
   }
 
   @Test
-  fun `i marcatori dei chip spariscono, e si possono tenere`() {
-    assertEquals(listOf(t("Apri la pagina  ora")), inline("Apri la pagina [[page:voti]] ora"))
-    val kept = FluidMarkdownParser.inlines("x [[a]]", FluidMarkdownOptions(hideChipMarkers = false))
-    assertEquals(listOf(t("x [[a]]")), kept)
+  fun `i marcatori dei chip spariscono quando l'assistente lo chiede`() {
+    val chips = FluidMarkdownOptions(hideChipMarkers = true)
+    assertEquals(listOf(t("Apri la pagina  ora")), FluidMarkdownParser.inlines("Apri la pagina [[page:voti]] ora", chips))
+    assertEquals(listOf(t("x ")), FluidMarkdownParser.inlines("x [[a]]", chips))
+  }
+
+  @Test
+  fun `di serie le parentesi doppie restano testo, come in una nota`() {
+    // Un collegamento fra pagine di una nota ("[[Idee]]") non e' un chip: un renderer generico non lo mangia.
+    assertEquals(listOf(t("vedi [[Idee]] e [[page:voti]]")), inline("vedi [[Idee]] e [[page:voti]]"))
+    assertFalse(FluidMarkdownOptions().hideChipMarkers)
+  }
+
+  @Test
+  fun `il testo senza segni ha le stesse opzioni del parser`() {
+    val md = "Pioverà alle 18. [[radar]]"
+    assertEquals("Pioverà alle 18. [[radar]]", FluidMarkdownParser.plainText(md))
+    assertEquals("Pioverà alle 18.", FluidMarkdownParser.plainText(md, options = FluidMarkdownOptions(hideChipMarkers = true)).trim())
   }
 
   @Test
@@ -260,5 +272,44 @@ class FluidMarkdownParserTest {
   fun `gli a capo di Windows valgono come gli altri`() {
     val blocks = parse("a\r\n\r\nb")
     assertEquals(2, blocks.size)
+  }
+
+  // ---- le misure dei titoli ------------------------------------------------------------------------
+
+  private fun style(headings: List<TextStyle> = emptyList()) = FluidMarkdownStyle(
+    body = TextStyle(fontSize = 16.sp),
+    heading = TextStyle(fontSize = 20.sp),
+    subheading = TextStyle(fontSize = 17.sp),
+    code = TextStyle(fontSize = 13.sp),
+    textColor = Color.Black,
+    mutedColor = Color.Gray,
+    linkColor = Color.Blue,
+    markerColor = Color.Blue,
+    codeBackground = Color.LightGray,
+    quoteBar = Color.Gray,
+    headings = headings,
+  )
+
+  @Test
+  fun `di serie i titoli hanno due misure sole`() {
+    val style = style()
+    assertEquals(style.heading, style.headingFor(1))
+    assertEquals(style.heading, style.headingFor(2))
+    assertEquals(style.subheading, style.headingFor(3))
+    assertEquals(style.subheading, style.headingFor(6))
+  }
+
+  @Test
+  fun `con le misure per livello ogni titolo ha la sua e l'ultima vale per i piu' profondi`() {
+    val levels = listOf(TextStyle(fontSize = 28.sp), TextStyle(fontSize = 22.sp), TextStyle(fontSize = 18.sp))
+    val style = style(levels)
+    assertEquals(levels[0], style.headingFor(1))
+    assertEquals(levels[1], style.headingFor(2))
+    assertEquals(levels[2], style.headingFor(3))
+    assertEquals(levels[2], style.headingFor(4))
+    assertEquals(levels[2], style.headingFor(6))
+    // Un livello fuori scala (0, o oltre il sesto) non fa uscire dalla lista.
+    assertEquals(levels[0], style.headingFor(0))
+    assertEquals(levels[2], style.headingFor(9))
   }
 }

@@ -1,14 +1,15 @@
-package dev.antigravity.fluidengine.aiui.markdown
+package dev.antigravity.fluidengine.ui.fluid
 
 /**
- * Il Markdown che un assistente scrive, ridotto a un albero: titoli, paragrafi, elenchi (anche
- * annidati), citazioni, blocchi di codice, tabelle, righe, e in linea grassetto, corsivo, barrato,
- * codice, link. **Nessuna riga di Compose qui dentro**: e' il pezzo che le quattro app avevano
- * scritto quattro volte (tre `MarkdownLite` da un centinaio di righe, e in PampAI una libreria
- * esterna piu' un secondo resa a blocchi per lo streaming) e che si puo' provare sul computer.
+ * Il Markdown ridotto a un albero: titoli, paragrafi, elenchi (anche annidati), citazioni, blocchi
+ * di codice, tabelle, righe, e in linea grassetto, corsivo, barrato, codice, link. **Nessuna riga
+ * di Compose qui dentro**: e' il pezzo che le app avevano scritto ognuna per conto suo (tre
+ * `MarkdownLite` da un centinaio di righe, una libreria esterna per le note, un secondo resa a
+ * blocchi per lo streaming di una chat) e che si puo' provare sul computer. Lo disegna
+ * [FluidMarkdown]; chi vuole solo il testo senza segni usa [FluidMarkdownParser.plainText].
  *
- * Nasce per il **testo che sta arrivando**. Uno stream si ferma ovunque, quindi ogni costrutto
- * aperto e mai chiuso ha una lettura sola e innocua:
+ * Nasce anche per il **testo che sta arrivando** (la risposta di un modello, una trascrizione). Uno
+ * stream si ferma ovunque, quindi ogni costrutto aperto e mai chiuso ha una lettura sola e innocua:
  *  - un `**` o un `` ` `` senza chiusura resta testo (come fa un renderer vero: non si porta dietro
  *    tutto il paragrafo);
  *  - un blocco di codice senza la chiusura e' un [FluidMdBlock.CodeBlock] con `closed = false`, che
@@ -16,10 +17,10 @@ package dev.antigravity.fluidengine.aiui.markdown
  *  - un'intestazione di tabella senza la riga dei trattini e' un paragrafo, e diventa tabella quando
  *    la riga arriva.
  *
- * I marcatori `[[chip]]` che il modello scrive per i chip sotto la risposta spariscono dal testo
- * ([FluidMarkdownOptions.hideChipMarkers]): a fine risposta diventano chip, e mostrarli mentre
- * arrivano non dice niente. Non si parlano gli HTML, le note, le definizioni di link: un assistente
- * in una card non le usa, e il prompt di chi lo scrive le vieta.
+ * Non si parlano gli HTML, le note a pie' di pagina, le definizioni di link: un testo da leggere
+ * in una card o in una nota non le usa. I marcatori `[[chip]]` che un assistente scrive per i chip
+ * sotto la risposta si possono togliere dal testo ([FluidMarkdownOptions.hideChipMarkers], spento
+ * di serie: in una nota `[[cosi']]` e' un collegamento fra pagine, non un rumore).
  */
 sealed interface FluidMdInline {
   data class Text(val text: String) : FluidMdInline
@@ -39,7 +40,7 @@ data class FluidMdListItem(val inlines: List<FluidMdInline>, val children: List<
 sealed interface FluidMdBlock {
   data class Paragraph(val inlines: List<FluidMdInline>) : FluidMdBlock
 
-  /** [level] da 1 a 6; chi lo disegna ne fa due misure sole (vedi `FluidMarkdownStyle`). */
+  /** [level] da 1 a 6; di serie chi lo disegna ne fa due misure sole (vedi `FluidMarkdownStyle.headings`). */
   data class Heading(val level: Int, val inlines: List<FluidMdInline>) : FluidMdBlock
 
   /** [start] e' il numero della prima voce di un elenco numerato (un elenco che comincia da 3 resta da 3). */
@@ -62,12 +63,15 @@ sealed interface FluidMdBlock {
 }
 
 /**
- * @param hideChipMarkers toglie `[[id]]` e `[[id:valore]]` dal testo.
+ * @param hideChipMarkers toglie `[[id]]` e `[[id:valore]]` dal testo. Sono i marcatori che un assistente
+ *   scrive per i chip sotto la risposta (a fine risposta diventano chip, e mostrarli mentre arrivano
+ *   non dice niente): li accende l'interfaccia dell'assistente, e di serie restano testo perche'
+ *   un testo qualunque (una nota, un changelog) puo' usare le parentesi doppie per se'.
  * @param softBreak cosa diventa un a capo singolo dentro un paragrafo: uno spazio, come in Markdown.
- *   Chi vuole le righe cosi' come il modello le ha scritte passa `"\n"`.
+ *   Chi vuole le righe cosi' come sono state scritte passa `"\n"`.
  */
 data class FluidMarkdownOptions(
-  val hideChipMarkers: Boolean = true,
+  val hideChipMarkers: Boolean = false,
   val softBreak: String = " ",
 )
 
@@ -530,13 +534,19 @@ object FluidMarkdownParser {
   // ---- il testo senza segni ------------------------------------------------------------------------
 
   /**
-   * La stessa risposta senza i segni: per la voce di sistema (che leggerebbe gli asterischi), per
+   * Lo stesso testo senza i segni: per la voce di sistema (che leggerebbe gli asterischi), per
    * un'anteprima in cronologia, per la condivisione in chiaro. Il codice e' rumore detto ad alta
    * voce e di default si salta; le voci di un elenco restano una per riga.
    *
    * @param bullets se mettere il segno davanti alle voci (per condividere) o no (per leggere).
+   * @param options come si legge il testo (i marcatori dei chip, gli a capo): sono quelle di [parse].
    */
-  fun plainText(markdown: String, includeCode: Boolean = false, bullets: Boolean = false): String {
+  fun plainText(
+    markdown: String,
+    includeCode: Boolean = false,
+    bullets: Boolean = false,
+    options: FluidMarkdownOptions = FluidMarkdownOptions(),
+  ): String {
     val out = ArrayList<String>()
     fun walk(blocks: List<FluidMdBlock>) {
       for (block in blocks) when (block) {
@@ -560,7 +570,7 @@ object FluidMarkdownParser {
         FluidMdBlock.Rule -> Unit
       }
     }
-    walk(parse(markdown))
+    walk(parse(markdown, options))
     return out.filter { it.isNotBlank() }.joinToString("\n")
   }
 

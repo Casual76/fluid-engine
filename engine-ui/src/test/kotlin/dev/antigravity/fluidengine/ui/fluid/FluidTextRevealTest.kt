@@ -1,15 +1,10 @@
-package dev.antigravity.fluidengine.aiui
+package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownParser
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownText
-import dev.antigravity.fluidengine.aiui.markdown.RevealCommitted
-import dev.antigravity.fluidengine.aiui.markdown.RevealPending
-import dev.antigravity.fluidengine.aiui.markdown.RevealTracker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

@@ -43,9 +43,7 @@ import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ai.orchestrator.AnswerChip
 import dev.antigravity.fluidengine.ai.orchestrator.AssistantState
 import dev.antigravity.fluidengine.ai.orchestrator.PendingConfirmation
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdown
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownDefaults
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownStyle
+import dev.antigravity.fluidengine.aiui.markdown.FluidAssistantMarkdownOptions
 import dev.antigravity.fluidengine.aiui.overlay.FluidConfirmationRow
 import dev.antigravity.fluidengine.aiui.overlay.fluidDefaultChipLabel
 import dev.antigravity.fluidengine.aiui.strings.FluidAssistantStrings
@@ -55,6 +53,9 @@ import dev.antigravity.fluidengine.aiui.strings.fluidFormat
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdown
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -314,7 +315,7 @@ fun FluidAssistantBubble(
         FluidConfirmationRow(confirmation, onConfirm = { onConfirm(confirmation.id, it) }, strings = assistantStrings, modifier = Modifier.padding(bottom = 8.dp))
       }
       if (text.isNotBlank()) {
-        FluidMarkdown(text, streaming = streaming, animateFirst = freshStart, style = markdownStyle)
+        FluidMarkdown(text, streaming = streaming, animateFirst = freshStart, style = markdownStyle, options = FluidAssistantMarkdownOptions)
       }
       lines.instead?.let { OutcomeText(it) }
       lines.after?.let {

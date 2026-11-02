@@ -25,8 +25,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownParser
+import dev.antigravity.fluidengine.aiui.markdown.FluidAssistantMarkdownOptions
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownParser
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 
 /** Quanto sbiadisce un'azione spenta: si vede che c'e', e che adesso non si puo'. */
@@ -111,7 +112,7 @@ fun fluidCopyToClipboard(context: Context, text: String, label: String = "Assist
 fun fluidShareText(context: Context, markdown: String, chooserTitle: String) {
   val intent = Intent(Intent.ACTION_SEND).apply {
     type = "text/plain"
-    putExtra(Intent.EXTRA_TEXT, FluidMarkdownParser.plainText(markdown, includeCode = true, bullets = true))
+    putExtra(Intent.EXTRA_TEXT, FluidMarkdownParser.plainText(markdown, includeCode = true, bullets = true, options = FluidAssistantMarkdownOptions))
   }
   runCatching { context.startActivity(Intent.createChooser(intent, chooserTitle).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }

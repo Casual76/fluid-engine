@@ -53,14 +53,15 @@ import dev.antigravity.fluidengine.ai.orchestrator.AnswerChip
 import dev.antigravity.fluidengine.ai.orchestrator.AssistantState
 import dev.antigravity.fluidengine.ai.orchestrator.MicLevel
 import dev.antigravity.fluidengine.ai.orchestrator.PendingConfirmation
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdown
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownDefaults
-import dev.antigravity.fluidengine.aiui.markdown.FluidMarkdownStyle
+import dev.antigravity.fluidengine.aiui.markdown.FluidAssistantMarkdownOptions
 import dev.antigravity.fluidengine.aiui.strings.FluidAssistantStrings
 import dev.antigravity.fluidengine.aiui.strings.FluidAssistantTexts
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidHairline
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdown
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
@@ -201,7 +202,7 @@ fun FluidAssistantDock(
           .verticalScroll(scroll)
           .padding(horizontal = 20.dp, vertical = 12.dp),
       ) {
-        FluidMarkdown(body, streaming = state is AssistantState.Answering, animateFirst = false, style = markdownStyle)
+        FluidMarkdown(body, streaming = state is AssistantState.Answering, animateFirst = false, style = markdownStyle, options = FluidAssistantMarkdownOptions)
       }
     }
 

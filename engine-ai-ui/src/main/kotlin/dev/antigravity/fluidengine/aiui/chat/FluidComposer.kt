@@ -87,12 +87,12 @@ import dev.antigravity.fluidengine.aiui.halo.haloBlendForTheme
 import dev.antigravity.fluidengine.aiui.halo.rememberFluidHaloClock
 import dev.antigravity.fluidengine.aiui.halo.sampleCycle
 import dev.antigravity.fluidengine.aiui.halo.wrap01
-import dev.antigravity.fluidengine.aiui.markdown.FluidRevealingText
 import dev.antigravity.fluidengine.aiui.strings.FluidAssistantStrings
 import dev.antigravity.fluidengine.aiui.strings.FluidChatStrings
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.FluidRevealingText
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole

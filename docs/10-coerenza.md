@@ -147,7 +147,9 @@ fase *n* del piano, e oggi non ce n'è nessuna.
 cella lo dice ("via …"); quello che solo l'occhio o la mano possono dire — ombre, sbiancamento del
 vetro, un lampo di un fotogramma — è **?** finché non si guarda. Nessuna ✓ è "per costruzione".
 
-**Il conto** (2026-11-02, fase 10: 58 componenti, 522 celle): 205 ✓, 0 ✗, 231 ?, 86 —. Prima della fase 10 erano 189 ✓, 41 ✗
+**Il conto** (2026-11-02, dopo la fase 12c: 63 componenti, 567 celle): 205 ✓, 0 ✗, 271 ?, 91 —. Le cinque righe
+nuove (aggiornamento in-app, riordino, scorrimento rapido, visualizzatore, elenco dell'orologio) nascono ? o —: i loro test
+provano i conti e i tocchi, non il vetro né il moto. Alla fase 10 erano 58 componenti, 522 celle: 205 ✓, 0 ✗, 231 ?, 86 —. Prima della fase 10 erano 189 ✓, 41 ✗
 (fase 3: 8, 5: 3, 8: 11, 9: 19), 198 ?, 85 — su 513 celle in 57 righe. Le 41 ✗ sono chiuse: **17 diventano ✓** perché c'è un
 test che le prova (i token di movimento con i numeri di prima, `FluidMotionTokensTest`; la goccia in un modificatore solo,
 `GlassDropFaceTest`; il segmentato da destra a sinistra, `FluidSegmentedRtlTest` e `FluidMatrixTest`; il primo evento
@@ -248,6 +250,11 @@ righe. **Cosa resta ✗: niente.** Resta il lavoro della mano: le ? si chiudono 
 | pezzi piccoli: `FluidLiveDot`, `FluidSkeleton*`, `FluidSelectionMark`, `FluidPagerDots`, `FluidStepProgress` | — | — | ✓ | — | — | — | ? | ? | ? | `FluidLiveDotTest` (un respiro solo, in fase con l'orologio, fermo con le animazioni ridotte), `FluidPagerDotsTest` (i punti seguono il dito senza gradini), `FluidStepProgressTest`, `FluidSkeletonTest`, `FluidCapsulesAndPartsTest` (TalkBack: lo stato, la pagina, un blocco solo per i passi, una frase per la lista di scheletri; animazioni ridotte); il respiro è `FluidMotion.pulse` (`PulseMillis` 900, `PulseLowAlpha` 0,35, `PulseFillLowAlpha` 0,55: `FluidMotionTokensTest`); il costo del respiro non è misurato |
 | suggerimenti al primo uso | ✓ | ✓ | ? | ✓ | ✓ | ? | ? | ? | ? | (vedi `FluidCoachMark`) |
 | interfaccia dell'assistente (`engine-ai-ui`, opt-in) | ? | ? | ? | ? | ? | ? | ? | ? | ? | il modulo di `1e644a6`: overlay, impostazioni e chat con `FluidMarkdown`; 142 test JVM (parser, rivelazione, decisioni del fondo, ordine dei servizi, forma delle chiavi, filtri, frasi, aptica di stato, voce, alone) che non vedono né il vetro né il moto; ogni suo movimento è un token `FluidMotion` (nessun `spring(` o `tween(` letterale: fase 10) e il pallino respira a 900 ms (era 700); l'overlay nelle app non è stato guardato |
+| aggiornamento in-app: `FluidUpdatePrompt`, `FluidUpdatePromptSheet`, `fluidUpdateSection` | ? | ? | ? | ? | — | ? | ? | ? | ? | fase 12c (`f941520`): foglio di vetro dell'host, tasti e righe di casa; `FluidUpdateModelTest` (24: stati, percentuali, note, «N minuti fa») e `MoreComponentsTest` provano stati e tocchi, nessun fotogramma guardato |
+| riordino: `fluidReorderable` | ? | ? | ? | ? | ? | ? | ? | ? | ? | l'elemento sollevato è una goccia (ombra di ripiego senza canvas), vicini con `FluidMotion.intOffset()`, molla critica dalla velocità del dito, `Tick` per posto; `FluidReorderTest` (24) prova i conti, il vetro e il posarsi si guardano in mano |
+| scorrimento rapido: `FluidFastScroller` | ? | ? | ? | ? | ? | ? | ? | ? | ? | maniglia-goccia 1:1, bolla pannello compatto, `Tick` per etichetta; `FluidFastScrollTest` (18); la sparizione dopo 1,2 s è una costante con un TODO di token (`FluidMotion.FastScrollerHideMillis`) |
+| visualizzatore: `FluidImageViewer`, `fluidZoomable` | ? | ? | ? | ? | ? | ? | ? | ? | ? | nell'host a schermo intero; `FluidZoomTest` (22: limiti, doppio tocco, pizzico); lo scrim ha un'intensità fissa e lo sfondo è la pagina opaca dell'host, non nero |
+| elenco dell'orologio: `FluidWearList` (engine-wear) | — | — | ? | — | — | ? | ? | ? | ? | righe `FluidWearListRow` di sempre; `FluidWearListPlanTest` (8) prova cosa si disegna in ogni stato |
 
 ## Eccezioni note
 

@@ -54,6 +54,7 @@ internal enum class TryArea(val title: String) {
   Rows("Righe, aspetto e fogli"),
   Capsules("Capsule e pezzi piccoli"),
   Gaps("I buchi delle app"),
+  AppParts("I pezzi delle app"),
 }
 
 /**
@@ -108,6 +109,10 @@ private val GlassBar = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › 
 private val GlassCoach = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Suggerimento")
 private val GlassSync = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Sincronizzazione")
 private val GlassSheets = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Fogli e pagine")
+private val MoreUpdate = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Aggiornamento in-app")
+private val MoreReorder = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Riordino")
+private val MoreFastScroll = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Scorrimento rapido")
+private val MoreViewer = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Visualizzatore")
 
 /** La beta 1: tasti e aptica come LibrePods, menù e pannelli a un materiale, pagine, e i pezzi nuovi. */
 private val Beta1 = TryRound(
@@ -423,6 +428,30 @@ private val Beta2 = TryRound(
         "pixel, le azioni si trasformano, il titolo grande viaggia con la pagina e un gesto partito sulla barra " +
         "è della barra; giudica se la barra sembra ferma mentre le pagine passano.",
       PagesScreen,
+    ),
+    TryItem(
+      "pezzi-aggiornamento", TryArea.AppParts, "Aggiornamento in-app",
+      "Scorri le righe dell'aggiornamento e apri l'avviso come foglio: è il disegno che sostituirà quello di " +
+        "otto app; giudica se stati, avanzamento e pulsanti si leggono al primo colpo.",
+      MoreUpdate,
+    ),
+    TryItem(
+      "pezzi-riordino", TryArea.AppParts, "Riordino",
+      "Tieni premuto un elemento della colonna o della griglia e spostalo: si solleva come una goccia di vetro, " +
+        "i vicini scalano e c'è un tick per posto; giudica se il dito lo porta senza ritardo e se si posa bene.",
+      MoreReorder,
+    ),
+    TryItem(
+      "pezzi-scorrimento", TryArea.AppParts, "Scorrimento rapido",
+      "Scorri la lista e prendi la maniglia che compare sul bordo: segue il dito, la bolla dice dove sei e c'è un " +
+        "tick per etichetta; giudica se è facile da prendere e se sparisce al momento giusto.",
+      MoreFastScroll,
+    ),
+    TryItem(
+      "pezzi-visore", TryArea.AppParts, "Visualizzatore",
+      "Apri il visualizzatore: pizzica, doppio tocco, sposta l'immagine ingrandita, scorri fra le immagini e " +
+        "trascina giù per chiudere; giudica se lo zoom sta sotto le dita.",
+      MoreViewer,
     ),
   ),
 )

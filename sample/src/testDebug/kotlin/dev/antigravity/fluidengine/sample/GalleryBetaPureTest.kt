@@ -213,10 +213,10 @@ class GalleryBetaPureTest {
   }
 
   @Test
-  fun `la beta 1 tocca tutte le aree, e le beta dopo ne tolgono nessuna alla pagina`() {
-    // Le aree sono quelle della beta 1: un giro nuovo ne usa alcune, e la pagina non ne ha mai di vuote.
-    assertEquals(TryArea.entries.toSet(), TryRounds.first().items.map { it.area }.toSet())
+  fun `ogni area ha almeno una voce, e la pagina non ne ha mai di vuote`() {
+    // Un giro nuovo puo' aggiungere un'area (la beta 2 ha "I pezzi delle app"): conta che nessuna resti vuota.
     assertTrue(TryRounds.flatMap { it.items }.map { it.area }.toSet().containsAll(TryArea.entries.toSet()))
+    TryRounds.forEach { round -> round.byArea().forEach { (area, items) -> assertTrue("${round.id}: $area", items.isNotEmpty()) } }
   }
 
   @Test

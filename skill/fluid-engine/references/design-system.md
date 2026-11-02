@@ -433,6 +433,15 @@ riempimento, `pulse()` per la molla): tutti i pezzi che respirano battono insiem
 | `fluidGlassGroups(items, key, maxRows, row)` · `FluidGlassGroup(items)` | una lista lunga in pannelli di vetro da otto righe dal taglio invisibile (`FluidGlassGroupMaxRows`); il prezzo è `animateItem()`. `FluidGlassGroup` è un pannello solo per una sezione breve |
 | `fluidHapticsFor(context, enabled)` | l'aptica dell'engine per il codice a `View` (tastiera, servizio): ripiego sugli effetti di fabbrica del vibratore; da creare una volta |
 
+### Aggiornamento in-app, riordino, scorrimento rapido, visore
+
+| | |
+|---|---|
+| `FluidUpdatePrompt(state, onInstall, onLater, …)` · `FluidUpdatePromptSheet(state?, onInstall, onLater, …)` · `LazyListScope.fluidUpdateSection(state, onCheck, onInstall, currentVersion, …)` | l'aggiornamento in-app: l'avviso (contenuto di un foglio) e le righe delle impostazioni, sopra il modello neutro `FluidUpdateUiState` / `FluidUpdateRelease` / `FluidUpdateStrings` / `FluidUpdate`; `AvailableAppUpdate.toFluidUpdateRelease()` e `AppUpdateInstallState.toFluidUpdateState(release)` traducono dai tipi di foundation |
+| `rememberFluidReorderState(listState \| gridState, onMove, …)` · `LazyItemScope.fluidReorderable(state, key, …)` (anche griglia) · `fluidMoved` · `FluidReorder` | il riordino: tenuto premuto l'elemento si solleva come goccia di vetro, i vicini scalano, un `Tick` per posto, la lista scorre ai bordi; due azioni per TalkBack |
+| `FluidFastScroller(state, label, …)` · `FluidFastScrollTarget` · `FluidFastScroll` | lo scorrimento rapido: maniglia-goccia 1:1, bolla di vetro compatta con un `Tick` per etichetta, compare mentre si scorre |
+| `FluidImageViewer(visible, onDismissRequest, …, page)` · `Modifier.fluidZoomable` · `FluidZoomState` · `FluidZoom` | il visualizzatore nell'host dei modali: pizzico, doppio tocco, pager, congedo trascinando giù; le immagini le passa l'app |
+
 ## Tutto in vetro (3.0, fase 9)
 
 Quello che era opaco o dipinto accanto al vetro diventa vetro, e quello che si afferra e scorre diventa la goccia
@@ -797,7 +806,8 @@ Dettagli in `docs/09-wear.md`.
 - **Componenti**: `FluidGlassDisc` (controllo rotondo: `glassControlSurface` + `FluidGlassBurst`),
   `FluidGlassCapsule` (vetro flottante con testo), `FluidEdgeProgressRing` (si ridisegna solo quando
   l'arco si sposta di mezzo pixel), `FluidArcRow` (azioni lungo il bordo), `Modifier.fluidRotarySteps`
-  (ghiera a scatti e corona continua, entrambe in passi), `FluidWearListRow`, `FluidWearPill`.
+  (ghiera a scatti e corona continua, entrambe in passi), `FluidWearListRow`, `FluidWearPill`,
+  `FluidWearList` (3.0: l'elenco con gli stati avviso, caricamento, errore con «riprova» e dati vecchi).
 - **Misure**: `FluidWearDimens`, mai dp a mano in una schermata dell'orologio.
 - **Always-on**: `rememberFluidAmbientState(activity)` + `LocalFluidWearAmbient`; in ambient niente
   vetro vivo, niente animazioni; `Modifier.fluidBurnInShift` solo dove il pannello lo chiede.

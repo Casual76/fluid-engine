@@ -232,6 +232,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-all-glass"),
           onClick = { onOpen(GalleryPage.AllGlass) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Riordino, aggiornamento e visore",
+          subtitle = "Aggiornamento in-app, riordino, scorrimento rapido con la bolla, visualizzatore",
+          modifier = Modifier.testTag("chrome-open-more"),
+          onClick = { onOpen(GalleryPage.MoreComponents) },
+        )
       }
     }
 

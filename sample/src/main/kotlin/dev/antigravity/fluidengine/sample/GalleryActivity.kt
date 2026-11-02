@@ -49,6 +49,7 @@ import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.catalog.AllGlassDemo
 import dev.antigravity.fluidengine.sample.catalog.CapsulesAndPartsDemo
 import dev.antigravity.fluidengine.sample.catalog.MenusDemo
+import dev.antigravity.fluidengine.sample.catalog.MoreComponentsDemo
 import dev.antigravity.fluidengine.sample.catalog.RowsAndSheetsDemo
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
@@ -230,6 +231,7 @@ internal fun Gallery(
               GalleryPage.Gaps -> GapsPage(bottomInset) { nav.back() }
               GalleryPage.Menus -> MenusPage(bottomInset) { nav.back() }
               GalleryPage.AllGlass -> AllGlassPage(bottomInset) { nav.back() }
+              GalleryPage.MoreComponents -> MoreComponentsPage(bottomInset) { nav.back() }
               null -> when (nav.route) {
                 RoutePlayground -> PlaygroundTab(bottomInset)
                 RouteControls -> ControlsTab(bottomInset)
@@ -341,6 +343,24 @@ private fun AllGlassPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () ->
     ambient = remember { FluidAmbient(tone = FluidHeroTone.Primary, motif = FluidHeroMotif.Dots) },
   ) {
     item(key = "all-glass-demo") { AllGlassDemo() }
+  }
+}
+
+/**
+ * I pezzi generici della fase 12c: l'aggiornamento in-app, il riordino, lo scorrimento rapido e il
+ * visualizzatore. La demo si porta il suo host dei modali (il visore e il foglio dell'aggiornamento
+ * stanno li'), quindi qui basta una colonna.
+ */
+@Composable
+private fun MoreComponentsPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () -> Unit) {
+  FluidScreen(
+    title = "Riordino, aggiornamento e visore",
+    subtitle = "Aggiornamento in-app, riordino trascinando, scorrimento rapido con la bolla, visualizzatore.",
+    onBack = onBack,
+    extraBottomPadding = bottomInset,
+    ambient = remember { FluidAmbient(tone = FluidHeroTone.Secondary, motif = FluidHeroMotif.Ripples) },
+  ) {
+    item(key = "more-components-demo") { MoreComponentsDemo() }
   }
 }
 

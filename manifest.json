@@ -12,7 +12,7 @@
       "repoOwner": "Casual76",
       "repoName": "fluid-engine",
       "manifestPath": "manifest.json",
-      "ref": ""
+      "ref": "main"
     },
     "stable": {
       "version": "1.0.4",
@@ -23,14 +23,22 @@
       "sizeBytes": 2808256
     },
     "beta": {
-      "version": "1.0.4",
-      "releaseDate": "2026-08-26",
-      "changelog": "Il tasto DIVENTA il pop-up: la riga si trasforma nella card col suo testo addosso, e ci ritorna. Un moto solo: accelera, oltrepassa gonfiandosi su tutti i lati (quanto e' grande il viaggio), si posa. Niente piu' lampi scuri all'apertura e alla chiusura, la card non resta piu' scura mentre si richiude, e lo sfondo torna a colori gradualmente fino alla fine. Durante la chiusura si puo' gia' scorrere. Il tasto Azione si illumina di nuovo sotto il dito.",
-      "releaseTag": "stable-fluid-glass-v1.0.4",
-      "apkAsset": "fluid-glass-1.0.4.apk",
-      "sizeBytes": 2808256
+      "version": "2.0.0-beta.1",
+      "releaseDate": "2026-11-02",
+      "changelog": "Beta 1 della 3.0. Apri 'Da provare' all'avvio: tasti come LibrePods (pressione al contatto, tre colpi), grana aptica solo trascinando veloce, una vibrazione per momento, un materiale solo per i pannelli, Fluid-physics che a riposo e' vetro vero, pagine opache con l'indietro che segue il dito, e i componenti nuovi della 3.0.",
+      "releaseTag": "beta-fluid-glass-v2.0.0-beta.1",
+      "apkAsset": "fluid-glass-2.0.0-beta.1.apk",
+      "sizeBytes": 3126013
     },
     "history": [
+      {
+        "version": "1.0.4",
+        "releaseDate": "2026-08-26",
+        "changelog": "Il tasto DIVENTA il pop-up: la riga si trasforma nella card col suo testo addosso, e ci ritorna. Un moto solo: accelera, oltrepassa gonfiandosi su tutti i lati (quanto e' grande il viaggio), si posa. Niente piu' lampi scuri all'apertura e alla chiusura, la card non resta piu' scura mentre si richiude, e lo sfondo torna a colori gradualmente fino alla fine. Durante la chiusura si puo' gia' scorrere. Il tasto Azione si illumina di nuovo sotto il dito.",
+        "releaseTag": "stable-fluid-glass-v1.0.4",
+        "apkAsset": "fluid-glass-1.0.4.apk",
+        "sizeBytes": 2808256
+      },
       {
         "version": "1.0.3",
         "releaseDate": "2026-08-26",

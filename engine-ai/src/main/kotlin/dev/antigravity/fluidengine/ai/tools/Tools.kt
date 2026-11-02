@@ -38,6 +38,12 @@ interface AiToolCategory {
  * Dalla 1.26.0 un gruppo puo' stare in una [category] (e' una sottocategoria) e sotto un altro
  * gruppo ([parent], una sotto-sottocategoria). Un gruppo [loadsWithCategory] si apre insieme alla
  * sua categoria senza che nessuno lo chieda: e' il posto per i tool che servono quasi sempre.
+ *
+ * Dalla 3.0.0 un gruppo dice anche **quanto possono durare i suoi tool**: [toolTimeoutMillis], il
+ * tempo di lavoro, e [awaitsConfirmation], se un suo tool puo' fermarsi ad aspettare il si'
+ * dell'utente. Sono due numeri che non si dichiarano a parte: l'orchestratore somma al tempo di
+ * lavoro la finestra del cancello delle conferme ([AiOrchestrator.toolTimeoutMillis]), cosi' una
+ * scheda Conferma/Annulla non sparisce a meta' perche' il tetto dei tool era piu' corto di lei.
  */
 interface AiToolGroup {
   val id: String
@@ -46,6 +52,21 @@ interface AiToolGroup {
   val category: AiToolCategory? get() = null
   val parent: AiToolGroup? get() = null
   val loadsWithCategory: Boolean get() = false
+
+  /**
+   * Quanto puo' lavorare un tool di questo gruppo, **senza** contare l'attesa di una conferma
+   * (3.0.0); null = il tetto dell'orchestratore ([AiOrchestratorConfig.toolTimeoutMillis]). Chi legge
+   * da una rete dichiara qui i suoi venti secondi; chi scrive dichiara quanto ci mette a scrivere,
+   * e se aspetta l'utente lo dice con [awaitsConfirmation] senza sommare niente a mano.
+   */
+  val toolTimeoutMillis: Long? get() = null
+
+  /**
+   * Vero se un tool di questo gruppo puo' fermarsi dentro `run` ad aspettare il si' dell'utente
+   * (un [AiConfirmationGate]; 3.0.0). All'attesa del tool l'orchestratore aggiunge la finestra del
+   * cancello, una per ogni conferma che puo' esserci in coda nello stesso giro.
+   */
+  val awaitsConfirmation: Boolean get() = false
 }
 
 /** La categoria di un gruppo, risalendo i padri: null se il catalogo e' piatto. */
@@ -76,7 +97,10 @@ data class ConfirmationText(val title: String, val detail: String? = null)
  *
  * I tre flag e [describe] (1.26.0) sono metadati per chi esegue il tool da fuori dell'app — un
  * altro assistente che lo raggiunge attraverso un bridge — e per la UI: dentro l'app un tool che
- * scrive chiede conferma da se', con il suo cancello, e questi valori non cambiano niente.
+ * scrive chiede conferma da se', con il suo cancello, e questi valori non cambiano niente. Con una
+ * sola eccezione (3.0.0): il tempo. Un tool con [needsConfirmation] aspetta l'utente dentro `run`,
+ * e l'orchestratore lo sa ([awaitsConfirmation]): al suo tetto ([timeoutMillis]) somma la finestra
+ * delle conferme, invece di tagliarlo mentre la scheda e' ancora a schermo.
  */
 interface AiTool<C> {
   val name: String
@@ -100,6 +124,20 @@ interface AiTool<C> {
 
   /** Le parole per la conferma con questi argomenti; null = chi chiama ne inventa di generiche. */
   suspend fun describe(args: JsonObject, ctx: C): ConfirmationText? = null
+
+  /**
+   * Quanto puo' lavorare questo tool, **senza** l'attesa di una conferma (3.0.0). Di serie e' quello
+   * del gruppo ([AiToolGroup.toolTimeoutMillis]); null = il tetto dell'orchestratore.
+   */
+  val timeoutMillis: Long? get() = group.toolTimeoutMillis
+
+  /**
+   * Vero se [run] puo' fermarsi ad aspettare il si' dell'utente (3.0.0): di serie [needsConfirmation]
+   * oppure il gruppo lo dichiara. Un tool di un gruppo che ne ospita di due tipi (leggere e
+   * scrivere, con la conferma che dipende dall'azione) puo' dire di si' anche quando in un caso non
+   * aspetta: il tetto e' piu' largo, e un tool che finisce prima non lo usa.
+   */
+  val awaitsConfirmation: Boolean get() = needsConfirmation || group.awaitsConfirmation
 }
 
 /**

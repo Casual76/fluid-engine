@@ -22,6 +22,7 @@ import dev.antigravity.fluidengine.ai.provider.ToolChoice
 import dev.antigravity.fluidengine.ai.provider.ToolSpec
 import dev.antigravity.fluidengine.ai.provider.Usage
 import dev.antigravity.fluidengine.ai.provider.displayName
+import dev.antigravity.fluidengine.ai.tools.AiTool
 import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
 import dev.antigravity.fluidengine.ai.tools.ToolOutput
@@ -112,6 +113,11 @@ data class AiOrchestratorConfig(
   val maxMoreTools: Int = 2,
   val maxOutputTokens: Int = 1_500,
   val parallelTools: Int = 4,
+  /**
+   * Quanto puo' lavorare un tool che non dichiara il suo tempo (`AiTool.timeoutMillis`, di serie
+   * quello del gruppo: `AiToolGroup.toolTimeoutMillis`), **senza** l'attesa di una conferma: quella
+   * la somma [AiOrchestrator.toolTimeoutMillis] a chi ne aspetta una.
+   */
   val toolTimeoutMillis: Long = 30_000L,
   val totalBudgetMillis: Long = 240_000L,
   val finalReserveMillis: Long = 20_000L,
@@ -145,6 +151,14 @@ data class AiOrchestratorConfig(
    * timeout, poi una riprova, poi un fallimento TIMEOUT su una domanda che stava andando benissimo.
    */
   val thinkingChunkTimeoutMillis: Int = 120_000,
+  /**
+   * La finestra con cui l'utente puo' rispondere a una conferma (3.0.0): quanto aspetta il cancello
+   * ([AiConfirmationGate.timeoutMillis]) e, per l'orchestratore, quanto sommare al tetto di un tool
+   * che ne aspetta una. **Deve essere lo stesso numero**: il modo di non sbagliarlo e' costruire il
+   * cancello da qui (`AiConfirmationGate(config)`), o dare il cancello all'orchestratore
+   * ([AiOrchestrator]'s `gate`), che allora vale lui.
+   */
+  val confirmationTimeoutMillis: Long = AiConfirmationGate.DEFAULT_TIMEOUT_MILLIS,
 ) {
 
   /**
@@ -189,6 +203,11 @@ data class AiOrchestratorConfig(
  * finale vuota non e' mai un successo. Ogni cambio di provider ha il suo perche'
  * ([AiRequestLog.switches], [AssistantState.SwitchingProvider.reason]), e il timeout di lettura di
  * un giro dipende da cosa si chiede ([AiOrchestratorConfig.readTimeoutFor]).
+ *
+ * Dalla 3.0.0 ogni tool ha il suo tetto di tempo ([toolTimeoutMillis]): quello del gruppo o del tool
+ * (`AiToolGroup.toolTimeoutMillis`, `AiTool.timeoutMillis`) o quello della configurazione, e per un
+ * tool che aspetta una conferma ([AiTool.awaitsConfirmation]) la finestra del cancello in piu', una
+ * per ogni conferma che puo' esserci in fila nello stesso giro.
  */
 class AiOrchestrator<C>(
   private val registry: ToolRegistry<C>,
@@ -199,6 +218,14 @@ class AiOrchestrator<C>(
   private val clock: () -> Long = System::currentTimeMillis,
   /** Dove versare un evento per ogni chiamata a un provider; null = nessuno lo vuole. */
   private val usageSink: AiUsageSink? = null,
+  /**
+   * Il cancello delle conferme dell'app (3.0.0). Serve solo a una cosa: sapere quanto dura la
+   * finestra di una conferma ([AiConfirmationGate.timeoutMillis]) per sommarla al tetto dei tool che
+   * ne aspettano una. Se c'e', vale il suo numero e non quello di
+   * [AiOrchestratorConfig.confirmationTimeoutMillis]: un cancello da 60 secondi e un tetto che ne
+   * conta 30 non si possono avere insieme.
+   */
+  private val gate: AiConfirmationGate? = null,
 ) {
 
   /**
@@ -1002,6 +1029,32 @@ class AiOrchestrator<C>(
     )
   }
 
+  /** La finestra con cui l'utente puo' rispondere a una conferma: quella del cancello, se l'app l'ha dato. */
+  val confirmationWindowMillis: Long get() = gate?.timeoutMillis ?: config.confirmationTimeoutMillis
+
+  /**
+   * Quanto aspetta l'orchestratore un tool prima di rispondere al modello "non ha risposto in
+   * tempo" (3.0.0). Dipende dal tool, da quanto budget resta nella domanda e da quante conferme
+   * stanno nel giro:
+   *
+   *  - un tool che **non** aspetta conferme ha il suo tempo di lavoro (`AiTool.timeoutMillis`, di
+   *    serie quello del gruppo, poi [AiOrchestratorConfig.toolTimeoutMillis]), mai oltre quello che
+   *    resta del budget meno cinque secondi, mai sotto i tre;
+   *  - un tool che **aspetta** una conferma ([AiTool.awaitsConfirmation]) ha il tempo di lavoro piu'
+   *    la finestra del cancello ([confirmationWindowMillis]) per ognuna delle [confirmationsInRound]
+   *    conferme del giro (mai meno di una: sono in fila, e l'ultima aspetta le altre), e il tetto
+   *    del budget lascia la riserva per scrivere la risposta ([AiOrchestratorConfig.finalReserveMillis]).
+   *
+   * Il tempo di lavoro e la finestra non si sommano a mano: e' per questo che un tool da 20 secondi
+   * con una conferma da 60 non si puo' dichiarare sbagliato.
+   */
+  fun toolTimeoutMillis(tool: AiTool<C>, budgetRemainingMillis: Long, confirmationsInRound: Int = 1): Long {
+    val work = tool.timeoutMillis ?: config.toolTimeoutMillis
+    if (!tool.awaitsConfirmation) return minOf(work, (budgetRemainingMillis - 5_000).coerceAtLeast(3_000))
+    val waiting = confirmationWindowMillis * confirmationsInRound.coerceAtLeast(1)
+    return minOf(work + waiting, (budgetRemainingMillis - config.finalReserveMillis).coerceAtLeast(3_000))
+  }
+
   private suspend fun executeParallel(
     calls: List<ToolCall>,
     ctx: C,
@@ -1011,6 +1064,12 @@ class AiOrchestrator<C>(
     decided: Map<String, ToolOutput>,
   ): List<ToolRun> = coroutineScope {
     val semaphore = Semaphore(config.parallelTools)
+    // Le conferme dello stesso giro si mettono in fila nel cancello, una finestra per volta: chi e'
+    // l'ultimo aspetta tante finestre quante sono le conferme che stanno insieme a lui. Ne
+    // contano al piu' [AiOrchestratorConfig.parallelTools], perche' gli altri tool non sono ancora
+    // partiti (il loro tempo comincia quando prendono il posto).
+    val confirming = calls.count { call -> call.id !in decided && registry.find(call.name)?.awaitsConfirmation == true }
+    val confirmationsInRound = minOf(confirming, config.parallelTools)
     val outcomes = calls.map { call ->
       async(Dispatchers.IO) {
         semaphore.withPermit {
@@ -1022,7 +1081,7 @@ class AiOrchestrator<C>(
             if (tool == null) {
               ToolOutput.error("strumento sconosciuto \"${call.name}\"")
             } else {
-              val timeout = minOf(config.toolTimeoutMillis, (budget.remainingMillis - 5_000).coerceAtLeast(3_000))
+              val timeout = toolTimeoutMillis(tool, budget.remainingMillis, confirmationsInRound)
               withTimeoutOrNull(timeout) {
                 runCatching { tool.run(call.arguments, ctx) }.getOrElse { e ->
                   if (e is CancellationException) throw e

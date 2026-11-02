@@ -17,7 +17,13 @@ enum class ConfirmationOutcome { CONFIRMED, REJECTED, TIMEOUT }
  * L'oggetto dell'azione non passa di qui: l'app lo tiene per se' e qui arrivano solo le parole con
  * cui mostrarla ([PendingConfirmation]).
  */
-class AiConfirmationGate(private val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS) {
+class AiConfirmationGate(
+  /** Quanto l'utente ha per rispondere a una conferma. L'orchestratore lo somma al tetto dei tool che la aspettano. */
+  val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
+) {
+
+  /** Il cancello con la finestra della configurazione: e' il modo di tenere uguali i due numeri. */
+  constructor(config: AiOrchestratorConfig) : this(config.confirmationTimeoutMillis)
 
   private class Waiting(val request: PendingConfirmation, val answer: CompletableDeferred<Boolean>)
 

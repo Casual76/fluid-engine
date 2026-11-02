@@ -22,7 +22,7 @@ Questo documento è il piano per arrivare ai **componenti**, e lo stato di ogni 
 | universal_converter | ✅ | ✅ | `FluidScreen` su principale, impostazioni e log |
 | Pampa widgets | ✅ | ✅ | `FluidScreen` + la barra flottante in vetro (`FluidTabBar`, deprecata dalla 2.12.0: delega a `FluidFloatingTabBar`) |
 | Pampa Store | ✅ | ✅ | Android Compose nativo: `FluidScreen`, tab bar/rail, componenti e vetro condivisi |
-| KeyVoice | — | — | e' tutta View: prendere i componenti significa riscriverla in Compose |
+| KeyVoice | — | — | la dashboard è in Compose dalla 2.7.1; l'IME resta a View (aptica con `fluidHapticsFor`) |
 
 ---
 
@@ -413,7 +413,7 @@ cosa, per non doverlo ricercare:
 
 | deprecato | usa | lo chiamano oggi |
 |---|---|---|
-| `FluidTabBar` | `FluidFloatingTabBar` | Fluid-transit, Pampa widgets, Codex |
+| `FluidTabBar` | `FluidFloatingTabBar` | Fluid-transit, Pampa widgets |
 | `FluidQuickAction` | `FluidChip(selected = false)` | classeviva, Pampa notes |
 | `FluidHeroCard` | `FluidHero`, o `FluidCard(highlighted = true)` | classeviva, PampAI, KeyVoice |
 
@@ -442,24 +442,30 @@ pulsanti. Nessuna app la deve prendere adesso; quando una lo fa, l'ordine è que
    `navController`, `startDestination` e grafo; l'import di `composable` passa a
    `dev.antigravity.fluidengine.ui.navigation.composable`; via le quattro transizioni (`enterTransition`,
    `exitTransition`, `popEnterTransition`, `popExitTransition`) e i loro helper. **I `FluidRouteMotionHost`
-   attorno alle destinazioni vanno tolti**: vogliono un `AnimatedVisibilityScope` che le pagine Fluid non
-   hanno, quindi non compilano. Dove l'app teneva la crescita dal tocco, `transition =
+   attorno alle destinazioni vanno tolti**: dentro una pagina Fluid non c'è un `AnimatedVisibilityScope`, e
+   la forma deprecata che compila ancora (`RouteMotion.kt`) non fa niente. Dove l'app teneva la crescita dal tocco, `transition =
    FluidPageTransition.Expand`. `navigation-compose` 2.9.8 (Fluidify ha la 2.8.5 e passa a 2.9.8); in debug
    un `composable` di `androidx.navigation.compose` rimasto nel grafo ferma l'app con un errore che dice
    quali rotte. La ricetta completa è in `docs/03-design-system.md` («Le pagine e `FluidNavHost`»).
-3. **I pulsanti non prendono più il gesto.** Come in LibrePods, un dito che parte su un pulsante dentro una
-   lista fa scorrere la lista *e* il pulsante cresce e vibra, insieme (la regola della 2.12, «un pulsante è di
-   chi lo tiene premuto», cade: una lista di pulsanti si scorreva solo dai margini). `LocalFluidPressImmediate`
-   non fa più niente, e un'app che lo dava alla sua chrome può toglierlo. Un trascinamento orizzontale che
-   parte su un tasto fa partire il back «ovunque»:
-   `FluidBackSwipe.EdgeOnly` per le pagine piene di gesti propri. Un tocco fa tre colpi (`PressDown`,
+3. **Il pulsante tiene il dito** (scelta di Alessio dopo la beta 2). Un dito che scende su un pulsante è del
+   pulsante fino al sollevamento: la lista, il pager e il back a scorrimento sotto non partono, e per
+   scorrere si parte fuori dai pulsanti. Un dito che ha trascinato clicca se si solleva sul pulsante più
+   16 dp. Chip e pallini di colore cedono il dito alla fila che scorre. **Da guardare in ogni app**: una
+   lista fatta di pulsanti (un pulsante per riga, un pager di tasti a tutta larghezza) si scorre solo dai
+   margini; lì il pulsante passa `grip = FluidPressGrip.YieldsToScroll`. `LocalFluidPressImmediate` non fa
+   più niente, e un'app che lo dava alla sua chrome può toglierlo. Le pagine piene di gesti propri (mappe,
+   griglie in selezione, pager) prendono `FluidBackSwipe.EdgeOnly`; quelle con un `BackHandler` (un editor
+   che chiede conferma) vanno guardate col dito. Un tocco fa tre colpi (`PressDown`,
    `PressRelease`, `PressClick`): è voluto, ed è l'unica eccezione a «una vibrazione per momento».
 4. **I menu non chiedono niente**, ma si sentono: si scelgono col dito che li ha aperti, e un `FluidAlert`
    sta nell'host dei modali se l'app ne ha uno (`inHost = false` per un avviso che deve stare sopra una
    finestra di piattaforma). `FluidMorphMenuButton` vuole il suo `FluidMorphMenuHost` composto. Le firme
    di `FluidContextAction` e `FluidAlert` hanno un parametro in più con default: il sorgente compila, un
    modulo già compilato va ricompilato.
-5. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
+5. **Il piano per ogni app** (stato del repo, componenti propri che l'engine ora offre, transizioni, aptica e
+   molle grezze, deprecati, rischi) è nella ricognizione del 2 novembre, `artifacts/design/migrazione-3.0.md`
+   (locale, non nel repo): l'ordine lì proposto parte dalle app piccole e pulite.
+6. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
    chiaro, la luce del dito sui tasti, il back sotto il dito. La galleria Fluid Glass («Da provare») è la
    lista di cosa giudicare, e il registro aptico (`FluidHapticTrace`) dice se un tocco ha parlato una volta
    sola.

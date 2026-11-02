@@ -44,7 +44,6 @@ import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -69,6 +68,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastFirstOrNull
+import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidPressMotion
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.asComposeShader
@@ -182,12 +182,15 @@ class GlassDragAnimation(
   val velocityDampingRatio: Float = 0.5f,
 ) {
 
-  private val valueAnimationSpec = spring(1f, 1000f, visibilityThreshold)
+  // Le molle della goccia di Kyant, coi loro numeri, hanno un nome in `FluidMotion` (fase 10): valore
+  // (1, 1000), pressione (1, 1000), scala X (0,6, 250), scala Y (0,7, 250), velocita' (smorzamento
+  // dato, 300). Nessun numero e' cambiato: pomello, interruttore, pillola e segmentato escono uguali.
+  private val valueAnimationSpec = FluidMotion.dropValue(visibilityThreshold)
   private val velocityAnimationSpec =
-    spring(velocityDampingRatio, 300f, visibilityThreshold * 10f)
-  private val pressProgressAnimationSpec = spring(1f, 1000f, 0.001f)
-  private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)
-  private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)
+    FluidMotion.dropVelocity(velocityDampingRatio, visibilityThreshold * 10f)
+  private val pressProgressAnimationSpec = FluidMotion.DropPress
+  private val scaleXAnimationSpec = FluidMotion.DropScaleX
+  private val scaleYAnimationSpec = FluidMotion.DropScaleY
 
   private val valueAnimation = Animatable(initialValue, visibilityThreshold)
   private val velocityAnimation = Animatable(0f, 5f)
@@ -472,14 +475,14 @@ class GlassTouchHighlight(
   private val glowTone = recipe.tone
   private val glowBlend = recipe.blend
 
-  private val positionAnimationSpec = spring(0.5f, 300f, Offset.VisibilityThreshold)
+  private val positionAnimationSpec = FluidMotion.GlowPosition
 
   // Its own press, when nobody drives it, goes through the engine's press motion: the light waits
   // for the rise to arrive before it fades, so a quick tap lights the glass fully instead of
   // blinking a tenth of the way up. Same spring both ways as before. Since 2.11.0.
   private val pressMotion = FluidPressMotion(animationScope).apply {
-    pressSpec = spring(0.5f, 300f, 0.001f)
-    releaseSpec = spring(0.5f, 300f, 0.001f)
+    pressSpec = FluidMotion.GlowPress
+    releaseSpec = FluidMotion.GlowPress
   }
   private val positionAnimation =
     Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold)

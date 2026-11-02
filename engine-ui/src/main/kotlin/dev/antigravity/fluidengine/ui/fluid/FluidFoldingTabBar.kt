@@ -1,8 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -253,7 +251,7 @@ fun rememberFluidBarFold(): FluidBarFold {
         fold.snapTo(wanted)
       } else {
         // Soft, and never overshooting: this is a bar settling, not a switch.
-        fold.animateTo(wanted, spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow))
+        fold.animateTo(wanted, FluidMotion.TabBarFold)
       }
     }
   }

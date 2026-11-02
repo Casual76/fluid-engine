@@ -2,9 +2,6 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
@@ -648,7 +645,7 @@ private fun FluidGlassModalPaneLayer(
       // Opacity arrives well before the geometry finishes. Tying them together makes the pop-up
       // fade *in* as it grows, which reads as a dissolve; separating them lets the shape do the
       // arriving while the content is already legible.
-      launch { fade.animateTo(1f, FluidMotion.fadeIn(FluidPopoverFadeInMillis)) }
+      launch { fade.animateTo(1f, FluidMotion.fadeIn(FluidMotion.PopoverFadeInMillis)) }
       if (journeyMode && entry.origin() != null) {
         // Nessun colpo qui (3.0): un momento, un evento, e il momento e' il tocco sulla riga, che il
         // suo colpo ce l'ha gia'. Il layer che suonava Open si sommava a quello di chi apriva.
@@ -657,22 +654,16 @@ private fun FluidGlassModalPaneLayer(
         // ease-in che copre quasi l'intero viaggio ancora in accelerazione, e una molla che ne
         // eredita la velocita' — l'oltrepasso e' slancio vero, non un calcio dato alla fine.
         launch {
-          scaleX.animateTo(
-            FluidPopoverWindowRunUpEnd,
-            tween(FluidPopoverWindowRunUpMillis, easing = FluidPopoverWindowRunUpEasing),
-          )
-          scaleX.animateTo(1f, spring(FluidPopoverWindowDampingX, FluidPopoverWindowStiffness, 0.001f))
+          scaleX.animateTo(FluidMotion.PopoverWindowRunUpEnd, FluidMotion.PopoverWindowRunUp)
+          scaleX.animateTo(1f, FluidMotion.PopoverWindowSettleX)
         }
         launch {
-          scaleY.animateTo(
-            FluidPopoverWindowRunUpEnd,
-            tween(FluidPopoverWindowRunUpMillis, easing = FluidPopoverWindowRunUpEasing),
-          )
-          scaleY.animateTo(1f, spring(FluidPopoverWindowDampingY, FluidPopoverWindowStiffness, 0.001f))
+          scaleY.animateTo(FluidMotion.PopoverWindowRunUpEnd, FluidMotion.PopoverWindowRunUp)
+          scaleY.animateTo(1f, FluidMotion.PopoverWindowSettleY)
         }
       } else {
-        launch { scaleX.animateTo(1f, spring(FluidPopoverDampingX, FluidPopoverStiffness, 0.001f)) }
-        launch { scaleY.animateTo(1f, spring(FluidPopoverDampingY, FluidPopoverStiffness, 0.001f)) }
+        launch { scaleX.animateTo(1f, FluidMotion.PopoverOpenX) }
+        launch { scaleY.animateTo(1f, FluidMotion.PopoverOpenY) }
       }
     } else if (journeyMode && entry.origin() != null) {
       // La chiusura della finestra e' UN gesto: la sagoma rientra nella riga (piu' rigida che
@@ -681,9 +672,9 @@ private fun FluidGlassModalPaneLayer(
       // gia' identico. La versione morbida chiudeva la dissolvenza con la sagoma ancora a meta'
       // corsa: il pannello svaniva PER ARIA e la riga ricompariva di colpo — "fa degli effetti
       // pop", ed era vero.
-      launch { fade.animateTo(0f, FluidMotion.fadeOut(FluidPopoverJourneyFadeOutMillis)) }
-      launch { scaleX.animateTo(0f, spring(1f, FluidPopoverJourneyExitStiffness, 0.001f)) }
-      launch { scaleY.animateTo(0f, spring(1f, FluidPopoverJourneyExitStiffness, 0.001f)) }
+      launch { fade.animateTo(0f, FluidMotion.fadeOut(FluidMotion.PopoverWindowFadeOutMillis)) }
+      launch { scaleX.animateTo(0f, FluidMotion.PopoverWindowExit) }
+      launch { scaleY.animateTo(0f, FluidMotion.PopoverWindowExit) }
     } else {
       // Leaving is critically damped: an overshoot on the way out reads as the pop-up bouncing off
       // the screen rather than being put away. But not *stiff* — at 900 the pane crossed most of
@@ -691,9 +682,9 @@ private fun FluidGlassModalPaneLayer(
       // caught was a modal that vanished with its text and a scrim left standing alone. The exit
       // has to be one gesture: the pane shrinks back onto the row it came from *while* it fades,
       // and the scrim, which reads the same fade, leaves with it.
-      launch { fade.animateTo(0f, FluidMotion.fadeOut(FluidPopoverFadeOutMillis)) }
-      launch { scaleX.animateTo(0f, spring(1f, FluidPopoverExitStiffness, 0.001f)) }
-      launch { scaleY.animateTo(0f, spring(1f, FluidPopoverExitStiffness, 0.001f)) }
+      launch { fade.animateTo(0f, FluidMotion.fadeOut(FluidMotion.PopoverFadeOutMillis)) }
+      launch { scaleX.animateTo(0f, FluidMotion.PopoverExit) }
+      launch { scaleY.animateTo(0f, FluidMotion.PopoverExit) }
     }
   }
 
@@ -1665,7 +1656,7 @@ private fun FluidGlassModalSheet(
         initialValue = from,
         targetValue = 0f,
         initialVelocity = velocity,
-        animationSpec = spring(0.9f, 500f, 0.5f),
+        animationSpec = FluidMotion.SheetSettle,
       ) { value, _ -> dragPx = value }
     }
   }
@@ -2160,21 +2151,10 @@ fun Modifier.fluidContextMenu(
  * recognisably itself from the first frame and simply be *small*, the way the tab bar's pill is
  * always a pill however hard it is squashed.
  */
-/**
- * Il moto della finestra ancorata, detto parola per parola: "accelerazione continua finche' non
- * raggiunge il bordo, e allora inizia a rallentare, oltre, fino a ritornare alla posizione
- * finale". Quindi: una rincorsa TUTTA in ease-in che copre il novanta per cento del viaggio
- * ancora in accelerazione (130ms, curva che finisce ripida), e una molla che ne eredita la
- * velocita' — l'oltrepasso e' slancio vero, non un calcio dato alla fine. La prima rincorsa
- * (180ms all'80%, easing molle) era stata bocciata come "lineare, lenta": il difetto era il
- * ritmo, non l'idea.
- */
-private const val FluidPopoverWindowRunUpMillis = 130
-private const val FluidPopoverWindowRunUpEnd = 0.92f
-private val FluidPopoverWindowRunUpEasing = CubicBezierEasing(0.55f, 0f, 0.85f, 0.55f)
-private const val FluidPopoverWindowDampingX = 0.55f
-private const val FluidPopoverWindowDampingY = 0.62f
-private const val FluidPopoverWindowStiffness = 300f
+// Il moto della finestra ancorata (la rincorsa e le molle di assestamento), i tempi del pop-up e
+// delle uscite sono token di `FluidMotion` (`PopoverWindowRunUp`, `PopoverWindowSettleX/Y`,
+// `PopoverOpenX/Y`, `PopoverWindowExit`, `PopoverExit`, `Popover*Millis`, `SheetSettle`): stessi
+// numeri di prima, e con il loro perche' accanto.
 
 /**
  * Quanto dell'oltrepasso della molla diventa GONFIORE della card (via overshootInflation di
@@ -2196,36 +2176,10 @@ private val FluidPopoverPopEdgeMin = 6.dp
 /** Il picco atteso di (progress − 1) con la rincorsa e la molla di casa: taratura del tetto X. */
 private const val FluidPopoverPeakOvershoot = 0.15f
 
-/**
- * L'uscita della finestra: piu' rigida di quella classica, perche' la sagoma deve ATTERRARE
- * sulla riga prima che la dissolvenza (280ms, sotto) finisca — e' l'ordine delle due cose che
- * rende la chiusura un gesto solo invece di una sparizione per aria.
- */
-private const val FluidPopoverJourneyExitStiffness = 620f
-private const val FluidPopoverJourneyFadeOutMillis = 280
-
 private const val FluidPopoverStartScale = 0.42f
 
 /** How much the lifted row grows. Any more and it stops being the row and becomes a card. */
 private const val FluidLiftedPreviewScale = 1.03f
-
-/**
- * Across and down. Different on purpose: two matched springs give a balloon, two mismatched ones
- * give the squash that makes this read as the same object as the navigation pill.
- */
-private const val FluidPopoverDampingX = 0.62f
-private const val FluidPopoverDampingY = 0.74f
-private const val FluidPopoverStiffness = 260f
-
-private const val FluidPopoverFadeInMillis = 110
-
-/**
- * L'uscita dura piu' dell'ingresso, ed e' voluto: all'ingresso il contenuto deve essere leggibile
- * il prima possibile, all'uscita l'occhio sta seguendo il pannello che *torna nella riga*, e un
- * fade che finisce prima della corsa lascia uno scrim orfano sopra una pagina senza modale.
- */
-private const val FluidPopoverFadeOutMillis = 240
-private const val FluidPopoverExitStiffness = 420f
 
 /** Quanto e' piccolo il contenuto quando il bordo comincia ad aprirsi. Pochi punti percentuali. */
 private const val FluidPopoverContentStartScale = 0.90f

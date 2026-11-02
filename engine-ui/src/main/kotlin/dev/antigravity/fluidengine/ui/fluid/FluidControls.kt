@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -61,12 +62,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
-import dev.antigravity.fluidengine.ui.glass.interaction.glassDropFace
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlin.math.roundToInt
@@ -213,7 +215,7 @@ fun FluidButton(
  *     The labels are printed on it in the resting colour and recorded into their own layer.
  *  2. **A second copy of the labels, invisible.** Drawn at zero alpha, tinted with the accent, and
  *     recorded. Nobody ever sees it directly.
- *  3. **The drop** ([glassDropFace]: Kyant's thumb, the same one `FluidSlider` and `FluidSwitch` hold).
+ *  3. **The drop** ([glassDrop]: Kyant's thumb, the same one `FluidSlider` and `FluidSwitch` hold).
  *     At rest it is *full* — white on a light surface, iOS's grey on a dark one — and the selected
  *     label is drawn again on top of it, crisp, because a full face covers what is under it. Under a
  *     finger the face fades and it becomes a lens: it refracts the track *and* the invisible accent
@@ -253,6 +255,9 @@ fun <T> FluidSegmentedControl(
   val accent = scheme.primary
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val density = LocalDensity.current
+  // Da destra a sinistra i segmenti si dispongono da soli (il layout specchia), ma la goccia si muove con
+  // una traslazione di layer e col dito: non la specchia nessuno, e i due versi li deve dire lei.
+  val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
   val scope = rememberCoroutineScope()
   val haptics = LocalFluidHaptics.current
   val selectedIndex = options.indexOf(selected).coerceAtLeast(0)
@@ -308,7 +313,7 @@ fun <T> FluidSegmentedControl(
     // lo stesso valore, e un segmento attraversato dentro un solo evento non faceva il suo tick.
     val dragAt = remember { FloatArray(1) }
 
-    val pill = remember(scope, options.size, segmentWidth) {
+    val pill = remember(scope, options.size, segmentWidth, rtl) {
       GlassDragAnimation(
         animationScope = scope,
         initialValue = selectedIndex.toFloat(),
@@ -331,7 +336,7 @@ fun <T> FluidSegmentedControl(
         onDrag = { _, dragAmount ->
           if (segmentWidth <= 0f || !currentEnabled) return@GlassDragAnimation
           val before = dragAt[0]
-          val after = (before + dragAmount.x / segmentWidth)
+          val after = (before + segmentedDragDelta(dragAmount.x, segmentWidth, rtl))
             .coerceIn(0f, (currentOptions.size - 1).toFloat())
           dragAt[0] = after
           updateValue(after)
@@ -452,7 +457,7 @@ fun <T> FluidSegmentedControl(
           // over the first one. Tapping the first segment then fed the pill's drag detector instead
           // of the segment's click — a zero-length drag that reselects — so once the pill left the
           // first slot, that segment went dead and the pill itself could no longer be grabbed.
-          .graphicsLayer { translationX = pill.value * segmentWidth }
+          .graphicsLayer { translationX = segmentedDropTranslation(pill.value, segmentWidth, rtl) }
           .then(pill.modifier)
           .then(
             if (lensAvailable) {
@@ -461,7 +466,7 @@ fun <T> FluidSegmentedControl(
               // La scala e lo squash stanno nel suo `layerBlock`, mai in un layer sopra: il
               // renderer inverte quella trasformazione quando campiona, e la lente ha in mano le
               // etichette che ci sono davvero dietro.
-              Modifier.glassDropFace(
+              Modifier.glassDrop(
                 backdrop = pillBackdrop.backdrop,
                 drag = pill,
                 lensSize = GlassDropLens.Slider,
@@ -496,7 +501,7 @@ fun <T> FluidSegmentedControl(
           .clearAndSetSemantics {}
           .padding(inset)
           .graphicsLayer {
-            translationX = pill.value * segmentWidth
+            translationX = segmentedDropTranslation(pill.value, segmentWidth, rtl)
             scaleX = pill.scaleX
             scaleY = pill.scaleY
             alpha = (1f - pill.pressProgress * 3f).coerceIn(0f, 1f)
@@ -510,6 +515,26 @@ fun <T> FluidSegmentedControl(
     }
   }
 }
+
+/**
+ * Il verso in cui cresce l'indice di un segmento sullo schermo: +1 da sinistra a destra, −1 da destra a
+ * sinistra. Pura, perche' e' un errore che non si vede finche' qualcuno non apre l'app in arabo.
+ */
+internal fun segmentedDirection(rtl: Boolean): Float = if (rtl) -1f else 1f
+
+/**
+ * Dove sta la goccia del segmentato, in pixel dal punto in cui il layout l'ha messa (il primo segmento).
+ *
+ * Il layout specchia da solo la posizione di partenza (il primo segmento sta a destra), ma la
+ * traslazione e' di un layer e non specchia niente: senza il segno la goccia usciva dalla pista dal lato
+ * sbagliato, e il secondo segmento non aveva mai la goccia sotto.
+ */
+internal fun segmentedDropTranslation(value: Float, segmentWidth: Float, rtl: Boolean): Float =
+  segmentedDirection(rtl) * value * segmentWidth
+
+/** Di quanti segmenti un movimento orizzontale del dito sposta la goccia: lo stesso verso, specchiato. */
+internal fun segmentedDragDelta(dragAmountX: Float, segmentWidth: Float, rtl: Boolean): Float =
+  segmentedDirection(rtl) * dragAmountX / segmentWidth
 
 /**
  * Quanto cresce la goccia del segmentato sotto il dito.

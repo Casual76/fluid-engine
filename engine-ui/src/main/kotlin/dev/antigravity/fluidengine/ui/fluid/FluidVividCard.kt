@@ -1,10 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -211,14 +208,7 @@ private fun Modifier.animatedSheen(content: Color): Modifier = composed {
   val progress by transition.animateFloat(
     initialValue = 0f,
     targetValue = 1f,
-    animationSpec = infiniteRepeatable(
-      animation = tween(
-        durationMillis = SheenTravelMillis,
-        delayMillis = SheenRestMillis,
-        easing = FluidMotion.EaseInOut,
-      ),
-      repeatMode = RepeatMode.Restart,
-    ),
+    animationSpec = FluidMotion.loop(SheenTravelMillis, FluidMotion.EaseInOut, restMillis = SheenRestMillis),
     label = "fluidVividSheenProgress",
   )
   drawSheen(content) { progress }

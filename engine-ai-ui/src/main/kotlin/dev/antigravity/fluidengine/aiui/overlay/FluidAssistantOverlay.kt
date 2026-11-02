@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -255,7 +254,7 @@ fun BoxScope.FluidAssistantOverlay(
   LaunchedEffect(visible) {
     morph.animateTo(
       targetValue = if (visible) 1f else 0f,
-      animationSpec = spring(
+      animationSpec = FluidMotion.tuned(
         dampingRatio = if (visible) FluidMotion.DampingFluid else FluidMotion.DampingChrome,
         stiffness = if (visible) FluidMotion.ResponseStandard else FluidMotion.ResponseSnappy,
       ),
@@ -312,7 +311,7 @@ fun BoxScope.FluidAssistantOverlay(
                 actions.onDismiss()
                 overlay.hide()
               }
-              scope.launch { drag.animateTo(0f, spring(FluidMotion.DampingStandard, FluidMotion.ResponseSnappy)) }
+              scope.launch { drag.animateTo(0f, FluidMotion.tuned(FluidMotion.DampingStandard, FluidMotion.ResponseSnappy)) }
             },
             onDragCancel = { scope.launch { drag.animateTo(0f) } },
           )

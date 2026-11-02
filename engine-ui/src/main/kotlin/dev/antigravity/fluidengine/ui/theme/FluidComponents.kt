@@ -1278,7 +1278,13 @@ fun FluidListRow(
   // why the controller and the gesture are two things in the engine rather than one modifier.
   val contextMenu = contextActions?.let { rememberFluidContextMenu(it) }
   val haptics = LocalFluidHaptics.current
-  Column(
+  // **Un nodo solo, per costruzione.** Il modificatore della riga (il clic, il ruolo, lo stato, la tinta) sta sul
+  // `ListItem` stesso e non su un contenitore sopra di lui. Il `ListItem` di Material fonde da sé la propria
+  // semantica, e Compose non fonde dentro un nodo che fonde un figlio che a sua volta fonde: con un `clickable` su un
+  // contenitore la riga erano due nodi, uno col clic, il ruolo e lo stato ma senza nome, e uno col nome ma senza
+  // clic (`FluidMatrixTest`). Sullo stesso nodo ci sono insieme il nome (titolo, sottotitolo, pillole, badge), il
+  // ruolo, lo stato e il clic.
+  ListItem(
     modifier = modifier
       .fillMaxWidth()
       .then(
@@ -1314,75 +1320,75 @@ fun FluidListRow(
         },
         animateFeedback = animatePress,
         longClickHaptic = if (contextMenu != null) null else FluidHapticEvent.GestureStart,
+        // Una riga che apre qualcosa e' un pulsante per chi non la vede: il ruolo sta sul nodo del
+        // `ListItem`, che ha gia' il nome fuso, insieme al clic e allo stato.
+        role = if (onClick != null) Role.Button else null,
       ),
-  ) {
-    ListItem(
-      // Rows in a group share one background. Tinting individual rows by tone turned a tidy group
-      // into a patchwork of coloured blocks; the tone now lives on the icon tile and the eyebrow,
-      // where it labels the row instead of shouting over it.
-      colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-      overlineContent = eyebrow?.let {
-        {
+    // Rows in a group share one background. Tinting individual rows by tone turned a tidy group
+    // into a patchwork of coloured blocks; the tone now lives on the icon tile and the eyebrow,
+    // where it labels the row instead of shouting over it.
+    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    overlineContent = eyebrow?.let {
+      {
+        Text(
+          text = it,
+          color = colors.content,
+          style = MaterialTheme.typography.labelMedium,
+          fontWeight = FontWeight.SemiBold,
+        )
+      }
+    },
+    headlineContent = {
+      FluidRowHeadline(title = title, maxLines = titleMaxLines, labels = labels)
+    },
+    // Un sottotitolo vuoto non e' una riga vuota: occupava comunque l'altezza di una riga di
+    // testo, e una voce con solo il titolo sembrava avere un buco sotto.
+    supportingContent = if (subtitle.isBlank() && meta.isNullOrBlank()) null else {
+      {
+      Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (subtitle.isNotBlank()) {
           Text(
-            text = it,
-            color = colors.content,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
-      },
-      headlineContent = {
-        FluidRowHeadline(title = title, maxLines = titleMaxLines, labels = labels)
-      },
-      // Un sottotitolo vuoto non e' una riga vuota: occupava comunque l'altezza di una riga di
-      // testo, e una voce con solo il titolo sembrava avere un buco sotto.
-      supportingContent = if (subtitle.isBlank() && meta.isNullOrBlank()) null else {
-        {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          if (subtitle.isNotBlank()) {
-            Text(
-              text = subtitle,
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
+        meta?.takeIf { it.isNotBlank() }?.let {
+          Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+      }
+      }
+    },
+    leadingContent = leading?.let {
+      { if (leadingTile) FluidToneTile(tone = tone, content = it) else it() }
+    },
+    trailingContent = if (badge != null || (onClick != null && disclosure)) {
+      {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          badge?.invoke()
+          if (onClick != null && disclosure) {
+            // The disclosure chevron is the one affordance that tells a row apart from a label
+            // without needing colour, weight or a border to do it.
+            Icon(
+              imageVector = Icons.Rounded.ChevronRight,
+              contentDescription = null,
+              modifier = Modifier.size(18.dp),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
             )
           }
-          meta?.takeIf { it.isNotBlank() }?.let {
-            Text(
-              text = it,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
         }
-        }
-      },
-      leadingContent = leading?.let {
-        { if (leadingTile) FluidToneTile(tone = tone, content = it) else it() }
-      },
-      trailingContent = if (badge != null || (onClick != null && disclosure)) {
-        {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            badge?.invoke()
-            if (onClick != null && disclosure) {
-              // The disclosure chevron is the one affordance that tells a row apart from a label
-              // without needing colour, weight or a border to do it.
-              Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-              )
-            }
-          }
-        }
-      } else {
-        null
-      },
-    )
-  }
+      }
+    } else {
+      null
+    },
+  )
 }
 
 /** Il lato della piastrella di un'icona ([FluidToneTile]): il contenuto sta in 19 dp al centro. */

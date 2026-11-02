@@ -3,8 +3,8 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -56,6 +56,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -75,7 +77,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropMotion
-import dev.antigravity.fluidengine.ui.glass.interaction.glassDropFace
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -169,17 +171,18 @@ fun FluidSectionIndex(
     )
   }
 
+  // L'indice entra dal bordo su cui sta, per offset di layout e alfa: mai una scala. Dentro c'e' il
+  // vetro (la pista, la goccia), e un layer scalato sopra un vetro rifrange cio' che non c'e' piu':
+  // il `scaleIn(0,92)` di prima faceva "respirare" il fondale dietro la pista a ogni comparsa. Verso
+  // il bordo, che in destra-sinistra e' il lato opposto.
+  val towardsEdge = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
   AnimatedVisibility(
     visible = visible,
     modifier = modifier,
-    enter = fadeIn(FluidMotion.fadeIn(160)) + scaleIn(
-      initialScale = 0.92f,
-      animationSpec = FluidMotion.snappy(),
-    ),
-    exit = fadeOut(FluidMotion.fadeOut(120)) + scaleOut(
-      targetScale = 0.92f,
-      animationSpec = FluidMotion.snappy(),
-    ),
+    enter = fadeIn(FluidMotion.fadeIn(160)) +
+      slideInHorizontally(IndexSlideSpec) { (it * IndexSlideFraction).roundToInt() * towardsEdge },
+    exit = fadeOut(FluidMotion.fadeOut(120)) +
+      slideOutHorizontally(IndexSlideSpec) { (it * IndexSlideFraction).roundToInt() * towardsEdge },
   ) {
     BoxWithConstraints(
       modifier = Modifier
@@ -324,7 +327,7 @@ fun FluidSectionIndex(
 
       // The lens: a drop of glass that rides the rail under the finger.
       //
-      // It is the drop of the recipe (3.0, fase 9: [glassDropFace], Kyant's thumb), and its pressure is
+      // It is the drop of the recipe (3.0, fase 9: [glassDrop], Kyant's thumb), and its pressure is
       // the unfolding of the rail: it is born under the finger, so there is no "held" of its own to
       // wait for. Full at the first frame of the unfolding, a lens by the last. The growth from 0.4 is
       // in the drop's own `layerBlock` and not in a layer above it: a scaled layer over a pane of glass
@@ -349,7 +352,7 @@ fun FluidSectionIndex(
           }
           .then(
             if (lensIsGlass) {
-              Modifier.glassDropFace(
+              Modifier.glassDrop(
                 backdrop = backdrop!!.backdrop,
                 motion = lensMotion,
                 lensSize = GlassDropLens.Slider,
@@ -377,14 +380,11 @@ fun FluidSectionIndex(
               (lensCenterY() - labelHalfPx).roundToInt(),
             )
           },
-        enter = fadeIn(FluidMotion.fadeIn(110)) + scaleIn(
-          initialScale = 0.94f,
-          animationSpec = FluidMotion.snappy(),
-        ),
-        exit = fadeOut(FluidMotion.fadeOut(100)) + scaleOut(
-          targetScale = 0.96f,
-          animationSpec = FluidMotion.snappy(),
-        ),
+        // Anche la bolla e' un vetro (il pannello): arriva dalla lente per offset e alfa, non per scala.
+        enter = fadeIn(FluidMotion.fadeIn(110)) +
+          slideInHorizontally(IndexSlideSpec) { (it * BubbleSlideFraction).roundToInt() * towardsEdge },
+        exit = fadeOut(FluidMotion.fadeOut(100)) +
+          slideOutHorizontally(IndexSlideSpec) { (it * BubbleSlideFraction).roundToInt() * towardsEdge },
       ) {
         Text(
           text = activeSection.label,
@@ -495,7 +495,11 @@ fun FluidSectionIndex(
               frozenFraction = originFraction
               val usableExpanded =
                 (trackHeight(1f) - 2f * markInsetPx).coerceAtLeast(1f)
-              var lastDragIndex: Int? = null
+              // Parte da dove sei: la goccia nasce sotto il dito sulla tacca della sezione attiva, e il
+              // primo evento a dito fermo non e' una tacca attraversata. Con `null` suonava un Tick subito
+              // dopo il `GestureStart` della pressione lunga (due colpi per un momento) e riselezionava
+              // la sezione dov'era gia'.
+              var lastDragIndex = selectedIndex
               interacting = true
               fingerFraction = originFraction
               scope.launch {
@@ -535,6 +539,15 @@ fun FluidSectionIndex(
 
 /** Da quanto e' grande la lente nel primo fotogramma dell'apertura: il 40%, e arriva intera. */
 private const val LensRestScale = 0.4f
+
+/** Quanta della sua larghezza l'indice percorre entrando: dal bordo, non dal nulla. */
+private const val IndexSlideFraction = 0.5f
+
+/** La bolla si stacca dalla lente di poco: una frazione della sua larghezza, che e' quella di un nome di mese. */
+private const val BubbleSlideFraction = 0.15f
+
+/** La molla dell'entrata e dell'uscita dell'indice e della bolla: critica, in pixel interi (nessuna coda sotto-pixel). */
+private val IndexSlideSpec = FluidMotion.intOffset(FluidMotion.DampingChrome, FluidMotion.ResponseSnappy)
 
 object FluidSectionIndexDefaults {
   const val MaxVisibleAnchors: Int = 8

@@ -197,7 +197,7 @@ private fun StepSegments(
       drawRoundRect(color = track, topLeft = Offset(x, 0f), size = Size(segmentWidth, size.height), cornerRadius = radius)
       val fill = fluidStepSegmentFill(index, here)
       if (fill > 0f) {
-        val breathe = if (index == current && pulse != null) lerp(StepPulseLowAlpha, 1f, pulse.value) else 1f
+        val breathe = if (index == current && pulse != null) lerp(FluidMotion.PulseFillLowAlpha, 1f, pulse.value) else 1f
         drawRoundRect(
           color = color,
           topLeft = Offset(x, 0f),
@@ -214,7 +214,3 @@ private fun StepSegments(
 /** La pista dei segmenti: il testo a bassa opacita', come quella della barra continua. */
 private const val StepTrackAlpha = 0.12f
 
-// TODO token FluidMotion: PulseLowAlpha per un riempimento (non un pallino): il punto basso del respiro
-// di un passo in corso. Piu' alto di FluidPulseLowAlpha (0,35) perche' e' una barra e non un punto: a
-// 0,35 il passo in corso sembrerebbe quello ancora da fare.
-private const val StepPulseLowAlpha = 0.55f

@@ -1,11 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -47,10 +43,7 @@ fun FluidSpinner(
   val step by transition.animateFloat(
     initialValue = 0f,
     targetValue = SpokeCount.toFloat(),
-    animationSpec = infiniteRepeatable(
-      animation = tween(durationMillis = 900, easing = LinearEasing),
-      repeatMode = RepeatMode.Restart,
-    ),
+    animationSpec = FluidMotion.loop(FluidMotion.SpinnerMillis),
     label = "spinner step",
   )
 
@@ -161,10 +154,7 @@ fun FluidIndeterminateBar(
   val travel by transition.animateFloat(
     initialValue = 0f,
     targetValue = 1f,
-    animationSpec = infiniteRepeatable(
-      animation = tween(durationMillis = 1100, easing = FluidMotion.EaseInOut),
-      repeatMode = RepeatMode.Restart,
-    ),
+    animationSpec = FluidMotion.loop(FluidMotion.IndeterminateMillis, FluidMotion.EaseInOut),
     label = "indeterminate travel",
   )
   val track = MaterialTheme.colorScheme.onSurface.copy(alpha = FluidProgressTrackAlpha)

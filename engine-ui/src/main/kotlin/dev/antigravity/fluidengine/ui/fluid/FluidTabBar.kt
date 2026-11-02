@@ -53,7 +53,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
-import dev.antigravity.fluidengine.ui.glass.interaction.glassDropFace
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import kotlin.math.roundToInt
 
 @Immutable
@@ -62,15 +62,6 @@ data class FluidTabItem(
   val label: String,
   val icon: ImageVector,
 )
-
-/**
- * How much rim and shadow a tab indicator keeps when nobody is holding it.
- *
- * The vendored bar's own numbers — half a rim, a third of a shadow — kept because they are the
- * answer to a question that was asked against a real screen: below this the indicator stops having
- * an edge of its own and starts borrowing its shape from whatever the bar happens to be over.
- */
-internal const val FluidTabIndicatorEdgeFloor = 0.5f
 
 /**
  * Le misure della barra di prima e del rail.
@@ -92,21 +83,6 @@ object FluidTabBarDefaults {
   /** Gap between the bar's edge and the indicator inside it. */
   internal val IndicatorInset = 4.dp
 }
-
-@Immutable
-internal data class TabIndicatorTiming(
-  val leadingDurationMillis: Int,
-  val trailingDurationMillis: Int,
-)
-
-internal fun tabIndicatorTiming(reducedMotion: Boolean): TabIndicatorTiming =
-  if (reducedMotion) {
-    TabIndicatorTiming(leadingDurationMillis = 0, trailingDurationMillis = 0)
-  } else {
-    // Kept for the rail and for reduced motion, where the indicator is a position rather than an
-    // object with mass. The horizontal bar's own indicator is spring-driven and does not read this.
-    TabIndicatorTiming(leadingDurationMillis = 190, trailingDurationMillis = 250)
-  }
 
 /**
  * La barra di prima, sotto il nome che le app già chiamano.
@@ -314,7 +290,7 @@ private fun FluidTabItemFace(
 /**
  * Wide-screen variant: the same material and the same drop, stood on its side.
  *
- * The indicator is a **drop** (3.0, fase 9: [glassDropFace], Kyant's thumb, the recipe of the floating
+ * The indicator is a **drop** (3.0, fase 9: [glassDrop], Kyant's thumb, the recipe of the floating
  * bar's puck and of `FluidSlider`): full at rest — white on a light surface, grey on a dark one — and
  * a lens while it travels. It travels the way the puck does when a tab is tapped, press, cross and
  * settle, so the glass appears exactly while the selection is moving and is quiet when it is not.
@@ -344,7 +320,11 @@ fun FluidTabRail(
   // anche su una nota, e una lente parcheggiata sulla prima scheda direbbe una cosa falsa.
   val hasSelection = items.any { it.route == selectedRoute }
   val selectedIndex = items.indexOfFirst { it.route == selectedRoute }.coerceAtLeast(0)
-  val lensAlpha by animateFloatAsState(if (hasSelection) 1f else 0f, label = "fluidTabRailLens")
+  val lensAlpha by animateFloatAsState(
+    targetValue = if (hasSelection) 1f else 0f,
+    animationSpec = FluidMotion.flick(),
+    label = "fluidTabRailLens",
+  )
 
   val railGlass = rememberGlassBackdrop()
   val tabsGlass = rememberGlassBackdrop()
@@ -451,7 +431,7 @@ fun FluidTabRail(
         .padding(horizontal = RailIndicatorInset + 2.dp, vertical = RailIndicatorInset)
         .then(
           if (lensAvailable) {
-            Modifier.glassDropFace(
+            Modifier.glassDrop(
               backdrop = indicatorBackdrop.backdrop,
               drag = drop,
               lensSize = GlassDropLens.Slider,

@@ -137,7 +137,7 @@ private fun SkeletonSurface(modifier: Modifier, shape: Shape) {
  * sagome dicono anche *cosa* sta per comparire, e quando compare non salta niente perche' il suo
  * posto c'era gia'. Nata in Fluid-transit (che nel suo KDoc diceva che il suo posto era l'engine).
  *
- * **Respira, non scorre.** Un'opacita' che va e viene — [FluidPulseMillis], lo stesso respiro del
+ * **Respira, non scorre.** Un'opacita' che va e viene — [FluidMotion.PulseMillis], lo stesso respiro del
  * [FluidLiveDot] — e non una banda di luce che attraversa: e' la stessa quiete del resto del design
  * system, e sotto una schermata di venti segnaposto una banda e' venti strisce che corrono. Con le
  * animazioni ridotte e' un velo fermo ([FluidSkeletonDefaults.RestAlpha]).

@@ -3,11 +3,23 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.InfiniteRepeatableSpec
+import androidx.compose.animation.core.KeyframesSpec
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.StartOffsetType
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -265,4 +277,202 @@ object FluidMotion {
   /** Colour transitions read best on a plain ease — springs make tints wobble. */
   fun <T> color(durationMillis: Int = 240): AnimationSpec<T> =
     tween(durationMillis, easing = EaseInOut)
+
+  // --- Fase 10: il movimento che stava scritto a mano (3.0) -----------------------------------------
+  //
+  // Molle, durate e curve che vivevano nei file dei componenti coi numeri in chiaro (`spring(1f, 300f,
+  // 0.5f)`, un `tween(130, CubicBezierEasing(...))`, un `animate*AsState` senza spec) e che la matrice
+  // di `docs/10-coerenza.md` segnava ✗3. Qui hanno un nome e gli STESSI valori di prima: nessun
+  // movimento e' cambiato, e la pillola, il puck, lo slider e l'interruttore escono identici (R1).
+  // Chi aggiunge un movimento nuovo lo mette qui, non nel suo file.
+
+  /** Mezzo pixel: sotto questa distanza una molla che muove pixel e' ferma. */
+  const val PixelThreshold: Float = 0.5f
+
+  /**
+   * Una molla per una distanza in pixel (un trascinamento che torna, uno scatto di scorrimento): i
+   * valori dei token con la soglia di [PixelThreshold], perche' quella di serie (0,01) farebbe girare
+   * la molla ancora a lungo dopo l'ultimo pixel visibile.
+   */
+  fun pixels(dampingRatio: Float = DampingStandard, stiffness: Float = ResponseStandard): SpringSpec<Float> =
+    spring(dampingRatio, stiffness, PixelThreshold)
+
+  /**
+   * Una molla con smorzamento e rigidezza dati dai token (`Damping*`, `Response*`), per chi li sceglie
+   * a tempo di esecuzione (attacco e rilascio, entrata e uscita) e non ha un nome suo.
+   */
+  fun <T> tuned(dampingRatio: Float, stiffness: Float): SpringSpec<T> = spring(dampingRatio, stiffness)
+
+  /**
+   * ~0,16 s, senza rimbalzo: la molla di serie di Compose (rigidezza 1500), che `animate*AsState` e
+   * `Transition.animateFloat` usavano quando nessuno ne dava una. Per un valore che si accende o si
+   * spegne in un lampo (un lavaggio di selezione, l'alfa di una lente). Un nome, non un default implicito.
+   */
+  fun <T> flick(): SpringSpec<T> = spring(DampingChrome, Spring.StiffnessMedium)
+
+  // Barra a pillola: il puck, la piegatura e le bande.
+
+  /** Il ritorno della barra flottante dopo un tiro del dito sul puck: (1, 300), mezzo pixel. */
+  val TabTugReturn: SpringSpec<Float> = spring(DampingChrome, 300f, PixelThreshold)
+
+  /** La durata della piegatura "gommosa" fra barra in linea ed estesa, e del puck che arriva con lei. */
+  const val GooeyMillis: Int = 300
+
+  /** Il picco di sfocatura della piegatura: 0 all'inizio, 1 a meta' (curva `FastOutSlowIn`), 0 alla fine. */
+  val GooeyPulse: KeyframesSpec<Float> = keyframes {
+    durationMillis = GooeyMillis
+    0f at 0
+    1f atFraction 0.5f using FastOutSlowInEasing
+    0f at GooeyMillis
+  }
+
+  /** Il puck che entra con la barra che si apre: lungo quanto la piegatura ([GooeyMillis]), `FastOutSlowIn`. */
+  val PuckEnter: TweenSpec<Float> = tween(GooeyMillis, easing = FastOutSlowInEasing)
+
+  /** Il cambio fra barra in linea ed estesa: la dissolvenza di serie di `AnimatedContent` (rigidezza 400, critica). */
+  val FoldCrossFade: SpringSpec<Float> = spring(stiffness = Spring.StiffnessMediumLow)
+
+  /** Quanto il puck resta solo a viaggiare prima che la pagina scelta cominci a costruirsi, in millisecondi. */
+  const val TabPuckLeadMillis: Long = 160L
+
+  /** La barra ripiegata che si apre e si chiude: (0,9, rigidezza 400), un filo di assestamento. */
+  val TabBarFold: SpringSpec<Float> = spring(0.9f, Spring.StiffnessMediumLow)
+
+  /** Durata e finestra (frazioni della durata) dell'entrata di una scheda: invisibile fino a meta', piena a 0,8. */
+  const val TabEnterMillis: Int = 150
+  const val TabEnterStartFraction: Float = 0.5f
+  const val TabEnterEndFraction: Float = 0.8f
+
+  /** L'alfa di una scheda della barra: sale fra [TabEnterStartFraction] e [TabEnterEndFraction] se entra, lineare se esce. */
+  fun tabEnterAlpha(entering: Boolean): FiniteAnimationSpec<Float> = keyframes {
+    durationMillis = TabEnterMillis
+    if (entering) {
+      0f atFraction TabEnterStartFraction using FastOutSlowInEasing
+      1f atFraction TabEnterEndFraction
+    }
+  }
+
+  /** La sfocatura di una scheda che entra: [blurPx] fino a [TabEnterStartFraction], zero a [TabEnterEndFraction]. */
+  fun tabEnterBlur(entering: Boolean, blurPx: Float): FiniteAnimationSpec<Float> = keyframes {
+    durationMillis = TabEnterMillis
+    if (entering) {
+      blurPx atFraction TabEnterStartFraction using FastOutSlowInEasing
+      0f atFraction TabEnterEndFraction
+    }
+  }
+
+  // Foglio e pop-up (FluidGlassModal).
+
+  /** Il foglio trascinato che torna al suo posto: (0,9, rigidezza 500) dalla velocita' del dito, mezzo pixel. */
+  val SheetSettle: SpringSpec<Float> = spring(0.9f, 500f, PixelThreshold)
+
+  /** L'opacita' del pop-up in entrata: arriva ben prima della geometria, cosi' il contenuto e' gia' leggibile. */
+  const val PopoverFadeInMillis: Int = 110
+
+  /** In uscita dura di piu' che in entrata: l'occhio segue il pannello che torna nella riga, e uno scrim orfano non resta. */
+  const val PopoverFadeOutMillis: Int = 240
+
+  /** La dissolvenza di chiusura della finestra di Fluid-physics: la sagoma deve atterrare sulla riga prima che finisca. */
+  const val PopoverWindowFadeOutMillis: Int = 280
+
+  /** Fin dove arriva la rincorsa della finestra ancorata (frazione del viaggio): ancora in accelerazione, poi la molla. */
+  const val PopoverWindowRunUpEnd: Float = 0.92f
+
+  /**
+   * La rincorsa: 130 ms tutti in ease-in (`CubicBezier(0,55; 0; 0,85; 0,55)`), finisce ripida per
+   * passare la velocita' alla molla. Il moto, detto parola per parola: "accelerazione continua
+   * finche' non raggiunge il bordo, e allora inizia a rallentare, oltre, fino a ritornare alla
+   * posizione finale" — una rincorsa che copre il novanta per cento del viaggio ancora in
+   * accelerazione ([PopoverWindowRunUpEnd]) e una molla che ne eredita la velocita': l'oltrepasso e'
+   * slancio vero, non un calcio dato alla fine. La prima rincorsa (180 ms all'80%, easing molle) era
+   * stata bocciata come "lineare, lenta": il difetto era il ritmo, non l'idea.
+   */
+  val PopoverWindowRunUp: TweenSpec<Float> =
+    tween(130, easing = CubicBezierEasing(0.55f, 0f, 0.85f, 0.55f))
+
+  /** L'assestamento della finestra dopo la rincorsa, orizzontale: (0,55, 300). Piu' morbida di Y, per lo squash. */
+  val PopoverWindowSettleX: SpringSpec<Float> = spring(0.55f, 300f, 0.001f)
+
+  /** L'assestamento della finestra dopo la rincorsa, verticale: (0,62, 300). */
+  val PopoverWindowSettleY: SpringSpec<Float> = spring(0.62f, 300f, 0.001f)
+
+  /** L'apertura del pop-up classico, orizzontale: (0,62, 260). Due molle diverse danno lo squash, due uguali un pallone. */
+  val PopoverOpenX: SpringSpec<Float> = spring(0.62f, 260f, 0.001f)
+
+  /** L'apertura del pop-up classico, verticale: (0,74, 260). */
+  val PopoverOpenY: SpringSpec<Float> = spring(0.74f, 260f, 0.001f)
+
+  /**
+   * La chiusura della finestra di Fluid-physics: critica e rigida (620), piu' di quella classica
+   * ([PopoverExit]), perche' la sagoma deve ATTERRARE sulla riga prima che la dissolvenza
+   * ([PopoverWindowFadeOutMillis]) finisca: l'ordine delle due cose rende la chiusura un gesto solo
+   * invece di una sparizione per aria.
+   */
+  val PopoverWindowExit: SpringSpec<Float> = spring(DampingChrome, 620f, 0.001f)
+
+  /** La chiusura del pop-up classico: critica (420), un'uscita che rimbalza sembra un pannello cacciato dallo schermo. */
+  val PopoverExit: SpringSpec<Float> = spring(DampingChrome, 420f, 0.001f)
+
+  // La goccia di Kyant e il bagliore del dito (glass/interaction).
+
+  /** Il valore della goccia (la sua posizione sulla pista): (1, 1000), critica e rigida; la soglia la da' la pista. */
+  fun dropValue(visibilityThreshold: Float): SpringSpec<Float> = spring(DampingChrome, 1000f, visibilityThreshold)
+
+  /** La velocita' tracciata della goccia, da cui nasce lo squash: (smorzamento dato, 300). Quello di Kyant e' 0,5. */
+  fun dropVelocity(dampingRatio: Float, visibilityThreshold: Float): SpringSpec<Float> =
+    spring(dampingRatio, 300f, visibilityThreshold)
+
+  /** La pressione della goccia, che la fa lente: (1, 1000), critica e rigida. */
+  val DropPress: SpringSpec<Float> = spring(DampingChrome, 1000f, 0.001f)
+
+  /** La scala X della goccia: (0,6, 250). Piu' morbida di Y: e' questa differenza che fa lo squash. */
+  val DropScaleX: SpringSpec<Float> = spring(0.6f, 250f, 0.001f)
+
+  /** La scala Y della goccia: (0,7, 250). */
+  val DropScaleY: SpringSpec<Float> = spring(0.7f, 250f, 0.001f)
+
+  /** Il punto di luce che segue il dito e torna al punto di partenza: (0,5, 300). */
+  val GlowPosition: SpringSpec<Offset> = spring(0.5f, 300f, Offset.VisibilityThreshold)
+
+  /** L'accensione e lo spegnimento della luce del dito: (0,5, 300), la stessa molla dei tasti di LibrePods. */
+  val GlowPress: SpringSpec<Float> = spring(0.5f, 300f, 0.001f)
+
+  // Il respiro e i giri che si ripetono.
+
+  /** Meta' di un respiro (l'andata; il ritorno e' uguale): la durata che quattro app su cinque avevano scelto, e quella dello spinner. */
+  const val PulseMillis: Int = 900
+
+  /** Il punto basso del respiro di un segno pieno (un pallino): abbastanza basso da vedersi, abbastanza alto da non sparire sul chiaro. */
+  const val PulseLowAlpha: Float = 0.35f
+
+  /** Il punto basso del respiro di un riempimento (il passo in corso): piu' alto di [PulseLowAlpha], a 0,35 sembrerebbe il passo da fare. */
+  const val PulseFillLowAlpha: Float = 0.55f
+
+  /**
+   * Il respiro: un'andata e ritorno di [periodMillis] per fase, che parte da [startOffsetMillis]
+   * dentro il ciclo (l'orologio, cosi' tutti i pallini in scena battono insieme).
+   */
+  fun pulse(periodMillis: Int = PulseMillis, startOffsetMillis: Int = 0): InfiniteRepeatableSpec<Float> =
+    infiniteRepeatable(
+      animation = tween(durationMillis = periodMillis, easing = EaseInOut),
+      repeatMode = RepeatMode.Reverse,
+      initialStartOffset = StartOffset(startOffsetMillis, StartOffsetType.FastForward),
+    )
+
+  /** Il giro dello spinner a raggi: un'intera corona in 900 ms, lineare. */
+  const val SpinnerMillis: Int = 900
+
+  /** Il segmento della barra indeterminata: 1100 ms da un bordo all'altro. */
+  const val IndeterminateMillis: Int = 1100
+
+  /**
+   * Un giro che si ripete da capo ([RepeatMode.Restart]): [durationMillis] di moto, poi [restMillis]
+   * di pausa (il ritardo di `tween`), poi ancora. Lineare di serie: un giro che si ripete non ha
+   * un'accelerazione da raccontare, salvo dove la chiede lui (la barra, il riflesso).
+   */
+  fun loop(durationMillis: Int, easing: Easing = LinearEasing, restMillis: Int = 0): InfiniteRepeatableSpec<Float> =
+    infiniteRepeatable(
+      animation = tween(durationMillis = durationMillis, delayMillis = restMillis, easing = easing),
+      repeatMode = RepeatMode.Restart,
+    )
 }

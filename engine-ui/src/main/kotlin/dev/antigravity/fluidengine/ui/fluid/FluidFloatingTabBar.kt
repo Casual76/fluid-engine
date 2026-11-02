@@ -53,11 +53,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -166,18 +162,18 @@ import kotlin.math.sign
 
 // Tuning for the gooey merge/split pulse across the inline<->expanded
 // crossfade — see GooeyTransition.kt. Not derived from fadeIn()/fadeOut()'s
-// own duration; just a reasonable match for it.
+// own duration; just a reasonable match for it. The timing is a token
+// (`FluidMotion.GooeyMillis`, `GooeyPulse`); the peak stays here, it is a size.
 private val GooeyPeakBlur = 12.dp
-private const val GooeyDurationMs = 300
 
 // Rim/shadow the selection puck keeps when it is NOT being pressed. Both used to
 // be driven straight off pressProgress, i.e. zero at rest, which left the puck
 // defined only by its own dark surface wash — invisible against a dark bar.
 // How long the selection puck takes to arrive when the bar unfolds, and how
-// small it starts. Matched to [GooeyDurationMs], the length of the fold itself:
-// the puck is not part of the shared element that travels, so the only thing
-// keeping the two together is that they take the same time.
-private const val PuckEnterMs = GooeyDurationMs
+// small it starts. Matched to `FluidMotion.GooeyMillis`, the length of the fold
+// itself: the puck is not part of the shared element that travels, so the only
+// thing keeping the two together is that they take the same time
+// (`FluidMotion.PuckEnter`).
 private const val PuckEnterScale = 0.82f
 
 private const val PuckRestHighlightAlpha = 0.5f
@@ -318,14 +314,7 @@ fun FluidFloatingTabBar(
     // The target is always 0 — the keyframes carry the peak — so the state is deliberately unused.
     @SuppressLint("UnusedTransitionTargetStateParameter")
     val gooeyProgress = transition.animateFloat(
-        transitionSpec = {
-            keyframes {
-                durationMillis = GooeyDurationMs
-                0f at 0
-                1f atFraction 0.5f using FastOutSlowInEasing
-                0f at GooeyDurationMs
-            }
-        },
+        transitionSpec = { FluidMotion.GooeyPulse },
         label = "gooeyProgress"
     ) { _ -> 0f }
 
@@ -407,7 +396,7 @@ fun FluidFloatingTabBar(
         // no filter), so there is nothing to gate on and nothing to recompose.
         Box(Modifier.gooey { gooeyBlurPx * gooeyProgress.value }) {
             transition.AnimatedContent(
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = { fadeIn(FluidMotion.FoldCrossFade) togetherWith fadeOut(FluidMotion.FoldCrossFade) },
                 contentAlignment = Alignment.BottomCenter
             ) { targetVisual ->
             // The accessory is built for BOTH states, and it has to be.
@@ -1775,7 +1764,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                 // position, no press, no mutex.
                 updateValue(targetIndex.toFloat())
                 animationScope.launch {
-                    offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                    offsetAnimation.animateTo(0f, FluidMotion.TabTugReturn)
                 }
                 if (hasDraggedPuck) {
                     currentTabs.value.getOrNull(targetIndex)?.onClick?.invoke()
@@ -2050,11 +2039,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                                     // Nothing can make an animation survive not being drawn, so
                                     // the two are put in order instead of in competition: the
                                     // journey runs on cheap frames, and the page starts building
-                                    // as it lands. The cost is [PuckLeadMs] before the page
+                                    // as it lands. The cost is `FluidMotion.TabPuckLeadMillis` before the page
                                     // changes, which is the length of the movement that is now
                                     // visible for it.
                                     animationScope.launch {
-                                        delay(PuckLeadMs)
+                                        delay(FluidMotion.TabPuckLeadMillis)
                                         tab.onClick()
                                     }
                                 } else {
@@ -2245,7 +2234,7 @@ private fun SharedTransitionScope.ExpandedTabs(
         // on composition cannot miss its own beginning.
         val puckEnter = remember { Animatable(0f) }
         LaunchedEffect(Unit) {
-            puckEnter.animateTo(1f, tween(durationMillis = PuckEnterMs, easing = FastOutSlowInEasing))
+            puckEnter.animateTo(1f, FluidMotion.PuckEnter)
         }
         // See the `frozen` argument below: the puck may only hold a capture once
         // it has one. A lambda so flipping it costs no recomposition — the glass
@@ -2686,15 +2675,6 @@ private fun OneLine(modifier: Modifier = Modifier, content: @Composable () -> Un
 private fun rememberFrozenOr(base: () -> Boolean, extra: State<Boolean>): () -> Boolean =
     remember(base, extra) { { base() || extra.value } }
 
-/**
- * How long the puck gets to itself before the page it chose starts being built.
- *
- * The travel is a spring and settles in about this, whatever the distance — a spring reaches most
- * of the way in the same time whether it crosses one tab or four, which is also why the cut this
- * prevents looked worst on the longest journey and passed unnoticed between neighbours.
- */
-private const val PuckLeadMs = 160L
-
 /** How far a label may be shrunk to stay on one line before it is cut instead. */
 internal const val MinLabelScale = 0.75f
 
@@ -2795,7 +2775,7 @@ private fun Modifier.animateEnterExitAccessory(
     animatedVisibilityScope: AnimatedVisibilityScope
 ): Modifier = with(sharedTransitionScope) {
     with(animatedVisibilityScope) {
-        val animatedAlpha by transition.animateFloat { targetState ->
+        val animatedAlpha by transition.animateFloat(transitionSpec = { FluidMotion.flick() }) { targetState ->
             when (targetState) {
                 EnterExitState.Visible -> 1f
                 else -> 0f
@@ -2820,20 +2800,8 @@ private fun Modifier.animateEnterExitTab(
     animatedVisibilityScope: AnimatedVisibilityScope
 ): Modifier = with(sharedTransitionScope) {
     with(animatedVisibilityScope) {
-        val enterStartFraction = 0.5f
-        val enterEndFraction = 0.8f
-        val durationMs = 150
-
         val animatedAlpha by transition.animateFloat(
-            transitionSpec = {
-                keyframes {
-                    durationMillis = durationMs
-                    if (targetState == EnterExitState.Visible) {
-                        0f atFraction enterStartFraction using FastOutSlowInEasing
-                        1f atFraction enterEndFraction
-                    }
-                }
-            }
+            transitionSpec = { FluidMotion.tabEnterAlpha(entering = targetState == EnterExitState.Visible) }
         ) { targetState ->
             when (targetState) {
                 EnterExitState.Visible -> 1f
@@ -2844,13 +2812,7 @@ private fun Modifier.animateEnterExitTab(
         val blurRadius = with(LocalDensity.current) { 50.dp.toPx() }
         val animatedBlur by transition.animateFloat(
             transitionSpec = {
-                keyframes {
-                    durationMillis = durationMs
-                    if (targetState == EnterExitState.Visible) {
-                        blurRadius atFraction enterStartFraction using FastOutSlowInEasing
-                        0f atFraction enterEndFraction
-                    }
-                }
+                FluidMotion.tabEnterBlur(entering = targetState == EnterExitState.Visible, blurPx = blurRadius)
             }
         ) { targetState ->
             when (targetState) {

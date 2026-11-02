@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.semantics.onLongClick as semanticsOnLongClick
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
@@ -295,6 +296,12 @@ fun Modifier.fluidRowPressable(
    * prima suonavano GestureStart qui e Open nel menu, due colpi per un momento.
    */
   longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
+  /**
+   * Il ruolo che la riga dice a TalkBack (3.0, fase 10). Nullo di serie: una riga che e' un
+   * interruttore o una scelta ha il suo ruolo, detto da chi la costruisce, e un secondo ruolo qui lo
+   * contraddirebbe. Una riga che apre qualcosa dice [Role.Button].
+   */
+  role: Role? = null,
 ): Modifier {
   if (onClick == null && onLongClick == null) return this
 
@@ -357,6 +364,7 @@ fun Modifier.fluidRowPressable(
       interactionSource = interactionSource,
       indication = null,
       enabled = enabled,
+      role = role,
       onClick = {
         haptic?.let { haptics.play(it) }
         onClick?.invoke()

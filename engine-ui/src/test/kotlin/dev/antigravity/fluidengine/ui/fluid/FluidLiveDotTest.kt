@@ -27,7 +27,7 @@ class FluidLiveDotTest {
 
   @Test
   fun `the phase is where the clock finds the dot, inside the cycle`() {
-    val cycle = FluidPulseMillis * 2
+    val cycle = FluidMotion.PulseMillis * 2
     assertEquals(0, fluidPulsePhaseOffsetMillis(0L, cycle))
     assertEquals(900, fluidPulsePhaseOffsetMillis(2_700L, cycle))
     assertEquals(0, fluidPulsePhaseOffsetMillis(3_600L, cycle))
@@ -35,7 +35,7 @@ class FluidLiveDotTest {
 
   @Test
   fun `two dots that enter at different times start in phase with the clock`() {
-    val cycle = FluidPulseMillis * 2
+    val cycle = FluidMotion.PulseMillis * 2
     val first = 1_000_123L
     val second = first + 4_321L
     val a = fluidPulsePhaseOffsetMillis(first, cycle)
@@ -53,7 +53,7 @@ class FluidLiveDotTest {
 
   @Test
   fun `the shared token is the one most of the apps already wrote by hand`() {
-    assertEquals(900, FluidPulseMillis)
-    assertTrue(FluidPulseLowAlpha in 0.2f..0.5f)
+    assertEquals(900, FluidMotion.PulseMillis)
+    assertTrue(FluidMotion.PulseLowAlpha in 0.2f..0.5f)
   }
 }

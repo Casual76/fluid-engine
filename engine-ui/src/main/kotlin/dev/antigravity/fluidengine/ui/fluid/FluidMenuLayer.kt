@@ -3,7 +3,6 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
@@ -446,7 +445,8 @@ internal fun FluidAlertLayer(
         return@LaunchedEffect
       }
       launch { fade.animateTo(0f, FluidMotion.fadeOut(FluidAlertExitMillis)) }
-      geometry.animateTo(0f, tween(FluidAlertExitMillis, easing = FluidMotion.EaseIn))
+      // La stessa curva e la stessa durata della dissolvenza: l'avviso se ne va in un gesto solo.
+      geometry.animateTo(0f, FluidMotion.fadeOut(FluidAlertExitMillis))
     }
   }
 

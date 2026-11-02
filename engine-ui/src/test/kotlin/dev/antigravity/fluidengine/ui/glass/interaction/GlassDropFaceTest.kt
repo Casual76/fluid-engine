@@ -53,6 +53,34 @@ class GlassDropFaceTest {
   }
 
   @Test
+  fun `the white face of the thumbs fades exactly as it did when each thumb had its own copy`() {
+    // Il conto di prima, scritto nei due pomelli: `Color.White.copy(alpha = 1f - pressProgress)`.
+    for (step in 0..1000) {
+      val progress = step / 1000f
+      assertEquals(
+        "pressione $progress",
+        (1f - progress).toRawBits(),
+        glassDropFaceAlpha(Color.White, progress).toRawBits(),
+      )
+    }
+  }
+
+  @Test
+  fun `a face that is already translucent starts from its own alpha and never becomes full`() {
+    val film = Color.White.copy(alpha = 0.6f)
+    assertEquals(0.6f, glassDropFaceAlpha(film, 0f), 0f)
+    assertEquals(0f, glassDropFaceAlpha(film, 1f), 0f)
+    assertTrue(glassDropFaceAlpha(film, 0.5f) < 0.6f)
+  }
+
+  @Test
+  fun `a pressure outside zero and one is held inside it, because a colour refuses any other alpha`() {
+    // Una molla puo' sorpassare gli estremi di un soffio: `Color.copy` rifiuterebbe un alfa fuori da 0..1.
+    assertEquals(0f, glassDropFaceAlpha(Color.White, 1.02f), 0f)
+    assertEquals(1f, glassDropFaceAlpha(Color.White, -0.02f), 0f)
+  }
+
+  @Test
   fun `a drop motion reads its four numbers when it is asked, not when it is built`() {
     var progress = 0f
     var scale = 1f

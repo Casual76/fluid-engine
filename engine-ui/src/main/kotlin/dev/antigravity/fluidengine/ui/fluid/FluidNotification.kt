@@ -8,7 +8,6 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDecay
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -788,11 +787,8 @@ internal fun fluidNotificationArmed(wasArmed: Boolean, travelDp: Float): Boolean
  * l'ombra di un assestamento — la parte di sensazione fisica che serve — e l'oltrepasso, misurato in
  * `FluidNotificationGestureTest` per ogni rilascio che torna indietro, resta sotto il dp.
  */
-internal fun notificationSpringBack(): SpringSpec<Float> = spring(
-  dampingRatio = FluidMotion.DampingStandard,
-  stiffness = FluidMotion.ResponseSnappy,
-  visibilityThreshold = 0.5f,
-)
+internal fun notificationSpringBack(): SpringSpec<Float> =
+  FluidMotion.pixels(FluidMotion.DampingStandard, FluidMotion.ResponseSnappy)
 
 /**
  * Lo stato del dito su una card: dove sta, quanto e' opaca, se e' aperta.

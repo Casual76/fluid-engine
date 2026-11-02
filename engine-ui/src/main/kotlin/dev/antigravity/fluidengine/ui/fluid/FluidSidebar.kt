@@ -128,6 +128,7 @@ fun FluidSidebarRow(
   val contextMenu = contextActions?.let { rememberFluidContextMenu(it, tint = tint) }
   val wash by animateColorAsState(
     targetValue = if (selected) scheme.primary.copy(alpha = 0.14f) else Color.Transparent,
+    animationSpec = FluidMotion.flick(),
     label = "fluidSidebarSelection",
   )
 

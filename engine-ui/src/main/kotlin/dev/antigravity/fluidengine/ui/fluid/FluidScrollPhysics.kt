@@ -1,7 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.runtime.Stable
@@ -114,11 +113,7 @@ internal class FluidTitleSnapFlingBehavior(
     animate(
       initialValue = 0f,
       targetValue = delta,
-      animationSpec = spring(
-        dampingRatio = FluidMotion.DampingChrome,
-        stiffness = FluidMotion.ResponseSnappy,
-        visibilityThreshold = 0.5f,
-      ),
+      animationSpec = FluidMotion.pixels(FluidMotion.DampingChrome, FluidMotion.ResponseSnappy),
     ) { value, _ ->
       applied += scrollBy(value - applied)
     }
@@ -290,11 +285,7 @@ class FluidEdgeOverscrollState(
         -MaximumBounceVelocityPxPerSecond,
         MaximumBounceVelocityPxPerSecond,
       ),
-      animationSpec = spring(
-        dampingRatio = FluidMotion.DampingChrome,
-        stiffness = FluidMotion.ResponseStandard,
-        visibilityThreshold = 0.5f,
-      ),
+      animationSpec = FluidMotion.pixels(FluidMotion.DampingChrome, FluidMotion.ResponseStandard),
     ) { value, _ ->
       offsetPx = value.coerceIn(-ceiling, ceiling)
     }

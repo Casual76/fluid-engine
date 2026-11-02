@@ -3,7 +3,6 @@ package dev.antigravity.fluidengine.aiui.halo
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -52,7 +51,7 @@ fun FluidAssistantHalo(
   val visible = mood != FluidHaloMood.HIDDEN
   val presence by animateFloatAsState(
     targetValue = if (visible) 1f else 0f,
-    animationSpec = spring(dampingRatio = FluidMotion.DampingStandard, stiffness = FluidMotion.ResponseSmooth),
+    animationSpec = FluidMotion.smooth(),
     label = "haloPresence",
   )
   // Attacco veloce e rilascio lento, come un indicatore di livello vero: con una molla sola la
@@ -67,7 +66,7 @@ fun FluidAssistantHalo(
     val rising = target > amplitude.value
     amplitude.animateTo(
       targetValue = target,
-      animationSpec = spring(
+      animationSpec = FluidMotion.tuned(
         dampingRatio = FluidMotion.DampingStandard,
         stiffness = if (rising) TopHaloAttackStiffness else TopHaloReleaseStiffness,
       ),

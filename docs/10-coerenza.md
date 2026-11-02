@@ -34,9 +34,9 @@ Pannelli, barre, card, gruppi di vetro, menu, tasti di vetro a riposo. È `glass
   lente scritte a mano. I pannelli flottanti (popover, menu contestuale, finestra che si espande,
   foglio, anteprima sollevata, menu che si trasforma, notifica, callout) hanno **un solo materiale**:
   `GlassDefaults.panelOptics(compact, overSharpPage)` + `panelTint()` (fase 3, `GlassPanelMaterialTest`).
-  `FluidAlert` è una finestra di piattaforma e dipinge il suo vetro; la bolla dell'indice ha la
-  pellicola del pannello ma ancora l'ottica del ruolo `Modal`: sono due eccezioni, e restano nella
-  matrice finché non si chiudono.
+  `FluidAlert` nell'host è un pannello come gli altri (senza host, o con `inHost = false`, resta il
+  `Dialog` che dipinge il suo vetro); la bolla dell'indice ha la pellicola del pannello ma ancora l'ottica
+  del ruolo `Modal`: sono due eccezioni, e restano nella matrice finché non si chiudono.
 - **Bordo**: uno solo, `glassRimRecipe(darkSide)` — chiaro e in `Plus` sul lato scuro, scuro (nero al
   28%) e in `SrcOver` sul lato chiaro, col profilo dello shader (pieno sopra e sotto, zero ai fianchi).
   Anche `fluidPhysicsSurface`, che lo disegna con `glassRimRamp` (fase 3, `GlassRimRecipeTest`).
@@ -79,6 +79,9 @@ azioni della barra, ancore dei menu. Ricetta di LibrePods (fase 4, GPL-3.0):
   trascinando veloce, `Reject` al rilascio, `ContextClick` al click. È l'unica eccezione alla regola
   "una vibrazione per momento", ed è voluta;
 - click lungo dove serve (menu): dito fermo entro lo slop per il tempo del click lungo, poi niente click;
+  il tenuto premuto apre il menu e **gli passa il dito** (`FluidMenuHandOff`: si sceglie trascinando e
+  rilasciando, e un rilascio altrove lascia il menu aperto); il colpo del click lungo è `longClickHaptic`,
+  `null` se lo suona il menu;
 - il tasto di vetro ha una **taglia** (`FluidGlassSize`: 40, 44, 54 dp) e la ricetta vale in
   proporzione: il bersaglio del tocco non scende mai sotto i 48 dp.
 
@@ -108,16 +111,25 @@ Le forme di vetro che si trasformano (Fluid-physics: card che si espande, menu, 
   trova** invece di saltare al traguardo, e il successivo parte da quella forma
   (`FluidPhysicsCancelTest`).
 - Mai un layer scalato su un vetro: la scala sta nella geometria o nel `layerBlock` di `drawBackdrop`.
+- **I menu sono questa ricetta con un dito** (fase 7): un pannello (`FluidGlassMenuPanel`), un viaggio
+  (`FluidMenuJourney`: parte dal tasto *premuto*, gonfiore uniforme attorno al centro del pannello,
+  inversione dal punto in cui si trova con la sua velocità), un materiale (`panelOptics(compact)`, la pelle
+  e la lente passano dal tasto con `opticsFrom`). L'apertura è sincrona e l'ancora si nasconde **nel
+  disegno** (`hidden`), mai con l'alpha di un layer sopra il vetro; il contestuale cresce da un seme per
+  geometria, e la riga sollevata è una superficie Fluid-physics.
 
 ### L'aptica, riassunta
 Vocabolario `FluidHaptics`; una vibrazione per momento (rete dei 70 ms); `Open` un colpo solo; la grana
-sui tasti trascinati veloci; i tick per le tacche vere; la coreografia dei tasti come sopra. Nessun
+sui tasti trascinati veloci; i tick per le tacche vere; la coreografia dei tasti come sopra. **Un menu**:
+`Open` solo se si apre, un `Tick` per voce attraversata, un `Tap` alla scelta, niente al congedo; lo stesso
+per i pulsanti di un `FluidAlert` nell'host. `FluidHapticTrace` (3.0) è lo strumento per verificarlo: un
+decoratore che scrive cosa è stato chiesto al vibratore, con l'esito stimato delle due reti. Nessun
 `LocalHapticFeedback`/`Vibrator` fuori da `haptics/`; per il codice che non è Compose c'è
 `fluidHapticsFor(context)`.
 
 ## La matrice
 
-Stato al 2026-11-02, dall'audit del codice 2.13.1 più i commit della 3.0 fino a `c0975b8`. Le note dicono
+Stato al 2026-11-02, dall'audit del codice 2.13.1 più i commit della 3.0 fino a `cef79a2` (i menu liquidi, fase 7, e Fluid-physics rimodellato, fase 6). Le note dicono
 cosa prova una cella ✓ e cosa manca alle altre; il numero è la fase del piano.
 
 **Regola per leggere una ✓.** Una funzione condivisa provata da un test (`fluidPressable`,
@@ -125,8 +137,13 @@ cosa prova una cella ✓ e cosa manca alle altre; il numero è la fase del piano
 cella lo dice ("via …"); quello che solo l'occhio o la mano possono dire — ombre, sbiancamento del
 vetro, un lampo di un fotogramma — è **?** finché non si guarda. Nessuna ✓ è "per costruzione".
 
-**Il conto** (2026-11-02, 57 componenti, 513 celle): 171 ✓, 84 ✗ (fase 3: 8, 5: 5, 6: 4, 7: 37, 8: 11,
-9: 19), 173 ?, 85 —. Il 31 ottobre, all'audit del 2.13.1, erano 116 ✓, 120 ✗, 134 ? su 414, in 46 righe. Le otto ✗ della fase 3
+**Il conto** (2026-11-02, 57 componenti, 513 celle): 189 ✓, 41 ✗ (fase 3: 8, 5: 3, 8: 11, 9: 19),
+198 ?, 85 —. Prima dei menu e di Fluid-physics erano 171 ✓, 84 ✗ (fase 3: 8, 5: 5, 6: 4, 7: 37, 8: 11, 9: 19),
+173 ?: le 37 ✗ della fase 7, le 4 della fase 6 e due della fase 5 (il colpo `Open` che il layer dei modali
+sommava a quello di chi apriva, tolto) sono chiuse, **18 diventano ✓** perché c'è un test che le prova e
+**25 diventano ?** perché il lavoro è fatto ma lo dice solo l'occhio o la mano — il vetro (gli host dei
+test non hanno fondale), il cambio di proprietario fra tasto e finestra, l'arrivo di un avviso, la
+tastiera sopra un campo nell'host, ogni fotogramma. Il 31 ottobre, all'audit del 2.13.1, erano 116 ✓, 120 ✗, 134 ? su 414, in 46 righe. Le otto ✗ della fase 3
 che restano sono le molle scritte a mano da portare a token (pillola, segmentato, rail, pannello e banda
 della tab bar, barra laterale) e l'ottica della bolla dell'indice: la fase 3 ha chiuso materiale, bordo,
 ombra e goccia, non quelle.
@@ -139,9 +156,9 @@ ombra e goccia, non quelle.
 | `FluidGlassButton` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | `GlowRecipeTest` (luce di LibrePods), `FluidPressTest`, `FluidButtonDragTest` (tasto di vetro trascinato: scorre la lista); taglie e bersaglio da 48 dp: `FluidGlassSizeTest`, `FluidGapsTest`; su vetro chiaro la luce additiva può sbiancare la faccia: da guardare (D8) |
 | `FluidGlassIconButton` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | ×1,5: `FluidPressTest`; taglie 40/44/54: `FluidGlassSizeTest`; `haptic = null` per chi ha già il suo colpo |
 | `FluidChip` | ✗9 | ✓ | ✗9 | ✓ | ✓ | ✓ | ? | ? | ? | ricetta del tasto via `fluidPressable(Expand)` (provata su `FluidButton`); opaco → tasto di vetro |
-| `FluidBarAction` / indietro | ✓ | ✓ | ✗8 | ✗7 | ✓ | ✗7 | ? | ? | ? | via `FluidGlassIconButton`; staffetta a dissolvenza; GestureStart+Open+Open |
-| ancora del menu (`FluidMorphMenuButton`) | ✓ | ✓ | ✗7 | ✗7 | ✓ | ✗7 | ? | ? | ? | `FluidButtonDragTest`: il tenuto premuto apre senza click, il tap clicca e non apre; Open al tocco; sparisce ancora gonfia |
-| `FluidGlassMenuButton` (deprecato) | ✓ | ✓ | ✗7 | ✗7 | ✓ | ✗7 | ? | ? | ? | delega al menu nuovo |
+| `FluidBarAction` / indietro | ✓ | ✓ | ✗8 | ✓ | ✓ | ? | ? | ? | ? | via `FluidGlassIconButton`; con `actions` è l'ancora del menu `Expand` (`FluidMenuLayer`, il pannello unico): si apre sincrono, il tasto si nasconde nel disegno e non sfuma più; un `Open` solo, e un rilascio fermo lascia il menu aperto: `FluidMenuHandOffTest` (azione della barra, `PressDown` `Open` `Tap`); `opensOn = Tap` non ha test, solo la demo; il cambio di proprietario fra tasto e finestra non è stato guardato (D6); D3 resta ✗8 per indietro e le azioni dentro la barra ancorata |
+| ancora del menu (`FluidMorphMenuButton`) | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | ? | `FluidButtonDragTest`: il tenuto premuto apre senza click, il tap clicca (`PressClick`) e non apre; `FluidMenuHandOffTest`: tieni, trascina e rilascia dà `PressDown` `Open` `Tick` `Tap` e nessuna grana, un rilascio fermo, fuori dalle voci o su una voce spenta lascia aperto, il back a metà apertura chiude in silenzio; parte dal tasto premuto e si inverte dal punto in cui si trova: `FluidMenuJourneyTest`; apertura sincrona senza fotogramma morto: per costruzione, nessun fotogramma guardato (D6); `opensOnTap` senza test |
+| `FluidGlassMenuButton` (deprecato) | ✓ | ✓ | ✓ | ? | ✓ | ? | ? | ? | ? | passa dal pannello, dal viaggio e dal dito dei menu nuovi (`FluidMenuLayer`, `FluidMenuAnchor`: provati dagli altri ingressi), ma ha un'apertura sua nel codice — l'`Open` dal click lungo — che nessun test chiama |
 
 ### Gocce
 
@@ -153,7 +170,7 @@ ombra e goccia, non quelle.
 | pillola di `FluidSegmentedControl` | ✗9 | ✗9 | ✗3 | ✗5 | ✓ | ✓ | ? | ? | ? | lastra Interactive 8/8 → goccia; nessun tick per segmento; chiaro/scuro con `isDarkSurface()` (nessun test) |
 | indicatore di `FluidTabRail` | ✗9 | ✗9 | ✗3 | ✓ | ✓ | ✓ | ? | ? | ? | senza lente; l'ombra interna dichiarata non si disegna (commento corretto) |
 | lente di `FluidSectionIndex` | ✗9 | ✗9 | ✓ | ✗5 | ✓ | ✓ | ? | ? | ? | tick al primo evento |
-| goccia dei menu (nuova) | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | non esiste ancora; il modello puro sì (`FluidMenuGeometryTest`, `FluidMenuSelectionTest`, `FluidMenuMotionTest`, `FluidMenuRelayTest`) |
+| goccia dei menu | ✓ | ✓ | ? | ✓ | ✓ | ? | ? | ? | ? | `FluidGlassMenuPanel`: la ricetta di `glassDrop` coi numeri del pomello dello slider (`GlassDropRecipe`, `glassDropSquash`: `GlassDropSquashTest`), una per pannello, che campiona il materiale del pannello con tutte le trasformazioni nel proprio `layerBlock`; `FluidMenuSelectionTest` (23: il dito decide, la voce spenta non fa tick, un rilascio fermo non sceglie), `FluidMenuPanelTest` (15: celle, sezioni, la banda non sta sotto il dito), `FluidMenuHandOffTest` (un `Tick` per voce, mai la grana); la goccia sul vetro, il suo squash e la conferma bianca prima di andarsene non sono stati guardati; senza fondale restano la scala della voce e i separatori che si spengono |
 
 ### Lastre e chrome
 
@@ -177,16 +194,16 @@ ombra e goccia, non quelle.
 
 | Componente | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 | Note |
 |---|---|---|---|---|---|---|---|---|---|---|
-| menu che si trasforma (host) | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | ? | ? | ? | salto alla partenza, fotogramma morto, voci che spariscono; materiale dal pannello unico (`panelOptics(compact)`, `GlassPanelMaterialTest`) ma **senza ombra** (la superficie fisica non ne disegna); modello puro pronto (`FluidMenu*Test`) |
-| popover (`FluidGlassModalPortal`) | ✓ | — | ✗7 | ✗5 | ✓ | ✗7 | ? | ? | ? | `panelOptics` + `panelTint` (`GlassPanelMaterialTest`); il pannello classico scala il vetro |
-| finestra che si espande (card) | ? | — | ✗6 | ✗5 | ✓ | ✓ | ? | ? | ? | `panelOptics` e ombra di vetro (`fluidPhysicsShadow`, ~6× più leggera di prima: da giudicare in mano); Tap+Open |
-| menu contestuale + riga sollevata | ✓ | ✗7 | ✗7 | ✗7 | ✗7 | ✗7 | ? | ? | ? | `panelOptics(compact)` e anteprima sollevata dal pannello unico (`GlassPanelMaterialTest`); scala il vetro; GestureStart vs Open |
+| menu che si trasforma (host) | ? | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | ? | lastra col materiale del pannello (`panelOptics(compact)`: `GlassPanelMaterialTest`, `FluidPhysicsMaterialTest`) e pelle e lente che passano dal tasto (`opticsFrom`); ombra e bordo di una lastra a riposo: da guardare (D1); viaggio: `FluidMenuJourneyTest` (11: parte dal tasto premuto, gonfiore attorno al centro del pannello, un back a 100 ms torna indietro con la sua velocità, animazioni ridotte senza viaggio), `FluidMenuMotionTest` (21: i token, le finestre del contenuto), `MorphOvershootTest`; dito e aptica: `FluidMenuHandOffTest`; apertura sincrona senza fotogramma morto: per costruzione, i fotogrammi non sono stati guardati (D6); gli shader della frangia sull'emulatore: nessun errore AGSL (beta 1, `artifacts/beta1/`) |
+| popover (`FluidGlassModalPortal`) | ✓ | — | ? | ? | ✓ | ? | ? | ? | ? | `panelOptics` + `panelTint` (`GlassPanelMaterialTest`); dalla 3.0 passa dalla finestra di Fluid-physics e cresce da un seme, senza layer scalato (era la trappola del pannello classico): è nel codice, e nessun test lo vede — gli host dei test non hanno fondale e ripiegano sul pannello opaco; il colpo del layer (`Open`) è tolto, nessun test lo conta |
+| finestra che si espande (card) | ? | — | ✓ | ? | ✓ | ✓ | ? | ? | ? | `panelOptics` e ombra di vetro (`fluidPhysicsShadow`, ~6× più leggera di prima: da giudicare in mano); il rimbalzo è il gonfiore uniforme coi numeri della rincorsa di prima (`FluidMenuMotionTest`: `theInflationEqualsTheOldModalValuesForTheOldNumbers`) e `MorphOvershootTest`; il layer non suona più `Open` (resta il colpo di chi apre), nessun test lo conta |
+| menu contestuale + riga sollevata | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | ? | `panelOptics(compact)` e anteprima sollevata dal pannello unico (`GlassPanelMaterialTest`); cresce accanto alla riga da un seme sul perno più vicino e mai sopra (`FluidMenuJourneyTest`: `aContextMenuGrowsFromItsSeed`; `FluidMenuPanelTest`: il seme è il pannello scalato attorno al perno), e la riga sollevata è una superficie Fluid-physics sorella dell'immagine registrata: nessun layer scalato sul vetro; `FluidMenuHandOffTest`: una riga in una `LazyColumn` si sceglie trascinando, la lista resta ferma, `Open` `Tick` `Tap`; `fluidContextMenu`: tieni, rilascia e tocca, `Open` `Tap`; un tocco fuori chiude in silenzio; lo scambio fra la riga e la sua immagine sollevata, e la goccia sul vetro, non sono stati guardati (D6) |
 | foglio di vetro | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | `panelOptics` + `panelTint` (`GlassPanelMaterialTest`) |
 | `FluidSheetScaffold` / `FluidConfirmSheet` | — | — | — | — | ✓ | ? | ? | ? | — | `FluidSheetScaffoldLayoutTest` (il corpo prende quello che resta, i tasti si misurano per primi), `FluidRowsAndSheetsTest` (i tasti restano in vista sotto un corpo più lungo del foglio, il corpo scorre; conferma e annulla sono due cose); leggibilità del testo sul vetro e parole congelate in uscita: da guardare |
 | modale a schermo intero | — | — | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | tasto di chiusura opaco (9) |
 | scrim | ✓ | — | ✓ | — | ✓ | ✓ | ? | ? | ? | |
-| `FluidAlert` | ✗7 | ✗7 | ✗7 | ✓ | ✓ | ✗7 | ? | ? | ? | finestra di sistema, vetro dipinto, nessuna uscita |
-| `FluidPromptAlert` | ✗7 | — | ✗7 | ? | — | ✗7 | ? | ? | — | come `FluidAlert` (ci sta dentro); `FluidPromptAlertTest` (validazione a tre stati, testo ritagliato), `FluidRowsAndSheetsTest` (il tasto è la validazione, Invio conferma, si apre sul campo con il testo selezionato) |
+| `FluidAlert` | ? | ? | ? | ✓ | ✓ | ? | ? | ? | ? | nell'host quando c'è (`inHost`): vetro vero e `panelOptics` nel codice, nessun test ne vede il vetro (gli host dei test non hanno fondale); `FluidMenuHandOffTest`: sta nell'host senza finestre di piattaforma, esce anche dopo che il chiamante l'ha tolto (con `FluidGlassModalStateTest`: `retire` e `finishExit`), un pulsante sceglie con un `Tap` solo; l'arrivo che si posa e il trascinamento fra i pulsanti, con la goccia, non hanno test; senza host o con `inHost = false` è il `Dialog` di prima (vetro dipinto, nessuna uscita) |
+| `FluidPromptAlert` | ? | — | ? | ? | — | ? | ? | ? | — | è un `FluidAlert` (ci sta dentro, quindi nell'host); `FluidPromptAlertTest` (validazione a tre stati, testo ritagliato), `FluidRowsAndSheetsTest` (il tasto è la validazione, Invio conferma, si apre sul campo con il testo selezionato); la tastiera che sale sopra un campo nell'host non è provata (Robolectric non la porta) |
 | `FluidSheet` (deprecato) | ✗9 | — | — | — | ✓ | ✓ | ? | ? | ? | delega al foglio di vetro |
 | `FluidNotification` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | `panelOptics(overSharpPage)` al posto della lente `Modal` (`GlassPanelMaterialTest`) |
 | `FluidCoachMark` | ✓ | ✗9 | ✗9 | ✓ | ✓ | ✗9 | ? | ? | ? | pannello da `panelOptics(overSharpPage)`; `scaleIn` sul vetro; freccia e chiusura opache |
@@ -199,7 +216,7 @@ ombra e goccia, non quelle.
 | host di pagine, transizioni di rotta (`FluidPageHost`, `FluidNavHost`) | — | — | ✓ | — | ? | ? | ? | — | ? | `FluidPageMotionTest` (molle critiche, nessun buco fra la pagina sotto e quella sopra, il davanti passa a metà), `FluidPageHostTest` (la molla parte con la velocità del dito, RTL, animazioni ridotte); opaca per costruzione, nessun fotogramma guardato; scorrimenti annidati e due host non provati; il vecchio `FluidRouteMotionHost` sfoca ancora 6 dp l'uscita |
 | gesto indietro | — | ✓ | ✓ | — | ? | ? | ? | — | ? | `FluidPageHostTest`: dal bordo e da un punto qualunque la pagina sta sotto il dito a ogni fotogramma, il back di sistema con `progress` storto segue `touchX`, rilasci lenti sotto e sopra il 35%, spinte nei due versi; nessuna vibrazione nel gesto; chi possiede il dito con uno scorrimento annidato: non provato |
 | barra ancorata (nuova) | ✗8 | ✗8 | ✗8 | ✗8 | ✗8 | ✗8 | ✗8 | ✗8 | ✗8 | non esiste ancora (passo 5, dopo le fasi 3 e 6) |
-| superficie Fluid-physics (Playground) | ✗6 | ✗6 | ✗6 | ✓ | ✓ | ✓ | ? | ? | ? | bordo di `glassRimRecipe` (`GlassRimRecipeTest`), ottica ancora propria; rincorsa; nessuna risposta al dito; un viaggio cancellato si ferma dove si trova (`FluidPhysicsCancelTest`) |
+| superficie Fluid-physics (Playground) | ? | ? | ✓ | ✓ | ✓ | ✓ | ? | ? | ? | a riposo è una lastra: `physicsLensUniforms` rifà i numeri di `glassSurface` per ogni ruolo, taglia, densità, qualità e pressione (`FluidPhysicsMaterialTest`), bordo di `glassRimRecipe` (`GlassRimRecipeTest`); ombra e bordo a riposo: da guardare; una molla sola che parte alla velocità del momento, la rincorsa è il preset `House` (`FluidPhysicsJourneyTest`), oltrepasso = gonfiore uniforme (`MorphOvershootTest`), un viaggio cancellato si ferma dove si trova (`FluidPhysicsCancelTest`); gli shader della frangia sull'emulatore: nessun errore AGSL (beta 1, `artifacts/beta1/`); il pezzo che si tocca non ha test |
 | scorrimento ed elastico (`FluidScrollPhysics`) | — | ✓ | ? | — | ✓ | — | ? | — | ? | da verificare contro la ricetta (10) |
 | pull-to-refresh | — | ? | ? | ? | ✓ | ? | ? | — | ? | (10) |
 
@@ -207,7 +224,7 @@ ombra e goccia, non quelle.
 
 | Componente | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 | Note |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `FluidListRow` | — | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ✓ | cede, non cresce: resta così; con `onClick` forse due nodi semantici (il `ListItem` fonde da sé); `leadingTile` e `FluidToneTile` pubblica (`FluidGapsTest`) |
+| `FluidListRow` | — | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ? | ✓ | cede, non cresce: resta così; con `onClick` forse due nodi semantici (il `ListItem` fonde da sé); `leadingTile` e `FluidToneTile` pubblica (`FluidGapsTest`); con `contextActions` il click lungo suona `Open` se il menu si apre, o il `GestureStart` dell'app se no (`FluidMenuHandOffTest`) |
 | `FluidToggleRow` | — | ✓ | — | ✓ | ✓ | — | ? | ? | — | `FluidRowsAndSheetsTest`: un tocco commuta una volta e vibra come l'interruttore (solo `ToggleOn`/`ToggleOff`), il tocco sul pomello commuta una volta sola, disattivata non risponde; per TalkBack un nodo solo, `Role.Switch`; testo a 1,3× non provato |
 | `FluidChoiceRow` | — | ✓ | — | ✓ | ✓ | — | ? | ? | — | `FluidRowsAndSheetsTest`: un radio per TalkBack, `Tick` solo se la scelta si sposta, la riga già scelta avvisa senza vibrare |
 | `fluidAppearanceSection` / `FluidAccentPicker` | — | — | — | ✓ | — | — | ? | ✓ | — | `FluidAppearanceTest` (18: AMOLED = Scuro + nero, `DYNAMIC` senza supporto è il marchio, la prova dell'aptica solo da spenta ad accesa), `FluidAppearanceSectionTest` (9: scrive solo se cambia qualcosa, il nero non risponde nel chiaro) |
@@ -228,7 +245,7 @@ Dove la ricetta e il codice si separano apposta, con il motivo. Se ne tolgono so
 | lo squash di pillola e interruttore **ignora le animazioni ridotte** | com'era, e lo è da prima; una modifica verso la ricetta è possibile, ma è una decisione e non una correzione |
 | le molle dei tasti sono **costanti di LibrePods** (`FluidPressSprings`), non token `FluidMotion` | è la ricetta del tasto; il tasto che si comporta come quello di LibrePods è il motivo della fase 4 |
 | un tap fa **tre colpi** (`PressDown`, `PressRelease`, `PressClick`) | l'unica eccezione a "una vibrazione per momento": la coreografia è il tasto |
-| `FluidAlert` e `FluidPromptAlert` dipingono il loro vetro | sono finestre di piattaforma, e non rifrangono la pagina: il prezzo di una tastiera che deve salire sopra tutto |
+| un `FluidAlert` senza host, o con `inHost = false`, dipinge il suo vetro | è il `Dialog` di piattaforma, e non rifrange la pagina: serve a un avviso che deve stare sopra le finestre di piattaforma (un foglio, una tastiera). Nell'host è vetro vero |
 | `FluidRouteMotionHost` sfoca ancora 6 dp la pagina che esce | resta per chi non migra a `FluidNavHost`; dentro un `FluidNavHost` non si mette (non compila) |
 
 ## Come si aggiorna

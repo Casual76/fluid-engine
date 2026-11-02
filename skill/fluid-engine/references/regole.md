@@ -104,7 +104,9 @@ app che lo distribuisce è GPL-3.0). Cosa vale, e cosa è cambiato dalla 2.12:
   al click (`ContextClick`). Un tap fa quindi tre colpi: **è l'unica eccezione a "una vibrazione per
   momento"**, ed è voluta (la regola e il perché sono più sotto, in «Una vibrazione per momento»). Un tasto
   che apre qualcosa di suo (un menu) passa il proprio evento a
-  `fluidPressable(haptic = ...)` al posto di `PressClick`; `haptic = null` spegne tutto;
+  `fluidPressable(haptic = ...)` al posto di `PressClick` (un tasto che apre il menu *al tocco*, `Open`;
+  uno che lo apre tenuto premuto resta `PressClick` al tocco, e il click lungo ha il suo `longClickHaptic`,
+  `null` se il colpo lo suona il menu); `haptic = null` spegne tutto;
 - **sul vetro**, la lente sotto il dito è quella di LibrePods (12/24 dp, profondità, dispersione:
   `GlassDefaults.buttonOptics()`, a riposo resta quella di sempre) e il bagliore è il suo (raggio il lato
   lungo, velo 0,10, punto 0,15, `glassButtonGlowRecipe`). Su vetro chiaro il bianco additivo può
@@ -447,7 +449,10 @@ suona il suo vicino.
   la rete.
 - **`Open` è un colpo solo** (un click pieno a 0,6), non una rampa più un tick.
 - **Un tasto che apre qualcosa di suo** passa il proprio evento a `fluidPressable(haptic = ...)` al
-  posto del click; `haptic = null` spegne tutto, grana compresa. Una **riga che è l'interruttore**
+  posto del click; `haptic = null` spegne tutto, grana compresa. Il **click lungo** ha il suo colpo
+  (`longClickHaptic`, di serie `GestureStart`; `null` per chi ne ha uno suo, come un menu che suona `Open`
+  solo se si apre) e `combinedClickable` non somma più il `LongPress` di piattaforma
+  (`hapticFeedbackEnabled = false`): una riga con un menu contestuale suonava tre colpi per un momento. Una **riga che è l'interruttore**
   (`FluidToggleRow`) suona `ToggleOn`/`ToggleOff` e non `Tap`: la pressione è di
   `fluidRowPressable(haptic = null)`, perché fondere i due sceglie il primo, cioè quello sbagliato. Una
   riga di scelta (`FluidChoiceRow`) suona un `Tick` solo se la scelta si sposta.
@@ -464,6 +469,72 @@ risponde e uno che si limita a scattare. Ogni altro componente resta a un moment
 Provato da `FluidHapticsTest` (la rete, `Open`, i tre colpi in coda al vocabolario, solo di piattaforma,
 non fondibili) e da `FluidButtonDragTest` (un tap suona esattamente contatto, rilascio e click, in
 quest'ordine; una superficie che cede fa ancora un `Tap` solo).
+
+## Un menu si sceglie col dito che l'ha aperto; un rilascio altrove lo lascia aperto (3.0)
+
+Tenuto premuto, il menu si apre e prende il dito (`Modifier.fluidMenuPointerRelay` in testa all'ancora,
+`FluidMenuHandOff`): trascinando su una voce e rilasciando la si sceglie. Un rilascio senza essersi
+mossi oltre lo slop, fuori dalle voci, su un separatore o su una voce spenta lascia il menu aperto. Un
+momento, un colpo: `Open` solo se il menu si apre, `Tick` per voce attraversata, `Tap` alla scelta,
+niente al congedo. L'ancora si nasconde nel disegno (`hidden`), mai con l'alpha di un layer sopra il
+vetro.
+
+Il perché, una cosa per volta:
+
+- **il dito che ha aperto è quello che sceglie.** Su iOS si tiene premuto, si trascina e si rilascia
+  su una voce, ed è il gesto che chi usa il telefono ha in mano da anni; un menu che obbliga a
+  sollevare il dito e a toccare di nuovo è un menu a due gesti. Ma chi tiene premuto per *aprire* e poi
+  solleva il dito non ha scelto niente: un rilascio che non si è mosso oltre lo slop, che cade fuori
+  dalle voci, su un separatore o su una voce spenta, lascia il menu aperto e si sceglie con un tocco.
+  Una volta superato lo slop il dito è «armato» e resta tale anche se torna dov'era: ha deciso di
+  scegliere. Un rilascio veloce, lontano dall'ultimo movimento, conta come mosso.
+- **il relè sta in testa all'ancora e consuma nell'Initial.** I tasti, dal 3.0, non prendono mai il
+  gesto e leggono nel Main: senza un consumo già nell'Initial il tasto nascosto continuava a seguire il
+  dito sul menu e a suonare la sua grana sotto i tick delle voci. Il relè legge tutto *ignorando il
+  consumato* (un discendente che ha già preso il gesto — il pulsante, `clickable` — non deve privare il
+  menu del dito), consuma i cambi di quel dito solo dal momento dell'hand-off e consuma anche il
+  sollevamento che lo chiude, o `clickable` lo leggerebbe come un click sull'ancora. Un dito che sparisce
+  dall'evento senza un sollevamento è un annullo: il menu resta com'è e nessuno sceglie.
+- **un pannello, un viaggio, un materiale.** Il menu che si trasforma, il contestuale, le azioni della
+  barra e `FluidGlassMenuButton` condividono `FluidGlassMenuPanel` (righe ad altezza fissa che segue il
+  font, separatori disegnati, **una** goccia), `FluidMenuJourney` (parte dal tasto *premuto*, cioè dalla
+  sagoma che il dito sta gonfiando, e non dal tasto a riposo; il rimbalzo è un gonfiore uniforme attorno
+  al centro del pannello; un congedo a metà apertura torna indietro dal punto in cui si trova, con la sua
+  velocità) e `panelOptics(compact)`. Tre menu con tre storie erano tre prodotti, ognuno coi suoi difetti.
+- **l'apertura è sincrona, e il tasto cede il posto, non sfuma.** Azioni, ancora, sequenza e viaggio
+  nello stesso istante del gesto; la superficie compare sulla sagoma del tasto nel fotogramma in cui il
+  tasto smette di disegnarsi (`drawWithContent { if (!anchor.hidden) drawContent() }`: è un cambio di
+  proprietario, non un'uscita). Prima l'apertura passava da un `LaunchedEffect` e il tasto sfumava con una
+  molla sua, e per un fotogramma non c'era né il tasto né il menu. È la regola «niente alpha di un layer
+  sopra il vetro» applicata alla staffetta: un vetro che sfuma sopra un altro vetro non è né l'uno né
+  l'altro.
+- **nessun layer scalato sul vetro.** Il menu contestuale cresce accanto alla riga *per geometria*, da
+  un seme (se stesso a 0,42 attorno al perno più vicino a ciò che si è toccato), e la riga sollevata è
+  una superficie Fluid-physics sorella dell'immagine registrata: scala solo l'immagine, che non è vetro.
+  È la prima delle tre trappole del vetro in movimento — il fondale che si muove dentro la card — e il
+  pannello classico non la evitava.
+- **la goccia è la goccia.** Una per pannello, la ricetta di `glassDrop` coi numeri del pomello dello
+  slider (`GlassDropRecipe`, `glassDropSquash`): nasce sotto il dito e non ci scivola da un'altra voce,
+  segue la voce attraversata, e al rilascio si posa bianca per un attimo prima di andarsene — è la
+  conferma della scelta. Campiona la pagina con dentro il materiale del pannello (vetro su vetro), e ha
+  tutte le sue trasformazioni — posto, scala del viaggio, schiacciamento — nel proprio `layerBlock`,
+  mai dentro il layer delle voci.
+- **`FluidAlert` sta nell'host.** Vetro vero, l'arrivo che si posa, i pulsanti con la goccia e la stessa
+  aptica (`Tick` per pulsante, `Tap` alla scelta); e l'uscita che si vede anche dopo che il chiamante ha
+  tolto l'avviso dalla composizione, perché togliere un avviso non è un fotogramma: la voce si ritira
+  (`retire`) e la toglie il layer a uscita finita (`finishExit`). `inHost = false` per il `Dialog` di
+  sempre, per un avviso che deve stare sopra le finestre di piattaforma.
+- **un tasto il cui unico mestiere è il menu lo apre al tocco** (`FluidMenuOpensOn.Tap`: «Ordina», i tre
+  puntini) e suona `Open`, non `Tap`; ogni altro lo apre tenuto premuto e il tocco resta la sua azione.
+  Il tenuto premuto apre in tutti e due i casi, perché è lui che porta il dito sul menu.
+
+Provato da `FluidMenuSelectionTest` (il dito che decide, lo slop, l'armo, la voce spenta), `FluidMenuRelayTest`
+(il consumo nell'Initial, il sollevamento, l'annullo), `FluidMenuPanelTest` e `FluidMenuJourneyTest`
+(le celle, il seme, il tasto premuto, il viaggio e l'inversione) e da `FluidMenuHandOffTest`, che li
+mette insieme sotto un dito finto in un albero Compose vero con l'aptica registrata (`Open` `Tick` `Tap`,
+nessuna grana, il rilascio fermo che lascia aperto). Quello che nessun test dice è com'è il vetro: gli
+host dei test non hanno fondale, e la goccia sul vetro, il cambio di proprietario fra tasto e finestra e
+la tastiera sopra un avviso con un campo si guardano in mano. `opensOn` e `opensOnTap` hanno solo la demo.
 
 ## L'engine non conosce il dominio
 

@@ -10,7 +10,7 @@ componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste
 | `FluidScreen(title, subtitle, onBack, actions, titleFacets, isRefreshing, onRefresh, overlay) { LazyListScope }` | la schermata: titolo grande dentro lo scroll, barra di vetro che appare quando il titolo passa sotto; `overlay` riceve il backdrop per chrome flottante sicuro |
 | `FluidScreenSurface` | lo sfondo della finestra |
 | `FluidFloatingTabBar` / `FluidTabRail` | navigazione principale a pillola (`FluidTabItem`): la barra in basso, che si ripiega scorrendo (vedi `rememberFluidFloatingTabBarScrollConnection` più sotto), e il rail per gli schermi larghi |
-| `FluidGlassModalPortal` (+ `FluidGlassModalHost` alla radice), `FluidAlert`, `FluidGrabber` | pop-up e fogli in vetro dentro la composizione, e avvisi (`FluidAlertAction`) |
+| `FluidGlassModalPortal` (+ `FluidGlassModalHost` alla radice), `FluidAlert`, `FluidGrabber` | pop-up e fogli in vetro dentro la composizione, e avvisi (`FluidAlertAction`): dalla 3.0 `FluidAlert` sta nell'host quando c'è (`inHost = false` per il `Dialog`), vedi «I menu liquidi» |
 | `FluidContainerScaffold` | contenitore + dettaglio |
 | `FluidSectionIndex` | indice laterale per liste lunghe (`FluidSectionAnchor`) |
 | `FluidNotificationHost`, `rememberFluidNotificationHostState` | notifiche contestuali dentro l'app (`FluidNotification`, `FluidNotificationTone`, `FluidNotificationAction`); la card si trascina, vedi sotto |
@@ -111,12 +111,15 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
 - `FluidAmbient`, `FluidAmbientCanvas` — il fondale per schermata; `FluidScreen(ambient = ...)`
 - `FluidGlassModalHost`, `FluidGlassModalPortal`, `FluidGlassModalPresentation`,
   `fluidExpandOrigin`, `fluidGlassModalObscured` — il pop-up in vetro dentro la composizione
-- `FluidContextAction`, `fluidContextMenu`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`,
-  e `FluidListRow(contextActions = ...)` — il menu contestuale iOS
-- `FluidMorphMenuButton` + `FluidMorphMenuHost` (con `rememberFluidMorphMenuState()`) — il tasto
-  che si trasforma nel proprio menu: una superficie sola, che viaggia dal tasto al pannello e torna
-  tasto. Lo stato e l'host stanno alla radice, accanto a `FluidGlassModalHost`. Sostituisce
-  `FluidGlassMenuButton`, che mostra il pannello *sopra* il tasto (due superfici)
+- `FluidContextAction` (con `startsSection` dalla 3.0), `fluidContextMenu`, `rememberFluidContextMenu`,
+  `fluidContextMenuAnchor`, e `FluidListRow(contextActions = ...)` — il menu contestuale iOS: dalla 3.0 la
+  riga si solleva, il pannello cresce accanto a lei e si sceglie col dito che l'ha aperto
+- `FluidMorphMenuButton` (con `opensOnTap` dalla 3.0) + `FluidMorphMenuHost` (con
+  `rememberFluidMorphMenuState()`) — il tasto che si trasforma nel proprio menu: una superficie sola,
+  che viaggia dal tasto al pannello e torna tasto. Lo stato e l'host stanno alla radice, accanto a
+  `FluidGlassModalHost`, e l'host deve essere composto. Sostituisce `FluidGlassMenuButton`, che passa
+  dall'host dei modali (dalla 3.0 con lo stesso pannello e lo stesso dito dei menu nuovi)
+- `FluidMenuOpensOn` e `FluidBarAction(opensOn)` (3.0) — se il menu si apre al tocco o tenendo premuto
 - `FluidFloatingTabBar`, `rememberFluidFloatingTabBarScrollConnection` — la barra di navigazione:
   una capsula che si ripiega in una pillola mentre la pagina scorre. La connessione va attaccata
   alla pagina (`Modifier.nestedScroll(connection)`); senza, la barra resta aperta. Due forme: **a
@@ -357,8 +360,8 @@ scheda Chrome della galleria (`PagesDemoActivity`).
 Ogni app aveva scritto a mano un pezzo che l'engine non aveva, e nel proprio KDoc diceva perché. Qui sono
 tutti, con la ricetta della 3.0 (una pressione, una vibrazione, vetro su vetro da solo) e **nessuna firma
 rotta**: dove un componente esistente cambia, sono parametri con default in coda. Le demo stanno in
-`sample/…/catalog/` (`RowsAndSheetsDemo`, `CapsulesAndPartsDemo`, non ancora nella galleria) e nella
-scheda Controlli (`gapsDemoItems()`).
+`sample/…/catalog/` (`RowsAndSheetsDemo`, `CapsulesAndPartsDemo`, `MenusDemo`: nella galleria da Chrome ›
+Catalogo della 3.0 e dalle voci di «Da provare») e nella scheda Controlli (`gapsDemoItems()`).
 
 ### Righe, aspetto, fogli, avviso con un campo
 
@@ -408,6 +411,79 @@ va portato in `FluidMotion` come token.
 | `fluidGlassGroups(items, key, maxRows, row)` · `FluidGlassGroup(items)` | una lista lunga in pannelli di vetro da otto righe dal taglio invisibile (`FluidGlassGroupMaxRows`); il prezzo è `animateItem()`. `FluidGlassGroup` è un pannello solo per una sezione breve |
 | `fluidHapticsFor(context, enabled)` | l'aptica dell'engine per il codice a `View` (tastiera, servizio): ripiego sugli effetti di fabbrica del vibratore; da creare una volta |
 
+## I menu liquidi (3.0)
+
+Quattro ingressi, un menu solo: il tasto che si trasforma, l'azione della barra, la riga e una card
+qualunque — più il vecchio `FluidGlassMenuButton` — passano dallo stesso **pannello**, dallo stesso
+**viaggio** e dallo stesso **materiale**. E **il menu si sceglie col dito che l'ha aperto**: tieni
+premuto, trascina su una voce, rilascia; un rilascio altrove lo lascia aperto, e si sceglie con un
+tocco. La regola e il suo perché sono in `regole.md` («Un menu si sceglie col dito che l'ha aperto»), la
+demo è `sample/…/catalog/MenusDemo.kt` (in galleria: Chrome › Catalogo della 3.0 › «Menù liquidi»).
+
+| | |
+|---|---|
+| `FluidContextAction(label, icon, destructive, enabled, startsSection, onClick)` | una voce. `destructive` è rossa (al massimo una per menu); `enabled = false` non fa tick e non si sceglie; `startsSection` apre una sezione, con una banda al posto della riga sottile come nei gruppi di un menu di iOS («Copia, Condividi» \| «Elimina»), e sulla prima voce non conta; sta prima di `onClick`, così la lambda in coda resta l'azione |
+| `FluidMorphMenuButton(state, actions, onClick, modifier, text, icon, backdrop, enabled, opensOnTap)` + `FluidMorphMenuHost(state, backdrop)` | il tasto che si trasforma nel proprio menu, con `rememberFluidMorphMenuState()`. **L'host deve essere composto** (alla radice, o nel palco dove il menu deve crescere): l'apertura è sincrona e legge le sue misure, e senza host il tenuto premuto non apre niente e non vibra. `opensOnTap`: il tocco apre il menu e `onClick` non viene chiamato |
+| `FluidBarAction(icon, contentDescription, onClick, …, actions, opensOn)` | l'azione della barra; con `actions` è l'ancora di un menu (`Expand`) che cresce dal tasto premuto, nell'host dei modali. `opensOn = FluidMenuOpensOn.Tap` per l'azione il cui unico mestiere è il menu (i tre puntini, «Ordina»): il tocco apre il menu e `onClick` non viene chiamato |
+| `FluidListRow(contextActions = …)`, `Modifier.fluidContextMenu(actions)`, `rememberFluidContextMenu` | il menu contestuale: la riga si solleva (una superficie Fluid-physics) e il pannello cresce accanto a lei, da un seme sul perno più vicino |
+| `FluidMenuOpensOn` | `LongPress` (di serie: il tocco resta l'azione del tasto, il menu si apre tenendo premuto) e `Tap`. Il tenuto premuto apre in tutti e due i casi: è lui che porta il dito sul menu |
+| `longClickHaptic` su `fluidPressable`, `fluidRowPressable`, `FluidGlassIconButton` | cosa si sente al click lungo (`GestureStart` di serie), `null` per chi ha un colpo suo: un menu suona `Open` solo se si apre. `combinedClickable` non somma più il `LongPress` di piattaforma |
+| `FluidAlert(…, inHost)` | l'avviso nell'host dei modali (di serie); `inHost = false` per il `Dialog`. `FluidPromptAlert` ci sta dentro |
+
+**Il dito.** Tenuto premuto, il menu si apre e prende il dito. Nessuna riga da cambiare in un'app: un
+relè in testa all'ancora (`Modifier.fluidMenuPointerRelay`, `FluidMenuHandOff`: **interni**) vede il
+dito prima di qualunque gesto del tasto, lo passa a `FluidMenuSelection` quando il click lungo apre, e
+consuma i suoi cambi già nel passaggio Initial, così il tasto nascosto, la lista attorno e la grana
+restano fermi mentre il dito scorre sul menu. Una goccia di vetro lo segue di voce in voce. Un rilascio
+senza essersi mossi oltre lo slop, fuori dalle voci, su un separatore o su una voce spenta lascia il menu
+aperto; un tocco fuori, il back o lo scrim lo chiudono in silenzio.
+
+**Un momento, un colpo.** `Open` all'apertura (uno solo, e solo se il menu si apre: lo suona il gesto che
+apre, mai il layer), `Tick` per voce attraversata, `Tap` alla scelta, niente al congedo. Sui tasti alla
+LibrePods resta il `PressDown` al contatto, che è del tasto. Un tasto che apre al tocco suona `Open` al
+posto del `PressClick`.
+
+**Il pannello, il viaggio, il materiale** sono interni (`FluidGlassMenuPanel`, `FluidMenuJourney`,
+`FluidMenuLayer`, `FluidMenuAnchor`) e li usano tutti gli ingressi.
+
+- *Il pannello*: righe ad altezza fissa che segue il font (48 dp a taglia di serie), separatori
+  disegnati (mai scatole da mezzo dp: aggiungerebbero altezza che le celle non contano, e il dito sceglierebbe
+  la riga sbagliata), sezioni, e **una** goccia che campiona il materiale del pannello (vetro su vetro)
+  con tutte le sue trasformazioni nel proprio `layerBlock`.
+- *Il viaggio*: parte dal tasto **premuto** (`fluidPressedBounds`: la sagoma che il dito sta gonfiando,
+  non quella a riposo), il rimbalzo è un gonfiore uniforme attorno al centro del pannello, un congedo a
+  metà apertura torna indietro dal punto in cui si trova con la sua velocità, e con le animazioni ridotte
+  arriva senza viaggiare. Il menu che si trasforma e le azioni `Expand` partono dal tasto e lo coprono
+  (si aprono sotto il dito); il contestuale cresce da un seme accanto alla riga e mai sopra.
+- *Il materiale*: `panelOptics(compact)`, e la pelle e la lente passano dal tasto al pannello
+  (`opticsFrom`): la faccia del tasto se ne va nel primo terzo del viaggio, le voci arrivano dal quarto.
+
+**L'apertura è sincrona**: azioni, ancora, sequenza e viaggio nello stesso istante del gesto, e il tasto si
+nasconde nel disegno (`hidden`, mai l'alpha di un layer sopra il vetro) nello stesso fotogramma in cui la
+superficie compare sulla sua sagoma. Chi scrive un'ancora nuova dentro l'engine segue lo stesso schema:
+un `FluidMenuAnchor`, il relè in testa, `drawWithContent { if (!anchor.hidden) drawContent() }`, e
+l'apertura che suona `Open` solo se è riuscita.
+
+**`FluidAlert` nell'host.** Con un `FluidGlassModalHost` in scope non apre più una finestra di
+piattaforma: è una voce dell'host, quindi vetro vero (la pagina rifratta dietro, `panelOptics`), l'arrivo
+che si posa e l'uscita che si vede anche dopo che il chiamante l'ha tolto dalla composizione
+(`FluidGlassModalHostState.retire` / `finishExit`); i pulsanti hanno la goccia e l'aptica dei menu. Per un
+avviso che deve stare sopra le finestre di piattaforma (un foglio, una tastiera) `inHost = false`, e senza
+host c'è il `Dialog` di sempre. Con `FluidPromptAlert` la tastiera sale dentro l'host.
+
+**Cosa cambia a vista in un'app che aggiorna**, senza toccare niente: i menu contestuali, le azioni di
+barra con `actions` e `FluidGlassMenuButton` hanno il pannello, la goccia e il viaggio nuovi; il contestuale
+non scala più il vetro; ogni `FluidAlert` è nell'host se l'app ne ha uno. **Firme**: parametri nuovi con
+default (`startsSection` prima di `onClick` in `FluidContextAction`, `inHost` prima di `content` in
+`FluidAlert`): il sorgente compila com'era, la JVM no, quindi un modulo già compilato va ricompilato.
+`FluidMorphMenuButton` e `FluidMorphMenuState.open` vogliono un `FluidMorphMenuHost` composto.
+
+**Provato, e non**: `FluidMenuSelectionTest`, `FluidMenuRelayTest`, `FluidMenuPanelTest`,
+`FluidMenuJourneyTest`, `FluidMenuMotionTest` (puri) e `FluidMenuHandOffTest` (Robolectric, con l'aptica
+registrata). Non sono provati il vetro e la goccia sul vetro (gli host dei test non hanno fondale),
+`opensOn`/`opensOnTap`, il trascinamento fra i pulsanti di un avviso e la tastiera sopra un avviso con un
+campo: sono nelle voci della Beta 2 di «Da provare».
+
 ## Fluid-physics — il vetro che cambia forma (1.9.0, adottato dai preset in 1.9.7)
 
 `dev.antigravity.fluidengine.ui.fluidphysics`: qualsiasi silhouette di vetro diventa qualsiasi
@@ -437,8 +513,9 @@ app che aggiorna se li ritrova trasformati:
 - **`FluidMorphMenu`** (`FluidMorphMenuButton` + `FluidMorphMenuHost` alla radice): il tasto che si
   espande nel proprio menù contestuale. Questo va chiamato, ed è il sostituto di
   `FluidGlassMenuButton` (deprecato dalla 2.12.0) dove serve la trasformazione.
-- **Restano com'erano, per scelta**: il menù contestuale delle righe (`fluidContextMenu`, la sua
-  riga sollevata è già la sua storia) e `FluidGlassModalPresentation.Sheet`.
+- **Restano com'erano, per scelta**: `FluidGlassModalPresentation.Sheet`. (Il menù contestuale delle righe
+  restava com'era fino alla 2.13; dalla 3.0 ha il pannello, la goccia e il viaggio dei menu nuovi, e la riga
+  sollevata è una superficie Fluid-physics: vedi «I menu liquidi».)
 
 `state.driveExternally(from, to, progress, overshootInflationX/Y)` è il gancio per un componente
 che un orologio ce l'ha già: la fisica diventa la *finestra* e il progresso resta quello delle
@@ -542,6 +619,19 @@ un colpo solo (un click pieno, non una rampa più un tick). L'eccezione sono i t
 è l'interruttore (`FluidToggleRow`) suona solo `ToggleOn`/`ToggleOff`. Per il codice che non è Compose
 (una tastiera, un `View`, un servizio) `fluidHapticsFor(context, enabled)` dà lo stesso motore. Il perché
 è in `regole.md`.
+
+**Il registro (3.0).** `FluidHapticTrace` risponde a una domanda che a dito non ha risposta — «una
+vibrazione per momento» è vero? — scrivendo cosa è stato chiesto al vibratore e quando. È un decoratore
+(`TracingFluidHaptics`, da `FluidHapticTrace.wrap`): inoltra ogni chiamata al motore vero tale e quale e ne
+tiene una copia in una lista limitata e osservabile (`entries`, `rows()`, `recording`, `clear()`); senza
+`ProvideFluidHapticTrace(trace) { }` nessuno lo costruisce e non costa niente. Va **dentro** `FluidTheme`
+(è lui a installare l'aptica) e un `FluidTheme` annidato lo toglie: dentro, `ProvideFluidHapticTrace { }`
+senza argomenti rimette quello ereditato (`LocalFluidHapticTrace`). L'esito di ogni voce
+(`FluidHapticTraceOutcome`: suonata, fusa, scartata) è una **stima**: il registro non può chiedere al motore
+se un evento è suonato, quindi rifà le sue due reti con le sue costanti, e dice cosa *avrebbe* fatto il
+motore di serie. La galleria lo mostra in Controlli › Registro aptico e in piccolo sopra a tutto; lì la
+grana si sceglie fra `LibrePods` e `Fluid` e, per `Fluid`, si tara con i cursori (partenza, spegnimento,
+passo, forza).
 
 Regole: non chiamare mai `LocalHapticFeedback` direttamente in un'app (il vocabolario e' uno);
 `fluidPressable(haptic = null)` per un controllo che vibra gia' per conto suo (per un tasto che cresce

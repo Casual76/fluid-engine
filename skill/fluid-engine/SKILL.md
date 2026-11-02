@@ -54,8 +54,15 @@ Tutto sotto `dev.antigravity.fluidengine.*`.
    `FluidRadius` con `ContinuousCornerShape` (mai `RoundedCornerShape`), animazioni da `FluidMotion`.
 2. **Le liste sono raggruppate.** `FluidListGroup` + `FluidListRow` + `FluidListDivider`. Il colore
    della categoria sta sulla piastrella dell'icona, mai sullo sfondo della riga.
-3. **Una pagina in arrivo non sfuma mai.** Le transizioni di rotta sono opache e laterali. Se stai
-   scrivendo un `fadeIn` fra due schermate, stai andando contro il vocabolario dell'app.
+3. **Una pagina in arrivo non sfuma mai.** Dalla 3.0 le pagine si muovono con `FluidNavHost` (al posto
+   di `NavHost`): opache, da destra, con la pagina sotto che arretra di un terzo, e il back è quello di iOS
+   sulla **posizione vera del dito** (`touchX`, mai il `progress` del gesto di sistema, che passato per un
+   easing correva fino a 2,5 volte il dito). Se stai scrivendo un `fadeIn` fra due schermate, o le
+   transizioni di un `NavHost` o di un `FluidRouteMotionHost` (che sfoca ancora 6 dp la pagina che esce),
+   stai andando contro il vocabolario dell'app. **Dalla 3.0 l'engine include codice GPL-3.0 di LibrePods**
+   (i pulsanti e le pagine: `LICENSES/LibrePods.md`): un'app che lo aggiorna è un'opera derivata, si
+   distribuisce sotto GPL-3.0 con i sorgenti a chi riceve l'APK, e la sua pagina «informazioni» lo dice con
+   `fluidLicensesSection()`. Vedi «Migrare alla 3.0» in `ADOZIONE.md`.
 4. **`engine-foundation` non conosce Android UI, e nessun modulo dell'engine conosce il dominio
    dell'app.** Un componente che sa cos'è un voto o una materia non è un componente dell'engine.
 5. **Il codice non si aggiorna da remoto.** Il manifest cambia comportamento (flag, versione minima,
@@ -108,8 +115,11 @@ segue la forma. Dalla **1.9.7 i preset lo usano già**, quindi la domanda giusta
 toccata diventa il pop-up e ci ritorna — senza cambiare una riga al call-site.
 
 Serve chiamare qualcosa solo per il tasto che si apre nel proprio menù (`FluidMorphMenuButton` +
-`FluidMorphMenuHost` alla radice) o per una forma inventata: `rememberFluidPhysicsState` e
-`Modifier.fluidPhysicsSurface`. Vocabolario, tier e la questione della molla stanno in
+`FluidMorphMenuHost` alla radice, composto) o per una forma inventata: `rememberFluidPhysicsState` e
+`Modifier.fluidPhysicsSurface`. Dalla 3.0 ogni menu — il tasto che si trasforma, le azioni della barra, la
+riga, `fluidContextMenu` — si sceglie col dito che l'ha aperto (tieni premuto, trascina, rilascia; un
+rilascio altrove lo lascia aperto) e ha un pannello, un viaggio e un materiale solo: la regola è in
+`references/regole.md`, l'inventario in «I menu liquidi» di `references/design-system.md`. Vocabolario, tier e la questione della molla stanno in
 `references/design-system.md`; le tre trappole del vetro in movimento — e non sono ovvie — in
 `references/regole.md`.
 

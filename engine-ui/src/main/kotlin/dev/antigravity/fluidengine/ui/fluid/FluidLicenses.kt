@@ -62,7 +62,7 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
     // dove l'app lo dice. Vedi LICENSES/LibrePods.md.
     licence = "GPL-3.0",
     url = "https://github.com/librepods-org/librepods",
-    role = "I pulsanti: come crescono sotto il dito, lo seguono e vibrano.",
+    role = "I pulsanti (come crescono sotto il dito, lo seguono e vibrano) e le pagine (come si aprono, e il back che le tiene sotto il dito).",
   ),
   FluidLicense(
     name = "Inter",

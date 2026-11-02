@@ -426,6 +426,46 @@ con la sostituzione, è in `docs/03-design-system.md`.
 
 ---
 
+## Migrare alla 3.0 (engine 3.0, in lavorazione)
+
+La 3.0 non è un aggiornamento da prendere a occhi chiusi: cambia la licenza, le pagine e il gesto dei
+pulsanti. Nessuna app la deve prendere adesso; quando una lo fa, l'ordine è questo, e le voci
+**Cambia a vista** del `CHANGELOG.md` (`## 3.0.0`) sono l'elenco di cosa guardare sul telefono.
+
+1. **La licenza, prima del resto.** L'engine contiene codice di LibrePods, **GPL-3.0** (pulsanti e pagine:
+   `LICENSES/LibrePods.md`). Un'app che lo aggiorna è un'opera derivata: va distribuita sotto GPL-3.0, con i
+   sorgenti a chi riceve l'APK. È una scelta di Alessio (31 ottobre 2026), e vale per tutte le app Pampa che
+   usano l'engine. La pagina «informazioni» lo dice già con `fluidLicensesSection()` (la voce di LibrePods e
+   la nota stanno in `FluidEngineLicenses`); un'app che passa una `footnote` sua deve aggiungere la frase
+   nella sua lingua. Un'app che non può essere GPL-3.0 resta sulla 2.13.
+2. **Le pagine: `FluidNavHost` al posto di `NavHost`.** `NavHost(` diventa `FluidNavHost(`, con gli stessi
+   `navController`, `startDestination` e grafo; l'import di `composable` passa a
+   `dev.antigravity.fluidengine.ui.navigation.composable`; via le quattro transizioni (`enterTransition`,
+   `exitTransition`, `popEnterTransition`, `popExitTransition`) e i loro helper. **I `FluidRouteMotionHost`
+   attorno alle destinazioni vanno tolti**: vogliono un `AnimatedVisibilityScope` che le pagine Fluid non
+   hanno, quindi non compilano. Dove l'app teneva la crescita dal tocco, `transition =
+   FluidPageTransition.Expand`. `navigation-compose` 2.9.8 (Fluidify ha la 2.8.5 e passa a 2.9.8); in debug
+   un `composable` di `androidx.navigation.compose` rimasto nel grafo ferma l'app con un errore che dice
+   quali rotte. La ricetta completa è in `docs/03-design-system.md` («Le pagine e `FluidNavHost`»).
+3. **I pulsanti non prendono più il gesto.** Come in LibrePods, un dito che parte su un pulsante dentro una
+   lista fa scorrere la lista *e* il pulsante cresce e vibra, insieme (la regola della 2.12, «un pulsante è di
+   chi lo tiene premuto», cade: una lista di pulsanti si scorreva solo dai margini). `LocalFluidPressImmediate`
+   non fa più niente, e un'app che lo dava alla sua chrome può toglierlo. Un trascinamento orizzontale che
+   parte su un tasto fa partire il back «ovunque»:
+   `FluidBackSwipe.EdgeOnly` per le pagine piene di gesti propri. Un tocco fa tre colpi (`PressDown`,
+   `PressRelease`, `PressClick`): è voluto, ed è l'unica eccezione a «una vibrazione per momento».
+4. **I menu non chiedono niente**, ma si sentono: si scelgono col dito che li ha aperti, e un `FluidAlert`
+   sta nell'host dei modali se l'app ne ha uno (`inHost = false` per un avviso che deve stare sopra una
+   finestra di piattaforma). `FluidMorphMenuButton` vuole il suo `FluidMorphMenuHost` composto. Le firme
+   di `FluidContextAction` e `FluidAlert` hanno un parametro in più con default: il sorgente compila, un
+   modulo già compilato va ricompilato.
+5. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
+   chiaro, la luce del dito sui tasti, il back sotto il dito. La galleria Fluid Glass («Da provare») è la
+   lista di cosa giudicare, e il registro aptico (`FluidHapticTrace`) dice se un tocco ha parlato una volta
+   sola.
+
+---
+
 ## Regole che valgono per ogni fase
 
 - **La firma di release è `C:\VibeCoded Projects\pampa.jks`, alias `pampa`**, per tutte le app —

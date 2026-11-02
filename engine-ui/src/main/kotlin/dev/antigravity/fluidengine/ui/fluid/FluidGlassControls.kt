@@ -404,6 +404,9 @@ fun Modifier.fluidStaticGlassSurface(
  *   (con `Tap` un tasto che cresce suona `PressClick`); un evento diverso lo sostituisce; `null`
  *   spegne tutto — contatto, rilascio, grana e click — per un tasto la cui azione ha gia' il suo
  *   colpo (un microfono che apre l'ascolto, un menu). Dalla 3.0.
+ * @param grip di chi e' il dito quando la pagina sotto vuole scorrere: del tasto
+ *   ([FluidPressGrip.HoldsFinger], di serie) o della pagina ([FluidPressGrip.YieldsToScroll], per un
+ *   tasto ripetuto su ogni riga di una lista che scorre). Vedi [fluidPressable]. Dalla 3.0.
  */
 @Composable
 fun FluidGlassIconButton(
@@ -421,6 +424,7 @@ fun FluidGlassIconButton(
    * che suona `Open` solo se si apre). Dalla 3.0.
    */
   longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   content: @Composable BoxScope.() -> Unit,
 ) {
   // One press for the click and the glass: the lens swells, leans and lights up on the same
@@ -439,6 +443,7 @@ fun FluidGlassIconButton(
     haptic = haptic,
     longClickHaptic = longClickHaptic,
     press = press,
+    grip = grip,
     content = content,
   )
 }
@@ -465,6 +470,7 @@ internal fun FluidGlassIconButtonCore(
   press: FluidPressState,
   lensModifier: Modifier = Modifier,
   onLensPlaced: ((LayoutCoordinates) -> Unit)? = null,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   content: @Composable BoxScope.() -> Unit,
 ) {
   Box(
@@ -495,6 +501,7 @@ internal fun FluidGlassIconButtonCore(
           focusShape = shape,
           pressState = press,
           longClickHaptic = longClickHaptic,
+          grip = grip,
         ),
       contentAlignment = Alignment.Center,
       content = content,
@@ -514,6 +521,8 @@ internal fun FluidGlassIconButtonCore(
  *   48 dp il layout occupa comunque 48 dp di altezza ([fluidTouchTarget]) e il vetro sta al centro:
  *   il tasto e' piu' basso da vedere, non da toccare. Dalla 3.0.
  * @param haptic come per [FluidGlassIconButton]: `null` per un tasto la cui azione ha gia' il suo colpo.
+ * @param grip come per [FluidGlassIconButton]: [FluidPressGrip.YieldsToScroll] per un tasto in una
+ *   riga di una lista che scorre, dove non c'e' un fuori da cui partire. Dalla 3.0.
  */
 @Composable
 fun FluidGlassButton(
@@ -526,6 +535,7 @@ fun FluidGlassButton(
   shape: Shape = FluidCapsuleShape,
   size: FluidGlassSize = FluidGlassSize.Regular,
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   leading: (@Composable () -> Unit)? = null,
 ) {
   val contentColor = if (selected) {
@@ -560,6 +570,7 @@ fun FluidGlassButton(
         haptic = haptic,
         focusShape = shape,
         pressState = press,
+        grip = grip,
       )
       .height(size.buttonHeight)
       .padding(horizontal = size.buttonPadding),

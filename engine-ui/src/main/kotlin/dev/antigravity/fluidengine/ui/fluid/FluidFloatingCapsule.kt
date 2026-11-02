@@ -285,6 +285,9 @@ fun FluidFloatingCapsule(
  * @param size il lato. Sotto i 48 dp il layout e' piu' stretto ma Compose estende comunque l'area
  *   toccabile a 48: serve a una capsula con quattro azioni su un telefono stretto.
  * @param tint il colore dell'icona; di serie l'accento.
+ * @param grip di chi e' il dito quando la pagina sotto vuole scorrere, come per [fluidPressable]: di
+ *   serie dell'azione ([FluidPressGrip.HoldsFinger]); [FluidPressGrip.YieldsToScroll] se la capsula
+ *   sta sopra una lista o un pager che deve partire anche da li'. Dalla 3.0.
  */
 @Composable
 fun FluidCapsuleAction(
@@ -297,6 +300,7 @@ fun FluidCapsuleAction(
   tint: Color = Color.Unspecified,
   onLongClick: (() -> Unit)? = null,
   size: Dp = FluidFloatingCapsuleDefaults.ActionSize,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
 ) {
   val scheme = MaterialTheme.colorScheme
   val color = when {
@@ -316,6 +320,7 @@ fun FluidCapsuleAction(
         role = Role.Button,
         focusShape = FluidCapsuleShape,
         feedback = FluidPressFeedback.Expand,
+        grip = grip,
       ),
     contentAlignment = Alignment.Center,
   ) {

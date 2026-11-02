@@ -32,6 +32,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
+import dev.antigravity.fluidengine.ui.fluid.FluidPressGrip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
@@ -234,6 +235,9 @@ fun FluidOpenRouterList(
                       size = FluidButtonSize.Small,
                       enabled = FluidModelPicker.canToggleFallback(fallbacks, model.id),
                       onClick = { onFallbacks(FluidModelPicker.toggleFallback(fallbacks, model.id)) },
+                      // Un "Riserva" su ogni riga di una lista fino a 200 modelli: non c'e' un fuori da
+                      // cui partire, il dito che scende qui deve poter scorrere il catalogo.
+                      grip = FluidPressGrip.YieldsToScroll,
                     )
                   }
                 },

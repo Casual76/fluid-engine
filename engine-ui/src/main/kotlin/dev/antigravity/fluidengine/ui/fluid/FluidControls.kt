@@ -140,10 +140,24 @@ object FluidButtonDefaults {
  * the press sat *inside* the clip and the background, so the container never moved at all. The press
  * is now outside both, and the container is what grows.
  *
- * Since 3.0 it is LibrePods' button, and it behaves like it: pressed at the touch, never taking the
- * gesture from a page that scrolls, three vibrations per tap. It grows by 10%, with the growth of
- * its long side capped at 16 dp: a button that fills the width ([fillWidth]) grows by about 5%.
- * See [fluidPressable] and [FluidPressFeedback.maxScale].
+ * Since 3.0 it is LibrePods' button, and it behaves like it: pressed at the touch, three vibrations
+ * per tap. It grows by 10%, with the growth of its long side capped at 16 dp: a button that fills
+ * the width ([fillWidth]) grows by about 5%. See [fluidPressable] and [FluidPressFeedback.maxScale].
+ *
+ * **Tiene il dito (3.0), e [grip] dice quando no.** Di serie il dito che scende sul pulsante e' suo
+ * fino al sollevamento: la pagina sotto non scorre, e per scorrere si parte fuori dai pulsanti. Va
+ * bene per un pulsante da solo; **non** per uno che il chiamante ripete su ogni riga di una lista
+ * lunga (un "Riserva" per modello, un "Apri" per voce), perche' li' non c'e' un fuori da cui
+ * partire: quel pulsante passa [FluidPressGrip.YieldsToScroll] e cede la lista al dito che la
+ * scorre, come un chip. Lo stesso vale per un pulsante dentro un pager.
+ *
+ * @param haptic cosa si sente al click, come in [fluidPressable]: di serie il click di LibrePods (con
+ *   `Tap` un pulsante che cresce suona `PressClick`); un evento diverso lo sostituisce; `null` spegne
+ *   tutto — contatto, rilascio, grana e click — per un pulsante la cui azione ha gia' il suo colpo
+ *   (l'avvio di una misura, un microfono). Dalla 3.0.
+ * @param grip di chi e' il dito quando la pagina sotto vuole scorrere: del pulsante
+ *   ([FluidPressGrip.HoldsFinger], di serie) o della pagina ([FluidPressGrip.YieldsToScroll], per un
+ *   pulsante in una riga di una lista che scorre). Dalla 3.0.
  */
 @Composable
 fun FluidButton(
@@ -155,6 +169,8 @@ fun FluidButton(
   enabled: Boolean = true,
   loading: Boolean = false,
   fillWidth: Boolean = false,
+  haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   leading: (@Composable () -> Unit)? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
@@ -180,7 +196,9 @@ fun FluidButton(
         onClick = onClick,
         enabled = enabled && !loading,
         role = Role.Button,
+        haptic = haptic,
         feedback = FluidPressFeedback.Expand,
+        grip = grip,
       )
       .clip(shape)
       .background(container)

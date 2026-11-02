@@ -24,6 +24,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
+import dev.antigravity.fluidengine.ui.fluid.FluidPressGrip
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
@@ -93,6 +94,10 @@ fun FluidWearListRow(
  * Control glass over whatever [backdrop] it is given — on a black page that is an empty backdrop,
  * and the pill shows its rim, its film and its touch light, which is the material without anything
  * to bend. Put it over a picture and the same pill refracts it.
+ *
+ * @param grip di chi e' il dito quando la pagina sotto vuole scorrere: della pillola
+ *   ([FluidPressGrip.HoldsFinger], di serie) o della pagina ([FluidPressGrip.YieldsToScroll], per una
+ *   pillola dentro un pager o una riga che scorre). Dalla 3.0.
  */
 @Composable
 fun FluidWearPill(
@@ -100,6 +105,7 @@ fun FluidWearPill(
   modifier: Modifier = Modifier,
   backdrop: GlassBackdropState = rememberEmptyGlassBackdrop(),
   label: String? = null,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   icon: @Composable () -> Unit,
 ) {
   // One press for the glass and the click, as on the phone's glass buttons (2.11.0): the pill grows
@@ -110,7 +116,7 @@ fun FluidWearPill(
     modifier = modifier
       .height(FluidWearDimens.PillHeight)
       .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape, pressState = press)
-      .fluidPressable(onClick = onClick, pressState = press)
+      .fluidPressable(onClick = onClick, pressState = press, grip = grip)
       .padding(horizontal = PillPadding),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(RowGap, Alignment.CenterHorizontally),

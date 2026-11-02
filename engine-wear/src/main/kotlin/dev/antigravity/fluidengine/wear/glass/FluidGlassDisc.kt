@@ -22,6 +22,7 @@ import androidx.wear.compose.material3.LocalContentColor
 import androidx.wear.compose.material3.MaterialTheme
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
+import dev.antigravity.fluidengine.ui.fluid.FluidPressGrip
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
@@ -57,6 +58,10 @@ import dev.antigravity.fluidengine.wear.theme.FluidWearDimens
  *   [FluidWearDimens.MinTouchTarget].
  * @param haptic what the click feels like; play/pause wants `Confirm`, the rest the default
  *   `Tap`, which on a disc is `PressClick`. The touch and the lift have their own, see [fluidPressable].
+ * @param grip di chi e' il dito quando la pagina sotto vuole scorrere: del disco
+ *   ([FluidPressGrip.HoldsFinger], di serie) o della pagina ([FluidPressGrip.YieldsToScroll]). Un
+ *   disco dentro un pager — i comandi di un player sopra un `HorizontalPager` — non ha un fuori da
+ *   cui far partire il cambio di pagina: li' passa `YieldsToScroll`. Dalla 3.0.
  */
 @Composable
 fun FluidGlassDisc(
@@ -72,6 +77,7 @@ fun FluidGlassDisc(
   burst: FluidGlassBurstState = rememberFluidGlassBurstState(),
   tint: GlassTint = GlassDefaults.controlTint(),
   contentColor: Color = MaterialTheme.colorScheme.onSurface,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   content: @Composable BoxScope.() -> Unit,
 ) {
   val ambient = LocalFluidWearAmbient.current
@@ -119,6 +125,7 @@ fun FluidGlassDisc(
           longClickHaptic = FluidHapticEvent.Threshold,
           focusShape = FluidCapsuleShape,
           pressState = press,
+          grip = grip,
         )
         .semantics { if (contentDescription != null) this.contentDescription = contentDescription },
       contentAlignment = Alignment.Center,

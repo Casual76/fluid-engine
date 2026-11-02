@@ -23,14 +23,22 @@
       "sizeBytes": 2808256
     },
     "beta": {
-      "version": "2.0.0-beta.3",
+      "version": "2.0.0-beta.4",
       "releaseDate": "2026-11-02",
-      "changelog": "Beta 3 della 3.0, dopo le prove della beta 2. Fluid-physics di vetro liquido: il pannello si stira, oscilla e si stacca dal tasto con una goccia, la lente piega mentre corre; il testo se ne va per primo e resta nel vetro; il menu contestuale nasce dalla riga. Il tasto tiene il dito: la pagina non scorre più mentre lo tieni (i chip lasciano scorrere la loro fila). Segmentato come iOS. Nuovi: scrubber per brani e cronologie, Markdown per tutte le app. In Fisica l'interruttore fra vetro liquido e geometrico (beta 2) per confrontare. Cosa provare: pagina «Da provare», sezione Beta 3.",
-      "releaseTag": "beta-fluid-glass-v2.0.0-beta.3",
-      "apkAsset": "fluid-glass-2.0.0-beta.3.apk",
-      "sizeBytes": 3324526
+      "changelog": "Beta 4 della 3.0. Fluid-physics è una goccia: il menu del tasto, le azioni della barra, il contestuale e la card escono e rientrano come un liquido, con le voci sempre dentro il vetro; in Fisica si confronta con la geometria e si regola la tensione del bordo. Il back col dito rispetta le pagine che chiedono prima di uscire (prova la bozza in Pagine), i tasti tondi grandi crescono con un tetto e il vetro segue il contrasto di sistema. Le prove sono nella pagina Da provare.",
+      "releaseTag": "beta-fluid-glass-v2.0.0-beta.4",
+      "apkAsset": "fluid-glass-2.0.0-beta.4.apk",
+      "sizeBytes": 3344977
     },
     "history": [
+      {
+        "version": "2.0.0-beta.3",
+        "releaseDate": "2026-11-02",
+        "changelog": "Beta 3 della 3.0, dopo le prove della beta 2. Fluid-physics di vetro liquido: il pannello si stira, oscilla e si stacca dal tasto con una goccia, la lente piega mentre corre; il testo se ne va per primo e resta nel vetro; il menu contestuale nasce dalla riga. Il tasto tiene il dito: la pagina non scorre più mentre lo tieni (i chip lasciano scorrere la loro fila). Segmentato come iOS. Nuovi: scrubber per brani e cronologie, Markdown per tutte le app. In Fisica l'interruttore fra vetro liquido e geometrico (beta 2) per confrontare. Cosa provare: pagina «Da provare», sezione Beta 3.",
+        "releaseTag": "beta-fluid-glass-v2.0.0-beta.3",
+        "apkAsset": "fluid-glass-2.0.0-beta.3.apk",
+        "sizeBytes": 3324526
+      },
       {
         "version": "2.0.0-beta.2",
         "releaseDate": "2026-11-02",

@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import dev.antigravity.fluidengine.foundation.AppUpdateInstallState
 import dev.antigravity.fluidengine.foundation.AvailableAppUpdate
+import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.update.fluidGlassUpdater
 import kotlinx.coroutines.launch
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
@@ -18,46 +19,40 @@ import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
-import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
+import dev.antigravity.fluidengine.ui.fluid.fluidAppearanceSection
 import dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection
-import dev.antigravity.fluidengine.ui.theme.FluidCard
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 
-/** Tab four: what a settings page looks like once the content is made of the same material. */
+/**
+ * Tab four: what a settings page looks like once the content is made of the same material.
+ *
+ * L'aspetto e' quello vero (dalla 3.0): [fluidAppearanceSection] scrive in [settings], che la galleria
+ * passa al `FluidTheme`. Serve a una cosa precisa: giudicare il bordo del vetro che si trasforma sul
+ * tema chiaro (e su quello scuro) senza uscire dall'app ne' ricreare l'attivita'.
+ */
 @Composable
-internal fun SettingsTab(bottomInset: Dp) {
-  var amoled by remember { mutableStateOf(false) }
-  var notifications by remember { mutableStateOf(true) }
-  var theme by remember { mutableStateOf("Sistema") }
-
+internal fun SettingsTab(
+  bottomInset: Dp,
+  settings: EngineSettings,
+  onSettingsChange: (EngineSettings) -> Unit,
+) {
   FluidScreen(
     title = "Impostazioni",
-    subtitle = "Canvas ambientale, contenuto in vetro, e i crediti.",
+    subtitle = "Aspetto, canvas ambientale, contenuto in vetro, e i crediti.",
     extraBottomPadding = bottomInset,
     ambient = remember {
       FluidAmbient(tone = FluidHeroTone.Primary, motif = FluidHeroMotif.Cards)
     },
   ) {
-    item(key = "appearance-header") { FluidSectionHeader(title = "Aspetto") }
-    item(key = "appearance") {
-      FluidCard(glass = true) {
-        FluidSegmentedControl(
-          options = listOf("Chiaro", "Scuro", "Sistema"),
-          selected = theme,
-          onSelect = { theme = it },
-          label = { it },
-        )
-      }
-    }
-    item(key = "toggles") {
-      FluidListGroup(glass = true) {
-        SwitchRow("Nero assoluto", amoled) { amoled = it }
-        FluidListDivider()
-        SwitchRow("Notifiche", notifications) { notifications = it }
-      }
-    }
+    fluidAppearanceSection(
+      settings = settings,
+      onSettingsChange = onSettingsChange,
+      glass = true,
+      footnote = "Il tema chiaro serve per giudicare il bordo del vetro che si trasforma: sul chiaro " +
+        "è scuro, sullo scuro è la metà più tenue.",
+    )
     item(key = "about-header") { FluidSectionHeader(title = "Informazioni") }
     item(key = "about") {
       UpdatesAndAboutGroup()

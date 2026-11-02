@@ -58,7 +58,10 @@ internal class TouchLabState {
  *  * tenuto premuto e fatto scorrere, il tasto si inclina verso il dito e scatta a ogni passo —
  *    tacche leggere, mai un ronzio, nemmeno strisciando veloce;
  *  * la maniglia di un cursore trascinata in diagonale muove il valore e non la pagina; una passata
- *    verticale partita sulla pista nuda invece scorre la pagina, come deve.
+ *    verticale partita sulla pista nuda invece scorre la pagina, come deve;
+ *  * (3.0) sotto i tasti: il **registro aptico**, che scrive cosa e' stato chiesto al vibratore e
+ *    quanto dopo il colpo prima (una vibrazione per momento si legge li'), e la **grana**, con lo stile
+ *    LibrePods o Fluid e i cursori per tarare quest'ultimo. Vedi [hapticLabItems].
  */
 internal fun LazyListScope.touchLabItems(state: TouchLabState) {
   item(key = "touch-header") {
@@ -113,6 +116,10 @@ internal fun LazyListScope.touchLabItems(state: TouchLabState) {
       )
     }
   }
+
+  // Il registro di cio' che vibra e la taratura della grana (3.0): subito sotto i tasti, perche' dopo
+  // ogni gesto lo sguardo va li'.
+  hapticLabItems()
 
   item(key = "touch-sliders-header") { FluidSectionHeader(title = "Cursori") }
   item(key = "touch-sliders") {

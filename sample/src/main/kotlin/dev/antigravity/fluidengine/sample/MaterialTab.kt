@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -59,15 +60,20 @@ import dev.antigravity.fluidengine.ui.fluid.FluidTextStyles
 import dev.antigravity.fluidengine.ui.fluid.FluidVividCard
 import dev.antigravity.fluidengine.ui.fluid.FluidVividColors
 import dev.antigravity.fluidengine.ui.fluid.FluidVividEffect
+import dev.antigravity.fluidengine.ui.theme.FluidInlineMessage
+import dev.antigravity.fluidengine.ui.theme.FluidTone
 
 /**
  * Tab one: the material itself, over content with hard edges in it.
  *
  * No ambient canvas here on purpose — this tab is about the *chrome* roles, and the loud cards are a
  * harsher test than any canvas would be.
+ *
+ * In cima, la voce che riapre "Da provare" ([onOpenToTry]): e' la prima cosa che si vede dopo la
+ * lista, e la strada per tornarci da qualunque scheda.
  */
 @Composable
-internal fun MaterialTab(bottomInset: Dp) {
+internal fun MaterialTab(bottomInset: Dp, onOpenToTry: () -> Unit = {}) {
   // Vetro su vetro (2.13.0): i pannelli che si aprono sopra questa pagina rumorosa, ognuno con un
   // tasto e un tasto vuoto dentro. Ricevono la registrazione della pagina, `backdrop = page`, come
   // la passano le app: e' il caso in cui prima il tasto veniva piu' nitido del pannello.
@@ -121,6 +127,18 @@ internal fun MaterialTab(bottomInset: Dp) {
       )
     },
   ) {
+    item(key = "to-try") {
+      FluidInlineMessage(
+        title = "Da provare",
+        message = "${latestRoundSize()} cose da giudicare in mano in questa beta, ognuna con il " +
+          "collegamento alla sua demo.",
+        tone = FluidTone.Info,
+        leading = { ToTryIcon() },
+        action = "Apri la lista",
+        onClick = onOpenToTry,
+        modifier = Modifier.testTag("material-to-try"),
+      )
+    }
     item(key = "nested-header") { FluidSectionHeader(title = "Vetro su vetro") }
     // I comandi stanno sopra il palco, e corti: cosi' ogni pannello si apre sopra le righe del
     // palco (la card cresce dal suo tasto verso il basso, il pop-up e il foglio stanno al centro)

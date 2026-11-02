@@ -1,9 +1,11 @@
 package dev.antigravity.fluidengine.sample
 
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -43,6 +46,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.sample.catalog.CapsulesAndPartsDemo
+import dev.antigravity.fluidengine.sample.catalog.RowsAndSheetsDemo
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import androidx.compose.animation.core.animateFloatAsState
@@ -53,7 +58,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBarDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
+import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
+import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
+import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidNotificationHost
+import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidScrollToTopBus
 import dev.antigravity.fluidengine.ui.fluid.FluidTabItem
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -85,9 +94,13 @@ import kotlinx.coroutines.delay
  *
  *  | Materiale    | i quattro `GlassRole` sopra contenuto volutamente rumoroso                  |
  *  | Playground   | Fluid-physics: preset, disegno a mano, molle, livelli, tasti→menù→pop-up   |
- *  | Controlli    | tocco e cursori (2.11.0), interruttori, segmenti, pillole, pulsanti, campi  |
- *  | Chrome       | modale in-root, menù contestuale, notifiche, e il confine di piattaforma    |
- *  | Impostazioni | canvas ambientale più contenuto in vetro, con versione e crediti            |
+ *  | Controlli    | tocco, registro aptico e grana (3.0), cursori, interruttori, segmenti, campi |
+ *  | Chrome       | modale in-root, menù contestuale, notifiche, pagine e il catalogo della 3.0 |
+ *  | Impostazioni | aspetto (tema, accento) che cambia davvero, versione e crediti              |
+ *
+ * Dalla beta della 3.0 la prima cosa che si vede è la pagina **Da provare** ([ToTryPage]): la lista di
+ * ciò che va giudicato in mano, con il collegamento alla demo di ciascuna voce. Le demo che non stanno
+ * in nessuna scheda ([GalleryPage]) si aprono sopra la scheda da cui si parte, con il loro "Indietro".
  */
 class GalleryActivity : ComponentActivity() {
 
@@ -95,18 +108,15 @@ class GalleryActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     setContent {
-      FluidTheme(settings = remember { EngineSettings() }) {
-        Gallery()
+      // Le impostazioni stanno sopra il tema, non dentro una scheda: "Aspetto" le cambia davvero, e
+      // il tema chiaro serve per giudicare il bordo del vetro che si trasforma.
+      var settings by remember { mutableStateOf(EngineSettings()) }
+      FluidTheme(settings = settings) {
+        Gallery(settings = settings, onSettingsChange = { settings = it })
       }
     }
   }
 }
-
-private const val RouteMaterial = "material"
-private const val RoutePlayground = "playground"
-private const val RouteControls = "controls"
-private const val RouteChrome = "chrome"
-private const val RouteSettings = "settings"
 
 private val Tabs = listOf(
   FluidTabItem(route = RouteMaterial, label = "Materiale", icon = Icons.Rounded.Home),
@@ -124,8 +134,12 @@ private val Tabs = listOf(
  * gallery that special-cased its own chrome would be testing an arrangement no app uses.
  */
 @Composable
-private fun Gallery() {
-  var route by remember { mutableStateOf(RouteMaterial) }
+internal fun Gallery(
+  settings: EngineSettings,
+  onSettingsChange: (EngineSettings) -> Unit,
+  nav: GalleryNav = remember { GalleryNav(GalleryNav.Launch) },
+  tools: GalleryTools = SharedGalleryTools,
+) {
   val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
   val chromeController = rememberFluidChromeController()
   val scrollToTop = remember { FluidScrollToTopBus() }
@@ -134,11 +148,26 @@ private fun Gallery() {
   val fallbackBackdrop = rememberGlassBackdrop()
   val backdrop = chromeController.activeBackdrop.value ?: fallbackBackdrop
   val morphMenu = rememberFluidMorphMenuState()
+  val toTryList = rememberLazyListState()
+
+  // L'"Indietro" di sistema e' della galleria finche' c'e' una pagina (o una scheda aperta da "Da
+  // provare") sopra quella da cui si e' partiti; poi torna al sistema, che chiude l'app.
+  BackHandler(enabled = nav.canGoBack) { nav.back() }
+
+  // Dove porta una voce di "Da provare": una scheda o una pagina della galleria, o la schermata a parte
+  // delle pagine (un'attivita': il suo "Indietro" e' quello di sistema).
+  val context = LocalContext.current
+  val openTarget: (TryTarget) -> Unit = { target ->
+    when (target) {
+      is TryTarget.Tab -> nav.openTab(target.route)
+      is TryTarget.Page -> nav.open(target.page)
+      is TryTarget.Screen -> context.startActivity(Intent(context, PagesDemoActivity::class.java))
+    }
+  }
 
   // Solo nella build di debug: quante volte il vetro ricattura e quante registra il materiale che
   // pubblica per il vetro su vetro (`adb logcat -s FluidGlassDiag`). Una riga quando i numeri
   // cambiano, controllati una volta al secondo: a schermo fermo non deve uscirne nessuna.
-  val context = LocalContext.current
   val debuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
   if (debuggable) {
     LaunchedEffect(Unit) {
@@ -171,69 +200,117 @@ private fun Gallery() {
     LocalFluidGlassModalHostState provides modalHost,
     LocalFluidNotificationHostState provides notificationHost,
   ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-      ProvideFluidChrome(
-        controller = chromeController,
-        bottomInset = FluidFloatingTabBarDefaults.ContentInset,
-        scrollToTop = scrollToTop,
-      ) {
-        Box(
-          modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(tabBarScroll)
-            .fluidGlassModalObscured(),
+    // Il registro aptico e la grana scelta sono della radice: sentono anche i menù e le pagine.
+    ProvideGalleryTools(tools) {
+      Box(modifier = Modifier.fillMaxSize()) {
+        ProvideFluidChrome(
+          controller = chromeController,
+          bottomInset = FluidFloatingTabBarDefaults.ContentInset,
+          scrollToTop = scrollToTop,
         ) {
-          when (route) {
-            RoutePlayground -> PlaygroundTab(bottomInset)
-            RouteControls -> ControlsTab(bottomInset)
-            RouteChrome -> ChromeTab(bottomInset)
-            RouteSettings -> SettingsTab(bottomInset)
-            else -> MaterialTab(bottomInset)
+          Box(
+            modifier = Modifier
+              .fillMaxSize()
+              .nestedScroll(tabBarScroll)
+              .fluidGlassModalObscured(),
+          ) {
+            // Una pagina sta sopra la scheda e la sostituisce (la scheda sotto non si compone: due
+            // schermate registrerebbero entrambe il fondale della barra).
+            when (nav.page) {
+              GalleryPage.ToTry -> ToTryPage(
+                bottomInset = bottomInset,
+                onBack = { nav.back() },
+                onOpen = openTarget,
+                listState = toTryList,
+              )
+              GalleryPage.RowsAndSheets -> RowsAndSheetsDemo(bottomInset, onBack = { nav.back() })
+              GalleryPage.CapsulesAndParts -> CapsulesAndPartsPage(bottomInset) { nav.back() }
+              GalleryPage.Gaps -> GapsPage(bottomInset) { nav.back() }
+              null -> when (nav.route) {
+                RoutePlayground -> PlaygroundTab(bottomInset)
+                RouteControls -> ControlsTab(bottomInset)
+                RouteChrome -> ChromeTab(bottomInset, onOpen = { nav.open(it) })
+                RouteSettings -> SettingsTab(bottomInset, settings, onSettingsChange)
+                else -> MaterialTab(bottomInset, onOpenToTry = { nav.open(GalleryPage.ToTry) })
+              }
+            }
           }
         }
-      }
 
-      Box(
-        modifier = Modifier
-          .align(Alignment.BottomCenter)
-          .navigationBarsPadding()
-          .padding(
-            horizontal = FluidFloatingTabBarDefaults.HorizontalMargin,
-            vertical = FluidFloatingTabBarDefaults.BottomMargin,
-          ),
-      ) {
-        FluidFloatingTabBar(
-          items = Tabs,
-          selectedRoute = route,
-          onSelect = { route = it.route },
-          onReselect = { scrollToTop.request() },
-          scrollConnection = tabBarScroll,
+        Box(
+          modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .navigationBarsPadding()
+            .padding(
+              horizontal = FluidFloatingTabBarDefaults.HorizontalMargin,
+              vertical = FluidFloatingTabBarDefaults.BottomMargin,
+            ),
+        ) {
+          FluidFloatingTabBar(
+            items = Tabs,
+            selectedRoute = nav.route,
+            onSelect = { nav.selectTab(it.route) },
+            // Un secondo tocco sulla scheda gia' scelta: sotto una pagina la chiude, altrimenti la
+            // scheda torna in cima.
+            onReselect = { if (nav.canGoBack) nav.popToRoot() else scrollToTop.request() },
+            scrollConnection = tabBarScroll,
+            backdrop = backdrop,
+          )
+        }
+
+        if (nav.page == null && nav.route == RouteMaterial) {
+          GalleryFloatingControls(
+            backdrop = backdrop,
+            morphMenu = morphMenu,
+            bottomInset = bottomInset,
+            fold = { barFold },
+            modifier = Modifier.align(Alignment.BottomCenter),
+          )
+        }
+
+        // Above the tab bar, and that placement is the whole reason the modal is in-root: a pop-up
+        // that a floating navigation capsule can sit on top of is not a modal.
+        FluidGlassModalHost(state = modalHost, backdrop = backdrop)
+        // Il tasto che diventa il proprio menù: la superficie che si trasforma vive qui, alla
+        // radice, per la stessa ragione dei modali.
+        FluidMorphMenuHost(state = morphMenu, backdrop = backdrop)
+        FluidNotificationHost(
+          state = notificationHost,
           backdrop = backdrop,
+          modifier = Modifier.align(Alignment.TopCenter),
         )
+        // Il registro aptico in piccolo, sopra a tutto e senza prendere il tocco (si accende da Controlli).
+        GalleryToolsOverlay(tools)
       }
-
-      if (route == RouteMaterial) {
-        GalleryFloatingControls(
-          backdrop = backdrop,
-          morphMenu = morphMenu,
-          bottomInset = bottomInset,
-          fold = { barFold },
-          modifier = Modifier.align(Alignment.BottomCenter),
-        )
-      }
-
-      // Above the tab bar, and that placement is the whole reason the modal is in-root: a pop-up
-      // that a floating navigation capsule can sit on top of is not a modal.
-      FluidGlassModalHost(state = modalHost, backdrop = backdrop)
-      // Il tasto che diventa il proprio menù: la superficie che si trasforma vive qui, alla
-      // radice, per la stessa ragione dei modali.
-      FluidMorphMenuHost(state = morphMenu, backdrop = backdrop)
-      FluidNotificationHost(
-        state = notificationHost,
-        backdrop = backdrop,
-        modifier = Modifier.align(Alignment.TopCenter),
-      )
     }
+  }
+}
+
+/** La demo delle capsule e dei pezzi piccoli: una colonna sola, qui in una schermata con il suo "Indietro". */
+@Composable
+private fun CapsulesAndPartsPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () -> Unit) {
+  FluidScreen(
+    title = "Capsule e pezzi piccoli",
+    subtitle = "Capsula, ricerca, pallino dal vivo, scheletri, selezione, punti del pager, passi.",
+    onBack = onBack,
+    extraBottomPadding = bottomInset,
+    ambient = remember { FluidAmbient(tone = FluidHeroTone.Tertiary, motif = FluidHeroMotif.Dots) },
+  ) {
+    item(key = "capsules-and-parts") { CapsulesAndPartsDemo() }
+  }
+}
+
+/** I buchi delle app (fase 12a): le stesse sezioni che stanno in fondo a Controlli, qui da sole. */
+@Composable
+private fun GapsPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () -> Unit) {
+  FluidScreen(
+    title = "I buchi delle app",
+    subtitle = "Taglie, messaggio, campo segreto, barre, piastrella, stato vuoto, gruppi, aptica.",
+    onBack = onBack,
+    extraBottomPadding = bottomInset,
+    ambient = remember { FluidAmbient(tone = FluidHeroTone.Secondary, motif = FluidHeroMotif.Dots) },
+  ) {
+    gapsDemoItems()
   }
 }
 

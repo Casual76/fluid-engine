@@ -8,9 +8,16 @@
       android:label="@string/app_name"
       android:supportsRtl="true"
       android:theme="@style/Theme.FluidSample">
+    <!--
+      configChanges: la galleria e' una pagina di prova con uno stato che non si vuole perdere (il
+      registro aptico, la grana tarata, dove si era arrivati): passare al tema scuro di sistema, ruotare
+      o cambiare la dimensione del testo non deve ricreare l'attivita' e azzerare tutto. Compose segue
+      da solo questi cambiamenti.
+    -->
     <activity
         android:name=".GalleryActivity"
         android:exported="true"
+        android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|density|fontScale|keyboardHidden"
         android:theme="@style/Theme.FluidSample">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />

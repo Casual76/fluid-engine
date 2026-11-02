@@ -20,6 +20,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -47,11 +48,16 @@ import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidTone
 import kotlinx.coroutines.launch
 
-/** Tab three: everything that appears *over* a page, and the one thing that used to be impossible. */
+/**
+ * Tab three: everything that appears *over* a page, and the one thing that used to be impossible.
+ *
+ * Dalla beta della 3.0 e' anche il catalogo: le demo che non stanno in nessuna scheda (le righe e i
+ * fogli, le capsule, i buchi delle app) si aprono da qui con [onOpen], a un tocco dalla scheda.
+ */
 @Suppress("DEPRECATION")
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-internal fun ChromeTab(bottomInset: Dp) {
+internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
   var cardOpen by remember { mutableStateOf(false) }
   var sheetOpen by remember { mutableStateOf(false) }
   var legacySheet by remember { mutableStateOf(false) }
@@ -178,6 +184,39 @@ internal fun ChromeTab(bottomInset: Dp) {
           title = "Pagine",
           subtitle = "Apertura da destra, indietro sotto il dito (3.0)",
           onClick = { context.startActivity(Intent(context, PagesDemoActivity::class.java)) },
+        )
+      }
+    }
+
+    item(key = "catalog-header") { FluidSectionHeader(title = "Catalogo della 3.0") }
+    item(key = "catalog") {
+      FluidListGroup(glass = true) {
+        FluidListRow(
+          title = "Da provare",
+          subtitle = "Cosa giudicare in mano in questa beta, con il collegamento a ogni demo",
+          modifier = Modifier.testTag("chrome-open-to-try"),
+          onClick = { onOpen(GalleryPage.ToTry) },
+        )
+        FluidListDivider()
+        FluidListRow(
+          title = "Righe e fogli",
+          subtitle = "Interruttori, scelte, aspetto, conferme e avvisi con un campo",
+          modifier = Modifier.testTag("chrome-open-rows"),
+          onClick = { onOpen(GalleryPage.RowsAndSheets) },
+        )
+        FluidListDivider()
+        FluidListRow(
+          title = "Capsule e pezzi piccoli",
+          subtitle = "Capsula, ricerca, pallino, scheletri, selezione, pager, passi",
+          modifier = Modifier.testTag("chrome-open-capsules"),
+          onClick = { onOpen(GalleryPage.CapsulesAndParts) },
+        )
+        FluidListDivider()
+        FluidListRow(
+          title = "I buchi delle app",
+          subtitle = "Taglie, messaggio, campo segreto, barre, piastrella, vuoto, gruppi",
+          modifier = Modifier.testTag("chrome-open-gaps"),
+          onClick = { onOpen(GalleryPage.Gaps) },
         )
       }
     }

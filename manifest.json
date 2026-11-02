@@ -23,14 +23,22 @@
       "sizeBytes": 2808256
     },
     "beta": {
-      "version": "2.0.0-beta.2",
+      "version": "2.0.0-beta.3",
       "releaseDate": "2026-11-02",
-      "changelog": "Beta 2 della 3.0. Menù liquidi: si sceglie col dito che li ha aperti (tieni premuto, trascina su una voce, rilascia), oppure rilasci e tocchi; avviso di vetro. Tutto in vetro vero: chip, segmentato, rail, indice, banda della barra. Pagine con la barra ancorata (il tasto indietro non si muove) e il back «rimpicciolisce e scivola». Pezzi nuovi: aggiornamento in-app, riordino, scorrimento rapido, visualizzatore. Cosa provare: pagina «Da provare», sezione Beta 2.",
-      "releaseTag": "beta-fluid-glass-v2.0.0-beta.2",
-      "apkAsset": "fluid-glass-2.0.0-beta.2.apk",
-      "sizeBytes": 3291767
+      "changelog": "Beta 3 della 3.0, dopo le prove della beta 2. Fluid-physics di vetro liquido: il pannello si stira, oscilla e si stacca dal tasto con una goccia, la lente piega mentre corre; il testo se ne va per primo e resta nel vetro; il menu contestuale nasce dalla riga. Il tasto tiene il dito: la pagina non scorre più mentre lo tieni (i chip lasciano scorrere la loro fila). Segmentato come iOS. Nuovi: scrubber per brani e cronologie, Markdown per tutte le app. In Fisica l'interruttore fra vetro liquido e geometrico (beta 2) per confrontare. Cosa provare: pagina «Da provare», sezione Beta 3.",
+      "releaseTag": "beta-fluid-glass-v2.0.0-beta.3",
+      "apkAsset": "fluid-glass-2.0.0-beta.3.apk",
+      "sizeBytes": 3324526
     },
     "history": [
+      {
+        "version": "2.0.0-beta.2",
+        "releaseDate": "2026-11-02",
+        "changelog": "Beta 2 della 3.0. Menù liquidi: si sceglie col dito che li ha aperti (tieni premuto, trascina su una voce, rilascia), oppure rilasci e tocchi; avviso di vetro. Tutto in vetro vero: chip, segmentato, rail, indice, banda della barra. Pagine con la barra ancorata (il tasto indietro non si muove) e il back «rimpicciolisce e scivola». Pezzi nuovi: aggiornamento in-app, riordino, scorrimento rapido, visualizzatore. Cosa provare: pagina «Da provare», sezione Beta 2.",
+        "releaseTag": "beta-fluid-glass-v2.0.0-beta.2",
+        "apkAsset": "fluid-glass-2.0.0-beta.2.apk",
+        "sizeBytes": 3291767
+      },
       {
         "version": "2.0.0-beta.1",
         "releaseDate": "2026-11-02",

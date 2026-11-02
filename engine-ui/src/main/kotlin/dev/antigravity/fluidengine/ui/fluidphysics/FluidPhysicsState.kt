@@ -150,6 +150,47 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     transitPlanStart = null
   }
 
+  /**
+   * Come [driveExternally] fra due lastre, fra due forme di **sole lastre**: una lastra o un gruppo
+   * di lastre per parte (3.0, la barra ancorata delle pagine).
+   *
+   * E' il viaggio di [morphTo] fra gruppi — gli stessi accoppiamenti al costo minimo, lo stesso ponte
+   * di materiale fra pezzi vicini — con l'orologio del chiamante: la barra delle pagine lo guida col
+   * progresso del dito, e due orologi sulla stessa superficie sarebbero un disallineamento garantito.
+   * Un pezzo che non ha un compagno dall'altra parte lo riceve dal chiamante come **seme**: una lastra
+   * di un pixel al centro del pezzo, cosi' nasce (o si spegne) sul posto invece di attraversare la
+   * barra per raggiungere il compagno piu' vicino.
+   *
+   * Nessun oltrepasso: oltre l'1 la forma e' il traguardo fermo. Una sagoma libera ([FluidForm.Poly])
+   * non e' ammessa: il campo fuso dei gruppi parla solo rettangoli arrotondati.
+   */
+  fun driveExternally(
+    from: FluidForm,
+    to: FluidForm,
+    progress: () -> Float,
+  ) {
+    if (from is FluidForm.Slab && to is FluidForm.Slab) {
+      driveExternally(from, to, progress, 0f, 0f, startFrame = null)
+      return
+    }
+    val fromSlabs = requireNotNull(slabPiecesOf(from)) { "driveExternally fra gruppi vuole solo lastre: $from" }
+    val toSlabs = requireNotNull(slabPiecesOf(to)) { "driveExternally fra gruppi vuole solo lastre: $to" }
+    val current = externalDrive
+    if (current != null && current.from == from && current.to == to && current.startFrame == null) return
+    val blend = maxOf(groupBlendOf(from), groupBlendOf(to))
+    externalDrive = ExternalWindowDrive(
+      transit = SlabTransit(matchSlabPairs(fromSlabs, toSlabs), blend),
+      from = from,
+      to = to,
+      progress = progress,
+      overshootInflationX = 0f,
+      overshootInflationY = 0f,
+      startFrame = null,
+    )
+    transitPlanStamp = Float.NaN
+    transitPlanStart = null
+  }
+
   /** Grossolano e sicuro da leggere in composizione: dietro c'è un derivedStateOf. */
   val isMorphing: Boolean by derivedStateOf { activeTransit != null }
 
@@ -372,7 +413,12 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       val startRect = if (t >= 1f) null else drive.startFrame?.invoke()
       if (transitPlanTransit !== drive.transit || transitPlanStamp != t || transitPlanStart != startRect) {
         transitPlan.clipToBounds = maskInShader
-        if (t >= 1f) {
+        val toSlab = drive.to as? FluidForm.Slab
+        if (t >= 1f && toSlab == null) {
+          // Un gruppo guidato da fuori non ha oltrepasso: all'1 e oltre e' il traguardo fermo, con
+          // lo stesso piano di riposo di una forma che non viaggia.
+          buildRestPlan(transitPlan, drive.to)
+        } else if (t >= 1f && toSlab != null) {
           // All'1 e oltre la partenza non c'entra piu'. In punto all'1 e' la lastra ferma, con il
           // raccordo continuo della casa (la stessa silhouette di `buildRestPlan`, non il cerchio
           // del viaggio). Oltre, l'oltrepasso e' un GONFIORE, non un proseguimento: il traguardo
@@ -380,22 +426,22 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
           // resta il traguardo: estrapolare il lerp oltre l'1 voleva dire stirare la sagoma lungo
           // il viaggio — fianchi in dentro e fondo in fuori — e questo non lo fa piu' nessuno.
           val over = t - 1f
-          val center = drive.to.frame.center
+          val center = toSlab.frame.center
           buildRestPlan(
             transitPlan,
             inflateSlab(
-              slab = drive.to,
+              slab = toSlab,
               centerX = center.x,
               centerY = center.y,
               scaleX = 1f + over * drive.overshootInflationX,
               scaleY = 1f + over * drive.overshootInflationY,
             ),
           )
-        } else if (startRect != null) {
+        } else if (startRect != null && toSlab != null) {
           // Partenza viva: una capsula sul rettangolo di questo istante (il tasto, premuto o a
           // riposo, e' tondo per costruzione), verso il traguardo del chiamante.
           val from = FluidForm.Slab(startRect, FluidCornerRadii.all(startRect.minDimension / 2f))
-          buildSlabPlan(transitPlan, listOf(from to drive.to), blendRadius = 0f, t = t)
+          buildSlabPlan(transitPlan, listOf(from to toSlab), blendRadius = 0f, t = t)
         } else {
           buildTransitPlan(transitPlan, drive.transit, t)
         }
@@ -435,11 +481,14 @@ fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
   return state
 }
 
-/** La guida esterna: un transito a un pezzo il cui orologio appartiene al chiamante. */
+/**
+ * La guida esterna: un transito di lastre il cui orologio appartiene al chiamante. Un pezzo per
+ * parte (il modale, la pillola che diventa player) o un gruppo per parte (la barra delle pagine).
+ */
 private class ExternalWindowDrive(
   val transit: SlabTransit,
-  val from: FluidForm.Slab,
-  val to: FluidForm.Slab,
+  val from: FluidForm,
+  val to: FluidForm,
   val progress: () -> Float,
   val overshootInflationX: Float,
   val overshootInflationY: Float,

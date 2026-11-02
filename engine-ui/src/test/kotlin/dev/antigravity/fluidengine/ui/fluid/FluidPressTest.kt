@@ -374,9 +374,98 @@ class FluidPressTransformTest {
     assertEquals(0.05f, growth(FluidPressFeedback.Expand, 320f, 48f), 1e-5f)
     // In px: la stessa crescita in dp su uno schermo a densita' 3.
     assertEquals(16f / 200f, growth(FluidPressFeedback.Expand, 600f, 144f, density = 3f), 1e-5f)
-    // Il tasto tondo non ha tetto: non e' mai largo.
+    // Il tasto tondo ha il suo tetto (24 dp in tutto), che a 44 dp non si vede: vedi i test del tondo.
     assertEquals(0.5f, growth(FluidPressFeedback.ExpandRound, 44f, 44f), 1e-5f)
     assertEquals(0f, growth(FluidPressFeedback.Expand, 0f, 40f), 0f)
+  }
+
+  // --- il tetto della crescita del tondo (3.0) ------------------------------------------------------
+
+  /** Quanto cresce, in dp per lato, un tasto tondo di [side] dp a pressione piena. */
+  private fun roundGrowthPerSideDp(side: Float, density: Float = dp, feedback: FluidPressFeedback = FluidPressFeedback.ExpandRound): Float {
+    val px = side * density
+    return growth(feedback, px, px, density) * px / 2f / density
+  }
+
+  @Test
+  fun `un tasto tondo fino a 48 dp cresce del 50 per cento, intero, come prima del tetto`() {
+    // 40 e 44 sono le taglie di sempre del tasto di vetro, 48 il bersaglio minimo del tocco: nessuna cambia.
+    listOf(24f, 32f, 40f, 44f, 48f).forEach { side ->
+      assertEquals("$side dp", 0.5f, growth(FluidPressFeedback.ExpandRound, side, side), 1e-6f)
+    }
+    val full = fluidPressTransform(FluidPressFeedback.ExpandRound, 1f, Offset.Zero, 48f, 48f, dp, reducedMotion = false)
+    assertEquals(1.5f, full.scaleX, 1e-6f)
+  }
+
+  @Test
+  fun `oltre i 48 dp un tasto tondo cresce di 24 dp in tutto e non del 50 per cento`() {
+    // 24 / lato: 54 -> x1,44; 62 -> x1,39; 76 -> x1,32; 100 -> x1,24.
+    listOf(54f, 62f, 76f, 100f).forEach { side ->
+      assertEquals("$side dp", 24f / side, growth(FluidPressFeedback.ExpandRound, side, side), 1e-6f)
+    }
+    val disc76 = fluidPressTransform(FluidPressFeedback.ExpandRound, 1f, Offset.Zero, 76f, 76f, dp, reducedMotion = false)
+    // Un disco da 76 dp arriva a 100, non a 114.
+    assertEquals(100f, 76f * disc76.scaleX, 1e-3f)
+    val disc62 = fluidPressTransform(FluidPressFeedback.ExpandRound, 1f, Offset.Zero, 62f, 62f, dp, reducedMotion = false)
+    assertEquals(86f, 62f * disc62.scaleX, 1e-3f)
+    assertEquals(78f, 54f * fluidPressTransform(FluidPressFeedback.ExpandRound, 1f, Offset.Zero, 54f, 54f, dp, false).scaleX, 1e-3f)
+  }
+
+  @Test
+  fun `un tasto tondo non cresce mai oltre 12 dp per lato, a nessuna misura e a nessuna densita'`() {
+    listOf(1f, 1.5f, 2f, 2.625f, 2.75f, 3f, 3.5f, 4f).forEach { density ->
+      for (side in 16..240) {
+        // Il layout misura in pixel interi: l'arrotondamento non deve far sforare il tetto.
+        val px = kotlin.math.round(side * density)
+        val perSide = growth(FluidPressFeedback.ExpandRound, px, px, density) * px / 2f / density
+        assertTrue("$side dp a densita' $density: $perSide dp per lato", perSide <= 12.0f + 1e-3f)
+      }
+    }
+  }
+
+  @Test
+  fun `44 dp resta x1,5 esatto alle densita' vere, anche col pixel arrotondato`() {
+    // 44 dp a 2,625 sono 115,5 px, che il layout misura 116: il tetto in px (63) sta comunque sopra
+    // il 50% (58), quindi la scala non scende di un millesimo.
+    listOf(1f, 1.5f, 2f, 2.625f, 2.75f, 3f, 3.5f, 4f).forEach { density ->
+      val px = kotlin.math.round(44f * density)
+      assertEquals("densita' $density", 0.5f, growth(FluidPressFeedback.ExpandRound, px, px, density), 1e-6f)
+      val px40 = kotlin.math.round(40f * density)
+      assertEquals("40 dp, densita' $density", 0.5f, growth(FluidPressFeedback.ExpandRound, px40, px40, density), 1e-6f)
+    }
+  }
+
+  @Test
+  fun `quanto un disco invade il vicino, col tetto e senza`() {
+    val uncapped = FluidPressFeedback.ExpandRound.copy(longSideCapDp = Float.POSITIVE_INFINITY)
+    fun overlap(side: Float, gap: Float, feedback: FluidPressFeedback = FluidPressFeedback.ExpandRound) =
+      (roundGrowthPerSideDp(side, feedback = feedback) - gap).coerceAtLeast(0f)
+    // Fluidify: dischi da 62 e 76 dp, 16 dp fra loro. Prima si sormontavano, adesso non si toccano.
+    assertEquals(0f, overlap(62f, 16f), 0f)
+    assertEquals(0f, overlap(76f, 16f), 0f)
+    assertEquals("senza tetto il 76 invadeva il vicino di 3 dp", 3f, overlap(76f, 16f, uncapped), 1e-3f)
+    assertEquals("e il 62 sfiorava: 15,5 dp contro 16", 0f, overlap(62f, 16f, uncapped), 1e-3f)
+    // A distanze piu' strette il tetto non basta da solo: 12 dp per lato sono 12 dp per lato.
+    assertEquals(2f, overlap(76f, 10f), 1e-3f)
+    assertEquals(4f, overlap(76f, 8f), 1e-3f)
+    // E sono gli stessi 12 dp di un tasto da 48 dp: nessun disco invade piu' del bersaglio minimo.
+    assertEquals(roundGrowthPerSideDp(48f), roundGrowthPerSideDp(76f), 1e-3f)
+  }
+
+  @Test
+  fun `con le animazioni ridotte il tetto vale ancora, e la crescita e' la meta'`() {
+    val full = fluidPressTransform(FluidPressFeedback.ExpandRound, 1f, Offset.Zero, 76f, 76f, dp, reducedMotion = false)
+    val reduced = fluidPressTransform(FluidPressFeedback.ExpandRound, 1f, Offset.Zero, 76f, 76f, dp, reducedMotion = true)
+    assertEquals((full.scaleX - 1f) * ReducedAmplitude, reduced.scaleX - 1f, 1e-5f)
+    assertTrue(76f * reduced.scaleX - 76f <= 12f + 1e-3f)
+  }
+
+  @Test
+  fun `il picco della molla supera il tetto di poco, come supera il cinquanta per cento`() {
+    // La molla sorpassa del 16%: il tetto e' sulla pressione piena, non sul picco. 76 dp a 1,163 fa
+    // 76 + 24 * 1,163 = 103,9 dp, 14 dp per lato al picco — e il tondo da 44, al picco, 70.
+    val peak = fluidPressTransform(FluidPressFeedback.ExpandRound, 1.163f, Offset.Zero, 76f, 76f, dp, false)
+    assertEquals(76f + 24f * 1.163f, 76f * peak.scaleX, 1e-2f)
   }
 
   @Test

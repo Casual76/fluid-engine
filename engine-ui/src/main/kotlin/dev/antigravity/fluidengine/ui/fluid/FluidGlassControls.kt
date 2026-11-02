@@ -60,6 +60,8 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  * proporzione**. La crescita e' una frazione ([FluidPressFeedback.ExpandRound] fa 1,5 su un tasto
  * tondo, [FluidPressFeedback.Expand] 1,1 con un tetto sul lato lungo), la deriva elastica e'
  * misurata sul lato corto del vetro, il bagliore sul lato lungo: nessun numero in dp da riscalare.
+ * L'unico numero in dp e' il tetto della crescita di un tasto tondo — 24 dp in tutto, 12 per lato
+ * (3.0, [FluidPressFeedback.ExpandRound]) — che sotto i 48 dp non si vede: fino a li' x1,5 intero.
  *
  * **Il bersaglio del tocco non scende mai sotto i 48 dp**, qualunque sia la taglia: un vetro da
  * 40 dp sta dentro un riquadro da 48 che e' quello che occupa nel layout, e il tocco lo vede. Il
@@ -399,7 +401,8 @@ fun Modifier.fluidStaticGlassSurface(
  *
  * @param size la taglia ([FluidGlassSize]): 40, 44 (di serie) o 54 dp di vetro. Il riquadro che il
  *   tasto occupa e che il dito colpisce e' sempre almeno 48 dp ([FluidGlassSize.touchTarget]), e la
- *   pressione e' la stessa di sempre in proporzione: vedi [FluidGlassSize]. Dalla 3.0.
+ *   pressione e' la stessa di sempre in proporzione: vedi [FluidGlassSize]. Per una misura che non e'
+ *   fra queste c'e' l'overload con `size: Dp`. Dalla 3.0.
  * @param haptic cosa si sente al click, come in [fluidPressable]: di serie il click di LibrePods
  *   (con `Tap` un tasto che cresce suona `PressClick`); un evento diverso lo sostituisce; `null`
  *   spegne tutto — contatto, rilascio, grana e click — per un tasto la cui azione ha gia' il suo
@@ -449,6 +452,62 @@ fun FluidGlassIconButton(
 }
 
 /**
+ * Un tasto tondo di vetro di una misura qualunque (3.0): i 62 e i 76 dp dei dischi del trasporto di un
+ * player, i 52 di un hero, i 54 di un pulsante di menu, che le tre taglie di [FluidGlassSize] non
+ * dicono.
+ *
+ * E' lo stesso tasto, con le stesse regole, e [size] e' il lato del **vetro**:
+ *
+ *  * **il bersaglio del tocco non scende mai sotto i 48 dp**: un vetro da 32 o da 40 sta dentro un
+ *    riquadro da 48 che e' quello che occupa nel layout e che il dito colpisce; da 48 in su il vetro
+ *    e' il proprio bersaglio, senza riquadro in piu' ([FluidGlassSize.touchTarget] e' la stessa regola);
+ *  * **la crescita sotto il dito ha un tetto**: x1,5 fino a 48 dp, poi 24 dp in tutto e non di piu'
+ *    ([FluidPressFeedback.ExpandRound]). Un disco da 76 dp arriva a 100, non a 114: con 16 dp fra due
+ *    dischi non si toccano;
+ *  * un'icona sta bene alla meta' del lato (`size / 2`: 20, 22, 27 dp per le tre taglie).
+ *
+ * Le due strade si scelgono dal tipo: `size = FluidGlassSize.Large` o `size = 76.dp`. Senza `size`
+ * vale l'overload con la taglia, `Regular`: questo vuole la misura.
+ *
+ * @param size il lato del vetro, positivo.
+ * @see FluidGlassIconButton la versione con le tre taglie, e gli altri parametri.
+ */
+@Composable
+fun FluidGlassIconButton(
+  onClick: () -> Unit,
+  size: Dp,
+  modifier: Modifier = Modifier,
+  backdrop: GlassBackdropState = currentGlassBackdrop(),
+  enabled: Boolean = true,
+  selected: Boolean = false,
+  shape: Shape = FluidCapsuleShape,
+  onLongClick: (() -> Unit)? = null,
+  haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
+  longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
+  content: @Composable BoxScope.() -> Unit,
+) {
+  val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
+  FluidGlassIconButtonCore(
+    onClick = onClick,
+    modifier = modifier,
+    backdrop = backdrop,
+    enabled = enabled,
+    selected = selected,
+    shape = shape,
+    onLongClick = onLongClick,
+    // La taglia e' solo il punto di partenza di `lens`: la misura vera e' quella che passa il chiamante.
+    size = FluidGlassSize.Regular,
+    haptic = haptic,
+    longClickHaptic = longClickHaptic,
+    press = press,
+    grip = grip,
+    lens = size,
+    content = content,
+  )
+}
+
+/**
  * Il tasto tondo di vetro, con i ganci che servono a un'ancora di menu (3.0, fase 7): la pressione
  * dal chiamante (per leggere il tasto gonfiato al click lungo), un modificatore sulla LENTE (il
  * cancello `hidden`, che deve nascondere il vetro e non il riquadro da 48 dp) e la posizione della
@@ -471,17 +530,19 @@ internal fun FluidGlassIconButtonCore(
   lensModifier: Modifier = Modifier,
   onLensPlaced: ((LayoutCoordinates) -> Unit)? = null,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
+  /** Il lato del vetro; di serie quello della taglia. Una misura libera lo cambia, il riquadro con lui. */
+  lens: Dp = size.lens,
   content: @Composable BoxScope.() -> Unit,
 ) {
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
-      .size(size.touchTarget),
+      .size(lens.coerceAtLeast(FluidGlassIconTouchTargetSize)),
     contentAlignment = Alignment.Center,
   ) {
     Box(
       modifier = Modifier
-        .size(size.lens)
+        .size(lens)
         .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
         .then(lensModifier)
         .glassControlSurface(

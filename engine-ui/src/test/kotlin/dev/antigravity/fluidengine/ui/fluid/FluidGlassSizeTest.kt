@@ -58,16 +58,36 @@ class FluidGlassSizeTest {
   }
 
   @Test
-  fun theRoundButtonGrowsByTheSameFractionOnEverySize() {
-    // La crescita di un tasto tondo e' una frazione (LibrePods: x1,5), non una misura in dp: un
-    // tasto piu' grande cresce di piu' in assoluto e della stessa quantita' in proporzione. Il tetto
-    // sul lato lungo e' infinito per `ExpandRound`, quindi nessuna taglia lo accorcia.
-    FluidGlassSize.entries.forEach { size ->
+  fun theRoundButtonGrowsLibrePodsOnTheSizesUpToTheTouchTarget() {
+    // La crescita di un tasto tondo e' una frazione (LibrePods: x1,5) finche' il tetto non entra in
+    // gioco, e il tetto (24 dp in tutto) sta al bersaglio minimo del tocco: le taglie che l'engine ha
+    // sempre avuto, 40 e 44 dp, sono intere come prima.
+    listOf(FluidGlassSize.Compact, FluidGlassSize.Regular).forEach { size ->
       val growth = fluidPressGrowth(FluidPressFeedback.ExpandRound, size.lens.value, size.lens.value, dp = 1f)
       assertEquals("$size", RoundMaxScale, growth, 0.0001f)
       val peak = size.lens.value * (1f + growth)
       assertEquals("$size", size.lens.value * 1.5f, peak, 0.001f)
     }
+  }
+
+  @Test
+  fun theRoundButtonAboveTheTouchTargetGrowsByTheCapAndNoMore() {
+    // Large e' da 54 dp: oltre i 48 il 50% (27 dp) e' piu' del tetto (24), e il tasto arriva a 78 dp.
+    val large = FluidGlassSize.Large.lens.value
+    val growth = fluidPressGrowth(FluidPressFeedback.ExpandRound, large, large, dp = 1f)
+    assertEquals(RoundLongSideCapDp / large, growth, 0.0001f)
+    assertEquals(large + RoundLongSideCapDp, large * (1f + growth), 0.001f)
+    // E nessuna taglia fa invadere piu' di 12 dp per lato.
+    FluidGlassSize.entries.forEach { size ->
+      val g = fluidPressGrowth(FluidPressFeedback.ExpandRound, size.lens.value, size.lens.value, dp = 1f)
+      assertTrue("$size", size.lens.value * g / 2f <= RoundLongSideCapDp / 2f + 0.0001f)
+    }
+  }
+
+  @Test
+  fun theCapSitsAtTheMinimumTouchTarget() {
+    // Il numero non e' libero: e' il piu' piccolo che lascia intere le taglie che c'erano (50% di 48).
+    assertEquals(FluidGlassIconTouchTargetSize.value * RoundMaxScale, RoundLongSideCapDp, 0.0001f)
   }
 
   @Test

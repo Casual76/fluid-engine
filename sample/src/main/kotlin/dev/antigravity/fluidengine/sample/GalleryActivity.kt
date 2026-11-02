@@ -375,6 +375,7 @@ private fun GapsPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () -> Uni
     ambient = remember { FluidAmbient(tone = FluidHeroTone.Secondary, motif = FluidHeroMotif.Dots) },
   ) {
     gapsDemoItems()
+    glassGrowthContrastItems()
   }
 }
 

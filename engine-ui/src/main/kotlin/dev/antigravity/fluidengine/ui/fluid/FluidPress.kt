@@ -109,7 +109,9 @@ import kotlin.math.tanh
  * @property longSideCapDp il tetto, in dp, della crescita del lato lungo di un tasto: oltre, la scala
  *   e' ridotta fino a stare dentro. Serve ai tasti larghi (un campo, un pulsante a tutta larghezza),
  *   dove il 10% sono trenta dp per lato: LibrePods li risolve passando 0,05 a mano a ogni tasto
- *   largo, qui lo fa la regola. Infinito per il tasto tondo, che non e' mai largo.
+ *   largo, qui lo fa la regola. Per il tasto tondo vale 24 dp in tutto, 12 per lato
+ *   ([RoundLongSideCapDp]): fino a 48 dp non cambia niente (x1,5 intero), oltre cresce di quei 24 e
+ *   non di piu' — un disco da 76 dp arriva a 100, non a 114, e non invade i vicini.
  */
 @Immutable
 data class FluidPressFeedback(
@@ -133,6 +135,12 @@ data class FluidPressFeedback(
      * I tasti tondi, solo icona: crescono del 50%, e' il carattere di `StyledIconButton` di
      * LibrePods (un tasto da 44 dp arriva a 66, e al picco della molla a 70). Per tutto il resto,
      * [Expand].
+     *
+     * **Con un tetto, che LibrePods non ha** (3.0): la crescita del diametro non supera 24 dp in
+     * tutto, 12 per lato ([RoundLongSideCapDp]). Sotto i 48 dp, il bersaglio minimo del tocco, la
+     * scala e' quella di LibrePods e non cambia di un pixel: 40 e 44 dp arrivano a 60 e 66. Sopra, il
+     * 50% sarebbe troppo — un disco da 76 dp a 114 dp, 19 dp per lato, finisce sul vicino — e cresce
+     * di 24 dp e basta: 54 dp a 78 (x1,44), 62 a 86 (x1,39), 76 a 100 (x1,32).
      */
     val ExpandRound: FluidPressFeedback = FluidPressFeedback(
       pressedScale = 1f,
@@ -140,7 +148,7 @@ data class FluidPressFeedback(
       followsFinger = true,
       dragHaptics = true,
       maxScale = RoundMaxScale,
-      longSideCapDp = Float.POSITIVE_INFINITY,
+      longSideCapDp = RoundLongSideCapDp,
     )
 
     /** Le superfici: cedono fino a [scale] e stanno ferme. Il comportamento di sempre. */
@@ -542,7 +550,8 @@ internal fun fluidPressTransform(
  * crescita del lato lungo non supera [FluidPressFeedback.longSideCapDp] dp in totale. Un tasto da
  * 120 dp cresce del 10% (12 dp), uno da 200 dp dell'8%, uno a tutta larghezza (320 dp) del 5%: che
  * e' il numero che LibrePods passa a mano a ogni suo tasto a larghezza piena. Senza il tetto il
- * 10% di un campo di 340 dp sono 34 dp, e invade i margini.
+ * 10% di un campo di 340 dp sono 34 dp, e invade i margini. Un tasto tondo ha il suo tetto,
+ * [RoundLongSideCapDp]: x1,5 fino a 48 dp, poi 24 dp in tutto.
  */
 internal fun fluidPressGrowth(feedback: FluidPressFeedback, width: Float, height: Float, dp: Float): Float {
   if (width <= 0f || height <= 0f) return 0f
@@ -558,6 +567,28 @@ internal const val RoundMaxScale = 0.5f
 
 /** Il tetto della crescita del lato lungo di un tasto con testo: vedi [fluidPressGrowth]. */
 internal const val TextLongSideCapDp = 16f
+
+/**
+ * Il tetto della crescita del diametro di un tasto tondo: 24 dp in tutto, 12 per lato.
+ *
+ * Il numero non e' libero. **Fino a 48 dp la regola di LibrePods deve restare intera**: un tasto da
+ * 44 dp cresce di 22 dp (x1,5) e uno da 48 di 24, quindi il tetto non puo' stare sotto i 24, e 24
+ * e' il piu' piccolo che non cambia niente per i tasti che l'engine ha sempre avuto (40, 44, e il
+ * bersaglio da 48). Un tetto piu' basso accorcerebbe anche loro; uno piu' alto lascerebbe correre i
+ * dischi grandi. Con 24 c'e' pure il margine per l'arrotondamento dei pixel: 44 dp a densita' 2,625
+ * sono 115,5 px, misurati 116, e il tetto in px (63) sta comunque ben sopra il 50% (58).
+ *
+ * Oltre i 48 dp la crescita **resta di 24 dp**, 12 per lato, qualunque sia il tasto: i dischi del
+ * trasporto di un player (62 e 76 dp) arrivano a 86 e 100 dp invece di 93 e 114, e con 16 dp fra
+ * loro non si toccano. Non e' un numero che garantisca niente a ogni distanza: a 10 dp dal vicino
+ * restano 2 dp di sovrapposizione, a 8 dp quattro. Sono i 12 dp per lato che un tasto da 48 dp ha
+ * sempre avuto, e che nessuno ha mai trovato troppi; un tasto che deve stare piu' stretto passa a
+ * una taglia piu' piccola, o a un `FluidPressFeedback.ExpandRound.copy(longSideCapDp = ...)`.
+ *
+ * (Un tetto che lasci intero il 44 e tenga il 76 a 8 dp dal vicino non esiste: il 44, da solo, esce
+ * di 11 dp per lato.)
+ */
+internal const val RoundLongSideCapDp = 24f
 
 /** Con le animazioni ridotte un pulsante cresce la meta': risponde, ma senza muoversi molto. */
 internal const val ReducedAmplitude = 0.5f

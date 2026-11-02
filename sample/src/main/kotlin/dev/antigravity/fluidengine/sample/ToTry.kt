@@ -91,6 +91,7 @@ private val ControlsTouch = TryTarget.Tab(RouteControls, "Controlli › Tocco")
 private val ControlsLog = TryTarget.Tab(RouteControls, "Controlli › Registro aptico")
 private val ControlsGrain = TryTarget.Tab(RouteControls, "Controlli › Grana")
 private val MaterialAction = TryTarget.Tab(RouteMaterial, "Materiale › tasto Azione")
+private val PhysicsSpring = TryTarget.Tab(RoutePlayground, "Fisica › Molla e materiale")
 private val PagesScreen = TryTarget.Screen("Chrome › Navigazione › Pagine (schermata a parte)")
 private val RowsPage = TryTarget.Page(GalleryPage.RowsAndSheets, "Righe e fogli")
 private val CapsulesPage = TryTarget.Page(GalleryPage.CapsulesAndParts, "Capsule e pezzi piccoli")
@@ -463,6 +464,37 @@ private val Beta3 = TryRound(
   title = "Beta 3",
   intro = "Terza prova della 3.0: cosa è cambiato dopo la beta 2. Tocca una voce per aprire la sua demo.",
   items = listOf(
+    TryItem(
+      "liquido-apertura", TryArea.Menus, "Vetro liquido",
+      "Tieni premuto «Azione» e guarda il pannello salire dal tasto con una goccia che si stacca e oscillare un " +
+        "attimo prima di posarsi; giudica se si legge come un liquido e non come un rettangolo che cresce.",
+      MenusMorph,
+    ),
+    TryItem(
+      "liquido-chiusura", TryArea.Menus, "Il testo in chiusura",
+      "Chiudi lo stesso menu toccando fuori, anche in alto sopra il palco: le voci se ne vanno per prime, mai fuori " +
+        "dal vetro né insieme ad «Azione»; dimmi se l'uscita ti torna.",
+      MenusMorph,
+    ),
+    TryItem(
+      "liquido-contestuale", TryArea.Menus, "Contestuale liquido",
+      "Tieni premuta una riga e guarda il menu uscire dal bordo della riga sotto il dito e rientrarci; giudica se la " +
+        "riga sollevata sembra ancora un ritaglio.",
+      MenusRows,
+    ),
+    TryItem(
+      "liquido-confronto", TryArea.Panels, "Liquido o geometrico",
+      "In Fisica › Molla e materiale metti l'interruttore su «Geometrico (beta 2)» e poi su «Vetro liquido», e rifai i " +
+        "tre gesti sopra: dimmi quale preferisci a velocità vera.",
+      PhysicsSpring,
+    ),
+    TryItem(
+      "tasti-tengono-dito", TryArea.Buttons, "Il tasto tiene il dito",
+      "Tieni premuto un tasto in una pagina che scorre e muovi il dito in ogni verso: il tasto ti segue e la " +
+        "pagina resta ferma, e se lo lasci sopra il tasto (anche dopo averlo trascinato) vale come un tocco, mentre " +
+        "nella fila dei chip la fila scorre e il chip si scioglie; giudica se ti torna in tutti e due i casi.",
+      ControlsTouch,
+    ),
     TryItem(
       "segmentato-come-ios", TryArea.Panels, "Segmentato come iOS",
       "Appoggia il dito su un segmento che non è scelto e scivola di lato: la goccia ti viene sotto, ti segue con " +

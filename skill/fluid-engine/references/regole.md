@@ -543,7 +543,8 @@ Tenuto premuto, il menu si apre e prende il dito (`Modifier.fluidMenuPointerRela
 mossi oltre lo slop, fuori dalle voci, su un separatore o su una voce spenta lascia il menu aperto. Un
 momento, un colpo: `Open` solo se il menu si apre, `Tick` per voce attraversata, `Tap` alla scelta,
 niente al congedo. L'ancora si nasconde nel disegno (`hidden`), mai con l'alpha di un layer sopra il
-vetro.
+vetro. Il contenuto sta dentro il vetro formato, mai sopra il vetro che si forma; un tocco fuori, ovunque,
+chiude il menu del tasto (anche con `FluidMorphMenuHost` in un palco: fasce dell'host dei modali).
 
 Il perché, una cosa per volta:
 
@@ -554,8 +555,8 @@ Il perché, una cosa per volta:
   dalle voci, su un separatore o su una voce spenta, lascia il menu aperto e si sceglie con un tocco.
   Una volta superato lo slop il dito è «armato» e resta tale anche se torna dov'era: ha deciso di
   scegliere. Un rilascio veloce, lontano dall'ultimo movimento, conta come mosso.
-- **il relè sta in testa all'ancora e consuma nell'Initial.** I tasti, dal 3.0, non prendono mai il
-  gesto e leggono nel Main: senza un consumo già nell'Initial il tasto nascosto continuava a seguire il
+- **il relè sta in testa all'ancora e consuma nell'Initial.** I tasti tengono il dito ma leggono nel
+  Main, dopo l'Initial dei genitori: senza un consumo già nell'Initial il tasto nascosto continuava a seguire il
   dito sul menu e a suonare la sua grana sotto i tick delle voci. Il relè legge tutto *ignorando il
   consumato* (un discendente che ha già preso il gesto — il pulsante, `clickable` — non deve privare il
   menu del dito), consuma i cambi di quel dito solo dal momento dell'hand-off e consuma anche il
@@ -653,8 +654,11 @@ aveva ombra e il suo bordo era un tratto netto mezzo fuori dalla sagoma: era il 
 vetro come la pillola. In viaggio gli stessi numeri seguono la sagoma: niente scalino alla partenza né
 all'arrivo. Il materiale che cambia (`opticsFrom`) si sfuma con `lerpGlassOptics`, e il margine della cattura
 resta zero per costruzione (sotto un quarto di pixel è zero: l'arrotondamento non deve rifare la cattura).
-L'oltrepasso è un gonfiore attorno al centro del traguardo, mai il lerp oltre l'1, e la molla parte dalla
-velocità del momento: niente rincorse (la rincorsa della casa è il preset `FluidPhysicsJourney.House`).
+L'oltrepasso è un gonfiore attorno al centro del traguardo, mai il lerp oltre l'1; **in viaggio la sagoma si
+deforma, ma solo per il moto**: il corpo elastico stira e schiaccia secondo l'accelerazione del centro, e l'ancora
+si svuota col collo. Tutto vale zero esatto a riposo e con le animazioni ridotte, e a nessuno dei due capi del
+viaggio la sagoma differisce dall'ancora o dalla lastra. La molla parte dalla velocità del momento: niente
+rincorse (la rincorsa della casa è il preset `FluidPhysicsJourney.House`).
 
 ## Tre trappole del vetro in movimento
 

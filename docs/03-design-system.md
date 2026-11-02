@@ -664,6 +664,8 @@ veste il viaggio di vetro con la stessa grammatica di `glassSurface` (ruoli, ott
 qualità); `Modifier.fluidPhysicsContent` dà al contenuto il contratto dei modali — dissolvenza e
 zoom uniforme, mai stirato dalla sagoma.
 
+**Vetro liquido (3.0, dopo la beta 2).** In viaggio la sagoma è un corpo elastico: due oscillatori, uno per asse, spinti dall'accelerazione del centro, la stirano lungo il moto mentre accelera e la schiacciano all'arrivo, su periodi diversi (0,38/0,30 s e 0,5/0,26 s: larghezza e altezza oscillano sfasate, la gelatina), poi si posano a zero esatto. Una sagoma che esce dalla propria ancora la lascia come seconda goccia, fusa col collo dello smooth minimum, che si svuota entro l'85% del viaggio e al ritorno risucchia il corpo. Mentre corre, la lente si fa goccia (più rifrazione, meno sfocatura, un filo d'ingrandimento). Il gonfiore uniforme oltre il traguardo resta (la tensione superficiale), ora con la gelatina sopra. Nei menu le voci arrivano a corpo quasi formato (da 0,55 a 0,9), se ne vanno per prime (da 0,94 a 0,62 del ritorno) e il corpo le ritaglia. A riposo la lastra è identica al bit e non chiede fotogrammi; `LocalFluidPhysicsLiquid` spento rimette la geometria di prima, per confrontare; le animazioni ridotte spengono tutto; sotto API 31 resta la deformazione della sagoma, senza il collo. I numeri sono in `FluidLiquid` (`fluidphysics/FluidPhysicsLiquid.kt`).
+
 **Il contratto di performance.** Un fotogramma di morph è nuovi uniform su uno shader già
 compilato: il clip del layer resta un rettangolo fermo per tutta la vita della superficie (la
 silhouette la scolpisce l'alpha dello shader), il padding della cattura non si muove mai, e a

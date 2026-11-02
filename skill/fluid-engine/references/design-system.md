@@ -586,10 +586,12 @@ molle del chiamante. Due orologi sulla stessa superficie sono un disallineamento
 Dalla 3.0 il default di `morphTo` è **una molla sola** (`FluidPhysicsJourney.Spring`: 0,62 / 0,36 s, i token
 del menu) che parte alla velocità del momento — un ritargeting eredita quella del viaggio interrotto, un gesto
 passa la sua con `initialVelocity`. La rincorsa della casa è un preset esplicito, `FluidPhysicsJourney.House`,
-per i morph dimostrativi avviati da un tocco secco (il Playground). Il rimbalzo è sempre geometrico: oltre l'1
-la sagoma è il traguardo gonfiato attorno al suo centro (guadagno 0,6, tetto 8% e 12 dp per lato). Nuovi su
+per i morph dimostrativi avviati da un tocco secco (il Playground). Oltre l'1 la sagoma è il traguardo gonfiato
+attorno al suo centro (guadagno 0,6, tetto 8% e 12 dp per lato), e in viaggio il corpo è liquido (sotto). Nuovi su
 `fluidPhysicsSurface`: `opticsFrom`/`opticsBlend` (il materiale che viaggia) e `pressState` (lente e bagliore
 sotto il dito). A riposo una superficie fisica è una lastra: stessi numeri, bordo e ombra di `glassSurface`.
+
+**Vetro liquido (3.0, dopo la beta 2).** In viaggio la sagoma è un corpo elastico: due oscillatori, uno per asse, spinti dall'accelerazione del centro, la stirano lungo il moto mentre accelera e la schiacciano all'arrivo, su periodi diversi (0,38/0,30 s e 0,5/0,26 s: larghezza e altezza oscillano sfasate, la gelatina), poi si posano a zero esatto. Una sagoma che esce dalla propria ancora la lascia come seconda goccia, fusa col collo dello smooth minimum, che si svuota entro l'85% del viaggio e al ritorno risucchia il corpo. Mentre corre, la lente si fa goccia (più rifrazione, meno sfocatura, un filo d'ingrandimento). Il gonfiore uniforme oltre il traguardo resta (la tensione superficiale), ora con la gelatina sopra. Nei menu le voci arrivano a corpo quasi formato (da 0,55 a 0,9), se ne vanno per prime (da 0,94 a 0,62 del ritorno) e il corpo le ritaglia. A riposo la lastra è identica al bit e non chiede fotogrammi; `LocalFluidPhysicsLiquid` spento rimette la geometria di prima, per confrontare; le animazioni ridotte spengono tutto; sotto API 31 resta la deformazione della sagoma, senza il collo. I numeri sono in `FluidLiquid` (`fluidphysics/FluidPhysicsLiquid.kt`).
 
 E la correzione a una regola che questa nota dava per assoluta: **la card ancorata rimbalza, ed è
 voluto** — richiesta esplicita di Alessio, "eccessivamente in fuori su tutti i lati, poi torna".

@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainConfig
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainStyle
@@ -528,5 +529,157 @@ class FluidPressGestureTest {
     val g = gesture(longPress = 400L)
     assertFalse(g.advance(1_060L))
     assertFalse(g.longPressed)
+  }
+
+  // --- Il dito e' del pulsante (3.0, dopo la prova in mano) -------------------------------------------
+
+  private fun holding(
+    slop: Float = 20f,
+    claimDistance: Float = slop * FluidPressGesture.ClaimFraction,
+    longPress: Long = FluidPressGesture.NoLongPress,
+  ) = FluidPressGesture(
+    downUptime = 1_000L,
+    touchSlop = slop,
+    longPressMillis = longPress,
+    grip = FluidPressGrip.HoldsFinger,
+    claimDistance = claimDistance,
+  )
+
+  private fun yielding(slop: Float = 20f) = FluidPressGesture(
+    downUptime = 1_000L,
+    touchSlop = slop,
+    grip = FluidPressGrip.YieldsToScroll,
+  )
+
+  @Test
+  fun `il gesto prende il dito oltre meta' dello slop, e prima no`() {
+    val g = holding(slop = 20f)
+    // Un tremito (un tocco vero): sotto i 10 px il click resta di `clickable`.
+    assertFalse(g.claim(Offset(3f, 2f), insideClickable = true))
+    assertFalse(g.claim(Offset(0f, 4f), insideClickable = true))
+    assertFalse(g.claimed)
+    // Oltre meta' dello slop: preso, e da li' non si rilascia piu'.
+    assertTrue(g.claim(Offset(0f, 10f), insideClickable = true))
+    assertTrue(g.claimed)
+    assertTrue("preso resta preso", g.claim(Offset.Zero, insideClickable = true))
+  }
+
+  @Test
+  fun `la soglia e' piu' bassa dello slop, perche' la pagina decide dopo il pulsante e non puo' arrivare prima`() {
+    assertTrue(FluidPressGesture.ClaimFraction in 0.1f..0.9f)
+    // Con lo slop del sistema di un telefono a xxhdpi (24 px) si prende il dito prima di 24 px.
+    val g = holding(slop = 24f)
+    assertFalse(g.claim(Offset(0f, 11f), insideClickable = true))
+    assertTrue(g.claim(Offset(0f, 2f), insideClickable = true))
+  }
+
+  @Test
+  fun `la strada e' la somma delle lunghezze, un dito che va e torna la conta due volte`() {
+    val g = holding(slop = 20f)
+    assertFalse(g.claim(Offset(6f, 0f), insideClickable = true))
+    // Torna indietro: lo spostamento netto e' zero, ma la strada e' 12.
+    assertTrue(g.claim(Offset(-6f, 0f), insideClickable = true))
+  }
+
+  @Test
+  fun `un dito che esce dall'area di clickable e' preso subito, anche sotto la soglia`() {
+    val g = holding(slop = 20f)
+    // `clickable` annulla da solo quando il dito esce: il click deve passare al gesto.
+    assertTrue(g.claim(Offset(1f, 0f), insideClickable = false))
+    assertTrue(g.claimed)
+  }
+
+  @Test
+  fun `un mouse prende il dito al primo passo, perche' non ha un tremito da lasciar passare`() {
+    val g = holding(slop = 20f, claimDistance = 0f)
+    assertTrue(g.claim(Offset(0.2f, 0f), insideClickable = true))
+  }
+
+  @Test
+  fun `chi cede il dito alla pagina non lo prende mai`() {
+    val g = yielding()
+    assertFalse(g.claim(Offset(0f, 400f), insideClickable = true))
+    assertFalse(g.claim(Offset(0f, 400f), insideClickable = false))
+    assertFalse(g.claimed)
+  }
+
+  private val button = Size(312f, 96f)
+  private val noPadding = Size.Zero
+  private val margin = Size(32f, 32f)
+
+  @Test
+  fun `un tocco che non si e' mosso non e' un click del gesto, e' di clickable`() {
+    val g = holding()
+    // Nessuna presa, il rilascio e' sul pulsante: due sorgenti per lo stesso tocco sarebbero due click.
+    assertFalse(g.clicks(Offset(150f, 40f), button, noPadding, margin))
+  }
+
+  @Test
+  fun `dopo un trascinamento il click e' del gesto se il dito si solleva dentro il pulsante`() {
+    val g = holding()
+    g.claim(Offset(0f, 30f), insideClickable = true)
+    assertTrue(g.clicks(Offset(150f, 40f), button, noPadding, margin))
+    // Anche un dito che ha viaggiato lontano e torna: conta dove si solleva.
+    g.claim(Offset(0f, -300f), insideClickable = false)
+    assertTrue(g.clicks(Offset(10f, 90f), button, noPadding, margin))
+  }
+
+  @Test
+  fun `il margine del click e' 16 dp oltre il bordo, a filo conta e oltre no`() {
+    val g = holding()
+    g.claim(Offset(0f, 30f), insideClickable = true)
+    // Il pulsante e' 312 x 96 px; il margine, a 2 px per dp, 32 px.
+    assertTrue(g.clicks(Offset(100f, 96f + 32f), button, noPadding, margin))
+    assertTrue(g.clicks(Offset(-32f, 10f), button, noPadding, margin))
+    assertTrue(g.clicks(Offset(312f + 32f, 96f + 32f), button, noPadding, margin))
+    assertFalse(g.clicks(Offset(100f, 96f + 33f), button, noPadding, margin))
+    assertFalse(g.clicks(Offset(-33f, 10f), button, noPadding, margin))
+    assertFalse(g.clicks(Offset(312f + 40f, 96f + 40f), button, noPadding, margin))
+  }
+
+  @Test
+  fun `un rilascio fuori da clickable ma dentro il margine clicca il gesto anche senza presa`() {
+    val g = holding()
+    // Il dito e' sceso nel bordo allargato, e si solleva 6 px fuori dall'area di clickable (che ha un
+    // allargamento di 4 px): `clickable` annulla, e il click, dentro il margine di 32, e' del gesto.
+    val clickableSlack = Size(4f, 4f)
+    assertTrue(g.clicks(Offset(100f, 96f + 6f), button, clickableSlack, margin))
+    // Dentro l'area di clickable, invece, e' suo.
+    assertFalse(g.clicks(Offset(100f, 96f + 3f), button, clickableSlack, margin))
+  }
+
+  @Test
+  fun `dopo un click lungo il rilascio non e' un click, preso il dito o no`() {
+    val g = holding(longPress = 400L)
+    g.claim(Offset(0f, 6f), insideClickable = true)
+    assertTrue(g.advance(1_400L))
+    g.claim(Offset(0f, 30f), insideClickable = true)
+    assertFalse(g.clicks(Offset(150f, 40f), button, noPadding, margin))
+  }
+
+  @Test
+  fun `chi cede il dito non clicca mai da solo, nemmeno fuori dall'area di clickable`() {
+    val g = yielding()
+    assertFalse(g.clicks(Offset(100f, 96f + 6f), button, Size(4f, 4f), margin))
+    assertFalse(g.clicks(Offset(150f, 40f), button, noPadding, margin))
+  }
+
+  @Test
+  fun `il margine e' il piu' grande fra l'area di tocco minima e i 16 dp`() {
+    // Un tasto di 48 dp ha tocco minimo di 0: il margine e' tutto dei 16 dp (32 px).
+    assertEquals(Size(32f, 32f), fluidPressSlack(Size.Zero, 32f))
+    // Un'icona di 24 dp ha 12 dp di tocco minimo per lato (24 px): meno dei 16 dp, vince il margine.
+    assertEquals(Size(32f, 32f), fluidPressSlack(Size(24f, 24f), 32f))
+    // Un tocco minimo piu' largo del margine vince.
+    assertEquals(Size(40f, 32f), fluidPressSlack(Size(40f, 10f), 32f))
+  }
+
+  @Test
+  fun `dentro e fuori da un rettangolo allargato`() {
+    val slack = Size(10f, 10f)
+    assertTrue(fluidPressInside(Offset(-10f, -10f), button, slack))
+    assertTrue(fluidPressInside(Offset(button.width + 10f, button.height + 10f), button, slack))
+    assertFalse(fluidPressInside(Offset(-10.1f, 0f), button, slack))
+    assertFalse(fluidPressInside(Offset(0f, button.height + 10.1f), button, slack))
   }
 }

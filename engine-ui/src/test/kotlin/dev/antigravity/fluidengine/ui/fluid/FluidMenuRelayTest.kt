@@ -164,8 +164,8 @@ class FluidMenuRelayTest {
 
   @Test
   fun anAttachedFingerIsConsumedAlreadyInTheInitialPass() {
-    // Il tasto sotto (3.0) non prende mai il dito e legge nel Main: deve trovare il cambio consumato
-    // GIA' li', e finire il suo gesto — senza, il tasto nascosto continuava a seguire il dito sul
+    // Il tasto sotto (3.0) legge nel Main, dopo l'Initial dei genitori: deve trovare il cambio
+    // consumato GIA' li', e finire il suo gesto — senza, il tasto nascosto continuava a seguire il dito sul
     // menu e a suonare la sua grana sotto i tick delle voci.
     val handOff = FluidMenuHandOff()
     val relay = Relay(handOff)

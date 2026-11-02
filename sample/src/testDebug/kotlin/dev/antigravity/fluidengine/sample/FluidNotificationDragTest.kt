@@ -60,8 +60,9 @@ private class RecordedHaptics : FluidHaptics {
  *
  * Quello che qui si prova e' quello che le funzioni pure di `FluidNotificationGestureTest` non possono
  * dire: che il dito sia davvero collegato — un trascinamento in su chiude la notifica, uno corto la
- * lascia, uno in giu' la apre — che un tocco sul tasto e un trascinamento che parte dal tasto
- * restino due cose diverse, e che un dito appoggiato fermi davvero il conto alla rovescia.
+ * lascia, uno in giu' la apre — che un tocco sul tasto e un trascinamento che parte dal tasto e
+ * finisce lontano restino due cose diverse (il tasto tiene il dito: la card non si trascina da li'),
+ * e che un dito appoggiato fermi davvero il conto alla rovescia.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -239,18 +240,35 @@ class FluidNotificationDragTest {
   }
 
   @Test
-  fun `un trascinamento che parte dal tasto non e' anche un tocco`() {
+  fun `un trascinamento che parte dal tasto e finisce lontano non e' anche un tocco`() {
     show(notification())
 
     compose.onNodeWithContentDescription("Chiudi notifica").performTouchInput {
       down(center)
-      // Piccolo: oltre lo slop, sotto la soglia di lancio. Se contasse come tocco, chiuderebbe.
-      repeat(4) { moveBy(Offset(0f, 9f)) }
+      // Il tasto tiene il dito (3.0): la card non si trascina da li', e un dito che si solleva a 120 px
+      // dal centro — il tasto e' alto 96 px, il margine del click 32 — non e' un tocco.
+      repeat(4) { moveBy(Offset(0f, 30f)) }
       up()
     }
     compose.waitForIdle()
 
     assertTrue("il trascinamento ha fatto anche da tocco sul tasto", isShown())
+  }
+
+  @Test
+  fun `un trascinamento che parte dal tasto e si solleva ancora sul tasto e il suo click`() {
+    show(notification())
+
+    compose.onNodeWithContentDescription("Chiudi notifica").performTouchInput {
+      down(center)
+      // Oltre lo slop (36 px), ma il dito resta sul tasto (alto 96 px): il tasto tiene il dito e
+      // clicca al sollevamento, come per un tocco.
+      repeat(4) { moveBy(Offset(0f, 9f)) }
+      up()
+    }
+    waitUntilGone()
+
+    assertTrue("il tasto non ha cliccato", !isShown())
   }
 
   @Test

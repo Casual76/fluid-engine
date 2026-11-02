@@ -434,12 +434,13 @@ fun rememberFluidPressState(feedback: FluidPressFeedback = FluidPressFeedback.Ex
 /**
  * Segue il dito su un elemento premuto: deriva, punto luce, tacche. Non e' il percorso dei pulsanti
  * ([fluidButtonGesture], in `FluidButtonGesture.kt`, che ha anche le vibrazioni del contatto e del
- * rilascio e il click lungo): e' il vetro che segue il dito **da solo**, senza un click proprio.
+ * rilascio, il click lungo e il possesso del dito): e' il vetro che segue il dito **da solo**, senza
+ * un click proprio.
  *
- * Legge nel passaggio Final e non consuma niente, quindi non toglie il gesto a nessuno. Come il
- * gesto dei pulsanti **non si ferma se la pagina parte a scorrere**: il vetro che sta sotto il dito
- * continua a rispondere, come in LibrePods. Con [ownsPress] e' anche lui a premere e rilasciare; senza,
- * la pressione la decide chi guida l'elemento.
+ * Legge nel passaggio Final e non consuma niente, quindi non toglie il gesto a nessuno: una
+ * superficie senza un click non e' qualcosa che tiene il dito, e **non si ferma se la pagina parte a
+ * scorrere** — il vetro che sta sotto il dito continua a rispondere. Con [ownsPress] e' anche lui a
+ * premere e rilasciare; senza, la pressione la decide chi guida l'elemento.
  */
 internal fun Modifier.fluidPressTracking(
   state: FluidPressState,
@@ -570,8 +571,9 @@ internal const val StretchGain = 0.1f
 /**
  * Non fa piu' niente (3.0). Fino alla 2.13 diceva ai pulsanti sotto di essere "del dito" gia' al
  * tocco invece che dopo 100 ms, per la chrome in cui non scorre niente. Dalla 3.0 ogni pulsante e'
- * premuto **al contatto** e non prende mai il gesto — la pagina puo' scorrere mentre lui risponde —
- * quindi non c'e' piu' un'attesa da azzerare ne' una lista da non attraversare. Resta dichiarato
- * perche' le app che lo davano alla loro chrome compilino: si puo' togliere, e se ne andra'.
+ * premuto **al contatto** e il dito che scende su di lui e' suo fino al sollevamento
+ * ([FluidPressGrip.HoldsFinger]), quindi non c'e' piu' un'attesa da azzerare ne' una lista da non
+ * attraversare. Resta dichiarato perche' le app che lo davano alla loro chrome compilino: si puo'
+ * togliere, e se ne andra'.
  */
 val LocalFluidPressImmediate = compositionLocalOf { false }

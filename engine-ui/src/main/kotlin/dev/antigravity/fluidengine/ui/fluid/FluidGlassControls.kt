@@ -159,9 +159,9 @@ internal fun Modifier.fluidTouchTarget(min: Dp = FluidGlassIconTouchTargetSize):
  *   and drops every gesture, rather than needing a second, quieter component to exist.
  * @param pressState la pressione del controllo a cui questo vetro appartiene, guidata dal suo
  *   [fluidPressable] (`pressState = ` la stessa). Il vetro risponde allora dal contatto, come il
- *   pulsante, e segue il dito finche' e' giu' — anche mentre la pagina scorre, anche fuori dal
- *   vetro: vedi [fluidButtonGesture]. Null: il vetro segue il dito da solo, dal momento in cui
- *   scende, e non consuma niente. Dalla 2.11.0.
+ *   pulsante, e segue il dito finche' e' giu' — anche fuori dal vetro, e il dito e' del pulsante
+ *   fino al sollevamento: vedi [fluidButtonGesture]. Null: il vetro segue il dito da solo, dal
+ *   momento in cui scende, e non consuma niente. Dalla 2.11.0.
  * @param optics di serie [GlassDefaults.buttonOptics], dalla 3.0: la lente di sempre a riposo, e
  *   quella di LibrePods sotto il dito.
  */

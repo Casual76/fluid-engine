@@ -3,6 +3,8 @@ package dev.antigravity.fluidengine.sample
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,6 +50,7 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent.Open
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent.PressDown
+import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent.PressRelease
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent.Tap
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent.Tick
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainStyle
@@ -147,6 +150,37 @@ class FluidMenuHandOffTest {
     compose.waitForIdle()
   }
 
+  /**
+   * Il tasto che si trasforma dentro una `LazyColumn` (3.0, "il tasto tiene il dito"): e' il caso in
+   * cui il pulsante deve tenere il dito *e* passarlo al menu, e la lista non deve muoversi.
+   */
+  private fun showMorphInList(list: LazyListState) {
+    compose.setContent {
+      Themed {
+        morph = rememberFluidMorphMenuState()
+        val backdrop = currentGlassBackdrop()
+        Box(Modifier.fillMaxSize()) {
+          LazyColumn(state = list, modifier = Modifier.fillMaxSize()) {
+            items(2) { Box(Modifier.fillMaxWidth().height(120.dp)) }
+            item {
+              FluidMorphMenuButton(
+                state = morph,
+                actions = { actions() },
+                onClick = { clicks++ },
+                modifier = Modifier.padding(horizontal = 24.dp).testTag("anchor"),
+                text = "Menu",
+                backdrop = backdrop,
+              )
+            }
+            items(30) { Box(Modifier.fillMaxWidth().height(120.dp)) }
+          }
+          FluidMorphMenuHost(state = morph, backdrop = backdrop)
+        }
+      }
+    }
+    compose.waitForIdle()
+  }
+
   /** Un contenuto qualunque dentro l'host dei modali (senza fondale: il ripiego opaco). */
   private fun showInModalHost(content: @Composable () -> Unit) {
     compose.setContent {
@@ -207,6 +241,45 @@ class FluidMenuHandOffTest {
     assertFalse(morph.isOpen)
     assertEquals(listOf(PressDown, Open, Tick, Tap), haptics.played)
     assertEquals("trascinare sul menu non e' trascinare il tasto: niente grana", 0, haptics.grains)
+  }
+
+  @Test
+  fun `in una LazyColumn - tieni, trascina sulla seconda voce e rilascia, e la lista resta ferma`() {
+    val list = LazyListState()
+    showMorphInList(list)
+
+    hold("anchor")
+    assertTrue("il menu non si e' aperto", morph.isOpen)
+    dragTo("Due", "anchor")
+
+    assertEquals(listOf("Due"), picked)
+    assertEquals("il tocco del tasto non e' un click", 0, clicks)
+    assertFalse(morph.isOpen)
+    assertEquals(listOf(PressDown, Open, Tick, Tap), haptics.played)
+    assertEquals("la lista non deve scorrere sotto il menu", 0, list.firstVisibleItemIndex)
+    assertEquals(0, list.firstVisibleItemScrollOffset)
+  }
+
+  @Test
+  fun `in una LazyColumn - un dito che trascina sul tasto prima del click lungo non apre il menu e non fa scorrere`() {
+    val list = LazyListState()
+    showMorphInList(list)
+
+    // Veloce e verso l'alto (la direzione in cui la lista scorre): il dito e' del tasto, e non e' un
+    // click lungo; si solleva ben fuori dal margine, quindi non e' nemmeno un click.
+    compose.onNodeWithTag("anchor").performTouchInput {
+      down(center)
+      advanceEventTime(40)
+      repeat(8) { moveBy(Offset(0f, -40f), delayMillis = 16) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertFalse("un trascinamento non e' un click lungo", morph.isOpen)
+    assertEquals(0, clicks)
+    assertEquals(0, list.firstVisibleItemIndex)
+    assertEquals(0, list.firstVisibleItemScrollOffset)
+    assertEquals(listOf(PressDown, PressRelease), haptics.played)
   }
 
   @Test

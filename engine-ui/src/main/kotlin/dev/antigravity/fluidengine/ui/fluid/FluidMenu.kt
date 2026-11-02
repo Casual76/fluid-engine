@@ -473,8 +473,9 @@ internal fun interface FluidMenuRootMapper {
  * - **Consumo**: i cambiamenti di quel dito si consumano SOLO se il menu aveva preso il dito
  *   all'inizio dell'evento, e gia' nel passaggio **Initial** (3.0, fase 7). Cosi' la `LazyColumn`
  *   attorno alla riga non parte mentre il dito trascina sul menu, e il gesto del tasto sotto (che dal
- *   3.0 non prende mai il dito e legge nel Main) trova il cambio consumato e finisce: senza, il tasto
- *   nascosto continuava a seguire il dito sul menu e a suonare la sua grana sotto i tick delle voci.
+ *   3.0 tiene il dito, ma legge nel Main, dopo l'Initial dei genitori) trova il cambio consumato e
+ *   finisce: senza, il tasto nascosto continuava a seguire il dito sul menu e a suonare la sua grana
+ *   sotto i tick delle voci.
  *   Tutto il resto del tempo il relè non tocca niente. Il sollevamento che CHIUDE un hand-off conta
  *   come hand-off: va consumato anch'esso, o `clickable` lo leggerebbe come un click sull'ancora.
  * - un puntatore che sparisce dall'evento senza un sollevamento e' un annullo, come

@@ -1,6 +1,5 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -22,14 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -135,6 +131,22 @@ fun FluidGlassMenuButton(
     }
   }
 
+  // Il click lungo, nel gesto e sincrono: niente LaunchedEffect che apre un fotogramma dopo.
+  val openHeld: () -> Unit = open@{
+    if (host == null || entry.visible) return@open
+    val list = actions()
+    if (list.isEmpty()) return@open
+    anchor.pressedBounds = fluidPressedBounds(anchor.restBounds, press, density)
+    entry.actions = list
+    entry.openedAt = host.nextSequence()
+    entry.visible = true
+    entry.lifted = true
+    anchor.hidden = true
+    entry.selection.cancel()
+    anchor.handOff.attach(entry.selection)
+    haptics.play(FluidHapticEvent.Open)
+  }
+
   Box(
     modifier = modifier
       // Il relè in testa (3.0): il dito che tiene premuto passa al menu, e il menu si sceglie
@@ -161,28 +173,17 @@ fun FluidGlassMenuButton(
         interactive = enabled,
         pressState = press,
       )
-      .then(if (enabled) Modifier.fluidPressTracking(press, ownsPress = true) else Modifier)
-      .semantics { this.role = Role.Button }
-      .pointerInput(enabled, host) {
-        detectTapGestures(
-          onTap = { if (enabled) onClick() },
-          onLongPress = {
-            if (!enabled || host == null || entry.visible) return@detectTapGestures
-            val list = actions()
-            if (list.isEmpty()) return@detectTapGestures
-            // Sincrono, nel gesto: niente LaunchedEffect che apre un fotogramma dopo.
-            anchor.pressedBounds = fluidPressedBounds(anchor.restBounds, press, density)
-            entry.actions = list
-            entry.openedAt = host.nextSequence()
-            entry.visible = true
-            entry.lifted = true
-            anchor.hidden = true
-            entry.selection.cancel()
-            anchor.handOff.attach(entry.selection)
-            haptics.play(FluidHapticEvent.Open)
-          },
-        )
-      }
+      // Un tasto come gli altri (3.0): la pressione e' condivisa col vetro, il dito e' suo fino al
+      // sollevamento, il click anche dopo un trascinamento. Il click lungo apre, e non ha un colpo suo:
+      // l'`Open` lo suona `openHeld`, solo se il menu si e' aperto.
+      .fluidPressable(
+        pressState = press,
+        onClick = onClick,
+        onLongClick = openHeld,
+        enabled = enabled,
+        role = Role.Button,
+        longClickHaptic = null,
+      )
       .padding(horizontal = if (text != null) 18.dp else 0.dp),
     contentAlignment = Alignment.Center,
   ) {

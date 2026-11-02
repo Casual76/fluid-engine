@@ -642,6 +642,11 @@ private val SegmentPillInset = 2.dp
  * vetro scelto. La pressione e' quella dei tasti — cresce, segue il dito, tre colpi per un tocco e la
  * grana se il dito scorre veloce — e la luce del dito e' quella del vetro. Dove non c'e' niente da
  * attraversare (una pagina piatta, sotto API 31) e' la pastiglia opaca di sempre.
+ *
+ * **Il chip cede il dito alla fila** ([FluidPressGrip.YieldsToScroll]), a differenza di un pulsante
+ * ([FluidPressGrip.HoldsFinger]): i chip stanno in file che scorrono in orizzontale, dove non c'e' un
+ * fuori da cui partire. Se il dito che parte su un chip fa scorrere la fila, il chip si scioglie
+ * (cala, smette di seguire il dito, suona `PressRelease`) e non clicca, come in iOS.
  */
 @Composable
 fun FluidChip(
@@ -712,6 +717,8 @@ fun FluidChip(
           role = Role.Button,
           focusShape = FluidCapsuleShape,
           pressState = press,
+          // Un chip sta in una fila che scorre: il dito che parte da lui deve poterla far scorrere.
+          grip = FluidPressGrip.YieldsToScroll,
         )
         .padding(horizontal = 14.dp, vertical = 6.dp),
       contentAlignment = Alignment.Center,
@@ -732,6 +739,7 @@ fun FluidChip(
         role = Role.Button,
         focusShape = FluidCapsuleShape,
         feedback = FluidPressFeedback.Expand,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       .clip(FluidCapsuleShape)
       .background(container)
@@ -800,7 +808,13 @@ fun FluidColorDot(
         contentDescription = label
         this.selected = selected
       }
-      .fluidPressable(onClick = onClick, role = Role.RadioButton, feedback = FluidPressFeedback.Expand)
+      .fluidPressable(
+        onClick = onClick,
+        role = Role.RadioButton,
+        feedback = FluidPressFeedback.Expand,
+        // Una fila di pallini e' un selettore che puo' scorrere, e di fuori non ne ha: come un chip.
+        grip = FluidPressGrip.YieldsToScroll,
+      )
       .drawBehind {
         if (ringAlpha > 0.001f) {
           drawCircle(

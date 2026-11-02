@@ -55,17 +55,24 @@ import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
  * ([pressedScale], the behaviour this modifier always had), buttons **expand**
  * ([FluidPressFeedback.Expand], what every button of the engine uses since 2.11.0).
  *
- * **Un pulsante e' LibrePods (3.0).** Per [FluidPressFeedback.Expand] il puntatore lo guida
- * [fluidButtonGesture], e la regola e' quella di LibrePods, che Alessio ha scelto come riferimento:
+ * **Un pulsante e' LibrePods, e tiene il dito (3.0).** Per [FluidPressFeedback.Expand] il puntatore lo
+ * guida [fluidButtonGesture]: la pressione, la crescita, la deriva, le vibrazioni sono quelle di
+ * LibrePods, che Alessio ha scelto come riferimento. Una cosa no: in LibrePods la pagina scorre sotto
+ * un dito partito da un tasto, e in mano non andava. Qui vale la regola della 2.12, senza l'attesa:
  *
  *  * **La pressione parte al contatto**, senza ritardo e senza soglia, in una lista come in una barra.
- *  * **Il pulsante non prende mai il gesto.** Non consuma niente: una passata che parte su un
- *    pulsante in una `LazyColumn` scorre la lista *e* il pulsante cresce e segue il dito, insieme.
- *    Sostituisce la regola della 2.12 ("un pulsante e' di chi lo tiene premuto": 100 ms di attesa e
- *    poi il gesto era suo e la pagina non partiva).
- *  * **Il click e' di `clickable`**, come in LibrePods: scatta se il dito si solleva sul pulsante e
- *    nessuno ha consumato, quindi non scatta se la pagina ha scorso. Tastiera (Invio, Spazio, fuoco),
- *    TalkBack e ruolo sono i suoi, e non sono cambiati.
+ *  * **Il dito che scende su un pulsante e' del pulsante fino al sollevamento** ([FluidPressGrip.HoldsFinger],
+ *    di serie). Appena si muove oltre un tremito il pulsante consuma i suoi spostamenti, nel passaggio
+ *    Main, prima di ogni antenato: una `LazyColumn`, un `verticalScroll`, un pager e il back a
+ *    scorrimento non partono. Per scorrere si parte fuori dai pulsanti. Una riga che cede
+ *    ([fluidRowPressable], le superfici) non consuma e la lista scorre se il dito parte da lei.
+ *  * **Il click** scatta se il dito si solleva sul pulsante piu' un margine di 16 dp, **anche dopo un
+ *    trascinamento**. Un tocco fermo e' di `clickable`, come in LibrePods; dopo che il pulsante ha
+ *    consumato `clickable` annulla, e il click lo fa il gesto, con lo stesso `PressClick`. Oltre il
+ *    margine, solo il rilascio. Tastiera (Invio, Spazio, fuoco), TalkBack e ruolo sono di
+ *    `clickable`, e non sono cambiati.
+ *  * **Un pulsante in una fila che scorre** (i chip) passa [grip] = [FluidPressGrip.YieldsToScroll]:
+ *    non consuma, e appena la fila si prende il gesto il pulsante si scioglie e non clicca.
  *  * **Il click lungo resta** (ai menu serve): scatta se il dito e' rimasto entro lo slop per il tempo
  *    del click lungo, e dopo non c'e' click al rilascio.
  *  * **Tre colpi per tocco**, con le costanti di sistema: [FluidHapticEvent.PressDown] al contatto,
@@ -90,7 +97,13 @@ import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
  *   [pressedScale] are ignored. Since 2.11.0.
  * @param interactionSource riceve le interazioni di `clickable`: `PressInteraction` (dal contatto, o
  *   dopo il ritardo di `clickable` dentro uno scorrevole), il fuoco, la tastiera. Dalla 3.0 e'
- *   `clickable` e basta, anche per un pulsante: non emette piu' niente di suo.
+ *   `clickable` e basta, anche per un pulsante: non emette piu' niente di suo. Un pulsante che ha
+ *   consumato un trascinamento e poi clicca lo fa senza passare di qui: `clickable` ha mandato un
+ *   `Cancel`, e il click e' del gesto.
+ * @param grip di chi e' il dito di un pulsante ([FluidPressFeedback.expands]) quando la pagina sotto
+ *   vuole scorrere: del pulsante ([FluidPressGrip.HoldsFinger], di serie) o della pagina
+ *   ([FluidPressGrip.YieldsToScroll], per un pulsante dentro una fila che scorre). Non conta per una
+ *   superficie che cede. Dalla 3.0.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -121,6 +134,7 @@ fun Modifier.fluidPressable(
   pressState: FluidPressState? = null,
   /** Cosa si sente quando scatta il click lungo; null per un controllo che ha il suo colpo. */
   longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
+  grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
 ): Modifier {
   if (onClick == null && onLongClick == null) return this
 
@@ -128,8 +142,9 @@ fun Modifier.fluidPressable(
   val ownState = rememberFluidPressState(feedback ?: FluidPressFeedback.yielding(pressedScale))
   val press = pressState ?: ownState
   val drawsPress = pressState == null
-  // Un pulsante — tutto cio' che cresce sotto il dito — risponde al dito dal contatto e non lo
-  // prende mai; una superficie che cede lo lascia alla pagina e a `clickable`, come ha sempre fatto.
+  // Un pulsante — tutto cio' che cresce sotto il dito — risponde al dito dal contatto e se lo tiene
+  // (o lo cede alla pagina, `grip`); una superficie che cede lo lascia alla pagina e a `clickable`,
+  // come ha sempre fatto.
   val expands = press.feedback.expands
   val ownsGesture = enabled && expands
   // Il fuoco da tastiera e' il gesto opposto alla pressione: la cosa si fa avanti invece di
@@ -225,9 +240,10 @@ fun Modifier.fluidPressable(
     .then(if (ownsGesture) Modifier.fluidButtonKeys(press) else Modifier)
     .then(
       if (expands) {
-        // Il click e' di `clickable`, come in LibrePods. Il click lungo non passa da `clickable`
-        // (il suo scatterebbe senza lo slop, e in piu' il gesto qui sotto lo sa gia'): a lui
-        // resta solo il ruolo e, per TalkBack, l'azione.
+        // Il click di un tocco e' di `clickable`, come in LibrePods; quello di un dito che ha
+        // trascinato, dopo che il gesto qui sotto ha consumato e `clickable` ha annullato, e' del
+        // gesto. Il click lungo non passa da `clickable` (il suo scatterebbe senza lo slop, e in
+        // piu' il gesto lo sa gia'): a lui resta solo il ruolo e, per TalkBack, l'azione.
         Modifier
           .clickable(
             interactionSource = resolvedInteractionSource,
@@ -266,6 +282,9 @@ fun Modifier.fluidPressable(
           state = press,
           playsHaptics = haptic != null,
           onLongClick = if (longClick != null) ({ currentLongClick?.invoke() }) else null,
+          // Il click di un dito che ha trascinato: `clickable` ha annullato, e lo fa il gesto.
+          onClick = { currentClick() },
+          grip = grip,
         )
         enabled && tracksFinger -> Modifier.fluidPressTracking(press, ownsPress = false)
         else -> Modifier

@@ -438,7 +438,9 @@ pulsanti. Nessuna app la deve prendere adesso; quando una lo fa, l'ordine è que
    usano l'engine. La pagina «informazioni» lo dice già con `fluidLicensesSection()` (la voce di LibrePods e
    la nota stanno in `FluidEngineLicenses`); un'app che passa una `footnote` sua deve aggiungere la frase
    nella sua lingua. Un'app che non può essere GPL-3.0 resta sulla 2.13. Deciso da Alessio il 2 novembre 2026:
-   **universal_converter resta sulla 2.13** (incorpora un motore GPL-2.0 senza «o successive»); **FluidWeather
+   **universal_converter passa alla 3.0 come due programmi**: l'app Kotlin diventa GPL-3.0, il motore di
+   conversione (TypeScript in una WebView, GPL-2.0 senza «o successive») resta un programma a parte nello stesso APK,
+   con i suoi sorgenti, e README e pagina licenze lo spiegano; **FluidWeather
    passa a una mappa libera** (MapLibre/OSM al posto di Google Maps, che è proprietaria) e poi alla 3.0 come le altre.
 2. **Le pagine: `FluidNavHost` al posto di `NavHost`.** `NavHost(` diventa `FluidNavHost(`, con gli stessi
    `navController`, `startDestination` e grafo; l'import di `composable` passa a

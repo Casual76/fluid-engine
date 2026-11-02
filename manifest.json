@@ -23,14 +23,22 @@
       "sizeBytes": 2808256
     },
     "beta": {
-      "version": "2.0.0-beta.1",
+      "version": "2.0.0-beta.2",
       "releaseDate": "2026-11-02",
-      "changelog": "Beta 1 della 3.0. Apri 'Da provare' all'avvio: tasti come LibrePods (pressione al contatto, tre colpi), grana aptica solo trascinando veloce, una vibrazione per momento, un materiale solo per i pannelli, Fluid-physics che a riposo e' vetro vero, pagine opache con l'indietro che segue il dito, e i componenti nuovi della 3.0.",
-      "releaseTag": "beta-fluid-glass-v2.0.0-beta.1",
-      "apkAsset": "fluid-glass-2.0.0-beta.1.apk",
-      "sizeBytes": 3126013
+      "changelog": "Beta 2 della 3.0. Menù liquidi: si sceglie col dito che li ha aperti (tieni premuto, trascina su una voce, rilascia), oppure rilasci e tocchi; avviso di vetro. Tutto in vetro vero: chip, segmentato, rail, indice, banda della barra. Pagine con la barra ancorata (il tasto indietro non si muove) e il back «rimpicciolisce e scivola». Pezzi nuovi: aggiornamento in-app, riordino, scorrimento rapido, visualizzatore. Cosa provare: pagina «Da provare», sezione Beta 2.",
+      "releaseTag": "beta-fluid-glass-v2.0.0-beta.2",
+      "apkAsset": "fluid-glass-2.0.0-beta.2.apk",
+      "sizeBytes": 3291767
     },
     "history": [
+      {
+        "version": "2.0.0-beta.1",
+        "releaseDate": "2026-11-02",
+        "changelog": "Beta 1 della 3.0. Apri 'Da provare' all'avvio: tasti come LibrePods (pressione al contatto, tre colpi), grana aptica solo trascinando veloce, una vibrazione per momento, un materiale solo per i pannelli, Fluid-physics che a riposo e' vetro vero, pagine opache con l'indietro che segue il dito, e i componenti nuovi della 3.0.",
+        "releaseTag": "beta-fluid-glass-v2.0.0-beta.1",
+        "apkAsset": "fluid-glass-2.0.0-beta.1.apk",
+        "sizeBytes": 3126013
+      },
       {
         "version": "1.0.4",
         "releaseDate": "2026-08-26",

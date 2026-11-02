@@ -189,10 +189,12 @@ object FluidMotion {
    * layout growing past its size and coming back, which does not read as energy — it reads as the
    * page bouncing, and that is exactly the complaint this vocabulary exists to answer.
    *
-   * Deliberately an easing curve rather than a spring: route and shared-element motion has to be
-   * *seekable* for the predictive-back gesture to map the finger onto the transition. A spring has
-   * no finite duration to seek within, which is exactly why dragging back used to feel unrelated
-   * to the animation it was supposed to be scrubbing.
+   * Una curva e non una molla, per gli elementi piccoli che si animano a durata. **Non** per le
+   * pagine: fino alla 2.13 il back predittivo cercava le transizioni di rotta sul `progress` di
+   * sistema passato per curve come questa, e una pagina che corre 2,5 volte il dito a un quinto del
+   * gesto non sta sotto il dito. Dalla 3.0 le pagine non si cercano: le muove `FluidPageHost`, un
+   * orologio solo che il dito tiene pixel per pixel e che al rilascio passa a una molla con la
+   * velocita' del dito (`FluidPageMotion.page()`).
    */
   val EaseSpringy: Easing = CubicBezierEasing(0.16f, 0.84f, 0.3f, 1.14f)
 
@@ -242,7 +244,13 @@ object FluidMotion {
    * It carries a rounded edge for as long as it is smaller than the screen, so it has no hard
    * rectangular boundary to disguise, and every millisecond a page spends translucent is a
    * millisecond in which two screens can be read through each other.
+   *
+   * Deprecato dalla 3.0: le pagine sono opache dal primo all'ultimo fotogramma, nessuna sfuma piu'.
    */
+  @Deprecated(
+    "Dalla 3.0 nessuna pagina sfuma: FluidNavHost/FluidPageHost muovono pagine opache. Le schede " +
+      "usano DurationPeerFadeOut.",
+  )
   const val DurationRouteFadeOut: Int = 240
 
   fun <T> fadeIn(durationMillis: Int = 220): FiniteAnimationSpec<T> =

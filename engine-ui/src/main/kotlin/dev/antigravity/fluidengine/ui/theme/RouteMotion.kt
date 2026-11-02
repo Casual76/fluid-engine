@@ -1,7 +1,6 @@
 package dev.antigravity.fluidengine.ui.theme
 
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassQuality
-import android.os.Build
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
@@ -9,7 +8,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
@@ -23,8 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -33,7 +29,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
-import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.page.FluidPageScope
 
 /**
  * Where a destination grows from, as a fraction of the navigation host.
@@ -102,13 +98,21 @@ object FluidRouteMotion {
   /**
    * How small an arriving destination starts.
    *
+   * Deprecato dalla 3.0: la crescita dal punto toccato e' `FluidPageTransition.Expand`, con lo stesso
+   * numero in `FluidPageMotion.ExpandInitialScale`.
+   *
    * Nearer to full size than it once was. The distance a page travels is time the eye has to spend
    * watching an already-legible screen finish arriving, and past a certain point more travel does
    * not read as more depth — it reads as the page being slow.
    */
+  @Deprecated(
+    "Dalla 3.0: FluidPageMotion.ExpandInitialScale (e FluidPageTransition.Expand).",
+    ReplaceWith("FluidPageMotion.ExpandInitialScale", "dev.antigravity.fluidengine.ui.page.FluidPageMotion"),
+  )
   const val ExpandInitialScale = 0.91f
 
   /** How far the page being covered recedes. It is going *under* the new one, not away from it. */
+  @Deprecated("Dalla 3.0 la pagina coperta non si scala: arretra di un terzo (FluidNavHost).")
   const val ExpandParentScale = 1.04f
 
   /**
@@ -120,9 +124,11 @@ object FluidRouteMotion {
    * is the single thing that made every hierarchical move look cheap. Rounded, the same page reads
    * as a card lifting off the one behind it, and needs to hide nothing.
    */
+  @Deprecated("Dalla 3.0 la pagina in movimento ha gli angoli del telefono (FluidNavHost), non 30 dp.")
   val ExpandCornerRadius: Dp = 30.dp
 
   /** Defocus applied to whatever is leaving. One blurred surface at a time, never two. */
+  @Deprecated("Dalla 3.0 nessuna pagina si sfoca: FluidRouteMotionHost non la applica piu'.")
   val ExitBlur: Dp = 6.dp
 }
 
@@ -142,6 +148,7 @@ object FluidRouteMotion {
  */
 @Stable
 class RouteMotionSignals internal constructor() {
+  @Deprecated("Dalla 3.0 non fa piu' niente: FluidRouteMotionHost non ha piu' angoli ne' sfocatura da spegnere.")
   var hierarchical: Boolean = true
 
   /**
@@ -217,6 +224,11 @@ fun rememberRouteMotionSignals(): RouteMotionSignals = remember { RouteMotionSig
 val LocalFluidRouteFront: ProvidableCompositionLocal<State<Boolean>> =
   staticCompositionLocalOf { mutableStateOf(true) }
 
+@Deprecated(
+  "Dalla 3.0 le pagine le muove FluidNavHost (dev.antigravity.fluidengine.ui.navigation): opache, " +
+    "sotto il dito, senza sfocatura ne' angoli. Questo involucro tiene solo il davanti e il vetro " +
+    "che si assottiglia, per le app non ancora migrate.",
+)
 @Composable
 fun FluidRouteMotionHost(
   animatedVisibilityScope: AnimatedVisibilityScope,
@@ -239,62 +251,35 @@ fun FluidRouteMotionHost(
     ) { state -> if (state == EnterExitState.Visible) 1f else 0f }
   }
   val isFront = remember(frontness) { derivedStateOf { frontness.value > 0.5f } }
-
-  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  if (reducedMotion || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-    CompositionLocalProvider(LocalFluidRouteFront provides isFront) { content() }
-    return
-  }
-
   val signals = LocalRouteMotionSignals.current
-  val blurDp = with(animatedVisibilityScope) {
-    transition.animateFloat(
-      transitionSpec = { tween(FluidMotion.DurationExpand, easing = FluidMotion.EaseEmphasized) },
-      label = "route defocus",
-    ) { state ->
-      if (state == EnterExitState.PostExit) FluidRouteMotion.ExitBlur.value else 0f
-    }
-  }
-  // One for both ends of the movement: a page is rounded exactly while it is not the whole screen,
-  // whether it is on its way to being it or on its way back from it.
-  val cornerDp = with(animatedVisibilityScope) {
-    transition.animateFloat(
-      transitionSpec = { tween(FluidMotion.DurationExpand, easing = FluidMotion.EaseEmphasized) },
-      label = "route corner",
-    ) { state ->
-      if (state == EnterExitState.Visible) 0f else FluidRouteMotion.ExpandCornerRadius.value
-    }
-  }
 
+  // Dalla 3.0 niente sfocatura (6 dp a tutto schermo: il fotogramma piu' caro dell'app nel momento
+  // che ne ha meno) e niente angoli: le pagine sono opache e la carta e' di FluidNavHost. Resta il
+  // timbro che assottiglia il vetro mentre due pagine si muovono.
   Box(
     modifier = Modifier
       .fillMaxSize()
       .graphicsLayer {
-        val hierarchical = signals.hierarchical
-        // Timbrato dal disegno e non dallo stato della transizione: qui siamo gia' dentro il
-        // fotogramma che costa, e la domanda a cui serve rispondere e' "questo fotogramma sta
-        // muovendo due pagine", non "esiste un'animazione".
-        if (cornerDp.value > 0.5f || blurDp.value > 0.5f) signals.markMoving()
-        val corner = if (hierarchical) cornerDp.value.dp.toPx() else 0f
-        if (corner > 0.5f) {
-          // L'unico angolo circolare rimasto nell'engine, ed e' deliberato: qui il raggio cambia a
-          // ogni fotogramma della transizione, e un angolo continuo costringerebbe il layer a
-          // ritagliare su un Path generico invece che su un rettangolo arrotondato — piu' caro
-          // esattamente durante l'animazione che deve restare fluida. A quei raggi, in movimento,
-          // la differenza non si vede; il costo si sentirebbe.
-          shape = RoundedCornerShape(corner)
-          clip = true
-        } else {
-          clip = false
-        }
-        val radius = if (hierarchical) blurDp.value.dp.toPx() else 0f
-        renderEffect = if (radius > 0.5f) {
-          BlurEffect(radius, radius, TileMode.Decal)
-        } else {
-          null
-        }
+        val moving = frontness.value > 0.001f && frontness.value < 0.999f
+        if (moving) signals.markMoving()
       },
   ) {
     CompositionLocalProvider(LocalFluidRouteFront provides isFront) { content() }
   }
+}
+
+/**
+ * Per un grafo migrato a FluidNavHost che chiama ancora l'involucro con `this@composable`: il
+ * movimento lo fa l'host, e questo non fa piu' niente.
+ */
+@Deprecated(
+  "Con FluidNavHost l'involucro non serve: togli FluidRouteMotionHost e lascia il contenuto.",
+  ReplaceWith("content()"),
+)
+@Composable
+fun FluidRouteMotionHost(
+  @Suppress("UNUSED_PARAMETER") scope: FluidPageScope,
+  content: @Composable () -> Unit,
+) {
+  content()
 }

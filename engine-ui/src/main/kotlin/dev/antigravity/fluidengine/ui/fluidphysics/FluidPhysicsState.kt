@@ -10,9 +10,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.translate
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
@@ -21,6 +25,8 @@ import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.addContinuousRoundRect
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 
 /**
  * Il cuore di Fluid-physics: possiede il viaggio fra due [FluidForm].
@@ -124,11 +130,19 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     overshootInflationX: Float = 0f,
     overshootInflationY: Float = 0f,
     startFrame: (() -> Rect)?,
+    /**
+     * Il corpo nasce dall'ancora (3.0, vedi FluidPhysicsLiquid.kt): se il traguardo non contiene la
+     * partenza, la partenza resta un istante come seconda goccia che si svuota nel corpo, col collo
+     * fra le due. Per i viaggi che PARTONO da qualcosa — il tasto del menu, la riga della card — e
+     * non per quelli che si posano (l'avviso).
+     */
+    liquidAnchor: Boolean = false,
   ) {
     val current = externalDrive
     if (current != null && current.from == from && current.to == to &&
       current.overshootInflationX == overshootInflationX &&
       current.overshootInflationY == overshootInflationY &&
+      current.liquidAnchor == liquidAnchor &&
       (current.startFrame != null) == (startFrame != null)
     ) {
       // Stessa corsa. Se il chiamante ha ricreato la lambda della partenza (cattura valori nuovi) la
@@ -145,6 +159,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       overshootInflationX = overshootInflationX,
       overshootInflationY = overshootInflationY,
       startFrame = startFrame,
+      liquidAnchor = liquidAnchor,
     )
     transitPlanStamp = Float.NaN
     transitPlanStart = null
@@ -204,6 +219,27 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   internal var density: Float = 1f
 
   /**
+   * Il corpo elastico della superficie (3.0, vedi FluidPhysicsLiquid.kt): lo alimenta la superficie a
+   * ogni fotogramma in cui la sagoma si muove ([runLiquid]), e il piano ne legge la deformazione e la
+   * lente in moto. Senza una superficie che lo alimenti resta a zero, e il piano e' quello di prima.
+   */
+  internal val liquid = LiquidBody()
+
+  /**
+   * Se la superficie vuole il liquido: falso con le animazioni ridotte, e falso finche' nessuna
+   * superficie l'ha chiesto (uno stato costruito a mano in un test disegna la geometria di sempre).
+   */
+  internal var liquidAllowed: Boolean = false
+    set(value) {
+      if (field != value) {
+        field = value
+        if (!value) liquid.reset()
+        transitPlanStamp = Float.NaN
+        restPlanForm = null
+      }
+    }
+
+  /**
    * Quante `fluidPhysicsShadow` disegnano gia' l'ombra di questo stato da fuori (il modale, fino
    * alla sua riscrittura). Finche' ce n'e' una, la superficie non disegna la propria: due ombre
    * sotto lo stesso vetro sono il doppio del peso di una lastra.
@@ -231,6 +267,14 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   /** Il rettangolo di partenza con cui e' stato costruito il piano esterno (null: partenza fissa). */
   private var transitPlanStart: Rect? = null
+
+  /** La versione del corpo elastico con cui e' stato costruito il piano in viaggio. */
+  private var transitPlanLiquid = -1
+
+  /** Il piano della forma ferma che ancora oscilla (il corpo che si posa dopo l'arrivo). */
+  private val settlePlan = PhysicsRenderPlan()
+  private var settlePlanForm: FluidForm? = null
+  private var settlePlanLiquid = -1
 
   /**
    * Fa viaggiare la superficie verso [target] e sospende finché la molla non si è posata.
@@ -348,7 +392,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     val transit = if (originSlabs != null && targetSlabs != null) {
       val pairs = matchSlabPairs(originSlabs, targetSlabs)
       val blend = maxOf(groupBlendOf(origin), groupBlendOf(target))
-      SlabTransit(pairs, blend, overshootCapPx = capPx)
+      // Una lastra che diventa un'altra lastra e ne esce: la partenza resta un istante come seconda
+      // goccia (3.0). Fra gruppi i ponti ci sono gia'.
+      SlabTransit(pairs, blend, overshootCapPx = capPx).also { it.liquidAnchor = pairs.size == 1 }
     } else {
       // Invariante, non validazione: morphTo instrada le coppie gruppo↔sagoma dallo scalo PRIMA di
       // arrivare qui. Se questo scatta, il bug è a monte.
@@ -372,6 +418,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   /** Come [restSlabNow], per ogni famiglia: la forma ferma di adesso, o null in viaggio. */
   internal fun restFormNow(): FluidForm? {
+    // Una forma arrivata che ancora oscilla non e' ferma: bordo e ombra la seguono come in viaggio.
+    if (!liquid.quiet) return null
     val drive = externalDrive
     if (drive != null) return if (drive.progress() == 1f) drive.to else null
     if (activeTransit != null) return null
@@ -389,7 +437,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   internal fun journeyTargetNow(): FluidForm? {
     val drive = externalDrive
     if (drive != null) return drive.to
-    return if (activeTransit != null) formState else null
+    return if (activeTransit != null || !liquid.quiet) formState else null
   }
 
   /** Il piano di resa per il fotogramma corrente. Solo fase di disegno. */
@@ -404,6 +452,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   internal fun ensurePlan(): PhysicsRenderPlan {
     val drive = externalDrive
+    val liquidVersion = liquid.version
     if (drive != null) {
       val t = drive.progress()
       // La partenza viva si legge ADESSO, in fase di disegno: la cache vale per (t, rettangolo), non
@@ -411,10 +460,22 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // Dall'1 in su la partenza non entra nella geometria, e quindi nemmeno nella cache: a riposo
       // l'istanza resta una anche se il chiamante muove ancora il suo rettangolo.
       val startRect = if (t >= 1f) null else drive.startFrame?.invoke()
-      if (transitPlanTransit !== drive.transit || transitPlanStamp != t || transitPlanStart != startRect) {
+      if (transitPlanTransit !== drive.transit || transitPlanStamp != t || transitPlanStart != startRect ||
+        transitPlanLiquid != liquidVersion
+      ) {
         transitPlan.clipToBounds = maskInShader
         val toSlab = drive.to as? FluidForm.Slab
-        if (t >= 1f && toSlab == null) {
+        // La partenza di questo istante: la capsula sul rettangolo vivo, o il `from` fisso.
+        val fromSlab = if (startRect != null && toSlab != null) {
+          FluidForm.Slab(startRect, FluidCornerRadii.all(startRect.minDimension / 2f))
+        } else {
+          drive.from as? FluidForm.Slab
+        }
+        if (toSlab != null && fromSlab != null &&
+          buildLiquidPlanIfEngaged(transitPlan, fromSlab, toSlab, t, drive.liquidAnchor, drive)
+        ) {
+          // Il corpo liquido: vedi [buildLiquidPlanIfEngaged].
+        } else if (t >= 1f && toSlab == null) {
           // Un gruppo guidato da fuori non ha oltrepasso: all'1 e oltre e' il traguardo fermo, con
           // lo stesso piano di riposo di una forma che non viaggia.
           buildRestPlan(transitPlan, drive.to)
@@ -425,35 +486,42 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
           // scalato attorno al suo centro, un moto solo, su tutti i lati. Senza gonfiore chiesto
           // resta il traguardo: estrapolare il lerp oltre l'1 voleva dire stirare la sagoma lungo
           // il viaggio — fianchi in dentro e fondo in fuori — e questo non lo fa piu' nessuno.
-          val over = t - 1f
-          val center = toSlab.frame.center
-          buildRestPlan(
-            transitPlan,
-            inflateSlab(
-              slab = toSlab,
-              centerX = center.x,
-              centerY = center.y,
-              scaleX = 1f + over * drive.overshootInflationX,
-              scaleY = 1f + over * drive.overshootInflationY,
-            ),
-          )
-        } else if (startRect != null && toSlab != null) {
+          buildRestPlan(transitPlan, drive.inflatedTarget(toSlab, t))
+        } else if (startRect != null && toSlab != null && fromSlab != null) {
           // Partenza viva: una capsula sul rettangolo di questo istante (il tasto, premuto o a
           // riposo, e' tondo per costruzione), verso il traguardo del chiamante.
-          val from = FluidForm.Slab(startRect, FluidCornerRadii.all(startRect.minDimension / 2f))
-          buildSlabPlan(transitPlan, listOf(from to toSlab), blendRadius = 0f, t = t)
+          buildSlabPlan(transitPlan, listOf(fromSlab to toSlab), blendRadius = 0f, t = t)
         } else {
           buildTransitPlan(transitPlan, drive.transit, t)
         }
         transitPlanTransit = drive.transit
         transitPlanStamp = t
         transitPlanStart = startRect
+        transitPlanLiquid = liquidVersion
       }
       return transitPlan
     }
     val transit = activeTransit
     if (transit == null) {
       val form = formState
+      if (!liquid.quiet && (form is FluidForm.Slab || form is FluidForm.Poly)) {
+        // Arrivata, ma ancora in oscillazione: la forma ferma deformata dal corpo elastico, in un
+        // piano a parte — quello di riposo resta l'istanza stabile di sempre per quando si posa.
+        if (settlePlanForm != form || settlePlanLiquid != liquidVersion) {
+          settlePlan.clipToBounds = maskInShader
+          if (form is FluidForm.Slab) {
+            buildStrainedSlabPlan(settlePlan, slabValues(form), weight = 1f, root = null)
+          } else if (form is FluidForm.Poly) {
+            val ring = restRing(form)
+            val count = ring.size / 2
+            settlePlan.writeRing(strainRing(ring, count, liquid.strainX, liquid.strainY, strainSidePx()), count)
+            settlePlan.contentBounds = form.frame
+          }
+          settlePlanForm = form
+          settlePlanLiquid = liquidVersion
+        }
+        return settlePlan
+      }
       if (restPlanForm != form) {
         restPlan.clipToBounds = maskInShader
         buildRestPlan(restPlan, form)
@@ -462,13 +530,185 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       return restPlan
     }
     val t = transit.progress.value
-    if (transitPlanTransit !== transit || transitPlanStamp != t) {
+    if (transitPlanTransit !== transit || transitPlanStamp != t || transitPlanLiquid != liquidVersion) {
       transitPlan.clipToBounds = maskInShader
-      buildTransitPlan(transitPlan, transit, t)
+      val single = (transit as? SlabTransit)?.pairs?.singleOrNull()
+      if (single != null && transit is SlabTransit &&
+        buildLiquidPlanIfEngaged(transitPlan, single.first, single.second, t, transit.liquidAnchor, null, transit)
+      ) {
+        // Il corpo liquido.
+      } else if (transit is RingTransit && !liquid.quiet) {
+        val count = transit.rings.count
+        val ring = transit.ringAt(t)
+        val weight = liquidStrainWeight(t)
+        transitPlan.writeRing(
+          strainRing(ring, count, liquid.strainX * weight, liquid.strainY * weight, strainSidePx()),
+          count,
+        )
+        transitPlan.contentBounds = ringBounds(ring, count)
+      } else {
+        buildTransitPlan(transitPlan, transit, t)
+      }
       transitPlanTransit = transit
       transitPlanStamp = t
+      transitPlanLiquid = liquidVersion
     }
     return transitPlan
+  }
+
+  // --- Il liquido --------------------------------------------------------------------------------
+
+  /** Di quanto un lato puo' spostarsi per la deformazione, in pixel. */
+  private fun strainSidePx(): Float = FluidLiquid.MaxStrainSideDp * density
+
+  /**
+   * Se il corpo nasce dall'ancora in questo istante: la superficie lo vuole, lo shader c'e' (il ponte
+   * e' dello smooth minimum: senza, due rettangoli uniti a spigolo vivo), il viaggio lo chiede e il
+   * corpo esce davvero dall'ancora. Strettamente fra i capi: al progresso zero corpo e ancora sono la
+   * stessa sagoma, dal punto in cui l'ancora si e' svuotata in poi c'e' solo il corpo.
+   */
+  private fun rootEngaged(origin: FluidForm.Slab, target: FluidForm.Slab, t: Float, anchored: Boolean): Boolean =
+    anchored && liquidAllowed && maskInShader && t > 0f && t < FluidLiquid.RootDrainEnd &&
+      liquidRootScale(t) > FluidLiquid.RootMinScale && liquidLeavesOrigin(origin.frame, target.frame)
+
+  /**
+   * Il piano di un viaggio fra due lastre col corpo liquido, se il liquido e' in gioco in questo
+   * istante: il corpo deformato dal [liquid] e, se il viaggio nasce da un'ancora, l'ancora che si
+   * svuota fusa al corpo. Falso — e il piano non toccato — se non c'e' niente da deformare: il
+   * chiamante allora costruisce il piano di sempre, identico al bit.
+   */
+  private fun buildLiquidPlanIfEngaged(
+    plan: PhysicsRenderPlan,
+    from: FluidForm.Slab,
+    to: FluidForm.Slab,
+    t: Float,
+    anchored: Boolean,
+    drive: ExternalWindowDrive?,
+    transit: SlabTransit? = null,
+  ): Boolean {
+    val strained = liquid.strainX != 0f || liquid.strainY != 0f
+    val root = rootEngaged(from, to, t, anchored)
+    if (!strained && !root) return false
+    val body = when {
+      t > 1f && drive != null -> slabValues(drive.inflatedTarget(to, t))
+      t > 1f && transit != null -> slabValues(transit.overshootPairs(t).first().second)
+      t >= 1f -> slabValues(to)
+      else -> lerpSlab(from, to, t)
+    }
+    val rootValues = if (root) {
+      val scale = liquidRootScale(t)
+      val frame = liquidRootFrame(from.frame, to.frame, scale)
+      val half = frame.minDimension / 2f
+      val r = from.cornerRadii
+      floatArrayOf(
+        frame.left, frame.top, frame.width, frame.height,
+        (r.topLeft * scale).coerceIn(0f, half),
+        (r.topRight * scale).coerceIn(0f, half),
+        (r.bottomRight * scale).coerceIn(0f, half),
+        (r.bottomLeft * scale).coerceIn(0f, half),
+      ) to liquidRootBlend(from.frame, t, density)
+    } else {
+      null
+    }
+    buildStrainedSlabPlan(plan, body, weight = liquidStrainWeight(t), root = rootValues)
+    return true
+  }
+
+  /** Il corpo [body] deformato col peso [weight], e l'ancora che si svuota se c'e'. */
+  private fun buildStrainedSlabPlan(
+    plan: PhysicsRenderPlan,
+    body: FloatArray,
+    weight: Float,
+    root: Pair<FloatArray, Float>?,
+  ) {
+    val strained = strainSlab(body, liquid.strainX * weight, liquid.strainY * weight, strainSidePx())
+    buildLiquidSlabPlan(
+      plan = plan,
+      body = strained,
+      contentFrame = Rect(body[0], body[1], body[0] + body[2], body[1] + body[3]),
+      root = root,
+    )
+  }
+
+  /**
+   * La sagoma di ADESSO senza la deformazione del corpo: quella che il moto descrive. E' cio' che
+   * alimenta [liquid], e quello su cui il contenuto si posa (il testo non oscilla con la gelatina).
+   * Null per un gruppo: i pezzi hanno gia' i loro ponti, e un corpo solo non c'e'.
+   */
+  internal fun bodyFrameNow(): Rect? {
+    val drive = externalDrive
+    if (drive != null) {
+      val t = drive.progress()
+      val to = drive.to as? FluidForm.Slab ?: return null
+      if (drive.transit.pairs.size != 1) return null
+      if (t >= 1f) return drive.inflatedTarget(to, t).frame
+      val start = drive.startFrame?.invoke() ?: (drive.from as? FluidForm.Slab)?.frame ?: return null
+      return lerpRect(start, to.frame, t)
+    }
+    val transit = activeTransit
+    if (transit != null) {
+      val t = transit.progress.value
+      return when (transit) {
+        is SlabTransit -> {
+          val pair = transit.pairs.singleOrNull() ?: return null
+          if (t > 1f) transit.overshootPairs(t).first().second.frame else lerpRect(pair.first.frame, pair.second.frame, t)
+        }
+        is RingTransit -> ringBounds(transit.ringAt(t), transit.rings.count)
+      }
+    }
+    val form = formState
+    return if (form is FluidForm.Group) null else form.frame
+  }
+
+  /**
+   * Dove posare il contenuto in questo istante: la sagoma senza la deformazione del corpo. Fase di
+   * disegno. Il testo segue il viaggio, non la gelatina: una scritta che respira con l'oscillazione
+   * dell'arrivo e' una scritta che trema.
+   */
+  internal fun contentBoundsNow(): Rect = ensurePlan().contentBounds
+
+  /**
+   * La sagoma del corpo in questo istante nelle coordinate di un contenuto posato su [frame], per
+   * ritagliarlo mentre il vetro si forma o si ritira; null dall'arrivo in poi ([progress] all'1 o
+   * oltre): nell'oltrepasso il corpo e' piu' grande del contenuto, e la gelatina dell'arrivo non deve
+   * rosicchiare i bordi delle voci. A riposo un ritaglio sarebbe lavoro per niente. Fase di disegno.
+   */
+  internal fun travelClipIn(frame: Rect, progress: Float): RoundRect? {
+    if (progress >= 1f) return null
+    val round = ensurePlan().silhouetteRoundRect ?: return null
+    return round.translate(Offset(-frame.left, -frame.top))
+  }
+
+  /**
+   * Il conducente del corpo elastico: la superficie lo lancia e lui, a riposo, non chiede niente.
+   *
+   * Aspetta che la sagoma cambi (uno `snapshotFlow` sulla geometria di adesso: nessun fotogramma
+   * chiesto finche' niente si muove, D9), poi la segue fotogramma per fotogramma finche' il corpo non
+   * si e' posato — anche dopo che il viaggio e' finito, perche' la gelatina dell'arrivo dura un poco
+   * piu' della molla — e torna ad aspettare. Uno per stato: due conducenti alimenterebbero lo stesso
+   * fotogramma due volte, e il corpo scarta il secondo (stesso istante, niente passo).
+   */
+  internal suspend fun runLiquid() {
+    try {
+      while (true) {
+        snapshotFlow { bodyFrameNow() }.drop(1).first()
+        liquid.forgetHistory()
+        var alive = true
+        while (alive) {
+          alive = withFrameNanos { now ->
+            val frame = bodyFrameNow()
+            if (frame == null || !liquidAllowed) {
+              liquid.reset()
+              false
+            } else {
+              liquid.step(now, frame.center.x, frame.center.y, frame.minDimension, density)
+            }
+          }
+        }
+      }
+    } finally {
+      liquid.reset()
+    }
   }
 }
 
@@ -494,7 +734,23 @@ private class ExternalWindowDrive(
   val overshootInflationY: Float,
   /** La partenza viva, se c'e': vedi `driveExternally(…, startFrame)`. Sostituibile sul posto. */
   var startFrame: (() -> Rect)? = null,
-)
+  /** Il corpo nasce dall'ancora: vedi `driveExternally(…, liquidAnchor)`. */
+  val liquidAnchor: Boolean = false,
+) {
+  /** Il traguardo all'oltrepasso [t] > 1: gonfiato attorno al proprio centro (in punto all'1, lui). */
+  fun inflatedTarget(to: FluidForm.Slab, t: Float): FluidForm.Slab {
+    val over = t - 1f
+    if (!(over > 0f)) return to
+    val center = to.frame.center
+    return inflateSlab(
+      slab = to,
+      centerX = center.x,
+      centerY = center.y,
+      scaleX = 1f + over * overshootInflationX,
+      scaleY = 1f + over * overshootInflationY,
+    )
+  }
+}
 
 // La coreografia della casa (rincorsa e molla secca, il default fino alla 2.13) vive in
 // FluidPhysicsJourney.kt come preset esplicito, `FluidPhysicsJourney.House`.
@@ -523,6 +779,9 @@ internal sealed class Transit(
   /** La forma da cui il viaggio e' partito; null per un transito costruito a mano. */
   var origin: FluidForm? = null
 
+  /** Il corpo nasce dalla partenza (3.0): una lastra sola che diventa un'altra lastra. */
+  var liquidAnchor: Boolean = false
+
   /** Il riquadro della partenza e quello dell'arrivo: la direzione del viaggio, per l'eredita'. */
   abstract val startFrame: Rect
   abstract val endFrame: Rect
@@ -543,6 +802,13 @@ internal class RingTransit(
 ) : Transit(overshootCapPx) {
   override val startFrame: Rect = ringBounds(rings.start, rings.count)
   override val endFrame: Rect = ringBounds(rings.end, rings.count)
+
+  /** L'anello a progresso [t], in un array nuovo: il lerp fino all'1, oltre il traguardo gonfiato. */
+  fun ringAt(t: Float): FloatArray = if (t > 1f) {
+    overshootRing(t)
+  } else {
+    FloatArray(rings.count * 2).also { for (i in it.indices) it[i] = lerp(rings.start[i], rings.end[i], t) }
+  }
 }
 
 private inline fun <T> unionOf(items: List<T>, frame: (T) -> Rect): Rect {
@@ -651,6 +917,12 @@ internal class PhysicsRenderPlan {
   val pieceRects = FloatArray(PhysicsMaxPieces * 4)
   val pieceRadii = FloatArray(PhysicsMaxPieces * 4)
   var blendRadius: Float = 0f
+
+  /**
+   * Il raggio di fusione di ogni pezzo con quelli prima di lui (3.0): un gruppo li ha tutti uguali a
+   * [blendRadius]; il corpo liquido ne da' uno all'ancora che si svuota.
+   */
+  val pieceBlend = FloatArray(PhysicsMaxPieces)
   var vertCount: Int = 0
   val verts = FloatArray(PhysicsMaxVertices * 2)
   var soften: Float = 0f
@@ -665,7 +937,19 @@ internal class PhysicsRenderPlan {
   val scratchPiece = Path()
   var clipToBounds: Boolean = true
   var shape: Shape = FluidPhysicsSilhouetteShape(silhouette, clipToBounds)
+
+  /**
+   * Il riquadro della sagoma. Col corpo liquido (3.0) e' quello del CORPO deformato, senza l'ancora
+   * che si svuota: e' su di lui che si tarano la lente (taglia, centro della cupola), l'ombra e il
+   * bordo — una goccia sola, col suo collo che non ha ne' ombra ne' bordo propri.
+   */
   var bounds: Rect = Rect.Zero
+
+  /**
+   * Il riquadro su cui posare il contenuto: la sagoma del viaggio senza la deformazione del corpo
+   * elastico (3.0). Fuori dal liquido e' [bounds].
+   */
+  var contentBounds: Rect = Rect.Zero
 
   /**
    * La sagoma corrente come rettangolo arrotondato, quando lo e' davvero: un solo pezzo di famiglia
@@ -706,6 +990,7 @@ private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
   // Il ponte si spegne dove i pezzi si compenetrano: vedi effectiveBlendRadius — senza questo, la
   // fine di ogni fusione ha un alone di k/4 oltre il bordo, che a riposo sparisce di colpo.
   blendRadius = effectiveBlendRadius(blend, slabMinGap(pieceRects, count))
+  pieceBlend.fill(blendRadius)
   soften = 0f
   vertCount = 0
   var union: Rect? = null
@@ -725,6 +1010,7 @@ private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
     )
   }
   bounds = union ?: Rect.Zero
+  contentBounds = bounds
   shape = FluidPhysicsSilhouetteShape(silhouette, clipToBounds)
   silhouetteRoundRect = if (count == 1) {
     RoundRect(
@@ -778,6 +1064,7 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int) {
     bottom = maxOf(bottom, ring[i * 2 + 1])
   }
   bounds = if (count > 0) Rect(left, top, right, bottom) else Rect.Zero
+  contentBounds = bounds
   shape = FluidPhysicsSilhouetteShape(silhouette, clipToBounds)
   silhouetteRoundRect = null
   clipShape = FluidPhysicsClipShape(silhouette, null)
@@ -832,17 +1119,7 @@ internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Floa
       buildSlabPlan(plan, transit.pairs, transit.blendRadius, t)
     }
 
-    is RingTransit -> {
-      val count = transit.rings.count
-      val ring = if (t > 1f) {
-        transit.overshootRing(t)
-      } else {
-        FloatArray(count * 2).also {
-          for (i in it.indices) it[i] = lerp(transit.rings.start[i], transit.rings.end[i], t)
-        }
-      }
-      plan.writeRing(ring, count)
-    }
+    is RingTransit -> plan.writeRing(transit.ringAt(t), transit.rings.count)
   }
 }
 
@@ -881,6 +1158,88 @@ internal fun buildSlabPlan(
   }
   plan.finishSlabs(pairs.size, blendRadius)
 }
+
+/**
+ * Il piano del corpo liquido (3.0): il corpo [body] (otto cifre, gia' deformato) come pezzo zero e,
+ * se c'e', l'ancora che si svuota come pezzo uno, fusa al corpo col proprio raggio ([root]: le otto
+ * cifre e il raggio di fusione).
+ *
+ * Tre cose lo separano da un gruppo qualsiasi, e sono il motivo per cui ha una funzione sua: il
+ * riquadro e la sagoma "a rettangolo arrotondato" sono quelli del CORPO (la lente, il bordo, l'ombra e
+ * il clip del contenuto parlano di lui: l'ancora e' materiale che se ne va, non una seconda lastra);
+ * il raggio di fusione e' quello dell'ancora, senza lo spegnimento per compenetrazione dei gruppi
+ * (il collo deve esserci anche mentre i due si toccano: si spegne col progresso, vedi
+ * [liquidRootBlend]); e [contentFrame] e' la sagoma senza deformazione, per il contenuto.
+ */
+internal fun buildLiquidSlabPlan(
+  plan: PhysicsRenderPlan,
+  body: FloatArray,
+  contentFrame: Rect,
+  root: Pair<FloatArray, Float>?,
+) {
+  plan.silhouette.rewind()
+  plan.writeSlabPiece(0, body)
+  plan.scratchPiece.rewind()
+  val bodyRound = RoundRect(
+    rect = Rect(body[0], body[1], body[0] + body[2], body[1] + body[3]),
+    topLeft = CornerRadius(body[4]),
+    topRight = CornerRadius(body[5]),
+    bottomRight = CornerRadius(body[6]),
+    bottomLeft = CornerRadius(body[7]),
+  )
+  plan.scratchPiece.addRoundRect(bodyRound)
+  plan.mergePieceIntoSilhouette(0)
+  var count = 1
+  plan.pieceBlend.fill(0f)
+  if (root != null) {
+    val (values, blend) = root
+    plan.writeSlabPiece(1, values)
+    plan.scratchPiece.rewind()
+    plan.scratchPiece.addRoundRect(
+      RoundRect(
+        rect = Rect(values[0], values[1], values[0] + values[2], values[1] + values[3]),
+        topLeft = CornerRadius(values[4]),
+        topRight = CornerRadius(values[5]),
+        bottomRight = CornerRadius(values[6]),
+        bottomLeft = CornerRadius(values[7]),
+      ),
+    )
+    plan.mergePieceIntoSilhouette(1)
+    plan.pieceBlend[1] = blend.coerceAtLeast(0f)
+    count = 2
+  }
+  plan.mode = PlanModeSlabs
+  plan.pieceCount = count
+  plan.blendRadius = if (count > 1) plan.pieceBlend[1] else 0f
+  plan.soften = 0f
+  plan.vertCount = 0
+  plan.bounds = Rect(body[0], body[1], body[0] + body[2], body[1] + body[3])
+  plan.contentBounds = contentFrame
+  plan.shape = FluidPhysicsSilhouetteShape(plan.silhouette, plan.clipToBounds)
+  plan.silhouetteRoundRect = bodyRound
+  plan.clipShape = FluidPhysicsClipShape(plan.silhouette, bodyRound)
+}
+
+/** Le otto cifre di uno slab fermo: riquadro e raggi, questi tenuti fra zero e mezzo lato. */
+internal fun slabValues(slab: FluidForm.Slab): FloatArray {
+  val f = slab.frame
+  val half = f.minDimension / 2f
+  return floatArrayOf(
+    f.left, f.top, f.width, f.height,
+    slab.cornerRadii.topLeft.coerceIn(0f, half),
+    slab.cornerRadii.topRight.coerceIn(0f, half),
+    slab.cornerRadii.bottomRight.coerceIn(0f, half),
+    slab.cornerRadii.bottomLeft.coerceIn(0f, half),
+  )
+}
+
+/** Il lerp di due riquadri, lato per lato. */
+internal fun lerpRect(from: Rect, to: Rect, t: Float): Rect = Rect(
+  from.left + (to.left - from.left) * t,
+  from.top + (to.top - from.top) * t,
+  from.right + (to.right - from.right) * t,
+  from.bottom + (to.bottom - from.bottom) * t,
+)
 
 internal fun buildRestPlan(plan: PhysicsRenderPlan, form: FluidForm) {
   when (form) {

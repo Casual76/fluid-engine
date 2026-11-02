@@ -80,6 +80,10 @@ float physicsCircleMap(float x) {
  * dello smin: è l'approssimazione standard dei metaball, indistinguibile dal vero nel ponte e
  * esatta lontano da esso.
  *
+ * Il raggio di fusione e' per pezzo (`pieceBlend`, 3.0): un gruppo li ha tutti uguali, il viaggio
+ * liquido ne da' uno all'ancora che si svuota nel corpo (vedi FluidPhysicsLiquid.kt). `magnify` e'
+ * l'ingrandimento della goccia in moto, zero a riposo.
+ *
  * La tinta sta *dentro* lo shader (uniform `tintColor`) perché il ponte fra due pezzi è materiale
  * che nessun path di geometria descrive: una tinta disegnata come path lascerebbe il ponte
  * trasparente — rifrazione senza pellicola — che si legge come un buco. Con alpha 0 il blend è un
@@ -93,10 +97,11 @@ uniform float2 offset;
 uniform float pieceCount;
 uniform float4 pieceRect[$PhysicsMaxPieces];
 uniform float4 pieceRadii[$PhysicsMaxPieces];
-uniform float blendRadius;
+uniform float pieceBlend[$PhysicsMaxPieces];
 uniform float refractionHeight;
 uniform float refractionAmount;
 uniform float depthEffect;
+uniform float magnify;
 uniform float2 fieldCenter;
 uniform float aa;
 layout(color) uniform half4 tintColor;
@@ -105,10 +110,11 @@ $PhysicsSdfPrelude
 
 half4 main(float2 coord) {
     float2 p = coord + offset;
+    // L'ingrandimento della goccia in moto (3.0): zero a riposo, quindi la lastra di sempre.
+    float2 lensShift = (fieldCenter - p) * magnify;
 
     float d = 1000000.0;
     float2 grad = float2(0.0);
-    float k = max(blendRadius, 0.0001);
     for (int i = 0; i < $PhysicsMaxPieces; ++i) {
         if (float(i) >= pieceCount) break;
         float2 rel = p - pieceRect[i].xy;
@@ -121,6 +127,9 @@ half4 main(float2 coord) {
             d = sd;
             grad = sdGrad;
         } else {
+            // Il raggio di fusione e' del PEZZO (3.0): un gruppo li ha tutti uguali, il liquido di un
+            // viaggio ne ha uno per l'ancora che si svuota.
+            float k = max(pieceBlend[i], 0.0001);
             float h = clamp(0.5 + 0.5 * (sd - d) / k, 0.0, 1.0);
             d = sd + (d - sd) * h - k * h * (1.0 - h);
             grad = mix(sdGrad, grad, h);
@@ -134,7 +143,7 @@ half4 main(float2 coord) {
 
     half4 sampled;
     if (-d >= refractionHeight) {
-        sampled = content.eval(coord);
+        sampled = content.eval(coord + lensShift);
     } else {
         float x = 1.0 - min(-d, refractionHeight) / refractionHeight;
         float disp = physicsCircleMap(x) * refractionAmount;
@@ -147,7 +156,7 @@ half4 main(float2 coord) {
         float2 normal = grad + depthEffect * depthDir;
         float len = length(normal);
         normal = len > 0.0001 ? normal / len : float2(0.0);
-        sampled = content.eval(coord + disp * normal);
+        sampled = content.eval(coord + lensShift + disp * normal);
     }
 
     half4 tint = half4(tintColor.rgb * tintColor.a, tintColor.a);
@@ -173,6 +182,7 @@ uniform float soften;
 uniform float refractionHeight;
 uniform float refractionAmount;
 uniform float depthEffect;
+uniform float magnify;
 uniform float2 fieldCenter;
 uniform float aa;
 layout(color) uniform half4 tintColor;
@@ -181,6 +191,8 @@ $PhysicsSdfPrelude
 
 half4 main(float2 coord) {
     float2 p = coord + offset;
+    // L'ingrandimento della goccia in moto (3.0): zero a riposo, quindi la lastra di sempre.
+    float2 lensShift = (fieldCenter - p) * magnify;
 
     // AGSL accetta un indice di array uniform solo se costante — e la variabile d'induzione di un
     // loop a limiti costanti lo è, perché il compilatore srotola. Qualsiasi altro indice (il
@@ -237,7 +249,7 @@ half4 main(float2 coord) {
 
     half4 sampled;
     if (-d >= refractionHeight) {
-        sampled = content.eval(coord);
+        sampled = content.eval(coord + lensShift);
     } else {
         float2 away = p - nearest;
         float len = length(away);
@@ -250,7 +262,7 @@ half4 main(float2 coord) {
         normal = nl > 0.0001 ? normal / nl : float2(0.0);
         float x = 1.0 - min(-d, refractionHeight) / refractionHeight;
         float disp = physicsCircleMap(x) * refractionAmount;
-        sampled = content.eval(coord + disp * normal);
+        sampled = content.eval(coord + lensShift + disp * normal);
     }
 
     half4 tint = half4(tintColor.rgb * tintColor.a, tintColor.a);
@@ -266,12 +278,12 @@ half4 main(float2 coord) {
  * alla lettera), e l'intensita' e' un PESO fra 0 e 1 invece di un interruttore — cosi' un tasto con
  * la frangia che diventa un pannello senza la perde lungo il viaggio, invece che a meta' strada.
  *
- * Si aspetta nello scope: `coord`, `disp` (lo spostamento), `normal`, `toCenter` (= p - fieldCenter),
- * e scrive `sampled`. Sette campioni per pixel, ma solo nella banda della lente: piu' dentro, dove la
- * lente non arriva, il ramo non si esegue.
+ * Si aspetta nello scope: `coord`, `lensShift` (l'ingrandimento in moto), `disp` (lo spostamento),
+ * `normal`, `toCenter` (= p - fieldCenter), e scrive `sampled`. Sette campioni per pixel, ma solo
+ * nella banda della lente: piu' dentro, dove la lente non arriva, il ramo non si esegue.
  */
 private const val PhysicsDispersionBlock = """
-        float2 refracted = coord + disp * normal;
+        float2 refracted = coord + lensShift + disp * normal;
         float2 halfField = max(fieldHalfSize, float2(0.0001));
         float dispersionIntensity = chromaticAberration * ((toCenter.x * toCenter.y) / (halfField.x * halfField.y));
         float2 dispersed = disp * normal * dispersionIntensity;
@@ -328,10 +340,11 @@ uniform float2 offset;
 uniform float pieceCount;
 uniform float4 pieceRect[$PhysicsMaxPieces];
 uniform float4 pieceRadii[$PhysicsMaxPieces];
-uniform float blendRadius;
+uniform float pieceBlend[$PhysicsMaxPieces];
 uniform float refractionHeight;
 uniform float refractionAmount;
 uniform float depthEffect;
+uniform float magnify;
 uniform float2 fieldCenter;
 uniform float2 fieldHalfSize;
 uniform float chromaticAberration;
@@ -342,10 +355,11 @@ $PhysicsSdfPrelude
 
 half4 main(float2 coord) {
     float2 p = coord + offset;
+    // L'ingrandimento della goccia in moto (3.0): zero a riposo, quindi la lastra di sempre.
+    float2 lensShift = (fieldCenter - p) * magnify;
 
     float d = 1000000.0;
     float2 grad = float2(0.0);
-    float k = max(blendRadius, 0.0001);
     for (int i = 0; i < $PhysicsMaxPieces; ++i) {
         if (float(i) >= pieceCount) break;
         float2 rel = p - pieceRect[i].xy;
@@ -358,6 +372,9 @@ half4 main(float2 coord) {
             d = sd;
             grad = sdGrad;
         } else {
+            // Il raggio di fusione e' del PEZZO (3.0): un gruppo li ha tutti uguali, il liquido di un
+            // viaggio ne ha uno per l'ancora che si svuota.
+            float k = max(pieceBlend[i], 0.0001);
             float h = clamp(0.5 + 0.5 * (sd - d) / k, 0.0, 1.0);
             d = sd + (d - sd) * h - k * h * (1.0 - h);
             grad = mix(sdGrad, grad, h);
@@ -371,7 +388,7 @@ half4 main(float2 coord) {
 
     half4 sampled;
     if (-d >= refractionHeight) {
-        sampled = content.eval(coord);
+        sampled = content.eval(coord + lensShift);
     } else {
         float x = 1.0 - min(-d, refractionHeight) / refractionHeight;
         float disp = physicsCircleMap(x) * refractionAmount;
@@ -400,6 +417,7 @@ uniform float soften;
 uniform float refractionHeight;
 uniform float refractionAmount;
 uniform float depthEffect;
+uniform float magnify;
 uniform float2 fieldCenter;
 uniform float2 fieldHalfSize;
 uniform float chromaticAberration;
@@ -410,6 +428,8 @@ $PhysicsSdfPrelude
 
 half4 main(float2 coord) {
     float2 p = coord + offset;
+    // L'ingrandimento della goccia in moto (3.0): zero a riposo, quindi la lastra di sempre.
+    float2 lensShift = (fieldCenter - p) * magnify;
 
     int count = int(vertCount);
     float best = 1000000000.0;
@@ -462,7 +482,7 @@ half4 main(float2 coord) {
 
     half4 sampled;
     if (-d >= refractionHeight) {
-        sampled = content.eval(coord);
+        sampled = content.eval(coord + lensShift);
     } else {
         float2 away = p - nearest;
         float awayLen = length(away);

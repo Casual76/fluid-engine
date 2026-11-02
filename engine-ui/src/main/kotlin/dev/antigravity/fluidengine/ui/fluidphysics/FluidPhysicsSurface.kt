@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidPressState
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -136,6 +138,18 @@ fun Modifier.fluidPhysicsSurface(
     )
   }
   state.maskInShader = resolvedTier == FluidPhysicsTier.Full
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  state.density = LocalDensity.current.density
+
+  // Il vetro liquido (3.0): il corpo elastico si alimenta da qui, fotogramma per fotogramma finche' la
+  // sagoma si muove o la gelatina dell'arrivo non si e' posata, e a riposo non chiede niente. Con le
+  // animazioni ridotte (o [LocalFluidPhysicsLiquid] spento) non parte: niente oscillazioni, niente
+  // collo, niente lente in moto.
+  val liquidOn = !reducedMotion && LocalFluidPhysicsLiquid.current
+  state.liquidAllowed = liquidOn
+  LaunchedEffect(state, liquidOn) {
+    if (liquidOn) state.runLiquid()
+  }
 
   if (resolvedTier == FluidPhysicsTier.Lite) {
     return this.physicsFallback(state, tint, intensity)
@@ -146,7 +160,6 @@ fun Modifier.fluidPhysicsSurface(
   val currentOpticsBlend by rememberUpdatedState(opticsBlend)
   val quality = LocalFluidGlassQuality.current
   val qualityFactor: () -> Float = remember(quality) { { quality?.level ?: 1f } }
-  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val blurRadius = backdrop.blurRadius
   val scratch = remember(state) { PhysicsUniformScratch() }
   // Lo scope degli effetti può lavorare a risoluzione ridotta: ogni pixel di geometria va
@@ -160,11 +173,15 @@ fun Modifier.fluidPhysicsSurface(
         val amount = clampGlassUnit(currentIntensity())
         if (amount > 0.001f) {
           val q = qualityFactor()
-          val m = material.at(currentOpticsBlend())
+          val full = resolvedTier == FluidPhysicsTier.Full
+          // La lente in moto (3.0): mentre la sagoma viaggia il vetro si fa goccia — piu' rifrazione
+          // al bordo, meno latte, un filo d'ingrandimento — e a riposo il peso e' zero esatto, quindi
+          // il materiale e' quello dichiarato, la stessa istanza. Solo dove la lente c'e'.
+          val motionLens = if (full) state.liquid.lens else 0f
+          val m = liquidMaterial(material.at(currentOpticsBlend()), motionLens)
           if (m.optics.vibrancy != 1f) {
             colorControls(saturation = 1f + (m.optics.vibrancy - 1f) * amount)
           }
-          val full = resolvedTier == FluidPhysicsTier.Full
           val plan = if (full) state.ensurePlan() else null
           val factor = scopeFactor(size.width, layoutWidth.floatValue)
           // La taglia che conta e' quella della SAGOMA, non quella di `size`: lo scope di un morph e'
@@ -206,6 +223,7 @@ fun Modifier.fluidPhysicsSurface(
                 depthEffect = lens.depthEffect,
                 tintInShader = shaderTint,
                 chromaticAberration = lens.dispersion,
+                magnify = liquidMagnify(motionLens),
               )
             } else {
               slabGroupMorphLens(
@@ -217,6 +235,7 @@ fun Modifier.fluidPhysicsSurface(
                 depthEffect = lens.depthEffect,
                 tintInShader = shaderTint,
                 chromaticAberration = lens.dispersion,
+                magnify = liquidMagnify(motionLens),
               )
             }
           }
@@ -463,7 +482,8 @@ fun Modifier.fluidPhysicsContent(
       // spegne: due etichette trascinate verso il centro dell'unione andrebbero nel posto
       // sbagliato, e una fusione la raccontano gia' i pezzi.
       val targetFrame = state.form.frame
-      val bounds = state.ensurePlan().bounds
+      // La sagoma del viaggio, non quella del corpo che oscilla: il testo non trema con la gelatina.
+      val bounds = state.contentBoundsNow()
       if (state.form !is FluidForm.Group && targetFrame.minDimension > 0f && bounds.minDimension > 0f) {
         translationX = bounds.center.x - targetFrame.center.x
         translationY = bounds.center.y - targetFrame.center.y

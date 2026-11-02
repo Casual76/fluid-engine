@@ -13,6 +13,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 internal class PhysicsUniformScratch {
   val rects = FloatArray(PhysicsMaxPieces * 4)
   val radii = FloatArray(PhysicsMaxPieces * 4)
+  val blends = FloatArray(PhysicsMaxPieces)
   val verts = FloatArray(PhysicsMaxVertices * 2)
 }
 
@@ -78,6 +79,8 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
    * chiedono. A zero — o se il driver ha rifiutato la variante — si usa la sorgente di sempre.
    */
   chromaticAberration: Float = 0f,
+  /** L'ingrandimento della goccia in moto (3.0, [liquidMagnify]): zero a riposo. */
+  magnify: Float = 0f,
 ) {
   if (!isRuntimeShaderSupported()) return
 
@@ -97,6 +100,9 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
     scratch.rects[i] = 0f
     scratch.radii[i] = 0f
   }
+  for (i in 0 until PhysicsMaxPieces) {
+    scratch.blends[i] = if (i < count) plan.pieceBlend[i] * scopeFactor else 0f
+  }
 
   val currentPadding = padding
   val chroma = dispersionUniform(chromaticAberration)
@@ -106,10 +112,11 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
       setFloatUniform("pieceCount", count.toFloat())
       setFloatUniform("pieceRect", scratch.rects)
       setFloatUniform("pieceRadii", scratch.radii)
-      setFloatUniform("blendRadius", plan.blendRadius * scopeFactor)
+      setFloatUniform("pieceBlend", scratch.blends)
       setFloatUniform("refractionHeight", height)
       setFloatUniform("refractionAmount", -refractionAmountPx)
       setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
+      setFloatUniform("magnify", magnify)
       setFloatUniform(
         "fieldCenter",
         plan.bounds.center.x * scopeFactor,
@@ -131,10 +138,11 @@ internal fun BackdropEffectScope.slabGroupMorphLens(
     setFloatUniform("pieceCount", count.toFloat())
     setFloatUniform("pieceRect", scratch.rects)
     setFloatUniform("pieceRadii", scratch.radii)
-    setFloatUniform("blendRadius", plan.blendRadius * scopeFactor)
+    setFloatUniform("pieceBlend", scratch.blends)
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)
     setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
+    setFloatUniform("magnify", magnify)
     setFloatUniform(
       "fieldCenter",
       plan.bounds.center.x * scopeFactor,
@@ -175,6 +183,8 @@ internal fun BackdropEffectScope.polyMorphLens(
   tintInShader: Color,
   /** Il peso della frangia cromatica: vedi [slabGroupMorphLens]. */
   chromaticAberration: Float = 0f,
+  /** L'ingrandimento della goccia in moto: vedi [slabGroupMorphLens]. */
+  magnify: Float = 0f,
 ) {
   if (!isRuntimeShaderSupported()) return
 
@@ -202,6 +212,7 @@ internal fun BackdropEffectScope.polyMorphLens(
       setFloatUniform("refractionHeight", height)
       setFloatUniform("refractionAmount", -refractionAmountPx)
       setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
+      setFloatUniform("magnify", magnify)
       setFloatUniform(
         "fieldCenter",
         plan.bounds.center.x * scopeFactor,
@@ -226,6 +237,7 @@ internal fun BackdropEffectScope.polyMorphLens(
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)
     setFloatUniform("depthEffect", depthEffectUniform(depthEffect))
+    setFloatUniform("magnify", magnify)
     setFloatUniform(
       "fieldCenter",
       plan.bounds.center.x * scopeFactor,

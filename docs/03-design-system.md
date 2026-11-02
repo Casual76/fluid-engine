@@ -409,7 +409,10 @@ in mano.
 | `FluidPageHostState` / `rememberFluidPageHostState()` | `kind`, `progress`, `velocity`, `isInteractive`, `isMoving`, `from`, `to`: si legge dalle shell che devono sapere cosa si muove (la tab bar che cambia visibilità fra due pagine); leggerne `progress` in composizione ricompone a ogni fotogramma |
 | `FluidPageScope`, `LocalFluidPageTransition` | dentro una pagina: `isCovered` (coperta, a riposo), `isFront` (davanti adesso, passa di mano a metà uscita), `transition` (lo stato dell'host) |
 | `FluidPageTransition`, `FluidBackSwipe`, `FluidPageMove`, `FluidPeerMove<K>` | gli stili, i gesti, il movimento in corso (`None`, `Push`, `Pop`, `Back`, `Peer`) e l'ordine fra le schede |
-| `FluidPageMotion` | le costanti e le funzioni pure dell'host (`CommitFraction`, `FlingDpPerSecond`, `backRelease`, `pageFrame`, `classifyStackChange`, …) |
+| `FluidPageMotion` | le costanti e le funzioni pure dell'host (`CommitFraction`, `FlingDpPerSecond`, `backRelease`, `pageFrame`, `classifyStackChange`, `barMorph`, …) |
+| `FluidPageChrome(title, modifier, onBack, backdrop, barTint, actions)` | la barra di una pagina che non è una `FluidScreen`: titolo agganciato, indietro, azioni, e il vetro se c'è una registrazione da rifrangere (`backdrop`); dentro un `FluidPageHost` si descrive e la disegna l'host, fuori si disegna qui (da mettere in un `Box` sopra il contenuto) |
+| `LocalFluidPageBar` (interno) | il posto della barra che l'host dà a ogni pagina: la pagina vi registra la sua specifica (titolo, azioni, numeri del titolo agganciato), l'host la disegna una volta sola |
+
 
 **La migrazione di un'app a `FluidNavHost`:**
 
@@ -425,8 +428,8 @@ in mano.
    `FluidPageTransition.Expand` dove si vuole tenere la crescita dal tocco, e via la tubatura
    dell'origine in `savedStateHandle`.
 4. Via i `FluidRouteMotionHost` attorno alle destinazioni: vogliono un `AnimatedVisibilityScope` che le
-   pagine Fluid non hanno, quindi non compilano. `FluidRouteMotionHost` resta com'era per chi non migra,
-   e sfoca ancora di 6 dp la pagina che esce.
+   pagine Fluid non hanno, quindi non compilano. `FluidRouteMotionHost` resta, deprecato, per chi non migra:
+   non sfoca più né arrotonda.
 5. `peer = FluidPeerMove { from, to -> … }` dalla funzione che ordina le schede, che l'app ha già
    (positivo se `to` sta dopo `from`, zero se non sono pari).
 6. Una shell con una tab bar che cambia visibilità fra due pagine legge `FluidPageHostState.progress`
@@ -436,9 +439,26 @@ Resta tutto di navigation: deep link, stato salvato, `ViewModel` per voce, `save
 `navigation { }` annidati, `dialog { }`. `engine-ui` espone `navigation-compose` 2.9.8 come `api`: la
 versione che hanno già tutte le app tranne Fluidify (2.8.5, che passa a 2.9.8). Cosa cambia a vista in
 un'app che migra: pagine opache, angoli del telefono, la pagina sotto che arretra di un terzo, il back
-che non corre più davanti al dito. **Non c'è ancora la barra ancorata** (passo successivo): ogni
-`FluidScreen` disegna la sua barra, che quindi viaggia con la pagina. La demo è la riga «Pagine» nella
-scheda Chrome della galleria (`PagesDemoActivity`).
+che non corre più davanti al dito, e la barra che resta ferma (qui sotto).
+
+**La barra ancorata (fase 8, passi 5-8).** Dentro `FluidPageHost`/`FluidNavHost` la barra non viaggia più con la
+pagina: **una per host, ferma**. La pagina la *descrive* (`FluidScreen` e `FluidCollapsingTopBar` registrano una
+specifica in `LocalFluidPageBar`, interno) e la disegna l'host, sopra le pagine e sotto la chrome dell'app. Il vetro
+rifrange le due pagine insieme mentre si muovono (e la tab bar con lui: `FluidChromeController.setTransitionBackdrop`),
+il titolo grande è contenuto e viaggia con la sua pagina, quello agganciato sfuma e scivola di 16 dp, il tasto indietro
+è uno e sta fermo al pixel, i tasti di vetro diventano quelli della pagina accanto con una superficie Fluid-physics
+(`FluidPhysicsState.driveExternally(from, to, progress)` fra gruppi di lastre). `FluidScreen` e
+`FluidCollapsingTopBar` non cambiano firma: fuori da un host disegnano la barra di sempre. `FluidPageChrome(title,
+modifier, onBack, backdrop, barTint, actions)` è la stessa cosa per una pagina che non è una `FluidScreen`: dentro un host si
+descrive, fuori si disegna in cima a chi la chiama. **Un gesto che parte sulla barra è della barra** (mai il back: serve
+anche al menu delle azioni, che si sceglie trascinando); i tasti dentro la pagina lasciano partire il back «ovunque»,
+come LibrePods. Uno scroller orizzontale al suo inizio passa il gesto al back; uno slider mai. Con
+`FluidListDetailScaffold` a due pannelli ogni pannello disegna la sua barra. **Deprecati**: `FluidRouteMotionHost` (ora
+senza sfocatura né angoli), `FluidRouteMotion.ExitBlur`/`Expand*`, `RouteMotionSignals.hierarchical` e
+`FluidMotion.DurationRouteFadeOut`. `ui.page.FluidCornerRadii` si chiama `FluidPageCorners` (il nome era già di
+Fluid-physics). La demo è la riga «Pagine» nella scheda Chrome della galleria (`PagesDemoActivity`: indietro fermo,
+azioni da una a tre che si trasformano, titolo grande che viaggia, gesto partito sulla barra).
+
 
 ## I pezzi che le app si riscrivevano da sole (3.0)
 
@@ -480,8 +500,8 @@ nel sottotitolo.
 | `FluidPagerDots(state: PagerState, …)` / `FluidPagerDots(pageCount, position: () -> Float, …)` | i punti che seguono il dito (a metà scorrimento due punti sono mezzo correnti); oltre sette la fila scorre e i bordi si rimpiccioliscono |
 | `FluidStepProgress(step, steps, modifier, label, detail, segmented, pulseCurrent, color)` | «Passo 2 di 5» e una barra che dice a che punto si è (il passo 2 di 5 è il 40%); continua o a segmenti fino a dodici; il passo in corso può respirare |
 
-Il respiro (`FluidPulseMillis` 900, `FluidPulseLowAlpha` 0,35) è ancora una costante interna con un TODO:
-va portato in `FluidMotion` come token.
+Il respiro è un token (`FluidMotion.PulseMillis` 900, `PulseLowAlpha` 0,35 per un pallino, `PulseFillLowAlpha` 0,55 per un
+riempimento, `pulse()` per la molla): tutti i pezzi che respirano battono insieme.
 
 ### I buchi che le app dichiaravano
 
@@ -495,6 +515,31 @@ va portato in `FluidMotion` come token.
 | `FluidEmptyState(…, illustration)` | un disegno sopra il titolo; con l'illustrazione la colonna si centra |
 | `fluidGlassGroups(items, key, maxRows, row)` · `FluidGlassGroup(items)` | una lista lunga in pannelli di vetro da otto righe dal taglio invisibile (`FluidGlassGroupMaxRows`); il prezzo è `animateItem()`. `FluidGlassGroup` è un pannello solo per una sezione breve |
 | `fluidHapticsFor(context, enabled)` | l'aptica dell'engine per il codice a `View` (tastiera, servizio): ripiego sugli effetti di fabbrica del vibratore; da creare una volta |
+
+## Tutto in vetro (3.0, fase 9)
+
+Quello che era opaco o dipinto accanto al vetro diventa vetro, e quello che si afferra e scorre diventa la goccia
+di Kyant (piena a riposo, lente sotto il dito). Un modificatore interno solo la disegna, `glassDrop` (`glass/interaction/GlassDrop.kt`):
+i pomelli di slider e interruttore, la pillola della barra, il segmentato, il rail e la lente dell'indice la
+condividono, ognuno con la sua faccia (`GlassDropFaces`: bianca sul chiaro, il grigio di iOS sullo scuro per una goccia
+in una lastra). **Nessuna firma pubblica cambia.** La demo è `AllGlassDemo` (`sample/…/catalog/`, nella galleria da
+Chrome › Catalogo della 3.0 › «Tutto in vetro»), con le voci di «Da provare».
+
+| Componente | Cos'è diventato |
+|---|---|
+| `FluidChip` | un tasto di vetro dove c'è un canvas (lo scelto ha l'accento dentro il materiale, non un riempimento che lo sostituisce), pressione e aptica dei tasti; la pastiglia opaca senza fondale o sotto API 31 |
+| `FluidSegmentedControl` | pista di vetro (lastra `Content`) e pillola a goccia, bianca sul chiaro e grigia sullo scuro, con un `Tick` per segmento attraversato; da destra a sinistra la goccia e il dito vanno nel verso giusto |
+| `FluidTabRail` | l'indicatore è una goccia che viaggia come la pillola della barra al tocco di una scheda (press, corsa, rilascio), centrata sulla scheda |
+| `FluidSectionIndex` | la lente è una goccia (pressione = apertura del nastro, scala nel `layerBlock`), la bolla ha il materiale dei pannelli (`panelOptics(compact, overSharpPage)`); indice e bolla entrano per offset e alfa, mai per scala; la pressione lunga che non si muove non suona un `Tick` |
+| `FluidFloatingTabBar` (banda e cerchi) | la banda accessoria è il vetro della barra (ombra di vetro, niente riempimento); la scheda in linea prende la luce del dito; niente increspatura di Material (`indication = null`); un tocco su una scheda, sul cerchio e sulla scheda ripiegata dice `Tap`. Puck e pillola non si toccano (R1) |
+| `FluidCoachMark` | ingresso e uscita per offset di layout e alfa, mai scala sul vetro; «Ok» è un tasto di vetro; la punta dipinta è tolta |
+| `FluidContainerScaffold` | su un fondale ambientale il gruppo è una lastra di contenuto come `FluidListGroup(glass = true)`; senza, il contenitore pieno di sempre |
+| `FluidSyncIndicator` (nella barra) | capsula di vetro col tono nel materiale e la pressione di `FluidSyncAction`; fuori da una barra è il cerchio colorato |
+| modale a pagina intera | la chiusura è un tasto di vetro (un cerchio dipinto sotto API 31) |
+| `FluidSheet` (deprecato) | con un host dei modali delega al foglio di vetro e dice al chiamante «chiuso» (`onDismissRequest`) a uscita finita; senza host resta il foglio di piattaforma |
+
+Quello che nessun test dice è com'è il vetro: gli host dei test non hanno fondale. `docs/10-coerenza.md` tiene le
+celle di questa fase a **?** finché qualcuno non le guarda in mano.
 
 ## I menu liquidi (3.0)
 
@@ -629,6 +674,28 @@ una richiesta esplicita può solo scendere di livello.
 regola; Fluid-physics è la deroga deliberata — una seconda famiglia (rettangoli fusi con lo smooth
 minimum, poligoni ad anello di vertici) nel suo package, con il suo concern ottico, derivata dal
 preludio SDF di Kyant e annotata in `LICENSES/AndroidLiquidGlass.md`.
+
+## L'interfaccia dell'assistente: `engine-ai-ui` (3.0, opt-in)
+
+ClasseViva, PampAI, FluidWeather e Fluid-transit si erano scritte ognuna la propria interfaccia sopra `engine-ai` (che
+non ne ha una), e le copie divergevano. `engine-ai-ui` è **l'unione**: quello che un'app aveva e le altre no diventa un
+parametro o uno slot, mai il minimo comune. Niente dominio dentro (prompt, strumenti, nomi, pagine, Room): i testi
+arrivano da oggetti `Fluid*Strings` con i default italiani, come `FluidAppearanceStrings`. È un modulo a parte: porta
+con sé `engine-ui`, `engine-ai` ed `engine-foundation` (`tools/engine-install.ps1 -Modules engine-ai-ui`), e le app che
+non lo chiedono non cambiano.
+
+- **overlay** — `FluidAssistantOverlay` (senza ViewModel: callback), aureola in cima e campo di luce sul perimetro
+  (`FluidAssistantHalo`, `FluidHaloField`), card, barra di scrittura, pillole, `FluidAssistantDock` (il pannello
+  ancorato), `FluidSpeaker` (voce), aptica di stato, resoconto e foglio «Dettagli» di un errore;
+- **impostazioni** — `fluidAiSettingsSection` (`LazyListScope`): chiavi con avviso sulla forma, ordine dei servizi con
+  frecce e trascinamento, picker dei modelli nel vetro, dettagli di OpenRouter, diagnostica, `FluidAiLock`;
+- **chat** — `FluidMarkdown` (parser puro tollerante allo stream, rivelazione parola per parola, codice con copia,
+  tabelle che scorrono; candidato a salire in `engine-ui`), `FluidFollowBottom`, bolle, `FluidComposer` di vetro.
+
+Il pallino che respira passa da 700 a 900 ms (il respiro dell'engine, `FluidMotion.PulseMillis`). FluidWeather e
+Fluid-transit devono passare agli stati di `engine-ai` **prima** di usare l'overlay. Il diff delle quattro copie e cosa
+sostituisce ogni app: `artifacts/design/ai-ui-diff.md`. Il modulo ha i suoi 142 test su JVM; il vetro e il moto si
+guardano in mano (una riga ? nella matrice di `docs/10-coerenza.md`).
 
 ## Cosa non c'è, e perché
 

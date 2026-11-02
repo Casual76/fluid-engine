@@ -66,6 +66,11 @@ che rendeva l'app "colorata" invece che leggibile.
 Il feedback al tocco per una riga è `fluidRowPressable` (tinta), non `fluidPressable` (scala): una
 riga che si rimpicciolisce rompe la sagoma del gruppo e fa sembrare la lista instabile.
 
+Per TalkBack una riga è **un nodo solo**. Con `onClick` ha il nome (titolo e sottotitolo, fusi), `Role.Button` e `selected`
+se è quella mostrata accanto; senza è un'etichetta, senza ruolo. Il `ListItem` di Material fonde da sé la propria semantica
+e il `clickable` fonde tutto in un nodo, quindi non ne restano due (`FluidMatrixTest` lo prova su un albero vero): chi
+aggiunge un modificatore di semantica sul contenuto di una riga lo fa sul nodo della riga, mai su un discendente.
+
 ## I pulsanti crescono, le superfici cedono (2.11.0, come LibrePods dalla 3.0)
 
 Un pulsante è una cosa piccola e sola: sotto il dito **cresce** (`FluidPressFeedback.Expand`), lo
@@ -366,6 +371,19 @@ pillola cambiano solo verso i riferimenti, mai allontanandosene):
 `GlassDropSquashTest` rifà il conto *come stava scritto prima* per i tre e lo confronta bit per bit con
 la funzione condivisa: un'ultima cifra spostata sarebbe un metro cambiato.
 
+**Una goccia in una lastra ha la faccia del tema** (fase 9). Il bianco fisso è dei pomelli, che stanno su una pista
+colorata e di cui è l'identità; il segmentato, il rail e la lente dell'indice stanno in una lastra, e lì la faccia è
+`GlassDropFaces.forSurface(isDarkSurface())`: bianca sul chiaro, il grigio di iOS (0x636366) sullo scuro, perché un
+bianco pieno su una pista scura è un faro e l'etichetta `onSurface` che ci sta sopra non si leggerebbe. È sempre
+`glassDrop`, un modificatore solo con la faccia e il movimento come parametri (una `GlassDragAnimation`, o le lambda di
+`GlassDropMotion` per la lente dell'indice, la cui pressione è l'apertura del nastro): prima c'era un secondo
+modificatore, `glassDropFace`, e due ricette che dicevano la stessa cosa sono due ricette che divergono. L'alfa della faccia
+bianca è `1 − p` bit per bit come nei pomelli (`GlassDropFaceTest`).
+
+**Un ingresso non scala un vetro.** L'indice di sezione, la sua bolla e il suggerimento entrano per offset di layout e
+alfa, mai per `scaleIn`: un layer scalato sopra un vetro rifrange ciò che non c'è più (è la prima delle tre trappole in
+fondo), e un `AnimatedVisibility` con `scaleIn` attorno a una pista di vetro la fa "respirare" a ogni comparsa.
+
 ## Un solo vocabolario di movimento
 
 Tutto passa da `FluidMotion`. `FluidMotionScheme` lo passa anche ai componenti Material, così uno
@@ -381,6 +399,16 @@ Due invarianti:
 
 Una `tween` scritta a mano dentro una schermata è il modo più rapido per far sembrare quella
 schermata di un'altra app.
+
+**Dalla fase 10 vale per tutto, anche le molle.** Ogni numero di movimento ha un nome in `FluidMotion` — le molle della
+goccia di Kyant (`dropValue`, `DropPress`, `DropScaleX`/`Y`), i tempi del pop-up (`Popover*`), il ritorno del puck
+(`TabTugReturn`), il respiro (`pulse`, `PulseMillis`), la molla di serie che `animate*AsState` usava senza dirlo (`flick`),
+le molle che muovono pixel (`pixels`, soglia mezzo pixel) — **con gli stessi valori di prima**: lo prova
+`FluidMotionTokensTest`, che rifà l'espressione come stava scritta nel componente e confronta la traiettoria a ogni passo di
+25 ms, perché per la pillola, lo slider e l'interruttore un numero spostato è un metro cambiato (R1). Un grep di
+`spring(`, `tween(` e `keyframes` fuori da `FluidMotion.kt`, dal renderer (`glass/backdrop/**`), da Fluid-physics, dalle
+molle dei tasti (`FluidPressSprings`, costanti di LibrePods) e dalle pagine non trova niente, e deve continuare a non
+trovare niente: un movimento nuovo si aggiunge a `FluidMotion`, non al file del componente.
 
 ## Le pagine non sfumano e seguono il dito (3.0)
 
@@ -432,8 +460,39 @@ LibrePods, **da giudicare in mano**. `EdgeOnly` (i primi 20 dp) per le pagine pi
 una pagina che scorre non è un momento da sentire.
 
 Il codice è `ui/page/` e `ui/navigation/`; la ricetta di migrazione sta in `docs/03-design-system.md`.
-`FluidRouteMotionHost` resta com'era per chi non migra, e sfoca ancora: dentro un `FluidNavHost` non va
+`FluidRouteMotionHost` resta, deprecato, per chi non migra (non sfoca più né arrotonda): dentro un `FluidNavHost` non va
 messo (vuole un `AnimatedVisibilityScope` che le pagine Fluid non hanno).
+
+## Le pagine: una barra per host (3.0)
+
+Dentro un host di pagine la barra la disegna l'host: una pagina non si disegna una barra sua sopra il contenuto (si
+vedrebbero due barre, e la sua viaggerebbe col dito). Il titolo grande è contenuto e viaggia con la pagina; il titolo
+agganciato, il vetro e il tasto indietro sono chrome e stanno fermi. Si tocca solo a riposo: un gesto partito sulla
+barra è della barra, mai il back. Nessuna pagina sfuma né si sfoca.
+
+Il perché, una cosa per volta:
+
+- **una per host, descritta dalla pagina.** `FluidScreen` e `FluidCollapsingTopBar` non disegnano la barra quando c'è un
+  host: la *registrano* (titolo, azioni, i numeri del titolo agganciato) e l'host ne disegna una sola, sopra le pagine e
+  sotto la chrome dell'app, leggendo tutto in disegno. Fuori da un host disegnano quella di sempre, quindi nessuna firma
+  è cambiata; per una pagina che non è una `FluidScreen` c'è `FluidPageChrome`;
+- **il vetro vede le due pagine insieme.** Mentre le pagine si muovono la barra rifrange la registrazione di tutte e due,
+  ognuna al suo offset vivo, e lo stesso impilamento va alla chrome dell'app (la tab bar, con
+  `FluidChromeController.setTransitionBackdrop`): una barra che rifrangesse una pagina sola mostrerebbe, sotto il
+  vetro, una pagina che sta per essere coperta;
+- **i tasti di vetro passano a quelli della pagina accanto.** Durante il moto il vetro del singolo tasto si spegne e una
+  superficie sola di Fluid-physics, guidata da fuori (`FluidPhysicsState.driveExternally(from, to, progress)` fra gruppi di
+  lastre), porta i pezzi della pagina che esce su quelli della pagina che arriva; il tasto indietro radice↔figlia compreso.
+  Oltre sei pezzi, o con un controllo che non è una capsula di vetro, le icone si incrociano e basta;
+- **chi ha il dito.** Un gesto che parte sulla riga dei controlli della barra è della barra (serve anche al menu delle
+  azioni, che si sceglie trascinando); i tasti dentro la pagina lasciano partire il back «ovunque», come LibrePods. Uno
+  scroller orizzontale al suo inizio passa il gesto al back; uno slider non lo passa mai.
+
+Provato da `FluidPageHostTest` (il tasto indietro è uno e sta fermo al pixel, il titolo grande viaggia con la sua pagina,
+un gesto che parte sulla barra è della barra, un cursore non porta mai indietro), `FluidPageMotionTest` (il morph dei
+tasti, le icone che non si leggono insieme, l'accoppiamento dei pezzi), `ExternalGroupDriveTest` e
+`FluidChromeTransitionTest`. Quello che nessun test dice è com'è il passaggio dal vetro del tasto alla superficie fisica
+(un lampo di un fotogramma?), il titolo grande in `ShrinkSlide`, la fluidità della ricattura e il back di sistema su One UI.
 
 ## Una vibrazione per momento (e l'eccezione dei tasti)
 
@@ -455,7 +514,9 @@ suona il suo vicino.
   (`hapticFeedbackEnabled = false`): una riga con un menu contestuale suonava tre colpi per un momento. Una **riga che è l'interruttore**
   (`FluidToggleRow`) suona `ToggleOn`/`ToggleOff` e non `Tap`: la pressione è di
   `fluidRowPressable(haptic = null)`, perché fondere i due sceglie il primo, cioè quello sbagliato. Una
-  riga di scelta (`FluidChoiceRow`) suona un `Tick` solo se la scelta si sposta.
+  riga di scelta (`FluidChoiceRow`) suona un `Tick` solo se la scelta si sposta. Un gesto che comincia con un colpo suo
+(la pressione lunga che apre l'indice di sezione: `GestureStart`) non suona un `Tick` al primo evento: il primo evento non è
+una tacca attraversata, e riselezionare la sezione dov'è già sarebbe un secondo momento per lo stesso dito.
 
 **L'eccezione è una, voluta, ed è dei tasti.** Un tasto che cresce (`FluidPressFeedback.Expand`) fa la
 coreografia di LibrePods, con le costanti di sistema: `PressDown` (`SegmentFrequentTick`) al contatto,

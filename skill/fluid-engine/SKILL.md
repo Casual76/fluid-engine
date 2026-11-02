@@ -58,8 +58,9 @@ Tutto sotto `dev.antigravity.fluidengine.*`.
    di `NavHost`): opache, da destra, con la pagina sotto che arretra di un terzo, e il back è quello di iOS
    sulla **posizione vera del dito** (`touchX`, mai il `progress` del gesto di sistema, che passato per un
    easing correva fino a 2,5 volte il dito). Se stai scrivendo un `fadeIn` fra due schermate, o le
-   transizioni di un `NavHost` o di un `FluidRouteMotionHost` (che sfoca ancora 6 dp la pagina che esce),
-   stai andando contro il vocabolario dell'app. **Dalla 3.0 l'engine include codice GPL-3.0 di LibrePods**
+   transizioni di un `NavHost` o di un `FluidRouteMotionHost` (deprecato), stai andando contro il vocabolario
+   dell'app. Dentro un host di pagine la barra è **una sola, ferma** (la disegna l'host, la pagina la descrive: una
+   pagina non se ne disegna una sua). **Dalla 3.0 l'engine include codice GPL-3.0 di LibrePods**
    (i pulsanti e le pagine: `LICENSES/LibrePods.md`): un'app che lo aggiorna è un'opera derivata, si
    distribuisce sotto GPL-3.0 con i sorgenti a chi riceve l'APK, e la sua pagina «informazioni» lo dice con
    `fluidLicensesSection()`. Vedi «Migrare alla 3.0» in `ADOZIONE.md`.

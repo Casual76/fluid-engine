@@ -31,6 +31,7 @@ include ':engine-widget'
 include ':engine-wear'
 include ':engine-ai'
 include ':engine-ai-bridge'
+include ':engine-ai-ui'
 
 // The gallery. Only exists in this build: a host app includes the engine-* modules by path and
 // never reads this file, so nothing an app compiles is affected by it.

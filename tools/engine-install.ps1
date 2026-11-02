@@ -76,13 +76,17 @@ $EngineModules = [ordered]@{
   "engine-widget"     = @("engine-foundation", "engine-ui")
   "engine-ai"         = @("engine-foundation")
   "engine-ai-bridge"  = @("engine-foundation", "engine-ai")
+  "engine-ai-ui"      = @("engine-foundation", "engine-ui", "engine-ai")
   "engine-wear"       = @("engine-foundation", "engine-ui")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
 # un'app per telefono che lo ricevesse di default pagherebbe dipendenze e tempo di build per uno
 # schermo che non ha. Un'app con una versione orologio lo chiede: -Modules ...,engine-wear.
-$OptInModules = @("engine-wear")
+# engine-ai-ui (l'interfaccia dell'assistente: aureola, card, impostazioni, kit della chat) e' lo
+# stesso caso: un'app senza assistente non deve compilare un modulo che non usa, e chiederlo per
+# nome porta con se' engine-ui, engine-ai e engine-foundation: -Modules ...,engine-ai-ui.
+$OptInModules = @("engine-wear", "engine-ai-ui")
 
 function Fail($message) {
   Write-Host "ERRORE: $message" -ForegroundColor Red
@@ -245,6 +249,7 @@ $notes = @(
   @("engine-widget", "widget Glance"),
   @("engine-ai", "assistente IA: provider, chiavi, orchestratore"),
   @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli"),
+  @("engine-ai-ui", "interfaccia dell'assistente: aureola, card, impostazioni, kit della chat (opt-in)"),
   @("engine-wear", "design system su Wear OS (solo nel modulo dell'orologio)")
 )
 foreach ($note in $notes) {

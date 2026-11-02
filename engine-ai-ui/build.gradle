@@ -1,0 +1,54 @@
+// L'interfaccia dell'assistente: aureola, card, barra di scrittura, impostazioni delle chiavi e dei
+// modelli, kit della chat (bolle, composer, "in fondo", markdown). Opt-in: un'app che non ha
+// un assistente non lo include, e `engine-ui` e `engine-ai` restano quelli di prima.
+//
+// Sta sopra *due* moduli, e non dentro uno dei due: `engine-ai` e' trasporto e orchestrazione senza
+// una riga di Compose (un servizio in primo piano lo usa senza schermo), `engine-ui` e' il design
+// system senza una riga di assistente. Questo e' l'unico posto che li conosce entrambi.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace 'dev.antigravity.fluidengine.aiui'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose true
+  }
+
+  testOptions {
+    unitTests {
+      // Come engine-ui: i test restano logica pura, ma un `AnnotatedString` o un `Path` di Compose
+      // possono toccare android.graphics, che sul JVM non esiste. Qui devono solo non esplodere.
+      returnDefaultValues = true
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: le firme pubbliche parlano `AssistantState`, `ProviderId`, `GlassBackdropState`, e un'app
+  // che include questo modulo le usa senza ridichiararle.
+  api project(':engine-ui')
+  api project(':engine-ai')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+}

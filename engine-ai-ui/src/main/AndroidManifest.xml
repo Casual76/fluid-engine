@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Nessun permesso: RECORD_AUDIO arriva con engine-ai, e l'overlay lo chiede a runtime solo
+       quando l'utente tocca il microfono. -->
+</manifest>

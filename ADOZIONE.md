@@ -437,7 +437,9 @@ pulsanti. Nessuna app la deve prendere adesso; quando una lo fa, l'ordine è que
    sorgenti a chi riceve l'APK. È una scelta di Alessio (31 ottobre 2026), e vale per tutte le app Pampa che
    usano l'engine. La pagina «informazioni» lo dice già con `fluidLicensesSection()` (la voce di LibrePods e
    la nota stanno in `FluidEngineLicenses`); un'app che passa una `footnote` sua deve aggiungere la frase
-   nella sua lingua. Un'app che non può essere GPL-3.0 resta sulla 2.13.
+   nella sua lingua. Un'app che non può essere GPL-3.0 resta sulla 2.13. Deciso da Alessio il 2 novembre 2026:
+   **universal_converter resta sulla 2.13** (incorpora un motore GPL-2.0 senza «o successive»); **FluidWeather
+   passa a una mappa libera** (MapLibre/OSM al posto di Google Maps, che è proprietaria) e poi alla 3.0 come le altre.
 2. **Le pagine: `FluidNavHost` al posto di `NavHost`.** `NavHost(` diventa `FluidNavHost(`, con gli stessi
    `navController`, `startDestination` e grafo; l'import di `composable` passa a
    `dev.antigravity.fluidengine.ui.navigation.composable`; via le quattro transizioni (`enterTransition`,

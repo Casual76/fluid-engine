@@ -13,6 +13,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
+import dev.antigravity.fluidengine.ui.page.FluidBarPiece
+import dev.antigravity.fluidengine.ui.page.LocalFluidBarPieceSink
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -182,6 +185,24 @@ fun Modifier.glassControlSurface(
   val scope = rememberCoroutineScope()
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val onDark = GlassDefaults.isDarkSurface()
+  // Dentro la barra ancorata delle pagine (3.0) il tasto dice dove sta la sua lente e, mentre le
+  // pagine cambiano, spegne il proprio vetro: lo porta una superficie sola di Fluid-physics, che fa
+  // diventare i tasti della pagina che esce quelli della pagina che arriva. Fuori, niente.
+  val pieceSink = LocalFluidBarPieceSink.current
+  val barPiece = remember(pieceSink, shape) {
+    if (pieceSink != null) FluidBarPiece(capsule = shape == FluidCapsuleShape) else null
+  }
+  DisposableEffect(pieceSink, barPiece) {
+    if (pieceSink != null && barPiece != null) pieceSink.add(barPiece)
+    onDispose { if (pieceSink != null && barPiece != null) pieceSink.remove(barPiece) }
+  }
+  val materialIntensity: () -> Float = remember(pieceSink) {
+    if (pieceSink == null) {
+      { 1f }
+    } else {
+      { if (pieceSink.suppressed()) 0f else 1f }
+    }
+  }
   val ownPress = rememberFluidPressState(FluidPressFeedback.Expand)
   val press = pressState ?: ownPress
   val highlight = remember(scope, reducedMotion, onDark, press) {
@@ -224,10 +245,21 @@ fun Modifier.glassControlSurface(
   }
 
   return this
+    .then(
+      if (pieceSink != null && barPiece != null) {
+        Modifier.onGloballyPositioned { coordinates ->
+          barPiece.coordinates = coordinates
+          pieceSink.onChanged()
+        }
+      } else {
+        Modifier
+      },
+    )
     .glassSurface(
       state = backdrop,
       tint = selectionTint,
       shape = shape,
+      intensity = materialIntensity,
       role = GlassRole.Interactive,
       optics = optics,
       opticalDepth = depth,

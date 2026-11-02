@@ -69,6 +69,12 @@ internal fun Modifier.fluidPageBackSwipe(state: FluidPageHostState): Modifier =
     awaitEachGesture {
       val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
       state.recordDown(down.position, size)
+      // La riga dei controlli della barra ancorata non e' pagina: un gesto che parte li' e' dei suoi
+      // tasti (come in LibrePods, dove il contenitore del tasto indietro beve il dito). Conta anche
+      // per il menu delle azioni, che dal click lungo si sceglie trascinando il dito di lato. Il
+      // resto della pagina resta "ovunque", tasti compresi: i tasti non consumano (3.0), quindi un
+      // trascinamento partito su un tasto della pagina porta indietro e il tasto lascia.
+      if (down.position.y < state.barBottomPx) return@awaitEachGesture
       val dir = state.layoutDirectionSign
 
       // Una pagina che sta tornando a posto si riprende al volo, dal punto in cui e'.
@@ -327,14 +333,14 @@ internal class FluidPageBackHandler(private val state: FluidPageHostState) :
 }
 
 /** I raggi degli angoli del display (API 31+), 0 dove non ci sono o prima. */
-internal fun displayCornerRadii(view: View): FluidCornerRadii =
-  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) displayCornerRadii31(view) else FluidCornerRadii.Zero
+internal fun displayCornerRadii(view: View): FluidPageCorners =
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) displayCornerRadii31(view) else FluidPageCorners.Zero
 
 @RequiresApi(Build.VERSION_CODES.S)
-private fun displayCornerRadii31(view: View): FluidCornerRadii {
-  val insets = view.rootWindowInsets ?: return FluidCornerRadii.Zero
+private fun displayCornerRadii31(view: View): FluidPageCorners {
+  val insets = view.rootWindowInsets ?: return FluidPageCorners.Zero
   fun radius(position: Int): Float = insets.getRoundedCorner(position)?.radius?.toFloat() ?: 0f
-  return FluidCornerRadii(
+  return FluidPageCorners(
     topLeft = radius(RoundedCorner.POSITION_TOP_LEFT),
     topRight = radius(RoundedCorner.POSITION_TOP_RIGHT),
     bottomRight = radius(RoundedCorner.POSITION_BOTTOM_RIGHT),

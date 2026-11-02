@@ -118,10 +118,18 @@ class FluidPageHostState internal constructor() {
   internal var expandOrigin by mutableStateOf(TransformOrigin.Center)
   internal var initialized by mutableStateOf(false)
 
+  internal var height by mutableFloatStateOf(0f)
+
+  /**
+   * Dove finisce la riga dei controlli della barra ancorata, in px dall'alto dell'host; 0 senza
+   * barra. Un gesto che parte li' sopra e' dei controlli della barra, non della pagina.
+   */
+  internal var barBottomPx = 0f
+
   internal var hostLeftInWindow = 0f
   internal var hostRightInWindow = 0f
   internal var windowWidth = 0f
-  private var cardRadii = FluidCornerRadii.Zero
+  private var cardRadii = FluidPageCorners.Zero
 
   // --- Il cablaggio, rinfrescato a ogni composizione dell'host -------------------------------------
 
@@ -164,6 +172,47 @@ class FluidPageHostState internal constructor() {
     if (kind == FluidPageMove.Peer) 1f - peerEased else upperExitFraction()
 
   internal fun exitTravel(): Float = FluidPageMotion.exitTravel(upperTransition, width)
+
+  // --- Dove sta ogni pagina, letto in disegno ------------------------------------------------------
+
+  /** Che parte fa una pagina adesso: la decide lo stato, non la composizione (che arriva un fotogramma dopo). */
+  internal enum class PageRole { Upper, Lower, Gone }
+
+  internal fun roleOf(page: Any): PageRole = when (page) {
+    upper -> PageRole.Upper
+    lower -> PageRole.Lower
+    else -> PageRole.Gone
+  }
+
+  /** La traslazione orizzontale di una pagina in questo fotogramma, in px (gia' nel verso). */
+  internal fun pageOffsetX(role: PageRole): Float = when (role) {
+    PageRole.Gone -> width * direction
+    PageRole.Upper -> if (kind == FluidPageMove.Peer) {
+      FluidPageMotion.peerFrame(peerTime, peerEased, width, peerDirection).first
+    } else {
+      FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).translation * direction
+    }
+    PageRole.Lower -> when {
+      kind == FluidPageMove.Peer -> FluidPageMotion.peerFrame(peerTime, peerEased, width, peerDirection).second
+      opening && upperTransition == FluidPageTransition.Expand -> 0f
+      else -> FluidPageMotion.belowParallax(upperExitFraction(), width) * direction
+    }
+  }
+
+  /** La scala di una pagina in questo fotogramma, attorno al suo centro (o al punto toccato per Expand). */
+  internal fun pageScale(role: PageRole): Float =
+    if (role == PageRole.Upper && kind != FluidPageMove.Peer) {
+      FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).scale
+    } else {
+      1f
+    }
+
+  /** Da dove a dove (x, px) la pagina sopra copre quella sotto in questo fotogramma. */
+  internal fun upperCoverage(): Pair<Float, Float> {
+    val x = pageOffsetX(PageRole.Upper)
+    val inset = width * (1f - pageScale(PageRole.Upper)) / 2f
+    return (x + inset) to (x + width - inset)
+  }
 
   /** La pila che l'host ha appena ricevuto. Chiamata dopo ogni composizione dell'host. */
   internal fun onStack(stack: List<Any>) {
@@ -477,6 +526,7 @@ class FluidPageHostState internal constructor() {
 
   internal fun updateGeometry(coordinates: LayoutCoordinates, view: View) {
     width = coordinates.size.width.toFloat()
+    height = coordinates.size.height.toFloat()
     val bounds = coordinates.boundsInWindow()
     hostLeftInWindow = bounds.left
     hostRightInWindow = bounds.right

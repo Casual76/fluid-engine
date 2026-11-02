@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.tween
@@ -131,13 +132,20 @@ fun FluidListDetailScaffold(
     }
     FluidAmbientSurface(ambient = ambient) {
       Row(modifier = Modifier.fillMaxSize()) {
+        // Su due pannelli ognuno ha la sua barra, in cima al suo pannello (3.0): dentro un host di
+        // pagine la barra ancorata e' una per pagina, e due FluidScreen affiancate che le si
+        // registrassero entrambe ne mostrerebbero una sola, larga quanto la finestra.
         Box(modifier = Modifier.width(layout.listWidth).fillMaxHeight()) {
-          CompositionLocalProvider(LocalFluidPaneRole provides FluidPaneRole.List) { movableList(true) }
+          CompositionLocalProvider(
+            LocalFluidPaneRole provides FluidPaneRole.List,
+            LocalFluidPageBar provides null,
+          ) { movableList(true) }
         }
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
           CompositionLocalProvider(
             LocalFluidPaneRole provides FluidPaneRole.Detail,
             LocalFluidChromeController provides null,
+            LocalFluidPageBar provides null,
           ) { detail() }
         }
       }

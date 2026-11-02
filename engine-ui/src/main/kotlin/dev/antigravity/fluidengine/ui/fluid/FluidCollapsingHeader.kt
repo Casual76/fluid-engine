@@ -102,6 +102,9 @@ fun rememberFluidTitleCollapse(
   val morph = remember(title, density.fontScale, titleLeftPx, titleTopPx) {
     FluidTitleMorphState(expandedLeftInScreen = titleLeftPx, expandedTopInScreen = titleTopPx)
   }
+  // Dentro un host di pagine (3.0) le ancore si misurano solo a pagina ferma e davanti: la barra
+  // sta nell'host e la pagina si muove sotto. Vedi FluidTitleMorphState.frozen.
+  morph.FollowPageHost()
   val progress = remember(scroll, morph) {
     derivedStateOf {
       // Before the first layout there is no evidence that the title has collapsed. Reporting one

@@ -216,17 +216,17 @@ class FluidPageMotionTest {
 
   @Test
   fun `gli angoli del telefono solo dove l'host tocca un angolo dello schermo`() {
-    val display = FluidCornerRadii(40f, 41f, 42f, 43f)
+    val display = FluidPageCorners(40f, 41f, 42f, 43f)
     val full = FluidPageMotion.pageCardRadii(0f, 0f, 1080f, 2400f, 1080f, 2400f, display)
     assertEquals(display, full)
     // Pannello di dettaglio a destra: angoli tondi a destra, retti a sinistra.
     val detail = FluidPageMotion.pageCardRadii(400f, 0f, 1080f, 2400f, 1080f, 2400f, display)
-    assertEquals(FluidCornerRadii(0f, 41f, 42f, 0f), detail)
+    assertEquals(FluidPageCorners(0f, 41f, 42f, 0f), detail)
     // Sotto una barra opaca: niente angoli in alto.
     val belowBar = FluidPageMotion.pageCardRadii(0f, 120f, 1080f, 2400f, 1080f, 2400f, display)
-    assertEquals(FluidCornerRadii(0f, 0f, 42f, 43f), belowBar)
+    assertEquals(FluidPageCorners(0f, 0f, 42f, 43f), belowBar)
     // Senza raggi del display (API < 31): retti.
-    assertTrue(FluidPageMotion.pageCardRadii(0f, 0f, 1080f, 2400f, 1080f, 2400f, FluidCornerRadii.Zero).isZero)
+    assertTrue(FluidPageMotion.pageCardRadii(0f, 0f, 1080f, 2400f, 1080f, 2400f, FluidPageCorners.Zero).isZero)
   }
 
   // --- La pila ---------------------------------------------------------------------------------
@@ -288,6 +288,102 @@ class FluidPageMotionTest {
     // A 150 ms su 280 la vecchia e' gia' sparita.
     val (_, _, alphaAtFade) = FluidPageMotion.peerFrame(150f / 280f, 0.8f, width, 1)
     assertEquals(0f, alphaAtFade, 0.001f)
+  }
+
+  // --- La barra ancorata ------------------------------------------------------------------------
+
+  @Test
+  fun `il morph dei tasti sta fermo ai due capi e cresce in mezzo`() {
+    assertEquals(0f, FluidPageMotion.barMorph(0f), 0f)
+    assertEquals(0f, FluidPageMotion.barMorph(0.10f), 0f)
+    assertEquals(0.5f, FluidPageMotion.barMorph(0.5f), 0.0001f)
+    assertEquals(1f, FluidPageMotion.barMorph(0.90f), 0f)
+    assertEquals(1f, FluidPageMotion.barMorph(1f), 0f)
+    var last = 0f
+    var e = 0f
+    while (e <= 1f) {
+      val m = FluidPageMotion.barMorph(e)
+      assertTrue(m >= last)
+      last = m
+      e += 0.01f
+    }
+  }
+
+  @Test
+  fun `le icone delle due pagine non si leggono mai insieme`() {
+    var m = 0f
+    while (m <= 1f) {
+      val upper = FluidPageMotion.barIconAlpha(m, ofLower = false)
+      val lower = FluidPageMotion.barIconAlpha(m, ofLower = true)
+      // Al massimo una delle due oltre meta': chi arriva aspetta che chi esce sia quasi sparito.
+      assertTrue("a m = $m: $upper e $lower", upper < 0.5f || lower < 0.5f)
+      m += 0.01f
+    }
+    assertEquals(1f, FluidPageMotion.barIconAlpha(0f, ofLower = false), 0f)
+    assertEquals(0f, FluidPageMotion.barIconAlpha(0f, ofLower = true), 0f)
+    assertEquals(0f, FluidPageMotion.barIconAlpha(1f, ofLower = false), 0f)
+    assertEquals(1f, FluidPageMotion.barIconAlpha(1f, ofLower = true), 0f)
+  }
+
+  @Test
+  fun `il titolo che esce sfuma nella prima meta' e quello che arriva dal 40 percento`() {
+    val shift = 32f
+    // Back (la pagina sopra se ne va): il suo titolo e' quello che esce.
+    val (outAtStart, outShiftAtStart) = FluidPageMotion.barTitleFrame(0f, isUpper = true, forward = false, shiftPx = shift, direction = 1)
+    assertEquals(1f, outAtStart, 0f)
+    assertEquals(0f, outShiftAtStart, 0f)
+    assertEquals(0f, FluidPageMotion.barTitleFrame(0.5f, true, false, shift, 1).first, 0f)
+    assertEquals(0f, FluidPageMotion.barTitleFrame(0.4f, false, false, shift, 1).first, 0f)
+    assertEquals(1f, FluidPageMotion.barTitleFrame(0.9f, false, false, shift, 1).first, 0f)
+    // Quello che arriva viene dal lato da cui la pagina sopra se ne va... al contrario: da sinistra.
+    assertEquals(-shift, FluidPageMotion.barTitleFrame(0f, false, false, shift, 1).second, 0f)
+    assertEquals(0f, FluidPageMotion.barTitleFrame(1f, false, false, shift, 1).second, 0f)
+    // Push (la pagina sopra arriva): all'inizio (e = 1) si vede il titolo di sotto, alla fine quello di sopra.
+    assertEquals(1f, FluidPageMotion.barTitleFrame(1f, false, true, shift, 1).first, 0f)
+    assertEquals(0f, FluidPageMotion.barTitleFrame(1f, true, true, shift, 1).first, 0f)
+    assertEquals(1f, FluidPageMotion.barTitleFrame(0f, true, true, shift, 1).first, 0f)
+    // In RTL i passi si specchiano.
+    assertEquals(shift * 0.5f, FluidPageMotion.barTitleFrame(0.5f, true, false, shift, 1).second, 0.0001f)
+    assertEquals(-shift * 0.5f, FluidPageMotion.barTitleFrame(0.5f, true, false, shift, -1).second, 0.0001f)
+  }
+
+  private fun lens(left: Float) = androidx.compose.ui.geometry.Rect(left, 0f, left + 44f, 44f)
+
+  @Test
+  fun `i pezzi della barra si accoppiano dall'esterno e chi resta solo nasce da un seme`() {
+    val bar = 720f
+    val back = lens(12f)
+    // Una pagina con indietro e due azioni, l'altra con indietro e tre.
+    val from = listOf(back, lens(600f), lens(650f))
+    val to = listOf(back, lens(550f), lens(600f), lens(650f))
+    val pairs = FluidPageMotion.barPieceJourney(from, to, bar)!!
+    assertEquals(4, pairs.size)
+    // Il tasto indietro resta se stesso.
+    assertTrue(pairs.contains(back to back))
+    // La prima azione da destra con la prima da destra.
+    assertTrue(pairs.contains(lens(650f) to lens(650f)))
+    assertTrue(pairs.contains(lens(600f) to lens(600f)))
+    // Quella in piu' nasce da un pixel sul proprio centro, sul posto.
+    val born = pairs.single { it.second == lens(550f) }.first
+    assertEquals(lens(550f).center, born.center)
+    assertEquals(1f, born.width, 0.0001f)
+  }
+
+  @Test
+  fun `il tasto indietro di una pagina sola si spegne sul posto`() {
+    val back = lens(12f)
+    val pairs = FluidPageMotion.barPieceJourney(listOf(back), listOf(lens(650f)), 720f)!!
+    assertEquals(2, pairs.size)
+    val gone = pairs.single { it.first == back }.second
+    assertEquals(back.center, gone.center)
+    assertEquals(1f, gone.width, 0.0001f)
+  }
+
+  @Test
+  fun `oltre sei pezzi o senza pezzi niente viaggio`() {
+    val many = (0 until 7).map { lens(380f + it * 46f) }
+    assertEquals(null, FluidPageMotion.barPieceJourney(many, many, 720f))
+    assertEquals(null, FluidPageMotion.barPieceJourney(emptyList(), emptyList(), 720f))
   }
 
   @Test

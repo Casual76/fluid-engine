@@ -31,6 +31,7 @@ package dev.antigravity.fluidengine.ui.page
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import kotlin.math.abs
 import kotlin.math.max
@@ -42,7 +43,7 @@ data class FluidPageFrame(val translation: Float, val scale: Float)
 
 /** I raggi della carta, in px, in coordinate assolute (non start/end). */
 @Immutable
-data class FluidCornerRadii(
+data class FluidPageCorners(
   val topLeft: Float = 0f,
   val topRight: Float = 0f,
   val bottomRight: Float = 0f,
@@ -51,7 +52,7 @@ data class FluidCornerRadii(
   val isZero: Boolean get() = topLeft <= 0f && topRight <= 0f && bottomRight <= 0f && bottomLeft <= 0f
 
   companion object {
-    val Zero = FluidCornerRadii()
+    val Zero = FluidPageCorners()
   }
 }
 
@@ -326,15 +327,15 @@ object FluidPageMotion {
     hostBottom: Float,
     windowWidth: Float,
     windowHeight: Float,
-    display: FluidCornerRadii,
+    display: FluidPageCorners,
     tolerancePx: Float = 1f,
-  ): FluidCornerRadii {
+  ): FluidPageCorners {
     fun near(a: Float, b: Float) = abs(a - b) <= tolerancePx
     val left = near(hostLeft, 0f)
     val top = near(hostTop, 0f)
     val right = near(hostRight, windowWidth)
     val bottom = near(hostBottom, windowHeight)
-    return FluidCornerRadii(
+    return FluidPageCorners(
       topLeft = if (left && top) display.topLeft else 0f,
       topRight = if (right && top) display.topRight else 0f,
       bottomRight = if (right && bottom) display.bottomRight else 0f,
@@ -375,6 +376,103 @@ object FluidPageMotion {
     }
     if (oldTop in new) return FluidStackChange(FluidStackChangeKind.Push, oldTop, newTop)
     return FluidStackChange(FluidStackChangeKind.Replace, oldTop, newTop)
+  }
+
+  // --- La barra ancorata ------------------------------------------------------------------------
+
+  /** Quanto si sposta di lato un titolo agganciato mentre le pagine cambiano. */
+  const val BarTitleShiftDp: Float = 16f
+
+  /**
+   * Il morph dei tasti di vetro della barra in funzione della frazione d'uscita [e] della pagina sopra:
+   * fermo nel primo e nell'ultimo 10% (il dito appena posato non deve gia' deformare i tasti), poi una
+   * smoothstep. 0 = i tasti della pagina sopra, 1 = quelli della pagina sotto.
+   */
+  fun barMorph(e: Float): Float = smoothstep(((e - 0.10f) / 0.80f).coerceIn(0f, 1f))
+
+  /**
+   * Le icone sopra i pezzi che viaggiano: quelle della pagina sopra se ne vanno presto
+   * (1 − m/0,35), quelle della pagina sotto arrivano tardi ((m − 0,25)/0,5). Le due non sono mai
+   * leggibili insieme, in entrambi i versi del viaggio.
+   */
+  fun barIconAlpha(m: Float, ofLower: Boolean): Float =
+    if (ofLower) ((m - 0.25f) / 0.5f).coerceIn(0f, 1f) else 1f - (m / 0.35f).coerceIn(0f, 1f)
+
+  /**
+   * Il titolo agganciato di una delle due pagine: (alpha, traslazione x in px).
+   *
+   * Quello che esce sparisce nella prima meta' e scivola di [shiftPx] verso l'uscita della sua
+   * pagina; quello che arriva compare dal 40% e arriva dallo stesso lato. [forward] e' un push (la
+   * pagina sopra arriva), false un back (la pagina sopra se ne va). [direction] e' il verso
+   * d'uscita della pagina sopra.
+   */
+  fun barTitleFrame(
+    e: Float,
+    isUpper: Boolean,
+    forward: Boolean,
+    shiftPx: Float,
+    direction: Int,
+  ): Pair<Float, Float> {
+    val x = e.coerceIn(0f, 1f)
+    val d = direction.sign().toFloat()
+    return if (isUpper) {
+      val alpha = if (forward) {
+        smoothstep(((1f - x) - 0.4f) / 0.5f)
+      } else {
+        1f - smoothstep(x / 0.5f)
+      }
+      alpha to shiftPx * x * d
+    } else {
+      val alpha = if (forward) {
+        1f - smoothstep((1f - x) / 0.5f)
+      } else {
+        smoothstep((x - 0.4f) / 0.5f)
+      }
+      alpha to -shiftPx * (1f - x) * d
+    }
+  }
+
+  /**
+   * Le coppie dei pezzi di vetro della barra fra due pagine, nelle coordinate della barra.
+   *
+   * I pezzi stanno da due parti (il tasto indietro a sinistra, le azioni a destra: la meta' della
+   * barra decide) e ogni parte si accoppia dall'esterno verso l'interno: la prima azione da destra
+   * con la prima da destra, il tasto indietro col tasto indietro. Chi resta senza compagno lo riceve
+   * come **seme**, un pixel sul proprio centro: nasce o si spegne sul posto invece di attraversare la
+   * barra. Null se le coppie superano [maxPieces] (il campo fuso ne porta sei): allora le icone si
+   * incrociano e basta.
+   */
+  fun barPieceJourney(
+    from: List<Rect>,
+    to: List<Rect>,
+    barWidth: Float,
+    maxPieces: Int = 6,
+  ): List<Pair<Rect, Rect>>? {
+    val half = barWidth / 2f
+    fun side(pieces: List<Rect>, left: Boolean) = pieces
+      .filter { (it.center.x < half) == left }
+      .sortedBy { if (left) it.center.x else -it.center.x }
+    val pairs = ArrayList<Pair<Rect, Rect>>()
+    for (left in listOf(true, false)) {
+      val a = side(from, left)
+      val b = side(to, left)
+      for (i in 0 until max(a.size, b.size)) {
+        val source = a.getOrNull(i)
+        val target = b.getOrNull(i)
+        pairs += when {
+          source != null && target != null -> source to target
+          source != null -> source to seedAt(source)
+          else -> seedAt(target!!) to target
+        }
+      }
+    }
+    if (pairs.isEmpty() || pairs.size > maxPieces) return null
+    return pairs
+  }
+
+  private fun seedAt(piece: Rect): Rect {
+    val c = piece.center
+    return Rect(c.x - 0.5f, c.y - 0.5f, c.x + 0.5f, c.y + 0.5f)
   }
 
   internal fun smoothstep(x: Float): Float {

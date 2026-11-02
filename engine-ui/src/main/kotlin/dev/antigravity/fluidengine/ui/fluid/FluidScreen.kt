@@ -105,6 +105,11 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.material3.LocalContentColor
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
+import dev.antigravity.fluidengine.ui.page.FluidPageBarSpec
+import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
+import dev.antigravity.fluidengine.ui.page.LocalFluidPageTransition
+import dev.antigravity.fluidengine.ui.page.RegisterFluidPageBar
+import androidx.compose.runtime.currentCompositionLocalContext
 
 /**
  * Coordinates chrome that lives above the navigation host without sharing render layers between
@@ -139,6 +144,8 @@ class FluidChromeController internal constructor(
 ) {
   private val backdrops = LinkedHashMap<Any, GlassBackdropState>()
   private val frontKeys = mutableSetOf<Any>()
+  private var transitionOwner: Any? = null
+  private var transitionBackdrop: GlassBackdropState? = null
   private val refreshers = HashMap<Any, () -> Unit>()
   private val _activeBackdrop = mutableStateOf<GlassBackdropState?>(null)
   private val _bottomBarOffsetPx = mutableFloatStateOf(0f)
@@ -187,7 +194,26 @@ class FluidChromeController internal constructor(
    */
   private fun electActiveBackdrop() {
     val key = frontMostBackdropKey(backdrops.keys.toList(), frontKeys)
-    _activeBackdrop.value = key?.let(backdrops::get)
+    _activeBackdrop.value = transitionBackdrop ?: key?.let(backdrops::get)
+  }
+
+  /**
+   * Mentre due pagine si muovono (3.0, l'host delle pagine) la chrome rifrange **tutte e due**,
+   * ognuna dove sta in quel fotogramma: [backdrop] e' l'impilamento delle due registrazioni, e
+   * scavalca l'elezione finche' [owner] non lo toglie (null). Senza, il vetro della tab bar cambiava
+   * fondale di colpo a meta' gesto, quando il davanti passava di mano.
+   */
+  internal fun setTransitionBackdrop(owner: Any, backdrop: GlassBackdropState?) {
+    if (backdrop != null) {
+      transitionOwner = owner
+      transitionBackdrop = backdrop
+    } else if (transitionOwner === owner) {
+      transitionOwner = null
+      transitionBackdrop = null
+    } else {
+      return
+    }
+    electActiveBackdrop()
   }
 
   /** L'aggiornamento della pagina registrata sotto [key], o null se non ne ha (o ne ha uno in corso). */
@@ -474,6 +500,20 @@ internal class FluidTitleMorphState(
   private var compactSlotCoordinates: LayoutCoordinates? = null
   private var compactTextSize = IntSize.Zero
 
+  /**
+   * Finche' risponde true le ancore non si rimisurano (3.0, l'host delle pagine).
+   *
+   * Dentro un host la barra sta nell'host, ferma, e la pagina si muove sotto: misurata mentre si
+   * muove, l'ancora compatta prendeva la traslazione della pagina (o la parallasse di quella coperta)
+   * e il titolo, a riposo, finiva un terzo di schermo piu' in la'. Le ancore valgono nelle coordinate
+   * **non trasformate** della pagina, cioe' quelle che ha a riposo e davanti: si misurano solo li', e
+   * [refresh] le rifa' appena il movimento finisce.
+   */
+  var frozen: () -> Boolean = { false }
+
+  /** Rifa' le ancore con le coordinate che ha, appena [frozen] torna false. */
+  fun refresh() = rebuildCompact()
+
   /** Distance the title travels between its two resting places. NaN until both are measured. */
   val travelPx: Float
     get() {
@@ -512,6 +552,7 @@ internal class FluidTitleMorphState(
   }
 
   private fun rebuildCompact() {
+    if (frozen()) return
     val coordinates = compactSlotCoordinates ?: return
     val screen = screenCoordinates ?: return
     if (!coordinates.isAttached || !screen.isAttached || compactTextSize == IntSize.Zero) return
@@ -736,6 +777,8 @@ private fun FluidScreenLayout(
     FluidTitleMorphState(expandedLeftInScreen = titleLeftPx, expandedTopInScreen = titleTopPx)
   }
 
+  titleMorphState.FollowPageHost()
+
   DisposableEffect(chromeController, chromeRegistration, backdrop) {
     chromeController?.registerBackdrop(chromeRegistration, backdrop)
     onDispose { chromeController?.unregisterBackdrop(chromeRegistration) }
@@ -743,7 +786,8 @@ private fun FluidScreenLayout(
 
   // Chi e' davanti lo decide la transizione di rotta, non l'ordine di composizione: durante un back
   // predittivo questa schermata resta la sorgente del vetro finche' il gesto non e' confermato.
-  val isRouteFront by LocalFluidRouteFront.current
+  val routeFront = LocalFluidRouteFront.current
+  val isRouteFront by routeFront
   LaunchedEffect(chromeController, chromeRegistration, isRouteFront) {
     chromeController?.setBackdropFront(chromeRegistration, isRouteFront)
   }
@@ -761,7 +805,9 @@ private fun FluidScreenLayout(
     }
       .distinctUntilChanged()
       .collect { (isAtTop, _) ->
-        if (isAtTop) chromeController.revealBottomBar()
+        // Solo davanti (3.0): dentro un host di pagine quella coperta resta composta, e una lista
+        // coperta che arriva in cima non deve far ricomparire la barra delle schede di un'altra.
+        if (isAtTop && routeFront.value) chromeController.revealBottomBar()
       }
   }
 
@@ -769,7 +815,9 @@ private fun FluidScreenLayout(
     LaunchedEffect(bus, listState) {
       snapshotFlow { bus.signal.intValue }
         .drop(1)
-        .collect { listState.animateScrollToItem(0) }
+        // Solo la pagina davanti: riselezionare la scheda non scorre quella coperta, che resta
+        // composta sotto (3.0) e non si vede.
+        .collect { if (routeFront.value) listState.animateScrollToItem(0) }
     }
   }
 
@@ -950,7 +998,9 @@ private fun FluidScreenLayout(
       }
     }
 
-    body()
+    // La barra della pagina e' di questa schermata, non del suo contenuto: una FluidScreen dentro
+    // (un pannello, un foglio) disegna la sua come sempre.
+    CompositionLocalProvider(LocalFluidPageBar provides null) { body() }
 
     if (onRefresh != null) {
       // The indicator lives in the space the pull opens, halfway down it, so it arrives *with* the
@@ -992,8 +1042,28 @@ private fun FluidScreenLayout(
       },
     )
 
-    overlay(backdrop)
+    CompositionLocalProvider(LocalFluidPageBar provides null) { overlay(backdrop) }
   }
+  }
+}
+
+/**
+ * Le ancore del titolo si misurano solo a pagina ferma e davanti (3.0): vedi
+ * [FluidTitleMorphState.frozen]. Fuori da un host di pagine non cambia niente.
+ */
+@Composable
+internal fun FluidTitleMorphState.FollowPageHost() {
+  val pageTransition = LocalFluidPageTransition.current
+  val routeFront = LocalFluidRouteFront.current
+  frozen = if (pageTransition == null) {
+    { false }
+  } else {
+    { pageTransition.isMoving || !routeFront.value }
+  }
+  if (pageTransition != null) {
+    LaunchedEffect(this, pageTransition) {
+      snapshotFlow { frozen() }.collect { stopped -> if (!stopped) refresh() }
+    }
   }
 }
 
@@ -1186,9 +1256,35 @@ internal fun FluidTopBar(
   actions: @Composable RowScope.() -> Unit,
   onTapTitle: () -> Unit,
 ) {
+  // Dentro un host di pagine (3.0) la barra non si disegna qui: si descrive, e la disegna l'host,
+  // una sola, ferma sopra le pagine che si muovono. Fuori, la barra di sempre.
+  val slot = LocalFluidPageBar.current
+  if (slot != null) {
+    RegisterFluidPageBar(
+      slot,
+      FluidPageBarSpec(
+        title = title,
+        activeFacet = activeFacet,
+        onBack = onBack,
+        actions = actions,
+        context = currentCompositionLocalContext,
+        collapseProgress = collapseProgress,
+        glassIntensity = glassIntensity,
+        morphState = morphState,
+        compactStyle = compactStyle,
+        contentTranslation = contentTranslation,
+        fontScale = fontScale,
+        reducedMotion = reducedMotion,
+        onTapTitle = onTapTitle,
+        barTint = barTint,
+        backdrop = backdrop,
+      ),
+    )
+    return
+  }
+
   val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val tint = barTint ?: GlassDefaults.barTint()
-  val interactionSource = remember { MutableInteractionSource() }
   // The bar publishes its own finished material so the actions standing on it refract *it* rather
   // than the page three layers down — a lens resting on frosted glass shows the frosting.
   val barGlass = rememberGlassBackdrop()
@@ -1199,119 +1295,26 @@ internal fun FluidTopBar(
       .fillMaxWidth()
       .height(statusBar + FluidScreenDefaults.ControlRowHeight + FluidScreenDefaults.GlassFadeTail),
   ) {
-    // Clip only the sampled material. The title itself is allowed to travel below this drawing
-    // region while it is still anchored to the large heading; clipping the whole bar cut the lower
-    // half of the glyphs during the first third of the morph.
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .glassSurface(
-        state = backdrop,
-        tint = tint,
-        edge = GlassEdge.None,
-        falloff = GlassFalloff.FadeDown,
-        intensity = { glassIntensity.value },
-        exports = barGlass,
-        ),
+    FluidTopBarGlass(
+      backdrop = backdrop,
+      tint = tint,
+      intensity = { glassIntensity.value },
+      exports = barGlass,
     )
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
     ) {
-    Column(
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(statusBar + FluidScreenDefaults.ControlRowHeight),
-    ) {
-      Spacer(Modifier.height(statusBar))
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(FluidScreenDefaults.ControlRowHeight)
-        // Tap-the-bar-to-scroll-up covers the control row only and is exposed as a named action,
-        // never as the anonymous unchecked selection control that `selectable` would create.
-        .clickable(
-          interactionSource = interactionSource,
-          indication = null,
-          role = Role.Button,
-          onClick = onTapTitle,
-        )
-        .semantics { contentDescription = "Torna all'inizio" },
-      contentAlignment = Alignment.Center,
-    ) {
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(horizontal = FluidScreenDefaults.CompactTitleInset)
-          .onGloballyPositioned(morphState::onCompactSlotPositioned),
-        contentAlignment = Alignment.Center,
-      ) {
-        // One wheel, not two labels taking turns: the title rides up and out as the fact rides in,
-        // so the bar always looks like a single surface showing successive things.
-        val facetVisibility = animateFloatAsState(
-          targetValue = if (activeFacet.value != null) 1f else 0f,
-          animationSpec = if (reducedMotion) snap() else FluidMotion.crossFade(220),
-          label = "title facet handoff",
-        )
-        Text(
-          text = title,
-          modifier = Modifier.graphicsLayer {
-            val progress = collapseProgress.value.coerceIn(0f, 1f)
-            val morphing = shouldMorphTitle(
-              fontScale = fontScale,
-              expandedLineCount = morphState.expandedLineCount,
-              reducedMotion = reducedMotion,
-            ) && !morphState.compactHasVisualOverflow && morphState.isMeasured
-            val facetHandoff = facetVisibility.value
-            alpha = compactTitleAlpha(
-              progress = progress,
-              morphing = morphing,
-              reducedMotion = reducedMotion,
-            ) * (1f - facetHandoff)
-            val facetShiftPx = -compactStyle.fontSize.toPx() * TitleFacetShiftFraction * facetHandoff
-            if (!morphing) {
-              transformOrigin = TransformOrigin.Center
-              scaleX = 1f
-              scaleY = 1f
-              translationX = 0f
-              translationY = facetShiftPx
-              return@graphicsLayer
-            }
-
-            val travel = morphState.travelPx
-            val compactLeft = morphState.compactLeftInScreen
-            val compactBaseline = morphState.compactBaselineInScreen
-            val localBaseline = morphState.compactLocalBaseline
-
-            // Size and horizontal glide are eased; the vertical position is not. Tying the
-            // baseline directly to the scroll is what keeps the title welded to the content it
-            // belongs to — an eased vertical would visibly lag the list it is sitting in.
-            val eased = smoothStep(progress)
-            val scale = lerp(1f / CompactTitleScale, 1f, eased)
-            val desiredLeft = lerp(morphState.expandedLeftInScreen, compactLeft, eased)
-            // Never above the docked position: the title is content, and content is allowed to
-            // ride an elastic edge, but nothing is allowed to ride it into the status bar.
-            val desiredBaseline = (
-              compactBaseline + travel * (1f - progress) + contentTranslation() * (1f - eased)
-              ).coerceAtLeast(compactBaseline)
-
-            transformOrigin = TransformOrigin(0f, 0f)
-            scaleX = scale
-            scaleY = scale
-            translationX = desiredLeft - compactLeft
-            translationY = desiredBaseline - compactBaseline + localBaseline * (1f - scale) +
-              facetShiftPx
-          },
-          style = compactStyle,
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-          onTextLayout = morphState::onCompactTextLayout,
-        )
-        FluidTitleFacet(
-          facet = activeFacet.value,
-          style = compactStyle,
+      FluidTopBarRow(onTapTitle = onTapTitle) {
+        FluidTopBarTitle(
+          title = title,
+          collapseProgress = collapseProgress,
+          activeFacet = activeFacet,
+          morphState = morphState,
+          compactStyle = compactStyle,
+          contentTranslation = contentTranslation,
+          fontScale = fontScale,
           reducedMotion = reducedMotion,
         )
-      }
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
@@ -1322,15 +1325,238 @@ internal fun FluidTopBar(
             Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
           }
           Spacer(Modifier.weight(1f))
-          Row(
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            content = actions,
-          )
+          FluidTopBarActions(actions)
           Spacer(Modifier.width(6.dp))
         }
       }
     }
+  }
+}
+
+/**
+ * Il vetro della barra, da solo (3.0: la barra divisa in vetro, titolo e controlli, perche' l'host
+ * delle pagine ne disegna una per tutte). Clip only the sampled material: the title itself is allowed
+ * to travel below this drawing region while it is still anchored to the large heading; clipping the
+ * whole bar cut the lower half of the glyphs during the first third of the morph.
+ */
+@Composable
+internal fun BoxScope.FluidTopBarGlass(
+  backdrop: GlassBackdropState,
+  tint: GlassTint,
+  intensity: () -> Float,
+  exports: GlassBackdropState?,
+) {
+  Box(
+    modifier = Modifier
+      .matchParentSize()
+      .glassSurface(
+        state = backdrop,
+        tint = tint,
+        edge = GlassEdge.None,
+        falloff = GlassFalloff.FadeDown,
+        intensity = intensity,
+        exports = exports,
+      ),
+  )
+}
+
+/**
+ * La riga dei controlli: sotto la barra di stato, alta 44 dp, toccata riporta in cima. Tap-the-bar-
+ * to-scroll-up covers the control row only and is exposed as a named action, never as the anonymous
+ * unchecked selection control that `selectable` would create.
+ */
+@Composable
+internal fun FluidTopBarRow(
+  onTapTitle: (() -> Unit)?,
+  modifier: Modifier = Modifier,
+  content: @Composable BoxScope.() -> Unit,
+) {
+  val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val interactionSource = remember { MutableInteractionSource() }
+  Column(
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(statusBar + FluidScreenDefaults.ControlRowHeight),
+  ) {
+    Spacer(Modifier.height(statusBar))
+    Box(
+      modifier = modifier
+        .fillMaxWidth()
+        .height(FluidScreenDefaults.ControlRowHeight)
+        .then(
+          if (onTapTitle != null) {
+            Modifier
+              .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onTapTitle,
+              )
+              .semantics { contentDescription = "Torna all'inizio" }
+          } else {
+            Modifier
+          },
+        ),
+      contentAlignment = Alignment.Center,
+      content = content,
+    )
+  }
+}
+
+/** Le azioni di una barra, a destra, con la spaziatura di sempre. */
+@Composable
+internal fun FluidTopBarActions(
+  actions: @Composable RowScope.() -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Row(
+    modifier = modifier,
+    horizontalArrangement = Arrangement.spacedBy(2.dp),
+    verticalAlignment = Alignment.CenterVertically,
+    content = actions,
+  )
+}
+
+/**
+ * Come si muove il titolo di una pagina mentre l'host delle pagine la cambia (3.0), letto in disegno.
+ *
+ * Il titolo grande e' **contenuto**: finche' non e' agganciato viaggia con la sua pagina
+ * ([pageX], [pageScale] attorno a [pageCenter]). Agganciato e' **chrome**: sta nella barra e fa il
+ * passo laterale e la dissolvenza del cambio di titolo ([chromeX], [chromeAlpha]). In mezzo, lerp
+ * con lo stesso smoothstep del morph.
+ */
+internal class FluidBarTitleMotion(
+  val pageX: () -> Float,
+  val pageScale: () -> Float,
+  val pageCenter: () -> Offset,
+  val chromeX: () -> Float,
+  val chromeAlpha: () -> Float,
+)
+
+/**
+ * Il titolo della barra: quello agganciato e, mentre si trasforma, la copia che fa il titolo grande.
+ * [morphState] null: una barra senza titolo grande (`FluidPageChrome`), il titolo e' solo quello
+ * agganciato.
+ */
+@Composable
+internal fun FluidTopBarTitle(
+  title: String,
+  collapseProgress: State<Float>,
+  activeFacet: State<String?>,
+  morphState: FluidTitleMorphState?,
+  compactStyle: TextStyle,
+  contentTranslation: () -> Float,
+  fontScale: Float,
+  reducedMotion: Boolean,
+  motion: FluidBarTitleMotion? = null,
+) {
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .padding(horizontal = FluidScreenDefaults.CompactTitleInset)
+      .then(
+        if (morphState != null) Modifier.onGloballyPositioned(morphState::onCompactSlotPositioned) else Modifier,
+      ),
+    contentAlignment = Alignment.Center,
+  ) {
+    // One wheel, not two labels taking turns: the title rides up and out as the fact rides in,
+    // so the bar always looks like a single surface showing successive things.
+    val facetVisibility = animateFloatAsState(
+      targetValue = if (activeFacet.value != null) 1f else 0f,
+      animationSpec = if (reducedMotion) snap() else FluidMotion.crossFade(220),
+      label = "title facet handoff",
+    )
+    Text(
+      text = title,
+      modifier = Modifier.graphicsLayer {
+        val progress = collapseProgress.value.coerceIn(0f, 1f)
+        val morphing = morphState != null && shouldMorphTitle(
+          fontScale = fontScale,
+          expandedLineCount = morphState.expandedLineCount,
+          reducedMotion = reducedMotion,
+        ) && !morphState.compactHasVisualOverflow && morphState.isMeasured
+        val facetHandoff = facetVisibility.value
+        alpha = compactTitleAlpha(
+          progress = progress,
+          morphing = morphing,
+          reducedMotion = reducedMotion,
+        ) * (1f - facetHandoff)
+        val facetShiftPx = -compactStyle.fontSize.toPx() * TitleFacetShiftFraction * facetHandoff
+        if (!morphing || morphState == null) {
+          transformOrigin = TransformOrigin.Center
+          scaleX = 1f
+          scaleY = 1f
+          translationX = 0f
+          translationY = facetShiftPx
+          if (motion != null) {
+            val blend = smoothStep(progress)
+            translationX = lerp(motion.pageX(), motion.chromeX(), blend)
+            alpha *= lerp(1f, motion.chromeAlpha(), blend)
+          }
+          return@graphicsLayer
+        }
+
+        val travel = morphState.travelPx
+        val compactLeft = morphState.compactLeftInScreen
+        val compactBaseline = morphState.compactBaselineInScreen
+        val localBaseline = morphState.compactLocalBaseline
+
+        // Size and horizontal glide are eased; the vertical position is not. Tying the
+        // baseline directly to the scroll is what keeps the title welded to the content it
+        // belongs to — an eased vertical would visibly lag the list it is sitting in.
+        val eased = smoothStep(progress)
+        var scale = lerp(1f / CompactTitleScale, 1f, eased)
+        val desiredLeft = lerp(morphState.expandedLeftInScreen, compactLeft, eased)
+        // Never above the docked position: the title is content, and content is allowed to
+        // ride an elastic edge, but nothing is allowed to ride it into the status bar.
+        val desiredBaseline = (
+          compactBaseline + travel * (1f - progress) + contentTranslation() * (1f - eased)
+          ).coerceAtLeast(compactBaseline)
+
+        var tx = desiredLeft - compactLeft
+        var ty = desiredBaseline - compactBaseline + localBaseline * (1f - scale) + facetShiftPx
+        if (motion != null) {
+          // La pagina si muove sotto la barra: il titolo grande e' suo e la segue (scala attorno
+          // al centro della pagina compresa), quello agganciato e' della barra e fa il passo suo.
+          val pageScale = lerp(motion.pageScale(), 1f, eased)
+          if (pageScale != 1f) {
+            val center = motion.pageCenter()
+            val originX = compactLeft
+            val originY = compactBaseline - localBaseline
+            tx = center.x + pageScale * (originX + tx - center.x) - originX
+            ty = center.y + pageScale * (originY + ty - center.y) - originY
+            scale *= pageScale
+          }
+          tx += lerp(motion.pageX(), motion.chromeX(), eased)
+          alpha *= lerp(1f, motion.chromeAlpha(), eased)
+        }
+
+        transformOrigin = TransformOrigin(0f, 0f)
+        scaleX = scale
+        scaleY = scale
+        translationX = tx
+        translationY = ty
+      },
+      style = compactStyle,
+      maxLines = 1,
+      overflow = TextOverflow.Ellipsis,
+      onTextLayout = { result -> morphState?.onCompactTextLayout(result) },
+    )
+    Box(
+      modifier = if (motion == null) {
+        Modifier
+      } else {
+        Modifier.graphicsLayer {
+          translationX = motion.chromeX()
+          alpha = motion.chromeAlpha()
+        }
+      },
+    ) {
+      FluidTitleFacet(
+        facet = activeFacet.value,
+        style = compactStyle,
+        reducedMotion = reducedMotion,
+      )
     }
   }
 }
@@ -1375,7 +1601,7 @@ private fun FluidTitleFacet(
 }
 
 @Composable
-private fun FluidBackButton(onBack: () -> Unit) {
+internal fun FluidBackButton(onBack: () -> Unit) {
   FluidGlassIconButton(
     onClick = onBack,
     modifier = Modifier.padding(start = 6.dp),

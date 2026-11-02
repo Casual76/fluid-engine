@@ -24,6 +24,8 @@
  */
 package dev.antigravity.fluidengine.ui.page
 
+import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +39,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -172,6 +175,8 @@ internal fun <K : Any> FluidPageHostImpl(
   val elevationPx = with(density) { FluidPageMotion.CardElevationDp.dp.toPx() }
   val holder = rememberSaveableStateHolder()
   val savedKeys = remember { mutableSetOf<Any>() }
+  // I posti delle barre delle pagine (3.0): ogni pagina descrive la sua, l'host ne disegna una.
+  val barRegistry: FluidPageBarRegistry = remember { mutableStateMapOf() }
 
   // Il back di sistema: registrato qui, prima che le pagine compongano i loro BackHandler, cosi'
   // quelli (e un modale aperto dopo) passano davanti.
@@ -240,10 +245,13 @@ internal fun <K : Any> FluidPageHostImpl(
           ownOwners = ownOwners,
           holder = holder,
           savedKeys = savedKeys,
+          barRegistry = barRegistry,
           content = content,
         )
       }
     }
+    // Sopra le pagine, sotto la chrome dell'app: una barra per host, ferma mentre le pagine passano.
+    FluidAnchoredBar(state = state, registry = barRegistry, lowerKey = lower, upperKey = upper)
   }
 }
 
@@ -260,8 +268,10 @@ private fun <K : Any> PageLayer(
   ownOwners: Boolean,
   holder: SaveableStateHolder,
   savedKeys: MutableSet<Any>,
+  barRegistry: FluidPageBarRegistry,
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
+  val barSlot = remember(page, barRegistry) { FluidPageBarSlot(page, barRegistry) }
   val covered = !isUpper && state.kind == FluidPageMove.None
   val coveredState = rememberUpdatedState(covered)
   // Il ruolo si legge dallo stato, non dalla composizione: vedi [pageLayer].
@@ -285,6 +295,7 @@ private fun <K : Any> PageLayer(
     CompositionLocalProvider(
       LocalFluidRouteFront provides front,
       LocalFluidPageTransition provides state,
+      LocalFluidPageBar provides barSlot,
     ) {
       if (ownOwners) {
         CappedLifecycle(capped = covered) {
@@ -310,14 +321,6 @@ private class PageScopeImpl(
 ) : FluidPageScope {
   override val isCovered: Boolean get() = covered.value
   override val isFront: Boolean get() = front.value
-}
-
-private enum class PageRole { Upper, Lower, Gone }
-
-private fun FluidPageHostState.roleOf(page: Any): PageRole = when (page) {
-  upper -> PageRole.Upper
-  lower -> PageRole.Lower
-  else -> PageRole.Gone
 }
 
 /**
@@ -348,43 +351,35 @@ private fun Modifier.pageLayer(
   }
   if (visible) drawContent()
 }.graphicsLayer {
-  val width = state.width
   val role = state.roleOf(page)
   val peer = state.kind == FluidPageMove.Peer
+  // La geometria e' quella che legge anche la barra ancorata ([FluidPageHostState.pageOffsetX]):
+  // il titolo grande, che e' contenuto, viaggia con la sua pagina allo stesso pixel.
+  translationX = state.pageOffsetX(role)
+  val scale = state.pageScale(role)
+  scaleX = scale
+  scaleY = scale
   alpha = 1f
-  scaleX = 1f
-  scaleY = 1f
   transformOrigin = TransformOrigin.Center
   shape = RectangleShape
   clip = false
   shadowElevation = 0f
   when {
-    role == PageRole.Gone -> {
-      // Uscita (o sostituita): fuori dal lato d'uscita finche' la composizione non la toglie.
-      translationX = width * state.direction
-    }
+    role == PageRole.Gone -> Unit
     peer -> {
-      val (arriving, departing, fade) =
-        FluidPageMotion.peerFrame(state.peerTime, state.peerEased, width, state.peerDirection)
       if (role == PageRole.Upper) {
-        translationX = arriving
         if (state.peerTime < 1f) signals.markMoving()
       } else {
-        translationX = departing
         // L'unica trasparenza su una pagina, ed e' quella di sempre delle schede: la pagina che esce
         // sta *sotto* quella che arriva, opaca, e sfuma nei suoi 150 ms.
-        alpha = fade
+        alpha = FluidPageMotion.peerFrame(state.peerTime, state.peerEased, state.width, state.peerDirection).third
       }
     }
     role == PageRole.Upper -> {
-      val frame = FluidPageMotion.pageFrame(state.upperTransition, state.travelPx, width, state.opening)
-      translationX = frame.translation * state.direction
-      scaleX = frame.scale
-      scaleY = frame.scale
       if (state.opening && state.upperTransition == FluidPageTransition.Expand) {
         transformOrigin = state.expandOrigin
       }
-      if (state.travelPx > FluidPageMotion.CardThresholdPx || frame.scale < 1f) {
+      if (state.travelPx > FluidPageMotion.CardThresholdPx || scale < 1f) {
         shape = state.cardShape
         clip = true
         shadowElevation = elevationPx
@@ -393,13 +388,7 @@ private fun Modifier.pageLayer(
         signals.markMoving()
       }
     }
-    else -> {
-      translationX = if (state.opening && state.upperTransition == FluidPageTransition.Expand) {
-        0f
-      } else {
-        FluidPageMotion.belowParallax(state.upperExitFraction(), width) * state.direction
-      }
-    }
+    else -> Unit
   }
 }
 

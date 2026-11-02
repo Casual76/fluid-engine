@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
@@ -20,19 +22,25 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsTier
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
+import kotlin.math.roundToInt
 
 /**
  * Il palco dell'editor: un fondale volutamente rumoroso, registrato come sorgente, e sopra il
@@ -42,6 +50,10 @@ import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
  * grigio è invisibile per costruzione, e un motore di trasformazione dimostrato su un fondo piatto
  * dimostrerebbe soltanto una sagoma che cambia. Qui le righe si *piegano* dentro il bordo mentre il
  * bordo si sposta — che è l'intera tesi di Fluid-physics.
+ *
+ * Con [onPieceClick] il pezzo fermo si può toccare (3.0): sotto il dito la lente si approfondisce e
+ * si accende il bagliore dei tasti di vetro, come sulla pillola tenuta premuta — la superficie che si
+ * trasforma risponde al dito come una lastra, e il tocco la manda alla forma successiva.
  */
 @Composable
 internal fun PlaygroundStage(
@@ -51,11 +63,16 @@ internal fun PlaygroundStage(
   aspectRatio: Float = 1f,
   onSized: (IntSize) -> Unit = {},
   onStrokeFinished: (List<Offset>) -> Unit = {},
+  /** Il tocco sul pezzo fermo; null: il pezzo non si tocca. */
+  onPieceClick: (() -> Unit)? = null,
   modifier: Modifier = Modifier,
   content: @Composable () -> Unit = {},
 ) {
   val stageBackdrop = rememberGlassBackdrop()
   val stroke = remember { mutableStateListOf<Offset>() }
+  // Una pressione sola, guidata dal bersaglio posato sul pezzo e disegnata dal vetro: un dito, una
+  // corsa — la stessa coppia `fluidPressable` + `glassControlSurface` di un tasto di vetro.
+  val press = rememberFluidPressState(FluidPressFeedback.Expand)
 
   Box(
     modifier = modifier
@@ -89,10 +106,29 @@ internal fun PlaygroundStage(
             highlightAlpha = 0.75f,
           ),
           tier = tier,
+          pressState = if (onPieceClick != null) press else null,
         ),
     )
 
     content()
+
+    if (onPieceClick != null && !drawing) {
+      // Il bersaglio del tocco: il riquadro della forma ferma, cosi' il dito arriva al vetro nelle
+      // coordinate della sagoma (e' quello che `fluidPhysicsSurface` si aspetta da `pressState`).
+      val frame = state.form.frame
+      val density = LocalDensity.current
+      if (frame.width > 0f && frame.height > 0f) {
+        Box(
+          modifier = Modifier
+            .offset { IntOffset(frame.left.roundToInt(), frame.top.roundToInt()) }
+            .size(
+              width = with(density) { frame.width.toDp() },
+              height = with(density) { frame.height.toDp() },
+            )
+            .fluidPressable(onClick = onPieceClick, pressState = press),
+        )
+      }
+    }
 
     if (drawing) {
       val accent = MaterialTheme.colorScheme.primary

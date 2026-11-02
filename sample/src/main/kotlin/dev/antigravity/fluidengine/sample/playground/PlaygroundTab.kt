@@ -38,6 +38,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidFormPresets
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsJourney
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsTier
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
 import dev.antigravity.fluidengine.ui.theme.FluidCard
@@ -77,7 +78,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
   var stage by remember { mutableStateOf(IntSize.Zero) }
   var selectedPreset by remember { mutableStateOf(PresetCircle) }
   var drawing by remember { mutableStateOf(false) }
-  var springLabel by remember { mutableStateOf("Casa") }
+  var springLabel by remember { mutableStateOf(SpringDefault) }
   var tierLabel by remember { mutableStateOf("Auto") }
   var loopLabel by remember { mutableStateOf("No") }
   var blobSeed by remember { mutableIntStateOf(7) }
@@ -89,8 +90,12 @@ internal fun PlaygroundTab(bottomInset: Dp) {
   fun presetForm(name: String): FluidForm? =
     playgroundPresetForm(name, stage, cardRadiusPx, groupRadiusPx, blobSeed)
 
-  // Null = la coreografia della casa: rincorsa piano→veloce e rimbalzo di molla sul finale.
+  // Null = il default di `morphTo` dalla 3.0: una molla sola, che parte alla velocita' del momento
+  // e si posa con un gonfiore attorno al traguardo. "Casa" e' la coreografia di prima (rincorsa
+  // piano→veloce e rimbalzo secco sul finale), ora un preset esplicito: qui ha senso tenerla, perche'
+  // il Playground e' il posto dei morph avviati da un tocco secco, dove la partenza lenta si vede.
   fun springSpec(): AnimationSpec<Float>? = when (springLabel) {
+    SpringHouse -> FluidPhysicsJourney.House
     "Scattante" -> FluidMotion.snappy()
     "Standard" -> FluidMotion.standard()
     "Dolce" -> FluidMotion.smooth()
@@ -149,6 +154,17 @@ internal fun PlaygroundTab(bottomInset: Dp) {
           drawing = false
           morph(form)
         },
+        // Il pezzo si tocca come un tasto di vetro: lente piu' profonda e bagliore sotto il dito, e
+        // al rilascio la forma successiva. Tocchi rapidi uno dopo l'altro sono ritargeting: il
+        // viaggio nuovo eredita la velocita' di quello che interrompe.
+        onPieceClick = {
+          if (stage != IntSize.Zero) {
+            val next = PresetNames[(PresetNames.indexOf(selectedPreset) + 1).mod(PresetNames.size)]
+            if (next == PresetBlob) blobSeed += 1
+            selectedPreset = next
+            morph(presetForm(next)!!)
+          }
+        },
       )
     }
 
@@ -192,7 +208,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
     item(key = "motion") {
       FluidCard(glass = true) {
         FluidSegmentedControl(
-          options = listOf("Casa", "Scattante", "Standard", "Dolce"),
+          options = listOf(SpringDefault, SpringHouse, "Scattante", "Standard", "Dolce"),
           selected = springLabel,
           onSelect = { springLabel = it },
           label = { it },
@@ -290,6 +306,12 @@ internal fun PlaygroundTab(bottomInset: Dp) {
     item(key = "practical") { PracticalDemo(tier = tierOverride) }
   }
 }
+
+/** Il default di `morphTo`: la molla sola. */
+private const val SpringDefault = "Molla"
+
+/** La coreografia della casa, `FluidPhysicsJourney.House`. */
+private const val SpringHouse = "Casa"
 
 private const val PresetCircle = "Cerchio"
 private const val PresetSquare = "Quadrato"

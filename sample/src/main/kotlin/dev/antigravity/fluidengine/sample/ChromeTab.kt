@@ -218,6 +218,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-gaps"),
           onClick = { onOpen(GalleryPage.Gaps) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Menù liquidi",
+          subtitle = "Si scelgono col dito che li ha aperti: tasto, barra, riga, card e avviso",
+          modifier = Modifier.testTag("chrome-open-menus"),
+          onClick = { onOpen(GalleryPage.Menus) },
+        )
       }
     }
 

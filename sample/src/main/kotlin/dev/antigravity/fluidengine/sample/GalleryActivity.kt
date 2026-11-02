@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.catalog.CapsulesAndPartsDemo
+import dev.antigravity.fluidengine.sample.catalog.MenusDemo
 import dev.antigravity.fluidengine.sample.catalog.RowsAndSheetsDemo
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
@@ -226,6 +227,7 @@ internal fun Gallery(
               GalleryPage.RowsAndSheets -> RowsAndSheetsDemo(bottomInset, onBack = { nav.back() })
               GalleryPage.CapsulesAndParts -> CapsulesAndPartsPage(bottomInset) { nav.back() }
               GalleryPage.Gaps -> GapsPage(bottomInset) { nav.back() }
+              GalleryPage.Menus -> MenusPage(bottomInset) { nav.back() }
               null -> when (nav.route) {
                 RoutePlayground -> PlaygroundTab(bottomInset)
                 RouteControls -> ControlsTab(bottomInset)
@@ -297,6 +299,26 @@ private fun CapsulesAndPartsPage(bottomInset: androidx.compose.ui.unit.Dp, onBac
     ambient = remember { FluidAmbient(tone = FluidHeroTone.Tertiary, motif = FluidHeroMotif.Dots) },
   ) {
     item(key = "capsules-and-parts") { CapsulesAndPartsDemo() }
+  }
+}
+
+/**
+ * I menu liquidi (fase 7): una colonna sola, qui in una schermata con il suo "Indietro".
+ *
+ * La demo ha bisogno dell'host dei modali della radice (`LocalFluidGlassModalHostState`): le azioni
+ * della barra, le righe, la card e l'avviso vivono li', e `Gallery` lo fornisce a tutto il contenuto.
+ * Il tasto che si trasforma ha invece il suo host dentro il palco della demo.
+ */
+@Composable
+private fun MenusPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () -> Unit) {
+  FluidScreen(
+    title = "Menù liquidi",
+    subtitle = "Tieni premuto, trascina su una voce, rilascia: si sceglie col dito che ha aperto il menu.",
+    onBack = onBack,
+    extraBottomPadding = bottomInset,
+    ambient = remember { FluidAmbient(tone = FluidHeroTone.Primary, motif = FluidHeroMotif.Ripples) },
+  ) {
+    item(key = "menus-demo") { MenusDemo() }
   }
 }
 

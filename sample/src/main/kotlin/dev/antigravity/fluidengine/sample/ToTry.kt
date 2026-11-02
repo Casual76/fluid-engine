@@ -94,6 +94,12 @@ private val PagesScreen = TryTarget.Screen("Chrome › Navigazione › Pagine (s
 private val RowsPage = TryTarget.Page(GalleryPage.RowsAndSheets, "Righe e fogli")
 private val CapsulesPage = TryTarget.Page(GalleryPage.CapsulesAndParts, "Capsule e pezzi piccoli")
 private val GapsPage = TryTarget.Page(GalleryPage.Gaps, "I buchi delle app")
+private val MenusAll = TryTarget.Page(GalleryPage.Menus, "Menù liquidi")
+private val MenusMorph = TryTarget.Page(GalleryPage.Menus, "Menù liquidi › Il tasto che si trasforma")
+private val MenusBar = TryTarget.Page(GalleryPage.Menus, "Menù liquidi › Le azioni della barra")
+private val MenusRows = TryTarget.Page(GalleryPage.Menus, "Menù liquidi › Righe con il menu contestuale")
+private val MenusAlert = TryTarget.Page(GalleryPage.Menus, "Menù liquidi › L'avviso")
+private val MenusLog = TryTarget.Page(GalleryPage.Menus, "Menù liquidi, con il registro aptico acceso in Controlli")
 
 /** La beta 1: tasti e aptica come LibrePods, menù e pannelli a un materiale, pagine, e i pezzi nuovi. */
 private val Beta1 = TryRound(
@@ -264,8 +270,89 @@ private val Beta1 = TryRound(
   ),
 )
 
+/**
+ * La beta 2: i menu liquidi (fase 7). Un menu si sceglie col dito che l'ha aperto, e un rilascio altrove
+ * lo lascia aperto; l'avviso sta nell'host, in vetro vero. Tutto si prova dalla demo [GalleryPage.Menus].
+ */
+private val Beta2 = TryRound(
+  id = "beta2",
+  title = "Beta 2",
+  intro = "Seconda prova della 3.0: i menu liquidi. Un menu si sceglie col dito che l'ha aperto — tieni premuto, " +
+    "trascina su una voce, rilascia — e un rilascio altrove lo lascia aperto. Tocca una voce per aprire la sua demo.",
+  items = listOf(
+    TryItem(
+      "menu-scelta-dito", TryArea.Menus, "Scelta col dito",
+      "Tieni premuto «Azione» nel palco e, senza sollevare il dito, trascinalo su una voce e rilascia: la scelta " +
+        "compare in cima alla demo; giudica se il gesto è naturale e se la goccia ti segue di voce in voce senza " +
+        "ritardo.",
+      MenusMorph,
+    ),
+    TryItem(
+      "menu-rilascio-fermo", TryArea.Menus, "Rilascio fermo",
+      "Tieni premuto «Azione» e solleva il dito senza muoverti: il menu resta aperto e si sceglie con un tocco, " +
+        "e lo stesso se rilasci fuori dalle voci o su «Modifica (spenta)»; giudica se il passaggio dal tenere al " +
+        "toccare è chiaro.",
+      MenusMorph,
+    ),
+    TryItem(
+      "menu-riga-cresce", TryArea.Menus, "Riga che si solleva",
+      "Tieni premuta una riga sotto «Righe con il menu contestuale»: la riga si solleva e il menu cresce accanto " +
+        "a lei, mai sopra, e trascinando sulle voci la lista resta ferma; giudica se il menu sembra nato dalla riga.",
+      MenusRows,
+    ),
+    TryItem(
+      "menu-apre-al-tocco", TryArea.Menus, "Apertura al tocco",
+      "Tocca «Ordina» nel palco e i tre puntini nella barra: il menu si apre al tocco, senza fare l'azione del " +
+        "tasto; giudica che si apra subito e che il tasto lasci il posto al menu senza un attimo vuoto.",
+      MenusAll,
+    ),
+    TryItem(
+      "menu-barra-tenuto", TryArea.Menus, "Azione della barra",
+      "Tieni premuta la stella nella barra, trascina su una voce e rilascia: il menu nasce dal tasto gonfiato dal " +
+        "dito e il tasto lascia il posto alla finestra; giudica se nel passaggio si vede un doppione o un " +
+        "fotogramma vuoto.",
+      MenusBar,
+    ),
+    TryItem(
+      "menu-sezioni", TryArea.Menus, "Sezioni e separatori",
+      "Apri un menu e guarda «Elimina»: sta in una sezione sua, con una banda al posto della riga sottile, rosso " +
+        "perché distruttivo, mentre «Modifica (spenta)» non fa tick e non si sceglie; giudica se la banda si " +
+        "legge e se il dito ci cade sopra per sbaglio.",
+      MenusMorph,
+    ),
+    TryItem(
+      "menu-goccia-dito", TryArea.Menus, "La goccia sul dito",
+      "Trascina il dito su e giù per le voci, prima piano e poi di scatto: la goccia segue il dito, si schiaccia " +
+        "quando va veloce e si posa bianca sulla voce scelta; giudica se lo schiacciamento è bello o troppo, e " +
+        "se resta incollata al dito.",
+      MenusMorph,
+    ),
+    TryItem(
+      "menu-un-open", TryArea.Menus, "Un Open per apertura",
+      "Accendi il registro aptico in Controlli e apri un menu da ogni ingresso: all'apertura un Open solo, poi un " +
+        "Tick per voce attraversata e un Tap alla scelta, niente al congedo; giudica se si sente come un colpo " +
+        "unico e conta le righe nel registro.",
+      MenusLog,
+    ),
+    TryItem(
+      "avviso-vetro", TryArea.Panels, "Avviso di vetro",
+      "Apri «Due pulsanti» e «Tre pulsanti» nell'avviso: è vetro vero con la pagina rifratta dietro, arriva " +
+        "posandosi e se ne va con un'uscita che si vede; trascina il dito fra i pulsanti per vedere la goccia, e " +
+        "giudica se si legge sopra la pagina.",
+      MenusAlert,
+    ),
+    TryItem(
+      "avviso-tastiera", TryArea.Panels, "Avviso con la tastiera",
+      "Apri «Rinomina» in Righe e fogli: l'avviso con il campo sta nell'host, il campo prende il fuoco con il " +
+        "testo selezionato e la tastiera sale senza coprirlo; giudica se l'avviso si sposta bene e se esce pulito " +
+        "quando si chiude.",
+      RowsPage,
+    ),
+  ),
+)
+
 /** Tutti i giri, dal piu' vecchio al piu' nuovo. Una beta nuova aggiunge qui il suo e basta. */
-internal val TryRounds: List<TryRound> = listOf(Beta1)
+internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2)
 
 /**
  * La pagina "Da provare": quello che Alessio vede per prima, e la lista di cio' che va giudicato in mano.

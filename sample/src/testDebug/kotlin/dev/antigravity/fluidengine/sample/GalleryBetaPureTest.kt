@@ -199,21 +199,49 @@ class GalleryBetaPureTest {
   }
 
   @Test
-  fun `ogni area della beta ha voci, e il raggruppamento tiene l'ordine`() {
-    val round = TryRounds.last()
-    val grouped = round.byArea()
+  fun `il raggruppamento di ogni giro tiene l'ordine, e nessuna intestazione e' vuota`() {
+    TryRounds.forEach { round ->
+      val grouped = round.byArea()
 
-    assertEquals(round.items.size, grouped.sumOf { it.second.size })
-    assertEquals(round.items.map { it.area }.distinct(), grouped.map { it.first })
-    grouped.forEach { (area, inArea) -> assertTrue(inArea.all { it.area == area }) }
-    // Tutte le aree dichiarate hanno almeno una voce nella beta 1: nessuna intestazione vuota.
-    assertEquals(TryArea.entries.toSet(), grouped.map { it.first }.toSet())
+      assertEquals("${round.id}: voci perse", round.items.size, grouped.sumOf { it.second.size })
+      assertEquals(round.items.map { it.area }.distinct(), grouped.map { it.first })
+      grouped.forEach { (area, inArea) ->
+        assertTrue("${round.id}: area vuota", inArea.isNotEmpty())
+        assertTrue(inArea.all { it.area == area })
+      }
+    }
+  }
+
+  @Test
+  fun `la beta 1 tocca tutte le aree, e le beta dopo ne tolgono nessuna alla pagina`() {
+    // Le aree sono quelle della beta 1: un giro nuovo ne usa alcune, e la pagina non ne ha mai di vuote.
+    assertEquals(TryArea.entries.toSet(), TryRounds.first().items.map { it.area }.toSet())
+    assertTrue(TryRounds.flatMap { it.items }.map { it.area }.toSet().containsAll(TryArea.entries.toSet()))
   }
 
   @Test
   fun `i giri hanno un id unico e il giro piu' nuovo e' l'ultimo`() {
     assertEquals(TryRounds.size, TryRounds.map { it.id }.toSet().size)
-    assertEquals("Beta 1", TryRounds.last().title)
+    assertEquals(listOf("Beta 1", "Beta 2"), TryRounds.map { it.title })
     assertEquals(TryRounds.last().items.size, latestRoundSize())
+  }
+
+  @Test
+  fun `la beta 2 e' dei menu e dell'avviso, e ogni sezione della demo ha una voce`() {
+    val beta2 = TryRounds.last()
+
+    assertEquals(setOf(TryArea.Menus, TryArea.Panels), beta2.items.map { it.area }.toSet())
+    val where = beta2.items.map { it.target.where }
+    listOf(
+      "Il tasto che si trasforma",
+      "Le azioni della barra",
+      "Righe con il menu contestuale",
+      "L'avviso",
+    ).forEach { section ->
+      assertTrue("nessuna voce della beta 2 porta a «$section»", where.any { it.contains(section) })
+    }
+    // Il tocco che apre il menu, e l'avviso con la tastiera, hanno una voce a parte.
+    assertTrue(beta2.items.any { it.id == "menu-apre-al-tocco" })
+    assertTrue(beta2.items.any { it.id == "avviso-tastiera" })
   }
 }

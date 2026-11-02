@@ -19,7 +19,9 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import dev.antigravity.fluidengine.foundation.EngineSettings
@@ -105,7 +107,11 @@ class FluidBetaGalleryTest {
   private fun shown(text: String, substring: Boolean = false): Boolean =
     compose.onAllNodesWithText(text, substring = substring, ignoreCase = true).fetchSemanticsNodes().isNotEmpty()
 
+  /** Il giro piu' nuovo, quello che la pagina mette in cima e che il sottotitolo nomina. */
   private val round get() = TryRounds.last()
+
+  /** Le voci di tutti i giri: una beta nuova non toglie le prove di quelle di prima. */
+  private val allItems get() = TryRounds.flatMap { it.items }
 
   // --- La pagina Da provare -------------------------------------------------------------------------
 
@@ -123,12 +129,12 @@ class FluidBetaGalleryTest {
   }
 
   @Test
-  fun `la pagina elenca ogni voce del giro, nell'ordine delle aree`() {
+  fun `la pagina elenca ogni voce di ogni giro`() {
     show()
 
     // La lista e' pigra: ogni voce si compone solo se la si scorre. Raggiungerle tutte per tag e'
     // anche la prova che sono tutte li', con il loro titolo e la loro frase.
-    round.items.forEach { item ->
+    allItems.forEach { item ->
       scrollTo("to-try-${item.id}").assertExists()
       assertTrue("manca il titolo di ${item.id}", shown(item.title))
       assertTrue("manca il dove di ${item.id}", shown("Apri: ${item.target.where}"))
@@ -139,7 +145,7 @@ class FluidBetaGalleryTest {
   fun `ogni voce apre la sua demo, e Indietro torna alla lista`() {
     show()
 
-    round.items.forEach { item ->
+    allItems.forEach { item ->
       compose.runOnIdle { nav.reset(GalleryNav.Launch) }
       compose.waitForIdle()
       scrollTo("to-try-${item.id}").performClick()
@@ -178,7 +184,7 @@ class FluidBetaGalleryTest {
 
   @Test
   fun `le voci coprono ogni demo della 3_0, e ogni demo ha almeno una voce`() {
-    val targets = round.items.map { it.target }
+    val targets = allItems.map { it.target }
     GalleryPage.entries.filter { it != GalleryPage.ToTry }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
     }
@@ -218,6 +224,9 @@ class FluidBetaGalleryTest {
   fun `I buchi delle app si apre con due tocchi da Chrome`() = opensFromChrome("chrome-open-gaps", GalleryPage.Gaps)
 
   @Test
+  fun `Menu liquidi si apre con due tocchi da Chrome`() = opensFromChrome("chrome-open-menus", GalleryPage.Menus)
+
+  @Test
   fun `la riga in cima a Materiale apre Da provare con un tocco`() {
     show(listOf(GalleryEntry.Tab(RouteMaterial)))
 
@@ -231,12 +240,14 @@ class FluidBetaGalleryTest {
   @Test
   fun `l'Indietro di sistema chiude la pagina e poi lascia l'app al sistema`() {
     show()
-    scrollTo("to-try-${round.items.first().id}")
+    // Una voce che apre una scheda (la prima: le piu' nuove aprono pagine, e qui serve una scheda).
+    val tabItem = allItems.first { it.target is TryTarget.Tab }
+    scrollTo("to-try-${tabItem.id}")
 
     // Una scheda aperta da una voce, poi Indietro: torna alla lista.
-    compose.onNodeWithTag("to-try-${round.items.first().id}").performClick()
+    compose.onNodeWithTag("to-try-${tabItem.id}").performClick()
     compose.waitForIdle()
-    assertEquals(RouteControls, nav.route)
+    assertEquals((tabItem.target as TryTarget.Tab).route, nav.route)
     compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
     compose.waitForIdle()
     assertEquals(GalleryPage.ToTry, nav.page)
@@ -247,6 +258,35 @@ class FluidBetaGalleryTest {
     assertEquals(null, nav.page)
     assertEquals(RouteMaterial, nav.route)
     assertFalse(nav.canGoBack)
+  }
+
+  // --- I menu liquidi nella galleria vera -----------------------------------------------------------
+
+  /**
+   * La demo dei menu ha bisogno dell'host dei modali della radice (`LocalFluidGlassModalHostState`):
+   * le righe con il menu contestuale, le azioni della barra, la card e l'avviso vivono li'. Qui la
+   * demo sta nella galleria vera, quindi e' la prova che il collegamento c'e'.
+   */
+  @Test
+  fun `una riga della demo dei menu apre il suo menu nell'host della radice, e si sceglie con un tocco`() {
+    show(listOf(GalleryEntry.Tab(RouteChrome), GalleryEntry.Page(GalleryPage.Menus)))
+    assertTrue("la demo dei menu non si vede", pageMarkerShown(GalleryPage.Menus))
+    assertFalse("il menu e' aperto prima di aprirlo", shown("Condividi"))
+
+    compose.onNodeWithTag("menus-row").performScrollTo()
+    compose.waitForIdle()
+    compose.onNodeWithTag("menus-row").performTouchInput { down(center) }
+    compose.mainClock.advanceTimeBy(900)
+    compose.waitForIdle()
+    assertTrue("il menu della riga non si e' aperto nell'host della galleria", shown("Condividi"))
+
+    // Un rilascio fermo lascia il menu aperto: si sceglie con un tocco, e la demo dice cosa e' stato scelto.
+    compose.onNodeWithTag("menus-row").performTouchInput { up() }
+    compose.waitForIdle()
+    assertTrue("rilasciato fermo, il menu deve restare aperto", shown("Condividi"))
+    compose.onNodeWithText("Condividi").performClick()
+    compose.waitForIdle()
+    assertTrue("la scelta non e' arrivata alla demo", shown("Scelta: Condividi"))
   }
 
   // --- Il registro aptico ---------------------------------------------------------------------------
@@ -348,6 +388,7 @@ class FluidBetaGalleryTest {
     GalleryPage.RowsAndSheets -> compose.onAllNodes(hasTestTag("demo-toggle-notifications")).fetchSemanticsNodes().isNotEmpty()
     GalleryPage.CapsulesAndParts -> compose.onAllNodes(hasTestTag("capsules-and-parts-demo")).fetchSemanticsNodes().isNotEmpty()
     GalleryPage.Gaps -> shown("Tasti di vetro: tre taglie")
+    GalleryPage.Menus -> compose.onAllNodes(hasTestTag("menus-demo")).fetchSemanticsNodes().isNotEmpty()
   }
 }
 

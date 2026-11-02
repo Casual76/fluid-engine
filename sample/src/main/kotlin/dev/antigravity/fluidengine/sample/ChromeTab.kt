@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.sample
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -165,6 +167,18 @@ internal fun ChromeTab(bottomInset: Dp) {
               },
             )
           }
+      }
+    }
+
+    item(key = "pages-header") { FluidSectionHeader(title = "Navigazione") }
+    item(key = "pages") {
+      val context = LocalContext.current
+      FluidListGroup(glass = true) {
+        FluidListRow(
+          title = "Pagine",
+          subtitle = "Apertura da destra, indietro sotto il dito (3.0)",
+          onClick = { context.startActivity(Intent(context, PagesDemoActivity::class.java)) },
+        )
       }
     }
 

@@ -17,6 +17,12 @@
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
     </activity>
+    <!-- Le pagine della 3.0: il back predittivo deve arrivare all'host, quindi acceso qui. -->
+    <activity
+        android:name=".PagesDemoActivity"
+        android:exported="false"
+        android:enableOnBackInvokedCallback="true"
+        android:theme="@style/Theme.FluidSample" />
   </application>
 
 </manifest>

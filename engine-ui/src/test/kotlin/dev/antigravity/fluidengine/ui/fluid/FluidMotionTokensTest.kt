@@ -170,6 +170,66 @@ class FluidMotionTokensTest {
     assertEquals(spring(0.5f, 300f, 0.001f), FluidMotion.GlowPress)
   }
 
+  // --- La goccia del vetro liquido (3.0) -------------------------------------------------------
+
+  @Test
+  fun `the liquid drop has the numbers of the bench, variant C`() {
+    assertEquals(48, FluidMotion.DropPoints)
+    assertEquals(1500f, FluidMotion.DropStiffnessNear, 0f)
+    assertEquals(320f, FluidMotion.DropStiffnessFar, 0f)
+    assertEquals(0.72f, FluidMotion.DropDamping, 0f)
+    assertEquals(110f, FluidMotion.DropAnchorReachDp, 0f)
+    assertEquals(70f, FluidMotion.DropFingerReachDp, 0f)
+    assertEquals(1f / 240f, FluidMotion.DropStepSeconds, 0f)
+    // La tensione del bordo di serie e' 0,2 di quella del banco: 140 con 48 punti (Alessio).
+    assertEquals(140f, FluidMotion.DropEdgeTensionReference * FluidMotion.DropEdgeTensionDefault, 0.001f)
+    // Il patto col riposo: un quarto di pixel.
+    assertEquals(0.25f, FluidMotion.DropRestPx, 0f)
+  }
+
+  @Test
+  fun `the drop opens in about 0,42 s and closes in about 0,50 s`() {
+    // La "risposta" del banco e' il periodo naturale della molla, 2π/√k.
+    val open = 2.0 * Math.PI / kotlin.math.sqrt(FluidMotion.DropOpenStiffness.toDouble())
+    val close = 2.0 * Math.PI / kotlin.math.sqrt(FluidMotion.DropCloseStiffness.toDouble())
+    assertEquals(0.42, open, 0.005)
+    assertEquals(0.50, close, 0.005)
+    assertSameMotion("andata", spring(0.72f, 224f), FluidMotion.dropOpen())
+    assertSameMotion("ritorno", spring(0.72f, 158f), FluidMotion.dropClose(), from = 1f, to = 0f)
+  }
+
+  @Test
+  fun `the expected peak of the opening is the one of its damping`() {
+    val z = FluidMotion.DropJourneyDamping.toDouble()
+    val peak = kotlin.math.exp(-Math.PI * z / kotlin.math.sqrt(1.0 - z * z))
+    assertEquals(peak.toFloat(), FluidMotion.DropPeakOvershoot, 0.0005f)
+    // E la molla vera ci arriva davvero: il massimo della traiettoria d'andata.
+    val max = trajectoryMax(FluidMotion.dropOpen())
+    assertEquals(1f + FluidMotion.DropPeakOvershoot, max, 0.002f)
+  }
+
+  @Test
+  fun `the content of a liquid pane leaves before it arrives`() {
+    // Arriva tardi (0,55→0,9) e se ne va presto (0,94→0,62): al ritorno il testo e' gia' sparito
+    // quando il corpo comincia a stringersi davvero.
+    assertTrue(FluidMotion.LiquidContentOpenFrom < FluidMotion.LiquidContentOpenTo)
+    assertTrue(FluidMotion.LiquidContentCloseFrom < FluidMotion.LiquidContentCloseTo)
+    assertTrue(FluidMotion.LiquidContentCloseTo > FluidMotion.LiquidContentOpenTo)
+    assertTrue(FluidMotion.LiquidContentCloseFrom > FluidMotion.LiquidContentOpenFrom)
+    assertEquals(0.86f, FluidMotion.LiquidContentMinScale, 0f)
+  }
+
+  private fun trajectoryMax(spec: AnimationSpec<Float>): Float {
+    val vectorised = spec.vectorize(Float.VectorConverter)
+    var max = 0f
+    var t = 0L
+    while (t < 2_000_000_000L) {
+      max = maxOf(max, vectorised.getValueFromNanos(t, AnimationVector1D(0f), AnimationVector1D(1f), AnimationVector1D(0f)).value)
+      t += 1_000_000L
+    }
+    return max
+  }
+
   // --- Piccoli pezzi -----------------------------------------------------------------------------
 
   @Test

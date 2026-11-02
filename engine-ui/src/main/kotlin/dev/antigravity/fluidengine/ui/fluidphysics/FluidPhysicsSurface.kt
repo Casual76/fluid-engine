@@ -147,6 +147,7 @@ fun Modifier.fluidPhysicsSurface(
   // collo, niente lente in moto.
   val liquidOn = !reducedMotion && LocalFluidPhysicsLiquid.current
   state.liquidAllowed = liquidOn
+  state.dropEdgeTension = LocalFluidPhysicsDropTuning.current.edgeTension
   LaunchedEffect(state, liquidOn) {
     if (liquidOn) state.runLiquid()
   }

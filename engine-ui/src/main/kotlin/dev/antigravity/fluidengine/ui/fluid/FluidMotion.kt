@@ -132,7 +132,10 @@ object FluidMotion {
   const val MenuPeakOvershoot = 0.084f
 
   /** Il contenuto del pannello entra fra questi due punti del viaggio (progress), mai prima. */
+  @Deprecated("Dalla 3.0 il contenuto arriva a corpo quasi formato: LiquidContentOpenFrom.", ReplaceWith("FluidMotion.LiquidContentOpenFrom"))
   const val MenuContentOpenFrom = 0.25f
+
+  @Deprecated("Dalla 3.0: LiquidContentOpenTo.", ReplaceWith("FluidMotion.LiquidContentOpenTo"))
   const val MenuContentOpenTo = 0.75f
 
   /**
@@ -140,7 +143,10 @@ object FluidMotion {
    * la finestra dell'apertura rovesciata e le voci sparivano in ~40 ms; cosi' restano leggibili per
    * 60-200 ms mentre il pannello si ritira.
    */
+  @Deprecated("Dalla 3.0 il contenuto se ne va per primo: LiquidContentCloseFrom.", ReplaceWith("FluidMotion.LiquidContentCloseFrom"))
   const val MenuContentCloseFrom = 0.12f
+
+  @Deprecated("Dalla 3.0: LiquidContentCloseTo.", ReplaceWith("FluidMotion.LiquidContentCloseTo"))
   const val MenuContentCloseTo = 0.92f
 
   /** La faccia dell'ancora (icona, etichetta) si spegne entro questo punto del viaggio. */
@@ -148,6 +154,106 @@ object FluidMotion {
 
   /** La dissolvenza di uscita del menu (la goccia e il contenuto dopo una scelta), in millisecondi. */
   const val MenuFadeOutMillis = 280
+
+  // --- La goccia (3.0, il vetro liquido) -------------------------------------------------------
+  //
+  // Una superficie di Fluid-physics che viaggia e' una goccia: un contorno di [DropPoints] punti, ognuno
+  // su una molla verso il suo punto della sagoma a riposo, legati fra loro da una tensione del bordo.
+  // Vicino all'ancora (il tasto, la riga, il dito) le molle sono dure e seguono subito; lontano sono
+  // morbide e restano indietro: la coda. Scelta di Alessio sul banco (variante C), coi cursori di serie
+  // e due ritocchi: il bordo poco teso (0,2 del banco) e la chiusura piu' lenta dell'apertura.
+  // I numeri sono quelli del banco, in dp e secondi.
+
+  /** Quanti punti ha il contorno della goccia, campionati per lunghezza d'arco. */
+  const val DropPoints = 48
+
+  /** La rigidezza della molla di un punto accanto all'ancora (1/s²): segue senza ritardo. */
+  const val DropStiffnessNear = 1500f
+
+  /** La rigidezza di un punto lontano dall'ancora: morbida, la coda resta indietro. */
+  const val DropStiffnessFar = 320f
+
+  /** Lo smorzamento delle molle dei punti, frazione del critico. */
+  const val DropDamping = 0.72f
+
+  /**
+   * La tensione del bordo del banco con 48 punti (1/s²): quanto ogni punto tira verso la media dei due
+   * vicini. Va per il quadrato del numero di punti; la goccia ne usa la frazione [DropEdgeTensionDefault].
+   */
+  const val DropEdgeTensionReference = 700f
+
+  /**
+   * La frazione di [DropEdgeTensionReference] di serie: 0,2 (140 con 48 punti), scelta di Alessio —
+   * a 0,7 i bordi erano "esageratamente smussati". Con un bordo cosi' poco teso ogni punto segue quasi
+   * da solo il suo punto a riposo, e gli angoli del pannello restano definiti anche in viaggio.
+   */
+  const val DropEdgeTensionDefault = 0.2f
+
+  /** Fin dove l'ancora irrigidisce le molle (decadimento esponenziale), per un menu o un morph, in dp. */
+  const val DropAnchorReachDp = 110f
+
+  /** Lo stesso per una superficie trascinata, attorno al dito, in dp. */
+  const val DropFingerReachDp = 70f
+
+  /** Il passo d'integrazione delle molle (Euler semi-implicito), in secondi. */
+  const val DropStepSeconds = 1f / 240f
+
+  /** Il fotogramma piu' lungo che si integra (oltre e' uno stallo, non un moto), in secondi. */
+  const val DropMaxFrameSeconds = 1f / 30f
+
+  /** Sotto questo scarto, in pixel, fra ogni punto e il suo punto a riposo la goccia e' una lastra. */
+  const val DropRestPx = 0.25f
+
+  /** E sotto questa velocita' dei punti, in dp al secondo. */
+  const val DropRestSpeedDp = 3f
+
+  /** La molla del viaggio d'andata della goccia: risposta ~0,42 s (k 224), poco sottosmorzata. */
+  const val DropOpenStiffness = 224f
+
+  /** La molla del ritorno: ~0,50 s (k 158), un filo piu' lenta dell'andata (Alessio: "troppo veloce"). */
+  const val DropCloseStiffness = 158f
+
+  /** Lo smorzamento delle due molle del viaggio. */
+  const val DropJourneyDamping = 0.72f
+
+  /** L'apertura di una goccia (un menu che nasce da un tasto, un morph). */
+  fun <T> dropOpen(): SpringSpec<T> = spring(DropJourneyDamping, DropOpenStiffness)
+
+  /** Il ritorno di una goccia nella sua ancora. */
+  fun <T> dropClose(): SpringSpec<T> = spring(DropJourneyDamping, DropCloseStiffness)
+
+  /**
+   * Il gonfiore uniforme oltre il traguardo, per unita' d'oltrepasso della molla: `1 + 0,55·(m − 1)`
+   * sulle misure; sotto lo zero lo stesso al contrario, attorno all'ancora.
+   */
+  const val DropInflationGain = 0.55f
+
+  /** Il picco atteso di (m − 1) con [dropOpen]: `exp(−πζ/√(1 − ζ²))` per ζ = 0,72. */
+  const val DropPeakOvershoot = 0.0384f
+
+  /** Il contenuto di un pannello di vetro liquido arriva fra questi due punti del viaggio. */
+  const val LiquidContentOpenFrom = 0.55f
+  const val LiquidContentOpenTo = 0.9f
+
+  /** E se ne va per primo fra questi due, al ritorno (da 0,94 a 0,62). */
+  const val LiquidContentCloseFrom = 0.62f
+  const val LiquidContentCloseTo = 0.94f
+
+  /** La scala del contenuto mentre arriva o se ne va: `0,86 + 0,14 · opacita'`. */
+  const val LiquidContentMinScale = 0.86f
+
+  /** La lente in moto: piena a questa velocita' del corpo, in dp al secondo. */
+  const val LiquidLensFullSpeedDp = 700f
+
+  /** Quanto in fretta la lente in moto segue la velocita' (costante di tempo, secondi). */
+  const val LiquidLensFollowSeconds = 0.06f
+
+  /**
+   * Il gonfiore della riga sollevata del menu contestuale all'oltrepasso della molla, per asse: ~2% sui
+   * fianchi (una riga larga quanto lo schermo non deve toccarne i bordi), ~5% in altezza.
+   */
+  const val LiftedSwellX = 0.25f
+  const val LiftedSwellY = 0.6f
 
   // --- Typed variants -------------------------------------------------------
   //

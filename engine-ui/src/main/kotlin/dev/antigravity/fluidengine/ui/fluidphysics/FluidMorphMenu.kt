@@ -22,6 +22,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -44,7 +46,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassMenuPanel
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuJourney
-import dev.antigravity.fluidengine.ui.fluid.FluidMenuLiquidContentMinScale
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelLayout
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPlacement
@@ -60,7 +61,8 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuGeometryOf
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuInflation
+import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuMaterialBlend
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelLayout
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPointerRelay
@@ -201,7 +203,7 @@ class FluidMorphMenuState internal constructor() {
       hostOrigin = origin,
       panel = panel,
       radius = m.radiusPx,
-      inflation = fluidMenuInflation(panel.width, panel.height, size.width, m.edgeMinPx, m.refHeightPx),
+      inflation = fluidDropInflation(panel.width, size.width, m.edgeMinPx),
       freshStart = !reopening,
     )
     journey.install(physics)
@@ -362,7 +364,13 @@ fun FluidMorphMenuHost(
   // ritorno finito rimette il tasto e smonta, nello stesso istante.
   LaunchedEffect(state, state.journey.target, reducedMotion) {
     state.journey.run(reducedMotion)
-    if (state.journey.target == 0f) state.finishClose()
+    if (state.journey.target == 0f) {
+      // La goccia arriva dopo la molla (3.0): il tasto torna quando anche la coda si e' posata sulla
+      // sua sagoma, non un fotogramma prima — se no il tasto vero comparirebbe sopra una goccia ancora
+      // in movimento.
+      snapshotFlow { state.physics.liquid.quiet }.first { it }
+      state.finishClose()
+    }
   }
 
   BackHandler(enabled = state.isOpen) { state.dismiss() }
@@ -465,7 +473,11 @@ fun FluidMorphMenuHost(
         pageBackdrop = backdrop,
         contentAlpha = { fluidMenuContentAlpha(progress(), closing = state.journey.closing) },
         contentMap = {
-          fluidMenuContentMap(target = panel, current = state.physics.contentBoundsNow(), minScale = FluidMenuLiquidContentMinScale)
+          fluidMenuLiquidContentMap(
+            target = panel,
+            current = state.physics.contentBoundsNow(),
+            alpha = fluidMenuContentAlpha(progress(), closing = state.journey.closing),
+          )
         },
         onPick = { index -> state.pick(index, haptics) },
         modifier = Modifier.frame(panel),

@@ -10,8 +10,10 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
@@ -94,6 +96,11 @@ internal class PhysicsRimRenderer(private val layer: GraphicsLayer) {
     rim: GlassRimRecipe,
   ) {
     val rounded = plan.silhouetteRoundRect
+    val drop = plan.dropRest
+    if (drop != null) {
+      scope.drawDropRim(plan, drop, optics, strength, rim)
+      return
+    }
     when {
       restSlab != null && rounded != null -> scope.drawRestRim(restSlab, optics, strength, rim)
       rounded != null -> scope.drawTravellingSlabRim(rounded, optics, strength, rim)
@@ -271,6 +278,84 @@ internal class PhysicsRimRenderer(private val layer: GraphicsLayer) {
       style = Stroke(width = optics.highlightWidth.toPx()),
       blendMode = rim.blendMode,
     )
+  }
+
+  /**
+   * La goccia in viaggio (3.0): la stessa banda interna della lastra in viaggio, lungo il contorno
+   * libero — un tratto largo il doppio della banda, ritagliato sulla sagoma, cosi' dentro ne resta
+   * esattamente la banda — con la luce dello shader del riflesso della sagoma a riposo [rest], posata
+   * sul riquadro della goccia. All'arrivo la goccia si posa sulla sua lastra e la banda e' la stessa:
+   * nessun cambio di stile da vedere.
+   */
+  private fun DrawScope.drawDropRim(
+    plan: PhysicsRenderPlan,
+    rest: FluidForm.Slab,
+    optics: GlassOptics,
+    strength: Float,
+    rim: GlassRimRecipe,
+  ) {
+    val bounds = plan.bounds
+    if (bounds.minDimension <= 0f) return
+    val band = physicsRimBandPx(optics.highlightWidth.toPx(), bounds.minDimension)
+    if (band <= 0f) return
+    val r = rest.cornerRadii
+    val brush: Brush = if (isRuntimeShaderSupported()) {
+      val style = HighlightStyle.Default(
+        color = rim.color,
+        blendMode = rim.blendMode,
+        angle = optics.highlightAngle,
+        falloff = 1f,
+      )
+      // La luce si calcola sul riquadro della goccia, nelle sue coordinate: il tratto si disegna li'.
+      val shape = ContinuousCornerShape(
+        CornerSize(r.topLeft),
+        CornerSize(r.topRight),
+        CornerSize(r.bottomRight),
+        CornerSize(r.bottomLeft),
+      )
+      val shader = with(style) { createShader(shape, Size(bounds.width, bounds.height), this@drawDropRim, shaderCache) }
+      if (shader != null) ShaderBrush(shader.asComposeShader()) else SolidColor(rim.color)
+    } else {
+      val ramp = glassRimRamp(minOf(r.topLeft, r.topRight).coerceAtLeast(0f), bounds.width, bounds.height).coerceAtLeast(MinRimRamp)
+      Brush.verticalGradient(
+        0f to rim.color.copy(alpha = 1f),
+        ramp to rim.color.copy(alpha = 0f),
+        (1f - ramp) to rim.color.copy(alpha = 0f),
+        1f to rim.color.copy(alpha = 1f),
+        startY = 0f,
+        endY = bounds.height,
+      )
+    }
+    // Il tratto sta a mezza banda DENTRO il contorno (l'anello spostato lungo le normali verso
+    // l'interno), largo la banda: copre esattamente la banda e non esce mai dalla sagoma — niente
+    // ritaglio da pagare a ogni fotogramma, come per la lastra in viaggio.
+    val inset = band / 2f
+    val count = plan.vertCount
+    val v = plan.verts
+    travelPath.rewind()
+    for (i in 0 until count) {
+      val prev = ((i + count - 1) % count) * 2
+      val next = ((i + 1) % count) * 2
+      val tx = v[next] - v[prev]
+      val ty = v[next + 1] - v[prev + 1]
+      val len = kotlin.math.sqrt(tx * tx + ty * ty)
+      // Senso orario sullo schermo: la normale interna di (tx, ty) e' (-ty, tx).
+      val nx = if (len > 0.0001f) -ty / len else 0f
+      val ny = if (len > 0.0001f) tx / len else 0f
+      val x = v[i * 2] + nx * inset - bounds.left
+      val y = v[i * 2 + 1] + ny * inset - bounds.top
+      if (i == 0) travelPath.moveTo(x, y) else travelPath.lineTo(x, y)
+    }
+    travelPath.close()
+    translate(bounds.left, bounds.top) {
+      drawPath(
+        path = travelPath,
+        brush = brush,
+        alpha = (strength * rim.color.alpha).coerceIn(0f, 1f),
+        style = Stroke(width = band),
+        blendMode = rim.blendMode,
+      )
+    }
   }
 
   /** Il ripiego senza AGSL per la lastra in viaggio: lo stesso gradiente, sulle sue rampe vere. */

@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
-import dev.antigravity.fluidengine.ui.fluidphysics.FluidLiquid
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -62,9 +61,9 @@ import kotlin.math.min
  */
 internal fun fluidMenuContentAlpha(p: Float, closing: Boolean): Float =
   if (closing) {
-    unitRamp(p, FluidLiquid.ContentCloseFrom, FluidLiquid.ContentCloseTo)
+    unitRamp(p, FluidMotion.LiquidContentCloseFrom, FluidMotion.LiquidContentCloseTo)
   } else {
-    unitRamp(p, FluidLiquid.ContentOpenFrom, FluidLiquid.ContentOpenTo)
+    unitRamp(p, FluidMotion.LiquidContentOpenFrom, FluidMotion.LiquidContentOpenTo)
   }
 
 /**
@@ -133,11 +132,31 @@ internal fun fluidMenuContentMap(
 }
 
 /**
- * Il fermo della scala delle voci di un menu di vetro liquido (3.0): un 14% al piu', "una lieve scala
- * verso l'ancora" mentre se ne vanno o arrivano, non un menu in miniatura che rimpicciolisce col
- * corpo. Dove il corpo e' piu' piccolo del contenuto lo ritaglia il corpo (`travelClip`).
+ * La mappa delle voci di un menu di vetro liquido (3.0): traslate sulla sagoma a riposo di adesso
+ * (spostata con la goccia: [current]), e scalate "di poco verso l'ancora" con la loro opacita' —
+ * `0,86 + 0,14 · alpha`, [FluidMotion.LiquidContentMinScale] — non un menu in miniatura che
+ * rimpicciolisce col corpo. Dove il corpo e' piu' piccolo del contenuto lo ritaglia (`travelClip`).
  */
-internal const val FluidMenuLiquidContentMinScale = 0.86f
+internal fun fluidMenuLiquidContentMap(target: Rect, current: Rect, alpha: Float): FluidMenuContentMap {
+  if (target.minDimension <= 0f || current.minDimension <= 0f) return FluidMenuContentMap.Identity
+  val a = alpha.coerceIn(0f, 1f)
+  return FluidMenuContentMap(
+    translation = current.center - target.center,
+    scale = FluidMotion.LiquidContentMinScale + (1f - FluidMotion.LiquidContentMinScale) * a,
+  )
+}
+
+/**
+ * Il gonfiore della goccia oltre il pannello (3.0): uniforme, [FluidMotion.DropInflationGain] per
+ * unita' d'oltrepasso, e sui fianchi mai oltre quanto lo spazio fra il pannello e il margine minimo
+ * ([edgeMinPx]) consente al picco della molla ([FluidMotion.DropPeakOvershoot]).
+ */
+internal fun fluidDropInflation(paneW: Float, availW: Float, edgeMinPx: Float): FluidMenuInflation {
+  if (paneW <= 0f) return FluidMenuInflation.None
+  val gain = FluidMotion.DropInflationGain
+  val room = ((availW - 2f * edgeMinPx - paneW).coerceAtLeast(0f) / paneW) / FluidMotion.DropPeakOvershoot
+  return FluidMenuInflation(x = min(gain, room), y = gain)
+}
 
 // --- Il gonfiore dell'oltrepasso -------------------------------------------------------
 
@@ -384,7 +403,7 @@ internal fun fluidMenuSeedFrame(panel: Rect, pivot: Offset, scale: Float): Rect 
  * La goccia da cui nasce il menu contestuale (3.0, il vetro liquido): un cerchio di [diameterPx]
  * appeso al bordo della riga che guarda il pannello, sotto il dito ([touchX], o il centro della riga),
  * che entra nella riga di [overlapPx] — esce DALLA riga, non le compare accanto. Il corpo parte da qui,
- * e la goccia resta un istante a svuotarsi nel corpo col collo fra i due (`liquidAnchor`).
+ * e il corpo del menu ne esce come una goccia ancorata li', sotto il dito.
  *
  * Prima il seme era il pannello stesso a 0,42 attorno al perno: un pannello piccolo che compariva
  * sfumando dal nulla accanto alla riga, e la riga e il menu erano due oggetti.
@@ -610,9 +629,6 @@ internal class FluidMenuJourney {
       overshootInflationX = inflation.x,
       overshootInflationY = inflation.y,
       startFrame = if (a != null) startFrameBlock else null,
-      // Il menu nasce dal tasto (o dalla goccia della riga): se ne esce, il tasto resta un istante a
-      // svuotarsi nel corpo col collo fra i due, e al ritorno lo risucchia (3.0, il vetro liquido).
-      liquidAnchor = true,
     )
   }
 
@@ -640,10 +656,11 @@ internal class FluidMenuJourney {
       coroutineScope {
         val relax = anchorRelax
         if (relax.value < 1f) launch { relax.animateTo(1f, FluidMotion.snappy()) }
-        progress.animateTo(1f, FluidMotion.menuOpen(), initialVelocity = v)
+        // La goccia (3.0): l'andata in ~0,42 s, poco sottosmorzata, e il ritorno in ~0,50 s.
+        progress.animateTo(1f, FluidMotion.dropOpen(), initialVelocity = v)
       }
     } else {
-      progress.animateTo(0f, FluidMotion.menuClose(), initialVelocity = v)
+      progress.animateTo(0f, FluidMotion.dropClose(), initialVelocity = v)
     }
   }
 

@@ -132,6 +132,28 @@ class FluidMenuMotionTest {
     }
   }
 
+  @Test
+  fun theLiquidContentScalesWithItsOpacityAndFollowsTheShape() {
+    val panel = Rect(40f, 200f, 292f, 400f)
+    val moved = panel.translate(6f, -4f)
+    val faint = fluidMenuLiquidContentMap(panel, moved, alpha = 0f)
+    assertEquals(0.86f, faint.scale, 0.0001f)
+    assertEquals(6f, faint.translation.x, 0.0001f)
+    assertEquals(-4f, faint.translation.y, 0.0001f)
+    assertEquals(1f, fluidMenuLiquidContentMap(panel, panel, alpha = 1f).scale, 0f)
+    assertEquals(0.93f, fluidMenuLiquidContentMap(panel, panel, alpha = 0.5f).scale, 0.0001f)
+  }
+
+  @Test
+  fun theDropInflationIsUniformUnlessTheScreenEdgesSayOtherwise() {
+    val roomy = fluidDropInflation(paneW = 252f, availW = 1080f, edgeMinPx = 16f)
+    assertEquals(FluidMotion.DropInflationGain, roomy.x, 0f)
+    assertEquals(FluidMotion.DropInflationGain, roomy.y, 0f)
+    // Un pannello quasi largo quanto lo schermo: i fianchi si gonfiano meno, il fondo no.
+    val tight = fluidDropInflation(paneW = 1040f, availW = 1080f, edgeMinPx = 16f)
+    assertTrue(tight.x < tight.y)
+  }
+
   // --- La mappa del contenuto -----------------------------------------------------------------
 
   private val panel = Rect(40f, 200f, 292f, 400f) // 252x200, centro (166, 300)

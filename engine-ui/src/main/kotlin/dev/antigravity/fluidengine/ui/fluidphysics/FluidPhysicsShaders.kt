@@ -36,6 +36,13 @@ internal const val PhysicsMaxPieces: Int = 6
  */
 internal const val PhysicsMaxVertices: Int = 64
 
+/**
+ * Quanti vertici porta, al massimo, l'anello che lo shader poligonale disegna (3.0): la goccia del
+ * vetro liquido si disegna con [DropRenderPoints] punti, piu' dei [PhysicsMaxVertices] di una sagoma
+ * libera, perche' gli angoli del pannello restino definiti mentre viaggia.
+ */
+internal const val PhysicsMaxRingVertices: Int = 96
+
 @Language("AGSL")
 private const val PhysicsSdfPrelude = """
 float physicsRadiusAt(float2 rel, float4 radii) {
@@ -177,7 +184,9 @@ uniform shader content;
 
 uniform float2 offset;
 uniform float vertCount;
-uniform float2 verts[$PhysicsMaxVertices];
+uniform float2 verts[$PhysicsMaxRingVertices];
+uniform float4 bbox;
+uniform float normalSmooth;
 uniform float soften;
 uniform float refractionHeight;
 uniform float refractionAmount;
@@ -193,6 +202,9 @@ half4 main(float2 coord) {
     float2 p = coord + offset;
     // L'ingrandimento della goccia in moto (3.0): zero a riposo, quindi la lastra di sempre.
     float2 lensShift = (fieldCenter - p) * magnify;
+    // Fuori dal riquadro della sagoma non c'e' niente da disegnare: si esce prima del loop (3.0), che
+    // con l'anello della goccia e' il conto piu' caro del sottosistema.
+    if (p.x < bbox.x || p.y < bbox.y || p.x > bbox.z || p.y > bbox.w) return half4(0.0);
 
     // AGSL accetta un indice di array uniform solo se costante — e la variabile d'induzione di un
     // loop a limiti costanti lo è, perché il compilatore srotola. Qualsiasi altro indice (il
@@ -201,10 +213,11 @@ half4 main(float2 coord) {
     int count = int(vertCount);
     float best = 1000000000.0;
     float2 nearest = float2(0.0);
+    float2 nsum = float2(0.0);
     float winding = 1.0;
     float2 first = verts[0];
     float2 prev = first;
-    for (int i = 1; i < $PhysicsMaxVertices; ++i) {
+    for (int i = 1; i < $PhysicsMaxRingVertices; ++i) {
         if (i >= count) break;
         float2 vi = verts[i];
         float2 e = prev - vi;
@@ -217,6 +230,10 @@ half4 main(float2 coord) {
             best = dd;
             nearest = closest;
         }
+        // La normale smussata (3.0): la media delle direzioni dai lati vicini, pesata col quadrato
+        // inverso della distanza — niente faccette sulla lente dove due lati s'incontrano.
+        float wn = 1.0 / ((dd + normalSmooth) * (dd + normalSmooth));
+        nsum += delta * (wn * inversesqrt(dd + 0.000001));
         bool c1 = p.y >= vi.y;
         bool c2 = p.y < prev.y;
         bool c3 = e.x * w.y > e.y * w.x;
@@ -235,6 +252,10 @@ half4 main(float2 coord) {
             best = dd;
             nearest = closest;
         }
+        // La normale smussata (3.0): la media delle direzioni dai lati vicini, pesata col quadrato
+        // inverso della distanza — niente faccette sulla lente dove due lati s'incontrano.
+        float wn = 1.0 / ((dd + normalSmooth) * (dd + normalSmooth));
+        nsum += delta * (wn * inversesqrt(dd + 0.000001));
         bool c1 = p.y >= vi.y;
         bool c2 = p.y < prev.y;
         bool c3 = e.x * w.y > e.y * w.x;
@@ -251,7 +272,7 @@ half4 main(float2 coord) {
     if (-d >= refractionHeight) {
         sampled = content.eval(coord + lensShift);
     } else {
-        float2 away = p - nearest;
+        float2 away = normalSmooth > 0.0 ? nsum : p - nearest;
         float len = length(away);
         float2 grad = len > 0.0001 ? (away / len) * winding : float2(0.0);
         float2 toCenter = p - fieldCenter;
@@ -412,7 +433,9 @@ uniform shader content;
 
 uniform float2 offset;
 uniform float vertCount;
-uniform float2 verts[$PhysicsMaxVertices];
+uniform float2 verts[$PhysicsMaxRingVertices];
+uniform float4 bbox;
+uniform float normalSmooth;
 uniform float soften;
 uniform float refractionHeight;
 uniform float refractionAmount;
@@ -430,14 +453,16 @@ half4 main(float2 coord) {
     float2 p = coord + offset;
     // L'ingrandimento della goccia in moto (3.0): zero a riposo, quindi la lastra di sempre.
     float2 lensShift = (fieldCenter - p) * magnify;
+    if (p.x < bbox.x || p.y < bbox.y || p.x > bbox.z || p.y > bbox.w) return half4(0.0);
 
     int count = int(vertCount);
     float best = 1000000000.0;
     float2 nearest = float2(0.0);
+    float2 nsum = float2(0.0);
     float winding = 1.0;
     float2 first = verts[0];
     float2 prev = first;
-    for (int i = 1; i < $PhysicsMaxVertices; ++i) {
+    for (int i = 1; i < $PhysicsMaxRingVertices; ++i) {
         if (i >= count) break;
         float2 vi = verts[i];
         float2 e = prev - vi;
@@ -450,6 +475,10 @@ half4 main(float2 coord) {
             best = dd;
             nearest = closest;
         }
+        // La normale smussata (3.0): la media delle direzioni dai lati vicini, pesata col quadrato
+        // inverso della distanza — niente faccette sulla lente dove due lati s'incontrano.
+        float wn = 1.0 / ((dd + normalSmooth) * (dd + normalSmooth));
+        nsum += delta * (wn * inversesqrt(dd + 0.000001));
         bool c1 = p.y >= vi.y;
         bool c2 = p.y < prev.y;
         bool c3 = e.x * w.y > e.y * w.x;
@@ -468,6 +497,10 @@ half4 main(float2 coord) {
             best = dd;
             nearest = closest;
         }
+        // La normale smussata (3.0): la media delle direzioni dai lati vicini, pesata col quadrato
+        // inverso della distanza — niente faccette sulla lente dove due lati s'incontrano.
+        float wn = 1.0 / ((dd + normalSmooth) * (dd + normalSmooth));
+        nsum += delta * (wn * inversesqrt(dd + 0.000001));
         bool c1 = p.y >= vi.y;
         bool c2 = p.y < prev.y;
         bool c3 = e.x * w.y > e.y * w.x;
@@ -484,7 +517,7 @@ half4 main(float2 coord) {
     if (-d >= refractionHeight) {
         sampled = content.eval(coord + lensShift);
     } else {
-        float2 away = p - nearest;
+        float2 away = normalSmooth > 0.0 ? nsum : p - nearest;
         float awayLen = length(away);
         float2 grad = awayLen > 0.0001 ? (away / awayLen) * winding : float2(0.0);
         float2 toCenter = p - fieldCenter;

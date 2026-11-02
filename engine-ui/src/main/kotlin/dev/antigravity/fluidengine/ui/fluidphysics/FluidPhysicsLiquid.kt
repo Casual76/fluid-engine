@@ -1,52 +1,53 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /*
- * Il vetro liquido di Fluid-physics (3.0): una forma che viaggia e' UN corpo di liquido, non un
- * rettangolo arrotondato che cambia taglia.
+ * Il vetro liquido di Fluid-physics (3.0): una superficie che viaggia e' una GOCCIA.
  *
- * Fino alla beta 2 la sagoma in viaggio era il lerp fra due rettangoli arrotondati, con un gonfiore
- * uniforme oltre il traguardo: geometria pulita, e per questo "geometrica" — Alessio: "manca di quel
- * effetto vetro non geometrico durante le animazioni, come la pillola". La pillola (e il pomello dello
- * slider) sono gocce di Kyant: la sagoma si stira con la velocita' e si schiaccia all'arrivo su due
- * molle di smorzamento diverso, e la lente piega quello che c'e' sotto. Qui le stesse idee, per una
- * superficie che cambia anche forma:
+ * La sagoma in viaggio non e' piu' una figura geometrica: e' un contorno di 48 punti, ognuno su una
+ * molla verso il suo punto della sagoma a riposo di quell'istante (il rettangolo arrotondato fra il
+ * mittente e il destinatario), legati fra loro da una tensione del bordo. Le molle vicino all'ancora —
+ * il tasto da cui nasce il menu, la riga, il dito — sono dure e seguono senza ritardo; quelle lontane
+ * sono morbide e restano indietro, e lo smorzamento e' misto: relativo vicino all'ancora (segue il
+ * moto della sagoma), assoluto lontano (resiste al moto). Ne viene una forma che cambia con la
+ * velocita' e con la direzione, che non e' mai la stessa figura due volte e che all'arrivo ondeggia e
+ * si ricompone. E' la variante C del banco (`artifacts/banco/banco-liquido.html`), scelta da Alessio:
+ * "cio' che rende davvero liquido un materiale e' proprio il fatto che non e' geometricamente ben
+ * definito". Il corpo elastico per assi della prima versione (un rettangolo stirato su X e Y) e il collo
+ * dell'ancora che si svuota sono stati tolti: la coda attaccata al tasto fa da sola quello che faceva
+ * il collo.
  *
- *  1. **Il corpo e' elastico** ([LiquidBody]): due oscillatori, uno per asse, spinti dall'accelerazione
- *     del centro della sagoma lungo il moto. Accelerare stira il corpo lungo il viaggio (e lo assottiglia
- *     di traverso), frenare lo schiaccia (e lo allarga); i due assi hanno smorzamento e periodo diversi,
- *     quindi all'arrivo larghezza e altezza oscillano sfasate — la gelatina — e si posano.
- *  2. **Il corpo nasce dall'ancora** ([liquidRootFrame]): quando la sagoma parte da un tasto e ne esce
- *     (il menu sopra il tasto), il tasto resta un istante come seconda goccia che si svuota nel corpo,
- *     fusa con lo smooth minimum dello shader: si forma un collo che si assottiglia e si stacca. Al
- *     ritorno la strada inversa: il collo ricompare e il pannello viene risucchiato nel tasto.
- *  3. **La lente si fa goccia in moto** ([liquidLensOptics]): piu' rifrazione al bordo, meno latte, un
- *     filo d'ingrandimento — e a riposo la lastra di sempre.
- *
- * Il patto con il riposo non cambia: **a riposo tutto questo vale zero esatto**. Le deformazioni hanno
- * una soglia sotto cui il corpo si posa e scrive zero (non un numero piccolo), la seconda goccia esiste
- * solo strettamente fra i capi del viaggio, e la lente in moto torna l'ottica dichiarata bit per bit.
- * Con le animazioni ridotte non c'e' niente: niente oscillatori, niente collo, niente lente in moto.
+ * Il patto con il riposo non cambia: quando ogni punto e' entro un quarto di pixel dal suo punto a
+ * riposo e niente si muove, la goccia si posa e la superficie torna la lastra esatta (lo stesso piano
+ * di prima, al bit) — e non chiede piu' fotogrammi. Il primo fotogramma di un viaggio e' la lastra del
+ * mittente. Con le animazioni ridotte non c'e' goccia: la sagoma va dritta come prima.
  */
 
 /**
- * Se le superfici di Fluid-physics sotto questo punto sono di vetro liquido (3.0): il corpo elastico,
- * l'ancora che si svuota col collo, la lente in moto. Vero di serie.
+ * Se le superfici di Fluid-physics sotto questo punto sono di vetro liquido (3.0): la goccia e la
+ * lente in moto. Vero di serie.
  *
  * Falso rimette la geometria di prima — il lerp fra due rettangoli arrotondati e il gonfiore uniforme
  * — senza toccare niente altro: esiste per CONFRONTARE i due (la galleria lo mette in un interruttore
@@ -54,285 +55,444 @@ import kotlin.math.min
  */
 val LocalFluidPhysicsLiquid: ProvidableCompositionLocal<Boolean> = compositionLocalOf { true }
 
-// --- I numeri del liquido -----------------------------------------------------------------------
-//
-// Token di movimento che per ora vivono qui e non in `FluidMotion` (FluidMotion.kt e' in lavorazione
-// altrove): da spostare in blocco, coi nomi che hanno.
+/**
+ * Le manopole della goccia per la galleria (3.0). **Non e' API per le app**: esiste perche' Alessio
+ * possa tarare la goccia in mano sul telefono, e i numeri che sceglie diventano token di
+ * `FluidMotion`. Un'app che la usasse si legherebbe a un numero che domani cambia nome.
+ *
+ * @property edgeTension la tensione del bordo come frazione di quella del banco
+ *   ([FluidMotion.DropEdgeTensionReference]): 0,2 di serie, da 0,2 a 2.
+ */
+@Immutable
+data class FluidPhysicsDropTuning(val edgeTension: Float = FluidMotion.DropEdgeTensionDefault)
 
-internal object FluidLiquid {
+/** Le manopole della goccia in vigore: vedi [FluidPhysicsDropTuning]. Solo per la galleria. */
+val LocalFluidPhysicsDropTuning: ProvidableCompositionLocal<FluidPhysicsDropTuning> =
+  compositionLocalOf { FluidPhysicsDropTuning() }
 
-  /**
-   * Quanto l'accelerazione del centro, in lunghezze del corpo al secondo quadrato, stira il corpo.
-   * Tarato sul menu che nasce da un tasto: ~14% di stiramento nel primo terzo del viaggio, ~6% di
-   * schiacciamento all'arrivo.
-   */
-  const val StrainGain = 0.4f
-
-  /**
-   * Quanto lo stiramento lungo un asse assottiglia l'altro: un corpo che si allunga si stringe, uno
-   * che si schiaccia si allarga. Non 0,5 ("volume costante" in due dimensioni): un po' di piu', perche'
-   * su un pannello la larghezza e' la dimensione che l'occhio misura.
-   */
-  const val StrainPoisson = 0.6f
-
-  /** L'asse X: meno smorzato e piu' lento dell'Y, cosi' i due assi non si muovono mai in coppia. */
-  const val StrainDampingX = 0.38f
-  const val StrainResponseX = 0.30f
-
-  /** L'asse Y. */
-  const val StrainDampingY = 0.5f
-  const val StrainResponseY = 0.26f
-
-  /** Il tetto della deformazione per asse: oltre, un pannello smette di essere quel pannello. */
-  const val MaxStrain = 0.14f
-
-  /** Di quanto un lato puo' spostarsi per la deformazione, al massimo: mai contro il bordo dello schermo. */
-  const val MaxStrainSideDp = 8f
-
-  /**
-   * La lunghezza minima con cui si misura il corpo: un tasto piccolo che parte veloce si stirerebbe
-   * all'infinito se lo si misurasse sulla sua taglia vera.
-   */
-  const val MinBodyLengthDp = 40f
-
-  /**
-   * Fra 0 e questo progresso la deformazione entra pian piano: al progresso zero la sagoma deve essere
-   * ESATTAMENTE l'ancora (il tasto vero si nasconde e si rimette in quel fotogramma), e un corpo che
-   * arriva sul tasto ancora schiacciato salterebbe al cambio di proprietario.
-   */
-  const val StrainAnchorSpan = 0.25f
-
-  /** Sotto questa velocita' del centro il corpo e' fermo. */
-  const val QuietSpeedDp = 4f
-
-  /** Sotto questa deformazione (e questa velocita' di deformazione) il corpo si posa: zero esatto. */
-  const val QuietStrain = 0.0004f
-  const val QuietStrainRate = 0.004f
-
-  /** Il passo d'integrazione massimo: piu' fine di un fotogramma, perche' le molle restino stabili. */
-  const val MaxStepSeconds = 1f / 240f
-
-  /** Un fotogramma piu' lungo di cosi' e' uno stallo: non se ne ricava un'accelerazione. */
-  const val StallSeconds = 0.05f
-
-  // --- La seconda goccia: l'ancora che si svuota ---
-
-  /** A questo progresso l'ancora si e' svuotata del tutto nel corpo. */
-  const val RootDrainEnd = 0.85f
-
-  /**
-   * Mentre si svuota, il centro della goccia rimasta scivola verso il bordo che guarda il corpo, per
-   * questa frazione: a meta' strada il collo resta attaccato fino alla fine invece di lasciare un
-   * puntino isolato sull'ancora.
-   */
-  const val RootSlide = 0.5f
-
-  /** Il raggio di fusione fra l'ancora e il corpo, in lati corti dell'ancora. */
-  const val RootBlendFraction = 0.6f
-
-  /** Il lato corto dell'ancora su cui si misura la fusione, fra questi due (dp). */
-  const val RootBlendMinDp = 24f
-  const val RootBlendMaxDp = 56f
-
-  /** La fusione entra in questo tratto iniziale del viaggio (1/3): al progresso zero e' spenta. */
-  const val RootBlendRamp = 3f
-
-  /** Sotto questa scala la goccia rimasta non si disegna piu'. */
-  const val RootMinScale = 0.02f
-
-  // --- La lente in moto ---
-
-  /** A questa velocita' del centro la lente e' tutta "goccia". */
-  const val LensFullSpeedDp = 700f
-
-  /** Quanto in fretta la lente segue il moto (costante di tempo, secondi). */
-  const val LensFollowSeconds = 0.06f
-
-  /** Sotto questo peso la lente in moto e' spenta. */
-  const val QuietLens = 0.002f
-
-  /** La lente in moto: altezza e spostamento cresciuti, sfocatura calata (vedi [liquidLensOptics]). */
-  const val LensHeightGain = 0.6f
-  const val LensAmountGain = 0.8f
-  const val LensBlurDrop = 0.45f
-
-  /** L'ingrandimento al centro, a lente piena: un filo, la goccia non e' una lente da orologiaio. */
-  const val LensMagnify = 0.035f
-
-  /** La frangia della goccia in moto, come peso: meta' di quella di un tasto. */
-  const val LensDispersion = 0.5f
-
-  // --- Il contenuto ---
-  //
-  // Il contenuto sta dentro il vetro formato, mai sopra il vetro che si forma: arriva quando il corpo
-  // e' quasi il traguardo, e se ne va per primo quando il corpo comincia a ritirarsi.
-
-  /** In apertura le voci entrano fra questi due punti del viaggio. */
-  const val ContentOpenFrom = 0.55f
-  const val ContentOpenTo = 0.9f
-
-  /** In chiusura escono fra questi due (da 0,94 a 0,62): prima che il liquido si ritiri davvero. */
-  const val ContentCloseFrom = 0.62f
-  const val ContentCloseTo = 0.94f
-}
-
-// --- Il corpo elastico ------------------------------------------------------------------------
+// --- La goccia ---------------------------------------------------------------------------------
 
 /**
- * Il corpo elastico di una superficie fisica: due oscillatori smorzati, uno per asse, che il moto
- * della sagoma spinge e che a riposo si posano a zero esatto.
+ * La goccia di una superficie fisica: [points] punti, ognuno su una molla verso il suo punto a riposo,
+ * e la tensione del bordo fra vicini. Si alimenta una volta per fotogramma ([step]) con il contorno a
+ * riposo di quell'istante (campionato con [sampleRestContour], stessi indici a ogni fotogramma) e il
+ * punto d'ancora; fra un fotogramma e l'altro integra a passi di [FluidMotion.DropStepSeconds] col
+ * contorno a riposo interpolato linearmente, come il banco.
  *
- * Si alimenta una volta per fotogramma ([step]) con il centro e il lato corto della sagoma *senza*
- * deformazione, nell'istante del fotogramma: da li' ricava velocita' e accelerazione per differenze, e
- * l'accelerazione lungo il moto (positiva se il corpo accelera nel verso in cui va, negativa se frena)
- * spinge gli oscillatori. Il resto e' fisica di una gelatina: accelerare stira, frenare schiaccia,
- * e ogni asse risuona col suo periodo.
+ * Generica: non sa chi guida la sagoma (una molla di `morphTo`, l'orologio di un menu, il modale) e non
+ * ha bisogno di saperlo — legge il moto dal contorno a riposo. Pura (il tempo lo passa il chiamante):
+ * si prova in JVM.
  *
- * Generico: non sa chi guida la sagoma (una molla di `morphTo`, l'orologio del menu, il modale, un
- * dito) e non ha bisogno di saperlo, perche' legge il moto da cio' che si disegna. Puro (nessun tipo
- * Android, il tempo lo passa il chiamante): si prova in JVM con una traiettoria sintetica.
- *
- * Le uscite ([strainX], [strainY], [lens]) sono stato di snapshot, lette in fase di disegno: scriverle
- * invalida il disegno della superficie e nient'altro.
+ * Le uscite sono [displacementX]/[displacementY] (lo scarto di ogni punto dal suo punto a riposo, in
+ * pixel), [offsetX]/[offsetY] (lo scarto del baricentro) e [lens] (quanto la lente e' "in moto"); [version]
+ * e [quiet] sono stato di snapshot, letto in disegno: scriverli invalida il disegno della superficie.
  */
-internal class LiquidBody {
+internal class LiquidDrop(val points: Int = FluidMotion.DropPoints) {
 
-  /** La deformazione per asse, gia' fermata al tetto: +0,1 = il 10% piu' lungo su quell'asse. */
-  var strainX by mutableFloatStateOf(0f)
-    private set
-  var strainY by mutableFloatStateOf(0f)
-    private set
-
-  /** Quanto la lente e' "goccia in moto", 0..1. */
-  var lens by mutableFloatStateOf(0f)
+  /** Vero quando la goccia e' posata: ogni scarto e' zero esatto e la superficie e' una lastra. */
+  var quiet by mutableStateOf(true)
     private set
 
   /** Cambia a ogni uscita nuova: la chiave della cache del piano. */
   var version by mutableIntStateOf(0)
     private set
 
-  /** Vero quando tutte le uscite valgono zero esatto: il corpo e' posato. */
-  val quiet: Boolean get() = strainX == 0f && strainY == 0f && lens == 0f
+  /** Quanto la lente e' "goccia in moto", 0..1. */
+  var lens by mutableFloatStateOf(0f)
+    private set
 
-  private var ex = 0f
-  private var ux = 0f
-  private var ey = 0f
-  private var uy = 0f
-  private var lensRaw = 0f
+  /** Lo scarto di ogni punto dal suo punto a riposo, pixel (pubblicato a ogni passo). */
+  val displacementX = FloatArray(points)
+  val displacementY = FloatArray(points)
+
+  /** Lo scarto del baricentro della goccia da quello della sagoma a riposo, pixel. */
+  var offsetX = 0f
+    private set
+  var offsetY = 0f
+    private set
+
+  private val rest = FloatArray(points * 2)
+  private val restPrev = FloatArray(points * 2)
+  private val p = FloatArray(points * 2)
+  private val v = FloatArray(points * 2)
+  private val weight = FloatArray(points)
 
   private var hasSample = false
   private var lastTimeNanos = 0L
-  private var cx = 0f
-  private var cy = 0f
-  private var vx = 0f
-  private var vy = 0f
+  private var lensRaw = 0f
 
-  /** Dimentica la storia del moto (non la deformazione): il prossimo campione riparte da li'. */
+  /** Dimentica il tempo dell'ultimo campione: il prossimo riparte da li' (la forma resta dov'e'). */
   fun forgetHistory() {
     hasSample = false
   }
 
-  /** Tutto a zero, subito: le animazioni ridotte, una superficie che se ne va. */
+  /** Posata, subito: le animazioni ridotte, una superficie che se ne va. */
   fun reset() {
-    ex = 0f; ux = 0f; ey = 0f; uy = 0f; lensRaw = 0f
     hasSample = false
-    vx = 0f; vy = 0f
-    publish(0f, 0f, 0f)
+    v.fill(0f)
+    lensRaw = 0f
+    settle()
   }
 
   /**
-   * Un fotogramma: il centro ([centerX], [centerY]) e il lato corto ([length]) della sagoma senza
-   * deformazione, in pixel, all'istante [timeNanos]. [density] tara le soglie in dp.
+   * Un fotogramma: il contorno a riposo di questo istante ([restContour], x,y interlacciati, [points]
+   * punti), l'ancora ([anchorX], [anchorY]) e fin dove arriva ([reachPx]), all'istante [timeNanos].
+   * [edgeTension] e' la frazione di [FluidMotion.DropEdgeTensionReference]; [density] tara le soglie.
    *
-   * @return vero finche' il corpo e' vivo (si muove o non si e' ancora posato): il chiamante chiede
-   *   un altro fotogramma. Falso quando si e' posato, e allora le uscite valgono zero esatto.
+   * @return vero finche' la goccia e' viva (si muove o non si e' posata): il chiamante chiede un altro
+   *   fotogramma. Falso quando si e' posata, e allora ogni scarto vale zero esatto.
    */
-  fun step(timeNanos: Long, centerX: Float, centerY: Float, length: Float, density: Float): Boolean {
+  fun step(
+    timeNanos: Long,
+    restContour: FloatArray,
+    anchorX: Float,
+    anchorY: Float,
+    reachPx: Float,
+    density: Float,
+    edgeTension: Float = FluidMotion.DropEdgeTensionDefault,
+  ): Boolean {
+    val n = points
     if (!hasSample) {
       hasSample = true
       lastTimeNanos = timeNanos
-      cx = centerX
-      cy = centerY
-      vx = 0f
-      vy = 0f
+      restContour.copyInto(rest, endIndex = n * 2)
+      rest.copyInto(restPrev)
+      // Da posata, la goccia parte ESATTAMENTE dalla sagoma a riposo: il primo fotogramma e' la lastra.
+      if (quiet) {
+        rest.copyInto(p)
+        v.fill(0f)
+      }
       return true
     }
-    val dt = (timeNanos - lastTimeNanos) / 1_000_000_000f
-    if (!(dt > 0f)) return true
+    val raw = (timeNanos - lastTimeNanos) / 1_000_000_000f
+    if (!(raw > 0f)) return true
     lastTimeNanos = timeNanos
-    val nvx = (centerX - cx) / dt
-    val nvy = (centerY - cy) / dt
-    cx = centerX
-    cy = centerY
-    // Uno stallo (un fotogramma perso lungo, il processo in pausa) non e' un'accelerazione: la
-    // velocita' si prende, la spinta no.
-    val stalled = dt > FluidLiquid.StallSeconds
-    val ax = if (stalled) 0f else (nvx - vx) / dt
-    val ay = if (stalled) 0f else (nvy - vy) / dt
-    vx = nvx
-    vy = nvy
+    // Un fotogramma lungo (uno stallo) non e' un moto: si integra al piu' un trentesimo di secondo.
+    val dt = min(raw, FluidMotion.DropMaxFrameSeconds)
+    rest.copyInto(restPrev)
+    restContour.copyInto(rest, endIndex = n * 2)
 
-    val speed = hypot(nvx, nvy)
-    val unit = max(density, 0.0001f)
-    // L'accelerazione lungo il moto, per asse: positiva se accelera nel verso in cui va (stira),
-    // negativa se frena (schiaccia).
-    val alongX = if (speed > 0.0001f) ax * (nvx / speed) else 0f
-    val alongY = if (speed > 0.0001f) ay * (nvy / speed) else 0f
-    val body = max(length, FluidLiquid.MinBodyLengthDp * unit)
-    val fx = FluidLiquid.StrainGain * (alongX - FluidLiquid.StrainPoisson * alongY) / body
-    val fy = FluidLiquid.StrainGain * (alongY - FluidLiquid.StrainPoisson * alongX) / body
-
-    val steps = max(1, ceil(dt / FluidLiquid.MaxStepSeconds).toInt())
+    val steps = max(1, ceil(dt / FluidMotion.DropStepSeconds).toInt())
     val h = dt / steps
-    val wx = TwoPi / FluidLiquid.StrainResponseX
-    val wy = TwoPi / FluidLiquid.StrainResponseY
-    repeat(steps) {
-      ux += (-wx * wx * ex - 2f * FluidLiquid.StrainDampingX * wx * ux + fx) * h
-      ex += ux * h
-      uy += (-wy * wy * ey - 2f * FluidLiquid.StrainDampingY * wy * uy + fy) * h
-      ey += uy * h
+    val kNear = FluidMotion.DropStiffnessNear
+    val kFar = FluidMotion.DropStiffnessFar
+    val zeta = FluidMotion.DropDamping
+    val ratio = n / 48f
+    val ks = FluidMotion.DropEdgeTensionReference * edgeTension.coerceAtLeast(0f) * ratio * ratio
+    val reach = max(reachPx, 1f)
+    for (s in 1..steps) {
+      val f = s / steps.toFloat()
+      for (i in 0 until n) {
+        val ix = i * 2
+        val iy = ix + 1
+        val rx = restPrev[ix] + (rest[ix] - restPrev[ix]) * f
+        val ry = restPrev[iy] + (rest[iy] - restPrev[iy]) * f
+        val vrx = (rest[ix] - restPrev[ix]) / dt
+        val vry = (rest[iy] - restPrev[iy]) / dt
+        val w = exp(-hypot(rx - anchorX, ry - anchorY) / reach)
+        weight[i] = w
+        val k = kFar + (kNear - kFar) * w
+        val c = 2f * zeta * sqrt(k)
+        val j0 = ((i + n - 1) % n) * 2
+        val j1 = ((i + 1) % n) * 2
+        // Vicino all'ancora lo smorzamento e' relativo al moto della sagoma (segue senza ritardo),
+        // lontano e' assoluto (resta indietro): e' la coda.
+        //
+        // La tensione del bordo tira ogni punto verso i vicini, ma sullo SCARTO dalla sagoma a riposo e
+        // non sulla posizione (come nel banco): sulla posizione un bordo teso stringe gli angoli anche
+        // da fermo — l'equilibrio non e' la sagoma, la goccia non si posa mai sulla lastra e gli angoli
+        // del pannello si smussano (i bordi "esageratamente smussati" di Alessio). Sullo scarto liscia
+        // la deformazione e basta, e a riposo il contorno e' la sagoma esatta.
+        val dx0 = p[j0] - rPrevAt(j0, f) - (p[ix] - rx)
+        val dx1 = p[j1] - rPrevAt(j1, f) - (p[ix] - rx)
+        val dy0 = p[j0 + 1] - rPrevAt(j0 + 1, f) - (p[iy] - ry)
+        val dy1 = p[j1 + 1] - rPrevAt(j1 + 1, f) - (p[iy] - ry)
+        val fx = k * (rx - p[ix]) + c * (w * vrx - v[ix]) + ks * (dx0 + dx1)
+        val fy = k * (ry - p[iy]) + c * (w * vry - v[iy]) + ks * (dy0 + dy1)
+        v[ix] += fx * h
+        v[iy] += fy * h
+      }
+      for (i in 0 until n * 2) p[i] += v[i] * h
     }
-    // Una sicura, non una taratura: un'integrazione che sfuggisse non deve poter rovesciare la sagoma.
-    ex = ex.coerceIn(-StrainRunaway, StrainRunaway)
-    ey = ey.coerceIn(-StrainRunaway, StrainRunaway)
+    if (!p[0].isFinite() || !p[1].isFinite()) {
+      // Una sicura, non una taratura: un'integrazione che sfuggisse non deve poter rovesciare la sagoma.
+      rest.copyInto(p)
+      v.fill(0f)
+    }
 
-    val lensTarget = (speed / (FluidLiquid.LensFullSpeedDp * unit)).coerceIn(0f, 1f)
-    lensRaw += (lensTarget - lensRaw) * (1f - exp(-dt / FluidLiquid.LensFollowSeconds))
+    // La lente in moto segue la velocita' del baricentro della sagoma a riposo.
+    var cx = 0f
+    var cy = 0f
+    var pcx = 0f
+    var pcy = 0f
+    var restMoving = false
+    var maxDev = 0f
+    var maxSpeed = 0f
+    for (i in 0 until n) {
+      val ix = i * 2
+      cx += rest[ix]
+      cy += rest[ix + 1]
+      pcx += restPrev[ix]
+      pcy += restPrev[ix + 1]
+      if (rest[ix] != restPrev[ix] || rest[ix + 1] != restPrev[ix + 1]) restMoving = true
+      maxDev = max(maxDev, hypot(p[ix] - rest[ix], p[ix + 1] - rest[ix + 1]))
+      maxSpeed = max(maxSpeed, hypot(v[ix], v[ix + 1]))
+    }
+    val unit = max(density, 0.0001f)
+    val speed = hypot(cx - pcx, cy - pcy) / n / dt
+    val lensTarget = (speed / (FluidMotion.LiquidLensFullSpeedDp * unit)).coerceIn(0f, 1f)
+    lensRaw += (lensTarget - lensRaw) * (1f - exp(-dt / FluidMotion.LiquidLensFollowSeconds))
 
-    val moving = speed > FluidLiquid.QuietSpeedDp * unit
-    val settled = !moving &&
-      abs(ex) < FluidLiquid.QuietStrain && abs(ey) < FluidLiquid.QuietStrain &&
-      abs(ux) < FluidLiquid.QuietStrainRate && abs(uy) < FluidLiquid.QuietStrainRate &&
-      lensRaw < FluidLiquid.QuietLens
+    val settled = !restMoving && maxDev < FluidMotion.DropRestPx &&
+      maxSpeed < FluidMotion.DropRestSpeedDp * unit && lensRaw < QuietLens
     if (settled) {
-      ex = 0f; ux = 0f; ey = 0f; uy = 0f; lensRaw = 0f
-      vx = 0f; vy = 0f
-      publish(0f, 0f, 0f)
+      rest.copyInto(p)
+      v.fill(0f)
+      lensRaw = 0f
+      settle()
       return false
     }
-    publish(
-      ex.coerceIn(-FluidLiquid.MaxStrain, FluidLiquid.MaxStrain),
-      ey.coerceIn(-FluidLiquid.MaxStrain, FluidLiquid.MaxStrain),
-      lensRaw.coerceIn(0f, 1f),
-    )
+    var ox = 0f
+    var oy = 0f
+    for (i in 0 until n) {
+      val ix = i * 2
+      displacementX[i] = p[ix] - rest[ix]
+      displacementY[i] = p[ix + 1] - rest[ix + 1]
+      ox += displacementX[i]
+      oy += displacementY[i]
+    }
+    offsetX = ox / n
+    offsetY = oy / n
+    lens = lensRaw.coerceIn(0f, 1f)
+    quiet = false
+    version++
     return true
   }
 
-  private fun publish(sx: Float, sy: Float, l: Float) {
-    if (sx == strainX && sy == strainY && l == lens) return
-    strainX = sx
-    strainY = sy
-    lens = l
-    version++
+  /** La coordinata [index] del contorno a riposo interpolato a [f] dentro il fotogramma. */
+  private fun rPrevAt(index: Int, f: Float): Float = restPrev[index] + (rest[index] - restPrev[index]) * f
+
+  /** La posizione di adesso del punto [i] (pixel): per i test e per chi disegna la goccia nuda. */
+  fun pointX(i: Int): Float = p[i * 2]
+  fun pointY(i: Int): Float = p[i * 2 + 1]
+
+  /** La rigidezza relativa del punto [i] all'ultimo passo (0 lontano, 1 sull'ancora). */
+  fun anchorWeight(i: Int): Float = weight[i]
+
+  private fun settle() {
+    displacementX.fill(0f)
+    displacementY.fill(0f)
+    offsetX = 0f
+    offsetY = 0f
+    val changed = !quiet || lens != 0f
+    lens = 0f
+    quiet = true
+    if (changed) version++
   }
 
   private companion object {
-    const val TwoPi = 6.2831855f
-    const val StrainRunaway = 0.5f
+    const val QuietLens = 0.002f
   }
 }
 
-// --- La geometria del liquido ------------------------------------------------------------------
+// --- Il contorno a riposo ------------------------------------------------------------------------
+
+/**
+ * Il perimetro di un rettangolo arrotondato a quattro raggi, come nove tratti percorsi dall'alto al
+ * centro in senso orario (sullo schermo): mezzo lato alto, angolo in alto a destra, lato destro, ...,
+ * l'altra meta' del lato alto. E' il `rrAt` del banco, coi raggi per angolo dell'engine.
+ */
+internal class RoundedRectPerimeter {
+  private val len = FloatArray(9)
+  private var cx = 0f
+  private var top = 0f
+  private var left = 0f
+  private var right = 0f
+  private var bottom = 0f
+  private var rTL = 0f
+  private var rTR = 0f
+  private var rBR = 0f
+  private var rBL = 0f
+
+  /** La lunghezza totale del perimetro, pixel. */
+  var total = 0f
+    private set
+
+  fun set(frame: Rect, radii: FluidCornerRadii) {
+    left = frame.left
+    top = frame.top
+    right = frame.right
+    bottom = frame.bottom
+    cx = frame.center.x
+    val half = min(frame.width, frame.height) / 2f
+    rTL = radii.topLeft.coerceIn(0f, half)
+    rTR = radii.topRight.coerceIn(0f, half)
+    rBR = radii.bottomRight.coerceIn(0f, half)
+    rBL = radii.bottomLeft.coerceIn(0f, half)
+    val q = (PI / 2).toFloat()
+    len[0] = max(0f, (right - rTR) - cx)
+    len[1] = q * rTR
+    len[2] = max(0f, (bottom - rBR) - (top + rTR))
+    len[3] = q * rBR
+    len[4] = max(0f, (right - rBR) - (left + rBL))
+    len[5] = q * rBL
+    len[6] = max(0f, (bottom - rBL) - (top + rTL))
+    len[7] = q * rTL
+    len[8] = max(0f, cx - (left + rTL))
+    total = len.sum()
+  }
+
+  /** La lunghezza del tratto [k] (0..8: i dispari sono gli angoli). */
+  fun segment(k: Int): Float = len[k]
+
+  /** Il punto a distanza [d] lungo il perimetro, in [out] a [index] (x, y). */
+  fun pointAt(d: Float, out: FloatArray, index: Int) {
+    var rem = if (total > 0f) ((d % total) + total) % total else 0f
+    var k = 0
+    while (k < 8 && rem > len[k]) {
+      rem -= len[k]
+      k++
+    }
+    val x: Float
+    val y: Float
+    when (k) {
+      0 -> { x = cx + rem; y = top }
+      1 -> { val a = arc(rem, rTR); x = right - rTR + rTR * cos(-HalfPi + a); y = top + rTR + rTR * sin(-HalfPi + a) }
+      2 -> { x = right; y = top + rTR + rem }
+      3 -> { val a = arc(rem, rBR); x = right - rBR + rBR * cos(a); y = bottom - rBR + rBR * sin(a) }
+      4 -> { x = right - rBR - rem; y = bottom }
+      5 -> { val a = arc(rem, rBL); x = left + rBL + rBL * cos(HalfPi + a); y = bottom - rBL + rBL * sin(HalfPi + a) }
+      6 -> { x = left; y = bottom - rBL - rem }
+      7 -> { val a = arc(rem, rTL); x = left + rTL + rTL * cos(Pi + a); y = top + rTL + rTL * sin(Pi + a) }
+      else -> { x = left + rTL + rem; y = top }
+    }
+    out[index] = x
+    out[index + 1] = y
+  }
+
+  private fun arc(rem: Float, r: Float): Float = if (r > 0f) rem / r else 0f
+
+  private companion object {
+    const val HalfPi = (PI / 2).toFloat()
+    const val Pi = PI.toFloat()
+  }
+}
+
+/**
+ * Il contorno a riposo di [slab] in [count] punti equidistanti lungo il perimetro, dall'alto al centro
+ * in senso orario: gli stessi indici fra il mittente e il destinatario, quindi fra un fotogramma e
+ * l'altro (il "per lunghezza d'arco" del banco).
+ */
+internal fun sampleRestContour(slab: FluidForm.Slab, count: Int, out: FloatArray, perimeter: RoundedRectPerimeter = RoundedRectPerimeter()) {
+  perimeter.set(slab.frame, slab.cornerRadii)
+  val total = perimeter.total
+  for (i in 0 until count) perimeter.pointAt(total * i / count, out, i * 2)
+}
+
+/**
+ * Le posizioni lungo il perimetro (in frazioni 0..1 dall'alto al centro) dei punti con cui si
+ * DISEGNA la goccia: [count] punti, un numero fisso per ogni angolo ([cornerShare] del totale, divisi
+ * fra gli angoli che ci sono) e il resto sui lati, in proporzione alla lunghezza. Cosi' gli angoli del
+ * pannello restano definiti — dodici punti su un quarto di cerchio stanno entro un quinto di pixel
+ * dall'arco — mentre la goccia si simula con [FluidMotion.DropPoints] punti equidistanti, che bastano
+ * alla sua forma ma su un pannello largo lascerebbero due punti per angolo.
+ */
+internal fun renderParameters(perimeter: RoundedRectPerimeter, count: Int, out: FloatArray, cornerShare: Float = 0.5f) {
+  val total = perimeter.total
+  if (!(total > 0f)) {
+    for (i in 0 until count) out[i] = i / count.toFloat()
+    return
+  }
+  var corners = 0
+  for (k in 1..7 step 2) if (perimeter.segment(k) > 0.5f) corners++
+  var edges = 0f
+  for (k in 0..8 step 2) edges += perimeter.segment(k)
+  val perCorner = when {
+    corners == 0 -> 0
+    edges < 1f -> count / corners
+    else -> (count * cornerShare / corners).toInt()
+  }
+  val edgeBudget = count - perCorner * corners
+  val counts = IntArray(9)
+  var assigned = 0
+  for (k in 0..8) {
+    counts[k] = when {
+      k % 2 == 1 -> if (perimeter.segment(k) > 0.5f) perCorner else 0
+      edges > 0f -> (edgeBudget * perimeter.segment(k) / edges).toInt()
+      else -> 0
+    }
+    assigned += counts[k]
+  }
+  // L'avanzo degli arrotondamenti al lato piu' lungo (o al primo angolo, se lati non ce ne sono).
+  var target = 0
+  if (edges >= 1f) {
+    for (k in 0..8 step 2) if (perimeter.segment(k) > perimeter.segment(target)) target = k
+  } else {
+    target = (1..7 step 2).firstOrNull { counts[it] > 0 } ?: 0
+  }
+  counts[target] += count - assigned
+  var index = 0
+  var start = 0f
+  for (k in 0..8) {
+    val l = perimeter.segment(k)
+    val c = counts[k]
+    for (j in 0 until c) {
+      if (index < count) {
+        out[index] = (start + l * j / c) / total
+        index++
+      }
+    }
+    start += l
+  }
+  while (index < count) {
+    out[index] = index / count.toFloat()
+    index++
+  }
+}
+
+/**
+ * Il contorno da DISEGNARE della goccia: [count] punti della sagoma a riposo [slab] (esatti, coi
+ * parametri di [renderParameters]) spostati dello scarto della goccia interpolato lungo il perimetro
+ * (Catmull-Rom periodica fra i [drop] punti simulati). A goccia posata e' la sagoma a riposo, entro un
+ * quinto di pixel; in viaggio segue la goccia senza faccette agli angoli.
+ */
+internal fun buildDropRing(
+  slab: FluidForm.Slab,
+  drop: LiquidDrop,
+  count: Int,
+  out: FloatArray,
+  perimeter: RoundedRectPerimeter,
+  parameters: FloatArray,
+) {
+  perimeter.set(slab.frame, slab.cornerRadii)
+  renderParameters(perimeter, count, parameters)
+  val total = perimeter.total
+  val n = drop.points
+  for (i in 0 until count) {
+    val u = parameters[i]
+    perimeter.pointAt(u * total, out, i * 2)
+    val x = u * n
+    val i1 = x.toInt().coerceIn(0, n - 1)
+    val f = x - i1
+    val i0 = (i1 + n - 1) % n
+    val i2 = (i1 + 1) % n
+    val i3 = (i1 + 2) % n
+    out[i * 2] += catmullRom(drop.displacementX[i0], drop.displacementX[i1], drop.displacementX[i2], drop.displacementX[i3], f)
+    out[i * 2 + 1] += catmullRom(drop.displacementY[i0], drop.displacementY[i1], drop.displacementY[i2], drop.displacementY[i3], f)
+  }
+}
+
+/** Catmull-Rom uniforme fra [b] e [c], con [a] e [d] come vicini. */
+internal fun catmullRom(a: Float, b: Float, c: Float, d: Float, t: Float): Float {
+  val t2 = t * t
+  val t3 = t2 * t
+  return 0.5f * ((2f * b) + (-a + c) * t + (2f * a - 5f * b + 4f * c - d) * t2 + (-a + 3f * b - 3f * c + d) * t3)
+}
+
+/** Quanti punti ha il contorno che si disegna: il doppio di quelli simulati. */
+internal const val DropRenderPoints = 96
+
+// --- Le utilita' --------------------------------------------------------------------------------
 
 /** Smoothstep fra [from] e [to]. */
 internal fun liquidSmoothstep(from: Float, to: Float, x: Float): Float {
@@ -341,114 +501,24 @@ internal fun liquidSmoothstep(from: Float, to: Float, x: Float): Float {
 }
 
 /**
- * Quanto della deformazione arriva sulla sagoma al progresso [p]: zero sull'ancora (p = 0), pieno da
- * [FluidLiquid.StrainAnchorSpan] in poi. Oltre l'1 e a riposo e' pieno: l'arrivo e' dove la gelatina
- * si vede.
+ * La sagoma a riposo di un viaggio fra due lastre al progresso [t]: il lerp fino all'1; oltre il
+ * traguardo gonfiato attorno al proprio centro (`1 + gain·(t − 1)` per asse); sotto lo zero la
+ * partenza sgonfiata allo stesso modo (`1 + gain·t`), attorno al suo centro — il ritorno che oltrepassa
+ * l'ancora e si ricompone, come nel banco.
  */
-internal fun liquidStrainWeight(p: Float): Float =
-  if (!(p > 0f)) 0f else liquidSmoothstep(0f, FluidLiquid.StrainAnchorSpan, p)
-
-/**
- * Le otto cifre di uno slab (sinistra, alto, larghezza, altezza, quattro raggi) deformate attorno al
- * proprio centro: [strainX] e [strainY] gia' pesati, e ogni lato che si sposta al massimo di [maxSidePx].
- * I raggi seguono il fattore minore, e mai oltre il mezzo lato: un tasto tondo resta tondo anche
- * schiacciato.
- */
-internal fun strainSlab(values: FloatArray, strainX: Float, strainY: Float, maxSidePx: Float): FloatArray {
-  if (strainX == 0f && strainY == 0f) return values
-  val w = values[2]
-  val h = values[3]
-  val dx = (w * strainX / 2f).coerceIn(-maxSidePx, maxSidePx)
-  val dy = (h * strainY / 2f).coerceIn(-maxSidePx, maxSidePx)
-  val nw = max(w + 2f * dx, MinSlabSidePx)
-  val nh = max(h + 2f * dy, MinSlabSidePx)
-  val sx = if (w > 0f) nw / w else 1f
-  val sy = if (h > 0f) nh / h else 1f
-  val radiusScale = min(sx, sy)
-  val half = min(nw, nh) / 2f
-  return floatArrayOf(
-    values[0] + (w - nw) / 2f,
-    values[1] + (h - nh) / 2f,
-    nw,
-    nh,
-    (values[4] * radiusScale).coerceIn(0f, half),
-    (values[5] * radiusScale).coerceIn(0f, half),
-    (values[6] * radiusScale).coerceIn(0f, half),
-    (values[7] * radiusScale).coerceIn(0f, half),
+internal fun dropRestSlab(from: FluidForm.Slab, to: FluidForm.Slab, t: Float, gainX: Float, gainY: Float): FluidForm.Slab = when {
+  t > 1f -> inflateSlab(to, to.frame.center.x, to.frame.center.y, 1f + (t - 1f) * gainX, 1f + (t - 1f) * gainY)
+  t < 0f -> inflateSlab(
+    from,
+    from.frame.center.x,
+    from.frame.center.y,
+    (1f + t * gainX).coerceAtLeast(0.5f),
+    (1f + t * gainY).coerceAtLeast(0.5f),
   )
-}
-
-/**
- * Un anello di vertici deformato attorno al centro del suo riquadro, in un array nuovo: la stessa
- * deformazione di [strainSlab] per una sagoma libera.
- */
-internal fun strainRing(ring: FloatArray, count: Int, strainX: Float, strainY: Float, maxSidePx: Float): FloatArray {
-  if (strainX == 0f && strainY == 0f) return ring
-  val bounds = ringBounds(ring, count)
-  val w = bounds.width
-  val h = bounds.height
-  val sx = if (w > 0f) 1f + (w * strainX).coerceIn(-2f * maxSidePx, 2f * maxSidePx) / w else 1f
-  val sy = if (h > 0f) 1f + (h * strainY).coerceIn(-2f * maxSidePx, 2f * maxSidePx) / h else 1f
-  val c = bounds.center
-  val out = FloatArray(count * 2)
-  for (i in 0 until count) {
-    out[i * 2] = c.x + (ring[i * 2] - c.x) * sx
-    out[i * 2 + 1] = c.y + (ring[i * 2 + 1] - c.y) * sy
+  else -> {
+    val v = lerpSlab(from, to, t)
+    FluidForm.Slab(Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]), FluidCornerRadii(v[4], v[5], v[6], v[7]))
   }
-  return out
-}
-
-/**
- * Quanto resta dell'ancora al progresso [p]: tutta alla partenza, niente da [FluidLiquid.RootDrainEnd]
- * in poi. Una funzione del progresso, non del tempo: il viaggio di ritorno la ripercorre all'inverso
- * (l'ancora ricompare e risucchia il corpo), e un viaggio invertito a meta' la trova dove l'aveva
- * lasciata.
- */
-internal fun liquidRootScale(p: Float): Float = 1f - liquidSmoothstep(0f, FluidLiquid.RootDrainEnd, p)
-
-/**
- * L'ancora che si svuota, a scala [scale]: il riquadro di [origin] rimpicciolito attorno al proprio
- * centro, col centro che scivola verso il punto del bordo di [origin] piu' vicino al centro di
- * [target] (vedi [FluidLiquid.RootSlide]).
- */
-internal fun liquidRootFrame(origin: Rect, target: Rect, scale: Float): Rect {
-  val s = scale.coerceIn(0f, 1f)
-  val c = origin.center
-  val t = target.center
-  val edgeX = t.x.coerceIn(origin.left, origin.right)
-  val edgeY = t.y.coerceIn(origin.top, origin.bottom)
-  val slide = (1f - s) * FluidLiquid.RootSlide
-  val x = c.x + (edgeX - c.x) * slide
-  val y = c.y + (edgeY - c.y) * slide
-  val hw = origin.width / 2f * s
-  val hh = origin.height / 2f * s
-  return Rect(x - hw, y - hh, x + hw, y + hh)
-}
-
-/**
- * Il raggio di fusione fra l'ancora e il corpo al progresso [p], in pixel: una frazione del lato corto
- * dell'ancora, spento al progresso zero (li' corpo e ancora coincidono, e lo smooth minimum di due
- * campi uguali gonfierebbe la sagoma di un quarto del raggio).
- */
-internal fun liquidRootBlend(origin: Rect, p: Float, density: Float): Float {
-  val side = origin.minDimension.coerceIn(FluidLiquid.RootBlendMinDp * density, FluidLiquid.RootBlendMaxDp * density)
-  val ramp = (p * FluidLiquid.RootBlendRamp).coerceIn(0f, 1f)
-  return FluidLiquid.RootBlendFraction * side * ramp
-}
-
-/**
- * Se il corpo, partendo da [origin], ne esce davvero: il centro del traguardo sta fuori dalla partenza
- * (il corpo va da un'altra parte, non cresce sul posto) e il traguardo non la contiene. Falso per le
- * azioni della barra, che si aprono SOPRA il tasto (una seconda goccia dentro il corpo non si vedrebbe
- * e costerebbe un pezzo di campo in piu' per pixel), e per le forme che cambiano attorno allo stesso
- * centro (il Playground): li' l'ancora coinciderebbe col corpo, e lo smooth minimum di due campi
- * quasi uguali la gonfierebbe di un quarto del raggio di fusione.
- */
-internal fun liquidLeavesOrigin(origin: Rect, target: Rect): Boolean {
-  if (origin.contains(target.center)) return false
-  val slack = 1f
-  return origin.left < target.left - slack || origin.top < target.top - slack ||
-    origin.right > target.right + slack || origin.bottom > target.bottom + slack
 }
 
 // --- La lente in moto -------------------------------------------------------------------------
@@ -465,9 +535,9 @@ internal fun liquidLensOptics(optics: GlassOptics, weight: Float): GlassOptics {
   val w = weight.coerceIn(0f, 1f)
   if (w <= 0f) return optics
   return optics.copy(
-    blurScale = optics.blurScale * (1f - FluidLiquid.LensBlurDrop * w),
-    refractionHeight = (optics.refractionHeight.value * (1f + FluidLiquid.LensHeightGain * w)).dp,
-    refractionAmount = (optics.refractionAmount.value * (1f + FluidLiquid.LensAmountGain * w)).dp,
+    blurScale = optics.blurScale * (1f - LensBlurDrop * w),
+    refractionHeight = (optics.refractionHeight.value * (1f + LensHeightGain * w)).dp,
+    refractionAmount = (optics.refractionAmount.value * (1f + LensAmountGain * w)).dp,
   )
 }
 
@@ -482,12 +552,23 @@ internal fun liquidMaterial(material: PhysicsMaterial, weight: Float): PhysicsMa
   return PhysicsMaterial(
     optics = liquidLensOptics(material.optics, w),
     depthEffect = material.depthEffect + (1f - material.depthEffect) * w,
-    dispersion = material.dispersion + (FluidLiquid.LensDispersion - material.dispersion).coerceAtLeast(0f) * w,
+    dispersion = material.dispersion + (LensDispersion - material.dispersion).coerceAtLeast(0f) * w,
   )
 }
 
 /** L'ingrandimento al centro della lente in moto, 0 a riposo. */
 internal fun liquidMagnify(weight: Float): Float {
   val w = weight.coerceIn(0f, 1f)
-  return if (w <= 0f) 0f else FluidLiquid.LensMagnify * w
+  return if (w <= 0f) 0f else LensMagnify * w
 }
+
+/** La lente in moto: altezza e spostamento cresciuti, sfocatura calata. */
+internal const val LensHeightGain = 0.6f
+internal const val LensAmountGain = 0.8f
+internal const val LensBlurDrop = 0.45f
+
+/** L'ingrandimento al centro, a lente piena: un filo, la goccia non e' una lente da orologiaio. */
+internal const val LensMagnify = 0.035f
+
+/** La frangia della goccia in moto, come peso: meta' di quella di un tasto. */
+internal const val LensDispersion = 0.5f

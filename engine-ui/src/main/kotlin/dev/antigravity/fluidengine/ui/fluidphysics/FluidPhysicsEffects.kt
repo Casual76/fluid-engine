@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.runtimeShaderEffect
@@ -14,11 +15,17 @@ internal class PhysicsUniformScratch {
   val rects = FloatArray(PhysicsMaxPieces * 4)
   val radii = FloatArray(PhysicsMaxPieces * 4)
   val blends = FloatArray(PhysicsMaxPieces)
-  val verts = FloatArray(PhysicsMaxVertices * 2)
+  val verts = FloatArray(PhysicsMaxRingVertices * 2)
 }
 
 /** Larghezza dell'antialias della maschera, in pixel di scope. */
 private const val MaskAntialiasPx = 1.25f
+
+/**
+ * Su quale distanza la normale di una sagoma libera si media fra i lati vicini (3.0): abbastanza da
+ * sciogliere lo spigolo fra due lati della goccia, poco rispetto a un lato.
+ */
+private val PolyNormalSmooth = 4.dp
 
 /**
  * La profondità della lente come PESO (3.0): 0 è il bordo piatto, 1 la lente con profondità.
@@ -193,13 +200,22 @@ internal fun BackdropEffectScope.polyMorphLens(
     padding = physicsLensPadding(padding, height)
   }
 
-  val count = plan.vertCount.coerceIn(3, PhysicsMaxVertices)
+  val count = plan.vertCount.coerceIn(3, PhysicsMaxRingVertices)
   for (i in 0 until count * 2) {
     scratch.verts[i] = plan.verts[i] * scopeFactor
   }
   for (i in count * 2 until scratch.verts.size) {
     scratch.verts[i] = 0f
   }
+  // Il riquadro fuori dal quale lo shader esce subito (3.0), allargato di quanto la sagoma puo' sporgere
+  // dal proprio anello (l'erosione) e dell'antialias.
+  val margin = (plan.soften + MaskAntialiasPx) * scopeFactor + 2f
+  val bx0 = plan.bounds.left * scopeFactor - margin
+  val by0 = plan.bounds.top * scopeFactor - margin
+  val bx1 = plan.bounds.right * scopeFactor + margin
+  val by1 = plan.bounds.bottom * scopeFactor + margin
+  val smoothPx = PolyNormalSmooth.toPx() * scopeFactor
+  val smooth = smoothPx * smoothPx
 
   val currentPadding = padding
   val chroma = dispersionUniform(chromaticAberration)
@@ -208,6 +224,8 @@ internal fun BackdropEffectScope.polyMorphLens(
       setFloatUniform("offset", -currentPadding, -currentPadding)
       setFloatUniform("vertCount", count.toFloat())
       setFloatUniform("verts", scratch.verts)
+      setFloatUniform("bbox", bx0, by0, bx1, by1)
+      setFloatUniform("normalSmooth", smooth)
       setFloatUniform("soften", plan.soften * scopeFactor)
       setFloatUniform("refractionHeight", height)
       setFloatUniform("refractionAmount", -refractionAmountPx)
@@ -233,6 +251,8 @@ internal fun BackdropEffectScope.polyMorphLens(
     setFloatUniform("offset", -currentPadding, -currentPadding)
     setFloatUniform("vertCount", count.toFloat())
     setFloatUniform("verts", scratch.verts)
+    setFloatUniform("bbox", bx0, by0, bx1, by1)
+    setFloatUniform("normalSmooth", smooth)
     setFloatUniform("soften", plan.soften * scopeFactor)
     setFloatUniform("refractionHeight", height)
     setFloatUniform("refractionAmount", -refractionAmountPx)

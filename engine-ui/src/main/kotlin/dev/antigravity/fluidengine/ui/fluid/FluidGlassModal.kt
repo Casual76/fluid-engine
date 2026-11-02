@@ -62,7 +62,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.CornerRadius
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
-import dev.antigravity.fluidengine.ui.fluidphysics.FluidLiquid
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsShadow
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
@@ -1385,7 +1384,7 @@ private fun FluidAnchoredPopover(
               alpha = presence() * if (open()) {
                 ((travel - 0.45f) / 0.45f).coerceIn(0f, 1f)
               } else {
-                ((travel - FluidLiquid.ContentCloseFrom) / (FluidLiquid.ContentCloseTo - FluidLiquid.ContentCloseFrom))
+                ((travel - FluidMotion.LiquidContentCloseFrom) / (FluidMotion.LiquidContentCloseTo - FluidMotion.LiquidContentCloseFrom))
                   .coerceIn(0f, 1f)
               }
               val anchorCenterX = placement.anchorLeft + placement.anchorWidth / 2f
@@ -1596,9 +1595,6 @@ private fun FluidAnchoredPopover(
         overshootInflationX = inflation.x,
         overshootInflationY = inflation.y,
         startFrame = null,
-        // La card nasce dalla riga (3.0, il vetro liquido): dove la riga sporge dalla card, resta un
-        // istante a svuotarsi nel corpo, e al ritorno la risucchia.
-        liquidAnchor = anchor != null,
       )
     }
 
@@ -1665,8 +1661,8 @@ internal fun FluidLiftedPreview(
       from = FluidForm.Slab(bounds, FluidCornerRadii.all(radiusPx.coerceAtMost(bounds.minDimension / 2f))),
       to = FluidForm.Slab(lifted, FluidCornerRadii.all(radiusPx.coerceAtMost(lifted.minDimension / 2f))),
       progress = if (swells) ({ progress().coerceAtLeast(0f) }) else lift,
-      overshootInflationX = if (swells) FluidLiftedSwellX else 0f,
-      overshootInflationY = if (swells) FluidLiftedSwellY else 0f,
+      overshootInflationX = if (swells) FluidMotion.LiftedSwellX else 0f,
+      overshootInflationY = if (swells) FluidMotion.LiftedSwellY else 0f,
     )
   }
   val fallback = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -1704,7 +1700,7 @@ internal fun FluidLiftedPreview(
       .graphicsLayer {
         // L'immagine, non il vetro: scalarla e' lecito. Dal bordo basso, contro cui si apre il menu; il
         // gonfiore dell'arrivo con una scala sola (il minore dei due assi), mai anamorfica.
-        val s = lerp(1f, FluidLiftedPreviewScale, lift()) * (1f + swell() * FluidLiftedSwellX)
+        val s = lerp(1f, FluidLiftedPreviewScale, lift()) * (1f + swell() * FluidMotion.LiftedSwellX)
         scaleX = s
         scaleY = s
         transformOrigin = TransformOrigin(0.5f, 1f)
@@ -2300,13 +2296,6 @@ private const val FluidPopoverStartScale = 0.42f
 /** How much the lifted row grows. Any more and it stops being the row and becomes a card. */
 private const val FluidLiftedPreviewScale = 1.03f
 
-/**
- * Il gonfiore della riga sollevata all'oltrepasso della molla del menu, per asse: con il picco
- * dell'8,4% e' ~2% sui fianchi (una riga larga quanto lo schermo non deve toccarne i bordi) e ~5% in
- * altezza. Poi la molla lo riporta alla riga sollevata.
- */
-private const val FluidLiftedSwellX = 0.25f
-private const val FluidLiftedSwellY = 0.6f
 
 /** Quanto e' piccolo il contenuto quando il bordo comincia ad aprirsi. Pochi punti percentuali. */
 private const val FluidPopoverContentStartScale = 0.90f

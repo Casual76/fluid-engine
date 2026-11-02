@@ -104,9 +104,16 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val journey = remember { FluidMenuJourney() }
   val fade = remember { Animatable(0f, 0.001f) }
+  val physics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   val selection = entry.selection
+  // L'uscita aspetta anche la goccia (3.0): un'azione della barra torna al suo tasto solo quando la
+  // coda si e' posata su di lui, se no il tasto vero comparirebbe sopra una goccia ancora in moto. Il
+  // contestuale a quel punto e' gia' spento (la dissolvenza), e non aspetta niente.
   val exitFinished by remember {
-    derivedStateOf { journey.settledClosed && !fade.isRunning && fade.value <= 0.001f }
+    derivedStateOf {
+      journey.settledClosed && !fade.isRunning && fade.value <= 0.001f &&
+        (entry.presentation != FluidGlassModalPresentation.Expand || physics.liquid.quiet)
+    }
   }
 
   // Quello che l'uscita deve ancora mostrare, tenuto dall'ultimo fotogramma aperto: sono valori, e i
@@ -164,6 +171,7 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     entry = entry,
     backdrop = backdrop,
     journey = journey,
+    physics = physics,
     fade = { fade.value },
     actions = lastActions,
     origin = lastOrigin,
@@ -180,6 +188,7 @@ private fun FluidMenuLayerContent(
   entry: FluidGlassModalEntry,
   backdrop: GlassBackdropState?,
   journey: FluidMenuJourney,
+  physics: FluidPhysicsState,
   fade: () -> Float,
   actions: List<FluidContextAction>,
   origin: Rect?,
@@ -194,7 +203,6 @@ private fun FluidMenuLayerContent(
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val metrics = rememberFluidMenuPanelMetrics()
   val selection = entry.selection
-  val physics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   val previewPhysics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   physics.density = density.density
   val current by androidx.compose.runtime.rememberUpdatedState(actions)
@@ -295,7 +303,7 @@ private fun FluidMenuLayerContent(
           hostOrigin = Offset.Zero,
           panel = panel,
           radius = metrics.radiusPx,
-          inflation = fluidMenuInflation(panel.width, panel.height, host.width, metrics.edgeMinPx, metrics.refHeightPx),
+          inflation = fluidDropInflation(panel.width, host.width, metrics.edgeMinPx),
           // Il contestuale nasce da una goccia appesa alla riga, sotto il dito (3.0, il vetro liquido):
           // il corpo esce dalla riga e la goccia resta un istante a svuotarsi, col collo fra le due.
           seed = if (anchor == null) {
@@ -388,7 +396,13 @@ private fun FluidMenuLayerContent(
         panelMaterial = if (backdrop != null) paneGlass else null,
         pageBackdrop = backdrop,
         contentAlpha = { fluidMenuContentAlpha(progress(), closing = journey.closing) },
-        contentMap = { fluidMenuContentMap(target = panel, current = physics.contentBoundsNow(), minScale = FluidMenuLiquidContentMinScale) },
+        contentMap = {
+          fluidMenuLiquidContentMap(
+            target = panel,
+            current = physics.contentBoundsNow(),
+            alpha = fluidMenuContentAlpha(progress(), closing = journey.closing),
+          )
+        },
         onPick = pick,
         modifier = Modifier
           .offset { IntOffset(panel.left.roundToInt(), panel.top.roundToInt()) }

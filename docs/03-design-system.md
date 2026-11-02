@@ -317,7 +317,7 @@ Animazioni ridotte: crescita dimezzata, niente deriva né allungamento, pression
   il gesto, e la pagina scorreva mentre si teneva un tasto: in mano non piaceva. **`FluidChip` e
   `FluidColorDot` cedono il dito alla fila** (`fluidPressable(grip = FluidPressGrip.YieldsToScroll)`):
   appena la fila prende il gesto si sciolgono (calano, smettono di seguire il dito, `PressRelease`) e
-  non cliccano, come in iOS. Righe e card non cambiano.
+  non cliccano, come in iOS. Righe e card non cambiano. Un pulsante che il chiamante ripete su ogni riga di una lista che scorre, o che sta in un pager, passa `grip = FluidPressGrip.YieldsToScroll` (i pulsanti dell'engine lo prendono tutti, il «Riserva» di `FluidModelPickerPortal` lo fa già): lì non c'è un fuori da cui partire. I tondi crescono ×1,5 fino a 48 dp; oltre, di 24 dp in tutto (12 per lato, `RoundLongSideCapDp`); le misure fuori dalle tre taglie: `FluidGlassIconButton(size = …dp)`.
 - **Il click**: di `clickable` per un tocco, del gesto per un dito che ha trascinato (`clickable`
   annulla alla vista di un cambio consumato): scatta se il dito si solleva sul pulsante più 16 dp
   (`FluidPressClickSlack`, o il tocco minimo se più largo), anche dopo aver vagato, con lo stesso
@@ -399,9 +399,7 @@ autonomi saltano e il dito segue 1:1.
 che si chiude»), `Expand` (si apre dal punto toccato, scala 0,91 → 1, opaca). `FluidBackSwipe`:
 `Anywhere` (di serie: da qualunque punto, se nessun figlio — un cursore, un interruttore, una riga che
 scorre di lato — si è preso il dito; uno scorrimento orizzontale arrivato al suo inizio passa la mano),
-`EdgeOnly` (i primi 20 dp, per le pagine piene di gesti propri), `Off`. I tasti non consumano, quindi un
-trascinamento orizzontale che parte su un tasto fa partire il back: come in LibrePods, e da giudicare
-in mano.
+`EdgeOnly` (i primi 20 dp, per le pagine piene di gesti propri), `Off`. Un trascinamento orizzontale che parte su un tasto non porta indietro: il tasto tiene il dito. **Il back a dito passa dal dispatcher** come quello di sistema: oltre la soglia un `BackHandler` (o `PredictiveBackHandler`) abilitato dopo l'host risponde per primo, e la pagina torna sotto il dito con la molla dell'annullo mentre lui decide; senza gestori esce come sempre. Una conferma di uscita non spegne più il gesto. `FluidNavHost(pageColor)`: di serie lo sfondo del tema; trasparente, la pagina non dipinge e nelle transizioni le due pagine si vedono per trasparenza.
 
 **L'inventario.**
 
@@ -664,7 +662,7 @@ veste il viaggio di vetro con la stessa grammatica di `glassSurface` (ruoli, ott
 qualità); `Modifier.fluidPhysicsContent` dà al contenuto il contratto dei modali — dissolvenza e
 zoom uniforme, mai stirato dalla sagoma.
 
-**Vetro liquido (3.0, dopo la beta 2).** In viaggio la sagoma è un corpo elastico: due oscillatori, uno per asse, spinti dall'accelerazione del centro, la stirano lungo il moto mentre accelera e la schiacciano all'arrivo, su periodi diversi (0,38/0,30 s e 0,5/0,26 s: larghezza e altezza oscillano sfasate, la gelatina), poi si posano a zero esatto. Una sagoma che esce dalla propria ancora la lascia come seconda goccia, fusa col collo dello smooth minimum, che si svuota entro l'85% del viaggio e al ritorno risucchia il corpo. Mentre corre, la lente si fa goccia (più rifrazione, meno sfocatura, un filo d'ingrandimento). Il gonfiore uniforme oltre il traguardo resta (la tensione superficiale), ora con la gelatina sopra. Nei menu le voci arrivano a corpo quasi formato (da 0,55 a 0,9), se ne vanno per prime (da 0,94 a 0,62 del ritorno) e il corpo le ritaglia. A riposo la lastra è identica al bit e non chiede fotogrammi; `LocalFluidPhysicsLiquid` spento rimette la geometria di prima, per confrontare; le animazioni ridotte spengono tutto; sotto API 31 resta la deformazione della sagoma, senza il collo. I numeri sono in `FluidLiquid` (`fluidphysics/FluidPhysicsLiquid.kt`).
+**Vetro liquido: la goccia (3.0, dopo la beta 3).** Una superficie che viaggia fra due lastre è una goccia: 48 punti presi dalla sagoma a riposo di quell'istante, ognuno su una molla verso il suo punto, dura accanto all'ancora (il tasto, la riga, il centro di partenza: k 1500) e morbida lontano (k 320, L 110 dp), ζ 0,72, smorzamento relativo vicino e assoluto lontano. Vicino segue senza ritardo, lontano resta indietro: la coda, che fa da collo; lo smooth min resta solo ai gruppi. Una tensione del bordo leggera (0,2 di quella del banco, sullo scarto dal riposo) tiene insieme i vicini senza smussare gli angoli. Andata ~0,42 s (`FluidMotion.dropOpen()`), ritorno ~0,50 s (`dropClose()`), gonfiore `1 + 0,55·(m − 1)` oltre l'1, lente in moto. Le voci arrivano a corpo quasi formato (0,55–0,9), se ne vanno per prime (0,94–0,62), seguono il baricentro della goccia e stanno sempre dentro il vetro di adesso (`dropInnerClip`). Primo fotogramma = lastra del mittente; sotto ¼ px e ferma torna la lastra al bit, senza gradino (il bordo è una fascia col profilo di quello a riposo) e senza fotogrammi chiesti. Rallenta con la scala dell'animatore; animazioni ridotte: niente goccia; sotto API 31 lo stesso contorno come path. Vale per menu del tasto, azioni della barra, contestuale (il menu esce dal punto del dito, la riga sollevata resta una lastra), card, avviso, popover e `morphTo` fra lastre; restano geometrici i gruppi della barra ancorata, le sagome libere e `FluidSearchField`. Token `FluidMotion.Drop*` e `LiquidContent*`; `LocalFluidPhysicsLiquid` e `LocalFluidPhysicsDropTuning` sono manopole di debug della galleria.
 
 **Il contratto di performance.** Un fotogramma di morph è nuovi uniform su uno shader già
 compilato: il clip del layer resta un rettangolo fermo per tutta la vita della superficie (la

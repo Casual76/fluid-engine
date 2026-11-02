@@ -469,7 +469,15 @@ pulsanti. Nessuna app la deve prendere adesso; quando una lo fa, l'ordine è que
 5. **Il piano per ogni app** (stato del repo, componenti propri che l'engine ora offre, transizioni, aptica e
    molle grezze, deprecati, rischi) è nella ricognizione del 2 novembre, `artifacts/design/migrazione-3.0.md`
    (locale, non nel repo): l'ordine lì proposto parte dalle app piccole e pulite.
-6. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
+6. **I pezzi nuovi della 3.0 da usare nelle app** (dopo la ricognizione): Pampa notes toglie
+   `FluidBackSwipe.Off` da `EditorScreen.kt:71` e `ImportScreen.kt:123` (il back a dito ora passa dal suo
+   `BackHandler`: guardare in mano che la conferma esca anche dal dito); PampAI e ClasseViva cancellano la
+   copia di `ModelPicker` per `FluidModelPickerPortal`, che ora cede la lista; i pulsanti ripetuti per riga
+   (`StopSheet.kt:366` di Fluid-transit, `WidgetCard`, i tasti ±dB di Pampa sounds) passano
+   `grip = YieldsToScroll` (e `haptic = null` dove l'azione ha già il suo colpo); Fluidify prende
+   `FluidNavHost(pageColor = Color.Transparent)` e `FluidGlassIconButton(size = 62.dp / 76.dp)`; FluidWeather e
+   Fluid-transit passano i loro 54 dp con `size = 54.dp`.
+7. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
    chiaro, la luce del dito sui tasti, il back sotto il dito. La galleria Fluid Glass («Da provare») è la
    lista di cosa giudicare, e il registro aptico (`FluidHapticTrace`) dice se un tocco ha parlato una volta
    sola.

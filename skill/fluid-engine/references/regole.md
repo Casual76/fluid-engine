@@ -52,7 +52,10 @@ quello di contenuto. Se ti serve un colore nuovo, cercalo prima fra i ruoli esis
 c'è (warning e success non hanno un ruolo Material), aggiungi una coppia fissa con i due valori
 chiaro/scuro, come già fanno `FluidTone.Warning` e `FluidTone.Success`.
 
-Il contrasto è verificato da `FluidContrastTest`. Se aggiungi un ruolo, aggiungi il caso.
+Il contrasto è verificato da `FluidContrastTest`. Se aggiungi un ruolo, aggiungi il caso. **Il vetro segue il
+contrasto di sistema** (Android 14+): pellicola e ripiego più densi, bordo più netto, sempre dalle pellicole
+di `GlassDefaults` (una tinta scritta a mano non lo segue); si forza con `LocalFluidSystemContrast` dentro il
+tema.
 
 ## Liste raggruppate
 
@@ -94,8 +97,9 @@ app che lo distribuisce è GPL-3.0). Cosa vale, e cosa è cambiato dalla 2.12:
   consuma gli spostamenti nel passaggio Main, prima di ogni antenato. Scelta di Alessio dopo la beta 2:
   con LibrePods (il pulsante non prendeva mai il gesto) la pagina scorreva mentre si teneva un tasto.
   **Il chip e il pallino di colore cedono il dito alla fila** (`grip = FluidPressGrip.YieldsToScroll`):
-  stanno in file che scorrono di lato, e appena la fila prende il gesto si sciolgono e non cliccano.
-  Righe e card non cambiano;
+  stanno in file che scorrono di lato, e appena la fila prende il gesto si sciolgono e non cliccano. Righe e card non cambiano. **Un pulsante ripetuto su ogni riga di una lista che scorre, o in un pager, passa
+  `grip = YieldsToScroll`**: lì non c'è un fuori da cui partire. I tondi crescono ×1,5 fino a 48 dp;
+  oltre, di 24 dp in tutto (12 per lato); le misure libere con `FluidGlassIconButton(size = …dp)`;
 - **il click**: di `clickable` per un tocco, del gesto per un dito che ha trascinato (`clickable`
   annulla alla vista di un cambio consumato). Scatta se il dito si solleva sul pulsante più 16 dp
   (`FluidPressClickSlack`), anche dopo aver vagato, con lo stesso `PressClick`; oltre il margine suona
@@ -451,8 +455,11 @@ dito vero non ha questo problema, e il sistema lo dà a ogni evento. Ne seguono 
   il suo `progress` a zero con un'animazione sua, a dito già alzato. Due eventi col dito fermo e il
   progresso in calo vogliono dire che il dito non c'è più, e la pagina parte subito;
 - **il back di sistema passa dal dispatcher di navigationevent**, registrato prima delle pagine: i
-  `BackHandler` dell'app restano davanti a lui, e un'app che ne ha uno (la selezione, un modale) non lo
-  perde;
+  `BackHandler` dell'app restano davanti a lui, e un'app che ne ha uno (la selezione, un modale) non lo perde;
+- **anche il back a dito passa dal dispatcher.** Oltre la soglia il rilascio manda lo stesso «indietro» del
+  sistema: un `BackHandler` abilitato dopo l'host risponde per primo, la pagina torna sotto il dito con la
+  molla dell'annullo e il gestore decide; senza gestori risponde l'host e la pagina esce. Sotto la soglia
+  nessun gestore gira. Non si spegne più il gesto per una conferma di uscita;
 - **un gesto confermato chiama `onBack()` prima della molla**, che continua mentre la pila si accorcia:
   l'app non deve sapere che c'è una molla.
 
@@ -655,8 +662,7 @@ vetro come la pillola. In viaggio gli stessi numeri seguono la sagoma: niente sc
 all'arrivo. Il materiale che cambia (`opticsFrom`) si sfuma con `lerpGlassOptics`, e il margine della cattura
 resta zero per costruzione (sotto un quarto di pixel è zero: l'arrotondamento non deve rifare la cattura).
 L'oltrepasso è un gonfiore attorno al centro del traguardo, mai il lerp oltre l'1; **in viaggio la sagoma si
-deforma, ma solo per il moto**: il corpo elastico stira e schiaccia secondo l'accelerazione del centro, e l'ancora
-si svuota col collo. Tutto vale zero esatto a riposo e con le animazioni ridotte, e a nessuno dei due capi del
+deforma, ma solo per il moto**: ogni punto del contorno insegue il suo punto a riposo con una molla dura accanto all'ancora e morbida lontano: la parte lontana resta indietro e la coda attaccata all'ancora fa da collo. Tutto vale zero esatto a riposo e con le animazioni ridotte, e a nessuno dei due capi del
 viaggio la sagoma differisce dall'ancora o dalla lastra. La molla parte dalla velocità del momento: niente
 rincorse (la rincorsa della casa è il preset `FluidPhysicsJourney.House`).
 

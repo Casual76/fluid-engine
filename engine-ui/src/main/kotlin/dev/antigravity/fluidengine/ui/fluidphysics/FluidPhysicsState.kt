@@ -227,6 +227,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   private val dropPerimeter = RoundedRectPerimeter()
   private val dropParameters = FloatArray(DropRenderPoints)
   private val dropRing = FloatArray(DropRenderPoints * 2)
+  private val dropPoint = FloatArray(2)
 
   /** L'ancora dell'ultimo viaggio: la goccia che si posa dopo l'arrivo la tiene. */
   private var lastAnchor = Offset.Unspecified
@@ -558,7 +559,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * Il piano della goccia: l'anello da disegnare ([buildDropRing], la sagoma a riposo [rest] piu' lo
    * scarto della goccia) nello shader poligonale, senza erosione e col path a segmenti — la maschera,
    * la pellicola e il bordo raccontano la stessa sagoma. Il contenuto si posa sulla sagoma a riposo
-   * spostata dello scarto del baricentro, e si ritaglia sul suo rettangolo arrotondato.
+   * spostata dello scarto del baricentro, e si ritaglia sul rettangolo arrotondato che sta dentro la
+   * goccia di adesso ([dropInnerClip]).
    */
   private fun buildDropPlan(plan: PhysicsRenderPlan, rest: FluidForm.Slab) {
     val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters)
@@ -569,13 +571,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     val f = rest.frame
     val moved = Rect(f.left + dx, f.top + dy, f.right + dx, f.bottom + dy)
     plan.contentBounds = moved
-    plan.contentClipRect = RoundRect(
-      rect = moved,
-      topLeft = CornerRadius(rest.cornerRadii.topLeft),
-      topRight = CornerRadius(rest.cornerRadii.topRight),
-      bottomRight = CornerRadius(rest.cornerRadii.bottomRight),
-      bottomLeft = CornerRadius(rest.cornerRadii.bottomLeft),
-    )
+    // Il ritaglio e' il vetro di adesso, non la sagoma a riposo: dove la goccia e' rimasta indietro il
+    // contenuto non sta sopra la pagina (vedi [dropInnerClip]).
+    plan.contentClipRect = dropInnerClip(rest, dropRing, DropRenderPoints, dropPerimeter, dropParameters, dropPoint)
     plan.dropRest = rest
     plan.dropReach = reach
   }

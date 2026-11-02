@@ -77,10 +77,27 @@ class DropPlanTest {
     val rest = state.dropRestSlabNow()!!
     assertEquals(rest.frame.left + state.liquid.offsetX, plan.contentBounds.left, 0.001f)
     assertEquals(rest.frame.top + state.liquid.offsetY, plan.contentBounds.top, 0.001f)
-    // E si ritaglia sul suo rettangolo arrotondato, nelle coordinate del pannello.
+    // E si ritaglia dentro il vetro di adesso, nelle coordinate del pannello: i lati diritti del
+    // ritaglio stanno dentro la goccia (mezzo pixel d'antialias), anche dove la goccia e' rimasta
+    // indietro rispetto alla sagoma a riposo.
     val clip = state.travelClipIn(panel.frame, t)
     assertNotNull(clip)
-    assertEquals(plan.contentBounds.left - panel.frame.left, clip!!.left, 0.001f)
+    val ring = List(plan.vertCount) { androidx.compose.ui.geometry.Offset(plan.verts[it * 2], plan.verts[it * 2 + 1]) }
+    val c = clip!!
+    val l = c.left + panel.frame.left
+    val r = c.right + panel.frame.left
+    val tp = c.top + panel.frame.top
+    val b = c.bottom + panel.frame.top
+    val rad = c.topLeftCornerRadius.x
+    for (k in 0..20) {
+      val x = l + rad + (r - l - 2f * rad) * k / 20f
+      val y = tp + rad + (b - tp - 2f * rad) * k / 20f
+      for ((px, py) in listOf(x to tp, x to b, l to y, r to y)) {
+        assertTrue("($px, $py) fuori dal vetro: ${sdPolygon(px, py, ring)}", sdPolygon(px, py, ring) <= 0.6f)
+      }
+    }
+    // La goccia si e' allontanata dalla sagoma a riposo: il ritaglio e' piu' stretto di lei.
+    assertTrue(c.height + 1f < rest.frame.height)
     assertNull(state.travelClipIn(panel.frame, 1f))
     // Bordo e ombra non sono "di una lastra" mentre la goccia viaggia.
     assertNull(state.restFormNow())

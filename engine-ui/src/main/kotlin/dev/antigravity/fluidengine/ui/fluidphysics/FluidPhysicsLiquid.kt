@@ -8,7 +8,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
@@ -485,6 +487,74 @@ internal fun buildDropRing(
     reach = maxOf(reach, sqrt(dx * dx + dy * dy))
   }
   return reach
+}
+
+/**
+ * Il ritaglio del contenuto di una goccia: il rettangolo arrotondato che sta DENTRO il vetro di
+ * adesso, non quello della sagoma a riposo. Per ogni lato diritto della sagoma a riposo [slab], il
+ * punto della goccia ([ring], appena costruito da [buildDropRing] con gli stessi [parameters] e lo
+ * stesso [perimeter]) che e' rientrato di piu': la parte della goccia rimasta indietro taglia il
+ * contenuto li' dove il vetro non e' ancora arrivato (o se n'e' gia' andato), e il testo non sta mai
+ * sopra la pagina. Un lato senza tratto diritto (i fianchi di una capsula) resta quello a riposo. Gli
+ * angoli hanno i raggi della sagoma a riposo, entro meta' del lato corto.
+ */
+internal fun dropInnerClip(
+  slab: FluidForm.Slab,
+  ring: FloatArray,
+  count: Int,
+  perimeter: RoundedRectPerimeter,
+  parameters: FloatArray,
+  scratch: FloatArray,
+): RoundRect {
+  val f = slab.frame
+  val r = slab.cornerRadii
+  var top = f.top
+  var bottom = f.bottom
+  var left = f.left
+  var right = f.right
+  var seenTop = false
+  var seenBottom = false
+  var seenLeft = false
+  var seenRight = false
+  val eps = 0.01f
+  for (i in 0 until count) {
+    perimeter.pointAt(parameters[i] * perimeter.total, scratch, 0)
+    val rx = scratch[0]
+    val ry = scratch[1]
+    val x = ring[i * 2]
+    val y = ring[i * 2 + 1]
+    when {
+      abs(ry - f.top) < eps && rx >= f.left + r.topLeft - eps && rx <= f.right - r.topRight + eps -> {
+        top = if (seenTop) max(top, y) else y
+        seenTop = true
+      }
+      abs(ry - f.bottom) < eps && rx >= f.left + r.bottomLeft - eps && rx <= f.right - r.bottomRight + eps -> {
+        bottom = if (seenBottom) min(bottom, y) else y
+        seenBottom = true
+      }
+      abs(rx - f.left) < eps && ry >= f.top + r.topLeft - eps && ry <= f.bottom - r.bottomLeft + eps -> {
+        left = if (seenLeft) max(left, x) else x
+        seenLeft = true
+      }
+      abs(rx - f.right) < eps && ry >= f.top + r.topRight - eps && ry <= f.bottom - r.bottomRight + eps -> {
+        right = if (seenRight) min(right, x) else x
+        seenRight = true
+      }
+    }
+  }
+  if (right < left) right = left
+  if (bottom < top) bottom = top
+  val half = min(right - left, bottom - top) / 2f
+  return RoundRect(
+    left = left,
+    top = top,
+    right = right,
+    bottom = bottom,
+    topLeftCornerRadius = CornerRadius(r.topLeft.coerceIn(0f, half)),
+    topRightCornerRadius = CornerRadius(r.topRight.coerceIn(0f, half)),
+    bottomRightCornerRadius = CornerRadius(r.bottomRight.coerceIn(0f, half)),
+    bottomLeftCornerRadius = CornerRadius(r.bottomLeft.coerceIn(0f, half)),
+  )
 }
 
 /** Catmull-Rom uniforme fra [b] e [c], con [a] e [d] come vicini. */

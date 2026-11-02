@@ -237,6 +237,24 @@ class LiquidDropTest {
   }
 
   @Test
+  fun aDropAtRestClipsItsContentOnItsRestShape() {
+    // A riposo il ritaglio del contenuto e' la sagoma a riposo, raggi compresi; una capsula (fianchi
+    // senza tratto diritto) tiene i suoi fianchi.
+    for (s in listOf(slab(16f, 72f, 268f, 284f, 26f), slab(90f, 296f, 190f, 340f, 22f))) {
+      val ring = FloatArray(DropRenderPoints * 2)
+      val perimeter = RoundedRectPerimeter()
+      val params = FloatArray(DropRenderPoints)
+      buildDropRing(s, LiquidDrop(), DropRenderPoints, ring, perimeter, params)
+      val clip = dropInnerClip(s, ring, DropRenderPoints, perimeter, params, FloatArray(2))
+      assertEquals(s.frame.left, clip.left, 0.001f)
+      assertEquals(s.frame.top, clip.top, 0.001f)
+      assertEquals(s.frame.right, clip.right, 0.001f)
+      assertEquals(s.frame.bottom, clip.bottom, 0.001f)
+      assertEquals(s.cornerRadii.topLeft, clip.topLeftCornerRadius.x, 0.001f)
+    }
+  }
+
+  @Test
   fun theEdgeTensionPullsNeighboursTogether() {
     // Con la tensione del bordo la goccia e' piu' liscia: lo scarto fra punti vicini e' piu' piccolo.
     fun roughness(tension: Float): Float {

@@ -16,10 +16,12 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -27,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -34,6 +37,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -42,9 +46,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pinch
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
@@ -54,6 +61,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFastScroll
 import dev.antigravity.fluidengine.ui.fluid.FluidFastScroller
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidImageViewer
+import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.FluidScrubber
+import dev.antigravity.fluidengine.ui.fluid.FluidScrubbing
 import dev.antigravity.fluidengine.ui.fluid.FluidReorderState
 import dev.antigravity.fluidengine.ui.fluid.FluidUpdate
 import dev.antigravity.fluidengine.ui.fluid.FluidUpdatePrompt
@@ -93,7 +103,7 @@ private class MoreHaptics : FluidHaptics {
 
 /**
  * I pezzi generici della fase 12c dentro un albero Compose vero: l'aggiornamento (l'avviso e le righe), il
- * riordino, lo scorrimento rapido e il visualizzatore.
+ * riordino, lo scorrimento rapido, lo scrubber e il visualizzatore.
  *
  * I conti stanno nei test puri di `engine-ui`; qui si prova che siano collegati: che il tasto giusto
  * compaia nello stato giusto e chiami la cosa giusta, che un tenuto premuto sollevi e un trascinamento
@@ -705,6 +715,428 @@ class MoreComponentsTest {
     }
     compose.waitForIdle()
     compose.onNodeWithContentDescription("Cursore").assertExists()
+  }
+
+  // ===============================================================================================
+  // Lo scrubber
+  // ===============================================================================================
+
+  /** La posizione che dice il lettore: e' fuori dallo scrubber, che la legge e non la possiede. */
+  private var external by mutableFloatStateOf(0f)
+  private val seeked = mutableListOf<Float>()
+  private val scrubbed = mutableListOf<Float>()
+
+  /** L'ordine delle chiamate di un gesto: `start`, `scrub`..., `seek`, `end`. */
+  private val scrubLog = mutableListOf<String>()
+
+  /** Un brano di 3:20, in millisecondi. */
+  private val millis = 0f..200_000f
+
+  private fun showScrubber(
+    range: ClosedFloatingPointRange<Float> = millis,
+    step: Float = 0f,
+    enabled: Boolean = true,
+    withLabels: Boolean = false,
+  ) {
+    compose.setContent {
+      Themed {
+        Box(Modifier.fillMaxSize()) {
+          FluidScrubber(
+            position = { external },
+            onSeek = {
+              seeked += it
+              scrubLog += "seek"
+            },
+            modifier = Modifier.testTag("scrubber"),
+            valueRange = range,
+            enabled = enabled,
+            step = step,
+            onScrubStart = { scrubLog += "start" },
+            onScrub = {
+              scrubbed += it
+              scrubLog += "scrub"
+            },
+            onScrubEnd = { scrubLog += "end" },
+            startLabel = if (withLabels) FluidScrubbing.Elapsed else null,
+            endLabel = if (withLabels) FluidScrubbing.Remaining else null,
+            keyStep = 10_000f,
+          )
+        }
+      }
+    }
+    compose.waitForIdle()
+    haptics.played.clear()
+  }
+
+  private fun scrubberNode() = compose.onNodeWithTag("scrubber").fetchSemanticsNode()
+
+  /** Il valore che lo scrubber dice a TalkBack: quello che si mostra, non per forza quello che dice il lettore. */
+  private fun shown() = scrubberNode().config[SemanticsProperties.ProgressBarRangeInfo].current
+
+  private fun spoken() = scrubberNode().config[SemanticsProperties.StateDescription]
+
+  private fun playerAt(value: Float) {
+    compose.runOnUiThread { external = value }
+    compose.waitForIdle()
+  }
+
+  /** La x del centro della maniglia a una frazione: 10 dp di margine, 40 dp di maniglia, a 2x. */
+  private fun thumbX(fraction: Float): Float {
+    val edge = 20f
+    val thumb = 80f
+    val track = scrubberNode().size.width.toFloat() - 2f * edge
+    return edge + maxOf(thumb / 4f, minOf(track * fraction, track - thumb / 4f))
+  }
+
+  /** La x di un punto della pista, a una frazione: dove cade un tocco. */
+  private fun trackX(fraction: Float): Float {
+    val edge = 20f
+    return edge + (scrubberNode().size.width.toFloat() - 2f * edge) * fraction
+  }
+
+  /** La metà della riga da 48 dp (a 2x): dove sta la pista. */
+  private val trackY = 48f
+
+  @Test
+  fun `the scrubber thumb stays under the finger from the grab to the lift, and the lift seeks once`() {
+    playerAt(100_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0.5f), trackY))
+      // Una pista da 680 px: 68 px sono un decimo, e il dito e' 1:1.
+      moveBy(Offset(68f, 0f))
+      moveBy(Offset(68f, 0f))
+    }
+    compose.waitForIdle()
+
+    assertEquals("un valore per movimento", 2, scrubbed.size)
+    assertEquals(120_000f, scrubbed[0], 100f)
+    assertEquals(140_000f, scrubbed[1], 100f)
+    assertEquals("la maniglia e' dove il dito dice", 140_000f, shown(), 100f)
+    assertTrue("niente salto prima del rilascio", seeked.isEmpty())
+
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    compose.waitForIdle()
+
+    assertEquals("un salto solo", 1, seeked.size)
+    assertEquals(140_000f, seeked.single(), 100f)
+    assertEquals(listOf("start", "scrub", "scrub", "seek", "end"), scrubLog)
+  }
+
+  @Test
+  fun `taking the thumb off centre does not move it, and a finger going past the end and back does not leave it behind`() {
+    playerAt(100_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      // Quindici pixel a destra del centro: dentro la presa, e la maniglia non si sposta sotto il dito.
+      down(Offset(thumbX(0.5f) + 15f, trackY))
+    }
+    compose.waitForIdle()
+    assertEquals(100_000f, shown(), 1f)
+    assertTrue("afferrare non e' muovere", scrubbed.isEmpty())
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      // Oltre la fine (la maniglia si ferma) e di nuovo indietro: non e' tornata finche' il dito non ripassa dal
+      // punto da cui e' uscito.
+      moveBy(Offset(500f, 0f))
+      moveBy(Offset(-100f, 0f))
+    }
+    compose.waitForIdle()
+    assertEquals("ancora in fondo, il dito non e' ancora rientrato", 200_000f, shown(), 1f)
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    compose.waitForIdle()
+  }
+
+  @Test
+  fun `while the finger is down the player is ignored, and after the lift the thumb waits for the seek`() {
+    playerAt(100_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0.5f), trackY))
+      moveBy(Offset(68f, 0f))
+    }
+    compose.waitForIdle()
+    assertEquals(120_000f, shown(), 100f)
+
+    // Il lettore va avanti per conto suo, a battiti: la maniglia e il valore a voce non lo guardano.
+    repeat(5) {
+      playerAt(external + 1_000f)
+      assertEquals("col dito giu' comanda il dito", 120_000f, shown(), 100f)
+    }
+    assertEquals("2:00 di 3:20", spoken())
+
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    compose.waitForIdle()
+    assertEquals(1, seeked.size)
+
+    // Il seek non e' ancora arrivato: il lettore e' dov'era. La maniglia resta dove l'hai lasciata, niente ritorno.
+    playerAt(106_000f)
+    assertEquals("nessun ritorno", 120_000f, shown(), 100f)
+    assertEquals("2:00 di 3:20", spoken())
+    assertEquals("e nessun secondo salto", 1, seeked.size)
+
+    // Il seek e' arrivato: il lettore e' al punto (poco piu' in la), e da qui conta di nuovo lui.
+    playerAt(120_300f)
+    assertEquals(120_300f, shown(), 1f)
+  }
+
+  @Test
+  fun `a seek the player never makes does not hold the thumb for ever`() {
+    playerAt(100_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0.5f), trackY))
+      moveBy(Offset(68f, 0f))
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(120_000f, shown(), 100f)
+
+    // L'app ha rifiutato il salto: il lettore e' sempre li'. Passato il fermo, la maniglia torna a lui.
+    compose.mainClock.advanceTimeBy(FluidMotion.ScrubberHoldMillis + 200)
+    compose.waitForIdle()
+    assertEquals(100_000f, shown(), 1f)
+  }
+
+  @Test
+  fun `a tap on the track jumps there once and the thumb stays until the player arrives`() {
+    playerAt(150_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performTouchInput { click(Offset(trackX(0.25f), trackY)) }
+    compose.waitForIdle()
+
+    assertEquals(1, seeked.size)
+    assertEquals(50_000f, seeked.single(), 100f)
+    assertEquals("un tocco non e' un trascinamento", listOf("seek"), scrubLog)
+    assertEquals("la maniglia e' al punto, il lettore e' ancora a 150 000", 50_000f, shown(), 100f)
+    assertEquals(listOf(FluidHapticEvent.Tap), haptics.played)
+
+    playerAt(50_200f)
+    assertEquals(50_200f, shown(), 1f)
+  }
+
+  @Test
+  fun `a tap on the very end plays the edge and nothing else`() {
+    playerAt(20_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performTouchInput { click(Offset(trackX(1f), trackY)) }
+    compose.waitForIdle()
+
+    assertEquals(listOf(200_000f), seeked)
+    assertEquals("un momento, un colpo", listOf(FluidHapticEvent.Threshold), haptics.played)
+  }
+
+  @Test
+  fun `a continuous drag plays nothing under the finger, and only the arrival at an end is felt`() {
+    playerAt(60_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0.3f), trackY))
+      repeat(30) { moveBy(Offset(10f, 0f)) }
+    }
+    compose.waitForIdle()
+    assertTrue("niente grana in un brano continuo: ${haptics.played}", haptics.played.isEmpty())
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      moveBy(Offset(400f, 0f))
+      moveBy(Offset(50f, 0f))
+    }
+    compose.waitForIdle()
+    assertEquals("l'estremita' suona una volta, starci no", listOf(FluidHapticEvent.Threshold), haptics.played)
+    assertEquals(200_000f, shown(), 1f)
+
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    compose.waitForIdle()
+    assertEquals(listOf(200_000f), seeked)
+  }
+
+  @Test
+  fun `a stepped scrubber lands on each step with one tick, and the seek is exactly a step`() {
+    // Tredici fotogrammi, come il radar: 0..12 a passi di uno.
+    playerAt(0f)
+    showScrubber(range = 0f..12f, step = 1f)
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0f), trackY))
+      // Una pista da 680 px in dodici passi: 57 px sono poco piu' di un passo.
+      repeat(3) { moveBy(Offset(57f, 0f), delayMillis = 80L) }
+    }
+    compose.waitForIdle()
+    assertEquals(listOf(1f, 2f, 3f), scrubbed)
+    assertEquals("un Tick per passo", listOf(FluidHapticEvent.Tick, FluidHapticEvent.Tick, FluidHapticEvent.Tick), haptics.played)
+
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    compose.waitForIdle()
+    assertEquals(listOf(3f), seeked)
+    assertEquals(3f, shown(), 0f)
+  }
+
+  @Test
+  fun `a tap on a stepped track takes the nearest step and ticks once`() {
+    playerAt(0f)
+    showScrubber(range = 0f..12f, step = 1f)
+
+    compose.onNodeWithTag("scrubber").performTouchInput { click(Offset(trackX(0.5f), trackY)) }
+    compose.waitForIdle()
+
+    assertEquals(listOf(6f), seeked)
+    assertEquals(listOf(FluidHapticEvent.Tick), haptics.played)
+  }
+
+  @Test
+  fun `for the screen reader the scrubber is one slider with a range, a spoken time and two ways to move`() {
+    playerAt(65_000f)
+    showScrubber()
+
+    val node = scrubberNode()
+    assertEquals(listOf("Posizione"), node.config[SemanticsProperties.ContentDescription])
+    assertEquals("1:05 di 3:20", node.config[SemanticsProperties.StateDescription])
+    val info = node.config[SemanticsProperties.ProgressBarRangeInfo]
+    assertEquals(65_000f, info.current, 0f)
+    assertEquals(millis, info.range)
+    assertEquals("continuo: nessun passo", 0, info.steps)
+    assertTrue(node.config.contains(SemanticsActions.SetProgress))
+    assertEquals(listOf("Indietro", "Avanti"), node.config[SemanticsActions.CustomActions].map { it.label })
+    assertTrue("il valore a voce non e' anche un secondo nodo", compose.onAllNodesWithContentDescription("Posizione").fetchSemanticsNodes().size == 1)
+  }
+
+  @Test
+  fun `the screen reader can set the position, and the two actions move by the key step from where the thumb is`() {
+    playerAt(65_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").performSemanticsAction(SemanticsActions.SetProgress) { it(120_000f) }
+    compose.waitForIdle()
+    assertEquals(listOf(120_000f), seeked)
+    assertEquals("2:00 di 3:20", spoken())
+
+    fun act(label: String) {
+      val actions = scrubberNode().config[SemanticsActions.CustomActions]
+      compose.runOnUiThread { actions.first { it.label == label }.action() }
+      compose.waitForIdle()
+    }
+    act("Avanti")
+    act("Avanti")
+    act("Indietro")
+    // Dal punto tenuto (il lettore non c'e' ancora arrivato), non dalla sua posizione: 120 + 10 + 10 - 10.
+    assertEquals(listOf(120_000f, 130_000f, 140_000f, 130_000f), seeked)
+    assertEquals(130_000f, shown(), 1f)
+  }
+
+  @Test
+  fun `a stepped scrubber says how many steps it has and a screen reader lands on a step`() {
+    playerAt(4f)
+    showScrubber(range = 0f..12f, step = 1f)
+
+    assertEquals("dodici intervalli, undici passi interni", 11, scrubberNode().config[SemanticsProperties.ProgressBarRangeInfo].steps)
+    compose.onNodeWithTag("scrubber").performSemanticsAction(SemanticsActions.SetProgress) { it(7.4f) }
+    compose.waitForIdle()
+    assertEquals(listOf(7f), seeked)
+  }
+
+  @Test
+  fun `a switched off scrubber is disabled for the screen reader and does not answer to a finger`() {
+    playerAt(100_000f)
+    showScrubber(enabled = false)
+
+    val node = scrubberNode()
+    assertTrue(node.config.contains(SemanticsProperties.Disabled))
+    assertTrue(!node.config.contains(SemanticsActions.SetProgress))
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0.5f), trackY))
+      moveBy(Offset(100f, 0f))
+      up()
+    }
+    compose.waitForIdle()
+    assertTrue(seeked.isEmpty())
+    assertTrue(scrubLog.isEmpty())
+  }
+
+  @Test
+  fun `the keyboard moves the scrubber by the key step, a page or to an end`() {
+    playerAt(100_000f)
+    showScrubber()
+
+    compose.onNodeWithTag("scrubber").requestFocus()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.DirectionRight) }
+    compose.waitForIdle()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.PageUp) }
+    compose.waitForIdle()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.MoveEnd) }
+    compose.waitForIdle()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.MoveHome) }
+    compose.waitForIdle()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.DirectionLeft) }
+    compose.waitForIdle()
+
+    // 100 + 10 (freccia, il keyStep dato); +20 (pagina: un decimo di 200); fine; inizio; e indietro dall'inizio resta a zero.
+    assertEquals(listOf(110_000f, 130_000f, 200_000f, 0f, 0f), seeked)
+  }
+
+  @Test
+  fun `the texts under the track show the finger while it is down and are not read twice by the screen reader`() {
+    playerAt(65_000f)
+    showScrubber(withLabels = true)
+
+    compose.onNodeWithText("1:05", useUnmergedTree = true).assertExists()
+    compose.onNodeWithText("−2:15", useUnmergedTree = true).assertExists()
+    compose.onAllNodesWithText("1:05").assertCountEquals(0)
+
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(65_000f / 200_000f), trackY))
+      moveBy(Offset(68f, 0f))
+    }
+    compose.waitForIdle()
+    // Il dito e' a 85 000: i testi dicono il dito, non il lettore che e' ancora a 65 000.
+    compose.onNodeWithText("1:25", useUnmergedTree = true).assertExists()
+    compose.onNodeWithText("−1:55", useUnmergedTree = true).assertExists()
+    compose.onAllNodesWithText("1:05", useUnmergedTree = true).assertCountEquals(0)
+
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    compose.waitForIdle()
+  }
+
+  @Test
+  fun `a finger dragging the thumb on a page that scrolls does not scroll the page`() {
+    lateinit var scroll: androidx.compose.foundation.ScrollState
+    external = 100_000f
+    compose.setContent {
+      Themed {
+        scroll = androidx.compose.foundation.rememberScrollState()
+        androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+          androidx.compose.foundation.layout.Spacer(Modifier.fillMaxWidth().height(200.dp))
+          FluidScrubber(
+            position = { external },
+            onSeek = { seeked += it },
+            modifier = Modifier.padding(horizontal = 24.dp).testTag("scrubber"),
+            valueRange = millis,
+            onScrub = { scrubbed += it },
+          )
+          androidx.compose.foundation.layout.Spacer(Modifier.fillMaxWidth().height(2_000.dp))
+        }
+      }
+    }
+    compose.waitForIdle()
+
+    // Un pollice vero: un po' di lato e molto in su, ben oltre lo slop.
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(center)
+      repeat(12) { moveBy(Offset(8f, -18f)) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals("la pagina ha preso il gesto", 0, scroll.value)
+    assertTrue("il valore non ha seguito il dito: $scrubbed", scrubbed.isNotEmpty() && scrubbed.last() > 100_000f)
+    assertEquals(1, seeked.size)
   }
 
   // ===============================================================================================

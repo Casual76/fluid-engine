@@ -29,7 +29,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,6 +56,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFastScroller
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidImageViewer
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
+import dev.antigravity.fluidengine.ui.fluid.FluidScrubber
+import dev.antigravity.fluidengine.ui.fluid.FluidScrubbing
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidUpdatePrompt
 import dev.antigravity.fluidengine.ui.fluid.FluidUpdatePromptSheet
@@ -70,13 +75,18 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidReorderState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
  * I pezzi generici che piu' app si erano riscritte da sole, della fase 12c: l'aggiornamento in-app (l'avviso e
  * le righe delle impostazioni), il riordino per trascinamento (una colonna e una griglia), lo scorrimento
- * rapido con la bolla e il visualizzatore di immagini.
+ * rapido con la bolla, lo scrubber (un brano in riproduzione e una cronologia a passi) e il visualizzatore
+ * di immagini.
  *
  * Non e' ancora nella galleria: la monta chi la prepara. Sta in una colonna sola e **si porta il suo host dei
  * modali** (un palco per il visualizzatore e per il foglio dell'aggiornamento), cosi' funziona dove la si mette.
@@ -96,6 +106,7 @@ fun MoreComponentsDemo() {
     ReorderColumnSection()
     ReorderGridSection()
     FastScrollSection()
+    ScrubberSection()
     ViewerSection()
   }
 }
@@ -441,6 +452,211 @@ private fun FastScrollSection() {
       modifier = Modifier.padding(vertical = 8.dp),
     )
   }
+}
+
+// --- Scrubber --------------------------------------------------------------------------------------
+
+/** Un brano di 3:20, in millisecondi: l'unita' dei lettori, e quella che i formati di casa si aspettano. */
+private const val TrackMillis = 200_000f
+
+/** Quanto il lettore finto ha gia' pronto in avanti, rispetto a dove sta suonando. */
+private const val ReadyAhead = 45_000f
+
+/** Quanto ci mette il lettore finto a rispondere a un salto: lento apposta, per vedere la maniglia che aspetta. */
+private const val SeekLatencyMillis = 700L
+
+/**
+ * Un lettore finto e la sua barra: suona a battiti di 100 ms, ha il pronto sempre un po' avanti, e a un salto
+ * risponde dopo 700 ms. E' il caso per cui lo scrubber esiste: durante il trascinamento la posizione che il
+ * lettore dice (e che continua ad avanzare) non deve spostare niente, e dopo il rilascio la maniglia deve
+ * aspettare il salto invece di tornare indietro.
+ */
+@Composable
+private fun MediaScrubberDemo() {
+  val scope = rememberCoroutineScope()
+  // Gli stati stanno in oggetti e si leggono nelle lambda: la sezione non si ricompone a ogni battito.
+  val position = remember { mutableFloatStateOf(52_000f) }
+  val ready = remember { mutableFloatStateOf(97_000f) }
+  val live = remember { mutableFloatStateOf(-1f) }
+  var playing by remember { mutableStateOf(true) }
+  var seeks by remember { mutableIntStateOf(0) }
+  var seekJob by remember { mutableStateOf<Job?>(null) }
+
+  LaunchedEffect(playing) {
+    while (playing) {
+      delay(100)
+      position.floatValue = (position.floatValue + 100f).coerceAtMost(TrackMillis)
+      ready.floatValue = max(ready.floatValue, (position.floatValue + ReadyAhead).coerceAtMost(TrackMillis))
+      if (position.floatValue >= TrackMillis) playing = false
+    }
+  }
+
+  Stage(height = 230.dp) {
+    Column(
+      modifier = Modifier
+        .align(Alignment.Center)
+        .padding(horizontal = 16.dp)
+        .clip(ContinuousCornerShape(FluidRadius.Card))
+        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+        .padding(horizontal = 6.dp, vertical = 12.dp),
+      verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+      FluidScrubber(
+        position = { position.floatValue },
+        onSeek = { target ->
+          seeks++
+          // Il lettore ci arriva dopo un po': nel frattempo continua a dire dov'era.
+          seekJob?.cancel()
+          seekJob = scope.launch {
+            delay(SeekLatencyMillis)
+            position.floatValue = target
+          }
+        },
+        valueRange = 0f..TrackMillis,
+        buffered = { ready.floatValue },
+        onScrubStart = { live.floatValue = position.floatValue },
+        onScrub = { live.floatValue = it },
+        onScrubEnd = { live.floatValue = -1f },
+        startLabel = FluidScrubbing.Elapsed,
+        endLabel = FluidScrubbing.Remaining,
+        keyStep = 10_000f,
+        modifier = Modifier.testTag("scrubber-media"),
+      )
+      Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        FluidButton(
+          text = if (playing) "Pausa" else "Riproduci",
+          onClick = {
+            if (position.floatValue >= TrackMillis) position.floatValue = 0f
+            playing = !playing
+          },
+          style = FluidButtonStyle.Tinted,
+        )
+        ScrubberReadout(position = { position.floatValue }, live = { live.floatValue }, seeks = { seeks })
+      }
+    }
+  }
+}
+
+/** Cosa dice il lettore, cosa c'e' sotto il dito e quanti salti sono arrivati: i tre numeri che lo scrubber tiene separati. */
+@Composable
+private fun ScrubberReadout(position: () -> Float, live: () -> Float, seeks: () -> Int) {
+  val reading = position()
+  val finger = live()
+  Text(
+    text = buildString {
+      append("Lettore ").append(FluidScrubbing.clock(reading.toLong()))
+      if (finger >= 0f) append(" · dito ").append(FluidScrubbing.clock(finger.toLong()))
+      append(" · salti ").append(seeks())
+    },
+    style = MaterialTheme.typography.labelMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+  )
+}
+
+/** Il fotogramma «adesso» della cronologia di prova: dodici fotogrammi nel passato, uno ogni dieci minuti. */
+private const val NowFrame = 12
+
+/** «adesso», «−1 h 40 min», «+20 min»: la distanza del fotogramma da «adesso», nella lingua dell'app. */
+private fun frameLabel(frame: Int): String {
+  val minutes = (frame - NowFrame) * 10
+  if (minutes == 0) return "adesso"
+  val sign = if (minutes < 0) "−" else "+"
+  val hours = abs(minutes) / 60
+  val rest = abs(minutes) % 60
+  return when {
+    hours == 0 -> "$sign$rest min"
+    rest == 0 -> "$sign$hours h"
+    else -> "$sign$hours h $rest min"
+  }
+}
+
+/**
+ * Una cronologia a fotogrammi, come quella del radar meteo: sedici passi (due ore indietro e mezz'ora avanti),
+ * un punto di riferimento sull'«adesso», un colpo per fotogramma attraversato e un'anteprima viva mentre si
+ * trascina (il fotogramma cambia sotto il dito, senza aspettare il rilascio). Parte in riproduzione e un tocco
+ * sulla barra la ferma, come il radar.
+ */
+@Composable
+private fun TimelineScrubberDemo() {
+  var frame by remember { mutableIntStateOf(NowFrame) }
+  var playing by remember { mutableStateOf(true) }
+  var seeks by remember { mutableIntStateOf(0) }
+  val last = NowFrame + 3
+
+  LaunchedEffect(playing) {
+    while (playing) {
+      delay(if (frame >= last) 1_500L else 450L)
+      frame = if (frame >= last) 0 else frame + 1
+    }
+  }
+
+  Stage(height = 190.dp) {
+    Column(
+      modifier = Modifier
+        .align(Alignment.Center)
+        .padding(horizontal = 16.dp)
+        .clip(ContinuousCornerShape(FluidRadius.Card))
+        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+        .padding(horizontal = 6.dp, vertical = 12.dp),
+      verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+      FluidScrubber(
+        position = frame.toFloat(),
+        onSeek = { target ->
+          seeks++
+          frame = target.roundToInt()
+          playing = false
+        },
+        valueRange = 0f..last.toFloat(),
+        step = 1f,
+        marks = listOf(NowFrame.toFloat()),
+        onScrubStart = { playing = false },
+        onScrub = { frame = it.roundToInt() },
+        endLabel = { shown, _ -> frameLabel(shown.roundToInt()) },
+        valueDescription = { shown, _ -> frameLabel(shown.roundToInt()) },
+        contentDescription = "Orario del fotogramma",
+        modifier = Modifier.testTag("scrubber-timeline"),
+      )
+      Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        FluidButton(
+          text = if (playing) "Pausa" else "Riproduci",
+          onClick = { playing = !playing },
+          style = FluidButtonStyle.Tinted,
+        )
+        Text(
+          text = "Fotogramma ${frame + 1} di ${last + 1} · salti $seeks",
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun ScrubberSection() {
+  FluidSectionHeader(
+    title = "Scrubber",
+    detail = "Un brano che suona: trascina la maniglia (la posizione del lettore non la sposta), rilascia e vedi che aspetta " +
+      "il salto invece di tornare indietro; tocca la pista per saltare; la parte piu' chiara e' quella gia' pronta. " +
+      "Il lettore risponde dopo 700 ms, apposta.",
+  )
+  MediaScrubberDemo()
+  FluidSectionHeader(
+    title = "Scrubber a passi",
+    detail = "Una cronologia di fotogrammi come quella del radar: la maniglia si posa su un fotogramma alla volta, un colpo " +
+      "per passo, e l'anteprima cambia sotto il dito. Il punto e' l'«adesso». Nessun colpo nel brano di sopra, " +
+      "che e' continuo: solo l'arrivo a un'estremita'.",
+  )
+  TimelineScrubberDemo()
 }
 
 // --- Visualizzatore --------------------------------------------------------------------------------

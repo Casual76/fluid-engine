@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.sample.catalog.AllGlassDemo
 import dev.antigravity.fluidengine.sample.catalog.CapsulesAndPartsDemo
 import dev.antigravity.fluidengine.sample.catalog.MenusDemo
 import dev.antigravity.fluidengine.sample.catalog.RowsAndSheetsDemo
@@ -228,6 +229,7 @@ internal fun Gallery(
               GalleryPage.CapsulesAndParts -> CapsulesAndPartsPage(bottomInset) { nav.back() }
               GalleryPage.Gaps -> GapsPage(bottomInset) { nav.back() }
               GalleryPage.Menus -> MenusPage(bottomInset) { nav.back() }
+              GalleryPage.AllGlass -> AllGlassPage(bottomInset) { nav.back() }
               null -> when (nav.route) {
                 RoutePlayground -> PlaygroundTab(bottomInset)
                 RouteControls -> ControlsTab(bottomInset)
@@ -319,6 +321,26 @@ private fun MenusPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () -> Un
     ambient = remember { FluidAmbient(tone = FluidHeroTone.Primary, motif = FluidHeroMotif.Ripples) },
   ) {
     item(key = "menus-demo") { MenusDemo() }
+  }
+}
+
+/**
+ * Tutto in vetro vero (fase 9): chip, segmentato, rail, indice di sezione, barra con la banda,
+ * suggerimento, sincronizzazione e fogli, ognuno su un riquadro che il vetro puo' rifrangere.
+ *
+ * Le sezioni che aprono un foglio usano l'host dei modali della radice, che `Gallery` fornisce a tutto
+ * il contenuto: per questo la demo sta qui e non in una schermata a parte.
+ */
+@Composable
+private fun AllGlassPage(bottomInset: androidx.compose.ui.unit.Dp, onBack: () -> Unit) {
+  FluidScreen(
+    title = "Tutto in vetro",
+    subtitle = "Chip, segmentato, rail, indice, barra con la banda, suggerimento, sincronizzazione, fogli.",
+    onBack = onBack,
+    extraBottomPadding = bottomInset,
+    ambient = remember { FluidAmbient(tone = FluidHeroTone.Primary, motif = FluidHeroMotif.Dots) },
+  ) {
+    item(key = "all-glass-demo") { AllGlassDemo() }
   }
 }
 

@@ -227,6 +227,9 @@ class FluidBetaGalleryTest {
   fun `Menu liquidi si apre con due tocchi da Chrome`() = opensFromChrome("chrome-open-menus", GalleryPage.Menus)
 
   @Test
+  fun `Tutto in vetro si apre con due tocchi da Chrome`() = opensFromChrome("chrome-open-all-glass", GalleryPage.AllGlass)
+
+  @Test
   fun `la riga in cima a Materiale apre Da provare con un tocco`() {
     show(listOf(GalleryEntry.Tab(RouteMaterial)))
 
@@ -389,6 +392,7 @@ class FluidBetaGalleryTest {
     GalleryPage.CapsulesAndParts -> compose.onAllNodes(hasTestTag("capsules-and-parts-demo")).fetchSemanticsNodes().isNotEmpty()
     GalleryPage.Gaps -> shown("Tasti di vetro: tre taglie")
     GalleryPage.Menus -> compose.onAllNodes(hasTestTag("menus-demo")).fetchSemanticsNodes().isNotEmpty()
+    GalleryPage.AllGlass -> compose.onAllNodes(hasTestTag("all-glass-demo")).fetchSemanticsNodes().isNotEmpty()
   }
 }
 

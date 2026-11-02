@@ -100,6 +100,14 @@ private val MenusBar = TryTarget.Page(GalleryPage.Menus, "Menù liquidi › Le a
 private val MenusRows = TryTarget.Page(GalleryPage.Menus, "Menù liquidi › Righe con il menu contestuale")
 private val MenusAlert = TryTarget.Page(GalleryPage.Menus, "Menù liquidi › L'avviso")
 private val MenusLog = TryTarget.Page(GalleryPage.Menus, "Menù liquidi, con il registro aptico acceso in Controlli")
+private val GlassChips = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Chip")
+private val GlassSegmented = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Segmentato")
+private val GlassRail = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Rail")
+private val GlassIndex = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Indice di sezione")
+private val GlassBar = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Barra flottante")
+private val GlassCoach = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Suggerimento")
+private val GlassSync = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Sincronizzazione")
+private val GlassSheets = TryTarget.Page(GalleryPage.AllGlass, "Tutto in vetro › Fogli e pagine")
 
 /** La beta 1: tasti e aptica come LibrePods, menù e pannelli a un materiale, pagine, e i pezzi nuovi. */
 private val Beta1 = TryRound(
@@ -271,14 +279,17 @@ private val Beta1 = TryRound(
 )
 
 /**
- * La beta 2: i menu liquidi (fase 7). Un menu si sceglie col dito che l'ha aperto, e un rilascio altrove
- * lo lascia aperto; l'avviso sta nell'host, in vetro vero. Tutto si prova dalla demo [GalleryPage.Menus].
+ * La beta 2: i menu liquidi (fase 7), tutto in vetro vero (fase 9) e la barra ancorata (fase 8). Un menu
+ * si sceglie col dito che l'ha aperto, e un rilascio altrove lo lascia aperto; l'avviso sta nell'host, in
+ * vetro vero. I menu si provano dalla demo [GalleryPage.Menus], il vetro da [GalleryPage.AllGlass], la
+ * barra dalla schermata delle pagine.
  */
 private val Beta2 = TryRound(
   id = "beta2",
   title = "Beta 2",
-  intro = "Seconda prova della 3.0: i menu liquidi. Un menu si sceglie col dito che l'ha aperto — tieni premuto, " +
-    "trascina su una voce, rilascia — e un rilascio altrove lo lascia aperto. Tocca una voce per aprire la sua demo.",
+  intro = "Seconda prova della 3.0: i menu liquidi, tutto in vetro vero e la barra ancorata. Un menu si sceglie " +
+    "col dito che l'ha aperto — tieni premuto, trascina su una voce, rilascia — e un rilascio altrove lo lascia " +
+    "aperto. Tocca una voce per aprire la sua demo.",
   items = listOf(
     TryItem(
       "menu-scelta-dito", TryArea.Menus, "Scelta col dito",
@@ -347,6 +358,71 @@ private val Beta2 = TryRound(
         "testo selezionato e la tastiera sale senza coprirlo; giudica se l'avviso si sposta bene e se esce pulito " +
         "quando si chiude.",
       RowsPage,
+    ),
+    TryItem(
+      "vetro-segmentato", TryArea.Panels, "Segmentato a goccia",
+      "Trascina la pillola da un segmento all'altro, sul chiaro e sullo scuro: a riposo è bianca (grigia sullo " +
+        "scuro), sotto il dito diventa lente e vibra un tick per segmento; giudica la lente sulle etichette e se " +
+        "la pista di vetro si legge.",
+      GlassSegmented,
+    ),
+    TryItem(
+      "vetro-indice", TryArea.Panels, "Indice di sezione",
+      "Tieni premuta la barretta dell'indice e trascina: la lente è una goccia e la bolla ha il materiale dei " +
+        "pannelli; giudica se la bolla si legge sopra la pagina e se all'inizio parte un colpo solo, senza tick.",
+      GlassIndex,
+    ),
+    TryItem(
+      "vetro-suggerimento", TryArea.Panels, "Suggerimento senza scala",
+      "Mostra il suggerimento sull'elemento evidenziato: entra e esce scivolando e sfumando, senza scala e senza " +
+        "la punta dipinta, e «Ok» è un tasto di vetro; giudica se l'alone ti basta per capire a cosa si riferisce.",
+      GlassCoach,
+    ),
+    TryItem(
+      "vetro-contenitore", TryArea.Panels, "Contenitore e pagina intera",
+      "Apri «Contenitore» e «Pagina intera» da Fogli e pagine: sul fondale ambientale il gruppo è una lastra di " +
+        "contenuto come una lista di vetro e la chiusura è un tasto di vetro; giudica se il testo resta leggibile.",
+      GlassSheets,
+    ),
+    TryItem(
+      "vetro-foglio", TryArea.Panels, "Foglio di vetro",
+      "Apri «Foglio» da Fogli e pagine e chiudilo: il vecchio foglio è quello di vetro dell'host e chi lo ha " +
+        "aperto sa di essere chiuso solo a uscita finita; giudica l'uscita e se la pagina dietro ricompare senza " +
+        "lampi.",
+      GlassSheets,
+    ),
+    TryItem(
+      "vetro-chip", TryArea.Buttons, "Chip di vetro",
+      "Tocca i chip sul riquadro colorato e poi quelli sulla pagina piatta: il chip scelto ha l'accento dentro il " +
+        "vetro e premuto cresce e segue il dito; giudica se il vetro si legge e se senza fondale torna la " +
+        "pastiglia di sempre.",
+      GlassChips,
+    ),
+    TryItem(
+      "vetro-rail", TryArea.Bar, "Rail a goccia",
+      "Tocca le schede del rail: la goccia viaggia come la pillola della barra e diventa lente mentre si muove; " +
+        "giudica se resta centrata sulla scheda e se l'etichetta si legge dentro la lente.",
+      GlassRail,
+    ),
+    TryItem(
+      "vetro-banda", TryArea.Bar, "Banda della barra",
+      "Tocca una scheda, il cerchio e la scheda ripiegata della barra con la banda sopra: la banda è il vetro " +
+        "della barra, senza l'increspatura di Material e con un Tap per tocco; giudica se banda e barra sembrano " +
+        "un vetro solo.",
+      GlassBar,
+    ),
+    TryItem(
+      "vetro-sincronizzazione", TryArea.Bar, "Capsula di sincronizzazione",
+      "Guarda l'indicatore di sincronizzazione nella barra e toccalo: è una capsula di vetro con il tono dentro " +
+        "il materiale e la pressione dei tasti; giudica se il colore si legge senza coprire il vetro.",
+      GlassSync,
+    ),
+    TryItem(
+      "pagine-barra-ancorata", TryArea.Pages, "Barra ancorata",
+      "Apri la demo Pagine e vai avanti e indietro con una, due e tre azioni: il tasto indietro resta fermo al " +
+        "pixel, le azioni si trasformano, il titolo grande viaggia con la pagina e un gesto partito sulla barra " +
+        "è della barra; giudica se la barra sembra ferma mentre le pagine passano.",
+      PagesScreen,
     ),
   ),
 )

@@ -21,6 +21,7 @@ internal enum class GalleryPage(val title: String) {
   CapsulesAndParts("Capsule e pezzi piccoli"),
   Gaps("I buchi delle app"),
   Menus("Menù liquidi"),
+  AllGlass("Tutto in vetro"),
 }
 
 /** Un posto della pila: una scheda della barra o una [GalleryPage] sopra di lei. */

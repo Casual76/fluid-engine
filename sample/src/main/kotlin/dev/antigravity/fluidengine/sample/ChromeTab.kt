@@ -225,6 +225,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-menus"),
           onClick = { onOpen(GalleryPage.Menus) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Tutto in vetro",
+          subtitle = "Chip, segmentato, rail, indice, banda della barra, suggerimento, capsula, fogli",
+          modifier = Modifier.testTag("chrome-open-all-glass"),
+          onClick = { onOpen(GalleryPage.AllGlass) },
+        )
       }
     }
 

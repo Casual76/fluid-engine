@@ -230,7 +230,9 @@ class GalleryBetaPureTest {
   fun `la beta 2 e' dei menu e dell'avviso, e ogni sezione della demo ha una voce`() {
     val beta2 = TryRounds.last()
 
-    assertEquals(setOf(TryArea.Menus, TryArea.Panels), beta2.items.map { it.area }.toSet())
+    // I menu e l'avviso (fase 7) sono il cuore del giro; con il vetro (fase 9) e la barra ancorata (fase 8)
+    // il giro tocca anche i tasti, la barra e le pagine.
+    assertTrue(beta2.items.map { it.area }.toSet().containsAll(setOf(TryArea.Menus, TryArea.Panels)))
     val where = beta2.items.map { it.target.where }
     listOf(
       "Il tasto che si trasforma",

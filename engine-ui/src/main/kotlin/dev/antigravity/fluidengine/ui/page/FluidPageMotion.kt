@@ -287,10 +287,23 @@ object FluidPageMotion {
    * La pagina sotto: −(W/3)·(1 − e), lungo l'uscita (il chiamante moltiplica per il verso).
    *
    * Arriva a zero esattamente quando quella sopra e' uscita, e il suo bordo d'uscita sta sempre oltre
-   * il bordo d'ingresso di quella sopra: fra le due non si vede mai lo sfondo.
+   * il bordo d'ingresso di quella sopra: fra le due non si vede mai lo sfondo. Vale per una pagina
+   * sopra a piena misura: vedi [belowOffset].
    */
   fun belowParallax(exitFraction: Float, width: Float): Float =
     -(max(0f, width) * BelowParallaxFraction) * (1f - exitFraction.coerceIn(0f, 1f))
+
+  /**
+   * La pagina sotto per [transition]. Con [FluidPageTransition.Slide] arretra di un terzo
+   * ([belowParallax]). Quando la pagina sopra si rimpicciolisce ([FluidPageTransition.ShrinkSlide],
+   * [FluidPageTransition.Expand]) sta ferma: una pagina sopra piu' piccola dello schermo lascia
+   * scoperte due strisce, sopra e sotto, e una pagina sotto spostata di lato le lascerebbe vuote — lo
+   * sfondo nero della finestra in alto e in basso a destra (beta 2 sull'emulatore).
+   */
+  fun belowOffset(transition: FluidPageTransition, exitFraction: Float, width: Float): Float = when (transition) {
+    FluidPageTransition.Slide -> belowParallax(exitFraction, width)
+    FluidPageTransition.ShrinkSlide, FluidPageTransition.Expand -> 0f
+  }
 
   /** Chi e' davanti (vetro della barra, sorgente della chrome): passa di mano a meta' uscita. */
   fun pageIsFront(exitFraction: Float, isUpper: Boolean): Boolean =

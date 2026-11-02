@@ -16,8 +16,9 @@ enum class FluidPageTransition {
   Slide,
 
   /**
-   * Prima rimpicciolisce sul posto (fino al 90%, nel primo 30% della corsa), poi scivola via. Per le
-   * pagine che vogliono dire "sono una cosa sola che si chiude", non "torno indietro di un livello".
+   * Prima rimpicciolisce sul posto (fino al 90%, nel primo 30% della corsa), poi scivola via; la
+   * pagina sotto sta ferma e piena, perche' attorno a una pagina piu' piccola dello schermo si vede lei.
+   * Per le pagine che vogliono dire "sono una cosa sola che si chiude", non "torno indietro di un livello".
    */
   ShrinkSlide,
 

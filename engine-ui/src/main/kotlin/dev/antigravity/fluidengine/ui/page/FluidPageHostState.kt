@@ -194,8 +194,7 @@ class FluidPageHostState internal constructor() {
     }
     PageRole.Lower -> when {
       kind == FluidPageMove.Peer -> FluidPageMotion.peerFrame(peerTime, peerEased, width, peerDirection).second
-      opening && upperTransition == FluidPageTransition.Expand -> 0f
-      else -> FluidPageMotion.belowParallax(upperExitFraction(), width) * direction
+      else -> FluidPageMotion.belowOffset(upperTransition, upperExitFraction(), width) * direction
     }
   }
 

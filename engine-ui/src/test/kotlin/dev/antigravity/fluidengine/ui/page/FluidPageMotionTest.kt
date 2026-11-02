@@ -192,10 +192,29 @@ class FluidPageMotionTest {
       var travel = 0f
       while (travel <= exit) {
         val e = FluidPageMotion.exitFraction(transition, travel, width)
-        val belowRight = FluidPageMotion.belowParallax(e, width) + width
+        val belowRight = FluidPageMotion.belowOffset(transition, e, width) + width
         val frame = FluidPageMotion.pageFrame(transition, travel, width)
         val upperLeft = frame.translation + width * (1f - frame.scale) / 2f
         assertTrue("$transition a $travel: sotto finisce a $belowRight, sopra comincia a $upperLeft", belowRight >= upperLeft - 0.01f)
+        travel += 2f
+      }
+    }
+  }
+
+  @Test
+  fun `una pagina sopra rimpicciolita non lascia strisce scoperte`() {
+    // Rimpicciolita, la pagina sopra non copre piu' l'alto e il basso dello schermo: li' si deve
+    // vedere la pagina sotto, quindi quella sotto copre tutto lo schermo finche' la sopra e' piccola.
+    for (transition in FluidPageTransition.entries) {
+      val exit = FluidPageMotion.exitTravel(transition, width)
+      var travel = 0f
+      while (travel <= exit) {
+        val frame = FluidPageMotion.pageFrame(transition, travel, width)
+        if (frame.scale < 1f) {
+          val e = FluidPageMotion.exitFraction(transition, travel, width)
+          val belowLeft = FluidPageMotion.belowOffset(transition, e, width)
+          assertTrue("$transition a $travel: sotto comincia a $belowLeft", belowLeft >= -0.01f && belowLeft <= 0.01f)
+        }
         travel += 2f
       }
     }

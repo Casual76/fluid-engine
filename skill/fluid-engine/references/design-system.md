@@ -297,7 +297,7 @@ dito**. Con `FluidNavHost` la pagina sta sotto il dito.
 **Cosa fa.** Due strati **opachi** — la pagina in cima e quella sotto, composta ma non disegnata mentre è
 coperta — e un orologio solo (`travel`, i pixel percorsi verso l'uscita): il dito, la molla e il tasto
 indietro disegnano lo stesso fotogramma. Si apre da destra (da sinistra in RTL), la pagina sotto arretra di
-un terzo. Si torna indietro come in iOS: la pagina segue la **posizione vera del dito** (`touchX`, mai il
+un terzo (con `ShrinkSlide` ed `Expand` sta ferma: attorno a una pagina rimpicciolita si vede lei). Si torna indietro come in iOS: la pagina segue la **posizione vera del dito** (`touchX`, mai il
 `progress`), da un punto qualunque o dal bordo; il rilascio conferma oltre il 35% della larghezza (tetto
 180 dp) o con una spinta di 400 dp/s, una spinta contraria annulla; la molla parte dalla velocità del dito
 e non rimbalza. Mentre si muove la pagina è una **carta**: angoli del telefono, ombra da 36 dp; a riposo

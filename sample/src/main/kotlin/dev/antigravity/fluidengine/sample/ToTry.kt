@@ -449,8 +449,8 @@ private val Beta2 = TryRound(
     ),
     TryItem(
       "pezzi-visore", TryArea.AppParts, "Visualizzatore",
-      "Apri il visualizzatore: pizzica, doppio tocco, sposta l'immagine ingrandita, scorri fra le immagini e " +
-        "trascina giù per chiudere; giudica se lo zoom sta sotto le dita.",
+      "Apri il visualizzatore (si apre nel palco sotto il pulsante): pizzica, doppio tocco, sposta l'immagine " +
+        "ingrandita, scorri fra le immagini e trascina giù per chiudere; giudica se lo zoom sta sotto le dita.",
       MoreViewer,
     ),
   ),

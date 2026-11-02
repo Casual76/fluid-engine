@@ -10,6 +10,10 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -33,9 +37,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-private const val TitleA = "Pagine"
-private const val TitleB = "Pagina B"
-
 /**
  * Le pagine della 3.0 sotto un dito finto, dentro un FluidNavHost vero.
  *
@@ -44,7 +45,9 @@ private const val TitleB = "Pagina B"
  * del rilascio, la velocita' che passa dal dito alla molla, il tasto indietro.
  *
  * Schermo 360 dp a densita' 2: W = 720 px, zona del bordo 40 px, spinta 800 px/s. La soglia di
- * movimento e' quella di Robolectric (32 px), letta dal test. La posizione della pagina e' quella del suo titolo, meno quella che ha a riposo.
+ * movimento e' quella di Robolectric (32 px), letta dal test. Le pagine sono `FluidScreen` con la
+ * barra ancorata: la posizione di una pagina e' quella di una sua riga (il titolo c'e' due volte, nella
+ * pagina e nella barra), meno quella che ha a riposo.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -82,7 +85,7 @@ class FluidPageHostTest {
   private fun openB() {
     compose.runOnIdle { nav.navigate(PagesRouteB) }
     compose.waitForIdle()
-    compose.onNodeWithText(TitleB).assertExists()
+    compose.onNodeWithText(PagesMarkB).assertExists()
   }
 
   private fun route(): String? = compose.runOnIdle { nav.currentBackStackEntry?.destination?.route }
@@ -108,7 +111,7 @@ class FluidPageHostTest {
   fun `dal bordo la pagina sta sotto il dito a ogni fotogramma`() {
     show()
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     compose.mainClock.autoAdvance = false
 
     val downX = 6f
@@ -120,7 +123,7 @@ class FluidPageHostTest {
       compose.onRoot().performTouchInput { moveBy(Offset(12f, 0f)) }
       finger += 12f
       compose.mainClock.advanceTimeByFrame()
-      val page = leftPx(TitleB) - rest
+      val page = leftPx(PagesMarkB) - rest
       if (grabbedAt < 0 && page > 0.5f) grabbedAt = frame
       if (grabbedAt >= 0) {
         assertEquals("fotogramma $frame: la pagina e' dove e' il dito", finger - downX, page, 1f)
@@ -140,7 +143,7 @@ class FluidPageHostTest {
   fun `da un punto qualunque la pagina sta sotto il dito`() {
     show()
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     compose.mainClock.autoAdvance = false
     val downX = 300f
     compose.onRoot().performTouchInput { down(Offset(downX, 900f)) }
@@ -151,7 +154,7 @@ class FluidPageHostTest {
       compose.onRoot().performTouchInput { moveBy(Offset(10f, 0f)) }
       finger += 10f
       compose.mainClock.advanceTimeByFrame()
-      val page = leftPx(TitleB) - rest
+      val page = leftPx(PagesMarkB) - rest
       if (page > 0.5f) grabbed = true
       if (grabbed) assertEquals("fotogramma $frame", finger - downX, page, 1f)
     }
@@ -167,7 +170,7 @@ class FluidPageHostTest {
   fun `il back di sistema segue il dito anche con un progress storto`() {
     show()
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     val input = DirectNavigationEventInput()
     compose.runOnUiThread { compose.activity.navigationEventDispatcher.addInput(input) }
     compose.mainClock.autoAdvance = false
@@ -183,27 +186,27 @@ class FluidPageHostTest {
     compose.runOnUiThread { input.backStarted(event(12f, 0f)) }
     compose.mainClock.advanceTimeByFrame()
     // L'host tocca il bordo sinistro: l'ancora e' il bordo, la pagina e' al dito dal primo evento.
-    assertEquals(12f, leftPx(TitleB) - rest, 1f)
+    assertEquals(12f, leftPx(PagesMarkB) - rest, 1f)
 
     // Un progress volutamente non lineare: corre, si ferma, torna indietro, salta.
     val path = listOf(40f to 0.02f, 90f to 0.40f, 150f to 0.41f, 200f to 0.35f, 260f to 0.95f, 300f to 0.96f)
     for ((x, progress) in path) {
       compose.runOnUiThread { input.backProgressed(event(x, progress)) }
       compose.mainClock.advanceTimeByFrame()
-      assertEquals("touchX $x, progress $progress", x, leftPx(TitleB) - rest, 1f)
+      assertEquals("touchX $x, progress $progress", x, leftPx(PagesMarkB) - rest, 1f)
     }
 
     compose.runOnUiThread { input.backCancelled() }
     compose.mainClock.autoAdvance = true
     compose.waitForIdle()
-    assertEquals(0f, leftPx(TitleB) - rest, 0.5f)
+    assertEquals(0f, leftPx(PagesMarkB) - rest, 0.5f)
     assertEquals(PagesRouteB, route())
 
     // Poi il back senza gesto (3 tasti, Android 13): la pagina esce con la molla e la pila si accorcia.
     compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
     compose.waitForIdle()
     assertEquals(PagesRouteA, route())
-    assertTrue(!isShown(TitleB))
+    assertTrue(!isShown(PagesMarkB))
   }
 
   @Test
@@ -220,7 +223,7 @@ class FluidPageHostTest {
     }
     compose.waitForIdle()
     assertEquals(PagesRouteA, route())
-    assertTrue(!isShown(TitleB))
+    assertTrue(!isShown(PagesMarkB))
   }
 
   // --- 3. Le regole del rilascio ---------------------------------------------------------------
@@ -229,12 +232,12 @@ class FluidPageHostTest {
   fun `un rilascio lento sotto il 35 percento resta`() {
     show()
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     // 0,30 W = 216 px a 250 px/s.
     drag(Offset(300f, 900f), steps = 54, stepPx = 4f)
     compose.waitForIdle()
     assertEquals(PagesRouteB, route())
-    assertEquals(0f, leftPx(TitleB) - rest, 0.5f)
+    assertEquals(0f, leftPx(PagesMarkB) - rest, 0.5f)
   }
 
   @Test
@@ -245,7 +248,7 @@ class FluidPageHostTest {
     drag(Offset(300f, 900f), steps = 72, stepPx = 4f)
     compose.waitForIdle()
     assertEquals(PagesRouteA, route())
-    assertTrue(!isShown(TitleB))
+    assertTrue(!isShown(PagesMarkB))
   }
 
   @Test
@@ -262,7 +265,7 @@ class FluidPageHostTest {
   fun `oltre meta' ma spinta indietro resta`() {
     show()
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     compose.onRoot().performTouchInput {
       down(Offset(200f, 900f))
       repeat(36) { moveBy(Offset(10f, 0f), delayMillis = 16L) }
@@ -271,7 +274,7 @@ class FluidPageHostTest {
     }
     compose.waitForIdle()
     assertEquals(PagesRouteB, route())
-    assertEquals(0f, leftPx(TitleB) - rest, 0.5f)
+    assertEquals(0f, leftPx(PagesMarkB) - rest, 0.5f)
   }
 
   // --- 4. La velocita' del dito passa alla molla ------------------------------------------------
@@ -280,7 +283,7 @@ class FluidPageHostTest {
   fun `la molla parte con la velocita' del dito`() {
     show()
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     compose.mainClock.autoAdvance = false
     // 12 px ogni 16 ms: 750 px/s, sotto la spinta (800): conferma per distanza a 0,5 W. Un blocco
     // solo, cosi' i tempi degli eventi sono quelli del dito e non quelli dei fotogrammi del test.
@@ -294,11 +297,11 @@ class FluidPageHostTest {
     assertEquals("velocita' della pagina subito dopo il rilascio", 750f, velocity, 750f * 0.2f)
 
     // Primo fotogramma della molla: la pagina e' dove l'ha lasciata il dito.
-    val atRelease = leftPx(TitleB) - rest
+    val atRelease = leftPx(PagesMarkB) - rest
     assertEquals(360f, atRelease, 1f)
     // E continua verso fuori, almeno come andava il dito (12 px a fotogramma).
     compose.mainClock.advanceTimeByFrame()
-    val next = leftPx(TitleB) - rest
+    val next = leftPx(PagesMarkB) - rest
     assertTrue("passo dopo il rilascio ${next - atRelease} px", next - atRelease >= 12f * 0.8f)
     compose.mainClock.autoAdvance = true
     compose.waitForIdle()
@@ -311,17 +314,17 @@ class FluidPageHostTest {
   fun `il tasto indietro porta fuori la pagina con una corsa monotona`() {
     show()
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     compose.mainClock.autoAdvance = false
-    compose.onNodeWithText("Indietro").performClick()
+    compose.onNodeWithContentDescription("Indietro").performClick()
     var last = 0f
     var frames = 0
     var moved = false
-    while (isShown(TitleB) && frames < 120) {
+    while (isShown(PagesMarkB) && frames < 120) {
       compose.mainClock.advanceTimeByFrame()
       frames++
-      if (!isShown(TitleB)) break
-      val page = leftPx(TitleB) - rest
+      if (!isShown(PagesMarkB)) break
+      val page = leftPx(PagesMarkB) - rest
       assertTrue("fotogramma $frames: $page dopo $last", page >= last - 0.5f)
       if (page > 0.5f) moved = true
       last = page
@@ -338,19 +341,200 @@ class FluidPageHostTest {
     openB()
     compose.runOnIdle { nav.navigate(PagesRouteC) }
     compose.waitForIdle()
-    assertTrue(isShown("Pagina C"))
+    assertTrue(isShown(PagesMarkC))
     compose.mainClock.autoAdvance = false
     compose.runOnUiThread { nav.popBackStack(PagesRouteA, inclusive = false) }
     // Durante il salto si vedono solo la cima che esce e la radice: la pagina di mezzo no.
     repeat(4) {
       compose.mainClock.advanceTimeByFrame()
-      assertTrue("fotogramma $it: la pagina di mezzo non c'e'", !isShown(TitleB))
+      assertTrue("fotogramma $it: la pagina di mezzo non c'e'", !isShown(PagesMarkB))
     }
     compose.mainClock.autoAdvance = true
     compose.waitForIdle()
     assertEquals(PagesRouteA, route())
+    assertTrue(!isShown(PagesMarkC))
+    assertTrue(isShown(PagesMarkA))
+  }
+
+  // --- 6. La barra ancorata --------------------------------------------------------------------
+
+  private fun backBounds(): DpRect = compose.onNodeWithContentDescription("Indietro").getUnclippedBoundsInRoot()
+
+  private fun backCount(): Int =
+    compose.onAllNodesWithContentDescription("Indietro").fetchSemanticsNodes().size
+
+  private fun openC() {
+    openB()
+    compose.runOnIdle { nav.navigate(PagesRouteC) }
+    compose.waitForIdle()
+    assertTrue(isShown(PagesMarkC))
+  }
+
+  @Test
+  fun `il tasto indietro della barra e' uno e resta fermo al pixel mentre la pagina esce`() {
+    show()
+    openC()
+    val rest = backBounds()
+    assertEquals(1, backCount())
+    compose.mainClock.autoAdvance = false
+    compose.onRoot().performTouchInput { down(Offset(6f, 640f)) }
+    compose.mainClock.advanceTimeByFrame()
+    var moved = false
+    repeat(30) { frame ->
+      compose.onRoot().performTouchInput { moveBy(Offset(12f, 0f)) }
+      compose.mainClock.advanceTimeByFrame()
+      if (compose.runOnIdle { pages.isMoving }) moved = true
+      assertEquals("fotogramma $frame: un tasto solo", 1, backCount())
+      val now = backBounds()
+      val dx = with(compose.density) { (now.left - rest.left).toPx() }
+      val dy = with(compose.density) { (now.top - rest.top).toPx() }
+      assertEquals("fotogramma $frame: x del tasto", 0f, dx, 0.5f)
+      assertEquals("fotogramma $frame: y del tasto", 0f, dy, 0.5f)
+    }
+    assertTrue(moved)
+    compose.onRoot().performTouchInput { up() }
+    compose.mainClock.autoAdvance = true
+    compose.waitForIdle()
+    assertEquals(PagesRouteB, route())
+    assertEquals(1, backCount())
+  }
+
+  /** Dove stanno (px) tutte le copie di un titolo: quella della pagina e quella della barra. */
+  private fun titleLefts(title: String): List<Float> {
+    // Non ritagliati: la copia della barra disegna il titolo grande fuori dalla riga della barra,
+    // e i limiti ritagliati di un nodo fuori dal genitore sono vuoti. Albero non fuso: la riga della
+    // barra e' cliccabile ("Torna all'inizio") e nel fuso si prende il testo del titolo.
+    val nodes = compose.onAllNodesWithText(title, useUnmergedTree = true)
+    val count = nodes.fetchSemanticsNodes().size
+    return (0 until count).map { index ->
+      with(compose.density) { nodes[index].getUnclippedBoundsInRoot().left.toPx() }
+    }.sorted()
+  }
+
+  @Test
+  fun `il titolo grande e' contenuto e viaggia con la sua pagina`() {
+    show()
+    val restA = titleLefts("Pagine")
+    openB()
+    val restB = titleLefts("Pagina B")
+    // Due copie del titolo di B: quello della pagina e quello della barra che lo disegna grande.
+    assertEquals(2, restB.size)
+    compose.mainClock.autoAdvance = false
+    compose.onRoot().performTouchInput { down(Offset(6f, 640f)) }
+    compose.mainClock.advanceTimeByFrame()
+    var finger = 6f
+    repeat(20) { frame ->
+      compose.onRoot().performTouchInput { moveBy(Offset(12f, 0f)) }
+      finger += 12f
+      compose.mainClock.advanceTimeByFrame()
+      val page = finger - 6f
+      if (frame < 2) return@repeat
+      // Le due copie del titolo di B stanno dove sta la pagina B.
+      val nowB = titleLefts("Pagina B")
+      assertEquals(2, nowB.size)
+      for (i in nowB.indices) assertEquals("fotogramma $frame, B[$i]", restB[i] + page, nowB[i], 1.5f)
+      // Quelle di A stanno nella parallasse della pagina sotto: −(W/3)·(1 − e).
+      val expectedA = -(width / 3f) * (1f - page / width)
+      val nowA = titleLefts("Pagine")
+      assertEquals(restA.size, nowA.size)
+      for (i in nowA.indices) assertEquals("fotogramma $frame, A[$i]", restA[i] + expectedA, nowA[i], 1.5f)
+    }
+    compose.onRoot().performTouchInput { up() }
+    compose.mainClock.autoAdvance = true
+    compose.waitForIdle()
+  }
+
+  @Test
+  fun `dalla radice a una figlia il tasto indietro non e' mai doppio`() {
+    show()
+    assertEquals(0, backCount())
+    compose.mainClock.autoAdvance = false
+    compose.runOnUiThread { nav.navigate(PagesRouteB) }
+    repeat(40) { frame ->
+      compose.mainClock.advanceTimeByFrame()
+      assertTrue("fotogramma $frame", backCount() <= 1)
+    }
+    compose.mainClock.autoAdvance = true
+    compose.waitForIdle()
+    assertEquals(1, backCount())
+  }
+
+  @Test
+  fun `la barra passa al titolo della pagina che arriva`() {
+    show()
+    openC()
+    // Titolo della pagina nella barra (e nella pagina): ci sono, quello di B no (B e' coperta).
+    assertTrue(isShown("Pagina C"))
+    compose.onNodeWithContentDescription("Indietro").performClick()
+    compose.waitForIdle()
+    assertEquals(PagesRouteB, route())
+    assertTrue(isShown("Pagina B"))
     assertTrue(!isShown("Pagina C"))
-    assertTrue(isShown(TitleA))
+  }
+
+  // --- 8. Scorrimenti annidati -----------------------------------------------------------------
+
+  @Test
+  fun `una riga che scorre di lato al suo inizio passa la mano al back`() {
+    show()
+    openC()
+    compose.onNodeWithTag(PagesChipsTag).performTouchInput {
+      down(Offset(width / 4f, centerY))
+      repeat(30) { moveBy(Offset(12f, 0f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(PagesRouteB, route())
+  }
+
+  @Test
+  fun `una riga che scorre di lato scorre prima di tutto`() {
+    show()
+    openC()
+    val rest = leftPx(PagesMarkC)
+    // Verso sinistra la riga ha strada: scorre lei, la pagina non si muove.
+    compose.onNodeWithTag(PagesChipsTag).performTouchInput {
+      down(Offset(width * 0.75f, centerY))
+      repeat(20) { moveBy(Offset(-12f, 0f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(PagesRouteC, route())
+    assertEquals(0f, leftPx(PagesMarkC) - rest, 0.5f)
+  }
+
+  @Test
+  fun `un cursore non porta mai indietro`() {
+    show()
+    openC()
+    val rest = leftPx(PagesMarkC)
+    compose.onNodeWithTag(PagesSliderTag).performTouchInput {
+      down(Offset(width / 3f, centerY))
+      repeat(30) { moveBy(Offset(12f, 0f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(PagesRouteC, route())
+    assertEquals(0f, leftPx(PagesMarkC) - rest, 0.5f)
+  }
+
+  @Test
+  fun `un gesto che parte sulla barra e' della barra`() {
+    show()
+    openB()
+    val rest = leftPx(PagesMarkB)
+    // Dal tasto indietro verso destra: in LibrePods il contenitore del tasto beve il dito, qui la
+    // riga dei controlli non e' pagina.
+    val back = backBounds()
+    val start = with(compose.density) { Offset(back.left.toPx() + 4f, (back.top.toPx() + back.bottom.toPx()) / 2f) }
+    compose.onRoot().performTouchInput {
+      down(start)
+      repeat(30) { moveBy(Offset(12f, 0f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(PagesRouteB, route())
+    assertEquals(0f, leftPx(PagesMarkB) - rest, 0.5f)
   }
 
   // --- RTL e animazioni ridotte ----------------------------------------------------------------
@@ -359,7 +543,7 @@ class FluidPageHostTest {
   fun `in RTL la pagina esce a sinistra, sempre sotto il dito`() {
     show(rtl = true)
     openB()
-    val rest = leftPx(TitleB)
+    val rest = leftPx(PagesMarkB)
     compose.mainClock.autoAdvance = false
     val downX = width - 6f
     compose.onRoot().performTouchInput { down(Offset(downX, 640f)) }
@@ -371,7 +555,7 @@ class FluidPageHostTest {
       compose.onRoot().performTouchInput { moveBy(Offset(-12f, 0f)) }
       finger -= 12f
       compose.mainClock.advanceTimeByFrame()
-      val page = leftPx(TitleB) - rest
+      val page = leftPx(PagesMarkB) - rest
       if (page < -0.5f) grabbed = true
       if (grabbed) assertEquals("fotogramma $frame", finger - downX, page, 1f)
     }
@@ -390,9 +574,9 @@ class FluidPageHostTest {
     // Un fotogramma per la composizione che vede la pila nuova, uno per disegnarla a riposo.
     compose.mainClock.advanceTimeByFrame()
     compose.mainClock.advanceTimeByFrame()
-    assertTrue(isShown(TitleB))
-    val rest = leftPx(TitleB)
-    assertTrue(!isShown(TitleA))
+    assertTrue(isShown(PagesMarkB))
+    val rest = leftPx(PagesMarkB)
+    assertTrue(!isShown(PagesMarkA))
 
     val downX = 6f
     compose.onRoot().performTouchInput { down(Offset(downX, 640f)) }
@@ -403,7 +587,7 @@ class FluidPageHostTest {
       compose.onRoot().performTouchInput { moveBy(Offset(12f, 0f)) }
       finger += 12f
       compose.mainClock.advanceTimeByFrame()
-      val page = leftPx(TitleB) - rest
+      val page = leftPx(PagesMarkB) - rest
       if (page > 0.5f) grabbed = true
       if (grabbed) assertEquals("fotogramma $frame", finger - downX, page, 1f)
     }

@@ -441,6 +441,7 @@ riempimento, `pulse()` per la molla): tutti i pezzi che respirano battono insiem
 | `rememberFluidReorderState(listState \| gridState, onMove, …)` · `LazyItemScope.fluidReorderable(state, key, …)` (anche griglia) · `fluidMoved` · `FluidReorder` | il riordino: tenuto premuto l'elemento si solleva come goccia di vetro, i vicini scalano, un `Tick` per posto, la lista scorre ai bordi; due azioni per TalkBack |
 | `FluidFastScroller(state, label, …)` · `FluidFastScrollTarget` · `FluidFastScroll` | lo scorrimento rapido: maniglia-goccia 1:1, bolla di vetro compatta con un `Tick` per etichetta, compare mentre si scorre |
 | `FluidImageViewer(visible, onDismissRequest, …, page)` · `Modifier.fluidZoomable` · `FluidZoomState` · `FluidZoom` | il visualizzatore nell'host dei modali: pizzico, doppio tocco, pager, congedo trascinando giù; le immagini le passa l'app |
+| `FluidMarkdown(markdown, …, streaming, animateFirst, style, strings, options, onLinkClick, selectable)` · `FluidMarkdownParser` · `FluidMarkdownStyle` · `FluidMarkdownDefaults.style(…)` / `documentHeadings()` · `FluidMarkdownOptions` · `FluidRevealingText` | il Markdown disegnato, senza libreria: titoli (due misure, o una per livello con `headings`), elenchi anche annidati, grassetto/corsivo/barrato, codice in linea e a blocco con «copia», link (con callback), citazioni, tabelle che scorrono, righe; `streaming` sfuma dentro le parole nuove, `selectable` per una nota; il parser è puro e si prova sul computer. I marcatori `[[chip]]` di serie restano (li toglie `engine-ai-ui`) |
 
 ## Tutto in vetro (3.0, fase 9)
 
@@ -448,7 +449,9 @@ Quello che era opaco o dipinto accanto al vetro diventa vetro, e quello che si a
 di Kyant (piena a riposo, lente sotto il dito). Un modificatore interno solo la disegna, `glassDrop` (`glass/interaction/GlassDrop.kt`):
 i pomelli di slider e interruttore, la pillola della barra, il segmentato, il rail e la lente dell'indice la
 condividono, ognuno con la sua faccia (`GlassDropFaces`: bianca sul chiaro, il grigio di iOS sullo scuro per una goccia
-in una lastra). **Nessuna firma pubblica cambia.** La demo è `AllGlassDemo` (`sample/…/catalog/`, nella galleria da
+in una lastra). Nel segmentato, come in iOS, un dito che scende su un segmento non scelto e scivola di lato si prende
+la goccia: gli viene sotto, lo segue con un tick per segmento e sceglie dove la lascia; fermo, è un tocco; in verticale
+è della pagina. **Nessuna firma pubblica cambia.** La demo è `AllGlassDemo` (`sample/…/catalog/`, nella galleria da
 Chrome › Catalogo della 3.0 › «Tutto in vetro»), con le voci di «Da provare».
 
 | Componente | Cos'è diventato |
@@ -664,12 +667,12 @@ non lo chiedono non cambiano.
   ancorato), `FluidSpeaker` (voce), aptica di stato, resoconto e foglio «Dettagli» di un errore;
 - **impostazioni** — `fluidAiSettingsSection` (`LazyListScope`): chiavi con avviso sulla forma, ordine dei servizi con
   frecce e trascinamento, picker dei modelli nel vetro, dettagli di OpenRouter, diagnostica, `FluidAiLock`;
-- **chat** — `FluidMarkdown` (parser puro tollerante allo stream, rivelazione parola per parola, codice con copia,
-  tabelle che scorrono; candidato a salire in `engine-ui`), `FluidFollowBottom`, bolle, `FluidComposer` di vetro.
+- **chat** — `FluidFollowBottom`, bolle (il testo è `FluidMarkdown` di `engine-ui`, con `FluidAssistantMarkdownOptions`
+  che toglie i marcatori `[[chip]]`), `FluidComposer` di vetro.
 
 Il pallino che respira passa da 700 a 900 ms (il respiro dell'engine, `FluidMotion.PulseMillis`). FluidWeather e
 Fluid-transit devono passare agli stati di `engine-ai` **prima** di usare l'overlay. Il diff delle quattro copie e cosa
-sostituisce ogni app: `artifacts/design/ai-ui-diff.md`. Il modulo ha i suoi 142 test su JVM; il vetro e il moto si
+sostituisce ogni app: `artifacts/design/ai-ui-diff.md`. Il modulo ha i suoi 103 test su JVM (il parser e la rivelazione sono saliti in `engine-ui` con i loro 43); il vetro e il moto si
 guardano in mano (una riga ? nella matrice di `docs/10-coerenza.md`).
 
 ## Aptica (1.19.0)

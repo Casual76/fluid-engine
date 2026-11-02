@@ -5,6 +5,9 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -44,26 +47,33 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
@@ -71,8 +81,8 @@ import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
 import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
+import kotlin.math.abs
 import kotlin.math.roundToInt
-import androidx.compose.ui.semantics.disabled
 
 /**
  * How much a control's colour says about it.
@@ -228,7 +238,9 @@ fun FluidButton(
  * control has to pay for it.
  *
  * The drop can also be dragged between segments, with a tick for each segment it crosses; letting go
- * settles it on whichever it is nearest. Below API 31, or on a screen with nothing to look through,
+ * settles it on whichever it is nearest. A finger that lands on another segment and slides sideways
+ * gets the drop too (3.0, "come iOS"): the drop comes under it, follows it with the same ticks, and
+ * letting go chooses where it is; a finger that lands there and lifts without sliding is a tap. Below API 31, or on a screen with nothing to look through,
  * the track is the plain well it always was and the drop is a solid pill.
  */
 @Composable
@@ -349,6 +361,44 @@ fun <T> FluidSegmentedControl(
       )
     }
 
+    // Il dito che scende su un segmento NON scelto e scivola di lato (3.0, scelta di Alessio: "come
+    // iOS"): passato lo slop orizzontale la goccia gli viene sotto e lo segue, con i tick della goccia, e
+    // al rilascio sceglie dove si trova — le stesse funzioni della goccia trascinata, chiamate da qui.
+    // Un dito fermo resta il click del segmento; uno che scende sulla goccia e' gia' suo; uno che va in
+    // verticale e' della pagina. Dal fotogramma in cui la goccia prende il dito ne consuma i cambi gia'
+    // nell'Initial: il segmento sotto smette di premersi e non clicca, la pagina non scorre.
+    val slideFromSegment = Modifier.pointerInput(pill, options.size, segmentWidth, rtl) {
+      val insetPx = inset.toPx()
+      awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        if (!currentEnabled || segmentWidth <= 0f) return@awaitEachGesture
+        val count = currentOptions.size
+        val landed = segmentedFingerValue(down.position.x, size.width.toFloat(), insetPx, segmentWidth, rtl)
+        if (segmentedTouchOnDrop(landed, pill.value)) return@awaitEachGesture
+        val slid = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+          ?: return@awaitEachGesture
+        val last = (count - 1).toFloat()
+        val from = pill.value
+        val begin = segmentedFingerValue(slid.position.x, size.width.toFloat(), insetPx, segmentWidth, rtl)
+          .coerceIn(0f, last)
+        dragAt[0] = begin
+        pill.press()
+        pill.updateValue(begin)
+        if (begin.roundToInt() != from.roundToInt()) currentHaptics.play(FluidHapticEvent.Tick)
+        val id = slid.id
+        while (true) {
+          val event = awaitPointerEvent(PointerEventPass.Initial)
+          val change = event.changes.fastFirstOrNull { it.id == id } ?: break
+          val dx = change.positionChange().x
+          change.consume()
+          if (!change.pressed) break
+          if (dx != 0f) pill.onDrag(pill, IntSize.Zero, Offset(dx, 0f))
+        }
+        pill.onDragStopped(pill)
+        pill.release()
+      }
+    }
+
     // Selection also arrives from outside — a restored state, a filter reset. The pill follows it
     // without reporting anything back: whoever changed it already knows.
     LaunchedEffect(selectedIndex, pill) {
@@ -420,7 +470,7 @@ fun <T> FluidSegmentedControl(
 
     // Il contenitore: la lastra della pista, e dentro tutto il resto. Il vetro che sta dentro un
     // altro vetro ne campiona il materiale da solo (la goccia sfoca la sfocatura della pista).
-    Box(modifier = Modifier.fillMaxSize().then(trackGlass)) {
+    Box(modifier = Modifier.fillMaxSize().then(trackGlass).then(slideFromSegment)) {
       // 1. The track, with the labels printed on it.
       Row(
         modifier = Modifier
@@ -535,6 +585,22 @@ internal fun segmentedDropTranslation(value: Float, segmentWidth: Float, rtl: Bo
 /** Di quanti segmenti un movimento orizzontale del dito sposta la goccia: lo stesso verso, specchiato. */
 internal fun segmentedDragDelta(dragAmountX: Float, segmentWidth: Float, rtl: Boolean): Float =
   segmentedDirection(rtl) * dragAmountX / segmentWidth
+
+/**
+ * Dove cade un dito sulla pista, in segmenti, misurato perche' la goccia ci stia **centrata sotto**:
+ * 0 e' la goccia sul primo segmento, 0,5 il dito sul bordo fra il primo e il secondo. Non limitato:
+ * chi la mette sotto il dito la limita, chi chiede se il dito e' sulla goccia no. Da destra a sinistra
+ * il primo segmento sta a destra.
+ */
+internal fun segmentedFingerValue(x: Float, width: Float, inset: Float, segmentWidth: Float, rtl: Boolean): Float {
+  if (segmentWidth <= 0f) return 0f
+  val fromStart = if (rtl) width - x else x
+  return (fromStart - inset) / segmentWidth - 0.5f
+}
+
+/** Il dito e' sceso sulla goccia, che a [dropValue] copre mezzo segmento per parte: e' gia' della goccia. */
+internal fun segmentedTouchOnDrop(fingerValue: Float, dropValue: Float): Boolean =
+  abs(fingerValue - dropValue) <= 0.5f
 
 /**
  * Quanto cresce la goccia del segmentato sotto il dito.

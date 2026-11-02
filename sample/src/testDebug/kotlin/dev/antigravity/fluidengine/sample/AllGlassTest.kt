@@ -264,6 +264,66 @@ class AllGlassTest {
   }
 
   @Test
+  fun `a finger that lands on another segment and slides takes the drop and chooses where it lets go`() {
+    // "Come iOS" (3.0): il dito scende su Settimana, scivola verso Mese e si solleva li'.
+    var selected by mutableStateOf("Giorno")
+    var calls = 0
+    compose.setContent {
+      Themed {
+        OnCanvas {
+          Segmented(selected) {
+            selected = it
+            calls++
+          }
+        }
+      }
+    }
+    compose.waitForIdle()
+    haptics.played.clear()
+
+    compose.onNodeWithTag("segmented").performTouchInput {
+      val segment = width / 3f
+      down(Offset(segment * 1.5f, height / 2f))
+      moveBy(Offset(segment * 0.2f, 0f))
+      moveBy(Offset(segment * 0.6f, 0f))
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals("Mese", selected)
+    assertEquals("una scelta sola", 1, calls)
+    // La goccia arriva su Settimana (un tick) e passa a Mese (un altro); nessun Tap: il segmento
+    // sotto non ha cliccato.
+    assertEquals("${haptics.played}", 2, haptics.played.count { it == FluidHapticEvent.Tick })
+    assertEquals("${haptics.played}", 0, haptics.played.count { it == FluidHapticEvent.Tap })
+    assertEquals("${haptics.played}", 0, haptics.played.count { it == FluidHapticEvent.PressClick })
+  }
+
+  @Test
+  fun `a finger that lands on another segment and goes vertical chooses nothing`() {
+    var selected by mutableStateOf("Giorno")
+    compose.setContent {
+      Themed {
+        OnCanvas { Segmented(selected) { selected = it } }
+      }
+    }
+    compose.waitForIdle()
+    haptics.played.clear()
+
+    compose.onNodeWithTag("segmented").performTouchInput {
+      val segment = width / 3f
+      down(Offset(segment * 2.5f, height / 2f))
+      moveBy(Offset(0f, height.toFloat()))
+      moveBy(Offset(0f, height.toFloat()))
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals("Giorno", selected)
+    assertEquals("${haptics.played}", 0, haptics.played.count { it == FluidHapticEvent.Tick })
+  }
+
+  @Test
   fun `the labels are said once, the copy under the lens and the one on the drop are decorative`() {
     compose.setContent {
       Themed {

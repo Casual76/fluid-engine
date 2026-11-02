@@ -75,4 +75,29 @@ class FluidSegmentedRtlTest {
     assertEquals(1f, segmentedDirection(rtl = false), 0f)
     assertEquals(-1f, segmentedDirection(rtl = true), 0f)
   }
+
+  // --- Il dito che parte da un altro segmento (3.0, "come iOS") ------------------------------------
+
+  @Test
+  fun `a finger in the middle of a segment puts the drop exactly on it, in both directions`() {
+    // Pista di 3 segmenti da 100 con 4 px di margine: larga 308.
+    assertEquals(0f, segmentedFingerValue(54f, 308f, 4f, segment, rtl = false), 0.001f)
+    assertEquals(2f, segmentedFingerValue(254f, 308f, 4f, segment, rtl = false), 0.001f)
+    // In RTL il primo segmento sta a destra: il dito a 254 e' sul secondo... da destra, cioe' il primo.
+    assertEquals(0f, segmentedFingerValue(254f, 308f, 4f, segment, rtl = true), 0.001f)
+    assertEquals(2f, segmentedFingerValue(54f, 308f, 4f, segment, rtl = true), 0.001f)
+  }
+
+  @Test
+  fun `the border between two segments is half way between their values`() {
+    assertEquals(0.5f, segmentedFingerValue(104f, 308f, 4f, segment, rtl = false), 0.001f)
+  }
+
+  @Test
+  fun `a finger is on the drop within half a segment of its centre, and not beyond`() {
+    assertTrue(segmentedTouchOnDrop(fingerValue = 1.4f, dropValue = 1f))
+    assertTrue(segmentedTouchOnDrop(fingerValue = 0.5f, dropValue = 1f))
+    assertTrue(!segmentedTouchOnDrop(fingerValue = 1.6f, dropValue = 1f))
+    assertTrue(!segmentedTouchOnDrop(fingerValue = 0f, dropValue = 1f))
+  }
 }

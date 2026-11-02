@@ -222,13 +222,13 @@ class GalleryBetaPureTest {
   @Test
   fun `i giri hanno un id unico e il giro piu' nuovo e' l'ultimo`() {
     assertEquals(TryRounds.size, TryRounds.map { it.id }.toSet().size)
-    assertEquals(listOf("Beta 1", "Beta 2"), TryRounds.map { it.title })
+    assertEquals(listOf("Beta 1", "Beta 2", "Beta 3"), TryRounds.map { it.title })
     assertEquals(TryRounds.last().items.size, latestRoundSize())
   }
 
   @Test
   fun `la beta 2 e' dei menu e dell'avviso, e ogni sezione della demo ha una voce`() {
-    val beta2 = TryRounds.last()
+    val beta2 = TryRounds.first { it.id == "beta2" }
 
     // I menu e l'avviso (fase 7) sono il cuore del giro; con il vetro (fase 9) e la barra ancorata (fase 8)
     // il giro tocca anche i tasti, la barra e le pagine.

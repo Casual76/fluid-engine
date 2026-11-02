@@ -689,12 +689,12 @@ non lo chiedono non cambiano.
   ancorato), `FluidSpeaker` (voce), aptica di stato, resoconto e foglio «Dettagli» di un errore;
 - **impostazioni** — `fluidAiSettingsSection` (`LazyListScope`): chiavi con avviso sulla forma, ordine dei servizi con
   frecce e trascinamento, picker dei modelli nel vetro, dettagli di OpenRouter, diagnostica, `FluidAiLock`;
-- **chat** — `FluidMarkdown` (parser puro tollerante allo stream, rivelazione parola per parola, codice con copia,
-  tabelle che scorrono; candidato a salire in `engine-ui`), `FluidFollowBottom`, bolle, `FluidComposer` di vetro.
+- **chat** — `FluidFollowBottom`, bolle (il testo è `FluidMarkdown` di `engine-ui`, con `FluidAssistantMarkdownOptions`
+  che toglie i marcatori `[[chip]]`), `FluidComposer` di vetro.
 
 Il pallino che respira passa da 700 a 900 ms (il respiro dell'engine, `FluidMotion.PulseMillis`). FluidWeather e
 Fluid-transit devono passare agli stati di `engine-ai` **prima** di usare l'overlay. Il diff delle quattro copie e cosa
-sostituisce ogni app: `artifacts/design/ai-ui-diff.md`. Il modulo ha i suoi 142 test su JVM; il vetro e il moto si
+sostituisce ogni app: `artifacts/design/ai-ui-diff.md`. Il modulo ha i suoi 103 test su JVM (il parser e la rivelazione sono saliti in `engine-ui` con i loro 43); il vetro e il moto si
 guardano in mano (una riga ? nella matrice di `docs/10-coerenza.md`).
 
 ## Cosa non c'è, e perché

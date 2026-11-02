@@ -456,8 +456,24 @@ private val Beta2 = TryRound(
   ),
 )
 
+/** La beta 3: quello che e' cambiato dopo le prove della beta 2. */
+private val Beta3 = TryRound(
+  id = "beta3",
+  title = "Beta 3",
+  intro = "Terza prova della 3.0: cosa è cambiato dopo la beta 2. Tocca una voce per aprire la sua demo.",
+  items = listOf(
+    TryItem(
+      "segmentato-come-ios", TryArea.Panels, "Segmentato come iOS",
+      "Appoggia il dito su un segmento che non è scelto e scivola di lato: la goccia ti viene sotto, ti segue con " +
+        "un tick per segmento e sceglie dove la lasci (un tocco fermo sceglie come prima); giudica se la goccia " +
+        "arriva senza strappo e se il dito in verticale scorre ancora la pagina.",
+      GlassSegmented,
+    ),
+  ),
+)
+
 /** Tutti i giri, dal piu' vecchio al piu' nuovo. Una beta nuova aggiunge qui il suo e basta. */
-internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2)
+internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3)
 
 /**
  * La pagina "Da provare": quello che Alessio vede per prima, e la lista di cio' che va giudicato in mano.

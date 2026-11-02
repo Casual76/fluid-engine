@@ -129,6 +129,9 @@ dependencies {
   debugImplementation 'androidx.compose.ui:ui-test-manifest'
   testDebugImplementation "junit:junit:${engine.junit}"
   testDebugImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  // Il cancello dell'ospite di engine-ai-bridge (la firma di chi chiama) ha bisogno di Binder e di un
+  // PackageManager: lo si prova qui, con Robolectric, e solo nei test (mai nell'APK della galleria).
+  testDebugImplementation project(':engine-ai-bridge')
   testDebugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
   testDebugImplementation 'androidx.compose.ui:ui-test-junit4'
 }

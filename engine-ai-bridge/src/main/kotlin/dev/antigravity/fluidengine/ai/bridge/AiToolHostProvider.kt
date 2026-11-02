@@ -2,10 +2,16 @@ package dev.antigravity.fluidengine.ai.bridge
 
 import android.content.ContentProvider
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ProviderInfo
 import android.database.Cursor
 import android.net.Uri
+import android.os.Binder
 import android.os.Bundle
+import android.os.Process
+import android.util.Log
 import androidx.core.content.FileProvider
 import dev.antigravity.fluidengine.ai.provider.ContentPart
 import dev.antigravity.fluidengine.ai.tools.AiTool
@@ -33,10 +39,30 @@ data class ReadyState(val ready: Boolean, val reason: String? = null)
 
 /**
  * L'ospite: un `ContentProvider` che espone i tool dell'app a un assistente esterno con lo stesso
- * firmatario. L'app dichiara il provider nel manifest con il permesso [BridgeProtocol.PERMISSION],
- * l'autorita' `<applicationId>.ai.tools` e il meta-data [BridgeProtocol.META_TOOL_HOST], e in una
- * sottoclasse da' il registry, il contesto dei tool e le parole di se stessa. Il resto — il
- * protocollo, i lavori lunghi, le parti consegnate come file, i timeout — sta qui.
+ * firmatario. L'app dichiara il provider nel manifest con l'autorita' `<applicationId>.ai.tools`,
+ * `exported="true"` **senza `android:permission`** e il meta-data [BridgeProtocol.META_TOOL_HOST], e
+ * in una sottoclasse da' il registry, il contesto dei tool e le parole di se stessa. Il resto — il
+ * protocollo, i lavori lunghi, le parti consegnate come file, i timeout, e il controllo di chi
+ * chiama — sta qui.
+ *
+ * **Chi puo' chiamare** si decide in [call], a ogni chiamata, leggendo la firma del chiamante
+ * ([isCallerTrusted]): la stessa di quest'app, altrimenti `SecurityException`, che il cliente
+ * legge come [RemoteAvailability.NO_PERMISSION]. Fino alla 3.0.0 era un permesso `signature`
+ * (`AI_TOOLS`, dichiarato dal manifest di questo modulo), e non poteva restare:
+ *
+ *  - un permesso e' di chi lo dichiara per primo, e un'altra app con **un'altra firma** che
+ *    dichiari lo stesso nome non si installa (`INSTALL_FAILED_DUPLICATE_PERMISSION`): ClasseViva e
+ *    Fluid-transit, con firme diverse, non stavano sullo stesso telefono;
+ *  - **un nome per app** (`<applicationId>.permission.AI_TOOLS`) risolverebbe l'installazione ma
+ *    non il cliente: PampAI scopre gli ospiti **a runtime** (il meta-data sul provider, ne nascono
+ *    di nuovi senza ricompilarla), quindi non puo' dichiarare in anticipo un `uses-permission` per
+ *    ognuno;
+ *  - **un'app sola che lo dichiara per tutte** (PampAI) lega ogni ospite all'ordine di
+ *    installazione: un ospite installato prima non avrebbe il permesso definito, e senza PampAI sul
+ *    telefono il provider non sarebbe chiamabile da nessuno.
+ *
+ * La firma si legge quando serve, non dipende da chi e' arrivato prima, e vale per qualunque
+ * cliente firmato come l'ospite.
  *
  * Il cancello delle conferme e' del **cliente**: qui un tool con `needsConfirmation` gira solo se la
  * chiamata dice `confirmed = true`, e il contesto che l'app costruisce deve essere pre-confermato
@@ -78,7 +104,43 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
 
   final override fun onCreate(): Boolean = true
 
+  /**
+   * Un avviso, non un errore: se il `<provider>` porta ancora `android:permission="...AI_TOOLS"`
+   * (la ricetta di prima della 3.0.0) nessuna app dichiara piu' quel permesso e il sistema nega
+   * l'accesso a chiunque. Il provider si installa lo stesso e l'ospite sembra "non pronto": meglio
+   * una riga nel log che un pomeriggio a cercare perche'.
+   */
+  override fun attachInfo(context: Context?, info: ProviderInfo?) {
+    super.attachInfo(context, info)
+    if (info != null && (info.readPermission == LEGACY_PERMISSION || info.writePermission == LEGACY_PERMISSION)) {
+      Log.w(TAG, "il provider ${info.name} dichiara ancora android:permission=$LEGACY_PERMISSION: toglilo dal manifest, il permesso non esiste piu' e nessun cliente potra' chiamarlo")
+    }
+  }
+
+  /**
+   * Chi puo' chiamare: le app firmate come questa. [callingUid] e' quello di `Binder`; una chiamata
+   * dentro lo stesso processo (nessuna transazione in corso) ha il nostro uid e passa. Una
+   * sottoclasse puo' restringere (un elenco di pacchetti) chiamando `super`; allargare non
+   * conviene mai: `ContentProvider.call` e' l'unica porta, e questo l'unico cancello.
+   */
+  open fun isCallerTrusted(callingUid: Int): Boolean =
+    compareSignatures(callingUid, Process.myUid()) == PackageManager.SIGNATURE_MATCH
+
+  /**
+   * Il confronto delle firme di due uid, come lo fa il `PackageManager`: [PackageManager.SIGNATURE_MATCH]
+   * se sono le stesse, uno degli altri `SIGNATURE_*` altrimenti. E' un punto a parte perche' il
+   * `PackageManager` di Robolectric risponde sempre "uguali", e la regola (solo MATCH fa fidare, un
+   * pacchetto sconosciuto no) senza questo non si proverebbe.
+   */
+  protected open fun compareSignatures(callingUid: Int, ownUid: Int): Int =
+    context?.packageManager?.checkSignatures(callingUid, ownUid) ?: PackageManager.SIGNATURE_UNKNOWN_PACKAGE
+
   final override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
+    // Il controllo sta fuori dal try: la SecurityException deve arrivare al cliente com'e', non
+    // diventare una risposta `{error}` che sembra un ospite malato.
+    if (!isCallerTrusted(Binder.getCallingUid())) {
+      throw SecurityException("chiamante con un'altra firma: l'ospite risponde solo alle app firmate come lui")
+    }
     val request = BridgeProtocol.parse(extras?.getString(BridgeProtocol.KEY_JSON))
     val response: JsonObject = try {
       when (method) {
@@ -184,6 +246,11 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
   }
 
   private data class Quad(val bytes: ByteArray, val mime: String, val name: String, val kind: String)
+
+  private companion object {
+    const val TAG = "AiToolHost"
+    const val LEGACY_PERMISSION = "dev.antigravity.fluidengine.permission.AI_TOOLS"
+  }
 
   // Un provider "solo call": le query non esistono.
   final override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? = null

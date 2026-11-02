@@ -32,7 +32,13 @@ object BridgeProtocol {
   /** Il meta-data sul `<provider>` dell'ospite che lo fa trovare al cliente. */
   const val META_TOOL_HOST = "dev.antigravity.fluidengine.ai.TOOL_HOST"
 
-  /** Il permesso `signature` sul provider. */
+  /**
+   * Il permesso `signature` che stava sul provider fino alla 3.0.0. Non esiste piu': il modulo non
+   * lo dichiara e il provider non lo chiede, perche' due app con firme diverse non potevano
+   * installarlo insieme. L'ospite controlla la firma di chi chiama
+   * ([AiToolHostProvider.isCallerTrusted]) e il `<provider>` non porta `android:permission`.
+   */
+  @Deprecated("Il permesso non esiste piu': il provider controlla la firma di chi chiama e il manifest non porta android:permission.")
   const val PERMISSION = "dev.antigravity.fluidengine.permission.AI_TOOLS"
 
   /** Il suffisso dell'autorita': `<applicationId>.ai.tools`. */

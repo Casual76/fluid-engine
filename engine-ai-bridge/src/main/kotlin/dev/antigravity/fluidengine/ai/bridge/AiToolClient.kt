@@ -9,7 +9,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 
-/** Cosa il cliente puo' dire di un'app ospite. */
+/**
+ * Cosa il cliente puo' dire di un'app ospite. [NO_PERMISSION] vuol dire che l'ospite ha rifiutato
+ * la chiamata (`SecurityException`): una firma diversa — una build di debug di Android Studio
+ * accanto a quella dello store — oppure, per un ospite della 2.x, il permesso `AI_TOOLS` che il
+ * cliente non chiede piu'.
+ */
 enum class RemoteAvailability { INSTALLED_OK, NEEDS_UPDATE, NOT_INSTALLED, NO_PERMISSION, NOT_READY }
 
 /**
@@ -17,7 +22,8 @@ enum class RemoteAvailability { INSTALLED_OK, NEEDS_UPDATE, NOT_INSTALLED, NO_PE
  * `ContentProviderClient` *unstable*, cosi' un ospite che muore a meta' non uccide il cliente: si
  * riceve un'eccezione e si risponde con un errore. Il cliente dichiara nel manifest un
  * `<queries>` con `QUERY_ALL_PACKAGES` o con le autorita' note, altrimenti Android nasconde i
- * provider delle altre app.
+ * provider delle altre app. Non chiede **nessun permesso** (dalla 3.0.0): se rispondere lo decide
+ * l'ospite, dalla firma del cliente.
  */
 class AiToolClient(private val context: Context) : BridgeCalls {
 

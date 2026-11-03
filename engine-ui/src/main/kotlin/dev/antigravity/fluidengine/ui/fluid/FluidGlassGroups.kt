@@ -72,6 +72,20 @@ fun <T> LazyListScope.fluidGlassGroups(
   maxRows: Int = FluidGlassGroupMaxRows,
   row: @Composable (T) -> Unit,
 ) {
+  fluidGlassGroupsIndexed(items = items, key = key, maxRows = maxRows) { _, item -> row(item) }
+}
+
+/**
+ * [fluidGlassGroups] con la posizione della riga nella lista data (3.0.1), come `itemsIndexed`: per il
+ * numero di una classifica, una riga che si comporta diversamente se e' la prima, un'animazione sfalsata.
+ * L'indice e' quello in [items], non quello nel pannello: il taglio in pannelli resta invisibile anche qui.
+ */
+fun <T> LazyListScope.fluidGlassGroupsIndexed(
+  items: List<T>,
+  key: String? = null,
+  maxRows: Int = FluidGlassGroupMaxRows,
+  row: @Composable (index: Int, item: T) -> Unit,
+) {
   val plan = fluidGlassGroupPlan(items.size, maxRows)
   plan.forEachIndexed { chunk, piece ->
     item(
@@ -104,7 +118,7 @@ fun <T> LazyListScope.fluidGlassGroups(
       ) {
         for (index in piece.from until piece.toExclusive) {
           if (index > piece.from) FluidListDivider()
-          row(items[index])
+          row(index, items[index])
         }
         if (piece.joinToNext) {
           // Il separatore della giuntura, che senza sarebbe l'unico confine fra due righe a non

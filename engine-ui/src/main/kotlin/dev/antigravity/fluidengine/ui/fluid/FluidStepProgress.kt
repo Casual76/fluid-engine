@@ -18,9 +18,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -101,6 +103,13 @@ fun FluidStepProgress(
   segmented: Boolean = false,
   pulseCurrent: Boolean = false,
   color: Color = MaterialTheme.colorScheme.primary,
+  /**
+   * Il nome di ogni passo, uno per passo, sotto la barra (3.0.1): «Formato · Opzioni · Converti». Quelli
+   * fatti e quello in corso nel colore del testo, quello in corso in grassetto, i successivi attenuati; sotto
+   * i segmenti ogni nome sta sotto il suo. Per TalkBack il nome del passo in corso e' lo stato. Null, o una
+   * lista lunga diversa da [steps]: niente nomi.
+   */
+  labels: List<String>? = null,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val position = animateFloatAsState(
@@ -109,6 +118,7 @@ fun FluidStepProgress(
     label = "fluid step progress",
   )
   val asSegments = fluidStepSegmented(segmented, steps)
+  val stepLabels = labels?.takeIf { it.size == steps && steps > 0 }
 
   Column(
     modifier = modifier
@@ -116,6 +126,7 @@ fun FluidStepProgress(
       // Un blocco solo per chi non vede: la frase e dove si e' arrivati, non tre nodi sparsi.
       .semantics(mergeDescendants = true) {
         contentDescription = label
+        stepLabels?.getOrNull(step.coerceIn(1, steps.coerceAtLeast(1)) - 1)?.let { stateDescription = it }
         val total = steps.coerceAtLeast(1)
         progressBarRangeInfo = ProgressBarRangeInfo(
           current = step.coerceIn(1, total).toFloat(),
@@ -164,6 +175,32 @@ fun FluidStepProgress(
         progress = { fluidStepFraction(position.value, steps) },
         color = color,
       )
+    }
+    if (stepLabels != null) {
+      val current = step.coerceIn(1, steps) - 1
+      Row(
+        // Detti dallo stato del blocco: qui sono da leggere, non da attraversare uno per uno.
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics { },
+        horizontalArrangement = Arrangement.spacedBy(FluidStepProgressDefaults.SegmentGap),
+      ) {
+        stepLabels.forEachIndexed { index, name ->
+          Text(
+            text = name,
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = if (index == current) FontWeight.SemiBold else FontWeight.Normal,
+            ),
+            color = if (index <= current) {
+              MaterialTheme.colorScheme.onSurface
+            } else {
+              MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            },
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+          )
+        }
+      }
     }
   }
 }

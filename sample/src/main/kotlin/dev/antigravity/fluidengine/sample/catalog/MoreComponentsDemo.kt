@@ -694,6 +694,8 @@ private fun ViewerSection() {
         onPageChange = { page = it },
         // Un'immagine larga 3:2: i limiti dello spostamento seguono l'immagine, non il riquadro.
         contentAspectRatio = { 1.5f },
+        // Il fondo nero delle foto (3.0.1): il titolo e la chiusura diventano chiari da soli.
+        background = Color.Black,
       ) { index ->
         Box(
           modifier = Modifier

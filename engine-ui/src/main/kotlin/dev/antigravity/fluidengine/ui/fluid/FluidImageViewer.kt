@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -383,8 +384,8 @@ data class FluidImageViewerStrings(
  * **Di chi e' il dito**: vedi [fluidZoomable]. A scala 1 il gesto verso il basso non e' dell'immagine, e il
  * foglio lo prende da solo; da ingrandita no, e un pizzico lasciato a meta' non chiude niente.
  *
- * **Quello che non fa**, e il perche': lo sfondo e' la pagina opaca dell'host (non nera, il tema), e lo
- * scurimento dietro **non** e' proporzionale al trascinamento. Il fondale di un modale pagina intera e' un
+ * **Quello che non fa**, e il perche': lo sfondo e' la pagina opaca dell'host (il tema; nera o del colore
+ * dell'app con [background], dalla 3.0.1), e lo scurimento dietro **non** e' proporzionale al trascinamento. Il fondale di un modale pagina intera e' un
  * velo fisso, e una presentazione con uno sfondo che si schiarisce col dito vorrebbe un'aggiunta all'host
  * (`FluidGlassModal.kt`), non un giro qui. Senza un `FluidGlassModalHost` in scope non si apre e non va in
  * crash (e' la regola del portale).
@@ -396,6 +397,9 @@ data class FluidImageViewerStrings(
  * @param maxScale l'ingrandimento massimo.
  * @param contentAspectRatio il rapporto d'aspetto dell'immagine di una pagina, se si sa: i limiti dello spostamento
  *   seguono l'immagine (vedi [FluidZoom.fitSize]).
+ * @param background il fondo al posto della pagina del tema (3.0.1): `Color.Black` per le foto, come la
+ *   galleria del telefono. Il titolo e la chiusura in cima prendono il colore che ci si legge sopra. Null: il
+ *   tema.
  * @param page l'immagine della pagina `n`: riempie il contenitore, e il visualizzatore la adatta.
  */
 @Composable
@@ -410,6 +414,7 @@ fun FluidImageViewer(
   maxScale: Float = FluidZoom.DefaultMaxScale,
   contentAspectRatio: (page: Int) -> Float? = { null },
   strings: FluidImageViewerStrings = FluidImageViewerStrings(),
+  background: Color? = null,
   page: @Composable (page: Int) -> Unit,
 ) {
   if (pageCount <= 0) return
@@ -430,6 +435,7 @@ fun FluidImageViewer(
     onDismissRequest = onDismissRequest,
     presentation = FluidGlassModalPresentation.FullScreen,
     paneTitle = title(pagerState.currentPage, pageCount),
+    pageColor = background,
     footer = {
       FluidImageViewerPager(
         pagerState = pagerState,

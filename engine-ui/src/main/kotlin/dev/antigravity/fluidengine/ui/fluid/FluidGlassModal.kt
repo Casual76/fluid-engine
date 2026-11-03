@@ -71,6 +71,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.material3.contentColorFor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -315,6 +318,12 @@ data class FluidContextAction(
    * [onClick], cosi' la lambda in coda continua a essere l'azione.
    */
   val startsSection: Boolean = false,
+  /**
+   * La voce e' quella scelta (3.0.1): una spunta a destra, e per TalkBack lo stato «selezionato». Per i menu
+   * che scelgono fra alternative («Ordina per», «Vista»): prima ogni app ci metteva un'icona di spunta a
+   * mano, che TalkBack non leggeva. Prima di [onClick], cosi' la lambda in coda resta l'azione.
+   */
+  val selected: Boolean = false,
   val onClick: () -> Unit,
 )
 
@@ -357,6 +366,9 @@ internal class FluidGlassModalEntry {
   var presentation by mutableStateOf(FluidGlassModalPresentation.Popover)
   var paneTitle: String? by mutableStateOf(null)
   var paneTint: Color? by mutableStateOf(null)
+
+  /** Il fondo di una pagina intera, al posto di `surface` (3.0.1). Null: quello del tema. */
+  var pageColor: Color? by mutableStateOf(null)
   var content: (@Composable ColumnScope.() -> Unit) by mutableStateOf({})
 
   /** I tasti in fondo a una pagina intera, fermi mentre il contenuto scorre. Null: non ce ne sono. */
@@ -426,6 +438,12 @@ fun FluidGlassModalPortal(
    * presentazioni vengono semplicemente dopo il contenuto.
    */
   footer: (@Composable ColumnScope.() -> Unit)? = null,
+  /**
+   * Il fondo di una [FluidGlassModalPresentation.FullScreen] al posto di `surface` (3.0.1): il nero di un
+   * visualizzatore di foto, il colore di una pagina che ne ha uno suo. Il titolo e la chiusura in cima
+   * prendono il colore che ci si legge sopra. Le altre presentazioni sono vetro, e lo ignorano.
+   */
+  pageColor: Color? = null,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   val host = LocalFluidGlassModalHostState.current ?: return
@@ -442,6 +460,7 @@ fun FluidGlassModalPortal(
     entry.presentation = presentation
     entry.paneTitle = paneTitle
     entry.paneTint = paneTint
+    entry.pageColor = pageColor
     entry.footer = footer
     entry.content = content
   }
@@ -472,6 +491,8 @@ fun <T : Any> FluidGlassModalPortal(
   paneTitle: String? = null,
   paneTint: Color? = null,
   footer: (@Composable ColumnScope.(T) -> Unit)? = null,
+  /** Vedi l'altro overload. Dalla 3.0.1. */
+  pageColor: Color? = null,
   content: @Composable ColumnScope.(T) -> Unit,
 ) {
   var lastItem by remember { mutableStateOf(item) }
@@ -484,6 +505,7 @@ fun <T : Any> FluidGlassModalPortal(
     paneTitle = paneTitle,
     paneTint = paneTint,
     footer = footer?.let { footer -> { lastItem?.let { footer(it) } } },
+    pageColor = pageColor,
   ) {
     lastItem?.let { content(it) }
   }
@@ -795,12 +817,14 @@ private fun FluidGlassModalPaneLayer(
   // Tenuto come tutto il resto: alla chiusura la finestra deve continuare a essere del colore da
   // cui e' nata per tutto il viaggio di ritorno, non tornare grigia a meta' strada.
   var lastPaneTint by remember { mutableStateOf(entry.paneTint) }
+  var lastPageColor by remember { mutableStateOf(entry.pageColor) }
   if (entry.visible) {
     lastContent = entry.content
     lastFooter = entry.footer
     lastOrigin = entry.origin()
     lastPaneTitle = entry.paneTitle
     lastPaneTint = entry.paneTint
+    lastPageColor = entry.pageColor
     // Not only a context menu lifts its row out of the page: anything that morphs out of an anchor
     // does, because the pane is glass and the anchor would otherwise be legible through it.
     entry.lifted = true
@@ -896,6 +920,7 @@ private fun FluidGlassModalPaneLayer(
       FluidGlassModalSheet(
         paneTitle = lastPaneTitle,
         paneTint = lastPaneTint,
+        pageColor = lastPageColor,
         backdrop = popoverBackdrop,
         // Sheets arrive by *travelling*, not by fading: the spring is the animation, and the alpha
         // only exists so the last few pixels of the exit do not pop.
@@ -1746,6 +1771,8 @@ internal fun FluidLiftedPreview(
 private fun FluidGlassModalSheet(
   paneTitle: String?,
   paneTint: Color?,
+  /** Il fondo della pagina intera, se l'app ne ha dato uno: vedi `FluidGlassModalPortal(pageColor)`. */
+  pageColor: Color?,
   backdrop: GlassBackdropState?,
   slide: () -> Float,
   backProgress: () -> Float,
@@ -1895,7 +1922,9 @@ private fun FluidGlassModalSheet(
             // esattamente il difetto per cui il vetro va tenuto sugli elementi piccoli. La tinta,
             // se c'e', resta come un velo: e' il colore da cui la pagina e' nata.
             val surface = MaterialTheme.colorScheme.surface
-            val page = paneTint?.let { androidx.compose.ui.graphics.lerp(surface, it, 0.08f) } ?: surface
+            val page = pageColor
+              ?: paneTint?.let { androidx.compose.ui.graphics.lerp(surface, it, 0.08f) }
+              ?: surface
             Modifier.background(page, shape)
           } else {
             Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
@@ -1909,23 +1938,28 @@ private fun FluidGlassModalSheet(
     ) {
       FluidGrabber()
       if (fullScreen) {
-        FluidFullScreenHeader(title = paneTitle, onDismiss = onDismiss)
-        // Lo scorrimento sta qui e non nel contenuto, perche' e' un compito della pagina: il
-        // chiamante mette i suoi campi e basta. La chiusura trascinando passa di qui lo stesso —
-        // quando la colonna non ha piu' niente da scorrere verso l'alto, il resto del gesto arriva
-        // alla connessione del pannello.
-        // La barra di sistema in fondo la scavalca l'ultima cosa della pagina: i tasti se ci sono,
-        // altrimenti la coda del contenuto. Staccata dai bordi non serve: il margine e' gia' fuori.
-        val clearsSystemBar = if (detached) Modifier else Modifier.navigationBarsPadding()
-        Column(
-          modifier = Modifier
-            .weight(1f)
-            .verticalScroll(rememberScrollState())
-            .then(if (footer == null) clearsSystemBar else Modifier),
-          content = content,
-        )
-        if (footer != null) {
-          Column(modifier = Modifier.fillMaxWidth().then(clearsSystemBar), content = footer)
+        // Il testo sulla pagina e' quello che ci si legge sopra: `onSurface` sulla pagina del tema, il chiaro
+        // sul nero di un visualizzatore (3.0.1).
+        val pageContent = pageColor?.let { fluidContentColorOn(it) } ?: MaterialTheme.colorScheme.onSurface
+        CompositionLocalProvider(LocalContentColor provides pageContent) {
+          FluidFullScreenHeader(title = paneTitle, onDismiss = onDismiss)
+          // Lo scorrimento sta qui e non nel contenuto, perche' e' un compito della pagina: il
+          // chiamante mette i suoi campi e basta. La chiusura trascinando passa di qui lo stesso —
+          // quando la colonna non ha piu' niente da scorrere verso l'alto, il resto del gesto arriva
+          // alla connessione del pannello.
+          // La barra di sistema in fondo la scavalca l'ultima cosa della pagina: i tasti se ci sono,
+          // altrimenti la coda del contenuto. Staccata dai bordi non serve: il margine e' gia' fuori.
+          val clearsSystemBar = if (detached) Modifier else Modifier.navigationBarsPadding()
+          Column(
+            modifier = Modifier
+              .weight(1f)
+              .verticalScroll(rememberScrollState())
+              .then(if (footer == null) clearsSystemBar else Modifier),
+            content = content,
+          )
+          if (footer != null) {
+            Column(modifier = Modifier.fillMaxWidth().then(clearsSystemBar), content = footer)
+          }
         }
       } else if (backdrop != null) {
         // Come nel pop-up: il canvas del contenuto e' il foglio, e il vetro che ci sta sopra e'
@@ -1944,6 +1978,16 @@ private fun FluidGlassModalSheet(
     }
   }
 }
+
+/**
+ * Il colore del testo su un fondo qualunque: il ruolo «on» del tema se il fondo e' un ruolo del tema,
+ * altrimenti nero o bianco secondo la luminanza (3.0.1, per `FluidGlassModalPortal(pageColor)`).
+ */
+@Composable
+internal fun fluidContentColorOn(background: Color): Color =
+  MaterialTheme.colorScheme.contentColorFor(background).takeOrElse {
+    if (background.luminance() > 0.5f) Color.Black.copy(alpha = 0.87f) else Color.White
+  }
 
 /**
  * La barra in cima a una pagina intera: il titolo nel mezzo, la chiusura a destra.
@@ -1966,7 +2010,8 @@ private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
       Text(
         text = title,
         style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.onSurface,
+        // Il colore della pagina (3.0.1): `onSurface` di serie, il chiaro su un fondo scuro dell'app.
+        color = LocalContentColor.current,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
@@ -1994,14 +2039,14 @@ private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier =
       Icon(
         imageVector = Icons.Rounded.Close,
         contentDescription = closeLabel,
-        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.80f),
+        tint = LocalContentColor.current.copy(alpha = 0.80f),
         modifier = Modifier.size(FluidFullScreenCloseGlyph),
       )
     }
     return
   }
-  val fill = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-  val glyph = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
+  val fill = LocalContentColor.current.copy(alpha = 0.10f)
+  val glyph = LocalContentColor.current.copy(alpha = 0.70f)
   Box(
     modifier = modifier
       .size(FluidFullScreenCloseTouchTarget)

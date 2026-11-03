@@ -36,7 +36,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidIndeterminateBar
 import dev.antigravity.fluidengine.ui.fluid.FluidProgressBar
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
-import dev.antigravity.fluidengine.ui.fluid.fluidGlassGroups
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassGroupsIndexed
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.NoOpFluidHaptics
@@ -114,6 +114,7 @@ internal fun LazyListScope.gapsDemoItems() {
         leading = { Icon(Icons.Rounded.CloudOff, contentDescription = null) },
         action = "Riprova (toccato $taps)",
         onClick = { taps++ },
+        glass = true,
       )
       FluidInlineMessage(
         title = "Nuova versione",
@@ -121,12 +122,22 @@ internal fun LazyListScope.gapsDemoItems() {
         tone = FluidTone.Info,
         onClick = { taps++ },
         onDismiss = {},
+        glass = true,
       )
       FluidInlineMessage(
         title = "Solo da leggere",
-        message = "Senza onClick e' il riquadro di sempre: niente freccia.",
+        message = "Senza onClick e' il riquadro di sempre: niente freccia. Questo resta opaco (glass = false).",
         tone = FluidTone.Neutral,
       )
+      // Una card spenta (3.0.1): non risponde, e il contenuto sfuma senza che sfumi il vetro.
+      FluidCard(glass = true, enabled = false, onClick = { taps++ }) {
+        Text("Card spenta", style = MaterialTheme.typography.titleMedium)
+        Text(
+          "Toccala: non succede niente. Sfuma il testo, non il vetro.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
     }
   }
 
@@ -216,9 +227,9 @@ internal fun LazyListScope.gapsDemoItems() {
 
   // 8. Una lista lunga in pannelli di vetro dal taglio invisibile.
   item(key = "gaps-groups-header") { FluidSectionHeader(title = "Lista lunga in pannelli di vetro") }
-  fluidGlassGroups(items = (1..20).toList(), key = "gaps-groups") { number ->
+  fluidGlassGroupsIndexed(items = (1..20).toList(), key = "gaps-groups") { index, number ->
     FluidListRow(
-      title = "Riga $number",
+      title = "Riga $number (indice $index)",
       subtitle = if (number % 8 == 0 || number % 8 == 1) "Qui cade il taglio fra due pannelli: non si deve vedere" else "",
       onClick = {},
     )

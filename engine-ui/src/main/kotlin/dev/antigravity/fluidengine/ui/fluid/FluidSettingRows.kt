@@ -1,14 +1,29 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -22,12 +37,16 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
+import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidTone
+import dev.antigravity.fluidengine.ui.theme.FluidToneTile
 
 /**
  * Una riga di impostazioni con un interruttore: **la riga e' l'interruttore**.
@@ -61,6 +80,8 @@ import dev.antigravity.fluidengine.ui.theme.FluidTone
  * sottotitolo.
  *
  * @param tone il tono della piastrella di [leading]; il tono sta sull'icona, mai sulla riga.
+ * @param leadingTile [leading] nella piastrella del [tone]; falso: com'e' (una piastrella dell'app, un
+ *   colore suo), come in `FluidListRow`. Dalla 3.0.1.
  */
 @Composable
 fun FluidToggleRow(
@@ -72,6 +93,7 @@ fun FluidToggleRow(
   enabled: Boolean = true,
   tone: FluidTone = FluidTone.Neutral,
   leading: (@Composable () -> Unit)? = null,
+  leadingTile: Boolean = true,
 ) {
   val haptics = rememberFluidHaptics()
   FluidListRow(
@@ -96,6 +118,7 @@ fun FluidToggleRow(
       },
     tone = tone,
     leading = leading,
+    leadingTile = leadingTile,
     // `enabled` resta vero: a sfumare e' la riga, e un interruttore che sfumasse anche da solo
     // arriverebbe al quarto dell'opacita'. Non risponde comunque: senza callback non ha gesto.
     badge = { FluidSwitch(checked = checked, onCheckedChange = null) },
@@ -126,6 +149,13 @@ fun FluidToggleRow(
  * Per il gruppo, `FluidListGroup(modifier = Modifier.selectableGroup())` fa dire a TalkBack «1 di 3».
  *
  * @param onSelect chiamata a ogni tocco, anche sulla riga gia' scelta.
+ * @param leading un'icona davanti al titolo, nella piastrella del [tone] (32 dp, [FluidToneTileSize]): in
+ *   una riga di una riga (56 dp) e di due (72 dp) sta al centro con il margine dei titoli, come la
+ *   piastrella da 29 pt di una riga da 44 di iOS.
+ * @param leadingTile falso: [leading] sta com'e', senza la piastrella del tono — per una piastrella col
+ *   colore dell'app (`FluidToneTile(color = …)`), un'anteprima, un'icona di un formato. Dalla 3.0.1: prima
+ *   una riga di scelta metteva sempre la piastrella, e l'icona dell'app finiva in una piastrella dentro la
+ *   piastrella.
  */
 @Composable
 fun FluidChoiceRow(
@@ -137,6 +167,7 @@ fun FluidChoiceRow(
   enabled: Boolean = true,
   tone: FluidTone = FluidTone.Neutral,
   leading: (@Composable () -> Unit)? = null,
+  leadingTile: Boolean = true,
 ) {
   val haptics = rememberFluidHaptics()
   FluidListRow(
@@ -159,6 +190,7 @@ fun FluidChoiceRow(
       },
     tone = tone,
     leading = leading,
+    leadingTile = leadingTile,
     badge = { FluidChoiceMark(selected = selected) },
   )
 }
@@ -216,3 +248,190 @@ internal const val FluidSettingRowDisabledAlpha = 0.5f
 /** Lo spazio riservato alla spunta, e il segno dentro: il bersaglio di un'icona piccola, non di piu'. */
 private val FluidChoiceMarkSize = 24.dp
 private val FluidChoiceMarkGlyph = 22.dp
+
+/** Un'alternativa di [FluidPickerRow]: la chiave che l'app conosce, e come si legge. */
+@Immutable
+data class FluidPickerOption<K>(
+  val key: K,
+  val label: String,
+  /** Una riga sotto l'alternativa, nel pop-up; vuota: niente. */
+  val subtitle: String = "",
+)
+
+/**
+ * Una riga che sceglie fra alternative in un pop-up (3.0.1): il titolo a sinistra, la scelta di adesso a
+ * destra, e al tocco **la riga diventa il pop-up** con le alternative — righe di scelta, la spunta su quella
+ * di adesso. Una scelta chiude il pop-up e chiama [onSelected] (solo se cambia); un tocco fuori lo chiude e
+ * basta.
+ *
+ * E' il selettore delle impostazioni di iOS (la riga con il valore e le due frecce), e KeyVoice, Pampa sounds
+ * e universal_converter se l'erano scritta ognuno con un `FluidGlassModalPortal` e una lista di
+ * `FluidChoiceRow`: qui e' un pezzo solo, con l'origine, la trasformazione dalla riga e la semantica giuste.
+ *
+ * Per TalkBack e' **un** nodo, un elenco a discesa con il titolo come nome e la scelta come stato; dentro il
+ * pop-up le alternative sono un gruppo di radio («2 di 4»). Un colpo solo all'apertura (`Open`, e' un
+ * tasto che apre qualcosa di suo), un `Tick` se la scelta si sposta.
+ *
+ * Serve un `FluidGlassModalHost` alla radice, come per ogni portale: senza, la riga c'e' e il tocco non apre
+ * niente. Con molte alternative il pop-up scorre (e' alto al piu' l'85% dello schermo).
+ *
+ * @param paneTitle il titolo del pop-up per TalkBack; di serie [title].
+ */
+@Composable
+fun <K> FluidPickerRow(
+  title: String,
+  selectedKey: K,
+  options: List<FluidPickerOption<K>>,
+  onSelected: (K) -> Unit,
+  modifier: Modifier = Modifier,
+  subtitle: String = "",
+  enabled: Boolean = true,
+  tone: FluidTone = FluidTone.Neutral,
+  leading: (@Composable () -> Unit)? = null,
+  leadingTile: Boolean = true,
+  paneTitle: String = title,
+) {
+  var open by remember { mutableStateOf(false) }
+  var anchor by remember { mutableStateOf<Rect?>(null) }
+  val current = options.firstOrNull { it.key == selectedKey }?.label.orEmpty()
+  FluidListRow(
+    title = title,
+    subtitle = subtitle,
+    modifier = modifier
+      .alpha(if (enabled) 1f else FluidSettingRowDisabledAlpha)
+      // La riga e' l'origine del pop-up, e mentre e' aperto non si disegna: e' lei che e' diventata il pannello.
+      .fluidExpandOrigin(onMeasured = { anchor = it })
+      .fluidRowPressable(
+        onClick = { open = true },
+        enabled = enabled,
+        haptic = FluidHapticEvent.Open,
+      )
+      .clearAndSetSemantics {
+        fluidRowLabel(title, subtitle)
+        role = Role.DropdownList
+        stateDescription = current
+      },
+    tone = tone,
+    leading = leading,
+    leadingTile = leadingTile,
+    badge = {
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+          text = current,
+          style = MaterialTheme.typography.bodyLarge,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+        Icon(
+          imageVector = Icons.Rounded.UnfoldMore,
+          contentDescription = null,
+          modifier = Modifier.size(18.dp),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+        )
+      }
+    },
+  )
+  FluidGlassModalPortal(
+    visible = open,
+    onDismissRequest = { open = false },
+    origin = { anchor },
+    paneTitle = paneTitle,
+  ) {
+    Column(modifier = Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
+      options.forEachIndexed { index, option ->
+        if (index > 0) FluidListDivider()
+        FluidChoiceRow(
+          title = option.label,
+          subtitle = option.subtitle,
+          selected = option.key == selectedKey,
+          onSelect = {
+            open = false
+            if (option.key != selectedKey) onSelected(option.key)
+          },
+        )
+      }
+    }
+  }
+}
+
+/**
+ * Una riga con uno slider (3.0.1): il titolo e il valore in parole sopra, il [FluidSlider] sotto, nella
+ * misura di una riga di un gruppo — la luminosita', il volume, la soglia, il tempo di un timer.
+ *
+ * Il valore in parole ([valueLabel], «30 minuti», «-12 dB») e' quello che TalkBack legge come stato dello
+ * slider: senza, direbbe una percentuale della pista. Il titolo e' il nome dello slider. Le cifre sono
+ * tabulari, cosi' il valore non balla mentre il dito si muove.
+ *
+ * Il gesto e' dello slider (un trascinamento di lato e' suo, uno in verticale e' della pagina), e la riga non
+ * ha un tocco suo: e' una riga di un gruppo, non un bersaglio.
+ *
+ * @param snapValues vedi [FluidSlider].
+ */
+@Composable
+fun FluidSliderRow(
+  title: String,
+  value: Float,
+  onValueChange: (Float) -> Unit,
+  modifier: Modifier = Modifier,
+  valueLabel: String? = null,
+  subtitle: String = "",
+  valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+  snapValues: List<Float> = emptyList(),
+  enabled: Boolean = true,
+  onValueChangeFinished: (() -> Unit)? = null,
+  tone: FluidTone = FluidTone.Neutral,
+  leading: (@Composable () -> Unit)? = null,
+  leadingTile: Boolean = true,
+) {
+  Column(
+    modifier = modifier
+      .fillMaxWidth()
+      .padding(horizontal = 16.dp, vertical = 12.dp),
+    verticalArrangement = Arrangement.spacedBy(6.dp),
+  ) {
+    // Il testo e' detto dallo slider (nome e stato): qui sopra e' solo da leggere. Sfuma lui, non lo slider,
+    // che da spento sfuma da se' (insieme arriverebbero al quarto dell'opacita').
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .alpha(if (enabled) 1f else FluidSettingRowDisabledAlpha)
+        .clearAndSetSemantics { },
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      if (leading != null) {
+        if (leadingTile) FluidToneTile(tone = tone, content = leading) else leading()
+      }
+      Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        if (subtitle.isNotBlank()) {
+          Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+      }
+      if (valueLabel != null) {
+        Text(
+          text = valueLabel,
+          style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 1,
+        )
+      }
+    }
+    FluidSlider(
+      value = value,
+      onValueChange = onValueChange,
+      modifier = Modifier.fillMaxWidth(),
+      valueRange = valueRange,
+      enabled = enabled,
+      onValueChangeFinished = onValueChangeFinished,
+      snapValues = snapValues,
+      contentDescription = title,
+      stateDescription = valueLabel,
+    )
+  }
+}

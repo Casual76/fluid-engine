@@ -111,8 +111,10 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -481,6 +483,12 @@ fun FluidCard(
   animatePress: Boolean = true,
   /** See [fluidContentGlass]: a request honoured only where there is a canvas to look through. */
   glass: Boolean = false,
+  /**
+   * Falso: la card non risponde al tocco e il suo contenuto sfuma (3.0.1), come una riga spenta. Sfuma il
+   * **contenuto**, non la card: un alpha sul vetro farebbe sfumare anche cio' che il vetro rifrange, e la
+   * card spenta resta una card dello stesso materiale delle vicine. Per TalkBack e' «disattivato».
+   */
+  enabled: Boolean = true,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   // `MaterialTheme.shapes.large` is a circular corner, and rule one of this design system says a
@@ -498,7 +506,9 @@ fun FluidCard(
     )
 
   val clickableModifier = if (onClick != null) {
-    baseModifier.fluidPressable(onClick = onClick, pressedScale = if (animatePress) 0.974f else 1f)
+    baseModifier.fluidPressable(onClick = onClick, enabled = enabled, pressedScale = if (animatePress) 0.974f else 1f)
+  } else if (!enabled) {
+    baseModifier.semantics { disabled() }
   } else {
     baseModifier
   }
@@ -520,12 +530,16 @@ fun FluidCard(
     Column(
       modifier = Modifier
         .fillMaxWidth()
+        .then(if (enabled) Modifier else Modifier.alpha(FluidCardDisabledAlpha))
         .padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(10.dp),
       content = content,
     )
   }
 }
+
+/** Quanto sfuma il contenuto di una card spenta: come una riga spenta (`FluidToggleRow`). */
+private const val FluidCardDisabledAlpha = 0.5f
 
 /**
  * Sync state as a bar control rather than as a mark on the page.
@@ -928,6 +942,9 @@ private fun FluidSyncDetails(
  *   che distingue un avviso da un errore senza leggere. Dalla 3.0.
  * @param onDismiss il tasto "Nascondi". Con [onClick] sostituisce la freccia: un messaggio che si
  *   puo' chiudere e toccare tiene la chiusura, che e' l'azione che non si puo' sbagliare.
+ * @param glass il riquadro di vetro dove la pagina ha un canvas da attraversare, come [FluidCard] e
+ *   `FluidListGroup` (3.0.1): era l'unico gruppo opaco su una pagina di vetro. Senza canvas, o sotto API 31,
+ *   resta la superficie di sempre.
  */
 @Composable
 fun FluidInlineMessage(
@@ -939,12 +956,14 @@ fun FluidInlineMessage(
   onClick: (() -> Unit)? = null,
   action: String? = null,
   leading: (@Composable () -> Unit)? = null,
+  glass: Boolean = false,
 ) {
   val toneColor = toneColors(tone).content
   FluidCard(
     modifier = if (onClick != null) modifier.semantics { role = Role.Button } else modifier,
     highlighted = tone != FluidTone.Neutral,
     onClick = onClick,
+    glass = glass,
   ) {
     Row(
       modifier = Modifier.fillMaxWidth(),

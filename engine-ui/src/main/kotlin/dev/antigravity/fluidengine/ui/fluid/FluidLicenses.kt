@@ -95,6 +95,9 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
  * A translated app passes its own strings: leave the defaults and it ends up with two Italian
  * sentences in the middle of an English page — that happened, and nobody notices until the phone
  * is turned to English.
+ *
+ * @param glass il gruppo di vetro, su una pagina con un canvas ambientale, come `FluidListGroup(glass)`
+ *   (3.0.1): era l'unico gruppo opaco di una pagina «informazioni» tutta di vetro.
  */
 fun LazyListScope.fluidLicensesSection(
   title: String = "Licenze e crediti",
@@ -103,12 +106,13 @@ fun LazyListScope.fluidLicensesSection(
     "e i sorgenti sono a disposizione di chi la riceve. " +
     "Le licenze complete sono nel repository dell'engine, in LICENSES/.",
   licences: List<FluidLicense> = FluidEngineLicenses,
+  glass: Boolean = false,
 ) {
   item(key = "fluid-licences-header") {
     FluidSectionHeader(title = title)
   }
   item(key = "fluid-licences-body") {
-    FluidLicenseGroup(licences = licences)
+    FluidLicenseGroup(licences = licences, glass = glass)
   }
   if (footnote != null) {
     item(key = "fluid-licences-footnote") {
@@ -117,14 +121,15 @@ fun LazyListScope.fluidLicensesSection(
   }
 }
 
-/** The same list outside a lazy layout, for a page built out of a `Column`. */
+/** The same list outside a lazy layout, for a page built out of a `Column`. [glass]: vedi [fluidLicensesSection]. */
 @Composable
 fun FluidLicenseGroup(
   licences: List<FluidLicense> = FluidEngineLicenses,
   modifier: Modifier = Modifier,
+  glass: Boolean = false,
 ) {
   val uriHandler = LocalUriHandler.current
-  FluidListGroup(modifier = modifier) {
+  FluidListGroup(modifier = modifier, glass = glass) {
     licences.forEachIndexed { index, licence ->
       if (index > 0) FluidListDivider()
       FluidListRow(

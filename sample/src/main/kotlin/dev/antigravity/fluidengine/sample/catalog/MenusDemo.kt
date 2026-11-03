@@ -52,6 +52,7 @@ import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
+import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
@@ -107,41 +108,47 @@ private fun demoActions(pick: (String) -> Unit): List<FluidContextAction> = list
 
 @Composable
 private fun MorphSection(pick: (String) -> Unit) {
-  FluidSectionHeader(title = "Il tasto che si trasforma", detail = "Tieni premuto \"Azione\"; \"Ordina\" si apre al tocco.")
+  FluidSectionHeader(
+    title = "Il tasto che si trasforma",
+    detail = "Tieni premuto \"Azione\"; \"Ordina\" si apre al tocco, con la spunta sulla scelta di adesso.",
+  )
   Stage(height = 360.dp) { backdrop ->
     val menu = rememberFluidMorphMenuState()
-    Row(
-      modifier = Modifier
-        .align(Alignment.BottomCenter)
-        .padding(bottom = 20.dp),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-      FluidMorphMenuButton(
-        state = menu,
-        actions = { demoActions(pick) },
-        onClick = { pick("Azione (tocco)") },
-        text = "Azione",
-        backdrop = backdrop,
-        modifier = Modifier.testTag("menus-morph"),
-      )
-      FluidMorphMenuButton(
-        state = menu,
-        actions = {
-          listOf(
-            FluidContextAction(label = "Per data") { pick("Per data") },
-            FluidContextAction(label = "Per nome") { pick("Per nome") },
-            FluidContextAction(label = "Per dimensione") { pick("Per dimensione") },
-          )
-        },
-        onClick = {},
-        text = "Ordina",
-        backdrop = backdrop,
-        opensOnTap = true,
-        modifier = Modifier.testTag("menus-morph-tap"),
-      )
+    var order by remember { mutableStateOf("Per data") }
+    // Lo stato del menu arriva ai tasti dal fornitore (3.0.1): nessuno dei due lo riceve come parametro.
+    CompositionLocalProvider(LocalFluidMorphMenuState provides menu) {
+      Row(
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .padding(bottom = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        FluidMorphMenuButton(
+          actions = { demoActions(pick) },
+          onClick = { pick("Azione (tocco)") },
+          text = "Azione",
+          backdrop = backdrop,
+          modifier = Modifier.testTag("menus-morph"),
+        )
+        FluidMorphMenuButton(
+          actions = {
+            listOf("Per data", "Per nome", "Per dimensione").map { label ->
+              FluidContextAction(label = label, selected = label == order) {
+                order = label
+                pick(label)
+              }
+            }
+          },
+          onClick = {},
+          text = "Ordina",
+          backdrop = backdrop,
+          opensOnTap = true,
+          modifier = Modifier.testTag("menus-morph-tap"),
+        )
+      }
+      // L'host del palco: il menu cresce dentro il palco, sopra i tasti.
+      FluidMorphMenuHost(state = menu, backdrop = backdrop)
     }
-    // L'host del palco: il menu cresce dentro il palco, sopra i tasti.
-    FluidMorphMenuHost(state = menu, backdrop = backdrop)
   }
 }
 

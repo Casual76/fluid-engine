@@ -20,7 +20,19 @@ import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.fluidAppearanceSection
+import dev.antigravity.fluidengine.ui.fluid.FluidChoiceRow
+import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
+import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
+import dev.antigravity.fluidengine.ui.fluid.FluidSliderRow
 import dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection
+import dev.antigravity.fluidengine.ui.theme.FluidToneTile
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.Color
+import kotlin.math.roundToInt
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
@@ -53,13 +65,62 @@ internal fun SettingsTab(
       footnote = "Il tema chiaro serve per giudicare il bordo del vetro che si trasforma: sul chiaro " +
         "è scuro, sullo scuro è la metà più tenue.",
     )
+    // Le righe della 3.0.1: il selettore che diventa un pop-up, lo slider in una riga, e una riga di scelta
+    // con la piastrella dell'app (`leadingTile = false`).
+    item(key = "rows-header") { FluidSectionHeader(title = "Righe di impostazioni") }
+    item(key = "rows") { SettingRowsGroup() }
     item(key = "about-header") { FluidSectionHeader(title = "Informazioni") }
     item(key = "about") {
       UpdatesAndAboutGroup()
     }
     // I crediti stanno qui apposta: sono la stessa sezione che ogni app deve mettere nella propria
     // pagina "informazioni", e vale la pena guardarla girare sopra il canvas.
-    fluidLicensesSection()
+    fluidLicensesSection(glass = true)
+  }
+}
+
+/** Il selettore, lo slider e le righe di scelta con una piastrella dell'app, in un gruppo di vetro. */
+@Composable
+private fun SettingRowsGroup() {
+  var quality by remember { mutableStateOf("media") }
+  var volume by remember { mutableFloatStateOf(0.6f) }
+  var format by remember { mutableStateOf("png") }
+  FluidListGroup(glass = true) {
+    FluidPickerRow(
+      title = "Qualita'",
+      selectedKey = quality,
+      options = listOf(
+        FluidPickerOption("bassa", "Bassa", subtitle = "File piccoli"),
+        FluidPickerOption("media", "Media"),
+        FluidPickerOption("alta", "Alta", subtitle = "File grandi, piu' lenti"),
+      ),
+      onSelected = { quality = it },
+    )
+    FluidListDivider()
+    FluidSliderRow(
+      title = "Volume",
+      value = volume,
+      onValueChange = { volume = it },
+      valueLabel = "${(volume * 100).roundToInt()}%",
+    )
+    FluidListDivider()
+    for ((key, label, colour) in listOf(
+      Triple("png", "PNG", Color(0xFF2E7D32)),
+      Triple("mp4", "MP4", Color(0xFF6A1B9A)),
+    )) {
+      FluidChoiceRow(
+        title = label,
+        selected = format == key,
+        onSelect = { format = key },
+        leading = {
+          FluidToneTile(color = colour) {
+            Icon(if (key == "png") Icons.Rounded.Image else Icons.Rounded.Movie, contentDescription = null)
+          }
+        },
+        leadingTile = false,
+      )
+      if (key == "png") FluidListDivider()
+    }
   }
 }
 

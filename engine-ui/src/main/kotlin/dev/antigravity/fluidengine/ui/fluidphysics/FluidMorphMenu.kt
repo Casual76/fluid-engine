@@ -16,6 +16,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -246,6 +248,27 @@ class FluidMorphMenuState internal constructor() {
 fun rememberFluidMorphMenuState(): FluidMorphMenuState = remember { FluidMorphMenuState() }
 
 /**
+ * Lo stato del menu che si trasforma dell'app, per chi sta lontano dalla radice (3.0.1).
+ *
+ * L'host ([FluidMorphMenuHost]) sta alla radice e il tasto ([FluidMorphMenuButton]) in fondo a una
+ * schermata: lo stato doveva attraversare ogni livello in mezzo come parametro, e Pampa Store si era fatto un
+ * suo `CompositionLocal` per non farlo. L'app lo fornisce una volta, accanto a `LocalFluidGlassModalHostState`:
+ *
+ * ```kotlin
+ * val morphMenu = rememberFluidMorphMenuState()
+ * CompositionLocalProvider(LocalFluidMorphMenuState provides morphMenu) {
+ *   App()
+ *   FluidMorphMenuHost(state = morphMenu, backdrop = backdrop)
+ * }
+ * ```
+ *
+ * e da li' un [FluidMorphMenuButton] lo prende da solo (`state` di serie), e chi apre il menu da un'altra
+ * parte — una scorciatoia, un tasto della barra — lo chiede qui ([FluidMorphMenuState.open],
+ * [FluidMorphMenuState.dismiss]). Null senza un fornitore.
+ */
+val LocalFluidMorphMenuState: ProvidableCompositionLocal<FluidMorphMenuState?> = staticCompositionLocalOf { null }
+
+/**
  * L'ancora: una capsula di vetro coi gesti dei tasti — tocco per l'azione, tenuto premuto diventa il
  * menù (un `Open`, uno solo, e il dito passa al menu). Mentre il menù è in scena l'ancora non disegna
  * niente: al suo posto, allo stesso pixel, sta la superficie dell'host — la stessa capsula, che parte
@@ -254,10 +277,12 @@ fun rememberFluidMorphMenuState(): FluidMorphMenuState = remember { FluidMorphMe
  * @param opensOnTap il tocco apre il menu invece di fare [onClick] (che allora non viene chiamato):
  *   per un tasto il cui unico mestiere e' il menu ("Ordina", "Altro"). Il tenuto premuto apre in
  *   ogni caso. Dalla 3.0.
+ * @param state di serie quello di [LocalFluidMorphMenuState] (3.0.1); senza un fornitore ne' uno passato, il
+ *   tasto fa il suo [onClick] e il menu non si apre (non c'e' un host che lo disegni).
  */
 @Composable
 fun FluidMorphMenuButton(
-  state: FluidMorphMenuState,
+  state: FluidMorphMenuState = LocalFluidMorphMenuState.current ?: rememberFluidMorphMenuState(),
   actions: () -> List<FluidContextAction>,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,

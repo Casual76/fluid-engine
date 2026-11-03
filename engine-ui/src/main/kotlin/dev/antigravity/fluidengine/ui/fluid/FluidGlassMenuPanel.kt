@@ -46,9 +46,12 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -410,6 +413,7 @@ private fun FluidGlassMenuRow(
         role = Role.Button,
         onClick = onClick,
       )
+      .semantics { if (action.selected) selected = true }
       .drawWithContent {
         // La voce sotto la goccia si fa avanti di un 5%, dal bordo d'attacco: e' la goccia che la
         // solleva. Solo in disegno — niente layer, niente ricomposizione mentre il dito scorre. Non
@@ -436,6 +440,11 @@ private fun FluidGlassMenuRow(
     )
     action.icon?.let {
       Icon(imageVector = it, contentDescription = null, tint = tone, modifier = Modifier.size(20.dp))
+    }
+    // La spunta della voce scelta (3.0.1), a destra come nei menu di scelta di iOS, nel colore della voce:
+    // e' un segno di stato, non un'azione, e l'accento lo hanno gia' la goccia e il tasto.
+    if (action.selected) {
+      Icon(imageVector = Icons.Rounded.Check, contentDescription = null, tint = tone, modifier = Modifier.size(20.dp))
     }
   }
 }

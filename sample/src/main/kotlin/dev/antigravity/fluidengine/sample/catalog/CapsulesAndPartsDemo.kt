@@ -450,6 +450,7 @@ private fun StepSection() {
     segmented = true,
     pulseCurrent = true,
     detail = "Converto il file",
+    labels = listOf("File", "Formato", "Opzioni", "Converti", "Fine"),
   )
   Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
     FluidButton(

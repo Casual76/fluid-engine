@@ -287,6 +287,14 @@ enum class FluidUpdateChannelStyle {
  * @param glass i gruppi in vetro, se la schermata ha un canvas ambientale (come `FluidListGroup`).
  * @param footnote una nota sotto la sezione.
  * @param keyPrefix il prefisso delle chiavi degli item, se la pagina ha due sezioni di questo tipo.
+ * @param autoCheck il controllo all'avvio (3.0.1), **distinto** da [autoDownload]: cercare una versione nuova
+ *   a ogni apertura non vuol dire scaricarla senza chiedere. Compare, con [onAutoCheckChange], nello stesso
+ *   gruppo dello scarico automatico e sopra di lui. Chi lo onora e' l'app (o [rememberFluidUpdateController]
+ *   con `checkOnStart`).
+ *
+ * La riga di stato di una versione nuova riassume le note in **tre righe al piu'** (3.0.1): le note intere
+ * stanno nell'avviso ([FluidUpdatePromptSheet]), e un primo paragrafo di dieci righe spingeva l'azione
+ * fuori dallo schermo.
  */
 fun LazyListScope.fluidUpdateSection(
   state: FluidUpdateUiState,
@@ -306,6 +314,8 @@ fun LazyListScope.fluidUpdateSection(
   glass: Boolean = false,
   footnote: String? = null,
   keyPrefix: String = "fluid-update",
+  autoCheck: Boolean? = null,
+  onAutoCheckChange: ((Boolean) -> Unit)? = null,
 ) {
   item(key = "$keyPrefix-header") { FluidSectionHeader(title = strings.sectionTitle) }
 
@@ -403,15 +413,28 @@ fun LazyListScope.fluidUpdateSection(
     }
   }
 
-  if (autoDownload != null && onAutoDownloadChange != null) {
+  val showsAutoCheck = autoCheck != null && onAutoCheckChange != null
+  val showsAutoDownload = autoDownload != null && onAutoDownloadChange != null
+  if (showsAutoCheck || showsAutoDownload) {
     item(key = "$keyPrefix-auto") {
       FluidListGroup(glass = glass) {
-        FluidToggleRow(
-          title = strings.autoDownload,
-          subtitle = strings.autoDownloadDetail,
-          checked = autoDownload,
-          onCheckedChange = onAutoDownloadChange,
-        )
+        if (autoCheck != null && onAutoCheckChange != null) {
+          FluidToggleRow(
+            title = strings.autoCheck,
+            subtitle = strings.autoCheckDetail,
+            checked = autoCheck,
+            onCheckedChange = onAutoCheckChange,
+          )
+        }
+        if (autoDownload != null && onAutoDownloadChange != null) {
+          if (showsAutoCheck) FluidListDivider()
+          FluidToggleRow(
+            title = strings.autoDownload,
+            subtitle = strings.autoDownloadDetail,
+            checked = autoDownload,
+            onCheckedChange = onAutoDownloadChange,
+          )
+        }
       }
     }
   }
@@ -421,6 +444,9 @@ fun LazyListScope.fluidUpdateSection(
   }
 }
 
+/** Quante righe di note al piu' nella riga di una versione nuova: le note intere sono nell'avviso. */
+internal const val FluidUpdateNotesSummaryLines = 3
+
 /** La riga che dice a che punto e' l'aggiornamento: titolo, dettaglio, ed eventualmente il segno «Nuova». */
 private class FluidUpdateRowSpec(
   val title: String,
@@ -428,6 +454,7 @@ private class FluidUpdateRowSpec(
   val meta: String? = null,
   val isNew: Boolean = false,
   val newLabel: String = "",
+  val subtitleMaxLines: Int = Int.MAX_VALUE,
 )
 
 /**
@@ -447,6 +474,7 @@ private fun statusRow(state: FluidUpdateUiState, strings: FluidUpdateStrings): F
       .ifBlank { strings.availableMessage(FluidUpdate.sizeLabel(state.release.sizeBytes)) },
     isNew = true,
     newLabel = strings.newBadge,
+    subtitleMaxLines = FluidUpdateNotesSummaryLines,
   )
   is FluidUpdateUiState.Downloading, is FluidUpdateUiState.Working ->
     FluidUpdateRowSpec(strings.updating, FluidUpdate.progressText(state, strings).orEmpty())
@@ -462,6 +490,7 @@ private fun FluidUpdateStatusRow(spec: FluidUpdateRowSpec) {
     title = spec.title,
     subtitle = spec.subtitle,
     meta = spec.meta,
+    subtitleMaxLines = spec.subtitleMaxLines,
     badge = if (spec.isNew) {
       { FluidStatusBadge(label = spec.newLabel, tone = FluidTone.Primary) }
     } else {

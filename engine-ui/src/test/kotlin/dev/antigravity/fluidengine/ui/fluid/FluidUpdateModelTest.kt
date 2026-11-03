@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.foundation.AppUpdateErrorKind
 import dev.antigravity.fluidengine.foundation.AppUpdateInstallState
 import dev.antigravity.fluidengine.foundation.AvailableAppUpdate
 import java.util.Locale
@@ -158,6 +159,14 @@ class FluidUpdateModelTest {
   fun `the two endings are installed and failed`() {
     assertEquals(FluidUpdateUiState.Installed(release), AppUpdateInstallState.Installed("/tmp/app.apk").toFluidUpdateState(release))
     assertEquals(FluidUpdateUiState.Failed(release, "Rete assente"), AppUpdateInstallState.Error("Rete assente").toFluidUpdateState(release))
+  }
+
+  @Test
+  fun `the install permission is asked for, not a failure`() {
+    val asked = AppUpdateInstallState.Error("Abilita l'installazione", kind = AppUpdateErrorKind.InstallPermission)
+    assertEquals(FluidUpdateUiState.NeedsPermission(release), asked.toFluidUpdateState(release))
+    // Chi costruisce un errore come prima (senza motivo) ha ancora un fallimento.
+    assertEquals(FluidUpdateUiState.Failed(release, "x"), AppUpdateInstallState.Error("x").toFluidUpdateState(release))
   }
 
   // --- proprieta' dello stato -----------------------------------------------------------------------

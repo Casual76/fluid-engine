@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.runtime.Immutable
+import dev.antigravity.fluidengine.foundation.AppUpdateErrorKind
 import dev.antigravity.fluidengine.foundation.AppUpdateInstallState
 import dev.antigravity.fluidengine.foundation.AvailableAppUpdate
 import java.util.Locale
@@ -148,7 +149,8 @@ fun AvailableAppUpdate.toFluidUpdateRelease(): FluidUpdateRelease =
  *
  *  * `Downloading` senza peso (`totalBytes <= 0`) non ha percentuale: [FluidUpdateUiState.Downloading.progress] e' null;
  *  * `Verifying`, `Installing` e `AwaitingUserAction` sono i tre [FluidUpdateStage], col messaggio dell'installatore;
- *  * `Installed` e `Error` sono `Installed` e `Failed`.
+ *  * `Installed` e `Error` sono `Installed` e `Failed`; un `Error` per il permesso d'installare
+ *    ([AppUpdateErrorKind.InstallPermission]) e' [FluidUpdateUiState.NeedsPermission] (3.0.1).
  */
 fun AppUpdateInstallState.toFluidUpdateState(release: FluidUpdateRelease): FluidUpdateUiState = when (this) {
   is AppUpdateInstallState.Downloading -> FluidUpdateUiState.Downloading(
@@ -162,7 +164,12 @@ fun AppUpdateInstallState.toFluidUpdateState(release: FluidUpdateRelease): Fluid
   is AppUpdateInstallState.AwaitingUserAction ->
     FluidUpdateUiState.Working(release, FluidUpdateStage.AwaitingUser, message)
   is AppUpdateInstallState.Installed -> FluidUpdateUiState.Installed(release)
-  is AppUpdateInstallState.Error -> FluidUpdateUiState.Failed(release, message)
+  // Il permesso d'installare non e' un fallimento (3.0.1): Android lo chiede una volta, e la vista lo dice.
+  is AppUpdateInstallState.Error -> if (kind == AppUpdateErrorKind.InstallPermission) {
+    FluidUpdateUiState.NeedsPermission(release)
+  } else {
+    FluidUpdateUiState.Failed(release, message)
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -231,6 +238,10 @@ data class FluidUpdateStrings(
   val lastCheckedMinutes: (Int) -> String = { if (it == 1) "Controllato 1 minuto fa" else "Controllato $it minuti fa" },
   val lastCheckedHours: (Int) -> String = { if (it == 1) "Controllato 1 ora fa" else "Controllato $it ore fa" },
   val lastCheckedDays: (Int) -> String = { if (it == 1) "Controllato ieri" else "Controllato $it giorni fa" },
+  // Dalla 3.0.1.
+  val autoCheck: String = "Controlla all'avvio",
+  val autoCheckDetail: String = "Cerca una versione nuova ogni volta che apri l'app.",
+  val unknownError: String = "Errore sconosciuto",
 )
 
 // ---------------------------------------------------------------------------------------------

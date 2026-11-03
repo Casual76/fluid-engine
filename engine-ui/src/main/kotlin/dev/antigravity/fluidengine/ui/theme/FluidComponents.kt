@@ -1185,6 +1185,7 @@ fun FluidListRow(
   selected: Boolean = false,
   disclosure: Boolean = true,
   leadingTile: Boolean = true,
+  subtitleMaxLines: Int = Int.MAX_VALUE,
 ) {
   FluidListRow(
     title = AnnotatedString(title),
@@ -1205,6 +1206,7 @@ fun FluidListRow(
     selected = selected,
     disclosure = disclosure,
     leadingTile = leadingTile,
+    subtitleMaxLines = subtitleMaxLines,
   )
 }
 
@@ -1267,6 +1269,11 @@ fun FluidListRow(
    * piastrella dentro la piastrella. Dalla 3.0.
    */
   leadingTile: Boolean = true,
+  /**
+   * Oltre queste righe il sottotitolo finisce con i puntini (3.0.1): per un riassunto che sta in una riga
+   * di elenco e ha il testo intero altrove (le note di una versione, il corpo di un messaggio).
+   */
+  subtitleMaxLines: Int = Int.MAX_VALUE,
 ) {
   val colors = toneColors(tone)
   val selectionWash by animateColorAsState(
@@ -1352,6 +1359,8 @@ fun FluidListRow(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = subtitleMaxLines,
+            overflow = TextOverflow.Ellipsis,
           )
         }
         meta?.takeIf { it.isNotBlank() }?.let {

@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import dev.antigravity.fluidengine.foundation.AppUpdateErrorKind
 import dev.antigravity.fluidengine.foundation.AppUpdateInstallState
 import dev.antigravity.fluidengine.foundation.AvailableAppUpdate
 import dev.antigravity.fluidengine.net.EngineHttp
@@ -145,6 +146,9 @@ class AndroidAppUpdateInstaller(
     report(
       AppUpdateInstallState.Error(
         "Abilita l'installazione da questa app nelle impostazioni di Android e riprova.",
+        // Il motivo (3.0.1): la schermata dice «serve il permesso» e offre le impostazioni, invece di un
+        // «aggiornamento non riuscito». Prima era un errore come gli altri, e NeedsPermission non arrivava mai.
+        kind = AppUpdateErrorKind.InstallPermission,
       ),
     )
     return false

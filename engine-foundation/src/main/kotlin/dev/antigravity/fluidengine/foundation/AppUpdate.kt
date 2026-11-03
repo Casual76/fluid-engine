@@ -43,7 +43,26 @@ sealed interface AppUpdateInstallState {
 
   data class Installed(val filePath: String) : AppUpdateInstallState
 
-  data class Error(val message: String) : AppUpdateInstallState
+  /**
+   * The install stopped. [kind] says why when the reason changes what the screen should offer (3.0.1):
+   * [AppUpdateErrorKind.InstallPermission] is not a failure to show, it is Android asking once for the
+   * permission to install from this app — the screen says so and offers the settings, instead of a red
+   * "update failed". A new reason is a new [AppUpdateErrorKind], never a new state: an app's exhaustive
+   * `when` over these states keeps compiling.
+   */
+  data class Error(
+    val message: String,
+    val kind: AppUpdateErrorKind = AppUpdateErrorKind.Failed,
+  ) : AppUpdateInstallState
+}
+
+/** Why an install stopped, when it matters to what comes next. Since 3.0.1. */
+enum class AppUpdateErrorKind {
+  /** Anything else: the message says what. */
+  Failed,
+
+  /** This app may not install packages yet; the next attempt, after the setting, goes through. */
+  InstallPermission,
 }
 
 /**

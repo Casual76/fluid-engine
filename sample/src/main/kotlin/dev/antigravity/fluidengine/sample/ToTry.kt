@@ -605,8 +605,35 @@ private val Beta5 = TryRound(
   ),
 )
 
+/** La 2.0.0 stabile: gli ultimi ritocchi dopo la beta 5 (engine 3.0.4). */
+private val Stable = TryRound(
+  id = "stabile",
+  title = "Stabile",
+  intro = "La versione stabile: gli ultimi ritocchi dopo la beta 5. Tocca una voce per aprire la sua demo.",
+  items = listOf(
+    TryItem(
+      "interruttore-trascinabile", TryArea.Rows, "Interruttori da trascinare",
+      "Trascina il pallino di «Nero assoluto» o di «Aptica» invece di toccare la riga: si prende e si posa dove lo " +
+        "lasci, e un tocco sulla riga commuta come prima; giudica se il pallino segue il dito.",
+      TryTarget.Tab(RouteSettings, "Impostazioni › Aspetto"),
+    ),
+    TryItem(
+      "menu-apertura-veloce", TryArea.Menus, "Menu più svelti",
+      "Tieni premuto «Azione» e poi tocca fuori: il menu si apre veloce quanto si chiude e le voci arrivano prima; " +
+        "giudica se apertura e chiusura hanno lo stesso passo.",
+      MenusMorph,
+    ),
+    TryItem(
+      "back-dito-fermo", TryArea.Pages, "Back senza scatti",
+      "Apri B e torna indietro dal bordo fermando il dito a metà per un attimo, poi riprendi e torna verso il bordo: " +
+        "la pagina resta sotto il dito; giudica se non salta più.",
+      PagesScreen,
+    ),
+  ),
+)
+
 /** Tutti i giri, dal piu' vecchio al piu' nuovo. Una beta nuova aggiunge qui il suo e basta. */
-internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3, Beta4, Beta5)
+internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3, Beta4, Beta5, Stable)
 
 /**
  * La pagina "Da provare": quello che Alessio vede per prima, e la lista di cio' che va giudicato in mano.

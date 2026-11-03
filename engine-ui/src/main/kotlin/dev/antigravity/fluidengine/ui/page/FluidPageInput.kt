@@ -249,6 +249,12 @@ internal object FluidPageBackInfo : NavigationEventInfo()
  *
  * Registrato sullo stesso dispatcher dei `BackHandler` dell'app *prima* delle pagine: chi si
  * registra dopo (un modale, una selezione) passa davanti, come deve.
+ *
+ * **Un dito, un pilota (3.0.4).** Con la navigazione a gesti l'app vede il dito che parte dal bordo
+ * finche' il sistema non se lo prende (riceve un annullo del puntatore), e il riconoscitore del bordo
+ * puo' aver gia' cominciato a tirare la pagina. Il sistema allora la prende *da dov'e'*: l'ancora si
+ * sposta perche' il primo evento dia la corsa che la pagina ha gia', invece di farla saltare sotto il
+ * dito (fino a 20 dp). Vale anche per una pagina che sta tornando a posto, come la ripresa a dito.
  */
 internal class FluidPageBackHandler(private val state: FluidPageHostState) :
   NavigationEventHandler<FluidPageBackInfo>(FluidPageBackInfo, false) {
@@ -259,6 +265,13 @@ internal class FluidPageBackHandler(private val state: FluidPageHostState) :
   private var lastTouchX = 0f
   private var lastProgress = 0f
   private var cancelInferred = false
+
+  /** Dove il dito sta fermo, e per quanti eventi di fila da allora il progresso e' sceso. */
+  private var stillTouchX = 0f
+  private var stillFalls = 0
+
+  /** Il punto piu' lontano dal bordo che il dito ha toccato in questo gesto (`touchX` per il verso). */
+  private var farthest = Float.NEGATIVE_INFINITY
   private val tracker = VelocityTracker1D(isDataDifferential = false)
 
   override fun onBackStarted(event: NavigationEvent) {
@@ -268,16 +281,24 @@ internal class FluidPageBackHandler(private val state: FluidPageHostState) :
       NavigationEvent.EDGE_RIGHT -> FluidSwipeEdge.Right
       else -> FluidSwipeEdge.None
     }
-    direction = FluidPageMotion.systemDirection(edge, state.layoutDirectionSign)
-    val started = state.beginDrag(direction) ?: return
+    // La pagina e' gia' in moto (il dito nell'app, o il ritorno di un annullo): si continua da li'.
+    val resumed = state.isMovingByFinger()
+    direction = if (resumed) state.direction else FluidPageMotion.systemDirection(edge, state.layoutDirectionSign)
+    val started = state.beginDrag(direction, takeOver = true) ?: return
     token = started
-    anchor = FluidPageMotion.systemAnchor(
-      firstTouchX = event.touchX,
-      edge = edge,
-      hostLeft = state.hostLeftInWindow,
-      hostRight = state.hostRightInWindow,
-      windowWidth = state.windowWidth,
-    )
+    anchor = if (resumed) {
+      event.touchX - state.travelPx * direction
+    } else {
+      FluidPageMotion.systemAnchor(
+        firstTouchX = event.touchX,
+        edge = edge,
+        hostLeft = state.hostLeftInWindow,
+        hostRight = state.hostRightInWindow,
+        windowWidth = state.windowWidth,
+      )
+    }
+    restartStill(event)
+    farthest = event.touchX * direction
     follow(started, event)
   }
 
@@ -288,20 +309,37 @@ internal class FluidPageBackHandler(private val state: FluidPageHostState) :
         lastProgress = event.progress
         return
       }
-      // Il dito c'era ancora: si riprende la pagina da dove la molla l'aveva portata.
-      val again = state.beginDrag(direction) ?: return
+      // Il dito c'era ancora: si riprende la pagina da dove la molla l'ha portata, e da li' la si
+      // muove quanto il dito. Rimetterla sotto il punto di prima era un salto in avanti.
+      val again = state.beginDrag(direction, takeOver = true) ?: return
       token = again
       cancelInferred = false
+      anchor = event.touchX - state.travelPx * direction
+      restartStill(event)
       follow(again, event)
       return
     }
-    if (FluidPageMotion.inferSystemCancel(lastTouchX, event.touchX, lastProgress, event.progress)) {
+    // Il dito fermo si misura dal punto in cui si e' fermato, non dall'evento prima: un dito che va
+    // piano (meno di mezzo pixel per evento) si sta muovendo.
+    if (abs(event.touchX - stillTouchX) >= FluidPageMotion.SystemStillPx || event.progress >= lastProgress) {
+      restartStill(event)
+    } else {
+      stillFalls++
+    }
+    val reach = event.touchX * direction
+    farthest = maxOf(farthest, reach)
+    if (FluidPageMotion.inferSystemCancel(stillFalls, reach, farthest)) {
       cancelInferred = true
       lastProgress = event.progress
       state.release(current, 0f, decided = false)
       return
     }
     follow(current, event)
+  }
+
+  private fun restartStill(event: NavigationEvent) {
+    stillTouchX = event.touchX
+    stillFalls = 0
   }
 
   override fun onBackCompleted() {
@@ -337,6 +375,8 @@ internal class FluidPageBackHandler(private val state: FluidPageHostState) :
   private fun reset() {
     token = null
     cancelInferred = false
+    stillFalls = 0
+    farthest = Float.NEGATIVE_INFINITY
     tracker.resetTracking()
   }
 }

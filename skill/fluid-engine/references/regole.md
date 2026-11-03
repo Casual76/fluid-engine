@@ -451,9 +451,19 @@ dito vero non ha questo problema, e il sistema lo dà a ogni evento. Ne seguono 
 - **il rilascio**: conferma oltre il 35% della larghezza (con un tetto di 180 dp, perché su un tablet
   il 35% è mezzo braccio) o con una spinta di 400 dp/s; una spinta contraria della stessa forza annulla
   anche oltre la distanza, perché il dito ha cambiato idea e la molla gli dà ragione;
-- **l'annullo del sistema si deduce.** Il sistema annulla un back con ~200 ms di ritardo: prima riporta
-  il suo `progress` a zero con un'animazione sua, a dito già alzato. Due eventi col dito fermo e il
-  progresso in calo vogliono dire che il dito non c'è più, e la pagina parte subito;
+- **l'annullo del sistema si deduce solo nel punto più lontano del gesto (3.0.4).** Il sistema (Android
+  14) annulla un back con ~200 ms di ritardo: prima riporta il suo `progress` a zero con un'animazione
+  sua, a dito già alzato. Ma riporta il `progress` a zero anche **col dito giù**: quando il dito torna
+  verso il bordo (misurato sull'emulatore: da 0,53 a 0 in sei fotogrammi, `touchX` fermo), e dopo un
+  passo indietro o il tremolio di un pollice la molla che lo smussa scende per qualche fotogramma a dito
+  immobile. Fino alla 3.0.3 un evento in calo col dito fermo bastava: la pagina partiva verso casa e il
+  movimento dopo la rimetteva sotto il dito, lo scatto «come indecisa». Ora l'annullo si deduce solo se
+  il progresso scende per due eventi col dito fermo nel punto più lontano che ha raggiunto, dove finché
+  il dito è giù il progresso può solo salire; altrove la pagina resta sotto il dito e aspetta il sistema.
+  Se il dito c'era, la pagina si riprende da dov'è, senza saltare;
+- **un dito, un pilota (3.0.4).** Con la navigazione a gesti l'app vede il dito del bordo finché il
+  sistema non se lo prende: il back di sistema prende la pagina da dove l'ha portata il riconoscitore
+  dell'app (o il ritorno di un annullo), non la fa saltare sotto il dito;
 - **il back di sistema passa dal dispatcher di navigationevent**, registrato prima delle pagine: i
   `BackHandler` dell'app restano davanti a lui, e un'app che ne ha uno (la selezione, un modale) non lo perde;
 - **anche il back a dito passa dal dispatcher.** Oltre la soglia il rilascio manda lo stesso «indietro» del

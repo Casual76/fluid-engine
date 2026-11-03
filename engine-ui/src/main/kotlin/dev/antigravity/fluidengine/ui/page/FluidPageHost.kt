@@ -29,7 +29,9 @@ import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -302,6 +305,15 @@ private fun <K : Any> PageLayer(
     }
   }
   val pageScope = remember(state, coveredState, front) { PageScopeImpl(state, coveredState, front) }
+  // Chi dipinge il fondo dichiara il colore di quello che ci va sopra (3.0.1): l'host dipinge
+  // [pageColor], quindi il testo di una pagina che non lo dice da se' (una pagina senza `FluidScreen`,
+  // un'app senza `Surface` alla radice) e' quello del fondo, non il nero di `LocalContentColor`. Con una
+  // pagina trasparente resta quello di fuori, che e' cio' che si vede dietro.
+  val pageContent = if (pageColor.isSpecified && pageColor.alpha > 0f) {
+    MaterialTheme.colorScheme.contentColorFor(pageColor).takeOrElse { LocalContentColor.current }
+  } else {
+    LocalContentColor.current
+  }
 
   Box(
     modifier = Modifier
@@ -315,6 +327,7 @@ private fun <K : Any> PageLayer(
       LocalFluidRouteFront provides front,
       LocalFluidPageTransition provides state,
       LocalFluidPageBar provides barSlot,
+      LocalContentColor provides pageContent,
     ) {
       if (ownOwners) {
         CappedLifecycle(capped = covered) {

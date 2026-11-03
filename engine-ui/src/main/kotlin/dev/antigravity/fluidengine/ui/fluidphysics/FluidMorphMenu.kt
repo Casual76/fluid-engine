@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -397,94 +399,99 @@ fun FluidMorphMenuHost(
   // `glassContainer`. Si registra solo mentre la goccia lo campiona.
   val menuGlass = rememberGlassBackdrop()
 
-  Box(
-    modifier = modifier
-      .fillMaxSize()
-      .onGloballyPositioned {
-        state.hostOrigin = it.localToRoot(Offset.Zero)
-        state.hostSize = it.size.toSize()
-      },
-  ) {
-    val anchor = state.anchor
-    val panel = state.panelFrame
-    val layout = state.panelLayout
-    val origin = state.hostOrigin ?: Offset.Zero
-    if (state.isOnScreen && anchor != null && panel != null && layout != null) {
-      val progress: () -> Float = { state.journey.progress.value }
+  // Il colore del testo sul pannello (3.0.1): l'host sta alla radice, fuori da una `Surface`, dove
+  // `LocalContentColor` vale nero. Le voci hanno il loro colore, ma una faccia del tasto o un'icona
+  // senza `tint` ereditano questo.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+    Box(
+      modifier = modifier
+        .fillMaxSize()
+        .onGloballyPositioned {
+          state.hostOrigin = it.localToRoot(Offset.Zero)
+          state.hostSize = it.size.toSize()
+        },
+    ) {
+      val anchor = state.anchor
+      val panel = state.panelFrame
+      val layout = state.panelLayout
+      val origin = state.hostOrigin ?: Offset.Zero
+      if (state.isOnScreen && anchor != null && panel != null && layout != null) {
+        val progress: () -> Float = { state.journey.progress.value }
 
-      // L'acchiappa-tocco: la pagina resta a colori — è il bordo del vetro a separare, non un velo.
-      if (state.isOpen) {
+        // L'acchiappa-tocco: la pagina resta a colori — è il bordo del vetro a separare, non un velo.
+        if (state.isOpen) {
+          Box(
+            modifier = Modifier
+              .fillMaxSize()
+              .pointerInput(state) { detectTapGestures(onTap = { state.dismiss() }) },
+          )
+        }
+
         Box(
           modifier = Modifier
             .fillMaxSize()
-            .pointerInput(state) { detectTapGestures(onTap = { state.dismiss() }) },
+            .fluidPhysicsSurface(
+              state = state.physics,
+              backdrop = backdrop,
+              tint = GlassDefaults.panelTint(),
+              role = GlassRole.Modal,
+              // Il pannello flottante, compatto: un menu di poche righe.
+              optics = GlassDefaults.panelOptics(compact = true),
+              // La pelle e' parte del viaggio: alla partenza la sagoma E' il tasto (la sua pellicola e
+              // la sua lente, cupola e frangia comprese), al 60% del viaggio e' gia' il pannello. Al
+              // ritorno la strada inversa: il tasto riappare senza salti di colore ne' di vetro.
+              tintFrom = anchor.tintFrom ?: GlassDefaults.controlTint(),
+              tintBlend = { fluidMenuMaterialBlend(progress()) },
+              opticsFrom = anchor.opticsFrom ?: GlassDefaults.buttonOptics(),
+              opticsBlend = { fluidMenuMaterialBlend(progress()) },
+              exports = menuGlass,
+            ),
+        )
+
+        // La faccia del tasto: parte col viaggio d'andata, seguendo la sagoma, e torna con quello di
+        // ritorno. Spenta dal 35% del viaggio: le voci arrivano dal 25%, mai leggibili insieme.
+        val anchorLocal = anchor.restBounds.translate(-origin.x, -origin.y)
+        MorphMenuFrameBox(frame = anchorLocal) {
+          Row(
+            modifier = Modifier
+              .fillMaxSize()
+              .graphicsLayer {
+                alpha = fluidMenuFaceAlpha(progress())
+                val map = fluidMenuContentMap(target = anchorLocal, current = state.physics.contentBoundsNow())
+                translationX = map.translation.x
+                translationY = map.translation.y
+                scaleX = map.scale
+                scaleY = map.scale
+              },
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            anchor.face?.invoke()
+          }
+        }
+
+        // Le voci: arrivano attaccate alla superficie e, al ritorno, la seguono finche' si spengono.
+        FluidGlassMenuPanel(
+          actions = state.actions,
+          selection = state.selection,
+          layout = layout,
+          panelMaterial = menuGlass,
+          pageBackdrop = backdrop,
+          contentAlpha = { fluidMenuContentAlpha(progress(), closing = state.journey.closing) },
+          contentMap = {
+            fluidMenuLiquidContentMap(
+              target = panel,
+              current = state.physics.contentBoundsNow(),
+              alpha = fluidMenuContentAlpha(progress(), closing = state.journey.closing),
+            )
+          },
+          onPick = { index -> state.pick(index, haptics) },
+          modifier = Modifier.frame(panel),
+          paneTitle = MorphMenuPaneTitle,
+          // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
+          travelClip = { state.physics.travelClipIn(panel, progress()) },
         )
       }
-
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .fluidPhysicsSurface(
-            state = state.physics,
-            backdrop = backdrop,
-            tint = GlassDefaults.panelTint(),
-            role = GlassRole.Modal,
-            // Il pannello flottante, compatto: un menu di poche righe.
-            optics = GlassDefaults.panelOptics(compact = true),
-            // La pelle e' parte del viaggio: alla partenza la sagoma E' il tasto (la sua pellicola e
-            // la sua lente, cupola e frangia comprese), al 60% del viaggio e' gia' il pannello. Al
-            // ritorno la strada inversa: il tasto riappare senza salti di colore ne' di vetro.
-            tintFrom = anchor.tintFrom ?: GlassDefaults.controlTint(),
-            tintBlend = { fluidMenuMaterialBlend(progress()) },
-            opticsFrom = anchor.opticsFrom ?: GlassDefaults.buttonOptics(),
-            opticsBlend = { fluidMenuMaterialBlend(progress()) },
-            exports = menuGlass,
-          ),
-      )
-
-      // La faccia del tasto: parte col viaggio d'andata, seguendo la sagoma, e torna con quello di
-      // ritorno. Spenta dal 35% del viaggio: le voci arrivano dal 25%, mai leggibili insieme.
-      val anchorLocal = anchor.restBounds.translate(-origin.x, -origin.y)
-      MorphMenuFrameBox(frame = anchorLocal) {
-        Row(
-          modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer {
-              alpha = fluidMenuFaceAlpha(progress())
-              val map = fluidMenuContentMap(target = anchorLocal, current = state.physics.contentBoundsNow())
-              translationX = map.translation.x
-              translationY = map.translation.y
-              scaleX = map.scale
-              scaleY = map.scale
-            },
-          horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
-          anchor.face?.invoke()
-        }
-      }
-
-      // Le voci: arrivano attaccate alla superficie e, al ritorno, la seguono finche' si spengono.
-      FluidGlassMenuPanel(
-        actions = state.actions,
-        selection = state.selection,
-        layout = layout,
-        panelMaterial = menuGlass,
-        pageBackdrop = backdrop,
-        contentAlpha = { fluidMenuContentAlpha(progress(), closing = state.journey.closing) },
-        contentMap = {
-          fluidMenuLiquidContentMap(
-            target = panel,
-            current = state.physics.contentBoundsNow(),
-            alpha = fluidMenuContentAlpha(progress(), closing = state.journey.closing),
-          )
-        },
-        onPick = { index -> state.pick(index, haptics) },
-        modifier = Modifier.frame(panel),
-        paneTitle = MorphMenuPaneTitle,
-        // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
-        travelClip = { state.physics.travelClipIn(panel, progress()) },
-      )
     }
   }
 }

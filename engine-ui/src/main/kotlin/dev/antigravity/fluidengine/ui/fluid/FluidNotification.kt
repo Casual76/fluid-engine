@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -529,59 +530,63 @@ fun FluidNotificationHost(
     )
   }
 
-  Box(
-    modifier = modifier
-      .fillMaxWidth()
-      .statusBarsPadding()
-      .padding(horizontal = 12.dp, vertical = 8.dp),
-    contentAlignment = Alignment.TopCenter,
-  ) {
-    AnimatedVisibility(
-      visibleState = visibilityState,
-      enter = slideInVertically(
-        initialOffsetY = { -it / 3 },
-        animationSpec = FluidMotion.intOffset(
-          dampingRatio = FluidMotion.DampingChrome,
-          stiffness = FluidMotion.ResponseSnappy,
-        ),
-      ) + fadeIn(animationSpec = FluidMotion.fadeIn(150)) + scaleIn(
-        initialScale = 0.97f,
-        transformOrigin = TransformOrigin(0.5f, 0f),
-        animationSpec = FluidMotion.snappy(),
-      ),
-      exit = if (thrownNotificationId != null && thrownNotificationId == presentation.notification?.id) {
-        ExitTransition.None
-      } else {
-        slideOutVertically(
-          targetOffsetY = { -it / 4 },
+  // Il colore del testo sulla card (3.0.1): la card lo dice gia' (`contentColor`), l'host lo dice per
+  // tutto il resto che ci finisce sopra, fuori da una `Surface`.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+    Box(
+      modifier = modifier
+        .fillMaxWidth()
+        .statusBarsPadding()
+        .padding(horizontal = 12.dp, vertical = 8.dp),
+      contentAlignment = Alignment.TopCenter,
+    ) {
+      AnimatedVisibility(
+        visibleState = visibilityState,
+        enter = slideInVertically(
+          initialOffsetY = { -it / 3 },
           animationSpec = FluidMotion.intOffset(
             dampingRatio = FluidMotion.DampingChrome,
             stiffness = FluidMotion.ResponseSnappy,
           ),
-        ) + fadeOut(animationSpec = FluidMotion.fadeOut(NotificationExitMillis)) + scaleOut(
-          targetScale = 0.985f,
+        ) + fadeIn(animationSpec = FluidMotion.fadeIn(150)) + scaleIn(
+          initialScale = 0.97f,
           transformOrigin = TransformOrigin(0.5f, 0f),
           animationSpec = FluidMotion.snappy(),
-        )
-      },
-    ) {
-      presentation.notification?.let { notification ->
-        FluidNotificationCard(
-          notification = notification,
-          onDismiss = state::dismissCurrent,
-          backdrop = backdrop,
-          onTouchChanged = { touched -> state.setTouched(notification.id, touched) },
-          onExpandedChanged = { expanded -> state.setExpanded(notification.id, expanded) },
-          onThrown = { thrownNotificationId = notification.id },
-          modifier = Modifier.onGloballyPositioned {
-            if (
-              state.presentation.visible &&
-              state.presentation.notification?.id == notification.id
-            ) {
-              laidOutNotificationId = notification.id
-            }
-          },
-        )
+        ),
+        exit = if (thrownNotificationId != null && thrownNotificationId == presentation.notification?.id) {
+          ExitTransition.None
+        } else {
+          slideOutVertically(
+            targetOffsetY = { -it / 4 },
+            animationSpec = FluidMotion.intOffset(
+              dampingRatio = FluidMotion.DampingChrome,
+              stiffness = FluidMotion.ResponseSnappy,
+            ),
+          ) + fadeOut(animationSpec = FluidMotion.fadeOut(NotificationExitMillis)) + scaleOut(
+            targetScale = 0.985f,
+            transformOrigin = TransformOrigin(0.5f, 0f),
+            animationSpec = FluidMotion.snappy(),
+          )
+        },
+      ) {
+        presentation.notification?.let { notification ->
+          FluidNotificationCard(
+            notification = notification,
+            onDismiss = state::dismissCurrent,
+            backdrop = backdrop,
+            onTouchChanged = { touched -> state.setTouched(notification.id, touched) },
+            onExpandedChanged = { expanded -> state.setExpanded(notification.id, expanded) },
+            onThrown = { thrownNotificationId = notification.id },
+            modifier = Modifier.onGloballyPositioned {
+              if (
+                state.presentation.visible &&
+                state.presentation.notification?.id == notification.id
+              ) {
+                laidOutNotificationId = notification.id
+              }
+            },
+          )
+        }
       }
     }
   }

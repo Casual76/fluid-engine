@@ -597,16 +597,23 @@ fun FluidGlassModalHost(
   modifier: Modifier = Modifier,
 ) {
   if (state.entries.isEmpty() && state.outsideCatchers.isEmpty()) return
-  Box(modifier = modifier.fillMaxSize()) {
-    // Every registered entry, in the order they were opened, so a menu raised from inside a modal
-    // sits over it instead of replacing it. An entry that is closed and finished animating draws
-    // nothing at all and costs one float animation.
-    state.entries.sortedBy { it.openedAt }.forEach { entry ->
-      key(entry) { FluidGlassModalLayer(entry = entry, backdrop = backdrop, host = state) }
-    }
-    // Sopra tutto: un menu che si trasforma aperto in un palco si chiude toccando ovunque fuori.
-    state.outsideCatchers.forEach { catcher ->
-      key(catcher) { FluidOutsideTapStrips(catcher) }
+  // Chi disegna il pannello dichiara il colore di quello che ci sta sopra (3.0.1), come
+  // `FluidSheetScaffold` e `FluidScreen`. L'host sta alla radice, quasi sempre fuori da una `Surface`,
+  // e li' `LocalContentColor` vale nero: un `Text` senza colore in un pop-up, un foglio, una pagina
+  // intera o un avviso era nero sul tema scuro (il selettore dei formati di universal_converter).
+  // `onSurface` e' il testo sul vetro dei pannelli e sulla pagina intera, che e' `surface`.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+    Box(modifier = modifier.fillMaxSize()) {
+      // Every registered entry, in the order they were opened, so a menu raised from inside a modal
+      // sits over it instead of replacing it. An entry that is closed and finished animating draws
+      // nothing at all and costs one float animation.
+      state.entries.sortedBy { it.openedAt }.forEach { entry ->
+        key(entry) { FluidGlassModalLayer(entry = entry, backdrop = backdrop, host = state) }
+      }
+      // Sopra tutto: un menu che si trasforma aperto in un palco si chiude toccando ovunque fuori.
+      state.outsideCatchers.forEach { catcher ->
+        key(catcher) { FluidOutsideTapStrips(catcher) }
+      }
     }
   }
 }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -173,7 +174,13 @@ internal fun FluidAnchoredBar(
     if (barBackdrop != null) {
       FluidTopBarGlass(backdrop = barBackdrop, tint = tint, intensity = intensity, exports = barGlass)
     }
-    CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
+    // Un colore di base sotto il contesto di ogni pagina (3.0.1): una registrazione che non lo dice
+    // (una pagina senza `FluidScreen`, un'app senza `Surface` alla radice) ha comunque il testo del fondo,
+    // non il nero di `LocalContentColor` fuori da una `Surface`. Chi lo dice vince: il suo contesto sta sopra.
+    CompositionLocalProvider(
+      LocalGlassBackdrop provides controlBackdrop,
+      LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+    ) {
       FluidTopBarRow(
         onTapTitle = { if (!state.isMoving) onTapTitle?.invoke() },
         // Si tocca solo a riposo: durante il movimento la riga beve tutto prima dei controlli.
@@ -463,6 +470,24 @@ fun FluidPageChrome(
   backdrop: GlassBackdropState? = null,
   barTint: GlassTint? = null,
   actions: @Composable RowScope.() -> Unit = {},
+) {
+  // Il colore del titolo e dei tasti PRIMA di registrarsi (3.0.1), come fa `FluidScreen`: l'host disegna
+  // la barra nel contesto che la pagina gli consegna (`currentCompositionLocalContext`), e una pagina che
+  // non e' una `FluidScreen` non ha mai detto il colore del testo: fuori da una `Surface` vale nero, e il
+  // titolo agganciato era nero sul tema scuro. Il fondo sotto la barra e' quello della pagina.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+    FluidPageChromeContent(title, modifier, onBack, backdrop, barTint, actions)
+  }
+}
+
+@Composable
+private fun FluidPageChromeContent(
+  title: String,
+  modifier: Modifier,
+  onBack: (() -> Unit)?,
+  backdrop: GlassBackdropState?,
+  barTint: GlassTint?,
+  actions: @Composable RowScope.() -> Unit,
 ) {
   val docked: State<Float> = remember { mutableFloatStateOf(1f) }
   val glass = remember { mutableFloatStateOf(0f) }

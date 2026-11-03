@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -193,56 +195,59 @@ fun FluidTutorialHost(
     if (anchor != null) shownAnchor = anchor
   }
 
-  BoxWithConstraints(Modifier.fillMaxSize()) {
-    val density = LocalDensity.current
-    val screen = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
-    val margin = with(density) { 16.dp.toPx() }
-    val gap = with(density) { 12.dp.toPx() }
-    val pointerInset = with(density) { 26.dp.toPx() }
+  // Il colore del testo sul callout (3.0.1): l'host sta alla radice, fuori da una `Surface`.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+      val density = LocalDensity.current
+      val screen = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
+      val margin = with(density) { 16.dp.toPx() }
+      val gap = with(density) { 12.dp.toPx() }
+      val pointerInset = with(density) { 26.dp.toPx() }
 
-    var calloutSize by remember { mutableStateOf(IntSize.Zero) }
-    val placement = shownAnchor?.takeIf { calloutSize.width > 0 }?.let { bounds ->
-      FluidCoachMarkPlacer.place(
-        anchor = bounds,
-        calloutWidth = calloutSize.width.toFloat(),
-        calloutHeight = calloutSize.height.toFloat(),
-        screen = screen,
-        margin = margin,
-        gap = gap,
-        pointerInset = pointerInset,
-      )
-    }
+      var calloutSize by remember { mutableStateOf(IntSize.Zero) }
+      val placement = shownAnchor?.takeIf { calloutSize.width > 0 }?.let { bounds ->
+        FluidCoachMarkPlacer.place(
+          anchor = bounds,
+          calloutWidth = calloutSize.width.toFloat(),
+          calloutHeight = calloutSize.height.toFloat(),
+          screen = screen,
+          margin = margin,
+          gap = gap,
+          pointerInset = pointerInset,
+        )
+      }
 
-    // I limiti del callout li legge chi osserva i tocchi: il padrone di casa non mette nulla
-    // sopra la pagina. Un fratello a tutto schermo che intercetta i puntatori si prende l'intero
-    // percorso di hit test, e l'app sotto smette di rispondere al dito: e' successo davvero.
-    state.calloutBounds = placement?.let {
-      Rect(it.x, it.y, it.x + calloutSize.width, it.y + calloutSize.height)
-    }
+      // I limiti del callout li legge chi osserva i tocchi: il padrone di casa non mette nulla
+      // sopra la pagina. Un fratello a tutto schermo che intercetta i puntatori si prende l'intero
+      // percorso di hit test, e l'app sotto smette di rispondere al dito: e' successo davvero.
+      state.calloutBounds = placement?.let {
+        Rect(it.x, it.y, it.x + calloutSize.width, it.y + calloutSize.height)
+      }
 
-    // L'ingresso e' di geometria e di alfa, mai di scala (3.0, fase 9): il callout e' un pannello di
-    // vetro, e un `scaleIn` su un nodo di vetro scala anche quello che il vetro sta rifrangendo — il
-    // testo della pagina dietro si ingrandisce di un 6% per il tempo dell'entrata, e quel testo sta
-    // fermo. Il callout arriva dalla parte del suo elemento: scende di qualche dp verso il posto che
-    // gli spetta se sta sotto, sale se sta sopra. Lo scivolamento e' un offset di layout (geometria:
-    // il vetro campiona dove sta davvero), e la dissolvenza e' l'unico layer sopra di lui.
-    val rise = with(density) { FluidCoachMarkRise.roundToPx() }
-    val towardsAnchor = if (placement?.below == false) rise else -rise
-    AnimatedVisibility(
-      visible = tutorial != null && anchor != null,
-      enter = fadeIn(FluidMotion.fadeIn(160)) + slideInVertically(FluidMotion.snappy()) { towardsAnchor },
-      exit = fadeOut(FluidMotion.fadeOut(120)) + slideOutVertically(FluidMotion.snappy()) { towardsAnchor },
-    ) {
-      val current = shown ?: return@AnimatedVisibility
-      FluidCoachMark(
-        tutorial = current,
-        labels = labels,
-        placement = placement,
-        backdrop = backdrop,
-        onMeasured = { calloutSize = it },
-        onDismiss = { state.dismiss() },
-        onOptOut = { state.dismiss(optOut = true) },
-      )
+      // L'ingresso e' di geometria e di alfa, mai di scala (3.0, fase 9): il callout e' un pannello di
+      // vetro, e un `scaleIn` su un nodo di vetro scala anche quello che il vetro sta rifrangendo — il
+      // testo della pagina dietro si ingrandisce di un 6% per il tempo dell'entrata, e quel testo sta
+      // fermo. Il callout arriva dalla parte del suo elemento: scende di qualche dp verso il posto che
+      // gli spetta se sta sotto, sale se sta sopra. Lo scivolamento e' un offset di layout (geometria:
+      // il vetro campiona dove sta davvero), e la dissolvenza e' l'unico layer sopra di lui.
+      val rise = with(density) { FluidCoachMarkRise.roundToPx() }
+      val towardsAnchor = if (placement?.below == false) rise else -rise
+      AnimatedVisibility(
+        visible = tutorial != null && anchor != null,
+        enter = fadeIn(FluidMotion.fadeIn(160)) + slideInVertically(FluidMotion.snappy()) { towardsAnchor },
+        exit = fadeOut(FluidMotion.fadeOut(120)) + slideOutVertically(FluidMotion.snappy()) { towardsAnchor },
+      ) {
+        val current = shown ?: return@AnimatedVisibility
+        FluidCoachMark(
+          tutorial = current,
+          labels = labels,
+          placement = placement,
+          backdrop = backdrop,
+          onMeasured = { calloutSize = it },
+          onDismiss = { state.dismiss() },
+          onOptOut = { state.dismiss(optOut = true) },
+        )
+      }
     }
   }
 }

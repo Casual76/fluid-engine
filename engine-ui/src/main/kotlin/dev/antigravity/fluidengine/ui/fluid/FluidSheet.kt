@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -393,7 +395,9 @@ private fun FluidAlertDialog(
             color = scheme.onSurface,
           )
         }
-        content?.invoke(this)
+        // Il contenuto dell'app sta sulla card, non sulla pagina del chiamante (3.0.1): la finestra
+        // eredita il suo `LocalContentColor`, che fuori da una `Surface` vale nero.
+        content?.let { slot -> CompositionLocalProvider(LocalContentColor provides scheme.onSurface) { slot(this) } }
       }
 
       val hairline = scheme.onSurface.copy(alpha = 0.12f)

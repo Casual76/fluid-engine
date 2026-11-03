@@ -51,6 +51,10 @@ dependencies {
   api 'androidx.compose.material:material-icons-extended'
   api "androidx.core:core-ktx:${engine.coreKtx}"
   api "androidx.lifecycle:lifecycle-runtime-compose:${engine.lifecycle}"
+  // FluidNavHost usa androidx.lifecycle.viewmodel.compose in prima persona (LocalViewModelStoreOwner). Senza una
+  // dichiarazione sua la prende da navigation-compose, che la porta con i metadati della 2.9.0: la dichiariamo
+  // alla stessa versione del resto del lifecycle, come la riga sopra.
+  api "androidx.lifecycle:lifecycle-viewmodel-compose:${engine.lifecycle}"
   // Serve per BackHandler e PredictiveBackHandler: il modale in-root vive dentro la composizione
   // dell'app, quindi il tasto indietro non gli arriva da solo come farebbe con un Dialog.
   api "androidx.activity:activity-compose:${engine.activityCompose}"

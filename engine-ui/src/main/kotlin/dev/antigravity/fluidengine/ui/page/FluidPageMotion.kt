@@ -141,8 +141,11 @@ object FluidPageMotion {
    */
   const val CardThresholdPx: Float = 0.5f
 
-  /** Due eventi di sistema con il dito fermo entro questi pixel e il progresso in calo: rilasciato. */
+  /** Il dito del gesto di sistema e' fermo se non si allontana di tanto dal punto in cui si e' fermato. */
   const val SystemStillPx: Float = 0.5f
+
+  /** Quanti eventi di fila, col dito fermo, il progresso deve scendere prima di dire "annullato" (3.0.4). */
+  const val SystemCancelFalls: Int = 2
 
   /** La pagina sopra resta "davanti" (vetro, barra) fino a meta' della sua uscita. */
   const val FrontHandoff: Float = 0.5f
@@ -228,16 +231,24 @@ object FluidPageMotion {
 
   /**
    * Il sistema annulla un back con ~200 ms di ritardo: prima riporta il suo `progress` a zero con
-   * un'animazione sua, a dito gia' alzato, poi chiama l'annullo. Due eventi col dito fermo e il
-   * progresso in calo vogliono dire che il dito non c'e' piu': si parte subito, invece di lasciare la
-   * pagina ferma per un quinto di secondo. Col dito davvero fermo il progresso non scende.
+   * un'animazione sua, a dito gia' alzato, poi chiama l'annullo. Per non lasciare la pagina ferma un
+   * decimo di secondo e piu' l'annullo si deduce prima: il progresso e' sceso [falls] eventi di fila
+   * (almeno [SystemCancelFalls]) col dito fermo **nel punto piu' lontano del gesto** ([reach], il
+   * `touchX` nel verso dell'uscita, non sotto [farthest] di oltre [SystemStillPx]).
+   *
+   * **Il punto piu' lontano, perche' il sistema porta il progresso a zero anche col dito giu' (3.0.4).**
+   * Misurato sull'emulatore (API 37): quando il dito torna verso il bordo il sistema decide che il back
+   * non partira' e riporta il suo `progress` a zero con la sua molla, a dito fermo e ancora giu' (da 0,53
+   * a 0 in sei fotogrammi, `touchX` immobile). E' lo stesso disegno di un annullo, e fino alla 3.0.3 un
+   * evento cosi' bastava: la pagina partiva verso casa sotto un dito fermo, e il primo movimento la
+   * rimetteva sotto il dito — lo scatto «come indecisa su dove sia il dito», col dito fermo dopo un
+   * piccolo ritorno e mentre lo si riporta indietro. Lo stesso disegno, piu' corto, lo fa la molla che
+   * smussa il `progress` dopo un passo indietro. Nel punto piu' lontano invece il progresso puo' solo
+   * salire, finche' il dito e' giu': se scende, il dito si e' alzato. Altrove la pagina resta sotto il
+   * dito e aspetta la decisione del sistema (l'annullo arriva quando la sua molla ha finito).
    */
-  fun inferSystemCancel(
-    previousTouchX: Float,
-    touchX: Float,
-    previousProgress: Float,
-    progress: Float,
-  ): Boolean = abs(touchX - previousTouchX) < SystemStillPx && progress < previousProgress
+  fun inferSystemCancel(falls: Int, reach: Float, farthest: Float): Boolean =
+    falls >= SystemCancelFalls && reach >= farthest - SystemStillPx
 
   /**
    * Il rilascio del dito: confermare o tornare.

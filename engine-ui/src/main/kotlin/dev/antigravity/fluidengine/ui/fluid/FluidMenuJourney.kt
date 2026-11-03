@@ -46,7 +46,8 @@ import kotlin.math.min
  * L'opacita' del CONTENUTO del pannello (le voci) e della goccia, al progresso [p] del viaggio.
  *
  * **Il contenuto sta dentro il vetro formato, mai sopra il vetro che si forma** (3.0, il vetro
- * liquido). In apertura le voci arrivano quando il corpo e' quasi il pannello (da 0,55 a 0,9); in
+ * liquido). In apertura le voci arrivano mentre il corpo si forma (da 0,4 a 0,75; fino alla 3.0.3 da
+ * 0,55 a 0,9, e il menu sembrava aprirsi lento), ritagliate dentro di lui; in
  * chiusura se ne vanno PER PRIME (da 0,94 a 0,62, una sessantina di millisecondi con la molla del
  * ritorno), attaccate al corpo e rimpicciolite verso l'ancora, e il liquido si ritira vuoto. Prima la
  * chiusura le teneva leggibili fino a 0,12 mentre il pannello si ritirava: la scala del contenuto,
@@ -707,7 +708,7 @@ internal class FluidMenuJourney {
       coroutineScope {
         val relax = anchorRelax
         if (relax.value < 1f) launch { relax.animateTo(1f, FluidMotion.snappy()) }
-        // La goccia (3.0): l'andata in ~0,42 s, poco sottosmorzata, e il ritorno in ~0,50 s.
+        // La goccia (3.0): l'andata in ~0,28 s (3.0.4; era 0,42), poco sottosmorzata, e il ritorno in ~0,50 s.
         progress.animateTo(1f, FluidMotion.dropOpen(), initialVelocity = v)
       }
     } else {

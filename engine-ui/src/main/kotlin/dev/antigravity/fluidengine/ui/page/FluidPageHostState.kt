@@ -434,9 +434,13 @@ class FluidPageHostState internal constructor() {
    * Comincia (o riprende) un gesto indietro. Torna il gettone del gesto, o null se non si puo'.
    * [direction]: +1 se la pagina esce verso destra.
    */
-  internal fun beginDrag(direction: Int): Int? {
-    if (!canStartGesture()) return null
-    if (phase == Phase.Cancelling) {
+  internal fun beginDrag(direction: Int, takeOver: Boolean = false): Int? {
+    // Il back di sistema si prende il dito che l'app stava gia' seguendo (navigazione a gesti, 3.0.4):
+    // stessa corsa, stesse pagine, gettone nuovo. Il gesto dell'app se ne accorge al prossimo evento
+    // (`isDragging` col suo gettone e' falso) e beve il resto senza rilasciare niente.
+    val handOver = takeOver && phase == Phase.Dragging
+    if (!handOver && !canStartGesture()) return null
+    if (handOver || phase == Phase.Cancelling) {
       // Ripresa al volo: corsa, verso e pagine restano quelli di prima.
       job?.cancel()
       job = null
@@ -460,6 +464,9 @@ class FluidPageHostState internal constructor() {
   }
 
   internal fun isDragging(token: Int): Boolean = phase == Phase.Dragging && dragToken == token
+
+  /** La pagina e' sotto un dito, o sta tornando a posto da un gesto: un back nuovo la prende da dov'e'. */
+  internal fun isMovingByFinger(): Boolean = phase == Phase.Dragging || phase == Phase.Cancelling
 
   /** Snap sincrono: il dito non aspetta nessuna molla. */
   internal fun dragTo(token: Int, travel: Float) {

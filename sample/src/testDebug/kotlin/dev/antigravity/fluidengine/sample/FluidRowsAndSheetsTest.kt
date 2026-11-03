@@ -3,6 +3,9 @@ package dev.antigravity.fluidengine.sample
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
@@ -192,6 +195,142 @@ class FluidRowsAndSheetsTest {
       }
     }
     compose.onNode(isToggleable()).assertIsNotEnabled().performClick()
+    compose.onNode(isToggleable()).assertIsOff()
+    assertTrue(haptics.played.isEmpty())
+  }
+
+  // --- Il pomello della riga si trascina (3.0.4) -------------------------------------------------
+  //
+  // L'interruttore sta in fondo alla riga, dentro il margine di 16 dp del `ListItem`: pista di 64 dp,
+  // pomello da 40 con 2 dp di bordo e 20 di corsa. Il centro del pomello e' quindi a 58 dp dal bordo
+  // destro della riga quando e' spento, a 38 quando e' acceso. La semantica dentro la riga e' azzerata
+  // (un nodo solo), quindi le coordinate si danno sulla riga.
+
+  private val thumbOffFromEnd = 58.dp
+  private val thumbOnFromEnd = 38.dp
+
+  private fun showToggleRow(
+    initial: Boolean,
+    enabled: Boolean = true,
+    changes: MutableList<Boolean>,
+    list: LazyListState? = null,
+  ) {
+    compose.setContent {
+      Themed {
+        var checked by remember { mutableStateOf(initial) }
+        val row: @Composable () -> Unit = {
+          FluidToggleRow(
+            title = "Notifiche",
+            subtitle = "Un avviso quando cambia qualcosa.",
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = {
+              checked = it
+              changes += it
+            },
+          )
+        }
+        if (list == null) {
+          FluidListGroup { row() }
+        } else {
+          LazyColumn(state = list, modifier = Modifier.fillMaxSize()) {
+            items(2) { Box(Modifier.fillMaxWidth().height(120.dp)) }
+            item { row() }
+            items(30) { Box(Modifier.fillMaxWidth().height(120.dp)) }
+          }
+        }
+      }
+    }
+    compose.waitForIdle()
+  }
+
+  @Test
+  fun `il pomello della riga si trascina da spento ad acceso, con una vibrazione sola`() {
+    val changes = mutableListOf<Boolean>()
+    showToggleRow(initial = false, changes = changes)
+
+    compose.onNode(isToggleable()).performTouchInput {
+      down(Offset(width - thumbOffFromEnd.toPx(), centerY))
+      // 50 px a xhdpi sono 25 dp: oltre i 20 di corsa. Lento, 16 ms per passo: decide la posizione.
+      repeat(10) { moveBy(Offset(5f, 0f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(listOf(true), changes)
+    compose.onNode(isToggleable()).assertIsOn()
+    // Il colpo al passaggio della meta', e nessuno al rilascio ne' dalla riga sotto.
+    assertEquals(listOf(FluidHapticEvent.ToggleOn), haptics.played)
+  }
+
+  @Test
+  fun `un trascinamento corto all'indietro rimette il pomello dov'era, senza cambio e senza vibrare`() {
+    val changes = mutableListOf<Boolean>()
+    showToggleRow(initial = true, changes = changes)
+
+    compose.onNode(isToggleable()).performTouchInput {
+      down(Offset(width - thumbOnFromEnd.toPx(), centerY))
+      // 18 px di lato (9 dp): il pomello a 0,55 della corsa, ancora dalla parte di "acceso". Con la
+      // deriva verticale di un pollice il dito supera lo slop (32 px qui: sotto e' un tocco, che
+      // commuta). Lento: decide la posizione, non la spinta.
+      repeat(9) { moveBy(Offset(-2f, -4f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertTrue("nessun cambio: $changes", changes.isEmpty())
+    compose.onNode(isToggleable()).assertIsOn()
+    assertTrue("nessuna vibrazione: ${haptics.played}", haptics.played.isEmpty())
+  }
+
+  @Test
+  fun `un tocco sul pomello e uno sulla riga commutano una volta ciascuno, con un colpo ciascuno`() {
+    val changes = mutableListOf<Boolean>()
+    showToggleRow(initial = false, changes = changes)
+
+    compose.onNode(isToggleable()).performTouchInput { click(Offset(width - thumbOffFromEnd.toPx(), centerY)) }
+    compose.waitForIdle()
+    compose.onNode(isToggleable()).performTouchInput { click(Offset(width / 3f, centerY)) }
+    compose.waitForIdle()
+
+    assertEquals(listOf(true, false), changes)
+    assertEquals(listOf(FluidHapticEvent.ToggleOn, FluidHapticEvent.ToggleOff), haptics.played)
+    // Ancora un nodo solo per TalkBack, un interruttore: il controllo dentro non ne aggiunge un secondo.
+    compose.onAllNodes(isToggleable()).assertCountEquals(1)
+    compose.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch)).assertCountEquals(1)
+  }
+
+  @Test
+  fun `in una lista il pomello trascinato con una deriva verticale non fa scorrere la pagina`() {
+    val changes = mutableListOf<Boolean>()
+    val list = LazyListState()
+    showToggleRow(initial = false, changes = changes, list = list)
+
+    compose.onNode(isToggleable()).performTouchInput {
+      down(Offset(width - thumbOffFromEnd.toPx(), centerY))
+      repeat(12) { moveBy(Offset(5f, -4f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertEquals(0, list.firstVisibleItemIndex)
+    assertEquals(0, list.firstVisibleItemScrollOffset)
+    assertEquals(listOf(true), changes)
+  }
+
+  @Test
+  fun `una riga disattivata non si trascina`() {
+    val changes = mutableListOf<Boolean>()
+    showToggleRow(initial = false, enabled = false, changes = changes)
+
+    compose.onNode(isToggleable()).performTouchInput {
+      down(Offset(width - thumbOffFromEnd.toPx(), centerY))
+      repeat(10) { moveBy(Offset(5f, 0f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+
+    assertTrue(changes.isEmpty())
     compose.onNode(isToggleable()).assertIsOff()
     assertTrue(haptics.played.isEmpty())
   }

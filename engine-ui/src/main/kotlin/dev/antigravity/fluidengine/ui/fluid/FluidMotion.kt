@@ -207,8 +207,16 @@ object FluidMotion {
   /** E sotto questa velocita' dei punti, in dp al secondo. */
   const val DropRestSpeedDp = 3f
 
-  /** La molla del viaggio d'andata della goccia: risposta ~0,42 s (k 224), poco sottosmorzata. */
-  const val DropOpenStiffness = 224f
+  /**
+   * La molla del viaggio d'andata della goccia: risposta ~0,28 s (k 500), poco sottosmorzata.
+   *
+   * Era ~0,42 s (k 224) fino alla 3.0.3, e in mano i menu «si chiudono alla velocita' giusta ma si
+   * aprono lenti» (Alessio): misurato sull'emulatore a 30 fps, dal primo fotogramma che cambia al
+   * pannello fermo e leggibile ci volevano ~570 ms, contro ~330 ms dal primo fotogramma della chiusura
+   * al tasto di nuovo a riposo. Lo smorzamento resta (lo stesso oltrepasso, il "pop" della goccia):
+   * cambia solo il tempo.
+   */
+  const val DropOpenStiffness = 500f
 
   /** La molla del ritorno: ~0,50 s (k 158), un filo piu' lenta dell'andata (Alessio: "troppo veloce"). */
   const val DropCloseStiffness = 158f
@@ -231,9 +239,14 @@ object FluidMotion {
   /** Il picco atteso di (m − 1) con [dropOpen]: `exp(−πζ/√(1 − ζ²))` per ζ = 0,72. */
   const val DropPeakOvershoot = 0.0384f
 
-  /** Il contenuto di un pannello di vetro liquido arriva fra questi due punti del viaggio. */
-  const val LiquidContentOpenFrom = 0.55f
-  const val LiquidContentOpenTo = 0.9f
+  /**
+   * Il contenuto di un pannello di vetro liquido arriva fra questi due punti del viaggio. Erano 0,55 e
+   * 0,9 fino alla 3.0.3: le voci si leggevano solo a pannello quasi fermo, ed era meta' della lentezza
+   * che si sentiva in apertura. Restano ritagliate dentro il corpo (`travelClip`), e con la molla
+   * d'andata della 3.0.4 sono piene ~90 ms dopo la partenza.
+   */
+  const val LiquidContentOpenFrom = 0.4f
+  const val LiquidContentOpenTo = 0.75f
 
   /** E se ne va per primo fra questi due, al ritorno (da 0,94 a 0,62). */
   const val LiquidContentCloseFrom = 0.62f

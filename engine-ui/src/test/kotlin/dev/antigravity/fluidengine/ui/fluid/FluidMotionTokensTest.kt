@@ -188,13 +188,14 @@ class FluidMotionTokensTest {
   }
 
   @Test
-  fun `the drop opens in about 0,42 s and closes in about 0,50 s`() {
-    // La "risposta" del banco e' il periodo naturale della molla, 2π/√k.
+  fun `the drop opens in about 0,28 s and closes in about 0,50 s`() {
+    // La "risposta" del banco e' il periodo naturale della molla, 2π/√k. L'andata era 0,42 s (k 224)
+    // fino alla 3.0.3: i menu si aprivano lenti rispetto a come si chiudevano.
     val open = 2.0 * Math.PI / kotlin.math.sqrt(FluidMotion.DropOpenStiffness.toDouble())
     val close = 2.0 * Math.PI / kotlin.math.sqrt(FluidMotion.DropCloseStiffness.toDouble())
-    assertEquals(0.42, open, 0.005)
+    assertEquals(0.28, open, 0.005)
     assertEquals(0.50, close, 0.005)
-    assertSameMotion("andata", spring(0.72f, 224f), FluidMotion.dropOpen())
+    assertSameMotion("andata", spring(0.72f, 500f), FluidMotion.dropOpen())
     assertSameMotion("ritorno", spring(0.72f, 158f), FluidMotion.dropClose(), from = 1f, to = 0f)
   }
 
@@ -210,7 +211,7 @@ class FluidMotionTokensTest {
 
   @Test
   fun `the content of a liquid pane leaves before it arrives`() {
-    // Arriva tardi (0,55→0,9) e se ne va presto (0,94→0,62): al ritorno il testo e' gia' sparito
+    // Arriva mentre il corpo si forma (0,4→0,75) e se ne va presto (0,94→0,62): al ritorno il testo e' gia' sparito
     // quando il corpo comincia a stringersi davvero.
     assertTrue(FluidMotion.LiquidContentOpenFrom < FluidMotion.LiquidContentOpenTo)
     assertTrue(FluidMotion.LiquidContentCloseFrom < FluidMotion.LiquidContentCloseTo)

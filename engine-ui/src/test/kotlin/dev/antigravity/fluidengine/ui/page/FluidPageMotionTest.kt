@@ -78,12 +78,15 @@ class FluidPageMotionTest {
 
   @Test
   fun `un annullo di sistema si deduce dal dito fermo e dal progresso in calo`() {
-    assertTrue(FluidPageMotion.inferSystemCancel(300f, 300.2f, 0.4f, 0.35f))
-    // Il dito si muove: e' ancora li', anche se il progresso scende (sta tornando verso il bordo).
-    assertFalse(FluidPageMotion.inferSystemCancel(300f, 280f, 0.4f, 0.35f))
-    // Il dito fermo con il progresso fermo o in salita non e' un rilascio.
-    assertFalse(FluidPageMotion.inferSystemCancel(300f, 300f, 0.4f, 0.4f))
-    assertFalse(FluidPageMotion.inferSystemCancel(300f, 300f, 0.4f, 0.5f))
+    // Due eventi in calo col dito fermo nel punto piu' lontano del gesto: li' il progresso puo' solo
+    // salire finche' il dito e' giu', quindi il dito si e' alzato.
+    assertTrue(FluidPageMotion.inferSystemCancel(falls = 2, reach = 600f, farthest = 600f))
+    // Un evento solo in calo non basta.
+    assertFalse(FluidPageMotion.inferSystemCancel(falls = 1, reach = 600f, farthest = 600f))
+    // Il dito e' tornato verso il bordo (3.0.4): il sistema porta il progresso a zero anche col dito
+    // giu', e la pagina resta sotto il dito qualunque cosa faccia il progresso.
+    assertFalse(FluidPageMotion.inferSystemCancel(falls = 6, reach = 500f, farthest = 600f))
+    assertFalse(FluidPageMotion.inferSystemCancel(falls = 6, reach = 598f, farthest = 600f))
   }
 
   // --- Il rilascio -----------------------------------------------------------------------------

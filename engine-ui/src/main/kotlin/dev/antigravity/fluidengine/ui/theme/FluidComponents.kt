@@ -73,6 +73,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithContent
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
+import dev.antigravity.fluidengine.ui.fluid.FluidSyncStrings
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
@@ -159,7 +160,12 @@ enum class FluidTone {
  * to a component before every screen that uses it has a canvas.
  */
 @Composable
-private fun Modifier.fluidContentGlass(enabled: Boolean, shape: Shape): Modifier {
+private fun Modifier.fluidContentGlass(
+  enabled: Boolean,
+  shape: Shape,
+  sampleOnce: Boolean = true,
+  resampleIntervalMillis: Long = 0L,
+): Modifier {
   if (!enabled) return this
   val canvas = LocalFluidCanvasBackdrop.current ?: return this
   // Vetro su vetro quando il fondale e' gia' un pannello: gli effetti salgono invece di scendere.
@@ -170,6 +176,8 @@ private fun Modifier.fluidContentGlass(enabled: Boolean, shape: Shape): Modifier
     shape = shape,
     role = GlassRole.Content,
     optics = if (stacked) GlassDefaults.stackedContentOptics() else GlassDefaults.optics(GlassRole.Content),
+    sampleOnce = sampleOnce,
+    resampleIntervalMillis = resampleIntervalMillis,
   )
 }
 
@@ -489,6 +497,14 @@ fun FluidCard(
    * card spenta resta una card dello stesso materiale delle vicine. Per TalkBack e' «disattivato».
    */
   enabled: Boolean = true,
+  /**
+   * Come per il vetro di livello piu' basso (3.0.4): campiona il fondale una volta e tiene la cattura finche' la card
+   * si muove (di serie, perche' il fondale di una pagina e' la lavata ferma). Falso per una card sopra un fondale che
+   * cambia da solo (un canvas animato, un'immagine che scorre): senza, porta in giro una cattura vecchia.
+   */
+  sampleOnce: Boolean = true,
+  /** Come per il vetro di livello piu' basso (3.0.4): ogni quanto, al massimo, rifa' la cattura. Zero: quando serve. */
+  resampleIntervalMillis: Long = 0L,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   // `MaterialTheme.shapes.large` is a circular corner, and rule one of this design system says a
@@ -514,7 +530,7 @@ fun FluidCard(
   }
 
   Surface(
-    modifier = clickableModifier.fluidContentGlass(glass, shape),
+    modifier = clickableModifier.fluidContentGlass(glass, shape, sampleOnce, resampleIntervalMillis),
     shape = shape,
     color = when {
         // `highlighted` survives onto glass as a wash rather than as a fill. A highlighted card that
@@ -597,16 +613,13 @@ private fun FluidSyncIndicatorSurface(
     status.state == SyncState.PARTIAL -> FluidTone.Warning
     else -> FluidTone.Danger
   }
+  val sync = LocalFluidLabels.current.sync
   val label = when {
     notStarted -> notice.orEmpty()
-    status.state == SyncState.IDLE -> if (neverSynced) {
-      "Sincronizzazione mai completata"
-    } else {
-      "Sincronizzazione completata"
-    }
-    status.state == SyncState.SYNCING -> "Aggiornamento in corso"
-    status.state == SyncState.PARTIAL -> "Sincronizzazione parziale"
-    else -> "Sincronizzazione non riuscita"
+    status.state == SyncState.IDLE -> if (neverSynced) sync.neverCompleted else sync.completed
+    status.state == SyncState.SYNCING -> sync.inProgress
+    status.state == SyncState.PARTIAL -> sync.partial
+    else -> sync.failed
   }
   val colors = toneColors(tone)
   val container by animateColorAsState(
@@ -734,17 +747,16 @@ fun FluidSyncNotice(
     status.state == SyncState.PARTIAL -> FluidTone.Warning
     else -> FluidTone.Info
   }
+  val sync = LocalFluidLabels.current.sync
   val title = when {
     notStarted -> notice.orEmpty()
-    status.state == SyncState.OFFLINE -> "Nessuna connessione"
-    isFailure -> "Aggiornamento non riuscito"
-    else -> "Dati non disponibili"
+    status.state == SyncState.OFFLINE -> sync.offline
+    isFailure -> sync.updateFailed
+    else -> sync.dataUnavailable
   }
   // The sections stay empty until the school opens the year, and no amount of retrying changes
   // that. What the reader can do is look at the year before it, so that is what is offered.
-  val guidance = "Finché la scuola non lo apre, le sezioni legate all'anno restano vuote. " +
-    "Puoi consultare l'anno precedente dal selettore in Impostazioni."
-
+  val guidance = sync.noticeGuidance
 
   FluidCard(modifier = modifier, highlighted = true) {
     Column(
@@ -780,7 +792,7 @@ fun FluidSyncNotice(
         }
       }
       if (isFailure && onRetry != null) {
-        FluidButton(text = "Riprova", onClick = onRetry, fillWidth = true)
+        FluidButton(text = sync.retry, onClick = onRetry, fillWidth = true)
       }
     }
   }
@@ -810,6 +822,7 @@ fun FluidSyncAction(
 ) {
   var showDetails by remember { mutableStateOf(false) }
   val modalHost = LocalFluidGlassModalHostState.current
+  val detailsTitle = LocalFluidLabels.current.sync.detailsTitle
 
   // Nella barra l'indicatore e' vetro e si tocca come ogni tasto di vetro: una pressione sola per il
   // vetro e per il click, e niente increspatura di Material sopra a una lente. Altrove e' un cerchio
@@ -835,13 +848,13 @@ fun FluidSyncAction(
       item = status.takeIf { showDetails },
       onDismissRequest = { showDetails = false },
       presentation = FluidGlassModalPresentation.Sheet,
-      paneTitle = SyncDetailsTitle,
+      paneTitle = detailsTitle,
     ) { shown ->
       // Il foglio di vetro non ha un titolo e non ha un margine per la barra di sistema: il primo lo
       // metteva `FluidSheet`, il secondo la finestra di piattaforma.
       Column(modifier = Modifier.navigationBarsPadding()) {
         Text(
-          text = SyncDetailsTitle,
+          text = detailsTitle,
           modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp),
@@ -854,14 +867,12 @@ fun FluidSyncAction(
   } else if (showDetails) {
     FluidSheet(
       onDismissRequest = { showDetails = false },
-      title = SyncDetailsTitle,
+      title = detailsTitle,
     ) {
       FluidSyncDetails(status = status, onRetry = onRetry, onDone = { showDetails = false })
     }
   }
 }
-
-private const val SyncDetailsTitle = "Sincronizzazione"
 
 /** Quello che sta dentro il dettaglio della sincronizzazione, qualunque sia la superficie che lo porta. */
 @Composable
@@ -870,6 +881,7 @@ private fun FluidSyncDetails(
   onRetry: (() -> Unit)?,
   onDone: () -> Unit,
 ) {
+  val sync = LocalFluidLabels.current.sync
   Column(
     modifier = Modifier
       .fillMaxWidth()
@@ -878,41 +890,41 @@ private fun FluidSyncDetails(
     verticalArrangement = Arrangement.spacedBy(14.dp),
   ) {
     Text(
-      text = status.lastSyncLabel(),
+      text = status.lastSyncLabel(strings = sync),
       style = MaterialTheme.typography.titleMedium,
       fontWeight = FontWeight.SemiBold,
     )
     status.message?.takeIf(String::isNotBlank)?.let { message ->
       FluidInlineMessage(
         message = message,
-        title = if (status.state == SyncState.OFFLINE) "Nessuna connessione" else "Dettaglio",
+        title = if (status.state == SyncState.OFFLINE) sync.offline else sync.detail,
         tone = if (status.state == SyncState.PARTIAL) FluidTone.Warning else FluidTone.Danger,
       )
     }
     if (status.failedSections.isNotEmpty()) {
       Text(
-        text = "Non aggiornate: ${status.failedSections.joinToString(", ")}",
+        text = sync.notUpdated(status.failedSections.joinToString(", ")),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
     if (status.notice != null) {
       Text(
-        text = "L'anno selezionato non è ancora stato aperto dalla scuola: i dati mostrati sono quelli dell'anno precedente.",
+        text = sync.yearNotOpen,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
     if (status.message.isNullOrBlank() && status.failedSections.isEmpty() && status.state != SyncState.SYNCING) {
       Text(
-        text = "Tutti i dati risultano aggiornati.",
+        text = sync.allUpToDate,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
     if (onRetry != null) {
       FluidButton(
-        text = "Riprova adesso",
+        text = sync.retryNow,
         onClick = {
           onDone()
           onRetry()
@@ -950,7 +962,7 @@ private fun FluidSyncDetails(
 fun FluidInlineMessage(
   message: String,
   modifier: Modifier = Modifier,
-  title: String = "Messaggio",
+  title: String? = null,
   tone: FluidTone = FluidTone.Info,
   onDismiss: (() -> Unit)? = null,
   onClick: (() -> Unit)? = null,
@@ -976,7 +988,7 @@ fun FluidInlineMessage(
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         Text(
-          text = title,
+          text = title ?: LocalFluidLabels.current.message,
           style = MaterialTheme.typography.titleMedium,
           color = toneColor,
           fontWeight = FontWeight.SemiBold,
@@ -1012,18 +1024,22 @@ fun FluidInlineMessage(
   }
 }
 
-fun SyncStatus.lastSyncLabel(nowEpochMillis: Long = System.currentTimeMillis()): String {
-  if (state == SyncState.SYNCING) return "Aggiornamento in corso"
-  val last = lastSuccessfulSyncEpochMillis ?: return "Mai aggiornato"
+fun SyncStatus.lastSyncLabel(
+  nowEpochMillis: Long = System.currentTimeMillis(),
+  /** Le frasi, nella lingua dell'app (3.0.4): di serie italiane. I composable passano `LocalFluidLabels.current.sync`. */
+  strings: FluidSyncStrings = FluidSyncStrings(),
+): String {
+  if (state == SyncState.SYNCING) return strings.inProgress
+  val last = lastSuccessfulSyncEpochMillis ?: return strings.never
   val ageMillis = (nowEpochMillis - last).coerceAtLeast(0L)
   val minute = 60_000L
   val hour = 60 * minute
   val day = 24 * hour
   return when {
-    ageMillis < minute -> "Aggiornato adesso"
-    ageMillis < hour -> "Aggiornato ${ageMillis / minute} min fa"
-    ageMillis < day -> "Aggiornato ${ageMillis / hour} h fa"
-    else -> "Aggiornato il ${lastSyncDateFormatter.format(Instant.ofEpochMilli(last))}"
+    ageMillis < minute -> strings.justNow
+    ageMillis < hour -> strings.minutesAgo((ageMillis / minute).toInt())
+    ageMillis < day -> strings.hoursAgo((ageMillis / hour).toInt())
+    else -> strings.updatedOn(lastSyncDateFormatter.format(Instant.ofEpochMilli(last)))
   }
 }
 

@@ -45,6 +45,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -270,6 +271,9 @@ fun FluidTextField(
                 text = placeholder,
                 style = MaterialTheme.typography.bodyLarge,
                 color = scheme.onSurfaceVariant,
+                // Un campo a una riga non cresce per il segnaposto: una frase lunga si tronca, non va a capo (3.0.4).
+                maxLines = if (oneLine) 1 else Int.MAX_VALUE,
+                overflow = TextOverflow.Ellipsis,
               )
             }
             innerTextField()

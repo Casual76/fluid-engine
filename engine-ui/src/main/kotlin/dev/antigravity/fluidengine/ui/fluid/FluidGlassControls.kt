@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LocalContentColor
@@ -34,6 +35,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.constrainHeight
@@ -589,6 +591,9 @@ internal fun FluidGlassIconButtonCore(
  * @param haptic come per [FluidGlassIconButton]: `null` per un tasto la cui azione ha gia' il suo colpo.
  * @param grip come per [FluidGlassIconButton]: [FluidPressGrip.YieldsToScroll] per un tasto in una
  *   riga di una lista che scorre, dove non c'e' un fuori da cui partire. Dalla 3.0.
+ * @param maxLines quante righe puo' avere l'etichetta (3.0.4). `1` la tronca con i puntini in uno spazio
+ *   stretto, invece di farla andare a capo dentro un tasto di altezza fissa. Di serie senza tetto, come
+ *   sempre; un'etichetta che va a capo fa crescere il tasto oltre l'altezza della taglia invece di tagliarla.
  */
 @Composable
 fun FluidGlassButton(
@@ -603,6 +608,7 @@ fun FluidGlassButton(
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   leading: (@Composable () -> Unit)? = null,
+  maxLines: Int = Int.MAX_VALUE,
 ) {
   val contentColor = if (selected) {
     MaterialTheme.colorScheme.onPrimaryContainer
@@ -638,7 +644,7 @@ fun FluidGlassButton(
         pressState = press,
         grip = grip,
       )
-      .height(size.buttonHeight)
+      .heightIn(min = size.buttonHeight)
       .padding(horizontal = size.buttonPadding),
     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically,
@@ -650,6 +656,8 @@ fun FluidGlassButton(
       Text(
         text = text,
         style = labelStyle.copy(fontWeight = FontWeight.SemiBold),
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
       )
     }
   }

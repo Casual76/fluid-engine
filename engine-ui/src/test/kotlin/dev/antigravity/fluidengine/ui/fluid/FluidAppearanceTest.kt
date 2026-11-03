@@ -166,4 +166,15 @@ class FluidAppearanceTest {
     assertEquals(strings.themeSystem, strings.themeLabel(ThemeMode.SYSTEM))
     assertEquals(strings.themeLight, strings.themeLabel(ThemeMode.LIGHT))
   }
+
+  @Test
+  fun `il gruppo degli interruttori ha solo le righe che l'app vuole`() {
+    assertEquals(
+      listOf(FluidAppearanceSwitch.Glass, FluidAppearanceSwitch.Haptics),
+      FluidAppearance.switchRows(glassRow = true, haptics = true),
+    )
+    assertEquals(listOf(FluidAppearanceSwitch.Haptics), FluidAppearance.switchRows(glassRow = false, haptics = true))
+    assertEquals(listOf(FluidAppearanceSwitch.Glass), FluidAppearance.switchRows(glassRow = true, haptics = false))
+    assertTrue("senza righe il gruppo non si disegna", FluidAppearance.switchRows(glassRow = false, haptics = false).isEmpty())
+  }
 }

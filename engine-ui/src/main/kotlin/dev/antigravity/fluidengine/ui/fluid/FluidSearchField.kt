@@ -176,6 +176,10 @@ internal fun fluidSearchContentAlpha(progress: Float): Float = ((progress - 0.2f
  * Si posa con [fluidCapsuleInsets] se prende il posto della barra di navigazione, e sale con la
  * tastiera con `avoidKeyboard = true`.
  *
+ * @param backdrop cio' che il vetro del campo rifrange. Di serie (3.0.1) il canvas della pagina se c'e',
+ *   come i chip, il segmentato e lo slider, altrimenti la chrome in scope: prima era sempre la chrome, e su
+ *   una pagina con un canvas ambientale il campo rifrangeva il corpo della pagina invece della lavata
+ *   sotto di lui. In una barra il canvas non c'e' (la barra lo toglie), e resta il vetro della barra.
  * @param placeholder cosa dice a campo vuoto; di serie [FluidSearchLabels.search].
  * @param labels le parole per TalkBack e per il «nessun risultato».
  * @param onSearch il tasto «cerca» della tastiera. Null: nasconde la tastiera.
@@ -192,7 +196,7 @@ fun FluidSearchField(
   query: String,
   onQueryChange: (String) -> Unit,
   modifier: Modifier = Modifier,
-  backdrop: GlassBackdropState = currentGlassBackdrop(),
+  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
   placeholder: String? = null,
   labels: FluidSearchLabels = FluidSearchLabels(),
   onSearch: (() -> Unit)? = null,

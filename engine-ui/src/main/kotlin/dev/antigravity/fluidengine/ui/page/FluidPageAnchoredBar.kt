@@ -51,6 +51,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidChromeController
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
@@ -180,6 +181,7 @@ internal fun FluidAnchoredBar(
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
       LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+      LocalFluidCanvasBackdrop provides null,
     ) {
       FluidTopBarRow(
         onTapTitle = { if (!state.isMoving) onTapTitle?.invoke() },
@@ -324,6 +326,8 @@ private fun BarActions(
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
       LocalFluidBarPieceSink provides sink,
+      // Il contesto della pagina porta il suo canvas: nella barra un controllo sta sul vetro della barra.
+      LocalFluidCanvasBackdrop provides null,
     ) {
       FluidTopBarActions(
         actions = spec.actions,
@@ -537,7 +541,7 @@ private fun FluidPageChromeContent(
     if (backdrop != null) {
       FluidTopBarGlass(backdrop = backdrop, tint = tint, intensity = { 1f }, exports = barGlass)
     }
-    CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
+    CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop, LocalFluidCanvasBackdrop provides null) {
       FluidTopBarRow(onTapTitle = null) {
         FluidTopBarTitle(
           title = title,

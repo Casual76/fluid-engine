@@ -579,6 +579,10 @@ internal fun FluidGlassIconButtonCore(
  * would sit on a photograph, a map or a hero image — and keep [FluidButton] for the one solid
  * primary action a form or a settings page is about, which should still look pressed into the page.
  *
+ * @param backdrop cio' che il vetro rifrange. Di serie (3.0.1) il canvas della pagina se c'e', come i chip,
+ *   il segmentato e lo slider, altrimenti la chrome in scope: prima era sempre la chrome, e su una pagina
+ *   con un canvas ambientale il tasto rifrangeva il corpo della pagina (con dentro se stesso) invece della
+ *   lavata. In una barra il canvas non c'e' (la barra lo toglie), e resta il vetro della barra.
  * @param size la taglia ([FluidGlassSize]): 40, 48 (di serie, l'altezza di sempre) o 54 dp. Sotto i
  *   48 dp il layout occupa comunque 48 dp di altezza ([fluidTouchTarget]) e il vetro sta al centro:
  *   il tasto e' piu' basso da vedere, non da toccare. Dalla 3.0.
@@ -591,7 +595,7 @@ fun FluidGlassButton(
   text: String,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
-  backdrop: GlassBackdropState = currentGlassBackdrop(),
+  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
   enabled: Boolean = true,
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,

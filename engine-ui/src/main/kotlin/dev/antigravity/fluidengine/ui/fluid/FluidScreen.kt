@@ -1303,6 +1303,10 @@ internal fun FluidTopBar(
     )
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
+      // Un controllo nella barra sta sul vetro della barra, non sul canvas della pagina che la barra
+      // copre (3.0.1): chi chiede prima il canvas (chip, segmentato, campo di ricerca, tasto di vetro)
+      // qui trova la barra.
+      LocalFluidCanvasBackdrop provides null,
     ) {
       FluidTopBarRow(onTapTitle = onTapTitle) {
         FluidTopBarTitle(

@@ -73,6 +73,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithContent
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
@@ -242,7 +243,7 @@ fun FluidTopHeader(
     navigationIcon = {
       if (onBack != null) {
         IconButton(onClick = onBack) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = LocalFluidLabels.current.back)
         }
       }
     },
@@ -977,7 +978,7 @@ fun FluidInlineMessage(
       }
       when {
         onDismiss != null -> IconButton(onClick = onDismiss) {
-          Icon(Icons.Rounded.Close, contentDescription = "Nascondi")
+          Icon(Icons.Rounded.Close, contentDescription = LocalFluidLabels.current.hide)
         }
         onClick != null -> Icon(
           imageVector = Icons.Rounded.ChevronRight,

@@ -410,7 +410,7 @@ private fun FluidMenuLayerContent(
             width = with(density) { panel.width.toDp() },
             height = with(density) { panel.height.toDp() },
           ),
-        paneTitle = paneTitle ?: FluidMenuDefaultPaneTitle,
+        paneTitle = paneTitle ?: LocalFluidLabels.current.actions,
         // Il pannello e' posato all'intero piu' vicino: il ritaglio parla le stesse coordinate.
         travelClip = {
           physics.travelClipIn(
@@ -829,7 +829,6 @@ private fun FluidAlertButton(
 }
 
 /** Il titolo per TalkBack di un menu che non ne ha dato uno. */
-internal const val FluidMenuDefaultPaneTitle = "Azioni"
 
 private const val FluidMenuLayerFadeInMillis = 110
 private const val FluidAlertFadeInMillis = 140

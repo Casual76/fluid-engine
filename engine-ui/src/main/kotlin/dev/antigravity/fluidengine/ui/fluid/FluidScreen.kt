@@ -1377,6 +1377,7 @@ internal fun FluidTopBarRow(
 ) {
   val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val interactionSource = remember { MutableInteractionSource() }
+  val scrollToTopLabel = LocalFluidLabels.current.scrollToTop
   Column(
     modifier = Modifier
       .fillMaxWidth()
@@ -1396,7 +1397,7 @@ internal fun FluidTopBarRow(
                 role = Role.Button,
                 onClick = onTapTitle,
               )
-              .semantics { contentDescription = "Torna all'inizio" }
+              .semantics { contentDescription = scrollToTopLabel }
           } else {
             Modifier
           },
@@ -1606,13 +1607,14 @@ private fun FluidTitleFacet(
 
 @Composable
 internal fun FluidBackButton(onBack: () -> Unit) {
+  val backLabel = LocalFluidLabels.current.back
   FluidGlassIconButton(
     onClick = onBack,
     modifier = Modifier.padding(start = 6.dp),
   ) {
     Icon(
       imageVector = Icons.AutoMirrored.Rounded.ArrowBackIos,
-      contentDescription = "Indietro",
+      contentDescription = backLabel,
       tint = MaterialTheme.colorScheme.primary,
       modifier = Modifier.size(20.dp),
     )

@@ -328,7 +328,9 @@ internal val FluidSecretKeyboardOptions = KeyboardOptions(
  */
 @Composable
 private fun FluidRevealButton(revealed: Boolean, enabled: Boolean, onToggle: () -> Unit) {
-  val description = if (revealed) "Nascondi il testo" else "Mostra il testo"
+  // Le parole per TalkBack vengono dall'app (3.0.1): erano scritte qui in italiano.
+  val labels = LocalFluidLabels.current
+  val description = if (revealed) labels.hideSecret else labels.showSecret
   Box(
     modifier = Modifier
       .size(FluidFieldTrailingSize)

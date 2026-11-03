@@ -55,6 +55,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMenuSelection
 import dev.antigravity.fluidengine.ui.fluid.FluidOutsideTapCatcher
 import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -487,7 +488,7 @@ fun FluidMorphMenuHost(
           },
           onPick = { index -> state.pick(index, haptics) },
           modifier = Modifier.frame(panel),
-          paneTitle = MorphMenuPaneTitle,
+          paneTitle = LocalFluidLabels.current.actions,
           // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
           travelClip = { state.physics.travelClipIn(panel, progress()) },
         )
@@ -554,4 +555,3 @@ internal fun solveMorphMenuPanel(
   placement = FluidMenuPlacement.AboveOrBelow,
 )
 
-private const val MorphMenuPaneTitle = "Azioni"

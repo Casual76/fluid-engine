@@ -451,6 +451,7 @@ fun FluidSectionIndex(
               haptics.play(FluidHapticEvent.Tick)
               currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Animated)
             },
+            labels = LocalFluidLabels.current,
           )
           .sharedPointerInput(sampledSections, touchSlop, reducedMotion) {
             awaitEachGesture {
@@ -686,10 +687,11 @@ private fun Modifier.sectionIndexSemantics(
   sections: List<FluidSectionAnchor>,
   selectedIndex: Int,
   onSelect: (Int) -> Unit,
+  labels: FluidLabels,
 ): Modifier = semantics(mergeDescendants = true) {
   val lastIndex = sections.lastIndex
-  contentDescription = "Indice sezioni"
-  stateDescription = "${sections[selectedIndex].label}, ${selectedIndex + 1} di ${sections.size}"
+  contentDescription = labels.sectionIndex
+  stateDescription = labels.sectionPosition(sections[selectedIndex].label, selectedIndex + 1, sections.size)
   progressBarRangeInfo = ProgressBarRangeInfo(
     current = selectedIndex.toFloat(),
     range = 0f..lastIndex.toFloat(),
@@ -701,7 +703,7 @@ private fun Modifier.sectionIndexSemantics(
   }
   customActions = listOfNotNull(
     if (selectedIndex > 0) {
-      CustomAccessibilityAction("Sezione precedente") {
+      CustomAccessibilityAction(labels.previousSection) {
         onSelect(selectedIndex - 1)
         true
       }
@@ -709,7 +711,7 @@ private fun Modifier.sectionIndexSemantics(
       null
     },
     if (selectedIndex < lastIndex) {
-      CustomAccessibilityAction("Sezione successiva") {
+      CustomAccessibilityAction(labels.nextSection) {
         onSelect(selectedIndex + 1)
         true
       }

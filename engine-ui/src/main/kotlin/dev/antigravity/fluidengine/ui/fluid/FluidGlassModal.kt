@@ -928,7 +928,7 @@ private fun FluidGlassModalPaneLayer(
     }
     FluidAnchoredPopover(
       anchor = lastOrigin,
-      paneTitle = lastPaneTitle ?: if (menu || expand) "Azioni" else null,
+      paneTitle = lastPaneTitle ?: if (menu || expand) LocalFluidLabels.current.actions else null,
       // Il menu contestuale no: il colore sta sulla riga sollevata, che e' l'oggetto. Una lista di
       // azioni tinta come la cosa da cui nasce diventa il secondo oggetto colorato della scena, e
       // a quel punto non si capisce piu' quale dei due si stia guardando.
@@ -1981,6 +1981,8 @@ private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
 
 @Composable
 private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+  // Il nome per TalkBack viene dalle parole dell'app (3.0.1): era «Chiudi» scritto qui.
+  val closeLabel = LocalFluidLabels.current.close
   if (isRenderEffectSupported()) {
     // Il tasto tondo di vetro delle barre: pressione di LibrePods, luce del dito, `Tap`. Il fondale e'
     // quello che c'e' in scope, e su una pagina opaca e' vuoto — il tasto tiene il bordo, l'ombra e la
@@ -1991,7 +1993,7 @@ private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier =
     ) {
       Icon(
         imageVector = Icons.Rounded.Close,
-        contentDescription = "Chiudi",
+        contentDescription = closeLabel,
         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.80f),
         modifier = Modifier.size(FluidFullScreenCloseGlyph),
       )
@@ -2004,7 +2006,7 @@ private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier =
     modifier = modifier
       .size(FluidFullScreenCloseTouchTarget)
       .fluidPressable(onClick = onClick, role = Role.Button, feedback = FluidPressFeedback.ExpandRound)
-      .semantics { contentDescription = "Chiudi" },
+      .semantics { contentDescription = closeLabel },
     contentAlignment = Alignment.Center,
   ) {
     androidx.compose.foundation.Canvas(modifier = Modifier.size(FluidFullScreenCloseSize)) {

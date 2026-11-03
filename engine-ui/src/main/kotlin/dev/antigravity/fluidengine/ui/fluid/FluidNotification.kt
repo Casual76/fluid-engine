@@ -1005,6 +1005,8 @@ private fun FluidNotificationCard(
   onThrown: () -> Unit = {},
 ) {
   val iconColors = fluidNotificationIconColors(notification.tone, MaterialTheme.colorScheme)
+  // Le parole per TalkBack vengono dall'app (3.0.1): erano scritte qui in italiano.
+  val labels = LocalFluidLabels.current
   val accent = iconColors.container
   val icon = when (notification.tone) {
     FluidNotificationTone.Info -> Icons.Rounded.Info
@@ -1089,12 +1091,12 @@ private fun FluidNotificationCard(
       .drawWithContent { if (drag.alpha > NotificationGateAlpha) drawContent() }
       .then(glassModifier)
       .semantics {
-        paneTitle = "Notifica in-app"
+        paneTitle = labels.notification
         liveRegion = LiveRegionMode.Polite
         // Il trascinamento non e' per tutti: le stesse due cose si fanno anche da TalkBack.
         customActions = buildList {
-          if (!drag.expanded) add(CustomAccessibilityAction("Espandi") { drag.expand(); true })
-          add(CustomAccessibilityAction("Chiudi") { onDismiss(); true })
+          if (!drag.expanded) add(CustomAccessibilityAction(labels.notificationExpand) { drag.expand(); true })
+          add(CustomAccessibilityAction(labels.notificationDismiss) { onDismiss(); true })
         }
       },
     shape = shape,
@@ -1167,7 +1169,7 @@ private fun FluidNotificationCard(
           FluidGlassIconButton(onClick = onDismiss) {
             Icon(
               imageVector = Icons.Rounded.Close,
-              contentDescription = "Chiudi notifica",
+              contentDescription = labels.notificationClose,
               tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }

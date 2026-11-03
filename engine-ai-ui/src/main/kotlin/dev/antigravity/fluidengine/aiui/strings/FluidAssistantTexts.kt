@@ -53,8 +53,12 @@ object FluidAssistantTexts {
       FailureKind.UNAUTHORIZED -> strings.failUnauthorized
       FailureKind.RATE_LIMITED -> when {
         tried.size >= 2 -> fluidFormat(strings.failRateLimitedAll, names(tried, strings), retryAfterSec?.let { "$it s" } ?: strings.soon)
-        retryAfterSec != null -> fluidFormat(strings.failRateLimitedIn, who, retryAfterSec)
-        else -> fluidFormat(strings.failRateLimited, who)
+        retryAfterSec != null -> fluidFormat(
+          if (strings.failoverSwitch) strings.failRateLimitedIn else strings.failRateLimitedInNoSwitch,
+          who,
+          retryAfterSec,
+        )
+        else -> fluidFormat(if (strings.failoverSwitch) strings.failRateLimited else strings.failRateLimitedNoSwitch, who)
       }
       FailureKind.NETWORK -> strings.failNetwork
       FailureKind.TIMEOUT -> strings.failTimeout

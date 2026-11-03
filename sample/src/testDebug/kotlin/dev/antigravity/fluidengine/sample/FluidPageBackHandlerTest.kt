@@ -135,11 +135,11 @@ class FluidPageBackHandlerTest {
 
   private fun isShown(text: String): Boolean = compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
 
-  /** Un trascinamento lento verso destra, a passi regolari: [px] in tutto, poi il dito si alza. */
+  /** Un trascinamento lento verso destra dal bordo (di serie l'unico punto da cui si tira): [px] in tutto, poi il dito si alza. */
   private fun drag(px: Float, lift: Boolean = true) {
     val steps = (px / 4f).toInt()
     compose.onRoot().performTouchInput {
-      down(Offset(300f, 900f))
+      down(Offset(6f, 900f))
       repeat(steps) { moveBy(Offset(4f, 0f), delayMillis = 16L) }
       if (lift) up()
     }
@@ -170,7 +170,7 @@ class FluidPageBackHandlerTest {
     val rest = leftPx("Marca B")
     compose.mainClock.autoAdvance = false
     compose.onRoot().performTouchInput {
-      down(Offset(300f, 900f))
+      down(Offset(6f, 900f))
       repeat(72) { moveBy(Offset(4f, 0f), delayMillis = 16L) }
       up()
     }
@@ -293,7 +293,7 @@ class FluidPageBackHandlerTest {
 
     // 72 px a 2000 px/s: sotto il 35%, ma oltre la spinta (vedi `FluidPageHostTest`): e' una conferma.
     compose.onRoot().performTouchInput {
-      down(Offset(300f, 900f))
+      down(Offset(6f, 900f))
       repeat(9) { moveBy(Offset(8f, 0f), delayMillis = 4L) }
       up()
     }

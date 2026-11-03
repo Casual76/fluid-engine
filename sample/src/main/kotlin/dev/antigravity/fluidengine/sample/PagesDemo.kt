@@ -46,6 +46,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.navigation.FluidNavHost
 import dev.antigravity.fluidengine.ui.navigation.composable
 import dev.antigravity.fluidengine.ui.navigation.rememberFluidNavController
+import dev.antigravity.fluidengine.ui.page.FluidBackSwipe
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
 import dev.antigravity.fluidengine.ui.page.rememberFluidPageHostState
@@ -93,11 +94,17 @@ internal const val PagesSliderTag = "pages:slider"
 internal const val PagesSegmentedTag = "pages:segmented"
 internal val PagesPeriods = listOf("Giorno", "Settimana", "Mese")
 
-/** Il grafo della demo: "a" radice (1 azione), "b" Slide (2), "c" ShrinkSlide (3). Anche quello dei test. */
+/**
+ * Il grafo della demo: "a" radice (1 azione), "b" Slide (2), "c" ShrinkSlide (3). Anche quello dei test.
+ *
+ * [backSwipe] e' quello di B e C: di serie il bordo, come il gesto di sistema. Solo i test dei gesti
+ * annidati e del «da qualunque punto» lo chiedono diverso.
+ */
 @Composable
 internal fun PagesDemo(
   navController: NavHostController = rememberFluidNavController(),
   state: FluidPageHostState = rememberFluidPageHostState(),
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
 ) {
   FluidNavHost(
     navController = navController,
@@ -108,7 +115,7 @@ internal fun PagesDemo(
     composable(PagesRouteA) {
       FluidScreen(
         title = "Pagine",
-        subtitle = "Apri una pagina e torna indietro col dito: da qualunque punto, o dal bordo.",
+        subtitle = "Apri una pagina e torna indietro col dito dal bordo, come col gesto di sistema.",
         actions = {
           FluidBarAction(icon = Icons.Rounded.Search, contentDescription = "Cerca", onClick = {})
         },
@@ -137,10 +144,10 @@ internal fun PagesDemo(
         fillerRows("a")
       }
     }
-    composable(PagesRouteB) {
+    composable(PagesRouteB, backSwipe = backSwipe) {
       FluidScreen(
         title = "Pagina B",
-        subtitle = "Trascina verso destra da un punto qualunque. Lenta oltre un terzo, o con una spinta.",
+        subtitle = "Trascina verso destra dal bordo sinistro. Lenta oltre un terzo, o con una spinta.",
         onBack = { navController.popBackStack() },
         actions = {
           FluidBarAction(icon = Icons.Rounded.Share, contentDescription = "Condividi", onClick = {})
@@ -161,7 +168,7 @@ internal fun PagesDemo(
         fillerRows("b")
       }
     }
-    composable(PagesRouteC, transition = FluidPageTransition.ShrinkSlide) {
+    composable(PagesRouteC, transition = FluidPageTransition.ShrinkSlide, backSwipe = backSwipe) {
       var level by remember { mutableFloatStateOf(0.4f) }
       var period by remember { mutableStateOf(PagesPeriods.first()) }
       FluidScreen(

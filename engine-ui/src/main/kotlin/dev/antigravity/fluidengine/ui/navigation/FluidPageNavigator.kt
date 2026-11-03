@@ -79,7 +79,7 @@ class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>(NAME) {
     // per riflessione, e un R8 aggressivo puo' toglierla.
     var transition: FluidPageTransition = FluidPageTransition.Slide
       internal set
-    var backSwipe: FluidBackSwipe = FluidBackSwipe.Anywhere
+    var backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly
       internal set
   }
 
@@ -96,7 +96,7 @@ class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Des
   private val content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit
 
   var transition: FluidPageTransition = FluidPageTransition.Slide
-  var backSwipe: FluidBackSwipe = FluidBackSwipe.Anywhere
+  var backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly
 
   constructor(
     navigator: FluidPageNavigator,
@@ -140,7 +140,7 @@ fun NavGraphBuilder.composable(
   arguments: List<NamedNavArgument> = emptyList(),
   deepLinks: List<NavDeepLink> = emptyList(),
   transition: FluidPageTransition = FluidPageTransition.Slide,
-  backSwipe: FluidBackSwipe = FluidBackSwipe.Anywhere,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
   content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
   destination(
@@ -159,7 +159,7 @@ fun <T : Any> NavGraphBuilder.composable(
   typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
   deepLinks: List<NavDeepLink> = emptyList(),
   transition: FluidPageTransition = FluidPageTransition.Slide,
-  backSwipe: FluidBackSwipe = FluidBackSwipe.Anywhere,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
   content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
   destination(
@@ -176,7 +176,7 @@ inline fun <reified T : Any> NavGraphBuilder.composable(
   typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
   deepLinks: List<NavDeepLink> = emptyList(),
   transition: FluidPageTransition = FluidPageTransition.Slide,
-  backSwipe: FluidBackSwipe = FluidBackSwipe.Anywhere,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
   noinline content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
   composable(T::class, typeMap, deepLinks, transition, backSwipe, content)

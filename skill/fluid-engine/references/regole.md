@@ -463,15 +463,18 @@ dito vero non ha questo problema, e il sistema lo dà a ogni evento. Ne seguono 
 - **un gesto confermato chiama `onBack()` prima della molla**, che continua mentre la pila si accorcia:
   l'app non deve sapere che c'è una molla.
 
-**Da qualunque punto, e chi consuma vince.** `FluidBackSwipe.Anywhere` è di serie, come LibrePods:
-un figlio che consuma (un tasto, il segmentato anche dal segmento scelto, una riga o card cliccabile, un
-cursore, un interruttore, una lista che scorre di lato) vince; il back parte dove nessuno lo prende, e
-sempre dal bordo. Se righe e card debbano cedere al back è una scelta aperta di Alessio; e uno
-scorrimento orizzontale arrivato al suo inizio passa la mano alla pagina. Un trascinamento orizzontale
-che parte su un tasto non porta indietro: il tasto tiene il dito (e `clickable` consuma già il down, che
-il riconoscitore legge come "un figlio se l'è preso"); per il back si parte fuori dai tasti. `EdgeOnly` (i primi 20 dp) per le pagine piene di gesti propri,
-`Off`: mai col dito dentro l'app, restano il back di sistema e il tasto. Nessuna vibrazione nel gesto:
-una pagina che scorre non è un momento da sentire.
+**Il back a dito parte dal bordo, come quello di sistema (3.0.3).** `FluidBackSwipe.EdgeOnly` (i primi 20 dp
+del bordo d'ingresso) è di serie, in ogni punto in cui c'è un default (`composable(...)`, `FluidPageHost`,
+`FluidNavHost`): righe, card, tasti, segmentati e scorrimenti in mezzo alla pagina non c'entrano col back, e non
+serve più sapere chi consuma il dito. `Anywhere` è un'opzione esplicita, per la pagina che lo vuole davvero (era
+di serie dalla 3.0.0 alla 3.0.2, come LibrePods): lì **chi consuma vince** — un tasto, il segmentato anche dal
+segmento scelto, una riga o card cliccabile, un cursore, un interruttore, una lista che scorre di lato — e il
+back parte dove nessuno lo prende; uno scorrimento orizzontale arrivato al suo inizio passa la mano alla pagina.
+Un trascinamento orizzontale che parte su un tasto non porta indietro nemmeno così: il tasto tiene il dito (e
+`clickable` consuma già il down, che il riconoscitore legge come "un figlio se l'è preso"). `Off`: mai col dito
+dentro l'app, restano il back di sistema e il tasto. Nessuna vibrazione nel gesto: una pagina che scorre non è
+un momento da sentire. Un'app che aveva messo `EdgeOnly` per i suoi gesti propri (mappe, pager, griglie in
+selezione) può toglierlo.
 
 **Chi dipinge il fondo dice il colore del testo (3.0.1).** Ogni host alla radice (modali, menu, notifica,
 suggerimenti, `FluidPageChrome`, le pagine dell'host) fornisce `LocalContentColor` dal suo fondo; un host nuovo
@@ -507,8 +510,8 @@ Il perché, una cosa per volta:
   lastre), porta i pezzi della pagina che esce su quelli della pagina che arriva; il tasto indietro radice↔figlia compreso.
   Oltre sei pezzi, o con un controllo che non è una capsula di vetro, le icone si incrociano e basta;
 - **chi ha il dito.** Un gesto che parte sulla riga dei controlli della barra è della barra (serve anche al menu delle
-  azioni, che si sceglie trascinando); i tasti dentro la pagina lasciano partire il back «ovunque», come LibrePods. Uno
-  scroller orizzontale al suo inizio passa il gesto al back; uno slider non lo passa mai.
+  azioni, che si sceglie trascinando); il back parte dal bordo (3.0.3); con `Anywhere` i tasti dentro la pagina lo lasciano partire dal vuoto. Uno
+  scroller orizzontale al suo inizio passa il gesto al back (solo con `Anywhere`); uno slider non lo passa mai.
 
 Provato da `FluidPageHostTest` (il tasto indietro è uno e sta fermo al pixel, il titolo grande viaggia con la sua pagina,
 un gesto che parte sulla barra è della barra, un cursore non porta mai indietro), `FluidPageMotionTest` (il morph dei

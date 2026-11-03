@@ -67,6 +67,7 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticGrainStyle
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
+import dev.antigravity.fluidengine.ui.page.FluidBackSwipe
 import dev.antigravity.fluidengine.ui.page.rememberFluidPageHostState
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
@@ -609,7 +610,8 @@ class FluidButtonDragTest {
           composable("a") {
             FluidScreen(title = "Radice") { item { Spacer(Modifier.fillMaxWidth().height(40.dp)) } }
           }
-          composable("b") {
+          // `Anywhere`: da 3.0.3 di serie si tira dal bordo, e qui si tiene fermo il "da qualunque punto".
+          composable("b", backSwipe = FluidBackSwipe.Anywhere) {
             FluidScreen(title = "Pagina", onBack = { controller.popBackStack() }) {
               item {
                 FluidButton(

@@ -387,7 +387,7 @@ dito**. Con `FluidNavHost` la pagina sta sotto il dito.
 coperta — e un orologio solo (`travel`, i pixel percorsi verso l'uscita): il dito, la molla e il tasto
 indietro disegnano lo stesso fotogramma. Si apre da destra (da sinistra in RTL), la pagina sotto arretra di
 un terzo (con `ShrinkSlide` ed `Expand` sta ferma: attorno a una pagina rimpicciolita si vede lei). Si torna indietro come in iOS: la pagina segue la **posizione vera del dito** (`touchX`, mai il
-`progress`), da un punto qualunque o dal bordo; il rilascio conferma oltre il 35% della larghezza (tetto
+`progress`), di serie dal bordo (3.0.3; da un punto qualunque con `Anywhere`); il rilascio conferma oltre il 35% della larghezza (tetto
 180 dp) o con una spinta di 400 dp/s, una spinta contraria annulla; la molla parte dalla velocità del dito
 e non rimbalza. Mentre si muove la pagina è una **carta**: angoli del telefono, ombra da 36 dp; a riposo
 niente. Mai alpha, mai sfocatura, mai scrim. Fra due schede c'è il passo laterale di sempre (13%, la
@@ -397,14 +397,16 @@ autonomi saltano e il dito segue 1:1.
 **Gli stili e i gesti.** `FluidPageTransition`: `Slide` (di serie, da destra), `ShrinkSlide`
 (rimpicciolisce al 90% nel primo 30% della corsa, poi scivola: per la pagina che dice «sono una cosa sola
 che si chiude»), `Expand` (si apre dal punto toccato, scala 0,91 → 1, opaca). `FluidBackSwipe`:
-`Anywhere` (di serie: da qualunque punto, se nessun figlio — un cursore, un interruttore, un segmentato, una riga che
-scorre di lato — si è preso il dito; uno scorrimento orizzontale arrivato al suo inizio passa la mano),
-`EdgeOnly` (i primi 20 dp, per le pagine piene di gesti propri), `Off`. Il riconoscitore decide nel passaggio Main, dopo i
+`EdgeOnly` (**di serie dalla 3.0.3**, come il gesto di sistema: i primi 20 dp del bordo d'ingresso, e righe, card e
+scorrimenti in mezzo alla pagina non c'entrano),
+`Anywhere` (opzione esplicita: da qualunque punto, se nessun figlio — un cursore, un interruttore, un segmentato, una riga che
+scorre di lato — si è preso il dito; uno scorrimento orizzontale arrivato al suo inizio passa la mano; era di serie
+dalla 3.0.0 alla 3.0.2), `Off`. Con `Anywhere` il riconoscitore decide nel passaggio Main, dopo i
 figli, guardando se un figlio ha consumato, e **chi consuma vince**: un trascinamento orizzontale che parte su un tasto non
 porta indietro (il tasto tiene il dito), né uno che parte sul segmentato, anche sul segmento già scelto (dalla 3.0.1).
 **Nemmeno da una riga, una card o un messaggio cliccabile**: `clickable` consuma il contatto, e il riconoscitore lo legge
-come «un figlio se l'è preso». Il back «ovunque» parte quindi dalle zone che nessuno prende (il fondo, il testo, i titoli)
-e sempre dal bordo; se righe e card debbano cedergli il dito come i chip cedono la fila è una scelta aperta. **Il back a dito passa dal dispatcher** come quello di sistema: oltre la soglia un `BackHandler` (o `PredictiveBackHandler`) abilitato dopo l'host risponde per primo, e la pagina torna sotto il dito con la molla dell'annullo mentre lui decide; senza gestori esce come sempre. Una conferma di uscita non spegne più il gesto. `FluidNavHost(pageColor)`: di serie lo sfondo del tema; trasparente, la pagina non dipinge e nelle transizioni le due pagine si vedono per trasparenza.
+come «un figlio se l'è preso». Il back «ovunque» (`Anywhere`) parte quindi dalle zone che nessuno prende (il fondo, il testo, i titoli)
+e sempre dal bordo; di serie, col bordo, la questione non si pone. **Il back a dito passa dal dispatcher** come quello di sistema: oltre la soglia un `BackHandler` (o `PredictiveBackHandler`) abilitato dopo l'host risponde per primo, e la pagina torna sotto il dito con la molla dell'annullo mentre lui decide; senza gestori esce come sempre. Una conferma di uscita non spegne più il gesto. `FluidNavHost(pageColor)`: di serie lo sfondo del tema; trasparente, la pagina non dipinge e nelle transizioni le due pagine si vedono per trasparenza.
 
 **L'inventario.**
 
@@ -468,7 +470,7 @@ il titolo grande è contenuto e viaggia con la sua pagina, quello agganciato sfu
 `FluidCollapsingTopBar` non cambiano firma: fuori da un host disegnano la barra di sempre. `FluidPageChrome(title,
 modifier, onBack, backdrop, barTint, actions)` è la stessa cosa per una pagina che non è una `FluidScreen`: dentro un host si
 descrive, fuori si disegna in cima a chi la chiama. **Un gesto che parte sulla barra è della barra** (mai il back: serve
-anche al menu delle azioni, che si sceglie trascinando); dentro la pagina vale la regola di sopra: un tasto, un
+anche al menu delle azioni, che si sceglie trascinando); dentro la pagina il back parte dal bordo (3.0.3); con `Anywhere` vale la regola di sopra: un tasto, un
 segmentato, una riga cliccabile si tengono il dito e il back «ovunque» non parte da loro (in LibrePods partiva anche dai
 tasti). Uno scroller orizzontale al suo inizio passa il gesto al back; uno slider mai. Con
 `FluidListDetailScaffold` a due pannelli ogni pannello disegna la sua barra. **Deprecati**: `FluidRouteMotionHost` (ora

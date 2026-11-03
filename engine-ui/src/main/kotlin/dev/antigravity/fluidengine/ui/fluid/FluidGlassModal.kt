@@ -117,6 +117,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.verticalScroll
@@ -1211,6 +1212,9 @@ private fun FluidAnchoredPopover(
   val density = LocalDensity.current
   val gapPx = with(density) { FluidPopoverGap.toPx() }
   val marginPx = with(density) { FluidPopoverMargin.toPx() }
+  // La barra di navigazione di sistema (3.0.3): un pannello aperto in basso non ci finisce sotto,
+  // come i fogli. Conta solo per il limite basso: l'ancoraggio resta quello di sempre.
+  val navBarBottomPx = WindowInsets.navigationBars.getBottom(density).toFloat()
   val maxWidthPx = with(density) {
     when {
       compact -> FluidContextMenuMaxWidth
@@ -1542,7 +1546,8 @@ private fun FluidAnchoredPopover(
       x = (width - paneW) / 2f
       y = (height - paneH) / 2f
     } else {
-      val spaceBelow = height - anchor.bottom - gapPx - marginPx
+      val bottomLimit = height - navBarBottomPx
+      val spaceBelow = bottomLimit - anchor.bottom - gapPx - marginPx
       val spaceAbove = anchor.top - gapPx - marginPx
       below = paneH <= spaceBelow || spaceBelow >= spaceAbove
       val maxX = (width - paneW - marginPx).coerceAtLeast(marginPx)
@@ -1554,12 +1559,12 @@ private fun FluidAnchoredPopover(
         // Sitting *on* the anchor: the edge the menu grows away from stays put, so the button does
         // not appear to jump the moment it unfolds.
         if (below) {
-          anchor.top.coerceAtMost((height - paneH - marginPx).coerceAtLeast(marginPx))
+          anchor.top.coerceAtMost((bottomLimit - paneH - marginPx).coerceAtLeast(marginPx))
         } else {
           (anchor.bottom - paneH).coerceAtLeast(marginPx)
         }
       } else if (below) {
-        (anchor.bottom + gapPx).coerceAtMost((height - paneH - marginPx).coerceAtLeast(marginPx))
+        (anchor.bottom + gapPx).coerceAtMost((bottomLimit - paneH - marginPx).coerceAtLeast(marginPx))
       } else {
         (anchor.top - gapPx - paneH).coerceAtLeast(marginPx)
       }

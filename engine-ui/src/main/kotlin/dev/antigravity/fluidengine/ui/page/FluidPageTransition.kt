@@ -42,13 +42,17 @@ enum class FluidPageTransition {
  */
 enum class FluidBackSwipe {
   /**
-   * Di serie, come LibrePods: da qualunque punto della pagina, purche' nessun figlio si sia preso il
-   * dito per primo (un cursore, un interruttore, una riga che scorre di lato). Uno scorrimento
-   * orizzontale arrivato al suo inizio passa la mano alla pagina.
+   * Da qualunque punto della pagina, purche' nessun figlio si sia preso il dito per primo (un
+   * cursore, un interruttore, una riga che scorre di lato). Uno scorrimento orizzontale arrivato al
+   * suo inizio passa la mano alla pagina. **Non e' piu' di serie** (3.0.3): va chiesto, per le
+   * pagine che lo vogliono davvero.
    */
   Anywhere,
 
-  /** Solo dai primi 20 dp del bordo d'ingresso: per le pagine piene di gesti orizzontali propri. */
+  /**
+   * Di serie (3.0.3), come il gesto di sistema: solo dai primi 20 dp del bordo d'ingresso. Righe,
+   * carte e scorrimenti orizzontali in mezzo alla pagina non c'entrano.
+   */
   EdgeOnly,
 
   /** Mai col dito dentro l'app (il back di sistema e il tasto restano). */

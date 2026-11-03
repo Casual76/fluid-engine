@@ -457,9 +457,12 @@ pulsanti. Le app Pampa la prendono una alla volta; per ognuna l'ordine è questo
    16 dp. Chip e pallini di colore cedono il dito alla fila che scorre. **Da guardare in ogni app**: una
    lista fatta di pulsanti (un pulsante per riga, un pager di tasti a tutta larghezza) si scorre solo dai
    margini; lì il pulsante passa `grip = FluidPressGrip.YieldsToScroll`. `LocalFluidPressImmediate` non fa
-   più niente, e un'app che lo dava alla sua chrome può toglierlo. Le pagine piene di gesti propri (mappe,
-   griglie in selezione, pager) prendono `FluidBackSwipe.EdgeOnly`; quelle con un `BackHandler` (un editor
-   che chiede conferma) vanno guardate col dito. Un tocco fa tre colpi (`PressDown`,
+   più niente, e un'app che lo dava alla sua chrome può toglierlo. Il back a dito di una
+   pagina, dalla 3.0.3, parte di serie **dal bordo** (`FluidBackSwipe.EdgeOnly`, come il gesto di sistema; nella
+   3.0.0-3.0.2 era `Anywhere`): le pagine piene di gesti propri (mappe, griglie in selezione, pager) non devono
+   più chiedere niente, e chi aveva messo `EdgeOnly` a mano lo toglie; chi vuole il gesto da qualunque punto
+   passa `backSwipe = FluidBackSwipe.Anywhere`. Quelle con un `BackHandler` (un editor che chiede conferma)
+   vanno guardate col dito. Un tocco fa tre colpi (`PressDown`,
    `PressRelease`, `PressClick`): è voluto, ed è l'unica eccezione a «una vibrazione per momento».
 4. **I menu non chiedono niente**, ma si sentono: si scelgono col dito che li ha aperti, e un `FluidAlert`
    sta nell'host dei modali se l'app ne ha uno (`inHost = false` per un avviso che deve stare sopra una

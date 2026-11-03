@@ -25,7 +25,9 @@ import androidx.navigationevent.NavigationEvent
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.navigation.FluidPageNavigator
 import dev.antigravity.fluidengine.ui.navigation.rememberFluidNavController
+import dev.antigravity.fluidengine.ui.page.FluidBackSwipe
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState
 import dev.antigravity.fluidengine.ui.page.rememberFluidPageHostState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
@@ -41,8 +43,9 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * Le pagine della 3.0 sotto un dito finto, dentro un FluidNavHost vero.
  *
- * La promessa da controllare e' una: **la pagina sta sotto il dito**. Dal bordo, da un punto
- * qualunque, col gesto di sistema anche quando il suo `progress` fa quello che vuole. Poi le regole
+ * La promessa da controllare e' una: **la pagina sta sotto il dito**. Dal bordo (di serie, dalla
+ * 3.0.3: come il gesto di sistema), da un punto qualunque se la pagina lo chiede (`Anywhere`), col gesto
+ * di sistema anche quando il suo `progress` fa quello che vuole. Poi le regole
  * del rilascio, la velocita' che passa dal dito alla molla, il tasto indietro.
  *
  * Schermo 360 dp a densita' 2: W = 720 px, zona del bordo 40 px, spinta 800 px/s. La soglia di
@@ -64,7 +67,11 @@ class FluidPageHostTest {
 
   private val width = 720f
 
-  private fun show(reducedMotion: Boolean = false, rtl: Boolean = false) {
+  private fun show(
+    reducedMotion: Boolean = false,
+    rtl: Boolean = false,
+    backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  ) {
     compose.setContent {
       FluidTheme(settings = remember { EngineSettings() }) {
         CompositionLocalProvider(
@@ -76,7 +83,7 @@ class FluidPageHostTest {
           nav = controller
           val state = rememberFluidPageHostState()
           pages = state
-          PagesDemo(navController = controller, state = state)
+          PagesDemo(navController = controller, state = state, backSwipe = backSwipe)
         }
       }
     }
@@ -97,7 +104,10 @@ class FluidPageHostTest {
   private fun isShown(text: String): Boolean =
     compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
 
-  /** Un trascinamento a passi regolari, un fotogramma per passo; torna (dito − contatto). */
+  /**
+   * Un trascinamento a passi regolari, un fotogramma per passo. I test del rilascio partono dal bordo
+   * (x = 6), l'unico punto da cui di serie una pagina si tira.
+   */
   private fun drag(from: Offset, steps: Int, stepPx: Float, stepMillis: Long = 16L, lift: Boolean = true) {
     compose.onRoot().performTouchInput {
       down(from)
@@ -141,8 +151,8 @@ class FluidPageHostTest {
   }
 
   @Test
-  fun `da un punto qualunque la pagina sta sotto il dito`() {
-    show()
+  fun `da un punto qualunque la pagina sta sotto il dito se la pagina e' Anywhere`() {
+    show(backSwipe = FluidBackSwipe.Anywhere)
     openB()
     val rest = leftPx(PagesMarkB)
     compose.mainClock.autoAdvance = false
@@ -163,6 +173,28 @@ class FluidPageHostTest {
     compose.onRoot().performTouchInput { up() }
     compose.mainClock.autoAdvance = true
     compose.waitForIdle()
+  }
+
+  @Test
+  fun `di serie la pagina si tira solo dal bordo`() {
+    show()
+    openB()
+    // Il default delle destinazioni (3.0.3): il bordo, come il gesto di sistema.
+    val destination = compose.runOnIdle { nav.currentBackStackEntry?.destination } as FluidPageNavigator.Destination
+    assertEquals(FluidBackSwipe.EdgeOnly, destination.backSwipe)
+    val rest = leftPx(PagesMarkB)
+
+    // Dal mezzo della pagina, 320 px lenti (oltre il 35%) non muovono niente e non tornano indietro.
+    drag(Offset(300f, 900f), steps = 40, stepPx = 8f)
+    compose.waitForIdle()
+    assertEquals(PagesRouteB, route())
+    assertEquals(0f, leftPx(PagesMarkB) - rest, 0.5f)
+
+    // Dal bordo, lo stesso gesto porta indietro.
+    drag(Offset(6f, 900f), steps = 40, stepPx = 8f)
+    compose.waitForIdle()
+    assertEquals(PagesRouteA, route())
+    assertTrue(!isShown(PagesMarkB))
   }
 
   // --- 2. Il back di sistema segue touchX, non progress ----------------------------------------
@@ -235,7 +267,7 @@ class FluidPageHostTest {
     openB()
     val rest = leftPx(PagesMarkB)
     // 0,30 W = 216 px a 250 px/s.
-    drag(Offset(300f, 900f), steps = 54, stepPx = 4f)
+    drag(Offset(6f, 900f), steps = 54, stepPx = 4f)
     compose.waitForIdle()
     assertEquals(PagesRouteB, route())
     assertEquals(0f, leftPx(PagesMarkB) - rest, 0.5f)
@@ -246,7 +278,7 @@ class FluidPageHostTest {
     show()
     openB()
     // 0,40 W = 288 px a 250 px/s.
-    drag(Offset(300f, 900f), steps = 72, stepPx = 4f)
+    drag(Offset(6f, 900f), steps = 72, stepPx = 4f)
     compose.waitForIdle()
     assertEquals(PagesRouteA, route())
     assertTrue(!isShown(PagesMarkB))
@@ -257,7 +289,7 @@ class FluidPageHostTest {
     show()
     openB()
     // 0,10 W = 72 px a 2000 px/s, molto oltre gli 800 (presa a 40 px, oltre la soglia).
-    drag(Offset(300f, 900f), steps = 9, stepPx = 8f, stepMillis = 4L)
+    drag(Offset(6f, 900f), steps = 9, stepPx = 8f, stepMillis = 4L)
     compose.waitForIdle()
     assertEquals(PagesRouteA, route())
   }
@@ -268,7 +300,7 @@ class FluidPageHostTest {
     openB()
     val rest = leftPx(PagesMarkB)
     compose.onRoot().performTouchInput {
-      down(Offset(200f, 900f))
+      down(Offset(6f, 900f))
       repeat(36) { moveBy(Offset(10f, 0f), delayMillis = 16L) }
       repeat(3) { moveBy(Offset(-24f, 0f), delayMillis = 8L) }
       up()
@@ -289,7 +321,7 @@ class FluidPageHostTest {
     // 12 px ogni 16 ms: 750 px/s, sotto la spinta (800): conferma per distanza a 0,5 W. Un blocco
     // solo, cosi' i tempi degli eventi sono quelli del dito e non quelli dei fotogrammi del test.
     compose.onRoot().performTouchInput {
-      down(Offset(150f, 900f))
+      down(Offset(6f, 900f))
       repeat(30) { moveBy(Offset(12f, 0f), delayMillis = 16L) }
       up()
     }
@@ -473,11 +505,11 @@ class FluidPageHostTest {
     assertTrue(!isShown("Pagina C"))
   }
 
-  // --- 8. Scorrimenti annidati -----------------------------------------------------------------
+  // --- 8. Scorrimenti annidati (pagine `Anywhere`: il passaggio di mano esiste solo li') -------------
 
   @Test
   fun `una riga che scorre di lato al suo inizio passa la mano al back`() {
-    show()
+    show(backSwipe = FluidBackSwipe.Anywhere)
     openC()
     compose.onNodeWithTag(PagesChipsTag).performTouchInput {
       down(Offset(width / 4f, centerY))
@@ -490,7 +522,7 @@ class FluidPageHostTest {
 
   @Test
   fun `una riga che scorre di lato scorre prima di tutto`() {
-    show()
+    show(backSwipe = FluidBackSwipe.Anywhere)
     openC()
     val rest = leftPx(PagesMarkC)
     // Verso sinistra la riga ha strada: scorre lei, la pagina non si muove.
@@ -506,7 +538,7 @@ class FluidPageHostTest {
 
   @Test
   fun `un cursore non porta mai indietro`() {
-    show()
+    show(backSwipe = FluidBackSwipe.Anywhere)
     openC()
     val rest = leftPx(PagesMarkC)
     compose.onNodeWithTag(PagesSliderTag).performTouchInput {
@@ -525,7 +557,7 @@ class FluidPageHostTest {
    * Main guardando se un figlio ha consumato) si portava via la pagina — Codex, «Aggiungi contatto».
    */
   private fun dragAcrossSegmented(fromSegment: Int) {
-    show()
+    show(backSwipe = FluidBackSwipe.Anywhere)
     openC()
     val rest = leftPx(PagesMarkC)
     compose.onNodeWithTag(PagesSegmentedTag).performTouchInput {
@@ -647,7 +679,7 @@ class FluidPageHostTest {
     show()
     openDraft()
     // 0,40 W lenti: senza gestore toglierebbe la pagina.
-    drag(Offset(300f, 900f), steps = 72, stepPx = 4f)
+    drag(Offset(6f, 900f), steps = 72, stepPx = 4f)
     compose.waitForIdle()
     assertEquals(PagesRouteDraft, route())
     assertTrue(isShown("Uscire senza salvare?"))
@@ -662,7 +694,7 @@ class FluidPageHostTest {
     openDraft()
     compose.onNodeWithText(PagesDraftDirty).performClick()
     compose.waitForIdle()
-    drag(Offset(300f, 900f), steps = 72, stepPx = 4f)
+    drag(Offset(6f, 900f), steps = 72, stepPx = 4f)
     compose.waitForIdle()
     assertEquals(PagesRouteA, route())
     assertTrue(!isShown("Uscire senza salvare?"))

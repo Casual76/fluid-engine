@@ -130,7 +130,7 @@ fun <K : Any> FluidPageHost(
   onBack: () -> Unit,
   modifier: Modifier = Modifier,
   transition: (K) -> FluidPageTransition = { FluidPageTransition.Slide },
-  backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.Anywhere },
+  backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly },
   peer: FluidPeerMove<K>? = null,
   onTransitionStart: (List<K>) -> Unit = {},
   onSettled: () -> Unit = {},

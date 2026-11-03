@@ -167,7 +167,7 @@ class FluidPageHostState internal constructor() {
   internal var onTransitionStart: (List<Any>) -> Unit = {}
   internal var onSettled: () -> Unit = {}
   internal var transitionOf: (Any) -> FluidPageTransition = { FluidPageTransition.Slide }
-  internal var backSwipeOf: (Any) -> FluidBackSwipe = { FluidBackSwipe.Anywhere }
+  internal var backSwipeOf: (Any) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly }
   internal var peerOf: ((Any, Any) -> Int)? = null
   internal var renderable: (Any) -> Boolean = { true }
   internal var backHandler: NavigationEventHandler<*>? = null

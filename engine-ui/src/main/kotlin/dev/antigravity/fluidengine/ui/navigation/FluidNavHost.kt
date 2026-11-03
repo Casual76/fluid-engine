@@ -151,7 +151,7 @@ fun FluidNavHost(
     onBack = { navController.popBackStack() },
     modifier = modifier,
     transition = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.transition ?: FluidPageTransition.Slide },
-    backSwipe = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.backSwipe ?: FluidBackSwipe.Anywhere },
+    backSwipe = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.backSwipe ?: FluidBackSwipe.EdgeOnly },
     peer = peer,
     onTransitionStart = { entries -> entries.forEach(navigator::prepareForTransition) },
     // A riposo ogni voce in transizione va al suo stato finale: la cima RESUMED, quella sotto

@@ -6,6 +6,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.3 - 2026-11-03
+
+- ui: **il back col dito parte dal bordo, come quello di sistema.** `FluidBackSwipe.EdgeOnly` (i primi 20 dp) diventa il valore di serie dove ce n'e' uno (`composable(...)`, `FluidPageHost`, `FluidNavHost`, lo stato dell'host); `Anywhere` resta, da chiedere con `backSwipe = FluidBackSwipe.Anywhere` per la pagina che lo vuole. **Cambia al tatto**: in ogni app una pagina non si tira piu' da un punto qualunque, e righe, card e scorrimenti in mezzo alla pagina non c'entrano piu' col back. Le app che avevano messo `EdgeOnly` per i loro gesti propri (o per il segmentato) lo possono togliere; quelle che volevano il gesto ovunque passano `Anywhere`.
+- fix: un pannello (pop-up, menu, finestra che nasce da un tasto) aperto in basso sullo schermo non finisce piu' sotto la barra dei gesti di sistema: rispetta gli inset della barra di navigazione come i fogli. L'ancoraggio non cambia, e un pannello centrato resta dov'era. **Cambia a vista** solo dove prima toccava il fondo.
+- ui: `LocalFluidPressImmediate` e' `@Deprecated` (non ha effetto dalla 3.0): si toglie.
+- test/docs: i test dei gesti annidati e del «da qualunque punto» chiedono `Anywhere`, quelli del rilascio partono dal bordo, un test tiene fermo il default; `regole.md`, `design-system.md`, `docs/03` e `ADOZIONE.md` dicono che il default e' il bordo. La demo delle pagine non dice piu' «da qualunque punto».
+
 ## 3.0.2 - 2026-11-03
 
 - tools: `engine-doctor.ps1` guarda i tag che puntano al commit (`git tag --points-at`) e conta solo quelli `engine-*`: sullo stesso commit della 3.0.1 c'e' anche il tag della beta 5 della galleria, e `git describe` sceglieva quello ("agganciato a beta-fluid-glass-v2.0.0-beta.5, ma engine.properties dice 3.0.1"). Segnalato dalla sessione di MyCloud.

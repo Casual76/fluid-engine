@@ -607,4 +607,7 @@ internal const val StretchGain = 0.1f
  * attraversare. Resta dichiarato perche' le app che lo davano alla loro chrome compilino: si puo'
  * togliere, e se ne andra'.
  */
+@Deprecated(
+  "Non ha nessun effetto dalla 3.0: ogni pulsante e' premuto al contatto. Si puo' togliere.",
+)
 val LocalFluidPressImmediate = compositionLocalOf { false }

@@ -75,7 +75,8 @@ internal fun Modifier.fluidPageBackSwipe(state: FluidPageHostState): Modifier =
       // La riga dei controlli della barra ancorata non e' pagina: un gesto che parte li' e' dei suoi
       // tasti (come in LibrePods, dove il contenitore del tasto indietro beve il dito). Conta anche
       // per il menu delle azioni, che dal click lungo si sceglie trascinando il dito di lato. Il
-      // resto della pagina resta "ovunque", con la regola del Main qui sotto: **chi consuma vince**.
+      // resto della pagina e' "ovunque" solo con `Anywhere` (di serie, dalla 3.0.3, e' `EdgeOnly`), con la
+      // regola del Main qui sotto: **chi consuma vince**.
       // I tasti tengono il dito (3.0, `FluidPressGrip.HoldsFinger`: consumano gli spostamenti, e
       // `clickable` il contatto), quindi un trascinamento partito su un tasto della pagina non porta
       // indietro; e nemmeno uno partito su una riga, una card o un messaggio cliccabile (`clickable`

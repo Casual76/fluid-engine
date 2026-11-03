@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -145,6 +146,9 @@ object FluidButtonDefaults {
  * per tap. It grows by 10%, with the growth of its long side capped at 16 dp: a button that fills
  * the width ([fillWidth]) grows by about 5%. See [fluidPressable] and [FluidPressFeedback.maxScale].
  *
+ * The height from [FluidButtonDefaults] is a **minimum**, not a size: at a large font scale (200%) the
+ * button grows to keep its label whole instead of letting the label spill out. At 100% nothing changes.
+ *
  * **Tiene il dito (3.0), e [grip] dice quando no.** Di serie il dito che scende sul pulsante e' suo
  * fino al sollevamento: la pagina sotto non scorre, e per scorrere si parte fuori dai pulsanti. Va
  * bene per un pulsante da solo; **non** per uno che il chiamante ripete su ogni riga di una lista
@@ -203,7 +207,7 @@ fun FluidButton(
       )
       .clip(shape)
       .background(container)
-      .height(FluidButtonDefaults.height(size))
+      .heightIn(min = FluidButtonDefaults.height(size))
       .padding(horizontal = FluidButtonDefaults.horizontalPadding(size)),
     contentAlignment = Alignment.Center,
   ) {

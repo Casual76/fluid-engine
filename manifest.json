@@ -23,14 +23,22 @@
       "sizeBytes": 2808256
     },
     "beta": {
-      "version": "2.0.0-beta.4",
-      "releaseDate": "2026-11-02",
-      "changelog": "Beta 4 della 3.0. Fluid-physics è una goccia: il menu del tasto, le azioni della barra, il contestuale e la card escono e rientrano come un liquido, con le voci sempre dentro il vetro; in Fisica si confronta con la geometria e si regola la tensione del bordo. Il back col dito rispetta le pagine che chiedono prima di uscire (prova la bozza in Pagine), i tasti tondi grandi crescono con un tetto e il vetro segue il contrasto di sistema. Le prove sono nella pagina Da provare.",
-      "releaseTag": "beta-fluid-glass-v2.0.0-beta.4",
-      "apkAsset": "fluid-glass-2.0.0-beta.4.apk",
-      "sizeBytes": 3344977
+      "version": "2.0.0-beta.5",
+      "releaseDate": "2026-11-03",
+      "changelog": "Beta 5: le correzioni dell'engine 3.0.1, trovate portando le app sulla 3.0. Sul tema scuro il testo di pop-up, fogli, avvisi, menu e del titolo della barra si legge; il segmentato tiene il dito anche dal segmento già scelto; la barra in basso si ripiega solo se la pagina scorre e si riapre cambiando scheda; il pop-up sale sopra la tastiera; nuove righe che diventano il pop-up di scelta e righe con cursore. Le prove sono nella pagina Da provare.",
+      "releaseTag": "beta-fluid-glass-v2.0.0-beta.5",
+      "apkAsset": "fluid-glass-2.0.0-beta.5.apk",
+      "sizeBytes": 3361368
     },
     "history": [
+      {
+        "version": "2.0.0-beta.4",
+        "releaseDate": "2026-11-02",
+        "changelog": "Beta 4 della 3.0. Fluid-physics è una goccia: il menu del tasto, le azioni della barra, il contestuale e la card escono e rientrano come un liquido, con le voci sempre dentro il vetro; in Fisica si confronta con la geometria e si regola la tensione del bordo. Il back col dito rispetta le pagine che chiedono prima di uscire (prova la bozza in Pagine), i tasti tondi grandi crescono con un tetto e il vetro segue il contrasto di sistema. Le prove sono nella pagina Da provare.",
+        "releaseTag": "beta-fluid-glass-v2.0.0-beta.4",
+        "apkAsset": "fluid-glass-2.0.0-beta.4.apk",
+        "sizeBytes": 3344977
+      },
       {
         "version": "2.0.0-beta.3",
         "releaseDate": "2026-11-02",

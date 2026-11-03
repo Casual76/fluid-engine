@@ -6,6 +6,14 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.4 - in lavorazione
+
+- ui: le intestazioni si leggono come tali per TalkBack. Il titolo di una sezione (`FluidSectionHeader`) e il titolo grande di una pagina (`FluidCollapsingTitle`) sono `heading()`; il dettaglio sotto il titolo di sezione no.
+- ui: il tasto che svuota un campo (`FluidTextField`) ha un nome per TalkBack, «Cancella» di serie (`FluidLabels.clear`, da tradurre con le altre parole), e il ruolo di pulsante. Il bersaglio del dito e' di 48 dp, il disegno resta di 28: il campo non cresce.
+- fix: l'altezza di `FluidButton` e' un minimo, non una misura. Con il testo a scala grande (200%) l'etichetta non esce piu' dal bordo, il pulsante cresce; a 100% non cambia niente.
+- build: `engine-ui` dichiara `lifecycle-viewmodel-compose` alla versione del resto del lifecycle (2.10.0), invece di prenderla da navigation-compose con i metadati della 2.9.0.
+- tools: `engine-update.ps1` esce con 0 quando riesce e con 1 su un errore vero (che viene scritto). Il tag si scarica per nome dal remote (`origin`) prima del checkout, anche se c'e' gia' in locale, e non si cerca mai per SHA.
+
 ## 3.0.3 - 2026-11-03
 
 - ui: **il back col dito parte dal bordo, come quello di sistema.** `FluidBackSwipe.EdgeOnly` (i primi 20 dp) diventa il valore di serie dove ce n'e' uno (`composable(...)`, `FluidPageHost`, `FluidNavHost`, lo stato dell'host); `Anywhere` resta, da chiedere con `backSwipe = FluidBackSwipe.Anywhere` per la pagina che lo vuole. **Cambia al tatto**: in ogni app una pagina non si tira piu' da un punto qualunque, e righe, card e scorrimenti in mezzo alla pagina non c'entrano piu' col back. Le app che avevano messo `EdgeOnly` per i loro gesti propri (o per il segmentato) lo possono togliere; quelle che volevano il gesto ovunque passano `Anywhere`.

@@ -87,12 +87,12 @@ private fun SettingRowsGroup() {
   var format by remember { mutableStateOf("png") }
   FluidListGroup(glass = true) {
     FluidPickerRow(
-      title = "Qualita'",
+      title = "Qualità",
       selectedKey = quality,
       options = listOf(
         FluidPickerOption("bassa", "Bassa", subtitle = "File piccoli"),
         FluidPickerOption("media", "Media"),
-        FluidPickerOption("alta", "Alta", subtitle = "File grandi, piu' lenti"),
+        FluidPickerOption("alta", "Alta", subtitle = "File grandi, più lenti"),
       ),
       onSelected = { quality = it },
     )

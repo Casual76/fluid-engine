@@ -95,6 +95,8 @@ private val ControlsContrast = TryTarget.Tab(RouteControls, "Controlli › Contr
 private val MaterialAction = TryTarget.Tab(RouteMaterial, "Materiale › tasto Azione")
 private val PhysicsSpring = TryTarget.Tab(RoutePlayground, "Fisica › Molla e materiale")
 private val ChromeExpand = TryTarget.Tab(RouteChrome, "Chrome › Card che si espande")
+private val SettingsRows = TryTarget.Tab(RouteSettings, "Impostazioni › Righe di impostazioni")
+private val ControlsScroll = TryTarget.Tab(RouteControls, "Controlli, scorrendo fino in fondo")
 private val PagesScreen = TryTarget.Screen("Chrome › Navigazione › Pagine (schermata a parte)")
 private val RowsPage = TryTarget.Page(GalleryPage.RowsAndSheets, "Righe e fogli")
 private val CapsulesPage = TryTarget.Page(GalleryPage.CapsulesAndParts, "Capsule e pezzi piccoli")
@@ -570,8 +572,41 @@ private val Beta4 = TryRound(
   ),
 )
 
+/** La beta 5: la 3.0.1, cioe' quello che le app hanno trovato migrando alla 3.0.0. */
+private val Beta5 = TryRound(
+  id = "beta5",
+  title = "Beta 5",
+  intro = "Quinta prova: le correzioni trovate portando le app sulla 3.0. Tocca una voce per aprire la sua demo.",
+  items = listOf(
+    TryItem(
+      "segmentato-dal-scelto", TryArea.Pages, "Segmentato e back",
+      "Apri «Apri C», metti il tema scuro e trascina di lato partendo dal segmento già scelto e poi da un altro: " +
+        "la pagina resta ferma e la goccia ti segue; giudica se la goccia prende il dito senza ritardo.",
+      PagesScreen,
+    ),
+    TryItem(
+      "riga-selettore", TryArea.Rows, "La riga che sceglie",
+      "Tocca «Qualità»: la riga diventa il pop-up; scegli una voce e poi muovi «Volume», anche col tema scuro; " +
+        "giudica il viaggio dalla riga al pop-up e se il testo si legge sullo scuro.",
+      SettingsRows,
+    ),
+    TryItem(
+      "ordina-spunta", TryArea.Menus, "Ordina con la spunta",
+      "Tocca «Ordina»: il menu si apre al tocco con la spunta sull'ordine scelto; scegline un altro e riaprilo; " +
+        "giudica se la spunta si legge e se le voci stanno intere nel menu.",
+      MenusMorph,
+    ),
+    TryItem(
+      "barra-si-riapre", TryArea.Bar, "La barra si riapre",
+      "Scorri una scheda finché la barra in basso si ripiega, poi cambia scheda: la barra torna aperta, e su una " +
+        "pagina che non scorre non si ripiega più; giudica se il ritorno è al momento giusto.",
+      ControlsScroll,
+    ),
+  ),
+)
+
 /** Tutti i giri, dal piu' vecchio al piu' nuovo. Una beta nuova aggiunge qui il suo e basta. */
-internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3, Beta4)
+internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3, Beta4, Beta5)
 
 /**
  * La pagina "Da provare": quello che Alessio vede per prima, e la lista di cio' che va giudicato in mano.

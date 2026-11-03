@@ -8,6 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
@@ -22,6 +24,9 @@ import androidx.compose.ui.unit.dp
  * Quiet on purpose: a section header labels the group below it, so it is set in the secondary
  * colour rather than the accent. Accent-coloured headers compete with the content they introduce and
  * are the fastest way to make a settings screen look busy.
+ *
+ * The title is a heading for TalkBack (`heading()`), so someone reading the screen by headings finds
+ * every group. The detail line is not a heading.
  */
 @Composable
 fun FluidSectionHeader(
@@ -37,6 +42,7 @@ fun FluidSectionHeader(
   ) {
     Text(
       text = title.uppercase(),
+      modifier = Modifier.semantics { heading() },
       style = MaterialTheme.typography.labelMedium,
       fontWeight = FontWeight.SemiBold,
       color = MaterialTheme.colorScheme.onSurfaceVariant,

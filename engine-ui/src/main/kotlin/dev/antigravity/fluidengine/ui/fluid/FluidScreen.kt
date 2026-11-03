@@ -73,6 +73,7 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -1202,6 +1203,8 @@ internal fun FluidLargeTitle(
       text = title,
       modifier = Modifier
         .fillMaxWidth()
+        // Il titolo grande e' l'intestazione della pagina: TalkBack lo trova scorrendo per titoli.
+        .semantics { heading() }
         .graphicsLayer {
           val morphing = shouldMorphTitle(
             fontScale = fontScale,

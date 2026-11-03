@@ -1346,7 +1346,11 @@ private fun FluidAnchoredPopover(
   }
 
   Layout(
-    modifier = Modifier.fillMaxSize(),
+    // Sopra la tastiera (3.0.1), come il foglio e l'avviso: un pop-up con un campo di ricerca (il
+    // selettore dei formati di universal_converter) le finiva sotto. Solo in basso, quindi l'origine resta
+    // quella dell'host e l'ancora, la finestra e il ritaglio parlano le stesse coordinate; il pannello si
+    // posa nello spazio che resta, e se non ci sta sotto l'ancora va sopra, come sempre.
+    modifier = Modifier.fillMaxSize().imePadding(),
     content = {
       Column(
         modifier = Modifier

@@ -20,12 +20,13 @@ class FluidMenuMotionTest {
   // --- L'opacita' del contenuto ------------------------------------------------------------
 
   @Test
-  fun theOpeningContentArrivesOnceTheBodyHasMostlyFormed() {
-    // Il vetro liquido (3.0): le voci stanno dentro il vetro formato, mai sopra quello che si forma.
+  fun theOpeningContentArrivesWhileTheBodyForms() {
+    // Il vetro liquido (3.0): le voci stanno dentro il vetro (ritagliate dal corpo). Dalla 3.0.4 arrivano
+    // fra 0,4 e 0,75 del viaggio, non fra 0,55 e 0,9: il menu si leggeva solo a pannello quasi fermo.
     assertEquals(0f, fluidMenuContentAlpha(0f, closing = false), 0f)
-    assertEquals(0f, fluidMenuContentAlpha(0.55f, closing = false), 0f)
-    assertEquals(0.5f, fluidMenuContentAlpha(0.725f, closing = false), 0.0001f)
-    assertEquals(1f, fluidMenuContentAlpha(0.9f, closing = false), 0f)
+    assertEquals(0f, fluidMenuContentAlpha(0.4f, closing = false), 0f)
+    assertEquals(0.5f, fluidMenuContentAlpha(0.575f, closing = false), 0.0001f)
+    assertEquals(1f, fluidMenuContentAlpha(0.75f, closing = false), 0f)
     assertEquals(1f, fluidMenuContentAlpha(1f, closing = false), 0f)
   }
 
@@ -79,10 +80,10 @@ class FluidMenuMotionTest {
   @Test
   fun aReversedJourneyUsesTheWindowOfTheDirectionItIsGoingIn() {
     // La stessa p a meta' viaggio da' due opacita' diverse a seconda del verso: voluto.
-    val opening = fluidMenuContentAlpha(0.8f, closing = false)
-    val closing = fluidMenuContentAlpha(0.8f, closing = true)
-    assertEquals(0.25f / 0.35f, opening, 0.0001f)
-    assertEquals(0.18f / 0.32f, closing, 0.0001f)
+    val opening = fluidMenuContentAlpha(0.7f, closing = false)
+    val closing = fluidMenuContentAlpha(0.7f, closing = true)
+    assertEquals(0.3f / 0.35f, opening, 0.0001f)
+    assertEquals(0.08f / 0.32f, closing, 0.0001f)
   }
 
   @Test

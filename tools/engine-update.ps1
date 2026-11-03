@@ -34,6 +34,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Un errore terminante esce con 1 dopo averlo scritto, mai con un codice qualunque. Il successo esce con 0
+# esplicito in fondo: chi lancia lo script (un altro script, un CI) non eredita il codice dell'ultimo
+# comando git visto da PowerShell, che puo' essere un avviso su stderr o un tag non trovato in una prova.
+trap {
+  Write-Host "ERRORE: $($_.Exception.Message)" -ForegroundColor Red
+  exit 1
+}
+
 # Set-Content -Encoding utf8 in PowerShell 5.1 scrive un BOM, e un BOM in testa a un settings.gradle
 # che non ce l'aveva e' una modifica gratuita a un file dell'app (che Groovy, a volte, non digerisce).
 function Write-TextFile($path, $text) {
@@ -123,10 +131,20 @@ try {
     Fail "committale o scartale prima di aggiornare (o passa -AllowDirty, e perdile)."
   }
 
+  # Il remote e' quello dell'engine (origin, di norma GitHub). Dentro una worktree la copia dell'engine che
+  # l'app vede puo' stare nel checkout principale, e il tag nuovo puo' non esserci ancora.
+  $remotes = @((Invoke-Git @("remote")).Lines | ForEach-Object { $_.Trim() } | Where-Object { $_.Length -gt 0 })
+  $remote = if ($remotes -contains "origin") { "origin" } else { $remotes | Select-Object -First 1 }
+
   Write-Host "Scarico i tag..." -ForegroundColor Cyan
-  $fetch = Invoke-Git @("fetch", "--tags", "--quiet")
-  if ($fetch.Code -ne 0) {
-    Write-Host "git fetch non riuscito: proseguo con i tag gia' presenti in locale." -ForegroundColor Yellow
+  if ($remote) {
+    $fetch = Invoke-Git @("fetch", "--quiet", "--tags", $remote)
+    if ($fetch.Code -ne 0) {
+      Write-Host "git fetch non riuscito: proseguo con i tag gia' presenti in locale." -ForegroundColor Yellow
+      $fetch.Lines | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+    }
+  } else {
+    Write-Host "L'engine non ha un remote: uso i tag gia' presenti in locale." -ForegroundColor Yellow
   }
 
   if ($Latest) {
@@ -147,6 +165,18 @@ try {
     $Version = $targetTag -replace "^engine-", ""
   } else {
     $targetTag = "engine-$Version"
+  }
+
+  # Il tag si scarica per nome dal remote, anche se c'e' gia' in locale: quello locale puo' essere di un
+  # altro checkout. Mai per SHA: GitHub rifiuta un SHA di tag leggero ("upload-pack: not our ref").
+  # Il `+` aggiorna il tag locale a quello del remote invece di fermarsi se non coincidono.
+  if ($remote) {
+    $named = Invoke-Git @("fetch", "--quiet", $remote, "+refs/tags/${targetTag}:refs/tags/${targetTag}")
+    if ($named.Code -ne 0) {
+      # Niente Fail qui: se il tag manca anche in locale, il controllo qui sotto elenca quelli disponibili.
+      Write-Host "Non ho scaricato $targetTag da ${remote}:" -ForegroundColor Yellow
+      $named.Lines | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+    }
   }
 
   $verify = Invoke-Git @("rev-parse", "--verify", "--quiet", "refs/tags/$targetTag")
@@ -216,3 +246,5 @@ Write-Host "Ora tocca a te:" -ForegroundColor Cyan
 Write-Host "  ./gradlew.bat --no-daemon :app:assembleDebug testDebugUnitTest"
 Write-Host "  git add $enginePath engine.properties"
 Write-Host "  git commit -m `"engine: $currentVersion -> $Version`""
+
+exit 0

@@ -270,7 +270,7 @@ messaggio mostra al massimo due righe: scriverlo più lungo va bene, il resto si
 
 **Deprecati**
 
-Restano, compilano e funzionano — la rimozione è prevista per la 3.0 — ma non vanno nel codice nuovo. Dove la sostituzione è fedele il vecchio nome *delega* al nuovo: chi aggiorna l'engine prende il look giusto senza toccare una riga, e il compilatore dice dove andare quando c'è un motivo per andarci.
+Restano, compilano e funzionano — anche nella 3.0: la rimozione è rimandata a una prossima versione maggiore, e nessuna 3.x li toglie — ma non vanno nel codice nuovo. Dove la sostituzione è fedele il vecchio nome *delega* al nuovo: chi aggiorna l'engine prende il look giusto senza toccare una riga, e il compilatore dice dove andare quando c'è un motivo per andarci.
 
 | Deprecato | Usa | |
 |---|---|---|
@@ -397,9 +397,14 @@ autonomi saltano e il dito segue 1:1.
 **Gli stili e i gesti.** `FluidPageTransition`: `Slide` (di serie, da destra), `ShrinkSlide`
 (rimpicciolisce al 90% nel primo 30% della corsa, poi scivola: per la pagina che dice «sono una cosa sola
 che si chiude»), `Expand` (si apre dal punto toccato, scala 0,91 → 1, opaca). `FluidBackSwipe`:
-`Anywhere` (di serie: da qualunque punto, se nessun figlio — un cursore, un interruttore, una riga che
+`Anywhere` (di serie: da qualunque punto, se nessun figlio — un cursore, un interruttore, un segmentato, una riga che
 scorre di lato — si è preso il dito; uno scorrimento orizzontale arrivato al suo inizio passa la mano),
-`EdgeOnly` (i primi 20 dp, per le pagine piene di gesti propri), `Off`. Un trascinamento orizzontale che parte su un tasto non porta indietro: il tasto tiene il dito. **Il back a dito passa dal dispatcher** come quello di sistema: oltre la soglia un `BackHandler` (o `PredictiveBackHandler`) abilitato dopo l'host risponde per primo, e la pagina torna sotto il dito con la molla dell'annullo mentre lui decide; senza gestori esce come sempre. Una conferma di uscita non spegne più il gesto. `FluidNavHost(pageColor)`: di serie lo sfondo del tema; trasparente, la pagina non dipinge e nelle transizioni le due pagine si vedono per trasparenza.
+`EdgeOnly` (i primi 20 dp, per le pagine piene di gesti propri), `Off`. Il riconoscitore decide nel passaggio Main, dopo i
+figli, guardando se un figlio ha consumato, e **chi consuma vince**: un trascinamento orizzontale che parte su un tasto non
+porta indietro (il tasto tiene il dito), né uno che parte sul segmentato, anche sul segmento già scelto (dalla 3.0.1).
+**Nemmeno da una riga, una card o un messaggio cliccabile**: `clickable` consuma il contatto, e il riconoscitore lo legge
+come «un figlio se l'è preso». Il back «ovunque» parte quindi dalle zone che nessuno prende (il fondo, il testo, i titoli)
+e sempre dal bordo; se righe e card debbano cedergli il dito come i chip cedono la fila è una scelta aperta. **Il back a dito passa dal dispatcher** come quello di sistema: oltre la soglia un `BackHandler` (o `PredictiveBackHandler`) abilitato dopo l'host risponde per primo, e la pagina torna sotto il dito con la molla dell'annullo mentre lui decide; senza gestori esce come sempre. Una conferma di uscita non spegne più il gesto. `FluidNavHost(pageColor)`: di serie lo sfondo del tema; trasparente, la pagina non dipinge e nelle transizioni le due pagine si vedono per trasparenza.
 
 **L'inventario.**
 
@@ -436,8 +441,16 @@ scorre di lato — si è preso il dito; uno scorrimento orizzontale arrivato al 
    non sfoca più né arrotonda.
 5. `peer = FluidPeerMove { from, to -> … }` dalla funzione che ordina le schede, che l'app ha già
    (positivo se `to` sta dopo `from`, zero se non sono pari).
-6. Una shell con una tab bar che cambia visibilità fra due pagine legge `FluidPageHostState.progress`
-   (si passa lo `state` a `FluidNavHost`).
+6. **Il tocco su una scheda è `navController.navigateToPeer(route)`** (3.0.1), una pila sola: dopo il passo
+   la pila è la scheda e basta, e un back da una scheda esce dall'app invece di ripercorrere le schede viste.
+   Se la scheda è sotto una sua pagina figlia ci si torna con la sua voce (lo stato resta), se è già in cima
+   non succede niente (il secondo tocco è dell'app). Le due ricette che le app avevano scritto si rompono:
+   `popUpTo(startDestination)` accumula le schede appena la partenza non è più nella pila, e
+   `popUpTo(graph.id) { saveState = true }` non ha mai riportato lo stato salvato. Chi vuole lo stato di ogni
+   scheda tiene un `FluidNavHost` per scheda, non una pila sola.
+7. Una shell con una tab bar che cambia visibilità fra due pagine legge `FluidPageHostState.fractionToward
+   { key -> … }` (3.0.1: 0 dove la barra c'è, 1 dove non c'è, interpolato mentre le pagine si muovono; prima
+   ogni app lo ricalcolava da `from`, `to` e `progress`). Si passa lo `state` a `FluidNavHost`.
 
 Resta tutto di navigation: deep link, stato salvato, `ViewModel` per voce, `savedStateHandle`,
 `navigation { }` annidati, `dialog { }`. `engine-ui` espone `navigation-compose` 2.9.8 come `api`: la
@@ -455,8 +468,9 @@ il titolo grande è contenuto e viaggia con la sua pagina, quello agganciato sfu
 `FluidCollapsingTopBar` non cambiano firma: fuori da un host disegnano la barra di sempre. `FluidPageChrome(title,
 modifier, onBack, backdrop, barTint, actions)` è la stessa cosa per una pagina che non è una `FluidScreen`: dentro un host si
 descrive, fuori si disegna in cima a chi la chiama. **Un gesto che parte sulla barra è della barra** (mai il back: serve
-anche al menu delle azioni, che si sceglie trascinando); i tasti dentro la pagina lasciano partire il back «ovunque»,
-come LibrePods. Uno scroller orizzontale al suo inizio passa il gesto al back; uno slider mai. Con
+anche al menu delle azioni, che si sceglie trascinando); dentro la pagina vale la regola di sopra: un tasto, un
+segmentato, una riga cliccabile si tengono il dito e il back «ovunque» non parte da loro (in LibrePods partiva anche dai
+tasti). Uno scroller orizzontale al suo inizio passa il gesto al back; uno slider mai. Con
 `FluidListDetailScaffold` a due pannelli ogni pannello disegna la sua barra. **Deprecati**: `FluidRouteMotionHost` (ora
 senza sfocatura né angoli), `FluidRouteMotion.ExitBlur`/`Expand*`, `RouteMotionSignals.hierarchical` e
 `FluidMotion.DurationRouteFadeOut`. `ui.page.FluidCornerRadii` si chiama `FluidPageCorners` (il nome era già di
@@ -476,9 +490,11 @@ Catalogo della 3.0 e dalle voci di «Da provare») e nella scheda Controlli (`ga
 
 | | |
 |---|---|
-| `FluidToggleRow(title, checked, onCheckedChange, subtitle, enabled, tone, leading)` | la riga **è** l'interruttore: un bersaglio solo, `ToggleOn`/`ToggleOff` e niente `Tap` sopra, `Role.Switch` per TalkBack con un nodo solo («titolo, sottotitolo»); disattivata sfuma e non risponde. Cede, non cresce |
-| `FluidChoiceRow(title, selected, onSelect, subtitle, enabled, tone, leading)` | scelta singola con la **spunta a destra** (spazio sempre riservato), non un radio; `Role.RadioButton`, un `Tick` solo se la scelta si sposta, `onSelect` anche sulla riga già scelta (il chiamante è spesso un foglio che deve chiudersi). Il gruppo, `FluidListGroup(Modifier.selectableGroup())` |
-| `fluidAppearanceSection(settings, onSettingsChange, brand, presets, glassEnabled, onGlassEnabledChange, strings, glass, dynamicAccent, footnote, keyPrefix)` | la sezione «Aspetto» di una pagina di impostazioni (estensione di `LazyListScope`): tema in tre righe di scelta + «Nero assoluto» (spento nel chiaro), accento, aptica con un colpo di prova all'accensione, e il vetro **solo se l'app passa valore e callback** (non è un campo di `EngineSettings`). Non scrive se la scelta non cambia niente |
+| `FluidToggleRow(title, checked, onCheckedChange, subtitle, enabled, tone, leading, leadingTile)` | la riga **è** l'interruttore: un bersaglio solo, `ToggleOn`/`ToggleOff` e niente `Tap` sopra, `Role.Switch` per TalkBack con un nodo solo («titolo, sottotitolo»); disattivata sfuma e non risponde. Cede, non cresce |
+| `FluidPickerRow(title, selectedKey, options, onSelected, modifier, subtitle, enabled, tone, leading, leadingTile, paneTitle)` · `FluidPickerOption(key, label, subtitle)` | dalla 3.0.1: la riga col valore a destra e le due frecce che **diventa il pop-up** delle alternative (righe di scelta, la spunta su quella di adesso); una scelta lo chiude e chiama `onSelected` solo se cambia. Un nodo per TalkBack, `Role.DropdownList` con la scelta come stato; `Open` all'apertura. Vuole un `FluidGlassModalHost` |
+| `FluidSliderRow(title, value, onValueChange, modifier, valueLabel, subtitle, valueRange, snapValues, enabled, onValueChangeFinished, tone, leading, leadingTile)` | dalla 3.0.1: titolo e valore in parole sopra, `FluidSlider` sotto, nella misura di una riga; il titolo è il nome dello slider e `valueLabel` il suo stato (cifre tabulari) |
+| `FluidChoiceRow(title, selected, onSelect, subtitle, enabled, tone, leading, leadingTile)` | scelta singola con la **spunta a destra** (spazio sempre riservato), non un radio; `Role.RadioButton`, un `Tick` solo se la scelta si sposta, `onSelect` anche sulla riga già scelta (il chiamante è spesso un foglio che deve chiudersi). Il gruppo, `FluidListGroup(Modifier.selectableGroup())` |
+| `fluidAppearanceSection(settings, onSettingsChange, brand, presets, glassEnabled, onGlassEnabledChange, strings, glass, dynamicAccent, footnote, keyPrefix, title)` | la sezione «Aspetto» di una pagina di impostazioni (estensione di `LazyListScope`): tema in tre righe di scelta + «Nero assoluto» (spento nel chiaro), accento, aptica con un colpo di prova all'accensione, e il vetro **solo se l'app passa valore e callback** (non è un campo di `EngineSettings`). Non scrive se la scelta non cambia niente; `title = null` (3.0.1) toglie la testata, per una pagina che si chiama già «Aspetto» |
 | `FluidAccentPicker(selected, onSelect, …)` / `FluidAccentPicker(settings, onSettingsChange, …)` | la fila di pallini (`FluidColorDot` in un `selectableGroup`, il pallino dei colori di sistema mostra il colore vero); due forme: `FluidAccentChoice` (`Brand`, `Dynamic`, `Preset(name)`) per un'app col suo modello, `EngineSettings` per chi usa lo store |
 | `FluidAppearance`, `FluidAppearanceStrings` | la traduzione pura: `themeChoice`, `withThemeMode`, `isPureBlack`, `withPureBlack` (AMOLED = Scuro + nero, senza perdere il nero), `accentChoice`, `withAccent` (`DYNAMIC` senza supporto o spento è il marchio; scegliere i colori di sistema riaccende il colore dinamico), `presetName`, `accentLabel`, `hapticsPreview`; le parole, in italiano di serie |
 | `FluidSheetScaffold(title, message, icon, tone, maxWidth, contentPadding, scrollable, insetBottom, actions) { }` | il contenuto di un foglio o di un pop-up: testata con la piastrella dell'icona, corpo che scorre e **tasti che non scorrono** (testata e tasti si misurano per primi, il corpo prende il resto, con un tetto finito senza altezza massima); larghezza massima 560 dp, testo `onSurface` |
@@ -489,6 +505,22 @@ Una riga è **un nodo semantico solo**: il `ListItem` di Material fonde la propr
 fonde un figlio che a sua volta fonde, quindi la semantica interna è azzerata (`clearAndSetSemantics`) e
 conta solo ciò che la riga dice di sé (titolo e sottotitolo). L'informazione che serve a chi non vede sta
 nel sottotitolo.
+
+**Le parole che l'engine dice da sé (3.0.1)** — la X di una pagina intera, l'occhio di `FluidTextField(secret)`, il
+tasto indietro delle barre, il titolo di un menu senza titolo, le azioni di TalkBack della notifica e dell'indice di
+sezione — stanno in `FluidLabels`, in italiano di serie. Un'app tradotta le passa una volta alla radice, sopra gli
+host (che le leggono dove sono composti): `CompositionLocalProvider(LocalFluidLabels provides FluidLabels(close = …,
+back = …, …))`, e **tutte**. Dove un componente ha già un parametro per la stessa parola (`FluidSearchLabels`,
+`FluidUpdateStrings`, `cancelLabel`) vince il parametro. Restano in italiano, senza un modo di cambiarle, le frasi della
+famiglia `FluidSync*` (lo stato della sincronizzazione, nate in ClasseViva).
+
+**Gli aggiornamenti (3.0.1).** `rememberFluidUpdateController(updater, scope, currentVersion, channel, ignoredVersion,
+checkOnStart)` è la colla fra un `AppUpdater` e `fluidUpdateSection`/`FluidUpdatePromptSheet` che tre app avevano
+scritto uguale (lo stato, il controllo, l'installazione con gli errori presi); sta in `engine-ui` perché parla
+l'`AppUpdater` di foundation e produce `FluidUpdateUiState`. `fluidUpdateSection(autoCheck, onAutoCheckChange)` ha il
+controllo all'avvio, distinto dallo scarico automatico; la riga di una versione nuova riassume le note in tre righe al
+più. Un errore dell'installatore per il permesso d'installare (`AppUpdateInstallState.Error(kind =
+AppUpdateErrorKind.InstallPermission)`) diventa `FluidUpdateUiState.NeedsPermission`, non più «non riuscito».
 
 ### La capsula, la ricerca e i pezzi piccoli
 
@@ -502,7 +534,7 @@ nel sottotitolo.
 | `FluidSkeleton`, `FluidSkeletonText`, `FluidSkeletonRow`, `FluidSkeletonTile`, `FluidSkeletonList` · `FluidSkeletonLeading` | gli scheletri di caricamento: **respirano**, non scorrono, tutti insieme, con l'altezza della riga vera; la lista dice una frase sola a TalkBack (`label`) |
 | `FluidSelectionMark(selected, size, onPhoto, tint, contentDescription)` | il cerchio di selezione: un nodo solo, molla `fluid`, spunta disegnata; `contentDescription = null` lo rende muto (quando è la riga a dire lo stato) |
 | `FluidPagerDots(state: PagerState, …)` / `FluidPagerDots(pageCount, position: () -> Float, …)` | i punti che seguono il dito (a metà scorrimento due punti sono mezzo correnti); oltre sette la fila scorre e i bordi si rimpiccioliscono |
-| `FluidStepProgress(step, steps, modifier, label, detail, segmented, pulseCurrent, color)` | «Passo 2 di 5» e una barra che dice a che punto si è (il passo 2 di 5 è il 40%); continua o a segmenti fino a dodici; il passo in corso può respirare |
+| `FluidStepProgress(step, steps, modifier, label, detail, segmented, pulseCurrent, color, labels)` | «Passo 2 di 5» e una barra che dice a che punto si è (il passo 2 di 5 è il 40%); continua o a segmenti fino a dodici; il passo in corso può respirare; con `labels` (3.0.1) il nome di ogni passo sotto il suo segmento, e quello in corso è lo stato per TalkBack |
 
 Il respiro è un token (`FluidMotion.PulseMillis` 900, `PulseLowAlpha` 0,35 per un pallino, `PulseFillLowAlpha` 0,55 per un
 riempimento, `pulse()` per la molla): tutti i pezzi che respirano battono insieme.
@@ -512,12 +544,12 @@ riempimento, `pulse()` per la molla): tutti i pezzi che respirano battono insiem
 | | |
 |---|---|
 | `FluidGlassSize` · `FluidGlassIconButton(size, haptic)`, `FluidGlassButton(size, haptic)` | `Compact` 40, `Regular` 44 (48 di altezza con un testo), `Large` 54 dp; la ricetta del tasto vale **in proporzione** e il **bersaglio del tocco non scende mai sotto i 48 dp** (`touchTarget`). `haptic = null` per un tasto la cui azione ha già il suo colpo. A `Regular` l'albero è quello di prima |
-| `FluidInlineMessage(…, onClick, action, leading)` | il messaggio che si tocca: tutto è un bersaglio, ruolo pulsante, freccia a destra (o la chiusura, con `onDismiss`), `action` dice cosa fa il tocco, `leading` è una piastrella |
+| `FluidInlineMessage(…, onClick, action, leading, glass)` · `FluidCard(…, glass, enabled)` | `glass` (3.0.1) come per i gruppi; una card con `enabled = false` non risponde e sfuma il contenuto, non il vetro. Per il messaggio: | il messaggio che si tocca: tutto è un bersaglio, ruolo pulsante, freccia a destra (o la chiusura, con `onDismiss`), `action` dice cosa fa il tocco, `leading` è una piastrella |
 | `FluidTextField(…, secret)` | i puntini e un occhio che mostra e nasconde; parte nascosto a ogni apertura, niente tasto che svuota, tastiera delle password; lo slot a destra è da 24 dp (era 18) |
 | `FluidProgressBar`, `FluidIndeterminateBar` | il riempimento fa almeno 3:1 sulla pista, su pagina, card e pannello di vetro (`legibleFill`): del minimo che serve, tenendo la tinta |
 | `FluidToneTile(tone, …) { }` o `FluidToneTile(color, modifier, size, veil) { }` · `FluidListRow(leadingTile = false)` | la piastrella dell'icona, pubblica: un tono dell'engine o un colore qualunque; il colore sta sulla piastrella e mai sulla riga |
 | `FluidEmptyState(…, illustration)` | un disegno sopra il titolo; con l'illustrazione la colonna si centra |
-| `fluidGlassGroups(items, key, maxRows, row)` · `FluidGlassGroup(items)` | una lista lunga in pannelli di vetro da otto righe dal taglio invisibile (`FluidGlassGroupMaxRows`); il prezzo è `animateItem()`. `FluidGlassGroup` è un pannello solo per una sezione breve |
+| `fluidGlassGroups(items, key, maxRows, row)` · `fluidGlassGroupsIndexed(items, key, maxRows) { index, item -> }` · `FluidGlassGroup(items)` | una lista lunga in pannelli di vetro da otto righe dal taglio invisibile (`FluidGlassGroupMaxRows`); il prezzo è `animateItem()`. La forma con l'indice (3.0.1) da' la posizione nella lista data, non nel pannello. `FluidGlassGroup` è un pannello solo per una sezione breve |
 | `fluidHapticsFor(context, enabled)` | l'aptica dell'engine per il codice a `View` (tastiera, servizio): ripiego sugli effetti di fabbrica del vibratore; da creare una volta |
 
 ## Tutto in vetro (3.0, fase 9)
@@ -558,10 +590,13 @@ voci (`FluidContextAction`), e le ritrova nel pannello nuovo.
 
 | Ingresso | Come | Si apre |
 |---|---|---|
-| il tasto che si trasforma | `FluidMorphMenuButton(state, actions, onClick, …, opensOnTap)` + `FluidMorphMenuHost(state, backdrop)` alla radice, con `rememberFluidMorphMenuState()` | tenendo premuto; con `opensOnTap` al tocco, e `onClick` non viene chiamato |
+| il tasto che si trasforma | `FluidMorphMenuButton(state, actions, onClick, …, opensOnTap)` + `FluidMorphMenuHost(state, backdrop)` alla radice, con `rememberFluidMorphMenuState()`; dalla 3.0.1 lo stato si fornisce una volta (`LocalFluidMorphMenuState`) e il tasto lo prende da solo, e chi apre il menu da lontano lo chiede lì | tenendo premuto; con `opensOnTap` al tocco, e `onClick` non viene chiamato |
 | l'azione della barra | `FluidBarAction(icon, contentDescription, onClick, …, actions, opensOn)` | tenendo premuto; con `opensOn = FluidMenuOpensOn.Tap` al tocco |
 | la riga | `FluidListRow(contextActions = { … })` | tenendo premuto: la riga si solleva, il pannello cresce accanto a lei |
 | una card qualunque | `Modifier.fluidContextMenu(actions = { … })` | tenendo premuto |
+
+**La voce scelta (3.0.1)**: `FluidContextAction(selected = true)` mette la spunta a destra e dice «selezionato» a
+TalkBack, per i menu che scelgono fra alternative («Ordina per», «Vista»).
 
 `FluidMenuOpensOn.Tap` è per il tasto il cui **unico** mestiere è il menu — i tre puntini, «Ordina»,
 «Altro» — ed è quello che cinque app si riscrivevano a mano; un tasto che ha un'azione sua la tiene al
@@ -597,6 +632,7 @@ serie, `null` per chi ha un colpo suo) e `combinedClickable` non somma più il `
 
 **Un pannello, un viaggio, un materiale** (interni: `FluidGlassMenuPanel`, `FluidMenuJourney`,
 `FluidMenuLayer`). Il *pannello* ha le righe ad altezza fissa che segue il font (48 dp a taglia di serie),
+è largo 252 dp o, dalla 3.0.1, quanto la voce più lunga fino a 340 dp (mai oltre lo schermo; oltre, i puntini),
 i separatori disegnati — una scatola da mezzo dp aggiungerebbe altezza che le celle non contano, e il dito
 sceglierebbe la riga sbagliata —, le sezioni, e **una** goccia che campiona il materiale del pannello
 (vetro su vetro) con tutte le trasformazioni — posto, scala del viaggio, schiacciamento — nel proprio

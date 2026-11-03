@@ -161,6 +161,8 @@ fun FluidNavHost(
     state = state,
     pageColor = pageColor,
     ownOwners = false,
+    // L'id della voce e' stabile alla ricreazione, la voce no: vedi [FluidPageHostImpl].
+    pageKey = { entry -> entry.id },
   ) { entry ->
     // La voce da' alla pagina ViewModelStore, ciclo di vita (CREATED quando e' coperta) e stato
     // salvabile, come in NavHost.

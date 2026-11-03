@@ -9,6 +9,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 ## 3.0.2 - in lavorazione
 
 - tools: `engine-doctor.ps1` guarda i tag che puntano al commit (`git tag --points-at`) e conta solo quelli `engine-*`: sullo stesso commit della 3.0.1 c'e' anche il tag della beta 5 della galleria, e `git describe` sceglieva quello ("agganciato a beta-fluid-glass-v2.0.0-beta.5, ma engine.properties dice 3.0.1"). Segnalato dalla sessione di MyCloud.
+- fix: lo stato salvato dentro le pagine di `FluidNavHost` (`rememberSaveable`, un campo di testo, il passo di un onboarding) non si perdeva piu' alla ricreazione dell'Activity: un cambio di tema o una rotazione lo azzeravano, mentre con il `NavHost` della 2.13 si teneva. L'host teneva ogni pagina sotto `key(voce)`, e l'hash della voce cambia a ogni ricreazione (porta oggetti nuovi), quindi ogni chiave salvata non si ritrovava; ora la chiave e' l'`id` della voce, come in `NavHost`. Visibile subito: un'app lo ha con un semplice aggiornamento dell'engine, senza toccare niente.
 
 ## 3.0.1 - 2026-11-03
 

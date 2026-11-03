@@ -152,6 +152,7 @@ fun <K : Any> FluidPageHost(
     state = state,
     pageColor = pageColor,
     ownOwners = true,
+    pageKey = { it },
     content = content,
   )
 }
@@ -159,6 +160,11 @@ fun <K : Any> FluidPageHost(
 /**
  * [ownOwners]: l'host da' a ogni pagina il suo stato salvabile e il suo ciclo di vita. FluidNavHost
  * lo spegne, perche' quei due li da' gia' la voce del back stack.
+ *
+ * [pageKey]: la chiave con cui una pagina sta in composizione. Deve avere un `hashCode()` che sopravvive
+ * alla ricreazione dell'Activity: la chiave di ogni `rememberSaveable` dentro la pagina deriva dall'hash
+ * di composizione, che include quello di questa chiave. La `NavBackStackEntry` ne ha uno che dipende da
+ * oggetti nuovi a ogni ricreazione, quindi FluidNavHost passa il suo `id`, come fa `NavHost`.
  */
 @Suppress("UNCHECKED_CAST")
 @Composable
@@ -175,6 +181,7 @@ internal fun <K : Any> FluidPageHostImpl(
   state: FluidPageHostState,
   pageColor: Color,
   ownOwners: Boolean,
+  pageKey: (K) -> Any,
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   val scope = rememberCoroutineScope()
@@ -265,7 +272,7 @@ internal fun <K : Any> FluidPageHostImpl(
     // L'ordine e' quello del disegno: sotto, poi sopra. Le chiavi tengono la composizione di una
     // pagina quando passa da sopra a sotto o viceversa.
     for (page in listOfNotNull(lower, upper)) {
-      key(page) {
+      key(pageKey(page)) {
         PageLayer(
           page = page,
           isUpper = page == upper,

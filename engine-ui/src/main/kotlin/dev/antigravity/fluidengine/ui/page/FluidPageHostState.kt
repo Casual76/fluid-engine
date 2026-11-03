@@ -100,6 +100,32 @@ class FluidPageHostState internal constructor() {
   /** Se qualcosa si muove (un back annullato che torna compreso). */
   val isMoving: Boolean get() = kind != FluidPageMove.None
 
+  /**
+   * Quanto si e' andati verso le pagine per cui [isHidden] e' vero (3.0.1): 0 su una pagina dove una cosa
+   * c'e', 1 su una dove non c'e', e in mezzo mentre le pagine si muovono, al passo di [progress] — un back
+   * a dito compreso, che puo' tornare indietro.
+   *
+   * E' il conto della tab bar che se ne va con la pagina di dettaglio: due app lo rifacevano da [from], [to]
+   * e [progress], e ognuna sbagliava un caso (il riposo, il back annullato, due pagine che la nascondono
+   * tutte e due). [isHidden] riceve la chiave della pagina — in `FluidNavHost` la `NavBackStackEntry` — o
+   * null prima della prima pila:
+   *
+   * ```kotlin
+   * val hidden: (Any?) -> Boolean = { (it as? NavBackStackEntry)?.destination?.route == "dettaglio" }
+   * Modifier.graphicsLayer { translationY = pages.fractionToward(hidden) * size.height }
+   * ```
+   *
+   * Legge lo stato del movimento: chiamata in composizione ricompone a ogni fotogramma, quindi va letta in
+   * disegno o in layout (un `graphicsLayer`, un `offset { }`), come [progress].
+   */
+  fun fractionToward(isHidden: (Any?) -> Boolean): Float {
+    if (!isMoving) return if (isHidden(upper)) 1f else 0f
+    val start = if (isHidden(from)) 1f else 0f
+    val end = if (isHidden(to)) 1f else 0f
+    if (start == end) return start
+    return start + (end - start) * progress.coerceIn(0f, 1f)
+  }
+
   // --- Quello che si disegna (letto in disegno, mai in composizione) --------------------------------
 
   internal var travelPx by mutableFloatStateOf(0f)

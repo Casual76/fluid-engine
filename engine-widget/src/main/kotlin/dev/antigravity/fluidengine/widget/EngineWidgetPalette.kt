@@ -7,6 +7,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.toArgb
 import androidx.glance.color.ColorProvider as DayNightColorProvider
 import androidx.glance.unit.ColorProvider
 import dev.antigravity.fluidengine.foundation.AccentMode
@@ -116,25 +117,95 @@ fun engineWidgetPalette(
 }
 
 /**
- * The scheme for one launcher theme.
+ * Whether a widget is dark when the launcher is [launcherIsDark]: **the rule**, public since 3.0.1.
  *
  * A theme pinned in the app wins over the launcher's: with the app forced to Dark, its widget stays
  * dark on a light home screen — which is what every other surface of that app does, and what makes
- * the widget read as part of it.
+ * the widget read as part of it. `SYSTEM` follows the launcher. A `RemoteViews` widget that picks its
+ * colours at update time calls this with the configuration's night mode
+ * (`Configuration.UI_MODE_NIGHT_YES`), and gets the same answer the Glance palette gets.
  */
+fun engineWidgetIsDark(settings: EngineSettings, launcherIsDark: Boolean): Boolean = when (settings.themeMode) {
+  ThemeMode.SYSTEM -> launcherIsDark
+  ThemeMode.LIGHT -> false
+  ThemeMode.DARK,
+  ThemeMode.AMOLED,
+  -> true
+}
+
+/**
+ * The full Material scheme a widget uses for one launcher theme (public since 3.0.1, it was the private
+ * `widgetScheme`): the app's own palette — accent, dynamic colour, AMOLED — resolved with
+ * [engineWidgetIsDark]. For a widget drawn with something other than Glance that wants a role the
+ * palette does not carry; most want [engineWidgetArgb].
+ */
+fun engineWidgetColorScheme(
+  context: Context,
+  settings: EngineSettings,
+  brand: AccentPreset = FluidDefaultBrand,
+  launcherIsDark: Boolean,
+): ColorScheme = widgetScheme(context, settings, brand, launcherIsDark)
+
+/**
+ * The palette of a widget as plain ARGB ints, for one launcher theme (3.0.1): what a `RemoteViews` widget
+ * passes to `setTextColor`, `setInt(id, "setColorFilter", …)` or, from Android 12, to
+ * `setColorInt(id, method, day, night)` with the two sets ([launcherIsDark] false and true).
+ *
+ * The same values [engineWidgetPalette] hands to Glance, translucent ones already composited over the card
+ * (a widget's parent is the wallpaper, see [EngineWidgetPalette]). Warning and success are the design
+ * system's fixed pairs.
+ */
+data class EngineWidgetArgb(
+  val background: Int,
+  val card: Int,
+  val hairline: Int,
+  val onSurface: Int,
+  val onSurfaceVariant: Int,
+  val accent: Int,
+  val accentContainer: Int,
+  val onAccentContainer: Int,
+  val attention: Int,
+  val warning: Int,
+  val success: Int,
+  /** Whether these are the dark values ([engineWidgetIsDark]). */
+  val isDark: Boolean,
+)
+
+/** [EngineWidgetArgb] for the launcher theme [launcherIsDark]: see there. */
+fun engineWidgetArgb(
+  context: Context,
+  settings: EngineSettings,
+  brand: AccentPreset = FluidDefaultBrand,
+  launcherIsDark: Boolean,
+): EngineWidgetArgb = engineWidgetArgbOf(
+  scheme = widgetScheme(context, settings, brand, launcherIsDark),
+  isDark = engineWidgetIsDark(settings, launcherIsDark),
+)
+
+/** The derivation, apart from the context: pure, so a test can check it without a launcher. */
+internal fun engineWidgetArgbOf(scheme: ColorScheme, isDark: Boolean): EngineWidgetArgb = EngineWidgetArgb(
+  background = scheme.background.toArgb(),
+  card = scheme.surfaceContainerLow.toArgb(),
+  hairline = scheme.onSurface.copy(alpha = HairlineAlpha).compositeOver(scheme.surfaceContainerLow).toArgb(),
+  onSurface = scheme.onSurface.toArgb(),
+  onSurfaceVariant = scheme.onSurfaceVariant.toArgb(),
+  accent = scheme.primary.toArgb(),
+  accentContainer = scheme.primaryContainer.toArgb(),
+  onAccentContainer = scheme.onPrimaryContainer.toArgb(),
+  attention = scheme.error.toArgb(),
+  warning = (if (isDark) WarningContentDark else WarningContentLight).toArgb(),
+  success = (if (isDark) SuccessContentDark else SuccessContentLight).toArgb(),
+  isDark = isDark,
+)
+
+/** The scheme for one launcher theme: the rule is [engineWidgetIsDark]. */
 private fun widgetScheme(
   context: Context,
   settings: EngineSettings,
   brand: AccentPreset,
   isDark: Boolean,
 ): ColorScheme {
-  val resolvedDark = when (settings.themeMode) {
-    ThemeMode.SYSTEM -> isDark
-    ThemeMode.LIGHT -> false
-    ThemeMode.DARK,
-    ThemeMode.AMOLED,
-    -> true
-  }
+  val resolvedDark = engineWidgetIsDark(settings, isDark)
   val dynamic = if (
     settings.dynamicColorEnabled &&
     settings.accentMode == AccentMode.DYNAMIC &&

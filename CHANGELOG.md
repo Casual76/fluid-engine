@@ -6,6 +6,10 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.4 - in lavorazione
+
+- fix: **gli interruttori delle righe si trascinano.** `FluidToggleRow` disegnava un `FluidSwitch` decorativo (`onCheckedChange = null`), e con tutte le app migrate alla riga nessun interruttore si poteva far scorrere. Ora il pomello si prende e si trascina come quello isolato (il rilascio decide, un tocco commuta), la pagina sotto non scorre, un tocco altrove sulla riga commuta come prima; un nodo solo per TalkBack (`Role.Switch`), un `ToggleOn`/`ToggleOff` per cambio, una riga spenta non risponde. Era l'unico interruttore decorativo dell'engine. **Cambia al tatto.**
+
 ## 3.0.3 - 2026-11-03
 
 - ui: **il back col dito parte dal bordo, come quello di sistema.** `FluidBackSwipe.EdgeOnly` (i primi 20 dp) diventa il valore di serie dove ce n'e' uno (`composable(...)`, `FluidPageHost`, `FluidNavHost`, lo stato dell'host); `Anywhere` resta, da chiedere con `backSwipe = FluidBackSwipe.Anywhere` per la pagina che lo vuole. **Cambia al tatto**: in ogni app una pagina non si tira piu' da un punto qualunque, e righe, card e scorrimenti in mezzo alla pagina non c'entrano piu' col back. Le app che avevano messo `EdgeOnly` per i loro gesti propri (o per il segmentato) lo possono togliere; quelle che volevano il gesto ovunque passano `Anywhere`.

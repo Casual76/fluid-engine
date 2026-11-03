@@ -56,8 +56,8 @@ import dev.antigravity.fluidengine.ui.theme.FluidToneTile
  * dava il callback all'interruttore *e* alla riga si ritrovava con due bersagli che rispondevano a
  * un tocco solo, chi non lo dava a nessuno con un bersaglio alto quanto la pista, 28 dp.
  * Qui il bersaglio e' tutta la riga (almeno 48 dp, in pratica 56 o 72 con il sottotitolo), il
- * `FluidSwitch` disegna e anima soltanto (`onCheckedChange = null`: vedi la sua nota) e per TalkBack
- * c'e' **un** elemento solo, un interruttore con il titolo e il sottotitolo come nome.
+ * pomello si trascina come quello di un `FluidSwitch` isolato (3.0.4) e per TalkBack c'e' **un**
+ * elemento solo, un interruttore con il titolo e il sottotitolo come nome.
  *
  * **Una vibrazione, quella dell'interruttore.** `ToggleOn` o `ToggleOff` secondo dove va, e niente
  * `Tap` sopra: la riga lo suonerebbe da sola (e l'aptica fonde due eventi a meno di 70 ms, ma
@@ -65,8 +65,14 @@ import dev.antigravity.fluidengine.ui.theme.FluidToneTile
  * `fluidRowPressable(haptic = null)` e non del `onClick` della riga.
  *
  * **Cede, non cresce.** E' una riga di un gruppo: la pressione e' la tinta di `fluidRowPressable`, mai
- * la scala (vedi `FluidListRow`). Il pomello non si trascina, qui: il tocco vale ovunque sulla riga, e
- * trascinare un pomello e' un gesto da controllo isolato (`FluidSwitch` con il suo callback).
+ * la scala (vedi `FluidListRow`).
+ *
+ * **Il pomello si trascina (3.0.4).** Fino alla 3.0.3 era un disegno (`onCheckedChange = null`), e
+ * con ogni app migrata a questa riga nessun interruttore si poteva far scorrere. Ora un dito
+ * sull'interruttore e' suo, come nel controllo isolato: lo trascina, il rilascio decide, un tocco
+ * commuta; la pagina sotto non scorre e il back (dal bordo) non c'entra. Un tocco altrove sulla riga
+ * commuta come prima. Una vibrazione per cambio, mai due: chi commuta la suona (l'interruttore per
+ * il suo gesto, la riga per il suo tocco), e i due gesti non si sovrappongono.
  *
  * Disattivata non diventa grigia: sfuma, come ogni controllo dell'engine, e non risponde (la
  * semantica dice «disattivato», non solo il colore).
@@ -120,8 +126,17 @@ fun FluidToggleRow(
     leading = leading,
     leadingTile = leadingTile,
     // `enabled` resta vero: a sfumare e' la riga, e un interruttore che sfumasse anche da solo
-    // arriverebbe al quarto dell'opacita'. Non risponde comunque: senza callback non ha gesto.
-    badge = { FluidSwitch(checked = checked, onCheckedChange = null) },
+    // arriverebbe al quarto dell'opacita'. Disattivata non risponde: senza callback non ha gesto.
+    // Attiva, il pomello si trascina come quello isolato (3.0.4): il gesto e' dell'interruttore, che
+    // prende il contatto nell'Initial (la riga non clicca sotto di lui) e suona da se' il suo
+    // ToggleOn/Off; il nodo per TalkBack resta quello della riga.
+    badge = {
+      FluidSwitchControl(
+        checked = checked,
+        onCheckedChange = if (enabled) onCheckedChange else null,
+        ownsSemantics = false,
+      )
+    },
   )
 }
 

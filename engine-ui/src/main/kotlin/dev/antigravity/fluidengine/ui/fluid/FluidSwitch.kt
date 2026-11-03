@@ -118,8 +118,8 @@ import kotlinx.coroutines.flow.collectLatest
  * Below API 31 there is no `RenderEffect`, so the thumb is a plain white pill with a shadow on a
  * filled track: the same switch with the one thing it cannot have taken out.
  *
- * @param onCheckedChange null when the row around it owns the `toggleable` and the 48 dp target.
- *   The switch then draws and animates but answers nothing itself.
+ * @param onCheckedChange null for a switch that only draws and animates. A row that *is* the
+ *   switch is `FluidToggleRow`: there the thumb still slides (3.0.4).
  * @param backdrop what the thumb refracts, under the track's own copy. Defaults to the surface in
  *   scope: a screen's ambient canvas if it has one, otherwise the chrome backdrop, otherwise
  *   nothing — and with nothing there the thumb still has the track to bend, which is most of it.
@@ -131,6 +131,26 @@ fun FluidSwitch(
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
   backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
+) {
+  FluidSwitchControl(checked, onCheckedChange, modifier, enabled, backdrop, ownsSemantics = true)
+}
+
+/**
+ * L'interruttore, con la scelta di chi parla per lui (3.0.4).
+ *
+ * [ownsSemantics] falso: il gesto (tocco e trascinamento del pomello) resta tutto suo, ma il nodo per
+ * TalkBack, la tastiera e il fuoco sono di chi lo contiene: `FluidToggleRow`, che per chi non vede e'
+ * l'interruttore e ha il bersaglio da 48 dp. Prima la riga passava `onCheckedChange = null` e il
+ * pomello era un disegno: in nessuna app un interruttore si poteva far scorrere.
+ */
+@Composable
+internal fun FluidSwitchControl(
+  checked: Boolean,
+  onCheckedChange: ((Boolean) -> Unit)?,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true,
+  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
+  ownsSemantics: Boolean = true,
 ) {
   val scheme = MaterialTheme.colorScheme
   val dark = GlassDefaults.isDarkSurface()
@@ -373,7 +393,7 @@ fun FluidSwitch(
       // il down. Vedi sopra.
       .then(if (interactive) gestures else Modifier)
       .then(
-        if (interactive) {
+        if (interactive && ownsSemantics) {
           Modifier.toggleable(
             value = checked,
             enabled = true,

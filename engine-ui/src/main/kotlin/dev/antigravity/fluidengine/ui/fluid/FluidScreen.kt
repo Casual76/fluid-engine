@@ -66,6 +66,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.platform.LocalDensity
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
@@ -1308,6 +1310,7 @@ internal fun FluidTopBar(
       // qui trova la barra.
       LocalFluidCanvasBackdrop provides null,
     ) {
+      val controls = remember { FluidTopBarControls() }
       FluidTopBarRow(onTapTitle = onTapTitle) {
         FluidTopBarTitle(
           title = title,
@@ -1318,19 +1321,27 @@ internal fun FluidTopBar(
           contentTranslation = contentTranslation,
           fontScale = fontScale,
           reducedMotion = reducedMotion,
+          controls = controls,
         )
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          if (onBack != null) {
-            FluidBackButton(onBack)
-          } else {
-            Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
+          Box(modifier = Modifier.onSizeChanged { controls.startPx = it.width }) {
+            if (onBack != null) {
+              FluidBackButton(onBack)
+            } else {
+              Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
+            }
           }
           Spacer(Modifier.weight(1f))
-          FluidTopBarActions(actions)
-          Spacer(Modifier.width(6.dp))
+          Row(
+            modifier = Modifier.onSizeChanged { controls.endPx = it.width },
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            FluidTopBarActions(actions)
+            Spacer(Modifier.width(6.dp))
+          }
         }
       }
     }
@@ -1408,6 +1419,33 @@ internal fun FluidTopBarRow(
   }
 }
 
+/**
+ * Quanto occupano i controlli di una barra, in px: il tasto indietro (o il margine) a inizio riga, le azioni
+ * a fine riga. Scritto dalla misura dei controlli, letto dal layout del titolo.
+ */
+@Stable
+internal class FluidTopBarControls {
+  var startPx by mutableIntStateOf(0)
+  var endPx by mutableIntStateOf(0)
+}
+
+/**
+ * Il margine del titolo agganciato (3.0.1): quello di sempre ([FluidScreenDefaults.CompactTitleInset]) o, se
+ * i controlli di un lato sono piu' larghi, quanto loro piu' un respiro, **uguale ai due lati** perche' il
+ * titolo resta al centro. Prima il margine era fisso, e con due o tre azioni un titolo lungo correva sotto i
+ * tasti invece di finire con i puntini. Letto in layout: misurare i controlli non ricompone il titolo.
+ */
+private fun Modifier.fluidTopBarTitleInset(controls: FluidTopBarControls?): Modifier = layout { measurable, constraints ->
+  val base = FluidScreenDefaults.CompactTitleInset.roundToPx()
+  val needed = controls?.let { maxOf(it.startPx, it.endPx) + FluidTopBarTitleGap.roundToPx() } ?: 0
+  val inset = maxOf(base, needed).coerceAtMost(constraints.maxWidth / 2)
+  val placeable = measurable.measure(constraints.offset(horizontal = -inset * 2))
+  layout(constraints.maxWidth, placeable.height) { placeable.place(inset, 0) }
+}
+
+/** Il respiro fra il titolo agganciato e il controllo piu' vicino. */
+private val FluidTopBarTitleGap = 8.dp
+
 /** Le azioni di una barra, a destra, con la spaziatura di sempre. */
 @Composable
 internal fun FluidTopBarActions(
@@ -1454,11 +1492,13 @@ internal fun FluidTopBarTitle(
   fontScale: Float,
   reducedMotion: Boolean,
   motion: FluidBarTitleMotion? = null,
+  /** Quanto occupano i controlli della barra ai due lati: il titolo agganciato si ferma prima (3.0.1). */
+  controls: FluidTopBarControls? = null,
 ) {
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .padding(horizontal = FluidScreenDefaults.CompactTitleInset)
+      .fluidTopBarTitleInset(controls)
       .then(
         if (morphState != null) Modifier.onGloballyPositioned(morphState::onCompactSlotPositioned) else Modifier,
       ),

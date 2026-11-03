@@ -290,6 +290,87 @@ class FluidApiAdditionsTest {
   }
 
   @Test
+  fun `una voce lunga del menu si legge intera, senza puntini`() {
+    val long = "Salta i silenzi oltre 12 s: spento"
+    compose.setContent {
+      Themed {
+        val morph = rememberFluidMorphMenuState()
+        val backdrop = currentGlassBackdrop()
+        Box(Modifier.fillMaxSize()) {
+          FluidMorphMenuButton(
+            state = morph,
+            actions = { listOf(FluidContextAction(label = long, onClick = {}), FluidContextAction(label = "Altro", onClick = {})) },
+            onClick = {},
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp).testTag("tasto"),
+            text = "Opzioni",
+            backdrop = backdrop,
+            opensOnTap = true,
+          )
+          FluidMorphMenuHost(state = morph, backdrop = backdrop)
+        }
+      }
+    }
+    compose.waitForIdle()
+    compose.onNodeWithTag("tasto").performClick()
+    compose.waitForIdle()
+    assertFalse("tagliata: ${layout(long).layoutInput.constraints}", layout(long).hasVisualOverflow)
+  }
+
+  @Test
+  fun `la sezione dell'aspetto senza testata, per una pagina che si chiama gia' Aspetto`() {
+    compose.setContent {
+      Themed {
+        LazyColumn {
+          fluidAppearanceSection(settings = EngineSettings(), onSettingsChange = {}, title = null)
+        }
+      }
+    }
+    compose.waitForIdle()
+    assertTrue(compose.onAllNodesWithText("Aspetto").fetchSemanticsNodes().isEmpty())
+    compose.onNodeWithText("Chiaro").assertExists()
+  }
+
+  @Test
+  fun `la scritta dello scrubber si tocca e lo dice`() {
+    var showRemaining by mutableStateOf(false)
+    compose.setContent {
+      Themed {
+        FluidScrubber(
+          position = 0.25f,
+          onSeek = {},
+          endLabel = { position, range -> if (showRemaining) "-${(range.endInclusive - position) * 100}" else "totale" },
+          onEndLabelClick = { showRemaining = !showRemaining },
+        )
+      }
+    }
+    compose.waitForIdle()
+    compose.onNodeWithText("totale").performClick()
+    compose.waitForIdle()
+    assertTrue(showRemaining)
+    assertTrue(compose.onAllNodesWithText("totale").fetchSemanticsNodes().isEmpty())
+  }
+
+  @Test
+  fun `il titolo agganciato si ferma prima delle azioni`() {
+    val title = "Un titolo di pagina molto lungo che non ci sta"
+    compose.setContent {
+      Themed {
+        FluidPageChrome(title = title, onBack = {}) {
+          FluidBarAction(icon = Icons.Rounded.Search, contentDescription = "Cerca", onClick = {})
+          FluidBarAction(icon = Icons.Rounded.Share, contentDescription = "Condividi", onClick = {})
+          FluidBarAction(icon = Icons.Rounded.Delete, contentDescription = "Elimina", onClick = {})
+        }
+      }
+    }
+    compose.waitForIdle()
+    val text = compose.onAllNodesWithText(title, useUnmergedTree = true).fetchSemanticsNodes().first().boundsInRoot
+    val search = compose.onNodeWithContentDescription("Cerca").getUnclippedBoundsInRoot()
+    val searchLeftPx = with(compose.density) { search.left.toPx() }
+    assertTrue("il titolo finisce a ${text.right}, le azioni cominciano a $searchLeftPx", text.right <= searchLeftPx)
+    assertTrue("e finisce con i puntini", layout(title).hasVisualOverflow)
+  }
+
+  @Test
   fun `il tasto prende lo stato del menu dal fornitore`() {
     lateinit var morph: FluidMorphMenuState
     compose.setContent {

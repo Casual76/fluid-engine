@@ -275,14 +275,27 @@ private fun FluidMenuLayerContent(
         .focusable(),
     )
 
+    val labelWidth = rememberFluidMenuLabelMeasure()
+    val densityValue = LocalDensity.current.density
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
       val host = Size(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
       val layout = remember(actions, metrics) { fluidMenuPanelLayout(actions.map { it.startsSection }, metrics) }
+      // Largo quanto serve alla voce piu' lunga, fino a un tetto (3.0.1): vedi [fluidMenuPanelWidth].
+      val panelWidth = remember(actions, metrics, labelWidth, host.width) {
+        fluidMenuPanelWidth(
+          metrics = metrics,
+          labelWidthsPx = actions.map { labelWidth(it.label) },
+          hasIcon = actions.any { it.icon != null },
+          hasCheck = actions.any { it.selected },
+          density = densityValue,
+          hostWidthPx = host.width,
+        )
+      }
       val anchorRect = anchor?.restBounds ?: origin ?: Rect(host.width / 2f, host.height / 2f, host.width / 2f, host.height / 2f)
       val panel = solveFluidMenuPanel(
         anchor = anchorRect,
         host = host,
-        width = metrics.widthPx,
+        width = panelWidth,
         height = layout.height,
         gapPx = metrics.gapPx,
         marginPx = metrics.marginPx,

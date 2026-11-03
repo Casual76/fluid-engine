@@ -343,6 +343,8 @@ fun FluidAccentPicker(
  * @param dynamicAccent offrire il pallino dei colori di sistema (dove il telefono li ha).
  * @param footnote una nota sotto la sezione, per la spiegazione che un sottotitolo farebbe troppo lunga.
  * @param keyPrefix il prefisso delle chiavi degli item, se la pagina ha due sezioni di questo tipo.
+ * @param title la testata della sezione; di serie `strings.title`. Null (3.0.1): niente testata, per una
+ *   pagina che si chiama gia' «Aspetto», dove la testata ripeteva il titolo della pagina.
  */
 fun LazyListScope.fluidAppearanceSection(
   settings: EngineSettings,
@@ -356,13 +358,16 @@ fun LazyListScope.fluidAppearanceSection(
   dynamicAccent: Boolean = true,
   footnote: String? = null,
   keyPrefix: String = "fluid-appearance",
+  title: String? = strings.title,
 ) {
   // Una modifica che non cambia niente non e' una modifica: lo store non la riscrive e il flusso non
   // si muove per niente. Tocca la riga gia' scelta, ed e' il caso piu' comune di tutti.
   val emit: (EngineSettings) -> Unit = { next -> if (next != settings) onSettingsChange(next) }
 
-  item(key = "$keyPrefix-header") {
-    FluidSectionHeader(title = strings.title)
+  if (title != null) {
+    item(key = "$keyPrefix-header") {
+      FluidSectionHeader(title = title)
+    }
   }
   item(key = "$keyPrefix-theme") {
     val choice = FluidAppearance.themeChoice(settings)

@@ -18,6 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckBox
+import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +72,9 @@ data class FluidMarkdownStrings(
   val copyDescription: String = "Copia il codice",
   /** Cosa legge TalkBack per un blocco di codice; `%1$s` e' il linguaggio o [codeLabel]. */
   val codeBlockDescription: String = "Blocco di %1\$s",
+  /** Il segno di una voce da fare, fatta e no (3.0.1), per TalkBack. */
+  val taskDone: String = "Fatto",
+  val taskOpen: String = "Da fare",
 )
 
 /**
@@ -313,13 +318,27 @@ private fun MarkdownList(
       key(index) {
         val itemReveal = reveal.copy(fresh = reveal.fresh || index >= firstItems)
         Row(verticalAlignment = Alignment.Top) {
-          Text(
-            text = if (list.ordered) "${list.start + index}." else if (depth == 0) "•" else "–",
-            style = style.body,
-            color = style.markerColor,
-            textAlign = TextAlign.End,
-            modifier = Modifier.width(if (list.ordered) 26.dp else 18.dp),
-          )
+          val checked = item.checked
+          if (checked != null) {
+            // Una voce da fare (3.0.1): la casella al posto del pallino, piena se fatta. Disegnata, non un
+            // carattere: una casella che non c'e' nel font diventa un quadratino vuoto che non dice niente.
+            Box(modifier = Modifier.width(if (list.ordered) 26.dp else 18.dp), contentAlignment = Alignment.TopEnd) {
+              Icon(
+                imageVector = if (checked) Icons.Rounded.CheckBox else Icons.Rounded.CheckBoxOutlineBlank,
+                contentDescription = if (checked) strings.taskDone else strings.taskOpen,
+                tint = style.markerColor,
+                modifier = Modifier.padding(top = 2.dp).size(18.dp),
+              )
+            }
+          } else {
+            Text(
+              text = if (list.ordered) "${list.start + index}." else if (depth == 0) "•" else "–",
+              style = style.body,
+              color = style.markerColor,
+              textAlign = TextAlign.End,
+              modifier = Modifier.width(if (list.ordered) 26.dp else 18.dp),
+            )
+          }
           Column(Modifier.padding(start = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             MarkdownText(item.inlines, style.body, style, itemReveal, onLinkClick)
             item.children.forEachIndexed { childIndex, child ->

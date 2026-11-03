@@ -38,12 +38,14 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidBackButton
 import dev.antigravity.fluidengine.ui.fluid.FluidBarTitleMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarActions
+import dev.antigravity.fluidengine.ui.fluid.FluidTopBarControls
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarGlass
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarRow
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarTitle
@@ -164,6 +166,8 @@ internal fun FluidAnchoredBar(
     journey.recompute()
   }
   val shiftPx = with(density) { FluidPageMotion.BarTitleShiftDp.dp.toPx() }
+  // Quanto occupano il tasto indietro e le azioni: il titolo agganciato si ferma prima (3.0.1).
+  val controls = remember { FluidTopBarControls() }
   val onTapTitle by rememberUpdatedState(upperSpec?.onTapTitle)
   val onBack by rememberUpdatedState(upperSpec?.onBack)
 
@@ -215,24 +219,28 @@ internal fun FluidAnchoredBar(
           )
         }
         for ((page, spec) in shown) {
-          key(page) { BarTitle(state, page, spec, shiftPx) }
+          key(page) { BarTitle(state, page, spec, shiftPx, controls) }
         }
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          if (backKeys.isNotEmpty()) {
-            BarBackButton(state, journey) { if (!state.isMoving) onBack?.invoke() }
-          } else {
-            Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
-          }
-          Spacer(Modifier.weight(1f))
-          Box(contentAlignment = Alignment.CenterEnd) {
-            for ((page, spec) in shown) {
-              key(page) { BarActions(state, page, spec, controlBackdrop, journey) }
+          Box(modifier = Modifier.onSizeChanged { controls.startPx = it.width }) {
+            if (backKeys.isNotEmpty()) {
+              BarBackButton(state, journey) { if (!state.isMoving) onBack?.invoke() }
+            } else {
+              Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
             }
           }
-          Spacer(Modifier.width(6.dp))
+          Spacer(Modifier.weight(1f))
+          Row(modifier = Modifier.onSizeChanged { controls.endPx = it.width }, verticalAlignment = Alignment.CenterVertically) {
+            Box(contentAlignment = Alignment.CenterEnd) {
+              for ((page, spec) in shown) {
+                key(page) { BarActions(state, page, spec, controlBackdrop, journey) }
+              }
+            }
+            Spacer(Modifier.width(6.dp))
+          }
         }
       }
     }
@@ -241,7 +249,13 @@ internal fun FluidAnchoredBar(
 
 /** Il titolo di una pagina nella barra, con il suo moto e, per quella sotto, la parte che si vede. */
 @Composable
-private fun BoxScope.BarTitle(state: FluidPageHostState, page: Any, spec: FluidPageBarSpec, shiftPx: Float) {
+private fun BoxScope.BarTitle(
+  state: FluidPageHostState,
+  page: Any,
+  spec: FluidPageBarSpec,
+  shiftPx: Float,
+  controls: FluidTopBarControls,
+) {
   val motion = remember(state, page, shiftPx) {
     FluidBarTitleMotion(
       pageX = { state.pageOffsetX(state.roleOf(page)) },
@@ -287,6 +301,7 @@ private fun BoxScope.BarTitle(state: FluidPageHostState, page: Any, spec: FluidP
         fontScale = spec.fontScale,
         reducedMotion = spec.reducedMotion,
         motion = motion,
+        controls = controls,
       )
     }
   }
@@ -542,6 +557,7 @@ private fun FluidPageChromeContent(
       FluidTopBarGlass(backdrop = backdrop, tint = tint, intensity = { 1f }, exports = barGlass)
     }
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop, LocalFluidCanvasBackdrop provides null) {
+      val controls = remember { FluidTopBarControls() }
       FluidTopBarRow(onTapTitle = null) {
         FluidTopBarTitle(
           title = title,
@@ -552,19 +568,24 @@ private fun FluidPageChromeContent(
           contentTranslation = NoTranslation,
           fontScale = density.fontScale,
           reducedMotion = reducedMotion,
+          controls = controls,
         )
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          if (onBack != null) {
-            FluidBackButton(onBack)
-          } else {
-            Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
+          Box(modifier = Modifier.onSizeChanged { controls.startPx = it.width }) {
+            if (onBack != null) {
+              FluidBackButton(onBack)
+            } else {
+              Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
+            }
           }
           Spacer(Modifier.weight(1f))
-          FluidTopBarActions(actions)
-          Spacer(Modifier.width(6.dp))
+          Row(modifier = Modifier.onSizeChanged { controls.endPx = it.width }, verticalAlignment = Alignment.CenterVertically) {
+            FluidTopBarActions(actions)
+            Spacer(Modifier.width(6.dp))
+          }
         }
       }
     }

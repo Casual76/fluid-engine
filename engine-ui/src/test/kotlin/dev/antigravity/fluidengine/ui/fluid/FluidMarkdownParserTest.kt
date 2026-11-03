@@ -312,4 +312,18 @@ class FluidMarkdownParserTest {
     assertEquals(levels[0], style.headingFor(0))
     assertEquals(levels[2], style.headingFor(9))
   }
+
+  @Test
+  fun `una voce con la casella e' una cosa da fare, fatta o no`() {
+    val list = parse("- [ ] da comprare\n- [x] comprato\n- [X] anche questo\n- normale").single() as FluidMdBlock.ListBlock
+    assertEquals(listOf(false, true, true, null), list.items.map { it.checked })
+    assertEquals(listOf(t("da comprare")), list.items[0].inlines)
+    assertEquals(listOf(t("comprato")), list.items[1].inlines)
+  }
+
+  @Test
+  fun `senza lo spazio dopo la casella non e' una cosa da fare`() {
+    val list = parse("- [x]y\n- [ ]").single() as FluidMdBlock.ListBlock
+    assertEquals(listOf(null, null), list.items.map { it.checked })
+  }
 }

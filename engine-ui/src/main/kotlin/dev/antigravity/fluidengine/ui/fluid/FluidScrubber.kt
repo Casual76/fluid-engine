@@ -66,6 +66,8 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -185,6 +187,10 @@ typealias FluidScrubberFormat = (position: Float, range: ClosedFloatingPointRang
  *   non quello del lettore): [FluidScrubbing.Elapsed]. Nullo: niente. Con tutti e due i testi nulli lo
  *   scrubber e' la sola riga da 48 dp.
  * @param endLabel il testo a fine riga: [FluidScrubbing.Remaining], [FluidScrubbing.Total].
+ * @param onStartLabelClick, onEndLabelClick rendono toccabile la scritta (3.0.1): il tocco sulla durata che
+ *   diventa il tempo che manca e torna indietro, come nei lettori. Lo scrubber non sa cosa scambiare: l'app
+ *   cambia il formato che passa ([endLabel]). La scritta diventa un pulsante per TalkBack, col suo testo;
+ *   senza, resta muta (il valore e' gia' nel nodo dello scrubber).
  * @param contentDescription il nome per TalkBack.
  * @param valueDescription il valore a voce, dal valore mostrato; di serie «1:05 di 3:20» per i millisecondi.
  *   Per un'altra unita' va passato, o direbbe un orario che non e' (la cronologia di un radar dice
@@ -216,6 +222,8 @@ fun FluidScrubber(
   stepBackLabel: String = FluidScrubberDefaults.StepBackLabel,
   stepForwardLabel: String = FluidScrubberDefaults.StepForwardLabel,
   backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
+  onStartLabelClick: (() -> Unit)? = null,
+  onEndLabelClick: (() -> Unit)? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val dark = GlassDefaults.isDarkSurface()
@@ -703,7 +711,7 @@ fun FluidScrubber(
     }
 
     if (startText != null || endText != null) {
-      ScrubberLabels(start = startText, end = endText)
+      ScrubberLabels(start = startText, end = endText, onStartClick = onStartLabelClick, onEndClick = onEndLabelClick)
     }
   }
 }
@@ -730,6 +738,8 @@ fun FluidScrubber(
   stepBackLabel: String = FluidScrubberDefaults.StepBackLabel,
   stepForwardLabel: String = FluidScrubberDefaults.StepForwardLabel,
   backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
+  onStartLabelClick: (() -> Unit)? = null,
+  onEndLabelClick: (() -> Unit)? = null,
 ) {
   FluidScrubber(
     position = { position },
@@ -751,12 +761,19 @@ fun FluidScrubber(
     stepBackLabel = stepBackLabel,
     stepForwardLabel = stepForwardLabel,
     backdrop = backdrop,
+    onStartLabelClick = onStartLabelClick,
+    onEndLabelClick = onEndLabelClick,
   )
 }
 
 /** Le due righe di testo sotto la pista, a inizio e a fine riga, lette dal loro stato e non dal chiamante. */
 @Composable
-private fun ScrubberLabels(start: State<String>?, end: State<String>?) {
+private fun ScrubberLabels(
+  start: State<String>?,
+  end: State<String>?,
+  onStartClick: (() -> Unit)? = null,
+  onEndClick: (() -> Unit)? = null,
+) {
   val style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
   val color = MaterialTheme.colorScheme.onSurfaceVariant
   Row(
@@ -771,14 +788,33 @@ private fun ScrubberLabels(start: State<String>?, end: State<String>?) {
         val pull = LabelPull.roundToPx().coerceAtMost(placeable.height)
         layout(placeable.width, placeable.height - pull) { placeable.place(0, -pull) }
       }
-      // Il valore e' gia' a voce nel nodo dello scrubber: due volte lo stesso numero e' rumore.
-      .clearAndSetSemantics {},
+      // Il valore e' gia' a voce nel nodo dello scrubber: due volte lo stesso numero e' rumore. Una scritta
+      // che si tocca e' un'altra cosa: un pulsante, col suo testo (3.0.1).
+      .then(if (onStartClick == null && onEndClick == null) Modifier.clearAndSetSemantics {} else Modifier),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    if (start != null) Text(text = start.value, style = style, color = color, maxLines = 1)
+    // Con una scritta che si tocca la riga non e' piu' muta tutta: quella che non si tocca tace da sola.
+    val silenceOthers = onStartClick != null || onEndClick != null
+    if (start != null) ScrubberLabel(start.value, style, color, onStartClick, silenceOthers)
     Spacer(Modifier.weight(1f))
-    if (end != null) Text(text = end.value, style = style, color = color, maxLines = 1)
+    if (end != null) ScrubberLabel(end.value, style, color, onEndClick, silenceOthers)
   }
+}
+
+/** Una scritta dello scrubber: un pulsante che cede sotto il dito se l'app la fa toccare, se no muta. */
+@Composable
+private fun ScrubberLabel(text: String, style: TextStyle, color: Color, onClick: (() -> Unit)?, silent: Boolean) {
+  Text(
+    text = text,
+    style = style,
+    color = color,
+    maxLines = 1,
+    modifier = when {
+      onClick != null -> Modifier.fluidPressable(onClick = onClick, role = Role.Button)
+      silent -> Modifier.clearAndSetSemantics {}
+      else -> Modifier
+    },
+  )
 }
 
 /** Le misure, i testi e le soglie dello scrubber che un'app puo' voler conoscere. */

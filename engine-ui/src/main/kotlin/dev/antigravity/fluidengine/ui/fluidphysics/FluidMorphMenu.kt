@@ -75,6 +75,8 @@ import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.fluidPressedBounds
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidMenuPanelMetrics
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidMenuLabelMeasure
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelWidth
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.solveFluidMenuPanel
@@ -139,6 +141,10 @@ class FluidMorphMenuState internal constructor() {
   internal var hostSize: Size? = null
   internal var metrics: FluidMenuPanelMetrics? = null
 
+  /** La larghezza di un'etichetta nel tipo delle voci, e la densita': il pannello si allarga per le voci lunghe (3.0.1). */
+  internal var labelWidth: ((String) -> Float)? = null
+  internal var density: Float = 1f
+
   /** L'ancora del vecchio [open] pubblico, che un'ancora sua non ce l'ha. */
   private val publicAnchor = FluidMenuAnchor()
 
@@ -189,10 +195,23 @@ class FluidMorphMenuState internal constructor() {
     val size = hostSize ?: return false
     val layout = fluidMenuPanelLayout(items.map { it.startsSection }, m)
     val anchorLocal = anchor.restBounds.translate(-origin.x, -origin.y)
+    val measure = labelWidth
+    val width = if (measure == null) {
+      m.widthPx
+    } else {
+      fluidMenuPanelWidth(
+        metrics = m,
+        labelWidthsPx = items.map { measure(it.label) },
+        hasIcon = items.any { it.icon != null },
+        hasCheck = items.any { it.selected },
+        density = density,
+        hostWidthPx = size.width,
+      )
+    }
     val panel = solveFluidMenuPanel(
       anchor = anchorLocal,
       host = size,
-      width = m.widthPx,
+      width = width,
       height = layout.height,
       gapPx = m.gapPx,
       marginPx = m.marginPx,
@@ -378,11 +397,14 @@ fun FluidMorphMenuHost(
   val haptics = LocalFluidHaptics.current
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val metrics = rememberFluidMenuPanelMetrics()
+  val labelWidth = rememberFluidMenuLabelMeasure()
   state.physics.reducedMotion = reducedMotion
   state.physics.density = density.density
 
   SideEffect {
     state.metrics = metrics
+    state.labelWidth = labelWidth
+    state.density = density.density
     state.selection.touchSlop = touchSlop
     state.selection.onTick = { haptics.play(FluidHapticEvent.Tick) }
     state.selection.onPick = { index -> state.pick(index, haptics) }

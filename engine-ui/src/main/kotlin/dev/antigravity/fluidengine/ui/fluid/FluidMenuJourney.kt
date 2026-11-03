@@ -263,6 +263,49 @@ internal data class FluidMenuPanelMetrics(
  */
 internal fun fluidMenuRowHeight(lineHeight: Dp): Dp = max(FluidMenuMinRowHeight.value, (lineHeight + 24.dp).value).dp
 
+/**
+ * Quanto e' largo il pannello di un menu per le sue voci (3.0.1): la misura di serie
+ * ([FluidMenuPanelMetrics.widthPx], 252 dp) se ci stanno, altrimenti quanto serve alla voce piu' lunga —
+ * etichetta, icona e spunta — fino a [FluidMenuPanelMaxWidth] e mai oltre lo schermo meno i margini.
+ * Prima era sempre 252 dp, e una voce che porta il suo stato («Salta i silenzi oltre 12 s: spento»)
+ * perdeva proprio lo stato nei puntini. Oltre il tetto i puntini restano: una riga di menu e' una riga.
+ *
+ * @param labelWidthsPx la larghezza di ogni etichetta, nel tipo delle voci.
+ * @param hasIcon, hasCheck se qualche voce ha l'icona o la spunta (lo spazio vale per tutte, le colonne
+ *   restano allineate).
+ */
+internal fun fluidMenuPanelWidth(
+  metrics: FluidMenuPanelMetrics,
+  labelWidthsPx: List<Float>,
+  hasIcon: Boolean,
+  hasCheck: Boolean,
+  density: Float,
+  hostWidthPx: Float,
+): Float {
+  val widest = labelWidthsPx.maxOrNull() ?: 0f
+  // Le misure della riga di FluidGlassMenuPanel: 16 dp per lato, 12 dp fra l'etichetta e ogni segno da 20.
+  val extras = (FluidMenuRowSidePadding.value * 2f +
+    (if (hasIcon) FluidMenuRowGlyph.value + FluidMenuRowGap.value else 0f) +
+    (if (hasCheck) FluidMenuRowGlyph.value + FluidMenuRowGap.value else 0f)) * density +
+    metrics.paddingPx * 2f
+  val wanted = widest + extras
+  val ceiling = minOf(FluidMenuPanelMaxWidth.value * density, hostWidthPx - metrics.marginPx * 2f)
+  return wanted.coerceAtMost(ceiling).coerceAtLeast(metrics.widthPx).coerceAtMost(maxOf(metrics.widthPx, ceiling))
+}
+
+/**
+ * La larghezza di un'etichetta di menu nel tipo delle voci, per [fluidMenuPanelWidth]: misurata col
+ * `TextMeasurer` di Compose, fuori dal disegno, perche' l'apertura risolve il pannello prima di comporlo.
+ */
+@Composable
+internal fun rememberFluidMenuLabelMeasure(): (String) -> Float {
+  val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+  val style = MaterialTheme.typography.bodyLarge
+  return remember(measurer, style) {
+    { label -> measurer.measure(label, style = style, maxLines = 1).size.width.toFloat() }
+  }
+}
+
 /** Le misure di serie, dalla densita' e dal tipo del tema. */
 @Composable
 internal fun rememberFluidMenuPanelMetrics(): FluidMenuPanelMetrics {
@@ -453,6 +496,14 @@ internal fun fluidMenuPivot(panel: Rect, anchor: Rect): Offset = Offset(
 )
 
 internal val FluidMenuPanelWidth = 252.dp
+
+/** Il tetto della larghezza di un menu con voci lunghe (3.0.1): oltre, la riga va in puntini. */
+internal val FluidMenuPanelMaxWidth = 340.dp
+
+/** Le misure orizzontali di una riga di menu, le stesse di `FluidMenuPanelRow`. */
+internal val FluidMenuRowSidePadding = 16.dp
+internal val FluidMenuRowGap = 12.dp
+internal val FluidMenuRowGlyph = 20.dp
 internal val FluidMenuPanelPadding = 6.dp
 internal val FluidMenuSectionGap = 8.dp
 internal val FluidMenuMinRowHeight = 48.dp

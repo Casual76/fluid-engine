@@ -35,7 +35,15 @@ sealed interface FluidMdInline {
 enum class FluidMdAlign { Start, Center, End }
 
 /** Una voce di elenco: il suo testo, e i blocchi che le stanno sotto (un sotto-elenco, un paragrafo rientrato). */
-data class FluidMdListItem(val inlines: List<FluidMdInline>, val children: List<FluidMdBlock> = emptyList())
+data class FluidMdListItem(
+  val inlines: List<FluidMdInline>,
+  val children: List<FluidMdBlock> = emptyList(),
+  /**
+   * Una voce di un elenco di cose da fare (`- [ ] …`, `- [x] …`, 3.0.1): fatta o no. Null per una voce
+   * qualunque.
+   */
+  val checked: Boolean? = null,
+)
 
 sealed interface FluidMdBlock {
   data class Paragraph(val inlines: List<FluidMdInline>) : FluidMdBlock
@@ -221,7 +229,16 @@ object FluidMarkdownParser {
         }
         break
       }
-      items += FluidMdListItem(inlines(text, options), if (children.isEmpty()) emptyList() else blocks(dedent(children), options))
+      // Una voce da fare (3.0.1): `[ ]` o `[x]` in testa, e poi il testo. Senza lo spazio dopo la parentesi
+      // non lo e' (`[x]y` e' testo), come su GitHub.
+      val task = TaskItem.matchEntire(text)
+      val checked = task?.groupValues?.get(1)?.let { it != " " }
+      val body = task?.groupValues?.get(2) ?: text
+      items += FluidMdListItem(
+        inlines(body, options),
+        if (children.isEmpty()) emptyList() else blocks(dedent(children), options),
+        checked,
+      )
     }
     return FluidMdBlock.ListBlock(ordered, first.number ?: 1, items) to i
   }
@@ -592,6 +609,7 @@ object FluidMarkdownParser {
   private val ClosingHashes = Regex("\\s+#+$")
   private val Bullet = Regex("[-*+•]\\s+(.*)")
   private val Numbered = Regex("(\\d{1,4})[.)]\\s+(.*)")
+  private val TaskItem = Regex("\\[([ xX])]\\s+(.*)", RegexOption.DOT_MATCHES_ALL)
   private val Rule1 = Regex("(?:-\\s*){3,}")
   private val Rule2 = Regex("(?:\\*\\s*){3,}")
   private val Rule3 = Regex("(?:_\\s*){3,}")

@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -516,6 +517,40 @@ class FluidPageHostTest {
     compose.waitForIdle()
     assertEquals(PagesRouteC, route())
     assertEquals(0f, leftPx(PagesMarkC) - rest, 0.5f)
+  }
+
+  /**
+   * Il segmentato non porta mai indietro (3.0.1), nemmeno dal segmento gia' scelto: li' il dito scende
+   * sulla goccia, che trascina dal contatto ma non consumava niente, e il back «ovunque» (che decide nel
+   * Main guardando se un figlio ha consumato) si portava via la pagina — Codex, «Aggiungi contatto».
+   */
+  private fun dragAcrossSegmented(fromSegment: Int) {
+    show()
+    openC()
+    val rest = leftPx(PagesMarkC)
+    compose.onNodeWithTag(PagesSegmentedTag).performTouchInput {
+      // Tre segmenti dentro 2 dp per parte: il centro di quello di partenza.
+      val segment = (width - 8f) / 3f
+      down(Offset(4f + segment * (fromSegment + 0.5f), centerY))
+      repeat(30) { moveBy(Offset(12f, 0f), delayMillis = 16L) }
+      up()
+    }
+    compose.waitForIdle()
+    assertEquals(PagesRouteC, route())
+    assertEquals(0f, leftPx(PagesMarkC) - rest, 0.5f)
+  }
+
+  @Test
+  fun `un segmentato non porta indietro se il dito parte sul segmento scelto`() {
+    dragAcrossSegmented(fromSegment = 0)
+    // La goccia e' stata trascinata: 360 px su segmenti da 216 la posano sul terzo.
+    compose.onNodeWithText(PagesPeriods[2]).assertIsSelected()
+  }
+
+  @Test
+  fun `un segmentato non porta indietro se il dito parte su un altro segmento`() {
+    dragAcrossSegmented(fromSegment = 1)
+    compose.onNodeWithText(PagesPeriods[2]).assertIsSelected()
   }
 
   @Test

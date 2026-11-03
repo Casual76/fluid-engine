@@ -38,6 +38,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidAlertAction
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
@@ -89,6 +90,8 @@ internal const val PagesMarkDraft = "Apri una bozza"
 internal const val PagesDraftDirty = "Modifiche non salvate"
 internal const val PagesChipsTag = "pages:chips"
 internal const val PagesSliderTag = "pages:slider"
+internal const val PagesSegmentedTag = "pages:segmented"
+internal val PagesPeriods = listOf("Giorno", "Settimana", "Mese")
 
 /** Il grafo della demo: "a" radice (1 azione), "b" Slide (2), "c" ShrinkSlide (3). Anche quello dei test. */
 @Composable
@@ -160,6 +163,7 @@ internal fun PagesDemo(
     }
     composable(PagesRouteC, transition = FluidPageTransition.ShrinkSlide) {
       var level by remember { mutableFloatStateOf(0.4f) }
+      var period by remember { mutableStateOf(PagesPeriods.first()) }
       FluidScreen(
         title = "Pagina C",
         subtitle = "Questa prima rimpicciolisce sul posto, poi scivola via.",
@@ -195,6 +199,17 @@ internal fun PagesDemo(
             onValueChange = { level = it },
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).testTag(PagesSliderTag),
             contentDescription = "Livello",
+          )
+        }
+        // Come il cursore, il segmentato non porta mai indietro: un trascinamento di lato che parte su di
+        // lui, anche sul segmento scelto (la goccia), e' suo (3.0.1).
+        item(key = "segmented") {
+          FluidSegmentedControl(
+            options = PagesPeriods,
+            selected = period,
+            onSelect = { period = it },
+            modifier = Modifier.padding(vertical = 8.dp).testTag(PagesSegmentedTag),
+            label = { it },
           )
         }
         item(key = "rows") {

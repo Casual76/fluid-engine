@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -385,14 +386,41 @@ fun <T> FluidSegmentedControl(
     // Un dito fermo resta il click del segmento; uno che scende sulla goccia e' gia' suo; uno che va in
     // verticale e' della pagina. Dal fotogramma in cui la goccia prende il dito ne consuma i cambi gia'
     // nell'Initial: il segmento sotto smette di premersi e non clicca, la pagina non scorre.
+    //
+    // **Un dito che scende sul segmentato e' del segmentato (3.0.1)**, anche sulla goccia. Il back
+    // «ovunque» della pagina decide nel Main, dopo i figli, guardando se un figlio ha consumato: un
+    // segmento non scelto consuma il contatto (`clickable`), la goccia no — il suo trascinamento parte al
+    // contatto ma non consuma niente — e un trascinamento orizzontale partito sul segmento scelto portava
+    // via la pagina (Codex, «Aggiungi contatto»). Qui, dopo i figli e prima della pagina, il contatto si
+    // consuma sempre; e sulla goccia, appena il dito va di lato (mezzo slop, come lo slider), anche i
+    // suoi cambi: un pager o una fila che scorre attorno non se lo prendono. In verticale resta della pagina.
     val slideFromSegment = Modifier.pointerInput(pill, options.size, segmentWidth, rtl) {
       val insetPx = inset.toPx()
       awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         if (!currentEnabled || segmentWidth <= 0f) return@awaitEachGesture
+        down.consume()
         val count = currentOptions.size
         val landed = segmentedFingerValue(down.position.x, size.width.toFloat(), insetPx, segmentWidth, rtl)
-        if (segmentedTouchOnDrop(landed, pill.value)) return@awaitEachGesture
+        if (segmentedTouchOnDrop(landed, pill.value)) {
+          var travel = Offset.Zero
+          var claimed = false
+          while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.fastFirstOrNull { it.id == down.id } ?: break
+            if (!change.pressed) break
+            if (!claimed) {
+              travel += change.positionChangeIgnoreConsumed()
+              when (fluidSliderClaim(travel, viewConfiguration.touchSlop)) {
+                FluidSliderClaim.Slider -> claimed = true
+                FluidSliderClaim.Page -> break
+                FluidSliderClaim.Undecided -> Unit
+              }
+            }
+            if (claimed) change.consume()
+          }
+          return@awaitEachGesture
+        }
         val slid = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
           ?: return@awaitEachGesture
         val last = (count - 1).toFloat()

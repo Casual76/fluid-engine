@@ -513,8 +513,12 @@ tasto indietro delle barre, il titolo di un menu senza titolo, le azioni di Talk
 sezione — stanno in `FluidLabels`, in italiano di serie. Un'app tradotta le passa una volta alla radice, sopra gli
 host (che le leggono dove sono composti): `CompositionLocalProvider(LocalFluidLabels provides FluidLabels(close = …,
 back = …, …))`, e **tutte**. Dove un componente ha già un parametro per la stessa parola (`FluidSearchLabels`,
-`FluidUpdateStrings`, `cancelLabel`) vince il parametro. Restano in italiano, senza un modo di cambiarle, le frasi della
-famiglia `FluidSync*` (lo stato della sincronizzazione, nate in ClasseViva).
+`FluidUpdateStrings`, `cancelLabel`) vince il parametro. **Dalla 3.0.4** le frasi della famiglia `FluidSync*` (lo stato
+della sincronizzazione, nate in ClasseViva) stanno in `FluidLabels.sync` (`FluidSyncStrings`), e `lastSyncLabel(strings =)`
+le prende da lì. Ogni insieme di parole ha la sua versione inglese: `FluidLabels.english()`, `FluidUpdateStrings.english()`
+(in `engine-ai-ui`: `FluidAssistantStrings.english()`, `FluidAiSettingsStrings.english()`, `FluidChatStrings.english()`);
+l'italiano resta il default. Per un'app in un'altra lingua l'inglese è il punto di partenza (`.copy(...)`), non il prodotto
+finito.
 
 **Gli aggiornamenti (3.0.1).** `rememberFluidUpdateController(updater, scope, currentVersion, channel, ignoredVersion,
 checkOnStart)` è la colla fra un `AppUpdater` e `fluidUpdateSection`/`FluidUpdatePromptSheet` che tre app avevano

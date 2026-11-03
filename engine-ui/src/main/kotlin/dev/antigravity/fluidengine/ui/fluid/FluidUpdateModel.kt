@@ -242,7 +242,71 @@ data class FluidUpdateStrings(
   val autoCheck: String = "Controlla all'avvio",
   val autoCheckDetail: String = "Cerca una versione nuova ogni volta che apri l'app.",
   val unknownError: String = "Errore sconosciuto",
-)
+) {
+  companion object {
+    /**
+     * Le stesse parole in inglese (3.0.4). Il default resta l'italiano: un'app inglese passa
+     * `FluidUpdateStrings.english()`, una in un'altra lingua le scrive tutte (o parte da questa con `copy`).
+     */
+    fun english(): FluidUpdateStrings = FluidUpdateStrings(
+      promptTitle = { "Update $it" },
+      availableMessage = { size ->
+        if (size != null) "A new version is ready to install ($size)." else "A new version is ready to install."
+      },
+      whatsNew = "What's new",
+      install = "Update",
+      retry = "Retry",
+      later = "Later",
+      skip = "Skip this version",
+      close = "Close",
+      updating = "Updating…",
+      openSettings = "Open settings",
+      permission = "Android asks you to allow this app to install updates. It only happens once.",
+      installed = "Update installed.",
+      failedTitle = "Update failed",
+      verifying = "Verifying the file…",
+      installing = "Installing…",
+      awaitingUser = "Confirm the installation in the Android dialog.",
+      downloading = { percent, downloaded, total ->
+        when {
+          percent != null && downloaded != null && total != null -> "Downloaded $downloaded of $total · $percent%"
+          percent != null -> "Downloading · $percent%"
+          else -> "Downloading…"
+        }
+      },
+      sectionTitle = "Updates",
+      currentVersion = "Installed version",
+      channelTitle = "Channel",
+      channelStable = "Stable",
+      channelStableDetail = "The tested versions.",
+      channelBeta = "Beta",
+      channelBetaDetail = "They arrive sooner and break more often.",
+      betaToggle = "Test versions",
+      betaToggleDetail = "Also get the betas: they arrive sooner and break more often.",
+      checkNow = "Check now",
+      checking = "Checking…",
+      upToDate = "App up to date",
+      upToDateDetail = "You have the latest version on the chosen channel.",
+      checkFailed = "Check failed",
+      checkFailedDetail = "Cannot reach the list of versions.",
+      available = { "Version $it available" },
+      installVersion = { "Install $it" },
+      newBadge = "New",
+      autoDownload = "Download automatically",
+      autoDownloadDetail = "Download the update as soon as it is found, without asking.",
+      unsupported = "Updates not available",
+      unsupportedDetail = "This version of the app does not update itself.",
+      lastCheckedNever = "Never checked",
+      lastCheckedNow = "Checked just now",
+      lastCheckedMinutes = { if (it == 1) "Checked 1 minute ago" else "Checked $it minutes ago" },
+      lastCheckedHours = { if (it == 1) "Checked 1 hour ago" else "Checked $it hours ago" },
+      lastCheckedDays = { if (it == 1) "Checked yesterday" else "Checked $it days ago" },
+      autoCheck = "Check at launch",
+      autoCheckDetail = "Look for a new version every time you open the app.",
+      unknownError = "Unknown error",
+    )
+  }
+}
 
 // ---------------------------------------------------------------------------------------------
 // La parte pura

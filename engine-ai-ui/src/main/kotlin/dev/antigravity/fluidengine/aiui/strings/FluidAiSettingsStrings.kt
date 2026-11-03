@@ -28,7 +28,7 @@ data class FluidProviderGuide(
 )
 
 /**
- * Le tre guide con i testi italiani. Sono dati, non logica: `FluidProviderGuides` si prova solo
+ * Le tre guide con i testi italiani (e, dalla 3.0.4, [english]). Sono dati, non logica: `FluidProviderGuides` si prova solo
  * perche' un indirizzo storto o un passo mancante non si vede finche' qualcuno non li segue.
  */
 object FluidProviderGuides {
@@ -72,6 +72,48 @@ object FluidProviderGuides {
       extraLabel = "Crediti",
     ),
   )
+
+  /** Le stesse tre guide in inglese: gli indirizzi sono quelli di sempre, cambiano le frasi. */
+  val english: Map<ProviderId, FluidProviderGuide> = mapOf(
+    ProviderId.GROQ to FluidProviderGuide(
+      tagline = "Free and fast, with per-minute limits. The first one to try.",
+      consoleUrl = "https://console.groq.com/keys",
+      consoleHost = "console.groq.com",
+      placeholder = "gsk_…",
+      steps = listOf(
+        "Open console.groq.com and sign in (or create a free account).",
+        "In the menu choose API Keys and press Create API Key.",
+        "Give the key a name and copy it: it starts with gsk_.",
+        "Paste it below and press Verify.",
+      ),
+    ),
+    ProviderId.GEMINI to FluidProviderGuide(
+      tagline = "Free with daily limits; it sees images and reads PDFs on its own.",
+      consoleUrl = "https://aistudio.google.com/apikey",
+      consoleHost = "aistudio.google.com",
+      placeholder = "AIza…",
+      steps = listOf(
+        "Open aistudio.google.com with your Google account.",
+        "Press Get API key, then Create API key.",
+        "Copy the key: it starts with AIza.",
+        "Paste it below and press Verify.",
+      ),
+    ),
+    ProviderId.OPENROUTER to FluidProviderGuide(
+      tagline = "Many models, some free; the best ones are paid.",
+      consoleUrl = "https://openrouter.ai/settings/keys",
+      consoleHost = "openrouter.ai",
+      placeholder = "sk-or-…",
+      steps = listOf(
+        "Open openrouter.ai and sign in.",
+        "Go to Settings > Keys and press Create Key.",
+        "Copy the key: it starts with sk-or-.",
+        "Paste it below and press Verify. Free models have a daily cap; the others need credits.",
+      ),
+      extraUrl = "https://openrouter.ai/settings/credits",
+      extraLabel = "Credits",
+    ),
+  )
 }
 
 /**
@@ -98,7 +140,8 @@ data class FluidAiSettingsStrings(
   val keyClose: String = "Chiudi",
   val keyOpenConsole: String = "Apri %1\$s",
   val keyPlaceholderNew: String = "Incolla la chiave %1\$s",
-  val keyPlaceholderKeep: String = "Nuova chiave (vuoto = tieni quella salvata)",
+  /** Corto apposta (3.0.4): il campo e' stretto, accanto al tasto «Verifica», e una frase lunga andava a capo. */
+  val keyPlaceholderKeep: String = "Incolla per sostituirla",
   val keyVerify: String = "Verifica",
   val keyVerifying: String = "Verifico…",
   val keyRemove: String = "Rimuovi",
@@ -120,6 +163,8 @@ data class FluidAiSettingsStrings(
   // --- l'ordine ---------------------------------------------------------------------------------
   val orderTitle: String = "Ordine dei servizi",
   val orderDetail: String = "Il primo risponde; gli altri fanno da riserva se la riserva automatica è accesa.",
+  /** Come [orderDetail] per l'app senza l'interruttore della riserva automatica (`failoverEnabled == null`): 3.0.4. */
+  val orderDetailNoFailover: String = "Il primo risponde; gli altri fanno da riserva se è al limite o non risponde.",
   val orderChat: String = "Chat",
   val orderStt: String = "Trascrizione della voce",
   val orderFirst: String = "Primo a rispondere",
@@ -227,6 +272,135 @@ data class FluidAiSettingsStrings(
   val diagRequests: String = "Richieste",
   val diagNone: String = "Nessuna richiesta in questa sessione.",
 ) {
+  companion object {
+    /**
+     * Le stesse parole in inglese (3.0.4), con le guide in inglese; il default dell'engine resta l'italiano. Le
+     * frasi del dominio (`keyDisclosure`, `privacyNote`) le scrive l'app: la nota sulla privacy qui e' quella generica.
+     */
+    fun english(): FluidAiSettingsStrings = FluidAiSettingsStrings(
+      enabledTitle = "Assistant",
+      enabledNeedsKey = "At least one verified key is needed below.",
+      enabledOn = "On: it answers your questions.",
+      enabledOff = "Off: no request leaves the phone.",
+      keysTitle = "Keys",
+      keysDetail = "They stay on the phone, encrypted. They only travel to the service they belong to.",
+      keyVerifiedOn = "Key verified on %1\$s",
+      keySavedUnverified = "Key saved, still to be verified",
+      keyHowTo = "How to",
+      keyClose = "Close",
+      keyOpenConsole = "Open %1\$s",
+      keyPlaceholderNew = "Paste the %1\$s key",
+      keyPlaceholderKeep = "Paste to replace it",
+      keyVerify = "Verify",
+      keyVerifying = "Verifying…",
+      keyRemove = "Remove",
+      keyValid = "Key valid: %1\$d chat models, %2\$d transcription models",
+      keyChosenFree = " · chosen %1\$s (free)",
+      keyChosenPaid = " · chosen %1\$s (paid: no free model with tools)",
+      keyInvalid = "Key rejected by the service.",
+      keyFailed = "Could not verify: %1\$s",
+      keyNoAnswer = "no answer",
+      keyWrongProvider = "This looks like a %1\$s key, not a %2\$s one.",
+      keyUnexpectedShape = "%1\$s keys usually start with %2\$s: check that you copied all of it.",
+      keyTooShort = "That is too short to be a key: check that you copied all of it.",
+      guides = FluidProviderGuides.english,
+      orderTitle = "Service order",
+      orderDetail = "The first one answers; the others are the fallback if automatic fallback is on.",
+      orderDetailNoFailover = "The first one answers; the others are the fallback if it is at its limit or not answering.",
+      orderChat = "Chat",
+      orderStt = "Voice transcription",
+      orderFirst = "First to answer",
+      orderBackup = "Fallback, if the previous one is at its limit or not answering",
+      orderMoveUp = "Move up",
+      orderMoveDown = "Move down",
+      orderDrag = "Press and hold, then drag to reorder",
+      modelsTitle = "Models",
+      modelsDetail = "Three tiers per service: the router picks the tools, the chat answers, the deep one sees images and reads documents.",
+      modelsDetailChatOnly = "The model that answers, per service.",
+      tierRouter = "Router",
+      tierChat = "Chat",
+      tierDeep = "Deep",
+      tierRouterHint = "Small and fast: picks the tools",
+      tierChatHint = "Answers and uses the tools",
+      tierDeepHint = "Images, documents, long texts",
+      modelSameAsChat = " · same as chat: pick a more capable one and the assistant will switch to it on hard questions",
+      modelAsChat = "same as chat",
+      modelTranscription = "Transcription",
+      modelsRefresh = "Refresh the catalogue",
+      modelsRefreshedAt = "Read on %1\$s",
+      modelsNeverRead = "Never read from the network",
+      pickerSearch = "Search a model",
+      filterTools = "Tools",
+      filterReasoning = "Reasons",
+      filterFree = "Free",
+      filterVision = "Sees",
+      sectionRecommended = "Recommended",
+      sectionFree = "Free",
+      sectionAll = "All",
+      pickerNone = "No model in the catalogue: verify the key to download it.",
+      pickerNoMatch = "No model matches.",
+      fallbackAdd = "Fallback",
+      fallbackRemove = "Remove fallback",
+      fallbackTag = "fallback",
+      fallbacksFull = "You already have two fallbacks: remove one to pick another.",
+      chosen = "Chosen",
+      metaContext = "%1\$s context",
+      metaPrice = "%1\$s / %2\$s per M tokens",
+      metaFree = "free",
+      metaReasons = "reasons",
+      metaSees = "sees",
+      metaPdf = "reads PDFs",
+      orCredits = "Credits: %1\$s · today %2\$s",
+      orUnlimited = "unlimited",
+      orFreeTier = "free account",
+      orPaidTier = "account with credits",
+      orCreditsUnknown = "Credits: verify the key to read them",
+      orChosenFree = "Chosen model: %1\$s (free)",
+      orChosenPaid = "Chosen model: %1\$s (paid: no free model with tools in the catalogue)",
+      orFreeToday = "Free requests today: %1\$d of %2\$d",
+      orPolicyTitle = "Training on your messages",
+      orPolicyAccount = "As on my account",
+      orPolicyDeny = "Do not use them",
+      orPolicyAccountDetail = "What you chose on your OpenRouter account applies.",
+      orPolicyDenyDetail = "The assistant asks OpenRouter not to use them: models whose free endpoints log prompts will not answer.",
+      prefsTitle = "Preferences",
+      thinkingTitle = "Reasoning",
+      thinkingDetail = "How much the model thinks before answering: higher is slower and more precise.",
+      thinkingDetailAuto = "How much the model thinks before answering. In automatic mode the assistant decides: high on deep questions, low on short ones.",
+      thinkingAuto = "Auto",
+      thinkingLow = "Low",
+      thinkingMedium = "Medium",
+      thinkingHigh = "High",
+      speakTitle = "Read answers aloud",
+      speakDetail = "After a question asked by voice, the answer is read out loud.",
+      actionsTitle = "Actions",
+      actionsDetail = "Actions that matter ask for confirmation with a button.",
+      failoverTitle = "Automatic fallback",
+      failoverDetail = "If the chosen service is at its limit or not answering, the assistant moves on to the next one. Off, it stays on the chosen one and waits.",
+      micTitle = "Microphone",
+      micGranted = "Permission granted: tapping the button listens.",
+      micDenied = "Needed to ask questions by voice.",
+      micAllow = "Allow",
+      privacyNote = "Your questions and the data the tools read to answer them go to the chosen service, with your key. Conversations stay on this phone.",
+      recentTitle = "Latest requests",
+      recentDetail = "In memory only: it disappears when the app closes.",
+      recentSummary = "%1\$s · %2\$d steps · %3\$d s",
+      recentGroups = "groups: %1\$s",
+      recentTools = "tools: %1\$s",
+      recentTokens = "tokens: %1\$d in, %2\$d out",
+      recentWaited = "waited: %1\$d s",
+      diagTitle = "Assistant",
+      diagState = "State",
+      diagOn = "On: %1\$s",
+      diagOff = "Off",
+      diagQuota = "%1\$s quota",
+      diagQuotaTokens = "%1\$d tokens",
+      diagQuotaRequests = "%1\$d requests",
+      diagRequests = "Requests",
+      diagNone = "No requests in this session.",
+    )
+  }
+
   fun tierLabel(tier: ModelTier): String = when (tier) {
     ModelTier.ROUTER -> tierRouter
     ModelTier.CHAT -> tierChat

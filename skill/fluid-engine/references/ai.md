@@ -141,7 +141,10 @@ proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge`
 - **Tempi**: `AiToolGroup.toolTimeoutMillis` (lavoro, senza attesa) + `awaitsConfirmation`; l'orchestratore
   somma la finestra del cancello. `AiConfirmationGate(config)` e `AiOrchestrator(..., gate = gate)`: stesso numero.
 - **Conferme**: il cancello le mette in fila (`queued`); `gate.bindState(stateFlow)` scrive
-  `AwaitingConfirmation` e lo rimette com'era.
+  `AwaitingConfirmation` e lo rimette com'era; con `bindState(stateFlow) { previous, awaiting, current -> ... }`
+  (3.0.4) l'app sceglie lo stato da scrivere alla fine (null = non toccare). La finestra di un gruppo con
+  `awaitsConfirmation` va solo ai tool che possono chiedere (`isAction`, `needsConfirmation`, o un override
+  `awaitsConfirmation = true` sul tool): un tool di sola lettura nello stesso gruppo ha il suo tempo e basta.
 - **Preferenze**: `AiSettingsStore(context, AiSettingsDefaults(...))`; `enableIfNeverChosen()`; un file corrotto
   riparte da vuoto. Un file e' aperto una volta sola per processo: niente delegato dell'app sullo stesso file. Per
   un handle: `AiDataStores.open(file)`.

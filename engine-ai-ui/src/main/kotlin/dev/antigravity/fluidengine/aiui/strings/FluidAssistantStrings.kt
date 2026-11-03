@@ -69,6 +69,17 @@ data class FluidAssistantStrings(
   /** Limite con i secondi: servizio, secondi. */
   val failRateLimitedIn: String = "%1\$s è al limite: riprova fra %2\$d s (o accendi la riserva automatica nelle impostazioni).",
   val failRateLimited: String = "%1\$s è al limite di richieste: riprova fra poco (o accendi la riserva automatica nelle impostazioni).",
+  /**
+   * Le stesse due frasi per l'app che **non ha** l'interruttore della riserva automatica (3.0.4): non si puo' consigliare di
+   * accendere quello che non c'e'. Valgono solo con [failoverSwitch] a `false`.
+   */
+  val failRateLimitedInNoSwitch: String = "%1\$s è al limite: riprova fra %2\$d s.",
+  val failRateLimitedNoSwitch: String = "%1\$s è al limite di richieste: riprova fra poco.",
+  /**
+   * L'app ha un interruttore della riserva automatica nelle impostazioni (di serie). Con `false` il limite di richieste
+   * non lo consiglia: usa [failRateLimitedInNoSwitch] e [failRateLimitedNoSwitch] (3.0.4).
+   */
+  val failoverSwitch: Boolean = true,
   /** Il limite dopo che la riserva li ha provati tutti: i nomi, i secondi (già in forma "40 s" o "poco"). */
   val failRateLimitedAll: String = "Sono al limite %1\$s: riprova fra %2\$s.",
   val failNetwork: String = "Niente rete: controlla la connessione e riprova.",
@@ -136,6 +147,106 @@ data class FluidAssistantStrings(
    */
   val statusFor: (key: String, tier: ModelTier) -> String? = { _, _ -> null },
 ) {
+  companion object {
+    /**
+     * Le stesse parole in inglese (3.0.4); il default dell'engine resta l'italiano. Per un'app in inglese e'
+     * quella da passare, e `statusFor` (il dominio) si aggiunge con `copy(statusFor = ...)`.
+     */
+    fun english(): FluidAssistantStrings = FluidAssistantStrings(
+      title = "Assistant",
+      askPlaceholder = "Ask something…",
+      listening = "Listening…",
+      transcribing = "Transcribing…",
+      classifying = "Working out what is needed…",
+      thinking = "Thinking…",
+      thinkingDeep = "Taking a careful look…",
+      moreTools = "Looking for more tools…",
+      deepModel = "Switching to the more capable model…",
+      deepSuffix = " (deep model)",
+      parallel = "%1\$s (+%2\$d)",
+      waiting = "%1\$s is busy, retrying in %2\$d s",
+      switching = "Switching to %1\$s…",
+      switchingWhy = "%1\$s %2\$s: switching to %3\$s…",
+      writing = "Writing the answer…",
+      needsConfirmation = "Confirmation needed",
+      heardNothing = "I heard nothing",
+      stopped = "Stopped",
+      answerReady = "Answer ready",
+      idleStatus = "Ask me anything",
+      dockDone = "Done",
+      reasonRateLimited = "hit its limit",
+      reasonServer = "was not available",
+      reasonTimeout = "was not answering",
+      reasonNetwork = "could not be reached",
+      reasonToolUseFailed = "used a tool the wrong way",
+      reasonModelUnavailable = "no longer has the chosen model",
+      reasonContextTooLong = "could not take such a long conversation",
+      reasonBadRequest = "refused the request",
+      reasonEmptyAnswer = "gave an empty answer",
+      reasonParse = "answered in an unreadable way",
+      answeredBy = "Answered by %1\$s: %2\$s",
+      theService = "The service",
+      failNoKeys = "No verified key: add one in settings.",
+      failUnauthorized = "The key is no longer valid: check it in settings.",
+      failRateLimitedIn = "%1\$s is at its limit: try again in %2\$d s (or turn on automatic fallback in settings).",
+      failRateLimited = "%1\$s is at its request limit: try again shortly (or turn on automatic fallback in settings).",
+      failRateLimitedInNoSwitch = "%1\$s is at its limit: try again in %2\$d s.",
+      failRateLimitedNoSwitch = "%1\$s is at its request limit: try again shortly.",
+      failRateLimitedAll = "%1\$s are at their limit: try again in %2\$s.",
+      failNetwork = "No network: check the connection and try again.",
+      failTimeout = "It took too long. Try again, or split the question into smaller pieces.",
+      failBlocked = "The service refused the request because of its filters: try rephrasing it, or regenerate with another service.",
+      failProvider = "%1\$s returned an error: try again, or regenerate with another service.",
+      failModelUnavailable = "The model chosen for %1\$s is gone: I picked another one, try again.",
+      failContextTooLong = "The conversation is too long for %1\$s: start a new one, or regenerate with another service.",
+      failMicrophone = "The microphone is not available: close the app that is using it.",
+      failTranscription = "I could not transcribe that: try again.",
+      failUnknown = "Something went wrong.",
+      thisService = "this service",
+      and = "and",
+      soon = "a moment",
+      failTitleNoKeys = "No key",
+      failTitleUnauthorized = "Invalid key",
+      failTitleRateLimited = "Request limit",
+      failTitleNetwork = "No network",
+      failTitleTimeout = "Timed out",
+      failTitleBlocked = "Blocked by filters",
+      failTitleProvider = "Service error",
+      failTitleModelUnavailable = "Model not available",
+      failTitleContextTooLong = "Conversation too long",
+      failTitleMicrophone = "Microphone busy",
+      failTitleTranscription = "Transcription failed",
+      failTitleUnknown = "Unknown error",
+      stop = "Stop",
+      send = "Send",
+      voice = "Ask by voice",
+      newConversation = "New conversation",
+      tapToFinish = "Tap to finish",
+      confirm = "Confirm",
+      cancel = "Cancel",
+      close = "Close the assistant",
+      finishedSpeaking = "I'm done speaking",
+      details = "Details",
+      examples = "For example",
+      failureDetailsTitle = "Error details",
+      failureWhatHappened = "What happened",
+      failureService = "Service",
+      failureReason = "Reason",
+      failureServiceAnswer = "Answer from the service",
+      failureCode = "Code %1\$d",
+      failureNoCode = "No code",
+      failureTried = "Services tried",
+      failureCopy = "Copy",
+      failureCopyHeader = "Error details",
+      failureCopyHttp = "HTTP code: %1\$d",
+      failureCopyAnswer = "Answer from the service: %1\$s",
+      failureCopyTechnical = "Technical detail: %1\$s",
+      failureCopyService = "Service: %1\$s",
+      failureCopyReason = "Reason: %1\$s",
+      failureCopyTried = "Services tried: %1\$s",
+    )
+  }
+
   /** Il perche' di un cambio di servizio, al passato: "era al limite", "non rispondeva"... */
   fun reasonText(reason: SwitchReason): String = when (reason) {
     SwitchReason.RATE_LIMITED -> reasonRateLimited

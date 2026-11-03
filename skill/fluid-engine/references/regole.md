@@ -482,7 +482,8 @@ fa lo stesso (`FluidHostContentColorTest`). Un testo senza colore esplicito non 
 
 **Le parole dell'engine sono dell'app (3.0.1).** Le etichette che l'engine dice da sé (occhio del campo
 segreto, chiudi, indietro, «Torna all'inizio»…) vengono da `LocalFluidLabels`, italiano di serie: un'app
-tradotta le fornisce in radice; un componente nuovo non scrive stringhe fisse, aggiunge una voce lì.
+tradotta le fornisce in radice (`FluidLabels.english()` per l'inglese, dalla 3.0.4, con le frasi della sincronizzazione);
+un componente nuovo non scrive stringhe fisse, aggiunge una voce lì (e la sua traduzione in `english()`: un test lo verifica).
 
 Il codice è `ui/page/` e `ui/navigation/`; la ricetta di migrazione sta in `docs/03-design-system.md`.
 `FluidRouteMotionHost` resta, deprecato, per chi non migra (non sfoca più né arrotonda): dentro un `FluidNavHost` non va

@@ -205,7 +205,20 @@ object FluidAppearance {
    * ogni apertura della pagina con l'aptica accesa vibrerebbe.
    */
   fun hapticsPreview(previous: Boolean?, now: Boolean): Boolean = previous == false && now
+
+  /**
+   * Le righe del gruppo degli interruttori, nell'ordine in cui si disegnano (3.0.4): il vetro (solo se l'app lo
+   * ha dato) e l'aptica. Vuoto quando non ce n'e' nessuna: il gruppo non si disegna, perche' un contenitore
+   * senza righe e' un rettangolo vuoto con un margine.
+   */
+  fun switchRows(glassRow: Boolean, haptics: Boolean): List<FluidAppearanceSwitch> = buildList {
+    if (glassRow) add(FluidAppearanceSwitch.Glass)
+    if (haptics) add(FluidAppearanceSwitch.Haptics)
+  }
 }
+
+/** Una riga del gruppo degli interruttori di `fluidAppearanceSection`. Vedi [FluidAppearance.switchRows]. */
+enum class FluidAppearanceSwitch { Glass, Haptics }
 
 /**
  * Il colore che il telefono darebbe con i colori dinamici, o `null` se non li offre.
@@ -345,6 +358,10 @@ fun FluidAccentPicker(
  * @param keyPrefix il prefisso delle chiavi degli item, se la pagina ha due sezioni di questo tipo.
  * @param title la testata della sezione; di serie `strings.title`. Null (3.0.1): niente testata, per una
  *   pagina che si chiama gia' «Aspetto», dove la testata ripeteva il titolo della pagina.
+ * @param pureBlack la riga «Nero assoluto» sotto il tema (3.0.4); falso per un'app che non lo offre.
+ * @param accent il gruppo dell'accento, con il suo selettore (3.0.4); falso per un'app con un colore solo.
+ * @param haptics la riga dell'aptica (3.0.4); falso per un'app che l'ha gia' altrove. Se non resta nessuna riga
+ *   nel gruppo (niente aptica e niente vetro) il gruppo non si disegna.
  */
 fun LazyListScope.fluidAppearanceSection(
   settings: EngineSettings,
@@ -359,6 +376,9 @@ fun LazyListScope.fluidAppearanceSection(
   footnote: String? = null,
   keyPrefix: String = "fluid-appearance",
   title: String? = strings.title,
+  pureBlack: Boolean = true,
+  accent: Boolean = true,
+  haptics: Boolean = true,
 ) {
   // Una modifica che non cambia niente non e' una modifica: lo store non la riscrive e il flusso non
   // si muove per niente. Tocca la riga gia' scelta, ed e' il caso piu' comune di tutti.
@@ -381,18 +401,20 @@ fun LazyListScope.fluidAppearanceSection(
           onSelect = { emit(FluidAppearance.withThemeMode(settings, mode)) },
         )
       }
-      FluidListDivider()
-      FluidToggleRow(
-        title = strings.pureBlack,
-        subtitle = strings.pureBlackDetail,
-        checked = FluidAppearance.isPureBlack(settings),
-        onCheckedChange = { emit(FluidAppearance.withPureBlack(settings, it)) },
-        // Nel tema chiaro il nero non ha dove andare: l'interruttore c'e', ma non risponde.
-        enabled = choice != ThemeMode.LIGHT,
-      )
+      if (pureBlack) {
+        FluidListDivider()
+        FluidToggleRow(
+          title = strings.pureBlack,
+          subtitle = strings.pureBlackDetail,
+          checked = FluidAppearance.isPureBlack(settings),
+          onCheckedChange = { emit(FluidAppearance.withPureBlack(settings, it)) },
+          // Nel tema chiaro il nero non ha dove andare: l'interruttore c'e', ma non risponde.
+          enabled = choice != ThemeMode.LIGHT,
+        )
+      }
     }
   }
-  item(key = "$keyPrefix-accent") {
+  if (accent) item(key = "$keyPrefix-accent") {
     val dynamicColor = if (dynamicAccent) fluidDynamicAccentColor(GlassDefaults.isDarkSurface()) else null
     val chosen = FluidAppearance.accentChoice(settings, presets, dynamicSupported = dynamicColor != null)
     FluidListGroup(glass = glass) {
@@ -412,24 +434,34 @@ fun LazyListScope.fluidAppearanceSection(
       }
     }
   }
-  item(key = "$keyPrefix-switches") {
+  val switchRows = FluidAppearance.switchRows(
+    glassRow = glassEnabled != null && onGlassEnabledChange != null,
+    haptics = haptics,
+  )
+  if (switchRows.isNotEmpty()) item(key = "$keyPrefix-switches") {
     FluidListGroup(glass = glass) {
-      if (glassEnabled != null && onGlassEnabledChange != null) {
-        FluidToggleRow(
-          title = strings.glass,
-          subtitle = strings.glassDetail,
-          checked = glassEnabled,
-          onCheckedChange = onGlassEnabledChange,
-        )
-        FluidListDivider()
+      switchRows.forEachIndexed { index, row ->
+        if (index > 0) FluidListDivider()
+        when (row) {
+          FluidAppearanceSwitch.Glass -> if (glassEnabled != null && onGlassEnabledChange != null) {
+            FluidToggleRow(
+              title = strings.glass,
+              subtitle = strings.glassDetail,
+              checked = glassEnabled,
+              onCheckedChange = onGlassEnabledChange,
+            )
+          }
+          FluidAppearanceSwitch.Haptics -> {
+            FluidToggleRow(
+              title = strings.haptics,
+              subtitle = strings.hapticsDetail,
+              checked = settings.hapticsEnabled,
+              onCheckedChange = { emit(settings.copy(hapticsEnabled = it)) },
+            )
+            FluidHapticsPreview(enabled = settings.hapticsEnabled)
+          }
+        }
       }
-      FluidToggleRow(
-        title = strings.haptics,
-        subtitle = strings.hapticsDetail,
-        checked = settings.hapticsEnabled,
-        onCheckedChange = { emit(settings.copy(hapticsEnabled = it)) },
-      )
-      FluidHapticsPreview(enabled = settings.hapticsEnabled)
     }
   }
   if (footnote != null) {

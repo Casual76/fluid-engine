@@ -133,6 +133,9 @@ class FluidAiSettingsActions(
  * @param recentRequests le ultime richieste in memoria.
  * @param dataPolicy la scelta di OpenRouter sull'addestramento.
  * @param initiallyExpandFirstKey la guida del primo servizio aperta finche' nessuna chiave e' verificata.
+ * @param models la sezione dei modelli, con il picker per servizio (3.0.4). `false` per l'app che sceglie
+ *   i modelli da sola e non li fa scegliere: spariscono l'intestazione, i livelli, la trascrizione e «aggiorna il
+ *   catalogo»; resta lo spazio per `slots.afterModels`.
  */
 @Immutable
 data class FluidAiSettingsOptions(
@@ -148,7 +151,23 @@ data class FluidAiSettingsOptions(
   val dataPolicy: Boolean = true,
   val privacyNote: Boolean = true,
   val initiallyExpandFirstKey: Boolean = true,
+  val models: Boolean = true,
 )
+
+/**
+ * L'app ha l'interruttore della riserva automatica: serve lo stato (`failoverEnabled`) e la callback che lo gira.
+ * Senza, i testi non possono mandare ad «accendere la riserva automatica» e usano le varianti `...NoFailover` (3.0.4).
+ */
+internal fun hasFailoverSwitch(state: FluidAiSettingsState, actions: FluidAiSettingsActions): Boolean =
+  state.failoverEnabled != null && actions.setFailoverEnabled != null
+
+/** La frase sotto «Ordine dei servizi»: quella che nomina la riserva automatica solo se l'app ce l'ha. */
+internal fun fluidAiOrderDetail(strings: FluidAiSettingsStrings, failoverSwitch: Boolean): String =
+  if (failoverSwitch) strings.orderDetail else strings.orderDetailNoFailover
+
+/** I modelli si mostrano con almeno una chiave verificata, e solo se l'app non li ha spenti. */
+internal fun fluidAiShowsModels(state: FluidAiSettingsState, options: FluidAiSettingsOptions): Boolean =
+  options.models && state.verified.isNotEmpty()
 
 /**
  * Dove l'app aggiunge le sue voci fra quelle dell'engine: PampAI la voce, i permessi, le azioni
@@ -181,6 +200,8 @@ class FluidAiSettingsSlots(
  *
  * @param glass le liste come pannelli di vetro (la pagina deve avere un canvas ambientale).
  * @param keyPrefix il prefisso delle chiavi degli item, se la pagina ha due sezioni di questo tipo.
+ * @param enabledModifier il modificatore del gruppo con l'interruttore (3.0.4): un suggerimento della prima volta
+ *   si aggancia li' (`onGloballyPositioned`, `fluidTutorialAnchor`), senza reimplementare la riga.
  */
 fun LazyListScope.fluidAiSettingsSection(
   state: FluidAiSettingsState,
@@ -190,13 +211,14 @@ fun LazyListScope.fluidAiSettingsSection(
   slots: FluidAiSettingsSlots = FluidAiSettingsSlots(),
   glass: Boolean = true,
   keyPrefix: String = "fluid-ai",
+  enabledModifier: Modifier = Modifier,
 ) {
   val verified = state.verified
 
   slots.beforeKeys?.invoke(this)
 
   item(key = "$keyPrefix-enabled") {
-    FluidListGroup(glass = glass) {
+    FluidListGroup(modifier = enabledModifier, glass = glass) {
       FluidListRow(
         title = strings.enabledTitle,
         subtitle = state.locked?.reason ?: when {
@@ -255,7 +277,7 @@ fun LazyListScope.fluidAiSettingsSection(
   slots.afterKeys?.invoke(this)
 
   if (verified.size > 1) {
-    item(key = "$keyPrefix-order-header") { FluidSectionHeader(title = strings.orderTitle, detail = strings.orderDetail) }
+    item(key = "$keyPrefix-order-header") { FluidSectionHeader(title = strings.orderTitle, detail = fluidAiOrderDetail(strings, hasFailoverSwitch(state, actions))) }
     item(key = "$keyPrefix-order-chat") {
       FluidOrderLabel(strings.orderChat)
       FluidProviderOrderList(
@@ -282,7 +304,7 @@ fun LazyListScope.fluidAiSettingsSection(
     }
   }
 
-  if (verified.isNotEmpty()) {
+  if (fluidAiShowsModels(state, options)) {
     item(key = "$keyPrefix-models-header") {
       FluidSectionHeader(title = strings.modelsTitle, detail = if (options.tiers) strings.modelsDetail else strings.modelsDetailChatOnly)
     }

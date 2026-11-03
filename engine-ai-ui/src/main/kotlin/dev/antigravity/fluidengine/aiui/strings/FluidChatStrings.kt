@@ -47,4 +47,36 @@ data class FluidChatStrings(
   val noAnswer: String = "Nessuna risposta: il servizio non ha scritto niente.",
   val interrupted: String = "Interrotta: l'app si è chiusa prima della risposta.",
   val failedGeneric: String = "Qualcosa è andato storto.",
-)
+) {
+  companion object {
+    /** Le stesse parole in inglese (3.0.4); il default dell'engine resta l'italiano. */
+    fun english(): FluidChatStrings = FluidChatStrings(
+      composerPlaceholder = "Write a message…",
+      composerBusyPlaceholder = "Meanwhile, write the next one…",
+      composerEditing = "Edit and resend…",
+      voiceStart = "Speak",
+      voiceStop = "Stop listening",
+      stop = "Stop",
+      send = "Send",
+      sendQueued = "Send when it has finished",
+      mute = "Mute",
+      userLabel = "You",
+      assistantLabel = "Assistant",
+      queued = "Queued: it starts when it has finished",
+      queuedRemove = "Remove from the queue",
+      queuedAttachments = "%1\$d attachments",
+      copy = "Copy",
+      copied = "Copied",
+      share = "Share",
+      shareChooser = "Share the answer",
+      retry = "Retry",
+      regenerate = "Regenerate",
+      details = "Details",
+      cancelledBeforeAnswer = "Stopped before the answer.",
+      cancelledHere = "Stopped here.",
+      noAnswer = "No answer: the service wrote nothing.",
+      interrupted = "Interrupted: the app closed before the answer.",
+      failedGeneric = "Something went wrong.",
+    )
+  }
+}

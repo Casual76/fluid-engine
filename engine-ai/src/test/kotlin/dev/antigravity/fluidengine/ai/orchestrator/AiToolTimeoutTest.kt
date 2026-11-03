@@ -117,6 +117,9 @@ private class TtWriter(
 ) : AiTool<TtCtx> {
   override val description = "scrive"
   override val parameters: JsonObject = Schema.obj(emptyMap())
+
+  /** Agisce nell'app: dalla 3.0.4 e' questo a farlo qualificare per la finestra di un gruppo che aspetta conferme. */
+  override val isAction: Boolean = true
   override suspend fun run(args: JsonObject, ctx: TtCtx): ToolOutput = when (gate.ask("Confermi $name?", null)) {
     ConfirmationOutcome.CONFIRMED -> {
       delay(workMillis)
@@ -317,6 +320,40 @@ class AiToolTimeoutTest {
     assertEquals(150L + 60_000, o.toolTimeoutMillis(write, 500_000, confirmationsInRound = 2))
     assertEquals(150L + 90_000, o.toolTimeoutMillis(write, 500_000, confirmationsInRound = 3))
     assertEquals("zero conferme in giro non azzera la finestra", 150L + 30_000, o.toolTimeoutMillis(write, 500_000, confirmationsInRound = 0))
+  }
+
+  @Test
+  fun `in un gruppo che aspetta conferme la finestra va solo ai tool che possono chiedere`() {
+    val gate = AiConfirmationGate(timeoutMillis = 30_000)
+    val reg = registry(
+      TtWorker("legge", TtGroup.WRITE, 0),
+      TtWriter("scrive", TtGroup.WRITE, gate),
+      // Un tool di sola lettura che dichiara il tempo suo: sta nel gruppo che aspetta ma non chiede mai.
+      TtWorker("legge_preciso", TtGroup.WRITE, 0, timeoutMillis = 200L),
+    )
+    val o = orchestrator(reg, gate = gate)
+    assertTrue(!reg.find("legge")!!.awaitsConfirmation)
+    assertTrue(reg.find("scrive")!!.awaitsConfirmation)
+    assertEquals("chi legge ha il suo tempo di lavoro, senza la finestra", 150L, o.toolTimeoutMillis(reg.find("legge")!!, 500_000))
+    assertEquals(200L, o.toolTimeoutMillis(reg.find("legge_preciso")!!, 500_000))
+    assertEquals("chi puo' chiedere ha il lavoro piu' la finestra", 150L + 30_000, o.toolTimeoutMillis(reg.find("scrive")!!, 500_000))
+  }
+
+  @Test
+  fun `un tool che chiede senza essere un'azione lo dichiara da se', in qualunque gruppo`() {
+    val gate = AiConfirmationGate(timeoutMillis = 30_000)
+    val declared = object : AiTool<TtCtx> {
+      override val name = "dichiara"
+      override val group: AiToolGroup = TtGroup.READ
+      override val description = ""
+      override val parameters: JsonObject = Schema.obj(emptyMap())
+      override val awaitsConfirmation = true
+      override suspend fun run(args: JsonObject, ctx: TtCtx) = ToolOutput("")
+    }
+    val o = orchestrator(registry(declared), gate = gate)
+    assertEquals(150L + 30_000, o.toolTimeoutMillis(declared, 500_000))
+    // E il conteggio delle conferme del giro non include chi non puo' chiedere.
+    assertTrue(!TtWorker("x", TtGroup.WRITE, 0).awaitsConfirmation)
   }
 
   @Test

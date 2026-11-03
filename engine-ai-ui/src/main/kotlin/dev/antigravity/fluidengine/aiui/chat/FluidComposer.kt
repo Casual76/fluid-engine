@@ -173,6 +173,12 @@ fun fluidComposerAction(hasInput: Boolean, busy: Boolean, listening: Boolean, sp
 }
 
 /**
+ * La riga della voce prende il posto del campo: la voce e' in corso (ascolto o trascrizione, secondo chi
+ * chiama: vedi `FluidComposer(voiceActive)`) e l'app ne ha data una.
+ */
+internal fun fluidComposerShowsVoiceLine(voiceActive: Boolean, hasVoiceLine: Boolean): Boolean = voiceActive && hasVoiceLine
+
+/**
  * L'alone del composer mentre ascolta: le macchie del campo di luce viaggiano sul perimetro della
  * capsula **dietro** al contenuto e un anello sottile con i colori del tema che girano sta **sopra**
  * il bordo ([fluidListeningGlow]). Lo costruisce [rememberFluidListeningGlow].
@@ -237,6 +243,9 @@ fun rememberFluidListeningGlow(
  * @param onSend la domanda parte (o va in coda): l'app svuota il campo con `composer.sent()` se e'
  *   partita davvero, e lo lascia se non e' potuta partire (spenta, senza chiavi).
  * @param voiceLine al posto del campo mentre ascolta (di serie [FluidComposerVoiceLine] la fa chi la passa).
+ * @param voiceActive la riga della voce resta al posto del campo (3.0.4). Di serie solo mentre ascolta
+ *   (`action == StopListening`); durante la trascrizione il tasto e' lo stop dell'assistente e il campo
+ *   tornava, mentre la riga ha la sua scritta «Trascrivo…»: passa `state.isVoiceActive()` per tenerla anche li'.
  * @param glow l'alone mentre ascolta, da [rememberFluidListeningGlow]; null non ne ha.
  * @param onBoundsChange il rettangolo della capsula in coordinate di radice: l'ancora dei pop-up.
  * @param resampleIntervalMillis ogni quanto, al massimo, la capsula rifa' la propria cattura; zero e' "quando serve". Sopra un fondale animato lo alza chi anima il fondale.
@@ -266,6 +275,7 @@ fun FluidComposer(
   onBoundsChange: ((Rect) -> Unit)? = null,
   resampleIntervalMillis: Long = 0L,
   shape: Shape = ComposerShape,
+  voiceActive: Boolean = action == FluidComposerAction.StopListening,
 ) {
   val context = LocalContext.current
   // Il materiale della capsula, pubblicato per i tasti che ci stanno sopra: una lente appoggiata su
@@ -275,7 +285,6 @@ fun FluidComposer(
   val micGranted = remember { context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED }
   val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) onVoice() }
   val inputFocus = focusRequester ?: remember { FocusRequester() }
-  val listening = action == FluidComposerAction.StopListening
 
   Column(modifier) {
     pills?.let {
@@ -302,8 +311,8 @@ fun FluidComposer(
           )
           .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
       ) {
-        if (listening && voiceLine != null) {
-          voiceLine()
+        if (fluidComposerShowsVoiceLine(voiceActive, voiceLine != null)) {
+          voiceLine?.invoke()
         } else {
           FluidComposerField(
             value = value,

@@ -45,13 +45,18 @@ batteria paga.
 
 | | |
 |---|---|
-| `FluidGlassDisc` | il controllo rotondo di vetro (play, avanti, indietro): rifrange, si piega verso il dito, si gonfia, si accende dove lo tocchi, e alla pressione lancia un `FluidGlassBurst` |
-| `FluidGlassBurst` | un anello di luce che parte dal punto toccato e corre al bordo, con otto scintille. Luce, non vernice: additiva sul lato scuro, sottrattiva sul chiaro. Disegnata **sopra** il vetro, non ricattura niente |
+| `FluidWearGlass` | **il** vetro dell'orologio (dalla 2.11.0): un velo fumé con un sesto dell'accento, stesso filo e stessa lente per tutto. `tint()` sopra una copertina, `pageTint()` su una pagina nera, `noticeTint()` per un avviso che deve leggersi ovunque. Su un orologio i pannelli stanno a un centimetro l'uno dall'altro sulla stessa copertina: ruoli diversi (Floating, Interactive) lì si leggono come due materiali |
+| `FluidGlassDisc` | il controllo rotondo di vetro (play, avanti, indietro): rifrange, si piega verso il dito, si gonfia, si accende dove lo tocchi. Dalla 2.11.0 niente esplosione di default (`burst` facoltativo) |
+| `FluidGlassBurst` | un anello di luce che parte dal punto toccato e corre al bordo, con otto scintille. Luce, non vernice: additiva sul lato scuro, sottrattiva sul chiaro. Disegnata **sopra** il vetro, non ricattura niente. Da usare con parsimonia: una fila di dischi che esplodono sembra un difetto |
 | `FluidGlassCapsule` | vetro flottante che porta testo (il titolo di un brano su una copertina). Non si piega: il testo che si muove sotto l'occhio non si legge |
-| `FluidEdgeProgressRing` | l'avanzamento lungo il bordo dello schermo. Si ridisegna solo quando la fine dell'arco si sposterebbe di mezzo pixel: un brano di tre minuti è un ridisegno ogni ~60 ms, uno in pausa nessuno |
-| `FluidArcRow` | una fila di azioni che segue la ghiera invece di tagliare il cerchio con una retta |
+| `FluidGlassTimePill`, `FluidGlassBadge` | l'ora in una capsula di vetro sopra una copertina (il `TimeText` curvo resta per le liste); un disco di vetro non premibile, per un segno che compare e svanisce |
+| `FluidEdgeProgressRing`, `FluidEdgeGlowRing` | l'avanzamento lungo il bordo dello schermo. Si ridisegna solo quando la fine dell'arco si sposterebbe di mezzo pixel: un brano di tre minuti è un ridisegno ogni ~60 ms, uno in pausa nessuno. `clearTop` lascia il varco per l'orologio, `glow` un alone che cresce verso l'interno, `head` una testa luminosa; `FluidEdgeGlowRing` mette tutto sul bordo vero |
+| `FluidEdgeLevelArc` | un livello (il volume) con lo stesso tratto e alone, su un tratto di bordo |
+| `FluidArcRow` | una fila di azioni che segue la ghiera invece di tagliare il cerchio con una retta; con `edgeClearance` ogni figlio sta a quella distanza dal bordo su qualunque schermo |
+| `FluidWearToast` | un avviso breve al centro (quello che non è andato), annunciato a TalkBack |
+| `FluidWearAccent` | presta a un pezzo di schermo un accento suo (il colore della copertina), alzato finché si legge sul nero |
 | `Modifier.fluidRotarySteps` | ghiera e corona in passi interi. La ghiera del Galaxy Watch scatta (un evento, un passo), la corona scorre (si accumula la distanza) |
-| `FluidWearListRow`, `FluidWearPill` | la riga di una lista Wear (copertina, titolo, sottotitolo) e la pillola di vetro di una home |
+| `FluidWearListRow`, `FluidWearPill` | la riga di una lista Wear (copertina, titolo, sottotitolo; `selected` per quella corrente) e la pillola di vetro di una home |
 | `FluidWearDimens` | le misure di uno schermo rotondo: nessun dp a mano in una schermata |
 
 ## L'always-on

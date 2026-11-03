@@ -140,7 +140,14 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
   che la pagina deve lasciare). L'indicatore tiene un bordo anche a riposo
   (`GlassOptics.edgeFloor`) e il trascinamento e' criticamente smorzato
   (`GlassDragAnimation.velocityDampingRatio`)
-- **Deprecati** (restano fino alla 3.0): `FluidTabBar` e `FluidFoldingTabBar` — delegano a
+- **Dalla 3.0.1**: `FluidPickerRow(title, selectedKey, options, onSelected)` (la riga che diventa il
+  pop-up di scelta) e `FluidSliderRow`; `leadingTile` su `FluidChoiceRow`/`FluidToggleRow`;
+  `FluidContextAction(selected)` (spunta e stato per TalkBack); `glass` su `FluidInlineMessage` e sulle
+  licenze; `FluidCard(enabled)`; `FluidStepProgress(labels)`; `fluidGlassGroupsIndexed`;
+  `FluidImageViewer(background)`; `LocalFluidMorphMenuState`; `navigateToPeer(route)` per le schede con una
+  pila sola e `fractionToward(isHidden)` per la barra che esce con la pagina; `LocalFluidLabels` per le
+  parole dell'engine; `rememberFluidUpdateController` per `fluidUpdateSection`.
+- **Deprecati** (restano per tutta la 3.x): `FluidTabBar` e `FluidFoldingTabBar` — delegano a
   `FluidFloatingTabBar`, quindi chi li chiama prende il vetro nuovo senza toccare niente, ma la
   barra e' una capsula grande quanto le schede (non da lato a lato, 60 dp e non 64) e si ripiega solo
   se le dai una connessione. Le sue schede dicono ancora `selected` ma non portano più il ruolo `Tab`

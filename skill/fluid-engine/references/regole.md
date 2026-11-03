@@ -463,13 +463,23 @@ dito vero non ha questo problema, e il sistema lo dà a ogni evento. Ne seguono 
 - **un gesto confermato chiama `onBack()` prima della molla**, che continua mentre la pila si accorcia:
   l'app non deve sapere che c'è una molla.
 
-**Da qualunque punto, e i tasti non consumano.** `FluidBackSwipe.Anywhere` è di serie, come LibrePods:
-un figlio che consuma (un cursore, un interruttore, una lista che scorre di lato) vince, e uno
+**Da qualunque punto, e chi consuma vince.** `FluidBackSwipe.Anywhere` è di serie, come LibrePods:
+un figlio che consuma (un tasto, il segmentato anche dal segmento scelto, una riga o card cliccabile, un
+cursore, un interruttore, una lista che scorre di lato) vince; il back parte dove nessuno lo prende, e
+sempre dal bordo. Se righe e card debbano cedere al back è una scelta aperta di Alessio; e uno
 scorrimento orizzontale arrivato al suo inizio passa la mano alla pagina. Un trascinamento orizzontale
 che parte su un tasto non porta indietro: il tasto tiene il dito (e `clickable` consuma già il down, che
 il riconoscitore legge come "un figlio se l'è preso"); per il back si parte fuori dai tasti. `EdgeOnly` (i primi 20 dp) per le pagine piene di gesti propri,
 `Off`: mai col dito dentro l'app, restano il back di sistema e il tasto. Nessuna vibrazione nel gesto:
 una pagina che scorre non è un momento da sentire.
+
+**Chi dipinge il fondo dice il colore del testo (3.0.1).** Ogni host alla radice (modali, menu, notifica,
+suggerimenti, `FluidPageChrome`, le pagine dell'host) fornisce `LocalContentColor` dal suo fondo; un host nuovo
+fa lo stesso (`FluidHostContentColorTest`). Un testo senza colore esplicito non esce mai nero sul nero.
+
+**Le parole dell'engine sono dell'app (3.0.1).** Le etichette che l'engine dice da sé (occhio del campo
+segreto, chiudi, indietro, «Torna all'inizio»…) vengono da `LocalFluidLabels`, italiano di serie: un'app
+tradotta le fornisce in radice; un componente nuovo non scrive stringhe fisse, aggiunge una voce lì.
 
 Il codice è `ui/page/` e `ui/navigation/`; la ricetta di migrazione sta in `docs/03-design-system.md`.
 `FluidRouteMotionHost` resta, deprecato, per chi non migra (non sfoca più né arrotonda): dentro un `FluidNavHost` non va

@@ -35,6 +35,10 @@ git commit -m "engine: 1.0.0 -> 1.1.0"
 Committare `engine` (il pin del submodule) e `engine.properties` **insieme**: separati, il repo dice
 due cose diverse.
 
+Dalla 3.0.1 `engine-update.ps1` scrive `engine.properties` prima di stampare il changelog: un'uscita troncata
+(per esempio passata a `Select-Object -First`) non lascia più l'app a metà. Nelle app, la colla fra `AppUpdater`
+e `fluidUpdateSection` è `rememberFluidUpdateController(updater, appScope, versione)`.
+
 ## Aggiornare tutte le app
 
 ```powershell

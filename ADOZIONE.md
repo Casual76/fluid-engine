@@ -432,7 +432,7 @@ La 3.0 non è un aggiornamento da prendere a occhi chiusi: cambia la licenza, le
 pulsanti. Le app Pampa la prendono una alla volta; per ognuna l'ordine è questo, e le voci
 **Cambia a vista** del `CHANGELOG.md` (`## 3.0.0`) sono l'elenco di cosa guardare sul telefono.
 
-1. **La licenza, prima del resto.** L'engine contiene codice di LibrePods, **GPL-3.0** (pulsanti e pagine:
+1. **La licenza, prima del resto.** (La GPL-3.0 pronta è in `templates/LICENSE-GPL-3.0.txt`: si copia com'è come `LICENSE` alla radice.) L'engine contiene codice di LibrePods, **GPL-3.0** (pulsanti e pagine:
    `LICENSES/LibrePods.md`). Un'app che lo aggiorna è un'opera derivata: va distribuita sotto GPL-3.0, con i
    sorgenti a chi riceve l'APK. È una scelta di Alessio (31 ottobre 2026), e vale per tutte le app Pampa che
    usano l'engine. La pagina «informazioni» lo dice già con `fluidLicensesSection()` (la voce di LibrePods e
@@ -492,7 +492,14 @@ pulsanti. Le app Pampa la prendono una alla volta; per ognuna l'ordine è questo
    collettore in `AssistantRuntime.init` -> `gate.bindState(stateFlow)`; i `catch` della voce ->
    `AssistantFailure.of`. Da guardare in mano: il ponte fra due app con firme diverse (ora si installano
    insieme), e due conferme nello stesso giro (una dopo l'altra, ognuna col suo minuto).
-8. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
+8. **Con la 3.0.1 si tolgono le toppe**: i `LocalContentColor` a mano attorno a pop-up e `FluidPageChrome`, il
+   canvas passato a mano a `FluidSearchField`/`FluidGlassButton`, l'`imePadding` dentro i pop-up,
+   `settle()`/`expand()` a ogni cambio di rotta, l'`UpdateController` dell'app (→ `rememberFluidUpdateController`),
+   il `CompositionLocal` proprio per il menu che si trasforma (→ `LocalFluidMorphMenuState`), l'`EdgeOnly` messo
+   per il segmentato. Il tocco su una scheda è `navigateToPeer(route)` (via le ricette `popUpTo(startDestination)`
+   e `popUpTo(graph.id){saveState}`); la barra che esce con la pagina legge `fractionToward`. Un'app tradotta
+   fornisce `LocalFluidLabels`.
+9. **Guardarla in mano**, perché è lì che si decide: il vetro dei menu e degli avvisi, il bordo sul tema
    chiaro, la luce del dito sui tasti, il back sotto il dito. La galleria Fluid Glass («Da provare») è la
    lista di cosa giudicare, e il registro aptico (`FluidHapticTrace`) dice se un tocco ha parlato una volta
    sola.

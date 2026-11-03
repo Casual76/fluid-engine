@@ -6,6 +6,26 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.1 - 2026-11-03
+
+Le correzioni trovate migrando le app alla 3.0.0. Tutto compatibile con la 3.0.0: un'app aggiorna e basta, poi
+toglie le toppe che aveva messo (vedi `ADOZIONE.md`, «Migrare alla 3.0», punto 8).
+
+- fix: il testo negli host (pop-up, foglio, pagina intera, avviso, menu che si trasforma, notifica, suggerimenti) e in `FluidPageChrome` ha il colore del suo fondo; le pagine di `FluidPageHost`/`FluidNavHost` prendono il colore del `pageColor`. **Cambia a vista** dove era nero sul nero (tema scuro).
+- fix: il segmentato si tiene il dito anche dal segmento scelto; il back «ovunque» non porta più via la pagina. Gli `EdgeOnly` messi per questo si possono togliere.
+- fix: la barra flottante si ripiega solo se il contenuto scorre davvero e si riapre a ogni cambio di pagina o di scheda (non se `locked`); `settle()`/`expand()` a mano diventano superflui. **Cambia a vista.**
+- fix: il pop-up sale sopra la tastiera. **Cambia a vista.**
+- fix: `FluidSearchField` e `FluidGlassButton` rifrangono di serie il canvas della pagina; i controlli in barra stanno sul vetro della barra. **Cambia a vista** sulle pagine ambientali.
+- fix: i menu si allargano per la voce più lunga, fino a 340 dp; il titolo agganciato si ferma prima delle azioni. **Cambia a vista.**
+- ui: `FluidLabels`/`LocalFluidLabels` per le parole che l'engine diceva in italiano (occhio del campo segreto, chiusura della pagina intera, indietro, «Torna all'inizio», azioni, notifica, indice, «Nascondi»; anche il «Back» di `FluidTopHeader`). Italiano di serie: un'app tradotta li fornisce in radice. Restano in italiano le frasi di `FluidSync*`.
+- ui: `FluidPickerRow`, `FluidSliderRow`, `leadingTile` su `FluidChoiceRow`/`FluidToggleRow`, `FluidContextAction(selected)`, `glass` su `FluidInlineMessage` e sulle licenze (`fluidLicensesSection`, `FluidLicenseGroup`), `FluidCard(enabled)`, `FluidStepProgress(labels)`, `fluidGlassGroupsIndexed`, `FluidListRow(subtitleMaxLines)`, `FluidImageViewer(background)` + `FluidGlassModalPortal(pageColor)`, `LocalFluidMorphMenuState`, `FluidPageHostState.fractionToward`, `NavHostController.navigateToPeer`, `fluidAppearanceSection(title)`, `FluidScrubber(onStartLabelClick/onEndLabelClick)`, elenchi di cose da fare in `FluidMarkdown`.
+- update: `fluidUpdateSection(autoCheck)`; le note della riga in tre righe al più (**Cambia a vista**); `AppUpdateInstallState.Error(kind)` e il permesso d'installare che diventa `NeedsPermission` (**Cambia a vista**); `rememberFluidUpdateController(updater, scope, currentVersion, …)` (in `engine-ui`, nessuna dipendenza nuova).
+- widget: `engineWidgetIsDark`, `engineWidgetColorScheme`, `engineWidgetArgb` per i widget `RemoteViews`.
+- tools: `engine-update.ps1` scrive `engine.properties` prima del changelog (un'uscita troncata non lascia più l'app a metà). templates: `LICENSE-GPL-3.0.txt`.
+- docs: KDoc di `FluidPromptAlert`; `FluidPageInput` e `docs/03` sul back (chi consuma vince): correggono la nota della 3.0.0 «i tasti non consumano più».
+- sample: un segmentato in Pagine › C; «Righe di impostazioni» con `FluidPickerRow` e `FluidSliderRow`; le demo delle aggiunte.
+- test: `FluidHostContentColorTest`, `FluidFloatingTabBarScrollTest`, `FluidTabBarRouteTest`, `FluidPopoverKeyboardTest`, `FluidControlBackdropTest`, `FluidLabelsTest`, `FluidPeerNavigationTest`, `FluidPageFractionTest`, `FluidUpdateControllerTest`, `FluidUpdateModelTest`, `EngineWidgetArgbTest`, `FluidApiAdditionsTest`, `FluidMenuPanelWidthTest`, `FluidMarkdownParserTest`; il segmentato in `FluidPageHostTest`.
+
 ## 3.0.0 - 2026-11-02
 
 Il grande step up: tutto l'engine della qualita' della pillola della tab bar. Uscita dopo quattro beta della galleria Fluid Glass (2.0.0-beta.1…4, giudicate in mano da Alessio) e due release candidate (`engine-3.0.0-rc.1`, `rc.2`, identiche alla 3.0.0 salvo il numero; la rc.2 aggiunge le correzioni di `engine-ai` e del ponte). **BREAKING** soprattutto per la licenza (GPL-3.0), le pagine (`FluidNavHost`) e il ponte dell'assistente; la ricetta e' in `ADOZIONE.md`, «Migrare alla 3.0».

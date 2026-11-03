@@ -16,6 +16,10 @@ genitore di un widget è il wallpaper, non la superficie dell'app.
 
 Toni: `primaryTone`, `secondaryTone`, `warningTone`, `dangerTone`, `successTone`, `neutralTone`.
 
+**Per un widget `RemoteViews`** (non Glance, dalla 3.0.1): `engineWidgetArgb(…, launcherIsDark)` dà i colori
+dei ruoli in ARGB e `engineWidgetIsDark` la regola chiaro/scuro; da Android 12 si passano con
+`setColorInt(id, metodo, giorno, notte)`.
+
 ## Budget di layout
 
 ```kotlin

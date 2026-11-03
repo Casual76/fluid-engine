@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.wear.components
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FluidEdgeProgressRingTest {
@@ -31,5 +32,27 @@ class FluidEdgeProgressRingTest {
     assertEquals(16L, ringStepMillis(1_000, 10_000f))
     assertEquals(1_000L, ringStepMillis(36_000_000, 100f))
     assertEquals(1_000L, ringStepMillis(0, 100f))
+  }
+
+  @Test
+  fun gapIsTheAngleTheClockCutsOut() {
+    // A chord as wide as the radius cuts out sixty degrees.
+    assertEquals(60f, ringGapDegrees(halfWidthPx = 50f, radiusPx = 100f), 1e-3f)
+    assertEquals(0f, ringGapDegrees(0f, 100f), 0f)
+    assertEquals(0f, ringGapDegrees(10f, 0f), 0f)
+  }
+
+  @Test
+  fun gapNeverEatsMoreThanHalfTheRing() {
+    assertEquals(180f, ringGapDegrees(500f, 100f), 0f)
+  }
+
+  @Test
+  fun haloBrightensAsTheSongFills() {
+    val start = haloIntensity(0f)
+    val end = haloIntensity(1f)
+    assertTrue(start > 0f)
+    assertTrue(end > start)
+    assertEquals(end, haloIntensity(4f), 0f)
   }
 }

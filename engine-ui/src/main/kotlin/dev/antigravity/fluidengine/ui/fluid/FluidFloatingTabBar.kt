@@ -637,10 +637,12 @@ class FluidFloatingTabBarScrollConnection(
      * Lo chiamano da se' l'host delle pagine (`FluidNavHost`, `FluidPageHost`) a ogni cambio di rotta e
      * la barra a ogni cambio di scheda: prima lo doveva fare l'app (`settle()` + `expand()`), e chi non lo
      * faceva si ritrovava la barra ripiegata su una pagina corta che non poteva piu' riaprirla.
+     * Con [locked] la piega e' di qualcun altro (una ricerca, `FluidFoldingTabBar` che la guida da fuori):
+     * si chiude solo lo scorrimento.
      */
     internal fun routeChanged() {
         settle()
-        expand()
+        if (!locked) expand()
     }
 
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {

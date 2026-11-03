@@ -67,6 +67,20 @@ class FluidFloatingTabBarScrollTest {
   }
 
   @Test
+  fun `bloccata, un cambio di pagina chiude lo scorrimento ma non tocca la piega`() {
+    val bar = connection()
+    bar.inline()
+    bar.locked = true
+    bar.onPreScroll(Offset(0f, -10f), user)
+    bar.locked = false
+    bar.onPreScroll(Offset(0f, -10f), user)
+    bar.locked = true
+    bar.routeChanged()
+    assertTrue("la piega e' di chi l'ha bloccata", bar.isInline)
+    assertFalse(bar.scrolling)
+  }
+
+  @Test
   fun `bloccata non si muove`() {
     val bar = connection()
     bar.locked = true

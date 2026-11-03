@@ -155,16 +155,19 @@ if (Test-Path -LiteralPath (Join-Path $engineFull ".git")) {
         Ok "nessuna modifica locale"
       }
 
-      $describe = Invoke-Git @("describe", "--tags", "--exact-match")
-      if ($describe.Code -eq 0) {
-        $tag = ($describe.Lines | Select-Object -First 1).Trim()
-        if ($tag -eq "engine-$pinned") {
-          Ok "agganciato al tag $tag"
-        } else {
-          Bad "agganciato a $tag, ma engine.properties dice $pinned"
-        }
+      # Sullo stesso commit possono stare anche i tag delle beta della galleria (beta-fluid-glass-...,
+      # annotati): `git describe` sceglieva quello e diceva che l'app era agganciata alla galleria. Contano
+      # solo i tag dell'engine fra quelli che puntano qui.
+      $pointing = Invoke-Git @("tag", "--points-at", "HEAD")
+      $engineTags = @($pointing.Lines | ForEach-Object { $_.Trim() } | Where-Object { $_ -like "engine-*" })
+      if ($pointing.Code -ne 0) {
+        Warn "git non dice quali tag puntano qui: salto il controllo del tag."
+      } elseif ($engineTags -contains "engine-$pinned") {
+        Ok "agganciato al tag engine-$pinned"
+      } elseif ($engineTags.Count -gt 0) {
+        Bad "agganciato a $($engineTags -join ', '), ma engine.properties dice $pinned"
       } else {
-        Warn "non e' agganciato a un tag (branch di lavoro?). Va bene mentre sviluppi, non per una release."
+        Warn "non e' agganciato a un tag dell'engine (branch di lavoro?). Va bene mentre sviluppi, non per una release."
       }
     }
   } finally {

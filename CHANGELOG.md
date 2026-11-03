@@ -6,6 +6,10 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.2 - in lavorazione
+
+- tools: `engine-doctor.ps1` guarda i tag che puntano al commit (`git tag --points-at`) e conta solo quelli `engine-*`: sullo stesso commit della 3.0.1 c'e' anche il tag della beta 5 della galleria, e `git describe` sceglieva quello ("agganciato a beta-fluid-glass-v2.0.0-beta.5, ma engine.properties dice 3.0.1"). Segnalato dalla sessione di MyCloud.
+
 ## 3.0.1 - 2026-11-03
 
 Le correzioni trovate migrando le app alla 3.0.0. Tutto compatibile con la 3.0.0: un'app aggiorna e basta, poi

@@ -15,20 +15,20 @@
       "ref": "main"
     },
     "stable": {
-      "version": "1.0.4",
-      "releaseDate": "2026-08-26",
-      "changelog": "Il tasto DIVENTA il pop-up: la riga si trasforma nella card col suo testo addosso, e ci ritorna. Un moto solo: accelera, oltrepassa gonfiandosi su tutti i lati (quanto e' grande il viaggio), si posa. Niente piu' lampi scuri all'apertura e alla chiusura, la card non resta piu' scura mentre si richiude, e lo sfondo torna a colori gradualmente fino alla fine. Durante la chiusura si puo' gia' scorrere. Il tasto Azione si illumina di nuovo sotto il dito.",
-      "releaseTag": "stable-fluid-glass-v1.0.4",
-      "apkAsset": "fluid-glass-1.0.4.apk",
-      "sizeBytes": 2808256
+      "version": "2.0.0",
+      "releaseDate": "2026-11-03",
+      "changelog": "Fluid Glass 2.0.0: la galleria del Fluid Engine 3 — vetro vero, tasti come LibrePods, menu che nascono dal tasto come una goccia, pagine che seguono il dito dal bordo, barra ancorata, interruttori da trascinare. La pagina Da provare raccoglie le prove di ogni beta.",
+      "releaseTag": "stable-fluid-glass-v2.0.0",
+      "apkAsset": "fluid-glass-2.0.0.apk",
+      "sizeBytes": 3361360
     },
     "beta": {
-      "version": "2.0.0-beta.5",
+      "version": "2.0.0",
       "releaseDate": "2026-11-03",
-      "changelog": "Beta 5: le correzioni dell'engine 3.0.1, trovate portando le app sulla 3.0. Sul tema scuro il testo di pop-up, fogli, avvisi, menu e del titolo della barra si legge; il segmentato tiene il dito anche dal segmento già scelto; la barra in basso si ripiega solo se la pagina scorre e si riapre cambiando scheda; il pop-up sale sopra la tastiera; nuove righe che diventano il pop-up di scelta e righe con cursore. Le prove sono nella pagina Da provare.",
-      "releaseTag": "beta-fluid-glass-v2.0.0-beta.5",
-      "apkAsset": "fluid-glass-2.0.0-beta.5.apk",
-      "sizeBytes": 3361368
+      "changelog": "Fluid Glass 2.0.0: la galleria del Fluid Engine 3 — vetro vero, tasti come LibrePods, menu che nascono dal tasto come una goccia, pagine che seguono il dito dal bordo, barra ancorata, interruttori da trascinare. La pagina Da provare raccoglie le prove di ogni beta.",
+      "releaseTag": "stable-fluid-glass-v2.0.0",
+      "apkAsset": "fluid-glass-2.0.0.apk",
+      "sizeBytes": 3361360
     },
     "history": [
       {

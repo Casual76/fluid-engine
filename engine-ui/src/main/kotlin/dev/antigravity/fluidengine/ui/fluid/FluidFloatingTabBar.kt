@@ -89,6 +89,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
@@ -119,6 +120,7 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
@@ -281,6 +283,24 @@ fun FluidFloatingTabBar(
     // allocations for a few tabs, and it makes that whole class of bug
     // unrepresentable.
     val scope = FluidFloatingTabBarScopeImpl().apply { content() }
+
+    // Un cambio di pagina riapre la barra e chiude lo scorrimento in corso (3.0.1): un cambio di rotta
+    // dall'host delle pagine della stessa finestra ([FluidRouteSignal]), un cambio di scheda da qui. Prima
+    // lo doveva fare l'app con `settle()` + `expand()`, e senza la barra restava ripiegata — su una pagina
+    // corta, per sempre — e il vetro col fermo dello scorrimento di una lista che non c'era piu'.
+    val routeView = LocalView.current
+    DisposableEffect(routeView, scrollConnection) {
+        val listener: () -> Unit = { scrollConnection.routeChanged() }
+        FluidRouteSignal.listen(routeView, listener)
+        onDispose { FluidRouteSignal.stop(routeView, listener) }
+    }
+    var lastTabKey by remember(scrollConnection) { mutableStateOf(selectedTabKey) }
+    LaunchedEffect(scrollConnection, selectedTabKey) {
+        if (lastTabKey != selectedTabKey) {
+            lastTabKey = selectedTabKey
+            scrollConnection.routeChanged()
+        }
+    }
 
     // Unwrapped once here. Everything below this point is private to the file and talks to
     // `drawBackdrop` directly, which is the layer a state is a handle on — except the bar's own
@@ -611,14 +631,34 @@ class FluidFloatingTabBarScrollConnection(
         accumulatedScroll = 0f
     }
 
+    /**
+     * La pagina e' cambiata (3.0.1): fine di ogni scorrimento in corso e barra aperta.
+     *
+     * Lo chiamano da se' l'host delle pagine (`FluidNavHost`, `FluidPageHost`) a ogni cambio di rotta e
+     * la barra a ogni cambio di scheda: prima lo doveva fare l'app (`settle()` + `expand()`), e chi non lo
+     * faceva si ritrovava la barra ripiegata su una pagina corta che non poteva piu' riaprirla.
+     */
+    internal fun routeChanged() {
+        settle()
+        expand()
+    }
+
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
         // If behavior is Never, don't change state
         if (inlineBehavior == FluidFloatingTabBarInlineBehavior.Never || locked) {
             return Offset.Zero
         }
+        // Qui si dice solo che la pagina si muove (il fermo del vetro). Se ripiegarsi lo decide
+        // `onPostScroll`, su quello che il contenuto ha *davvero* fatto scorrere (3.0.1): `available` in
+        // pre-scroll e' tutto il dito, anche su una pagina che non scorre, e la barra si ripiegava su una
+        // pagina corta a ogni trascinamento.
+        if (available.y != 0f) scrolling = true
+        return Offset.Zero
+    }
 
-        val scrollDelta = available.y
-        if (scrollDelta != 0f) scrolling = true
+    /** Il conto delle soglie, sullo scorrimento fatto davvero (3.0.1: prima era il dito di pre-scroll). */
+    private fun track(scrollDelta: Float) {
+        if (scrollDelta == 0f) return
 
         // Reset accumulated scroll if changing direction
         if ((accumulatedScroll > 0 && scrollDelta < 0) || (accumulatedScroll < 0 && scrollDelta > 0)) {
@@ -681,8 +721,6 @@ class FluidFloatingTabBarScrollConnection(
                 // Already handled above, but included for completeness
             }
         }
-
-        return Offset.Zero // Don't consume the scroll, let it pass through
     }
 
     /**
@@ -707,8 +745,39 @@ class FluidFloatingTabBarScrollConnection(
         if (inlineBehavior == FluidFloatingTabBarInlineBehavior.Never || locked) {
             return Offset.Zero
         }
+        // `consumed` e' quello che il contenuto ha fatto scorrere (piu' l'elastico del bordo di una
+        // `FluidScreen`, che stira solo dove c'e' un bordo da raggiungere): zero su una pagina che non
+        // scorre, quindi li' la barra non si ripiega. Tirata giu' in cima, l'elastico la riapre.
+        track(consumed.y)
         if (isInline && available.y > 0f) expand()
         return Offset.Zero
+    }
+}
+
+/**
+ * Il cambio di pagina detto a chi sta fuori dalle pagine (3.0.1), per finestra.
+ *
+ * La barra flottante e l'host delle pagine sono fratelli (la barra sta sopra, l'host sotto) e l'app non
+ * li collega: il `nestedScroll` della barra e' un antenato dell'host ma lo scorrimento annidato non ha un
+ * canale per "la rotta e' cambiata". La barra si iscrive qui con la vista della sua finestra, l'host
+ * avvisa la stessa vista: niente da cablare, e un host in un'altra finestra (un `Dialog`) non tocca la
+ * barra dell'app.
+ */
+internal object FluidRouteSignal {
+    private val listeners = java.util.WeakHashMap<android.view.View, MutableList<() -> Unit>>()
+
+    fun listen(view: android.view.View, listener: () -> Unit) {
+        listeners.getOrPut(view) { mutableListOf() } += listener
+    }
+
+    fun stop(view: android.view.View, listener: () -> Unit) {
+        val list = listeners[view] ?: return
+        list.remove(listener)
+        if (list.isEmpty()) listeners.remove(view)
+    }
+
+    fun routeChanged(view: android.view.View) {
+        listeners[view]?.toList()?.forEach { it() }
     }
 }
 

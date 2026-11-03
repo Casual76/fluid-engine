@@ -77,6 +77,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import dev.antigravity.fluidengine.ui.fluid.FluidRouteSignal
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
 import dev.antigravity.fluidengine.ui.theme.LocalRouteMotionSignals
@@ -215,6 +216,16 @@ internal fun <K : Any> FluidPageHostImpl(
       if (state.backHandler === handler) state.backHandler = null
       if (state.dispatchBack === dispatchBack) state.dispatchBack = null
     }
+  }
+
+  // La cima della pila all'ultima chiusura: quando cambia, la rotta e' cambiata, e lo si dice a chi
+  // sta fuori dalle pagine nella stessa finestra (3.0.1: la barra flottante si riapre e chiude il fermo
+  // dello scorrimento di una lista che non c'e' piu').
+  val lastTop = remember { arrayOfNulls<Any>(1) }
+  SideEffect {
+    val top = stack.lastOrNull()
+    if (lastTop[0] != null && top != lastTop[0]) FluidRouteSignal.routeChanged(view)
+    lastTop[0] = top
   }
 
   SideEffect {

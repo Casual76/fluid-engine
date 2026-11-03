@@ -303,6 +303,71 @@ class AiConfirmationGateTest {
     assertEquals("A", gate.current.value?.title)
   }
 
+  // ------------------------------------------------- lo stato di arrivo lo sceglie l'app
+
+  @Test
+  fun `la regola di ripristino dell'app sceglie lo stato da scrivere, vedendo prima, conferma e adesso`() = runTest {
+    val before = working(ProviderId.GROQ)
+    val state = MutableStateFlow<AssistantState>(before)
+    val seen = mutableListOf<Triple<AssistantState, AssistantState, AssistantState>>()
+    val cancelled = AssistantState.Cancelled("che tempo fa?", null)
+    val gate = AiConfirmationGate(timeoutMillis = 60_000).apply {
+      bindState(state) { previous, awaiting, current ->
+        seen += Triple(previous, awaiting, current)
+        cancelled
+      }
+    }
+    asking(gate, "A")
+    runCurrent()
+    val awaiting = state.value as AssistantState.AwaitingConfirmation
+    gate.resolve(awaiting.confirmation.id, true)
+    runCurrent()
+
+    assertEquals(cancelled, state.value)
+    assertEquals(listOf(Triple(before, awaiting as AssistantState, awaiting as AssistantState)), seen)
+  }
+
+  @Test
+  fun `la regola puo' tenere lo stato arrivato durante la conferma, e riprende l'ultimo`() = runTest {
+    val state = MutableStateFlow<AssistantState>(working(ProviderId.GROQ))
+    val gate = AiConfirmationGate(timeoutMillis = 60_000).apply {
+      // La regola di un'app che tiene gli stati arrivati durante la conferma e riprende l'ultimo: se dopo la conferma
+      // e' arrivato altro lo lascia, altrimenti rimette quello di prima.
+      bindState(state) { previous, awaiting, current -> if (current == awaiting) previous else current }
+    }
+    asking(gate, "A")
+    runCurrent()
+    val arrived = working(ProviderId.GEMINI)
+    state.value = arrived
+    gate.resolve(gate.current.value!!.id, true)
+    runCurrent()
+    assertEquals(arrived, state.value)
+  }
+
+  @Test
+  fun `una regola che torna null lascia lo stato alla conferma e se ne occupa l'app`() = runTest {
+    val state = MutableStateFlow<AssistantState>(working())
+    val gate = AiConfirmationGate(timeoutMillis = 60_000).apply { bindState(state) { _, _, _ -> null } }
+    asking(gate, "A")
+    runCurrent()
+    gate.resolve(gate.current.value!!.id, true)
+    runCurrent()
+    assertTrue(state.value is AssistantState.AwaitingConfirmation)
+  }
+
+  @Test
+  fun `senza regola il comportamento e' quello di sempre, e un valore arrivato dopo non viene calpestato`() = runTest {
+    val state = MutableStateFlow<AssistantState>(working())
+    val gate = AiConfirmationGate(timeoutMillis = 60_000).apply { bindState(state) }
+    asking(gate, "A")
+    runCurrent()
+    val arrived = AssistantState.Answering("che tempo fa?", "Oggi", ProviderId.GEMINI)
+    state.value = arrived
+    gate.resolve(gate.current.value!!.id, true)
+    runCurrent()
+    assertEquals(arrived, state.value)
+  }
+
   // --------------------------------------------------------- le parole di uno stato, per tutti
 
   @Test

@@ -46,8 +46,15 @@ class AiConfirmationGate(
 
   private class Waiting(val request: PendingConfirmation, val answer: CompletableDeferred<Boolean>)
 
-  /** Dove scrivere [AssistantState.AwaitingConfirmation], e il provider da dire quando lo stato non ne ha uno. */
-  private class Binding(val state: MutableStateFlow<AssistantState>, val fallbackProvider: ProviderId)
+  /**
+   * Dove scrivere [AssistantState.AwaitingConfirmation], il provider da dire quando lo stato non ne ha uno, e
+   * la regola con cui scegliere lo stato da scrivere quando la conferma finisce.
+   */
+  private class Binding(
+    val state: MutableStateFlow<AssistantState>,
+    val fallbackProvider: ProviderId,
+    val restore: (previous: AssistantState, awaiting: AssistantState.AwaitingConfirmation, current: AssistantState) -> AssistantState?,
+  )
 
   private val ids = AtomicLong(1)
 
@@ -79,9 +86,22 @@ class AiConfirmationGate(
    * sia cambiato** (una cancellazione, un errore): uno stato vecchio non ne calpesta uno nuovo.
    * Si scrive solo su una domanda in corso ([AssistantState.isBusy]): su uno stato a riposo, o gia'
    * finito, non si fa ricomparire niente.
+   *
+   * @param restore **quale stato scrivere quando la conferma finisce** (3.0.4). Riceve lo stato di prima
+   *   (`previous`), quello che ha scritto il cancello (`awaiting`) e quello che c'e' adesso nel flusso
+   *   (`current`: `awaiting` se nessuno ha scritto dopo, altrimenti quello che e' arrivato durante la
+   *   conferma), e torna lo stato da scrivere, o null per non toccare niente. Di serie [RestorePrevious]:
+   *   se la card e' ancora la conferma torna lo stato di prima, e se nel frattempo e' arrivato altro lo
+   *   si tiene. Un'app che vuole altro (tenere gli stati arrivati durante la conferma e riprendere
+   *   l'ultimo, per esempio) lo dice qui. La scrittura e' un confronto-e-scambio su `current`: una
+   *   scrittura che arriva fra la scelta e la scrittura non viene calpestata.
    */
-  fun bindState(target: MutableStateFlow<AssistantState>, fallbackProvider: ProviderId = ProviderId.defaultOrder.first()) {
-    binding = Binding(target, fallbackProvider)
+  fun bindState(
+    target: MutableStateFlow<AssistantState>,
+    fallbackProvider: ProviderId = ProviderId.defaultOrder.first(),
+    restore: (previous: AssistantState, awaiting: AssistantState.AwaitingConfirmation, current: AssistantState) -> AssistantState? = RestorePrevious,
+  ) {
+    binding = Binding(target, fallbackProvider, restore)
   }
 
   /** Il cancello smette di scrivere lo stato. Le conferme restano su [current]. */
@@ -142,8 +162,15 @@ class AiConfirmationGate(
       provider = previous.providerOrNull() ?: target.fallbackProvider,
     )
     target.state.value = own
-    // Solo se e' ancora il MIO: se nel frattempo e' arrivato altro non lo si calpesta con uno vecchio.
-    return { target.state.compareAndSet(own, previous) }
+    // Lo stato di arrivo lo sceglie la regola (di serie: quello di prima, ma solo se e' ancora il MIO), e si scrive
+    // con un confronto-e-scambio: se nel frattempo e' arrivato altro non lo si calpesta con uno vecchio.
+    return {
+      for (attempt in 0 until RestoreAttempts) {
+        val current = target.state.value
+        val next = target.restore(previous, own, current)
+        if (next == null || next == current || target.state.compareAndSet(current, next)) break
+      }
+    }
   }
 
   /** La risposta alla conferma a schermo: un [id] che non e' il suo (la richiesta di prima, una in fila) non conta. */
@@ -164,5 +191,15 @@ class AiConfirmationGate(
 
   companion object {
     const val DEFAULT_TIMEOUT_MILLIS = 60_000L
+
+    /** Quante volte si riprova il confronto-e-scambio di [bindState] se un altro scrittore arriva nel mezzo. */
+    private const val RestoreAttempts = 3
+
+    /**
+     * La regola di serie di [bindState]: se lo stato e' ancora quello della conferma torna quello di prima, se e'
+     * arrivato altro nel frattempo non si tocca (uno stato vecchio non ne calpesta uno nuovo).
+     */
+    val RestorePrevious: (AssistantState, AssistantState.AwaitingConfirmation, AssistantState) -> AssistantState? =
+      { previous, awaiting, current -> if (current == awaiting) previous else null }
   }
 }

@@ -65,6 +65,10 @@ interface AiToolGroup {
    * Vero se un tool di questo gruppo puo' fermarsi dentro `run` ad aspettare il si' dell'utente
    * (un [AiConfirmationGate]; 3.0.0). All'attesa del tool l'orchestratore aggiunge la finestra del
    * cancello, una per ogni conferma che puo' esserci in coda nello stesso giro.
+   *
+   * **Dalla 3.0.4 la finestra va solo ai tool che possono chiedere**: un tool di sola lettura in un gruppo
+   * che aspetta conferme ha il suo tempo di lavoro e basta. Puo' chiedere un tool [AiTool.isAction] (agisce
+   * nell'app), uno con [AiTool.needsConfirmation], o uno che dichiara [AiTool.awaitsConfirmation] da se'.
    */
   val awaitsConfirmation: Boolean get() = false
 }
@@ -132,12 +136,17 @@ interface AiTool<C> {
   val timeoutMillis: Long? get() = group.toolTimeoutMillis
 
   /**
-   * Vero se [run] puo' fermarsi ad aspettare il si' dell'utente (3.0.0): di serie [needsConfirmation]
-   * oppure il gruppo lo dichiara. Un tool di un gruppo che ne ospita di due tipi (leggere e
-   * scrivere, con la conferma che dipende dall'azione) puo' dire di si' anche quando in un caso non
-   * aspetta: il tetto e' piu' largo, e un tool che finisce prima non lo usa.
+   * Vero se [run] puo' fermarsi ad aspettare il si' dell'utente (3.0.0): di serie [needsConfirmation],
+   * oppure il gruppo lo dichiara **e** il tool agisce nell'app ([isAction], 3.0.4). Prima della 3.0.4 bastava
+   * il gruppo, e ogni tool di un gruppo che aspetta conferme, anche uno che legge e basta, riceveva la
+   * finestra del cancello sul suo tetto: un tool di lettura bloccato restava appeso un minuto in piu'.
+   *
+   * Un tool di un gruppo che ne ospita di due tipi puo' dire di si' anche quando in un caso non aspetta
+   * (il tetto e' piu' largo, e un tool che finisce prima non lo usa), o dirlo da se' con un override:
+   * un tool che chiede conferma senza essere `isAction` ne' `needsConfirmation` scrive
+   * `override val awaitsConfirmation = true`.
    */
-  val awaitsConfirmation: Boolean get() = needsConfirmation || group.awaitsConfirmation
+  val awaitsConfirmation: Boolean get() = needsConfirmation || (group.awaitsConfirmation && isAction)
 }
 
 /**

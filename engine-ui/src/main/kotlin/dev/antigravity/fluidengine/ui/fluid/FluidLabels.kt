@@ -62,6 +62,8 @@ data class FluidLabels(
   },
   /** La X che nasconde un messaggio (`FluidInlineMessage(onDismiss)`). */
   val hide: String = "Nascondi",
+  /** Il tasto che svuota un campo di testo (`FluidTextField`, su una riga): per TalkBack. */
+  val clear: String = "Cancella",
 )
 
 /** Le parole dell'engine in scope: di serie quelle italiane. Vedi [FluidLabels]. */

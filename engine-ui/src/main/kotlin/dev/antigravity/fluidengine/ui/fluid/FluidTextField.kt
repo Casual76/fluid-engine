@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -351,33 +352,46 @@ private fun FluidRevealButton(revealed: Boolean, enabled: Boolean, onToggle: () 
   }
 }
 
-/** The filled circle with a cross through it. Drawn rather than shipped as an icon asset. */
+/**
+ * The filled circle with a cross through it. Drawn rather than shipped as an icon asset.
+ *
+ * Il disegno resta di 28 dp. Il bersaglio del dito e' di 48 dp, la misura minima che Material chiede a un
+ * tasto: sta sopra il disegno senza occupare spazio, quindi il campo non cresce e il testo non si restringe.
+ * Per TalkBack e' un pulsante con il nome di [FluidLabels.clear].
+ */
 @Composable
 private fun FluidClearButton(onClick: () -> Unit) {
   val color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
   val glyph = MaterialTheme.colorScheme.surface
+  val labels = LocalFluidLabels.current
   Box(
-    modifier = Modifier
-      .size(28.dp)
-      .fluidPressable(onClick = onClick, feedback = FluidPressFeedback.Expand),
+    modifier = Modifier.size(28.dp),
     contentAlignment = Alignment.Center,
   ) {
-    androidx.compose.foundation.Canvas(modifier = Modifier.size(17.dp)) {
-      val radius = size.minDimension / 2f
-      drawCircle(color = color, radius = radius)
-      val arm = radius * 0.44f
-      val stroke = radius * 0.2f
-      listOf(
-        androidx.compose.ui.geometry.Offset(-arm, -arm) to androidx.compose.ui.geometry.Offset(arm, arm),
-        androidx.compose.ui.geometry.Offset(-arm, arm) to androidx.compose.ui.geometry.Offset(arm, -arm),
-      ).forEach { (from, to) ->
-        drawLine(
-          color = glyph,
-          start = center + from,
-          end = center + to,
-          strokeWidth = stroke,
-          cap = androidx.compose.ui.graphics.StrokeCap.Round,
-        )
+    Box(
+      modifier = Modifier
+        .requiredSize(48.dp)
+        .semantics { contentDescription = labels.clear }
+        .fluidPressable(onClick = onClick, role = Role.Button, feedback = FluidPressFeedback.Expand),
+      contentAlignment = Alignment.Center,
+    ) {
+      androidx.compose.foundation.Canvas(modifier = Modifier.size(17.dp)) {
+        val radius = size.minDimension / 2f
+        drawCircle(color = color, radius = radius)
+        val arm = radius * 0.44f
+        val stroke = radius * 0.2f
+        listOf(
+          androidx.compose.ui.geometry.Offset(-arm, -arm) to androidx.compose.ui.geometry.Offset(arm, arm),
+          androidx.compose.ui.geometry.Offset(-arm, arm) to androidx.compose.ui.geometry.Offset(arm, -arm),
+        ).forEach { (from, to) ->
+          drawLine(
+            color = glyph,
+            start = center + from,
+            end = center + to,
+            strokeWidth = stroke,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+          )
+        }
       }
     }
   }

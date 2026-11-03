@@ -82,9 +82,13 @@ internal fun fluidPromptInitialSelection(text: String, selectAll: Boolean): Text
  * iniziale tutto selezionato: rinominare e' sostituire, e chi vuole solo ritoccare tocca e sposta il
  * cursore. Senza [initialValue] non c'e' niente da selezionare.
  *
- * Come ogni [FluidAlert] e' una finestra di piattaforma, quindi dipinge il suo vetro e non rifrange la
- * pagina: e' il prezzo di una tastiera che deve salire sopra tutto. Le parole di serie sono in
- * italiano; un'app tradotta le passa tutte (vedi `fluidLicensesSection`).
+ * **Sta nell'host, come ogni [FluidAlert] dalla 3.0.** Con un `FluidGlassModalHost` alla radice e' vetro
+ * vero dentro la composizione dell'app — rifrange la pagina dietro lo scrim, i pulsanti hanno la goccia e
+ * l'aptica dei menu — e **sale sopra la tastiera** (l'avviso nell'host ha `imePadding`): il campo non le
+ * finisce sotto. Senza host resta la finestra di piattaforma di prima, che dipinge il suo vetro. (Fino alla
+ * 2.13 era sempre una finestra di piattaforma, e questa nota diceva che non rifrangeva la pagina: non e'
+ * piu' vero.) Le parole di serie sono in italiano; un'app tradotta le passa tutte (vedi
+ * `fluidLicensesSection`).
  *
  * @param onConfirm riceve il testo gia' ritagliato (se [trim]) e **non chiude** l'avviso: lo possiede
  *   chi lo mostra, come per ogni portale.

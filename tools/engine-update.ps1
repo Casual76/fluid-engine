@@ -165,6 +165,27 @@ try {
   }
   Write-Host "Engine agganciato a $targetTag." -ForegroundColor Green
 
+  # engine.properties si scrive SUBITO dopo l'aggancio, prima di stampare il changelog (3.0.1). Prima
+  # veniva dopo: un'uscita troncata (lo script passato a `Select-Object -First 30`, una finestra chiusa a
+  # meta') fermava lo script durante la stampa e lasciava l'app a meta', con l'engine sul tag nuovo ed
+  # engine.properties sulla versione vecchia. La stampa non decide niente, quindi viene per ultima.
+  $today = Get-Date -Format "yyyy-MM-dd"
+  # I moduli si riportano com'erano: sono una scelta dell'app (un'app senza Compose non puo' ospitare
+  # engine-ui), non qualcosa che un aggiornamento di versione ha il diritto di rimettere a default.
+  $moduleLine = ""
+  if (-not [string]::IsNullOrWhiteSpace($modules)) {
+    $moduleLine = "engine.modules=$modules`r`n"
+  }
+  $updated = @"
+# Quale Fluid Engine usa questa app. Aggiornato da engine-update.ps1, verificato da engine-doctor.ps1.
+engine.version=$Version
+engine.channel=$channel
+engine.path=$enginePath
+${moduleLine}engine.updatedAt=$today
+"@
+  Write-TextFile $propertiesPath $updated
+  Write-Host "engine.properties scritto ($Version)." -ForegroundColor Green
+
   $changelogPath = Join-Path $engineFull "CHANGELOG.md"
   if ((Test-Path -LiteralPath $changelogPath) -and $currentVersion -and ($currentVersion -ne $Version)) {
     Write-Host ""
@@ -188,22 +209,6 @@ try {
 } finally {
   Pop-Location
 }
-
-$today = Get-Date -Format "yyyy-MM-dd"
-# I moduli si riportano com'erano: sono una scelta dell'app (un'app senza Compose non puo' ospitare
-# engine-ui), non qualcosa che un aggiornamento di versione ha il diritto di rimettere a default.
-$moduleLine = ""
-if (-not [string]::IsNullOrWhiteSpace($modules)) {
-  $moduleLine = "engine.modules=$modules`r`n"
-}
-$updated = @"
-# Quale Fluid Engine usa questa app. Aggiornato da engine-update.ps1, verificato da engine-doctor.ps1.
-engine.version=$Version
-engine.channel=$channel
-engine.path=$enginePath
-${moduleLine}engine.updatedAt=$today
-"@
-Write-TextFile $propertiesPath $updated
 
 Write-Host ""
 Write-Host "engine.properties aggiornato a $Version." -ForegroundColor Green

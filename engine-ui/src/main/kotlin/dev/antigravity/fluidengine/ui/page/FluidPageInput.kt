@@ -75,8 +75,13 @@ internal fun Modifier.fluidPageBackSwipe(state: FluidPageHostState): Modifier =
       // La riga dei controlli della barra ancorata non e' pagina: un gesto che parte li' e' dei suoi
       // tasti (come in LibrePods, dove il contenitore del tasto indietro beve il dito). Conta anche
       // per il menu delle azioni, che dal click lungo si sceglie trascinando il dito di lato. Il
-      // resto della pagina resta "ovunque", tasti compresi: i tasti non consumano (3.0), quindi un
-      // trascinamento partito su un tasto della pagina porta indietro e il tasto lascia.
+      // resto della pagina resta "ovunque", con la regola del Main qui sotto: **chi consuma vince**.
+      // I tasti tengono il dito (3.0, `FluidPressGrip.HoldsFinger`: consumano gli spostamenti, e
+      // `clickable` il contatto), quindi un trascinamento partito su un tasto della pagina non porta
+      // indietro; e nemmeno uno partito su una riga, una card o un messaggio cliccabile (`clickable`
+      // consuma il contatto) o sul segmentato (3.0.1). Il back «ovunque» parte dove nessuno prende
+      // il dito, e sempre dal bordo. (Fino alla 3.0.0 questa nota diceva che i tasti non consumano:
+      // era la regola della beta 1, cambiata dopo la beta 2.)
       if (down.position.y < state.barBottomPx) return@awaitEachGesture
       val dir = state.layoutDirectionSign
 

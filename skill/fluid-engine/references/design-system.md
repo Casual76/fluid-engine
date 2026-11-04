@@ -1,5 +1,10 @@
 # Inventario di `engine-ui`
 
+> **Nota.** Questo e' l'inventario storico, scritto per sezioni di versione. Per ogni famiglia la scheda in
+> [`componenti/`](componenti/contenuto.md) e' piu' completa e piu' recente (e `api/` ha le firme dal codice): usa
+> questo file per il contesto e per le regole trasversali, le schede per sapere come si usa un componente. Dove i due
+> divergono vale la scheda, e dove la scheda e' vaga vale il sorgente.
+
 Tutto sotto `dev.antigravity.fluidengine.ui` (`fluid/` e `theme/`). Se stai per scrivere un
 componente, cerca prima qui: quasi tutto quello che serve a una schermata esiste già.
 
@@ -65,8 +70,7 @@ rilascio va dalla parte più vicina, o da quella verso cui correva se la spinta 
 (`fluidSwitchLanding`). Vibra a ogni tocco che commuta e, trascinando, quando il pomello passa la metà
 (`fluidSwitchSide`, con margine); al rilascio non ripete. Il down è consumato nell'Initial: il
 `toggleable` resta solo per tastiera, fuoco e TalkBack, e una riga cliccabile attorno non scatta
-toccando l'interruttore. `onCheckedChange = null` quando è la riga
-a possedere il `toggleable` e il target da 48dp. `backdrop` di default è il canvas della schermata.
+toccando l'interruttore. Dalla 3.0.4 la riga non disegna più un interruttore decorativo (`onCheckedChange = null`): usa `FluidSwitchControl(ownsSemantics = false)` con il callback vero, così il pomello si trascina anche dentro una riga (`componenti/controlli-gesto.md`). `backdrop` di default è il canvas della schermata.
 `FluidSwitchWidth` vale 64 adesso (era 56): chi riservava lo spazio a mano lo rilegga.
 `FluidGlassSwitch` è deprecato — era il nome che questo controllo ha avuto per una versione.
 
@@ -138,8 +142,7 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
   `navigationBarsPadding()` li mette chi la posa
   (`FluidFloatingTabBarDefaults.HorizontalMargin` / `BottomMargin`, e `ContentInset` per lo spazio
   che la pagina deve lasciare). L'indicatore tiene un bordo anche a riposo
-  (`GlassOptics.edgeFloor`) e il trascinamento e' criticamente smorzato
-  (`GlassDragAnimation.velocityDampingRatio`)
+  (`GlassOptics.edgeFloor`) e il trascinamento e' sottosmorzato di proposito (smorzamento 0,5, vedi `FluidFloatingTabBar.kt`; una vecchia nota qui diceva «criticamente smorzato»)
 - **Dalla 3.0.1**: `FluidPickerRow(title, selectedKey, options, onSelected)` (la riga che diventa il
   pop-up di scelta) e `FluidSliderRow`; `leadingTile` su `FluidChoiceRow`/`FluidToggleRow`;
   `FluidContextAction(selected)` (spunta e stato per TalkBack); `glass` su `FluidInlineMessage` e sulle
@@ -251,7 +254,7 @@ diverso.
 
 ```kotlin
 FluidTheme(
-  settings = engineSettings,                 // EngineSettings: themeMode, accentMode, …
+  settings = EngineSettings(themeMode = …, accentMode = …),
   brand = AccentPreset("app", "App", Color(0xFF…), Color(0xFF…)),
 ) { /* … */ }
 ```
@@ -823,7 +826,7 @@ Dettagli in `docs/09-wear.md`.
   leggono da li') e Material 3 per Wear dentro, con schema colori mappato dal telefono
   (`fluidWearColorScheme`), tipografia Wear in Inter (`fluidWearTypography`) e forme continue
   (`fluidWearShapes`). Le schermate leggono `androidx.wear.compose.material3.MaterialTheme`.
-- **Componenti**: `FluidGlassDisc` (controllo rotondo: `glassControlSurface` + `FluidGlassBurst`),
+- **Componenti**: `FluidGlassDisc` (controllo rotondo: `glassControlSurface`; il `FluidGlassBurst` e' facoltativo e spento di serie dalla 3.0.4),
   `FluidGlassCapsule` (vetro flottante con testo), `FluidEdgeProgressRing` (si ridisegna solo quando
   l'arco si sposta di mezzo pixel), `FluidArcRow` (azioni lungo il bordo), `Modifier.fluidRotarySteps`
   (ghiera a scatti e corona continua, entrambe in passi), `FluidWearListRow`, `FluidWearPill`,

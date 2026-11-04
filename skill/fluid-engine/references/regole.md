@@ -220,7 +220,7 @@ con il motivo accanto perche' e' li' che si ritoccano.
 **E il film del vetro non e' `MaterialTheme.surface`.** Una barra dello stesso colore del fondo non e'
 un materiale traslucido, e' niente: su un tema AMOLED spariva del tutto. Il Liquid Glass e' un
 materiale *chiaro e riflettente*, che anche in tema scuro si legge come un pannello piu' chiaro del
-fondo. `GlassDefaults.glassFilm()` parte da due grigi fissi e prende solo un terzo della palette,
+fondo. La tinta interna `glassFilm()` di `GlassDefaults` (non pubblica) parte da due grigi fissi e prende solo un terzo della palette,
 quel tanto che basta perche' segua l'accento senza farsi trascinare a fondo.
 
 ## Vetro su vetro: si sfoca la sfocatura (2.13.0)
@@ -632,7 +632,7 @@ Provato da `FluidMenuSelectionTest` (il dito che decide, lo slop, l'armo, la voc
 mette insieme sotto un dito finto in un albero Compose vero con l'aptica registrata (`Open` `Tick` `Tap`,
 nessuna grana, il rilascio fermo che lascia aperto). Quello che nessun test dice è com'è il vetro: gli
 host dei test non hanno fondale, e la goccia sul vetro, il cambio di proprietario fra tasto e finestra e
-la tastiera sopra un avviso con un campo si guardano in mano. `opensOn` e `opensOnTap` hanno solo la demo.
+la tastiera sopra un avviso con un campo si guardano in mano. `opensOn` (su `FluidBarAction`) ha solo la demo; `opensOnTap` e' coperto da tre test in `FluidApiAdditionsTest`.
 
 ## L'engine non conosce il dominio
 

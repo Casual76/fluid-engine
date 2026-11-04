@@ -90,7 +90,7 @@ normale:
 cd android/engine
 git checkout -b feature/x
 # modifichi; l'app ricompila subito, è un include sorgente
-git commit -am "ui: aggiunge FluidX"
+git commit -am "ui: aggiunge <il componente>"
 git push -u origin feature/x
 ```
 

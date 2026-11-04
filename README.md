@@ -15,6 +15,7 @@ engine-widget       palette e componenti Glance con lo stesso aspetto dell'app
 engine-wear         il design system su Wear OS: FluidWearTheme, dischi e capsule di vetro, anello,
                     riga ad arco, ghiera, always-on (opt-in: solo nel modulo dell'orologio)
 engine-ai           l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore
+engine-ai-ui        l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (opt-in)
 engine-ai-bridge    tool federati: un'app espone i suoi tool a un assistente esterno con la stessa
                     firma (ContentProvider a permesso signature), o li chiama
 ```
@@ -63,13 +64,21 @@ Un solo file JSON ospitato (lo stesso del Pampa Store, in una sezione nuova) dec
 
 ## La skill per gli agenti
 
-`skill/fluid-engine/` e' la skill che insegna a un agente le regole del design system, l'inventario
-dei componenti, come si integra e come si aggiorna. Sta dentro questo repo di proposito: cosi' non
-puo' divergere dall'engine che descrive.
+`skill/fluid-engine/` e' la skill che insegna a un agente le regole del design system, una scheda per ogni
+famiglia di componenti e per ogni modulo, il catalogo delle API generato dai sorgenti, le ricette per i compiti
+frequenti e come si integra e si aggiorna. Sta dentro questo repo di proposito: cosi' non puo' divergere
+dall'engine che descrive. La stessa documentazione, leggibile senza la skill, e' in
+[`docs/riferimento/`](docs/riferimento/README.md) (copia generata: non si modifica a mano).
 
 ```powershell
-Copy-Item -Recurse -Force skillluid-engine "$env:USERPROFILE\.claude\skills\"
+# installazione come giunzione (le modifiche sono subito live)
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skillsluid-engine" -Target "<engine>\skillluid-engine"
+# oppure una copia, da rifare dopo ogni modifica
+Copy-Item -Recurse -Force "<engine>\skillluid-engine" "$env:USERPROFILE\.claude\skills\"
 ```
+
+Dopo ogni release: `python -I skill/fluid-engine/scripts/gen_api_catalog.py`, aggiornare le schede toccate,
+`check_docs.py` e `sync_docs.py` (vedi `skill/fluid-engine/references/strumenti-e-qa.md`).
 
 ## Documentazione
 
@@ -83,6 +92,7 @@ Copy-Item -Recurse -Force skillluid-engine "$env:USERPROFILE\.claude\skills\"
 | [06 · Limiti](docs/06-limiti.md) | cosa si aggiorna da remoto e cosa no, senza giri di parole |
 | [07 · Assistente](docs/07-ai.md) | `engine-ai`: provider, chiavi, orchestratore, tool |
 | [08 · Tool federati](docs/08-ai-bridge.md) | `engine-ai-bridge`: esporre i tool di un'app a un assistente esterno, o chiamarli |
+| [Riferimento completo](docs/riferimento/README.md) | una scheda per ogni famiglia di componenti e per ogni modulo, il catalogo API, le ricette e la risoluzione dei problemi (generato dalla skill) |
 | [09 · Wear OS](docs/09-wear.md) | `engine-wear`: lo stesso vetro su un orologio, e il vetro che sta fermo quando niente si muove |
 
 ## Fluid-physics e l'app Fluid Glass

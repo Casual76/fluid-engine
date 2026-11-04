@@ -132,7 +132,7 @@ Un porto ha un solo problema, ed e' che non si aggiorna da solo. Perche' resti v
 # engine.properties dell'app
 engine.mode=port
 engine.version=1.1.0
-engine.portFile=shared/src/commonMain/kotlin/.../FluidPort.kt
+engine.portFile=shared/src/commonMain/kotlin/.../Look.kt
 ```
 
 e nel file del porto una costante che dice da dove viene:

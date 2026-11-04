@@ -97,7 +97,7 @@ Capita: stai facendo una schermata e ti accorgi che manca un componente. La cart
 cd android/engine
 git checkout -b feature/nuovo-componente
 # modifichi, l'app ricompila subito perché è un include sorgente
-git commit -am "ui: aggiunge FluidSomething"
+git commit -am "ui: aggiunge <il componente>"
 git push -u origin feature/nuovo-componente
 ```
 

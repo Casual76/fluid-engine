@@ -74,8 +74,7 @@ class VotiMediaTool : AiTool<AssistantToolContext> {
 - `forceFinalPrompt`: la frase dell'ultimo giro (default `AiPrompts.forceFinal(lingua)`).
 
 `AiOrchestratorConfig` e' il posto dei numeri: giri, tool in parallelo, timeout, budget totale e
-riserva finale, soglia di escalation. Una card a schermo vive con 90 secondi; un foreground service
-con quattro minuti.
+riserva finale, soglia di escalation. Il `TimeBudget` di `FailoverPolicy` vale 90 s (riserva 15 s), ma `AiOrchestratorConfig` parte da 240 s con riserva 20 s: il tetto vero di una card e' quello della configurazione (`moduli/ai-orchestrator.md`).
 
 ## Dalla 1.26.0
 
@@ -131,7 +130,7 @@ proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge`
 - **Conferme**: le chiede il cliente prima (`describe` dell'ospite), poi chiama con
   `confirmed = true`; l'ospite rifiuta comunque un tool con `needsConfirmation` senza `confirmed`.
 - **Lavori lunghi** (`longRunning`): `run` torna `{jobId}`, il cliente segue con `status` ogni
-  secondo; l'ospite li tiene in `BridgeJobs`.
+  secondo; l'ospite li tiene in `BridgeJobs`. (Il racconto dell'avanzamento da parte del tool non e' raggiungibile dal codice di oggi: `moduli/ai-bridge.md`.)
 - **Trappole**: la firma, che controlla il provider (`isCallerTrusted`: una build di debug di Studio e' `NO_PERMISSION`); `call` occupa un thread
   Binder fino a `callTimeoutMillis`; il processo ospite puo' morire (client *unstable*, errore
   pulito); il cliente deve vedere i provider (`QUERY_ALL_PACKAGES` o `<queries>`).

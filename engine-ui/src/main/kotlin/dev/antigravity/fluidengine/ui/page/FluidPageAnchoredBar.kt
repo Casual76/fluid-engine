@@ -410,7 +410,7 @@ internal class FluidBarJourney(
   var backKeys: Set<Any> = emptySet()
   var blendPx: Float = 0f
 
-  /** Se la superficie fisica porta i pezzi adesso (letto in disegno dai tasti, che spengono il vetro). */
+  /** Se la superficie fisica porta i pezzi adesso: i tasti tolgono solo il proprio materiale. */
   var active by mutableStateOf(false)
     private set
 

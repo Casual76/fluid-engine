@@ -200,13 +200,10 @@ fun Modifier.glassControlSurface(
     if (pieceSink != null && barPiece != null) pieceSink.add(barPiece)
     onDispose { if (pieceSink != null && barPiece != null) pieceSink.remove(barPiece) }
   }
-  val materialIntensity: () -> Float = remember(pieceSink) {
-    if (pieceSink == null) {
-      { 1f }
-    } else {
-      { if (pieceSink.suppressed()) 0f else 1f }
-    }
-  }
+  // A intensita' zero glassSurface salta anche drawContent: sparivano le icone insieme al vetro.
+  // Quando il morph prende il materiale togliamo solo il modificatore, lasciando il contenuto
+  // alla dissolvenza della barra. Cambia solo alla staffetta, mai a ogni fotogramma del viaggio.
+  val materialSuppressed = pieceSink?.suppressed() == true
   val ownPress = rememberFluidPressState(FluidPressFeedback.Expand)
   val press = pressState ?: ownPress
   val highlight = remember(scope, reducedMotion, onDark, press) {
@@ -260,38 +257,43 @@ fun Modifier.glassControlSurface(
         Modifier
       },
     )
-    .glassSurface(
-      state = backdrop,
-      tint = selectionTint,
-      shape = shape,
-      intensity = materialIntensity,
-      role = GlassRole.Interactive,
-      optics = optics,
-      opticalDepth = depth,
-      pressed = { press.progress.fastCoerceIn(0f, 1f) },
-      frozen = frozen,
-      heldWhileMoving = heldWhileMoving,
-      layerBlock = if (interactive) {
-        {
-          // The same transform a solid button draws, here in the layer the renderer corrects for:
-          // grow, lean toward the finger through a tanh, stretch along its drag. See
-          // fluidPressTransform for the numbers and the reasons.
-          val transform = fluidPressTransform(
-            feedback = press.feedback,
-            progress = press.progress,
-            lean = press.lean,
-            width = size.width,
-            height = size.height,
-            dp = density,
-            reducedMotion = reducedMotion,
-          )
-          scaleX = transform.scaleX
-          scaleY = transform.scaleY
-          translationX = transform.translationX
-          translationY = transform.translationY
-        }
+    .then(
+      if (materialSuppressed) {
+        Modifier
       } else {
-        null
+        Modifier.glassSurface(
+          state = backdrop,
+          tint = selectionTint,
+          shape = shape,
+          role = GlassRole.Interactive,
+          optics = optics,
+          opticalDepth = depth,
+          pressed = { press.progress.fastCoerceIn(0f, 1f) },
+          frozen = frozen,
+          heldWhileMoving = heldWhileMoving,
+          layerBlock = if (interactive) {
+            {
+              // The same transform a solid button draws, here in the layer the renderer corrects for:
+              // grow, lean toward the finger through a tanh, stretch along its drag. See
+              // fluidPressTransform for the numbers and the reasons.
+              val transform = fluidPressTransform(
+                feedback = press.feedback,
+                progress = press.progress,
+                lean = press.lean,
+                width = size.width,
+                height = size.height,
+                dp = density,
+                reducedMotion = reducedMotion,
+              )
+              scaleX = transform.scaleX
+              scaleY = transform.scaleY
+              translationX = transform.translationX
+              translationY = transform.translationY
+            }
+          } else {
+            null
+          },
+        )
       },
     )
     .then(if (interactive) highlight.modifier else Modifier)

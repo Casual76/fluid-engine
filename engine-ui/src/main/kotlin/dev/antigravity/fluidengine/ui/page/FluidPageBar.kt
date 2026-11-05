@@ -122,10 +122,10 @@ internal fun RegisterFluidPageBar(slot: FluidPageBarSlot, spec: FluidPageBarSpec
  * Mentre le pagine cambiano i tasti non disegnano il loro vetro: lo disegna **una** superficie di
  * Fluid-physics fra il vetro della barra e le icone, che porta i pezzi della pagina che esce sui
  * pezzi di quella che arriva. Ogni `glassControlSurface` dentro la barra si iscrive qui (posizione
- * della lente, forma) e legge [suppressed] in disegno.
+ * della lente, forma) e legge [suppressed] alla staffetta del materiale, lasciando disegnare le icone.
  */
 internal class FluidBarPieceSink(
-  /** Se il vetro dei tasti va spento adesso: letto in disegno. */
+  /** Se il vetro dei tasti va spento adesso; cambia solo quando il morph prende o restituisce i pezzi. */
   val suppressed: () -> Boolean,
   /** Chiamato quando un pezzo si iscrive, si sposta o se ne va. */
   val onChanged: () -> Unit,

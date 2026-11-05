@@ -3,7 +3,7 @@
 
 # API · engine-ai: orchestratore, router, tool
 
-_Generato sull'engine 3.0.4 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ai/ai/orchestrator/AiConfirmationGate.kt`
 

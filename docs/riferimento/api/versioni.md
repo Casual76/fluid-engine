@@ -3,10 +3,11 @@
 
 # Versioni (generato dal CHANGELOG)
 
-_Generato da `scripts/gen_api_catalog.py` sull'engine 3.0.4. Non si modifica a mano: per il testo intero si apre `CHANGELOG.md` alla radice dell'engine._
+_Generato da `scripts/gen_api_catalog.py` sull'engine 3.0.5. Non si modifica a mano: per il testo intero si apre `CHANGELOG.md` alla radice dell'engine._
 
 Una riga per versione (la sua prima voce) e, sotto, ogni voce **BREAKING**: sono quelle da leggere prima di aggiornare un'app. «Cambia a vista» / «Cambia al tatto» nel changelog segnano le modifiche che non rompono la compilazione ma si notano.
 
+- **3.0.5** (2026-11-05) — Cambia a vista: le icone dei pulsanti della barra seguono la dissolvenza durante il cambio pagina; il morph spegne solo il materiale di vetro, non il contenuto. Nessuna modifica delle API o migrazione manuale richiesta.
 - **3.0.4** (2026-11-03) — fix: **gli interruttori delle righe si trascinano.** `FluidToggleRow` disegnava un `FluidSwitch` decorativo (`onCheckedChange = null`), e con tutte le app migrate alla riga nessun interruttore si poteva far scorrere. Ora il pomello si pren…
 - **3.0.3** (2026-11-03) — ui: **il back col dito parte dal bordo, come quello di sistema.** `FluidBackSwipe.EdgeOnly` (i primi 20 dp) diventa il valore di serie dove ce n'e' uno (`composable(...)`, `FluidPageHost`, `FluidNavHost`, lo stato dell'host); `Anywhere` re…
 - **3.0.2** (2026-11-03) — tools: `engine-doctor.ps1` guarda i tag che puntano al commit (`git tag --points-at`) e conta solo quelli `engine-*`: sullo stesso commit della 3.0.1 c'e' anche il tag della beta 5 della galleria, e `git describe` sceglieva quello ("agganc…

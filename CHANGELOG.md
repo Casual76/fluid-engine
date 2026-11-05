@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.5 - 2026-11-05
+
+- Cambia a vista: le icone dei pulsanti della barra seguono la dissolvenza durante il cambio pagina; il morph spegne solo il materiale di vetro, non il contenuto. Nessuna modifica delle API o migrazione manuale richiesta.
+
+
 ## 3.0.4 - 2026-11-03
 
 - fix: **gli interruttori delle righe si trascinano.** `FluidToggleRow` disegnava un `FluidSwitch` decorativo (`onCheckedChange = null`), e con tutte le app migrate alla riga nessun interruttore si poteva far scorrere. Ora il pomello si prende e si trascina come quello isolato (il rilascio decide, un tocco commuta), la pagina sotto non scorre, un tocco altrove sulla riga commuta come prima; un nodo solo per TalkBack (`Role.Switch`), un `ToggleOn`/`ToggleOff` per cambio, una riga spenta non risponde. Era l'unico interruttore decorativo dell'engine. **Cambia al tatto.**

@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.6 - 2026-11-08
+
+- Corretto il Back dei menu sopra pagine annidate; preservata la compatibilita source-proof v1 e typed v2 gia pubblicata.
+
+
 ## 3.0.5 - 2026-11-05
 
 - Cambia a vista: le icone dei pulsanti della barra seguono la dissolvenza durante il cambio pagina; il morph spegne solo il materiale di vetro, non il contenuto. Nessuna modifica delle API o migrazione manuale richiesta.

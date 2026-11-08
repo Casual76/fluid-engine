@@ -1,6 +1,9 @@
+<!-- COPIA GENERATA da skill/fluid-engine/scripts/sync_docs.py a partire da skill/fluid-engine/references/api/ai-orchestrator.md.
+     Non modificare qui: si cambia la fonte e si rilancia lo script. -->
+
 # API · engine-ai: orchestratore, router, tool
 
-_Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ai/ai/orchestrator/AiConfirmationGate.kt`
 

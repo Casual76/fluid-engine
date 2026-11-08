@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ai.provider
 
 import dev.antigravity.fluidengine.ai.net.AiError
+import dev.antigravity.fluidengine.ai.net.get
 import dev.antigravity.fluidengine.ai.net.AiErrorMapper
 import dev.antigravity.fluidengine.ai.net.AiHttp
 import dev.antigravity.fluidengine.ai.net.BadReason
@@ -74,12 +75,26 @@ abstract class OpenAiCompatProvider(
     var dropped = emptySet<String>()
     while (true) {
       try {
-        val response = http.postJson("$baseUrl/chat/completions", headers(), body(request, stream = false, dropped), request.readTimeoutMillis)
-        return OpenAiCompatCodec.parseCompletion(response.body, response.rateLimit, id)
+        val payload = body(request, stream = false, dropped)
+        return ProviderWireAttempt.begin(effectiveRequest(request), dispatch(request, payload, dropped), payload, false).execute {
+          val result = http.postJson("$baseUrl/chat/completions", headers(), payload, request.readTimeoutMillis,
+            onResponse = { code, headers -> response(code); rateLimit = AiErrorMapper.parseRateLimit(headers) })
+          response(result.code)
+          rateLimit = result.rateLimit
+          usage = OpenAiCompatCodec.usage(result.body["usage"])
+          OpenAiCompatCodec.parseCompletion(result.body, result.rateLimit, id)
+        }
       } catch (e: AiError.BadRequest) {
         dropped = dropped + (culprit(e, dropped) ?: throw e)
       }
     }
+  }
+
+  private fun dispatch(request: ChatRequest, payload: JsonObject, dropped: Set<String>): ProviderDispatch {
+    val field = payload["reasoning_effort"] ?: payload["reasoning"]
+    return ProviderDispatch(id, effectiveRequest(request).model, effectiveRequest(request).reasoning,
+      field?.toString(), if (field == null) "OMITTED" else "SENT_UNVERIFIED",
+      dropped.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(","))
   }
 
   /**
@@ -100,18 +115,27 @@ abstract class OpenAiCompatProvider(
       var rateLimit = RateLimitInfo.EMPTY
       var started = false
       try {
-        http.postJsonStream(
-          url = "$baseUrl/chat/completions",
-          headers = headers(),
-          body = body(request, stream = true, dropped),
-          chunkTimeoutMillis = request.readTimeoutMillis,
-          onHeaders = { rateLimit = AiErrorMapper.parseRateLimit(it) },
-        ).collect { payload ->
-          started = true
-          OpenAiCompatCodec.parseStreamChunk(payload, state).forEach { emit(it) }
+        val payloadBody = body(request, stream = true, dropped)
+        ProviderWireAttempt.begin(effectiveRequest(request), dispatch(request, payloadBody, dropped), payloadBody, true).execute {
+          try {
+            http.postJsonStream(
+              url = "$baseUrl/chat/completions",
+              headers = headers(),
+              body = payloadBody,
+              chunkTimeoutMillis = request.readTimeoutMillis,
+              onResponse = { code, headers -> response(code); rateLimit = AiErrorMapper.parseRateLimit(headers) },
+            ).collect { payload ->
+              started = true
+              partialResponse = true
+              OpenAiCompatCodec.parseStreamChunk(payload, state).forEach { emit(it) }
+            }
+            OpenAiCompatCodec.rawFromStream(state)?.let { emit(ChatDelta.Raw(it)) }
+            emit(ChatDelta.Finish(OpenAiCompatCodec.finishReason(state.finish, hasToolCalls = false), state.usage, rateLimit, state.citations.values.toList()))
+          } finally {
+            usage = state.usage
+            this.rateLimit = rateLimit
+          }
         }
-        OpenAiCompatCodec.rawFromStream(state)?.let { emit(ChatDelta.Raw(it)) }
-        emit(ChatDelta.Finish(OpenAiCompatCodec.finishReason(state.finish, hasToolCalls = false), state.usage, rateLimit, state.citations.values.toList()))
         return@flow
       } catch (e: AiError.BadRequest) {
         if (started) throw e

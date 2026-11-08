@@ -104,8 +104,8 @@ con le autorita' note.
 | `status` | `{jobId}` | `{state: running/done/failed/unknown, detail, progress, text, escalate, parts}` |
 | `cancel` | `{jobId}` | `{state: failed}` |
 
-Ogni errore e' `{error: "..."}` e diventa un `errore:` per il modello. `BridgeProtocol.PROTOCOL` sale
-solo aggiungendo campi: un cliente che riceve un protocollo piu' nuovo del suo ignora l'app.
+Ogni errore e' `{error: "..."}` e diventa un `errore:` per il modello. `BridgeProtocol.PROTOCOL` resta 1 per i clienti legacy; le estensioni usano la negoziazione
+descritta sotto, senza nascondere il catalogo ai vecchi clienti.
 
 ## Le trappole
 
@@ -121,3 +121,32 @@ solo aggiungendo campi: un cliente che riceve un protocollo piu' nuovo del suo i
 - **Le parti sono file temporanei**: la cartella `ai-bridge/` va dichiarata nei `file_paths.xml`
   del FileProvider (`<cache-path name="ai-bridge" path="ai-bridge/"/>`), e l'ospite puo' svuotarla
   quando vuole.
+
+## Negotiated extensions (unreleased)
+
+The discovery metadata and legacy catalog protocol stay **1**. Legacy catalog/run/status clients
+continue to use their original envelopes. A new client calls `negotiate` after catalog discovery,
+with supported versions and capabilities; the host returns the maximum common version and capability
+intersection. An old host's unknown-method response falls back to protocol 1. No common version is
+an explicit negotiation error. Version 2 requests echo the agreement on run/status; only negotiated
+`typed_results` adds the optional result envelope. Unknown outcome values decode as UNCERTAIN.
+Capabilities currently include `typed_results` and `operation_identity`; neither promises deduplication.
+
+Supply `ToolExecution(operationId)` through the additive run overload. RemoteTool forwards that exact
+identity as requestId, also exposed to the source app by `RemoteCall.requestId`; retries using the same
+execution do not generate another identity. Legacy text results become UNCERTAIN with
+`legacy_unknown_effect`, never completed. Transport loss, unknown jobs and timeouts also leave effects
+uncertain and are not marked retryable. The client must reconcile writes before retrying. Long jobs
+remain process-local; they are not recoverable across process death.
+
+Tool timeout metadata is transported additively. The host bounds ordinary work by its Binder call
+limit and declared tool timeout; the remote tool's orchestration budget covers the configured long-job
+wait plus polling overhead. Confirmations and per-call signature checks remain mandatory.
+
+The next application slice must persist operation identity before sending, store the full typed result,
+reconcile uncertain operations and render cards from the structured data/entity/source fields. Source
+apps must explicitly supply typed verified evidence; upgrading the transport does not certify legacy
+source tool effects.
+
+`AiToolClient.negotiation(authority)` exposes the `BridgeNegotiation` agreed during catalog discovery
+for application capability gates; missing/old hosts return protocol 1 with no extended capabilities.

@@ -137,6 +137,10 @@ data class ChatRequest(
    * prima del primo pezzo, e un timeout di trenta secondi lo scambiava per una connessione morta.
    */
   val readTimeoutMillis: Int? = null,
+  /** Invoked before EACH wire dispatch, including parameter-rejection retries. Must persist before returning. */
+  val beforeDispatch: suspend (ProviderDispatch) -> Unit = {},
+  /** Per actual HTTP attempt; composes with inherited ProviderExecutionContext. */
+  val lifecycle: ProviderAttemptLifecycle = ProviderAttemptLifecycle.None,
 ) {
   /** Vero se qualche messaggio porta un documento: OpenRouter allora vuole il plugin che li legge. */
   val hasDocuments: Boolean get() = messages.any { it is Message.User && it.parts.any { p -> p is ContentPart.Document } }
@@ -148,7 +152,7 @@ data class Usage(
   val promptTokens: Int,
   val completionTokens: Int,
   val totalTokens: Int,
-  /** Solo OpenRouter lo dice (in dollari); gli altri sono gratuiti o non lo espongono. */
+  /** Costo osservato in dollari quando esposto dal provider; null non significa gratuito. */
   val costUsd: Double? = null,
 ) {
   operator fun plus(other: Usage): Usage = Usage(
@@ -216,6 +220,8 @@ data class ModelInfo(
   /** Dollari per milione di token, in ingresso e in uscita; null se il provider non prezza. */
   val pricePromptPerM: Double? = null,
   val priceCompletionPerM: Double? = null,
+  /** True only when input modalities were explicitly supplied by the catalog. */
+  val visionVerified: Boolean = false,
 ) {
   val capabilities: ModelCapabilities get() = ModelCapabilities(supportsVision, supportsDocuments)
 }
@@ -235,3 +241,7 @@ interface ChatProvider {
 
   suspend fun transcribe(audio: File, mime: String, options: TranscribeOptions): Transcript
 }
+
+/** Effective means encoded on the wire, never a claim that a provider honored the field. */
+data class ProviderDispatch(val provider: ProviderId, val model: String, val resolved: ReasoningLevel,
+  val effective: String?, val support: String = "UNKNOWN", val adaptation: String? = null)

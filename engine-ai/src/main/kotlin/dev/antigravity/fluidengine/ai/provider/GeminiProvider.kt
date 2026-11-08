@@ -30,7 +30,11 @@ import kotlinx.serialization.json.put
  * firma e' un 400. Per le chiamate nate altrove (dopo un cambio di provider) c'e' il valore di
  * bypass documentato.
  */
-class GeminiProvider(private val http: AiHttp, private val apiKey: String) : ChatProvider {
+class GeminiProvider(
+  private val http: AiHttp,
+  private val apiKey: String,
+  private val baseUrl: String = BASE_URL,
+) : ChatProvider {
 
   override val id: ProviderId = ProviderId.GEMINI
 
@@ -43,8 +47,15 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
     var fallbacks = emptySet<Fallback>()
     while (true) {
       try {
-        val response = http.postJson(url(request.model, "generateContent"), headers(), body(request, fallbacks), request.readTimeoutMillis)
-        return GeminiCodec.parseResponse(response.body, response.rateLimit)
+        val payload = body(request, fallbacks)
+        return ProviderWireAttempt.begin(request, dispatch(request, fallbacks), payload, false).execute {
+          val result = http.postJson(url(request.model, "generateContent"), headers(), payload, request.readTimeoutMillis,
+            onResponse = { code, headers -> response(code); rateLimit = AiErrorMapper.parseRateLimit(headers) })
+          response(result.code)
+          rateLimit = result.rateLimit
+          usage = GeminiCodec.usage(result.body["usageMetadata"])
+          GeminiCodec.parseResponse(result.body, result.rateLimit)
+        }
       } catch (e: AiError.BadRequest) {
         fallbacks = nextFallback(e, fallbacks) ?: throw e
       }
@@ -58,18 +69,27 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
       var rateLimit = RateLimitInfo.EMPTY
       val state = GeminiCodec.StreamState()
       try {
-        http.postJsonStream(
-          url = url(request.model, "streamGenerateContent") + "?alt=sse",
-          headers = headers(),
-          body = body(request, fallbacks),
-          chunkTimeoutMillis = request.readTimeoutMillis,
-          onHeaders = { rateLimit = AiErrorMapper.parseRateLimit(it) },
-        ).collect { payload ->
-          started = true
-          GeminiCodec.parseStreamChunk(payload, state).forEach { emit(it) }
+        val payloadBody = body(request, fallbacks)
+        ProviderWireAttempt.begin(request, dispatch(request, fallbacks), payloadBody, true).execute {
+          try {
+            http.postJsonStream(
+              url = url(request.model, "streamGenerateContent") + "?alt=sse",
+              headers = headers(),
+              body = payloadBody,
+              chunkTimeoutMillis = request.readTimeoutMillis,
+              onResponse = { code, headers -> response(code); rateLimit = AiErrorMapper.parseRateLimit(headers) },
+            ).collect { payload ->
+              started = true
+              partialResponse = true
+              GeminiCodec.parseStreamChunk(payload, state).forEach { emit(it) }
+            }
+            state.raw()?.let { emit(ChatDelta.Raw(it)) }
+            emit(ChatDelta.Finish(state.finish ?: FinishReason.STOP, state.usage, rateLimit, state.citations.values.toList()))
+          } finally {
+            usage = state.usage
+            this.rateLimit = rateLimit
+          }
         }
-        state.raw()?.let { emit(ChatDelta.Raw(it)) }
-        emit(ChatDelta.Finish(state.finish ?: FinishReason.STOP, state.usage, rateLimit, state.citations.values.toList()))
         return@flow
       } catch (e: AiError.BadRequest) {
         if (started) throw e
@@ -91,6 +111,13 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
       ("schema" in message || "response_json" in message) && Fallback.OPENAPI_SCHEMA !in current -> current + Fallback.OPENAPI_SCHEMA
       else -> null
     }
+  }
+
+  private fun dispatch(request: ChatRequest, fallbacks: Set<Fallback>): ProviderDispatch {
+    val effective = if (Fallback.NO_THINKING in fallbacks) null else if (Fallback.THINKING_LOW in fallbacks) "low" else GeminiCodec.thinkingLevel(request.reasoning)
+    return ProviderDispatch(id, request.model, request.reasoning, effective,
+      if (effective == null) "OMITTED" else "SENT_UNVERIFIED",
+      fallbacks.takeIf { it.isNotEmpty() }?.joinToString(",") { it.name })
   }
 
   private fun body(request: ChatRequest, fallbacks: Set<Fallback>): JsonObject = buildJsonObject {
@@ -134,7 +161,7 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
     val models = mutableListOf<JsonElement>()
     var pageToken: String? = null
     do {
-      val url = "$BASE_URL/models?pageSize=200" + (pageToken?.let { "&pageToken=$it" } ?: "")
+      val url = "$baseUrl/models?pageSize=200" + (pageToken?.let { "&pageToken=$it" } ?: "")
       val body = http.getJson(url, headers()).body
       models += body["models"].asArray()
       pageToken = body["nextPageToken"].string()?.takeIf { it.isNotBlank() }
@@ -192,7 +219,7 @@ class GeminiProvider(private val http: AiHttp, private val apiKey: String) : Cha
     return Transcript(text = text, language = options.language)
   }
 
-  private fun url(model: String, method: String): String = "$BASE_URL/models/${model.removePrefix("models/")}:$method"
+  private fun url(model: String, method: String): String = "$baseUrl/models/${model.removePrefix("models/")}:$method"
 
   companion object {
     const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
@@ -354,7 +381,7 @@ object GeminiCodec {
       ToolCall(
         id = call["id"].string()?.takeIf { it.isNotBlank() } ?: ToolCallAssembler.localCallId(),
         name = name,
-        arguments = (call["args"] as? JsonObject) ?: JsonObject(emptyMap()),
+        arguments = ToolCallAssembler.parseArguments(call["args"]?.toString() ?: "{}"),
         thoughtSignature = part["thoughtSignature"].string(),
       )
     }
@@ -411,7 +438,7 @@ object GeminiCodec {
           index = state.callIndex++,
           id = call["id"].string(),
           name = call["name"].string(),
-          argumentsFragment = (call["args"] as? JsonObject)?.toString() ?: "{}",
+          argumentsFragment = call["args"]?.toString() ?: "{}",
           thoughtSignature = part["thoughtSignature"].string(),
         )
       }

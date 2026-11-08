@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** Una chiamata a un tool, com'e' andata. */
-data class ToolTrace(val name: String, val millis: Long, val ok: Boolean, val chars: Int)
+data class ToolTrace(val name: String, val millis: Long, val ok: Boolean, val chars: Int, val result: dev.antigravity.fluidengine.ai.tools.ToolResultDetails? = null)
 
 /** Un modello che ha risposto davvero in una domanda (1.29.0): quale provider, a quale livello, quale modello. */
 data class ModelUse(val provider: ProviderId, val tier: ModelTier, val model: String)

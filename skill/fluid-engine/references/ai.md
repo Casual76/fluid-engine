@@ -192,3 +192,25 @@ proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge`
 - Timeout per richiesta (`ChatRequest.readTimeoutMillis`, `AiOrchestratorConfig.readTimeoutFor`):
   120 s se il modello pensa o col profondo, 45 s altrimenti, entro il budget.
 - `ProviderFactory(decorate = ...)` per un iniettore di guasti nelle build di debug.
+
+## Additive typed tool contract (unreleased)
+
+`ToolOutput(text, parts, escalate)` remains source compatible; appended `result: ToolResultDetails?`
+is optional. A null result is legacy evidence, never proof of completion. `ToolOutcome` distinguishes
+ACCEPTED, COMPLETED, PARTIAL, UNCERTAIN and ERROR. Details carry JSON data, entity references,
+operation identity, sources/account, coverage, freshness, pagination and a typed error with explicit
+retryability. Unknown metadata remains null. The model-facing text remains compact; cards should use
+structured evidence rather than infer success from prose.
+
+`ToolArgumentValidator` checks required fields, nested objects/arrays, types, enums, numeric bounds,
+composition and local schema references before orchestrator dispatch and before host context creation.
+It retains the numeric/boolean string tolerance of Args; unknown schema annotations are ignored.
+Malformed raw arguments are rejected, including the assembler's reserved `_raw` fallback.
+
+`AiTool.run(args, ctx, execution: ToolExecution)` defaults to the legacy run implementation.
+`AskInput.prepareToolExecution` runs after validation and before dispatch: persist or reconcile the
+operation and return its stable identity; throwing prevents dispatch. Hooks can run concurrently.
+`AskInput.onToolOutput` receives the full output and identity before text truncation; persist the
+result for cards and reconciliation here. `ToolTrace.result` preserves the typed evidence and drives
+its ok flag (only accepted/completed). Application storage, authorization checks, deduplication and
+reconciliation are application responsibilities; there is no durable engine ledger.

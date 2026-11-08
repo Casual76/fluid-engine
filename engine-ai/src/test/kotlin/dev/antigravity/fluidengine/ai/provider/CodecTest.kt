@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -167,7 +168,7 @@ class CodecTest {
   }
 
   @Test
-  fun `il catalogo OpenRouter tiene solo i modelli con tool e riconosce i gratuiti`() {
+  fun `il catalogo OpenRouter include modelli testuali senza tool e riconosce i gratuiti`() {
     val body = Json.parseToJsonElement(
       """{"data":[
         {"id":"nvidia/nemotron-3.5-lightning:free","name":"Nemotron","context_length":131072,"architecture":{"input_modalities":["text"],"output_modalities":["text"]},"pricing":{"prompt":"0","completion":"0"},"supported_parameters":["tools","reasoning"]},
@@ -177,10 +178,11 @@ class CodecTest {
       ]}""",
     )
     val catalogue = ModelCatalog.openRouter(body)
-    assertEquals(listOf("nvidia/nemotron-3.5-lightning:free", "google/gemini-3.6-flash"), catalogue.chat.map { it.id })
-    assertTrue(catalogue.chat[0].free && catalogue.chat[0].supportsReasoning)
-    assertEquals(0.75, catalogue.chat[1].pricePromptPerM!!, 1e-9)
-    assertTrue(catalogue.chat[1].audioInput)
+    assertEquals(setOf("poolside/laguna:free", "nvidia/nemotron-3.5-lightning:free", "google/gemini-3.6-flash"), catalogue.chat.map { it.id }.toSet())
+    assertFalse(catalogue.chat.first { it.id == "poolside/laguna:free" }.supportsTools)
+    assertTrue(catalogue.chat.first { it.id.startsWith("nvidia/") }.let { it.free && it.supportsReasoning })
+    assertEquals(0.75, catalogue.chat.first { it.id.startsWith("google/") }.pricePromptPerM!!, 1e-9)
+    assertTrue(catalogue.chat.first { it.id.startsWith("google/") }.audioInput)
     assertEquals(listOf("openai/whisper-large-v3"), catalogue.stt.map { it.id })
     assertEquals("nvidia/nemotron-3.5-lightning:free", OpenRouterCatalog.pickDefaultFree(catalogue)?.id)
     assertEquals("nvidia/nemotron-3.5-lightning:free", OpenRouterCatalog.recommended(catalogue).first().id)

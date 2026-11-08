@@ -155,6 +155,7 @@ class AiOrchestratorTest {
     actions: Boolean = false,
     deep: Boolean = false,
     pin: Boolean = false,
+    prepareParts: suspend (List<ContentPart>) -> List<ContentPart> = { it },
   ) = AskInput(
     question = question,
     mode = AskMode.TEXT,
@@ -170,9 +171,84 @@ class AiOrchestratorTest {
     attachmentFallback = fallback,
     deepRequested = deep,
     pinProvider = pin,
+    prepareToolParts = prepareParts,
   )
 
   private fun args(x: String) = buildJsonObject { put("x", JsonPrimitive(x)) }
+
+  @Test fun `legacy success prose is nonverified in next provider input`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Calls(listOf("adesso" to args("created done"))), Scripted.Text("Unverified.")))
+    orchestrator().ask(input("read", groq, preselected = setOf(G.HOURLY)), MutableStateFlow(AssistantState.Idle))
+    val results = groq.streamed.last().messages.filterIsInstance<Message.ToolResult>()
+    assertTrue(results.single().toString().contains("outcome=UNCERTAIN"))
+    assertTrue(results.single().toString().contains("verifiedCompletion=false"))
+    assertTrue(results.single().toString().contains("do not claim completion or automatically repeat writes"))
+    assertEquals(1, now.calls.size)
+  }
+
+  @Test fun `dynamic part hook runs before model sees tool image`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Calls(listOf("screenshot" to buildJsonObject {})), Scripted.Text("Description.")))
+    val screenshot = object : AiTool<Ctx> {
+      override val name = "screenshot"
+      override val group = G.DOCS
+      override val description = "dynamic screen"
+      override val parameters = Schema.obj(emptyMap())
+      override suspend fun run(args: JsonObject, ctx: Ctx) = ToolOutput("screen", listOf(ContentPart.Image(byteArrayOf(1), "image/jpeg")))
+    }
+    val engine = AiOrchestrator(ToolRegistry(listOf(screenshot), G.entries), router, diagnostics)
+    var images = 0
+    val request = input("look", groq, preselected = setOf(G.DOCS), prepareParts = { parts ->
+      images += parts.filterIsInstance<ContentPart.Image>().size
+      listOf(ContentPart.Text("Declared helper interpretation"))
+    })
+    engine.ask(request, MutableStateFlow(AssistantState.Idle))
+    assertEquals(1, images)
+    assertTrue(groq.streamed.last().messages.filterIsInstance<Message.User>().any { it.toString().contains("Declared helper") })
+    assertFalse(groq.streamed.last().messages.filterIsInstance<Message.User>().any { it.parts.any { part -> part is ContentPart.Image } })
+  }
+
+  @Test
+  fun `typed outcome overrides prose and persistence receives untruncated output`() = runBlocking {
+    val evidence = dev.antigravity.fluidengine.ai.tools.ToolResultDetails(dev.antigravity.fluidengine.ai.tools.ToolOutcome.COMPLETED)
+    val fullText = "errore is a quoted word: " + "x".repeat(5000)
+    var prepared = false
+    var seen: ToolOutput? = null
+    val tool = object : AiTool<Ctx> {
+      override val name = "typed"
+      override val group = G.HOURLY
+      override val description = "typed"
+      override val parameters = Schema.obj(mapOf("id" to Schema.str("id")), listOf("id"))
+      override suspend fun run(args: JsonObject, ctx: Ctx): ToolOutput = error("identity overload required")
+      override suspend fun run(args: JsonObject, ctx: Ctx, execution: dev.antigravity.fluidengine.ai.tools.ToolExecution): ToolOutput {
+        assertTrue(prepared)
+        assertEquals("persisted", execution.operationId)
+        return ToolOutput(fullText, result = evidence)
+      }
+    }
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Calls(listOf("typed" to buildJsonObject { put("id", JsonPrimitive("42")) })), Scripted.Text("Done.")))
+    val orchestrator = AiOrchestrator(ToolRegistry(listOf(tool), G.entries), router, diagnostics)
+    val request = AskInput(question = "execute", mode = AskMode.TEXT, language = "it", settings = AiSettings(),
+      providers = listOf(ready(groq)), toolContext = Ctx(), systemPrompt = "assistant", conversation = Conversation(1, 0),
+      actionsEnabled = true, preselectedGroups = setOf(G.HOURLY),
+      prepareToolExecution = { prepared = true; dev.antigravity.fluidengine.ai.tools.ToolExecution("persisted") },
+      onToolOutput = { _, identity, output -> assertEquals("persisted", identity?.operationId); seen = output })
+    val result = orchestrator.ask(request, MutableStateFlow(AssistantState.Idle))
+    assertTrue(result.log.tools.single().ok)
+    assertEquals(evidence, result.log.tools.single().result)
+    assertEquals(fullText, seen?.text)
+    assertTrue(result.log.tools.single().chars <= dev.antigravity.fluidengine.ai.tools.ToolText.MAX_CHARS)
+  }
+
+  @Test
+  fun `malformed arguments never dispatch even an empty schema tool`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(
+      Scripted.Calls(listOf("adesso" to dev.antigravity.fluidengine.ai.provider.ToolCallAssembler.parseArguments("{"))),
+      Scripted.Text("Argomenti non validi."),
+    ))
+    val result = orchestrator().ask(input("execute", groq, preselected = setOf(G.HOURLY)), MutableStateFlow(AssistantState.Idle))
+    assertTrue(now.calls.isEmpty())
+    assertFalse(result.log.tools.single().ok)
+  }
 
   @Test
   fun `il tool del modello avanzato porta il resto del giro sul livello profondo`() = runBlocking {
@@ -232,7 +308,8 @@ class AiOrchestratorTest {
     val second = groq.streamed[1].messages
     val results = second.filterIsInstance<Message.ToolResult>()
     assertEquals(listOf("call_0", "call_1"), results.map { it.callId })
-    assertTrue(results[0].content.startsWith("adesso ha ricevuto a"))
+    assertTrue(results[0].content.startsWith("[execution evidence:"))
+    assertTrue(results[0].content.contains("\nadesso ha ricevuto a"))
     // Il preambolo prima delle tool call non e' mai diventato una risposta.
     assertTrue(states.none { it is AssistantState.Answering && it.partial == "Controllo" })
     assertTrue(states.any { it is AssistantState.Classifying })

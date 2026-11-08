@@ -86,6 +86,7 @@ class ModelCatalogStore(private val directory: File) {
       put("reasoning", model.supportsReasoning)
       put("audio", model.audioInput)
       put("vision", model.supportsVision)
+      put("visionVerified", model.visionVerified)
       put("docs", model.supportsDocuments)
       put("free", model.free)
       model.pricePromptPerM?.let { put("pin", it) }
@@ -106,6 +107,7 @@ class ModelCatalogStore(private val directory: File) {
           supportsReasoning = (e["reasoning"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false,
           audioInput = (e["audio"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false,
           supportsVision = (e["vision"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false,
+          visionVerified = (e["visionVerified"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false,
           supportsDocuments = (e["docs"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false,
           free = (e["free"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false,
           pricePromptPerM = e["pin"].double(),

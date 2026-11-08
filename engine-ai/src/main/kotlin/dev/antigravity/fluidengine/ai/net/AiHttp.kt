@@ -56,12 +56,19 @@ class AiHttp(
 ) {
 
   /** [readTimeoutMillis]: l'attesa massima della risposta per questa richiesta; null = il default del client. */
-  suspend fun postJson(url: String, headers: Map<String, String>, body: JsonObject, readTimeoutMillis: Int? = null): AiResponse =
+  suspend fun postJson(
+    url: String,
+    headers: Map<String, String>,
+    body: JsonObject,
+    readTimeoutMillis: Int? = null,
+    /** Observes status/headers before error mapping or JSON decoding, including non-2xx. */
+    onResponse: (Int, Map<String, String>) -> Unit = { _, _ -> },
+  ): AiResponse =
     withContext(io) {
       val connection = open(url, "POST", headers, streaming = false, readTimeoutOverride = readTimeoutMillis)
       try {
         writeJson(connection, body)
-        readResponse(connection)
+        readResponse(connection, onResponse)
       } catch (t: Throwable) {
         throw AiErrorMapper.wrap(t)
       } finally {
@@ -121,12 +128,15 @@ class AiHttp(
     chunkTimeoutMillis: Int? = null,
     /** Gli header della risposta 2xx (minuscoli), appena arrivano: i limiti stanno li'. */
     onHeaders: (Map<String, String>) -> Unit = {},
+    /** All statuses, including rejections; onHeaders retains its existing 2xx-only contract. */
+    onResponse: (Int, Map<String, String>) -> Unit = { _, _ -> },
   ): Flow<String> = callbackFlow {
     val connection = open(url, "POST", headers, streaming = true, readTimeoutOverride = chunkTimeoutMillis)
     val reader = launch(io) {
       try {
         writeJson(connection, body)
         val code = connection.responseCode
+        onResponse(code, AiErrorMapper.normalize(connection.headerFields))
         if (code !in 200..299) {
           val text = connection.errorStream?.use { it.readUtf8() }.orEmpty()
           throw AiErrorMapper.map(code, connection.headerFields, text)
@@ -182,9 +192,13 @@ class AiHttp(
     connection.outputStream.use { it.write(bytes) }
   }
 
-  private fun readResponse(connection: HttpURLConnection): AiResponse {
+  private fun readResponse(
+    connection: HttpURLConnection,
+    onResponse: (Int, Map<String, String>) -> Unit = { _, _ -> },
+  ): AiResponse {
     val code = connection.responseCode
     val headers = AiErrorMapper.normalize(connection.headerFields)
+    onResponse(code, headers)
     if (code !in 200..299) {
       val text = connection.errorStream?.use { it.readUtf8() }.orEmpty()
       throw AiErrorMapper.map(code, connection.headerFields, text)

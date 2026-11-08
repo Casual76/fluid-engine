@@ -107,6 +107,7 @@ object ModelCatalog {
         supportsReasoning = "reasoning" in parameters || "include_reasoning" in parameters,
         audioInput = "audio" in inputs,
         supportsVision = "image" in inputs,
+        visionVerified = inputs.isNotEmpty(),
         // Il parser di OpenRouter legge i PDF per qualunque modello: i documenti passano sempre.
         supportsDocuments = true,
         free = free,
@@ -119,7 +120,6 @@ object ModelCatalog {
         transcription -> stt += info.copy(kind = ModelKind.STT)
         "text" !in outputs && outputs.isNotEmpty() -> Unit
         openRouterNotChat.any { it in lower } -> Unit
-        !info.supportsTools -> Unit
         else -> chat += info.copy(kind = ModelKind.CHAT)
       }
     }

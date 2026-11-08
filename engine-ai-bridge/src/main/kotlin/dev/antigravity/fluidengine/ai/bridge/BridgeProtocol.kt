@@ -21,13 +21,49 @@ import kotlinx.serialization.json.put
  * Il protocollo fra un'app che espone i suoi tool (l'**ospite**, un `ContentProvider`) e l'app
  * che li chiama (il **cliente**, un assistente come PampAI): JSON in stringhe dentro i `Bundle`
  * di `ContentProvider.call`. Puro Kotlin, cosi' si prova sulla JVM. Tutto cio' che attraversa il
- * confine e' qui: chi cambia il formato alza [PROTOCOL] e aggiunge, mai toglie.
+ * confine e' qui: [PROTOCOL] resta legacy, le estensioni si negoziano fino a [MAX_PROTOCOL].
  *
  * Metodi: `catalog` (cosa c'e'), `describe` (le parole della conferma), `run` (esegui, o avvia un
  * lavoro lungo), `status` (com'e' il lavoro), `cancel`, `ready` (l'app e' in grado di rispondere?).
  */
 object BridgeProtocol {
-  const val PROTOCOL = 1
+  const val PROTOCOL = 1 // Legacy catalog version MUST stay 1.
+  const val MAX_PROTOCOL = 2
+  const val CAP_TYPED_RESULTS = "typed_results"
+  const val CAP_OPERATION_ID = "operation_identity"
+  val CAPABILITIES: Set<String> = setOf(CAP_TYPED_RESULTS, CAP_OPERATION_ID)
+  const val METHOD_NEGOTIATE = "negotiate"
+
+  fun negotiationRequest(): JsonObject = buildJsonObject {
+    put("versions", buildJsonArray { add(JsonPrimitive(1)); add(JsonPrimitive(2)) })
+    put("capabilities", buildJsonArray { CAPABILITIES.forEach { add(JsonPrimitive(it)) } })
+  }
+
+  fun negotiate(request: JsonObject?): JsonObject = buildJsonObject {
+    val versions = (request?.get("versions") as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.content?.toIntOrNull() }
+    val version = versions.filter { it in 1..MAX_PROTOCOL }.maxOrNull()
+    if (version == null) put("error", "no common protocol") else {
+      put("protocol", version)
+      val requested = (request?.get("capabilities") as? JsonArray).strings()
+      put("capabilities", buildJsonArray { if (version >= 2) CAPABILITIES.intersect(requested.toSet()).forEach { add(JsonPrimitive(it)) } })
+    }
+  }
+
+  /** Old hosts return unknown-method errors; the safe adapter remains protocol 1. */
+  fun agreementOf(response: JsonObject?): BridgeNegotiation {
+    if (response?.get("error") != null) return BridgeNegotiation()
+    val version = (response?.get("protocol") as? JsonPrimitive)?.content?.toIntOrNull()
+    if (version != 2) return BridgeNegotiation()
+    return BridgeNegotiation(version, (response["capabilities"] as? JsonArray).strings().toSet().intersect(CAPABILITIES))
+  }
+
+  fun typedRequested(request: JsonObject?): Boolean =
+    (request?.get("protocol") as? JsonPrimitive)?.content == "2" &&
+      CAP_TYPED_RESULTS in (request["capabilities"] as? JsonArray).strings()
+
+  fun withResult(envelope: JsonObject, output: dev.antigravity.fluidengine.ai.tools.ToolOutput, request: JsonObject?): JsonObject =
+    if (typedRequested(request) && output.result != null) JsonObject(envelope + ("result" to TypedResultCodec.encode(output.result!!))) else envelope
+
 
   /** Il meta-data sul `<provider>` dell'ospite che lo fa trovare al cliente. */
   const val META_TOOL_HOST = "dev.antigravity.fluidengine.ai.TOOL_HOST"
@@ -62,7 +98,7 @@ object BridgeProtocol {
   const val STATE_FAILED = "failed"
   const val STATE_UNKNOWN = "unknown"
 
-  val json: Json = Json { ignoreUnknownKeys = true; isLenient = true }
+  val json: Json = Json { ignoreUnknownKeys = true; isLenient = false }
 
   fun parse(text: String?): JsonObject? = text?.let { runCatching { json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
 
@@ -122,6 +158,7 @@ object BridgeProtocol {
               put("needsConfirmation", tool.needsConfirmation)
               put("longRunning", tool.longRunning)
               put("action", tool.isAction)
+              tool.timeoutMillis?.let { put("timeoutMillis", it) }
             },
           )
         }
@@ -155,6 +192,7 @@ object BridgeProtocol {
         needsConfirmation = t["needsConfirmation"].bool() ?: false,
         longRunning = t["longRunning"].bool() ?: false,
         action = t["action"].bool() ?: false,
+        timeoutMillis = (t["timeoutMillis"] as? JsonPrimitive)?.content?.toLongOrNull(),
       )
     }
     return RemoteCatalog(
@@ -228,10 +266,10 @@ object BridgeProtocol {
     val state = json["state"].string()
     val parts = json["parts"].asArray().mapNotNull { RemotePart.of(it) }
     if (state != null) {
-      return RemoteResult.Status(state, json["detail"].string(), json["progress"].double(), json["text"].string(), json["escalate"].bool() ?: false, parts)
+      return RemoteResult.Status(state, json["detail"].string(), json["progress"].double(), json["text"].string(), json["escalate"].bool() ?: false, parts, TypedResultCodec.decode(json["result"] as? JsonObject))
     }
     val text = json["text"].string() ?: return null
-    return RemoteResult.Done(text, json["escalate"].bool() ?: false, parts)
+    return RemoteResult.Done(text, json["escalate"].bool() ?: false, parts, TypedResultCodec.decode(json["result"] as? JsonObject))
   }
 
   private fun JsonElement?.int(): Int? = (this as? JsonPrimitive)?.let { it.doubleOrNull?.toInt() ?: it.contentOrNull?.toIntOrNull() }
@@ -244,7 +282,7 @@ data class RemoteCategoryInfo(val id: String, val label: String, val hint: Strin
 
 data class RemoteGroupInfo(val id: String, val statusKey: String, val hint: String, val category: String?, val parent: String?, val loadsWithCategory: Boolean, val action: Boolean)
 
-data class RemoteToolInfo(val name: String, val group: String, val description: String, val parameters: JsonObject, val needsConfirmation: Boolean, val longRunning: Boolean, val action: Boolean)
+data class RemoteToolInfo(val name: String, val group: String, val description: String, val parameters: JsonObject, val needsConfirmation: Boolean, val longRunning: Boolean, val action: Boolean, val timeoutMillis: Long? = null)
 
 /** Il catalogo di un'app ospite, come lo vede il cliente. */
 data class RemoteCatalog(
@@ -285,9 +323,9 @@ data class RemotePart(val kind: String, val uri: String, val mime: String, val n
 }
 
 sealed interface RemoteResult {
-  data class Done(val text: String, val escalate: Boolean, val parts: List<RemotePart>) : RemoteResult
+  data class Done(val text: String, val escalate: Boolean, val parts: List<RemotePart>, val result: dev.antigravity.fluidengine.ai.tools.ToolResultDetails? = null) : RemoteResult
   data class Job(val jobId: String) : RemoteResult
-  data class Status(val state: String, val detail: String?, val progress: Double?, val text: String?, val escalate: Boolean, val parts: List<RemotePart>) : RemoteResult
+  data class Status(val state: String, val detail: String?, val progress: Double?, val text: String?, val escalate: Boolean, val parts: List<RemotePart>, val result: dev.antigravity.fluidengine.ai.tools.ToolResultDetails? = null) : RemoteResult
   data class Error(val message: String) : RemoteResult
 }
 
@@ -296,3 +334,11 @@ fun JsonArray?.strings(): List<String> = this?.mapNotNull { (it as? JsonPrimitiv
 
 @Suppress("unused")
 private fun <C> keepAiToolImport(tool: AiTool<C>) = tool.name
+
+/** Negotiated transport features, available to app capability gates. No durable dedup capability exists. */
+data class BridgeNegotiation(val protocol: Int = 1, val capabilities: Set<String> = emptySet()) {
+  fun toJson(): JsonObject = buildJsonObject {
+    put("protocol", protocol)
+    put("capabilities", buildJsonArray { capabilities.forEach { add(JsonPrimitive(it)) } })
+  }
+}

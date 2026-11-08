@@ -40,6 +40,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidBackButton
 import dev.antigravity.fluidengine.ui.fluid.FluidBarTitleMotion
@@ -87,7 +88,8 @@ import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
  *    superficie sola di Fluid-physics porta i pezzi della pagina che esce su quelli della pagina che
  *    arriva, e le icone si incrociano sopra. Oltre sei pezzi, o con un controllo che non e' una
  *    capsula di vetro, le icone si incrociano e basta;
- *  - **si tocca solo a riposo**: durante il movimento la riga dei controlli non prende tocchi.
+ *  - **i controlli restano disponibili**: durante il movimento risponde la cima della pila richiesta;
+ *    la pagina uscente continua a disegnarsi senza poter eseguire azioni.
  */
 @Composable
 internal fun FluidAnchoredBar(
@@ -168,8 +170,8 @@ internal fun FluidAnchoredBar(
   val shiftPx = with(density) { FluidPageMotion.BarTitleShiftDp.dp.toPx() }
   // Quanto occupano il tasto indietro e le azioni: il titolo agganciato si ferma prima (3.0.1).
   val controls = remember { FluidTopBarControls() }
-  val onTapTitle by rememberUpdatedState(upperSpec?.onTapTitle)
-  val onBack by rememberUpdatedState(upperSpec?.onBack)
+  // In un pop upper e' la pagina uscente: non deve conservare i callback della barra.
+  val activeSpec = state.interactionPage?.let { registry[it]?.spec }
 
   Box(
     modifier = Modifier
@@ -188,16 +190,7 @@ internal fun FluidAnchoredBar(
       LocalFluidCanvasBackdrop provides null,
     ) {
       FluidTopBarRow(
-        onTapTitle = { if (!state.isMoving) onTapTitle?.invoke() },
-        // Si tocca solo a riposo: durante il movimento la riga beve tutto prima dei controlli.
-        modifier = Modifier.pointerInput(state) {
-          awaitPointerEventScope {
-            while (true) {
-              val event = awaitPointerEvent(PointerEventPass.Initial)
-              if (state.isMoving) event.changes.forEach { it.consume() }
-            }
-          }
-        },
+        onTapTitle = { state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() },
       ) {
         if (moving) {
           // Fra il vetro della barra e le icone: i pezzi che viaggiano. Solo durante il movimento.
@@ -227,7 +220,9 @@ internal fun FluidAnchoredBar(
         ) {
           Box(modifier = Modifier.onSizeChanged { controls.startPx = it.width }) {
             if (backKeys.isNotEmpty()) {
-              BarBackButton(state, journey) { if (!state.isMoving) onBack?.invoke() }
+              Box(if (activeSpec?.onBack == null) Modifier.clearAndSetSemantics { } else Modifier) {
+                BarBackButton(state, journey) { state.interactionPage?.let { registry[it]?.spec?.onBack }?.invoke() }
+              }
             } else {
               Spacer(Modifier.width(FluidScreenDefaults.HorizontalPadding))
             }
@@ -235,7 +230,8 @@ internal fun FluidAnchoredBar(
           Spacer(Modifier.weight(1f))
           Row(modifier = Modifier.onSizeChanged { controls.endPx = it.width }, verticalAlignment = Alignment.CenterVertically) {
             Box(contentAlignment = Alignment.CenterEnd) {
-              for ((page, spec) in shown) {
+              // L'azione della destinazione corrente deve vincere anche l'hit test fra due icone.
+              for ((page, spec) in shown.sortedBy { it.first == state.interactionPage }) {
                 key(page) { BarActions(state, page, spec, controlBackdrop, journey) }
               }
             }
@@ -346,14 +342,24 @@ private fun BarActions(
     ) {
       FluidTopBarActions(
         actions = spec.actions,
-        modifier = Modifier.graphicsLayer {
-          val m = FluidPageMotion.barMorph(state.frontFraction())
-          alpha = when (state.roleOf(page)) {
-            PageRole.Upper -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = false) else 1f
-            PageRole.Lower -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = true) else 0f
-            PageRole.Gone -> 0f
+        modifier = Modifier
+          .then(if (page != state.interactionPage) Modifier.clearAndSetSemantics { } else Modifier)
+          .pointerInput(state, page) {
+            awaitPointerEventScope {
+              while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (page != state.interactionPage) event.changes.forEach { it.consume() }
+              }
+            }
           }
-        },
+          .graphicsLayer {
+            val m = FluidPageMotion.barMorph(state.frontFraction())
+            alpha = when (state.roleOf(page)) {
+              PageRole.Upper -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = false) else 1f
+              PageRole.Lower -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = true) else 0f
+              PageRole.Gone -> 0f
+            }
+          },
       )
     }
   }

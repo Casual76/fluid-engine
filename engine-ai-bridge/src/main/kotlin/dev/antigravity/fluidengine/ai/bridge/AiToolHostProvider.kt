@@ -15,7 +15,7 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import dev.antigravity.fluidengine.ai.provider.ContentPart
 import dev.antigravity.fluidengine.ai.tools.AiTool
-import dev.antigravity.fluidengine.ai.tools.ToolOutput
+import dev.antigravity.fluidengine.ai.tools.*
 import dev.antigravity.fluidengine.ai.tools.ToolRegistry
 import java.io.File
 import java.util.UUID
@@ -144,6 +144,7 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
     val request = BridgeProtocol.parse(extras?.getString(BridgeProtocol.KEY_JSON))
     val response: JsonObject = try {
       when (method) {
+        BridgeProtocol.METHOD_NEGOTIATE -> BridgeProtocol.negotiate(request)
         BridgeProtocol.METHOD_CATALOG -> catalog()
         BridgeProtocol.METHOD_READY -> ready().let { BridgeProtocol.readyResponse(it.ready, it.reason) }
         BridgeProtocol.METHOD_DESCRIBE -> describe(request)
@@ -152,6 +153,8 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
         BridgeProtocol.METHOD_CANCEL -> cancel(request)
         else -> BridgeProtocol.errorResponse("metodo sconosciuto: $method")
       }
+    } catch (e: CancellationException) {
+      throw e
     } catch (e: Throwable) {
       BridgeProtocol.errorResponse("${appLabel()} non ha risposto: ${e.message ?: e::class.simpleName}")
     }
@@ -167,7 +170,8 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
   private fun describe(request: JsonObject?): JsonObject {
     val name = request?.get("name")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: return BridgeProtocol.errorResponse("manca il nome")
     val tool = registry().find(name) ?: return BridgeProtocol.errorResponse("tool sconosciuto: $name")
-    val args = request["args"] as? JsonObject ?: buildJsonObject { }
+    val args = request["args"] as? JsonObject ?: return BridgeProtocol.errorResponse("args must be an object")
+    ToolArgumentValidator.error(args, tool.parameters)?.let { return BridgeProtocol.errorResponse(it) }
     val language = (request["lang"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: "it"
     val text = runBlocking(Dispatchers.IO) {
       withTimeoutOrNull(callTimeoutMillis) {
@@ -181,10 +185,14 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
   private fun run(request: JsonObject?): JsonObject {
     val name = request?.get("name")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: return BridgeProtocol.errorResponse("manca il nome")
     val tool = registry().find(name) ?: return BridgeProtocol.errorResponse("tool sconosciuto: $name")
-    val args = request["args"] as? JsonObject ?: buildJsonObject { }
+    val args = request["args"] as? JsonObject ?: return BridgeProtocol.errorResponse("args must be an object")
+    ToolArgumentValidator.error(args, tool.parameters)?.let { return BridgeProtocol.errorResponse(it) }
     val confirmed = (request["confirmed"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
     val language = (request["lang"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: "it"
-    val requestId = (request["requestId"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: UUID.randomUUID().toString()
+    val suppliedId = (request["requestId"] as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { it.isString }?.content
+    if ((tool.isAction || tool.needsConfirmation) && suppliedId.isNullOrBlank())
+      return BridgeProtocol.errorResponse("operation identity required for writes")
+    val requestId = suppliedId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
     if (tool.needsConfirmation && !confirmed) return BridgeProtocol.errorResponse("conferma richiesta: il chiamante deve chiedere all'utente prima di eseguire $name")
     val state = ready()
     if (!state.ready) return BridgeProtocol.errorResponse(state.reason ?: "${appLabel()} non e' pronta: apri l'app e riprova")
@@ -193,15 +201,15 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
       val jobId = jobs.start { execute(tool, args, call) }
       return BridgeProtocol.jobResponse(jobId)
     }
-    val output = runBlocking(Dispatchers.IO) { withTimeoutOrNull(callTimeoutMillis) { execute(tool, args, call) } }
+    val output = runBlocking(Dispatchers.IO) { withTimeoutOrNull(minOf(callTimeoutMillis, tool.timeoutMillis ?: callTimeoutMillis).coerceAtLeast(1L)) { execute(tool, args, call) } }
       ?: return BridgeProtocol.errorResponse("$name non ha risposto entro ${callTimeoutMillis / 1000} secondi")
-    return BridgeProtocol.resultResponse(output.text, output.escalate, export(requestId, output.parts))
+    return BridgeProtocol.withResult(BridgeProtocol.resultResponse(output.text, output.escalate, export(requestId, output.parts)), output, request)
   }
 
   private suspend fun execute(tool: AiTool<C>, args: JsonObject, call: RemoteCall): ToolOutput {
     val ctx = context(call)
     return try {
-      tool.run(args, ctx)
+      tool.run(args, ctx, ToolExecution(call.requestId))
     } catch (e: CancellationException) {
       throw e
     } catch (e: Throwable) {
@@ -215,7 +223,7 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
     val output = job.output
     return when {
       job.failure != null -> BridgeProtocol.statusResponse(BridgeProtocol.STATE_FAILED, job.failure, null, null, false, emptyList())
-      output != null -> BridgeProtocol.statusResponse(BridgeProtocol.STATE_DONE, null, 1.0, output.text, output.escalate, export(jobId, output.parts))
+      output != null -> BridgeProtocol.withResult(BridgeProtocol.statusResponse(BridgeProtocol.STATE_DONE, null, 1.0, output.text, output.escalate, export(jobId, output.parts)), output, request)
       else -> BridgeProtocol.statusResponse(BridgeProtocol.STATE_RUNNING, job.detail, job.progress, null, false, emptyList())
     }
   }
@@ -230,7 +238,7 @@ abstract class AiToolHostProvider<C> : ContentProvider() {
   private fun export(requestId: String, parts: List<ContentPart>): List<RemotePart> {
     val authority = partsAuthority() ?: return emptyList()
     val ctx = context ?: return emptyList()
-    val dir = File(ctx.cacheDir, "ai-bridge/$requestId").apply { mkdirs() }
+    val dir = File(ctx.cacheDir, "ai-bridge/${requestId.replace(Regex("[^A-Za-z0-9_-]"), "_")}").apply { mkdirs() }
     return parts.mapIndexedNotNull { index, part ->
       val (bytes, mime, name, kind) = when (part) {
         is ContentPart.Image -> Quad(part.bytes, part.mime, "immagine-$index.${if (part.mime.contains("png")) "png" else "jpg"}", RemotePart.KIND_IMAGE)
@@ -281,7 +289,7 @@ class BridgeJobs {
     prune()
     val id = UUID.randomUUID().toString()
     lateinit var entry: Entry
-    val job = scope.launch {
+    val job = scope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
       try {
         entry.output = block()
       } catch (e: CancellationException) {
@@ -294,6 +302,7 @@ class BridgeJobs {
     }
     entry = Entry(job)
     entries[id] = entry
+    job.start()
     return id
   }
 

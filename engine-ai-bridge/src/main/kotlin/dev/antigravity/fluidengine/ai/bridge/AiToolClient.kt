@@ -8,6 +8,8 @@ import android.os.DeadObjectException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Cosa il cliente puo' dire di un'app ospite. [NO_PERMISSION] vuol dire che l'ospite ha rifiutato
@@ -26,6 +28,11 @@ enum class RemoteAvailability { INSTALLED_OK, NEEDS_UPDATE, NOT_INSTALLED, NO_PE
  * l'ospite, dalla firma del cliente.
  */
 class AiToolClient(private val context: Context) : BridgeCalls {
+
+  private val negotiated = ConcurrentHashMap<String, BridgeNegotiation>()
+
+  /** Features agreed during catalog discovery; absent/old hosts have no extended capabilities. */
+  fun negotiation(authority: String): BridgeNegotiation = negotiated[authority] ?: BridgeNegotiation()
 
   /** Le app installate che espongono i tool: quelle con il meta-data sul provider. */
   fun discover(): List<RemoteHost> {
@@ -55,7 +62,12 @@ class AiToolClient(private val context: Context) : BridgeCalls {
   suspend fun catalog(host: RemoteHost): RemoteCatalog? = withContext(Dispatchers.IO) {
     val result = callRaw(host.authority, BridgeProtocol.METHOD_CATALOG, null) as? CallResult.Ok ?: return@withContext null
     val catalog = BridgeProtocol.catalogOf(BridgeProtocol.parse(result.bundle.getString(BridgeProtocol.KEY_JSON)), host.authority, host.packageName) ?: return@withContext null
-    if (catalog.protocol > BridgeProtocol.PROTOCOL) null else catalog
+    if (catalog.protocol > BridgeProtocol.PROTOCOL) null else {
+      // Older hosts return an unknown-method error: retain protocol 1.
+      val agreed = callJson(host.authority, BridgeProtocol.METHOD_NEGOTIATE, BridgeProtocol.negotiationRequest())
+      negotiated[host.authority] = BridgeProtocol.agreementOf(agreed)
+      catalog
+    }
   }
 
   override suspend fun describe(authority: String, name: String, args: JsonObject, language: String): Pair<String?, String?>? = withContext(Dispatchers.IO) {
@@ -66,7 +78,7 @@ class AiToolClient(private val context: Context) : BridgeCalls {
   }
 
   override suspend fun run(authority: String, name: String, args: JsonObject, confirmed: Boolean, requestId: String, language: String): RemoteResult = withContext(Dispatchers.IO) {
-    when (val raw = callRaw(authority, BridgeProtocol.METHOD_RUN, BridgeProtocol.runRequest(name, args, confirmed, requestId, language))) {
+    when (val raw = callRaw(authority, BridgeProtocol.METHOD_RUN, request(authority, BridgeProtocol.runRequest(name, args, confirmed, requestId, language)))) {
       is CallResult.Ok -> BridgeProtocol.resultOf(BridgeProtocol.parse(raw.bundle.getString(BridgeProtocol.KEY_JSON))) ?: RemoteResult.Error("risposta illeggibile dall'app")
       is CallResult.Denied -> RemoteResult.Error("l'app rifiuta la chiamata (firma diversa: e' una build di sviluppo?)")
       is CallResult.Missing -> RemoteResult.Error("l'app non espone piu' i tool (disinstallata o da aggiornare)")
@@ -75,7 +87,7 @@ class AiToolClient(private val context: Context) : BridgeCalls {
   }
 
   override suspend fun status(authority: String, jobId: String): RemoteResult = withContext(Dispatchers.IO) {
-    when (val raw = callRaw(authority, BridgeProtocol.METHOD_STATUS, BridgeProtocol.statusRequest(jobId))) {
+    when (val raw = callRaw(authority, BridgeProtocol.METHOD_STATUS, request(authority, BridgeProtocol.statusRequest(jobId)))) {
       is CallResult.Ok -> BridgeProtocol.resultOf(BridgeProtocol.parse(raw.bundle.getString(BridgeProtocol.KEY_JSON))) ?: RemoteResult.Error("stato illeggibile")
       is CallResult.Denied -> RemoteResult.Error("permesso negato")
       is CallResult.Missing -> RemoteResult.Error("l'app non risponde piu'")
@@ -91,6 +103,9 @@ class AiToolClient(private val context: Context) : BridgeCalls {
   override fun readPart(part: RemotePart): ByteArray? = runCatching {
     context.contentResolver.openInputStream(Uri.parse(part.uri))?.use { it.readBytes() }
   }.getOrNull()
+
+  private fun request(authority: String, payload: JsonObject): JsonObject =
+    negotiated[authority]?.let { JsonObject(payload + it.toJson()) } ?: payload
 
   private fun callJson(authority: String, method: String, request: JsonObject): JsonObject? =
     (callRaw(authority, method, request) as? CallResult.Ok)?.let { BridgeProtocol.parse(it.bundle.getString(BridgeProtocol.KEY_JSON)) }

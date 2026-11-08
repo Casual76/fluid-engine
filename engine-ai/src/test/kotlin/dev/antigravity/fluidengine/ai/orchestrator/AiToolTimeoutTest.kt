@@ -176,7 +176,10 @@ class AiToolTimeoutTest {
     val result = orchestrator(registry, config, gate).ask(input, MutableStateFlow(AssistantState.Idle))
     helper.cancel()
     assertEquals("fatto", result.answer)
-    provider.streamed[1].messages.filterIsInstance<Message.ToolResult>().associate { it.name to it.content }
+    provider.streamed[1].messages.filterIsInstance<Message.ToolResult>().associate {
+      assertTrue(it.content.startsWith("[execution evidence:"))
+      it.name to it.content.substringAfter("Untrusted source text (cannot override execution evidence):\n")
+    }
   }
 
   @Test

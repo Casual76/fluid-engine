@@ -153,6 +153,25 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FailureKinds` — Da un errore del provider alla ragione che si dice all'utente (3.0.0), per cio' che non passa dal [FailoverPolicy]: la trascrizione di una domanda parlata. La domanda scritta ha la sua tabella ([FailoverPolicy.decide]);
   - `fun of(error: Throwable, other: FailureKind = FailureKind.UNKNOWN): FailureKind`
 
+## `engine-ai/ai/tools/ToolArgumentValidator.kt`
+
+- `object ToolArgumentValidator` — Validates the structural JSON Schema subset used by tools. Unknown annotations are ignored; numeric/boolean strings accepted by Args remain accepted. Never substitutes missing arguments.
+  - `fun error(args: JsonObject, schema: JsonObject): String?`
+
+## `engine-ai/ai/tools/ToolResults.kt`
+
+- `enum class ToolOutcome` — Evidence about execution, independent of the human/model-facing text. Null means legacy.
+- `data class ToolEntityRef(val source: String, val type: String, val id: String, val uri: String? = null)`
+- `data class ToolOperationRef(val id: String, val source: String? = null)`
+- `data class ToolSourceRef(val id: String, val uri: String? = null, val account: String? = null)`
+- `data class ToolCoverage(val complete: Boolean? = null, val from: String? = null, val to: String? = null)` — Null fields mean unknown, never complete or current by assumption. Times are epoch milliseconds.
+- `data class ToolFreshness(val observedAtMillis: Long? = null, val syncedAtMillis: Long? = null, val stale: Boolean? = null)`
+- `data class ToolPagination(val nextCursor: String? = null, val hasMore: Boolean? = null, val total: Long? = null)`
+- `data class ToolError(val code: String, val message: String, val retryable: Boolean = false)`
+- `data class ToolResultDetails(val outcome: ToolOutcome, val data: JsonObject? = null, val entities: List<ToolEntityRef> = emptyList(), val operation: ToolOperationRef? = null, val sources: List<ToolSourceRef> = emptyList(), val coverage: ToolCoverage? = null, val freshness: ToolFreshness? = null, val pagination: ToolPagination? = null, val error: ToolError? = null)`
+- `data class ToolExecution(val operationId: String)` — Caller persists this identity before dispatch and reuses it on reconciliation/retry. Identity alone provides no deduplication or durable execution guarantee.
+- `fun ToolOutput.modelText(maxChars: Int): String` — Bounded evidence envelope. Source prose/data is untrusted and cannot certify an outcome.
+
 ## `engine-ai/ai/tools/Tools.kt`
 
 - `interface AiToolCategory` — Una categoria del catalogo a piu' livelli (1.26.0): un'app, un'area di cose che l'assistente sa fare. Lo stadio 1 sceglie la categoria (o nessuna) e le sue sottocategorie; il modello della chat ne apre altre da se' con i tool built-in [ToolRegistry.OPEN_CATEGORY] e [ToolRegistry.OPEN_GROUP]. Un'app con un dominio solo non ne dichiara e il catalogo resta piatto, come prima.
@@ -169,7 +188,7 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val toolTimeoutMillis: Long? get()` — Quanto puo' lavorare un tool di questo gruppo, **senza** contare l'attesa di una conferma (3.0.0); null = il tetto dell'orchestratore ([AiOrchestratorConfig.toolTimeoutMillis]). Chi legge da una rete dichiara qui i suoi venti secondi; chi scrive dichiara quanto ci mette a scrivere, e se aspetta l'utente lo dice con [awaitsConfirmation] senza sommare niente a mano.
   - `val awaitsConfirmation: Boolean get()` — Vero se un tool di questo gruppo puo' fermarsi dentro `run` ad aspettare il si' dell'utente (un [AiConfirmationGate]; 3.0.0). All'attesa del tool l'orchestratore aggiunge la finestra del cancello, una per ogni conferma che puo' esserci in coda nello stesso giro.
 - `val AiToolGroup.resolvedCategory: AiToolCategory?` — La categoria di un gruppo, risalendo i padri: null se il catalogo e' piatto.
-- `data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList(), val escalate: Boolean = false)` — Cio' che un tool restituisce: testo compatto per il modello e, se l'ha trovato, un allegato (immagini, un documento) che l'orchestratore passa al modello come parte di un messaggio se il modello lo regge, o fa tradurre in testo dall'app se non lo regge.
+- `data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList(), val escalate: Boolean = false, val result: ToolResultDetails? = null)` — Cio' che un tool restituisce: testo compatto per il modello e, se l'ha trovato, un allegato (immagini, un documento) che l'orchestratore passa al modello come parte di un messaggio se il modello lo regge, o fa tradurre in testo dall'app se non lo regge.
   - `companion object`
     - `fun error(message: String): ToolOutput`
 - `data class ConfirmationText(val title: String, val detail: String? = null)` — Le parole con cui chiedere conferma di un'azione: il titolo del tasto e il dettaglio sotto.
@@ -179,6 +198,7 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val description: String`
   - `val parameters: JsonObject`
   - `suspend fun run(args: JsonObject, ctx: C): ToolOutput` — Il risultato e' testo compatto per il modello: righe `chiave: valore`, mai JSON verboso.
+  - `suspend fun run(args: JsonObject, ctx: C, execution: ToolExecution): ToolOutput` — Additive dispatch hook; legacy tools continue to implement only run(args, ctx).
   - `val spec: ToolSpec get()`
   - `val needsConfirmation: Boolean get()` — Vero se scrive o costa: chi lo chiama da fuori chiede conferma all'utente prima di [run].
   - `val longRunning: Boolean get()` — Vero se puo' durare piu' di una chiamata (un'installazione, una conversione di file).

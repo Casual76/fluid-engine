@@ -219,9 +219,10 @@ class AiHierarchyTest {
     // Il testo di ritorno dice la verita' su cosa arriva.
     val results = groq.streamed[1].messages.filterIsInstance<Message.ToolResult>()
     val opened = results.first { it.name == ToolRegistry.OPEN_CATEGORY }
-    assertTrue(opened.content.startsWith("ok: gli strumenti della categoria bus"))
+    assertTrue(opened.content.startsWith("[execution evidence:"))
+    assertTrue(opened.content.contains("\nok: gli strumenti della categoria bus"))
     assertTrue(opened.content.contains("bus_orari, bus_live"))
-    assertTrue(results.first { it.name == ToolRegistry.OPEN_GROUP }.content.startsWith("ok: gli strumenti di meteo_radar"))
+    assertTrue(results.first { it.name == ToolRegistry.OPEN_GROUP }.content.contains("\nok: gli strumenti di meteo_radar"))
     assertEquals(setOf(HG.BUS_ORARI, HG.BUS_LIVE, HG.METEO_RADAR), conversation.loadedGroups)
     assertEquals(setOf(Cat.BUS, Cat.METEO), conversation.loadedCategories)
     assertEquals(listOf("radar", "passaggi"), result.toolsUsed.filter { it in listOf("radar", "passaggi") })

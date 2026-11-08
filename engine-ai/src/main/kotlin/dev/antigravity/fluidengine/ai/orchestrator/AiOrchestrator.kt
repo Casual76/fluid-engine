@@ -25,6 +25,7 @@ import dev.antigravity.fluidengine.ai.provider.displayName
 import dev.antigravity.fluidengine.ai.tools.AiTool
 import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
+import dev.antigravity.fluidengine.ai.tools.modelText
 import dev.antigravity.fluidengine.ai.tools.ToolOutput
 import dev.antigravity.fluidengine.ai.tools.ToolRegistry
 import dev.antigravity.fluidengine.ai.tools.ToolText
@@ -467,7 +468,7 @@ class AiOrchestrator<C>(
       val runs = executeParallel(outcome.calls, input.toolContext, budget, toolTraces, opened)
       val parts = mutableListOf<ContentPart>()
       runs.forEach { run ->
-        val message = Message.ToolResult(run.call.id, run.call.name, run.output.text)
+        val message = Message.ToolResult(run.call.id, run.call.name, run.output.modelText(config.toolTextChars))
         messages += message
         toolRound += message
         toolChars += run.output.text.length

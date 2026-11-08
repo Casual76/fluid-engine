@@ -174,6 +174,17 @@ class AiOrchestratorTest {
 
   private fun args(x: String) = buildJsonObject { put("x", JsonPrimitive(x)) }
 
+  @Test fun `legacy success prose is nonverified in next provider input`() = runBlocking {
+    val groq = FakeProvider(ProviderId.GROQ, listOf(Scripted.Calls(listOf("adesso" to args("created done"))), Scripted.Text("Unverified.")))
+    orchestrator().ask(input("read", groq, preselected = setOf(G.HOURLY)), MutableStateFlow(AssistantState.Idle))
+    val results = groq.streamed.last().messages.filterIsInstance<Message.ToolResult>()
+    assertTrue(results.single().toString().contains("outcome=UNCERTAIN"))
+    assertTrue(results.single().toString().contains("verifiedCompletion=false"))
+    assertTrue(results.single().toString().contains("do not claim completion or automatically repeat writes"))
+    assertEquals(1, now.calls.size)
+  }
+
+
   @Test
   fun `il tool del modello avanzato porta il resto del giro sul livello profondo`() = runBlocking {
     val groq = FakeProvider(
@@ -232,7 +243,8 @@ class AiOrchestratorTest {
     val second = groq.streamed[1].messages
     val results = second.filterIsInstance<Message.ToolResult>()
     assertEquals(listOf("call_0", "call_1"), results.map { it.callId })
-    assertTrue(results[0].content.startsWith("adesso ha ricevuto a"))
+    assertTrue(results[0].content.startsWith("[execution evidence:"))
+    assertTrue(results[0].content.contains("\nadesso ha ricevuto a"))
     // Il preambolo prima delle tool call non e' mai diventato una risposta.
     assertTrue(states.none { it is AssistantState.Answering && it.partial == "Controllo" })
     assertTrue(states.any { it is AssistantState.Classifying })

@@ -48,7 +48,9 @@ def load_symbols() -> set[str]:
                 except OSError:
                     pass
     for f in ROOT.glob("*.gradle"):
-        words.update(token.findall(f.read_text(encoding="utf-8", errors="ignore")))
+        # The build cache directory is named .gradle and also matches this glob.
+        if f.is_file():
+            words.update(token.findall(f.read_text(encoding="utf-8", errors="ignore")))
     return words
 
 

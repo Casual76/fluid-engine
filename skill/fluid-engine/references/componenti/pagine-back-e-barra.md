@@ -84,7 +84,9 @@ Un gesto che parte nella **riga dei controlli della barra** (sopra `statusBars +
 Il rilascio col dito, oltre la soglia, manda al dispatcher di navigationevent lo stesso «indietro completato» che il sistema manda a fine gesto. Risponde il **gestore abilitato registrato per ultimo**:
 
 - **l'host si registra prima delle pagine**, quindi sta sotto i loro `BackHandler`. Un `BackHandler` (o un `PredictiveBackHandler`) abilitato dopo l'host risponde per primo: la pagina torna sotto il dito con la molla dell'annullo, il gestore gira (una volta) e decide.
-  Un editor che chiede conferma la chiede quindi anche al dito. Vale anche per i gestori dell'engine (ricerca aperta, menu, modali), che si registrano dopo;
+  Un editor che chiede conferma la chiede quindi anche al dito. Vale anche per i gestori dell'engine (ricerca aperta, menu, modali), che si registrano dopo.
+  **Conta quando il gestore entra in composizione, non quando si abilita**: `enabled` non lo sposta nella pila. Per questo i modali e il menu che si
+  trasforma compongono il loro gestore solo mentre sono aperti: un gestore sempre composto alla radice resta sotto a un host annidato o a una pagina aperti dopo l'avvio;
 - senza gestori risponde l'host: la pagina esce, `onBack()` e la molla;
 - **sotto la soglia nessun gestore gira**: e' un gesto annullato;
 - un gestore che toglie la pagina da se' (un «salva e chiude») la fa uscire con la pila accorciata una volta sola: la molla riprende da dove era arrivata;

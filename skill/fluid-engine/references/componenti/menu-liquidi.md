@@ -149,7 +149,10 @@ CompositionLocalProvider(LocalFluidMorphMenuState provides menu) {
   Prima l'host si misurava da sé a ogni apertura, e per un fotogramma non c'era né il tasto né il menu, o c'erano tutti e due.
 - **Un tocco fuori, ovunque**, chiude (in silenzio). L'acchiappa-tocco dell'host copre solo i limiti dell'host: se è montato in
   un palco, le quattro fasce attorno le disegna l'host dei modali (`outsideCatchers`), l'unico che vede tutto lo schermo.
-  Il back (`BackHandler`) chiude. Un tasto che esce dalla composizione col menu aperto se lo porta via.
+  Il back chiude, **prima di qualunque pagina**: l'host compone il suo `BackHandler` solo mentre il menu è aperto, quindi è il
+  gestore registrato per ultimo anche sopra un `FluidPageHost` annidato o il `BackHandler` di una pagina composti dopo l'avvio
+  (fino alla 3.0.5 era sempre composto, restava sotto di loro e il back toglieva la sottopagina col menu ancora aperto). Il
+  congedo lo toglie: il back dopo, anche durante il ritorno, è della pagina. Un tasto che esce dalla composizione col menu aperto se lo porta via.
 - **Riaprire dallo stesso tasto mentre si chiude è un'inversione**: il viaggio torna verso il pannello da dove si trova.
 - Il colore del testo dentro l'host è `onSurface` (3.0.1).
 
@@ -452,6 +455,8 @@ Nel `sample` (Robolectric, aptica registrata):
 
 - `FluidMenuHandOffTest`: tieni-trascina-rilascia dà `Open` `Tick` `Tap` e nessuna grana; rilascio fermo, fuori dalle voci o su una voce spenta lascia aperto;
   una riga in `LazyColumn` resta ferma; `fluidContextMenu`; il back a metà apertura chiude in silenzio; l'azione della barra.
+- `FluidMorphMenuBackOrderTest`: con l'host alla radice e le pagine di un `FluidNavHost`, il back chiude prima il menu, poi la sottopagina
+  di un `FluidPageHost` annidato, poi la pagina; e passa davanti al `BackHandler` di una pagina (che gira solo al back dopo).
 - `FluidApiAdditionsTest`: `selected` è «selezionato» per TalkBack (e le altre no), `opensOnTap` apre, una voce lunga si legge intera, il tasto prende lo stato dal
   fornitore. `FluidButtonDragTest`: il tocco sul tasto che si trasforma fa i tre colpi di un tasto e non apre.
 

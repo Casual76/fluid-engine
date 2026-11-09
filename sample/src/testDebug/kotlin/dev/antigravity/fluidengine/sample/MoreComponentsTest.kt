@@ -1082,6 +1082,36 @@ class MoreComponentsTest {
   }
 
   @Test
+  fun `an intermediate player acknowledgement does not consume the next keyboard step`() {
+    playerAt(25_000f)
+    showScrubber()
+    compose.onNodeWithTag("scrubber").requestFocus()
+    compose.onNodeWithTag("scrubber").performKeyInput {
+      pressKey(Key.DirectionRight)
+      pressKey(Key.DirectionRight)
+    }
+    playerAt(35_000f)
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.DirectionRight) }
+    assertEquals(listOf(35_000f, 45_000f, 55_000f), seeked)
+  }
+
+  @Test
+  fun `an intermediate player acknowledgement does not consume the next accessibility step`() {
+    playerAt(75_000f)
+    showScrubber()
+    fun back() {
+      val action = scrubberNode().config[SemanticsActions.CustomActions].first { it.label == "Indietro" }
+      compose.runOnUiThread { assertTrue(action.action()) }
+      compose.waitForIdle()
+    }
+    back()
+    back()
+    playerAt(65_000f)
+    back()
+    assertEquals(listOf(65_000f, 55_000f, 45_000f), seeked)
+  }
+
+  @Test
   fun `the texts under the track show the finger while it is down and are not read twice by the screen reader`() {
     playerAt(65_000f)
     showScrubber(withLabels = true)

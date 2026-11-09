@@ -320,6 +320,10 @@ FluidScrubber(
 diciannove ore (lo 0,09% dell'intervallo) non è mai «raggiunto» prima che il lettore si muova, e un seek che si appoggia a un
 fotogramma chiave vicino ma non uguale lo è comunque.
 
+Se un nuovo salto sostituisce quello ancora in attesa, la tolleranza è limitata anche dalla distanza
+dal punto richiesto precedente: la sua conferma non libera il nuovo punto. Vale nei due versi e nei
+cambi di direzione, senza allargare la tolleranza di un salto singolo. Il timeout resta di tre secondi.
+
 **Le chiamate, nell'ordine di un trascinamento**: `onScrubStart` (il dito prende la maniglia; non per un tocco) → `onScrub` a ogni
 valore *nuovo* sotto il dito (a ogni passo, se a passi) → `onSeek` **una volta sola**, al rilascio, col valore finale → `onScrubEnd`
 subito dopo, o da sola se la coroutine del gesto è stata cancellata (allora niente salto e la maniglia torna alla posizione del

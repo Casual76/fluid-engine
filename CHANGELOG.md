@@ -9,6 +9,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 ## 3.0.6 - 2026-11-08
 
 - Corretto il Back dei menu sopra pagine annidate; preservata la compatibilita source-proof v1 e typed v2 gia pubblicata.
+- Scrubber: una conferma intermedia del lettore non annulla il punto più recente richiesto da tastiera o accessibilità. Nessuna modifica dell'API pubblica.
 
 
 ## 3.0.5 - 2026-11-05

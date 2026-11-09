@@ -424,4 +424,38 @@ class FluidScrubberTest {
     assertEquals(1_200L, FluidMotion.FastScrollerHideMillis)
     assertEquals(3_000L, FluidMotion.ScrubberHoldMillis)
   }
+
+  @Test
+  fun `la conferma del salto precedente non libera il punto nuovo ancora in attesa`() {
+    for (direction in listOf(-1f, 1f)) {
+      val hold = FluidScrubberHold()
+      val start = 100_000f
+      val previous = start + direction * 10_000f
+      val latest = start + direction * 20_000f
+      hold.jump(previous, from = start)
+      hold.jump(latest, from = start)
+      assertFalse(FluidScrubbing.caughtUp(previous, hold.value, hold.origin, track, 0f))
+      assertTrue(FluidScrubbing.caughtUp(latest + direction * 500f, hold.value, hold.origin, track, 0f))
+    }
+  }
+
+  @Test
+  fun `cambiare verso non allarga la tolleranza verso una posizione vecchia`() {
+    val hold = FluidScrubberHold()
+    hold.jump(100_000f, from = 0f)
+    hold.jump(90_000f, from = 0f)
+    assertFalse(FluidScrubbing.caughtUp(100_000f, hold.value, hold.origin, track, 0f))
+    hold.jump(5_000f, from = 0f)
+    assertFalse(FluidScrubbing.caughtUp(0f, hold.value, hold.origin, track, 0f))
+    assertTrue(FluidScrubbing.caughtUp(5_100f, hold.value, hold.origin, track, 0f))
+  }
+
+  @Test
+  fun `ripetere lo stesso punto non accetta una posizione precedente solo vicina`() {
+    val hold = FluidScrubberHold()
+    hold.jump(100_000f, from = 0f)
+    hold.jump(100_000f, from = 0f)
+    assertFalse(FluidScrubbing.caughtUp(90_000f, hold.value, hold.origin, track, 0f))
+    assertTrue(FluidScrubbing.caughtUp(100_000f, hold.value, hold.origin, track, 0f))
+  }
 }

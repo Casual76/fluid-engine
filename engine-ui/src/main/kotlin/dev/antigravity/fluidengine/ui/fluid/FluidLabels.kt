@@ -93,7 +93,51 @@ data class FluidLabels(
    */
   val tabBadgeCount: String = "%1\$d novità",
   // --- fine pm-f1/ge ---
+  // --- pm-f1/gf1 ---
+  /** Stato accessibile di un gettone rifiutato dal validatore dell'app. */
+  val tokenInvalid: String = "non valido",
+  /** Azione accessibile sul nodo del gettone. */
+  val tokenRemove: String = "Rimuovi",
+  /** Modifica opzionale del gettone, implementata dal chiamante. */
+  val tokenEdit: String = "Modifica",
+  /** Conteggio sul nodo di input, anche quando il testo e' vuoto. */
+  val tokenCount: String = "Gettoni",
+  // --- fine pm-f1/gf1 ---
+  // --- pm-f1/gf2 ---
+  /** Calendar strings are flat so existing translation audits cover every added word. */
+  val dateTimeTitle: String = FluidDateTimeLabels().title,
+  val dateTimeChoose: String = FluidDateTimeLabels().choose,
+  val dateTimeConfirm: String = FluidDateTimeLabels().confirm,
+  val dateTimeCancel: String = FluidDateTimeLabels().cancel,
+  val dateTimePreviousMonth: String = FluidDateTimeLabels().previousMonth,
+  val dateTimeNextMonth: String = FluidDateTimeLabels().nextMonth,
+  val dateTimeHour: String = FluidDateTimeLabels().hour,
+  val dateTimeMinute: String = FluidDateTimeLabels().minute,
+  val dateTimeIncrease: String = FluidDateTimeLabels().increase,
+  val dateTimeDecrease: String = FluidDateTimeLabels().decrease,
+  val dateTimeGap: String = FluidDateTimeLabels().gap,
+  val dateTimeOverlap: String = FluidDateTimeLabels().overlap,
+  val dateTimeInvalid: String = FluidDateTimeLabels().invalid,
+  // --- fine pm-f1/gf2 ---
 ) {
+  // --- pm-f1/gf2 ---
+  /** A grouped view of the calendar vocabulary, without another stored translation object. */
+  val dateTime: FluidDateTimeLabels get() = FluidDateTimeLabels(
+    title = dateTimeTitle,
+    choose = dateTimeChoose,
+    confirm = dateTimeConfirm,
+    cancel = dateTimeCancel,
+    previousMonth = dateTimePreviousMonth,
+    nextMonth = dateTimeNextMonth,
+    hour = dateTimeHour,
+    minute = dateTimeMinute,
+    increase = dateTimeIncrease,
+    decrease = dateTimeDecrease,
+    gap = dateTimeGap,
+    overlap = dateTimeOverlap,
+    invalid = dateTimeInvalid,
+  )
+  // --- fine pm-f1/gf2 ---
   companion object {
     /**
      * Le stesse parole in inglese (3.0.4): un'app inglese passa `FluidLabels.english()` alla radice e non
@@ -129,6 +173,27 @@ data class FluidLabels(
       tabBadgeNew = "New",
       tabBadgeCount = "%1\$d new",
       // --- fine pm-f1/ge ---
+      // --- pm-f1/gf1 ---
+      tokenInvalid = "invalid",
+      tokenRemove = "Remove",
+      tokenEdit = "Edit",
+      tokenCount = "Tokens",
+      // --- fine pm-f1/gf1 ---
+      // --- pm-f1/gf2 ---
+      dateTimeTitle = FluidDateTimeLabels.english().title,
+      dateTimeChoose = FluidDateTimeLabels.english().choose,
+      dateTimeConfirm = FluidDateTimeLabels.english().confirm,
+      dateTimeCancel = FluidDateTimeLabels.english().cancel,
+      dateTimePreviousMonth = FluidDateTimeLabels.english().previousMonth,
+      dateTimeNextMonth = FluidDateTimeLabels.english().nextMonth,
+      dateTimeHour = FluidDateTimeLabels.english().hour,
+      dateTimeMinute = FluidDateTimeLabels.english().minute,
+      dateTimeIncrease = FluidDateTimeLabels.english().increase,
+      dateTimeDecrease = FluidDateTimeLabels.english().decrease,
+      dateTimeGap = FluidDateTimeLabels.english().gap,
+      dateTimeOverlap = FluidDateTimeLabels.english().overlap,
+      dateTimeInvalid = FluidDateTimeLabels.english().invalid,
+      // --- fine pm-f1/gf2 ---
     )
   }
 }
@@ -208,3 +273,35 @@ data class FluidSyncStrings(
 
 /** Le parole dell'engine in scope: di serie quelle italiane. Vedi [FluidLabels]. */
 val LocalFluidLabels: ProvidableCompositionLocal<FluidLabels> = staticCompositionLocalOf { FluidLabels() }
+
+// --- pm-f1/gf2 ---
+/** Translatable calendar controls, kept together so callers can supply other languages. */
+@Immutable
+data class FluidDateTimeLabels(
+  val title: String = "Data e ora",
+  val choose: String = "Scegli data e ora",
+  val confirm: String = "Conferma",
+  val cancel: String = "Annulla",
+  val previousMonth: String = "Mese precedente",
+  val nextMonth: String = "Mese successivo",
+  val hour: String = "Ora",
+  val minute: String = "Minuti",
+  val increase: String = "Aumenta",
+  val decrease: String = "Diminuisci",
+  val gap: String = "Questo orario non esiste nel fuso scelto. Scegli un altro orario.",
+  val overlap: String = "Questo orario ricorre due volte. Scegli l'offset UTC.",
+  val invalid: String = "Scegli un orario futuro entro i limiti consentiti.",
+) {
+  companion object {
+    /** Complete English vocabulary; dates themselves use the supplied locale. */
+    fun english() = FluidDateTimeLabels(
+      title = "Date and time", choose = "Choose date and time", confirm = "Confirm", cancel = "Cancel",
+      previousMonth = "Previous month", nextMonth = "Next month", hour = "Hour", minute = "Minutes",
+      increase = "Increase", decrease = "Decrease",
+      gap = "This time does not exist in the chosen time zone. Choose another time.",
+      overlap = "This time occurs twice. Choose the UTC offset.",
+      invalid = "Choose a future time within the allowed limits.",
+    )
+  }
+}
+// --- fine pm-f1/gf2 ---

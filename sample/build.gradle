@@ -115,6 +115,9 @@ dependencies {
   implementation project(':engine-ui')
   // L'aggiornamento in-app: lo stesso manifest.json che il Pampa Store legge, una sola fonte.
   implementation project(':engine-update')
+  // L'editor con formattazione (opt-in): la galleria lo mostra, quindi lo include. Un'app che non lo
+  // chiede a engine-install.ps1 non lo vede nemmeno.
+  implementation project(':engine-richtext')
   implementation "androidx.activity:activity-compose:${engine.activityCompose}"
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.

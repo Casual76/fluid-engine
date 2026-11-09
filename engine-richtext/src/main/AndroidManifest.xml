@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Nessun permesso: l'editor non legge la rete (un HTML incollato non carica mai niente) e gli
+       appunti li usa solo quando l'utente copia o incolla. -->
+</manifest>

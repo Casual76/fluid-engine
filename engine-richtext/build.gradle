@@ -1,0 +1,48 @@
+// L'editor di testo con formattazione: grassetto, corsivo, sottolineato, elenchi, link, citazione, con
+// la barra sopra la tastiera e i convertitori da e verso HTML ristretto, Markdown e testo semplice.
+// Opt-in: un'app che non scrive testo formattato non lo include, e `engine-ui` resta quello di prima.
+//
+// Perche' un modulo a parte e non un file in `engine-ui`: e' il componente piu' grande e piu' delicato
+// della famiglia del testo (modello a intervalli, IME, incolla da HTML ostile, annulla/ripeti), lo
+// chiede per ora una sola app, e un'app che non lo usa non deve compilarne una riga ne' portarsi
+// dietro il suo lettore di HTML. Dipende solo da `engine-ui` (che porta `engine-foundation`): nessuna
+// libreria esterna, il lettore di HTML e quello di Markdown sono scritti qui, in Kotlin puro, e si
+// provano sulla JVM.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace 'dev.antigravity.fluidengine.richtext'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: le firme pubbliche parlano `TextRange`, `TextStyle`, `GlassBackdropState`, e un'app che
+  // include questo modulo li usa senza ridichiararli. `engine-foundation` arriva con `engine-ui`.
+  api project(':engine-ui')
+  api project(':engine-foundation')
+
+  testImplementation "junit:junit:${engine.junit}"
+}

@@ -1,0 +1,503 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-net:preBuild UP-TO-DATE
+> Task :engine-ai-ui:preBuild UP-TO-DATE
+> Task :core:core-datastore:preBuild UP-TO-DATE
+> Task :engine-ai-bridge:preBuild UP-TO-DATE
+> Task :core:core-data:preBuild UP-TO-DATE
+> Task :engine-foundation:preBuild UP-TO-DATE
+> Task :core:core-assistant:preBuild UP-TO-DATE
+> Task :engine-update:preBuild UP-TO-DATE
+> Task :engine-ai:preBuild UP-TO-DATE
+> Task :core:core-database:preBuild UP-TO-DATE
+> Task :engine-ui:preBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :engine-ai:preDebugBuild UP-TO-DATE
+> Task :engine-ui:preDebugBuild UP-TO-DATE
+> Task :core:core-data:preDebugBuild UP-TO-DATE
+> Task :engine-foundation:preDebugBuild UP-TO-DATE
+> Task :core:core-database:preDebugBuild UP-TO-DATE
+> Task :engine-ai-bridge:preDebugBuild UP-TO-DATE
+> Task :engine-net:preDebugBuild UP-TO-DATE
+> Task :core:core-assistant:preDebugBuild UP-TO-DATE
+> Task :engine-ai-ui:preDebugBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :engine-update:preDebugBuild UP-TO-DATE
+> Task :core:core-datastore:preDebugBuild UP-TO-DATE
+> Task :engine-foundation:writeDebugAarMetadata
+> Task :engine-ai:writeDebugAarMetadata
+> Task :core:core-assistant:writeDebugAarMetadata
+> Task :engine-ui:writeDebugAarMetadata
+> Task :engine-update:writeDebugAarMetadata
+> Task :core:core-database:writeDebugAarMetadata
+> Task :engine-ai-bridge:writeDebugAarMetadata
+> Task :engine-ai-ui:writeDebugAarMetadata
+> Task :core:core-datastore:writeDebugAarMetadata
+> Task :core:core-data:writeDebugAarMetadata
+> Task :engine-net:writeDebugAarMetadata
+> Task :feature:feature-communications:preBuild UP-TO-DATE
+> Task :core:core-network:preBuild UP-TO-DATE
+> Task :feature:feature-assistant:preBuild UP-TO-DATE
+> Task :feature:feature-assistant:preDebugBuild UP-TO-DATE
+> Task :feature:feature-agenda:preBuild UP-TO-DATE
+> Task :feature:feature-grades:preBuild UP-TO-DATE
+> Task :core:core-designsystem:preBuild UP-TO-DATE
+> Task :feature:feature-dashboard:preBuild UP-TO-DATE
+> Task :core:core-network:preDebugBuild UP-TO-DATE
+> Task :feature:feature-grades:preDebugBuild UP-TO-DATE
+> Task :feature:feature-settings:preBuild UP-TO-DATE
+> Task :feature:feature-lessons:preBuild UP-TO-DATE
+> Task :core:core-designsystem:preDebugBuild UP-TO-DATE
+> Task :feature:feature-agenda:preDebugBuild UP-TO-DATE
+> Task :feature:feature-absences:preBuild UP-TO-DATE
+> Task :feature:feature-communications:preDebugBuild UP-TO-DATE
+> Task :core:core-domain:preBuild UP-TO-DATE
+> Task :feature:feature-lessons:preDebugBuild UP-TO-DATE
+> Task :core:core-domain:preDebugBuild UP-TO-DATE
+> Task :feature:feature-absences:preDebugBuild UP-TO-DATE
+> Task :feature:feature-settings:preDebugBuild UP-TO-DATE
+> Task :feature:feature-dashboard:preDebugBuild UP-TO-DATE
+> Task :feature:feature-assistant:writeDebugAarMetadata
+> Task :feature:feature-widgets:preBuild UP-TO-DATE
+> Task :core:core-network:writeDebugAarMetadata
+> Task :feature:feature-widgets:preDebugBuild UP-TO-DATE
+> Task :core:core-designsystem:writeDebugAarMetadata
+> Task :feature:feature-lessons:writeDebugAarMetadata
+> Task :feature:feature-grades:writeDebugAarMetadata
+> Task :core:core-domain:writeDebugAarMetadata
+> Task :feature:feature-settings:writeDebugAarMetadata
+> Task :feature:feature-absences:writeDebugAarMetadata
+> Task :feature:feature-widgets:writeDebugAarMetadata
+> Task :feature:feature-dashboard:writeDebugAarMetadata
+> Task :feature:feature-communications:writeDebugAarMetadata
+> Task :feature:feature-agenda:writeDebugAarMetadata
+> Task :engine-foundation:processDebugNavigationResources FROM-CACHE
+> Task :core:core-database:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai-ui:processDebugNavigationResources FROM-CACHE
+> Task :core:core-data:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai:processDebugNavigationResources FROM-CACHE
+> Task :core:core-assistant:processDebugNavigationResources FROM-CACHE
+> Task :engine-update:processDebugNavigationResources FROM-CACHE
+> Task :engine-net:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai-bridge:processDebugNavigationResources FROM-CACHE
+> Task :core:core-datastore:processDebugNavigationResources FROM-CACHE
+> Task :app:generateDebugBuildConfig
+> Task :engine-ui:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-assistant:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-agenda:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-dashboard:processDebugNavigationResources FROM-CACHE
+> Task :core:core-domain:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-absences:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-settings:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-lessons:processDebugNavigationResources FROM-CACHE
+> Task :core:core-network:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-communications:processDebugNavigationResources FROM-CACHE
+> Task :core:core-designsystem:processDebugNavigationResources FROM-CACHE
+> Task :feature:feature-grades:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai:generateDebugResValues FROM-CACHE
+> Task :engine-ai-bridge:generateDebugResValues FROM-CACHE
+> Task :engine-net:generateDebugResValues FROM-CACHE
+> Task :engine-foundation:generateDebugResValues FROM-CACHE
+> Task :engine-ai-ui:generateDebugResValues FROM-CACHE
+> Task :engine-ui:generateDebugResValues FROM-CACHE
+> Task :engine-ai:generateDebugResources FROM-CACHE
+> Task :engine-update:generateDebugResValues FROM-CACHE
+> Task :core:core-data:generateDebugResValues FROM-CACHE
+> Task :engine-ai-ui:generateDebugResources FROM-CACHE
+> Task :core:core-database:generateDebugResValues FROM-CACHE
+> Task :core:core-assistant:generateDebugResValues FROM-CACHE
+> Task :engine-foundation:generateDebugResources FROM-CACHE
+> Task :engine-ai-bridge:generateDebugResources FROM-CACHE
+> Task :engine-net:generateDebugResources FROM-CACHE
+> Task :engine-ui:generateDebugResources FROM-CACHE
+> Task :feature:feature-widgets:processDebugNavigationResources FROM-CACHE
+> Task :engine-update:generateDebugResources FROM-CACHE
+> Task :core:core-data:generateDebugResources FROM-CACHE
+> Task :core:core-datastore:generateDebugResValues FROM-CACHE
+> Task :core:core-database:generateDebugResources FROM-CACHE
+> Task :core:core-assistant:generateDebugResources FROM-CACHE
+> Task :core:core-datastore:generateDebugResources FROM-CACHE
+> Task :core:core-designsystem:generateDebugResValues FROM-CACHE
+> Task :core:core-domain:generateDebugResValues FROM-CACHE
+> Task :engine-ai:packageDebugResources FROM-CACHE
+> Task :engine-foundation:packageDebugResources FROM-CACHE
+> Task :engine-ai-ui:packageDebugResources FROM-CACHE
+> Task :core:core-network:generateDebugResValues FROM-CACHE
+> Task :engine-net:packageDebugResources FROM-CACHE
+> Task :core:core-designsystem:generateDebugResources FROM-CACHE
+> Task :core:core-domain:generateDebugResources FROM-CACHE
+> Task :engine-ai-bridge:packageDebugResources FROM-CACHE
+> Task :core:core-network:generateDebugResources FROM-CACHE
+> Task :feature:feature-absences:generateDebugResValues FROM-CACHE
+> Task :feature:feature-agenda:generateDebugResValues FROM-CACHE
+> Task :core:core-assistant:packageDebugResources FROM-CACHE
+> Task :core:core-data:packageDebugResources FROM-CACHE
+> Task :feature:feature-assistant:generateDebugResValues FROM-CACHE
+> Task :engine-update:packageDebugResources FROM-CACHE
+> Task :feature:feature-absences:generateDebugResources FROM-CACHE
+> Task :feature:feature-assistant:generateDebugResources FROM-CACHE
+> Task :feature:feature-communications:generateDebugResValues FROM-CACHE
+> Task :feature:feature-agenda:generateDebugResources FROM-CACHE
+> Task :feature:feature-dashboard:generateDebugResValues FROM-CACHE
+> Task :feature:feature-grades:generateDebugResValues FROM-CACHE
+> Task :feature:feature-communications:generateDebugResources FROM-CACHE
+> Task :core:core-datastore:packageDebugResources FROM-CACHE
+> Task :core:core-database:packageDebugResources FROM-CACHE
+> Task :feature:feature-dashboard:generateDebugResources FROM-CACHE
+> Task :engine-ui:packageDebugResources FROM-CACHE
+> Task :core:core-network:packageDebugResources FROM-CACHE
+> Task :core:core-domain:packageDebugResources FROM-CACHE
+> Task :feature:feature-grades:generateDebugResources FROM-CACHE
+> Task :feature:feature-lessons:generateDebugResValues FROM-CACHE
+> Task :core:core-designsystem:packageDebugResources FROM-CACHE
+> Task :feature:feature-settings:generateDebugResValues FROM-CACHE
+> Task :feature:feature-absences:packageDebugResources FROM-CACHE
+> Task :feature:feature-widgets:generateDebugResValues FROM-CACHE
+> Task :feature:feature-assistant:packageDebugResources FROM-CACHE
+> Task :feature:feature-lessons:generateDebugResources FROM-CACHE
+> Task :engine-ai:extractDeepLinksDebug FROM-CACHE
+> Task :feature:feature-settings:generateDebugResources FROM-CACHE
+> Task :engine-ai-bridge:extractDeepLinksDebug FROM-CACHE
+> Task :engine-foundation:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ai-ui:extractDeepLinksDebug FROM-CACHE
+> Task :feature:feature-widgets:generateDebugResources FROM-CACHE
+> Task :feature:feature-communications:packageDebugResources FROM-CACHE
+> Task :feature:feature-dashboard:packageDebugResources FROM-CACHE
+> Task :engine-net:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ui:extractDeepLinksDebug FROM-CACHE
+> Task :feature:feature-lessons:packageDebugResources FROM-CACHE
+> Task :engine-foundation:processDebugManifest FROM-CACHE
+> Task :engine-ai:processDebugManifest FROM-CACHE
+> Task :feature:feature-agenda:packageDebugResources FROM-CACHE
+> Task :engine-ai-ui:processDebugManifest FROM-CACHE
+> Task :feature:feature-grades:packageDebugResources FROM-CACHE
+> Task :engine-ai-bridge:processDebugManifest FROM-CACHE
+> Task :feature:feature-settings:packageDebugResources FROM-CACHE
+> Task :core:core-data:extractDeepLinksDebug FROM-CACHE
+> Task :engine-update:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-assistant:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-datastore:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-database:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-designsystem:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-domain:extractDeepLinksDebug FROM-CACHE
+> Task :engine-net:processDebugManifest FROM-CACHE
+> Task :core:core-network:extractDeepLinksDebug FROM-CACHE
+> Task :feature:feature-absences:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ui:processDebugManifest FROM-CACHE
+> Task :feature:feature-widgets:packageDebugResources FROM-CACHE
+> Task :feature:feature-assistant:extractDeepLinksDebug FROM-CACHE
+> Task :feature:feature-agenda:extractDeepLinksDebug FROM-CACHE
+> Task :engine-update:processDebugManifest FROM-CACHE
+> Task :core:core-data:processDebugManifest FROM-CACHE
+> Task :core:core-assistant:processDebugManifest FROM-CACHE
+> Task :core:core-datastore:processDebugManifest FROM-CACHE
+> Task :feature:feature-communications:extractDeepLinksDebug FROM-CACHE
+> Task :feature:feature-dashboard:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-domain:processDebugManifest FROM-CACHE
+> Task :feature:feature-grades:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-database:processDebugManifest FROM-CACHE
+> Task :core:core-designsystem:processDebugManifest FROM-CACHE
+> Task :feature:feature-absences:processDebugManifest FROM-CACHE
+> Task :feature:feature-lessons:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-network:processDebugManifest FROM-CACHE
+> Task :feature:feature-settings:extractDeepLinksDebug FROM-CACHE
+> Task :feature:feature-agenda:processDebugManifest FROM-CACHE
+> Task :feature:feature-assistant:processDebugManifest FROM-CACHE
+> Task :feature:feature-widgets:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ai-bridge:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-communications:processDebugManifest FROM-CACHE
+> Task :engine-ai-ui:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ai:compileDebugLibraryResources FROM-CACHE
+> Task :engine-foundation:compileDebugLibraryResources FROM-CACHE
+> Task :engine-net:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-dashboard:processDebugManifest FROM-CACHE
+> Task :feature:feature-grades:processDebugManifest FROM-CACHE
+> Task :feature:feature-lessons:processDebugManifest FROM-CACHE
+> Task :engine-update:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-settings:processDebugManifest FROM-CACHE
+> Task :core:core-assistant:compileDebugLibraryResources FROM-CACHE
+> Task :core:core-data:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-widgets:processDebugManifest FROM-CACHE
+> Task :core:core-database:compileDebugLibraryResources FROM-CACHE
+> Task :core:core-datastore:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ui:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ui:parseDebugLocalResources FROM-CACHE
+> Task :core:core-assistant:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai-bridge:parseDebugLocalResources FROM-CACHE
+> Task :engine-update:parseDebugLocalResources FROM-CACHE
+> Task :engine-net:parseDebugLocalResources FROM-CACHE
+> Task :core:core-datastore:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai-ui:parseDebugLocalResources FROM-CACHE
+> Task :core:core-data:parseDebugLocalResources FROM-CACHE
+> Task :engine-foundation:parseDebugLocalResources FROM-CACHE
+> Task :core:core-database:parseDebugLocalResources FROM-CACHE
+> Task :engine-update:generateDebugRFile FROM-CACHE
+> Task :core:core-assistant:generateDebugRFile FROM-CACHE
+> Task :engine-ui:generateDebugRFile FROM-CACHE
+> Task :core:core-data:generateDebugRFile FROM-CACHE
+> Task :engine-net:generateDebugRFile FROM-CACHE
+> Task :engine-foundation:generateDebugRFile FROM-CACHE
+> Task :engine-ai-bridge:generateDebugRFile FROM-CACHE
+> Task :core:core-database:generateDebugRFile FROM-CACHE
+> Task :core:core-datastore:generateDebugRFile FROM-CACHE
+> Task :engine-ai:generateDebugRFile FROM-CACHE
+> Task :engine-ai-ui:generateDebugRFile FROM-CACHE
+> Task :core:core-designsystem:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-communications:compileDebugLibraryResources FROM-CACHE
+> Task :core:core-designsystem:parseDebugLocalResources FROM-CACHE
+> Task :core:core-domain:compileDebugLibraryResources FROM-CACHE
+> Task :core:core-network:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-grades:parseDebugLocalResources FROM-CACHE
+> Task :feature:feature-absences:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-agenda:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-dashboard:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-lessons:parseDebugLocalResources FROM-CACHE
+> Task :feature:feature-settings:parseDebugLocalResources FROM-CACHE
+> Task :feature:feature-assistant:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-communications:parseDebugLocalResources FROM-CACHE
+> Task :core:core-network:parseDebugLocalResources FROM-CACHE
+> Task :feature:feature-lessons:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-agenda:parseDebugLocalResources FROM-CACHE
+> Task :feature:feature-dashboard:parseDebugLocalResources FROM-CACHE
+> Task :feature:feature-grades:compileDebugLibraryResources FROM-CACHE
+> Task :feature:feature-settings:compileDebugLibraryResources FROM-CACHE
+> Task :core:core-designsystem:generateDebugRFile FROM-CACHE
+> Task :feature:feature-assistant:parseDebugLocalResources FROM-CACHE
+> Task :feature:feature-communications:generateDebugRFile FROM-CACHE
+> Task :engine-ai:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-network:generateDebugRFile FROM-CACHE
+> Task :engine-foundation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-absences:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai:javaPreCompileDebug FROM-CACHE
+> Task :engine-ai-ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-agenda:generateDebugRFile FROM-CACHE
+> Task :feature:feature-settings:generateDebugRFile FROM-CACHE
+> Task :engine-ai-bridge:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ui:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-widgets:compileDebugLibraryResources FROM-CACHE
+> Task :engine-net:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-grades:generateDebugRFile FROM-CACHE
+> Task :feature:feature-lessons:generateDebugRFile FROM-CACHE
+> Task :feature:feature-dashboard:generateDebugRFile FROM-CACHE
+> Task :engine-update:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-assistant:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-data:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-datastore:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ai-ui:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-assistant:generateDebugRFile FROM-CACHE
+> Task :feature:feature-absences:generateDebugRFile FROM-CACHE
+> Task :core:core-network:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-net:javaPreCompileDebug FROM-CACHE
+> Task :core:core-designsystem:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-widgets:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai-bridge:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-absences:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-update:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-agenda:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-designsystem:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-assistant:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-network:generateDebugBuildConfig FROM-CACHE
+> Task :feature:feature-widgets:generateDebugRFile FROM-CACHE
+> Task :feature:feature-communications:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-domain:parseDebugLocalResources FROM-CACHE
+> Task :core:core-domain:generateDebugRFile FROM-CACHE
+> Task :core:core-domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-communications:javaPreCompileDebug FROM-CACHE
+> Task :core:core-network:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-grades:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-dashboard:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-assistant:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-lessons:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-assistant:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-settings:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feature-agenda:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-widgets:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:core-datastore:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-absences:javaPreCompileDebug FROM-CACHE
+> Task :core:core-data:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-grades:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-dashboard:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-settings:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-widgets:javaPreCompileDebug FROM-CACHE
+> Task :core:core-database:javaPreCompileDebug FROM-CACHE
+> Task :feature:feature-lessons:javaPreCompileDebug FROM-CACHE
+> Task :engine-foundation:javaPreCompileDebug FROM-CACHE
+> Task :app:checkDebugAarMetadata
+> Task :app:processDebugNavigationResources FROM-CACHE
+> Task :app:compileDebugNavigationResources FROM-CACHE
+> Task :app:generateDebugResValues FROM-CACHE
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources FROM-CACHE
+> Task :core:core-domain:compileDebugKotlin FROM-CACHE
+> Task :core:core-domain:javaPreCompileDebug FROM-CACHE
+> Task :core:core-domain:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:core-domain:bundleLibCompileToJarDebug
+> Task :core:core-domain:bundleLibRuntimeToJarDebug
+> Task :app:mergeDebugResources FROM-CACHE
+> Task :app:packageDebugResources FROM-CACHE
+> Task :app:parseDebugLocalResources FROM-CACHE
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug FROM-CACHE
+> Task :core:core-datastore:kspDebugKotlin FROM-CACHE
+> Task :core:core-datastore:compileDebugKotlin FROM-CACHE
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :core:core-datastore:compileDebugJavaWithJavac FROM-CACHE
+> Task :core:core-datastore:transformDebugClassesWithAsm FROM-CACHE
+> Task :core:core-datastore:bundleLibRuntimeToJarDebug
+> Task :core:core-datastore:bundleLibCompileToJarDebug
+> Task :engine-foundation:compileDebugKotlin
+> Task :engine-foundation:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-foundation:bundleLibCompileToJarDebug
+> Task :engine-foundation:bundleLibRuntimeToJarDebug
+> Task :app:processDebugResources
+> Task :engine-net:compileDebugKotlin
+> Task :core:core-network:kspDebugKotlin
+> Task :engine-net:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-net:bundleLibRuntimeToJarDebug
+> Task :engine-net:bundleLibCompileToJarDebug
+> Task :engine-update:compileDebugKotlin
+> Task :engine-update:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-update:bundleLibRuntimeToJarDebug
+> Task :engine-update:bundleLibCompileToJarDebug
+> Task :core:core-database:kspDebugKotlin
+> Task :core:core-database:compileDebugKotlin FROM-CACHE
+> Task :core:core-database:compileDebugJavaWithJavac FROM-CACHE
+> Task :core:core-database:transformDebugClassesWithAsm FROM-CACHE
+> Task :core:core-database:bundleLibCompileToJarDebug
+> Task :core:core-database:bundleLibRuntimeToJarDebug
+> Task :core:core-network:compileDebugKotlin
+> Task :core:core-network:compileDebugJavaWithJavac
+> Task :core:core-network:transformDebugClassesWithAsm FROM-CACHE
+> Task :engine-ai:compileDebugKotlin
+> Task :engine-ai:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:core-network:bundleLibCompileToJarDebug
+> Task :core:core-network:bundleLibRuntimeToJarDebug
+> Task :engine-ai:bundleLibRuntimeToJarDebug
+> Task :engine-ai:bundleLibCompileToJarDebug
+> Task :engine-ai-bridge:compileDebugKotlin
+> Task :engine-ai-bridge:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ai-bridge:bundleLibCompileToJarDebug
+> Task :engine-ai-bridge:bundleLibRuntimeToJarDebug
+> Task :core:core-data:kspDebugKotlin
+> Task :engine-ui:compileDebugKotlin
+> Task :core:core-data:compileDebugKotlin
+> Task :core:core-data:compileDebugJavaWithJavac
+> Task :core:core-data:transformDebugClassesWithAsm
+> Task :core:core-data:bundleLibCompileToJarDebug
+> Task :core:core-data:bundleLibRuntimeToJarDebug
+
+> Task :engine-ui:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidGlassModal.kt:1266:25 Condition is always 'true'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidScreen.kt:1533:26 Condition is always 'false'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsRim.kt:373:19 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Paint.kt:35:10 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Paint.kt:41:10 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/haptics/AndroidFluidHaptics.kt:244:91 'static field HAPTIC_FEEDBACK_ENABLED: String' is deprecated. Deprecated in Java.
+
+> Task :core:core-assistant:kspDebugKotlin
+> Task :engine-ui:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ui:bundleLibRuntimeToJarDebug
+> Task :engine-ui:bundleLibCompileToJarDebug
+
+> Task :core:core-designsystem:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/core/core-designsystem/src/main/kotlin/dev/antigravity/classevivaexpressive/core/designsystem/theme/MinuteTicker.kt:31:24 'val LocalLifecycleOwner: ProvidableCompositionLocal<LifecycleOwner>' is deprecated. Moved to lifecycle-runtime-compose library in androidx.lifecycle.compose package.
+
+> Task :core:core-designsystem:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:core-designsystem:bundleLibCompileToJarDebug
+> Task :core:core-designsystem:bundleLibRuntimeToJarDebug
+
+> Task :core:core-assistant:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/core/core-assistant/src/main/kotlin/dev/antigravity/classevivaexpressive/core/assistant/attachments/AttachmentReader.kt:44:44 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/core/core-assistant/src/main/kotlin/dev/antigravity/classevivaexpressive/core/assistant/runtime/AssistantRuntime.kt:60:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/core/core-assistant/src/main/kotlin/dev/antigravity/classevivaexpressive/core/assistant/service/AssistantNotifications.kt:32:50 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+
+> Task :core:core-assistant:compileDebugJavaWithJavac
+> Task :core:core-assistant:transformDebugClassesWithAsm
+> Task :engine-ai-ui:compileDebugKotlin
+> Task :engine-ai-ui:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ai-ui:bundleLibCompileToJarDebug
+> Task :engine-ai-ui:bundleLibRuntimeToJarDebug
+> Task :core:core-assistant:bundleLibRuntimeToJarDebug
+> Task :core:core-assistant:bundleLibCompileToJarDebug
+> Task :feature:feature-absences:kspDebugKotlin
+> Task :feature:feature-communications:kspDebugKotlin
+> Task :feature:feature-agenda:kspDebugKotlin
+> Task :feature:feature-lessons:kspDebugKotlin
+> Task :feature:feature-grades:kspDebugKotlin
+> Task :feature:feature-widgets:kspDebugKotlin
+> Task :feature:feature-dashboard:kspDebugKotlin
+> Task :feature:feature-absences:compileDebugKotlin
+> Task :feature:feature-grades:compileDebugKotlin
+> Task :feature:feature-communications:compileDebugKotlin
+> Task :feature:feature-assistant:kspDebugKotlin
+> Task :feature:feature-widgets:compileDebugKotlin
+> Task :feature:feature-lessons:compileDebugKotlin
+> Task :feature:feature-communications:compileDebugJavaWithJavac
+> Task :feature:feature-absences:compileDebugJavaWithJavac
+> Task :feature:feature-grades:compileDebugJavaWithJavac
+> Task :feature:feature-agenda:compileDebugKotlin
+> Task :feature:feature-widgets:compileDebugJavaWithJavac
+> Task :feature:feature-lessons:compileDebugJavaWithJavac
+> Task :feature:feature-absences:transformDebugClassesWithAsm
+> Task :feature:feature-absences:bundleLibCompileToJarDebug
+> Task :feature:feature-grades:transformDebugClassesWithAsm
+> Task :feature:feature-lessons:transformDebugClassesWithAsm
+> Task :feature:feature-grades:bundleLibCompileToJarDebug
+> Task :feature:feature-lessons:bundleLibCompileToJarDebug
+> Task :feature:feature-widgets:transformDebugClassesWithAsm
+> Task :feature:feature-widgets:bundleLibCompileToJarDebug
+> Task :feature:feature-communications:transformDebugClassesWithAsm
+> Task :feature:feature-communications:bundleLibCompileToJarDebug
+> Task :feature:feature-agenda:compileDebugJavaWithJavac
+> Task :feature:feature-agenda:transformDebugClassesWithAsm
+> Task :feature:feature-agenda:bundleLibCompileToJarDebug
+> Task :feature:feature-dashboard:compileDebugKotlin
+
+> Task :feature:feature-assistant:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/feature/feature-assistant/src/main/kotlin/dev/antigravity/classevivaexpressive/feature/assistant/consent/AssistantConsentRoute.kt:34:43 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/feature/feature-assistant/src/main/kotlin/dev/antigravity/classevivaexpressive/feature/assistant/history/AssistantConversationRoute.kt:80:47 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/feature/feature-assistant/src/main/kotlin/dev/antigravity/classevivaexpressive/feature/assistant/history/AssistantHistoryRoute.kt:44:42 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+
+> Task :feature:feature-dashboard:compileDebugJavaWithJavac
+> Task :feature:feature-dashboard:transformDebugClassesWithAsm
+> Task :feature:feature-dashboard:bundleLibCompileToJarDebug
+> Task :feature:feature-assistant:compileDebugJavaWithJavac
+> Task :feature:feature-assistant:transformDebugClassesWithAsm
+> Task :feature:feature-assistant:bundleLibCompileToJarDebug
+> Task :feature:feature-assistant:bundleLibRuntimeToJarDebug
+> Task :feature:feature-settings:kspDebugKotlin
+> Task :feature:feature-settings:compileDebugKotlin
+> Task :feature:feature-settings:compileDebugJavaWithJavac
+> Task :feature:feature-settings:transformDebugClassesWithAsm
+> Task :feature:feature-settings:bundleLibCompileToJarDebug
+> Task :app:kspDebugKotlin
+> Task :app:compileDebugKotlin
+
+[Incubating] Problems report is available at: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-classeviva/android/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 1m 44s
+375 actionable tasks: 127 executed, 248 from cache

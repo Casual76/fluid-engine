@@ -1,0 +1,353 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :app:compileDebugKotlin
+
+> Configure project :app
+Fluidify: keystore.properties is missing, so release builds are signed with the debug key and must not be published.
+Checking the license for package NDK (Side by side) 28.2.13676358 in C:\Android\Sdk\licenses
+License for package NDK (Side by side) 28.2.13676358 accepted.
+Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
+Installing NDK (Side by side) 28.2.13676358 in C:\Android\Sdk\ndk\28.2.13676358
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
+WARNING: We recommend using a newer Android Gradle plugin to use compile SDK version 37.0
+
+This Android Gradle plugin (8.13.2) was tested up to compile SDK version 36.1.
+
+You are strongly encouraged to update your project to use a newer
+Android Gradle plugin that has been tested with compile SDK version 37.0.
+
+If you are already using the latest version of the Android Gradle plugin,
+you may need to wait until a newer version with support for compile SDK version 37.0 is available.
+
+For more information refer to the compatibility table:
+https://d.android.com/r/tools/api-level-support
+
+To suppress this warning, add/update
+    android.suppressUnsupportedCompileSdk=37.0
+to this project's gradle.properties.
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:preBuild UP-TO-DATE
+> Task :engine-net:preBuild UP-TO-DATE
+> Task :wear-protocol:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-foundation:preBuild UP-TO-DATE
+> Task :core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ai-bridge:preBuild UP-TO-DATE
+> Task :engine-update:preBuild UP-TO-DATE
+> Task :engine-ai:preBuild UP-TO-DATE
+> Task :engine-ui:preBuild UP-TO-DATE
+> Task :engine-ui:preDebugBuild UP-TO-DATE
+> Task :engine-ai:preDebugBuild UP-TO-DATE
+> Task :engine-ai-bridge:preDebugBuild UP-TO-DATE
+> Task :engine-foundation:preDebugBuild UP-TO-DATE
+> Task :core:preDebugBuild UP-TO-DATE
+> Task :engine-net:preDebugBuild UP-TO-DATE
+> Task :engine-update:preDebugBuild UP-TO-DATE
+> Task :wear-protocol:processResources NO-SOURCE
+> Task :app:checkNoStaleJniLibs
+> Task :app:preBuild
+> Task :app:preDebugBuild
+> Task :engine-ui:generateDebugResValues FROM-CACHE
+> Task :app:generateDebugBuildConfig FROM-CACHE
+> Task :engine-ui:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai:processDebugNavigationResources FROM-CACHE
+> Task :core:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai-bridge:processDebugNavigationResources FROM-CACHE
+> Task :engine-foundation:processDebugNavigationResources FROM-CACHE
+> Task :app:generateDebugResValues FROM-CACHE
+> Task :engine-update:processDebugNavigationResources FROM-CACHE
+> Task :engine-net:processDebugNavigationResources FROM-CACHE
+> Task :core:generateDebugResValues FROM-CACHE
+> Task :engine-ai-bridge:generateDebugResValues FROM-CACHE
+> Task :core:generateDebugResources FROM-CACHE
+> Task :engine-ai:generateDebugResValues FROM-CACHE
+> Task :engine-ai:generateDebugResources FROM-CACHE
+> Task :engine-ai-bridge:generateDebugResources FROM-CACHE
+> Task :core:packageDebugResources FROM-CACHE
+> Task :engine-ai:packageDebugResources FROM-CACHE
+> Task :engine-foundation:generateDebugResValues FROM-CACHE
+> Task :engine-foundation:generateDebugResources FROM-CACHE
+> Task :engine-ui:writeDebugAarMetadata
+> Task :engine-foundation:writeDebugAarMetadata
+> Task :core:writeDebugAarMetadata
+> Task :engine-net:writeDebugAarMetadata
+> Task :engine-update:writeDebugAarMetadata
+> Task :engine-ui:generateDebugResources FROM-CACHE
+> Task :engine-ai:writeDebugAarMetadata
+> Task :app:createDebugCompatibleScreenManifests
+> Task :engine-ai-bridge:writeDebugAarMetadata
+> Task :core:extractDeepLinksDebug FROM-CACHE
+> Task :app:extractDeepLinksDebug FROM-CACHE
+> Task :engine-update:generateDebugResValues FROM-CACHE
+> Task :engine-net:generateDebugResValues FROM-CACHE
+> Task :engine-ai:extractDeepLinksDebug FROM-CACHE
+> Task :core:processDebugManifest FROM-CACHE
+> Task :engine-update:generateDebugResources FROM-CACHE
+> Task :engine-net:generateDebugResources FROM-CACHE
+> Task :engine-foundation:packageDebugResources FROM-CACHE
+> Task :engine-ai-bridge:extractDeepLinksDebug FROM-CACHE
+> Task :engine-foundation:extractDeepLinksDebug FROM-CACHE
+> Task :engine-net:packageDebugResources FROM-CACHE
+> Task :engine-net:extractDeepLinksDebug FROM-CACHE
+> Task :engine-update:packageDebugResources FROM-CACHE
+> Task :engine-ui:packageDebugResources FROM-CACHE
+> Task :engine-ai-bridge:packageDebugResources FROM-CACHE
+> Task :engine-ai:processDebugManifest FROM-CACHE
+> Task :engine-net:processDebugManifest FROM-CACHE
+> Task :core:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ui:processDebugManifest FROM-CACHE
+> Task :engine-update:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ui:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ai:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ai-bridge:compileDebugLibraryResources FROM-CACHE
+> Task :engine-foundation:compileDebugLibraryResources FROM-CACHE
+> Task :engine-update:processDebugManifest FROM-CACHE
+> Task :engine-net:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ai-bridge:parseDebugLocalResources FROM-CACHE
+> Task :engine-foundation:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai:parseDebugLocalResources FROM-CACHE
+> Task :engine-net:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai:generateDebugRFile FROM-CACHE
+> Task :engine-foundation:generateDebugRFile FROM-CACHE
+> Task :engine-net:generateDebugRFile FROM-CACHE
+> Task :engine-ui:parseDebugLocalResources FROM-CACHE
+> Task :engine-update:compileDebugLibraryResources FROM-CACHE
+> Task :engine-update:parseDebugLocalResources FROM-CACHE
+> Task :engine-ui:generateDebugRFile FROM-CACHE
+> Task :app:generateDebugResources FROM-CACHE
+> Task :core:javaPreCompileDebug FROM-CACHE
+> Task :engine-ai-bridge:generateDebugRFile FROM-CACHE
+> Task :engine-ai:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-foundation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ai-bridge:processDebugManifest FROM-CACHE
+> Task :engine-ui:compileDebugLibraryResources FROM-CACHE
+> Task :engine-foundation:javaPreCompileDebug FROM-CACHE
+> Task :engine-ai:javaPreCompileDebug FROM-CACHE
+> Task :engine-ai-bridge:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-net:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-net:javaPreCompileDebug FROM-CACHE
+> Task :engine-ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ai-bridge:javaPreCompileDebug FROM-CACHE
+> Task :engine-update:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-foundation:processDebugManifest FROM-CACHE
+> Task :engine-ui:javaPreCompileDebug FROM-CACHE
+> Task :engine-update:javaPreCompileDebug FROM-CACHE
+> Task :app:packageDebugResources FROM-CACHE
+> Task :engine-update:generateDebugRFile FROM-CACHE
+> Task :core:parseDebugLocalResources FROM-CACHE
+> Task :core:generateDebugRFile FROM-CACHE
+> Task :app:processDebugNavigationResources FROM-CACHE
+> Task :app:mapDebugSourceSetPaths
+> Task :app:compileDebugNavigationResources FROM-CACHE
+> Task :app:parseDebugLocalResources FROM-CACHE
+> Task :app:checkDebugAarMetadata
+> Task :app:processDebugMainManifest FROM-CACHE
+> Task :app:processDebugManifest FROM-CACHE
+> Task :app:processDebugManifestForPackage FROM-CACHE
+> Task :engine-foundation:compileDebugKotlin FROM-CACHE
+> Task :engine-foundation:compileDebugJavaWithJavac NO-SOURCE
+> Task :wear-protocol:compileKotlin FROM-CACHE
+> Task :wear-protocol:compileJava NO-SOURCE
+> Task :wear-protocol:classes UP-TO-DATE
+> Task :engine-foundation:bundleLibCompileToJarDebug
+> Task :engine-net:compileDebugKotlin FROM-CACHE
+> Task :engine-net:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:mergeDebugResources FROM-CACHE
+> Task :engine-net:bundleLibCompileToJarDebug
+> Task :engine-update:compileDebugKotlin FROM-CACHE
+> Task :wear-protocol:jar
+> Task :engine-update:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-update:bundleLibCompileToJarDebug
+
+> Task :app:processDebugResources
+WARNING: We recommend using a newer Android Gradle plugin to use compile SDK version 37.0
+
+This Android Gradle plugin (8.13.2) was tested up to compile SDK version 36.1.
+
+You are strongly encouraged to update your project to use a newer
+Android Gradle plugin that has been tested with compile SDK version 37.0.
+
+If you are already using the latest version of the Android Gradle plugin,
+you may need to wait until a newer version with support for compile SDK version 37.0 is available.
+
+For more information refer to the compatibility table:
+https://d.android.com/r/tools/api-level-support
+
+To suppress this warning, add/update
+    android.suppressUnsupportedCompileSdk=37.0
+to this project's gradle.properties.
+
+> Task :core:compileDebugKotlin
+> Task :core:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:bundleLibCompileToJarDebug
+
+> Task :engine-ai:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ai/src/main/kotlin/dev/antigravity/fluidengine/ai/provider/ProviderAttemptLifecycle.kt:118:80 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Throwable'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ai/src/main/kotlin/dev/antigravity/fluidengine/ai/speech/SpeechCapture.kt:227:70 Elvis operator (?:) always returns the left operand of non-nullable type 'SpeechCapture.EndReason'.
+
+> Task :engine-ai:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ai:bundleLibCompileToJarDebug
+> Task :engine-ai-bridge:compileDebugKotlin
+> Task :engine-ai-bridge:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ai-bridge:bundleLibCompileToJarDebug
+> Task :engine-ui:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidFastScroller.kt:440:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'GlassBackdropState'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidGlassModal.kt:1266:25 Condition is always 'true'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidReorderable.kt:765:28 Unnecessary non-null assertion (!!) on a non-null receiver of type 'GlassBackdropState'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidScreen.kt:1533:26 Condition is always 'false'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidSearchField.kt:262:41 Unnecessary safe call on a non-null receiver of type '(Boolean) -> Unit'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidSearchField.kt:338:41 Unnecessary safe call on a non-null receiver of type '(Boolean) -> Unit'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidSectionIndex.kt:356:36 Unnecessary non-null assertion (!!) on a non-null receiver of type 'GlassBackdropState'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsRim.kt:373:19 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Paint.kt:35:10 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Paint.kt:41:10 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/haptics/AndroidFluidHaptics.kt:244:91 'static field HAPTIC_FEEDBACK_ENABLED: String' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/tutorial/FluidCoachMark.kt:377:30 Unnecessary non-null assertion (!!) on a non-null receiver of type 'GlassBackdropState'.
+
+> Task :engine-ui:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ui:bundleLibCompileToJarDebug
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ProfileReport.kt:28:51 'static field RESULT_CODE_NO_PROFILE: Int' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/AirPodsAppVisibility.kt:17:5 This class or interface requires opt-in to be implemented: Inheriting from this kotlinx.coroutines API is unstable. Either new methods may be added in the future, which would break the inheritance, or correctly inheriting from it requires fulfilling contracts that may change in the future.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsAndroidRuntime.kt:727:147 No cast needed.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsAndroidRuntime.kt:730:59 No cast needed.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsAndroidRuntime.kt:735:46 No cast needed.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsAndroidRuntime.kt:748:50 No cast needed.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsComponents.kt:40:48 'constructor(p0: Int, p1: CharSequence!, p2: PendingIntent?): Notification.Action.Builder' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsComponents.kt:43:62 Unnecessary safe call on a non-null receiver of type 'AirPodsAndroidController'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsComponents.kt:45:17 Condition is always 'true'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsComponents.kt:71:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsComponents.kt:72:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsComponents.kt:75:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/AirPodsComponents.kt:77:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/platform/AudioOperations.kt:95:17 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'ArrayDeque<() -> Unit>?'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/platform/AudioOperations.kt:138:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'ArrayDeque<() -> Unit>?'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/android/platform/AudioOperations.kt:175:24 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'ArrayDeque<() -> Unit>?'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/automation/AirPodsAutomationCoordinator.kt:104:16 Unnecessary safe call on a non-null receiver of type 'MediaSnapshot'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/automation/AirPodsAutomationCoordinator.kt:249:60 Unnecessary safe call on a non-null receiver of type 'MediaSnapshot'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/automation/AirPodsAutomationCoordinator.kt:250:14 Unnecessary safe call on a non-null receiver of type 'MediaSnapshot'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/automation/AirPodsAutomationCoordinator.kt:256:22 Unnecessary non-null assertion (!!) on a non-null receiver of type 'AirPodsAutomationCoordinator.OwnedPause'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/lifecycle/AirPodsStartGate.kt:236:46 Unnecessary safe call on a non-null receiver of type 'ProcessMarker'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/media/AndroidMediaEnvironment.kt:128:30 Unnecessary safe call on a non-null receiver of type 'MediaController.PlaybackInfo'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/airpods/runtime/media/AndroidMediaEnvironment.kt:141:25 Unnecessary safe call on a non-null receiver of type 'MediaController.PlaybackInfo'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/auth/LocalSpotifyAuthority.kt:121:40 'constructor(p0: String!, p1: Int): FileObserver' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/auth/LocalSpotifyAuthority.kt:130:43 'constructor(p0: String!, p1: Int): FileObserver' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/auth/LocalSpotifyAuthority.kt:141:32 'constructor(p0: String!, p1: Int): FileObserver' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/bridge/BridgeSpotifyApi.kt:26:30 Redundant creation of Json format. Creating instances for each usage can be slow.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/bridge/FluidifyToolHost.kt:256:73 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/bridge/FluidifyToolHost.kt:257:78 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/data/DownloadSettingsStore.kt:21:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/data/EffectQualityStore.kt:27:43 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/data/EffectQualityStore.kt:27:70 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/data/GlassStore.kt:27:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/data/GlassStore.kt:28:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/data/QualityStore.kt:20:37 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/playback/BungeeAudioProcessor.kt:197:22 'interface AudioProcessorChain : Any, AudioProcessorChain' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/playback/ListeningRecorder.kt:121:51 Unnecessary non-null assertion (!!) on a non-null receiver of type 'MediaItem'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/MainViewModel.kt:97:27 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:1574:62 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:1590:61 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:1614:64 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2023:61 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2217:44 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2228:46 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2229:36 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2230:44 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2454:61 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2659:61 Unnecessary safe call on a non-null receiver of type 'RemotePlayback'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/SquareApp.kt:2937:62 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/airpods/AirPodsControls.kt:734:47 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/home/HomeScreen.kt:110:25 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/library/LibraryScreen.kt:105:43 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/library/LibraryScreen.kt:119:27 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/library/LibraryScreen.kt:119:54 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/library/PlaylistScreen.kt:126:22 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/onboarding/OnboardingScreen.kt:280:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/player/PlayerScreen.kt:2710:29 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/search/SearchScreen.kt:61:25 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/settings/SettingsScreen.kt:619:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/settings/SettingsScreen.kt:621:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/ui/settings/WebApiSetup.kt:41:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/wear/WearLink.kt:120:121 'static field GET_SIGNATURES: Int' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/wear/install/WatchAdb.kt:6:8 'class X509Principal : X509Name, Principal' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/app/src/main/java/dev/lelonio/square/wear/install/WatchAdb.kt:7:8 'class X509V3CertificateGenerator : Any' is deprecated. Deprecated in Java.
+
+[Incubating] Problems report is available at: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-fluidify/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.3.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 2m 1s
+112 actionable tasks: 26 executed, 86 from cache
+Configuration cache entry stored.

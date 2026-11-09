@@ -1,0 +1,356 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+PampAI: nessuna chiave in local.properties: release firmata DEBUG, non pubblicabile.
+
+> Task :engine-ai-bridge:preBuild UP-TO-DATE
+> Task :engine-storage:preBuild UP-TO-DATE
+> Task :engine-ai:preBuild UP-TO-DATE
+> Task :engine-ui:preBuild UP-TO-DATE
+> Task :engine-config:preBuild UP-TO-DATE
+> Task :core-assistant:preBuild UP-TO-DATE
+> Task :engine-net:preBuild UP-TO-DATE
+> Task :engine-foundation:preBuild UP-TO-DATE
+> Task :engine-update:preBuild UP-TO-DATE
+> Task :engine-ai-ui:preBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature-assistant:preBuild UP-TO-DATE
+> Task :engine-ai-bridge:preDebugBuild UP-TO-DATE
+> Task :engine-ai:preDebugBuild UP-TO-DATE
+> Task :engine-ai-ui:preDebugBuild UP-TO-DATE
+> Task :engine-storage:preDebugBuild UP-TO-DATE
+> Task :engine-update:preDebugBuild UP-TO-DATE
+> Task :engine-net:preDebugBuild UP-TO-DATE
+> Task :engine-ui:preDebugBuild UP-TO-DATE
+> Task :engine-foundation:preDebugBuild UP-TO-DATE
+> Task :core-assistant:preDebugBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :engine-config:preDebugBuild UP-TO-DATE
+> Task :feature-assistant:preDebugBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugBuildConfig FROM-CACHE
+> Task :app:generateDebugResValues FROM-CACHE
+> Task :app:generateDebugResources FROM-CACHE
+> Task :engine-net:writeDebugAarMetadata
+> Task :engine-update:writeDebugAarMetadata
+> Task :engine-ai:writeDebugAarMetadata
+> Task :feature-assistant:writeDebugAarMetadata
+> Task :engine-foundation:writeDebugAarMetadata
+> Task :engine-ai-ui:writeDebugAarMetadata
+> Task :engine-config:writeDebugAarMetadata
+> Task :engine-ai-bridge:writeDebugAarMetadata
+> Task :engine-ui:writeDebugAarMetadata
+> Task :engine-storage:writeDebugAarMetadata
+> Task :core-assistant:writeDebugAarMetadata
+> Task :core-assistant:processDebugNavigationResources FROM-CACHE
+> Task :core-assistant:generateDebugResValues FROM-CACHE
+> Task :engine-net:processDebugNavigationResources FROM-CACHE
+> Task :engine-update:processDebugNavigationResources FROM-CACHE
+> Task :engine-foundation:processDebugNavigationResources FROM-CACHE
+> Task :feature-assistant:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai-ui:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai-bridge:processDebugNavigationResources FROM-CACHE
+> Task :engine-storage:processDebugNavigationResources FROM-CACHE
+> Task :engine-config:processDebugNavigationResources FROM-CACHE
+> Task :engine-foundation:generateDebugResValues FROM-CACHE
+> Task :feature-assistant:generateDebugResValues FROM-CACHE
+> Task :core-assistant:generateDebugResources FROM-CACHE
+> Task :engine-ai-ui:generateDebugResValues FROM-CACHE
+> Task :engine-update:generateDebugResValues FROM-CACHE
+> Task :engine-ai:generateDebugResValues FROM-CACHE
+> Task :engine-net:generateDebugResValues FROM-CACHE
+> Task :engine-ai-bridge:generateDebugResValues FROM-CACHE
+> Task :engine-storage:generateDebugResValues FROM-CACHE
+> Task :engine-update:generateDebugResources FROM-CACHE
+> Task :engine-ai-ui:generateDebugResources FROM-CACHE
+> Task :feature-assistant:generateDebugResources FROM-CACHE
+> Task :engine-foundation:generateDebugResources FROM-CACHE
+> Task :engine-ai:generateDebugResources FROM-CACHE
+> Task :engine-config:generateDebugResValues FROM-CACHE
+> Task :engine-net:generateDebugResources FROM-CACHE
+> Task :app:packageDebugResources FROM-CACHE
+> Task :engine-ai-bridge:generateDebugResources FROM-CACHE
+> Task :engine-config:generateDebugResources FROM-CACHE
+> Task :core-assistant:packageDebugResources FROM-CACHE
+> Task :engine-storage:generateDebugResources FROM-CACHE
+> Task :core-assistant:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ai-ui:packageDebugResources FROM-CACHE
+> Task :feature-assistant:packageDebugResources FROM-CACHE
+> Task :engine-net:packageDebugResources FROM-CACHE
+> Task :engine-foundation:packageDebugResources FROM-CACHE
+> Task :engine-update:packageDebugResources FROM-CACHE
+> Task :engine-ai:packageDebugResources FROM-CACHE
+> Task :engine-ui:processDebugNavigationResources FROM-CACHE
+> Task :engine-ai-ui:extractDeepLinksDebug FROM-CACHE
+> Task :engine-storage:extractDeepLinksDebug FROM-CACHE
+> Task :engine-update:extractDeepLinksDebug FROM-CACHE
+> Task :engine-net:extractDeepLinksDebug FROM-CACHE
+> Task :feature-assistant:extractDeepLinksDebug FROM-CACHE
+> Task :engine-foundation:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ai:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ui:generateDebugResValues FROM-CACHE
+> Task :core-assistant:processDebugManifest FROM-CACHE
+> Task :engine-ui:generateDebugResources FROM-CACHE
+> Task :engine-ai-bridge:packageDebugResources FROM-CACHE
+> Task :engine-ai-ui:processDebugManifest FROM-CACHE
+> Task :core-assistant:compileDebugLibraryResources FROM-CACHE
+> Task :engine-config:packageDebugResources FROM-CACHE
+> Task :engine-ai-bridge:extractDeepLinksDebug FROM-CACHE
+> Task :engine-net:processDebugManifest FROM-CACHE
+> Task :engine-update:processDebugManifest FROM-CACHE
+> Task :engine-foundation:processDebugManifest FROM-CACHE
+> Task :engine-ai-ui:compileDebugLibraryResources FROM-CACHE
+> Task :engine-storage:packageDebugResources FROM-CACHE
+> Task :feature-assistant:processDebugManifest FROM-CACHE
+> Task :engine-ai:processDebugManifest FROM-CACHE
+> Task :engine-net:compileDebugLibraryResources FROM-CACHE
+> Task :engine-update:compileDebugLibraryResources FROM-CACHE
+> Task :feature-assistant:compileDebugLibraryResources FROM-CACHE
+> Task :engine-foundation:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ai:compileDebugLibraryResources FROM-CACHE
+> Task :engine-config:extractDeepLinksDebug FROM-CACHE
+> Task :engine-ai-bridge:processDebugManifest FROM-CACHE
+> Task :engine-storage:processDebugManifest FROM-CACHE
+> Task :engine-ai-bridge:compileDebugLibraryResources FROM-CACHE
+> Task :engine-storage:compileDebugLibraryResources FROM-CACHE
+> Task :engine-config:processDebugManifest FROM-CACHE
+> Task :engine-config:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ui:packageDebugResources FROM-CACHE
+> Task :engine-ui:extractDeepLinksDebug FROM-CACHE
+> Task :core-assistant:parseDebugLocalResources FROM-CACHE
+> Task :feature-assistant:parseDebugLocalResources FROM-CACHE
+> Task :engine-net:parseDebugLocalResources FROM-CACHE
+> Task :engine-update:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai-ui:parseDebugLocalResources FROM-CACHE
+> Task :engine-foundation:parseDebugLocalResources FROM-CACHE
+> Task :engine-storage:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai:parseDebugLocalResources FROM-CACHE
+> Task :engine-config:parseDebugLocalResources FROM-CACHE
+> Task :engine-ai-bridge:parseDebugLocalResources FROM-CACHE
+> Task :engine-ui:processDebugManifest FROM-CACHE
+> Task :feature-assistant:generateDebugRFile FROM-CACHE
+> Task :feature-assistant:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-net:generateDebugRFile FROM-CACHE
+> Task :engine-foundation:generateDebugRFile FROM-CACHE
+> Task :core-assistant:generateDebugRFile FROM-CACHE
+> Task :engine-update:generateDebugRFile FROM-CACHE
+> Task :engine-ai-ui:generateDebugRFile FROM-CACHE
+> Task :engine-foundation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-net:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-update:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-assistant:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ai-ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ai:generateDebugRFile FROM-CACHE
+> Task :engine-ai:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ai-bridge:generateDebugRFile FROM-CACHE
+> Task :engine-ai-bridge:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-config:generateDebugRFile FROM-CACHE
+> Task :engine-storage:generateDebugRFile FROM-CACHE
+> Task :engine-config:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-storage:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-net:javaPreCompileDebug FROM-CACHE
+> Task :engine-ai-ui:javaPreCompileDebug FROM-CACHE
+> Task :engine-ai:javaPreCompileDebug FROM-CACHE
+> Task :engine-update:javaPreCompileDebug FROM-CACHE
+> Task :engine-config:javaPreCompileDebug FROM-CACHE
+> Task :engine-storage:javaPreCompileDebug FROM-CACHE
+> Task :engine-ai-bridge:javaPreCompileDebug FROM-CACHE
+> Task :engine-ui:compileDebugLibraryResources FROM-CACHE
+> Task :engine-ui:parseDebugLocalResources FROM-CACHE
+> Task :engine-ui:generateDebugRFile FROM-CACHE
+> Task :engine-ui:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :engine-ui:javaPreCompileDebug FROM-CACHE
+> Task :feature-assistant:javaPreCompileDebug FROM-CACHE
+> Task :core-assistant:javaPreCompileDebug FROM-CACHE
+> Task :engine-foundation:compileDebugKotlin FROM-CACHE
+> Task :engine-foundation:javaPreCompileDebug FROM-CACHE
+> Task :engine-foundation:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-foundation:bundleLibRuntimeToJarDebug
+> Task :engine-foundation:bundleLibCompileToJarDebug
+> Task :engine-net:compileDebugKotlin FROM-CACHE
+> Task :engine-net:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-storage:compileDebugKotlin FROM-CACHE
+> Task :engine-storage:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-net:bundleLibRuntimeToJarDebug
+> Task :engine-storage:bundleLibRuntimeToJarDebug
+> Task :engine-storage:bundleLibCompileToJarDebug
+> Task :engine-net:bundleLibCompileToJarDebug
+> Task :app:checkDebugAarMetadata
+> Task :engine-config:compileDebugKotlin FROM-CACHE
+> Task :engine-config:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-config:bundleLibCompileToJarDebug
+> Task :engine-update:compileDebugKotlin FROM-CACHE
+> Task :engine-update:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-config:bundleLibRuntimeToJarDebug
+> Task :engine-update:bundleLibCompileToJarDebug
+> Task :engine-update:bundleLibRuntimeToJarDebug
+> Task :app:processDebugNavigationResources FROM-CACHE
+> Task :app:compileDebugNavigationResources FROM-CACHE
+> Task :app:mapDebugSourceSetPaths
+> Task :app:mergeDebugResources FROM-CACHE
+> Task :app:parseDebugLocalResources FROM-CACHE
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug FROM-CACHE
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest FROM-CACHE
+> Task :app:processDebugManifestForPackage FROM-CACHE
+> Task :app:processDebugResources FROM-CACHE
+> Task :engine-ai:compileDebugKotlin
+> Task :engine-ai:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ai:bundleLibRuntimeToJarDebug
+> Task :engine-ai:bundleLibCompileToJarDebug
+> Task :engine-ai-bridge:compileDebugKotlin
+> Task :engine-ai-bridge:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ai-bridge:bundleLibCompileToJarDebug
+> Task :engine-ai-bridge:bundleLibRuntimeToJarDebug
+> Task :engine-ui:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidGlassModal.kt:1266:25 Condition is always 'true'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidScreen.kt:1533:26 Condition is always 'false'.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsRim.kt:373:19 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Paint.kt:35:10 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Paint.kt:41:10 'fun asFrameworkPaint(): Paint' is deprecated. Use platform-specific extension to get platform reference.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/engine/engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/haptics/AndroidFluidHaptics.kt:244:91 'static field HAPTIC_FEEDBACK_ENABLED: String' is deprecated. Deprecated in Java.
+
+> Task :engine-ui:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ui:bundleLibCompileToJarDebug
+> Task :engine-ui:bundleLibRuntimeToJarDebug
+> Task :core-assistant:kspDebugKotlin
+> Task :engine-ai-ui:compileDebugKotlin
+> Task :engine-ai-ui:compileDebugJavaWithJavac NO-SOURCE
+> Task :engine-ai-ui:bundleLibCompileToJarDebug
+> Task :engine-ai-ui:bundleLibRuntimeToJarDebug
+
+> Task :core-assistant:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/attachments/Attachments.kt:31:44 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/bridge/RemoteCatalogs.kt:50:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/bridge/SignedPlaylistReader.kt:13:48 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/db/ConversationsRepository.kt:239:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/db/DatabaseRecovery.kt:24:44 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/music/FluidifyClient.kt:36:42 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/permissions/PermissionGate.kt:28:42 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/receipts/ReceiptActions.kt:18:42 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/reminders/Reminders.kt:69:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/research/ResearchTransport.kt:32:62 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/research/ResearchWorker.kt:39:63 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/runtime/AssistantEngine.kt:113:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/runtime/AssistantRuntime.kt:118:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/service/AssistantNotifications.kt:32:50 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/tools/device/ContactTools.kt:32:36 'static field TIMES_CONTACTED: String' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/voice/AriaSpeaker.kt:46:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/voice/AriaSpeaker.kt:128:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/core-assistant/src/main/kotlin/dev/pampa/pampai/core/assistant/voice/DualSttEngine.kt:63:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+
+> Task :core-assistant:compileDebugJavaWithJavac
+> Task :core-assistant:transformDebugClassesWithAsm
+> Task :core-assistant:bundleLibCompileToJarDebug
+> Task :core-assistant:bundleLibRuntimeToJarDebug
+> Task :feature-assistant:kspDebugKotlin
+
+> Task :feature-assistant:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/PampaiRoot.kt:189:31 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/PampaiRoot.kt:197:24 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/PampaiRoot.kt:234:25 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/PampaiRoot.kt:347:86 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/chat/ChatComposer.kt:330:31 'val Icons.Rounded.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ArrowBack.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/chat/ChatRoute.kt:105:30 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/chat/ChatViewModel.kt:167:3 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/history/AriaDrawer.kt:84:33 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/memory/MemoryRoute.kt:52:66 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/onboarding/OnboardingRoute.kt:59:43 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/profile/ProfileRoute.kt:20:55 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/settings/SettingsRoute.kt:76:43 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/settings/SettingsRoute.kt:77:27 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/settings/SettingsRoute.kt:78:25 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/feature-assistant/src/main/kotlin/dev/pampa/pampai/feature/assistant/usage/UsageRoute.kt:52:64 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+
+> Task :feature-assistant:compileDebugJavaWithJavac
+> Task :feature-assistant:transformDebugClassesWithAsm
+> Task :feature-assistant:bundleLibCompileToJarDebug
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/app/src/main/kotlin/dev/pampa/pampai/assist/AssistTrampolineActivity.kt:20:5 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/app/src/main/kotlin/dev/pampa/pampai/assist/PampaiSession.kt:107:53 'static field SOFT_INPUT_ADJUST_RESIZE: Int' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/app/src/main/kotlin/dev/pampa/pampai/assist/PampaiSession.kt:108:9 'var statusBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/app/src/main/kotlin/dev/pampa/pampai/assist/PampaiSession.kt:109:9 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+
+[Incubating] Problems report is available at: file:///C:/VibeCoded%20Projects/.worktrees/tmp-sol-up-307-pampai/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 1m 36s
+177 actionable tasks: 50 executed, 127 from cache

@@ -55,3 +55,19 @@ Due tentativi preliminari hanno exit **1**: errore di compilazione nella prima m
 Nuove regressioni: lifecycle provider e audit importati dal fork; hook risultati integrali e parti dinamiche; filtro catalogo con default storico e opt-in; pagina di interazione durante push/pop; gruppi delle impostazioni senza duplicazioni e conservazione degli slot. Conservate le regressioni scrubber pure e Compose e quelle bridge 3.0.6.
 
 `check_docs.py --check` inizialmente non era supportato (exit 1, interpretato come nome file): lo script ora lo accetta come alias esplicito del controllo senza scritture. Tutti i comandi documentali ordinari e con `--check` sono stati poi eseguiti con exit 0 prima del cambio versione.
+
+La ricerca sui sorgenti delle app sotto `C:\VibeCoded Projects` ha trovato file con `when` e riferimenti agli enum engine in ClasseViva (5), Fluid-transit (1), FluidWeather (3), Pampa notes (14), PampAI (22); nessun valore e stato aggiunto agli enum preesistenti. Le altre app rilevate non mostravano tale combinazione. Questa ricerca e statica e non sostituisce la compilazione di tutte le app.
+
+## Compilazioni applicative
+
+Candidato engine compilato: `f2d9059` (i commit successivi fino alla release riguardano documentazione, evidenze e versione). Comando per ciascuna app: `gradlew.bat :app:compileDebugKotlin --no-daemon --no-watch-fs`.
+
+- PampAI: **exit 0**, 1m36s, 177 task; include `core-assistant` e `feature-assistant`. Snapshot locale da HEAD `9a435ae5820eb0e20ec58e43a9bfe145b6c1a8cc`, piu modifiche locali copiate. Nessun errore residuo nei sette file segnalati; nessuna modifica ai sorgenti app necessaria per compilare.
+- Fluidify: **exit 0**, 2m01s, 112 task; snapshot locale da HEAD `a9247286a8bb86d7b8a83c5c30ffea0a2fd1b2d3`, piu modifiche locali copiate.
+- ClasseViva: **exit 0**, 1m44s, 375 task; build Android dello snapshot locale da HEAD `c603e0dce00eb8c75779ce5e9cde723fb0f100dc`, piu modifiche locali copiate.
+
+## Limiti e rischi residui
+
+Le compilazioni applicative verificano Kotlin e dipendenze del percorso Debug, non confezionamento APK, firma, native Rust/C++ di Fluidify, release minificata o esecuzione sui dispositivi. Le UI hanno prova Compose/JVM, non osservazione hardware delle animazioni o dell'aptica. Le liquidazioni dei provider hanno prova locale con server di test; non attestano prezzi o addebiti reali. Lo snapshot delle app include modifiche non committate: i soli hash HEAD non lo identificano integralmente.
+
+Tutti i test sono precedenti al solo aggiornamento della versione e della documentazione della release. `main` rimane a `33c69bd5bc1d1264207314cc395c442c666fce58`: lo script consente la release dal ramo assegnato, quindi nessun merge e necessario. Nessun push eseguito.

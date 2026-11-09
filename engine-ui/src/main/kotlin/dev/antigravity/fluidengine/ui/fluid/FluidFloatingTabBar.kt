@@ -925,22 +925,53 @@ interface FluidFloatingTabBarScope {
      * waiting for the navigation, so a ripple underneath is the same answer given twice and half
      * a beat early. **Null by default since 3.0 (fase 9):** the inline tab answers with the finger's
      * glow on its glass and a `Tap`, like every glass control, and a Material ripple under that is a
-     * third answer to one touch. An app that wants its own passes it here.
-     * @param badge pm-f1/ge (E01): il segno sull'icona della zona, un pallino o un numero
-     * ([FluidTabBadge]). Lo disegna la barra, in tutte le copie della scheda (la riga nascosta che la
-     * pillola guarda e l'icona ridisegnata sopra di lei), **solo a barra aperta**: ripiegata non compare.
-     * La frase per TalkBack va sul nodo della zona («Chat, novita'»); il segno e' muto e non si tocca.
-     * Null (di serie): la scheda di sempre, stesso albero e stesse misure. In coda e non una lambda, quindi
-     * nessuna chiamata esistente cambia la lambda a cui si lega.
+     * third answer to one touch. An app that wants its own passes it here. It is the **last**
+     * parameter, so a trailing lambda (`tab(…) { ripple() }`) is the indication, as it always was.
+     *
+     * Per una zona col segno c'e' l'overload con `badge` (3.1.0): questa firma e' quella della 3.0 e
+     * resta identica, perche' un'app che chiama `tab` (o che implementa questa interfaccia) compili e
+     * si comporti come prima.
      */
     fun tab(
         key: Any,
         title: @Composable () -> Unit,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)? = null,
-        badge: FluidTabBadge? = null
+        indication: (@Composable () -> Indication)? = null
     )
+
+    /**
+     * Una zona **col segno** (3.1.0, pm-f1/ge E01): come l'altro `tab`, piu' [badge].
+     *
+     * [badge] e' il segno sull'icona della zona, un pallino o un numero ([FluidTabBadge]). Lo disegna la
+     * barra, in tutte le copie della scheda (la riga nascosta che la pillola guarda e l'icona ridisegnata
+     * sopra di lei), **solo a barra aperta**: ripiegata non compare. La frase per TalkBack va sul nodo
+     * della zona («Chat, novita'»); il segno e' muto e non si tocca. Null: la scheda di sempre, stesso
+     * albero e stesse misure (comodo per `badge = if (nuove) FluidTabBadge.Dot else null`).
+     *
+     * **Perche' un overload e non un parametro in coda.** L'ultimo parametro della firma della 3.0 e'
+     * una lambda ([indication]): un `badge` aggiunto dopo di lei toglieva la lambda finale a chi la usava.
+     * Qui [badge] e' **obbligatorio** e sta al **quarto** posto, accanto all'icona su cui si disegna, dove
+     * la firma della 3.0 ha `onClick` (una lambda, mai null): nessuna chiamata scritta per la 3.0 puo'
+     * arrivare a questa funzione, nemmeno `tab(k, t, i, o, null)`, che al quinto posto avrebbe trovato due
+     * tipi nullable non confrontabili e sarebbe diventata ambigua. [indication] resta l'ultima, quindi la
+     * lambda finale e' l'indicazione anche qui. Si chiama per nome:
+     * `tab(key = …, title = …, icon = …, onClick = …, badge = …)`.
+     *
+     * Di serie inoltra all'altro `tab` **senza** il segno: un'implementazione di questa interfaccia
+     * scritta per la 3.0 compila com'era e ignora il segno. La barra dell'engine lo ridefinisce e lo
+     * disegna.
+     */
+    fun tab(
+        key: Any,
+        title: @Composable () -> Unit,
+        icon: @Composable () -> Unit,
+        badge: FluidTabBadge?,
+        onClick: () -> Unit,
+        indication: (@Composable () -> Indication)? = null
+    ) {
+        tab(key = key, title = title, icon = icon, onClick = onClick, indication = indication)
+    }
 
     /**
      * Adds a standalone tab to the floating tab bar.
@@ -3061,8 +3092,18 @@ private class FluidFloatingTabBarScopeImpl : FluidFloatingTabBarScope {
         title: @Composable () -> Unit,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)?,
-        badge: FluidTabBadge?
+        indication: (@Composable () -> Indication)?
+    ) {
+        tab(key = key, title = title, icon = icon, onClick = onClick, badge = null, indication = indication)
+    }
+
+    override fun tab(
+        key: Any,
+        title: @Composable () -> Unit,
+        icon: @Composable () -> Unit,
+        badge: FluidTabBadge?,
+        onClick: () -> Unit,
+        indication: (@Composable () -> Indication)?
     ) {
         tabs.add(
             FluidFloatingTabBarTab(

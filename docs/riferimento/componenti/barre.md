@@ -259,12 +259,16 @@ si usa dentro `FluidPaneScaffold` (`rail = { FluidTabRail(...) }`, larghezza di 
 
 ## Segni, pulsante e movimento ridotto (Fase 1 di Pampa Mail, 3.1.0)
 
-Quattro aggiunte alla barra e al rail, tutte **opt-in e a parametri in coda**: chi non le usa ha lo stesso albero e le stesse misure di prima. File: `FluidFloatingTabBar.kt`, `FluidTabBar.kt`.
+Quattro aggiunte alla barra e al rail, tutte **opt-in**: chi non le usa ha lo stesso albero e le stesse misure di prima. Dove l'ultimo parametro di una firma era una lambda
+(`tab(…)`: `indication`; `FluidTabRail`: `onReselect`) la novità è un **overload** e non un parametro in coda: la firma della 3.0 resta identica, e la lambda finale va dove andava
+(provato da `Compat307SourceTest` in `engine-ui` e `Compat307BehaviourTest` nella galleria). File: `FluidFloatingTabBar.kt`, `FluidTabBar.kt`.
 
 ### Segni sulle zone: `FluidTabBadge`
 
 **Cos'è.** Il pallino o il numero su una zona che ha qualcosa di nuovo mentre si è altrove (la chat con un messaggio, gli aggiornamenti di un negozio). `FluidTabItem(route, label, icon, badge = null)` nella forma a elenco e nel rail,
-`tab(key, title, icon, onClick, indication, badge = null)` nella forma a DSL. `FluidTabBadge(count: Int? = null, contentDescription: String? = null, color = Color.Unspecified)`: `count = null` è il **pallino**
+`tab(key, title, icon, badge, onClick, indication = null)` nella forma a DSL: un overload con `badge` **obbligatorio** (nullable: `badge = if (nuove) FluidTabBadge.Dot else null`) al **quarto**
+posto, dove la firma della 3.0 ha `onClick` (così nessuna sua chiamata, nemmeno con un `null` al quinto posto, lo raggiunge); `indication` resta l'ultima e si passa per nome; `tab(key, title, icon, onClick, indication = null)` è quella di sempre. Un'implementazione dell'interfaccia scritta per la 3.0 compila com'era: il
+membro nuovo ha un corpo di serie che inoltra al `tab` di sempre, senza segno. `FluidTabBadge(count: Int? = null, contentDescription: String? = null, color = Color.Unspecified)`: `count = null` è il **pallino**
 (`FluidTabBadge.Dot`), `> 0` il numero («99+» oltre 99), `≤ 0` niente (né segno né frase), come `FluidBadge`.
 
 **Perché lo disegna la barra e non l'app.** L'icona è un composable dell'app, ma la scheda la costruisce la barra: la riga nascosta che la pillola guarda e l'icona ridisegnata sopra di lei sono copie che l'app non vede, e un
@@ -284,7 +288,7 @@ scelta: al 60% non reggerebbe più il suo contrasto, e su una zona che non è qu
 `standaloneTab` non è una zona: è un **tasto accanto alla pillola**, la ricerca che cresce nel campo o un'azione primaria come «Scrivi» che resta visibile anche a barra ripiegata. Per TalkBack si annuncia come
 **pulsante** (`Role.Button`), mai come scheda scelta o da scegliere. Tre regole: la sua `key` **non** va passata come `selectedTabKey` (non cambia la zona in cui si è); il nome per TalkBack sta nella `contentDescription`
 dell'icona (il `title` non si mostra); non si usa con `searchMode` (il cerchio crescerebbe nel campo di ricerca). Un'azione primaria deve avere un posto fisso anche su schermo largo: da 600 dp la barra diventa il rail, e
-**`FluidTabRail(header = { … })`** mette l'azione **in testa** al rail, sopra la capsula, **fuori dal vetro del rail** con `FluidTabBarDefaults.RailHeaderSpacing` (8 dp) sotto, come lo spazio fra la pillola e il cerchio nella
+**`FluidTabRail(…, backdrop = b, header = { … })`** (un overload: `header` è obbligatorio, nullable, al **quinto** posto dove la firma della 3.0 ha il `Modifier`, e la lambda finale resta `onReselect`) mette l'azione **in testa** al rail, sopra la capsula, **fuori dal vetro del rail** con `FluidTabBarDefaults.RailHeaderSpacing` (8 dp) sotto, come lo spazio fra la pillola e il cerchio nella
 barra in basso. È un tasto, non una zona (niente goccia, niente selezione): l'app ci mette il suo `FluidGlassIconButton` con la sua `contentDescription`, centrato nella larghezza del rail. Con `header` il `modifier` va al
 contenitore di tutti e due e la capsula prende l'altezza che resta; senza (`null`, di serie) il rail è quello di prima.
 

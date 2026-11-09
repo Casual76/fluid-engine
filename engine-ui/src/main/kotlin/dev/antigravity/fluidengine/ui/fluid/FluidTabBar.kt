@@ -428,14 +428,9 @@ private fun FluidTabItemFace(
  * nelle sue due copie, e la frase va sul nodo della scheda (vedi [FluidTabBadge]). Il rail non si ripiega,
  * quindi il segno si vede sempre.
  *
- * @param header l'azione primaria **in testa** al rail, sopra la capsula delle schede: «Scrivi», «Nuova
- *   nota». Sulla barra in basso e' il cerchio accanto alla pillola (`standaloneTab`); da 600 dp la barra
- *   diventa questo rail e l'azione deve avere ancora un posto fisso. Sta fuori dal vetro del rail, con
- *   [FluidTabBarDefaults.RailHeaderSpacing] sotto: e' un tasto, non una zona (niente goccia, niente
- *   selezione), quindi l'app ci mette il suo tasto di vetro (`FluidGlassIconButton`, con la sua
- *   `contentDescription`) centrato nella larghezza del rail. Null (di serie): il rail di sempre, stesso
- *   albero. Con l'intestazione il `modifier` va al contenitore di tutti e due, e la capsula prende
- *   l'altezza che resta.
+ * Per un'azione **in testa** al rail c'e' l'overload con `header` (3.1.0). Questa firma e' quella della
+ * 3.0 e resta identica: [onReselect] e' l'ultimo parametro, quindi una lambda finale
+ * (`FluidTabRail(…) { item -> … }`, o `{ scrollToTop() }` con `it` implicito) e' sempre il reselect.
  */
 @Composable
 fun FluidTabRail(
@@ -445,7 +440,39 @@ fun FluidTabRail(
   backdrop: GlassBackdropState,
   modifier: Modifier = Modifier,
   onReselect: (FluidTabItem) -> Unit = {},
-  header: (@Composable ColumnScope.() -> Unit)? = null,
+) {
+  if (items.isEmpty()) return
+  FluidTabRailBody(items, selectedRoute, onSelect, backdrop, modifier, onReselect)
+}
+
+/**
+ * Il rail **con un'intestazione** (3.1.0, pm-f1/ge): come l'altro [FluidTabRail], piu' [header].
+ *
+ * @param header l'azione primaria **in testa** al rail, sopra la capsula delle schede: «Scrivi», «Nuova
+ *   nota». Sulla barra in basso e' il cerchio accanto alla pillola (`standaloneTab`); da 600 dp la barra
+ *   diventa questo rail e l'azione deve avere ancora un posto fisso. Sta fuori dal vetro del rail, con
+ *   [FluidTabBarDefaults.RailHeaderSpacing] sotto: e' un tasto, non una zona (niente goccia, niente
+ *   selezione), quindi l'app ci mette il suo tasto di vetro (`FluidGlassIconButton`, con la sua
+ *   `contentDescription`) centrato nella larghezza del rail. Null: il rail di sempre, stesso albero
+ *   (comodo per `header = if (largo) { … } else null`). Con l'intestazione il `modifier` va al
+ *   contenitore di tutti e due, e la capsula prende l'altezza che resta.
+ *
+ * **Perche' un overload e non un parametro in coda.** L'ultimo parametro della firma della 3.0 e' una
+ * lambda ([onReselect]); un `header` aggiunto dopo di lei si prendeva la lambda finale, e una lambda che
+ * ignora il suo argomento (`{ scrollToTop() }`) compilava ancora ma finiva nell'intestazione: il reselect
+ * spariva senza un errore. Qui [header] e' **obbligatorio** e sta al **quinto** posto, dove la firma della
+ * 3.0 ha un `Modifier`: nessuna chiamata scritta per la 3.0 puo' arrivare a questa funzione, e la lambda
+ * finale resta [onReselect] anche qui. Si passa per nome: `FluidTabRail(…, backdrop = b, header = { … })`.
+ */
+@Composable
+fun FluidTabRail(
+  items: List<FluidTabItem>,
+  selectedRoute: String?,
+  onSelect: (FluidTabItem) -> Unit,
+  backdrop: GlassBackdropState,
+  header: (@Composable ColumnScope.() -> Unit)?,
+  modifier: Modifier = Modifier,
+  onReselect: (FluidTabItem) -> Unit = {},
 ) {
   if (items.isEmpty()) return
   if (header == null) {

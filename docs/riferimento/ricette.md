@@ -216,6 +216,14 @@ Cosa merita quale numero: **patch** correzioni; **minor** aggiunte compatibili; 
 (anche un rename: «è solo un nome» non esiste), con la voce `BREAKING:` e come si migra. Marca nel changelog ciò che
 **Cambia a vista** o **Cambia al tatto** anche se compila: chi aggiorna deve saperlo.
 
+**Minor vuol dire: la sorgente di un'app compila uguale e fa la stessa cosa.** Un parametro nuovo va in coda **solo se
+l'ultimo parametro non è una lambda**: messo dopo una lambda le toglie la lambda finale (non compila più) o, peggio, se ne
+prende una che ignora il suo argomento (compila e cambia significato). Lì serve un **overload** in cui il parametro nuovo
+è obbligatorio e non è l'ultimo, la lambda di prima resta ultima, e la firma vecchia resta identica (3.1.0: `FluidTabRail`
+con `header`, `FluidSidebarRow` con `level`…, `tab` con `badge`). Un membro nuovo di un'interfaccia pubblica ha un corpo
+di serie. La forma 3.0.x delle firme toccate si aggiunge a `engine-ui/src/test/.../compat/Compat307SourceTest.kt`, che
+non deve usare API nuova.
+
 Poi, per ogni app: `engine-update.ps1 -AppRoot . -Version X` (o `engine-update-all.ps1 … -WhatIf` prima), si legge
 l'elenco **BREAKING**, si compila, si committa `engine` + `engine.properties` **insieme**. Il rollback è lo stesso
 comando con il numero di prima: i tag non si spostano. Se l'app è un **porto** (`engine.mode=port`) lo script non

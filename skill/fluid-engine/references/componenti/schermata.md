@@ -661,8 +661,10 @@ visibili in una volta). L'elenco+dettaglio **affiancati** sono `FluidListDetailS
   e dentro gli inset di sistema; contenuto `LazyColumn` (cento voci scorrono, testa e piede stanno fermi). `FluidSidebarSection(title)` titola un gruppo (maiuscolo);
   `FluidSidebarRow(label, selected, onClick, icon, tint, detail, badge, contextActions)` e' una riga da `RowHeight` 44 dp con piastrella d'icona, ruolo `Tab` e
   `selected` per TalkBack. La selezione e' **un velo dell'accento al 14%**, non una pillola di vetro: dentro una barra gia' di vetro un secondo vetro non si vede.
-  **Dalla 3.1.0 (Pampa Mail), tutto a parametri in coda e opt-in:** `FluidSidebarRow(…, level = 0, leading = null, trailing = null, minHeight = FluidSidebarDefaults.RowHeight)` e
-  `FluidSidebarSection(title, leading = null, detail = null, uppercase = true)`.
+  **Dalla 3.1.0 (Pampa Mail), tutto opt-in:** `FluidSidebarRow(label, selected, onClick, modifier, icon, tint, detail, badge, level = 0, leading = null, trailing = null,
+  minHeight = FluidSidebarDefaults.RowHeight, contextActions = null)` è un **overload**: i parametri nuovi stanno prima di `contextActions`, che resta l'ultimo, quindi la lambda finale è il menu in
+  tutte e due le firme, e la firma della 3.0 (`contextActions` nono) resta identica (con i valori di serie le due disegnano la stessa riga). `FluidSidebarSection(title, modifier, leading = null,
+  detail = null, uppercase = true)` ha i parametri in coda (la sua ultima non era una lambda).
   - **`level`** annida: ogni livello sposta la riga di `FluidSidebarDefaults.IndentPerLevel` (16 dp) fino a `FluidSidebarDefaults.MaxIndentLevels` (6: oltre, le righe non si spostano più: una barra da 360 dp con una cartella a dieci
     livelli non deve lasciare al nome tre lettere). Per le cartelle dentro le cartelle. Il velo della selezione resta largo quanto la riga: è la riga a essere scelta, non il rientro. Negativo vale 0.
   - **`leading`** è un contenuto **al posto** della piastrella (un avatar, un pallino di colore, la freccia che apre un gruppo): se c'è, `icon` e `tint` non si disegnano. **`trailing`** è un contenuto **dopo** `detail` e `badge`

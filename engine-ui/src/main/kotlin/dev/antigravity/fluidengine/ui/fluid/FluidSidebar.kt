@@ -160,6 +160,10 @@ fun FluidSidebarSection(
  *
  * La selezione e' un velo dell'accento dietro la riga, non una pillola di vetro: dentro una barra
  * gia' di vetro un secondo vetro non si vede, e un velo si legge anche con la coda dell'occhio.
+ *
+ * Per le righe annidate, con un contenuto proprio o piu' alte c'e' l'overload con `level`, `leading`,
+ * `trailing` e `minHeight` (3.1.0). Questa firma e' quella della 3.0 e resta identica: [contextActions]
+ * e' l'ultimo parametro, quindi una lambda finale (`FluidSidebarRow(…) { listOf(…) }`) e' sempre il menu.
  */
 @Composable
 fun FluidSidebarRow(
@@ -174,6 +178,49 @@ fun FluidSidebarRow(
   detail: String? = null,
   badge: String? = null,
   contextActions: (() -> List<FluidContextAction>)? = null,
+) {
+  FluidSidebarRow(
+    label = label,
+    selected = selected,
+    onClick = onClick,
+    modifier = modifier,
+    icon = icon,
+    tint = tint,
+    detail = detail,
+    badge = badge,
+    level = 0,
+    leading = null,
+    trailing = null,
+    minHeight = FluidSidebarDefaults.RowHeight,
+    contextActions = contextActions,
+  )
+}
+
+/**
+ * La riga della barra laterale con le aggiunte della 3.1.0 (pm-f1): annidata ([level]), con un
+ * contenuto proprio prima del testo ([leading]) o in coda ([trailing]), e piu' alta ([minHeight]).
+ * Con i valori di serie e' la riga dell'altro [FluidSidebarRow], pixel per pixel.
+ *
+ * **Perche' un overload e non parametri in coda.** L'ultimo parametro della firma della 3.0 e' una
+ * lambda ([contextActions]): parametri aggiunti dopo di lei toglievano la lambda finale a chi la usava,
+ * e inserirli prima spostava le chiamate posizionali. Qui i nuovi stanno fra [badge] e [contextActions],
+ * che resta **l'ultimo**: la lambda finale e' il menu anche qui (`FluidSidebarRow(…, level = 1) { … }`).
+ * Una chiamata scritta per la 3.0 sceglie sempre l'altra firma: con nove argomenti posizionali il nono
+ * qui sarebbe [level], un `Int`; con meno, Kotlin preferisce la funzione che lascia meno parametri al
+ * valore di serie. Le due, coi valori di serie, disegnano la stessa riga.
+ */
+@Composable
+fun FluidSidebarRow(
+  label: String,
+  selected: Boolean,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  icon: ImageVector? = null,
+  /** Il colore della piastrella dell'icona: quello della materia. Senza, l'accento. */
+  tint: Color? = null,
+  /** Un numero o una parola a destra: «12», «oggi». */
+  detail: String? = null,
+  badge: String? = null,
   /**
    * Il livello di annidamento: 0 e' la riga di sempre, ogni livello in piu' la sposta di
    * [FluidSidebarDefaults.IndentPerLevel] (fino a [FluidSidebarDefaults.MaxIndentLevels]). Per le
@@ -197,6 +244,8 @@ fun FluidSidebarRow(
    * (48 dp); col testo grande la riga cresce comunque.
    */
   minHeight: Dp = FluidSidebarDefaults.RowHeight,
+  /** Il menu della riga tenuta premuta, come nell'altra firma. Ultimo, per la lambda finale. */
+  contextActions: (() -> List<FluidContextAction>)? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val shape = ContinuousCornerShape(FluidRadius.Control)

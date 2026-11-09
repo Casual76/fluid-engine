@@ -18,6 +18,8 @@ engine-ai           l'assistente senza dominio: provider BYOK, chiavi, SSE, fail
 engine-ai-ui        l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (opt-in)
 engine-ai-bridge    tool federati: un'app espone i suoi tool a un assistente esterno con la stessa
                     firma (ContentProvider a permesso signature), o li chiama
+engine-richtext     l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la
+                    tastiera) con HTML ristretto, Markdown e testo semplice (opt-in: solo se serve)
 ```
 
 ## Partire in cinque minuti

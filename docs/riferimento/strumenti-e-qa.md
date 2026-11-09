@@ -13,7 +13,7 @@ Tutti PowerShell, da lanciare con `powershell -ExecutionPolicy Bypass -File <scr
 
 | script | dove si lancia | cosa fa | note |
 |---|---|---|---|
-| `engine-install.ps1 -AppRoot .` | nell'app | inserisce il blocco nel `settings.gradle`, scrive `engine.properties`, stampa le dipendenze da incollare | idempotente; `-Modules a,b` (le dipendenze si chiudono da sole); `-EnginePath` se `engine/` è occupata; `-Mode copy -Source <cartella>` senza git; `-Channel stable|beta`. **Opt-in** per nome: `engine-wear`, `engine-ai-ui` |
+| `engine-install.ps1 -AppRoot .` | nell'app | inserisce il blocco nel `settings.gradle`, scrive `engine.properties`, stampa le dipendenze da incollare | idempotente; `-Modules a,b` (le dipendenze si chiudono da sole; **i moduli opt-in — `engine-wear`, `engine-ai-ui`, `engine-richtext` — entrano solo se chiesti per nome**); `-EnginePath` se `engine/` è occupata; `-Mode copy -Source <cartella>` senza git; `-Channel stable|beta`. **Opt-in** per nome: `engine-wear`, `engine-ai-ui` |
 | `engine-update.ps1 -AppRoot . -Version X` (o `-Latest`) | nell'app | aggancia il tag, riscrive `engine.properties`, stampa il changelog con le voci **BREAKING** | rifiuta di partire se `engine/` ha modifiche non committate (`-AllowDirty` le perde); non compila e non committa; esce 0 / 1; è un **porto**? non tocca niente e lo dice |
 | `engine-update-all.ps1 -Root "…" -Version X` | nell'engine | lo stesso su ogni progetto con un `engine.properties` sotto `-Root` | **`-WhatIf` prima, sempre**; `-Build` compila ognuna e si ferma alla prima che fallisce; elenca i porti senza toccarli |
 | `engine-doctor.ps1 -AppRoot .` | nell'app | controlla che `engine.properties`, `ENGINE_VERSION`, `EngineBuild.VERSION`, il tag agganciato e il `settings.gradle` dicano la stessa cosa, e che `engine/` non abbia modifiche locali | **da eseguire prima di dire «ho finito»**: rileva la variante silenziosa. Per un porto confronta `FLUID_PORT_OF` |
@@ -30,7 +30,7 @@ Python 3, da lanciare **con `-I`** (isolato) dalla radice dell'engine.
 
 | script | a che serve |
 |---|---|
-| `gen_api_catalog.py` | rigenera `references/api/` (catalogo delle API pubbliche e digest del changelog) dai sorgenti Kotlin. `--check` non scrive e esce 1 se il catalogo è vecchio. **Va rilanciato a ogni release**: è ciò che impedisce alla documentazione di datarsi di nuovo |
+| `gen_api_catalog.py` | rigenera `references/api/` (catalogo delle API pubbliche e digest del changelog) dai sorgenti Kotlin. `--check` non scrive e esce 1 se il catalogo è vecchio. **Va rilanciato a ogni release**: è ciò che impedisce alla documentazione di datarsi di nuovo. Un file nuovo di `ui/fluid/` o un modulo nuovo va prima **mappato** nelle tabelle in testa allo script (`UI_FLUID_FILES`, `DIR_FAMILY`, `FAMILY_TITLES`): se no finisce in «Non classificato» e lo script lo segnala |
 | `check_docs.py [file…]` | fallisce se la documentazione nomina un simbolo che non esiste nei sorgenti o ha un link relativo rotto. Una riga con `nocheck` non si controlla |
 | `sync_docs.py` | porta le schede della skill in `docs/riferimento/` (copie con un'intestazione che dice di non modificarle): la skill è la fonte, `docs/` il modo di leggerla senza la skill |
 
@@ -39,7 +39,7 @@ Python 3, da lanciare **con `-I`** (isolato) dalla radice dell'engine.
 Dalla radice dell'engine (l'engine si apre da solo con la galleria **Fluid Glass** in `sample/`):
 
 ```bash
-./gradlew.bat --no-daemon --no-watch-fs :engine-ui:testDebugUnitTest
+./gradlew.bat --no-daemon --no-watch-fs :engine-ui:testDebugUnitTest :engine-richtext:testDebugUnitTest
 ./gradlew.bat --no-daemon --no-watch-fs :sample:testDebugUnitTest
 ./gradlew.bat --no-daemon --no-watch-fs :sample:assembleDebug
 ```
@@ -50,6 +50,8 @@ girano più in parallelo. Serve `local.properties` con `sdk.dir`. Dentro un'app,
 
 I test d'interfaccia stanno in `sample/src/testDebug` (Robolectric: gesti, pagine, menu, semantica, contrasto) e
 non girano da soli con `:engine-ui:test`. Una galleria che compila non prova niente sull'aspetto.
+
+**Le prove strumentate** (`sample/src/androidTest`, `:sample:connectedDebugAndroidTest`) servono dove Robolectric non basta: una `WebView` vera (`FluidWebContentInstrumentedTest`: rete e script chiusi, link, renderer che muore, altezza, **il vetro che contiene davvero i pixel della WebView**). Girano **solo su emulatore o dispositivo**, non nella suite JVM, e richiedono un dispositivo acceso. Su API 37 serve Espresso 3.7.0 esplicito (la versione transitiva chiamava un'API rimossa).
 
 ## La firma delle app
 

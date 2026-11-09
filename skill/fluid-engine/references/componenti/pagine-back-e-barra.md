@@ -14,6 +14,7 @@ e [docs/riferimenti-3.0.md](../../../../docs/riferimenti-3.0.md) sezione 2.
 | ho bisogno di… | uso |
 |---|---|
 | il back col dito come quello di sistema (dal bordo) | niente: `FluidBackSwipe.EdgeOnly` e' di serie in `composable(...)`, `FluidPageHost`, `FluidNavHost` |
+| che il back esca dalla selezione (e non dalla pagina), e che chiuda prima il pannello e i menu | `FluidSelectionBackHandler` composto **dopo** la pagina, **prima** di pannello e menu: «L'ordine del back dell'engine» sotto |
 | una pagina che si tira da qualunque punto | `backSwipe = FluidBackSwipe.Anywhere` (opzione esplicita; era di serie dalla 3.0.0 alla 3.0.2) |
 | una pagina senza back col dito | `backSwipe = FluidBackSwipe.Off` |
 | «uscire senza salvare?» su un editor | un `BackHandler`/`PredictiveBackHandler` nella pagina, abilitato solo con modifiche da perdere; **non** spegnere il gesto |
@@ -93,6 +94,16 @@ Il rilascio col dito, oltre la soglia, manda al dispatcher di navigationevent lo
 - un gestore **registrato prima dell'host** (piu' in alto nell'albero, composto prima) sta sotto di lui e il dito toglie la pagina lo stesso;
 - dopo un gestore che ha consumato il dito, un gesto senza gestore toglie la pagina di nuovo normalmente;
 - una spinta corta e veloce passa dal gestore come una lenta.
+
+**L'ordine del back dell'engine: menu → pannello → selezione → pagina** (3.1.0). Quattro cose possono rispondere al back, e rispondono nell'ordine in cui **entrano in composizione**, l'ultima per prima:
+1. **un menu** (il menu che si trasforma, il contestuale di una riga, un foglio, un avviso): compone il gestore solo mentre è aperto;
+2. **il pannello laterale** (`FluidDrawer`): compone il suo **all'apertura**, non prima, quindi si chiude prima di una selezione o di una pagina annidata, e un menu aperto dentro il pannello (il contestuale di una riga) si chiude prima del pannello;
+3. **la selezione** (`FluidSelectionBackHandler`): attivo solo con una selezione in corso (`FluidSelectionState.isActive`); va composto **dopo** la pagina e l'host di navigazione e **prima** di chi deve avere la meglio (menu, fogli, pannello);
+4. **la pagina**: l'host che la toglie, o il `BackHandler` della pagina (la conferma d'uscita).
+
+Il risultato è quello che l'utente si aspetta: con una selezione in corso, il pannello aperto e il menu di una sua riga aperto, il primo back chiude il menu, il secondo il pannello, il terzo esce dalla selezione, il quarto toglie la pagina. Un
+`FluidSelectionBackHandler` composto **prima** della pagina fa il contrario: il back chiude la pagina con la selezione ancora accesa (è il bug più facile di questa famiglia). Il back dal bordo passa dal dispatcher come quello di sistema (sezione sopra), quindi con il pannello aperto risponde per primo il
+pannello; e **il pannello non si apre dal bordo** (il bordo è del back). Schede: [`menu-modali.md`](menu-modali.md) (`FluidDrawer`), [`contenuto-testo-e-media.md`](contenuto-testo-e-media.md) (`FluidSelectionState`).
 
 **Uso** (la pagina «Bozza» del sample, `PagesDemo.kt`):
 

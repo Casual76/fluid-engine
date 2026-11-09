@@ -47,6 +47,10 @@ Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
 | Testo a una riga, a più righe, una password | `FluidTextField` (`secret = true` per i segreti) |
 | Una ricerca | `FluidSearchField`, non `FluidTextField` |
 | Un editor con i pulsanti «grassetto», «titolo» | `FluidTextField` a `TextFieldValue` + `FluidTextEdit` |
+| Un editor di **testo ricco** (grassetto, elenchi, citazioni, link) con barra sopra la tastiera, salvataggio continuo, HTML/Markdown | modulo opt-in `engine-richtext`: `FluidRichTextEditor` → [`moduli/richtext.md`](../moduli/richtext.md). **Non** `FluidTextEdit`, che è solo il Markdown a segni di un campo semplice |
+| Più indirizzi, etichette o destinatari in un campo solo, ciascuno un gettone | `FluidTokenField(value, onValueChange, createToken)` (sezione «FluidTokenField e FluidSuggestionRow») |
+| Un elenco di suggerimenti sotto il campo a gettoni | `FluidSuggestionRow` in pagina, mai un menu a comparsa |
+| L'avatar o una foto come azione della barra superiore | `FluidBarAction(contentDescription, onClick) { FluidAvatar(…) }` |
 | Il vecchio nome dell'interruttore | non `FluidGlassSwitch` (deprecato, delega): `FluidSwitch` |
 | Vetro dentro un foglio o un dialog di piattaforma (finestra a sé) | `Modifier.fluidStaticGlassSurface`, non `glassControlSurface`: l'altra finestra non può campionare il fondale |
 | Un tasto che si trasforma nel menu che apre | `FluidBarAction(actions = …)` in barra; altrove la scheda dei menu |
@@ -376,6 +380,17 @@ FluidBarAction(
 **Trappole.** Il menu ha bisogno di un host di modali in scope (`LocalFluidGlassModalHostState`): senza, `actions` non apre
 niente e il tasto tiene solo `onClick`. Una lista di `actions` vuota non apre. `contentDescription = null` rende il tasto
 muto; passa sempre un nome (è anche il titolo del menu per TalkBack).
+
+**`FluidBarAction` con un contenuto tuo** (3.1.0). `FluidBarAction(contentDescription, onClick, modifier, enabled, actions, opensOn) { content }` è un overload che al posto dell'icona disegna **il tuo
+contenuto**: l'avatar dell'utente, un mosaico di account, una foto. È la stessa lente, la stessa pressione e lo stesso menu, e per il menu la stessa regola: con `actions` il tasto **diventa** il menu e il menu si richiude nel tasto.
+Il caso per cui esiste: l'avatar in alto a destra che apre il menu degli account.
+- **Il `content` è disegnato due volte**: nel tasto, e come faccia del tasto mentre il menu si apre e si chiude (l'host lo porta lungo il primo tratto del viaggio). Quindi dev'essere **solo disegno**: un `FluidAvatar`, un
+  mosaico, un'immagine già decodificata; nessun effetto collaterale (niente `LaunchedEffect` che carica, niente stato catturato che cambi mentre il menu è aperto).
+- **Misure.** La lente è quella di un tasto della barra, 44 dp, e il contenuto sta dentro con un orlo di vetro (6 dp per lato): `FluidBarActionDefaults.ContentSize` (32 dp) è il lato giusto per un avatar. Un avatar a 44 dp
+  coprirebbe la lente e il tasto sembrerebbe una foto incollata sulla barra. Il bersaglio resta 48 dp.
+- **TalkBack: il nome è `contentDescription`.** Il contenuto va **muto** (un `FluidAvatar` senza `contentDescription`): un avatar che dicesse il suo nome accanto produrrebbe «Alessio Pampaloni, Account, pulsante». Senza
+  `contentDescription` il tasto non ha nome, e va bene solo se è il contenuto a darlo. Nel menu la faccia non porta nomi: il tasto non c'è più e due nodi con lo stesso nome sono rumore.
+- Questo overload e quello con `icon` condividono il corpo (interno): stesso comportamento, stesso albero per chi non cambia chiamata.
 
 **Versione.** Lenti di vetro con bersaglio da 48 dp: 1.3.0; `opensOn` e il passaggio al pannello unico dei menu liquidi: 3.0
 (il CHANGELOG non data l'arrivo di `actions`).
@@ -723,6 +738,53 @@ dell'occhio da `FluidLabels`: 3.0.1; nome per TalkBack del tasto che svuota (`Fl
 
 ---
 
+## FluidTokenField e FluidSuggestionRow (Fase 1 di Pampa Mail, 3.1.0)
+
+**Cos'è.** Il campo che trasforma ciò che si scrive in **gettoni**: i destinatari di un messaggio, le etichette di una nota, i partecipanti di un evento. Cresce **nella pagina** (a più righe, senza limite verticale interno:
+va dentro lo scroll del chiamante), ogni gettone è un bersaglio da 48 dp, e **non sa che cosa sia un gettone valido**: la validazione, la normalizzazione e la deduplica sono dell'app. File: `FluidTokenField.kt`.
+
+**Firma essenziale.**
+```kotlin
+FluidTokenField(
+  value: FluidTokenFieldValue,                         // tokens, draft (TextFieldValue), selectedTokenId
+  onValueChange: (FluidTokenFieldValue) -> Unit,
+  createToken: (text: String, existing: List<FluidToken>) -> FluidToken?,   // valida, normalizza, deduplica; null = rifiuta
+  modifier, label = null, placeholder = null,
+  separators: Set<Char> = FluidTokenFieldDefaults.Separators,               // virgola, punto e virgola, a capo
+  enabled = true, keyboardOptions = KeyboardOptions.Default,
+  onEditToken: ((FluidToken) -> Unit)? = null,
+  suggestions: List<FluidTokenSuggestion> = emptyList(), onSuggestionClick: (FluidTokenSuggestion) -> Unit = {},
+)
+FluidToken(id, label, isError = false)                 // id unico, deciso dall'app
+FluidSuggestionRow(title, subtitle = null, leading = null, onClick, modifier, enabled = true, selected = false)
+```
+
+**Comportamento.**
+- **Si conferma solo una porzione terminata da un separatore**, mai durante la composizione della tastiera (IME): `FluidTokenFieldDefaults.update` non conferma mentre c'è una composizione. Invio, la perdita di fuoco o
+  un incolla esplicito di una lista completa chiedono anche il resto (`commitRemainder`). Il separatore di serie è virgola, punto e virgola e a capo; **non lo spazio**, che aggiungi tu solo per domini senza nomi composti («Anna Rossi»).
+- **`createToken` vede anche i gettoni appena aggiunti** nella stessa passata, quindi la deduplica è interamente dell'app (incollare «a@x.it, a@x.it» si deduplica se la tua funzione lo decide). `null` **conserva il testo
+  rifiutato**, separatore compreso: nessun dato non riconosciuto va perso in silenzio.
+- **Un gettone non valido** (`isError = true`) resta, col colore d'errore (`errorContainer`). Lo decide l'app: `createToken` può restituirlo non valido invece di `null`. Per TalkBack il gettone dice «non valido» (`FluidLabels.tokenInvalid`, errore semantico),
+  quindi il segnale non è solo il colore. Ogni gettone ha anche la sua «x» da 48 dp per rimuoverlo.
+- **Cancellazione in due tempi**: la prima pressione di cancella, a bozza vuota, **seleziona** l'ultimo gettone (bordo da 1,5 dp, non solo colore); la seconda lo rimuove. Con testo o una composizione in corso, cancella agisce
+  sul testo. Per osservare `deleteSurroundingText` della tastiera a input vuoto il campo mette una **sentinella invisibile** (zero-width space) in testa all'editor, nascosta dalla trasformazione visiva: `FluidTokenFieldValue.draft`
+  è la bozza **senza** sentinella, e il cursore dell'app non la vede.
+- **Suggerimenti in pagina, non a comparsa.** `suggestions` sono dati della query corrente, pilotati dall'app: l'app scarta le risposte obsolete e gestisce caricamento ed errore. Compaiono sotto il campo come
+  `FluidSuggestionRow` (`FluidTokenSuggestion(id, title, subtitle, leading)`); le frecce su/giù ne scelgono uno, Invio lo accetta **senza spostare il fuoco dall'input**, e le righe non prendono fuoco (`canFocus = false`):
+  la tastiera non si chiude mentre si sceglie. L'`id` stabile evita che un aggiornamento della lista faccia scegliere un'altra riga.
+- **`onEditToken`** (opzionale): se c'è, toccare un gettone lo rimette in modifica; l'app decide se rimuoverlo e mettere la sua etichetta nella bozza. Per TalkBack ogni gettone ha le azioni «modifica» (se c'è
+  `onEditToken`) e «rimuovi» (`FluidLabels.tokenEdit`, `FluidLabels.tokenRemove`).
+- Il pozzo del campo, su un canvas di vetro, è la pellicola del vetro schiarita (`glassFilm` verso `onSurface`); su pagina piatta un velo di `onSurface` al 6%.
+
+**Stato e salvataggio.** `FluidTokenFieldValue(tokens, draft, selectedTokenId)` è un **valore**: lo stato lo tiene l'app (un ViewModel o `rememberSaveable(stateSaver = FluidTokenFieldValue.Saver)`). Il `Saver` salva anche il
+cursore, gli errori e la selezione del gettone; la **composizione IME è transiente e non si ripristina** dopo la morte del processo.
+
+**Trappole.** Gli id dei gettoni devono essere **unici e stabili** (sono le chiavi della `FlowRow`). Separatori sintattici dentro nomi composti («Rossi, Anna» da una rubrica) richiedono una policy dell'app **prima**
+dell'inserimento: il campo spezza dove trova un separatore. La validità la stabilisce l'app e può cambiare dopo (un indirizzo che il server rifiuta): aggiorna `isError`, non cancellare il gettone. Non c'è limite verticale: dentro
+una `LazyColumn` va in un `item`, non come figlio con altezza fissa.
+
+**Non usarlo quando.** Il valore è uno solo (`FluidTextField`) o la scelta è chiusa e piccola (`FluidChip`, `FluidSegmentedControl`).
+
 ## Token, costanti, Defaults
 
 **`FluidButtonDefaults`**
@@ -764,6 +826,8 @@ I numeri di slider, interruttore e scrubber sono in [controlli-gesto.md](control
 - **`FluidButtonDragTest`, `FluidButtonGripTest`** (`sample`, Robolectric): un pulsante in `LazyColumn`/`verticalScroll`/pager non li fa scorrere e segue il dito; un tap fa tre colpi in ordine; il click vale fino a 16 dp oltre il bordo; `haptic = null` clicca in silenzio; `HoldsFinger`/`YieldsToScroll` sui quattro pulsanti (`FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidCapsuleAction`); un chip in `LazyRow` si scioglie e non clicca, un tocco clicca una volta sola.
 - **`AllGlassTest`, `FluidMatrixTest`** (`sample`): un chip su canvas è un tasto di vetro che clicca ed è scelto, su pagina piatta è la pastiglia opaca, spento non clicca; segmentato: il tocco sceglie una volta (su vetro e su pagina piatta), il trascinamento suona un tick per segmento e si posa sul più vicino, un dito che atterra su un altro segmento e scivola prende la goccia, in verticale non sceglie nulla, da destra a sinistra.
 - **`FluidGapsTest`, `FluidGlassFreeSizeTest`** (`sample`): un tasto tondo da 40 dp occupa 48 dp e il margine clicca; il tasto con testo non è mai più basso di 48; il campo segreto è una password finché non si tocca l'occhio, e con una tastiera scelta dal chiamante resta nascosto; un campo normale non ha l'occhio; la misura libera: vetro di `size` dp, riquadro ≥ 48, una taglia dell'enum e la stessa misura in dp sono lo stesso tasto.
+- **`FluidTokenFieldTest`** (`engine-ui`, 9): `update` conferma solo porzioni terminate da separatore e mai durante la composizione, `commitRemainder`, deduplica vista da `createToken`, `null` che conserva il testo con il separatore,
+  cancellazione a due tempi (seleziona, poi rimuove; non agisce con testo o composizione). **`FluidTokenFieldInteractionTest`** (`sample`, 7): suggerimenti in pagina, frecce e Invio senza perdere il fuoco, azioni di TalkBack del gettone.
 - **Non provato dai test**: il vetro dei controlli guardato in mano (D1 in `docs/10-coerenza.md`), `FluidBarAction(opensOn = FluidMenuOpensOn.Tap)` (solo la demo), il passaggio dal vetro del tasto alla superficie fisica in una barra, la luce additiva di un tasto di vetro a luce chiara, il tasto «cancella» di un campo `readOnly`.
 
 ## Dove guardare
@@ -777,6 +841,7 @@ Radice: `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`.
 | `FluidScreen.kt` (riga ~1672) | `FluidBarAction`, `FluidBackButton` (interno) |
 | `FluidTextField.kt` | `FluidTextField` (due overload), il pozzo e perché sul vetro è opaco, `FluidRevealButton`, `FluidClearButton` |
 | `FluidTextEdit.kt` | `FluidTextEdit` |
+| `FluidTokenField.kt` | `FluidTokenField`, `FluidToken`, `FluidTokenFieldValue` (+ `Saver`), `FluidTokenFieldDefaults` (`update`, `backspace`), `FluidTokenSuggestion`, `FluidSuggestionRow` |
 | `FluidButtonGesture.kt`, `FluidPress.kt` | `FluidPressGrip`, il gesto del pulsante, `FluidPressFeedback`, `fluidPressable`, `rememberFluidPressState` — vedi [movimento.md](movimento.md) |
 | `FluidLabels.kt` | `FluidLabels` (`clear`, `showSecret`, `hideSecret`, …) e `FluidLabels.english()` |
 | `docs/10-coerenza.md` | la matrice dei comportamenti (D1–D9) per ogni controllo |

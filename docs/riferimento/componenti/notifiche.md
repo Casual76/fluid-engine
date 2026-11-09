@@ -21,6 +21,10 @@ spariva mentre la si leggeva.
 |---|---|
 | dire «fatto» / «errore» a chi sta guardando l'app, per qualche secondo | `FluidNotification` pubblicata con `FluidNotificationHostState.show` |
 | che la notifica porti uno o due verbi («Annulla», «Apri») | `actions = listOf(FluidNotificationAction(label) { … })`: compaiono a card **aperta** |
+| un verbo che deve essere **subito** toccabile («Annulla invio», «Ripristina»), anche a testo grande | `inlineActions = listOf(…)` (fino a due): sempre visibili (sezione «Azioni in linea, gruppo, esito, aggiornamento») |
+| che una notifica nuova **prenda il posto** di quella vecchia dello stesso tipo, senza fare la coda | `replaceGroup = "invio"` |
+| sapere come è finita (azione eseguita, chiusa, scaduta, sostituita) | `host.showForResult(n)`: `FluidNotificationResult` |
+| cambiare il testo o le azioni di una card **già a schermo** (il conto alla rovescia di un annulla) | `host.updateCurrent(n.copy(…))`: non rinnova la durata |
 | che la notifica non sparisca da sola | non c'è un «per sempre»: `durationMillis` lungo, o un messaggio nella pagina (`FluidInlineMessage`) |
 | una domanda, un sì/no | **non così**: `FluidAlert` / `FluidConfirmSheet` |
 | un messaggio che deve restare finché non si corregge la causa | **non così**: `FluidInlineMessage` |
@@ -230,6 +234,45 @@ dura più di qualche decina di secondi.
 **Versione.** `FluidNotificationHost` e la card: prima della 2.4 (la correzione della luminanza è in 2.4.0); il dito, `actions`, le azioni di TalkBack e la card di 2 righe
 a card chiusa: **2.12.0**; le parole da `LocalFluidLabels` e il colore del testo: 3.0.1.
 
+## Azioni in linea, gruppo, esito, aggiornamento (Fase 1 di Pampa Mail, 3.1.0)
+
+Quattro aggiunte a `FluidNotification` e a `FluidNotificationHostState`, nate per «Annulla invio»: un verbo subito toccabile, una notifica che ne sostituisce un'altra, un esito che dice come è finita, un aggiornamento della
+card già a schermo. **Chi non usa i campi nuovi ha la FIFO, il gesto e l'albero di prima**: sono parametri in coda con default.
+
+```kotlin
+FluidNotification(id, title, message, tone, durationMillis,
+  actions,                       // a card aperta (come prima)
+  inlineActions = emptyList(),   // fino a due, sempre visibili
+  replaceGroup = null)           // null = FIFO storica
+host.showForResult(n): FluidNotificationResult   // ActionPerformed(label) | Dismissed | TimedOut | Replaced | Rejected
+host.updateCurrent(n): Boolean
+```
+
+**`inlineActions`: fino a due azioni, subito toccabili.** Stanno su righe dedicate sotto il testo, **anche da chiusa e al 200% del testo** (provato dai test: restano raggiungibili a testo grande, in scuro e a movimento ridotto); `require(inlineActions.size <= 2)`:
+una terza non avrebbe dove andare senza spingere la card fuori misura. Sono **in più** di `actions`, che restano a card aperta. Ogni azione, toccata, esegue il suo callback **una volta sola** e **termina questa
+presentazione**: per aggregare operazioni ancora valide, l'app pubblica nel callback una nuova card con **id nuovo e lo stesso gruppo**, oppure apre una destinazione durevole. Il tocco su un'azione in linea è un'azione, non
+l'inizio di un trascinamento (un trascinamento che parte dal tasto resta del tasto).
+
+**`replaceGroup`: sostituzione per gruppo.** Con lo stesso `replaceGroup`, una richiesta nuova **prende il posto** di quella in coda e di quella a schermo (anche durante la sua uscita); quella sostituita ha esito
+`Replaced`. Senza `replaceGroup` (di serie) la coda è la FIFO storica. Il caso: «Messaggio inviato, Annulla» seguito da «Messaggio inviato, Annulla» per un altro invio: l'utente non deve aspettare la coda per l'ultimo. Non
+confondere con l'`id`: ripetere un **id ancora pendente** condivide consegna ed esito con la richiesta già presente e **non ne aggiorna il contenuto** (per cambiare il contenuto, `updateCurrent`, o un id nuovo nello stesso gruppo).
+
+**`showForResult`: l'esito, distinto dalla consegna.** `show` ritorna `Presented` (la card è stata vista a schermo); `showForResult` aspetta **come è finita**: `ActionPerformed(label)` (il callback è stato accettato una volta
+sola), `Dismissed` (chiusura esplicita, o rimozione dell'host dopo la presentazione), `TimedOut` (il **budget di lettura** è finito), `Replaced` (una richiesta più recente dello stesso gruppo ha preso il posto), `Rejected` (id o
+messaggio vuoti). L'esito è **UI, non una garanzia di transazione**: non autorizza né programma niente, e la politica di protezione dell'operazione appartiene all'app. Più osservatori dello stesso id condividono l'esito.
+Annullare la coroutine che attende **non ritira la card** (come per `show`).
+
+**`updateCurrent`: aggiornamento in place.** Aggiorna **solo la card visibile con lo stesso id e lo stesso gruppo**, senza riavviare il budget di lettura e senza rifare l'ingresso (ritorna `false` se non c'è: card già andata,
+id o gruppo diversi). Un nuovo `durationMillis` **non modifica il timeout già avviato**. È il mezzo con cui l'app toglie dalla card le azioni **scadute** («Annulla» dopo trenta secondi) o cambia il messaggio. Va chiamato sul
+thread UI, come gli altri mutatori.
+
+**Le scadenze dell'app sono indipendenti dalla durata della card.** Una card che dice «Annulla invio» non è la prova che l'invio sia ancora annullabile: `durationMillis` è il tempo di **lettura** (si ferma sotto un dito, con
+l'app in secondo piano, con la card aperta), mentre la finestra di annullo è una scadenza **dell'app**, che può finire prima (card ancora lì, ma l'operazione non è più annullabile) o dopo (card già andata). Per questo: l'app
+**rivalida la propria transazione anche nel callback** dell'azione (il tocco può arrivare dopo la scadenza reale), e **toglie l'azione** con `updateCurrent` quando scade. L'engine non conosce transazioni e non le protegge.
+
+**Trappole.** Il callback termina la presentazione: se l'azione deve restare disponibile dopo il tocco (due tentativi), pubblica una nuova card (id nuovo, stesso gruppo) dal callback. `updateCurrent` non cambia la coda: una
+card in coda non si aggiorna, si pubblica di nuovo. `showForResult` aspetta come `show` un host attivo: con uno stato che nessun host disegna non ritorna mai. Lo scadere del `TimedOut` non è lo scadere dell'operazione.
+
 ## Token, costanti, Defaults
 
 Non c'è un `object …Defaults` pubblico: le costanti del gesto (`NotificationExpandDistanceDp`, `NotificationDismissDistanceDp`,
@@ -248,6 +291,10 @@ sorgente. Quello che un'app può regolare è nel dato: `FluidNotification.durati
 - `FluidNotificationDragTest` (sample, Robolectric): trascinare in su oltre la soglia lancia via e lascia il posto alla seguente; uno corto torna; in giù apre con le azioni e
   non scade più; il tasto di chiusura chiude; un trascinamento che parte dal tasto non è un tocco; l'azione di una card aperta la esegue e chiude; le azioni di accessibilità
   aprono e chiudono; un dito fermo ferma il conto e al rilascio riparte; con il vetro si comporta come senza.
+- `FluidNotificationOutcomeTest` (`engine-ui`, 10; 3.1.0): la sostituzione durante l'uscita non aspetta l'handshake della vecchia; sostituisce anche le richieste in coda senza toccare altri gruppi; **un doppio tocco esegue il callback una volta
+  sola** con esito condiviso; **un click arrivato dopo la sostituzione non esegue il callback**; la scadenza dell'app toglie l'azione durante la tenuta senza riavviare il timeout; update e rifiuto di identità diversa; il riavvio
+  dell'host riconsegna la card non presentata e conserva l'esito; un'azione prima dell'handshake non lascia la consegna sospesa. `FluidNotificationDragTest` (sample) in più: le azioni in linea sono accessibili subito al 200%, in scuro e
+  a movimento ridotto; un trascinamento dal tasto non esegue l'azione; `updateCurrent` toglie subito l'azione scaduta senza espandere la card.
 - `FluidHostContentColorTest`: il titolo ha il colore della superficie sul tema scuro.
 
 **Non è provato**: l'aspetto del vetro, i fotogrammi dell'arrivo e dell'uscita, TalkBack su un dispositivo, e il comportamento reale a fotogrammi (è la ragione per cui i

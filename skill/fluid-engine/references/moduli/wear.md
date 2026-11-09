@@ -55,7 +55,7 @@ telefono in [`../design-system.md`](../design-system.md) e [`../regole.md`](../r
 
 ## Aggiungerlo al solo orologio
 
-`engine-wear` e' l'unico modulo (con `engine-ai-ui`) che l'installer **non include** senza essere chiesto per
+`engine-wear` e' fra i moduli (con `engine-ai-ui` e, dalla 3.1.0, `engine-richtext`) che l'installer **non include** senza essere chiesto per
 nome: porta con se' Material 3 per Wear, e un'app per telefono pagherebbe dipendenze e tempo di build per uno
 schermo che non ha. Due passi distinti, entrambi necessari:
 

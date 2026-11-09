@@ -48,17 +48,25 @@ UI_FLUID_FILES = {
         "FluidSkeleton", "FluidLiveDot", "FluidSelectionMark", "FluidMarkdown",
         "FluidMarkdownParser", "FluidTextReveal", "FluidSpokenText", "FluidImageViewer",
         "FluidPagerDots", "FluidStepProgress", "FluidProgress", "FluidReorderable",
+        # Fase 1 di Pampa Mail (3.1.0): liste lunghe, identita' e selezione, file
+        "FluidGroupedItems", "FluidSwipeActions", "FluidJumpPill", "FluidAvatar", "FluidBadge",
+        "FluidIdentityColors", "FluidSelectionState", "FluidFileTile", "FluidFileInfo",
     ],
+    # il contenuto web chiuso per costruzione
+    "contenuto-web": ["FluidWebContent"],
+    # grafici: ciambella, barre, linea, legenda
+    "grafici": ["FluidCharts", "FluidChartMath"],
     # tasti, interruttori, cursori, campi
     "controlli": [
         "FluidControls", "FluidSlider", "FluidSwitch", "FluidScrubber", "FluidGlassControls",
-        "FluidTextField", "FluidTextEdit",
+        "FluidTextField", "FluidTextEdit", "FluidTokenField",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [
         "FluidGlassModal", "FluidMenu", "FluidMenuJourney", "FluidMenuLayer",
         "FluidGlassMenuPanel", "FluidGlassMenuButton", "FluidSheet", "FluidSheetScaffold",
-        "FluidPromptAlert", "FluidNotification",
+        "FluidPromptAlert", "FluidNotification", "FluidDrawer", "FluidDateTimeSheet",
+        "FluidDateTimeMath",
     ],
     # pressione, gesto, molle
     "movimento": [
@@ -92,6 +100,7 @@ DIR_FAMILY = {
     "update": "update",
     "widget": "widget",
     "wear": "wear",
+    "richtext": "richtext",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -105,7 +114,9 @@ DIR_FAMILY = {
 FAMILY_TITLES = {
     "schermata": "Schermata e scheletro",
     "barre": "Barre di navigazione e di azione",
-    "contenuto": "Contenuto: righe, card, liste, testo",
+    "contenuto": "Contenuto: righe, card, liste, identità, testo, file",
+    "contenuto-web": "Contenuto web chiuso (FluidWebContent)",
+    "grafici": "Grafici: ciambella, barre, linea, legenda",
     "controlli": "Controlli",
     "menu-modali": "Menu, pop-up, fogli, avvisi, notifiche",
     "movimento": "Pressione, gesto e movimento",
@@ -123,6 +134,7 @@ FAMILY_TITLES = {
     "update": "engine-update",
     "widget": "engine-widget",
     "wear": "engine-wear",
+    "richtext": "engine-richtext",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

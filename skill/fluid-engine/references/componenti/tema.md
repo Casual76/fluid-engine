@@ -37,8 +37,9 @@ righe e le card di questa scheda sono i mattoni di `FluidScreen` ([schermata.md]
 | un riquadro che dice una cosa | `FluidCard(highlighted = true)` o `FluidInlineMessage` (non `FluidHeroCard`, deprecata) |
 | l'icona colorata in testa a una riga | `FluidToneTile` (il colore sta sulla piastrella, **mai** sullo sfondo della riga) |
 | stato di sincronizzazione: nella barra / sulla pagina / con spiegazione | `FluidSyncIndicator` / `FluidSyncNotice` / `FluidSyncAction` |
-| una pillola di stato non toccabile | `FluidStatusBadge` (non un chip: il chip e' un controllo) |
-| uno stato vuoto che dice perche' | `FluidEmptyState(title, detail, illustration)` |
+| una pillola di stato non toccabile | `FluidStatusBadge` (non un chip: il chip e' un controllo); in un colore scelto dall'utente `FluidStatusBadge(label, color)` (il testo lo sceglie il contrasto) |
+| un colore **stabile** per una persona, una materia, un'etichetta, la serie di un grafico | `FluidIdentityColors` / `fluidIdentityColor(key)`: la palette e' un **contratto** (sotto) |
+| uno stato vuoto che dice perche' | `FluidEmptyState(title, detail, illustration)`; con un'azione («Riprova»): l'overload `FluidEmptyState(title, detail, actionLabel, onAction)` |
 | un'intestazione di pagina di Material | **non** `FluidTopHeader` (deprecata): `FluidScreen`, o `FluidCollapsingTitle` + `FluidCollapsingTopBar` |
 | ombra o spaziatura «a token» | **non esistono**: la spaziatura e' dentro i componenti, l'ombra e' del vetro (`glassShadow`) |
 | i nomi «FluidAccentPreset» e «EngineThemeMode» (da vecchie guide) | non esistono: il codice ha `AccentPreset` e `ThemeMode` (vedi «Adottare il tema») |
@@ -329,6 +330,19 @@ dicono «che tipo di cosa sono» senza dipingersi da soli. Colori (contenitore �
 **`Success` e `Warning` sono colori fissi**: non seguono il marchio ne' il colore dinamico (un verde e un arancio devono restare
 verde e arancio). Gli altri quattro si tingono col tema.
 
+## La palette d'identità: `FluidIdentityColors` (3.1.0)
+
+Il tema dà **un** colore al marchio e ne deriva il resto; non dice però «di che colore è Anna» o «di che colore è la materia Storia». Per tutto ciò che deve **riconoscersi** senza dire un numero (il fondo di un monogramma, il colore di
+un account, un'etichetta, la serie di un grafico) c'è `FluidIdentityColors`: **dodici tinte scelte a mano**, ognuna una **coppia chiaro/scuro** (`FluidIdentityColor(light, dark)`, un blu che si legge su carta è quasi invisibile sul nero),
+con il contrasto **provato da un test** su tutta la palette (monogramma a 4,5:1 sulla tinta, tinta a 3:1 dalle superfici). La scheda completa, con l'avatar, il badge e la selezione, è in
+[`contenuto-testo-e-media.md`](contenuto-testo-e-media.md) («Identità e selezione»).
+
+**La palette è un contratto, e non fa parte del tema.** `FluidIdentityColors.indexFor(key)` è un hash definito (FNV-1a a 32 bit sui byte UTF-8, modulo la dimensione): lo stesso testo dà lo stesso indice **per sempre**, su ogni
+telefono e in ogni versione. Perché è di prodotto: la persona ha imparato che «Anna» è verde. **Cambiare l'ordine, il numero di tinte, anche una sola tonalità vistosa, o l'hash sposta i colori a tutti gli utenti** al primo avvio dopo
+l'aggiornamento: un cambio visivo breaking, che si fa solo in una versione maggiore e va nel changelog; anche **aggiungere** una tinta in coda cambia `indice % dimensione` per tutte le chiavi. Un'app che vuole un colore *suo* per una
+cosa (un account scelto dall'utente) passa il colore (`FluidAvatar(color = …)`) o l'indice scelto (`colorAt(index)`, con giro). Non è fatta per **testo** colorato su una superficie: per quello c'è il colore del testo del tema. Un'app che
+**cambia il proprio marchio** (`brand`) non sposta la palette d'identità: sono due cose, e va bene così.
+
 ## Adottare il tema in un'app che ne ha gia' uno
 
 **Non cambiare i punti di chiamata.** Si tiene la funzione di tema che l'app ha gia' (stesso nome, stessa firma) e se ne riscrive
@@ -480,6 +494,7 @@ FluidListRow(
   disclosure: Boolean = true,
   leadingTile: Boolean = true,
   subtitleMaxLines: Int = Int.MAX_VALUE,
+  customActions: List<CustomAccessibilityAction> = emptyList(),   // 3.1.0: azioni di TalkBack sul nodo della riga
   /* animatePress, animateContent: vedi api/tema.md */
 )
 ```
@@ -643,6 +658,7 @@ titolo appena questo viaggia al centro della barra. Un rosso che non si puo' int
 
 | componente | cosa fa e cosa non dice il nome |
 |---|---|
+| `FluidStatusBadge(label, color)` (3.1.0) | la stessa pillola in un **colore qualunque** (l'etichetta scelta dall'utente, la cartella): il fondo e' il colore pieno composto sulla superficie e **il testo lo sceglie il contrasto** (almeno 4,5:1: il quasi-nero o il quasi-bianco, e nei grigi medi nero o bianco puri). Vedi [`contenuto-righe-liste.md`](contenuto-righe-liste.md) |
 | `FluidStatusBadge(label, tone)` | pillola `FluidCapsuleShape`, `labelMedium` SemiBold, padding 10×4, **una riga**. Non e' un chip disabilitato: il chip e' un controllo e uno spento e' disegnato per sembrare non disponibile, segnale sbagliato per un'etichetta mai pensata per essere toccata |
 | `FluidMetricTile(label, value, detail, tone, onClick, glass)` | etichetta in maiuscolo + valore `headlineSmall` + dettaglio; contenitore del **tono** (su vetro al 34%, perche' una tessera `Warning` resti riconoscibile e non diventi lo stesso pannello delle vicine); angolo `Card`; con `onClick` scala 0,968; l'altezza anima con la molla |
 | `FluidStatChip(label, value)` | etichetta in maiuscolo nel colore primario + valore `titleLarge`, su `surfaceContainerHigh`, angolo `Card` (non e' un chip interattivo: nome storico) |
@@ -650,6 +666,7 @@ titolo appena questo viaggia al centro della barra. Un rosso che non si puo' int
 | `FluidMiniChart(points, color, fillAlpha, threshold)` | grafico a linea in un `Canvas` **alto 136 dp** (il `modifier` del chiamante vince perche' e' applicato dopo); cinque righe guida, linea 2,5 dp, punti da 4 dp, soglia opzionale; **la scala parte da 0 e arriva ad almeno 1** (`max(maxPoint, 1)`): una serie in 0,2…0,4 appare piatta in basso |
 | `FluidSectionTitle(eyebrow, title)` / `FluidAccentLabel(text)` | `eyebrow` maiuscolo in accento (`labelLarge` Bold) sopra un titolo `titleLarge`; `FluidAccentLabel` e' solo l'etichetta. Apre una sezione *di pagina*; per la didascalia quieta sopra un gruppo e' `FluidSectionHeader` (famiglia contenuto) |
 | `FluidPillTabs(options, selected, onSelect)` | **e' un `FluidSegmentedControl`** con le etichette uguali alle opzioni: il nome resta perche' e' quello che le app chiamano. Era una pastiglia con un'ombra sotto, la sola superficie a fingere il rilievo; ora il segmento scelto e' *visto attraverso* il vetro ed e' trascinabile |
+| `FluidEmptyState(title, detail, actionLabel, onAction, modifier, illustration)` (3.1.0) | lo stesso con un `FluidButton` tinto sotto il testo (alto almeno 48 dp, a capo a testo grande): un **overload** perche' l'ultimo parametro e' una lambda e non deve finire su un `onAction` |
 | `FluidEmptyState(title, detail, illustration)` | dice **perche'** non c'e' niente e cosa si puo' fare. Senza illustrazione: allineato a sinistra come una riga; con (3.0): colonna centrata, 24 dp di aria, l'illustrazione in `onSurfaceVariant` e **muta per TalkBack** (decorazione). L'engine non puo' decidere cosa disegnare, ma da' un posto |
 | `FluidLoading(color)` | un `FluidSpinner` da 24 dp |
 | `FluidScreenSurface` (in `FluidTheme.kt`) | una `Surface` col colore `background` del tema: lo sfondo della finestra |

@@ -1,7 +1,7 @@
 # Contenuto: righe, liste, impostazioni, card e aperture
 
 Seconda scheda della famiglia «Contenuto» ([`contenuto.md`](contenuto.md) ha l'indice, il «Scegliere in fretta» e le regole trasversali: vetro sul contenitore, colore sulla piastrella, un nodo per riga, una vibrazione per momento).
-Qui: il gruppo di righe (`FluidListGroup` + `FluidListRow` + `FluidListDivider` + `FluidToneTile`), le intestazioni e gli stati vuoti, le liste lunghe di vetro (`fluidGlassGroups`), le quattro righe di impostazioni,
+Qui: il gruppo di righe (`FluidListGroup` + `FluidListRow` + `FluidListDivider` + `FluidToneTile`), le intestazioni e gli stati vuoti, le liste lunghe di vetro (`fluidGlassGroups`), **dalla 3.1.0 le liste lunghe a una riga per elemento** (`fluidGroupedItems`, `fluidSwipeActions`, `FluidJumpPill`), le quattro righe di impostazioni,
 `FluidCard` e le aperture di sezione (`FluidHero`, `FluidHeroBand`, `FluidVividCard`). Il seguito (caricamento, segni piccoli, testo, visore, riordino) è in [`contenuto-testo-e-media.md`](contenuto-testo-e-media.md).
 Firme complete: [`../api/contenuto.md`](../api/contenuto.md) e [`../api/tema.md`](../api/tema.md).
 
@@ -151,6 +151,163 @@ fluidGlassGroupsIndexed(items = (1..20).toList(), key = "groups") { index, numbe
 **Non usarlo quando.** La lista è breve e senza canvas (basta un `FluidListGroup` in un `item`), o le righe devono riordinarsi/animarsi singolarmente.
 
 **Versione.** 3.0.0 (portate da un'app); `fluidGlassGroupsIndexed` 3.0.1.
+
+## Liste lunghe, una riga per elemento (Fase 1 di Pampa Mail, 3.1.0)
+
+Il caso: una casella che riceve mentre la si legge, un feed paginato, un elenco da cui le righe escono con un gesto. `fluidGlassGroups` non lo regge (sotto, perché) e il vetro per riga non è consentito. Cinque pezzi,
+pensati per stare insieme: `fluidGroupedItems` (il contenitore), `FluidGroupedMaterial` (il fondo), `Modifier.fluidSwipeActions` (il gesto), le azioni di TalkBack sulla riga (`customActions`, `fluidAccessibilityActions`),
+`FluidJumpPill` (le novità fuori vista). File: `FluidGroupedItems.kt`, `FluidSwipeActions.kt`, `FluidJumpPill.kt`. In più, due ritocchi alle righe vicine: `FluidEmptyState` con un'azione e `FluidStatusBadge` a colore libero
+(in fondo a questa sezione).
+
+### Scegliere in fretta
+
+| la mia lista… | uso |
+|---|---|
+| è breve, o arriva ordinata e nessuno la guarda cambiare, e voglio il **vetro** | `fluidGlassGroups` (pannelli da otto righe, un item per pannello) |
+| è lunga, **cambia mentre la si legge** (arrivano righe in cima, ne escono) o è paginata | `fluidGroupedItems(count, key = { id })`: un item per riga, fondo opaco |
+| ha righe da archiviare, eliminare, segnare con un gesto | `Modifier.fluidSwipeActions` sul `modifier` della `FluidListRow` |
+| deve dire «ci sono 3 nuove» senza spostare la lista sotto il dito | `FluidJumpPill` nell'`overlay` di `FluidScreen` |
+| ha una stella, un avatar o un chip toccabili dentro la riga | `FluidListRow(customActions = …)`: per TalkBack sono azioni della riga |
+| è vuota o in errore e c'è una cosa da fare | `FluidEmptyState(title, detail, actionLabel, onAction)` |
+| ha un'etichetta in un colore che sceglie l'utente | `FluidStatusBadge(label, color)` |
+| riordina le righe a mano | un `item` per riga e `fluidReorderable`; non `fluidGlassGroups` |
+
+**`fluidGlassGroups` o `fluidGroupedItems`?** `fluidGlassGroups` mette otto righe in un pannello e il pannello è l'item: perfetto per una sezione che arriva ordinata e resta ferma, ed è l'unico dei due che dà il vetro.
+Per una lista che cambia ha tre limiti che nessuno aggira da fuori: le chiavi sono **per posizione** (`"$key:3"`: una riga nuova in cima fa slittare ogni pannello, e chi leggeva a metà lista vede scorrere tutto di un posto),
+la lista dev'essere una `List<T>` tutta in memoria (a 50.000 righe no, e una lista paginata non è una `List`), e `animateItem` non arriva alle singole righe. `fluidGroupedItems` ha una **chiave per riga** (l'identificativo del
+dato), un'API per **indice** (`count`, `key(index)`, `contentType(index)`, contenuto per indice: Paging si collega senza che l'engine dipenda da Paging) e ogni riga è un item, quindi entra, esce e si sposta con le molle di
+`FluidMotion`. Il prezzo: il vetro, che qui non è di serie.
+
+### `fluidGroupedItems`
+
+**Cos'è.** Le righe di una sezione come **un item della lista pigra per riga**, raggruppate: angoli tondi solo sulla prima e sull'ultima, filo da 0,5 dp fra una e l'altra, nessun vuoto in mezzo. Due forme: per indice
+(`count`, `key = { index -> id }`) e su una `List<T>` (`key = { item -> id }`, come `items(list)`).
+
+**Uso** (da `LongListsDemo`):
+```kotlin
+fluidGroupedItems(count = ids.size, key = { index -> ids[index] }) { index ->     // this: FluidGroupedItemScope
+  val swipe = rememberFluidSwipeState()                                           // dentro l'item: uno per riga
+  FluidListRow(
+    title = …, subtitle = …, onClick = { … },
+    customActions = listOf(CustomAccessibilityAction("Fissa") { …; true }),       // TalkBack, sul nodo della riga
+    modifier = Modifier.fluidSwipeActions(
+      state = swipe,
+      startAction = FluidSwipeAction("Segna come letto", icon, scheme.primary) { … },
+      endAction = FluidSwipeAction("Archivia", icon, scheme.tertiary, removesItem = true) { … },
+      shape = segmentShape, fill = rowFill,                                        // dallo scope della riga
+    ),
+  )
+}
+```
+
+**Comportamento.**
+- **Ancoraggio.** Con la chiave la lista si ancora alla riga che l'utente guarda: una riga che entra sopra la sua posizione **non sposta** niente. Senza chiave la lista si ancora agli indici e le righe scorrono: ammesso solo
+  per una lista che non cambia.
+- **Come si richiude il vuoto.** La lista mette fra due item `LocalFluidItemSpacing`; fra due righe della stessa sezione non ci deve essere. La riga che non è l'ultima **dichiara** un'altezza minore di quella che
+  disegna, esattamente di quello spazio (lo stesso trucco di `fluidGlassGroups`), e la successiva si posa a filo. Il contenuto resta misurato e posato a altezza intera, quindi anche la fascia che sta oltre i limiti dichiarati
+  riceve il dito.
+- **Lo scope della riga** (`FluidGroupedItemScope`) dà quello che la riga deve sapere del suo posto: `segment` (prima, mezzo, ultima, sola), `segmentShape` e `rowFill`, un fondo **opaco** che somiglia a quello della riga, da
+  dipingere quando la riga si sposta (vedi `fluidSwipeActions`). Si ricalcola da indice e conteggio: quando una riga entra o esce, angoli e filo si richiudono da soli.
+- `contentType` di serie è `FluidGroupedItemsDefaults.ContentType`: tutte le righe si riciclano fra loro. Righe di forma diversa (una riga e un'intestazione di giorno) passano i loro tipi.
+- `dividers = false` per righe che disegnano un filo proprio; `animateItems = false` spegne `animateItem` (col movimento ridotto non anima comunque).
+- `count <= 0` non emette niente.
+
+**Trappole.**
+- **Le chiavi sono dell'intera lista**: uniche e salvabili in un `Bundle` (stringhe, numeri). Due sezioni con gli stessi id si prefissano (`"posta:$id"`). Mai l'indice.
+- **L'ultima riga cambia angoli di colpo** quando quella sopra esce (un raggio animato fuori da Fluid-physics è la regola che non si piega). Con l'uscita in dissolvenza non si nota; si guarda nei fotogrammi.
+- Un segnaposto di Paging (`null` all'indice) lo disegna l'app, alla stessa altezza della riga (`FluidSkeletonRow`), dentro lo stesso scope.
+- `FluidFastScroller` conta gli item della lista: con Paging servono i segnaposto attivi per avere il totale, l'etichetta per indice dev'essere O(1), e gli item prima della sezione (il titolo di `FluidScreen`,
+  un'intestazione) spostano gli indici: l'etichetta li sottrae.
+- Il separatore lo disegna la riga di sopra: righe che ne hanno uno proprio vogliono `dividers = false`, o se ne vedono due.
+
+**Non usarlo quando.** Vuoi il vetro sul contenitore e la lista arriva ordinata e ferma (`fluidGlassGroups`), o la sezione è di quattro righe in una colonna (`FluidGlassGroup`, `FluidListGroup`).
+
+### `FluidGroupedMaterial`: opaco, tinto, vetro per riga
+
+Il fondo delle righe. **Non è un `enum`**: un valore nuovo in un `enum` pubblico rompe ogni `when` esaustivo delle app, qui un valore nuovo è una costante in più.
+
+| valore | cos'è | quando |
+|---|---|---|
+| `FluidGroupedMaterial.Opaque` (di serie) | il fondo di un `FluidListGroup` senza vetro (`surfaceContainerLow`) | sempre, per una lista lunga: il più economico e quello che la regola consente |
+| `FluidGroupedMaterial.Tinted` | la pellicola del vetro **dipinta**, senza catturare niente; su un canvas ambientale lascia vedere la lavata (nitida, non rifratta); senza canvas è uguale a `Opaque` | quando il vetro non regge e si vuole comunque la lavata |
+| `FluidGroupedMaterial.GlassSegments` | **una lastra di vetro di contenuto per riga**, con `sampleOnce` | **solo** per il banco di misura; richiede `@OptIn(FluidExperimentalRowGlass::class)` |
+
+**Il vetro per riga è sperimentale e va contro la regola «vetro sul contenitore»**: dodici righe a schermo sono dodici lastre, ognuna una registrazione di layer e una catena di `RenderEffect`; una riga che entra è una lastra nuova
+che cattura. `FluidExperimentalRowGlass` è `RequiresOptIn` a livello `ERROR` perché non lo si usi per distrazione. La variante si promuove solo se su un telefono vero i fotogrammi lenti restano sotto l'1% e
+`FluidGlassDiagnostics.totalCaptures` sta fermo a schermo fermo; altrimenti la lista lunga resta opaca o tinta e il vetro sta su barra, pillola, menu e fogli. Sul vetro `animateItems` anima solo lo spostamento (mai un'alfa
+sopra una lastra).
+
+### `Modifier.fluidSwipeActions`, `FluidSwipeAction`, `FluidSwipeState`
+
+**Cos'è.** Le azioni che una riga rivela scorrendo di lato: archivia, segna come letta, elimina, fissa. Una per verso (`startAction` verso la fine: a destra in LTR; `endAction` verso l'inizio), colore e icona **dell'app**
+(l'engine non sa cosa vuol dire «archivia»), il colore dell'icona **del contrasto** (≥ 4,5:1, lo stesso conto di `FluidStatusBadge`: un giallo chiaro non porta un'icona bianca).
+
+**`FluidSwipeAction(label, icon, color, removesItem, onAction)`.** `label` è obbligatorio e non è decorazione: è il nome che TalkBack offre fra le azioni della riga, perché un gesto che solo chi vede può fare non è
+un'azione. `removesItem = true`: confermata, la riga esce del tutto e `onAction` parte **a uscita finita**; l'app toglie il dato e la lista richiude il posto. `false`: `onAction` parte al rilascio e la riga torna a posto
+(letta/non letta, fissa). L'azione parte **una volta per gesto**, anche se la lista cambia durante l'uscita.
+
+**Va sul nodo della riga.** Per `FluidListRow` è il suo `modifier` (sta sul `ListItem` stesso, un nodo solo): così le azioni di TalkBack si **sommano** a quelle della riga invece di finire su un discendente, dove nessuno le
+raggiunge. Lo stato (`rememberFluidSwipeState()`) si crea **dentro** l'item, uno per riga, ed è effimero di proposito: un gesto a metà non sopravvive a una rotazione, e una riga riciclata torna a posto.
+
+**Chi ha il dito.**
+- **Lo scorrimento verticale vince sempre.** Il gesto si decide alla soglia di tocco: orizzontale solo se almeno una volta e mezza più orizzontale che verticale; un primo movimento verticale lascia il dito alla lista, un
+  diagonale non lo prende nessuno per conto della riga.
+- **Il bordo non è della riga.** I primi 20 dp per lato (`FluidPageMotion.EdgeZoneDp`, la zona del back dell'engine) e gli inset dei gesti di sistema non avviano lo scorrimento: lì vincono il back dell'engine e quello di
+  sistema. La riga non chiede mai un'esclusione dai gesti di sistema.
+- **La pressione lunga resta del menu contestuale**; un trascinamento orizzontale preso dalla riga annulla click lungo e click. Un tasto dentro la riga tiene il dito. Un secondo dito, o un dito che sparisce, è un annullo.
+
+**Il gesto.** Segue il dito 1:1 fino alla soglia (35% della larghezza, al più 180 dp: le soglie del back a dito), poi a metà velocità; dal lato senza azione un elastico di 16 dp (niente, col movimento ridotto). Attraversare la
+soglia suona `Threshold`, in entrambi i versi, con isteresi di 12 dp (un dito che trema non vibra a raffica). Al rilascio conferma: oltre la soglia, o con una spinta di 400 dp/s verso l'azione da almeno metà soglia; una spinta
+contraria annulla anche oltre la soglia. Le molle partono dalla velocità del dito (`FluidMotion.swipeSettle`, `FluidMotion.swipeExit`) e col movimento ridotto diventano un salto.
+
+**Trappole.**
+- **Passa `shape` e `fill` dello scope** (`segmentShape`, `rowFill`): la riga disegna il proprio fondo mentre si sposta, perché dietro c'è il colore dell'azione; un fondo diverso da quello del gruppo si vede come una riga di
+  un altro colore.
+- Lo spostamento è **di disegno**: tocco e semantica restano dove la riga sta a riposo.
+- Una riga uscita (`FluidSwipeState.isDismissed`) che l'app non toglie resta vuota: l'app la rimette con `FluidSwipeState.reset()` (anche per un «Annulla»).
+- `enabled = false` spegne gesto **e** azioni di TalkBack: in selezione, per esempio, un gesto che archivia mentre si sta scegliendo è un incidente.
+- Il gesto non è l'unica via: l'azione si offre anche dal menu contestuale (`contextActions`) e da TalkBack; un'azione solo-gesto è un trucco.
+
+### Azioni di TalkBack sulla riga: `customActions`, `fluidAccessibilityActions`
+
+Per chi non vede, un controllo dentro una riga fusa è una parola nel nome e niente più: stella, archivia, seleziona, un chip o un avatar toccabili devono essere **azioni sul nodo della riga**, perché messe su un
+discendente sono irraggiungibili. `FluidListRow(customActions = listOf(CustomAccessibilityAction(…)))` le mette lì. Per una riga composta a mano, `Modifier.fluidAccessibilityActions(actions)`.
+
+**Si sommano, in qualunque ordine.** Un nodo ne riceve da più parti (la riga, lo scorrimento di lato, l'app) e `semantics { customActions = … }` scritto due volte sullo stesso nodo tiene solo l'ultimo: una delle due liste
+spariva in silenzio. `fluidAccessibilityActions` le unisce; lista vuota = il modificatore non c'è (stesso albero di prima). L'azione di TalkBack deve fare lo stesso del gesto o del tasto: stesso esito, stessa conferma.
+`customActions` è l'ultimo parametro di `FluidListRow` e di serie è vuoto: la riga di sempre, nodo per nodo.
+
+### `FluidJumpPill`
+
+**Cos'è.** La pillola di vetro «N nuove ↑»: arrivano elementi sopra (o sotto) il punto in cui l'utente sta leggendo, e invece di spostargli la lista glielo si dice, con un tocco per andarci. Con le chiavi stabili di
+`fluidGroupedItems` la lista resta ferma e le righe nuove entrano fuori vista: senza un segno l'utente non sa che ci sono. `FluidJumpDirection.Up` (di serie) per una casella o un feed, `Down` per una conversazione.
+
+**Uso.** Nell'`overlay` di `FluidScreen`, che passa il `backdrop`:
+```kotlin
+FluidJumpPill(visible = newAbove > 0 && !atTop, label = "$newAbove nuove in alto",
+  onClick = { newAbove = 0; scope.launch { listState.animateScrollToItem(0) } }, backdrop = backdrop)
+```
+**Quando mostrarla lo decide l'app** (di solito: ci sono righe nuove sopra **e** la prima riga visibile non è in cima); toccandola l'app scorre e azzera il conteggio, e lo azzera anche quando l'utente ci arriva da solo.
+
+**Comportamento.** È un `FluidGlassButton` compatto (bersaglio 48 dp, pressione e aptica dei tasti). Entra per **offset e alfa, mai per scala** (un layer scalato sopra un vetro rifrange ciò che non c'è più: `regole.md`,
+«Un ingresso non scala un vetro»); col movimento ridotto compare e sparisce e basta. TalkBack la annuncia senza interrompere (`liveRegion` educata) quando compare e quando l'etichetta cambia.
+
+**Trappole.** L'etichetta è quella che si legge e deve dire **cosa e dove** («3 nuove in alto»): la freccia è decorazione. La posizione (sotto la barra di stato, sopra la pillola della barra) la decide l'app col `modifier`.
+Non è una notifica: non ha durata, sparisce quando il conteggio torna a zero.
+
+### `FluidEmptyState` con un'azione, `FluidStatusBadge` a colore libero
+
+- **`FluidEmptyState(title, detail, actionLabel, onAction, modifier, illustration)`** è un **overload**, non due parametri in coda, di proposito: l'ultimo parametro di `FluidEmptyState` è una lambda (l'`illustration`), e chi la
+  passava come lambda finale l'avrebbe vista finire su un `onAction` aggiunto dopo di lei. Qui l'azione è obbligatoria e l'illustrazione resta l'ultima. Il tasto è un `FluidButton` tinto, sotto il testo, allineato come il
+  testo (al centro con l'illustrazione, a sinistra senza), alto almeno 48 dp, e a testo grande va a capo invece di tagliarsi: è lui il controllo per TalkBack, il titolo resta il titolo. Si usa per «Riprova» in uno stato
+  d'errore, «Aggiungi un account» in un vuoto: il posto dove l'utente cerca il tasto.
+- **`FluidStatusBadge(label, color)`** è la pillola di stato in un **colore qualunque**: l'etichetta scelta dall'utente, la cartella, la materia. I sei toni dell'engine non bastano quando il colore è un dato. Il fondo è il
+  colore pieno e **il testo lo sceglie il contrasto**, mai l'occhio: scuro o chiaro, quello che col fondo fa almeno 4,5:1 (`fluidLegibleInk`: il quasi-nero o il quasi-bianco; nei grigi medi, dove i due si equivalgono, nero o
+  bianco puri, che ci arrivano sempre, il peggiore è 4,58:1). Un colore **con trasparenza** si misura già composto sulla superficie, cioè come lo si vede. Stessa forma, misura e tipografia della pillola a tono: in una riga
+  le due stanno insieme (`FluidListRow(labels = { … })`). È una pillola, **non un controllo**: non si tocca.
+  Trappola: un colore che l'app cambia a runtime non porta mai una pillola illeggibile, ma l'**identità** del colore (due etichette quasi uguali) non si distingue da questo: per distinguere serve anche il testo.
+
+**Versione.** `fluidGroupedItems`, `FluidGroupedMaterial`, `fluidSwipeActions`, `FluidJumpPill`, `customActions`, `FluidEmptyState` con azione, `FluidStatusBadge(label, color)`: 3.1.0 (Pampa Mail, F1.2).
 
 ## Righe di impostazioni (`FluidSettingRows.kt`)
 

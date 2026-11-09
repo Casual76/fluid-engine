@@ -17,7 +17,7 @@ c'è mai una seconda finestra che compare accanto). La famiglia è legata a Flui
 
 | file | contiene |
 |---|---|
-| questo (`menu-modali.md`) | l'host e il portale, le presentazioni (pop-up, foglio, pagina intera), `FluidSheetScaffold`, `FluidConfirmSheet`, `FluidAlert`, `FluidPromptAlert`, il foglio deprecato |
+| questo (`menu-modali.md`) | l'host e il portale, le presentazioni (pop-up, foglio, pagina intera), `FluidSheetScaffold`, `FluidConfirmSheet`, `FluidAlert`, `FluidPromptAlert`, il foglio deprecato, e dalla 3.1.0 `FluidDrawer` (il pannello laterale modale) e `FluidDateTimeSheet` (data e ora) |
 | [menu-liquidi.md](menu-liquidi.md) | i menu: il tasto che si trasforma, le azioni della barra, il contestuale di una riga, la selezione col dito, il viaggio, la goccia |
 | [notifiche.md](notifiche.md) | `FluidNotificationHost`, la card che si tocca, si apre e si lancia via |
 
@@ -37,6 +37,8 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | un pop-up di contenuto senza origine | `FluidGlassModalPortal` con `origin` nullo (si apre al centro) |
 | un foglio dal basso con testata, corpo che scorre e tasti fermi | `FluidGlassModalPortal(presentation = Sheet)` con dentro `FluidSheetScaffold` |
 | una conferma («Eliminare?», «Usare i dati mobili?») | `FluidConfirmSheet` |
+| un pannello laterale modale con le sezioni, le cartelle o gli account su una finestra stretta | `FluidDrawer` + `rememberFluidDrawerState` (aperto **solo da un tuo tasto**; sezione «Il pannello laterale») |
+| far scegliere una data e un'ora, con proposte rapide («Domani alle 9») | `FluidDateTimeSheet(visible, onDismissRequest, onConfirm, quickOptions)` (sezione «Il foglio data e ora») |
 | un avviso breve con due o tre pulsanti (UIKit) | `FluidAlert` con `FluidAlertAction` |
 | chiedere una riga di testo (rinomina, valore) | `FluidPromptAlert` |
 | una pagina intera per un compito con più di tre campi | `FluidGlassModalPortal(presentation = FullScreen)` |
@@ -567,6 +569,97 @@ quello che l'utente ha scritto**. Un `FluidPromptAlert` è composto = aperto, co
 
 **Versione.** 3.0.0 (KDoc ripulito in 3.0.1).
 
+## Il pannello laterale: `FluidDrawer` (Fase 1 di Pampa Mail, 3.1.0)
+
+**Cos'è.** Una lastra di vetro che entra dal bordo d'inizio (da sinistra; da destra in RTL) **sopra** la pagina, per le cartelle, le sezioni e gli account di un'app su una finestra stretta. Da 1000 dp
+(`FluidDrawerDefaults.WideWindowWidth`, un riferimento per chi decide il layout: il pannello non lo legge) le stesse righe stanno in una `FluidSidebar` fissa accanto alla pagina; sotto non c'è posto. Ogni app se lo
+scriveva con il `ModalNavigationDrawer` di Material (un foglio opaco, la sua molla, il back che chiudeva la pagina sotto) o a mano, senza back predittivo, fuoco o TalkBack. Il contenuto è quello della barra laterale
+(`FluidSidebarSection`, `FluidSidebarRow`, anche annidate con `level`). File: `FluidDrawer.kt`.
+
+**Firma essenziale.**
+```kotlin
+val drawer = rememberFluidDrawerState()                 // solo «aperto o chiuso» sopravvive alla rotazione
+FluidDrawer(state = drawer, backdrop = backdrop /* null: lastra opaca */, paneTitle = "Cartelle", header = { … }, footer = { … }) {   // content: LazyListScope
+  item { FluidSidebarSection("Posta in arrivo") }
+  item { FluidSidebarRow(label = "Ricevute", selected = …, onClick = { …; drawer.close() }, badge = …, level = 0, minHeight = FluidSidebarDefaults.ComfortableRowHeight) }
+}
+// il tasto che lo apre: FluidBarAction(icon = Menu, contentDescription = "Cartelle", onClick = { drawer.open() })
+// il contenitore di pagina e barra: Modifier.fluidDrawerObscured(drawer)
+```
+Altri parametri: `modifier`, `width` (di serie `FluidDrawerDefaults.Width`, 320 dp), `listState`, `returnFocusTo`. `backdrop` non ha un default: o il fondale della chrome, o `null`.
+
+**Si apre solo dall'app.** Un tasto (☰) chiama `FluidDrawerState.open()`. **Nessun gesto dal bordo**: con la navigazione a gesti il bordo è il back di Android (che in radice esce dall'app) e dentro l'app è il back
+dell'engine (`FluidBackSwipe.EdgeOnly`); un pannello che lo contendesse renderebbe imprevedibili tutti e due. **Si chiude** col back (di sistema, a tasti, predittivo), toccando la pagina oscurata, trascinandolo verso il bordo
+da cui è venuto e con l'azione «chiudi» di TalkBack (`FluidLabels.closeDrawer`). Rientra sempre da dove è entrato.
+
+**Il dito.** Un trascinamento verso il bordo d'inizio, partito sul pannello o sulla pagina oscurata, prende il pannello e lo tiene **sotto il dito, 1:1**; al rilascio decide la regola del back delle pagine
+(`FluidPageMotion.backRelease`: 35% della corsa col tetto di 180 dp, o una spinta di 400 dp/s; una spinta contraria vince) e la molla parte dalla velocità del dito. Un trascinamento verso l'esterno non lo prende (è già
+tutto fuori); uno verticale è della lista; uno che parte su un tasto è del tasto. Decide **dopo** i figli: una riga che scorre, un menu, un tasto arrivano prima.
+
+**Il back: menu → pannello → selezione → pagina.** Il gestore entra in composizione **all'apertura**, non prima (la regola della 3.0.6 per i menu): sul dispatcher risponde il gestore abilitato registrato **per ultimo**, quindi
+un pannello aperto sopra una pagina annidata o sopra una selezione attiva si chiude **prima** di loro, e un menu aperto dentro il pannello (il contestuale di una riga) si chiude prima del pannello. Il back predittivo lo fa
+rientrare in proporzione al gesto; annullato, torna aperto. Perché questo ordine regga, la selezione (`FluidSelectionBackHandler`) va composta **prima** del pannello: [`contenuto-testo-e-media.md`](contenuto-testo-e-media.md).
+
+**Composto sempre, in radice.** Va **dopo** la pagina e la barra di navigazione (deve coprirle) e **prima** degli host dei modali, del menu che si trasforma e delle notifiche (un menu aperto da una riga del pannello sta
+sopra il pannello). **Chiuso non disegna niente e non prende tocchi**: un `if (open) FluidDrawer(…)` non ha un'uscita. Un'app che lo toglie dalla composizione col pannello aperto (la finestra diventa larga e passa alla barra
+laterale) lo trova chiuso, senza animazione e senza scrim o gestori rimasti in giro. `FluidDrawerState.snapTo(open)` arriva senza movimento (stato iniziale, finestra che diventa larga).
+
+**Il materiale.** Una lastra flottante (`panelOptics(overSharpPage = true)`, `panelTint()`, come la notifica): rifrange la pagina **cruda** e non il composito dello scrim (gli export di uno scrim sono registrati a forza
+piena, e una lastra che li campionasse resterebbe scura mentre lo scrim vero sfuma col pannello). La pagina dietro si **vela** con lo scrim dei modali in proporzione a quanto il pannello è in scena: nessuna pagina sfuma. Il
+pannello entra per spostamento di layout, mai scalato. Senza `backdrop` è una lastra opaca (`surfaceContainerHigh`) su un velo quasi pieno. Larghezza: quella chiesta, **mai oltre l'85%** della finestra
+(`FluidDrawerDefaults.MaxWidthFraction`): su 360 dp restano almeno ~50 dp di pagina oscurata, il posto dove toccare per chiudere e la prova che la pagina è ancora lì.
+
+**Movimento.** La molla è `FluidMotion.DrawerTravel` (quella delle pagine, criticamente smorzata: non rimbalza). Col movimento ridotto il pannello c'è o non c'è, in un fotogramma; il dito lo segue lo stesso. **Nessuna
+vibrazione**: il momento è il tocco sul ☰, che ha il suo colpo.
+
+**Accessibilità.** All'apertura il fuoco entra nel pannello (un bersaglio invisibile, come nei modali) e TalkBack annuncia `paneTitle` (di serie `FluidLabels.drawer`); il pannello è un gruppo di attraversamento e di fuoco,
+ha l'azione «chiudi» e chiude con Esc. **`Modifier.fluidDrawerObscured(state)`** sul contenitore della pagina e della barra nasconde a TalkBack ciò che sta sotto mentre il pannello è aperto: senza, TalkBack cammina nella
+pagina che si intravede, ed è peggio di un pannello opaco perché niente avvisa che quello su cui si è arrivati non si può toccare. Le righe da toccare col dito vanno a 48 dp
+(`FluidSidebarRow(minHeight = FluidSidebarDefaults.ComfortableRowHeight)`; la barra laterale resta a 44). Il contenuto scorre: il testo al 200% allunga la lista e non taglia niente. `returnFocusTo` riporta il fuoco al ☰
+quando si chiude, per chi usa la tastiera.
+
+**Trappole.** Il gesto **non** si apre dal bordo: l'app deve avere un tasto, e quel tasto deve avere un nome. Un campo di testo nel contenuto chiude la tastiera all'apertura. Il pannello non conosce la selezione né le
+pagine: l'ordine del back è una conseguenza dell'ordine di composizione, e metterlo prima della pagina o dopo gli host dei modali lo rompe. Un'app con barra laterale fissa da 1000 dp **non** deve lasciare il pannello aperto
+quando la finestra si allarga: `snapTo(false)` o toglierlo.
+
+**Non usarlo quando.** Le sezioni sono tre o quattro e stanno nella barra delle schede (`FluidFloatingTabBar`), o la finestra è larga (`FluidSidebar`, in [`schermata.md`](schermata.md)).
+
+## Il foglio data e ora: `FluidDateTimeSheet` (Fase 1 di Pampa Mail, 3.1.0)
+
+**Cos'è.** Il foglio di vetro per scegliere **un istante**: proposte rapide dell'app («Stasera», «Domani alle 9»), una griglia del mese e l'ora, minuti compresi. Serve a posticipare un messaggio, programmare un invio,
+fissare una scadenza. Non è un selettore di Material: righe, pressione e foglio sono quelli dell'engine (`FluidGlassModalPortal(presentation = Sheet)`), quindi il vetro, il back e il fuoco sono già giusti. File:
+`FluidDateTimeSheet.kt`, `FluidDateTimeMath.kt` (calcolo, interno).
+
+**Firma essenziale.**
+```kotlin
+FluidDateTimeSheet(
+  visible: Boolean, onDismissRequest: () -> Unit, onConfirm: (FluidDateTimeSelection) -> Unit,
+  quickOptions: List<FluidQuickTimeOption> = emptyList(),          // FluidQuickTimeOption(label, instant, detail = null)
+  initialInstant: Instant? = null, minimumInstant: Instant? = null, maximumInstant: Instant? = null,
+  zone: ZoneId = ZoneId.systemDefault(), clock: Clock = Clock.systemUTC(),
+  locale: Locale = …, use24Hour: Boolean = …, title: String = …, message: String? = null,
+)
+FluidDateTimeSelection(instant: Instant, zone: ZoneId)           // il risultato: assoluto, con la zona in cui è stato scelto
+```
+
+**Comportamento, e perché.**
+- **Mai un istante passato.** Il minimo è il più alto fra `clock.instant()` e `minimumInstant`, e la conferma **rilegge `clock`**: una selezione fatta alle 9:59 e confermata alle 10:01 per «le 10:00» non esce. Un'opzione rapida
+  fuori dai limiti non si può scegliere. `clock` è **iniettabile** proprio per questo: i test fissano l'ora, e l'app può passare un orologio di prova.
+- **Ora legale, i due casi.** Un'ora che **non esiste** (il salto in avanti di primavera, 02:30 in una notte che passa da 02:00 a 03:00) è **rifiutata**: non si sceglie un'ora che non c'è, e non si sposta in silenzio. Un'ora che
+  **si ripete** (l'ora di autunno) richiede una **scelta esplicita** dell'offset UTC (le due ore sono istanti diversi): finché non si sceglie, la conferma è rifiutata e il foglio mostra la frase d'errore (`FluidDateTimeLabels.invalid`, in colore d'errore). Il risultato è sempre un `Instant` **assoluto** con la
+  `zone` in cui è stato scelto; programmare l'invio resta dell'app.
+- **Le proposte sono dell'app.** L'engine non inventa tempi relativi specifici di un dominio («Dopo pranzo»): l'app li calcola come `Instant` (con la sua zona e il suo orologio) e li passa con etichetta e dettaglio. Senza
+  proposte il foglio si apre direttamente sulla scelta personalizzata.
+- **Precisione al minuto.** I controlli personalizzati scelgono minuti interi; un intervallo che non contiene nessun minuto intero non ha selezione personalizzata (le proposte rapide, esatte, restano usabili).
+- **Lingua e formato.** `locale` decide il primo giorno della settimana e i formati delle date; il sistema decide 12/24 ore, salvo `use24Hour`. Le parole sono `FluidLabels.dateTime` (`FluidDateTimeLabels`, con la versione
+  inglese di `FluidLabels.english()`).
+- **Dichiarazione e chiusura.** Resta **composto** mentre `visible` diventa falso, così l'host può invertire l'apertura. L'app lo chiude in `onDismissRequest` o `onConfirm`; **annullare non conferma mai** (il back annulla).
+  La scelta in corso sopravvive al ripristino dello stato (`rememberSaveable`: l'ora locale, il mese, l'offset, tutto come stringhe).
+
+**Trappole.** Un `minimumInstant` dopo `maximumInstant` fallisce subito (`require`). Passare `clock = Clock.systemUTC()` e uno `zone` diverso da quello dell'utente sposta i giorni: la zona è quella in cui si legge il
+calendario. Le proposte con istanti **già passati** sono scartate dalla conferma, non nascoste: calcolale al momento di mostrare il foglio, non alla creazione della schermata. Il foglio non sa nulla di ricorrenze, promemoria
+o fusi dell'altro utente.
+
 ## Token, costanti, Defaults
 
 Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620/360 dp, 78% di altezza, 38 dp del foglio,
@@ -602,6 +695,12 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
 - `AllGlassTest`: la chiusura della pagina intera è un tasto di vetro e chiude; con un host `FluidSheet` è il foglio di
   vetro e dice «chiuso» una volta sola, dopo l'uscita.
 
+- `FluidDrawerRulesTest` (`engine-ui`, 12) e `FluidDrawerTest` (`sample`, 17; 3.1.0): la larghezza (85% al massimo, mai negativa), il rilascio con la regola del back delle pagine (lento = distanza, spinta = chiude, contraria = tiene
+  aperto), lo stato che salva solo «aperto o chiuso»; poi il comportamento: si apre col tasto e si chiude toccando la pagina oscurata, il back chiude il pannello e non la pagina, **menu → pannello → selezione → pagina**, riaperto torna
+  davanti alla selezione, il dito lo segue 1:1 (anche dalla pagina oscurata) e verso destra non si muove, **nessun gesto dal bordo lo apre**, movimento ridotto, TalkBack (pagina nascosta, annuncio, «chiudi»), ricreazione, tolto da aperto.
+- `FluidDateTimeMathTest` (`engine-ui`, 6) e `FluidDateTimeSheetTest` (`sample`, 10): salti e ripetizioni dell'ora legale, anni bisestili e confini di mese, primo giorno della settimana per lingua, limiti e riverifica del passato alla
+  conferma, giorni locali a cavallo dell'ora legale e della mezzanotte, minuto iniziale dentro i limiti; la conferma una volta sola con la zona, l'annullo che non conferma, l'orologio riletto alla conferma, il foglio a testo grande, scuro,
+  movimento ridotto e inglese, il back che annulla, lo stato che sopravvive al ripristino.
 **Non è provato da nessun test**: il vetro (gli host dei test hanno fondale nullo), i fotogrammi dell'arrivo e
 dell'uscita, la goccia dei pulsanti dell'avviso sul vetro, il trascinamento fra i pulsanti, la tastiera sopra un
 `FluidPromptAlert` nell'host. Si guardano in mano.

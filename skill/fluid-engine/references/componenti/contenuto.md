@@ -1,10 +1,11 @@
-# Contenuto: righe, card, liste, testo
+# Contenuto: righe, card, liste, identità, testo, web, grafici
 
 Tutto quello che sta *dentro* una schermata dopo la chrome: il gruppo di righe (`FluidListGroup` + `FluidListRow`), le
 righe di impostazioni (interruttore, scelta, selettore, slider), le card e le aperture di sezione (`FluidCard`,
 `FluidHero`, `FluidVividCard`), gli stati di caricamento (scheletri, barre, passi), i segni piccoli (pallino dal vivo,
 cerchio di selezione, punti del pager), il testo (`FluidMarkdown`, testo che arriva, testo che si accende con l'audio),
-il visore di immagini e il riordino con trascinamento. Le schermate stesse (`FluidScreen`, la barra, il fondale
+il visore di immagini e il riordino con trascinamento. **Dalla 3.1.0 (Fase 1 di Pampa Mail)** anche le liste lunghe e paginate (`fluidGroupedItems`, `fluidSwipeActions`, `FluidJumpPill`), l'identità e la selezione (`FluidAvatar`, `FluidBadge`,
+`FluidSelectionState`), i file (`FluidFileTile`), il contenuto web chiuso (`FluidWebContent`) e i grafici (`FluidDonutChart`, `FluidBarChart`, `FluidLineChart`). Le schermate stesse (`FluidScreen`, la barra, il fondale
 ambientale) e il vetro come materiale sono in altre famiglie; qui si descrive come il contenuto vi si appoggia.
 I file stanno in `engine-ui/.../ui/fluid/` e, per il gruppo, la riga e la card, in `engine-ui/.../ui/theme/FluidComponents.kt`.
 
@@ -22,6 +23,10 @@ Le regole di fondo (vetro, movimento, aptica): [`../regole.md`](../regole.md) e 
 |---|---|
 | un elenco di voci in una schermata | `FluidListGroup { FluidListRow(...) ; FluidListDivider() ; ... }` dentro un `item { }` della schermata |
 | un elenco **lungo** su un fondale di vetro | `fluidGlassGroups(items, key) { FluidListRow(...) }` (spezza in pannelli da 8 righe); non `items { }` con `FluidListGroup(glass = true)` per riga |
+| un elenco lungo che **cambia mentre lo si legge** (una casella che riceve), o paginato | `fluidGroupedItems(count, key = { id })`: una riga per item, chiavi stabili, fondo opaco — [`contenuto-righe-liste.md`](contenuto-righe-liste.md), «Liste lunghe, una riga per elemento» |
+| archiviare, segnare, eliminare con uno scorrimento di lato | `Modifier.fluidSwipeActions(state, startAction, endAction)` sulla `FluidListRow`, e le stesse azioni per TalkBack |
+| «3 nuove in alto» senza spostare la lista | `FluidJumpPill` nell'`overlay` di `FluidScreen` |
+| azioni di TalkBack su una riga (stella, archivia, seleziona) | `FluidListRow(customActions = …)` |
 | una sezione breve di vetro dentro una colonna accanto ad altre | `FluidGlassGroup(items) { ... }` (un pannello solo, non spezza) |
 | un'etichetta sopra un gruppo / una nota sotto | `FluidSectionHeader(title, detail)` / `FluidSectionFootnote(text)` |
 | una riga on/off | `FluidToggleRow` — **non** una `FluidListRow` con un `FluidSwitch` nel `badge` (due bersagli, due vibrazioni) |
@@ -35,7 +40,14 @@ Le regole di fondo (vetro, movimento, aptica): [`../regole.md`](../regole.md) e 
 | un riquadro autonomo (non una lista) | `FluidCard(glass = true)`; `highlighted = true` per quello che deve dire una cosa |
 | un dato in primo piano con fatti di contorno, in apertura di schermata | `FluidHero(tone, motif, …)`; se lo spazio conta, `FluidHeroBand` |
 | un elemento isolato interamente del proprio colore | `FluidVividCard(FluidVividColors.from(start, end))` — **non** dentro un `FluidListGroup` |
-| un testo vuoto con un motivo e una cosa da fare | `FluidEmptyState(title, detail, illustration)` |
+| un testo vuoto con un motivo e una cosa da fare | `FluidEmptyState(title, detail, illustration)`; con un tasto: `FluidEmptyState(title, detail, actionLabel, onAction)` |
+| un'etichetta in un colore che sceglie l'utente | `FluidStatusBadge(label, color)`: il testo lo sceglie il contrasto |
+| il cerchio di una persona (monogramma o foto), o un mosaico | `FluidAvatar`, `FluidAvatarStack`; i colori da `FluidIdentityColors` — «Identità e selezione» in [`contenuto-testo-e-media.md`](contenuto-testo-e-media.md) |
+| «ci sono 3 non lette», «c'è qualcosa» | `FluidBadge(count)` o `FluidBadge()` |
+| selezione multipla, «Seleziona tutto» su una lista paginata, il back che esce dalla selezione | `rememberFluidSelectionState`, `FluidSelectionBackHandler` |
+| un allegato, un file (anche compatto) | `FluidFileTile` / `FluidFileChip` |
+| mostrare un HTML ricevuto (mail, newsletter) senza che faccia niente | `FluidWebContent` — [`contenuto-web.md`](contenuto-web.md) |
+| ripartizione, confronto, andamento | `FluidDonutChart` (solo voci disgiunte) / `FluidBarChart` / `FluidLineChart` — [`grafici.md`](grafici.md) |
 | «sto caricando» di una lista o di una griglia | `FluidSkeletonList` / `FluidSkeletonTile` / `FluidSkeletonText` (stessa altezza della riga vera: niente salto) |
 | «sto caricando» di una schermata di cui non so la forma | `FluidLoadingBlock` (un `FluidSpinner` in un blocco da almeno 180 dp) |
 | un'operazione senza durata nota | `FluidIndeterminateBar` o `FluidSpinner`; con una durata nota, `FluidProgressBar` |
@@ -91,8 +103,10 @@ Eccezione da sapere: `FluidSpinner` e `FluidIndeterminateBar` non consultano la 
 
 | scheda | contenuto |
 |---|---|
-| [`contenuto-righe-liste.md`](contenuto-righe-liste.md) | `FluidListGroup`, `FluidListRow`, `FluidListDivider`, `FluidToneTile`; `FluidSectionHeader`, `FluidSectionFootnote`, `FluidEmptyState`, `FluidLoadingBlock`; `fluidGlassGroups`, `fluidGlassGroupsIndexed`, `FluidGlassGroup`; `FluidToggleRow`, `FluidChoiceRow`, `FluidPickerRow`, `FluidSliderRow`; `FluidCard`, `FluidMetricTile`; `FluidHero`, `FluidHeroBand`, `FluidVividCard` |
-| [`contenuto-testo-e-media.md`](contenuto-testo-e-media.md) | `FluidSkeleton*`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`, `FluidStepProgress`; `FluidLiveDot`, `FluidSelectionMark`, `FluidPagerDots`; `FluidMarkdown` + `FluidMarkdownParser` (cosa supporta e cosa no), `FluidRevealingText`, `FluidSpokenText`; `FluidImageViewer` + `fluidZoomable`; `fluidReorderable` |
+| [`contenuto-righe-liste.md`](contenuto-righe-liste.md) | `FluidListGroup`, `FluidListRow`, `FluidListDivider`, `FluidToneTile`; `FluidSectionHeader`, `FluidSectionFootnote`, `FluidEmptyState`, `FluidLoadingBlock`; `fluidGlassGroups`, `fluidGlassGroupsIndexed`, `FluidGlassGroup`; `FluidToggleRow`, `FluidChoiceRow`, `FluidPickerRow`, `FluidSliderRow`; `FluidCard`, `FluidMetricTile`; `FluidHero`, `FluidHeroBand`, `FluidVividCard`; dalla 3.1.0 `fluidGroupedItems`, `FluidGroupedMaterial`, `fluidSwipeActions`, `FluidJumpPill`, `customActions` della riga, `FluidEmptyState` con azione, `FluidStatusBadge(label, color)` |
+| [`contenuto-web.md`](contenuto-web.md) | `FluidWebContent`: il contenitore web chiuso, cosa resta all'app, altezza, scurimento, stampa (sezione «Prestazioni» in sospeso) |
+| [`grafici.md`](grafici.md) | `FluidDonutChart`, `FluidBarChart`, `FluidLineChart`, `FluidChartLegend`, i riquadri di stato; scale, accessibilità, colori a 3:1 |
+| [`contenuto-testo-e-media.md`](contenuto-testo-e-media.md) | `FluidAvatar`, `FluidAvatarStack`, `fluidMonogram`, `FluidIdentityColors`, `FluidBadge`, `FluidSelectionState`, `FluidFileTile`, `FluidFileChip`; `FluidSkeleton*`, `FluidSpinner`, `FluidProgressBar`, `FluidIndeterminateBar`, `FluidStepProgress`; `FluidLiveDot`, `FluidSelectionMark`, `FluidPagerDots`; `FluidMarkdown` + `FluidMarkdownParser` (cosa supporta e cosa no), `FluidRevealingText`, `FluidSpokenText`; `FluidImageViewer` + `fluidZoomable`; `fluidReorderable` |
 
 ## Token, costanti, Defaults
 
@@ -114,7 +128,7 @@ Eccezione da sapere: `FluidSpinner` e `FluidIndeterminateBar` non consultano la 
 | `FluidReorderDefaults` | `LiftScale` 1,04 · `AutoScrollEdge` 72 dp · `AutoScrollMaxSpeed` 900 dp/s · `FallbackShadow` 10 dp | `FluidReorderable.kt` |
 | `LocalFluidItemSpacing` | 14 dp (`FluidScreenDefaults.ItemSpacing`) | `FluidScreen.kt` |
 
-Parole traducibili (italiano di serie, un'app tradotta le passa tutte): `FluidMarkdownStrings`, `FluidImageViewerStrings`, `FluidReorderStrings`, `FluidStepProgressDefaults.label`, `FluidSelectionMarkDefaults.description`, il `pageLabel` di `FluidPagerDots`.
+Parole traducibili (italiano di serie, un'app tradotta le passa tutte): le parole dei grafici, dei file, dell'avatar e del contenuto web stanno in `FluidLabels` (con `english()`); `FluidMarkdownStrings`, `FluidImageViewerStrings`, `FluidReorderStrings`, `FluidStepProgressDefaults.label`, `FluidSelectionMarkDefaults.description`, il `pageLabel` di `FluidPagerDots`.
 
 ## Cosa è verificato dai test
 
@@ -130,6 +144,18 @@ Parole traducibili (italiano di serie, un'app tradotta le passa tutte): `FluidMa
 - **`FluidRowsAndSheetsTest`** (sample, 22): il tocco su `FluidToggleRow` commuta una volta e vibra come l'interruttore, un nodo solo con `Role.Switch`, disattivata non risponde né si trascina, il pomello si trascina con una vibrazione sola e una deriva verticale non scorre la pagina; la scelta è un radio, `Tick` solo se si sposta, la riga già scelta avvisa senza vibrare.
   `FluidMatrixTest`: `FluidListRow` con `onClick` è **un nodo solo** col nome, `Role.Button` e `selected`; senza `onClick` è un'etichetta senza ruolo. `FluidListRowLabelsTest` (7): accanto o sotto, la soglia di un quarto.
 - **`FluidHeroLayoutTest`** (5): le colonne delle metriche (3 a 331 dp, 2 a 285, 1 a 215, e con la scala del carattere). **`FluidVividColorsTest`** (3): il contenuto leggibile su entrambi i capi (4,5:1; 3,5 per le famiglie a luminanza media), sette partenze diverse e contenuto ≥ 4,0:1 della fascia in ogni schema.
+- **Fase 1 di Pampa Mail (3.1.0), liste lunghe.** `FluidGroupedItemsTest` (`engine-ui`, 14): il pezzo di ogni riga (una sola intera, primo e ultimo, mai un angolo tondo nel mezzo), una riga che entra in cima o l'ultima che esce, il vuoto
+  riassorbito e l'altezza dichiarata mai negativa, la sagoma stabile per pezzo, l'opaco di serie, **50.000 righe senza materializzare niente**. `FluidSwipeActionsTest` (23): la soglia (35% col tetto di 180 dp), di chi è il dito (il verticale
+  vince, il diagonale no, il bordo no), il 1:1 e la resistenza, l'elastico dal lato senza azione, l'isteresi, la conferma e l'annullo (anche con la spinta contraria), l'inchiostro a 4,5:1 su qualunque fondo. `FluidLongListsTest` (`sample`, 25): una
+  riga è un item, a filo e col tocco sulla fascia richiusa, **una riga che entra in cima non sposta quella che si legge**, lo stato di una riga segue la chiave anche dopo la ricreazione, 50.000 righe e un salto lontano, i tre fondi senza
+  canvas, il gesto dall'inizio alla fine (un solo `Threshold`, l'azione una volta sola, il verticale è della lista, la pressione lunga del menu, il bordo), le azioni dello scorrimento e quelle della riga **sullo stesso nodo**, spenta, testo al
+  200% e tema scuro, movimento ridotto, la pillola «N nuove», lo stato vuoto con azione e la pillola a colore libero.
+- **Identità, selezione, file.** `FluidMonogramTest` (34) e `FluidIdentityColorsTest` (13): le iniziali (emoji, bandiere, accenti scomposti, bidi, indirizzi, scritture non latine, tetto di 512 caratteri) e la palette (contrasti provati su
+  tutte le tinte nei due temi, indice stabile, giro di `colorAt`). `FluidBadgeTest` (8). `FluidSelectionStateTest` (24): «Seleziona tutto» senza materializzare chiavi, esclusioni, testimone, `retainOnly`/`forget`, il saver (anche con chiavi di
+  dominio, il tetto che salva vuoto). `FluidIdentityTest` (`sample`, 29): avatar decorativo o nominato, bersaglio da 48 dp, casella con lo stato nella lingua dell'app, il back che esce dalla selezione **e il menu aperto che si chiude prima**,
+  la selezione che sopravvive alla ricreazione, righe annidate (16 dp per livello, tetto al sesto), `FluidBarAction` con l'avatar (un bottone con nome e contenuto muto, menu al tocco e al tenuto), `FluidCapsuleAction(selected)` come interruttore.
+  `FluidFileInfoTest` (6) e `FluidFileTileTest` (7): tutte le categorie, **l'estensione eseguibile prevale**, dimensioni locali e confini, il troncamento che conserva l'estensione, semantica in italiano e inglese, nome lungo a 200% e scuro, chip
+  con bersaglio espanso che cede alla lista, il progresso che non ricompone.
 - **Non provati da test**: `FluidPickerRow` e `FluidSliderRow` (solo la demo `SettingsTab`), `FluidCard` (`enabled`, `sampleOnce`: vetro e costo si guardano in mano), `FluidHero`/`FluidHeroBand`/`FluidVividCard` nel disegno (solo la matematica del colore), il rendering di `FluidMarkdown`, `FluidProgressBar`, `FluidSpinner`, `FluidSkeletonRow` nel layout vero.
 
 ## Dove guardare
@@ -147,4 +173,8 @@ Parole traducibili (italiano di serie, un'app tradotta le passa tutte): `FluidMa
 | `engine-ui/.../ui/fluid/FluidMarkdown.kt`, `FluidMarkdownParser.kt`, `FluidTextReveal.kt`, `FluidSpokenText.kt` | Markdown (resa, parser), testo che arriva, testo che segue l'audio |
 | `engine-ui/.../ui/fluid/FluidImageViewer.kt`, `FluidReorderable.kt` | visore e zoom, riordino |
 | `sample/.../catalog/RowsAndSheetsDemo.kt`, `SettingsTab.kt`, `catalog/CapsulesAndPartsDemo.kt`, `catalog/MoreComponentsDemo.kt`, `GapsDemo.kt`, `MaterialTab.kt` | i call-site veri di righe, selettore/slider, pezzi piccoli, riordino/visore, pannelli lunghi, fascia e card vivida |
+| `engine-ui/.../ui/fluid/FluidGroupedItems.kt`, `FluidSwipeActions.kt`, `FluidJumpPill.kt` | le liste lunghe, il gesto di lato, la pillola delle novità (3.1.0) |
+| `engine-ui/.../ui/fluid/FluidAvatar.kt`, `FluidIdentityColors.kt`, `FluidBadge.kt`, `FluidSelectionState.kt`, `FluidFileTile.kt`, `FluidFileInfo.kt` | identità, selezione, file (3.1.0) |
+| `engine-ui/.../ui/fluid/FluidWebContent.kt`, `FluidCharts.kt`, `FluidChartMath.kt` | il contenitore web, i grafici e i loro conti (3.1.0) |
+| `sample/.../catalog/LongListsDemo.kt`, `IdentityDemo.kt`, `WebContentDemo.kt`, `ChartsDemo.kt`, `FileTileDemo.kt` | i call-site veri della Fase 1 |
 | `engine-ui/src/test/.../ui/fluid/*Test.kt`, `sample/src/testDebug/.../*Test.kt` | i test citati sopra |

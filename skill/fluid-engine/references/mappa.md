@@ -19,13 +19,15 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-ai` | `ai` | 36 / 6 456 | assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore, voce | foundation |
 | `engine-ai-ui` | `aiui` | 28 / 6 846 | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (opt-in) | **ui**, **ai** |
 | `engine-ai-bridge` | `ai.bridge` | 4 / 912 | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | ai |
+| `engine-richtext` | `richtext` | 9 / 3 997 | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera) e i lettori/scrittori di HTML ristretto, Markdown e testo semplice — **opt-in**, dalla 3.1.0 (la scheda: `moduli/richtext.md`) | foundation, **ui** |
 
-`engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
+(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sul ramo della 3.1.0.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
 dipendere da `engine-ui`: e' il motivo per cui un'app di sole View puo' prendere `engine-update` senza Compose.
 
 ```
 engine-foundation  <-  engine-ui  <-  engine-widget
         ^                  ^      <-  engine-wear
+        |                  +------<-  engine-richtext           (opt-in)
         |                  +------<-  engine-ai-ui  ->  engine-ai
         +-- engine-storage --+                              ^
         +-- engine-net ------+--> engine-config             +-- engine-ai-bridge
@@ -35,11 +37,11 @@ engine-foundation  <-  engine-ui  <-  engine-widget
 ```
 
 (freccia = «dipende da»: `engine-config` prende foundation, net e storage; `engine-update` foundation e net;
-`engine-ai-ui` prende `engine-ui` e `engine-ai`; `engine-ai-bridge` prende `engine-ai`.)
+`engine-ai-ui` prende `engine-ui` e `engine-ai`; `engine-ai-bridge` prende `engine-ai`; `engine-richtext` prende `engine-foundation` e `engine-ui`.)
 
 Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundation, runtime, animation), Material 3,
 `material-icons-extended`, core-ktx, lifecycle (runtime/viewmodel compose), activity-compose, navigation-compose e
-`engine-foundation`. `engine-ui` tiene `graphics-shapes` come `implementation`.
+`engine-foundation`. `engine-ui` tiene `graphics-shapes` come `implementation`, e **dalla 3.1.0 anche `androidx.webkit`** (`implementation`, per `FluidWebContent`): un'app che compila `engine-ui` dai sorgenti ottiene `androidx.webkit` nel build anche se non usa mai il contenitore web.
 
 ## Quali moduli mettere in un'app
 
@@ -51,6 +53,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | ha widget Glance | + `engine-widget` |
 | ha un assistente | + `engine-ai` (+ `engine-ai-ui` se vuoi la sua interfaccia) |
 | espone o chiama tool di altre app | + `engine-ai-bridge` |
+| scrive testo formattato (corpo di una mail, note con elenchi, firme) | + `engine-richtext` (**opt-in**: solo se chiesto per nome, `-Modules …,engine-richtext`; porta `engine-ui` e `engine-foundation`) |
 | è un orologio (modulo Wear OS) | `engine-wear` **solo nel modulo dell'orologio** |
 | è di sole View e XML | solo `engine-update` / `engine-net` / `engine-config` (`-Modules`), mai `engine-ui` |
 | è Compose **Multiplatform** | niente `engine-ui` (artefatti diversi): i moduli senza UI in `androidMain`, il look si **porta** (`integrazione.md`, «Il porto») |
@@ -62,7 +65,7 @@ e un'app che non lo dichiara nel build root non riesce nemmeno a **configurare**
 
 AGP 8.13.2 · Kotlin 2.2.20 · Compose BOM 2026.03.00 · Material 3 **1.5.0-alpha16** (`MotionScheme` non è nella
 linea stabile) · lifecycle 2.10.0 · activity-compose 1.13.0 · navigation 2.9.8 · DataStore 1.1.1 · Glance 1.1.1 ·
-Wear Compose 1.6.2 · coroutines 1.8.1 · serialization 1.6.3 · Java 17. `compileSdk` 36, `minSdk` 26 (alzabile dall'app
+Wear Compose 1.6.2 · androidx.webkit 1.14.0 (dalla 3.1.0) · coroutines 1.8.1 · serialization 1.6.3 · Java 17. `compileSdk` 36, `minSdk` 26 (alzabile dall'app
 con `engine.minSdk`, mai abbassabile; `engine.compileSdk=35` nel `gradle.properties` dell'app per un AGP vecchio).
 Le versioni stanno in `versions.gradle` come mappa semplice, non come catalogo: l'engine sta dentro app che ne hanno già uno.
 
@@ -73,7 +76,7 @@ Tutto sotto `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/`. La colo
 
 | cartella | cosa | scheda | API |
 |---|---|---|---|
-| `fluid/` (73 file) | quasi tutti i componenti: schermata, barre, righe, controlli, menu, notifiche, pressione, movimento, materiale | `schermata`, `barre`, `contenuto`, `controlli`, `menu-modali`, `movimento`, `impostazioni` | stesse |
+| `fluid/` (89 file nel ramo della 3.1.0, 73 nella 3.0.4) | quasi tutti i componenti: schermata, barre, righe, controlli, menu, notifiche, pressione, movimento, materiale; dalla 3.1.0 liste lunghe, avatar e selezione, pannello laterale, selettore data e ora, campo a gettoni, contenuto web, grafici, file | `schermata`, `barre`, `contenuto` (+ `contenuto-web`, `grafici`), `controlli`, `menu-modali`, `movimento`, `impostazioni` | stesse (+ `contenuto-web`, `grafici`) |
 | `theme/` | `FluidTheme`, `FluidComponents` (i componenti Material ridefiniti), vecchi `Motion`/`RouteMotion` | `tema` | `tema` |
 | `glass/` (+ `backdrop/` e sotto) | la libreria di Kyant0 copiata come sorgente: lente, backdrop, effetti, highlight, ombre | `vetro` | `vetro` |
 | `fluidphysics/` (17 file) | il motore che trasforma una sagoma di vetro in un'altra | `fluid-physics` | `fluid-physics` |
@@ -103,7 +106,7 @@ materiale), `FluidScreen.kt` (1 803), `FluidComponents.kt` (1 794), `FluidPhysic
 
 ## Test
 
-150 file di test sotto `engine-*/src/test` (99 in `engine-ui`, 28 in `engine-ai`, 8 in `engine-wear`, 6 in
-`engine-ai-ui`, gli altri 1-3) più 33 in `sample/src/testDebug` (interfaccia con Robolectric: gesti, pagine, menu,
-semantica). Quando una scheda dice «verificato da» un test, quel test è lì. Un comportamento di cui nessun test parla
+Nel ramo della 3.1.0: 179 file di test sotto `engine-*/src/test` (113 in `engine-ui`, 33 in `engine-ai`, 8 in `engine-wear`, 7 in
+`engine-ai-ui`, 7 in `engine-richtext`, gli altri 2-5) più 45 in `sample/src/testDebug` (interfaccia con Robolectric: gesti, pagine, menu,
+semantica) e le prove **strumentate** in `sample/src/androidTest` (una WebView vera: `FluidWebContentInstrumentedTest`, che gira solo su emulatore o dispositivo). Quando una scheda dice «verificato da» un test, quel test è lì. Un comportamento di cui nessun test parla
 va **guardato in mano** prima di fidarsene (`strumenti-e-qa.md`).

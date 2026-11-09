@@ -5,7 +5,7 @@
 # Fluid Engine
 
 Le fondamenta condivise delle app Android di Antigravity, estratte da ClasseViva Expressive. Un repo a sé,
-agganciato a un tag dentro ogni app che lo usa. **Versione documentata: 3.0.7.**
+agganciato a un tag dentro ogni app che lo usa. **Versione documentata: 3.1.0** (le schede della 3.1.0 sono scritte dal ramo di Pampa Mail; il catalogo API e il changelog seguono al rilascio).
 
 Questa skill è la documentazione dell'engine **e** le regole per lavorarci senza romperlo. Non è un riassunto:
 dietro c'è una scheda per ogni famiglia di componenti e per ogni modulo, e un catalogo di tutte le API pubbliche
@@ -27,7 +27,7 @@ references/
   integrazione.md  aggiornamenti.md  config-remota.md  widget.md  limiti.md  ai.md
   design-system.md            inventario storico di engine-ui (le schede sotto lo sostituiscono, resta per il contesto)
   componenti/                 UNA SCHEDA PER FAMIGLIA di engine-ui (scopo, uso, comportamento, trappole)
-  moduli/                     UNA SCHEDA PER MODULO senza UI o opt-in (foundation ... ai-ui, wear)
+  moduli/                     UNA SCHEDA PER MODULO senza UI o opt-in (foundation ... ai-ui, wear, richtext)
   api/                        catalogo GENERATO: ogni dichiarazione pubblica con la firma
 scripts/                      gen_api_catalog.py, check_docs.py, sync_docs.py
 ```
@@ -68,6 +68,7 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-ai` | l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, router e orchestratore, voce | `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md` |
 | `engine-ai-ui` | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (**opt-in**) | `moduli/ai-ui*.md` |
 | `engine-ai-bridge` | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | `moduli/ai-bridge.md` |
+| `engine-richtext` | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera), HTML ristretto, Markdown, testo (**opt-in**, dalla 3.1.0) | `moduli/richtext.md` |
 
 ## Che componente uso per…
 
@@ -76,20 +77,25 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | ho bisogno di… | scheda |
 |---|---|
 | una schermata, titolo grande che si ritira, refresh, schermi larghi, indice laterale, scroll veloce | `componenti/schermata.md` |
-| barra delle schede a pillola, rail, capsula di azioni, campo di ricerca | `componenti/barre.md` |
+| barra delle schede a pillola (con segni sulle zone), rail, capsula di azioni (anche accese/spente), campo di ricerca | `componenti/barre.md` |
 | righe, liste raggruppate, card, hero, skeleton, Markdown, visore di immagini, riordino | `componenti/contenuto.md` (indice) → `contenuto-righe-liste.md`, `contenuto-testo-e-media.md` |
-| tasti, segmentato, chip, campo di testo | `componenti/controlli.md` |
+| una lista **lunga** che cambia mentre la si legge, righe con gesto di lato, «3 nuove in alto», stato vuoto con azione | `componenti/contenuto-righe-liste.md`, «Liste lunghe, una riga per elemento» |
+| l'avatar di una persona, i colori stabili, il badge «3 non lette», la selezione multipla (anche «Seleziona tutto» paginato), un allegato | `componenti/contenuto-testo-e-media.md`, «Identità e selezione», «File» |
+| mostrare un HTML ricevuto (mail, newsletter) in una vista chiusa | `componenti/contenuto-web.md` |
+| una ciambella, barre o un andamento con legenda | `componenti/grafici.md` |
+| scrivere testo formattato (elenchi, link, citazioni, HTML/Markdown) | `moduli/richtext.md` (opt-in) |
+| tasti, segmentato, chip, campo di testo, campo a gettoni (destinatari, etichette), avatar come azione della barra | `componenti/controlli.md` |
 | interruttore, cursore, scrubber (i controlli a gesto) | `componenti/controlli-gesto.md` |
-| pop-up, foglio, avviso, conferma, portale | `componenti/menu-modali.md` |
+| pop-up, foglio, avviso, conferma, portale, pannello laterale (`FluidDrawer`), scelta di data e ora | `componenti/menu-modali.md` |
 | menu che si trasforma, azioni della barra, menu contestuale | `componenti/menu-liquidi.md` |
-| notifiche contestuali (la card che si tocca) | `componenti/notifiche.md` |
+| notifiche contestuali (la card che si tocca; azioni in linea, sostituzione per gruppo, esito) | `componenti/notifiche.md` |
 | pressione, gesto, molle, movimento ridotto | `componenti/movimento.md` |
 | vibrazioni | `componenti/aptica.md` |
 | il materiale di vetro, i ruoli, il costo | `componenti/vetro.md`; la libreria backdrop di Kyant0: `vetro-backdrop.md` |
 | una forma che si trasforma in un'altra (la card che si espande, il tasto che diventa menu) | `componenti/fluid-physics.md`; il motore dentro: `fluid-physics-motore.md` |
 | più pagine, migrare da `NavHost` | `componenti/pagine.md` |
-| back col dito, `BackHandler`, barra unica e ancorata | `componenti/pagine-back-e-barra.md` |
-| colori, tipografia, angoli, tema, accento | `componenti/tema.md` |
+| back col dito, `BackHandler`, l'ordine del back (menu → pannello → selezione → pagina), barra unica e ancorata | `componenti/pagine-back-e-barra.md` |
+| colori, tipografia, angoli, tema, accento, la palette d'identità | `componenti/tema.md` |
 | sezione aspetto, aggiornamento in-app, parole traducibili, licenze | `componenti/impostazioni.md` |
 | suggerimenti al primo uso | `componenti/tutorial.md` |
 | un orologio | `moduli/wear.md` |
@@ -206,5 +212,5 @@ tema) su tutte le app: leggilo prima di una migrazione e aggiornalo quando una f
 - `limiti.md` — cosa non si può fare, e cosa rispondere quando viene chiesto
 - `ai.md` — l'assistente: cosa dà `engine-ai`, cosa resta all'app, come si scrive un tool
 - `design-system.md` — l'inventario storico di `engine-ui` (token, regola del vetro, pagine…), che le schede in `componenti/` ora dettagliano
-- `componenti/*.md`, `moduli/*.md` — le schede (indici nelle tabelle sopra)
+- `componenti/*.md`, `moduli/*.md` — le schede (indici nelle tabelle sopra); nuove nella 3.1.0: `componenti/contenuto-web.md`, `componenti/grafici.md`, `moduli/richtext.md`
 - `api/*.md` — il catalogo generato; `api/versioni.md` — una riga per versione dal changelog

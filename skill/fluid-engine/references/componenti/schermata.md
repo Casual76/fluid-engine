@@ -661,6 +661,16 @@ visibili in una volta). L'elenco+dettaglio **affiancati** sono `FluidListDetailS
   e dentro gli inset di sistema; contenuto `LazyColumn` (cento voci scorrono, testa e piede stanno fermi). `FluidSidebarSection(title)` titola un gruppo (maiuscolo);
   `FluidSidebarRow(label, selected, onClick, icon, tint, detail, badge, contextActions)` e' una riga da `RowHeight` 44 dp con piastrella d'icona, ruolo `Tab` e
   `selected` per TalkBack. La selezione e' **un velo dell'accento al 14%**, non una pillola di vetro: dentro una barra gia' di vetro un secondo vetro non si vede.
+  **Dalla 3.1.0 (Pampa Mail), tutto a parametri in coda e opt-in:** `FluidSidebarRow(…, level = 0, leading = null, trailing = null, minHeight = FluidSidebarDefaults.RowHeight)` e
+  `FluidSidebarSection(title, leading = null, detail = null, uppercase = true)`.
+  - **`level`** annida: ogni livello sposta la riga di `FluidSidebarDefaults.IndentPerLevel` (16 dp) fino a `FluidSidebarDefaults.MaxIndentLevels` (6: oltre, le righe non si spostano più: una barra da 360 dp con una cartella a dieci
+    livelli non deve lasciare al nome tre lettere). Per le cartelle dentro le cartelle. Il velo della selezione resta largo quanto la riga: è la riga a essere scelta, non il rientro. Negativo vale 0.
+  - **`leading`** è un contenuto **al posto** della piastrella (un avatar, un pallino di colore, la freccia che apre un gruppo): se c'è, `icon` e `tint` non si disegnano. **`trailing`** è un contenuto **dopo** `detail` e `badge`
+    (un `FluidBadge` coi non letti); non cambia la semantica della riga: **se porta un numero, la riga lo dice una volta sola** (nel nome, non anche nel badge).
+  - **`minHeight`**: di serie 44 dp (`RowHeight`); una riga che è il bersaglio principale di una barra usata col dito passa `FluidSidebarDefaults.ComfortableRowHeight` (48 dp, QLT-21); col testo grande la riga cresce comunque.
+    `RowHeight` resta a 44 perché cambiarla sposterebbe tutte le barre che esistono. Il pannello `FluidDrawer` ([`menu-modali.md`](menu-modali.md)) usa le stesse righe.
+  - **Sezione**: `leading` (l'avatar o il colore di un account, quando il gruppo è «le cartelle di questo account»; non è toccabile: un'intestazione che si apre è una `FluidSidebarRow`), `detail` (una parola o un numero a destra:
+    «12», l'indirizzo), `uppercase = false` quando il titolo è un nome proprio o un indirizzo, che le maiuscole deformano.
 
 ```kotlin
 FluidSidebar(backdrop = backdrop, header = { Text("Menu") }) {

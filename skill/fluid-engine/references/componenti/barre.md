@@ -39,6 +39,11 @@ I numeri che la pagina deve conoscere, in dp: `OpenHeight` 60 (un **pavimento**:
 | che **non** si ripieghi mai | `inlineBehavior = FluidFloatingTabBarInlineBehavior.Never` (o non attaccare la connessione) |
 | tenere ferma la barra (ricerca in corso, finestra che nasce dalla banda) | `scrollConnection.locked = true` |
 | la navigazione su uno schermo largo | `FluidTabRail` (dentro `FluidPaneScaffold`, [schermata.md](schermata.md)) |
+| un pallino o un numero su una zona («Chat, novità») | `FluidTabItem(badge = FluidTabBadge(count))` o `tab(badge = …)`: lo disegna la barra, **solo a barra aperta** (sezione «Segni, pulsante e movimento ridotto») |
+| un'azione primaria («Scrivi») che resta visibile a barra ripiegata, o in testa al rail | `standaloneTab(…)` (il cerchio accanto alla pillola: è un **pulsante**, non una zona); su schermo largo `FluidTabRail(header = { … })` |
+| un'azione della capsula che si accende e si spegne (grassetto, filtro) | `FluidCapsuleAction(selected = …)`: ruolo `Switch`, disco dell'accento |
+| un pannello laterale modale su una finestra stretta (cartelle, account) | `FluidDrawer` — [menu-modali.md](menu-modali.md) |
+| la pillola «3 nuove ↑» sopra una lista | `FluidJumpPill` — [contenuto-righe-liste.md](contenuto-righe-liste.md) |
 | una barra di selezione multipla, un mini player, comandi di una foto | `FluidFloatingCapsule` con `FluidCapsuleAction` |
 | un campo di ricerca di vetro, anche richiudibile in un cerchio, anche con «3/12» | `FluidSearchField` |
 | un campo di ricerca *dentro* la barra (`searchMode`) | `searchBarContent` — attenzione: `FluidSearchField` porta il **suo** pannello (vedi trappole) |
@@ -249,6 +254,45 @@ si usa dentro `FluidPaneScaffold` (`rail = { FluidTabRail(...) }`, larghezza di 
 
 **Versione.** Rail dalle 1.x; goccia 3.0.0 (fase 9); lente nascosta senza selezione 1.33.0.
 
+## Segni, pulsante e movimento ridotto (Fase 1 di Pampa Mail, 3.1.0)
+
+Quattro aggiunte alla barra e al rail, tutte **opt-in e a parametri in coda**: chi non le usa ha lo stesso albero e le stesse misure di prima. File: `FluidFloatingTabBar.kt`, `FluidTabBar.kt`.
+
+### Segni sulle zone: `FluidTabBadge`
+
+**Cos'è.** Il pallino o il numero su una zona che ha qualcosa di nuovo mentre si è altrove (la chat con un messaggio, gli aggiornamenti di un negozio). `FluidTabItem(route, label, icon, badge = null)` nella forma a elenco e nel rail,
+`tab(key, title, icon, onClick, indication, badge = null)` nella forma a DSL. `FluidTabBadge(count: Int? = null, contentDescription: String? = null, color = Color.Unspecified)`: `count = null` è il **pallino**
+(`FluidTabBadge.Dot`), `> 0` il numero («99+» oltre 99), `≤ 0` niente (né segno né frase), come `FluidBadge`.
+
+**Perché lo disegna la barra e non l'app.** L'icona è un composable dell'app, ma la scheda la costruisce la barra: la riga nascosta che la pillola guarda e l'icona ridisegnata sopra di lei sono copie che l'app non vede, e un
+segno disegnato dall'app dentro l'icona **spariva sotto la pillola**; TalkBack non lo leggeva (una proprietà su un discendente non sale al nodo della scheda). Qui il segno è un `FluidBadge` messo in tutte le copie, appoggiato
+all'angolo alto dell'icona **senza cambiarne la misura** (sporge e si disegna fuori: scheda, riga nascosta e icona restano allineate al pixel con o senza segno, e un numero che col testo al 200% si allarga non sposta niente; a
+sinistra in RTL).
+
+**Solo a barra aperta (scelta voluta).** Ripiegata, la pillola mostra la sola zona in cui si è, e su quella il segno non compare: un segno discreto deve potersi ignorare per sempre, e una pillola ripiegata che si accende per una
+zona che non si vede direbbe una cosa che non si può leggere. Si riapre la barra (scorrendo verso l'alto, o toccandola) e il segno è lì. **Anche TalkBack lo dice solo a barra aperta.** Il **rail** non si ripiega: il segno si vede sempre.
+
+**Accessibilità.** Il segno è muto e **non è un bersaglio**: il tocco è della zona, e la zona si annuncia col suo nome e lo stato del segno («Chat, novità»), una volta sola, sul nodo della scheda (`stateDescription`). Parole di
+serie: `FluidLabels.tabBadgeNew`, `FluidLabels.tabBadgeCount`; `contentDescription` le sostituisce. Per un numero la frase dice la **quantità vera** anche quando il disegno dice «99+». Il segno non si attenua con la scheda non
+scelta: al 60% non reggerebbe più il suo contrasto, e su una zona che non è quella in cui si è (il caso per cui esiste) sarebbe il segno meno leggibile.
+
+### `standaloneTab` come pulsante, azione in testa al rail
+
+`standaloneTab` non è una zona: è un **tasto accanto alla pillola**, la ricerca che cresce nel campo o un'azione primaria come «Scrivi» che resta visibile anche a barra ripiegata. Per TalkBack si annuncia come
+**pulsante** (`Role.Button`), mai come scheda scelta o da scegliere. Tre regole: la sua `key` **non** va passata come `selectedTabKey` (non cambia la zona in cui si è); il nome per TalkBack sta nella `contentDescription`
+dell'icona (il `title` non si mostra); non si usa con `searchMode` (il cerchio crescerebbe nel campo di ricerca). Un'azione primaria deve avere un posto fisso anche su schermo largo: da 600 dp la barra diventa il rail, e
+**`FluidTabRail(header = { … })`** mette l'azione **in testa** al rail, sopra la capsula, **fuori dal vetro del rail** con `FluidTabBarDefaults.RailHeaderSpacing` (8 dp) sotto, come lo spazio fra la pillola e il cerchio nella
+barra in basso. È un tasto, non una zona (niente goccia, niente selezione): l'app ci mette il suo `FluidGlassIconButton` con la sua `contentDescription`, centrato nella larghezza del rail. Con `header` il `modifier` va al
+contenitore di tutti e due e la capsula prende l'altezza che resta; senza (`null`, di serie) il rail è quello di prima.
+
+### La pillola e il movimento ridotto
+
+La barra legge `LocalFluidMotionPolicy`. Con `reducedMotion` la piega fra barra in linea e aperta è **un cambio in un fotogramma** (niente dissolvenza, niente elementi condivisi in viaggio, niente impulso gommoso), la pillola
+nasce **intera** e al tocco, a una selezione fatta altrove o al rilascio di un trascinamento **arriva al suo posto senza viaggiare**; la pagina non aspetta il viaggio e parte subito. Restano il dito che trascina la pillola (1:1)
+e il suo squash con segno. A scala normale tutto è come prima (la chiave della transizione è fissa). **Trappola:** spegnere solo le dissolvenze non basta, perché i limiti di un elemento condiviso sono un'animazione della
+transizione e la terrebbero in moto: per questo ogni stato ha la sua transizione, nuova, che nasce già arrivata. La politica vale scala 1 di serie: cambia solo in un'app che installa `FluidMotionPolicyProvider`
+(`movimento.md`) e ha le animazioni di sistema a zero.
+
 ## FluidFoldingTabBar e FluidBarFold (deprecati)
 
 **Cos'e'.** La barra «a piega continua» che l'engine aveva, tenuta col suo nome e oggi **`FluidFloatingTabBar` sotto un altro nome**: nulla qui decide come appare la barra. Deprecata e non cancellata perche'
@@ -313,7 +357,7 @@ FluidFloatingCapsule(
 )
 
 FluidCapsuleAction(icon, contentDescription, onClick, enabled = true, destructive = false, tint = Color.Unspecified,
-  onLongClick = null, size = 48.dp, grip = FluidPressGrip.HoldsFinger)
+  onLongClick = null, size = 48.dp, grip = FluidPressGrip.HoldsFinger, selected: Boolean? = null)
 ```
 
 **Uso** (da `CapsulesAndPartsDemo.kt`).
@@ -351,6 +395,11 @@ FluidFloatingCapsule(
 
 **Trappole.** La capsula **non si allinea da sola**: serve `Modifier.align(...)` nel `Box` genitore. Va sopra la pagina, non dentro `content` (campionerebbe se stessa): nello slot `overlay` di `FluidScreen`, con il backdrop che riceve. Con `Free` la pagina non sa quanto spazio riservare:
 niente `contentInset`. `contentInset(AboveTabBar)` **include gia' la barra**: non sommarlo a `ContentInset`.
+
+**`FluidCapsuleAction(selected)`: l'azione che si accende e si spegne** (3.1.0). Il grassetto di una barra di formattazione sopra la tastiera, un filtro. `selected = null` (di serie) è l'azione semplice di sempre;
+con un valore è un **interruttore**: ruolo `Switch` e lo stato che TalkBack dice (acceso/spento, nella lingua di sistema), e da accesa ha un **disco dell'accento** dietro l'icona (16% dell'accento). Il segno **non è solo di
+colore**: un disco pieno e un'icona sola si distinguono anche in scala di grigi e a chi non vede i colori. Il disco sta dentro il bersaglio da 48 dp (3 dp d'aria) e cresce con l'icona sotto il dito; compare e sparisce con
+`FluidMotion.flick()` (secco col movimento ridotto). `selected` è l'ultimo parametro e di serie nullo: nessuna chiamata esistente cambia. Trappola: lo stato lo tiene l'app; l'azione non si accende da sola.
 
 **Versione.** Dalla 3.0.0.
 
@@ -433,6 +482,9 @@ Un campo sempre in pagina vuole `autoFocus = false`, o una tastiera che sale da 
 - `FluidFloatingCapsuleTest` (10, puri): margini e inset di `Free`, `ReplacingTabBar`, `AboveTabBar` (la capsula sta a `Spacing` sopra la barra; l'inset della pagina e' esattamente il suo bordo alto e coincide con la regola della banda), l'altezza di serie tiene un'azione piena col suo padding, il bersaglio non scende sotto 48.
   `FluidCapsulesAndPartsTest` (Robolectric): azione che scatta e suona il click, azione spenta, capsula nascosta che non lascia niente in composizione, tocchi tenuti, cerchio che si apre con l'aptica di apertura, campo che scrive/svuota/chiude, fuoco all'arrivo, ricerca nella pagina con contatore, «nessun risultato» che spegne le frecce.
 - `FluidSearchFieldTest` (10, puri): contatore (vuoto, posizione da uno su totale, niente risultati, mai oltre il totale), larghezza dal cerchio allo spazio pieno e sempre entro i due estremi, contenuto che entra tardi ed esce per primo, la lente al centro del cerchio, parole di serie in italiano.
+- `FluidTabBarExtensionsTest` (sample, Robolectric, 15; 3.1.0): il pallino si legge sulla zona a barra aperta una volta sola; a barra ripiegata il segno non c'è, né disegnato né detto; il numero dice la quantità vera oltre il «99+»,
+  anche in inglese; una frase dell'app vince e un numero a zero non dice niente; il segno non è un bersaglio e non cambia le zone, anche nella forma a DSL; il cerchio accanto alla pillola è un pulsante, non una zona, e non cambia la zona
+  scelta (anche a barra ripiegata); col movimento ridotto la piega è già chiusa dopo quattro fotogrammi e un tocco sceglie subito, a scala normale no; il rail porta l'azione in testa e il segno, e senza intestazione è quello di prima.
 - **Non coperti**: `searchMode`/`searchBarContent`, le due bande insieme come elemento condiviso, la pillola trascinata (gesto e tick), la piega continua di `FluidFoldingTabBar`/`FluidBarFold`, `FluidTabRail` in un layout largo, tutti i fotogrammi (da guardare in mano).
 
 ## Dove guardare

@@ -1,11 +1,11 @@
 <!-- COPIA GENERATA da skill/fluid-engine/scripts/sync_docs.py a partire da skill/fluid-engine/references/componenti/contenuto-testo-e-media.md.
      Non modificare qui: si cambia la fonte e si rilancia lo script. -->
 
-# Contenuto: caricamento, segni piccoli, testo, visore e riordino
+# Contenuto: caricamento, segni piccoli, identità, testo, visore, riordino e file
 
 Terza scheda della famiglia «Contenuto» ([`contenuto.md`](contenuto.md) ha l'indice, il «Scegliere in fretta» e le regole trasversali; [`contenuto-righe-liste.md`](contenuto-righe-liste.md) ha righe, liste, impostazioni, card e aperture).
 Qui: gli scheletri, lo spinner e le barre, `FluidStepProgress`, i segni piccoli (`FluidLiveDot`, `FluidSelectionMark`, `FluidPagerDots`), il testo (`FluidMarkdown` e il suo parser, `FluidRevealingText`, `FluidSpokenText`),
-il visore di immagini con lo zoom e il riordino con trascinamento. Firme complete: [`../api/contenuto.md`](../api/contenuto.md).
+il visore di immagini con lo zoom, il riordino con trascinamento, e dalla 3.1.0 l'**identità e la selezione** (`FluidAvatar`, `FluidAvatarStack`, `fluidMonogram`, `FluidIdentityColors`, `FluidBadge`, `FluidSelectionState`) e i **file** (`FluidFileTile`, `FluidFileChip`). Firme complete: [`../api/contenuto.md`](../api/contenuto.md).
 
 ## Stato di caricamento
 
@@ -139,6 +139,146 @@ FluidPagerDots(pageCount: Int, position: () -> Float, /* stessi */)      // per 
 spazio, e dentro cresce e cala; la larghezza della fila non cambia durante uno scorrimento. Tutto è un disegno solo con `position` letta nel disegno. Oltre `maxVisible` (7) la fila scorre e i punti ai bordi si rimpiccioliscono **in modo continuo**
 (non un interruttore «c'è altro da questo lato», che farebbe saltare il primo punto a un terzo nel fotogramma in cui la fila si muove). Con una pagina sola non disegna niente (`hideForSinglePage`). Non è un controllo: non si tocca. Per TalkBack è un'etichetta
 «Pagina 2 di 5». `color` sopra una foto: bianco.
+
+## Identità e selezione (Fase 1 di Pampa Mail, 3.1.0)
+
+Chi è, cosa è scelto, cosa c'è di nuovo: il cerchio di una persona, il suo colore, il segno «c'è qualcosa», e lo stato di una selezione multipla anche su una lista paginata. Cinque cose fatte per stare insieme in una riga:
+`FluidAvatar` (con `fluidMonogram` e `FluidIdentityColors`), `FluidAvatarStack`, `FluidBadge`, `FluidSelectionState`. La riga che le ospita è `FluidListRow` ([`contenuto-righe-liste.md`](contenuto-righe-liste.md)); le barre che le
+usano (la barra laterale annidata, l'azione con avatar, la capsula con azioni accese) sono in [`schermata.md`](schermata.md), [`controlli.md`](controlli.md) e [`barre.md`](barre.md). File: `FluidAvatar.kt`,
+`FluidIdentityColors.kt`, `FluidBadge.kt`, `FluidSelectionState.kt`.
+
+### Scegliere in fretta
+
+| ho bisogno di… | uso |
+|---|---|
+| il cerchio di una persona, di un gruppo, di un servizio | `FluidAvatar(name, key)` |
+| più persone in un cerchio solo (conversazione, gruppo, più account) | `FluidAvatarStack(items)` + il nome per TalkBack con `fluidAvatarStackDescription` |
+| solo le iniziali (un titolo, un'etichetta, un'altra forma) | `fluidMonogram(name)` |
+| il colore stabile di una persona/materia/etichetta | `fluidIdentityColor(key)` / `FluidIdentityColors.colorFor(key)` |
+| il colore che l'utente ha scelto da una palette | `FluidIdentityColors.colorAt(index)` (con giro) |
+| «ci sono 3 non lette», «c'è qualcosa» | `FluidBadge(count)` o `FluidBadge()` (pallino) |
+| la lista entra in selezione, con «Seleziona tutto» su una lista paginata | `rememberFluidSelectionState` + `selectAll()` / `countIn(total)` |
+| il back che esce dalla selezione e non dalla pagina | `FluidSelectionBackHandler(state)`, composto nel punto giusto |
+| una cartella dentro una cartella, in una barra laterale | `FluidSidebarRow(level = …)` |
+| l'avatar dell'utente in alto a destra | `FluidBarAction(contentDescription, onClick) { FluidAvatar(…) }` |
+| un'azione che si accende e si spegne (grassetto, filtro) | `FluidCapsuleAction(selected = …)` |
+
+### `FluidAvatar`, `FluidAvatarStack`, `fluidMonogram`
+
+**Cos'è.** Il cerchio di una persona: un monogramma su un colore che non cambia mai, o un'immagine che porta l'app; in una lista in selezione, al posto del volto, il segno di selezione. Ogni app con persone dentro se ne era
+scritto uno (un cerchio colorato con la prima lettera, i colori in un elenco incollato nel composable, l'immagine caricata **dentro** il componente, e allora l'engine faceva rete). Qui è una cosa sola, e le tre cose che
+sbagliavano tutti sono provate da test: le iniziali, il colore, il contrasto del monogramma.
+
+**Firma essenziale.** `FluidAvatar(name, modifier, key = name, size = 40.dp, color = Color.Unspecified, image = null, selected = null, corner = null, onClick = null, contentDescription = null)`;
+`FluidAvatarStack(items: List<FluidAvatarItem>, modifier, size, max = 4, contentDescription, onClick)` con `FluidAvatarItem(name, key = name, color, image)`; `fluidMonogram(name, maxLetters = 2)`.
+
+**Uso.**
+```kotlin
+FluidListRow(title = "Anna Rossi", leading = { FluidAvatar(name = "Anna Rossi", key = "anna@x.it") }, leadingTile = false, onClick = …)   // decorativo: la riga dice già il nome
+FluidAvatar(name = "Anna Rossi", key = id, selected = state.isSelected(id), onClick = { state.toggle(id) })                                 // in selezione: Role.Checkbox
+```
+
+**Comportamento.**
+- **L'engine non carica niente.** `image` è un disegno dell'app (una foto già decodificata, un logo locale, un `AsyncImage` suo) e sta **sopra** il monogramma, che resta sempre sotto: finché l'immagine non arriva, se non
+  arriva mai o se ha trasparenza, si vede il monogramma e non un cerchio vuoto. Chi non vuole il monogramma sotto un logo trasparente mette un fondo suo. Nel mosaico un'immagine **non** ha il monogramma sotto (una cella è troppo
+  piccola per due strati leggibili).
+- **Le iniziali (`fluidMonogram`) sono per grafemi, non per caratteri.** «Émile» scritto con l'accento separato è una lettera; «👨‍👩‍👧 Famiglia» comincia con un'emoji che è sette caratteri; «🇮🇹 Italia» con una bandiera che
+  ne sono due. `name[0]` dava un quadratino, mezza emoji o una E senza accento: il bug più visibile di un avatar. Regole, in ordine: si tolgono controlli e marcatori bidi (un nome costruito per ribaltare la riga accanto non
+  lo fa); un indirizzo vale per la parte locale senza il suffisso dopo il `+`; le parole le separano spazi e punteggiatura ma **non** trattino e apostrofo («Jean-Pierre», «D'Angelo» sono una parola); di ogni parola vale il
+  primo grafema che sia lettera, cifra o emoji; si prendono fino a `maxLetters` iniziali, e con più parole **la prima e l'ultima** («Anna Maria Rossi» è «AR»); maiuscola solo del primo grafema («ß» è «S», non «SS»). Una
+  parola sola dà **una** lettera. Nome vuoto o solo simboli: il glifo di una persona. Il cinese e il giapponese senza spazi sono una parola sola: danno il primo carattere, non il cognome (non si indovina da una stringa).
+- **Il colore è stabile e leggibile.** Viene da `FluidIdentityColors` per `key` (di serie il nome; per una persona conviene una chiave che non cambia quando si corregge il nome: l'indirizzo, l'identificatore). Un colore
+  dell'app (`color`: la tinta di un account) che nessun inchiostro regge a 4,5:1 viene portato **del minimo che basta** (`fluidReadableOn`), restando riconoscibile.
+- **Misure.** Il cerchio è `size` dp e col testo di sistema al 200% **non cresce**: il monogramma è un disegno, e un avatar più grande del doppio mangia la riga; la persona la nomina il testo accanto, che cresce. Se è
+  toccabile occupa almeno 48 dp (`FluidAvatarDefaults.TouchTarget`), centrato: un'area invisibile più grande del disegno sovrapporrebbe i bersagli della riga e dell'avatar.
+- **Selezione.** Con `selected != null` il volto lascia il posto a `FluidSelectionMark` (cerchio vuoto = scegliibile, disco con spunta = scelta): è quello che si vede in ogni riga quando la lista entra in selezione, e perché
+  il segno sta **nel posto** dell'avatar una riga non cambia larghezza. Il cambio è una dissolvenza incrociata, secca col movimento ridotto.
+- **`corner`** è un segno piccolo in basso a destra (a sinistra in RTL), sporge di un ottavo del lato: il colore di un account, un `FluidBadge`.
+- **Mosaico.** Due celle sono due metà, tre una metà e due quarti, quattro quattro quarti; oltre `max` l'ultima cella dice quanti mancano («+4»). Ogni cella porta la **prima lettera** sul colore della persona. Con una persona
+  sola è un `FluidAvatar`, con nessuna il glifo. `max` è portato a 2–4.
+
+**Accessibilità.** Un avatar è un nodo solo e muto per i suoi pezzi (monogramma, segno, angolo non si leggono mai a pezzi).
+- `contentDescription = null`: decorativo. È il caso dentro una riga, che dice già il nome (la riga è un nodo solo): senza questo TalkBack direbbe «AR» prima di «Anna Rossi».
+- Toccabile **senza** descrizione: legge `name` (un bottone senza nome è un errore, non uno stile).
+- Con `selected`: è una casella (`Role.Checkbox`) con lo stato detto nella lingua dell'app (`FluidLabels.selected`, `FluidLabels.notSelected`).
+- Il contenuto di `corner` **non si legge**: se il segno d'angolo significa qualcosa (un'identità, un conteggio) va nel `contentDescription`.
+- Mosaico: oltre `max` il resto lo dice **il nome** (`fluidAvatarStackDescription(names, max)` lo compone con le parole dell'app, `FluidLabels.moreAvatars`: «e altri 3»). Passa i nomi di **tutte** le persone, nell'ordine
+  del mosaico.
+
+**Trappole.** `FluidAvatar` come bersaglio dentro una `FluidListRow` con `onClick` sono due bersagli: l'azione dell'avatar (entrare in selezione) va **anche** in `customActions` della riga, perché per TalkBack il controllo
+dentro la riga fusa non esiste. L'avatar in selezione non sostituisce il segno di selezione della riga: è lo stesso, un posto solo.
+
+### `FluidIdentityColors`: la palette è un contratto
+
+**Cos'è.** Dodici tinte distinguibili fra loro, per tutto ciò che deve **riconoscersi** senza dire un numero: il fondo di un monogramma, il colore di un account o di una materia, un'etichetta, la serie di un grafico (i grafici di [`grafici.md`](grafici.md) la usano per le serie). Ogni tinta è un `FluidIdentityColor(light, dark)`: una **coppia**, come ogni ruolo del tema (un blu che si legge su carta è quasi invisibile sul nero). Il lato chiaro è abbastanza scuro da reggere un monogramma bianco
+(4,5:1) e da staccarsi dalla pagina (3:1); il lato scuro abbastanza chiaro da reggere un monogramma scuro e da staccarsi dal nero. Lo verificano i test su tutta la palette.
+
+**`indexFor(key)` è FNV-1a a 32 bit sui byte UTF-8**, senza segno, modulo la dimensione della palette. È definito qui, nel dettaglio, perché è il contratto di stabilità: `String.hashCode()` è specificato dalla JVM ma non è
+una promessa dell'engine. La chiave vuota non è un caso speciale. `colorFor(key)` è `palette[indexFor(key)]`; `colorAt(index)` ha **giro** (`floorMod`: un indice scelto dall'utente resta valido se un domani la palette ha meno
+tinte, e uno negativo non esplode). `fluidIdentityColor(key)` e `fluidIdentityColor(index)` scelgono il lato dal tema in scope (dalla luminosità della superficie, non da `isSystemInDarkTheme`, che non sa se l'app ha il suo tema).
+
+**L'ordine è un contratto.** Lo stesso testo dà lo stesso indice **per sempre**, su ogni telefono e in ogni versione dell'engine: la persona ha imparato che «Anna» è verde. Cambiare la palette (l'ordine, il numero di tinte,
+anche una sola tonalità vistosa) **o l'hash** sposta i colori a tutti gli utenti al primo avvio dopo l'aggiornamento: è un cambio visivo breaking, si fa solo in una versione maggiore e va nel changelog. Un colore nuovo si aggiunge
+**in coda**, e anche così cambia `indice % dimensione` per tutte le chiavi: nemmeno l'aggiunta è innocua.
+
+**Normalizzazione: di chi chiama.** `"Anna@x.it"` e `"anna@x.it"` sono due chiavi: chi vuole la stessa persona passa la chiave già normalizzata (minuscole, spazi tolti). L'engine non sa se una chiave è un indirizzo, un nome o un
+id, e normalizzare quello sbagliato spaccherebbe un'app che distingue le maiuscole.
+
+**Usi e non usi.** Fondo di un monogramma (il lato giusto regge un inchiostro scelto per contrasto); segno grafico (un punto, una barra) che regge 3:1 contro le superfici. **Non è per testo colorato su una superficie**: per quello
+serve il colore del testo del tema. Per una palette del tema vedi anche [`tema.md`](tema.md).
+
+### `FluidBadge`
+
+**Cos'è.** Il segno piccolo di «c'è qualcosa»: un pallino, o una capsula con un numero («3», «99+»). Le non lette di una cartella, gli aggiornamenti, le comunicazioni, il «nuovo» di una zona della barra: la stessa cosa
+disegnata in cinque modi, con il numero a 99 che in tre usciva dalla capsula. Cifre di larghezza fissa (niente salti mentre il numero cambia) e contrasto calcolato.
+
+**Firma essenziale.** `FluidBadge(count: Int? = null, modifier, max = 99, color = Color.Unspecified /* l'accento */, contentDescription: String? = null)`; `fluidBadgeText(count, max)`.
+
+**Tre stati, e zero non è il pallino.** `count = null`: il **pallino** (c'è qualcosa, senza dire quanto). `count = 0` (o negativo, che è un dato sbagliato): **niente**, non si disegna e non occupa spazio: un pallino acceso su
+«0 non lette» è una bugia. `count > 0`: la capsula, «99+» oltre `max`.
+
+**Il numero si dice una volta.** Di serie è **muto**: lo porta una riga che dice già «Posta in arrivo, 3 non lette» in un nodo solo, e dirlo anche dal badge sarebbe «3, Posta in arrivo, 3 non lette». Un badge che sta da solo
+(un'icona con un numero) passa la frase intera **con la quantità vera**: «150 non lette» anche se il disegno dice «99+». Un pallino senza descrizione non è leggibile da nessuno, ed è voluto (i segni che non devono disturbare).
+
+**Misure e contrasto.** Il pallino è 8 dp e non cresce; la capsula è alta almeno 16 dp e **cresce col testo di sistema** (a 200% «99+» resta dentro la sua capsula): il numero è informazione, il pallino no. Il colore che passi è
+un'**identità**, non una garanzia di leggibilità: il riempimento si porta, del minimo che serve, a 3:1 da tutte le superfici (anche dalla pellicola del vetro, quasi bianca in tema scuro) e la cifra a 4,5:1. Il colore che si vede
+può quindi essere un poco più scuro o chiaro di quello passato. Nessuna animazione: compare e scompare con la riga che lo porta.
+
+### `FluidSelectionState`: selezione multipla, anche su liste paginate
+
+**Cos'è.** Lo stato della selezione di una lista: cosa è scelto, come si entra e si esce. Ogni app aveva uno stato suo (`Set<Id>` in un ViewModel) e tre pezzi sbagliati a modo loro: «Seleziona tutto» che sceglieva solo
+le righe caricate (l'azione poi riguardava il quinto di ciò che la persona credeva), il back che usciva dalla pagina invece che dalla selezione, e una rotazione che azzerava tutto.
+
+**Firma essenziale.** `rememberFluidSelectionState<K>(keySaver = null)`, `FluidSelectionState<K>` con `toggle`, `select`, `deselect`, `setSelected`, `selectAll(snapshot)`, `clear`, `isSelected(key, belongsToSnapshot)`,
+`countIn(total)`, `exitIfEmpty(total)`, `retainOnly(valid)`, `forget(keys)`, `clearIfSnapshotDiffers(current)`, `mode: FluidSelectionMode`; `FluidSelectionBackHandler(state, enabled, onExit)`.
+
+**Due forme.** `FluidSelectionMode.Explicit(keys)`: sono scelte **queste** chiavi (una persona che tocca tre righe). `FluidSelectionMode.AllExcept(excluded, snapshot)`: è scelto **tutto, tranne** queste (il «Seleziona tutto» di
+una lista paginata: le chiavi non sono in memoria, 50.000 righe in un database). Rappresentarlo come un insieme di chiavi vorrebbe dire o scegliere in silenzio solo le righe caricate, o caricarle tutte per scriverne la lista.
+
+**«Seleziona tutto» non conta e non cerca niente.** `selectAll()` passa a `AllExcept` con esclusioni vuote, **senza materializzare nessuna chiave**; da lì ogni riga, caricata o no, è scelta finché qualcuno non la `toggle` fuori. Il
+**numero** lo dà chi conosce il totale (`countIn(total)`, la query del database), con lo **stesso testimone** della selezione: due query diverse darebbero il numero giusto per la seconda e sbagliato per quello che la persona ha
+scelto. Nessun elenco di 50.000 identificatori passa da questo oggetto.
+
+**Il risultato «al momento del tocco».** «Seleziona tutto» non è «e tutto quello che arriverà dopo». `selectAll(snapshot)` conserva un testimone che l'app lega a quel risultato («query + istante del tocco»; una stringa,
+perché deve sopravvivere alla morte del processo); `isSelected(key, belongsToSnapshot = false)` dice che una riga arrivata dopo **non** è scelta; `clearIfSnapshotDiffers(current)` esce se la persona ha cambiato filtro, account,
+ricerca: un'azione di massa applicata a righe che non ha guardato è l'incidente da evitare. L'engine non interpreta il testimone: lo conserva e lo restituisce.
+
+**Uscire.** La selezione è attiva (`isActive`) finché c'è qualcosa di scelto: togliere l'ultima riga esce da sola. Con `AllExcept` il motore non sa quando le esclusioni hanno eguagliato il totale: lo dice l'app con
+`exitIfEmpty(total)`. `clear()` e il back escono sempre. `retainOnly(valid)` (lista **tutta in memoria**) e `forget(keys)` (lista **paginata**: le righe che l'app sa non esistere più, archiviate, eliminate, spostate) tolgono
+le chiavi sparite; `retainOnly` con le sole righe caricate toglierebbe le scelte sulle righe non caricate.
+
+**Il saver ha un tetto.** `rememberFluidSelectionState` sopravvive a rotazione e morte del processo, ma un `Bundle` ha circa un mega per tutta l'app: diecimila chiavi lo farebbero esplodere a tempo di salvataggio
+(`TransactionTooLargeException`), e il crash ci sarebbe quando l'app va in secondo piano, non quando la persona sceglie. Oltre `FluidSelectionState.DefaultMaxSavedKeys` (1.000) lo stato si salva **vuoto**: la selezione è
+transitoria, perderla è un fastidio e il crash un guasto. Una chiave che non è già salvabile (un oggetto) vuole il suo `keySaver`: nel `Bundle` va l'identificatore, mai l'oggetto di dominio.
+
+**L'ordine del back.** `FluidSelectionBackHandler` registra un `BackHandler` che svuota la selezione solo quando è attiva. **L'ordine di composizione è l'ordine del back**: vince quello registrato per ultimo, quindi va
+composto **dopo** il contenuto che ha i suoi (la pagina, l'host di navigazione) e **prima** di chi deve avere la meglio (i menu, i fogli, `FluidDrawer`, che registrano il loro quando si aprono, dopo). Risultato: menu, poi
+pannello, poi selezione, poi pagina. Posato prima della pagina, il back chiude la pagina con la selezione ancora accesa.
+
+**Trappole.** Le chiavi sono insiemi: `K` con `equals`/`hashCode` veri (un id, non un oggetto mutabile) e **stabili fra aggiornamenti dei dati** (un id di database, non l'indice: una riga arrivata in cima sposterebbe la scelta
+su quella sbagliata). `isSelected` legge lo stato intero: a ogni scelta ricompongono le righe che lo leggono (le visibili); una riga costosa legge il suo valore con `remember(key) { derivedStateOf { state.isSelected(key) } }`.
+L'engine non sa nulla di account, query o permessi e non decide se un'azione è ammessa su un `AllExcept`: il cambio di account o di filtro è un evento dell'app, e lo comunica (`clear`, `clearIfSnapshotDiffers`). Si modifica
+dal thread principale.
 
 ## Testo
 
@@ -353,3 +493,33 @@ fino a 900 dp/s (`AutoScrollMaxSpeed`, più di quattro righe al secondo). Il cic
 
 **Versione.** 3.0.0.
 
+
+## File: `FluidFileTile` e `FluidFileChip` (Fase 1 di Pampa Mail, 3.1.0)
+
+### `FluidFileTile`, `FluidFileChip`, `FluidFileKind`, `FluidFileStatus`
+
+**Cos'è.** Un file dentro un gruppo di contenuto: l'allegato di un messaggio, un documento condiviso, un'esportazione. `FluidFileTile` è la riga (icona o miniatura, nome fino a due righe, dimensione, stato, azioni);
+`FluidFileChip` è la versione compatta per righe dense. File: `FluidFileTile.kt`, `FluidFileInfo.kt`.
+
+**Firma essenziale.** `FluidFileTile(name, onClick, modifier, mimeType = null, sizeBytes: Long? = null, status = FluidFileStatus.Ready, onCancel = null, onRetry = null, onRemove = null, thumbnail = null, trailingMenu = null, locale)`;
+`FluidFileChip(name, onClick, modifier, mimeType = null)`; `fluidFormatFileSize(bytes, locale)`.
+
+**Lo stato lo decide l'app.** `FluidFileStatus.Remote` (da scaricare), `Ready`, `Transferring(progress: () -> Float?)`, `Failed`. **L'engine non scarica niente, non apre URI e non carica immagini**: `onClick` scarica un `Remote` o
+apre un `Ready`, durante il trasferimento e dopo un errore è spento. Il progresso è una lambda di **lettura differita** (`{ state.value }`): non leggere il progresso nella riga chiamante, o ogni avanzamento ricompone la lista.
+`null` è indeterminato. Annulla (`onCancel`, solo in trasferimento), riprova (`onRetry`, solo dopo l'errore) e rimuovi (`onRemove`) compaiono solo se li passi.
+
+**Comportamento.**
+- **Il tipo del file è conservativo.** `FluidFileKind.from(mimeType, name)`: l'**ultima** estensione prevale su un MIME dichiarato e **un eseguibile non viene mai declassato**, né dal nome (un `.apk` con MIME `application/pdf`) né dal
+  MIME (un `foto.jpg` dichiarato eseguibile). Il tipo serve all'icona e a TalkBack, non è una certificazione di sicurezza: `FluidFileKind` dice «categoria visiva generica», non «sicuro».
+- **Un eseguibile ha l'icona d'avviso e la miniatura non la sostituisce.** `thumbnail` è dell'app (una foto già decodificata), ma per `Executable` si disegna sempre l'icona di attenzione, col tono di avviso: un `.exe` con
+  un'anteprima da immagine è il modo in cui un allegato si fa passare per una foto.
+- **L'estensione vera è sempre visibile.** Il nome va fino a due righe e si accorcia nel mezzo conservando l'estensione finale (`fluidTruncateFileName`, per code point: mai mezza emoji): `fattura-di-marzo…pdf.exe` si
+  legge come eseguibile. Un'estensione patologica più larga di due righe richiede al chiamante spazio sufficiente per leggerla.
+- **Le dimensioni sono localizzate** (`fluidFormatFileSize`, decimali: 1000 byte = 1 KB, una cifra decimale al massimo, «1,2 MB» o «1.2 MB» secondo il `locale`; mai «1000 KB»). Dimensione ignota: `null`, non zero.
+- **Il chip** ha il bersaglio da 48 dp espanso **fuori dal layout** (`ViewConfiguration`): la superficie è più bassa, il dito la prende lo stesso. Il gesto cede agli scroll degli antenati.
+
+**Accessibilità.** Il nome del tile è un nodo solo: «nome, tipo, dimensione, stato» (`FluidLabels.fileKind` e le parole dei file, `FluidLabels.fileRemote`, `fileTransferring`, `fileFailed`, `fileExecutable`: «Eseguibile o
+pacchetto, attenzione»). Le azioni (annulla, riprova, rimuovi) sono bersagli a parte con nome proprio. `trailingMenu` deve usare gli host Fluid (`FluidContextAction`).
+
+**Trappole.** Lascia spazio fra chip vicini: i bersagli espansi si sovrapporrebbero. `FluidFileKind` è un `enum` **nuovo e pubblico**: un `when` esaustivo di un'app si rompe se un domani si aggiunge un tipo, quindi chi lo usa
+mette un `else`.

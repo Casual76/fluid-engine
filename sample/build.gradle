@@ -52,6 +52,7 @@ android {
     // della beta non propone la 1.0.4 come novità. Il manifest.json non si tocca finché la beta non si
     // pubblica.
     versionName '2.0.0'
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
   }
 
   signingConfigs {
@@ -137,4 +138,12 @@ dependencies {
   testDebugImplementation project(':engine-ai-bridge')
   testDebugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
   testDebugImplementation 'androidx.compose.ui:ui-test-junit4'
+  androidTestImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+  androidTestImplementation 'androidx.test:runner:1.7.0'
+  androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+  // API 37 ha rimosso InputManager.getInstance: Espresso precedente fallisce prima dei test.
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+  androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+  androidTestImplementation "androidx.webkit:webkit:${engine.webkit}"
 }

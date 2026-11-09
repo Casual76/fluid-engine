@@ -687,4 +687,21 @@ object FluidMotion {
    */
   val DrawerTravel: SpringSpec<Float> = spring(DampingChrome, stiffnessForResponse(DrawerResponseSeconds), 0.001f)
   // --- fine pm-f1/ge ---
+
+  // --- pm-f1/gg1 ---
+  // I grafici (`FluidCharts.kt`).
+
+  /** Quanto dura la crescita d'ingresso di un grafico, in millisecondi: piu' lenta di un'uscita, sobria. */
+  const val ChartEnterMillis: Int = 520
+
+  /**
+   * L'ingresso di un grafico: una frazione 0..1 per cui si moltiplicano barre, arco e tracciato. Una curva
+   * senza rimbalzo ([EaseOut]) e non una molla: una barra che supera il suo valore e torna indietro
+   * direbbe per un attimo un numero falso.
+   */
+  fun chartEnter(): FiniteAnimationSpec<Float> = tween(ChartEnterMillis, easing = EaseOut)
+
+  /** Il segmento o la barra scelti che si evidenziano, e tornano: critica, col passo dei controlli. */
+  fun chartSelect(): SpringSpec<Float> = spring(DampingChrome, ResponseSnappy)
+  // --- fine pm-f1/gg1 ---
 }

@@ -119,6 +119,65 @@ data class FluidLabels(
   val dateTimeOverlap: String = FluidDateTimeLabels().overlap,
   val dateTimeInvalid: String = FluidDateTimeLabels().invalid,
   // --- fine pm-f1/gf2 ---
+  // --- pm-f1/gg1 ---
+  // I grafici (`FluidDonutChart`, `FluidBarChart`, `FluidLineChart`). Stringhe con segnaposto posizionali e non
+  // funzioni, come `moreAvatars`: un'app le traduce come tutte le altre risorse, e i numeri e le percentuali che
+  // ci finiscono dentro sono gia' scritti nella lingua del telefono.
+  /** Lo stato vuoto di un grafico: nessuna voce, o tutte a zero. */
+  val chartNoData: String = "Nessun dato nel periodo",
+  /** Lo stato di un grafico i cui dati non si possono disegnare senza mentire (valore negativo, non numerico, oltre la scala). */
+  val chartInvalidData: String = "Dati non validi: il grafico non viene disegnato",
+  /** Lo stato di una ripartizione che non somma al totale dichiarato: `%1$s` e' la somma, `%2$s` il totale atteso. */
+  val chartInvalidSum: String = "I valori sommano a %1\$s invece di %2\$s: il grafico non viene disegnato",
+  /** La fetta in cui confluiscono le fette minuscole di una ciambella. */
+  val chartOther: String = "Altro",
+  /** Cio' che TalkBack dice di un grafico che sta arrivando (lo scheletro). */
+  val chartLoading: String = "Caricamento del grafico",
+  /** La descrizione di una ciambella: `%1$d` e' il numero di parti. Segue [chartLargest]. */
+  val chartDonutSummary: String = "Ripartizione in %1\$d parti.",
+  /** La parte piu' grande di una ripartizione: `%1$s` etichetta, `%2$s` percentuale. */
+  val chartLargest: String = "La più grande: %1\$s, %2\$s.",
+  /** La descrizione di un grafico a barre: `%1$d` e' il numero di voci. */
+  val chartBarsSummary: String = "Grafico a barre, %1\$d voci.",
+  /** La descrizione di un grafico a barre impilate: `%1$d` e' il numero di voci. */
+  val chartStackedSummary: String = "Grafico a barre impilate, %1\$d voci.",
+  /** Il numero di serie, aggiunto quando sono piu' d'una: `%1$d`. */
+  val chartSeriesCount: String = "%1\$d serie.",
+  /** La voce con il valore piu' alto: `%1$s` etichetta, `%2$s` valore. */
+  val chartHighest: String = "Il valore più alto: %1\$s, %2\$s.",
+  /** La descrizione di un andamento: `%1$d` punti, `%2$s` la prima etichetta, `%3$s` l'ultima. */
+  val chartLineSummary: String = "Andamento, %1\$d punti, da %2\$s a %3\$s.",
+  /** Il minimo e il massimo di un andamento: `%1$s` e `%2$s`. */
+  val chartRange: String = "Minimo %1\$s, massimo %2\$s.",
+  /** Il denominatore o la scala dichiarati da chi chiama: `%1$s`. */
+  val chartScale: String = "Scala: %1\$s.",
+  /** Una fetta, letta da TalkBack: `%1$s` etichetta, `%2$s` valore, `%3$s` percentuale. */
+  val chartSliceItem: String = "%1\$s: %2\$s, %3\$s",
+  /** Una barra o un punto, letto da TalkBack: `%1$s` etichetta, `%2$s` i valori delle serie. */
+  val chartGroupItem: String = "%1\$s: %2\$s",
+  /** Un punto senza dato (un buco nella serie), letto da TalkBack. */
+  val chartNoValue: String = "nessun dato",
+  // --- fine pm-f1/gg1 ---
+  // --- pm-f1/gg2 ---
+  /** Parole dei file: campi semplici per consentire traduzioni e controlli automatici. */
+  val fileRemote: String = "Da scaricare",
+  val fileTransferring: String = "In corso",
+  val fileReady: String = "Scaricato",
+  val fileFailed: String = "Errore",
+  val fileCancel: String = "Annulla trasferimento",
+  val fileRetry: String = "Riprova",
+  val fileRemove: String = "Rimuovi file",
+  val fileImage: String = "Immagine",
+  val fileDocument: String = "Documento",
+  val fileSpreadsheet: String = "Foglio di calcolo",
+  val filePresentation: String = "Presentazione",
+  val fileArchive: String = "Archivio",
+  val fileAudio: String = "File audio",
+  val fileVideo: String = "File video",
+  val fileText: String = "Testo o codice",
+  val fileExecutable: String = "Eseguibile o pacchetto, attenzione",
+  val fileOther: String = "File",
+  // --- fine pm-f1/gg2 ---
 ) {
   // --- pm-f1/gf2 ---
   /** A grouped view of the calendar vocabulary, without another stored translation object. */
@@ -194,6 +253,44 @@ data class FluidLabels(
       dateTimeOverlap = FluidDateTimeLabels.english().overlap,
       dateTimeInvalid = FluidDateTimeLabels.english().invalid,
       // --- fine pm-f1/gf2 ---
+      // --- pm-f1/gg1 ---
+      chartNoData = "No data for this period",
+      chartInvalidData = "Invalid data: the chart is not drawn",
+      chartInvalidSum = "The values add up to %1\$s instead of %2\$s: the chart is not drawn",
+      chartOther = "Other",
+      chartLoading = "Loading chart",
+      chartDonutSummary = "Breakdown in %1\$d parts.",
+      chartLargest = "The largest: %1\$s, %2\$s.",
+      chartBarsSummary = "Bar chart, %1\$d items.",
+      chartStackedSummary = "Stacked bar chart, %1\$d items.",
+      chartSeriesCount = "%1\$d series.",
+      chartHighest = "Highest value: %1\$s, %2\$s.",
+      chartLineSummary = "Trend, %1\$d points, from %2\$s to %3\$s.",
+      chartRange = "Minimum %1\$s, maximum %2\$s.",
+      chartScale = "Scale: %1\$s.",
+      chartSliceItem = "%1\$s: %2\$s (%3\$s)",
+      chartGroupItem = "%1\$s – %2\$s",
+      chartNoValue = "no data",
+      // --- fine pm-f1/gg1 ---
+      // --- pm-f1/gg2 ---
+      fileRemote = "Not downloaded",
+      fileTransferring = "Transferring",
+      fileReady = "Downloaded",
+      fileFailed = "Error",
+      fileCancel = "Cancel transfer",
+      fileRetry = "Retry",
+      fileRemove = "Remove file",
+      fileImage = "Image",
+      fileDocument = "Document",
+      fileSpreadsheet = "Spreadsheet",
+      filePresentation = "Presentation",
+      fileArchive = "Archive",
+      fileAudio = "Audio file",
+      fileVideo = "Video file",
+      fileText = "Text or code",
+      fileExecutable = "Executable or package, warning",
+      fileOther = "Unknown file",
+      // --- fine pm-f1/gg2 ---
     )
   }
 }
@@ -305,3 +402,19 @@ data class FluidDateTimeLabels(
   }
 }
 // --- fine pm-f1/gf2 ---
+// --- pm-f1/gg2 ---
+// PDF e un acronimo invariabile; le parole traducibili restano tutte nei campi di FluidLabels.
+internal fun FluidLabels.fileKind(kind: FluidFileKind): String = when (kind) {
+  FluidFileKind.Image -> fileImage
+  FluidFileKind.Pdf -> "PDF"
+  FluidFileKind.Document -> fileDocument
+  FluidFileKind.Spreadsheet -> fileSpreadsheet
+  FluidFileKind.Presentation -> filePresentation
+  FluidFileKind.Archive -> fileArchive
+  FluidFileKind.Audio -> fileAudio
+  FluidFileKind.Video -> fileVideo
+  FluidFileKind.Text -> fileText
+  FluidFileKind.Executable -> fileExecutable
+  FluidFileKind.Other -> fileOther
+}
+// --- fine pm-f1/gg2 ---

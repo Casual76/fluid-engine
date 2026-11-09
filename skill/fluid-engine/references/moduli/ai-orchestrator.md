@@ -111,6 +111,7 @@ class AskInput<C>(
   val attachmentFallback: suspend (ContentPart) -> String? = { null },
   val attachments: List<ContentPart> = emptyList(),
   val pinProvider: Boolean = false, val onModelUnavailable: (ProviderId, String) -> Unit = { _, _ -> },
+  val prepareToolExecution: suspend (ToolCall) -> ToolExecution = { ToolExecution(UUID.randomUUID().toString()) },  // 3.0.6
 )
 ```
 
@@ -161,6 +162,10 @@ suspend fun ask(question: String) {
 - **Il servizio fissato** (`pinProvider`, 1.29.0): nessun cambio di provider; 429 -> attesa (due volte, entro il budget) poi `FailureKind.RATE_LIMITED`; 5xx/rete -> una riprova poi il fallimento; uno stadio 1 che fallisce non fa fallire la domanda.
 - **Tool.** Tutti i tool di un giro partono in parallelo (`parallelTools` = 4 alla volta, semaforo), ognuno dentro un `withTimeoutOrNull` col suo tetto. Un'eccezione del tool (non la cancellazione) diventa `ToolOutput.error(e.message)`: **il messaggio dell'eccezione arriva al modello**. Un tool sconosciuto: `errore: strumento sconosciuto "..."`.
   Il testo e' troncato a `toolTextChars` (2400): `ToolText.limit`. La traccia (`ToolTrace`) conta come fallito un risultato che **comincia con «errore»**.
+- **Identita' dell'operazione** (3.0.6). Prima di eseguire una chiamata l'orchestratore chiede **una volta** `AskInput.prepareToolExecution(call)` e chiama `tool.run(args, ctx, execution)`: la stessa identita' vale per tutta l'esecuzione, **attesa della conferma compresa**, e due chiamate diverse (anche nello stesso giro, anche con lo stesso id di tool call in giri diversi) ne hanno due diverse.
+  Di serie e' un UUID nuovo, solo in memoria. Un'app che vuole riconoscere una **ripetizione** (rigenerazione, nuovo tentativo dopo un errore di rete, ripresa dopo un riavvio) scrive l'identita' in un suo registro **prima** di restituirla e restituisce quella gia' scritta per la stessa operazione (PampAI: `OperationLedger`); l'engine non persiste niente.
+  Gli id delle tool call non bastano: alcuni provider li fanno ripartire da `call_0` a ogni giro. Se il gancio **lancia**, il tool non parte e il modello riceve `errore: <messaggio>`. Il gancio gira in parallelo per i tool del giro ed entro il tetto di tempo del tool.
+  I tool che implementano solo `run(args, ctx)` non vedono niente: l'overload a tre argomenti di serie la scarta. I tool remoti (`engine-ai-bridge`) la mandano all'ospite come `requestId`, e senza un'identita' una scrittura remota non parte ([ai-bridge.md](ai-bridge.md)).
 - **Pubblicazione del testo** (`Answering`): quando il testo supera `publishMinChars` (24) o passano `publishMinMillis` (150 ms) dal primo pezzo, e **non e' ancora arrivata una tool call**. Se poi arriva una tool call il testo era un preambolo («controllo...»): lo stato torna a `Working` con `step = 0`.
 - **Lingua**: `AskInput.language == "it"` -> frasi italiane; **qualunque altro valore** -> inglese (i nomi di gruppi, tool e chiavi dello schema restano italiani).
 
@@ -176,7 +181,7 @@ suspend fun ask(question: String) {
 **Non usarlo quando.** Una chiamata secca senza strumenti (un riassunto, una classificazione): `ready.provider.complete(...)` ([ai-provider.md](ai-provider.md)). Un assistente che deve **eseguire tool di un'altra app**: i tool remoti entrano nello stesso `ToolRegistry` ([ai-bridge.md](ai-bridge.md)).
 
 **Versione.** Dalla 1.23.0; escalation e `modello_avanzato` 1.24.0; `toolTextChars` 1.25.0; allegati, catalogo gerarchico, ricerca web, consumi 1.26.0; `pinProvider`, `modelsUsed`, riserva dalla chat 1.29.0;
-400 letti, risposte vuote, timeout per richiesta, `switches` 2.9.0 (i KDoc e `docs/07-ai.md` dicono 2.8.0); tetti per tool, coda delle conferme, `deepTierEnabled`, `FailureKinds` 3.0.0; `bindState(restore)` 3.0.4.
+400 letti, risposte vuote, timeout per richiesta, `switches` 2.9.0 (i KDoc e `docs/07-ai.md` dicono 2.8.0); tetti per tool, coda delle conferme, `deepTierEnabled`, `FailureKinds` 3.0.0; `bindState(restore)` 3.0.4; `prepareToolExecution` e `run(args, ctx, execution)` dall'orchestratore 3.0.6.
 
 ## `AiOrchestratorConfig`
 
@@ -278,6 +283,8 @@ interface AiTool<C> {
   val description: String
   val parameters: JsonObject
   suspend fun run(args: JsonObject, ctx: C): ToolOutput
+  // 3.0.6: l'orchestratore chiama questo, con l'identita' dell'operazione; di serie richiama quello sopra
+  suspend fun run(args: JsonObject, ctx: C, execution: ToolExecution): ToolOutput = run(args, ctx)
   val needsConfirmation: Boolean get() = false   // scrive o costa
   val longRunning: Boolean get() = false
   val isAction: Boolean get() = false            // agisce nell'app: sparisce se l'utente spegne le azioni
@@ -528,6 +535,7 @@ val orchestrator = AiOrchestrator(registry, router, diagnostics, usageSink = usa
 - `AiHierarchyTest`: stadio 1 gerarchico, `apri_categoria` / `apri_sottocategoria` che valgono dal giro dopo, tetto `maxLoadedTools` (cade il meno recente, mai quello appena aperto), OpenRouter, allegati dell'utente, il sink dei consumi (un evento per chiamata, router compreso, anche fallite).
 - `AiDeepTierTest`: `deepTierEnabled = false` spegne router, `deepRequested`, allegati, caratteri, `escalate` e `modello_avanzato`, senza ritoccare i provider.
 - `AiRouterTest`: JSON anche in un blocco di codice, id ignoti ignorati, azioni spente, massimo quattro, ripiego che tiene i gruppi aperti, schema e prompt gerarchici.
+- `AiToolExecutionIdentityTest` (3.0.6): un'identita' per chiamata, quella del gancio dell'app, chiesta una volta; diverse fra chiamate anche senza gancio; un tool con solo `run(args, ctx)` funziona come prima; un gancio che lancia ferma il tool. Il giro completo con un tool remoto che scrive e' in `engine-ai-bridge` (`RemoteToolOrchestrationTest`).
 - `AiToolTimeoutTest`: i tetti per gruppo e per tool, la somma della finestra del cancello, due conferme nello stesso giro, la scheda che sparisce se il gruppo non dichiara l'attesa.
 - `AiConfirmationGateTest`: la fila nell'ordine di arrivo, una finestra per richiesta, `cancel`, `bindState` e il ripristino (anche con una regola dell'app), stato a riposo che non fa ricomparire niente.
 - `FailureKindsTest`: la tabella guasto -> `FailureKind` uguale a quella del failover, la trascrizione che dice «rete» invece di «audio incomprensibile».

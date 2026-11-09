@@ -92,6 +92,13 @@ class RemoteTool<C>(
     return ConfirmationText(remote?.first ?: "${catalog.appLabel}: ${info.name.replace('_', ' ')}?", remote?.second)
   }
 
+  /**
+   * Senza un'identita' dell'operazione (3.0.6): va bene per una lettura (ne riceve una nuova), ma
+   * una scrittura (`action` o `needsConfirmation`) viene rifiutata **prima** della conferma e della
+   * chiamata all'ospite, perche' qui non si saprebbe riconoscere una ripetizione. L'orchestratore
+   * non passa mai di qui: usa l'overload con [ToolExecution] e un'identita' per chiamata
+   * (`AskInput.prepareToolExecution`). Chi chiama un tool remoto a mano fa lo stesso.
+   */
   override suspend fun run(args: JsonObject, ctx: C): ToolOutput =
     if (info.action || info.needsConfirmation) ToolOutput.error("operation identity required for writes")
     else run(args, ctx, ToolExecution(UUID.randomUUID().toString()))

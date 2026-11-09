@@ -25,10 +25,12 @@ import dev.antigravity.fluidengine.ai.provider.displayName
 import dev.antigravity.fluidengine.ai.tools.AiTool
 import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
+import dev.antigravity.fluidengine.ai.tools.ToolExecution
 import dev.antigravity.fluidengine.ai.tools.modelText
 import dev.antigravity.fluidengine.ai.tools.ToolOutput
 import dev.antigravity.fluidengine.ai.tools.ToolRegistry
 import dev.antigravity.fluidengine.ai.tools.ToolText
+import java.util.UUID
 import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -107,6 +109,24 @@ class AskInput<C>(
    * un lavoro lungo l'app lo lancia nel suo scope.
    */
   val onModelUnavailable: (ProviderId, String) -> Unit = { _, _ -> },
+  /**
+   * L'identita' dell'operazione di ogni chiamata di tool (3.0.6): l'orchestratore la chiede **una
+   * volta per chiamata**, prima di eseguirla, e la passa al tool con `run(args, ctx, execution)`.
+   * Resta la stessa per tutta l'esecuzione, attesa della conferma compresa; due chiamate diverse
+   * ne hanno due diverse. Un tool remoto (`engine-ai-bridge`) la manda all'ospite come `requestId`,
+   * e senza un'identita' una scrittura remota non parte.
+   *
+   * Di serie e' un UUID nuovo per chiamata, solo in memoria: basta a far partire le scritture ma
+   * non fa riconoscere una ripetizione. L'app che vuole riconoscerla (un registro delle operazioni,
+   * come in PampAI) la scrive **prima** di restituirla e restituisce quella gia' scritta quando la
+   * stessa operazione si ripete (una rigenerazione, un nuovo tentativo dopo un errore di rete). Gli
+   * id delle tool call del provider non bastano: alcuni ripartono da `call_0` a ogni giro.
+   *
+   * Si chiama in parallelo per i tool dello stesso giro, ed entro il tempo del tool. Se lancia, il
+   * tool **non** parte e il modello riceve un errore. I tool locali che implementano solo
+   * `run(args, ctx)` non vedono differenze: l'overload a tre argomenti di serie la ignora.
+   */
+  val prepareToolExecution: suspend (ToolCall) -> ToolExecution = { ToolExecution(UUID.randomUUID().toString()) },
 )
 
 /** I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso. */
@@ -465,7 +485,7 @@ class AiOrchestrator<C>(
         }
       }
 
-      val runs = executeParallel(outcome.calls, input.toolContext, budget, toolTraces, opened)
+      val runs = executeParallel(outcome.calls, input.toolContext, budget, toolTraces, opened, input.prepareToolExecution)
       val parts = mutableListOf<ContentPart>()
       runs.forEach { run ->
         val message = Message.ToolResult(run.call.id, run.call.name, run.output.modelText(config.toolTextChars))
@@ -1085,6 +1105,8 @@ class AiOrchestrator<C>(
     traces: MutableList<ToolTrace>,
     /** Le risposte gia' decise per le chiamate built-in (aperture di gruppi e categorie). */
     decided: Map<String, ToolOutput>,
+    /** [AskInput.prepareToolExecution]: l'identita' dell'operazione, una per chiamata. */
+    prepareExecution: suspend (ToolCall) -> ToolExecution,
   ): List<ToolRun> = coroutineScope {
     val semaphore = Semaphore(config.parallelTools)
     // Le conferme dello stesso giro si mettono in fila nel cancello, una finestra per volta: chi e'
@@ -1106,7 +1128,10 @@ class AiOrchestrator<C>(
             } else {
               val timeout = toolTimeoutMillis(tool, budget.remainingMillis, confirmationsInRound)
               withTimeoutOrNull(timeout) {
-                runCatching { tool.run(call.arguments, ctx) }.getOrElse { e ->
+                // L'identita' si prepara una volta e accompagna tutta l'esecuzione (conferma
+                // compresa): e' l'overload a tre argomenti, e chi implementa solo run(args, ctx)
+                // ci arriva lo stesso attraverso il default dell'interfaccia.
+                runCatching { tool.run(call.arguments, ctx, prepareExecution(call)) }.getOrElse { e ->
                   if (e is CancellationException) throw e
                   ToolOutput.error(e.message ?: e::class.simpleName ?: "errore")
                 }

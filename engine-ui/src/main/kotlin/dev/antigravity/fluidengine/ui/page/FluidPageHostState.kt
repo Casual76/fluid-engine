@@ -196,7 +196,7 @@ class FluidPageHostState internal constructor() {
 
   /** Cambia a ogni presa del dito: un riconoscitore che tiene un gettone vecchio ha perso la pagina. */
   private var dragToken = 0
-  private var processed: List<Any> = emptyList()
+  private var processed by mutableStateOf<List<Any>>(emptyList())
   private var job: Job? = null
 
   /** Il riconoscitore segue un dito che un figlio si e' preso: uno scorrimento puo' passargli la mano. */
@@ -204,6 +204,9 @@ class FluidPageHostState internal constructor() {
   private var pendingHandoff = 0f
 
   internal val stackSize: Int get() = processed.size
+
+  /** I controlli seguono subito la pila richiesta, anche mentre la pagina uscente resta disegnata. */
+  internal val interactionPage: Any? get() = processed.lastOrNull()
 
   internal fun upperExitFraction(): Float =
     FluidPageMotion.exitFraction(upperTransition, travelPx, width)

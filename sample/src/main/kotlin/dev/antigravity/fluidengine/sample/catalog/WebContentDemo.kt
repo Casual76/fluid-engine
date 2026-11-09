@@ -8,7 +8,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import dev.antigravity.fluidengine.sample.MatrixTextScale
 import dev.antigravity.fluidengine.sample.matrixDemoSettings
 import dev.antigravity.fluidengine.sample.rememberMatrixFlag
@@ -17,9 +19,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 
-/** Corpus del contenitore, intenzionalmente non sanificato. Non e' il corpus del sanificatore app.
- * Non registrato nella navigazione: la registrazione appartiene alla fase F1.6.
- */
+/** Corpus del contenitore, intenzionalmente non sanificato. Non e' il corpus del sanificatore app. */
 @Composable
 fun WebContentDemo() {
   var index by remember { mutableIntStateOf(0) }
@@ -54,7 +54,7 @@ fun WebContentDemo() {
             onLinkClick = { lastLink = "${it.visibleText.orEmpty()} → ${it.url}" },
             onLinkLongPress = { lastLink = "Pressione lunga → ${it.url}" },
             modifier = Modifier.fillMaxWidth(), darkening = dark && !original,
-            textScale = if (large) 2f else 1f, sizing = FluidWebSizing.WrapContent(1000.dp),
+            textScale = webContentDemoTextScale(LocalDensity.current.fontScale, large), sizing = FluidWebSizing.WrapContent(1000.dp),
             placeholder = { Text("Preparazione del contenuto…", style = MaterialTheme.typography.bodyMedium) },
             failure = {
               Column {
@@ -67,6 +67,25 @@ fun WebContentDemo() {
     }
   }
 }
+
+/**
+ * Il `textScale` da dare al contenitore perche' «Testo al 200%» voglia dire **200%** e non di piu'.
+ *
+ * Il contenitore applica `textZoom = fontScale × textScale × 100`: la scala del carattere di sistema ([fontScale],
+ * che nella galleria e' anche quella della matrice) si moltiplica con quella che passa la demo. Passare un 2 fisso
+ * con la matrice al 200% voleva dire 400%. Qui si chiede al contenitore **solo quel che manca** per arrivare a 200%:
+ * 2 a 1,0×, 1,54 a 1,3×, 1 a 2,0× (la matrice ha gia' fatto tutto); mai sotto 1, cosi' un sistema oltre il 200%
+ * non viene rimpicciolito. Interruttore spento: 1, il testo e' quello del sistema.
+ */
+internal fun webContentDemoTextScale(fontScale: Float, large: Boolean): Float =
+  if (large) (WebDemoLargeZoom / fontScale).coerceAtLeast(1f) else 1f
+
+/** Il testo «grande» della demo: 200%. */
+private const val WebDemoLargeZoom = 2f
+
+/** Lo zoom del testo che il contenitore applica per [fontScale] e [textScale]: lo stesso conto di `FluidWebContent`. */
+internal fun webContentEffectiveZoom(fontScale: Float, textScale: Float): Int =
+  (fontScale * textScale * 100).roundToInt().coerceIn(1, 1000)
 
 /** Campioni condivisi con le prove strumentate: rete sempre chiusa finche' l'app non fornisce byte. */
 internal fun webContentHostileSamples(): Map<String, String> = linkedMapOf(

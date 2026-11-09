@@ -122,8 +122,9 @@ private fun GalleryPage.spec(): PageSpec = when (this) {
     subtitle = "HTML locale in un contenitore chiuso alla rete.",
     tone = FluidHeroTone.Secondary,
     motif = FluidHeroMotif.Dots,
-    note = "Questa demo ha tema, testo e movimento propri, con i suoi interruttori nella pagina: la matrice non li " +
-      "comanda, e le righe della pagina seguono solo la lingua.",
+    note = "Tema, testo e movimento partono da qui e restano liberi con gli interruttori della pagina; la lingua " +
+      "cambia le etichette. Il 200% della matrice e quello dell'interruttore non si sommano: lo zoom del testo " +
+      "web resta 200%, mai 400%.",
   )
   GalleryPage.Charts -> PageSpec(
     subtitle = "Ciambella, barre, andamento, legenda e gli stati che li accompagnano.",
@@ -206,7 +207,8 @@ internal fun NewComponentPage(
       LongListsDemo(bottomInset = bottomInset, onBack = onBack)
     }
     GalleryPage.NotificationUndo -> ScreenWithOverlay(snapshot, openPanel, backdrop, onBack, ownBack = false) {
-      NotificationUndoDemo()
+      // L'avviso della demo scende sotto la riga dei tasti: non la copre, e non e' coperto da lei.
+      NotificationUndoDemo(avoidTop = PageBarHeight)
     }
     GalleryPage.WebContent -> ScreenWithOverlay(snapshot, openPanel, backdrop, onBack, ownBack = false) {
       WebContentDemo()
@@ -258,6 +260,12 @@ private fun SectionsPage(
 /**
  * Una demo che e' gia' una schermata: la pagina le sta sotto e le mette sopra i tasti. L'"Indietro" c'e' solo se
  * [ownBack] e' falso (le liste lunghe lo disegnano da se', con il loro titolo).
+ *
+ * I tasti stanno nella riga dei controlli di `FluidScreen` ([PageBarHeight] sotto la barra di stato), che e' vuota
+ * in tutte le demo di questo involucro tranne una cosa: l'avviso di una demo che ha il suo `FluidNotificationHost`
+ * (gli avvisi con azione) cade proprio li', e i tasti, disegnati dopo la demo, ne coprivano l'intestazione. Una
+ * demo cosi' riceve [PageBarHeight] e tiene il suo avviso sotto la riga: i tasti restano sempre raggiungibili e
+ * l'avviso si legge per intero. Le altre demo di questo involucro non hanno avvisi e non cambiano.
  */
 @Composable
 private fun ScreenWithOverlay(
@@ -332,11 +340,14 @@ private fun FullColumnPage(
   }
 }
 
+/** L'altezza della riga dei tasti di una barra, sotto la barra di stato: quella dei controlli di `FluidScreen`. */
+internal val PageBarHeight = 44.dp
+
 /** Il posto dei tasti di una barra: sotto la barra di stato, alto quanto la riga dei controlli di `FluidScreen`. */
 @Composable
 private fun BarSlot(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
   Box(
-    modifier = modifier.statusBarsPadding().height(44.dp),
+    modifier = modifier.statusBarsPadding().height(PageBarHeight),
     contentAlignment = Alignment.CenterStart,
   ) { content() }
 }

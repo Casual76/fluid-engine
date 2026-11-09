@@ -126,7 +126,7 @@ internal enum class LongListsMaterial(val label: String) {
  *    JankStats senza una dipendenza in piu') e delle catture del vetro (`FluidGlassDiagnostics.totalCaptures`, che a
  *    schermo fermo deve restare fermo). La prova si fa sul telefono: scorrere a lungo e leggere la percentuale.
  *
- * Non registrata nella galleria: la registra F1.6.
+ * Sta nella galleria come pagina «Liste lunghe e righe» (con la matrice degli stati).
  */
 @OptIn(FluidExperimentalRowGlass::class)
 @Composable

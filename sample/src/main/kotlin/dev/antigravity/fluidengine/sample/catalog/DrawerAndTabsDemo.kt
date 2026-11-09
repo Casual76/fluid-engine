@@ -92,7 +92,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 /**
  * Il pannello laterale e le estensioni della barra (F1.3 parte B, pm-f1/ge), tutti insieme.
  *
- * Non e' ancora nella galleria: la monta chi la prepara (F1.6). Le sezioni:
+ * Sta nella galleria come pagina «Pannello laterale e schede» (con la matrice degli stati). Le sezioni:
  *
  * 1. **La pillola a tre zone** (Posta, Cerca, Chat) col cerchio «Scrivi» accanto: il pallino sulla Chat si
  *    accende e si spegne, un numero al posto del pallino, la barra si ripiega (il segno sparisce, il

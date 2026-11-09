@@ -78,7 +78,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
  * Avatar, colori d'identita', badge, stato di selezione, barra laterale annidata, azione della barra con
  * avatar e capsula di formattazione: i pezzi di «identita' e selezione» (F1.2 parte B), tutti insieme.
  *
- * Non e' ancora nella galleria: la monta chi la prepara (F1.6). Ogni sezione mostra gli stati che contano:
+ * Sta nella galleria come pagina «Identità e selezione» (con la matrice degli stati). Ogni sezione mostra gli stati che contano:
  * senza immagine, con un'immagine che disegna l'app, selezionato, molti avatar (mosaico), badge a
  * 0/1/12/99/100+, e tre sezioni che **rifanno** le stesse cose col testo al 200%, in scuro e con il
  * movimento ridotto, perche' sono i tre modi in cui un cerchio da 40 dp si rompe.

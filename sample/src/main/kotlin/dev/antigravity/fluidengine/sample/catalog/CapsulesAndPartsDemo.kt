@@ -71,8 +71,8 @@ import dev.antigravity.fluidengine.ui.theme.FluidListGroup
  *
  * La capsula di azioni, il campo di ricerca (chiuso in un cerchio e aperto, e con la navigazione dei
  * risultati), il pallino dal vivo, gli scheletri, il segno di selezione, i punti del pager e
- * l'intestazione a passi: i pezzi che piu' app si erano riscritte da sole. Non e' ancora nella
- * galleria: la monta chi la prepara, e qui sta come una colonna sola cosi' va ovunque.
+ * l'intestazione a passi: i pezzi che piu' app si erano riscritte da sole. Nella galleria e' la pagina
+ * «Capsule e pezzi piccoli»; qui sta come una colonna sola cosi' va ovunque.
  *
  * Il vetro ha bisogno di qualcosa di nitido dietro (una pagina piatta rifrange una pagina piatta), e
  * per questo ogni capsula sta su un palco di colori e di testo, registrato come fa una schermata vera.

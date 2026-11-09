@@ -1,6 +1,6 @@
 # API · Pressione, gesto e movimento
 
-_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ui/ui/fluid/FluidButtonGesture.kt`
 
@@ -141,6 +141,20 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun loop(durationMillis: Int, easing: Easing = LinearEasing, restMillis: Int = 0): InfiniteRepeatableSpec<Float>` — Un giro che si ripete da capo ([RepeatMode.Restart]): [durationMillis] di moto, poi [restMillis] di pausa (il ritardo di `tween`), poi ancora. Lineare di serie: un giro che si ripete non ha un'accelerazione da raccontare, salvo dove la chiede lui (la barra, il riflesso).
   - `const val FastScrollerHideMillis: Long` — Quanto la maniglia dello scorrimento rapido resta in vista dopo l'ultimo movimento della lista, in millisecondi. Il valore che le due app di partenza avevano scelto (1,4 s in MyCloud, mezzo secondo di dissolvenza in Fluidify), un filo sotto; prima era una costante privata di `FluidFastScroller`.
   - `const val ScrubberHoldMillis: Long` — Quanto un `FluidScrubber` tiene la maniglia dove e' stata lasciata, aspettando che la posizione che arriva da fuori la raggiunga, in millisecondi.
+  - `fun groupedItemPlacement(): SpringSpec<IntOffset>` — Una riga di una lista che si sposta perche' un'altra e' entrata o uscita: critica (una lista non rimbalza: e' un contenitore) e col passo delle liste (`ResponseStandard`).
+  - `const val GroupedItemFadeInMillis: Int` — Quanto dura la comparsa di una riga nuova, in millisecondi: la dissolvenza d'ingresso di serie.
+  - `const val GroupedItemFadeOutMillis: Int` — Quanto dura l'uscita di una riga tolta, in millisecondi: piu' breve dell'ingresso, come ogni uscita.
+  - `fun swipeSettle(): SpringSpec<Float>` — La riga che torna a posto dopo uno scorrimento di lato (annullato, o confermato su un'azione che non la toglie): pixel, critica, rapida. Parte dalla velocita' del dito, come la pagina del back.
+  - `fun swipeExit(): SpringSpec<Float>` — La riga che esce del tutto verso il lato, confermata un'azione che la toglie: la stessa molla del ritorno, perche' e' lo stesso oggetto che finisce lo stesso gesto, solo verso l'altro capo.
+  - `fun <T> swipeArm(): SpringSpec<T>` — Il colore dell'azione che si accende quando la soglia e' superata: un lampo, perche' e' la risposta a un momento (la soglia) e deve arrivare insieme al colpo dell'aptica, non dopo.
+  - `fun jumpPillOffset(): SpringSpec<IntOffset>` — La pillola «N nuove» che entra o esce: per offset e alfa, mai per scala (e' vetro).
+  - `const val JumpPillFadeInMillis: Int` — La dissolvenza della pillola «N nuove», in millisecondi, in entrata.
+  - `const val JumpPillFadeOutMillis: Int` — La dissolvenza della pillola «N nuove», in millisecondi, in uscita.
+  - `const val DrawerResponseSeconds: Double` — La risposta della molla del pannello laterale, in secondi: 0,34, quella delle pagine (`FluidPageMotion.ResponsePageSeconds`). Il pannello e' la cosa piu' grande che si muove dopo una pagina, arriva dallo stesso bordo e si chiude sotto lo stesso dito: con un'altra molla due gesti gemelli avrebbero due tempi.
+  - `val DrawerTravel: SpringSpec<Float>` — Il pannello laterale che entra, esce o torna dopo un rilascio, **in frazione di corsa** (0 chiuso, 1 aperto): criticamente smorzata (un pannello non rimbalza contro il bordo), risposta [DrawerResponseSeconds], ferma sotto un millesimo di corsa (meno di mezzo pixel su un pannello da 320 dp). Parte dalla velocita' del dito, convertita in corsa al secondo, come la molla delle pagine.
+  - `const val ChartEnterMillis: Int` — Quanto dura la crescita d'ingresso di un grafico, in millisecondi: piu' lenta di un'uscita, sobria.
+  - `fun chartEnter(): FiniteAnimationSpec<Float>` — L'ingresso di un grafico: una frazione 0..1 per cui si moltiplicano barre, arco e tracciato. Una curva senza rimbalzo ([EaseOut]) e non una molla: una barra che supera il suo valore e torna indietro direbbe per un attimo un numero falso.
+  - `fun chartSelect(): SpringSpec<Float>` — Il segmento o la barra scelti che si evidenziano, e tornano: critica, col passo dei controlli.
 
 ## `engine-ui/ui/fluid/FluidMotionPolicy.kt`
 

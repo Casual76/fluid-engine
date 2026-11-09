@@ -21,7 +21,7 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-ai-bridge` | `ai.bridge` | 4 / 912 | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | ai |
 | `engine-richtext` | `richtext` | 9 / 3 997 | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera) e i lettori/scrittori di HTML ristretto, Markdown e testo semplice — **opt-in**, dalla 3.1.0 (la scheda: `moduli/richtext.md`) | foundation, **ui** |
 
-(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sul ramo della 3.1.0.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
+(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sulla 3.1.0.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
 dipendere da `engine-ui`: e' il motivo per cui un'app di sole View puo' prendere `engine-update` senza Compose.
 
 ```
@@ -76,7 +76,7 @@ Tutto sotto `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/`. La colo
 
 | cartella | cosa | scheda | API |
 |---|---|---|---|
-| `fluid/` (89 file nel ramo della 3.1.0, 73 nella 3.0.4) | quasi tutti i componenti: schermata, barre, righe, controlli, menu, notifiche, pressione, movimento, materiale; dalla 3.1.0 liste lunghe, avatar e selezione, pannello laterale, selettore data e ora, campo a gettoni, contenuto web, grafici, file | `schermata`, `barre`, `contenuto` (+ `contenuto-web`, `grafici`), `controlli`, `menu-modali`, `movimento`, `impostazioni` | stesse (+ `contenuto-web`, `grafici`) |
+| `fluid/` (89 file nella 3.1.0, 73 nella 3.0.4) | quasi tutti i componenti: schermata, barre, righe, controlli, menu, notifiche, pressione, movimento, materiale; dalla 3.1.0 liste lunghe, avatar e selezione, pannello laterale, selettore data e ora, campo a gettoni, contenuto web, grafici, file | `schermata`, `barre`, `contenuto` (+ `contenuto-web`, `grafici`), `controlli`, `menu-modali`, `movimento`, `impostazioni` | stesse (+ `contenuto-web`, `grafici`) |
 | `theme/` | `FluidTheme`, `FluidComponents` (i componenti Material ridefiniti), vecchi `Motion`/`RouteMotion` | `tema` | `tema` |
 | `glass/` (+ `backdrop/` e sotto) | la libreria di Kyant0 copiata come sorgente: lente, backdrop, effetti, highlight, ombre | `vetro` | `vetro` |
 | `fluidphysics/` (17 file) | il motore che trasforma una sagoma di vetro in un'altra | `fluid-physics` | `fluid-physics` |
@@ -106,7 +106,7 @@ materiale), `FluidScreen.kt` (1 803), `FluidComponents.kt` (1 794), `FluidPhysic
 
 ## Test
 
-Nel ramo della 3.1.0: 179 file di test sotto `engine-*/src/test` (113 in `engine-ui`, 33 in `engine-ai`, 8 in `engine-wear`, 7 in
-`engine-ai-ui`, 7 in `engine-richtext`, gli altri 2-5) più 45 in `sample/src/testDebug` (interfaccia con Robolectric: gesti, pagine, menu,
+Nella 3.1.0: 179 file di test sotto `engine-*/src/test` (113 in `engine-ui`, 33 in `engine-ai`, 8 in `engine-wear`, 7 in
+`engine-ai-ui`, 7 in `engine-richtext`, gli altri 2-5) più 47 in `sample/src/testDebug` (interfaccia con Robolectric: gesti, pagine, menu,
 semantica) e le prove **strumentate** in `sample/src/androidTest` (una WebView vera: `FluidWebContentInstrumentedTest`, che gira solo su emulatore o dispositivo). Quando una scheda dice «verificato da» un test, quel test è lì. Un comportamento di cui nessun test parla
 va **guardato in mano** prima di fidarsene (`strumenti-e-qa.md`).

@@ -643,14 +643,16 @@ FluidDateTimeSelection(instant: Instant, zone: ZoneId)           // il risultato
 ```
 
 **Comportamento, e perché.**
+- **Serve un `FluidGlassModalHost` alla radice**, come ogni foglio dell'engine: il foglio è una presentazione `Sheet` di `FluidGlassModalPortal`, e senza host non si vede.
 - **Mai un istante passato.** Il minimo è il più alto fra `clock.instant()` e `minimumInstant`, e la conferma **rilegge `clock`**: una selezione fatta alle 9:59 e confermata alle 10:01 per «le 10:00» non esce. Un'opzione rapida
-  fuori dai limiti non si può scegliere. `clock` è **iniettabile** proprio per questo: i test fissano l'ora, e l'app può passare un orologio di prova.
+  fuori dai limiti non si può scegliere. **I limiti sono inclusivi**: l'istante esatto di `minimumInstant`, di `clock.instant()` e di `maximumInstant` è valido. `clock` è **iniettabile** proprio per questo: i test fissano l'ora, e l'app può passare un orologio di prova.
 - **Ora legale, i due casi.** Un'ora che **non esiste** (il salto in avanti di primavera, 02:30 in una notte che passa da 02:00 a 03:00) è **rifiutata**: non si sceglie un'ora che non c'è, e non si sposta in silenzio. Un'ora che
   **si ripete** (l'ora di autunno) richiede una **scelta esplicita** dell'offset UTC (le due ore sono istanti diversi): finché non si sceglie, la conferma è rifiutata e il foglio mostra la frase d'errore (`FluidDateTimeLabels.invalid`, in colore d'errore). Il risultato è sempre un `Instant` **assoluto** con la
   `zone` in cui è stato scelto; programmare l'invio resta dell'app.
 - **Le proposte sono dell'app.** L'engine non inventa tempi relativi specifici di un dominio («Dopo pranzo»): l'app li calcola come `Instant` (con la sua zona e il suo orologio) e li passa con etichetta e dettaglio. Senza
   proposte il foglio si apre direttamente sulla scelta personalizzata.
-- **Precisione al minuto.** I controlli personalizzati scelgono minuti interi; un intervallo che non contiene nessun minuto intero non ha selezione personalizzata (le proposte rapide, esatte, restano usabili).
+- **Precisione al minuto.** I controlli personalizzati scelgono minuti interi (le proposte rapide valgono invece **all'istante esatto** che l'app ha passato, secondi compresi); un intervallo che non contiene nessun minuto intero non ha selezione personalizzata (le proposte rapide, esatte, restano usabili).
+- **Testo grande.** La griglia del mese ha sette colonne vere: a testo grande le celle crescono e la griglia **scorre di lato** invece di stringere i bersagli sotto i 48 dp o di tagliare i numeri.
 - **Lingua e formato.** `locale` decide il primo giorno della settimana e i formati delle date; il sistema decide 12/24 ore, salvo `use24Hour`. Le parole sono `FluidLabels.dateTime` (`FluidDateTimeLabels`, con la versione
   inglese di `FluidLabels.english()`).
 - **Dichiarazione e chiusura.** Resta **composto** mentre `visible` diventa falso, così l'host può invertire l'apertura. L'app lo chiude in `onDismissRequest` o `onConfirm`; **annullare non conferma mai** (il back annulla).

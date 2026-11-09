@@ -3,7 +3,7 @@
 
 # API · Schermata e scheletro
 
-_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ui/ui/fluid/FluidAmbient.kt`
 
@@ -163,6 +163,9 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `@Composable fun bottomContentPadding(extra: Dp = 0.dp): Dp` — Bottom padding a scrolling body needs so its last item clears the system and tab bars.
 - `@Composable fun FluidScreen(title: String, modifier: Modifier = Modifier, subtitle: String? = null, onBack: (() -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}, titleFacets: List<String> = emptyList(), listState: LazyListState = rememberLazyListState(), isRefreshing: Boolean = false, onRefresh: (() -> Unit)? = null, horizontalPadding: Dp = FluidScreenDefaults.HorizontalPadding, contentMaxWidth: Dp = FluidScreenDefaults.ContentMaxWidth, itemSpacing: Dp = FluidScreenDefaults.ItemSpacing, extraBottomPadding: Dp = 0.dp, ambient: FluidAmbient? = null, overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {}, metrics: FluidScreenMetrics? = null, content: LazyListScope.() -> Unit)` — An edge-to-edge screen in the shape Apple gives its own: content runs the full height of the display, a large title sits at the top of the scroll as ordinary content, and a compact bar of frosted glass materialises over it only once the title has scrolled underneath.
 - `@Composable fun FluidBarAction(icon: ImageVector, contentDescription: String?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, actions: (() -> List<FluidContextAction>)? = null, opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress)` — An action in the top bar. It is a draw-only lens over the bar's shared backdrop, so every action gets a physical rim without paying for another blur pass.
+- `object FluidBarActionDefaults` — Le misure delle azioni della barra con un contenuto proprio ([FluidBarAction] con `content`).
+  - `val ContentSize: Dp` — Il lato di un avatar (o di un'immagine tonda) dentro la lente di una [FluidBarAction]: 32 dp in una lente da 44. Il vetro che avanza (6 dp per lato) e' l'orlo che fa leggere il tasto come vetro: un avatar a 44 dp coprirebbe la lente e il tasto sembrerebbe una foto incollata sulla barra.
+- `@Composable fun FluidBarAction(contentDescription: String?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, actions: (() -> List<FluidContextAction>)? = null, opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress, content: @Composable () -> Unit)` — Un'azione della barra con un **contenuto tuo** al posto dell'icona: l'avatar dell'utente, un mosaico di account, una foto. E' la stessa lente di vetro, la stessa pressione e lo stesso menu dell'overload con l'icona, e per il menu la stessa regola: se passi [actions], tenendo premuto (o toccando, con [FluidMenuOpensOn.Tap]) il tasto **diventa** il menu, e il menu si richiude nel tasto.
 - `@Composable fun ProvideFluidChrome(controller: FluidChromeController, bottomInset: Dp, scrollToTop: FluidScrollToTopBus, content: @Composable () -> Unit)` — Provides the chrome registry, tab-bar allowance and scroll-to-top bus to every screen below.
 
 ## `engine-ui/ui/fluid/FluidScrollPhysics.kt`
@@ -209,6 +212,9 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FluidSidebarDefaults`
   - `val Margin: Dp` — L'aria fra la barra e i bordi della finestra: galleggia, non e' incollata.
   - `val RowHeight: Dp`
+  - `val ComfortableRowHeight: Dp` — L'altezza di una riga che deve essere un bersaglio da 48 dp (QLT-21): si passa come `minHeight` a [FluidSidebarRow]. [RowHeight] resta 44 dp, perche' cambiarla sposterebbe tutte le barre che esistono.
+  - `val IndentPerLevel: Dp` — Il rientro di un livello di annidamento: 16 dp, quanto lo spazio fra la piastrella e il testo piu' un poco.
+  - `const val MaxIndentLevels: Int` — Fin dove cresce il rientro: oltre il sesto livello le righe non si spostano piu'. Una barra larga 360 dp con una cartella a dieci livelli di profondita' non deve lasciare al nome tre lettere.
 - `@Composable fun FluidSidebar(backdrop: GlassBackdropState, modifier: Modifier = Modifier, header: (@Composable ColumnScope.() -> Unit)? = null, footer: (@Composable ColumnScope.() -> Unit)? = null, content: LazyListScope.() -> Unit)` — La barra laterale di una pagina larga: le sezioni dell'app e le sue cose di primo livello, in una colonna di vetro.
-- `@Composable fun FluidSidebarSection(title: String, modifier: Modifier = Modifier)` — Il titolo di un gruppo di righe nella barra laterale: «Materie», «Altro».
-- `@Composable fun FluidSidebarRow(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, tint: Color? = null, detail: String? = null, badge: String? = null, contextActions: (() -> List<FluidContextAction>)? = null)` — Una riga della barra laterale: una sezione dell'app, o una materia con la sua piastrella.
+- `@Composable fun FluidSidebarSection(title: String, modifier: Modifier = Modifier, leading: (@Composable () -> Unit)? = null, detail: String? = null, uppercase: Boolean = true)` — Il titolo di un gruppo di righe nella barra laterale: «Materie», «Altro».
+- `@Composable fun FluidSidebarRow(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, tint: Color? = null, detail: String? = null, badge: String? = null, contextActions: (() -> List<FluidContextAction>)? = null, level: Int = 0, leading: (@Composable () -> Unit)? = null, trailing: (@Composable () -> Unit)? = null, minHeight: Dp = FluidSidebarDefaults.RowHeight)` — Una riga della barra laterale: una sezione dell'app, o una materia con la sua piastrella.

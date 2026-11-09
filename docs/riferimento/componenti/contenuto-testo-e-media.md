@@ -299,7 +299,7 @@ FluidMarkdownOptions(hideChipMarkers = false, softBreak = " ")
 FluidMarkdownParser.parse(markdown, options): List<FluidMdBlock>     // l'albero
 FluidMarkdownParser.plainText(markdown, includeCode = false, bullets = false, options)   // senza segni
 ```
-Tutti i parametri: `api/contenuto.md`.
+Tutti i parametri: [`../api/contenuto.md`](../api/contenuto.md).
 
 **Uso.** Una nota: `FluidMarkdown(markdown = note, style = FluidMarkdownDefaults.style(headings = FluidMarkdownDefaults.documentHeadings()), selectable = true, onLinkClick = { open(it) })`.
 Una risposta che arriva: `FluidMarkdown(text, streaming = streaming, animateFirst = freshStart)` (così fa la chat di `engine-ai-ui`).

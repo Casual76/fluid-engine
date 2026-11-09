@@ -1,6 +1,6 @@
 # API · engine-ai: provider e modelli
 
-_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ai/ai/provider/Capabilities.kt`
 

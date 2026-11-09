@@ -260,7 +260,7 @@ messaggio vuoti). L'esito è **UI, non una garanzia di transazione**: non autori
 Annullare la coroutine che attende **non ritira la card** (come per `show`).
 
 **`updateCurrent`: aggiornamento in place.** Aggiorna **solo la card visibile con lo stesso id e lo stesso gruppo**, senza riavviare il budget di lettura e senza rifare l'ingresso (ritorna `false` se non c'è: card già andata,
-id o gruppo diversi). Un nuovo `durationMillis` **non modifica il timeout già avviato**. È il mezzo con cui l'app toglie dalla card le azioni **scadute** («Annulla» dopo trenta secondi) o cambia il messaggio. Va chiamato sul
+id o gruppo diversi, messaggio vuoto). Un nuovo `durationMillis` **non modifica il timeout già avviato**. È il mezzo con cui l'app toglie dalla card le azioni **scadute** («Annulla» dopo trenta secondi) o cambia il messaggio. Va chiamato sul
 thread UI, come gli altri mutatori.
 
 **Le scadenze dell'app sono indipendenti dalla durata della card.** Una card che dice «Annulla invio» non è la prova che l'invio sia ancora annullabile: `durationMillis` è il tempo di **lettura** (si ferma sotto un dito, con

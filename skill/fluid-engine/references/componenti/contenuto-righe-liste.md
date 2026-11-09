@@ -36,7 +36,7 @@ FluidListDivider()
 FluidToneTile(tone: FluidTone, size = FluidToneTileSize) { Icon(...) }          // tono dell'engine
 FluidToneTile(color: Color, size = FluidToneTileSize, veil = color.copy(alpha = 0.16f)) { Icon(...) }  // colore qualunque
 ```
-`FluidTone` ha sei valori: `Primary`, `Success`, `Warning`, `Danger`, `Info`, `Neutral`. Tutti i parametri: `api/tema.md`.
+`FluidTone` ha sei valori: `Primary`, `Success`, `Warning`, `Danger`, `Info`, `Neutral`. Tutti i parametri: [`../api/tema.md`](../api/tema.md).
 
 **Uso** (la forma della galleria, `RowsAndSheetsDemo`/`SettingsTab`):
 ```kotlin
@@ -443,7 +443,7 @@ FluidSliderRow(title: String, value: Float, onValueChange: (Float) -> Unit,
 
 **Comportamento.** `valueLabel` («30 minuti», «-12 dB») è anche **lo stato che TalkBack legge**: senza, direbbe una percentuale della pista. Il titolo è il nome dello slider. Le cifre sono tabulari (`tnum`): il valore non balla mentre il dito si muove.
 Il gesto è dello slider (un trascinamento di lato è suo, uno verticale è della pagina); la riga non ha un tocco suo, non è un bersaglio. Margini: 16 dp ai lati, 12 sopra e sotto. `snapValues`: vedi `FluidSlider`
-(famiglia dei controlli, `api/controlli.md`). `onValueChangeFinished` è il momento di salvare.
+(famiglia dei controlli, [`../api/controlli.md`](../api/controlli.md)). `onValueChangeFinished` è il momento di salvare.
 
 **Trappole.** Se `enabled = false` sfuma il testo e lo slider si spegne da solo (non insieme, o arriverebbero al quarto dell'opacità). Il testo sopra è muto per TalkBack: dice tutto lo slider. Una riga senza `valueLabel` fa leggere una percentuale.
 

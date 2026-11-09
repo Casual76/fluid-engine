@@ -3,21 +3,23 @@
 
 # Catalogo API (generato)
 
-Generato da `scripts/gen_api_catalog.py` sull'engine **3.0.7**. **Non si modifica a mano**: si rigenera a ogni release. Una riga per dichiarazione pubblica, con la firma com'e' nel codice (i valori predefiniti piu' lunghi sono accorciati con «…») e la prima frase del KDoc. Il perche' e le trappole stanno nelle schede in `../componenti/` e `../moduli/`.
+Generato da `scripts/gen_api_catalog.py` sull'engine **3.1.0**. **Non si modifica a mano**: si rigenera a ogni release. Una riga per dichiarazione pubblica, con la firma com'e' nel codice (i valori predefiniti piu' lunghi sono accorciati con «…») e la prima frase del KDoc. Il perche' e le trappole stanno nelle schede in `../componenti/` e `../moduli/`.
 
 Per cercare: `grep -rn "NomeComponente" references/api/`.
 
 | famiglia | file | dichiarazioni |
 |---|---|---|
-| [Schermata e scheletro](schermata.md) | 15 | 163 |
-| [Barre di navigazione e di azione](barre.md) | 5 | 90 |
-| [Contenuto: righe, card, liste, testo](contenuto.md) | 17 | 139 |
-| [Controlli](controlli.md) | 7 | 44 |
-| [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 7 | 54 |
-| [Pressione, gesto e movimento](movimento.md) | 7 | 139 |
+| [Schermata e scheletro](schermata.md) | 15 | 169 |
+| [Barre di navigazione e di azione](barre.md) | 5 | 93 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 26 | 219 |
+| [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
+| [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
+| [Controlli](controlli.md) | 8 | 54 |
+| [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 9 | 81 |
+| [Pressione, gesto e movimento](movimento.md) | 7 | 153 |
 | [Vetro](vetro.md) | 25 | 153 |
-| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 73 |
-| [Tema, forma, tipo](tema.md) | 6 | 79 |
+| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 76 |
+| [Tema, forma, tipo](tema.md) | 6 | 81 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 8 | 88 |
 | [Aptica](aptica.md) | 4 | 70 |
@@ -29,6 +31,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-update](update.md) | 2 | 14 |
 | [engine-widget](widget.md) | 3 | 34 |
 | [engine-wear](wear.md) | 17 | 87 |
+| [engine-richtext](richtext.md) | 9 | 106 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

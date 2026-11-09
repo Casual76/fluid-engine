@@ -2,7 +2,7 @@
 
 Un contenitore per **HTML locale che arriva da qualcun altro** (il corpo di una mail, una newsletter, le note di una versione scritte altrove, un documento esportato), **chiuso per costruzione**: JavaScript spento, nessuna
 rete nativa, nessuna navigazione, ogni richiesta consegnata all'app, che di serie la blocca. Famiglia «Contenuto» ([`contenuto.md`](contenuto.md) ha l'indice). File: `engine-ui/.../ui/fluid/FluidWebContent.kt`. Dalla 3.1.0
-(Pampa Mail, F1.5, gruppo G-C). Catalogo delle firme: `api/contenuto-web.md` (generato).
+(Pampa Mail, F1.5, gruppo G-C). Catalogo delle firme: [`../api/contenuto-web.md`](../api/contenuto-web.md) (generato).
 
 **Modello mentale in due frasi.** Il contenitore è un **recinto**: non decide cosa è sicuro mostrare, impedisce che quello che mostra faccia qualcosa. L'engine non sa cos'è una mail né quale immagine è un tracker: **sanificare
 l'HTML, decidere quali risorse caricare e verificare dove portano i link sono dell'app**, e restano dell'app anche quando il contenitore le dà in mano un byte alla volta.
@@ -106,7 +106,7 @@ lunghi. In ogni caso **l'altezza fisica massima è 4096 px** (`MaxViewportPx`, a
 ## Stati, segnaposto, errore
 
 `FluidWebPhase`: `Empty` (html vuoto), `Loading`, `Ready` (la **prima pittura confermata dal renderer**, non il solo completamento della richiesta HTML), `Error`. `placeholder` resta **sopra** la vista fino alla prima pittura
-(di serie 6 righe di scheletro: lo spazio c'è, la lista non salta); l'HTML non viene copiato sul thread principale. `failure` riceve il `FluidWebFailure` e lo disegna l'app. Lo stato è **effimero**: dopo la ricreazione di una
+(di serie 6 righe di scheletro: lo spazio c'è, la lista non salta); l'HTML non viene copiato sul thread principale. `failure` riceve il `FluidWebFailure` e lo disegna l'app: `IsolationUnavailable` (il provider non sa isolare il profilo), `RendererGone` (il renderer è morto), `Timeout` (nessuna prima pittura entro 15 secondi), `ContentTooLarge` (oltre 4 milioni di caratteri), `Unavailable` (la creazione della `WebView` ha lanciato un'eccezione: per esempio un provider mancante o disattivato). Lo stato è **effimero**: dopo la ricreazione di una
 `Activity` il contenuto va fornito di nuovo dall'app (**mai nel `Bundle`**). Tutte le azioni e le letture UI sul thread principale. La creazione di una `WebView` richiede comunque il thread principale: nessuna promessa di
 latenza di avvio a freddo.
 
@@ -117,10 +117,26 @@ della WebView, come campiona una pagina di Compose. Vale come **prova di princip
 
 ## Prestazioni
 
-> **SEGNAPOSTO — F1.7b.** Questa sezione è in sospeso: un altro gruppo (F1.5b, QLT-02) sta lavorando a prewarm del provider, riuso e budget di prima pittura, e non è ancora integrato in questo ramo. F1.7b la completa con i numeri
-> misurati e il contratto del riuso. **Non descriverla prima**: ciò che è certo oggi è solo che il costo di creazione di una `WebView` è sul thread principale, che il contenitore **ricrea** vista e profilo per `darkening`,
-> `retry` e renderer morto, e che la misura esplorativa raccolta nel gruppo (`FluidWebContentPerformanceTest`: newsletter da 2.346 caratteri, HTML malformato da 576.024) **non** raggiungeva ancora QLT-02 alla consegna di F1.5.
-> Da inserire qui: prewarm (chi lo chiama, quando), riuso e **pulizia prima del riuso**, profili per tema, budget di caratteri, telemetria, e cosa significa «prima pittura» in numeri.
+**L'engine non promette nessuna latenza.** Né di avvio, né di prima pittura, né di scorrimento: dipendono dal provider WebView installato sul telefono, dal telefono e dal documento, e il contenitore non ha niente che li renda
+prevedibili. Gli obiettivi di prodotto (primo contenuto ≤ 300 ms, HTML tipico completo ≤ 800 ms, mail enorme leggibile entro 1 s) sono **traguardi da misurare su un telefono vero** (voce D-F1-01 del backlog del dispositivo),
+non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei. Cosa è certo, dal codice:
+
+- **`Ready` è la prima pittura, non il completamento della richiesta.** Scatta quando il renderer conferma di aver dipinto il primo contenuto (`onPageCommitVisible` + il callback di stato visuale) e solo allora il
+  `placeholder` si toglie. È il momento giusto per togliere uno scheletro o far comparire altro: da lì il documento si vede, anche se le immagini bloccate o servite dall'app non sono ancora arrivate. Non è «il documento è
+  finito di caricare» e non dice niente su immagini e font.
+- **La creazione della `WebView` è sul thread UI** (non c'è modo di farla altrove) e il suo costo è dell'app che compone il contenitore (di norma la prima `WebView` del processo paga anche il caricamento del provider, e non si sa quanto: dipende dal telefono). Fuori dal thread UI
+  passa solo il lavoro che può passarci: l'HTML si converte in byte su `Dispatchers.Default`, **mai** sul thread principale, e `onRequest` gira su thread di I/O.
+- **Niente riuso e niente preriscaldamento nella 3.1.0.** Ogni istanza crea una vista nuova e un profilo nuovo, mai riutilizzato (è parte del contratto chiuso: nessun cookie, cache o stato passa da un documento al successivo), e
+  **nessun pool globale** tiene `WebView` o `Activity` in giro. L'engine non ha né un `prewarm()` né una vista da «riscaldare», e `FluidWebContent` non accetta una `WebView` fornita dall'app: chi vuole ammortizzare l'avvio non ha un'API per farlo.
+  Un riuso con pulizia verificabile è una decisione futura, da prendere con misure su un telefono vero.
+- **Cosa ricrea la vista** (e quindi paga di nuovo la creazione e riconsegna le risorse a `onRequest`): un `html` diverso, `darkening`, `state.retry()`, un renderer morto. **Non** la ricrea `textScale`, né cambiare `onRequest`
+  (che non ricarica nemmeno il documento). Una lista con un `FluidWebContent` per riga crea tante `WebView` quante righe sono composte: tienine montato uno per volta nel dettaglio, o una sola vista per un documento
+  lungo, invece di una per anteprima.
+- **I tetti sono quelli della memoria e del tempo**: HTML fino a 4.000.000 di caratteri (oltre, `ContentTooLarge` prima di copiare nulla), altezza fisica fino a 4096 px, e se la prima pittura non arriva entro **15 secondi** il
+  contenitore passa a `FluidWebFailure.Timeout` (slot `failure`, `retry()` riparte).
+- **Le misure sull'emulatore non valgono.** `FluidWebContentPerformanceTest` (`sample/androidTest`, solo su dispositivo o emulatore) stampa nel log `FluidWebTiming` la prima pittura di una newsletter da 2.346 caratteri e di un
+  HTML malformato da 576.024; **non impone soglie** e non decide niente: sull'AVD il renderer ha tempi e memoria che un telefono vero non ha, e QLT-02 si giudica solo con la prova D-F1-01. Non citare quei numeri come tempi
+  dell'engine.
 
 ## Trappole
 
@@ -133,6 +149,9 @@ della WebView, come campiona una pagina di Compose. Vale come **prova di princip
 - **Nessuna copia del documento in `rememberSaveable`**: dopo la ricreazione il contenuto lo ridai tu.
 - **Dipendenza nuova.** `engine-ui` dipende dalla 3.1.0 da `androidx.webkit` (`implementation`): un'app che compila `engine-ui` dai sorgenti ottiene `androidx.webkit` nel build, anche se non usa mai `FluidWebContent`. Per le sole
   prove strumentate della galleria serve Espresso 3.7.0 esplicito (la versione transitiva chiamava `InputManager.getInstance`, rimosso su API 37).
+- **Testo al 200% + documento enorme non sono una promessa su ogni provider.** Il test strumentato lo prova su un'unica combinazione (WebView Google 149, emulatore API 37): un telefono con un provider più vecchio o più
+  povero può metterci di più, o arrivare al `Timeout`. Prevedi sempre lo slot `failure` (con il testo semplice del corpo), non solo il caso felice.
+- **Cambiare `html` ricrea la vista.** Non è un aggiornamento in place: un `html` che cambia a ogni composizione (una stringa ricostruita) ricrea `WebView` e profilo a ogni passata. Passa una stringa stabile.
 - **Il tag del provider.** `MULTI_PROFILE` non c'è su ogni WebView: dillo nei limiti dell'app («aggiorna Android System WebView») invece di scoprirlo in produzione.
 
 ## Cosa è verificato dai test
@@ -143,7 +162,7 @@ della WebView, come campiona una pagina di Compose. Vale come **prova di princip
   gli stream serviti usano solo le intestazioni dell'app e le risorse inline passano dallo stesso gestore; i tocchi riportano la destinazione vera e il testo visibile **senza navigare**; un `javascript:` non esegue nulla;
   il tema ricrea la vista e la scala del font si aggiorna **senza** ricaricare le risorse; la morte del renderer è segnalata e `retry` usa vista e profilo nuovi; un documento enorme e malformato ha altezza limitata a 200% e **può rimpicciolirsi**,
   con uno swipe vero che scorre dentro una `LazyColumn`; **il vetro contiene davvero i pixel della WebView**.
-- **`FluidWebContentPerformanceTest`**: una misura **esplorativa** della prima pittura (non impone soglie): vedi «Prestazioni».
+- **`FluidWebContentPerformanceTest`** (`sample/androidTest`, 1, solo su dispositivo): una misura **esplorativa** della prima pittura, nel log `FluidWebTiming`; **non impone soglie** e non conta come prova di QLT-02: vedi «Prestazioni».
 - **Non provato da test**: la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
 
 ## Dove guardare

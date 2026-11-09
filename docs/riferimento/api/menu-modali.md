@@ -3,7 +3,33 @@
 
 # API · Menu, pop-up, fogli, avvisi, notifiche
 
-_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+
+## `engine-ui/ui/fluid/FluidDateTimeSheet.kt`
+
+- `data class FluidQuickTimeOption(val label: String, val instant: Instant, val detail: String? = null)` — A caller-resolved proposal. The engine never invents domain-specific relative times.
+- `data class FluidDateTimeSelection(val instant: Instant, val zone: ZoneId)` — The absolute result and the zone in which it was chosen; scheduling remains the caller's job.
+- `@Composable fun FluidDateTimeSheet(visible: Boolean, onDismissRequest: () -> Unit, onConfirm: (FluidDateTimeSelection) -> Unit, quickOptions: List<FluidQuickTimeOption> = emptyList(), initialInstant: Instant? = null, minimumInstant: Instant? = null, maximumInstant: Instant? = null, zone: ZoneId = ZoneId.systemDefault(), clock: Clock = Clock.systemUTC(), locale: Locale = LocalConfiguration.current.locales[0], use24Hour: Boolean = DateFormat.is24HourFormat(LocalContext.current), title: String = LocalFluidLabels.current.dateTime.title, message: String? = null)` — Generic quick proposals and calendar, presented by the existing glass Sheet portal. Keep this composable mounted while [visible] becomes false, so the host can reverse its opening. The caller closes it in [onDismissRequest] or [onConfirm]; cancellation never confirms.
+
+## `engine-ui/ui/fluid/FluidDrawer.kt`
+
+- `object FluidDrawerDefaults` — Le misure del pannello laterale ([FluidDrawer]).
+  - `val Width: Dp` — La larghezza del pannello: 320 dp, la colonna di una barra laterale (`FluidSidebar`) col suo contenuto. Un tetto, non una promessa: vedi [MaxWidthFraction].
+  - `const val MaxWidthFraction: Float` — Il pannello non supera l'85% della finestra: su un telefono da 360 dp ne restano almeno ~50 di pagina oscurata a destra, il posto dove toccare per chiuderlo e la prova che la pagina e' ancora li'.
+  - `val Margin: Dp` — L'aria fra il pannello e i bordi della finestra: quella della barra laterale, cosi' le due sono la stessa colonna.
+  - `val WideWindowWidth: Dp` — La larghezza di finestra da cui il pannello non serve piu': da qui in su le stesse righe stanno in una `FluidSidebar` fissa accanto alla pagina. E' un riferimento per chi decide il layout (l'app): il pannello non lo legge.
+- `class FluidDrawerState(initiallyOpen: Boolean = false)` — Lo stato di un [FluidDrawer]: aperto o chiuso, e quanto e' in scena in questo momento.
+  - `var isOpen: Boolean by mutableStateOf(initiallyOpen)` — Aperto o chiuso: l'obiettivo, non la posizione. Diventa falso nell'istante in cui si chiede la chiusura.
+  - `val progress: Float get()` — Quanto il pannello e' in scena adesso: 0 chiuso, 1 aperto, in mezzo mentre entra, esce o e' sotto il dito. Cambia a ogni fotogramma di un movimento: va letto nel disegno o nel posizionamento, non in composizione (o la composizione ripartirebbe sessanta volte al secondo).
+  - `val isOnScreen: Boolean get()` — Vero finche' qualcosa del pannello e' in scena, uscita compresa.
+  - `fun open()` — Apre il pannello. Lo apre l'app, da un tasto (☰): non c'e' un gesto dal bordo (vedi [FluidDrawer]).
+  - `fun close()` — Chiude il pannello: torna da dov'e' venuto. Lo chiamano anche il back, il tocco fuori e il dito.
+  - `fun snapTo(open: Boolean)` — Aperto o chiuso subito, senza movimento.
+  - `companion object`
+    - `val Saver: Saver<FluidDrawerState, Boolean>` — Salva solo «aperto o chiuso».
+- `@Composable fun rememberFluidDrawerState(initiallyOpen: Boolean = false): FluidDrawerState` — Uno stato del pannello che sopravvive alla rotazione (solo aperto o chiuso).
+- `fun Modifier.fluidDrawerObscured(state: FluidDrawerState): Modifier` — Nasconde all'accessibilita' quello che sta sotto il pannello mentre e' aperto.
+- `@Composable fun FluidDrawer(state: FluidDrawerState, backdrop: GlassBackdropState?, modifier: Modifier = Modifier, width: Dp = FluidDrawerDefaults.Width, paneTitle: String? = null, listState: LazyListState = rememberLazyListState(), returnFocusTo: FocusRequester? = null, header: (@Composable ColumnScope.() -> Unit)? = null, footer: (@Composable ColumnScope.() -> Unit)? = null, content: LazyListScope.() -> Unit)` — Il pannello laterale modale: una lastra di vetro che entra dal bordo d'inizio (da sinistra; da destra in RTL) sopra la pagina, per le cartelle, le sezioni, gli account di un'app su una finestra stretta.
 
 ## `engine-ui/ui/fluid/FluidGlassMenuButton.kt`
 
@@ -39,11 +65,19 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidNotification.kt`
 
 - `enum class FluidNotificationTone`
-- `data class FluidNotificationAction(val label: String, val onClick: () -> Unit)` — Un'azione della notifica (2.12.0): compare solo quando la card e' stata aperta tirandola in giu'.
-- `data class FluidNotification(val id: String, val title: String, val message: String, val tone: FluidNotificationTone = FluidNotificationTone.Info, val durationMillis: Long = 6_000L, val actions: List<FluidNotificationAction> = emptyList())` — Una notifica in-app.
+- `data class FluidNotificationAction(val label: String, val onClick: () -> Unit)` — Un'azione della notifica: in [FluidNotification.actions] compare all'apertura; in [FluidNotification.inlineActions] e' subito visibile.
+- `data class FluidNotification(val id: String, val title: String, val message: String, val tone: FluidNotificationTone = FluidNotificationTone.Info, val durationMillis: Long = 6_000L, val actions: List<FluidNotificationAction> = emptyList(), val inlineActions: List<FluidNotificationAction> = emptyList(), val replaceGroup: String? = null)` — Una notifica in-app.
+- `sealed interface FluidNotificationResult` — Esito UI, distinto dalla consegna: non autorizza ne' programma transazioni dell'app.
+  - `data class ActionPerformed(val label: String) : FluidNotificationResult` — Il callback dell'azione e' stato accettato una volta sola.
+  - `data object Dismissed : FluidNotificationResult` — Chiusura esplicita o rimozione di un host dopo la presentazione.
+  - `data object TimedOut : FluidNotificationResult` — Budget di lettura terminato, indipendente dalle scadenze delle operazioni.
+  - `data object Replaced : FluidNotificationResult` — Una richiesta piu' recente dello stesso gruppo ha preso il posto di questa.
+  - `data object Rejected : FluidNotificationResult` — ID o messaggio vuoto.
 - `enum class FluidNotificationDelivery` — A durable producer acknowledges only after the card has been genuinely presented.
 - `class FluidNotificationHostState internal constructor()` — A small FIFO for transient, app-wide messages.
   - `suspend fun show(notification: FluidNotification): FluidNotificationDelivery` — Suspends until this ID is actually laid out by an active host. Concurrent calls for the same ID await the same delivery instead of duplicating the banner. A host lifecycle interruption transparently re-enqueues an unpresented request.
+  - `suspend fun showForResult(notification: FluidNotification): FluidNotificationResult` — Attende l'esito condiviso dagli osservatori dello stesso ID. Cancellare l'attesa non ritira la card.
+  - `fun updateCurrent(notification: FluidNotification): Boolean` — Aggiorna solo la card visibile con lo stesso ID/gruppo, senza riavviare il budget di lettura. Un nuovo durationMillis non modifica il timeout gia' avviato. L'app rimuove qui le azioni scadute e rivalida la propria transazione anche nel callback. Va chiamato sul thread UI, come gli altri mutatori dello stato di presentazione.
   - `fun dismissCurrent()`
 - `@Composable fun rememberFluidNotificationHostState(): FluidNotificationHostState`
 - `val LocalFluidNotificationHostState: ProvidableCompositionLocal<FluidNotificationHostState?>` — Lets any feature publish into the single root host without owning or duplicating its UI.

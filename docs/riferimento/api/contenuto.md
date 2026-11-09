@@ -1,15 +1,54 @@
 <!-- COPIA GENERATA da skill/fluid-engine/scripts/sync_docs.py a partire da skill/fluid-engine/references/api/contenuto.md.
      Non modificare qui: si cambia la fonte e si rilancia lo script. -->
 
-# API · Contenuto: righe, card, liste, testo
+# API · Contenuto: righe, card, liste, identità, testo, file
 
-_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+
+## `engine-ui/ui/fluid/FluidAvatar.kt`
+
+- `object FluidAvatarDefaults` — Le misure dell'[FluidAvatar] e del suo mosaico.
+  - `val Size: Dp` — Il diametro di serie: 40 dp, quello di un avatar in una riga a due righe di testo.
+  - `val TouchTarget: Dp` — Il bersaglio minimo di un avatar **toccabile**: 48 dp. Un avatar di 40 dp che si tocca occupa 48 dp nel layout (e li' si prende il tocco), centrato: l'alternativa, un'area invisibile piu' grande del disegno, sovrapporrebbe i bersagli della riga e dell'avatar.
+  - `const val StackMax: Int` — Quante celle al massimo ha un mosaico ([FluidAvatarStack]): una griglia due per due.
+  - `const val MonogramLetters: Int` — Quante lettere porta di serie un monogramma ([fluidMonogram]).
+- `data class FluidAvatarItem(val name: String, val key: String = name, val color: Color = Color.Unspecified, val image: (@Composable () -> Unit)? = null)` — Una persona (o un gruppo, o un servizio) per il mosaico di [FluidAvatarStack].
+- `@Composable fun FluidAvatar(name: String, modifier: Modifier = Modifier, key: String = name, size: Dp = FluidAvatarDefaults.Size, color: Color = Color.Unspecified, image: (@Composable () -> Unit)? = null, selected: Boolean? = null, corner: (@Composable () -> Unit)? = null, onClick: (() -> Unit)? = null, contentDescription: String? = null)` — Il cerchio di una persona: un monogramma su un colore che non cambia mai, oppure un'immagine che porta l'app, e al posto del volto — in una lista che sta selezionando — il segno di selezione.
+- `@Composable fun FluidAvatarStack(items: List<FluidAvatarItem>, modifier: Modifier = Modifier, size: Dp = FluidAvatarDefaults.Size, max: Int = FluidAvatarDefaults.StackMax, contentDescription: String? = null, onClick: (() -> Unit)? = null)` — Un mosaico di piu' persone in un cerchio solo: la conversazione con piu' interlocutori, il gruppo, le caselle di un'app con piu' account.
+- `fun fluidAvatarStackDescription(names: List<String>, max: Int = FluidAvatarDefaults.StackMax, labels: FluidLabels = FluidLabels()): String` — Il nome per TalkBack di un mosaico: i nomi che si vedono, e il resto detto con le parole dell'app ([FluidLabels.moreAvatars]: «e altri 3»).
+- `fun fluidMonogram(name: String, maxLetters: Int = FluidAvatarDefaults.MonogramLetters): String` — Le iniziali di un nome, per grafemi e non per caratteri: la lettera che si mette in un cerchio.
+
+## `engine-ui/ui/fluid/FluidBadge.kt`
+
+- `object FluidBadgeDefaults` — Le misure del [FluidBadge].
+  - `val DotSize: Dp` — Il diametro del pallino: 8 dp. Non cresce con il testo di sistema: non contiene niente da leggere.
+  - `val MinHeight: Dp` — L'altezza minima della capsula col numero: 16 dp. Col testo grande la capsula cresce con il numero.
+  - `const val Max: Int` — Il numero oltre il quale la capsula dice «99+».
+- `fun fluidBadgeText(count: Int, max: Int = FluidBadgeDefaults.Max): String` — Il testo di una capsula numerica: il numero, o «99+» se supera [max]; vuoto per zero e per i valori negativi (un badge a zero non si disegna).
+- `@Composable fun FluidBadge(count: Int? = null, modifier: Modifier = Modifier, max: Int = FluidBadgeDefaults.Max, color: Color = Color.Unspecified, contentDescription: String? = null)` — Il segno piccolo di «c'e' qualcosa»: un pallino, o una capsula con un numero («3», «99+»).
 
 ## `engine-ui/ui/fluid/FluidContent.kt`
 
 - `@Composable fun FluidSectionHeader(title: String, modifier: Modifier = Modifier, detail: String? = null)` — Header above a grouped list.
 - `@Composable fun FluidLoadingBlock(modifier: Modifier = Modifier, minHeight: Dp = 180.dp)` — Placeholder while a screen's first load is in flight.
 - `@Composable fun FluidSectionFootnote(text: String, modifier: Modifier = Modifier)` — Footnote under a grouped list, for the explanation a row's subtitle would make too long.
+
+## `engine-ui/ui/fluid/FluidFileInfo.kt`
+
+- `enum class FluidFileKind` — Categoria visiva generica; non certifica la sicurezza o il contenuto del file.
+  - `companion object`
+    - `fun from(mimeType: String?, fileName: String): FluidFileKind` — L'ultima estensione prevale; un MIME eseguibile non viene mai declassato da un nome innocuo.
+- `fun fluidFormatFileSize(bytes: Long, locale: Locale = Locale.getDefault()): String` — Dimensione decimale (1000 byte = 1 KB), una cifra decimale al massimo; ignoto va rappresentato con null dal chiamante.
+
+## `engine-ui/ui/fluid/FluidFileTile.kt`
+
+- `sealed interface FluidFileStatus` — Stato deciso dall'app: nessun download, accesso URI o caricamento immagini viene avviato dall'engine.
+  - `data object Remote : FluidFileStatus`
+  - `data object Ready : FluidFileStatus`
+  - `class Transferring(val progress: () -> Float? = { null }) : FluidFileStatus` — Lettura differita: passare { state.value }, senza leggere il progresso nella riga chiamante. Null = indeterminato.
+  - `data object Failed : FluidFileStatus`
+- `@Composable fun FluidFileTile(name: String, onClick: () -> Unit, modifier: Modifier = Modifier, mimeType: String? = null, sizeBytes: Long? = null, status: FluidFileStatus = FluidFileStatus.Ready, onCancel: (() -> Unit)? = null, onRetry: (() -> Unit)? = null, onRemove: (() -> Unit)? = null, thumbnail: (@Composable () -> Unit)? = null, trailingMenu: (@Composable () -> Unit)? = null, locale: Locale = LocalConfiguration.current.locales[0])` — File in un gruppo di contenuto. Nome fino a due righe, estensione finale conservata e nome intero per TalkBack. [thumbnail] e [trailingMenu] sono dell'app: il menu deve usare gli host Fluid, la miniatura non deve sostituire l'avviso sugli eseguibili. [onClick] scarica Remote o apre Ready; durante trasferimento/errore e disabilitato.
+- `@Composable fun FluidFileChip(name: String, onClick: () -> Unit, modifier: Modifier = Modifier, mimeType: String? = null)` — File compatto per righe dense: superficie piu bassa del bersaglio tattile Compose da 48 dp, espanso fuori dal layout tramite ViewConfiguration. Lasciare spazio fra chip per evitare bersagli sovrapposti. Il gesto cede agli scroll degli antenati; l'estensione non viene sostituita da quella dichiarata dal MIME.
 
 ## `engine-ui/ui/fluid/FluidGlassGroups.kt`
 
@@ -18,6 +57,23 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun <T> LazyListScope.fluidGlassGroupsIndexed(items: List<T>, key: String? = null, maxRows: Int = FluidGlassGroupMaxRows, row: @Composable (index: Int, item: T) -> Unit)` — [fluidGlassGroups] con la posizione della riga nella lista data (3.0.1), come `itemsIndexed`: per il numero di una classifica, una riga che si comporta diversamente se e' la prima, un'animazione sfalsata. L'indice e' quello in [items], non quello nel pannello: il taglio in pannelli resta invisibile anche qui.
 - `@Composable fun <T> FluidGlassGroup(items: List<T>, modifier: Modifier = Modifier, row: @Composable (T) -> Unit)` — Le stesse righe in un pannello solo, fuori da una lista pigra: per una sezione breve che sta in una colonna ([fluidColumns]) accanto ad altre.
 
+## `engine-ui/ui/fluid/FluidGroupedItems.kt`
+
+- `annotation class FluidExperimentalRowGlass` — Il vetro **riga per riga** di [fluidGroupedItems] ([FluidGroupedMaterial.GlassSegments]).
+- `value class FluidGroupedMaterial private constructor(private val id: Int)` — Il fondo delle righe di [fluidGroupedItems].
+  - `companion object`
+    - `val Opaque: FluidGroupedMaterial` — Il fondo opaco del gruppo. Di serie.
+    - `val Tinted: FluidGroupedMaterial` — La pellicola del vetro, dipinta senza cattura.
+    - `val GlassSegments: FluidGroupedMaterial` — Una lastra di vetro per riga: solo per il banco di misura.
+- `object FluidGroupedItemsDefaults` — I valori di serie di [fluidGroupedItems].
+  - `const val ContentType: String` — Il tipo di contenuto di serie di una riga: tutte le righe di tutte le sezioni si riciclano fra loro. Un'app con righe di forma diversa (una riga di posta e un'intestazione di giorno) passa i suoi tipi.
+- `interface FluidGroupedItemScope : LazyItemScope` — Lo scope di una riga di [fluidGroupedItems]: quello di un item della lista pigra (per `animateItem`, `fillParentMaxWidth`...) piu' il pezzo che la riga occupa nella sezione.
+  - `val segment: FluidGroupSegment` — Il pezzo della sezione: `Whole` se e' l'unica riga, `First`/`Last` agli estremi, `Middle` in mezzo.
+  - `val segmentShape: Shape` — La sagoma del pezzo: angoli tondi solo dove la sezione comincia o finisce. Un'istanza stabile per pezzo.
+  - `val rowFill: Color` — Un fondo **opaco** che somiglia a quello della riga: quello da dipingere sotto la riga quando si sposta (lo scorrimento di lato), perche' dietro c'e' il colore dell'azione e un fondo trasparente lo lascerebbe vedere attraverso il testo.
+- `fun LazyListScope.fluidGroupedItems(count: Int, key: ((index: Int) -> Any)? = null, contentType: (index: Int) -> Any? = { FluidGroupedItemsDefaults.ContentType }, material: FluidGroupedMaterial = FluidGroupedMaterial.Opaque, dividers: Boolean = true, animateItems: Boolean = true, itemContent: @Composable FluidGroupedItemScope.(index: Int) -> Unit)` — Le righe di una sezione come **un item della lista pigra per riga**, raggruppate: angoli tondi solo sulla prima e sull'ultima, separatori fra l'una e l'altra, nessun vuoto in mezzo.
+- `fun <T> LazyListScope.fluidGroupedItems(items: List<T>, key: ((item: T) -> Any)? = null, contentType: (item: T) -> Any? = { FluidGroupedItemsDefaults.ContentType }, material: FluidGroupedMaterial = FluidGroupedMaterial.Opaque, dividers: Boolean = true, animateItems: Boolean = true, itemContent: @Composable FluidGroupedItemScope.(item: T) -> Unit)` — [fluidGroupedItems] su una lista gia' in memoria, come `items(list)`: la chiave e il tipo si chiedono all'elemento. Per un elenco paginato resta la forma per indice.
+
 ## `engine-ui/ui/fluid/FluidHero.kt`
 
 - `enum class FluidHeroTone` — Dove una schermata si colloca nella famiglia cromatica dell'app.
@@ -25,6 +81,18 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `data class FluidHeroMetric(val label: String, val value: String, val onClick: (() -> Unit)? = null)`
 - `@Composable fun FluidHero(tone: FluidHeroTone, motif: FluidHeroMotif, eyebrow: String, value: String, title: String, description: String, icon: ImageVector, modifier: Modifier = Modifier, metrics: List<FluidHeroMetric> = emptyList(), urgent: Boolean = false, actionLabel: String? = null, onAction: (() -> Unit)? = null)` — L'apertura editoriale di una schermata piena di dati.
 - `@Composable fun FluidHeroBand(tone: FluidHeroTone, motif: FluidHeroMotif, eyebrow: String, value: String, label: String, icon: ImageVector, modifier: Modifier = Modifier, urgent: Boolean = false, trailing: (@Composable RowScope.() -> Unit)? = null)` — L'apertura di una schermata quando lo spazio conta: una fascia, non un pannello.
+
+## `engine-ui/ui/fluid/FluidIdentityColors.kt`
+
+- `data class FluidIdentityColor(val light: Color, val dark: Color)` — Un colore d'identita' in due versioni: quella da usare su un tema chiaro e quella su un tema scuro.
+  - `fun forTheme(darkTheme: Boolean): Color` — Il lato che serve al tema: [dark] se [darkTheme], altrimenti [light].
+- `object FluidIdentityColors` — La palette categoriale dell'engine: dodici tinte distinguibili fra loro, per tutto cio' che deve **riconoscersi** senza dire un numero — il fondo di un monogramma, il colore di un account o di una materia, un'etichetta, la serie di un grafico.
+  - `val palette: List<FluidIdentityColor>` — Le tinte, in ordine di cerchio cromatico (rosso → rosa): tre sono volutamente non sature (oro, lime) perche' sono quelle che un colore «vivo» renderebbe illeggibili sotto una sigla.
+  - `fun indexFor(key: String): Int` — L'indice in [palette] di una chiave: **FNV-1a a 32 bit** sui byte UTF-8 del testo, preso senza segno modulo la dimensione della palette. Definito qui, nel dettaglio, perche' e' il contratto di stabilita': l'hash di `String.hashCode()` e' specificato dalla JVM ma non e' una promessa dell'engine, e un hash «tuo» scelto domani sposterebbe i colori di tutti.
+  - `fun colorFor(key: String): FluidIdentityColor` — La coppia scelta da una chiave: `palette[indexFor(key)]`.
+  - `fun colorAt(index: Int): FluidIdentityColor` — La coppia all'[index] dato, **con giro**: l'indice scelto da una persona (il colore di un account che ha toccato nelle impostazioni) resta valido anche se un domani la palette ha meno tinte, e un indice negativo non esplode.
+- `@Composable fun fluidIdentityColor(key: String): Color` — Il colore d'identita' di una [key] nel tema in scope: il lato chiaro o scuro, secondo la luminosita' della superficie (non secondo `isSystemInDarkTheme`, che non sa se l'app ha il suo tema).
+- `@Composable fun fluidIdentityColor(index: Int): Color` — Come [fluidIdentityColor] ma per un indice scelto dalla persona; vedi [FluidIdentityColors.colorAt].
 
 ## `engine-ui/ui/fluid/FluidImageViewer.kt`
 
@@ -51,6 +119,11 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun Modifier.fluidZoomable(state: FluidZoomState, contentAspectRatio: Float? = null, enabled: Boolean = true, onTap: (() -> Unit)? = null, strings: FluidImageViewerStrings = FluidImageViewerStrings()): Modifier` — Rende ingrandibile quello che il modificatore avvolge: pizzico, doppio tocco, spostamento limitato al contenuto.
 - `data class FluidImageViewerStrings(val zoomIn: String = "Ingrandisci", val zoomOut: String = "Riduci", val zoomState: (percent: Int) -> String = { "Zoom $it%" })` — Le parole del visualizzatore, in italiano di serie.
 - `@Composable fun FluidImageViewer(visible: Boolean, onDismissRequest: () -> Unit, modifier: Modifier = Modifier, pageCount: Int = 1, initialPage: Int = 0, onPageChange: (page: Int) -> Unit = {}, title: (page: Int, pageCount: Int) -> String? = { page, count -> if (count > 1) "${page + 1} di…, maxScale: Float = FluidZoom.DefaultMaxScale, contentAspectRatio: (page: Int) -> Float? = { null }, strings: FluidImageViewerStrings = FluidImageViewerStrings(), background: Color? = null, page: @Composable (page: Int) -> Unit)` — Il visualizzatore di immagini a tutto schermo, **dentro l'host dei modali** dell'engine: una o piu' immagini, pizzico e doppio tocco per ingrandire, spostamento limitato all'immagine, congedo trascinando in giu'.
+
+## `engine-ui/ui/fluid/FluidJumpPill.kt`
+
+- `enum class FluidJumpDirection` — Verso dove porta una [FluidJumpPill]: in cima (le novita' sopra) o in fondo (le novita' sotto).
+- `@Composable fun FluidJumpPill(visible: Boolean, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, direction: FluidJumpDirection = FluidJumpDirection.Up, backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop…)` — La pillola di vetro «N nuove ↑»: arrivano elementi sopra (o sotto) il punto in cui l'utente sta leggendo, e invece di spostargli la lista sotto il dito glielo si dice, con un tocco per andarci.
 
 ## `engine-ui/ui/fluid/FluidLiveDot.kt`
 
@@ -142,6 +215,34 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun description(selected: Boolean): String` — Cosa legge TalkBack, per stato. Un'app in un'altra lingua passa la sua.
 - `@Composable fun FluidSelectionMark(selected: Boolean, modifier: Modifier = Modifier, size: Dp = FluidSelectionMarkDefaults.Size, onPhoto: Boolean = false, tint: Color = Color.Unspecified, contentDescription: String? = FluidSelectionMarkDefaults.description(selected))` — Il segno della selezione multipla: un cerchio vuoto quando la riga si puo' scegliere, un disco pieno con la spunta quando e' scelta. Nello spazio `leading` di una `FluidListRow`, o sull'angolo di una miniatura in una griglia.
 
+## `engine-ui/ui/fluid/FluidSelectionState.kt`
+
+- `sealed interface FluidSelectionMode<out K : Any>` — Cosa e' scelto, in una delle due forme che una selezione multipla puo' avere.
+  - `data class Explicit<out K : Any>(val keys: Set<K>) : FluidSelectionMode<K>` — Sono scelte queste chiavi, nell'ordine in cui sono state scelte.
+  - `data class AllExcept<out K : Any>(val excluded: Set<K>, val snapshot: String? = null) : FluidSelectionMode<K>` — E' scelto tutto tranne [excluded].
+- `class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelectionMode.Explicit(emptySet()))` — Lo stato della selezione multipla di una lista: cosa e' scelto, e come si entra e si esce.
+  - `val mode: FluidSelectionMode<K> get()` — Cosa e' scelto, come valore immutabile: salvabile, confrontabile, passabile a un'azione di massa.
+  - `val isActive: Boolean` — C'e' una selezione in corso: almeno una chiave scelta, o «tutto tranne» qualcuno. E' cio' che fa comparire la capsula di azioni e il titolo «N selezionate», e che abilita il back.
+  - `val isAllExcept: Boolean get()` — E' la forma «tutto tranne»: il numero scelto dipende dal totale ([countIn]).
+  - `val snapshot: String?` — Il testimone dell'ultimo [selectAll]; null in forma esplicita o se l'app non ne ha passato uno.
+  - `fun countIn(total: Int): Int` — Quante righe sono scelte, dato il [total] delle righe del risultato che l'app conosce.
+  - `fun isSelected(key: K, belongsToSnapshot: Boolean = true): Boolean` — [key] e' scelta?
+  - `fun toggle(key: K)` — Scelta se non lo e', non scelta se lo e'. Il tocco su un avatar o su una riga in selezione.
+  - `fun select(key: K)` — Sceglie [key] se non lo era.
+  - `fun deselect(key: K)` — Toglie [key] dalla selezione se c'era.
+  - `fun setSelected(key: K, selected: Boolean)` — Porta [key] allo stato [selected]. In forma esplicita aggiunge o toglie la chiave; in forma «tutto tranne» toglie o aggiunge **l'esclusione**.
+  - `fun selectAll(snapshot: String? = null)` — «Seleziona tutto»: passa alla forma «tutto tranne» senza esclusioni, **senza materializzare nessuna chiave**. Vale per l'intero risultato, anche le righe non caricate; vedi la documentazione della classe.
+  - `fun clear()` — Esce dalla selezione: niente e' scelto.
+  - `fun exitIfEmpty(total: Int)` — Esce se la selezione e' «tutto tranne» e il [total] non lascia niente di scelto (le esclusioni hanno raggiunto il totale: la persona ha tolto riga per riga tutto cio' che aveva scelto). Da chiamare quando cambiano il conteggio o le esclusioni, perche' l'engine non conosce il totale. In forma esplicita non fa niente: li' una selezione vuota e' gia' non attiva.
+  - `fun retainOnly(valid: Set<K>)` — Toglie le chiavi **che non esistono piu'** nei dati, dopo un aggiornamento: l'azione e' stata fatta, la riga e' stata spostata, l'ha cancellata un'altra app.
+  - `fun forget(keys: Collection<K>)` — Toglie le chiavi che l'app **sa** non esistere piu' (le righe che ha appena archiviato, eliminato, spostato), senza guardare le altre: e' la forma per le liste paginate, dove l'elenco di cio' che c'e' ancora non esiste. Vale per le due forme, per la stessa ragione di [retainOnly].
+  - `fun clearIfSnapshotDiffers(currentSnapshot: String?)` — Esce dalla selezione «tutto tranne» se il testimone con cui fu fatta **non e' piu'** [currentSnapshot]: il risultato che la persona aveva scelto non e' piu' quello che vede (ha cambiato filtro, account, ricerca), e un'azione di massa lo applicherebbe a righe che non ha guardato. Non tocca la forma esplicita: le chiavi sono righe precise, valide in qualunque vista.
+  - `companion object`
+    - `fun <K : Any> saver(keySaver: Saver<K, out Any>? = null, maxSavedKeys: Int = DefaultMaxSavedKeys): Saver<FluidSelectionState<K>, Any>` — Il [Saver] di uno stato: la forma, il testimone e le chiavi, come una lista che il `Bundle` sa tenere. Sopravvive alla rotazione e alla morte del processo.
+    - `const val DefaultMaxSavedKeys: Int` — Quante chiavi al massimo si salvano di serie: mille sono piu' di quante ne tocchi a mano una persona, e restano ben sotto il limite di un `Bundle`.
+- `@Composable fun <K : Any> rememberFluidSelectionState(keySaver: Saver<K, out Any>? = null): FluidSelectionState<K>` — Lo stato di una selezione che resta com'e' alla rotazione e alla morte del processo ([FluidSelectionState.saver]).
+- `@Composable fun FluidSelectionBackHandler(state: FluidSelectionState<*>, enabled: Boolean = true, onExit: (() -> Unit)? = null)` — Il back esce dalla selezione, e non da altro.
+
 ## `engine-ui/ui/fluid/FluidSettingRows.kt`
 
 - `@Composable fun FluidToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier, subtitle: String = "", enabled: Boolean = true, tone: FluidTone = FluidTone.Neutral, leading: (@Composable () -> Unit)? = null, leadingTile: Boolean = true)` — Una riga di impostazioni con un interruttore: **la riga e' l'interruttore**.
@@ -182,6 +283,18 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val SegmentGap: Dp` — Lo spazio fra i segmenti.
   - `fun label(step: Int, steps: Int): String` — «Passo 2 di 5». Un'app in un'altra lingua passa la sua frase come `label`.
 - `@Composable fun FluidStepProgress(step: Int, steps: Int, modifier: Modifier = Modifier, label: String = FluidStepProgressDefaults.label(step, steps), detail: String? = null, segmented: Boolean = false, pulseCurrent: Boolean = false, color: Color = MaterialTheme.colorScheme.primary, labels: List<String>? = null)` — L'intestazione di una procedura a passi: «Passo 2 di 5» e una barra che dice a che punto si e', senza rubare la scena al titolo.
+
+## `engine-ui/ui/fluid/FluidSwipeActions.kt`
+
+- `class FluidSwipeAction(val label: String, val icon: ImageVector, val color: Color, val removesItem: Boolean = false, val onAction: () -> Unit)` — Un'azione che una riga rivela scorrendo di lato: archivia, segna come letta, elimina, fissa.
+- `class FluidSwipeState internal constructor(private val scope: CoroutineScope)` — Lo stato di una riga a scorrimento: dove sta, se la soglia e' superata, se e' uscita.
+  - `var offset: Float by mutableFloatStateOf(0f)` — Lo spostamento della riga in px, **logico**: positivo verso la fine (rivela l'azione iniziale, a sinistra in LTR), negativo verso l'inizio. Letto nel disegno, mai nella composizione.
+  - `var armed: Boolean by mutableStateOf(false)` — La soglia e' superata: rilasciando adesso l'azione parte.
+  - `var isDismissed: Boolean by mutableStateOf(false)` — La riga e' uscita (un'azione con `removesItem` confermata) e aspetta che l'app la tolga. Non risponde al dito finche' non la si rimette con [reset].
+  - `suspend fun reset()` — Rimette la riga a posto con la molla (istantanea col movimento ridotto): per un'azione che l'app non ha potuto fare, o per l'«Annulla» di una riga uscita che resta nei dati.
+- `@Composable fun rememberFluidSwipeState(): FluidSwipeState` — Lo stato di una riga a scorrimento, ricordato nell'item.
+- `@Composable fun Modifier.fluidSwipeActions(state: FluidSwipeState, startAction: FluidSwipeAction? = null, endAction: FluidSwipeAction? = null, enabled: Boolean = true, shape: Shape = RectangleShape, fill: Color = Color.Unspecified, accessibilityActions: Boolean = true): Modifier` — Azioni a scorrimento orizzontale su una riga: un'azione per verso, sfondo col colore e l'icona dell'azione, soglia che si sente, annullabile tornando indietro col dito, uscita o ritorno al rilascio, e le stesse azioni per TalkBack.
+- `fun Modifier.fluidAccessibilityActions(actions: List<CustomAccessibilityAction>): Modifier` — Le azioni personalizzate di TalkBack, **aggiunte** a quelle che il nodo ha gia'.
 
 ## `engine-ui/ui/fluid/FluidTextReveal.kt`
 

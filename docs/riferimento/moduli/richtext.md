@@ -10,7 +10,7 @@ tre formati di scambio (HTML ristretto, Markdown, testo semplice). Per il corpo 
 un'app che non lo chiede non compila una riga né si porta dietro il suo lettore di HTML. Perché un modulo e non un file in `engine-ui`: è il componente più grande e delicato della famiglia del testo (modello a intervalli,
 IME, incolla da HTML ostile, annulla/ripeti) e per ora lo chiede una sola app. Modello mentale: **un campo di testo normale per la tastiera, un documento immutabile per l'app, e uno stato che li tiene allineati.**
 
-Catalogo delle firme: `api/richtext.md` (generato). I controlli della famiglia del testo («Un editor con i pulsanti…») sono in [`../componenti/controlli.md`](../componenti/controlli.md).
+Catalogo delle firme: [`../api/richtext.md`](../api/richtext.md) (generato). I controlli della famiglia del testo («Un editor con i pulsanti…») sono in [`../componenti/controlli.md`](../componenti/controlli.md).
 
 ## Scegliere in fretta
 
@@ -67,11 +67,16 @@ Tutti passano da `FluidRichTextState` (e si annullano in un passo): `toggle(styl
 - **`increaseIndent` / `decreaseIndent`**: una voce diventa la voce di un sotto-elenco **dello stesso tipo** (la numerazione riparte), un paragrafo citato una citazione nella citazione; i paragrafi normali e quelli già al
   tetto non cambiano (il tasto è spento: `FluidRichTextFormat.canIncreaseIndent`/`canDecreaseIndent`). Riduci: voce di sotto-elenco → voce dell'elenco sopra → paragrafo; citazione annidata → semplice → fuori. Sono anche **Tab e
   Maiusc+Tab** da tastiera fisica (il Tab lo prende solo dove cambia un rientro: altrove resta del campo), e ciò che fanno **a capo su una voce vuota** e **cancella in testa a una voce**: risalgono **di un livello alla volta**
-  prima di uscire dall'elenco.
+  prima di uscire dall'elenco. **Agiscono sui paragrafi toccati, non sui loro figli**: aumentare o ridurre il rientro di una voce **non sposta** le voci del sotto-elenco che le sta sotto (si selezionano anche quelle per portarle
+  dietro).
 - **`setLink(url, text)`** completa l'indirizzo (`esempio.it` → `https://esempio.it`) e ritorna **falso, senza cambiare niente**, se non è sicuro. Un link **si allarga se scrivi dentro**, ma **non a chi scrive in fondo** (chi
   finisce un indirizzo e va avanti non vuole che la frase dopo sia parte del link): è la regola di ogni editor. Grassetto, corsivo e sottolineato invece si allargano anche in fondo.
 - **Incolla** dagli appunti: l'HTML (da un browser, da Google Documenti, da un'altra mail) tiene ciò che l'editor sa mostrare; il testo con stili di un'altra app pure; il testo semplice entra col formato del punto in cui
   si incolla; ciò che non è testo (un'immagine dalla tastiera) è ignorato. **Copia** mette negli appunti anche l'HTML della selezione: copiare e incollare dentro l'editor non perde gli stili.
+  **Cosa l'incolla non conserva** (non è un difetto: l'editor non ha questi concetti): colori e caratteri, la dimensione del testo, il barrato (`<s>`, `<del>`, `line-through`), le immagini, le tabelle (le righe diventano
+  paragrafi e il testo resta), le classi e gli stili che non siano grassetto, corsivo e sottolineato. I **titoli** (`<h1>`…`<h6>`, `<th>`) diventano un paragrafo in **grassetto**: il testo c'è, la gerarchia no. Si incolla
+  solo dagli appunti: un testo **trascinato** cade come testo scritto, col formato del punto. **Un frammento annidato incollato porta i livelli che aveva** (assoluti, non sommati a quelli del punto in cui cade) per i suoi
+  paragrafi interi; il paragrafo parziale in cui si incolla tiene lo stile che ha già.
 - **Scorciatoie** da tastiera fisica: Ctrl+Z, Ctrl+Maiusc+Z / Ctrl+Y (la cronologia è quella dell'editor, con gli stili), Ctrl+B/I/U.
 - L'annulla tiene al più `FluidRichTextState.MaxHistory` = 100 passi (una parola, uno stile, un incolla, un inserimento dal codice).
 
@@ -102,7 +107,7 @@ non disegna niente per un fotogramma (un intervallo fuori dal testo farebbe cade
 | formato | uscita | ingresso | per cosa |
 |---|---|---|---|
 | **HTML ristretto** (`FluidRichTextHtml`) | `div`, `ul`/`ol`/`li`, `blockquote`, `b`, `i`, `u`, `a href`; **nessun attributo** salvo `href`, nessuno stile, nessuna classe | qualsiasi HTML, trattato come **ostile** | il formato di riferimento: la parte HTML di una mail, una bozza, gli appunti |
-| **Markdown** (`FluidRichTextMarkdown`) | `**…**`, `*…*`, `<u>…</u>`, `[testo]` e l'indirizzo fra parentesi tonde, `- `, `1. `, `> `, annidamenti come CommonMark | più ampio (`__`, `_`, `* `, `+ `, `1)`, titoli → grassetto, link automatici, codice come testo) | note, scambio leggibile; **non** il formato di riferimento |
+| **Markdown** (`FluidRichTextMarkdown`) | `**…**`, `*…*`, `<u>…</u>`, `[testo]` e l'indirizzo fra parentesi tonde, `- `, `1. `, `> `, annidamenti come CommonMark (due puntati nuovi sulla stessa riga alternano il segno, `- * `, perché `- - ` sarebbe una linea orizzontale) | più ampio (`__`, `_`, `* `, `+ `, `1)`, titoli → grassetto, link automatici, codice come testo) | note, scambio leggibile; **non** il formato di riferimento |
 | **Testo semplice** (`doc.toPlainText()`) | un paragrafo per riga, `• `/`◦ `/`▪ `/`1. `, `> `; il link seguito dall'indirizzo fra parentesi | `FluidRichTextDocument.fromPlainText` | la parte «solo testo» di una mail, un'anteprima, una notifica |
 
 - **HTML, uscita.** Il paragrafo vuoto è `<div><br></div>` (come lo scrivono i client di posta: la spaziatura è la stessa ovunque); spazi doppi, in testa e in coda diventano `&nbsp;` (l'HTML li collasserebbe), il tab `&#9;`. Un
@@ -148,7 +153,14 @@ portale: **serve un `FluidGlassModalHost` alla radice**, come ogni foglio dell'e
 - **L'annulla non conosce l'apertura di una bozza**: dopo `setDocument` chiama `clearHistory()`, altrimenti «annulla» riporta al documento vuoto.
 - **`revision` cresce anche per modifiche dell'app** (`setDocument`, `replace`): filtra con `lastChangeSource` se non vuoi salvare ciò che hai appena letto.
 - **Gli enum possono crescere** (`FluidRichTextInlineStyle`, `FluidRichTextListKind`, `FluidRichTextBlock`, `FluidRichTextChangeSource`): barrato e codice sono candidati. Un `when` senza `else` si rompe.
-- **La barra senza `FluidGlassModalHost`** non apre il foglio del link.
+- **La barra senza `FluidGlassModalHost`** non apre il foglio del link; senza host il link si imposta solo da codice con `setLink`.
+- **La barra sta fuori dal `content` della pagina.** Va nell'overlay (`FluidScreen.overlay`, o un `Box` sopra il contenuto), non come riga dentro lo scroll: è una capsula flottante ancorata in basso che sale con la tastiera, non un pezzo del contenuto.
+- **Firme e testi generati non si scrivono con la tastiera finta.** Si inseriscono con `state.insert(offset, doc)`, `replace(start, end, doc)` o `replaceSelection(doc)`: una sola modifica che si annulla in un passo, con
+  `lastChangeSource = Program`. Non toccare il testo dentro `composition`.
+- **API sperimentali sotto.** L'incolla passa da `contentReceiver` e la trasformazione d'ingresso legge la lista delle modifiche del campo a stato (`TextFieldBuffer.changes`) di Compose Foundation (1.10 con la BOM `2026.03.00` di
+  `versions.gradle`): sono API **sperimentali** (`@OptIn(ExperimentalFoundationApi::class)`) e un aggiornamento di Compose può richiedere un ritocco al modulo. L'API pubblica del modulo non le espone.
+- **La citazione del messaggio a cui si risponde resta dell'app.** Il documento ha citazioni annidate, ma l'HTML originale di una mail ricevuta non passa da questo modello: l'app lo tiene come HTML e lo mostra con
+  `FluidWebContent`; nell'editor entra solo ciò che l'utente può modificare.
 - **L'HTML non è un sanificatore.** `FluidRichTextHtml.read` produce un documento sicuro da modificare e da riscrivere; mostrare l'HTML di un altro dentro l'app è un altro problema (la scheda di `FluidWebContent`).
 - Tetto di rientro e `MaxDepth` sono **per il disegno e per la sicurezza**, non una scelta di prodotto: un HTML con cento livelli si legge, perde la profondità, non il testo.
 

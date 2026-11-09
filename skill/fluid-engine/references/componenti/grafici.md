@@ -2,7 +2,7 @@
 
 Quattro componenti per **mostrare quanto**: `FluidDonutChart` (di cosa è fatto un totale), `FluidBarChart` (confronto fra voci, anche impilato), `FluidLineChart` (come è andata nel tempo), `FluidChartLegend` (il testo che
 spiega i colori), più due riquadri di stato (`FluidChartMessage`, `FluidChartSkeleton`). Famiglia nuova dalla 3.1.0 (Pampa Mail, F1.5, gruppo G-G1). File: `engine-ui/.../ui/fluid/FluidCharts.kt` (disegno) e `FluidChartMath.kt` (i
-conti: scale, quote, assegnazione dei colori, tutto puro e provato sulla JVM). Catalogo delle firme: `api/grafici.md` (generato).
+conti: scale, quote, assegnazione dei colori, tutto puro e provato sulla JVM). Catalogo delle firme: [`../api/grafici.md`](../api/grafici.md) (generato).
 
 **Modello mentale in due frasi.** Un grafico dell'engine **non può mentire e non può essere solo di colore**: la scala parte da zero e finisce su un numero tondo, una barra tagliata o una ciambella che non somma sono «dati
 non validi» (mai disegnati), un buco in una serie spezza la linea (mai un valore inventato), e ogni numero esiste anche come testo (legenda, descrizione per TalkBack). I colori sono quelli della palette d'identità, portati a
@@ -13,6 +13,7 @@ non validi» (mai disegnati), un buco in una serie spezza la linea (mai un valor
 | la domanda è… | uso |
 |---|---|
 | «com'è fatto questo totale?» e le voci sono **disgiunte** (ogni elemento in una voce sola) | `FluidDonutChart(entries)` |
+| una ripartizione di spesa **in valuta** (per fornitore, per modello) | `FluidDonutChart` con `valueText` che scrive l'importo nella valuta e `whole` col totale dichiarato: la somma deve tornare, e se non torna il grafico lo dice invece di disegnare |
 | «quanto per ciascuna?» con voci che **si sovrappongono** (un messaggio ha due etichette) | `FluidBarChart` con `maxValue` e `scaleLabel`: **non** una ciambella, che mentirebbe |
 | confronto fra voci, conteggi per periodo, spesa per fornitore | `FluidBarChart(groups, series)` (verticali, `horizontal = true` per etichette lunghe) |
 | più serie affiancate | `FluidBarChart` con più `series`: un valore per serie in ogni `FluidBarGroup` |
@@ -89,7 +90,7 @@ vuole barre separate col denominatore dichiarato.
   **Il campionamento (50.000 record in 30 punti) lo fa chi chiama, fuori dal disegno.**
 - **Asse.** La scala include lo zero (`startAtZero = true`, di serie) e finisce su un numero tondo; con `fill` (area) lo zero è **sempre** incluso, perché l'area è la distanza dallo zero. Spegnere `startAtZero` è una scelta di chi sa
   che un asse che non parte da zero non inganna (un andamento di temperature, non di conteggi). Le etichette di `xLabels` si diradano e vanno a capo senza sovrapporsi, anche al 200%.
-- **La curva non inventa picchi.** Fra due punti la linea è una curva **monotona** (`fluidMonotoneTangents`): non supera mai i due valori misurati. Una spline qualunque «rimbalza» e disegna un massimo che i dati non hanno.
+- **La curva non inventa picchi.** Fra due punti la linea è una curva **monotona** (`fluidMonotoneTangents`, interna): non supera mai i due valori misurati. Una spline qualunque «rimbalza» e disegna un massimo che i dati non hanno.
 - **Selezione.** Un tocco su un punto (la sua colonna) lo evidenzia e scrive sotto «etichetta – valori»; con TalkBack si esplora punto per punto.
 
 ## Legenda

@@ -3,7 +3,7 @@
 
 # API · Barre di navigazione e di azione
 
-_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ui/ui/fluid/FluidFloatingCapsule.kt`
 
@@ -20,7 +20,7 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun exit(reducedMotion: Boolean = false): ExitTransition` — Come esce: piu' svelta di come entra (chi la chiude non aspetta), stessa direzione.
 - `fun Modifier.fluidCapsuleInsets(placement: FluidFloatingCapsulePlacement, avoidKeyboard: Boolean = false): Modifier` — I margini di una capsula flottante in fondo allo schermo: la barra di sistema, i margini laterali della barra di navigazione e il suo margine basso, piu' — per [FluidFloatingCapsulePlacement.AboveTabBar] — lo spazio della barra stessa.
 - `@Composable fun FluidFloatingCapsule(modifier: Modifier = Modifier, backdrop: GlassBackdropState = currentGlassBackdrop(), visible: Boolean = true, placement: FluidFloatingCapsulePlacement = FluidFloatingCapsulePlacement.Free, fillWidth: Boolean = false, onPhoto: Boolean = false, avoidKeyboard: Boolean = false, minHeight: Dp = FluidFloatingCapsuleDefaults.Height, contentPadding: PaddingValues = FluidFloatingCapsuleDefaults.ContentPadding, label: String? = null, leading: (@Composable RowScope.() -> Unit)? = null, trailing: (@Composable RowScope.() -> Unit)? = null, content: @Composable RowScope.() -> Unit)` — Una capsula di vetro con delle azioni dentro, che galleggia sopra la pagina: la barra di una selezione multipla, un mini player, i comandi di una foto, un avviso con un tasto.
-- `@Composable fun FluidCapsuleAction(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, destructive: Boolean = false, tint: Color = Color.Unspecified, onLongClick: (() -> Unit)? = null, size: Dp = FluidFloatingCapsuleDefaults.ActionSize, grip: FluidPressGrip = FluidPressGrip.HoldsFinger)` — Un'azione dentro una [FluidFloatingCapsule]: un'icona, la sua descrizione e il bersaglio da 48 dp.
+- `@Composable fun FluidCapsuleAction(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, destructive: Boolean = false, tint: Color = Color.Unspecified, onLongClick: (() -> Unit)? = null, size: Dp = FluidFloatingCapsuleDefaults.ActionSize, grip: FluidPressGrip = FluidPressGrip.HoldsFinger, selected: Boolean? = null)` — Un'azione dentro una [FluidFloatingCapsule]: un'icona, la sua descrizione e il bersaglio da 48 dp.
 
 ## `engine-ui/ui/fluid/FluidFloatingTabBar.kt`
 
@@ -40,7 +40,7 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class FluidFloatingTabBarInlineBehavior` — Defines when the floating tab bar should transition to inline state.
 - `@Composable fun FluidFloatingTabBar(items: List<FluidTabItem>, selectedRoute: String?, onSelect: (FluidTabItem) -> Unit, scrollConnection: FluidFloatingTabBarScrollConnection, backdrop: GlassBackdropState? = null, modifier: Modifier = Modifier, onReselect: (FluidTabItem) -> Unit = {}, glass: FluidFloatingTabBarGlass = FluidFloatingTabBarGlass(), accentColor: Color? = null, foldAlignment: Alignment.Horizontal = Alignment.Start)` — The same bar, for a screen whose navigation is a list of destinations and nothing more.
 - `interface FluidFloatingTabBarScope`
-  - `fun tab(key: Any, title: @Composable () -> Unit, icon: @Composable () -> Unit, onClick: () -> Unit, indication: (@Composable () -> Indication)? = null)` — Adds a regular tab to the floating tab bar.
+  - `fun tab(key: Any, title: @Composable () -> Unit, icon: @Composable () -> Unit, onClick: () -> Unit, indication: (@Composable () -> Indication)? = null, badge: FluidTabBadge? = null)` — Adds a regular tab to the floating tab bar.
   - `fun standaloneTab(key: Any, icon: @Composable () -> Unit, onClick: () -> Unit, indication: (@Composable () -> Indication)? = null, title: @Composable () -> Unit = {})` — Adds a standalone tab to the floating tab bar.
 - `data class FluidFloatingTabBarColors(val backgroundColor: Color, val accessoryBackgroundColor: Color)` — Represents the colors used in [FluidFloatingTabBar].
 - `data class FluidFloatingTabBarShapes(val tabBarShape: Shape, val tabShape: Shape, val standaloneTabShape: Shape, val accessoryShape: Shape)` — Represents the shapes used in [FluidFloatingTabBar].
@@ -99,13 +99,17 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidTabBar.kt`
 
-- `data class FluidTabItem(val route: String, val label: String, val icon: ImageVector)`
+- `data class FluidTabItem(val route: String, val label: String, val icon: ImageVector, val badge: FluidTabBadge? = null)` — Una destinazione della navigazione: la barra a elenco ([FluidFloatingTabBar]) e il rail ([FluidTabRail]).
+- `data class FluidTabBadge(val count: Int? = null, val contentDescription: String? = null, val color: Color = Color.Unspecified)` — Il segno su una zona della barra o del rail: un pallino («ci sono novita'») o un numero.
+  - `companion object`
+    - `val Dot: FluidTabBadge` — Il pallino senza numero: «ci sono novita'».
 - `object FluidTabBarDefaults` — Le misure della barra di prima e del rail.
   - `val Height`
   - `val HorizontalMargin`
   - `val BottomMargin` — Above the system's gesture handle, not against it. See [FluidFoldingTabBarDefaults].
   - `val RailWidth`
+  - `val RailHeaderSpacing` — Lo spazio fra l'intestazione del rail (l'azione primaria, `FluidTabRail(header = …)`) e la capsula delle schede: 8 dp, come lo spazio fra la pillola e il cerchio accanto nella barra in basso.
   - `val ContentInset` — Vertical space a screen must leave free so its content clears the floating bar.
 - `@Composable fun FluidTabBar(items: List<FluidTabItem>, selectedRoute: String?, onSelect: (FluidTabItem) -> Unit, backdrop: GlassBackdropState, modifier: Modifier = Modifier, onReselect: (FluidTabItem) -> Unit = {})` — **DEPRECATO: È FluidFloatingTabBar con la lista di schede, e ne ha il vetro: usa quella. Cambia la ** — La barra di prima, sotto il nome che le app già chiamano.
-- `@Composable fun FluidTabRail(items: List<FluidTabItem>, selectedRoute: String?, onSelect: (FluidTabItem) -> Unit, backdrop: GlassBackdropState, modifier: Modifier = Modifier, onReselect: (FluidTabItem) -> Unit = {})` — Wide-screen variant: the same material and the same drop, stood on its side.
+- `@Composable fun FluidTabRail(items: List<FluidTabItem>, selectedRoute: String?, onSelect: (FluidTabItem) -> Unit, backdrop: GlassBackdropState, modifier: Modifier = Modifier, onReselect: (FluidTabItem) -> Unit = {}, header: (@Composable ColumnScope.() -> Unit)? = null)` — Wide-screen variant: the same material and the same drop, stood on its side.
 - `@Composable fun fluidTabBarPadding(): PaddingValues` — Padding a floating tab bar needs around itself.

@@ -3,7 +3,7 @@
 
 # API · Controlli
 
-_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ui/ui/fluid/FluidControls.kt`
 
@@ -69,3 +69,17 @@ _Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `@Composable fun FluidTextField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier, placeholder: String? = null, label: String? = null, enabled: Boolean = true, readOnly: Boolean = false, singleLine: Boolean = true, minLines: Int = 1, maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE, isError: Boolean = false, supportingText: String? = null, minHeight: androidx.compose.ui.unit.Dp = 44.dp, keyboardOptions: KeyboardOptions = KeyboardOptions.Default, keyboardActions: KeyboardActions = KeyboardActions.Default, visualTransformation: VisualTransformation = VisualTransformation.None, showClearButton: Boolean = singleLine, secret: Boolean = false, leading: (@Composable () -> Unit)? = null, trailing: (@Composable () -> Unit)? = null)` — A text field.
 - `@Composable fun FluidTextField(value: TextFieldValue, onValueChange: (TextFieldValue) -> Unit, modifier: Modifier = Modifier, placeholder: String? = null, label: String? = null, enabled: Boolean = true, readOnly: Boolean = false, singleLine: Boolean = true, minLines: Int = 1, maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE, isError: Boolean = false, supportingText: String? = null, minHeight: androidx.compose.ui.unit.Dp = 44.dp, keyboardOptions: KeyboardOptions = KeyboardOptions.Default, keyboardActions: KeyboardActions = KeyboardActions.Default, visualTransformation: VisualTransformation = VisualTransformation.None, showClearButton: Boolean = singleLine, secret: Boolean = false, leading: (@Composable () -> Unit)? = null, trailing: (@Composable () -> Unit)? = null)` — The text field, with the caret.
+
+## `engine-ui/ui/fluid/FluidTokenField.kt`
+
+- `data class FluidToken(val id: String, val label: String, val isError: Boolean = false)` — Gettone di dominio neutro. L'app assegna ID univoci e decide validità e normalizzazione.
+- `data class FluidTokenFieldValue(val tokens: List<FluidToken> = emptyList(), val draft: TextFieldValue = TextFieldValue(), val selectedTokenId: String? = null)` — Bozza completa e selezione a due tempi; composizione IME transiente, mai ripristinata dopo morte processo.
+  - `companion object`
+    - `val Saver` — Per rememberSaveable(stateSaver = Saver): salva anche cursore, errori e selezione del gettone.
+- `object FluidTokenFieldDefaults` — Operazioni pure: nessuna regex di dominio. Un risultato null del creatore conserva il testo rifiutato.
+  - `val Separators: Set<Char>` — Separazione predefinita; aggiungere lo spazio soltanto per domini che non hanno nomi composti.
+  - `fun update(value: FluidTokenFieldValue, draft: TextFieldValue, separators: Set<Char> = Separators, commitRemainder: Boolean = false, createToken: (String, List<FluidToken>) -> FluidToken?): FluidTokenFieldValue` — Conferma soltanto porzioni terminate da separatore, mai durante composizione. commitRemainder serve per Invio, perdita focus o incolla esplicito di una lista completa. createToken vede anche i gettoni appena aggiunti: la deduplica è interamente dell'app. null conserva la porzione originale (separatore incluso), senza perdere dati non riconosciuti.
+  - `fun backspace(value: FluidTokenFieldValue): FluidTokenFieldValue` — Prima pressione seleziona, seconda rimuove. Testo o composizione presenti lasciano agire l'editor.
+- `data class FluidTokenSuggestion(val id: String, val title: String, val subtitle: String? = null, val leading: (@Composable () -> Unit)? = null)` — Suggerimento controllato dall'app: ID stabile per evitare che un aggiornamento scelga un'altra riga.
+- `@Composable fun FluidTokenField(value: FluidTokenFieldValue, onValueChange: (FluidTokenFieldValue) -> Unit, createToken: (String, List<FluidToken>) -> FluidToken?, modifier: Modifier = Modifier, label: String? = null, placeholder: String? = null, separators: Set<Char> = FluidTokenFieldDefaults.Separators, enabled: Boolean = true, keyboardOptions: KeyboardOptions = KeyboardOptions.Default, onEditToken: ((FluidToken) -> Unit)? = null, suggestions: List<FluidTokenSuggestion> = emptyList(), onSuggestionClick: (FluidTokenSuggestion) -> Unit = {})` — Campo a gettoni che cresce nella pagina: inserirlo nello scroll del chiamante, senza limite verticale interno. createToken valida, normalizza e deduplica (null conserva il testo); un gettone non valido usa isError. onEditToken è opzionale: l'app decide se rimuovere il gettone e mettere la sua etichetta nella bozza.
+- `@Composable fun FluidSuggestionRow(title: String, subtitle: String? = null, leading: (@Composable () -> Unit)? = null, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, selected: Boolean = false)` — Riga in pagina, un nodo accessibile; non prende focus alla tastiera mentre si sceglie un suggerimento.

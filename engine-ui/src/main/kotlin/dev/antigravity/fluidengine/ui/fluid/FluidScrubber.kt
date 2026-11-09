@@ -245,6 +245,7 @@ fun FluidScrubber(
   // Letto *ora*, non catturato allora: un trascinamento sopravvive alle ricomposizioni e le sue lambda
   // vivono piu' di quello che hanno chiuso (lo stesso errore e' annotato in `FluidSlider`).
   val currentPosition by rememberUpdatedState(position)
+  val currentEnabled by rememberUpdatedState(enabled)
   val currentBuffered by rememberUpdatedState(buffered)
   val currentOnSeek by rememberUpdatedState(onSeek)
   val currentOnScrubStart by rememberUpdatedState(onScrubStart)
@@ -258,6 +259,9 @@ fun FluidScrubber(
   val currentIsLtr by rememberUpdatedState(isLtr)
 
   val hold = remember { FluidScrubberHold() }
+  LaunchedEffect(enabled, valueRange) {
+    hold.clear()
+  }
 
   fun fractionOf(value: Float) = FluidScrubbing.fraction(value, currentRange)
   fun shownValue() = FluidScrubbing.shownValue(hold.phase, hold.value, currentPosition())
@@ -338,6 +342,7 @@ fun FluidScrubber(
    * sposta finche' non lo ha raggiunto.
    */
   fun jumpTo(raw: Float, travel: Boolean) {
+    if (!currentEnabled) return
     val range = currentRange
     val stepNow = currentStep
     val target = FluidScrubbing.snap(raw, range, stepNow)
@@ -371,6 +376,8 @@ fun FluidScrubber(
 
       awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
+        val gestureRange = currentRange
+        if (!currentEnabled) return@awaitEachGesture
         val width = size.width.toFloat()
         val trackPx = (width - edge * 2f).coerceAtLeast(1f)
         // Tutto si legge dall'inizio della riga: da destra a sinistra si specchia la x, una volta, qui.
@@ -396,12 +403,15 @@ fun FluidScrubber(
           var travel = Offset.Zero
           while (true) {
             val event = awaitPointerEvent()
+            if (!currentEnabled || currentRange != gestureRange) return@awaitEachGesture
             val change = event.changes.fastFirstOrNull { it.id == down.id } ?: return@awaitEachGesture
             // Qualcun altro l'ha preso: la pagina ha cominciato a scorrere su un gesto verticale.
             if (change.isConsumed) return@awaitEachGesture
             if (!change.pressed) {
               change.consume()
-              jumpTo(valueAt(fluidSliderFractionAt(startX(down.position.x), edge, trackPx)), travel = true)
+              if (currentEnabled && currentRange == gestureRange) {
+                jumpTo(valueAt(fluidSliderFractionAt(startX(down.position.x), edge, trackPx)), travel = true)
+              }
               return@awaitEachGesture
             }
             travel += change.positionChange()
@@ -451,6 +461,7 @@ fun FluidScrubber(
           if (claimedFromTrack) scrubTo(anchorFraction, uptime)
           while (true) {
             val event = awaitPointerEvent()
+            if (!currentEnabled || currentRange != gestureRange) break
             val change = event.changes.fastFirstOrNull { it.id == pointer }
               ?: event.changes.fastFirstOrNull { it.pressed }?.also {
                 // Un altro dito raccoglie il gesto: da qui si misura dal suo punto, senza salti.
@@ -476,7 +487,7 @@ fun FluidScrubber(
           }
           lifted = true
         } finally {
-          if (lifted) {
+          if (lifted && currentEnabled && currentRange == gestureRange) {
             // Il dito ha lasciato il punto: da qui e' un punto tenuto, e la molla viene a posarsi
             // dov'e' il dito (a un valore continuo: a passi ci arriva da sola, per il filo).
             val value = hold.value

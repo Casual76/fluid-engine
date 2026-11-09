@@ -723,6 +723,8 @@ class MoreComponentsTest {
 
   /** La posizione che dice il lettore: e' fuori dallo scrubber, che la legge e non la possiede. */
   private var external by mutableFloatStateOf(0f)
+  private var inputAllowed by mutableStateOf(true)
+  private var rangeOverride by mutableStateOf<ClosedFloatingPointRange<Float>?>(null)
   private val seeked = mutableListOf<Float>()
   private val scrubbed = mutableListOf<Float>()
 
@@ -748,8 +750,8 @@ class MoreComponentsTest {
               scrubLog += "seek"
             },
             modifier = Modifier.testTag("scrubber"),
-            valueRange = range,
-            enabled = enabled,
+            valueRange = rangeOverride ?: range,
+            enabled = enabled && inputAllowed,
             step = step,
             onScrubStart = { scrubLog += "start" },
             onScrub = {
@@ -1109,6 +1111,53 @@ class MoreComponentsTest {
     playerAt(65_000f)
     back()
     assertEquals(listOf(65_000f, 55_000f, 45_000f), seeked)
+  }
+
+  @Test
+  fun `disabling a live scrubber cancels its incomplete drag without a seek`() {
+    playerAt(25_000f)
+    showScrubber(range = 0f..100_000f)
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0.25f), trackY))
+      moveBy(Offset(100f, 0f))
+    }
+    compose.runOnUiThread { inputAllowed = false }
+    compose.waitForIdle()
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    assertTrue(seeked.isEmpty())
+    assertEquals(1, scrubLog.count { it == "end" })
+  }
+
+  @Test
+  fun `changing the live range retires a drag before the next keyboard seek`() {
+    playerAt(25_000f)
+    showScrubber(range = 0f..100_000f)
+    compose.onNodeWithTag("scrubber").performTouchInput {
+      down(Offset(thumbX(0.25f), trackY))
+      moveBy(Offset(100f, 0f))
+    }
+    compose.runOnUiThread { rangeOverride = 0f..80_000f; external = 5_000f }
+    compose.waitForIdle()
+    compose.onNodeWithTag("scrubber").performTouchInput { up() }
+    assertTrue(seeked.isEmpty())
+    compose.onNodeWithTag("scrubber").requestFocus()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.DirectionRight) }
+    assertEquals(listOf(15_000f), seeked)
+  }
+
+  @Test
+  fun `reenabling a live scrubber starts from the current external position`() {
+    playerAt(25_000f)
+    showScrubber(range = 0f..100_000f)
+    compose.onNodeWithTag("scrubber").requestFocus()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.DirectionRight) }
+    compose.runOnUiThread { inputAllowed = false; external = 5_000f }
+    compose.waitForIdle()
+    compose.runOnUiThread { inputAllowed = true }
+    compose.waitForIdle()
+    compose.onNodeWithTag("scrubber").requestFocus()
+    compose.onNodeWithTag("scrubber").performKeyInput { pressKey(Key.DirectionRight) }
+    assertEquals(listOf(35_000f, 15_000f), seeked)
   }
 
   @Test

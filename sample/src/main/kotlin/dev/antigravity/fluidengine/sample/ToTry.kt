@@ -55,6 +55,14 @@ internal enum class TryArea(val title: String) {
   Capsules("Capsule e pezzi piccoli"),
   Gaps("I buchi delle app"),
   AppParts("I pezzi delle app"),
+
+  // --- I componenti nuovi della fase 1, nell'ordine dei gruppi della galleria ([GalleryGroup]) ---
+  StateMatrix("Matrice degli stati"),
+  LongLists("Liste e righe"),
+  IdentitySelection("Identità e selezione"),
+  NavigationAlerts("Navigazione e avvisi"),
+  FieldsEditors("Campi ed editor"),
+  ContentData("Contenuti e dati"),
 }
 
 /**
@@ -120,6 +128,33 @@ private val MoreReorder = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, 
 private val MoreFastScroll = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Scorrimento rapido")
 private val MoreViewer = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Visualizzatore")
 private val MoreScrubber = TryTarget.Page(GalleryPage.MoreComponents, "Riordino, aggiornamento e visore › Scrubber")
+
+// I componenti nuovi della fase 1: ogni voce dice la pagina e, dopo la freccia, la sezione dove guardare.
+private val MatrixHere = TryTarget.Page(GalleryPage.LongLists, "Liste lunghe e righe › tasto «Matrice degli stati»")
+private val MatrixLanguageHere = TryTarget.Page(GalleryPage.DateTime, "Data e ora › tasto «Matrice degli stati»")
+private val ListsSwipe = TryTarget.Page(GalleryPage.LongLists, "Liste lunghe e righe › Elementi")
+private val ListsArrive = TryTarget.Page(GalleryPage.LongLists, "Liste lunghe e righe › Arriva una riga in cima")
+private val ListsStates = TryTarget.Page(GalleryPage.LongLists, "Liste lunghe e righe › Con dati, Vuoto, Caricamento, Errore")
+private val ListsBench = TryTarget.Page(GalleryPage.LongLists, "Liste lunghe e righe › Banco di misura (solo debug)")
+private val IdentityAvatar = TryTarget.Page(GalleryPage.Identity, "Identità e selezione › Avatar e Mosaico")
+private val IdentityPalette = TryTarget.Page(GalleryPage.Identity, "Identità e selezione › Palette d'identità")
+private val IdentityBadge = TryTarget.Page(GalleryPage.Identity, "Identità e selezione › Badge")
+private val IdentitySelection = TryTarget.Page(GalleryPage.Identity, "Identità e selezione › Selezione")
+private val IdentitySidebar = TryTarget.Page(GalleryPage.Identity, "Identità e selezione › Barra laterale")
+private val IdentityBarAction = TryTarget.Page(GalleryPage.Identity, "Identità e selezione › Azione della barra con avatar")
+private val IdentityFormatting = TryTarget.Page(GalleryPage.Identity, "Identità e selezione › Formattazione")
+private val NavPill = TryTarget.Page(GalleryPage.DrawerAndTabs, "Pannello laterale e schede › Pillola a tre zone")
+private val NavRail = TryTarget.Page(GalleryPage.DrawerAndTabs, "Pannello laterale e schede › Rail con «Scrivi» in testa")
+private val NavDrawer = TryTarget.Page(GalleryPage.DrawerAndTabs, "Pannello laterale e schede › Pannello delle cartelle")
+private val NavUndo = TryTarget.Page(GalleryPage.NotificationUndo, "Avvisi con azione")
+private val FieldsTokens = TryTarget.Page(GalleryPage.TokenField, "Campo a gettoni")
+private val FieldsDate = TryTarget.Page(GalleryPage.DateTime, "Data e ora")
+private val FieldsEditor = TryTarget.Page(GalleryPage.RichText, "Testo ricco › Con contenuto ed esportazione")
+private val FieldsEditorRtl = TryTarget.Page(GalleryPage.RichText, "Testo ricco › Testo al 200%, da destra a sinistra")
+private val ContentWeb = TryTarget.Page(GalleryPage.WebContent, "Contenuto web")
+private val ContentCharts = TryTarget.Page(GalleryPage.Charts, "Grafici › Arrivi per categoria")
+private val ContentChartStates = TryTarget.Page(GalleryPage.Charts, "Grafici › Stati")
+private val ContentFiles = TryTarget.Page(GalleryPage.FileTile, "Piastrelle di file")
 
 /** La beta 1: tasti e aptica come LibrePods, menù e pannelli a un materiale, pagine, e i pezzi nuovi. */
 private val Beta1 = TryRound(
@@ -605,12 +640,188 @@ private val Beta5 = TryRound(
   ),
 )
 
+/**
+ * I componenti nuovi della fase 1 (F1.2 – F1.5) e la matrice degli stati che li accompagna.
+ *
+ * Stanno nel giro «Stabile» e non in uno nuovo: l'elenco dei giri (e i loro titoli) e' fissato da
+ * `GalleryBetaPureTest`, e un giro in piu' vuol dire toccare quella prova. Un giro «Fase 1» a parte e' una riga
+ * in `TryRounds` e una nella prova, quando lo si vorra'.
+ */
+private val Phase1Items = listOf(
+  TryItem(
+    "matrice-stati", TryArea.StateMatrix, "Tema, testo, movimento",
+    "Apri una pagina nuova e tocca il tasto con i cursori in alto a destra: scegli Scuro o Nero, il testo a 2,0× e " +
+      "il movimento ridotto e guarda la demo rifarsi; giudica che niente si tagli, che il nero si legga e che con " +
+      "il movimento ridotto tutto arrivi in un fotogramma.",
+    MatrixHere,
+  ),
+  TryItem(
+    "matrice-lingua", TryArea.StateMatrix, "Italiano o English",
+    "Metti English nella matrice e apri Data e ora, il tasto Aa dell'editor e un menù di riga: le etichette " +
+      "dell'engine passano in inglese mentre i testi di prova restano in italiano; giudica se qualche parola " +
+      "dell'engine resta nella lingua sbagliata.",
+    MatrixLanguageHere,
+  ),
+  TryItem(
+    "liste-scorrimento", TryArea.LongLists, "Righe che si archiviano",
+    "Scorri una riga a sinistra per archiviarla e un'altra a destra per segnarla letta, poi tocca «Annulla " +
+      "l'ultima»: la lista richiude il posto e lo riapre con la stessa chiave; giudica angoli e separatori " +
+      "mentre la riga se ne va.",
+    ListsSwipe,
+  ),
+  TryItem(
+    "liste-nuove", TryArea.LongLists, "Pillola delle nuove",
+    "Porta la lista a metà e tocca «Arriva una riga in cima»: quello che stai leggendo resta fermo e compare la " +
+      "pillola con il numero delle nuove; giudica se il tocco sulla pillola ti porta in cima senza salti.",
+    ListsArrive,
+  ),
+  TryItem(
+    "liste-stati", TryArea.LongLists, "Vuoto, caricamento, errore",
+    "Dalla matrice o dal segmentato della pagina scegli Vuoto, Caricamento ed Errore, anche con il testo a " +
+      "2,0×: ogni stato dice cosa è successo e offre un'azione; giudica se si capisce cosa fare senza leggere " +
+      "due volte.",
+    ListsStates,
+  ),
+  TryItem(
+    "liste-talkback", TryArea.LongLists, "Azioni per TalkBack",
+    "Con TalkBack acceso apri le azioni di una riga: ci sono letta, archivia e fissa, le stesse dello " +
+      "scorrimento; giudica se i nomi si capiscono senza vedere lo schermo.",
+    ListsSwipe,
+  ),
+  TryItem(
+    "liste-banco", TryArea.LongLists, "Banco di misura",
+    "Nella build di debug accendi il banco, scegli le 50 000 righe e scorri a lungo con i tre fondi: leggi la " +
+      "percentuale di fotogrammi lenti e le catture del vetro; giudica se l'opaco resta liscio e quanto costa il " +
+      "vetro per riga.",
+    ListsBench,
+  ),
+  TryItem(
+    "identita-avatar", TryArea.IdentitySelection, "Avatar e mosaico",
+    "Guarda l'avatar con le iniziali, con l'immagine che disegna l'app e selezionato, poi il mosaico da due a " +
+      "quattro persone e il tetto «+3»; giudica se le iniziali si leggono sul colore e se il segno di selezione " +
+      "non copre il volto.",
+    IdentityAvatar,
+  ),
+  TryItem(
+    "identita-palette", TryArea.IdentitySelection, "Colori d'identità",
+    "Scorri le dodici tinte sul chiaro, sullo scuro e sul nero: la stessa chiave ha sempre lo stesso colore; " +
+      "giudica se due persone vicine si distinguono e se l'iniziale si legge su ogni tinta.",
+    IdentityPalette,
+  ),
+  TryItem(
+    "identita-badge", TryArea.IdentitySelection, "Badge",
+    "Guarda il pallino e i badge a 1, 12, 99 e oltre, anche con il testo a 2,0×: il numero non esce dalla " +
+      "capsula e oltre 99 dice «99+»; giudica se si leggono sopra il vetro.",
+    IdentityBadge,
+  ),
+  TryItem(
+    "identita-selezione", TryArea.IdentitySelection, "Selezione di massa",
+    "Tocca «Seleziona tutto» e poi deseleziona qualche riga: la selezione dice quante sono su cinquantamila " +
+      "senza elencarle; giudica se il conteggio e il segno di spunta restano coerenti.",
+    IdentitySelection,
+  ),
+  TryItem(
+    "identita-barra-laterale", TryArea.IdentitySelection, "Barra laterale annidata",
+    "Scorri le righe annidate con il rientro, l'avatar iniziale e l'intestazione con l'avatar, tutte alte 48 " +
+      "dp; giudica se il rientro si legge e se la riga scelta si distingue.",
+    IdentitySidebar,
+  ),
+  TryItem(
+    "identita-azione-avatar", TryArea.IdentitySelection, "Azione con avatar",
+    "Tocca l'avatar nella barra di esempio: diventa il menu degli account e il menu si richiude in lui; " +
+      "giudica se nel viaggio dall'avatar al menu si vede un doppione o un fotogramma vuoto.",
+    IdentityBarAction,
+  ),
+  TryItem(
+    "identita-formattazione", TryArea.IdentitySelection, "Capsula di formattazione",
+    "Accendi e spegni grassetto e corsivo nella capsula: sono interruttori per TalkBack e accesi sono un disco " +
+      "pieno; giudica se acceso e spento si distinguono anche senza il colore.",
+    IdentityFormatting,
+  ),
+  TryItem(
+    "nav-pillola", TryArea.NavigationAlerts, "Pillola a tre zone",
+    "Tocca le tre zone della pillola e poi «Scrivi»: il pallino compare solo a barra aperta e «Scrivi» è un " +
+      "pulsante, non una zona; giudica se si capisce cosa è zona e cosa è azione.",
+    NavPill,
+  ),
+  TryItem(
+    "nav-rail", TryArea.NavigationAlerts, "Rail con Scrivi",
+    "Guarda il rail: da 600 dp la pillola diventa il rail e l'azione primaria resta ferma in testa; giudica se " +
+      "la scheda scelta e il badge si leggono senza spostarla.",
+    NavRail,
+  ),
+  TryItem(
+    "nav-pannello", TryArea.NavigationAlerts, "Pannello laterale",
+    "Apri il pannello dal tasto ☰ e chiudilo toccando fuori, con il back e trascinandolo a sinistra: non si " +
+      "apre mai dal bordo; giudica se il dito lo segue senza ritardo e se il back lo chiude prima di tutto.",
+    NavDrawer,
+  ),
+  TryItem(
+    "nav-avvisi", TryArea.NavigationAlerts, "Avvisi con azione",
+    "Tocca «Modifica ordinaria» e poi l'azione dell'avviso, e prova «Operazione protetta»: l'azione sta in " +
+      "linea e quella protetta resta finché non scade; giudica se un avviso ne sostituisce un altro senza lampi.",
+    NavUndo,
+  ),
+  TryItem(
+    "campi-gettoni", TryArea.FieldsEditors, "Campo a gettoni",
+    "Scrivi un'etichetta, poi anteponi un punto esclamativo per segnare un errore e tocca un gettone per " +
+      "modificarlo: i cento gettoni scorrono nella pagina senza coprire il campo; giudica se correggere si fa " +
+      "senza perdere il fuoco.",
+    FieldsTokens,
+  ),
+  TryItem(
+    "campi-data", TryArea.FieldsEditors, "Data e ora",
+    "Apri il selettore e scegli una proposta rapida, poi un orario personalizzato, e accendi «Min +24h» e " +
+      "riapri: giudica se i limiti si capiscono e se in inglese date e orari seguono la lingua.",
+    FieldsDate,
+  ),
+  TryItem(
+    "campi-editor", TryArea.FieldsEditors, "Editor con formattazione",
+    "Seleziona del testo e usa la barra che compare, poi tocca «Aa» e incolla l'HTML sporco: grassetto, elenchi " +
+      "e link restano e script e immagini-spia spariscono; giudica se la barra si legge sopra il testo.",
+    FieldsEditor,
+  ),
+  TryItem(
+    "campi-editor-rtl", TryArea.FieldsEditors, "Editor in arabo e scuro",
+    "Guarda l'editor in arabo con il testo al 200% e quello scuro con il movimento ridotto: i segni degli " +
+      "elenchi passano a destra e la barra entra in dissolvenza senza salire; giudica se niente si taglia.",
+    FieldsEditorRtl,
+  ),
+  TryItem(
+    "contenuti-web", TryArea.ContentData, "Contenuto web",
+    "Passa fra i campioni toccando la prima riga: l'HTML ostile non esegue niente e il documento largo non esce " +
+      "dalla pagina; giudica se il contenitore segue il testo al 200% e se segnaposto e guasto dicono cosa succede.",
+    ContentWeb,
+  ),
+  TryItem(
+    "contenuti-grafici", TryArea.ContentData, "Grafici",
+    "Tocca una fetta della ciambella e una riga della legenda, poi guarda le barre impilate e l'andamento con il " +
+      "buco: le etichette si diradano al 200% e il grafico dice quando le fette non sommano cento; giudica se i " +
+      "colori si distinguono anche sul nero.",
+    ContentCharts,
+  ),
+  TryItem(
+    "contenuti-grafici-stati", TryArea.ContentData, "Stati dei grafici",
+    "Scorri fino a «Stati»: nessun dato, caricamento, errore con «Riprova», ripartizione che non somma e valore " +
+      "negativo; giudica se ogni stato dice cosa non va e cosa fare.",
+    ContentChartStates,
+  ),
+  TryItem(
+    "contenuti-file", TryArea.ContentData, "Piastrelle di file",
+    "Scorri le quattro combinazioni di tema e testo: tipi di file, nomi lunghi con l'estensione conservata, " +
+      "trasferimento, errore con «Riprova» e il menu della miniatura; giudica se il nome lungo si tronca al " +
+      "posto giusto e se lo stato si capisce senza il colore.",
+    ContentFiles,
+  ),
+)
+
 /** La 2.0.0 stabile: gli ultimi ritocchi dopo la beta 5 (engine 3.0.4). */
 private val Stable = TryRound(
   id = "stabile",
   title = "Stabile",
-  intro = "La versione stabile: gli ultimi ritocchi dopo la beta 5. Tocca una voce per aprire la sua demo.",
-  items = listOf(
+  intro = "La versione stabile: i componenti nuovi della fase 1 (liste, identità, navigazione, campi, contenuti) " +
+    "con la matrice degli stati, e gli ultimi ritocchi dopo la beta 5. Tocca una voce per aprire la sua demo.",
+  items = Phase1Items + listOf(
     TryItem(
       "interruttore-trascinabile", TryArea.Rows, "Interruttori da trascinare",
       "Trascina il pallino di «Nero assoluto» o di «Aptica» invece di toccare la riga: si prende e si posa dove lo " +

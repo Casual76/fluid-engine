@@ -12,10 +12,26 @@ internal const val RouteChrome = "chrome"
 internal const val RouteSettings = "settings"
 
 /**
+ * I gruppi in cui si raccolgono le pagine dei componenti nuovi della fase 1, nell'ordine in cui compaiono
+ * nel catalogo di Chrome e in "Da provare". Sono solo un raggruppamento: ogni pagina e' una demo, e tutte
+ * hanno la stessa matrice degli stati ([GalleryMatrix]).
+ */
+internal enum class GalleryGroup(val title: String, val detail: String) {
+  Lists("Liste e righe", "Liste lunghe, scorrimento di lato, pillola delle nuove, vuoto, caricamento, errore."),
+  Identity("Identità e selezione", "Avatar, palette, badge, selezione, barra laterale annidata, azione con avatar."),
+  Navigation("Navigazione e avvisi", "Pannello laterale, pillola con badge, rail con «Scrivi» e avvisi con azione."),
+  Fields("Campi ed editor", "Campo a gettoni, data e ora, editor con formattazione."),
+  Content("Contenuti e dati", "Contenuto web, grafici, piastrelle di file."),
+}
+
+/**
  * Le pagine che la galleria apre sopra una scheda: la lista "Da provare" e le demo che non stanno in
  * nessuna scheda. Ognuna e' una schermata intera con il suo "Indietro".
+ *
+ * Quelle con un [group] sono i componenti nuovi della fase 1: si aprono dentro la matrice degli stati
+ * (tema, scala del testo, movimento, lingua), che le altre non hanno.
  */
-internal enum class GalleryPage(val title: String) {
+internal enum class GalleryPage(val title: String, val group: GalleryGroup? = null) {
   ToTry("Da provare"),
   RowsAndSheets("Righe e fogli"),
   CapsulesAndParts("Capsule e pezzi piccoli"),
@@ -23,6 +39,28 @@ internal enum class GalleryPage(val title: String) {
   Menus("Menù liquidi"),
   AllGlass("Tutto in vetro"),
   MoreComponents("Riordino, aggiornamento e visore"),
+
+  // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
+  LongLists("Liste lunghe e righe", GalleryGroup.Lists),
+  Identity("Identità e selezione", GalleryGroup.Identity),
+  DrawerAndTabs("Pannello laterale e schede", GalleryGroup.Navigation),
+  NotificationUndo("Avvisi con azione", GalleryGroup.Navigation),
+  TokenField("Campo a gettoni", GalleryGroup.Fields),
+  DateTime("Data e ora", GalleryGroup.Fields),
+  RichText("Testo ricco", GalleryGroup.Fields),
+  WebContent("Contenuto web", GalleryGroup.Content),
+  Charts("Grafici", GalleryGroup.Content),
+  FileTile("Piastrelle di file", GalleryGroup.Content),
+  ;
+
+  /** Una pagina dei componenti nuovi: ha la matrice degli stati. */
+  val hasMatrix: Boolean get() = group != null
+
+  companion object {
+    /** Le pagine dei componenti nuovi, nell'ordine dei gruppi e poi in quello di dichiarazione. */
+    val newComponents: List<GalleryPage> =
+      GalleryGroup.entries.flatMap { group -> entries.filter { it.group == group } }
+  }
 }
 
 /** Un posto della pila: una scheda della barra o una [GalleryPage] sopra di lei. */

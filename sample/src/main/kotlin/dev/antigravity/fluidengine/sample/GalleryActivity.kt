@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -110,12 +111,18 @@ class GalleryActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
+    // Gli extra di lancio (pagina e matrice di partenza) li legge solo la build di debug: servono al giro di
+    // verifica su emulatore, e la galleria pubblicata non ha scorciatoie nascoste.
+    val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    val launch = if (debuggable) GalleryLaunch.parse { intent?.getStringExtra(it) } else GalleryLaunch.None
     setContent {
       // Le impostazioni stanno sopra il tema, non dentro una scheda: "Aspetto" le cambia davvero, e
       // il tema chiaro serve per giudicare il bordo del vetro che si trasforma.
-      var settings by remember { mutableStateOf(EngineSettings()) }
+      var settings by remember { mutableStateOf(launch.settings()) }
+      val nav = remember { GalleryNav(launch.stack()) }
+      val matrix = remember { launch.matrix() }
       FluidTheme(settings = settings) {
-        Gallery(settings = settings, onSettingsChange = { settings = it })
+        Gallery(settings = settings, onSettingsChange = { settings = it }, nav = nav, matrix = matrix)
       }
     }
   }
@@ -142,8 +149,15 @@ internal fun Gallery(
   onSettingsChange: (EngineSettings) -> Unit,
   nav: GalleryNav = remember { GalleryNav(GalleryNav.Launch) },
   tools: GalleryTools = SharedGalleryTools,
+  matrix: GalleryMatrix = remember { GalleryMatrix() },
 ) {
   val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+  // La matrice degli stati: vale solo sulle pagine dei componenti nuovi (e sugli host della radice mentre una
+  // di quelle e' aperta). La densita' della radice si legge qui, prima che la matrice la cambi: il pannello della
+  // matrice si legge sempre alla stessa scala, qualunque cosa stia comandando.
+  val baseDensity = LocalDensity.current
+  val matrixSnapshot = rememberMatrixSnapshot(matrix, settings)
+  val matrixActive = nav.page?.hasMatrix == true
   val chromeController = rememberFluidChromeController()
   val scrollToTop = remember { FluidScrollToTopBus() }
   val modalHost = rememberFluidGlassModalHostState()
@@ -206,6 +220,9 @@ internal fun Gallery(
     // Il registro aptico e la grana scelta sono della radice: sentono anche i menù e le pagine.
     ProvideGalleryTools(tools) {
       Box(modifier = Modifier.fillMaxSize()) {
+       // La matrice avvolge il contenuto e (sotto) gli host, mai la barra delle schede: quella e' chrome
+       // dell'app, non il contenuto che si sta giudicando.
+       MatrixScope(matrixSnapshot, matrixActive) {
         ProvideFluidChrome(
           controller = chromeController,
           bottomInset = FluidFloatingTabBarDefaults.ContentInset,
@@ -232,6 +249,35 @@ internal fun Gallery(
               GalleryPage.Menus -> MenusPage(bottomInset) { nav.back() }
               GalleryPage.AllGlass -> AllGlassPage(bottomInset) { nav.back() }
               GalleryPage.MoreComponents -> MoreComponentsPage(bottomInset) { nav.back() }
+              // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
+              GalleryPage.LongLists,
+              GalleryPage.Identity,
+              GalleryPage.DrawerAndTabs,
+              GalleryPage.NotificationUndo,
+              GalleryPage.TokenField,
+              GalleryPage.DateTime,
+              GalleryPage.RichText,
+              GalleryPage.WebContent,
+              GalleryPage.Charts,
+              GalleryPage.FileTile,
+              -> {
+                // Una chiave per pagina: passando da una pagina nuova a un'altra il posto nella composizione e'
+                // lo stesso, e senza la chiave il pannello aperto e gli interruttori della demo di prima
+                // resterebbero a quella dopo.
+                val current = requireNotNull(nav.page)
+                key(current) {
+                  NewComponentPage(
+                    page = current,
+                    matrix = matrix,
+                    snapshot = matrixSnapshot,
+                    onSettingsChange = onSettingsChange,
+                    bottomInset = bottomInset,
+                    onBack = { nav.back() },
+                    backdrop = backdrop,
+                    baseDensity = baseDensity,
+                  )
+                }
+              }
               null -> when (nav.route) {
                 RoutePlayground -> PlaygroundTab(bottomInset)
                 RouteControls -> ControlsTab(bottomInset)
@@ -242,6 +288,7 @@ internal fun Gallery(
             }
           }
         }
+       }
 
         Box(
           modifier = Modifier
@@ -276,15 +323,19 @@ internal fun Gallery(
 
         // Above the tab bar, and that placement is the whole reason the modal is in-root: a pop-up
         // that a floating navigation capsule can sit on top of is not a modal.
-        FluidGlassModalHost(state = modalHost, backdrop = backdrop)
+        // Gli host stanno dentro la matrice come il contenuto: un menu aperto da una demo al 200% si compone
+        // qui, e se qui non fosse al 200% la prova non proverebbe niente.
+        MatrixScope(matrixSnapshot, matrixActive) {
+          FluidGlassModalHost(state = modalHost, backdrop = backdrop)
         // Il tasto che diventa il proprio menù: la superficie che si trasforma vive qui, alla
         // radice, per la stessa ragione dei modali.
-        FluidMorphMenuHost(state = morphMenu, backdrop = backdrop)
-        FluidNotificationHost(
-          state = notificationHost,
-          backdrop = backdrop,
-          modifier = Modifier.align(Alignment.TopCenter),
-        )
+          FluidMorphMenuHost(state = morphMenu, backdrop = backdrop)
+          FluidNotificationHost(
+            state = notificationHost,
+            backdrop = backdrop,
+            modifier = Modifier.align(Alignment.TopCenter),
+          )
+        }
         // Il registro aptico in piccolo, sopra a tutto e senza prendere il tocco (si accende da Controlli).
         GalleryToolsOverlay(tools)
       }

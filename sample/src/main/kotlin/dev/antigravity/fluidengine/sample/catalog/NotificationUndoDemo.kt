@@ -8,6 +8,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
+import dev.antigravity.fluidengine.sample.MatrixTextScale
+import dev.antigravity.fluidengine.sample.matrixDemoSettings
+import dev.antigravity.fluidengine.sample.rememberMatrixFlag
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import kotlinx.coroutines.delay
@@ -16,9 +19,10 @@ import kotlinx.coroutines.launch
 /** Demo isolata: aggregazione generica, sostituzione e scadenza applicativa; non registrata nel catalogo. */
 @Composable
 fun NotificationUndoDemo() {
-  var dark by remember { mutableStateOf(false) }
-  var large by remember { mutableStateOf(false) }
-  var reduced by remember { mutableStateOf(false) }
+  // Nella galleria gli interruttori partono dalla matrice degli stati (e restano liberi); fuori, da spenti.
+  var dark by rememberMatrixFlag { it.theme.isDark }
+  var large by rememberMatrixFlag { it.textScale == MatrixTextScale.Largest }
+  var reduced by rememberMatrixFlag { it.reducedMotion }
   var status by remember { mutableStateOf("Nessuna operazione") }
   var serial by remember { mutableIntStateOf(0) }
   var protectedUntil by remember { mutableLongStateOf(0L) }
@@ -53,9 +57,10 @@ fun NotificationUndoDemo() {
       }
     }
   }
-  FluidTheme(EngineSettings(themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT)) {
+  FluidTheme(matrixDemoSettings(dark)) {
     CompositionLocalProvider(
-      LocalDensity provides Density(density.density, if (large) 2f else 1f),
+      // Spento, il testo e' quello che arriva da fuori (la matrice puo' dire 1,3): non piu' un 1 fisso.
+      LocalDensity provides Density(density.density, if (large) 2f else density.fontScale),
       LocalFluidMotionPolicy provides FluidMotionPolicy(if (reduced) 0f else 1f),
     ) {
       Box(Modifier.fillMaxSize()) {

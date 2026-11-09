@@ -8,18 +8,21 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.sample.MatrixTextScale
+import dev.antigravity.fluidengine.sample.matrixDemoSettings
+import dev.antigravity.fluidengine.sample.rememberMatrixFlag
 import dev.antigravity.fluidengine.ui.fluid.*
 
 /** Galleria non registrata: varianti chiare/scure, testo al 200% e movimento ridotto selezionabili. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TokenFieldDemo() {
-  var dark by rememberSaveable { mutableStateOf(false) }
-  var large by rememberSaveable { mutableStateOf(false) }
-  var reduced by rememberSaveable { mutableStateOf(false) }
+  // Nella galleria gli interruttori partono dalla matrice degli stati (e restano liberi); fuori, da spenti.
+  var dark by rememberMatrixFlag { it.theme.isDark }
+  var large by rememberMatrixFlag { it.textScale == MatrixTextScale.Largest }
+  var reduced by rememberMatrixFlag { it.reducedMotion }
   val density = androidx.compose.ui.platform.LocalDensity.current
-  dev.antigravity.fluidengine.ui.theme.FluidTheme(settings = dev.antigravity.fluidengine.foundation.EngineSettings(
-    themeMode = if (dark) dev.antigravity.fluidengine.foundation.ThemeMode.DARK else dev.antigravity.fluidengine.foundation.ThemeMode.LIGHT)) {
+  dev.antigravity.fluidengine.ui.theme.FluidTheme(settings = matrixDemoSettings(dark)) {
     CompositionLocalProvider(
       androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, if (large) 2f else density.fontScale),
       LocalFluidMotionPolicy provides FluidMotionPolicy(if (reduced) 0f else 1f),

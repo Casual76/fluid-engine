@@ -242,6 +242,32 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
       }
     }
 
+    // I componenti nuovi della fase 1: una pagina per demo, raggruppate, tutte con la matrice degli stati.
+    item(key = "new-components-header") {
+      FluidSectionHeader(
+        title = "Componenti nuovi",
+        detail = "Ogni pagina ha il tasto della matrice degli stati: tema, testo, movimento, lingua.",
+      )
+    }
+    GalleryGroup.entries.forEach { group ->
+      item(key = "new-components-${group.name}-header") {
+        FluidSectionHeader(title = group.title, detail = group.detail)
+      }
+      item(key = "new-components-${group.name}") {
+        FluidListGroup(glass = true) {
+          GalleryPage.newComponents.filter { it.group == group }.forEachIndexed { index, page ->
+            if (index > 0) FluidListDivider()
+            FluidListRow(
+              title = page.title,
+              subtitle = page.catalogSubtitle,
+              modifier = Modifier.testTag("chrome-open-${page.name}"),
+              onClick = { onOpen(page) },
+            )
+          }
+        }
+      }
+    }
+
     item(key = "log") {
       FluidCard(glass = true) {
         Text(

@@ -398,6 +398,19 @@ class FluidBetaGalleryTest {
     GalleryPage.Menus -> compose.onAllNodes(hasTestTag("menus-demo")).fetchSemanticsNodes().isNotEmpty()
     GalleryPage.AllGlass -> compose.onAllNodes(hasTestTag("all-glass-demo")).fetchSemanticsNodes().isNotEmpty()
     GalleryPage.MoreComponents -> compose.onAllNodes(hasTestTag("more-components-demo")).fetchSemanticsNodes().isNotEmpty()
+    // I componenti nuovi della fase 1 (F1.6): una pagina per demo, tutte con la stessa radice. Un ramo solo, perche'
+    // la prova di ognuna (che si apra, che regga la matrice) sta in FluidStateMatrixTest.
+    GalleryPage.LongLists,
+    GalleryPage.Identity,
+    GalleryPage.DrawerAndTabs,
+    GalleryPage.NotificationUndo,
+    GalleryPage.TokenField,
+    GalleryPage.DateTime,
+    GalleryPage.RichText,
+    GalleryPage.WebContent,
+    GalleryPage.Charts,
+    GalleryPage.FileTile,
+    -> compose.onAllNodes(hasTestTag(NewComponentPageTag)).fetchSemanticsNodes().isNotEmpty()
   }
 }
 

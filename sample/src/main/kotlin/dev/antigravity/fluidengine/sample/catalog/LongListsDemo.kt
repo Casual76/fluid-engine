@@ -46,6 +46,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
+import dev.antigravity.fluidengine.sample.LocalGalleryMatrix
+import dev.antigravity.fluidengine.sample.MatrixData
+import dev.antigravity.fluidengine.sample.MatrixTextScale
+import dev.antigravity.fluidengine.sample.matrixDemoSettings
+import dev.antigravity.fluidengine.sample.rememberMatrixFlag
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
@@ -124,11 +129,12 @@ internal enum class LongListsMaterial(val label: String) {
 @OptIn(FluidExperimentalRowGlass::class)
 @Composable
 fun LongListsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
-  var dark by remember { mutableStateOf(false) }
-  var largeText by remember { mutableStateOf(false) }
-  var reducedMotion by remember { mutableStateOf(false) }
+  // Nella galleria gli interruttori partono dalla matrice degli stati (e restano liberi); fuori, da spenti.
+  var dark by rememberMatrixFlag { it.theme.isDark }
+  var largeText by rememberMatrixFlag { it.textScale == MatrixTextScale.Largest }
+  var reducedMotion by rememberMatrixFlag { it.reducedMotion }
 
-  val settings = remember(dark) { EngineSettings(themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT) }
+  val settings = matrixDemoSettings(dark)
   FluidTheme(settings = settings, systemBars = false) {
     ProvideFluidHapticTrace {
       val density = LocalDensity.current
@@ -170,7 +176,18 @@ private fun LongListsPage(
   val scope = rememberCoroutineScope()
   val debuggable = LocalContext.current.isDebuggable()
 
-  var state by remember { mutableStateOf(LongListsState.Content) }
+  // Lo stato dei dati parte dalla matrice (vuoto, caricamento, errore) e resta libero come il segmentato.
+  val matrixData = LocalGalleryMatrix.current?.data
+  var state by remember(matrixData) {
+    mutableStateOf(
+      when (matrixData) {
+        MatrixData.Empty -> LongListsState.Empty
+        MatrixData.Loading -> LongListsState.Loading
+        MatrixData.Error -> LongListsState.Error
+        else -> LongListsState.Content
+      },
+    )
+  }
   var size by remember { mutableStateOf(LongListsSize.Few) }
   var material by remember { mutableStateOf(LongListsMaterial.Opaque) }
   var bench by remember { mutableStateOf(false) }

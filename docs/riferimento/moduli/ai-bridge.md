@@ -60,7 +60,7 @@ piu' nuovo del suo **ignora** l'app (`AiToolClient.catalog` restituisce `null` s
 | `catalog` | — | `{protocol, appId, domain, appLabel, appVersion, hint, vocabulary, categories, groups, tools}` |
 | `ready` | — | `{ready, reason}` |
 | `describe` | `{name, args, lang}` | `{title, detail}` (vuoto se il tool non ha parole sue) |
-| `run` | `{name, args, confirmed, requestId, lang}` | `{text, escalate, parts:[{kind, uri, mime, name}]}` **oppure** `{jobId}` |
+| `run` | `{name, args, confirmed, requestId, lang}` | `{text, escalate, parts:[{kind, uri, mime, name}]}` **oppure** `{jobId}`; per un tool `action`/`needsConfirmation` senza `requestId` l'ospite risponde `{error: "operation identity required for writes"}` (3.0.6) |
 | `status` | `{jobId}` | `{state: running/done/failed/unknown, detail, progress, text, escalate, parts}` |
 | `cancel` | `{jobId}` | `{state: failed, detail: annullato}` |
 
@@ -149,7 +149,7 @@ class AgendaToolHostProvider : AiToolHostProvider<AgendaToolContext>() {      //
 
 **Non usarlo quando.** L'app non ha un assistente interno con tool (non c'e' niente da esporre), o i tool dipendono da una `Activity`/da un'interazione sullo schermo.
 
-**Versione.** Il modulo e' dalla 1.27.0 (metadati dei tool dalla 1.26.0). **3.0.0:** `AI_TOOLS` rimosso, cancello di firma in `isCallerTrusted`/`compareSignatures`, `BridgeProtocol.PERMISSION` deprecata, avviso in `attachInfo`.
+**Versione.** Il modulo e' dalla 1.27.0 (metadati dei tool dalla 1.26.0). **3.0.0:** `AI_TOOLS` rimosso, cancello di firma in `isCallerTrusted`/`compareSignatures`, `BridgeProtocol.PERMISSION` deprecata, avviso in `attachInfo`. **3.0.6:** identita' dell'operazione obbligatoria per le scritture (`requestId`), `negotiate` (protocollo 2 con risultati tipizzati; il catalogo resta `protocol = 1`), argomenti validati, l'orchestratore che passa l'identita'.
 
 ## Il cliente: `AiToolClient`, `RemoteToolSet`, `RemoteTool`, `RemoteToolHost`
 
@@ -196,13 +196,17 @@ val registry = ToolRegistry(localTools + tools.flatMap { it.tools }, localGroups
   `SecurityException` → `NO_PERMISSION`; provider assente → `NEEDS_UPDATE` (app installata ma senza provider: una versione vecchia); altro errore → `NOT_READY`; `ready: false` → `NOT_READY`.
 - **Nomi e gerarchia.** `RemoteToolSet.of` prefissa con il dominio: tool `agenda_<nome>`, gruppo `agenda_<id>` (con `remoteId` = l'id originale); le **categorie** dell'ospite restano quelle (non prefissate); un gruppo senza categoria, o con una che non c'e', va sotto la prima, e un ospite senza categorie ne riceve una costruita dal dominio
   (cosi' nel router ogni app e' una porta). La descrizione di ogni tool diventa «descrizione (Etichetta app)». I gruppi padre si risolvono dopo averli creati tutti; un tool il cui gruppo non c'e' viene scartato.
-- **`RemoteTool.run`** nell'ordine: (1) un tool `isAction` con le azioni spente risponde `host.actionsOffText` **senza chiamare l'ospite** (un `ToolOutput` normale, non un errore); (2) se `needsConfirmation`, chiede le parole all'ospite (`describe`; se mancano usa «<App>: <nome con spazi>?»), poi `host.confirm(...)`:
+- **Identita' dell'operazione (3.0.6).** Il `requestId` di una chiamata e' l'`operationId` della `ToolExecution` che riceve `RemoteTool.run(args, ctx, execution)`: lo stesso durante la conferma e in ogni ripetizione con la stessa identita', e l'ospite lo passa al suo tool (`ToolExecution(requestId)`). L'orchestratore la da' a ogni chiamata (`AskInput.prepareToolExecution`, [ai-orchestrator.md](ai-orchestrator.md)).
+  L'overload **senza** identita', `run(args, ctx)`, va bene per una lettura (ne inventa una), ma per una scrittura (`action` o `needsConfirmation`) risponde `errore: operation identity required for writes` **prima** della conferma e della chiamata: e' voluto, perche' un'identita' inventata li' non riconoscerebbe mai una ripetizione.
+  L'identita' da sola non deduplica: nessun ospite dell'engine ricorda le identita' gia' viste, e un lavoro di `BridgeJobs` muore col processo. Riconoscere una ripetizione e' compito di chi conserva l'identita' (il registro dell'assistente) e, se vuole, dell'ospite.
+- **`RemoteTool.run`** nell'ordine: (0) argomenti validati sullo schema (`ToolArgumentValidator`) e, nell'overload senza identita', il rifiuto delle scritture; (1) un tool `isAction` con le azioni spente risponde `host.actionsOffText` **senza chiamare l'ospite** (un `ToolOutput` normale, non un errore); (2) se `needsConfirmation`, chiede le parole all'ospite (`describe`; se mancano usa «<App>: <nome con spazi>?»), poi `host.confirm(...)`:
   un risultato non nullo **interrompe** e torna al modello (rifiutato, scaduto); (3) chiama `run` con `confirmed = info.needsConfirmation` (quindi `true` solo per i tool che lo chiedono); (4) mappa il risultato: `Done` → output con le parti lette (`readPart`), `Error` → `ToolOutput.error`, `Job` → `follow`.
 - **`follow`**: chiede `status` **ogni secondo**; `done` → output; `failed`/`unknown` → errore; oltre `longRunningTimeoutMillis` (**180 s**) chiama `cancel` e risponde «il lavoro in <App> non e' finito in tempo: continua nell'app».
 - **Parti**: lette con `contentResolver.openInputStream` sull'URI con grant temporaneo e rese `ContentPart.Image` / `ContentPart.Document`; una parte illeggibile viene saltata.
 - Gli errori del cliente sono messaggi in italiano («l'app rifiuta la chiamata (firma diversa: e' una build di sviluppo?)», «l'app non espone piu' i tool (disinstallata o da aggiornare)», «l'app non risponde: aprila e riprova (...)», «risposta illeggibile dall'app»).
 
 **Trappole.**
+- **Chi chiama un tool remoto fuori dall'orchestratore** (un test, un'azione rapida dell'app) usa `run(args, ctx, ToolExecution(id))` con un id suo per le scritture: con `run(args, ctx)` una scrittura e' rifiutata (nella prima candidata 3.0.6 ci cadeva anche l'orchestratore, e le azioni remote chieste dall'assistente non partivano).
 - **Visibilita' dei pacchetti (Android 11+).** Senza un `<queries>` (con le autorita' note) o `QUERY_ALL_PACKAGES`, `discover()` restituisce una lista vuota e `availability` dice **`NOT_INSTALLED` anche per un ospite installato** (`getPackageInfo` fallisce). Per scoprire ospiti **nuovi** senza ricompilare serve `QUERY_ALL_PACKAGES`
   (con la sua policy di pubblicazione); con le autorita' note basta `<queries><provider android:authorities="..."/></queries>`.
 - **`NO_PERMISSION` non e' un permesso da chiedere**: e' una firma diversa. Il cliente non ha niente da dichiarare (dalla 3.0.0); un `<uses-permission>` in piu' per `AI_TOOLS` e' innocuo e serve solo a parlare con ospiti della 2.x non ancora aggiornati.
@@ -228,7 +232,8 @@ val registry = ToolRegistry(localTools + tools.flatMap { it.tools }, localGroups
 ## Cosa e' verificato dai test
 
 - `BridgeProtocolTest` (4): il catalogo fa il giro per JSON (categorie, gruppi, tool, flag di conferma/azione/lungo); `resultOf` legge ogni forma (`Done`, `Job`, `Status`, `Error`, e `null` per `{}` o testo non JSON); un catalogo senza `protocol` e' `null`; `RemoteToolSet` prefissa nomi e mantiene la gerarchia.
-- `RemoteToolTest` (7): la conferma la chiede il chiamante e passa all'ospite; una conferma rifiutata non raggiunge l'ospite; azioni spente fermano la chiamata prima che esca dall'app; un lavoro lungo si segue fino alla fine; un lavoro fallito e' un errore; le parti tornano come contenuto per il modello; un errore dell'ospite resta un errore.
+- `RemoteToolOrchestrationTest` (6, 3.0.6): una scrittura remota con conferma eseguita **dall'orchestratore** arriva all'ospite una volta, con `confirmed = true` e l'identita' preparata (prima della correzione non partiva); senza gancio dell'app l'identita' c'e' comunque; una conferma rifiutata non raggiunge l'ospite; dopo un errore di rete la ripetizione porta la stessa identita' che l'app ha conservato; chiamate diverse (in parallelo o in giri diversi con lo stesso `call_0`) hanno identita' diverse; `run(args, ctx)` su una scrittura resta rifiutato.
+- `RemoteToolTest` (12): la conferma la chiede il chiamante e passa all'ospite; una conferma rifiutata non raggiunge l'ospite; azioni spente fermano la chiamata prima che esca dall'app; un lavoro lungo si segue fino alla fine; un lavoro fallito e' un errore; le parti tornano come contenuto per il modello; un errore dell'ospite resta un errore.
 - `ManifestTest` (4): il manifest del modulo **non dichiara ne' chiede permessi** (un `<permission>` farebbe fallire l'installazione di due app con firme diverse); la costante `PERMISSION` esiste ma e' deprecata.
 - `AiToolHostProviderGuardTest` (5, **nel sample** con Robolectric, perche' un'app che include il modulo non deve scaricare Robolectric): una chiamata dello stesso processo passa; un chiamante con un'altra firma riceve `SecurityException` **su ogni metodo**; il cancello sceglie per uid; la regola di serie si fida solo di `SIGNATURE_MATCH`; senza contesto non si fida di nessuno.
   Il `PackageManager` di Robolectric risponde sempre «firme uguali», quindi il confronto vero e' isolato in `compareSignatures`, `protected open`, per poter provare la regola.

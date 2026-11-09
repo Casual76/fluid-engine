@@ -3,7 +3,7 @@
 
 # Catalogo API (generato)
 
-Generato da `scripts/gen_api_catalog.py` sull'engine **3.0.5**. **Non si modifica a mano**: si rigenera a ogni release. Una riga per dichiarazione pubblica, con la firma com'e' nel codice (i valori predefiniti piu' lunghi sono accorciati con «…») e la prima frase del KDoc. Il perche' e le trappole stanno nelle schede in `../componenti/` e `../moduli/`.
+Generato da `scripts/gen_api_catalog.py` sull'engine **3.0.6**. **Non si modifica a mano**: si rigenera a ogni release. Una riga per dichiarazione pubblica, con la firma com'e' nel codice (i valori predefiniti piu' lunghi sono accorciati con «…») e la prima frase del KDoc. Il perche' e le trappole stanno nelle schede in `../componenti/` e `../moduli/`.
 
 Per cercare: `grep -rn "NomeComponente" references/api/`.
 
@@ -30,9 +30,9 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-widget](widget.md) | 3 | 34 |
 | [engine-wear](wear.md) | 17 | 87 |
 | [engine-ai: provider e modelli](ai-provider.md) | 12 | 118 |
-| [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 10 | 181 |
+| [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 146 |
-| [engine-ai-bridge](ai-bridge.md) | 4 | 86 |
+| [engine-ai-bridge](ai-bridge.md) | 4 | 99 |
 | [engine-ai-ui](ai-ui.md) | 28 | 222 |
 
 Anche generato: [versioni.md](versioni.md) — una riga per versione dal CHANGELOG, con le voci BREAKING.

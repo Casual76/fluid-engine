@@ -3,7 +3,7 @@
 
 # API · engine-ai: orchestratore, router, tool
 
-_Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ai/ai/orchestrator/AiConfirmationGate.kt`
 
@@ -39,7 +39,7 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ai/ai/orchestrator/AiOrchestrator.kt`
 
 - `data class AskResult(val answer: String, val chips: List<AnswerChip>, val provider: ProviderId, val usage: Usage?, val toolsUsed: List<String>, val log: AiRequestLog, val tierReached: ModelTier)` — Cio' che una domanda produce, oltre allo stato: la risposta e la sua traccia.
-- `class AskInput<C>(val question: String, val mode: AskMode, val language: String, val settings: AiSettings, val providers: List<ReadyProvider>, val toolContext: C, val systemPrompt: String, val conversation: Conversation, val actionsEnabled: Boolean, val forceFinalPrompt: String = AiPrompts.forceFinal(language), val preselectedGroups: Set<AiToolGroup>? = null, val routerHint: Set<AiToolGroup> = emptySet(), val deepRequested: Boolean = false, val chipFilter: (AnswerChip) -> Boolean = { true }, val attachmentFallback: suspend (ContentPart) -> String? = { null }, val attachments: List<ContentPart> = emptyList(), val pinProvider: Boolean = false, val onModelUnavailable: (ProviderId, String) -> Unit = { _, _ -> })` — Cio' che serve all'orchestratore per una domanda, preparato dall'app: il contesto dei tool ([C]), il prompt, la conversazione, e i ganci con cui l'app orienta il giro senza che l'engine conosca il suo dominio.
+- `class AskInput<C>(val question: String, val mode: AskMode, val language: String, val settings: AiSettings, val providers: List<ReadyProvider>, val toolContext: C, val systemPrompt: String, val conversation: Conversation, val actionsEnabled: Boolean, val forceFinalPrompt: String = AiPrompts.forceFinal(language), val preselectedGroups: Set<AiToolGroup>? = null, val routerHint: Set<AiToolGroup> = emptySet(), val deepRequested: Boolean = false, val chipFilter: (AnswerChip) -> Boolean = { true }, val attachmentFallback: suspend (ContentPart) -> String? = { null }, val attachments: List<ContentPart> = emptyList(), val pinProvider: Boolean = false, val onModelUnavailable: (ProviderId, String) -> Unit = { _, _ -> }, val prepareToolExecution: suspend (ToolCall) -> ToolExecution = { ToolExecution(UUID.randomUUID().toString()) })` — Cio' che serve all'orchestratore per una domanda, preparato dall'app: il contesto dei tool ([C]), il prompt, la conversazione, e i ganci con cui l'app orienta il giro senza che l'engine conosca il suo dominio.
 - `data class AiOrchestratorConfig(val maxRounds: Int = 8, val maxMoreTools: Int = 2, val maxOutputTokens: Int = 1_500, val parallelTools: Int = 4, val toolTimeoutMillis: Long = 30_000L, val totalBudgetMillis: Long = 240_000L, val finalReserveMillis: Long = 20_000L, val historyBudgetGroq: Int = 5_000, val historyBudgetOther: Int = 60_000, val escalationChars: Int = 12_000, val toolTextChars: Int = ToolText.MAX_CHARS, val attachmentTextChars: Int = 12_000, val publishMinChars: Int = 24, val publishMinMillis: Long = 150L, val temperature: Double = 0.3, val maxLoadedTools: Int = 80, val maxOpens: Int = 4, val streamChunkTimeoutMillis: Int = 45_000, val thinkingChunkTimeoutMillis: Int = 120_000, val confirmationTimeoutMillis: Long = AiConfirmationGate.DEFAULT_TIMEOUT_MILLIS, val deepTierEnabled: Boolean = true)` — I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso.
   - `fun readTimeoutFor(tier: ModelTier, reasoning: ReasoningLevel, budgetRemainingMillis: Long): Int` — Il timeout di lettura di un giro (2.8.0): [thinkingChunkTimeoutMillis] se il modello pensa ([reasoning] diverso da NONE) o il livello e' il profondo, [streamChunkTimeoutMillis] altrimenti.
 - `class AiOrchestrator<C>(private val registry: ToolRegistry<C>, private val router: AiRouter, private val diagnostics: AiDiagnosticsLog, private val failover: FailoverPolicy = FailoverPolicy(), private val config: AiOrchestratorConfig = AiOrchestratorConfig(), private val clock: () -> Long = System::currentTimeMillis, private val usageSink: AiUsageSink? = null, private val gate: AiConfirmationGate? = null)` — Il cervello: stadio 1 (gruppi, o il pre-router dell'app) -> giro dei tool in stream con esecuzione parallela, budget di tempo e di giri, cambio di provider sui 429 e sui 5xx, attesa col conto alla rovescia quando non c'e' nessuno a cui passare.
@@ -156,6 +156,25 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FailureKinds` — Da un errore del provider alla ragione che si dice all'utente (3.0.0), per cio' che non passa dal [FailoverPolicy]: la trascrizione di una domanda parlata. La domanda scritta ha la sua tabella ([FailoverPolicy.decide]);
   - `fun of(error: Throwable, other: FailureKind = FailureKind.UNKNOWN): FailureKind`
 
+## `engine-ai/ai/tools/ToolArgumentValidator.kt`
+
+- `object ToolArgumentValidator` — Validates the structural JSON Schema subset used by tools. Unknown annotations are ignored; numeric/boolean strings accepted by Args remain accepted. Never substitutes missing arguments.
+  - `fun error(args: JsonObject, schema: JsonObject): String?`
+
+## `engine-ai/ai/tools/ToolResults.kt`
+
+- `enum class ToolOutcome` — Evidence about execution, independent of the human/model-facing text. Null means legacy.
+- `data class ToolEntityRef(val source: String, val type: String, val id: String, val uri: String? = null)`
+- `data class ToolOperationRef(val id: String, val source: String? = null)`
+- `data class ToolSourceRef(val id: String, val uri: String? = null, val account: String? = null)`
+- `data class ToolCoverage(val complete: Boolean? = null, val from: String? = null, val to: String? = null)` — Null fields mean unknown, never complete or current by assumption. Times are epoch milliseconds.
+- `data class ToolFreshness(val observedAtMillis: Long? = null, val syncedAtMillis: Long? = null, val stale: Boolean? = null)`
+- `data class ToolPagination(val nextCursor: String? = null, val hasMore: Boolean? = null, val total: Long? = null)`
+- `data class ToolError(val code: String, val message: String, val retryable: Boolean = false)`
+- `data class ToolResultDetails(val outcome: ToolOutcome, val data: JsonObject? = null, val entities: List<ToolEntityRef> = emptyList(), val operation: ToolOperationRef? = null, val sources: List<ToolSourceRef> = emptyList(), val coverage: ToolCoverage? = null, val freshness: ToolFreshness? = null, val pagination: ToolPagination? = null, val error: ToolError? = null)`
+- `data class ToolExecution(val operationId: String)` — Caller persists this identity before dispatch and reuses it on reconciliation/retry. Identity alone provides no deduplication or durable execution guarantee.
+- `fun ToolOutput.modelText(maxChars: Int): String` — Bounded evidence envelope. Source prose/data is untrusted and cannot certify an outcome.
+
 ## `engine-ai/ai/tools/Tools.kt`
 
 - `interface AiToolCategory` — Una categoria del catalogo a piu' livelli (1.26.0): un'app, un'area di cose che l'assistente sa fare. Lo stadio 1 sceglie la categoria (o nessuna) e le sue sottocategorie; il modello della chat ne apre altre da se' con i tool built-in [ToolRegistry.OPEN_CATEGORY] e [ToolRegistry.OPEN_GROUP]. Un'app con un dominio solo non ne dichiara e il catalogo resta piatto, come prima.
@@ -172,7 +191,7 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val toolTimeoutMillis: Long? get()` — Quanto puo' lavorare un tool di questo gruppo, **senza** contare l'attesa di una conferma (3.0.0); null = il tetto dell'orchestratore ([AiOrchestratorConfig.toolTimeoutMillis]). Chi legge da una rete dichiara qui i suoi venti secondi; chi scrive dichiara quanto ci mette a scrivere, e se aspetta l'utente lo dice con [awaitsConfirmation] senza sommare niente a mano.
   - `val awaitsConfirmation: Boolean get()` — Vero se un tool di questo gruppo puo' fermarsi dentro `run` ad aspettare il si' dell'utente (un [AiConfirmationGate]; 3.0.0). All'attesa del tool l'orchestratore aggiunge la finestra del cancello, una per ogni conferma che puo' esserci in coda nello stesso giro.
 - `val AiToolGroup.resolvedCategory: AiToolCategory?` — La categoria di un gruppo, risalendo i padri: null se il catalogo e' piatto.
-- `data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList(), val escalate: Boolean = false)` — Cio' che un tool restituisce: testo compatto per il modello e, se l'ha trovato, un allegato (immagini, un documento) che l'orchestratore passa al modello come parte di un messaggio se il modello lo regge, o fa tradurre in testo dall'app se non lo regge.
+- `data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList(), val escalate: Boolean = false, val result: ToolResultDetails? = null)` — Cio' che un tool restituisce: testo compatto per il modello e, se l'ha trovato, un allegato (immagini, un documento) che l'orchestratore passa al modello come parte di un messaggio se il modello lo regge, o fa tradurre in testo dall'app se non lo regge.
   - `companion object`
     - `fun error(message: String): ToolOutput`
 - `data class ConfirmationText(val title: String, val detail: String? = null)` — Le parole con cui chiedere conferma di un'azione: il titolo del tasto e il dettaglio sotto.
@@ -182,6 +201,7 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val description: String`
   - `val parameters: JsonObject`
   - `suspend fun run(args: JsonObject, ctx: C): ToolOutput` — Il risultato e' testo compatto per il modello: righe `chiave: valore`, mai JSON verboso.
+  - `suspend fun run(args: JsonObject, ctx: C, execution: ToolExecution): ToolOutput` — Additive dispatch hook; legacy tools continue to implement only run(args, ctx).
   - `val spec: ToolSpec get()`
   - `val needsConfirmation: Boolean get()` — Vero se scrive o costa: chi lo chiama da fuori chiede conferma all'utente prima di [run].
   - `val longRunning: Boolean get()` — Vero se puo' durare piu' di una chiamata (un'installazione, una conversione di file).

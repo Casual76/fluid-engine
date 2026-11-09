@@ -6,6 +6,12 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.6 - 2026-11-08
+
+- Corretto il Back dei menu sopra pagine annidate; preservata la compatibilita source-proof v1 e typed v2 gia pubblicata.
+- ai: l'orchestratore chiamava ancora `run(args, ctx)` e un'azione remota (scrittura) chiesta all'assistente veniva rifiutata («operation identity required for writes») prima della conferma. Ora ogni chiamata di tool riceve un'identità dell'operazione stabile (stessa durante la conferma, diversa fra chiamate) con `run(args, ctx, execution)`; l'app può fornirla e conservarla con il nuovo `AskInput.prepareToolExecution` (di serie un UUID per chiamata, solo in memoria). I tool che implementano solo `run(args, ctx)` non cambiano; nessuna migrazione richiesta.
+
+
 ## 3.0.5 - 2026-11-05
 
 - Cambia a vista: le icone dei pulsanti della barra seguono la dissolvenza durante il cambio pagina; il morph spegne solo il materiale di vetro, non il contenuto. Nessuna modifica delle API o migrazione manuale richiesta.

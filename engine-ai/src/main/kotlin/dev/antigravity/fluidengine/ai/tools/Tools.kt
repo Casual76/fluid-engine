@@ -84,9 +84,11 @@ val AiToolGroup.resolvedCategory: AiToolCategory?
  * [ToolRegistry.DEEP_MODEL], e puo' alzarla un tool dell'app che sa di aver appena portato roba da
  * ragionarci sopra. Vale per il resto della domanda, e indietro non si torna.
  */
-data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList(), val escalate: Boolean = false) {
+data class ToolOutput(val text: String, val parts: List<ContentPart> = emptyList(), val escalate: Boolean = false,
+  val result: ToolResultDetails? = null,
+) {
   companion object {
-    fun error(message: String): ToolOutput = ToolOutput("errore: $message")
+    fun error(message: String): ToolOutput = ToolOutput("errore: $message", result = ToolResultDetails(ToolOutcome.ERROR, error = ToolError("tool_error", message)))
   }
 }
 
@@ -112,6 +114,9 @@ interface AiTool<C> {
 
   /** Il risultato e' testo compatto per il modello: righe `chiave: valore`, mai JSON verboso. */
   suspend fun run(args: JsonObject, ctx: C): ToolOutput
+
+  /** Additive dispatch hook; legacy tools continue to implement only run(args, ctx). */
+  suspend fun run(args: JsonObject, ctx: C, execution: ToolExecution): ToolOutput = run(args, ctx)
 
   val spec: ToolSpec get() = ToolSpec(name, description, parameters)
 
@@ -337,6 +342,7 @@ object ToolText {
 
   fun limit(text: String, maxChars: Int = MAX_CHARS): String {
     if (text.length <= maxChars) return text
+    require(maxChars >= 0)
     val lines = text.lines()
     val kept = StringBuilder()
     var count = 0
@@ -345,7 +351,10 @@ object ToolText {
       kept.append(line).append('\n')
       count++
     }
-    return kept.toString().trimEnd() + "\n… (${omitted(lines.size - count)})"
+    if (count > 0) return (kept.toString().trimEnd() + "\n\u2026 (${omitted(lines.size - count)})").take(maxChars)
+    val marker = "\n\u2026 (testo troncato)"
+    if (maxChars <= marker.length) return text.take(maxChars)
+    return text.take(maxChars - marker.length) + marker
   }
 
   /** Cosa manca, al singolare e al plurale (3.0.0): prima "altre 1 righe omesse". */

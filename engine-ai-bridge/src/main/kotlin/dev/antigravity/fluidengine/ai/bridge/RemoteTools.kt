@@ -5,8 +5,16 @@ import dev.antigravity.fluidengine.ai.tools.AiTool
 import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
 import dev.antigravity.fluidengine.ai.tools.ConfirmationText
-import dev.antigravity.fluidengine.ai.tools.ToolOutput
+import dev.antigravity.fluidengine.ai.tools.*
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
 
@@ -75,6 +83,8 @@ class RemoteTool<C>(
   override val needsConfirmation: Boolean = info.needsConfirmation
   override val longRunning: Boolean = info.longRunning
   override val isAction: Boolean = info.action
+  override val timeoutMillis: Long? get() = if (longRunning) host.longRunningTimeoutMillis + 2_000L else info.timeoutMillis
+
 
   override suspend fun describe(args: JsonObject, ctx: C): ConfirmationText? {
     if (!info.needsConfirmation) return null
@@ -82,43 +92,74 @@ class RemoteTool<C>(
     return ConfirmationText(remote?.first ?: "${catalog.appLabel}: ${info.name.replace('_', ' ')}?", remote?.second)
   }
 
-  override suspend fun run(args: JsonObject, ctx: C): ToolOutput {
+  /**
+   * Senza un'identita' dell'operazione (3.0.6): va bene per una lettura (ne riceve una nuova), ma
+   * una scrittura (`action` o `needsConfirmation`) viene rifiutata **prima** della conferma e della
+   * chiamata all'ospite, perche' qui non si saprebbe riconoscere una ripetizione. L'orchestratore
+   * non passa mai di qui: usa l'overload con [ToolExecution] e un'identita' per chiamata
+   * (`AskInput.prepareToolExecution`). Chi chiama un tool remoto a mano fa lo stesso.
+   */
+  override suspend fun run(args: JsonObject, ctx: C): ToolOutput =
+    if (info.action || info.needsConfirmation) ToolOutput.error("operation identity required for writes")
+    else run(args, ctx, ToolExecution(UUID.randomUUID().toString()))
+
+  override suspend fun run(args: JsonObject, ctx: C, execution: ToolExecution): ToolOutput {
+    ToolArgumentValidator.error(args, parameters)?.let { return ToolOutput.error(it) }
     if (info.action && !host.actionsEnabled(ctx)) return ToolOutput(host.actionsOffText)
     if (info.needsConfirmation) {
       val text = describe(args, ctx) ?: ConfirmationText("${catalog.appLabel}: ${info.name.replace('_', ' ')}?", null)
       host.confirm(ctx, name, text)?.let { return it }
     }
-    val requestId = UUID.randomUUID().toString()
+    val requestId = execution.operationId
     val language = host.language(ctx)
-    return when (val result = client.run(catalog.authority, info.name, args, confirmed = info.needsConfirmation, requestId = requestId, language = language)) {
-      is RemoteResult.Done -> output(result.text, result.escalate, result.parts)
-      is RemoteResult.Error -> ToolOutput.error(result.message)
-      is RemoteResult.Status -> output(result.text ?: result.detail ?: "in corso", result.escalate, result.parts)
+    val output = when (val result = client.run(catalog.authority, info.name, args, confirmed = info.needsConfirmation, requestId = requestId, language = language)) {
+      is RemoteResult.Done -> output(result.text, result.escalate, result.parts, result.result)
+      is RemoteResult.Error -> uncertain(result.message)
+      is RemoteResult.Status -> output(result.text ?: result.detail ?: "in corso", result.escalate, result.parts, result.result)
       is RemoteResult.Job -> follow(result.jobId)
     }
+    return output.copy(result = output.result?.let { it.copy(operation = it.operation ?: ToolOperationRef(requestId, catalog.appId)) })
   }
 
   private suspend fun follow(jobId: String): ToolOutput {
     val started = System.currentTimeMillis()
-    while (true) {
-      delay(1_000L)
-      when (val status = client.status(catalog.authority, jobId)) {
-        is RemoteResult.Status -> when (status.state) {
-          BridgeProtocol.STATE_DONE -> return output(status.text ?: "fatto", status.escalate, status.parts)
-          BridgeProtocol.STATE_FAILED -> return ToolOutput.error(status.detail ?: "il lavoro e' fallito")
-          BridgeProtocol.STATE_UNKNOWN -> return ToolOutput.error(status.detail ?: "lavoro perso")
+    try {
+      while (true) {
+        delay(1_000L)
+        when (val status = client.status(catalog.authority, jobId)) {
+          is RemoteResult.Status -> when (status.state) {
+            BridgeProtocol.STATE_DONE -> return output(status.text ?: "fatto", status.escalate, status.parts, status.result)
+            BridgeProtocol.STATE_FAILED -> return ToolOutput.error(status.detail ?: "il lavoro e' fallito")
+            BridgeProtocol.STATE_UNKNOWN -> return uncertain(status.detail ?: "lavoro perso")
+          }
+          is RemoteResult.Error -> return uncertain(status.message)
+          else -> Unit
         }
-        is RemoteResult.Error -> return ToolOutput.error(status.message)
-        else -> Unit
+        if (System.currentTimeMillis() - started > host.longRunningTimeoutMillis) {
+          cancelJob(jobId)
+          return uncertain("il lavoro in ${catalog.appLabel} non e' finito in tempo: continua nell'app")
+        }
       }
-      if (System.currentTimeMillis() - started > host.longRunningTimeoutMillis) {
-        client.cancel(catalog.authority, jobId)
-        return ToolOutput.error("il lavoro in ${catalog.appLabel} non e' finito in tempo: continua nell'app")
-      }
+    } catch (cancelled: CancellationException) {
+      cancelJob(jobId)
+      throw cancelled
     }
   }
 
-  private fun output(text: String, escalate: Boolean, parts: List<RemotePart>): ToolOutput {
+  private suspend fun cancelJob(jobId: String) = withContext(NonCancellable) {
+    // Binder may block despite cancellation. Bound the caller's wait, not just the IO coroutine.
+    val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val cleanup = cleanupScope.launch { try { client.cancel(catalog.authority, jobId) } catch (_: Exception) { } }
+    try { withTimeoutOrNull(2_000L) { cleanup.join() } }
+    finally { cleanupScope.coroutineContext[kotlinx.coroutines.Job]?.cancel() }
+    Unit
+  }
+
+  private fun uncertain(message: String): ToolOutput = ToolOutput("errore: $message", result = ToolResultDetails(
+    ToolOutcome.UNCERTAIN, error = ToolError("remote_unknown_effect", message, retryable = false),
+  ))
+
+  private fun output(text: String, escalate: Boolean, parts: List<RemotePart>, result: ToolResultDetails? = null): ToolOutput {
     val loaded = parts.mapNotNull { part ->
       val bytes = client.readPart(part) ?: return@mapNotNull null
       when (part.kind) {
@@ -126,7 +167,9 @@ class RemoteTool<C>(
         else -> ContentPart.Document(bytes, part.mime, part.name ?: "documento")
       }
     }
-    return ToolOutput(text, loaded, escalate || loaded.isNotEmpty() && text.length < 200 && escalate)
+    return ToolOutput(text, loaded, escalate, result ?: ToolResultDetails(
+      ToolOutcome.UNCERTAIN, error = ToolError("legacy_unknown_effect", "Legacy host supplied text without verified execution evidence"),
+    ))
   }
 }
 

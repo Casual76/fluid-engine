@@ -423,7 +423,14 @@ fun FluidMorphMenuHost(
     }
   }
 
-  BackHandler(enabled = state.isOpen) { state.dismiss() }
+  // Il back chiude il menu prima di qualunque pagina. Il gestore entra in composizione con
+  // l'apertura, non con l'host: sul dispatcher risponde il gestore abilitato registrato per ultimo, e
+  // l'host sta alla radice, composto prima di tutto quello che si apre dopo — un `FluidPageHost`
+  // annidato (le sottopagine delle impostazioni), il `BackHandler` di una pagina. Sempre composto, si
+  // registrava una volta sola all'avvio e restava sotto di loro: il back toglieva la sottopagina e il
+  // menu restava in scena. Ora fa come i modali, che compongono il loro gestore con la voce aperta. Il
+  // congedo lo toglie: un secondo back, anche durante il ritorno, va alla pagina.
+  if (state.isOpen) BackHandler { state.dismiss() }
 
   // Un tocco fuori dal menu, OVUNQUE sullo schermo, lo chiude (3.0). L'acchiappa-tocco qui sotto
   // copre solo i limiti dell'host: montato in un palco (la galleria) o in una parte della pagina, un

@@ -3,12 +3,13 @@
 
 # API · engine-ai-bridge
 
-_Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ai-bridge/ai/bridge/AiToolClient.kt`
 
 - `enum class RemoteAvailability` — Cosa il cliente puo' dire di un'app ospite. [NO_PERMISSION] vuol dire che l'ospite ha rifiutato la chiamata (`SecurityException`): una firma diversa — una build di debug di Android Studio accanto a quella dello store — oppure, per un ospite della 2.x, il permesso `AI_TOOLS` che il cliente non chiede piu'.
 - `class AiToolClient(private val context: Context) : BridgeCalls` — Il cliente: trova le app che espongono tool ([discover]) e le chiama. Ogni chiamata passa da un `ContentProviderClient` *unstable*, cosi' un ospite che muore a meta' non uccide il cliente: si riceve un'eccezione e si risponde con un errore. Il cliente dichiara nel manifest un `<queries>` con `QUERY_ALL_PACKAGES` o con le autorita' note, altrimenti Android nasconde i provider delle altre app.
+  - `fun negotiation(authority: String): BridgeNegotiation` — Features agreed during catalog discovery; absent/old hosts have no extended capabilities.
   - `fun discover(): List<RemoteHost>` — Le app installate che espongono i tool: quelle con il meta-data sul provider.
   - `fun availability(host: RemoteHost): RemoteAvailability`
   - `suspend fun catalog(host: RemoteHost): RemoteCatalog?` — Il catalogo di un ospite; null se non risponde, non ha il permesso, o parla un protocollo piu' nuovo.
@@ -38,8 +39,18 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ai-bridge/ai/bridge/BridgeProtocol.kt`
 
-- `object BridgeProtocol` — Il protocollo fra un'app che espone i suoi tool (l'**ospite**, un `ContentProvider`) e l'app che li chiama (il **cliente**, un assistente come PampAI): JSON in stringhe dentro i `Bundle` di `ContentProvider.call`. Puro Kotlin, cosi' si prova sulla JVM. Tutto cio' che attraversa il confine e' qui: chi cambia il formato alza [PROTOCOL] e aggiunge, mai toglie.
+- `object BridgeProtocol` — Il protocollo fra un'app che espone i suoi tool (l'**ospite**, un `ContentProvider`) e l'app che li chiama (il **cliente**, un assistente come PampAI): JSON in stringhe dentro i `Bundle` di `ContentProvider.call`. Puro Kotlin, cosi' si prova sulla JVM. Tutto cio' che attraversa il confine e' qui: [PROTOCOL] resta legacy, le estensioni si negoziano fino a [MAX_PROTOCOL].
   - `const val PROTOCOL`
+  - `const val MAX_PROTOCOL`
+  - `const val CAP_TYPED_RESULTS`
+  - `const val CAP_OPERATION_ID`
+  - `val CAPABILITIES: Set<String>`
+  - `const val METHOD_NEGOTIATE`
+  - `fun negotiationRequest(): JsonObject`
+  - `fun negotiate(request: JsonObject?): JsonObject`
+  - `fun agreementOf(response: JsonObject?): BridgeNegotiation` — Old hosts return unknown-method errors; the safe adapter remains protocol 1.
+  - `fun typedRequested(request: JsonObject?): Boolean`
+  - `fun withResult(envelope: JsonObject, output: dev.antigravity.fluidengine.ai.tools.ToolOutput, request: JsonObject?): JsonObject`
   - `const val META_TOOL_HOST` — Il meta-data sul `<provider>` dell'ospite che lo fa trovare al cliente.
   - `const val PERMISSION` — **DEPRECATO: Il permesso non esiste piu': il provider controlla la firma di chi chiama e il manifest non porta android:permission.** — Il permesso `signature` che stava sul provider fino alla 3.0.0. Non esiste piu': il modulo non lo dichiara e il provider non lo chiede, perche' due app con firme diverse non potevano installarlo insieme. L'ospite controlla la firma di chi chiama ([AiToolHostProvider.isCallerTrusted]) e il `<provider>` non porta `android:permission`.
   - `const val AUTHORITY_SUFFIX` — Il suffisso dell'autorita': `<applicationId>.ai.tools`.
@@ -71,7 +82,7 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun resultOf(json: JsonObject?): RemoteResult?` — Un risultato di `run` o `status` letto dal cliente.
 - `data class RemoteCategoryInfo(val id: String, val label: String, val hint: String)`
 - `data class RemoteGroupInfo(val id: String, val statusKey: String, val hint: String, val category: String?, val parent: String?, val loadsWithCategory: Boolean, val action: Boolean)`
-- `data class RemoteToolInfo(val name: String, val group: String, val description: String, val parameters: JsonObject, val needsConfirmation: Boolean, val longRunning: Boolean, val action: Boolean)`
+- `data class RemoteToolInfo(val name: String, val group: String, val description: String, val parameters: JsonObject, val needsConfirmation: Boolean, val longRunning: Boolean, val action: Boolean, val timeoutMillis: Long? = null)`
 - `data class RemoteCatalog(val protocol: Int, val authority: String, val packageName: String, val appId: String, val domain: String, val appLabel: String, val appVersion: String, val hint: String?, val vocabulary: List<String>, val categories: List<RemoteCategoryInfo>, val groups: List<RemoteGroupInfo>, val tools: List<RemoteToolInfo>)` — Il catalogo di un'app ospite, come lo vede il cliente.
 - `data class RemotePart(val kind: String, val uri: String, val mime: String, val name: String?)` — Un file consegnato da un tool ospite: un URI leggibile dal chiamante (grant temporaneo).
   - `fun toJson(): JsonObject`
@@ -80,11 +91,13 @@ _Generato sull'engine 3.0.5 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val KIND_DOCUMENT`
     - `fun of(json: JsonElement?): RemotePart?`
 - `sealed interface RemoteResult`
-  - `data class Done(val text: String, val escalate: Boolean, val parts: List<RemotePart>) : RemoteResult`
+  - `data class Done(val text: String, val escalate: Boolean, val parts: List<RemotePart>, val result: dev.antigravity.fluidengine.ai.tools.ToolResultDetails? = null) : RemoteResult`
   - `data class Job(val jobId: String) : RemoteResult`
-  - `data class Status(val state: String, val detail: String?, val progress: Double?, val text: String?, val escalate: Boolean, val parts: List<RemotePart>) : RemoteResult`
+  - `data class Status(val state: String, val detail: String?, val progress: Double?, val text: String?, val escalate: Boolean, val parts: List<RemotePart>, val result: dev.antigravity.fluidengine.ai.tools.ToolResultDetails? = null) : RemoteResult`
   - `data class Error(val message: String) : RemoteResult`
 - `fun JsonArray?.strings(): List<String>` — Per i test e per chi vuole leggere un `parameters` senza il registry.
+- `data class BridgeNegotiation(val protocol: Int = 1, val capabilities: Set<String> = emptySet())` — Negotiated transport features, available to app capability gates. No durable dedup capability exists.
+  - `fun toJson(): JsonObject`
 
 ## `engine-ai-bridge/ai/bridge/RemoteTools.kt`
 

@@ -620,4 +620,51 @@ object FluidMotion {
    * mano con un seek lento.
    */
   const val ScrubberHoldMillis: Long = 3_000L
+
+  // --- pm-f1/ga ---
+  //
+  // Liste lunghe e righe (Fase 1 di Pampa Mail, F1.2a): le righe che entrano ed escono una per una
+  // (`fluidGroupedItems`), la riga che si scorre di lato (`fluidSwipeActions`) e la pillola «N nuove»
+  // (`FluidJumpPill`). Nessun numero nuovo: sono i token di sempre con un nome, cosi' chi li cerca li
+  // trova qui e il grep di `spring(`/`tween(` fuori da questo file resta vuoto.
+
+  /**
+   * Una riga di una lista che si sposta perche' un'altra e' entrata o uscita: critica (una lista non
+   * rimbalza: e' un contenitore) e col passo delle liste (`ResponseStandard`).
+   */
+  fun groupedItemPlacement(): SpringSpec<IntOffset> = intOffset(DampingChrome, ResponseStandard)
+
+  /** Quanto dura la comparsa di una riga nuova, in millisecondi: la dissolvenza d'ingresso di serie. */
+  const val GroupedItemFadeInMillis: Int = 220
+
+  /** Quanto dura l'uscita di una riga tolta, in millisecondi: piu' breve dell'ingresso, come ogni uscita. */
+  const val GroupedItemFadeOutMillis: Int = 160
+
+  /**
+   * La riga che torna a posto dopo uno scorrimento di lato (annullato, o confermato su un'azione che non
+   * la toglie): pixel, critica, rapida. Parte dalla velocita' del dito, come la pagina del back.
+   */
+  fun swipeSettle(): SpringSpec<Float> = pixels(DampingChrome, ResponseSnappy)
+
+  /**
+   * La riga che esce del tutto verso il lato, confermata un'azione che la toglie: la stessa molla del
+   * ritorno, perche' e' lo stesso oggetto che finisce lo stesso gesto, solo verso l'altro capo.
+   */
+  fun swipeExit(): SpringSpec<Float> = pixels(DampingChrome, ResponseSnappy)
+
+  /**
+   * Il colore dell'azione che si accende quando la soglia e' superata: un lampo, perche' e' la risposta
+   * a un momento (la soglia) e deve arrivare insieme al colpo dell'aptica, non dopo.
+   */
+  fun <T> swipeArm(): SpringSpec<T> = flick()
+
+  /** La pillola «N nuove» che entra o esce: per offset e alfa, mai per scala (e' vetro). */
+  fun jumpPillOffset(): SpringSpec<IntOffset> = intOffset(DampingChrome, ResponseSnappy)
+
+  /** La dissolvenza della pillola «N nuove», in millisecondi, in entrata. */
+  const val JumpPillFadeInMillis: Int = 180
+
+  /** La dissolvenza della pillola «N nuove», in millisecondi, in uscita. */
+  const val JumpPillFadeOutMillis: Int = 140
+  // --- fine pm-f1/ga ---
 }

@@ -1692,15 +1692,110 @@ fun FluidBarAction(
    */
   opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress,
 ) {
-  if (actions == null) {
-    FluidGlassIconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+  val iconTint = MaterialTheme.colorScheme.primary
+  FluidBarActionImpl(
+    contentDescription = contentDescription,
+    onClick = onClick,
+    modifier = modifier,
+    enabled = enabled,
+    actions = actions,
+    opensOn = opensOn,
+    buttonFace = {
       Icon(
         imageVector = icon,
         contentDescription = contentDescription,
-        tint = MaterialTheme.colorScheme.primary,
+        tint = iconTint,
         modifier = Modifier.size(22.dp),
       )
-    }
+    },
+    menuFace = { Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp)) },
+  )
+}
+
+/** Le misure delle azioni della barra con un contenuto proprio ([FluidBarAction] con `content`). */
+object FluidBarActionDefaults {
+  /**
+   * Il lato di un avatar (o di un'immagine tonda) dentro la lente di una [FluidBarAction]: 32 dp in una lente da
+   * 44. Il vetro che avanza (6 dp per lato) e' l'orlo che fa leggere il tasto come vetro: un avatar a
+   * 44 dp coprirebbe la lente e il tasto sembrerebbe una foto incollata sulla barra.
+   */
+  val ContentSize: Dp = 32.dp
+}
+
+/**
+ * Un'azione della barra con un **contenuto tuo** al posto dell'icona: l'avatar dell'utente, un mosaico
+ * di account, una foto. E' la stessa lente di vetro, la stessa pressione e lo stesso menu dell'overload
+ * con l'icona, e per il menu la stessa regola: se passi [actions], tenendo premuto (o toccando, con
+ * [FluidMenuOpensOn.Tap]) il tasto **diventa** il menu, e il menu si richiude nel tasto.
+ *
+ * Il caso per cui esiste: l'avatar in alto a destra che apre il menu degli account. Per quel menu:
+ * [content] e' disegnato **due volte** — nel tasto, e come faccia del tasto mentre il menu si apre e si
+ * chiude (l'host lo porta lungo il primo tratto del viaggio) — quindi deve essere **solo disegno**: un
+ * [FluidAvatar], un mosaico, un'immagine gia' decodificata, e nessun effetto collaterale (niente
+ * `LaunchedEffect` che carica, niente stato catturato che cambi mentre il menu e' aperto).
+ *
+ * Misure: la lente e' quella di un tasto della barra, 44 dp, e il contenuto sta dentro con un orlo
+ * di vetro attorno; [FluidBarActionDefaults.ContentSize] e' il lato giusto per un avatar. Il bersaglio
+ * resta 48 dp.
+ *
+ * **TalkBack: il nome e' [contentDescription].** Il contenuto va **muto** (un [FluidAvatar] senza
+ * `contentDescription`): il nome del tasto e' questo parametro, e un avatar che dicesse il suo nome
+ * accanto produrrebbe «Alessio Pampaloni, Account, pulsante». Senza [contentDescription] il tasto non ha
+ * nome, e va bene solo se e' il contenuto a darlo.
+ *
+ * @param content il disegno dentro la lente.
+ */
+@Composable
+fun FluidBarAction(
+  contentDescription: String?,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true,
+  actions: (() -> List<FluidContextAction>)? = null,
+  opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress,
+  content: @Composable () -> Unit,
+) {
+  FluidBarActionImpl(
+    contentDescription = contentDescription,
+    onClick = onClick,
+    modifier = modifier,
+    enabled = enabled,
+    actions = actions,
+    opensOn = opensOn,
+    buttonFace = {
+      Box(
+        modifier = if (contentDescription != null) {
+          Modifier.semantics { this.contentDescription = contentDescription }
+        } else {
+          Modifier
+        },
+        contentAlignment = Alignment.Center,
+      ) { content() }
+    },
+    menuFace = content,
+  )
+}
+
+/**
+ * Il corpo di tutte e due le [FluidBarAction]: il tasto di vetro, e il menu che il tasto diventa.
+ *
+ * [buttonFace] sta nel tasto (con il nome per TalkBack, se ce l'ha); [menuFace] e' la faccia che
+ * l'host porta nel viaggio del menu, e non porta nomi: il tasto non c'e' piu', e due nodi con lo stesso
+ * nome sono rumore.
+ */
+@Composable
+private fun FluidBarActionImpl(
+  contentDescription: String?,
+  onClick: () -> Unit,
+  modifier: Modifier,
+  enabled: Boolean,
+  actions: (() -> List<FluidContextAction>)?,
+  opensOn: FluidMenuOpensOn,
+  buttonFace: @Composable () -> Unit,
+  menuFace: @Composable () -> Unit,
+) {
+  if (actions == null) {
+    FluidGlassIconButton(onClick = onClick, modifier = modifier, enabled = enabled) { buttonFace() }
     return
   }
 
@@ -1711,7 +1806,6 @@ fun FluidBarAction(
   val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
   val density = LocalDensity.current.density
   val tint = GlassDefaults.controlTint()
-  val iconTint = MaterialTheme.colorScheme.primary
 
   SideEffect {
     entry.presentation = FluidGlassModalPresentation.Expand
@@ -1719,7 +1813,7 @@ fun FluidBarAction(
     entry.onDismissRequest = { entry.visible = false }
     entry.menuAnchor = anchor
     entry.menuHandOff = anchor.handOff
-    anchor.face = { Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp)) }
+    anchor.face = menuFace
     anchor.tintFrom = tint
     anchor.opticsFrom = GlassDefaults.buttonOptics()
   }
@@ -1776,14 +1870,7 @@ fun FluidBarAction(
       entry.previewSize = rect
       entry.origin = { rect }
     },
-  ) {
-    Icon(
-      imageVector = icon,
-      contentDescription = contentDescription,
-      tint = iconTint,
-      modifier = Modifier.size(22.dp),
-    )
-  }
+  ) { buttonFace() }
 }
 
 /** Provides the chrome registry, tab-bar allowance and scroll-to-top bus to every screen below. */

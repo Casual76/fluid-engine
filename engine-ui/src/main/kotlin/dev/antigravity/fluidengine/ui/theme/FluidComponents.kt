@@ -111,6 +111,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import dev.antigravity.fluidengine.ui.fluid.fluidAccessibilityActions
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.contentDescription
@@ -424,6 +427,62 @@ fun FluidStatusBadge(
     color = colors.content,
     maxLines = 1,
   )
+}
+
+/**
+ * La pillola di stato in un colore qualunque: quello di un'etichetta scelto dall'utente, di una cartella, di una
+ * materia. I sei toni dell'engine non bastano quando il colore e' un dato.
+ *
+ * Il fondo e' il colore pieno, e **il testo lo sceglie il contrasto**, mai l'occhio: scuro o chiaro, quello che col
+ * fondo fa almeno 4,5:1 (WCAG 1.4.3 per il testo piccolo; [fluidLegibleInk]). Un giallo chiaro porta testo scuro,
+ * un blu notte testo chiaro, e un colore che l'app cambia a runtime non porta mai una pillola illeggibile. Un colore
+ * con trasparenza si misura gia' composto sulla superficie, cioe' come lo si vede.
+ *
+ * Stessa forma, stessa misura e stessa tipografia della pillola a tono: in una riga le due stanno insieme.
+ */
+@Composable
+fun FluidStatusBadge(
+  label: String,
+  color: Color,
+  modifier: Modifier = Modifier,
+) {
+  val container = color.compositeOver(MaterialTheme.colorScheme.surface)
+  Text(
+    text = label,
+    modifier = modifier
+      .clip(FluidCapsuleShape)
+      .background(container)
+      .padding(horizontal = 10.dp, vertical = 4.dp),
+    style = MaterialTheme.typography.labelMedium,
+    fontWeight = FontWeight.SemiBold,
+    color = fluidLegibleInk(container),
+    maxLines = 1,
+  )
+}
+
+/** Il rapporto di contrasto minimo del testo piccolo (WCAG 1.4.3). */
+internal const val FluidLegibleInkMinContrast = 4.5f
+
+private val FluidInkDark = Color(0xFF121214)
+private val FluidInkLight = Color(0xFFFDFDFF)
+
+/**
+ * L'inchiostro (testo, icona) da posare su un fondo pieno di un colore qualunque: il quasi-nero o il quasi-bianco
+ * dei colori vividi, quello che fa piu' contrasto; e se nemmeno quello arriva a 4,5:1 (i grigi medi, dove i due si
+ * equivalgono), il nero o il bianco puri, che ci arrivano sempre (il peggiore dei casi e' 4,58:1).
+ *
+ * Pura e fuori dalla composizione: e' aritmetica di colori da provare su una palette intera, non su un telefono.
+ * [background] dev'essere opaco (chi ha un colore trasparente lo compone prima sulla superficie).
+ */
+internal fun fluidLegibleInk(background: Color): Color {
+  fun ratio(ink: Color): Float {
+    val high = maxOf(ink.luminance(), background.luminance())
+    val low = minOf(ink.luminance(), background.luminance())
+    return (high + 0.05f) / (low + 0.05f)
+  }
+  val soft = if (ratio(FluidInkDark) >= ratio(FluidInkLight)) FluidInkDark else FluidInkLight
+  if (ratio(soft) >= FluidLegibleInkMinContrast) return soft
+  return if (ratio(Color.Black) >= ratio(Color.White)) Color.Black else Color.White
 }
 
 @Composable
@@ -1221,6 +1280,7 @@ fun FluidListRow(
   disclosure: Boolean = true,
   leadingTile: Boolean = true,
   subtitleMaxLines: Int = Int.MAX_VALUE,
+  customActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
   FluidListRow(
     title = AnnotatedString(title),
@@ -1242,6 +1302,7 @@ fun FluidListRow(
     disclosure = disclosure,
     leadingTile = leadingTile,
     subtitleMaxLines = subtitleMaxLines,
+    customActions = customActions,
   )
 }
 
@@ -1309,6 +1370,15 @@ fun FluidListRow(
    * di elenco e ha il testo intero altrove (le note di una versione, il corpo di un messaggio).
    */
   subtitleMaxLines: Int = Int.MAX_VALUE,
+  /**
+   * Azioni personalizzate di TalkBack **sul nodo della riga** (Fase 1 di Pampa Mail): stella, archivia, seleziona,
+   * le azioni di un chip o di un avatar toccabili. Per chi non vede, un controllo dentro la riga fusa e' una parola
+   * nel nome e niente piu': l'azione deve stare qui, sul nodo che TalkBack legge, perche' messa su un discendente e'
+   * irraggiungibile. Si sommano a quelle dello scorrimento di lato (`Modifier.fluidSwipeActions` nel [modifier]) e a
+   * qualunque altra aggiunta con `Modifier.fluidAccessibilityActions`. Vuota (di serie): la riga di sempre, nodo per
+   * nodo.
+   */
+  customActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
   val colors = toneColors(tone)
   val selectionWash by animateColorAsState(
@@ -1342,6 +1412,7 @@ fun FluidListRow(
       )
       .drawBehind { if (selectionWash.alpha > 0f) drawRect(selectionWash) }
       .semantics { if (selected) this.selected = true }
+      .fluidAccessibilityActions(customActions)
       // A row inside a grouped list tints instead of scaling: shrinking one row of a stack breaks
       // the group's silhouette and is what made the previous treatment look unsettled.
       .fluidRowPressable(
@@ -1693,6 +1764,44 @@ fun FluidEmptyState(
   modifier: Modifier = Modifier,
   illustration: (@Composable () -> Unit)? = null,
 ) {
+  FluidEmptyStateContent(title, detail, modifier, illustration, actionLabel = null, onAction = null)
+}
+
+/**
+ * Uno stato vuoto o d'errore **con un'azione**: «Riprova», «Aggiungi un account», «Collega». Un vuoto che dice
+ * perche' ma non lascia fare niente costringe a cercare il tasto altrove, e lo stato d'errore e' il posto dove
+ * l'utente lo cerca.
+ *
+ * Un overload e non due parametri in coda, di proposito: l'ultimo parametro di [FluidEmptyState] e' una lambda
+ * (l'[illustration]), e chi la passa come lambda finale (`FluidEmptyState(t, d) { Icon(…) }`) l'avrebbe vista finire
+ * su un `onAction` aggiunto dopo di lei, che non compila. Qui l'azione e' obbligatoria e l'illustrazione resta
+ * l'ultima: la lambda finale continua a essere il disegno.
+ *
+ * Il tasto e' un [FluidButton] tinto, sotto il testo, allineato come il testo (al centro con l'illustrazione, a
+ * sinistra senza), alto almeno 48 dp; a testo grande va a capo invece di tagliarsi. E' lui il controllo per
+ * TalkBack, il titolo resta il titolo.
+ */
+@Composable
+fun FluidEmptyState(
+  title: String,
+  detail: String,
+  actionLabel: String,
+  onAction: () -> Unit,
+  modifier: Modifier = Modifier,
+  illustration: (@Composable () -> Unit)? = null,
+) {
+  FluidEmptyStateContent(title, detail, modifier, illustration, actionLabel, onAction)
+}
+
+@Composable
+private fun FluidEmptyStateContent(
+  title: String,
+  detail: String,
+  modifier: Modifier,
+  illustration: (@Composable () -> Unit)?,
+  actionLabel: String?,
+  onAction: (() -> Unit)?,
+) {
   val centered = illustration != null
   val textAlign = if (centered) TextAlign.Center else TextAlign.Start
   Column(
@@ -1725,6 +1834,14 @@ fun FluidEmptyState(
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       textAlign = textAlign,
     )
+    if (actionLabel != null && onAction != null) {
+      FluidButton(
+        text = actionLabel,
+        onClick = onAction,
+        modifier = Modifier.padding(top = 12.dp),
+        style = dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle.Tinted,
+      )
+    }
   }
 }
 

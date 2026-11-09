@@ -7,6 +7,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,9 +28,11 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -35,6 +40,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -288,6 +295,13 @@ fun FluidFloatingCapsule(
  * @param grip di chi e' il dito quando la pagina sotto vuole scorrere, come per [fluidPressable]: di
  *   serie dell'azione ([FluidPressGrip.HoldsFinger]); [FluidPressGrip.YieldsToScroll] se la capsula
  *   sta sopra una lista o un pager che deve partire anche da li'. Dalla 3.0.
+ * @param selected lo stato di un'azione che si **accende e si spegne**: il grassetto di una barra di
+ *   formattazione sopra la tastiera, un filtro. Null (di serie) e' un'azione semplice, com'e' sempre
+ *   stata. Con un valore l'azione e' un **interruttore**: ha il ruolo `Switch` e lo stato che TalkBack
+ *   dice (acceso/spento, nella lingua di sistema), e quando e' acceso ha un disco dell'accento dietro
+ *   l'icona — il segno **non e' solo di colore**: un disco pieno e un'icona sola si distinguono anche
+ *   in scala di grigi, e a chi non vede i colori. Il disco sta dentro il bersaglio di 48 dp e cresce
+ *   con l'icona sotto il dito.
  */
 @Composable
 fun FluidCapsuleAction(
@@ -301,6 +315,7 @@ fun FluidCapsuleAction(
   onLongClick: (() -> Unit)? = null,
   size: Dp = FluidFloatingCapsuleDefaults.ActionSize,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
+  selected: Boolean? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val color = when {
@@ -308,6 +323,12 @@ fun FluidCapsuleAction(
     tint != Color.Unspecified -> tint
     else -> scheme.primary
   }
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val discAlpha by animateFloatAsState(
+    targetValue = if (selected == true) CapsuleActionActiveDiscAlpha else 0f,
+    animationSpec = if (reducedMotion) snap() else FluidMotion.flick(),
+    label = "fluid capsule action selected",
+  )
   Box(
     modifier = modifier
       .size(size)
@@ -317,10 +338,28 @@ fun FluidCapsuleAction(
         onClick = onClick,
         onLongClick = onLongClick,
         enabled = enabled,
-        role = Role.Button,
+        role = if (selected != null) Role.Switch else Role.Button,
         focusShape = FluidCapsuleShape,
         feedback = FluidPressFeedback.Expand,
         grip = grip,
+      )
+      .then(
+        if (selected != null) {
+          Modifier.semantics { toggleableState = ToggleableState(selected) }
+        } else {
+          Modifier
+        },
+      )
+      .then(
+        // Il disco: dopo la pressione, cosi' cresce con l'icona, e dentro il bersaglio (3 dp d'aria).
+        if (discAlpha > 0f) {
+          Modifier
+            .padding(CapsuleActionDiscInset)
+            .clip(FluidCapsuleShape)
+            .background(color.copy(alpha = discAlpha))
+        } else {
+          Modifier
+        },
       ),
     contentAlignment = Alignment.Center,
   ) {
@@ -332,6 +371,12 @@ fun FluidCapsuleAction(
     )
   }
 }
+
+/** Quanto e' pieno il disco di un'azione accesa: il 16% dell'accento, come il velo di una riga scelta nella barra laterale. */
+private const val CapsuleActionActiveDiscAlpha = 0.16f
+
+/** L'aria fra il bordo del bersaglio e il disco di un'azione accesa. */
+private val CapsuleActionDiscInset = 3.dp
 
 /** Un controllo spento resta leggibile ma si capisce che non risponde: lo stesso 0,38 dei tasti di vetro. */
 private const val CapsuleActionDisabledAlpha = 0.38f

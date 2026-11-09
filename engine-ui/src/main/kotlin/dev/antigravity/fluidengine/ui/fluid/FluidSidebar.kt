@@ -40,6 +40,21 @@ object FluidSidebarDefaults {
   /** L'aria fra la barra e i bordi della finestra: galleggia, non e' incollata. */
   val Margin: Dp = 12.dp
   val RowHeight: Dp = 44.dp
+
+  /**
+   * L'altezza di una riga che deve essere un bersaglio da 48 dp (QLT-21): si passa come `minHeight` a
+   * [FluidSidebarRow]. [RowHeight] resta 44 dp, perche' cambiarla sposterebbe tutte le barre che esistono.
+   */
+  val ComfortableRowHeight: Dp = 48.dp
+
+  /** Il rientro di un livello di annidamento: 16 dp, quanto lo spazio fra la piastrella e il testo piu' un poco. */
+  val IndentPerLevel: Dp = 16.dp
+
+  /**
+   * Fin dove cresce il rientro: oltre il sesto livello le righe non si spostano piu'. Una barra larga
+   * 360 dp con una cartella a dieci livelli di profondita' non deve lasciare al nome tre lettere.
+   */
+  const val MaxIndentLevels: Int = 6
 }
 
 /**
@@ -91,15 +106,53 @@ fun FluidSidebar(
   }
 }
 
-/** Il titolo di un gruppo di righe nella barra laterale: «Materie», «Altro». */
+/**
+ * Il titolo di un gruppo di righe nella barra laterale: «Materie», «Altro».
+ *
+ * @param leading un segno prima del titolo: l'avatar o il colore di un account, quando il gruppo e'
+ *   «le cartelle di questo account». Non e' toccabile (e' un titolo): se serve un'intestazione che
+ *   si apre, e' una [FluidSidebarRow].
+ * @param detail una parola o un numero a destra: «12», l'indirizzo dell'account.
+ * @param uppercase il titolo in maiuscolo (di serie, com'e' sempre stato). Va spento quando il titolo e'
+ *   un nome proprio o un indirizzo, che le maiuscole deformano.
+ */
 @Composable
-fun FluidSidebarSection(title: String, modifier: Modifier = Modifier) {
-  Text(
-    text = title.uppercase(),
-    style = MaterialTheme.typography.labelSmall,
-    color = MaterialTheme.colorScheme.onSurfaceVariant,
-    modifier = modifier.padding(start = 12.dp, top = 16.dp, bottom = 4.dp),
-  )
+fun FluidSidebarSection(
+  title: String,
+  modifier: Modifier = Modifier,
+  leading: (@Composable () -> Unit)? = null,
+  detail: String? = null,
+  uppercase: Boolean = true,
+) {
+  val titleText: @Composable (Modifier) -> Unit = { textModifier ->
+    Text(
+      text = if (uppercase) title.uppercase() else title,
+      style = MaterialTheme.typography.labelSmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+      modifier = textModifier,
+    )
+  }
+  if (leading == null && detail == null) {
+    // Il percorso di sempre: un testo solo, senza una Row in mezzo.
+    titleText(modifier.padding(start = 12.dp, top = 16.dp, bottom = 4.dp))
+    return
+  }
+  Row(
+    modifier = modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 4.dp),
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    leading?.invoke()
+    titleText(Modifier.weight(1f))
+    if (detail != null) {
+      Text(
+        text = detail,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+      )
+    }
+  }
 }
 
 /**
@@ -121,6 +174,29 @@ fun FluidSidebarRow(
   detail: String? = null,
   badge: String? = null,
   contextActions: (() -> List<FluidContextAction>)? = null,
+  /**
+   * Il livello di annidamento: 0 e' la riga di sempre, ogni livello in piu' la sposta di
+   * [FluidSidebarDefaults.IndentPerLevel] (fino a [FluidSidebarDefaults.MaxIndentLevels]). Per le
+   * cartelle dentro le cartelle. Il velo della selezione resta largo quanto la riga: e' la riga ad
+   * essere scelta, non il rientro. Fuori scala (negativo) vale 0.
+   */
+  level: Int = 0,
+  /**
+   * Il contenuto prima del testo, **al posto** della piastrella di [icon]: un avatar, un pallino
+   * di colore, la freccia che apre un gruppo. Se c'e', [icon] e [tint] non si disegnano.
+   */
+  leading: (@Composable () -> Unit)? = null,
+  /**
+   * Un contenuto in coda (un `FluidBadge` coi non letti), dopo [detail] e [badge]. Non cambia la
+   * semantica della riga: se porta un numero, la riga lo dice una volta sola.
+   */
+  trailing: (@Composable () -> Unit)? = null,
+  /**
+   * L'altezza minima della riga; di serie [FluidSidebarDefaults.RowHeight] (44 dp). Una riga che e' il
+   * bersaglio principale di una barra usabile col dito passa [FluidSidebarDefaults.ComfortableRowHeight]
+   * (48 dp); col testo grande la riga cresce comunque.
+   */
+  minHeight: Dp = FluidSidebarDefaults.RowHeight,
 ) {
   val scheme = MaterialTheme.colorScheme
   val shape = ContinuousCornerShape(FluidRadius.Control)
@@ -145,12 +221,19 @@ fun FluidSidebarRow(
         role = Role.Tab,
       )
       .semantics { this.selected = selected }
-      .heightIn(min = FluidSidebarDefaults.RowHeight)
-      .padding(horizontal = 12.dp, vertical = 8.dp),
+      .heightIn(min = minHeight)
+      .padding(
+        start = 12.dp + FluidSidebarDefaults.IndentPerLevel * level.coerceIn(0, FluidSidebarDefaults.MaxIndentLevels),
+        end = 12.dp,
+        top = 8.dp,
+        bottom = 8.dp,
+      ),
     horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    if (icon != null) {
+    if (leading != null) {
+      leading()
+    } else if (icon != null) {
       Box(
         modifier = Modifier
           .size(26.dp)
@@ -189,5 +272,6 @@ fun FluidSidebarRow(
           .padding(horizontal = 7.dp, vertical = 2.dp),
       )
     }
+    trailing?.invoke()
   }
 }

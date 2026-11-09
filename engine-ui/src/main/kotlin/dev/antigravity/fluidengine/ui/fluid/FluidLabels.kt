@@ -68,6 +68,18 @@ data class FluidLabels(
   val message: String = "Messaggio",
   /** Le frasi dell'indicatore di sincronizzazione, dell'avviso e del suo dettaglio (3.0.4). */
   val sync: FluidSyncStrings = FluidSyncStrings(),
+  // --- pm-f1/gb ---
+  /** Lo stato di un avatar o di un segno di selezione che e' scelto, per TalkBack (`FluidAvatar(selected = true)`). */
+  val selected: String = "Selezionato",
+  /** Lo stato di un avatar che puo' essere scelto e non lo e'. */
+  val notSelected: String = "Non selezionato",
+  /**
+   * Il resto di un mosaico di avatar oltre le celle che si vedono, con `%1$d` per quante persone mancano:
+   * «e altri 3» (`fluidAvatarStackDescription`). Una stringa con un segnaposto e non una funzione, cosi'
+   * un'app la traduce come tutte le altre risorse.
+   */
+  val moreAvatars: String = "e altri %1\$d",
+  // --- fine pm-f1/gb ---
 ) {
   companion object {
     /**
@@ -93,6 +105,11 @@ data class FluidLabels(
       clear = "Clear",
       message = "Message",
       sync = FluidSyncStrings.english(),
+      // --- pm-f1/gb ---
+      selected = "Selected",
+      notSelected = "Not selected",
+      moreAvatars = "and %1\$d more",
+      // --- fine pm-f1/gb ---
     )
   }
 }

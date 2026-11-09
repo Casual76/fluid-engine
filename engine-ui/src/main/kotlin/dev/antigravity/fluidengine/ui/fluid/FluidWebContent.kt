@@ -12,6 +12,7 @@ import android.print.PrintDocumentAdapter
 import android.view.MotionEvent
 import android.view.ContextThemeWrapper
 import android.view.ViewGroup
+import android.view.ViewParent
 import android.widget.FrameLayout
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
@@ -39,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -262,37 +265,43 @@ fun FluidWebContent(
     Box(modifier) {
       val bytes = document
       if (bytes != null && state.phase != FluidWebPhase.Error) {
-        AndroidView(
-          modifier = Modifier.fillMaxWidth().height(with(density) { heightPx.toDp() }),
-          factory = { context ->
-            FrameLayout(context).also { container ->
-              try {
-                val web = ClosedWebView(context, darkening)
-                view = web
-                web.configure(bytes, { request(it) }, { link(it) }, { longLink?.invoke(it) },
-                  onPaint = { state.ready(token) },
-                  onFailure = { state.fail(token, it) },
-                  onHeight = { state.contentHeightPx = it })
-                container.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-                state.bindPrinter(token, web::createPrintDocumentAdapter)
-              } catch (_: IsolationUnavailable) {
-                state.fail(token, FluidWebFailure.IsolationUnavailable)
-                view?.release()
-              } catch (_: RuntimeException) {
-                state.fail(token, FluidWebFailure.Unavailable)
-                view?.release()
+        val anchor = remember { ViewFocusAnchor() }
+        // Il nodo che lascia il fuoco deve stare su un antenato: Compose stacca la vista
+        // dell'AndroidView prima di eseguire il ciclo di vita dei modificatori del suo stesso nodo.
+        Box(ReleaseViewFocusElement(anchor)) {
+          AndroidView(
+            modifier = Modifier.fillMaxWidth().height(with(density) { heightPx.toDp() }),
+            factory = { context ->
+              FrameLayout(context).also { container ->
+                anchor.container = container
+                try {
+                  val web = ClosedWebView(context, darkening)
+                  view = web
+                  web.configure(bytes, { request(it) }, { link(it) }, { longLink?.invoke(it) },
+                    onPaint = { state.ready(token) },
+                    onFailure = { state.fail(token, it) },
+                    onHeight = { state.contentHeightPx = it })
+                  container.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                  state.bindPrinter(token, web::createPrintDocumentAdapter)
+                } catch (_: IsolationUnavailable) {
+                  state.fail(token, FluidWebFailure.IsolationUnavailable)
+                  view?.release()
+                } catch (_: RuntimeException) {
+                  state.fail(token, FluidWebFailure.Unavailable)
+                  view?.release()
+                }
               }
-            }
-          },
-          update = {
-            view?.takeUnless { it.released }?.let { web ->
-              web.updateAppearance(zoom, darkening, pinchZoom)
-              web.internalScroll = internalScroll
-              state.scrollsInternally = internalScroll
-            }
-          },
-          onRelease = { view?.release() },
-        )
+            },
+            update = {
+              view?.takeUnless { it.released }?.let { web ->
+                web.updateAppearance(zoom, darkening, pinchZoom)
+                web.internalScroll = internalScroll
+                state.scrollsInternally = internalScroll
+              }
+            },
+            onRelease = { view?.release(); anchor.container = null },
+          )
+        }
       }
       when (state.phase) {
         FluidWebPhase.Loading -> placeholder()
@@ -304,6 +313,36 @@ fun FluidWebContent(
 }
 
 private class IsolationUnavailable : RuntimeException()
+
+/** Contenitore Android della vista corrente; nullo prima della factory e dopo il rilascio. */
+private class ViewFocusAnchor { var container: ViewGroup? = null }
+
+/** Toglie il fuoco Android alla WebView prima che Compose stacchi la sua vista.
+ *
+ * Un tocco (un link, una selezione) da' il fuoco Android alla WebView. Quando Compose rimuove una vista
+ * con fuoco mentre applica una composizione (ricreazione per darkening/html/retry, oppure l'app che
+ * toglie il contenitore), la piattaforma chiede il fuoco alla radice: la ricerca del fuoco di Compose
+ * misura una LazyColumn genitrice e ricompone un elemento non ancora applicato, con ComposeRuntimeError
+ * "pending composition has not been applied". [ViewParent.clearChildFocus] scollega la catena del fuoco
+ * senza chiedere un sostituto, lo stesso esito di un focusable Compose rimosso. La vista non viene mai
+ * riusata: si rilascia subito dopo il distacco, quindi lo stato interno di fuoco non sopravvive.
+ * Compose esegue onDetach di un nodo prima di staccare i suoi figli: per questo sta su un antenato.
+ */
+private class ReleaseViewFocusElement(private val anchor: ViewFocusAnchor) :
+  ModifierNodeElement<ReleaseViewFocusNode>() {
+  override fun create() = ReleaseViewFocusNode(anchor)
+  override fun update(node: ReleaseViewFocusNode) { node.anchor = anchor }
+  override fun equals(other: Any?) = other is ReleaseViewFocusElement && other.anchor === anchor
+  override fun hashCode() = System.identityHashCode(anchor)
+  override fun InspectorInfo.inspectableProperties() { name = "releaseViewFocus" }
+}
+
+private class ReleaseViewFocusNode(var anchor: ViewFocusAnchor) : Modifier.Node() {
+  override fun onDetach() {
+    val container = anchor.container ?: return
+    if (container.hasFocus()) container.parent?.clearChildFocus(container)
+  }
+}
 
 /** Nessun riferimento alla vista esce dall'implementazione: impostazioni non sovrascrivibili dall'app. */
 private class ClosedWebView(context: Context, darkening: Boolean) : WebView(ContextThemeWrapper(context,
@@ -510,6 +549,8 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
     reportHeight = {}
     reportLink = {}
     reportLongLink = {}
+    // Senza fuoco nella catena removeView non chiede il fuoco alla radice: vedi ReleaseViewFocusElement.
+    if (hasFocus()) parent?.clearChildFocus(this)
     (parent as? ViewGroup)?.removeView(this)
     stopLoading()
     webChromeClient = null

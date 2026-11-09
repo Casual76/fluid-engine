@@ -78,13 +78,14 @@ class FluidWebContentInstrumentedTest {
     compose.waitUntil(20_000) { state.phase == FluidWebPhase.Ready || state.phase == FluidWebPhase.Error }
     assertEquals("failure=${state.failure}; resources=$seen", FluidWebPhase.Ready, state.phase)
   }
-  private fun web(): WebView {
+  private fun web(): WebView = findWeb() ?: error("WebView assente")
+  private fun findWeb(): WebView? {
     fun find(view: View): WebView? {
       if (view is WebView) return view
       if (view is ViewGroup) for (i in 0 until view.childCount) find(view.getChildAt(i))?.let { return it }
       return null
     }
-    return find(compose.activity.window.decorView) ?: error("WebView assente")
+    return find(compose.activity.window.decorView)
   }
   private fun waitForSettledResources() {
     // Finestra per refresh, error handlers e CSS asincroni; non si usa l'idle Compose come idle Chromium.
@@ -213,6 +214,58 @@ class FluidWebContentInstrumentedTest {
     compose.runOnIdle {
       assertNotSame(original, web())
       assertFalse(WebSettingsCompat.isAlgorithmicDarkeningAllowed(web().settings))
+    }
+  }
+
+  /** Difetto 1 della verifica F1: link toccato (la WebView prende il fuoco Android), poi la vista
+   * viene staccata mentre Compose applica la composizione, dentro una LazyColumn. Prima della
+   * correzione: ComposeRuntimeError "pending composition has not been applied" e processo chiuso.
+   */
+  @Test fun focusedViewInsideLazyColumnSurvivesRecreationAndRemoval() {
+    val html = "<meta name='viewport' content='width=device-width'><title>SAFE</title>" +
+      "<a style='display:block;height:120px' href='https://example.org/vero'>https://altro.example</a>"
+    var dark by mutableStateOf(false)
+    var document by mutableStateOf(html)
+    var shown by mutableStateOf(true)
+    compose.setContent {
+      FluidTheme(EngineSettings(themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT), systemBars = false) {
+        LazyColumn(Modifier.fillMaxSize()) {
+          item { Text("Sopra") }
+          item {
+            Column {
+              if (shown) {
+                FluidWebContent(document, { links += it }, state = state, darkening = dark,
+                  modifier = Modifier.fillMaxWidth().testTag("web"), sizing = FluidWebSizing.WrapContent(400.dp),
+                  placeholder = { Text("placeholder") })
+              }
+              Text("Sotto")
+            }
+          }
+        }
+      }
+    }
+    fun focusByTappingLink() {
+      ready()
+      val before = links.size
+      compose.onNodeWithTag("web").performTouchInput { click(Offset(80f, 50f)) }
+      compose.waitUntil(5_000) { links.size > before }
+      assertEquals("https://example.org/vero", links.last().url)
+      compose.runOnIdle { assertTrue("Il tocco deve dare il fuoco Android alla WebView", web().hasFocus()) }
+    }
+    // Sequenza della galleria: link, poi tema scuro (darkening ricrea vista e profilo).
+    focusByTappingLink()
+    lateinit var old: WebView
+    compose.runOnIdle { old = web(); dark = true }
+    compose.waitForIdle()
+    focusByTappingLink()
+    compose.runOnIdle { assertNotSame(old, web()); old = web(); document = "$html<p>Nuovo</p>" }
+    compose.waitForIdle()
+    focusByTappingLink()
+    compose.runOnIdle { assertNotSame(old, web()); shown = false }
+    compose.waitForIdle()
+    compose.runOnIdle {
+      assertEquals(FluidWebPhase.Empty, state.phase)
+      assertNull(findWeb())
     }
   }
 

@@ -148,6 +148,9 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
   stesso gestore; `data:`, `blob:`, `about:` sono interni al renderer.
 - **Cambiare `onRequest` non ricarica il documento.** Un consenso dato dopo si applica con `retry()`.
 - **`darkening` ricrea tutto.** Non legarlo a un valore che cambia spesso.
+- **Il fuoco non passa ad altro quando la vista se ne va.** Un tocco (un link, una selezione) dà il fuoco Android alla WebView. Quando il contenitore si ricrea (`html`, `darkening`, `retry`) o l'app lo toglie dalla
+  composizione, il fuoco **viene lasciato, non spostato**: come per un elemento Compose focalizzato che sparisce. Prima della correzione, dentro una `LazyColumn` questa rimozione chiudeva l'app
+  (`ComposeRuntimeError`: «pending composition has not been applied»). Se dopo serve il fuoco altrove (tastiera fisica, TalkBack), lo chiede l'app.
 - **Il link è già «vero»**: l'engine non ti dice «sospetto». `visibleText` può essere `null` (il renderer non sempre lo fornisce senza eseguire script).
 - **Nessuna copia del documento in `rememberSaveable`**: dopo la ricreazione il contenuto lo ridai tu.
 - **Dipendenza nuova.** `engine-ui` dipende dalla 3.1.0 da `androidx.webkit` (`implementation`): un'app che compila `engine-ui` dai sorgenti ottiene `androidx.webkit` nel build, anche se non usa mai `FluidWebContent`. Per le sole
@@ -161,10 +164,10 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 
 - **`FluidWebContentStateTest`** (`engine-ui`, JVM, 5): vuoto, caricamento, pittura, errore e rilascio; i callback di un renderer smontato non cambiano il documento nuovo; `retry` crea una revisione nuova e un nuovo proprietario azzera le misure; uno stato non può avere due viste.
   **`FluidWebContentTest`** (`sample`, Robolectric, 2): un contenuto vuoto non entra in `Loading`; un documento troppo grande usa lo slot `failure` dell'app senza creare la WebView; il vuoto a testo al 200%, scuro e movimento ridotto.
-- **`FluidWebContentInstrumentedTest`** (`sample/androidTest`, su **emulatore** API 37, WebView Google 149, **8/8 passati**): un documento ostile non può inviare richieste né eseguire script (`hostileDocumentCannotSendRequestsOrExecuteScripts`);
+- **`FluidWebContentInstrumentedTest`** (`sample/androidTest`, su **emulatore** API 37, WebView Google 149, **9/9 passati**): un documento ostile non può inviare richieste né eseguire script (`hostileDocumentCannotSendRequestsOrExecuteScripts`);
   gli stream serviti usano solo le intestazioni dell'app e le risorse inline passano dallo stesso gestore; i tocchi riportano la destinazione vera e il testo visibile **senza navigare**; un `javascript:` non esegue nulla;
   il tema ricrea la vista e la scala del font si aggiorna **senza** ricaricare le risorse; la morte del renderer è segnalata e `retry` usa vista e profilo nuovi; un documento enorme e malformato ha altezza limitata a 200% e **può rimpicciolirsi**,
-  con uno swipe vero che scorre dentro una `LazyColumn`; **il vetro contiene davvero i pixel della WebView**.
+  con uno swipe vero che scorre dentro una `LazyColumn`; **il vetro contiene davvero i pixel della WebView**; una WebView che ha preso il fuoco toccando un link, dentro una `LazyColumn`, sopravvive alla ricreazione per `darkening` e per `html` e alla rimozione dal genitore (`focusedViewInsideLazyColumnSurvivesRecreationAndRemoval`; senza la correzione F1.8a il processo cade).
 - **`FluidWebContentPerformanceTest`** (`sample/androidTest`, 1, solo su dispositivo): una misura **esplorativa** della prima pittura, nel log `FluidWebTiming`; **non impone soglie** e non conta come prova di QLT-02: vedi «Prestazioni».
 - **Non provato da test**: la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
 
@@ -174,5 +177,5 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 |---|---|
 | `engine-ui/.../ui/fluid/FluidWebContent.kt` | il composable, i tipi (`FluidWebRequest`, `FluidWebResponse`, `FluidWebLink`, `FluidWebPhase`, `FluidWebFailure`, `FluidWebSizing`), `FluidWebContentDefaults` (con la CSP), `FluidWebContentState`, la vista chiusa e il suo profilo |
 | `sample/.../catalog/WebContentDemo.kt` | il call-site vero: campioni ostili (scheda semplice, newsletter larga, HTML ostile, lungo e malformato), scurimento, scala 200%, stampa, retry |
-| `sample/src/androidTest/.../FluidWebContentInstrumentedTest.kt` | le otto prove strumentate (rete chiusa, link, renderer, altezza, vetro) |
+| `sample/src/androidTest/.../FluidWebContentInstrumentedTest.kt` | le nove prove strumentate (rete chiusa, link, renderer, altezza, vetro, fuoco alla rimozione) |
 | `docs/fase-1/evidenze/gc/` (nel repo di Pampa Mail) | gli screenshot e il verbale della verifica su emulatore |

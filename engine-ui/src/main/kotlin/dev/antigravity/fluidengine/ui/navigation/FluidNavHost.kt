@@ -20,6 +20,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.Navigator
+import androidx.navigation.NavigatorProvider
 import androidx.navigation.compose.DialogHost
 import androidx.navigation.compose.DialogNavigator
 import androidx.navigation.compose.LocalOwnersProvider
@@ -133,8 +134,7 @@ fun FluidNavHost(
   navController.setViewModelStore(viewModelStoreOwner.viewModelStore)
   navController.graph = graph
 
-  val navigator = navController.navigatorProvider.navigators[FluidPageNavigator.NAME] as? FluidPageNavigator
-    ?: return
+  val navigator = navController.navigatorProvider.pageNavigatorOrNull() ?: return
 
   DisposableEffect(lifecycleOwner) {
     navController.setLifecycleOwner(lifecycleOwner)
@@ -171,18 +171,40 @@ fun FluidNavHost(
     }
   }
 
-  // Per tipo e non per nome: DialogNavigator.NAME e' interno a navigation-compose.
-  val dialogNavigator = navController.navigatorProvider.navigators.values
-    .firstOrNull { it is DialogNavigator } as? DialogNavigator
+  val dialogNavigator = navController.navigatorProvider.dialogNavigatorOrNull()
   if (dialogNavigator != null) DialogHost(dialogNavigator)
 }
+
+/**
+ * Il navigator delle pagine, se il provider ce l'ha. `getNavigator(nome)` e' pubblico ma, se manca, lancia:
+ * qui manca e basta (un controller costruito senza [rememberFluidNavController]), e [FluidNavHost] allora non
+ * disegna niente, come prima.
+ */
+private fun NavigatorProvider.pageNavigatorOrNull(): FluidPageNavigator? =
+  try {
+    getNavigator<Navigator<*>>(FluidPageNavigator.NAME) as? FluidPageNavigator
+  } catch (_: IllegalStateException) {
+    null
+  }
+
+/**
+ * Il navigator dei dialoghi, **per tipo e non per nome**: `DialogNavigator.NAME` e' interno a navigation-compose.
+ *
+ * Soppressione mirata di `RestrictedApi` su `NavigatorProvider.navigators`: e' l'unico modo di scorrere i navigator
+ * registrati, e la ricerca per nome (`getNavigator`) non e' identica (non troverebbe un navigator di quel tipo
+ * registrato con un altro nome, e lancia se manca). E' una lettura che non modifica niente. Se navigation la
+ * rendesse pubblica, la soppressione va tolta.
+ */
+@Suppress("RestrictedApi")
+private fun NavigatorProvider.dialogNavigatorOrNull(): DialogNavigator? =
+  navigators.values.firstOrNull { it is DialogNavigator } as? DialogNavigator
 
 /** Aggiunge il navigator delle pagine al controller, una volta, prima che il grafo si costruisca. */
 @Composable
 private fun ensurePageNavigator(navController: NavHostController) {
   remember(navController) {
     val provider = navController.navigatorProvider
-    provider.navigators[FluidPageNavigator.NAME] as? FluidPageNavigator
+    provider.pageNavigatorOrNull()
       ?: FluidPageNavigator().also { provider.addNavigator(FluidPageNavigator.NAME, it) }
   }
 }
@@ -207,10 +229,20 @@ private fun CheckNoComposeDestinations(graph: NavGraph) {
   }
 }
 
+/**
+ * La rotta, o il nome di visualizzazione (`NavDestination.displayName`) se la destinazione non ne ha una: serve
+ * solo al messaggio dell'errore di [CheckNoComposeDestinations], per dire quale destinazione e' sbagliata.
+ *
+ * Soppressione mirata di `RestrictedApi`: `displayName` non ha un equivalente pubblico (`toString()` scrive di piu'
+ * e in un altro formato), e qui basta per un messaggio.
+ */
+@Suppress("RestrictedApi")
+private fun NavDestination.routeOrDisplayName(): String = route ?: displayName
+
 private fun NavGraph.composeRoutes(): List<String> = flatMap { destination ->
   when {
     destination is NavGraph -> destination.composeRoutes()
-    destination.navigatorName == "composable" -> listOf(destination.route ?: destination.displayName)
+    destination.navigatorName == "composable" -> listOf(destination.routeOrDisplayName())
     else -> emptyList()
   }
 }

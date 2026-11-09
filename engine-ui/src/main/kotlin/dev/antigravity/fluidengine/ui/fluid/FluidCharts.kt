@@ -167,8 +167,16 @@ data class FluidChartLegendItem(
 val LocalFluidChartLocale = staticCompositionLocalOf<Locale?> { null }
 
 @Composable
-internal fun fluidChartLocale(): Locale =
-  LocalFluidChartLocale.current ?: LocalConfiguration.current.locales.get(0) ?: Locale.getDefault()
+internal fun fluidChartLocale(): Locale {
+  LocalFluidChartLocale.current?.let { return it }
+  // La lingua del telefono si legge dalla configurazione, che la composizione osserva: cambiarla a runtime
+  // ricompone i grafici. `Locale.getDefault()` resta solo per una lista vuota (mai su un telefono vero) e sta
+  // fuori dalla funzione componibile perche' li' non sarebbe osservabile.
+  val locales = LocalConfiguration.current.locales
+  return if (locales.isEmpty) defaultChartLocale() else locales.get(0)
+}
+
+private fun defaultChartLocale(): Locale = Locale.getDefault()
 
 // --- Colori, selezione, ingresso -----------------------------------------------------------------------------
 

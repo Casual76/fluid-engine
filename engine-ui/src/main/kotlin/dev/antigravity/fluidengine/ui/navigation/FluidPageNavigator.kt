@@ -26,7 +26,9 @@ import kotlin.reflect.KType
  * tirano indietro ([FluidBackSwipe]). Il movimento e' tutto dell'host.
  */
 @Navigator.Name(FluidPageNavigator.NAME)
-class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>(NAME) {
+class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>() {
+  // Il costruttore `Navigator(name)` e' riservato al gruppo di navigation (RestrictedApi): il nome lo dicono
+  // `@Navigator.Name` qui sopra e `addNavigator(NAME, …)`, che e' come l'engine registra il navigator.
 
   private val detached = MutableStateFlow<List<NavBackStackEntry>>(emptyList())
   private val detachedTransitions = MutableStateFlow<Set<NavBackStackEntry>>(emptySet())

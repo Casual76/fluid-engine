@@ -667,4 +667,24 @@ object FluidMotion {
   /** La dissolvenza della pillola «N nuove», in millisecondi, in uscita. */
   const val JumpPillFadeOutMillis: Int = 140
   // --- fine pm-f1/ga ---
+
+  // --- pm-f1/ge ---
+  // Il pannello laterale (`FluidDrawer`).
+
+  /**
+   * La risposta della molla del pannello laterale, in secondi: 0,34, quella delle pagine
+   * (`FluidPageMotion.ResponsePageSeconds`). Il pannello e' la cosa piu' grande che si muove dopo una
+   * pagina, arriva dallo stesso bordo e si chiude sotto lo stesso dito: con un'altra molla due gesti
+   * gemelli avrebbero due tempi.
+   */
+  const val DrawerResponseSeconds: Double = 0.34
+
+  /**
+   * Il pannello laterale che entra, esce o torna dopo un rilascio, **in frazione di corsa** (0 chiuso,
+   * 1 aperto): criticamente smorzata (un pannello non rimbalza contro il bordo), risposta
+   * [DrawerResponseSeconds], ferma sotto un millesimo di corsa (meno di mezzo pixel su un pannello da
+   * 320 dp). Parte dalla velocita' del dito, convertita in corsa al secondo, come la molla delle pagine.
+   */
+  val DrawerTravel: SpringSpec<Float> = spring(DampingChrome, stiffnessForResponse(DrawerResponseSeconds), 0.001f)
+  // --- fine pm-f1/ge ---
 }

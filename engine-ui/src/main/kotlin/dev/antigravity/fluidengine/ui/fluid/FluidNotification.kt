@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FloatExponentialDecaySpec
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -115,7 +118,8 @@ enum class FluidNotificationTone {
 }
 
 /**
- * Un'azione della notifica (2.12.0): compare solo quando la card e' stata aperta tirandola in giu'.
+ * Un'azione della notifica: in [FluidNotification.actions] compare all'apertura;
+ * in [FluidNotification.inlineActions] e' subito visibile.
  *
  * Toccarla la esegue e chiude la notifica. Una o due, con etichetta corta: stanno in una riga sotto
  * il testo, e una terza non avrebbe dove andare senza spingere la card fuori misura.
@@ -135,6 +139,13 @@ data class FluidNotificationAction(
  * chiusa, che ne mostra due righe.
  *
  * @param actions mostrate solo a card aperta. Vuote per le notifiche che informano e basta.
+ * @param inlineActions fino a due azioni su righe dedicate, anche da chiusa e al 200% del testo.
+ * Ogni callback termina questa presentazione. Per aggregare operazioni ancora valide, l'app puo'
+ * pubblicare nel callback una nuova card con ID nuovo e lo stesso gruppo; oppure aprire una
+ * destinazione durevole. La politica di protezione delle operazioni appartiene all'app.
+ * @param replaceGroup sostituzione esplicita nello stesso gruppo; null conserva la FIFO storica.
+ * Le chiamate concorrenti devono usare il thread UI. Gli ID identificano una singola presentazione;
+ * ripetere un ID ancora pendente condivide consegna ed esito, senza aggiornarne il contenuto.
  */
 @Immutable
 data class FluidNotification(
@@ -144,7 +155,27 @@ data class FluidNotification(
   val tone: FluidNotificationTone = FluidNotificationTone.Info,
   val durationMillis: Long = 6_000L,
   val actions: List<FluidNotificationAction> = emptyList(),
-)
+  /** Azioni sempre visibili, al massimo due. Le scadenze reali restano responsabilita' del chiamante. */
+  val inlineActions: List<FluidNotificationAction> = emptyList(),
+  /** Opt-in: sostituisce le richieste dello stesso gruppo, anche durante l'uscita. */
+  val replaceGroup: String? = null,
+) {
+  init { require(inlineActions.size <= 2) { "Al massimo due azioni inline" } }
+}
+
+/** Esito UI, distinto dalla consegna: non autorizza ne' programma transazioni dell'app. */
+sealed interface FluidNotificationResult {
+  /** Il callback dell'azione e' stato accettato una volta sola. */
+  data class ActionPerformed(val label: String) : FluidNotificationResult
+  /** Chiusura esplicita o rimozione di un host dopo la presentazione. */
+  data object Dismissed : FluidNotificationResult
+  /** Budget di lettura terminato, indipendente dalle scadenze delle operazioni. */
+  data object TimedOut : FluidNotificationResult
+  /** Una richiesta piu' recente dello stesso gruppo ha preso il posto di questa. */
+  data object Replaced : FluidNotificationResult
+  /** ID o messaggio vuoto. */
+  data object Rejected : FluidNotificationResult
+}
 
 /** A durable producer acknowledges only after the card has been genuinely presented. */
 enum class FluidNotificationDelivery {
@@ -154,12 +185,14 @@ enum class FluidNotificationDelivery {
 
 private enum class FluidNotificationRequestCompletion {
   Presented,
-  Interrupted,
+  Rejected,
 }
 
 private class FluidNotificationRequest(
-  val notification: FluidNotification,
+  var notification: FluidNotification,
 ) {
+  val result = CompletableDeferred<FluidNotificationResult>()
+  val replaced = CompletableDeferred<Unit>()
   val presented = CompletableDeferred<Unit>()
   val exitCompleted = CompletableDeferred<Unit>()
   val completion = CompletableDeferred<FluidNotificationRequestCompletion>()
@@ -193,6 +226,9 @@ internal data class FluidNotificationPresentation(
 
 /**
  * A small FIFO for transient, app-wide messages.
+ *
+ * [FluidNotification.replaceGroup] opts into replacement within one group. Calls and updates belong
+ * to the UI thread; the mutex serializes suspended producers, not arbitrary background UI writes.
  *
  * IDs are deduplicated while queued or visible. This matters for repository events: several screens
  * can observe the same sync completion, but the person should only ever see one notice for it.
@@ -229,39 +265,63 @@ class FluidNotificationHostState internal constructor() {
    * transparently re-enqueues an unpresented request.
    */
   suspend fun show(notification: FluidNotification): FluidNotificationDelivery {
-    if (notification.id.isBlank() || notification.message.isBlank()) {
-      return FluidNotificationDelivery.Rejected
+    val request = enqueue(notification) ?: return FluidNotificationDelivery.Rejected
+    return when (request.completion.await()) {
+      FluidNotificationRequestCompletion.Presented -> FluidNotificationDelivery.Presented
+      else -> FluidNotificationDelivery.Rejected
     }
+  }
 
-    while (true) {
-      var shouldEnqueue = false
-      val request = queueMutex.withLock {
-        pendingRequests[notification.id] ?: FluidNotificationRequest(notification).also {
-          pendingRequests[notification.id] = it
-          shouldEnqueue = true
+  /** Attende l'esito condiviso dagli osservatori dello stesso ID. Cancellare l'attesa non ritira la card. */
+  suspend fun showForResult(notification: FluidNotification): FluidNotificationResult =
+    enqueue(notification)?.result?.await() ?: FluidNotificationResult.Rejected
+
+  private suspend fun enqueue(notification: FluidNotification): FluidNotificationRequest? {
+    if (notification.id.isBlank() || notification.message.isBlank()) return null
+    return queueMutex.withLock {
+      pendingRequests[notification.id]?.let { return@withLock it }
+      val request = FluidNotificationRequest(notification)
+      val group = notification.replaceGroup
+      val replacesCurrent = group != null && currentRequest?.notification?.replaceGroup == group
+      if (group != null) {
+        pendingRequests.values.filter { it.notification.replaceGroup == group }.forEach {
+          it.result.complete(FluidNotificationResult.Replaced)
+          it.completion.complete(FluidNotificationRequestCompletion.Rejected)
+          it.replaced.complete(Unit)
+          pendingRequests.remove(it.notification.id)
         }
       }
-      if (shouldEnqueue) {
-        try {
-          requests.send(request)
-        } catch (error: Throwable) {
-          withContext(NonCancellable) {
-            queueMutex.withLock {
-              if (pendingRequests[notification.id] === request) {
-                pendingRequests.remove(notification.id)
-              }
-            }
-            request.completion.complete(FluidNotificationRequestCompletion.Interrupted)
-          }
-          throw error
-        }
+      pendingRequests[notification.id] = request
+      if (replacesCurrent) {
+        // Il successore precede gli altri gruppi e non aspetta la vecchia animazione di uscita.
+        retryFirst = request
+      } else {
+        requests.trySend(request).getOrThrow()
       }
-
-      when (request.completion.await()) {
-        FluidNotificationRequestCompletion.Presented -> return FluidNotificationDelivery.Presented
-        FluidNotificationRequestCompletion.Interrupted -> Unit
-      }
+      request
     }
+  }
+
+  /**
+   * Aggiorna solo la card visibile con lo stesso ID/gruppo, senza riavviare il budget di lettura.
+   * Un nuovo durationMillis non modifica il timeout gia' avviato.
+   * L'app rimuove qui le azioni scadute e rivalida la propria transazione anche nel callback.
+   * Va chiamato sul thread UI, come gli altri mutatori dello stato di presentazione.
+   */
+  fun updateCurrent(notification: FluidNotification): Boolean {
+    val request = currentRequest ?: return false
+    if (!presentation.visible || request.result.isCompleted || notification.message.isBlank() ||
+      request.notification.id != notification.id || request.notification.replaceGroup != notification.replaceGroup) return false
+    request.notification = notification
+    presentation = presentation.copy(notification = notification)
+    return true
+  }
+
+  internal fun performAction(id: String, action: FluidNotificationAction) {
+    val request = currentRequest ?: return
+    if (!presentation.visible || request.notification.id != id ||
+      (request.notification.actions + request.notification.inlineActions).none { it === action }) return
+    if (request.result.complete(FluidNotificationResult.ActionPerformed(action.label))) action.onClick()
   }
 
   /** Called by the composed card after it has a real layout, not merely after being queued. */
@@ -327,6 +387,7 @@ class FluidNotificationHostState internal constructor() {
         val request = queueMutex.withLock {
           retryFirst?.also { retryFirst = null }
         } ?: requests.receive()
+        if (request.replaced.isCompleted) continue
         runRequest(request, recommendedTimeout, monotonicTimeMillis)
       }
     } finally {
@@ -350,27 +411,50 @@ class FluidNotificationHostState internal constructor() {
       presentation = FluidNotificationPresentation(notification = notification, visible = true)
       // markPresented is accepted only when the card has layout, the lifecycle is RESUMED and the
       // window owns focus. The reading budget below is then counted only during the same state.
-      request.presented.await()
-      val timeout = recommendedTimeout(notification).coerceAtLeast(NotificationResumeFloorMillis)
-      awaitDismissalOrActiveTimeout(notification.id, timeout, monotonicTimeMillis)
-      presentation = FluidNotificationPresentation(notification = notification, visible = false)
-      // A duration constant cannot track a spring (or the system animator scale). Waiting for the
-      // UI handshake keeps the outgoing payload intact until every exit channel is actually idle.
-      request.exitCompleted.await()
+      coroutineScope {
+        val lifetime = launch {
+          select<Unit> {
+            request.presented.onAwait { }
+            request.result.onAwait { }
+          }
+          if (!request.result.isCompleted) {
+            val timeout = recommendedTimeout(request.notification).coerceAtLeast(NotificationResumeFloorMillis)
+            val timer = async { awaitDismissalOrActiveTimeout(notification.id, timeout, monotonicTimeMillis) }
+            try {
+              select<Unit> {
+                request.result.onAwait { }
+                timer.onAwait { request.result.complete(it) }
+              }
+            } finally { timer.cancel() }
+          }
+          if (!request.replaced.isCompleted) {
+            presentation = presentation.copy(visible = false)
+            request.exitCompleted.await()
+          }
+        }
+        try {
+          select<Unit> {
+            lifetime.onJoin { }
+            request.replaced.onAwait { }
+          }
+        } finally { lifetime.cancel() }
+      }
     } finally {
       if (currentRequest === request) currentRequest = null
       isTouched = false
       isExpanded = false
-      if (presentation.notification?.id == notification.id) {
+      if (!request.replaced.isCompleted && presentation.notification?.id == notification.id) {
         presentation = FluidNotificationPresentation(notification = notification, visible = false)
       }
       withContext(NonCancellable) {
         queueMutex.withLock {
-          if (!request.completion.isCompleted) {
+          if (!request.completion.isCompleted && !request.result.isCompleted) {
             // The current, unpresented item must stay ahead of items already in the channel.
             retryFirst = request
           } else if (pendingRequests[notification.id] === request) {
             pendingRequests.remove(notification.id)
+            request.result.complete(FluidNotificationResult.Dismissed)
+            request.completion.complete(FluidNotificationRequestCompletion.Rejected)
           }
         }
       }
@@ -381,13 +465,13 @@ class FluidNotificationHostState internal constructor() {
     notificationId: String,
     timeoutMillis: Long,
     monotonicTimeMillis: () -> Long,
-  ) {
+  ): FluidNotificationResult {
     var remainingMillis = timeoutMillis
     var seenReleases = releases
     while (true) {
       // Il tempo finito vale anche se la finestra ha perso il fuoco proprio ora: non si aspetta di
       // riaverlo per dirlo. Una card tenuta o aperta, invece, non e' mai "finita".
-      if (remainingMillis <= 0L && !isTouched && !isExpanded) return
+      if (remainingMillis <= 0L && !isTouched && !isExpanded) return FluidNotificationResult.TimedOut
       while (!isHostActive) {
         hostActivityChanges.receive()
       }
@@ -409,10 +493,10 @@ class FluidNotificationHostState internal constructor() {
       }
 
       when (event) {
-        is FluidNotificationTimerEvent.Dismissed -> if (event.id == notificationId) return
+        is FluidNotificationTimerEvent.Dismissed -> if (event.id == notificationId) return FluidNotificationResult.Dismissed
         is FluidNotificationTimerEvent.HostActivityChanged -> Unit
         FluidNotificationTimerEvent.HoldChanged -> Unit
-        FluidNotificationTimerEvent.TimedOut -> return
+        FluidNotificationTimerEvent.TimedOut -> return FluidNotificationResult.TimedOut
       }
     }
   }
@@ -465,6 +549,7 @@ fun FluidNotificationHost(
   val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
   val isWindowFocused = LocalWindowInfo.current.isWindowFocused
   val isHostActive = lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && isWindowFocused
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val presentation = state.presentation
   val visibilityState = remember(state) { MutableTransitionState(false) }
   var laidOutNotificationId by remember(state) { mutableStateOf<String?>(null) }
@@ -542,7 +627,7 @@ fun FluidNotificationHost(
     ) {
       AnimatedVisibility(
         visibleState = visibilityState,
-        enter = slideInVertically(
+        enter = if (reducedMotion) EnterTransition.None else slideInVertically(
           initialOffsetY = { -it / 3 },
           animationSpec = FluidMotion.intOffset(
             dampingRatio = FluidMotion.DampingChrome,
@@ -553,7 +638,7 @@ fun FluidNotificationHost(
           transformOrigin = TransformOrigin(0.5f, 0f),
           animationSpec = FluidMotion.snappy(),
         ),
-        exit = if (thrownNotificationId != null && thrownNotificationId == presentation.notification?.id) {
+        exit = if (reducedMotion || thrownNotificationId != null && thrownNotificationId == presentation.notification?.id) {
           ExitTransition.None
         } else {
           slideOutVertically(
@@ -572,7 +657,8 @@ fun FluidNotificationHost(
         presentation.notification?.let { notification ->
           FluidNotificationCard(
             notification = notification,
-            onDismiss = state::dismissCurrent,
+            onDismiss = { if (state.currentNotification?.id == notification.id) state.dismissCurrent() },
+            onAction = { state.performAction(notification.id, it) },
             backdrop = backdrop,
             onTouchChanged = { touched -> state.setTouched(notification.id, touched) },
             onExpandedChanged = { expanded -> state.setExpanded(notification.id, expanded) },
@@ -1003,6 +1089,7 @@ private fun FluidNotificationCard(
   onTouchChanged: (Boolean) -> Unit = {},
   onExpandedChanged: (Boolean) -> Unit = {},
   onThrown: () -> Unit = {},
+  onAction: (FluidNotificationAction) -> Unit = {},
 ) {
   val iconColors = fluidNotificationIconColors(notification.tone, MaterialTheme.colorScheme)
   // Le parole per TalkBack vengono dall'app (3.0.1): erano scritte qui in italiano.
@@ -1095,6 +1182,9 @@ private fun FluidNotificationCard(
         liveRegion = LiveRegionMode.Polite
         // Il trascinamento non e' per tutti: le stesse due cose si fanno anche da TalkBack.
         customActions = buildList {
+          notification.inlineActions.forEach { action ->
+            add(CustomAccessibilityAction(action.label) { onAction(action); true })
+          }
           if (!drag.expanded) add(CustomAccessibilityAction(labels.notificationExpand) { drag.expand(); true })
           add(CustomAccessibilityAction(labels.notificationDismiss) { onDismiss(); true })
         }
@@ -1118,7 +1208,7 @@ private fun FluidNotificationCard(
           // Critica, perche' un contenitore non rimbalza. Il ritaglio comprende i bordi della card,
           // cosi' la crescita dei tasti non viene tagliata a filo.
           .animateContentSize(
-            animationSpec = FluidMotion.intSize(
+            animationSpec = if (reducedMotion) snap() else FluidMotion.intSize(
               dampingRatio = FluidMotion.DampingChrome,
               stiffness = FluidMotion.ResponseStandard,
             ),
@@ -1152,7 +1242,7 @@ private fun FluidNotificationCard(
               .padding(vertical = 5.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
           ) {
-            Text(
+            if (notification.title.isNotEmpty() || notification.inlineActions.isEmpty()) Text(
               text = notification.title,
               style = MaterialTheme.typography.titleSmall,
               fontWeight = FontWeight.SemiBold,
@@ -1174,6 +1264,20 @@ private fun FluidNotificationCard(
             )
           }
         }
+        if (notification.inlineActions.isNotEmpty()) {
+          Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            notification.inlineActions.forEach { action ->
+              FluidGlassButton(
+                text = action.label,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                onClick = { onAction(action) },
+              )
+            }
+          }
+        }
         if (showActions) {
           Row(
             // Allineate al testo (14 + 38 + 12), non all'icona: sono cose che si fanno *su* quel testo.
@@ -1184,8 +1288,7 @@ private fun FluidNotificationCard(
               FluidGlassButton(
                 text = action.label,
                 onClick = {
-                  action.onClick()
-                  onDismiss()
+                  onAction(action)
                 },
               )
             }

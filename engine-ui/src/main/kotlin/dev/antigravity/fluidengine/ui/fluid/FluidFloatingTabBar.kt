@@ -94,6 +94,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -122,7 +123,10 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
@@ -195,6 +199,17 @@ private val SearchBarRowHeight = 48.dp
 
 /**
  * A floating tab bar that transitions between inline and expanded states based on scroll behavior.
+ *
+ * **Movimento ridotto** (pm-f1/ge, E02): legge [LocalFluidMotionPolicy]. Con `reducedMotion` la piega
+ * fra barra in linea e aperta e' un cambio in un fotogramma (niente dissolvenza, niente elementi condivisi
+ * in viaggio, niente impulso gommoso), la pillola nasce intera, e al tocco, a una selezione fatta altrove
+ * o al rilascio di un trascinamento arriva al suo posto senza viaggiare (e la pagina non aspetta il
+ * viaggio). Restano il dito che trascina la pillola e il suo squash con segno (R1). La politica vale
+ * scala 1 di serie: cambia solo per un'app che installa `FluidMotionPolicyProvider` e ha le animazioni
+ * di sistema a zero.
+ *
+ * **Segni sulle zone** (pm-f1/ge, E01): `tab(badge = …)`, vedi [FluidTabBadge]. Il cerchio di
+ * `standaloneTab` e' un pulsante per TalkBack (E03).
  *
  * @param selectedTabKey the key of the currently selected tab
  * @param scrollConnection the scroll connection that handles state transitions
@@ -316,10 +331,20 @@ fun FluidFloatingTabBar(
         else -> FluidFloatingTabBarVisual.EXPANDED
     }
 
+    // LOCAL CHANGE (pm-f1/ge, E02): con il movimento ridotto la piega e' un cambio di stato in un
+    // fotogramma. Ogni stato ha la sua transizione, nuova (la chiave e' lo stato), che nasce gia'
+    // arrivata: niente dissolvenza, niente elementi condivisi in viaggio (la copia che esce e' gia'
+    // smontata quando quella che entra cerca la sua compagna), niente impulso gommoso (la sua
+    // transizione non corre mai). Bastava spegnere le dissolvenze? No: i limiti di un elemento
+    // condiviso sono un'animazione della transizione, e la terrebbero in moto. A scala normale la
+    // chiave e' fissa e tutto e' come prima.
+    val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+    val foldKey: Any = if (reducedMotion) visual else Unit
+
     // updateTransition (rather than the sugared top-level AnimatedContent) so
     // the transition object is available here to drive the gooey blur pulse,
     // not just inside the content lambda.
-    val transition = updateTransition(targetState = visual, label = "floatingTabBarVisual")
+    val transition = key(foldKey) { updateTransition(targetState = visual, label = "floatingTabBarVisual") }
     val gooeyBlurPx = with(LocalDensity.current) { GooeyPeakBlur.toPx() }
     // Liquid "gooey" merge/split (see GooeyTransition.kt): peaks mid-crossfade
     // and returns to 0 at rest, on every transition regardless of direction —
@@ -415,6 +440,8 @@ fun FluidFloatingTabBar(
         // Always applied: `gooey` is a no-op at radius 0 (no offscreen layer,
         // no filter), so there is nothing to gate on and nothing to recompose.
         Box(Modifier.gooey { gooeyBlurPx * gooeyProgress.value }) {
+            // E02: la stessa chiave della transizione, cosi' anche il contenuto e' nuovo per ogni stato.
+            key(foldKey) {
             transition.AnimatedContent(
                 transitionSpec = { fadeIn(FluidMotion.FoldCrossFade) togetherWith fadeOut(FluidMotion.FoldCrossFade) },
                 contentAlignment = Alignment.BottomCenter
@@ -485,6 +512,7 @@ fun FluidFloatingTabBar(
                     searchBarContent = searchBarContent ?: {},
                     targetWidthPx = expandedContentWidthPx
                 )
+            }
             }
             }
         }
@@ -876,6 +904,8 @@ fun FluidFloatingTabBar(
                     )
                 },
                 onClick = { if (item.route == selectedRoute) onReselect(item) else onSelect(item) },
+                // pm-f1/ge (E01): il segno della voce, se c'e'. Null e' la scheda di sempre.
+                badge = item.badge,
             )
         }
     }
@@ -896,19 +926,33 @@ interface FluidFloatingTabBarScope {
      * a beat early. **Null by default since 3.0 (fase 9):** the inline tab answers with the finger's
      * glow on its glass and a `Tap`, like every glass control, and a Material ripple under that is a
      * third answer to one touch. An app that wants its own passes it here.
+     * @param badge pm-f1/ge (E01): il segno sull'icona della zona, un pallino o un numero
+     * ([FluidTabBadge]). Lo disegna la barra, in tutte le copie della scheda (la riga nascosta che la
+     * pillola guarda e l'icona ridisegnata sopra di lei), **solo a barra aperta**: ripiegata non compare.
+     * La frase per TalkBack va sul nodo della zona («Chat, novita'»); il segno e' muto e non si tocca.
+     * Null (di serie): la scheda di sempre, stesso albero e stesse misure. In coda e non una lambda, quindi
+     * nessuna chiamata esistente cambia la lambda a cui si lega.
      */
     fun tab(
         key: Any,
         title: @Composable () -> Unit,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)? = null
+        indication: (@Composable () -> Indication)? = null,
+        badge: FluidTabBadge? = null
     )
 
     /**
      * Adds a standalone tab to the floating tab bar.
      *
      * Note: Calling this method more than once will override the previous standalone tab value.
+     *
+     * **Non e' una zona** (pm-f1/ge, E03): e' un tasto accanto alla pillola — la ricerca che cresce nel
+     * campo, o un'azione primaria come «Scrivi» che resta visibile anche a barra ripiegata. Per TalkBack
+     * si annuncia come pulsante (`Role.Button`), mai come scheda scelta o da scegliere. Per un'azione,
+     * la sua `key` non va mai passata come `selectedTabKey` (non cambia la zona in cui si e'), il nome per
+     * TalkBack sta nella `contentDescription` dell'icona (il [title] non si mostra) e non si usa con
+     * `searchMode` (il cerchio crescerebbe nel campo di ricerca).
      *
      * @param key Unique identifier for the standalone tab
      * @param icon Composable content for the tab icon
@@ -948,6 +992,11 @@ private fun Modifier.tapClickable(
      * lo fonde con quello che l'app suona a sua volta.
      */
     haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
+    /**
+     * Il ruolo per TalkBack (pm-f1/ge, E03): `Role.Button` per il cerchio accanto alla pillola, che e'
+     * un tasto e non una zona. Null (di serie) per le schede, che restano come erano.
+     */
+    role: Role? = null,
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
     val haptics = LocalFluidHaptics.current
@@ -964,7 +1013,8 @@ private fun Modifier.tapClickable(
                 onClick()
             },
             indication = indication,
-            interactionSource = interactionSource
+            interactionSource = interactionSource,
+            role = role
         )
 }
 
@@ -1266,7 +1316,9 @@ private fun SharedTransitionScope.InlineStandaloneTab(
             .then(glow.modifier)
             .tapClickable(
                 indication = standaloneTab.indication?.invoke(),
-                onClick = standaloneTab.onClick
+                onClick = standaloneTab.onClick,
+                // pm-f1/ge (E03): un tasto, non una zona.
+                role = Role.Button
             )
             // Unlike the regular tab pill (InlineTab, ExpandedTabs), this circle had
             // no inset at all — the icon sat flush against its edge.
@@ -1637,7 +1689,9 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
             .then(glow.modifier)
             .tapClickable(
                 indication = standaloneTab.indication?.invoke(),
-                onClick = standaloneTab.onClick
+                onClick = standaloneTab.onClick,
+                // pm-f1/ge (E03): un tasto, non una zona.
+                role = Role.Button
             )
             // Unlike the regular tab pill (ExpandedTabs), this circle had no inset
             // at all — the icon sat flush against its edge.
@@ -1717,6 +1771,15 @@ private fun SharedTransitionScope.ExpandedTabs(
     val isLtr = layoutDirection == LayoutDirection.Ltr
     val animationScope = rememberCoroutineScope()
     val glassConfig = LocalFluidFloatingTabBarGlass.current
+    // LOCAL CHANGE (pm-f1/ge, E02): con il movimento ridotto la pillola arriva al suo posto invece di
+    // viaggiarci — al tocco, a una selezione fatta altrove, al rilascio di un trascinamento — e nasce
+    // gia' intera quando la barra si apre. Restano il dito che la trascina (1:1) e lo squash con segno
+    // (R1: senza velocita' di molla vale comunque zero). Letta come State perche' la legge anche
+    // l'animazione ricordata qui sotto, che sopravvive alle composizioni.
+    val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+    val reducedMotionState = rememberUpdatedState(reducedMotion)
+    // pm-f1/ge (E01): le parole del segno, per il nodo della zona.
+    val labels = LocalFluidLabels.current
     // Puck wash. Unset, it is the app's accent.
     //
     // It used to be a pair of hard greys — near-white on a dark bar, near-black on a light one —
@@ -1833,9 +1896,15 @@ private fun SharedTransitionScope.ExpandedTabs(
                 // and strand the puck at the old index (puck stuck on Home while
                 // a different screen is showing). updateValue just springs the
                 // position, no press, no mutex.
-                updateValue(targetIndex.toFloat())
-                animationScope.launch {
-                    offsetAnimation.animateTo(0f, FluidMotion.TabTugReturn)
+                if (reducedMotionState.value) {
+                    // E02: al posto, senza la molla di assestamento ne' il ritorno dello stiramento.
+                    snapToValue(targetIndex.toFloat())
+                    animationScope.launch { offsetAnimation.snapTo(0f) }
+                } else {
+                    updateValue(targetIndex.toFloat())
+                    animationScope.launch {
+                        offsetAnimation.animateTo(0f, FluidMotion.TabTugReturn)
+                    }
                 }
                 if (hasDraggedPuck) {
                     currentTabs.value.getOrNull(targetIndex)?.onClick?.invoke()
@@ -1903,7 +1972,12 @@ private fun SharedTransitionScope.ExpandedTabs(
             // animateToValue (not updateValue) here, and only here: a selection the bar did not
             // make should arrive the way a drag-release does, press-grow and settle, because
             // nothing else announces it. A tap has the tap.
-            dampedDragAnimation.animateToValue(index.toFloat())
+            if (reducedMotion) {
+                // E02: la selezione arriva, non viaggia.
+                dampedDragAnimation.snapToValue(index.toFloat())
+            } else {
+                dampedDragAnimation.animateToValue(index.toFloat())
+            }
         }
     }
 
@@ -2018,8 +2092,13 @@ private fun SharedTransitionScope.ExpandedTabs(
             horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
         ) {
             allTabs.forEachIndexed { index, tab ->
+                val badge = tab.badge
+                // pm-f1/ge (E01): la frase del segno sul nodo della zona (il `clickable` qui sotto, che
+                // la barra costruisce); il segno disegnato e' muto. Null senza segno: niente cambia.
+                val badgePhrase = fluidTabBadgePhrase(badge, labels)
                 Tab(
                     icon = {
+                        if (badge == null) {
                         Box(
                             modifier = Modifier
                                 .graphicsLayer {
@@ -2044,6 +2123,36 @@ private fun SharedTransitionScope.ExpandedTabs(
                         ) {
                             tab.icon()
                         }
+                        } else {
+                            // Col segno: il segno viaggia ed entra con la scheda (stesso elemento
+                            // condiviso o stessa entrata), ma non si attenua con lei. Al 60% non
+                            // reggerebbe piu' il suo contrasto, e su una zona che non e' quella in cui
+                            // si e' — il caso per cui esiste — sarebbe il segno meno leggibile.
+                            Box(
+                                modifier = if (tab.key == selectedTabKey) {
+                                    Modifier.sharedElement(
+                                        sharedContentState = rememberSharedContentState("tab#${tab.key}-icon"),
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        zIndexInOverlay = 1f
+                                    )
+                                } else {
+                                    Modifier.animateEnterExitTab(
+                                        sharedTransitionScope = this@ExpandedTabs,
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                            ) {
+                                FluidTabBadgeAnchor(badge) {
+                                    Box(
+                                        Modifier.graphicsLayer {
+                                            alpha = if (tab.key == selectedTabKey) 1f else 0.6f
+                                        }
+                                    ) {
+                                        tab.icon()
+                                    }
+                                }
+                            }
+                        }
                     },
                     title = {
                         Box(
@@ -2067,6 +2176,13 @@ private fun SharedTransitionScope.ExpandedTabs(
                         .fillMaxHeight()
                         .skipToLookaheadSize()
                         .clip(shapes.tabShape)
+                        .then(
+                            if (badgePhrase != null) {
+                                Modifier.semantics { stateDescription = badgePhrase }
+                            } else {
+                                Modifier
+                            }
+                        )
                         .tapClickable(
                             // No ripple here, and this is the row where that matters: the puck
                             // *is* the selection indicator, so a ripple under it is a second
@@ -2083,7 +2199,14 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 // navigation is how it gets there, and making the indicator wait
                                 // for the second is what put the lag in. If the app refuses the
                                 // change, the sync effect below is what puts the puck back.
-                                if (index != currentIndex) {
+                                if (index != currentIndex && reducedMotion) {
+                                    // E02: con il movimento ridotto non c'e' un viaggio da far
+                                    // vedere, quindi niente da aspettare: la pillola e' gia' li' e la
+                                    // pagina parte subito.
+                                    currentIndex = index
+                                    dampedDragAnimation.snapToValue(index.toFloat())
+                                    tab.onClick()
+                                } else if (index != currentIndex) {
                                     currentIndex = index
                                     // animateToValue, which is press-travel-release: the puck
                                     // grows into glass, crosses, and settles, exactly as if a
@@ -2251,8 +2374,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                 horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
             ) {
                 allTabs.forEachIndexed { index, tab ->
+                    val badge = tab.badge
                     Tab(
-                        icon = tab.icon,
+                        // pm-f1/ge (E01): il segno anche qui, o sotto la lente sparisce. Tinto con il
+                        // resto della riga: la pillola premuta lo mostra nell'inchiostro dell'icona.
+                        icon = if (badge == null) tab.icon else { { FluidTabBadgeAnchor(badge) { tab.icon() } } },
                         title = tab.title,
                         isInline = false,
                         isStandalone = false,
@@ -2303,9 +2429,10 @@ private fun SharedTransitionScope.ExpandedTabs(
         // expanded bar composes its puck, the transition has usually moved on, so
         // the value began at 1 and nothing animated at all. An Animatable started
         // on composition cannot miss its own beginning.
-        val puckEnter = remember { Animatable(0f) }
+        // E02: con il movimento ridotto nasce intera, senza crescere.
+        val puckEnter = remember { Animatable(if (reducedMotion) 1f else 0f) }
         LaunchedEffect(Unit) {
-            puckEnter.animateTo(1f, FluidMotion.PuckEnter)
+            if (puckEnter.value < 1f) puckEnter.animateTo(1f, FluidMotion.PuckEnter)
         }
         // See the `frozen` argument below: the puck may only hold a capture once
         // it has one. A lambda so flipping it costs no recomposition — the glass
@@ -2551,10 +2678,16 @@ private fun SharedTransitionScope.ExpandedTabs(
                 // puck while the row centres it on the icon+title pair — which is
                 // exactly how far off it looked. Same props as the row's selected
                 // tab, so the two line up.
+                val badge = tab.badge
                 Tab(
                     // No tint override: the icon keeps the selected colour its
                     // caller gave it, which is the point of drawing it again.
-                    icon = { tab.icon() },
+                    // pm-f1/ge (E01): col suo segno, che la pillola a riposo coprirebbe.
+                    icon = if (badge == null) {
+                        { tab.icon() }
+                    } else {
+                        { FluidTabBadgeAnchor(badge) { tab.icon() } }
+                    },
                     title = { tab.title() },
                     isInline = false,
                     isStandalone = false,
@@ -2928,7 +3061,8 @@ private class FluidFloatingTabBarScopeImpl : FluidFloatingTabBarScope {
         title: @Composable () -> Unit,
         icon: @Composable () -> Unit,
         onClick: () -> Unit,
-        indication: (@Composable () -> Indication)?
+        indication: (@Composable () -> Indication)?,
+        badge: FluidTabBadge?
     ) {
         tabs.add(
             FluidFloatingTabBarTab(
@@ -2936,7 +3070,8 @@ private class FluidFloatingTabBarScopeImpl : FluidFloatingTabBarScope {
                 title = title,
                 icon = icon,
                 onClick = onClick,
-                indication = indication
+                indication = indication,
+                badge = badge
             )
         )
     }
@@ -2963,7 +3098,9 @@ private data class FluidFloatingTabBarTab(
     val title: @Composable () -> Unit,
     val icon: @Composable () -> Unit,
     val onClick: () -> Unit,
-    val indication: (@Composable () -> Indication)?
+    val indication: (@Composable () -> Indication)?,
+    // pm-f1/ge (E01): disegnato solo dalla riga aperta (ExpandedTabs), mai dalla scheda in linea.
+    val badge: FluidTabBadge? = null
 )
 
 /**

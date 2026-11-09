@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -45,8 +47,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
@@ -56,12 +60,119 @@ import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
 import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import kotlin.math.roundToInt
 
+/**
+ * Una destinazione della navigazione: la barra a elenco ([FluidFloatingTabBar]) e il rail ([FluidTabRail]).
+ *
+ * @param badge il segno di «c'e' qualcosa» sull'icona della zona ([FluidTabBadge]); null (di serie)
+ *   e la zona e' quella di sempre, stesso albero e stesse misure. In coda e con default: una voce
+ *   costruita per posizione con tre argomenti compila come prima.
+ */
 @Immutable
 data class FluidTabItem(
   val route: String,
   val label: String,
   val icon: ImageVector,
+  val badge: FluidTabBadge? = null,
 )
+
+/**
+ * Il segno su una zona della barra o del rail: un pallino («ci sono novita'») o un numero.
+ *
+ * **Perche' esiste.** Una zona che ha qualcosa di nuovo mentre si e' altrove (la chat con un messaggio,
+ * gli aggiornamenti di un negozio) non aveva modo di dirlo: l'icona e' un composable dell'app, ma la
+ * scheda la costruisce la barra, e un segno disegnato dall'app dentro l'icona spariva sotto la pillola
+ * (la riga che la pillola guarda e l'icona che ridisegna sopra di se' sono copie che l'app non vede),
+ * e TalkBack non lo leggeva (una proprieta' su un discendente non sale al nodo della scheda). Qui il segno
+ * lo disegna la barra con [FluidBadge], in tutte le copie, e la frase la mette lei sul nodo della zona.
+ *
+ * **Solo a barra aperta (scelta voluta).** Ripiegata, la pillola mostra la sola zona in cui si e', e su
+ * quella il segno non compare: un segno discreto deve potersi ignorare per sempre, e una pillola ripiegata
+ * che si accende per una zona che non si vede direbbe una cosa che non si puo' leggere. Si riapre la barra
+ * (scorrendo verso l'alto, o toccandola) e il segno e' li'. Anche TalkBack lo dice solo a barra aperta.
+ *
+ * **Non e' un bersaglio.** Il segno e' muto e non si tocca: il tocco e' della zona, e la zona si annuncia
+ * con il suo nome e lo stato del segno («Chat, novita'»), una volta sola.
+ *
+ * @param count null: il **pallino**. Maggiore di zero: il numero («99+» oltre 99). Zero o meno: niente
+ *   (ne' segno ne' frase), come [FluidBadge].
+ * @param contentDescription la frase che TalkBack aggiunge al nome della zona; null usa le parole
+ *   dell'engine ([FluidLabels.tabBadgeNew], [FluidLabels.tabBadgeCount]). Per un numero, la quantita' vera
+ *   anche quando il disegno dice «99+».
+ * @param color il colore del segno; di serie l'accento, reso leggibile sul vetro dalla regola di [FluidBadge].
+ */
+@Immutable
+data class FluidTabBadge(
+  val count: Int? = null,
+  val contentDescription: String? = null,
+  val color: Color = Color.Unspecified,
+) {
+  companion object {
+    /** Il pallino senza numero: «ci sono novita'». */
+    val Dot: FluidTabBadge = FluidTabBadge()
+  }
+}
+
+/**
+ * La frase che una zona col segno aggiunge al suo nome per TalkBack, o null se non c'e' niente da dire
+ * (nessun segno, o un numero a zero).
+ *
+ * Pura: e' la parte che decide se il segno parla, ed e' quella da provare senza una barra.
+ */
+internal fun fluidTabBadgePhrase(badge: FluidTabBadge?, labels: FluidLabels): String? {
+  if (badge == null) return null
+  val count = badge.count
+  if (count != null && count <= 0) return null
+  badge.contentDescription?.let { return it }
+  return if (count == null) labels.tabBadgeNew else labels.tabBadgeCount.format(count)
+}
+
+/**
+ * Il segno appoggiato all'angolo alto dell'icona di una zona, **senza cambiarne la misura**.
+ *
+ * La misura riportata e' quella dell'icona: il segno sporge e si disegna fuori, cosi' la scheda, la riga
+ * nascosta e l'icona ridisegnata sopra la pillola restano allineate al pixel con o senza segno, e un numero
+ * che col testo al 200% si allarga non sposta niente. Il lato e' quello di fine (a sinistra in RTL:
+ * `placeRelative`). Muto: la frase la dice il nodo della zona.
+ */
+@Composable
+internal fun FluidTabBadgeAnchor(badge: FluidTabBadge, content: @Composable () -> Unit) {
+  val density = LocalDensity.current
+  val dotInsetPx = with(density) { TabBadgeDotInset.roundToPx() }
+  val overlapPx = with(density) { TabBadgeOverlap.roundToPx() }
+  Layout(
+    content = {
+      Box { content() }
+      FluidBadge(count = badge.count, color = badge.color)
+    },
+  ) { measurables, constraints ->
+    val icon = measurables[0].measure(constraints)
+    val mark = measurables.getOrNull(1)?.measure(Constraints())
+    layout(icon.width, icon.height) {
+      icon.placeRelative(0, 0)
+      if (mark != null) {
+        if (badge.count == null) {
+          // Il pallino: centrato poco dentro l'angolo alto dell'icona.
+          mark.placeRelative(
+            x = icon.width - dotInsetPx - mark.width / 2,
+            y = dotInsetPx - mark.height / 2,
+          )
+        } else {
+          // Il numero: comincia poco oltre il centro dell'icona e cresce verso l'esterno.
+          mark.placeRelative(
+            x = icon.width - overlapPx,
+            y = dotInsetPx - mark.height / 2,
+          )
+        }
+      }
+    }
+  }
+}
+
+/** Il centro del pallino, dentro l'angolo alto dell'icona: 2 dp. */
+private val TabBadgeDotInset = 2.dp
+
+/** Quanto il numero si sovrappone all'icona, dal suo bordo di fine: 10 dp. */
+private val TabBadgeOverlap = 10.dp
 
 /**
  * Le misure della barra di prima e del rail.
@@ -76,6 +187,12 @@ object FluidTabBarDefaults {
   /** Above the system's gesture handle, not against it. See [FluidFoldingTabBarDefaults]. */
   val BottomMargin = 16.dp
   val RailWidth = 84.dp
+
+  /**
+   * Lo spazio fra l'intestazione del rail (l'azione primaria, `FluidTabRail(header = …)`) e la capsula
+   * delle schede: 8 dp, come lo spazio fra la pillola e il cerchio accanto nella barra in basso.
+   */
+  val RailHeaderSpacing = 8.dp
 
   /** Vertical space a screen must leave free so its content clears the floating bar. */
   val ContentInset = Height + BottomMargin
@@ -209,6 +326,8 @@ private fun FluidTabItemContent(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  // La frase del segno sul nodo della scheda, che e' questo: il segno disegnato e' muto.
+  val badgePhrase = fluidTabBadgePhrase(item.badge, LocalFluidLabels.current)
   Box(
     modifier = modifier
       .fillMaxHeight()
@@ -216,6 +335,7 @@ private fun FluidTabItemContent(
       .semantics {
         this.role = Role.Tab
         this.selected = selected
+        if (badgePhrase != null) stateDescription = badgePhrase
       }
       .fluidPressable(onClick = onClick, pressedScale = 0.96f),
     contentAlignment = Alignment.Center,
@@ -263,19 +383,25 @@ private fun FluidTabItemFace(
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.spacedBy(2.dp),
   ) {
-    Icon(
-      imageVector = item.icon,
-      contentDescription = null,
-      tint = contentColor,
-      modifier = Modifier
-        .size(24.dp)
-        .graphicsLayer {
-          val scale = 0.94f + 0.06f * settle
-          scaleX = scale
-          scaleY = scale
-          translationY = selectedLiftPx * settle
-        },
-    )
+    val glyph: @Composable () -> Unit = {
+      Icon(
+        imageVector = item.icon,
+        contentDescription = null,
+        tint = contentColor,
+        modifier = Modifier
+          .size(24.dp)
+          .graphicsLayer {
+            val scale = 0.94f + 0.06f * settle
+            scaleX = scale
+            scaleY = scale
+            translationY = selectedLiftPx * settle
+          },
+      )
+    }
+    // Senza segno l'icona di sempre, senza un nodo in piu'. Col segno, il segno sta in tutte le copie
+    // della faccia (la riga tinta che la goccia guarda e la scheda ridisegnata sopra di lei), muto.
+    val badge = item.badge
+    if (badge == null) glyph() else FluidTabBadgeAnchor(badge, glyph)
     Text(
       text = item.label,
       style = MaterialTheme.typography.labelSmall,
@@ -297,6 +423,19 @@ private fun FluidTabItemFace(
  * Because a full face covers what is under it, the selected tab is drawn again on top of the resting
  * drop; the copy fades as the lens comes in, and what the lens bends is the invisible accent-tinted
  * copy of the tabs, so the label stays legible and takes the accent while it is held.
+ *
+ * **Segni sulle zone** (pm-f1/ge): [FluidTabItem.badge] si disegna sull'icona della scheda, nella scheda e
+ * nelle sue due copie, e la frase va sul nodo della scheda (vedi [FluidTabBadge]). Il rail non si ripiega,
+ * quindi il segno si vede sempre.
+ *
+ * @param header l'azione primaria **in testa** al rail, sopra la capsula delle schede: «Scrivi», «Nuova
+ *   nota». Sulla barra in basso e' il cerchio accanto alla pillola (`standaloneTab`); da 600 dp la barra
+ *   diventa questo rail e l'azione deve avere ancora un posto fisso. Sta fuori dal vetro del rail, con
+ *   [FluidTabBarDefaults.RailHeaderSpacing] sotto: e' un tasto, non una zona (niente goccia, niente
+ *   selezione), quindi l'app ci mette il suo tasto di vetro (`FluidGlassIconButton`, con la sua
+ *   `contentDescription`) centrato nella larghezza del rail. Null (di serie): il rail di sempre, stesso
+ *   albero. Con l'intestazione il `modifier` va al contenitore di tutti e due, e la capsula prende
+ *   l'altezza che resta.
  */
 @Composable
 fun FluidTabRail(
@@ -306,8 +445,37 @@ fun FluidTabRail(
   backdrop: GlassBackdropState,
   modifier: Modifier = Modifier,
   onReselect: (FluidTabItem) -> Unit = {},
+  header: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
   if (items.isEmpty()) return
+  if (header == null) {
+    FluidTabRailBody(items, selectedRoute, onSelect, backdrop, modifier, onReselect)
+    return
+  }
+  Column(
+    modifier = modifier.width(FluidTabBarDefaults.RailWidth),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(FluidTabBarDefaults.RailHeaderSpacing),
+  ) {
+    Column(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      content = header,
+    )
+    FluidTabRailBody(items, selectedRoute, onSelect, backdrop, Modifier.weight(1f), onReselect)
+  }
+}
+
+/** Il rail vero e proprio: la capsula di vetro, la goccia, le copie. Invariato dalla 3.0. */
+@Composable
+private fun FluidTabRailBody(
+  items: List<FluidTabItem>,
+  selectedRoute: String?,
+  onSelect: (FluidTabItem) -> Unit,
+  backdrop: GlassBackdropState,
+  modifier: Modifier,
+  onReselect: (FluidTabItem) -> Unit,
+) {
 
   val tint = GlassDefaults.floatingTint()
   val accent = MaterialTheme.colorScheme.primary

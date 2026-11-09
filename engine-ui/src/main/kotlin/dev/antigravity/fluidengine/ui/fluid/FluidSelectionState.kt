@@ -339,10 +339,10 @@ fun <K : Any> rememberFluidSelectionState(keySaver: Saver<K, out Any>? = null): 
  * niente e il back fa quello che faceva (chiudere la pagina).
  *
  * **L'ordine di composizione e' l'ordine del back.** Il `BackHandler` registrato **per ultimo** vince,
- * quindi questo va composto **dopo** il contenuto che ha i suoi (la pagina, il pannello laterale, l'host
- * di navigazione) e **prima** di chi deve avere la meglio su di lui: i menu e i fogli dell'engine
- * registrano il loro quando si aprono, dopo, e quindi un menu aperto sulla selezione si chiude per
- * primo (menu, poi selezione, poi pagina). Posato prima della pagina, il back chiude la pagina con la
+ * quindi questo va composto **dopo** il contenuto che ha i suoi (la pagina, l'host di navigazione) e
+ * **prima** di chi deve avere la meglio su di lui: i menu e i fogli dell'engine e il pannello laterale
+ * (`FluidDrawer`) registrano il loro quando si aprono, dopo, e quindi si chiudono per primi (menu, poi
+ * pannello, poi selezione, poi pagina). Posato prima della pagina, il back chiude la pagina con la
  * selezione ancora accesa.
  *
  * @param enabled falso lo spegne senza toglierlo dall'albero (una pagina che non e' quella in primo piano).

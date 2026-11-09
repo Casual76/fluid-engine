@@ -6,9 +6,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import dev.antigravity.fluidengine.foundation.ThemeMode
+import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -18,6 +26,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import dev.antigravity.fluidengine.foundation.EngineSettings
@@ -75,6 +85,9 @@ class FluidNotificationDragTest {
   private val haptics = RecordedHaptics()
   private lateinit var state: FluidNotificationHostState
   private lateinit var scope: CoroutineScope
+  private var fontScale = 1f
+  private var reduced = false
+  private var dark = false
   private var actionClicks = 0
 
   @Before
@@ -84,8 +97,12 @@ class FluidNotificationDragTest {
 
   @Composable
   private fun Themed(content: @Composable () -> Unit) {
-    FluidTheme(settings = remember { EngineSettings() }) {
-      CompositionLocalProvider(LocalFluidHaptics provides haptics, content = content)
+    FluidTheme(settings = remember { EngineSettings(themeMode = if (dark) ThemeMode.DARK else ThemeMode.SYSTEM) }) {
+      val density = LocalDensity.current
+      CompositionLocalProvider(
+        LocalDensity provides Density(density.density, fontScale),
+        LocalFluidMotionPolicy provides FluidMotionPolicy(if (reduced) 0f else 1f),
+        LocalFluidHaptics provides haptics, content = content)
     }
   }
 
@@ -325,5 +342,64 @@ class FluidNotificationDragTest {
     compose.mainClock.autoAdvance = true
     compose.waitForIdle()
     assertTrue("la card non e' scaduta dopo il rilascio", !isShown())
+  }
+
+  @Test
+  fun `azioni inline subito accessibili al 200 percento in scuro e movimento ridotto`() {
+    fontScale = 2f; dark = true; reduced = true
+    val label = "Ripristina operazione precedente"
+    show(notification().copy(actions = emptyList(), inlineActions = listOf(
+      FluidNotificationAction(label) { actionClicks++ },
+      FluidNotificationAction("Gestisci operazioni") { actionClicks++ },
+    )))
+    compose.onNodeWithText("Gestisci operazioni").assertIsDisplayed()
+    val action = compose.onNodeWithText(label)
+    action.assertIsDisplayed()
+    val node = action.fetchSemanticsNode()
+    assertEquals(Role.Button, node.config[SemanticsProperties.Role])
+    val layouts = mutableListOf<TextLayoutResult>()
+    action.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+    assertTrue(layouts.isNotEmpty())
+    assertTrue(layouts.none { it.hasVisualOverflow })
+    compose.onNode(SemanticsMatcher("azione inline annunciata sulla card") {
+      it.config.getOrNull(SemanticsActions.CustomActions)?.any { a -> a.label == label } == true
+    }).assertExists()
+    val bounds = action.getUnclippedBoundsInRoot()
+    assertTrue("altezza bersaglio: $bounds", bounds.bottom - bounds.top >= 48.dp)
+    assertTrue("larghezza bersaglio: $bounds", bounds.right - bounds.left >= 48.dp)
+    action.performTouchInput { down(center); up() }
+    waitUntilGone()
+    assertEquals(1, actionClicks)
+  }
+
+  @Test
+  fun `drag dal pulsante inline non trascina ne esegue azione fuori bersaglio`() {
+    show(notification().copy(actions = emptyList(), inlineActions = listOf(
+      FluidNotificationAction("Ripristina") { actionClicks++ },
+    )))
+    compose.onNodeWithText("Ripristina").performTouchInput {
+      down(center)
+      repeat(16) { moveBy(Offset(0f, -18f)) }
+      up()
+    }
+    compose.waitForIdle()
+    assertTrue(isShown())
+    assertEquals(0, actionClicks)
+    compose.onNodeWithText("Ripristina").performClick()
+    waitUntilGone()
+    assertEquals(1, actionClicks)
+  }
+
+  @Test
+  fun `update elimina subito azione scaduta senza espandere`() {
+    val n = notification().copy(actions = emptyList(), inlineActions = listOf(
+      FluidNotificationAction("Ripristina") { actionClicks++ },
+    ))
+    show(n)
+    compose.onNodeWithText("Ripristina").assertIsDisplayed()
+    compose.runOnIdle { assertTrue(state.updateCurrent(n.copy(inlineActions = emptyList()))) }
+    compose.waitForIdle()
+    assertTrue(compose.onAllNodesWithText("Ripristina").fetchSemanticsNodes().isEmpty())
+    assertTrue(isShown())
   }
 }

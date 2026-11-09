@@ -80,6 +80,19 @@ data class FluidLabels(
    */
   val moreAvatars: String = "e altri %1\$d",
   // --- fine pm-f1/gb ---
+  // --- pm-f1/ge ---
+  /** Il titolo per TalkBack di un pannello laterale (`FluidDrawer`) che non ne riceve uno: l'annuncio all'apertura. */
+  val drawer: String = "Pannello laterale",
+  /** L'azione di TalkBack che chiude il pannello laterale (lo stesso del tocco fuori e del back). */
+  val closeDrawer: String = "Chiudi il pannello",
+  /** Lo stato di una zona della barra col pallino (`FluidTabBadge.Dot`): «Chat, novita'». */
+  val tabBadgeNew: String = "Novità",
+  /**
+   * Lo stato di una zona della barra con un numero, con `%1$d` per la quantita' vera: «Posta, 3 novita'».
+   * «Novita'» e' invariabile, quindi la stessa frase va bene per uno e per cento.
+   */
+  val tabBadgeCount: String = "%1\$d novità",
+  // --- fine pm-f1/ge ---
 ) {
   companion object {
     /**
@@ -110,6 +123,12 @@ data class FluidLabels(
       notSelected = "Not selected",
       moreAvatars = "and %1\$d more",
       // --- fine pm-f1/gb ---
+      // --- pm-f1/ge ---
+      drawer = "Side panel",
+      closeDrawer = "Close panel",
+      tabBadgeNew = "New",
+      tabBadgeCount = "%1\$d new",
+      // --- fine pm-f1/ge ---
     )
   }
 }

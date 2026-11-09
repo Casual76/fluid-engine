@@ -10,6 +10,8 @@ import android.view.FrameMetrics
 import android.view.Window
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -160,7 +162,7 @@ fun LongListsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
 /** Gli item della pagina prima delle righe: il titolo di `FluidScreen` piu' quelli della demo. */
 private const val ItemsBeforeRows = 1 + 5
 
-@OptIn(FluidExperimentalRowGlass::class)
+@OptIn(FluidExperimentalRowGlass::class, ExperimentalLayoutApi::class)
 @Composable
 private fun LongListsPage(
   bottomInset: Dp,
@@ -287,7 +289,13 @@ private fun LongListsPage(
     }
     // 2 — gli arrivi e l'annullo.
     item(key = "actions") {
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+      // Un flusso e non una riga: al 200% due tasti non stanno affiancati, e in una `Row` il secondo veniva
+      // schiacciato fino a una colonna di lettere. Cosi' va a capo, e ogni tasto ha la larghezza intera.
+      FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+      ) {
         FluidButton(
           text = "Arriva una riga in cima",
           onClick = { arrive(1) },

@@ -9,8 +9,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import dev.antigravity.fluidengine.foundation.EngineSettings
-import dev.antigravity.fluidengine.foundation.ThemeMode
+import dev.antigravity.fluidengine.sample.MatrixTextScale
+import dev.antigravity.fluidengine.sample.matrixDemoSettings
+import dev.antigravity.fluidengine.sample.rememberMatrixFlag
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
@@ -22,15 +23,16 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 @Composable
 fun WebContentDemo() {
   var index by remember { mutableIntStateOf(0) }
-  var dark by remember { mutableStateOf(false) }
+  // Nella galleria gli interruttori partono dalla matrice degli stati (e restano liberi); fuori, da spenti.
+  var dark by rememberMatrixFlag { it.theme.isDark }
   var original by remember { mutableStateOf(false) }
-  var large by remember { mutableStateOf(false) }
-  var reduced by remember { mutableStateOf(false) }
+  var large by rememberMatrixFlag { it.textScale == MatrixTextScale.Largest }
+  var reduced by rememberMatrixFlag { it.reducedMotion }
   var lastLink by remember { mutableStateOf("Nessun link selezionato") }
   val samples = remember { webContentHostileSamples() }
   val state = rememberFluidWebContentState()
   val printManager = LocalContext.current.getSystemService(PrintManager::class.java)
-  FluidTheme(EngineSettings(themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT), systemBars = false) {
+  FluidTheme(matrixDemoSettings(dark), systemBars = false) {
     FluidMotionPolicyProvider(FluidMotionPolicy(if (reduced) 0f else 1f)) {
       FluidScreen(title = "Contenuto web", subtitle = "HTML locale e risorse controllate dall'app") {
         item {

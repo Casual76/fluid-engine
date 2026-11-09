@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -193,10 +195,11 @@ private fun EditorStage(
 }
 
 /** L'incolla di un HTML sporco (da un browser o da Google Documenti), dal codice o dagli appunti. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PasteControls(state: FluidRichTextState) {
   val context = LocalContext.current
-  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+  FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     FluidButton(
       text = "Incolla HTML sporco",
       onClick = { state.replaceSelection(FluidRichTextHtml.read(DirtyHtml)) },

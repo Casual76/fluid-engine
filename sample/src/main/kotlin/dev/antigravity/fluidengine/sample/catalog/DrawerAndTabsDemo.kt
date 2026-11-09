@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -173,6 +175,7 @@ private fun StagePage() {
 
 // --- 1. La pillola ------------------------------------------------------------------------------------
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PillSection() {
   FluidSectionHeader(
@@ -182,7 +185,10 @@ private fun PillSection() {
   var dot by remember { mutableStateOf(true) }
   var count by remember { mutableStateOf(false) }
   var folded by remember { mutableStateOf(false) }
-  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+  var zone by remember { mutableStateOf("mail") }
+  var writes by remember { mutableStateOf(0) }
+  // Un flusso: al 200% i tre tasti non stanno affiancati, e in una `Row` «Numero» si spezzava e «Ripiega» spariva.
+  FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     FluidButton(text = if (dot) "Spegni il segno" else "Accendi il segno", onClick = { dot = !dot }, style = FluidButtonStyle.Tinted)
     FluidButton(text = if (count) "Pallino" else "Numero", onClick = { count = !count }, style = FluidButtonStyle.Tinted)
     FluidButton(text = if (folded) "Riapri" else "Ripiega", onClick = { folded = !folded }, style = FluidButtonStyle.Tinted)
@@ -196,38 +202,42 @@ private fun PillSection() {
         else -> FluidTabBadge.Dot
       },
       folded = folded,
+      zone = zone,
+      onZone = { zone = it },
+      onWrite = { writes++ },
     )
   }
+  // Fuori dal palco: dentro, al 200% il testo di stato si sovrapponeva ai messaggi del fondale.
+  Text(text = "Zona: $zone · «Scrivi» toccato $writes volte", style = MaterialTheme.typography.labelLarge)
 }
 
 @Composable
-private fun BoxScope.PillBar(backdrop: GlassBackdropState, badge: FluidTabBadge?, folded: Boolean) {
-  var zone by remember { mutableStateOf("mail") }
-  var writes by remember { mutableStateOf(0) }
+private fun BoxScope.PillBar(
+  backdrop: GlassBackdropState,
+  badge: FluidTabBadge?,
+  folded: Boolean,
+  zone: String,
+  onZone: (String) -> Unit,
+  onWrite: () -> Unit,
+) {
   val scroll = rememberFluidFloatingTabBarScrollConnection()
   androidx.compose.runtime.LaunchedEffect(folded) { if (folded) scroll.inline() else scroll.expand() }
-  Text(
-    text = "Zona: $zone · «Scrivi» toccato $writes volte",
-    style = MaterialTheme.typography.labelLarge,
-    color = Color.White,
-    modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
-  )
   FluidFloatingTabBar(
     selectedTabKey = zone,
     scrollConnection = scroll,
     backdrop = backdrop,
     modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 14.dp, vertical = 16.dp),
   ) {
-    tab(key = "mail", title = { Text("Posta") }, icon = { Icon(Icons.Rounded.Inbox, null) }, onClick = { zone = "mail" })
-    tab(key = "search", title = { Text("Cerca") }, icon = { Icon(Icons.Rounded.Search, null) }, onClick = { zone = "search" })
+    tab(key = "mail", title = { Text("Posta") }, icon = { Icon(Icons.Rounded.Inbox, null) }, onClick = { onZone("mail") })
+    tab(key = "search", title = { Text("Cerca") }, icon = { Icon(Icons.Rounded.Search, null) }, onClick = { onZone("search") })
     tab(
       key = "chat",
       title = { Text("Chat") },
       icon = { Icon(Icons.Rounded.Forum, null) },
-      onClick = { zone = "chat" },
+      onClick = { onZone("chat") },
       badge = badge,
     )
-    standaloneTab(key = "write", icon = { Icon(Icons.Rounded.Edit, contentDescription = "Scrivi") }, onClick = { writes++ })
+    standaloneTab(key = "write", icon = { Icon(Icons.Rounded.Edit, contentDescription = "Scrivi") }, onClick = onWrite)
   }
 }
 
@@ -260,13 +270,10 @@ private fun RailSection() {
           }
         },
       )
-      Text(
-        text = "Zona: $route\n«Scrivi»: $writes",
-        style = MaterialTheme.typography.labelLarge,
-        color = Color.White,
-      )
     }
   }
+  // Fuori dal palco, per la stessa ragione della pillola: al 200% si sovrapponeva al fondale.
+  Text(text = "Zona: $route · «Scrivi»: $writes", style = MaterialTheme.typography.labelLarge)
 }
 
 // --- 3. Il pannello ------------------------------------------------------------------------------------
@@ -449,7 +456,8 @@ private fun VariantStage(tag: String) {
         }
         FluidButton(text = if (folded) "Riapri" else "Ripiega", onClick = { folded = !folded }, style = FluidButtonStyle.Tinted)
       }
-      PillBar(backdrop = backdrop, badge = FluidTabBadge.Dot, folded = folded)
+      var zone by remember { mutableStateOf("mail") }
+      PillBar(backdrop = backdrop, badge = FluidTabBadge.Dot, folded = folded, zone = zone, onZone = { zone = it }, onWrite = {})
     }
     FluidDrawer(state = drawer, backdrop = backdrop, paneTitle = "Cartelle") {
       drawerFolders(current = folder, onPick = { folder = it; drawer.close() })

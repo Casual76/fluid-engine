@@ -336,7 +336,7 @@ private fun SelectionSection() {
       )
     }
   }
-  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+  FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     FluidButton(
       text = "Seleziona tutto",
       onClick = { state.selectAll(snapshot = "demo@50000") },
@@ -456,13 +456,14 @@ private fun BarActionSection() {
         )
       }
     }
-    Text(
-      text = "Ultima scelta: $picked",
-      style = MaterialTheme.typography.labelLarge,
-      color = Color.White,
-      modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
-    )
   }
+  // Fuori dal palco: dentro, al 200% il testo di stato si sovrapponeva al fondale testuale e non si leggeva.
+  // Sulla pagina ha il colore del tema, come ogni altro testo di stato della galleria.
+  Text(
+    text = "Ultima scelta: $picked",
+    style = MaterialTheme.typography.labelLarge,
+    modifier = Modifier.testTag("identity-bar-picked"),
+  )
 }
 
 // --- Capsula di formattazione ----------------------------------------------------------------------------

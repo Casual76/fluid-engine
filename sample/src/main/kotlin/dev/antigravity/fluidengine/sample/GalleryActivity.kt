@@ -65,6 +65,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
+import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicyProvider
 import dev.antigravity.fluidengine.ui.fluid.FluidNotificationHost
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidScrollToTopBus
@@ -122,7 +123,12 @@ class GalleryActivity : ComponentActivity() {
       val nav = remember { GalleryNav(launch.stack()) }
       val matrix = remember { launch.matrix() }
       FluidTheme(settings = settings) {
-        Gallery(settings = settings, onSettingsChange = { settings = it }, nav = nav, matrix = matrix)
+        // La policy del movimento si installa in radice, come la skill raccomanda alle app: `FluidTheme` non lo
+        // fa, e senza questo con le animazioni di sistema a zero la pillola si ripiegava ancora animata. Sotto,
+        // la matrice «movimento ridotto» (`MatrixScope`) la forza a zero, altrimenti riparte da questa.
+        FluidMotionPolicyProvider {
+          Gallery(settings = settings, onSettingsChange = { settings = it }, nav = nav, matrix = matrix)
+        }
       }
     }
   }

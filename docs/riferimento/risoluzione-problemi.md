@@ -44,6 +44,7 @@ patch (3.0.1–3.0.4) e un'app li ha con un semplice aggiornamento dell'engine, 
 | la barra flottante non si ripiega, o si ripiega senza scorrimento | `locked`, o contenuto che non scorre davvero | 3.0.1: si ripiega solo se il contenuto scorre e si riapre a ogni cambio di pagina; togli `settle()`/`expand()` a mano |
 | il pop-up finisce sotto la tastiera o la barra dei gesti | | 3.0.1 (tastiera) e 3.0.3 (inset della barra di navigazione): aggiorna |
 | testo nero su nero in tema scuro dentro un pop-up/foglio/menu | l'host non dava il colore del contenuto | 3.0.1 |
+| icone ed etichette della barra delle schede quasi invisibili in tema scuro/nero | nessun colore di contenuto sopra la barra: `LocalContentColor` vale il nero di serie (dalla 3.0.7 e prima) | la barra ora ripiega su `onSurface` quando il colore e' quello di serie; un colore deciso dall'app o da una `Surface` resta. Un nero puro fornito di proposito e' letto come «non deciso» |
 | i menu tagliano la voce più lunga | | 3.0.1: si allargano fino a 340 dp |
 | un campo di testo su più righe si comporta come una riga sola | `singleLine` ha default vero e ignora `minLines` | 2.5.2: `minLines > 1` è su più righe |
 | con testo grande il pulsante taglia l'etichetta | altezza fissa | 3.0.4: l'altezza è un minimo |

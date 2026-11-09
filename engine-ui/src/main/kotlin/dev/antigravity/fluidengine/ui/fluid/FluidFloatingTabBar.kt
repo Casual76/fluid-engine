@@ -80,7 +80,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
@@ -436,6 +438,13 @@ fun FluidFloatingTabBar(
         CompositionLocalProvider(
             LocalFluidTabBarBackdropFrozen provides frozenWhileAnimating,
             LocalFluidFloatingTabBarGlass provides glass,
+            // LOCAL CHANGE (pm-f1/fix-galleria, difetto 2): icone ed etichette delle schede leggono
+            // `LocalContentColor`, e fuori da una `Surface` quello vale nero (il valore di serie). Una barra
+            // messa in una radice senza `Surface` (la galleria) su vetro scuro stampava nero su grigio scuro;
+            // vale dalla 3.0.7 e prima, non e' una regressione. Ripiega su `onSurface` solo se il colore e'
+            // quello di serie: un colore deciso dall'app (o di una `Surface`) resta com'era. Vedi
+            // [floatingBarContentColor], anche per il caso limite del nero fornito di proposito.
+            LocalContentColor provides floatingBarContentColor(LocalContentColor.current, MaterialTheme.colorScheme),
         ) {
         // Always applied: `gooey` is a no-op at radius 0 (no offscreen layer,
         // no filter), so there is nothing to gate on and nothing to recompose.
@@ -2921,6 +2930,31 @@ internal const val MinLabelScale = 0.75f
  */
 internal fun labelScale(wanted: Int, room: Int): Float =
     if (room in 1..<wanted) (room.toFloat() / wanted).coerceAtLeast(MinLabelScale) else 1f
+
+/**
+ * Il colore del contenuto della barra: quello che l'app ha deciso, e `onSurface` solo se nessuno ha deciso.
+ *
+ * Icone ed etichette delle schede leggono `LocalContentColor`. Il valore di serie del CompositionLocal e'
+ * [Color.Black]: ce l'ha chi non ha una `Surface` sopra la barra e non ha detto niente, e su vetro scuro e'
+ * nero su grigio scuro. In quel caso soltanto si ripiega su `onSurface` del tema, che sul vetro scuro e' chiaro e
+ * sul chiaro e' scuro (il vetro segue lo stesso lato, `GlassDefaults.isDarkSurface`).
+ *
+ * Qualunque altro valore e' una decisione e resta: il colore di una `Surface` (che e' `contentColorFor` del suo
+ * sfondo), o quello che l'app fornisce in radice (`LocalContentColor provides Ink`). Sostituirlo con `onSurface`
+ * cambierebbe l'aspetto di un'app che aggiorna a parametri invariati, e questo l'engine non lo fa.
+ *
+ * **Caso limite:** un'app che fornisce davvero il nero puro non si distingue da una che non ha detto niente, perche'
+ * un CompositionLocal non dice se e' stato impostato. Quel nero viene letto come «non deciso» e diventa `onSurface`.
+ * Sul tema chiaro `onSurface` e' quasi nero e la differenza e' minima; per tenere il nero a ogni costo si da' alla
+ * barra un colore che non sia esattamente `Color.Black` (per esempio `Color(0xFF000001)`) o si passa dalla sua `Surface`.
+ *
+ * Un token e mai un colore a mano; fuori dalla composizione perche' il contrasto con la pellicola si verifica sulle
+ * palette (`FluidFloatingTabBarInkTest`), non su un telefono.
+ *
+ * @param inherited il `LocalContentColor` che la barra trova sopra di se'.
+ */
+internal fun floatingBarContentColor(inherited: Color, scheme: ColorScheme): Color =
+    if (inherited == Color.Black) scheme.onSurface else inherited
 
 /** Il contrasto minimo fra l'icona tinta del puck e il fondo che ha dietro. */
 internal const val PuckInkMinContrast = 3f

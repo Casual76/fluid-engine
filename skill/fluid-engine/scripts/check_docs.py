@@ -86,6 +86,8 @@ def check(path: Path, symbols: set[str]) -> list[str]:
 def main() -> int:
     args: list[Path] = []
     for a in sys.argv[1:]:
+        if a == "--check":  # Il controllo non modifica mai i file.
+            continue
         pa = Path(a)
         args.extend(sorted(pa.rglob("*.md")) if pa.is_dir() else [pa])
     files = args or sorted(p for p in SKILL.rglob("*.md") if "references/api/" not in p.as_posix())

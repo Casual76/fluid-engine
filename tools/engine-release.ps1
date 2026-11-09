@@ -136,7 +136,7 @@ if ($Tag) {
   try {
     $add = Invoke-Git @("add", "ENGINE_VERSION", "CHANGELOG.md", $versionKt)
     if ($add.Code -ne 0) { Fail "git add non riuscito." }
-    $commit = Invoke-Git @("commit", "-m", "release: engine $Version")
+    $commit = Invoke-Git @("commit", "-m", "Rilascia Fluid Engine $Version", "-m", "Co-Authored-By: GPT-6.1 Sol <noreply@openai.com>")
     if ($commit.Code -ne 0) { Fail "commit non riuscito: $($commit.Lines -join ' ')" }
     $tagResult = Invoke-Git @("tag", "engine-$Version")
     if ($tagResult.Code -ne 0) { Fail "tag non creato: $($tagResult.Lines -join ' ')" }

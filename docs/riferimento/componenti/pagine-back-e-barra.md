@@ -280,3 +280,10 @@ Funzioni pure utili a chi scrive un test o una shell: `page()` e `pageReturn()` 
 | `FluidPageHostState.kt` | `beginDrag`, `dragTo`, `release`, `confirmThroughDispatcher`, `systemCommit`, `commit`, `requestBack` |
 
 Il resto della famiglia (host, `FluidNavHost`, migrazione, vecchio): [pagine.md](pagine.md).
+
+## Correzione 3.0.7: comandi durante il movimento
+
+I controlli della barra rispondono alla cima della pila richiesta anche durante push, pop e passi
+fra schede. Le azioni della pagina uscente continuano a disegnarsi, ma non ricevono input e sono
+escluse dalla semantica. Anche titolo e back risolvono il callback della pagina corrente al momento
+del tocco. Non cambia il blocco degli input del corpo della pagina uscente.

@@ -16,7 +16,7 @@ _Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ai/ai/provider/GeminiProvider.kt`
 
-- `class GeminiProvider(private val http: AiHttp, private val apiKey: String) : ChatProvider` — Gemini via `generateContent` (stabile; l'Interactions API e' ancora beta). Le parti del modello si conservano grezze in [Message.Assistant.raw] e si rimandano identiche: Gemini 3 pretende di rivedere le sue thought signature sulle `functionCall`, e una parte ricostruita a mano senza firma e' un 400. Per le chiamate nate altrove (dopo un cambio di provider) c'e' il valore di bypass documentato.
+- `class GeminiProvider(private val http: AiHttp, private val apiKey: String, private val baseUrl: String = BASE_URL) : ChatProvider` — Gemini via `generateContent` (stabile; l'Interactions API e' ancora beta). Le parti del modello si conservano grezze in [Message.Assistant.raw] e si rimandano identiche: Gemini 3 pretende di rivedere le sue thought signature sulle `functionCall`, e una parte ricostruita a mano senza firma e' un 400. Per le chiamate nate altrove (dopo un cambio di provider) c'e' il valore di bypass documentato.
   - `companion object`
     - `const val BASE_URL`
     - `const val FALLBACK_TRANSCRIBE_MODEL`
@@ -80,7 +80,7 @@ _Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `val TEXT_ONLY`
 - `data class Citation(val url: String, val title: String? = null, val snippet: String? = null)` — Una fonte dal web citata da una risposta con ricerca (1.26.0): Gemini la chiama grounding chunk, OpenRouter url citation, Groq search result. Qui e' un indirizzo con, se ci sono, titolo e frammento.
-- `data class ChatRequest(val model: String, val messages: List<Message>, val tools: List<ToolSpec> = emptyList(), val toolChoice: ToolChoice = ToolChoice.Auto, val parallelToolCalls: Boolean = true, val reasoning: ReasoningLevel = ReasoningLevel.MEDIUM, val jsonSchema: JsonObject? = null, val maxOutputTokens: Int? = null, val temperature: Double? = null, val webSearch: Boolean = false, val webSearchMaxResults: Int = 5, val readTimeoutMillis: Int? = null)`
+- `data class ChatRequest(val model: String, val messages: List<Message>, val tools: List<ToolSpec> = emptyList(), val toolChoice: ToolChoice = ToolChoice.Auto, val parallelToolCalls: Boolean = true, val reasoning: ReasoningLevel = ReasoningLevel.MEDIUM, val jsonSchema: JsonObject? = null, val maxOutputTokens: Int? = null, val temperature: Double? = null, val webSearch: Boolean = false, val webSearchMaxResults: Int = 5, val readTimeoutMillis: Int? = null, val beforeDispatch: suspend (ProviderDispatch) -> Unit = {}, val lifecycle: ProviderAttemptLifecycle = ProviderAttemptLifecycle.None)`
   - `val hasDocuments: Boolean get()` — Vero se qualche messaggio porta un documento: OpenRouter allora vuole il plugin che li legge.
 - `enum class FinishReason`
 - `data class Usage(val promptTokens: Int, val completionTokens: Int, val totalTokens: Int, val costUsd: Double? = null)`
@@ -94,7 +94,7 @@ _Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `data class Transcript(val text: String, val language: String?)`
 - `data class TranscribeOptions(val model: String, val language: String?, val prompt: String?)`
 - `enum class ModelKind`
-- `data class ModelInfo(val id: String, val displayName: String, val kind: ModelKind, val contextWindow: Int? = null, val maxOutputTokens: Int? = null, val supportsTools: Boolean = true, val supportsReasoning: Boolean = false, val audioInput: Boolean = false, val supportsVision: Boolean = false, val supportsDocuments: Boolean = false, val free: Boolean = false, val pricePromptPerM: Double? = null, val priceCompletionPerM: Double? = null)` — Quello che serve per scegliere un modello in un elenco; i prezzi solo dove esistono.
+- `data class ModelInfo(val id: String, val displayName: String, val kind: ModelKind, val contextWindow: Int? = null, val maxOutputTokens: Int? = null, val supportsTools: Boolean = true, val supportsReasoning: Boolean = false, val audioInput: Boolean = false, val supportsVision: Boolean = false, val supportsDocuments: Boolean = false, val free: Boolean = false, val pricePromptPerM: Double? = null, val priceCompletionPerM: Double? = null, val visionVerified: Boolean = false)` — Quello che serve per scegliere un modello in un elenco; i prezzi solo dove esistono.
   - `val capabilities: ModelCapabilities get()`
 - `data class ModelCatalogue(val chat: List<ModelInfo>, val stt: List<ModelInfo>)`
   - `fun chat(id: String): ModelInfo?`
@@ -104,13 +104,14 @@ _Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun stream(request: ChatRequest): Flow<ChatDelta>`
   - `suspend fun listModels(): ModelCatalogue`
   - `suspend fun transcribe(audio: File, mime: String, options: TranscribeOptions): Transcript`
+- `data class ProviderDispatch(val provider: ProviderId, val model: String, val resolved: ReasoningLevel, val effective: String?, val support: String = "UNKNOWN", val adaptation: String? = null)` — Effective means encoded on the wire, never a claim that a provider honored the field.
 
 ## `engine-ai/ai/provider/ModelCatalog.kt`
 
 - `object ModelCatalog` — Dai cataloghi grezzi dei tre provider agli elenchi che l'utente sfoglia: chat da una parte, trascrizione dall'altra, tutto il resto (embedding, immagini, voci, guardie) fuori. Le regole sono per sottostringa perche' e' l'unica cosa che i cataloghi promettono; i test le fissano su elenchi veri salvati.
   - `fun groq(body: JsonElement?): ModelCatalogue`
   - `fun gemini(models: JsonElement?): ModelCatalogue`
-  - `fun openRouter(body: JsonElement?): ModelCatalogue`
+  - `fun openRouter(body: JsonElement?, includeModelsWithoutTools: Boolean = false): ModelCatalogue`
   - `fun preferredFirst(models: List<ModelInfo>, preferred: String): List<ModelInfo>` — Il preferito in testa, poi per contesto decrescente e nome: l'ordine di un elenco da scegliere.
 
 ## `engine-ai/ai/provider/OpenAiCompatCodec.kt`
@@ -153,6 +154,21 @@ _Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun keyInfo(): OpenRouterKeyInfo`
   - `companion object`
     - `const val BASE_URL`
+
+## `engine-ai/ai/provider/ProviderAttemptLifecycle.kt`
+
+- `interface ProviderAttemptLifecycle` — Atomic app-owned admission and durable settlement; no pricing or domain policy in the engine.
+  - `suspend fun beforeAttempt(attempt: ProviderAttempt)`
+  - `suspend fun afterAttempt(settlement: ProviderSettlement)`
+  - `object None : ProviderAttemptLifecycle`
+- `class ProviderExecutionContext(val executionId: String, val purpose: String, val lifecycle: ProviderAttemptLifecycle, val beforeDispatch: suspend (ProviderDispatch) -> Unit = {}) : AbstractCoroutineContextElement(Key)` — Inherited by all chat calls in a coroutine, including internally constructed helper/router requests.
+  - `companion object Key : CoroutineContext.Key<ProviderExecutionContext>`
+- `class ProviderAdmissionDenied(val reason: String) : CancellationException(reason)` — Control signals deliberately cross existing cancellation barriers without failover or replay.
+- `class ProviderObserverFailure(val attemptId: String, cause: Throwable) : CancellationException("Provider observer failed for $attemptId")`
+- `data class ProviderAttempt(val attemptId: String, val executionId: String?, val purpose: String?, val dispatch: ProviderDispatch, val streaming: Boolean, val payloadBytes: Int, val maxOutputTokens: Int?, val toolCount: Int, val binaryInputBytes: Long, val webSearch: Boolean, val webSearchMaxResults: Int?, val documents: Boolean, val structuredOutput: Boolean, val modelCandidates: List<String> = listOf(dispatch.model), val inputTokenUpperBound: Int? = null)`
+- `enum class ProviderAttemptOutcome`
+- `enum class ProviderDispatchCertainty`
+- `data class ProviderSettlement(val attempt: ProviderAttempt, val outcome: ProviderAttemptOutcome, val certainty: ProviderDispatchCertainty, val usage: Usage?, val rateLimit: RateLimitInfo, val httpStatus: Int?, val retryAfterSec: Double?, val errorType: String?, val partialResponse: Boolean)`
 
 ## `engine-ai/ai/provider/ProviderFactory.kt`
 

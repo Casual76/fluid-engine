@@ -143,10 +143,11 @@ _Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `class AiResponse(val code: Int, val body: JsonElement?, val headers: Map<String, String>, val rateLimit: RateLimitInfo)` — Una risposta 2xx gia' letta: il JSON, gli header (minuscoli) e cio' che dicono sui limiti.
 - `class AiHttp(private val userAgent: String, private val connectTimeoutMillis: Int = 10_000, private val readTimeoutMillis: Int = 60_000, private val streamChunkTimeoutMillis: Int = 45_000, private val io: CoroutineDispatcher = Dispatchers.IO)` — Il client HTTP dei provider IA: POST con corpo JSON, POST in streaming (SSE), POST multipart per l'audio, GET per i cataloghi. Su `HttpURLConnection` come `EngineHttp`, perche' l'app non ha e non vuole una libreria HTTP: quello che serve in piu' rispetto all'engine (un corpo, un flusso di eventi) sta tutto qui, in un file.
-  - `suspend fun postJson(url: String, headers: Map<String, String>, body: JsonObject, readTimeoutMillis: Int? = null): AiResponse` — [readTimeoutMillis]: l'attesa massima della risposta per questa richiesta; null = il default del client.
+  - `suspend fun postJson(url: String, headers: Map<String, String>, body: JsonObject, readTimeoutMillis: Int? = null, onResponse: (Int, Map<String, String>) -> Unit = { _, _ -> }): AiResponse` — [readTimeoutMillis]: l'attesa massima della risposta per questa richiesta; null = il default del client.
   - `suspend fun getJson(url: String, headers: Map<String, String>): AiResponse`
   - `suspend fun postMultipart(url: String, headers: Map<String, String>, fields: Map<String, String>, file: File, fileMime: String, fileName: String, fileFieldName: String = "file"): AiResponse`
-  - `fun postJsonStream(url: String, headers: Map<String, String>, body: JsonObject, chunkTimeoutMillis: Int? = null, onHeaders: (Map<String, String>) -> Unit = {}): Flow<String>` — Gli eventi `data:` di uno stream SSE, uno per emissione, gia' scorporati dal parser; termina a `[DONE]` o alla chiusura del server. Gli errori HTTP arrivano come [AiError] prima del primo evento; quelli di rete a meta' come chiusura del flusso con causa.
+  - `fun postJsonStream(url: String, headers: Map<String, String>, body: JsonObject, chunkTimeoutMillis: Int? = null, onHeaders: (Map<String, String>) -> Unit = {}): Flow<String>` — Overload storico: conserva anche la lambda finale per gli header 2xx.
+  - `fun postJsonStream(url: String, headers: Map<String, String>, body: JsonObject, chunkTimeoutMillis: Int? = null, onHeaders: (Map<String, String>) -> Unit = {}, onResponse: (Int, Map<String, String>) -> Unit): Flow<String>`
 
 ## `engine-ai/ai/net/Json.kt`
 

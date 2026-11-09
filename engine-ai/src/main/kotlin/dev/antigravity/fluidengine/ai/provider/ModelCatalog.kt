@@ -72,7 +72,6 @@ object ModelCatalog {
         "transcribe" in lower && "live" !in lower -> stt += info.copy(kind = ModelKind.STT)
         "generateContent" !in methods -> Unit
         geminiNotChat.any { it in lower } -> Unit
-        !info.supportsTools && !includeModelsWithoutTools -> Unit
         else -> chat += info.copy(kind = ModelKind.CHAT)
       }
     }

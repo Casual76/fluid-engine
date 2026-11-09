@@ -291,3 +291,9 @@ le guide inglesi. **Non verificato** dai test JVM: il disegno delle schede, il f
 | `FluidModelPicker.kt` | portale, elenco semplice, elenco OpenRouter, `fluidSummary` |
 | `FluidProviderOrderList.kt` | l'elenco ordinabile |
 | `FluidAiDetails.kt` | dettagli e politica OpenRouter, ultime richieste, diagnostica, `FluidChoiceRowWithChips` |
+
+## Novita 3.0.7: sezioni selezionabili
+
+`fluidAiSettingsSection(parts = ...)` permette di rendere solo i gruppi scelti tramite
+`FluidAiSettingsPart`. Senza filtro rimangono tutti i gruppi e gli slot nel loro ordine storico.
+Usare prefissi chiave distinti quando si divide la sezione nella stessa lista.

@@ -177,7 +177,8 @@ class CodecTest {
         {"id":"openai/whisper-large-v3","name":"Whisper","architecture":{"input_modalities":["audio"],"output_modalities":["text"]},"pricing":{"prompt":"0","completion":"0","audio":"0.0001"},"supported_parameters":[]}
       ]}""",
     )
-    val catalogue = ModelCatalog.openRouter(body)
+    assertEquals(setOf("nvidia/nemotron-3.5-lightning:free", "google/gemini-3.6-flash"), ModelCatalog.openRouter(body).chat.map { it.id }.toSet())
+    val catalogue = ModelCatalog.openRouter(body, includeModelsWithoutTools = true)
     assertEquals(setOf("poolside/laguna:free", "nvidia/nemotron-3.5-lightning:free", "google/gemini-3.6-flash"), catalogue.chat.map { it.id }.toSet())
     assertFalse(catalogue.chat.first { it.id == "poolside/laguna:free" }.supportsTools)
     assertTrue(catalogue.chat.first { it.id.startsWith("nvidia/") }.let { it.free && it.supportsReasoning })

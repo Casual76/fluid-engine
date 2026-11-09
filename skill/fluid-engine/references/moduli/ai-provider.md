@@ -376,3 +376,14 @@ Radice: `engine-ai/src/main/kotlin/dev/antigravity/fluidengine/ai/provider/`.
 | `ToolCallAssembler.kt` | ricomposizione delle tool call di uno stream |
 
 Altre schede: il giro dei tool e il failover in [ai-orchestrator.md](ai-orchestrator.md); chiavi, impostazioni e rete in [ai-chiavi-rete-voce.md](ai-chiavi-rete-voce.md); l'interfaccia in [ai-ui.md](ai-ui.md); i tool federati in [ai-bridge.md](ai-bridge.md); le regole trasversali in [`../regole.md`](../regole.md).
+
+## Novita 3.0.7: tentativi del provider
+
+`ChatRequest.beforeDispatch` osserva ogni invio effettivo, riprove dei parametri comprese;
+`lifecycle` ammette e liquida ogni tentativo tramite `ProviderAttemptLifecycle`.
+`ProviderExecutionContext` propaga identita, scopo e observer alle richieste interne.
+I default sono inerti. Un rifiuto di ammissione o un errore dell'observer interrompe il giro senza
+failover automatico. La liquidazione avviene anche in cancellazione; una risposta non prova un addebito.
+`ModelInfo.visionVerified` distingue modalita dichiarate dal catalogo da capacita ipotizzate.
+`ModelCatalog.openRouter` mantiene il filtro storico; `includeModelsWithoutTools = true`
+include anche modelli testuali senza tool. Le app scelgono esplicitamente questa estensione.

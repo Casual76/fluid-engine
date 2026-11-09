@@ -558,3 +558,11 @@ Radice: `engine-ai/src/main/kotlin/dev/antigravity/fluidengine/ai/`.
 | `tools/Tools.kt` | `AiTool`, `AiToolGroup`, `AiToolCategory`, `ToolOutput`, `ToolRegistry`, `Schema`, `Args`, `ToolText` |
 
 Altre schede: provider e modelli in [ai-provider.md](ai-provider.md); chiavi, impostazioni, rete e voce in [ai-chiavi-rete-voce.md](ai-chiavi-rete-voce.md); l'interfaccia in [ai-ui.md](ai-ui.md); i tool federati in [ai-bridge.md](ai-bridge.md); le regole trasversali in [`../regole.md`](../regole.md).
+
+## Novita 3.0.7: risultati e allegati dinamici
+
+`AskInput.onToolOutput` riceve risultato integrale e identita prima del limite testuale, anche
+per risultati decisi internamente. `prepareToolParts` trasforma gli allegati prima che arrivino al
+modello. I default ignorano il risultato e conservano le parti; il registro persistente resta nell'app.
+`prepareToolExecution` mantiene la stessa API introdotta nella 3.0.6. Gli errori dei nuovi hook
+propagano al chiamante: l'app deve conservare un turno recuperabile senza ripetere scritture incerte.

@@ -120,6 +120,15 @@ class AiHttp(
    * `[DONE]` o alla chiusura del server. Gli errori HTTP arrivano come [AiError] prima del primo
    * evento; quelli di rete a meta' come chiusura del flusso con causa.
    */
+  /** Overload storico: conserva anche la lambda finale per gli header 2xx. */
+  fun postJsonStream(
+    url: String,
+    headers: Map<String, String>,
+    body: JsonObject,
+    chunkTimeoutMillis: Int? = null,
+    onHeaders: (Map<String, String>) -> Unit = {},
+  ): Flow<String> = postJsonStream(url, headers, body, chunkTimeoutMillis, onHeaders, { _, _ -> })
+
   fun postJsonStream(
     url: String,
     headers: Map<String, String>,
@@ -129,7 +138,7 @@ class AiHttp(
     /** Gli header della risposta 2xx (minuscoli), appena arrivano: i limiti stanno li'. */
     onHeaders: (Map<String, String>) -> Unit = {},
     /** All statuses, including rejections; onHeaders retains its existing 2xx-only contract. */
-    onResponse: (Int, Map<String, String>) -> Unit = { _, _ -> },
+    onResponse: (Int, Map<String, String>) -> Unit,
   ): Flow<String> = callbackFlow {
     val connection = open(url, "POST", headers, streaming = true, readTimeoutOverride = chunkTimeoutMillis)
     val reader = launch(io) {

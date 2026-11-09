@@ -29,3 +29,29 @@ La compatibilita verificata e quella dei sorgenti ricompilati; non si promette c
 Quando tag e ramo saranno pubblicati dal responsabile, aggiornare submodule e `engine.properties` insieme con gli strumenti dell'engine e ricompilare. PampAI puo usare direttamente i nuovi hook; per riprodurre anche la policy rigorosa del fork deve scegliere `strictToolExecution = true` e, dove necessario, il catalogo senza tool tramite opt-in. Fluidify riceve i fix scrubber aggiornando il submodule; nessuna nuova API obbligatoria. ClasseViva e le altre app possono conservare i parametri attuali.
 
 Le verifiche delle app usano worktree temporanei esterni, copie dei file tracked e untracked non ignorati degli originali, engine locale al commit candidato e `local.properties` temporaneo con il solo percorso SDK. Nessun commit nei repository delle app.
+
+## Verifiche eseguite
+
+Tutte le invocazioni Gradle sono racchiuse da `powershell -NoProfile -File "C:\VibeCoded Projects\gradle-slot.ps1" -Acquire -Name sol-up-307` e `-Release -Name sol-up-307` in `finally`, con controllo dell'exit code dell'acquisizione. Attesa degli altri gruppi senza sottrarre i loro slot.
+
+Comando finale engine (exit **0**):
+
+```text
+gradlew.bat :engine-ai:testDebugUnitTest :engine-ai-bridge:testDebugUnitTest :engine-ai-ui:testDebugUnitTest :engine-ui:testDebugUnitTest :sample:assembleDebug :sample:testDebugUnitTest --continue --no-daemon --no-watch-fs
+```
+
+| Modulo | Test | Fallimenti/errori/skipped |
+|---|---:|---|
+| engine-ai | 268 | 0/0/0 |
+| engine-ai-bridge | 32 | 0/0/0 |
+| engine-ai-ui | 116 | 0/0/0 |
+| engine-ui | 1087 | 0/0/0 |
+| sample | 411 | 0/0/0 |
+
+Totale: **1914**. Build finale: 2m36s; 185 task (23 eseguiti, 3 da cache, 159 aggiornati). I conteggi XML sono archiviati in `validation/upstream-3.0.7/tests.json`.
+
+Due tentativi preliminari hanno exit **1**: errore di compilazione nella prima modifica al filtro catalogo (corretto) e test bridge di cancellazione con tempo virtuale che anticipava il cleanup IO (portato al tempo reale). Non sono conteggiati come verifiche riuscite.
+
+Nuove regressioni: lifecycle provider e audit importati dal fork; hook risultati integrali e parti dinamiche; filtro catalogo con default storico e opt-in; pagina di interazione durante push/pop; gruppi delle impostazioni senza duplicazioni e conservazione degli slot. Conservate le regressioni scrubber pure e Compose e quelle bridge 3.0.6.
+
+`check_docs.py --check` inizialmente non era supportato (exit 1, interpretato come nome file): lo script ora lo accetta come alias esplicito del controllo senza scritture. Tutti i comandi documentali ordinari e con `--check` sono stati poi eseguiti con exit 0 prima del cambio versione.

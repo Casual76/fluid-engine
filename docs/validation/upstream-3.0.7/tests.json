@@ -1,0 +1,32 @@
+{
+  "engine-ai": {
+    "tests": 268,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "engine-ai-bridge": {
+    "tests": 32,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "engine-ai-ui": {
+    "tests": 116,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "engine-ui": {
+    "tests": 1087,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "sample": {
+    "tests": 411,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

@@ -72,6 +72,7 @@ object ModelCatalog {
         "transcribe" in lower && "live" !in lower -> stt += info.copy(kind = ModelKind.STT)
         "generateContent" !in methods -> Unit
         geminiNotChat.any { it in lower } -> Unit
+        !info.supportsTools && !includeModelsWithoutTools -> Unit
         else -> chat += info.copy(kind = ModelKind.CHAT)
       }
     }
@@ -84,7 +85,7 @@ object ModelCatalog {
     )
   }
 
-  fun openRouter(body: JsonElement?): ModelCatalogue {
+  fun openRouter(body: JsonElement?, includeModelsWithoutTools: Boolean = false): ModelCatalogue {
     val chat = mutableListOf<ModelInfo>()
     val stt = mutableListOf<ModelInfo>()
     body["data"].asArray().forEach { entry ->
@@ -107,6 +108,7 @@ object ModelCatalog {
         supportsReasoning = "reasoning" in parameters || "include_reasoning" in parameters,
         audioInput = "audio" in inputs,
         supportsVision = "image" in inputs,
+        visionVerified = inputs.isNotEmpty(),
         // Il parser di OpenRouter legge i PDF per qualunque modello: i documenti passano sempre.
         supportsDocuments = true,
         free = free,
@@ -119,7 +121,7 @@ object ModelCatalog {
         transcription -> stt += info.copy(kind = ModelKind.STT)
         "text" !in outputs && outputs.isNotEmpty() -> Unit
         openRouterNotChat.any { it in lower } -> Unit
-        !info.supportsTools -> Unit
+        !info.supportsTools && !includeModelsWithoutTools -> Unit
         else -> chat += info.copy(kind = ModelKind.CHAT)
       }
     }

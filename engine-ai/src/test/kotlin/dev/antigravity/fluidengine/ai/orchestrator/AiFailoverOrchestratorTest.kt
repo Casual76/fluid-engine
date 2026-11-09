@@ -137,6 +137,26 @@ class AiFailoverOrchestratorTest {
     onModelUnavailable = onModelUnavailable,
   )
 
+  @Test fun admissionDenialIsNeverRetriedOrFailedOver() = runBlocking {
+    val denied = dev.antigravity.fluidengine.ai.provider.ProviderAdmissionDenied("budget")
+    val groq = FoProvider(ProviderId.GROQ, listOf(FoTurn.Fail(denied)))
+    val gemini = FoProvider(ProviderId.GEMINI, listOf(FoTurn.Text("never")))
+    val failure = runCatching { orchestrator.ask(input(ready(groq), ready(gemini)), MutableStateFlow(AssistantState.Idle)) }.exceptionOrNull()
+    assertTrue(failure === denied)
+    assertEquals(1, groq.streamed.size)
+    assertTrue(gemini.streamed.isEmpty())
+  }
+
+  @Test fun routerAdmissionDenialDoesNotBecomeFallbackVerdict() = runBlocking {
+    val denied = dev.antigravity.fluidengine.ai.provider.ProviderAdmissionDenied("router budget")
+    val groq = FoProvider(ProviderId.GROQ, emptyList(), classifierError = denied)
+    val gemini = FoProvider(ProviderId.GEMINI, listOf(FoTurn.Text("never")))
+    val failure = runCatching { orchestrator.ask(input(ready(groq), ready(gemini), preselected = null), MutableStateFlow(AssistantState.Idle)) }.exceptionOrNull()
+    assertTrue(failure === denied)
+    assertEquals(1, groq.routed.size)
+    assertTrue(groq.streamed.isEmpty()); assertTrue(gemini.streamed.isEmpty()); assertTrue(gemini.routed.isEmpty())
+  }
+
   private fun toolUseFailed() = AiError.BadRequest(400, "Failed to call a function.", BadReason.TOOL_USE_FAILED)
   private fun tooLong() = AiError.BadRequest(413, "Request too large", BadReason.CONTEXT_TOO_LONG)
   private fun modelGone() = AiError.BadRequest(404, "model not found", BadReason.MODEL_UNAVAILABLE)

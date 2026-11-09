@@ -26,6 +26,8 @@ import dev.antigravity.fluidengine.ai.tools.AiTool
 import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
 import dev.antigravity.fluidengine.ai.tools.ToolExecution
+import dev.antigravity.fluidengine.ai.tools.ToolArgumentValidator
+import dev.antigravity.fluidengine.ai.tools.ToolOutcome
 import dev.antigravity.fluidengine.ai.tools.modelText
 import dev.antigravity.fluidengine.ai.tools.ToolOutput
 import dev.antigravity.fluidengine.ai.tools.ToolRegistry
@@ -127,6 +129,10 @@ class AskInput<C>(
    * `run(args, ctx)` non vedono differenze: l'overload a tre argomenti di serie la ignora.
    */
   val prepareToolExecution: suspend (ToolCall) -> ToolExecution = { ToolExecution(UUID.randomUUID().toString()) },
+  /** Full untruncated result for persistence/cards, before model-facing text limits. */
+  val onToolOutput: suspend (ToolCall, ToolExecution?, ToolOutput) -> Unit = { _, _, _ -> },
+  /** App-owned immutable policy for every dynamic part; throw to preserve a recoverable failed turn. */
+  val prepareToolParts: suspend (List<ContentPart>) -> List<ContentPart> = { it },
 )
 
 /** I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso. */
@@ -485,14 +491,14 @@ class AiOrchestrator<C>(
         }
       }
 
-      val runs = executeParallel(outcome.calls, input.toolContext, budget, toolTraces, opened, input.prepareToolExecution)
+      val runs = executeParallel(outcome.calls, input.toolContext, budget, toolTraces, opened, input)
       val parts = mutableListOf<ContentPart>()
       runs.forEach { run ->
         val message = Message.ToolResult(run.call.id, run.call.name, run.output.modelText(config.toolTextChars))
         messages += message
         toolRound += message
         toolChars += run.output.text.length
-        parts += run.output.parts
+        parts += input.prepareToolParts(run.output.parts)
         if (hierarchical) registry.find(run.call.name)?.let { conversation.touch(listOf(it.group)) }
       }
 
@@ -1105,8 +1111,7 @@ class AiOrchestrator<C>(
     traces: MutableList<ToolTrace>,
     /** Le risposte gia' decise per le chiamate built-in (aperture di gruppi e categorie). */
     decided: Map<String, ToolOutput>,
-    /** [AskInput.prepareToolExecution]: l'identita' dell'operazione, una per chiamata. */
-    prepareExecution: suspend (ToolCall) -> ToolExecution,
+    input: AskInput<C>,
   ): List<ToolRun> = coroutineScope {
     val semaphore = Semaphore(config.parallelTools)
     // Le conferme dello stesso giro si mettono in fila nel cancello, una finestra per volta: chi e'
@@ -1119,27 +1124,34 @@ class AiOrchestrator<C>(
       async(Dispatchers.IO) {
         semaphore.withPermit {
           val started = clock()
+          var execution: ToolExecution? = null
           val output = decided[call.id] ?: if (call.name == ToolRegistry.DEEP_MODEL) {
             ToolOutput("ok: dal prossimo passo rispondi tu, con il modello piu' capace; continua da dove sei, non ricominciare", escalate = true)
           } else {
             val tool = registry.find(call.name)
             if (tool == null) {
               ToolOutput.error("strumento sconosciuto \"${call.name}\"")
+            } else if (ToolArgumentValidator.error(call.arguments, tool.parameters) != null) {
+              ToolOutput.error(ToolArgumentValidator.error(call.arguments, tool.parameters)!!)
             } else {
               val timeout = toolTimeoutMillis(tool, budget.remainingMillis, confirmationsInRound)
               withTimeoutOrNull(timeout) {
-                // L'identita' si prepara una volta e accompagna tutta l'esecuzione (conferma
-                // compresa): e' l'overload a tre argomenti, e chi implementa solo run(args, ctx)
-                // ci arriva lo stesso attraverso il default dell'interfaccia.
-                runCatching { tool.run(call.arguments, ctx, prepareExecution(call)) }.getOrElse { e ->
+                runCatching {
+                  val prepared = input.prepareToolExecution(call)
+                  execution = prepared
+                  tool.run(call.arguments, ctx, prepared)
+                }.getOrElse { e ->
                   if (e is CancellationException) throw e
                   ToolOutput.error(e.message ?: e::class.simpleName ?: "errore")
                 }
-              } ?: ToolOutput.error("lo strumento non ha risposto in tempo")
+              } ?: ToolOutput("errore: lo strumento non ha risposto in tempo", result = dev.antigravity.fluidengine.ai.tools.ToolResultDetails(
+                ToolOutcome.UNCERTAIN, error = dev.antigravity.fluidengine.ai.tools.ToolError("timeout", "Tool timed out; effect unverified"),
+              ))
             }
           }
+          input.onToolOutput(call, execution, output)
           val limited = output.copy(text = ToolText.limit(output.text, config.toolTextChars))
-          ToolRun(call, limited) to ToolTrace(call.name, clock() - started, !limited.text.startsWith("errore"), limited.text.length)
+          ToolRun(call, limited) to ToolTrace(call.name, clock() - started, (limited.result?.outcome?.let { it == ToolOutcome.COMPLETED || it == ToolOutcome.ACCEPTED } ?: !limited.text.startsWith("errore")), limited.text.length, limited.result)
         }
       }
     }.awaitAll()

@@ -183,6 +183,9 @@ class FluidAiSettingsSlots(
   val footer: (LazyListScope.() -> Unit)? = null,
 )
 
+/** Independently renderable groups; omitting the filter preserves the complete legacy section. */
+enum class FluidAiSettingsPart { Enabled, Keys, Order, Models, Preferences, Privacy, Recent }
+
 /**
  * Impostazioni → Assistente IA, come righe di una lista che la pagina dell'app ospita (come
  * `fluidLicensesSection` e `fluidAppearanceSection`): l'interruttore (che la prima volta puo'
@@ -200,6 +203,7 @@ class FluidAiSettingsSlots(
  *
  * @param glass le liste come pannelli di vetro (la pagina deve avere un canvas ambientale).
  * @param keyPrefix il prefisso delle chiavi degli item, se la pagina ha due sezioni di questo tipo.
+ * @param parts the groups rendered by this call; slots still run in their usual order. All groups by default.
  * @param enabledModifier il modificatore del gruppo con l'interruttore (3.0.4): un suggerimento della prima volta
  *   si aggancia li' (`onGloballyPositioned`, `fluidTutorialAnchor`), senza reimplementare la riga.
  */
@@ -212,12 +216,13 @@ fun LazyListScope.fluidAiSettingsSection(
   glass: Boolean = true,
   keyPrefix: String = "fluid-ai",
   enabledModifier: Modifier = Modifier,
+  parts: Set<FluidAiSettingsPart> = FluidAiSettingsPart.entries.toSet(),
 ) {
   val verified = state.verified
 
   slots.beforeKeys?.invoke(this)
 
-  item(key = "$keyPrefix-enabled") {
+  if (FluidAiSettingsPart.Enabled in parts) item(key = "$keyPrefix-enabled") {
     FluidListGroup(modifier = enabledModifier, glass = glass) {
       FluidListRow(
         title = strings.enabledTitle,
@@ -239,44 +244,46 @@ fun LazyListScope.fluidAiSettingsSection(
     }
   }
 
-  item(key = "$keyPrefix-keys-header") { FluidSectionHeader(title = strings.keysTitle, detail = strings.keysDetail) }
-  item(key = "$keyPrefix-keys") {
-    FluidListGroup(glass = glass) {
-      ProviderId.entries.forEachIndexed { index, provider ->
-        if (index > 0) FluidListDivider()
-        FluidAiKeySetup(
-          provider = provider,
-          state = state.keys[provider] ?: KeyState(false, null),
-          saveAndVerify = actions.saveAndVerify,
-          onRemove = actions.removeKey,
-          initiallyExpanded = options.initiallyExpandFirstKey && provider == ProviderId.entries.first() && verified.isEmpty(),
-          onVerified = { actions.onVerified(provider, it) },
-          strings = strings,
-        )
-        if (provider == ProviderId.OPENROUTER && state.keys[provider]?.present == true) {
-          FluidOpenRouterKeyDetails(
-            settings = state.settings,
-            catalogue = state.catalogues[ProviderId.OPENROUTER],
-            info = state.keyInfo[ProviderId.OPENROUTER],
-            quota = state.openRouterQuota,
+  if (FluidAiSettingsPart.Keys in parts) {
+    item(key = "$keyPrefix-keys-header") { FluidSectionHeader(title = strings.keysTitle, detail = strings.keysDetail) }
+    item(key = "$keyPrefix-keys") {
+      FluidListGroup(glass = glass) {
+        ProviderId.entries.forEachIndexed { index, provider ->
+          if (index > 0) FluidListDivider()
+          FluidAiKeySetup(
+            provider = provider,
+            state = state.keys[provider] ?: KeyState(false, null),
+            saveAndVerify = actions.saveAndVerify,
+            onRemove = actions.removeKey,
+            initiallyExpanded = options.initiallyExpandFirstKey && provider == ProviderId.entries.first() && verified.isEmpty(),
+            onVerified = { actions.onVerified(provider, it) },
             strings = strings,
           )
-          if (options.dataPolicy) {
-            FluidListDivider()
-            FluidOpenRouterDataPolicyRow(
-              policy = state.settings.openRouterDataPolicy,
-              onPolicy = actions.setOpenRouterDataPolicy,
+          if (provider == ProviderId.OPENROUTER && state.keys[provider]?.present == true) {
+            FluidOpenRouterKeyDetails(
+              settings = state.settings,
+              catalogue = state.catalogues[ProviderId.OPENROUTER],
+              info = state.keyInfo[ProviderId.OPENROUTER],
+              quota = state.openRouterQuota,
               strings = strings,
             )
+            if (options.dataPolicy) {
+              FluidListDivider()
+              FluidOpenRouterDataPolicyRow(
+                policy = state.settings.openRouterDataPolicy,
+                onPolicy = actions.setOpenRouterDataPolicy,
+                strings = strings,
+              )
+            }
           }
         }
       }
     }
-  }
 
+  }
   slots.afterKeys?.invoke(this)
 
-  if (verified.size > 1) {
+  if (FluidAiSettingsPart.Order in parts && verified.size > 1) {
     item(key = "$keyPrefix-order-header") { FluidSectionHeader(title = strings.orderTitle, detail = fluidAiOrderDetail(strings, hasFailoverSwitch(state, actions))) }
     item(key = "$keyPrefix-order-chat") {
       FluidOrderLabel(strings.orderChat)
@@ -304,7 +311,7 @@ fun LazyListScope.fluidAiSettingsSection(
     }
   }
 
-  if (fluidAiShowsModels(state, options)) {
+  if (FluidAiSettingsPart.Models in parts && fluidAiShowsModels(state, options)) {
     item(key = "$keyPrefix-models-header") {
       FluidSectionHeader(title = strings.modelsTitle, detail = if (options.tiers) strings.modelsDetail else strings.modelsDetailChatOnly)
     }
@@ -314,14 +321,14 @@ fun LazyListScope.fluidAiSettingsSection(
   slots.afterModels?.invoke(this)
 
   val showPreferences = options.thinking || options.speakReplies || options.actions || state.failoverEnabled != null || options.microphone
-  if (showPreferences) {
+  if (FluidAiSettingsPart.Preferences in parts && showPreferences) {
     item(key = "$keyPrefix-prefs-header") { FluidSectionHeader(title = strings.prefsTitle) }
     item(key = "$keyPrefix-prefs") { FluidAiPreferences(state, actions, strings, options, glass) }
   }
 
   slots.afterPreferences?.invoke(this)
 
-  if (options.privacyNote && strings.privacyNote.isNotBlank()) {
+  if (FluidAiSettingsPart.Privacy in parts && options.privacyNote && strings.privacyNote.isNotBlank()) {
     item(key = "$keyPrefix-privacy") {
       Text(
         strings.privacyNote,
@@ -332,7 +339,7 @@ fun LazyListScope.fluidAiSettingsSection(
     }
   }
 
-  if (options.recentRequests && state.recent.isNotEmpty()) {
+  if (FluidAiSettingsPart.Recent in parts && options.recentRequests && state.recent.isNotEmpty()) {
     item(key = "$keyPrefix-recent-header") { FluidSectionHeader(title = strings.recentTitle, detail = strings.recentDetail) }
     item(key = "$keyPrefix-recent") {
       FluidListGroup(glass = glass) {

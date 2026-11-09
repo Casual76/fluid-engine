@@ -6,6 +6,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.0.7 - 2026-11-09
+
+- Integrati gli hook runtime IA e i controlli pagina di PampAI; corretto lo scrubber di Fluidify. Nuove policy IA opzionali con default compatibili con 3.0.6.
+
+
 ## 3.0.6 - 2026-11-08
 
 - Corretto il Back dei menu sopra pagine annidate; preservata la compatibilita source-proof v1 e typed v2 gia pubblicata.

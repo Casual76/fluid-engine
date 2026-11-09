@@ -156,6 +156,7 @@ class AiOrchestratorTest {
     deep: Boolean = false,
     pin: Boolean = false,
     prepareParts: suspend (List<ContentPart>) -> List<ContentPart> = { it },
+    strict: Boolean = false,
   ) = AskInput(
     question = question,
     mode = AskMode.TEXT,
@@ -172,6 +173,7 @@ class AiOrchestratorTest {
     deepRequested = deep,
     pinProvider = pin,
     prepareToolParts = prepareParts,
+    strictToolExecution = strict,
   )
 
   private fun args(x: String) = buildJsonObject { put("x", JsonPrimitive(x)) }
@@ -229,7 +231,7 @@ class AiOrchestratorTest {
     val orchestrator = AiOrchestrator(ToolRegistry(listOf(tool), G.entries), router, diagnostics)
     val request = AskInput(question = "execute", mode = AskMode.TEXT, language = "it", settings = AiSettings(),
       providers = listOf(ready(groq)), toolContext = Ctx(), systemPrompt = "assistant", conversation = Conversation(1, 0),
-      actionsEnabled = true, preselectedGroups = setOf(G.HOURLY),
+      actionsEnabled = true, preselectedGroups = setOf(G.HOURLY), strictToolExecution = true,
       prepareToolExecution = { prepared = true; dev.antigravity.fluidengine.ai.tools.ToolExecution("persisted") },
       onToolOutput = { _, identity, output -> assertEquals("persisted", identity?.operationId); seen = output })
     val result = orchestrator.ask(request, MutableStateFlow(AssistantState.Idle))
@@ -245,7 +247,7 @@ class AiOrchestratorTest {
       Scripted.Calls(listOf("adesso" to dev.antigravity.fluidengine.ai.provider.ToolCallAssembler.parseArguments("{"))),
       Scripted.Text("Argomenti non validi."),
     ))
-    val result = orchestrator().ask(input("execute", groq, preselected = setOf(G.HOURLY)), MutableStateFlow(AssistantState.Idle))
+    val result = orchestrator().ask(input("execute", groq, preselected = setOf(G.HOURLY), strict = true), MutableStateFlow(AssistantState.Idle))
     assertTrue(now.calls.isEmpty())
     assertFalse(result.log.tools.single().ok)
   }

@@ -133,6 +133,8 @@ class AskInput<C>(
   val onToolOutput: suspend (ToolCall, ToolExecution?, ToolOutput) -> Unit = { _, _, _ -> },
   /** App-owned immutable policy for every dynamic part; throw to preserve a recoverable failed turn. */
   val prepareToolParts: suspend (List<ContentPart>) -> List<ContentPart> = { it },
+  /** Opt-in Aria: valida argomenti e distingue timeout incerti e tracce typed. Default: semantica 3.0.6. */
+  val strictToolExecution: Boolean = false,
 )
 
 /** I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso. */
@@ -1131,7 +1133,7 @@ class AiOrchestrator<C>(
             val tool = registry.find(call.name)
             if (tool == null) {
               ToolOutput.error("strumento sconosciuto \"${call.name}\"")
-            } else if (ToolArgumentValidator.error(call.arguments, tool.parameters) != null) {
+            } else if (input.strictToolExecution && ToolArgumentValidator.error(call.arguments, tool.parameters) != null) {
               ToolOutput.error(ToolArgumentValidator.error(call.arguments, tool.parameters)!!)
             } else {
               val timeout = toolTimeoutMillis(tool, budget.remainingMillis, confirmationsInRound)
@@ -1144,14 +1146,14 @@ class AiOrchestrator<C>(
                   if (e is CancellationException) throw e
                   ToolOutput.error(e.message ?: e::class.simpleName ?: "errore")
                 }
-              } ?: ToolOutput("errore: lo strumento non ha risposto in tempo", result = dev.antigravity.fluidengine.ai.tools.ToolResultDetails(
+              } ?: if (!input.strictToolExecution) ToolOutput.error("lo strumento non ha risposto in tempo") else ToolOutput("errore: lo strumento non ha risposto in tempo", result = dev.antigravity.fluidengine.ai.tools.ToolResultDetails(
                 ToolOutcome.UNCERTAIN, error = dev.antigravity.fluidengine.ai.tools.ToolError("timeout", "Tool timed out; effect unverified"),
               ))
             }
           }
           input.onToolOutput(call, execution, output)
           val limited = output.copy(text = ToolText.limit(output.text, config.toolTextChars))
-          ToolRun(call, limited) to ToolTrace(call.name, clock() - started, (limited.result?.outcome?.let { it == ToolOutcome.COMPLETED || it == ToolOutcome.ACCEPTED } ?: !limited.text.startsWith("errore")), limited.text.length, limited.result)
+          ToolRun(call, limited) to ToolTrace(call.name, clock() - started, (limited.result?.outcome?.takeIf { input.strictToolExecution }?.let { it == ToolOutcome.COMPLETED || it == ToolOutcome.ACCEPTED } ?: !limited.text.startsWith("errore")), limited.text.length, limited.result)
         }
       }
     }.awaitAll()

@@ -84,7 +84,7 @@ class RemoteToolTest {
     assertEquals(1, calls.requestIds.size)
   }
 
-  @Test fun cancellationCancelsRunningRemoteJobOnceAndPropagates() = runTest {
+  @Test fun cancellationCancelsRunningRemoteJobOnceAndPropagates() = kotlinx.coroutines.runBlocking {
     val calls = FakeHost(runResult = { RemoteResult.Job("job-1") })
     val tool = RemoteTool(calls, catalog, info("write", longRunning = true, action = true), group, FakeToolHost())
     val running = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { tool.run(buildJsonObject {}, Unit, dev.antigravity.fluidengine.ai.tools.ToolExecution("persisted-parent")) }

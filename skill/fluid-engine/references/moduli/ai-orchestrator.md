@@ -566,3 +566,7 @@ per risultati decisi internamente. `prepareToolParts` trasforma gli allegati pri
 modello. I default ignorano il risultato e conservano le parti; il registro persistente resta nell'app.
 `prepareToolExecution` mantiene la stessa API introdotta nella 3.0.6. Gli errori dei nuovi hook
 propagano al chiamante: l'app deve conservare un turno recuperabile senza ripetere scritture incerte.
+
+`strictToolExecution = true` abilita validazione preventiva dei tool locali, timeout con esito
+incerto e valutazione delle tracce dall'esito typed. Il default `false` conserva la semantica 3.0.6;
+i nuovi hook funzionano indipendentemente da questa scelta.

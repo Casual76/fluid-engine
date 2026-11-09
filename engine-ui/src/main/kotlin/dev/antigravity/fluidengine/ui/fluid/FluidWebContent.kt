@@ -189,6 +189,16 @@ fun rememberFluidWebContentState(): FluidWebContentState = remember { FluidWebCo
  * Il documento radice e' servito su un'origine casuale .invalid, con CSP sandbox e no-store.
  * Nessun `baseUrl` pubblico: un'origine controllata dall'HTML potrebbe condividere dati con altre viste.
  *
+ * Prima di arrivare al renderer il documento viene sigillato, sempre e senza opzioni: `preconnect`,
+ * `dns-prefetch` e `x-dns-prefetch-control` non sono caricamenti, quindi aprirebbero socket e
+ * risolverebbero nomi senza passare da [onRequest] (basta a un mittente per sapere che il documento e'
+ * stato aperto). Ogni `<link`, `<meta` e `<iframe` scritto dal documento viene neutralizzato, anche
+ * travestito o dentro commenti e `<svg>`. Sopravvivono, riscritti dal contenitore: un foglio di stile
+ * esterno semplice (`rel="stylesheet"`, con `href`, `media`, `title`), che resta una richiesta per
+ * [onRequest]; `<meta name="viewport">`; `<meta name="color-scheme">`. Gli iframe non vengono resi,
+ * nemmeno `srcdoc`. Non sopravvivono icone, `preload`, `<meta http-equiv>` e i fogli con `integrity`,
+ * `crossorigin` o attributi ambigui. Un documento senza quei tag arriva al renderer identico.
+ *
  * [onRequest] deve essere thread-safe e finito; le eccezioni bloccano la risorsa. Il suo aggiornamento
  * non ricarica il documento: per applicare nuovi consensi alle risorse gia' bloccate chiamare retry.
  * [onLinkClick] e [onLinkLongPress] sono sul main thread; l'app decide se e dove aprire la destinazione.
@@ -242,7 +252,16 @@ fun FluidWebContent(
         state.fail(token, FluidWebFailure.ContentTooLarge)
         return@LaunchedEffect
       }
-      document = withContext(Dispatchers.Default) { html.toByteArray(Charsets.UTF_8) }
+      // Il sigillo e' parte del contratto chiuso, non un'opzione: vedi FluidWebSeal.
+      val sealed = withContext(Dispatchers.Default) {
+        FluidWebSeal.seal(html).takeIf(FluidWebSeal::isSealed)?.toByteArray(Charsets.UTF_8)
+      }
+      if (sealed == null) {
+        // Non deve succedere: se la riscrittura e il suo controllo non concordano, non si carica nulla.
+        state.fail(token, FluidWebFailure.Unavailable)
+        return@LaunchedEffect
+      }
+      document = sealed
       delay(15_000)
       if (state.phase == FluidWebPhase.Loading) {
         state.fail(token, FluidWebFailure.Timeout)
@@ -363,6 +382,7 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
   private var darkAppearance: Boolean? = null
   private val main = Handler(Looper.getMainLooper())
 
+  @androidx.annotation.OptIn(markerClass = [WebSettingsCompat.ExperimentalSpeculativeLoading::class])
   fun configure(
     html: ByteArray,
     request: (FluidWebRequest) -> FluidWebResponse,
@@ -409,6 +429,11 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
       useWideViewPort = true
       loadWithOverviewMode = true
       displayZoomControls = false
+    }
+    // Di serie e' gia' spento: lo si dichiara, cosi' un provider che cambiasse il valore non apre
+    // precaricamenti e prerender decisi dal documento.
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.SPECULATIVE_LOADING)) {
+      WebSettingsCompat.setSpeculativeLoadingStatus(settings, WebSettingsCompat.SPECULATIVE_LOADING_DISABLED)
     }
     setNetworkAvailable(false)
     removeJavascriptInterface("searchBoxJavaBridge_")
@@ -589,6 +614,8 @@ private fun response(mime: String, encoding: String?, stream: InputStream): WebR
       "Cache-Control" to "no-store", "Referrer-Policy" to "no-referrer",
       "Content-Security-Policy" to FluidWebContentDefaults.Csp,
       "X-Content-Type-Options" to "nosniff",
+      // Spegne la risoluzione anticipata dei nomi delle ancore; un <meta> successivo non la riaccende.
+      "X-DNS-Prefetch-Control" to "off",
     ), stream)
   } catch (failure: Exception) {
     stream.close()

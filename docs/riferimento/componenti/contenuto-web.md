@@ -4,7 +4,7 @@
 # Contenuto web: FluidWebContent
 
 Un contenitore per **HTML locale che arriva da qualcun altro** (il corpo di una mail, una newsletter, le note di una versione scritte altrove, un documento esportato), **chiuso per costruzione**: JavaScript spento, nessuna
-rete nativa, nessuna navigazione, ogni richiesta consegnata all'app, che di serie la blocca. Famiglia «Contenuto» ([`contenuto.md`](contenuto.md) ha l'indice). File: `engine-ui/.../ui/fluid/FluidWebContent.kt`. Dalla 3.1.0
+rete nativa, nessuna navigazione, ogni richiesta consegnata all'app, che di serie la blocca, e i suggerimenti di rete tolti prima che il documento arrivi al renderer (il sigillo, dalla 3.1.1). Famiglia «Contenuto» ([`contenuto.md`](contenuto.md) ha l'indice). File: `engine-ui/.../ui/fluid/FluidWebContent.kt`. Dalla 3.1.0
 (Pampa Mail, F1.5, gruppo G-C). Catalogo delle firme: [`../api/contenuto-web.md`](../api/contenuto-web.md) (generato).
 
 **Modello mentale in due frasi.** Il contenitore è un **recinto**: non decide cosa è sicuro mostrare, impedisce che quello che mostra faccia qualcosa. L'engine non sa cos'è una mail né quale immagine è un tracker: **sanificare
@@ -18,6 +18,7 @@ l'HTML, decidere quali risorse caricare e verificare dove portano i link sono de
 | il testo di una mail in una pagina con altro contenuto | `sizing = FluidWebSizing.WrapContent(maxHeight)` (di serie 2048 dp): cede lo scroll alla pagina finché il contenuto entra |
 | un documento lungo in una viewport fissa | `FluidWebSizing.Viewport(height)` (di serie 600 dp), meglio in una pagina senza altro scroll |
 | caricare le immagini che l'utente ha permesso | `onRequest = { req -> … FluidWebResponse.Serve(mime, encoding) { stream } }` col **tuo** client, senza cookie né referer |
+| il foglio di stile esterno di una newsletter (per esempio i suoi caratteri) | niente di speciale: `<link rel="stylesheet">` resta una richiesta per `onRequest`, come un'immagine. Gli altri `<link>` no: vedi «Il sigillo» |
 | sapere dove porta davvero un link | `onLinkClick(FluidWebLink(url, visibleText))`: la **destinazione vera** e il testo visibile, e la verifica è tua |
 | il menu di un link (copia, apri, condividi) | `onLinkLongPress = { link -> … }` |
 | scurire un documento chiaro | `darkening = true` (**ricrea** la vista: costo sotto) |
@@ -57,8 +58,10 @@ Cosa è chiuso, tutto insieme e **non negoziabile dall'app** (nessun parametro l
 - **JavaScript spento**, nessun bridge, nessun accesso a file o `content:`, nessuno storage, nessun form, nessuna finestra, nessun permesso. Una politica di sicurezza (CSP) in intestazione su ogni documento:
   `sandbox; script-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; form-action 'none'; base-uri 'none'; connect-src 'none'`. Un `<script>`, un `onload`, un `<meta refresh>`, un `<svg onload>`, un
   `data:` con script: niente gira.
-- **Nessuna rete nativa.** La WebView non apre connessioni da sola. Ogni risorsa (immagine, foglio di stile, font) è una **richiesta consegnata all'app** (`onRequest`); l'app o serve byte o blocca. **Non si può restituire `null`**
-  (autorizzerebbe il caricamento nativo): `FluidWebResponse.Block` è una risposta vuota locale.
+- **Nessuna rete nativa.** Ogni risorsa (immagine, foglio di stile, font, video) è una **richiesta consegnata all'app** (`onRequest`); l'app o serve byte o blocca. **Non si può restituire `null`**
+  (autorizzerebbe il caricamento nativo): `FluidWebResponse.Block` è una risposta vuota locale. Quello che in un documento **non** è una richiesta, cioè i suggerimenti di rete (`preconnect`, `dns-prefetch`), lo toglie **il
+  sigillo** prima che il documento arrivi al renderer (sezione sotto, dalla 3.1.1). La garanzia, nei termini in cui è provata: con i documenti del censimento e delle varianti travestite, sull'emulatore di prova, **nessuna
+  connessione TCP e nessuna richiesta DNS** parte senza passare da `onRequest`. Non è una promessa su ogni versione futura del provider: è ciò che le prove osservano, e le prove si rilanciano.
 - **Nessuna navigazione interna.** Toccare un link **non naviga**: `onLinkClick` riceve la **destinazione vera** e, quando il renderer riesce a fornirlo senza eseguire script, il **testo visibile** (`FluidWebLink.url`,
   `visibleText`). È il pezzo che serve contro il phishing («https://banca.it» che porta altrove): l'app confronta e decide. Un `javascript:` non esegue niente.
 - **Nessuna identificazione.** Lo `User-Agent` è `WebContent/1.0`: né dispositivo, né versione, né app.
@@ -70,13 +73,78 @@ Cosa è chiuso, tutto insieme e **non negoziabile dall'app** (nessun parametro l
 - **Il renderer che muore si recupera.** `FluidWebFailure.RendererGone` arriva allo slot `failure`; `state.retry()` **distrugge e ricrea** la vista con un profilo nuovo (non rianima un renderer morto) e non salva né HTML né
   consensi fra istanze.
 
+## Il sigillo: i suggerimenti di rete (3.1.1)
+
+**Il difetto della 3.1.0.** `<link rel="preconnect" href="https://host">` faceva aprire a Chromium **due connessioni TLS native** verso quell'host, e `<link rel="dns-prefetch">` una **richiesta DNS**, senza una sola chiamata a
+`onRequest`. Con un host diverso per ogni destinatario, a un mittente bastava per sapere che il documento era stato aperto, quando e da quale indirizzo, anche con i contenuti remoti rifiutati. Le tre chiusure di allora non
+c'entravano: un suggerimento **non è un caricamento**, il renderer lo passa al processo browser, che apre il socket o risolve il nome senza creare una richiesta. Quindi `blockNetworkLoads` (che ferma le richieste),
+`setNetworkAvailable(false)` (che cambia solo `navigator.onLine`) e la CSP (che non ha una direttiva per i suggerimenti) non lo vedevano. Anche **`<iframe srcdoc>`** apriva connessioni: `frame-src 'none'` non ferma un documento
+scritto dentro un attributo, e dentro ci stava un `preconnect`, anche codificato a entità.
+
+**Perché non un filtro che legge l'HTML.** WebView non ha un'impostazione che spegne i suggerimenti (le due leve del motore che esistono sono dichiarate sotto, e non bastano). Resta riscrivere il documento, e un filtro che
+«capisce» l'HTML quasi come il browser è proprio il modo in cui questi filtri si bucano. Chromium, poi, ha **due** analizzatori che non concordano, e le prove lo mostrano: con `rel=stylesheet rel=preconnect` l'albero tiene
+il primo `rel` e lo scanner di precaricamento l'ultimo (e apre il socket); dentro `<svg>` l'albero non crea un link HTML e lo scanner sì. Il sigillo si appoggia a un fatto solo, vero per entrambi e verificato col vero
+Chromium: **un elemento `link`, `meta` o `iframe` nasce soltanto dalla sequenza letterale `<` + nome** (maiuscole e minuscole ASCII). Niente entità, NUL, caratteri invisibili o codifica la sostituiscono.
+
+**Cosa fa**, in una sola passata, **senza guardare il contesto** (vale anche dentro commenti, CDATA, attributi, `<style>`, `<svg>`, `<template>` e tag non chiusi):
+
+| nel documento | diventa | perché |
+|---|---|---|
+| `<link` | `<basefont` | un elemento vuoto, ammesso in `head` e in `body` come `link`, che Chromium non implementa: l'albero conserva la forma, gli attributi restano attaccati a qualcosa che non fa nulla |
+| `<meta` | `<basefont` | lo stesso; così spariscono gli `http-equiv` (`refresh`, `x-dns-prefetch-control`, una CSP del documento, `origin-trial`, `accept-ch`) |
+| `<iframe`, `</iframe` | `<noframes`, `</noframes` | testo grezzo nascosto, com'era il contenuto di ripiego dell'iframe: **nessun documento annidato**, nemmeno da `srcdoc` |
+
+Prima dell'originale neutralizzato il sigillo scrive un elemento **canonico**, composto da lui e non copiato, solo in tre casi utili e innocui:
+
+- **un foglio di stile semplice**: `rel` uguale a `stylesheet` e basta, con `href` e, se ci sono, `media` e `title`. Diventa `<link rel="stylesheet" href="…">` e resta una richiesta per `onRequest`;
+- `<meta name="viewport" content="…">`;
+- `<meta name="color-scheme" content="…">`.
+
+**In caso di dubbio rinuncia**: attributo duplicato, entità che non sia numerica o una delle cinque dell'XML, virgolette o spazi mancanti, NUL, `rel` con più parole (`alternate stylesheet`, `stylesheet preconnect`), `type`
+diverso da `text/css`, `disabled`, `integrity`, `crossorigin` (il contenitore non può onorarli: le intestazioni della risposta sono sue), `<meta>` con `http-equiv`. Un errore di lettura può quindi solo **togliere un foglio di
+stile** o sbagliarne l'indirizzo (che passa comunque da `onRequest`); **non può produrre un suggerimento**, perché nell'elemento canonico `rel` è una costante e i valori sono riscritti con le virgolette protette. Prima di
+caricare, il contenitore ricontrolla l'esito con una grammatica indipendente; se non torna non carica nulla (`FluidWebFailure.Unavailable`). **Un documento senza `<link`, `<meta` e `<iframe` arriva al renderer identico, byte
+per byte.**
+
+**Cosa cambia per un documento rispetto alla 3.1.0** (senza effetto visibile su una mail ordinaria): non esistono più icone (`rel="icon"`), `preload`, `prefetch` (erano richieste per `onRequest`); un `<meta http-equiv>` non ha
+più effetto, compresa una CSP scritta dal documento (quella del contenitore resta, in intestazione); `charset` e `referrer` in `<meta>` erano già ininfluenti (UTF-8 e `no-referrer` sono in intestazione); **gli iframe non
+vengono resi**, nemmeno `srcdoc`; un foglio con `integrity` o `crossorigin` non viene richiesto. Il testo `<link`, `<meta` o `<iframe` scritto **dentro** `<textarea>`, `<title>`, `<xmp>` o un commento cambia anch'esso (lì è
+solo testo): una mail che mostra codice lo scrive con `&lt;` e non è toccata.
+
+**Le due leve del motore**, usate come strati in più e dichiarate per quello che sono: l'intestazione `X-DNS-Prefetch-Control: off` sul documento (spegne la risoluzione anticipata delle ancore; sul provider di prova le
+ancore non risolvono nomi nemmeno con il `<meta>` acceso, quindi **non c'è una prova differenziale** che serva) e il precaricamento speculativo di `androidx.webkit` dichiarato spento (era già il valore di serie; la prova
+controlla che lo sia). `frame`, `object` ed `embed` non hanno `srcdoc`: hanno un indirizzo, che la CSP rifiuta (`frame-src`, `object-src`), e il censimento lo prova coi socket.
+
+**Il censimento dei canali** (`FluidWebContentNetworkCensusTest`, 55 documenti minimi, un socket locale che conta le connessioni; emulatore API 37, WebView Google 156):
+
+| canale | nella 3.1.0 | dalla 3.1.1 | cosa lo chiude |
+|---|---|---|---|
+| `<link rel="preconnect">` (https, http, con `crossorigin`, nel `body`, insieme a `dns-prefetch`) | **2 connessioni TLS native** (1 TCP con http), nessuna chiamata a `onRequest` | 0 | il sigillo |
+| `<link rel="dns-prefetch">`, `preconnect` verso un nome | **1 richiesta DNS** | 0 | il sigillo |
+| `<iframe srcdoc>` con un suggerimento dentro, anche scritto a entità o annidato due volte | **2 connessioni TLS native** | 0 | il sigillo (`iframe` → `noframes`) |
+| 43 varianti travestite su 71 (maiuscole, tabulazioni e avanzamenti di pagina, entità in `rel` e in `href`, `rel` duplicato, più parole, NUL in un altro attributo, dentro `svg`, `math`, `noscript`, tabelle, `select`, radice ombra dichiarativa, dopo commenti e CDATA, dopo 150.000 caratteri) | **2 connessioni** ciascuna | 0 | il sigillo |
+| `preload`, `prefetch`, `icon`, `alternate stylesheet` | richiesta consegnata a `onRequest` | l'elemento non esiste più | il sigillo |
+| `<link rel="stylesheet">` | richiesta consegnata a `onRequest` | **uguale** | `onRequest` |
+| `modulepreload`, `prerender`, `manifest`, `apple-touch-icon`, `search`, `canonical`, `pingback` | niente | niente | il provider non li carica; il sigillo |
+| `<meta http-equiv>`: `refresh`, `Link`, `x-dns-prefetch-control` con ancore, `report-uri` di una CSP, `origin-trial`, `accept-ch` | niente (0 connessioni, 0 DNS) | niente | `sandbox` e provider; il sigillo; l'intestazione DNS |
+| script, `fetch`, `sendBeacon`, `WebSocket`, regole di speculazione | niente | niente | JavaScript spento, CSP, precaricamento speculativo spento |
+| immagini (`src`, `srcset`, `picture`, pigre, `input type=image`, sfondi), CSS (`@import`, `@font-face`, `url()`, `image-set`), SVG esterni, video e audio (anche HLS), `track` | richiesta consegnata a `onRequest`, 0 connessioni, 0 DNS | uguale | l'intercettazione |
+| `object`, `embed`, `frame`, `iframe src`, anche verso un documento `data:` con un suggerimento codificato nell'indirizzo; `base href` | niente | niente | la CSP (`frame-src`, `object-src`, `base-uri`) |
+| un SVG usato come immagine con un `<link>` dentro | niente | niente | Chromium isola i documenti-immagine |
+| toccare un link, `ping`, `target="_blank"`, `download`, un modulo (GET e POST), una mappa immagine; pressione lunga su link e immagine | 0 connessioni | uguale | nessuna navigazione, CSP |
+
+**Limiti dichiarati.** Le prove girano su **un** provider (WebView Google 156, emulatore API 37): una versione diversa può avere canali diversi, e per questo le prove sono scritte per essere rilanciate, non per essere
+citate. Il DNS si osserva dal **contatore di sistema** (`dumpsys connmetrics`), che dice quante risoluzioni e non quali: la prova usa nomi nuovi a ogni tentativo e ripete per distinguere il rumore di altre app. Il traffico **del
+provider** che non dipende dal documento (aggiornamento dei componenti, variazioni, statistiche di WebView) non è nel recinto: il documento non lo può indirizzare e il contenitore non lo governa. Un elemento nuovo di una
+versione futura di Chromium, che aprisse la rete senza passare dal caricatore, non sarebbe coperto finché il censimento non lo aggiunge.
+
 ## Cosa resta all'app (e non è poco)
 
 Il contenitore **non è un sanificatore** (lo dice anche il KDoc): `FluidWebResponse.Serve` non rende sicuro ciò che serve.
 
 | dell'app | perché non può essere dell'engine |
 |---|---|
-| **sanificare l'HTML e il CSS** prima di passarli (e il corpus di prova) | l'engine non sa cosa un'app considera accettabile (un `<form>` in una newsletter? i colori di fondo?) |
+| **sanificare l'HTML e il CSS** prima di passarli (e il corpus di prova) | l'engine non sa cosa un'app considera accettabile (un `<form>` in una newsletter? i colori di fondo?). Il sigillo toglie **solo** ciò che uscirebbe dal recinto senza passare da `onRequest`: non toglie tracker, moduli, stili invadenti né testo ingannevole |
 | **la politica delle immagini e dei tracker**: bloccare di serie, sbloccare per mittente, per sessione, «mai» | è una scelta di prodotto e di privacy; l'engine dà solo il posto (`onRequest`) e la garanzia che **non passi cookie, referer, credenziali né redirect impliciti** |
 | **il client che scarica una risorsa servita** | deve usare un client **senza cookie, senza referer, senza credenziali e senza redirect impliciti** (`FluidWebRequest.headers` suggerisce solo l'UA generico); un'eccezione in `onRequest` **blocca** la risorsa |
 | **verificare i link** (dominio visibile diverso dal vero, schemi strani, `intent:`) e aprirli (browser, scheda in-app, avviso) | solo l'app sa cosa è un link sospetto per i suoi utenti |
@@ -143,6 +211,11 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 
 ## Trappole
 
+- **Un foglio di stile è una richiesta come un'immagine.** `<link rel="stylesheet">` sopravvive al sigillo e arriva a `onRequest`: servirlo senza la stessa politica delle immagini dice al mittente che il documento è stato
+  aperto. Gli altri `<link>` (icone, `preload`) non arrivano più: non aspettarli in `onRequest`.
+- **Gli iframe non ci sono.** Nemmeno `srcdoc`: un documento che contava su un iframe mostra il resto e basta.
+- **Molti documenti nello stesso processo costano memoria.** Ogni istanza ha un profilo suo e il provider tiene vivo un processo renderer per profilo finché vive il processo dell'app: 27 documenti aperti di seguito hanno
+  esaurito la memoria di un emulatore da 2 GB. È così dalla 3.1.0 e va misurato su un telefono vero prima di contare su sessioni lunghe.
 - **Non è un sanificatore.** Passare HTML non filtrato e servire ogni richiesta «per far vedere le immagini» fa di un contenitore chiuso un client HTTP aperto. Serve solo ciò che l'app ha deciso, con il client privo di identità.
 - **`onRequest` gira su thread di I/O, anche in parallelo**: dev'essere thread-safe e finito; non restituire stream condivisi fra richieste (la WebView li chiude). Gli schemi inline personalizzati (per esempio `cid:`) passano dallo
   stesso gestore; `data:`, `blob:`, `about:` sono interni al renderer.
@@ -164,12 +237,22 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 
 - **`FluidWebContentStateTest`** (`engine-ui`, JVM, 5): vuoto, caricamento, pittura, errore e rilascio; i callback di un renderer smontato non cambiano il documento nuovo; `retry` crea una revisione nuova e un nuovo proprietario azzera le misure; uno stato non può avere due viste.
   **`FluidWebContentTest`** (`sample`, Robolectric, 2): un contenuto vuoto non entra in `Loading`; un documento troppo grande usa lo slot `failure` dell'app senza creare la WebView; il vuoto a testo al 200%, scuro e movimento ridotto.
-- **`FluidWebContentInstrumentedTest`** (`sample/androidTest`, su **emulatore** API 37, WebView Google 149, **9/9 passati**): un documento ostile non può inviare richieste né eseguire script (`hostileDocumentCannotSendRequestsOrExecuteScripts`);
+- **`FluidWebSealTest`** (`engine-ui`, JVM, 13): il sigillo sul testo. Un documento senza i tre tag è la stessa istanza; i suggerimenti travestiti non lasciano un `<link`; il foglio di stile semplice torna in forma canonica e quello
+  dubbio no; `viewport` e `color-scheme` restano e ogni `http-equiv` no; nessun `iframe`; circa 160.000 combinazioni sistematiche (nomi, separatori, modi di scrivere `rel`, chiusure, contesti) e 40.000 documenti di frammenti a
+  caso, ognuno controllato con espressioni regolari scritte a parte e con il controllo del contenitore; documenti al limite di 4 milioni di caratteri, costruiti per far rileggere lo stesso testo, restano una passata.
+- **`FluidWebContentNetworkCensusTest`** (`sample/androidTest`, 55, su emulatore API 37, WebView Google 156): il censimento della tabella sopra, un documento per canale, **zero connessioni** su un socket locale che conta anche
+  quelle senza richiesta HTTP. Sulla 3.1.0 ne falliscono 7 (i cinque `preconnect` e i due `srcdoc`).
+- **`FluidWebContentSealInstrumentedTest`** (`sample/androidTest`, 10): le 71 varianti travestite nel contenitore danno zero connessioni (sulla 3.1.0, 43 ne aprono); nessun canale fa salire il contatore DNS di sistema (sulla
+  3.1.0 tre sì); **il vero analizzatore di Chromium**, interrogato sul DOM di 127 documenti sigillati, non trova un `link` che non sia il foglio canonico, un `meta` fuori dai due ammessi né un `iframe`, e conferma che le
+  sequenze non letterali (NUL o caratteri invisibili nel nome, maiuscole Unicode, entità) non creano l'elemento; l'albero di un `head` realistico conserva la forma; un foglio di stile servito dall'app si applica ancora. Due
+  **sentinelle** caricano gli stessi suggerimenti in una WebView di prova senza sigillo e pretendono di **vedere** il socket e la richiesta DNS: se un giorno non li vedessero, gli zero delle altre prove non proverebbero più
+  nulla. Su un emulatore piccolo le prove a ciclo si dividono in più lanci con `-e webChunk i/n` (vedi «Trappole»: un renderer per profilo); `tools/qa/web-network-tests.sh` lo fa da solo e raccoglie esiti e log.
+- **`FluidWebContentInstrumentedTest`** (`sample/androidTest`, su **emulatore** API 37, WebView Google 156, **9/9 passati**): un documento ostile non può aprire connessioni né eseguire script (`hostileDocumentCannotSendRequestsOrExecuteScripts`, dalla 3.1.1 con un socket in ascolto al posto del conteggio delle richieste HTTP, che non vedeva un `preconnect`);
   gli stream serviti usano solo le intestazioni dell'app e le risorse inline passano dallo stesso gestore; i tocchi riportano la destinazione vera e il testo visibile **senza navigare**; un `javascript:` non esegue nulla;
   il tema ricrea la vista e la scala del font si aggiorna **senza** ricaricare le risorse; la morte del renderer è segnalata e `retry` usa vista e profilo nuovi; un documento enorme e malformato ha altezza limitata a 200% e **può rimpicciolirsi**,
   con uno swipe vero che scorre dentro una `LazyColumn`; **il vetro contiene davvero i pixel della WebView**; una WebView che ha preso il fuoco toccando un link, dentro una `LazyColumn`, sopravvive alla ricreazione per `darkening` e per `html` e alla rimozione dal genitore (`focusedViewInsideLazyColumnSurvivesRecreationAndRemoval`; senza la correzione F1.8a il processo cade).
 - **`FluidWebContentPerformanceTest`** (`sample/androidTest`, 1, solo su dispositivo): una misura **esplorativa** della prima pittura, nel log `FluidWebTiming`; **non impone soglie** e non conta come prova di QLT-02: vedi «Prestazioni».
-- **Non provato da test**: la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
+- **Non provato da test**: provider diversi da quello dell'emulatore; il traffico proprio del provider; la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
 
 ## Dove guardare
 
@@ -177,5 +260,10 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 |---|---|
 | `engine-ui/.../ui/fluid/FluidWebContent.kt` | il composable, i tipi (`FluidWebRequest`, `FluidWebResponse`, `FluidWebLink`, `FluidWebPhase`, `FluidWebFailure`, `FluidWebSizing`), `FluidWebContentDefaults` (con la CSP), `FluidWebContentState`, la vista chiusa e il suo profilo |
 | `sample/.../catalog/WebContentDemo.kt` | il call-site vero: campioni ostili (scheda semplice, newsletter larga, HTML ostile, lungo e malformato), scurimento, scala 200%, stampa, retry |
+| `engine-ui/.../ui/fluid/FluidWebSeal.kt` | il sigillo (`seal`, `isSealed`): interno, senza API pubblica; il perché di ogni regola è nel suo KDoc |
+| `engine-ui/src/test/.../FluidWebSealTest.kt` | le prove JVM del sigillo |
 | `sample/src/androidTest/.../FluidWebContentInstrumentedTest.kt` | le nove prove strumentate (rete chiusa, link, renderer, altezza, vetro, fuoco alla rimozione) |
+| `sample/src/androidTest/.../FluidWebContentNetworkCensusTest.kt`, `FluidWebContentSealInstrumentedTest.kt` | il censimento dei canali; varianti travestite, DNS, DOM vero, sentinelle |
+| `tools/qa/web-network-tests.sh` | tutte le prove web su un emulatore, divise in lanci brevi |
+| `sample/src/androidTest/.../WebNetworkCorpus.kt`, `WebNetworkProbes.kt` | i documenti del censimento e delle varianti; il socket in ascolto, il contatore DNS, la WebView senza sigillo, l'analizzatore di Chromium interrogato da prova |
 | `docs/fase-1/evidenze/gc/` (nel repo di Pampa Mail) | gli screenshot e il verbale della verifica su emulatore |

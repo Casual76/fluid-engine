@@ -71,3 +71,11 @@ Candidato engine compilato: `f2d9059` (i commit successivi fino alla release rig
 Le compilazioni applicative verificano Kotlin e dipendenze del percorso Debug, non confezionamento APK, firma, native Rust/C++ di Fluidify, release minificata o esecuzione sui dispositivi. Le UI hanno prova Compose/JVM, non osservazione hardware delle animazioni o dell'aptica. Le liquidazioni dei provider hanno prova locale con server di test; non attestano prezzi o addebiti reali. Lo snapshot delle app include modifiche non committate: i soli hash HEAD non lo identificano integralmente.
 
 Tutti i test sono precedenti al solo aggiornamento della versione e della documentazione della release. `main` rimane a `33c69bd5bc1d1264207314cc395c442c666fce58`: lo script consente la release dal ramo assegnato, quindi nessun merge e necessario. Nessun push eseguito.
+
+## Identita della release
+
+Commit di release e tag locale `engine-3.0.7`: `40540d8d136cf1318bfd1382b34cdd2eadcdf23f`. Nessun merge su main. Il ramo prosegue con il commit di allineamento documentale successivo al tag, come previsto dalla sequenza richiesta; il codice Kotlin del tag coincide con il candidato testato salvo la costante di versione.
+
+Comando release eseguito con exit **0**: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/engine-release.ps1 -Version 3.0.7 -Notes "Integrati gli hook runtime IA e i controlli pagina di PampAI; corretto lo scrubber di Fluidify. Nuove policy IA opzionali con default compatibili con 3.0.6." -Tag`. Worktree applicativi temporanei rimossi con exit **0**.
+
+Dopo la release, `gen_api_catalog.py`, `check_docs.py`, `sync_docs.py` e tutti e tre con `--check`: exit **0**. Catalogo: 880 dichiarazioni; controllo: 52 file; copia documentale: 79 file. Lo stato finale del worktree e pulito dopo il commit documentale; le ref temporanee di import sono state eliminate.

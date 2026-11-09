@@ -1,6 +1,6 @@
 # API · engine-widget
 
-_Generato sull'engine 3.0.6 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.0.7 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-widget/widget/EngineWidgetComponents.kt`
 

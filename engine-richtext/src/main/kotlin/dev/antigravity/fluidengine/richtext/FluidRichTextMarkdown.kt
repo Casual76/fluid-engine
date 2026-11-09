@@ -11,11 +11,15 @@ package dev.antigravity.fluidengine.richtext
  *
  * In uscita: `**grassetto**`, `*corsivo*`, `<u>sottolineato</u>` (il Markdown non ha un segno suo, e
  * l'HTML in linea e' quello che i lettori capiscono), `[testo](indirizzo)`, `- ` e `1. ` per gli elenchi,
- * `> ` per la citazione. I caratteri che il Markdown leggerebbe come segni (`*`, `_`, `[`, `]`, `\`, `` ` ``,
- * `<`, e in testa alla riga `#`, `>`, `-`, `+`, `1.`) escono preceduti da `\`.
+ * `> ` per la citazione. Gli annidamenti si scrivono come in CommonMark: un sotto-elenco rientra fin dove
+ * comincia il testo della voce che lo contiene (`- a` / `  - b`, `1. a` / `   1. b`), una citazione nella
+ * citazione e' `> > `, una citazione in una voce `  > `; la numerazione riparte in ogni sotto-elenco. I
+ * caratteri che il Markdown leggerebbe come segni (`*`, `_`, `[`, `]`, `\`, `` ` ``, `<`, e in testa al
+ * testo del paragrafo `#`, `>`, `-`, `+`, `1.`) escono preceduti da `\`.
  *
  * In ingresso, oltre a quanto sopra: `__grassetto__`, `_corsivo_`, `* `/`+ ` per l'elenco puntato, `1)`,
- * citazioni annidate (appiattite), i titoli `#` (diventano un paragrafo in grassetto), i link automatici
+ * annidamenti con rientri di 2-4 spazi o tab e piu' segni sulla stessa riga (`- > citazione nella voce`),
+ * fino a [FluidRichTextParagraphStyle.MaxDepth] livelli, i titoli `#` (diventano un paragrafo in grassetto), i link automatici
  * `<https://…>`, il codice (resta testo, senza segni), i blocchi di codice recintati (testo, riga per
  * riga). Gli indirizzi dei link passano da [FluidRichTextLinks.sanitize]. Il Markdown non e' il formato
  * di riferimento dell'editor: se l'app puo' scegliere, per salvare usi [FluidRichTextHtml].
@@ -23,16 +27,20 @@ package dev.antigravity.fluidengine.richtext
 object FluidRichTextMarkdown {
   /** Il Markdown di [document]. */
   fun write(document: FluidRichTextDocument): String = buildString {
+    val prefixes = ContainerPrefixWriter(document) { index, level, blocks, item, prefix ->
+      when (blocks[level]) {
+        FluidRichTextBlock.Quote -> "> "
+        // Due puntati nuovi di fila sulla stessa riga alternano il segno: `- - - ` da solo sarebbe una
+        // linea orizzontale, `- * - ` e' una voce in una voce in una voce.
+        FluidRichTextBlock.Bullet -> if (prefix.endsWith("- ")) "* " else "- "
+        // Una voce aperta solo per contenere un sotto-elenco (senza testo suo) e' la prima del suo elenco.
+        FluidRichTextBlock.Numbered -> (if (item) document.listNumber(index) else 1).toString() + ". "
+      }
+    }
     for (index in 0 until document.paragraphCount) {
       if (index > 0) append('\n')
-      val style = document.paragraphStyles[index]
-      if (style.quote) append("> ")
-      when (style.list) {
-        FluidRichTextListKind.Bullet -> append("- ")
-        FluidRichTextListKind.Numbered -> append(document.listNumber(index)).append(". ")
-        null -> Unit
-      }
-      MarkdownInlineWriter(document, index, this, atLineStart = style.list == null).write()
+      append(prefixes.next(index))
+      MarkdownInlineWriter(document, index, this).write()
     }
   }
 
@@ -43,6 +51,9 @@ object FluidRichTextMarkdown {
     )
     val assembler = DocumentAssembler()
     var fence: String? = null
+    // I contenitori della riga prima, con la colonna dove comincia il loro contenuto: una riga che li
+    // ripete (`> ` per la citazione, il rientro della voce per un elenco) ci resta dentro.
+    var previous: List<MarkdownContainer> = emptyList()
     for (rawLine in text.split('\n')) {
       if (fence != null) {
         if (rawLine.trimStart().startsWith(fence)) {
@@ -54,54 +65,189 @@ object FluidRichTextMarkdown {
         }
         continue
       }
-      var line = rawLine
-      val trimmedStart = line.trimStart()
+      val trimmedStart = rawLine.trimStart()
       if (trimmedStart.startsWith("```") || trimmedStart.startsWith("~~~")) {
         fence = trimmedStart.take(3)
+        previous = emptyList()
         continue
       }
-      var quote = false
-      while (true) {
-        val probe = line.trimStart()
-        if (probe.startsWith(">") && line.length - probe.length <= 3) {
-          quote = true
-          line = probe.substring(1).let { if (it.startsWith(' ')) it.substring(1) else it }
-        } else {
-          break
-        }
-      }
-      var list: FluidRichTextListKind? = null
+      val parsed = parseContainers(rawLine, previous)
+      previous = parsed.containers
+      var line = rawLine.substring(parsed.contentStart)
       var heading = false
-      val bullet = BulletPattern.matchEntire(line)
-      val numbered = NumberedPattern.matchEntire(line)
       val headingMatch = HeadingPattern.matchEntire(line)
       when {
-        bullet != null && !RulePattern.matches(line) -> {
-          list = FluidRichTextListKind.Bullet
-          line = bullet.groupValues[1]
-        }
-        numbered != null -> {
-          list = FluidRichTextListKind.Numbered
-          line = numbered.groupValues[1]
-        }
         headingMatch != null -> {
           heading = true
           line = headingMatch.groupValues[1].trimEnd().trimEnd('#').trimEnd()
         }
         RulePattern.matches(line) -> line = ""
       }
-      assembler.begin(FluidRichTextParagraphStyle(list = list, quote = quote))
+      assembler.begin(FluidRichTextParagraphStyle(parsed.containers.map { it.block }))
       MarkdownInlineReader(line, assembler, heading).read()
       assembler.end()
     }
     return assembler.build()
   }
 
-  // Un solo spazio dopo il segno: quelli in piu' sono del testo della voce (lo scrittore ne mette uno).
-  private val BulletPattern = Regex("^ {0,3}[-*+][ \\t](.*)$")
-  private val NumberedPattern = Regex("^ {0,3}\\d{1,9}[.)][ \\t](.*)$")
+  /** Un contenitore di una riga letta: il suo tipo e la colonna dove comincia il suo contenuto. */
+  private class MarkdownContainer(val block: FluidRichTextBlock, val contentColumn: Int)
+
+  private class ParsedLine(val containers: List<MarkdownContainer>, val contentStart: Int)
+
+  /**
+   * I contenitori di una riga, come li legge CommonMark (semplificato): prima quelli della riga prima che
+   * la riga continua (una citazione se c'e' di nuovo `>`, una voce se la riga e' rientrata almeno fin
+   * dove comincia il testo della voce), poi quelli nuovi (`>`, `-`/`*`/`+`, `1.`/`1)`), anche piu' d'uno
+   * sulla stessa riga (`- > testo` e' una citazione dentro una voce). Una riga solo rientrata, senza un
+   * segno nuovo, non e' una voce: e' testo (e i suoi spazi in testa restano, come li ha scritti chi l'ha
+   * scritta). Le colonne contano un tab fino al multiplo di 4 successivo.
+   */
+  private fun parseContainers(line: String, previous: List<MarkdownContainer>): ParsedLine {
+    val containers = ArrayList<MarkdownContainer>()
+    var position = 0
+    var column = 0
+    var matched = 0
+    for (container in previous) {
+      val (indentEnd, indentColumn) = skipIndent(line, position, column, Int.MAX_VALUE)
+      if (container.block == FluidRichTextBlock.Quote) {
+        if (indentColumn - column > 3 || indentEnd >= line.length || line[indentEnd] != '>') break
+        position = indentEnd + 1
+        column = indentColumn + 1
+        if (position < line.length && line[position] == ' ') {
+          position++
+          column++
+        }
+        containers.add(MarkdownContainer(container.block, column))
+      } else {
+        if (indentEnd >= line.length || indentColumn < container.contentColumn) break
+        // Si entra nella voce fino alla colonna del suo testo; il rientro in piu' resta da leggere.
+        val (inside, insideColumn) = skipIndent(line, position, column, container.contentColumn)
+        position = inside
+        column = insideColumn
+        containers.add(MarkdownContainer(container.block, container.contentColumn))
+      }
+      matched++
+    }
+    var opened = false
+    while (containers.size < MaxLineContainers) {
+      val (indentEnd, indentColumn) = skipIndent(line, position, column, Int.MAX_VALUE)
+      if (indentColumn - column > 3 || indentEnd >= line.length) break
+      val rest = line.substring(indentEnd)
+      if (rest[0] == '>') {
+        position = indentEnd + 1
+        column = indentColumn + 1
+        if (position < line.length && line[position] == ' ') {
+          position++
+          column++
+        }
+        containers.add(MarkdownContainer(FluidRichTextBlock.Quote, column))
+        opened = true
+        continue
+      }
+      if (RulePattern.matches(rest)) break
+      val marker = ListMarker.find(rest)?.takeIf { it.range.first == 0 } ?: break
+      val block = if (marker.value[0].isDigit()) FluidRichTextBlock.Numbered else FluidRichTextBlock.Bullet
+      position = indentEnd + marker.value.length
+      column = indentColumn + marker.value.length
+      // Un solo spazio dopo il segno: quelli in piu' sono del testo della voce (lo scrittore ne mette uno).
+      if (position < line.length && (line[position] == ' ' || line[position] == '\t')) {
+        position++
+        column++
+      }
+      containers.add(MarkdownContainer(block, column))
+      opened = true
+    }
+    if (!opened && containers.isNotEmpty() && containers.last().block != FluidRichTextBlock.Quote) {
+      // Solo rientrata nella voce di sopra: testo fuori dagli elenchi, dentro le citazioni ritrovate.
+      val keep = containers.indexOfLast { it.block == FluidRichTextBlock.Quote } + 1
+      val start = if (keep == 0) 0 else quoteContentStart(line, keep)
+      return ParsedLine(containers.subList(0, keep).toList(), start)
+    }
+    return ParsedLine(containers, position)
+  }
+
+  /** Dove comincia il testo dopo la [count]-esima citazione ritrovata (rileggendo la riga). */
+  private fun quoteContentStart(line: String, count: Int): Int {
+    var seen = 0
+    var index = 0
+    while (index < line.length) {
+      if (line[index] == '>') {
+        seen++
+        if (seen == count) return if (index + 1 < line.length && line[index + 1] == ' ') index + 2 else index + 1
+      }
+      index++
+    }
+    return line.length
+  }
+
+  /**
+   * Salta spazi e tab da [start] (alla colonna [column]) finche' non arriva alla colonna [limit]; un tab
+   * che la scavalca conta per intero (un rientro con un tab entra nella voce anche se va oltre).
+   */
+  private fun skipIndent(line: String, start: Int, column: Int, limit: Int): Pair<Int, Int> {
+    var index = start
+    var col = column
+    while (index < line.length && col < limit) {
+      col = when (line[index]) {
+        ' ' -> col + 1
+        '\t' -> (col / 4 + 1) * 4
+        else -> break
+      }
+      index++
+    }
+    return index to col
+  }
+
+  /** Oltre questi contenitori in una riga il resto e' testo: il documento ne terra' comunque al piu' sei. */
+  private const val MaxLineContainers = 64
+
+  // Il segno di una voce: seguito da uno spazio o dalla fine della riga (una voce vuota).
+  private val ListMarker = Regex("^(?:[-*+]|\\d{1,9}[.)])(?=[ \\t]|$)")
   private val HeadingPattern = Regex("^ {0,3}#{1,6}[ \\t]+(.*)$")
   private val RulePattern = Regex("^ {0,3}([-*_])( *\\1){2,} *$")
+}
+
+/**
+ * Il prefisso di ogni riga di un testo che mostra i contenitori (Markdown, testo semplice): per un
+ * contenitore che la riga prima aveva gia' (e che non e' la voce stessa) si ripete la citazione o si
+ * rientra fin dove comincia il testo della voce sopra; per uno nuovo si scrive il suo segno. Cosi' un
+ * sotto-elenco sta sotto il testo della voce che lo contiene, e una voce nuova dello stesso elenco ha di
+ * nuovo il suo segno.
+ *
+ * @param marker il segno di un contenitore nuovo al livello `level` del paragrafo `index` (`item` vero se
+ *   e' la voce stessa, falso se e' una voce aperta solo per contenere qualcosa di piu' profondo), dopo
+ *   il prefisso `prefix` gia' scritto.
+ */
+internal class ContainerPrefixWriter(
+  private val document: FluidRichTextDocument,
+  private val marker: (index: Int, level: Int, blocks: List<FluidRichTextBlock>, item: Boolean, prefix: CharSequence) -> String,
+) {
+  private var previous: List<FluidRichTextBlock> = emptyList()
+  private var previousColumns = IntArray(0)
+
+  fun next(index: Int): String {
+    val style = document.paragraphStyles[index]
+    val blocks = style.blocks
+    val common = commonDepth(previous, blocks)
+    val columns = IntArray(blocks.size)
+    val prefix = StringBuilder()
+    for (level in blocks.indices) {
+      val item = level == blocks.size - 1 && style.list != null
+      val block = blocks[level]
+      if (level < common && !item && block != FluidRichTextBlock.Quote) {
+        while (prefix.length < previousColumns[level]) prefix.append(' ')
+      } else if (level < common && block == FluidRichTextBlock.Quote) {
+        prefix.append("> ")
+      } else {
+        prefix.append(marker(index, level, blocks, item, prefix))
+      }
+      columns[level] = prefix.length
+    }
+    previous = blocks
+    previousColumns = columns
+    return prefix.toString()
+  }
 }
 
 /** Scrive i caratteri di un paragrafo con i segni del Markdown, ben annidati e con gli spazi fuori dai segni. */
@@ -109,8 +255,11 @@ private class MarkdownInlineWriter(
   private val document: FluidRichTextDocument,
   private val paragraph: Int,
   private val out: StringBuilder,
-  private val atLineStart: Boolean,
 ) {
+  // Il testo comincia sempre dopo i segni dei contenitori, e li' un altro segno aprirebbe un contenitore
+  // (`- - x` e' un sotto-elenco): i segni in testa si proteggono anche nelle voci e nelle citazioni.
+  private val atLineStart = true
+
   private val open = ArrayList<Marker>()
   private val lineStart = out.length
 

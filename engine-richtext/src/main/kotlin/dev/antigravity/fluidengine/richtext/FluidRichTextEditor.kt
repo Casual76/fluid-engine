@@ -24,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,6 +34,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -87,6 +90,15 @@ object FluidRichTextEditorDefaults {
 
   /** Il rientro di un paragrafo citato: la barra e l'aria dopo. */
   const val QuoteIndentEm: Float = 1.0f
+
+  /**
+   * Il rientro piu' grande che si vede, in frazione della larghezza del campo: quando il paragrafo piu'
+   * profondo andrebbe oltre (livelli profondi, testo al 200%, telefono stretto), tutti i rientri del
+   * documento si stringono della stessa misura, cosi' i livelli restano a passi uguali e distinguibili e
+   * le barre delle citazioni in colonna; il posto del segno della voce resta intero. Senza, sei livelli
+   * col testo grande lascerebbero al testo una colonna di poche lettere.
+   */
+  const val MaxIndentFraction: Float = 0.4f
 }
 
 /**
@@ -111,11 +123,19 @@ object FluidRichTextEditorDefaults {
  * semplice entra con il formato del punto in cui si incolla. **Copia** mette negli appunti anche l'HTML
  * della selezione, cosi' copiare e incollare dentro l'editor non perde gli stili.
  *
+ * **Elenchi e citazioni annidati.** Ogni paragrafo ha un livello di rientro (vedi
+ * [FluidRichTextParagraphStyle]): i tasti riduci/aumenta rientro della barra, Tab e Maiusc+Tab, l'a capo
+ * su una voce vuota e il «cancella» in testa a una voce (che risalgono di un livello alla volta prima di
+ * uscire dall'elenco). I puntati cambiano segno per livello (•, ◦, ▪), i numeri ripartono in ogni
+ * sotto-elenco, ogni citazione annidata ha la sua barra; il rientro che si vede ha un tetto
+ * ([FluidRichTextEditorDefaults.MaxIndentFraction]).
+ *
  * **Scorciatoie** da tastiera fisica: Ctrl+Z / Ctrl+Maiusc+Z / Ctrl+Y annulla e ripete (la cronologia e'
- * quella dell'editor, con gli stili), Ctrl+B/I/U.
+ * quella dell'editor, con gli stili), Ctrl+B/I/U, Tab / Maiusc+Tab su voci e citazioni (altrove il Tab fa
+ * quel che fa il campo).
  *
  * **TalkBack** legge il testo; lo stato del campo dice cosa e' acceso al cursore («Grassetto, elenco
- * puntato»), con le parole di [LocalFluidRichTextLabels].
+ * puntato, livello 2»), con le parole di [LocalFluidRichTextLabels].
  *
  * Non ha un pozzo ne' un bordo: occupa la larghezza che riceve e cresce col testo. Il contenitore (una
  * pagina che scorre, una card) e' dell'app. Dentro uno spazio di altezza fissa scorre da se'.
@@ -152,7 +172,12 @@ fun FluidRichTextEditor(
   val scroll = rememberScrollState()
   var layoutGetter by remember { mutableStateOf<(() -> TextLayoutResult?)?>(null) }
   val measurer = rememberTextMeasurer()
-  val output = remember(state, colors) { RichTextOutputTransformation(state, colors) }
+  val indentLimit = remember(state) { RichTextIndentLimit() }
+  val fontSizePx = with(LocalDensity.current) {
+    (if (resolvedStyle.fontSize.isSp) resolvedStyle.fontSize else FallbackFontSize).toPx()
+  }
+  SideEffect { indentLimit.fontSizePx = fontSizePx }
+  val output = remember(state, colors, indentLimit) { RichTextOutputTransformation(state, colors, indentLimit) }
   val clipboard = LocalClipboard.current
   val richClipboard = remember(clipboard, state) { RichTextClipboard(clipboard, state) }
   val receiver = remember(state) { RichTextPasteReceiver(state) }
@@ -176,6 +201,7 @@ fun FluidRichTextEditor(
       modifier = modifier
         .fillMaxWidth()
         .focusRequester(state.focusRequester)
+        .onSizeChanged { indentLimit.widthPx = it.width.toFloat() }
         .onFocusChanged { state.isFocused = it.isFocused }
         .onPreviewKeyEvent { event -> enabled && !readOnly && state.handleKeyEvent(event) }
         .contentReceiver(receiver)
@@ -200,7 +226,7 @@ fun FluidRichTextEditor(
             .drawBehind {
               val layout = layoutGetter?.invoke() ?: return@drawBehind
               translate(top = -scroll.value.toFloat()) {
-                drawParagraphDecorations(state.document, layout, resolvedStyle, colors, measurer)
+                drawParagraphDecorations(state.document, layout, resolvedStyle, colors, measurer, indentLimit.capEm)
               }
             },
         ) {
@@ -225,11 +251,22 @@ internal data class RichTextColors(
   val marker: Color,
 )
 
-/** Ctrl+Z/Y/B/I/U e il «cancella» in testa al documento. Vero se l'ha gestito l'editor. */
+/**
+ * Ctrl+Z/Y/B/I/U, Tab e Maiusc+Tab sul rientro, e il «cancella» in testa al documento. Vero se l'ha
+ * gestito l'editor. Il Tab lo prende solo dove cambia un rientro: in un paragrafo normale resta del campo.
+ */
 internal fun FluidRichTextState.handleKeyEvent(event: KeyEvent): Boolean {
   if (event.type != KeyEventType.KeyDown) return false
   val command = event.isCtrlPressed || event.isMetaPressed
   return when {
+    !command && event.key == Key.Tab && !event.isShiftPressed && format.canIncreaseIndent -> {
+      increaseIndent()
+      true
+    }
+    !command && event.key == Key.Tab && event.isShiftPressed && format.canDecreaseIndent -> {
+      decreaseIndent()
+      true
+    }
     command && event.key == Key.Z && !event.isShiftPressed -> {
       undo()
       true
@@ -266,6 +303,7 @@ internal fun FluidRichTextState.handleKeyEvent(event: KeyEvent): Boolean {
 internal class RichTextOutputTransformation(
   private val state: FluidRichTextState,
   private val colors: RichTextColors,
+  private val indentLimit: RichTextIndentLimit,
 ) : OutputTransformation {
   override fun TextFieldBuffer.transformOutput() {
     val document = state.document
@@ -275,6 +313,7 @@ internal class RichTextOutputTransformation(
       if (!format.isPlain) addStyle(spanStyleFor(format, colors), start, end)
     }
     val lastIndex = document.paragraphCount - 1
+    val scale = indentScale(document, indentLimit.capEm)
     for (index in 0..lastIndex) {
       val style = document.paragraphStyles[index]
       if (style == FluidRichTextParagraphStyle.Plain) continue
@@ -287,7 +326,7 @@ internal class RichTextOutputTransformation(
         append(ZeroWidthSpace)
         end = start + 1
       }
-      val indent = paragraphIndentEm(style)
+      val indent = containerOffsetsEm(style, scale)[style.depth]
       addStyle(ParagraphStyle(textIndent = TextIndent(firstLine = indent.em, restLine = indent.em)), start, end)
       if (style.quote && end > start) addStyle(SpanStyle(color = colors.quoteText), start, end)
     }
@@ -306,14 +345,77 @@ private fun spanStyleFor(format: FluidRichTextInlineFormat, colors: RichTextColo
   )
 }
 
-/** Il rientro di un paragrafo in multipli della dimensione del testo. */
-internal fun paragraphIndentEm(style: FluidRichTextParagraphStyle): Float =
-  (if (style.quote) FluidRichTextEditorDefaults.QuoteIndentEm else 0f) +
-    (if (style.list != null) FluidRichTextEditorDefaults.ListIndentEm else 0f)
+/**
+ * Il tetto del rientro che si vede: la larghezza del campo (dal layout) e la dimensione del testo (dallo
+ * stile, scala del sistema compresa) sono stato, cosi' la trasformazione d'uscita e i segni si
+ * ricalcolano quando cambiano. Prima della prima misura non c'e' tetto.
+ */
+internal class RichTextIndentLimit {
+  var widthPx: Float by mutableFloatStateOf(0f)
+  var fontSizePx: Float by mutableFloatStateOf(0f)
+
+  /** Il rientro massimo in em; infinito finche' il campo non e' misurato. */
+  val capEm: Float
+    get() {
+      val width = widthPx
+      val font = fontSizePx
+      if (width <= 0f || font <= 0f) return Float.POSITIVE_INFINITY
+      return width * FluidRichTextEditorDefaults.MaxIndentFraction / font
+    }
+}
 
 /**
- * I segni accanto al testo: il pallino o il numero di una voce, la barra di una citazione. Stanno nel
- * rientro del paragrafo, sul lato dove comincia la riga (a destra in arabo ed ebraico).
+ * Dove comincia ogni contenitore di un paragrafo e, in fondo, dove comincia il testo, in em dal bordo da
+ * cui parte la riga: `depth + 1` valori. Una citazione occupa [FluidRichTextEditorDefaults.QuoteIndentEm],
+ * un elenco [FluidRichTextEditorDefaults.ListIndentEm].
+ *
+ * Gli inizi dei contenitori sono moltiplicati per [scale] (vedi [indentScale]); il contenitore piu'
+ * interno (il posto del segno della voce, o la barra con la sua aria) resta sempre intero.
+ */
+internal fun containerOffsetsEm(style: FluidRichTextParagraphStyle, scale: Float): FloatArray {
+  val blocks = style.blocks
+  val depth = blocks.size
+  val offsets = FloatArray(depth + 1)
+  if (depth == 0) return offsets
+  var raw = 0f
+  for (level in 0 until depth) {
+    offsets[level] = raw * scale
+    raw += blockIndentEm(blocks[level])
+  }
+  offsets[depth] = offsets[depth - 1] + blockIndentEm(blocks[depth - 1])
+  return offsets
+}
+
+/**
+ * Quanto stringere i rientri di [document] perche' nessun testo cominci oltre [capEm]: 1 se ci stanno,
+ * altrimenti la stessa scala per **tutto** il documento, presa dal contenitore piu' profondo. Una scala
+ * sola tiene i passi fra i livelli uguali e distinguibili (una curva per livello schiaccerebbe gli ultimi
+ * fino a confonderli) e le barre di una citazione in colonna fra paragrafi di profondita' diverse; il
+ * prezzo e' che portare una voce oltre il tetto stringe un po' tutti i rientri del documento, che col
+ * testo normale su un telefono non succede prima del sesto livello.
+ */
+internal fun indentScale(document: FluidRichTextDocument, capEm: Float): Float {
+  if (capEm.isInfinite()) return 1f
+  // Il segno di una voce occupa al piu' un rientro d'elenco: gli inizi stanno sotto il tetto meno quello.
+  val startCap = (capEm - FluidRichTextEditorDefaults.ListIndentEm).coerceAtLeast(0f)
+  var deepest = 0f
+  for (style in document.paragraphStyles) {
+    val blocks = style.blocks
+    if (blocks.size < 2) continue
+    var start = 0f
+    for (level in 0 until blocks.size - 1) start += blockIndentEm(blocks[level])
+    if (start > deepest) deepest = start
+  }
+  return if (deepest <= startCap) 1f else startCap / deepest
+}
+
+private fun blockIndentEm(block: FluidRichTextBlock): Float =
+  if (block == FluidRichTextBlock.Quote) FluidRichTextEditorDefaults.QuoteIndentEm else FluidRichTextEditorDefaults.ListIndentEm
+
+/**
+ * I segni accanto al testo: il segno o il numero di una voce (il segno dei puntati cambia per livello),
+ * una barra per ogni citazione in cui sta il paragrafo. Stanno nel rientro del paragrafo, ognuno all'inizio
+ * del suo contenitore, sul lato dove comincia la riga (a destra in arabo ed ebraico).
  */
 private fun DrawScope.drawParagraphDecorations(
   document: FluidRichTextDocument,
@@ -321,22 +423,27 @@ private fun DrawScope.drawParagraphDecorations(
   textStyle: TextStyle,
   colors: RichTextColors,
   measurer: androidx.compose.ui.text.TextMeasurer,
+  capEm: Float,
 ) {
   val textLength = layout.layoutInput.text.length
   val fontSizePx = if (textStyle.fontSize.isSp) textStyle.fontSize.toPx() else FallbackFontSize.toPx()
   val width = layout.size.width.toFloat()
+  val barWidth = QuoteBarWidth.toPx()
+  val barInset = QuoteBarInset.toPx()
+  val scale = indentScale(document, capEm)
   for (index in 0 until document.paragraphCount) {
     val style = document.paragraphStyles[index]
-    if (style == FluidRichTextParagraphStyle.Plain) continue
+    if (style.depth == 0) continue
     val start = document.paragraphStart(index).coerceAtMost(textLength)
     val end = document.paragraphEnd(index).coerceAtMost(textLength)
     val firstLine = layout.getLineForOffset(start)
     val lastLine = layout.getLineForOffset(end)
     val rtl = layout.getParagraphDirection(start) == ResolvedTextDirection.Rtl
-    val quoteIndent = if (style.quote) FluidRichTextEditorDefaults.QuoteIndentEm * fontSizePx else 0f
-    if (style.quote) {
-      val barWidth = QuoteBarWidth.toPx()
-      val x = if (rtl) width - barWidth / 2f - QuoteBarInset.toPx() else barWidth / 2f + QuoteBarInset.toPx()
+    val offsets = containerOffsetsEm(style, scale)
+    style.blocks.forEachIndexed { level, block ->
+      if (block != FluidRichTextBlock.Quote) return@forEachIndexed
+      val fromEdge = offsets[level] * fontSizePx + barWidth / 2f + barInset
+      val x = if (rtl) width - fromEdge else fromEdge
       drawLine(
         color = colors.quoteBar,
         start = Offset(x, layout.getLineTop(firstLine)),
@@ -345,15 +452,11 @@ private fun DrawScope.drawParagraphDecorations(
       )
     }
     val kind = style.list ?: continue
-    val marker = if (kind == FluidRichTextListKind.Bullet) "•" else "${document.listNumber(index)}."
+    val marker = if (kind == FluidRichTextListKind.Bullet) bulletMarker(style.listLevel) else "${document.listNumber(index)}."
     val measured = measurer.measure(marker, textStyle.copy(color = colors.marker, textIndent = null))
-    val listIndent = FluidRichTextEditorDefaults.ListIndentEm * fontSizePx
+    val textStart = offsets[style.depth] * fontSizePx
     val gap = fontSizePx * MarkerGapEm
-    val x = if (rtl) {
-      width - quoteIndent - listIndent + gap
-    } else {
-      quoteIndent + listIndent - gap - measured.size.width
-    }
+    val x = if (rtl) width - textStart + gap else textStart - gap - measured.size.width
     val baseline = layout.getLineBaseline(firstLine)
     drawText(measured, topLeft = Offset(x, baseline - measured.firstBaseline))
   }

@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
+import dev.antigravity.fluidengine.richtext.FluidRichTextBlock.Bullet
+import dev.antigravity.fluidengine.richtext.FluidRichTextBlock.Numbered
+import dev.antigravity.fluidengine.richtext.FluidRichTextBlock.Quote
 import dev.antigravity.fluidengine.richtext.FluidRichTextDocument
 import dev.antigravity.fluidengine.richtext.FluidRichTextEditor
 import dev.antigravity.fluidengine.richtext.FluidRichTextFormatButton
@@ -71,8 +74,9 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
  * tastiera, il tasto «Aa», l'incolla di HTML sporco e le tre uscite (HTML ristretto, Markdown, testo).
  *
  * Non e' ancora nella galleria: la monta chi la prepara (F1.6). Stati: vuoto, con contenuto (tutti gli
- * stili, elenchi, link, citazione), sola lettura, e tre riquadri che rifanno l'editor col testo al 200%
- * in arabo (da destra a sinistra), in scuro e con il movimento ridotto. Ogni riquadro ha il suo host dei
+ * stili, elenchi, link, citazione), elenchi e citazioni annidati su piu' livelli con le loro uscite, sola
+ * lettura, e due riquadri che rifanno l'editor col testo al 200% in arabo (da destra a sinistra, con un
+ * elenco profondo) e in scuro con il movimento ridotto (annidato). Ogni riquadro ha il suo host dei
  * fogli (per il foglio del link) e posa la barra in fondo a se' senza seguire la tastiera: in una pagina
  * vera la barra sta nell'overlay della schermata e sale con la tastiera (`avoidKeyboard`, di serie).
  */
@@ -97,10 +101,22 @@ fun RichTextDemo() {
     PasteControls(full)
     Exports(full)
 
+    FluidSectionHeader(
+      title = "Elenchi e citazioni annidati",
+      detail = "Sotto-elenchi puntati e numerati, citazione dentro una voce e voce dentro una citazione. " +
+        "Riduci/aumenta rientro dalla barra (o Tab e Maiusc+Tab), a capo su una voce vuota risale di un livello.",
+    )
+    val nested = rememberFluidRichTextState(nestedDocument())
+    EditorStage(nested, placeholder = null, tag = "richtext-nested")
+    Exports(nested, tag = "richtext-nested-export")
+
     FluidSectionHeader(title = "Sola lettura", detail = "Niente tastiera e niente barra; il testo si seleziona e si copia.")
     EditorStage(rememberFluidRichTextState(sampleDocument()), placeholder = null, readOnly = true, tag = "richtext-readonly")
 
-    FluidSectionHeader(title = "Testo al 200%, da destra a sinistra", detail = "I segni degli elenchi e la barra della citazione passano sul lato destro.")
+    FluidSectionHeader(
+      title = "Testo al 200%, da destra a sinistra",
+      detail = "I segni degli elenchi e la barra della citazione passano sul lato destro; ai livelli profondi il rientro si stringe.",
+    )
     val density = LocalDensity.current
     CompositionLocalProvider(
       LocalDensity provides Density(density.density, 2f),
@@ -113,7 +129,7 @@ fun RichTextDemo() {
     FluidSectionHeader(title = "Scuro, movimento ridotto", detail = "La barra entra in dissolvenza, senza salire.")
     FluidTheme(settings = remember { EngineSettings(themeMode = ThemeMode.DARK) }) {
       CompositionLocalProvider(LocalFluidMotionPolicy provides FluidMotionPolicy(0f)) {
-        EditorStage(rememberFluidRichTextState(sampleDocument()), placeholder = null, tag = "richtext-dark")
+        EditorStage(rememberFluidRichTextState(nestedDocument()), placeholder = null, tag = "richtext-dark")
       }
     }
   }
@@ -203,7 +219,7 @@ private enum class ExportKind { Html, Markdown, Text }
 
 /** Le tre uscite del documento, lette a ogni modifica ([FluidRichTextState.revision]). */
 @Composable
-private fun Exports(state: FluidRichTextState) {
+private fun Exports(state: FluidRichTextState, tag: String = "richtext-export") {
   var kind by remember { mutableStateOf(ExportKind.Html) }
   FluidSegmentedControl(
     options = ExportKind.entries,
@@ -228,7 +244,7 @@ private fun Exports(state: FluidRichTextState) {
       .clip(ContinuousCornerShape(FluidRadius.Control))
       .background(MaterialTheme.colorScheme.surfaceContainerHigh)
       .padding(12.dp)
-      .testTag("richtext-export"),
+      .testTag(tag),
   )
 }
 
@@ -246,11 +262,37 @@ private fun sampleDocument(): FluidRichTextDocument = buildFluidRichText {
 private fun rtlDocument(): FluidRichTextDocument = buildFluidRichText {
   paragraph { bold("مرحبا"); append(" بالعالم") }
   paragraph(FluidRichTextParagraphStyle(list = FluidRichTextListKind.Bullet)) { append("البند الأول") }
+  paragraph(FluidRichTextParagraphStyle.of(Bullet, Bullet)) { append("بند فرعي") }
+  paragraph(FluidRichTextParagraphStyle.of(Bullet, Bullet, Bullet, Bullet)) { append("بند عميق في القائمة المتداخلة") }
   paragraph(FluidRichTextParagraphStyle(list = FluidRichTextListKind.Numbered)) { append("الخطوة الأولى") }
   paragraph(FluidRichTextParagraphStyle(quote = true)) { italic("اقتباس") }
+  paragraph(FluidRichTextParagraphStyle.of(Quote, Quote)) { append("اقتباس داخل اقتباس") }
 }
 
-/** Un HTML come lo copia un browser: stili in linea, script, un link pericoloso, un'immagine-spia. */
+/** Tutte le combinazioni: sotto-elenchi, numerazione che riparte e prosegue, citazioni annidate e miste. */
+private fun nestedDocument(): FluidRichTextDocument = buildFluidRichText {
+  paragraph { append("Ordine del giorno:") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered)) { bold("Bilancio") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered, Bullet)) { append("entrate") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered, Bullet)) { append("uscite") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered, Bullet, Bullet)) { append("affitto della sala") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered, Bullet, Bullet, Numbered)) { append("primo preventivo") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered, Bullet, Bullet, Numbered)) { append("secondo preventivo") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered, Quote)) { italic("«Restiamo nel budget»") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered)) { bold("Calendario") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered, Numbered)) { append("bozza entro venerdì") }
+  paragraph(FluidRichTextParagraphStyle.of(Numbered)) { bold("Varie") }
+  paragraph { append("Dalla mail di Luca:") }
+  paragraph(FluidRichTextParagraphStyle.of(Quote)) { append("Per me va bene, con due note:") }
+  paragraph(FluidRichTextParagraphStyle.of(Quote, Bullet)) { append("la sala piccola basta") }
+  paragraph(FluidRichTextParagraphStyle.of(Quote, Bullet, Bullet)) { append("se siamo meno di venti") }
+  paragraph(FluidRichTextParagraphStyle.of(Quote, Quote)) { append("Anna aveva scritto: «Meglio giovedì»") }
+}
+
+/**
+ * Un HTML come lo copia un browser: stili in linea, script, un link pericoloso, un'immagine-spia, un
+ * elenco annidato (che resta annidato).
+ */
 private const val DirtyHtml =
   "<meta charset='utf-8'><style>p{color:red}</style><script>alert('no')</script>" +
     "<b style=\"font-weight:normal\" id=\"docs-internal-guid-x\"><p><span style=\"font-weight:700\">Titolo incollato</span></p>" +

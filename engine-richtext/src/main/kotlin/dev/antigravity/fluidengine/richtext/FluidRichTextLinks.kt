@@ -96,19 +96,27 @@ object FluidRichTextLinks {
  * citate di sempre); un link il cui testo non e' gia' l'indirizzo e' seguito dall'indirizzo fra
  * parentesi, perche' in un testo semplice altrimenti si perderebbe. Grassetto, corsivo e sottolineato
  * spariscono.
+ *
+ * Gli annidamenti si leggono come in una mail di testo: un sotto-elenco rientra sotto il testo della
+ * voce che lo contiene, coi segni dell'editor per livello (`•`, `◦`, `▪`, poi di nuovo `•`) e la
+ * numerazione che riparte; una citazione nella citazione e' `> > `.
  */
 object FluidRichTextPlainText {
   /** Il testo semplice di [document]. */
   fun write(document: FluidRichTextDocument): String = buildString {
+    val prefixes = ContainerPrefixWriter(document) { index, level, blocks, item, _ ->
+      when {
+        blocks[level] == FluidRichTextBlock.Quote -> "> "
+        // Una voce senza testo suo (contiene solo un sotto-elenco): basta il rientro, un segno da solo
+        // su una riga che continua con un altro segno si legge male.
+        !item -> "  "
+        blocks[level] == FluidRichTextBlock.Numbered -> "${document.listNumber(index)}. "
+        else -> bulletMarker(blocks.subList(0, level + 1).count { it != FluidRichTextBlock.Quote }) + " "
+      }
+    }
     for (index in 0 until document.paragraphCount) {
       if (index > 0) append('\n')
-      val style = document.paragraphStyles[index]
-      if (style.quote) append("> ")
-      when (style.list) {
-        FluidRichTextListKind.Bullet -> append("• ")
-        FluidRichTextListKind.Numbered -> append(document.listNumber(index)).append(". ")
-        null -> Unit
-      }
+      append(prefixes.next(index))
       appendParagraph(document, index)
     }
   }
@@ -141,3 +149,12 @@ object FluidRichTextPlainText {
     closeLink()
   }
 }
+
+/**
+ * Il segno di una voce puntata al livello [listLevel] (1 il primo): pallino, cerchio, quadratino, e poi
+ * di nuovo, come Google Documenti e come i client di posta mostrano `ul` annidati. Uguale nell'editor e
+ * nel testo semplice.
+ */
+internal fun bulletMarker(listLevel: Int): String = BulletMarkers[(listLevel - 1).coerceAtLeast(0) % BulletMarkers.size]
+
+private val BulletMarkers = listOf("•", "◦", "▪")

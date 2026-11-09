@@ -57,8 +57,8 @@ enum class FluidRichTextChangeSource {
  * troppo grande fa cadere l'app): in quel caso l'app lo riapre dalla sua bozza.
  *
  * **Modificarlo dal codice.** [setDocument], [replace], [insert], [replaceSelection] (una firma, il
- * risultato di un assistente), i comandi della barra ([toggle], [toggleList], [toggleQuote], [setLink],
- * [removeLink]) e [undo]/[redo]: ogni modifica si annulla. Il testo non si cambia in altro modo: lo
+ * risultato di un assistente), i comandi della barra ([toggle], [toggleList], [toggleQuote],
+ * [increaseIndent], [decreaseIndent], [setLink], [removeLink]) e [undo]/[redo]: ogni modifica si annulla. Il testo non si cambia in altro modo: lo
  * stato del campo di testo sotto e' privato, cosi' testo e stili non possono divergere.
  */
 @Stable
@@ -270,18 +270,59 @@ class FluidRichTextState(
     commit(documentState.mapInline(current.min, current.max) { it.with(style, on) }, null, FluidRichTextChangeSource.Formatting)
   }
 
-  /** Mette o toglie l'elenco [kind] ai paragrafi toccati dalla selezione (un elenco dell'altro tipo diventa questo). */
+  /**
+   * Mette o toglie l'elenco [kind] ai paragrafi toccati dalla selezione.
+   *
+   * Se sono gia' tutti voci di un elenco [kind] (a qualunque livello) escono dagli elenchi: tornano
+   * paragrafi, dentro le citazioni che avevano. Altrimenti diventano voci [kind]: una voce di un elenco
+   * dell'altro tipo cambia tipo restando al suo livello, un paragrafo (anche citato) diventa una voce li'
+   * dove sta.
+   */
   fun toggleList(kind: FluidRichTextListKind) {
     val (first, last) = selectedParagraphs()
     val all = (first..last).all { documentState.paragraphStyles[it].list == kind }
-    commit(documentState.mapParagraphs(first, last) { it.copy(list = if (all) null else kind) }, null, FluidRichTextChangeSource.Formatting)
+    commit(
+      documentState.mapParagraphs(first, last) { if (all) it.withoutList() else it.withList(kind) },
+      null,
+      FluidRichTextChangeSource.Formatting,
+    )
   }
 
-  /** Mette o toglie la citazione ai paragrafi toccati dalla selezione. */
+  /**
+   * Mette o toglie la citazione ai paragrafi toccati dalla selezione: se stanno gia' tutti in una
+   * citazione ne escono del tutto (anche dalle citazioni annidate; gli elenchi restano), altrimenti chi
+   * non c'era entra in una citazione che lo contiene tutto (elenchi e sotto-elenchi compresi).
+   */
   fun toggleQuote() {
     val (first, last) = selectedParagraphs()
     val all = (first..last).all { documentState.paragraphStyles[it].quote }
-    commit(documentState.mapParagraphs(first, last) { it.copy(quote = !all) }, null, FluidRichTextChangeSource.Formatting)
+    commit(
+      documentState.mapParagraphs(first, last) { if (all) it.withoutQuotes() else if (it.quote) it else it.wrappedInQuote() },
+      null,
+      FluidRichTextChangeSource.Formatting,
+    )
+  }
+
+  /**
+   * Aumenta di un livello il rientro dei paragrafi toccati che ne hanno uno: una voce diventa la voce di
+   * un sotto-elenco dello stesso tipo (la numerazione riparte), un paragrafo citato una citazione nella
+   * citazione. I paragrafi normali e quelli gia' a [FluidRichTextParagraphStyle.MaxDepth] restano dove
+   * sono. Si annulla in un passo. Il tasto della barra e Tab da una tastiera fisica fanno questo; se non
+   * cambierebbe niente ([FluidRichTextFormat.canIncreaseIndent] falso) non fa niente.
+   */
+  fun increaseIndent() {
+    val (first, last) = selectedParagraphs()
+    commit(documentState.mapParagraphs(first, last) { it.indented() }, null, FluidRichTextChangeSource.Formatting)
+  }
+
+  /**
+   * Diminuisce di un livello il rientro dei paragrafi toccati: una voce di un sotto-elenco torna voce
+   * dell'elenco sopra, una voce di primo livello torna paragrafo, una citazione annidata torna citazione
+   * semplice, un paragrafo citato esce dalla citazione. Il tasto della barra e Maiusc+Tab.
+   */
+  fun decreaseIndent() {
+    val (first, last) = selectedParagraphs()
+    commit(documentState.mapParagraphs(first, last) { it.outdented() }, null, FluidRichTextChangeSource.Formatting)
   }
 
   /**
@@ -358,8 +399,8 @@ class FluidRichTextState(
     val paragraph = documentState.paragraphIndexAt(current.start)
     if (current.start != documentState.paragraphStart(paragraph) || paragraph != 0) return false
     val style = documentState.paragraphStyles[paragraph]
-    if (style.list == null && !style.quote) return false
-    commit(documentState.mapParagraphs(paragraph, paragraph) { it.unwrapOneLevel() }, null, FluidRichTextChangeSource.Formatting)
+    if (style.depth == 0) return false
+    commit(documentState.mapParagraphs(paragraph, paragraph) { it.outdented() }, null, FluidRichTextChangeSource.Formatting)
     return true
   }
 
@@ -481,6 +522,7 @@ class FluidRichTextState(
             state.selection.start,
             state.selection.end,
             state.isFormattingRequested,
+            SavedParagraphsVersion,
           )
         }
       },
@@ -489,7 +531,9 @@ class FluidRichTextState(
           val list = saved as List<*>
           val text = list[0] as String
           val links = (list[2] as List<*>).map { it as String }
-          val document = FluidRichTextDocument(text, decodeRuns(list[1] as IntArray, links), decodeParagraphs(list[3] as IntArray))
+          val nested = list.size > 7 && list[7] == SavedParagraphsVersion
+          val paragraphs = if (nested) decodeParagraphs(list[3] as IntArray) else decodeFlatParagraphs(list[3] as IntArray)
+          val document = FluidRichTextDocument(text, decodeRuns(list[1] as IntArray, links), paragraphs)
           FluidRichTextState(document, TextRange(list[4] as Int, list[5] as Int)).also {
             it.isFormattingRequested = list[6] as Boolean
           }
@@ -533,17 +577,41 @@ class FluidRichTextState(
       return builder.build()
     }
 
+    /**
+     * Il formato degli stili di paragrafo nello stato salvato: 2 da quando gli elenchi si annidano (la
+     * pila dei contenitori in un `Int`: la profondita' nei 4 bit bassi, poi 2 bit per contenitore). Lo
+     * stato salvato senza versione e' quello a un livello di prima, e si legge ancora.
+     */
+    private const val SavedParagraphsVersion: Int = 2
+
     private fun encodeParagraphs(doc: FluidRichTextDocument): IntArray = IntArray(doc.paragraphCount) { index ->
-      val style = doc.paragraphStyles[index]
-      val list = when (style.list) {
-        FluidRichTextListKind.Bullet -> 1
-        FluidRichTextListKind.Numbered -> 2
-        null -> 0
+      val blocks = doc.paragraphStyles[index].blocks
+      var code = blocks.size
+      blocks.forEachIndexed { level, block ->
+        val kind = when (block) {
+          FluidRichTextBlock.Quote -> 0
+          FluidRichTextBlock.Bullet -> 1
+          FluidRichTextBlock.Numbered -> 2
+        }
+        code = code or (kind shl (4 + 2 * level))
       }
-      list or (if (style.quote) 4 else 0)
+      code
     }
 
     private fun decodeParagraphs(data: IntArray): List<FluidRichTextParagraphStyle> = data.map { code ->
+      val depth = (code and 15).coerceAtMost(FluidRichTextParagraphStyle.MaxDepth)
+      FluidRichTextParagraphStyle(
+        List(depth) { level ->
+          when ((code shr (4 + 2 * level)) and 3) {
+            1 -> FluidRichTextBlock.Bullet
+            2 -> FluidRichTextBlock.Numbered
+            else -> FluidRichTextBlock.Quote
+          }
+        },
+      )
+    }
+
+    private fun decodeFlatParagraphs(data: IntArray): List<FluidRichTextParagraphStyle> = data.map { code ->
       FluidRichTextParagraphStyle(
         list = when (code and 3) {
           1 -> FluidRichTextListKind.Bullet

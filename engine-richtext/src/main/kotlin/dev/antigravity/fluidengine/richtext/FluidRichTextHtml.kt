@@ -9,12 +9,16 @@ package dev.antigravity.fluidengine.richtext
  * `<div><br></div>`, come lo scrivono i client di posta, cosi' la spaziatura e' la stessa ovunque),
  * `ul`/`ol`/`li`, `blockquote`, `b`, `i`, `u`, `a href`. Spazi doppi, in testa e in coda diventano
  * `&nbsp;` (l'HTML li collasserebbe), il tab `&#9;`. Nessuno stile in linea, nessuna classe: chi lo
- * riceve lo mostra col suo carattere.
+ * riceve lo mostra col suo carattere. Gli annidamenti sono quelli dell'HTML valido (dalla [Version] 2):
+ * un sotto-elenco sta **dentro** il `<li>` della voce sopra (`<ul><li>a<ul><li>b</li></ul></li></ul>`),
+ * una citazione dentro l'altra e' un `<blockquote>` dentro l'altro; un client di posta mostra rientri e
+ * segni (pallino, cerchio, quadrato) da se'.
  *
  * **In ingresso** qualunque HTML, trattato come **ostile**: non si esegue niente e non si carica niente
  * (immagini, fogli di stile, font, frame: mai — il lettore non ha nemmeno un modo per farlo). Si tengono
- * il testo, i paragrafi (`p`, `div`, titoli, righe di tabella, `br`…), gli elenchi (appiattiti a un
- * livello), le citazioni, grassetto/corsivo/sottolineato (anche come `style="font-weight:…"`, che e' come
+ * il testo, i paragrafi (`p`, `div`, titoli, righe di tabella, `br`…), gli elenchi e le citazioni con i
+ * loro annidamenti (fino a [FluidRichTextParagraphStyle.MaxDepth] livelli: oltre si tengono i primi e il
+ * piu' interno; anche `<ul>` direttamente dentro `<ul>`, come lo scrivono alcuni editor), grassetto/corsivo/sottolineato (anche come `style="font-weight:…"`, che e' come
  * li copia Google Documenti, compreso il suo `<b style="font-weight:normal">` che **non** e' grassetto), e
  * i link con un indirizzo sicuro ([FluidRichTextLinks.sanitize]). Sparisce il contenuto di `script`,
  * `style`, `head`, `template`, `svg`, `math`, `iframe`, `object`, `noscript`, `select`, `textarea`; tutto il
@@ -28,8 +32,13 @@ object FluidRichTextHtml {
   /**
    * La versione del dialetto scritto da [write]. Sale se un giorno l'uscita cambia in modo che un
    * lettore vecchio non capirebbe; [read] legge ogni versione (e ogni HTML).
+   *
+   * - **1**: elenchi e citazioni a un livello (una voce poteva stare in una citazione).
+   * - **2**: elenchi e citazioni annidati (sotto-elenchi dentro il `<li>`, citazioni nelle citazioni). Un
+   *   HTML della versione 1 e' anche un HTML della 2 e si legge identico; un lettore della versione 1
+   *   leggerebbe la 2 appiattendo gli annidamenti, senza perdere testo.
    */
-  const val Version: Int = 1
+  const val Version: Int = 2
 
   /** Oltre questa lunghezza l'ingresso si legge fino a qui: un testo da incollare non e' mai cosi' lungo. */
   const val MaxInputLength: Int = 4_000_000
@@ -45,45 +54,64 @@ object FluidRichTextHtml {
 // Scrittura
 // ---------------------------------------------------------------------------------------------------
 
+/**
+ * Scrive i paragrafi tenendo aperti i contenitori che il paragrafo dopo condivide: una voce dopo l'altra
+ * nello stesso `<ul>`, un sotto-elenco **dentro** il `<li>` della voce sopra (come vuole l'HTML, e come lo
+ * scrivono Gmail e Outlook), una citazione dentro l'altra. Ogni elenco aperto ha sempre un `<li>` aperto:
+ * cosi' un contenitore piu' profondo ha sempre una voce in cui stare, anche quando la voce non ha testo
+ * suo (un sotto-elenco senza una voce sopra diventa `<li><ul>…</ul></li>`).
+ */
 private class HtmlWriter(private val document: FluidRichTextDocument) {
   private val out = StringBuilder()
+  private val open = ArrayList<FluidRichTextBlock>()
 
   fun write(): String {
-    val styles = document.paragraphStyles
-    var index = 0
-    while (index < styles.size) {
-      if (styles[index].quote) {
-        out.append("<blockquote>")
-        while (index < styles.size && styles[index].quote) index = writeGroup(index, quote = true)
-        out.append("</blockquote>")
+    for (index in 0 until document.paragraphCount) {
+      val style = document.paragraphStyles[index]
+      val blocks = style.blocks
+      val common = commonDepth(open, blocks)
+      val item = style.list != null
+      if (item && common == blocks.size) {
+        // Un'altra voce dello stesso elenco: si chiude cio' che stava dentro la voce di prima, e la voce.
+        closeTo(blocks.size)
+        out.append("</li><li>")
       } else {
-        index = writeGroup(index, quote = false)
+        closeTo(common)
+        for (level in common until blocks.size) openBlock(blocks[level])
+      }
+      if (item) {
+        writeInline(index)
+      } else {
+        out.append("<div>")
+        writeInline(index)
+        out.append("</div>")
       }
     }
+    closeTo(0)
     return out.toString()
   }
 
-  /** Scrive un paragrafo, o una serie di voci dello stesso elenco; ritorna l'indice del prossimo. */
-  private fun writeGroup(start: Int, quote: Boolean): Int {
-    val styles = document.paragraphStyles
-    val kind = styles[start].list
-    if (kind == null) {
-      out.append("<div>")
-      writeInline(start)
-      out.append("</div>")
-      return start + 1
+  private fun openBlock(block: FluidRichTextBlock) {
+    out.append(
+      when (block) {
+        FluidRichTextBlock.Quote -> "<blockquote>"
+        FluidRichTextBlock.Bullet -> "<ul><li>"
+        FluidRichTextBlock.Numbered -> "<ol><li>"
+      },
+    )
+    open.add(block)
+  }
+
+  private fun closeTo(depth: Int) {
+    while (open.size > depth) {
+      out.append(
+        when (open.removeAt(open.size - 1)) {
+          FluidRichTextBlock.Quote -> "</blockquote>"
+          FluidRichTextBlock.Bullet -> "</li></ul>"
+          FluidRichTextBlock.Numbered -> "</li></ol>"
+        },
+      )
     }
-    val tag = if (kind == FluidRichTextListKind.Numbered) "ol" else "ul"
-    out.append('<').append(tag).append('>')
-    var index = start
-    while (index < styles.size && styles[index].quote == quote && styles[index].list == kind) {
-      out.append("<li>")
-      writeInline(index)
-      out.append("</li>")
-      index++
-    }
-    out.append("</").append(tag).append('>')
-    return index
   }
 
   private fun writeInline(paragraph: Int) {
@@ -167,9 +195,13 @@ private class HtmlReader(private val source: String) {
 
   /** Gli elementi aperti, con cio' che cambiano del formato. */
   private val frames = ArrayList<Frame>()
-  private val lists = ArrayList<FluidRichTextListKind>()
-  private var listItemDepth = 0
-  private var quoteDepth = 0
+
+  /**
+   * I contenitori aperti (`ul`, `ol`, `blockquote`, e un `li` fuori da un elenco, che vale un elenco
+   * puntato), dal piu' esterno. Al massimo [MaxDepth]: oltre, l'apertura si ignora, e lo stile di
+   * paragrafo tiene comunque solo [FluidRichTextParagraphStyle.MaxDepth] contenitori.
+   */
+  private val blocks = ArrayList<OpenBlock>()
   private var preDepth = 0
 
   /** Uno spazio collassabile visto ma non ancora scritto (si scrive solo se dopo arriva del testo). */
@@ -300,10 +332,11 @@ private class HtmlReader(private val source: String) {
     }
     if (name in BlockElements) blockBoundary()
     when (name) {
-      "ul" -> lists.add(FluidRichTextListKind.Bullet)
-      "ol" -> lists.add(FluidRichTextListKind.Numbered)
-      "li" -> listItemDepth++
-      "blockquote" -> quoteDepth++
+      "ul", "menu" -> openBlock(name, FluidRichTextBlock.Bullet)
+      "ol" -> openBlock(name, FluidRichTextBlock.Numbered)
+      "blockquote" -> openBlock(name, FluidRichTextBlock.Quote)
+      // Una voce fuori da un elenco (`<li>` da solo, o dentro una citazione): e' comunque una voce.
+      "li" -> if (blocks.lastOrNull()?.block?.listKind == null) openBlock(name, FluidRichTextBlock.Bullet)
       "pre" -> preDepth++
       "td", "th" -> softSeparator()
     }
@@ -317,9 +350,7 @@ private class HtmlReader(private val source: String) {
   private fun endTag(name: String) {
     if (name in BlockElements) blockBoundary()
     when (name) {
-      "ul", "ol" -> if (lists.isNotEmpty()) lists.removeAt(lists.size - 1)
-      "li" -> if (listItemDepth > 0) listItemDepth--
-      "blockquote" -> if (quoteDepth > 0) quoteDepth--
+      "ul", "menu", "ol", "blockquote", "li" -> closeBlock(name)
       "pre" -> if (preDepth > 0) preDepth--
       "td", "th" -> softSeparator()
     }
@@ -421,10 +452,28 @@ private class HtmlReader(private val source: String) {
     return format
   }
 
-  private fun currentParagraphStyle(): FluidRichTextParagraphStyle = FluidRichTextParagraphStyle(
-    list = if (listItemDepth > 0) lists.lastOrNull() ?: FluidRichTextListKind.Bullet else null,
-    quote = quoteDepth > 0,
-  )
+  private fun openBlock(name: String, block: FluidRichTextBlock) {
+    if (blocks.size < MaxDepth) blocks.add(OpenBlock(name, block))
+  }
+
+  /**
+   * Chiude l'ultimo contenitore aperto col nome [name] e quelli rimasti aperti dentro (un HTML che chiude
+   * nell'ordine sbagliato). Un `</li>` chiude solo la voce-elenco che ha aperto lui, se ce n'e' una.
+   */
+  private fun closeBlock(name: String) {
+    val index = if (name == "li") {
+      // Solo se l'elenco piu' interno e' proprio la voce aperta fuori da un elenco: il `</li>` di una
+      // voce dentro un `<ul>` non chiude niente (l'elenco lo chiude il suo `</ul>`).
+      blocks.indexOfLast { it.block.listKind != null }.takeIf { it >= 0 && blocks[it].name == "li" } ?: -1
+    } else {
+      blocks.indexOfLast { it.name == name }
+    }
+    if (index >= 0) while (blocks.size > index) blocks.removeAt(blocks.size - 1)
+  }
+
+  /** Lo stile dei contenitori aperti; oltre il tetto, il costruttore tiene i primi e il piu' interno. */
+  private fun currentParagraphStyle(): FluidRichTextParagraphStyle =
+    if (blocks.isEmpty()) FluidRichTextParagraphStyle.Plain else FluidRichTextParagraphStyle(blocks.map { it.block })
 
   // --- testo e paragrafi ---------------------------------------------------------------------------
 
@@ -511,6 +560,8 @@ private class HtmlReader(private val source: String) {
   )
 
   private class Frame(val name: String, val override: Override)
+
+  private class OpenBlock(val name: String, val block: FluidRichTextBlock)
 
   companion object {
     const val MaxDepth = 256

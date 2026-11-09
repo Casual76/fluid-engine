@@ -28,6 +28,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -46,14 +48,18 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
+import dev.antigravity.fluidengine.richtext.FluidRichTextBlock
 import dev.antigravity.fluidengine.richtext.FluidRichTextChangeSource
 import dev.antigravity.fluidengine.richtext.FluidRichTextDocument
 import dev.antigravity.fluidengine.richtext.FluidRichTextEditor
+import dev.antigravity.fluidengine.richtext.FluidRichTextEditorDefaults
 import dev.antigravity.fluidengine.richtext.FluidRichTextInlineStyle
+import dev.antigravity.fluidengine.richtext.FluidRichTextLabels
 import dev.antigravity.fluidengine.richtext.FluidRichTextListKind
 import dev.antigravity.fluidengine.richtext.FluidRichTextParagraphStyle
 import dev.antigravity.fluidengine.richtext.FluidRichTextState
 import dev.antigravity.fluidengine.richtext.FluidRichTextToolbar
+import dev.antigravity.fluidengine.richtext.LocalFluidRichTextLabels
 import dev.antigravity.fluidengine.richtext.buildFluidRichText
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -72,7 +78,9 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * L'editor con formattazione con una tastiera finta: inserimento e composizione dall'`InputConnection`
  * (come Gboard), a capo negli elenchi, cancella, selezione, la barra che riflette gli stili, incolla e
- * copia con gli appunti, semantica per TalkBack, testo al 200% e da destra a sinistra.
+ * copia con gli appunti, semantica per TalkBack, testo al 200% e da destra a sinistra; elenchi e
+ * citazioni annidati (tasti del rientro, Tab/Maiusc+Tab, a capo e cancella che risalgono di livello, il
+ * livello annunciato, il tetto del rientro al 200% e da destra a sinistra).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -85,10 +93,13 @@ class FluidRichTextEditorTest {
 
   private val bullet = FluidRichTextParagraphStyle(list = FluidRichTextListKind.Bullet)
 
+  private fun nested(vararg blocks: FluidRichTextBlock) = FluidRichTextParagraphStyle.of(*blocks)
+
   private fun setEditor(
     initial: FluidRichTextDocument = FluidRichTextDocument.Empty,
     scale: Float = 1f,
     rtl: Boolean = false,
+    labels: FluidRichTextLabels = FluidRichTextLabels(),
   ) {
     state = FluidRichTextState(initial)
     compose.setContent {
@@ -99,6 +110,7 @@ class FluidRichTextEditorTest {
           LocalDensity provides Density(density.density, scale),
           LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
           LocalFluidMotionPolicy provides FluidMotionPolicy(0f),
+          LocalFluidRichTextLabels provides labels,
         ) {
           Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -372,6 +384,166 @@ class FluidRichTextEditorTest {
     }
     compose.runOnIdle { assertEquals(TextRange(11), state.selection) }
     assertEquals("Testo\nFirma", fieldText())
+  }
+
+  // --- elenchi e citazioni annidati (pm-f1/gh2) ------------------------------------------------------
+
+  @Test fun toolbarIndentButtonsChangeTheLevelAndTurnOffWhenUseless() {
+    setEditor(buildFluidRichText { paragraph(bullet) { append("uno") }; paragraph(bullet) { append("due") } })
+    connect()
+    compose.runOnIdle {
+      state.select(TextRange(6))
+      state.isFormattingRequested = true
+    }
+    val increase = compose.onNodeWithContentDescription("Aumenta rientro")
+    val decrease = compose.onNodeWithContentDescription("Riduci rientro")
+    increase.performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+    increase.performClick()
+    compose.runOnIdle {
+      assertEquals(listOf(bullet, nested(FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet)), state.document.paragraphStyles)
+      assertTrue(state.isFocused)
+    }
+    decrease.performScrollTo().assertIsEnabled().performClick()
+    decrease.performClick()
+    compose.runOnIdle { assertEquals(FluidRichTextParagraphStyle.Plain, state.document.paragraphStyles[1]) }
+    // Su un paragrafo normale non c'e' rientro da cambiare: i due tasti sono spenti.
+    decrease.assertIsNotEnabled()
+    increase.assertIsNotEnabled()
+    compose.onNodeWithContentDescription("Annulla").performScrollTo().performClick()
+    compose.runOnIdle { assertEquals(bullet, state.document.paragraphStyles[1]) }
+    decrease.assertIsEnabled()
+  }
+
+  @Test fun tabAndShiftTabFromAHardwareKeyboard() {
+    setEditor(buildFluidRichText { paragraph(bullet) { append("uno") }; paragraph(bullet) { append("due") } })
+    connect()
+    compose.runOnIdle { state.select(TextRange(5)) }
+    editor().performKeyInput { pressKey(Key.Tab) }
+    compose.runOnIdle {
+      assertEquals(nested(FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet), state.document.paragraphStyles[1])
+      assertEquals("uno\ndue", state.document.text)
+    }
+    editor().performKeyInput { withKeyDown(Key.ShiftLeft) { pressKey(Key.Tab) } }
+    editor().performKeyInput { withKeyDown(Key.ShiftLeft) { pressKey(Key.Tab) } }
+    compose.runOnIdle { assertEquals(FluidRichTextParagraphStyle.Plain, state.document.paragraphStyles[1]) }
+    // Ctrl+Z annulla un rientro alla volta.
+    editor().performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.Z) } }
+    compose.runOnIdle { assertEquals(bullet, state.document.paragraphStyles[1]) }
+    assertInSync()
+  }
+
+  @Test fun enterOnEmptyNestedItemsClimbsLikeGboard() {
+    setEditor(buildFluidRichText {
+      paragraph(bullet) { append("uno") }
+      paragraph(nested(FluidRichTextBlock.Bullet, FluidRichTextBlock.Numbered)) { append("due") }
+    })
+    val ic = connect()
+    compose.runOnIdle { state.select(TextRange(7)) }
+    compose.runOnIdle { ic.commitText("\n", 1) }
+    compose.runOnIdle {
+      assertEquals("uno\ndue\n", state.document.text)
+      assertEquals(nested(FluidRichTextBlock.Bullet, FluidRichTextBlock.Numbered), state.document.paragraphStyles[2])
+      assertEquals(2, state.document.listNumber(2))
+    }
+    compose.runOnIdle { ic.commitText("\n", 1) }
+    compose.runOnIdle { assertEquals(bullet, state.document.paragraphStyles[2]) }
+    compose.runOnIdle { ic.commitText("\n", 1) }
+    compose.runOnIdle {
+      assertEquals("uno\ndue\n", state.document.text)
+      assertEquals(FluidRichTextParagraphStyle.Plain, state.document.paragraphStyles[2])
+    }
+    assertInSync()
+  }
+
+  @Test fun gboardBackspaceAtTheStartOfANestedItemClimbsFirst() {
+    setEditor(buildFluidRichText {
+      paragraph { append("prima") }
+      paragraph(nested(FluidRichTextBlock.Quote, FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet)) { append("voce") }
+    })
+    val ic = connect()
+    compose.runOnIdle { state.select(TextRange(6)) }
+    for (expected in listOf(
+      nested(FluidRichTextBlock.Quote, FluidRichTextBlock.Bullet),
+      nested(FluidRichTextBlock.Quote),
+      FluidRichTextParagraphStyle.Plain,
+    )) {
+      compose.runOnIdle { ic.deleteSurroundingText(1, 0) }
+      compose.runOnIdle {
+        assertEquals("prima\nvoce", state.document.text)
+        assertEquals(expected, state.document.paragraphStyles[1])
+      }
+    }
+    compose.runOnIdle { ic.deleteSurroundingText(1, 0) }
+    compose.runOnIdle { assertEquals("primavoce", state.document.text) }
+    assertInSync()
+  }
+
+  @Test fun talkBackHearsTheLevelInItalianAndEnglish() {
+    setEditor(buildFluidRichText {
+      paragraph(bullet) { append("uno") }
+      paragraph(nested(FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet)) { append("due") }
+      paragraph(nested(FluidRichTextBlock.Quote, FluidRichTextBlock.Quote)) { append("tre") }
+    })
+    connect()
+    compose.runOnIdle { state.select(TextRange(5)) }
+    editor().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Elenco puntato, livello 2"))
+    compose.runOnIdle { state.select(TextRange(9)) }
+    editor().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Citazione, livello 2"))
+  }
+
+  @Test fun englishLabelsForTheIndentButtons() {
+    setEditor(buildFluidRichText { paragraph(nested(FluidRichTextBlock.Numbered, FluidRichTextBlock.Numbered)) { append("x") } }, labels = FluidRichTextLabels.english())
+    connect()
+    compose.runOnIdle { state.isFormattingRequested = true }
+    editor().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Numbered list, level 2"))
+    compose.onNodeWithContentDescription("Increase indent").performScrollTo().assertIsEnabled()
+    compose.onNodeWithContentDescription("Decrease indent").performScrollTo().assertIsEnabled()
+  }
+
+  @Test fun deepNestingAtLargeTextKeepsTheTextReadable() {
+    val deep = nested(
+      FluidRichTextBlock.Quote, FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet,
+      FluidRichTextBlock.Quote, FluidRichTextBlock.Bullet, FluidRichTextBlock.Numbered,
+    )
+    setEditor(
+      buildFluidRichText {
+        paragraph { append("inizio") }
+        paragraph(deep) { append("una voce profonda con un testo abbastanza lungo da andare a capo") }
+      },
+      scale = 2f,
+    )
+    connect()
+    val layout = textLayout()
+    val width = layout.size.width.toFloat()
+    val textStart = layout.getCursorRect(state.document.paragraphStart(1)).left
+    // Il rientro ha un tetto: al 200% sei livelli lascerebbero al testo poche lettere per riga.
+    assertTrue("rientro $textStart su $width", textStart <= width * FluidRichTextEditorDefaults.MaxIndentFraction + 2f)
+    assertTrue("rientro $textStart", textStart > width * 0.2f)
+    assertInSync()
+  }
+
+  @Test fun deepNestingRightToLeftIndentsFromTheRight() {
+    val deep = nested(FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet, FluidRichTextBlock.Bullet)
+    setEditor(
+      buildFluidRichText {
+        paragraph(bullet) { append("مرحبا") }
+        paragraph(deep) { append("البند الأول في قائمة متداخلة طويلة جدا") }
+      },
+      scale = 2f,
+      rtl = true,
+    )
+    val ic = connect()
+    val layout = textLayout()
+    val width = layout.size.width.toFloat()
+    val textStart = layout.getCursorRect(state.document.paragraphStart(1)).left
+    assertTrue("rientro $textStart su $width", textStart >= width * (1f - FluidRichTextEditorDefaults.MaxIndentFraction) - 2f)
+    assertTrue("rientro $textStart su $width", textStart < width * 0.8f)
+    // Si scrive ancora, e Maiusc+Tab da tastiera fisica risale anche da destra a sinistra.
+    compose.runOnIdle { state.select(TextRange(state.document.text.length)) }
+    compose.runOnIdle { ic.commitText(" ✓", 1) }
+    editor().performKeyInput { withKeyDown(Key.ShiftLeft) { pressKey(Key.Tab) } }
+    compose.runOnIdle { assertEquals(4, state.document.paragraphStyles[1].depth) }
+    assertInSync()
   }
 
   private fun textLayout(): TextLayoutResult {

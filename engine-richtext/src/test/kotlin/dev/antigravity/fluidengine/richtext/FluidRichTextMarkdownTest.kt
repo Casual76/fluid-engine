@@ -76,7 +76,9 @@ class FluidRichTextMarkdownTest {
     assertTrue(both.bold && both.italic)
     assertFalse(doc.formatAt(line1 + lines[1].indexOf("non")).italic)
     assertEquals(listOf(bullet, bullet, numbered), doc.paragraphStyles.subList(2, 5))
-    assertEquals(quote, doc.paragraphStyles[5])
+    // Le citazioni annidate restano annidate (prima dell'annidamento si appiattivano).
+    assertEquals(FluidRichTextParagraphStyle.of(FluidRichTextBlock.Quote, FluidRichTextBlock.Quote), doc.paragraphStyles[5])
+    assertTrue(doc.paragraphStyles[5].quote)
     assertEquals("citazione annidata", lines[5])
     assertEquals(FluidRichTextParagraphStyle(FluidRichTextListKind.Bullet, quote = true), doc.paragraphStyles[6])
     assertEquals("Link https://esempio.it e qui e là", lines[7])

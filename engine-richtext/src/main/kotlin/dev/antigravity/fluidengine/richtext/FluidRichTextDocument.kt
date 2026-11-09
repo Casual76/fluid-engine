@@ -16,10 +16,44 @@ import androidx.compose.ui.text.TextRange
 enum class FluidRichTextInlineStyle { Bold, Italic, Underline }
 
 /**
- * Il tipo di elenco di un paragrafo. Un solo livello: un elenco dentro un elenco non c'e' (vedi
- * [FluidRichTextParagraphStyle]). **Puo' crescere**: niente `when` esaustivi senza `else`.
+ * Il tipo di elenco di un paragrafo. Gli elenchi si annidano (vedi [FluidRichTextParagraphStyle]): un
+ * sotto-elenco ha il suo tipo, indipendente da quello sopra. **Puo' crescere**: niente `when` esaustivi
+ * senza `else`.
  */
-enum class FluidRichTextListKind { Bullet, Numbered }
+enum class FluidRichTextListKind {
+  Bullet,
+  Numbered,
+  ;
+
+  /** Il contenitore che fa di un paragrafo una voce di questo elenco. */
+  val block: FluidRichTextBlock
+    get() = if (this == Bullet) FluidRichTextBlock.Bullet else FluidRichTextBlock.Numbered
+}
+
+/**
+ * Un contenitore in cui sta un paragrafo: una citazione, o un elenco (di cui il paragrafo e' una voce, o
+ * dentro la cui voce sta). Sono i tre blocchi che l'HTML di una mail annida (`blockquote`, `ul`, `ol`) e
+ * che il Markdown sa scrivere con i rientri. **Puo' crescere**: niente `when` esaustivi senza `else`.
+ */
+enum class FluidRichTextBlock {
+  /** Una citazione: la barra a lato e il testo attenuato; `<blockquote>`, `> `. */
+  Quote,
+
+  /** Un elenco puntato: `<ul>`, `- `. */
+  Bullet,
+
+  /** Un elenco numerato: `<ol>`, `1. `. */
+  Numbered,
+  ;
+
+  /** Il tipo di elenco, o null per la citazione. */
+  val listKind: FluidRichTextListKind?
+    get() = when (this) {
+      Bullet -> FluidRichTextListKind.Bullet
+      Numbered -> FluidRichTextListKind.Numbered
+      Quote -> null
+    }
+}
 
 /**
  * Come appare un tratto di testo: i tre interruttori e, se e' un link, il suo indirizzo.
@@ -62,23 +96,141 @@ data class FluidRichTextInlineFormat(
 }
 
 /**
- * Lo stile di un paragrafo: se e' una voce di elenco, e se sta in una citazione.
+ * Lo stile di un paragrafo: i contenitori in cui sta, dal piu' esterno al piu' interno ([blocks]).
  *
- * **Un livello solo di elenco e di citazione.** Elenchi annidati e citazioni dentro citazioni sono ci'o
- * che rende un editor sul telefono difficile da usare (rientri che non si vedono, «indietro» che non
- * si capisce cosa toglie) e da serializzare; un HTML in ingresso che li ha viene appiattito a un livello
- * (il testo resta tutto). Una voce di elenco dentro una citazione si', perche' e' quello che produce
- * una risposta citata.
+ * **Una pila, non un numero.** Elenchi e citazioni si annidano e si combinano come in un HTML di posta:
+ * `[Bullet, Bullet]` e' una voce di un sotto-elenco puntato, `[Quote, Numbered]` una voce numerata dentro
+ * una citazione, `[Bullet, Quote]` una citazione dentro una voce, `[Quote, Quote]` una citazione dentro
+ * una citazione. Il **livello di rientro** e' [depth], da 0 (paragrafo normale) a [MaxDepth].
+ *
+ * **Voce o contenuto.** Un paragrafo il cui contenitore piu' interno e' un elenco e' una **voce** di
+ * quell'elenco ([list]); uno il cui piu' interno e' una citazione e' un paragrafo citato. Due paragrafi
+ * vicini con la stessa pila sono voci dello stesso elenco (o paragrafi della stessa citazione); un
+ * paragrafo con una pila piu' lunga che comincia come quella di sopra sta **dentro** la voce di sopra
+ * (un sotto-elenco, una citazione nella voce): per questo la numerazione di un elenco prosegue dopo un
+ * sotto-elenco e riparte in ogni sotto-elenco ([FluidRichTextDocument.listNumber]).
+ *
+ * **Il tetto.** Oltre [MaxDepth] contenitori (un HTML incollato con cento citazioni una dentro l'altra) si
+ * tengono i primi `MaxDepth - 1` e il piu' interno: il paragrafo resta una voce se lo era, e il testo
+ * resta tutto. Il rientro che si vede ha a sua volta un limite (vedi
+ * [FluidRichTextEditorDefaults.MaxIndentFraction]): oltre quello i rientri del documento si stringono.
+ *
+ * Si costruisce con la pila ([of], o il costruttore con la lista), o con il costruttore a un livello
+ * `(list, quote)`, che fa una voce dentro una citazione come prima che gli elenchi si annidassero.
  */
 @Immutable
-data class FluidRichTextParagraphStyle(
-  val list: FluidRichTextListKind? = null,
-  val quote: Boolean = false,
-) {
-  companion object {
-    /** Un paragrafo normale. */
-    val Plain: FluidRichTextParagraphStyle = FluidRichTextParagraphStyle()
+class FluidRichTextParagraphStyle(blocks: List<FluidRichTextBlock>) {
+  /** I contenitori, dal piu' esterno al piu' interno; vuota per un paragrafo normale. Mai oltre [MaxDepth]. */
+  val blocks: List<FluidRichTextBlock> =
+    if (blocks.size <= MaxDepth) blocks.toList() else blocks.subList(0, MaxDepth - 1) + blocks.last()
+
+  /**
+   * Lo stile a un livello: una voce dell'elenco [list] (se c'e'), dentro una citazione se [quote]. E' la
+   * forma di prima dell'annidamento, e resta il modo breve di scrivere i casi comuni.
+   */
+  constructor(list: FluidRichTextListKind? = null, quote: Boolean = false) :
+    this(listOfNotNull(if (quote) FluidRichTextBlock.Quote else null, list?.block))
+
+  /** Il livello di rientro: quanti contenitori. 0 per un paragrafo normale. */
+  val depth: Int get() = blocks.size
+
+  /** Il tipo dell'elenco di cui il paragrafo e' una voce (il contenitore piu' interno), o null. */
+  val list: FluidRichTextListKind? get() = blocks.lastOrNull()?.listKind
+
+  /** Vero se il paragrafo sta in almeno una citazione (a qualunque livello). */
+  val quote: Boolean get() = blocks.contains(FluidRichTextBlock.Quote)
+
+  /**
+   * Il livello della voce fra gli elenchi: 1 per una voce di un elenco, 2 per una voce di un sotto-elenco,
+   * e cosi' via (le citazioni non contano). 0 se il paragrafo non e' una voce. Decide il segno dei puntati
+   * e cio' che TalkBack annuncia («elenco puntato, livello 2»).
+   */
+  val listLevel: Int get() = if (list == null) 0 else blocks.count { it != FluidRichTextBlock.Quote }
+
+  /** In quante citazioni sta il paragrafo, una dentro l'altra. */
+  val quoteLevel: Int get() = blocks.count { it == FluidRichTextBlock.Quote }
+
+  /**
+   * Lo stesso stile con l'elenco e la citazione cambiati come li cambiano i tasti della barra: [list]
+   * diverso sostituisce l'elenco della voce (o ne fa una voce, dentro i contenitori che ha; null toglie gli
+   * elenchi in fondo alla pila); [quote] falso toglie tutte le citazioni, vero mette in una citazione
+   * tutto il paragrafo se non lo era. Su uno stile a un livello e' la `copy` di prima.
+   */
+  fun copy(list: FluidRichTextListKind? = this.list, quote: Boolean = this.quote): FluidRichTextParagraphStyle {
+    var result = this
+    if (list != this.list) result = if (list == null) result.withoutList() else result.withList(list)
+    if (quote != result.quote) result = if (quote) result.wrappedInQuote() else result.withoutQuotes()
+    return result
   }
+
+  override fun equals(other: Any?): Boolean = other is FluidRichTextParagraphStyle && blocks == other.blocks
+
+  override fun hashCode(): Int = blocks.hashCode()
+
+  override fun toString(): String = "FluidRichTextParagraphStyle($blocks)"
+
+  companion object {
+    /** Quanti contenitori al massimo, uno dentro l'altro: i livelli di rientro vanno da 0 a questo. */
+    const val MaxDepth: Int = 6
+
+    /** Un paragrafo normale. */
+    val Plain: FluidRichTextParagraphStyle = FluidRichTextParagraphStyle(emptyList<FluidRichTextBlock>())
+
+    /** Lo stile con i contenitori [blocks], dal piu' esterno: `of(Quote, Bullet, Bullet)`. */
+    fun of(vararg blocks: FluidRichTextBlock): FluidRichTextParagraphStyle = FluidRichTextParagraphStyle(blocks.asList())
+  }
+}
+
+// --- operazioni sugli stili di paragrafo (i comandi della barra e della tastiera) ---------------------
+
+/** Una voce dell'elenco [kind]: cambia il tipo della voce, o la fa voce dentro i contenitori che ha. */
+internal fun FluidRichTextParagraphStyle.withList(kind: FluidRichTextListKind): FluidRichTextParagraphStyle = when {
+  list == kind -> this
+  list != null -> FluidRichTextParagraphStyle(blocks.dropLast(1) + kind.block)
+  depth >= FluidRichTextParagraphStyle.MaxDepth -> this
+  else -> FluidRichTextParagraphStyle(blocks + kind.block)
+}
+
+/** Fuori dagli elenchi in fondo alla pila: `[Quote, Bullet, Bullet]` torna `[Quote]`. */
+internal fun FluidRichTextParagraphStyle.withoutList(): FluidRichTextParagraphStyle {
+  if (list == null) return this
+  return FluidRichTextParagraphStyle(blocks.dropLastWhile { it != FluidRichTextBlock.Quote })
+}
+
+/** Tutto il paragrafo dentro una citazione (il contenitore piu' esterno). */
+internal fun FluidRichTextParagraphStyle.wrappedInQuote(): FluidRichTextParagraphStyle =
+  if (depth >= FluidRichTextParagraphStyle.MaxDepth) this else FluidRichTextParagraphStyle(listOf(FluidRichTextBlock.Quote) + blocks)
+
+/** Fuori da tutte le citazioni; gli elenchi restano. */
+internal fun FluidRichTextParagraphStyle.withoutQuotes(): FluidRichTextParagraphStyle =
+  if (!quote) this else FluidRichTextParagraphStyle(blocks.filter { it != FluidRichTextBlock.Quote })
+
+/** Vero se [indented] cambia qualcosa: c'e' un contenitore da ripetere e spazio sotto il tetto. */
+internal val FluidRichTextParagraphStyle.canIndent: Boolean
+  get() = depth in 1 until FluidRichTextParagraphStyle.MaxDepth
+
+/**
+ * Un livello piu' dentro: il contenitore piu' interno si ripete (una voce diventa la voce di un
+ * sotto-elenco dello stesso tipo, un paragrafo citato una citazione nella citazione). Un paragrafo
+ * normale non ha un rientro da aumentare, e al tetto non cambia niente.
+ */
+internal fun FluidRichTextParagraphStyle.indented(): FluidRichTextParagraphStyle =
+  if (!canIndent) this else FluidRichTextParagraphStyle(blocks + blocks.last())
+
+/**
+ * Un livello piu' fuori: toglie il contenitore piu' interno. Una voce di un sotto-elenco torna voce
+ * dell'elenco sopra, una voce di primo livello torna paragrafo (o paragrafo citato), una citazione
+ * annidata torna citazione. E' anche cio' che fanno l'a capo su una voce vuota e il «cancella» in testa.
+ */
+internal fun FluidRichTextParagraphStyle.outdented(): FluidRichTextParagraphStyle =
+  if (depth == 0) this else FluidRichTextParagraphStyle(blocks.dropLast(1))
+
+/** Quanti contenitori iniziali hanno in comune [a] e [b]. */
+internal fun commonDepth(a: List<FluidRichTextBlock>, b: List<FluidRichTextBlock>): Int {
+  val max = minOf(a.size, b.size)
+  var index = 0
+  while (index < max && a[index] == b[index]) index++
+  return index
 }
 
 /** Un tratto di testo con un formato non vuoto, `[start, end)` nel testo del documento. */
@@ -208,19 +360,40 @@ class FluidRichTextDocument internal constructor(
   internal fun runStart(index: Int): Int = runStarts[index]
 
   /**
-   * Il numero di una voce di elenco numerato: 1 per la prima di una serie di voci numerate consecutive
-   * (con la stessa citazione), e poi a salire. Zero per un paragrafo che non e' una voce numerata.
+   * Il numero di una voce di elenco numerato: 1 per la prima voce dell'elenco, e poi a salire. Le voci
+   * dello stesso elenco sono quelle con la stessa pila di contenitori; cio' che sta in mezzo con una pila
+   * piu' lunga (un sotto-elenco, una citazione nella voce) non interrompe la numerazione, cio' che ne
+   * esce si'. Ogni sotto-elenco riparte da 1. Zero per un paragrafo che non e' una voce numerata.
+   *
+   * Si calcola una volta per documento (che e' immutabile), per tutti i paragrafi insieme.
    */
-  fun listNumber(paragraph: Int): Int {
-    val style = paragraphStyles[paragraph]
-    if (style.list != FluidRichTextListKind.Numbered) return 0
-    var number = 1
-    var index = paragraph - 1
-    while (index >= 0 && paragraphStyles[index] == style) {
-      number++
-      index--
+  fun listNumber(paragraph: Int): Int = listNumbers[paragraph]
+
+  /**
+   * Il numero di ogni voce (puntate comprese: serve a sapere quale voce e' la prima), 0 per i paragrafi
+   * che non sono voci. Un'unica passata, con i contatori dei contenitori aperti: e' lo stesso
+   * raggruppamento che fa lo scrittore dell'HTML.
+   */
+  private val listNumbers: IntArray by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    val result = IntArray(paragraphStyles.size)
+    val counters = IntArray(FluidRichTextParagraphStyle.MaxDepth)
+    var open: List<FluidRichTextBlock> = emptyList()
+    paragraphStyles.forEachIndexed { index, style ->
+      val blocks = style.blocks
+      val common = commonDepth(open, blocks)
+      // I contenitori che si aprono qui ripartono. Un elenco aperto solo per contenere qualcosa di piu'
+      // profondo (una voce senza testo suo) ha gia' una voce: nell'HTML e' un `<li>` e conta.
+      for (level in common until blocks.size) {
+        counters[level] = if (level < blocks.size - 1 && blocks[level] != FluidRichTextBlock.Quote) 1 else 0
+      }
+      if (style.list != null) {
+        val level = blocks.size - 1
+        counters[level]++
+        if (style.list == FluidRichTextListKind.Numbered) result[index] = counters[level]
+      }
+      open = blocks
     }
-    return number
+    result
   }
 
   /**
@@ -288,6 +461,9 @@ class FluidRichTextDocument internal constructor(
  *   paragraph { bold("Mario Rossi") }
  *   paragraph { append("Tel. "); link("+39 055 000000", "tel:+39055000000") }
  *   paragraph(FluidRichTextParagraphStyle(list = FluidRichTextListKind.Bullet)) { append("una voce") }
+ *   paragraph(FluidRichTextParagraphStyle.of(FluidRichTextBlock.Bullet, FluidRichTextBlock.Numbered)) {
+ *     append("la prima voce numerata di un sotto-elenco")
+ *   }
  * }
  * ```
  *

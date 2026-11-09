@@ -52,6 +52,15 @@ data class FluidRichTextLabels(
   val linkTo: String = "link a %1\$s",
   /** Fra due stili nello stato al cursore: «Grassetto, corsivo». */
   val separator: String = ", ",
+  /** Il tasto che porta le voci (o le citazioni) toccate un livello piu' dentro. */
+  val increaseIndent: String = "Aumenta rientro",
+  /** Il tasto che le porta un livello piu' fuori (e alla fine fuori dall'elenco o dalla citazione). */
+  val decreaseIndent: String = "Riduci rientro",
+  /**
+   * Il livello di un elenco o di una citazione annidati nello stato al cursore, con `%1$d` per il
+   * numero: «Elenco puntato, livello 2». Si dice solo dal secondo livello in su.
+   */
+  val level: String = "livello %1\$d",
 ) {
   companion object {
     /** Le stesse parole in inglese. */
@@ -77,6 +86,9 @@ data class FluidRichTextLabels(
       linkRemove = "Remove link",
       linkTo = "link to %1\$s",
       separator = ", ",
+      increaseIndent = "Increase indent",
+      decreaseIndent = "Decrease indent",
+      level = "level %1\$d",
     )
   }
 }
@@ -85,8 +97,8 @@ data class FluidRichTextLabels(
 val LocalFluidRichTextLabels: ProvidableCompositionLocal<FluidRichTextLabels> = staticCompositionLocalOf { FluidRichTextLabels() }
 
 /**
- * Cosa TalkBack dice dello stato al cursore: gli stili accesi, l'elenco, la citazione, il link. Vuoto
- * per il testo semplice.
+ * Cosa TalkBack dice dello stato al cursore: gli stili accesi, l'elenco (col livello da 2 in su:
+ * «Elenco puntato, livello 2»), la citazione (idem), il link. Vuoto per il testo semplice.
  */
 internal fun FluidRichTextFormat.describe(labels: FluidRichTextLabels): String = buildList {
   if (bold) add(labels.bold)
@@ -97,6 +109,8 @@ internal fun FluidRichTextFormat.describe(labels: FluidRichTextLabels): String =
     FluidRichTextListKind.Numbered -> add(labels.numberedList)
     null -> Unit
   }
+  if (list != null && listLevel > 1) add(String.format(labels.level, listLevel))
   if (quote) add(labels.quote)
+  if (quote && quoteLevel > 1) add(String.format(labels.level, quoteLevel))
   link?.let { add(String.format(labels.linkTo, FluidRichTextLinks.displayText(it))) }
 }.joinToString(labels.separator)

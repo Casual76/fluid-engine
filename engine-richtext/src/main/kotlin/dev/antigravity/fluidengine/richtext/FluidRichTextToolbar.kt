@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.FormatIndentDecrease
+import androidx.compose.material.icons.automirrored.rounded.FormatIndentIncrease
 import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.automirrored.rounded.Undo
@@ -46,7 +48,7 @@ import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
 
 /**
  * La barra di formattazione sopra la tastiera: «Aa», grassetto, corsivo, sottolineato, elenco puntato,
- * elenco numerato, citazione, link, e annulla/ripeti.
+ * elenco numerato, citazione, riduci e aumenta rientro, link, e annulla/ripeti.
  *
  * **Compare quando serve e non occupa spazio altrimenti.** E' una [FluidFloatingCapsule] con
  * `avoidKeyboard`: galleggia sopra la pagina (che non le lascia uno spazio suo) e sale con la tastiera.
@@ -56,8 +58,10 @@ import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
  *
  * **I tasti dicono cosa e' acceso al cursore.** Ogni stile e' un interruttore (`FluidCapsuleAction(selected
  * = …)`: ruolo `Switch` per TalkBack, disco dell'accento quando e' acceso, non solo un colore), letto da
- * [FluidRichTextState.format]; annulla e ripeti sono tasti semplici, spenti quando non c'e' niente da
- * fare. Toccare un tasto non toglie il fuoco all'editor: la tastiera resta e la selezione pure.
+ * [FluidRichTextState.format]; riduci/aumenta rientro, annulla e ripeti sono tasti semplici, spenti
+ * quando non c'e' niente da fare (il rientro si cambia solo su voci e citazioni:
+ * [FluidRichTextFormat.canIncreaseIndent], [FluidRichTextFormat.canDecreaseIndent]). Toccare un tasto
+ * non toglie il fuoco all'editor: la tastiera resta e la selezione pure.
  *
  * **Il link** apre un foglio con il testo e l'indirizzo (sicuro: `javascript:` e simili vengono
  * rifiutati), e dentro un link esistente permette di cambiarlo o toglierlo. Il foglio e' un portale: serve
@@ -143,6 +147,18 @@ fun FluidRichTextToolbar(
         contentDescription = labels.quote,
         onClick = { state.toggleQuote() },
         selected = format.quote,
+      )
+      FluidCapsuleAction(
+        icon = Icons.AutoMirrored.Rounded.FormatIndentDecrease,
+        contentDescription = labels.decreaseIndent,
+        onClick = { state.decreaseIndent() },
+        enabled = format.canDecreaseIndent,
+      )
+      FluidCapsuleAction(
+        icon = Icons.AutoMirrored.Rounded.FormatIndentIncrease,
+        contentDescription = labels.increaseIndent,
+        onClick = { state.increaseIndent() },
+        enabled = format.canIncreaseIndent,
       )
       FluidCapsuleAction(
         icon = Icons.Rounded.Link,

@@ -14,6 +14,13 @@ import androidx.compose.ui.text.TextRange
  * @param link l'indirizzo del link che il cursore tocca, o che copre tutta la selezione.
  * @param list l'elenco dei paragrafi toccati, se e' lo stesso per tutti.
  * @param quote vero se tutti i paragrafi toccati sono citazione.
+ * @param listLevel il livello delle voci toccate fra gli elenchi (1 il primo, 2 un sotto-elenco…), se e'
+ *   lo stesso per tutte; 0 senza un elenco comune.
+ * @param quoteLevel in quante citazioni stanno i paragrafi toccati, se e' lo stesso numero per tutti; 0
+ *   altrimenti.
+ * @param canIncreaseIndent vero se «aumenta rientro» cambia almeno un paragrafo toccato (una voce o un
+ *   paragrafo citato sotto il tetto di [FluidRichTextParagraphStyle.MaxDepth]); il tasto e' spento se no.
+ * @param canDecreaseIndent vero se almeno un paragrafo toccato ha un rientro da togliere.
  */
 @Immutable
 data class FluidRichTextFormat(
@@ -23,6 +30,10 @@ data class FluidRichTextFormat(
   val link: String? = null,
   val list: FluidRichTextListKind? = null,
   val quote: Boolean = false,
+  val listLevel: Int = 0,
+  val quoteLevel: Int = 0,
+  val canIncreaseIndent: Boolean = false,
+  val canDecreaseIndent: Boolean = false,
 ) {
   /** Vero se [style] e' acceso. */
   fun has(style: FluidRichTextInlineStyle): Boolean = when (style) {
@@ -60,10 +71,12 @@ internal sealed interface UserEditOutcome {
  *   tasto se il cursore non si e' mosso; **sostituire** (la correzione automatica, un suggerimento, la
  *   composizione che si allunga) tiene il formato del primo carattere sostituito: correggere una parola
  *   in grassetto la lascia in grassetto.
- * - **A capo** in mezzo a una voce crea una voce nuova dello stesso elenco; su una voce **vuota** esce
- *   dall'elenco (e su un paragrafo di citazione vuoto esce dalla citazione): il «doppio a capo».
- * - **Cancella** con il cursore in testa a una voce toglie la voce (poi la citazione) invece di unire il
- *   paragrafo a quello sopra, come fanno tutti gli editor.
+ * - **A capo** in mezzo a una voce crea una voce nuova dello stesso elenco, allo stesso livello; su una
+ *   voce **vuota** risale di un livello (da un sotto-elenco all'elenco sopra, poi fuori dall'elenco; da
+ *   un paragrafo citato vuoto fuori da una citazione): il «doppio a capo», ripetuto quanto serve.
+ * - **Cancella** con il cursore in testa a una voce risale di un livello allo stesso modo (prima il
+ *   sotto-elenco, poi l'elenco, poi la citazione) invece di unire il paragrafo a quello sopra, come
+ *   fanno tutti gli editor; su un paragrafo normale unisce.
  */
 internal fun applyUserChanges(
   document: FluidRichTextDocument,
@@ -77,8 +90,8 @@ internal fun applyUserChanges(
       val paragraph = document.paragraphIndexAt(change.start)
       val style = document.paragraphStyles[paragraph]
       val empty = document.paragraphStart(paragraph) == document.paragraphEnd(paragraph)
-      if (empty && (style.list != null || style.quote)) {
-        return UserEditOutcome.Intercepted(document.mapParagraphs(paragraph, paragraph) { it.unwrapOneLevel() })
+      if (empty && style.depth > 0) {
+        return UserEditOutcome.Intercepted(document.mapParagraphs(paragraph, paragraph) { it.outdented() })
       }
     }
     if (change.inserted.isEmpty() && change.end == change.start + 1 && document.text[change.start] == '\n' &&
@@ -86,8 +99,8 @@ internal fun applyUserChanges(
     ) {
       val paragraph = document.paragraphIndexAt(change.end)
       val style = document.paragraphStyles[paragraph]
-      if (style.list != null || style.quote) {
-        return UserEditOutcome.Intercepted(document.mapParagraphs(paragraph, paragraph) { it.unwrapOneLevel() })
+      if (style.depth > 0) {
+        return UserEditOutcome.Intercepted(document.mapParagraphs(paragraph, paragraph) { it.outdented() })
       }
     }
   }
@@ -123,10 +136,6 @@ private fun replacedFormat(document: FluidRichTextDocument, start: Int, end: Int
   return document.typingFormatAt(start)
 }
 
-/** Toglie un livello: prima l'elenco, poi la citazione. */
-internal fun FluidRichTextParagraphStyle.unwrapOneLevel(): FluidRichTextParagraphStyle =
-  if (list != null) copy(list = null) else copy(quote = false)
-
 /** Il formato attivo per [selection]: vedi [FluidRichTextFormat]. */
 internal fun FluidRichTextDocument.formatFor(selection: TextRange, pending: PendingFormat?): FluidRichTextFormat {
   val start = selection.min.coerceIn(0, text.length)
@@ -142,19 +151,28 @@ internal fun FluidRichTextDocument.formatFor(selection: TextRange, pending: Pend
       link = linkRange?.let { formatAt(it.start).link },
       list = style.list,
       quote = style.quote,
+      listLevel = style.listLevel,
+      quoteLevel = style.quoteLevel,
+      canIncreaseIndent = style.canIndent,
+      canDecreaseIndent = style.depth > 0,
     )
   }
   val first = paragraphIndexAt(start)
   val last = paragraphIndexAt(end)
   val styles = paragraphStyles.subList(first, last + 1)
   val firstLink = (start until end).firstOrNull { text[it] != '\n' }?.let { formatAt(it).link }
+  val list = styles.first().list?.takeIf { kind -> styles.all { it.list == kind } }
   return FluidRichTextFormat(
     bold = allInline(start, end) { it.bold },
     italic = allInline(start, end) { it.italic },
     underline = allInline(start, end) { it.underline },
     link = firstLink?.takeIf { url -> allInline(start, end) { it.link == url } },
-    list = styles.first().list?.takeIf { kind -> styles.all { it.list == kind } },
+    list = list,
     quote = styles.all { it.quote },
+    listLevel = if (list == null) 0 else styles.first().listLevel.takeIf { level -> styles.all { it.listLevel == level } } ?: 0,
+    quoteLevel = styles.first().quoteLevel.takeIf { level -> styles.all { it.quoteLevel == level } } ?: 0,
+    canIncreaseIndent = styles.any { it.canIndent },
+    canDecreaseIndent = styles.any { it.depth > 0 },
   )
 }
 

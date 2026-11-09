@@ -881,7 +881,7 @@ internal class FluidScrubberHold {
   var direct by mutableStateOf(false)
     private set
 
-  /** Dov'era la posizione da fuori quando il punto e' stato lasciato: da qui si misura quanta strada manca. */
+  /** Origine della tolleranza: la posizione esterna, o il punto tenuto precedente se e' piu' vicino. */
   var origin: Float = 0f
     private set
 
@@ -914,8 +914,13 @@ internal class FluidScrubberHold {
 
   /** Un salto (un tocco, un tasto, TalkBack): un punto tenuto da subito, e la maniglia lo raggiunge con la molla. */
   fun jump(at: Float, from: Float) {
+    // Un secondo salto sostituisce il primo prima che il lettore lo confermi. La sua tolleranza non
+    // deve includere il punto appena sostituito: quella conferma appartiene ancora al salto vecchio.
+    // Il riferimento piu' vicino limita la tolleranza anche quando si cambia verso, senza allargarla
+    // rispetto a un salto singolo e senza legarla a millisecondi o a un intervallo particolare.
+    val acknowledgementOrigin = if (active && abs(value - at) < abs(from - at)) value else from
     direct = false
-    land(at, from)
+    land(at, acknowledgementOrigin)
   }
 
   /** Il fermo e' finito, o il gesto e' stato annullato: da qui conta di nuovo la posizione da fuori. */
@@ -1100,7 +1105,8 @@ object FluidScrubbing {
    *
    * @param external la posizione che arriva da fuori, adesso.
    * @param target il punto lasciato.
-   * @param origin dov'era la posizione da fuori quando e' stato lasciato.
+   * @param origin riferimento della tolleranza: posizione esterna al rilascio, limitata al punto
+   * precedente se un nuovo salto sostituisce quello ancora in attesa e quel punto e' piu' vicino.
    */
   internal fun caughtUp(
     external: Float,

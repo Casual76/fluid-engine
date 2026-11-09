@@ -135,7 +135,7 @@ class FluidRichTextEditorTest {
 
   /** Il testo che il campo ha (senza il carattere a larghezza zero del rientro finale) e' quello del documento. */
   private fun fieldText(): String =
-    editor().fetchSemanticsNode().config[SemanticsProperties.EditableText].text.replace("​", "")
+    editor().fetchSemanticsNode().config[SemanticsProperties.EditableText].text.replace("\u200B", "")
 
   private fun assertInSync() {
     compose.waitForIdle()

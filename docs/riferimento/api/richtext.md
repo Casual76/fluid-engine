@@ -56,8 +56,6 @@ _Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun italic(text: String)` — Testo in corsivo.
   - `fun underline(text: String)` — Testo sottolineato.
   - `fun link(text: String, url: String)` — Un link: [text] che porta a [url] (se [url] non e' sicuro resta il solo testo).
-- `val out`
-- `var index`
 
 ## `engine-richtext/richtext/FluidRichTextEditor.kt`
 

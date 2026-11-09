@@ -29,7 +29,7 @@ class FluidRichTextDocumentTest {
   }
 
   @Test fun plainTextNormalizesLineBreaksAndControls() {
-    val doc = FluidRichTextDocument.fromPlainText("a\r\nb\rc d\u0000e\tf")
+    val doc = FluidRichTextDocument.fromPlainText("a\r\nb\rc\u2028d\u0000e\tf")
     assertEquals("a\nb\nc\nde\tf", doc.text)
     assertEquals(4, doc.paragraphCount)
   }

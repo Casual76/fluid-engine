@@ -28,7 +28,7 @@ object FluidRichTextLinks {
     if (url.length > MaxLength * 2) return null
     val compact = buildString(url.length) {
       for (char in url) {
-        if (char > ' ' && char != '\u007F' && !char.isWhitespace() && char != '​' && char != '﻿') append(char)
+        if (char > ' ' && char != '\u007F' && !char.isWhitespace() && char != '\u200B' && char != '\uFEFF') append(char)
       }
     }
     if (compact.isEmpty() || compact.length > MaxLength) return null

@@ -136,6 +136,20 @@ private fun replacedFormat(document: FluidRichTextDocument, start: Int, end: Int
   return document.typingFormatAt(start)
 }
 
+/**
+ * I paragrafi toccati da una selezione, `(primo, ultimo)`. La selezione e' un intervallo semiaperto
+ * `[min, max)`: i caratteri sono quelli da `min` a `max - 1`, quindi una selezione che finisce
+ * esattamente all'inizio di un paragrafo (una riga intera col suo a capo) **non** tocca quel paragrafo.
+ * Vale per le due direzioni (gli estremi si ordinano). Col cursore fermo e' il paragrafo del cursore.
+ */
+internal fun FluidRichTextDocument.selectedParagraphRange(start: Int, end: Int): Pair<Int, Int> {
+  val from = minOf(start, end).coerceIn(0, text.length)
+  val to = maxOf(start, end).coerceIn(0, text.length)
+  val first = paragraphIndexAt(from)
+  val last = if (to > from) maxOf(first, paragraphIndexAt(to - 1)) else first
+  return first to last
+}
+
 /** Il formato attivo per [selection]: vedi [FluidRichTextFormat]. */
 internal fun FluidRichTextDocument.formatFor(selection: TextRange, pending: PendingFormat?): FluidRichTextFormat {
   val start = selection.min.coerceIn(0, text.length)
@@ -157,8 +171,7 @@ internal fun FluidRichTextDocument.formatFor(selection: TextRange, pending: Pend
       canDecreaseIndent = style.depth > 0,
     )
   }
-  val first = paragraphIndexAt(start)
-  val last = paragraphIndexAt(end)
+  val (first, last) = selectedParagraphRange(start, end)
   val styles = paragraphStyles.subList(first, last + 1)
   val firstLink = (start until end).firstOrNull { text[it] != '\n' }?.let { formatAt(it).link }
   val list = styles.first().list?.takeIf { kind -> styles.all { it.list == kind } }

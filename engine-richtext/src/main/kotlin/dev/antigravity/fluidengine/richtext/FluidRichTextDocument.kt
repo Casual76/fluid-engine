@@ -596,7 +596,7 @@ internal class DocumentAssembler {
 internal fun normalizeEditorText(input: CharSequence): String {
   var needsWork = false
   for (char in input) {
-    if (char == '\r' || char == ' ' || char == ' ' || (char < ' ' && char != '\n' && char != '\t') || char == '\u007F') {
+    if (char == '\r' || char == '\u2028' || char == '\u2029' || (char < ' ' && char != '\n' && char != '\t') || char == '\u007F') {
       needsWork = true
       break
     }
@@ -611,7 +611,7 @@ internal fun normalizeEditorText(input: CharSequence): String {
         out.append('\n')
         if (index + 1 < input.length && input[index + 1] == '\n') index++
       }
-      char == ' ' || char == ' ' -> out.append('\n')
+      char == '\u2028' || char == '\u2029' -> out.append('\n')
       char == '\n' || char == '\t' -> out.append(char)
       char < ' ' || char == '\u007F' -> Unit
       else -> out.append(char)

@@ -53,8 +53,11 @@ enum class FluidRichTextChangeSource {
  * confrontare documenti; [document] e' immutabile e si legge in O(1). [lastChangeSource] dice chi ha
  * fatto l'ultima modifica. Il salvataggio vero (una bozza su disco) e' dell'app: lo stato salvato da
  * Android (`rememberSaveable`) serve a ricreare la schermata, non e' una garanzia contro la perdita di
- * testo, e per un documento oltre [MaxSavedLength] caratteri **non** salva il documento (un `Bundle`
- * troppo grande fa cadere l'app): in quel caso l'app lo riapre dalla sua bozza.
+ * testo, e per un documento oltre [MaxSavedLength] caratteri, o la cui dimensione serializzata (testo,
+ * tratti con formato, indirizzi dei link, stili dei paragrafi) supera un tetto di 256 KB, **non** salva il
+ * documento (un `Bundle` troppo grande fa cadere l'app: molti link lunghi pesano molto anche in poco
+ * testo): in quel caso l'app lo riapre dalla sua bozza, e per questo la bozza resta compito dell'app.
+ * Sotto i due tetti si ripristina tutto, come prima.
  *
  * **Modificarlo dal codice.** [setDocument], [replace], [insert], [replaceSelection] (una firma, il
  * risultato di un assistente), i comandi della barra ([toggle], [toggleList], [toggleQuote],
@@ -381,9 +384,10 @@ class FluidRichTextState(
     linkRequest = FluidRichTextLinkRequest(range, text, url ?: "", canEditText = !text.contains('\n'))
   }
 
+  /** I paragrafi toccati dalla selezione, come intervallo semiaperto: vedi [selectedParagraphRange]. */
   private fun selectedParagraphs(): Pair<Int, Int> {
     val current = selection
-    return documentState.paragraphIndexAt(current.min) to documentState.paragraphIndexAt(current.max)
+    return documentState.selectedParagraphRange(current.min, current.max)
   }
 
   // --- tastiera ------------------------------------------------------------------------------------
@@ -514,16 +518,23 @@ class FluidRichTextState(
         if (doc.text.length > MaxSavedLength) {
           null
         } else {
-          arrayListOf(
-            doc.text,
-            encodeRuns(doc),
-            ArrayList(linksOf(doc)),
-            encodeParagraphs(doc),
-            state.selection.start,
-            state.selection.end,
-            state.isFormattingRequested,
-            SavedParagraphsVersion,
-          )
+          val links = linksOf(doc)
+          if (savedSizeEstimate(doc, links) > MaxSavedBytes) {
+            // Troppi link, troppi tratti: oltre il tetto non si salva il documento (vedi la nota sul
+            // salvataggio in FluidRichTextState), come per un testo troppo lungo.
+            null
+          } else {
+            arrayListOf(
+              doc.text,
+              encodeRuns(doc),
+              ArrayList(links),
+              encodeParagraphs(doc),
+              state.selection.start,
+              state.selection.end,
+              state.isFormattingRequested,
+              SavedParagraphsVersion,
+            )
+          }
         }
       },
       restore = { saved ->
@@ -540,6 +551,22 @@ class FluidRichTextState(
         }.getOrNull()
       },
     )
+
+    /**
+     * Oltre questa dimensione serializzata (in byte, stimata per eccesso: testo, tratti, indirizzi dei
+     * link e stili dei paragrafi) lo stato salvato non porta il documento. Sta ben sotto il limite di
+     * una transazione Binder (circa 1 MB, condiviso da tutto lo stato della schermata): un documento
+     * con molti link lunghi sta in poco testo ma pesa molto, e `MaxSavedLength` da solo non lo vede.
+     */
+    internal const val MaxSavedBytes: Int = 256 * 1024
+
+    /** La dimensione in un `Bundle`, per eccesso: stringhe a 2 byte per carattere, interi a 4, piu' le intestazioni. */
+    internal fun savedSizeEstimate(doc: FluidRichTextDocument, links: List<String>): Long {
+      var size = 256L + 2L * doc.text.length
+      size += 8L * doc.runs.size + 4L * doc.paragraphCount
+      for (link in links) size += 8L + 2L * link.length
+      return size
+    }
 
     private fun linksOf(doc: FluidRichTextDocument): List<String> = doc.runs.mapNotNull { it.format.link }.distinct()
 

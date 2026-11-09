@@ -333,7 +333,7 @@ internal class RichTextOutputTransformation(
   }
 }
 
-private const val ZeroWidthSpace = "​"
+private const val ZeroWidthSpace = "\u200B"
 
 private fun spanStyleFor(format: FluidRichTextInlineFormat, colors: RichTextColors): SpanStyle {
   val underline = format.underline || format.link != null

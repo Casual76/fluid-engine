@@ -149,7 +149,7 @@ private class HtmlWriter(private val document: FluidRichTextDocument) {
       '>' -> out.append("&gt;")
       '"' -> out.append("&quot;")
       '\t' -> out.append("&#9;")
-      ' ' -> out.append("&nbsp;")
+      '\u00A0' -> out.append("&nbsp;")
       ' ' -> {
         val hard = index == start || index == end - 1 || text[index - 1] == ' '
         out.append(if (hard) "&nbsp;" else " ")
@@ -536,10 +536,10 @@ private class HtmlReader(private val source: String) {
     val clean = buildString(content.length) {
       for (char in content) {
         when {
-          char == ' ' -> append(' ')
+          char == '\u00A0' -> append(' ')
           char == '\t' -> append('\t')
           char == '\n' || char == '\r' -> append(' ')
-          char < ' ' || char == '\u007F' || char == '­' -> Unit
+          char < ' ' || char == '\u007F' || char == '\u00AD' -> Unit
           else -> append(char)
         }
       }
@@ -626,14 +626,14 @@ internal fun decodeEntityAt(text: String, start: Int, end: Int): Pair<String, In
 private fun Char.isHexDigit(): Boolean = isDigit() || this in 'a'..'f' || this in 'A'..'F'
 
 private val NamedEntities: Map<String, String> = mapOf(
-  "amp" to "&", "lt" to "<", "gt" to ">", "quot" to "\"", "apos" to "'", "nbsp" to " ",
+  "amp" to "&", "lt" to "<", "gt" to ">", "quot" to "\"", "apos" to "'", "nbsp" to "\u00A0",
   "copy" to "©", "reg" to "®", "trade" to "™", "hellip" to "…", "mdash" to "—", "ndash" to "–",
   "lsquo" to "‘", "rsquo" to "’", "sbquo" to "‚", "ldquo" to "“", "rdquo" to "”", "bdquo" to "„",
   "laquo" to "«", "raquo" to "»", "lsaquo" to "‹", "rsaquo" to "›", "bull" to "•", "middot" to "·",
   "euro" to "€", "pound" to "£", "yen" to "¥", "cent" to "¢", "sect" to "§", "para" to "¶", "deg" to "°",
   "plusmn" to "±", "times" to "×", "divide" to "÷", "frac12" to "½", "frac14" to "¼", "frac34" to "¾",
-  "iexcl" to "¡", "iquest" to "¿", "shy" to "­", "zwj" to "‍", "zwnj" to "‌",
-  "lrm" to "‎", "rlm" to "‏", "ensp" to " ", "emsp" to " ", "thinsp" to " ",
+  "iexcl" to "¡", "iquest" to "¿", "shy" to "\u00AD", "zwj" to "\u200D", "zwnj" to "\u200C",
+  "lrm" to "\u200E", "rlm" to "\u200F", "ensp" to "\u2002", "emsp" to "\u2003", "thinsp" to "\u2009",
   "agrave" to "à", "aacute" to "á", "acirc" to "â", "atilde" to "ã", "auml" to "ä", "aring" to "å",
   "egrave" to "è", "eacute" to "é", "ecirc" to "ê", "euml" to "ë", "igrave" to "ì", "iacute" to "í",
   "icirc" to "î", "iuml" to "ï", "ograve" to "ò", "oacute" to "ó", "ocirc" to "ô", "otilde" to "õ",

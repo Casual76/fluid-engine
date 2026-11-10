@@ -22,7 +22,11 @@ Ordine delle passate del materiale nuovo, `kind: "material"` (piano "iOS in Andr
       -> shader del CORPO (un ingresso)
     ritaglio sulla sagoma, se la lastra non cede (`clip`)
     shader della LUCE (nessun ingresso, premoltiplicato, posato in `SrcOver`), sotto il contenuto
-    contenuto (icone, etichette), se serve nel suo layer con sfocatura, scala e un effetto a shader
+    contenuto: uno o piu' strati (icone, etichette), ognuno se serve nel suo layer con sfocatura,
+      scala e un effetto a shader, ritagliati dalla sagoma del vetro
+
+Di serie il riquadro di un elemento si arrotonda al pixel, come fa il layout di Compose. Con
+`"subpixel": true` nella scena niente si arrotonda: e' il modo dei viaggi (vedi `pixel_grid`).
 
 Chi usa questo modulo da fuori (il banco del movimento) passa da `render_scene` o da
 `render_scene_full`: le altre funzioni possono cambiare.
@@ -840,6 +844,12 @@ def font(size_px: float, weight: int = 400, family: str = "Segoe UI") -> skia.Fo
     return result
 
 
+# Vero mentre si disegnano gli elementi di una scena `"subpixel": true`: il testo del contenuto si
+# disegna dai contorni dei glifi invece che dalle loro maschere. Le maschere di Skia stanno su una griglia (un quarto di pixel in orizzontale,
+# il pixel intero in verticale): un'etichetta che viaggia andrebbe a scatti.
+TEXT_AS_PATHS = False
+
+
 def draw_text(canvas, text: str, x: float, baseline: float, size_px: float, rgba, weight=400,
               align="left") -> float:
     f = font(size_px, weight)
@@ -848,7 +858,20 @@ def draw_text(canvas, text: str, x: float, baseline: float, size_px: float, rgba
         x -= width / 2
     elif align == "right":
         x -= width
-    canvas.drawString(text, x, baseline, f, skia.Paint(AntiAlias=True, Color4f=color4f(rgba)))
+    paint = skia.Paint(AntiAlias=True, Color4f=color4f(rgba))
+    if TEXT_AS_PATHS:
+        glyphs = f.textToGlyphs(text)
+        outline = skia.Path()
+        for glyph, gx in zip(glyphs, f.getXPos(glyphs, 0.0)):
+            contour = f.getPath(glyph)
+            if contour is not None:
+                outline.addPath(contour, gx, 0.0)
+        canvas.save()
+        canvas.translate(x, baseline)
+        canvas.drawPath(outline, paint)
+        canvas.restore()
+    else:
+        canvas.drawString(text, x, baseline, f, paint)
     return width
 
 
@@ -871,6 +894,8 @@ class Context:
     palette_family: str = "material"
     # Falso = le lastre senza icone ne' etichette: `measure` legge il corpo senza inciampare nel contenuto.
     content: bool = True
+    # Vero = i riquadri di elementi e strati di contenuto non si arrotondano al pixel (`pixel_grid`).
+    subpixel: bool = False
     # Dove sta ogni elemento con un nome, in pixel di schermo: lo usa `measure`.
     boxes: dict = field(default_factory=dict)
 
@@ -1151,6 +1176,43 @@ def draw_content(canvas, ctx: Context, el, w: float, h: float) -> None:
     draw_page_items(canvas, ctx, el.get("items"))
 
 
+def element_box(ctx: Context, el, origin=(0.0, 0.0)):
+    """Il riquadro di un elemento in pixel di schermo: (x, y, w, h).
+
+    Di serie arrotondato al pixel, come il layout di Compose (una `glassSurface` a 7,67 dp sta su
+    un pixel intero). In una scena `"subpixel": true` resta frazionario: e' una lastra che un
+    `graphicsLayer` sta spostando, o il palco di un viaggio."""
+    x = ctx.px(el["x"]) + origin[0]
+    y = ctx.px(el["y"]) + origin[1]
+    w = ctx.px(el["w"])
+    h = ctx.px(el["h"])
+    if ctx.subpixel:
+        return x, y, w, h
+    return round(x), round(y), round(w), round(h)
+
+
+def pixel_grid(x, w):
+    """Dove sta, sulla griglia dei pixel, un intervallo che comincia a [x] ed e' largo [w]:
+    (primo pixel intero, frazione, quanti pixel lo coprono).
+
+    E' il modo in cui il banco posa cio' che non sta su un pixel intero: catture e layer restano
+    **allineati ai pixel dello schermo** (si copiano senza ricampionare, quindi il fondale non si
+    sfoca e non trema), e la frazione entra nella geometria: lo shader la riceve in `offset`, sagome,
+    ombre e contenuto si disegnano a coordinate frazionarie con il loro antialias. A coordinate
+    intere la frazione e' zero e tutto coincide, al pixel, con il banco che arrotondava.
+
+    Su Android un layer spostato di mezzo pixel viene invece ricampionato tutto intero dalla GPU, e
+    si ammorbidisce un poco: il banco e' piu' nitido di cosi', apposta. In un collage un'icona che
+    trema non deve essere colpa del banco."""
+    first = math.floor(x)
+    fraction = x - first
+    return first, fraction, int(math.ceil(fraction + w - 1e-9))
+
+
+CONTENT_DRAW_KEYS = ("icon", "icons", "label", "rows", "items", "iconSizeDp", "labelSizeDp",
+                     "labelWeight", "rowHeightDp", "rowsTopDp")
+
+
 def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: float,
                   tag: str = "contenuto") -> None:
     """Il contenuto di un elemento sullo schermo, con l'origine in ([x], [y]).
@@ -1166,7 +1228,10 @@ def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: flo
     con `scale` (attorno al centro dell'elemento, un numero o [sx, sy]) e `alpha`. E' la lente del
     contenuto di un viaggio (F5A): icone e testo deformati e sfocati dentro la goccia. `marginDp`
     allarga il layer oltre l'elemento (di serie quanto basta alla sfocatura); lo shader riceve
-    `$offset` = -margine, come il corpo."""
+    `$offset` = -margine, come il corpo.
+
+    ([x], [y]) puo' essere frazionario: il layer resta sulla griglia dei pixel e la frazione sposta
+    il disegno al suo interno (e `$offset`), vedi `pixel_grid`."""
     if not ctx.content:
         return
     spec = el.get("contentLayer")
@@ -1178,10 +1243,12 @@ def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: flo
         return
     blur_px = ctx.px(spec.get("blurDp", 0.0))
     margin = int(math.ceil(ctx.px(spec.get("marginDp", 0.0)) + (3.0 * blur_sigma(blur_px) if blur_px > 0 else 0.0)))
-    lw, lh = int(round(w)) + 2 * margin, int(round(h)) + 2 * margin
+    _, fx, wi = pixel_grid(x, w)
+    _, fy, hi = pixel_grid(y, h)
+    lw, lh = wi + 2 * margin, hi + 2 * margin
     layer = new_surface(lw, lh)
     lc = layer.getCanvas()
-    lc.translate(margin, margin)
+    lc.translate(margin + fx, margin + fy)
     draw_content(lc, ctx, el, w, h)
     image = layer.makeImageSnapshot()
     if ctx.stages is not None:
@@ -1204,7 +1271,7 @@ def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: flo
             "$size": [float(w), float(h)],
             "$halfSize": [w / 2.0, h / 2.0],
             "$center": [w / 2.0, h / 2.0],
-            "$offset": [-float(margin), -float(margin)],
+            "$offset": [-float(margin + fx), -float(margin + fy)],
             "$layerSize": [float(lw), float(lh)],
             "$density": ctx.density,
             "$dark": 1.0 if ctx.dark() else 0.0,
@@ -1227,8 +1294,101 @@ def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: flo
     screen.save()
     screen.translate(x + w / 2.0, y + h / 2.0)
     screen.scale(float(sx), float(sy))
-    screen.translate(-w / 2.0 - margin, -h / 2.0 - margin)
+    screen.translate(-w / 2.0 - margin - fx, -h / 2.0 - margin - fy)
     screen.drawImage(image, 0, 0, LINEAR, skia.Paint(Alphaf=float(spec.get("alpha", 1.0))))
+    screen.restore()
+
+
+def place_content_layers(screen, ctx: Context, el, x: float, y: float, w: float, h: float,
+                         tag: str, *, shape: "Outline", mask=None, default: str = "none") -> None:
+    """`"content"`: piu' strati di contenuto per elemento, ritagliati dalla sagoma del vetro.
+
+        "content": [
+          {"name": "vecchie", "icons": ["back", "plus"], "blurDp": 6, "alpha": 0.4, "scale": 0.9},
+          {"name": "nuove", "x": 20, "y": 0, "w": 116, "h": 56, "icons": ["search"], "color": "#101014",
+           "blurDp": 3, "marginDp": 6, "effect": {"source": "...", "uniforms": {...}}}
+        ]
+
+    Ogni strato e' un `graphicsLayer` con il suo `RenderEffect`, disegnato nell'ordine dato sopra
+    l'elemento (e sopra il contenuto scritto alla vecchia maniera, se c'e'): `x`, `y`, `w`, `h` sono
+    il suo riquadro in dp **relativo all'elemento** (di serie tutto l'elemento); dentro, il
+    vocabolario di sempre (`icon`, `icons`, `label`, `rows`, `items` e le loro taglie) e `color`;
+    poi `blurDp`, `effect`, `scale`, `alpha`, `marginDp` come in `contentLayer`. Uno strato senza
+    niente di tutto questo si stampa diretto; uno con `alpha` zero non si disegna.
+
+    `contentClip` sull'elemento dice da cosa sono ritagliati, tutti insieme:
+
+    * `"shape"`: il riquadro dell'elemento con il suo `radius` e il suo `corner` (il ritaglio
+      hardware di una lastra che non cede);
+    * `"alpha"`: l'alfa di cio' che l'elemento ha disegnato, cioe' la sagoma che ritaglia lo
+      shader: il campo a pezzi con i suoi ponti, l'anello di una goccia. E' il ritaglio di una
+      lastra che cede o viaggia. Se lo shader disegna anche un'ombra fuori dalla sagoma, il
+      contenuto ci trapela con l'alfa dell'ombra: allora serve la lista di pezzi;
+    * una lista di pezzi `[{"x", "y", "w", "h", "radius"}, ...]` in dp relativi all'elemento: la
+      loro unione, senza i ponti;
+    * `"none"`: niente ritaglio;
+    * `"auto"` (di serie): `shape` per una lastra `glass` e per un `material` con `clip`; `alpha`
+      per un `material` senza `clip` e per uno `shader` con almeno un ingresso; altrimenti `none`.
+
+    Il contenuto scritto alla vecchia maniera (`icon`, `items`, `contentLayer` sull'elemento) resta
+    com'era: ritagliato solo dove c'e' il ritaglio hardware."""
+    layers = el.get("content")
+    if not layers or not ctx.content:
+        return
+    mode = el.get("contentClip", "auto")
+    if mode == "auto":
+        mode = default
+    screen.save()
+    if mode == "shape":
+        shape.clip(screen)
+    elif isinstance(mode, (list, tuple)):
+        union = skia.Path()
+        for piece in mode:
+            pw, ph = ctx.px(piece["w"]), ctx.px(piece["h"])
+            union.addRRect(rrect(x + ctx.px(piece.get("x", 0.0)), y + ctx.px(piece.get("y", 0.0)), pw, ph,
+                                 corner_radii_px(ctx, piece.get("radius"), pw, ph)))
+        screen.clipPath(union, skia.ClipOp.kIntersect, True)
+    elif mode == "alpha":
+        if mask is None:
+            raise ValueError(f"`{tag}`: `contentClip: \"alpha\"` vuole un elemento che disegna qualcosa "
+                             "(uno `shader`, o un `material` con il corpo)")
+        screen.saveLayer(None, None)
+    elif mode != "none":
+        raise ValueError(f"`contentClip` sconosciuto: {mode!r} (auto, shape, alpha, none, o una lista di pezzi)")
+    for i, layer in enumerate(layers):
+        alpha = float(layer.get("alpha", 1.0))
+        if alpha <= 0.0:
+            continue
+        lx = x + ctx.px(layer.get("x", 0.0))
+        ly = y + ctx.px(layer.get("y", 0.0))
+        lw = ctx.px(layer["w"]) if "w" in layer else w
+        lh = ctx.px(layer["h"]) if "h" in layer else h
+        if not ctx.subpixel:
+            lx, ly, lw, lh = round(lx), round(ly), round(lw), round(lh)
+        carrier = {key: layer[key] for key in CONTENT_DRAW_KEYS if key in layer}
+        if "color" in layer:
+            carrier["contentColor"] = layer["color"]
+        spec: dict = {}
+        if float(layer.get("blurDp", 0.0)) > 0.0:
+            spec["blurDp"] = layer["blurDp"]
+        if alpha < 1.0:
+            spec["alpha"] = alpha
+        if layer.get("scale", 1.0) not in (1, 1.0, [1, 1], [1.0, 1.0]):
+            spec["scale"] = layer["scale"]
+        if layer.get("marginDp"):
+            spec["marginDp"] = layer["marginDp"]
+        if layer.get("effect"):
+            spec["effect"] = layer["effect"]
+        if spec:
+            carrier["contentLayer"] = spec
+        place_content(screen, ctx, carrier, lx, ly, lw, lh, f"{tag}-{layer.get('name', i)}")
+    if mode == "alpha":
+        # La maschera in un layer suo, posato in `DstIn`: del contenuto resta solo cio' che sta sotto
+        # l'alfa della lastra, e fuori da li' sparisce anche dove la lastra non arriva.
+        screen.saveLayer(None, skia.Paint(BlendMode=skia.BlendMode.kDstIn))
+        mask(screen)
+        screen.restore()
+        screen.restore()
     screen.restore()
 
 
@@ -1422,10 +1582,9 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     sopra il materiale del pannello che la contiene (vetro su vetro, 2.13.0)."""
     ctx = element_context(ctx, el)
     k = ctx.numbers.constants
-    x = round(ctx.px(el["x"]) + origin[0])
-    y = round(ctx.px(el["y"]) + origin[1])
-    w = round(ctx.px(el["w"]))
-    h = round(ctx.px(el["h"]))
+    x, y, w, h = element_box(ctx, el, origin)
+    xi, fx, wi = pixel_grid(x, w)
+    yi, fy, hi = pixel_grid(y, h)
     optics, role = resolve_optics(ctx, el.get("optics", el.get("role")))
     radii = corner_radii_px(ctx, el.get("radius"), w, h)
     shape = Outline(x, y, w, h, radii, el.get("corner", ctx.corner))
@@ -1463,20 +1622,22 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     if lens_on and padding > 0:
         padding = max(padding - lens_height, 0.0)
 
-    record_w = max(int(size_w) + int(padding) * 2, 1)
-    record_h = max(int(size_h) + int(padding) * 2, 1)
+    # La cattura sta sulla griglia dei pixel dello schermo; la frazione del riquadro la riceve la
+    # lente in `offset` (vedi `pixel_grid`). A coordinate intere: (x, w) = (xi, wi) e frazione zero.
+    record_w = max(int(wi * scale) + int(padding) * 2, 1)
+    record_h = max(int(hi * scale) + int(padding) * 2, 1)
     capture = new_surface(record_w, record_h)
     cc = capture.getCanvas()
     cc.translate(padding, padding)
     cc.scale(scale, scale)
-    cc.drawImage(backdrop, -x, -y, LINEAR)
+    cc.drawImage(backdrop, -xi, -yi, LINEAR)
 
     lens = None
     if lens_on:
         dispersion = optics.dispersion and quality > 0.75
         uniforms = {
             "size": [size_w, size_h],
-            "offset": [-padding, -padding],
+            "offset": [-padding - fx * scale, -padding - fy * scale],
             "cornerRadii": [r * scale for r in radii],
             "refractionHeight": lens_height,
             "refractionAmount": -lens_reach,
@@ -1498,7 +1659,7 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         canvas.save()
         shape.clip(canvas)
         canvas.save()
-        canvas.translate(x, y)
+        canvas.translate(xi, yi)
         canvas.scale(1.0 / scale, 1.0 / scale)
         canvas.drawImage(material, -int(padding), -int(padding), LINEAR)
         canvas.restore()
@@ -1523,6 +1684,7 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     shape.clip(screen)
     place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
     screen.restore()
+    place_content_layers(screen, ctx, el, x, y, w, h, tag, shape=shape, default="shape")
     for i, child in enumerate(children):
         render_element(ctx, child, screen, stack_image, origin=(x, y),
                        tag=child.get("name", f"{tag}-{i}"))
@@ -1534,12 +1696,14 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
 # Uno shader qualsiasi, per provare un materiale nuovo
 # --------------------------------------------------------------------------------------------
 
-_DP = re.compile(r"^(-?\d+(?:\.\d+)?)dp$")
+# Una lunghezza in dp, anche come la scrive un `Float` di Kotlin: "12dp", "-3.5dp", "1.0E-4dp".
+_DP = re.compile(r"^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)dp$")
 
 
 def uniform_value(ctx: Context, value, builtins: dict):
-    """Numeri cosi' come sono; `"12dp"` per la densita'; `"#RRGGBBAA"` un colore; `"$size"` un
-    valore del banco. Le liste si appiattiscono, cosi' un array di float4 si scrive a righe."""
+    """Numeri cosi' come sono; `"12dp"` (anche `"1.0E-4dp"`) per la densita'; `"#RRGGBBAA"` un
+    colore; `"$size"` un valore del banco. Le liste si appiattiscono, cosi' un array di float4 si
+    scrive a righe."""
     if isinstance(value, str):
         if value in builtins:
             return builtins[value]
@@ -1630,12 +1794,11 @@ def render_shader(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     `SrcOver`): uno shader senza ingressi che restituisce nero al 30% scurisce, uno che restituisce
     bianco al 30% schiarisce, con la stessa passata."""
     ctx = element_context(ctx, el)
-    x = round(ctx.px(el["x"]) + origin[0])
-    y = round(ctx.px(el["y"]) + origin[1])
-    w = round(ctx.px(el["w"]))
-    h = round(ctx.px(el["h"]))
+    x, y, w, h = element_box(ctx, el, origin)
+    xi, fx, wi = pixel_grid(x, w)
+    yi, fy, hi = pixel_grid(y, h)
     scale = float(el.get("scale", 1.0))
-    sw, sh = max(int(w * scale), 1), max(int(h * scale), 1)
+    sw, sh = max(int(wi * scale), 1), max(int(hi * scale), 1)
     # Il margine del campo: pixel oltre il rettangolo, per una lastra che cede o viaggia.
     margin = int(round(ctx.px(el.get("marginDp", 0.0)) * scale))
     cw, ch = sw + 2 * margin, sh + 2 * margin
@@ -1643,11 +1806,14 @@ def render_shader(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
                       "radii": corner_radii_px(ctx, el.get("radius", 0), w, h)}
 
     program = ctx.shaders.program(el["source"])
+    # La taglia che lo shader vede: quella vera dell'elemento quando non sta su pixel interi, quella
+    # del suo layer altrimenti (e' sempre stata cosi': a risoluzione ridotta e' troncata al pixel).
+    size_w, size_h = (w * scale, h * scale) if ctx.subpixel else (float(sw), float(sh))
     builtins = {
-        "$size": [float(sw), float(sh)],
-        "$halfSize": [sw / 2.0, sh / 2.0],
-        "$center": [sw / 2.0, sh / 2.0],
-        "$offset": [-float(margin), -float(margin)],
+        "$size": [size_w, size_h],
+        "$halfSize": [size_w / 2.0, size_h / 2.0],
+        "$center": [size_w / 2.0, size_h / 2.0],
+        "$offset": [-float(margin + fx * scale), -float(margin + fy * scale)],
         "$captureSize": [float(cw), float(ch)],
         "$density": ctx.density * scale,
         "$dark": 1.0 if ctx.dark() else 0.0,
@@ -1660,7 +1826,7 @@ def render_shader(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     if inputs is None:
         # Di serie ogni `uniform shader` riceve il fondale cosi' com'e'; nessuno, se non ne ha.
         inputs = {name: {} for name in program.child_names}
-    capture_inputs(scaled, program, inputs, backdrop, x, y, scale, cw, ch, margin, tag)
+    capture_inputs(scaled, program, inputs, backdrop, xi, yi, scale, cw, ch, margin, tag)
 
     layer = new_surface(cw, ch)
     paint = skia.Paint()
@@ -1671,19 +1837,31 @@ def render_shader(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     if ctx.stages is not None:
         ctx.stages[f"{tag}-uscita"] = result
 
-    screen.save()
-    if el.get("clip"):
-        Outline(x, y, w, h, corner_radii_px(ctx, el.get("radius"), w, h),
-                el.get("corner", ctx.corner)).clip(screen)
-    screen.translate(x, y)
-    screen.scale(1.0 / scale, 1.0 / scale)
-    composed = layer_paint(el)
-    if composed is None:
-        screen.drawImage(result, -margin, -margin, LINEAR)
-    else:
-        screen.drawImage(result, -margin, -margin, LINEAR, composed)
-    screen.restore()
+    shape = Outline(x, y, w, h, corner_radii_px(ctx, el.get("radius", 0), w, h),
+                    el.get("corner", ctx.corner))
+
+    def draw_output(canvas: skia.Canvas, composed: skia.Paint | None = None) -> None:
+        canvas.save()
+        if el.get("clip"):
+            Outline(x, y, w, h, corner_radii_px(ctx, el.get("radius"), w, h),
+                    el.get("corner", ctx.corner)).clip(canvas)
+        if ctx.subpixel:
+            # Il layer copre pixel interi: cio' che sporge dal riquadro vero (piu' il margine) si taglia.
+            reach = margin / scale
+            canvas.clipRect(skia.Rect.MakeLTRB(x - reach, y - reach, x + w + reach, y + h + reach),
+                            skia.ClipOp.kIntersect, True)
+        canvas.translate(xi, yi)
+        canvas.scale(1.0 / scale, 1.0 / scale)
+        if composed is None:
+            canvas.drawImage(result, -margin, -margin, LINEAR)
+        else:
+            canvas.drawImage(result, -margin, -margin, LINEAR, composed)
+        canvas.restore()
+
+    draw_output(screen, layer_paint(el))
     place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
+    place_content_layers(screen, ctx, el, x, y, w, h, tag, shape=shape, mask=draw_output,
+                         default="alpha" if program.child_names else "none")
 
 
 def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
@@ -1709,17 +1887,17 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
       ritaglia lo shader, e conta il margine;
     * `light`: lo shader della luce, senza ingressi, a risoluzione piena, posato in `SrcOver`
       sotto il contenuto;
-    * il contenuto e `contentLayer` come per gli altri elementi; `children` campionano pagina +
-      corpo, mai la luce ne' il contenuto (l'export di `drawBackdrop`).
+    * il contenuto, `contentLayer` e gli strati di `content` come per gli altri elementi (con
+      `clip` falso gli strati sono ritagliati dall'alfa del corpo); `children` campionano pagina
+      + corpo, mai la luce ne' il contenuto (l'export di `drawBackdrop`).
 
     Gli uniform prendono gli stessi valori di `kind: "shader"`, piu' `"$radii"` (i quattro raggi
     della sagoma) e `"$padding"`. Per il corpo `dp` e i valori `$...` sono nel mondo rimpicciolito
     della cattura (`scale`), per la luce in pixel di schermo."""
     ctx = element_context(ctx, el)
-    x = round(ctx.px(el["x"]) + origin[0])
-    y = round(ctx.px(el["y"]) + origin[1])
-    w = round(ctx.px(el["w"]))
-    h = round(ctx.px(el["h"]))
+    x, y, w, h = element_box(ctx, el, origin)
+    xi, fx, wi = pixel_grid(x, w)
+    yi, fy, hi = pixel_grid(y, h)
     radii = corner_radii_px(ctx, el.get("radius"), w, h)
     shape = Outline(x, y, w, h, radii, el.get("corner", ctx.corner),
                     float(el.get("smoothing", IOS_SMOOTHING)))
@@ -1734,15 +1912,16 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     # L'engine: padding = max(0, sfocatura - spessore della lente) + margine del campo. Chi scrive
     # la scena dalla ricetta mette `paddingDp`; senza, il banco tiene tutta la sfocatura.
     padding = int(scaled.px(float(spec.get("paddingDp", blur_dp)))) + int(scaled.px(el.get("marginDp", 0.0)))
-    record_w = max(int(size_w) + padding * 2, 1)
-    record_h = max(int(size_h) + padding * 2, 1)
+    record_w = max(int(wi * scale) + padding * 2, 1)
+    record_h = max(int(hi * scale) + padding * 2, 1)
 
     def builtins_for(local: Context, sx: float, pad: float, full_w: float, full_h: float) -> dict:
+        # Cattura e luce stanno sulla griglia dei pixel; la frazione del riquadro entra in `$offset`.
         return {
             "$size": [w * sx, h * sx],
             "$halfSize": [w * sx / 2.0, h * sx / 2.0],
             "$center": [w * sx / 2.0, h * sx / 2.0],
-            "$offset": [-float(pad), -float(pad)],
+            "$offset": [-float(pad + fx * sx), -float(pad + fy * sx)],
             "$padding": float(pad),
             "$captureSize": [float(full_w), float(full_h)],
             "$radii": [r * sx for r in radii],
@@ -1754,7 +1933,7 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     cc = capture.getCanvas()
     cc.translate(padding, padding)
     cc.scale(scale, scale)
-    cc.drawImage(backdrop, -x, -y, LINEAR)
+    cc.drawImage(backdrop, -xi, -yi, LINEAR)
     upstream = run_effect_chain(
         scaled, capture.makeImageSnapshot(),
         saturation=float(spec.get("saturation", 1.0)),
@@ -1774,7 +1953,7 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
             if name not in own:
                 # `RenderEffect.createRuntimeShaderEffect(shader, nome)`: l'uscita della catena.
                 program.set_child(name, image_shader(upstream))
-        capture_inputs(scaled, program, own, backdrop, x, y, scale, record_w, record_h, padding,
+        capture_inputs(scaled, program, own, backdrop, xi, yi, scale, record_w, record_h, padding,
                        f"{tag}-corpo")
         surface = new_surface(record_w, record_h)
         paint = skia.Paint()
@@ -1789,7 +1968,7 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         canvas.save()
         if clip:
             shape.clip(canvas)
-        canvas.translate(x, y)
+        canvas.translate(xi, yi)
         canvas.scale(1.0 / scale, 1.0 / scale)
         canvas.drawImage(material, -padding, -padding, LINEAR)
         canvas.restore()
@@ -1815,11 +1994,11 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
                 f"`{light['source']}` ha un ingresso ({', '.join(program.child_names)}): la luce "
                 "non legge il fondale. Se e' voluto, dichiaralo in `light.inputs`.")
         margin = int(round(ctx.px(el.get("marginDp", 0.0))))
-        lw, lh = w + 2 * margin, h + 2 * margin
+        lw, lh = wi + 2 * margin, hi + 2 * margin
         builtins = builtins_for(ctx, 1.0, margin, lw, lh)
         for name, value in (light.get("uniforms") or {}).items():
             program.set(name, uniform_value(ctx, value, builtins))
-        capture_inputs(ctx, program, light.get("inputs") or {}, backdrop, x, y, 1.0, lw, lh, margin,
+        capture_inputs(ctx, program, light.get("inputs") or {}, backdrop, xi, yi, 1.0, lw, lh, margin,
                        f"{tag}-luce")
         surface = new_surface(lw, lh)
         paint = skia.Paint()
@@ -1834,9 +2013,9 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
             shape.clip(screen)
         composed = layer_paint(light)
         if composed is None:
-            screen.drawImage(glow, x - margin, y - margin, LINEAR)
+            screen.drawImage(glow, xi - margin, yi - margin, LINEAR)
         else:
-            screen.drawImage(glow, x - margin, y - margin, LINEAR, composed)
+            screen.drawImage(glow, xi - margin, yi - margin, LINEAR, composed)
         screen.restore()
 
     screen.save()
@@ -1844,6 +2023,9 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         shape.clip(screen)
     place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
     screen.restore()
+    place_content_layers(screen, ctx, el, x, y, w, h, tag, shape=shape,
+                         mask=draw_body if body else None,
+                         default="shape" if clip else ("alpha" if body else "none"))
     for i, child in enumerate(children):
         render_element(ctx, child, screen, stack_image, origin=(x, y),
                        tag=child.get("name", f"{tag}-{i}"))
@@ -1882,8 +2064,11 @@ def render_scene_full(scene: dict, scene_dir: Path, *, stages: bool = False,
 
     [fluid_icons] falso forza i disegni di servizio anche se `icons/` c'e': le immagini di
     riferimento `classic` non devono cambiare quando il set di icone arriva o si rigenera.
-    [content] falso toglie il contenuto stampato sulle lastre (icone, etichette, righe)."""
-    global USE_FLUID_ICONS
+    [content] falso toglie il contenuto stampato sulle lastre (icone, etichette, righe).
+
+    `"subpixel": true` nella scena: i riquadri di elementi e strati di contenuto non si
+    arrotondano al pixel, e il testo si disegna dai contorni dei glifi (vedi `pixel_grid`)."""
+    global USE_FLUID_ICONS, TEXT_AS_PATHS
     density = float(scene.get("density", 3.0))
     theme = scene.get("theme", "dark")
     if theme not in ("dark", "light"):
@@ -1906,11 +2091,13 @@ def render_scene_full(scene: dict, scene_dir: Path, *, stages: bool = False,
         corner=scene.get("corner", "round"),
         palette_family=family,
         content=content,
+        subpixel=bool(scene.get("subpixel", False)),
     )
     width = round(scene["width"] * density)
     height = round(scene["height"] * density)
 
     previous, USE_FLUID_ICONS = USE_FLUID_ICONS, fluid_icons
+    previous_text = TEXT_AS_PATHS
     try:
         # La pagina: cio' che `glassBackdropSource` registra e che ogni lastra campiona.
         page = new_surface(width, height)
@@ -1922,10 +2109,13 @@ def render_scene_full(scene: dict, scene_dir: Path, *, stages: bool = False,
         screen = new_surface(width, height)
         canvas = screen.getCanvas()
         canvas.drawImage(page_image, 0, 0)
+        # Solo da qui: la pagina sta ferma, e il suo testo resta quello di sempre.
+        TEXT_AS_PATHS = ctx.subpixel
         for i, el in enumerate(scene.get("elements") or []):
             render_element(ctx, el, canvas, page_image, tag=el.get("name", f"e{i}"))
     finally:
         USE_FLUID_ICONS = previous
+        TEXT_AS_PATHS = previous_text
     return Rendered(screen.makeImageSnapshot(), page_image, ctx.stages, ctx.boxes, density, theme)
 
 

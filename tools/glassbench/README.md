@@ -30,7 +30,7 @@ Niente resta acceso dopo il comando.
 $py = "artifacts\liquid-glass\venv\Scripts\python"
 $gb = "tools\glassbench\glassbench.py"
 
-& $py $gb check                       # compila ogni sorgente AGSL; esce con 1 se una non compila
+& $py $gb check                       # compila ogni sorgente AGSL (engine, shaders\, traces\); esce con 1 se una non compila
 & $py $gb check --also mio.agsl       # ... e in piu' i file dati (.agsl, o .kt da cui estrarre)
 & $py $gb roles                       # le ottiche lette da fluid/GlassMaterial.kt
 
@@ -106,7 +106,29 @@ Campi della scena: `width`, `height`, `density`, `theme` (`light`/`dark`), `back
   - `engine`: la scelta dell'engine. Sotto 256 px di lato lungo un rettangolo arrotondato al raggio
     equivalente (x0,82; le capsule no). Sopra, pellicola, bordo e ombra seguono il **path continuo**
     e il ritaglio hardware resta al raggio nominale. La lente riceve sempre i raggi nominali;
-  - `continuous`: il path continuo sempre, anche sui piccoli (serve ai confronti).
+  - `continuous`: il path continuo sempre, anche sui piccoli (serve ai confronti);
+- `subpixel`: `true` per i viaggi (vedi «Posizioni sotto il pixel»). Di serie `false`.
+
+**Posizioni sotto il pixel.** Di serie il riquadro di un elemento (`x`, `y`, `w`, `h`) si
+**arrotonda al pixel**, come fa il layout di Compose: una `glassSurface` a 7,67 dp sta su un pixel
+intero. In un viaggio pero' una lastra spostata da un `graphicsLayer` non sta su pixel interi, e
+arrotondarla la fa scattare. Con `"subpixel": true` nella scena niente si arrotonda: elementi, strati
+di contenuto, icone ed etichette si posano a coordinate frazionarie.
+
+- Catture e layer restano **allineati ai pixel dello schermo** (si copiano senza ricampionare: il
+  fondale non si sfoca e non trema); la frazione entra nella geometria. Lo shader la riceve in
+  `$offset` (e `$size` e' la taglia vera, frazionaria); sagoma, ombra, pellicola, bordo e contenuto
+  si disegnano a coordinate frazionarie con il loro antialias.
+- A coordinate intere `subpixel` non cambia un pixel. Su un fondo piatto, uno spostamento di un
+  pixel intero a qualunque fase da' la stessa immagine traslata (`selftest` prova tutte e due le cose).
+- Il testo del contenuto si disegna dai contorni dei glifi invece che dalle loro maschere (che Skia
+  tiene su una griglia: un quarto di pixel in orizzontale, il pixel intero in verticale). Il testo
+  della pagina no: sta fermo, e resta quello di sempre.
+- La precisione e' quella dell'antialias di Skia: circa un centesimo di pixel per sagome e icone, un
+  quarto di pixel per il testo.
+- Su Android un layer spostato di mezzo pixel viene ricampionato intero dalla GPU e si ammorbidisce
+  un poco. Il banco e' piu' nitido di cosi', apposta: in un collage un'icona che trema non deve
+  essere colpa del banco.
 
 **Sfondo** (`background.kind`):
 
@@ -144,6 +166,7 @@ qualsiasi dentro un rettangolo: una foto in una fascia, mezza pagina a scacchi),
 | `corner` | vedi sopra |
 | `icon`, `icons`, `label`, `rows`, `items` | il contenuto stampato sopra |
 | `contentLayer` | il contenuto nel suo layer, con sfocatura, scala e un effetto a shader (vedi sotto) |
+| `content`, `contentClip` | piu' strati di contenuto, ritagliati dalla sagoma del vetro (vedi sotto) |
 | `children` | lastre dentro questa: campionano il suo materiale (vetro su vetro, 2.13.0) |
 
 **Icone.** `"plus"` e' un disegno di servizio del banco. `"fluid:add|plus"` e' l'icona `add` del set
@@ -176,8 +199,8 @@ in una passata, e **senza ingressi** quella della luce.
   catena a monte: `saturation`, `blurDp`, `edge` (`decal`, trasparente fuori, o `clamp`) e `w`, la
   **mescola a monte**. Se `inputs` manca, ogni ingresso riceve il fondale cosi' com'e'; se lo shader
   non ha ingressi non si collega niente (`"inputs": {}` lo dice in chiaro);
-- `uniforms`: numeri cosi' come sono, `"12dp"` moltiplicato per la densita', `"#RRGGBBAA"` un colore
-  non premoltiplicato, e i valori del banco `"$size"`, `"$center"`, `"$halfSize"`, `"$offset"`,
+- `uniforms`: numeri cosi' come sono, `"12dp"` moltiplicato per la densita' (anche come lo scrive
+  un `Float` di Kotlin: `"1.0E-4dp"`), `"#RRGGBBAA"` un colore non premoltiplicato, e i valori del banco `"$size"`, `"$center"`, `"$halfSize"`, `"$offset"`,
   `"$captureSize"`, `"$density"`, `"$dark"` (per il materiale anche `"$radii"` e `"$padding"`). Le
   liste si appiattiscono; un array non pieno si completa con zeri;
 - `blend`, `alpha`: **il modo di comporre lo strato**. L'uscita dello shader e' premoltiplicata e si
@@ -231,8 +254,9 @@ Compone ombra, corpo e luce **nell'ordine dell'engine** (piano 3.3):
 5. `light`: lo shader della luce, **senza ingressi**, a risoluzione piena, posato in `SrcOver`
    **sotto** il contenuto. Se ha un ingresso il banco si ferma (la luce non legge il fondale), a
    meno che `light.inputs` lo dichiari;
-6. il contenuto (e `contentLayer`), poi i `children`, che campionano pagina + corpo, **mai** la luce
-   ne' il contenuto: e' l'export di `drawBackdrop`.
+6. il contenuto (`contentLayer`, e gli strati di `content`: con `clip` falso sono ritagliati
+   dall'alfa del corpo), poi i `children`, che campionano pagina + corpo, **mai** la luce ne' il
+   contenuto: e' l'export di `drawBackdrop`.
 
 Per il corpo `"12dp"` e i valori `$...` sono nel mondo rimpicciolito della cattura (`scale`), per la
 luce in pixel di schermo. Il filetto di `GlassEdge` non si rende.
@@ -255,6 +279,44 @@ Ordine: il contenuto si disegna nel layer; `blurDp` lo sfoca; `effect` e' uno sh
 (`input`, di serie il primo `uniform shader`) e' il layer sfocato; poi il layer si posa con `scale`
 (attorno al centro, un numero o `[sx, sy]`) e `alpha`. `marginDp` allarga il layer; lo shader riceve
 `$offset` = -margine.
+
+### Piu' strati di contenuto, ritagliati dalla sagoma del vetro
+
+In un viaggio il contenuto non e' uno solo: le icone vecchie si sfocano mentre le nuove arrivano.
+`content` e' una lista di strati, disegnati nell'ordine dato sopra l'elemento (e sopra il contenuto
+scritto con `icon`, `items`, `contentLayer`, se c'e'):
+
+```json
+"content": [
+  {"name": "vecchie", "icons": ["back", "plus", "circle"], "blurDp": 6, "alpha": 0.4, "scale": 0.9},
+  {"name": "nuove", "x": 20, "y": 0, "w": 116, "h": 56, "icons": ["search", "share"], "color": "#101014",
+   "blurDp": 3, "alpha": 0.6, "marginDp": 6,
+   "effect": {"source": "kotlin:GlassContentLensSlabShaderString", "uniforms": {"offset": "$offset", "...": 0}}}
+],
+"contentClip": "auto"
+```
+
+Ogni strato e' un `graphicsLayer` con il suo `RenderEffect`: `x`, `y`, `w`, `h` sono il suo riquadro
+in dp **relativo all'elemento** (di serie tutto l'elemento); dentro, il vocabolario di sempre
+(`icon`, `icons`, `label`, `rows`, `items`, `iconSizeDp`, `labelSizeDp`, `labelWeight`,
+`rowHeightDp`, `rowsTopDp`) e `color`; poi `blurDp`, `effect`, `scale`, `alpha`, `marginDp` come in
+`contentLayer`. Uno strato senza niente di questo si stampa diretto; con `alpha` zero non si disegna.
+Negli uniform di un `effect`, `$size`, `$center` e `$halfSize` sono quelli del riquadro dello strato.
+
+`contentClip` sull'elemento dice da cosa gli strati sono ritagliati, tutti insieme:
+
+| valore | ritaglio |
+|---|---|
+| `"shape"` | il riquadro dell'elemento con il suo `radius` e il suo `corner`: il ritaglio hardware di una lastra che non cede |
+| `"alpha"` | l'alfa di cio' che l'elemento ha disegnato, cioe' la sagoma che ritaglia **lo shader**: il campo a pezzi con i suoi ponti, l'anello di una goccia. E' il ritaglio di una lastra che cede o viaggia |
+| una lista di pezzi | `[{"x", "y", "w", "h", "radius"}, ...]` in dp relativi all'elemento: la loro unione, **senza** i ponti |
+| `"none"` | nessuno |
+| `"auto"` (di serie) | `shape` per una lastra `glass` e per un `material` con `clip`; `alpha` per un `material` senza `clip` e per uno `shader` con almeno un ingresso; altrimenti `none` |
+
+Con `"alpha"`, se lo shader disegna anche un'**ombra fuori dalla sagoma** (l'ombra in viaggio del
+piano 3.5), il contenuto ci trapela con l'alfa dell'ombra: li' serve la lista di pezzi. Il contenuto
+scritto alla vecchia maniera resta com'era, ritagliato solo dove c'e' il ritaglio hardware: le scene
+esistenti non cambiano.
 
 ### Il path continuo, per confrontarlo con un campo
 
@@ -410,6 +472,8 @@ hanno il velo adattivo, il raccordo continuo degli angoli ne' la taratura (lavor
   contenuto (e senza la luce, per il materiale nuovo).
 - **La sagoma**: con `corner: "engine"`, la stessa scelta per taglia di `ContinuousCornerShape` e
   di `ShapeProvider`, e lo stesso path.
+- **Le posizioni**: di serie al pixel intero, come il layout; con `subpixel` frazionarie, senza
+  scatti e senza ricampionare il fondale.
 
 Verifica fatta: `scenes/confronto-reale-scuro.json` accanto ai tasti veri di
 `artifacts/migrazione/codex/dopo/08-chats-scuro.png` (stessa densita', palette stimata): stesso
@@ -444,6 +508,9 @@ manca ai fianchi.
 - **Il campionamento.** Gli ingressi sono campionati in modo lineare e trasparenti fuori dal bordo,
   come fa `RenderEffect.createRuntimeShaderEffect`; il ritaglio antialias di Skia e quello hardware
   del `RenderNode` differiscono di frazioni di pixel.
+- **Il ricampionamento di un layer che si muove.** Con `subpixel` il banco tiene catture e layer
+  sulla griglia dei pixel e sposta la geometria; Android ricampiona il layer intero, che a mezzo
+  pixel si ammorbidisce. Quanto si vede quella morbidezza in un viaggio lo dice il dispositivo.
 - **Cio' che l'engine disegna in Kotlin, fuori dagli shader.** Pellicola, bordo e ombra il banco li
   **ridisegna per conto suo** dai numeri ricopiati: se il Kotlin cambia senza cambiare quei numeri,
   il banco non se ne accorge. Non rende affatto: `glassMask` e `GlassFalloff.FadeDown` (la fascia in
@@ -496,6 +563,7 @@ scenes/              oggi-*.json (il vetro di oggi), confronto-reale-scuro.json,
                      fluidphysics-gruppo-oggi.json, f0-raggi-diversi.json, sonda-*.json
 scenes/rif/          le inquadrature dei frame di Apple (R4, R5) e le sei pagine dell'engine
 shaders/             le sonde
+traces/              le tracce del banco del movimento (TRACE.md); `check` compila anche i loro `.agsl`
 golden/classic/      immagini di riferimento del vetro di oggi, manifesto, scene proprie
 icons/               (quando c'e') i tracciati di FluidIcons scritti dal generatore
 ```

@@ -41,6 +41,8 @@ from kotlin_sources import (  # noqa: E402
 
 DEFAULT_OUT = REPO_ROOT / "artifacts/liquid-glass/bench"
 GOLDEN_DIR = HERE / "golden"
+# Gli shader di prova che viaggiano con le tracce del banco del movimento (`file:traces/...`).
+TRACES_DIR = HERE / "traces"
 REQUIREMENTS = HERE / "requirements.txt"
 
 
@@ -139,6 +141,11 @@ def cmd_check(args) -> int:
         print(f"  --  {shown(kotlin_sources.FIELD_DIR)} non c'e' ancora: letti solo i due file di oggi")
     for path in sorted((HERE / "shaders").glob("*.agsl")):
         sources[f"file:{path.name}"] = path.read_text(encoding="utf-8")
+    if TRACES_DIR.is_dir():
+        # Anche gli `.agsl` accanto alle tracce, a qualunque profondita': una traccia li nomina con
+        # `file:`, e una sorgente che non compila deve fermare `check`, non il primo `render`.
+        for path in sorted(TRACES_DIR.rglob("*.agsl")):
+            sources[f"file:traces/{path.relative_to(TRACES_DIR).as_posix()}"] = path.read_text(encoding="utf-8")
     sources.update(extra_sources(getattr(args, "also", None)))
     compiled = 0
     for name, source in sources.items():
@@ -719,6 +726,239 @@ def cmd_selftest(args) -> int:
     free = image_array(rendered(dict(scene, elements=[loose]), "materiale-senza-ritaglio").image)
     test("materiale: senza ritaglio hardware la maschera e' dello shader",
          float(np.abs(free - px).mean()) < 1.5, f"media {np.abs(free - px).mean():.2f}")
+
+    # 8b. posizioni sotto il pixel -----------------------------------------------------------
+    import types
+
+    def centroid(image, reference) -> tuple[float, float]:
+        weight = np.abs(image.astype(float) - reference).sum(axis=2)
+        ys, xs = np.mgrid[0:weight.shape[0], 0:weight.shape[1]]
+        return float((xs * weight).sum() / weight.sum()), float((ys * weight).sum() / weight.sum())
+
+    r.ShaderLibrary.source = lambda self, ref: inline[ref] if ref in inline else original_source(self, ref)
+    try:
+        flat = {"width": 60, "height": 44, "density": 1.0, "theme": "light",
+                "background": {"kind": "color", "color": "#FFFFFF"}}
+
+        def veil_at(x: float, sub: bool, name: str | None = None):
+            return pixels(dict(flat, subpixel=sub, elements=[
+                {"kind": "shader", "source": "test:velo", "x": x, "y": 10.5, "w": 20, "h": 20}]), name)
+
+        row = veil_at(10.5, True, "sottopixel-velo")[20, :, 0]
+        test("sotto il pixel: un elemento a x = 10,5 dp copre mezzo pixel a sinistra e mezzo a destra",
+             int(row[9]) == 255 and abs(int(row[10]) - 191) <= 2 and abs(int(row[11]) - 128) <= 1
+             and abs(int(row[30]) - 191) <= 2 and int(row[31]) == 255,
+             f"colonne 9, 10, 11: {row[9]}, {row[10]}, {row[11]}; 30, 31: {row[30]}, {row[31]}")
+        row = veil_at(10.5, False)[20, :, 0]
+        test("senza `subpixel` lo stesso elemento si arrotonda al pixel, come ha sempre fatto",
+             int(row[9]) == 255 and abs(int(row[10]) - 128) <= 1 and abs(int(row[29]) - 128) <= 1 and int(row[30]) == 255,
+             f"colonne 9, 10, 29, 30: {row[9]}, {row[10]}, {row[29]}, {row[30]}")
+
+        grey = {"width": 90, "height": 44, "density": 2.0, "theme": "light",
+                "background": {"kind": "color", "color": "#C9CDD3"}}
+        field_piece = [["$center", "$halfSize"]]
+
+        def slab(dx: float) -> dict:
+            return {
+                "kind": "material", "name": "lastra", "x": 14 + dx, "y": 11 + dx, "w": 60, "h": 22, "radius": "capsule",
+                "shadow": [{"radiusDp": 2, "offsetDp": [0, 1], "alpha": 0.12}],
+                "capture": {"saturation": 1.2, "blurDp": 4, "w": 0.0},
+                "body": {"source": "file:../shaders/sonda-via-a.agsl", "uniforms": {
+                    "offset": "$offset", "pieceCount": 1, "pieceRect": field_piece, "pieceRadii": ["$radii"],
+                    "blend": "8dp", "thickness": "6dp", "refraction": "-6dp", "dome": 0.0, "dispersion": 0.0,
+                    "materialize": 1.0, "veilColor": "#FFFFFF59", "bodyShade": 0.04, "aa": 1.0}},
+                "light": {"source": "file:../shaders/sonda-luce.agsl", "uniforms": {
+                    "offset": "$offset", "pieceCount": 1, "pieceRect": field_piece, "pieceRadii": ["$radii"],
+                    "blend": "8dp", "rimWidth": "0.7dp", "rimDark": "#00000038", "reflexDir": [0, -1],
+                    "reflexWidths": [2, 2], "reflexStrength": 0.55, "reflexDepth": "3dp", "reflexFloor": 0.15,
+                    "glowCenter": "$center", "glowRadius": "20dp", "glow": 0.0, "glowFill": 0.0,
+                    "lightColor": "#FFFFFFFF", "materialize": 1.0, "aa": 1.0}},
+            }
+
+        def button(dx: float, **more) -> dict:
+            return dict({"name": "tasto", "role": "button", "x": 30 + dx, "y": 9 + dx, "w": 26, "h": 26,
+                         "radius": "capsule"}, **more)
+
+        ground = image_array(rendered(dict(grey, elements=[])).image).astype(float)
+
+        def shift_of(make, **kwargs) -> tuple[float, float]:
+            """Di quanto si sposta il baricentro di cio' che l'elemento disegna fra dx = 0 e dx = 0,25 dp."""
+            a = centroid(pixels(dict(grey, subpixel=True, elements=[make(0.0)]), **kwargs), ground)
+            b = centroid(pixels(dict(grey, subpixel=True, elements=[make(0.25)]), **kwargs), ground)
+            return b[0] - a[0], b[1] - a[1]
+
+        def near_half(shift) -> bool:
+            return abs(shift[0] - 0.5) < 0.06 and abs(shift[1] - 0.5) < 0.06
+
+        # Il baricentro e' una misura buona solo per cio' che e' pieno e di un segno solo (il corpo,
+        # la pellicola, un'icona): per un anello sottile (ombra scavata, filo, bordo) amplifica di
+        # dieci volte il centesimo di pixel che l'antialias di Skia sbaglia. Gli anelli si provano
+        # dopo, con la traslazione rigida.
+        def body_only(dx: float, **more) -> dict:
+            el = dict(slab(dx), **more)
+            del el["shadow"], el["light"]
+            return el
+
+        moved = shift_of(body_only)
+        test("sotto il pixel: il corpo di un `material` spostato di 0,25 dp (mezzo pixel) si sposta di mezzo pixel",
+             near_half(moved), f"baricentro {moved[0]:+.3f}, {moved[1]:+.3f} px")
+        moved = shift_of(lambda dx: body_only(dx, clip=False, marginDp=4))
+        test("sotto il pixel: lo stesso senza ritaglio hardware (la maschera e' dello shader)",
+             near_half(moved), f"baricentro {moved[0]:+.3f}, {moved[1]:+.3f} px")
+        moved = shift_of(lambda dx: body_only(dx, capture={"saturation": 1.2, "blurDp": 4, "scale": 0.5}))
+        test("sotto il pixel: lo stesso con la cattura a meta' risoluzione",
+             near_half(moved), f"baricentro {moved[0]:+.3f}, {moved[1]:+.3f} px")
+        moved = shift_of(lambda dx: button(dx, optics={"role": "button", "shadowAlpha": 0, "highlightAlpha": 0}),
+                         content=False)
+        test("sotto il pixel: una lastra di oggi (`glass`) si sposta di mezzo pixel",
+             near_half(moved), f"baricentro {moved[0]:+.3f}, {moved[1]:+.3f} px")
+
+        def phases(make) -> tuple[float, float, float]:
+            """Ombra, luce e bordo compresi. A una fase frazionaria (0,25 dp) un passo di un pixel
+            intero deve dare la stessa immagine traslata; e il fotogramma a meta' strada fra due
+            pixel deve stare piu' vicino alla loro media che a uno dei due (non e' agganciato)."""
+            at = lambda dx: pixels(dict(grey, subpixel=True, elements=[make(dx)])).astype(float)
+            a0, half, a1, late = at(0.0), at(0.25), at(0.5), at(0.75)
+            rigid = float(np.abs(late[1:, 1:] - half[:-1, :-1]).max())
+            middle = float(np.abs(half - (a0 + a1) / 2.0).mean())
+            return rigid, middle, min(float(np.abs(half - a0).mean()), float(np.abs(half - a1).mean()))
+
+        rigid, middle, either = phases(slab)
+        test("sotto il pixel: ombra, corpo e luce insieme, a una fase frazionaria, traslano rigidi di un pixel",
+             rigid <= 1.0 and middle < 0.8 * either, f"scarto {rigid:.0f}; dalla media {middle:.2f}, da un estremo {either:.2f}")
+        rigid, middle, either = phases(button)
+        test("sotto il pixel: ombra, lente, pellicola e bordo di una lastra di oggi anche",
+             rigid <= 1.0 and middle < 0.8 * either, f"scarto {rigid:.0f}; dalla media {middle:.2f}, da un estremo {either:.2f}")
+
+        def content_shift(**more) -> tuple[float, float]:
+            out = []
+            for dx in (0.0, 0.25):
+                scene_at = dict(grey, subpixel=True, elements=[button(dx, **more)])
+                out.append(centroid(pixels(scene_at), pixels(scene_at, content=False).astype(float)))
+            return out[1][0] - out[0][0], out[1][1] - out[0][1]
+
+        moved = content_shift(icon="plus")
+        test("sotto il pixel: l'icona segue la lastra di mezzo pixel, senza scattare",
+             near_half(moved), f"baricentro {moved[0]:+.3f}, {moved[1]:+.3f} px")
+        moved = content_shift(label="Ok", labelSizeDp=11)
+        test("sotto il pixel: l'etichetta anche, in orizzontale e in verticale",
+             near_half(moved), f"baricentro {moved[0]:+.3f}, {moved[1]:+.3f} px")
+        moved = content_shift(content=[{"name": "strato", "icon": "plus", "blurDp": 0.5, "alpha": 0.9}])
+        test("sotto il pixel: uno strato di contenuto nel suo layer (sfocato) anche",
+             near_half(moved), f"baricentro {moved[0]:+.3f}, {moved[1]:+.3f} px")
+
+        whole = dict(grey, background={"kind": "gradient4", "tl": "#D0D0D0", "tr": "#5B6268", "bl": "#E1E5E8", "br": "#3E4347"},
+                     elements=[dict(slab(0.0), icons=["back", "plus"]), button(-22.0, icon="plus"),
+                               {"kind": "shader", "source": "test:velo", "x": 70, "y": 4, "w": 14, "h": 8, "scale": 0.5},
+                               button(40.0 - 9.0, contentLayer={"blurDp": 1, "scale": 1.1}, icon="circle", y=30)])
+        whole["elements"][3]["y"] = 14
+        on, off = pixels(dict(whole, subpixel=True), "sottopixel-interi"), pixels(whole)
+        test("a coordinate intere `subpixel` non cambia un pixel",
+             int(np.abs(on - off).max()) == 0, f"differenza massima {np.abs(on - off).max()}")
+
+        # 8c. piu' strati di contenuto, ritagliati dalla sagoma del vetro ------------------------
+        cloth = {"name": "telo", "items": [{"kind": "rect", "x": -40, "y": -40, "w": 200, "h": 140, "color": "#FF0000"}]}
+        plate = {"name": "lastra", "role": "floating", "x": 20, "y": 11, "w": 50, "h": 22, "radius": "capsule"}
+        naked = pixels(dict(grey, elements=[plate]))
+        dressed = pixels(dict(grey, elements=[dict(plate, content=[cloth])]), "contenuto-ritagliato-lastra")
+        touched = np.abs(dressed - naked).max(axis=2) > 0
+        ys, xs = np.mgrid[0:touched.shape[0], 0:touched.shape[1]]
+        # La capsula in pixel (densita' 2): x 40-140, y 22-66, raggio 22.
+        qx = np.abs(xs + 0.5 - 90.0) - (50.0 - 22.0)
+        qy = np.abs(ys + 0.5 - 44.0)
+        distance = np.hypot(np.maximum(qx, 0.0), qy) - 22.0
+        test("contenuto ritagliato: un telo piu' grande della lastra non esce dalla sua sagoma",
+             bool(touched.any()) and float(distance[touched].max()) <= 0.75 and bool(touched[distance < -3].all())
+             and tuple(int(v) for v in dressed[44, 90, :3]) == (255, 0, 0),
+             f"pixel toccati fino a {distance[touched].max():+.2f} px dal bordo")
+
+        two = {"kind": "material", "name": "campo", "x": 10, "y": 6, "w": 70, "h": 32, "clip": False, "marginDp": 4,
+               "shadow": None, "capture": {"saturation": 1.0, "blurDp": 2},
+               "body": {"source": "file:../shaders/sonda-via-a.agsl", "uniforms": {
+                   "offset": "$offset", "pieceCount": 2,
+                   "pieceRect": [["20dp", "16dp", "11dp", "11dp"], ["46dp", "16dp", "11dp", "11dp"]],
+                   "pieceRadii": [["11dp"] * 4, ["11dp"] * 4], "blend": "10dp", "thickness": "5dp",
+                   "refraction": "-4dp", "dome": 0.0, "dispersion": 0.0, "materialize": 1.0,
+                   "veilColor": "#FFFFFF59", "bodyShade": 0.0, "aa": 1.0}}}
+        del two["shadow"]
+        field_bare = rendered(dict(grey, elements=[two]), stages=True)
+        field_dressed = pixels(dict(grey, elements=[dict(two, content=[cloth])]), "contenuto-ritagliato-campo")
+        touched = np.abs(field_dressed - image_array(field_bare.image)).max(axis=2) > 0
+        body_alpha = image_array(field_bare.stages["campo-corpo"])[..., 3]
+        pad = (body_alpha.shape[1] - 140) // 2
+        alpha_on_screen = np.zeros(touched.shape, dtype=int)
+        alpha_on_screen[12 - pad:12 - pad + body_alpha.shape[0], 20 - pad:20 - pad + body_alpha.shape[1]] = body_alpha
+        red = lambda px_x, px_y: tuple(int(v) for v in field_dressed[px_y, px_x, :3]) == (255, 0, 0)
+        test("contenuto ritagliato dal campo: dentro i due pezzi e nel ponte che li fonde, non fuori",
+             red(60, 44) and red(112, 44) and red(86, 44) and not touched[14, 22] and not touched[70, 150]
+             and bool((alpha_on_screen[touched] > 0).all()) and bool(touched[alpha_on_screen == 255].all()),
+             f"ponte {tuple(int(v) for v in field_dressed[44, 86, :3])}, fuori {tuple(int(v) for v in field_dressed[14, 22, :3])}")
+        loose_cloth = pixels(dict(grey, elements=[dict(two, content=[cloth], contentClip="none")]))
+        test("`contentClip: none` lascia uscire il contenuto (e' una scelta, non il difetto di prima)",
+             tuple(int(v) for v in loose_cloth[14, 22, :3]) == (255, 0, 0))
+        pieces_clip = pixels(dict(grey, elements=[dict(two, content=[cloth], contentClip=[
+            {"x": 9, "y": 5, "w": 22, "h": 22, "radius": "capsule"}, {"x": 35, "y": 5, "w": 22, "h": 22, "radius": "capsule"}])]))
+        test("`contentClip` con una lista di pezzi ritaglia sull'unione, senza il ponte",
+             tuple(int(v) for v in pieces_clip[44, 60, :3]) == (255, 0, 0)
+             and tuple(int(v) for v in pieces_clip[44, 86, :3]) != (255, 0, 0))
+
+        wide = dict(plate, w=60)
+        layers = [{"name": "vecchia", "x": 0, "w": 30, "icon": "plus"},
+                  {"name": "nuova", "x": 30, "w": 30, "icon": "circle", "blurDp": 1.5, "alpha": 0.5, "scale": 0.8}]
+        both = pixels(dict(grey, elements=[dict(wide, content=layers)]), "contenuto-due-strati")
+        none_of = pixels(dict(grey, elements=[wide]))
+        only_first = pixels(dict(grey, elements=[dict(wide, content=layers[:1])]))
+        left = np.abs(both - none_of)[:, 40:100].max()
+        right = np.abs(both - none_of)[:, 100:160].max()
+        test("piu' strati di contenuto per elemento: ognuno con la sua sfocatura, scala e opacita'",
+             int(left) > 150 and 20 < int(right) < int(left) and int(np.abs(both - only_first)[:, 40:100].max()) == 0
+             and int(np.abs(both - only_first)[:, 100:160].max()) == int(right),
+             f"strato nitido {left}, strato sfocato al 50% {right}")
+
+        # 8d. "1.0E-4dp" -------------------------------------------------------------------------
+        three = types.SimpleNamespace(density=3.0)
+        test("uniform: `\"1.0E-4dp\"`, `\"1.5E1dp\"` e `\"-.5dp\"` sono lunghezze in dp",
+             abs(r.uniform_value(three, "1.0E-4dp", {}) - 3.0e-4) < 1e-12
+             and r.uniform_value(three, ["1.5E1dp", "-.5dp", "12dp"], {}) == [45.0, -1.5, 36.0])
+        try:
+            r.uniform_value(three, "12 dp", {})
+            refused = False
+        except ValueError:
+            refused = True
+        test("uniform: una lunghezza scritta male resta un errore", refused)
+        plain = slab(0.0)
+        written = dict(plain, body=dict(plain["body"], uniforms=dict(plain["body"]["uniforms"], thickness="6.0E0dp",
+                                                                    refraction="-6.0e+0dp", blend="8.0E0dp")))
+        test("uniform: una scena scritta con gli esponenti si rende uguale al pixel",
+             int(np.abs(pixels(dict(grey, elements=[written])) - pixels(dict(grey, elements=[plain]))).max()) == 0)
+    finally:
+        r.ShaderLibrary.source = original_source
+
+    # 8e. `check` legge anche gli shader accanto alle tracce --------------------------------------
+    global TRACES_DIR
+    real_traces = TRACES_DIR
+    with tempfile.TemporaryDirectory() as tmp:
+        import contextlib
+        import io
+
+        nested = Path(tmp) / "fase" / "viaggio"
+        nested.mkdir(parents=True)
+        (nested / "lente.agsl").write_text(GOOD_SOURCE, encoding="utf-8")
+        try:
+            TRACES_DIR = Path(tmp)
+            sink = io.StringIO()
+            with contextlib.redirect_stdout(sink):
+                with_good = cmd_check(argparse.Namespace(also=None, quiet=False))
+            listed = "file:traces/fase/viaggio/lente.agsl" in sink.getvalue()
+            (nested / "rotta.agsl").write_text(BROKEN_SOURCE, encoding="utf-8")
+            sink = io.StringIO()
+            with contextlib.redirect_stdout(sink):
+                with_bad = cmd_check(argparse.Namespace(also=None, quiet=True))
+        finally:
+            TRACES_DIR = real_traces
+        test("`check` compila gli `.agsl` sotto `traces/`, a qualunque profondita'", with_good == 0 and listed)
+        test("`check` esce con 1 se uno shader di una traccia non compila",
+             with_bad == 1 and "FALLITO file:traces/fase/viaggio/rotta.agsl" in sink.getvalue())
 
     # 9. compare -----------------------------------------------------------------------------
     same, line, _ = compare_arrays(px, px.copy(), 0, 0)

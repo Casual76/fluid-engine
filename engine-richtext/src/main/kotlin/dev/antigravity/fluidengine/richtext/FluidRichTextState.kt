@@ -54,11 +54,12 @@ enum class FluidRichTextChangeSource {
  * confrontare documenti; [document] e' immutabile e si legge in O(1). [lastChangeSource] dice chi ha
  * fatto l'ultima modifica. Il salvataggio vero (una bozza su disco) e' dell'app: lo stato salvato da
  * Android (`rememberSaveable`) serve a ricreare la schermata, non e' una garanzia contro la perdita di
- * testo, e per un documento oltre [MaxSavedLength] caratteri, o la cui dimensione serializzata (testo,
- * tratti con formato, indirizzi dei link, stili dei paragrafi) supera un tetto di 256 KB, **non** salva il
- * documento (un `Bundle` troppo grande fa cadere l'app: molti link lunghi pesano molto anche in poco
- * testo): in quel caso l'app lo riapre dalla sua bozza, e per questo la bozza resta compito dell'app.
- * Sotto i due tetti si ripristina tutto, come prima.
+ * testo, e per un documento oltre [MaxSavedLength] caratteri, o il cui valore salvato (testo, tratti
+ * con formato, indirizzi dei link, stili dei paragrafi, selezione) scritto in un `Parcel` supererebbe un
+ * tetto di 256 KB, **non** salva il documento (un `Bundle` troppo grande fa cadere l'app: molti link
+ * lunghi pesano molto anche in poco testo): in quel caso l'app lo riapre dalla sua bozza, e per questo la
+ * bozza resta compito dell'app. Il tetto e' un limite superiore: cio' che il `Saver` restituisce non
+ * pesa mai di piu', in un `Parcel`. Sotto i due tetti si ripristina tutto, come prima.
  *
  * **Modificarlo dal codice.** [setDocument], [replace], [insert], [replaceSelection] (una firma, il
  * risultato di un assistente), i comandi della barra ([toggle], [toggleList], [toggleQuote],
@@ -531,8 +532,9 @@ class FluidRichTextState(
         } else {
           val links = linksOf(doc)
           if (savedSizeEstimate(doc, links) > MaxSavedBytes) {
-            // Troppi link, troppi tratti: oltre il tetto non si salva il documento (vedi la nota sul
-            // salvataggio in FluidRichTextState), come per un testo troppo lungo.
+            // Troppi link, troppi tratti: il valore qui sotto, in un Parcel, supererebbe il tetto. Non si
+            // salva il documento (vedi la nota sul salvataggio in FluidRichTextState), come per un testo
+            // troppo lungo.
             null
           } else {
             arrayListOf(
@@ -564,18 +566,65 @@ class FluidRichTextState(
     )
 
     /**
-     * Oltre questa dimensione serializzata (in byte, stimata per eccesso: testo, tratti, indirizzi dei
-     * link e stili dei paragrafi) lo stato salvato non porta il documento. Sta ben sotto il limite di
-     * una transazione Binder (circa 1 MB, condiviso da tutto lo stato della schermata): un documento
-     * con molti link lunghi sta in poco testo ma pesa molto, e `MaxSavedLength` da solo non lo vede.
+     * Il tetto, in byte, del valore che [Saver] restituisce, scritto in un `Parcel` con `writeValue`:
+     * un valore salvato non pesa mai di piu', e un documento che lo supererebbe non viene salvato. Sta
+     * ben sotto il limite di una transazione Binder (circa 1 MB, condiviso da tutto lo stato della
+     * schermata): un documento con molti link lunghi sta in poco testo ma pesa molto, e `MaxSavedLength`
+     * da solo non lo vede. Il tetto conta solo quel valore: la chiave e la lista in cui `rememberSaveable`
+     * lo avvolge, e lo stato del resto della schermata, stanno fuori.
      */
     internal const val MaxSavedBytes: Int = 256 * 1024
 
-    /** La dimensione in un `Bundle`, per eccesso: stringhe a 2 byte per carattere, interi a 4, piu' le intestazioni. */
+    /**
+     * Quanto la stima tiene in piu' della dimensione calcolata: copre un'intestazione che una versione
+     * futura di Android aggiungesse attorno al valore, non un errore noto del conto (sull'Android
+     * provato, API 37, il conto e' esatto: vedi [savedSizeEstimate]).
+     */
+    private const val SavedMarginBytes: Long = 64
+
+    /**
+     * La parte del valore salvato che non dipende dal documento, in byte: la lista esterna (12), le
+     * intestazioni dei due `IntArray` (8 l'una), la lista dei link (12) e i quattro valori in coda,
+     * cioe' i due capi della selezione, «Aa» e la versione del formato (8 l'uno). Le intestazioni delle
+     * stringhe stanno in [parcelStringBytes].
+     */
+    private const val SavedFixedBytes: Long = 12 + 8 + 8 + 12 + 4 * 8
+
+    /**
+     * Una stringa di [length] caratteri scritta con `Parcel.writeValue`: il tipo (4 byte), la lunghezza
+     * (4), poi i caratteri in UTF-16 (2 byte per `Char`: un'emoji fuori dal BMP sono due `Char`, e
+     * `String.length` li conta gia' cosi') con il terminatore, allineati a 4 byte.
+     */
+    private fun parcelStringBytes(length: Int): Long = 8L + (2L * (length + 1) + 3L) / 4L * 4L
+
+    /**
+     * Un limite superiore, in byte, della dimensione del valore che [Saver] restituisce per [doc], scritto
+     * in un `Parcel` con `writeValue`. [links] sono gli indirizzi distinti del documento ([linksOf]).
+     *
+     * Il conto segue la codifica vera del `Parcel`, voce per voce (ogni `writeValue` comincia con un
+     * `Int` che dice il tipo; un `Int` sono 4 byte):
+     *
+     * | voce del valore salvato | byte |
+     * |---|---|
+     * | la lista esterna: tipo, lunghezza in byte (da Android 13), numero di voci | 12 |
+     * | il testo, una stringa | `8 + pad4(2 * (caratteri + 1))` |
+     * | i tratti, un `IntArray` di due `Int` per tratto: tipo, numero di elementi, elementi | `8 + 8 * tratti` |
+     * | la lista dei link: tipo, lunghezza in byte (da Android 13), numero di voci | 12 |
+     * | ogni indirizzo distinto, una stringa | `8 + pad4(2 * (caratteri + 1))` |
+     * | gli stili dei paragrafi, un `IntArray` di un `Int` per paragrafo | `8 + 4 * paragrafi` |
+     * | i due capi della selezione e la versione del formato, tre `Int`: tipo e valore | `3 * 8` |
+     * | «Aa», un booleano: tipo e un `Int` | 8 |
+     *
+     * `pad4` arrotonda al multiplo di 4 successivo. In tutto `72 + stringa(testo) + 8 * tratti +
+     * 4 * paragrafi + somma di stringa(indirizzo)`, piu' [SavedMarginBytes] di margine. Con un `Parcel`
+     * vero (API 37) la differenza fra la stima e la dimensione misurata e' esattamente il margine; prima
+     * di Android 13 le due liste non scrivono la loro lunghezza in byte, e la differenza e' di 8 byte in
+     * piu'. La prova che lo misura sul dispositivo e' `FluidRichTextSavedParcelTest` (nella galleria).
+     */
     internal fun savedSizeEstimate(doc: FluidRichTextDocument, links: List<String>): Long {
-      var size = 256L + 2L * doc.text.length
+      var size = SavedFixedBytes + SavedMarginBytes + parcelStringBytes(doc.text.length)
       size += 8L * doc.runs.size + 4L * doc.paragraphCount
-      for (link in links) size += 8L + 2L * link.length
+      for (link in links) size += parcelStringBytes(link.length)
       return size
     }
 

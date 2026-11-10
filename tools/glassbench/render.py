@@ -13,14 +13,28 @@ Ordine delle passate di `glassSurface` (fluid/GlassMaterial.kt + glass/backdrop/
     pellicola (onDrawSurface: GlassTint.overlay)
     contenuto (icone, etichette, vetro annidato)
     bordo speculare (HighlightNode, sopra a tutto, in un layer con il suo modo di comporre)
+
+Ordine delle passate del materiale nuovo, `kind: "material"` (piano "iOS in Android", 3.3):
+
+    ombra (GlassShadowNode: piu' maschere sfumate, fuori dal ritaglio, scavate dentro la sagoma)
+    cattura con il margine (sfocatura + margine del campo)
+      -> saturazione -> sfocatura (Clamp) -> mescola a monte nitido/sfocato (via A, `Plus`)
+      -> shader del CORPO (un ingresso)
+    ritaglio sulla sagoma, se la lastra non cede (`clip`)
+    shader della LUCE (nessun ingresso, premoltiplicato, posato in `SrcOver`), sotto il contenuto
+    contenuto (icone, etichette), se serve nel suo layer con sfocatura, scala e un effetto a shader
+
+Chi usa questo modulo da fuori (il banco del movimento) passa da `render_scene` o da
+`render_scene_full`: le altre funzioni possono cambiare.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import re
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -85,6 +99,41 @@ DEFAULT_PALETTE = {
         "onSurface": "#1D1B20",
     },
 }
+# La palette neutra dell'engine: `surfacePalette()` in theme/FluidTheme.kt (lowest, low, high,
+# onSurface) con l'accento di serie `FluidDefaultBrand`. Ricopiata: una scena la chiede con
+# `"palette": "engine"` (o `"engine-amoled"` per il tema nero). L'engine vero sposta ogni
+# superficie dell'1,2-1,4% verso l'accento: qui no, sono i neutri.
+ENGINE_PALETTE = {
+    "dark": {
+        "surfaceContainerHigh": "#252528",
+        "surfaceContainerLow": "#1D1D20",
+        "primary": "#2ED8A0",
+        "onSurface": "#F2F2F5",
+    },
+    "light": {
+        "surfaceContainerLowest": "#FFFFFF",
+        "surfaceContainerLow": "#FCFCFE",
+        "primary": "#1F9E6E",
+        "onSurface": "#121214",
+    },
+}
+ENGINE_AMOLED_PALETTE = {
+    "dark": {
+        "surfaceContainerHigh": "#1B1B1E",
+        "surfaceContainerLow": "#121214",
+        "primary": "#2ED8A0",
+        "onSurface": "#F2F2F5",
+    },
+    "light": ENGINE_PALETTE["light"],
+}
+PALETTES = {"material": DEFAULT_PALETTE, "engine": ENGINE_PALETTE, "engine-amoled": ENGINE_AMOLED_PALETTE}
+
+
+def base_palette(family: str, theme: str) -> dict:
+    if family not in PALETTES:
+        raise KeyError(f"palette `{family}` sconosciuta; ci sono: {', '.join(PALETTES)}")
+    return dict(PALETTES[family][theme])
+
 
 # glass/backdrop/DrawBackdropModifier.kt
 MAX_BACKDROP_TEXTURE = 4096.0
@@ -256,6 +305,159 @@ def rrect(x: float, y: float, w: float, h: float, radii) -> skia.RRect:
 
 
 # --------------------------------------------------------------------------------------------
+# Il raccordo continuo dell'engine (fluid/FluidShape.kt): lo stesso emettitore, riga per riga
+# --------------------------------------------------------------------------------------------
+
+# ContinuousCornerShape.IosSmoothing, RoundedEquivalentFactor, SmallShapeCutoffPx: ricopiati, sono
+# `const val` dentro un `companion object` che `read_material` non legge.
+IOS_SMOOTHING = 0.6
+ROUNDED_EQUIVALENT_FACTOR = 0.82
+SMALL_SHAPE_CUTOFF_PX = 256.0
+
+
+def _continuous_corner(path: skia.Path, corner, incoming, outgoing, requested_radius: float,
+                       min_dimension: float, smoothing: float, move_to: bool = False) -> None:
+    """`Path.continuousCorner` di FluidShape.kt: curva che sale, arco accorciato, curva che scende.
+
+    Stessi nomi e stessi conti del Kotlin, in doppia precisione invece che in `Float`: lo scarto
+    sta sotto il millesimo di pixel."""
+    budget = min_dimension / 2.0
+    radius = max(min(requested_radius, budget), 0.0)
+    if radius <= 0:
+        s = 0.0
+    else:
+        s = min(min(max(smoothing, 0.0), 1.0), max(budget / radius - 1.0, 0.0))
+
+    cx, cy = corner
+    ix, iy = incoming
+    ox, oy = outgoing
+    reach = (1.0 + s) * radius
+    sx, sy = cx - ix * reach, cy - iy * reach
+    if move_to:
+        path.moveTo(sx, sy)
+    else:
+        path.lineTo(sx, sy)
+    if radius <= 0:
+        return
+
+    p = reach
+    arc_sweep = 90.0 * (1.0 - s)
+    arc_chord = math.sin(math.radians(arc_sweep / 2.0)) * radius * math.sqrt(2.0)
+    alpha = (90.0 - arc_sweep) / 2.0
+    beta = 45.0 * s
+    handle = radius * math.tan(math.radians(beta / 2.0))
+    c = handle * math.cos(math.radians(alpha))
+    d = c * math.tan(math.radians(alpha))
+    b = (p - arc_chord - c - d) / 3.0
+    a = 2.0 * b
+
+    def local(along_in: float, along_out: float):
+        return (sx + ix * along_in + ox * along_out, sy + iy * along_in + oy * along_out)
+
+    def cubic(c1, c2, end) -> None:
+        path.cubicTo(c1[0], c1[1], c2[0], c2[1], end[0], end[1])
+
+    arc_start = local(a + b + c, d)
+    cubic(local(a, 0.0), local(a + b, 0.0), arc_start)
+
+    arc_end = (arc_start[0] + (ix + ox) * arc_chord, arc_start[1] + (iy + oy) * arc_chord)
+
+    def tangent(deg: float):
+        r = math.radians(deg)
+        return (ix * math.cos(r) + ox * math.sin(r), iy * math.cos(r) + oy * math.sin(r))
+
+    k = 4.0 / 3.0 * math.tan(math.radians(arc_sweep / 4.0)) * radius
+    t0, t1 = tangent(alpha), tangent(alpha + arc_sweep)
+    cubic((arc_start[0] + t0[0] * k, arc_start[1] + t0[1] * k),
+          (arc_end[0] - t1[0] * k, arc_end[1] - t1[1] * k), arc_end)
+
+    cubic(local(p, d + arc_chord + c), local(p, d + arc_chord + b + c), local(p, p))
+
+
+def continuous_path(x: float, y: float, w: float, h: float, radii,
+                    smoothing: float = IOS_SMOOTHING) -> skia.Path:
+    """`Path.addContinuousRoundRect`: il tracciato a raccordo continuo, sempre (anche sui piccoli).
+
+    [radii] nell'ordine del banco: alto-sx, alto-dx, basso-dx, basso-sx."""
+    tl, tr, br, bl = radii
+    path = skia.Path()
+    if tl + tr + br + bl <= 0 or min(w, h) <= 0:
+        path.addRect(skia.Rect.MakeXYWH(x, y, w, h))
+        return path
+    right, down, left, up = (1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)
+    m = min(w, h)
+    _continuous_corner(path, (x + w, y), right, down, tr, m, smoothing, move_to=True)
+    _continuous_corner(path, (x + w, y + h), down, left, br, m, smoothing)
+    _continuous_corner(path, (x, y + h), left, up, bl, m, smoothing)
+    _continuous_corner(path, (x, y), up, right, tl, m, smoothing)
+    path.close()
+    return path
+
+
+def rounded_equivalent(radii, w: float, h: float) -> list[float]:
+    """`ContinuousCornerShape.roundedEquivalent`: il raggio circolare che sembra uguale. Una
+    capsula (raggio >= mezzo lato corto) non si tocca."""
+    half = min(w, h) / 2.0
+    return [r if r >= half else r * ROUNDED_EQUIVALENT_FACTOR for r in radii]
+
+
+class Outline:
+    """La sagoma di una lastra come la sceglie l'engine, in coordinate di schermo.
+
+    `corner` e' il modo:
+      * `"round"` (di serie nel banco, per non cambiare le scene vecchie): rettangolo arrotondato
+        circolare al raggio nominale, per ritaglio, pellicola, bordo e ombra;
+      * `"engine"`: la scelta per taglia di `ContinuousCornerShape.createOutline` e di
+        `ShapeProvider` (glass/backdrop/internal). Sotto `SmallShapeCutoffPx` di lato lungo tutto
+        e' un rettangolo arrotondato al raggio equivalente (x0,82; le capsule no). Sopra, pellicola,
+        bordo e ombra seguono il path continuo e il ritaglio hardware resta al raggio nominale;
+      * `"continuous"`: il path continuo sempre, anche sui piccoli (serve ai confronti).
+    La lente riceve sempre i raggi nominali (`effects/Lens.kt`), in tutti e tre i modi.
+    """
+
+    def __init__(self, x, y, w, h, radii, corner: str = "round", smoothing: float = IOS_SMOOTHING):
+        if corner not in ("round", "engine", "continuous"):
+            raise ValueError(f"`corner` deve essere round, engine o continuous, non {corner!r}")
+        self.x, self.y, self.w, self.h = x, y, w, h
+        self.nominal = list(radii)
+        small = max(w, h) < SMALL_SHAPE_CUTOFF_PX
+        self.path: skia.Path | None = None
+        if corner == "round":
+            self.clip_radii = list(radii)
+            self.draw_radii = list(radii)
+        elif corner == "engine" and small:
+            self.clip_radii = rounded_equivalent(radii, w, h)
+            self.draw_radii = list(self.clip_radii)
+        else:
+            self.clip_radii = list(radii) if corner == "engine" else None
+            self.draw_radii = list(radii)
+            self.path = continuous_path(x, y, w, h, radii, smoothing)
+
+    def clip(self, canvas: skia.Canvas) -> None:
+        """Il ritaglio hardware del nodo."""
+        if self.clip_radii is None:
+            canvas.clipPath(self.path, skia.ClipOp.kIntersect, True)
+        else:
+            canvas.clipRRect(rrect(self.x, self.y, self.w, self.h, self.clip_radii),
+                             skia.ClipOp.kIntersect, True)
+
+    def clip_shape(self, canvas: skia.Canvas) -> None:
+        """Il ritaglio sulla sagoma disegnata (pellicola, bordo): il path dove c'e'."""
+        if self.path is not None:
+            canvas.clipPath(self.path, skia.ClipOp.kIntersect, True)
+
+    def draw(self, canvas: skia.Canvas, paint: skia.Paint, dx: float = 0.0, dy: float = 0.0) -> None:
+        """La sagoma disegnata (ombra, scavo, bordo), spostata di ([dx], [dy])."""
+        if self.path is not None:
+            canvas.save()
+            canvas.translate(dx, dy)
+            canvas.drawPath(self.path, paint)
+            canvas.restore()
+        else:
+            canvas.drawRRect(rrect(self.x + dx, self.y + dy, self.w, self.h, self.draw_radii), paint)
+
+
+# --------------------------------------------------------------------------------------------
 # La regola della taglia e la risoluzione della cattura (fluid/GlassMaterial.kt)
 # --------------------------------------------------------------------------------------------
 
@@ -351,12 +553,265 @@ def _icon_path(name: str) -> tuple[skia.Path, bool]:
         for x in (6, 12, 18):
             p.addCircle(x, 12, 1.7)
         return p, True
+    # Aggiunti con le scene `rif/`: le sagome dei frame di Apple, a grandi linee.
+    elif name == "list":
+        for y in (7, 12, 17):
+            p.moveTo(9.5, y); p.lineTo(19.5, y)
+            p.addCircle(5, y, 0.4)
+    elif name == "folder":
+        p.moveTo(4, 7); p.lineTo(4, 18.5); p.lineTo(20, 18.5); p.lineTo(20, 8.5); p.lineTo(12, 8.5)
+        p.lineTo(10, 6); p.lineTo(4, 6); p.close()
+        p.moveTo(4, 11); p.lineTo(20, 11)
+    elif name == "trash":
+        p.moveTo(4.5, 7); p.lineTo(19.5, 7)
+        p.moveTo(9.5, 7); p.lineTo(9.5, 4.5); p.lineTo(14.5, 4.5); p.lineTo(14.5, 7)
+        p.moveTo(6.5, 7); p.lineTo(7.5, 20); p.lineTo(16.5, 20); p.lineTo(17.5, 7)
+    elif name == "archive":
+        p.addRect(skia.Rect.MakeLTRB(4, 5, 20, 9))
+        p.moveTo(5.5, 9); p.lineTo(5.5, 19.5); p.lineTo(18.5, 19.5); p.lineTo(18.5, 9)
+        p.moveTo(10, 13); p.lineTo(14, 13)
+    elif name == "compose":
+        p.moveTo(12, 5.5); p.lineTo(5.5, 5.5); p.lineTo(5.5, 18.5); p.lineTo(18.5, 18.5); p.lineTo(18.5, 12)
+        p.moveTo(19.5, 4.5); p.lineTo(11.5, 12.5)
+    elif name == "home":
+        p.moveTo(4, 11.5); p.lineTo(12, 4.5); p.lineTo(20, 11.5); p.lineTo(20, 19.5); p.lineTo(14.5, 19.5)
+        p.lineTo(14.5, 14); p.lineTo(9.5, 14); p.lineTo(9.5, 19.5); p.lineTo(4, 19.5); p.close()
+        return p, True
+    elif name == "grid4":
+        for gx, gy in ((4.5, 4.5), (13, 4.5), (4.5, 13), (13, 13)):
+            p.addRoundRect(skia.Rect.MakeXYWH(gx, gy, 6.5, 6.5), 1.6, 1.6)
+        return p, True
+    elif name == "play":
+        p.moveTo(7, 4.5); p.lineTo(19.5, 12); p.lineTo(7, 19.5); p.close()
+        return p, True
     else:
         raise KeyError(f"icona sconosciuta: {name}")
     return p, False
 
 
+# Le icone vere dell'engine (`FluidIcons`, pacchetto F0.8): `tools/glassbench/icons/*.json`, scritti
+# dal generatore `tools/icons/gen_fluid_icons.py`. Il banco le usa quando ci sono e una scena le
+# chiede con `"fluid:nome|ripiego"`; finche' mancano disegna il ripiego, che e' un disegno di servizio.
+ICONS_DIR = Path(__file__).resolve().parent / "icons"
+_SVG_NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+_SVG_ARGS = {"M": 2, "L": 2, "H": 1, "V": 1, "C": 6, "S": 4, "Q": 4, "T": 2, "A": 7}
+
+
+def svg_path(data: str) -> skia.Path:
+    """Un `d` di SVG (o un `pathData` di VectorDrawable) -> `skia.Path`. skia-python non espone
+    `SkParsePath`: qui i comandi M L H V C S Q T A Z, assoluti e relativi, compresi i due indicatori
+    di un arco scritti attaccati (`a2 2 0 01-2 2`), come li scrivono le icone compresse."""
+    path = skia.Path()
+    pos, end = 0, len(data)
+    cmd = ""
+    x = y = start_x = start_y = 0.0
+    last_ctrl: tuple[float, float] | None = None
+    last_kind = ""
+
+    def skip() -> None:
+        nonlocal pos
+        while pos < end and data[pos] in " \t\r\n,":
+            pos += 1
+
+    def number() -> float:
+        nonlocal pos
+        skip()
+        match = _SVG_NUMBER.match(data, pos)
+        if not match:
+            raise ValueError(f"tracciato SVG: numero atteso alla posizione {pos}")
+        pos = match.end()
+        return float(match.group())
+
+    def flag() -> bool:
+        nonlocal pos
+        skip()
+        if pos >= end or data[pos] not in "01":
+            raise ValueError(f"tracciato SVG: indicatore d'arco atteso alla posizione {pos}")
+        pos += 1
+        return data[pos - 1] == "1"
+
+    while True:
+        skip()
+        if pos >= end:
+            break
+        if data[pos].isalpha():
+            cmd = data[pos]
+            pos += 1
+            if cmd in "Zz":
+                path.close()
+                x, y = start_x, start_y
+                last_kind = ""
+                continue
+            if cmd.upper() not in _SVG_ARGS:
+                raise ValueError(f"comando SVG non gestito: {cmd}")
+        elif not cmd or cmd in "Zz":
+            raise ValueError("tracciato SVG: numeri senza un comando")
+        rel = cmd.islower()
+        op = cmd.upper()
+        bx, by = (x, y) if rel else (0.0, 0.0)
+        if op == "M":
+            x, y = bx + number(), by + number()
+            path.moveTo(x, y)
+            start_x, start_y = x, y
+            cmd = "l" if rel else "L"  # le coppie dopo la prima sono linee
+        elif op == "L":
+            x, y = bx + number(), by + number()
+            path.lineTo(x, y)
+        elif op == "H":
+            x = bx + number()
+            path.lineTo(x, y)
+        elif op == "V":
+            y = by + number()
+            path.lineTo(x, y)
+        elif op == "C":
+            x1, y1, x2, y2, px, py = (number() for _ in range(6))
+            path.cubicTo(bx + x1, by + y1, bx + x2, by + y2, bx + px, by + py)
+            last_ctrl = (bx + x2, by + y2)
+            x, y = bx + px, by + py
+        elif op == "S":
+            x2, y2, px, py = (number() for _ in range(4))
+            c1 = (2 * x - last_ctrl[0], 2 * y - last_ctrl[1]) if last_kind in ("C", "S") and last_ctrl else (x, y)
+            path.cubicTo(c1[0], c1[1], bx + x2, by + y2, bx + px, by + py)
+            last_ctrl = (bx + x2, by + y2)
+            x, y = bx + px, by + py
+        elif op == "Q":
+            x1, y1, px, py = (number() for _ in range(4))
+            path.quadTo(bx + x1, by + y1, bx + px, by + py)
+            last_ctrl = (bx + x1, by + y1)
+            x, y = bx + px, by + py
+        elif op == "T":
+            px, py = number(), number()
+            c1 = (2 * x - last_ctrl[0], 2 * y - last_ctrl[1]) if last_kind in ("Q", "T") and last_ctrl else (x, y)
+            path.quadTo(c1[0], c1[1], bx + px, by + py)
+            last_ctrl = c1
+            x, y = bx + px, by + py
+        else:  # A
+            rx, ry, rotation = number(), number(), number()
+            large, sweep = flag(), flag()
+            x, y = bx + number(), by + number()
+            path.arcTo(rx, ry, rotation,
+                       skia.Path.ArcSize.kLarge_ArcSize if large else skia.Path.ArcSize.kSmall_ArcSize,
+                       skia.PathDirection.kCW if sweep else skia.PathDirection.kCCW, x, y)
+        last_kind = op if op in ("C", "S", "Q", "T") else ""
+    return path
+
+
+class IconSet:
+    """I tracciati di `tools/glassbench/icons/*.json`, letti con tolleranza sulla forma: il banco
+    nasce prima del generatore. Accetta, per ogni nome, una stringa `d`, oppure un oggetto con
+    `path` / `d` / `pathData` (stringa) o `paths` (lista di stringhe o di oggetti cosi'), e una
+    taglia del riquadro in `viewport` / `size` (numero o [larghezza, altezza]) o `viewBox`
+    ([x, y, larghezza, altezza]) sull'icona o sul file. Di serie il riquadro e' 24, pieno, non
+    zero. Un'icona `"filled"` sta sotto il nome `nome.fill` o nel campo `filled` del suo oggetto."""
+
+    def __init__(self, directory: Path = ICONS_DIR):
+        self.entries: dict[str, tuple[dict, dict]] = {}
+        self.errors: list[str] = []
+        self._cache: dict[str, tuple[skia.Path, tuple[float, float, float, float]]] = {}
+        if not directory.is_dir():
+            return
+        for file in sorted(directory.glob("*.json")):
+            try:
+                doc = json.loads(file.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as error:
+                self.errors.append(f"{file.name}: {error}")
+                continue
+            icons = doc.get("icons", doc) if isinstance(doc, dict) else doc
+            defaults = doc if isinstance(doc, dict) else {}
+            if isinstance(icons, list):
+                icons = {item.get("name"): item for item in icons if isinstance(item, dict)}
+            if not isinstance(icons, dict):
+                self.errors.append(f"{file.name}: forma non riconosciuta")
+                continue
+            for name, entry in icons.items():
+                if isinstance(name, str) and isinstance(entry, (str, dict, list)):
+                    if isinstance(entry, (str, list)):
+                        entry = {"paths": entry if isinstance(entry, list) else [entry]}
+                    self.entries.setdefault(name, (entry, defaults))
+
+    def __bool__(self) -> bool:
+        return bool(self.entries)
+
+    @staticmethod
+    def _box(entry: dict, defaults: dict) -> tuple[float, float, float, float]:
+        for source in (entry, defaults):
+            box = source.get("viewBox")
+            if isinstance(box, str):
+                box = [float(v) for v in box.replace(",", " ").split()]
+            if isinstance(box, (list, tuple)) and len(box) == 4:
+                return tuple(float(v) for v in box)  # type: ignore[return-value]
+            for key in ("viewport", "size", "viewportSize"):
+                size = source.get(key)
+                if isinstance(size, (int, float)):
+                    return (0.0, 0.0, float(size), float(size))
+                if isinstance(size, (list, tuple)) and len(size) == 2:
+                    return (0.0, 0.0, float(size[0]), float(size[1]))
+            if "viewportWidth" in source and "viewportHeight" in source:
+                return (0.0, 0.0, float(source["viewportWidth"]), float(source["viewportHeight"]))
+        return (0.0, 0.0, 24.0, 24.0)
+
+    def get(self, name: str):
+        """(path, riquadro) o None se il nome non c'e' o il tracciato non si legge."""
+        if name in self._cache:
+            return self._cache[name]
+        if name not in self.entries:
+            return None
+        entry, defaults = self.entries[name]
+        parts = entry.get("paths")
+        if parts is None:
+            parts = [entry.get("path") or entry.get("d") or entry.get("pathData")]
+        path = skia.Path()
+        try:
+            for part in parts:
+                if isinstance(part, dict):
+                    part = part.get("d") or part.get("path") or part.get("pathData")
+                if not isinstance(part, str):
+                    raise ValueError("tracciato mancante")
+                path.addPath(svg_path(part))
+        except (ValueError, TypeError) as error:
+            self.errors.append(f"{name}: {error}")
+            return None
+        fill = str(entry.get("fillType", defaults.get("fillType", ""))).lower()
+        if fill in ("evenodd", "even_odd", "even-odd"):
+            path.setFillType(skia.PathFillType.kEvenOdd)
+        self._cache[name] = (path, self._box(entry, defaults))
+        return self._cache[name]
+
+
+_ICON_SET: IconSet | None = None
+
+
+def icon_set() -> IconSet:
+    global _ICON_SET
+    if _ICON_SET is None:
+        _ICON_SET = IconSet()
+    return _ICON_SET
+
+
+# Le icone dell'engine si usano solo se la scena lo chiede (`fluid:`) e se chi rende non le ha
+# spente: le immagini di riferimento `classic` le spengono, per non cambiare quando il set arriva o
+# viene rigenerato.
+USE_FLUID_ICONS = True
+
+
 def draw_icon(canvas, name: str, cx: float, cy: float, size_px: float, rgba) -> None:
+    """`"plus"` e' un disegno di servizio; `"fluid:add|plus"` e' l'icona `add` di `FluidIcons` se
+    il set c'e', altrimenti il disegno di servizio `plus`."""
+    if name.startswith("fluid:"):
+        wanted, _, fallback = name[6:].partition("|")
+        found = icon_set().get(wanted) if USE_FLUID_ICONS else None
+        if found is not None:
+            path, (bx, by, bw, bh) = found
+            canvas.save()
+            canvas.translate(cx - size_px / 2, cy - size_px / 2)
+            canvas.scale(size_px / bw, size_px / bh)
+            canvas.translate(-bx, -by)
+            canvas.drawPath(path, skia.Paint(AntiAlias=True, Color4f=color4f(rgba)))
+            canvas.restore()
+            return
+        if not fallback:
+            raise KeyError(f"icona `{wanted}` non trovata in {ICONS_DIR} e nessun ripiego dopo `|`")
+        name = fallback
     path, filled = _icon_path(name)
     paint = skia.Paint(AntiAlias=True, Color4f=color4f(rgba))
     if not filled:
@@ -411,6 +866,13 @@ class Context:
     shaders: ShaderLibrary
     scene_dir: Path
     stages: dict[str, skia.Image] | None = None
+    corner: str = "round"
+    # La famiglia di palette da cui riparte un elemento che cambia tema (`PALETTES`).
+    palette_family: str = "material"
+    # Falso = le lastre senza icone ne' etichette: `measure` legge il corpo senza inciampare nel contenuto.
+    content: bool = True
+    # Dove sta ogni elemento con un nome, in pixel di schermo: lo usa `measure`.
+    boxes: dict = field(default_factory=dict)
 
     def px(self, dp: float) -> float:
         return float(dp) * self.density
@@ -466,8 +928,85 @@ def corner_radii_px(ctx: Context, spec, w: float, h: float) -> list[float]:
     return [min(ctx.px(r), cap) for r in spec]
 
 
+def synthetic_photo(width: int, height: int, spec: dict, density: float) -> np.ndarray:
+    """Una "fotografia" fatta di conti: macchie di colore larghe, striature, grana fine.
+
+    Serve dove i frame di Apple hanno una foto sotto il vetro e il repo non puo' portarne una: cio'
+    che si misura (contrasto che resta, nitidezza che resta, colore che passa) dipende dalla
+    statistica dell'immagine, non dal soggetto. Niente numeri casuali: somme di seni a frequenze
+    fisse, in dp, cosi' la stessa scena da' la stessa immagine a ogni densita' e su ogni macchina.
+
+    `palette`: i colori fra cui passa (di serie un fiore giallo e rosso su verde scuro);
+    `detail` 0..1: quanta grana fine; `contrast`: moltiplica lo scarto dal grigio medio;
+    `lift`: sposta la luminosita' (-1..1)."""
+    palette = [np.array(parse_color(c)[:3]) for c in spec.get(
+        "palette", ["#3B4A1E", "#C9A21B", "#F0D43A", "#C24A3A", "#E7A08C", "#7A2E24"])]
+    detail = float(spec.get("detail", 0.6))
+    contrast = float(spec.get("contrast", 1.0))
+    lift = float(spec.get("lift", 0.0))
+    scale = float(spec.get("scaleDp", 90.0))  # la taglia delle macchie larghe
+    ys, xs = np.mgrid[0:height, 0:width].astype(np.float64)
+    u, v = xs / density / scale, ys / density / scale
+    # Un campo liscio 0..1 che decide il colore, piegato da un secondo campo: petali, non righe.
+    warp = 0.55 * np.sin(1.7 * u + 0.6 * np.sin(2.3 * v + 0.4)) + 0.45 * np.cos(1.3 * v - 0.9 * u + 1.1)
+    field_a = 0.5 + 0.5 * np.sin(2.1 * u + 1.6 * v + 2.4 * warp)
+    field_b = 0.5 + 0.5 * np.sin(3.4 * v - 1.2 * u + 1.9 * warp + 0.7)
+    t = np.clip(0.62 * field_a + 0.38 * field_b, 0.0, 1.0) * (len(palette) - 1)
+    lo = np.floor(t).astype(int).clip(0, len(palette) - 2)
+    frac = (t - lo)[..., None]
+    frac = frac * frac * (3.0 - 2.0 * frac)
+    stack = np.stack(palette)
+    rgb = stack[lo] * (1.0 - frac) + stack[lo + 1] * frac
+    # Striature (gli stami del fiore) e dettaglio a piu' scale: cio' che il vetro deve togliere.
+    # Ottave di seni piegati, ampiezza che scende con la frequenza come in una fotografia.
+    stripes = np.sin(38.0 * u + 9.0 * np.sin(2.6 * v) + 5.0 * warp) * np.clip(field_b - 0.35, 0.0, 1.0)
+    texture = np.zeros_like(u)
+    for octave, (freq, angle, phase) in enumerate(
+            ((7.0, 0.4, 0.3), (13.0, 2.1, 1.7), (29.0, 1.2, 4.1), (53.0, 2.8, 2.6), (101.0, 0.9, 5.2))):
+        bend = 2.5 * np.sin(1.9 * u * (octave + 1) + 0.7 * octave) + 2.0 * np.cos(2.3 * v * (octave + 1) - octave)
+        texture += np.sin(freq * (u * math.cos(angle) + v * math.sin(angle)) + phase + bend + 3.0 * warp) / (octave + 1.5)
+    luma_mod = 0.20 * detail * stripes + 0.16 * detail * texture
+    rgb = rgb * (1.0 + luma_mod[..., None])
+    rgb = 0.5 + (rgb - 0.5) * contrast + lift
+    return np.clip(rgb, 0.0, 1.0)
+
+
+def _draw_pixels(canvas, rgb: np.ndarray) -> None:
+    height, width = rgb.shape[:2]
+    rgba = np.concatenate([rgb, np.ones((height, width, 1))], axis=2)
+    pixels = np.ascontiguousarray((np.clip(rgba, 0, 1) * 255 + 0.5).astype(np.uint8))
+    canvas.drawImage(skia.Image.fromarray(pixels, skia.kRGBA_8888_ColorType), 0, 0)
+
+
 def draw_background(canvas, ctx: Context, spec, width: int, height: int) -> None:
     kind = spec.get("kind", "color")
+    if kind == "synthetic":
+        _draw_pixels(canvas, synthetic_photo(width, height, spec, ctx.density))
+        return
+    if kind in ("grid", "checker"):
+        canvas.clear(color4f(parse_color(spec.get("background", "#FFFFFF"))))
+        step = ctx.px(spec.get("stepDp", 12))
+        colour = skia.Paint(AntiAlias=False, Color4f=color4f(parse_color(spec.get("color", "#000000"))))
+        if kind == "grid":
+            line = ctx.px(spec.get("lineDp", 1))
+            origin = ctx.px(spec.get("originDp", 0))
+            x = origin
+            while x < width:
+                canvas.drawRect(skia.Rect.MakeXYWH(round(x), 0, max(round(line), 1), height), colour)
+                x += step
+            y = origin
+            while y < height:
+                canvas.drawRect(skia.Rect.MakeXYWH(0, round(y), width, max(round(line), 1)), colour)
+                y += step
+        else:
+            cols, rows = int(math.ceil(width / step)), int(math.ceil(height / step))
+            for row in range(rows):
+                for col in range(cols):
+                    if (row + col) % 2 == 0:
+                        canvas.drawRect(skia.Rect.MakeLTRB(round(col * step), round(row * step),
+                                                           round((col + 1) * step), round((row + 1) * step)),
+                                        colour)
+        return
     if kind == "color":
         canvas.clear(color4f(parse_color(spec["color"])))
     elif kind == "gradient4":
@@ -536,8 +1075,51 @@ def draw_page_items(canvas, ctx: Context, items) -> None:
         elif kind == "icon":
             draw_icon(canvas, item["icon"], ctx.px(item["x"]), ctx.px(item["y"]),
                       ctx.px(item.get("sizeDp", 24)), colour)
+        elif kind == "background":
+            # Uno sfondo (qualsiasi `background.kind`) dentro un rettangolo: una foto in una fascia,
+            # una striscia di testo, meta' pagina a scacchi.
+            x, y = round(ctx.px(item["x"])), round(ctx.px(item["y"]))
+            w, h = round(ctx.px(item["w"])), round(ctx.px(item["h"]))
+            patch = new_surface(w, h)
+            draw_background(patch.getCanvas(), ctx, item["background"], w, h)
+            canvas.save()
+            if item.get("radius"):
+                canvas.clipRRect(rrect(x, y, w, h, corner_radii_px(ctx, item["radius"], w, h)),
+                                 skia.ClipOp.kIntersect, True)
+            canvas.drawImage(patch.makeImageSnapshot(), x, y)
+            canvas.restore()
+        elif kind == "shape":
+            draw_shape(canvas, ctx, item)
         else:
             raise KeyError(f"elemento di pagina sconosciuto: {kind}")
+
+
+def draw_shape(canvas, ctx: Context, item, origin=(0.0, 0.0)) -> None:
+    """Una sagoma piena o al tratto: `corner` = `round` (cerchi), `continuous` (il path
+    dell'engine, sempre) o `engine` (la scelta per taglia). Serve a mettere il path continuo accanto
+    al campo di uno shader. `smoothing` di serie 0,6; `stroke` = spessore in dp; `strokeAlign` =
+    `center` o `inside`."""
+    x, y = ctx.px(item["x"]) + origin[0], ctx.px(item["y"]) + origin[1]
+    w, h = ctx.px(item["w"]), ctx.px(item["h"])
+    radii = corner_radii_px(ctx, item.get("radius"), w, h)
+    outline = Outline(x, y, w, h, radii, item.get("corner", "continuous"),
+                      float(item.get("smoothing", IOS_SMOOTHING)))
+    paint = skia.Paint(AntiAlias=True, Color4f=color4f(parse_color(item.get("color", "#000000"))))
+    stroke = item.get("stroke")
+    if stroke:
+        paint.setStyle(skia.Paint.kStroke_Style)
+        inside = item.get("strokeAlign", "center") == "inside"
+        paint.setStrokeWidth(ctx.px(stroke) * (2.0 if inside else 1.0))
+        canvas.save()
+        if inside:
+            if outline.path is not None:
+                canvas.clipPath(outline.path, skia.ClipOp.kIntersect, True)
+            else:
+                canvas.clipRRect(rrect(x, y, w, h, outline.draw_radii), skia.ClipOp.kIntersect, True)
+        outline.draw(canvas, paint)
+        canvas.restore()
+    else:
+        outline.draw(canvas, paint)
 
 
 def draw_content(canvas, ctx: Context, el, w: float, h: float) -> None:
@@ -569,27 +1151,142 @@ def draw_content(canvas, ctx: Context, el, w: float, h: float) -> None:
     draw_page_items(canvas, ctx, el.get("items"))
 
 
+def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: float,
+                  tag: str = "contenuto") -> None:
+    """Il contenuto di un elemento sullo schermo, con l'origine in ([x], [y]).
+
+    Senza `contentLayer` si stampa diretto, come sempre. Con `contentLayer` il contenuto vive nel
+    suo layer, come un `graphicsLayer` di Compose con un `RenderEffect`:
+
+        {"blurDp": 3, "scale": 1.15, "alpha": 0.9, "marginDp": 8,
+         "effect": {"source": "kotlin:GlassContentLensSlabShaderString", "uniforms": {...}}}
+
+    Ordine: il contenuto si disegna nel layer; `blurDp` lo sfoca; `effect` e' uno shader il cui unico
+    ingresso (`input`, di serie il primo `uniform shader`) e' il layer sfocato; poi il layer si posa
+    con `scale` (attorno al centro dell'elemento, un numero o [sx, sy]) e `alpha`. E' la lente del
+    contenuto di un viaggio (F5A): icone e testo deformati e sfocati dentro la goccia. `marginDp`
+    allarga il layer oltre l'elemento (di serie quanto basta alla sfocatura); lo shader riceve
+    `$offset` = -margine, come il corpo."""
+    if not ctx.content:
+        return
+    spec = el.get("contentLayer")
+    if not spec:
+        screen.save()
+        screen.translate(x, y)
+        draw_content(screen, ctx, el, w, h)
+        screen.restore()
+        return
+    blur_px = ctx.px(spec.get("blurDp", 0.0))
+    margin = int(math.ceil(ctx.px(spec.get("marginDp", 0.0)) + (3.0 * blur_sigma(blur_px) if blur_px > 0 else 0.0)))
+    lw, lh = int(round(w)) + 2 * margin, int(round(h)) + 2 * margin
+    layer = new_surface(lw, lh)
+    lc = layer.getCanvas()
+    lc.translate(margin, margin)
+    draw_content(lc, ctx, el, w, h)
+    image = layer.makeImageSnapshot()
+    if ctx.stages is not None:
+        ctx.stages[f"{tag}-0-layer"] = image
+    if blur_px > 0:
+        blurred = new_surface(lw, lh)
+        sigma = blur_sigma(blur_px)
+        paint = skia.Paint()
+        # Decal: fuori dal layer del contenuto non c'e' niente, e niente deve entrare nella sfocatura.
+        paint.setImageFilter(skia.ImageFilters.Blur(sigma, sigma, skia.TileMode.kDecal, None,
+                                                    skia.IRect.MakeWH(lw, lh)))
+        blurred.getCanvas().drawImage(image, 0, 0, LINEAR, paint)
+        image = blurred.makeImageSnapshot()
+        if ctx.stages is not None:
+            ctx.stages[f"{tag}-1-sfocatura"] = image
+    effect = spec.get("effect")
+    if effect:
+        program = ctx.shaders.program(effect["source"])
+        builtins = {
+            "$size": [float(w), float(h)],
+            "$halfSize": [w / 2.0, h / 2.0],
+            "$center": [w / 2.0, h / 2.0],
+            "$offset": [-float(margin), -float(margin)],
+            "$layerSize": [float(lw), float(lh)],
+            "$density": ctx.density,
+            "$dark": 1.0 if ctx.dark() else 0.0,
+        }
+        for name, value in (effect.get("uniforms") or {}).items():
+            program.set(name, uniform_value(ctx, value, builtins))
+        if not program.child_names:
+            raise ValueError(f"`{effect['source']}` non ha un ingresso: non puo' essere un effetto sul contenuto")
+        program.set_child(effect.get("input", program.child_names[0]), image_shader(image))
+        out = new_surface(lw, lh)
+        paint = skia.Paint()
+        paint.setShader(program.make())
+        paint.setBlendMode(skia.BlendMode.kSrc)
+        out.getCanvas().drawRect(skia.Rect.MakeWH(lw, lh), paint)
+        image = out.makeImageSnapshot()
+        if ctx.stages is not None:
+            ctx.stages[f"{tag}-2-effetto"] = image
+    scale = spec.get("scale", 1.0)
+    sx, sy = (scale if isinstance(scale, (list, tuple)) else (scale, scale))
+    screen.save()
+    screen.translate(x + w / 2.0, y + h / 2.0)
+    screen.scale(float(sx), float(sy))
+    screen.translate(-w / 2.0 - margin, -h / 2.0 - margin)
+    screen.drawImage(image, 0, 0, LINEAR, skia.Paint(Alphaf=float(spec.get("alpha", 1.0))))
+    screen.restore()
+
+
 # --------------------------------------------------------------------------------------------
 # Le passate
 # --------------------------------------------------------------------------------------------
 
 
-def draw_shadow(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amount: float) -> None:
+def draw_shadow(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amount: float,
+                outline: Outline | None = None) -> None:
     """`ShadowNode` (glass/backdrop/shadow/ShadowModifier.kt) con il colore di `glassShadowColor`."""
     if optics.shadowAlpha <= 0 or optics.shadowRadius <= 0 or amount <= 0.001:
         return
+    outline = outline or Outline(x, y, w, h, radii)
     radius = ctx.px(optics.shadowRadius)
     offset_y = radius / 6.0  # Shadow.offset = DpOffset(0, radius / 6)
     canvas.saveLayer(None, skia.Paint(Alphaf=optics.shadowAlpha * amount))
     paint = skia.Paint(AntiAlias=True, Color4f=skia.Color4f(0, 0, 0, SHADOW_ALPHA[ctx.theme]))
     paint.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, blur_sigma(radius)))
-    canvas.drawRRect(rrect(x, y + offset_y, w, h, radii), paint)
-    canvas.drawRRect(rrect(x, y, w, h, radii),
-                     skia.Paint(AntiAlias=True, BlendMode=skia.BlendMode.kClear))
+    outline.draw(canvas, paint, 0.0, offset_y)
+    outline.draw(canvas, skia.Paint(AntiAlias=True, BlendMode=skia.BlendMode.kClear))
     canvas.restore()
 
 
-def draw_highlight(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amount: float) -> None:
+def draw_shadow_layers(canvas, ctx: Context, outline: Outline, layers, amount: float = 1.0) -> None:
+    """`GlassShadowNode` del materiale nuovo (piano 3.5): piu' maschere sfumate (contatto,
+    ambiente) in un nodo, fuori dal ritaglio della lastra e scavate dentro la sagoma. Ogni voce:
+    `{"radiusDp": 10, "offsetDp": [0, 2], "alpha": 0.08, "color": "#000000", "spreadDp": 0}`.
+
+    Le maschere sono in sola alfa e il colore lo mette il layer in disegno: qui il risultato e' lo
+    stesso di disegnarle gia' colorate, perche' il banco non ha niente da tenere in cache."""
+    if not layers or amount <= 0.001:
+        return
+    canvas.saveLayer(None, skia.Paint())
+    for layer in layers:
+        alpha = float(layer.get("alpha", 0.0)) * amount
+        radius = ctx.px(layer.get("radiusDp", 0.0))
+        if alpha <= 0:
+            continue
+        r, g, b, a = parse_color(layer.get("color", "#000000"))
+        dx, dy = (ctx.px(v) for v in layer.get("offsetDp", [0.0, 0.0]))
+        paint = skia.Paint(AntiAlias=True, Color4f=skia.Color4f(r, g, b, a * alpha))
+        if radius > 0:
+            paint.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, blur_sigma(radius)))
+        spread = ctx.px(layer.get("spreadDp", 0.0))
+        if spread:
+            grown = Outline(outline.x - spread, outline.y - spread, outline.w + 2 * spread,
+                            outline.h + 2 * spread, [v + spread for v in outline.draw_radii],
+                            "round" if outline.path is None else "continuous")
+            grown.draw(canvas, paint, dx, dy)
+        else:
+            outline.draw(canvas, paint, dx, dy)
+    outline.draw(canvas, skia.Paint(AntiAlias=True, BlendMode=skia.BlendMode.kClear))
+    canvas.restore()
+
+
+def draw_highlight(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amount: float,
+                   outline: Outline | None = None) -> None:
     """`HighlightNode` + `HighlightStyle.Default`: un tratto sul contorno, ritagliato dentro la
     sagoma, sfumato, colorato dallo shader del bordo dell'engine (`DefaultHighlightShaderString`)."""
     if optics.highlightAlpha <= 0 or optics.highlightWidth <= 0 or amount <= 0.001:
@@ -623,15 +1320,32 @@ def draw_highlight(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amou
     canvas.saveLayer(None, layer)
     canvas.translate(x, y)
     canvas.scale(1.0 / res, 1.0 / res)
-    outline = rrect(0, 0, sw, sh, scaled_radii)
-    canvas.clipRRect(outline, skia.ClipOp.kIntersect, True)
-    canvas.drawRRect(outline, paint)
+    if outline is not None and outline.path is not None:
+        # Sui grandi il tratto segue il path continuo della sagoma, non il cerchio.
+        local = continuous_path(0, 0, sw, sh, scaled_radii)
+        canvas.clipPath(local, skia.ClipOp.kIntersect, True)
+        canvas.drawPath(local, paint)
+    else:
+        draw_radii = scaled_radii if outline is None else [
+            min(r * res, min(sw, sh) / 2.0) for r in outline.draw_radii]
+        ring = rrect(0, 0, sw, sh, draw_radii)
+        canvas.clipRRect(ring, skia.ClipOp.kIntersect, True)
+        canvas.drawRRect(ring, paint)
     canvas.restore()
 
 
 def run_effect_chain(ctx: Context, capture: skia.Image, *, saturation: float, blur_px: float,
-                     lens: dict | None, tag: str) -> skia.Image:
-    """La catena di `RenderEffect` su una cattura: saturazione -> sfocatura -> lente."""
+                     lens: dict | None, tag: str, sharp_weight: float | None = None) -> skia.Image:
+    """La catena di `RenderEffect` su una cattura: saturazione -> sfocatura -> [mescola] -> lente.
+
+    Con [sharp_weight] (il `w` del piano, 3.6) fra sfocatura e lente entra la **mescola a monte**
+    della via A, come la fa Android con un ingresso solo:
+
+        createBlendModeEffect(dst = filtroColore(1 - w) su sfocato, src = filtroColore(w) su nitido, Plus)
+
+    cioe' `w * nitido + (1 - w) * sfocato`, dove "nitido" e' la cattura saturata e non sfocata. I
+    due filtri di colore scalano la sola alfa (di un colore non premoltiplicato, quindi tutti e
+    quattro i canali premoltiplicati); ogni passaggio arrotonda a 8 bit, come una catena di layer."""
     width, height = capture.width(), capture.height()
     image = capture
 
@@ -647,6 +1361,7 @@ def run_effect_chain(ctx: Context, capture: skia.Image, *, saturation: float, bl
         surface.getCanvas().drawImage(image, 0, 0, LINEAR, paint)
         image = surface.makeImageSnapshot()
         stage("1-saturazione", image)
+    sharp = image  # il ramo nitido della mescola: saturato, non sfocato
     if blur_px > 0:
         surface = new_surface(width, height)
         sigma = blur_sigma(blur_px)
@@ -659,6 +1374,31 @@ def run_effect_chain(ctx: Context, capture: skia.Image, *, saturation: float, bl
         surface.getCanvas().drawImage(image, 0, 0, LINEAR, paint)
         image = surface.makeImageSnapshot()
         stage("2-sfocatura", image)
+    if sharp_weight is not None:
+        weight = min(max(float(sharp_weight), 0.0), 1.0)
+
+        def weighted(value: float) -> skia.Paint:
+            paint = skia.Paint()
+            # La matrice lavora sul colore non premoltiplicato: scalare la sola alfa scala tutti e
+            # quattro i canali premoltiplicati, che e' cio' che `Plus` deve sommare.
+            paint.setColorFilter(skia.ColorFilters.Matrix([
+                1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, value, 0,
+            ]))
+            return paint
+
+        surface = new_surface(width, height)
+        mix_canvas = surface.getCanvas()
+        dst = weighted(1.0 - weight)
+        dst.setBlendMode(skia.BlendMode.kSrc)
+        mix_canvas.drawImage(image, 0, 0, LINEAR, dst)
+        src = weighted(weight)
+        src.setBlendMode(skia.BlendMode.kPlus)
+        mix_canvas.drawImage(sharp, 0, 0, LINEAR, src)
+        image = surface.makeImageSnapshot()
+        stage("2b-mescola", image)
     if lens is not None:
         surface = new_surface(width, height)
         program = ctx.shaders.program(lens["shader"])
@@ -680,6 +1420,7 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
                  origin=(0.0, 0.0), tag: str = "vetro") -> None:
     """Una lastra di `glassSurface`. [backdrop] e' cio' che campiona: la pagina, o la pagina con
     sopra il materiale del pannello che la contiene (vetro su vetro, 2.13.0)."""
+    ctx = element_context(ctx, el)
     k = ctx.numbers.constants
     x = round(ctx.px(el["x"]) + origin[0])
     y = round(ctx.px(el["y"]) + origin[1])
@@ -687,6 +1428,8 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     h = round(ctx.px(el["h"]))
     optics, role = resolve_optics(ctx, el.get("optics", el.get("role")))
     radii = corner_radii_px(ctx, el.get("radius"), w, h)
+    shape = Outline(x, y, w, h, radii, el.get("corner", ctx.corner))
+    ctx.boxes[tag] = {"x": x, "y": y, "w": w, "h": h, "radii": radii, "kind": "glass", "role": role}
 
     amount = min(max(float(el.get("intensity", 1.0)), 0.0), 1.0)
     quality = min(max(float(el.get("quality", 1.0)), 0.0), 1.0)
@@ -750,21 +1493,22 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
                                 blur_px=blur_px, lens=lens, tag=tag)
 
     tint = resolve_tint(ctx, el.get("tint"), role)
-    outline = rrect(x, y, w, h, radii)
 
     def draw_material(canvas: skia.Canvas) -> None:
         canvas.save()
-        canvas.clipRRect(outline, skia.ClipOp.kIntersect, True)
+        shape.clip(canvas)
         canvas.save()
         canvas.translate(x, y)
         canvas.scale(1.0 / scale, 1.0 / scale)
         canvas.drawImage(material, -int(padding), -int(padding), LINEAR)
         canvas.restore()
         if tint is not None and amount > 0.001:
+            # La pellicola segue la sagoma disegnata: sui grandi il path continuo, dentro il ritaglio.
+            shape.clip_shape(canvas)
             canvas.drawPaint(skia.Paint(Color4f=skia.Color4f(tint[0], tint[1], tint[2], tint[3] * amount)))
         canvas.restore()
 
-    draw_shadow(screen, ctx, x, y, w, h, radii, optics, edge)
+    draw_shadow(screen, ctx, x, y, w, h, radii, optics, edge, shape)
     draw_material(screen)
 
     children = el.get("children") or []
@@ -776,14 +1520,14 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         stack_image = stack.makeImageSnapshot()
 
     screen.save()
-    screen.clipRRect(outline, skia.ClipOp.kIntersect, True)
-    screen.translate(x, y)
-    draw_content(screen, ctx, el, w, h)
+    shape.clip(screen)
+    place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
     screen.restore()
     for i, child in enumerate(children):
-        render_element(ctx, child, screen, stack_image, origin=(x, y), tag=f"{tag}-{i}")
+        render_element(ctx, child, screen, stack_image, origin=(x, y),
+                       tag=child.get("name", f"{tag}-{i}"))
 
-    draw_highlight(screen, ctx, x, y, w, h, radii, optics, edge)
+    draw_highlight(screen, ctx, x, y, w, h, radii, optics, edge, shape)
 
 
 # --------------------------------------------------------------------------------------------
@@ -814,63 +1558,295 @@ def uniform_value(ctx: Context, value, builtins: dict):
     return float(value)
 
 
+_BLEND_NAMES = {
+    "srcover": skia.BlendMode.kSrcOver, "src": skia.BlendMode.kSrc, "plus": skia.BlendMode.kPlus,
+    "multiply": skia.BlendMode.kMultiply, "screen": skia.BlendMode.kScreen,
+    "overlay": skia.BlendMode.kOverlay, "darken": skia.BlendMode.kDarken,
+    "lighten": skia.BlendMode.kLighten, "dstout": skia.BlendMode.kDstOut,
+    "dstin": skia.BlendMode.kDstIn, "srcatop": skia.BlendMode.kSrcATop,
+    "softlight": skia.BlendMode.kSoftLight, "luminosity": skia.BlendMode.kLuminosity,
+}
+
+
+def layer_paint(spec) -> skia.Paint | None:
+    """Il modo di comporre di uno strato: `"blend"` (i nomi di `BlendMode` di Compose, di serie
+    `SrcOver`) e `"alpha"`. None quando lo strato si posa com'e'."""
+    blend = str(spec.get("blend", "SrcOver")).lower()
+    alpha = float(spec.get("alpha", 1.0))
+    if blend not in _BLEND_NAMES:
+        raise KeyError(f"modo di comporre sconosciuto: {spec.get('blend')!r}; ci sono: "
+                       + ", ".join(sorted(_BLEND_NAMES)))
+    if blend == "srcover" and alpha >= 1.0:
+        return None
+    return skia.Paint(Alphaf=alpha, BlendMode=_BLEND_NAMES[blend])
+
+
+def element_context(ctx: Context, el) -> Context:
+    """Un elemento puo' avere il suo tema (`"theme": "dark"` dentro una scena chiara): vetro chiaro
+    e vetro scuro sulla stessa pagina, come nei frame di Apple. La palette riparte da quella di
+    base del tema scelto, piu' `palette` dell'elemento."""
+    theme = el.get("theme")
+    if theme is None or theme == ctx.theme:
+        if not el.get("palette"):
+            return ctx
+        palette = dict(ctx.palette)
+        palette.update(el["palette"])
+        return replace(ctx, palette=palette)
+    if theme not in ("dark", "light"):
+        raise ValueError("theme deve essere `dark` o `light`")
+    palette = base_palette(ctx.palette_family, theme)
+    palette.update(el.get("palette") or {})
+    return replace(ctx, theme=theme, palette=palette)
+
+
+def capture_inputs(ctx: Context, program: "Program", inputs, backdrop: skia.Image, x, y, scale,
+                   width: int, height: int, pad: int, tag: str) -> None:
+    """Collega ogni ingresso di [program] a una cattura del fondale sotto l'elemento, con la sua
+    catena a monte: `saturation`, `blurDp`, `w` (la mescola della via A), `edge`."""
+    for name, spec in inputs.items():
+        capture = new_surface(width, height)
+        cc = capture.getCanvas()
+        cc.translate(pad, pad)
+        cc.scale(scale, scale)
+        cc.drawImage(backdrop, -x, -y, LINEAR)
+        image = run_effect_chain(
+            ctx, capture.makeImageSnapshot(),
+            saturation=float(spec.get("saturation", 1.0)),
+            blur_px=ctx.px(spec.get("blurDp", 0.0)),
+            lens=None, tag=f"{tag}-{name}",
+            sharp_weight=spec.get("w"),
+        )
+        tile = skia.TileMode.kClamp if spec.get("edge", "decal") == "clamp" else skia.TileMode.kDecal
+        program.set_child(name, image_shader(image, tile))
+
+
 def render_shader(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
                   origin=(0.0, 0.0), tag: str = "shader") -> None:
-    """Uno shader a tutta area su un rettangolo della scena, con uno o piu' ingressi presi dal
-    fondale (nitido, saturato, sfocato): e' la forma di `fluidPhysicsSurface`, e quella di un
-    materiale nuovo in una passata."""
+    """Uno shader a tutta area su un rettangolo della scena, con zero, uno o piu' ingressi presi dal
+    fondale (nitido, saturato, sfocato, mescolati a monte): e' la forma di `fluidPhysicsSurface`,
+    quella di un corpo in una passata, e senza ingressi quella della luce.
+
+    L'uscita e' premoltiplicata e si posa sullo schermo con il modo di `blend` (di serie
+    `SrcOver`): uno shader senza ingressi che restituisce nero al 30% scurisce, uno che restituisce
+    bianco al 30% schiarisce, con la stessa passata."""
+    ctx = element_context(ctx, el)
     x = round(ctx.px(el["x"]) + origin[0])
     y = round(ctx.px(el["y"]) + origin[1])
     w = round(ctx.px(el["w"]))
     h = round(ctx.px(el["h"]))
     scale = float(el.get("scale", 1.0))
     sw, sh = max(int(w * scale), 1), max(int(h * scale), 1)
+    # Il margine del campo: pixel oltre il rettangolo, per una lastra che cede o viaggia.
+    margin = int(round(ctx.px(el.get("marginDp", 0.0)) * scale))
+    cw, ch = sw + 2 * margin, sh + 2 * margin
+    ctx.boxes[tag] = {"x": x, "y": y, "w": w, "h": h, "kind": "shader",
+                      "radii": corner_radii_px(ctx, el.get("radius", 0), w, h)}
 
     program = ctx.shaders.program(el["source"])
     builtins = {
         "$size": [float(sw), float(sh)],
         "$halfSize": [sw / 2.0, sh / 2.0],
         "$center": [sw / 2.0, sh / 2.0],
+        "$offset": [-float(margin), -float(margin)],
+        "$captureSize": [float(cw), float(ch)],
         "$density": ctx.density * scale,
         "$dark": 1.0 if ctx.dark() else 0.0,
     }
-    scaled = Context(ctx.density * scale, ctx.theme, ctx.palette, ctx.numbers, ctx.shaders,
-                     ctx.scene_dir, ctx.stages)
+    scaled = replace(ctx, density=ctx.density * scale)
     for name, value in (el.get("uniforms") or {}).items():
         program.set(name, uniform_value(scaled, value, builtins))
 
-    for name, spec in (el.get("inputs") or {"content": {}}).items():
-        capture = new_surface(sw, sh)
-        cc = capture.getCanvas()
-        cc.scale(scale, scale)
-        cc.drawImage(backdrop, -x, -y, LINEAR)
-        image = run_effect_chain(
-            scaled, capture.makeImageSnapshot(),
-            saturation=float(spec.get("saturation", 1.0)),
-            blur_px=scaled.px(spec.get("blurDp", 0.0)),
-            lens=None, tag=f"{tag}-{name}",
-        )
-        tile = skia.TileMode.kClamp if spec.get("edge", "decal") == "clamp" else skia.TileMode.kDecal
-        program.set_child(name, image_shader(image, tile))
+    inputs = el.get("inputs")
+    if inputs is None:
+        # Di serie ogni `uniform shader` riceve il fondale cosi' com'e'; nessuno, se non ne ha.
+        inputs = {name: {} for name in program.child_names}
+    capture_inputs(scaled, program, inputs, backdrop, x, y, scale, cw, ch, margin, tag)
 
-    layer = new_surface(sw, sh)
+    layer = new_surface(cw, ch)
     paint = skia.Paint()
     paint.setShader(program.make())
     paint.setBlendMode(skia.BlendMode.kSrc)
-    layer.getCanvas().drawRect(skia.Rect.MakeWH(sw, sh), paint)
+    layer.getCanvas().drawRect(skia.Rect.MakeWH(cw, ch), paint)
     result = layer.makeImageSnapshot()
     if ctx.stages is not None:
         ctx.stages[f"{tag}-uscita"] = result
 
     screen.save()
+    if el.get("clip"):
+        Outline(x, y, w, h, corner_radii_px(ctx, el.get("radius"), w, h),
+                el.get("corner", ctx.corner)).clip(screen)
     screen.translate(x, y)
     screen.scale(1.0 / scale, 1.0 / scale)
-    screen.drawImage(result, 0, 0, LINEAR)
+    composed = layer_paint(el)
+    if composed is None:
+        screen.drawImage(result, -margin, -margin, LINEAR)
+    else:
+        screen.drawImage(result, -margin, -margin, LINEAR, composed)
     screen.restore()
+    place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
+
+
+def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
+                    origin=(0.0, 0.0), tag: str = "materiale") -> None:
+    """Il materiale nuovo (modello `Liquid`, piano 3.3): ombra, corpo, luce, contenuto.
+
+        {"kind": "material", "x": 30, "y": 113, "w": 44, "h": 44, "radius": "capsule",
+         "clip": true, "marginDp": 0,
+         "shadow": [{"radiusDp": 3, "offsetDp": [0, 1], "alpha": 0.10},
+                    {"radiusDp": 14, "offsetDp": [0, 4], "alpha": 0.06}],
+         "capture": {"saturation": 1.3, "blurDp": 12, "w": 0.0, "paddingDp": 12, "scale": 1.0},
+         "body":  {"source": "kotlin:GlassBody1ShaderString", "uniforms": {...}},
+         "light": {"source": "kotlin:GlassLight1ShaderString", "uniforms": {...}},
+         "icon": "plus"}
+
+    * `shadow`: le maschere di `GlassShadowNode`, prima della lastra e scavate dentro la sagoma;
+    * `capture`: la catena a monte, una sola per lastra, come un `RenderEffect` con un ingresso:
+      saturazione, sfocatura con `Clamp`, mescola `w` fra nitido e sfocato. La cattura e' grande
+      taglia + 2 * (`paddingDp` + `marginDp`); `scale` e' la risoluzione ridotta;
+    * `body`: lo shader del corpo. Ogni suo ingresso riceve l'uscita della catena, trasparente
+      fuori dai bordi (`body.inputs` puo' dare a un ingresso una catena sua);
+    * `clip`: il ritaglio hardware sulla sagoma. `false` dove la lastra cede o viaggia: allora
+      ritaglia lo shader, e conta il margine;
+    * `light`: lo shader della luce, senza ingressi, a risoluzione piena, posato in `SrcOver`
+      sotto il contenuto;
+    * il contenuto e `contentLayer` come per gli altri elementi; `children` campionano pagina +
+      corpo, mai la luce ne' il contenuto (l'export di `drawBackdrop`).
+
+    Gli uniform prendono gli stessi valori di `kind: "shader"`, piu' `"$radii"` (i quattro raggi
+    della sagoma) e `"$padding"`. Per il corpo `dp` e i valori `$...` sono nel mondo rimpicciolito
+    della cattura (`scale`), per la luce in pixel di schermo."""
+    ctx = element_context(ctx, el)
+    x = round(ctx.px(el["x"]) + origin[0])
+    y = round(ctx.px(el["y"]) + origin[1])
+    w = round(ctx.px(el["w"]))
+    h = round(ctx.px(el["h"]))
+    radii = corner_radii_px(ctx, el.get("radius"), w, h)
+    shape = Outline(x, y, w, h, radii, el.get("corner", ctx.corner),
+                    float(el.get("smoothing", IOS_SMOOTHING)))
+    clip = bool(el.get("clip", True))
+    ctx.boxes[tag] = {"x": x, "y": y, "w": w, "h": h, "radii": radii, "kind": "material"}
+
+    spec = el.get("capture") or {}
+    scale = fit_to_texture(float(spec.get("scale", 1.0)), w, h)
+    scaled = replace(ctx, density=ctx.density * scale)
+    size_w, size_h = w * scale, h * scale
+    blur_dp = float(spec.get("blurDp", 0.0))
+    # L'engine: padding = max(0, sfocatura - spessore della lente) + margine del campo. Chi scrive
+    # la scena dalla ricetta mette `paddingDp`; senza, il banco tiene tutta la sfocatura.
+    padding = int(scaled.px(float(spec.get("paddingDp", blur_dp)))) + int(scaled.px(el.get("marginDp", 0.0)))
+    record_w = max(int(size_w) + padding * 2, 1)
+    record_h = max(int(size_h) + padding * 2, 1)
+
+    def builtins_for(local: Context, sx: float, pad: float, full_w: float, full_h: float) -> dict:
+        return {
+            "$size": [w * sx, h * sx],
+            "$halfSize": [w * sx / 2.0, h * sx / 2.0],
+            "$center": [w * sx / 2.0, h * sx / 2.0],
+            "$offset": [-float(pad), -float(pad)],
+            "$padding": float(pad),
+            "$captureSize": [float(full_w), float(full_h)],
+            "$radii": [r * sx for r in radii],
+            "$density": local.density,
+            "$dark": 1.0 if local.dark() else 0.0,
+        }
+
+    capture = new_surface(record_w, record_h)
+    cc = capture.getCanvas()
+    cc.translate(padding, padding)
+    cc.scale(scale, scale)
+    cc.drawImage(backdrop, -x, -y, LINEAR)
+    upstream = run_effect_chain(
+        scaled, capture.makeImageSnapshot(),
+        saturation=float(spec.get("saturation", 1.0)),
+        blur_px=scaled.px(blur_dp), lens=None, tag=f"{tag}-monte",
+        sharp_weight=spec.get("w"),
+    )
+
+    material = upstream
+    body = el.get("body")
+    if body:
+        program = ctx.shaders.program(body["source"])
+        builtins = builtins_for(scaled, scale, padding, record_w, record_h)
+        for name, value in (body.get("uniforms") or {}).items():
+            program.set(name, uniform_value(scaled, value, builtins))
+        own = body.get("inputs") or {}
+        for name in program.child_names:
+            if name not in own:
+                # `RenderEffect.createRuntimeShaderEffect(shader, nome)`: l'uscita della catena.
+                program.set_child(name, image_shader(upstream))
+        capture_inputs(scaled, program, own, backdrop, x, y, scale, record_w, record_h, padding,
+                       f"{tag}-corpo")
+        surface = new_surface(record_w, record_h)
+        paint = skia.Paint()
+        paint.setShader(program.make())
+        paint.setBlendMode(skia.BlendMode.kSrc)
+        surface.getCanvas().drawRect(skia.Rect.MakeWH(record_w, record_h), paint)
+        material = surface.makeImageSnapshot()
+    if ctx.stages is not None:
+        ctx.stages[f"{tag}-corpo"] = material
+
+    def draw_body(canvas: skia.Canvas) -> None:
+        canvas.save()
+        if clip:
+            shape.clip(canvas)
+        canvas.translate(x, y)
+        canvas.scale(1.0 / scale, 1.0 / scale)
+        canvas.drawImage(material, -padding, -padding, LINEAR)
+        canvas.restore()
+
+    shadow = el.get("shadow")
+    if isinstance(shadow, dict):
+        shadow = shadow.get("layers")
+    draw_shadow_layers(screen, ctx, shape, shadow, float(el.get("shadowAmount", 1.0)))
+    draw_body(screen)
+
+    children = el.get("children") or []
+    if children:
+        stack = new_surface(backdrop.width(), backdrop.height())
+        stack.getCanvas().drawImage(backdrop, 0, 0)
+        draw_body(stack.getCanvas())
+        stack_image = stack.makeImageSnapshot()
+
+    light = el.get("light")
+    if light:
+        program = ctx.shaders.program(light["source"])
+        if program.child_names and not light.get("inputs"):
+            raise ValueError(
+                f"`{light['source']}` ha un ingresso ({', '.join(program.child_names)}): la luce "
+                "non legge il fondale. Se e' voluto, dichiaralo in `light.inputs`.")
+        margin = int(round(ctx.px(el.get("marginDp", 0.0))))
+        lw, lh = w + 2 * margin, h + 2 * margin
+        builtins = builtins_for(ctx, 1.0, margin, lw, lh)
+        for name, value in (light.get("uniforms") or {}).items():
+            program.set(name, uniform_value(ctx, value, builtins))
+        capture_inputs(ctx, program, light.get("inputs") or {}, backdrop, x, y, 1.0, lw, lh, margin,
+                       f"{tag}-luce")
+        surface = new_surface(lw, lh)
+        paint = skia.Paint()
+        paint.setShader(program.make())
+        paint.setBlendMode(skia.BlendMode.kSrc)
+        surface.getCanvas().drawRect(skia.Rect.MakeWH(lw, lh), paint)
+        glow = surface.makeImageSnapshot()
+        if ctx.stages is not None:
+            ctx.stages[f"{tag}-luce"] = glow
+        screen.save()
+        if clip:
+            shape.clip(screen)
+        composed = layer_paint(light)
+        if composed is None:
+            screen.drawImage(glow, x - margin, y - margin, LINEAR)
+        else:
+            screen.drawImage(glow, x - margin, y - margin, LINEAR, composed)
+        screen.restore()
+
     screen.save()
-    screen.translate(x, y)
-    draw_content(screen, ctx, el, w, h)
+    if clip:
+        shape.clip(screen)
+    place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
     screen.restore()
+    for i, child in enumerate(children):
+        render_element(ctx, child, screen, stack_image, origin=(x, y),
+                       tag=child.get("name", f"{tag}-{i}"))
 
 
 def render_element(ctx: Context, el, screen, backdrop, origin=(0.0, 0.0), tag="e") -> None:
@@ -879,18 +1855,46 @@ def render_element(ctx: Context, el, screen, backdrop, origin=(0.0, 0.0), tag="e
         render_glass(ctx, el, screen, backdrop, origin, tag)
     elif kind == "shader":
         render_shader(ctx, el, screen, backdrop, origin, tag)
+    elif kind == "material":
+        render_material(ctx, el, screen, backdrop, origin, tag)
+    elif kind == "shape":
+        # Una sagoma sopra la pagina e fuori dalla cattura: per confrontare un path con un campo.
+        draw_shape(screen, element_context(ctx, el), el, origin)
     else:
         raise KeyError(f"elemento sconosciuto: {kind}")
 
 
-def render_scene(scene: dict, scene_dir: Path, *, stages: bool = False):
-    """Rende [scene]. Ritorna (immagine, passate intermedie o None)."""
+@dataclass
+class Rendered:
+    """Una scena resa, con cio' che serve a misurarla."""
+
+    image: skia.Image
+    page: skia.Image            # la pagina senza elementi: il fondale che ogni lastra campiona
+    stages: dict | None
+    boxes: dict                 # nome dell'elemento -> riquadro in pixel
+    density: float
+    theme: str
+
+
+def render_scene_full(scene: dict, scene_dir: Path, *, stages: bool = False,
+                      fluid_icons: bool = True, content: bool = True) -> Rendered:
+    """Rende [scene] e tiene anche la pagina nuda e i riquadri degli elementi.
+
+    [fluid_icons] falso forza i disegni di servizio anche se `icons/` c'e': le immagini di
+    riferimento `classic` non devono cambiare quando il set di icone arriva o si rigenera.
+    [content] falso toglie il contenuto stampato sulle lastre (icone, etichette, righe)."""
+    global USE_FLUID_ICONS
     density = float(scene.get("density", 3.0))
     theme = scene.get("theme", "dark")
     if theme not in ("dark", "light"):
         raise ValueError("theme deve essere `dark` o `light`")
-    palette = dict(DEFAULT_PALETTE[theme])
-    palette.update(scene.get("palette") or {})
+    # `"palette"`: una famiglia per nome (`engine`), oppure colori che ritoccano quella di base;
+    # `"paletteBase"` sceglie la famiglia quando servono tutte e due le cose.
+    chosen = scene.get("palette")
+    family = chosen if isinstance(chosen, str) else scene.get("paletteBase", "material")
+    palette = base_palette(family, theme)
+    if isinstance(chosen, dict):
+        palette.update(chosen)
     ctx = Context(
         density=density,
         theme=theme,
@@ -899,20 +1903,33 @@ def render_scene(scene: dict, scene_dir: Path, *, stages: bool = False):
         shaders=ShaderLibrary(scene_dir),
         scene_dir=scene_dir,
         stages={} if stages else None,
+        corner=scene.get("corner", "round"),
+        palette_family=family,
+        content=content,
     )
     width = round(scene["width"] * density)
     height = round(scene["height"] * density)
 
-    # La pagina: cio' che `glassBackdropSource` registra e che ogni lastra campiona.
-    page = new_surface(width, height)
-    draw_background(page.getCanvas(), ctx, scene.get("background", {"kind": "color", "color": "#808080"}),
-                    width, height)
-    draw_page_items(page.getCanvas(), ctx, scene.get("page"))
-    page_image = page.makeImageSnapshot()
+    previous, USE_FLUID_ICONS = USE_FLUID_ICONS, fluid_icons
+    try:
+        # La pagina: cio' che `glassBackdropSource` registra e che ogni lastra campiona.
+        page = new_surface(width, height)
+        draw_background(page.getCanvas(), ctx, scene.get("background", {"kind": "color", "color": "#808080"}),
+                        width, height)
+        draw_page_items(page.getCanvas(), ctx, scene.get("page"))
+        page_image = page.makeImageSnapshot()
 
-    screen = new_surface(width, height)
-    canvas = screen.getCanvas()
-    canvas.drawImage(page_image, 0, 0)
-    for i, el in enumerate(scene.get("elements") or []):
-        render_element(ctx, el, canvas, page_image, tag=el.get("name", f"e{i}"))
-    return screen.makeImageSnapshot(), ctx.stages
+        screen = new_surface(width, height)
+        canvas = screen.getCanvas()
+        canvas.drawImage(page_image, 0, 0)
+        for i, el in enumerate(scene.get("elements") or []):
+            render_element(ctx, el, canvas, page_image, tag=el.get("name", f"e{i}"))
+    finally:
+        USE_FLUID_ICONS = previous
+    return Rendered(screen.makeImageSnapshot(), page_image, ctx.stages, ctx.boxes, density, theme)
+
+
+def render_scene(scene: dict, scene_dir: Path, *, stages: bool = False):
+    """Rende [scene]. Ritorna (immagine, passate intermedie o None)."""
+    rendered = render_scene_full(scene, scene_dir, stages=stages)
+    return rendered.image, rendered.stages

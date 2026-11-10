@@ -1,0 +1,19 @@
+{
+  "_": "Testo che scorre sotto una riga di tasti, come la Posta di 9:07-9:41 (classe B). La fascia di oggi (GlassFalloff.FadeDown) il banco non la rende: al suo posto la sonda `sonda-bordo-maschera.agsl`, che ne riproduce la tecnica (una sfocatura uniforme dissolta da una maschera) ma non la pellicola. I numeri di oggi su questa scena sono quindi indicativi; il bersaglio resta R4 B7 (decisione: l'aspetto di iOS 26).",
+  "apple": {"frame": "f16636-f16700, f17058, f17132", "ritaglio": "-", "scala": "altezza dei tasti 140 px del 4K = 44 dp"},
+  "width": 360,
+  "height": 300,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "text", "background": "#F2F2F7", "color": "#121214", "fontSizeDp": 17, "lineHeightDp": 24, "paddingDp": 16, "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."},
+  "elements": [
+    {"kind": "shader", "name": "fascia", "source": "file:../../shaders/sonda-bordo-maschera.agsl", "x": 0, "y": 0, "w": 360, "h": 124, "scale": 0.5, "inputs": {"content": {"blurDp": 14, "edge": "clamp"}}, "uniforms": {"size": "$size"}},
+    {"name": "indietro", "role": "button", "x": 16, "y": 44, "w": 44, "h": 44, "radius": "capsule", "icon": "fluid:arrow_back|back"},
+    {"name": "azioni", "role": "floating", "x": 212, "y": 44, "w": 132, "h": 44, "radius": "capsule", "icons": ["fluid:archive|archive", "fluid:delete|trash", "fluid:more_horiz|dots"]}
+  ],
+  "measure": [
+    {"kind": "scrolledge", "element": "indietro", "x": [70, 200], "lineDp": 24, "scheda": "B7", "fiducia": "alta", "ref": {"contrasto@-0.5": ["8% al centro dei tasti", "fascia uniforme: non si fa (decisione)"], "contrasto@0": ["20% al bordo basso dei tasti", "-"], "contrasto@0.17": ["velo 36%", "-"], "contrasto@0.43": ["50% (velo 22%)", "-"], "contrasto@0.6": ["velo 13%", "-"], "contrasto@0.95": ["pieno (velo 6% a 0,85 H)", "-"], "contrasto-50": ["0,43 H sotto il bordo basso dei tasti", "taglio netto a 0,21 D (non si fa)"], "contrasto-pieno": ["da 0,95 H sotto in giu'", "-"]}}
+  ]
+}

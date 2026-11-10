@@ -1,0 +1,19 @@
+{
+  "_": "Tasto tondo chiaro su fondo 174-184, come f8632 (4:48, classe B).",
+  "apple": {"frame": "f8632", "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A1_bordo_di_luce.jpg (primo riquadro)", "scala": "D = 290 px del 4K = 44 dp; il ritaglio (440x330 px) e' 67x50 dp, qui allargato per avere il tondo intero"},
+  "width": 100,
+  "height": 76,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "gradient4", "tl": "#BABABC", "tr": "#AEAEB0", "bl": "#B6B6B8", "br": "#ACACAE"},
+  "elements": [
+    {"name": "tasto", "role": "button", "x": 28, "y": 16, "w": 44, "h": 44, "radius": "capsule", "icon": "fluid:format_list_bulleted|list"}
+  ],
+  "measure": [
+    {"kind": "body", "element": "tasto", "scheda": "A2", "fiducia": "alta", "ref": {"corpo-fondo": ["+22...+27 (200-216 su 174-184)", "+8 su pagina 235 (R5 M1)"], "velo": ["28-48% verso il bianco", "-"], "gradiente": ["216 in basso a sinistra, 200 a destra (in diagonale)", "-"]}},
+    {"kind": "rim", "element": "tasto", "scheda": "A1", "fiducia": "media", "ref": {"riflesso": ["+21...+53 sugli archi, +2...+13 fuori", "+10...+16 (R5, misurato su capsule)"], "riflesso-archi": ["75-185 e 280-350 gradi (due archi opposti)", "alto e basso (R5, da confermare su un tondo)"], "riflesso-largo": ["1,0-2,4% di D, mediana 1,6%", "~1,4% di H"], "filo-scuro": ["nessuno sugli archi accesi (-2...-5 e' l'ombra)", "-50...-81 (R5 M4)"], "filo-archi": ["nessuno", "tutto il perimetro (R5 M4)"], "filo-largo": ["-", "1,2-1,9% di D (R5 M4)"], "corpo-fondo": ["+22...+27", "-"]}},
+    {"kind": "shadow", "element": "tasto", "scheda": "A3", "fiducia": "media", "ref": {"ombra-max": ["1-3% subito fuori dal filo", "meno dell'1% entro 0,15 D (R5 M4)"], "ombra-estensione": ["-", "0,15 D"]}, "rows": ["ombra@0.03", "ombra@0.2", "ombra-max", "ombra-estensione"]}
+  ]
+}

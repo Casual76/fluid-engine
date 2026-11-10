@@ -1,0 +1,18 @@
+{
+  "_": "Tasto tondo scuro su fondo 28-50, come f12384 (6:53, classe B).",
+  "apple": {"frame": "f12384", "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A1_bordo_di_luce.jpg (terzo riquadro)", "scala": "D = 430 px del 4K = 44 dp"},
+  "width": 100,
+  "height": 76,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "dark",
+  "background": {"kind": "gradient4", "tl": "#3A3331", "tr": "#221D1C", "bl": "#332C2A", "br": "#1E1A19"},
+  "elements": [
+    {"name": "tasto", "role": "button", "x": 28, "y": 16, "w": 44, "h": 44, "radius": "capsule", "icon": "fluid:edit_square|compose"}
+  ],
+  "measure": [
+    {"kind": "body", "element": "tasto", "scheda": "A6", "fiducia": "media", "ref": {"corpo": ["33-46 su fondo 28-50", "58-78 su nero 15-23 (R5 M3, bassa)"]}},
+    {"kind": "rim", "element": "tasto", "scheda": "A1", "fiducia": "media", "ref": {"riflesso": ["+40...+59 (picco 77-92 su corpo 33-46); in alto 54-63", "+10...+25 in alto (R5 M3, bassa)"], "riflesso-archi": ["150-210 e 330-45 gradi (sinistra e destra)", "-"], "riflesso-largo": ["1,4-1,6% di D (6-7 px su 430)", "-"], "filo-scuro": ["-", "nessun filo scuro (R5 M3, bassa)"]}}
+  ]
+}

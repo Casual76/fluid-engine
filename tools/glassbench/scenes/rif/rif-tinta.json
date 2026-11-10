@@ -1,0 +1,27 @@
+{
+  "_": "La tinta: rosso su bianco e su scacchi, verde su nero, come 16:33-17:20. Nell'engine di oggi la tinta e' una pellicola fissa: qui il colore di Apple all'alfa di tintedModalTint (0,76 sul chiaro). In Apple la tonalita' resta e la luminosita' segue lo sfondo (sul nero il rosso scende al 58%).",
+  "apple": {"frame": "f29795, f29865, f30300", "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A7_tinta.jpg", "scala": "tasto ~2,3:1"},
+  "width": 480,
+  "height": 200,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "color", "color": "#FFFFFF"},
+  "page": [
+    {"kind": "background", "x": 160, "y": 0, "w": 160, "h": 200, "background": {"kind": "checker", "stepDp": 20, "color": "#000000", "background": "#FFFFFF"}},
+    {"kind": "rect", "x": 320, "y": 0, "w": 160, "h": 200, "color": "#000000"}
+  ],
+  "elements": [
+    {"name": "rosso-su-bianco", "role": "button", "tint": "#DE000CC2", "x": 25, "y": 76, "w": 110, "h": 48, "radius": "capsule"},
+    {"name": "rosso-su-scacchi", "role": "button", "tint": "#DE000CC2", "x": 185, "y": 76, "w": 110, "h": 48, "radius": "capsule"},
+    {"name": "verde-su-nero", "role": "button", "tint": "#23700BC2", "x": 345, "y": 76, "w": 110, "h": 48, "radius": "capsule"}
+  ],
+  "measure": [
+    {"kind": "tint", "element": "rosso-su-bianco", "label": "rosso su bianco", "scheda": "A7", "fiducia": "alta", "ref": {"colore": ["(222, 0, 12), ai lati 201 -> 222 -> 212", "invariata (R5)"]}},
+    {"kind": "tint", "window": [222, 82, 16, 16], "label": "rosso su scacco bianco", "scheda": "A7", "fiducia": "alta", "ref": {"colore": ["(222, 0, 12)", "invariata"]}},
+    {"kind": "tint", "window": [242, 82, 16, 16], "label": "rosso su scacco nero", "scheda": "A7", "fiducia": "alta", "ref": {"colore": ["(129, 0, 11): il 58% del valore, stessa tonalita'", "invariata"]}},
+    {"kind": "tint", "element": "verde-su-nero", "label": "verde su nero", "scheda": "A7", "fiducia": "alta", "ref": {"colore": ["(35, 112, 11)", "invariata"]}},
+    {"kind": "frost", "element": "rosso-su-scacchi", "label": "scacchi sotto la tinta", "scheda": "A5", "fiducia": "media", "ref": {"contrasto": ["il bordo di uno scacco si allarga sul 10-15% di H", "-"]}, "rows": ["contrasto", "nitidezza"]}
+  ]
+}

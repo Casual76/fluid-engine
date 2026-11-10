@@ -26,7 +26,23 @@ SHADER_FILES = (
     UI_ROOT / "glass/backdrop/internal/Shaders.kt",
     UI_ROOT / "fluidphysics/FluidPhysicsShaders.kt",
 )
+# Il pacchetto del materiale nuovo (`gf/` nel piano). Nasce con la fase F1A: finche' la cartella non
+# c'e' il banco legge solo i due file qui sopra, senza lamentarsi.
+FIELD_DIR = UI_ROOT / "glass/field"
 MATERIAL_FILE = UI_ROOT / "fluid/GlassMaterial.kt"
+
+
+def field_shader_files() -> tuple[Path, ...]:
+    """I `.kt` di `ui/glass/field/` (sottocartelle comprese), in ordine stabile; vuoto se manca."""
+    if not FIELD_DIR.is_dir():
+        return ()
+    return tuple(sorted(FIELD_DIR.rglob("*.kt")))
+
+
+def shader_files() -> tuple[Path, ...]:
+    """Tutti i file da cui il banco legge sorgenti AGSL."""
+    return SHADER_FILES + field_shader_files()
+
 
 _RAW_STRING = re.compile(
     r"(?:const\s+)?val\s+(\w+)\s*(?::\s*\w+)?\s*=\s*\"\"\"(.*?)\"\"\"", re.S
@@ -37,30 +53,40 @@ _NUMBER_CONST = re.compile(
 _INTERPOLATION = re.compile(r"\$\{(\w+)\}|\$(\w+)")
 
 
-def extract_shaders(path: Path) -> dict[str, str]:
-    """Tutte le stringhe grezze di [path], con le interpolazioni risolte."""
+def _raw_strings(path: Path) -> tuple[dict[str, str], dict[str, str]]:
+    """(stringhe grezze, costanti numeriche) dichiarate in [path], non ancora risolte."""
     text = path.read_text(encoding="utf-8")
     raw = {m.group(1): m.group(2) for m in _RAW_STRING.finditer(text)}
     numbers = {m.group(1): m.group(2) for m in _NUMBER_CONST.finditer(text)}
+    return raw, numbers
 
+
+def _resolve(label: str, raw: dict[str, str], numbers: dict[str, str],
+             shared_raw: dict[str, str] | None = None,
+             shared_numbers: dict[str, str] | None = None) -> dict[str, str]:
+    """Risolve `$Nome` e `${Nome}` come fa Kotlin: prima nel file, poi nel pacchetto ([shared_*])."""
+    shared_raw = shared_raw or {}
+    shared_numbers = shared_numbers or {}
     resolved: dict[str, str] = {}
 
     def resolve(name: str, trail: tuple[str, ...] = ()) -> str:
         if name in resolved:
             return resolved[name]
         if name in trail:
-            raise ValueError(f"{path.name}: interpolazione circolare su ${name}")
-        body = raw[name]
+            raise ValueError(f"{label}: interpolazione circolare su ${name}")
+        body = raw[name] if name in raw else shared_raw[name]
 
         def sub(match: re.Match) -> str:
             ref = match.group(1) or match.group(2)
-            if ref in raw:
+            if ref in raw or ref in shared_raw:
                 return resolve(ref, trail + (name,))
             if ref in numbers:
                 return numbers[ref]
+            if ref in shared_numbers:
+                return shared_numbers[ref]
             raise KeyError(
-                f"{path.name}: `${ref}` dentro `{name}` non e' ne' una stringa ne' una "
-                "costante numerica di questo file"
+                f"{label}: `${ref}` dentro `{name}` non e' ne' una stringa ne' una "
+                "costante numerica di questo file o del suo pacchetto"
             )
 
         resolved[name] = _INTERPOLATION.sub(sub, body)
@@ -68,18 +94,54 @@ def extract_shaders(path: Path) -> dict[str, str]:
 
     for name in raw:
         resolve(name)
-    return resolved
+    return {name: resolved[name] for name in raw}
+
+
+def extract_shaders(path: Path) -> dict[str, str]:
+    """Tutte le stringhe grezze di [path], con le interpolazioni risolte dentro il file."""
+    raw, numbers = _raw_strings(path)
+    return _resolve(path.name, raw, numbers)
+
+
+def extract_package_shaders(paths) -> dict[str, str]:
+    """Come [extract_shaders], ma per un pacchetto: una sorgente puo' interpolare una stringa o una
+    costante dichiarata in un altro file dello stesso pacchetto (`$MaxPieces` in `GlassField.kt`
+    usato da `GlassBodyShaders.kt`), come Kotlin permette e come `gf/` fara'."""
+    per_file = [(path, *_raw_strings(path)) for path in paths]
+    shared_raw: dict[str, str] = {}
+    shared_numbers: dict[str, str] = {}
+    for path, raw, numbers in per_file:
+        for name, body in raw.items():
+            if name in shared_raw:
+                raise ValueError(f"shader `{name}` definito due volte ({path.name})")
+            shared_raw[name] = body
+        for name, value in numbers.items():
+            shared_numbers.setdefault(name, value)
+    found: dict[str, str] = {}
+    for path, raw, numbers in per_file:
+        found.update(_resolve(path.name, raw, numbers, shared_raw, shared_numbers))
+    return found
 
 
 def all_engine_shaders() -> dict[str, str]:
-    """Nome Kotlin -> sorgente AGSL, per tutti i file di shader dell'engine."""
+    """Nome Kotlin -> sorgente AGSL, per tutti i file di shader dell'engine: i due di oggi, e ogni
+    `.kt` di `ui/glass/field/` quando esiste."""
     found: dict[str, str] = {}
-    for path in SHADER_FILES:
-        for name, source in extract_shaders(path).items():
+    groups = [extract_shaders(path) for path in SHADER_FILES]
+    groups.append(extract_package_shaders(field_shader_files()))
+    for group in groups:
+        for name, source in group.items():
             if name in found:
                 raise ValueError(f"shader `{name}` definito due volte")
             found[name] = source
     return found
+
+
+def is_shader_source(source: str) -> bool:
+    """Vero per una stringa grezza che e' AGSL (anche un blocco condiviso senza `main`) e non altro
+    testo: in `gf/` possono vivere stringhe grezze che non sono shader (un messaggio, un JSON di
+    prova), e non vanno ne' compilate ne' contate come blocchi condivisi."""
+    return re.search(r"\b(?:half[234]?|float[234]?|uniform)\b", source) is not None
 
 
 def is_complete_shader(source: str) -> bool:

@@ -1,0 +1,19 @@
+{
+  "_": "Una lente grande su una griglia, come f1485 (0:49, classe C): il centro non distorto per ~60% del diametro, le linee piegano negli ultimi 35-45% del raggio. In R4 e' una stima a occhio: questa scena si giudica guardandola accanto al ritaglio, i numeri sotto dicono solo quanto il vetro di oggi smeriglia e schiarisce.",
+  "apple": {"frame": "f1485, f1700", "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A_lente_griglia_f1485_f1700.jpg", "scala": "lente di ~200 dp"},
+  "width": 300,
+  "height": 300,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "grid", "background": "#F1F1F3", "color": "#1B1D21", "stepDp": 12, "lineDp": 1.5, "originDp": 5},
+  "elements": [
+    {"name": "lente", "role": "floating", "x": 50, "y": 50, "w": 200, "h": 200, "radius": "capsule"}
+  ],
+  "measure": [
+    {"kind": "frost", "element": "lente", "label": "centro", "at": [0.3, 0.3, 0.4, 0.4], "scheda": "A2 A5", "fiducia": "bassa", "ref": {"contrasto": ["la griglia si legge: lente limpida (a occhio)", "-"]}, "rows": ["contrasto", "nitidezza"]},
+    {"kind": "body", "element": "lente", "scheda": "A2", "fiducia": "bassa", "ref": {"corpo-fondo": ["+15...+27 su fondo chiaro (R4 A2, alta)", "+8 su pagina 235, +2...+5 su 238 (R5 M1 e M4, alta)"], "velo": ["28-48% verso il bianco (R4 A2)", "piu' leggero: +8 invece di +15 (R5 M1)"]}, "rows": ["corpo", "fondo", "corpo-fondo"]},
+    {"kind": "profile", "line": "h:150:40:260", "scheda": "A2", "fiducia": "bassa"}
+  ]
+}

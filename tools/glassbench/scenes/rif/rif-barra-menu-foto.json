@@ -1,0 +1,27 @@
+{
+  "_": "La barra (f13040) e il menu (f13080) sulla stessa foto e sulla stessa striscia bianca, come a 7:15 (classe B). Nel video sono la stessa lastra prima e dopo; qui stanno fianco a fianco. La foto e' sintetica (luma media ~130, dev. std ~36, i colori del fiore di Apple): il frame non sta nel repo.",
+  "apple": {"frame": "f13040, f13080", "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A3_ombra.jpg (riga in basso) e A5_smerigliatura.jpg", "scala": "altezza della barra ~209 px del 4K = 44 dp"},
+  "width": 480,
+  "height": 270,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "gradient4", "tl": "#BDBEC0", "tr": "#BDBEC0", "bl": "#A9AAAD", "br": "#A9AAAD"},
+  "page": [
+    {"kind": "background", "x": 0, "y": 0, "w": 480, "h": 160, "background": {"kind": "synthetic", "scaleDp": 110, "detail": 0.75, "contrast": 0.8, "lift": -0.07}},
+    {"kind": "rect", "x": 0, "y": 160, "w": 480, "h": 70, "color": "#E4E4E4"}
+  ],
+  "elements": [
+    {"name": "barra", "role": "floating", "x": 40, "y": 138, "w": 146, "h": 44, "radius": "capsule", "icons": ["fluid:attach_file|share", "fluid:edit|compose", "fluid:auto_awesome|circle"]},
+    {"name": "menu", "role": "compactpanel", "x": 270, "y": 14, "w": 176, "h": 192, "radius": 28, "rowHeightDp": 44, "rows": [{"label": "Choose Photo", "icon": "fluid:image|circle"}, {"label": "Take Photo", "icon": "fluid:photo_camera|circle"}, {"label": "Scan Documents", "icon": "fluid:document_scanner|menu"}, {"label": "Scan Text", "icon": "fluid:text_fields|list"}]}
+  ],
+  "measure": [
+    {"kind": "body", "element": "barra", "label": "barra sulla foto", "at": [0.2, 0.08, 0.6, 0.3], "scheda": "A2", "fiducia": "media", "ref": {"corpo": ["200 su foto a luma 120-138", "-"], "velo": ["56-59% su fondo medio", "~50% su colore saturo (R5 M1)"]}, "rows": ["corpo", "fondo", "corpo-fondo", "velo"]},
+    {"kind": "body", "element": "menu", "label": "menu sulla foto", "at": [0.2, 0.15, 0.6, 0.45], "scheda": "A2", "fiducia": "media", "ref": {"corpo": ["206 su foto a luma 120-138", "-"], "velo": ["56-59%", "~50% (R5 M1)"]}, "rows": ["corpo", "fondo", "corpo-fondo", "velo"]},
+    {"kind": "frost", "element": "menu", "at": [0.1, 0.1, 0.8, 0.6], "colour": true, "scheda": "A5", "fiducia": "media", "ref": {"contrasto": ["13% (dev. std 35,8 -> 4,7)", "6-13% gia' sotto una barra (R5 M1)"], "estremi": ["83-182 -> 197-213", "-"], "colore": ["(193,129,64) -> (236,202,150): il colore resta, schiarito", "-"]}},
+    {"kind": "frost", "element": "barra", "label": "barra", "at": [0.15, 0.06, 0.7, 0.36], "scheda": "A5 / M1", "ref": {"contrasto": ["26% sotto una capsula su testo, 13% sotto un menu su foto (R4 A5); 19-27% (R5 M1)", "6-13% sotto una barra (R5 M1, alta nel rapporto)"], "intervallo": ["-", "34-65% di quello di iOS 26 (R5 M1)"], "nitidezza": ["10% (gradiente medio 2,20 -> 0,22; R4 A5)", "dettagli fini al 35-45% di iOS 26 (R5)"]}, "rows": ["contrasto", "nitidezza"]},
+    {"kind": "shadow", "element": "barra", "label": "barra", "stops": [0.03, 0.2, 0.4, 0.55], "scheda": "A3", "fiducia": "alta", "ref": {"ombra@0.03": ["2% al bordo", "1,7% (R5 M1)"], "ombra-max": ["2%", "2-4%"]}, "rows": ["ombra@0.03", "ombra@0.2", "ombra-max"]},
+    {"kind": "shadow", "element": "menu", "label": "menu", "refElement": "barra", "stops": [0.03, 0.2, 0.4, 0.55], "scheda": "A3", "fiducia": "alta", "ref": {"ombra@0.03": ["15% al bordo", "non misurata sui menu (R5)"], "ombra@0.2": ["10%", "-"], "ombra@0.4": ["5%", "-"], "ombra@0.55": ["3%", "-"], "ombra-max": ["15% al bordo", "-"]}, "rows": ["ombra@0.03", "ombra@0.2", "ombra@0.4", "ombra@0.55", "ombra-max"]}
+  ]
+}

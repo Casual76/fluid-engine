@@ -1,0 +1,36 @@
+{
+  "_": "Immagine di riferimento `classic`: tutti gli undici ruoli di GlassOptics (fluid/GlassMaterial.kt) su un fondo senza caratteri (griglia, scacchi, forme piene, sfumatura), con le varianti che cambiano il percorso degli shader: la dispersione (interactive, qualita' piena), la pressione, qualita' e intensita' ridotte, la profondita' ridotta, raggi diversi per angolo (il foglio: e' il caso di `radiusAt`), il vetro su vetro. Non e' una tavola da giudicare: serve a `compare`.",
+  "width": 480,
+  "height": 300,
+  "density": 2.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {"kind": "gradient4", "tl": "#DCE2EA", "tr": "#F3E7D8", "bl": "#C9D6C8", "br": "#E9D3DC"},
+  "page": [
+    {"kind": "background", "x": 0, "y": 0, "w": 480, "h": 64, "background": {"kind": "grid", "background": "#F1F1F3", "color": "#1B1D21", "stepDp": 12, "lineDp": 1.5, "originDp": 5}},
+    {"kind": "background", "x": 300, "y": 64, "w": 180, "h": 110, "background": {"kind": "checker", "stepDp": 18, "color": "#20242C", "background": "#E9E4D8"}},
+    {"kind": "circle", "x": 80, "y": 120, "r": 46, "color": "#E0483A"},
+    {"kind": "circle", "x": 150, "y": 150, "r": 30, "color": "#2B6FD8"},
+    {"kind": "rect", "x": 196, "y": 84, "w": 88, "h": 64, "radius": 12, "color": "#E6B422"},
+    {"kind": "rect", "x": 0, "y": 232, "w": 480, "h": 6, "color": "#101014"},
+    {"kind": "rect", "x": 236, "y": 174, "w": 6, "h": 126, "color": "#2FA36B"},
+    {"kind": "circle", "x": 400, "y": 250, "r": 34, "color": "#C43C8E"}
+  ],
+  "elements": [
+    {"name": "bar", "role": "bar", "x": 16, "y": 10, "w": 120, "h": 44, "radius": "capsule", "icons": ["back", "plus", "search"]},
+    {"name": "floating", "role": "floating", "x": 146, "y": 10, "w": 120, "h": 44, "radius": "capsule", "icons": ["menu", "share"]},
+    {"name": "interactive", "role": "interactive", "x": 276, "y": 10, "w": 90, "h": 44, "radius": "capsule", "icon": "check"},
+    {"name": "button", "role": "button", "x": 376, "y": 10, "w": 44, "h": 44, "radius": "capsule", "icon": "plus"},
+    {"name": "button-premuto", "role": "button", "pressed": 1.0, "x": 428, "y": 10, "w": 44, "h": 44, "radius": "capsule", "icon": "close"},
+    {"name": "modal-foglio", "role": "modal", "x": 16, "y": 76, "w": 140, "h": 90, "radius": [38, 38, 0, 0]},
+    {"name": "content", "role": "content", "x": 166, "y": 76, "w": 100, "h": 90, "radius": 18},
+    {"name": "stackedcontent", "role": "stackedcontent", "x": 276, "y": 76, "w": 90, "h": 90, "radius": 18},
+    {"name": "panel", "role": "panel", "x": 376, "y": 76, "w": 96, "h": 90, "radius": 22, "children": [{"name": "panel-tasto", "role": "button", "x": 26, "y": 23, "w": 44, "h": 44, "radius": "capsule", "icon": "dots"}]},
+    {"name": "compactpanel", "role": "compactpanel", "x": 16, "y": 182, "w": 150, "h": 100, "radius": 28},
+    {"name": "sharppagepanel", "role": "sharppagepanel", "x": 176, "y": 182, "w": 130, "h": 100, "radius": [44, 8, 26, 0]},
+    {"name": "compactsharppagepanel", "role": "compactsharppagepanel", "x": 316, "y": 182, "w": 80, "h": 100, "radius": 22},
+    {"name": "floating-ridotto", "role": "floating", "quality": 0.5, "intensity": 0.6, "x": 404, "y": 182, "w": 68, "h": 44, "radius": "capsule"},
+    {"name": "interactive-piatto", "role": "interactive", "depth": 0.4, "x": 404, "y": 238, "w": 68, "h": 44, "radius": "capsule"}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "_": "La stessa capsula sopra testo nero su carta 221, come f21300: smerigliatura (26% di contrasto, 10% di nitidezza) e ombra sul testo (18%).",
+  "apple": {"frame": "f21300", "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A3_ombra.jpg (secondo riquadro) e A5_smerigliatura.jpg", "scala": "H = 705 px del 4K = 56 dp"},
+  "width": 168,
+  "height": 120,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "text", "background": "#DDDDDD", "color": "#000000", "fontSizeDp": 25, "lineHeightDp": 34, "paddingDp": 6, "text": "people, and depend on the world around us. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."},
+  "elements": [
+    {"name": "capsula", "role": "floating", "x": 19, "y": 20, "w": 130, "h": 56, "radius": "capsule", "icons": ["fluid:inventory_2|archive", "fluid:add|plus"]}
+  ],
+  "measure": [
+    {"kind": "frost", "element": "capsula", "scheda": "A5 / M1", "fiducia": "alta", "ref": {"contrasto": ["26% (dev. std 75 -> 19)", "6-13% sotto una barra (R5 M1)"], "intervallo": ["-", "34-65% di quello di iOS 26"], "nitidezza": ["10% (gradiente medio 2,20 -> 0,22)", "35-45% di quella di iOS 26"], "estremi": ["il nero (0) sale a 172, la carta da 221 a 232", "-"]}},
+    {"kind": "shadow", "element": "capsula", "scheda": "A3", "fiducia": "alta", "ref": {"ombra-max": ["18% (218 -> 179) a 0,16-0,20 H sotto: x4,9 il fondo piatto", "non misurata sul testo (R5)"], "ombra-estensione": ["fino a ~0,85 H sotto", "-"], "ombra-sopra": ["11%", "-"]}, "rows": ["ombra@0.03", "ombra@0.2", "ombra-max", "ombra-estensione", "ombra-sopra"]}
+  ]
+}

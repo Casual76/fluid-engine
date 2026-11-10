@@ -1,0 +1,28 @@
+{
+  "_": "Le due sole inquadrature scure di R5: sopra, una tab bar scura su una griglia colorata (292 @6:32, grafica HD, classe C, fiducia bassa); sotto, una barra CHIARA sopra una foto scura a luma ~51 (269 @6:20, classe B), che in iOS 27 non gira allo scuro. Fondi sintetici.",
+  "apple": {"frame": "292 6:32; 269 6:20", "ritaglio": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M3_tab_bar_scura_292_0632.jpg, B11_barra_e_trabocco_269.jpg", "scala": "tab bar 62 dp; barra 44 dp (H = 132 px del 4K)"},
+  "width": 420,
+  "height": 200,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "dark",
+  "background": {"kind": "color", "color": "#0F0F11"},
+  "page": [
+    {"kind": "background", "x": 0, "y": 0, "w": 420, "h": 100, "background": {"kind": "synthetic", "scaleDp": 34, "detail": 0.5, "contrast": 1.2, "palette": ["#101014", "#D8452B", "#2B6FD8", "#E6B422", "#17171B", "#2FA36B", "#C43C8E"]}},
+    {"kind": "rect", "x": 150, "y": 0, "w": 60, "h": 100, "color": "#131315"},
+    {"kind": "background", "x": 0, "y": 100, "w": 420, "h": 100, "background": {"kind": "synthetic", "scaleDp": 80, "detail": 0.5, "contrast": 0.8, "lift": -0.085, "palette": ["#3A3028", "#5A4A3A", "#2A2622", "#4A4038", "#30302E"]}}
+  ],
+  "elements": [
+    {"name": "tabbar-scura", "role": "floating", "x": 20, "y": 19, "w": 380, "h": 62, "radius": "capsule", "iconSizeDp": 28, "icons": ["fluid:home|home", "fluid:grid_view|grid4", "fluid:sensors|circle", "fluid:library_music|menu"]},
+    {"name": "barra-chiara", "role": "floating", "theme": "light", "x": 20, "y": 128, "w": 380, "h": 44, "radius": "capsule", "icons": ["fluid:arrow_back|back", "fluid:ios_share|share", "fluid:edit|compose", "fluid:more_horiz|dots"]}
+  ],
+  "measure": [
+    {"kind": "body", "element": "tabbar-scura", "label": "scura sul varco nero", "window": [156, 34, 48, 32], "scheda": "M3", "fiducia": "bassa", "ref": {"corpo": ["22 su nero; 45 su 28-50 (R4 A6)", "58-78 su nero a luma 15-23"]}, "rows": ["corpo", "fondo", "corpo-fondo"]},
+    {"kind": "frost", "element": "tabbar-scura", "label": "scura sulla griglia", "window": [230, 30, 150, 40], "scheda": "M3", "fiducia": "bassa", "ref": {"contrasto": ["-", "nessuna forma riconoscibile sotto la barra; corpo 47-157 secondo il fondo"]}, "rows": ["contrasto", "nitidezza", "estremi"]},
+    {"kind": "edge", "element": "tabbar-scura", "side": "top", "along": 0.4, "label": "scura", "scheda": "M3", "fiducia": "bassa", "ref": {"filo-scuro": ["-", "nessun filo scuro visibile (R5 M3, bassa)"], "riflesso": ["+40...+59 sugli archi (R4 A1)", "+10...+25 in alto (R5 M3, bassa); +26 su una barra chiara"]}, "rows": ["filo-scuro", "riflesso", "riflesso-largo"]},
+    {"kind": "body", "element": "barra-chiara", "label": "chiara su foto scura", "at": [0.3, 0.3, 0.4, 0.4], "scheda": "M3", "fiducia": "media", "ref": {"corpo": ["136-143 prima di girare (R4 A6)", "141-146 su luma 51"], "fondo": ["-", "51 (dev. std 9)"], "uniformita": ["-", "dev. std 1,8"]}, "rows": ["corpo", "fondo", "corpo-fondo", "velo", "uniformita"]},
+    {"kind": "edge", "element": "barra-chiara", "side": "top", "label": "chiara", "scheda": "M3", "fiducia": "media", "ref": {"riflesso": ["-", "171 su corpo 141-146: +26...+27"], "riflesso-largo": ["-", "~4 px su H = 132: 3% di H"]}, "rows": ["filo-scuro", "riflesso", "riflesso-largo"]},
+    {"kind": "edge", "element": "barra-chiara", "side": "bottom", "label": "chiara", "scheda": "M3", "fiducia": "media", "ref": {"riflesso": ["-", "172: +26...+27"]}, "rows": ["riflesso"]}
+  ]
+}

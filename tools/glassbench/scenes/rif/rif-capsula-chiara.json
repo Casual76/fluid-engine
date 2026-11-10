@@ -1,0 +1,22 @@
+{
+  "_": "Capsula chiara di una barra su fondo 200-210, come f28855 (16:02, classe B): estremo sinistro della capsula larga e la capsula vicina.",
+  "apple": {"frame": "f28855", "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A1_bordo_di_luce.jpg (secondo riquadro)", "scala": "H = 358 px del 4K = 44 dp; capsula 3,08 H, capsula vicina 1,58 H (R4 B2)"},
+  "width": 250,
+  "height": 76,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "gradient4", "tl": "#D2D2D4", "tr": "#CCCCCE", "bl": "#CECED0", "br": "#C8C8CA"},
+  "elements": [
+    {"name": "capsula", "role": "floating", "x": 16, "y": 16, "w": 136, "h": 44, "radius": "capsule", "icons": ["fluid:folder|folder", "fluid:delete|trash", "fluid:ios_share|share"]},
+    {"name": "vicina", "role": "floating", "x": 164, "y": 16, "w": 70, "h": 44, "radius": "capsule", "icons": ["fluid:edit_square|compose"]}
+  ],
+  "measure": [
+    {"kind": "body", "element": "capsula", "scheda": "A2", "fiducia": "alta", "ref": {"corpo-fondo": ["+19...+27 (226-233 su 200-210)", "+8 su pagina 235 (R5 M1)"], "gradiente": ["233 in alto, 228 al centro, 232-235 in basso", "243 in alto, 249 in basso su bianco (R5 M4)"]}},
+    {"kind": "edge", "element": "capsula", "side": "top", "scheda": "A1", "fiducia": "media", "ref": {"filo-scuro": ["nessuno dove il filo di luce e' acceso (R4 A1)", "-45...-81 livelli, -20...-30% (R5 M1 e M4, alta)"], "filo-largo": ["-", "1-2% di H, 2-3 px (R5 M4, alta)"], "riflesso": ["picco 253: +21...+27 sul corpo", "+8...+16 (R5 M1)"], "riflesso-largo": ["1,5-2,1% di H (5-8 px su 358)", "~1,4% di H"], "riflesso-rientro": ["4-8 px, poi un alone sul 12-15% di H (R4 A1)", "~0,08 H (R5 M4)"]}},
+    {"kind": "edge", "element": "capsula", "side": "bottom", "scheda": "A1", "fiducia": "media", "ref": {"filo-scuro": ["nessuno dove il filo di luce e' acceso (R4 A1)", "-45...-81 livelli, -20...-30% (R5 M1 e M4, alta)"], "filo-largo": ["-", "1-2% di H, 2-3 px (R5 M4, alta)"], "riflesso": ["picco 255", "+8...+10: 253 su corpo 243-245 (R5 M1)"], "riflesso-largo": ["1,0-2,4% di D (R4 A1, media)", "~1,4% di H (R5 M1)"], "riflesso-rientro": ["4-8 px, poi un alone sul 12-15% di H (R4 A1)", "~0,08 H (R5 M4)"]}, "rows": ["filo-scuro", "riflesso", "riflesso-largo"]},
+    {"kind": "edge", "element": "capsula", "angle": 180, "cap": "left", "label": "testata", "scheda": "A1", "fiducia": "media", "ref": {"filo-scuro": ["nessuno", "-35...-70, pieno fra 165 e 225 gradi (R5 M1)"], "filo-largo": ["-", "1-2% di H, 2-3 px (R5 M4, alta)"], "riflesso": ["picco 255", "-"], "riflesso-largo": ["1,0-2,4% di D (R4 A1, media)", "~1,4% di H (R5 M1)"], "riflesso-rientro": ["4-8 px, poi un alone sul 12-15% di H (R4 A1)", "~0,08 H (R5 M4)"]}, "rows": ["filo-scuro", "filo-largo", "riflesso"]},
+    {"kind": "shadow", "element": "capsula", "scheda": "A3", "fiducia": "media", "ref": {"ombra-max": ["non rilevabile (<1%)", "2-4% al bordo (R5)"]}, "rows": ["ombra@0.03", "ombra@0.2", "ombra-max", "ombra-estensione"]}
+  ]
+}

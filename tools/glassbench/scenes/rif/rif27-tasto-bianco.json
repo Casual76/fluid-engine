@@ -1,0 +1,19 @@
+{
+  "_": "Tasto tondo di vetro su bianco 253, come il tasto indietro di 278 f21480 (classe B): il caso in cui in iOS 27 il corpo e' appena grigio e la separazione la fa il filo scuro.",
+  "apple": {"frame": "278 f21480", "ritaglio": "artifacts/liquid-glass/riferimenti/ios27/ritagli/E1_bordo_scorrimento_alto_278.jpg", "scala": "D = 161 px del 4K = 44 dp"},
+  "width": 120,
+  "height": 90,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "color", "color": "#FDFDFD"},
+  "elements": [
+    {"name": "tasto", "role": "button", "x": 38, "y": 23, "w": 44, "h": 44, "radius": "capsule", "icon": "fluid:arrow_back|back"}
+  ],
+  "measure": [
+    {"kind": "body", "element": "tasto", "scheda": "M4", "fiducia": "alta", "ref": {"corpo": ["228 su 226 (R4 A6)", "243 in alto, 249 in basso"], "corpo-fondo": ["+2 (R4 A2)", "-4...-10"], "gradiente": ["-", "243 in alto, 249 in basso"]}},
+    {"kind": "rim", "element": "tasto", "scheda": "M4", "fiducia": "alta", "ref": {"filo-scuro": ["nessuno", "172-203: -50...-81 (20-32%)"], "filo-archi": ["nessuno", "uguale su tutti i lati"], "filo-largo": ["-", "2-3 px = 1,2-1,9% di D"], "riflesso": ["+21...+53 (R4 A1)", "su bianco non si distingue"]}},
+    {"kind": "shadow", "element": "tasto", "scheda": "M4", "fiducia": "alta", "ref": {"ombra-max": ["1-3% (R4 A3)", "-2 livelli: meno dell'1%"], "ombra-estensione": ["-", "entro 0,15 D"]}, "rows": ["ombra@0.03", "ombra@0.1", "ombra@0.2", "ombra-max", "ombra-estensione"]}
+  ]
+}

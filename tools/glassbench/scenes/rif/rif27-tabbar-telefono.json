@@ -1,0 +1,22 @@
+{
+  "_": "Tab bar su telefono, pagina 238, con il tondo della scheda prominente a destra, come 269 @5:19 (classe B). Geometria di R5 T6 con le taglie decise nel piano: barra alta 62 dp, margine 16 dp, distanza 8 dp, tondo D = H.",
+  "apple": {"frame": "269 5:19", "ritaglio": "artifacts/liquid-glass/riferimenti/ios27/ritagli/T6_scheda_prominente_269_0519.jpg", "scala": "H = 197 px del 4K = 62 dp; schermo largo 7,0 H (qui 412 dp = 6,6 H)"},
+  "width": 412,
+  "height": 130,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {"kind": "color", "color": "#EEEEEE"},
+  "elements": [
+    {"name": "capsula", "role": "floating", "x": 16, "y": 40, "w": 310, "h": 62, "radius": "capsule", "iconSizeDp": 28, "icons": ["fluid:home|home", "fluid:grid_view|grid4", "fluid:library_music|menu"], "items": [{"kind": "rect", "x": 4.7, "y": 4.7, "w": 98, "h": 52.6, "radius": "capsule", "color": "#00000014"}]},
+    {"name": "tondo", "role": "floating", "x": 334, "y": 40, "w": 62, "h": 62, "radius": "capsule", "iconSizeDp": 28, "icon": "fluid:search|search"}
+  ],
+  "measure": [
+    {"kind": "body", "element": "capsula", "at": [0.45, 0.35, 0.2, 0.3], "scheda": "M4", "fiducia": "alta", "ref": {"corpo": ["-", "240-243 su pagina 238"], "corpo-fondo": ["+15...+27 (R4 A2)", "+2...+5"]}, "rows": ["corpo", "fondo", "corpo-fondo", "velo"]},
+    {"kind": "edge", "element": "capsula", "side": "top", "along": 0.6, "scheda": "M4", "fiducia": "alta", "ref": {"filo-scuro": ["nessuno (R4 A1)", "187-193 al pixel: -45...-51 (19-21%), su tutto il perimetro"], "filo-largo": ["-", "2-3 px = 1,0-1,5% di H"], "riflesso": ["+21...+53 sugli archi (R4 A1)", "250-254: +10...+12"], "riflesso-rientro": ["4-8 px (R4 A1)", "~16 px = 0,08 H"]}},
+    {"kind": "edge", "element": "capsula", "side": "bottom", "along": 0.6, "scheda": "M4", "fiducia": "alta", "ref": {"filo-scuro": ["nessuno", "-45...-51"], "riflesso": ["-", "+10...+12"]}, "rows": ["filo-scuro", "riflesso"]},
+    {"kind": "shadow", "element": "capsula", "along": 0.6, "scheda": "M4", "fiducia": "alta", "ref": {"ombra@0.03": ["7,7% (R5 M1)", "3-4% al bordo (229-231 su 238)"], "ombra@0.2": ["4,7%", "~0"], "ombra-max": ["3,7-7,7%", "3-4% al bordo"], "ombra-estensione": ["0,75-0,8 H", "nulla a ~0,25 H"]}, "rows": ["ombra@0.03", "ombra@0.2", "ombra-max", "ombra-estensione"]},
+    {"kind": "rim", "element": "tondo", "label": "tondo", "scheda": "T6 M4", "fiducia": "alta", "ref": {"filo-archi": ["nessuno", "tutto il perimetro: stesso materiale della capsula"], "filo-scuro": ["-", "-45...-51"], "riflesso-archi": ["due archi diagonali (R4 A1)", "alto e basso"]}, "rows": ["riflesso", "riflesso-archi", "filo-scuro", "filo-archi", "filo-largo"]}
+  ]
+}

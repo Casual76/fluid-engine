@@ -1,3 +1,7 @@
-skia-python>=144,<145
-numpy>=2.0
-Pillow>=10
+# Versioni ESATTE: Skia in software e' deterministico solo a parita' di versione, e le immagini di
+# riferimento in golden/ si confrontano con tolleranza zero. Chi cambia una riga qui rigenera le
+# immagini (`glassbench.py golden classic --update`) e lo scrive nel rapporto.
+# Python 3.11 (provato con 3.11.9).
+skia-python==144.1
+numpy==2.4.6
+Pillow==13.0.0

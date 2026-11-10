@@ -17,12 +17,13 @@
 # Compilare prima:  ./gradlew.bat --no-daemon --no-watch-fs :sample:assembleDebug :sample:assembleDebugAndroidTest
 # (dentro il semaforo del PC: gradle-slot.ps1, se girano altri agenti.)
 #
-# Cosa lancia (12 lanci):
+# Cosa lancia (14 lanci):
 #   - FluidWebContentInstrumentedTest            le nove prove storiche (la prima conta i socket del corpus ostile)
 #   - FluidWebContentNetworkCensusTest           il censimento dei canali
 #   - FluidWebContentSealInstrumentedTest        varianti travestite, poi sentinelle, DNS, DOM, SVG, foglio di stile
 #   - FluidWebContentRendererLifecycleTest       60 documenti in un processo, chiusure rapide, un'app senza WebView sue
-#                                                (processi renderer), poi gli avanzi dei profili al processo successivo
+#                                                (processi renderer e profili), poi gli avanzi al processo successivo
+#   - FluidWebContentProfileReuseTest            che cosa passa fra due documenti sullo stesso profilo
 # Nella cartella degli esiti restano l'uscita di ogni lancio (`*.txt`) e le righe di log `FluidWebCensus`,
 # `FluidWebSeal` e `FluidWebLifecycle` (`*.logcat.txt`): per ogni canale, quante connessioni native e che cosa e'
 # arrivato a `onRequest`; per i documenti, quanti renderer vivi e le misure di memoria, thread, descrittori e disco.
@@ -53,7 +54,7 @@ while [ $# -gt 0 ]; do
     -t) TEST_APK="$2"; shift 2 ;;
     --no-install) INSTALL=0; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
-    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
     *) echo "Opzione sconosciuta: $1" >&2; exit 2 ;;
   esac
 done
@@ -107,11 +108,14 @@ launch dns-e-foglio "$SEAL#documentCannotCauseNameResolution,$SEAL#stylesheetSer
 launch dom "$SEAL#chromiumFindsNoHintElementInSealedDocuments,$SEAL#chromiumCreatesTheElementOnlyFromTheLiteralName,$SEAL#sealedDocumentKeepsTheTreeShapeAndItsUsefulHead,$SEAL#inlineSvgKeepsItsShapesAfterMetadata,$SEAL#inlineSvgWithMetadataIsStillDrawnByTheContainer"
 echo "Ciclo di vita: processi renderer e profili"
 launch renderer-60-documenti "$LIFE#manyDocumentsInOneProcessLeaveNoRendererBehind"
-# Gli avanzi si provano nel processo successivo a uno che ha aperto molti documenti: l'ordine dei due lanci conta.
+# Gli avanzi si provano nel processo successivo a uno che ne ha lasciati: l'ordine di questi due lanci conta.
+launch renderer-avanzi-semina "$LIFE#leftoverProfilesAreSeededForTheNextProcess"
 launch renderer-avanzi "$LIFE#leftoverProfilesArePrunedWithoutHoldingTheFirstDocument"
 launch renderer-chiusure-rapide "$LIFE#documentsClosedWhileLoadingLeaveNoRendererBehind"
 launch renderer-avanzi-tutti-insieme "$LIFE#leftoverProfilesAtProcessStartAreMeasured"
 launch renderer-senza-ospite "$LIFE#containerAloneLeavesAtMostTheProvidersOwnRenderer"
+echo "Riuso dei profili"
+launch riuso-profili "$TESTS.FluidWebContentProfileReuseTest"
 
 "$ADB" shell am force-stop "$PACKAGE" >/dev/null 2>&1
 if [ "$UNINSTALL" = 1 ]; then

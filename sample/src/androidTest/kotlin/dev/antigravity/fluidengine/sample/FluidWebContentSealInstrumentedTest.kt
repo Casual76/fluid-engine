@@ -45,7 +45,7 @@ class FluidWebContentSealInstrumentedTest {
   private val requests = CopyOnWriteArrayList<String>()
   private var html by mutableStateOf("")
 
-  /** Un solo contenitore per tutta la prova: ogni documento nuovo ricrea vista e profilo, come nell'app. */
+  /** Un solo contenitore per tutta la prova: ogni documento nuovo ricrea la vista, come nell'app. */
   private fun mount(request: (FluidWebRequest) -> FluidWebResponse = { FluidWebResponse.Block }) {
     compose.setContent {
       FluidTheme(EngineSettings(), systemBars = false) {

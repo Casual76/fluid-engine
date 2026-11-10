@@ -24,7 +24,7 @@ l'HTML, decidere quali risorse caricare e verificare dove portano i link sono de
 | scurire un documento chiaro | `darkening = true` (**ricrea** la vista: costo sotto) |
 | più grande per chi legge male | `textScale` (moltiplica **sempre** la scala del carattere di sistema) |
 | stampare / esportare in PDF | `state.printAdapter(jobName)` → `PrintManager.print` |
-| ripartire dopo un errore o un renderer morto | `state.retry()` (vista e profilo nuovi) |
+| ripartire dopo un errore o un renderer morto | `state.retry()` (vista nuova, e mai il profilo del renderer morto) |
 | testo vero, solo da leggere, senza stili né link | `FluidMarkdown` o un `Text`: **non** una WebView |
 | modificare del testo formattato | `FluidRichTextEditor` ([`../moduli/richtext.md`](../moduli/richtext.md)): non una WebView con `contenteditable` |
 
@@ -67,12 +67,12 @@ Cosa è chiuso, tutto insieme e **non negoziabile dall'app** (nessun parametro l
 - **Nessuna identificazione.** Lo `User-Agent` è `WebContent/1.0`: né dispositivo, né versione, né app.
 - **Il documento è servito su un'origine casuale `.invalid`** (`https://<uuid>.invalid/document`), con CSP `sandbox` e `no-store`. **Nessun `baseUrl` pubblico**: un'origine controllata dall'HTML potrebbe condividere dati con
   altre viste. Il documento si legge come byte locali, non con `loadDataWithBaseURL` (che avrebbe allentato gli stessi header).
-- **Profili e cookie isolati.** Ogni istanza ha un **profilo dedicato, mai riutilizzato** (`fluid-content-<uuid>`), cookie e cache compresi; il `CookieManager` e lo `WebStorage` globali non si toccano mai. **Senza
+- **Profili e cookie isolati.** Ogni vista ha un **profilo dedicato, suo finché è aperta** (`fluid-content-<uuid>`), cookie e cache compresi; il `CookieManager` e lo `WebStorage` globali non si toccano mai. **Senza
   `MULTI_PROFILE` il contenitore fallisce chiuso** (`FluidWebFailure.IsolationUnavailable`) invece di cambiare il `CookieManager` globale o condividere la cache con le altre WebView dell'app: un'app con un provider vecchio
-  mostra il testo alternativo, non una vista meno isolata. **Il profilo non sparisce alla chiusura del documento**: AndroidX vieta di cancellare un profilo caricato nello stesso processo, e sul provider di prova un profilo resta
-  caricato anche dopo `destroy()`. Resta fino alla fine del processo dell'app e viene eliminato nel processo successivo, qualche secondo dopo il primo documento (uno per volta: vedi «Chiudere un documento»). **Non promettere una cancellazione
-  immediata**, e leggi il costo dei profili rimasti in «Prestazioni».
-- **Il renderer che muore si recupera.** `FluidWebFailure.RendererGone` arriva allo slot `failure`; `state.retry()` **distrugge e ricrea** la vista con un profilo nuovo (non rianima un renderer morto) e non salva né HTML né
+  mostra il testo alternativo, non una vista meno isolata. Due viste vive non hanno mai lo stesso profilo. **Dalla 3.1.1 un profilo può servire, uno dopo l'altro, più documenti**, ma solo dopo una pulizia confermata: la regola
+  esatta, e l'unica cosa che la pulizia non toglie, sono in «Chiudere un documento». AndroidX vieta di cancellare un profilo caricato nello stesso processo: quelli usati restano fino alla fine del processo dell'app (sono pochi) e
+  vengono eliminati all'avvio successivo. **Non promettere una cancellazione immediata.**
+- **Il renderer che muore si recupera.** `FluidWebFailure.RendererGone` arriva allo slot `failure`; `state.retry()` **distrugge e ricrea** la vista con un altro profilo (non rianima un renderer morto, e il profilo di un renderer morto da sé non viene più riusato) e non salva né HTML né
   consensi fra istanze. `RendererGone` riguarda solo un renderer morto **da sé** con il documento ancora aperto: il renderer che il contenitore spegne alla chiusura (sotto) non è un errore e non arriva a nessuno.
 
 ## Chiudere un documento (3.1.1)
@@ -80,22 +80,43 @@ Cosa è chiuso, tutto insieme e **non negoziabile dall'app** (nessun parametro l
 **Il difetto della 3.1.0.** Il provider dà a ogni profilo un processo renderer suo, e quel processo **sopravvive a `destroy()`** finché vive il processo dell'app. Con un profilo per documento, ogni documento aperto in una sessione
 lasciava quindi un renderer vivo: decine di megabyte l'uno. Misurato su emulatore (2 GB, WebView Google 156): dopo 15 viste aperte e chiuse, 16 renderer vivi (le 15 più quello dell'app); 27 documenti esaurivano la memoria.
 
-**Cosa fa ora il contenitore quando un documento si chiude** (cambio di `html`, `darkening`, `retry()`, uscita dalla composizione, rotazione, `Timeout`): ferma il caricamento, sostituisce il client con uno che non lascia passare
-richieste e che dichiara **gestita** la morte del renderer, distrugge la vista e **solo dopo termina il processo renderer** (`WebViewRenderProcess.terminate()`). L'ordine è la garanzia: quando il processo muore non ha più una vista viva
-a cui riportarlo, quindi né l'app né un documento aperto dopo ricevono un `RendererGone` per un documento che l'app ha chiuso. Il renderer si può terminare senza toccare nient'altro **proprio perché il profilo è di quella sola
-vista**: le WebView dell'app (profilo predefinito, o altri profili suoi) stanno su altri processi e non se ne accorgono (provato: una WebView ordinaria dell'app, viva per tutto il ciclo, alla fine carica e disegna ancora e non ha
-mai visto morire il suo renderer). Se la creazione della vista è fallita prima di ottenere il profilo dedicato, il renderer sarebbe quello dell'app: non viene nemmeno preso. **In un'app senza WebView sue** resta comunque vivo
-**un** renderer: alla seconda WebView creata nel processo il provider ne avvia uno in più, che non ospita nessun documento del contenitore (osservato: uno solo, anche dopo 24 documenti, e non compare se l'app ha già una
-WebView sul profilo predefinito). Il contenitore non lo tocca, perché non è di un suo profilo.
+**Cosa fa ora il contenitore quando un documento si chiude** (cambio di `html`, `darkening`, `retry()`, uscita dalla composizione, rotazione, `Timeout`): stacca la vista, ferma il caricamento, sostituisce il client con uno che non
+lascia passare richieste e che dichiara **gestita** la morte del renderer, **termina il processo renderer** (`WebViewRenderProcess.terminate()`) e distrugge la vista **quando il provider le ha confermato quella morte**
+(`onRenderProcessGone`, che arriva al client di chiusura e mai all'app: qualche decina di millisecondi). Né l'app né un documento aperto dopo ricevono un `RendererGone` per un documento che l'app ha chiuso. Il renderer si può
+terminare senza toccare nient'altro **proprio perché il profilo è di quella sola vista**: le WebView dell'app (profilo predefinito, o altri profili suoi) stanno su altri processi e non se ne accorgono (provato: una WebView
+ordinaria dell'app, viva per tutto il ciclo, alla fine carica e disegna ancora e non ha mai visto morire il suo renderer). Se la creazione della vista è fallita prima di ottenere il profilo dedicato, il renderer sarebbe quello
+dell'app: non viene nemmeno preso. **In un'app senza WebView sue** resta comunque vivo **un** renderer: alla seconda WebView creata nel processo il provider ne avvia uno in più, che non ospita nessun documento del contenitore
+(osservato: uno solo, anche dopo 24 documenti, e non compare se l'app ha già una WebView sul profilo predefinito). Il contenitore non lo tocca, perché non è di un suo profilo.
+
+**Il riuso dei profili: la regola.** Un profilo caricato non si può cancellare finché vive il processo, e ogni profilo costa (emulatore di prova) circa 24 descrittori di file, 2 thread e 0,7 MB: uno nuovo
+per ogni documento faceva crescere l'app a ogni mail aperta. Quindi i profili sono pochi, e un profilo **torna disponibile per un documento successivo solo quando**: (1) la sua vista è stata distrutta; (2) il suo renderer è stato
+terminato dal contenitore e il provider ne ha **confermato la morte** (nessuna memoria del renderer passa oltre); (3) `WebStorageCompat.deleteBrowsingData` **ha risposto** (cache di rete, cookie e ogni storage cancellati). In
+ogni altro caso il profilo è **ritirato** e nessuna vista lo riusa in quel processo: renderer morto da sé, conferma non arrivata, un documento chiuso mentre il renderer stava ancora partendo e mai terminato, provider senza
+`DELETE_BROWSING_DATA`. Un profilo in uso o in pulizia non è fra i disponibili, quindi il documento che arriva subito dopo ne riceve un altro; i disponibili si danno dal più vecchio. Provato sui canali osservabili (`FluidWebContentProfileReuseTest`): una risorsa
+servita al primo documento **torna a `onRequest`** dal documento che riusa il profilo; i cookie sono vuoti e di nuovo spenti, anche se qualcuno li aveva riaccesi; `localStorage`, IndexedDB e Cache API scritti nel profilo da una
+WebView di prova con JavaScript (ciò che potrebbe fare un renderer compromesso) non ci sono più.
+
+**Il residuo, dichiarato: non è «lo stesso isolamento» di un profilo per documento.** Il provider non offre un modo di cancellare **l'elenco degli indirizzi visitati** di un profilo (`:visited`), e né la morte del renderer né
+`deleteBrowsingData` lo toccano (misurato). Dopo la pulizia vi restano gli indirizzi dei documenti precedenti: sono `https://<uuid>.invalid/document`, casuali e nuovi per ogni vista.
+
+- **Cosa è provato, per un documento ordinario** (script spento, renderer integro): l'indirizzo del documento precedente risulta visitato solo a chi lo scrive per intero (la prova lo fa leggendolo dalla vista; un documento non ha modo di
+  conoscerlo), un indirizzo mai aperto non risulta visitato, e gli indirizzi non si ripetono. E lo stato non esce: una regola `a:visited` con un `url()` **non fa partire nessuna richiesta**, nemmeno per un collegamento che risulta
+  visitato (la stessa risorsa messa su `a:link` arriva invece a `onRequest`).
+- **Cosa può aggiungere una pagina con script** (misurato con una WebView di prova con JavaScript, non nel contenitore, dove lo script è spento): indirizzi della propria origine con `history.pushState`; un `iframe` verso un'altra
+  origine non ne aggiunge. Due documenti con il renderer **compromesso**, uno dopo l'altro sullo stesso profilo, potrebbero quindi passarsi un segnale che con un profilo per documento non passerebbe.
+- **Cosa non è provato, in nessun senso**: se il processo dell'app rifiuti a un renderer compromesso un `pushState` verso un'altra origine; e che cosa un renderer compromesso possa fare verso la rete. Le prove del recinto (censimento,
+  varianti, DNS) riguardano documenti con il renderer integro: **nessuna prova dell'engine copre un renderer compromesso, con o senza riuso**, e questa scheda non afferma né che possa né che non possa portare fuori quel segnale.
 
 - **Un documento chiuso nei primi istanti** (sfogliando in fretta): `terminate()` risponde `false` finché il processo sta ancora partendo, e quel processo finirebbe di partire per restare orfano. Il contenitore riprova a intervalli
-  crescenti (da 50 ms a 30 s, meno di un minuto in tutto); ogni tentativo è una chiamata che non fa nulla se il processo non c'è. Non tiene in vita né la vista né l'`Activity`: solo il riferimento al processo.
-- **Dove il provider non sa farlo** (`GET_WEB_VIEW_RENDERER` o `WEB_VIEW_RENDERER_TERMINATE` mancanti, o renderer nello stesso processo dell'app) il contenitore si comporta come nella 3.1.0: nessun errore, e il renderer resta fino alla
-  fine del processo. Non è un requisito di sicurezza (il documento è già chiuso), quindi qui non si fallisce chiusi.
-- **I profili lasciati dal processo precedente** si eliminano nel processo successivo **senza far aspettare il primo documento**: il contenitore ne prende l'elenco al primo documento, comincia quattro secondi dopo e ne cancella
+  crescenti (da 50 ms a 30 s, meno di un minuto in tutto); ogni tentativo è una chiamata che non fa nulla se il processo non c'è. La vista staccata si tiene solo per i primi tentativi (circa quattro secondi) o, a terminazione
+  riuscita, finché arriva la conferma (al più cinque secondi); poi viene distrutta comunque, il profilo è ritirato e resta solo il riferimento al processo: nessuna `Activity` trattenuta.
+- **Dove il provider non sa farlo** (`GET_WEB_VIEW_RENDERER` o `WEB_VIEW_RENDERER_TERMINATE` mancanti, o renderer nello stesso processo dell'app) il contenitore si comporta come nella 3.1.0: nessun errore, il renderer resta fino alla
+  fine del processo e **nessun profilo viene riusato** (uno nuovo per documento). Non è un requisito di sicurezza (il documento è già chiuso), quindi qui non si fallisce chiusi.
+- **I profili lasciati dal processo precedente** (pochi, perché riusati; di più se molti sono stati ritirati) si eliminano nel processo successivo **senza far aspettare il primo documento**: il contenitore ne prende l'elenco al primo documento, comincia quattro secondi dopo e ne cancella
   **uno per volta, con una pausa di 50 ms** fra l'uno e l'altro (l'API di AndroidX va chiamata sul thread principale, e ogni cancellazione costa qualche millisecondo). Dopo una sessione lunga sono centinaia: cancellarli tutti
-  insieme al primo documento, com'era nella 3.1.0, fermava il thread principale per circa 1,5 secondi con 300 profili (emulatore). Misurato con 276 profili rimasti: prima pittura del primo documento dopo 0,45 secondi con tutti
-  gli avanzi ancora lì, poi eliminati in 20 secondi (indicativo). Se il processo finisce prima, i rimasti si ritrovano all'avvio dopo.
+  insieme al primo documento, com'era nella 3.1.0, fermava il thread principale per circa 1,5 secondi con 300 profili (emulatore). Misurato con 276 profili rimasti (prima del riuso, quando un processo ne lasciava centinaia): prima
+  pittura del primo documento dopo 0,45 secondi con tutti gli avanzi ancora lì, poi eliminati in 20 secondi (indicativo). **L'eliminazione non può toccare un profilo del processo in corso**, per tre motivi indipendenti: l'elenco degli
+  avanzi si prende una volta sola, prima di creare il primo profilo; ogni nome creato dal processo viene saltato; e il provider rifiuta di cancellare un profilo caricato. Se il processo finisce prima, i rimasti si ritrovano all'avvio dopo.
 
 ## Il sigillo: i suggerimenti di rete (3.1.1)
 
@@ -194,7 +215,7 @@ lunghi. In ogni caso **l'altezza fisica massima è 4096 px** (`MaxViewportPx`, a
 ## Scurimento, scala del testo, stampa
 
 - **`darkening = true` abilita lo scurimento algoritmico** se il provider lo supporta; `false` mostra l'**originale** (il tema scuro e gli stili scuri dichiarati dal documento restano quelli del provider). Una newsletter bianca
-  in tema scuro è un faro: lo scurimento la scurisce, a costo di colori non voluti dall'autore; l'app offre «Mostra originale». **Cambiare `darkening` ricrea la vista e il profilo e richiede di nuovo le risorse**: Chromium legge
+  in tema scuro è un faro: lo scurimento la scurisce, a costo di colori non voluti dall'autore; l'app offre «Mostra originale». **Cambiare `darkening` ricrea la vista (con un altro profilo) e richiede di nuovo le risorse**: Chromium legge
   `isLightTheme` alla **creazione**, non quando cambia il tema del `Context` esistente. Un'app che cambia tema a runtime paga una ricreazione (e `onRequest` viene riconsultato).
 - **`textScale` moltiplica sempre la scala del carattere di sistema** (`fontScale`): a font di sistema 1,3 e `textScale` 1,5 il testo è a 195%. Cambiare solo la scala **non ricrea** la vista né ricarica le risorse. Il pizzico è
   opzionale (`pinchZoom`). La scala vive nell'intervallo 1%–1000%.
@@ -224,16 +245,11 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
   finito di caricare» e non dice niente su immagini e font.
 - **La creazione della `WebView` è sul thread UI** (non c'è modo di farla altrove) e il suo costo è dell'app che compone il contenitore (di norma la prima `WebView` del processo paga anche il caricamento del provider, e non si sa quanto: dipende dal telefono). Fuori dal thread UI
   passa solo il lavoro che può passarci: l'HTML si converte in byte su `Dispatchers.Default`, **mai** sul thread principale, e `onRequest` gira su thread di I/O.
-- **Niente riuso e niente preriscaldamento.** Ogni istanza crea una vista nuova e un profilo nuovo, mai riutilizzato (è parte del contratto chiuso: nessun cookie, cache o stato passa da un documento al successivo), e
+- **Nessuna vista riusata e niente preriscaldamento.** Ogni istanza crea una vista nuova (nessun cookie, cache o stato passa da un documento al successivo: per i profili vedi «Chiudere un documento»), e
   **nessun pool globale** tiene `WebView` o `Activity` in giro. L'engine non ha né un `prewarm()` né una vista da «riscaldare», e `FluidWebContent` non accetta una `WebView` fornita dall'app: chi vuole ammortizzare l'avvio non ha un'API per farlo.
-- **Cosa resta di un documento chiuso.** Il processo renderer no: dalla 3.1.1 viene terminato (sopra). **Il profilo sì, fino alla fine del processo dell'app**, e non è gratis. Misurato su emulatore (API 37, 2 GB, WebView Google 156),
-  per ogni vista creata: circa **24 descrittori di file, 2 thread, 0,7 MB di memoria** nel processo dell'app e **90 KB di file** su disco. Con 301 viste aperte e chiuse in un solo processo (200 documenti, alcuni ricreati per
-  `retry` e cambio di tema): memoria dell'app da 273 a 490 MB, thread da 61 a 675, descrittori da 265 a 7.518, 26 MB su disco; i processi renderer, intanto, restano quelli dell'app ospite, mentre nella 3.1.0 ne sarebbe rimasto uno per vista. Sono numeri
-  **indicativi** (emulatore): l'ordine di grandezza è quello, i valori veri si misurano su un telefono. Tutto torna a zero alla fine del processo. **C'è un tetto pratico**: in una delle tre prove da 200 documenti l'emulatore è
-  rimasto con 40 MB liberi e la vista numero 277 è finita in `Timeout` (il renderer non è partito in 15 secondi). Nella 3.1.0 lo stesso emulatore si fermava a 27 documenti: il limite si è spostato di dieci volte, non è sparito.
-- **Perché non si riusa un profilo, per ora.** Riusare pochi profili terrebbe piatte quelle cifre (provato: 151 viste con 3 profili, descrittori e thread fermi), ma solo a patto che fra due documenti sullo stesso profilo non passi
-  niente. Con vista distrutta, renderer terminato e `deleteBrowsingData` (cache, cookie, storage) passa una cosa sola, che il provider non lascia cancellare: **l'elenco degli indirizzi visitati del profilo**. Contiene gli indirizzi
-  casuali dei documenti precedenti, che un documento non può conoscere; ma una pagina con script può aggiungervi indirizzi suoi (`history.pushState`, misurato con una WebView di prova), e quindi potrebbe farlo un renderer compromesso. Finché questo non è deciso, il contratto resta «un profilo per documento».
+- **Cosa resta di un documento chiuso.** Né il processo renderer (terminato) né un profilo in più: misurato su emulatore (API 37, 2 GB, WebView Google 156), **151 viste aperte e chiuse in un solo processo hanno usato 3 profili**; i
+  descrittori di file del processo dell'app passano da 265 a circa 390 e restano lì, i thread da 61 a 75, la memoria da 266 a 276 MB. Con un profilo per vista (la 3.1.0, a renderer terminati) le stesse 151 viste costavano circa
+  90 MB, 375 thread e 3.900 descrittori. Sono numeri **indicativi**: i valori veri si misurano su un telefono.
 - **Cosa ricrea la vista** (e quindi paga di nuovo la creazione e riconsegna le risorse a `onRequest`): un `html` diverso, `darkening`, `state.retry()`, un renderer morto. **Non** la ricrea `textScale`, né cambiare `onRequest`
   (che non ricarica nemmeno il documento). Una lista con un `FluidWebContent` per riga crea tante `WebView` quante righe sono composte: tienine montato uno per volta nel dettaglio, o una sola vista per un documento
   lungo, invece di una per anteprima.
@@ -248,9 +264,8 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 - **Un foglio di stile è una richiesta come un'immagine.** `<link rel="stylesheet">` sopravvive al sigillo e arriva a `onRequest`: servirlo senza la stessa politica delle immagini dice al mittente che il documento è stato
   aperto. Gli altri `<link>` (icone, `preload`) non arrivano più: non aspettarli in `onRequest`.
 - **Gli iframe non ci sono.** Nemmeno `srcdoc`: un documento che contava su un iframe mostra il resto e basta.
-- **Ogni documento aperto lascia un profilo caricato fino alla fine del processo.** Non più un renderer (dalla 3.1.1 il contenitore lo termina alla chiusura: nella 3.1.0 ne restava uno per documento, e 27 documenti di seguito
-  esaurivano un emulatore da 2 GB), ma il profilo sì: circa 24 descrittori di file, 2 thread e 0,7 MB per vista sull'emulatore di prova, cioè circa 90 MB, 375 thread e 3.900 descrittori dopo 150 viste. Un'app che in una
-  sessione apre centinaia di documenti lo vede: misuralo su un telefono vero (`dumpsys meminfo`, `/proc/<pid>/fd`), e ricorda che ricreare la vista (`html` instabile, `darkening`, `retry`) conta come un documento in più.
+- **Un profilo serve più documenti, uno dopo l'altro.** Non assumere «un profilo nuovo per ogni documento»: dalla 3.1.1 è «un profilo tutto suo finché il documento è aperto, pulito prima del successivo». Cosa la pulizia toglie e
+  l'unica cosa che non toglie (l'elenco degli indirizzi visitati) sono in «Chiudere un documento».
 - **Non è un sanificatore.** Passare HTML non filtrato e servire ogni richiesta «per far vedere le immagini» fa di un contenitore chiuso un client HTTP aperto. Serve solo ciò che l'app ha deciso, con il client privo di identità.
 - **`onRequest` gira su thread di I/O, anche in parallelo**: dev'essere thread-safe e finito; non restituire stream condivisi fra richieste (la WebView li chiude). Gli schemi inline personalizzati (per esempio `cid:`) passano dallo
   stesso gestore; `data:`, `blob:`, `about:` sono interni al renderer.
@@ -265,7 +280,7 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
   prove strumentate della galleria serve Espresso 3.7.0 esplicito (la versione transitiva chiamava `InputManager.getInstance`, rimosso su API 37).
 - **Testo al 200% + documento enorme non sono una promessa su ogni provider.** Il test strumentato lo prova su un'unica combinazione (WebView Google 149, emulatore API 37): un telefono con un provider più vecchio o più
   povero può metterci di più, o arrivare al `Timeout`. Prevedi sempre lo slot `failure` (con il testo semplice del corpo), non solo il caso felice.
-- **Cambiare `html` ricrea la vista.** Non è un aggiornamento in place: un `html` che cambia a ogni composizione (una stringa ricostruita) ricrea `WebView` e profilo a ogni passata. Passa una stringa stabile.
+- **Cambiare `html` ricrea la vista.** Non è un aggiornamento in place: un `html` che cambia a ogni composizione (una stringa ricostruita) ricrea la `WebView` a ogni passata. Passa una stringa stabile.
 - **Il tag del provider.** `MULTI_PROFILE` non c'è su ogni WebView: dillo nei limiti dell'app («aggiorna Android System WebView») invece di scoprirlo in produzione.
 
 ## Cosa è verificato dai test
@@ -283,31 +298,37 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
   un SVG in linea con `<metadata>` prima di una forma, sigillato, ha ancora la forma come figlia dell'SVG, e nel contenitore la forma arriva sullo schermo; l'albero di un `head` realistico conserva la forma; un foglio di stile servito
   dall'app si applica ancora. Due **sentinelle** caricano gli stessi suggerimenti in una WebView di prova senza sigillo e pretendono di **vedere** il socket e la richiesta DNS: se un giorno non li vedessero, gli zero delle altre
   prove non proverebbero più nulla. `tools/qa/web-network-tests.sh` lancia tutte le prove web e raccoglie esiti e log.
-- **`FluidWebContentRendererLifecycleTest`** (`sample/androidTest`, 5, emulatore API 37, WebView Google 156): **60 documenti aperti e chiusi in un solo processo** in tutti i modi in cui un'app li chiude (documento successivo,
+- **`FluidWebContentRendererLifecycleTest`** (`sample/androidTest`, 6, emulatore API 37, WebView Google 156): **60 documenti aperti e chiusi in un solo processo** in tutti i modi in cui un'app li chiude (documento successivo,
   `retry`, cambio di tema, uscita dalla composizione, chiusura mentre carica, rotazione), con una WebView ordinaria dell'app ospite viva per tutto il ciclo. Conta i processi renderer **dell'app** (`dumpsys activity services`
   incrociato con `ps`): a ogni controllo sono quelli dell'ospite più quello del documento aperto, e alla fine tornano **esattamente** al numero di partenza, senza margine; nessun `RendererGone` riportato, la WebView ospite non vede
-  morire il suo renderer e alla fine carica e disegna; ogni vista ha avuto un profilo suo. Sulla 3.1.0 fallisce al primo controllo (16 renderer vivi dopo 10 documenti, cioè 15 viste, dove ne sono ammessi 2). Una seconda prova chiude 24 documenti **mentre stanno
+  morire il suo renderer e alla fine carica e disegna; i profili usati restano sotto un tetto fisso (misurati: 3 per 91 viste). Sulla 3.1.0 fallisce al primo controllo (16 renderer vivi dopo 10 documenti, cioè 15 viste, dove ne sono ammessi 2). Una seconda prova chiude 24 documenti **mentre stanno
   caricando**: nessun renderer orfano. Una terza monta il contenitore **senza nessuna WebView dell'ospite**: dopo 12 e dopo 24 documenti resta al più un renderer, quello che il provider avvia da sé (margine fisso di uno,
-  motivato in «Chiudere un documento»). Due prove sugli **avanzi** (da lanciare in un processo nuovo dopo molti documenti): il contenitore elimina i profili del processo precedente senza far aspettare il primo documento, e quanto
-  costerebbe eliminarli tutti insieme. Le cifre di memoria, thread, descrittori e disco finiscono nel log `FluidWebLifecycle` come misure, **senza soglie**. `-e webDocuments N` cambia quanti documenti apre la prima prova.
+  motivato in «Chiudere un documento»). Sugli **avanzi**, in tre lanci: uno lascia al processo successivo 60 profili senza vista (con il riuso un processo ne lascia troppo pochi per vedere l'eliminazione lavorare); nel processo
+  dopo il contenitore li elimina **mentre la prova continua ad aprire documenti**, e alla fine nel registro non resta nessun avanzo e restano tutti e soli i profili usati in quel processo (in uso, in pulizia o pronti: nessuno toccato);
+  il terzo misura quanto costerebbe eliminarli tutti insieme. Le cifre di memoria, thread, descrittori e disco finiscono nel log `FluidWebLifecycle` come misure, **senza soglie**. `-e webDocuments N` cambia quanti documenti apre la prima prova.
 - **`FluidWebContentInstrumentedTest`** (`sample/androidTest`, su **emulatore** API 37, WebView Google 156, **9/9 passati**): un documento ostile non può aprire connessioni né eseguire script (`hostileDocumentCannotSendRequestsOrExecuteScripts`, dalla 3.1.1 con un socket in ascolto al posto del conteggio delle richieste HTTP, che non vedeva un `preconnect`);
   gli stream serviti usano solo le intestazioni dell'app e le risorse inline passano dallo stesso gestore; i tocchi riportano la destinazione vera e il testo visibile **senza navigare**; un `javascript:` non esegue nulla;
-  il tema ricrea la vista e la scala del font si aggiorna **senza** ricaricare le risorse; la morte del renderer è segnalata e `retry` usa vista e profilo nuovi; un documento enorme e malformato ha altezza limitata a 200% e **può rimpicciolirsi**,
+  il tema ricrea la vista e la scala del font si aggiorna **senza** ricaricare le risorse; la morte del renderer è segnalata e `retry` usa una vista nuova e un altro profilo; un documento enorme e malformato ha altezza limitata a 200% e **può rimpicciolirsi**,
   con uno swipe vero che scorre dentro una `LazyColumn`; **il vetro contiene davvero i pixel della WebView**; una WebView che ha preso il fuoco toccando un link, dentro una `LazyColumn`, sopravvive alla ricreazione per `darkening` e per `html` e alla rimozione dal genitore (`focusedViewInsideLazyColumnSurvivesRecreationAndRemoval`; senza la correzione F1.8a il processo cade).
 - **`FluidWebContentPerformanceTest`** (`sample/androidTest`, 1, solo su dispositivo): una misura **esplorativa** della prima pittura, nel log `FluidWebTiming`; **non impone soglie** e non conta come prova di QLT-02: vedi «Prestazioni».
-- **Non provato da test**: provider diversi da quello dell'emulatore; un provider senza `WEB_VIEW_RENDERER_TERMINATE` (lì il renderer resta, come nella 3.1.0); la memoria su un telefono vero; il traffico proprio del provider; la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
+- **`FluidWebContentProfileReuseTest`** (`sample/androidTest`, 4): il documento che riceve un profilo già usato non trova nulla di ciò che il precedente vi ha lasciato (risorse di nuovo a `onRequest`, cookie vuoti e spenti,
+  `localStorage`, IndexedDB e Cache API scritti da una WebView di prova con JavaScript); la prova pretende che il riuso sia avvenuto davvero, e registra il residuo `:visited` senza nasconderlo (l'indirizzo del documento precedente
+  risulta visitato a chi lo conosce; uno mai aperto no; una regola `a:visited` con un `url()` non arriva mai a `onRequest`). Due documenti vivi insieme non condividono mai un profilo; il profilo di un renderer morto da sé non torna più; una misura dello stato `:visited` su questo provider.
+- **Non provato da test**: provider diversi da quello dell'emulatore; un provider senza `WEB_VIEW_RENDERER_TERMINATE` o senza `DELETE_BROWSING_DATA` (lì il renderer resta o i profili non si riusano, come nella 3.1.0); **un renderer
+  compromesso**, in ogni suo aspetto: se il processo dell'app gli rifiuti un `pushState` verso un'altra origine, e che cosa possa fare verso la rete; la memoria su un telefono vero; il traffico proprio del provider; la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
 
 ## Dove guardare
 
 | file | cosa c'è |
 |---|---|
-| `engine-ui/.../ui/fluid/FluidWebContent.kt` | il composable, i tipi (`FluidWebRequest`, `FluidWebResponse`, `FluidWebLink`, `FluidWebPhase`, `FluidWebFailure`, `FluidWebSizing`), `FluidWebContentDefaults` (con la CSP), `FluidWebContentState`, la vista chiusa e il suo profilo |
+| `engine-ui/.../ui/fluid/FluidWebContent.kt` | il composable, i tipi (`FluidWebRequest`, `FluidWebResponse`, `FluidWebLink`, `FluidWebPhase`, `FluidWebFailure`, `FluidWebSizing`), `FluidWebContentDefaults` (con la CSP), `FluidWebContentState`, la vista chiusa, la sua chiusura (`WebViewClosing`) e i profili con i loro stati (`ClosedProfiles`) |
 | `sample/.../catalog/WebContentDemo.kt` | il call-site vero: campioni ostili (scheda semplice, newsletter larga, HTML ostile, lungo e malformato), scurimento, scala 200%, stampa, retry |
 | `engine-ui/.../ui/fluid/FluidWebSeal.kt` | il sigillo (`seal`, `isSealed`): interno, senza API pubblica; il perché di ogni regola è nel suo KDoc |
 | `engine-ui/src/test/.../FluidWebSealTest.kt` | le prove JVM del sigillo |
 | `sample/src/androidTest/.../FluidWebContentInstrumentedTest.kt` | le nove prove strumentate (rete chiusa, link, renderer, altezza, vetro, fuoco alla rimozione) |
 | `sample/src/androidTest/.../FluidWebContentNetworkCensusTest.kt`, `FluidWebContentSealInstrumentedTest.kt` | il censimento dei canali; varianti travestite, DNS, DOM vero, sentinelle |
 | `sample/src/androidTest/.../FluidWebContentRendererLifecycleTest.kt` | i renderer e i profili di decine di documenti aperti e chiusi in un processo; le misure di memoria, thread, descrittori e disco |
+| `sample/src/androidTest/.../FluidWebContentProfileReuseTest.kt` | che cosa passa e che cosa no fra due documenti sullo stesso profilo; la misura dello stato `:visited` |
 | `tools/qa/web-network-tests.sh` | tutte le prove web su un emulatore, un processo nuovo per lancio |
 | `sample/src/androidTest/.../WebNetworkCorpus.kt`, `WebNetworkProbes.kt` | i documenti del censimento e delle varianti; il socket in ascolto, il contatore DNS, la WebView senza sigillo, l'analizzatore di Chromium interrogato da prova |
 | `docs/fase-1/evidenze/gc/` (nel repo di Pampa Mail) | gli screenshot e il verbale della verifica su emulatore |

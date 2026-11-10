@@ -85,12 +85,11 @@ internal object RendererCensus {
 
 /** Rilievo B di K1b: un documento chiuso non lascia vivo il suo processo renderer.
  *
- * Ogni istanza di [FluidWebContent] ha un profilo suo e il provider da' a ogni profilo un processo renderer suo, che
- * sopravvive a `destroy()`. Fino a K1 restava vivo finche' viveva l'app: una trentina di documenti esaurivano un
+ * Ogni vista di [FluidWebContent] ha un profilo tutto suo finche' e' aperta, e il provider da' a ogni profilo un
+ * processo renderer suo, che sopravvive a `destroy()`. Fino a K1 restava vivo finche' viveva l'app: una trentina di documenti esaurivano un
  * emulatore da 2 GB. Qui si aprono e si chiudono decine di documenti in un solo processo e si contano i processi.
- * Si contano anche i profili: ogni vista ne ha uno nuovo, mai riusato, che resta caricato fino alla fine del processo.
- * Quanto costa (descrittori, thread, memoria, disco) lo dicono le misure nel log, e quanto costa eliminarli al processo
- * successivo lo dicono le due prove sugli avanzi.
+ * Si contano anche i profili: restano caricati fino alla fine del processo (descrittori, thread, memoria), quindi
+ * devono essere pochi e riusati, non uno per documento. Le misure sono nel log.
  *
  * Nessuna soglia di tempo: le attese sono solo limiti oltre i quali la prova dichiara il fallimento. I numeri di memoria
  * finiscono nel log `FluidWebLifecycle` come misure indicative, non come asserzioni.
@@ -221,7 +220,10 @@ class FluidWebContentRendererLifecycleTest {
 
   private fun directoryKb(directory: File): Long = directory.walkBottomUp().filter { it.isFile }.sumOf { it.length() } / 1024
 
-  private fun loadedContentProfiles(): Int = onMain { ProfileStore.getInstance().allProfileNames.count { it.startsWith("fluid-content-") } }
+  private fun registeredContentProfiles(): Set<String> =
+    onMain { ProfileStore.getInstance().allProfileNames.filter { it.startsWith("fluid-content-") }.toSet() }
+
+  private fun loadedContentProfiles(): Int = registeredContentProfiles().size
 
   private fun measure(label: String) {
     val renderers = RendererCensus.read()
@@ -317,7 +319,7 @@ class FluidWebContentRendererLifecycleTest {
       val title = "DOC-$index"
       when (index % 6) {
         1, 5 -> open(title)
-        2 -> { // riprova: vista e profilo nuovi per lo stesso documento
+        2 -> { // riprova: vista nuova, con un altro profilo, per lo stesso documento
           open(title)
           onMain { state!!.retry() }
           awaitView(title, ready = true)
@@ -360,9 +362,11 @@ class FluidWebContentRendererLifecycleTest {
     assertEquals("Le WebView dell'app ospite hanno visto morire il loro renderer", 0, hostGone.get())
     assertTrue("La prova deve aver creato almeno una vista per documento: $views", views >= total)
     assertTrue(profiles.toString(), profiles.all { it.startsWith("fluid-content-") })
-    // Il contratto non cambia: un profilo per vista, mai riusato. Restano tutti caricati fino alla fine del processo.
-    assertEquals("Un profilo e' stato dato a due viste", 0, reuses)
-    assertEquals("Ogni vista deve avere avuto un profilo suo", views, profiles.size)
+    // I profili non crescono con i documenti: ne servono tanti quante sono le viste aperte o in chiusura nello stesso
+    // momento. La prova apre un documento per volta e al piu' ne chiude qualcuno in rapida successione.
+    assertTrue("Troppi profili per $views viste: ${profiles.size} (riusi $reuses)", profiles.size <= MaxProfiles)
+    val registered = loadedContentProfiles()
+    assertTrue("Troppi profili caricati nel processo: $registered", registered <= MaxProfiles)
     sentinelStillLoads()
     hostLoadsAndDraws(0, 160, 0)
     assertEquals(0, hostGone.get())
@@ -384,7 +388,7 @@ class FluidWebContentRendererLifecycleTest {
     measure("chiusure-rapide")
     Log.i("FluidWebLifecycle", "chiusureRapide viste=$views profili=${profiles.size} renderer=$alive base=$baseline fallimenti=$failures")
     assertTrue("$failures", failures.isEmpty())
-    assertEquals("Ogni vista deve avere avuto un profilo suo", views, profiles.size)
+    assertTrue("Troppi profili per $views viste: ${profiles.size}", profiles.size <= MaxProfiles)
     assertEquals(0, hostGone.get())
     sentinelStillLoads()
     hostLoadsAndDraws(0, 160, 0)
@@ -411,19 +415,44 @@ class FluidWebContentRendererLifecycleTest {
     val afterTwentyFour = awaitRenderers("dopo 24 documenti, senza WebView dell'ospite", before + 1)
     Log.i("FluidWebLifecycle", "senzaOspite rendererPrima=$before dopo12=$afterTwelve dopo24=$afterTwentyFour viste=$views fallimenti=$failures")
     assertTrue("$failures", failures.isEmpty())
-    assertEquals("Ogni vista deve avere avuto un profilo suo", views, profiles.size)
+    assertTrue("Troppi profili per $views viste: ${profiles.size}", profiles.size <= MaxProfiles)
   }
 
-  /** Gli avanzi del processo precedente spariscono, e il primo documento non li aspetta.
+  private companion object {
+    /** Tetto fisso, non proporzionale ai documenti: vedi le asserzioni che lo usano. Misurati: 3 su 151 viste, 6 nelle raffiche. */
+    const val MaxProfiles = 12
+    const val SeededLeftovers = 60
+  }
+
+  /** Non e' una prova del contenitore: lascia al processo successivo un numero noto di profili da eliminare.
    *
-   * Va lanciata in un processo nuovo dopo una prova che ha aperto molti documenti (centinaia di profili rimasti).
-   * L'asserzione e' un conteggio: alla fine nel registro resta solo il profilo del documento aperto qui. Nel log
-   * restano, come misure indicative, quanti avanzi c'erano ancora alla prima pittura (il contenitore comincia a
-   * eliminarli qualche secondo dopo) e il fermo piu' lungo del thread principale, prima e durante l'eliminazione.
+   * Con il riuso un processo lascia pochi profili, troppo pochi per vedere l'eliminazione lavorare mentre il contenitore
+   * apre documenti. Questi hanno lo stesso prefisso di quelli del contenitore e nessuna vista: al processo dopo sono
+   * avanzi come gli altri. Va lanciata subito prima di [leftoverProfilesArePrunedWithoutHoldingTheFirstDocument].
+   */
+  @Test fun leftoverProfilesAreSeededForTheNextProcess() {
+    assumeTrue(WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE))
+    onMain { repeat(SeededLeftovers) { ProfileStore.getInstance().getOrCreateProfile("fluid-content-avanzo-di-prova-$it") } }
+    Thread.sleep(3000) // il registro dei profili viene scritto su disco poco dopo
+    val registered = loadedContentProfiles()
+    Log.i("FluidWebLifecycle", "avanziSeminati profili=$registered")
+    assertTrue("Profili seminati: $registered", registered >= SeededLeftovers)
+  }
+
+  /** Gli avanzi del processo precedente spariscono, il primo documento non li aspetta, e nessun profilo di questo
+   * processo viene toccato.
+   *
+   * Va lanciata in un processo nuovo che trova profili lasciati da quello precedente
+   * ([leftoverProfilesAreSeededForTheNextProcess]). Mentre il contenitore li elimina la prova continua ad aprire
+   * documenti, cosi' l'eliminazione lavora insieme a profili in uso, in pulizia e pronti per il riuso. Le asserzioni
+   * sono conteggi: alla fine nel registro non resta nessun avanzo, e restano tutti e soli i profili che il
+   * contenitore ha usato qui. Nel log restano, come misure indicative, quanti avanzi c'erano ancora alla prima
+   * pittura (il contenitore comincia a eliminarli qualche secondo dopo) e il fermo piu' lungo del thread principale.
    */
   @Test fun leftoverProfilesArePrunedWithoutHoldingTheFirstDocument() {
     assumeTrue(WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE))
-    val leftovers = loadedContentProfiles()
+    val leftoverNames = registeredContentProfiles()
+    val leftovers = leftoverNames.size
     mount()
     onMain { html = document("PRIMO-DOPO-GLI-AVANZI") }
     awaitView("PRIMO-DOPO-GLI-AVANZI", ready = false)
@@ -450,14 +479,28 @@ class FluidWebContentRendererLifecycleTest {
     assertEquals("${state?.failure}", FluidWebPhase.Ready, state?.phase)
     val atFirstPaint = loadedContentProfiles()
     val worstUntilPaint = worst.get()
+    // Finche' restano avanzi si aprono documenti: l'eliminazione e il riuso dei profili lavorano insieme.
     val deadline = SystemClock.uptimeMillis() + 120_000
-    while (loadedContentProfiles() > 1 && SystemClock.uptimeMillis() < deadline) Thread.sleep(100)
+    var during = 0
+    while (during < 6 || (registeredContentProfiles().any { it in leftoverNames } && SystemClock.uptimeMillis() < deadline)) {
+      open("DURANTE-GLI-AVANZI-${++during}")
+    }
+    val prunedAfter = SystemClock.uptimeMillis() - startedAt
     beating.set(false)
-    val remaining = loadedContentProfiles()
-    Log.i("FluidWebLifecycle", "avanziContenitore profiliAllInizio=$leftovers allaPrimaPittura=$atFirstPaint rimasti=$remaining " +
-      "fermoMassimoFinoAllaPitturaMs=$worstUntilPaint fermoMassimoMs=${worst.get()} giriOltre32Ms=${slow.get()} " +
-      "primaPitturaDopoMs=$readyAfter eliminatiInMs=${SystemClock.uptimeMillis() - startedAt}")
-    assertEquals("Nel registro deve restare solo il profilo del documento aperto", 1, remaining)
+    // E dopo: i profili di questo processo ci sono ancora tutti, e il contenitore continua a riusarli.
+    repeat(6) { open("DOPO-GLI-AVANZI-$it") }
+    closeAll()
+    val registered = registeredContentProfiles()
+    Log.i("FluidWebLifecycle", "avanziContenitore profiliAllInizio=$leftovers allaPrimaPittura=$atFirstPaint " +
+      "avanziRimasti=${registered.count { it in leftoverNames }} profiliDiQuestoProcesso=${profiles.size} nelRegistro=${registered.size} " +
+      "documentiDurante=$during viste=$views riusi=$reuses fermoMassimoFinoAllaPitturaMs=$worstUntilPaint fermoMassimoMs=${worst.get()} " +
+      "giriOltre32Ms=${slow.get()} primaPitturaDopoMs=$readyAfter eliminatiInMs=$prunedAfter fallimenti=$failures")
+    assertTrue("Fallimenti mentre gli avanzi venivano eliminati: $failures", failures.isEmpty())
+    assertEquals("Avanzi del processo precedente ancora nel registro", emptySet<String>(), registered.filter { it in leftoverNames }.toSet())
+    assertEquals("L'eliminazione degli avanzi ha toccato un profilo di questo processo, o ne e' comparso uno estraneo",
+      profiles.toSet(), registered)
+    assertTrue("Con ${views} viste il riuso deve essere avvenuto: ${profiles.size} profili", reuses > 0)
+    assertTrue("Troppi profili per $views viste: ${profiles.size}", profiles.size <= MaxProfiles)
   }
 
   /** Misura, senza soglie: quanto costerebbe eliminare gli avanzi tutti insieme, com'era fino alla 3.1.0.

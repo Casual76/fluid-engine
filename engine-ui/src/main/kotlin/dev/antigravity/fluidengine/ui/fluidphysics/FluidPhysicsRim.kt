@@ -66,7 +66,9 @@ internal fun physicsRimBandPx(widthPx: Float, minDimensionPx: Float): Float {
  * renderer (`HighlightNode`): tratto doppio ritagliato sulla sagoma, sfocato di mezza larghezza,
  * colorato dallo shader del riflesso di Kyant con l'angolo della luce, e il layer ridotto sopra il
  * tetto d'area come fa il renderer. Poi lo ridisegna e basta: l'alfa e il modo di comporre sono
- * proprieta' del layer, e cambiarli non registra niente.
+ * proprieta' del layer, e cambiarli non registra niente. Registrato una volta pero' non vuol dire
+ * eseguito una volta: Compose riesegue la lambda di `record` quando la piattaforma butta la display
+ * list, quindi la lambda prepara da se' tutto quello che disegna (vedi [drawRestRim]).
  *
  * In viaggio la sagoma cambia a ogni fotogramma, e una maschera sfocata rifatta a ogni fotogramma e'
  * il costo che Fluid-physics esiste per non pagare. Per una lastra sola il bordo e' allora la stessa
@@ -160,18 +162,25 @@ internal class PhysicsRimRenderer(private val layer: GraphicsLayer) {
       )
       // I raggi di uno Slab sono assoluti (topLeft e' a sinistra): la direzione e' sempre Ltr.
       val outline = shape.createOutline(scaledSize, LayoutDirection.Ltr, scaledDensity)
-      paint.color = style.color
-      paint.strokeWidth = widthPx
-      paint.blur(blurPx)
-      paint.setRuntimeShader(
-        if (isRuntimeShaderSupported()) {
-          with(style) { createShader(shape, scaledSize, scaledDensity, shaderCache) }
-        } else {
-          null
-        },
-      )
       val safeSize = IntSize(ceil(scaledSize.width).toInt() + 2, ceil(scaledSize.height).toInt() + 2)
       layer.record(safeSize) {
+        // Il pennello si prepara QUI DENTRO, non prima di `record`. La lambda resta nel layer e
+        // Compose la riesegue da se' quando la piattaforma ne butta la display list — e il layer
+        // del bordo a riposo la perde a ogni viaggio, perche' in viaggio non si disegna. Lo shader
+        // del riflesso e' un'istanza di processo (`SharedRuntimeShaders`) i cui uniform li scrive
+        // chiunque disegni un riflesso: tenuto pronto in `paint` da prima, la riesecuzione avrebbe
+        // registrato il bordo con la taglia e i raggi dell'ultima superficie passata di li'.
+        // Impostati e registrati nello stesso istante, sono sempre quelli di questa lastra.
+        paint.color = style.color
+        paint.strokeWidth = widthPx
+        paint.blur(blurPx)
+        paint.setRuntimeShader(
+          if (isRuntimeShaderSupported()) {
+            with(style) { createShader(shape, scaledSize, scaledDensity, shaderCache) }
+          } else {
+            null
+          },
+        )
         translate(1f, 1f) {
           val canvas = drawContext.canvas
           canvas.save()

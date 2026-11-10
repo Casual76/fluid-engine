@@ -184,6 +184,16 @@ internal class PhysicsShadowCache {
  * servono) si stirano dal loro riquadro a quello della sagoma corrente — una texture scalata, non una
  * maschera rifatta — e si sfumano col progresso. A t = 0 e' l'ombra della partenza, a t = 1 quella
  * dell'arrivo, e a riposo quella della lastra e basta.
+ *
+ * **Registrata una volta non vuol dire eseguita una volta.** La lambda passata a `record` resta nel
+ * layer, e Compose la riesegue da se' quando la piattaforma ha buttato la display list
+ * (`GraphicsLayer.recreateDisplayListIfNeeded`): HWUI la butta a ogni layer rimasto un fotogramma
+ * senza disegno, e a riposo dei due posti se ne disegna uno solo. Per questo la lambda legge solo
+ * cio' che appartiene al suo posto ([Slot.path], [Slot.paint]) e valori catturati: con un `Path`
+ * della classe, condiviso dai posti, la riesecuzione disegnava l'ultima forma registrata da
+ * chiunque, e tornando sul Cerchio dopo il Quadrato il posto del Cerchio mostrava l'ombra del
+ * Quadrato posata sul proprio angolo — il "contorno fantasma" di
+ * `docs/liquid-glass/ricerca/contorno-fantasma.md`, provato da `PhysicsShadowSlotsTest`.
  */
 internal class PhysicsShadowLayers(first: GraphicsLayer, second: GraphicsLayer) {
 
@@ -192,13 +202,23 @@ internal class PhysicsShadowLayers(first: GraphicsLayer, second: GraphicsLayer) 
     var radiusPx: Float = Float.NaN
     var color: Color? = null
     var usedAt: Long = -1L
+
+    /**
+     * La sagoma e il pennello di QUESTO posto, letti dalla sua lambda di `record`. Li riscrive solo
+     * una registrazione nuova dello stesso posto, subito seguita da `record`: rieseguita in qualunque
+     * momento, la lambda ridisegna la forma del posto. Due oggetti per posto, una volta sola.
+     */
+    val path = Path()
+    val paint = Paint()
   }
 
   private val slots = arrayOf(Slot(first), Slot(second))
   private var stamp = 0L
-  private val paint = Paint()
+
+  /** Lo scavo: non cambia dopo la costruzione, quindi i posti lo possono condividere. */
   private val clearPaint = Paint().apply { blendMode = BlendMode.Clear }
-  private val path = Path()
+
+  /** Solo per calcolare la sagoma prima di registrarla: nessuna lambda lo legge. */
   private val scratchPlan = PhysicsRenderPlan()
 
   init {
@@ -279,12 +299,17 @@ internal class PhysicsShadowLayers(first: GraphicsLayer, second: GraphicsLayer) 
     // all'origine del proprio riquadro.
     scratchPlan.clipToBounds = true
     buildRestPlan(scratchPlan, form)
-    path.rewind()
-    path.addPath(scratchPlan.silhouette, Offset(-frame.left, -frame.top))
+    // Sagoma e pennello del posto, non della classe: la lambda qui sotto puo' essere rieseguita molto
+    // dopo, quando l'altro posto ha gia' registrato la sua forma (vedi il KDoc della classe).
+    val silhouette = slot.path
+    silhouette.rewind()
+    silhouette.addPath(scratchPlan.silhouette, Offset(-frame.left, -frame.top))
     // `Shadow`: spostamento di un sesto del raggio in giu', e il layer largo quattro raggi in piu'.
     val offsetY = radiusPx / 6f
-    paint.color = color
-    paint.blur(radiusPx)
+    val shadowPaint = slot.paint
+    shadowPaint.color = color
+    shadowPaint.blur(radiusPx)
+    val clear = clearPaint
     val size = IntSize(
       ceil(frame.width + radiusPx * 4f).toInt(),
       ceil(frame.height + radiusPx * 4f + offsetY).toInt(),
@@ -292,9 +317,9 @@ internal class PhysicsShadowLayers(first: GraphicsLayer, second: GraphicsLayer) 
     slot.layer.record(size) {
       translate(radiusPx * 2f, radiusPx * 2f + offsetY) {
         val canvas = drawContext.canvas
-        canvas.drawPath(path, paint)
+        canvas.drawPath(silhouette, shadowPaint)
         canvas.translate(0f, -offsetY)
-        canvas.drawPath(path, clearPaint)
+        canvas.drawPath(silhouette, clear)
         canvas.translate(0f, offsetY)
       }
     }

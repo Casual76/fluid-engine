@@ -115,8 +115,11 @@ def esempio_lastre() -> dict:
                 {"x": r(left), "y": 6, "w": 44, "h": 44, "radius": "capsule", "blend": 18},
             ],
             "content": [
-                {"name": "vecchie", "x": r(208.0 - width), "w": r(max(width - 44.0, 1.0)),
-                 "blurDp": r(6.0 * fade), "alpha": r(1.0 - fade)},
+                # Le icone vecchie restano dov'erano e la capsula che si chiude se le mangia: e' un
+                # ritaglio di questo solo strato (`clip`), sul pezzo della capsula. Gli altri due
+                # strati non sono ritagliati.
+                {"name": "vecchie", "blurDp": r(6.0 * fade), "alpha": r(1.0 - fade),
+                 "clip": {"x": r(208.0 - width), "y": 6, "w": r(width), "h": 44, "radius": "capsule"}},
                 {"name": "piu"},
                 {"name": "lista", "x": r(left)},
             ],
@@ -146,7 +149,7 @@ def esempio_lastre() -> dict:
             "uniforms": dict(SLAB_TODAY, fieldCenter=["112dp", "28dp"]),
             "shadow": [{"radiusDp": 10, "offsetDp": [0, 3], "alpha": 0.14}],
             "content": [
-                {"name": "vecchie", "y": 6, "h": 44, "icons": ["search", "share"]},
+                {"name": "vecchie", "x": 88, "y": 6, "w": 76, "h": 44, "icons": ["search", "share"]},
                 {"name": "piu", "x": 164, "y": 6, "w": 44, "h": 44, "icon": "plus"},
                 {"name": "lista", "y": 6, "w": 44, "h": 44, "icon": "list"},
             ],
@@ -317,9 +320,15 @@ def esempio_menu() -> dict:
         "_": "ESEMPIO scritto a mano (genera.py): un tasto diventa menu, all'inquadratura del telefono di Apple (R4 B1 a). Sagoma, molle e materiale sono messi a occhio: serve a provare `pair` e `curve`.",
         "palette": "engine", "corner": "engine",
         "background": {"kind": "color", "color": "#E7E7E9"}, "page": page,
-        "apple": {"video": "wwdc2025-219_hd", "t0Frame": 9148, "crop": [560, 280, 520, 480],
-                  "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_telefono_apertura_f9143-9166.jpg",
-                  "note": "R4 B1 (a), classe A. 1,9 px del video HD per punto: il ritaglio e' 274 x 253 pt."},
+        # Due riprese di Apple dello stesso gesto: `pair` le fa tutte e due (la prima senza suffisso).
+        "apple": [
+            {"name": "telefono", "video": "wwdc2025-219_hd", "t0Frame": 9148, "crop": [560, 280, 520, 480],
+             "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_telefono_apertura_f9143-9166.jpg",
+             "note": "R4 B1 (a), classe A. 1,9 px del video HD per punto: il ritaglio e' 274 x 253 pt."},
+            {"name": "foto", "video": "wwdc2025-219_hd", "t0Frame": 13046, "crop": [540, 120, 840, 840],
+             "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_foto_f13036-13075.jpg",
+             "note": "R4 B1 (b), classe B: il menu di sette righe sulla foto, da una capsula di tre tasti."},
+        ],
         "events": [{"t": 333.333, "kind": "mark", "label": "riposo secondo R4"}],
         "probes": [
             {"name": "larghezza", "kind": "value", "path": "menu.w",
@@ -334,6 +343,9 @@ def esempio_menu() -> dict:
         ],
         "base": {"menu": {
             "kind": "material",
+            # Il pannello ha il ritaglio hardware (`clip`, di serie): il contenuto ne e' ritagliato.
+            # E' gia' cio' che il banco fa da se'; qui e' scritto per farlo vedere.
+            "contentClip": "shape",
             "shadow": [{"radiusDp": 2, "offsetDp": [0, 1], "alpha": 0.10},
                        {"radiusDp": 16, "offsetDp": [0, 6], "alpha": 0.10}],
             "capture": {"saturation": 1.4, "blurDp": 22, "scale": 0.5},

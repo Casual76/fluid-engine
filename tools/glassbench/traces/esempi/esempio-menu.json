@@ -59,18 +59,34 @@
    }
   }
  ],
- "apple": {
-  "video": "wwdc2025-219_hd",
-  "t0Frame": 9148,
-  "crop": [
-   560,
-   280,
-   520,
-   480
-  ],
-  "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_telefono_apertura_f9143-9166.jpg",
-  "note": "R4 B1 (a), classe A. 1,9 px del video HD per punto: il ritaglio e' 274 x 253 pt."
- },
+ "apple": [
+  {
+   "name": "telefono",
+   "video": "wwdc2025-219_hd",
+   "t0Frame": 9148,
+   "crop": [
+    560,
+    280,
+    520,
+    480
+   ],
+   "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_telefono_apertura_f9143-9166.jpg",
+   "note": "R4 B1 (a), classe A. 1,9 px del video HD per punto: il ritaglio e' 274 x 253 pt."
+  },
+  {
+   "name": "foto",
+   "video": "wwdc2025-219_hd",
+   "t0Frame": 13046,
+   "crop": [
+    540,
+    120,
+    840,
+    840
+   ],
+   "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_foto_f13036-13075.jpg",
+   "note": "R4 B1 (b), classe B: il menu di sette righe sulla foto, da una capsula di tre tasti."
+  }
+ ],
  "events": [
   {
    "t": 333.333,
@@ -144,6 +160,7 @@
  "base": {
   "menu": {
    "kind": "material",
+   "contentClip": "shape",
    "shadow": [
     {
      "radiusDp": 2,

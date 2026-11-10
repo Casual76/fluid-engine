@@ -17,7 +17,8 @@ Chi ha fretta legge «In dieci righe», l'esempio completo e «Per chi scrive le
 3. Ogni fotogramma ha `t` (millisecondi dall'inizio del viaggio; negativo = preambolo) e
    `elements`, nell'ordine in cui si disegnano.
 4. Un elemento e' una voce del **vocabolario delle scene** (`kind`: `shader`, `material`, `glass`,
-   `shape`), con gli uniform gia' calcolati. Le lunghezze si scrivono in dp: `"12.5dp"`.
+   `shape`), con gli uniform gia' calcolati. Le lunghezze si scrivono in dp, `"12.5dp"`; un'area
+   `"16dp^2"`. Niente si arrotonda al pixel: tutto si posa a coordinate frazionarie.
 5. `base` (facoltativo) tiene cio' che non cambia: ogni elemento di un fotogramma parte dalla voce
    di `base` con il suo `name` e ci scrive sopra solo cio' che si muove.
 6. I pezzi del campo sono un dato, `pieces` (riquadro, raggi, fusione) o `ring` (un anello di
@@ -25,8 +26,10 @@ Chi ha fretta legge «In dieci righe», l'esempio completo e «Per chi scrive le
 7. L'ombra (`shadow`, `shadowAmount`) segue i pezzi, o il riquadro dell'elemento se non ce ne sono.
 8. Il contenuto e' `content`: una lista di strati, ognuno con icone o testo e con la sua
    sfocatura, scala, opacita' e, se serve, un effetto a shader (la lente del contenuto).
+   `contentClip` li ritaglia tutti sulla sagoma del vetro, `clip` ne ritaglia uno solo.
 9. `events` segna le interruzioni (`interrupt`: il viaggio cambia destinazione a quell'istante);
-   `probes` dice cosa misurare nel tempo; `apple` dice con quale video confrontare e da che fotogramma.
+   `probes` dice cosa misurare nel tempo; `apple` dice con quale video confrontare e da che
+   fotogramma (anche piu' riprese, ognuna con un nome).
 10. Ogni comando valida prima di rendere: uno uniform dimenticato, un numero non finito o un nome
     sbagliato fermano tutto, con il punto esatto.
 
@@ -42,13 +45,16 @@ $t  = "artifacts\liquid-glass\moto\F5A\menu-apertura\trace.json"
 & $py $gm video    $t --slow 4  # <nome>.mp4 a velocita' vera e <nome>-lento.mp4
 & $py $gm collage  $t           # <nome>-collage.jpg, un fotogramma ogni 33,4 ms (la cadenza di Apple)
 & $py $gm collage  $t --step-ms 0 --cols 10        # tutti i fotogrammi
-& $py $gm pair     $t           # <nome>-vs-apple.jpg e <nome>-vs-apple-lento.mp4
+& $py $gm pair     $t           # <nome>-vs-apple.jpg e <nome>-vs-apple-lento.mp4, per ogni blocco `apple`
+& $py $gm pair     $t --apple foto                  # uno solo, per nome: <nome>-vs-apple-foto.jpg
+& $py $gm pair     $t --t0-frame 13046 --apple-crop 540,120,840,840 --apple-name foto   # uno al volo
 & $py $gm first    $t           # <nome>-primi5.png, ingranditi
 & $py $gm first    $t --at 150  # cinque fotogrammi da 150 ms (uno prima): per un'interruzione
 & $py $gm last     $t           # <nome>-ultimi5.png
 & $py $gm curve    $t           # curve.csv, curve.png, curve.md
 & $py $gm all      $t           # tutto
 & $py $gm scene    $t --frame -1 -o scena.json     # un fotogramma come scena di glassbench.py
+& $py $gm scene    $t --no-subpixel                # ... con i riquadri arrotondati al pixel (una lastra ferma)
 & $py $gm selftest              # le prove del banco su se stesso
 ```
 
@@ -56,7 +62,8 @@ Opzioni comuni: `-o cartella` (di serie `artifacts/liquid-glass/moto/<phase>/<na
 `prove` al posto della fase se la traccia non la dice; e' ignorata da git: fotogrammi e video non
 si tracciano), `--jobs N` (processi di rendering, di serie 2, al
 piu' 4: il PC e' condiviso), `--force`, `--density D` (una bozza a densita' piu' bassa: vale solo
-se le lunghezze degli uniform sono in dp), `--crop x,y,w,h` in dp dove ha senso.
+se le grandezze degli uniform sono scritte in dp, `"12dp"` e `"16dp^2"`, e non come pixel gia'
+calcolati), `--crop x,y,w,h` in dp dove ha senso.
 
 `render` tiene un manifesto (`frames/manifest.json`): un fotogramma si rifa' solo se cambia la sua
 scena, uno shader che la traccia nomina, `render.py`, `GlassMaterial.kt` o le icone. Gli altri
@@ -127,8 +134,8 @@ Esempi piu' ricchi, da copiare: `traces/esempi/esempio-lastre.json` (due pezzi c
 | `schema` | obbligatorio | `1`. Un lettore rifiuta le altre versioni |
 | `name` | obbligatorio | minuscole, cifre, trattini: e' il nome dei file prodotti |
 | `phase` | facoltativo | la fase del piano (`"F5A"`): con `name` decide la cartella dei prodotti |
-| `fps` | obbligatorio | la cadenza nominale dei fotogrammi (60). Se i `t` non la rispettano il validatore avvisa, e il video tiene comunque ogni fotogramma fino al successivo |
-| `durationMs` | facoltativo | la durata dichiarata del viaggio; serve solo al controllo |
+| `fps` | obbligatorio | la cadenza a cui il viaggio e' stato **calcolato**: quella del dispositivo che si vuole riprodurre (60, o 120: vedi «La cadenza»). Se i `t` non la rispettano il validatore avvisa, e il video tiene comunque ogni fotogramma fino al successivo |
+| `durationMs` | facoltativo | la durata dichiarata del viaggio; serve solo al controllo. Zero e' una scena ferma: una traccia di un fotogramma |
 | `density` | obbligatorio | pixel per dp del rendering |
 | `theme` | obbligatorio | `"light"` o `"dark"` |
 | `size` | obbligatorio | `[larghezza, altezza]` della tela, in dp |
@@ -136,7 +143,7 @@ Esempi piu' ricchi, da copiare: `traces/esempi/esempio-lastre.json` (due pezzi c
 | `background`, `page`, `palette`, `paletteBase`, `corner` | uno dei due | gli stessi campi di una scena (`README.md`); se c'e' anche `scene`, questi vincono |
 | `base` | facoltativo | nome dell'elemento -> i campi che non cambiano (vedi sotto) |
 | `frames` | obbligatorio | i fotogrammi |
-| `events`, `probes`, `apple` | facoltativi | vedi le sezioni loro |
+| `events`, `probes`, `apple` | facoltativi | vedi le sezioni loro. `apple` e' un oggetto, o una lista di oggetti con un `name` |
 | `measure` | facoltativo | le misure di una scena (`README.md`): le porta con se' `scene`, per `glassbench.py measure` |
 | `_`, `_qualcosa` | facoltativi | commenti: un campo che comincia con `_` e' ignorato in testa, nei fotogrammi, negli elementi, negli strati di contenuto, negli eventi, nelle sonde e in `apple` (non dentro `uniforms`, `pieces`, `shadow`) |
 
@@ -162,6 +169,12 @@ vale ovunque la si sposti.
 - `page` (facoltativo): la pagina di quel solo fotogramma, al posto di quella della traccia. E'
   il modo di far scorrere il contenuto sotto il vetro (`scrollEdgeFrame`).
 
+**Niente si arrotonda al pixel.** Il banco del movimento rende ogni fotogramma con `"subpixel":
+true` (`README.md`, «Posizioni sotto il pixel»): riquadri di elementi e di strati, icone ed
+etichette si posano a coordinate frazionarie, con il loro antialias (circa un centesimo di pixel
+per sagome e icone, un quarto per il testo). Un'icona che segue una molla non scatta di un pixel
+da un fotogramma all'altro. Chi scrive la traccia mette le coordinate vere, con i decimali.
+
 **La fusione con `base`.** Ogni elemento ha un `name`. Se `base` ha una voce con quel nome,
 l'elemento parte da li' e il fotogramma ci scrive sopra:
 
@@ -186,8 +199,9 @@ Sono le voci di `elements` di una scena, e `README.md` le descrive campo per cam
 | `glass` | una lastra di oggi (`glassSurface`), con le ottiche lette dall'engine | `role` o `optics`, `tint`, `intensity`, `depth`, `pressed`, `quality`... |
 | `shape` | una sagoma piena o al tratto | vedi `README.md` |
 
-`x`, `y`, `w`, `h` sono in dp sulla tela. Per `shader` e `material` un campo che il banco non
-conosce e' un errore.
+`x`, `y`, `w`, `h` sono in dp sulla tela, anche frazionari. Tutti i tipi accettano `content` e
+`contentClip` (vedi «Il contenuto»). Per `shader` e `material` un campo che il banco non conosce
+e' un errore.
 
 **`source`**: `kotlin:NomeDellaCostante` per una sorgente dell'engine (una `const val
 ...ShaderString`, letta dai sorgenti: la sorgente e' una sola), `file:percorso.agsl` per un file.
@@ -198,7 +212,8 @@ fermo uno uniform dimenticato vale zero in silenzio, in una traccia e' un errore
 | forma | significato |
 |---|---|
 | `0.35` | un numero, cosi' com'e' (pesi, angoli, conteggi, e i pixel veri come `aa`) |
-| `"12.5dp"` | una lunghezza: il banco la porta in pixel con la densita' **e con la risoluzione ridotta della cattura** (`capture.scale`, `scale`). E' la forma giusta per ogni lunghezza |
+| `"12.5dp"` | una lunghezza: il banco la porta in pixel con la densita' **e con la risoluzione ridotta della cattura** (`capture.scale`, `scale`). E' la forma giusta per ogni lunghezza. Vale anche `"1.0E-4dp"` |
+| `"16dp^2"`, `"0.5dp^-1"` | una grandezza che scala con una **potenza** della densita': un'area (`normalSmooth` dello shader ad anello e' in px^2: 4 dp al quadrato sono `"16dp^2"`), l'inverso di una lunghezza. Vale `numero x densita'^n`, con la densita' del posto in cui lo shader gira (per il corpo quella della cattura ridotta) |
 | `"#RRGGBBAA"` | un colore non premoltiplicato, per gli uniform `layout(color)` (4 numeri) |
 | `"$offset"`, `"$size"`, `"$halfSize"`, `"$center"`, `"$captureSize"`, `"$density"`, `"$dark"` | i valori che il banco conosce da se'; per `material` anche `"$radii"` e `"$padding"`; per l'effetto sul contenuto `"$layerSize"` al posto di `"$captureSize"` |
 | `"$pieceCount"`, `"$pieceRect"`, `"$pieceRadii"`, `"$pieceBlend"`, `"$pieceSmooth"`, `"$vertCount"`, `"$verts"`, `"$bbox"` | il campo, da `pieces` e da `ring` (sotto) |
@@ -293,8 +308,45 @@ un `graphicsLayer` di Compose con il suo `RenderEffect`:
 | `scale` | un numero o `[sx, sy]`, attorno al centro del riquadro |
 | `alpha` | 0..1; a zero lo strato non si disegna |
 | `marginDp` | allarga lo strato oltre il riquadro (cio' che la lente sposta fuori non si taglia); lo shader riceve `"$offset"` = -margine |
+| `clip` | il ritaglio di **questo solo strato**: `"box"` (il suo riquadro) o `{"x", "y", "w", "h", "radius"}` in dp relativi all'elemento. Vedi sotto |
 
 L'ordine dentro uno strato e' quello di Compose: disegno, sfocatura, effetto, poi scala e opacita'.
+
+### Da cosa il contenuto e' ritagliato
+
+Due livelli, che si intersecano.
+
+**`contentClip`, sull'elemento**: tutti gli strati insieme, sulla sagoma del vetro.
+
+| valore | ritaglio |
+|---|---|
+| `"shape"` | il riquadro dell'elemento con il suo `radius`: il ritaglio hardware di una lastra che non cede |
+| `"alpha"` | l'alfa di cio' che l'elemento ha disegnato: il campo a pezzi **con i suoi ponti**, l'anello di una goccia. Vuole uno `shader`, o un `material` con il corpo |
+| `"pieces"` | l'unione dei `pieces` dell'elemento, **senza** i ponti. E' quello giusto quando lo shader disegna anche un'ombra fuori dalla sagoma (con `"alpha"` il contenuto trapelerebbe nell'ombra) |
+| una lista | `[{"x", "y", "w", "h", "radius"}, ...]` in dp relativi all'elemento: la loro unione |
+| `"none"` | nessuno |
+| `"auto"` | la scelta del banco fermo (`README.md`): `shape` dove c'e' il ritaglio hardware, `alpha` dove ritaglia lo shader |
+
+**Di serie**, quando la traccia non lo scrive: `shape` per una lastra `glass` e per un `material`
+con `clip` (il ritaglio hardware ritaglia anche i figli), **`none`** per uno `shader` e per un
+`material` senza `clip`. L'alfa dello shader non ritaglia il contenuto da sola: nell'engine di oggi
+il contenuto di una superficie di Fluid-physics non e' ritagliato dalla sagoma, e nel materiale nuovo
+dove la lastra viaggia il ritaglio hardware e' spento. Chi vuole `alpha` lo chiede (e l'engine deve
+farlo davvero: con una maschera nella lente del contenuto, per esempio).
+
+**`clip`, sullo strato**: uno strato solo, su un rettangolo arrotondato dato **sullo schermo**, cioe'
+in dp relativi all'elemento e non scalato con lo strato. E' il `travelClipIn` di un menu: le voci
+ritagliate dentro il corpo che cresce, mentre la faccia del tasto resta intera.
+
+```json
+{"name": "voci", "items": [ ], "alpha": 0.8, "scale": 0.96,
+ "clip": {"x": 24.2, "y": 43.1, "w": 208.4, "h": 178.5, "radius": 22}}
+```
+
+`"clip": "box"` ritaglia lo strato sul proprio riquadro. Il ritaglio ha un pixel di antialias, come
+quello hardware. Uno strato con `clip` non puo' avere anche `effect` (il banco da' a uno strato un
+effetto solo, e questo ritaglio ne e' uno, `traces/ritaglio-strato.agsl`): se l'effetto e' una
+lente, la maschera la fa lei.
 
 Negli uniform di un `effect`, `"$pieceRect"` e `"$verts"` sono **nel sistema dello strato** (il
 banco sottrae `x` e `y`): la lente del contenuto legge lo stesso campo della lastra, visto dal suo
@@ -375,11 +427,51 @@ tempo di Apple ha +-33 ms.
 | `collage` | il collage della ricerca che i critici aprono: `pair` lo cita, non lo usa |
 | `speed` | quanto la clip di Apple e' rallentata rispetto al vero (i render di classe C: circa 2). Il fotogramma `k` di Apple si mette accanto all'istante `k * 33,4 / speed` |
 
+**Piu' riprese dello stesso gesto.** `apple` puo' essere una lista: ogni voce ha in piu' un
+`name` (minuscole, cifre, trattini), unico.
+
+```json
+"apple": [
+  {"name": "telefono", "video": "wwdc2025-219_hd", "t0Frame": 9148, "crop": [560, 280, 520, 480]},
+  {"name": "foto", "video": "wwdc2025-219_hd", "t0Frame": 13046, "crop": [540, 120, 840, 840]}
+]
+```
+
+`pair` le confronta tutte: la prima scrive `<nome>-vs-apple.jpg`, le altre
+`<nome>-vs-apple-<name>.jpg`. `pair --apple foto` ne fa una sola. Per provare un confronto senza
+riscrivere la traccia: `pair --apple-video V --t0-frame N --apple-crop x,y,w,h --apple-speed S
+--apple-name foto` (cio' che non si da' viene dal blocco scelto, o dal primo). Le etichette `~f9152`
+dei collage contano i fotogrammi della prima ripresa.
+
 `pair` estrae i fotogrammi **dal video** a partire da `t0Frame` (i collage di R4 partono prima
 dello zero e non si allineano fotogramma a fotogramma), mette sotto ognuno il nostro fotogramma
 dello stesso istante con i millisecondi, e scrive anche il video affiancato rallentato. La tela
 della traccia conviene sceglierla alla stessa inquadratura del ritaglio (per il telefono di
 `wwdc2025-219_hd`: 1,9 pixel del video per punto).
+
+## La cadenza: 60 o 120 Hz
+
+`fps` dice a che cadenza il viaggio e' stato calcolato, e basta a dichiarare quella del dispositivo:
+non serve un altro campo. Conta perche' non tutto l'engine e' funzione del solo tempo: una molla
+valutata in forma chiusa da' gli stessi valori a ogni cadenza, la goccia di Fluid-physics invece
+avanza a fotogrammi: si accorge del cambio un fotogramma dopo e comincia a integrare da quello
+successivo, cioe' parte dopo due fotogrammi (33 ms a 60 Hz, 17 ms a 120). A 120 Hz parte quindi
+circa 17 ms prima. Una traccia a 120 Hz
+si scrive facendo girare il conducente a 120 (`t = i * 1000 / 120`) con `"fps": 120`; per confrontare
+le due cadenze sono **due tracce** (`oggi-menu-apertura` e `oggi-menu-apertura-120`).
+
+Cosa cambia nei prodotti:
+
+- `render`, `first`, `last`: tutti i fotogrammi, cioe' il doppio; i cinque fotogrammi di `first`
+  coprono 33 ms invece di 67;
+- `collage`: niente, il passo e' in millisecondi (33,4 di serie) e prende il fotogramma piu' vicino;
+- `pair` con Apple (29,97 fps): a ogni fotogramma di Apple il nostro piu' vicino, che a 60 Hz dista
+  al piu' 8 ms e a 120 al piu' 4. Ma i tempi di Apple hanno +-33 ms: uno scarto di 17 ms fra le due
+  cadenze **non si decide contro Apple**. Si decide contro la registrazione del dispositivo, che e'
+  a 120;
+- `video`: quello a velocita' vera resta a 60 fps (di una traccia a 120 mostra un fotogramma si' e
+  uno no; `--video-fps 120` li mostra tutti), quello rallentato li mostra tutti;
+- `curve`: istanti con la risoluzione della traccia (8 ms invece di 17).
 
 ## Cosa controlla il validatore
 
@@ -394,9 +486,11 @@ fotogrammi si dice una volta. Controlla:
 - che ogni sorgente esista e **compili** (con lo stesso compilatore di `glassbench.py check`);
 - che gli uniform siano quelli che la sorgente dichiara, tutti, della taglia giusta, nelle forme
   ammesse; che il corpo e l'effetto abbiano un ingresso e la luce nessuno;
-- `pieces`, `ring`, `shadow`, gli strati di `content` e i loro effetti;
+- `pieces`, `ring`, `shadow`, gli strati di `content` e i loro effetti, `contentClip` e `clip`
+  (non insieme a `effect` sullo stesso strato);
 - eventi dentro i tempi dei fotogrammi; sonde con un `path` che da' un numero almeno una volta;
-- il blocco `apple` (se il video non c'e' su questa macchina avvisa soltanto).
+- i blocchi `apple`, con nomi unici se sono piu' d'uno (se il video non c'e' su questa macchina
+  avvisa soltanto).
 
 Non controlla che i numeri siano **giusti**: una traccia valida con una molla sbagliata si rende
 benissimo.
@@ -414,18 +508,27 @@ benissimo.
   modo perche' corpo (mondo della cattura) e luce (pixel di schermo) ricevano lo stesso campo.
   `"1.0E-4dp"` e' accettato.
 - **Tutti gli uniform.** Ogni `uniform` della sorgente va scritto, anche quelli a zero.
-- **Il palco fermo, i pezzi mobili.** Il banco fermo arrotonda `x`, `y`, `w`, `h` di un elemento
-  al pixel intero, e cosi' il riquadro di uno strato di contenuto. Un elemento che si sposta di
-  frazioni di pixel andrebbe a scatti: il viaggio si scrive come nell'engine, con un elemento
-  fermo grande quanto il palco e i `pieces` che si muovono dentro (quelli restano frazionari).
-- **`t`.** `tMs` della funzione pura, per `i * 1000 / 60`. Il fotogramma a `t = 0` c'e' sempre.
+- **Coordinate vere, con i decimali.** Niente si arrotonda al pixel: un elemento o uno strato a
+  37,43 dp si posa li'. Una superficie di Fluid-physics resta un elemento fermo grande quanto il palco
+  con i `pieces` che si muovono dentro perche' **cosi' e' fatta nell'engine**, non piu' per un limite
+  del banco.
+- **Le grandezze che non sono lunghezze.** Un'area in px^2 (`normalSmooth`) e' `"16dp^2"`, non un
+  numero calcolato a una densita': cosi' la traccia vale a ogni `--density`.
+- **Il ritaglio del contenuto.** Si scrive cio' che l'engine fa: `clip` sullo strato per un ritaglio
+  di quel solo strato (`travelClipIn`), `contentClip` sull'elemento per la sagoma del vetro. Non
+  serve piu' uno shader di oggi usato come maschera in `effect`.
+- **`t`.** `tMs` della funzione pura, per `i * 1000 / fps`. Il fotogramma a `t = 0` c'e' sempre.
+  `fps` e' la cadenza a cui il conducente ha girato (vedi «La cadenza»).
 - **Nomi stabili.** Lo stesso elemento ha lo stesso `name` in tutti i fotogrammi: e' la chiave di
   `base` e delle sonde.
 - **`base`.** Facoltativo: lo scrittore piu' semplice ripete tutto a ogni fotogramma.
 - **Scene ferme.** Una scena ferma e' una traccia di un fotogramma (piano 4.2):
   `glassmotion.py scene traccia.json -o scena.json` ne fa una scena per `glassbench.py`
   (`render --crop`, `measure`, `compare`, immagini di riferimento). Il fotogramma reso dal banco
-  del movimento e la scena resa dal banco fermo sono uguali al pixel.
+  del movimento e la scena resa dal banco fermo sono uguali al pixel. Una scena ferma puo' dire
+  `"durationMs": 0`. La scena esce con `"subpixel": true`, come il viaggio; `--no-subpixel` la
+  vuole arrotondata al pixel, come una lastra che il layout ha posato.
+- **Piu' confronti.** Due riprese di Apple dello stesso gesto sono due voci di `apple`, con un `name`.
 - **Sorgenti.** `kotlin:Nome` vale per le `const val` che il banco sa leggere (`fp/`,
   `bd/internal/`, `gf/`), composte con `$Nome`: una sorgente costruita da una funzione il banco
   non la vede.
@@ -439,20 +542,39 @@ benissimo.
 - **Compose.** Layout, ricomposizione, quando la cattura si rifa': il banco cattura la pagina
   **a ogni fotogramma**, quindi una cattura tenuta ferma in viaggio (`heldWhileMoving`, rinfresco a
   110 ms) e il passaggio di consegne riposo-palco non si vedono.
+- **Il bagliore del dito di oggi.** Il suo shader e' una stringa scritta dentro
+  `ui/glass/interaction/GlassInteraction.kt` (`GlassTouchHighlight`), non una `const val
+  ...ShaderString`: il banco non la legge, e una traccia non la puo' nominare. Finche' non diventa
+  una costante il bagliore di oggi **non e' rendibile**; `oggi-tasto` ne porta i numeri in
+  `_bagliore`, come commento.
 - **Cio' che l'engine disegna fuori dagli shader.** Bordo e ombra a path di `fluidPhysicsSurface`,
-  filetto, bagliore al tocco di oggi: le tracce «di oggi» si rendono senza. L'ombra di una traccia
+  filetto: le tracce «di oggi» si rendono senza. L'ombra di una traccia
   e' quella del materiale nuovo, per pezzo: un ponte fra due pezzi e una sagoma ad anello non
   hanno ombra, a meno che non sia nello shader.
-- **Il ritaglio del contenuto.** Uno strato di contenuto non e' ritagliato dalla sagoma della
-  lastra: se serve una maschera, la fa l'effetto.
+- **Ritaglio ed effetto sullo stesso strato.** Uno strato ha un effetto solo, e `clip` ne e' uno.
+  Un ritaglio che non sia un rettangolo arrotondato (un path) si fa solo con `contentClip: "alpha"`,
+  cioe' per tutto l'elemento.
 - **Il dito.** Un gesto entra solo come effetto sugli uniform (`glowCenter`, `flex`); il dito non
   si disegna.
 - **Il ciclo dell'adattivita'.** La sonda che legge lo sfondo e decide chiaro o scuro non gira
   sul banco: la traccia porta il risultato (gli uniform gia' adattati), non la decisione.
-- **Posizioni sotto il pixel per elementi e strati.** Solo i pezzi del campo e gli uniform si
-  muovono sotto il pixel (vedi sopra).
 - **L'allineamento nello spazio con Apple.** `pair` allinea nel tempo su un `t0` e una velocita'
   costante; l'inquadratura e' un ritaglio fisso scelto a mano. Una ripresa che si muove, o un
   tempo che cambia a meta' clip, non si allineano.
 - E tutto cio' che il banco fermo non prova (`README.md`, «Cosa il banco non prova»): GPU,
   precisione di `half`, P3, ripiego sotto Android 13, carattere dell'app.
+
+
+## Cosa e' cambiato dopo la prima stesura (F0.4b)
+
+Lo schema resta `1`: tutto cio' che segue e' un'aggiunta, e le tracce gia' scritte restano valide e
+si rendono come prima, salvo che niente scatta piu' di un pixel.
+
+| | prima | adesso |
+|---|---|---|
+| posizioni | riquadri di elementi e strati arrotondati al pixel | frazionarie, sempre |
+| contenuto | mai ritagliato | `contentClip` sull'elemento, `clip` sullo strato |
+| grandezze in px^2 | un numero valido a una sola densita' | `"16dp^2"` |
+| scena ferma | `durationMs` doveva essere positivo | `0` ammesso |
+| confronti con Apple | un blocco `apple` | anche una lista con `name`; `pair --apple`, `--t0-frame`... |
+| cadenza | `fps` = 60 sottinteso | `fps` e' la cadenza del dispositivo riprodotto (60 o 120) |

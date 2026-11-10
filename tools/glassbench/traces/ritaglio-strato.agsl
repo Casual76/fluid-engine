@@ -1,0 +1,38 @@
+// ATTREZZO del banco del movimento: il ritaglio di UNO strato di contenuto (`clip`, TRACE.md).
+//
+// Il banco fermo ritaglia il contenuto di un elemento tutto insieme (`contentClip`); un viaggio
+// dell'engine ritaglia a volte uno strato solo (le voci di un menu dentro `travelClipIn`, mentre la
+// faccia del tasto resta intera). `glassmotion.py` mette questo shader come `effect` dello strato:
+// moltiplica lo strato per la copertura di un rettangolo arrotondato. Non e' uno shader dell'engine.
+//
+// Il ritaglio e' dato **sullo schermo**, non nello strato: l'effetto gira prima che lo strato venga
+// posato con la sua scala, quindi ogni punto si porta prima dove finira' (`pivot + (p - pivot) *
+// scale`) e li' si misura la distanza dal bordo. Un pixel di antialias, come il ritaglio hardware.
+//
+// Regole AGSL di Android 13 rispettate: nessun ciclo, nessuna derivata, l'ingresso solo con `eval`.
+
+uniform shader content;    // lo strato del contenuto, gia' sfocato
+
+uniform float2 offset;     // -margine dello strato: porta `coord` nel sistema del suo riquadro
+uniform float2 pivot;      // il centro del riquadro: lo strato viene posato scalato attorno a qui
+uniform float2 scale;      // la scala con cui verra' posato
+uniform float4 clipRect;   // il ritaglio: centro e mezza taglia (px, dall'origine del riquadro)
+uniform float4 clipRadii;  // alto-sx, alto-dx, basso-dx, basso-sx (px)
+
+half4 main(float2 coord) {
+    float2 halfSize = clipRect.zw;
+    if (halfSize.x <= 0.0 || halfSize.y <= 0.0) return half4(0.0);
+    float2 p = coord + offset;
+    float2 onScreen = pivot + (p - pivot) * scale;
+    float2 rel = onScreen - clipRect.xy;
+    float radius;
+    if (rel.x >= 0.0) {
+        radius = rel.y <= 0.0 ? clipRadii.y : clipRadii.z;
+    } else {
+        radius = rel.y <= 0.0 ? clipRadii.x : clipRadii.w;
+    }
+    radius = min(radius, min(halfSize.x, halfSize.y));
+    float2 q = abs(rel) - (halfSize - float2(radius));
+    float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+    return content.eval(coord) * half(clamp(0.5 - d, 0.0, 1.0));
+}

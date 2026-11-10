@@ -19,9 +19,12 @@ fotogrammi ingranditi, e le curve di una grandezza nel tempo.
     python glassmotion.py selftest                  le prove del banco su se stesso
 
 Lo schema delle tracce sta in `TRACE.md`. Il rendering passa da `render.render_scene_full`, senza
-toccare `render.py`: ogni fotogramma diventa una scena del banco fermo. Tre cose le aggiunge questo
-file, perche' una scena non le sa dire: piu' strati di contenuto per elemento (`content`), i pezzi
-del campo come dato (`pieces`, `ring`) da cui nascono gli uniform, e l'ombra che segue i pezzi.
+toccare `render.py`: ogni fotogramma diventa una scena del banco fermo, sempre con `"subpixel":
+true` (in un viaggio niente sta su pixel interi). Gli strati di contenuto (`content`) e il loro
+ritaglio (`contentClip`) sono del banco fermo; questo file aggiunge cio' che una scena non sa dire:
+i pezzi del campo come dato (`pieces`, `ring`) da cui nascono gli uniform, l'ombra che segue i
+pezzi, il ritaglio di un singolo strato (`clip`) e le grandezze che scalano con una potenza della
+densita' (`"16dp^2"`).
 """
 
 from __future__ import annotations
@@ -58,9 +61,9 @@ APPLE_VIDEO_DIR = REPO_ROOT / "artifacts/liquid-glass/riferimenti/video"
 # La cadenza dei video di Apple (29,97 fps): un fotogramma ogni 33,37 ms.
 APPLE_FRAME_MS = 1001.0 / 30.0
 
-# Lo shader che non disegna niente: porta uno strato di contenuto come elemento a se' (vedi
-# `content_carrier`). Sta qui e non in `shaders/` perche' non e' una sonda: e' un attrezzo.
-EMPTY_AGSL = "half4 main(float2 coord) { return half4(0.0); }\n"
+# Il ritaglio di un singolo strato di contenuto: uno shader del banco, messo come `effect` dello
+# strato (vedi `content_layer`). I percorsi in una traccia partono dalla radice del repo.
+LAYER_CLIP_REF = "file:tools/glassbench/traces/ritaglio-strato.agsl"
 
 TOP_KEYS = {
     "schema", "name", "phase", "fps", "durationMs", "density", "theme", "size", "scene",
@@ -73,10 +76,13 @@ KINDS = ("shader", "material", "glass", "shape")
 CONTENT_DRAW_KEYS = ("icon", "icons", "label", "rows", "items", "iconSizeDp", "labelSizeDp",
                      "labelWeight", "rowHeightDp", "rowsTopDp")
 CONTENT_KEYS = set(CONTENT_DRAW_KEYS) | {"name", "x", "y", "w", "h", "color", "blurDp", "alpha",
-                                         "scale", "marginDp", "effect"}
+                                         "scale", "marginDp", "effect", "clip"}
 SCENE_CONTENT_KEYS = ("icon", "icons", "label", "rows", "items", "contentLayer", "contentColor")
 COMMON_KEYS = {"kind", "name", "x", "y", "w", "h", "radius", "corner", "smoothing", "theme",
-               "palette", "pieces", "ring", "shadow", "shadowAmount", "content", "marginDp", "clip"}
+               "palette", "pieces", "ring", "shadow", "shadowAmount", "content", "contentClip",
+               "marginDp", "clip"}
+CONTENT_CLIPS = ("auto", "shape", "alpha", "none", "pieces")
+APPLE_KEYS = ("name", "video", "t0Frame", "crop", "collage", "speed", "note")
 ELEMENT_KEYS = {
     "shader": COMMON_KEYS | {"source", "inputs", "uniforms", "blend", "alpha", "scale"},
     "material": COMMON_KEYS | {"capture", "body", "light", "children"},
@@ -97,9 +103,11 @@ FIELD_BUILTINS = ("$pieceCount", "$pieceRect", "$pieceRadii", "$pieceBlend", "$p
 EVENT_KINDS = ("interrupt", "mark")
 PROBE_KINDS = ("value", "edge", "width", "luma")
 
-# Una lunghezza in dp. Accetta anche la notazione di un Float di Kotlin ("1.0E-4dp"): il banco
-# fermo no, quindi `substituted` la riscrive in cifre prima di passargliela.
+# Una lunghezza in dp, anche come la scrive un Float di Kotlin ("1.0E-4dp"): la legge il banco fermo.
 _DP = re.compile(r"^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)dp$")
+# Una grandezza che scala con una potenza della densita': "16dp^2" e' un'area (px = dp x densita'^2),
+# "0.5dp^-1" l'inverso di una lunghezza. Il banco fermo non la conosce: la risolve `substituted`.
+_DP_POWER = re.compile(r"^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)dp\^(-?\d+(?:\.\d+)?)$")
 _NAME = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _COMPONENTS = {"float": 1, "half": 1, "float2": 2, "half2": 2, "float3": 3, "half3": 3,
                "float4": 4, "half4": 4}
@@ -271,85 +279,98 @@ def field_values(pieces, ring, dx: float = 0.0, dy: float = 0.0) -> dict:
     return table
 
 
-def substituted(value, table: dict):
+def substituted(value, table: dict, density: float | None = None):
     """Mette al posto di `"$pieceRect"` e degli altri valori del campo i numeri della traccia, e
-    porta ogni lunghezza in dp alla forma che il banco fermo legge."""
+    risolve le grandezze `"Xdp^n"` alla [density] del posto in cui lo shader gira (per il corpo e'
+    quella della cattura a risoluzione ridotta, per luce ed effetti quella dello schermo)."""
     if isinstance(value, str):
         if value in table:
             return copy.deepcopy(table[value])
-        match = _DP.match(value)
-        return dp(float(match.group(1))) if match else value
+        match = _DP_POWER.match(value)
+        if match and density is not None:
+            return float(match.group(1)) * float(density) ** float(match.group(2))
+        return value
     if isinstance(value, list):
-        return [substituted(v, table) for v in value]
+        return [substituted(v, table, density) for v in value]
     if isinstance(value, dict):
-        return {k: substituted(v, table) for k, v in value.items()}
+        return {k: substituted(v, table, density) for k, v in value.items()}
     return value
 
 
-def content_carrier(el: dict, layer: dict, table_for, empty_ref: str) -> dict | None:
-    """Uno strato di contenuto come elemento della scena.
+def clip_box(el: dict, layer: dict) -> dict:
+    """Il ritaglio di uno strato come riquadro in dp relativo all'elemento: `"box"` e' il riquadro
+    dello strato com'e' dichiarato (senza la scala), altrimenti `{x, y, w, h, radius}`."""
+    clip = layer["clip"]
+    if clip == "box":
+        return {"x": layer.get("x", 0.0), "y": layer.get("y", 0.0),
+                "w": layer.get("w", el["w"]), "h": layer.get("h", el["h"]), "radius": 0.0}
+    return {"x": clip.get("x", 0.0), "y": clip.get("y", 0.0), "w": clip["w"], "h": clip["h"],
+            "radius": clip.get("radius", 0.0)}
 
-    Il banco fermo da' a un elemento un solo contenuto e un solo `contentLayer`; un viaggio ne ha
-    piu' d'uno che si incrociano (le icone vecchie che si sfocano, le nuove che arrivano). Ogni
-    strato diventa quindi un elemento `shader` che non disegna niente (`EMPTY_AGSL`) e porta il
-    contenuto con il suo `contentLayer`: sfocatura, effetto a shader, scala, opacita', in
-    quest'ordine, come un `graphicsLayer` con un `RenderEffect`."""
-    alpha = float(layer.get("alpha", 1.0))
-    if alpha <= 0.0:
-        return None
+
+def content_layer(el: dict, layer: dict, pieces, ring, density: float) -> dict:
+    """Uno strato di `content` com'e' nella traccia -> com'e' nella scena del banco fermo.
+
+    I nomi dei campi sono gli stessi; qui si risolve cio' che il banco fermo non sa:
+    * negli uniform di un `effect`, i valori del campo (`"$pieceRect"`, `"$verts"`...) **nel sistema
+      dello strato** (la lente del contenuto legge lo stesso campo della lastra, visto dal suo layer);
+    * `clip`, il ritaglio di questo solo strato: diventa l'`effect` `ritaglio-strato.agsl`, che
+      conosce la scala con cui lo strato verra' posato e ritaglia sullo schermo. Il ritaglio
+      dell'elemento (`contentClip`) resta, e i due si intersecano."""
+    layer = {k: v for k, v in layer.items() if not k.startswith("_")}
     ox, oy = float(layer.get("x", 0.0)), float(layer.get("y", 0.0))
-    carrier = {
-        "kind": "shader", "source": empty_ref, "inputs": {},
-        "name": f"{el['name']}/{layer.get('name', 'contenuto')}",
-        "x": el["x"] + ox, "y": el["y"] + oy,
-        "w": layer.get("w", el["w"]), "h": layer.get("h", el["h"]),
-    }
-    for key in CONTENT_DRAW_KEYS:
-        if key in layer:
-            carrier[key] = layer[key]
-    if "color" in layer:
-        carrier["contentColor"] = layer["color"]
-    for key in ("theme", "palette"):
-        if key in el:
-            carrier[key] = el[key]
-    spec: dict = {}
-    if float(layer.get("blurDp", 0.0)) > 0.0:
-        spec["blurDp"] = layer["blurDp"]
-    if alpha < 1.0:
-        spec["alpha"] = alpha
-    if layer.get("scale", 1.0) not in (1, 1.0, [1, 1], [1.0, 1.0]):
-        spec["scale"] = layer["scale"]
-    if layer.get("marginDp"):
-        spec["marginDp"] = layer["marginDp"]
     effect = layer.get("effect")
     if effect:
-        spec["effect"] = {"source": effect["source"],
-                          "uniforms": substituted(effect.get("uniforms") or {}, table_for(ox, oy))}
-        if "input" in effect:
-            spec["effect"]["input"] = effect["input"]
-    if spec:
-        carrier["contentLayer"] = spec
-    return carrier
+        layer["effect"] = dict(effect, uniforms=substituted(effect.get("uniforms") or {},
+                                                            field_values(pieces, ring, ox, oy), density))
+    if "clip" in layer:
+        box = clip_box(el, layer)
+        del layer["clip"]
+        scale = layer.get("scale", 1.0)
+        sx, sy = (scale if isinstance(scale, list) else (scale, scale))
+        layer["effect"] = {"source": LAYER_CLIP_REF, "uniforms": {
+            "offset": "$offset", "pivot": "$center", "scale": [float(sx), float(sy)],
+            "clipRect": [dp(box["x"] + box["w"] / 2.0 - ox), dp(box["y"] + box["h"] / 2.0 - oy),
+                         dp(box["w"] / 2.0), dp(box["h"] / 2.0)],
+            "clipRadii": [dp(r) for r in piece_radii(box)],
+        }}
+    return layer
 
 
-def expanded(el: dict, empty_ref: str) -> list[dict]:
+def expanded(el: dict, density: float) -> list[dict]:
     """Un elemento di una traccia -> gli elementi di scena che lo rendono, nell'ordine di disegno:
-    le ombre, l'elemento con gli uniform del campo risolti, gli strati di contenuto."""
+    le ombre per pezzo, poi l'elemento con il campo risolto negli uniform e con i suoi strati di
+    contenuto (che il banco fermo disegna e ritaglia da se').
+
+    [density] e' quella del rendering: serve solo alle grandezze `"Xdp^n"`."""
     el = dict(el)
     pieces, ring = el.pop("pieces", None), el.pop("ring", None)
-    content = el.pop("content", None) or []
     kind = el.get("kind", "glass")
-
-    def table_for(dx: float = 0.0, dy: float = 0.0) -> dict:
-        return field_values(pieces, ring, dx, dy)
-
-    table = table_for()
+    table = field_values(pieces, ring)
     if kind == "shader":
-        el["uniforms"] = substituted(el.get("uniforms") or {}, table)
+        el["uniforms"] = substituted(el.get("uniforms") or {}, table, density * float(el.get("scale", 1.0)))
     elif kind == "material":
-        for part in ("body", "light"):
+        reduced = density * float((el.get("capture") or {}).get("scale", 1.0))
+        for part, where in (("body", reduced), ("light", density)):
             if el.get(part):
-                el[part] = dict(el[part], uniforms=substituted(el[part].get("uniforms") or {}, table))
+                el[part] = dict(el[part], uniforms=substituted(el[part].get("uniforms") or {}, table, where))
+
+    if el.get("content"):
+        el["content"] = [content_layer(el, layer, pieces, ring, density) for layer in el["content"]]
+        # Da cosa il contenuto e' ritagliato, quando la traccia non lo dice: dal ritaglio hardware
+        # dove c'e' (una lastra `glass`, un `material` con `clip`: lo fa `auto`), da niente altrove.
+        # L'alfa dello shader non ritaglia il contenuto da sola, ne' nell'engine di oggi ne' in quello
+        # nuovo (dove la lastra viaggia il ritaglio hardware e' spento): chi la vuole la chiede.
+        clip = el.get("contentClip")
+        if clip is None:
+            if kind == "shader" or (kind == "material" and not el.get("clip", True)):
+                el["contentClip"] = "none"
+        elif clip == "pieces":
+            el["contentClip"] = [{"x": p["x"], "y": p["y"], "w": p["w"], "h": p["h"],
+                                  "radius": p.get("radius", "capsule")} for p in pieces or []]
+    else:
+        el.pop("content", None)
+        el.pop("contentClip", None)
 
     out: list[dict] = []
     shadow = el.get("shadow")
@@ -371,10 +392,6 @@ def expanded(el: dict, empty_ref: str) -> list[dict]:
                     carrier[key] = el[key]
             out.append(carrier)
     out.append(el)
-    for layer in content:
-        carrier = content_carrier(el, layer, table_for, empty_ref)
-        if carrier is not None:
-            out.append(carrier)
     return out
 
 
@@ -424,7 +441,7 @@ def flat_size(value, builtins: dict) -> int:
             return builtins[value]
         if value in FIELD_BUILTINS:
             raise ValueError(f"`{value}` senza `pieces` (o `ring`) sull'elemento")
-        if _DP.match(value):
+        if _DP.match(value) or _DP_POWER.match(value):
             return 1
         if value.startswith("#") and len(value) in (7, 9):
             try:
@@ -434,7 +451,7 @@ def flat_size(value, builtins: dict) -> int:
             return 4
         if value.startswith("$"):
             raise ValueError(f"`{value}` non esiste qui; ci sono: {', '.join(sorted(builtins))}")
-        raise ValueError(f"valore non capito: {value!r} (numero, \"12dp\", \"#RRGGBBAA\" o un valore `$...`)")
+        raise ValueError(f"valore non capito: {value!r} (numero, \"12dp\", \"16dp^2\", \"#RRGGBBAA\" o un valore `$...`)")
     if isinstance(value, list):
         return sum(flat_size(v, builtins) for v in value)
     raise ValueError(f"valore non capito: {value!r}")
@@ -505,7 +522,28 @@ def check_radius(rep: Report, where: str, frame: int, radius) -> None:
     rep.err(where, f"`radius` deve essere \"capsule\", un numero o quattro numeri, non {radius!r}", frame)
 
 
-def check_element(rep: Report, sources: Sources, frame: int, el: dict) -> None:
+def check_clip_box(rep: Report, where: str, frame: int, box) -> bool:
+    """Un riquadro di ritaglio: `{x, y, w, h, radius}` in dp relativi all'elemento."""
+    if not isinstance(box, dict):
+        rep.err(where, "un ritaglio e' un oggetto {x, y, w, h, radius} in dp relativi all'elemento", frame)
+        return False
+    for key in box:
+        if key not in ("x", "y", "w", "h", "radius"):
+            rep.err(where, f"campo sconosciuto `{key}`", frame)
+            return False
+    for key in ("x", "y"):
+        if key in box and not is_number(box[key]):
+            rep.err(where, f"`{key}` deve essere un numero finito (dp)", frame)
+            return False
+    for key in ("w", "h"):
+        if not is_number(box.get(key)) or box[key] < 0:
+            rep.err(where, f"`{key}` deve essere un numero >= 0 (dp)", frame)
+            return False
+    check_radius(rep, where, frame, box.get("radius"))
+    return True
+
+
+def check_element(rep: Report, sources: Sources, frame: int, el: dict, density: float = 1.0) -> None:
     name = el.get("name")
     where = f"elements[{name}]"
     mark = rep.count
@@ -599,6 +637,14 @@ def check_element(rep: Report, sources: Sources, frame: int, el: dict) -> None:
             if not (is_number(scale) or (isinstance(scale, list) and len(scale) == 2
                                          and all(is_number(s) for s in scale))):
                 rep.err(spot, "`scale` deve essere un numero o [sx, sy]", frame)
+            clip = layer.get("clip")
+            if clip is not None:
+                if clip != "box" and not check_clip_box(rep, f"{spot}.clip", frame, clip):
+                    return
+                if layer.get("effect") is not None:
+                    rep.err(spot, "`clip` ed `effect` non stanno sullo stesso strato: il banco da' a uno strato "
+                            "un effetto solo, e il ritaglio dello strato ne e' uno. Se l'effetto e' una lente, la "
+                            "maschera la fa lei; altrimenti ritaglia l'elemento con `contentClip`", frame)
             effect = layer.get("effect")
             if effect is not None:
                 if not isinstance(effect, dict) or "source" not in effect:
@@ -609,23 +655,39 @@ def check_element(rep: Report, sources: Sources, frame: int, el: dict) -> None:
                         if key not in ("source", "uniforms", "input"):
                             rep.err(f"{spot}.effect", f"campo sconosciuto `{key}`", frame)
 
+    content_clip = el.get("contentClip")
+    if content_clip is not None:
+        spot = f"{where}.contentClip"
+        if isinstance(content_clip, list):
+            for i, box in enumerate(content_clip):
+                if not check_clip_box(rep, f"{spot}[{i}]", frame, box):
+                    return
+        elif content_clip not in CONTENT_CLIPS:
+            rep.err(spot, f"deve essere uno fra {', '.join(CONTENT_CLIPS)}, o una lista di riquadri, "
+                    f"non {content_clip!r}", frame)
+        elif content_clip == "pieces" and pieces is None:
+            rep.err(spot, "`pieces` senza `pieces` sull'elemento", frame)
+        elif content_clip == "alpha" and not (kind == "shader" or (kind == "material" and el.get("body"))):
+            rep.err(spot, "`alpha` vuole un elemento che disegna una sagoma: uno `shader`, o un `material` con "
+                    "il corpo", frame)
+
     if rep.count != mark:
         return  # la forma non regge: risolvere il campo darebbe solo errori di seconda mano
     try:
-        scene_elements = expanded(el, "file:vuoto.agsl")
+        scene_elements = expanded(el, density)
     except (KeyError, TypeError, ValueError) as error:
         rep.err(where, f"non si riesce a risolvere il campo: {error}", frame)
         return
     for item in scene_elements:
         item_where = where
         if item["name"] != name:
-            # Un portatore: un'ombra (niente da controllare) o uno strato di contenuto.
-            effect = (item.get("contentLayer") or {}).get("effect")
-            if effect:
-                layer = item["name"].split("/", 1)[1]
-                check_uniforms(rep, sources, f"{where}.content[{layer}].effect", frame, effect,
-                               BUILTINS["effect"], inputs=True)
-            continue
+            continue  # il portatore di un'ombra: niente da controllare
+        for layer in item.get("content") or []:
+            # Compreso il ritaglio dello strato, che e' un effetto del banco: se non compilasse, o
+            # gli mancasse uno uniform, si saprebbe qui.
+            if layer.get("effect"):
+                check_uniforms(rep, sources, f"{where}.content[{layer['name']}].effect", frame,
+                               layer["effect"], BUILTINS["effect"], inputs=True)
         if item.get("kind") == "shader":
             if "source" not in item:
                 rep.err(item_where, "un elemento `shader` vuole `source`", frame)
@@ -730,6 +792,7 @@ def validate(trace, sources: Sources | None = None) -> Report:
         if template.get("name", name) != name:
             rep.err(f"base[{name}]", "il `name` dentro la voce non coincide con la sua chiave")
 
+    density = float(trace["density"]) if is_number(trace.get("density")) and trace["density"] > 0 else 1.0
     frames = trace.get("frames")
     if not isinstance(frames, list) or not frames:
         rep.err("frames", "serve almeno un fotogramma")
@@ -769,7 +832,7 @@ def validate(trace, sources: Sources | None = None) -> Report:
             continue
         used.update(names)
         for el in frame_elements(trace, frame):
-            check_element(rep, sources, i, el)
+            check_element(rep, sources, i, el, density)
     for name in base:
         if name not in used:
             rep.warn(f"base[{name}] non e' usato da nessun fotogramma")
@@ -777,8 +840,9 @@ def validate(trace, sources: Sources | None = None) -> Report:
         return rep
 
     if "durationMs" in trace:
-        if not is_number(trace["durationMs"]) or trace["durationMs"] <= 0:
-            rep.err("durationMs", "deve essere un numero maggiore di zero")
+        # Zero e' una scena ferma: una traccia di un fotogramma (piano 4.2).
+        if not is_number(trace["durationMs"]) or trace["durationMs"] < 0:
+            rep.err("durationMs", "deve essere un numero maggiore o uguale a zero")
         elif times[-1] > trace["durationMs"] + 1000.0 / max(float(trace.get("fps") or 60), 1.0):
             rep.warn(f"l'ultimo fotogramma e' a {times[-1]:.1f} ms, oltre `durationMs` = {trace['durationMs']}")
     if times[0] > 0:
@@ -860,32 +924,53 @@ def validate(trace, sources: Sources | None = None) -> Report:
             rep.err(where, "`rest` deve essere un numero, o una lista con un valore per tratto")
 
     apple = trace.get("apple")
-    if apple is not None:
-        if not isinstance(apple, dict):
-            rep.err("apple", "deve essere un oggetto")
-        else:
-            for key in apple:
-                if key not in ("video", "t0Frame", "crop", "collage", "speed", "note") and not key.startswith("_"):
-                    rep.err("apple", f"campo sconosciuto `{key}`")
-            if not isinstance(apple.get("video"), str):
-                rep.err("apple", "serve `video`: il nome del file in riferimenti/video senza `.mp4`, o un percorso")
-            elif not apple_video_path(apple["video"]).exists():
-                rep.warn(f"il video di Apple `{apple['video']}` non c'e' su questa macchina: `pair` non potra' leggerlo")
-            if not isinstance(apple.get("t0Frame"), int) or isinstance(apple.get("t0Frame"), bool) or apple.get("t0Frame", -1) < 0:
-                rep.err("apple", "serve `t0Frame`: il numero del fotogramma di Apple che vale t = 0")
-            crop = apple.get("crop")
+    if apple is not None and not isinstance(apple, (dict, list)):
+        rep.err("apple", "deve essere un oggetto, o una lista di oggetti con un `name`")
+    elif apple is not None:
+        many = isinstance(apple, list)
+        names = set()
+        for i, block in enumerate(apple if many else [apple]):
+            if not isinstance(block, dict):
+                rep.err(f"apple[{i}]", "un confronto e' un oggetto {name, video, t0Frame, crop}")
+                continue
+            where = f"apple[{block.get('name', i)}]" if many else "apple"
+            for key in block:
+                if key not in APPLE_KEYS and not key.startswith("_"):
+                    rep.err(where, f"campo sconosciuto `{key}`")
+            if "name" in block or many:
+                if not isinstance(block.get("name"), str) or not _NAME.match(block["name"]):
+                    rep.err(where, "in una lista ogni confronto ha un `name` di minuscole, cifre e trattini "
+                            "(entra nel nome dei file)")
+                elif block["name"] in names:
+                    rep.err(where, "due confronti con lo stesso `name`")
+                names.add(block.get("name"))
+            if not isinstance(block.get("video"), str):
+                rep.err(where, "serve `video`: il nome del file in riferimenti/video senza `.mp4`, o un percorso")
+            elif not apple_video_path(block["video"]).exists():
+                rep.warn(f"il video di Apple `{block['video']}` non c'e' su questa macchina: `pair` non potra' leggerlo")
+            if not isinstance(block.get("t0Frame"), int) or isinstance(block.get("t0Frame"), bool) or block.get("t0Frame", -1) < 0:
+                rep.err(where, "serve `t0Frame`: il numero del fotogramma di Apple che vale t = 0")
+            crop = block.get("crop")
             if crop is not None and not (isinstance(crop, list) and len(crop) == 4
                                          and all(isinstance(v, int) and not isinstance(v, bool) for v in crop)
                                          and crop[2] > 0 and crop[3] > 0):
-                rep.err("apple", "`crop` deve essere [x, y, w, h] in pixel interi del video")
-            if "speed" in apple and (not is_number(apple["speed"]) or apple["speed"] <= 0):
-                rep.err("apple", "`speed` deve essere un numero maggiore di zero")
-            if "collage" in apple and not repo_path(str(apple["collage"])).exists():
-                rep.warn(f"il collage di riferimento `{apple['collage']}` non c'e' su questa macchina")
+                rep.err(where, "`crop` deve essere [x, y, w, h] in pixel interi del video")
+            if "speed" in block and (not is_number(block["speed"]) or block["speed"] <= 0):
+                rep.err(where, "`speed` deve essere un numero maggiore di zero")
+            if "collage" in block and not repo_path(str(block["collage"])).exists():
+                rep.warn(f"il collage di riferimento `{block['collage']}` non c'e' su questa macchina")
     return rep
 
 
 _WARNED: set[tuple[str, str]] = set()
+
+
+def apple_blocks(trace: dict) -> list[dict]:
+    """I confronti con Apple di una traccia: `apple` e' un oggetto, o una lista di oggetti con un nome."""
+    apple = trace.get("apple")
+    if apple is None:
+        return []
+    return [apple] if isinstance(apple, dict) else list(apple)
 
 
 def load_trace(path: Path, *, quiet: bool = False) -> dict:
@@ -947,16 +1032,19 @@ def base_scene(trace: dict, density: float | None = None) -> dict:
     scene["width"], scene["height"] = trace["size"]
     scene["density"] = float(density or trace["density"])
     scene["theme"] = trace["theme"]
+    # In un viaggio niente sta su pixel interi: elementi, strati, icone ed etichette si posano a
+    # coordinate frazionarie. Arrotondati al pixel scatterebbero da un fotogramma all'altro.
+    scene["subpixel"] = True
     return scene
 
 
-def frame_scene(trace: dict, base: dict, frame: dict, empty_ref: str) -> dict:
+def frame_scene(trace: dict, base: dict, frame: dict) -> dict:
     scene = dict(base)
     if "page" in frame:
         scene["page"] = absolute_images(frame["page"], REPO_ROOT)
     elements: list[dict] = []
     for el in frame_elements(trace, frame):
-        elements.extend(expanded(el, empty_ref))
+        elements.extend(expanded(el, base["density"]))
     scene["elements"] = elements
     return scene
 
@@ -983,7 +1071,7 @@ def bench_fingerprint(trace: dict) -> str:
     """Cio' che, cambiando, rende vecchi i fotogrammi gia' resi: gli shader nominati, il banco
     fermo, Skia."""
     digest = hashlib.sha1()
-    digest.update(Sources().fingerprint(trace_sources(trace)).encode())
+    digest.update(Sources().fingerprint(trace_sources(trace) + [LAYER_CLIP_REF]).encode())
     # I numeri del vetro di oggi (`kind: "glass"`) e il banco fermo stesso.
     for path in (HERE / "render.py", HERE / "kotlin_sources.py", kotlin_sources.MATERIAL_FILE):
         digest.update(path.read_bytes())
@@ -1021,10 +1109,7 @@ def render_frames(trace: dict, out: Path, *, jobs: int = 2, force: bool = False,
     frames_dir = out / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = frames_dir / "manifest.json"
-    empty = frames_dir / "vuoto.agsl"
-    if not empty.exists() or empty.read_text(encoding="utf-8") != EMPTY_AGSL:
-        empty.write_text(EMPTY_AGSL, encoding="utf-8")
-    empty_ref = "file:" + str(empty)
+    (frames_dir / "vuoto.agsl").unlink(missing_ok=True)  # il portatore di una volta: non serve piu'
 
     base = base_scene(trace, density)
     fingerprint = bench_fingerprint(trace)
@@ -1050,7 +1135,7 @@ def render_frames(trace: dict, out: Path, *, jobs: int = 2, force: bool = False,
 
     records, pending = [], []
     for i, frame in enumerate(trace["frames"]):
-        scene = frame_scene(trace, base, frame, empty_ref)
+        scene = frame_scene(trace, base, frame)
         digest = hashlib.sha1((json.dumps(scene, sort_keys=True) + fingerprint).encode()).hexdigest()
         name = f"f{i:04d}.png"
         own_page = "page" in frame
@@ -1213,8 +1298,9 @@ def cell_label(trace: dict, manifest: dict, index: int, with_apple: bool = False
     if last_interrupt is not None:
         colour = LABEL_EVENT
         text += f"  INT+{t - last_interrupt:.0f}"
-    apple = trace.get("apple")
-    if with_apple and apple:
+    blocks = apple_blocks(trace)
+    if with_apple and blocks:
+        apple = blocks[0]
         text += f"  ~f{apple['t0Frame'] + int(round(t * float(apple.get('speed', 1.0)) / APPLE_FRAME_MS))}"
     return text, colour
 
@@ -1682,7 +1768,8 @@ def encode_video(out: Path, size: tuple[int, int], fps: float, frames) -> Path:
 
 
 def write_pair_video(trace: dict, manifest: dict, theirs: list[Image.Image], before: int, period: float,
-                     speed: float, out: Path, *, slow: float, fps: float, crop=None, height: int = 540) -> Path:
+                     speed: float, out: Path, *, slow: float, fps: float, t0_frame: int, crop=None,
+                     height: int = 540) -> Path:
     """Il banco a sinistra e Apple a destra, sullo stesso orologio. Apple cambia fotogramma ogni
     33,4 ms, il banco ogni 16,7: rallentato si vede chi arriva prima."""
     times = frame_times(manifest)
@@ -1713,7 +1800,7 @@ def write_pair_video(trace: dict, manifest: dict, theirs: list[Image.Image], bef
                 draw = ImageDraw.Draw(canvas)
                 text, colour = cell_label(trace, manifest, index)
                 draw.text((8, height + 5), f"banco {text}", fill=colour, font=font)
-                n = trace["apple"]["t0Frame"] + k - before
+                n = t0_frame + k - before
                 draw.text((ours[0].width + gap + 8, height + 5),
                           f"Apple f{n} {(k - before) * period:+.0f} ms   x1/{slow:g}", fill=LABEL_APPLE, font=font)
                 cache[(index, k)] = canvas.tobytes()
@@ -1769,11 +1856,58 @@ def cmd_collage(args) -> int:
     return 0
 
 
+def chosen_apple(args, trace: dict) -> list[tuple[dict, str]]:
+    """Con quali riprese di Apple confrontare: [(blocco, suffisso del file)].
+
+    Di serie tutti i blocchi `apple` della traccia (il primo senza suffisso). `--apple NOME` ne
+    sceglie uno. `--apple-video`, `--t0-frame`, `--apple-crop`, `--apple-speed` ne fanno uno al
+    volo, partendo da quello scelto o dal primo: per provare un confronto senza riscrivere la traccia."""
+    blocks = apple_blocks(trace)
+    wanted = getattr(args, "apple", None)
+    base, suffix = None, ""
+    if wanted:
+        base = next((b for b in blocks if b.get("name") == wanted), None)
+        if base is None:
+            names = ", ".join(b.get("name", "(senza nome)") for b in blocks) or "nessuno"
+            raise SystemExit(f"la traccia `{trace['name']}` non ha un confronto `{wanted}` (ha: {names})")
+        suffix = "" if base is blocks[0] else wanted
+    over = {}
+    if getattr(args, "apple_video", None):
+        over["video"] = args.apple_video
+    if getattr(args, "t0_frame", None) is not None:
+        over["t0Frame"] = args.t0_frame
+    if getattr(args, "apple_crop", None):
+        try:
+            over["crop"] = [int(v) for v in args.apple_crop.split(",")]
+        except ValueError:
+            over["crop"] = []
+        if len(over["crop"]) != 4:
+            raise SystemExit("--apple-crop vuole x,y,w,h in pixel interi del video")
+    if getattr(args, "apple_speed", None):
+        over["speed"] = args.apple_speed
+    if over:
+        block = dict(base or (blocks[0] if blocks else {}), **over)
+        block.pop("collage", None)
+        if "video" not in block or "t0Frame" not in block:
+            raise SystemExit("un confronto al volo vuole almeno --apple-video e --t0-frame")
+        return [(block, getattr(args, "apple_name", None) or f"f{block['t0Frame']}")]
+    if base is not None:
+        return [(base, suffix)]
+    if not blocks:
+        raise SystemExit(f"la traccia `{trace['name']}` non ha il blocco `apple`: `pair` non sa con cosa "
+                         "confrontare (oppure --apple-video e --t0-frame)")
+    return [(block, "" if i == 0 else block.get("name", str(i))) for i, block in enumerate(blocks)]
+
+
 def cmd_pair(args) -> int:
     trace, out, manifest = prepare(args)
-    apple = trace.get("apple")
-    if not apple:
-        raise SystemExit(f"la traccia `{trace['name']}` non ha il blocco `apple`: `pair` non sa con cosa confrontare")
+    for apple, suffix in chosen_apple(args, trace):
+        pair_one(args, trace, out, manifest, apple, suffix)
+    return 0
+
+
+def pair_one(args, trace: dict, out: Path, manifest: dict, apple: dict, suffix: str) -> None:
+    stem = f"{trace['name']}-vs-apple" + (f"-{suffix}" if suffix else "")
     source = apple_source(apple["video"])
     period = 1000.0 / source["fps"]
     speed = float(apple.get("speed", 1.0))  # quanto la clip di Apple e' rallentata (i render di classe C)
@@ -1827,18 +1961,17 @@ def cmd_pair(args) -> int:
         blank = cols - len(row_ours)
         cells += row_ours + [("", LABEL, None)] * blank + row_apple + [("", LABEL, None)] * blank
     note = "" if speed == 1 else f" (clip di Apple rallentata x{speed:g}: i tempi del banco sono quelli veri)"
-    path = contact_sheet(cells, cols, out / f"{trace['name']}-vs-apple.jpg", font_size=18,
+    path = contact_sheet(cells, cols, out / f"{stem}.jpg", font_size=18,
                          title=f"{trace['name']} - sopra il banco, sotto Apple ({apple['video']}), "
                                f"t = 0 a f{apple['t0Frame']}, un fotogramma di Apple ogni {period:.1f} ms{note}")
     print(f"{shown(path)}  ({after + before + 1} coppie)")
     if args.slow:
         video = write_pair_video(trace, manifest, theirs, before, period, speed,
-                                 out / f"{trace['name']}-vs-apple-lento.mp4", slow=args.slow,
-                                 fps=args.video_fps, crop=crop)
+                                 out / f"{stem}-lento.mp4", slow=args.slow,
+                                 fps=args.video_fps, t0_frame=apple["t0Frame"], crop=crop)
         print(f"{shown(video)}  (banco e Apple affiancati, rallentato {args.slow:g} volte)")
     if apple.get("collage"):
         print(f"il collage di riferimento della ricerca: {apple['collage']}")
-    return 0
 
 
 def auto_crop(manifest: dict, indices: list[int], margin_dp: float = 14.0):
@@ -1974,10 +2107,11 @@ def cmd_scene(args) -> int:
     frame = trace["frames"][args.frame]
     out = Path(args.output).resolve() if args.output else out_dir_for(trace, None) / f"{trace['name']}.scena.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    empty = out.parent / "vuoto.agsl"
-    scene = frame_scene(trace, base_scene(trace, args.density), frame, "file:" + str(empty))
-    if any(el.get("source") == "file:" + str(empty) for el in scene["elements"]):
-        empty.write_text(EMPTY_AGSL, encoding="utf-8")  # gli strati di contenuto ne hanno bisogno
+    scene = frame_scene(trace, base_scene(trace, args.density), frame)
+    if args.no_subpixel:
+        # Una lastra ferma che il layout di Compose ha posato sul pixel intero: l'arrotondamento
+        # del banco fermo e' la cosa giusta. Di serie resta com'e' nel viaggio, uguale al fotogramma.
+        del scene["subpixel"]
     scene = relocated(scene, out.parent)
     if "measure" in trace:
         scene["measure"] = trace["measure"]
@@ -1993,7 +2127,7 @@ def cmd_all(args) -> int:
     steps = [cmd_render, cmd_video, cmd_collage, cmd_first, cmd_last]
     if trace.get("probes"):
         steps.append(cmd_curve)
-    if trace.get("apple") and apple_video_path(trace["apple"]["video"]).exists():
+    if any(apple_video_path(block["video"]).exists() for block in apple_blocks(trace)):
         steps.append(cmd_pair)
     for step in steps:
         code = step(args)
@@ -2085,8 +2219,111 @@ def cmd_selftest(args) -> int:
         lines = validate(json.loads(block.group(1))).lines()
         test("TRACE.md: l'esempio completo e' una traccia valida", not lines, str(lines[:3]))
 
-    test("lunghezze: la notazione di un Float di Kotlin diventa cifre",
-         substituted({"a": "1.5E-2dp", "b": ["-3dp", 2]}, {}) == {"a": "0.0150dp", "b": ["-3.0000dp", 2]})
+    # --- F0.4b: cio' che lo schema ha guadagnato --------------------------------------------
+    got = substituted({"a": "16dp^2", "b": ["2dp^-1", "3dp", "1.0E-4dp"]}, {}, 3.0)
+    test("potenze della densita': \"16dp^2\" e' un'area, \"2dp^-1\" un inverso; i dp restano al banco fermo",
+         got["a"] == 144.0 and abs(got["b"][0] - 2.0 / 3.0) < 1e-9 and got["b"][1:] == ["3dp", "1.0E-4dp"], str(got))
+    solid = {"kind": "material", "name": "m", "x": 0, "y": 0, "w": 40, "h": 40, "capture": {"scale": 0.5},
+             "body": {"source": "x", "uniforms": {"a": "16dp^2"}}, "light": {"source": "y", "uniforms": {"a": "16dp^2"}}}
+    got = expanded(solid, 3.0)[0]
+    test("potenze della densita': il corpo le riceve nel mondo della cattura, la luce in pixel di schermo",
+         got["body"]["uniforms"]["a"] == 36.0 and got["light"]["uniforms"]["a"] == 144.0)
+
+    slab = {"kind": "shader", "name": "s", "source": "kotlin:SlabGroupRefractionShaderString",
+            "x": 4, "y": 4, "w": 60, "h": 40, "uniforms": {"pieceRect": "$pieceRect"},
+            "pieces": [{"x": 10, "y": 8, "w": 40, "h": 24}], "shadow": [{"radiusDp": 4, "alpha": 0.2}],
+            "content": [{"name": "a", "icon": "plus"},
+                        {"name": "b", "x": 10, "y": 8, "w": 40, "h": 24, "label": "ciao", "scale": [1.0, 0.5],
+                         "clip": {"x": 10, "y": 8, "w": 20, "h": 24, "radius": 4}}]}
+    out = expanded(slab, 3.0)
+    main = out[-1]
+    test("contenuto: resta sull'elemento, nessun portatore (solo le ombre per pezzo)",
+         [e["name"] for e in out] == ["s/ombra0", "s"] and [c["name"] for c in main["content"]] == ["a", "b"])
+    test("contenuto: di serie uno `shader` non lo ritaglia (l'alfa si chiede)", main["contentClip"] == "none")
+    clipped = main["content"][1]["effect"]
+    test("ritaglio di uno strato: diventa l'effetto del banco, nel sistema dello strato e con la sua scala",
+         clipped["source"] == LAYER_CLIP_REF and "clip" not in main["content"][1]
+         and clipped["uniforms"]["clipRect"] == [dp(10), dp(12), dp(10), dp(12)]
+         and clipped["uniforms"]["scale"] == [1.0, 0.5] and clipped["uniforms"]["clipRadii"] == [dp(4)] * 4,
+         str(clipped))
+    got = expanded(dict(slab, contentClip="pieces"), 3.0)[-1]["contentClip"]
+    test("contentClip: \"pieces\" e' la lista dei pezzi", got == [{"x": 10, "y": 8, "w": 40, "h": 24, "radius": "capsule"}])
+    glass = {"kind": "glass", "name": "g", "x": 0, "y": 0, "w": 44, "h": 44, "content": [{"name": "i", "icon": "plus"}]}
+    test("contentClip: una lastra `glass` lo lascia al banco fermo (il ritaglio hardware)",
+         "contentClip" not in expanded(glass, 3.0)[0])
+
+    def layer1(trace):
+        return trace["base"][first]["content"][1]   # uno strato che i fotogrammi non ritoccano
+
+    rejects("ritaglio ed effetto sullo stesso strato",
+            lambda t: layer1(t).update(clip="box", effect={"source": LAYER_CLIP_REF, "uniforms": {}}),
+            "non stanno sullo stesso strato")
+    rejects("un ritaglio di strato senza taglia", lambda t: layer1(t).update(clip={"x": 0, "y": 0}), "`w` deve essere un numero >= 0")
+    rejects("un `contentClip` inventato", lambda t: t["base"][first].update(contentClip="forma"), "deve essere uno fra")
+    rejects("due confronti con Apple con lo stesso nome",
+            lambda t: t.update(apple=[dict(t["apple"], name="a"), dict(t["apple"], name="a")]), "stesso `name`")
+    rejects("un confronto senza nome in una lista",
+            lambda t: t.update(apple=[dict(t["apple"]), dict(t["apple"], name="b")]), "ha un `name`")
+    rejects("una durata negativa", lambda t: t.update(durationMs=-1), "maggiore o uguale a zero")
+
+    still = copy.deepcopy(good)
+    still["frames"] = still["frames"][:1]
+    still.update(durationMs=0, events=[], probes=[],
+                 apple=[dict(good["apple"], name="render"), dict(good["apple"], name="telefono", t0Frame=9148)])
+    still["base"][first].update(contentClip="alpha")
+    layer1(still).update(clip="box")
+    lines = validate(still).lines()
+    test("accetta: una scena ferma (un fotogramma, durata zero), piu' confronti, ritagli", not lines, str(lines[:3]))
+    test("confronti: tutti di serie, il primo senza suffisso",
+         [suffix for _, suffix in chosen_apple(argparse.Namespace(), still)] == ["", "telefono"])
+    picked = chosen_apple(argparse.Namespace(apple="telefono", t0_frame=9150), still)
+    test("confronti: uno al volo parte da quello scelto", picked[0][0]["t0Frame"] == 9150 and picked[0][1] == "f9150")
+
+    # Dal vero, su una tela piccola: sotto il pixel, ritaglio per strato, ritaglio sull'alfa.
+    def shot(content, clip=None, piece_x=10.0):
+        mini = {"schema": 1, "name": "mini", "fps": 60, "density": 2.0, "theme": "light", "size": [72, 48],
+                "background": {"kind": "color", "color": "#B0B4BC"},
+                "frames": [{"t": 0, "elements": [{
+                    "kind": "shader", "name": "s", "source": "kotlin:SlabGroupRefractionShaderString",
+                    "x": 0, "y": 0, "w": 72, "h": 48, "inputs": {"content": {"blurDp": 2, "edge": "clamp"}},
+                    "pieces": [{"x": piece_x, "y": 8, "w": 36, "h": 32, "radius": 10}],
+                    "uniforms": {"offset": "$offset", "pieceCount": "$pieceCount", "pieceRect": "$pieceRect",
+                                 "pieceRadii": "$pieceRadii", "pieceBlend": "$pieceBlend", "refractionHeight": "8dp",
+                                 "refractionAmount": "-10dp", "depthEffect": 0, "magnify": 0,
+                                 "fieldCenter": ["36dp", "24dp"], "aa": 1.0, "tintColor": "#FFFFFF60"},
+                    "content": content, **({"contentClip": clip} if clip else {})}]}]}
+        problems = validate(mini).lines()
+        if problems:
+            raise AssertionError(problems)
+        scene = frame_scene(mini, base_scene(mini), mini["frames"][0])
+        image = bench.render_scene_full(scene, REPO_ROOT).image
+        return np.asarray(Image.fromarray(image.toarray(colorType=skia.kRGBA_8888_ColorType)).convert("RGB"), np.int16)
+
+    def icon(x, **more):
+        return [dict({"name": "i", "x": x, "y": 12, "w": 24, "h": 24, "icon": "plus", "color": "#101014"}, **more)]
+
+    bare = shot([])
+    here, near, far = shot(icon(16.0)), shot(icon(16.2)), shot(icon(16.5))
+    step_small, step_pixel = float(np.abs(near - here).mean()), float(np.abs(far - here).mean())
+    test("sotto il pixel: un'icona spostata di 0,4 px si muove, e meno che di un pixel intero",
+         0.0 < step_small < step_pixel, f"{step_small:.4f} contro {step_pixel:.4f}")
+    cut_layer = shot(icon(16.0, clip={"x": 16, "y": 12, "w": 12, "h": 24}))
+    left, right = slice(32, 54), slice(58, 80)   # in pixel: la meta' sinistra e la destra dell'icona
+    test("ritaglio di uno strato: dentro il contenuto c'e', fuori no",
+         np.array_equal(cut_layer[:, right], bare[:, right]) and not np.array_equal(cut_layer[:, left], bare[:, left])
+         and np.array_equal(cut_layer[:, left], here[:, left]))
+    outside = slice(0, 20)                        # a sinistra del vetro, che comincia a 10 dp
+    spill = shot(icon(0.0))
+    kept = shot(icon(0.0), clip="alpha")
+    test("contentClip \"alpha\": il contenuto che sporge dal vetro sparisce; di serie no",
+         np.array_equal(kept[:, outside], bare[:, outside]) and not np.array_equal(spill[:, outside], bare[:, outside])
+         and not np.array_equal(kept, bare))
+
+    # Le tracce scritte dall'engine (F0.5), se su questa macchina ci sono: devono restare valide
+    # cosi' come sono, perche' si rigenerano solo con Gradle.
+    for path in sorted((DEFAULT_OUT / "f0").glob("oggi-*/trace.json")):
+        lines = validate(read_json(path)).lines()
+        test(f"resta valida: {shown(path)}", not lines, str(lines[:3]))
 
     # La fusione con la base.
     base = {"uniforms": {"a": 1, "b": [1, 2]}, "content": [{"name": "i", "icon": "plus", "alpha": 1}]}
@@ -2172,6 +2409,12 @@ def main(argv=None) -> int:
         p.add_argument("--before", type=int, default=2, help="fotogrammi di Apple prima di t = 0")
         p.add_argument("--after", type=int, default=2, help="fotogrammi di Apple dopo la fine della traccia")
         p.add_argument("--cell-height", type=int, default=340, help="altezza massima di una cella in pixel")
+        p.add_argument("--apple", metavar="NOME", help="un solo confronto, per `name` (di serie tutti)")
+        p.add_argument("--apple-video", help="un confronto al volo: il video (come `apple.video`)")
+        p.add_argument("--t0-frame", type=int, help="... il fotogramma di Apple che vale t = 0")
+        p.add_argument("--apple-crop", help="... il ritaglio x,y,w,h in pixel del video")
+        p.add_argument("--apple-speed", type=float, help="... quanto la clip di Apple e' rallentata")
+        p.add_argument("--apple-name", help="... il suffisso dei file (di serie f<t0>)")
 
     def five_options(p, at: bool):
         p.add_argument("--count", type=int, default=5)
@@ -2210,6 +2453,8 @@ def main(argv=None) -> int:
     p.add_argument("--frame", type=int, default=-1, help="quale fotogramma (di serie l'ultimo: il riposo)")
     p.add_argument("-o", "--output", help="il file della scena (di serie <cartella dei prodotti>/<nome>.scena.json)")
     p.add_argument("--density", type=float)
+    p.add_argument("--no-subpixel", action="store_true",
+                   help="riquadri arrotondati al pixel, come una lastra ferma posata dal layout")
     p.set_defaults(run=cmd_scene)
 
     selftest = sub.add_parser("selftest", help="le prove del banco del movimento su se stesso")

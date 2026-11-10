@@ -6,6 +6,25 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.1.3 - 2026-11-10
+
+Giro di correzione 3 della Fase 1: il tetto dello stato salvato dell'editor diventa un vero limite superiore, e due residui di build e di documentazione. **Nessuna rottura per le app e nessuna firma pubblica cambia** (nessun parametro nuovo, nessun tipo nuovo). Cambia un comportamento di `FluidRichTextState.Saver` per i documenti vicini al tetto dei 256 KB (prima voce); il resto è interno al repo dell'engine.
+
+### Cambi di comportamento
+
+- richtext: **il tetto di 256 KB dello stato salvato è un limite superiore.** Nella 3.1.1 e nella 3.1.2 `FluidRichTextState.Saver` decideva con una stima dichiarata «per eccesso» che non lo era: contava 2 byte per carattere e 8 di contorno per link, mentre un `Parcel` scrive ogni stringa con tipo, lunghezza, terminatore e allineamento a 4 byte (2–4 byte in più per ogni indirizzo di link). Un documento con 4 001 link brevi distinti era stimato 262 092 byte e salvato, e in un `Parcel` ne pesava 271 740, sopra il tetto. Ora la stima segue la codifica del `Parcel` voce per voce, con 64 byte di margine dichiarato: il valore che il `Saver` restituisce, scritto in un `Parcel` con `writeValue`, non supera mai 262 144 byte. Su Android 17 (API 37) la stima supera la dimensione misurata esattamente dei 64 byte di margine.
+- richtext: **cosa cambia per un'app.** Alcuni documenti vicini al tetto che la 3.1.2 salvava ora non si salvano: quelli con molti link distinti, per esempio da 3 859 a 4 001 link brevi uno per riga, o 63 link lunghi 2 048 caratteri più uno fra 830 e 901 caratteri. Per loro vale ciò che già valeva sopra il tetto: lo stato salvato non porta il documento, dopo la ricreazione della schermata `rememberFluidRichTextState` riparte da `initial` senza errori e senza avvisi, e l'app lo riapre dalla sua bozza. Nel verso opposto, la parte fissa del conto scende da 256 a 136 byte (margine compreso): un documento con pochi link o nessuno che la 3.1.2 rifiutava per meno di 110 byte ora si salva. Il tetto dei 50 000 caratteri, il formato dello stato salvato e la lettura di uno stato salvato dalle versioni precedenti non cambiano.
+
+### Build
+
+- build: `sample/build.gradle`, nel ripiego della release sulla firma di debug (il ramo che gira solo senza chiavi in `local.properties`), usa `signingConfig = …`. La 3.1.2 dichiarava zero deprecazioni degli script, ed era vero solo con le chiavi presenti: senza chiavi restava un avviso, su quella riga. Ora `./gradlew --warning-mode all` non ne segnala in nessuna delle due condizioni. Nessun cambio per le app (la galleria non entra in un'app).
+
+### Documentazione e test
+
+- docs: la scheda dell'editor (`moduli/richtext.md`) e il KDoc dicono che cosa conta il tetto (la codifica del `Parcel`, il margine, ciò che resta fuori: la chiave e la lista di `rememberSaveable`, lo stato del resto della schermata) e che il limite è superiore; la scheda di `engine-foundation` non scrive più un numero di versione come esempio di `EngineBuild.VERSION` (diceva `"3.0.4"`); `storia.md` ha le righe della 3.1.2 e della 3.1.3 e l'intestazione non nomina più l'ultima versione.
+- test: `FluidRichTextSavedParcelTest` (strumentato, 5) confronta la stima con un `Parcel` vero su 20 documenti costruiti apposta (molti link brevi, link lunghi quanto l'editor ne accetta, un tratto per carattere, paragrafi annidati, emoji e caratteri fuori dal BMP, documento vuoto, documenti a pochi byte dal tetto da una parte e dall'altra): la stima non sta mai sotto la dimensione vera né oltre 72 byte sopra, ciò che si salva sta nel tetto e torna identico da un `Parcel`, sopra il tetto non si salva. Sulla 3.1.2 fallisce. `FluidRichTextSavedSizeFormulaTest` (JVM, 6) tiene ferma la formula sui numeri misurati. Nessun test esistente modificato.
+
+
 ## 3.1.2 - 2026-11-10
 
 Giro di correzione 2 della Fase 1: la riga che si scrive nell'editor resta sopra la barra di formattazione, il contenitore web è diviso in file con le sue macchine a stati provate sul JVM, lint e Gradle senza segnalazioni, documentazione e galleria allineate. **Nessuna rottura per le app e nessuna firma pubblica cambia** (nessun parametro nuovo, nessun tipo nuovo). Cambia un comportamento di `FluidRichTextEditor` quando la barra è in scena (prima voce) e una regola per la pagina che lo ospita (voce «Da sapere»); il resto è interno al repo dell'engine.

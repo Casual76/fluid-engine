@@ -3,7 +3,7 @@
 
 # API · engine-foundation
 
-_Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.3 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-foundation/foundation/AppUpdate.kt`
 

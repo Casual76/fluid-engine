@@ -5,7 +5,7 @@
 # Fluid Engine
 
 Le fondamenta condivise delle app Android di Antigravity, estratte da ClasseViva Expressive. Un repo a sé,
-agganciato a un tag dentro ogni app che lo usa. **Versione documentata: 3.1.2** (schede, catalogo API e changelog allineati).
+agganciato a un tag dentro ogni app che lo usa. **Versione documentata: 3.1.3** (schede, catalogo API e changelog allineati).
 
 Questa skill è la documentazione dell'engine **e** le regole per lavorarci senza romperlo. Non è un riassunto:
 dietro c'è una scheda per ogni famiglia di componenti e per ogni modulo, e un catalogo di tutte le API pubbliche

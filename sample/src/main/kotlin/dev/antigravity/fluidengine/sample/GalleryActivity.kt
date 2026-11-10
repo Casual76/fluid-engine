@@ -52,6 +52,7 @@ import dev.antigravity.fluidengine.sample.catalog.CapsulesAndPartsDemo
 import dev.antigravity.fluidengine.sample.catalog.MenusDemo
 import dev.antigravity.fluidengine.sample.catalog.MoreComponentsDemo
 import dev.antigravity.fluidengine.sample.catalog.RowsAndSheetsDemo
+import dev.antigravity.fluidengine.sample.measure.MeasurePage
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import androidx.compose.animation.core.animateFloatAsState
@@ -255,6 +256,8 @@ internal fun Gallery(
               GalleryPage.Menus -> MenusPage(bottomInset) { nav.back() }
               GalleryPage.AllGlass -> AllGlassPage(bottomInset) { nav.back() }
               GalleryPage.MoreComponents -> MoreComponentsPage(bottomInset) { nav.back() }
+              // Le misure della prima sessione sul dispositivo: scene fisse, scelte con `measure.scene`.
+              GalleryPage.Measure -> MeasurePage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

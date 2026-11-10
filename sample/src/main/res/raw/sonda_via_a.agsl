@@ -1,0 +1,129 @@
+// SONDA della via A: il CORPO del materiale con UN ingresso. Non e' il materiale dell'engine.
+//
+// `sonda-materiale.agsl` ha due ingressi (`content` nitido e `blurred` sfocato): su Skia funziona,
+// su Android un `RenderEffect` ne collega uno solo, quindi li' misurerebbe un'altra catena. Questa
+// e' la variante che su Android si puo' montare davvero, con la catena del piano (3.3, 3.6):
+//
+//     ColorFilter(saturazione) -> Blur(Clamp)
+//       -> BlendMode(Plus, w * nitido, (1 - w) * sfocato)      la mescola A MONTE
+//       -> RuntimeShader(questa sorgente, ingresso `content`)
+//
+// e la luce a parte, in `sonda-luce.agsl`, disegnata sopra senza ingressi. La pagina «Misure» della
+// galleria (pacchetto F0.6) la copia fra le risorse del `sample` e ci misura i cancelli C1, C3, C6:
+// per questo ha il campo a 8 pezzi (la misura (d) ne accende 1, 2, 4, 8) e i termini principali del
+// corpo (lente, dispersione a tre campioni, velo, ombreggiatura, maschera). Non ha il velo adattivo,
+// il raccordo continuo degli angoli ne' la taratura: quelli sono lavoro di F1A.
+//
+// Sul banco e' il `body` di un elemento `kind: "material"`; gli ingressi a monte li fa `capture`.
+//
+// Regole AGSL rispettate apposta (valgono da Android 13): cicli a limite costante con uscita su
+// uniform, indici di array costanti o variabile d'induzione, niente derivate (dFdx/fwidth), lo
+// sfondo solo con `content.eval`.
+
+uniform shader content;   // la mescola a monte, gia' saturata: e' l'unico ingresso
+
+const int MAX_PIECES = 8;
+
+uniform float2 offset;                   // -margine della cattura: porta `coord` nel sistema dell'elemento
+uniform float pieceCount;
+uniform float4 pieceRect[MAX_PIECES];    // xy = centro, zw = mezza taglia (px)
+uniform float4 pieceRadii[MAX_PIECES];   // alto-sx, alto-dx, basso-dx, basso-sx (px), come Fluid-physics
+uniform float blend;                     // raggio di fusione dello smooth minimum (px)
+
+uniform float thickness;                 // fin dove agisce il bordo (px)
+uniform float refraction;                // spostamento massimo al bordo, NEGATO come nell'engine (px)
+uniform float dome;                      // 0..1: quanto la normale tira verso il centro del pezzo
+uniform float dispersion;                // 0..1, tre campioni
+uniform float materialize;               // 0 = l'ingresso com'e', 1 = materiale pieno
+layout(color) uniform half4 veilColor;   // il velo del corpo: colore e forza (alfa)
+uniform float bodyShade;                 // quanto il corpo scurisce verso il bordo, 0..1
+uniform float aa;                        // antialias della maschera (px)
+
+float radiusAt(float2 rel, float4 radii) {
+    if (rel.x >= 0.0) {
+        if (rel.y <= 0.0) return radii.y;
+        else return radii.z;
+    } else {
+        if (rel.y <= 0.0) return radii.x;
+        else return radii.w;
+    }
+}
+
+float sdRoundedRect(float2 rel, float2 halfSize, float radius) {
+    float2 q = abs(rel) - (halfSize - float2(radius));
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+}
+
+float2 gradRoundedRect(float2 rel, float2 halfSize, float radius) {
+    float2 q = abs(rel) - (halfSize - float2(radius));
+    if (q.x >= 0.0 || q.y >= 0.0) {
+        float2 dir = max(q, 0.0);
+        float len = length(dir);
+        if (len <= 0.0001) return float2(0.0);
+        return sign(rel) * (dir / len);
+    }
+    float gx = step(q.y, q.x);
+    return sign(rel) * float2(gx, 1.0 - gx);
+}
+
+half4 main(float2 coord) {
+    float2 p = coord + offset;
+
+    // Distanza, gradiente e centro del campo fuso in un giro solo (lo schema di Fluid-physics).
+    float d = 1000000.0;
+    float2 grad = float2(0.0);
+    float2 center = float2(0.0);
+    for (int i = 0; i < MAX_PIECES; ++i) {
+        if (float(i) >= pieceCount) break;
+        float2 rel = p - pieceRect[i].xy;
+        float2 halfSize = pieceRect[i].zw;
+        float radius = min(radiusAt(rel, pieceRadii[i]), min(halfSize.x, halfSize.y));
+        float sd = sdRoundedRect(rel, halfSize, radius);
+        float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
+        float2 g = gradRoundedRect(rel, halfSize, gradRadius);
+        if (i == 0) {
+            d = sd;
+            grad = g;
+            center = pieceRect[i].xy;
+        } else {
+            float k = max(blend, 0.0001);
+            float h = clamp(0.5 + 0.5 * (sd - d) / k, 0.0, 1.0);
+            d = sd + (d - sd) * h - k * h * (1.0 - h);
+            grad = mix(g, grad, h);
+            center = mix(pieceRect[i].xy, center, h);
+        }
+    }
+
+    float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+    if (coverage <= 0.0) return half4(0.0);
+
+    // Il profilo dello spessore: 1 al bordo, 0 dove il vetro e' piatto (la `circleMap` di Kyant).
+    float edge = 1.0 - clamp(-d / max(thickness, 0.0001), 0.0, 1.0);
+    float bend = (1.0 - sqrt(max(1.0 - edge * edge, 0.0))) * refraction * materialize;
+
+    float2 toCenter = p - center;
+    float centerLen = length(toCenter);
+    float2 n = grad + dome * (centerLen > 0.0001 ? toCenter / centerLen : float2(0.0));
+    float nLen = length(n);
+    n = nLen > 0.0001 ? n / nLen : float2(0.0);
+
+    float2 at = coord + bend * n;
+    half4 colour;
+    if (dispersion > 0.0 && abs(bend) > 0.01) {
+        // Tre campioni invece dei sette di Kyant: rosso e blu ai lati del verde.
+        float2 spread = n * bend * dispersion * 0.35;
+        half4 mid = content.eval(at);
+        colour = half4(content.eval(at + spread).r, mid.g, content.eval(at - spread).b, mid.a);
+    } else {
+        colour = content.eval(at);
+    }
+
+    // Velo: il corpo prende il suo colore sopra cio' che trasmette.
+    half veil = veilColor.a * half(materialize);
+    colour.rgb = colour.rgb * (1.0 - veil) + veilColor.rgb * veil * colour.a;
+
+    // Ombreggiatura: il corpo scurisce un poco dove curva.
+    colour.rgb *= half(1.0 - bodyShade * edge * edge * materialize);
+
+    return colour * half(coverage);
+}

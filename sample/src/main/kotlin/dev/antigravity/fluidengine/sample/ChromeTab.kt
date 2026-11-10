@@ -239,6 +239,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-more"),
           onClick = { onOpen(GalleryPage.MoreComponents) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Misure",
+          subtitle = "Scene fisse per i tempi di fotogramma del vetro nuovo: uno strumento, non una demo",
+          modifier = Modifier.testTag("chrome-open-measure"),
+          onClick = { onOpen(GalleryPage.Measure) },
+        )
       }
     }
 

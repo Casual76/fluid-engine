@@ -1,0 +1,54 @@
+// PROTOTIPO DI MISURA (pacchetto F0.6): una passata del bordo dello scorrimento. Non e' lo shader
+// dell'engine e non e' il nucleo di Haze: quello vero lo porta F2 (piano 3.10).
+//
+// Esiste per il cancello C4: "il bordo dello scorrimento a due passate sta nel fotogramma?". La
+// pagina "Misure" della galleria lo monta due volte in catena sulla stessa striscia, orizzontale e
+// poi verticale, come fara' l'engine: una gaussiana separabile il cui raggio cambia per pixel (pieno
+// al bordo dello schermo, zero dove la striscia finisce), quindi nessuna immagine doppia. Il conto
+// dei campioni e' quello del piano: 20 coppie piu' il centro per passata, 41 letture.
+//
+// Solo il COSTO e' fedele. I pesi sono calcolati per campione (Haze li tiene in tabella) e non c'e'
+// lo scurimento sul contenuto scuro: la resa si giudica in F2, non qui.
+//
+// Regole AGSL rispettate apposta (valgono da Android 13): ciclo a limite costante, niente derivate,
+// lo sfondo solo con `content.eval`.
+
+uniform shader content;                  // la cattura della striscia, o l'uscita della prima passata
+
+uniform float2 size;                     // taglia della striscia nella cattura (px)
+uniform float2 direction;                // (1, 0) orizzontale, (0, 1) verticale
+uniform float maxRadius;                 // raggio al bordo dello schermo (px nella cattura)
+uniform float fromBottom;                // 0 = il bordo dello schermo e' in alto, 1 = in basso
+layout(color) uniform half4 veilColor;   // velo verso il colore del fondo; alfa 0 = nessuno
+
+const int PAIRS = 20;
+
+half4 main(float2 coord) {
+    float y = mix(coord.y, size.y - coord.y, fromBottom);
+    float t = 1.0 - smoothstep(0.0, size.y, y);
+    float radius = maxRadius * t * t;
+
+    half4 sum = content.eval(coord);
+    if (radius > 0.35) {
+        // Il conto di HWUI per `createBlurEffect`: sigma = 0,57735 * raggio + 0,5; i campioni
+        // coprono due sigma e mezzo per lato.
+        float sigma = 0.57735 * radius + 0.5;
+        float reach = 2.5 * sigma;
+        float total = 1.0;
+        float2 lo = float2(0.5);
+        float2 hi = size - float2(0.5);
+        for (int i = 1; i <= PAIRS; ++i) {
+            float x = reach * float(i) / float(PAIRS);
+            float weight = exp(-0.5 * (x * x) / (sigma * sigma));
+            float2 shift = direction * x;
+            // Fuori dalla cattura non c'e' niente da leggere: si resta sul bordo (come `Clamp`).
+            sum += (content.eval(clamp(coord + shift, lo, hi)) + content.eval(clamp(coord - shift, lo, hi)))
+                * half(weight);
+            total += 2.0 * weight;
+        }
+        sum /= half(total);
+    }
+
+    half veil = veilColor.a * half(t);
+    return half4(sum.rgb * (1.0 - veil) + veilColor.rgb * veil * sum.a, sum.a);
+}

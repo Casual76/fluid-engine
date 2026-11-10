@@ -40,6 +40,9 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
   AllGlass("Tutto in vetro"),
   MoreComponents("Riordino, aggiornamento e visore"),
 
+  /** Le scene di misura della prima sessione sul dispositivo (piano «iOS in Android», F0.6): vedi `measure/`. */
+  Measure("Misure"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

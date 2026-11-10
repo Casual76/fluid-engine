@@ -1,0 +1,127 @@
+// SONDA della luce: uno shader SENZA ingressi, disegnato sopra il corpo. Non e' il materiale.
+//
+// E' la seconda meta' del prototipo della via A (vedi `sonda-via-a.agsl`): filo scuro, riflessi
+// interni e bagliore del dito non leggono il fondale, quindi non stanno nella catena del
+// `RenderEffect`. Sono un `drawRect` con questo shader, e un uniform che cambia (il bagliore che
+// segue il dito) non rifa' la sfocatura del corpo. Restituisce un colore PREMOLTIPLICATO da posare
+// in `SrcOver`: la stessa passata scurisce (filo) e schiarisce (riflessi, bagliore).
+//
+// La forma del bordo e' quella di iOS 27 (ricerca R5, schede M1 e M4): un filo scuro su tutto il
+// perimetro, e appena dentro un riflesso chiaro su due lobi opposti lungo `reflexDir` (di serie
+// alto e basso). Ruotando `reflexDir` e azzerando `rimDark` si ottengono i due archi di iOS 26.
+// I nomi degli uniform sono quelli del piano (3.4); i numeri si mettono a occhio: la taratura e'
+// lavoro di F1A.
+//
+// Stesso campo di `sonda-via-a.agsl` (8 pezzi fusi), perche' il costo misurato dalla pagina
+// «Misure» sia quello di una luce che conosce la sagoma. Sul banco e' il `light` di un elemento
+// `kind: "material"`, oppure un elemento `kind: "shader"` con `"inputs": {}`.
+
+const int MAX_PIECES = 8;
+
+uniform float2 offset;                   // -margine: porta `coord` nel sistema dell'elemento
+uniform float pieceCount;
+uniform float4 pieceRect[MAX_PIECES];    // xy = centro, zw = mezza taglia (px)
+uniform float4 pieceRadii[MAX_PIECES];   // alto-sx, alto-dx, basso-dx, basso-sx (px)
+uniform float blend;                     // raggio di fusione (px)
+
+uniform float rimWidth;                  // spessore del filo (px, ASSOLUTO: non cresce con la lastra)
+layout(color) uniform half4 rimDark;     // colore e forza del filo scuro; alfa 0 sul lato scuro
+uniform float2 reflexDir;                // asse dei due lobi di riflesso, unitario ((0, -1) = alto e basso)
+uniform float2 reflexWidths;             // quanto sono stretti i due lobi (esponente del coseno): x verso reflexDir, y opposto
+uniform float reflexStrength;            // forza del riflesso, 0..1
+uniform float reflexDepth;               // quanto il riflesso rientra prima di tornare al corpo (px)
+uniform float reflexFloor;               // quanto riflesso resta fuori dai lobi, 0..1
+uniform float2 glowCenter;               // il dito (px, sistema dell'elemento)
+uniform float glowRadius;                // (px)
+uniform float glow;                      // forza del bagliore, 0..1
+uniform float glowFill;                  // quanto il bagliore ha riempito l'elemento, 0..1
+layout(color) uniform half4 lightColor;  // colore di riflessi e bagliore
+uniform float materialize;               // 0 = niente luce, 1 = piena
+uniform float aa;                        // antialias della maschera (px)
+
+float radiusAt(float2 rel, float4 radii) {
+    if (rel.x >= 0.0) {
+        if (rel.y <= 0.0) return radii.y;
+        else return radii.z;
+    } else {
+        if (rel.y <= 0.0) return radii.x;
+        else return radii.w;
+    }
+}
+
+float sdRoundedRect(float2 rel, float2 halfSize, float radius) {
+    float2 q = abs(rel) - (halfSize - float2(radius));
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+}
+
+float2 gradRoundedRect(float2 rel, float2 halfSize, float radius) {
+    float2 q = abs(rel) - (halfSize - float2(radius));
+    if (q.x >= 0.0 || q.y >= 0.0) {
+        float2 dir = max(q, 0.0);
+        float len = length(dir);
+        if (len <= 0.0001) return float2(0.0);
+        return sign(rel) * (dir / len);
+    }
+    float gx = step(q.y, q.x);
+    return sign(rel) * float2(gx, 1.0 - gx);
+}
+
+half4 main(float2 coord) {
+    float2 p = coord + offset;
+
+    float d = 1000000.0;
+    float2 grad = float2(0.0);
+    for (int i = 0; i < MAX_PIECES; ++i) {
+        if (float(i) >= pieceCount) break;
+        float2 rel = p - pieceRect[i].xy;
+        float2 halfSize = pieceRect[i].zw;
+        float radius = min(radiusAt(rel, pieceRadii[i]), min(halfSize.x, halfSize.y));
+        float sd = sdRoundedRect(rel, halfSize, radius);
+        float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
+        float2 g = gradRoundedRect(rel, halfSize, gradRadius);
+        if (i == 0) {
+            d = sd;
+            grad = g;
+        } else {
+            float k = max(blend, 0.0001);
+            float h = clamp(0.5 + 0.5 * (sd - d) / k, 0.0, 1.0);
+            d = sd + (d - sd) * h - k * h * (1.0 - h);
+            grad = mix(g, grad, h);
+        }
+    }
+
+    float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+    if (coverage <= 0.0) return half4(0.0);
+
+    float gl = length(grad);
+    float2 n = gl > 0.0001 ? grad / gl : float2(0.0);
+    float inside = -d;                                   // px dal bordo verso l'interno
+    float w = max(rimWidth, 0.0001);
+
+    // Il filo scuro: una banda larga `rimWidth` sul perimetro, tutta uguale.
+    float rim = 1.0 - smoothstep(w * 0.5, w * 1.5, inside);
+    half dark = rimDark.a * half(rim);
+
+    // Il riflesso: nasce dove finisce il filo, rientra per `reflexDepth` e sfuma nel corpo. E' forte
+    // sui due lobi lungo `reflexDir` e scende a `reflexFloor` altrove.
+    float facing = dot(n, reflexDir);
+    float lobes = pow(max(facing, 0.0), max(reflexWidths.x, 0.0001))
+                + pow(max(-facing, 0.0), max(reflexWidths.y, 0.0001));
+    float around = mix(reflexFloor, 1.0, clamp(lobes, 0.0, 1.0));
+    float rise = smoothstep(w * 0.5, w * 1.5, inside);
+    float fall = 1.0 - smoothstep(w, w + max(reflexDepth, 0.0001), inside);
+    half reflex = half(clamp(reflexStrength * around * rise * fall, 0.0, 1.0));
+
+    // Il bagliore del dito: radiale, e con `glowFill` si allarga fino a riempire l'elemento.
+    half touch = 0.0;
+    if (glow > 0.0) {
+        float gd = length(p - glowCenter) / max(glowRadius, 0.0001);
+        touch = half(clamp(glow * mix(exp(-gd * gd), 1.0, clamp(glowFill, 0.0, 1.0)), 0.0, 1.0));
+    }
+
+    // Luce sopra il filo, in un colore solo premoltiplicato.
+    half light = clamp(reflex + touch, 0.0, 1.0) * lightColor.a;
+    half3 rgb = rimDark.rgb * dark * (1.0 - light) + lightColor.rgb * light;
+    half alpha = dark * (1.0 - light) + light;
+    return half4(rgb, alpha) * half(coverage * clamp(materialize, 0.0, 1.0));
+}

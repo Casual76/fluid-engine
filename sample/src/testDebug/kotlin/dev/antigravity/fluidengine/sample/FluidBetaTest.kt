@@ -185,7 +185,8 @@ class FluidBetaGalleryTest {
   @Test
   fun `le voci coprono ogni demo della 3_0, e ogni demo ha almeno una voce`() {
     val targets = allItems.map { it.target }
-    GalleryPage.entries.filter { it != GalleryPage.ToTry }.forEach { page ->
+    // «Misure» e' uno strumento, non una demo da giudicare in mano: non ha una voce in «Da provare».
+    GalleryPage.entries.filter { it != GalleryPage.ToTry && it != GalleryPage.Measure }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
     }
     assertTrue("nessuna voce porta alle pagine", targets.any { it is TryTarget.Screen })
@@ -411,6 +412,10 @@ class FluidBetaGalleryTest {
     GalleryPage.Charts,
     GalleryPage.FileTile,
     -> compose.onAllNodes(hasTestTag(NewComponentPageTag)).fetchSemanticsNodes().isNotEmpty()
+    // «Misure» e' uno strumento per le sessioni sul dispositivo, non una demo di «Da provare»: nessuna prova di
+    // questa classe la apre. Il ramo c'e' perche' il `when` resti esaustivo; il segno e' una frase che sta solo
+    // nel suo sottotitolo.
+    GalleryPage.Measure -> shown("adb logcat -s FluidMisure", substring = true)
   }
 }
 

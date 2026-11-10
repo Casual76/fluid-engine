@@ -82,7 +82,7 @@ fun FluidNavHost(
   pageColor: Color = MaterialTheme.colorScheme.background,
   builder: NavGraphBuilder.() -> Unit,
 ) {
-  ensurePageNavigator(navController)
+  EnsurePageNavigator(navController)
   val graph = remember(route, startDestination, builder) {
     NavGraphBuilder(navController.navigatorProvider, startDestination, route).apply(builder).build()
   }
@@ -102,7 +102,7 @@ fun FluidNavHost(
   pageColor: Color = MaterialTheme.colorScheme.background,
   builder: NavGraphBuilder.() -> Unit,
 ) {
-  ensurePageNavigator(navController)
+  EnsurePageNavigator(navController)
   val graph = remember(route, startDestination, builder) {
     NavGraphBuilder(navController.navigatorProvider, startDestination, route, typeMap)
       .apply(builder)
@@ -201,7 +201,7 @@ private fun NavigatorProvider.dialogNavigatorOrNull(): DialogNavigator? =
 
 /** Aggiunge il navigator delle pagine al controller, una volta, prima che il grafo si costruisca. */
 @Composable
-private fun ensurePageNavigator(navController: NavHostController) {
+private fun EnsurePageNavigator(navController: NavHostController) {
   remember(navController) {
     val provider = navController.navigatorProvider
     provider.pageNavigatorOrNull()

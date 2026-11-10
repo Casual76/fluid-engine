@@ -30,6 +30,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -196,7 +197,7 @@ private fun LongListsPage(
 
   // I dati: identificativi, dal piu' nuovo. Il contenuto di una riga si ricava dall'identificativo.
   var ids by remember(size) { mutableStateOf(List(size.rows) { (size.rows - 1 - it).toLong() }) }
-  var nextId by remember(size) { mutableStateOf(size.rows.toLong()) }
+  var nextId by remember(size) { mutableLongStateOf(size.rows.toLong()) }
   val read = remember(size) { mutableStateMapOf<Long, Boolean>() }
   val pinned = remember(size) { mutableStateMapOf<Long, Boolean>() }
   var lastArchived by remember(size) { mutableStateOf<Pair<Int, Long>?>(null) }

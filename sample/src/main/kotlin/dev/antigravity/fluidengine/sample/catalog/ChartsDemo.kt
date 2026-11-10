@@ -11,7 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -270,7 +270,7 @@ private fun TrendSection() {
 
 @Composable
 private fun StatesSection() {
-  var retries by remember { mutableStateOf(0) }
+  var retries by remember { mutableIntStateOf(0) }
   FluidSectionHeader(
     title = "Stati",
     detail = "Nessun dato nel periodo, caricamento, errore con «Riprova», ripartizione che non somma, valore negativo.",

@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -186,7 +187,7 @@ private fun PillSection() {
   var count by remember { mutableStateOf(false) }
   var folded by remember { mutableStateOf(false) }
   var zone by remember { mutableStateOf("mail") }
-  var writes by remember { mutableStateOf(0) }
+  var writes by remember { mutableIntStateOf(0) }
   // Un flusso: al 200% i tre tasti non stanno affiancati, e in una `Row` «Numero» si spezzava e «Ripiega» spariva.
   FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     FluidButton(text = if (dot) "Spegni il segno" else "Accendi il segno", onClick = { dot = !dot }, style = FluidButtonStyle.Tinted)
@@ -250,7 +251,7 @@ private fun RailSection() {
     detail = "Da 600 dp la pillola diventa il rail: l'azione primaria ha ancora il suo posto fisso.",
   )
   var route by remember { mutableStateOf("mail") }
-  var writes by remember { mutableStateOf(0) }
+  var writes by remember { mutableIntStateOf(0) }
   val items = listOf(
     FluidTabItem(route = "mail", label = "Posta", icon = Icons.Rounded.Inbox, badge = FluidTabBadge(count = 3)),
     FluidTabItem(route = "search", label = "Cerca", icon = Icons.Rounded.Search),

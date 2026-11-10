@@ -313,7 +313,7 @@ private val Elements = listOf("Terra", "Aria", "Fuoco", "Acqua", "Etere", "Luce"
 @Composable
 private fun ReorderColumnSection() {
   var rows by remember { mutableStateOf(Elements) }
-  var ended by remember { mutableStateOf(0) }
+  var ended by remember { mutableIntStateOf(0) }
   val listState = rememberLazyListState()
   val reorder = rememberFluidReorderState(
     listState = listState,
@@ -671,7 +671,7 @@ private val Pictures = listOf(
 private fun ViewerSection() {
   val host = rememberFluidGlassModalHostState()
   var open by remember { mutableStateOf(false) }
-  var page by remember { mutableStateOf(0) }
+  var page by remember { mutableIntStateOf(0) }
 
   FluidSectionHeader(
     title = "Visualizzatore di immagini",

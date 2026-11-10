@@ -267,7 +267,12 @@ su uniform, indici costanti, distanze in `float` e colori in `half`, niente deri
 | `GlassEdgeBlurShaderString` | `content` | 1 (direzione come uniform) | bordo dello scorrimento, due passate |
 | `GlassContentLens{Slab,Ring}ShaderString` | `content` (il layer del contenuto) | 2 | contenuto deformato dalla lente in viaggio (F5A) |
 
-Dodici programmi. Una **sagoma libera ferma** (`FluidForm.Poly` a riposo: `restFormNow()` la restituisce,
+**Dopo S1 (cancello C3): le varianti a lastre sono due, `1` e `8`**, perché la variante a 8 con uscita su `pieceCount`
+costa come quella tagliata sul conteggio. I programmi scendono da dodici a otto: `GlassBody1`, `GlassBody8`,
+`GlassBodyRing`, `GlassLight1`, `GlassLight8`, `GlassEdgeBlur`, `GlassContentLensSlab`, `GlassContentLensRing`. Dove il
+piano scrive `Body2` o `Body4` si legge `Body8`. Si scaldano dopo il primo fotogramma, non all'avvio (cancello C6).
+
+Dodici programmi nel disegno di partenza. Una **sagoma libera ferma** (`FluidForm.Poly` a riposo: `restFormNow()` la restituisce,
 `fp/FluidPhysicsState.kt:425-432`) non ha una variante di luce: tiene `lightInBody = 1` anche a riposo, cioè il suo bagliore
 ripaga la catena. È il Playground e poco altro; un tredicesimo programma (`GlassLightRing`) si aggiunge solo se in F1B una
 sagoma libera ferma e toccata risulta fuori dal fotogramma. La dispersione non è più una sorgente a parte: è un uniform (tre campioni invece di sette, R3 cap. 9), con
@@ -317,6 +322,9 @@ riesegue comunque, e tenere la luce fuori vorrebbe dire valutare il campo due vo
 pixel). Lo stesso blocco AGSL (`GlassLightBlock`) entra nelle due sorgenti: al passaggio viaggio→riposo la differenza attesa
 è l'arrotondamento a 8 bit di un livello sul filo. Se sul tablet si vede uno scalino (S2), il ripiego è tenere
 `lightInBody = 1` anche a riposo sulle sole superfici fisiche, pagando il loro bagliore con la catena.
+
+**Deciso dopo S1 (cancello C1): il corpo resta a un layer**, e la luce a riposo non va in un layer (0,1 ms per tre
+elementi). Il capoverso che segue resta come ripiego, da rileggere solo se S2 lo riapre.
 
 **Il rischio che può cambiare questa sezione.** Se la misura (c) di S1 dice che un cambio di soli uniform sul corpo non sta
 nel fotogramma sulle lastre che ne hanno bisogno (pressione, flessione, comparsa), il corpo passa a **due layer**: un primo
@@ -373,8 +381,9 @@ la smerigliatura si misura su due grandezze, contrasto residuo **e** nitidezza (
   stima di costo dice 5,3 a 4 pezzi e 8,2 a 8 contro 2,4 a uno (R3, in istruzioni di CPU: il rapporto vero su GPU lo dà la
   misura (d) di S1). Oltre 8 pezzi a distanza di fusione il grappolo si divide nel punto di varco più largo e le due metà
   non si fondono fra loro: si vede come due gruppi vicini, non come un errore.
-- **Variante scelta per conteggio**: 1 pezzo → `Body1` (un rettangolo arrotondato senza ciclo), 2 → `Body2`, 3–4 → `Body4`,
-  5–8 → `Body8`. Il cambio di variante a metà gesto è un cambio di programma: i programmi sono scaldati, e il piano sceglie
+- **Variante scelta per conteggio** (dopo S1, cancello C3): 1 pezzo → `Body1` (un rettangolo arrotondato senza ciclo),
+  2–8 → `Body8` con uscita su `pieceCount`. Nel disegno di partenza erano quattro (2 → `Body2`, 3–4 → `Body4`,
+  5–8 → `Body8`). Il cambio di variante a metà gesto è un cambio di programma: i programmi sono scaldati, e il piano sceglie
   la variante **del viaggio intero** alla partenza (il massimo fra partenza e arrivo), mai a metà.
 - **Grappolo** = pezzi dello stesso contenitore con stessa variante di vetro, a distanza ≤ `spacing`. **A riposo ogni
   grappolo è un campo con la sua cattura** (un gruppo di una barra è già *un* pezzo: una capsula con dentro N icone, non N
@@ -464,6 +473,12 @@ Due velocità, come R3 cap. 3:
   permanenza minima, l'**inchiostro** di icone e testo, l'alfa dell'ombra (dalla varianza), il colore dell'ombra (dalla
   media).
 
+**Dopo S1 (cancello C5): la lettura non passa da `toImageBitmap()`.** Sul Tab S9 ferma il filo principale circa 5 ms a
+lettura, qualunque sia la taglia della miniatura. La miniatura si **registra sul filo principale** (fuori dal principale
+HWUI cade: `RenderNode.endRecording` su un altro filo, SIGSEGV riprodotto) e si **legge su un filo di lavoro** con
+`HardwareRenderer` + `ImageReader`; la prova è in S1-bis. Il resto di questa sezione (segnali, schedulatore, filtro) non
+cambia; dove il testo dice `toImageBitmap()` si legge «la lettura asincrona».
+
 **Quando si sveglia la sonda.** Non «quando la superficie ricattura»: una sorgente che si ri-registra è raccolta per
 riferimento dalle superfici che la rigiocano, senza che nessuna ricatturi (`bd/DrawBackdropModifier.kt:749-772`; è
 l'invariante 3, che resta). Sotto un vetro fermo lo sfondo può passare da bianco a nero, il corpo lo mostra subito, e una
@@ -504,6 +519,10 @@ di Haze (`SemanticBlurKernel`, Apache-2.0: 20 coppie più il centro per passata)
 `LICENSES/Haze.md`. La striscia **esporta** se stessa come fa oggi la fascia (`exports = barGlass`,
 `ui/fluid/FluidScreen.kt` in `FluidTopBar`): i tasti della barra rifrangono il contenuto già dissolto, non la pagina cruda.
 Sotto `Classic` e sotto API 33 resta `FluidTopBarGlass` con `GlassFalloff.FadeDown`.
+
+**Dopo S1 (cancello C4): confermate le due passate a metà risoluzione.** Da chiudere in F2.4: il primo fotogramma della
+striscia costa 45–70 ms anche a caldo (le due superfici fuori schermo nascono lì): vanno create prima del primo
+scorrimento.
 
 **L'aspetto è quello di iOS 26, per decisione** (sezione 2): il contenuto si dissolve sotto i tasti con sfocatura e velo
 progressivi (R4 B7), senza fascia e senza taglio. iOS 27 ha sostituito questo aspetto con una fascia uniforme a taglio netto
@@ -1074,6 +1093,33 @@ ci sono.
 | C4 bordo dello scorrimento | (e) | due passate | tre sfocature native incrociate (R3 cap. 4), resa più lontana da Apple |
 | C5 sonda | (f) | `toImageBitmap()` | `HardwareRenderer` + `ImageReader`, o frequenza più bassa |
 | C6 prima compilazione | (g) | riscaldamento all'avvio | riscaldamento pigro per famiglia + meno varianti (4 e 8 fuse in una) |
+
+**Cancelli chiusi dopo S1 (2026-11-11).** Decisi dall'orchestratore sui numeri di `artifacts/liquid-glass/sessioni/S1.md`
+(Tab S9, Adreno 740, 120 Hz; tre finestre da 8 s per misura, concordi entro 0,15 ms). Dove questo riquadro contraddice
+una frase delle sezioni 3.x o di una fase, vale questo riquadro.
+
+| cancello | esito | decisione | cosa resta da riconfermare |
+|---|---|---|---|
+| C1 costo dei gesti | **bene** | **corpo a un layer** (3.5). Su tutte le lastre, anche 360×480 dp, un cambio di soli uniform sta nel fotogramma (p90 7,4–7,8 ms con la regola severa, nessun fotogramma perso in più). Il montaggio a due layer non si costruisce; se in S2 la comparsa di un pannello grande non regge, il ripiego è `two-composited`, non `two` (che nella comparsa costa più di `one`). La leva «nodi a monte fermi» non serve: Skia non riusa la sfocatura. La luce a riposo costa 0,1 ms per tre elementi: non si registra in un layer | shader definitivi in S2; flessione in S5; S25 |
+| C2 Fluid-physics a `Full` | **bene** | **resta come in 3.8**: l'anello sta nella finestra di un menu (GPU circa ×2 rispetto a `Balanced`, stessi fotogrammi persi, 2–3%). Sagome e tempi sono identici a `Balanced`: i difetti sono del disegno e muoiono in F1B | GPU del menu al p90 (9 ms) sull'S25 in S5 |
+| C3 pezzi | **bene** | **tetto 8, soglia 4**. GPU 1 : 1,1 : 1,4 : 1,9 per 1, 2, 4, 8 pezzi; il RenderThread non cresce. **In più**: la variante a 8 con uscita su `pieceCount` costa come quella tagliata sul conteggio, quindi le varianti a lastre sono **due, `1` e `8`** (corpo e luce), non quattro | nuclei veri e palco largo 2560 px in S2: se a 2 pezzi la variante a 8 costa in modo misurabile, torna la `2` |
+| C4 bordo dello scorrimento | **bene** | **due passate a metà risoluzione** (+1,0 ms di GPU sul tablet per alto e basso, +0,75 in formato telefono; a piena risoluzione +3,5: no) | il primo fotogramma della striscia (45–70 ms anche a caldo): causa in S1-bis, rimedio in F2.4; S25 in S5 |
+| C5 sonda | **male** | `toImageBitmap()` **non è la via**: ferma il filo principale circa 5 ms a lettura (4 sonde a 100 ms: 10% di fotogrammi persi), e registrare la miniatura fuori dal principale fa cadere HWUI. Via scelta: **`HardwareRenderer` + `ImageReader`**, miniatura registrata sul principale, lettura su un filo di lavoro; si prova e si misura subito (S1-bis). Se non regge: una sola sonda per contenitore, uno schedulatore unico per finestra, al più una lettura ogni 250 ms (misurato: 0,3–0,8% di fotogrammi oltre scadenza contro 0,1–0,7 del pavimento) | esito di S1-bis; statistica e isteresi in F2.1 |
+| C6 prima compilazione | **a metà** | niente riscaldamento nel percorso dell'avvio: a freddo sono circa 230 ms di RenderThread. **Riscaldamento dopo il primo fotogramma, per famiglia, a filo fermo**; meno programmi (le varianti `2` e `4` spariscono, vedi C3). A caldo ogni programma costa 4–5 ms | perché `light8` e la striscia restano lenti anche a caldo (S1-bis); una sola corsa a freddo |
+
+**Regola di misura, corretta da S1.** Sul tablet la scadenza di un fotogramma è 16,67 ms (due vsync a 120 Hz): un
+`total_ms` di 10–12 ms non perde fotogrammi. «Sta nel fotogramma» d'ora in poi vuol dire: **`over_pct` non sopra il
+pavimento della stessa scena**, e p90 di `ui + render` e di `gpu` ciascuno sotto il periodo; il p90 di `total_ms` si riporta
+ma non decide. Le scene a fondale fermo si misurano con `warmup 5` (la prima finestra esce dal transitorio).
+
+**Difetti del motore di oggi visti a `Full`** (S1, sezione C2), con chi li chiude:
+
+| difetto | dove | chi lo chiude |
+|---|---|---|
+| contorno della forma di prima dopo A → B → A, e la forma perde la sua ombra | `Full` e `Balanced`, dalla 3.0.0 | **chiuso**: commit `72be580` e `b56d158`; provato sul tablet il 2026-11-11 (0 pixel diversi su cinque andate e ritorni, contro 83 000–140 000 prima) |
+| doppio bordo dentro il ponte fra due pezzi, e moiré nel collo | solo `Full` | F1B.1 (nuclei nuovi: un campo solo, un filo solo) |
+| l'ombra a riposo compare in un fotogramma circa 270 ms dopo l'arrivo | `Full` e `Balanced` | F1B.6 (parità viaggio→riposo), voce di S2 |
+| nessun fotogramma registrato fra +17 e +67 ms nel cambio di pagina della barra | tutti e due | da capire in S1-bis con `framestats`; se è un fotogramma lungo, F4A |
 
 **Risultati osservabili.** `glassbench.py check` passa su tutte le sorgenti e fallisce se si reintroduce `flat` (prova:
 un test del banco con una sorgente sbagliata apposta); il lint JVM fallisce sullo stesso caso; `FluidPhysicsTierTest` copre i

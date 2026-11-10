@@ -101,6 +101,17 @@ Le modifiche fatte finora:
     quando cambia, e la manutenzione della cattura e' separata dal suo disegno, cosi' l'export non
     la ripete. La logica sta in un file nostro, `GlassNesting.kt`, accanto ai sorgenti copiati.
 
+13. **`radiusAt` riceve la coordinata centrata** (`internal/Shaders.kt`, pacchetto F0.2 di
+    `docs/liquid-glass/piano.md`). La funzione sceglie il raggio dell'angolo dal quadrante del punto,
+    ma a monte i quattro shader che la usano (le due lenti e i due bordi di luce) le passano la
+    coordinata del layer, che non e' mai negativa: ogni angolo prendeva il raggio in basso a destra.
+    Con quattro raggi uguali non si vede; con raggi diversi (il foglio di `FluidSheet` e di
+    `FluidGlassModal`, arrotondato solo in alto, il primo e l'ultimo segmento di un gruppo) lente e
+    bordo seguivano la curva sbagliata. Ora le passano `centeredCoord`, la stessa coordinata che
+    riceve `sdRoundedRect`, che nella lente comprende gia' il margine della cattura (`offset`). La
+    prova e' sul banco: `tools/glassbench/scenes/f0-raggi-diversi.json`. Il difetto e' ancora a
+    monte (rilevato dalla ricerca R3, `docs/liquid-glass/ricerca/fattibilita-android.md`).
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

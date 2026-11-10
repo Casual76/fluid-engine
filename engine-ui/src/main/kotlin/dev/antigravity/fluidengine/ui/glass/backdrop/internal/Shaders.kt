@@ -1,6 +1,13 @@
 /*
    Copyright 2025 Kyant
 
+   Vendored from Kyant0/AndroidLiquidGlass ("backdrop" v2.0.0, io.github.kyant0:backdrop),
+   commit b18eb0ff12c616546a68c72e7d0097f1ab286c87.
+
+   Changes made by the Fluid Engine (Antigravity), see LICENSES/AndroidLiquidGlass.md:
+     - the package was renamed com.kyant.backdrop -> dev.antigravity.fluidengine.ui.glass.backdrop;
+     - the four shaders hand `radiusAt` the centred coordinate instead of the layer's one.
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
@@ -18,6 +25,12 @@ package dev.antigravity.fluidengine.ui.glass.backdrop.internal
 
 import org.intellij.lang.annotations.Language
 
+// Fluid Engine change: `radiusAt` sceglie il raggio dal quadrante del punto, quindi vuole la stessa
+// coordinata centrata sulla sagoma che riceve `sdRoundedRect`. A monte i quattro shader qui sotto le
+// passano la coordinata del layer, che non e' mai negativa: ogni angolo prendeva il raggio in basso a
+// destra (`radii.z`), e una lastra con raggi diversi (un foglio arrotondato solo in alto) aveva lente e
+// bordo di luce sulla curva sbagliata. Qui ricevono `centeredCoord`, che nella lente comprende gia'
+// `offset` (il margine della cattura). Con quattro raggi uguali il risultato non cambia.
 @Language("AGSL")
 private const val RoundedRectSDF = """
 float radiusAt(float2 coord, float4 radii) {
@@ -67,7 +80,7 @@ float circleMap(float x) {
 half4 main(float2 coord) {
     float2 halfSize = size * 0.5;
     float2 centeredCoord = (coord + offset) - halfSize;
-    float radius = radiusAt(coord, cornerRadii);
+    float radius = radiusAt(centeredCoord, cornerRadii); // Fluid Engine change: vedi RoundedRectSDF
     
     float sd = sdRoundedRect(centeredCoord, halfSize, radius);
     if (-sd >= refractionHeight) {
@@ -104,7 +117,7 @@ float circleMap(float x) {
 half4 main(float2 coord) {
     float2 halfSize = size * 0.5;
     float2 centeredCoord = (coord + offset) - halfSize;
-    float radius = radiusAt(coord, cornerRadii);
+    float radius = radiusAt(centeredCoord, cornerRadii); // Fluid Engine change: vedi RoundedRectSDF
     
     float sd = sdRoundedRect(centeredCoord, halfSize, radius);
     if (-sd >= refractionHeight) {
@@ -170,7 +183,7 @@ $RoundedRectSDF
 half4 main(float2 coord) {
     float2 halfSize = size * 0.5;
     float2 centeredCoord = coord - halfSize;
-    float radius = radiusAt(coord, cornerRadii);
+    float radius = radiusAt(centeredCoord, cornerRadii); // Fluid Engine change: vedi RoundedRectSDF
     
     float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
     float2 grad = gradSdRoundedRect(centeredCoord, halfSize, gradRadius);
@@ -192,7 +205,7 @@ $RoundedRectSDF
 half4 main(float2 coord) {
     float2 halfSize = size * 0.5;
     float2 centeredCoord = coord - halfSize;
-    float radius = radiusAt(coord, cornerRadii);
+    float radius = radiusAt(centeredCoord, cornerRadii); // Fluid Engine change: vedi RoundedRectSDF
     
     float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));
     float2 grad = gradSdRoundedRect(centeredCoord, halfSize, gradRadius);

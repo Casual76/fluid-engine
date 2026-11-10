@@ -90,6 +90,7 @@ fun fluidBadgeText(count: Int, max: Int = FluidBadgeDefaults.Max): String {
  * @param contentDescription la frase letta da TalkBack, o null per un badge muto.
  */
 @Composable
+@Suppress("ModifierParameter") // firma pubblicata: la posizione di `modifier` e' compatibilita' sorgente (le protegge Compat*), spostarla rompe le chiamate posizionali
 fun FluidBadge(
   count: Int? = null,
   modifier: Modifier = Modifier,

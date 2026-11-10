@@ -2,11 +2,13 @@ package dev.antigravity.fluidengine.sample
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -40,6 +42,8 @@ import dev.antigravity.fluidengine.sample.catalog.IdentityDemo
 import dev.antigravity.fluidengine.sample.catalog.LongListsDemo
 import dev.antigravity.fluidengine.sample.catalog.NotificationUndoDemo
 import dev.antigravity.fluidengine.sample.catalog.RichTextDemo
+import dev.antigravity.fluidengine.sample.catalog.RichTextDemoToolbars
+import dev.antigravity.fluidengine.sample.catalog.rememberRichTextDemoStates
 import dev.antigravity.fluidengine.sample.catalog.TokenFieldDemo
 import dev.antigravity.fluidengine.sample.catalog.WebContentDemo
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
@@ -217,7 +221,17 @@ internal fun NewComponentPage(
     GalleryPage.DrawerAndTabs -> SectionsPage(page, spec, snapshot, openPanel, onBack, bottomInset) {
       DrawerAndTabsDemo()
     }
-    GalleryPage.RichText -> SectionsPage(page, spec, snapshot, openPanel, onBack, bottomInset) { RichTextDemo() }
+    GalleryPage.RichText -> {
+      // Le barre di formattazione stanno nell'overlay della pagina, come in un'app vera (vedi RichTextDemo).
+      // E come in un'app vera la pagina finisce sopra la tastiera (`avoidKeyboard`): e' la pagina che scorre
+      // a portare la riga che si scrive sopra la tastiera, e l'editor sopra la barra.
+      val states = rememberRichTextDemoStates()
+      SectionsPage(
+        page, spec, snapshot, openPanel, onBack, bottomInset,
+        avoidKeyboard = true,
+        overlay = { backdrop -> RichTextDemoToolbars(states, backdrop) },
+      ) { RichTextDemo(states) }
+    }
     GalleryPage.Charts -> SectionsPage(page, spec, snapshot, openPanel, onBack, bottomInset) { ChartsDemo() }
     GalleryPage.TokenField -> FullColumnPage(page, snapshot, openPanel, backdrop, onBack, bottomInset) {
       TokenFieldDemo()
@@ -242,16 +256,22 @@ private fun SectionsPage(
   openPanel: () -> Unit,
   onBack: () -> Unit,
   bottomInset: Dp,
+  avoidKeyboard: Boolean = false,
+  overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {},
   demo: @Composable () -> Unit,
 ) {
   FluidScreen(
     title = page.title,
     subtitle = spec.subtitle,
-    modifier = Modifier.testTag(NewComponentPageTag),
+    // Con `avoidKeyboard` la pagina (contenuto e overlay) finisce sopra la tastiera. Senza, una pagina a
+    // tutto schermo resta sotto la tastiera e Android, per mostrare il campo, sposta l'intera finestra:
+    // titolo fuori dallo schermo e barre dell'overlay a meta' pagina.
+    modifier = Modifier.testTag(NewComponentPageTag).then(if (avoidKeyboard) Modifier.imePadding() else Modifier),
     onBack = onBack,
     actions = { MatrixBarAction(snapshot, openPanel) },
     extraBottomPadding = bottomInset,
     ambient = remember(spec.tone, spec.motif) { FluidAmbient(tone = spec.tone, motif = spec.motif) },
+    overlay = overlay,
   ) {
     item(key = "new-component-${page.name}") { demo() }
   }

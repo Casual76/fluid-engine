@@ -6,14 +6,17 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,16 +63,12 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsulePlacement
-import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
-import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
+import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
-import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
-import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
-import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 
 /**
@@ -78,12 +78,26 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
  * E' la pagina «Testo ricco» della galleria (gruppo Campi). Stati: vuoto, con contenuto (tutti gli
  * stili, elenchi, link, citazione), elenchi e citazioni annidati su piu' livelli con le loro uscite, sola
  * lettura, e due riquadri che rifanno l'editor col testo al 200% in arabo (da destra a sinistra, con un
- * elenco profondo) e in scuro con il movimento ridotto (annidato). Ogni riquadro ha il suo host dei
- * fogli (per il foglio del link) e posa la barra in fondo a se' senza seguire la tastiera: in una pagina
- * vera la barra sta nell'overlay della schermata e sale con la tastiera (`avoidKeyboard`, di serie).
+ * elenco profondo) e in scuro con il movimento ridotto (annidato).
+ *
+ * **La barra sta dove sta in un'app vera: nell'overlay della pagina** ([RichTextDemoToolbars], che la
+ * pagina passa a `FluidScreen.overlay`), non dentro il riquadro. Prima ogni riquadro alto 420 dp si posava
+ * la barra in fondo a se' con `avoidKeyboard = false`, perche' una barra con `avoidKeyboard = true` dentro
+ * un riquadro che non arriva in fondo allo schermo sale di tutta la tastiera e esce dal riquadro: ma cosi'
+ * la barra finiva dietro Gboard (con «Aa» acceso non si vedeva niente) e, senza tastiera, sotto la pillola
+ * della galleria. Nell'overlay vale l'uso vero: con la tastiera aperta la barra prende il posto della
+ * barra delle schede e sale con la tastiera (`ReplacingTabBar`, `avoidKeyboard` di serie); a tastiera
+ * chiusa la galleria ha la sua pillola in fondo, e la barra si posa sopra di lei (`AboveTabBar`) invece di
+ * finirle sotto. L'host dei fogli (quello del link) e' quello della radice della galleria, come in un'app.
+ *
+ * **La pagina finisce sopra la tastiera** (`imePadding` sulla `FluidScreen` che la ospita: vedi `SectionsPage`
+ * con `avoidKeyboard`), come deve fare la pagina di un compositore: cosi' e' la pagina che scorre a portare
+ * la riga che si scrive sopra la tastiera, e l'editor, con la barra accesa, a portarla **sopra la barra**.
+ * Prima la pagina restava sotto la tastiera, e per mostrare il campo Android spostava l'intera finestra:
+ * il titolo usciva dallo schermo e la barra finiva a meta' del testo.
  */
 @Composable
-fun RichTextDemo() {
+fun RichTextDemo(states: RichTextDemoStates) {
   Column(
     modifier = Modifier.fillMaxWidth().testTag("richtext-demo"),
     verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -92,52 +106,109 @@ fun RichTextDemo() {
       title = "Editor vuoto",
       detail = "Il segnaposto, il tasto «Aa» che chiede la barra; seleziona del testo e la barra compare da sola.",
     )
-    EditorStage(rememberFluidRichTextState(), placeholder = "Scrivi un messaggio…", tag = "richtext-empty")
+    EditorStage(states.empty, placeholder = "Scrivi un messaggio…", tag = "richtext-empty")
 
     FluidSectionHeader(
       title = "Con contenuto ed esportazione",
       detail = "Grassetto, corsivo, sottolineato, elenchi, link, citazione. Sotto: l'HTML ristretto, il Markdown e il testo, aggiornati mentre scrivi.",
     )
-    val full = rememberFluidRichTextState(sampleDocument())
-    EditorStage(full, placeholder = null, tag = "richtext-full")
-    PasteControls(full)
-    Exports(full)
+    EditorStage(states.full, placeholder = null, tag = "richtext-full")
+    PasteControls(states.full)
+    Exports(states.full)
 
     FluidSectionHeader(
       title = "Elenchi e citazioni annidati",
       detail = "Sotto-elenchi puntati e numerati, citazione dentro una voce e voce dentro una citazione. " +
         "Riduci/aumenta rientro dalla barra (o Tab e Maiusc+Tab), a capo su una voce vuota risale di un livello.",
     )
-    val nested = rememberFluidRichTextState(nestedDocument())
-    EditorStage(nested, placeholder = null, tag = "richtext-nested")
-    Exports(nested, tag = "richtext-nested-export")
+    EditorStage(states.nested, placeholder = null, tag = "richtext-nested")
+    Exports(states.nested, tag = "richtext-nested-export")
 
     FluidSectionHeader(title = "Sola lettura", detail = "Niente tastiera e niente barra; il testo si seleziona e si copia.")
-    EditorStage(rememberFluidRichTextState(sampleDocument()), placeholder = null, readOnly = true, tag = "richtext-readonly")
+    EditorStage(states.readOnly, placeholder = null, readOnly = true, tag = "richtext-readonly")
 
     FluidSectionHeader(
       title = "Testo al 200%, da destra a sinistra",
       detail = "I segni degli elenchi e la barra della citazione passano sul lato destro; ai livelli profondi il rientro si stringe.",
     )
-    val density = LocalDensity.current
-    CompositionLocalProvider(
-      LocalDensity provides Density(density.density, 2f),
-      LocalLayoutDirection provides LayoutDirection.Rtl,
-      LocalFluidRichTextLabels provides FluidRichTextLabels.english(),
-    ) {
-      EditorStage(rememberFluidRichTextState(rtlDocument()), placeholder = null, tag = "richtext-rtl-large")
+    RtlLargeEnvironment {
+      EditorStage(states.rtl, placeholder = null, tag = "richtext-rtl-large")
     }
 
     FluidSectionHeader(title = "Scuro, movimento ridotto", detail = "La barra entra in dissolvenza, senza salire.")
-    FluidTheme(settings = remember { EngineSettings(themeMode = ThemeMode.DARK) }) {
-      CompositionLocalProvider(LocalFluidMotionPolicy provides FluidMotionPolicy(0f)) {
-        EditorStage(rememberFluidRichTextState(nestedDocument()), placeholder = null, tag = "richtext-dark")
-      }
+    DarkReducedEnvironment {
+      EditorStage(states.dark, placeholder = null, tag = "richtext-dark")
     }
   }
 }
 
-/** Un editor dentro un riquadro con la sua barra in fondo e il suo host dei fogli. */
+/** Gli stati degli editor della pagina: stanno fuori dal contenuto perche' le barre vivono nell'overlay. */
+@Stable
+class RichTextDemoStates internal constructor(
+  internal val empty: FluidRichTextState,
+  internal val full: FluidRichTextState,
+  internal val nested: FluidRichTextState,
+  internal val readOnly: FluidRichTextState,
+  internal val rtl: FluidRichTextState,
+  internal val dark: FluidRichTextState,
+)
+
+@Composable
+fun rememberRichTextDemoStates(): RichTextDemoStates = RichTextDemoStates(
+  empty = rememberFluidRichTextState(),
+  full = rememberFluidRichTextState(sampleDocument()),
+  nested = rememberFluidRichTextState(nestedDocument()),
+  readOnly = rememberFluidRichTextState(sampleDocument()),
+  rtl = rememberFluidRichTextState(rtlDocument()),
+  dark = rememberFluidRichTextState(nestedDocument()),
+)
+
+/** Il riquadro dell'arabo: testo al 200%, da destra a sinistra, etichette inglesi (editor e barra lo ripetono). */
+@Composable
+private fun RtlLargeEnvironment(content: @Composable () -> Unit) {
+  val density = LocalDensity.current
+  CompositionLocalProvider(
+    LocalDensity provides Density(density.density, 2f),
+    LocalLayoutDirection provides LayoutDirection.Rtl,
+    LocalFluidRichTextLabels provides FluidRichTextLabels.english(),
+    content = content,
+  )
+}
+
+/** Il riquadro scuro con il movimento ridotto (editor e barra lo ripetono). */
+@Composable
+private fun DarkReducedEnvironment(content: @Composable () -> Unit) {
+  FluidTheme(settings = remember { EngineSettings(themeMode = ThemeMode.DARK) }) {
+    CompositionLocalProvider(LocalFluidMotionPolicy provides FluidMotionPolicy(0f), content = content)
+  }
+}
+
+/**
+ * Le barre di formattazione di tutti gli editor della pagina, **da passare a `FluidScreen.overlay`**: ognuna
+ * e' in scena solo per l'editor che ha il fuoco (`isFormattingBarVisible`), quindi ne compare una sola.
+ *
+ * Con la tastiera aperta la barra e' quella di un'app vera (`ReplacingTabBar`, `avoidKeyboard` di serie: sale
+ * con la tastiera). A tastiera chiusa la pillola della galleria e' in fondo allo schermo: la barra si posa
+ * sopra di lei (`AboveTabBar`) e non le finisce sotto.
+ */
+@Composable
+fun BoxScope.RichTextDemoToolbars(states: RichTextDemoStates, backdrop: GlassBackdropState) {
+  val keyboardUp = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+  val placement =
+    if (keyboardUp) FluidFloatingCapsulePlacement.ReplacingTabBar else FluidFloatingCapsulePlacement.AboveTabBar
+  val bar = Modifier.align(Alignment.BottomCenter)
+  FluidRichTextToolbar(states.empty, modifier = bar, backdrop = backdrop, placement = placement)
+  FluidRichTextToolbar(states.full, modifier = bar, backdrop = backdrop, placement = placement)
+  FluidRichTextToolbar(states.nested, modifier = bar, backdrop = backdrop, placement = placement)
+  RtlLargeEnvironment {
+    FluidRichTextToolbar(states.rtl, modifier = bar, backdrop = backdrop, placement = placement)
+  }
+  DarkReducedEnvironment {
+    FluidRichTextToolbar(states.dark, modifier = bar, backdrop = backdrop, placement = placement)
+  }
+}
+
+/** Un editor dentro un riquadro: la sua barra sta nell'overlay della pagina ([RichTextDemoToolbars]). */
 @Composable
 private fun EditorStage(
   state: FluidRichTextState,
@@ -145,51 +216,37 @@ private fun EditorStage(
   tag: String,
   readOnly: Boolean = false,
 ) {
-  val backdrop = rememberGlassBackdrop()
-  val host = rememberFluidGlassModalHostState()
-  CompositionLocalProvider(LocalFluidGlassModalHostState provides host) {
-    Box(
+  Box(
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(420.dp)
+      .clip(ContinuousCornerShape(FluidRadius.Group))
+      .background(MaterialTheme.colorScheme.surface)
+      .testTag(tag),
+  ) {
+    Column(
       modifier = Modifier
-        .fillMaxWidth()
-        .height(420.dp)
-        .clip(ContinuousCornerShape(FluidRadius.Group))
-        .background(MaterialTheme.colorScheme.surface)
-        .testTag(tag),
+        .fillMaxSize()
+        .verticalScroll(rememberScrollState())
+        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
     ) {
-      Column(
-        modifier = Modifier
-          .fillMaxSize()
-          .glassBackdropSource(backdrop)
-          .background(MaterialTheme.colorScheme.surface)
-          .verticalScroll(rememberScrollState())
-          .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-      ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(
-            text = if (readOnly) "Sola lettura" else "Corpo",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-          )
-          if (!readOnly) FluidRichTextFormatButton(state)
-        }
-        FluidRichTextEditor(
-          state = state,
-          placeholder = placeholder,
-          contentDescription = "Corpo",
-          readOnly = readOnly,
-          minLines = 6,
-          modifier = Modifier.heightIn(min = 160.dp),
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+          text = if (readOnly) "Sola lettura" else "Corpo",
+          style = MaterialTheme.typography.labelLarge,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.weight(1f),
         )
+        if (!readOnly) FluidRichTextFormatButton(state)
       }
-      FluidRichTextToolbar(
+      FluidRichTextEditor(
         state = state,
-        modifier = Modifier.align(Alignment.BottomCenter),
-        backdrop = backdrop,
-        placement = FluidFloatingCapsulePlacement.Free,
-        avoidKeyboard = false,
+        placeholder = placeholder,
+        contentDescription = "Corpo",
+        readOnly = readOnly,
+        minLines = 6,
+        modifier = Modifier.heightIn(min = 160.dp),
       )
-      FluidGlassModalHost(state = host, backdrop = backdrop)
     }
   }
 }

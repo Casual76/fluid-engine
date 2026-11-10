@@ -667,13 +667,14 @@ private fun rememberFluidReorderStateFor(
  * @param shape la forma della goccia e dell'ombra: quella dell'elemento.
  */
 @Composable
+@Suppress("ModifierFactoryExtensionFunction") // firma pubblicata: l'estensione sullo scope della lista serve ad animateItem, cambiare il ricevitore rompe i chiamanti
 fun LazyItemScope.fluidReorderable(
   state: FluidReorderState,
   key: Any,
   enabled: Boolean = true,
   shape: Shape = ContinuousCornerShape(FluidRadius.Card),
   strings: FluidReorderStrings = FluidReorderStrings(),
-): Modifier = fluidReorderableChain(
+): Modifier = Modifier.fluidReorderableChain(
   state = state,
   key = key,
   enabled = enabled,
@@ -690,13 +691,14 @@ fun LazyItemScope.fluidReorderable(
 
 /** [fluidReorderable] per un elemento di una `LazyVerticalGrid`: tutti e due gli assi, i vicini scalano. */
 @Composable
+@Suppress("ModifierFactoryExtensionFunction") // firma pubblicata: l'estensione sullo scope della lista serve ad animateItem, cambiare il ricevitore rompe i chiamanti
 fun LazyGridItemScope.fluidReorderable(
   state: FluidReorderState,
   key: Any,
   enabled: Boolean = true,
   shape: Shape = ContinuousCornerShape(FluidRadius.Card),
   strings: FluidReorderStrings = FluidReorderStrings(),
-): Modifier = fluidReorderableChain(
+): Modifier = Modifier.fluidReorderableChain(
   state = state,
   key = key,
   enabled = enabled,
@@ -712,7 +714,7 @@ fun LazyGridItemScope.fluidReorderable(
 )
 
 @Composable
-private fun fluidReorderableChain(
+private fun Modifier.fluidReorderableChain(
   state: FluidReorderState,
   key: Any,
   enabled: Boolean,
@@ -732,7 +734,7 @@ private fun fluidReorderableChain(
     onDispose { state.itemGone(key) }
   }
 
-  return Modifier
+  return this
     // Il gesto per primo (piu' esterno): le sue coordinate sono quelle del posto in lista, **non** quelle
     // del layer che si muove sotto il dito. Se stesse dentro il layer traslato, l'elemento seguirebbe il dito
     // e il dito, visto dall'elemento, non si muoverebbe mai.

@@ -5,7 +5,7 @@
 # Fluid Engine
 
 Le fondamenta condivise delle app Android di Antigravity, estratte da ClasseViva Expressive. Un repo a sé,
-agganciato a un tag dentro ogni app che lo usa. **Versione documentata: 3.1.0** (schede, catalogo API e changelog allineati).
+agganciato a un tag dentro ogni app che lo usa. **Versione documentata: 3.1.1** (schede, catalogo API e changelog allineati).
 
 Questa skill è la documentazione dell'engine **e** le regole per lavorarci senza romperlo. Non è un riassunto:
 dietro c'è una scheda per ogni famiglia di componenti e per ogni modulo, e un catalogo di tutte le API pubbliche
@@ -151,7 +151,7 @@ Ogni compito ha la sua ricetta con i passi e il perché in `ricette.md`. Qui, il
 - **Aggiornare l'engine di un'app** — `engine-update.ps1 -AppRoot . -Version X`; se l'app è un porto lo script non
   tocca niente; poi compila, leggi le voci **BREAKING**, committa `engine` + `engine.properties` insieme.
 - **Tagliare una versione** — `engine-release.ps1 -Version X -Notes "…" -Tag`: muove insieme `ENGINE_VERSION`,
-  `EngineBuild.VERSION` e il tag. Mai a mano. Poi rigenera il catalogo (`scripts/gen_api_catalog.py`).
+  `EngineBuild.VERSION`, la «Versione documentata» di questo file e il tag. Mai a mano. Poi rigenera il catalogo (`scripts/gen_api_catalog.py`).
 - **«Il widget non segue il tema»** — manca il collegamento fra impostazioni e `updateAll` (`widget.md`).
 - **Qualcosa non va** — `risoluzione-problemi.md`, e prima: l'app è sull'ultima patch (3.0.1–3.0.4 correggono
   metà dei sintomi)?

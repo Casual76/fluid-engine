@@ -5,6 +5,7 @@ import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -116,7 +117,7 @@ class FluidTutorialHostState internal constructor(
   private val candidates = mutableStateListOfCandidates()
   private var screenKey by mutableStateOf<String?>(null)
   private var loadingCount by mutableIntStateOf(0)
-  private var lastInteractionAt by mutableStateOf(clock())
+  private var lastInteractionAt by mutableLongStateOf(clock())
   private var awaitingInteraction by mutableStateOf(false)
 
   /** Il suggerimento in scena, se c'e'. Uno per volta, sempre. */

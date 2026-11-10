@@ -3,7 +3,6 @@ package dev.antigravity.fluidengine.aiui.settings
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import dev.antigravity.fluidengine.ai.keys.AiSettings
 import dev.antigravity.fluidengine.ai.keys.KeyState
 import dev.antigravity.fluidengine.ai.keys.ThinkingLevel
@@ -507,7 +507,7 @@ private fun FluidAiPreferences(
                   micLauncher.launch(Manifest.permission.RECORD_AUDIO)
                   // Negato per sempre: l'unica strada sono le impostazioni di sistema.
                   if (permissionEpoch > 0) {
-                    runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }
+                    runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())) }
                   }
                 },
               )

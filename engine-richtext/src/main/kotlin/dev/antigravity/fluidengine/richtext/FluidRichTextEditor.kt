@@ -10,7 +10,11 @@ import androidx.compose.foundation.content.TransferableContent
 import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,18 +29,26 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.isSpecified
@@ -70,9 +82,13 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.ResolvedTextDirection
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
+import kotlin.math.ceil
+import kotlinx.coroutines.flow.collectLatest
 
 /** I valori di serie di [FluidRichTextEditor]. */
 object FluidRichTextEditorDefaults {
@@ -140,6 +156,21 @@ object FluidRichTextEditorDefaults {
  * Non ha un pozzo ne' un bordo: occupa la larghezza che riceve e cresce col testo. Il contenitore (una
  * pagina che scorre, una card) e' dell'app. Dentro uno spazio di altezza fissa scorre da se'.
  *
+ * **La riga che si scrive sta sopra la barra.** Il campo porta il cursore in vista come ogni campo di testo:
+ * sopra il fondo di chi scorre, cioe' sopra la tastiera se la pagina finisce li'. La barra pero' galleggia
+ * proprio sopra quel fondo. Mentre la barra e' in scena ([FluidRichTextState.isFormattingBarVisible], con
+ * una [FluidRichTextToolbar] che ha lo stesso [state]) l'editor chiede a chi scorre di portare in vista il
+ * cursore **piu' lo spazio che la barra occupa**: la riga si ferma appena sopra la barra, col testo al 100%
+ * come al 200%, con e senza tastiera. Lo fa solo se la riga e' coperta. Vicino alla fine del testo quello
+ * spazio sotto la riga non c'e': finche' la barra e' in scena il campo si tiene sotto l'ultima riga **una
+ * coda vuota** alta quanto la barra occupa (il campo e' piu' alto di cosi', o piu' corto se ha un'altezza
+ * fissa), e la restituisce quando la barra esce. Senza barra non cambia niente.
+ *
+ * Cosa deve fare la pagina: **scorrere** (l'editor sposta la riga solo chiedendolo a chi scorre) e **finire
+ * sopra la tastiera** (`Modifier.imePadding()` sulla pagina che contiene contenuto e overlay). Una pagina a
+ * tutto schermo che resta sotto la tastiera non porta il cursore sopra la tastiera nemmeno senza barra:
+ * Android sposta l'intera finestra, e la barra con lei.
+ *
  * @param placeholder il testo grigio quando il documento e' vuoto.
  * @param contentDescription il nome del campo per TalkBack («Corpo», «Firma»); senza, il segnaposto non
  *   basta, perche' sparisce appena si scrive.
@@ -194,12 +225,96 @@ fun FluidRichTextEditor(
     }
   }
 
+  // La riga del cursore sopra la barra di formattazione. Il campo porta gia' il cursore in vista da solo,
+  // cioe' sopra il fondo di chi scorre (la tastiera); la barra pero' galleggia proprio li' sopra, e la
+  // pagina non le lascia uno spazio suo. Con la barra in scena si chiede di portare in vista il cursore
+  // **piu' lo spazio che la barra occupa** ([CaretBarAvoidance]), e solo se la riga e' coperta. Vicino
+  // alla fine del testo quello spazio non c'e' (sotto l'ultima riga il campo finisce): il campo se lo tiene
+  // come coda vuota finche' la barra e' in scena. Senza barra non si chiede niente e non c'e' coda.
+  val bringIntoView = remember { BringIntoViewRequester() }
+  val placement = remember { FieldPlacement() }
+  val ime = WindowInsets.ime
+  val density = LocalDensity.current
+  val barGapPx = with(density) { CaretBarGap.toPx() }
+  LaunchedEffect(state, ime, density, barGapPx) {
+    var previous: CaretTrigger? = null
+    snapshotFlow {
+      // La tastiera che sale o scende sposta la barra: finche' si muove, la riga la segue.
+      if (state.isFormattingBarVisible) CaretTrigger(state.selection, state.revision, ime.getBottom(density)) else null
+    }.collectLatest { trigger ->
+      val before = previous
+      previous = trigger
+      if (trigger == null) {
+        // La barra non c'e' piu': la coda tenuta per lei torna indietro.
+        placement.tail = 0
+        placement.probe = 0
+        return@collectLatest
+      }
+      // Un giro interrotto a meta' (un altro tasto, la tastiera che si muove) puo' aver lasciato la coda
+      // presa solo per misurare: torna indietro prima di rimisurare.
+      if (placement.probe > 0) {
+        placement.tail = (placement.tail - placement.probe).coerceAtLeast(0)
+        placement.probe = 0
+      }
+      val offset = movedSelectionOffset(before?.selection?.start, before?.selection?.end, trigger.selection.start, trigger.selection.end)
+      val avoidance = CaretBarAvoidance()
+      while (true) {
+        // Due fotogrammi: il primo puo' essere quello che sta ancora componendo la modifica; dopo il
+        // secondo il testo, la barra e lo scorrimento appena fatto sono nel layout che si misura.
+        repeat(2) { withFrameNanos { } }
+        val coordinates = placement.coordinates?.takeIf { it.isAttached } ?: break
+        val layout = layoutGetter?.invoke() ?: break
+        val caret = layout
+          .getCursorRect(offset.coerceIn(0, layout.layoutInput.text.length))
+          .translate(0f, -scroll.value.toFloat())
+        val fieldBottom = coordinates.localToRoot(Offset(0f, coordinates.size.height.toFloat())).y + placement.tail
+        val cutBottom = coordinates.cutBottomInRoot()
+        val step = avoidance.next(
+          CaretBarMeasure(
+            caretBottom = coordinates.localToRoot(Offset(0f, caret.bottom)).y,
+            caretHeight = caret.height,
+            fieldBottom = fieldBottom,
+            barTop = state.formattingBarTop,
+            visibleFieldTop = coordinates.boundsInRoot().top,
+            scrollBottom = cutBottom ?: fieldBottom,
+            cut = cutBottom != null,
+            windowHeight = coordinates.findRootCoordinates().size.height.toFloat(),
+            gap = barGapPx,
+          ),
+        )
+        when (step) {
+          CaretBarStep.Done -> break
+          is CaretBarStep.Bring ->
+            bringIntoView.bringIntoView(Rect(caret.left, caret.top, caret.right, caret.bottom + step.allowance))
+          // Sotto la riga non c'e' abbastanza campo: se ne tiene la coda che manca (o restituisce quella
+          // presa in eccesso), e al giro dopo si rimisura.
+          is CaretBarStep.Reserve -> {
+            val tail = (placement.tail + ceil(step.space).toInt())
+              .coerceIn(0, coordinates.findRootCoordinates().size.height)
+            if (step.probe) placement.probe = if (step.space > 0f) tail - placement.tail else 0
+            placement.tail = tail
+          }
+        }
+      }
+    }
+  }
+
   val description = state.format.describe(labels)
   CompositionLocalProvider(LocalClipboard provides richClipboard) {
     BasicTextField(
       state = state.textFieldState,
       modifier = modifier
         .fillMaxWidth()
+        // La coda sotto l'ultima riga, per stare sopra la barra (zero senza barra, e finche' la riga non
+        // e' coperta vicino alla fine): il campo occupa quei pixel in piu', oppure, se la sua altezza e'
+        // fissa, si accorcia di altrettanto.
+        .layout { measurable, constraints ->
+          val tail = placement.tail
+          val placeable = measurable.measure(constraints.offset(vertical = -tail))
+          layout(placeable.width, constraints.constrainHeight(placeable.height + tail)) { placeable.place(0, 0) }
+        }
+        .bringIntoViewRequester(bringIntoView)
+        .onPlaced { placement.coordinates = it }
         .focusRequester(state.focusRequester)
         .onSizeChanged { indentLimit.widthPx = it.width.toFloat() }
         .onFocusChanged { state.isFocused = it.isFocused }
@@ -242,6 +357,45 @@ fun FluidRichTextEditor(
     )
   }
 }
+
+/** L'aria fra la riga del cursore e il bordo alto della barra di formattazione. */
+private val CaretBarGap = 8.dp
+
+/**
+ * Dove sta il campo: le coordinate del layout, lette quando serve misurare (non sono stato di Compose), e
+ * la coda vuota che si tiene sotto l'ultima riga mentre la barra e' in scena ([CaretBarStep.Reserve]), in
+ * pixel: stato, perche' cambiarla rifa' il layout. Cresce quando serve e torna a zero quando la barra esce.
+ */
+private class FieldPlacement {
+  var coordinates: LayoutCoordinates? = null
+  var tail: Int by mutableIntStateOf(0)
+
+  /** Quanta della coda e' stata presa solo per misurare e va restituita (zero a giro finito). */
+  var probe: Int = 0
+}
+
+/**
+ * Il fondo di chi scorre per primo attorno al campo, nelle coordinate della radice: risalendo dal campo, il
+ * bordo basso del primo pezzo di layout che e' **tagliato in basso** da chi lo contiene (il contenuto di
+ * una pagina che scorre continua sotto il bordo della pagina: il taglio e' quel bordo). Chi scorre non ha
+ * un'API per farsi trovare da un figlio, ma il suo ritaglio si vede. Null se niente e' tagliato.
+ */
+private fun LayoutCoordinates.cutBottomInRoot(): Float? {
+  var node: LayoutCoordinates? = this
+  while (node != null && node.isAttached) {
+    val visible = node.boundsInRoot()
+    // Un pezzo del tutto fuori vista non dice dov'e' il bordo: lo dice chi lo contiene.
+    if (visible.height > 0f) {
+      val bottom = node.localToRoot(Offset(0f, node.size.height.toFloat())).y
+      if (bottom > visible.bottom + CaretBarAvoidance.Epsilon) return visible.bottom
+    }
+    node = node.parentCoordinates
+  }
+  return null
+}
+
+/** Cio' che fa ricontrollare la riga del cursore mentre la barra e' in scena. */
+private data class CaretTrigger(val selection: TextRange, val revision: Long, val imeBottom: Int)
 
 /** I colori che la trasformazione d'uscita e i segni accanto al testo usano. */
 internal data class RichTextColors(

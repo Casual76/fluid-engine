@@ -250,6 +250,7 @@ fun FluidTokenField(
 
 /** Riga in pagina, un nodo accessibile; non prende focus alla tastiera mentre si sceglie un suggerimento. */
 @Composable
+@Suppress("ModifierParameter") // firma pubblicata: la posizione di `modifier` e' compatibilita' sorgente (le protegge Compat*), spostarla rompe le chiamate posizionali
 fun FluidSuggestionRow(
   title: String,
   subtitle: String? = null,

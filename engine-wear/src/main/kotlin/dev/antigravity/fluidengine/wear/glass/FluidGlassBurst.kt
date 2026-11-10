@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,7 +51,7 @@ class FluidGlassBurstState internal constructor(
     private set
 
   /** Changes on every [fire], so the sparks of two bursts in a row do not line up. */
-  internal var seed: Int by mutableStateOf(0)
+  internal var seed: Int by mutableIntStateOf(0)
     private set
 
   /** 0 at the moment of the press, 1 when the burst has faded out. */

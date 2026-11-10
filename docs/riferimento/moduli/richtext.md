@@ -95,7 +95,7 @@ Tutti passano da `FluidRichTextState` (e si annullano in un passo): `toggle(styl
 | `isFormattingBarVisible` | la barra deve stare sopra la tastiera: editor col fuoco e una selezione, o «Aa» |
 
 **Il salvataggio vero è dell'app.** Lo stato salvato da Android (`rememberSaveable`) serve a ricreare la schermata (rotazione, morte del processo: documento, selezione e «Aa», **non la cronologia**), non è una garanzia contro
-la perdita di testo, e per un documento oltre `FluidRichTextState.MaxSavedLength` = 50 000 caratteri **non salva il documento** (un `Bundle` troppo grande fa cadere l'app): in quel caso l'app lo riapre dalla sua bozza. Schema
+la perdita di testo, e **non salva il documento** in due casi (un `Bundle` troppo grande fa cadere l'app): oltre `FluidRichTextState.MaxSavedLength` = 50 000 caratteri, **oppure** (dalla 3.1.1) quando la dimensione serializzata, stimata per eccesso, supera **256 KB**. La stima conta il testo (2 byte per carattere), i tratti con formato, gli indirizzi dei link (2 byte per carattere, ciascuno una volta sola) e gli stili dei paragrafi: molti link lunghi pesano molto anche in poco testo, quindi un documento sotto i 50 000 caratteri può superare il secondo tetto. Sopra uno dei due tetti lo stato salvato **non porta il documento**: dopo la ricreazione della schermata `rememberFluidRichTextState` riparte da `initial`, senza errori e senza avvisi, e l'app lo riapre dalla sua bozza (per questo la bozza su disco non è facoltativa). Sotto i due tetti si ripristina tutto. Schema
 tipico: `snapshotFlow { state.revision }.debounce(…)` → `FluidRichTextHtml.write(state.document)` su disco; all'apertura `setDocument(FluidRichTextHtml.read(salvato))` + `clearHistory()` (l'apertura non si annulla). Il formato dello
 stato salvato è versionato (2 da quando gli elenchi si annidano: pila in un `Int`, profondità nei 4 bit bassi e 2 bit per contenitore); uno stato salvato senza versione, quello a un livello di prima, **si legge ancora**.
 
@@ -135,6 +135,24 @@ allineata in basso. Ogni stile è un interruttore: `FluidCapsuleAction(selected 
 annulla e ripeti sono tasti semplici, spenti quando non c'è niente da fare. Toccare un tasto **non toglie il fuoco all'editor**: la tastiera resta e la selezione pure. Il **link** apre un foglio con testo e indirizzo (un
 portale: **serve un `FluidGlassModalHost` alla radice**, come ogni foglio dell'engine). Su un telefono stretto o col testo al 200% i tasti scorrono di lato nella capsula; sono sempre da 48 dp.
 
+### La riga che si scrive sta sopra la barra (3.1.2)
+
+La pagina non lascia alla barra uno spazio suo: la barra galleggia sopra il fondo della pagina, proprio dove ogni campo di testo porta il cursore. Senza altro, chi scrive in fondo a un testo con la barra accesa scriverebbe
+**dietro la barra**. Mentre la barra è in scena l'editor porta la riga del cursore (o il capo della selezione che si muove) **appena sopra la barra**, con 8 dp d'aria: scrivendo, andando a capo, spostando il cursore, quando la
+barra compare, quando la tastiera sale; col testo al 100% come al 200%, con e senza tastiera. **Non c'è niente da collegare**: barra ed editor hanno lo stesso `state`, la barra dice dove sta e l'editor ne tiene conto. Nessuna API
+nuova, e un'app sulla 3.1.x lo riceve senza toccare niente.
+
+- **Come lo fa.** Chiede a chi scorre (la pagina, un riquadro dentro la pagina) di portare in vista il cursore **più lo spazio che la barra occupa** sopra il fondo di chi scorre; lo chiede **solo se la riga è coperta**, quindi
+  una riga già sopra la barra non si muove e una pagina che l'utente ha scorso altrove non torna al cursore.
+- **La coda.** Vicino alla fine del testo quello spazio sotto la riga non c'è (sotto l'ultima riga il campo finisce). Finché la barra è in scena il campo si tiene sotto l'ultima riga una **coda vuota** alta quanto la barra occupa
+  (circa 80 dp con la tastiera aperta in una pagina che finisce sopra la tastiera): è lo spazio che la pagina non ha lasciato, e dà a chi scorre la corsa per alzare l'ultima riga. Compare solo quando una riga coperta è vicina alla
+  fine e **torna a zero quando la barra esce**: ciò che sta sotto l'editor scende e risale di quella misura. Un campo ad altezza fissa non cresce: si accorcia di altrettanto.
+- **Cosa deve fare la pagina.** **Scorrere** (l'editor non sposta niente da solo) e **finire sopra la tastiera**: `Modifier.imePadding()` sulla pagina che contiene contenuto e overlay (su `FluidScreen`: `modifier = Modifier.imePadding()`;
+  l'`imePadding` della barra, dentro, a quel punto vale zero e non si somma). Una pagina a tutto schermo che resta sotto la tastiera non porta il cursore sopra la tastiera nemmeno senza barra: Android sposta **l'intera finestra**
+  (il titolo esce dallo schermo, la barra dell'overlay finisce a metà pagina). La galleria faceva così fino alla 3.1.1.
+- **Limiti.** Barra ed editor devono stare nella stessa radice di Compose (non una in un `Dialog` o `Popup` e l'altro nella pagina). Le maniglie della selezione pendono sotto la riga selezionata e possono sfiorare la barra: è la riga a
+  stare sopra, non le maniglie.
+
 ## Cosa è dell'app, cosa dell'engine
 
 | dell'engine | dell'app |
@@ -155,6 +173,10 @@ portale: **serve un `FluidGlassModalHost` alla radice**, come ogni foglio dell'e
 - **Gli enum possono crescere** (`FluidRichTextInlineStyle`, `FluidRichTextListKind`, `FluidRichTextBlock`, `FluidRichTextChangeSource`): barrato e codice sono candidati. Un `when` senza `else` si rompe.
 - **La barra senza `FluidGlassModalHost`** non apre il foglio del link; senza host il link si imposta solo da codice con `setLink`.
 - **La barra sta fuori dal `content` della pagina.** Va nell'overlay (`FluidScreen.overlay`, o un `Box` sopra il contenuto), non come riga dentro lo scroll: è una capsula flottante ancorata in basso che sale con la tastiera, non un pezzo del contenuto.
+- **La pagina dell'editor finisce sopra la tastiera** (`imePadding()` su ciò che contiene contenuto e overlay) **e scorre**: è la condizione perché la riga che si scrive stia sopra la tastiera e sopra la barra (vedi «La riga che si
+  scrive sta sopra la barra»). Non serve lasciare in fondo alla pagina uno spazio per la barra: se lo tiene l'editor, come coda, solo mentre la barra è in scena.
+- **Con la barra in scena l'editor può essere più alto del suo testo** (la coda sotto l'ultima riga): non misurare «quanto testo c'è» dall'altezza del campo, e non disegnare un fondo o un bordo attorno al campo che debba
+  restare fermo quando la barra compare.
 - **Firme e testi generati non si scrivono con la tastiera finta.** Si inseriscono con `state.insert(offset, doc)`, `replace(start, end, doc)` o `replaceSelection(doc)`: una sola modifica che si annulla in un passo, con
   `lastChangeSource = Program`. Non toccare il testo dentro `composition`.
 - **API sperimentali sotto.** L'incolla passa da `contentReceiver` e la trasformazione d'ingresso legge la lista delle modifiche del campo a stato (`TextFieldBuffer.changes`) di Compose Foundation (1.10 con la BOM `2026.03.00` di
@@ -175,6 +197,12 @@ tasto «Aa» ha il suo nome (`FluidRichTextLabels.formatting`), la barra ha un t
 - `engine-richtext/src/test` (JVM, 96 test in sette file): `FluidRichTextDocumentTest` (19), `FluidRichTextEditsTest` (13), `FluidRichTextHtmlTest` (15), `FluidRichTextLinksTest` (3), `FluidRichTextMarkdownTest` (6),
   `FluidRichTextStateTest` (12), `FluidRichTextNestingTest` (28: pila di contenitori, livelli, rientro e riduzione, numerazione per sotto-elenco, tetto contro l'HTML ostile profondo). Leggili per il caso preciso: il modello, le
   modifiche pure del testo sul documento, i due lettori su input ostili, i comandi e il salvataggio.
+- `FluidRichTextCaretAvoidanceTest` (JVM, 15, dalla 3.1.2): la riga del cursore sopra la barra su **pagine finte** (contenitori che scorrono uno dentro l'altro, come li fa scorrere Compose): la riga finisce appena sopra la barra in
+  una richiesta, a metà testo e sull'ultima riga, in una pagina, in un riquadro dentro la pagina, in una pagina corta e in una già scorsa fino in fondo; niente si muove se la riga non è coperta; la coda si tiene solo quando serve.
+- `FluidRichTextCaretAboveToolbarTest` (`sample/src/androidTest`, **strumentato**, 15, dalla 3.1.2): sull'emulatore, un editor in una pagina che scorre con la barra nell'overlay e una tastiera simulata (la pagina finisce 300 dp
+  sopra il fondo): il fondo del rettangolo del cursore resta sopra il bordo alto della barra scrivendo e andando a capo fino in fondo, quando la barra compare, spostando il cursore e selezionando, col testo a 1,0 e a 2,0, con e
+  senza tastiera, e anche quando il campo è **l'ultima cosa della pagina** (la coda); la riga non sale più del necessario; una riga già sopra la barra non muove niente; senza barra la riga resta in fondo alla pagina, e uscita la barra la coda
+  torna indietro.
 - `FluidRichTextEditorTest` (`sample`, Robolectric, 22): l'editor e la barra nella galleria — il testo che prende il formato scelto, una composizione alla Gboard che tiene formato e testo, Invio che continua l'elenco e il doppio Invio che ne esce, cancella a inizio voce (anche da tastiera fisica), la barra che compare con la selezione e riflette gli stili, il tasto «Aa» senza selezione, TalkBack che dice stili e **livello** in italiano e in inglese, incolla di HTML che tiene solo il supportato, copia che mette l'HTML negli appunti, Ctrl+Z, modifiche dal codice che arrivano al campo, i tasti di rientro che si spengono quando non servono, Tab e Maiusc+Tab, Invio e cancella che **risalgono un livello alla volta**, e a testo grande e da destra a sinistra (anche con l'annidamento profondo) il testo resta leggibile e il rientro parte da destra.
 - **Non provato da test**: la tastiera vera (Gboard, correzione, dettatura: si guardano in mano) e il vetro della barra.
 
@@ -188,6 +216,7 @@ tasto «Aa» ha il suo nome (`FluidRichTextLabels.formatting`), la barra ha un t
 | `FluidRichTextState.kt` | lo stato, i comandi, `FluidRichTextChangeSource`, `FluidRichTextFormat`, il `Saver`, `rememberFluidRichTextState` |
 | `FluidRichTextEditor.kt` | il campo, le trasformazioni d'ingresso e d'uscita, i segni accanto al testo, gli appunti |
 | `FluidRichTextEdits.kt` | le modifiche pure del testo sul documento (interno, testato) |
+| `FluidRichTextCaretAvoidance.kt` | i passi che portano la riga del cursore sopra la barra (interno, Kotlin puro, testato) |
 | `FluidRichTextToolbar.kt` | la barra e il tasto «Aa» |
 | `FluidRichTextHtml.kt`, `FluidRichTextMarkdown.kt`, `FluidRichTextLinks.kt` | i tre formati, la sicurezza dei link, il testo semplice |
 | `FluidRichTextLabels.kt` | le parole del modulo, in italiano e in inglese |

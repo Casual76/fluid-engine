@@ -50,8 +50,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -159,9 +161,16 @@ private fun Stage(
   }
 }
 
+/**
+ * Le righe fittizie dietro il vetro. [topInset] e' lo spazio che la scena si prende in alto (i tasti e
+ * le etichette di stato): le righe cominciano sotto, cosi' nessuna scritta della scena ne copre una.
+ */
 @Composable
-private fun StagePage() {
-  Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun StagePage(topInset: Dp = 0.dp) {
+  Column(
+    Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = maxOf(16.dp, topInset + 8.dp)),
+    verticalArrangement = Arrangement.spacedBy(6.dp),
+  ) {
     repeat(12) { i ->
       Text(
         text = "Messaggio ${i + 1} — un'anteprima di testo nitido dietro il vetro",
@@ -294,8 +303,21 @@ private fun DrawerSection() {
       onCheckedChange = { selecting = it },
     )
   }
-  Stage(height = 560.dp, modifier = Modifier.testTag("drawer-stage")) { backdrop ->
-    DrawerScene(backdrop = backdrop, selecting = selecting, onSelectingChange = { selecting = it })
+  // L'altezza della riga dei tasti e dello stato, misurata dalla scena: a testo grande l'etichetta va a
+  // capo e la riga cresce, e le righe fittizie scendono con lei invece di finirle sotto.
+  var headerPx by remember { mutableIntStateOf(0) }
+  val headerHeight = with(LocalDensity.current) { headerPx.toDp() }
+  Stage(
+    height = 560.dp,
+    modifier = Modifier.testTag("drawer-stage"),
+    page = { StagePage(topInset = headerHeight) },
+  ) { backdrop ->
+    DrawerScene(
+      backdrop = backdrop,
+      selecting = selecting,
+      onSelectingChange = { selecting = it },
+      onHeaderSized = { headerPx = it },
+    )
   }
 }
 
@@ -304,6 +326,7 @@ private fun BoxScope.DrawerScene(
   backdrop: GlassBackdropState,
   selecting: Boolean,
   onSelectingChange: (Boolean) -> Unit,
+  onHeaderSized: (heightPx: Int) -> Unit = {},
   state: FluidDrawerState = rememberFluidDrawerState(),
 ) {
   var folder by remember { mutableStateOf("inbox") }
@@ -316,17 +339,30 @@ private fun BoxScope.DrawerScene(
   val opener = remember { FocusRequester() }
 
   Box(Modifier.fillMaxSize().fluidDrawerObscured(state)) {
-    FluidGlassIconButton(
-      onClick = { state.open() },
-      modifier = Modifier.align(Alignment.TopStart).padding(12.dp).focusRequester(opener),
-      backdrop = backdrop,
-    ) { Icon(Icons.Rounded.Menu, contentDescription = "Cartelle") }
-    Text(
-      text = if (selection.isActive) "1 selezionata · cartella: $folder" else "Cartella: $folder",
-      style = MaterialTheme.typography.labelLarge,
-      color = Color.White,
-      modifier = Modifier.align(Alignment.TopEnd).padding(20.dp),
-    )
+    // Una riga sola per il tasto e lo stato: lo stato ha il suo spazio (prende il resto della larghezza e,
+    // a testo grande, va a capo) e le righe fittizie del palco cominciano sotto la riga.
+    Row(
+      modifier = Modifier
+        .align(Alignment.TopStart)
+        .fillMaxWidth()
+        .onSizeChanged { onHeaderSized(it.height) }
+        .padding(12.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      FluidGlassIconButton(
+        onClick = { state.open() },
+        modifier = Modifier.focusRequester(opener),
+        backdrop = backdrop,
+      ) { Icon(Icons.Rounded.Menu, contentDescription = "Cartelle") }
+      Text(
+        text = if (selection.isActive) "1 selezionata · cartella: $folder" else "Cartella: $folder",
+        style = MaterialTheme.typography.labelLarge,
+        color = Color.White,
+        textAlign = TextAlign.End,
+        modifier = Modifier.weight(1f),
+      )
+    }
   }
   FluidDrawer(
     state = state,

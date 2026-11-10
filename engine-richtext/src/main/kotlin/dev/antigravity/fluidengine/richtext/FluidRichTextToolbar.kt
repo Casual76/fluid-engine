@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.FormatUnderlined
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.TextFormat
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardActions
@@ -56,6 +59,13 @@ import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
  * E' in scena solo con l'editor che ha il fuoco e del testo selezionato, o dopo un tocco su «Aa"
  * ([FluidRichTextState.isFormattingBarVisible]); entra e esce col movimento della capsula, che con il
  * movimento ridotto e' una dissolvenza.
+ *
+ * **Non copre la riga che si scrive.** La pagina non le lascia uno spazio suo, quindi la barra sta sopra
+ * il fondo della pagina, dove il campo porta il cursore. Finche' e' in scena dice allo stato dove sta, e
+ * [FluidRichTextEditor] porta la riga del cursore (o il capo della selezione che si muove) **sopra di
+ * lei**: scrivendo, andando a capo, spostando il cursore, quando la barra compare e quando la tastiera sale.
+ * Non c'e' niente da collegare: basta lo stesso [state]. Serve che la pagina scorra e che finisca sopra la
+ * tastiera (vedi [FluidRichTextEditor]).
  *
  * **I tasti dicono cosa e' acceso al cursore.** Ogni stile e' un interruttore (`FluidCapsuleAction(selected
  * = …)`: ruolo `Switch` per TalkBack, disco dell'accento quando e' acceso, non solo un colore), letto da
@@ -92,8 +102,14 @@ fun FluidRichTextToolbar(
   avoidKeyboard: Boolean = true,
 ) {
   val labels = LocalFluidRichTextLabels.current
+  // Dove sta la barra lo sa solo lei: lo dice allo stato, e l'editor porta la riga del cursore sopra di
+  // lei. Si misura il contenitore dell'animazione (il suo bordo alto e' quello della capsula a riposo,
+  // anche mentre la capsula sta ancora salendo), non la capsula che si muove.
+  DisposableEffect(state) {
+    onDispose { state.formattingBarTop = Float.NaN }
+  }
   FluidFloatingCapsule(
-    modifier = modifier,
+    modifier = modifier.onGloballyPositioned { state.formattingBarTop = it.positionInRoot().y },
     backdrop = backdrop,
     visible = state.isFormattingBarVisible,
     placement = placement,

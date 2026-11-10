@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,7 +43,7 @@ class FluidScreenMetrics internal constructor() {
    * e' piu' a 1.3: le parole cominciano ad andare a capo a meta', e tre colonne diventano tre
    * colonne di sillabe. La misura minima cresce con il testo, e le colonne calano da sole.
    */
-  var fontScale: Float by mutableStateOf(1f)
+  var fontScale: Float by mutableFloatStateOf(1f)
     internal set
 
   /** Quante colonne stanno nella colonna di contenuto, larghe almeno [minColumn] a testo normale. */

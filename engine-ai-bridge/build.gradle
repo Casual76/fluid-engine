@@ -6,7 +6,7 @@ plugins {
 apply from: "${projectDir}/../versions.gradle"
 
 android {
-  namespace 'dev.antigravity.fluidengine.ai.bridge'
+  namespace = 'dev.antigravity.fluidengine.ai.bridge'
   compileSdk engine.compileSdk
 
   defaultConfig {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Il lint non segnala le versioni piu' nuove delle dipendenze fissate di proposito in una versione di correzione:
+  aggiornarle cambierebbe l'albero che le app ereditano. Ogni voce vale solo per la versione fissata qui sotto
+  (se la dipendenza cambia versione, l'avviso torna). Nessun controllo e' disattivato.
+-->
+<lint>
+  <issue id="GradleDependency">
+    <!-- core-ktx e' fissato in versions.gradle: lo ereditano le app -->
+    <ignore regexp="androidx\.core:core-ktx than 1\.18\.0 is available" />
+    <!-- webkit 1.14.0 e' fissato di proposito (FluidWebContent, provato con quella versione): aggiornarlo cambia l'albero delle dipendenze delle app -->
+    <ignore regexp="androidx\.webkit:webkit than 1\.14\.0 is available" />
+  </issue>
+</lint>

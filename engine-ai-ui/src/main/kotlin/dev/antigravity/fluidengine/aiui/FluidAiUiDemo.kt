@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -146,7 +147,7 @@ private fun MarkdownDemo() {
 private fun CardDemo() {
   val backdrop = rememberGlassBackdrop()
   val states = remember { sampleStates() }
-  var index by remember { mutableStateOf(3) }
+  var index by remember { mutableIntStateOf(3) }
   val (_, state) = states[index]
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

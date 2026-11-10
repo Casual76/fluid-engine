@@ -152,7 +152,8 @@ class FluidPageStateRestorationTest {
     var pop: () -> Unit = {}
     val content: @Composable () -> Unit = {
       FluidTheme(settings = remember { EngineSettings() }) {
-        var pages by rememberSaveable { mutableStateOf(arrayListOf("a")) }
+        // Il valore e' un ArrayList (lo stato salvato in un Bundle lo vuole), il tipo no: lint MutableCollectionMutableState.
+        var pages by rememberSaveable { mutableStateOf<List<String>>(arrayListOf("a")) }
         push = { pages = ArrayList(pages + it) }
         pop = { pages = ArrayList(pages.dropLast(1)) }
         stack = pages

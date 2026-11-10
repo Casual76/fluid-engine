@@ -870,7 +870,7 @@ private fun FluidGlassModalPaneLayer(
 
   // Predictive back drives the same retreat the drag does, so letting go halfway puts the modal
   // back where it was instead of jumping.
-  var backProgress by remember { mutableStateOf(0f) }
+  var backProgress by remember { mutableFloatStateOf(0f) }
   PredictiveBackHandler(enabled = entry.visible) { events ->
     try {
       events.collect { backProgress = it.progress.coerceIn(0f, 1f) }
@@ -1081,8 +1081,8 @@ internal fun FluidGlassModalScrim(
  */
 @Stable
 private class FluidPopoverPlacement {
-  var pivotX by mutableStateOf(0.5f)
-  var pivotY by mutableStateOf(0.5f)
+  var pivotX by mutableFloatStateOf(0.5f)
+  var pivotY by mutableFloatStateOf(0.5f)
 
   /**
    * How small the pop-up starts, per axis, as a fraction of its finished size.
@@ -1091,33 +1091,33 @@ private class FluidPopoverPlacement {
    * two rectangles and not about a number: a wide button opening a narrow menu has to start wide,
    * and a constant makes that read as a zoom from somewhere else.
    */
-  var startScaleX by mutableStateOf(FluidPopoverStartScale)
-  var startScaleY by mutableStateOf(FluidPopoverStartScale)
+  var startScaleX by mutableFloatStateOf(FluidPopoverStartScale)
+  var startScaleY by mutableFloatStateOf(FluidPopoverStartScale)
 
   /**
    * Where the pop-up's top-left corner sits at the start of its travel, relative to where it ends —
    * which, morphing from an anchor, is the anchor's own corner. Zero for the pivot-based growth
    * a context menu keeps.
    */
-  var startOffsetX by mutableStateOf(0f)
-  var startOffsetY by mutableStateOf(0f)
+  var startOffsetX by mutableFloatStateOf(0f)
+  var startOffsetY by mutableFloatStateOf(0f)
 
   /** True when the pop-up starts as the anchor's exact rectangle and travels to its place. */
   var morphFromAnchor by mutableStateOf(false)
 
   /** The anchor's rectangle in the pane's own coordinates: the frame the pane grows out of. */
-  var anchorLeft by mutableStateOf(0f)
-  var anchorTop by mutableStateOf(0f)
-  var anchorWidth by mutableStateOf(0f)
-  var anchorHeight by mutableStateOf(0f)
+  var anchorLeft by mutableFloatStateOf(0f)
+  var anchorTop by mutableFloatStateOf(0f)
+  var anchorWidth by mutableFloatStateOf(0f)
+  var anchorHeight by mutableFloatStateOf(0f)
 
   /** La taglia risolta del pannello: serve a ombra e immagine in uscita, che vivono fuori dal Layout. */
-  var paneWidth by mutableStateOf(0f)
-  var paneHeight by mutableStateOf(0f)
+  var paneWidth by mutableFloatStateOf(0f)
+  var paneHeight by mutableFloatStateOf(0f)
 
   /** Dove il pannello e' posato (pixel dell'host, all'intero): il ritaglio del contenuto in viaggio. */
-  var paneLeft by mutableStateOf(0f)
-  var paneTop by mutableStateOf(0f)
+  var paneLeft by mutableFloatStateOf(0f)
+  var paneTop by mutableFloatStateOf(0f)
 }
 
 /**

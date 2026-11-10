@@ -14,7 +14,7 @@ plugins {
 apply from: "${projectDir}/../versions.gradle"
 
 android {
-  namespace 'dev.antigravity.fluidengine.aiui'
+  namespace = 'dev.antigravity.fluidengine.aiui'
   compileSdk engine.compileSdk
 
   defaultConfig {
@@ -22,7 +22,7 @@ android {
   }
 
   buildFeatures {
-    compose true
+    compose = true
   }
 
   testOptions {

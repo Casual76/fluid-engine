@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.core.graphics.createBitmap
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.blur
 import kotlin.math.ceil
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
@@ -139,7 +140,7 @@ internal class PhysicsShadowCache {
       keyBlur = blur
       val pad = blur * 2f
       val scale = 0.5f
-      val bitmap = android.graphics.Bitmap.createBitmap(
+      val bitmap = createBitmap(
         (((paneWidth + pad * 2f) * scale).toInt()).coerceAtLeast(2),
         (((paneHeight + pad * 2f) * scale).toInt()).coerceAtLeast(2),
         android.graphics.Bitmap.Config.ARGB_8888,

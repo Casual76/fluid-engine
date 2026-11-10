@@ -4,13 +4,16 @@
     python -I skill/fluid-engine/scripts/check_docs.py                 # tutta la skill
     python -I skill/fluid-engine/scripts/check_docs.py FILE.md [...]   # solo questi file
 
-Due controlli, entrambi pensati per le schede scritte a mano:
+Tre controlli, i primi due pensati per le schede scritte a mano:
 
 1. **Simboli.** Ogni identificatore dell'engine dentro un `codice` (Fluid…, Glass…, Engine…, Ai…,
    rememberFluid…, fluidXxx…, ecc.) deve comparire come parola in almeno un sorgente dell'engine
    (moduli `engine-*`, `sample`, `templates`, `tools`). Un nome inventato o scritto male fa fallire.
    Una riga che contiene `nocheck` non si controlla; un nome seguito da `*` (un prefisso) neppure.
 2. **Link.** Ogni link relativo `](percorso.md)` deve puntare a un file che esiste.
+3. **Versione.** La riga «Versione documentata» di `SKILL.md` deve coincidere con `ENGINE_VERSION`
+   (la aggiorna `tools/engine-release.ps1` insieme alla versione: se resta indietro, chi legge la skill si fida
+   di schede vecchie). Si controlla a ogni lancio, anche su singoli file.
 
 Esce con 1 se trova qualcosa, e scrive file:riga e il nome.
 """
@@ -83,6 +86,27 @@ def check(path: Path, symbols: set[str]) -> list[str]:
     return problems
 
 
+VERSION_LINE_RE = re.compile(r"\*\*Versione documentata: ([^*]*)\*\*")
+
+
+def check_version() -> list[str]:
+    """`SKILL.md` dice quale versione documenta: deve essere quella dell'engine (`ENGINE_VERSION`)."""
+    version_file = ROOT / "ENGINE_VERSION"
+    skill_md = SKILL / "SKILL.md"
+    if not version_file.is_file() or not skill_md.is_file():
+        return []  # fuori da un repo dell'engine (la copia in docs/riferimento): niente da confrontare
+    engine = version_file.read_text(encoding="utf-8").strip()
+    found = VERSION_LINE_RE.search(skill_md.read_text(encoding="utf-8"))
+    if not found:
+        return [f"{skill_md}: manca la riga 'Versione documentata: {engine}'"]
+    if found.group(1).strip() != engine:
+        return [
+            f"{skill_md}: 'Versione documentata: {found.group(1).strip()}' ma ENGINE_VERSION e' {engine}"
+            " (la muove tools/engine-release.ps1; a mano, aggiornala insieme alle schede)"
+        ]
+    return []
+
+
 def main() -> int:
     args: list[Path] = []
     for a in sys.argv[1:]:
@@ -95,12 +119,13 @@ def main() -> int:
     problems: list[str] = []
     for f in files:
         problems.extend(check(f, symbols))
+    problems.extend(check_version())
     for p in problems:
         print(p)
     if problems:
         print(f"\n{len(problems)} problemi in {len(files)} file.")
         return 1
-    print(f"OK: {len(files)} file, nessun simbolo sconosciuto, nessun link rotto.")
+    print(f"OK: {len(files)} file, nessun simbolo sconosciuto, nessun link rotto, versione documentata = ENGINE_VERSION.")
     return 0
 
 

@@ -36,6 +36,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -335,7 +336,7 @@ fun <T> FluidSegmentedControl(
     val segmentWidth = with(density) {
       (constraints.maxWidth.toFloat() - inset.toPx() * 2f) / options.size
     }
-    var currentIndex by remember { mutableStateOf(selectedIndex) }
+    var currentIndex by remember { mutableIntStateOf(selectedIndex) }
     // Letti adesso, non catturati allora: l'animazione sopravvive alle ricomposizioni e le sue
     // lambda vivono piu' a lungo di qualunque valore abbiano chiuso dentro. Vedi la nota gemella
     // in FluidFoldingTabBar.

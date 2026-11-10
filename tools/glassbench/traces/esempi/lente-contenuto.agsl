@@ -1,0 +1,24 @@
+// PROVA del banco del movimento: un effetto a shader sullo strato del contenuto.
+//
+// NON e' la lente del contenuto dell'engine (`GlassContentLens{Slab,Ring}ShaderString`, piano 3.4,
+// pacchetto F5A): quella leggera' il campo della lastra. Questa serve solo a provare che una
+// traccia sa dire «il contenuto passa da uno shader con un ingresso», e che il banco lo rende:
+// una lente a barile attorno al centro dello strato, che stira il contenuto verso i bordi come lo
+// si vede dentro una goccia. Con `strength` = 0 restituisce l'ingresso com'e'.
+//
+// Regole AGSL di Android 13 rispettate: nessun ciclo, nessuna derivata, l'ingresso solo con `eval`.
+
+uniform shader content;   // lo strato del contenuto, gia' sfocato
+
+uniform float2 offset;    // -margine dello strato: porta `coord` nel sistema del riquadro
+uniform float2 center;    // centro della lente (px, sistema del riquadro)
+uniform float2 halfSize;  // mezza taglia del riquadro (px)
+uniform float strength;   // 0 = niente, 1 = piena
+
+half4 main(float2 coord) {
+    float2 p = coord + offset;
+    float2 rel = (p - center) / max(halfSize, float2(1.0));
+    float bulge = 1.0 + strength * 0.55 * dot(rel, rel);
+    float2 from = center + (p - center) * bulge;
+    return content.eval(from - offset);
+}

@@ -1,0 +1,348 @@
+{
+ "schema": 1,
+ "name": "esempio-menu",
+ "phase": "F0",
+ "fps": 60,
+ "durationMs": 450,
+ "density": 3.0,
+ "theme": "light",
+ "size": [
+  274,
+  253
+ ],
+ "_": "ESEMPIO scritto a mano (genera.py): un tasto diventa menu, all'inquadratura del telefono di Apple (R4 B1 a). Sagoma, molle e materiale sono messi a occhio: serve a provare `pair` e `curve`.",
+ "palette": "engine",
+ "corner": "engine",
+ "background": {
+  "kind": "color",
+  "color": "#E7E7E9"
+ },
+ "page": [
+  {
+   "kind": "background",
+   "x": 20,
+   "y": 21,
+   "w": 114,
+   "h": 167,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 46,
+    "detail": 0.5,
+    "palette": [
+     "#E6E6E6",
+     "#DCDCDC",
+     "#2F5D34",
+     "#E9E9E9",
+     "#3F7A45",
+     "#D2D2D2"
+    ]
+   }
+  },
+  {
+   "kind": "background",
+   "x": 146,
+   "y": 21,
+   "w": 115,
+   "h": 167,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 46,
+    "detail": 0.5,
+    "palette": [
+     "#DEDEDE",
+     "#5B4BA8",
+     "#E6E6E6",
+     "#7C6BD0",
+     "#A8A8A8",
+     "#E0E0E0"
+    ]
+   }
+  }
+ ],
+ "apple": {
+  "video": "wwdc2025-219_hd",
+  "t0Frame": 9148,
+  "crop": [
+   560,
+   280,
+   520,
+   480
+  ],
+  "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_telefono_apertura_f9143-9166.jpg",
+  "note": "R4 B1 (a), classe A. 1,9 px del video HD per punto: il ritaglio e' 274 x 253 pt."
+ },
+ "events": [
+  {
+   "t": 333.333,
+   "kind": "mark",
+   "label": "riposo secondo R4"
+  }
+ ],
+ "probes": [
+  {
+   "name": "larghezza",
+   "kind": "value",
+   "path": "menu.w",
+   "ref": {
+    "overshootPct": 3.4,
+    "peakMs": [
+     100,
+     167
+    ],
+    "restMs": [
+     330,
+     370
+    ],
+    "source": "R4 B1 (a), alta"
+   }
+  },
+  {
+   "name": "altezza",
+   "kind": "value",
+   "path": "menu.h",
+   "ref": {
+    "overshootPct": 6,
+    "peakMs": [
+     100,
+     167
+    ],
+    "restMs": [
+     330,
+     370
+    ],
+    "source": "R4 B1 (a), alta"
+   }
+  },
+  {
+   "name": "bordo-alto",
+   "kind": "edge",
+   "line": "v:109:0:253",
+   "which": "first",
+   "percentOf": 200,
+   "label": "dai pixel, in % dell'altezza a riposo",
+   "ref": {
+    "overshootPct": 6,
+    "peakMs": [
+     100,
+     167
+    ],
+    "source": "R4 B1 (a), alta"
+   }
+  },
+  {
+   "name": "luce-del-corpo",
+   "kind": "luma",
+   "rect": [
+    60,
+    150,
+    40,
+    40
+   ],
+   "label": "il vetro che da limpido si fa smerigliato"
+  }
+ ],
+ "base": {
+  "menu": {
+   "kind": "material",
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.1
+    },
+    {
+     "radiusDp": 16,
+     "offsetDp": [
+      0,
+      6
+     ],
+     "alpha": 0.1
+    }
+   ],
+   "capture": {
+    "saturation": 1.4,
+    "blurDp": 22,
+    "scale": 0.5
+   },
+   "body": {
+    "source": "file:tools/glassbench/shaders/sonda-via-a.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "blend": "8dp",
+     "thickness": "16dp",
+     "refraction": "-14dp",
+     "dome": 0.0,
+     "dispersion": 0.4,
+     "materialize": 1.0,
+     "veilColor": "#FFFFFF33",
+     "bodyShade": 0.02,
+     "aa": 1.0
+    }
+   },
+   "light": {
+    "source": "file:tools/glassbench/shaders/sonda-luce.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "blend": "8dp",
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000040",
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      2,
+      2
+     ],
+     "reflexStrength": 0.6,
+     "reflexDepth": "3.5dp",
+     "reflexFloor": 0.1,
+     "glowCenter": "$center",
+     "glowRadius": "20dp",
+     "glow": 0.0,
+     "glowFill": 0.0,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.0
+    }
+   },
+   "content": [
+    {
+     "name": "icona",
+     "w": 44,
+     "h": 44,
+     "icon": "list"
+    },
+    {
+     "name": "voci",
+     "w": 174.0,
+     "h": 200.0,
+     "items": [
+      {
+       "kind": "icon",
+       "icon": "circle",
+       "x": 30,
+       "y": 34.0,
+       "sizeDp": 22
+      },
+      {
+       "kind": "text",
+       "text": "Recents",
+       "x": 56,
+       "y": 40.0,
+       "sizeDp": 17
+      },
+      {
+       "kind": "icon",
+       "icon": "circle",
+       "x": 30,
+       "y": 78.0,
+       "sizeDp": 22
+      },
+      {
+       "kind": "text",
+       "text": "Orders",
+       "x": 56,
+       "y": 84.0,
+       "sizeDp": 17
+      },
+      {
+       "kind": "icon",
+       "icon": "circle",
+       "x": 30,
+       "y": 122.0,
+       "sizeDp": 22
+      },
+      {
+       "kind": "text",
+       "text": "Wishlist",
+       "x": 56,
+       "y": 128.0,
+       "sizeDp": 17
+      },
+      {
+       "kind": "icon",
+       "icon": "archive",
+       "x": 30,
+       "y": 166.0,
+       "sizeDp": 22
+      },
+      {
+       "kind": "text",
+       "text": "Tracking",
+       "x": 56,
+       "y": 172.0,
+       "sizeDp": 17
+      }
+     ],
+     "marginDp": 10,
+     "effect": {
+      "source": "file:tools/glassbench/traces/esempi/lente-contenuto.agsl",
+      "uniforms": {
+       "offset": "$offset",
+       "center": "$center",
+       "halfSize": "$halfSize",
+       "strength": 0.0
+      }
+     }
+    }
+   ]
+  }
+ },
+ "frames": [
+  {"t": -50.0, "elements": [{"name": "menu", "x": 22.0, "y": 177.0, "w": 44.0, "h": 44.0, "radius": 22.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 0.0, "blurDp": 0.0, "alpha": 1.0}]}]},
+  {"t": -33.333, "elements": [{"name": "menu", "x": 22.0, "y": 177.0, "w": 44.0, "h": 44.0, "radius": 22.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 0.0, "blurDp": 0.0, "alpha": 1.0}]}]},
+  {"t": -16.667, "elements": [{"name": "menu", "x": 22.0, "y": 177.0, "w": 44.0, "h": 44.0, "radius": 22.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 0.0, "blurDp": 0.0, "alpha": 1.0}]}]},
+  {"t": 0.0, "elements": [{"name": "menu", "x": 22.0, "y": 177.0, "w": 44.0, "h": 44.0, "radius": 22.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 0.0, "blurDp": 0.0, "alpha": 1.0}, {"name": "voci", "x": -65.0, "y": -78.0, "scale": [0.253, 0.22], "blurDp": 12.0, "alpha": 0.259, "effect": {"uniforms": {"strength": 1.0}}}]}]},
+  {"t": 16.667, "elements": [{"name": "menu", "x": 22.0, "y": 160.967, "w": 59.091, "h": 60.033, "radius": 23.857, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 16.033, "blurDp": 0.541, "alpha": 0.91}, {"name": "voci", "x": -57.455, "y": -69.983, "scale": [0.34, 0.3], "blurDp": 11.868, "alpha": 0.732, "effect": {"uniforms": {"strength": 0.985}}}]}]},
+  {"t": 33.333, "elements": [{"name": "menu", "x": 22.0, "y": 126.503, "w": 89.718, "h": 94.497, "radius": 27.627, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 50.497, "blurDp": 1.859, "alpha": 0.69}, {"name": "voci", "x": -42.141, "y": -52.751, "scale": [0.516, 0.472], "blurDp": 11.496, "alpha": 0.999, "effect": {"uniforms": {"strength": 0.943}}}]}]},
+  {"t": 50.0, "elements": [{"name": "menu", "x": 22.0, "y": 88.703, "w": 121.241, "h": 132.297, "radius": 31.507, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 88.297, "blurDp": 3.498, "alpha": 0.417}, {"name": "voci", "x": -26.379, "y": -33.851, "scale": [0.697, 0.661], "blurDp": 10.918, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.879}}}]}]},
+  {"t": 66.667, "elements": [{"name": "menu", "x": 22.0, "y": 56.163, "w": 146.692, "h": 164.837, "radius": 34.639, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 120.837, "blurDp": 4.999, "alpha": 0.167}, {"name": "voci", "x": -13.654, "y": -17.582, "scale": [0.843, 0.824], "blurDp": 10.166, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.797}}}]}]},
+  {"t": 83.333, "elements": [{"name": "menu", "x": 22.0, "y": 32.448, "w": 164.093, "h": 188.552, "radius": 36.781, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 144.552, "blurDp": 5.906, "alpha": 0.016}, {"name": "voci", "x": -4.953, "y": -5.724, "scale": [0.943, 0.943], "blurDp": 9.276, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.701}}}]}]},
+  {"t": 100.0, "elements": [{"name": "menu", "x": 22.0, "y": 17.796, "w": 174.189, "h": 203.204, "radius": 38.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "icona", "y": 159.204, "blurDp": 6.0, "alpha": 0.0}, {"name": "voci", "x": 0.095, "y": 1.602, "scale": [1.001, 1.016], "blurDp": 8.281, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.597}}}]}]},
+  {"t": 116.667, "elements": [{"name": "menu", "x": 22.0, "y": 10.653, "w": 178.825, "h": 210.347, "radius": 38.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "voci", "x": 2.412, "y": 5.174, "scale": [1.028, 1.052], "blurDp": 7.215, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.489}}}]}]},
+  {"t": 133.333, "elements": [{"name": "menu", "x": 22.0, "y": 8.802, "w": 179.978, "h": 212.198, "radius": 38.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "voci", "x": 2.989, "y": 6.099, "scale": [1.034, 1.061], "blurDp": 6.111, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.381}}}]}]},
+  {"t": 150.0, "elements": [{"name": "menu", "x": 22.0, "y": 10.091, "w": 179.283, "h": 210.909, "radius": 38.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "voci", "x": 2.641, "y": 5.455, "scale": [1.03, 1.055], "blurDp": 5.004, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.279}}}]}]},
+  {"t": 166.667, "elements": [{"name": "menu", "x": 22.0, "y": 12.797, "w": 177.873, "h": 208.203, "radius": 38.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "voci", "x": 1.937, "y": 4.101, "scale": [1.022, 1.041], "blurDp": 3.928, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.186}}}]}]},
+  {"t": 183.333, "elements": [{"name": "menu", "x": 22.0, "y": 15.751, "w": 176.424, "h": 205.249, "radius": 38.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "voci", "x": 1.212, "y": 2.625, "scale": [1.014, 1.026], "blurDp": 2.915, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.107}}}]}]},
+  {"t": 200.0, "elements": [{"name": "menu", "x": 22.0, "y": 18.285, "w": 175.254, "h": 202.715, "radius": 38.0, "shadowAmount": 0.35, "capture": {"w": 0.75}, "body": {"uniforms": {"veilColor": "#FFFFFF1A", "refraction": "-30.0dp"}}, "content": [{"name": "voci", "x": 0.627, "y": 1.357, "scale": [1.007, 1.014], "blurDp": 2.002, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.047}}}]}]},
+  {"t": 216.667, "elements": [{"name": "menu", "x": 22.0, "y": 20.128, "w": 174.455, "h": 200.872, "radius": 38.0, "shadowAmount": 0.372, "capture": {"w": 0.724}, "body": {"uniforms": {"veilColor": "#FFFFFF1B", "refraction": "-29.726dp"}}, "content": [{"name": "voci", "x": 0.227, "y": 0.436, "scale": [1.003, 1.004], "blurDp": 1.22, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.01}}}]}]},
+  {"t": 233.333, "elements": [{"name": "menu", "x": 22.0, "y": 21.263, "w": 173.991, "h": 199.737, "radius": 37.999, "shadowAmount": 0.432, "capture": {"w": 0.655}, "body": {"uniforms": {"veilColor": "#FFFFFF20", "refraction": "-28.99dp"}}, "content": [{"name": "voci", "x": -0.005, "y": -0.132, "scale": [1.0, 0.999], "blurDp": 0.604, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 250.0, "elements": [{"name": "menu", "x": 22.0, "y": 21.814, "w": 173.778, "h": 199.186, "radius": 37.973, "shadowAmount": 0.519, "capture": {"w": 0.556}, "body": {"uniforms": {"veilColor": "#FFFFFF27", "refraction": "-27.926dp"}}, "content": [{"name": "voci", "x": -0.111, "y": -0.407, "scale": [0.999, 0.996], "blurDp": 0.188, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 266.667, "elements": [{"name": "menu", "x": 22.0, "y": 21.954, "w": 173.725, "h": 199.046, "radius": 37.966, "shadowAmount": 0.621, "capture": {"w": 0.437}, "body": {"uniforms": {"veilColor": "#FFFFFF2F", "refraction": "-26.664dp"}}, "content": [{"name": "voci", "x": -0.137, "y": -0.477, "scale": [0.998, 0.995], "blurDp": 0.005, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 283.333, "elements": [{"name": "menu", "x": 22.0, "y": 21.85, "w": 173.757, "h": 199.15, "radius": 37.97, "shadowAmount": 0.729, "capture": {"w": 0.313}, "body": {"uniforms": {"veilColor": "#FFFFFF37", "refraction": "-25.336dp"}}, "content": [{"name": "voci", "x": -0.121, "y": -0.425, "scale": [0.999, 0.996], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 300.0, "elements": [{"name": "menu", "x": 22.0, "y": 21.638, "w": 173.822, "h": 199.362, "radius": 37.978, "shadowAmount": 0.831, "capture": {"w": 0.194}, "body": {"uniforms": {"veilColor": "#FFFFFF3F", "refraction": "-24.074dp"}}, "content": [{"name": "voci", "x": -0.089, "y": -0.319, "scale": [0.999, 0.997], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 316.667, "elements": [{"name": "menu", "x": 22.0, "y": 21.407, "w": 173.889, "h": 199.593, "radius": 37.986, "shadowAmount": 0.918, "capture": {"w": 0.095}, "body": {"uniforms": {"veilColor": "#FFFFFF46", "refraction": "-23.01dp"}}, "content": [{"name": "voci", "x": -0.056, "y": -0.203, "scale": [0.999, 0.998], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 333.333, "elements": [{"name": "menu", "x": 22.0, "y": 21.21, "w": 173.942, "h": 199.79, "radius": 37.993, "shadowAmount": 0.978, "capture": {"w": 0.026}, "body": {"uniforms": {"veilColor": "#FFFFFF4B", "refraction": "-22.274dp"}}, "content": [{"name": "voci", "x": -0.029, "y": -0.105, "scale": [1.0, 0.999], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 350.0, "elements": [{"name": "menu", "x": 22.0, "y": 21.066, "w": 173.979, "h": 199.934, "radius": 37.997, "shadowAmount": 1.0, "capture": {"w": 0.0}, "body": {"uniforms": {"veilColor": "#FFFFFF4C", "refraction": "-22.0dp"}}, "content": [{"name": "voci", "x": -0.01, "y": -0.033, "scale": [1.0, 1.0], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 366.667, "elements": [{"name": "menu", "x": 22.0, "y": 20.978, "w": 174.0, "h": 200.022, "radius": 38.0, "shadowAmount": 1.0, "capture": {"w": 0.0}, "body": {"uniforms": {"veilColor": "#FFFFFF4C", "refraction": "-22.0dp"}}, "content": [{"name": "voci", "x": 0.0, "y": 0.011, "scale": [1.0, 1.0], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 383.333, "elements": [{"name": "menu", "x": 22.0, "y": 20.936, "w": 174.01, "h": 200.064, "radius": 38.0, "shadowAmount": 1.0, "capture": {"w": 0.0}, "body": {"uniforms": {"veilColor": "#FFFFFF4C", "refraction": "-22.0dp"}}, "content": [{"name": "voci", "x": 0.005, "y": 0.032, "scale": [1.0, 1.0], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 400.0, "elements": [{"name": "menu", "x": 22.0, "y": 20.925, "w": 174.013, "h": 200.075, "radius": 38.0, "shadowAmount": 1.0, "capture": {"w": 0.0}, "body": {"uniforms": {"veilColor": "#FFFFFF4C", "refraction": "-22.0dp"}}, "content": [{"name": "voci", "x": 0.006, "y": 0.037, "scale": [1.0, 1.0], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 416.667, "elements": [{"name": "menu", "x": 22.0, "y": 20.934, "w": 174.011, "h": 200.066, "radius": 38.0, "shadowAmount": 1.0, "capture": {"w": 0.0}, "body": {"uniforms": {"veilColor": "#FFFFFF4C", "refraction": "-22.0dp"}}, "content": [{"name": "voci", "x": 0.006, "y": 0.033, "scale": [1.0, 1.0], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 433.333, "elements": [{"name": "menu", "x": 22.0, "y": 20.95, "w": 174.008, "h": 200.05, "radius": 38.0, "shadowAmount": 1.0, "capture": {"w": 0.0}, "body": {"uniforms": {"veilColor": "#FFFFFF4C", "refraction": "-22.0dp"}}, "content": [{"name": "voci", "x": 0.004, "y": 0.025, "scale": [1.0, 1.0], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]},
+  {"t": 450.0, "elements": [{"name": "menu", "x": 22.0, "y": 20.968, "w": 174.005, "h": 200.032, "radius": 38.0, "shadowAmount": 1.0, "capture": {"w": 0.0}, "body": {"uniforms": {"veilColor": "#FFFFFF4C", "refraction": "-22.0dp"}}, "content": [{"name": "voci", "x": 0.003, "y": 0.016, "scale": [1.0, 1.0], "blurDp": 0.0, "alpha": 1.0, "effect": {"uniforms": {"strength": 0.0}}}]}]}
+ ]
+}

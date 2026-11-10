@@ -1,0 +1,196 @@
+{
+ "schema": 1,
+ "name": "esempio-interruzione",
+ "phase": "F0",
+ "fps": 60,
+ "durationMs": 800,
+ "density": 3.0,
+ "theme": "light",
+ "size": [
+  240,
+  84
+ ],
+ "_": "ESEMPIO scritto a mano (genera.py): un viaggio che cambia destinazione a 150 ms.",
+ "background": {
+  "kind": "gradient4",
+  "tl": "#C3C5CC",
+  "tr": "#A9ABB4",
+  "bl": "#B4B6BE",
+  "br": "#8F919B"
+ },
+ "page": [
+  {
+   "kind": "text",
+   "text": "Signs are made using neon lights",
+   "x": 10,
+   "y": 30,
+   "sizeDp": 15,
+   "color": "#26262C"
+  },
+  {
+   "kind": "text",
+   "text": "Light is used to define colour",
+   "x": 10,
+   "y": 50,
+   "sizeDp": 15,
+   "color": "#26262C"
+  },
+  {
+   "kind": "text",
+   "text": "tone and shape, all over the world",
+   "x": 10,
+   "y": 70,
+   "sizeDp": 15,
+   "color": "#26262C"
+  },
+  {
+   "kind": "rect",
+   "x": 150,
+   "y": 8,
+   "w": 26,
+   "h": 68,
+   "color": "#D2553F",
+   "radius": 6
+  },
+  {
+   "kind": "rect",
+   "x": 196,
+   "y": 8,
+   "w": 18,
+   "h": 68,
+   "color": "#2E6FD8",
+   "radius": 6
+  }
+ ],
+ "events": [
+  {
+   "t": 150.0,
+   "kind": "interrupt",
+   "label": "nuova destinazione: 110 dp",
+   "to": "stretta"
+  }
+ ],
+ "probes": [
+  {
+   "name": "larghezza",
+   "kind": "value",
+   "path": "capsula.pieces[0].w",
+   "rest": [
+    190,
+    110
+   ],
+   "label": "dai numeri della traccia"
+  },
+  {
+   "name": "larghezza-pixel",
+   "kind": "width",
+   "line": "h:42:0:240",
+   "mode": "light",
+   "label": "dai pixel resi"
+  }
+ ],
+ "base": {
+  "capsula": {
+   "kind": "shader",
+   "source": "kotlin:SlabGroupRefractionShaderString",
+   "x": 8,
+   "y": 14,
+   "w": 224,
+   "h": 56,
+   "inputs": {
+    "content": {
+     "saturation": 1.6,
+     "blurDp": 4.5,
+     "edge": "clamp"
+    }
+   },
+   "uniforms": {
+    "offset": "$offset",
+    "pieceCount": "$pieceCount",
+    "pieceRect": "$pieceRect",
+    "pieceRadii": "$pieceRadii",
+    "pieceBlend": "$pieceBlend",
+    "refractionHeight": "14dp",
+    "refractionAmount": "-22dp",
+    "depthEffect": 0,
+    "magnify": 0,
+    "aa": 1.0,
+    "tintColor": "#F8F8F985",
+    "fieldCenter": [
+     "112dp",
+     "28dp"
+    ]
+   },
+   "shadow": [
+    {
+     "radiusDp": 10,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.14
+    }
+   ],
+   "content": [
+    {
+     "name": "icona",
+     "y": 6,
+     "w": 44,
+     "h": 44,
+     "icon": "plus"
+    }
+   ]
+  }
+ },
+ "frames": [
+  {"t": 0.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 60.0, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 16.0}]}]},
+  {"t": 16.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 66.163, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 19.082}]}]},
+  {"t": 33.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 80.922, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 26.461}]}]},
+  {"t": 50.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 99.773, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 35.886}]}]},
+  {"t": 66.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 119.532, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 45.766}]}]},
+  {"t": 83.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 138.121, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 55.061}]}]},
+  {"t": 100.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 154.343, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 63.171}]}]},
+  {"t": 116.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 167.652, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 69.826}]}]},
+  {"t": 133.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 177.964, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 74.982}]}]},
+  {"t": 150.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 185.489, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 78.745}]}]},
+  {"t": 166.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 189.194, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 80.597}]}]},
+  {"t": 183.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 188.71, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 80.355}]}]},
+  {"t": 200.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 185.217, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 78.609}]}]},
+  {"t": 216.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 179.691, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 75.846}]}]},
+  {"t": 233.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 172.916, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 72.458}]}]},
+  {"t": 250.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 165.509, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 68.754}]}]},
+  {"t": 266.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 157.941, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 64.97}]}]},
+  {"t": 283.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 150.559, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 61.28}]}]},
+  {"t": 300.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 143.606, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 57.803}]}]},
+  {"t": 316.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 137.241, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 54.62}]}]},
+  {"t": 333.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 131.554, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 51.777}]}]},
+  {"t": 350.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 126.585, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 49.292}]}]},
+  {"t": 366.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 122.332, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 47.166}]}]},
+  {"t": 383.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 118.767, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 45.384}]}]},
+  {"t": 400.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 115.842, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 43.921}]}]},
+  {"t": 416.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 113.494, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 42.747}]}]},
+  {"t": 433.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 111.659, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 41.83}]}]},
+  {"t": 450.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 110.267, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 41.133}]}]},
+  {"t": 466.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.25, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.625}]}]},
+  {"t": 483.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 108.545, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.273}]}]},
+  {"t": 500.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 108.094, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.047}]}]},
+  {"t": 516.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 107.845, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 39.922}]}]},
+  {"t": 533.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 107.75, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 39.875}]}]},
+  {"t": 550.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 107.772, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 39.886}]}]},
+  {"t": 566.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 107.876, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 39.938}]}]},
+  {"t": 583.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 108.037, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.018}]}]},
+  {"t": 600.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 108.231, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.115}]}]},
+  {"t": 616.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 108.442, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.221}]}]},
+  {"t": 633.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 108.656, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.328}]}]},
+  {"t": 650.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 108.865, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.433}]}]},
+  {"t": 666.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.061, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.531}]}]},
+  {"t": 683.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.24, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.62}]}]},
+  {"t": 700.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.4, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.7}]}]},
+  {"t": 716.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.54, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.77}]}]},
+  {"t": 733.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.659, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.829}]}]},
+  {"t": 750.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.758, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.879}]}]},
+  {"t": 766.667, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.84, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.92}]}]},
+  {"t": 783.333, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.905, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.953}]}]},
+  {"t": 800.0, "elements": [{"name": "capsula", "pieces": [{"x": 8, "y": 6, "w": 109.956, "h": 44, "radius": "capsule"}], "content": [{"name": "icona", "x": 40.978}]}]}
+ ]
+}

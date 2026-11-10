@@ -263,7 +263,9 @@ class FluidWebContentInstrumentedTest {
       assertEquals("https://example.org/vero", links.last().url)
       compose.runOnIdle { assertTrue("Il tocco deve dare il fuoco Android alla WebView", web().hasFocus()) }
     }
-    // Sequenza della galleria: link, poi tema scuro (darkening ricrea vista e profilo).
+    // Sequenza della galleria: link, poi tema scuro. Darkening ricrea la vista, e la nuova vista prende da
+    // ClosedProfiles.isolate un profilo tutto suo: uno gia' usato e pulito, se ce n'e' uno, altrimenti uno nuovo.
+    // Mai quello del documento ancora aperto; il test controlla solo la vista nuova.
     focusByTappingLink()
     lateinit var old: WebView
     compose.runOnIdle { old = web(); dark = true }

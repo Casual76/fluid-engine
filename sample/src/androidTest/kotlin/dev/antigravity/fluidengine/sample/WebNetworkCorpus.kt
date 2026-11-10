@@ -220,8 +220,28 @@ internal fun webNetworkDisguises(): List<WebNetworkChannel> {
     hint("assumption_non_html_space_after_name") { "<link rel=preconnect href=$it><link\u000Brel=preconnect href=$it><link rel=preconnect href=$it>" },
     hint("assumption_entity_angle") { "&lt;link rel=preconnect href=$it&gt;&#60;link rel=preconnect href=$it&#62;&#x3c;link rel=preconnect href=$it>" },
     hint("assumption_fullwidth_angle") { "＜link rel=preconnect href=$it＞" },
+    // Un nome che continua con una lettera o una cifra ASCII e' un altro elemento (`<metadata>` di un SVG): dalla
+    // correzione K1b il sigillo lo lascia intatto, e queste voci provano che Chromium non lo tratta come `link`,
+    // `meta` o `iframe` (ne' l'albero ne' lo scanner di precaricamento).
+    hint("assumption_longer_name_letter") { "<linkx rel=preconnect href=$it><LINKS rel=preconnect href=$it><linkrel=preconnect href=$it>" },
+    hint("assumption_longer_name_digit") { "<link1 rel=preconnect href=$it><link0/rel=preconnect/href=$it>" },
+    hint("assumption_longer_name_in_svg") { "<svg><linkx rel=preconnect href=$it></linkx><link2 rel=preconnect href=$it/></svg>" },
+    hint("assumption_longer_meta_name") {
+      "<metadata http-equiv=refresh content='0;url=$it/refresh'><metadata http-equiv=x-dns-prefetch-control content=on>" +
+        "<meta1 http-equiv='Link' content='<$it>; rel=preconnect'><a href='$it/a'>a</a>"
+    },
+    hint("assumption_longer_iframe_name") {
+      "<iframes srcdoc=\"&lt;link rel=preconnect href=$it&gt;\"></iframes><IFRAME2 srcdoc='&#60;link rel=preconnect href=$it&#62;'></IFRAME2>" +
+        "<iframex src='$it/frame'></iframex>"
+    },
   )
 }
+
+/** SVG in linea come li esportano gli editor: `<metadata>` prima delle forme (rilievo A di K1b). */
+internal const val SvgWithMetadata = "<meta name='viewport' content='width=device-width'><title>SAFE</title><body style='margin:0'>" +
+  "<svg xmlns='http://www.w3.org/2000/svg' xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' width='300' height='200' viewBox='0 0 300 200'>" +
+  "<metadata id='metadata1'><rdf:RDF><cc:Work rdf:about=''><dc:format>image/svg+xml</dc:format></cc:Work></rdf:RDF></metadata>" +
+  "<rect id='shape' x='0' y='0' width='300' height='200' fill='rgb(255,0,0)'/></svg><p>Dopo</p>"
 
 /** Canali che lasciano traccia solo nelle richieste DNS: il nome e' diverso a ogni prova, per evitare la cache. */
 internal fun webDnsChannels(): List<Pair<String, (String) -> String>> = listOf(

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Le prove di rete del contenitore web (FluidWebContent) su un emulatore: socket, DNS e DOM vero di Chromium.
+# Le prove del contenitore web (FluidWebContent) su un emulatore: socket, DNS, DOM vero di Chromium, processi renderer.
 #
-# Perche' esiste: queste prove non girano nella suite JVM, e non si possono lanciare tutte in un colpo su un emulatore
-# piccolo. Ogni contenitore usa un profilo suo e il provider WebView tiene vivo un processo renderer per profilo finche'
-# vive il processo dell'app: una trentina di documenti nello stesso lancio esauriscono la memoria di un AVD da 2 GB, e la
-# prova si ferma senza aver detto nulla sul contenitore. Lo script divide il lavoro in lanci brevi (un processo nuovo per
-# lancio, `-e webChunk i/n` per le prove a ciclo) e raccoglie gli esiti.
+# Perche' esiste: queste prove non girano nella suite JVM. Lo script le lancia tutte, un processo nuovo per lancio, e
+# raccoglie esiti e log. Fino a K1 le prove a ciclo andavano divise in lanci brevi (`-e webChunk i/n`), perche' ogni
+# documento lasciava vivo un processo renderer e una trentina esaurivano un AVD da 2 GB: dalla 3.1.1 il contenitore
+# termina il renderer alla chiusura, e censimento e varianti girano ciascuno in un lancio solo. L'argomento `webChunk`
+# resta nelle prove per chi volesse dividerle a mano su un dispositivo ancora piu' piccolo.
 #
 # Uso (da Git Bash, dalla radice dell'engine, con UN emulatore acceso):
 #   tools/qa/web-network-tests.sh                 installa i due APK di debug e lancia tutto
@@ -17,12 +17,15 @@
 # Compilare prima:  ./gradlew.bat --no-daemon --no-watch-fs :sample:assembleDebug :sample:assembleDebugAndroidTest
 # (dentro il semaforo del PC: gradle-slot.ps1, se girano altri agenti.)
 #
-# Cosa lancia:
+# Cosa lancia (11 lanci):
 #   - FluidWebContentInstrumentedTest            le nove prove storiche (la prima conta i socket del corpus ostile)
-#   - FluidWebContentNetworkCensusTest           il censimento dei canali, in 6 lanci
-#   - FluidWebContentSealInstrumentedTest        varianti travestite (8 lanci), poi sentinelle, DNS, DOM, foglio di stile
-# Nella cartella degli esiti restano l'uscita di ogni lancio (`*.txt`) e le righe di log `FluidWebCensus` e
-# `FluidWebSeal` (`*.logcat.txt`): per ogni canale, quante connessioni native e che cosa e' arrivato a `onRequest`.
+#   - FluidWebContentNetworkCensusTest           il censimento dei canali
+#   - FluidWebContentSealInstrumentedTest        varianti travestite, poi sentinelle, DNS, DOM, SVG, foglio di stile
+#   - FluidWebContentRendererLifecycleTest       60 documenti in un processo e chiusure rapide (processi renderer),
+#                                                poi gli avanzi dei profili al processo successivo
+# Nella cartella degli esiti restano l'uscita di ogni lancio (`*.txt`) e le righe di log `FluidWebCensus`,
+# `FluidWebSeal` e `FluidWebLifecycle` (`*.logcat.txt`): per ogni canale, quante connessioni native e che cosa e'
+# arrivato a `onRequest`; per i documenti, quanti renderer vivi e le misure di memoria, thread, descrittori e disco.
 #
 # Esce 0 se ogni lancio finisce con «OK», 1 altrimenti. Se la memoria libera dell'emulatore e' sotto i 400 MB lo dice
 # prima di cominciare: un «Timeout» del contenitore in quelle condizioni non e' un difetto del contenitore.
@@ -50,7 +53,7 @@ while [ $# -gt 0 ]; do
     -t) TEST_APK="$2"; shift 2 ;;
     --no-install) INSTALL=0; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
-    -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
     *) echo "Opzione sconosciuta: $1" >&2; exit 2 ;;
   esac
 done
@@ -78,7 +81,7 @@ launch() {
   "$ADB" shell am force-stop "$PACKAGE" >/dev/null 2>&1
   "$ADB" logcat -c >/dev/null 2>&1
   "$ADB" shell am instrument -w -r -e class "$class" "$@" "$RUNNER" 2>&1 | tr -d '\r' > "$OUT/$label.txt"
-  "$ADB" logcat -d -v time -s FluidWebCensus:I FluidWebSeal:I 2>/dev/null | tr -d '\r' > "$OUT/$label.logcat.txt"
+  "$ADB" logcat -d -v time -s FluidWebCensus:I FluidWebSeal:I FluidWebLifecycle:I 2>/dev/null | tr -d '\r' > "$OUT/$label.logcat.txt"
   local verdict
   verdict="$(grep -a -E '^OK \(|^Tests run:|Process crashed|INSTRUMENTATION_FAILED' "$OUT/$label.txt" | head -n 1)"
   TOTAL=$((TOTAL + 1))
@@ -89,26 +92,25 @@ launch() {
   esac
 }
 
-# chunks ETICHETTA CLASSE[#metodo] NUMERO
-chunks() {
-  local label="$1" class="$2" count="$3" index
-  for ((index = 0; index < count; index++)); do
-    launch "$label-$((index + 1))di$count" "$class" -e webChunk "$index/$count"
-  done
-}
-
 SEAL="$TESTS.FluidWebContentSealInstrumentedTest"
+LIFE="$TESTS.FluidWebContentRendererLifecycleTest"
 echo "Prove storiche"
 launch storiche "$TESTS.FluidWebContentInstrumentedTest"
 echo "Censimento dei canali"
-chunks censimento "$TESTS.FluidWebContentNetworkCensusTest" 6
+launch censimento "$TESTS.FluidWebContentNetworkCensusTest"
 echo "Varianti travestite"
-chunks varianti "$SEAL#disguisedHintsOpenNoNativeSocket" 8
-echo "Sentinelle, DNS, DOM di Chromium, foglio di stile"
+launch varianti "$SEAL#disguisedHintsOpenNoNativeSocket"
+echo "Sentinelle, DNS, DOM di Chromium, SVG, foglio di stile"
 launch sentinelle "$SEAL#sentinelUnsealedPreconnectOpensNativeSockets,$SEAL#sentinelUnsealedDnsPrefetchIsCountedBySystem"
 launch misura-senza-sigillo "$SEAL#unsealedDisguisesAreMeasuredOnThisProvider,$SEAL#unsealedNameResolutionIsMeasuredOnThisProvider"
 launch dns-e-foglio "$SEAL#documentCannotCauseNameResolution,$SEAL#stylesheetServedByTheAppStillApplies"
-launch dom "$SEAL#chromiumFindsNoHintElementInSealedDocuments,$SEAL#chromiumCreatesTheElementOnlyFromTheLiteralName,$SEAL#sealedDocumentKeepsTheTreeShapeAndItsUsefulHead"
+launch dom "$SEAL#chromiumFindsNoHintElementInSealedDocuments,$SEAL#chromiumCreatesTheElementOnlyFromTheLiteralName,$SEAL#sealedDocumentKeepsTheTreeShapeAndItsUsefulHead,$SEAL#inlineSvgKeepsItsShapesAfterMetadata,$SEAL#inlineSvgWithMetadataIsStillDrawnByTheContainer"
+echo "Ciclo di vita: processi renderer e profili"
+launch renderer-60-documenti "$LIFE#manyDocumentsInOneProcessLeaveNoRendererBehind"
+# Gli avanzi si provano nel processo successivo a uno che ha aperto molti documenti: l'ordine dei due lanci conta.
+launch renderer-avanzi "$LIFE#leftoverProfilesArePrunedWithoutHoldingTheFirstDocument"
+launch renderer-chiusure-rapide "$LIFE#documentsClosedWhileLoadingLeaveNoRendererBehind"
+launch renderer-avanzi-tutti-insieme "$LIFE#leftoverProfilesAtProcessStartAreMeasured"
 
 "$ADB" shell am force-stop "$PACKAGE" >/dev/null 2>&1
 if [ "$UNINSTALL" = 1 ]; then

@@ -83,9 +83,9 @@ internal object DnsCounter {
 
 /** Divide un ciclo di prove in piu' lanci: `-e webChunk 2/8` tiene le voci di posto 2, 10, 18...
  *
- * Ogni contenitore usa un profilo suo, e il provider tiene vivo un processo renderer per profilo fino alla fine
- * del processo dell'app. Decine di documenti nello stesso lancio esauriscono la memoria di un emulatore da 2 GB:
- * non e' un esito della prova, e' il motivo per dividerla. Senza l'argomento si eseguono tutte le voci.
+ * Serviva fino a K1, quando ogni documento lasciava vivo un processo renderer e decine di documenti nello stesso
+ * lancio esaurivano un emulatore da 2 GB. Dalla 3.1.1 il contenitore termina il renderer alla chiusura e le prove
+ * girano intere; l'argomento resta per dividerle a mano su un dispositivo piu' piccolo. Senza, si eseguono tutte le voci.
  */
 internal fun <T> List<T>.forThisRun(): List<T> {
   val spec = InstrumentationRegistry.getArguments().getString("webChunk") ?: return this
@@ -183,6 +183,9 @@ internal class ChromiumParser(private val activity: Activity) {
   /** Nomi dei figli di `head` e `body`, per confrontare la forma dell'albero. */
   fun shape(html: String): JSONObject = JSONObject(evaluate(html, Shape))
 
+  /** L'elemento con `id="shape"`: di chi e' figlio e quanto spazio occupa davvero nella pagina (zero se non e' disegnato). */
+  fun shapeElement(html: String): JSONObject = JSONObject(evaluate(html, ShapeElement))
+
   private fun evaluate(html: String, script: String): String {
     finished = CountDownLatch(1)
     bytes = html.toByteArray(Charsets.UTF_8)
@@ -229,6 +232,16 @@ internal class ChromiumParser(private val activity: Activity) {
       }
       walk(document);
       return JSON.stringify(out);
+    })()"""
+
+    const val ShapeElement = """(function(){
+      var e = document.getElementById('shape');
+      if (!e) return JSON.stringify({found: false});
+      var box = e.getBoundingClientRect();
+      var names = []; var all = document.querySelectorAll('*');
+      for (var i = 0; i < all.length; i++) names.push(all[i].localName);
+      return JSON.stringify({found: true, name: e.localName, parent: e.parentNode ? e.parentNode.localName : null,
+        svg: e.namespaceURI === 'http://www.w3.org/2000/svg', width: box.width, height: box.height, elements: names});
     })()"""
 
     const val Shape = """(function(){

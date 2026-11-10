@@ -12,8 +12,13 @@ import org.junit.Test
 class FluidWebSealTest {
   private val origin = "https://tracker.invalid"
 
-  /** Controllo scritto in modo diverso da [FluidWebSeal.isSealed]: espressioni regolari sulle sole forme canoniche. */
-  private val trigger = Regex("<(link|meta|/?iframe)", RegexOption.IGNORE_CASE)
+  /** Controllo scritto in modo diverso da [FluidWebSeal.isSealed]: espressioni regolari sulle sole forme canoniche.
+   *
+   * Un nome che continua con una lettera o una cifra ASCII (`<metadata`, `<linkx`, `<iframes`) e' un altro elemento
+   * e non e' un innesco: lo dice Chromium nelle prove strumentate, non questa espressione.
+   */
+  private val trigger = Regex("<(link|meta|/?iframe)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
+  private val rawLink = Regex("<link(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
   private val canonicalLink = Regex("""<link rel="stylesheet" href="[^"<>]*"( media="[^"<>]*")?( title="[^"<>]*")?>""")
   private val canonicalMeta = Regex("""<meta name="(viewport|color-scheme)" content="[^"<>]*">""")
 
@@ -35,7 +40,7 @@ class FluidWebSealTest {
 
   private fun assertNoLink(source: String) {
     val sealed = assertClosed(source)
-    assertFalse("Un link e' sopravvissuto in: ${show(sealed)}\nda: ${show(source)}", sealed.contains("<link", ignoreCase = true))
+    assertFalse("Un link e' sopravvissuto in: ${show(sealed)}\nda: ${show(source)}", rawLink.containsMatchIn(sealed))
   }
 
   @Test fun documentWithoutTriggersIsTheSameInstance() {
@@ -105,10 +110,68 @@ class FluidWebSealTest {
       "<p title=\"<link rel=preconnect href=$origin>\">x</p>",
       "<<link rel=preconnect href=$origin>",
       "<link<link rel=preconnect href=$origin>",
-      "<linkrel=preconnect href=$origin>",
       "</link rel=preconnect><link rel=preconnect href=$origin>",
       "<a href=\"$origin\"><link rel=preconnect href=$origin></a>",
     )) assertNoLink(html)
+  }
+
+  /** Rilievo A di K1b: `<metadata>` di un SVG diventava `<basefontdata>` e non si chiudeva piu'.
+   *
+   * Un nome che continua con una lettera o una cifra ASCII e' un altro elemento per l'HTML: resta intatto, e quando nel
+   * documento non c'e' altro da riscrivere torna la stessa istanza.
+   */
+  @Test fun longerElementNamesAreOtherElementsAndStayUntouched() {
+    for (html in listOf(
+      "<svg xmlns=\"http://www.w3.org/2000/svg\"><metadata><rdf:RDF><cc:Work rdf:about=\"\"/></rdf:RDF></metadata><rect width=\"10\" height=\"10\"/></svg>",
+      "<svg><METADATA id=\"m\">x</METADATA><circle r=\"4\"/></svg>",
+      "<metadata/>", "<metadata", "<Metadata http-equiv=refresh content=\"0;url=$origin\">",
+      "<linkx rel=preconnect href=$origin>", "<LINKX rel=preconnect href=$origin>", "<link1 rel=preconnect href=$origin>",
+      "<linkrel=preconnect href=$origin>", "<links>", "<link0", "<linkZ/>",
+      "<metab http-equiv=refresh content=0>", "<meta9 http-equiv=x-dns-prefetch-control content=on>",
+      "<iframes srcdoc=x></iframes>", "<IFRAME2 srcdoc=x></IFRAME2>", "<iframe0", "</iframex>", "a</IfRaMeS",
+    )) {
+      assertSame(show(html), html, FluidWebSeal.seal(html))
+      assertTrue(show(html), FluidWebSeal.isSealed(html))
+    }
+    // Accanto a un elemento da riscrivere, il nome piu' lungo resta com'e'.
+    assertEquals("<svg><metadata>m</metadata><rect/></svg><basefont rel=preconnect href=$origin><linkx>",
+      assertClosed("<svg><metadata>m</metadata><rect/></svg><link rel=preconnect href=$origin><linkx>"))
+    assertEquals("<noframes srcdoc=x><iframes></noframes></iframes>", assertClosed("<iframe srcdoc=x><iframes></iframe></iframes>"))
+  }
+
+  /** La continuazione che esenta e' solo lettera o cifra ASCII: ogni altra resta neutralizzata, come prima. */
+  @Test fun onlyAsciiLettersAndDigitsContinueAName() {
+    for ((source, expected) in listOf(
+      "<link-x rel=preconnect href=$origin>" to "<basefont-x rel=preconnect href=$origin>",
+      "<link:x rel=preconnect>" to "<basefont:x rel=preconnect>",
+      "<link_x rel=preconnect>" to "<basefont_x rel=preconnect>",
+      "<link.x>" to "<basefont.x>",
+      "<link\u0000 rel=preconnect>" to "<basefont\u0000 rel=preconnect>",
+      "<link\u0000x rel=preconnect>" to "<basefont\u0000x rel=preconnect>",
+      "<link/" to "<basefont/",
+      "<link" to "<basefont",
+      "<link>" to "<basefont>",
+      "<link<" to "<basefont<",
+      "<link=x>" to "<basefont=x>",
+      "<linké rel=preconnect>" to "<basefonté rel=preconnect>", // lettera non ASCII
+      "<link١>" to "<basefont١>", // cifra non ASCII
+      "<link rel=preconnect>" to "<basefont rel=preconnect>",
+      "<link１>" to "<basefont１>", // cifra a larghezza intera
+      "<meta:x http-equiv=refresh>" to "<basefont:x http-equiv=refresh>",
+      "<meta-data>" to "<basefont-data>",
+      "<meta\u0000data>" to "<basefont\u0000data>",
+      "<META\tHTTP-EQUIV=refresh>" to "<basefont\tHTTP-EQUIV=refresh>",
+      "<iframe-x srcdoc=x>" to "<noframes-x srcdoc=x>",
+      "<iframe\u0000 srcdoc=x>" to "<noframes\u0000 srcdoc=x>",
+      "<iframe" to "<noframes",
+      "</iframe" to "</noframes",
+      "</iframe-x>" to "</noframes-x>",
+      "<iframe/srcdoc=x>" to "<noframes/srcdoc=x>",
+    )) assertEquals(show(source), expected, assertClosed(source))
+    for (html in listOf("<link-x>", "<link:x>", "<link\u0000x>", "<linké>", "<link١>", "<meta-data>", "<meta:x>",
+      "<meta >", "<iframe-x>", "<iframe:x>", "</iframe-x>", "<iframeé>")) {
+      assertFalse(show(html), FluidWebSeal.isSealed(html))
+    }
   }
 
   /** Le regole non guardano il contesto: dentro un attributo il testo cambia, ma resta nella forma che il controllo accetta. */
@@ -175,7 +238,7 @@ class FluidWebSealTest {
       "<link rel=\"stylesheet\" href=$origin/a.css?a=b>",
       "<link rel=\"stylesheet\" href=\"$origin/a.css\" x=\"\u0000\">",
       "<link rel=\"stylesheet\" href=\"$origin/a.css\" " + "x ".repeat(FluidWebSeal.MaxTagCharacters) + ">",
-      "<linkx rel=\"stylesheet\" href=\"$origin/a.css\">",
+      "<linkx rel=\"stylesheet\" href=\"$origin/a.css\">", // un altro elemento: resta intatto, e nessun link canonico nasce
       "<link\u0000 rel=\"stylesheet\" href=\"$origin/a.css\">",
     )) assertNoLink(html)
   }
@@ -253,6 +316,7 @@ class FluidWebSealTest {
       "<link rel=\"stylesheet\" href=\"a.css\" media=\"print\">",
       "<link rel=\"stylesheet\" href=\"a.css\" title=\"T\">",
       "<link rel=\"stylesheet\" href=\"a.css\" media=\"print\" title=\"T\">x<link rel=\"stylesheet\" href=\"\">",
+      "<metadata>", "<linkx rel=preconnect>", "<link1>", "<iframes srcdoc=x>", "</iframes>", "<METAB>",
       "<meta name=\"viewport\" content=\"width=device-width\"><meta name=\"color-scheme\" content=\"\">",
     )) assertTrue(html, FluidWebSeal.isSealed(html))
     for (html in listOf(

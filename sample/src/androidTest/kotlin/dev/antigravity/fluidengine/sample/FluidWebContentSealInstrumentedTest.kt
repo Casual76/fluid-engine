@@ -1,6 +1,14 @@
 package dev.antigravity.fluidengine.sample
 
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.PixelCopy
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.getValue
@@ -16,6 +24,8 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import java.io.ByteArrayInputStream
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -143,6 +153,21 @@ class FluidWebContentSealInstrumentedTest {
     for (variant in webNetworkDisguises().filter { it.name.startsWith("assumption_") }) {
       val dom = parser.inspect(variant.html(target))
       assertEquals("${variant.name}: $dom", 0, dom.getJSONArray("links").length())
+      assertEquals("${variant.name}: $dom", 0, dom.getJSONArray("metas").length())
+      assertEquals("${variant.name}: $dom", 0, dom.getInt("frames"))
+    }
+    // Un nome che continua con una lettera o una cifra ASCII e' un altro elemento: e' questo, chiesto a Chromium, a
+    // giustificare che il sigillo lo lasci intatto (`<metadata>` di un SVG in linea).
+    for (document in listOf("<linkx rel=preconnect href=https://tracker.invalid>", "<link1 rel=stylesheet href=https://tracker.invalid/a.css>",
+      "<LINKS rel=preconnect href=https://tracker.invalid>", "<svg><linkx rel=preconnect href=https://tracker.invalid/></svg>")) {
+      assertEquals(document, 0, parser.inspect(document).getJSONArray("links").length())
+    }
+    for (document in listOf("<metadata http-equiv=refresh content=1>", "<metab http-equiv=refresh content=1>", "<meta1 http-equiv=refresh content=1>",
+      "<METADATA http-equiv=x-dns-prefetch-control content=on>", "<svg><metadata http-equiv=refresh content=1></metadata></svg>")) {
+      assertEquals(document, 0, parser.inspect(document).getJSONArray("metas").length())
+    }
+    for (document in listOf("<iframes srcdoc=x></iframes>", "<iframe1 srcdoc=x></iframe1>", "<IFRAMEX srcdoc='&lt;p&gt;x'></IFRAMEX>")) {
+      assertEquals(document, 0, parser.inspect(document).getInt("frames"))
     }
     for (document in listOf("<m\u0000eta http-equiv=refresh content=1>", "<meta\u0000 http-equiv=refresh content=1>",
       "<\u0000meta http-equiv=refresh content=1>", "<me﻿ta http-equiv=refresh content=1>", "&lt;meta http-equiv=refresh content=1>")) {
@@ -176,6 +201,65 @@ class FluidWebContentSealInstrumentedTest {
     val dom = parser.inspect(sealedHtml(document))
     assertEquals("https://fonts.invalid/css2?family=Inter&display=swap", dom.getJSONArray("links").getJSONObject(0).getString("href"))
     assertEquals("width=device-width", dom.getJSONArray("metas").getJSONObject(0).getString("content"))
+  }
+
+  // ---------------------------------------------------------------------------------------------- SVG con <metadata>
+
+  /** Rilievo A di K1b. `<metadata>` non e' `<meta>`: sigillato, l'SVG ha ancora la sua forma come figlia, e la forma occupa spazio.
+   *
+   * Su K1 `<metadata>` diventava `<basefontdata>` e `</metadata>` restava: il tag non si chiudeva piu', la forma finiva
+   * dentro un elemento SVG sconosciuto e non veniva disegnata.
+   */
+  @Test fun inlineSvgKeepsItsShapesAfterMetadata() {
+    val parser = ChromiumParser(compose.activity)
+    val original = parser.shapeElement(SvgWithMetadata)
+    val sealed = parser.shapeElement(sealedHtml(SvgWithMetadata))
+    Log.i("FluidWebSeal", "svgMetadata prima=$original dopo=$sealed")
+    // Controprova: nel documento originale la forma c'e' ed e' disegnata.
+    assertEquals(original.toString(), "svg", original.getString("parent"))
+    assertTrue(original.toString(), original.getDouble("width") > 0 && original.getDouble("height") > 0)
+    assertTrue(sealed.toString(), sealed.getBoolean("found") && sealed.getBoolean("svg"))
+    assertEquals("La forma deve restare figlia dell'SVG: $sealed", "svg", sealed.getString("parent"))
+    assertTrue("La forma deve occupare spazio: $sealed", sealed.getDouble("width") > 0 && sealed.getDouble("height") > 0)
+    val names = sealed.getJSONArray("elements").toString()
+    assertTrue(names, names.contains("\"metadata\"") && !names.contains("basefontdata"))
+  }
+
+  private fun findWeb(view: View): WebView? {
+    if (view is WebView) return view
+    if (view is ViewGroup) for (index in 0 until view.childCount) findWeb(view.getChildAt(index))?.let { return it }
+    return null
+  }
+
+  /** Lo stesso documento nel contenitore vero: il rettangolo rosso dopo `<metadata>` arriva sullo schermo. */
+  @Test fun inlineSvgWithMetadataIsStillDrawnByTheContainer() {
+    mount()
+    show(SvgWithMetadata)
+    var x = 0
+    var y = 0
+    compose.runOnIdle {
+      val web = findWeb(compose.activity.window.decorView) ?: error("WebView assente")
+      val location = IntArray(2); web.getLocationInWindow(location)
+      val density = compose.activity.resources.displayMetrics.density
+      x = location[0] + (100 * density).toInt()
+      y = location[1] + (100 * density).toInt()
+    }
+    var pixel = 0
+    val deadline = System.currentTimeMillis() + 8_000
+    do {
+      val decor = compose.activity.window.decorView
+      val bitmap = Bitmap.createBitmap(decor.width, decor.height, Bitmap.Config.ARGB_8888)
+      val latch = CountDownLatch(1)
+      compose.runOnIdle { PixelCopy.request(compose.activity.window, bitmap, { latch.countDown() }, Handler(Looper.getMainLooper())) }
+      assertTrue(latch.await(5, TimeUnit.SECONDS))
+      pixel = bitmap.getPixel(x, y)
+      bitmap.recycle()
+      if (Color.red(pixel) > 200 && Color.green(pixel) < 60) break
+      Thread.sleep(250)
+    } while (System.currentTimeMillis() < deadline)
+    Log.i("FluidWebSeal", "svgMetadata pixel=${Integer.toHexString(pixel)}")
+    assertTrue("La forma dopo <metadata> non e' disegnata: pixel ${Integer.toHexString(pixel)}",
+      Color.red(pixel) > 200 && Color.green(pixel) < 60 && Color.blue(pixel) < 60)
   }
 
   // ---------------------------------------------------------------------------------------------- risorse dell'app

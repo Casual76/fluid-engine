@@ -16,6 +16,8 @@ package dev.antigravity.fluidengine.ui.fluid
  * un solo fatto, vero per entrambi: un elemento `link`, `meta` o `iframe` nasce soltanto dalla sequenza
  * letterale `<` + nome, senza distinzione fra maiuscole e minuscole ASCII. Niente entita', NUL o
  * codifica la sostituiscono, perche' i byte serviti sono sempre UTF-8 dichiarato nell'intestazione.
+ * Il nome deve anche finire li': se prosegue con una lettera o una cifra ASCII (`<metadata>` di un SVG,
+ * `<linkx>`, `<iframes>`) e' un altro elemento, e il sigillo non lo tocca.
  *
  * Le regole sono quindi letterali e senza contesto, cioe' valgono anche dentro commenti, CDATA,
  * attributi, `<style>`, `<svg>`, `<template>` e tag non chiusi:
@@ -66,7 +68,8 @@ internal object FluidWebSeal {
         matches(html, name, "/iframe") -> name + 7
         else -> -1
       }
-      if (end < 0) {
+      // `<metadata`, `<linkx`, `<iframes`: il nome prosegue, quindi e' un altro elemento e resta intatto.
+      if (end < 0 || continuesName(html, end)) {
         at = html.indexOf('<', name)
         continue
       }
@@ -105,9 +108,10 @@ internal object FluidWebSeal {
     while (at >= 0) {
       val name = at + 1
       val end = when {
-        matches(html, name, "link") -> canonicalLinkEnd(html, at)
-        matches(html, name, "meta") -> canonicalMetaEnd(html, at)
-        matches(html, name, "iframe") || matches(html, name, "/iframe") -> return false
+        matches(html, name, "link") -> if (continuesName(html, name + 4)) name else canonicalLinkEnd(html, at)
+        matches(html, name, "meta") -> if (continuesName(html, name + 4)) name else canonicalMetaEnd(html, at)
+        matches(html, name, "iframe") -> if (continuesName(html, name + 6)) name else return false
+        matches(html, name, "/iframe") -> if (continuesName(html, name + 7)) name else return false
         else -> name
       }
       if (end < 0) return false
@@ -126,6 +130,16 @@ internal object FluidWebSeal {
     }
     return true
   }
+
+  /** Vero se in [at] il nome del tag prosegue con una lettera o una cifra ASCII: e' un altro elemento.
+   *
+   * `<metadata>` (frequente negli SVG in linea), `<linkx>`, `<iframes>` non sono `meta`, `link`, `iframe` ne' per il
+   * costruttore dell'albero ne' per lo scanner di precaricamento: lo provano le prove strumentate col vero Chromium
+   * (nessun socket, nessun elemento). Neutralizzarli romperebbe il documento, perche' il tag di chiusura
+   * (`</metadata>`) resterebbe com'e'. Ogni altra continuazione (`-`, `:`, NUL, lettere non ASCII, la fine del testo)
+   * resta trattata come il nome intero: per l'HTML sarebbero anch'essi altri elementi, ma li' si resta prudenti.
+   */
+  private fun continuesName(text: String, at: Int): Boolean = at < text.length && isAlphanumeric(text[at])
 
   private fun appendCanonicalLink(out: StringBuilder, attributes: Map<String, String>) {
     // integrity e crossorigin non si possono onorare: le intestazioni della risposta sono del contenitore.
@@ -283,7 +297,7 @@ internal object FluidWebSeal {
     }
 
     private fun attributes(limit: Int): Map<String, String>? {
-      // Il nome deve finire qui: `<linkx` e `<link` + NUL sono altri elementi.
+      // Il nome deve finire qui: `<link` + NUL e `<link-x` sono altri elementi (`<linkx` non arriva fin qui).
       if (cursor >= limit || !(isSpace(html[cursor]) || html[cursor] == '/' || html[cursor] == '>')) return null
       val found = HashMap<String, String>(8)
       while (true) {

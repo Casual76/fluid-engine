@@ -2,12 +2,14 @@
 
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Canvas
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.print.PrintDocumentAdapter
 import android.view.MotionEvent
 import android.view.ContextThemeWrapper
@@ -50,6 +52,7 @@ import androidx.webkit.ProfileStore
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import androidx.webkit.WebViewRenderProcess
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.UUID
@@ -183,9 +186,14 @@ fun rememberFluidWebContentState(): FluidWebContentState = remember { FluidWebCo
 /** HTML locale in una WebView chiusa. Non e' un sanificatore: l'app filtra HTML, CSS e risorse.
  *
  * JS, bridge, file/content, storage, form, finestre, permessi, navigazione e rete nativa sono chiusi.
- * Cookie/cache usano un profilo dedicato, mai riutilizzato. Si elimina al rilascio quando il provider
- * lo permette, altrimenti al primo host del processo successivo. Senza MULTI_PROFILE si fallisce chiusi
+ * Cookie/cache usano un profilo dedicato, mai riutilizzato. Senza MULTI_PROFILE si fallisce chiusi
  * anziche' cambiare il CookieManager globale o condividere cache con altre WebView dell'app.
+ * Alla chiusura di un documento (html diverso, darkening, retry, uscita dalla composizione) la vista viene
+ * distrutta e il suo processo renderer terminato: nessun RendererGone arriva per un documento che l'app ha
+ * chiuso, e le altre WebView dell'app, che stanno su altri profili, non se ne accorgono. Il profilo invece
+ * resta caricato fino alla fine del processo (AndroidX non permette di cancellarlo prima) e si elimina al
+ * primo host del processo successivo: un'app che apre centinaia di documenti in una sessione lo vede in
+ * memoria, thread e descrittori di file (le cifre misurate sono nella scheda del componente).
  * Il documento radice e' servito su un'origine casuale .invalid, con CSP sandbox e no-store.
  * Nessun `baseUrl` pubblico: un'origine controllata dall'HTML potrebbe condividere dati con altre viste.
  *
@@ -364,6 +372,10 @@ private class ReleaseViewFocusNode(var anchor: ViewFocusAnchor) : Modifier.Node(
 }
 
 /** Nessun riferimento alla vista esce dall'implementazione: impostazioni non sovrascrivibili dall'app. */
+// ViewConstructor chiede i costruttori (Context[, AttributeSet]) che servono a chi gonfia la vista da XML o la
+// mostra nell'editor dei layout. Questa classe e' privata e la crea solo la factory di FluidWebContent, con
+// `darkening` che decide il tema del Context prima che WebView lo legga: quei costruttori non avrebbero chiamanti.
+@SuppressLint("ViewConstructor")
 private class ClosedWebView(context: Context, darkening: Boolean) : WebView(ContextThemeWrapper(context,
   if (darkening) android.R.style.Theme_Material_NoActionBar else android.R.style.Theme_Material_Light_NoActionBar)) {
   var released = false
@@ -392,15 +404,8 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
     onFailure: (FluidWebFailure) -> Unit,
     onHeight: (Int) -> Unit,
   ) {
-    if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) throw IsolationUnavailable()
-    ClosedProfiles.pruneAfterProcessRecreation()
-    val profile = "fluid-content-${UUID.randomUUID()}"
-    WebViewCompat.setProfile(this, profile)
-    profileName = profile
-    WebViewCompat.getProfile(this).cookieManager.apply {
-      setAcceptCookie(false)
-      setAcceptThirdPartyCookies(this@ClosedWebView, false)
-    }
+    // Fallisce chiuso prima di ogni altra cosa: senza profili isolati non nasce una vista meno isolata.
+    profileName = ClosedProfiles.isolate(this)
     reportHeight = onHeight
     reportLink = link
     reportLongLink = longLink
@@ -480,8 +485,11 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
         })
       }
       override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+        // Arriva solo a un documento ancora aperto: il renderer e' morto da se' (un crash, o il sistema a
+        // corto di memoria). Chi chiude un documento passa prima da release(), che cambia client e
+        // distrugge la vista: la morte chiesta dal contenitore non arriva mai qui.
         onFailure(FluidWebFailure.RendererGone)
-        release()
+        release(rendererGone = true)
         return true
       }
     }
@@ -526,6 +534,11 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
     requestFocusNodeHref(handler.obtainMessage())
   }
 
+  // ClickableViewAccessibility vuole che la logica di un clic riconosciuto in onTouchEvent stia in performClick.
+  // Qui non si riconosce nessun clic: il metodo guarda il gesto solo per decidere a chi tocca lo scroll
+  // (requestDisallowInterceptTouchEvent) e passa sempre l'evento a WebView, che gestisce da se' i tocchi e le azioni
+  // di accessibilita' sui nodi della pagina. I link arrivano all'app da shouldOverrideUrlLoading, non da qui.
+  @SuppressLint("ClickableViewAccessibility")
   override fun onTouchEvent(event: MotionEvent): Boolean {
     if (released) return false
     when (event.actionMasked) {
@@ -567,7 +580,15 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
     }
   }
 
-  fun release() {
+  /** Chiude la vista e non lascia vivo il suo processo renderer.
+   *
+   * Il provider da' a ogni profilo un renderer suo, e quel processo sopravvive a `destroy()` finche' vive
+   * l'app: senza terminarlo, ogni documento aperto in una sessione ne lascerebbe uno (decine di megabyte).
+   * Si puo' terminare senza toccare nessun altro proprio perche' il profilo e' di questa sola vista: le
+   * WebView dell'app stanno su altri profili, quindi su altri processi.
+   * [rendererGone] e' vero quando il renderer e' gia' morto da se': non c'e' piu' nulla da terminare.
+   */
+  fun release(rendererGone: Boolean = false) {
     if (released) return
     released = true
     main.removeCallbacksAndMessages(null)
@@ -579,32 +600,142 @@ private class ClosedWebView(context: Context, darkening: Boolean) : WebView(Cont
     (parent as? ViewGroup)?.removeView(this)
     stopLoading()
     webChromeClient = null
-    webViewClient = WebViewClient()
+    // Il client predefinito risponderebbe false a onRenderProcessGone, e il sistema chiuderebbe l'app.
+    webViewClient = ClosingClient
     setOnLongClickListener(null)
-    destroy()
-    profileName?.let { ClosedProfiles.deleteIfUnloaded(it) }
+    val profile = profileName
     profileName = null
+    // Senza un profilo dedicato (la creazione e' fallita prima) il renderer sarebbe quello delle WebView
+    // dell'app: non si prende nemmeno.
+    val renderer = if (profile != null && !rendererGone) ClosedRenderers.of(this) else null
+    // Prima destroy(), poi la terminazione: quando il processo muore non ha piu' una vista viva a cui
+    // riportarlo, quindi nessun documento (ne' questo ne' uno aperto dopo) vede un RendererGone.
+    destroy()
+    if (renderer != null) ClosedRenderers.terminate(renderer)
+    if (profile != null) ClosedProfiles.deleteIfUnloaded(profile)
   }
 }
 
-private object ClosedProfiles {
-  private var pruned = false
-  fun deleteIfUnloaded(name: String) {
+/** Client di una vista in chiusura: nessuna richiesta passa, e la morte del renderer e' gia' gestita. */
+private object ClosingClient : WebViewClient() {
+  override fun shouldInterceptRequest(view: WebView, resource: WebResourceRequest): WebResourceResponse = blocked()
+  override fun shouldOverrideUrlLoading(view: WebView, resource: WebResourceRequest): Boolean = true
+  override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
+  override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean = true
+}
+
+/** Termina i processi renderer dei documenti chiusi.
+ *
+ * `terminate()` risponde false in due casi che da qui non si distinguono: il processo non c'e' piu', oppure
+ * sta ancora partendo (un documento chiuso nei primi istanti, per esempio sfogliando in fretta). Nel
+ * secondo caso finirebbe di partire e resterebbe orfano, quindi si riprova a intervalli crescenti, per
+ * meno di un minuto. Ogni tentativo e' una chiamata che non fa nulla se il processo non c'e'.
+ * Qui resta solo il riferimento al processo: nessuna vista e nessuna Activity.
+ * Dove il provider non sa dare o terminare il renderer il contenitore si comporta come nella 3.1.0.
+ */
+private object ClosedRenderers {
+  private val main = Handler(Looper.getMainLooper())
+  /** Attese fra un tentativo e il successivo, in millisecondi. */
+  private val retryDelays = longArrayOf(50, 150, 400, 1_000, 2_500, 6_000, 15_000, 30_000)
+
+  fun of(view: WebView): WebViewRenderProcess? =
     try {
-      ProfileStore.getInstance().deleteProfile(name)
-    } catch (_: IllegalStateException) {
-      // Chromium puo' mantenere caricato il profilo anche dopo destroy(). AndroidX vieta di
-      // cancellarlo in questo processo: non e' un errore dell'host e non deve far cadere l'Activity.
-      // Nessuna vista futura lo riusa; pruneAfterProcessRecreation lo elimina al prossimo processo.
+      if (WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_RENDERER)) {
+        WebViewCompat.getWebViewRenderProcess(view)
+      } else null
+    } catch (_: RuntimeException) {
+      null // Chiudere un documento non deve mai far cadere l'app.
+    }
+
+  fun terminate(renderer: WebViewRenderProcess) = attempt(renderer, 0)
+
+  private fun attempt(renderer: WebViewRenderProcess, tried: Int) {
+    val terminated = try {
+      if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_VIEW_RENDERER_TERMINATE)) {
+        renderer.terminate()
+      } else return
+    } catch (_: RuntimeException) {
+      return
+    }
+    if (!terminated && tried < retryDelays.size) main.postDelayed({ attempt(renderer, tried + 1) }, retryDelays[tried])
+  }
+}
+
+/** I profili dei documenti: uno nuovo per ogni vista, mai riusato.
+ *
+ * Un profilo caricato non si puo' cancellare nello stesso processo (lo vieta AndroidX) e resta caricato
+ * anche a renderer morto: si elimina al primo host del processo successivo. Il costo di ogni profilo
+ * rimasto e' nella scheda del componente (sezione «Prestazioni»).
+ */
+private object ClosedProfiles {
+  private const val Prefix = "fluid-content-"
+  /** Quanto, per ogni giro del thread principale, si spende a eliminare i profili del processo precedente. */
+  private const val PruneSliceMillis = 4L
+  private val main = Handler(Looper.getMainLooper())
+  private val leftovers = ArrayDeque<String>()
+  private var pruned = false
+
+  /** Da' a [view] un profilo nuovo, suo e senza cookie; restituisce il nome. Senza MULTI_PROFILE fallisce chiuso. */
+  fun isolate(view: WebView): String {
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+      pruneAfterProcessRecreation()
+      val name = Prefix + UUID.randomUUID()
+      WebViewCompat.setProfile(view, name)
+      val cookies = WebViewCompat.getProfile(view).cookieManager
+      cookies.setAcceptCookie(false)
+      cookies.setAcceptThirdPartyCookies(view, false)
+      return name
+    } else {
+      throw IsolationUnavailable()
     }
   }
-  fun pruneAfterProcessRecreation() {
+
+  fun deleteIfUnloaded(name: String) {
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+      try {
+        ProfileStore.getInstance().deleteProfile(name)
+      } catch (_: IllegalStateException) {
+        // Chromium tiene caricato il profilo anche dopo destroy(), e AndroidX vieta di cancellarlo in
+        // questo processo: non e' un errore dell'host e non deve far cadere l'Activity.
+        // Nessuna vista futura lo riusa; pruneAfterProcessRecreation lo elimina al prossimo processo.
+      }
+    }
+  }
+
+  /** Al primo host del processo: elenca i profili lasciati dal processo precedente e li elimina a rate.
+   *
+   * L'elenco si prende prima di creare il primo profilo di questo processo, quindi non contiene profili
+   * vivi (recupera anche quelli lasciati da una terminazione senza onDispose, e non tocca i profili di
+   * altre WebView dell'app). Dopo una sessione lunga gli avanzi sono centinaia e cancellarli costa qualche
+   * millisecondo l'uno, sul thread principale perche' l'API lo richiede: tutti insieme fermerebbero
+   * l'apertura del primo documento, quindi se ne eliminano pochi per giro.
+   */
+  private fun pruneAfterProcessRecreation() {
     if (pruned) return
     pruned = true
-    val store = ProfileStore.getInstance()
-    // Al primo host del processo nessuna nostra vista e' ancora viva. Recupera anche profili
-    // lasciati da una terminazione senza onDispose, senza toccare profili di altre WebView.
-    store.allProfileNames.filter { it.startsWith("fluid-content-") }.forEach { store.deleteProfile(it) }
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+      for (name in ProfileStore.getInstance().allProfileNames) {
+        if (name.startsWith(Prefix)) leftovers.addLast(name)
+      }
+      if (leftovers.isNotEmpty()) main.post(::pruneSlice)
+    }
+  }
+
+  private fun pruneSlice() {
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+      val store = ProfileStore.getInstance()
+      val deadline = SystemClock.uptimeMillis() + PruneSliceMillis
+      while (leftovers.isNotEmpty()) {
+        val name = leftovers.removeFirst()
+        try {
+          store.deleteProfile(name)
+        } catch (_: IllegalStateException) {
+          // Caricato da qualcun altro in questo processo: non e' nostro da cancellare adesso.
+        }
+        if (SystemClock.uptimeMillis() >= deadline) break
+      }
+      if (leftovers.isNotEmpty()) main.post(::pruneSlice)
+    }
   }
 }
 

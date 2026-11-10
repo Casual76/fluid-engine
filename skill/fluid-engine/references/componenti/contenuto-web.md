@@ -66,9 +66,29 @@ Cosa è chiuso, tutto insieme e **non negoziabile dall'app** (nessun parametro l
   altre viste. Il documento si legge come byte locali, non con `loadDataWithBaseURL` (che avrebbe allentato gli stessi header).
 - **Profili e cookie isolati.** Ogni istanza ha un **profilo dedicato, mai riutilizzato** (`fluid-content-<uuid>`), cookie e cache compresi; il `CookieManager` e lo `WebStorage` globali non si toccano mai. **Senza
   `MULTI_PROFILE` il contenitore fallisce chiuso** (`FluidWebFailure.IsolationUnavailable`) invece di cambiare il `CookieManager` globale o condividere la cache con le altre WebView dell'app: un'app con un provider vecchio
-  mostra il testo alternativo, non una vista meno isolata. Il profilo si elimina al rilascio **quando il provider lo permette**, altrimenti al primo host del processo successivo: **non promettere una cancellazione immediata**.
+  mostra il testo alternativo, non una vista meno isolata. **Il profilo non sparisce alla chiusura del documento**: AndroidX vieta di cancellare un profilo caricato nello stesso processo, e sul provider di prova un profilo resta
+  caricato anche dopo `destroy()`. Resta fino alla fine del processo dell'app e viene eliminato all'avvio successivo, al primo documento (pochi per volta: vedi «Chiudere un documento»). **Non promettere una cancellazione
+  immediata**, e leggi il costo dei profili rimasti in «Prestazioni».
 - **Il renderer che muore si recupera.** `FluidWebFailure.RendererGone` arriva allo slot `failure`; `state.retry()` **distrugge e ricrea** la vista con un profilo nuovo (non rianima un renderer morto) e non salva né HTML né
-  consensi fra istanze.
+  consensi fra istanze. `RendererGone` riguarda solo un renderer morto **da sé** con il documento ancora aperto: il renderer che il contenitore spegne alla chiusura (sotto) non è un errore e non arriva a nessuno.
+
+## Chiudere un documento (3.1.1)
+
+**Il difetto della 3.1.0.** Il provider dà a ogni profilo un processo renderer suo, e quel processo **sopravvive a `destroy()`** finché vive il processo dell'app. Con un profilo per documento, ogni documento aperto in una sessione
+lasciava quindi un renderer vivo: decine di megabyte l'uno. Misurato su emulatore (2 GB, WebView Google 156): dopo 15 viste aperte e chiuse, 16 renderer vivi (le 15 più quello dell'app); 27 documenti esaurivano la memoria.
+
+**Cosa fa ora il contenitore quando un documento si chiude** (cambio di `html`, `darkening`, `retry()`, uscita dalla composizione, rotazione, `Timeout`): ferma il caricamento, sostituisce il client con uno che non lascia passare
+richieste e che dichiara **gestita** la morte del renderer, distrugge la vista e **solo dopo termina il processo renderer** (`WebViewRenderProcess.terminate()`). L'ordine è la garanzia: quando il processo muore non ha più una vista viva
+a cui riportarlo, quindi né l'app né un documento aperto dopo ricevono un `RendererGone` per un documento che l'app ha chiuso. Il renderer si può terminare senza toccare nient'altro **proprio perché il profilo è di quella sola
+vista**: le WebView dell'app (profilo predefinito, o altri profili suoi) stanno su altri processi e non se ne accorgono (provato: una WebView ordinaria dell'app, viva per tutto il ciclo, alla fine carica e disegna ancora e non ha
+mai visto morire il suo renderer). Se la creazione della vista è fallita prima di ottenere il profilo dedicato, il renderer sarebbe quello dell'app: non viene nemmeno preso.
+
+- **Un documento chiuso nei primi istanti** (sfogliando in fretta): `terminate()` risponde `false` finché il processo sta ancora partendo, e quel processo finirebbe di partire per restare orfano. Il contenitore riprova a intervalli
+  crescenti (da 50 ms a 30 s, meno di un minuto in tutto); ogni tentativo è una chiamata che non fa nulla se il processo non c'è. Non tiene in vita né la vista né l'`Activity`: solo il riferimento al processo.
+- **Dove il provider non sa farlo** (`GET_WEB_VIEW_RENDERER` o `WEB_VIEW_RENDERER_TERMINATE` mancanti, o renderer nello stesso processo dell'app) il contenitore si comporta come nella 3.1.0: nessun errore, e il renderer resta fino alla
+  fine del processo. Non è un requisito di sicurezza (il documento è già chiuso), quindi qui non si fallisce chiusi.
+- **I profili lasciati dal processo precedente** si eliminano al primo documento del processo successivo, **pochi per giro del thread principale** (l'API di AndroidX va chiamata lì). Dopo una sessione lunga sono centinaia:
+  cancellarli tutti insieme, com'era nella 3.1.0, fermava il thread principale per circa 1,5 secondi con 300 profili (emulatore); a rate il primo documento non li aspetta.
 
 ## Il sigillo: i suggerimenti di rete (3.1.1)
 
@@ -81,7 +101,10 @@ scritto dentro un attributo, e dentro ci stava un `preconnect`, anche codificato
 **Perché non un filtro che legge l'HTML.** WebView non ha un'impostazione che spegne i suggerimenti (le due leve del motore che esistono sono dichiarate sotto, e non bastano). Resta riscrivere il documento, e un filtro che
 «capisce» l'HTML quasi come il browser è proprio il modo in cui questi filtri si bucano. Chromium, poi, ha **due** analizzatori che non concordano, e le prove lo mostrano: con `rel=stylesheet rel=preconnect` l'albero tiene
 il primo `rel` e lo scanner di precaricamento l'ultimo (e apre il socket); dentro `<svg>` l'albero non crea un link HTML e lo scanner sì. Il sigillo si appoggia a un fatto solo, vero per entrambi e verificato col vero
-Chromium: **un elemento `link`, `meta` o `iframe` nasce soltanto dalla sequenza letterale `<` + nome** (maiuscole e minuscole ASCII). Niente entità, NUL, caratteri invisibili o codifica la sostituiscono.
+Chromium: **un elemento `link`, `meta` o `iframe` nasce soltanto dalla sequenza letterale `<` + nome** (maiuscole e minuscole ASCII). Niente entità, NUL, caratteri invisibili o codifica la sostituiscono. E il nome deve finire
+lì: **se prosegue con una lettera o una cifra ASCII è un altro elemento** (`<metadata>` degli SVG in linea, `<linkx>`, `<iframes>`), che Chromium non tratta come `meta`, `link` o `iframe` né nell'albero né nello scanner di
+precaricamento (provato: nessun socket, nessun elemento), e che il sigillo **lascia intatto**. Neutralizzarlo romperebbe il documento: `<metadata>` diventerebbe un tag che il suo `</metadata>` non chiude più, e le forme dell'SVG
+che lo seguono non verrebbero disegnate. Ogni altra continuazione (`<link-x`, `<meta:x`, un NUL, una lettera non ASCII, la fine del testo) resta trattata come il nome intero, per prudenza.
 
 **Cosa fa**, in una sola passata, **senza guardare il contesto** (vale anche dentro commenti, CDATA, attributi, `<style>`, `<svg>`, `<template>` e tag non chiusi):
 
@@ -119,7 +142,7 @@ controlla che lo sia). `frame`, `object` ed `embed` non hanno `srcdoc`: hanno un
 | `<link rel="preconnect">` (https, http, con `crossorigin`, nel `body`, insieme a `dns-prefetch`) | **2 connessioni TLS native** (1 TCP con http), nessuna chiamata a `onRequest` | 0 | il sigillo |
 | `<link rel="dns-prefetch">`, `preconnect` verso un nome | **1 richiesta DNS** | 0 | il sigillo |
 | `<iframe srcdoc>` con un suggerimento dentro, anche scritto a entità o annidato due volte | **2 connessioni TLS native** | 0 | il sigillo (`iframe` → `noframes`) |
-| 43 varianti travestite su 71 (maiuscole, tabulazioni e avanzamenti di pagina, entità in `rel` e in `href`, `rel` duplicato, più parole, NUL in un altro attributo, dentro `svg`, `math`, `noscript`, tabelle, `select`, radice ombra dichiarativa, dopo commenti e CDATA, dopo 150.000 caratteri) | **2 connessioni** ciascuna | 0 | il sigillo |
+| 43 varianti travestite su 76 (maiuscole, tabulazioni e avanzamenti di pagina, entità in `rel` e in `href`, `rel` duplicato, più parole, NUL in un altro attributo, dentro `svg`, `math`, `noscript`, tabelle, `select`, radice ombra dichiarativa, dopo commenti e CDATA, dopo 150.000 caratteri) | **2 connessioni** ciascuna | 0 | il sigillo |
 | `preload`, `prefetch`, `icon`, `alternate stylesheet` | richiesta consegnata a `onRequest` | l'elemento non esiste più | il sigillo |
 | `<link rel="stylesheet">` | richiesta consegnata a `onRequest` | **uguale** | `onRequest` |
 | `modulepreload`, `prerender`, `manifest`, `apple-touch-icon`, `search`, `canonical`, `pingback` | niente | niente | il provider non li carica; il sigillo |
@@ -194,9 +217,15 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
   finito di caricare» e non dice niente su immagini e font.
 - **La creazione della `WebView` è sul thread UI** (non c'è modo di farla altrove) e il suo costo è dell'app che compone il contenitore (di norma la prima `WebView` del processo paga anche il caricamento del provider, e non si sa quanto: dipende dal telefono). Fuori dal thread UI
   passa solo il lavoro che può passarci: l'HTML si converte in byte su `Dispatchers.Default`, **mai** sul thread principale, e `onRequest` gira su thread di I/O.
-- **Niente riuso e niente preriscaldamento nella 3.1.0.** Ogni istanza crea una vista nuova e un profilo nuovo, mai riutilizzato (è parte del contratto chiuso: nessun cookie, cache o stato passa da un documento al successivo), e
+- **Niente riuso e niente preriscaldamento.** Ogni istanza crea una vista nuova e un profilo nuovo, mai riutilizzato (è parte del contratto chiuso: nessun cookie, cache o stato passa da un documento al successivo), e
   **nessun pool globale** tiene `WebView` o `Activity` in giro. L'engine non ha né un `prewarm()` né una vista da «riscaldare», e `FluidWebContent` non accetta una `WebView` fornita dall'app: chi vuole ammortizzare l'avvio non ha un'API per farlo.
-  Un riuso con pulizia verificabile è una decisione futura, da prendere con misure su un telefono vero.
+- **Cosa resta di un documento chiuso.** Il processo renderer no: dalla 3.1.1 viene terminato (sopra). **Il profilo sì, fino alla fine del processo dell'app**, e non è gratis. Misurato su emulatore (API 37, 2 GB, WebView Google 156),
+  per ogni vista creata: circa **24 descrittori di file, 2 thread, 0,7 MB di memoria** nel processo dell'app e **90 KB di file** su disco. Con 301 viste aperte e chiuse in un solo processo (200 documenti, alcuni ricreati per
+  `retry` e cambio di tema): memoria dell'app da 273 a 490 MB, thread da 61 a 675, descrittori da 265 a 7.518, 26 MB su disco; i processi renderer, intanto, restano quelli dell'app ospite, mentre nella 3.1.0 ne sarebbe rimasto uno per vista. Sono numeri
+  **indicativi** (emulatore): l'ordine di grandezza è quello, i valori veri si misurano su un telefono. Tutto torna a zero alla fine del processo.
+- **Perché non si riusa un profilo, per ora.** Riusare pochi profili terrebbe piatte quelle cifre (provato: 151 viste con 3 profili, descrittori e thread fermi), ma solo a patto che fra due documenti sullo stesso profilo non passi
+  niente. Con vista distrutta, renderer terminato e `deleteBrowsingData` (cache, cookie, storage) passa una cosa sola, che il provider non lascia cancellare: **l'elenco degli indirizzi visitati del profilo**. Contiene gli indirizzi
+  casuali dei documenti precedenti, che un documento non può conoscere; ma una pagina con script può aggiungervi indirizzi suoi (`history.pushState`, misurato con una WebView di prova), e quindi potrebbe farlo un renderer compromesso. Finché questo non è deciso, il contratto resta «un profilo per documento».
 - **Cosa ricrea la vista** (e quindi paga di nuovo la creazione e riconsegna le risorse a `onRequest`): un `html` diverso, `darkening`, `state.retry()`, un renderer morto. **Non** la ricrea `textScale`, né cambiare `onRequest`
   (che non ricarica nemmeno il documento). Una lista con un `FluidWebContent` per riga crea tante `WebView` quante righe sono composte: tienine montato uno per volta nel dettaglio, o una sola vista per un documento
   lungo, invece di una per anteprima.
@@ -211,8 +240,9 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 - **Un foglio di stile è una richiesta come un'immagine.** `<link rel="stylesheet">` sopravvive al sigillo e arriva a `onRequest`: servirlo senza la stessa politica delle immagini dice al mittente che il documento è stato
   aperto. Gli altri `<link>` (icone, `preload`) non arrivano più: non aspettarli in `onRequest`.
 - **Gli iframe non ci sono.** Nemmeno `srcdoc`: un documento che contava su un iframe mostra il resto e basta.
-- **Molti documenti nello stesso processo costano memoria.** Ogni istanza ha un profilo suo e il provider tiene vivo un processo renderer per profilo finché vive il processo dell'app: 27 documenti aperti di seguito hanno
-  esaurito la memoria di un emulatore da 2 GB. È così dalla 3.1.0 e va misurato su un telefono vero prima di contare su sessioni lunghe.
+- **Ogni documento aperto lascia un profilo caricato fino alla fine del processo.** Non più un renderer (dalla 3.1.1 il contenitore lo termina alla chiusura: nella 3.1.0 ne restava uno per documento, e 27 documenti di seguito
+  esaurivano un emulatore da 2 GB), ma il profilo sì: circa 24 descrittori di file, 2 thread e 0,7 MB per vista sull'emulatore di prova, cioè circa 90 MB, 375 thread e 3.900 descrittori dopo 150 viste. Un'app che in una
+  sessione apre centinaia di documenti lo vede: misuralo su un telefono vero (`dumpsys meminfo`, `/proc/<pid>/fd`), e ricorda che ricreare la vista (`html` instabile, `darkening`, `retry`) conta come un documento in più.
 - **Non è un sanificatore.** Passare HTML non filtrato e servire ogni richiesta «per far vedere le immagini» fa di un contenitore chiuso un client HTTP aperto. Serve solo ciò che l'app ha deciso, con il client privo di identità.
 - **`onRequest` gira su thread di I/O, anche in parallelo**: dev'essere thread-safe e finito; non restituire stream condivisi fra richieste (la WebView li chiude). Gli schemi inline personalizzati (per esempio `cid:`) passano dallo
   stesso gestore; `data:`, `blob:`, `about:` sono interni al renderer.
@@ -234,22 +264,29 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 
 - **`FluidWebContentStateTest`** (`engine-ui`, JVM, 5): vuoto, caricamento, pittura, errore e rilascio; i callback di un renderer smontato non cambiano il documento nuovo; `retry` crea una revisione nuova e un nuovo proprietario azzera le misure; uno stato non può avere due viste.
   **`FluidWebContentTest`** (`sample`, Robolectric, 2): un contenuto vuoto non entra in `Loading`; un documento troppo grande usa lo slot `failure` dell'app senza creare la WebView; il vuoto a testo al 200%, scuro e movimento ridotto.
-- **`FluidWebSealTest`** (`engine-ui`, JVM, 13): il sigillo sul testo. Un documento senza i tre tag è la stessa istanza; i suggerimenti travestiti non lasciano un `<link`; il foglio di stile semplice torna in forma canonica e quello
-  dubbio no; `viewport` e `color-scheme` restano e ogni `http-equiv` no; nessun `iframe`; circa 160.000 combinazioni sistematiche (nomi, separatori, modi di scrivere `rel`, chiusure, contesti) e 40.000 documenti di frammenti a
+- **`FluidWebSealTest`** (`engine-ui`, JVM, 15): il sigillo sul testo. Un documento senza i tre tag è la stessa istanza; i suggerimenti travestiti non lasciano un `<link`; il foglio di stile semplice torna in forma canonica e quello
+  dubbio no; `viewport` e `color-scheme` restano e ogni `http-equiv` no; nessun `iframe`; un nome che prosegue con una lettera o una cifra ASCII (`<metadata>`, `<linkx>`, `<iframes>`) resta intatto, e ogni altra continuazione no; circa 160.000 combinazioni sistematiche (nomi, separatori, modi di scrivere `rel`, chiusure, contesti) e 40.000 documenti di frammenti a
   caso, ognuno controllato con espressioni regolari scritte a parte e con il controllo del contenitore; documenti al limite di 4 milioni di caratteri, costruiti per far rileggere lo stesso testo, restano una passata.
 - **`FluidWebContentNetworkCensusTest`** (`sample/androidTest`, 55, su emulatore API 37, WebView Google 156): il censimento della tabella sopra, un documento per canale, **zero connessioni** su un socket locale che conta anche
   quelle senza richiesta HTTP. Sulla 3.1.0 ne falliscono 7 (i cinque `preconnect` e i due `srcdoc`).
-- **`FluidWebContentSealInstrumentedTest`** (`sample/androidTest`, 10): le 71 varianti travestite nel contenitore danno zero connessioni (sulla 3.1.0, 43 ne aprono); nessun canale fa salire il contatore DNS di sistema (sulla
-  3.1.0 tre sì); **il vero analizzatore di Chromium**, interrogato sul DOM di 127 documenti sigillati, non trova un `link` che non sia il foglio canonico, un `meta` fuori dai due ammessi né un `iframe`, e conferma che le
-  sequenze non letterali (NUL o caratteri invisibili nel nome, maiuscole Unicode, entità) non creano l'elemento; l'albero di un `head` realistico conserva la forma; un foglio di stile servito dall'app si applica ancora. Due
-  **sentinelle** caricano gli stessi suggerimenti in una WebView di prova senza sigillo e pretendono di **vedere** il socket e la richiesta DNS: se un giorno non li vedessero, gli zero delle altre prove non proverebbero più
-  nulla. Su un emulatore piccolo le prove a ciclo si dividono in più lanci con `-e webChunk i/n` (vedi «Trappole»: un renderer per profilo); `tools/qa/web-network-tests.sh` lo fa da solo e raccoglie esiti e log.
+- **`FluidWebContentSealInstrumentedTest`** (`sample/androidTest`, 12): le 76 varianti travestite nel contenitore danno zero connessioni (sulla 3.1.0, 43 ne aprono); nessun canale fa salire il contatore DNS di sistema (sulla
+  3.1.0 tre sì); **il vero analizzatore di Chromium**, interrogato sul DOM di 132 documenti sigillati, non trova un `link` che non sia il foglio canonico, un `meta` fuori dai due ammessi né un `iframe`, e conferma che le
+  sequenze non letterali (NUL o caratteri invisibili nel nome, maiuscole Unicode, entità) e **i nomi più lunghi** (`<linkx>`, `<link1>`, `<metadata http-equiv>`, `<iframes srcdoc>`) non creano l'elemento e non aprono socket;
+  un SVG in linea con `<metadata>` prima di una forma, sigillato, ha ancora la forma come figlia dell'SVG, e nel contenitore la forma arriva sullo schermo; l'albero di un `head` realistico conserva la forma; un foglio di stile servito
+  dall'app si applica ancora. Due **sentinelle** caricano gli stessi suggerimenti in una WebView di prova senza sigillo e pretendono di **vedere** il socket e la richiesta DNS: se un giorno non li vedessero, gli zero delle altre
+  prove non proverebbero più nulla. `tools/qa/web-network-tests.sh` lancia tutte le prove web e raccoglie esiti e log.
+- **`FluidWebContentRendererLifecycleTest`** (`sample/androidTest`, 4, emulatore API 37, WebView Google 156): **60 documenti aperti e chiusi in un solo processo** in tutti i modi in cui un'app li chiude (documento successivo,
+  `retry`, cambio di tema, uscita dalla composizione, chiusura mentre carica, rotazione), con una WebView ordinaria dell'app ospite viva per tutto il ciclo. Conta i processi renderer **dell'app** (`dumpsys activity services`
+  incrociato con `ps`): a ogni controllo sono quelli dell'ospite più quello del documento aperto, e alla fine tornano **esattamente** al numero di partenza, senza margine; nessun `RendererGone` riportato, la WebView ospite non vede
+  morire il suo renderer e alla fine carica e disegna; ogni vista ha avuto un profilo suo. Sulla 3.1.0 fallisce al primo controllo (16 renderer vivi dopo 10 documenti, cioè 15 viste, dove ne sono ammessi 2). Una seconda prova chiude 24 documenti **mentre stanno
+  caricando**: nessun renderer orfano. Due prove sugli **avanzi** (da lanciare in un processo nuovo dopo molti documenti): il contenitore elimina i profili del processo precedente senza far aspettare il primo documento, e quanto
+  costerebbe eliminarli tutti insieme. Le cifre di memoria, thread, descrittori e disco finiscono nel log `FluidWebLifecycle` come misure, **senza soglie**. `-e webDocuments N` cambia quanti documenti apre la prima prova.
 - **`FluidWebContentInstrumentedTest`** (`sample/androidTest`, su **emulatore** API 37, WebView Google 156, **9/9 passati**): un documento ostile non può aprire connessioni né eseguire script (`hostileDocumentCannotSendRequestsOrExecuteScripts`, dalla 3.1.1 con un socket in ascolto al posto del conteggio delle richieste HTTP, che non vedeva un `preconnect`);
   gli stream serviti usano solo le intestazioni dell'app e le risorse inline passano dallo stesso gestore; i tocchi riportano la destinazione vera e il testo visibile **senza navigare**; un `javascript:` non esegue nulla;
   il tema ricrea la vista e la scala del font si aggiorna **senza** ricaricare le risorse; la morte del renderer è segnalata e `retry` usa vista e profilo nuovi; un documento enorme e malformato ha altezza limitata a 200% e **può rimpicciolirsi**,
   con uno swipe vero che scorre dentro una `LazyColumn`; **il vetro contiene davvero i pixel della WebView**; una WebView che ha preso il fuoco toccando un link, dentro una `LazyColumn`, sopravvive alla ricreazione per `darkening` e per `html` e alla rimozione dal genitore (`focusedViewInsideLazyColumnSurvivesRecreationAndRemoval`; senza la correzione F1.8a il processo cade).
 - **`FluidWebContentPerformanceTest`** (`sample/androidTest`, 1, solo su dispositivo): una misura **esplorativa** della prima pittura, nel log `FluidWebTiming`; **non impone soglie** e non conta come prova di QLT-02: vedi «Prestazioni».
-- **Non provato da test**: provider diversi da quello dell'emulatore; il traffico proprio del provider; la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
+- **Non provato da test**: provider diversi da quello dell'emulatore; un provider senza `WEB_VIEW_RENDERER_TERMINATE` (lì il renderer resta, come nella 3.1.0); la memoria su un telefono vero; il traffico proprio del provider; la qualità visiva dello scurimento su documenti reali (si guarda: `07-scuro-corretto`, `08-originale-corretto` nelle evidenze del gruppo), la stampa fino alla stampante, il pizzico a dita vere.
 
 ## Dove guardare
 
@@ -261,6 +298,7 @@ non garanzie dell'engine: un'app che li promette ai suoi utenti li promette lei.
 | `engine-ui/src/test/.../FluidWebSealTest.kt` | le prove JVM del sigillo |
 | `sample/src/androidTest/.../FluidWebContentInstrumentedTest.kt` | le nove prove strumentate (rete chiusa, link, renderer, altezza, vetro, fuoco alla rimozione) |
 | `sample/src/androidTest/.../FluidWebContentNetworkCensusTest.kt`, `FluidWebContentSealInstrumentedTest.kt` | il censimento dei canali; varianti travestite, DNS, DOM vero, sentinelle |
-| `tools/qa/web-network-tests.sh` | tutte le prove web su un emulatore, divise in lanci brevi |
+| `sample/src/androidTest/.../FluidWebContentRendererLifecycleTest.kt` | i renderer e i profili di decine di documenti aperti e chiusi in un processo; le misure di memoria, thread, descrittori e disco |
+| `tools/qa/web-network-tests.sh` | tutte le prove web su un emulatore, un processo nuovo per lancio |
 | `sample/src/androidTest/.../WebNetworkCorpus.kt`, `WebNetworkProbes.kt` | i documenti del censimento e delle varianti; il socket in ascolto, il contatore DNS, la WebView senza sigillo, l'analizzatore di Chromium interrogato da prova |
 | `docs/fase-1/evidenze/gc/` (nel repo di Pampa Mail) | gli screenshot e il verbale della verifica su emulatore |

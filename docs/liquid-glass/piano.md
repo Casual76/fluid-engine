@@ -1117,7 +1117,7 @@ ma non decide. Le scene a fondale fermo si misurano con `warmup 5` (la prima fin
 | difetto | dove | chi lo chiude |
 |---|---|---|
 | contorno della forma di prima dopo A → B → A, e la forma perde la sua ombra | `Full` e `Balanced`, dalla 3.0.0 | **chiuso**: commit `72be580` e `b56d158`; provato sul tablet il 2026-11-11 (0 pixel diversi su cinque andate e ritorni, contro 83 000–140 000 prima) |
-| doppio bordo dentro il ponte fra due pezzi, e moiré nel collo | solo `Full` | F1B.1 (nuclei nuovi: un campo solo, un filo solo) |
+| doppio bordo dentro il ponte fra due pezzi, e moiré nel collo | solo `Full` | F1B.1 (nuclei nuovi: un campo solo, un filo solo); il ponte resta solo in viaggio (scelta di Alessio, «Scelte di gusto») |
 | l'ombra a riposo compare in un fotogramma circa 270 ms dopo l'arrivo | `Full` e `Balanced` | F1B.6 (parità viaggio→riposo), voce di S2 |
 | nessun fotogramma registrato fra +17 e +67 ms nel cambio di pagina della barra | tutti e due | da capire in S1-bis con `framestats`; se è un fotogramma lungo, F4A |
 
@@ -1153,6 +1153,13 @@ registra e si passa, perché F1B lo sostituisce.
 
 **Scelte di gusto.** Una sola, dopo S1: i collage `Full` contro `Balanced` di menu, barra e goccia, con la domanda «cosa di
 questo vuoi tenere?» (risposte a scelta: la goccia com'è; la goccia più composta; solo la sagoma, materiale da rifare).
+
+**Risposta di Alessio (2026-11-11): la goccia più composta.** Parole sue: l'animazione del livello `Full` (il collo
+liquido fra i pezzi) «mi piace leggermente di più come animazione, però deve separarsi completamente poi». Quindi: **il
+collo esiste solo in viaggio; a riposo due pezzi distinti sono separati del tutto**, senza ponte né contorni residui.
+Vincolo per F1B.1 (la fusione `pieceBlend` scende a zero entro l'arrivo, con la stessa curva del resto del viaggio, mai
+di scatto) e prova in F1B.6: a riposo, fra due pezzi che non si toccano, il fondale è nudo al pixel. Due pezzi dichiarati
+dall'app come un gruppo solo (F3, distanza di fusione) restano un'altra cosa: lì la fusione è una scelta di chi scrive.
 
 ---
 

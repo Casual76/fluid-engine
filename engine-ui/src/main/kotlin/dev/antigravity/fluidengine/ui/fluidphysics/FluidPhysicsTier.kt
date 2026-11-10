@@ -1,9 +1,11 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderProbe
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSource
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 
 /**
  * Quanto materiale un morph può portare su questo dispositivo, adesso.
@@ -54,13 +56,37 @@ internal fun currentPhysicsTierCeiling(): FluidPhysicsTier = resolvePhysicsTier(
   requested = null,
 )
 
+/** Le sorgenti senza le quali Fluid-physics non sale a [FluidPhysicsTier.Full]: lente, maschera e ponti. */
+internal val PhysicsBaseShaders: List<GlassShaderSource> =
+  listOf(GlassShaderSources.SlabGroupRefraction, GlassShaderSources.PolyMorphRefraction)
+
+/** Le due varianti con la frangia cromatica (3.0): senza, si spegne solo la frangia. */
+internal val PhysicsDispersionShaders: List<GlassShaderSource> =
+  listOf(GlassShaderSources.SlabGroupDispersion, GlassShaderSources.PolyMorphDispersion)
+
 /**
- * Una compilazione di prova, una volta per processo.
+ * Il verdetto di Fluid-physics, dati i verdetti per sorgente di [probe]: le due sorgenti di base, nell'ordine
+ * di sempre. Pura rispetto alla sonda, così la tabella «quale sorgente rifiutata porta a quale livello» si
+ * prova sul JVM con un compilatore finto.
+ */
+internal fun physicsShadersHealthy(probe: GlassShaderProbe): Boolean = probe.healthy(PhysicsBaseShaders)
+
+/** La frangia: si prova solo se la base passa, e il suo rifiuto non tocca la base. */
+internal fun physicsDispersionHealthy(probe: GlassShaderProbe): Boolean =
+  physicsShadersHealthy(probe) && probe.healthy(PhysicsDispersionShaders)
+
+/**
+ * Una compilazione di prova per sorgente, una volta per processo, attraverso [GlassFieldHealth].
  *
  * Un loop a 64 lati con array uniform è AGSL legittimo, ma "legittimo" e "accettato da ogni
  * driver del parco Android" non sono la stessa affermazione. Se il driver rifiuta, il verdetto
  * resta e il livello si ferma a [FluidPhysicsTier.Balanced] — un materiale più povero, mai
  * un'eccezione a metà gesto. Le sorgenti sono costanti, quindi il verdetto vale per sempre.
+ *
+ * Il ripiego però non è più silenzioso (F0.1): dalla 3.0.0 alla 3.1.2 un nome riservato in uno shader ha
+ * tenuto tutto il motore a `Balanced` con un solo `Log.w`. Ora ogni sorgente rifiutata è una riga
+ * d'errore di [GlassFieldHealth] con il suo nome, la conseguenza qui sotto è un'altra riga d'errore, e i
+ * verdetti si leggono in `FluidGlassDiagnostics`.
  */
 internal object FluidPhysicsShaderHealth {
 
@@ -70,20 +96,16 @@ internal object FluidPhysicsShaderHealth {
   fun healthy(): Boolean {
     if (!isRuntimeShaderSupported()) return false
     verdict?.let { return it }
-    val result = probe()
+    val result = physicsShadersHealthy(GlassFieldHealth.probe)
+    if (!result) {
+      android.util.Log.e(
+        "FluidPhysics",
+        "Fluid-physics fermo a Balanced, senza lente ne' ponti: rifiutati ${refused(PhysicsBaseShaders)}.",
+      )
+    }
     verdict = result
     return result
   }
-
-  @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-  private fun probe(): Boolean = runCatching {
-    android.graphics.RuntimeShader(SlabGroupRefractionShaderString)
-    android.graphics.RuntimeShader(PolyMorphRefractionShaderString)
-  }.onFailure {
-    // Il fallimento è un fatto del driver che vale la pena leggere in logcat: senza questa riga
-    // un compilatore che rifiuta è indistinguibile da un dispositivo che non può.
-    android.util.Log.w("FluidPhysics", "Shader di Fluid-physics rifiutati: tier Balanced.", it)
-  }.isSuccess
 
   @Volatile
   private var dispersionVerdict: Boolean? = null
@@ -96,22 +118,27 @@ internal object FluidPhysicsShaderHealth {
   fun dispersionHealthy(): Boolean {
     if (!isRuntimeShaderSupported() || !healthy()) return false
     dispersionVerdict?.let { return it }
-    val result = probeDispersion()
+    val result = physicsDispersionHealthy(GlassFieldHealth.probe)
+    if (!result) {
+      android.util.Log.e(
+        "FluidPhysics",
+        "Frangia cromatica di Fluid-physics rifiutata, lente senza frangia: ${refused(PhysicsDispersionShaders)}.",
+      )
+    }
     dispersionVerdict = result
     return result
   }
 
-  @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-  private fun probeDispersion(): Boolean = runCatching {
-    android.graphics.RuntimeShader(SlabGroupDispersionShaderString)
-    android.graphics.RuntimeShader(PolyMorphDispersionShaderString)
-  }.onFailure {
-    android.util.Log.w("FluidPhysics", "Frangia cromatica di Fluid-physics rifiutata: lente senza frangia.", it)
-  }.isSuccess
+  /** I nomi delle sorgenti di [family] che il compilatore ha rifiutato: la riga di log dice quali. */
+  private fun refused(family: List<GlassShaderSource>): List<String> {
+    val verdicts = GlassFieldHealth.verdicts()
+    return family.map { it.name }.filter { verdicts[it] != null }
+  }
 
   /** Solo per i test dell'engine. */
   internal fun resetForTesting() {
     verdict = null
     dispersionVerdict = null
+    GlassFieldHealth.resetForTesting()
   }
 }

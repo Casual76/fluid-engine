@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.glass.backdrop
 
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -12,6 +14,10 @@ import java.util.concurrent.atomic.AtomicLong
  * build, leave a screen alone, and [totalCaptures] must stop moving.
  *
  * Off by default, and then it costs one volatile read per capture.
+ *
+ * Dalla 4.0.0 dice anche se gli shader del vetro **compilano** su questo dispositivo ([shaderVerdicts],
+ * [compileAllShaders]): un driver che rifiuta una sorgente fa ripiegare il vetro su un materiale più povero,
+ * e quel ripiego deve vedersi. Queste letture non dipendono da [enabled].
  */
 object FluidGlassDiagnostics {
 
@@ -39,4 +45,30 @@ object FluidGlassDiagnostics {
   internal fun onExport() {
     if (enabled) exports.incrementAndGet()
   }
+
+  /** I nomi di tutte le sorgenti AGSL dell'engine, nell'ordine in cui [compileAllShaders] le prova. */
+  val shaderSourceNames: List<String> get() = GlassShaderSources.all.map { it.name }
+
+  /**
+   * I verdetti che il vetro ha già chiesto in questo processo: nome della sorgente → `null` se il compilatore
+   * del dispositivo l'ha accettata, o il suo errore (il messaggio è quello del compilatore, con riga e
+   * motivo). Una sorgente che nessuno ha ancora usato non compare: la sonda compila solo quando serve.
+   *
+   * Esiste perché dalla 3.0.0 alla 3.1.2 un rifiuto è passato inosservato per una settimana, con una riga
+   * di log a livello avviso e nessun altro segno: un ripiego si deve poter leggere da fuori, e chi lo
+   * mostra (la galleria, un test) lo legge da qui.
+   */
+  val shaderVerdicts: Map<String, Throwable?> get() = GlassFieldHealth.verdicts()
+
+  /**
+   * Compila adesso ogni sorgente AGSL dell'engine che non sia già stata provata, e restituisce tutti i
+   * verdetti: nome della sorgente → `null` o l'errore del compilatore. Ogni rifiuto scrive anche una riga
+   * di log a livello errore (tag `FluidGlass`).
+   *
+   * Solo diagnostica: lo chiama il test strumentato della galleria a ogni sessione sul dispositivo, perché
+   * le sorgenti sono interne all'engine e il test sta in un altro modulo. Costa una compilazione per
+   * sorgente la prima volta, niente le successive. Sotto Android 13 non c'è un compilatore AGSL e il
+   * risultato è vuoto.
+   */
+  fun compileAllShaders(): Map<String, Throwable?> = GlassFieldHealth.compileAll()
 }

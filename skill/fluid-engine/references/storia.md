@@ -1,6 +1,6 @@
 # Come siamo arrivati qui
 
-Le tappe dell'engine, dalla 1.0.0 (23 agosto 2026) alla 3.1.0. Serve a capire **perché una cosa è com'è** e a
+Le tappe dell'engine, dalla 1.0.0 (23 agosto 2026) alla 3.1.1. Serve a capire **perché una cosa è com'è** e a
 datare una voce («da quando c'è `FluidHero`?»). Il testo intero è in `CHANGELOG.md`; una riga per versione e le
 voci BREAKING sono in `api/versioni.md` (generato). Date e numeri di versione qui sono quelli del changelog.
 
@@ -24,6 +24,7 @@ voci BREAKING sono in `api/versioni.md` (generato). Date e numeri di versione qu
 | 2026-11-03 | 3.0.1 – 3.0.4 | Correzioni trovate migrando le app (`FluidLabels`, versioni inglesi, `FluidPickerRow`…), back dal bordo (3.0.3), stato delle pagine che sopravvive alla ricreazione (3.0.2), interruttori di riga trascinabili e menu veloci (3.0.4), componenti di `engine-wear` dal ramo sweet-ride |
 | 2026-11-05 – 09 | 3.0.5 – 3.0.7 | Icone della barra che seguono il cambio pagina (3.0.5), Back dei menu sopra pagine annidate e orchestratore dell'assistente (3.0.6), hook runtime IA e controlli pagina di PampAI (3.0.7) |
 | 2026-11-09 | **3.1.0** | **La Fase 1 di Pampa Mail**: l'engine impara a fare una casella di posta senza che il dominio entri. Liste lunghe e paginate (`fluidGroupedItems`, `fluidSwipeActions`, `FluidJumpPill`), identità e selezione (`FluidAvatar`, `FluidIdentityColors`, `FluidBadge`, `FluidSelectionState`), pannello laterale e segni sulle zone della barra (`FluidDrawer`, `FluidTabBadge`), notifiche con azioni in linea, campi (`FluidTokenField`, `FluidDateTimeSheet`), il modulo opt-in `engine-richtext` (editor con elenchi e citazioni annidati), il contenitore web chiuso (`FluidWebContent`), i grafici e i file. Tutto **additivo per costruzione** (funzioni e tipi nuovi, parametri nuovi in coda con default che lasciano il comportamento identico): un'app che non cambia niente compila e si comporta come prima; l'unico effetto di build è la dipendenza `androidx.webkit` in `engine-ui` (una cautela di sorgente sulle lambda finali di `FluidTabRail`, `FluidSidebarRow` e `tab(…)` è nel changelog, voce «compat») |
+| 2026-11-10 | 3.1.1 | Correzioni dopo la prima revisione della Fase 1, **nessuna rottura e nessuna firma pubblica cambia**: il contenitore web chiude i suggerimenti di rete (`preconnect`, `dns-prefetch`: correzione di privacy) e non lascia più un renderer e un profilo per documento; l'azione di scorrimento parte una volta sola; l'editor non salva lo stato sopra 256 KB stimati e la sua barra scorre anche dal tasto; lint di `engine-ui` senza errori |
 
 ## Le decisioni che spiegano il resto
 

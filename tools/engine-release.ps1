@@ -3,8 +3,9 @@
   Taglia una versione del Fluid Engine.
 
 .DESCRIPTION
-  Da eseguire dentro il repo dell'engine. Muove insieme le tre cose che devono restare d'accordo:
-  il file ENGINE_VERSION, la costante EngineBuild.VERSION e il tag git. Sono la stessa versione
+  Da eseguire dentro il repo dell'engine. Muove insieme le cose che devono restare d'accordo:
+  il file ENGINE_VERSION, la costante EngineBuild.VERSION, la riga "Versione documentata" della skill
+  (skill/fluid-engine/SKILL.md) e il tag git. Sono la stessa versione
   scritta in tre posti perche' servono a tre lettori diversi (gli script, l'app in esecuzione, git),
   e sono la cosa che diverge per prima se le si tocca a mano.
 
@@ -112,6 +113,19 @@ $updatedKotlin = [regex]::Replace(
 if ($updatedKotlin -eq $kotlin) { Fail "non ho trovato EngineBuild.VERSION in EngineVersion.kt" }
 Write-TextFile $versionKt $updatedKotlin
 
+# La skill dice quale versione documenta: se resta indietro, chi la legge si fida di schede vecchie.
+# check_docs.py fallisce se questa riga e ENGINE_VERSION non coincidono.
+$skill = Read-TextFile $skillMd
+$updatedSkill = [regex]::Replace(
+  $skill,
+  '\*\*Versione documentata: [^*]*\*\*',
+  "**Versione documentata: $Version**"
+)
+if ($updatedSkill -eq $skill -and $skill -notmatch ('\*\*Versione documentata: ' + [regex]::Escape($Version) + '\*\*')) {
+  Fail "non ho trovato la riga Versione documentata in skill/fluid-engine/SKILL.md"
+}
+Write-TextFile $skillMd $updatedSkill
+
 $today = Get-Date -Format "yyyy-MM-dd"
 if ($Notes.Count -gt 0) {
   $entries = ($Notes | ForEach-Object { "- $_" }) -join "`r`n"
@@ -129,12 +143,12 @@ if ($existing -match [regex]::Escape($marker)) {
 }
 Write-TextFile $changelog $existing
 
-Write-Host "ENGINE_VERSION, EngineBuild.VERSION e CHANGELOG portati a $Version (da $previous)." -ForegroundColor Green
+Write-Host "ENGINE_VERSION, EngineBuild.VERSION, SKILL.md e CHANGELOG portati a $Version (da $previous)." -ForegroundColor Green
 
 if ($Tag) {
   Push-Location $engineRoot
   try {
-    $add = Invoke-Git @("add", "ENGINE_VERSION", "CHANGELOG.md", $versionKt)
+    $add = Invoke-Git @("add", "ENGINE_VERSION", "CHANGELOG.md", $versionKt, $skillMd)
     if ($add.Code -ne 0) { Fail "git add non riuscito." }
     $commit = Invoke-Git @("commit", "-m", "Rilascia Fluid Engine $Version", "-m", "Co-Authored-By: GPT-6.1 Sol <noreply@openai.com>")
     if ($commit.Code -ne 0) { Fail "commit non riuscito: $($commit.Lines -join ' ')" }

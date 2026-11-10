@@ -72,7 +72,7 @@ passando per `-File`):
 powershell -ExecutionPolicy Bypass -Command "& .\tools\engine-release.ps1 -Version 1.1.0 -Notes 'Voce uno','BREAKING: voce due' -Tag"
 ```
 
-Lo script muove insieme `ENGINE_VERSION`, `EngineBuild.VERSION` e il tag. Non toccarli a mano.
+Lo script muove insieme `ENGINE_VERSION`, `EngineBuild.VERSION`, la riga «Versione documentata» di `skill/fluid-engine/SKILL.md` e il tag (`check_docs.py` fallisce se la skill resta indietro). Non toccarli a mano.
 
 ### Cosa merita quale numero
 

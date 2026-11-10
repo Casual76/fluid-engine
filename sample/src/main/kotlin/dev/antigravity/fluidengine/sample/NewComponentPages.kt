@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.sample
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,8 @@ import dev.antigravity.fluidengine.sample.catalog.IdentityDemo
 import dev.antigravity.fluidengine.sample.catalog.LongListsDemo
 import dev.antigravity.fluidengine.sample.catalog.NotificationUndoDemo
 import dev.antigravity.fluidengine.sample.catalog.RichTextDemo
+import dev.antigravity.fluidengine.sample.catalog.RichTextDemoToolbars
+import dev.antigravity.fluidengine.sample.catalog.rememberRichTextDemoStates
 import dev.antigravity.fluidengine.sample.catalog.TokenFieldDemo
 import dev.antigravity.fluidengine.sample.catalog.WebContentDemo
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
@@ -217,7 +220,14 @@ internal fun NewComponentPage(
     GalleryPage.DrawerAndTabs -> SectionsPage(page, spec, snapshot, openPanel, onBack, bottomInset) {
       DrawerAndTabsDemo()
     }
-    GalleryPage.RichText -> SectionsPage(page, spec, snapshot, openPanel, onBack, bottomInset) { RichTextDemo() }
+    GalleryPage.RichText -> {
+      // Le barre di formattazione stanno nell'overlay della pagina, come in un'app vera (vedi RichTextDemo).
+      val states = rememberRichTextDemoStates()
+      SectionsPage(
+        page, spec, snapshot, openPanel, onBack, bottomInset,
+        overlay = { backdrop -> RichTextDemoToolbars(states, backdrop) },
+      ) { RichTextDemo(states) }
+    }
     GalleryPage.Charts -> SectionsPage(page, spec, snapshot, openPanel, onBack, bottomInset) { ChartsDemo() }
     GalleryPage.TokenField -> FullColumnPage(page, snapshot, openPanel, backdrop, onBack, bottomInset) {
       TokenFieldDemo()
@@ -242,6 +252,7 @@ private fun SectionsPage(
   openPanel: () -> Unit,
   onBack: () -> Unit,
   bottomInset: Dp,
+  overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {},
   demo: @Composable () -> Unit,
 ) {
   FluidScreen(
@@ -252,6 +263,7 @@ private fun SectionsPage(
     actions = { MatrixBarAction(snapshot, openPanel) },
     extraBottomPadding = bottomInset,
     ambient = remember(spec.tone, spec.motif) { FluidAmbient(tone = spec.tone, motif = spec.motif) },
+    overlay = overlay,
   ) {
     item(key = "new-component-${page.name}") { demo() }
   }

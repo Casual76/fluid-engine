@@ -82,6 +82,17 @@ Copy-Item -Recurse -Force "<engine>\skillluid-engine" "$env:USERPROFILE\.claude
 Dopo ogni release: `python -I skill/fluid-engine/scripts/gen_api_catalog.py`, aggiornare le schede toccate,
 `check_docs.py` e `sync_docs.py` (vedi `skill/fluid-engine/references/strumenti-e-qa.md`).
 
+## Le demo della Fase 1
+
+Schermate vere della galleria (l'app `sample`, Fluid Glass, build di debug) su un emulatore, in tema chiaro e scuro, con i soli dati di prova della galleria. Ogni pagina si apre da «Da provare» o dagli extra di lancio (`gallery.page`, `gallery.theme`, `gallery.text`: vedi `tools/qa/gallery-tour.sh`).
+
+| | | |
+|:---:|:---:|:---:|
+| ![Liste lunghe: righe una per una, raggruppate, con l'icona di lettura, l'etichetta «Lavoro» e la freccia, in tema chiaro; una riga è già segnata «Letto»](docs/immagini/liste-lunghe-chiaro.png) | ![Pannello laterale e schede: la pillola a tre zone con badge e «Scrivi», e il rail, sopra un fondo colorato, in tema scuro](docs/immagini/pannello-e-schede-scuro.png) | ![Campo a gettoni: etichette valide, non valide, con testo lungo e in arabo, e cento gettoni a più colonne, in tema chiaro](docs/immagini/campo-a-gettoni-chiaro.png) |
+| **Liste lunghe** · `fluidGroupedItems`, scorrimento di lato con azioni (letta, archivia). Pagina «Liste lunghe» | **Pannello laterale e schede** · `FluidDrawer`, pillola a tre zone, rail. Pagina «Pannello laterale e schede» | **Campo a gettoni** · `FluidTokenField`. Pagina «Campo a gettoni» |
+| ![Editor di testo con formattazione: il campo «Corpo» vuoto col segnaposto e il tasto «Aa» che chiede la barra, in tema scuro](docs/immagini/editor-testo-ricco-scuro.png) | ![Contenuto web: la pagina di controllo con gli interruttori (tema, originale, testo al 200%) e sotto il documento locale mostrato al 200%, in tema chiaro](docs/immagini/contenuto-web-chiaro.png) | ![Grafici: la ciambella «1.040 mail» con la legenda delle cinque categorie e le percentuali, in tema scuro](docs/immagini/grafici-scuro.png) |
+| **Editor con formattazione** · `engine-richtext`, barra di formattazione. Pagina «Testo ricco» | **Contenuto web** · `FluidWebContent`, HTML locale in una vista chiusa. Pagina «Contenuto web» | **Grafici** · `FluidDonutChart` con legenda. Pagina «Grafici» |
+
 ## Documentazione
 
 | | |

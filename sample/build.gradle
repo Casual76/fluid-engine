@@ -84,7 +84,7 @@ android {
       if (hasReleaseKey) {
         signingConfig = signingConfigs.release
       } else {
-        signingConfig signingConfigs.debug
+        signingConfig = signingConfigs.debug
         println 'Fluid Glass: nessuna chiave in local.properties — release firmata DEBUG, non pubblicabile.'
       }
     }

@@ -17,12 +17,12 @@
 # Compilare prima:  ./gradlew.bat --no-daemon --no-watch-fs :sample:assembleDebug :sample:assembleDebugAndroidTest
 # (dentro il semaforo del PC: gradle-slot.ps1, se girano altri agenti.)
 #
-# Cosa lancia (11 lanci):
+# Cosa lancia (12 lanci):
 #   - FluidWebContentInstrumentedTest            le nove prove storiche (la prima conta i socket del corpus ostile)
 #   - FluidWebContentNetworkCensusTest           il censimento dei canali
 #   - FluidWebContentSealInstrumentedTest        varianti travestite, poi sentinelle, DNS, DOM, SVG, foglio di stile
-#   - FluidWebContentRendererLifecycleTest       60 documenti in un processo e chiusure rapide (processi renderer),
-#                                                poi gli avanzi dei profili al processo successivo
+#   - FluidWebContentRendererLifecycleTest       60 documenti in un processo, chiusure rapide, un'app senza WebView sue
+#                                                (processi renderer), poi gli avanzi dei profili al processo successivo
 # Nella cartella degli esiti restano l'uscita di ogni lancio (`*.txt`) e le righe di log `FluidWebCensus`,
 # `FluidWebSeal` e `FluidWebLifecycle` (`*.logcat.txt`): per ogni canale, quante connessioni native e che cosa e'
 # arrivato a `onRequest`; per i documenti, quanti renderer vivi e le misure di memoria, thread, descrittori e disco.
@@ -111,6 +111,7 @@ launch renderer-60-documenti "$LIFE#manyDocumentsInOneProcessLeaveNoRendererBehi
 launch renderer-avanzi "$LIFE#leftoverProfilesArePrunedWithoutHoldingTheFirstDocument"
 launch renderer-chiusure-rapide "$LIFE#documentsClosedWhileLoadingLeaveNoRendererBehind"
 launch renderer-avanzi-tutti-insieme "$LIFE#leftoverProfilesAtProcessStartAreMeasured"
+launch renderer-senza-ospite "$LIFE#containerAloneLeavesAtMostTheProvidersOwnRenderer"
 
 "$ADB" shell am force-stop "$PACKAGE" >/dev/null 2>&1
 if [ "$UNINSTALL" = 1 ]; then

@@ -9,7 +9,6 @@ import android.graphics.Canvas
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.print.PrintDocumentAdapter
 import android.view.MotionEvent
 import android.view.ContextThemeWrapper
@@ -669,8 +668,10 @@ private object ClosedRenderers {
  */
 private object ClosedProfiles {
   private const val Prefix = "fluid-content-"
-  /** Quanto, per ogni giro del thread principale, si spende a eliminare i profili del processo precedente. */
-  private const val PruneSliceMillis = 4L
+  /** Attesa prima di cominciare a eliminare i profili del processo precedente: il primo documento non li ha fra i piedi. */
+  private const val PruneStartMillis = 4_000L
+  /** Pausa fra un profilo eliminato e il successivo: sul thread principale ce n'e' al piu' uno ogni tanto. */
+  private const val PrunePauseMillis = 50L
   private val main = Handler(Looper.getMainLooper())
   private val leftovers = ArrayDeque<String>()
   private var pruned = false
@@ -702,13 +703,15 @@ private object ClosedProfiles {
     }
   }
 
-  /** Al primo host del processo: elenca i profili lasciati dal processo precedente e li elimina a rate.
+  /** Al primo host del processo: elenca i profili lasciati dal processo precedente, per eliminarli con calma.
    *
    * L'elenco si prende prima di creare il primo profilo di questo processo, quindi non contiene profili
    * vivi (recupera anche quelli lasciati da una terminazione senza onDispose, e non tocca i profili di
    * altre WebView dell'app). Dopo una sessione lunga gli avanzi sono centinaia e cancellarli costa qualche
    * millisecondo l'uno, sul thread principale perche' l'API lo richiede: tutti insieme fermerebbero
-   * l'apertura del primo documento, quindi se ne eliminano pochi per giro.
+   * l'apertura del primo documento (un secondo e mezzo con 300 profili, sull'emulatore di prova). Si
+   * comincia quindi qualche secondo dopo, e se ne elimina uno per volta con una pausa fra l'uno e l'altro.
+   * Se il processo finisce prima, i rimasti si ritrovano nell'elenco del processo successivo.
    */
   private fun pruneAfterProcessRecreation() {
     if (pruned) return
@@ -717,24 +720,19 @@ private object ClosedProfiles {
       for (name in ProfileStore.getInstance().allProfileNames) {
         if (name.startsWith(Prefix)) leftovers.addLast(name)
       }
-      if (leftovers.isNotEmpty()) main.post(::pruneSlice)
+      if (leftovers.isNotEmpty()) main.postDelayed(::pruneOne, PruneStartMillis)
     }
   }
 
-  private fun pruneSlice() {
+  private fun pruneOne() {
     if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
-      val store = ProfileStore.getInstance()
-      val deadline = SystemClock.uptimeMillis() + PruneSliceMillis
-      while (leftovers.isNotEmpty()) {
-        val name = leftovers.removeFirst()
-        try {
-          store.deleteProfile(name)
-        } catch (_: IllegalStateException) {
-          // Caricato da qualcun altro in questo processo: non e' nostro da cancellare adesso.
-        }
-        if (SystemClock.uptimeMillis() >= deadline) break
+      val name = leftovers.removeFirstOrNull() ?: return
+      try {
+        ProfileStore.getInstance().deleteProfile(name)
+      } catch (_: IllegalStateException) {
+        // Caricato da qualcun altro in questo processo: non e' nostro da cancellare adesso.
       }
-      if (leftovers.isNotEmpty()) main.post(::pruneSlice)
+      if (leftovers.isNotEmpty()) main.postDelayed(::pruneOne, PrunePauseMillis)
     }
   }
 }

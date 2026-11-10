@@ -146,12 +146,12 @@ class FluidWebContentRendererLifecycleTest {
     override fun onPageFinished(view: WebView, url: String) { hostFinished.incrementAndGet() }
   }
 
-  /** Avvia l'Activity con una WebView ordinaria dell'app ospite (profilo predefinito) sopra il contenitore. */
-  private fun mount() {
+  /** Avvia l'Activity; con [withHost] una WebView ordinaria dell'app ospite (profilo predefinito) sta sopra il contenitore. */
+  private fun mount(withHost: Boolean = true) {
     val launched = scenario ?: ActivityScenario.launch(ComponentActivity::class.java).also { scenario = it }
     launched.onActivity { current ->
       host?.let { old -> (old.parent as? ViewGroup)?.removeView(old); old.destroy() }
-      val web = WebView(current).apply { webViewClient = hostClient() }
+      val web = if (withHost) WebView(current).apply { webViewClient = hostClient() } else null
       val contentState = FluidWebContentState()
       host = web
       state = contentState
@@ -160,7 +160,7 @@ class FluidWebContentRendererLifecycleTest {
       current.setContent {
         FluidTheme(EngineSettings(), systemBars = false) {
           Column(Modifier.fillMaxSize()) {
-            AndroidView(factory = { web }, modifier = Modifier.fillMaxWidth().height(80.dp))
+            if (web != null) AndroidView(factory = { web }, modifier = Modifier.fillMaxWidth().height(80.dp))
             if (shown) {
               FluidWebContent(html, {}, state = contentState, darkening = dark, modifier = Modifier.fillMaxWidth(),
                 sizing = FluidWebSizing.Viewport(300.dp), placeholder = {},
@@ -390,11 +390,36 @@ class FluidWebContentRendererLifecycleTest {
     hostLoadsAndDraws(0, 160, 0)
   }
 
+  /** Un'app senza WebView sue: chiusi i documenti resta al piu' un renderer, quello che il provider avvia da se'.
+   *
+   * Margine fisso di uno, non proporzionale ai documenti. Alla seconda WebView creata in un processo il provider avvia
+   * un renderer in piu' che non ospita nessun documento del contenitore; non compare quando l'app ha gia' una WebView
+   * sua sul profilo predefinito (le altre prove, dove il conto torna alla base senza margine), quindi e' con ogni
+   * probabilita' il renderer di quel profilo. Il contenitore non lo tocca: non e' di un suo profilo, e non potrebbe
+   * distinguerlo da quello di una WebView dell'app. La prova pretende che resti uno, anche raddoppiando i documenti.
+   */
+  @Test fun containerAloneLeavesAtMostTheProvidersOwnRenderer() {
+    assumeTrue(WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE))
+    mount(withHost = false)
+    await("contenitore vuoto") { state?.phase == FluidWebPhase.Empty }
+    val before = RendererCensus.read().count
+    for (index in 1..12) open("SOLO-$index")
+    closeAll()
+    val afterTwelve = awaitRenderers("dopo 12 documenti, senza WebView dell'ospite", before + 1)
+    for (index in 13..24) open("SOLO-$index")
+    closeAll()
+    val afterTwentyFour = awaitRenderers("dopo 24 documenti, senza WebView dell'ospite", before + 1)
+    Log.i("FluidWebLifecycle", "senzaOspite rendererPrima=$before dopo12=$afterTwelve dopo24=$afterTwentyFour viste=$views fallimenti=$failures")
+    assertTrue("$failures", failures.isEmpty())
+    assertEquals("Ogni vista deve avere avuto un profilo suo", views, profiles.size)
+  }
+
   /** Gli avanzi del processo precedente spariscono, e il primo documento non li aspetta.
    *
    * Va lanciata in un processo nuovo dopo una prova che ha aperto molti documenti (centinaia di profili rimasti).
    * L'asserzione e' un conteggio: alla fine nel registro resta solo il profilo del documento aperto qui. Nel log
-   * resta, come misura indicativa, il fermo piu' lungo del thread principale mentre il contenitore li elimina.
+   * restano, come misure indicative, quanti avanzi c'erano ancora alla prima pittura (il contenitore comincia a
+   * eliminarli qualche secondo dopo) e il fermo piu' lungo del thread principale, prima e durante l'eliminazione.
    */
   @Test fun leftoverProfilesArePrunedWithoutHoldingTheFirstDocument() {
     assumeTrue(WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE))
@@ -423,12 +448,15 @@ class FluidWebContentRendererLifecycleTest {
     }
     val readyAfter = SystemClock.uptimeMillis() - startedAt
     assertEquals("${state?.failure}", FluidWebPhase.Ready, state?.phase)
+    val atFirstPaint = loadedContentProfiles()
+    val worstUntilPaint = worst.get()
     val deadline = SystemClock.uptimeMillis() + 120_000
     while (loadedContentProfiles() > 1 && SystemClock.uptimeMillis() < deadline) Thread.sleep(100)
     beating.set(false)
     val remaining = loadedContentProfiles()
-    Log.i("FluidWebLifecycle", "avanziContenitore profiliAllInizio=$leftovers rimasti=$remaining fermoMassimoMs=${worst.get()} " +
-      "giriOltre32Ms=${slow.get()} primaPitturaDopoMs=$readyAfter eliminatiInMs=${SystemClock.uptimeMillis() - startedAt}")
+    Log.i("FluidWebLifecycle", "avanziContenitore profiliAllInizio=$leftovers allaPrimaPittura=$atFirstPaint rimasti=$remaining " +
+      "fermoMassimoFinoAllaPitturaMs=$worstUntilPaint fermoMassimoMs=${worst.get()} giriOltre32Ms=${slow.get()} " +
+      "primaPitturaDopoMs=$readyAfter eliminatiInMs=${SystemClock.uptimeMillis() - startedAt}")
     assertEquals("Nel registro deve restare solo il profilo del documento aperto", 1, remaining)
   }
 

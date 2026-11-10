@@ -1,0 +1,161 @@
+{
+  "_": "SONDA di fattibilita' (shaders/sonda-materiale.agsl): un campo a 5 pezzi (tasto, capsula, due tondi che si fondono, pannello) in una passata con due ingressi. Non e' il materiale dell'engine.",
+  "width": 480,
+  "height": 270,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "text",
+    "background": "#E3E3E5",
+    "color": "#0A0A0A",
+    "fontSizeDp": 30,
+    "lineHeightDp": 42,
+    "paddingDp": 18,
+    "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."
+  },
+  "elements": [
+    {
+      "kind": "shader",
+      "name": "campo",
+      "source": "file:../shaders/sonda-materiale.agsl",
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 270,
+      "inputs": {
+        "content": {
+          "saturation": 1.3
+        },
+        "blurred": {
+          "saturation": 1.3,
+          "blurDp": 10,
+          "edge": "clamp"
+        }
+      },
+      "uniforms": {
+        "offset": [
+          0,
+          0
+        ],
+        "blend": "14dp",
+        "thickness": "12dp",
+        "refraction": "16dp",
+        "dispersion": 0.6,
+        "frost": 0.35,
+        "lightDir": [
+          0.7071,
+          0.7071
+        ],
+        "rimWidth": "1.2dp",
+        "rimStrength": 0.55,
+        "bodyShade": 0.1,
+        "glowCenter": [
+          "354dp",
+          "135dp"
+        ],
+        "glowRadius": "30dp",
+        "glow": 0.22,
+        "tintColor": "#FFFFFF2E",
+        "shadowOffset": [
+          "0dp",
+          "5dp"
+        ],
+        "shadowRadius": "16dp",
+        "shadowStrength": 0.5,
+        "materialize": 1.0,
+        "aa": 1.0,
+        "pieceCount": 5,
+        "pieceRect": [
+          [
+            "52dp",
+            "135dp",
+            "22dp",
+            "22dp"
+          ],
+          [
+            "182dp",
+            "135dp",
+            "78dp",
+            "28dp"
+          ],
+          [
+            "326dp",
+            "135dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "372dp",
+            "135dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "436dp",
+            "135dp",
+            "30dp",
+            "76dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "22dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ],
+          [
+            "28dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ],
+          [
+            "24dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ],
+          [
+            "24dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ],
+          [
+            "22dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ]
+        ]
+      },
+      "items": [
+        {
+          "kind": "icon",
+          "icon": "plus",
+          "x": 52,
+          "y": 135
+        },
+        {
+          "kind": "icon",
+          "icon": "back",
+          "x": 130,
+          "y": 135
+        },
+        {
+          "kind": "icon",
+          "icon": "plus",
+          "x": 182,
+          "y": 135
+        },
+        {
+          "kind": "icon",
+          "icon": "circle",
+          "x": 234,
+          "y": 135
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "_": "Il vetro di oggi sopra una fotografia (le dune di frame_t0180s.jpg, senza vetro di Apple sopra).",
+  "width": 480,
+  "height": 270,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "image",
+    "path": "C:/Users/casua/Downloads/Fluid glass huge step up source material/WWDC all frames/frames_video/frame_t0180s.jpg"
+  },
+  "elements": [
+    {
+      "name": "tasto",
+      "role": "button",
+      "x": 30,
+      "y": 113,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "icon": "plus"
+    },
+    {
+      "name": "capsula",
+      "role": "floating",
+      "x": 104,
+      "y": 107,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "icons": [
+        "back",
+        "plus",
+        "circle"
+      ]
+    },
+    {
+      "name": "menu",
+      "role": "compactpanel",
+      "x": 290,
+      "y": 39,
+      "w": 170,
+      "h": 192,
+      "radius": 28,
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "search"
+        },
+        {
+          "label": "Elimina",
+          "icon": "close",
+          "color": "#E5484D"
+        }
+      ],
+      "rowHeightDp": 44
+    }
+  ]
+}

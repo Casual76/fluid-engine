@@ -1,0 +1,83 @@
+{
+  "_": "Lo shader di gruppo di Fluid-physics com'e' oggi (SlabGroupRefractionShaderString letto da FluidPhysicsShaders.kt): due pezzi che si fondono, sfocatura e saturazione a monte come le mette fluidPhysicsSurface.",
+  "width": 480,
+  "height": 270,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "text",
+    "background": "#E3E3E5",
+    "color": "#0A0A0A",
+    "fontSizeDp": 30,
+    "lineHeightDp": 42,
+    "paddingDp": 18,
+    "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."
+  },
+  "elements": [
+    {
+      "kind": "shader",
+      "name": "gruppo",
+      "source": "kotlin:SlabGroupRefractionShaderString",
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 270,
+      "inputs": {
+        "content": {
+          "saturation": 1.6,
+          "blurDp": 4.5,
+          "edge": "clamp"
+        }
+      },
+      "uniforms": {
+        "offset": [
+          0,
+          0
+        ],
+        "pieceCount": 2,
+        "pieceRect": [
+          [
+            "190dp",
+            "135dp",
+            "60dp",
+            "28dp"
+          ],
+          [
+            "280dp",
+            "135dp",
+            "28dp",
+            "28dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "28dp",
+            "28dp",
+            "28dp",
+            "28dp"
+          ],
+          [
+            "28dp",
+            "28dp",
+            "28dp",
+            "28dp"
+          ]
+        ],
+        "pieceBlend": [
+          "18dp",
+          "18dp"
+        ],
+        "refractionHeight": "19dp",
+        "refractionAmount": "-29dp",
+        "depthEffect": 0,
+        "magnify": 0,
+        "fieldCenter": [
+          "240dp",
+          "135dp"
+        ],
+        "aa": 1.0,
+        "tintColor": "#F8F8F985"
+      }
+    }
+  ]
+}

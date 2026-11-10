@@ -1,0 +1,152 @@
+// SONDA DI FATTIBILITA', non il materiale dell'engine.
+//
+// Serve a tre domande della ricerca R3, e a nient'altro:
+//   1. uno shader AGSL puo' ricevere DUE ingressi (sfondo nitido e sfondo sfocato)?
+//   2. campo di distanza a N pezzi fusi, lente, dispersione, due luci sul bordo, ombreggiatura del
+//      corpo, bagliore, tinta e ombra stanno in UNA passata?
+//   3. la comparsa "per lente" (uniform `materialize`) e la flessione (i pezzi si muovono dagli
+//      uniform) escono dallo stesso campo?
+// I numeri sono messi a occhio per vedere che ogni termine fa qualcosa: la taratura contro i frame
+// di Apple e' lavoro del piano, non di questo file.
+//
+// Regole AGSL rispettate apposta (valgono da Android 13): cicli a limite costante, indici di array
+// costanti o variabile d'induzione, niente derivate (dFdx/fwidth), niente texture diretta: solo
+// `shader.eval`.
+
+uniform shader content;   // lo sfondo nitido (gia' saturato a monte, o no)
+uniform shader blurred;   // lo stesso sfondo, sfocato a monte da un RenderEffect
+
+const int MAX_PIECES = 8;
+
+uniform float2 offset;
+uniform float pieceCount;
+uniform float4 pieceRect[MAX_PIECES];    // xy = centro, zw = mezza taglia (px)
+uniform float4 pieceRadii[MAX_PIECES];   // un raggio per pezzo in .x (px)
+uniform float blend;                     // raggio di fusione dello smooth minimum (px)
+
+uniform float thickness;                 // quanto in dentro agisce il bordo (px)
+uniform float refraction;                // spostamento massimo al bordo (px)
+uniform float dispersion;                // 0..1
+uniform float frost;                     // 0 = nitido, 1 = tutto sfocato
+uniform float2 lightDir;                 // direzione della luce principale, unitaria
+uniform float rimWidth;                  // larghezza del filo speculare (px)
+uniform float rimStrength;
+uniform float bodyShade;                 // ombreggiatura del corpo, 0..1
+uniform float2 glowCenter;               // bagliore interno (il dito), px
+uniform float glowRadius;
+uniform float glow;
+layout(color) uniform half4 tintColor;
+uniform float2 shadowOffset;
+uniform float shadowRadius;
+uniform float shadowStrength;
+uniform float materialize;               // 0 = non c'e', 1 = materiale pieno
+uniform float aa;
+
+float sdRoundedRect(float2 rel, float2 halfSize, float radius) {
+    float2 q = abs(rel) - (halfSize - float2(radius));
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+}
+
+float2 gradRoundedRect(float2 rel, float2 halfSize, float radius) {
+    float2 q = abs(rel) - (halfSize - float2(radius));
+    if (q.x >= 0.0 || q.y >= 0.0) {
+        float2 dir = max(q, 0.0);
+        float len = length(dir);
+        return len > 0.0001 ? sign(rel) * dir / len : float2(0.0);
+    }
+    float gx = step(q.y, q.x);
+    return sign(rel) * float2(gx, 1.0 - gx);
+}
+
+// Distanza e gradiente del campo fuso, in un giro solo (lo stesso schema di Fluid-physics).
+float3 field(float2 p) {
+    float d = 1000000.0;
+    float2 grad = float2(0.0);
+    for (int i = 0; i < MAX_PIECES; ++i) {
+        if (float(i) >= pieceCount) break;
+        float2 rel = p - pieceRect[i].xy;
+        float2 halfSize = pieceRect[i].zw;
+        float radius = min(pieceRadii[i].x, min(halfSize.x, halfSize.y));
+        float sd = sdRoundedRect(rel, halfSize, radius);
+        float2 g = gradRoundedRect(rel, halfSize, radius);
+        if (i == 0) {
+            d = sd;
+            grad = g;
+        } else {
+            float k = max(blend, 0.0001);
+            float h = clamp(0.5 + 0.5 * (sd - d) / k, 0.0, 1.0);
+            d = sd + (d - sd) * h - k * h * (1.0 - h);
+            grad = mix(g, grad, h);
+        }
+    }
+    return float3(d, grad);
+}
+
+half3 transmitted(float2 at) {
+    return mix(content.eval(at).rgb, blurred.eval(at).rgb, half(clamp(frost * materialize, 0.0, 1.0)));
+}
+
+half4 main(float2 coord) {
+    float2 p = coord + offset;
+    float3 f = field(p);
+    float d = f.x;
+    float gl = length(f.yz);
+    float2 n = gl > 0.0001 ? f.yz / gl : float2(0.0);
+
+    float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+
+    // L'ombra: il campo valutato una seconda volta, spostato. Colorata da cio' che ha sotto.
+    half4 shadow = half4(0.0);
+    if (coverage < 1.0 && shadowStrength > 0.0) {
+        float ds = field(p - shadowOffset).x;
+        float fall = 1.0 - smoothstep(-shadowRadius * 0.35, shadowRadius, ds);
+        half3 under = blurred.eval(coord).rgb;
+        half lum = dot(under, half3(0.2126, 0.7152, 0.0722));
+        // Piu' forte dove lo sfondo e' chiaro e contrastato: qui solo la parte "chiaro".
+        half a = half(fall * fall * shadowStrength * materialize) * mix(0.55, 1.0, lum);
+        shadow = half4(under * 0.18 * a, a);
+    }
+    if (coverage <= 0.0) return shadow;
+
+    // Il profilo dello spessore: 0 al bordo, 1 dove il vetro e' piatto.
+    float t = clamp(-d / max(thickness, 0.0001), 0.0, 1.0);
+    float x = 1.0 - t;
+    float bend = (1.0 - sqrt(max(1.0 - x * x, 0.0))) * refraction * materialize;
+    float2 at = coord - bend * n;
+
+    // Dispersione: tre campioni invece dei sette di Kyant.
+    half3 colour;
+    if (dispersion > 0.0 && bend > 0.01) {
+        float2 spread = n * bend * dispersion * 0.35;
+        colour = half3(transmitted(at + spread).r, transmitted(at).g, transmitted(at - spread).b);
+    } else {
+        colour = transmitted(at);
+    }
+
+    // La normale in tre dimensioni di una cupola dal profilo circolare.
+    float3 n3 = normalize(float3(n * x, sqrt(max(1.0 - x * x, 0.0)) + 0.0001));
+    float3 light = normalize(float3(lightDir, 0.6));
+
+    // Pellicola.
+    half ta = tintColor.a * half(materialize);
+    colour = colour * (1.0 - ta) + tintColor.rgb * ta;
+
+    // Ombreggiatura del corpo: il lato verso la luce schiarisce, l'opposto scurisce.
+    float diffuse = dot(n3.xy, lightDir) * x;
+    colour += half3(half(-diffuse * bodyShade * materialize));
+
+    // Filo speculare da due sorgenti opposte: la principale e il suo rimbalzo, piu' debole.
+    float rim = 1.0 - smoothstep(0.0, max(rimWidth, 0.0001), -d);
+    float facing = dot(n, -lightDir);
+    float spec = pow(max(facing, 0.0), 2.0) + 0.55 * pow(max(-facing, 0.0), 2.0);
+    colour += half3(half(rim * (0.18 + spec) * rimStrength * materialize));
+
+    // Bagliore interno (il tocco): additivo, radiale, piu' vivo verso il bordo.
+    if (glow > 0.0) {
+        float gd = length(p - glowCenter) / max(glowRadius, 0.0001);
+        colour += half3(half(glow * exp(-gd * gd) * (0.5 + 0.5 * x)));
+    }
+
+    half4 material = half4(clamp(colour, 0.0, 1.0), 1.0);
+    return material * half(coverage) + shadow * half(1.0 - coverage);
+}

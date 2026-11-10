@@ -1,0 +1,31 @@
+// SONDA DI FATTIBILITA': sfocatura progressiva per il bordo dello scorrimento, in una passata.
+//
+// Il raggio cresce verso il bordo (y = 0) e vale zero a `size.y`: nessuna fascia, perche' non c'e'
+// un'immagine sfocata sovrapposta a una nitida, ma una sola immagine il cui raggio varia per pixel.
+// 24 campioni su una spirale ad angolo aureo; lo scurimento (`dim`) e' il velo che Apple mette sopra
+// il contenuto scuro. Da rendere su una cattura a risoluzione ridotta (`scale` nella scena): il
+// raggio in pixel si dimezza e i campioni bastano.
+uniform shader content;
+
+uniform float2 size;
+uniform float maxRadius;                 // px, al bordo
+layout(color) uniform half4 dimColor;    // velo al bordo; alfa 0 = nessuno
+
+const int TAPS = 24;
+
+half4 main(float2 coord) {
+    float t = 1.0 - smoothstep(0.0, size.y, coord.y);
+    float radius = maxRadius * t * t;
+    half4 sum = content.eval(coord);
+    if (radius > 0.35) {
+        for (int i = 1; i < TAPS; ++i) {
+            float fi = float(i);
+            float r = radius * sqrt(fi / float(TAPS));
+            float a = fi * 2.39996323;
+            sum += content.eval(coord + r * float2(cos(a), sin(a)));
+        }
+        sum /= half(TAPS);
+    }
+    half veil = dimColor.a * half(t);
+    return half4(sum.rgb * (1.0 - veil) + dimColor.rgb * veil * sum.a, sum.a);
+}

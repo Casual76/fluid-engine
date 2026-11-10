@@ -1,0 +1,13 @@
+{
+  "_": "Verifica di somiglianza: due tasti tondi come quelli in alto a destra di artifacts/migrazione/codex/dopo/08-chats-scuro.png (engine vero, tema scuro, densita' 3). La palette e' stimata dallo screenshot.",
+  "width": 100,
+  "height": 53.33,
+  "density": 3.0,
+  "theme": "dark",
+  "palette": {"surfaceContainerHigh": "#2B2833", "primary": "#C9B1FF", "onSurface": "#C9B1FF"},
+  "background": {"kind": "gradient4", "tl": "#2C2A30", "tr": "#2C2A30", "bl": "#2A2732", "br": "#2B2A2E"},
+  "elements": [
+    {"name": "tasto-1", "role": "button", "x": 11, "y": 7.67, "w": 38.33, "h": 38.33, "radius": "capsule", "icon": "search"},
+    {"name": "tasto-2", "role": "button", "x": 54.67, "y": 7.67, "w": 38.33, "h": 38.33, "radius": "capsule", "icon": "plus"}
+  ]
+}

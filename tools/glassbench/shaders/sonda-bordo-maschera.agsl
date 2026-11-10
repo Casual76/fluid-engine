@@ -1,0 +1,10 @@
+// Il termine di paragone: una sola sfocatura uniforme, dissolta con una maschera d'alfa sopra la
+// pagina nitida. E' la tecnica di oggi (`GlassFalloff.FadeDown`) e del demo di Kyant: costa meno, ma
+// a meta' dissolvenza si vedono insieme l'immagine nitida e quella sfocata.
+uniform shader content;   // la pagina gia' sfocata a monte
+uniform float2 size;
+
+half4 main(float2 coord) {
+    float t = 1.0 - smoothstep(0.0, size.y, coord.y);
+    return content.eval(coord) * half(t);
+}

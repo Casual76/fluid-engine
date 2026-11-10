@@ -1,0 +1,17 @@
+{
+  "_": "SONDA: il bordo dello scorrimento. A sinistra sfocatura progressiva in una passata (raggio per pixel, cattura a meta' risoluzione); a destra la sfocatura uniforme dissolta con una maschera, come oggi. Stesso raggio massimo (14 dp), stessa altezza (96 dp).",
+  "width": 480, "height": 270, "density": 3.0, "theme": "light",
+  "background": {"kind": "text", "background": "#E3E3E5", "color": "#0A0A0A", "fontSizeDp": 22, "lineHeightDp": 31, "paddingDp": 14,
+    "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."},
+  "page": [{"kind": "rect", "x": 239, "y": 0, "w": 2, "h": 270, "color": "#D23C3C"}],
+  "elements": [
+    {"kind": "shader", "name": "progressiva", "source": "file:../shaders/sonda-bordo-scorrimento.agsl",
+     "x": 0, "y": 0, "w": 239, "h": 96, "scale": 0.5,
+     "inputs": {"content": {"edge": "clamp"}},
+     "uniforms": {"size": "$size", "maxRadius": "14dp", "dimColor": "#E3E3E500"}},
+    {"kind": "shader", "name": "maschera", "source": "file:../shaders/sonda-bordo-maschera.agsl",
+     "x": 241, "y": 0, "w": 239, "h": 96, "scale": 0.5,
+     "inputs": {"content": {"blurDp": 14, "edge": "clamp"}},
+     "uniforms": {"size": "$size"}}
+  ]
+}

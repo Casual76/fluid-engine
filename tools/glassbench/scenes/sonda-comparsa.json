@@ -1,0 +1,294 @@
+{
+  "_": "SONDA: comparsa per lente. Lo stesso tasto con materialize = 0.25, 0.5, 0.75, 1: la lente, la sfocatura, la pellicola e l'ombra crescono insieme; l'opacita' non c'entra.",
+  "width": 480,
+  "height": 270,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "text",
+    "background": "#E3E3E5",
+    "color": "#0A0A0A",
+    "fontSizeDp": 30,
+    "lineHeightDp": 42,
+    "paddingDp": 18,
+    "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."
+  },
+  "elements": [
+    {
+      "kind": "shader",
+      "name": "comparsa-0",
+      "source": "file:../shaders/sonda-materiale.agsl",
+      "x": 10,
+      "y": 85,
+      "w": 100,
+      "h": 100,
+      "inputs": {
+        "content": {
+          "saturation": 1.3
+        },
+        "blurred": {
+          "saturation": 1.3,
+          "blurDp": 10,
+          "edge": "clamp"
+        }
+      },
+      "uniforms": {
+        "offset": [
+          0,
+          0
+        ],
+        "blend": "14dp",
+        "thickness": "16dp",
+        "refraction": "22dp",
+        "dispersion": 0.6,
+        "frost": 0.35,
+        "lightDir": [
+          0.7071,
+          0.7071
+        ],
+        "rimWidth": "1.2dp",
+        "rimStrength": 0.55,
+        "bodyShade": 0.1,
+        "glowCenter": [
+          "354dp",
+          "135dp"
+        ],
+        "glowRadius": "30dp",
+        "glow": 0.0,
+        "tintColor": "#FFFFFF2E",
+        "shadowOffset": [
+          "0dp",
+          "5dp"
+        ],
+        "shadowRadius": "16dp",
+        "shadowStrength": 0.5,
+        "materialize": 0.25,
+        "aa": 1.0,
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "50dp",
+            "50dp",
+            "32dp",
+            "32dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "32dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ]
+        ]
+      }
+    },
+    {
+      "kind": "shader",
+      "name": "comparsa-1",
+      "source": "file:../shaders/sonda-materiale.agsl",
+      "x": 125,
+      "y": 85,
+      "w": 100,
+      "h": 100,
+      "inputs": {
+        "content": {
+          "saturation": 1.3
+        },
+        "blurred": {
+          "saturation": 1.3,
+          "blurDp": 10,
+          "edge": "clamp"
+        }
+      },
+      "uniforms": {
+        "offset": [
+          0,
+          0
+        ],
+        "blend": "14dp",
+        "thickness": "16dp",
+        "refraction": "22dp",
+        "dispersion": 0.6,
+        "frost": 0.35,
+        "lightDir": [
+          0.7071,
+          0.7071
+        ],
+        "rimWidth": "1.2dp",
+        "rimStrength": 0.55,
+        "bodyShade": 0.1,
+        "glowCenter": [
+          "354dp",
+          "135dp"
+        ],
+        "glowRadius": "30dp",
+        "glow": 0.0,
+        "tintColor": "#FFFFFF2E",
+        "shadowOffset": [
+          "0dp",
+          "5dp"
+        ],
+        "shadowRadius": "16dp",
+        "shadowStrength": 0.5,
+        "materialize": 0.5,
+        "aa": 1.0,
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "50dp",
+            "50dp",
+            "32dp",
+            "32dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "32dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ]
+        ]
+      }
+    },
+    {
+      "kind": "shader",
+      "name": "comparsa-2",
+      "source": "file:../shaders/sonda-materiale.agsl",
+      "x": 240,
+      "y": 85,
+      "w": 100,
+      "h": 100,
+      "inputs": {
+        "content": {
+          "saturation": 1.3
+        },
+        "blurred": {
+          "saturation": 1.3,
+          "blurDp": 10,
+          "edge": "clamp"
+        }
+      },
+      "uniforms": {
+        "offset": [
+          0,
+          0
+        ],
+        "blend": "14dp",
+        "thickness": "16dp",
+        "refraction": "22dp",
+        "dispersion": 0.6,
+        "frost": 0.35,
+        "lightDir": [
+          0.7071,
+          0.7071
+        ],
+        "rimWidth": "1.2dp",
+        "rimStrength": 0.55,
+        "bodyShade": 0.1,
+        "glowCenter": [
+          "354dp",
+          "135dp"
+        ],
+        "glowRadius": "30dp",
+        "glow": 0.0,
+        "tintColor": "#FFFFFF2E",
+        "shadowOffset": [
+          "0dp",
+          "5dp"
+        ],
+        "shadowRadius": "16dp",
+        "shadowStrength": 0.5,
+        "materialize": 0.75,
+        "aa": 1.0,
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "50dp",
+            "50dp",
+            "32dp",
+            "32dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "32dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ]
+        ]
+      }
+    },
+    {
+      "kind": "shader",
+      "name": "comparsa-3",
+      "source": "file:../shaders/sonda-materiale.agsl",
+      "x": 355,
+      "y": 85,
+      "w": 100,
+      "h": 100,
+      "inputs": {
+        "content": {
+          "saturation": 1.3
+        },
+        "blurred": {
+          "saturation": 1.3,
+          "blurDp": 10,
+          "edge": "clamp"
+        }
+      },
+      "uniforms": {
+        "offset": [
+          0,
+          0
+        ],
+        "blend": "14dp",
+        "thickness": "16dp",
+        "refraction": "22dp",
+        "dispersion": 0.6,
+        "frost": 0.35,
+        "lightDir": [
+          0.7071,
+          0.7071
+        ],
+        "rimWidth": "1.2dp",
+        "rimStrength": 0.55,
+        "bodyShade": 0.1,
+        "glowCenter": [
+          "354dp",
+          "135dp"
+        ],
+        "glowRadius": "30dp",
+        "glow": 0.0,
+        "tintColor": "#FFFFFF2E",
+        "shadowOffset": [
+          "0dp",
+          "5dp"
+        ],
+        "shadowRadius": "16dp",
+        "shadowStrength": 0.5,
+        "materialize": 1.0,
+        "aa": 1.0,
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "50dp",
+            "50dp",
+            "32dp",
+            "32dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "32dp",
+            "0dp",
+            "0dp",
+            "0dp"
+          ]
+        ]
+      }
+    }
+  ]
+}

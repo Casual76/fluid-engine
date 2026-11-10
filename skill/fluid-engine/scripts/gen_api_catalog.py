@@ -53,7 +53,11 @@ UI_FLUID_FILES = {
         "FluidIdentityColors", "FluidSelectionState", "FluidFileTile", "FluidFileInfo",
     ],
     # il contenuto web chiuso per costruzione
-    "contenuto-web": ["FluidWebContent", "FluidWebSeal"],
+    "contenuto-web": [
+        "FluidWebContent", "FluidWebSeal",
+        # interni, senza dichiarazioni pubbliche: la vista chiusa, la chiusura, i profili, il lato Android
+        "FluidWebClosedView", "FluidWebClosing", "FluidWebProfiles", "FluidWebPlatform",
+    ],
     # grafici: ciambella, barre, linea, legenda
     "grafici": ["FluidCharts", "FluidChartMath"],
     # tasti, interruttori, cursori, campi

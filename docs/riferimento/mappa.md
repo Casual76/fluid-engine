@@ -111,5 +111,5 @@ materiale), `FluidScreen.kt` (1 803), `FluidComponents.kt` (1 794), `FluidPhysic
 
 Nella 3.1.0: 179 file di test sotto `engine-*/src/test` (113 in `engine-ui`, 33 in `engine-ai`, 8 in `engine-wear`, 7 in
 `engine-ai-ui`, 7 in `engine-richtext`, gli altri 2-5) più 47 in `sample/src/testDebug` (interfaccia con Robolectric: gesti, pagine, menu,
-semantica) e le prove **strumentate** in `sample/src/androidTest` (una WebView vera: `FluidWebContentInstrumentedTest`, che gira solo su emulatore o dispositivo). Quando una scheda dice «verificato da» un test, quel test è lì. Un comportamento di cui nessun test parla
+semantica) e le prove **strumentate** in `sample/src/androidTest` (una WebView vera: `FluidWebContentInstrumentedTest` e, dalla 3.1.1, `FluidWebContentNetworkCensusTest`, `FluidWebContentSealInstrumentedTest`, `FluidWebContentRendererLifecycleTest` e `FluidWebContentProfileReuseTest`, che girano solo su emulatore o dispositivo). Quando una scheda dice «verificato da» un test, quel test è lì. Un comportamento di cui nessun test parla
 va **guardato in mano** prima di fidarsene (`strumenti-e-qa.md`).

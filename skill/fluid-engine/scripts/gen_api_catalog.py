@@ -53,7 +53,7 @@ UI_FLUID_FILES = {
         "FluidIdentityColors", "FluidSelectionState", "FluidFileTile", "FluidFileInfo",
     ],
     # il contenuto web chiuso per costruzione
-    "contenuto-web": ["FluidWebContent"],
+    "contenuto-web": ["FluidWebContent", "FluidWebSeal"],
     # grafici: ciambella, barre, linea, legenda
     "grafici": ["FluidCharts", "FluidChartMath"],
     # tasti, interruttori, cursori, campi

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.sample.catalog.webContentHostileSamples
@@ -94,26 +95,36 @@ class FluidWebContentInstrumentedTest {
     assertTrue(latch.await(5, TimeUnit.SECONDS))
   }
 
+  @androidx.annotation.OptIn(markerClass = [WebSettingsCompat.ExperimentalSpeculativeLoading::class])
   @Test fun hostileDocumentCannotSendRequestsOrExecuteScripts() {
-    val url = server.url("/").toString()
-    val html = webContentHostileSamples().getValue("HTML ostile")
-      .replace("https://tracker.invalid/", url)
-      .replace("https://tracker.invalid", url.trimEnd('/'))
-    show(html)
-    waitForSettledResources()
-    compose.runOnIdle {
-      val web = web()
-      assertFalse(web.settings.javaScriptEnabled)
-      assertFalse(web.settings.allowFileAccess)
-      assertFalse(web.settings.allowContentAccess)
-      assertTrue(web.settings.blockNetworkLoads)
-      assertFalse(web.settings.safeBrowsingEnabled)
-      assertEquals("SAFE", web.title)
-      assertFalse(WebViewCompat.getProfile(web).cookieManager.acceptCookie())
-      assertNotNull(state.printAdapter("Documento"))
+    // Un socket in ascolto al posto di MockWebServer: conta anche le connessioni senza richiesta HTTP
+    // (preconnect), che `requestCount` non vede.
+    SocketWatch().use { watch ->
+      val html = webContentHostileSamples().getValue("HTML ostile")
+        .replace("https://tracker.invalid", watch.target.https)
+        .replace("//tracker.invalid", "//${watch.target.authority}")
+      assertFalse(html.contains("tracker.invalid"))
+      show(html)
+      waitForSettledResources()
+      compose.runOnIdle {
+        val web = web()
+        assertFalse(web.settings.javaScriptEnabled)
+        assertFalse(web.settings.allowFileAccess)
+        assertFalse(web.settings.allowContentAccess)
+        assertTrue(web.settings.blockNetworkLoads)
+        assertFalse(web.settings.safeBrowsingEnabled)
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SPECULATIVE_LOADING)) {
+          assertEquals(WebSettingsCompat.SPECULATIVE_LOADING_DISABLED, WebSettingsCompat.getSpeculativeLoadingStatus(web.settings))
+        }
+        assertEquals("SAFE", web.title)
+        assertFalse(WebViewCompat.getProfile(web).cookieManager.acceptCookie())
+        assertNotNull(state.printAdapter("Documento"))
+      }
+      watch.settle(500)
+      assertTrue("Connessioni native verso il tracker: ${watch.connections}; onRequest=${seen.map { it.url }}", watch.connections.isEmpty())
+      assertTrue(seen.any { it.url.path == "/pixel" })
+      assertTrue(seen.none { it.url.path?.contains("script") == true })
     }
-    assertEquals(0, server.requestCount)
-    assertTrue(seen.none { it.url.path?.contains("script") == true })
   }
 
   @Test fun allowedStreamsUseOnlyAppHeadersAndInlineResourcesUseSameHook() {

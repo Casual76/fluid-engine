@@ -18,7 +18,7 @@ _Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FluidWebContentDefaults` — Limiti del contenitore, indipendenti dal dominio dell'app.
   - `const val UserAgent: String` — Nessuna identificazione di dispositivo, piattaforma, versione o app.
   - `const val MaxHtmlCharacters: Int` — Rifiuto prima di copiare l'HTML su I/O; l'app puo' mostrare la propria versione testuale.
-- `class FluidWebContentState` — Stato di una sola istanza montata. Non conserva Activity o WebView dopo lo smontaggio. [retry] distrugge e ricrea la vista con un profilo nuovo: non rianima un renderer morto. Tutte le azioni e letture UI si eseguono sul thread principale.
+- `class FluidWebContentState` — Stato di una sola istanza montata. Non conserva Activity o WebView dopo lo smontaggio. [retry] distrugge e ricrea la vista con un altro profilo: non rianima un renderer morto, e il profilo di un renderer morto da se' non viene piu' riusato. Tutte le azioni e letture UI si eseguono sul thread principale.
   - `var phase: FluidWebPhase by mutableStateOf(FluidWebPhase.Empty)` — Prima pittura confermata dal renderer, non il solo completamento della richiesta HTML.
   - `var failure: FluidWebFailure? by mutableStateOf(null)` — Errore esposto allo slot dell'app; nullo durante una nuova apertura.
   - `var contentHeightPx: Int by mutableIntStateOf(0)` — Altezza fisica del documento (puo' superare quella della viewport).

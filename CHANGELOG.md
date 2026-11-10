@@ -6,6 +6,37 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 <!-- nuove versioni qui sopra -->
 
+## 3.1.2 - 2026-11-10
+
+Giro di correzione 2 della Fase 1: la riga che si scrive nell'editor resta sopra la barra di formattazione, il contenitore web è diviso in file con le sue macchine a stati provate sul JVM, lint e Gradle senza segnalazioni, documentazione e galleria allineate. **Nessuna rottura per le app e nessuna firma pubblica cambia** (nessun parametro nuovo, nessun tipo nuovo). Cambia un comportamento di `FluidRichTextEditor` quando la barra è in scena (prima voce) e una regola per la pagina che lo ospita (voce «Da sapere»); il resto è interno al repo dell'engine.
+
+### Cambi di comportamento
+
+- richtext: **la riga che si scrive non finisce più dietro la barra di formattazione.** Con `FluidRichTextToolbar` in scena `FluidRichTextEditor` porta la riga del cursore (o il capo della selezione che si muove) appena sopra la barra, con 8 dp d'aria: scrivendo e andando a capo in fondo, spostando il cursore, quando la barra compare e quando la tastiera sale, col testo al 100% e al 200%. Nessuna API nuova e niente da collegare: basta lo stesso `state` per editor e barra (la barra scrive nello stato il proprio bordo alto, con un campo `internal`). Senza barra non cambia niente.
+- richtext: **la coda.** Vicino alla fine del testo lo spazio sotto la riga non esiste, e un rettangolo che sporge sotto la fine del contenuto non si può portare in vista. Finché la barra è in scena l'editor si tiene quindi sotto l'ultima riga una coda vuota alta quanto la barra occupa, e la restituisce quando la barra esce: ciò che sta sotto l'editor scende e risale di quella misura. Non misurare «quanto testo c'è» dall'altezza del campo mentre la barra è in scena.
+
+### Da sapere
+
+- richtext: **la pagina che ospita l'editor deve scorrere e finire sopra la tastiera** (`Modifier.imePadding()` su ciò che contiene contenuto e overlay). Una pagina a tutto schermo che resta sotto la tastiera fa spostare ad Android l'intera finestra, barra compresa, e il cursore non sta sopra la tastiera nemmeno senza barra. Non serve lasciare in fondo alla pagina uno spazio per la barra. Barra ed editor devono stare nella stessa radice di Compose (non uno dentro un `Dialog`). Vale per il compositore della Fase 4.
+
+### Lint e build
+
+- lint: **i 13 moduli passano il lint fresco senza errori, avvisi né suggerimenti** (da 0 / 34 / 21), senza baseline, senza `abortOnError false` e senza disattivazioni globali. Correzioni interne senza effetto sulle app: `mutableFloatStateOf`, `mutableIntStateOf` e `mutableLongStateOf` per gli stati privati, funzioni KTX (`toUri`, `withTranslation`, `createBitmap`), `fluidReorderableChain` (privata) come estensione di `Modifier`. Soppressioni mirate, ciascuna con il motivo in commento sulla riga, solo su firme pubblicate che il lint vorrebbe diverse (la posizione di `modifier` è compatibilità sorgente, protetta dai test `Compat*`) e su composable privati del codice vendorizzato di `FluidFloatingTabBar`. Le dipendenze fissate di proposito sono ignorate una per una in un `lint.xml` del modulo (vale per la sola versione fissata); nessun aggiornamento di dipendenze.
+- build: i `build.gradle` dei 13 moduli usano la sintassi `proprietà = valore`: `./gradlew --warning-mode all` non segnala più deprecazioni degli script (erano 25, rimozione prevista in Gradle 10). Nessun cambio per le app.
+
+### Struttura del contenitore web
+
+- ui: **`FluidWebContent.kt` è diviso in cinque file** (da 896 righe). `FluidWebContent.kt` tiene tutta l'API pubblica; `FluidWebClosedView.kt` la vista chiusa, `FluidWebClosing.kt` la chiusura del renderer, `FluidWebProfiles.kt` i profili e `FluidWebPlatform.kt` le sole chiamate al provider. Nessuna firma e nessun comportamento cambiano; il sigillo (`FluidWebSeal.kt`) non è toccato.
+- ui: la chiusura del renderer (`RendererClosing`) e il riuso dei profili (`ClosedProfilePool`) sono macchine a stati in Kotlin puro (`internal`), dietro due interfacce verso la piattaforma, con la tabella delle transizioni nel KDoc. Tempi, controlli del thread principale ed eccezioni sono quelli della 3.1.1.
+
+### Documentazione, galleria e test
+
+- docs: la scheda dell'editor dice il tetto dei 256 KB stimati dello stato salvato (cosa conta, cosa succede sopra, l'app riapre dalla sua bozza), la coda e la regola della pagina; la scheda del contenuto web dice dove guardare nei cinque file; `storia.md` ha la riga della 3.1.1.
+- docs: **`check_docs.py` fallisce se «Versione documentata» in `SKILL.md` non coincide con `ENGINE_VERSION`**, e `tools/engine-release.ps1` la aggiorna insieme a `ENGINE_VERSION` ed `EngineBuild.VERSION` (e mette `SKILL.md` nel commit del rilascio).
+- sample (galleria): la barra dell'editor sta nell'overlay della pagina e si vede sopra la tastiera (a tastiera chiusa, sopra la pillola); la pagina «Testo ricco» finisce sopra la tastiera; nel palco del drawer l'etichetta di stato ha una riga sua e non copre più il testo fittizio; icone in `mipmap-anydpi`, regole di estrazione e di backup dei dati, `targetApi` dell'attributo del back predittivo.
+- test: `FluidRichTextCaretAboveToolbarTest` (strumentato, 15: scrivere e andare a capo con controllo a ogni riga, barra che compare, selezione, ultima riga della pagina, coda che torna indietro, senza barra) e `FluidRichTextCaretAvoidanceTest` (JVM, 15, su pagine finte con contenitori che scorrono uno dentro l'altro). 49 prove JVM nuove per il contenitore web (`FluidWebProfilesTest` 26, `FluidWebClosingTest` 23): pulizia che non risponde o risponde tardi, provider senza `WEB_VIEW_RENDERER_TERMINATE` o senza `DELETE_BROWSING_DATA`, renderer morto per crash, avanzi del processo precedente, chiusure rapide, ritiro. Un solo test esistente toccato: `FluidPageStateRestorationTest` dichiara il tipo dello stato (`List<String>`) per il lint, il valore e la prova sono quelli di prima.
+
+
 ## 3.1.1 - 2026-11-10
 
 Correzioni dopo la prima revisione della Fase 1: contenitore web, editor di testo con formattazione, liste con scorrimento e lint di `engine-ui`. **Nessuna rottura per le app e nessuna firma pubblica cambia** (nessun valore nuovo in `FluidWebFailure`, nessun parametro nuovo). Cambiano il comportamento di `FluidWebContent` per i documenti che scrivono `<link>`, `<meta>` o `<iframe>` e il contratto dei suoi profili (voci sotto); il resto sono correzioni a comportamenti già documentati.

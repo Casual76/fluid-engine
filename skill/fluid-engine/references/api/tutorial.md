@@ -1,6 +1,6 @@
 # API · Suggerimenti e tutorial
 
-_Generato sull'engine 3.1.1 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ui/ui/tutorial/FluidCoachMark.kt`
 

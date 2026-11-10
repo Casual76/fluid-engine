@@ -89,6 +89,12 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
  * barra delle schede e sale con la tastiera (`ReplacingTabBar`, `avoidKeyboard` di serie); a tastiera
  * chiusa la galleria ha la sua pillola in fondo, e la barra si posa sopra di lei (`AboveTabBar`) invece di
  * finirle sotto. L'host dei fogli (quello del link) e' quello della radice della galleria, come in un'app.
+ *
+ * **La pagina finisce sopra la tastiera** (`imePadding` sulla `FluidScreen` che la ospita: vedi `SectionsPage`
+ * con `avoidKeyboard`), come deve fare la pagina di un compositore: cosi' e' la pagina che scorre a portare
+ * la riga che si scrive sopra la tastiera, e l'editor, con la barra accesa, a portarla **sopra la barra**.
+ * Prima la pagina restava sotto la tastiera, e per mostrare il campo Android spostava l'intera finestra:
+ * il titolo usciva dallo schermo e la barra finiva a meta' del testo.
  */
 @Composable
 fun RichTextDemo(states: RichTextDemoStates) {

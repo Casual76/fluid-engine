@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -222,9 +223,12 @@ internal fun NewComponentPage(
     }
     GalleryPage.RichText -> {
       // Le barre di formattazione stanno nell'overlay della pagina, come in un'app vera (vedi RichTextDemo).
+      // E come in un'app vera la pagina finisce sopra la tastiera (`avoidKeyboard`): e' la pagina che scorre
+      // a portare la riga che si scrive sopra la tastiera, e l'editor sopra la barra.
       val states = rememberRichTextDemoStates()
       SectionsPage(
         page, spec, snapshot, openPanel, onBack, bottomInset,
+        avoidKeyboard = true,
         overlay = { backdrop -> RichTextDemoToolbars(states, backdrop) },
       ) { RichTextDemo(states) }
     }
@@ -252,13 +256,17 @@ private fun SectionsPage(
   openPanel: () -> Unit,
   onBack: () -> Unit,
   bottomInset: Dp,
+  avoidKeyboard: Boolean = false,
   overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {},
   demo: @Composable () -> Unit,
 ) {
   FluidScreen(
     title = page.title,
     subtitle = spec.subtitle,
-    modifier = Modifier.testTag(NewComponentPageTag),
+    // Con `avoidKeyboard` la pagina (contenuto e overlay) finisce sopra la tastiera. Senza, una pagina a
+    // tutto schermo resta sotto la tastiera e Android, per mostrare il campo, sposta l'intera finestra:
+    // titolo fuori dallo schermo e barre dell'overlay a meta' pagina.
+    modifier = Modifier.testTag(NewComponentPageTag).then(if (avoidKeyboard) Modifier.imePadding() else Modifier),
     onBack = onBack,
     actions = { MatrixBarAction(snapshot, openPanel) },
     extraBottomPadding = bottomInset,

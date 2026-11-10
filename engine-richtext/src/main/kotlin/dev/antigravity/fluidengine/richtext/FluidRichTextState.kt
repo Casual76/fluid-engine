@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -118,6 +119,16 @@ class FluidRichTextState(
   /** Vero quando la barra di formattazione deve stare sopra la tastiera: editor col fuoco e una selezione, o «Aa». */
   val isFormattingBarVisible: Boolean
     get() = isEditable && isFocused && (isFormattingRequested || !textFieldState.selection.collapsed)
+
+  /**
+   * Il bordo alto della barra di formattazione, in pixel nelle coordinate della radice di Compose (le
+   * stesse per barra ed editor, e ferme anche quando Android sposta la finestra per la tastiera); `NaN` finche'
+   * nessuna [FluidRichTextToolbar] con questo stato e' in composizione. Lo scrive la barra e lo legge
+   * l'editor, che con la barra in scena porta la riga del cursore sopra di lei ([CaretBarAvoidance]):
+   * barra ed editor stanno in due punti diversi dell'albero e questo stato e' l'unica cosa che condividono.
+   * Vale solo mentre [isFormattingBarVisible] e' vero (una barra nascosta non ha un posto).
+   */
+  internal var formattingBarTop: Float by mutableFloatStateOf(Float.NaN)
 
   /** Il link che si sta modificando nel foglio della barra: null quando il foglio e' chiuso. */
   internal var linkRequest: FluidRichTextLinkRequest? by mutableStateOf(null)

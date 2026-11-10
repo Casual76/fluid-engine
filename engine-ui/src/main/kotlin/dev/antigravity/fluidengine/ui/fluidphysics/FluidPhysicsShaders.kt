@@ -177,6 +177,13 @@ half4 main(float2 coord) {
  * dentro della lente e' il vetro piatto, esattamente come lo darebbe il loop. Il loop gira solo dove
  * il bordo puo' essere: a goccia quasi posata una striscia sottile, non tutto il pannello.
  * `dropReach` negativo: non e' una goccia, nessuna scorciatoia.
+ *
+ * Il campione piatto si chiama `flatSample` e non `flat`: `flat` e' una parola riservata di SkSL, e
+ * quindi di AGSL. Come nome di variabile faceva rifiutare i due shader poligonali, e la sonda di
+ * [FluidPhysicsShaderHealth] portava **tutto** il motore al livello Balanced, senza lente ne' ponti:
+ * dalla 3.0.0 alla 3.1.2, su ogni dispositivo (confermato su un Tab S9 il 2026-11-10, in logcat:
+ * «expected ';', but found 'flat'»). Un nome nuovo in uno shader va provato contro il compilatore,
+ * non contro l'occhio: `tools/glassbench` lo fa sul PC.
  */
 private const val PhysicsDropBandBlock = """
     if (dropReach >= 0.0) {
@@ -184,9 +191,9 @@ private const val PhysicsDropBandBlock = """
         float restD = physicsSdRoundedRect(restRel, restHalfSize, physicsRadiusAt(restRel, restRadii));
         if (restD - dropReach > aa) return half4(0.0);
         if (restD + dropReach < -(refractionHeight + aa)) {
-            half4 flat = content.eval(coord + lensShift);
+            half4 flatSample = content.eval(coord + lensShift);
             half4 flatTint = half4(tintColor.rgb * tintColor.a, tintColor.a);
-            return flatTint + flat * (1.0 - flatTint.a);
+            return flatTint + flatSample * (1.0 - flatTint.a);
         }
     }"""
 

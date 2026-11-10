@@ -54,7 +54,8 @@ non girano da soli con `:engine-ui:test`. Una galleria che compila non prova nie
 
 Le app dell'ecosistema si firmano tutte con la stessa chiave (`pampa.jks`, indicata da `local.properties`:
 `pampa.storeFile`, `pampa.storePassword`, `pampa.keyAlias`, `pampa.keyPassword`; **le password non stanno mai nel
-repo**). Senza chiave la release ripiega sulla firma di debug e lo dice: si compila ovunque, ma quella build non è
+repo**; su Windows il percorso si scrive con i due punti protetti, `pampa.storeFile=C\:/cartella/pampa.jks`, altrimenti il lint
+segnala `PropertyEscape` su `local.properties`). Senza chiave la release ripiega sulla firma di debug e lo dice: si compila ovunque, ma quella build non è
 pubblicabile e **non si installa sopra una installazione vera** (firma diversa → Android rifiuta). Per pubblicare
 sullo store: la skill `pampa-store-publish-direct`.
 

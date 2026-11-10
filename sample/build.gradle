@@ -16,7 +16,7 @@ plugins {
 apply from: "${projectDir}/../versions.gradle"
 
 // La chiave vera vive fuori dal repo: local.properties (git-ignorato) con
-//   pampa.storeFile=C:/VibeCoded Projects/pampa.jks
+//   pampa.storeFile=C\:/VibeCoded Projects/pampa.jks   (i due punti si scrivono \: anche con le barre dritte: lint PropertyEscape)
 //   pampa.storePassword=...
 //   pampa.keyAlias=pampa
 //   pampa.keyPassword=...

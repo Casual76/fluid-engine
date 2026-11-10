@@ -41,7 +41,7 @@ copie dello stesso numero, mosse insieme da `tools/engine-release.ps1` e verific
 **Firma essenziale.**
 
 ```kotlin
-object EngineBuild { const val VERSION: String }            // "3.0.4" nel repo di oggi
+object EngineBuild { const val VERSION: String }            // la versione scritta in ENGINE_VERSION
 fun compareVersions(left: String, right: String): Int
 fun isStableVersionNewer(candidate: String, current: String): Boolean
 enum class EngineCompatibility { OK, UPDATE_RECOMMENDED, UPDATE_REQUIRED }
@@ -331,7 +331,7 @@ frase cosi' com'e' e **non offrono il riprova** (riprovare non aiuta). `failedSe
 
 | nome | valore | note |
 |---|---|---|
-| `EngineBuild.VERSION` | `"3.0.4"` | compilata; tenuta in passo da `engine-release.ps1` |
+| `EngineBuild.VERSION` | la versione scritta in `ENGINE_VERSION` | compilata; tenuta in passo da `engine-release.ps1` |
 | `EngineManifestSchema` | `1` | solo se cambia il significato di un campo |
 | `EngineSettings` (default) | `SYSTEM`, `BRAND`, `"fluid"`, dinamico acceso, AMOLED spento, aptica accesa | il «comportamento di oggi» |
 | `EngineConfig.Fallback` | config vuota | nessun flag, nessun vincolo, nessun kill switch |

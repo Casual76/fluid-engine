@@ -294,6 +294,9 @@ era la libreria di Kyant copiata come sorgente, è un debito d'indirizzo e non d
 `FluidGlassDiagnostics` (oggetto, spento di serie: costa una lettura volatile per cattura): con `enabled = true` conta `totalCaptures` (ricatture dei pannelli) e `totalExports` (materiali pubblicati). Il progetto è che un pannello cattura solo
 quando qualcosa che mostra è cambiato; **a schermo fermo i due numeri devono smettere di muoversi**, ed è così che lo si verifica su un dispositivo invece di crederci. Da accendere solo nelle build di debug.
 
+Dalla 4.0 lo stesso oggetto dice anche **se gli shader del vetro compilano su questo dispositivo**, e queste letture non dipendono da `enabled`: `shaderSourceNames` elenca le sorgenti AGSL dell'engine, `shaderVerdicts` dà i verdetti già chiesti in questo processo
+(nome → `null` se compila, o l'errore del compilatore), `compileAllShaders()` le compila tutte adesso. Un rifiuto scrive comunque una riga d'errore in logcat col tag `FluidGlass`. `compileAllShaders()` costa una compilazione per sorgente: non va chiamata all'avvio.
+
 ## Cosa è verificato dai test
 
 - `GlassNestingTest`: senza contenitore il fondale è com'è, chi rinuncia non si appoggia, un cablaggio a mano che contiene già il materiale resta com'è, la pagina dietro un pop-up va sotto il materiale e ciò che è registrato dentro

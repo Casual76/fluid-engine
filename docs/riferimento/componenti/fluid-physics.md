@@ -514,8 +514,11 @@ identica sui tre livelli**; cambia solo quanta ottica la veste:
   una richiesta più ricca del tetto non è un'opinione, è un crash). `null` = il tetto.
 - Il tetto lo decide anche una **compilazione di prova una volta per processo** dei due shader (gruppo e poligono) con loop
   fino a 64/96 lati: AGSL legittimo non vuol dire accettato da ogni driver. Se il driver rifiuta, il livello si ferma a `Balanced`
-  e in logcat resta `FluidPhysics: Shader di Fluid-physics rifiutati: tier Balanced.` (riga da cercare quando un
-  telefono «non ha il vetro»). La frangia ha la sua sonda a parte: un driver che la rifiuta toglie solo la frangia.
+  e in logcat restano due righe a livello errore: una col tag `FluidGlass`, il nome della sorgente e il messaggio del
+  compilatore, una col tag `FluidPhysics` che dice a che livello si è fermato il motore (`adb logcat -s FluidGlass
+  FluidPhysics`: sono le righe da cercare quando un telefono «non ha il vetro»). Fino alla 3.1.2 era un solo avviso, ed è
+  così che una parola riservata in uno shader ha tenuto tutto il motore a `Balanced` per tutta la 3.x: vedi la scheda del
+  motore. La frangia ha la sua sonda a parte: un driver che la rifiuta toglie solo la frangia.
 - Costi veri: un fotogramma di morph = uniform nuovi su shader compilato + un passaggio GPU; **a riposo zero**, la goccia non
   chiede fotogrammi; un gruppo costa `pezzi × pixel` (max 6); una sagoma libera ha un loop di fino a 96 vertici (64 quella
   disegnata a mano o preset; 96 l'anello della goccia); la sfocatura costa quanto in `glassSurface` e la **cattura del

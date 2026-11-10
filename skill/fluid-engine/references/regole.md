@@ -714,3 +714,30 @@ E il metodo, perché nessuna delle tre si vede "ragionando": si vedono nei fotog
 variabile riordina e duplica i fotogrammi, e una cronologia sbagliata porta a diagnosi sbagliate),
 e per i difetti di un fotogramma solo la misura batte l'occhio: `signalstats,metadata=print` dà la
 luminanza per frame, e un lampo è un picco isolato in una serie che dovrebbe essere monotona.
+
+## La lambda di `record` dipende solo dal proprio layer (4.0)
+
+Registrare un `GraphicsLayer` una volta e poi ridisegnarlo è il modo in cui l'engine non paga a ogni
+fotogramma ciò che non cambia: l'ombra e il bordo di una superficie fisica ferma, l'anello di ogni
+`glassSurface`. Ma **registrato una volta non vuol dire eseguito una volta.** Compose tiene la lambda
+passata a `record` e la riesegue da sé, anche molto dopo, quando la piattaforma ha buttato la display
+list del layer (`GraphicsLayer.recreateDisplayListIfNeeded`). HWUI la butta a ogni layer rimasto anche un
+solo fotogramma senza essere disegnato, e capita di continuo: il posto dell'ombra che a riposo non si
+mostra, il bordo a riposo che durante un viaggio non si disegna, l'app che torna dallo sfondo.
+
+Per questo la lambda legge **solo ciò che appartiene al suo layer**: valori catturati al momento della
+registrazione, o un `Path` e un `Paint` che sono del layer e che nessun altro riscrive. Mai un `Path`, un
+`Paint` o uno shader condivisi e riscritti da altri: rieseguita più tardi, la lambda disegnerebbe ciò che
+contengono in quel momento, cioè la forma o i raggi di qualcun altro. Lo shader del riflesso è un'istanza
+sola per processo, i cui uniform li scrive ogni superficie che disegna un riflesso: si configura **dentro**
+la lambda, mai prima di `record` in un pennello tenuto pronto.
+
+È così che è nato il contorno fantasma della 3.x: i due posti dell'ombra di Fluid-physics registravano da
+un `Path` comune, e dopo un'andata e ritorno (Cerchio → Quadrato → Cerchio) la lambda del Cerchio,
+rieseguita, disegnava il Quadrato. Sotto la forma restava il contorno di quella di prima e la forma perdeva
+la propria ombra, dalla 3.0.0 fino alla correzione. La ricerca, con la sequenza e gli altri punti
+dell'engine che seguono lo stesso schema, è in `docs/liquid-glass/ricerca/contorno-fantasma.md`.
+
+Un test sul JVM non lo vede da solo, perché lì nessuno butta display list: `PhysicsShadowSlotsTest` e
+`HighlightRingReplayTest` lo provano con `GraphicsLayer` veri sopra un doppio della piattaforma che
+riesegue la lambda a ogni disegno. Un layer nuovo registrato una volta sola chiede lo stesso test.

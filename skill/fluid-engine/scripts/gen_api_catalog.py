@@ -88,6 +88,13 @@ UI_FLUID_FILES = {
     "tema": ["FluidShape", "FluidType"],
 }
 
+# sottocartelle di ui/fluid che sono una famiglia intera, qualunque nome abbiano i file dentro
+UI_FLUID_DIRS = {
+    # il set FluidIcons: un file scritto a mano e due generati da tools/icons/gen_fluid_icons.py.
+    # Le icone si elencano in tabella, una riga per icona (render_icons), non una per dichiarazione.
+    "ui/fluid/icons": "icone",
+}
+
 # cartella (sotto .../fluidengine/) -> famiglia; vale per tutto cio' che non e' in ui/fluid
 DIR_FAMILY = {
     "ui/glass": "vetro",
@@ -127,6 +134,7 @@ FAMILY_TITLES = {
     "vetro": "Vetro",
     "impostazioni": "Aspetto, aggiornamento in-app, parole, licenze",
     "tema": "Tema, forma, tipo",
+    "icone": "Icone (FluidIcons)",
     "fluid-physics": "Fluid-physics",
     "pagine": "Pagine e navigazione",
     "aptica": "Aptica",
@@ -499,6 +507,85 @@ def render_decl(d: Decl, indent: int = 0) -> list[str]:
     return out
 
 
+# Le icone generate: `val FluidIcons.Nome: ImageVector` (al tratto) e `val FluidIcons.Filled.Nome: ImageVector`
+# (piena), con un KDoc generato del tipo "`nome_material`, pieno. Nel set per: 3 app, 5 usi; tab bar."
+ICON_SIG_RE = re.compile(r"^val FluidIcons\.(Filled\.)?(\w+): ImageVector$")
+ICON_DOC_RE = re.compile(r"^`(\w+)`, ")
+
+
+def icon_roles(doc: str) -> str:
+    """Perche' esiste la variante piena, dal suo KDoc: "...usi; tab bar; accesa: Star/StarBorder." -> "tab bar, accesa"."""
+    parts = doc.rstrip(".").split("; ")[1:]
+    return ", ".join(p.split(":")[0].strip() for p in parts if p.strip())
+
+
+def render_icons(files: dict[str, list[Decl]]) -> tuple[list[str], int]:
+    """La pagina della famiglia «icone»: le dichiarazioni scritte a mano come le altre, il set in tabella.
+
+    Il set sono quasi duecento proprieta' con la stessa firma: elencate una per riga, col nome nella firma e
+    il conto degli usi nel KDoc, nascondono le due cose che servono a chi scrive un'app, cioe' se un'icona
+    c'e' (anche cercandola col nome di Material Symbols) e se ha la variante piena. Una riga per icona, in
+    ordine alfabetico, e `grep` trova ancora ogni nome.
+    """
+    body: list[str] = []
+    total = 0
+    material: dict[str, str] = {}   # nome Kotlin -> nome in Material Symbols
+    outline: set[str] = set()
+    filled: dict[str, str] = {}     # nome Kotlin -> perche' esiste la piena
+    sources: list[str] = []
+    for path in sorted(files):
+        plain: list[Decl] = []
+        here = 0
+        for d in files[path]:
+            total += 1 + len(d.members)
+            m = ICON_SIG_RE.match(d.sig) if not d.members else None
+            if m is None:
+                plain.append(d)
+                continue
+            here += 1
+            name = m.group(2)
+            dm = ICON_DOC_RE.match(d.doc)
+            if dm and name not in material:
+                material[name] = dm.group(1)
+            if m.group(1):
+                filled[name] = icon_roles(d.doc)
+            else:
+                outline.add(name)
+        if plain:
+            body.append(f"## `{path}`")
+            body.append("")
+            for d in plain:
+                body.extend(render_decl(d))
+            body.append("")
+        if here:
+            sources.append(f"`{path.rsplit('/', 1)[-1]}`: {here}")
+    if not (outline or filled):
+        return body, total
+    body.append(f"## Il set: {len(outline)} icone al tratto, {len(filled)} anche piene")
+    body.append("")
+    body.append(
+        "Dai file generati da `tools/icons/gen_fluid_icons.py` (" + "; ".join(sources) + "), una riga per icona "
+        "invece che una per dichiarazione. Ogni riga vale la proprietà al tratto "
+        "`val FluidIcons.<icona>: ImageVector` e, quando la terza colonna non è vuota, anche quella piena "
+        "`val FluidIcons.Filled.<icona>: ImageVector`, con l'uso per cui la piena esiste. Si importano per nome "
+        "(`import dev.antigravity.fluidengine.ui.fluid.icons.<icona>`): lo stesso import porta tutte e due. "
+        "La seconda colonna è il nome in Material Symbols, quello da cercare partendo da un'icona Material; la "
+        "corrispondenza con le icone che le app usano oggi è in `tools/icons/corrispondenza.md`."
+    )
+    body.append("")
+    body.append("| icona | Material Symbols | piena |")
+    body.append("|---|---|---|")
+    for name in sorted(outline | set(filled)):
+        shown = f"`{name}`" if name in outline else f"`{name}` (solo piena)"
+        mat = f"`{material[name]}`" if name in material else "—"
+        full = ""
+        if name in filled:
+            full = f"`Filled.{name}`" + (f" · {filled[name]}" if filled[name] else "")
+        body.append(f"| {shown} | {mat} | {full} |")
+    body.append("")
+    return body, total
+
+
 def changelog_digest(root: Path, version: str) -> str:
     """Una riga per versione (la prima voce del changelog) e, sotto, le voci BREAKING."""
     path = root / "CHANGELOG.md"
@@ -541,6 +628,9 @@ def family_of(rel: str) -> str:
     """`rel` e' il percorso sotto .../fluidengine/ con barre in avanti."""
     parts = rel.split("/")
     name = parts[-1].removesuffix(".kt")
+    for prefix, fam in UI_FLUID_DIRS.items():
+        if rel.startswith(prefix + "/"):
+            return fam
     if rel.startswith("ui/fluid/"):
         return FILE_TO_UI_FAMILY.get(name, "altro")
     for prefix, fam in sorted(DIR_FAMILY.items(), key=lambda kv: -len(kv[0])):
@@ -597,16 +687,24 @@ def main() -> int:
         body = [f"# API · {FAMILY_TITLES.get(fam, fam)}", "",
                 f"_Generato sull'engine {version} da `scripts/gen_api_catalog.py`. Non si modifica a mano._", ""]
         total = 0
-        for path in sorted(by_family[fam]):
-            body.append(f"## `{path}`")
-            body.append("")
-            for d in by_family[fam][path]:
-                body.extend(render_decl(d))
-                total += 1 + len(d.members)
-            body.append("")
+        if fam == "icone":
+            icons_body, total = render_icons(by_family[fam])
+            body.extend(icons_body)
+        else:
+            for path in sorted(by_family[fam]):
+                body.append(f"## `{path}`")
+                body.append("")
+                for d in by_family[fam][path]:
+                    body.extend(render_decl(d))
+                    total += 1 + len(d.members)
+                body.append("")
         files[out_dir / f"{fam}.md"] = "\n".join(body).rstrip() + "\n"
         index.append(f"| [{FAMILY_TITLES.get(fam, fam)}]({fam}.md) | {len(by_family[fam])} | {total} |")
     index.append("")
+    if "icone" in by_family:
+        index.append("Le icone fanno eccezione: in [icone.md](icone.md) il set è una tabella con una riga per icona "
+                     "(il nome, quello di Material Symbols, la variante piena), non una riga per dichiarazione.")
+        index.append("")
     index.append("Anche generato: [versioni.md](versioni.md) — una riga per versione dal CHANGELOG, con le voci BREAKING.")
     index.append("")
     files[out_dir / "README.md"] = "\n".join(index)

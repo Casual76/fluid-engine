@@ -108,6 +108,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `var enabled: Boolean`
   - `val totalCaptures: Long get()` — Captures taken since [enabled] was first switched on.
   - `val totalExports: Long get()` — Materiali pubblicati (registrati) da quando [enabled] e' acceso: un pannello che registra cio' che disegna dietro al contenuto perche' del vetro dentro di lui lo campioni. Dalla 2.13.0 si registra solo se qualcuno lo guarda, quindi su una schermata senza vetro su vetro questo numero non si muove, e a schermo fermo non si muove mai.
+  - `val shaderSourceNames: List<String> get()` — I nomi di tutte le sorgenti AGSL dell'engine, nell'ordine in cui [compileAllShaders] le prova.
+  - `val shaderVerdicts: Map<String, Throwable?> get()` — I verdetti che il vetro ha già chiesto in questo processo: nome della sorgente → `null` se il compilatore del dispositivo l'ha accettata, o il suo errore (il messaggio è quello del compilatore, con riga e motivo). Una sorgente che nessuno ha ancora usato non compare: la sonda compila solo quando serve.
+  - `fun compileAllShaders(): Map<String, Throwable?>` — Compila adesso ogni sorgente AGSL dell'engine che non sia già stata provata, e restituisce tutti i verdetti: nome della sorgente → `null` o l'errore del compilatore. Ogni rifiuto scrive anche una riga di log a livello errore (tag `FluidGlass`).
 
 ## `engine-ui/ui/glass/backdrop/Platform.kt`
 

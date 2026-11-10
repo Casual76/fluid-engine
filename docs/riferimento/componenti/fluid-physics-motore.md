@@ -123,8 +123,11 @@ di displacement al bordo, cupola) è la stessa: **lo stesso vetro anche mentre c
   non deve poter diventare un pezzo fantasma).
 - Gli specchi Kotlin in `FluidPhysicsGeometry.kt` (`sdRoundedRect`, `smin`, `sdPolygon`, `sdPolygonGradient`) sono le stesse formule: i test li esercitano, lo shader è la copia carbone. **Una modifica allo shader
   si porta anche lì**, o `PolySdfMathTest` non guarda più la verità.
-- **Sonda di salute** (`FluidPhysicsShaderHealth`): una compilazione di prova dei due shader di base, una volta per processo (`@Volatile`, verdetto per sempre perché le sorgenti sono costanti); la frangia ha la sua. Il verdetto
-  decide il tier.
+- **Sonda di salute** (`FluidPhysicsShaderHealth`): chiede a `GlassFieldHealth` (`ui/glass/field/`) il verdetto delle due sorgenti di base (`PhysicsBaseShaders`:
+  gruppo, poi poligono; si ferma alla prima rifiutata), una volta per processo, alla prima superficie che si compone (`@Volatile`, verdetto per sempre perché le
+  sorgenti sono costanti). La frangia ha il suo verdetto (`PhysicsDispersionShaders`), chiesto solo se la base passa e solo da chi ha una frangia da disegnare. Il
+  verdetto decide il tier: basta **una** sorgente di base rifiutata per fermare tutto il motore a `Balanced`, anche i gruppi il cui shader compila. Come si legge e
+  cosa lo controlla: «Il livello che gira davvero», sotto.
 
 ## Materiale, bordo, ombra
 
@@ -135,10 +138,46 @@ di displacement al bordo, cupola) è la stessa: **lo stesso vetro anche mentre c
 - **Bordo** (`PhysicsRimRenderer`): a riposo, per una lastra, registra l'anello **una volta** in un layer con la ricetta del renderer (`HighlightNode`: tratto doppio ritagliato sulla sagoma, sfocato di mezza larghezza, colorato dallo shader del riflesso di Kyant con l'angolo della luce,
   ridotto sopra il tetto d'area) e poi lo ridisegna: alfa e modo di comporre sono proprietà del layer e non registrano niente. In viaggio, per una lastra, la stessa banda interna con lo stesso shader aggiornato per uniform e **senza** la mezza larghezza di sfocatura (su due o tre pixel in movimento non si vede);
   per un gruppo o una sagoma libera, il gradiente lungo la sagoma (`glassRimRamp`). La banda dentro la sagoma è `ceil(larghezza)`, mai oltre mezzo lato corto (`physicsRimBandPx`): il bordo fisico di una volta era un tratto *centrato* sul contorno, mezzo fuori sopra la pagina, senza sfocatura.
+  Colore, spessore, sfocatura e shader del riflesso si impostano **dentro** la lambda di `record` (`drawRestRim`), non prima. Lo shader è un'istanza sola per processo, i cui uniform li scrive
+  chiunque disegni un riflesso, e il layer del bordo a riposo perde la display list a ogni viaggio, perché in viaggio non si disegna: quando Compose riesegue la lambda al riposo successivo sulla
+  stessa lastra, un pennello preparato fuori avrebbe ancora taglia e raggi dell'ultima superficie passata di lì. Il contorno era giusto anche prima (l'`Outline` è un valore locale); cambiava la luce
+  lungo il bordo. Corretto nella 4.0.0.
 - **Ombra** (`PhysicsShadowLayers`, usata da `fluidPhysicsSurface`): come `ShadowNode`: contorno della forma ferma, colore del lato del tema, `BlurMaskFilter` del raggio dell'ottica, spostato di un sesto del raggio in giù, scavato sotto la sagoma, in un layer fuori schermo, **registrato una volta per forma, raggio e colore**;
   in viaggio i layer della partenza e dell'arrivo (due posti) si stirano dal loro riquadro a quello della sagoma corrente e si sfumano col progresso — una texture scalata, non una maschera rifatta. La variante `Modifier.fluidPhysicsShadow` (interna, quella della finestra dei modali) sfoca **una volta** un bitmap a mezza risoluzione per taglia di pannello e lo stira sulla
   sagoma a ogni fotogramma (il `BlurMaskFilter` sul path che cambia a ogni fotogramma era il lag dell'apertura: HWUI rasterizza la maschera daccapo ogni volta). Soglia 0,02 sotto cui non si disegna niente (un fotogramma di confine con i default produrrebbe una displaylist con un lampo). Colore `glassShadowColor`: nero al 16% sul chiaro, al 10% sullo scuro.
+  **Ogni posto ha il proprio `Path` e il proprio `Paint`** (`Slot.path`, `Slot.paint`), e la lambda di `record` legge solo quelli, lo scavo (`clearPaint`, che non cambia mai) e valori catturati.
+  A riposo dei due posti se ne disegna uno solo, quindi l'altro perde la display list, e quando torna in uso Compose ne riesegue la lambda. Dalla 3.0.0 alla 3.1.2 i due posti leggevano un `Path`
+  della classe, riscritto a ogni registrazione: dopo un'andata e ritorno A → B → A (`morphTo` avanti e indietro: Playground, demo, un'app che guida così) il posto di A ridisegnava B, posato
+  sull'angolo del riquadro di A, e A perdeva la propria ombra. È il «contorno fantasma» (`docs/liquid-glass/ricerca/contorno-fantasma.md`), presente a `Full` e a `Balanced`, non a `Lite`, che
+  l'ombra non ce l'ha. La regola che ne viene vale per ogni layer registrato una volta: [../regole.md](../regole.md), «La lambda di `record` dipende solo dal proprio layer».
+- **L'anello di `glassSurface`** (`HighlightNode` in `glass/backdrop/highlight/HighlightModifier.kt`, il renderer da cui il bordo prende la ricetta) aveva lo stesso schema: il pennello, con lo shader di
+  processo, si configurava prima della lambda di `record`. Dopo uno scarto l'anello di un pannello si rifaceva con taglia e raggi di un'altra superficie (archi chiari che non coincidono con gli
+  angoli). Corretto allo stesso modo, nel file di Kyant: voce 14 di `LICENSES/AndroidLiquidGlass.md`.
 - **Bagliore del dito** (`pressState`): un gradiente radiale che campiona la campana dello shader `GlassTouchHighlight` (`smoothstep`, 8 tratti) ritagliato sul path della sagoma; funziona anche sotto API 33.
+
+## Il livello che gira davvero
+
+**Dalla 3.0.0 alla 3.1.2 nessun dispositivo ha mai girato a `Full`.** Nel blocco della fascia della goccia (`PhysicsDropBandBlock`, dentro le due sorgenti poligonali) una
+variabile si chiamava `flat`, parola riservata di SkSL e quindi di AGSL: il compilatore rifiutava `PolyMorphRefractionShaderString`, la sonda fermava il motore a `Balanced`, e la
+riga che lo diceva era un `Log.w`. Tutto ciò che questa scheda descrive del `Full` (la lente al bordo, i ponti fra i pezzi, la lente in moto della goccia, la frangia) in un'app
+non si era mai visto. La variabile ora è `flatSample`, e dalla 4.0.0 il livello che gira su SDK 33+ è `Full` dovunque il compilatore accetta le due sorgenti di base. La
+geometria non dipende dal livello, quindi sagome e tempi dei viaggi restano quelli di prima: cambia il disegno, e lo vedono le app senza aver cambiato una riga.
+
+**Come si legge il verdetto.** Ogni sorgente AGSL dell'engine (le quattro di Fluid-physics e le quattro del renderer di Kyant, elencate in `GlassShaderSources` col nome della
+costante Kotlin) ha un verdetto suo, dato da `GlassFieldHealth` alla prima richiesta e tenuto per il processo.
+
+- **In logcat**: un rifiuto è una riga a livello errore col tag `FluidGlass`, il nome della sorgente e il messaggio del compilatore con la riga; se la sorgente è di base,
+  `FluidPhysicsShaderHealth` aggiunge una riga d'errore col tag `FluidPhysics` («Fluid-physics fermo a Balanced, senza lente ne' ponti: rifiutati […]») e una per la frangia
+  se è quella a cadere. Da un dispositivo collegato: `adb logcat -s FluidGlass FluidPhysics`. Nessuna riga vuol dire che nessuna sorgente chiesta è stata rifiutata.
+- **Dall'app**: `FluidGlassDiagnostics.shaderVerdicts` dà i verdetti già chiesti, nome → `null` se compila o l'errore del compilatore; una sorgente che nessuno ha ancora usato non
+  compare, perché la sonda compila solo quando serve. `FluidGlassDiagnostics.compileAllShaders()` compila adesso tutte quelle non ancora provate (`shaderSourceNames`, nell'ordine)
+  e restituisce tutti i verdetti: costa una compilazione per sorgente la prima volta, quindi è diagnostica, non qualcosa da chiamare all'avvio. Le due letture non dipendono da
+  `FluidGlassDiagnostics.enabled`. Sotto Android 13 non c'è un compilatore AGSL: i verdetti sono vuoti e il livello lo decide l'SDK.
+
+Tre reti fermano lo stesso errore prima che arrivi a un'app. `ShaderSourceLintTest`, sul JVM con i test di sempre, legge ogni sorgente e ferma le parole riservate di SkSL usate come
+nome (l'unione dei lexer di Android 13–16), i costrutti che AGSL non ha, e ogni shader dei sorgenti che la sonda non conosce. `tools/glassbench` (`glassbench.py check`) le compila con
+Skia sul PC. `GlassShaderCompileInstrumentedTest` (`sample/src/androidTest`) le compila col compilatore vero del dispositivo, passando da `compileAllShaders()`, e prova che lo stesso
+compilatore rifiuta ancora `flat`: si lancia a ogni sessione sul dispositivo. Un nome nuovo in uno shader si prova contro il compilatore, non contro l'occhio.
 
 ## Il ripiego
 
@@ -155,11 +194,21 @@ di displacement al bordo, cupola) è la stessa: **lo stesso vetro anche mentre c
 5. **Mai** il lerp estrapolato oltre l'1 né una fusione che estrapola oltre il coincidere (`smin(a, a, k) = a − k/4` gonfia l'unione).
 6. **Giudicare in mano**: dopo ogni modifica al disegno, la [ricetta di QA a fotogrammi](fluid-physics.md) (cattura densa, primi cinque fotogrammi, collage a 5× e a 1×). I test non hanno fondale.
 7. La documentazione di `docs/10-coerenza.md` ha la matrice dei comportamenti della superficie Fluid-physics e dei menu: se cambia un numero (le finestre del contenuto, le molle), cambia anche lì.
+8. **Una lambda di `record` legge solo il proprio layer**: valori catturati, o un `Path` e un `Paint` che sono del layer; uno shader di processo si configura dentro la lambda. Compose la riesegue da sé
+   quando la piattaforma butta la display list, e allora disegna ciò che trova ([../regole.md](../regole.md), «La lambda di `record` dipende solo dal proprio layer»). Un layer nuovo registrato una
+   volta sola vuole un test come `PhysicsShadowSlotsTest`.
+9. **Una sorgente AGSL nuova o cambiata** passa da `ShaderSourceLintTest` e da `glassbench.py check` prima di arrivare a un dispositivo; una sorgente nuova entra in `GlassShaderSources`, o il lint fallisce.
 
 ## Cosa è verificato dai test
 
 Vedi la sezione omonima di [fluid-physics.md](fluid-physics.md). I test del motore che qui servono: `RestStateDisciplineTest` (istanza stabile a riposo, snapshot nuovo in viaggio), `FluidPhysicsMaterialTest` (la lente a riposo = quella di `glassSurface`, il padding che non si muove), `LiquidDropTest` (coda, zero esatto, tensione del bordo), `DropPlanTest`
 (piano della posa = lastra al bit, annullo a metà), `DropRimTest` (il profilo del bordo), `ExternalDriveStartFrameTest` e `ExternalGroupDriveTest` (la guida esterna), `PolySdfMathTest` (gli specchi del campo), `MatchedRingsTest` (la parametrizzazione degli anelli), `UniformScaleMappingTest` (lo spazio dello scope).
+
+Per il disegno e gli shader: `PhysicsShadowSlotsTest` (dopo Cerchio → Quadrato → Cerchio il posto del Cerchio, rieseguito, ridisegna il Cerchio e non il Quadrato; a metà viaggio partenza e arrivo
+disegnano due sagome distinte), con `GraphicsLayer` veri sopra un doppio della piattaforma che riesegue la lambda a ogni disegno; `FluidPhysicsTierTest` (oltre alla tabella dei livelli: con tutte le
+sorgenti accettate è `Full` con la frangia, una sorgente di base rifiutata ferma il motore a `Balanced` e dice quale, una frangia rifiutata toglie solo la frangia, un verdetto si dà e si scrive una volta,
+`compileAll` dà un verdetto a ogni sorgente anche dopo un rifiuto); `ShaderSourceLintTest` (le sorgenti lette sul JVM). Il bordo a riposo non ha un test sul JVM, perché lì lo shader del riflesso è
+spento (`isRuntimeShaderSupported()` è falso): si guarda sul dispositivo. La compilazione vera la prova solo `GlassShaderCompileInstrumentedTest`, sul dispositivo.
 
 ## Dove guardare
 
@@ -174,4 +223,6 @@ Vedi la sezione omonima di [fluid-physics.md](fluid-physics.md). I test del moto
 | `FluidPhysicsMaterial.kt` | `lerpGlassOptics`, `physicsLensUniforms`, `physicsLensPadding` |
 | `FluidPhysicsRim.kt`, `FluidPhysicsShadow.kt` | il bordo (`PhysicsRimRenderer`, `DropRimMesh`) e l'ombra (`PhysicsShadowLayers`, `fluidPhysicsShadow`) |
 | `FluidPhysicsShape.kt`, `FluidPhysicsClip.kt` | `GlassClipGeometry`, la sagoma del clip del contenuto |
-| `FluidPhysicsTier.kt` | `resolvePhysicsTier`, `FluidPhysicsShaderHealth` |
+| `FluidPhysicsTier.kt` | `resolvePhysicsTier`, `FluidPhysicsShaderHealth`, quali sorgenti decidono il livello (`PhysicsBaseShaders`, `PhysicsDispersionShaders`) |
+| `ui/glass/field/GlassFieldHealth.kt` (fuori dal package) | `GlassShaderSources` (l'elenco di tutte le sorgenti AGSL), `GlassShaderProbe` (un verdetto per sorgente), `GlassFieldHealth` (la sonda del processo, la riga `FluidGlass` in logcat) |
+| `ui/glass/backdrop/FluidGlassDiagnostics.kt` | le letture pubbliche: `shaderSourceNames`, `shaderVerdicts`, `compileAllShaders()` |

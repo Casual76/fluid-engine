@@ -1,0 +1,460 @@
+origine;nome;symbols;fluid;nota
+material;Warning;warning;FluidIcons.Warning;
+material;Check;check;FluidIcons.Check;
+material;Delete;delete;FluidIcons.Delete;
+material;Close;close;FluidIcons.Close;
+material;Folder;folder;FluidIcons.Folder;
+material;ErrorOutline;error;FluidIcons.Error;
+material;Info;info;FluidIcons.Info;
+material;Schedule;schedule;FluidIcons.Schedule;
+material;VisibilityOff;visibility_off;FluidIcons.VisibilityOff;
+material;Lock;lock;FluidIcons.Lock;
+material;CheckCircle;check_circle;FluidIcons.Filled.CheckCircle;la forma «scelta» della coppia CheckCircle / CheckCircleOutline
+material;Settings;settings;FluidIcons.Settings;piena (tab bar): FluidIcons.Filled.Settings
+material;Refresh;refresh;FluidIcons.Refresh;
+material;Group;group;FluidIcons.Group;
+material;PhotoLibrary;photo_library;FluidIcons.PhotoLibrary;piena (tab bar): FluidIcons.Filled.PhotoLibrary
+material;AutoAwesome;auto_awesome;FluidIcons.AutoAwesome;piena (tab bar): FluidIcons.Filled.AutoAwesome
+material;Image;image;FluidIcons.Image;
+material;CloudOff;cloud_off;FluidIcons.CloudOff;
+material;Download;download;FluidIcons.Download;piena (tab bar): FluidIcons.Filled.Download
+material;Face;face;FluidIcons.Face;
+material;Search;search;FluidIcons.Search;piena (tab bar): FluidIcons.Filled.Search
+material;Share;share;FluidIcons.Share;
+material;Edit;edit;FluidIcons.Edit;
+material;Key;key;FluidIcons.Key;
+material;Favorite;favorite;FluidIcons.Filled.Favorite;la forma «accesa» della coppia Favorite / FavoriteBorder
+material;Person;person;FluidIcons.Person;piena (tab bar): FluidIcons.Filled.Person
+material;Star;star;FluidIcons.Filled.Star;la forma «accesa» della coppia Star / StarBorder
+material;PhoneAndroid;phone_android;FluidIcons.PhoneAndroid;
+material;DeleteForever;delete_forever;FluidIcons.DeleteForever;
+material;Tune;tune;FluidIcons.Tune;piena (tab bar): FluidIcons.Filled.Tune
+material;CalendarMonth;calendar_month;FluidIcons.CalendarMonth;piena (tab bar): FluidIcons.Filled.CalendarMonth
+material;IosShare;ios_share;FluidIcons.IosShare;
+material;Home;home;FluidIcons.Home;piena (tab bar): FluidIcons.Filled.Home
+material;Mic;mic;FluidIcons.Mic;
+material;PlayArrow;play_arrow;FluidIcons.Filled.PlayArrow;riproduzione: pieni come in Apple
+material;Storage;storage;FluidIcons.Storage;
+material;Add;add;FluidIcons.Add;
+material;Place;location_on;FluidIcons.LocationOn;
+material;ContentCopy;content_copy;FluidIcons.ContentCopy;si gira da sola da destra a sinistra
+material;Dns;dns;FluidIcons.Dns;
+material;History;history;FluidIcons.History;piena (tab bar): FluidIcons.Filled.History
+material;OpenInNew;open_in_new;FluidIcons.OpenInNew;si gira da sola da destra a sinistra
+material;PhotoAlbum;photo_album;FluidIcons.PhotoAlbum;
+material;QrCodeScanner;qr_code_scanner;FluidIcons.QrCodeScanner;
+material;Shield;shield;FluidIcons.Shield;
+material;Cloud;cloud;FluidIcons.Cloud;
+material;CloudDownload;cloud_download;FluidIcons.CloudDownload;
+material;Description;description;FluidIcons.Description;
+material;Groups;groups;FluidIcons.Groups;
+material;Stop;stop;FluidIcons.Filled.Stop;riproduzione: pieni come in Apple
+material;CleaningServices;cleaning_services;FluidIcons.CleaningServices;
+material;DriveFileMove;drive_file_move;FluidIcons.DriveFileMove;si gira da sola da destra a sinistra
+material;EditCalendar;edit_calendar;FluidIcons.EditCalendar;
+material;GraphicEq;graphic_eq;FluidIcons.GraphicEq;piena (tab bar): FluidIcons.Filled.GraphicEq
+material;Visibility;visibility;FluidIcons.Visibility;
+material;Block;block;;fuori dal set: per averla, la riga `block` in fluid-icons.txt
+material;Layers;layers;FluidIcons.Layers;
+material;Pause;pause;FluidIcons.Filled.Pause;riproduzione: pieni come in Apple
+material;Public;public;FluidIcons.Public;
+material;Sync;sync;FluidIcons.Sync;
+material;WaterDrop;water_drop;;fuori dal set: per averla, la riga `water_drop` in fluid-icons.txt
+material;Wifi;wifi;;fuori dal set: per averla, la riga `wifi` in fluid-icons.txt
+material;AdminPanelSettings;admin_panel_settings;;fuori dal set: per averla, la riga `admin_panel_settings` in fluid-icons.txt
+material;ArrowUpward;arrow_upward;FluidIcons.ArrowUpward;
+material;ChevronRight;chevron_right;FluidIcons.ChevronRight;si gira da sola da destra a sinistra
+material;Code;code;FluidIcons.Code;
+material;Gavel;gavel;FluidIcons.Gavel;
+material;Inbox;inbox;FluidIcons.Inbox;piena (tab bar): FluidIcons.Filled.Inbox
+material;Map;map;FluidIcons.Map;piena (tab bar): FluidIcons.Filled.Map
+material;TextFields;text_fields;;fuori dal set: per averla, la riga `text_fields` in fluid-icons.txt
+material;Backup;backup;;fuori dal set: per averla, la riga `backup` in fluid-icons.txt
+material;Checklist;checklist;FluidIcons.Checklist;
+material;CloudUpload;cloud_upload;FluidIcons.CloudUpload;
+material;FolderOff;folder_off;;fuori dal set: per averla, la riga `folder_off` in fluid-icons.txt
+material;GridView;grid_view;FluidIcons.GridView;piena (tab bar): FluidIcons.Filled.GridView
+material;KeyboardArrowDown;keyboard_arrow_down;FluidIcons.KeyboardArrowDown;
+material;MyLocation;my_location;FluidIcons.MyLocation;
+material;PersonAdd;person_add;FluidIcons.PersonAdd;
+material;ReportProblem;warning;FluidIcons.Warning;
+material;RestartAlt;restart_alt;;fuori dal set: per averla, la riga `restart_alt` in fluid-icons.txt
+material;Videocam;videocam;;fuori dal set: per averla, la riga `videocam` in fluid-icons.txt
+material;AddPhotoAlternate;add_photo_alternate;;fuori dal set: per averla, la riga `add_photo_alternate` in fluid-icons.txt
+material;ArrowBack;arrow_back;FluidIcons.ArrowBack;si gira da sola da destra a sinistra
+material;CallMerge;call_merge;;fuori dal set: per averla, la riga `call_merge` in fluid-icons.txt
+material;Devices;devices;;fuori dal set: per averla, la riga `devices` in fluid-icons.txt
+material;DriveFileRenameOutline;drive_file_rename_outline;;fuori dal set: per averla, la riga `drive_file_rename_outline` in fluid-icons.txt
+material;Fingerprint;fingerprint;FluidIcons.Fingerprint;
+material;FolderOpen;folder_open;;fuori dal set: per averla, la riga `folder_open` in fluid-icons.txt
+material;Forum;forum;FluidIcons.Forum;piena (tab bar): FluidIcons.Filled.Forum
+material;ImageSearch;image_search;FluidIcons.ImageSearch;
+material;InsertDriveFile;draft;FluidIcons.Draft;si gira da sola da destra a sinistra
+material;MoreHoriz;more_horiz;FluidIcons.MoreHoriz;piena (tab bar): FluidIcons.Filled.MoreHoriz
+material;Movie;movie;FluidIcons.Movie;
+material;PhonelinkErase;phonelink_erase;;fuori dal set: per averla, la riga `phonelink_erase` in fluid-icons.txt
+material;Save;save;FluidIcons.Save;
+material;School;school;FluidIcons.School;
+material;VpnKey;vpn_key;;fuori dal set: per averla, la riga `vpn_key` in fluid-icons.txt
+material;WbSunny;wb_sunny;FluidIcons.WbSunny;piena (tab bar): FluidIcons.Filled.WbSunny
+material;Widgets;widgets;FluidIcons.Widgets;piena (tab bar): FluidIcons.Filled.Widgets
+material;Apps;apps;FluidIcons.Apps;piena (tab bar): FluidIcons.Filled.Apps
+material;AttachFile;attach_file;FluidIcons.AttachFile;
+material;CameraAlt;photo_camera;FluidIcons.PhotoCamera;
+material;DirectionsWalk;directions_walk;;fuori dal set: per averla, la riga `directions_walk` in fluid-icons.txt
+material;Event;event;FluidIcons.Event;
+material;EventBusy;event_busy;FluidIcons.EventBusy;
+material;GppBad;gpp_bad;;fuori dal set: per averla, la riga `gpp_bad` in fluid-icons.txt
+material;GppGood;verified_user;;fuori dal set: per averla, la riga `verified_user` in fluid-icons.txt
+material;HourglassTop;hourglass_top;;fuori dal set: per averla, la riga `hourglass_top` in fluid-icons.txt
+material;Insights;insights;FluidIcons.Insights;
+material;KeyboardArrowUp;keyboard_arrow_up;FluidIcons.KeyboardArrowUp;
+material;LocationOff;location_off;;fuori dal set: per averla, la riga `location_off` in fluid-icons.txt
+material;Menu;menu;FluidIcons.Menu;
+material;Palette;palette;FluidIcons.Palette;
+material;QrCode2;qr_code_2;;fuori dal set: per averla, la riga `qr_code_2` in fluid-icons.txt
+material;Restore;history;FluidIcons.History;piena (tab bar): FluidIcons.Filled.History
+material;Science;science;FluidIcons.Science;
+material;Screenshot;screenshot;FluidIcons.Screenshot;
+material;Speed;speed;FluidIcons.Speed;piena (tab bar): FluidIcons.Filled.Speed
+material;Verified;verified;;fuori dal set: per averla, la riga `verified` in fluid-icons.txt
+material;WarningAmber;warning;FluidIcons.Warning;
+material;WifiOff;wifi_off;;fuori dal set: per averla, la riga `wifi_off` in fluid-icons.txt
+material;ArrowBackIos;arrow_back_ios;FluidIcons.ArrowBackIos;si gira da sola da destra a sinistra
+material;ArrowForward;arrow_forward;FluidIcons.ArrowForward;si gira da sola da destra a sinistra
+material;Assignment;assignment;;fuori dal set: per averla, la riga `assignment` in fluid-icons.txt
+material;CallSplit;call_split;;fuori dal set: per averla, la riga `call_split` in fluid-icons.txt
+material;Campaign;campaign;FluidIcons.Campaign;piena (tab bar): FluidIcons.Filled.Campaign
+material;Computer;computer;FluidIcons.Computer;
+material;DirectionsBus;directions_bus;;fuori dal set: per averla, la riga `directions_bus` in fluid-icons.txt
+material;FavoriteBorder;favorite;FluidIcons.Favorite;piena (tab bar): FluidIcons.Filled.Favorite
+material;Flight;flight;;fuori dal set: per averla, la riga `flight` in fluid-icons.txt
+material;Lan;lan;;fuori dal set: per averla, la riga `lan` in fluid-icons.txt
+material;LocationSearching;location_searching;FluidIcons.LocationSearching;
+material;LockClock;lock_clock;;fuori dal set: per averla, la riga `lock_clock` in fluid-icons.txt
+material;MoreVert;more_vert;FluidIcons.MoreVert;
+material;MoveToInbox;move_to_inbox;;fuori dal set: per averla, la riga `move_to_inbox` in fluid-icons.txt
+material;MusicNote;music_note;FluidIcons.MusicNote;
+material;NetworkCell;network_cell;;fuori dal set: per averla, la riga `network_cell` in fluid-icons.txt
+material;Notifications;notifications;FluidIcons.Notifications;
+material;PauseCircle;pause_circle;;fuori dal set: per averla, la riga `pause_circle` in fluid-icons.txt
+material;PhonelinkOff;phonelink_off;;fuori dal set: per averla, la riga `phonelink_off` in fluid-icons.txt
+material;Photo;photo;;fuori dal set: per averla, la riga `photo` in fluid-icons.txt
+material;PriorityHigh;priority_high;FluidIcons.PriorityHigh;
+material;Psychology;psychology;FluidIcons.Psychology;
+material;RotateRight;rotate_right;;fuori dal set: per averla, la riga `rotate_right` in fluid-icons.txt
+material;SearchOff;search_off;FluidIcons.SearchOff;
+material;SelectAll;select_all;;fuori dal set: per averla, la riga `select_all` in fluid-icons.txt
+material;Send;send;FluidIcons.Send;si gira da sola da destra a sinistra
+material;SwapHoriz;swap_horiz;FluidIcons.SwapHoriz;
+material;SwapVert;swap_vert;FluidIcons.SwapVert;
+material;Timer;timer;;fuori dal set: per averla, la riga `timer` in fluid-icons.txt
+material;Undo;undo;FluidIcons.Undo;si gira da sola da destra a sinistra
+material;Upload;upload;;fuori dal set: per averla, la riga `upload` in fluid-icons.txt
+material;VpnLock;vpn_lock;;fuori dal set: per averla, la riga `vpn_lock` in fluid-icons.txt
+material;AcUnit;ac_unit;;fuori dal set: per averla, la riga `ac_unit` in fluid-icons.txt
+material;Balance;balance;;fuori dal set: per averla, la riga `balance` in fluid-icons.txt
+material;BatteryChargingFull;battery_charging_full;;fuori dal set: per averla, la riga `battery_charging_full` in fluid-icons.txt
+material;Bedtime;bedtime;FluidIcons.Bedtime;
+material;Bolt;bolt;FluidIcons.Bolt;
+material;CheckCircleOutline;check_circle;FluidIcons.CheckCircle;piena (tab bar): FluidIcons.Filled.CheckCircle
+material;ChevronLeft;chevron_left;FluidIcons.ChevronLeft;si gira da sola da destra a sinistra
+material;CloudDone;cloud_done;;fuori dal set: per averla, la riga `cloud_done` in fluid-icons.txt
+material;CloudSync;cloud_sync;;fuori dal set: per averla, la riga `cloud_sync` in fluid-icons.txt
+material;Collections;photo_library;FluidIcons.PhotoLibrary;"in Material Symbols «collections» e «filter» sono una sagoma, al tratto uguale a «photo_library»; nelle Material di oggi Collections e PhotoLibrary sono identiche; piena (tab bar): FluidIcons.Filled.PhotoLibrary"
+material;CreateNewFolder;create_new_folder;;fuori dal set: per averla, la riga `create_new_folder` in fluid-icons.txt
+material;DeleteSweep;delete_sweep;FluidIcons.DeleteSweep;
+material;DragHandle;drag_handle;FluidIcons.DragHandle;
+material;ExpandLess;expand_less;FluidIcons.ExpandLess;
+material;ExpandMore;expand_more;FluidIcons.ExpandMore;
+material;Extension;extension;;fuori dal set: per averla, la riga `extension` in fluid-icons.txt
+material;Grain;grain;;fuori dal set: per averla, la riga `grain` in fluid-icons.txt
+material;InstallDesktop;install_desktop;;fuori dal set: per averla, la riga `install_desktop` in fluid-icons.txt
+material;KeyOff;key_off;;fuori dal set: per averla, la riga `key_off` in fluid-icons.txt
+material;Language;language;FluidIcons.Language;
+material;Link;link;FluidIcons.Link;
+material;MarkEmailRead;mark_email_read;FluidIcons.MarkEmailRead;
+material;MarkEmailUnread;mark_email_unread;FluidIcons.MarkEmailUnread;
+material;MotionPhotosOn;motion_photos_on;;fuori dal set: per averla, la riga `motion_photos_on` in fluid-icons.txt
+material;NearMe;near_me;;fuori dal set: per averla, la riga `near_me` in fluid-icons.txt
+material;NewReleases;new_releases;;fuori dal set: per averla, la riga `new_releases` in fluid-icons.txt
+material;Nightlight;nightlight;FluidIcons.Nightlight;
+material;NotificationsActive;notifications_active;FluidIcons.NotificationsActive;
+material;PersonOff;person_off;;fuori dal set: per averla, la riga `person_off` in fluid-icons.txt
+material;PhotoCamera;photo_camera;FluidIcons.PhotoCamera;
+material;Replay;replay;FluidIcons.Replay;
+material;RestoreFromTrash;restore_from_trash;;fuori dal set: per averla, la riga `restore_from_trash` in fluid-icons.txt
+material;SwitchAccount;switch_account;;fuori dal set: per averla, la riga `switch_account` in fluid-icons.txt
+material;TaskAlt;task_alt;;fuori dal set: per averla, la riga `task_alt` in fluid-icons.txt
+material;Today;today;FluidIcons.Today;
+material;UnfoldMore;unfold_more;FluidIcons.UnfoldMore;
+material;Update;update;;fuori dal set: per averla, la riga `update` in fluid-icons.txt
+material;VerifiedUser;verified_user;;fuori dal set: per averla, la riga `verified_user` in fluid-icons.txt
+material;VolumeOff;volume_off;FluidIcons.VolumeOff;si gira da sola da destra a sinistra
+material;AccountBalance;account_balance;FluidIcons.AccountBalance;
+material;Air;air;;fuori dal set: per averla, la riga `air` in fluid-icons.txt
+material;AllInclusive;all_inclusive;;fuori dal set: per averla, la riga `all_inclusive` in fluid-icons.txt
+material;Android;android;FluidIcons.Android;
+material;Animation;animation;FluidIcons.Animation;piena (tab bar): FluidIcons.Filled.Animation
+material;Archive;archive;FluidIcons.Archive;
+material;AudioFile;audio_file;FluidIcons.AudioFile;
+material;AutoStories;auto_stories;;fuori dal set: per averla, la riga `auto_stories` in fluid-icons.txt
+material;Calculate;calculate;FluidIcons.Calculate;
+material;Chat;chat;;fuori dal set: per averla, la riga `chat` in fluid-icons.txt
+material;ContentCut;content_cut;;fuori dal set: per averla, la riga `content_cut` in fluid-icons.txt
+material;CoPresent;co_present;;fuori dal set: per averla, la riga `co_present` in fluid-icons.txt
+material;Create;edit;FluidIcons.Edit;
+material;DataUsage;data_usage;;fuori dal set: per averla, la riga `data_usage` in fluid-icons.txt
+material;DeleteOutline;delete;FluidIcons.Delete;
+material;Directions;directions;;fuori dal set: per averla, la riga `directions` in fluid-icons.txt
+material;Explore;explore;;fuori dal set: per averla, la riga `explore` in fluid-icons.txt
+material;FastForward;fast_forward;;fuori dal set: per averla, la riga `fast_forward` in fluid-icons.txt
+material;FolderCopy;folder_copy;;fuori dal set: per averla, la riga `folder_copy` in fluid-icons.txt
+material;FolderShared;folder_shared;;fuori dal set: per averla, la riga `folder_shared` in fluid-icons.txt
+material;FolderSpecial;folder_special;;fuori dal set: per averla, la riga `folder_special` in fluid-icons.txt
+material;FolderZip;folder_zip;FluidIcons.FolderZip;
+material;FormatBold;format_bold;FluidIcons.FormatBold;
+material;FormatItalic;format_italic;FluidIcons.FormatItalic;
+material;FormatUnderlined;format_underlined;FluidIcons.FormatUnderlined;
+material;GppMaybe;gpp_maybe;;fuori dal set: per averla, la riga `gpp_maybe` in fluid-icons.txt
+material;Grade;star;FluidIcons.Star;piena (tab bar): FluidIcons.Filled.Star
+material;HistoryEdu;history_edu;;fuori dal set: per averla, la riga `history_edu` in fluid-icons.txt
+material;HourglassEmpty;hourglass_empty;;fuori dal set: per averla, la riga `hourglass_empty` in fluid-icons.txt
+material;Inventory2;inventory_2;;fuori dal set: per averla, la riga `inventory_2` in fluid-icons.txt
+material;KeyboardDoubleArrowDown;keyboard_double_arrow_down;;fuori dal set: per averla, la riga `keyboard_double_arrow_down` in fluid-icons.txt
+material;LibraryBooks;library_books;;fuori dal set: per averla, la riga `library_books` in fluid-icons.txt
+material;LinkOff;link_off;;fuori dal set: per averla, la riga `link_off` in fluid-icons.txt
+material;LocationOn;location_on;FluidIcons.LocationOn;
+material;LockOpen;lock_open;FluidIcons.LockOpen;
+material;Luggage;luggage;;fuori dal set: per averla, la riga `luggage` in fluid-icons.txt
+material;Memory;memory;FluidIcons.Memory;
+material;MenuBook;menu_book;FluidIcons.MenuBook;si gira da sola da destra a sinistra
+material;Navigation;navigation;;fuori dal set: per averla, la riga `navigation` in fluid-icons.txt
+material;Notes;notes;;fuori dal set: per averla, la riga `notes` in fluid-icons.txt
+material;NotificationImportant;notification_important;;fuori dal set: per averla, la riga `notification_important` in fluid-icons.txt
+material;Password;password;;fuori dal set: per averla, la riga `password` in fluid-icons.txt
+material;PushPin;push_pin;;fuori dal set: per averla, la riga `push_pin` in fluid-icons.txt
+material;RadioButtonChecked;radio_button_checked;;fuori dal set: per averla, la riga `radio_button_checked` in fluid-icons.txt
+material;RadioButtonUnchecked;radio_button_unchecked;;fuori dal set: per averla, la riga `radio_button_unchecked` in fluid-icons.txt
+material;Router;router;;fuori dal set: per averla, la riga `router` in fluid-icons.txt
+material;SaveAlt;download;FluidIcons.Download;piena (tab bar): FluidIcons.Filled.Download
+material;Security;security;FluidIcons.Security;
+material;SignalWifiOff;signal_wifi_off;;fuori dal set: per averla, la riga `signal_wifi_off` in fluid-icons.txt
+material;Slideshow;slideshow;FluidIcons.Slideshow;
+material;StarBorder;star;FluidIcons.Star;piena (tab bar): FluidIcons.Filled.Star
+material;SystemUpdate;system_update;;fuori dal set: per averla, la riga `system_update` in fluid-icons.txt
+material;SystemUpdateAlt;system_update_alt;FluidIcons.SystemUpdateAlt;
+material;TableChart;table_chart;FluidIcons.TableChart;
+material;TabletAndroid;tablet_android;;fuori dal set: per averla, la riga `tablet_android` in fluid-icons.txt
+material;TextFormat;text_format;FluidIcons.TextFormat;
+material;Thermostat;thermostat;;fuori dal set: per averla, la riga `thermostat` in fluid-icons.txt
+material;Thunderstorm;thunderstorm;;fuori dal set: per averla, la riga `thunderstorm` in fluid-icons.txt
+material;Toc;toc;;fuori dal set: per averla, la riga `toc` in fluid-icons.txt
+material;VideocamOff;videocam_off;;fuori dal set: per averla, la riga `videocam_off` in fluid-icons.txt
+material;VideoFile;video_file;FluidIcons.VideoFile;
+material;VpnKeyOff;vpn_key_off;;fuori dal set: per averla, la riga `vpn_key_off` in fluid-icons.txt
+material;WbCloudy;cloud;FluidIcons.Cloud;
+material;Album;album;;fuori dal set: per averla, la riga `album` in fluid-icons.txt
+material;ArrowDownward;arrow_downward;FluidIcons.ArrowDownward;
+material;Article;article;;fuori dal set: per averla, la riga `article` in fluid-icons.txt
+material;AspectRatio;aspect_ratio;;fuori dal set: per averla, la riga `aspect_ratio` in fluid-icons.txt
+material;AutoFixHigh;auto_fix_high;;fuori dal set: per averla, la riga `auto_fix_high` in fluid-icons.txt
+material;Backpack;backpack;FluidIcons.Backpack;piena (tab bar): FluidIcons.Filled.Backpack
+material;Backspace;backspace;;fuori dal set: per averla, la riga `backspace` in fluid-icons.txt
+material;Badge;badge;;fuori dal set: per averla, la riga `badge` in fluid-icons.txt
+material;Battery5Bar;battery_5_bar;;fuori dal set: per averla, la riga `battery_5_bar` in fluid-icons.txt
+material;Biotech;biotech;;fuori dal set: per averla, la riga `biotech` in fluid-icons.txt
+material;BlurOn;blur_on;;fuori dal set: per averla, la riga `blur_on` in fluid-icons.txt
+material;BrokenImage;broken_image;;fuori dal set: per averla, la riga `broken_image` in fluid-icons.txt
+material;Brush;brush;;fuori dal set: per averla, la riga `brush` in fluid-icons.txt
+material;BugReport;bug_report;;fuori dal set: per averla, la riga `bug_report` in fluid-icons.txt
+material;Build;build;;fuori dal set: per averla, la riga `build` in fluid-icons.txt
+material;CellTower;cell_tower;;fuori dal set: per averla, la riga `cell_tower` in fluid-icons.txt
+material;CheckBox;check_box;FluidIcons.CheckBox;
+material;CheckBoxOutlineBlank;check_box_outline_blank;FluidIcons.CheckBoxOutlineBlank;
+material;Church;church;;fuori dal set: per averla, la riga `church` in fluid-icons.txt
+material;CloudQueue;cloud;FluidIcons.Cloud;
+material;Compare;compare;;fuori dal set: per averla, la riga `compare` in fluid-icons.txt
+material;DataObject;data_object;;fuori dal set: per averla, la riga `data_object` in fluid-icons.txt
+material;Dehaze;dehaze;;fuori dal set: per averla, la riga `dehaze` in fluid-icons.txt
+material;DirectionsRun;directions_run;;fuori dal set: per averla, la riga `directions_run` in fluid-icons.txt
+material;Dock;dock;;fuori dal set: per averla, la riga `dock` in fluid-icons.txt
+material;DoneAll;done_all;;fuori dal set: per averla, la riga `done_all` in fluid-icons.txt
+material;Drafts;drafts;FluidIcons.Drafts;
+material;Draw;draw;;fuori dal set: per averla, la riga `draw` in fluid-icons.txt
+material;Error;error;FluidIcons.Error;
+material;FactCheck;fact_check;;fuori dal set: per averla, la riga `fact_check` in fluid-icons.txt
+material;FileDownload;download;FluidIcons.Download;piena (tab bar): FluidIcons.Filled.Download
+material;FileUpload;upload;;fuori dal set: per averla, la riga `upload` in fluid-icons.txt
+material;FilterAlt;filter_alt;;fuori dal set: per averla, la riga `filter_alt` in fluid-icons.txt
+material;FilterAltOff;filter_alt_off;;fuori dal set: per averla, la riga `filter_alt_off` in fluid-icons.txt
+material;FilterDrama;filter_drama;;fuori dal set: per averla, la riga `filter_drama` in fluid-icons.txt
+material;FilterList;filter_list;FluidIcons.FilterList;
+material;FindInPage;find_in_page;;fuori dal set: per averla, la riga `find_in_page` in fluid-icons.txt
+material;Flag;flag;;fuori dal set: per averla, la riga `flag` in fluid-icons.txt
+material;FlashlightOff;flashlight_off;;fuori dal set: per averla, la riga `flashlight_off` in fluid-icons.txt
+material;FlashlightOn;flashlight_on;;fuori dal set: per averla, la riga `flashlight_on` in fluid-icons.txt
+material;FontDownload;font_download;;fuori dal set: per averla, la riga `font_download` in fluid-icons.txt
+material;FormatIndentDecrease;format_indent_decrease;FluidIcons.FormatIndentDecrease;si gira da sola da destra a sinistra
+material;FormatIndentIncrease;format_indent_increase;FluidIcons.FormatIndentIncrease;si gira da sola da destra a sinistra
+material;FormatListBulleted;format_list_bulleted;FluidIcons.FormatListBulleted;si gira da sola da destra a sinistra
+material;FormatListNumbered;format_list_numbered;FluidIcons.FormatListNumbered;
+material;FormatQuote;format_quote;FluidIcons.FormatQuote;
+material;Forward10;forward_10;;fuori dal set: per averla, la riga `forward_10` in fluid-icons.txt
+material;Fullscreen;fullscreen;;fuori dal set: per averla, la riga `fullscreen` in fluid-icons.txt
+material;Functions;functions;;fuori dal set: per averla, la riga `functions` in fluid-icons.txt
+material;Hail;hail;;fuori dal set: per averla, la riga `hail` in fluid-icons.txt
+material;Help;help;;fuori dal set: per averla, la riga `help` in fluid-icons.txt
+material;HelpOutline;help;;fuori dal set: per averla, la riga `help` in fluid-icons.txt
+material;HideImage;hide_image;;fuori dal set: per averla, la riga `hide_image` in fluid-icons.txt
+material;HighQuality;high_quality;;fuori dal set: per averla, la riga `high_quality` in fluid-icons.txt
+material;HistoryToggleOff;history_toggle_off;;fuori dal set: per averla, la riga `history_toggle_off` in fluid-icons.txt
+material;Keyboard;keyboard;;fuori dal set: per averla, la riga `keyboard` in fluid-icons.txt
+material;Label;label;FluidIcons.Label;si gira da sola da destra a sinistra
+material;Landscape;landscape;;fuori dal set: per averla, la riga `landscape` in fluid-icons.txt
+material;Leaderboard;leaderboard;FluidIcons.Leaderboard;piena (tab bar): FluidIcons.Filled.Leaderboard
+material;ListAlt;list_alt;;fuori dal set: per averla, la riga `list_alt` in fluid-icons.txt
+material;LocationCity;location_city;;fuori dal set: per averla, la riga `location_city` in fluid-icons.txt
+material;Login;login;;fuori dal set: per averla, la riga `login` in fluid-icons.txt
+material;Logout;logout;;fuori dal set: per averla, la riga `logout` in fluid-icons.txt
+material;MonitorHeart;monitor_heart;;fuori dal set: per averla, la riga `monitor_heart` in fluid-icons.txt
+material;NavigateBefore;chevron_left;FluidIcons.ChevronLeft;si gira da sola da destra a sinistra
+material;NavigateNext;chevron_right;FluidIcons.ChevronRight;si gira da sola da destra a sinistra
+material;NetworkCheck;network_check;;fuori dal set: per averla, la riga `network_check` in fluid-icons.txt
+material;NightsStay;nights_stay;;fuori dal set: per averla, la riga `nights_stay` in fluid-icons.txt
+material;NoEncryption;no_encryption;;fuori dal set: per averla, la riga `no_encryption` in fluid-icons.txt
+material;NoPhotography;no_photography;;fuori dal set: per averla, la riga `no_photography` in fluid-icons.txt
+material;PersonRemove;person_remove;;fuori dal set: per averla, la riga `person_remove` in fluid-icons.txt
+material;PhonelinkLock;phonelink_lock;;fuori dal set: per averla, la riga `phonelink_lock` in fluid-icons.txt
+material;PhotoSizeSelectSmall;photo_size_select_small;;fuori dal set: per averla, la riga `photo_size_select_small` in fluid-icons.txt
+material;PictureAsPdf;picture_as_pdf;FluidIcons.PictureAsPdf;
+material;Pin;pin;;fuori dal set: per averla, la riga `pin` in fluid-icons.txt
+material;PlayCircle;play_circle;;fuori dal set: per averla, la riga `play_circle` in fluid-icons.txt
+material;Quiz;quiz;;fuori dal set: per averla, la riga `quiz` in fluid-icons.txt
+material;Radar;radar;;fuori dal set: per averla, la riga `radar` in fluid-icons.txt
+material;RateReview;rate_review;;fuori dal set: per averla, la riga `rate_review` in fluid-icons.txt
+material;Redo;redo;FluidIcons.Redo;si gira da sola da destra a sinistra
+material;Remove;remove;;fuori dal set: per averla, la riga `remove` in fluid-icons.txt
+material;RemoveCircleOutline;do_not_disturb_on;;fuori dal set: per averla, la riga `do_not_disturb_on` in fluid-icons.txt
+material;Replay10;replay_10;;fuori dal set: per averla, la riga `replay_10` in fluid-icons.txt
+material;Report;report;;fuori dal set: per averla, la riga `report` in fluid-icons.txt
+material;RotateLeft;rotate_left;;fuori dal set: per averla, la riga `rotate_left` in fluid-icons.txt
+material;SdCardAlert;sd_card_alert;;fuori dal set: per averla, la riga `sd_card_alert` in fluid-icons.txt
+material;SettingsRemote;settings_remote;;fuori dal set: per averla, la riga `settings_remote` in fluid-icons.txt
+material;ShowChart;show_chart;;fuori dal set: per averla, la riga `show_chart` in fluid-icons.txt
+material;SignalCellularAlt;signal_cellular_alt;;fuori dal set: per averla, la riga `signal_cellular_alt` in fluid-icons.txt
+material;SkipNext;skip_next;FluidIcons.Filled.SkipNext;riproduzione: pieni come in Apple
+material;Smartphone;smartphone;;fuori dal set: per averla, la riga `smartphone` in fluid-icons.txt
+material;SortByAlpha;sort_by_alpha;;fuori dal set: per averla, la riga `sort_by_alpha` in fluid-icons.txt
+material;Speaker;speaker;;fuori dal set: per averla, la riga `speaker` in fluid-icons.txt
+material;SportsBasketball;sports_basketball;;fuori dal set: per averla, la riga `sports_basketball` in fluid-icons.txt
+material;Storefront;storefront;;fuori dal set: per averla, la riga `storefront` in fluid-icons.txt
+material;TheaterComedy;theater_comedy;;fuori dal set: per averla, la riga `theater_comedy` in fluid-icons.txt
+material;Translate;translate;;fuori dal set: per averla, la riga `translate` in fluid-icons.txt
+material;Umbrella;umbrella;;fuori dal set: per averla, la riga `umbrella` in fluid-icons.txt
+material;UploadFile;upload_file;;fuori dal set: per averla, la riga `upload_file` in fluid-icons.txt
+material;VerticalSplit;vertical_split;;fuori dal set: per averla, la riga `vertical_split` in fluid-icons.txt
+material;ViewInAr;view_in_ar;;fuori dal set: per averla, la riga `view_in_ar` in fluid-icons.txt
+material;ViewList;view_list;;fuori dal set: per averla, la riga `view_list` in fluid-icons.txt
+material;VolumeUp;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
+material;WbTwilight;wb_twilight;;fuori dal set: per averla, la riga `wb_twilight` in fluid-icons.txt
+material;WifiFind;wifi_find;;fuori dal set: per averla, la riga `wifi_find` in fluid-icons.txt
+material;Work;work;;fuori dal set: per averla, la riga `work` in fluid-icons.txt
+phosphor;Fill.ArrowCircleDown;arrow_circle_down;;fuori dal set: per averla, la riga `arrow_circle_down` in fluid-icons.txt
+phosphor;Regular.ArrowCircleDown;arrow_circle_down;;fuori dal set: per averla, la riga `arrow_circle_down` in fluid-icons.txt
+phosphor;Regular.ArrowCircleUp;arrow_circle_up;;fuori dal set: per averla, la riga `arrow_circle_up` in fluid-icons.txt
+phosphor;Regular.ArrowClockwise;refresh;FluidIcons.Refresh;
+phosphor;Regular.ArrowLeft;arrow_back;FluidIcons.ArrowBack;
+phosphor;Regular.ArrowUpRight;arrow_outward;;fuori dal set: per averla, la riga `arrow_outward` in fluid-icons.txt
+phosphor;Regular.ArrowsDownUp;swap_vert;FluidIcons.SwapVert;
+phosphor;Regular.ArrowsInSimple;close_fullscreen;;fuori dal set: per averla, la riga `close_fullscreen` in fluid-icons.txt
+phosphor;Regular.ArrowsOutSimple;open_in_full;;fuori dal set: per averla, la riga `open_in_full` in fluid-icons.txt
+phosphor;Regular.Books;library_books;;"vicina, non la stessa sagoma; fuori dal set: per averla, la riga `library_books` in fluid-icons.txt"
+phosphor;Regular.Broadcast;sensors;;fuori dal set: per averla, la riga `sensors` in fluid-icons.txt
+phosphor;Regular.Car;directions_car;;fuori dal set: per averla, la riga `directions_car` in fluid-icons.txt
+phosphor;Regular.CaretDown;keyboard_arrow_down;FluidIcons.KeyboardArrowDown;
+phosphor;Regular.CaretLeft;chevron_left;FluidIcons.ChevronLeft;
+phosphor;Regular.CaretRight;chevron_right;FluidIcons.ChevronRight;
+phosphor;Regular.CaretUp;keyboard_arrow_up;FluidIcons.KeyboardArrowUp;
+phosphor;Regular.CaretUpDown;unfold_more;FluidIcons.UnfoldMore;
+phosphor;Fill.Check;check;FluidIcons.Check;la piena non e' nel set (`check pieno` nell'elenco per averla)
+phosphor;Regular.Check;check;FluidIcons.Check;
+phosphor;Regular.ClockCounterClockwise;history;FluidIcons.History;
+phosphor;Regular.CloudSlash;cloud_off;FluidIcons.CloudOff;
+phosphor;Regular.Desktop;desktop_windows;;fuori dal set: per averla, la riga `desktop_windows` in fluid-icons.txt
+phosphor;Regular.DeviceMobile;smartphone;;fuori dal set: per averla, la riga `smartphone` in fluid-icons.txt
+phosphor;Regular.Devices;devices;;fuori dal set: per averla, la riga `devices` in fluid-icons.txt
+phosphor;Regular.Disc;album;;fuori dal set: per averla, la riga `album` in fluid-icons.txt
+phosphor;Regular.DotsSixVertical;drag_indicator;;fuori dal set: per averla, la riga `drag_indicator` in fluid-icons.txt
+phosphor;Regular.DotsThree;more_horiz;FluidIcons.MoreHoriz;
+phosphor;Regular.Download;download;FluidIcons.Download;
+phosphor;Regular.DownloadSimple;download;FluidIcons.Download;
+phosphor;Regular.Export;ios_share;FluidIcons.IosShare;
+phosphor;Regular.FolderSimple;folder;FluidIcons.Folder;
+phosphor;Regular.Gauge;speed;FluidIcons.Speed;
+phosphor;Regular.GearSix;settings;FluidIcons.Settings;
+phosphor;Regular.HardDrives;dns;FluidIcons.Dns;vicina, non la stessa sagoma
+phosphor;Regular.Headphones;headphones;;fuori dal set: per averla, la riga `headphones` in fluid-icons.txt
+phosphor;Fill.Heart;favorite;FluidIcons.Filled.Favorite;
+phosphor;Regular.Heart;favorite;FluidIcons.Favorite;
+phosphor;Regular.HeartBreak;heart_broken;;fuori dal set: per averla, la riga `heart_broken` in fluid-icons.txt
+phosphor;Fill.House;home;FluidIcons.Filled.Home;
+phosphor;Regular.House;home;FluidIcons.Home;
+phosphor;Fill.Info;info;FluidIcons.Info;la piena non e' nel set (`info pieno` nell'elenco per averla)
+phosphor;Regular.Info;info;FluidIcons.Info;
+phosphor;Regular.Laptop;computer;FluidIcons.Computer;in Material Symbols «laptop» e «computer» sono la stessa sagoma
+phosphor;Fill.Lightning;bolt;FluidIcons.Bolt;la piena non e' nel set (`bolt pieno` nell'elenco per averla)
+phosphor;Regular.LinkSimple;link;FluidIcons.Link;
+phosphor;Regular.ListBullets;format_list_bulleted;FluidIcons.FormatListBulleted;
+phosphor;Regular.ListPlus;playlist_add;;fuori dal set: per averla, la riga `playlist_add` in fluid-icons.txt
+phosphor;Fill.MagnifyingGlass;search;FluidIcons.Filled.Search;
+phosphor;Regular.MagnifyingGlass;search;FluidIcons.Search;
+phosphor;Fill.MicrophoneStage;mic_external_on;;"vicina, non la stessa sagoma; fuori dal set: per averla, la riga `mic_external_on` in fluid-icons.txt"
+phosphor;Regular.MicrophoneStage;mic_external_on;;"vicina, non la stessa sagoma; fuori dal set: per averla, la riga `mic_external_on` in fluid-icons.txt"
+phosphor;Regular.MonitorPlay;smart_display;;"vicina, non la stessa sagoma; fuori dal set: per averla, la riga `smart_display` in fluid-icons.txt"
+phosphor;Regular.MusicNote;music_note;FluidIcons.MusicNote;
+phosphor;Fill.MusicNotes;library_music;;"vicina, non la stessa sagoma; fuori dal set: per averla, la riga `library_music` in fluid-icons.txt"
+phosphor;Regular.MusicNotes;library_music;;"vicina, non la stessa sagoma; fuori dal set: per averla, la riga `library_music` in fluid-icons.txt"
+phosphor;Fill.Pause;pause;FluidIcons.Filled.Pause;
+phosphor;Regular.PencilSimple;edit;FluidIcons.Edit;
+phosphor;Fill.Play;play_arrow;FluidIcons.Filled.PlayArrow;
+phosphor;Regular.Playlist;queue_music;;fuori dal set: per averla, la riga `queue_music` in fluid-icons.txt
+phosphor;Regular.Plugs;power;;"vicina, non la stessa sagoma; fuori dal set: per averla, la riga `power` in fluid-icons.txt"
+phosphor;Regular.Plus;add;FluidIcons.Add;
+phosphor;Fill.PushPin;push_pin;;fuori dal set: per averla, la riga `push_pin` in fluid-icons.txt
+phosphor;Regular.PushPin;push_pin;;fuori dal set: per averla, la riga `push_pin` in fluid-icons.txt
+phosphor;Regular.Queue;playlist_play;;fuori dal set: per averla, la riga `playlist_play` in fluid-icons.txt
+phosphor;Regular.Radio;radio;;fuori dal set: per averla, la riga `radio` in fluid-icons.txt
+phosphor;Regular.Repeat;repeat;;fuori dal set: per averla, la riga `repeat` in fluid-icons.txt
+phosphor;Regular.RepeatOnce;repeat_one;;fuori dal set: per averla, la riga `repeat_one` in fluid-icons.txt
+phosphor;Regular.Shuffle;shuffle;;fuori dal set: per averla, la riga `shuffle` in fluid-icons.txt
+phosphor;Fill.SkipBack;skip_previous;;fuori dal set: per averla, la riga `skip_previous` in fluid-icons.txt
+phosphor;Fill.SkipForward;skip_next;FluidIcons.Filled.SkipNext;
+phosphor;Regular.SpeakerHifi;speaker;;fuori dal set: per averla, la riga `speaker` in fluid-icons.txt
+phosphor;Fill.SpeakerHigh;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
+phosphor;Regular.SpeakerHigh;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
+phosphor;Fill.SpeakerLow;volume_down;;fuori dal set: per averla, la riga `volume_down` in fluid-icons.txt
+phosphor;Regular.SpeakerSimpleHigh;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
+phosphor;Regular.SpeakerSimpleLow;volume_down;;fuori dal set: per averla, la riga `volume_down` in fluid-icons.txt
+phosphor;Fill.SpeakerX;volume_off;FluidIcons.VolumeOff;la piena non e' nel set (`volume_off pieno` nell'elenco per averla)
+phosphor;Regular.SpotifyLogo;-;;"nessun equivalente; marchio di terzi"
+phosphor;Regular.SquaresFour;grid_view;FluidIcons.GridView;
+phosphor;Fill.Stop;stop;FluidIcons.Filled.Stop;
+phosphor;Regular.Television;tv;;fuori dal set: per averla, la riga `tv` in fluid-icons.txt
+phosphor;Fill.TextAlignLeft;format_align_left;;fuori dal set: per averla, la riga `format_align_left` in fluid-icons.txt
+phosphor;Regular.TextAlignLeft;format_align_left;;fuori dal set: per averla, la riga `format_align_left` in fluid-icons.txt
+phosphor;Regular.Timer;timer;;fuori dal set: per averla, la riga `timer` in fluid-icons.txt
+phosphor;Fill.Translate;translate;;fuori dal set: per averla, la riga `translate` in fluid-icons.txt
+phosphor;Regular.Translate;translate;;fuori dal set: per averla, la riga `translate` in fluid-icons.txt
+phosphor;Regular.Trash;delete;FluidIcons.Delete;
+phosphor;Regular.User;person;FluidIcons.Person;
+phosphor;Regular.UserCircle;account_circle;;fuori dal set: per averla, la riga `account_circle` in fluid-icons.txt
+phosphor;Fill.VinylRecord;album;;fuori dal set: per averla, la riga `album` in fluid-icons.txt
+phosphor;Regular.VinylRecord;album;;fuori dal set: per averla, la riga `album` in fluid-icons.txt
+phosphor;Regular.Warning;warning;FluidIcons.Warning;
+phosphor;Fill.Watch;watch;;fuori dal set: per averla, la riga `watch` in fluid-icons.txt
+phosphor;Regular.Watch;watch;;fuori dal set: per averla, la riga `watch` in fluid-icons.txt
+phosphor;Fill.Waveform;graphic_eq;FluidIcons.Filled.GraphicEq;vicina, non la stessa sagoma
+phosphor;Regular.X;close;FluidIcons.Close;
+phosphor;Fill.XCircle;cancel;;fuori dal set: per averla, la riga `cancel` in fluid-icons.txt
+phosphor;Regular.YoutubeLogo;-;;"nessun equivalente; marchio di terzi"

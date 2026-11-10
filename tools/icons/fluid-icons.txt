@@ -1,0 +1,183 @@
+# FluidIcons: l'elenco del set. Il generatore (gen_fluid_icons.py) ne fa il codice Kotlin, i tracciati
+# del banco e la tabella di corrispondenza; il codice non si tocca a mano.
+#
+# Una riga per icona: il nome di Material Symbols (quello di fonts.google.com/icons, minuscolo con `_`),
+# poi `pieno` se serve anche la variante a riempimento pieno (FluidIcons.Filled.<Nome>), poi dopo `#` il
+# motivo, che finisce nel KDoc. Stile arrotondato e peso 500 sono del set intero, non delle righe.
+# Aggiungere un'icona: una riga qui, poi `python tools/icons/gen_fluid_icons.py`.
+#
+# Criterio (F0.8, sul censimento del 2026-11-10, `censimento-app.txt`): tutte le icone dei componenti
+# dell'engine e della galleria; delle app, quelle usate da almeno due app o almeno dieci volte; le icone
+# delle tab bar delle app; le forme che R6 chiede alle barre. `pieno` per le tab bar (in Apple la tab
+# bar e' piena, R6), per la forma accesa di una coppia di stati e per i comandi di riproduzione.
+# I numeri nei commenti sono del censimento: app reali, usi in tutte le etichette.
+
+## Le icone dei componenti dell'engine e della galleria (tutte)
+add                           # galleria, 5 app, 14 usi
+animation pieno               # galleria, 1 app, 2 usi; tab bar
+archive                       # galleria, 2 usi
+arrow_back                    # engine, 3 app, 6 usi
+arrow_back_ios                # engine, galleria, 1 app, 4 usi
+arrow_downward                # engine, 1 usi
+arrow_forward                 # engine, 2 app, 4 usi
+arrow_upward                  # engine, 3 app, 8 usi
+audio_file                    # engine, 1 app, 2 usi
+auto_awesome pieno            # galleria, 7 app, 24 usi; tab bar
+check                         # engine, 8 app, 56 usi
+check_box                     # engine, 1 usi
+check_box_outline_blank       # engine, 1 usi
+check_circle pieno            # engine, 3 app, 30 usi; scelta: CheckCircle/CheckCircleOutline
+checklist                     # galleria, 1 app, 7 usi
+chevron_right                 # engine, 3 app, 8 usi
+close                         # engine, galleria, 7 app, 48 usi
+cloud_off                     # engine, galleria, 3 app, 23 usi
+code                          # engine, 4 app, 8 usi
+content_copy                  # engine, 5 app, 13 usi
+delete                        # engine, galleria, 6 app, 53 usi
+description                   # engine, 3 app, 11 usi
+draft                         # engine, 2 app, 6 usi
+drafts                        # galleria, 1 usi
+drag_handle                   # engine, galleria, 1 app, 3 usi
+edit                          # galleria, 5 app, 22 usi
+error                         # engine, 5 app, 40 usi
+favorite pieno                # galleria, 1 app, 20 usi; accesa: Favorite/FavoriteBorder
+folder                        # galleria, 3 app, 43 usi
+folder_zip                    # engine, 1 app, 2 usi
+format_bold                   # engine, galleria, 2 usi
+format_indent_decrease        # engine, 1 usi
+format_indent_increase        # engine, 1 usi
+format_italic                 # engine, galleria, 2 usi
+format_list_bulleted          # engine, 1 usi
+format_list_numbered          # engine, 1 usi
+format_quote                  # engine, 1 usi
+format_underlined             # engine, galleria, 2 usi
+forum pieno                   # galleria, 2 app, 6 usi; tab bar
+grid_view pieno               # galleria, 5 app, 7 usi; tab bar
+home pieno                    # galleria, 6 app, 15 usi; tab bar
+image                         # engine, galleria, 5 app, 24 usi
+inbox pieno                   # galleria, 1 app, 8 usi; tab bar
+info                          # engine, 6 app, 38 usi
+keyboard_arrow_down           # engine, 2 app, 7 usi
+keyboard_arrow_up             # engine, 2 app, 5 usi
+label                         # galleria, 1 usi
+link                          # engine, 1 app, 3 usi
+mark_email_read               # galleria, 1 app, 3 usi
+mark_email_unread             # galleria, 1 app, 3 usi
+menu                          # galleria, 2 app, 5 usi
+mic                           # engine, galleria, 6 app, 15 usi
+more_vert                     # galleria, 1 app, 4 usi
+movie                         # galleria, 1 app, 6 usi
+notifications                 # galleria, 1 app, 4 usi
+pause pieno                   # galleria, 4 app, 9 usi; riproduzione
+person pieno                  # engine, 3 app, 20 usi; tab bar
+photo_library pieno           # galleria, 1 app, 26 usi; tab bar
+picture_as_pdf                # engine, 1 usi
+play_arrow pieno              # galleria, 4 app, 15 usi; riproduzione
+priority_high                 # engine, 1 app, 4 usi
+redo                          # engine, 1 usi
+refresh                       # engine, 5 app, 29 usi
+schedule                      # engine, 5 app, 36 usi
+school                        # engine, 1 app, 6 usi
+search pieno                  # engine, galleria, 5 app, 23 usi; tab bar
+send                          # engine, galleria, 1 app, 4 usi
+settings pieno                # galleria, 8 app, 30 usi; tab bar
+share                         # galleria, 5 app, 23 usi
+skip_next pieno               # galleria, 1 usi; riproduzione
+slideshow                     # engine, 1 app, 2 usi
+speed pieno                   # galleria, 2 app, 5 usi; tab bar
+star pieno                    # galleria, 3 app, 20 usi; tab bar; accesa: Star/StarBorder
+stop pieno                    # engine, 4 app, 11 usi; riproduzione
+sync                          # galleria, 3 app, 9 usi
+system_update_alt             # engine, 1 app, 2 usi
+table_chart                   # engine, 1 app, 2 usi
+text_format                   # engine, 2 usi
+tune pieno                    # galleria, 6 app, 17 usi; tab bar
+undo                          # engine, 1 app, 4 usi
+unfold_more                   # engine, 1 app, 3 usi
+video_file                    # engine, 1 app, 2 usi
+visibility                    # engine, 2 app, 10 usi
+visibility_off                # engine, 2 app, 35 usi
+volume_off                    # engine, 2 app, 3 usi
+warning                       # engine, 5 app, 68 usi
+
+## Le icone delle app: usate da almeno due app, o almeno dieci volte
+account_balance               # 2 app, 2 usi
+android                       # 2 app, 2 usi
+apps pieno                    # 3 app, 5 usi; tab bar
+attach_file                   # 2 app, 5 usi
+bedtime                       # 2 app, 3 usi
+bolt                          # 3 app, 3 usi
+calculate                     # 2 app, 2 usi
+calendar_month pieno          # 3 app, 16 usi; tab bar
+chevron_left                  # 2 app, 3 usi
+cleaning_services             # 1 app, 10 usi
+cloud                         # 2 app, 11 usi
+cloud_download                # 2 app, 11 usi
+cloud_upload                  # 2 app, 7 usi
+computer                      # 2 app, 4 usi
+delete_forever                # 1 app, 17 usi
+delete_sweep                  # 2 app, 3 usi
+dns                           # 1 app, 13 usi
+download pieno                # 6 app, 23 usi; tab bar
+drive_file_move               # 2 app, 10 usi
+edit_calendar                 # 2 app, 10 usi
+event                         # 2 app, 5 usi
+event_busy                    # 2 app, 5 usi
+expand_less                   # 2 app, 3 usi
+expand_more                   # 2 app, 3 usi
+face                          # 1 app, 23 usi
+fingerprint                   # 2 app, 6 usi
+gavel                         # 5 app, 8 usi
+graphic_eq pieno              # 3 app, 10 usi; tab bar
+group                         # 1 app, 28 usi
+groups                        # 2 app, 11 usi
+history pieno                 # 3 app, 13 usi; tab bar
+image_search                  # 2 app, 6 usi
+insights                      # 3 app, 5 usi
+ios_share                     # 2 app, 16 usi
+key                           # 3 app, 21 usi
+language                      # 2 app, 3 usi
+layers                        # 3 app, 9 usi
+location_on                   # 2 app, 14 usi
+location_searching            # 2 app, 4 usi
+lock                          # 1 app, 34 usi
+lock_open                     # 2 app, 2 usi
+map pieno                     # 3 app, 8 usi; tab bar
+memory                        # 2 app, 2 usi
+menu_book                     # 2 app, 2 usi
+more_horiz pieno              # 4 app, 6 usi; tab bar
+music_note                    # 3 app, 4 usi
+my_location                   # 2 app, 7 usi
+nightlight                    # 2 app, 3 usi
+notifications_active          # 3 app, 3 usi
+open_in_new                   # 4 app, 13 usi
+palette                       # 3 app, 5 usi
+person_add                    # 2 app, 7 usi
+phone_android                 # 1 app, 19 usi
+photo_album                   # 1 app, 12 usi
+photo_camera                  # 2 app, 3 usi
+psychology                    # 3 app, 4 usi
+public                        # 3 app, 9 usi
+qr_code_scanner               # 2 app, 12 usi
+replay                        # 2 app, 3 usi
+save                          # 3 app, 6 usi
+science                       # 3 app, 5 usi
+screenshot                    # 2 app, 5 usi
+search_off                    # 2 app, 4 usi
+security                      # 2 app, 2 usi
+shield                        # 1 app, 12 usi
+storage                       # 2 app, 15 usi
+swap_horiz                    # 3 app, 4 usi
+swap_vert                     # 2 app, 4 usi
+today                         # 2 app, 3 usi
+wb_sunny pieno                # 3 app, 6 usi; tab bar
+widgets pieno                 # 2 app, 6 usi; tab bar
+
+## Le icone delle tab bar delle app (servono anche piene)
+backpack pieno                # 1 app, 1 usi; tab bar
+campaign pieno                # 1 app, 4 usi; tab bar
+leaderboard pieno             # 1 app, 1 usi; tab bar
+
+## Le forme di Apple che R6 chiede alle barre
+arrow_back_ios_new            # R6: la freccia indietro centrata, come il chevron di Apple
+filter_list                   # R6: il verbo «filtro» delle barre

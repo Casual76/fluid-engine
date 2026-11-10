@@ -1,0 +1,361 @@
+Warning;Rounded;no;63;MyCloud-Gallery-2,Pampa widgets
+Check;Rounded;no;56;MyCloud-Gallery-2,FluidWeather,engine,Codex,Pampa widgets,PampAI,universal_converter,KeyVoice,Pampa notes
+Delete;Rounded;no;51;MyCloud-Gallery-2,galleria,Pampa notes,PampAI,Pampa sounds,classeviva-expressive,Codex
+Close;Rounded,Outlined;no;48;MyCloud-Gallery-2,engine,Fluid-transit,FluidWeather,classeviva-expressive,PampAI,universal_converter,Codex,galleria
+Folder;Rounded;no;43;MyCloud-Gallery-2,galleria,classeviva-expressive,Pampa notes
+ErrorOutline;Rounded;no;39;MyCloud-Gallery-2,Pampa widgets,universal_converter,Codex,engine,Pampa-store-src
+Info;Rounded;no;38;MyCloud-Gallery-2,Fluid-transit,engine,Pampa-store-src,FluidWeather,Pampa notes,PampAI
+Schedule;Rounded;no;36;MyCloud-Gallery-2,Fluid-transit,classeviva-expressive,FluidWeather,Codex,engine
+VisibilityOff;Rounded;no;35;MyCloud-Gallery-2,PampAI,engine
+Lock;Rounded;no;34;MyCloud-Gallery-2
+CheckCircle;Rounded;no;30;MyCloud-Gallery-2,engine,Pampa notes,Pampa-store-src
+Settings;Rounded;no;30;MyCloud-Gallery-2,galleria,classeviva-expressive,Fluid-transit,FluidWeather,Pampa sounds,Pampa widgets,PampAI,universal_converter
+Refresh;Rounded,Outlined;no;29;classeviva-expressive,Pampa-store-src,MyCloud-Gallery-2,PampAI,engine,Pampa notes
+Group;Rounded;no;28;MyCloud-Gallery-2
+PhotoLibrary;Rounded;no;26;MyCloud-Gallery-2,galleria
+AutoAwesome;Rounded;no;24;MyCloud-Gallery-2,classeviva-expressive,FluidWeather,galleria,Codex,Fluid-transit,Pampa notes,PampAI
+Image;Rounded,Outlined;no;24;MyCloud-Gallery-2,PampAI,galleria,Codex,engine,Pampa widgets,universal_converter
+CloudOff;Rounded;no;23;MyCloud-Gallery-2,engine,Fluid-transit,galleria,Pampa-store-src
+Download;Rounded;no;23;Pampa-store-src,classeviva-expressive,MyCloud-Gallery-2,Pampa notes,Fluid-transit,universal_converter
+Face;Rounded;no;23;MyCloud-Gallery-2
+Search;Rounded;no;23;MyCloud-Gallery-2,galleria,Pampa notes,Fluid-transit,engine,FluidWeather,Pampa-store-src
+Share;Rounded;no;23;galleria,classeviva-expressive,Pampa sounds,universal_converter,MyCloud-Gallery-2,PampAI
+Edit;Rounded;no;22;MyCloud-Gallery-2,PampAI,galleria,classeviva-expressive,Pampa notes,Pampa sounds
+Key;Rounded;no;21;MyCloud-Gallery-2,Codex,PampAI
+Favorite;Rounded;no;20;MyCloud-Gallery-2,galleria
+Person;Rounded;no;20;MyCloud-Gallery-2,classeviva-expressive,engine,Codex
+Star;Rounded;no;20;galleria,Fluid-transit,MyCloud-Gallery-2,Pampa widgets
+PhoneAndroid;Rounded;no;19;MyCloud-Gallery-2
+DeleteForever;Rounded;no;17;MyCloud-Gallery-2
+Tune;Rounded;no;17;MyCloud-Gallery-2,galleria,Codex,Pampa notes,Pampa widgets,Pampa-store-src,universal_converter
+CalendarMonth;Rounded;no;16;MyCloud-Gallery-2,classeviva-expressive,FluidWeather
+IosShare;Rounded;no;16;MyCloud-Gallery-2,Pampa notes
+Home;Rounded;no;15;MyCloud-Gallery-2,galleria,Pampa notes,classeviva-expressive,Fluid-transit,Pampa widgets,Pampa-store-src
+Mic;Rounded;no;15;Pampa notes,engine,Fluid-transit,Codex,galleria,KeyVoice,Pampa sounds,PampAI
+PlayArrow;Rounded;no;15;MyCloud-Gallery-2,galleria,Pampa notes,Codex,FluidWeather
+Storage;Rounded;no;15;MyCloud-Gallery-2,universal_converter
+Add;Rounded;no;14;Pampa notes,classeviva-expressive,PampAI,MyCloud-Gallery-2,Codex,galleria
+Place;Rounded;no;14;MyCloud-Gallery-2,Fluid-transit
+ContentCopy;Rounded;no;13;MyCloud-Gallery-2,engine,PampAI,classeviva-expressive,Codex,universal_converter
+Dns;Rounded;no;13;MyCloud-Gallery-2
+History;Rounded;no;13;MyCloud-Gallery-2,Fluid-transit,Pampa sounds
+OpenInNew;Rounded;si;13;classeviva-expressive,MyCloud-Gallery-2,Pampa-store-src,universal_converter
+PhotoAlbum;Rounded;no;12;MyCloud-Gallery-2
+QrCodeScanner;Rounded;no;12;MyCloud-Gallery-2,Pampa notes
+Shield;Rounded;no;12;MyCloud-Gallery-2
+Cloud;Rounded;no;11;MyCloud-Gallery-2,FluidWeather
+CloudDownload;Rounded;no;11;MyCloud-Gallery-2,universal_converter
+Description;Rounded,Outlined;no;11;MyCloud-Gallery-2,Pampa notes,engine,universal_converter
+Groups;Rounded;no;11;MyCloud-Gallery-2,classeviva-expressive
+Stop;Rounded;no;11;engine,PampAI,classeviva-expressive,MyCloud-Gallery-2,Pampa sounds
+CleaningServices;Rounded;no;10;MyCloud-Gallery-2
+DriveFileMove;Rounded;si;10;MyCloud-Gallery-2,Pampa notes
+EditCalendar;Rounded;no;10;MyCloud-Gallery-2,classeviva-expressive
+GraphicEq;Rounded;no;10;Pampa notes,Pampa widgets,Pampa sounds
+Visibility;Rounded;no;10;MyCloud-Gallery-2,engine,universal_converter
+Block;Rounded;no;9;MyCloud-Gallery-2
+Layers;Rounded;no;9;MyCloud-Gallery-2,FluidWeather,Fluid-transit
+Pause;Rounded;no;9;MyCloud-Gallery-2,galleria,Codex,FluidWeather,Pampa notes
+Public;Rounded;no;9;MyCloud-Gallery-2,classeviva-expressive,Pampa notes
+Sync;Rounded;no;9;MyCloud-Gallery-2,classeviva-expressive,galleria,Pampa-store-src
+WaterDrop;Rounded;no;9;FluidWeather
+Wifi;Rounded;no;9;MyCloud-Gallery-2
+AdminPanelSettings;Rounded;no;8;MyCloud-Gallery-2
+ArrowUpward;Rounded;no;8;engine,PampAI,classeviva-expressive,MyCloud-Gallery-2
+ChevronRight;Rounded;no;8;PampAI,classeviva-expressive,engine,MyCloud-Gallery-2
+Code;Rounded,Outlined;no;8;MyCloud-Gallery-2,universal_converter,engine,Pampa notes,Pampa widgets
+Gavel;Rounded;no;8;classeviva-expressive,universal_converter,MyCloud-Gallery-2,Pampa notes,Pampa widgets
+Inbox;Rounded;no;8;galleria,MyCloud-Gallery-2
+Map;Rounded;no;8;MyCloud-Gallery-2,Fluid-transit,FluidWeather
+TextFields;Rounded;no;8;MyCloud-Gallery-2
+Backup;Rounded;no;7;MyCloud-Gallery-2
+Checklist;Rounded;no;7;MyCloud-Gallery-2,galleria
+CloudUpload;Rounded;no;7;MyCloud-Gallery-2,Pampa notes
+FolderOff;Rounded;no;7;MyCloud-Gallery-2
+GridView;Rounded;no;7;Pampa notes,FluidWeather,galleria,MyCloud-Gallery-2,Pampa widgets,Pampa-store-src
+KeyboardArrowDown;Rounded;no;7;engine,MyCloud-Gallery-2,PampAI
+MyLocation;Rounded;no;7;Fluid-transit,FluidWeather
+PersonAdd;Rounded;no;7;MyCloud-Gallery-2,Codex
+ReportProblem;Rounded;no;7;MyCloud-Gallery-2
+RestartAlt;Rounded;no;7;MyCloud-Gallery-2
+Videocam;Rounded;no;7;MyCloud-Gallery-2
+AddPhotoAlternate;Rounded;no;6;MyCloud-Gallery-2
+ArrowBack;Rounded,Filled;si;6;MyCloud-Gallery-2,engine,Fluid-transit,PampAI
+CallMerge;Rounded;no;6;MyCloud-Gallery-2
+Devices;Rounded;no;6;MyCloud-Gallery-2
+DriveFileRenameOutline;Rounded;no;6;MyCloud-Gallery-2
+Fingerprint;Rounded;no;6;MyCloud-Gallery-2,Codex
+FolderOpen;Rounded;no;6;MyCloud-Gallery-2
+Forum;Rounded;no;6;classeviva-expressive,galleria,Codex
+ImageSearch;Rounded;no;6;MyCloud-Gallery-2,Codex
+InsertDriveFile;Rounded,Outlined;si;6;MyCloud-Gallery-2,engine,universal_converter
+MoreHoriz;Rounded;no;6;Pampa notes,MyCloud-Gallery-2,Pampa sounds,PampAI
+Movie;Rounded;no;6;MyCloud-Gallery-2,galleria
+PhonelinkErase;Rounded;no;6;MyCloud-Gallery-2
+Save;Rounded;no;6;MyCloud-Gallery-2,KeyVoice,universal_converter
+School;Rounded,Filled;no;6;classeviva-expressive,engine
+VpnKey;Rounded;no;6;MyCloud-Gallery-2
+WbSunny;Rounded;no;6;FluidWeather,Fluid-transit,MyCloud-Gallery-2
+Widgets;Rounded;no;6;Pampa widgets,MyCloud-Gallery-2
+Apps;Rounded;no;5;MyCloud-Gallery-2,Pampa-store-src,universal_converter
+AttachFile;Rounded;no;5;PampAI,classeviva-expressive
+CameraAlt;Rounded;no;5;MyCloud-Gallery-2
+DirectionsWalk;Rounded;si;5;Fluid-transit
+Event;Rounded;no;5;MyCloud-Gallery-2,classeviva-expressive
+EventBusy;Rounded;no;5;classeviva-expressive,MyCloud-Gallery-2
+GppBad;Rounded;no;5;MyCloud-Gallery-2
+GppGood;Rounded;no;5;MyCloud-Gallery-2
+HourglassTop;Rounded;no;5;MyCloud-Gallery-2
+Insights;Rounded;no;5;classeviva-expressive,FluidWeather,PampAI
+KeyboardArrowUp;Rounded;no;5;engine,MyCloud-Gallery-2,PampAI
+LocationOff;Rounded;no;5;MyCloud-Gallery-2
+Menu;Rounded;no;5;FluidWeather,galleria,PampAI
+Palette;Rounded;no;5;classeviva-expressive,MyCloud-Gallery-2,Pampa widgets
+QrCode2;Rounded;no;5;MyCloud-Gallery-2
+Restore;Rounded;no;5;MyCloud-Gallery-2
+Science;Rounded;no;5;MyCloud-Gallery-2,classeviva-expressive,Pampa notes
+Screenshot;Rounded;no;5;MyCloud-Gallery-2,PampAI
+Speed;Rounded;no;5;FluidWeather,galleria,Pampa sounds
+Verified;Rounded;no;5;MyCloud-Gallery-2
+WarningAmber;Rounded,Outlined;no;5;engine,classeviva-expressive,FluidWeather,Pampa-store-src
+WifiOff;Rounded;no;5;MyCloud-Gallery-2
+ArrowBackIos;Rounded;si;4;MyCloud-Gallery-2,engine,galleria
+ArrowForward;Rounded;si;4;engine,classeviva-expressive,universal_converter
+Assignment;Rounded;si;4;classeviva-expressive
+CallSplit;Rounded;no;4;MyCloud-Gallery-2
+Campaign;Rounded;no;4;classeviva-expressive
+Computer;Rounded;no;4;Pampa notes,classeviva-expressive
+DirectionsBus;Rounded;no;4;Fluid-transit
+FavoriteBorder;Rounded;no;4;MyCloud-Gallery-2
+Flight;Rounded;no;4;MyCloud-Gallery-2
+Lan;Rounded;no;4;MyCloud-Gallery-2
+LocationSearching;Rounded;no;4;MyCloud-Gallery-2,Fluid-transit
+LockClock;Rounded;no;4;MyCloud-Gallery-2
+MoreVert;Rounded,Outlined;no;4;galleria,MyCloud-Gallery-2
+MoveToInbox;Rounded;no;4;MyCloud-Gallery-2
+MusicNote;Rounded;no;4;Pampa widgets,MyCloud-Gallery-2,Pampa notes
+NetworkCell;Rounded;no;4;MyCloud-Gallery-2
+Notifications;Rounded;no;4;galleria,MyCloud-Gallery-2
+PauseCircle;Rounded;no;4;MyCloud-Gallery-2
+PhonelinkOff;Rounded;no;4;MyCloud-Gallery-2
+Photo;Rounded;no;4;MyCloud-Gallery-2
+PriorityHigh;Rounded;no;4;engine,MyCloud-Gallery-2
+Psychology;Rounded;no;4;PampAI,classeviva-expressive,Pampa notes
+RotateRight;Rounded;no;4;MyCloud-Gallery-2
+SearchOff;Rounded;no;4;MyCloud-Gallery-2,universal_converter
+SelectAll;Rounded;no;4;MyCloud-Gallery-2
+Send;Rounded;si;4;Codex,engine,galleria
+SwapHoriz;Rounded;no;4;MyCloud-Gallery-2,PampAI,universal_converter
+SwapVert;Rounded;no;4;MyCloud-Gallery-2,Fluid-transit
+Timer;Rounded;no;4;MyCloud-Gallery-2
+Undo;Rounded;si;4;MyCloud-Gallery-2,engine
+Upload;Rounded;no;4;Pampa notes
+VpnLock;Rounded;no;4;MyCloud-Gallery-2
+AcUnit;Rounded;no;3;FluidWeather
+Balance;Rounded;no;3;MyCloud-Gallery-2
+BatteryChargingFull;Rounded;no;3;MyCloud-Gallery-2
+Bedtime;Rounded;no;3;FluidWeather,MyCloud-Gallery-2
+Bolt;Rounded;no;3;classeviva-expressive,MyCloud-Gallery-2,universal_converter
+CheckCircleOutline;Rounded;no;3;MyCloud-Gallery-2
+ChevronLeft;Rounded;no;3;classeviva-expressive,PampAI
+CloudDone;Rounded;no;3;MyCloud-Gallery-2
+CloudSync;Rounded;no;3;MyCloud-Gallery-2
+Collections;Rounded;no;3;MyCloud-Gallery-2
+CreateNewFolder;Rounded;no;3;MyCloud-Gallery-2
+DeleteSweep;Rounded;no;3;classeviva-expressive,Pampa-store-src
+DragHandle;Rounded;no;3;engine,galleria,MyCloud-Gallery-2
+ExpandLess;Rounded;no;3;Pampa notes,FluidWeather
+ExpandMore;Rounded;no;3;Pampa notes,FluidWeather
+Extension;Rounded;no;3;PampAI
+Grain;Rounded;no;3;FluidWeather
+InstallDesktop;Rounded;no;3;Pampa notes
+KeyOff;Rounded;no;3;MyCloud-Gallery-2
+Language;Rounded;no;3;MyCloud-Gallery-2,Pampa notes
+Link;Rounded;no;3;classeviva-expressive,engine
+MarkEmailRead;Rounded;no;3;galleria,classeviva-expressive
+MarkEmailUnread;Rounded;no;3;galleria,classeviva-expressive
+MotionPhotosOn;Rounded;no;3;MyCloud-Gallery-2
+NearMe;Rounded;no;3;Fluid-transit
+NewReleases;Rounded;no;3;MyCloud-Gallery-2
+Nightlight;Rounded;no;3;MyCloud-Gallery-2,FluidWeather
+NotificationsActive;Rounded;no;3;classeviva-expressive,Pampa widgets,Pampa-store-src
+PersonOff;Rounded;no;3;MyCloud-Gallery-2
+PhotoCamera;Rounded;no;3;MyCloud-Gallery-2,PampAI
+Replay;Rounded;no;3;MyCloud-Gallery-2,Pampa-store-src
+RestoreFromTrash;Rounded;no;3;MyCloud-Gallery-2
+SwitchAccount;Rounded;no;3;MyCloud-Gallery-2
+TaskAlt;Rounded;no;3;MyCloud-Gallery-2
+Today;Rounded;no;3;classeviva-expressive,MyCloud-Gallery-2
+UnfoldMore;Rounded;no;3;engine,MyCloud-Gallery-2
+Update;Rounded;no;3;MyCloud-Gallery-2
+VerifiedUser;Rounded;no;3;MyCloud-Gallery-2
+VolumeOff;Rounded;si;3;engine,MyCloud-Gallery-2,PampAI
+AccountBalance;Rounded;no;2;classeviva-expressive,Pampa notes
+Air;Rounded;no;2;FluidWeather
+AllInclusive;Rounded;no;2;MyCloud-Gallery-2
+Android;Rounded;no;2;Pampa-store-src,universal_converter
+Animation;Rounded;no;2;galleria,MyCloud-Gallery-2
+Archive;Rounded;no;2;galleria
+AudioFile;Rounded,Outlined;no;2;engine,universal_converter
+AutoStories;Rounded;no;2;classeviva-expressive
+Calculate;Rounded;no;2;classeviva-expressive,Pampa notes
+Chat;Rounded;no;2;MyCloud-Gallery-2
+ContentCut;Rounded;no;2;MyCloud-Gallery-2
+CoPresent;Rounded;no;2;classeviva-expressive
+Create;Rounded;no;2;MyCloud-Gallery-2
+DataUsage;Rounded;no;2;MyCloud-Gallery-2
+DeleteOutline;Rounded,Outlined;no;2;engine,MyCloud-Gallery-2
+Directions;Rounded;no;2;Fluid-transit
+Explore;Rounded;no;2;Fluid-transit
+FastForward;Rounded;no;2;Pampa notes
+FolderCopy;Rounded;no;2;classeviva-expressive
+FolderShared;Rounded;no;2;MyCloud-Gallery-2
+FolderSpecial;Rounded;no;2;MyCloud-Gallery-2
+FolderZip;Rounded,Outlined;no;2;engine,universal_converter
+FormatBold;Rounded;no;2;engine,galleria
+FormatItalic;Rounded;no;2;engine,galleria
+FormatUnderlined;Rounded;no;2;engine,galleria
+GppMaybe;Rounded;no;2;MyCloud-Gallery-2
+Grade;Rounded;no;2;classeviva-expressive
+HistoryEdu;Rounded;no;2;classeviva-expressive
+HourglassEmpty;Rounded;no;2;MyCloud-Gallery-2
+Inventory2;Rounded;no;2;MyCloud-Gallery-2
+KeyboardDoubleArrowDown;Rounded;no;2;MyCloud-Gallery-2
+LibraryBooks;Rounded;si;2;classeviva-expressive
+LinkOff;Rounded;no;2;MyCloud-Gallery-2
+LocationOn;Rounded;no;2;MyCloud-Gallery-2
+LockOpen;Rounded;no;2;Codex,MyCloud-Gallery-2
+Luggage;Rounded;no;2;MyCloud-Gallery-2
+Memory;Rounded;no;2;MyCloud-Gallery-2,universal_converter
+MenuBook;Rounded;si;2;classeviva-expressive,Pampa notes
+Navigation;Rounded;no;2;FluidWeather
+Notes;Rounded;si;2;universal_converter
+NotificationImportant;Rounded;no;2;MyCloud-Gallery-2
+Password;Rounded;no;2;MyCloud-Gallery-2
+PushPin;Rounded;no;2;PampAI
+RadioButtonChecked;Rounded;no;2;MyCloud-Gallery-2
+RadioButtonUnchecked;Rounded;no;2;MyCloud-Gallery-2
+Router;Rounded;no;2;MyCloud-Gallery-2
+SaveAlt;Rounded;no;2;MyCloud-Gallery-2
+Security;Rounded;no;2;MyCloud-Gallery-2,Pampa-store-src
+SignalWifiOff;Rounded;no;2;MyCloud-Gallery-2
+Slideshow;Rounded,Outlined;no;2;engine,universal_converter
+StarBorder;Rounded;no;2;Fluid-transit
+SystemUpdate;Rounded;no;2;MyCloud-Gallery-2
+SystemUpdateAlt;Rounded;no;2;engine,Pampa widgets
+TableChart;Rounded,Outlined;no;2;engine,universal_converter
+TabletAndroid;Rounded;no;2;MyCloud-Gallery-2
+TextFormat;Rounded;no;2;engine
+Thermostat;Rounded;no;2;FluidWeather
+Thunderstorm;Rounded;no;2;FluidWeather
+Toc;Rounded;si;2;Pampa notes
+VideocamOff;Rounded;no;2;MyCloud-Gallery-2
+VideoFile;Rounded,Outlined;no;2;engine,universal_converter
+VpnKeyOff;Rounded;no;2;MyCloud-Gallery-2
+WbCloudy;Rounded;no;2;FluidWeather
+Album;Rounded;no;1;MyCloud-Gallery-2
+ArrowDownward;Rounded;no;1;engine
+Article;Rounded;si;1;universal_converter
+AspectRatio;Rounded;no;1;Pampa widgets
+AutoFixHigh;Rounded;no;1;classeviva-expressive
+Backpack;Rounded;no;1;classeviva-expressive
+Backspace;Rounded;si;1;Codex
+Badge;Rounded;no;1;MyCloud-Gallery-2
+Battery5Bar;Rounded;no;1;MyCloud-Gallery-2
+Biotech;Rounded;no;1;Pampa notes
+BlurOn;Rounded;no;1;FluidWeather
+BrokenImage;Rounded;no;1;MyCloud-Gallery-2
+Brush;Rounded;no;1;Pampa notes
+BugReport;Rounded;no;1;classeviva-expressive
+Build;Rounded;no;1;MyCloud-Gallery-2
+CellTower;Rounded;no;1;MyCloud-Gallery-2
+CheckBox;Rounded;no;1;engine
+CheckBoxOutlineBlank;Rounded;no;1;engine
+Church;Rounded;no;1;classeviva-expressive
+CloudQueue;Rounded;no;1;MyCloud-Gallery-2
+Compare;Rounded;no;1;MyCloud-Gallery-2
+DataObject;Rounded;no;1;universal_converter
+Dehaze;Rounded;no;1;FluidWeather
+DirectionsRun;Rounded;si;1;classeviva-expressive
+Dock;Rounded;no;1;MyCloud-Gallery-2
+DoneAll;Rounded;no;1;Codex
+Drafts;Rounded;no;1;galleria
+Draw;Rounded;no;1;classeviva-expressive
+Error;Rounded;no;1;engine
+FactCheck;Rounded;si;1;classeviva-expressive
+FileDownload;Rounded;no;1;classeviva-expressive
+FileUpload;Rounded;no;1;classeviva-expressive
+FilterAlt;Rounded;no;1;MyCloud-Gallery-2
+FilterAltOff;Rounded;no;1;MyCloud-Gallery-2
+FilterDrama;Rounded;no;1;FluidWeather
+FilterList;Rounded;no;1;MyCloud-Gallery-2
+FindInPage;Rounded;no;1;MyCloud-Gallery-2
+Flag;Rounded;no;1;Fluid-transit
+FlashlightOff;Rounded;no;1;MyCloud-Gallery-2
+FlashlightOn;Rounded;no;1;MyCloud-Gallery-2
+FontDownload;Rounded;no;1;universal_converter
+FormatIndentDecrease;Rounded;si;1;engine
+FormatIndentIncrease;Rounded;si;1;engine
+FormatListBulleted;Rounded;si;1;engine
+FormatListNumbered;Rounded;no;1;engine
+FormatQuote;Rounded;no;1;engine
+Forward10;Rounded;no;1;Pampa notes
+Fullscreen;Rounded;no;1;MyCloud-Gallery-2
+Functions;Rounded;no;1;Pampa notes
+Hail;Rounded;no;1;FluidWeather
+Help;Rounded;no;1;MyCloud-Gallery-2
+HelpOutline;Rounded;no;1;FluidWeather
+HideImage;Rounded;no;1;universal_converter
+HighQuality;Rounded;no;1;MyCloud-Gallery-2
+HistoryToggleOff;Rounded;no;1;MyCloud-Gallery-2
+Keyboard;Rounded;no;1;MyCloud-Gallery-2
+Label;Rounded;no;1;galleria
+Landscape;Rounded;no;1;Fluid-transit
+Leaderboard;Rounded;no;1;classeviva-expressive
+ListAlt;Rounded;si;1;Pampa notes
+LocationCity;Rounded;no;1;Fluid-transit
+Login;Rounded;si;1;classeviva-expressive
+Logout;Rounded;si;1;classeviva-expressive
+MonitorHeart;Rounded;no;1;MyCloud-Gallery-2
+NavigateBefore;Rounded;no;1;MyCloud-Gallery-2
+NavigateNext;Rounded;no;1;MyCloud-Gallery-2
+NetworkCheck;Rounded;no;1;MyCloud-Gallery-2
+NightsStay;Rounded;no;1;FluidWeather
+NoEncryption;Rounded;no;1;MyCloud-Gallery-2
+NoPhotography;Rounded;no;1;MyCloud-Gallery-2
+PersonRemove;Rounded;no;1;MyCloud-Gallery-2
+PhonelinkLock;Rounded;no;1;MyCloud-Gallery-2
+PhotoSizeSelectSmall;Rounded;no;1;MyCloud-Gallery-2
+PictureAsPdf;Outlined;no;1;engine
+Pin;Rounded;no;1;MyCloud-Gallery-2
+PlayCircle;Rounded;no;1;MyCloud-Gallery-2
+Quiz;Rounded;no;1;classeviva-expressive
+Radar;Rounded;no;1;FluidWeather
+RateReview;Rounded;no;1;FluidWeather
+Redo;Rounded;si;1;engine
+Remove;Rounded;no;1;MyCloud-Gallery-2
+RemoveCircleOutline;Rounded;no;1;MyCloud-Gallery-2
+Replay10;Rounded;no;1;Pampa notes
+Report;Rounded;no;1;classeviva-expressive
+RotateLeft;Rounded;no;1;MyCloud-Gallery-2
+SdCardAlert;Rounded;no;1;MyCloud-Gallery-2
+SettingsRemote;Rounded;no;1;MyCloud-Gallery-2
+ShowChart;Rounded;si;1;classeviva-expressive
+SignalCellularAlt;Rounded;no;1;MyCloud-Gallery-2
+SkipNext;Rounded;no;1;galleria
+Smartphone;Rounded;no;1;MyCloud-Gallery-2
+SortByAlpha;Rounded;no;1;Pampa widgets
+Speaker;Rounded;no;1;Pampa widgets
+SportsBasketball;Rounded;no;1;Pampa notes
+Storefront;Rounded;no;1;Pampa-store-src
+TheaterComedy;Rounded;no;1;Pampa notes
+Translate;Rounded;no;1;classeviva-expressive
+Umbrella;Rounded;no;1;FluidWeather
+UploadFile;Rounded;no;1;universal_converter
+VerticalSplit;Rounded;no;1;MyCloud-Gallery-2
+ViewInAr;Rounded;no;1;universal_converter
+ViewList;Rounded;si;1;Pampa widgets
+VolumeUp;Rounded;si;1;MyCloud-Gallery-2
+WbTwilight;Rounded;no;1;FluidWeather
+WifiFind;Rounded;no;1;MyCloud-Gallery-2
+Work;Rounded;no;1;Pampa notes

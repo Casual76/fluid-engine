@@ -1,0 +1,147 @@
+# Equivalenze per la tabella di corrispondenza (corrispondenza.md e .csv), lette da gen_fluid_icons.py.
+#
+# Una riga: `Nome simbolo [pieno] [~] # nota`.
+#   Nome     quello di `Icons.Rounded.<Nome>`, o `phosphor:Stile.Nome` per un'icona Phosphor di Fluidify;
+#   simbolo  il nome di Material Symbols a cui corrisponde, `-` se non ce n'e' uno;
+#   pieno    la corrispondenza giusta e' la variante piena (FluidIcons.Filled.<Nome>);
+#   ~        equivalente vicino: stessa idea, sagoma diversa.
+# Un'icona Material che manca qui si traduce da sola: `QrCode2` -> `qr_code_2`. Si scrive qui solo
+# quando quel nome non esiste in Material Symbols, quando due nomi sono la stessa sagoma, o quando la
+# forma giusta e' quella piena.
+
+## Material: nomi che in Material Symbols non esistono piu' (alias della stessa sagoma)
+CameraAlt            photo_camera
+CheckCircleOutline   check_circle
+Collections          photo_library       # in Material Symbols «collections» e «filter» sono una sagoma, al tratto uguale a «photo_library»; nelle Material di oggi Collections e PhotoLibrary sono identiche
+Create               edit
+DeleteOutline        delete
+ErrorOutline         error
+FavoriteBorder       favorite
+GppGood              verified_user
+HelpOutline          help
+InsertDriveFile      draft
+Place                location_on
+RemoveCircleOutline  do_not_disturb_on
+ReportProblem        warning
+Restore              history
+SaveAlt              download
+StarBorder           star
+WarningAmber         warning
+WbCloudy             cloud
+
+## Material: nomi che esistono, ma sono la stessa sagoma di un'icona del set
+CloudQueue           cloud
+FileDownload         download
+FileUpload           upload
+Grade                star
+NavigateBefore       chevron_left
+NavigateNext         chevron_right
+
+## Material: la forma giusta e' quella piena
+CheckCircle          check_circle pieno  # la forma «scelta» della coppia CheckCircle / CheckCircleOutline
+Favorite             favorite pieno      # la forma «accesa» della coppia Favorite / FavoriteBorder
+Pause                pause pieno         # riproduzione: pieni come in Apple
+PlayArrow            play_arrow pieno    # riproduzione: pieni come in Apple
+SkipNext             skip_next pieno     # riproduzione: pieni come in Apple
+Star                 star pieno          # la forma «accesa» della coppia Star / StarBorder
+Stop                 stop pieno          # riproduzione: pieni come in Apple
+
+## Fluidify: Phosphor (com.adamglin.phosphoricons), 84 nomi; stile Fill -> variante piena
+phosphor:Fill.ArrowCircleDown      arrow_circle_down pieno
+phosphor:Regular.ArrowCircleDown   arrow_circle_down
+phosphor:Regular.ArrowCircleUp     arrow_circle_up
+phosphor:Regular.ArrowClockwise    refresh
+phosphor:Regular.ArrowLeft         arrow_back
+phosphor:Regular.ArrowUpRight      arrow_outward
+phosphor:Regular.ArrowsDownUp      swap_vert
+phosphor:Regular.ArrowsInSimple    close_fullscreen
+phosphor:Regular.ArrowsOutSimple   open_in_full
+phosphor:Regular.Books             library_books ~
+phosphor:Regular.Broadcast         sensors
+phosphor:Regular.Car               directions_car
+phosphor:Regular.CaretDown         keyboard_arrow_down
+phosphor:Regular.CaretLeft         chevron_left
+phosphor:Regular.CaretRight        chevron_right
+phosphor:Regular.CaretUp           keyboard_arrow_up
+phosphor:Regular.CaretUpDown       unfold_more
+phosphor:Fill.Check                check pieno
+phosphor:Regular.Check             check
+phosphor:Regular.ClockCounterClockwise  history
+phosphor:Regular.CloudSlash        cloud_off
+phosphor:Regular.Desktop           desktop_windows
+phosphor:Regular.DeviceMobile      smartphone
+phosphor:Regular.Devices           devices
+phosphor:Regular.Disc              album
+phosphor:Regular.DotsSixVertical   drag_indicator
+phosphor:Regular.DotsThree         more_horiz
+phosphor:Regular.Download          download
+phosphor:Regular.DownloadSimple    download
+phosphor:Regular.Export            ios_share
+phosphor:Regular.FolderSimple      folder
+phosphor:Regular.Gauge             speed
+phosphor:Regular.GearSix           settings
+phosphor:Regular.HardDrives        dns ~
+phosphor:Regular.Headphones        headphones
+phosphor:Fill.Heart                favorite pieno
+phosphor:Regular.Heart             favorite
+phosphor:Regular.HeartBreak        heart_broken
+phosphor:Fill.House                home pieno
+phosphor:Regular.House             home
+phosphor:Fill.Info                 info pieno
+phosphor:Regular.Info              info
+phosphor:Regular.Laptop            computer          # in Material Symbols «laptop» e «computer» sono la stessa sagoma
+phosphor:Fill.Lightning            bolt pieno
+phosphor:Regular.LinkSimple        link
+phosphor:Regular.ListBullets       format_list_bulleted
+phosphor:Regular.ListPlus          playlist_add
+phosphor:Fill.MagnifyingGlass      search pieno
+phosphor:Regular.MagnifyingGlass   search
+phosphor:Fill.MicrophoneStage      mic_external_on pieno ~
+phosphor:Regular.MicrophoneStage   mic_external_on ~
+phosphor:Regular.MonitorPlay       smart_display ~
+phosphor:Regular.MusicNote         music_note
+phosphor:Fill.MusicNotes           library_music pieno ~
+phosphor:Regular.MusicNotes        library_music ~
+phosphor:Fill.Pause                pause pieno
+phosphor:Regular.PencilSimple      edit
+phosphor:Fill.Play                 play_arrow pieno
+phosphor:Regular.Playlist          queue_music
+phosphor:Regular.Plugs             power ~
+phosphor:Regular.Plus              add
+phosphor:Fill.PushPin              push_pin pieno
+phosphor:Regular.PushPin           push_pin
+phosphor:Regular.Queue             playlist_play
+phosphor:Regular.Radio             radio
+phosphor:Regular.Repeat            repeat
+phosphor:Regular.RepeatOnce        repeat_one
+phosphor:Regular.Shuffle           shuffle
+phosphor:Fill.SkipBack             skip_previous pieno
+phosphor:Fill.SkipForward          skip_next pieno
+phosphor:Regular.SpeakerHifi       speaker
+phosphor:Fill.SpeakerHigh          volume_up pieno
+phosphor:Regular.SpeakerHigh       volume_up
+phosphor:Fill.SpeakerLow           volume_down pieno
+phosphor:Regular.SpeakerSimpleHigh volume_up
+phosphor:Regular.SpeakerSimpleLow  volume_down
+phosphor:Fill.SpeakerX             volume_off pieno
+phosphor:Regular.SpotifyLogo       -                 # marchio di terzi
+phosphor:Regular.SquaresFour       grid_view
+phosphor:Fill.Stop                 stop pieno
+phosphor:Regular.Television        tv
+phosphor:Fill.TextAlignLeft        format_align_left pieno
+phosphor:Regular.TextAlignLeft     format_align_left
+phosphor:Regular.Timer             timer
+phosphor:Fill.Translate            translate pieno
+phosphor:Regular.Translate         translate
+phosphor:Regular.Trash             delete
+phosphor:Regular.User              person
+phosphor:Regular.UserCircle        account_circle
+phosphor:Fill.VinylRecord          album pieno
+phosphor:Regular.VinylRecord       album
+phosphor:Regular.Warning           warning
+phosphor:Fill.Watch                watch pieno
+phosphor:Regular.Watch             watch
+phosphor:Fill.Waveform             graphic_eq pieno ~
+phosphor:Regular.X                 close
+phosphor:Fill.XCircle              cancel pieno
+phosphor:Regular.YoutubeLogo       -                 # marchio di terzi

@@ -13,7 +13,7 @@ import dev.antigravity.fluidengine.sample.matrixDemoSettings
 import dev.antigravity.fluidengine.sample.rememberMatrixFlag
 import dev.antigravity.fluidengine.ui.fluid.*
 
-/** Galleria non registrata: varianti chiare/scure, testo al 200% e movimento ridotto selezionabili. */
+/** Pagina «Campo a gettoni» della galleria: varianti chiare/scure, testo al 200% e movimento ridotto selezionabili. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TokenFieldDemo() {

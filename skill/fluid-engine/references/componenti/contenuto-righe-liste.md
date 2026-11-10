@@ -244,7 +244,7 @@ sopra una lastra).
 
 **`FluidSwipeAction(label, icon, color, removesItem, onAction)`.** `label` è obbligatorio e non è decorazione: è il nome che TalkBack offre fra le azioni della riga, perché un gesto che solo chi vede può fare non è
 un'azione. `removesItem = true`: confermata, la riga esce del tutto e `onAction` parte **a uscita finita**; l'app toglie il dato e la lista richiude il posto. `false`: `onAction` parte al rilascio e la riga torna a posto
-(letta/non letta, fissa). L'azione parte **una volta per gesto**, anche se la lista cambia durante l'uscita.
+(letta/non letta, fissa). L'azione parte **una volta per gesto confermato**, sul thread principale, anche se la lista cambia durante l'uscita o la riga esce dalla composizione mentre sta uscendo (la lista scorre, la schermata si chiude): in quel caso parte nel momento in cui la riga esce, senza aspettare la fine dell'animazione. Mai per un gesto annullato, e mai se l'app rimette la riga a posto con `FluidSwipeState.reset()` prima che sia partita.
 
 **Va sul nodo della riga.** Per `FluidListRow` è il suo `modifier` (sta sul `ListItem` stesso, un nodo solo): così le azioni di TalkBack si **sommano** a quelle della riga invece di finire su un discendente, dove nessuno le
 raggiunge. Lo stato (`rememberFluidSwipeState()`) si crea **dentro** l'item, uno per riga, ed è effimero di proposito: un gesto a metà non sopravvive a una rotazione, e una riga riciclata torna a posto.

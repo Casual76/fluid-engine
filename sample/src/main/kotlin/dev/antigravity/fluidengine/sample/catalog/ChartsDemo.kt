@@ -43,7 +43,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
  * I grafici (F1.5b): ciambella, barre orizzontali e verticali (anche impilate), andamento, legenda e gli stati
  * che li accompagnano, con statistiche finte ma credibili di una casella di posta.
  *
- * Non e' ancora nella galleria: la monta chi la prepara (F1.6). Mostra, nell'ordine:
+ * Sta nella galleria come pagina «Grafici» (con la matrice degli stati). Mostra, nell'ordine:
  * 1. la ripartizione per categoria (le cinque categorie **disgiunte**, che sommano 100%) con il valore nel foro;
  * 2. le **etichette sovrapposte** (un messaggio puo' averne due) in barre separate col denominatore dichiarato:
  *    le barre non sommano 100% e il grafico lo dice;

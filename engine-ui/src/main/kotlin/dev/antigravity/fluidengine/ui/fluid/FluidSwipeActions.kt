@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -81,9 +84,15 @@ import kotlinx.coroutines.launch
  * @param icon l'icona rivelata dietro la riga.
  * @param color il fondo rivelato quando la soglia e' superata (prima e' un grigio quieto: la soglia si vede).
  * @param removesItem vero: confermata, la riga esce del tutto verso il lato e [onAction] parte a uscita finita;
- *   l'app toglie il dato e la lista richiude il posto (con [fluidGroupedItems], `animateItem`). Falso: [onAction]
+ *   l'app toglie il dato e la lista richiude il posto (con [fluidGroupedItems], `animateItem`). Se la riga esce
+ *   dalla composizione prima della fine dell'uscita (la lista scorre, si aggiorna, la schermata si chiude),
+ *   [onAction] parte nel momento in cui la riga esce, senza aspettare il resto dell'animazione. Falso: [onAction]
  *   parte al rilascio e la riga torna a posto (letta/non letta, fissa).
- * @param onAction l'azione. Parte una volta per gesto, anche se la lista cambia durante l'uscita.
+ * @param onAction l'azione. **Esattamente una volta per gesto confermato**, sul thread principale, anche se la
+ *   riga viene smontata durante l'uscita o la lista cambia: un gesto confermato (soglia superata e dito alzato, o
+ *   l'azione di TalkBack) non si perde mai. Mai per un gesto annullato (dito riportato sotto la soglia, spinta
+ *   contraria, secondo dito, dito sparito) e mai se l'app rimette la riga a posto con [FluidSwipeState.reset]
+ *   prima che l'azione sia partita (l'app ha cambiato idea: l'«Annulla»).
  */
 @Immutable
 class FluidSwipeAction(
@@ -134,12 +143,21 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
   private var firedThisGesture = false
 
   /**
+   * L'azione di un gesto confermato che toglie la riga e non e' ancora partita: la lancia la fine dell'uscita o,
+   * se la riga esce prima dalla composizione, [flushPendingAction]. Sempre svuotata prima di chiamarla: parte una
+   * volta sola, da qualunque dei due arrivi per primo.
+   */
+  private var pendingAction: (() -> Unit)? = null
+
+  /**
    * Rimette la riga a posto con la molla (istantanea col movimento ridotto): per un'azione che l'app non ha potuto
    * fare, o per l'«Annulla» di una riga uscita che resta nei dati.
    */
   suspend fun reset() {
     settle?.cancel()
     settle = null
+    // L'app ha cambiato idea mentre la riga usciva: l'azione che non e' ancora partita non parte piu'.
+    pendingAction = null
     isDismissed = false
     firedThisGesture = false
     disarm(silent = true)
@@ -251,6 +269,9 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
     }
     isDismissed = true
     settle?.cancel()
+    // Il gesto e' confermato qui: da adesso l'azione parte comunque, anche se la riga esce dalla composizione
+    // prima della fine dell'uscita (lo scope muore con lei e la coroutine non arriverebbe in fondo).
+    pendingAction = action.onAction
     val target = sign * max(widthPx, 1)
     settle = scope.launch {
       if (config.reducedMotion) {
@@ -264,8 +285,15 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
         ) { value, _ -> offset = value }
       }
       offset = target
-      action.onAction()
+      flushPendingAction()
     }
+  }
+
+  /** Lancia l'azione in sospeso, se c'e': la svuota prima, cosi' non parte mai due volte. */
+  internal fun flushPendingAction() {
+    val action = pendingAction ?: return
+    pendingAction = null
+    action()
   }
 
   private fun settleHome(velocityPx: Float) {
@@ -336,7 +364,26 @@ internal class FluidSwipeConfig(
 @Composable
 fun rememberFluidSwipeState(): FluidSwipeState {
   val scope = rememberCoroutineScope()
-  return remember(scope) { FluidSwipeState(scope) }
+  val state = remember(scope) { FluidSwipeState(scope) }
+  // Se la riga esce dalla composizione mentre un gesto confermato sta ancora uscendo, l'azione parte adesso.
+  remember(state) { FluidSwipeUnmountGuard(state) }
+  return state
+}
+
+/**
+ * Chiude il conto di un gesto confermato quando la riga lascia la composizione: l'animazione di uscita vive nello
+ * scope della riga e muore con lei, l'azione no. `onForgotten` gira sul thread che applica la composizione, cioe'
+ * il principale; se per qualche ragione fosse un altro, l'azione viene rimandata al principale.
+ */
+private class FluidSwipeUnmountGuard(private val state: FluidSwipeState) : RememberObserver {
+  override fun onRemembered() = Unit
+
+  override fun onForgotten() {
+    val main = Looper.getMainLooper()
+    if (Looper.myLooper() === main) state.flushPendingAction() else Handler(main).post(state::flushPendingAction)
+  }
+
+  override fun onAbandoned() = Unit
 }
 
 /**
@@ -381,6 +428,9 @@ fun rememberFluidSwipeState(): FluidSwipeState {
  *   altro, e una riga uscita non si tocca).
  * - Una riga uscita ([FluidSwipeState.isDismissed]) che l'app non toglie resta vuota: l'app la rimette con
  *   [FluidSwipeState.reset].
+ * - Una riga che esce dalla composizione mentre sta uscendo (la lista scorre o si aggiorna, la schermata si
+ *   chiude) lancia [FluidSwipeAction.onAction] in quel momento, una volta sola: il gesto confermato non si perde,
+ *   ma l'app non puo' contare su un'animazione finita prima dell'azione.
  * - Altre azioni di TalkBack sulla stessa riga si **sommano** a queste (`FluidListRow(customActions = …)` o
  *   [fluidAccessibilityActions]), in qualunque ordine si mettano i modificatori.
  *

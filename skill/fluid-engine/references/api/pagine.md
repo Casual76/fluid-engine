@@ -11,7 +11,7 @@ _Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/navigation/FluidPageNavigator.kt`
 
-- `class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>(NAME)` — Il navigator delle pagine Fluid: fa per [FluidNavHost] quello che `ComposeNavigator` fa per `NavHost`, con le stesse API pubbliche di navigation (`NavigatorState`), e niente di interno.
+- `class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>()` — Il navigator delle pagine Fluid: fa per [FluidNavHost] quello che `ComposeNavigator` fa per `NavHost`, con le stesse API pubbliche di navigation (`NavigatorState`), e niente di interno.
   - `val backStack: StateFlow<List<NavBackStackEntry>>` — Le voci di questo navigator nel back stack, dalla radice alla cima (anche nei grafi annidati).
   - `val transitionsInProgress: StateFlow<Set<NavBackStackEntry>>` — Le voci che stanno entrando o uscendo: restano vive finche' l'host non le dichiara ferme.
   - `fun prepareForTransition(entry: NavBackStackEntry)` — Un gesto comincia: le due voci restano almeno STARTED finche' il gesto non si chiude.

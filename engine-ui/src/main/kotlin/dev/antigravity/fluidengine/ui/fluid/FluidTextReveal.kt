@@ -86,7 +86,9 @@ fun FluidRevealingText(
       rewriteNanos = if (animating) rewriteMillis * NanosPerMilli else 0L,
       animateFirst = animateFirst,
     )
-    clock.active.value = tracker.hasWork
+    // Il valore ricordato non serve a nessuno (conta l'aggiornamento qui sopra): e' un Boolean solo perche'
+    // `remember` non deve restituire `Unit` (RememberReturnType), e il comportamento e' lo stesso.
+    tracker.hasWork.also { clock.active.value = it }
   }
   LaunchedEffect(text, animating) {
     if (!tracker.hasWork) return@LaunchedEffect

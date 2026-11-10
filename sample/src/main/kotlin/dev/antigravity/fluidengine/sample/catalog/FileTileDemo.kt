@@ -23,7 +23,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 
 /**
- * Catalogo non registrato: tipi, stati, nomi ostili, chip densi.
+ * Pagina «Piastrelle di file» della galleria: tipi, stati, nomi ostili, chip densi.
  *
  * Nella galleria la prima sezione e' **quella della matrice**: tema (nero compreso), testo e movimento sono quelli
  * che la matrice dice, applicati dalla radice. Sotto restano le quattro varianti interne, a confronto fisso

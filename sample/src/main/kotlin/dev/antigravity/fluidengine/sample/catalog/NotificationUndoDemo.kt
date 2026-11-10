@@ -6,6 +6,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.sample.MatrixTextScale
@@ -16,9 +18,14 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Demo isolata: aggregazione generica, sostituzione e scadenza applicativa; non registrata nel catalogo. */
+/**
+ * Pagina «Avvisi con azione» della galleria: aggregazione generica, sostituzione e scadenza applicativa.
+ *
+ * @param avoidTop quanto spazio lasciare libero in cima prima dell'avviso, sotto la barra di stato: una pagina che
+ *   mette i suoi tasti nella riga in alto lo passa, cosi' l'avviso non finisce sotto di loro. Di serie zero.
+ */
 @Composable
-fun NotificationUndoDemo() {
+fun NotificationUndoDemo(avoidTop: Dp = 0.dp) {
   // Nella galleria gli interruttori partono dalla matrice degli stati (e restano liberi); fuori, da spenti.
   var dark by rememberMatrixFlag { it.theme.isDark }
   var large by rememberMatrixFlag { it.textScale == MatrixTextScale.Largest }
@@ -64,19 +71,20 @@ fun NotificationUndoDemo() {
       LocalFluidMotionPolicy provides FluidMotionPolicy(if (reduced) 0f else 1f),
     ) {
       Box(Modifier.fillMaxSize()) {
+        // Un pulsante per riga in una pagina che scorre: cede il dito alla lista (con il testo al 200% la pagina e' piu' alta dello schermo).
         FluidScreen(title = "Azioni immediate") {
           item { Text(status) }
-          item { FluidButton("Modifica ordinaria", onClick = { publish(false) }) }
-          item { FluidButton("Operazione protetta (10 s)", onClick = { publish(true) }) }
+          item { FluidButton("Modifica ordinaria", onClick = { publish(false) }, grip = FluidPressGrip.YieldsToScroll) }
+          item { FluidButton("Operazione protetta (10 s)", onClick = { publish(true) }, grip = FluidPressGrip.YieldsToScroll) }
           item { FluidButton("Errore", onClick = {
             scope.launch { host.show(FluidNotification("errore-${++serial}", "Operazione non riuscita",
               "Riprova quando disponibile", tone = FluidNotificationTone.Error)) }
-          }) }
-          item { FluidButton("Chiaro / scuro", onClick = { dark = !dark }) }
-          item { FluidButton("Testo 100% / 200%", onClick = { large = !large }) }
-          item { FluidButton("Movimento ridotto", onClick = { reduced = !reduced }) }
+          }, grip = FluidPressGrip.YieldsToScroll) }
+          item { FluidButton("Chiaro / scuro", onClick = { dark = !dark }, grip = FluidPressGrip.YieldsToScroll) }
+          item { FluidButton("Testo 100% / 200%", onClick = { large = !large }, grip = FluidPressGrip.YieldsToScroll) }
+          item { FluidButton("Movimento ridotto", onClick = { reduced = !reduced }, grip = FluidPressGrip.YieldsToScroll) }
         }
-        FluidNotificationHost(host)
+        FluidNotificationHost(host, modifier = Modifier.padding(top = avoidTop))
       }
     }
   }

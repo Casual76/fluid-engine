@@ -88,7 +88,7 @@ import kotlin.math.roundToInt
  * rapido con la bolla, lo scrubber (un brano in riproduzione e una cronologia a passi) e il visualizzatore
  * di immagini.
  *
- * Non e' ancora nella galleria: la monta chi la prepara. Sta in una colonna sola e **si porta il suo host dei
+ * Nella galleria e' la pagina «Riordino, aggiornamento e visore». Sta in una colonna sola e **si porta il suo host dei
  * modali** (un palco per il visualizzatore e per il foglio dell'aggiornamento), cosi' funziona dove la si mette.
  * L'orologio ha la sua demo nell'engine-wear: la lista con i quattro stati (`FluidWearList`) non e' qui perche'
  * la galleria e' un'app da telefono.

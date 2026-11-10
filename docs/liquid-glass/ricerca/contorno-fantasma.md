@@ -483,7 +483,7 @@ Ho cercato ogni `GraphicsLayer.record` e `recordLayer` dell'engine e ho letto ch
 
 | dove | che cosa legge la lambda | rischio | effetto se rieseguita |
 |---|---|---|---|
-| `bd/highlight/HighlightModifier.kt:206-215` (anello di ogni `glassSurface`), con `configurePaint` a `:254-297` | il `paint` del nodo, a cui `configurePaint` dà **fuori dalla lambda** lo shader di processo (`SharedRuntimeShaders`) | **medio**: è lo stesso difetto del bordo appena corretto, su ogni lastra di vetro dell'engine | se il layer dell'anello perde la display list (nodo che smette di disegnarsi, superfici nascoste a intensità zero, app tornata dallo sfondo) e il nodo non deve registrare, l'anello si rifà con taglia e raggi di un'altra superficie: archi chiari fuori posto. Correzione: chiamare `configurePaint` dentro la lambda |
+| `bd/highlight/HighlightModifier.kt` (anello di ogni `glassSurface`) | il `paint` del nodo, a cui `configurePaint` dava **fuori dalla lambda** lo shader di processo (`SharedRuntimeShaders`) | **medio → corretto (9.6)** | se il layer dell'anello perdeva la display list e il nodo non doveva registrare, l'anello si rifaceva con taglia e raggi di un'altra superficie: archi chiari fuori posto |
 | `bd/backdrops/LayerBackdropModifier.kt:109` (sorgente del fondale) | `this@draw`, il `ContentDrawScope` di un passaggio di disegno passato | **medio-basso**, teorico | il layer della sorgente non si disegna a schermo, solo dentro le catture del vetro. Se nessun vetro lo campiona per un fotogramma, perde la display list. Rieseguita fuori dal suo passaggio, la lambda chiama `drawContent()` su uno scope che Compose condivide nella finestra: disegna il contenuto del nodo in disegno in quel momento, oppure lancia, e Compose inghiotte l'eccezione lasciando il layer vuoto (vetro senza fondale) finché la pagina non si ridisegna |
 | `ui/fluid/FluidGlassModal.kt:587` (istantanea della riga che si espande, ridisegnata dall'overlay a `:1371`) | `this@drawWithContent` | **medio-basso** | stesso meccanismo: se l'istantanea resta un fotogramma senza disegno (finestra aperta a riposo) e riappare nel ritorno, la riesecuzione è fuori passaggio, e l'istantanea esce vuota o con il contenuto sbagliato in chiusura. `:1371` ha già un `runCatching`. Da guardare: chiudere una finestra rimasta aperta a lungo e controllare che la riga riappaia lungo il ritorno |
 | `ui/fluid/FluidGlassModal.kt:2276` (anteprima del menu contestuale) | `this@drawWithContent` | basso | registrata e disegnata nello stesso draw, quindi resta nell'albero finché il nodo si disegna |
@@ -496,6 +496,70 @@ Ho cercato ogni `GraphicsLayer.record` e `recordLayer` dell'engine e ho letto ch
 Nel pacchetto `fluidphysics/` le sole registrazioni di layer sono l'ombra e il bordo, tutte e due corrette. La regola
 proposta in 6.3 per `ref/regole.md` resta da scrivere (fuori perimetro): **la lambda passata a `GraphicsLayer.record`
 è una funzione del solo layer.**
+
+### 9.6 L'anello di ogni lastra (`HighlightModifier`, seconda correzione)
+
+Decisione dell'orchestratore dopo il commit `72be580`: si corregge anche l'anello di `glassSurface`, perché riguarda
+ogni lastra e quel disegno resta in uso come ripiego.
+
+**La modifica** (`bd/highlight/HighlightModifier.kt`, file di Kyant, marcata «Fluid Engine change»). La chiamata a
+`configurePaint` (colore, spessore, sfocatura e lo shader del riflesso con i suoi uniform) passa da prima di
+`highlightLayer.record` a dentro la sua lambda. La sagoma che lo shader riceve (`shapeProvider.innerShape`) si legge
+alla registrazione, accanto all'outline, e la lambda la riceve come valore (`shaderShape`, nuovo parametro di
+`configurePaint`): la lambda non legge più il nodo. Voce 14 in `LICENSES/AndroidLiquidGlass.md`. A monte il dettaglio è
+innocuo (shader per nodo, registrazione a ogni disegno): dannoso lo rendono due modifiche nostre, la cache di processo
+degli shader e l'anello registrato una volta sola.
+
+**Lavoro per fotogramma: nessuno in più.** La lambda gira quando `needsRecord` è vero (taglia, sagoma, spessore,
+sfocatura o stile cambiati), come prima girava `configurePaint`, e in più solo quando Compose riesegue la lambda dopo
+uno scarto: allora ridisegna comunque tutto l'anello, e la configurazione è la parte piccola. Su un canvas accelerato
+`GraphicsLayer.draw` non esegue la lambda: rigioca la display list (bytecode di `ui-graphics` 1.10.5, sezione 2.3).
+Lo prova il secondo test qui sotto, che emula proprio quel percorso: dieci fotogrammi, una configurazione e un anello;
+uno scarto, una configurazione e un anello in più; cinque fotogrammi dopo, nient'altro. L'unica eccezione è il disegno
+**software** (un canvas non accelerato, per esempio un `View.draw` su una bitmap), dove Compose riesegue la lambda a ogni
+disegno già oggi: lì si aggiunge la configurazione a un anello che si rifaceva comunque.
+
+**Il test** (`engine-ui/src/test/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/highlight/HighlightRingReplayTest.kt`),
+sullo stesso banco di `PhysicsShadowSlotsTest`: `GraphicsLayer` veri sopra un doppio della piattaforma, `HighlightNode`
+disegnato fuori dalla composizione (il layer gli si dà per riflessione). Sul JVM lo shader è spento
+(`isRuntimeShaderSupported()` è falso con gli stub), quindi gli uniform non si leggono. Si legge **quale configurazione
+viene letta, e quando**: uno stile di prova annota ogni lettura del proprio colore, che è la prima cosa che
+`configurePaint` fa, e il canvas annota ogni anello disegnato.
+
+- `aReplayedRingIsDrawnWithItsOwnPaintNotTheLastSurfaces` (disegno software, che riesegue a ogni disegno): pannello A,
+  tasto B, di nuovo A. L'ultimo anello di A deve essere preceduto dalla configurazione di A.
+- `theRingIsConfiguredAtRecordAndAtReplayNeverPerFrame` (percorso hardware emulato): i conti scritti sopra.
+
+| comando (`build-gradle.ps1`, posto `lg-anello`) | codice | esito |
+|---|---|---|
+| `:engine-ui:testDebugUnitTest --tests …HighlightRingReplayTest` | del commit `72be580` (correzione tolta per la prova) | 2 test, **2 falliti** sulle asserzioni: eventi `[pennello:A, anello, pennello:B, anello, anello]`, cioè l'anello di A rieseguito col pennello di B; e `[pennello:A, anello, anello]`, cioè dopo uno scarto l'anello si rifà senza riconfigurare. Le asserzioni sul costo per fotogramma passavano già. Rapporto: `artifacts/liquid-glass/bench/contorno/anello-test-prima-della-correzione.xml` |
+| `:engine-ui:testDebugUnitTest` | corretto | **verde: 129 classi, 1415 test, 0 falliti, 0 saltati**, compresi `HighlightRingReplayTest` 2 su 2 e `PhysicsShadowSlotsTest` 2 su 2. 80 s |
+
+Banco di render (`artifacts\liquid-glass\venv\Scripts\python tools\glassbench\glassbench.py`): `check` pulito (15
+sorgenti compilate, nessuna AGSL toccata); `compare --golden classic` **13 su 13 uguali**, differenza massima 0.
+
+**Resta al dispositivo** (l'anello): gli uniform che arrivano allo shader. Aprire una finestra o un foglio di vetro, mandare
+l'app in background (Home) e riprenderla con il pannello aperto; poi ripetere dopo aver visitato una pagina con molti
+tasti di vetro. Atteso: il filo del pannello identico a prima, chiaro in alto e in basso e spento sui fianchi, nessun arco
+che non coincide con gli angoli del pannello.
+
+### 9.7 I due punti a rischio medio-basso: la prova che decide
+
+Non toccati. Per ciascuno, la prova sul dispositivo che dice se il rischio è reale.
+
+**`bd/backdrops/LayerBackdropModifier.kt:109`** (la sorgente del fondale, lambda che cattura `this@draw`).
+1. Su una pagina ferma, togliere per almeno un secondo l'unico vetro che la campiona, senza che la pagina si ridisegni:
+   una barra che si nasconde, un foglio chiuso. Poi farlo riapparire, e ripetere dopo un passaggio in background.
+2. Registrare lo schermo (`screenrecord`, 60 fps) e guardare i primi tre fotogrammi del vetro che riappare.
+3. Rischio reale se il vetro torna vuoto (solo pellicola, niente pagina sfocata) o con dentro un altro contenuto.
+   Smentito se dal primo fotogramma mostra la pagina sfocata giusta.
+
+**`ui/fluid/FluidGlassModal.kt:587`** (l'istantanea della riga che si espande, ridisegnata dall'overlay a `:1371`).
+1. In galleria aprire una card che si espande in finestra e lasciarla aperta e ferma almeno due secondi; in una seconda
+   prova mandare l'app in background con la finestra aperta e riprenderla.
+2. Chiudere la finestra registrando lo schermo a 60 fps, e guardare la prima metà del ritorno.
+3. Rischio reale se la riga (titolo, icona) non riappare dentro la finestra che si stringe, o se appare il contenuto di
+   un altro elemento. Smentito se riappare come all'apertura.
 
 ---
 

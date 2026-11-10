@@ -112,6 +112,20 @@ Le modifiche fatte finora:
     prova e' sul banco: `tools/glassbench/scenes/f0-raggi-diversi.json`. Il difetto e' ancora a
     monte (rilevato dalla ricerca R3, `docs/liquid-glass/ricerca/fattibilita-android.md`).
 
+14. **L'anello configura il pennello dentro la propria registrazione** (`highlight/HighlightModifier.kt`).
+    La lambda passata a `GraphicsLayer.record` non si esegue una volta sola: Compose la riesegue
+    da se' quando la piattaforma ha buttato la display list del layer (un anello rimasto un
+    fotogramma senza disegno, un'app tornata dallo sfondo). Nell'engine lo shader del riflesso e'
+    un'istanza condivisa da tutto il processo (`RuntimeShaderCacheImpl`) e l'anello si registra una
+    volta sola, non a ogni disegno: due nostre modifiche, ciascuna con la sua ragione nel sorgente.
+    Insieme rendevano dannoso un dettaglio innocuo a monte, la configurazione del pennello fatta
+    prima di `record`: la riesecuzione disegnava l'anello con taglia e raggi dell'ultima superficie
+    che aveva scritto gli uniform. Ora la configurazione sta dentro la lambda, con la sagoma letta
+    alla registrazione: uniform e disegno nello stesso istante. A monte non fa danno, perche' ogni
+    nodo ha la sua istanza di shader e ri-registra a ogni disegno. Trovato cercando la causa del
+    contorno fantasma di Fluid-physics (`docs/liquid-glass/ricerca/contorno-fantasma.md`, sezione 9);
+    la prova sul JVM e' `HighlightRingReplayTest`.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

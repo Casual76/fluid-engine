@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -201,9 +202,20 @@ internal class HighlightNode(
                         null
                     }
 
-                configurePaint(highlight, widthPx, blurPx, scaledSize, scaledDensity)
-
+                // Fluid Engine change: il pennello si configura DENTRO la lambda di `record`, non
+                // prima. La lambda resta nel layer e Compose la riesegue da se' quando la piattaforma
+                // ne butta la display list (`GraphicsLayer.recreateDisplayListIfNeeded`: un anello
+                // che resta un fotogramma senza disegno, un'app che torna dallo sfondo). Lo shader
+                // del riflesso e' un'istanza di processo (`SharedRuntimeShaders`) i cui uniform li
+                // scrive ogni superficie che registra il suo anello: configurato fuori, la
+                // riesecuzione registrava l'anello con taglia e raggi dell'ultima superficie passata
+                // di li' — archi chiari che non coincidono con il pannello. Dentro, uniform e disegno
+                // stanno nello stesso istante. Costo: lo stesso di prima a ogni registrazione; in
+                // piu' solo alla riesecuzione, che ridisegna comunque tutto l'anello. La sagoma per
+                // lo shader si legge qui, come l'outline: la lambda non legge il nodo.
+                val shaderShape = shapeProvider.innerShape
                 highlightLayer.record(safeSize) {
+                    configurePaint(highlight, widthPx, blurPx, scaledSize, scaledDensity, shaderShape)
                     translate(1f, 1f) {
                         val canvas = drawContext.canvas
                         canvas.save()
@@ -257,6 +269,8 @@ internal class HighlightNode(
         blurPx: Float,
         shaderSize: Size,
         shaderDensity: Density,
+        // Fluid Engine change: passata dal chiamante, letta alla registrazione (vedi sopra).
+        shaderShape: Shape,
     ) {
         paint.color = highlight.style.color
         paint.strokeWidth = strokeWidthPx
@@ -280,7 +294,8 @@ internal class HighlightNode(
                         // mille pixel indovina 498 invece di 58, e quello che si vede e' un arco
                         // chiaro che taglia il pannello a mezza altezza e non coincide con niente.
                         // "Solo in alcuni casi" era esattamente questo: i casi sono le taglie.
-                        shape = shapeProvider.innerShape,
+                        // (`shaderShape` e' `shapeProvider.innerShape` letta alla registrazione.)
+                        shape = shaderShape,
                         // La taglia del layer ridotto, non quella del nodo: e' su quei pixel che lo
                         // shader gira. Con la taglia intera il rettangolo che descriveva era piu'
                         // grande dei pixel disponibili, e dopo il riscalo in su il raggio degli

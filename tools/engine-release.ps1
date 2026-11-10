@@ -30,7 +30,9 @@
 param(
   [Parameter(Mandatory = $true)][string]$Version,
   [string[]]$Notes = @(),
-  [switch]$Tag
+  [switch]$Tag,
+  # Riga di co-autore per il commit di rilascio (per esempio "Claude <noreply@anthropic.com>"); vuota = nessuna.
+  [string]$CoAuthor = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -152,7 +154,9 @@ if ($Tag) {
   try {
     $add = Invoke-Git @("add", "ENGINE_VERSION", "CHANGELOG.md", $versionKt, $skillMd)
     if ($add.Code -ne 0) { Fail "git add non riuscito." }
-    $commit = Invoke-Git @("commit", "-m", "Rilascia Fluid Engine $Version", "-m", "Co-Authored-By: GPT-6.1 Sol <noreply@openai.com>")
+    $commitArgs = @("commit", "-m", "Rilascia Fluid Engine $Version")
+    if ($CoAuthor) { $commitArgs += @("-m", "Co-Authored-By: $CoAuthor") }
+    $commit = Invoke-Git $commitArgs
     if ($commit.Code -ne 0) { Fail "commit non riuscito: $($commit.Lines -join ' ')" }
     $tagResult = Invoke-Git @("tag", "engine-$Version")
     if ($tagResult.Code -ne 0) { Fail "tag non creato: $($tagResult.Lines -join ' ')" }

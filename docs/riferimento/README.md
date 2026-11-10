@@ -153,13 +153,13 @@ Ogni compito ha la sua ricetta con i passi e il perché in `ricette.md`. Qui, il
 - **Tagliare una versione** — `engine-release.ps1 -Version X -Notes "…" -Tag`: muove insieme `ENGINE_VERSION`,
   `EngineBuild.VERSION`, la «Versione documentata» di questo file e il tag. Mai a mano. Poi rigenera il catalogo (`scripts/gen_api_catalog.py`).
 - **«Il widget non segue il tema»** — manca il collegamento fra impostazioni e `updateAll` (`widget.md`).
-- **Qualcosa non va** — `risoluzione-problemi.md`, e prima: l'app è sull'ultima patch (3.0.1–3.0.4 correggono
-  metà dei sintomi)?
+- **Qualcosa non va** — `risoluzione-problemi.md`, e prima: l'app è sull'ultima patch (le versioni di correzione,
+  dalla 3.0.1 in poi, correggono metà dei sintomi: vedi il CHANGELOG)?
 
 ## Il movimento ridotto non è automatico
 
 `LocalFluidMotionPolicy` vale scala 1 di serie e `FluidTheme` **non** installa `FluidMotionPolicyProvider`
-(verificato nel codice 3.0.4): finché la radice dell'app non lo avvolge, il movimento decorativo dell'engine ignora la
+(verificato nel codice 3.0.4, ancora vero nella 3.1.3): finché la radice dell'app non lo avvolge, il movimento decorativo dell'engine ignora la
 scala di animazione di sistema a zero. Mettilo in radice in un'app nuova (`componenti/movimento.md`).
 
 ## Prima di dire che hai finito

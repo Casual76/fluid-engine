@@ -2,9 +2,9 @@ package dev.antigravity.fluidengine.ai.bridge
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
 import android.os.DeadObjectException
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
@@ -101,7 +101,7 @@ class AiToolClient(private val context: Context) : BridgeCalls {
 
   /** Legge una parte consegnata dall'ospite (URI con grant temporaneo). */
   override fun readPart(part: RemotePart): ByteArray? = runCatching {
-    context.contentResolver.openInputStream(Uri.parse(part.uri))?.use { it.readBytes() }
+    context.contentResolver.openInputStream(part.uri.toUri())?.use { it.readBytes() }
   }.getOrNull()
 
   private fun request(authority: String, payload: JsonObject): JsonObject =

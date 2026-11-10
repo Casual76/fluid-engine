@@ -60,12 +60,12 @@ internal fun PlaygroundStage(
   state: FluidPhysicsState,
   tier: FluidPhysicsTier?,
   drawing: Boolean,
+  modifier: Modifier = Modifier,
   aspectRatio: Float = 1f,
   onSized: (IntSize) -> Unit = {},
   onStrokeFinished: (List<Offset>) -> Unit = {},
   /** Il tocco sul pezzo fermo; null: il pezzo non si tocca. */
   onPieceClick: (() -> Unit)? = null,
-  modifier: Modifier = Modifier,
   content: @Composable () -> Unit = {},
 ) {
   val stageBackdrop = rememberGlassBackdrop()

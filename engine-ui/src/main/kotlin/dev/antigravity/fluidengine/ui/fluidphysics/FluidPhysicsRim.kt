@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.core.graphics.withTranslation
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRimRecipe
@@ -353,26 +354,24 @@ internal class PhysicsRimRenderer(private val layer: GraphicsLayer) {
     meshPaint.blendMode = rim.blendMode
     val mesh = dropMesh
     drawIntoCanvas { canvas ->
-      val native = canvas.nativeCanvas
-      native.save()
-      native.translate(bounds.left, bounds.top)
       // Le coordinate della trama sono le posizioni stesse: lo shader del riflesso lavora nel riquadro
       // della goccia, e l'alfa dei vertici (il profilo) lo modula.
-      native.drawVertices(
-        android.graphics.Canvas.VertexMode.TRIANGLES,
-        mesh.vertexFloats,
-        mesh.positions,
-        0,
-        mesh.positions,
-        0,
-        mesh.colors,
-        0,
-        mesh.indices,
-        0,
-        mesh.indexCount,
-        meshPaint.asFrameworkPaint(),
-      )
-      native.restore()
+      canvas.nativeCanvas.withTranslation(bounds.left, bounds.top) {
+        drawVertices(
+          android.graphics.Canvas.VertexMode.TRIANGLES,
+          mesh.vertexFloats,
+          mesh.positions,
+          0,
+          mesh.positions,
+          0,
+          mesh.colors,
+          0,
+          mesh.indices,
+          0,
+          mesh.indexCount,
+          meshPaint.asFrameworkPaint(),
+        )
+      }
     }
   }
 

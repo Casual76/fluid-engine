@@ -311,9 +311,9 @@ private fun TabBarSection() {
 
 /** Il contenuto della banda: lo disegna l'app, sopra il vetro che la barra le mette. */
 @Composable
-private fun NowPlaying(band: Modifier) {
+private fun NowPlaying(modifier: Modifier) {
   Row(
-    modifier = band.height(56.dp).padding(horizontal = 18.dp),
+    modifier = modifier.height(56.dp).padding(horizontal = 18.dp),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(10.dp),
   ) {

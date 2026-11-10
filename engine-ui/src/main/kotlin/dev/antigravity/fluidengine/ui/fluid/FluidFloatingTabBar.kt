@@ -875,6 +875,7 @@ enum class FluidFloatingTabBarInlineBehavior {
  * glass.
  */
 @Composable
+@Suppress("ModifierParameter") // firma pubblicata: la posizione di `modifier` e' compatibilita' sorgente (le protegge Compat*), spostarla rompe le chiamate posizionali
 fun FluidFloatingTabBar(
     items: List<FluidTabItem>,
     selectedRoute: String?,
@@ -1059,6 +1060,7 @@ private fun Modifier.tapClickable(
 }
 
 @Composable
+@Suppress("ModifierParameter") // codice vendorizzato: tabBarContentModifier e' il pannello di vetro della barra (vedi il KDoc di FluidFloatingTabBar), non il modifier del chiamante
 private fun SharedTransitionScope.InlineBar(
     scope: FluidFloatingTabBarScopeImpl,
     selectedTabKey: Any?,
@@ -1367,6 +1369,7 @@ private fun SharedTransitionScope.InlineStandaloneTab(
 }
 
 @Composable
+@Suppress("ModifierParameter") // codice vendorizzato: tabBarContentModifier e' il pannello di vetro della barra (vedi il KDoc di FluidFloatingTabBar), non il modifier del chiamante
 private fun SharedTransitionScope.InlineAccessory(
     accessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)?,
     isAccessoryShared: Boolean,
@@ -1410,6 +1413,7 @@ private fun SharedTransitionScope.InlineAccessory(
 }
 
 @Composable
+@Suppress("ModifierParameter") // codice vendorizzato: tabBarContentModifier e' il pannello di vetro della barra (vedi il KDoc di FluidFloatingTabBar), non il modifier del chiamante
 private fun SharedTransitionScope.ExpandedBar(
     scope: FluidFloatingTabBarScopeImpl,
     selectedTabKey: Any?,
@@ -1582,6 +1586,7 @@ private fun SharedTransitionScope.ExpandedBar(
  * tab-group pill + circular standalone tab.
  */
 @Composable
+@Suppress("ModifierParameter") // codice vendorizzato: tabBarContentModifier e' il pannello di vetro della barra (vedi il KDoc di FluidFloatingTabBar), non il modifier del chiamante
 private fun SharedTransitionScope.SearchExpandedBar(
     scope: FluidFloatingTabBarScopeImpl,
     selectedTabKey: Any?,
@@ -1740,6 +1745,7 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
 }
 
 @Composable
+@Suppress("ModifierParameter") // codice vendorizzato: tabBarContentModifier e' il pannello di vetro della barra (vedi il KDoc di FluidFloatingTabBar), non il modifier del chiamante
 private fun SharedTransitionScope.ExpandedAccessory(
     accessory: @Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit,
     isAccessoryShared: Boolean,

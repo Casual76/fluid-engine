@@ -123,6 +123,7 @@ fun LazyListScope.fluidLicensesSection(
 
 /** The same list outside a lazy layout, for a page built out of a `Column`. [glass]: vedi [fluidLicensesSection]. */
 @Composable
+@Suppress("ModifierParameter") // firma pubblicata: la posizione di `modifier` e' compatibilita' sorgente (le protegge Compat*), spostarla rompe le chiamate posizionali
 fun FluidLicenseGroup(
   licences: List<FluidLicense> = FluidEngineLicenses,
   modifier: Modifier = Modifier,
@@ -149,6 +150,7 @@ fun FluidLicenseGroup(
  * For an app that wants a real credits page rather than a compliance list.
  */
 @Composable
+@Suppress("ModifierParameter") // firma pubblicata: la posizione di `modifier` e' compatibilita' sorgente (le protegge Compat*), spostarla rompe le chiamate posizionali
 fun FluidLicenseDetails(
   licences: List<FluidLicense> = FluidEngineLicenses,
   modifier: Modifier = Modifier,

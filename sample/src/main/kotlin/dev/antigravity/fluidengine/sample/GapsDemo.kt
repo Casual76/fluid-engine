@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -105,7 +106,7 @@ internal fun LazyListScope.gapsDemoItems() {
   // 3. Il messaggio che si tocca.
   item(key = "gaps-message-header") { FluidSectionHeader(title = "Messaggio toccabile") }
   item(key = "gaps-message") {
-    var taps by remember { mutableStateOf(0) }
+    var taps by remember { mutableIntStateOf(0) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
       FluidInlineMessage(
         title = "Sei offline",

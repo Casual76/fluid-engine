@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 e successivi leggono queste regole al posto di allowBackup. La galleria e' un'app di prova:
+  non ha dati da salvare ne' da portare su un altro telefono (il registro aptico e la grana tarata si
+  rifanno in un minuto), quindi esclude tutto, come gia' diceva allowBackup="false".
+-->
+<data-extraction-rules>
+  <cloud-backup>
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+  </cloud-backup>
+  <device-transfer>
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+  </device-transfer>
+</data-extraction-rules>

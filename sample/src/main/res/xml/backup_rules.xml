@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 e precedenti leggono queste regole (da Android 12 valgono quelle in data_extraction_rules.xml).
+  La galleria non ha dati da salvare: esclude tutto, come gia' diceva allowBackup="false".
+-->
+<full-backup-content>
+  <exclude domain="root" />
+  <exclude domain="file" />
+  <exclude domain="database" />
+  <exclude domain="sharedpref" />
+  <exclude domain="external" />
+</full-backup-content>

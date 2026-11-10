@@ -300,6 +300,7 @@ val LocalFluidMorphMenuState: ProvidableCompositionLocal<FluidMorphMenuState?> =
  *   tasto fa il suo [onClick] e il menu non si apre (non c'e' un host che lo disegni).
  */
 @Composable
+@Suppress("ModifierParameter") // firma pubblicata: la posizione di `modifier` e' compatibilita' sorgente (le protegge Compat*), spostarla rompe le chiamate posizionali
 fun FluidMorphMenuButton(
   state: FluidMorphMenuState = LocalFluidMorphMenuState.current ?: rememberFluidMorphMenuState(),
   actions: () -> List<FluidContextAction>,

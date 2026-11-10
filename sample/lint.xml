@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Il lint non segnala le versioni piu' nuove delle dipendenze fissate di proposito in una versione di correzione:
+  aggiornarle cambierebbe l'albero che le app ereditano. Ogni voce vale solo per la versione fissata qui sotto
+  (se la dipendenza cambia versione, l'avviso torna). Nessun controllo e' disattivato.
+-->
+<lint>
+  <issue id="NewerVersionAvailable">
+    <!-- mockwebserver 4.12.0 e' fissato in versions.gradle: la 5.x cambia l'albero delle dipendenze di prova -->
+    <ignore regexp="com\.squareup\.okhttp3:mockwebserver than 4\.12\.0 is available" />
+  </issue>
+</lint>

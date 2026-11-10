@@ -33,7 +33,7 @@ _Generato sull'engine 3.1.1 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `class FluidScreenMetrics internal constructor()` — Quello che una [FluidScreen] sa della propria colonna, per chi costruisce la sua lista.
   - `var contentWidth: Dp by mutableStateOf(Dp.Unspecified)` — La larghezza della colonna di contenuto, margini esclusi; non specificata finche' non misurata.
-  - `var fontScale: Float by mutableStateOf(1f)` — La scala del testo di sistema. Una colonna larga abbastanza per una riga a testo normale non lo e' piu' a 1.3: le parole cominciano ad andare a capo a meta', e tre colonne diventano tre colonne di sillabe. La misura minima cresce con il testo, e le colonne calano da sole.
+  - `var fontScale: Float by mutableFloatStateOf(1f)` — La scala del testo di sistema. Una colonna larga abbastanza per una riga a testo normale non lo e' piu' a 1.3: le parole cominciano ad andare a capo a meta', e tre colonne diventano tre colonne di sillabe. La misura minima cresce con il testo, e le colonne calano da sole.
   - `fun columns(minColumn: Dp = FluidColumnsDefaults.MinColumn, spacing: Dp = FluidColumnsDefaults.Spacing, maxColumns: Int = FluidColumnsDefaults.MaxColumns): Int` — Quante colonne stanno nella colonna di contenuto, larghe almeno [minColumn] a testo normale.
 - `@Composable fun rememberFluidScreenMetrics(): FluidScreenMetrics`
 - `object FluidColumnsDefaults`

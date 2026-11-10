@@ -41,6 +41,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsuleDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsulePlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
+import dev.antigravity.fluidengine.ui.fluid.FluidPressGrip
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetScaffold
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -68,7 +69,8 @@ import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
  * un `FluidGlassModalHost` alla radice, come per ogni foglio dell'engine.
  *
  * Su un telefono stretto, o col testo al 200%, i tasti scorrono di lato dentro la capsula: sono sempre
- * da 48 dp.
+ * da 48 dp. I tasti cedono al gesto di scorrimento (`FluidPressGrip.YieldsToScroll`): un trascinamento
+ * che parte sopra un tasto fa scorrere la fila e non lo preme, un tocco semplice lo preme.
  *
  * **Dove si posa.** Nell'overlay della pagina (`FluidScreen.overlay`, o un `Box` sopra il contenuto),
  * allineata in basso: `Modifier.align(Alignment.BottomCenter)`. Di serie prende i margini della barra
@@ -111,60 +113,70 @@ fun FluidRichTextToolbar(
         contentDescription = labels.formatting,
         onClick = { state.isFormattingRequested = !state.isFormattingRequested },
         selected = state.isFormattingRequested,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.Rounded.FormatBold,
         contentDescription = labels.bold,
         onClick = { state.toggle(FluidRichTextInlineStyle.Bold) },
         selected = format.bold,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.Rounded.FormatItalic,
         contentDescription = labels.italic,
         onClick = { state.toggle(FluidRichTextInlineStyle.Italic) },
         selected = format.italic,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.Rounded.FormatUnderlined,
         contentDescription = labels.underline,
         onClick = { state.toggle(FluidRichTextInlineStyle.Underline) },
         selected = format.underline,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.AutoMirrored.Rounded.FormatListBulleted,
         contentDescription = labels.bulletList,
         onClick = { state.toggleList(FluidRichTextListKind.Bullet) },
         selected = format.list == FluidRichTextListKind.Bullet,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.Rounded.FormatListNumbered,
         contentDescription = labels.numberedList,
         onClick = { state.toggleList(FluidRichTextListKind.Numbered) },
         selected = format.list == FluidRichTextListKind.Numbered,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.Rounded.FormatQuote,
         contentDescription = labels.quote,
         onClick = { state.toggleQuote() },
         selected = format.quote,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.AutoMirrored.Rounded.FormatIndentDecrease,
         contentDescription = labels.decreaseIndent,
         onClick = { state.decreaseIndent() },
         enabled = format.canDecreaseIndent,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.AutoMirrored.Rounded.FormatIndentIncrease,
         contentDescription = labels.increaseIndent,
         onClick = { state.increaseIndent() },
         enabled = format.canIncreaseIndent,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
         icon = Icons.Rounded.Link,
         contentDescription = labels.link,
         onClick = { state.openLinkEditor() },
         selected = format.link != null,
+        grip = FluidPressGrip.YieldsToScroll,
       )
       if (showHistory) {
         FluidCapsuleAction(
@@ -172,12 +184,14 @@ fun FluidRichTextToolbar(
           contentDescription = labels.undo,
           onClick = { state.undo() },
           enabled = state.canUndo,
+          grip = FluidPressGrip.YieldsToScroll,
         )
         FluidCapsuleAction(
           icon = Icons.AutoMirrored.Rounded.Redo,
           contentDescription = labels.redo,
           onClick = { state.redo() },
           enabled = state.canRedo,
+          grip = FluidPressGrip.YieldsToScroll,
         )
       }
     }

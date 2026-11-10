@@ -28,7 +28,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-update](update.md) | 2 | 14 |
 | [engine-widget](widget.md) | 3 | 34 |
 | [engine-wear](wear.md) | 17 | 87 |
-| [engine-richtext](richtext.md) | 9 | 106 |
+| [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

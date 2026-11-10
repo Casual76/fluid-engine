@@ -72,10 +72,10 @@ import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 
 /**
- * L'editor con formattazione (modulo opt-in `engine-richtext`, F1.4 parte C): il campo, la barra sopra la
+ * L'editor con formattazione (modulo opt-in `engine-richtext`): il campo, la barra sopra la
  * tastiera, il tasto «Aa», l'incolla di HTML sporco e le tre uscite (HTML ristretto, Markdown, testo).
  *
- * Non e' ancora nella galleria: la monta chi la prepara (F1.6). Stati: vuoto, con contenuto (tutti gli
+ * E' la pagina «Testo ricco» della galleria (gruppo Campi). Stati: vuoto, con contenuto (tutti gli
  * stili, elenchi, link, citazione), elenchi e citazioni annidati su piu' livelli con le loro uscite, sola
  * lettura, e due riquadri che rifanno l'editor col testo al 200% in arabo (da destra a sinistra, con un
  * elenco profondo) e in scuro con il movimento ridotto (annidato). Ogni riquadro ha il suo host dei

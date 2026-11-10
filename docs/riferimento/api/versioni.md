@@ -3,10 +3,11 @@
 
 # Versioni (generato dal CHANGELOG)
 
-_Generato da `scripts/gen_api_catalog.py` sull'engine 3.1.0. Non si modifica a mano: per il testo intero si apre `CHANGELOG.md` alla radice dell'engine._
+_Generato da `scripts/gen_api_catalog.py` sull'engine 3.1.1. Non si modifica a mano: per il testo intero si apre `CHANGELOG.md` alla radice dell'engine._
 
 Una riga per versione (la sua prima voce) e, sotto, ogni voce **BREAKING**: sono quelle da leggere prima di aggiornare un'app. «Cambia a vista» / «Cambia al tatto» nel changelog segnano le modifiche che non rompono la compilazione ma si notano.
 
+- **3.1.1** (2026-11-10) — Correzioni dopo la prima revisione della Fase 1: contenitore web, editor di testo con formattazione, liste con scorrimento e lint di `engine-ui`. **Nessuna rottura per le app e nessuna firma pubblica cambia** (nessun valore nuovo in `Fluid…
 - **3.1.0** (2026-11-09) — La Fase 1 di Pampa Mail: l'engine impara a fare una casella di posta senza che il dominio entri (nessun nome pubblico parla di mail: valgono per Pampa notes, Codex, ClasseViva, FluidWeather, PampAI…). **Nessuna rottura per le app**: solo a…
 - **3.0.7** (2026-11-09) — Integrati gli hook runtime IA e i controlli pagina di PampAI; corretto lo scrubber di Fluidify. Nuove policy IA opzionali con default compatibili con 3.0.6.
 - **3.0.6** (2026-11-08) — Corretto il Back dei menu sopra pagine annidate; preservata la compatibilita source-proof v1 e typed v2 gia pubblicata.

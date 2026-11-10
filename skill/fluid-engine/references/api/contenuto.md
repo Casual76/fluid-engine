@@ -1,6 +1,6 @@
 # API · Contenuto: righe, card, liste, identità, testo, file
 
-_Generato sull'engine 3.1.0 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+_Generato sull'engine 3.1.1 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
 ## `engine-ui/ui/fluid/FluidAvatar.kt`
 

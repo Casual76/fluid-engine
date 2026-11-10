@@ -78,7 +78,9 @@ $versionFile = Join-Path $engineRoot "ENGINE_VERSION"
 $changelog = Join-Path $engineRoot "CHANGELOG.md"
 $versionKt = Join-Path $engineRoot "engine-foundation\src\main\kotlin\dev\antigravity\fluidengine\foundation\EngineVersion.kt"
 
-foreach ($required in @($versionFile, $changelog, $versionKt)) {
+$skillMd = Join-Path $engineRoot "skill\fluid-engine\SKILL.md"
+
+foreach ($required in @($versionFile, $changelog, $versionKt, $skillMd)) {
   if (-not (Test-Path -LiteralPath $required)) { Fail "manca $required" }
 }
 

@@ -6,7 +6,7 @@ plugins {
 apply from: "${projectDir}/../versions.gradle"
 
 android {
-  namespace 'dev.antigravity.fluidengine.net'
+  namespace = 'dev.antigravity.fluidengine.net'
   compileSdk engine.compileSdk
 
   defaultConfig {

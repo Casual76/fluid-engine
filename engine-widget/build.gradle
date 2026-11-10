@@ -7,7 +7,7 @@ plugins {
 apply from: "${projectDir}/../versions.gradle"
 
 android {
-  namespace 'dev.antigravity.fluidengine.widget'
+  namespace = 'dev.antigravity.fluidengine.widget'
   compileSdk engine.compileSdk
 
   defaultConfig {
@@ -15,7 +15,7 @@ android {
   }
 
   buildFeatures {
-    compose true
+    compose = true
   }
 
   compileOptions {

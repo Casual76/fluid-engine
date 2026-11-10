@@ -7,7 +7,7 @@ plugins {
 apply from: "${projectDir}/../versions.gradle"
 
 android {
-  namespace 'dev.antigravity.fluidengine.wear'
+  namespace = 'dev.antigravity.fluidengine.wear'
   compileSdk engine.compileSdk
 
   defaultConfig {
@@ -16,7 +16,7 @@ android {
   }
 
   buildFeatures {
-    compose true
+    compose = true
   }
 
   testOptions {

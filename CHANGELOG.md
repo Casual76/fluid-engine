@@ -18,10 +18,12 @@ Giro di correzione 3 della Fase 1: il tetto dello stato salvato dell'editor dive
 ### Build
 
 - build: `sample/build.gradle`, nel ripiego della release sulla firma di debug (il ramo che gira solo senza chiavi in `local.properties`), usa `signingConfig = …`. La 3.1.2 dichiarava zero deprecazioni degli script, ed era vero solo con le chiavi presenti: senza chiavi restava un avviso, su quella riga. Ora `./gradlew --warning-mode all` non ne segnala in nessuna delle due condizioni. Nessun cambio per le app (la galleria non entra in un'app).
+- tools: `engine-release.ps1` accetta `-CoAuthor` per la riga di co-autore del commit di rilascio con `-Tag` (prima era fissa e attribuiva ogni rilascio allo stesso modello); senza il parametro il commit non ha righe di co-autore.
 
 ### Documentazione e test
 
 - docs: la scheda dell'editor (`moduli/richtext.md`) e il KDoc dicono che cosa conta il tetto (la codifica del `Parcel`, il margine, ciò che resta fuori: la chiave e la lista di `rememberSaveable`, lo stato del resto della schermata) e che il limite è superiore; la scheda di `engine-foundation` non scrive più un numero di versione come esempio di `EngineBuild.VERSION` (diceva `"3.0.4"`); `storia.md` ha le righe della 3.1.2 e della 3.1.3 e l'intestazione non nomina più l'ultima versione.
+- docs: `SKILL.md` non presenta più la 3.0.4 come versione corrente (la patch più recente e il movimento ridotto non installato da `FluidTheme`, ancora vero nella 3.1.3).
 - test: `FluidRichTextSavedParcelTest` (strumentato, 5) confronta la stima con un `Parcel` vero su 20 documenti costruiti apposta (molti link brevi, link lunghi quanto l'editor ne accetta, un tratto per carattere, paragrafi annidati, emoji e caratteri fuori dal BMP, documento vuoto, documenti a pochi byte dal tetto da una parte e dall'altra): la stima non sta mai sotto la dimensione vera né oltre 72 byte sopra, ciò che si salva sta nel tetto e torna identico da un `Parcel`, sopra il tetto non si salva. Sulla 3.1.2 fallisce. `FluidRichTextSavedSizeFormulaTest` (JVM, 6) tiene ferma la formula sui numeri misurati. Nessun test esistente modificato.
 
 

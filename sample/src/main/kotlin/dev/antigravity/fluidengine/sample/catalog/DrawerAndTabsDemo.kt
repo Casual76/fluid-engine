@@ -479,12 +479,23 @@ private fun VariantsSection() {
 @Composable
 private fun VariantStage(tag: String) {
   var folded by remember { mutableStateOf(false) }
-  Stage(height = 480.dp, modifier = Modifier.testTag(tag)) { backdrop ->
+  // Come nel palco del pannello: la riga dei tasti (☰ e «Ripiega») ha il suo spazio, misurato dalla scena, e le
+  // righe fittizie cominciano sotto di lei. A testo grande la riga cresce e le righe scendono con lei.
+  var headerPx by remember { mutableIntStateOf(0) }
+  val headerHeight = with(LocalDensity.current) { headerPx.toDp() }
+  Stage(
+    height = 480.dp,
+    modifier = Modifier.testTag(tag),
+    page = { StagePage(topInset = headerHeight) },
+  ) { backdrop ->
     val drawer = rememberFluidDrawerState()
     var folder by remember { mutableStateOf("inbox") }
     Box(Modifier.fillMaxSize().fluidDrawerObscured(drawer)) {
       Row(
-        modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+        modifier = Modifier
+          .align(Alignment.TopStart)
+          .onSizeChanged { headerPx = it.height }
+          .padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {

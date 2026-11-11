@@ -978,7 +978,7 @@ applica si segna NA.
 ### 6.0 Ordine, dipendenze, regole comuni
 
 ```
-F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A ─▶ F5B ─▶ F6 ─▶ F6B ─▶ F7 ─▶ F8
+F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A ─▶ F5B ─▶ F6 ─▶ F6B ─▶ F7 ─▶ F8 ─▶ F9
  S1            S2          S3                        S4      S5    S6
 ```
 
@@ -997,6 +997,7 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F6B | Elementi dinamici preconfigurati (aggiunta l'11 novembre) | da definire dopo R8 | — | una sua |
 | F7 | Ottimizzazione | 7 | 7 | S5, S6 |
 | F8 | Consegna | 6 | 4 | S6 |
+| F9 | Documentazione estesa e verifica d'adozione (aggiunta l'11 novembre) | 7 | 2 | — |
 
 In tutto **84 pacchetti** (83 nel piano di partenza, più F4A.7 nato dalle misure di S1-bis), **74** dei quali chiedono almeno una volta un posto Gradle, e **6 sessioni** per 14–19 ore
 previste sul dispositivo (è il programma iniziale: una fase riaperta da una sessione può chiederne un'altra, da concordare). Con tre critici per fase sono almeno 36 valutazioni, fino a 144 se ogni fase usasse i tre giri. Il
@@ -2577,6 +2578,117 @@ movimento ridotto senza crash; `compare` e tutti i test; lettura della tabella S
 copertura dei chiamanti dà a zero su tutti e tre i livelli.
 
 **Scelte di gusto.** Nessuna di resa. Da decidere con Alessio: il numero di versione, quale app migrare per prima.
+
+### F9 · Documentazione estesa e verifica d'adozione
+
+**Fase aggiunta l'11 novembre 2026 su richiesta di Alessio**, ultima del progetto: «espandere la documentazione
+dell'engine e la skill dell'engine, in modo che non solo sia aggiornata e più che completa, ma che sia anche
+utilizzabile per **valutare se l'engine è stato applicato correttamente**. La differenza fra una documentazione di base
+e una documentazione ottima ed estensiva, che copre ogni aspetto, è ciò che può fare davvero la differenza.»
+F8 porta schede, regole, migrazione e catalogo allo stato «aggiornato e corretto»; F9 li porta a «completo per chi non
+c'era» e aggiunge ciò che F8 non ha: **la verifica**. Sta dopo F8 perché documenta e verifica l'engine com'è alla
+consegna (dopo la pulizia), e non blocca la 4.0.0: ciò che F9 scopre di sbagliato nell'engine si corregge in una 4.0.x.
+
+**Scopo.** Tre cose che oggi non esistono:
+1. **Una documentazione che copre ogni aspetto**, scritta per due lettori: chi scrive un'app (una persona o un agente)
+   e chi deve giudicare un'app già scritta. Per ogni componente e per ogni viaggio d'oro una scheda completa; per ogni
+   regola il perché.
+2. **Un metro di conformità**: ogni regola d'uso dell'engine diventa un'**asserzione verificabile**, con un
+   identificativo stabile, una gravità, il modo di controllarla (una ricerca nel codice, un controllo automatico, uno
+   scatto da guardare, una misura) e l'esempio giusto accanto a quello sbagliato.
+3. **Gli strumenti per applicarlo**: uno script che legge il repo di un'app e produce un rapporto d'adozione, una
+   procedura per la parte che si vede solo sul dispositivo, un modello di rapporto con un punteggio, e una skill che
+   porta un agente a fare la verifica da solo, dall'inizio alla fine.
+
+**Progetto.**
+
+- *La scheda completa* (un formato solo, in `ref/componenti/`; quelle di F8 si estendono, non si riscrivono): a cosa
+  serve e **quando non usarlo** (con l'alternativa); anatomia con un'immagine annotata; stati e viaggi (con il collage
+  del banco); ogni parametro col valore di serie e l'effetto, e ciò che **non** va toccato; come si combina con i vicini
+  (barre, tastiera, fogli, vetro su vetro); misure e margini; tema chiaro e scuro, contrasto, movimento ridotto,
+  destra-sinistra, tablet; costo (nodi, layer, cosa lo fa salire); ripieghi sotto Android 13; errori tipici, ognuno con
+  l'asserzione che lo cattura; esempio minimo e esempio realistico, che **compilano** (provati dal controllo dei
+  documenti); il corrispondente SwiftUI.
+- *Il catalogo visivo*: per ogni componente le immagini rese dal banco nei due temi e negli stati principali, e per ogni
+  viaggio d'oro il collage denso e le curve: generate da script (`skill/…/scripts/gen_visual_catalog.py` sopra
+  `tools/glassbench/`), così restano vere a ogni versione; `check_docs.py` fallisce se un'immagine citata manca o è più
+  vecchia della scena che la genera.
+- *I principi e le decisioni*: `ref/principi.md` (le regole di fondo: cosa è vetro e cosa no, chi è parte
+  dell'interfaccia e chi della pagina, si trasforma ciò che resta e si sfoca ciò che cambia, un solo materiale, i viaggi
+  d'oro) e `ref/decisioni.md` (ogni scelta di gusto e di progetto con la data e il motivo: le «Scelte di Alessio» di
+  questo piano, le divergenze volute da Apple), perché chi arriva dopo non le rimetta in discussione per ignoranza.
+- *Le ricette per tipo di schermata* (`ref/ricette/`): lista e dettaglio, chat, lettore multimediale, impostazioni,
+  posta, galleria, modulo con tastiera, ricerca: ognuna una schermata intera, con le barre dichiarate, senza
+  un'animazione scritta a mano, e con l'elenco delle asserzioni che deve passare.
+- *Il metro* (`ref/conformita/`): una voce per asserzione, in un formato che uno script legge: `id` (per esempio
+  `BAR-03`), area, enunciato in una frase, gravità (bloccante / maggiore / minore / consiglio), come si verifica
+  (`codice`: l'espressione di ricerca o il controllo; `vista`: lo scatto e cosa guardare; `misura`: lo strumento e la
+  soglia), giusto / sbagliato, la scheda che lo spiega, da quale versione vale. Nasce dalle regole di `ref/regole.md`
+  (che resta la prosa) e dalle regole di R7 e delle schede; ogni regola di `regole.md` deve avere almeno un'asserzione,
+  o la dichiarazione che non è verificabile e perché.
+- *Lo script* (`skill/fluid-engine/scripts/audit_app.py <cartella dell'app>`), sola lettura: versione dell'engine e
+  moduli usati; le asserzioni di tipo `codice` (icone Material dove ci vuole il set, `Icon` con la taglia scritta dentro
+  un tasto di vetro, azioni come composable liberi dove c'è `toolbar`, barre, campi di ricerca, barre di selezione,
+  avvisi e lettori **scritti a mano** dove l'engine ha il componente, vetro sul contenuto, tinte e ottiche a mano,
+  animazioni scritte a mano su ciò che l'engine anima, margini e misure scritti a numero, API deprecate, `Classic`
+  forzato senza motivo…); per ogni rilievo file, riga, asserzione, gravità e la correzione proposta; un riepilogo per
+  area con un **punteggio** e l'elenco delle schermate da guardare sul dispositivo. Esce in Markdown e in JSON. Ha un
+  selftest su due app di prova tenute nel repo (`skill/…/audit-fixtures/`): una conforme (zero rilievi) e una con le
+  violazioni seminate apposta (le trova tutte, nessuna in più).
+- *I controlli dove il compilatore può farli*: le asserzioni più nette diventano regole di lint dell'engine (se il
+  modulo di lint c'è alla consegna, altrimenti restano nello script e la scelta si scrive in `decisioni.md`).
+- *La procedura sul dispositivo* (`ref/conformita/verifica-sul-dispositivo.md`): quali schermate, in quali
+  combinazioni (tema, testo grande, movimento ridotto, telefono e tablet), quali viaggi riprendere e con quale comando
+  del rivelatore di scatti, cosa conta come rilievo; il **modello di rapporto** (`rapporto-adozione.md`): punteggio per
+  area, rilievi ordinati per gravità, cosa fare per primo.
+- *La skill*: `SKILL.md` e `ref/mappa.md` ristrutturati perché un agente carichi solo ciò che serve al compito
+  (scrivere una schermata, migrare, **verificare un'app**, aggiungere un componente all'engine), con una via d'ingresso
+  per ciascuno; la via «verificare un'app» porta dallo script alla procedura al rapporto. Glossario, risoluzione dei
+  problemi e limiti completati.
+
+**Pacchetti.**
+
+| id | cosa | perimetro di scrittura | dipende da | G/D | modello |
+|---|---|---|---|---|---|
+| F9.1 | Formato della scheda completa, principi e decisioni; due schede campione (barre, campo di inserimento) portate al formato | `ref/principi.md`, `ref/decisioni.md`, `ref/componenti/_formato.md`, due schede | F8 | — | Opus |
+| F9.2 | Tutte le schede al formato; catalogo visivo generato | `ref/componenti/`, `ref/moduli/`, `skill/…/scripts/gen_visual_catalog.py`, `check_docs.py` | F9.1 | — | Sonnet (più agenti, una famiglia ciascuno) |
+| F9.3 | Ricette per tipo di schermata, che compilano | `ref/ricette/`, un modulo di esempi compilato dalla galleria | F9.1 | G | Sonnet |
+| F9.4 | Il metro di conformità: asserzioni da regole, R7 e schede | `ref/conformita/`, `ref/regole.md` (i rimandi) | F9.1, F9.2 | — | Opus |
+| F9.5 | `audit_app.py`, le due app di prova, selftest; regole di lint dove conviene | `skill/…/scripts/audit_app.py`, `skill/…/audit-fixtures/`, modulo di lint | F9.4 | G | Opus |
+| F9.6 | Procedura sul dispositivo, modello di rapporto, skill ristrutturata con le quattro vie | `ref/conformita/`, `SKILL.md`, `ref/mappa.md`, glossario, problemi, limiti | F9.4, F9.5 | — | Sonnet |
+| F9.7 | **La prova**: tre agenti a contesto fresco e di modelli diversi, con la sola skill | `artifacts/liquid-glass/f9/` | tutti | — | orchestratore + Opus, Sonnet, Sol |
+
+**La prova (F9.7), che è anche il criterio di chiusura.** Con la **sola skill** e nessun'altra conoscenza del progetto:
+(1) un agente scrive una schermata nuova da una descrizione a parole, e `audit_app.py` non trova rilievi; (2) un agente
+verifica l'app di prova con le violazioni seminate e le trova (quante su quante, e quanti falsi allarmi); (3) due agenti
+di modelli diversi verificano **una stessa app vera di Alessio**, in sola lettura, e i due rapporti concordano
+(stesso ordine delle aree, stessi rilievi bloccanti e maggiori): dove non concordano, l'asserzione è ambigua e si
+riscrive. Il rapporto d'adozione di quell'app è il primo prodotto utile della fase: dice ad Alessio cosa migrare.
+
+**Sottocategorie specifiche.**
+
+| id | sottocategoria | minimo |
+|---|---|---|
+| F9-a | copertura: ogni componente pubblico, ogni viaggio d'oro e ogni regola ha la sua scheda completa o la sua asserzione (controllato da script contro il catalogo delle API) | 9 |
+| F9-b | verità: ogni esempio compila, ogni immagine è generata, ogni numero ha una fonte nel codice (controllato da `check_docs.py`) | 9 |
+| F9-c | il metro trova le violazioni seminate (tutte le bloccanti e le maggiori) con pochi falsi allarmi | 9 |
+| F9-d | due verifiche indipendenti della stessa app concordano | 8,5 |
+| F9-e | un agente a contesto fresco scrive una schermata conforme con la sola skill, senza domande | 8,5 |
+| F9-f | la skill si carica per parti: per un compito non si legge più di ciò che serve (misurato in dimensione letta) | 8 |
+
+**Rischi e ripieghi.** Una documentazione così grande invecchia: per questo immagini, esempi e conteggi sono generati o
+controllati da script, e ciò che non si può controllare si scrive poco. Le asserzioni di tipo `codice` danno falsi
+allarmi su codice legittimo: ogni asserzione ha un modo dichiarato per essere messa a tacere in un punto, con il
+motivo, e lo script lo conta. Il punteggio diventa un fine: il rapporto mette prima i rilievi e poi il numero.
+
+**Regola valida da subito, per tutte le fasi prima.** Ogni regola d'uso nuova che nasce in una fase si scrive in
+`ref/regole.md` già in forma verificabile (cosa si controlla e come), così F9.4 la trova pronta invece di doverla
+ricostruire dal codice.
+
+**Scelte di Alessio.** Quale app verificare per prima in F9.7; se il rapporto d'adozione deve uscire anche in forma di
+pagina da consultare; se le regole di lint devono bloccare la build delle app o solo avvisare.
+
+---
 
 ## 7. Copertura dell'inventario
 

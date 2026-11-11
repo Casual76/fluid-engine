@@ -1964,6 +1964,21 @@ minimizzata, in alto; tab bar: materiale, piano, ruoli, bolla di selezione, acce
 prominente; su tablet rail, barra laterale, estensione dello sfondo. **Resta fuori**: tastiera di sistema (è un'altra
 finestra: R1 O1).
 
+**Il campo di inserimento dinamico: richiesta di Alessio (2026-11-11), più precisa di «la ricerca».** Un componente che
+**non è ancorato alla pagina ma è parte dell'interfaccia**, «molto dinamico e animato di conseguenza», in due
+collocazioni, per la ricerca e per ogni altro inserimento (scrivere un messaggio, una nota, una domanda all'assistente):
+1. **dal basso**: parte da un **tasto** ancorato in fondo allo schermo, si **espande di lato** fino a diventare il campo
+   (i vicini gli fanno posto o si ritirano) e **sale con la tastiera**; alla chiusura torna tasto con il viaggio inverso;
+2. **dall'alto** (il caso di Pampa Mail, e di altre app): si espande in alto e, **a scelta di chi lo usa**, (a) **resta
+   in cima alla pagina inglobando i tasti di navigazione** (indietro, azioni: spariscono dentro il campo o si riducono
+   a ciò che serve, e tornano alla chiusura) oppure (b) **viaggia fin sopra la tastiera**, sempre in modo fluido.
+È uno dei viaggi d'oro (lettera (e) dell'elenco di F1B) e ne segue il protocollo: ripreso interrotto, invertito, con la
+tastiera che arriva in ritardo, con la rotazione, con il gesto indietro. Il tipo dichiarato è quello della ricerca
+(`FluidSearchSpec`, F4A.1) esteso o affiancato da un tipo per l'inserimento generico: lo decide F4A.1 leggendo questa
+nota, perché la DSL deve nominarlo una volta sola. Le idee per **altri elementi dello stesso genere** (parti
+dell'interfaccia, non della pagina, che si trasformano), da creare o da rivedere, le raccoglie la ricerca leggera **R8**
+(`ricerca/componenti-dinamici.md`): Alessio decide quali entrano, e se sono molti si apre una fase dedicata dopo F5B.
+
 **Progetto tecnico.**
 
 - La capsula flottante oggi ridispone la riga senza animazione e ricattura per la taglia nuova

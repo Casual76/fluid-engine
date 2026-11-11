@@ -96,9 +96,18 @@ object FluidSystemContrast {
  *  * il **bordo**, se c'e', diventa piu' netto — fino a 2,5 volte, mai oltre il 70% — perche' e' lui a
  *    dire dove finisce il pannello quando dentro non c'e' piu' niente da attraversare; un bordo
  *    trasparente resta trasparente (una pellicola che non ne vuole uno non ne riceve uno);
- *  * il **colore** non cambia: e' lo stesso grigio, solo che copre di piu'.
+ *  * il **colore** non cambia: e' lo stesso grigio, solo che copre di piu';
+ *  * il **modo** diventa [GlassTintMode.Fixed], qualunque fosse: nel materiale nuovo la pellicola densa si
+ *    dipinge com'e', al posto del velo, cioe' come la dipinge il vetro di prima. Il velo `Neutral` e' tarato
+ *    per lasciar passare lo sfondo, e sui fondi che lo sfidano (uno scuro sotto il tema chiaro, uno chiaro
+ *    sotto lo scuro) il testo ci si legge meno che sulla pellicola di oggi; una tinta `Colored` scurisce col
+ *    fondo. Chi chiede piu' contrasto non vuole nessuna delle due cose: cosi' il testo sopra il vetro nuovo,
+ *    col contrasto alzato, si legge quanto sopra quello di prima (piano, F1A-g; misurato in F1A.8: lo stesso
+ *    rapporto al centro della lastra, fino al 5% in meno sul bordo di un'icona, dove il corpo si ombreggia),
+ *    e la regola e' scritta qui e non lasciata a un default del costruttore.
  *
- * A contrasto standard torna la pellicola stessa, non una copia.
+ * A contrasto standard torna la pellicola stessa, non una copia, col suo modo. Va applicata **una volta**:
+ * le tinte di [GlassDefaults] l'hanno gia' applicata, e una seconda passata la renderebbe ancora piu' densa.
  */
 fun GlassTint.forContrast(contrast: Float): GlassTint {
   val veil = FluidSystemContrast.veil(contrast)
@@ -107,6 +116,7 @@ fun GlassTint.forContrast(contrast: Float): GlassTint {
     overlay = overlay.denser(veil),
     fallback = fallback.denser(veil),
     hairline = hairline.sharper(veil),
+    mode = GlassTintMode.Fixed,
   )
 }
 

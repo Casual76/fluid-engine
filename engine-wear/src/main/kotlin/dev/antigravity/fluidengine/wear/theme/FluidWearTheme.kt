@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.wear.theme
 
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -16,7 +17,9 @@ import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidDisplayFontFamily
 import dev.antigravity.fluidengine.ui.fluid.FluidFontFamily
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.ui.theme.AccentPreset
 import dev.antigravity.fluidengine.ui.theme.FluidDefaultBrand
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
@@ -56,6 +59,11 @@ object FluidWearDefaults {
  *
  * Screens read `androidx.wear.compose.material3.MaterialTheme`. The phone MaterialTheme is still in
  * scope, but only engine-ui should be looking at it.
+ *
+ * Il vetro dell'orologio resta quello della 3.x ([FluidGlassModel.Classic]) anche con l'engine 4.0: il materiale
+ * nuovo e' tarato sulle misure di iOS e su schermi da telefono, nessuno l'ha misurato su watchOS ne' provato sulle
+ * GPU della serie W, e su 200 dp un orologio non deve cambiare aspetto da solo (piano «iOS in Android», 3.11).
+ * Portarlo sull'orologio e' un incarico a parte; fino ad allora e' una riga sola, qui.
  */
 @Composable
 fun FluidWearTheme(
@@ -68,7 +76,9 @@ fun FluidWearTheme(
     val colors = remember(phone) { fluidWearColorScheme(phone) }
     val typography = remember { fluidWearTypography() }
     val shapes = remember { fluidWearShapes() }
-    WearMaterialTheme(colorScheme = colors, typography = typography, shapes = shapes, content = content)
+    CompositionLocalProvider(LocalFluidGlassModel provides FluidGlassModel.Classic) {
+      WearMaterialTheme(colorScheme = colors, typography = typography, shapes = shapes, content = content)
+    }
   }
 }
 

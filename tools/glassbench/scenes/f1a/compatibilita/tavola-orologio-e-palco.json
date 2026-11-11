@@ -1,0 +1,149 @@
+{
+  "titolo": "Compatibilita' · l'orologio (resta Classic) e il palco del Playground (da F1B)",
+  "domanda": "Cosa succederebbe se l'orologio prendesse il materiale nuovo, e cosa dara' l'ottica del palco quando F1B lo portera' sul motore nuovo.",
+  "nota": "Scritta da GlassCompatSceneExportTest (F1A.8). Le colonne sono `oggi-{lato}.json` e `nuovo-{lato}.json`: il vetro di oggi e il materiale nuovo dalla ricetta, con l'ottica e la tinta di chi le usa. Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit; la foto e' sintetica.",
+  "density": 2,
+  "fondi": {
+    "_": "I fondi delle tavole di gusto (`../tavole/fondi.json`) piu' una copertina buia.",
+    "pagina-chiara": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "color",
+        "color": "#F2F2F7"
+      }
+    },
+    "bianco": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "color",
+        "color": "#FFFFFF"
+      }
+    },
+    "testo": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "text",
+        "background": "#F2F2F7",
+        "color": "#121214",
+        "fontSizeDp": 17,
+        "lineHeightDp": 24,
+        "paddingDp": 8,
+        "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."
+      }
+    },
+    "foto": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 44
+      }
+    },
+    "griglia": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "grid",
+        "background": "#F1F1F3",
+        "color": "#1B1D21",
+        "stepDp": 12,
+        "lineDp": 1.5,
+        "originDp": 5
+      }
+    },
+    "pagina-scura": {
+      "lato": "scuro",
+      "background": {
+        "kind": "color",
+        "color": "#0D0D0F"
+      }
+    },
+    "nero": {
+      "lato": "scuro",
+      "background": {
+        "kind": "color",
+        "color": "#000000"
+      }
+    },
+    "testo-scuro": {
+      "lato": "scuro",
+      "background": {
+        "kind": "text",
+        "background": "#0D0D0F",
+        "color": "#EDEDF0",
+        "fontSizeDp": 17,
+        "lineHeightDp": 24,
+        "paddingDp": 8,
+        "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."
+      }
+    },
+    "foto-scuro": {
+      "lato": "scuro",
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 44
+      }
+    },
+    "foto-buia": {
+      "lato": "scuro",
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 44,
+        "lift": -0.45,
+        "contrast": 0.8
+      }
+    }
+  },
+  "colonne": [
+    {
+      "lettera": "oggi",
+      "nome": "il vetro di oggi (Classic)",
+      "scena": "oggi-{lato}.json"
+    },
+    {
+      "lettera": "nuovo",
+      "nome": "il materiale nuovo, senza toccare chi lo usa",
+      "scena": "nuovo-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "Orologio: il disco del trasporto (fumo nero 42%) - l'orologio resta Classic · foto buia, vetro del tema scuro",
+      "fondo": "foto-buia",
+      "ritaglio": [24, 830, 84, 84]
+    },
+    {
+      "etichetta": "Orologio: il disco del trasporto (fumo nero 42%) - l'orologio resta Classic · foto chiara, vetro del tema scuro",
+      "fondo": "foto-scuro",
+      "ritaglio": [24, 830, 84, 84]
+    },
+    {
+      "etichetta": "Orologio: la pillola di una riga su una lista nera (grigio 36%) - resta Classic · nero",
+      "fondo": "nero",
+      "ritaglio": [24, 930, 182, 72]
+    },
+    {
+      "etichetta": "Orologio: la pillola di una riga su una lista nera (grigio 36%) - resta Classic · foto buia, vetro del tema scuro",
+      "fondo": "foto-buia",
+      "ritaglio": [24, 930, 182, 72]
+    },
+    {
+      "etichetta": "Orologio: un avviso (quasi opaco, 88%) - resta Classic · nero",
+      "fondo": "nero",
+      "ritaglio": [24, 1018, 202, 76]
+    },
+    {
+      "etichetta": "Orologio: un avviso (quasi opaco, 88%) - resta Classic · foto chiara, vetro del tema scuro",
+      "fondo": "foto-scuro",
+      "ritaglio": [24, 1018, 202, 76]
+    },
+    {
+      "etichetta": "Galleria: il palco del Playground (lente 24/40 dp con la cupola, bordo 0,75) - Fluid-physics, da F1B · griglia",
+      "fondo": "griglia",
+      "ritaglio": [24, 922, 192, 192]
+    },
+    {
+      "etichetta": "Galleria: il palco del Playground (lente 24/40 dp con la cupola, bordo 0,75) - Fluid-physics, da F1B · foto",
+      "fondo": "foto",
+      "ritaglio": [24, 922, 192, 192]
+    }
+  ]
+}

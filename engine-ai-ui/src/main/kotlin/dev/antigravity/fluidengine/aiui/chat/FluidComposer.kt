@@ -380,7 +380,16 @@ private const val ComposerFilmShare = 0.80f
 @Composable
 private fun composerTint(): GlassTint {
   val base = GlassDefaults.floatingTint()
-  return base.copy(overlay = base.overlay.copy(alpha = base.overlay.alpha * ComposerFilmShare))
+  // Costruita per intero e non con `copy`, e col modo della flottante: la pellicola alleggerita e' una
+  // taratura del vetro di prima, e nel materiale nuovo il velo fa gia' quel lavoro. Una `copy(overlay = ...)`
+  // si leggerebbe `Fixed` (vedi `GlassTintMode.Neutral`) e il composer sarebbe l'unica capsula senza velo.
+  // Con il contrasto di sistema alzato `base.mode` e' gia' `Fixed`, e resta la pellicola densa di prima.
+  return GlassTint(
+    overlay = base.overlay.copy(alpha = base.overlay.alpha * ComposerFilmShare),
+    fallback = base.fallback,
+    hairline = base.hairline,
+    mode = base.mode,
+  )
 }
 
 /**

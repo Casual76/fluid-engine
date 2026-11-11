@@ -339,15 +339,19 @@ fun currentCanvasBackdrop(): GlassBackdropState? = LocalFluidCanvasBackdrop.curr
 /**
  * Cosa vuol dire [GlassTint.overlay] per il materiale nuovo ([FluidGlassModel.Liquid]). Il vetro di prima
  * ([FluidGlassModel.Classic]) non lo legge: li' `overlay` e' sempre la pellicola dipinta sopra la lente.
+ *
+ * Il modo che conta e' quello **risolto** ([glassTintLiquidMode]), non sempre quello scritto: `Neutral` vale
+ * solo per la pellicola con cui la tinta e' nata. Vedi [Neutral].
  */
 enum class GlassTintMode {
   /**
    * La pellicola dipinta com'e': il colore con la sua alfa, sopra cio' che il vetro trasmette, **al posto**
    * del velo del materiale. E' il comportamento di sempre, ed e' il default: una tinta che un'app ha scritto
    * a mano resta quella che ha scritto. Sono `Fixed` anche le tinte dell'engine che sono una pellicola per
-   * mestiere (`darkBarTint` e le sue sorelle sopra una foto, `selectionTint`), e ogni tinta passata da
-   * [forContrast] con un contrasto di sistema sopra lo standard: chi chiede piu' contrasto riceve la
-   * pellicola densa di prima, non un velo che lascia passare.
+   * mestiere (`darkBarTint` e le sue sorelle sopra una foto, `selectionTint`), ogni tinta di serie a cui
+   * qualcuno ha cambiato il colore (vedi [Neutral]), e ogni tinta passata da [forContrast] con un contrasto
+   * di sistema sopra lo standard: chi chiede piu' contrasto riceve la pellicola densa di prima, non un velo
+   * che lascia passare.
    */
   Fixed,
 
@@ -355,9 +359,18 @@ enum class GlassTintMode {
    * Il velo lo decide il materiale: `overlay` serve solo al vetro di prima. Sono cosi' le tinte di serie di
    * [GlassDefaults] (barra, flottante, controllo, contenuto, modale, pannello).
    *
-   * Attenzione a `copy`: `GlassDefaults.barTint().copy(overlay = ...)` resta `Neutral`, e il materiale
-   * nuovo quel colore non lo vede. Chi cambia la pellicola di una tinta di serie dice anche come va letta:
-   * `copy(overlay = ..., mode = GlassTintMode.Fixed)` o `Colored`.
+   * **Vale solo per la pellicola con cui la tinta e' nata.** Un'app che da' un tono a una lastra lo fa cosi':
+   * `GlassDefaults.barTint().copy(overlay = unColore)`. Se `Neutral` sopravvivesse a quella `copy`, il
+   * materiale nuovo quel colore non lo vedrebbe, e l'app cambierebbe aspetto senza aver toccato una riga. Per
+   * questo la tinta ricorda la pellicola per cui e' stata detta neutra (la porta `copy` insieme al resto), e
+   * se `overlay` non e' piu' quella si legge [Fixed]: il colore dell'app, dipinto com'e', come oggi. Non
+   * conta l'ordine delle chiamate ne' chi le fa: conta solo se il colore e' ancora quello.
+   *
+   * Cambiare `fallback` o `hairline` non tocca il modo: sono del ripiego e del filetto, che il materiale nuovo
+   * disegna come quello di prima.
+   *
+   * Chi vuole davvero un'altra pellicola **per il vetro di prima** e il velo per il nuovo costruisce la tinta
+   * per intero, dicendo il modo: `GlassTint(overlay, fallback, hairline, GlassTintMode.Neutral)`.
    */
   Neutral,
 
@@ -379,10 +392,29 @@ data class GlassTint(
   val hairline: Color,
   /**
    * Come il materiale nuovo legge [overlay]: vedi [GlassTintMode]. In coda e con un default, perche' il
-   * costruttore a tre argomenti resti quello di sempre (4.0.0).
+   * costruttore a tre argomenti resti quello di sempre (4.0.0). E' il modo **detto**; quello con cui il vetro
+   * si disegna lo da' [glassTintLiquidMode].
    */
   val mode: GlassTintMode = GlassTintMode.Fixed,
+  /**
+   * La pellicola per cui [mode] e' stato detto: di serie [overlay] stesso, cioe' quella con cui la tinta nasce.
+   *
+   * Sta nel costruttore primario perche' `copy` la porti con se': `copy(overlay = x)` cambia la pellicola e
+   * lascia questa com'era, ed e' cosi' che il materiale nuovo sa che una tinta di serie ha cambiato colore
+   * (vedi [GlassTintMode.Neutral]). Interna: e' la memoria della regola, non una cosa da impostare.
+   */
+  internal val modeOverlay: Color = overlay,
 )
+
+/**
+ * Il modo con cui il materiale nuovo disegna davvero [tint]: quello detto, tranne una tinta `Neutral` il cui
+ * `overlay` non e' piu' la pellicola con cui e' nata, che si legge `Fixed` (vedi [GlassTintMode.Neutral]).
+ *
+ * Pura e senza Compose: e' la regola che `GlassTintModeTest` prova caso per caso. `Fixed` e `Colored` restano
+ * come sono, perche' il loro colore si vede gia'.
+ */
+internal fun glassTintLiquidMode(tint: GlassTint): GlassTintMode =
+  if (tint.mode == GlassTintMode.Neutral && tint.overlay != tint.modeOverlay) GlassTintMode.Fixed else tint.mode
 
 /** The optical job a pane performs; colour remains the separate concern of [GlassTint]. */
 enum class GlassRole {
@@ -1681,8 +1713,10 @@ internal fun Modifier.glassLiquidSurface(
   val currentPressed by rememberUpdatedState(pressed)
   val currentTouch by rememberUpdatedState(touch)
   // Pellicola e tinta sono lette in disegno: un colore che si anima rifa' la catena, non l'elemento del nodo.
-  val currentFilm by rememberUpdatedState(if (tint.mode == GlassTintMode.Fixed) tint.overlay else Color.Unspecified)
-  val currentTint by rememberUpdatedState(if (tint.mode == GlassTintMode.Colored) tint.overlay else Color.Unspecified)
+  // Il modo risolto, non quello scritto: una tinta di serie a cui hanno cambiato colore e' una pellicola.
+  val tintMode = glassTintLiquidMode(tint)
+  val currentFilm by rememberUpdatedState(if (tintMode == GlassTintMode.Fixed) tint.overlay else Color.Unspecified)
+  val currentTint by rememberUpdatedState(if (tintMode == GlassTintMode.Colored) tint.overlay else Color.Unspecified)
   // Come nel vetro di prima: la qualita' e' uno stato letto dentro le lambda, non catturato qui.
   val quality = LocalFluidGlassQuality.current
   val qualityFactor: () -> Float = remember(quality) { { quality?.level ?: 1f } }

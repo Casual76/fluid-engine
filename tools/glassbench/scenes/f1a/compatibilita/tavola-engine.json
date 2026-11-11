@@ -1,0 +1,153 @@
+{
+  "titolo": "Compatibilita' · l'engine: tinte di serie a cui l'engine cambia il colore",
+  "domanda": "La regola dei modi: un colore diverso da quello di serie si vede (Fixed); il composer e' costruito neutro di proposito. Va bene cosi'?",
+  "nota": "Scritta da GlassCompatSceneExportTest (F1A.8). Le colonne sono `oggi-{lato}.json` e `nuovo-{lato}.json`: il vetro di oggi e il materiale nuovo dalla ricetta, con l'ottica e la tinta di chi le usa. Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit; la foto e' sintetica.",
+  "density": 2,
+  "fondi": {
+    "_": "I fondi delle tavole di gusto (`../tavole/fondi.json`) piu' una copertina buia.",
+    "pagina-chiara": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "color",
+        "color": "#F2F2F7"
+      }
+    },
+    "bianco": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "color",
+        "color": "#FFFFFF"
+      }
+    },
+    "testo": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "text",
+        "background": "#F2F2F7",
+        "color": "#121214",
+        "fontSizeDp": 17,
+        "lineHeightDp": 24,
+        "paddingDp": 8,
+        "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."
+      }
+    },
+    "foto": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 44
+      }
+    },
+    "griglia": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "grid",
+        "background": "#F1F1F3",
+        "color": "#1B1D21",
+        "stepDp": 12,
+        "lineDp": 1.5,
+        "originDp": 5
+      }
+    },
+    "pagina-scura": {
+      "lato": "scuro",
+      "background": {
+        "kind": "color",
+        "color": "#0D0D0F"
+      }
+    },
+    "nero": {
+      "lato": "scuro",
+      "background": {
+        "kind": "color",
+        "color": "#000000"
+      }
+    },
+    "testo-scuro": {
+      "lato": "scuro",
+      "background": {
+        "kind": "text",
+        "background": "#0D0D0F",
+        "color": "#EDEDF0",
+        "fontSizeDp": 17,
+        "lineHeightDp": 24,
+        "paddingDp": 8,
+        "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world."
+      }
+    },
+    "foto-scuro": {
+      "lato": "scuro",
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 44
+      }
+    },
+    "foto-buia": {
+      "lato": "scuro",
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 44,
+        "lift": -0.45,
+        "contrast": 0.8
+      }
+    }
+  },
+  "colonne": [
+    {
+      "lettera": "oggi",
+      "nome": "il vetro di oggi (Classic)",
+      "scena": "oggi-{lato}.json"
+    },
+    {
+      "lettera": "nuovo",
+      "nome": "il materiale nuovo, senza toccare chi lo usa",
+      "scena": "nuovo-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "Engine: l'indicatore di sincronizzazione, tono «attenzione» (controlTint().copy(overlay = tono)) · pagina chiara #F2F2F7",
+      "fondo": "pagina-chiara",
+      "ritaglio": [24, 656, 58, 58],
+      "zoom": 3,
+      "density": 3
+    },
+    {
+      "etichetta": "Engine: l'indicatore di sincronizzazione, tono «attenzione» (controlTint().copy(overlay = tono)) · pagina scura #0D0D0F",
+      "fondo": "pagina-scura",
+      "ritaglio": [24, 564, 58, 58],
+      "zoom": 3,
+      "density": 3
+    },
+    {
+      "etichetta": "Engine: il composer della chat (pellicola della flottante all'80%) · pagina chiara #F2F2F7",
+      "fondo": "pagina-chiara",
+      "ritaglio": [24, 730, 332, 84]
+    },
+    {
+      "etichetta": "Engine: il composer della chat (pellicola della flottante all'80%) · testo",
+      "fondo": "testo",
+      "ritaglio": [24, 730, 332, 84]
+    },
+    {
+      "etichetta": "Engine: il composer della chat (pellicola della flottante all'80%) · pagina scura #0D0D0F",
+      "fondo": "pagina-scura",
+      "ritaglio": [24, 638, 332, 84]
+    },
+    {
+      "etichetta": "Engine: il composer della chat (pellicola della flottante all'80%) · testo, tema scuro",
+      "fondo": "testo-scuro",
+      "ritaglio": [24, 638, 332, 84]
+    },
+    {
+      "etichetta": "Engine: un tasto di vetro scelto (accento al 36%) · pagina chiara #F2F2F7",
+      "fondo": "pagina-chiara",
+      "ritaglio": [24, 830, 76, 76]
+    },
+    {
+      "etichetta": "Engine: un tasto di vetro scelto (accento al 36%) · pagina scura #0D0D0F",
+      "fondo": "pagina-scura",
+      "ritaglio": [24, 738, 76, 76]
+    }
+  ]
+}

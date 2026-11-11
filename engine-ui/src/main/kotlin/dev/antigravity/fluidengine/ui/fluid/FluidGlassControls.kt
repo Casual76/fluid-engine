@@ -244,8 +244,10 @@ fun Modifier.glassControlSurface(
         overlay = accent.copy(alpha = 0.36f),
         fallback = accent.copy(alpha = 0.9f),
         hairline = accent.copy(alpha = 0.45f),
-        // La selezione e' una pellicola d'accento, com'e' sempre stata: la tinta di serie e' `Neutral`
-        // (il velo lo decide il materiale nuovo), e copiata cosi' com'e' l'accento non si vedrebbe.
+        // La selezione e' una pellicola d'accento, com'e' sempre stata. Su una tinta di serie (`Neutral`)
+        // basterebbe la regola dei modi (cambiato il colore, la tinta si legge `Fixed`); il modo resta scritto
+        // perche' qui puo' arrivare anche una tinta `Colored` (un pannello tinto), e la selezione deve restare
+        // la pellicola d'accento anche li'.
         mode = GlassTintMode.Fixed,
       ).forContrast(systemContrast)
     }

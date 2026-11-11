@@ -1,0 +1,309 @@
+{
+  "_": "F1A.1. La differenza fra la copertura del campo e il path continuo dell'engine, amplificata 3 volte: rosso dove il campo copre piu' del path, blu dove copre meno, grigio chiaro dove coincidono. Colonna sinistra: campo circolare al raggio nominale (pieceSmooth 0). Colonna destra: campo raccordato (pieceSmooth 0,6). La capsula e' il termine di paragone: le due sagome sono lo stesso semicerchio, e cio' che resta e' la differenza fra l'antialias del campo e quello di Skia. In basso a destra, fuori colonna: il tasto come lo disegna davvero l'engine (rettangolo arrotondato al raggio x0,82) contro il campo allo stesso raggio, con la sonda prova-campo-1.",
+  "width": 608,
+  "height": 328,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#FFFFFF"
+  },
+  "page": [
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 8,
+      "y": 8,
+      "w": 240,
+      "h": 176,
+      "radius": 38,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 8,
+      "y": 200,
+      "w": 240,
+      "h": 48,
+      "radius": 24,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 8,
+      "y": 264,
+      "w": 48,
+      "h": 48,
+      "radius": 12,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 72,
+      "y": 264,
+      "w": 176,
+      "h": 56,
+      "radius": 22,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 272,
+      "y": 8,
+      "w": 240,
+      "h": 176,
+      "radius": 38,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 272,
+      "y": 200,
+      "w": 240,
+      "h": 48,
+      "radius": 24,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 272,
+      "y": 264,
+      "w": 48,
+      "h": 48,
+      "radius": 12,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 336,
+      "y": 264,
+      "w": 176,
+      "h": 56,
+      "radius": 22,
+      "color": "#000000"
+    },
+    {
+      "kind": "shape",
+      "corner": "engine",
+      "x": 536,
+      "y": 264,
+      "w": 48,
+      "h": 48,
+      "radius": 12,
+      "color": "#000000"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "shader",
+      "name": "campo",
+      "source": "file:../../shaders/prova-campo-8.agsl",
+      "x": 0,
+      "y": 0,
+      "w": 520,
+      "h": 328,
+      "inputs": {
+        "content": {}
+      },
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          0,
+          0
+        ],
+        "pieceCount": 8,
+        "pieceRect": [
+          [
+            "128dp",
+            "96dp",
+            "120dp",
+            "88dp"
+          ],
+          [
+            "128dp",
+            "224dp",
+            "120dp",
+            "24dp"
+          ],
+          [
+            "32dp",
+            "288dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "160dp",
+            "292dp",
+            "88dp",
+            "28dp"
+          ],
+          [
+            "392dp",
+            "96dp",
+            "120dp",
+            "88dp"
+          ],
+          [
+            "392dp",
+            "224dp",
+            "120dp",
+            "24dp"
+          ],
+          [
+            "296dp",
+            "288dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "424dp",
+            "292dp",
+            "88dp",
+            "28dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "38dp",
+            "38dp",
+            "38dp",
+            "38dp"
+          ],
+          [
+            "24dp",
+            "24dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "12dp",
+            "12dp",
+            "12dp",
+            "12dp"
+          ],
+          [
+            "22dp",
+            "22dp",
+            "22dp",
+            "22dp"
+          ],
+          [
+            "38dp",
+            "38dp",
+            "38dp",
+            "38dp"
+          ],
+          [
+            "24dp",
+            "24dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "12dp",
+            "12dp",
+            "12dp",
+            "12dp"
+          ],
+          [
+            "22dp",
+            "22dp",
+            "22dp",
+            "22dp"
+          ]
+        ],
+        "pieceBlend": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pieceSmooth": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6,
+          0.6,
+          0.6,
+          0.6
+        ],
+        "showMode": 1,
+        "aa": 1.0,
+        "gain": 3.0,
+        "isoStep": "4dp",
+        "fillColor": "#111114FF"
+      }
+    },
+    {
+      "kind": "shader",
+      "name": "tasto-engine",
+      "source": "file:../../shaders/prova-campo-1.agsl",
+      "x": 520,
+      "y": 248,
+      "w": 80,
+      "h": 80,
+      "inputs": {
+        "content": {}
+      },
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          0,
+          0
+        ],
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "40dp",
+            "40dp",
+            "24dp",
+            "24dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "9.84dp",
+            "9.84dp",
+            "9.84dp",
+            "9.84dp"
+          ]
+        ],
+        "pieceBlend": [
+          0
+        ],
+        "pieceSmooth": [
+          0
+        ],
+        "showMode": 1,
+        "aa": 1.0,
+        "gain": 3.0,
+        "isoStep": "4dp",
+        "fillColor": "#111114FF"
+      }
+    }
+  ]
+}

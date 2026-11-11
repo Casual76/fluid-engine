@@ -1,0 +1,164 @@
+{
+  "_": "F1A.1. La normale del campo come colore (rosso = x, verde = y), a sinistra l'angolo circolare e a destra il raccordo: e' la direzione lungo cui la lente sposta il fondale. Deve girare l'angolo senza scalini.",
+  "width": 520,
+  "height": 328,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#FFFFFF"
+  },
+  "elements": [
+    {
+      "kind": "shader",
+      "name": "campo",
+      "source": "file:../../shaders/prova-campo-8.agsl",
+      "x": 0,
+      "y": 0,
+      "w": 520,
+      "h": 328,
+      "inputs": {
+        "content": {}
+      },
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          0,
+          0
+        ],
+        "pieceCount": 8,
+        "pieceRect": [
+          [
+            "128dp",
+            "96dp",
+            "120dp",
+            "88dp"
+          ],
+          [
+            "128dp",
+            "224dp",
+            "120dp",
+            "24dp"
+          ],
+          [
+            "32dp",
+            "288dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "160dp",
+            "292dp",
+            "88dp",
+            "28dp"
+          ],
+          [
+            "392dp",
+            "96dp",
+            "120dp",
+            "88dp"
+          ],
+          [
+            "392dp",
+            "224dp",
+            "120dp",
+            "24dp"
+          ],
+          [
+            "296dp",
+            "288dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "424dp",
+            "292dp",
+            "88dp",
+            "28dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "38dp",
+            "38dp",
+            "38dp",
+            "38dp"
+          ],
+          [
+            "24dp",
+            "24dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "12dp",
+            "12dp",
+            "12dp",
+            "12dp"
+          ],
+          [
+            "22dp",
+            "22dp",
+            "22dp",
+            "22dp"
+          ],
+          [
+            "38dp",
+            "38dp",
+            "38dp",
+            "38dp"
+          ],
+          [
+            "24dp",
+            "24dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "12dp",
+            "12dp",
+            "12dp",
+            "12dp"
+          ],
+          [
+            "22dp",
+            "22dp",
+            "22dp",
+            "22dp"
+          ]
+        ],
+        "pieceBlend": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pieceSmooth": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6,
+          0.6,
+          0.6,
+          0.6
+        ],
+        "showMode": 3,
+        "aa": 1.0,
+        "gain": 3.0,
+        "isoStep": "4dp",
+        "fillColor": "#111114FF"
+      }
+    }
+  ]
+}

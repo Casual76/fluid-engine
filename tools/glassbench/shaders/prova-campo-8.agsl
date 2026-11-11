@@ -1,0 +1,151 @@
+// SONDA del nucleo del campo (F1A.1), variante a 8: NON e' il materiale.
+//
+// Il nucleo (`GlassFieldKernel8` in engine-ui/.../ui/glass/field/GlassFieldKernel.kt) e' un blocco senza
+// `main`: il banco non lo compila da solo. Questa sonda lo include e ne disegna la sagoma, per
+// metterla accanto al path continuo dell'engine (scene `scenes/f1a/prova-angolo-*.json`).
+//
+// LA SORGENTE E' IL KOTLIN. Il testo fra i due segni `>>>` e `<<<` e' una copia della costante,
+// con i template `$Nome` gia' risolti: non si corregge qui. Se la costante cambia, la copia si
+// riscrive (artifacts/liquid-glass/bench/f1a-1/genera_sonde.py, o a mano), e
+// `GlassFieldGeometryTest` fallisce finche' le due non tornano uguali. Quando esisteranno
+// `GlassBody8ShaderString` e `GlassLight8ShaderString` le scene potranno nominare quelli con
+// `kotlin:` e questa sonda si potra' togliere.
+//
+// `showMode`: 0 = la sagoma piena in `fillColor`; 1 = la differenza fra la copertura del campo e
+// l'inchiostro della pagina sotto (un path nero su bianco), amplificata di `gain`: rosso dove il
+// campo copre piu' del path, blu dove copre meno; 2 = le curve di livello della distanza, una
+// fascia ogni `isoStep` pixel; 3 = la normale come colore (rosso = x, verde = y).
+
+uniform shader content;                  // la pagina sotto: serve solo a `showMode` 1
+
+uniform float showMode;
+uniform float aa;                        // antialias della maschera (px)
+uniform float gain;
+uniform float isoStep;                   // (px)
+layout(color) uniform half4 fillColor;
+
+// >>> GlassFieldKernel8
+uniform float2 offset;
+uniform float4 flex;
+uniform float2 flexCenter;
+
+float2 glassFieldPoint(float2 coord) {
+    float2 rel = coord + offset - flexCenter;
+    return flexCenter + float2(dot(flex.xy, rel), dot(flex.zw, rel));
+}
+
+uniform float pieceCount;
+uniform float4 pieceRect[8];
+uniform float4 pieceRadii[8];
+uniform float pieceBlend[8];
+uniform float pieceSmooth[8];
+
+float glassRadiusAt(float2 rel, float4 radii) {
+    if (rel.x >= 0.0) {
+        if (rel.y <= 0.0) return radii.y;
+        else return radii.z;
+    } else {
+        if (rel.y <= 0.0) return radii.x;
+        else return radii.w;
+    }
+}
+
+float3 glassSlab(float2 rel, float2 halfSize, float4 radii, float smoothing) {
+    float minHalf = min(halfSize.x, halfSize.y);
+    float radius = max(min(glassRadiusAt(rel, radii), minHalf), 0.0);
+    // Lo smoothing che il lato corto lascia spendere: zero quando l'angolo e' gia' un semicerchio.
+    float s = radius > 0.0001 ? clamp(min(smoothing, minHalf / radius - 1.0), 0.0, 1.0) : 0.0;
+    float s2 = s * s;
+    float reach = radius * (1.0 + s2 * (0.25 + 0.495 * s));
+    float power = 2.0 + s2 * (0.79 + 1.0 * s);
+    float2 a = abs(rel);
+    float2 side = float2(rel.x < 0.0 ? -1.0 : 1.0, rel.y < 0.0 ? -1.0 : 1.0);
+
+    float2 q = a - (halfSize - float2(reach));
+    float sd;
+    if (q.x <= 0.0 || q.y <= 0.0) {
+        sd = max(q.x, q.y) - reach;
+    } else if (s <= 0.0) {
+        sd = length(q) - reach;
+    } else {
+        float2 qp = pow(q, float2(power - 1.0));
+        float sum = max(dot(qp, q), 1.0e-20);
+        float norm = pow(sum, 1.0 / power);
+        float slope = length(qp) * norm / sum;
+        float m = norm - reach;
+        sd = m / mix(slope, 1.0, clamp(-m / reach, 0.0, 1.0));
+    }
+
+    // La normale: lo stesso pezzo con l'angolo allargato, mai oltre mezzo lato corto.
+    float wide = min(reach * 1.5, minHalf);
+    float2 w = a - (halfSize - float2(wide));
+    float2 n;
+    if (w.x <= 0.0 || w.y <= 0.0) {
+        float gx = step(w.y, w.x);
+        n = float2(gx, 1.0 - gx);
+    } else if (s <= 0.0) {
+        n = w / length(w);
+    } else {
+        float2 wp = pow(w, float2(power - 1.0));
+        float wl = length(wp);
+        n = wl > 1.0e-20 ? wp / wl : float2(0.70710678);
+    }
+    return float3(sd, side * n);
+}
+
+float glassCircleMap(float x) {
+    return 1.0 - sqrt(max(1.0 - x * x, 0.0));
+}
+
+float glassField(float2 p, out float2 normal, out float2 center) {
+    float d = 1000000.0;
+    normal = float2(0.0);
+    center = float2(0.0);
+    for (int i = 0; i < 8; ++i) {
+        if (float(i) >= pieceCount) break;
+        float3 slab = glassSlab(p - pieceRect[i].xy, pieceRect[i].zw, pieceRadii[i], pieceSmooth[i]);
+        if (i == 0) {
+            d = slab.x;
+            normal = slab.yz;
+            center = pieceRect[i].xy;
+        } else {
+            // Il raggio di fusione e' del pezzo: lo unisce a tutto cio' che il ciclo ha gia' fuso.
+            float k = max(pieceBlend[i], 0.0001);
+            float h = clamp(0.5 + 0.5 * (slab.x - d) / k, 0.0, 1.0);
+            d = slab.x + (d - slab.x) * h - k * h * (1.0 - h);
+            normal = mix(slab.yz, normal, h);
+            center = mix(pieceRect[i].xy, center, h);
+        }
+    }
+    return d;
+}
+// <<< GlassFieldKernel8
+
+half4 main(float2 coord) {
+    float2 p = glassFieldPoint(coord);
+    float2 normal;
+    float2 center;
+    float d = glassField(p, normal, center);
+    float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+
+    if (showMode < 0.5) {
+        return half4(fillColor.rgb * fillColor.a, fillColor.a) * half(coverage);
+    }
+    if (showMode < 1.5) {
+        half4 page = content.eval(coord);
+        float ink = 1.0 - dot(float3(page.rgb), float3(0.2126, 0.7152, 0.0722));
+        float delta = clamp((coverage - ink) * gain, -1.0, 1.0);
+        half3 base = half3(half(1.0 - 0.10 * ink));
+        half3 tone = delta >= 0.0 ? half3(0.86, 0.08, 0.10) : half3(0.08, 0.22, 0.92);
+        return half4(mix(base, tone, half(abs(delta))), 1.0);
+    }
+    if (showMode < 2.5) {
+        float stripe = step(0.5, fract(d / max(isoStep, 0.0001)));
+        half3 inside = mix(half3(0.16, 0.19, 0.30), half3(0.27, 0.32, 0.47), half(stripe));
+        half3 outside = mix(half3(0.94, 0.94, 0.96), half3(0.84, 0.85, 0.89), half(stripe));
+        return half4(mix(outside, inside, half(coverage)), 1.0);
+    }
+    float nl = length(normal);
+    float2 n = nl > 0.0001 ? normal / nl : float2(0.0);
+    return half4(half3(float3(n * 0.5 + 0.5, 0.5)), 1.0) * half(coverage);
+}

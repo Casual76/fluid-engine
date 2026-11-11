@@ -1,0 +1,204 @@
+{
+  "_": "F1A.1. Tre colonne, da sinistra: il path continuo dell'engine (ContinuousCornerShape, smoothing 0,6); il campo del nucleo con l'angolo circolare (pieceSmooth 0); il campo con il raccordo (pieceSmooth 0,6). Quattro sagome: pannello 240x176 raggio 38, capsula 240x48, tasto 48x48 raggio 12, barra bassa 176x56 raggio 22 (dove il lato corto riduce lo smoothing a 0,27). Il campo e' la sonda prova-campo-8 con otto pezzi senza fusione. Si guarda ingrandita (`render --crop 536,8,64,64 --zoom 8`) e anche a densita' 2,125 (`--density 2.125`). Uniform scritti a mano: e' una prova, non un'immagine di riferimento.",
+  "width": 784,
+  "height": 328,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 8,
+      "y": 8,
+      "w": 240,
+      "h": 176,
+      "radius": 38,
+      "color": "#111114"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 8,
+      "y": 200,
+      "w": 240,
+      "h": 48,
+      "radius": 24,
+      "color": "#111114"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 8,
+      "y": 264,
+      "w": 48,
+      "h": 48,
+      "radius": 12,
+      "color": "#111114"
+    },
+    {
+      "kind": "shape",
+      "corner": "continuous",
+      "x": 72,
+      "y": 264,
+      "w": 176,
+      "h": 56,
+      "radius": 22,
+      "color": "#111114"
+    },
+    {
+      "kind": "shader",
+      "name": "campo",
+      "source": "file:../../shaders/prova-campo-8.agsl",
+      "x": 0,
+      "y": 0,
+      "w": 784,
+      "h": 328,
+      "inputs": {
+        "content": {}
+      },
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          0,
+          0
+        ],
+        "pieceCount": 8,
+        "pieceRect": [
+          [
+            "392dp",
+            "96dp",
+            "120dp",
+            "88dp"
+          ],
+          [
+            "392dp",
+            "224dp",
+            "120dp",
+            "24dp"
+          ],
+          [
+            "296dp",
+            "288dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "424dp",
+            "292dp",
+            "88dp",
+            "28dp"
+          ],
+          [
+            "656dp",
+            "96dp",
+            "120dp",
+            "88dp"
+          ],
+          [
+            "656dp",
+            "224dp",
+            "120dp",
+            "24dp"
+          ],
+          [
+            "560dp",
+            "288dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "688dp",
+            "292dp",
+            "88dp",
+            "28dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "38dp",
+            "38dp",
+            "38dp",
+            "38dp"
+          ],
+          [
+            "24dp",
+            "24dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "12dp",
+            "12dp",
+            "12dp",
+            "12dp"
+          ],
+          [
+            "22dp",
+            "22dp",
+            "22dp",
+            "22dp"
+          ],
+          [
+            "38dp",
+            "38dp",
+            "38dp",
+            "38dp"
+          ],
+          [
+            "24dp",
+            "24dp",
+            "24dp",
+            "24dp"
+          ],
+          [
+            "12dp",
+            "12dp",
+            "12dp",
+            "12dp"
+          ],
+          [
+            "22dp",
+            "22dp",
+            "22dp",
+            "22dp"
+          ]
+        ],
+        "pieceBlend": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pieceSmooth": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.6,
+          0.6,
+          0.6,
+          0.6
+        ],
+        "showMode": 0,
+        "aa": 1.0,
+        "gain": 3.0,
+        "isoStep": "4dp",
+        "fillColor": "#111114FF"
+      }
+    }
+  ]
+}

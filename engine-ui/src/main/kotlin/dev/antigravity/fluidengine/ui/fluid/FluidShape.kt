@@ -40,8 +40,19 @@ class ContinuousCornerShape(
   topEnd: CornerSize,
   bottomEnd: CornerSize,
   bottomStart: CornerSize,
-  private val smoothing: Float = IosSmoothing,
+  smoothing: Float = IosSmoothing,
 ) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart) {
+
+  /**
+   * Quanto questa forma spalma la curvatura lungo i lati, come è stata chiesta (non ancora limitata dal lato:
+   * quello lo fa [continuousCornerSmoothing], angolo per angolo).
+   *
+   * È leggibile dall'engine perché nel materiale `Liquid` la sagoma non la disegna più un path ma il campo
+   * dello shader (`glass/field/GlassFieldKernel.kt`), che deve sapere quale curva ripetere: senza questo
+   * numero il campo potrebbe solo supporre [IosSmoothing], e una forma costruita con un altro valore avrebbe
+   * un vetro con un angolo diverso dal suo contorno.
+   */
+  internal val smoothing: Float = smoothing
 
   override fun copy(
     topStart: CornerSize,
@@ -214,37 +225,70 @@ private val Left = Offset(-1f, 0f)
 private val Up = Offset(0f, -1f)
 
 /**
- * Emits one corner into [this].
- *
- * [incoming] is the direction of travel arriving at [corner], [outgoing] the direction leaving it.
- * Every offset below is expressed in that local frame.
+ * Quanti numeri restituisce [continuousCornerPoints] per un angolo con raggio: dieci punti, cioè la partenza
+ * e tre cubiche (due maniglie e l'arrivo ciascuna).
  */
-private fun Path.continuousCorner(
-  corner: Offset,
-  incoming: Offset,
-  outgoing: Offset,
-  requestedRadius: Float,
-  size: Size,
-  smoothing: Float,
-  moveTo: Boolean = false,
-) {
-  // The corner consumes (1 + s) * r of each edge and only half the shorter side is available, so
-  // something has to give before two adjacent corners overlap. It has to be the *smoothing*, not the
-  // radius: clamping the radius instead — which is what this did — meant a 50% corner could only
-  // ever reach 62.5% of the half-side, so a capsule came out as a squircle and every pill in the
-  // interface had visibly flat ends. Smoothing runs out exactly when the corner becomes a true
-  // semicircle, which is the same thing Apple's own capsule does.
-  val budget = size.minDimension / 2f
+internal const val ContinuousCornerPointFloats: Int = 20
+
+/**
+ * Lo `smoothing` che un angolo riesce davvero a spendere.
+ *
+ * Un angolo continuo consuma `(1 + s) * r` di ciascun lato e ne ha a disposizione mezzo lato corto: quando
+ * non basta cede lo *smoothing*, non il raggio. Se cedesse il raggio un angolo al 50% arriverebbe solo al
+ * 62,5% del mezzo lato: una capsula verrebbe fuori come un quadrato smussato, e ogni pillola dell'interfaccia
+ * avrebbe le estremità piatte (è successo). Lo smoothing finisce esattamente quando l'angolo diventa un
+ * semicerchio, che è ciò che fa la capsula di Apple.
+ *
+ * È una funzione a parte perché la stessa regola la ripete il campo dello shader
+ * (`GlassFieldGeometry.effectiveSmoothing`), e un test le tiene uguali.
+ *
+ * @param minDimension il lato corto della forma, in pixel.
+ */
+internal fun continuousCornerSmoothing(requestedRadius: Float, minDimension: Float, smoothing: Float): Float {
+  val budget = minDimension / 2f
   val radius = min(requestedRadius, budget).coerceAtLeast(0f)
-  val s = if (radius <= 0f) {
+  return if (radius <= 0f) {
     0f
   } else {
     smoothing.coerceIn(0f, 1f).coerceAtMost((budget / radius - 1f).coerceAtLeast(0f))
   }
+}
+
+/**
+ * I punti di un angolo continuo, senza un `Path`: è la geometria che [continuousCorner] disegna, in una
+ * funzione pura.
+ *
+ * Sta fuori dall'emettitore perché il materiale `Liquid` ritaglia il vetro con un campo di distanza che
+ * *approssima* questa curva (`glass/field/GlassFieldKernel.kt`), e quanto la approssima si può misurare solo
+ * avendo la curva vera in mano su JVM, dove un `Path` di Android non esiste
+ * (`ContinuousCornerFieldTest`). I conti sono quelli dell'emettitore di sempre, nello stesso ordine: il path
+ * che ne esce è lo stesso al bit.
+ *
+ * [incoming] è la direzione di marcia con cui si arriva a [corner], [outgoing] quella con cui si riparte.
+ *
+ * @param minDimension il lato corto della forma, in pixel.
+ * @return `x, y` di ogni punto, nell'ordine in cui il path li consuma: la partenza sul lato entrante, poi
+ *   per ciascuna delle tre cubiche (curvatura che sale, arco accorciato, curvatura che scende) le due
+ *   maniglie e l'arrivo: [ContinuousCornerPointFloats] numeri. Con raggio zero la sola partenza, cioè
+ *   l'angolo vivo: due numeri.
+ */
+internal fun continuousCornerPoints(
+  corner: Offset,
+  incoming: Offset,
+  outgoing: Offset,
+  requestedRadius: Float,
+  minDimension: Float,
+  smoothing: Float,
+): FloatArray {
+  // The corner consumes (1 + s) * r of each edge and only half the shorter side is available, so
+  // something has to give before two adjacent corners overlap. It has to be the *smoothing*, not the
+  // radius: see continuousCornerSmoothing.
+  val budget = minDimension / 2f
+  val radius = min(requestedRadius, budget).coerceAtLeast(0f)
+  val s = continuousCornerSmoothing(requestedRadius, minDimension, smoothing)
 
   val start = corner - incoming * ((1f + s) * radius)
-  if (moveTo) moveTo(start.x, start.y) else lineTo(start.x, start.y)
-  if (radius <= 0f) return
+  if (radius <= 0f) return floatArrayOf(start.x, start.y)
 
   val p = (1f + s) * radius
   val arcSweepDeg = 90f * (1f - s)
@@ -261,31 +305,57 @@ private fun Path.continuousCorner(
   fun local(alongIncoming: Float, alongOutgoing: Float): Offset =
     start + incoming * alongIncoming + outgoing * alongOutgoing
 
+  val out = FloatArray(ContinuousCornerPointFloats)
+  var at = 0
+  fun put(point: Offset) {
+    out[at++] = point.x
+    out[at++] = point.y
+  }
+  put(start)
+
   // Curvature ramping up, away from the straight edge.
   val arcStart = local(a + b + c, d)
-  cubic(local(a, 0f), local(a + b, 0f), arcStart)
+  put(local(a, 0f))
+  put(local(a + b, 0f))
+  put(arcStart)
 
   // The circular section, as a single cubic: exact to well under a pixel for sweeps below 90 degrees.
   val arcEnd = arcStart + incoming * arcChord + outgoing * arcChord
   val tangentAt = { deg: Float -> incoming * cos(deg * DegToRad) + outgoing * sin(deg * DegToRad) }
   val k = 4f / 3f * tan(arcSweepDeg / 4f * DegToRad) * radius
-  cubic(
-    arcStart + tangentAt(alphaDeg) * k,
-    arcEnd - tangentAt(alphaDeg + arcSweepDeg) * k,
-    arcEnd,
-  )
+  put(arcStart + tangentAt(alphaDeg) * k)
+  put(arcEnd - tangentAt(alphaDeg + arcSweepDeg) * k)
+  put(arcEnd)
 
-  // …and ramping back down into the next straight edge. The mirror of the first curve: both control
+  // ...and ramping back down into the next straight edge. The mirror of the first curve: both control
   // points sit on the outgoing edge line, so the corner leaves along it with zero curvature.
-  cubic(
-    local(p, d + arcChord + c),
-    local(p, d + arcChord + b + c),
-    local(p, p),
-  )
+  put(local(p, d + arcChord + c))
+  put(local(p, d + arcChord + b + c))
+  put(local(p, p))
+  return out
 }
 
-private fun Path.cubic(c1: Offset, c2: Offset, end: Offset) {
-  cubicTo(c1.x, c1.y, c2.x, c2.y, end.x, end.y)
+/**
+ * Emits one corner into [this].
+ *
+ * [incoming] is the direction of travel arriving at [corner], [outgoing] the direction leaving it.
+ * The geometry is [continuousCornerPoints]; this only hands it to the path.
+ */
+private fun Path.continuousCorner(
+  corner: Offset,
+  incoming: Offset,
+  outgoing: Offset,
+  requestedRadius: Float,
+  size: Size,
+  smoothing: Float,
+  moveTo: Boolean = false,
+) {
+  val points = continuousCornerPoints(corner, incoming, outgoing, requestedRadius, size.minDimension, smoothing)
+  if (moveTo) moveTo(points[0], points[1]) else lineTo(points[0], points[1])
+  if (points.size < ContinuousCornerPointFloats) return
+  cubicTo(points[2], points[3], points[4], points[5], points[6], points[7])
+  cubicTo(points[8], points[9], points[10], points[11], points[12], points[13])
+  cubicTo(points[14], points[15], points[16], points[17], points[18], points[19])
 }
 
 private val Sqrt2 = sqrt(2f)

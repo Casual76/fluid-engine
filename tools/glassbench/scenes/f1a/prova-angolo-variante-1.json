@@ -1,0 +1,66 @@
+{
+  "_": "F1A.1. Un pannello 240x176 con un raggio diverso per angolo (38 / 22 / 12 / 0) e raccordo 0,6, reso dalla variante a 1 del nucleo. `compare` fra questa e l'altra variante deve dare differenza zero: un pezzo solo e' lo stesso campo nei due programmi.",
+  "width": 256,
+  "height": 192,
+  "density": 3.0,
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "shader",
+      "name": "campo",
+      "source": "file:../../shaders/prova-campo-1.agsl",
+      "x": 0,
+      "y": 0,
+      "w": 256,
+      "h": 192,
+      "inputs": {
+        "content": {}
+      },
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          0,
+          0
+        ],
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "128dp",
+            "96dp",
+            "120dp",
+            "88dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "38dp",
+            "22dp",
+            "12dp",
+            "0dp"
+          ]
+        ],
+        "pieceBlend": [
+          0
+        ],
+        "pieceSmooth": [
+          0.6
+        ],
+        "showMode": 0,
+        "aa": 1.0,
+        "gain": 3.0,
+        "isoStep": "4dp",
+        "fillColor": "#111114FF"
+      }
+    }
+  ]
+}

@@ -161,6 +161,15 @@ strumento»).
   viaggio, in modo piatto): la sagoma ne perde un pezzo. Non è un caso di oggi.
 - **Sotto i 3 livelli d'ombra** (in scuro una pagina a 14–18 ha poco margine): un'ombra che compare in scuro può
   restare sotto soglia.
+- **Una pagina che scorre sotto un vetro dichiarato fermo** (`--fermo` sulla barra, con la pagina che scorre
+  sotto, come nel fondo carico di F1B.0). La forma del fermo si ricava dai dati, cioè dai pixel che restano
+  diversi dalla pagina, e il testo che passa sotto la barra la gonfia: 18 154 px invece di ~7 500 in chiaro,
+  44 540 in scuro, dove la sagoma va a zero in ogni fotogramma. La prova di presenza si fa su una sagoma troppo
+  grande: il vetro a riposo vale 5–10 livelli invece di 19–27, sotto `presenza_min`, e il vuoto non si prova.
+  In `d-carico-ritorno` il rivelatore vede 1 arrivo vuoto su 5 in chiaro e 0 su 5 in scuro; a occhio il vuoto
+  c'è in 5 su 5 per tema. Lì si guarda la striscia degli arrivi (in F1B.0:
+  `artifacts/liquid-glass/moto/f1b/partenza/strumenti/arrivi.py`, i fotogrammi fra +560 e +720 ms da ogni dito).
+  Se il vetro fermo è noto, conviene dichiararlo per intero invece di farlo ricavare.
 - **Due riposi che si sovrappongono** (un cerchio che diventa due pezzi nello stesso posto, un gruppo di tasti
   che diventa un menù sopra di sé): la pagina prevista nell'area comune non c'è, quindi tutto il D01 è origine.
   FUORI, VUOTO, NASCE e MUORE lì vengono dal limite, non dal vetro, e larghezza e area non valgono; i tempi

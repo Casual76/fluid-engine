@@ -44,7 +44,7 @@ from pathlib import Path
 import numpy as np
 import skia
 
-from kotlin_sources import MaterialNumbers, Optics, all_engine_shaders, read_material
+from kotlin_sources import MaterialNumbers, Optics, all_engine_shaders, field_constants, read_material
 
 LINEAR = skia.SamplingOptions(skia.FilterMode.kLinear)
 
@@ -447,6 +447,92 @@ def continuous_path(x: float, y: float, w: float, h: float, radii,
     return path
 
 
+# I numeri del campo del materiale nuovo (`ui/glass/field/`): la superellisse dell'angolo raccordato
+# (GlassFieldKernel.kt) e i sigma dell'ombra (GlassShadow.kt). Il banco li **legge** dai sorgenti;
+# questi sono i valori di quando e' stato scritto, e servono solo se la cartella non c'e'.
+FIELD_DEFAULTS = {
+    "GlassCornerReachSquare": 0.25, "GlassCornerReachCube": 0.495,
+    "GlassCornerPowerSquare": 0.79, "GlassCornerPowerCube": 1.0,
+    "GlassShadowSigmaPerRadius": 0.57735, "GlassShadowSigmaFloor": 0.5, "GlassShadowReachSigmas": 3.0,
+    "GlassShadowMinAlpha": 0.001,
+}
+# `GlassShadowContour.MinSegments` / `MaxSegments`: quanti lati ha, al piu', la spezzata di un angolo.
+FIELD_CONTOUR_SEGMENTS = (6, 64)
+_FIELD_NUMBERS: dict[str, float] | None = None
+
+
+def field_number(name: str) -> float:
+    """Una costante del campo, letta dai sorgenti Kotlin (una volta) o, se mancano, dai valori qui sopra."""
+    global _FIELD_NUMBERS
+    if _FIELD_NUMBERS is None:
+        try:
+            read = field_constants()
+        except OSError:
+            read = {}
+        _FIELD_NUMBERS = {key: float(read.get(key, default)) for key, default in FIELD_DEFAULTS.items()}
+        for key in ("MinSegments", "MaxSegments"):
+            if key in read:
+                _FIELD_NUMBERS[key] = float(read[key])
+    return _FIELD_NUMBERS[name]
+
+
+def field_corner(radius: float, min_half: float, smoothing: float) -> tuple[float, float]:
+    """(semiasse, esponente) della superellisse di un angolo del campo: `effectiveSmoothing`,
+    `cornerReach` e `cornerPower` di `GlassFieldGeometry.kt`. Esponente 2 = arco di cerchio."""
+    radius = max(min(radius, min_half), 0.0)
+    s = min(max(min(smoothing, min_half / radius - 1.0), 0.0), 1.0) if radius > 1e-4 else 0.0
+    reach = radius * (1.0 + s * s * (field_number("GlassCornerReachSquare") + field_number("GlassCornerReachCube") * s))
+    power = 2.0 + s * s * (field_number("GlassCornerPowerSquare") + field_number("GlassCornerPowerCube") * s)
+    return reach, power
+
+
+def field_contour(x: float, y: float, w: float, h: float, radii, smoothing: float) -> skia.Path | None:
+    """Il contorno di un pezzo del **campo** del materiale nuovo, come lo disegna `GlassShadowContour.slab`
+    (GlassShadow.kt): i punti dove `glassSlab` vale zero, cioe' la sagoma che il corpo rende.
+
+    Non e' il path continuo dell'engine (`continuous_path`, le curve di Bezier di `FluidShape.kt`): e'
+    la superellisse con cui lo shader lo approssima, campionata in una spezzata fitta (tre segmenti
+    per radice di pixel, da 6 a 64 per angolo). Le due curve distano frazioni di pixel, ma l'ombra
+    e' scavata sotto la sagoma: se la maschera e il corpo non hanno lo stesso contorno, lungo l'angolo
+    resta una falce d'ombra sopra il vetro o un vuoto accanto.
+
+    Restituisce `None` quando i quattro angoli sono archi di cerchio (`isCircular`: una capsula,
+    raccordo zero): li' il nodo disegna un `RoundRect` e il banco fa lo stesso."""
+    hw, hh = w / 2.0, h / 2.0
+    min_half = min(hw, hh)
+    corners = [field_corner(r, min_half, smoothing) for r in radii]  # alto-sx, alto-dx, basso-dx, basso-sx
+    if all(power <= 2.0 for _, power in corners):
+        return None
+    lo, hi = FIELD_CONTOUR_SEGMENTS
+    cx, cy = x + hw, y + hh
+    path = skia.Path()
+    first = True
+    # In senso orario dal lato alto, come nel Kotlin: (indice del raggio, lato d'entrata, lato d'uscita).
+    for index, (ex, ey), (lx, ly) in ((1, (0, -1), (1, 0)), (2, (1, 0), (0, 1)), (3, (0, 1), (-1, 0)), (0, (-1, 0), (0, -1))):
+        reach, power = corners[index]
+        tip_x, tip_y = cx + (ex + lx) * hw, cy + (ey + ly) * hh
+        if reach <= 1e-4:
+            points = [(tip_x, tip_y)]
+        else:
+            core_x, core_y = tip_x - (ex + lx) * reach, tip_y - (ey + ly) * reach
+            steps = int(min(max(math.ceil(3.0 * math.sqrt(max(reach, 0.0))), lo), hi))
+            exponent = 2.0 / power
+            points = []
+            for i in range(steps + 1):
+                t = (math.pi / 2.0) * i / steps
+                along = reach * math.sin(t) ** exponent
+                across = reach * max(math.cos(t), 0.0) ** exponent
+                points.append((core_x + ex * across + lx * along, core_y + ey * across + ly * along))
+        for px, py in points:
+            if first:
+                path.moveTo(px, py)
+                first = False
+            else:
+                path.lineTo(px, py)
+    path.close()
+    return path
+
+
 def rounded_equivalent(radii, w: float, h: float) -> list[float]:
     """`ContinuousCornerShape.roundedEquivalent`: il raggio circolare che sembra uguale. Una
     capsula (raggio >= mezzo lato corto) non si tocca."""
@@ -474,6 +560,7 @@ class Outline:
             raise ValueError(f"`corner` deve essere round, engine o continuous, non {corner!r}")
         self.x, self.y, self.w, self.h = x, y, w, h
         self.nominal = list(radii)
+        self.smoothing = float(smoothing)
         small = max(w, h) < SMALL_SHAPE_CUTOFF_PX
         self.path: skia.Path | None = None
         if corner == "round":
@@ -1484,12 +1571,100 @@ def draw_shadow(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amount:
 
 
 def draw_shadow_layers(canvas, ctx: Context, outline: Outline, layers, amount: float = 1.0) -> None:
-    """`GlassShadowNode` del materiale nuovo (piano 3.5): piu' maschere sfumate (contatto,
-    ambiente) in un nodo, fuori dal ritaglio della lastra e scavate dentro la sagoma. Ogni voce:
-    `{"radiusDp": 10, "offsetDp": [0, 2], "alpha": 0.08, "color": "#000000", "spreadDp": 0}`.
+    """L'ombra a riposo del materiale nuovo, resa come la rende il nodo vero (`Modifier.glassShadow`,
+    `GlassShadowLayer` e `GlassShadowMetrics` in ui/glass/field/GlassShadow.kt). Ogni voce di [layers]:
+    `{"radiusDp": 8, "offsetDp": [0, 4], "alpha": 0.038, "color": "#000000"}` (contatto, ambiente).
 
-    Le maschere sono in sola alfa e il colore lo mette il layer in disegno: qui il risultato e' lo
-    stesso di disegnarle gia' colorate, perche' il banco non ha niente da tenere in cache."""
+    * **Il contorno e' quello del campo** (`field_contour`: lo stesso del corpo), non il path
+      dell'engine; dove gli angoli sono circolari e' un rettangolo arrotondato.
+    * **Le maschere sono bianche e in sola alfa**, in un layer a 8 bit: ognuna col peso della sua alfa
+      sul totale, sommate (`Plus`), sfumate con `sigma = 0,57735 r + 0,5` (in pixel del layer), poi
+      la sagoma scavata via.
+    * **Colore e forza si applicano quando il layer si posa**: il colore con un filtro `SrcIn`,
+      l'alfa totale come alfa del layer. Nel layer la maschera usa tutti gli 8 bit; con l'alfa nel
+      pennello un'ombra al 4% avrebbe dieci livelli in tutto, e usciva 0,5-1,5 livelli piu' chiara.
+    * **Il layer sta su pixel interi**, arriva a tre sigma oltre la sagoma, e oltre 1024 px di lato
+      lungo e' registrato piu' piccolo e riportato in scala.
+
+    Colori diversi fra le maschere, o `spreadDp`, il nodo non li ha: allora il banco torna al
+    disegno di prima (`_draw_shadow_layers_coloured`). Resta diverso dal dispositivo cio' che e'
+    della piattaforma: la sfocatura (`BlurMaskFilter` di HWUI la', Skia in software qui) e
+    l'antialias del path."""
+    if not layers or amount <= 0.001:
+        return
+    live = [layer for layer in layers if float(layer.get("alpha", 0.0)) * amount > 0]
+    if not live:
+        return
+    colours = {tuple(parse_color(layer.get("color", "#000000"))) for layer in live}
+    if len(colours) > 1 or any(float(layer.get("spreadDp", 0.0)) for layer in live):
+        _draw_shadow_layers_coloured(canvas, ctx, outline, layers, amount)
+        return
+    r, g, b, a = next(iter(colours))
+    total = sum(min(max(float(layer.get("alpha", 0.0)) * amount, 0.0), 1.0) for layer in live)
+    alpha = min(total * a, 1.0)
+    if not alpha > field_number("GlassShadowMinAlpha"):
+        return
+
+    per_radius, floor = field_number("GlassShadowSigmaPerRadius"), field_number("GlassShadowSigmaFloor")
+    sigmas = field_number("GlassShadowReachSigmas")
+    grow = [0.0, 0.0, 0.0, 0.0]  # sinistra, alto, destra, basso: per lato la maschera che sporge di piu'
+    masks = []
+    for layer in live:
+        radius = max(ctx.px(layer.get("radiusDp", 0.0)), 0.0)
+        dx, dy = (ctx.px(v) for v in layer.get("offsetDp", [0.0, 0.0]))
+        sigma = per_radius * radius + floor
+        reach = sigmas * sigma
+        grow = [max(grow[0], reach - dx), max(grow[1], reach - dy), max(grow[2], reach + dx), max(grow[3], reach + dy)]
+        masks.append((min(max(float(layer.get("alpha", 0.0)) * amount, 0.0), 1.0) / total, sigma, dx, dy))
+    origin_x = math.floor(outline.x - grow[0])
+    origin_y = math.floor(outline.y - grow[1])
+    width = math.ceil(outline.x + outline.w + grow[2]) - origin_x
+    height = math.ceil(outline.y + outline.h + grow[3]) - origin_y
+    longest = max(width, height)
+    res = 1.0 if longest <= HIGHLIGHT_LAYER_MAX_PX else max(HIGHLIGHT_LAYER_MAX_PX / longest, 0.1)
+
+    # La sagoma nel sistema del layer. Dove l'engine la disegna circolare (un piccolo, `corner: round`)
+    # i raggi sono quelli disegnati e il raccordo e' zero; altrove raggi nominali e raccordo chiesto.
+    lx, ly = (outline.x - origin_x) * res, (outline.y - origin_y) * res
+    lw, lh = outline.w * res, outline.h * res
+    smooth = outline.path is not None
+    radii = [max(min(v * res, min(lw, lh) / 2.0), 0.0) for v in (outline.nominal if smooth else outline.draw_radii)]
+    contour = field_contour(lx, ly, lw, lh, radii, outline.smoothing) if smooth else None
+
+    def draw_shape(target: skia.Canvas, paint: skia.Paint, dx: float = 0.0, dy: float = 0.0) -> None:
+        if contour is not None:
+            target.save()
+            target.translate(dx, dy)
+            target.drawPath(contour, paint)
+            target.restore()
+        else:
+            target.drawRRect(rrect(lx + dx, ly + dy, lw, lh, radii), paint)
+
+    recorded = new_surface(max(int(math.ceil(width * res)), 1), max(int(math.ceil(height * res)), 1))
+    lc = recorded.getCanvas()
+    for weight, sigma, dx, dy in masks:
+        paint = skia.Paint(AntiAlias=True, Color4f=skia.Color4f(1, 1, 1, weight), BlendMode=skia.BlendMode.kPlus)
+        # `scaledRadius`: il sigma si scala con il layer; a mezzo pixel o meno il raggio e' zero e
+        # `Paint.blur(0)` non mette nessun filtro.
+        if sigma * res > floor:
+            paint.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, sigma * res))
+        draw_shape(lc, paint, dx * res, dy * res)
+    draw_shape(lc, skia.Paint(AntiAlias=True, BlendMode=skia.BlendMode.kClear))
+
+    composed = skia.Paint()
+    composed.setAlphaf(alpha)
+    composed.setColorFilter(skia.ColorFilters.Blend(skia.Color4f(r, g, b, 1.0).toColor(), skia.BlendMode.kSrcIn))
+    canvas.save()
+    canvas.translate(origin_x, origin_y)
+    canvas.scale(1.0 / res, 1.0 / res)
+    canvas.drawImage(recorded.makeImageSnapshot(), 0, 0, LINEAR, composed)
+    canvas.restore()
+
+
+def _draw_shadow_layers_coloured(canvas, ctx: Context, outline: Outline, layers, amount: float = 1.0) -> None:
+    """Maschere d'ombra che il nodo vero **non** sa fare: colori diversi fra una maschera e l'altra,
+    o `spreadDp`. Ognuna e' disegnata gia' colorata e con la sua alfa in un layer a 8 bit, col
+    contorno del path dell'engine. Serve a provare un'idea, non a prevedere `Modifier.glassShadow`."""
     if not layers or amount <= 0.001:
         return
     canvas.saveLayer(None, skia.Paint())
@@ -1866,9 +2041,11 @@ def element_context(ctx: Context, el) -> Context:
 
 
 def capture_inputs(ctx: Context, program: "Program", inputs, backdrop: skia.Image, x, y, scale,
-                   width: int, height: int, pad: int, tag: str) -> None:
+                   width: int, height: int, pad: int, tag: str,
+                   extent: tuple[int, int] | None = None) -> None:
     """Collega ogni ingresso di [program] a una cattura del fondale sotto l'elemento, con la sua
-    catena a monte: `saturation`, `blurDp`, `w` (la mescola della via A), `edge`."""
+    catena a monte: `saturation`, `blurDp`, `w` (la mescola della via A), `edge`. [extent] e' la
+    regione su cui la catena viene valutata quando e' piu' larga della cattura (`run_effect_chain`)."""
     for name, spec in inputs.items():
         capture = new_surface(width, height)
         cc = capture.getCanvas()
@@ -1880,7 +2057,7 @@ def capture_inputs(ctx: Context, program: "Program", inputs, backdrop: skia.Imag
             saturation=float(spec.get("saturation", 1.0)),
             blur_px=ctx.px(spec.get("blurDp", 0.0)),
             lens=None, tag=f"{tag}-{name}",
-            sharp_weight=spec.get("w"),
+            sharp_weight=spec.get("w"), extent=extent,
         )
         tile = skia.TileMode.kClamp if spec.get("edge", "decal") == "clamp" else skia.TileMode.kDecal
         program.set_child(name, image_shader(image, tile))
@@ -1982,7 +2159,10 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     * `shadow`: le maschere di `GlassShadowNode`, prima della lastra e scavate dentro la sagoma;
     * `capture`: la catena a monte, una sola per lastra, come un `RenderEffect` con un ingresso:
       saturazione, sfocatura con `Clamp`, mescola `w` fra nitido e sfocato. La cattura e' grande
-      taglia + 2 * (`paddingDp` + `marginDp`); `scale` e' la risoluzione ridotta;
+      taglia + 2 * (`paddingDp` + `marginDp`); `scale` e' la risoluzione ridotta. A risoluzione
+      ridotta la cattura e' troncata al pixel ma catena e corpo girano su tutto il ritaglio del
+      nodo, come su HWUI: oltre la cattura lo sfocato prolunga il bordo (`Clamp`) e il nitido e'
+      trasparente;
     * `body`: lo shader del corpo. Ogni suo ingresso riceve l'uscita della catena, trasparente
       fuori dai bordi (`body.inputs` puo' dare a un ingresso una catena sua);
     * `clip`: il ritaglio hardware sulla sagoma. `false` dove la lastra cede o viaggia: allora
@@ -2016,6 +2196,13 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     padding = int(scaled.px(float(spec.get("paddingDp", blur_dp)))) + int(scaled.px(el.get("marginDp", 0.0)))
     record_w = max(int(wi * scale) + padding * 2, 1)
     record_h = max(int(hi * scale) + padding * 2, 1)
+    # La cattura ha la taglia troncata (`refreshCapture`: `(size * scale).toInt()`), ma il corpo e'
+    # l'ultimo anello della catena di `RenderEffect` della cattura (GlassBodyShader.kt, in testa), e
+    # HWUI valuta un `RenderEffect` su tutto il ritaglio del nodo, arrotondato in fuori: la stessa
+    # regola del vetro di oggi (`run_effect_chain`, F0.3c). A risoluzione piena le due taglie
+    # coincidono; a risoluzione ridotta senza questo l'ultima colonna o riga resterebbe senza vetro.
+    extent = (max(int(math.ceil(wi * scale - 1e-6)) + padding * 2, record_w),
+              max(int(math.ceil(hi * scale - 1e-6)) + padding * 2, record_h))
 
     def builtins_for(local: Context, sx: float, pad: float, full_w: float, full_h: float) -> dict:
         # Cattura e luce stanno sulla griglia dei pixel; la frazione del riquadro entra in `$offset`.
@@ -2040,7 +2227,7 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         scaled, capture.makeImageSnapshot(),
         saturation=float(spec.get("saturation", 1.0)),
         blur_px=scaled.px(blur_dp), lens=None, tag=f"{tag}-monte",
-        sharp_weight=spec.get("w"),
+        sharp_weight=spec.get("w"), extent=extent,
     )
 
     material = upstream
@@ -2056,12 +2243,12 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
                 # `RenderEffect.createRuntimeShaderEffect(shader, nome)`: l'uscita della catena.
                 program.set_child(name, image_shader(upstream))
         capture_inputs(scaled, program, own, backdrop, xi, yi, scale, record_w, record_h, padding,
-                       f"{tag}-corpo")
-        surface = new_surface(record_w, record_h)
+                       f"{tag}-corpo", extent=extent)
+        surface = new_surface(*extent)
         paint = skia.Paint()
         paint.setShader(program.make())
         paint.setBlendMode(skia.BlendMode.kSrc)
-        surface.getCanvas().drawRect(skia.Rect.MakeWH(record_w, record_h), paint)
+        surface.getCanvas().drawRect(skia.Rect.MakeWH(*extent), paint)
         material = surface.makeImageSnapshot()
     if ctx.stages is not None:
         ctx.stages[f"{tag}-corpo"] = material

@@ -66,6 +66,8 @@ allega i diff. Non serve Gradle.
 | shader di Fluid-physics | `fluidphysics/FluidPhysicsShaders.kt` | idem, comprese le costanti (`$PhysicsMaxPieces`) |
 | shader del materiale nuovo | ogni `.kt` di `glass/field/` (il `gf/` del piano), sottocartelle comprese | idem; un'interpolazione puo' puntare a una stringa o a una costante di **un altro file del pacchetto**. Se la cartella non c'e' il banco legge solo i due file sopra |
 | ottiche dei ruoli, regola della taglia, risoluzione della cattura | `fluid/GlassMaterial.kt` | `XxxOptics = GlassOptics(...)`, i `.copy(...)`, le `const val` |
+| costanti numeriche interpolate in una sorgente (`$GlassShadowReachSigmas`) | lo stesso file o il suo pacchetto | calcolate e scritte **come le scrive Kotlin** in una stringa composta: `3f` -> `3.0`, `0.30f` -> `0.3`, `1e-4f` -> `1.0E-4`, `1f / 255f` -> `0.003921569`, un `Int` con le sue cifre. Il banco sa leggere letterali, altre costanti, `+ - * / %`, parentesi e `.toFloat()`; una costante che non sa calcolare, se una sorgente la interpola, ferma `check` |
+| contorno del campo e sigma dell'ombra del materiale nuovo | `glass/field/GlassFieldKernel.kt`, `GlassShadow.kt` | costanti **lette** (`field_number`); la regola del contorno e del layer d'ombra e' **portata** in `render.py` (`field_contour`, `draw_shadow_layers`) |
 | colore del bordo e dell'ombra, alfa delle pellicole, grigi del vetro | `fluid/GlassMaterial.kt` | **ricopiati** in testa a `render.py`, con il nome della funzione d'origine |
 | raccordo continuo degli angoli | `fluid/FluidShape.kt` | **portato** riga per riga in `render.py` (`continuous_path`, `Outline`), con le tre costanti ricopiate |
 | palette dell'engine | `theme/FluidTheme.kt` (`surfacePalette`, `FluidDefaultBrand`) | **ricopiati** in `render.py` i neutri, l'accento di serie e la quota di accento di ogni superficie (`"palette": "engine"`); la mescola e' quella di Compose, in Oklab (`mix`) |
@@ -242,12 +244,22 @@ Compone ombra, corpo e luce **nell'ordine dell'engine** (piano 3.3):
 }
 ```
 
-1. `shadow`: le maschere di `GlassShadowNode` (contatto, ambiente), prima della lastra, fuori dal suo
-   ritaglio e scavate dentro la sagoma. Ogni voce: `radiusDp`, `offsetDp`, `alpha`, `color`, `spreadDp`;
+1. `shadow`: l'ombra a riposo, prima della lastra, fuori dal suo ritaglio e scavata sotto la
+   sagoma, **resa come la rende il nodo vero** (`Modifier.glassShadow`, `GlassShadowLayer` in
+   `glass/field/GlassShadow.kt`). Ogni voce e' una maschera: `radiusDp`, `offsetDp`, `alpha`, `color`
+   (di solito due: contatto e ambiente). Il contorno e' quello del **campo** (lo stesso del corpo:
+   la superellisse dell'angolo raccordato, un rettangolo arrotondato dove gli angoli sono archi),
+   non il path dell'engine; le maschere sono bianche, in sola alfa, pesate e sommate in un layer a
+   8 bit su pixel interi, e colore e forza si applicano quando il layer si posa. Colori diversi fra
+   le maschere, o `spreadDp`, il nodo non li ha: allora il banco le disegna gia' colorate, alla
+   vecchia maniera, e non sta piu' prevedendo il nodo;
 2. `capture`: la catena a monte, **una per lastra**: saturazione, sfocatura con `Clamp`, mescola
    `w`. La cattura e' grande taglia + 2 x (`paddingDp` + `marginDp`); `scale` e' la risoluzione
-   ridotta, come su HWUI. L'engine usa padding = max(0, sfocatura - spessore della lente) + margine:
-   chi scrive la scena dalla ricetta mette `paddingDp`, senza il banco tiene tutta la sfocatura;
+   ridotta, come su HWUI: la cattura e' troncata al pixel, ma catena e corpo girano su tutto il
+   ritaglio del nodo (oltre la cattura lo sfocato prolunga il bordo, il nitido e' trasparente), la
+   stessa regola del vetro di oggi. L'engine usa padding = max(0, sfocatura - spessore della lente)
+   + margine: chi scrive la scena dalla ricetta mette `paddingDp`, senza il banco tiene tutta la
+   sfocatura;
 3. `body`: lo shader del corpo. Ogni suo ingresso riceve l'uscita della catena, trasparente fuori
    dai bordi (`body.inputs` puo' dare a un ingresso una catena sua);
 4. `clip`: il ritaglio hardware sulla sagoma. `false` dove la lastra cede o viaggia: allora ritaglia
@@ -541,6 +553,12 @@ hanno il velo adattivo, il raccordo continuo degli angoli ne' la taratura (lavor
 - **Ombra e bordo**: l'alfa del layer entra nel colore del pennello (un arrotondamento solo, come
   la GPU che compone in virgola mobile), e il layer dell'ombra si ricampiona in lineare quando due
   raggi non sono un numero intero di pixel.
+- **L'ombra a riposo del materiale nuovo**: il contorno del campo, due maschere in sola alfa in un
+  layer, colore e forza in disegno, come `GlassShadowLayer`. Sotto un bordo dritto segue l'ombra
+  ideale delle due maschere con errore medio entro 0,2 livelli (una riga singola, su una pagina
+  piatta, puo' sbagliare di un livello: e' l'arrotondamento dell'immagine a 8 bit).
+- **Le costanti nelle sorgenti**: il testo che il banco compila e' quello che compone Kotlin, cifra
+  per cifra (`3f` diventa `3.0`).
 - **I raggi di sfocatura**: `sigma = 0,57735 * raggio + 0,5`, il conto di HWUI sia per
   `RenderEffect.createBlurEffect` sia per `BlurMaskFilter`.
 - **La premoltiplicazione**: superfici e ingressi premoltiplicati, come su Android; gli uniform
@@ -595,6 +613,12 @@ manca ai fianchi.
   pixel interi (18 dp a densita' 2,125) HWUI ricampiona il layer dell'ombra. Il banco lo fa in
   lineare e sui fianchi torna (75% contro il 70% vero); sopra e sotto il vero non e' simmetrico
   (106% e 46%) e il banco si' (75% e 75%): 2 livelli su una riga di pixel. Non so perche'.
+- **L'ombra del materiale nuovo sul dispositivo.** Il banco segue la regola del nodo, ma il nodo
+  non e' ancora stato fotografato: la sfocatura delle maschere la' e' il `BlurMaskFilter` di HWUI
+  (qui Skia in software, che sta entro 3,4/255 dalla gaussiana a piena alfa), l'antialias del path
+  e' quello della GPU, e il layer li' si compone in virgola mobile. Sul vetro di oggi le stesse tre
+  differenze valevano meno di un livello sul profilo dell'ombra (`scenes/s1/`); per il materiale
+  nuovo lo dira' il primo scatto.
 - **Il bordo del tasto tondo sullo scuro.** Le righe 3 e 4 dal bordo escono 5,4 e 2,9 livelli sotto
   il vero (sul chiaro, e su capsula e pannello, lo scarto e' entro 3). Il bordo vero rientra di piu'.
 - **Lo spazio colore.** Il banco lavora in sRGB a 8 bit, senza linearizzare (come HWUI su uno

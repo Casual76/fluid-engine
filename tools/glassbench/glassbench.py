@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import platform
 import re
 import sys
@@ -1161,6 +1162,146 @@ def cmd_selftest(args) -> int:
     tail = 190.0 - float(capsule[bottom - 1 + 48, 200:300, 0].mean())
     test("ombra: la coda non si perde nell'arrotondamento (dove l'ombra ideale vale 1,1 livelli ne resta uno)",
          tail >= 0.9, f"{tail:.1f} livelli a 48 px sotto la capsula")
+
+    # Il materiale nuovo come lo disegnera' l'engine (F0.3e) ---------------------------------------
+    # 1. Il lettore del Kotlin scrive i numeri come li scrive Kotlin in una stringa composta.
+    kotlin_numbers = """
+    internal const val Tre: Float = 3f
+    const val TreVirgola: Float = 3.0f
+    const val Intero: Int = 3
+    const val Millesimo: Float = 1e-3f
+    const val Piccolo: Float = 1e-4f
+    const val Zeri: Float = 0.30f
+    const val Passo: Float = 1f / 255f
+    const val Quanti: Int = 4 * (Lati + 1) * 2   // un commento non fa parte del numero
+    const val Lati: Int = 64
+    const val Milione: Float = 1000000f
+    const val Dieci: Float = 1e7f
+    const val Doppio = 1.5
+    const val Esa = 0x10
+    const val Lungo = 5L
+    const val Meno: Float = -2f
+    const val DivisioneIntera = -7 / 2
+    const val DivisioneVera = 7f / 2
+    const val Velo: Long = 0x80F6F6F8
+    const val Somma = 0.1f + 0.2f
+    const val Convertito = 1.toFloat() / 3
+    const val Nome = "non e' un numero"
+    const val Ignota: Float = sqrt(2f)
+    """
+    expected_numbers = {
+        "Tre": "3.0", "TreVirgola": "3.0", "Intero": "3", "Millesimo": "0.001", "Piccolo": "1.0E-4",
+        "Zeri": "0.3", "Passo": "0.003921569", "Quanti": "520", "Lati": "64", "Milione": "1000000.0",
+        "Dieci": "1.0E7", "Doppio": "1.5", "Esa": "16", "Lungo": "5", "Meno": "-2.0",
+        "DivisioneIntera": "-3", "DivisioneVera": "3.5", "Velo": "2163668728", "Somma": "0.3",
+        "Convertito": "0.33333334",
+    }
+    read_numbers = kotlin_sources.constants_text(kotlin_numbers)
+    wrong = {k: (read_numbers.get(k), v) for k, v in expected_numbers.items() if read_numbers.get(k) != v}
+    test("lettore: una costante numerica entra in una sorgente come la scrive Kotlin (`3f` -> `3.0`, `1f / 255f` -> `0.003921569`)",
+         not wrong and "Nome" not in read_numbers and "Ignota" not in read_numbers,
+         "; ".join(f"{k}: {got} invece di {want}" for k, (got, want) in wrong.items()) or f"{len(expected_numbers)} costanti")
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "Prova.kt"
+        triple = '"' * 3
+        source.write_text(kotlin_numbers + "\n    const val ProvaShader = " + triple + "\n    half4 main(float2 p) { "
+                          "float r = $Tre * sigma; float s = $Passo; int n = $Quanti; return half4(r + s + float(n)); }\n    "
+                          + triple + "\n", encoding="utf-8")
+        composed = kotlin_sources.extract_shaders(source)["ProvaShader"]
+        test("lettore: la sorgente composta porta `3.0 * sigma`, il passo calcolato e l'intero",
+             "3.0 * sigma" in composed and "0.003921569" in composed and "int n = 520" in composed,
+             composed.strip()[:110])
+        source.write_text(kotlin_numbers + "\n    const val Rotta = " + triple + " float r = $Ignota; " + triple + "\n",
+                          encoding="utf-8")
+        try:
+            kotlin_sources.extract_shaders(source)
+            refused = False
+        except KeyError as error:
+            refused = "non sa calcolare" in str(error)
+        test("lettore: una costante che non sa calcolare la rifiuta, non ne ricopia le cifre", refused)
+
+    # 2. L'ombra a riposo: le maschere del nodo (`GlassShadowLayer`), non due disegni gia' colorati.
+    def rest_shadow(layers, radius=0, corner="round", w=120, h=60, density=2.0, page_level=238):
+        hexa = f"#{page_level:02X}{page_level:02X}{page_level:02X}"
+        image = pixels({"width": w + 80, "height": h + 80, "density": density, "theme": "light", "palette": "engine",
+                        "corner": corner, "background": {"kind": "color", "color": hexa},
+                        "elements": [{"kind": "material", "name": "v", "x": 40, "y": 40, "w": w, "h": h,
+                                      "radius": radius, "clip": True, "shadow": layers}]})
+        return image[..., 0].astype(float)
+
+    ios27 = [{"radiusDp": 1.5, "offsetDp": [0, 0.75], "alpha": 0.024}, {"radiusDp": 8.0, "offsetDp": [0, 4.0], "alpha": 0.038}]
+    shade = rest_shadow(ios27)
+    bottom, column = round(100 * 2.0), slice(round(80 * 2.0), round(120 * 2.0))
+    worst_gap, gaps, detail = 0.0, [], []
+    for below in (1, 2, 4, 6, 9, 12, 16, 20, 26):
+        ideal = 0.0
+        for layer in ios27:
+            sigma = 0.57735 * layer["radiusDp"] * 2.0 + 0.5
+            distance = (below - 0.5) - layer["offsetDp"][1] * 2.0
+            ideal += layer["alpha"] * 0.5 * math.erfc(distance / (sigma * math.sqrt(2.0)))
+        measured = 238.0 - float(shade[bottom + below - 1, column].mean())
+        gaps.append(measured - 238.0 * ideal)
+        worst_gap = max(worst_gap, abs(gaps[-1]))
+        detail.append(f"{measured:.0f}/{238.0 * ideal:.1f}")
+    # Su una pagina piatta ogni riga e' un livello intero: una riga puo' sbagliare di uno, la media no.
+    # Con le maschere gia' colorate e l'alfa nel pennello la media era -0,5 (e -1,0 con un'ombra forte).
+    test("ombra del materiale nuovo: sotto un bordo dritto segue l'ombra ideale delle due maschere (in media entro 0,35 livelli)",
+         abs(sum(gaps) / len(gaps)) <= 0.35 and worst_gap <= 1.3,
+         f"errore medio {sum(gaps) / len(gaps):+.2f}, massimo {worst_gap:.2f}; banco/ideale a 1-26 px: " + " ".join(detail))
+    test("ombra del materiale nuovo: sotto la sagoma non resta ombra",
+         float(np.abs(shade[round(50 * 2.0):round(90 * 2.0), round(60 * 2.0):round(140 * 2.0)] - 238.0).max()) == 0.0)
+    faint = rest_shadow([{"radiusDp": 8, "offsetDp": [0, 4], "alpha": 0.0005}])
+    test("ombra del materiale nuovo: sotto `GlassShadowMinAlpha` non si disegna", float(np.abs(faint - 238.0).max()) == 0.0)
+    two_colours = rest_shadow([{"radiusDp": 2, "offsetDp": [0, 1], "alpha": 0.1},
+                               {"radiusDp": 8, "offsetDp": [0, 4], "alpha": 0.1, "color": "#3050FF"}])
+    test("ombra del materiale nuovo: due colori diversi il nodo non li ha, e il banco torna al disegno generico",
+         238.0 - float(two_colours[bottom + 2, column].mean()) > 5.0)
+
+    # Il contorno e' quello del campo: circolare dove gli angoli sono archi, la superellisse altrove.
+    test("contorno del campo: una capsula e un raccordo a zero sono rettangoli arrotondati (nessuna spezzata)",
+         r.field_contour(0, 0, 200, 80, [40] * 4, 0.6) is None and r.field_contour(0, 0, 200, 200, [40] * 4, 0.0) is None)
+    contour = r.field_contour(10.0, 20.0, 300.0, 240.0, [60.0] * 4, 0.6)
+    reach, power = r.field_corner(60.0, 120.0, 0.6)
+    inside_points = [(160.0, 20.5), (160.0, 259.5), (10.5, 140.0), (309.5, 140.0), (160.0, 140.0),
+                     (10.0 + reach * 0.5, 20.0 + reach * 0.5)]
+    outside_points = [(10.5, 20.5), (309.5, 20.5), (10.5, 259.5), (309.5, 259.5)]
+    bounds = contour.getBounds() if contour is not None else None
+    test("contorno del campo: un pannello raccordato sta nel suo riquadro, tocca i quattro lati e lascia fuori i vertici",
+         contour is not None and abs(bounds.left() - 10.0) < 1e-3 and abs(bounds.right() - 310.0) < 1e-3
+         and abs(bounds.top() - 20.0) < 1e-3 and abs(bounds.bottom() - 260.0) < 1e-3
+         and all(contour.contains(*pt) for pt in inside_points) and not any(contour.contains(*pt) for pt in outside_points)
+         and reach > 60.0 and power > 2.0,
+         f"semiasse {reach:.1f} px (raggio 60), esponente {power:.2f}")
+
+    def filled(path) -> np.ndarray:
+        surface = r.new_surface(320, 280)
+        surface.getCanvas().drawPath(path, skia.Paint(AntiAlias=True, Color4f=skia.Color4f(1, 1, 1, 1)))
+        return surface.makeImageSnapshot().toarray()[..., 3].astype(float) / 255.0
+
+    field_mask = filled(contour)
+    engine_mask = filled(r.continuous_path(10.0, 20.0, 300.0, 240.0, [60.0] * 4, 0.6))
+    apart = np.abs(field_mask - engine_mask)
+    mirrored = max(float(np.abs(field_mask - field_mask[::-1]).max()), float(np.abs(field_mask - field_mask[:, ::-1]).max()))
+    # Skia non riempie una spezzata in modo simmetrico al pixel: fino a 0,13 di copertura sui pixel di bordo.
+    test("contorno del campo: e' simmetrico, e dal path dell'engine dista poco ma non zero (per questo l'ombra prende il suo)",
+         mirrored <= 0.2 and 0.0 < float(apart.sum()) < 400.0 and float(apart.max()) > 0.05,
+         f"area fra i due contorni {apart.sum():.0f} px quadri su {field_mask.sum():.0f}, scarto massimo di copertura {apart.max():.2f}")
+
+    # 3. La cattura a risoluzione ridotta del materiale nuovo: catena e corpo su tutto il ritaglio.
+    reduced = pixels({"width": 140, "height": 150, "density": 1.0, "theme": "light", "palette": "engine",
+                      "corner": "round", "background": {"kind": "color", "color": "#C08040"},
+                      "elements": [{"kind": "material", "name": "m", "x": 20, "y": 20, "w": 101, "h": 103, "radius": 0,
+                                    "clip": True, "capture": {"saturation": 1.5, "blurDp": 8, "scale": 0.5}}]},
+                     "fedelta-cattura-materiale")
+    inside = reduced[60:80, 60:80, :3].reshape(-1, 3).mean(0)
+    raw_page = np.array([0xC0, 0x80, 0x40], dtype=float)
+    last_column = reduced[40:100, 120, :3].astype(float)
+    last_row = reduced[122, 40:100, :3].astype(float)
+    test("materiale nuovo: a risoluzione ridotta l'ultima colonna e l'ultima riga sono vetro, non pagina nuda",
+         float(np.abs(last_column - inside).max()) <= 2 and float(np.abs(last_row - inside).max()) <= 2
+         and float(np.abs(inside - raw_page).max()) > 10,
+         f"scarto dal corpo: colonna {np.abs(last_column - inside).max():.0f}, riga {np.abs(last_row - inside).max():.0f}"
+         f" (il corpo dista {np.abs(inside - raw_page).max():.0f} dalla pagina)")
 
     print(f"\nimmagini di prova in {shown(out_dir)}")
     if failures:

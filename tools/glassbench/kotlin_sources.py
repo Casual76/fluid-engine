@@ -15,9 +15,12 @@ vecchi in silenzio.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UI_ROOT = REPO_ROOT / "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui"
@@ -47,26 +50,282 @@ def shader_files() -> tuple[Path, ...]:
 _RAW_STRING = re.compile(
     r"(?:const\s+)?val\s+(\w+)\s*(?::\s*\w+)?\s*=\s*\"\"\"(.*?)\"\"\"", re.S
 )
-_NUMBER_CONST = re.compile(
-    r"const\s+val\s+(\w+)\s*(?::\s*\w+)?\s*=\s*(-?\d+(?:\.\d+)?)[fFL]?\b"
-)
 _INTERPOLATION = re.compile(r"\$\{(\w+)\}|\$(\w+)")
 
+# --------------------------------------------------------------------------------------------
+# Le costanti numeriche, come le scrive Kotlin
+# --------------------------------------------------------------------------------------------
+#
+# `"... $GlassShadowReachSigmas * sigma ..."` in una `const val` e' una stringa che il compilatore
+# compone: al posto del nome mette `toString()` del valore, non le cifre scritte nel sorgente. Per
+# un `Float` vuol dire `3f` -> `3.0`, `0.30f` -> `0.3`, `1e-3f` -> `0.001`, `1e-4f` -> `1.0E-4`,
+# `1f / 255f` -> `0.003921569`; per un `Int` le cifre e basta. Fino a F0.3e il banco ricopiava le
+# cifre del sorgente (`3f` -> `3`, e di `1f / 255f` prendeva `1`): chi scriveva uno shader doveva
+# scrivere `3.0f` apposta perche' banco ed engine compilassero lo stesso testo.
 
-def _raw_strings(path: Path) -> tuple[dict[str, str], dict[str, str]]:
-    """(stringhe grezze, costanti numeriche) dichiarate in [path], non ancora risolte."""
+_CONST_DECL = re.compile(r"const\s+val\s+(\w+)\s*(?::\s*(\w+))?\s*=\s*([^\n]+)")
+_TOKEN = re.compile(
+    r"\s*(0[xX][0-9A-Fa-f_]+[uU]?[lL]?"
+    r"|(?:\d[\d_]*(?:\.\d[\d_]*)?|\.\d[\d_]*)(?:[eE][+-]?\d+)?[fFlLuU]*"
+    r"|[A-Za-z_]\w*|[-+*/%().])"
+)
+_RANK = {"int": 0, "long": 1, "float": 2, "double": 3}
+_DECLARED = {"Int": "int", "Long": "long", "Float": "float", "Double": "double", "Short": "int", "Byte": "int"}
+_CONVERSIONS = {"toInt": "int", "toLong": "long", "toFloat": "float", "toDouble": "double"}
+
+
+def _wrap(value: int, bits: int) -> int:
+    half = 1 << (bits - 1)
+    return (value + half) % (1 << bits) - half
+
+
+def _as_kind(kind: str, value):
+    """Il valore portato al tipo [kind], con l'aritmetica di quel tipo (un `Float` e' a 32 bit)."""
+    if kind == "int":
+        return _wrap(int(value), 32)
+    if kind == "long":
+        return _wrap(int(value), 64)
+    if kind == "float":
+        return float(np.float32(value))
+    return float(value)
+
+
+def _literal(token: str) -> tuple[str, object]:
+    text = token.replace("_", "")
+    if text[:2].lower() == "0x":
+        digits = text[2:].rstrip("uUlL")
+        value = int(digits, 16)
+        return ("long", value) if text[-1] in "lL" or value > 0x7FFFFFFF else ("int", value)
+    suffix = text[len(text.rstrip("fFlLuU")):].lower()
+    body = text.rstrip("fFlLuU")
+    if "f" in suffix:
+        return "float", float(np.float32(float(body)))
+    if "." in body or "e" in body.lower():
+        return "double", float(body)
+    value = int(body)
+    return ("long", value) if "l" in suffix or value > 0x7FFFFFFF else ("int", value)
+
+
+def _binary(op: str, a: tuple[str, object], b: tuple[str, object]) -> tuple[str, object]:
+    kind = a[0] if _RANK[a[0]] >= _RANK[b[0]] else b[0]
+    x, y = _as_kind(kind, a[1]), _as_kind(kind, b[1])
+    if kind in ("int", "long"):
+        if op in "/%" and y == 0:
+            raise ZeroDivisionError("divisione intera per zero")
+        if op == "/":      # Kotlin tronca verso lo zero, Python verso meno infinito
+            value = abs(x) // abs(y) * (1 if (x >= 0) == (y >= 0) else -1)
+        elif op == "%":    # il resto ha il segno del dividendo
+            value = abs(x) % abs(y) * (1 if x >= 0 else -1)
+        else:
+            value = {"+": x + y, "-": x - y, "*": x * y}[op]
+        return kind, _as_kind(kind, value)
+    real = np.float32 if kind == "float" else np.float64
+    with np.errstate(all="ignore"):
+        x, y = real(x), real(y)
+        value = {"+": lambda: x + y, "-": lambda: x - y, "*": lambda: x * y,
+                 "/": lambda: x / y, "%": lambda: np.fmod(x, y)}[op]()
+    return kind, float(value)
+
+
+def _evaluate_constant(expr: str, lookup) -> tuple[str, object]:
+    """Il valore di un inizializzatore di `const val`: letterali, altre costanti, + - * / %, parentesi,
+    `.toFloat()` e simili. Altro (una chiamata, un `if`) non e' una costante che il banco sa calcolare."""
+    tokens, at = [], 0
+    expr = expr.strip()
+    while at < len(expr):
+        match = _TOKEN.match(expr, at)
+        if match is None:
+            raise ValueError(f"non so leggere `{expr[at:]}`")
+        tokens.append(match.group(1))
+        at = match.end()
+    position = 0
+
+    def peek():
+        return tokens[position] if position < len(tokens) else None
+
+    def take():
+        nonlocal position
+        position += 1
+        return tokens[position - 1]
+
+    def primary():
+        token = take() if peek() is not None else None
+        if token is None:
+            raise ValueError("espressione troncata")
+        if token == "(":
+            value = sums()
+            if take() != ")":
+                raise ValueError("manca una parentesi chiusa")
+            return value
+        if token[0].isdigit() or token[0] == ".":
+            return _literal(token)
+        if token[0].isalpha() or token[0] == "_":
+            name = token
+            # `Oggetto.Nome`: conta l'ultimo nome (le costanti sono lette senza il loro oggetto).
+            while peek() == "." and position + 1 < len(tokens) and tokens[position + 1] not in _CONVERSIONS:
+                take()
+                name = take()
+            return lookup(name)
+        raise ValueError(f"non mi aspettavo `{token}`")
+
+    def postfix():
+        value = primary()
+        while peek() == ".":
+            take()
+            method = take()
+            if method not in _CONVERSIONS or take() != "(" or take() != ")":
+                raise ValueError(f"`.{method}` non e' una conversione numerica")
+            kind = _CONVERSIONS[method]
+            number = value[1]
+            if kind in ("int", "long") and value[0] in ("float", "double"):
+                number = math.trunc(number)
+            value = (kind, _as_kind(kind, number))
+        return value
+
+    def unary():
+        if peek() == "-":
+            take()
+            kind, value = unary()
+            return kind, _as_kind(kind, -value)
+        if peek() == "+":
+            take()
+            return unary()
+        return postfix()
+
+    def products():
+        value = unary()
+        while peek() in ("*", "/", "%"):
+            value = _binary(take(), value, unary())
+        return value
+
+    def sums():
+        value = products()
+        while peek() in ("+", "-"):
+            value = _binary(take(), value, products())
+        return value
+
+    result = sums()
+    if position != len(tokens):
+        raise ValueError(f"avanza `{' '.join(tokens[position:])}`")
+    return result
+
+
+def kotlin_number_text(kind: str, value) -> str:
+    """`toString()` di Kotlin per un numero: cio' che finisce in una stringa al posto di `$Nome`.
+
+    Interi: le cifre. `Float` e `Double`: la forma di Java, cioe' le cifre piu' corte che
+    distinguono il valore, in decimale con almeno una cifra dopo la virgola fra 10^-3 e 10^7
+    (`3.0`, `0.001`, `1000000.0`), altrimenti con l'esponente (`1.0E-4`, `1.0E7`). Un JDK prima
+    del 19 in pochi casi rari scrive una cifra in piu' delle piu' corte: qui si da' sempre la piu'
+    corta, che e' cio' che fa il compilatore di oggi."""
+    if kind in ("int", "long"):
+        return str(int(value))
+    number = np.float32(value) if kind == "float" else np.float64(value)
+    if np.isnan(number):
+        return "NaN"
+    if np.isinf(number):
+        return "Infinity" if number > 0 else "-Infinity"
+    sign = "-" if math.copysign(1.0, float(number)) < 0 else ""
+    if number == 0:
+        return sign + "0.0"
+    mantissa, _, exponent = np.format_float_scientific(abs(number), unique=True, trim="-").partition("e")
+    digits = mantissa.replace(".", "")
+    power = int(exponent)
+    if 1e-3 <= abs(float(number)) < 1e7:
+        if power >= 0:
+            whole = digits[:power + 1].ljust(power + 1, "0")
+            return f"{sign}{whole}.{digits[power + 1:] or '0'}"
+        return f"{sign}0.{'0' * (-power - 1)}{digits}"
+    return f"{sign}{digits[0]}.{digits[1:] or '0'}E{power}"
+
+
+def _constant_initializers(text: str) -> dict[str, tuple[str | None, str]]:
+    """Nome -> (tipo dichiarato o None, testo dell'inizializzatore) per ogni `const val` che non e'
+    una stringa. Le costanti dentro un `object` sono lette col loro nome nudo."""
+    found: dict[str, tuple[str | None, str]] = {}
+    for match in _CONST_DECL.finditer(text):
+        name, declared, expr = match.group(1), match.group(2), match.group(3)
+        expr = expr.split("//")[0].strip()
+        if not expr or expr[0] in "\"'" or declared in ("String", "Boolean", "Char"):
+            continue
+        found.setdefault(name, (declared, expr))
+    return found
+
+
+def evaluate_constants(own: dict[str, tuple[str | None, str]],
+                       shared: dict[str, tuple[str | None, str]] | None = None) -> dict[str, tuple[str, object]]:
+    """Nome -> (tipo, valore) delle costanti di [own], che possono citarsi fra loro e citare quelle
+    del pacchetto ([shared]). Una che il banco non sa calcolare resta fuori: se una sorgente la
+    interpola, `_resolve` lo dice invece di compilare un numero sbagliato."""
+    shared = shared or {}
+    done: dict[str, tuple[str, object]] = {}
+    failed: set[str] = set()
+
+    def value_of(name: str, trail: tuple[str, ...] = ()) -> tuple[str, object]:
+        if name in done:
+            return done[name]
+        if name in failed or name in trail or (name not in own and name not in shared):
+            raise KeyError(name)
+        declared, expr = own[name] if name in own else shared[name]
+        try:
+            kind, value = _evaluate_constant(expr, lambda ref: value_of(ref, trail + (name,)))
+            if declared in _DECLARED and _DECLARED[declared] != kind:
+                kind = _DECLARED[declared]
+            done[name] = (kind, _as_kind(kind, value))
+        except (KeyError, ValueError, ZeroDivisionError, OverflowError):
+            failed.add(name)
+            raise KeyError(name) from None
+        return done[name]
+
+    result: dict[str, tuple[str, object]] = {}
+    for name in own:
+        try:
+            result[name] = value_of(name)
+        except KeyError:
+            pass
+    return result
+
+
+def constants_text(text: str, shared_text: str = "") -> dict[str, str]:
+    """Le costanti numeriche di un sorgente Kotlin, gia' nel testo che Kotlin interpolerebbe."""
+    values = evaluate_constants(_constant_initializers(text), _constant_initializers(shared_text))
+    return {name: kotlin_number_text(kind, value) for name, (kind, value) in values.items()}
+
+
+def package_constants(paths) -> dict[str, tuple[str, object]]:
+    """Nome -> (tipo, valore) di tutte le costanti numeriche dei file [paths], lette insieme."""
+    merged: dict[str, tuple[str | None, str]] = {}
+    for path in paths:
+        for name, init in _constant_initializers(Path(path).read_text(encoding="utf-8")).items():
+            merged.setdefault(name, init)
+    return evaluate_constants(merged)
+
+
+def field_constants() -> dict[str, float]:
+    """Le costanti numeriche di `ui/glass/field/` come numeri: il banco le usa per ridisegnare cio'
+    che il nodo disegna in Kotlin (il contorno del campo, i sigma dell'ombra) senza ricopiarle."""
+    return {name: float(value) for name, (_, value) in package_constants(field_shader_files()).items()}
+
+
+def _raw_strings(path: Path) -> tuple[dict[str, str], dict[str, tuple[str | None, str]]]:
+    """(stringhe grezze, inizializzatori delle costanti numeriche) dichiarati in [path]."""
     text = path.read_text(encoding="utf-8")
     raw = {m.group(1): m.group(2) for m in _RAW_STRING.finditer(text)}
-    numbers = {m.group(1): m.group(2) for m in _NUMBER_CONST.finditer(text)}
-    return raw, numbers
+    return raw, _constant_initializers(text)
 
 
-def _resolve(label: str, raw: dict[str, str], numbers: dict[str, str],
+def _resolve(label: str, raw: dict[str, str], numbers: dict[str, tuple[str | None, str]],
              shared_raw: dict[str, str] | None = None,
-             shared_numbers: dict[str, str] | None = None) -> dict[str, str]:
-    """Risolve `$Nome` e `${Nome}` come fa Kotlin: prima nel file, poi nel pacchetto ([shared_*])."""
+             shared_numbers: dict[str, tuple[str | None, str]] | None = None) -> dict[str, str]:
+    """Risolve `$Nome` e `${Nome}` come fa Kotlin: prima nel file, poi nel pacchetto ([shared_*]).
+    Una costante numerica entra con il testo di `toString()` (vedi `kotlin_number_text`)."""
     shared_raw = shared_raw or {}
     shared_numbers = shared_numbers or {}
+    declared = set(numbers) | set(shared_numbers)
+    own_values = evaluate_constants(numbers, shared_numbers)
+    shared_values = evaluate_constants(shared_numbers)
+    numbers = {name: kotlin_number_text(*value) for name, value in own_values.items()}
+    shared_numbers = {name: kotlin_number_text(*value) for name, value in shared_values.items()}
     resolved: dict[str, str] = {}
 
     def resolve(name: str, trail: tuple[str, ...] = ()) -> str:
@@ -84,6 +343,11 @@ def _resolve(label: str, raw: dict[str, str], numbers: dict[str, str],
                 return numbers[ref]
             if ref in shared_numbers:
                 return shared_numbers[ref]
+            if ref in declared:
+                raise KeyError(
+                    f"{label}: `${ref}` dentro `{name}` e' una costante che il banco non sa calcolare "
+                    "(sa leggere letterali, altre costanti, + - * / % e le conversioni `.toFloat()`)"
+                )
             raise KeyError(
                 f"{label}: `${ref}` dentro `{name}` non e' ne' una stringa ne' una "
                 "costante numerica di questo file o del suo pacchetto"
@@ -109,7 +373,7 @@ def extract_package_shaders(paths) -> dict[str, str]:
     usato da `GlassBodyShaders.kt`), come Kotlin permette e come `gf/` fara'."""
     per_file = [(path, *_raw_strings(path)) for path in paths]
     shared_raw: dict[str, str] = {}
-    shared_numbers: dict[str, str] = {}
+    shared_numbers: dict[str, tuple[str | None, str]] = {}
     for path, raw, numbers in per_file:
         for name, body in raw.items():
             if name in shared_raw:

@@ -56,10 +56,20 @@ def luma(rgb: np.ndarray) -> np.ndarray:
 
 
 def bilinear(plane: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    """Campiona [plane] in punti non interi; fuori dall'immagine tiene il bordo."""
+    """Campiona [plane] in punti non interi; fuori dall'immagine tiene il bordo.
+
+    Le coordinate sono quelle della geometria, le stesse dei riquadri e di `window`: il pixel
+    (i, j) copre [i, i + 1) x [j, j + 1) e il suo **centro** sta in (i + 0,5, j + 0,5). Chiedere il
+    punto (i + 0,5, j + 0,5) da' quindi il pixel (i, j) tale e quale.
+
+    Fino a F0.3d qui il centro stava in (i, j): ogni profilo del bordo era letto mezzo pixel piu'
+    in basso e piu' a destra di dove diceva di essere. Sul lato alto e sul sinistro voleva dire
+    mezzo pixel piu' dentro la lastra, sul basso e sul destro mezzo pixel piu' fuori: un pixel di
+    differenza fra lati opposti, e un filo di uno o due pixel letto 10-30 livelli piu' debole in
+    alto a sinistra che in basso a destra, su un'immagine simmetrica."""
     h, w = plane.shape
-    x = np.clip(np.asarray(x, dtype=np.float64), 0.0, w - 1.001)
-    y = np.clip(np.asarray(y, dtype=np.float64), 0.0, h - 1.001)
+    x = np.clip(np.asarray(x, dtype=np.float64) - 0.5, 0.0, w - 1.001)
+    y = np.clip(np.asarray(y, dtype=np.float64) - 0.5, 0.0, h - 1.001)
     x0, y0 = np.floor(x).astype(int), np.floor(y).astype(int)
     fx, fy = x - x0, y - y0
     return (plane[y0, x0] * (1 - fx) * (1 - fy) + plane[y0, x0 + 1] * fx * (1 - fy)
@@ -247,14 +257,45 @@ def _edge_frame(s: Subject, spec: dict):
     raise ValueError(f"side sconosciuto: {side}")
 
 
+# Da dove si cerca il filo scuro quando la griglia dei pixel non e' allineata al profilo (un angolo
+# qualsiasi attorno a un tondo): il pixel di antialias non e' uno solo, e si resta a 0,75 px dal bordo.
+EDGE_FIRST_OBLIQUE = 0.75
+
+
+def first_full_pixel(point: tuple[float, float], normal: tuple[float, float]) -> float:
+    """A che distanza dal bordo, lungo la normale verso l'interno, sta il centro del primo pixel
+    **tutto dentro** la lastra.
+
+    Su un lato dritto la risposta e' esatta: 0,5 px se il bordo cade fra due pixel (il primo pixel
+    dentro e' gia' pieno), 1 px se cade a meta' di un pixel (quello a cavallo e' antialias, il primo
+    pieno e' il successivo), fra 0,5 e 1,5 in generale. A un angolo qualsiasi i pixel non sono in
+    fila lungo il profilo e si tiene `EDGE_FIRST_OBLIQUE`."""
+    (px, py), (nx, ny) = point, normal
+    if abs(nx) > 1e-9 and abs(ny) > 1e-9:
+        return EDGE_FIRST_OBLIQUE
+    edge, sign = (py, ny) if abs(ny) > abs(nx) else (px, nx)
+    to_boundary = (-edge * (1.0 if sign > 0 else -1.0)) % 1.0  # strada fino al prossimo confine fra pixel
+    if to_boundary > 1.0 - 1e-6:
+        to_boundary = 0.0
+    return 0.5 + to_boundary
+
+
 def edge_profile(s: Subject, spec: dict, plane: np.ndarray | None = None):
     """(t, luma) lungo la normale: t < 0 fuori, t > 0 dentro, in pixel, passo mezzo pixel.
 
     Come `rim.py`: da r*(1 - span) a r*(1 + span), media di tre raggi vicini (qui paralleli, a
-    +-`band` pixel) per togliere il rumore."""
+    +-`band` pixel) per togliere il rumore.
+
+    I campioni partono da `first_full_pixel` e vanno di mezzo pixel in mezzo pixel nei due versi:
+    su un lato dritto uno su due cade sul centro di un pixel e lo legge tale e quale (gli altri sono
+    la media di due pixel vicini). Prima la griglia partiva da -r*span, una frazione qualsiasi che
+    dipendeva dalla taglia dell'elemento: lo stesso filo di un pixel usciva al 100% su un tasto e
+    al 60% su un altro."""
     (px, py), (nx, ny), r = _edge_frame(s, spec)
     span = float(spec.get("span", 0.45))
-    t = np.arange(-r * span, r * span, 0.5)
+    first = first_full_pixel((px, py), (nx, ny))
+    reach = r * span
+    t = first + 0.5 * np.arange(math.ceil((-reach - first) / 0.5), math.ceil((reach - first) / 0.5))
     band = float(spec.get("band", 1.0))
     tx, ty = -ny, nx
     plane = s.L if plane is None else plane
@@ -267,7 +308,8 @@ def edge_profile(s: Subject, spec: dict, plane: np.ndarray | None = None):
 EDGE_NOISE = 3.0
 
 
-def analyse_edge(t: np.ndarray, v: np.ndarray, r: float, page: np.ndarray | None = None) -> dict:
+def analyse_edge(t: np.ndarray, v: np.ndarray, r: float, page: np.ndarray | None = None,
+                 first: float = EDGE_FIRST_OBLIQUE) -> dict:
     """I numeri di un profilo del bordo, con le finestre di `rim.py`:
 
     corpo = mediana fra 0,62 r e 0,80 r dal centro (0,20-0,38 r dentro il bordo); fondo = mediana
@@ -275,9 +317,14 @@ def analyse_edge(t: np.ndarray, v: np.ndarray, r: float, page: np.ndarray | None
     sporca il fondo); picco e minimo cercati entro 0,12 r dal bordo.
 
     Il *riflesso* e' il picco sopra il corpo. Il *filo scuro* e' una linea piu' scura sia del corpo
-    sia della pagina, cercata nei pixel pieni della lastra (da 0,75 px dentro il bordo: il pixel di
-    antialias e' una media fra corpo e ombra, e sembrerebbe un filo dove non c'e'). Sotto
-    `EDGE_NOISE` non c'e'."""
+    sia della pagina, cercata nei pixel pieni della lastra, cioe' da [first] in poi (il centro del
+    primo pixel tutto dentro, vedi `first_full_pixel`): il pixel di antialias e' una media fra
+    corpo e ombra, e sembrerebbe un filo dove non c'e'. Sotto `EDGE_NOISE` non c'e'.
+
+    Su un lato dritto a posizione intera un filo di uno, due o tre pixel esce col suo valore vero,
+    uguale sui quattro lati. Se il bordo cade a meta' di un pixel il filo e' gia' spalmato
+    nell'immagine (meta' nel pixel di antialias, che non si legge): la misura da' il pixel pieno
+    piu' scuro, che per un filo di un pixel e' meta' della sua profondita'."""
     body = float(np.median(v[(t > 0.20 * r) & (t < 0.38 * r)]))
     far = t < -0.30 * r
     background = float(np.median((v if page is None else page)[far]))
@@ -306,7 +353,9 @@ def analyse_edge(t: np.ndarray, v: np.ndarray, r: float, page: np.ndarray | None
         out["riflesso_rientro"] = max(float(t[c]), 0.0)
 
     # Il filo scuro: cercato nei pixel pieni, subito dentro il bordo.
-    inner = np.where(near & (t >= 0.75))[0]
+    inner = np.where(near & (t >= first - 1e-9))[0]
+    if len(inner) == 0:  # un elemento cosi' piccolo che 0,12 r non arriva al primo pixel pieno
+        inner = np.where(t >= first - 1e-9)[0][:1]
     j = int(inner[np.argmin(v[inner])])
     depth = min(body, background) - v[j]
     out["minimo"] = float(v[j])
@@ -339,7 +388,8 @@ def analyse_edge(t: np.ndarray, v: np.ndarray, r: float, page: np.ndarray | None
 def _edge(s: Subject, spec: dict) -> tuple[dict, float]:
     t, v, r = edge_profile(s, spec)
     _, page, _ = edge_profile(s, spec, s.P)
-    return analyse_edge(t, v, r, page), r
+    point, normal, _ = _edge_frame(s, spec)
+    return analyse_edge(t, v, r, page, first_full_pixel(point, normal)), r
 
 
 def measure_edge(s: Subject, spec: dict) -> list[Row]:

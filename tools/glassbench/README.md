@@ -397,6 +397,28 @@ della lastra; il **riflesso** e' un picco sopra il corpo. Sotto 3 livelli non ci
 R4 da' +-5 livelli ai suoi profili. Su testo e foto il profilo del bordo legge le lettere, non il
 filo: li' non si misura.
 
+Come si legge il profilo del bordo (da F0.3d). Le coordinate sono quelle dei riquadri: il pixel
+(i, j) ha il centro in (i + 0,5, j + 0,5). I campioni vanno di mezzo pixel in mezzo pixel a partire
+dal **primo pixel tutto dentro la lastra**: a 0,5 px da un bordo che cade fra due pixel, a 1 px da
+uno che cade a meta' di un pixel (quello a cavallo e' antialias e il filo non ci si cerca). Quindi
+su un lato dritto:
+
+- a posizione intera un filo di 1, 2 o 3 px esce col suo valore vero, uguale sui quattro lati
+  (`selftest` lo prova, e prova anche il mezzo pixel);
+- a mezzo pixel un filo di 1 px e' gia' spalmato nell'immagine su due pixel, e si legge il pixel
+  pieno: meta' della profondita'. Non e' la misura che lo indebolisce, e' il raster;
+- a un angolo qualsiasi di un tondo (`angle`, `rim`) i pixel non sono in fila lungo il profilo: si
+  parte da 0,75 px e un filo di 1 px si legge fra il 60% e il 100% secondo l'angolo (pieno a 0, 90,
+  180, 270 gradi). Da 2 px in su lo scarto lungo il giro e' sotto il 6%. Angoli opposti danno lo
+  stesso numero se l'immagine e' simmetrica; un cerchio reso da Skia lo e' solo entro 3-6 livelli
+  sui pixel di bordo.
+
+Prima di F0.3d il centro del pixel stava in (i, j): il profilo era letto mezzo pixel piu' dentro in
+alto e a sinistra e mezzo pixel piu' fuori in basso e a destra, e un filo di 2 px usciva -39 in alto
+e -57 in basso sulla stessa immagine simmetrica. Le tabelle misurate prima vanno rilette cosi': sul
+lato alto e sul sinistro il filo era sottostimato; sul basso e sul destro era giusto entro un livello
+(nelle scene rilette: -57 prima, -58 dopo).
+
 `--image foto.png` misura un PNG dato (stessa taglia della scena) al posto del render: uno
 screenshot del dispositivo ritagliato sulla scena, per esempio.
 

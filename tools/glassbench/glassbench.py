@@ -1033,6 +1033,70 @@ def cmd_selftest(args) -> int:
          abs(shadow["ombra, massimo"] - 5.0) < 0.1 and abs(shadow["ombra, estensione (>= 1 livello)"] - 0.2) < 0.03,
          f"{shadow['ombra, massimo']:.1f}%, {shadow['ombra, estensione (>= 1 livello)']:.2f} H")
 
+    # Il filo sottile, lato per lato (F0.3d). `measure` campionava il bordo col centro del pixel in
+    # (i, j) invece che in (i + 0,5, j + 0,5): mezzo pixel piu' dentro in alto e a sinistra, mezzo
+    # piu' fuori in basso e a destra. Su un'immagine simmetrica un filo di 2 px usciva -39 in alto
+    # e -57 in basso. Qui: una lastra quadrata con un anello scuro di 1, 2 e 3 px, a posizione
+    # intera e a mezzo pixel, letta sui quattro lati.
+    def wired_plate(width: int, offset: float, round_shape: bool = False):
+        size = int(round(2 * (80 + offset) + 140))  # il centro della lastra e' il centro dell'immagine
+        surface = skia.Surface.MakeRaster(skia.ImageInfo.MakeN32Premul(size, size))
+        canvas = surface.getCanvas()
+        canvas.clear(skia.Color(200, 200, 200))
+        x0 = 80.0 + offset
+        for inset, level in ((0.0, 150), (float(width), 236)):
+            paint = skia.Paint(AntiAlias=True, Color=skia.Color(level, level, level))
+            if round_shape:
+                canvas.drawCircle(x0 + 70.0, x0 + 70.0, 70.0 - inset, paint)
+            else:
+                canvas.drawRect(skia.Rect.MakeXYWH(x0 + inset, x0 + inset, 140 - 2 * inset, 140 - 2 * inset), paint)
+        image = surface.makeImageSnapshot().toarray(colorType=skia.kRGBA_8888_ColorType)[..., :3].astype(float)
+        if round_shape:
+            # Skia non rende un cerchio simmetrico al pixel (fino a 20 livelli sui pixel di bordo):
+            # qui si prova la misura, non il rasterizzatore, e l'immagine si fa simmetrica a mano.
+            image = (image + image[::-1] + image[:, ::-1] + image[::-1, ::-1]) / 4.0
+            image = (image + image.transpose(1, 0, 2)) / 2.0
+        box = {"x": x0, "y": x0, "w": 140.0, "h": 140.0, "radii": [70.0 if round_shape else 0.0] * 4}
+        return m.Subject(image, np.full_like(image, 200.0), {"v": box}, 1.0)
+
+    def wire(subject, **where) -> tuple[float, float]:
+        analysed, _ = m._edge(subject, dict({"element": "v"}, **where))
+        return analysed["filo_corpo"], analysed["filo_largo"]
+
+    for offset, label in ((0.0, "a posizione intera"), (0.5, "a mezzo pixel")):
+        for width in (1, 2, 3):
+            subject = wired_plate(width, offset)
+            read = [wire(subject, side=side) for side in ("top", "bottom", "left", "right")]
+            depths = [depth for depth, _ in read]
+            widths = [w for _, w in read]
+            # Vero: 150 - 236 = -86. A mezzo pixel un filo di 1 px e' spalmato su due pixel, e quello
+            # a cavallo del bordo (antialias) non si legge: resta il pixel pieno, a meta' profondita'.
+            expected = -43.0 if (offset and width == 1) else -86.0
+            test(f"measure: un filo di {width} px {label} si legge uguale sui quattro lati, e giusto",
+                 max(depths) - min(depths) <= 1.0 and max(widths) - min(widths) <= 0.5
+                 and abs(depths[0] - expected) <= 1.0,
+                 "alto {:+.0f}, basso {:+.0f}, sinistra {:+.0f}, destra {:+.0f} sul corpo (atteso {:+.0f}); largo {:.1f} px"
+                 .format(*depths, expected, widths[0]))
+    for width in (1, 2, 3):
+        subject = wired_plate(width, 0.0, round_shape=True)
+        around = [wire(subject, angle=angle)[0] for angle in range(0, 360, 15)]
+        opposite = max(abs(around[i] - around[i + 12]) for i in range(12))
+        quarter = max(abs(around[i] - around[(i + 6) % 24]) for i in range(24))
+        test(f"measure: attorno a un tondo un filo di {width} px si legge uguale ad angoli opposti e a 90 gradi",
+             opposite <= 1.0 and quarter <= 1.0,
+             f"scarto massimo {opposite:.2f} fra opposti, {quarter:.2f} a 90 gradi; da {min(around):+.0f} a {max(around):+.0f} nel giro")
+    test("measure: il primo pixel pieno sta a 0,5 px da un bordo intero e a 1 px da uno a meta' pixel, su ogni lato",
+         all(abs(m.first_full_pixel(point, normal) - want) < 1e-9 for point, normal, want in (
+             ((50.0, 80.0), (0.0, 1.0), 0.5), ((50.0, 220.0), (0.0, -1.0), 0.5),
+             ((80.0, 50.0), (1.0, 0.0), 0.5), ((220.0, 50.0), (-1.0, 0.0), 0.5),
+             ((50.0, 80.5), (0.0, 1.0), 1.0), ((50.0, 220.5), (0.0, -1.0), 1.0),
+             ((80.25, 50.0), (1.0, 0.0), 1.25), ((220.25, 50.0), (-1.0, 0.0), 0.75),
+             ((50.0, 50.0), (0.6, 0.8), m.EDGE_FIRST_OBLIQUE))))
+    grid = np.arange(12.0).reshape(3, 4)
+    test("measure: il campionamento legge il pixel (i, j) nel suo centro (i + 0,5, j + 0,5)",
+         float(m.bilinear(grid, np.array([2.5]), np.array([1.5]))[0]) == grid[1, 2]
+         and abs(float(m.bilinear(grid, np.array([2.0]), np.array([1.5]))[0]) - (grid[1, 1] + grid[1, 2]) / 2) < 1e-9)
+
     # Fedelta' del ridisegno (F0.3c): le correzioni nate dal confronto con lo scatto del Tab S9 ---
     # (scenes/s1, artifacts/liquid-glass/bench/f0-3c/fedelta-ridisegno.md). Ognuna e' una regola
     # del disegno vero che il banco prima non seguiva: qui si prova la regola, non lo scatto.

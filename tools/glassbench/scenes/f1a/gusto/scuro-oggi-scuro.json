@@ -23,24 +23,18 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 1.5,
-          "offsetDp": [0, 0.75],
-          "alpha": 0.096,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 8,
-          "offsetDp": [0, 4],
-          "alpha": 0.152,
+          "radiusDp": 34,
+          "offsetDp": [0, 6.7],
+          "alpha": 0.18,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
-        "paddingDp": 1.440001,
-        "scale": 0.4
+        "paddingDp": 0,
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -122,24 +116,18 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 1.5,
-          "offsetDp": [0, 0.75],
-          "alpha": 0.096,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 8,
-          "offsetDp": [0, 4],
-          "alpha": 0.152,
+          "radiusDp": 34,
+          "offsetDp": [0, 6.7],
+          "alpha": 0.18,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -158,7 +146,7 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#78788080",
+          "veilColor": "#73737B80",
           "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
@@ -221,24 +209,18 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 1.5,
-          "offsetDp": [0, 0.75],
-          "alpha": 0.096,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 8,
-          "offsetDp": [0, 4],
-          "alpha": 0.152,
+          "radiusDp": 34,
+          "offsetDp": [0, 6.7],
+          "alpha": 0.18,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -257,7 +239,7 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#78788080",
+          "veilColor": "#6A6A7280",
           "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
@@ -321,24 +303,18 @@
       "clipRadiusScale": 0.98,
       "shadow": [
         {
-          "radiusDp": 2.058545,
-          "offsetDp": [0, 1.029272],
-          "alpha": 0.113873,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 10.978905,
-          "offsetDp": [0, 5.489452],
-          "alpha": 0.1803,
+          "radiusDp": 37.798103,
+          "offsetDp": [0, 7.448449],
+          "alpha": 0.193405,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 14.234179,
+        "blurDp": 5.337817,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -357,7 +333,7 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#78788080",
+          "veilColor": "#36363C80",
           "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
@@ -439,24 +415,18 @@
       "clipRadiusScale": 0.98,
       "shadow": [
         {
-          "radiusDp": 3,
-          "offsetDp": [0, 1.5],
-          "alpha": 0.144,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 16,
-          "offsetDp": [0, 8],
-          "alpha": 0.228,
+          "radiusDp": 44.199997,
+          "offsetDp": [0, 8.709999],
+          "alpha": 0.216,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 18,
+        "blurDp": 6.75,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -475,7 +445,7 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#78788080",
+          "veilColor": "#36363C80",
           "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,

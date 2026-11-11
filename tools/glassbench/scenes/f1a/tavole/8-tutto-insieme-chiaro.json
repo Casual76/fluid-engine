@@ -1,6 +1,6 @@
 {
-  "titolo": "8 · Tutto insieme, tema chiaro: oggi e la combinazione proposta",
-  "domanda": "A sinistra il vetro di oggi, a destra la combinazione proposta di serie. Gli elementi sembrano oggetti tridimensionali, su un livello sopra la pagina?",
+  "titolo": "8 · Tutto insieme, tema chiaro: oggi e la combinazione scelta",
+  "domanda": "A sinistra il vetro di oggi, a destra la combinazione di serie con le tue scelte (bordo A, velo A, ombra B, smerigliatura D, bordo scuro B reso piu' deciso, velo scuro A sui tasti e piu' profondo sui grandi). Gli elementi sembrano oggetti tridimensionali, su un livello sopra la pagina?",
   "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
   "density": 1.8,
   "fondi": "fondi.json",
@@ -12,7 +12,7 @@
     },
     {
       "lettera": "nuovo",
-      "nome": "la combinazione proposta",
+      "nome": "la combinazione scelta",
       "scena": "../gusto/serie-{lato}.json"
     }
   ],

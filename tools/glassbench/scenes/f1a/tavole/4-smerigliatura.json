@@ -8,8 +8,7 @@
     {
       "lettera": "A",
       "nome": "12 dp",
-      "scena": "../gusto/serie-{lato}.json",
-      "nota": "di serie"
+      "scena": "../gusto/smeriglio-12-{lato}.json"
     },
     {
       "lettera": "B",
@@ -25,8 +24,8 @@
     {
       "lettera": "D",
       "nome": "iOS 26",
-      "scena": "../gusto/smeriglio-ios26-{lato}.json",
-      "nota": "4,5 dp"
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "4,5 dp, di serie (scelta di Alessio)"
     }
   ],
   "righe": [

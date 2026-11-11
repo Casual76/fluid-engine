@@ -1,7 +1,11 @@
 package dev.antigravity.fluidengine.ui.glass.field
 
+import androidx.compose.foundation.shape.AbsoluteCutCornerShape
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Offset
@@ -29,11 +33,13 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.glassLiquidSlabShadersHealthy
+import dev.antigravity.fluidengine.ui.fluid.glassResolutionScale
 import dev.antigravity.fluidengine.ui.fluid.isFlatVeil
 import dev.antigravity.fluidengine.ui.fluid.resolveFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import java.lang.reflect.Proxy
+import kotlin.math.max
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -186,6 +192,32 @@ class GlassModelSelectionTest {
     assertFalse(glassFieldRenders(GenericShape { _, _ -> }))
   }
 
+  @Test
+  fun aCutCornerShapeStaysClassic() {
+    // È una `CornerBasedShape`, ma i suoi angoli sono tagliati: il campo, che conosce solo angoli tondi o
+    // raccordati, la disegnava arrotondata (divergenza di F1A.10). Resta al vetro di prima, che la ritaglia col
+    // suo path, come ogni forma che il campo non sa rendere.
+    for (shape in listOf(CutCornerShape(8.dp), AbsoluteCutCornerShape(8.dp), CutCornerShape(0.dp))) {
+      assertFalse(shape.toString(), glassFieldRenders(shape))
+      val model = resolveFluidGlassModel(
+        sdk = FluidGlassLiquidMinSdk,
+        shadersHealthy = { error("una forma che resta Classic non deve far compilare niente") },
+        requested = FluidGlassModel.Liquid,
+        falloff = GlassFalloff.Uniform,
+        genericShape = !glassFieldRenders(shape),
+      )
+      assertEquals(FluidGlassModel.Classic, model)
+    }
+    // Una sottoclasse di `CornerBasedShape` scritta da un'app: il campo non sa che curva disegna.
+    val custom = object : CornerBasedShape(CornerSize(8.dp), CornerSize(8.dp), CornerSize(8.dp), CornerSize(8.dp)) {
+      override fun copy(topStart: CornerSize, topEnd: CornerSize, bottomEnd: CornerSize, bottomStart: CornerSize) = this
+      override fun createOutline(
+        size: Size, topStart: Float, topEnd: Float, bottomEnd: Float, bottomStart: Float, layoutDirection: LayoutDirection,
+      ): Outline = throw AssertionError("la forma non va disegnata per sapere se il campo la rende")
+    }
+    assertFalse(glassFieldRenders(custom))
+  }
+
   // ---- La tinta ----------------------------------------------------------------------------------------------
 
   @Test
@@ -301,10 +333,11 @@ class GlassModelSelectionTest {
     intensity: () -> Float = { 1f },
     pressed: () -> Float = { 0f },
     touch: () -> GlassTouchLight? = { null },
+    profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   ) = GlassLiquidSurface(
     role = role, optics = optics.sanitized(), shape = shape, darkSide = dark, screenDensity = density,
     intensity = intensity, opticalDepth = { 1f }, pressed = pressed, quality = { 1f },
-    film = { Color.Unspecified }, tint = { Color.Unspecified }, touch = touch,
+    film = { Color.Unspecified }, tint = { Color.Unspecified }, touch = touch, profile = profile,
   )
 
   @Test
@@ -338,9 +371,17 @@ class GlassModelSelectionTest {
   fun theCaptureMarginIsWholePixelsAndDoesNotMoveWithIntensityQualityOrPressure() {
     var intensity = 1f
     var pressed = 0f
+    // Con la smerigliatura di serie (4,5 dp) la lente copre tutto e il margine è zero; con 12 dp il tasto ne ha
+    // 1,44 dp, ed è lì che si vede come si arrotonda.
+    assertEquals(
+      0f,
+      surface(GlassRole.Interactive, FluidCapsuleShape, GlassDefaults.buttonOptics()).drawInputs(Size(132f, 132f), scale = 1f).paddingPx,
+      0f,
+    )
     val button = surface(
       GlassRole.Interactive, FluidCapsuleShape, optics = GlassDefaults.buttonOptics(),
       intensity = { intensity }, pressed = { pressed },
+      profile = GlassLiquidProfile.Default.copy(frost = GlassLiquidFrosts.Radius12),
     )
     val size = Size(132f, 132f)
     val rest = button.drawInputs(size, scale = 1f)
@@ -368,8 +409,12 @@ class GlassModelSelectionTest {
     var finger = Offset(30f, 200f)
     val touch = GlassTouchLight(amount = { amount }, position = { finger })
     val size = Size(132f, 132f)
-    // Sul lato scuro di serie il filo non c'è: a riposo un disegno solo, quello che somma.
-    val dark = surface(GlassRole.Interactive, FluidCapsuleShape, GlassDefaults.buttonOptics(), dark = true, touch = { touch })
+    // Sul lato scuro col solo riflesso (la variante A del bordo scuro) il filo non c'è: a riposo un disegno solo,
+    // quello che somma.
+    val dark = surface(
+      GlassRole.Interactive, FluidCapsuleShape, GlassDefaults.buttonOptics(), dark = true, touch = { touch },
+      profile = GlassLiquidProfile.Default.copy(darkEdge = GlassLiquidEdges.DarkReflex),
+    )
     val rest = dark.drawInputs(size, scale = 1f)
     assertTrue(rest.drawsGlowing)
     assertFalse(rest.drawsRim)
@@ -491,7 +536,14 @@ class GlassModelSelectionTest {
   @Test
   fun theDarkSideDrawsTheLightOnceAndNothingAtAllWhenAbsent() {
     val size = Size(468f, 168f)
-    val dark = surface(GlassRole.Floating, FluidCapsuleShape, dark = true).drawInputs(size, scale = 1f)
+    // Di serie (la B: riflesso e filo chiaro) due disegni come sul chiaro; col solo riflesso uno.
+    val wire = surface(GlassRole.Floating, FluidCapsuleShape, dark = true).drawInputs(size, scale = 1f)
+    assertEquals(
+      listOf(LightDraw(BlendMode.Plus, 0f), LightDraw(BlendMode.SrcOver, 1f)),
+      lightDraws(wire, RecordingShader(), size),
+    )
+    val reflexOnly = GlassLiquidProfile.Default.copy(darkEdge = GlassLiquidEdges.DarkReflex)
+    val dark = surface(GlassRole.Floating, FluidCapsuleShape, dark = true, profile = reflexOnly).drawInputs(size, scale = 1f)
     assertEquals(listOf(LightDraw(BlendMode.Plus, 0f)), lightDraws(dark, RecordingShader(), size))
 
     val gone = surface(GlassRole.Floating, FluidCapsuleShape, intensity = { 0f }).drawInputs(size, scale = 1f)
@@ -591,16 +643,24 @@ class GlassModelSelectionTest {
   // ---- La frazione di risoluzione ----------------------------------------------------------------------------
 
   @Test
-  fun everyStockRoleCapturesAtTheFloorWhateverItsSize() {
+  fun everyStockRoleCapturesAtTheSameScaleWhateverItsSize() {
     val sizes = listOf(44f to 44f, 156f to 56f, 170f to 192f, 330f to 380f)
+    val frost = GlassLiquidProfile.Default.frost.blur.value
     for (role in GlassRole.entries) {
       val optics = GlassDefaults.optics(role)
       val atComposition = glassLiquidCaptureScale(role, optics)
-      assertEquals(role.name, GlassLiquidMinCaptureScale, atComposition, 0f)
-      // Decisa in composizione, senza la taglia: per i ruoli di serie è quella che la ricetta dà a ogni taglia.
+      // La smerigliatura del ruolo (4,5 dp di serie: il 73% della risoluzione), per la `backdropResolution`
+      // dell'ottica, mai sotto il pavimento.
+      val expected = max(glassResolutionScale(frost) * optics.backdropResolution, GlassLiquidMinCaptureScale).coerceAtMost(1f)
+      assertEquals(role.name, expected, atComposition, 0f)
+      // Decisa in composizione, senza la taglia: è quella che la ricetta dà a ogni taglia, anche ai grandi che
+      // sfocano un poco di più.
       for ((w, h) in sizes) {
         assertEquals("$role $w x $h", glassRecipe(role, w, h, darkSide = false, optics = optics).captureScale, atComposition, 0f)
       }
+      // Con una smerigliatura oltre i 10 dp ogni ruolo scende al pavimento, come con quella di F1A.5.
+      val frosted = GlassLiquidProfile.Default.copy(frost = GlassLiquidFrosts.Radius12)
+      assertEquals(role.name, GlassLiquidMinCaptureScale, glassLiquidCaptureScale(role, optics, frosted), 0f)
     }
     // Un'ottica che spegne la sfocatura cattura a risoluzione piena: una lente limpida è tutta bordo.
     val clear = GlassDefaults.optics(GlassRole.Interactive).copy(blurScale = 0f)

@@ -25,8 +25,14 @@
  * Fonti: «R5 M1» è la scheda M1 di `docs/liquid-glass/ricerca/ios27-differenze.md`, «R4 A3» la scheda A3 di
  * `ricerca/riferimenti-misure.md`, «T6» la lettura del ritaglio `T6_scheda_prominente_269_0519.jpg` fatta in
  * F1A.3. Dove c'è scritto «a occhio» la data è l'11 novembre 2026 e l'occhio è quello di chi ha tarato sul
- * banco: la scelta di Alessio sulle tavole va scritta al posto di quella. Le misure del banco citate sono in
- * `artifacts/liquid-glass/bench/f1a-5/misure-contro-bersagli.md`.
+ * banco. Le misure del banco citate sono in `artifacts/liquid-glass/bench/f1a-5/misure-contro-bersagli.md` e,
+ * per il ritocco dopo le scelte, in `artifacts/liquid-glass/bench/f1a-5c/`.
+ *
+ * **Le scelte di Alessio (11 novembre 2026)**, sulle tavole di `artifacts/liquid-glass/tavole/f1a/`, sono la
+ * combinazione di serie ([GlassLiquidProfile.Shipped]): bordo A (iOS 27), velo A (iOS 27), ombra B (iOS 26,
+ * larga), smerigliatura D (iOS 26, 4,5 dp), bordo scuro B (riflesso e filo chiaro), velo scuro A (il più
+ * chiaro). Le alternative restano nei cataloghi e nelle manopole ([GlassLiquidTuning]): in particolare la
+ * smerigliatura C e M, perché la scelta fra C, M e D è stata difficile e si riguarda sul tablet.
  */
 package dev.antigravity.fluidengine.ui.glass.field
 
@@ -186,6 +192,62 @@ internal const val GlassLiquidSmallShadowStartDp: Float = 44f
 internal const val GlassLiquidSmallShadowEndDp: Float = 56f
 
 /**
+ * Sotto questo lato corto una lastra è un **piccolissimo** (l'indicatore di sincronizzazione da 26 dp, un
+ * pallino): filo, riflesso e ombra sono tarati su un tasto da 44 dp e, lasciati com'erano, su un tondo di 26
+ * dp facevano un anello chiaro vistoso dentro il filo (il riflesso rientrava 7 dp su un raggio di 13) e
+ * un'ombra larga più dell'oggetto. Sotto questa soglia la ricetta rimpicciolisce **in proporzione al lato**
+ * l'ombra (raggi e scostamento) e attenua il riflesso ([GlassLiquidTinyReflexFloor]); il filo no, è assoluto.
+ * Da 44 dp in su niente cambia. A occhio sul banco (F1A.5c, `bench/f1a-5c/tav-piccoli2.png`).
+ */
+internal const val GlassLiquidTinyBelowDp: Float = 44f
+
+/** Il lato corto a cui il riflesso di un piccolissimo è sceso al suo minimo. Vedi [GlassLiquidTinyBelowDp]. */
+internal const val GlassLiquidTinyReflexFromDp: Float = 20f
+
+/**
+ * Quanto del riflesso resta a [GlassLiquidTinyReflexFromDp] e sotto: sale in linea fino a uno a
+ * [GlassLiquidTinyBelowDp]. Con 0,35 il tondo da 26 dp tiene una riga chiara (si legge ancora come vetro) ma
+ * non più l'anello bianco; con 0,2 diventava un cerchio col solo filo scuro. A occhio (F1A.5c).
+ */
+internal const val GlassLiquidTinyReflexFloor: Float = 0.35f
+
+/**
+ * Fin dove rientra il riflesso, in frazione del lato corto: 0,16 dà i 7 dp di serie a 44 dp (quindi da lì in
+ * su non tocca niente) e 4,2 dp a 26 dp, dove i 7 dp facevano dell'alone mezzo raggio. A occhio (F1A.5c).
+ */
+internal const val GlassLiquidTinyReflexDepthFraction: Float = 0.16f
+
+/**
+ * Il **velo scuro dei grandi**: da questo lato corto in su il velo scuro comincia a passare da quello dei
+ * piccoli ([GlassLiquidProfile.darkVeil]) a quello dei grandi ([GlassLiquidProfile.darkLargeVeil]), e ci arriva a
+ * [GlassLiquidDarkLargeEndDp], con un passo morbido (smoothstep): nessuno scatto fra un tasto largo e una card
+ * piccola.
+ *
+ * Perché: la scelta del velo scuro «più chiaro» (6-A) è stata fatta guardando tasti e capsule; sul tablet
+ * (S1-ter, difetto 2) fogli, card, pannello dei controlli e menu scuri diventavano un grigio medio (corpo a
+ * luma 74–75 contro 37–41 del vetro di oggi) e il testo secondario dell'engine (`onSurfaceVariant`,
+ * `#AAAAB2`) scendeva da 6,3–6,7:1 a 3,8:1. Le soglie: una capsula (56 dp) e una tab bar (62 dp) restano quasi
+ * «piccole» (7% e 20% della strada), una notifica a una riga (72 dp) è a metà, una card da 96 dp in su è
+ * «grande». In chiaro non c'è un velo dei grandi: il testo vi tiene 4,6–5,0:1 come oggi.
+ */
+internal const val GlassLiquidDarkLargeStartDp: Float = 48f
+
+/** Vedi [GlassLiquidDarkLargeStartDp]. */
+internal const val GlassLiquidDarkLargeEndDp: Float = 96f
+
+/**
+ * Il tetto della **sfocatura chiesta in più**: un'ottica scritta a mano con un `blurScale` oltre quello di
+ * serie del suo ruolo fa crescere la smerigliatura del profilo nella stessa proporzione, fino a tre volte.
+ *
+ * Perché non viene ignorata: il pannello del lettore di Fluidify chiede `blurScale = 7` su un ruolo `Modal`
+ * che di serie ne ha 3,5, per smerigliare di più una parete di copertine; con la smerigliatura del profilo
+ * e basta usciva *meno* smerigliato del vetro di ieri. Perché un tetto: `GlassOptics` accetta fino a 16
+ * (`GlassMaxBlurScale`, una rete per i valori malformati), e 16 / 1,8 farebbe nove volte il raggio di un
+ * tasto. Tre volte la D (4,5 dp) è 13,5 dp: più della smerigliatura A, meno della C.
+ */
+internal const val GlassLiquidFrostRequestMax: Float = 3f
+
+/**
  * Le **soglie** con cui un'ottica di oggi ([dev.antigravity.fluidengine.ui.fluid.GlassOptics]) parla al
  * materiale nuovo: sono il valore più basso che ognuno di quei campi ha in un ruolo di serie.
  *
@@ -301,17 +363,43 @@ internal object GlassLiquidEdges {
   )
 
   /**
-   * **Tema scuro, solo il riflesso** (di serie): la luce di [Ios27] senza filo. R5 M3 (bassa): bordo alto
-   * +10…+25 sul corpo, nessun filo scuro visibile. Sul banco +19 sul corpo scuro.
+   * **Tema scuro, solo il riflesso** (la A della tavola 6): la luce di [Ios27] senza filo. R5 M3 (bassa): bordo
+   * alto +10…+25 sul corpo, nessun filo scuro visibile. Sul banco +20 sul corpo scuro, e i fianchi della lastra
+   * senza bordo: è il «disco grigio piatto» che ha fatto scegliere B.
    */
   val DarkReflex: GlassLiquidEdge = Ios27.copy(rim = Color.Transparent, rimLift = 0f)
 
   /**
-   * **Tema scuro, riflesso e un filo chiaro sottile**: come [DarkReflex] più un filo bianco al 10% su tutto il
-   * perimetro. È un filo che **copre** (non una luce che somma): ha lo stesso peso qualunque cosa ci sia
-   * sotto, e resta sopra il bagliore. A occhio.
+   * **Tema scuro, riflesso e un filo chiaro sottile, come nella tavola 6** (la B che Alessio ha scelto, nella
+   * forma in cui l'ha vista): come [DarkReflex] più un filo bianco al 10% su tutto il perimetro. È un filo che
+   * **copre** (non una luce che somma): ha lo stesso peso qualunque cosa ci sia sotto, e resta sopra il
+   * bagliore. Resta come termine di paragone; di serie c'è [DarkWire].
    */
   val DarkReflexAndWire: GlassLiquidEdge = DarkReflex.copy(rim = Color.White.copy(alpha = 0.10f))
+
+  /**
+   * **Tema scuro, la B resa più decisa** (di serie). Alessio ha scelto «riflesso e filo chiaro»; sul banco e
+   * sul tablet il 10% della tavola lasciava il vetro scuro poco staccato dalla pagina scura. Il ritaglio di
+   * Apple (`M3_tab_bar_scura_292_0632.jpg`, letto in F1A.5c) ha un filo chiaro netto **tutto intorno**: +32…+40
+   * in alto, +26…+40 in basso e fino a +83 sul capo sinistro, sopra il varco nero. Qui:
+   *  - filo bianco al 34% che **copre**, pieno in alto e in basso e al 75% sui fianchi (`rimLift` −0,25: cede
+   *    fuori dai lobi della luce, un poco). Con −0,6 i fianchi restavano a +12, troppo poco accanto ad Apple;
+   *    con 0 il filo diventava un contorno uguale tutto intorno;
+   *  - riflesso 0,20 e alone 0,55 (il chiaro ne ha 0,12 e 0,45): sul corpo scuro la luce che somma conta di
+   *    più, e la riga chiara sotto il filo è ciò che lo fa leggere come uno spigolo e non come un tratto.
+   *
+   * Sul banco, capsula sulla pagina `#0D0D0F` a densità 3 (`measure`, scena `gusto/serie-scuro`): in alto +52
+   * sul corpo (picco 112), in basso +57, sui fianchi +34; col 10% della tavola +24 / +29 / +9, col solo
+   * riflesso +20 / +29 / niente. Sopra il bersaglio di R5 M3 (+10…+25, fiducia bassa: una grafica in HD) e
+   * dentro la lettura del ritaglio di Apple fatta qui. Il corpo resta quello del velo (64–67): più deciso è il
+   * bordo, non la lastra. A occhio, tavola `bench/f1a-5c/tav-scuro3.png` (colonna «g»).
+   */
+  val DarkWire: GlassLiquidEdge = DarkReflex.copy(
+    rim = Color.White.copy(alpha = 0.34f),
+    rimLift = -0.25f,
+    reflexStrength = 0.20f,
+    reflexHalo = 0.55f,
+  )
 
   /**
    * **Tema scuro, com'è oggi**: bianco al 50% in `Plus` (`glassRimRecipe`), pieno sopra e sotto, spento sui
@@ -396,6 +484,27 @@ internal object GlassLiquidVeils {
 
   /** **Tema scuro, più profondo**: 50 sulla pagina scura, 45 sul nero. A occhio. */
   val DarkDeeper: GlassLiquidVeil = DarkLighter.copy(color = Color(0x9E48484E))
+
+  /**
+   * **Tema scuro, i grandi** (di serie per fogli, card, pannelli, menu: vedi [GlassLiquidDarkLargeStartDp]): lo
+   * stesso velo di [DarkLighter] con un grigio più profondo, alla **stessa alfa**. Così la pagina passa quanto
+   * sotto un tasto (metà: il foglio resta un vetro, col filo chiaro e il riflesso del bordo scuro) e il corpo
+   * scende dove il testo secondario dell'engine si legge.
+   *
+   * Il vincolo è misurato (S1-ter, difetto 2): il testo `onSurfaceVariant` scuro (`#AAAAB2`) sul corpo deve
+   * stare ad almeno 6:1 (99,5° percentile del testo contro la mediana del corpo), come sul vetro di oggi
+   * (6,3–6,7:1), e mai sotto 4,5:1. Sul banco, foglio e card a densità 2,125 (`bench/f1a-5c/contrasto.py`):
+   *
+   * | sotto il foglio | con [DarkLighter] | con questo |
+   * |---|---|---|
+   * | la pagina `#0D0D0F` | corpo 67, 4,3:1 | corpo 34, **6,9:1** |
+   * | `#1C1C20`, che riproduce il tablet di S1-ter (lì 74–75 e 3,8:1) | 75, 3,8:1 | 41, **6,3:1** |
+   * | nero | – | 27, 7,5:1 |
+   *
+   * `#3E3E44` dava 6,5:1 sulla pagina ma 5,9:1 sul fondo del tablet. Il corpo resta sopra la pagina (34 contro
+   * 13), col filo chiaro e il riflesso: è un vetro scuro, non una lastra nera. A occhio sul resto (F1A.5c).
+   */
+  val DarkLarge: GlassLiquidVeil = DarkLighter.copy(color = Color(0x8036363C))
 }
 
 /** Le varianti della **smerigliatura** (tavola «la smerigliatura»). */
@@ -434,7 +543,21 @@ internal object GlassLiquidFrosts {
    */
   val WideMixed: GlassLiquidFrost = GlassLiquidFrost(blur = 36.dp, mix = 0.12f, saturation = 1.5f)
 
-  /** **iOS 26**: 4,5 dp, il raggio del ruolo `Floating` di oggi (26% di contrasto, R4 A5 e R5 M1). */
+  /**
+   * **Di mezzo** (la M del confronto in movimento, F1A.5b): 8 dp, solo raggio. Nessuna lettera leggibile
+   * sotto le scritte, nessun margine di cattura, metà dei pixel elaborati di D; del carattere di iOS 27 non ha
+   * la diffusione larga del colore (0,16 H). Contrasto che resta sotto la capsula sul testo 13,6%
+   * (`tavole/f1a/smerigliatura-movimento/README.md`). Non è di serie: resta raggiungibile dalle manopole.
+   */
+  val Middle: GlassLiquidFrost = GlassLiquidFrost(blur = 8.dp, mix = 0f, saturation = 1.5f)
+
+  /**
+   * **iOS 26** (di serie, la D: scelta di Alessio dopo il confronto in movimento C | M | D): 4,5 dp, il raggio
+   * del ruolo `Floating` di oggi (26% di contrasto, R4 A5 e R5 M1). Sotto una barra le parole restano macchie
+   * che si riconoscono come forme; il colore del fondo resta vicino a dov'è (0,13 H). Cattura a risoluzione
+   * 0,73 senza margine. È la più mossa delle tre nel lancio (sfarfallio 7,6 contro 2,2 di C): da riguardare sul
+   * tablet con `frost=wide` e `frost=mid`.
+   */
   val Ios26: GlassLiquidFrost = GlassLiquidFrost(blur = 4.5.dp, mix = 0f, saturation = 1.5f)
 }
 
@@ -475,9 +598,14 @@ internal object GlassLiquidShadows {
   )
 
   /**
-   * **iOS 26**: larga, una componente sola. R4 A3 (alta): sotto una capsula 3,7% a 0,20–0,24 H, estesa fino a
+   * **iOS 26** (di serie sul lato chiaro: la B, scelta di Alessio, «anche se in realtà la differenza si nota
+   * poco»): larga, una componente sola. R4 A3 (alta): sotto una capsula 3,7% a 0,20–0,24 H, estesa fino a
    * 0,75 H; R4 ne ricava (bassa) uno scostamento di 0,10–0,15 H e una sfocatura di 0,3–0,4 H: su una capsula da
    * 56 dp sono 6,7 dp e un raggio di 34 dp. Nessun contatto: «mai una linea di contatto netta» (R4 A3).
+   *
+   * Con un'ombra così larga la parità fra riposo (maschera sfumata) e viaggio (campo nello shader) non regge da
+   * sola: F1A.4 misurava sul banco 6 livelli sotto il tasto e 4 sotto capsula e menu (con l'ombra corta 3). La
+   * chiude F1B (prova F1B.6), non questo profilo.
    */
   val Ios26: GlassShadowSpec = GlassShadowSpec(
     contactRadius = 0.dp,
@@ -502,12 +630,20 @@ internal object GlassLiquidShadows {
   )
 
   /**
-   * **Lato scuro** (di serie): la geometria di [Ios27] con le due alfa moltiplicate per quattro. Né R4 né R5
-   * misurano un'ombra sotto un vetro scuro. Sulla pagina `#0D0D0F` non può vedersi (c'è un livello di luce da
-   * togliere), e lì il tasto stacca per corpo e riflesso; conta sopra una foto o un testo chiaro, dove il 6%
-   * del lato chiaro sotto un vetro a 60–70 di luma sparisce. A occhio.
+   * **Lato scuro, ombra corta**: la geometria di [Ios27] con le due alfa moltiplicate per quattro. Era di serie
+   * fino alla scelta dell'ombra B. Né R4 né R5 misurano un'ombra sotto un vetro scuro. Sulla pagina `#0D0D0F`
+   * non può vedersi (c'è un livello di luce da togliere), e lì il tasto stacca per corpo e riflesso; conta
+   * sopra una foto o un testo chiaro, dove il 6% del lato chiaro sotto un vetro a 60–70 di luma sparisce. A
+   * occhio.
    */
   val Dark: GlassShadowSpec = Ios27.copy(contactAlpha = 0.096f, ambientAlpha = 0.152f)
+
+  /**
+   * **Lato scuro, ombra B** (di serie): la geometria di [Ios26] con l'alfa raddoppiata (0,18). Per la stessa
+   * ragione di [Dark] serve più alfa che sul chiaro; non quattro volte, perché un'ombra larga 34 dp al 36%
+   * sopra una foto è una nube scura sotto la lastra, non un'ombra. A occhio (F1A.5c).
+   */
+  val Ios26Dark: GlassShadowSpec = Ios26.copy(ambientAlpha = 0.18f)
 }
 
 /** Le tre proposte per **i grandi** (tavola «i grandi»: menu e pannelli; in iOS 27 non sono misurati). A occhio. */
@@ -517,11 +653,26 @@ internal object GlassLiquidGrowths {
   val None: GlassLiquidGrowth = GlassLiquidGrowth(frost = 0f, shadow = GlassShadowGrowth(radius = 0f, alpha = 0f))
 
   /**
-   * Un passo in più (di serie): a guadagno pieno la sfocatura è una volta e mezza (da 12 a 18 dp), i raggi
-   * dell'ombra doppi e le alfa una volta e mezza. «Non meno smerigliati di una barra» (piano), e in iOS 26 lo
-   * erano il doppio (R4 A4).
+   * Un passo in più, **tarato sull'ombra corta** (la B della tavola 7, scelta dall'orchestratore): a guadagno
+   * pieno la sfocatura è una volta e mezza, i raggi dell'ombra doppi e le alfa una volta e mezza. «Non meno
+   * smerigliati di una barra» (piano), e in iOS 26 lo erano il doppio (R4 A4). Con l'ombra B (34 dp) gli
+   * stessi fattori portavano un pannello a 68 dp di raggio: sotto il pannello del campione 13 livelli a 24 dp
+   * dal bordo, e ai fianchi l'ombra arrivava a 64 dp. Di serie c'è [StepForWideShadow].
    */
   val Step: GlassLiquidGrowth = GlassLiquidGrowth(frost = 0.5f, shadow = GlassShadowGrowth(radius = 1f, alpha = 0.5f))
+
+  /**
+   * Un passo in più, **per l'ombra larga** (di serie): la sfocatura cresce come in [Step] (da 4,5 a 6,75 dp a
+   * pannello pieno), l'ombra appena: raggi e scostamento per 1,3, alfa per 1,2. L'ombra B è già larga quanto
+   * l'alone di un menu di iOS 26; ciò che deve dire un pannello è «più in alto di una barra», non «più grande».
+   *
+   * Sul banco, pagina `#F2F2F7`, livelli sotto la pagina (sotto il bordo inferiore / ai fianchi, a 1, 16, 32,
+   * 48 dp): capsula 13 / 7, 7 / 3, 2 / 1, 0 / 0; pannello del campione (330 × 380 dp, guadagno pieno) 15 / 12,
+   * 10 / 7, – / 3, – / 1 (con [Step] 20 / 15, 16 / 11, – / 7, – / 3; senza crescita 13 / 11, 7 / 5, – / 1,
+   * – / 0). A occhio, `bench/f1a-5c/tav-grandi.png` e `ombra.py`.
+   */
+  val StepForWideShadow: GlassLiquidGrowth =
+    GlassLiquidGrowth(frost = 0.5f, shadow = GlassShadowGrowth(radius = 0.3f, alpha = 0.2f))
 
   /** Due passi in più: sfocatura doppia, raggi dell'ombra tripli, alfa doppie. */
   val TwoSteps: GlassLiquidGrowth = GlassLiquidGrowth(frost = 1f, shadow = GlassShadowGrowth(radius = 2f, alpha = 1f))
@@ -534,6 +685,10 @@ internal object GlassLiquidGrowths {
 /**
  * Un vetro: un pezzo per tipo, e per bordo, velo e ombra uno per lato del tema.
  *
+ * @param darkVeil il velo scuro dei **piccoli** (tasti, capsule, barre).
+ * @param darkLargeVeil il velo scuro dei **grandi** (fogli, card, pannelli, menu): la ricetta passa dall'uno
+ *   all'altro con il lato corto, fra [GlassLiquidDarkLargeStartDp] e [GlassLiquidDarkLargeEndDp]. Uguale a
+ *   [darkVeil] = il velo scuro non cambia con la taglia. Sul lato chiaro non c'è: il testo vi si legge come oggi.
  * @param smallShadow quanto dell'ombra resta sotto una lastra **piccola** (lato corto fino a
  *   [GlassLiquidSmallShadowStartDp]; sale a uno a [GlassLiquidSmallShadowEndDp]). Uno = il tasto ha l'ombra
  *   della barra. È la riga «il tondo» della tavola dell'ombra.
@@ -545,6 +700,7 @@ internal data class GlassLiquidProfile(
   val lightShadow: GlassShadowSpec,
   val darkEdge: GlassLiquidEdge,
   val darkVeil: GlassLiquidVeil,
+  val darkLargeVeil: GlassLiquidVeil,
   val darkShadow: GlassShadowSpec,
   val frost: GlassLiquidFrost,
   val lens: GlassLiquidLens,
@@ -554,7 +710,11 @@ internal data class GlassLiquidProfile(
 
   fun edge(darkSide: Boolean): GlassLiquidEdge = if (darkSide) darkEdge else lightEdge
 
+  /** Il velo dei piccoli di quel lato. Vedi [largeVeil]. */
   fun veil(darkSide: Boolean): GlassLiquidVeil = if (darkSide) darkVeil else lightVeil
+
+  /** Il velo dei grandi di quel lato: [darkLargeVeil] sullo scuro, lo stesso dei piccoli sul chiaro. */
+  fun largeVeil(darkSide: Boolean): GlassLiquidVeil = if (darkSide) darkLargeVeil else lightVeil
 
   fun shadow(darkSide: Boolean): GlassShadowSpec = if (darkSide) darkShadow else lightShadow
 
@@ -573,24 +733,52 @@ internal data class GlassLiquidProfile(
     val Default: GlassLiquidProfile get() = glassLiquidProfileOverride ?: Shipped
 
     /**
-     * La combinazione **di serie**: il materiale di iOS 27 dove è misurato, le proposte di F1A.5 dove non lo è.
+     * La combinazione **di serie**: le scelte di Alessio sulle tavole (11 novembre 2026), lettera per lettera,
+     * e le proposte dove non c'era una scelta da fare.
+     *
+     * | pezzo | scelta | qui |
+     * |---|---|---|
+     * | bordo | A, iOS 27 | [GlassLiquidEdges.Ios27] |
+     * | velo | A, iOS 27 | [GlassLiquidVeils.Ios27] |
+     * | ombra | B, iOS 26 | [GlassLiquidShadows.Ios26]; sullo scuro [GlassLiquidShadows.Ios26Dark] |
+     * | smerigliatura | D, iOS 26 (4,5 dp) | [GlassLiquidFrosts.Ios26]; C e M nelle manopole |
+     * | bordo scuro | B, riflesso e filo chiaro | [GlassLiquidEdges.DarkWire], la B resa più decisa |
+     * | velo scuro | A, il più chiaro | [GlassLiquidVeils.DarkLighter] sui piccoli; sui grandi [GlassLiquidVeils.DarkLarge] (vincolo del testo, S1-ter) |
+     * | lente | media (orchestratore) | [GlassLiquidLenses.Medium] |
+     * | grandi | un passo (orchestratore) | [GlassLiquidGrowths.StepForWideShadow], ritarato sull'ombra B |
      *
      * [smallShadow] a uno: sotto un tasto tondo su bianco R5 M4 misura meno dell'1% entro 0,15 D, e qui il
-     * tasto ha l'ombra della barra (3,0% a 0,03 D). È fuori dal bersaglio **di proposito**: il difetto da
-     * chiudere è che il tasto «non sembra su un livello superiore». La variante «come Apple» è
-     * [SmallShadowLikeApple]; decide la tavola dell'ombra.
+     * tasto ha l'ombra della barra. È fuori dal bersaglio **di proposito**: il difetto da chiudere è che il
+     * tasto «non sembra su un livello superiore». La variante «come Apple» è [SmallShadowLikeApple].
      */
     val Shipped: GlassLiquidProfile = GlassLiquidProfile(
       lightEdge = GlassLiquidEdges.Ios27,
       lightVeil = GlassLiquidVeils.Ios27,
+      lightShadow = GlassLiquidShadows.Ios26,
+      darkEdge = GlassLiquidEdges.DarkWire,
+      darkVeil = GlassLiquidVeils.DarkLighter,
+      darkLargeVeil = GlassLiquidVeils.DarkLarge,
+      darkShadow = GlassLiquidShadows.Ios26Dark,
+      frost = GlassLiquidFrosts.Ios26,
+      lens = GlassLiquidLenses.Medium,
+      growth = GlassLiquidGrowths.StepForWideShadow,
+      smallShadow = 1f,
+    )
+
+    /**
+     * La combinazione di serie **prima delle scelte** (F1A.5): ombra corta, solo riflesso sullo scuro, velo
+     * scuro uguale su ogni taglia, smerigliatura 12 dp, crescita tarata sull'ombra corta. Non la disegna
+     * nessuno: è il «prima» delle tavole 8 e 9, e la manopola `profile=before` per rivederla sul tablet. Da
+     * 44 dp in su la ricetta la rende come la rendeva allora (la regola dei piccolissimi non tocca quelle
+     * taglie, e con 12 dp la cattura stava già a 0,4).
+     */
+    val BeforeChoices: GlassLiquidProfile = Shipped.copy(
       lightShadow = GlassLiquidShadows.Ios27,
       darkEdge = GlassLiquidEdges.DarkReflex,
-      darkVeil = GlassLiquidVeils.DarkLighter,
+      darkLargeVeil = GlassLiquidVeils.DarkLighter,
       darkShadow = GlassLiquidShadows.Dark,
       frost = GlassLiquidFrosts.Radius12,
-      lens = GlassLiquidLenses.Medium,
       growth = GlassLiquidGrowths.Step,
-      smallShadow = 1f,
     )
 
     /** [smallShadow] «come Apple»: sotto un tasto resta un quarto dell'ombra della barra (0,8% a 0,03 D). */
@@ -625,18 +813,27 @@ internal class GlassLiquidTuned(
  * Le **manopole** del profilo: i nomi con cui la galleria chiede, dal vivo, le varianti delle tavole di gusto e i
  * numeri in mezzo, per fotografarle sul pannello vero (piano «iOS in Android», F1A.9 e sessione S2).
  *
- * Due specie. Le **varianti** scelgono un pezzo dai cataloghi qui sopra, con le lettere delle tavole: `edge`
- * (`ios27`, `ios26`, `today`), `veil` (`ios27`, `ios26`), `shadow` (`ios27`, `ios26`), `round` (`bar`, `apple`: la
- * riga «il tondo»), `frost` (`r12`, `r24`, `wide`, `ios26`), `lens` (`light`, `medium`, `strong`), `large`
- * (`none`, `step`, `two`), `darkedge` (`reflex`, `wire`, `today`), `darkveil` (`lighter`, `deeper`). I **numeri**
- * cambiano un campo del pezzo già scelto, e si applicano dopo tutte le varianti qualunque sia l'ordine in cui
- * arrivano: vedi [numbers]. Una chiave o un valore che non si riconosce non cambia niente e si riporta.
+ * Due specie. Le **varianti** scelgono un pezzo dai cataloghi qui sopra, con le lettere delle tavole:
+ * `profile` (`shipped`, `before`: tutta la combinazione, quella di serie o quella di prima delle scelte; si
+ * applica per prima, e le altre manopole la ritoccano), `edge` (`ios27`, `ios26`, `today`), `veil` (`ios27`,
+ * `ios26`), `shadow` (`ios27`, `ios26`: sui due lati, ognuno con la sua alfa), `round` (`bar`, `apple`: la riga «il tondo»), `frost`
+ * (`r12`, `r24`, `wide`, `mid`, `ios26`: la A, la B, la C «larga e mista», la M «di mezzo» e la D di serie),
+ * `lens` (`light`, `medium`, `strong`), `large` (`none`, `step`, `stepwide`, `two`), `darkedge` (`reflex`,
+ * `wire`, `faint`, `today`: `wire` è la B di serie, `faint` la B al 10% della tavola), `darkveil` (`lighter`,
+ * `deeper`: il velo scuro dei piccoli), `darklarge` (`deep`, `same`: il velo scuro dei grandi, quello di serie o
+ * lo stesso dei piccoli). I **numeri** cambiano un campo del pezzo già scelto, e si applicano dopo tutte le
+ * varianti qualunque sia l'ordine in cui arrivano: vedi [numbers]. Una chiave o un valore che non si riconosce
+ * non cambia niente e si riporta.
  *
  * Non è una API per le app: si raggiunge solo da `FluidGlassDiagnostics`, e solo in un'app `debuggable`.
  */
 internal object GlassLiquidTuning {
 
   private val variants: Map<String, Map<String, (GlassLiquidProfile) -> GlassLiquidProfile>> = linkedMapOf(
+    "profile" to linkedMapOf(
+      "shipped" to { _ -> GlassLiquidProfile.Shipped },
+      "before" to { _ -> GlassLiquidProfile.BeforeChoices },
+    ),
     "edge" to linkedMapOf(
       "ios27" to { p -> p.copy(lightEdge = GlassLiquidEdges.Ios27) },
       "ios26" to { p -> p.copy(lightEdge = GlassLiquidEdges.Ios26) },
@@ -647,8 +844,8 @@ internal object GlassLiquidTuning {
       "ios26" to { p -> p.copy(lightVeil = GlassLiquidVeils.Ios26) },
     ),
     "shadow" to linkedMapOf(
-      "ios27" to { p -> p.copy(lightShadow = GlassLiquidShadows.Ios27) },
-      "ios26" to { p -> p.copy(lightShadow = GlassLiquidShadows.Ios26) },
+      "ios27" to { p -> p.copy(lightShadow = GlassLiquidShadows.Ios27, darkShadow = GlassLiquidShadows.Dark) },
+      "ios26" to { p -> p.copy(lightShadow = GlassLiquidShadows.Ios26, darkShadow = GlassLiquidShadows.Ios26Dark) },
     ),
     "round" to linkedMapOf(
       "bar" to { p -> p.copy(smallShadow = 1f) },
@@ -658,6 +855,7 @@ internal object GlassLiquidTuning {
       "r12" to { p -> p.copy(frost = GlassLiquidFrosts.Radius12) },
       "r24" to { p -> p.copy(frost = GlassLiquidFrosts.Radius24) },
       "wide" to { p -> p.copy(frost = GlassLiquidFrosts.WideMixed) },
+      "mid" to { p -> p.copy(frost = GlassLiquidFrosts.Middle) },
       "ios26" to { p -> p.copy(frost = GlassLiquidFrosts.Ios26) },
     ),
     "lens" to linkedMapOf(
@@ -668,16 +866,23 @@ internal object GlassLiquidTuning {
     "large" to linkedMapOf(
       "none" to { p -> p.copy(growth = GlassLiquidGrowths.None) },
       "step" to { p -> p.copy(growth = GlassLiquidGrowths.Step) },
+      "stepwide" to { p -> p.copy(growth = GlassLiquidGrowths.StepForWideShadow) },
       "two" to { p -> p.copy(growth = GlassLiquidGrowths.TwoSteps) },
     ),
     "darkedge" to linkedMapOf(
       "reflex" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkReflex) },
-      "wire" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkReflexAndWire) },
+      "wire" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkWire) },
+      "faint" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkReflexAndWire) },
       "today" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkToday) },
     ),
     "darkveil" to linkedMapOf(
       "lighter" to { p -> p.copy(darkVeil = GlassLiquidVeils.DarkLighter) },
       "deeper" to { p -> p.copy(darkVeil = GlassLiquidVeils.DarkDeeper) },
+    ),
+    // Dopo `darkveil`: `same` copia il velo dei piccoli già scelto.
+    "darklarge" to linkedMapOf(
+      "deep" to { p -> p.copy(darkLargeVeil = GlassLiquidVeils.DarkLarge) },
+      "same" to { p -> p.copy(darkLargeVeil = p.darkVeil) },
     ),
   )
 

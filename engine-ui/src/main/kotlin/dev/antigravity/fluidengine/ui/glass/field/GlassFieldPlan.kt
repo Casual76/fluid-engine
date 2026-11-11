@@ -15,6 +15,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -138,8 +139,22 @@ internal fun glassSlabGeometry(
   return out
 }
 
-/** Vero se il campo sa rendere [shape]: un rettangolo o una `CornerBasedShape`. Ogni altra resta `Classic`. */
-internal fun glassFieldRenders(shape: Shape): Boolean = shape === RectangleShape || shape is CornerBasedShape
+/**
+ * Vero se il campo sa rendere [shape]: un rettangolo, o una forma ad angoli **tondi** (`RoundedCornerShape`,
+ * `AbsoluteRoundedCornerShape`, `CircleShape`, e le `ContinuousCornerShape` dell'engine, capsula compresa).
+ * Ogni altra resta `Classic`.
+ *
+ * Non basta essere una `CornerBasedShape`: anche `CutCornerShape` lo è, e il campo, che conosce solo angoli
+ * circolari o raccordati, la disegnava con gli angoli tondi (divergenza trovata in F1A.10). Una forma a
+ * spigoli tagliati non ha un raggio da dare al campo: resta al vetro di prima, che la ritaglia col suo path.
+ * Le sottoclassi di `CornerBasedShape` scritte da un'app restano `Classic` per la stessa ragione: il campo non
+ * sa che curva disegnano.
+ */
+internal fun glassFieldRenders(shape: Shape): Boolean =
+  shape === RectangleShape ||
+    shape is RoundedCornerShape ||
+    shape is AbsoluteRoundedCornerShape ||
+    shape is ContinuousCornerShape
 
 /**
  * [glassSlabGeometry] letta da una `Shape`: la regola **forma → piano** come la chiede chi disegna.
@@ -147,7 +162,7 @@ internal fun glassFieldRenders(shape: Shape): Boolean = shape === RectangleShape
  *  - `RectangleShape`: raggi zero;
  *  - `ContinuousCornerShape` (le forme dell'engine, capsula compresa): i quattro raggi alla taglia del nodo,
  *    col suo `smoothing`;
- *  - ogni altra `CornerBasedShape` (`RoundedCornerShape`, `CutCornerShape`…): i quattro raggi, angoli
+ *  - `RoundedCornerShape` e `AbsoluteRoundedCornerShape` (`CircleShape` compresa): i quattro raggi, angoli
  *    circolari;
  *  - `FluidConcentricShape` (F3.5) si risolverà al layout in quattro raggi e rientrerà nel secondo caso.
  *

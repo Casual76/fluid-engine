@@ -64,9 +64,11 @@ internal const val FluidGlassLiquidMinSdk: Int = Build.VERSION_CODES.TIRAMISU
  *  2. il dispositivo ha AGSL ([sdk] da [FluidGlassLiquidMinSdk] in su);
  *  3. la superficie non è la fascia in alto ([GlassFalloff.FadeDown]): resta quella di oggi finché non la
  *     sostituisce il bordo dello scorrimento (piano, F2.5);
- *  4. la forma è una che il campo sa rendere ([genericShape] falso): un rettangolo o una `CornerBasedShape`.
- *     Su un contorno generico il vetro di oggi spegne la lente e tiene il resto; il materiale nuovo ritaglia
- *     con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno sbagliato;
+ *  4. la forma è una che il campo sa rendere ([genericShape] falso): un rettangolo o una forma ad angoli tondi
+ *     (`RoundedCornerShape`, `CircleShape`, le forme continue dell'engine; vedi `glassFieldRenders`). Su un
+ *     contorno generico il vetro di oggi spegne la lente e tiene il resto; il materiale nuovo ritaglia con lo
+ *     shader, e una sagoma che lo shader non conosce uscirebbe col contorno sbagliato: una `CutCornerShape`,
+ *     che pure ha quattro «angoli», usciva con gli angoli tondi;
  *  5. la superficie ha uno spessore ([flat] falso). Un'ottica senza lente, senza bordo e senza ombra non
  *     descrive una lastra: è un velo che sfoca appena e scurisce, cioè lo scrim di un modale. Il materiale
  *     nuovo gli darebbe la smerigliatura e l'ombreggiatura di una lastra grande quanto lo schermo;

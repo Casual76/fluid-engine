@@ -223,7 +223,9 @@ class GlassWarmUpTest {
     assertTrue("la parte che somma", inputs.drawsGlowing)
     assertTrue("il filo", inputs.drawsRim)
     assertTrue("la sfocatura della catena", inputs.blurPx > 0f)
-    assertEquals(GlassLiquidMinCaptureScale, surface.effectiveCaptureScale(Size(side, side)), 0f)
+    // La catena di un tasto vero: rimpicciolita come quella del tasto (la smerigliatura di serie, 4,5 dp: il 73%).
+    assertEquals(surface.captureScale, surface.effectiveCaptureScale(Size(side, side)), 0f)
+    assertTrue(surface.captureScale < 1f)
     assertTrue(surface.castsShadow)
   }
 

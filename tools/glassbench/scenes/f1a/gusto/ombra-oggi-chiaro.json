@@ -31,10 +31,10 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
-        "paddingDp": 1.440001,
-        "scale": 0.4
+        "paddingDp": 0,
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -155,10 +155,10 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -279,10 +279,10 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -404,10 +404,10 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 14.234179,
+        "blurDp": 5.337817,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -547,10 +547,10 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 18,
+        "blurDp": 6.75,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",

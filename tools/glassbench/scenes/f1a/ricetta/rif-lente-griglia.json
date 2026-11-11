@@ -32,24 +32,18 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 2.320221,
-          "offsetDp": [0, 1.16011],
-          "alpha": 0.030562,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 12.374512,
-          "offsetDp": [0, 6.187256],
-          "alpha": 0.048389,
+          "radiusDp": 39.577499,
+          "offsetDp": [0, 7.799096],
+          "alpha": 0.099843,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 15.280884,
+        "blurDp": 5.730331,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",

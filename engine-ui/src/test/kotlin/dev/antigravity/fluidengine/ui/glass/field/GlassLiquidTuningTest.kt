@@ -54,8 +54,31 @@ class GlassLiquidTuningTest {
     assertSame(GlassLiquidFrosts.WideMixed, all.frost)
     assertSame(GlassLiquidLenses.Strong, all.lens)
     assertSame(GlassLiquidGrowths.TwoSteps, all.growth)
-    assertSame(GlassLiquidEdges.DarkReflexAndWire, all.darkEdge)
+    assertSame(GlassLiquidEdges.DarkWire, all.darkEdge)
     assertSame(GlassLiquidVeils.DarkDeeper, all.darkVeil)
+  }
+
+  @Test
+  fun theChoicesThatWereHardStayReachable() {
+    // La smerigliatura: C e M si riguardano sul tablet accanto alla D di serie.
+    assertSame(GlassLiquidFrosts.WideMixed, GlassLiquidTuning.apply(shipped, mapOf("frost" to "wide")).profile.frost)
+    assertSame(GlassLiquidFrosts.Middle, GlassLiquidTuning.apply(shipped, mapOf("frost" to "mid")).profile.frost)
+    assertSame(GlassLiquidFrosts.Ios26, GlassLiquidTuning.apply(shipped, mapOf("frost" to "ios26")).profile.frost)
+    // Il bordo scuro: la B come era nella tavola, e il solo riflesso.
+    assertSame(GlassLiquidEdges.DarkReflexAndWire, GlassLiquidTuning.apply(shipped, mapOf("darkedge" to "faint")).profile.darkEdge)
+    assertSame(GlassLiquidEdges.DarkReflex, GlassLiquidTuning.apply(shipped, mapOf("darkedge" to "reflex")).profile.darkEdge)
+    // L'ombra: le due varianti valgono sui due lati, ognuno con la sua alfa.
+    val short = GlassLiquidTuning.apply(shipped, mapOf("shadow" to "ios27")).profile
+    assertSame(GlassLiquidShadows.Ios27, short.lightShadow)
+    assertSame(GlassLiquidShadows.Dark, short.darkShadow)
+    // I grandi: il passo tarato sull'ombra corta.
+    assertSame(GlassLiquidGrowths.Step, GlassLiquidTuning.apply(shipped, mapOf("large" to "step")).profile.growth)
+    // Il velo scuro dei grandi uguale a quello dei piccoli, dopo che quello dei piccoli è stato scelto.
+    val same = GlassLiquidTuning.apply(shipped, mapOf("darklarge" to "same", "darkveil" to "deeper")).profile
+    assertSame(GlassLiquidVeils.DarkDeeper, same.darkLargeVeil)
+    // Tutta la combinazione di prima, e le altre manopole la ritoccano qualunque sia l'ordine.
+    val before = GlassLiquidTuning.apply(shipped, linkedMapOf("frost" to "wide", "profile" to "before")).profile
+    assertEquals(GlassLiquidProfile.BeforeChoices.copy(frost = GlassLiquidFrosts.WideMixed), before)
   }
 
   @Test
@@ -103,7 +126,10 @@ class GlassLiquidTuningTest {
   fun everyKnobIsListedWithItsValues() {
     val knobs = GlassLiquidTuning.knobs
     assertEquals(listOf("ios27", "ios26", "today"), knobs["edge"])
-    assertEquals(listOf("r12", "r24", "wide", "ios26"), knobs["frost"])
+    assertEquals(listOf("r12", "r24", "wide", "mid", "ios26"), knobs["frost"])
+    assertEquals(listOf("shipped", "before"), knobs["profile"])
+    assertEquals(listOf("reflex", "wire", "faint", "today"), knobs["darkedge"])
+    assertEquals(listOf("deep", "same"), knobs["darklarge"])
     assertEquals(listOf("0..64"), knobs["blur"])
     // Ogni valore elencato si accetta: l'elenco è quello che la galleria mostra.
     for ((name, values) in knobs) {

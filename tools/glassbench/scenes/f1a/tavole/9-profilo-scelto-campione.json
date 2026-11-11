@@ -1,0 +1,98 @@
+{
+  "titolo": "9 · Il profilo scelto: prima | dopo",
+  "domanda": "A sinistra la combinazione delle tavole 1-8 di prima, a destra quella con le tue scelte (bordo A, velo A, ombra B, smerigliatura D, bordo scuro B reso piu' deciso, velo scuro A sui tasti e piu' profondo sui grandi).",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 2.125,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "prima",
+      "nome": "la combinazione di F1A.5",
+      "scena": "../gusto/prima-{lato}.json",
+      "nota": "ombra corta, 12 dp, scuro col solo riflesso"
+    },
+    {
+      "lettera": "dopo",
+      "nome": "le scelte di Alessio",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "bordo A, velo A, ombra B, smerigliatura D, scuro B deciso, velo scuro A"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "pagina chiara #F2F2F7: tasto tondo, capsula, tab bar",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "testo, chiaro",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "pagina chiara: menu e pannello grande (rimpiccioliti)",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        14,
+        872,
+        412
+      ],
+      "density": 1.0
+    },
+    {
+      "etichetta": "pagina scura #0D0D0F: tasto tondo, capsula, tab bar",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "foto, scuro",
+      "fondo": "foto-scuro",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "pagina scura: menu e pannello grande (rimpiccioliti)",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        14,
+        14,
+        872,
+        412
+      ],
+      "density": 1.0
+    },
+    {
+      "etichetta": "il capo della capsula sulla pagina scura, ingrandito 5 volte (senza icone)",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        100,
+        29,
+        50,
+        28
+      ],
+      "zoom": 5,
+      "density": 3.0,
+      "senzaContenuto": true
+    }
+  ]
+}

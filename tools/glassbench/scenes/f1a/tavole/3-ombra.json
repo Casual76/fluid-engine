@@ -8,13 +8,13 @@
     {
       "lettera": "A",
       "nome": "iOS 27",
-      "scena": "../gusto/serie-{lato}.json",
-      "nota": "di serie"
+      "scena": "../gusto/ombra-ios27-{lato}.json"
     },
     {
       "lettera": "B",
       "nome": "iOS 26",
-      "scena": "../gusto/ombra-ios26-{lato}.json"
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie (scelta di Alessio)"
     },
     {
       "lettera": "C",

@@ -81,6 +81,12 @@ internal class GlassRecipe {
   /**
    * La frazione di risoluzione a cui catturare, prima del fattore di qualità: quella di oggi
    * (`glassResolutionScale` per `backdropResolution` dell'ottica), mai sotto [GlassLiquidMinCaptureScale].
+   *
+   * Si decide sulla sfocatura **del ruolo**, prima della regola della taglia: l'innesto la fissa in
+   * composizione (`glassLiquidCaptureScale`), quando la taglia non c'è ancora, e la ricetta deve dire lo stesso
+   * numero perché scene e lastre vere catturino uguale. Su una lastra grande, che sfoca un poco di più, vuol
+   * dire una risoluzione un poco più alta del necessario: dalla parte sicura. Con la smerigliatura di 12 dp le
+   * due strade davano lo stesso numero (oltre 10 dp la scala tocca il pavimento); con i 4,5 dp di serie no.
    */
   var captureScale: Float = 1f
 
@@ -174,11 +180,18 @@ internal class GlassRecipe {
  *   corto, la cupola sparisce sui grandi, e la regola della taglia dell'engine (`glassSizeGain`, per
  *   `sizeResponse` dell'ottica) fa crescere **smerigliatura e ombra**. **Il filo no**: `rimWidthDp` e
  *   `reflexDepthDp` sono gli stessi su un tasto e su un pannello (R4 A1; piano, tabella dei bersagli);
- * - il **lato** ([darkSide]) sceglie bordo, velo e ombra del profilo. In F1A viene dal tema; in F2 dalla sonda;
+ * - il **lato** ([darkSide]) sceglie bordo, velo e ombra del profilo. In F1A viene dal tema; in F2 dalla sonda.
+ *   Sul lato scuro anche il velo dipende dalla taglia: dai piccoli ai grandi passa da [GlassLiquidProfile.darkVeil]
+ *   a [GlassLiquidProfile.darkLargeVeil] (vedi [GlassLiquidDarkLargeStartDp]), perché il testo secondario si legga
+ *   su fogli, card e pannelli;
+ * - i **piccolissimi** (lato corto sotto [GlassLiquidTinyBelowDp]) hanno l'ombra in scala col lato e un
+ *   riflesso più tenue e meno profondo; il filo no;
  * - l'**ottica** ([optics]) è quella di oggi, e in `Liquid` ogni suo campo è un attenuatore: dal valore più
  *   basso che ha in un ruolo di serie in su il materiale è quello del profilo, sotto ne resta la frazione
  *   (vedi [GlassLiquidFullBlurScale]). Così i ruoli di serie sono un vetro solo, e un'ottica scritta a mano
- *   che chiede zero ottiene zero. Tradotti: `blurScale` → sfocatura; `refractionHeight` → banda;
+ *   che chiede zero ottiene zero. **Una eccezione**: `blurScale` oltre quello di serie del ruolo fa crescere la
+ *   smerigliatura in proporzione, fino a [GlassLiquidFrostRequestMax] (vedi [glassOpticsFrost]): chi chiede
+ *   più smerigliatura la ottiene. Tradotti: `blurScale` → sfocatura; `refractionHeight` → banda;
  *   `refractionAmount` → spostamento; `highlightAlpha` → forza di filo e riflesso; `shadowAlpha` → forza
  *   dell'ombra (zero = nessuna: `Bar`, `Content`). Fanno eccezione, perché non sono attenuatori: `vibrancy` →
  *   saturazione **in proporzione** (1 resta «spenta», 1,6 dà quella del profilo, di più dà di più), e
@@ -237,8 +250,10 @@ internal fun glassRecipe(
 
   // ---- La catena ---------------------------------------------------------------------------------------------
   val frost = profile.frost
-  val fullBlur = frost.blur.value * (1f + profile.growth.frost * gain) *
-    glassOpticsDimmer(optics.blurScale, GlassLiquidFullBlurScale)
+  // La smerigliatura del ruolo, prima della regola della taglia: è anche quella su cui si decide la
+  // risoluzione della cattura (vedi `captureScale`).
+  val roleBlur = frost.blur.value * glassOpticsFrost(optics.blurScale, glassLiquidRoleBlurScale(role))
+  val fullBlur = roleBlur * (1f + profile.growth.frost * gain)
   out.blurDp = fullBlur * (FluidGlassBlurFloor + (1f - FluidGlassBlurFloor) * q)
   out.mix = 1f - (1f - (if (clear) 1f else clampGlassUnit(frost.mix))) * amount
   // `vibrancy` 1 resta «nessun filtro»; quella di serie (1,6) dà la saturazione del profilo; in mezzo, in
@@ -263,16 +278,21 @@ internal fun glassRecipe(
   out.dispersion = if (optics.dispersion && q > 0.75f) GlassLiquidDispersion else 0f
   out.paddingDp = max(0f, fullBlur - band)
   out.captureScale = max(
-    glassResolutionScale(fullBlur) * optics.backdropResolution,
+    glassResolutionScale(roleBlur) * optics.backdropResolution,
     GlassLiquidMinCaptureScale,
   ).coerceAtMost(1f)
 
   // ---- Velo, tinta, ombreggiatura ----------------------------------------------------------------------------
+  // Dai piccoli ai grandi il velo passa da quello dei piccoli a quello dei grandi del lato (sul chiaro sono lo
+  // stesso), senza scatti: un tasto largo e una card piccola restano vicini.
   val veil = profile.veil(darkSide)
+  val largeVeil = profile.largeVeil(darkSide)
+  val large = glassLiquidLargeVeilGain(short)
+  val veilColor = lerpSrgb(veil.color, largeVeil.color, large)
   out.materialize = amount
   val fixedFilm = film.isSpecified
-  out.veilColor = if (fixedFilm || clear) veil.color.copy(alpha = 0f) else veil.color
-  out.veilAdapt = if (fixedFilm || clear) 0f else veil.adapt
+  out.veilColor = if (fixedFilm || clear) veilColor.copy(alpha = 0f) else veilColor
+  out.veilAdapt = if (fixedFilm || clear) 0f else mixFloat(veil.adapt, largeVeil.adapt, large)
   when {
     fixedFilm -> {
       out.tintColor = film
@@ -288,10 +308,10 @@ internal fun glassRecipe(
     }
   }
   out.tintFollow = GlassLiquidTintFollow
-  out.bodyShade = veil.shade
-  out.bodyShadeDepthDp = min(veil.shadeDepth.value, short / 2f)
-  out.bodyShadeLeanX = veil.shadeLeanX
-  out.bodyShadeLeanY = veil.shadeLeanY
+  out.bodyShade = lerpSrgb(veil.shade, largeVeil.shade, large)
+  out.bodyShadeDepthDp = min(mixFloat(veil.shadeDepth.value, largeVeil.shadeDepth.value, large), short / 2f)
+  out.bodyShadeLeanX = mixFloat(veil.shadeLeanX, largeVeil.shadeLeanX, large)
+  out.bodyShadeLeanY = mixFloat(veil.shadeLeanY, largeVeil.shadeLeanY, large)
   out.dim = if (clear) GlassLiquidClearDim else 0f
   out.grain = GlassLiquidGrain
   out.aa = GlassLiquidAa
@@ -310,8 +330,14 @@ internal fun glassRecipe(
   out.reflexDirY = edge.reflexDirY
   out.reflexHalfWidth = edge.reflexHalfWidth
   out.reflexOppositeHalfWidth = edge.reflexOppositeHalfWidth
-  out.reflexStrength = edge.reflexStrength * lightAmount
-  out.reflexDepthDp = min(edge.reflexDepth.value, short / 2f)
+  // Un piccolissimo tiene il filo (è assoluto) ma non l'anello chiaro: il riflesso cala in forza sotto
+  // [GlassLiquidTinyBelowDp] e rientra al più per una frazione del lato (a 44 dp sono i 7 dp di serie).
+  val tiny = clampGlassUnit(
+    (short - GlassLiquidTinyReflexFromDp) / (GlassLiquidTinyBelowDp - GlassLiquidTinyReflexFromDp),
+  )
+  out.reflexStrength = edge.reflexStrength * lightAmount *
+    (GlassLiquidTinyReflexFloor + (1f - GlassLiquidTinyReflexFloor) * tiny)
+  out.reflexDepthDp = min(edge.reflexDepth.value, short * GlassLiquidTinyReflexDepthFraction)
   out.reflexFloor = edge.reflexFloor
   out.reflexHalo = edge.reflexHalo
   out.lightColor = edge.light
@@ -321,9 +347,11 @@ internal fun glassRecipe(
   // ---- L'ombra -----------------------------------------------------------------------------------------------
   // Cresce con la regola della taglia, cala sotto i piccoli se il profilo lo chiede, e segue intensità,
   // profondità e qualità come oggi. I raggi non dipendono da nessuna delle tre: le maschere restano buone.
+  // Sotto [GlassLiquidTinyBelowDp] raggi e scostamento scendono col lato: l'ombra larga di un tasto sotto un
+  // pallino da 26 dp sarebbe più grande dell'oggetto.
   val shadow = profile.shadow(darkSide)
   val growth = profile.growth.shadow
-  val reach = 1f + growth.radius * gain
+  val reach = (1f + growth.radius * gain) * clampGlassUnit(short / GlassLiquidTinyBelowDp)
   val small = clampGlassUnit(
     (short - GlassLiquidSmallShadowStartDp) / (GlassLiquidSmallShadowEndDp - GlassLiquidSmallShadowStartDp),
   )
@@ -347,5 +375,77 @@ internal fun glassRecipe(
  */
 internal fun glassOpticsDimmer(value: Float, full: Float): Float =
   if (!value.isFinite() || !(full > 0f)) 0f else (value / full).coerceIn(0f, 1f)
+
+/**
+ * Il `blurScale` di un'ottica come fattore sulla smerigliatura del profilo: un attenuatore sotto
+ * [GlassLiquidFullBlurScale] (come gli altri campi), uno fino a [roleBlurScale] (il più alto dei valori di
+ * serie del ruolo), e oltre la **crescita** in proporzione, fino a [GlassLiquidFrostRequestMax]. Non scende mai
+ * quando [blurScale] sale: chi chiede più smerigliatura non ne ottiene meno.
+ *
+ * Il pannello del lettore di Fluidify (`Modal`, `blurScale` 7 su 3,5 di serie) prende due volte la
+ * smerigliatura del profilo: 9 dp invece di 4,5, prima della regola della taglia.
+ */
+internal fun glassOpticsFrost(blurScale: Float, roleBlurScale: Float): Float = when {
+  !blurScale.isFinite() -> 0f
+  !(roleBlurScale > 0f) || blurScale <= roleBlurScale -> glassOpticsDimmer(blurScale, GlassLiquidFullBlurScale)
+  else -> min(blurScale / roleBlurScale, GlassLiquidFrostRequestMax)
+}
+
+/**
+ * Il `blurScale` più alto fra le ottiche di serie che l'engine usa con [role]: per `Interactive` anche quella
+ * dei tasti di vetro, per `Content` quella delle card impilate, per `Modal` le quattro dei pannelli. Fin lì
+ * un'ottica non chiede «più del ruolo» (vedi [glassOpticsFrost]). Letto dalle ottiche, non riscritto: se un
+ * ruolo di serie cambia, la soglia lo segue.
+ */
+internal fun glassLiquidRoleBlurScale(role: GlassRole): Float = GlassLiquidRoleBlurScales[role.ordinal]
+
+private val GlassLiquidRoleBlurScales: FloatArray by lazy {
+  FloatArray(GlassRole.entries.size) { index ->
+    val role = GlassRole.entries[index]
+    val stock = when (role) {
+      GlassRole.Interactive -> listOf(GlassDefaults.optics(role), GlassDefaults.buttonOptics())
+      GlassRole.Content -> listOf(GlassDefaults.optics(role), GlassDefaults.stackedContentOptics())
+      GlassRole.Modal -> listOf(
+        GlassDefaults.optics(role),
+        GlassDefaults.panelOptics(),
+        GlassDefaults.panelOptics(compact = true),
+        GlassDefaults.panelOptics(overSharpPage = true),
+        GlassDefaults.panelOptics(compact = true, overSharpPage = true),
+      )
+      else -> listOf(GlassDefaults.optics(role))
+    }
+    stock.maxOf { it.blurScale }
+  }
+}
+
+/**
+ * Quanto una lastra di lato corto [shortSideDp] ha del velo dei grandi: zero fino a
+ * [GlassLiquidDarkLargeStartDp], uno da [GlassLiquidDarkLargeEndDp], in mezzo un passo morbido (smoothstep).
+ */
+internal fun glassLiquidLargeVeilGain(shortSideDp: Float): Float {
+  if (!shortSideDp.isFinite()) return 0f
+  val t = clampGlassUnit(
+    (shortSideDp - GlassLiquidDarkLargeStartDp) / (GlassLiquidDarkLargeEndDp - GlassLiquidDarkLargeStartDp),
+  )
+  return t * t * (3f - 2f * t)
+}
+
+/**
+ * Due colori sRGB mescolati componente per componente, alfa compresa (non in Oklab come `lerp` di Compose: il
+ * banco rifà lo stesso conto, e due veli dello stesso grigio devono restare grigi). Agli estremi restituisce i
+ * colori stessi, al bit.
+ */
+private fun lerpSrgb(a: Color, b: Color, t: Float): Color = when {
+  t <= 0f -> a
+  t >= 1f -> b
+  else -> Color(
+    red = a.red + (b.red - a.red) * t,
+    green = a.green + (b.green - a.green) * t,
+    blue = a.blue + (b.blue - a.blue) * t,
+    alpha = a.alpha + (b.alpha - a.alpha) * t,
+  )
+}
+
+private fun mixFloat(a: Float, b: Float, t: Float): Float = a + (b - a) * t
 
 private fun finiteSide(value: Float): Float = if (value.isFinite()) max(value, 0f) else 0f

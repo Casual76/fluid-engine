@@ -55,24 +55,18 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 1.5,
-          "offsetDp": [0, 0.75],
-          "alpha": 0.024,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 8,
-          "offsetDp": [0, 4],
-          "alpha": 0.038,
+          "radiusDp": 34,
+          "offsetDp": [0, 6.7],
+          "alpha": 0.09,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
-        "paddingDp": 1.440001,
-        "scale": 0.4
+        "paddingDp": 0,
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -185,24 +179,18 @@
       "clipRadiusScale": 0.98,
       "shadow": [
         {
-          "radiusDp": 2.110107,
-          "offsetDp": [0, 1.055054],
-          "alpha": 0.028881,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 11.253906,
-          "offsetDp": [0, 5.626953],
-          "alpha": 0.045728,
+          "radiusDp": 38.148727,
+          "offsetDp": [0, 7.517543],
+          "alpha": 0.097321,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 14.44043,
+        "blurDp": 5.415161,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",

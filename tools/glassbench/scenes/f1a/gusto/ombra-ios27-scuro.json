@@ -1,20 +1,20 @@
 {
-  "_": "Scritta dalla ricetta (GlassSceneExportTest, F1A.5): il campione delle tavole di gusto, variante `ombra-ios26`, lato chiaro: ombra di iOS 26: larga, una componente. Tasto 44 dp, capsula, tab bar 62 dp, menu, pannello grande. Le tavole le compone `glassbench.py tavola`, che cambia fondale e inquadratura e mai un numero del materiale. Non si modifica a mano: si rigenera.",
+  "_": "Scritta dalla ricetta (GlassSceneExportTest, F1A.5): il campione delle tavole di gusto, variante `ombra-ios27`, lato scuro: ombra di iOS 27: corta, due componenti, col passo dei grandi tarato su di lei. Tasto 44 dp, capsula, tab bar 62 dp, menu, pannello grande. Le tavole le compone `glassbench.py tavola`, che cambia fondale e inquadratura e mai un numero del materiale. Non si modifica a mano: si rigenera.",
   "width": 900,
   "height": 440,
   "density": 3,
-  "theme": "light",
+  "theme": "dark",
   "palette": "engine",
   "corner": "engine",
   "background": {
     "kind": "color",
-    "color": "#F2F2F7"
+    "color": "#0D0D0F"
   },
   "elements": [
     {
       "kind": "material",
       "name": "tasto",
-      "_ricetta": "glassRecipe: ruolo button, 44 x 44 dp, lato chiaro, ombra di iOS 26: larga, una componente",
+      "_ricetta": "glassRecipe: ruolo button, 44 x 44 dp, lato scuro, ombra di iOS 27: corta, due componenti, col passo dei grandi tarato su di lei",
       "x": 30,
       "y": 39,
       "w": 44,
@@ -23,18 +23,24 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 34,
-          "offsetDp": [0, 6.7],
-          "alpha": 0.09,
+          "radiusDp": 1.5,
+          "offsetDp": [0, 0.75],
+          "alpha": 0.096,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 8,
+          "offsetDp": [0, 4],
+          "alpha": 0.152,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
-        "paddingDp": 1.440001,
-        "scale": 0.4
+        "paddingDp": 0,
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -53,12 +59,12 @@
           "dispersion": 0.3,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#F5F5F775",
-          "veilAdapt": 0.7,
+          "veilColor": "#78788080",
+          "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
           "tintFollow": 0.42,
-          "bodyShade": "#00000012",
+          "bodyShade": "#00000033",
           "bodyShadeDepth": "22dp",
           "bodyShadeLean": [0, -0.6],
           "dim": 0,
@@ -82,15 +88,15 @@
             "pieceSmooth": [0],
             "lightPart": 0,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "44dp",
             "glow": 0,
@@ -113,15 +119,15 @@
             "pieceSmooth": [0],
             "lightPart": 1,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "44dp",
             "glow": 0,
@@ -138,7 +144,7 @@
     {
       "kind": "material",
       "name": "capsula",
-      "_ricetta": "glassRecipe: ruolo floating, 156 x 56 dp, lato chiaro, ombra di iOS 26: larga, una componente",
+      "_ricetta": "glassRecipe: ruolo floating, 156 x 56 dp, lato scuro, ombra di iOS 27: corta, due componenti, col passo dei grandi tarato su di lei",
       "x": 104,
       "y": 33,
       "w": 156,
@@ -147,18 +153,24 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 34,
-          "offsetDp": [0, 6.7],
-          "alpha": 0.09,
+          "radiusDp": 1.5,
+          "offsetDp": [0, 0.75],
+          "alpha": 0.096,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 8,
+          "offsetDp": [0, 4],
+          "alpha": 0.152,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -177,12 +189,12 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#F5F5F775",
-          "veilAdapt": 0.7,
+          "veilColor": "#73737B80",
+          "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
           "tintFollow": 0.42,
-          "bodyShade": "#00000012",
+          "bodyShade": "#00000033",
           "bodyShadeDepth": "22dp",
           "bodyShadeLean": [0, -0.6],
           "dim": 0,
@@ -206,15 +218,15 @@
             "pieceSmooth": [0],
             "lightPart": 0,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "156dp",
             "glow": 0,
@@ -237,15 +249,15 @@
             "pieceSmooth": [0],
             "lightPart": 1,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "156dp",
             "glow": 0,
@@ -262,7 +274,7 @@
     {
       "kind": "material",
       "name": "barra",
-      "_ricetta": "glassRecipe: ruolo floating, 220 x 62 dp, lato chiaro, ombra di iOS 26: larga, una componente",
+      "_ricetta": "glassRecipe: ruolo floating, 220 x 62 dp, lato scuro, ombra di iOS 27: corta, due componenti, col passo dei grandi tarato su di lei",
       "x": 290,
       "y": 30,
       "w": 220,
@@ -271,18 +283,24 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 34,
-          "offsetDp": [0, 6.7],
-          "alpha": 0.09,
+          "radiusDp": 1.5,
+          "offsetDp": [0, 0.75],
+          "alpha": 0.096,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 8,
+          "offsetDp": [0, 4],
+          "alpha": 0.152,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12,
+        "blurDp": 4.5,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -301,12 +319,12 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#F5F5F775",
-          "veilAdapt": 0.7,
+          "veilColor": "#6A6A7280",
+          "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
           "tintFollow": 0.42,
-          "bodyShade": "#00000012",
+          "bodyShade": "#00000033",
           "bodyShadeDepth": "22dp",
           "bodyShadeLean": [0, -0.6],
           "dim": 0,
@@ -330,15 +348,15 @@
             "pieceSmooth": [0],
             "lightPart": 0,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "220dp",
             "glow": 0,
@@ -361,15 +379,15 @@
             "pieceSmooth": [0],
             "lightPart": 1,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "220dp",
             "glow": 0,
@@ -386,7 +404,7 @@
     {
       "kind": "material",
       "name": "menu",
-      "_ricetta": "glassRecipe: ruolo compactpanel, 170 x 192 dp, lato chiaro, ombra di iOS 26: larga, una componente",
+      "_ricetta": "glassRecipe: ruolo compactpanel, 170 x 192 dp, lato scuro, ombra di iOS 27: corta, due componenti, col passo dei grandi tarato su di lei",
       "x": 30,
       "y": 150,
       "w": 170,
@@ -396,18 +414,24 @@
       "clipRadiusScale": 0.98,
       "shadow": [
         {
-          "radiusDp": 46.660347,
-          "offsetDp": [0, 9.194833],
-          "alpha": 0.106756,
+          "radiusDp": 2.058545,
+          "offsetDp": [0, 1.029272],
+          "alpha": 0.113873,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 10.978905,
+          "offsetDp": [0, 5.489452],
+          "alpha": 0.1803,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 14.234179,
+        "blurDp": 5.337817,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -426,12 +450,12 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#F5F5F775",
-          "veilAdapt": 0.7,
+          "veilColor": "#36363C80",
+          "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
           "tintFollow": 0.42,
-          "bodyShade": "#00000012",
+          "bodyShade": "#00000033",
           "bodyShadeDepth": "22dp",
           "bodyShadeLean": [0, -0.6],
           "dim": 0,
@@ -455,15 +479,15 @@
             "pieceSmooth": [0.6],
             "lightPart": 0,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "192dp",
             "glow": 0,
@@ -486,15 +510,15 @@
             "pieceSmooth": [0.6],
             "lightPart": 1,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "192dp",
             "glow": 0,
@@ -529,7 +553,7 @@
     {
       "kind": "material",
       "name": "pannello",
-      "_ricetta": "glassRecipe: ruolo panel, 330 x 380 dp, lato chiaro, ombra di iOS 26: larga, una componente",
+      "_ricetta": "glassRecipe: ruolo panel, 330 x 380 dp, lato scuro, ombra di iOS 27: corta, due componenti, col passo dei grandi tarato su di lei",
       "x": 540,
       "y": 30,
       "w": 330,
@@ -539,18 +563,24 @@
       "clipRadiusScale": 0.98,
       "shadow": [
         {
-          "radiusDp": 68,
-          "offsetDp": [0, 13.4],
-          "alpha": 0.135,
+          "radiusDp": 3,
+          "offsetDp": [0, 1.5],
+          "alpha": 0.144,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 16,
+          "offsetDp": [0, 8],
+          "alpha": 0.228,
           "color": "#000000"
         }
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 18,
+        "blurDp": 6.75,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.4
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -569,12 +599,12 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#F5F5F775",
-          "veilAdapt": 0.7,
+          "veilColor": "#36363C80",
+          "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,
           "tintFollow": 0.42,
-          "bodyShade": "#00000012",
+          "bodyShade": "#00000033",
           "bodyShadeDepth": "22dp",
           "bodyShadeLean": [0, -0.6],
           "dim": 0,
@@ -598,15 +628,15 @@
             "pieceSmooth": [0.6],
             "lightPart": 0,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "380dp",
             "glow": 0,
@@ -629,15 +659,15 @@
             "pieceSmooth": [0.6],
             "lightPart": 1,
             "rimWidth": "0.6dp",
-            "rimDark": "#00000052",
+            "rimDark": "#FFFFFF57",
             "rimFeather": 0.4,
-            "rimLift": 0.3,
+            "rimLift": -0.25,
             "reflexDir": [0, -1],
             "reflexWidths": [1.396, 1.396],
-            "reflexStrength": 0.12,
+            "reflexStrength": 0.2,
             "reflexDepth": "7dp",
             "reflexFloor": 0,
-            "reflexHalo": 0.45,
+            "reflexHalo": 0.55,
             "glowCenter": "$center",
             "glowRadius": "380dp",
             "glow": 0,
@@ -697,12 +727,6 @@
       "rows": ["filo-scuro", "filo-largo", "riflesso"]
     },
     {
-      "kind": "shadow",
-      "element": "tasto",
-      "label": "tasto",
-      "rows": ["ombra@0.03", "ombra@0.1", "ombra@0.2", "ombra-max", "ombra-estensione"]
-    },
-    {
       "kind": "body",
       "element": "capsula",
       "label": "capsula",
@@ -731,12 +755,6 @@
       "label": "capsula",
       "refDp": 62,
       "rows": ["filo-scuro", "filo-largo", "riflesso"]
-    },
-    {
-      "kind": "shadow",
-      "element": "capsula",
-      "label": "capsula",
-      "rows": ["ombra@0.03", "ombra@0.1", "ombra@0.2", "ombra-max", "ombra-estensione"]
     },
     {
       "kind": "body",
@@ -769,12 +787,6 @@
       "rows": ["filo-scuro", "filo-largo", "riflesso"]
     },
     {
-      "kind": "shadow",
-      "element": "barra",
-      "label": "barra",
-      "rows": ["ombra@0.03", "ombra@0.1", "ombra@0.2", "ombra-max", "ombra-estensione"]
-    },
-    {
       "kind": "body",
       "element": "menu",
       "label": "menu",
@@ -805,12 +817,6 @@
       "rows": ["filo-scuro", "filo-largo", "riflesso"]
     },
     {
-      "kind": "shadow",
-      "element": "menu",
-      "label": "menu",
-      "rows": ["ombra@0.03", "ombra@0.1", "ombra@0.2", "ombra-max", "ombra-estensione"]
-    },
-    {
       "kind": "body",
       "element": "pannello",
       "label": "pannello",
@@ -839,12 +845,6 @@
       "label": "pannello",
       "refDp": 62,
       "rows": ["filo-scuro", "filo-largo", "riflesso"]
-    },
-    {
-      "kind": "shadow",
-      "element": "pannello",
-      "label": "pannello",
-      "rows": ["ombra@0.03", "ombra@0.1", "ombra@0.2", "ombra-max", "ombra-estensione"]
     }
   ]
 }

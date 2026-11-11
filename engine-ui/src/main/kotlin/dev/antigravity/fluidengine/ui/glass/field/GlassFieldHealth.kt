@@ -113,8 +113,8 @@ internal object GlassShaderSources {
 
   /**
    * I programmi del materiale `Liquid`: ognuno sta in una famiglia del riscaldamento (`GlassWarmFamily`), e
-   * `GlassWarmUpTest` fallisce se una sorgente nuova non sta né qui né in [today], o se sta qui senza una
-   * famiglia. È così che la striscia del bordo (F2.4) entrerà nel riscaldamento il giorno in cui si registra.
+   * `ShaderSourceLintTest.everyRegisteredSourceIsOfTodayOrWarmedByExactlyOneFamily` fallisce se una sorgente
+   * nuova non sta né qui né in [today], o se sta qui senza una famiglia o in più d'una. È così che la striscia del bordo (F2.4) entrerà nel riscaldamento il giorno in cui si registra.
    */
   val liquid: List<GlassShaderSource> = listOf(Body1, Body8, Light1, Light8)
 

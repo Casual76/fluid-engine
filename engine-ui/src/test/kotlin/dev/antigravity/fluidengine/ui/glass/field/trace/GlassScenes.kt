@@ -491,10 +491,13 @@ internal object GlassScenes {
 
   /**
    * Le varianti di gusto, una per ogni colonna di una tavola. In ognuna cambia **un pezzo** del profilo di
-   * serie; `serie` è la combinazione proposta.
+   * serie; `serie` è la combinazione di serie (le scelte di Alessio, F1A.5c) e `prima` quella di prima delle
+   * scelte ([GlassLiquidProfile.BeforeChoices]), per le tavole «prima | dopo». Dopo le scelte le chiavi dicono
+   * l'alternativa a ciò che è di serie: la variante scelta non ha più una scena sua, è `serie`.
    */
   private val Tastes: List<Taste> = listOf(
     taste("serie", "profilo di serie") { Default },
+    taste("prima", "profilo di prima delle scelte di gusto (F1A.5)") { GlassLiquidProfile.BeforeChoices },
     // 1. Il bordo (lato chiaro).
     taste("bordo-ios26", "bordo di iOS 26: due archi di luce, nessun filo", Sides.Light) {
       Default.copy(lightEdge = GlassLiquidEdges.Ios26)
@@ -505,9 +508,13 @@ internal object GlassScenes {
     // 2. Il velo (lato chiaro).
     taste("velo-ios26", "velo di iOS 26: bianco al 40%", Sides.Light) { Default.copy(lightVeil = GlassLiquidVeils.Ios26) },
     taste("velo-oggi", "velo di oggi: la pellicola del ruolo dipinta com'e'", todayFilm = true) { Default },
-    // 3. L'ombra.
-    taste("ombra-ios26", "ombra di iOS 26: larga, una componente") {
-      Default.copy(lightShadow = GlassLiquidShadows.Ios26, darkShadow = GlassLiquidShadows.Ios26)
+    // 3. L'ombra (di serie la B, iOS 26).
+    taste("ombra-ios27", "ombra di iOS 27: corta, due componenti, col passo dei grandi tarato su di lei") {
+      Default.copy(
+        lightShadow = GlassLiquidShadows.Ios27,
+        darkShadow = GlassLiquidShadows.Dark,
+        growth = Default.growth.copy(shadow = GlassLiquidGrowths.Step.shadow),
+      )
     },
     taste("ombra-oggi", "ombra di oggi: raggio e peso del ruolo, colore del lato, senza crescita") { surface ->
       Default.copy(
@@ -519,12 +526,13 @@ internal object GlassScenes {
     taste("ombra-tondo-apple", "ombra dei piccoli come Apple: un quarto di quella della barra") {
       Default.copy(smallShadow = GlassLiquidProfile.SmallShadowLikeApple)
     },
-    // 4. La smerigliatura.
+    // 4. La smerigliatura (di serie la D, iOS 26, 4,5 dp).
+    taste("smeriglio-12", "smerigliatura 12 dp, solo raggio") { Default.copy(frost = GlassLiquidFrosts.Radius12) },
     taste("smeriglio-24", "smerigliatura 24 dp, solo raggio") { Default.copy(frost = GlassLiquidFrosts.Radius24) },
     taste("smeriglio-mista", "smerigliatura larga 36 dp con il 12% di nitido") {
       Default.copy(frost = GlassLiquidFrosts.WideMixed)
     },
-    taste("smeriglio-ios26", "smerigliatura di iOS 26: 4,5 dp") { Default.copy(frost = GlassLiquidFrosts.Ios26) },
+    taste("smeriglio-mezzo", "smerigliatura di mezzo: 8 dp, solo raggio") { Default.copy(frost = GlassLiquidFrosts.Middle) },
     // 5. La lente, col materiale pieno e nella variante limpida.
     taste("lente-leggera", "lente leggera") { Default.copy(lens = GlassLiquidLenses.Light) },
     taste("lente-marcata", "lente marcata") { Default.copy(lens = GlassLiquidLenses.Strong) },
@@ -535,31 +543,112 @@ internal object GlassScenes {
     taste("limpida-marcata", "lente marcata", variant = GlassLiquidVariant.Clear) {
       Default.copy(lens = GlassLiquidLenses.Strong)
     },
-    // 6. Il tema scuro.
-    taste("scuro-filo", "tema scuro: riflesso e un filo chiaro sottile", Sides.Dark) {
+    // 6. Il tema scuro (di serie la B resa piu' decisa, e il velo dei grandi piu' profondo).
+    taste("scuro-riflesso", "tema scuro: solo il riflesso", Sides.Dark) {
+      Default.copy(darkEdge = GlassLiquidEdges.DarkReflex)
+    },
+    taste("scuro-filo-tenue", "tema scuro: riflesso e filo chiaro al 10%, la B come era nella tavola", Sides.Dark) {
       Default.copy(darkEdge = GlassLiquidEdges.DarkReflexAndWire)
     },
     taste("scuro-oggi", "tema scuro: il bordo di oggi", Sides.Dark) { Default.copy(darkEdge = GlassLiquidEdges.DarkToday) },
-    taste("scuro-velo-profondo", "tema scuro: velo piu' profondo", Sides.Dark) {
+    taste("scuro-velo-profondo", "tema scuro: velo dei piccoli piu' profondo", Sides.Dark) {
       Default.copy(darkVeil = GlassLiquidVeils.DarkDeeper)
     },
-    // 7. I grandi.
+    taste("scuro-grandi-come-piccoli", "tema scuro: i grandi con il velo dei piccoli", Sides.Dark) {
+      Default.copy(darkLargeVeil = Default.darkVeil)
+    },
+    // 7. I grandi (di serie un passo, tarato sull'ombra B).
     taste("grandi-barra", "i grandi come una barra: ne' smerigliatura ne' ombra crescono") {
       Default.copy(growth = GlassLiquidGrowths.None)
     },
+    taste("grandi-passo", "i grandi un passo in piu', tarato sull'ombra corta") { Default.copy(growth = GlassLiquidGrowths.Step) },
     taste("grandi-due-passi", "i grandi due passi in piu'") { Default.copy(growth = GlassLiquidGrowths.TwoSteps) },
   )
 
-  /** I campioni: ogni variante sui lati dove esiste, più il vetro di oggi. */
+  /** Le varianti che hanno anche il campione col testo ([sampleText]): il «prima | dopo» della tavola 9. */
+  private val TextTastes: List<String> = listOf("serie", "prima")
+
+  /** I campioni: ogni variante sui lati dove esiste, più il vetro di oggi, più i campioni col testo. */
   fun samples(): List<GlassScene> {
     val out = ArrayList<GlassScene>()
     for (taste in Tastes) {
       if (taste.sides != Sides.Dark) out += sample(taste.key, dark = false, taste.ask)
       if (taste.sides != Sides.Light) out += sample(taste.key, dark = true, taste.ask)
+      if (taste.key in TextTastes) {
+        out += sampleText(taste.key, dark = false, taste.ask)
+        out += sampleText(taste.key, dark = true, taste.ask)
+      }
     }
     out += sampleToday(dark = false)
     out += sampleToday(dark = true)
     return out
+  }
+
+  // ---- Il campione col testo (F1A.5c) -----------------------------------------------------------------------
+
+  /** L'inchiostro secondario dell'engine (`onSurfaceVariant` di `FluidTheme.kt`), scuro e chiaro. */
+  private fun secondaryInk(dark: Boolean): String = if (dark) "#AAAAB2" else "#68686E"
+
+  private fun textRows(title: String, line: String, dark: Boolean): List<Map<String, Any?>> = listOf(
+    linkedMapOf("label" to title),
+    linkedMapOf("label" to line, "color" to secondaryInk(dark)),
+  )
+
+  /** Dove sta la seconda riga (il testo secondario) di una lastra del campione col testo: per chi misura. */
+  const val TextRowsTopDp: Int = 22
+  const val TextRowHeightDp: Int = 30
+
+  /**
+   * Le lastre del campione col testo: un **foglio** e una **card** con un titolo e una riga di testo
+   * secondario (S1-ter, difetto 2: è lì che il velo scuro dei grandi si misura), un **tasto annidato** sopra un
+   * pannello verde (difetto 4: la pagina ha un rettangolo verde dove starebbe la notifica, cioè ciò che il tasto
+   * annidato vede), e un **tondo da 26 dp** (i piccolissimi). Il foglio è un pannello (`panel`), la card un
+   * vetro sul contenuto (`content`, senza ombra), il tasto e il tondo tasti di vetro (`button`).
+   */
+  fun textShapes(dark: Boolean): List<Map<String, Any?>> = listOf(
+    linkedMapOf(
+      "name" to "foglio", "role" to "panel", "x" to 30, "y" to 30, "w" to 400, "h" to 150, "radius" to 34,
+      "rowsTopDp" to TextRowsTopDp, "rowHeightDp" to TextRowHeightDp, "labelSizeDp" to 15,
+      "rows" to textRows("Ancorato al bordo", "Riga 1 di contenuto, sopra la pagina.", dark),
+    ),
+    linkedMapOf(
+      "name" to "card", "role" to "content", "x" to 30, "y" to 214, "w" to 300, "h" to 96, "radius" to 24,
+      "rowsTopDp" to TextRowsTopDp, "rowHeightDp" to TextRowHeightDp, "labelSizeDp" to 15,
+      "rows" to textRows("Come si risponde", "Tieni premuto un messaggio.", dark),
+    ),
+    linkedMapOf(
+      "name" to "annidato", "role" to "button", "x" to 486, "y" to 246, "w" to 132, "h" to 40, "radius" to "capsule",
+      "label" to "Ripristina", "labelSizeDp" to 14,
+    ),
+    linkedMapOf(
+      "name" to "tondo26", "role" to "button", "x" to 486, "y" to 60, "w" to 26, "h" to 26, "radius" to "capsule",
+      "iconSizeDp" to 15, "icon" to "fluid:sync|circle",
+    ),
+  )
+
+  /** Il pannello verde sotto il tasto annidato: il colore della notifica tinta di S1-ter, nei due temi. */
+  private fun textPage(dark: Boolean): List<Map<String, Any?>> = listOf(
+    linkedMapOf(
+      "kind" to "rect", "x" to 466, "y" to 214, "w" to 172, "h" to 104, "radius" to 26,
+      "color" to if (dark) "#2C3B35" else "#DCE9E3",
+    ),
+  )
+
+  /** Il campione col testo col materiale nuovo: [key] è il nome della variante, [ask] ciò che chiede alla ricetta. */
+  fun sampleText(key: String, dark: Boolean, ask: SceneAsk): GlassScene {
+    val theme = if (dark) "dark" else "light"
+    val scene = sampleHead(
+      "Scritta dalla ricetta (GlassSceneExportTest, F1A.5c): il campione col testo, variante `$key`, lato " +
+        "${if (dark) "scuro" else "chiaro"}: ${ask.label}. Foglio e card con una riga di testo secondario " +
+        "(onSurfaceVariant), un tasto annidato sopra un pannello verde, un tondo da 26 dp. Non si modifica a " +
+        "mano: si rigenera.",
+      dark,
+    )
+    scene["width"] = 660
+    scene["height"] = 340
+    scene["page"] = textPage(dark)
+    scene["elements"] = textShapes(dark).map { liquidFromGlass(it, theme, ask) }
+    return GlassScene("gusto/testo-$key-${if (dark) "scuro" else "chiaro"}.json", scene)
   }
 
   /** Tutte le scene: le inquadrature rilette da [referenceFolder] (`tools/glassbench/scenes/rif`) e i campioni. */

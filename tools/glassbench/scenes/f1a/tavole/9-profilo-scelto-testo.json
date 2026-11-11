@@ -1,0 +1,107 @@
+{
+  "titolo": "9 · Il profilo scelto: testo sul vetro, vetro annidato, tondo da 26 dp",
+  "domanda": "Foglio e card con una riga di testo secondario dell'engine (onSurfaceVariant): il contrasto e' scritto sulla riga (99,5 percentile del testo contro la mediana del corpo, come in S1-ter). A destra un tasto annidato sopra un pannello verde e un tondo da 26 dp.",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 2.125,
+  "fondi": {
+    "pagina-scura": {
+      "lato": "scuro",
+      "background": {
+        "kind": "color",
+        "color": "#0D0D0F"
+      },
+      "page": [
+        {
+          "kind": "rect",
+          "x": 466,
+          "y": 214,
+          "w": 172,
+          "h": 104,
+          "radius": 26,
+          "color": "#2C3B35"
+        }
+      ]
+    },
+    "fondo-tablet": {
+      "lato": "scuro",
+      "background": {
+        "kind": "color",
+        "color": "#1C1C20"
+      }
+    },
+    "pagina-chiara": {
+      "lato": "chiaro",
+      "background": {
+        "kind": "color",
+        "color": "#F2F2F7"
+      },
+      "page": [
+        {
+          "kind": "rect",
+          "x": 466,
+          "y": 214,
+          "w": 172,
+          "h": 104,
+          "radius": 26,
+          "color": "#DCE9E3"
+        }
+      ]
+    },
+    "_": "Le pagine vere dell'engine col pannello verde della notifica di S1-ter sotto il tasto annidato (il rettangolo e' cio' che il tasto annidato vede: il materiale del pannello che lo ospita); e il fondo #1C1C20, che riproduce quello sotto il foglio del tablet."
+  },
+  "colonne": [
+    {
+      "lettera": "prima",
+      "nome": "velo scuro dei tasti anche sui grandi",
+      "scena": "../gusto/testo-prima-{lato}.json"
+    },
+    {
+      "lettera": "dopo",
+      "nome": "velo scuro dei grandi, filo chiaro, piccolissimi",
+      "scena": "../gusto/testo-serie-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "SCURO, pagina #0D0D0F. Testo secondario su foglio e card: prima 4,3:1 (corpo 67), dopo 6,9:1 (corpo 34)",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        14,
+        14,
+        632,
+        312
+      ]
+    },
+    {
+      "etichetta": "SCURO, fondo #1C1C20 (riproduce il foglio del tablet di S1-ter): prima 3,8:1 (corpo 75, come sul tablet), dopo 6,3:1 (corpo 41)",
+      "fondo": "fondo-tablet",
+      "ritaglio": [
+        14,
+        14,
+        432,
+        312
+      ]
+    },
+    {
+      "etichetta": "CHIARO, pagina #F2F2F7: 5,0:1 prima e dopo (il velo chiaro non cambia con la taglia)",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        14,
+        632,
+        312
+      ]
+    },
+    {
+      "etichetta": "il tasto annidato sopra il pannello verde e il tondo da 26 dp, scuro, ingranditi 3 volte (il tasto annidato resta grigio: non e' un numero del profilo, vedi il rapporto)",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        466,
+        40,
+        172,
+        278
+      ],
+      "zoom": 3
+    }
+  ]
+}

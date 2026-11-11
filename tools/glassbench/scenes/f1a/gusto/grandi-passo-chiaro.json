@@ -1,5 +1,5 @@
 {
-  "_": "Scritta dalla ricetta (GlassSceneExportTest, F1A.5): il campione delle tavole di gusto, variante `smeriglio-ios26`, lato chiaro: smerigliatura di iOS 26: 4,5 dp. Tasto 44 dp, capsula, tab bar 62 dp, menu, pannello grande. Le tavole le compone `glassbench.py tavola`, che cambia fondale e inquadratura e mai un numero del materiale. Non si modifica a mano: si rigenera.",
+  "_": "Scritta dalla ricetta (GlassSceneExportTest, F1A.5): il campione delle tavole di gusto, variante `grandi-passo`, lato chiaro: i grandi un passo in piu', tarato sull'ombra corta. Tasto 44 dp, capsula, tab bar 62 dp, menu, pannello grande. Le tavole le compone `glassbench.py tavola`, che cambia fondale e inquadratura e mai un numero del materiale. Non si modifica a mano: si rigenera.",
   "width": 900,
   "height": 440,
   "density": 3,
@@ -14,7 +14,7 @@
     {
       "kind": "material",
       "name": "tasto",
-      "_ricetta": "glassRecipe: ruolo button, 44 x 44 dp, lato chiaro, smerigliatura di iOS 26: 4,5 dp",
+      "_ricetta": "glassRecipe: ruolo button, 44 x 44 dp, lato chiaro, i grandi un passo in piu', tarato sull'ombra corta",
       "x": 30,
       "y": 39,
       "w": 44,
@@ -23,15 +23,9 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 1.5,
-          "offsetDp": [0, 0.75],
-          "alpha": 0.024,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 8,
-          "offsetDp": [0, 4],
-          "alpha": 0.038,
+          "radiusDp": 34,
+          "offsetDp": [0, 6.7],
+          "alpha": 0.09,
           "color": "#000000"
         }
       ],
@@ -144,7 +138,7 @@
     {
       "kind": "material",
       "name": "capsula",
-      "_ricetta": "glassRecipe: ruolo floating, 156 x 56 dp, lato chiaro, smerigliatura di iOS 26: 4,5 dp",
+      "_ricetta": "glassRecipe: ruolo floating, 156 x 56 dp, lato chiaro, i grandi un passo in piu', tarato sull'ombra corta",
       "x": 104,
       "y": 33,
       "w": 156,
@@ -153,15 +147,9 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 1.5,
-          "offsetDp": [0, 0.75],
-          "alpha": 0.024,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 8,
-          "offsetDp": [0, 4],
-          "alpha": 0.038,
+          "radiusDp": 34,
+          "offsetDp": [0, 6.7],
+          "alpha": 0.09,
           "color": "#000000"
         }
       ],
@@ -274,7 +262,7 @@
     {
       "kind": "material",
       "name": "barra",
-      "_ricetta": "glassRecipe: ruolo floating, 220 x 62 dp, lato chiaro, smerigliatura di iOS 26: 4,5 dp",
+      "_ricetta": "glassRecipe: ruolo floating, 220 x 62 dp, lato chiaro, i grandi un passo in piu', tarato sull'ombra corta",
       "x": 290,
       "y": 30,
       "w": 220,
@@ -283,15 +271,9 @@
       "clip": true,
       "shadow": [
         {
-          "radiusDp": 1.5,
-          "offsetDp": [0, 0.75],
-          "alpha": 0.024,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 8,
-          "offsetDp": [0, 4],
-          "alpha": 0.038,
+          "radiusDp": 34,
+          "offsetDp": [0, 6.7],
+          "alpha": 0.09,
           "color": "#000000"
         }
       ],
@@ -404,7 +386,7 @@
     {
       "kind": "material",
       "name": "menu",
-      "_ricetta": "glassRecipe: ruolo compactpanel, 170 x 192 dp, lato chiaro, smerigliatura di iOS 26: 4,5 dp",
+      "_ricetta": "glassRecipe: ruolo compactpanel, 170 x 192 dp, lato chiaro, i grandi un passo in piu', tarato sull'ombra corta",
       "x": 30,
       "y": 150,
       "w": 170,
@@ -414,15 +396,9 @@
       "clipRadiusScale": 0.98,
       "shadow": [
         {
-          "radiusDp": 2.058545,
-          "offsetDp": [0, 1.029272],
-          "alpha": 0.028468,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 10.978905,
-          "offsetDp": [0, 5.489452],
-          "alpha": 0.045075,
+          "radiusDp": 46.660347,
+          "offsetDp": [0, 9.194833],
+          "alpha": 0.106756,
           "color": "#000000"
         }
       ],
@@ -431,7 +407,7 @@
         "blurDp": 5.337817,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.679731
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",
@@ -553,7 +529,7 @@
     {
       "kind": "material",
       "name": "pannello",
-      "_ricetta": "glassRecipe: ruolo panel, 330 x 380 dp, lato chiaro, smerigliatura di iOS 26: 4,5 dp",
+      "_ricetta": "glassRecipe: ruolo panel, 330 x 380 dp, lato chiaro, i grandi un passo in piu', tarato sull'ombra corta",
       "x": 540,
       "y": 30,
       "w": 330,
@@ -563,15 +539,9 @@
       "clipRadiusScale": 0.98,
       "shadow": [
         {
-          "radiusDp": 3,
-          "offsetDp": [0, 1.5],
-          "alpha": 0.036,
-          "color": "#000000"
-        },
-        {
-          "radiusDp": 16,
-          "offsetDp": [0, 8],
-          "alpha": 0.057,
+          "radiusDp": 68,
+          "offsetDp": [0, 13.4],
+          "alpha": 0.135,
           "color": "#000000"
         }
       ],
@@ -580,7 +550,7 @@
         "blurDp": 6.75,
         "w": 0,
         "paddingDp": 0,
-        "scale": 0.595
+        "scale": 0.73
       },
       "body": {
         "source": "kotlin:GlassBody1ShaderString",

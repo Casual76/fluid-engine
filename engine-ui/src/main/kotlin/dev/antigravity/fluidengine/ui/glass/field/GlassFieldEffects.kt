@@ -304,11 +304,10 @@ internal fun glassDrawInputs(
  * La frazione di risoluzione a cui una superficie `Liquid` cattura, decisa in composizione come quella di
  * oggi: è un parametro del nodo, e la taglia in composizione non c'è.
  *
- * È `captureScale` della ricetta **senza la regola della taglia**. Per ogni ruolo di serie non cambia niente:
- * la sfocatura del profilo è già oltre i 10 dp a cui `glassResolutionScale` tocca il pavimento, e crescere
- * con la taglia non può farla scendere. Cambia solo per un'ottica scritta a mano che attenua la sfocatura
- * sotto i 10 dp su una lastra grande, che cattura allora a una risoluzione un poco più alta di quella che la
- * ricetta chiederebbe alla sua taglia: dalla parte sicura.
+ * È `captureScale` della ricetta, che dalla F1A.5c si decide sulla sfocatura del ruolo **senza la regola della
+ * taglia** proprio perché qui la taglia non c'è: il numero è lo stesso a ogni taglia, nelle scene del banco e
+ * nelle lastre vere. Una lastra grande, che sfoca un poco di più, cattura così a una risoluzione un poco più alta
+ * di quella che la sua sfocatura permetterebbe: dalla parte sicura.
  */
 internal fun glassLiquidCaptureScale(
   role: GlassRole,

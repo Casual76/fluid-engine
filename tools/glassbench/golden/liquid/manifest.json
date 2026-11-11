@@ -7,7 +7,7 @@
       "name": "pagina-chiara",
       "scene": "scenes/f1a/ricetta/pagina-chiara.json",
       "png": "pagina-chiara.png",
-      "sha256": "c0efee806504b2e416c44eabc4e9f5be9aa7455b07e035995b2d7498d7cea4c8",
+      "sha256": "f1b5e4cbfb05f154b993098a1f5ae2efeb0ef6be61f7e23d9c80907a73249bef",
       "size": [
         960,
         540
@@ -17,7 +17,7 @@
       "name": "pagina-scura",
       "scene": "scenes/f1a/ricetta/pagina-scura.json",
       "png": "pagina-scura.png",
-      "sha256": "79940a93cd3109458e4663bba3d7458ca3cbbc7847a758adbfc53af6e8e637b1",
+      "sha256": "5c77f1dbdba5a57a8ac37a53223fbc54fea5fbea48e74b7e5875b622856b2956",
       "size": [
         960,
         540
@@ -27,7 +27,7 @@
       "name": "pagina-nera",
       "scene": "scenes/f1a/ricetta/pagina-nera.json",
       "png": "pagina-nera.png",
-      "sha256": "dcb4d2568b714d0b00ff907c58ad3ad84466c02ccf65c0b791d445bb1c942951",
+      "sha256": "9f070c183c4aa623b8719ed1bd0ec3207b6e8e696e12e906b85ea01ee0787856",
       "size": [
         960,
         540
@@ -37,7 +37,7 @@
       "name": "pagina-bianca",
       "scene": "scenes/f1a/ricetta/pagina-bianca.json",
       "png": "pagina-bianca.png",
-      "sha256": "80da38c9df90bd55a91599490cba7629e7178701e7ea96b182ad8d5fa8313149",
+      "sha256": "812ecce13649f7bbded78dd60486b7c6c8f6617982b2e3f4602fd5f7be02c159",
       "size": [
         960,
         540
@@ -47,7 +47,7 @@
       "name": "pagina-testo",
       "scene": "scenes/f1a/ricetta/pagina-testo.json",
       "png": "pagina-testo.png",
-      "sha256": "89f4c3bbc43a13f9e72fe743972850fd8fb6d234c6aff30adc23d8da79239e50",
+      "sha256": "bc3fca6cce00ad02c0e40b22c9db9d94e0930a587080de6c866db9d80eb3c44f",
       "size": [
         960,
         540
@@ -57,7 +57,7 @@
       "name": "pagina-foto",
       "scene": "scenes/f1a/ricetta/pagina-foto.json",
       "png": "pagina-foto.png",
-      "sha256": "62a311d4f786f82b91e3517e703461a12870d6514fd2e8c610c88eee117e85a8",
+      "sha256": "08b2367329d0ac7a959fdce63524bd570652b1e0596eb2b1886adba09f394743",
       "size": [
         960,
         540
@@ -67,7 +67,7 @@
       "name": "rif-bianco-nero",
       "scene": "scenes/f1a/ricetta/rif-bianco-nero.json",
       "png": "rif-bianco-nero.png",
-      "sha256": "8aefe89dc2722979e018123a43649ecf0e11a1bc698068c913044402a490a382",
+      "sha256": "c8476252948a41b498a684c464952b8148de42b9f887eece2efa673bc0cb30e2",
       "size": [
         960,
         600
@@ -77,7 +77,7 @@
       "name": "rif-tinta",
       "scene": "scenes/f1a/ricetta/rif-tinta.json",
       "png": "rif-tinta.png",
-      "sha256": "0e352394befe866bb84075f3962745842271723a285e358dffeed4a70f4494d9",
+      "sha256": "b87444ed8851af8fb6c081370ee49802d3b28bb1ef35ec8853651d218beffc08",
       "size": [
         960,
         400
@@ -87,7 +87,7 @@
       "name": "rif-lente-griglia",
       "scene": "scenes/f1a/ricetta/rif-lente-griglia.json",
       "png": "rif-lente-griglia.png",
-      "sha256": "46de819e7bd03cfc929539cf1b27232c10dd3361d296b4d0816f65dd0e2c4b8f",
+      "sha256": "2d678ca84b4e01fa85bea781809684c586ac529a6cb80c57c28f7b26d2df6292",
       "size": [
         600,
         600
@@ -97,7 +97,7 @@
       "name": "rif27-tabbar",
       "scene": "scenes/f1a/ricetta/rif27-tabbar.json",
       "png": "rif27-tabbar.png",
-      "sha256": "14a1665e19b42fba69b98fa955e972cd36d17097521ba024f7c1dba7038c6aea",
+      "sha256": "c4cf0cfd3728438b727b48df933753c4948a01afa0dcd80692c2aa3e038c9511",
       "size": [
         800,
         340
@@ -107,7 +107,7 @@
       "name": "rif27-scuro",
       "scene": "scenes/f1a/ricetta/rif27-scuro.json",
       "png": "rif27-scuro.png",
-      "sha256": "39914bc9a093456bda30a39aeee0cdb227a9d539d45a1d6a93a8162d92eb7b31",
+      "sha256": "e9039a00d2f28c6e5e385fe89f19426bc00bc27a81cbe83c5e113597dbdcc937",
       "size": [
         840,
         400
@@ -117,7 +117,7 @@
       "name": "campione-chiaro",
       "scene": "scenes/f1a/gusto/serie-chiaro.json",
       "png": "campione-chiaro.png",
-      "sha256": "779a13b44c2c7d7bcceaf1354e6e7b3160021b763e5430364ca078ef29743026",
+      "sha256": "b380398aa2ed1f5120dfeeb81a9acae7d5f8ef4944ef2d1b18146f7672e233e4",
       "size": [
         1800,
         880
@@ -127,7 +127,7 @@
       "name": "campione-scuro",
       "scene": "scenes/f1a/gusto/serie-scuro.json",
       "png": "campione-scuro.png",
-      "sha256": "16aa3c692b7368a68b60fa560d8bef2c9416f9de1e3c4946c5ef3630c88165c7",
+      "sha256": "50f54694170bdf6eaeef8543d2bfec1ec485ded41ee609aeea3d2847b81d79f1",
       "size": [
         1800,
         880
@@ -145,13 +145,16 @@
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Shaders.kt": "3272701cebb5d023",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsShaders.kt": "d68ce3d4e3530f36",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassBodyShader.kt": "d1b775306462bd38",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldEffects.kt": "53a8ede6afa64b7a",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldGeometry.kt": "33ab17645042d76d",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "a28e6710cb30c606",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldKernel.kt": "0867be85590e0fdd",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "71f91a142cc06cd1",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldKernel.kt": "bb215ef95b7f638e",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldPlan.kt": "dc0da6daf2a74eb2",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLightShader.kt": "e7b9c1ef91e12dd4",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLiquidProfile.kt": "83fe42d317cc5f38",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassRecipe.kt": "5111642dd6fd1c2d",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassShadow.kt": "df7787895823e7ec",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "e2bd36d861ccb691"
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLiquidProfile.kt": "a4b7ff415b0b5c85",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassRecipe.kt": "e25b3f6ee387302d",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassShadow.kt": "487a65ab36193114",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassWarmUp.kt": "5f0eedb05d0947ae",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "d85c812d2b34c262"
   }
 }

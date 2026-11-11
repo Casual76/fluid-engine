@@ -8,13 +8,13 @@
     {
       "lettera": "A",
       "nome": "solo riflesso",
-      "scena": "../gusto/serie-{lato}.json",
-      "nota": "di serie"
+      "scena": "../gusto/scuro-riflesso-{lato}.json"
     },
     {
       "lettera": "B",
       "nome": "riflesso e filo",
-      "scena": "../gusto/scuro-filo-{lato}.json"
+      "scena": "../gusto/scuro-filo-tenue-{lato}.json",
+      "nota": "come era in tavola: di serie c'e' la B resa piu' decisa"
     },
     {
       "lettera": "C",

@@ -1,7 +1,9 @@
 package dev.antigravity.fluidengine.ui.glass.field.trace
 
+import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.glass.field.GlassBody1ShaderString
 import dev.antigravity.fluidengine.ui.glass.field.GlassLight1ShaderString
+import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -113,19 +115,23 @@ class GlassSceneExportTest {
         assertEquals(name, "0.6dp", uniforms(layer)["rimWidth"])
         assertEquals(name, "7dp", uniforms(layer)["reflexDepth"])
       }
+      // L'ombra B di serie è una componente sola, larga: nessun contatto.
       @Suppress("UNCHECKED_CAST")
       val shadow = el["shadow"] as List<Map<String, Any?>>
-      assertEquals(name, 2, shadow.size)
+      assertEquals(name, 1, shadow.size)
     }
+    // La smerigliatura D (4,5 dp), che i grandi fanno crescere di un passo (fino a 6,75 dp a guadagno pieno).
     val blur = names.associateWith { number(capture(element(sample, it))["blurDp"]) }
-    assertEquals(12.0, blur.getValue("tasto"), 1e-6)
-    assertEquals(12.0, blur.getValue("capsula"), 1e-6)
-    assertEquals(12.0, blur.getValue("barra"), 1e-6)
-    assertTrue(blur.getValue("menu") > 12.0 && blur.getValue("menu") < 18.0)
-    assertEquals(18.0, blur.getValue("pannello"), 1e-6)
-    // A riposo, di serie, `w` è zero e il margine è quello che la lente non copre.
+    assertEquals(4.5, blur.getValue("tasto"), 1e-6)
+    assertEquals(4.5, blur.getValue("capsula"), 1e-6)
+    assertEquals(4.5, blur.getValue("barra"), 1e-6)
+    assertTrue(blur.getValue("menu") > 4.5 && blur.getValue("menu") < 6.75)
+    assertEquals(6.75, blur.getValue("pannello"), 1e-6)
+    // A riposo, di serie, `w` è zero; e con 4,5 dp la banda della lente copre tutta la sfocatura: nessun margine.
     assertEquals(0.0, number(capture(element(sample, "tasto"))["w"]), 0.0)
-    assertEquals(1.44, number(capture(element(sample, "tasto"))["paddingDp"]), 1e-4)
+    assertEquals(0.0, number(capture(element(sample, "tasto"))["paddingDp"]), 0.0)
+    // La risoluzione della cattura non dipende dalla taglia: la decide il ruolo (come l'innesto in composizione).
+    assertEquals(1, names.map { number(capture(element(sample, it))["scale"]) }.toSet().size)
 
     // La geometria: le capsule sono semicerchi senza raccordo; menu e pannello hanno il raccordo di iOS e il
     // ritaglio hardware al 98% del raggio.
@@ -142,25 +148,70 @@ class GlassSceneExportTest {
     }
   }
 
+  /** Il velo che la ricetta dà a una lastra di quel ruolo e quella taglia, come lo scrive una scena. */
+  private fun veilOf(role: GlassRole, w: Float, h: Float, dark: Boolean): String =
+    glassColor(glassRecipe(role = role, widthDp = w, heightDp = h, darkSide = dark).veilColor)
+
   @Test
-  fun theDarkSideHasNoWireAndItsOwnVeil() {
+  fun theDarkSideHasTheLightWireAndTheLargeOnesADeeperVeil() {
     val dark = scene("gusto/serie-scuro.json")
     val light = scene("gusto/serie-chiaro.json")
     for (el in elements(dark)) {
-      // Un disegno solo: il riflesso. Il filo, con alfa zero, si salta.
-      assertEquals(listOf("Plus"), lights(el).map { it["blend"] })
-      assertEquals("#78788080", uniforms(el["body"])["veilColor"])
+      // La B di serie: due disegni, il riflesso e poi il filo chiaro che copre.
+      assertEquals(listOf("Plus", null), lights(el).map { it["blend"] })
+      assertEquals("#FFFFFF57", uniforms(lights(el)[1])["rimDark"])
     }
-    assertEquals("#F5F5F775", uniforms(element(light, "capsula")["body"])["veilColor"])
-    // Il filo chiaro è una variante, ed è un filo: torna il secondo disegno.
-    val wire = element(scene("gusto/scuro-filo-scuro.json"), "capsula")
-    assertEquals(listOf("Plus", null), lights(wire).map { it["blend"] })
-    assertEquals("#FFFFFF1A", uniforms(lights(wire)[1])["rimDark"])
+    // Il velo scuro: quello dei piccoli sul tasto, quello dei grandi su menu e pannello, in mezzo la capsula e
+    // la barra, sempre più scure con la taglia.
+    fun veil(name: String) = uniforms(element(dark, name)["body"])["veilColor"] as String
+    assertEquals("#78788080", veil("tasto"))
+    assertEquals("#36363C80", veil("menu"))
+    assertEquals("#36363C80", veil("pannello"))
+    val greys = listOf("tasto", "capsula", "barra", "menu").map { veil(it).substring(1, 3).toInt(16) }
+    assertEquals(greys.sortedDescending(), greys)
+    assertTrue(greys[1] < greys[0] && greys[2] > greys[3])
+    // Sul chiaro il velo non cambia con la taglia.
+    for (el in elements(light)) assertEquals("#F5F5F775", uniforms(el["body"])["veilColor"])
+    // Il bordo scuro della tavola: il solo riflesso è un disegno, la B al 10% due.
+    val reflex = element(scene("gusto/scuro-riflesso-scuro.json"), "capsula")
+    assertEquals(listOf("Plus"), lights(reflex).map { it["blend"] })
+    val faint = element(scene("gusto/scuro-filo-tenue-scuro.json"), "capsula")
+    assertEquals("#FFFFFF1A", uniforms(lights(faint)[1])["rimDark"])
     // Un elemento può stare dal lato opposto a quello della scena: il vetro chiaro sopra la foto scura di R5 M3.
     val mixed = scene("ricetta/rif27-scuro.json")
-    assertEquals("#78788080", uniforms(element(mixed, "tabbar-scura")["body"])["veilColor"])
+    assertEquals(
+      veilOf(GlassRole.Floating, 380f, 62f, dark = true),
+      uniforms(element(mixed, "tabbar-scura")["body"])["veilColor"],
+    )
     assertEquals("#F5F5F775", uniforms(element(mixed, "barra-chiara")["body"])["veilColor"])
     assertEquals(2, lights(element(mixed, "barra-chiara")).size)
+  }
+
+  @Test
+  fun theTextSampleIsBeforeAndAfter() {
+    for (side in listOf("chiaro", "scuro")) {
+      val after = scene("gusto/testo-serie-$side.json")
+      val before = scene("gusto/testo-prima-$side.json")
+      assertEquals(listOf("foglio", "card", "annidato", "tondo26"), elements(after).map { it["name"] })
+      assertEquals(elements(after).map { it["name"] }, elements(before).map { it["name"] })
+      // La card è un vetro sul contenuto: nessuna ombra.
+      assertNull(element(after, "card")["shadow"])
+    }
+    // Sullo scuro foglio e card prendono il velo dei grandi; prima avevano quello dei piccoli.
+    val after = scene("gusto/testo-serie-scuro.json")
+    val before = scene("gusto/testo-prima-scuro.json")
+    for (name in listOf("foglio", "card")) {
+      assertEquals("#36363C80", uniforms(element(after, name)["body"])["veilColor"])
+      assertEquals("#78788080", uniforms(element(before, name)["body"])["veilColor"])
+    }
+    // Il tondo da 26 dp: il riflesso più tenue e meno profondo di quello del tasto, l'ombra più piccola.
+    val dot = element(after, "tondo26")
+    val button = element(scene("gusto/serie-scuro.json"), "tasto")
+    assertTrue(number(uniforms(lights(dot)[0])["reflexStrength"]) < number(uniforms(lights(button)[0])["reflexStrength"]))
+    assertEquals("4.16dp", uniforms(lights(dot)[0])["reflexDepth"])
+    @Suppress("UNCHECKED_CAST")
+    fun ambient(el: Map<String, Any?>) = number((el["shadow"] as List<Map<String, Any?>>).last()["radiusDp"])
+    assertEquals(ambient(button) * 26.0 / 44.0, ambient(dot), 1e-3)
   }
 
   @Test
@@ -174,20 +225,33 @@ class GlassSceneExportTest {
     // Il bordo tocca solo la luce; l'ombra solo l'ombra; la smerigliatura solo la catena.
     assertEquals(setOf("light"), differing("gusto/bordo-ios26-chiaro.json", "capsula"))
     assertEquals(setOf("light"), differing("gusto/bordo-oggi-chiaro.json", "capsula"))
-    assertEquals(setOf("shadow"), differing("gusto/ombra-ios26-chiaro.json", "capsula"))
+    assertEquals(setOf("shadow"), differing("gusto/ombra-ios27-chiaro.json", "capsula"))
+    assertEquals(setOf("shadow"), differing("gusto/ombra-ios27-chiaro.json", "pannello"))
     assertEquals(setOf("shadow"), differing("gusto/ombra-oggi-chiaro.json", "menu"))
     assertEquals(setOf("shadow"), differing("gusto/ombra-tondo-apple-chiaro.json", "tasto"))
     assertEquals(emptySet<String>(), differing("gusto/ombra-tondo-apple-chiaro.json", "capsula"))
-    assertEquals(setOf("capture"), differing("gusto/smeriglio-24-chiaro.json", "barra"))
-    assertEquals(setOf("capture"), differing("gusto/smeriglio-mista-chiaro.json", "barra"))
+    for (frost in listOf("12", "24", "mista", "mezzo")) {
+      assertEquals(frost, setOf("capture"), differing("gusto/smeriglio-$frost-chiaro.json", "barra"))
+    }
     assertEquals(setOf("body"), differing("gusto/velo-ios26-chiaro.json", "capsula"))
     assertEquals(setOf("body"), differing("gusto/velo-oggi-chiaro.json", "capsula"))
-    // La lente cambia il corpo e, con la banda, il margine della cattura.
-    assertEquals(setOf("body", "capture"), differing("gusto/lente-marcata-chiaro.json", "tasto"))
+    // La lente cambia il corpo; con 4,5 dp di sfocatura la banda copre la sfocatura in ogni variante, quindi il
+    // margine della cattura resta zero.
+    assertEquals(setOf("body"), differing("gusto/lente-marcata-chiaro.json", "tasto"))
     // I grandi: le lastre piccole restano identiche, le grandi cambiano smerigliatura e ombra.
     assertEquals(emptySet<String>(), differing("gusto/grandi-due-passi-chiaro.json", "capsula"))
     assertEquals(setOf("capture", "shadow"), differing("gusto/grandi-due-passi-chiaro.json", "pannello"))
     assertEquals(setOf("capture", "shadow"), differing("gusto/grandi-barra-chiaro.json", "menu"))
+    assertEquals(setOf("shadow"), differing("gusto/grandi-passo-chiaro.json", "pannello"))
+    // Il velo scuro dei grandi tocca solo il corpo, e solo dei grandi.
+    fun differingDark(path: String, name: String): Set<String> {
+      val a = element(scene("gusto/serie-scuro.json"), name)
+      val b = element(scene(path), name)
+      return (a.keys + b.keys).filter { it != "_ricetta" && a[it] != b[it] }.toSet()
+    }
+    assertEquals(emptySet<String>(), differingDark("gusto/scuro-grandi-come-piccoli-scuro.json", "tasto"))
+    assertEquals(setOf("body"), differingDark("gusto/scuro-grandi-come-piccoli-scuro.json", "pannello"))
+    assertEquals(setOf("light"), differingDark("gusto/scuro-riflesso-scuro.json", "capsula"))
 
     // La pellicola di oggi prende il posto del velo.
     val film = uniforms(element(scene("gusto/velo-oggi-chiaro.json"), "capsula")["body"])

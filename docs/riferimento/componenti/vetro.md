@@ -84,9 +84,12 @@ si ottiene sempre, `Liquid` solo dove può esistere. Per ogni superficie decide 
    diagnostica»).
 3. **La superficie non è la fascia in alto** (`GlassFalloff.FadeDown`). La fascia resta quella di oggi finché non la
    sostituisce il bordo dello scorrimento, che è di una fase successiva.
-4. **La forma è una che il campo sa rendere**: `RectangleShape` o una `CornerBasedShape`. Il materiale nuovo ritaglia
-   la sagoma con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno sbagliato; su un contorno
-   generico il vetro di prima spegne la lente e tiene il resto, che è il ripiego onesto.
+4. **La forma è una che il campo sa rendere**: `RectangleShape` o una forma ad angoli tondi (`RoundedCornerShape`,
+   `AbsoluteRoundedCornerShape`, `CircleShape`, le `ContinuousCornerShape` dell'engine, capsula compresa). Il
+   materiale nuovo ritaglia la sagoma con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno
+   sbagliato: una `CutCornerShape`, che pure è una `CornerBasedShape`, usciva con gli angoli tondi, e resta `Classic`
+   come ogni sottoclasse di `CornerBasedShape` scritta da un'app. Su un contorno generico il vetro di prima spegne la
+   lente e tiene il resto, che è il ripiego onesto.
 5. **L'ottica ha uno spessore**: lente, bordo oppure ombra. Un'ottica senza nessuno dei tre è un velo che sfoca appena
    e scurisce, cioè lo **scrim di un modale**, e il materiale nuovo gli darebbe la smerigliatura e l'ombreggiatura di
    una lastra grande quanto lo schermo.
@@ -122,18 +125,24 @@ la pillola, la goccia e i pomelli sono il vetro di prima sopra barre nuove.
 ### Un'app che aggiorna senza toccare il codice
 
 **L'aspetto delle lastre di serie.** Da Android 13 ogni lastra della prima riga della tabella cambia aspetto, verso il
-vetro di iOS 27. Sul lato chiaro: un **filo scuro** sottile e di spessore assoluto su tutto il perimetro (più leggero
-in alto e in basso); subito dentro, in alto e in basso, una **riga chiara** con un alone che rientra nel corpo; un
-**velo** quasi bianco che si ispessisce dove lo sfondo gli somiglia (su una pagina chiara il corpo sta appena sopra la
-pagina, su bianco puro appena sotto, su un colore saturo lascia passare circa metà); un'**ombreggiatura** che scurisce
-il corpo verso i bordi; un'**ombra corta e leggera**, in due componenti scostate in basso; e una **smerigliatura molto
-più larga** di quella di prima, per cui dietro una barra il testo si riconosce come forma e non come lettere. Su una
-pagina chiara un tasto non stacca per il colore del corpo (nemmeno quello di Apple lo fa): stacca per filo, riflesso e
-ombra. Sul lato scuro: niente filo, il solo riflesso, un velo grigio medio e un'ombra più forte, che si vede solo sopra
-qualcosa di chiaro. La lente c'è ancora, nella fascia del bordo, ma sotto la smerigliatura si nota poco: si vede in
-viaggio, nella comparsa e sopra righe e foto. I numeri di serie, con la fonte di ciascuno (una misura di iOS 27 o 26
-dove c'è, «a occhio» con la data dove non c'è), stanno nel profilo, `GlassLiquidProfile.kt`, e sono ancora
-**proposte**: le scelte di gusto sulle tavole di confronto possono cambiarli, e li cambiano lì e solo lì.
+Liquid Glass di Apple, con le scelte fatte da Alessio sulle tavole di confronto (11 novembre 2026: bordo e velo di
+iOS 27, ombra e smerigliatura di iOS 26, sul tema scuro riflesso e filo chiaro). Sul lato chiaro: un **filo scuro**
+sottile e di spessore assoluto su tutto il perimetro (più leggero in alto e in basso); subito dentro, in alto e in
+basso, una **riga chiara** con un alone che rientra nel corpo; un **velo** quasi bianco che si ispessisce dove lo
+sfondo gli somiglia (su una pagina chiara il corpo sta appena sopra la pagina, su bianco puro appena sotto, su un
+colore saturo lascia passare circa metà); un'**ombreggiatura** che scurisce il corpo verso i bordi; un'**ombra larga e
+morbida**, una sola componente scostata in basso (raggio 34 dp, come sotto una capsula di iOS 26); e una
+**smerigliatura** di 4,5 dp, quella di iOS 26, per cui dietro una barra le parole restano macchie che si riconoscono
+come forme. Su una pagina chiara un tasto non stacca per il colore del corpo (nemmeno quello di Apple lo fa): stacca
+per filo, riflesso e ombra. Sul lato scuro: un **filo chiaro** su tutto il perimetro, pieno in alto e in basso e un
+poco più tenue sui fianchi, con un riflesso più forte che sul chiaro; un **velo** grigio che sui tasti e sulle capsule
+è chiaro (il corpo sta a 67 su una pagina `#0D0D0F`) e sulle superfici grandi, che portano testo, è più profondo
+(fogli, card, pannelli e menu a 34: il testo secondario dell'engine vi si legge a 6,9:1, e a 6,3:1 sopra il fondo un poco più chiaro che un foglio ha sul tablet); e un'ombra più forte, che si
+vede solo sopra qualcosa di chiaro. La lente c'è ancora, nella fascia del bordo: con la smerigliatura di iOS 26 si
+vede di più che sotto quella di iOS 27. I numeri di serie, con la fonte di ciascuno (una misura di iOS 27 o 26 dove
+c'è, «a occhio» con la data dove non c'è), stanno nel profilo, `GlassLiquidProfile.kt` (`GlassLiquidProfile.Shipped`),
+e solo lì; le alternative delle tavole restano nel profilo come varianti, raggiungibili dalle manopole di una build di
+debug (sotto, «La diagnostica»).
 
 **Le ottiche scritte a mano.** In `Liquid` smerigliatura, lente, bordo e ombra li decide il profilo e non il ruolo: è
 ciò che fa sembrare tasto, capsula, menu e pannello lo stesso vetro in quattro spessori. Una `GlassOptics` passata a
@@ -146,8 +155,12 @@ stessa frazione, a zero niente. Quindi:
   piega, una con `blurScale` a metà soglia ha metà smerigliatura. La regola esiste per questo: chi aveva spento
   qualcosa deve continuare a non averlo. Vale la soglia, non il ruolo: un'ottica di barra con `blurScale` 2 invece di
   5 è ancora sopra 0,8, e ha la smerigliatura piena;
-- **chiedere di più oggi non dà di più.** Un pannello che chiedeva `blurScale = 7` per nascondere una copertina esce
-  smerigliato come ogni altra lastra, cioè meno di prima. È un limite noto, segnato per il ritocco del profilo;
+- **chiedere più sfocatura del ruolo dà di più**, ed è l'unica eccezione agli attenuatori: un `blurScale` oltre quello
+  di serie del ruolo (il più alto fra le ottiche di serie che l'engine usa con quel ruolo: `Bar` 5, `Modal` 3,5,
+  `Floating` e `Content` 1,8, `Interactive` 1,4) fa crescere la smerigliatura del profilo nella stessa proporzione,
+  fino a tre volte. Un pannello `Modal` che chiede `blurScale = 7` per nascondere una copertina ha due volte la
+  smerigliatura di un pannello di serie (9 dp prima della regola della taglia, 13,5 dp a pannello pieno). Le altre
+  voci dell'ottica non crescono: lente, bordo e ombra restano quelli del profilo;
 - `vibrancy` non è un attenuatore: 1 resta «nessun filtro», 1,6 (quella di ogni ruolo) dà la saturazione del profilo,
   di più dà di più. `dispersion`, `pressedDepthBoost`, `edgeFloor`, `backdropResolution` (con un pavimento: la
   cattura non scende sotto il 40% della risoluzione) e `sizeResponse` valgono come prima;
@@ -248,8 +261,9 @@ già come rettangoli arrotondati al raggio equivalente, e il campo fa lo stesso;
 ritaglio hardware resta un rettangolo arrotondato, perché un ritaglio su un path generico farebbe mascherare il nodo
 fuori schermo a ogni fotogramma, e per le lastre raccordate sta al **98%** del raggio nominale: il raccordo esce di
 poco dal cerchio attorno alla diagonale, e un ritaglio al raggio pieno taglierebbe lì il filo, che è largo due o tre
-pixel. Le altre `CornerBasedShape` prendono i loro quattro raggi come angoli circolari, quindi anche una
-`CutCornerShape` esce con gli angoli tondi; ogni altra forma resta `Classic`.
+pixel. `RoundedCornerShape` e `AbsoluteRoundedCornerShape` prendono i loro quattro raggi come angoli circolari; una
+`CutCornerShape` e ogni altra forma restano `Classic` (fino al ritocco del profilo una `CutCornerShape` usciva con gli
+angoli tondi).
 
 **La ricetta e il profilo.** Tutti i numeri che una lastra riceve li calcola una funzione pura, `glassRecipe`, da ruolo,
 ottica, taglia, lato del tema, intensità, profondità, qualità e pressione. I numeri **di gusto** (spessore e colore del
@@ -262,17 +276,31 @@ su una tavola è ciò che l'engine disegnerà.
 
 **La taglia.** Una lastra grande smerigliata come una piccola sembra una piccola ingrandita. La regola della taglia
 dell'engine (lo stesso guadagno di prima: zero fino a 64 dp di lato corto, pieno da 320 dp, per `sizeResponse`
-dell'ottica) fa crescere **smerigliatura e ombra**: di serie, a guadagno pieno, la sfocatura di una volta e mezza, i
-raggi dell'ombra del doppio e le sue alfa di una volta e mezza. **Il filo no**: lo spessore del filo e il rientro del
+dell'ottica) fa crescere **smerigliatura e ombra**: di serie, a guadagno pieno, la sfocatura di una volta e mezza (da
+4,5 a 6,75 dp), i raggi dell'ombra per 1,3 e le sue alfa per 1,2: l'ombra di serie è già larga, e un pannello deve
+sembrare più in alto di una barra, non portare un alone enorme. **Il filo no**: lo spessore del filo e il rientro del
 riflesso sono assoluti, gli stessi su un tasto, una capsula, un menu e un pannello, perché è così in iOS e perché un
 filo che cresce diventa una fascia. La lente è una frazione del lato corto con un tetto (su un pannello è un bordo, non
-mezzo pannello), e la cupola sparisce sopra i 120 dp: un pannello non è una goccia.
+mezzo pannello), e la cupola sparisce sopra i 120 dp: un pannello non è una goccia. Due regole in più, ai due estremi:
+
+- **sul tema scuro il velo si fa più profondo con la taglia**: da 48 a 96 dp di lato corto passa, senza scatti, da
+  quello dei tasti a quello dei grandi, alla stessa trasparenza. Una capsula (56 dp) ne prende il 7%, una tab bar
+  (62 dp) il 20%, una notifica a una riga circa metà, una card da 96 dp in su tutto. Il motivo è il testo: col velo
+  chiaro dei tasti un foglio scuro diventava un grigio medio, e il testo secondario dell'engine scendeva a 3,8:1 (sul
+  tablet); col velo dei grandi torna sopra 6:1, come sul vetro di prima. Sul tema chiaro il velo non cambia;
+- **i piccolissimi** (lato corto sotto 44 dp: un indicatore da 26 dp, un pallino) hanno l'ombra in scala col lato e
+  un riflesso più tenue e meno profondo (a 26 dp il 51% della forza, rientro 4,2 dp invece di 7): senza, il riflesso
+  pensato per un tasto faceva dentro il filo un anello chiaro vistoso e l'ombra era più grande dell'oggetto. Il filo
+  resta quello di tutti.
 
 **Il costo.** Una lastra ferma tiene 3 layer (cattura, posa, ombra) contro i 5 del vetro di prima, e 2 senza ombra; i
-nodi sono 4 contro 5. Senza `layerBlock` ogni ruolo di serie cattura al 40% della risoluzione qualunque sia la taglia,
-perché la smerigliatura del profilo è già oltre i 10 dp a cui la risoluzione tocca il pavimento; non più in basso,
-perché la sagoma qui la disegna anche il corpo, dentro la cattura, e al 40% il suo bordo sfumato è già largo tre pixel
-dello schermo. Con un `layerBlock` (un tasto che cresce sotto il dito) la cattura resta piena, come prima. Una
+nodi sono 4 contro 5. La risoluzione della cattura si decide sulla smerigliatura del ruolo, prima della regola della
+taglia (in composizione, dove la taglia non c'è ancora): con i 4,5 dp di serie ogni ruolo cattura al 73% della
+risoluzione (le card, che chiedono metà risoluzione, al 40%), e una lastra grande, che sfoca un poco di più, resta
+lì (dalla parte sicura). Una smerigliatura oltre i
+10 dp (una variante delle manopole, o un'ottica che chiede più del ruolo) scende fino al 40% e non oltre, perché la
+sagoma qui la disegna anche il corpo, dentro la cattura, e al 40% il suo bordo sfumato è già largo tre pixel dello
+schermo. Con un `layerBlock` (un tasto che cresce sotto il dito) la cattura resta piena, come prima. Una
 pressione cambia un uniform del corpo a ogni fotogramma, e un `RenderEffect` è immutabile: si ricostruisce l'ultimo
 anello della catena, mentre il pezzo a monte (saturazione, sfocatura, mescola) resta finché non cambia. Quanto costa
 tutto questo con gli shader definitivi, su un dispositivo, non è ancora misurato.
@@ -339,9 +367,13 @@ della 4.0:
   livello non si può simulare per tutta la vita del processo. Solo verso il basso, mai sotto 26; vale per ciò che entra
   in composizione dopo (si ricrea l'attività);
 - **le manopole del profilo**: `tuneLiquidProfile(context, "edge=ios26,blur=24")` sostituisce, per il processo, pezzi del
-  profilo del materiale nuovo (nove manopole a varianti, con le lettere delle tavole di gusto: bordo, velo, ombra,
-  smerigliatura, lente, grandi, tema scuro; tredici a numero), `liquidProfileKnobs` le elenca e `liquidProfileTuning`
-  dice quali sono in vigore. Servono a **fotografare le varianti sul dispositivo** prima di scrivere un numero nel
+  profilo del materiale nuovo (undici manopole a varianti, con le lettere delle tavole di gusto: tutta la
+  combinazione, `profile=shipped|before`; bordo, velo, ombra, il tondo, smerigliatura, lente, grandi, bordo scuro,
+  velo scuro dei tasti e dei grandi; tredici a numero), `liquidProfileKnobs` le elenca e `liquidProfileTuning` dice
+  quali sono in vigore. Le alternative alle scelte di serie restano lì: la smerigliatura `frost=wide` (la C, larga e
+  mista) e `frost=mid` (la M, 8 dp) accanto alla D di serie (`frost=ios26`), il bordo scuro della tavola
+  (`darkedge=faint`), l'ombra corta (`shadow=ios27`), il velo scuro dei grandi uguale a quello dei tasti
+  (`darklarge=same`), e tutta la combinazione di prima delle scelte (`profile=before`). Servono a **fotografare le varianti sul dispositivo** prima di scrivere un numero nel
   profilo, ed è per questo che la galleria le espone (`gallery.tune`, e la pagina «Materiale»): non sono un modo di
   dare a un'app un vetro suo. **Solo in una build di debug**, come il livello simulato; senza manopole il profilo è
   quello di serie, e il disegno è identico al pixel (`GlassLiquidTuningTest`, e le immagini di riferimento del banco).
@@ -360,8 +392,13 @@ aprire la schermata da guardare.
   contrasto medio e alto non succede, perché lì il vetro torna alla pellicola densa. Il rimedio vero è l'inchiostro e il
   lato che seguono lo sfondo (l'adattività), di una fase successiva; se non bastasse, il ripiego è un pavimento del velo
   per ruolo. Una schermata che sta quasi sempre sopra fondi del tono opposto può tenere il vetro di prima, intanto.
-- **Il tema scuro è ancora da rinforzare.** Sulle tavole di confronto la combinazione di serie sul lato scuro è debole
-  (un disco grigio piatto, i fianchi senza bordo): lì il vetro di prima si legge meglio.
+- **Sul tema scuro un vetro annidato in un pannello tinto esce grigio.** Un tasto di vetro dentro una notifica verde
+  prende il velo scuro dei tasti, un grigio neutro che copre metà di ciò che ha dietro: sopra il verde del pannello
+  si legge come una toppa grigia appoggiata, non come vetro dentro il vetro (sul tablet, luma 71 contro 62 del vetro di
+  prima). Non è un numero del profilo: per costruzione un velo neutro toglie colore a ciò che copre, e un velo meno
+  coprente schiarirebbe il tasto sulla pagina scura. Il rimedio è che un vetro annidato non posi di nuovo il velo
+  intero sopra un materiale già velato, ed è un lavoro dell'innesto, non del profilo; lo stesso vale per un tasto dentro
+  un foglio o una card scuri, che col velo dei grandi stanno più in basso dei tasti.
 - **Il materiale nuovo non è ancora stato visto su un dispositivo.** Tutto ciò che questa sezione dice del suo aspetto
   è misurato sul banco (`tools/glassbench`), che rende sul PC con Skia gli shader veri dell'engine dalle scene scritte
   dalla ricetta; il comportamento è provato dai test sul JVM e in Robolectric. Da guardare in mano, fra l'altro: la
@@ -369,10 +406,8 @@ aprire la schermata da guardare.
   sull'angolo dei grandi, il vetro annidato, il bagliore del dito (sul banco, sul lato chiaro, porta la faccia al
   bianco come quello di prima: va visto se il dispositivo fa lo stesso), bande sul gradiente del corpo, i colori su uno
   schermo a gamma larga, il ritorno dallo sfondo, il costo di una lastra ferma e di una premuta.
-- **I numeri di serie sono proposte**, in attesa delle scelte di gusto sulle tavole: possono cambiare, nel profilo.
 - **Fluid-physics, la goccia, la pillola della tab bar e i pomelli sono ancora il vetro di prima** (sopra), e il
   materiale cambia a vista fra riposo e viaggio sulla barra ancorata e sui menu che nascono da un tasto.
-- **Un'ottica che chiede più del ruolo non ottiene di più** (sopra, «Le ottiche scritte a mano»).
 
 ### Per chi tocca il materiale
 
@@ -997,7 +1032,7 @@ con più sfocatura che altezza); con le ottiche di serie e la lente accesa il pa
 - `DefaultGlassBlurRadius` = **2,5 dp**: raggio di riferimento, per i pannelli *piccoli*; i grandi ne pagano di più per la regola della taglia. Solo per il vetro di prima: il materiale nuovo non lo legge.
 - `FluidGlassModel` (`Liquid`, `Classic`) e `LocalFluidGlassModel` (di serie `Liquid`, una richiesta); `GlassTintMode` (`Fixed`, il default; `Neutral`; `Colored`).
 - Interne del materiale nuovo, da conoscere: il profilo `GlassLiquidProfile` (i numeri di gusto, con le varianti), `glassRecipe`, le soglie degli attenuatori (`GlassLiquidFullBlurScale` 0,8, `GlassLiquidFullRefractionHeightDp` 7, `GlassLiquidFullRefractionAmountDp` 9,
-  `GlassLiquidFullHighlightAlpha` 0,45, `GlassLiquidFullShadowAlpha` 0,36), `GlassLiquidMinCaptureScale` 0,4, `GlassSmoothedClipScale` 0,98, `GlassWarmUpQuietMillis` 120.
+  `GlassLiquidFullHighlightAlpha` 0,45, `GlassLiquidFullShadowAlpha` 0,36), il tetto della sfocatura chiesta in più (`GlassLiquidFrostRequestMax` 3), il velo scuro dei grandi (`GlassLiquidDarkLargeStartDp` 48, `GlassLiquidDarkLargeEndDp` 96), i piccolissimi (`GlassLiquidTinyBelowDp` 44, `GlassLiquidTinyReflexFloor` 0,35 da 20 dp, `GlassLiquidTinyReflexDepthFraction` 0,16), `GlassLiquidMinCaptureScale` 0,4, `GlassSmoothedClipScale` 0,98, `GlassWarmUpQuietMillis` 120.
 - `GlassDefaults`: `optics(role)`, `buttonOptics()`, `stackedContentOptics()`, `panelOptics(compact, overSharpPage)`; le tinte della tabella (`barTint`, `darkBarTint`, `floatingTint`,
   `darkFloatingTint`, `lightBarTint`, `lightFloatingTint`, `barTintOnPhoto`, `floatingTintOnPhoto`, `controlTint`, `selectionTint`, `contentTint`, `stackedContentTint`, `modalTint`,
   `tintedModalTint`, `panelTint`); `isDarkSurface()` (pubblico dalla 2.10.0, per gli effetti che si disegnano *sopra* il vetro e devono girare col materiale come il suo bordo).

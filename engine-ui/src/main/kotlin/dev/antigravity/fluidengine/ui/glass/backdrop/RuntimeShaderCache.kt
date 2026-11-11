@@ -27,6 +27,8 @@
 package dev.antigravity.fluidengine.ui.glass.backdrop
 
 import android.annotation.SuppressLint
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSource
 import org.intellij.lang.annotations.Language
 
 sealed interface RuntimeShaderCache {
@@ -56,15 +58,37 @@ internal class RuntimeShaderCacheImpl : RuntimeShaderCache {
     }
 }
 
-private object SharedRuntimeShaders {
+/**
+ * Fluid Engine addition: lo shader di una sorgente dell'engine, o `null` se il dispositivo non ha AGSL o
+ * se il suo compilatore la rifiuta ([GlassFieldHealth.usable]). Su `null` il chiamante prende il ramo che
+ * ha sotto Android 13.
+ *
+ * Perché la difesa sta in questa porta e non dentro [RuntimeShaderCache.obtainRuntimeShader]: quella e'
+ * l'API pubblica della libreria, che restituisce sempre uno shader e, su una sorgente che non compila,
+ * lancia come il costruttore di Android; un'app che le passa una sorgente sua vuole saperlo cosi', e
+ * cambiarle il tipo di ritorno romperebbe chi la chiama. Per le sorgenti dell'engine invece un rifiuto
+ * non e' un errore di chi scrive ma un fatto del dispositivo, e il disegno deve poter scendere di un
+ * gradino invece di cadere: ogni chiamante dell'engine passa da qui, o chiede [GlassFieldHealth.usable]
+ * prima (la lente, che deve uscire prima di toccare il margine), o il proprio livello (Fluid-physics).
+ * `GlassShaderFallbackTest` fallisce se un file nuovo arriva al compilatore per un'altra strada.
+ */
+internal fun RuntimeShaderCache.obtainEngineShader(key: String, source: GlassShaderSource): RuntimeShader? =
+    if (GlassFieldHealth.usable(source)) obtainRuntimeShader(key, source.text) else null
+
+// Fluid Engine change: `internal` invece di `private`, perche' la sonda degli shader (GlassFieldHealth)
+// compila qui dentro: lo shader che la prova accetta e' lo stesso che poi si disegna, e chiedere un
+// verdetto non costa una compilazione in piu'.
+internal object SharedRuntimeShaders {
 
     private val shaders = java.util.concurrent.ConcurrentHashMap<String, RuntimeShader>()
 
     // Fluid Engine change: upstream is a Kotlin Multiplatform module and never sees Android lint.
-    // The API 33 constructor below is reachable only through guarded call sites — the lens effect
-    // and the highlight styles both return early on `isRuntimeShaderSupported()` — and the
+    // The API 33 constructor below is reachable only through guarded call sites — every engine
+    // caller asks `GlassFieldHealth.usable()` (API level and compiler verdict) or, in Fluid-physics,
+    // its tier, and the probe itself compiles only after `isRuntimeShaderSupported()` — and the
     // interface cannot carry @RequiresApi without pushing the annotation onto every caller that has
     // already checked. Suppressed here, where the contract is stated, rather than at each use.
+    // A source the compiler refuses throws out of `getOrPut` and is not cached.
     @SuppressLint("NewApi")
     fun obtain(@Language("AGSL") source: String): RuntimeShader {
         return shaders.getOrPut(source) { RuntimeShader(source) }

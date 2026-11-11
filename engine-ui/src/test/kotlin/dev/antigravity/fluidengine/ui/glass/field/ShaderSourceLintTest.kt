@@ -245,15 +245,11 @@ half4 main(float2 coord) {
 }
 
 /**
- * Gli shader senza nome che il lint conosce, con il motivo per cui la sonda non li prova. Il lint li controlla
- * comunque; un nome nuovo qui va motivato come questi.
+ * Gli shader senza nome che il lint conosce (nome del file → perché la sonda non li prova). Il lint li controlla
+ * comunque, ma la sonda, il banco e il test strumentato no: un'eccezione qui va motivata, e non dovrebbe
+ * restarci. L'ultima era il bagliore di `GlassInteraction.kt`, che dalla 4.0.0 è `GlassGlowShaderString`.
  */
-private val InlineShaders = mapOf(
-  "GlassInteraction.kt" to
-    "il bagliore della pressione: la sorgente è scritta dentro la chiamata a RuntimeShader, senza un nome da " +
-    "registrare. Si compila alla costruzione del bagliore e un rifiuto è un'eccezione che si vede, non un " +
-    "ripiego silenzioso. Va estratta in una costante quando si tocca quel file.",
-)
+private val InlineShaders = emptyMap<String, String>()
 
 /**
  * Le regole di AGSL che si riconoscono dalla sola lettura. Ogni riga che restituisce comincia con la riga dello

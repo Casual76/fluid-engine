@@ -163,7 +163,7 @@ riga che lo diceva era un `Log.w`. Tutto ciò che questa scheda descrive del `Fu
 non si era mai visto. La variabile ora è `flatSample`, e dalla 4.0.0 il livello che gira su SDK 33+ è `Full` dovunque il compilatore accetta le due sorgenti di base. La
 geometria non dipende dal livello, quindi sagome e tempi dei viaggi restano quelli di prima: cambia il disegno, e lo vedono le app senza aver cambiato una riga.
 
-**Come si legge il verdetto.** Ogni sorgente AGSL dell'engine (le quattro di Fluid-physics e le quattro del renderer di Kyant, elencate in `GlassShaderSources` col nome della
+**Come si legge il verdetto.** Ogni sorgente AGSL dell'engine (le quattro di Fluid-physics, le quattro del renderer di Kyant e il bagliore del tocco, nove, elencate in `GlassShaderSources` col nome della
 costante Kotlin) ha un verdetto suo, dato da `GlassFieldHealth` alla prima richiesta e tenuto per il processo.
 
 - **In logcat**: un rifiuto è una riga a livello errore col tag `FluidGlass`, il nome della sorgente e il messaggio del compilatore con la riga; se la sorgente è di base,

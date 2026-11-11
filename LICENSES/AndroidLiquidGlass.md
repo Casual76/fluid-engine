@@ -126,6 +126,24 @@ Le modifiche fatte finora:
     contorno fantasma di Fluid-physics (`docs/liquid-glass/ricerca/contorno-fantasma.md`, sezione 9);
     la prova sul JVM e' `HighlightRingReplayTest`.
 
+15. **Uno shader rifiutato dal dispositivo fa ripiegare, non cadere** (`effects/Lens.kt`,
+    `highlight/HighlightStyle.kt`, `RuntimeShaderCache.kt`, e il bagliore di `GlassInteraction.kt`, che
+    deriva dal catalogo). A monte la lente, i due riflessi e il bagliore guardano solo il livello di API
+    e poi costruiscono il `RuntimeShader`: su un dispositivo con Android 13 o piu' il cui compilatore
+    rifiuta la sorgente, il costruttore lancia dentro il disegno. Qui ognuno chiede prima il verdetto
+    della propria sorgente alla sonda dell'engine (`GlassFieldHealth.usable`, una compilazione per
+    processo e poi una lettura) e, su un rifiuto, prende il ramo che ha gia' sotto API 33: niente
+    lente, riflesso senza shader, bagliore piatto. La cache condivisa guadagna la porta
+    `obtainEngineShader` (`null` invece di un'eccezione, per le sole sorgenti dell'engine; la
+    `obtainRuntimeShader` pubblica resta quella di monte) e diventa `internal`, perche' la sonda compila
+    li' dentro e la prova non costa una compilazione in piu'. La sorgente del bagliore, che a monte e'
+    una stringa scritta dentro la chiamata, e' stata spostata alla lettera nella costante
+    `GlassGlowShaderString` (`glass/field/GlassFieldHealth.kt`), cosi' la provano anche il banco e il test
+    strumentato; il bagliore prende la sua istanza dalla cache condivisa, come lente e riflessi. Dove le
+    sorgenti compilano, il disegno chiede gli stessi shader, con le stesse sorgenti al carattere e gli
+    stessi uniform. Pacchetto F0.11 di `docs/liquid-glass/piano.md`,
+    dal rilievo 1 della review di F0; la prova sul JVM e' `GlassShaderFallbackTest`.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

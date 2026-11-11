@@ -24,6 +24,10 @@
  *   - 3.0: `glassButtonGlowRecipe` and `GlassTouchHighlight(button = true)`, the glow of a glass
  *     button, are not Kyant's. See the note above that function: they come from LibrePods, GPL-3.0.
  *     Everything else in this file is still Apache-2.0 and still Kyant's;
+ *   - 4.0.0: the glow's AGSL source moved, verbatim, to `GlassGlowShaderString` in
+ *     `glass/field/GlassFieldHealth.kt`, so the shader probe, the bench and the instrumented test
+ *     compile it; the glow asks the compiler's verdict and falls back to the flat lift when the device
+ *     refuses it, and takes its instance from the shared shader cache (entry 15 of the license file);
  *   - the engine's formatting.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -70,9 +74,10 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidPressMotion
-import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
+import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShaderCacheImpl
 import dev.antigravity.fluidengine.ui.glass.backdrop.asComposeShader
-import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.backdrop.obtainEngineShader
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -325,7 +330,7 @@ class GlassDragAnimation(
  * @param core frazione del raggio dentro cui il punto e' al massimo: 0,5 lascia un plateau e poi
  *   scende, 0 e' una campana che scende dal centro.
  * @param flat peso del ripiego sotto API 33, dove non c'e' lo shader e il bagliore e' una lavata
- *   uniforme.
+ *   uniforme (e dove il compilatore del dispositivo rifiuta la sorgente del bagliore, dalla 4.0.0).
  * @param radiusFromLongSide il raggio e' il lato lungo della superficie e non [radiusScale] lati
  *   corti. Solo [glassButtonGlowRecipe].
  */
@@ -426,7 +431,8 @@ internal fun glassButtonGlowRecipe(): GlowRecipe = GlowRecipe(
  * ink over it turns it into a grey fill — see [glowRecipe].
  *
  * Below API 33 there is no AGSL, so the hotspot degrades to a flat lift. The control still responds;
- * it simply stops knowing where on itself it was touched.
+ * it simply stops knowing where on itself it was touched. Since 4.0.0 the same happens on a device
+ * whose compiler refuses the glow's source.
  */
 @Stable
 class GlassTouchHighlight(
@@ -499,25 +505,15 @@ class GlassTouchHighlight(
   val isAnimating: Boolean
     get() = pressMotion.isRunning || positionAnimation.isRunning || pressProgress > 0f
 
-  private val shader =
-    if (isRuntimeShaderSupported()) {
-      RuntimeShader(
-        """
-uniform float2 size;
-layout(color) uniform half4 color;
-uniform float radius;
-uniform float core;
-uniform float2 position;
+  // Fluid Engine change (4.0.0): the source has a name (`GlassGlowShaderString`) and the verdict of the
+  // device's compiler decides, not the API level alone. A refused source takes the branch below API 33,
+  // the flat lift, instead of throwing here, at construction, on every glass control. The instance comes
+  // from the process-wide shader cache like the lens's and the highlight's: the probe compiled it there,
+  // and sharing it is safe for the same reason (uniforms are set and recorded in the same draw call).
+  private val shader = RuntimeShaderCacheImpl().obtainEngineShader("Glow", GlassShaderSources.Glow)
 
-half4 main(float2 coord) {
-    float dist = distance(coord, position);
-    float intensity = smoothstep(radius, radius * core, dist);
-    return color * intensity;
-}""",
-      )
-    } else {
-      null
-    }
+  /** Vero se il bagliore disegna con lo shader; falso nel ramo piatto (sotto API 33, o sorgente rifiutata). */
+  internal val glowUsesShader: Boolean get() = shader != null
 
   val modifier: Modifier = Modifier.drawWithContent {
     // Clamped: a driven press comes from a spring that may pass its ends, and light does not.

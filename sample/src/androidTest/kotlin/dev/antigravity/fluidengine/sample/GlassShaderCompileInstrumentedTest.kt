@@ -39,7 +39,13 @@ class GlassShaderCompileInstrumentedTest {
   @Test
   fun everyEngineShaderCompilesOnThisDevice() {
     val names = FluidGlassDiagnostics.shaderSourceNames
-    assertTrue("L'engine non dichiara nessuna sorgente AGSL: il test non proverebbe niente.", names.isNotEmpty())
+    // Almeno le nove della 4.0.0, bagliore del tocco compreso: meno vuol dire che sul dispositivo c'è una build
+    // vecchia, e il test proverebbe un elenco che non è più quello dell'engine. Le fasi successive ne aggiungono.
+    assertTrue(
+      "L'engine dichiara ${names.size} sorgenti AGSL, ne aspetto almeno $MinimumSources: build vecchia? $names",
+      names.size >= MinimumSources,
+    )
+    assertTrue("Manca la sorgente del bagliore del tocco: $names", "GlassGlowShaderString" in names)
 
     val verdicts = FluidGlassDiagnostics.compileAllShaders()
     for ((name, error) in verdicts) {
@@ -75,6 +81,9 @@ class GlassShaderCompileInstrumentedTest {
 
   private companion object {
     const val Tag = "GlassShaderCompile"
+
+    /** Le sorgenti della 4.0.0: lente e riflessi (4), il bagliore del tocco, Fluid-physics (4). */
+    const val MinimumSources = 9
 
     /** Il caso minimo del difetto: la riga 5 è quella che il compilatore deve indicare. */
     const val FlatAsAName = """

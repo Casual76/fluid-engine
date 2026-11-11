@@ -179,12 +179,12 @@ perché del costo e del perché si spegne sotto qualità 0,75.
 piega già l'immagine di `refractionHeight` dentro il perimetro, **copre** quel margine: `padding = max(0, sfocatura − altezza lente)`. Con le ottiche di serie e la lente accesa il padding è **zero** a ogni intensità; sotto
 API 33 senza lente è il raggio, e quel margine che si muove con la taglia o l'intensità fa ricatturare a ogni fotogramma. È il perché la regola della taglia ([vetro.md](vetro.md)) alza la sfocatura **solo fin dove la lente la copre**.
 
-**Degradazioni.** Sotto API 31 gli effetti sono tutti no-op (`isRenderEffectSupported()`), sotto API 33 `lens`/`runtimeShaderEffect` sono no-op (`isRuntimeShaderSupported()`): blur e vibrancy restano. Una
+**Degradazioni.** Sotto API 31 gli effetti sono tutti no-op (`isRenderEffectSupported()`), sotto API 33 `lens`/`runtimeShaderEffect` sono no-op (`isRuntimeShaderSupported()`): blur e vibrancy restano. Dalla 4.0 `lens` lo è anche dove il compilatore del dispositivo rifiuta la sua sorgente: la guardia è il verdetto della sonda (`GlassFieldHealth.usable`, una compilazione per processo e poi una lettura), e lo stesso vale per i riflessi a shader e per il bagliore del tocco. Prima un rifiuto lanciava dentro il disegno. Una
 sagoma che non è `RectangleShape`, `AbsoluteRoundedCornerShape` né `CornerBasedShape` **perde la lente** e tiene sfocatura e vividezza (a monte è un'eccezione: «un design system che finisce in cinque app deve degradare»).
 
 **Gli shader sono condivisi per processo** (`RuntimeShaderCache`): a monte ogni pannello ne ha uno, e per Skia la chiave di un programma GPU è l'**istanza**, non il sorgente, quindi ogni pannello che entrava nello schermo
 ricompilava lo stesso AGSL (stalli di 100–300 ms sul render thread, uno per pannello mentre scorreva un gruppo lista, tre di fila al primo fotogramma di ogni modale). Condividere l'istanza è sicuro perché ogni utilizzatore
-imposta gli uniform e li **fotografa subito** sullo stesso thread. `RuntimeShader` è un'interfaccia pubblica minima (`setFloatUniform`, `setIntUniform`, `setColorUniform`, `asComposeShader`,
+imposta gli uniform e li **fotografa subito** sullo stesso thread. La sonda degli shader compila nella stessa cache (la prova è la compilazione che poi disegna), e le sorgenti dell'engine passano dalla porta `obtainEngineShader`, che su un rifiuto dà `null` invece di lanciare; `obtainRuntimeShader`, pubblica, resta quella di monte. `RuntimeShader` è un'interfaccia pubblica minima (`setFloatUniform`, `setIntUniform`, `setColorUniform`, `asComposeShader`,
 `asAndroidRuntimeShader`) sopra `android.graphics.RuntimeShader` (API 33).
 
 ## Highlight, Shadow, InnerShadow
@@ -238,7 +238,7 @@ numeri di Kyant sono tarati su un fondo medio e sommano 0,23 su una faccia che n
 largo mezzo raggio copre un pulsante largo cento dp. Il picco qui è 0,07 (circa 18 livelli). `Screen` è stato provato e scartato: aggiunge `alpha·(1 − fondo)`, pochissimo sul chiaro e moltissimo su un vetro tinto d'accento.
 **Il pulsante di vetro di LibrePods è bianco additivo anche su chiaro**: è una scelta di Alessio («come LibrePods») e il rischio è dichiarato — se ritorna il bianco piatto, i numeri di prima sono in `glowRecipe`.
 Parametri: `strength` (0 spegne senza cambiare altro), `position` (la tab bar lo pina all'indicatore), `onDarkSurface` (un flag, non un colore: **il blend gira col colore**; `GlassDefaults.isDarkSurface()` al sito di chiamata),
-`progress`/`touch` (una pressione guidata da fuori: il controllo che possiede la pressione dice la stessa cosa al vetro e alla luce, 2.11.0). Sotto API 33 non c'è AGSL: il bagliore è una lavata uniforme.
+`progress`/`touch` (una pressione guidata da fuori: il controllo che possiede la pressione dice la stessa cosa al vetro e alla luce, 2.11.0). Sotto API 33 non c'è AGSL: il bagliore è una lavata uniforme, e dalla 4.0 lo è anche dove il compilatore rifiuta la sua sorgente (`GlassGlowShaderString`).
 `isAnimating` (2.10.0) come sopra.
 
 **La goccia** (`glass/interaction/GlassDrop.kt`, interna, ma è la ricetta di tutto ciò che si afferra e scorre: pomelli, pillola della tab bar, segmentato, rail, lente dell'indice, goccia dei menu e dei pulsanti degli avvisi).
@@ -295,7 +295,7 @@ era la libreria di Kyant copiata come sorgente, è un debito d'indirizzo e non d
 quando qualcosa che mostra è cambiato; **a schermo fermo i due numeri devono smettere di muoversi**, ed è così che lo si verifica su un dispositivo invece di crederci. Da accendere solo nelle build di debug.
 
 Dalla 4.0 lo stesso oggetto dice anche **se gli shader del vetro compilano su questo dispositivo**, e queste letture non dipendono da `enabled`: `shaderSourceNames` elenca le sorgenti AGSL dell'engine, `shaderVerdicts` dà i verdetti già chiesti in questo processo
-(nome → `null` se compila, o l'errore del compilatore), `compileAllShaders()` le compila tutte adesso. Un rifiuto scrive comunque una riga d'errore in logcat col tag `FluidGlass`. `compileAllShaders()` costa una compilazione per sorgente: non va chiamata all'avvio.
+(nome → `null` se compila, o l'errore del compilatore), `compileAllShaders()` le compila tutte adesso. Un rifiuto scrive comunque una riga d'errore in logcat col tag `FluidGlass`, e chi usa quella sorgente disegna come sotto API 33 invece di lanciare. `compileAllShaders()` costa una compilazione per sorgente: non va chiamata all'avvio.
 
 ## Cosa è verificato dai test
 
@@ -306,7 +306,7 @@ Dalla 4.0 lo stesso oggetto dice anche **se gli shader del vetro compilano su qu
   stare, il fattore di scala prende solo due valori (e uno malformato non toglie mai risoluzione a una pagina ferma), un pannello assurdo si ferma al pavimento e non a zero.
 - `SourceGoneHoldTest`: un pannello tiene la cattura nel fotogramma in cui la sua sorgente viene smontata, una sorgente pronta non si tiene mai, chi non ha niente da tenere continua a registrare, una sorgente che non torna non si tiene per sempre.
 - `GlassDropFaceTest` e `GlassDropSquashTest`: la faccia per lato, il contrasto con l'etichetta, l'alfa `1 − p` bit per bit; lo squash dei tre posti che lo avevano, rifatto **come stava scritto prima** e confrontato bit per bit con la funzione condivisa
-  (slider, interruttore, pillola), tetto 0,2, movimento ridotto, i numeri di Kyant. `GlowRecipeTest`: ogni ricetta del bagliore (scuro = Kyant, chiaro non vetro = inchiostro, chiaro vetro = luce bianca che non scurisce mai la faccia e sta nel margine di una faccia chiara, pulsante = LibrePods).
+  (slider, interruttore, pillola), tetto 0,2, movimento ridotto, i numeri di Kyant. `GlassShaderFallbackTest`: lente, riflessi e bagliore con la sorgente rifiutata prendono il ramo di API 33 senza eccezioni, con la sorgente accettata chiedono lo shader di prima, il verdetto si chiede una volta e nessun file arriva al compilatore senza un verdetto. `GlowRecipeTest`: ogni ricetta del bagliore (scuro = Kyant, chiaro non vetro = inchiostro, chiaro vetro = luce bianca che non scurisce mai la faccia e sta nel margine di una faccia chiara, pulsante = LibrePods).
 - **Non verificato**: l'aspetto (gli host dei test non hanno fondale), il costo reale su un dispositivo (si misura con `FluidGlassDiagnostics` e con Perfetto), e i fotogrammi di una goccia o di un viaggio.
 
 ## Dove guardare

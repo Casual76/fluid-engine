@@ -10,7 +10,9 @@
  *     source set, so `expect`/`actual` are gone and the Android bodies are the only ones;
  *   - the package was renamed com.kyant.backdrop -> dev.antigravity.fluidengine.ui.glass.backdrop;
  *   - support for io.github.kyant0:shapes' RoundedRectangularShape was dropped from the lens
- *     effect, so the vendored sources pull in no dependency the engine does not already have.
+ *     effect, so the vendored sources pull in no dependency the engine does not already have;
+ *   - the lens asks the compiler's verdict on its source before building it, and degrades when the
+ *     device refuses it (entry 15 of LICENSES/AndroidLiquidGlass.md).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,10 +36,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.util.fastCoerceAtMost
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
-import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RoundedRectRefractionShaderString
-import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RoundedRectRefractionWithDispersionShaderString
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RuntimeShaderEffect
-import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 
 fun BackdropEffectScope.lens(
     @FloatRange(from = 0.0) refractionHeight: Float,
@@ -45,8 +46,16 @@ fun BackdropEffectScope.lens(
     depthEffect: Boolean = false,
     chromaticAberration: Boolean = false
 ) {
-    if (!isRuntimeShaderSupported()) return
     if (refractionHeight <= 0f || refractionAmount <= 0f) return
+    // Fluid Engine change: the API-level guard became the verdict of this lens's own source. On a device
+    // whose compiler refuses it, the lens takes the branch it already has below API 33 — no refraction,
+    // padding untouched, blur and vibrancy kept — instead of throwing from inside the draw on every glass
+    // screen. One process-wide compile the first time (the one the lens then draws with), one read after.
+    // The two early returns swapped places so a surface without refraction never compiles a lens.
+    val source =
+        if (!chromaticAberration) GlassShaderSources.RoundedRectRefraction
+        else GlassShaderSources.RoundedRectRefractionWithDispersion
+    if (!GlassFieldHealth.usable(source)) return
 
     if (padding > 0f) {
         padding = (padding - refractionHeight).fastCoerceAtLeast(0f)
@@ -56,17 +65,10 @@ fun BackdropEffectScope.lens(
     val effect =
         if (cornerRadii != null) {
             val shader =
-                if (!chromaticAberration) {
-                    obtainRuntimeShader(
-                        "Refraction",
-                        RoundedRectRefractionShaderString
-                    )
-                } else {
-                    obtainRuntimeShader(
-                        "RefractionWithDispersion",
-                        RoundedRectRefractionWithDispersionShaderString
-                    )
-                }
+                obtainRuntimeShader(
+                    if (!chromaticAberration) "Refraction" else "RefractionWithDispersion",
+                    source.text
+                )
             shader.apply {
                 setFloatUniform("size", size.width, size.height)
                 setFloatUniform("offset", -padding, -padding)

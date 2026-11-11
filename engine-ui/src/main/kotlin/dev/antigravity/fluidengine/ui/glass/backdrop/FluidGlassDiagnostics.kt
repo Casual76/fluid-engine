@@ -16,8 +16,11 @@ import java.util.concurrent.atomic.AtomicLong
  * Off by default, and then it costs one volatile read per capture.
  *
  * Dalla 4.0.0 dice anche se gli shader del vetro **compilano** su questo dispositivo ([shaderVerdicts],
- * [compileAllShaders]): un driver che rifiuta una sorgente fa ripiegare il vetro su un materiale più povero,
- * e quel ripiego deve vedersi. Queste letture non dipendono da [enabled].
+ * [compileAllShaders]). Se il compilatore rifiuta una sorgente, chi la usa prende il ramo che ha sotto
+ * Android 13 invece di lanciare: la lente sparisce (restano sfocatura e vividezza), il riflesso diventa una
+ * tinta piatta, il bagliore del tocco una lavata uniforme, Fluid-physics scende a `Balanced` o perde la
+ * frangia. Un vetro più povero e non un'app che cade, e quel ripiego deve vedersi: da qui, e da una riga
+ * d'errore in logcat (tag `FluidGlass`). Queste letture non dipendono da [enabled].
  */
 object FluidGlassDiagnostics {
 
@@ -46,13 +49,17 @@ object FluidGlassDiagnostics {
     if (enabled) exports.incrementAndGet()
   }
 
-  /** I nomi di tutte le sorgenti AGSL dell'engine, nell'ordine in cui [compileAllShaders] le prova. */
+  /**
+   * I nomi di tutte le sorgenti AGSL dell'engine, nell'ordine in cui [compileAllShaders] le prova. Non dipende
+   * dal dispositivo: anche sotto Android 13 l'elenco è intero, vuoti sono solo i verdetti.
+   */
   val shaderSourceNames: List<String> get() = GlassShaderSources.all.map { it.name }
 
   /**
    * I verdetti che il vetro ha già chiesto in questo processo: nome della sorgente → `null` se il compilatore
    * del dispositivo l'ha accettata, o il suo errore (il messaggio è quello del compilatore, con riga e
    * motivo). Una sorgente che nessuno ha ancora usato non compare: la sonda compila solo quando serve.
+   * Sotto Android 13 la sonda non compila niente e la mappa resta vuota.
    *
    * Esiste perché dalla 3.0.0 alla 3.1.2 un rifiuto è passato inosservato per una settimana, con una riga
    * di log a livello avviso e nessun altro segno: un ripiego si deve poter leggere da fuori, e chi lo

@@ -10,7 +10,9 @@
  *     source set, so `expect`/`actual` are gone and the Android bodies are the only ones;
  *   - the package was renamed com.kyant.backdrop -> dev.antigravity.fluidengine.ui.glass.backdrop;
  *   - support for io.github.kyant0:shapes' RoundedRectangularShape was dropped from the lens
- *     effect, so the vendored sources pull in no dependency the engine does not already have.
+ *     effect, so the vendored sources pull in no dependency the engine does not already have;
+ *   - the two shader styles ask the compiler's verdict on their source and fall back to the flat
+ *     highlight when the device refuses it (entry 15 of LICENSES/AndroidLiquidGlass.md).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,9 +42,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastCoerceAtMost
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShaderCache
-import dev.antigravity.fluidengine.ui.glass.backdrop.internal.AmbientHighlightShaderString
-import dev.antigravity.fluidengine.ui.glass.backdrop.internal.DefaultHighlightShaderString
-import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.backdrop.obtainEngineShader
+import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import kotlin.math.PI
 
 @Immutable
@@ -96,19 +97,18 @@ interface HighlightStyle {
             density: Density,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? {
-            return if (isRuntimeShaderSupported()) {
-                runtimeShaderCache.obtainRuntimeShader(
-                    "Default",
-                    DefaultHighlightShaderString
-                ).apply {
-                    setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape, size, density))
-                    setColorUniform("color", color.copy(alpha = 1f))
-                    setFloatUniform("angle", angle * (PI / 180f).toFloat())
-                    setFloatUniform("falloff", falloff)
-                }
-            } else {
-                null
+            // Fluid Engine change: the API-level guard became the verdict of this source. `null` is the
+            // branch below API 33 (the flat highlight), now also taken when the device's compiler refuses
+            // the source, instead of an exception from inside the draw.
+            return runtimeShaderCache.obtainEngineShader(
+                "Default",
+                GlassShaderSources.DefaultHighlight
+            )?.apply {
+                setFloatUniform("size", size.width, size.height)
+                setFloatUniform("cornerRadii", getCornerRadii(shape, size, density))
+                setColorUniform("color", color.copy(alpha = 1f))
+                setFloatUniform("angle", angle * (PI / 180f).toFloat())
+                setFloatUniform("falloff", falloff)
             }
         }
     }
@@ -128,18 +128,15 @@ interface HighlightStyle {
             density: Density,
             runtimeShaderCache: RuntimeShaderCache
         ): RuntimeShader? {
-            return if (isRuntimeShaderSupported()) {
-                runtimeShaderCache.obtainRuntimeShader(
-                    "Ambient",
-                    AmbientHighlightShaderString
-                ).apply {
-                    setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape, size, density))
-                    setFloatUniform("angle", 45f * (PI / 180f).toFloat())
-                    setFloatUniform("falloff", 1f)
-                }
-            } else {
-                null
+            // Fluid Engine change: as in `Default`, the verdict of this source instead of the API level.
+            return runtimeShaderCache.obtainEngineShader(
+                "Ambient",
+                GlassShaderSources.AmbientHighlight
+            )?.apply {
+                setFloatUniform("size", size.width, size.height)
+                setFloatUniform("cornerRadii", getCornerRadii(shape, size, density))
+                setFloatUniform("angle", 45f * (PI / 180f).toFloat())
+                setFloatUniform("falloff", 1f)
             }
         }
     }

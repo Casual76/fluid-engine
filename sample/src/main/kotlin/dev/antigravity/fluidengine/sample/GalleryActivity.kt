@@ -162,11 +162,11 @@ class GalleryActivity : ComponentActivity() {
 }
 
 private val Tabs = listOf(
-  FluidTabItem(route = RouteMaterial, label = "Materiale", icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
-  FluidTabItem(route = RoutePlayground, label = "Fisica", icon = FluidIcons.Animation, selectedIcon = FluidIcons.Filled.Animation),
-  FluidTabItem(route = RouteControls, label = "Controlli", icon = FluidIcons.GridView, selectedIcon = FluidIcons.Filled.GridView),
-  FluidTabItem(route = RouteChrome, label = "Chrome", icon = FluidIcons.AutoAwesome, selectedIcon = FluidIcons.Filled.AutoAwesome),
-  FluidTabItem(route = RouteSettings, label = "Impostazioni", icon = FluidIcons.Settings, selectedIcon = FluidIcons.Filled.Settings),
+  FluidTabItem(route = RouteMaterial, label = "Materiale", icon = FluidIcons.Home, filledIcon = FluidIcons.Filled.Home),
+  FluidTabItem(route = RoutePlayground, label = "Fisica", icon = FluidIcons.Animation, filledIcon = FluidIcons.Filled.Animation),
+  FluidTabItem(route = RouteControls, label = "Controlli", icon = FluidIcons.GridView, filledIcon = FluidIcons.Filled.GridView),
+  FluidTabItem(route = RouteChrome, label = "Chrome", icon = FluidIcons.AutoAwesome, filledIcon = FluidIcons.Filled.AutoAwesome),
+  FluidTabItem(route = RouteSettings, label = "Impostazioni", icon = FluidIcons.Settings, filledIcon = FluidIcons.Filled.Settings),
 )
 
 /**
@@ -287,7 +287,9 @@ internal fun Gallery(
               // Le misure della prima sessione sul dispositivo: scene fisse, scelte con `measure.scene`.
               GalleryPage.Measure -> MeasurePage(bottomInset) { nav.back() }
               // Il materiale nuovo accanto a quello di prima, per le sessioni sul dispositivo: `material.scene`.
-              GalleryPage.Material -> MaterialPage(bottomInset) { nav.back() }
+              // Il palco della scena nel fondo che la barra delle schede campiona quando nessuna `FluidScreen` ne
+              // registra uno (F1A, giro di correzione): sopra la scena la barra sfoca come sulle altre pagine.
+              GalleryPage.Material -> MaterialPage(bottomInset, stage = fallbackBackdrop) { nav.back() }
               // Le icone del set e le taglie nuove (F1A.11): `icons.section`.
               GalleryPage.Icons -> IconsPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.

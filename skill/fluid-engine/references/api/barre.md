@@ -97,8 +97,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidTabBar.kt`
 
-- `data class FluidTabItem(val route: String, val label: String, val icon: ImageVector, val badge: FluidTabBadge? = null, val selectedIcon: ImageVector? = null)` — Una destinazione della navigazione: la barra a elenco ([FluidFloatingTabBar]) e il rail ([FluidTabRail]).
-  - `fun iconFor(selected: Boolean): ImageVector` — L'icona da disegnare: [selectedIcon] se la zona e' quella scelta e l'app l'ha data, altrimenti [icon].
+- `data class FluidTabItem(val route: String, val label: String, val icon: ImageVector, val badge: FluidTabBadge? = null, val filledIcon: ImageVector? = null)` — Una destinazione della navigazione: la barra a elenco ([FluidFloatingTabBar]) e il rail ([FluidTabRail]).
 - `data class FluidTabBadge(val count: Int? = null, val contentDescription: String? = null, val color: Color = Color.Unspecified)` — Il segno su una zona della barra o del rail: un pallino («ci sono novita'») o un numero.
   - `companion object`
     - `val Dot: FluidTabBadge` — Il pallino senza numero: «ci sono novita'».

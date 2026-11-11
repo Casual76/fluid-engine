@@ -134,8 +134,8 @@ fun FluidFoldingTabBar(
         title = { Text(item.label) },
         icon = {
           if (tabIcon != null) tabIcon(item, selected)
-          // 4.0: 28 dp e l'inchiostro dalla barra, la gemella piena se la zona e' quella scelta.
-          else FluidIcon(item.iconFor(selected), contentDescription = null)
+          // 4.0: 28 dp e l'inchiostro dalla barra, la gemella piena su ogni zona (come in Apple).
+          else FluidIcon(item.barIcon, contentDescription = null)
         },
         onClick = {
           // A tap on a folded bar means "open", not "select": folded, the only tab left is the one

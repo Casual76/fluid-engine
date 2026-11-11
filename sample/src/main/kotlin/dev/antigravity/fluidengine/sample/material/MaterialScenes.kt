@@ -92,6 +92,8 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Share
 import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
+import dev.antigravity.fluidengine.ui.fluid.rememberCombinedGlassBackdrop
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidCard
@@ -128,6 +130,7 @@ internal fun MaterialSceneContent(session: MaterialSession) {
     MaterialScene.Edge -> ModelSplit(session) { EdgeCell(session) }
     MaterialScene.Corner -> ModelSplit(session) { CornerCell(session) }
     MaterialScene.Nested -> NestedScene(session)
+    MaterialScene.Siblings -> SiblingsScene(session)
     MaterialScene.Press -> PressScene(session)
     MaterialScene.Intensity -> ModelSplit(session) { IntensityCell(session) }
     MaterialScene.ListUnderBar -> ListScene(session)
@@ -225,9 +228,9 @@ private fun Caption(text: String) {
 // --- Componenti ---------------------------------------------------------------------------------------------
 
 private val DemoTabs = listOf(
-  FluidTabItem(route = "home", label = "Home", icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
-  FluidTabItem(route = "search", label = "Cerca", icon = FluidIcons.Search, selectedIcon = FluidIcons.Filled.Search),
-  FluidTabItem(route = "settings", label = "Altro", icon = FluidIcons.Settings, selectedIcon = FluidIcons.Filled.Settings),
+  FluidTabItem(route = "home", label = "Home", icon = FluidIcons.Home, filledIcon = FluidIcons.Filled.Home),
+  FluidTabItem(route = "search", label = "Cerca", icon = FluidIcons.Search, filledIcon = FluidIcons.Filled.Search),
+  FluidTabItem(route = "settings", label = "Altro", icon = FluidIcons.Settings, filledIcon = FluidIcons.Filled.Settings),
 )
 
 private val DemoActions = listOf(
@@ -424,46 +427,149 @@ private fun CornerCell(session: MaterialSession) {
 private fun NestedScene(session: MaterialSession) {
   val targets = remember { LinkedHashMap<String, MaterialTarget>() }
   ModelSplit(session) { model ->
-    val stage = session.stage
-    var checked by remember { mutableStateOf(true) }
+    val report = session.report
+    val config = session.config
+    val target = targets.getOrPut("${model.name.lowercase()}/conferma") { MaterialTarget() }
     CellColumn {
-      Column(
-        modifier = Modifier
-          .widthIn(max = 360.dp)
-          .fillMaxWidth()
-          .reported(session.report, session.config, "foglio")
-          .glassSurface(
-            state = stage,
-            tint = GlassDefaults.modalTint(),
-            shape = ContinuousCornerShape(FluidRadius.Sheet),
-            role = GlassRole.Modal,
-          )
-          .padding(horizontal = 18.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-      ) {
-        Text("Foglio di vetro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-          val target = targets.getOrPut("${model.name.lowercase()}/conferma") { MaterialTarget() }
-          FluidGlassButton(
-            text = "Conferma",
-            onClick = {},
-            backdrop = stage,
-            modifier = Modifier.trackBounds(target).reported(session.report, session.config, "conferma"),
-          )
-          FluidGlassIconButton(onClick = {}, backdrop = stage, modifier = Modifier.reported(session.report, session.config, "tondo")) {
-            FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito")
-          }
-          FluidSwitch(checked = checked, onCheckedChange = { checked = it }, backdrop = stage)
-        }
-        Text(
-          "Il primo tasto si preme da solo: guarda gli altri due.",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
+      MaterialNestedSheet(
+        stage = session.stage,
+        sheet = Modifier.reported(report, config, "foglio"),
+        confirm = Modifier.trackBounds(target).reported(report, config, "conferma"),
+        round = Modifier.reported(report, config, "tondo"),
+        zone = Modifier.reported(report, config, "zona"),
+      )
     }
   }
   FingerPresses(session, targets)
+}
+
+/**
+ * Il foglio della scena `nested`, da solo: lo compone anche il test strumentato del vetro annidato
+ * (`GlassNestingInstrumentedTest`), perché provi la scena che la sessione fotografa e non una sua copia.
+ *
+ * @param zone una striscia del foglio senza testo né controlli: il corpo del foglio, da misurare accanto al tasto.
+ */
+@Composable
+internal fun MaterialNestedSheet(
+  stage: GlassBackdropState,
+  modifier: Modifier = Modifier,
+  sheet: Modifier = Modifier,
+  confirm: Modifier = Modifier,
+  round: Modifier = Modifier,
+  zone: Modifier = Modifier,
+) {
+  var checked by remember { mutableStateOf(true) }
+  Column(
+    modifier = modifier
+      .widthIn(max = 360.dp)
+      .fillMaxWidth()
+      .then(sheet)
+      .glassSurface(
+        state = stage,
+        tint = GlassDefaults.modalTint(),
+        shape = ContinuousCornerShape(FluidRadius.Sheet),
+        role = GlassRole.Modal,
+      )
+      .padding(horizontal = 18.dp, vertical = 20.dp),
+    verticalArrangement = Arrangement.spacedBy(16.dp),
+  ) {
+    Text("Foglio di vetro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+      FluidGlassButton(text = "Conferma", onClick = {}, backdrop = stage, modifier = confirm)
+      FluidGlassIconButton(onClick = {}, backdrop = stage, modifier = round) {
+        FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito")
+      }
+      FluidSwitch(checked = checked, onCheckedChange = { checked = it }, backdrop = stage)
+    }
+    Spacer(Modifier.fillMaxWidth().height(20.dp).then(zone))
+    Text(
+      "Il primo tasto si preme da solo: guarda gli altri due.",
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+  }
+}
+
+/**
+ * Lo schema che il KDoc di `exports` insegna alle app (ed è il cablaggio del composer di `engine-ai-ui`, coi tasti
+ * fuori dal pannello invece che dentro): il pannello `Liquid` in un nodo che **esporta** il suo materiale, e i tasti
+ * di vetro in un nodo **fratello**, sopra, che campionano `rememberCombinedGlassBackdrop(pagina, materiale)`. Il nodo
+ * dei tasti non ha un vetro fra i suoi antenati: la regola dell'annidato deve arrivare dal fondo
+ * (`GlassLiquidPanels`, F1A.13). Atteso: la stessa differenza fra `nested=on` e `nested=off` della scena `nested`, e
+ * il corpo del tasto sopra il pannello, mai uguale a esso.
+ */
+@Composable
+private fun SiblingsScene(session: MaterialSession) {
+  val targets = remember { LinkedHashMap<String, MaterialTarget>() }
+  ModelSplit(session) { model ->
+    val report = session.report
+    val config = session.config
+    val target = targets.getOrPut("${model.name.lowercase()}/conferma") { MaterialTarget() }
+    CellColumn {
+      MaterialSiblingsPanel(
+        stage = session.stage,
+        panel = Modifier.reported(report, config, "pannello"),
+        confirm = Modifier.trackBounds(target).reported(report, config, "conferma"),
+        round = Modifier.reported(report, config, "tondo"),
+        zone = Modifier.reported(report, config, "zona"),
+      )
+    }
+  }
+  FingerPresses(session, targets)
+}
+
+/**
+ * Il pannello della scena `siblings`, da solo: lo compone anche `GlassNestingInstrumentedTest`.
+ *
+ * Il pannello e i tasti sono fratelli in una `Box`: il pannello è grande quanto lei (`matchParentSize`) e i tasti
+ * stanno sopra, nell'ordine di disegno. Il materiale che il pannello esporta si registra solo finché qualcuno lo
+ * campiona: qui lo campionano i tasti, dal fondo combinato.
+ */
+@Composable
+internal fun MaterialSiblingsPanel(
+  stage: GlassBackdropState,
+  modifier: Modifier = Modifier,
+  panel: Modifier = Modifier,
+  confirm: Modifier = Modifier,
+  round: Modifier = Modifier,
+  zone: Modifier = Modifier,
+) {
+  val panelGlass = rememberGlassBackdrop()
+  val controls = rememberCombinedGlassBackdrop(stage, panelGlass)
+  var checked by remember { mutableStateOf(true) }
+  Box(modifier = modifier.widthIn(max = 360.dp).fillMaxWidth()) {
+    Box(
+      modifier = Modifier
+        .matchParentSize()
+        .then(panel)
+        .glassSurface(
+          state = stage,
+          tint = GlassDefaults.modalTint(),
+          shape = ContinuousCornerShape(FluidRadius.Sheet),
+          role = GlassRole.Modal,
+          exports = panelGlass,
+        ),
+    )
+    Column(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 20.dp),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+      Text("Pannello e tasti fratelli", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+      Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        FluidGlassButton(text = "Conferma", onClick = {}, backdrop = controls, modifier = confirm)
+        FluidGlassIconButton(onClick = {}, backdrop = controls, modifier = round) {
+          FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito")
+        }
+        FluidSwitch(checked = checked, onCheckedChange = { checked = it }, backdrop = controls)
+      }
+      Spacer(Modifier.fillMaxWidth().height(20.dp).then(zone))
+      Text(
+        "I tasti stanno in un nodo accanto al pannello, sul suo materiale esportato.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+  }
 }
 
 /**
@@ -519,6 +625,10 @@ private fun FingerPresses(session: MaterialSession, targets: Map<String, Materia
     // La scena si posa: le lastre hanno i loro limiti e il primo fotogramma è passato.
     delay(1_200L)
     val periodMs = (config.periodSeconds * 1000f).toLong().coerceAtLeast(400L)
+    if (config.fingers > 1) {
+      pressTwoAtOnce(session, finger, targets, periodMs)
+      return@LaunchedEffect
+    }
     if (config.cycle == MaterialCycle.Hold) {
       val (name, target) = targets.entries.lastOrNull()?.toPair() ?: return@LaunchedEffect
       val r = target.bounds ?: return@LaunchedEffect
@@ -559,6 +669,62 @@ private fun FingerPresses(session: MaterialSession, targets: Map<String, Materia
 
 /** Un passo del dito finto: un fotogramma a 60 Hz. */
 private const val FingerStepMillis = 16L
+
+/**
+ * Due dita insieme (`material.fingers 2`): i due bersagli di ogni colonna (il tondo e la capsula) scendono nello
+ * stesso istante e scorrono in versi opposti, così i due bagliori stanno in posti diversi. `hold`: giù sulla colonna
+ * `Liquid`, e restano, scivolando piano in controfase. `cycle`: una colonna dopo l'altra, come con un dito.
+ */
+private suspend fun pressTwoAtOnce(
+  session: MaterialSession,
+  finger: MaterialFinger,
+  targets: Map<String, MaterialTarget>,
+  periodMs: Long,
+) {
+  val config = session.config
+  // Le coppie per colonna, nell'ordine in cui sono nate: `classic/…` e poi `liquid/…`.
+  val columns = targets.entries.groupBy { it.key.substringBefore('/') }.values.filter { it.size >= 2 }
+  fun points(pair: List<Map.Entry<String, MaterialTarget>>, phase: Float): List<Offset>? {
+    val a = pair[0].value.bounds ?: return null
+    val b = pair[1].value.bounds ?: return null
+    return listOf(
+      Offset(a.left + a.width * (0.5f + 0.25f * phase), a.center.y),
+      Offset(b.left + b.width * (0.5f - 0.25f * phase), b.center.y),
+    )
+  }
+  fun names(pair: List<Map.Entry<String, MaterialTarget>>) = pair.take(2).joinToString("+") { it.key }
+  if (config.cycle == MaterialCycle.Hold) {
+    val pair = columns.lastOrNull() ?: return
+    val start = points(pair, 0f) ?: return
+    finger.downAll(start)
+    session.report.line("PRESSIONE ${config.key} nome=${names(pair)} giu (tenuto, due dita)")
+    var t = 0f
+    while (true) {
+      delay(FingerStepMillis)
+      t += FingerStepMillis / 1000f
+      points(pair, sin(TwoPi * t / 2.4f))?.let(finger::moveAll)
+    }
+  }
+  while (true) {
+    var pressed = false
+    for (pair in columns) {
+      val from = points(pair, -1f) ?: continue
+      pressed = true
+      finger.downAll(from)
+      session.report.line("PRESSIONE ${config.key} nome=${names(pair)} giu (due dita)")
+      val steps = ((periodMs / 2) / FingerStepMillis).toInt().coerceAtLeast(1)
+      for (i in 1..steps) {
+        delay(FingerStepMillis)
+        points(pair, -1f + 2f * i / steps.toFloat())?.let(finger::moveAll)
+      }
+      delay(periodMs / 4)
+      finger.upAll(points(pair, 1f) ?: from)
+      session.report.line("PRESSIONE ${config.key} nome=${names(pair)} su (due dita)")
+      delay(periodMs / 4)
+    }
+    if (!pressed) delay(periodMs)
+  }
+}
 
 // --- Intensità --------------------------------------------------------------------------------------------
 
@@ -819,7 +985,9 @@ private fun ModalCell(session: MaterialSession, open: Boolean, onDismiss: () -> 
           Spacer(Modifier.height(120.dp))
         }
       }
-      FluidGlassModalHost(state = host, backdrop = session.stage)
+      // `material.sheet opaque`: l'host senza fondo, come in un'app che non ne passa uno. Il foglio e' pieno, e i suoi
+      // tasti di vetro stanno su di lui come su un pannello (F1A.13): il caso che F1A.13 non aveva guardato.
+      FluidGlassModalHost(state = host, backdrop = if (session.config.opaqueSheet) null else session.stage)
     }
   }
 }

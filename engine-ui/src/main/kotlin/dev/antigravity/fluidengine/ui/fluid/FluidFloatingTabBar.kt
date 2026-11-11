@@ -910,11 +910,12 @@ fun FluidFloatingTabBar(
                 // e non sulla scheda, che la barra costruisce da sé e che è un `clickable`: unisce la
                 // semantica dei figli alla propria. Le copie nascoste della riga (quella che la
                 // pillola campiona) la cancellano, quindi non si raddoppia.
-                // 4.0: la scheda scelta mette la sua icona piena, se l'app l'ha data (`FluidTabItem.selectedIcon`,
-                // in Apple la scheda scelta e' piena); la taglia (28 dp) e l'inchiostro li da' la barra.
+                // 4.0: ogni scheda mette la sua icona piena, se l'app l'ha data (`FluidTabItem.filledIcon`: in
+                // Apple sono piene anche le non scelte, la scelta la dicono pillola e colore); la taglia (28 dp) e
+                // l'inchiostro li da' la barra.
                 icon = {
                     FluidIcon(
-                        imageVector = item.iconFor(selected = item.route == selectedRoute),
+                        imageVector = item.barIcon,
                         contentDescription = null,
                         modifier = Modifier.fluidTabSelected(item.route == selectedRoute),
                     )

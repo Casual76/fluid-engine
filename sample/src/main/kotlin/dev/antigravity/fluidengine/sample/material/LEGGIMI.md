@@ -118,16 +118,18 @@ Tutti `--es material.<nome> <valore>` (con `materiale`: `materiale <scena> <nome
 
 | extra | valori | default | che cosa fa |
 |---|---|---|---|
-| `material.scene` | `components` `edge` `corner` `nested` `press` `intensity` `list` `menu` `modal` `tints` `apps` `contrast` `rtl` | (elenco) | la scena: vedi «Le scene» |
-| `material.backdrop` | `page` `page-light` `page-dark` `white` `black` `text` `photo` | `page` (`nested`, `press`, `menu`, `modal`: `text`; `apps`, `tints`: `photo`) | il fondo sotto le lastre |
+| `material.scene` | `components` `edge` `corner` `nested` `siblings` `press` `intensity` `list` `menu` `modal` `tints` `apps` `contrast` `rtl` | (elenco) | la scena: vedi «Le scene» |
+| `material.backdrop` | `page` `page-light` `page-dark` `white` `black` `text` `photo` | `page` (`nested`, `siblings`, `press`, `menu`, `modal`: `text`; `apps`, `tints`: `photo`) | il fondo sotto le lastre |
 | `material.motion` | `still` `scroll` | `still` | il fondo fermo, o che scorre (ogni lastra rifà la cattura a ogni fotogramma) |
 | `material.speed` | dp al secondo | `240` | con `scroll` |
 | `material.model` | `both` `liquid` `classic` | `both` | i vetri della pagina: i due affiancati (uno sopra l'altro in formato telefono), o uno solo a tutta pagina |
-| `material.cycle` | `cycle` `hold` `off` | `cycle` | le scene che si muovono da sole (`nested`, `press`, `intensity`, `list`, `menu`, `modal`): in ciclo; ferme nello stato «acceso» per le foto (dito giù, menu aperto, foglio aperto, `intensity` 1, lista a metà); ferme del tutto |
+| `material.cycle` | `cycle` `hold` `off` | `cycle` | le scene che si muovono da sole (`nested`, `siblings`, `press`, `intensity`, `list`, `menu`, `modal`): in ciclo; ferme nello stato «acceso» per le foto (dito giù, menu aperto, foglio aperto, `intensity` 1, lista a metà); ferme del tutto |
 | `material.period` | secondi | `3` (`list`, `menu`, `modal`: `4`) | la durata di un giro |
 | `material.intensity` | `0`…`1`, `cycle` | `cycle` | `intensity` fissa nella scena `intensity` |
 | `material.contrast` | `standard` `medium` `high`, `0`…`1`, `all` | `all` | un livello solo nella scena `contrast` |
 | `material.hud` | `on` `off` | `on` | il riquadro di stato: **`off` per le foto** |
+| `material.fingers` | `1` `2` | `1` | quante dita finte nella scena `press`: con `2` il tondo e la capsula della colonna scendono insieme e scorrono in versi opposti (due bagliori nello stesso momento; con `cycle hold`, sulla colonna `Liquid`) |
+| `material.sheet` | `glass` `opaque` | `glass` | il foglio della scena `modal`: sul palco (di vetro) o **senza fondo** (l'host dei modali senza `backdrop`: il foglio pieno, coi suoi tasti di vetro sopra) |
 
 I sei fondi di 4.6: `page-light` (`#F2F2F7`) e `page-dark` (`#0D0D0F`), le pagine vere dell'engine; `white`, `black`;
 `text` (la frase del banco, nell'inchiostro del tema sulla pagina del tema); `photo` (la «foto» generata in codice di
@@ -244,6 +246,15 @@ prendono la regola dell'annidato (sul tema scuro un terzo del velo, sui due temi
 nested=off` li rimette come lastre sulla pagina, per il confronto. Il caso di S1-ter (la notifica verde) è nella
 pagina «Avvisi con azione»: vedi la voce A.6 qui sotto.
 
+### scena siblings — Vetro annidato, tasti fratelli
+Lo schema che il KDoc di `exports` insegna alle app: un pannello `Liquid` (`pannello`) in un nodo che **esporta** il suo
+materiale, e i tasti (`conferma`, `tondo`, un interruttore) in un nodo **fratello**, sopra, che campionano
+`rememberCombinedGlassBackdrop(pagina, materiale)`. Il nodo dei tasti non ha un vetro fra gli antenati: la regola
+dell'annidato arriva dal fondo (`GlassLiquidPanels`, F1A.13). `zona` è una striscia del pannello senza testo, per
+misurarne il corpo accanto al tasto (c'è anche in `nested`). Atteso: la stessa differenza fra `gallery.tune nested=on` e
+`nested=off` della scena `nested`, e il corpo del tasto mai uguale al pannello sul tema scuro. Il dito finto preme
+`conferma` come in `nested`.
+
 ### scena press — Pressione
 Un tasto tondo da 76 dp (`tondo`) e una capsula grande (`capsula`). Il dito finto (eventi di tocco veri, consegnati
 alla vista della composizione) scende a un quarto, scorre fino a tre quarti in metà del giro, resta un quarto, sale.
@@ -262,7 +273,8 @@ Il tasto che diventa il proprio menu, aperto dal dito finto e richiuso, una colo
 Fluid-physics (vetro di prima) fino a F1B: è la voce che lo guarda.
 
 ### scena modal — Foglio e scrim
-Un foglio vero dell'host dei modali, aperto e chiuso in ciclo, con lo scrim dietro, **in ogni colonna**: ogni colonna
+Un foglio vero dell'host dei modali, aperto e chiuso in ciclo, con lo scrim dietro, **in ogni colonna**
+(`material.sheet opaque`: l'host senza fondo, il foglio pieno coi tasti di vetro sopra): ogni colonna
 ha il suo host dei modali sotto il suo vetro, quindi il foglio della colonna `Liquid` è il materiale nuovo e quello
 della colonna `Classic` il vetro di prima, aperti e chiusi insieme (fino a F1A.9 il foglio si apriva nell'host della
 radice e prendeva il vetro di `gallery.model` in tutte e due). Lo scrim resta il vetro di prima nelle due colonne
@@ -439,6 +451,9 @@ chiaro; il livello simulato 32 e 30 (voce 7.3).
 - **L'host dei modali della radice**: nella scena `modal` ogni colonna ha un host suo. Il foglio di un'app, che si apre
   nell'host della radice, si guarda con `gallery.model` (6.12 nelle altre pagine).
 - **La barra in alto** di `FluidScreen` (scena `list`) è `Classic` fino a F2.5.
+- **La barra delle schede** della galleria, sopra la scena, campiona il palco della scena (giro di correzione di F1A:
+  la pagina registra il suo palco nel fondo della galleria). Prima campionava un fondo vuoto e lasciava il testo
+  quasi nitido.
 - **L'ombra** non è nel riscaldamento (F1A.7) e i tre nodi di Kyant del vetro di prima non sono nei conteggi.
 - **La foto** è generata in codice: niente copertine vere (8.5), niente colori P3 veri.
 - **L'orologio** e **il composer** non sono nella galleria.

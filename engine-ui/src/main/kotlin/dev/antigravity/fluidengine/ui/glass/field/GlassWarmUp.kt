@@ -17,6 +17,14 @@
  * programmi che non disegnerà mai. E non alla prima superficie `Liquid`: la barra in alto di ogni `FluidScreen` resta
  * `Classic` (la fascia, fino a F2.5) ma vive in un albero che chiede `Liquid`, ed è spesso l'unico vetro della prima
  * schermata; agganciarsi lì scalda la lastra prima del primo menu o della prima capsula. Le app non chiamano niente.
+ *
+ * Cosa non fa (misura del giro di correzione di F1A, Tab S9, avvii a freddo, tre per lato): **non protegge la prima
+ * schermata**. Parte dopo il suo primo fotogramma, quindi un vetro che c'è già lì compila i suoi programmi in quel
+ * fotogramma, acceso o spento (RenderThread del primo fotogramma 54–61 ms acceso, 54–55 spento). Nella galleria non
+ * accorcia neanche la prima pagina aperta tre secondi dopo («Controlli» 45–50 ms di RenderThread acceso, 49–50 spento;
+ * «Materiale» 13 e 12–13), e la causa non è isolata: la prima schermata della galleria ha già del vetro, che può aver
+ * compilato gli stessi programmi. Il caso per cui esiste (una prima schermata senza lastre nuove, la prima che entra
+ * dopo) sul dispositivo non è ancora misurato.
  */
 package dev.antigravity.fluidengine.ui.glass.field
 

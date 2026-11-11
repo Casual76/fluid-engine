@@ -1532,6 +1532,52 @@ fun Modifier.glassSurface(
    * accanto a un altro, o con questo parametro falso, resta una lastra sulla pagina.
    */
   nestInContainer: Boolean = true,
+): Modifier = glassSurfaceFitted(
+  state = state,
+  tint = tint,
+  shape = shape,
+  edge = edge,
+  falloff = falloff,
+  intensity = intensity,
+  role = role,
+  optics = optics,
+  opticalDepth = opticalDepth,
+  pressed = pressed,
+  exports = exports,
+  layerBlock = layerBlock,
+  sampleOnce = sampleOnce,
+  resampleIntervalMillis = resampleIntervalMillis,
+  frozen = frozen,
+  heldWhileMoving = heldWhileMoving,
+  nestInContainer = nestInContainer,
+  fit = null,
+)
+
+/**
+ * [glassSurface], con la misura della forma ([GlassFieldFit]) data da chi chiama: `glassControlSurface` sceglie il
+ * vetro prima, con la sua misura, e il vetro che disegna deve rispondere allo stesso modo. Con [fit] nullo la misura
+ * e' di questa superficie, in testa alla sua catena; data, la mette in testa chi la da'.
+ */
+@Composable
+internal fun Modifier.glassSurfaceFitted(
+  state: GlassBackdropState,
+  tint: GlassTint,
+  shape: Shape,
+  edge: GlassEdge,
+  falloff: GlassFalloff,
+  intensity: () -> Float,
+  role: GlassRole,
+  optics: GlassOptics,
+  opticalDepth: () -> Float,
+  pressed: () -> Float,
+  exports: GlassBackdropState?,
+  layerBlock: (GraphicsLayerScope.() -> Unit)?,
+  sampleOnce: Boolean,
+  resampleIntervalMillis: Long,
+  frozen: () -> Boolean,
+  heldWhileMoving: () -> Boolean,
+  nestInContainer: Boolean,
+  fit: GlassFieldFit?,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
 
@@ -1542,11 +1588,16 @@ fun Modifier.glassSurface(
     return this.glassFallback(shape, tint, edge, falloff, intensity)
   }
 
+  // F1A, giro di correzione: una forma con angoli diversi si misura, e alla taglia in cui il campo non la sa
+  // rendere resta al vetro di prima. Il nodo che misura sta in testa, uguale nei due rami.
+  val ownFit = fit ?: rememberGlassFieldFit(shape)
+  val head = if (fit == null) this.then(ownFit.modifier) else this
+
   // Il materiale nuovo (4.0.0), dove puo' esistere: Android 13, sorgenti sane, una forma che il campo sa
   // rendere, e nessun antenato che chieda il vetro di prima. Tutto cio' che segue questo `if` e' il vetro
   // di prima, lasciato com'era: e' il ripiego, e deve restare identico al pixel.
-  if (rememberFluidGlassModel(shape, falloff, resolved) == FluidGlassModel.Liquid) {
-    return this.glassLiquidSurface(
+  if (rememberFluidGlassModel(shape, falloff, resolved, ownFit) == FluidGlassModel.Liquid) {
+    return head.glassLiquidSurface(
       state = state,
       tint = tint,
       shape = shape,
@@ -1720,7 +1771,7 @@ fun Modifier.glassSurface(
     }
   }
 
-  return this
+  return head
     .glassMask(falloff, resolved.shadowRadius, currentIntensity)
     .drawBackdrop(
       backdrop = state.backdrop,
@@ -1971,8 +2022,11 @@ internal fun Modifier.glassShadow(
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val darkSide = GlassDefaults.isDarkSurface()
-  if (rememberFluidGlassModel(shape, GlassFalloff.Uniform, resolved) == FluidGlassModel.Liquid) {
-    return this.glassLiquidShadow(shape, resolved, darkSide, radiusScale)
+  // La stessa misura della forma del pannello che le sta sopra (F1A, giro di correzione), in testa ai due rami.
+  val fit = rememberGlassFieldFit(shape)
+  val head = this.then(fit.modifier)
+  if (rememberFluidGlassModel(shape, GlassFalloff.Uniform, resolved, fit) == FluidGlassModel.Liquid) {
+    return head.glassLiquidShadow(shape, resolved, darkSide, radiusScale)
   }
   val shapeBlock = remember(shape) { { shape } }
   val shadow: () -> Shadow? = remember(resolved, radiusScale, darkSide) {
@@ -1988,7 +2042,7 @@ internal fun Modifier.glassShadow(
       }
     }
   }
-  return this.then(ShadowElement(ShapeProvider(shapeBlock), shadow))
+  return head.then(ShadowElement(ShapeProvider(shapeBlock), shadow))
 }
 
 /**

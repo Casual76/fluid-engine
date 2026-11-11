@@ -3,7 +3,9 @@
     artifacts\\liquid-glass\\venv\\Scripts\\python -I tools\\glassbench\\scenes\\f1a\\icone\\tavola_icone.py
 
 Scrive, in questa cartella, le scene `prima-{lato}.json` e `dopo-{lato}.json` e, in
-`artifacts/liquid-glass/tavole/f1a/`, `icone-prima-dopo-chiaro.png` e `icone-prima-dopo-scuro.png`.
+`artifacts/liquid-glass/tavole/f1a/`, `icone-prima-dopo-chiaro.png` e `icone-prima-dopo-scuro.png`; e la tavola piccola
+`12-tabbar-piene.png` (giro di correzione di F1A): la tab bar com'era stamattina (piena la sola scheda scelta) | com'e'
+adesso (tutte piene, come in Apple: R6, piano 3.14) | Apple, nei due temi, perche' Alessio possa dire quale preferisce.
 
 Cosa c'e' in ogni colonna: una barra in alto (indietro e due azioni), una capsula di tre azioni, una tab bar di tre
 schede, sulla pagina vera dell'engine (#F2F2F7 / #0D0D0F), larga 411 dp come lo schermo degli screenshot di R6.
@@ -19,7 +21,9 @@ schede, sulla pagina vera dell'engine (#F2F2F7 / #0D0D0F), larga 411 dp come lo 
 * **Prima**: icone a 22 dp (freccia `arrow_back_ios` a 20) nell'accento di serie dell'engine, vetri a 8 dp dal bordo
   e 6 fra loro; capsula a 24 dp nell'accento; tab bar a 24 dp con le schede non scelte al 60%, etichette a 13 sp.
   **Dopo**: 26 dp (freccia `arrow_back_ios_new` a 24) nell'inchiostro del testo, 16 dp dal bordo e 8 fra due vetri;
-  capsula a 26; tab bar a 28 dp a inchiostro pieno con la scheda scelta piena, etichette a 11 sp.
+  capsula a 26; tab bar a 28 dp a inchiostro pieno con **tutte** le icone piene (`FluidTabItem.filledIcon`: in Apple
+  sono piene anche le non scelte, R6), etichette a 11 sp. Fino al giro di correzione la piena era sulla sola scelta
+  (colonna «stamattina» della tavola 12).
 * La pillola della scheda scelta e' un disegno di servizio (una capsula chiara), non il puck vero: il banco non lo
   rende a riposo.
 * Apple: i ritagli di R6 e R5 (iOS 27), riportati a 1 pt = 1 dp con la scala di R6 (3,13 px/pt).
@@ -94,12 +98,19 @@ STATES = {
         "chrome_colour": "ink",
         "capsule": [("fluid", "share"), ("fluid", "favorite"), ("fluid", "delete")],
         "capsule_size": 26.0,
-        "tabs": [("fluid", "home"), ("fluid", "search"), ("fluid", "settings")],
+        # Tutte piene (giro di correzione di F1A): la scelta la dicono pillola e colore, non il riempimento.
+        "tabs": [("fluid", "home.fill"), ("fluid", "search.fill"), ("fluid", "settings.fill")],
         "tab_selected": ("fluid", "home.fill"),
         "tab_size": 28.0, "tab_dim": 1.0,
         "label_sp": 11.0, "label_line": 14.0,
     },
 }
+# Com'era stamattina (F1A.11a, `selectedIcon`): piena la sola scheda scelta. Solo per la tavola 12.
+STATES["stamattina"] = dict(
+    STATES["dopo"],
+    titolo="Stamattina (piena la sola scelta)",
+    tabs=[("fluid", "home"), ("fluid", "search"), ("fluid", "settings")],
+)
 # Corte: la tab bar del campione e' larga 220 dp per tre schede (nell'engine sono fino a 88 dp per scheda).
 TAB_LABELS = ["Home", "Cerca", "Opzioni"]
 
@@ -329,7 +340,7 @@ def board(side: str, columns: dict[str, Path], out: Path) -> None:
         "Oggi: icone 22 dp (freccia 20) nell'accento, vetri a 8 dp dal bordo e 6 fra loro; capsula 24 dp nell'accento;"
         " tab bar 24 dp, non scelte al 60%, etichette 13 sp.",
         "4.0: icone 26 dp (freccia 24) nell'inchiostro del testo, 16 dp dal bordo e 8 fra due vetri; capsula 26 dp;"
-        " tab bar 28 dp a inchiostro pieno, scelta piena, etichette 11 sp.",
+        " tab bar 28 dp a inchiostro pieno, tutte le icone piene (anche le non scelte, come in Apple), etichette 11 sp.",
         "Icone di oggi: Material Icons Round (le sagome di Icons.Rounded); 4.0: FluidIcons (Material Symbols Rounded 500)."
         " Accento: quello di serie dell'engine.",
     ]
@@ -350,9 +361,61 @@ def board(side: str, columns: dict[str, Path], out: Path) -> None:
     sheet.save(out)
 
 
+# La tab bar della tavola 12: il ritaglio della colonna e quello di Apple, in pixel della tavola (densita' 3).
+TAB_CROP = ((WIDTH_DP - 220) / 2 - 16, TAB_Y - 12, 220 + 32, 62 + 24)
+APPLE_TAB = {
+    "chiaro": (REF / "ios27" / "ritagli" / "T6_scheda_prominente_269_0519.jpg", (100, 15, 1310, 245),
+               "Apple, iOS 27 (T6): icone piene anche non scelte"),
+    "scuro": (REF / "ios27" / "ritagli" / "M3_tab_bar_scura_292_0632.jpg", (90, 230, 1200, 225),
+              "Apple, iOS 27 (M3): icone piene anche non scelte"),
+}
+
+
+def tabbar_board(columns: dict[str, dict[str, Path]], out: Path) -> None:
+    """Stamattina | adesso | Apple, chiaro sopra e scuro sotto, alla stessa scala (1 pt = 1 dp)."""
+    x0, y0, w0, h0 = (round(v * DENSITY) for v in TAB_CROP)
+    rows = []
+    for side in ("chiaro", "scuro"):
+        tiles = []
+        for name in ("stamattina", "dopo"):
+            image = Image.open(columns[side][name]).convert("RGB").crop((x0, y0, x0 + w0, y0 + h0))
+            tiles.append((image, STATES[name]["titolo"] if name != "dopo" else "Adesso (tutte piene)"))
+        path, (x, y, w, h), label = APPLE_TAB[side]
+        scale = DENSITY / APPLE_PX_PER_PT
+        crop = Image.open(path).convert("RGB").crop((x, y, x + w, y + h))
+        crop = crop.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
+        tiles.append((crop, label))
+        rows.append((side, tiles))
+    margin, gap, label_h, row_head = 40, 36, 40, 50
+    width = margin * 2 + sum(t.width for t, _ in rows[0][1]) + gap * 2
+    height = 150 + sum(row_head + label_h + max(t.height for t, _ in tiles) + 30 for _, tiles in rows) + 60
+    sheet = Image.new("RGB", (width, height), (250, 250, 250))
+    draw = ImageDraw.Draw(sheet)
+    draw.text((margin, 30), "Tab bar: piena la sola scheda scelta (stamattina) o tutte (adesso), accanto ad Apple",
+              font=pil_font(40, bold=True), fill=(20, 20, 22))
+    draw.text((margin, 90), "Stesso vetro, stesse taglie (28 dp, etichette 11 sp, inchiostro pieno): cambia solo il"
+              " riempimento delle schede non scelte. Banco, densita' 3; Apple alla stessa scala.",
+              font=pil_font(22), fill=(70, 70, 76))
+    y = 150
+    for side, tiles in rows:
+        draw.text((margin, y), "Tema " + side, font=pil_font(30, bold=True), fill=(20, 20, 22))
+        y += row_head
+        x = margin
+        for tile, label in tiles:
+            draw.text((x, y), label, font=pil_font(22), fill=(70, 70, 76))
+            sheet.paste(tile, (x, y + label_h))
+            x += tile.width + gap
+        y += label_h + max(t.height for t, _ in tiles) + 30
+    draw.text((margin, height - 50), "Banco di render, non il dispositivo. La pillola della scelta e' un disegno di"
+              " servizio. Generata da tools/glassbench/scenes/f1a/icone/tavola_icone.py.", font=pil_font(20),
+              fill=(110, 110, 118))
+    sheet.save(out)
+
+
 def main() -> int:
     WORK.mkdir(parents=True, exist_ok=True)
     glyphs = Glyphs()
+    tab_columns: dict[str, dict[str, Path]] = {}
     for side in ("chiaro", "scuro"):
         columns = {}
         for state_name in ("prima", "dopo"):
@@ -364,9 +427,16 @@ def main() -> int:
             final = WORK / f"{state_name}-{side}.png"
             overlay(raw, state_name, side, glyphs, final)
             columns[state_name] = final
+        # Stamattina: lo stesso vetro di «dopo», con la sola scheda scelta piena.
+        morning = WORK / f"stamattina-{side}.png"
+        overlay(WORK / f"dopo-{side}-vetro.png", "stamattina", side, glyphs, morning)
+        tab_columns[side] = {"stamattina": morning, "dopo": columns["dopo"]}
         out = OUT_DIR / f"icone-prima-dopo-{side}.png"
         board(side, columns, out)
         print(f"scritta {out.relative_to(ROOT)}")
+    out = OUT_DIR / "12-tabbar-piene.png"
+    tabbar_board(tab_columns, out)
+    print(f"scritta {out.relative_to(ROOT)}")
     return 0
 
 

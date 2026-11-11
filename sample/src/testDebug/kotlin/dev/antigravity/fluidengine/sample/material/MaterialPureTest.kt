@@ -36,8 +36,9 @@ class MaterialPureTest {
       assertTrue("${scene.key}: quali voci copre", scene.voices.startsWith("F1A."))
       assertEquals(scene, MaterialConfig.defaults(scene).scene)
     }
-    // Le tredici scene: le quattordici voci di F1A.6 (il ritorno dallo sfondo non ha una scena sua), F1A.7, F1A.8.
-    assertEquals(13, MaterialScene.entries.size)
+    // Le quattordici scene: le quattordici voci di F1A.6 (il ritorno dallo sfondo non ha una scena sua), F1A.7,
+    // F1A.8, e i tasti fratelli di un pannello che esporta (giro di correzione di F1A).
+    assertEquals(14, MaterialScene.entries.size)
   }
 
   @Test

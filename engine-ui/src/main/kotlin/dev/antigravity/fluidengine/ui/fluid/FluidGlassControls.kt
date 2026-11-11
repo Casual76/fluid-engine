@@ -261,7 +261,10 @@ fun Modifier.glassControlSurface(
   // ingressi, quindi le due risposte coincidono; qui serve saperlo prima, perche' col materiale nuovo il
   // bagliore del dito non e' piu' un disegno a parte sopra il vetro: passa dalla sua luce.
   val resolvedOptics = remember(optics) { optics.sanitized() }
-  val liquid = rememberFluidGlassModel(shape, GlassFalloff.Uniform, resolvedOptics) == FluidGlassModel.Liquid
+  // La forma alla taglia del controllo (F1A, giro di correzione): una sola misura, per la scelta di qui e per il
+  // vetro di prima qui sotto, perche' i due rispondano uguale.
+  val fit = rememberGlassFieldFit(shape)
+  val liquid = rememberFluidGlassModel(shape, GlassFalloff.Uniform, resolvedOptics, fit) == FluidGlassModel.Liquid
   val touchLight = remember(press, reducedMotion) {
     GlassTouchLight(
       // Gli stessi due numeri che riceve il bagliore di prima: la pressione, e il peso che le animazioni
@@ -294,6 +297,7 @@ fun Modifier.glassControlSurface(
   }
 
   return this
+    .then(fit.modifier)
     .then(
       if (pieceSink != null && barPiece != null) {
         Modifier.onGloballyPositioned { coordinates ->
@@ -330,17 +334,26 @@ fun Modifier.glassControlSurface(
           touch = if (interactive) touchLight else null,
         )
       } else {
-        Modifier.glassSurface(
+        // Gli argomenti di prima, piu' la misura della forma di qui sopra: i valori di serie di `glassSurface` scritti.
+        Modifier.glassSurfaceFitted(
           state = backdrop,
           tint = selectionTint,
           shape = shape,
+          edge = GlassEdge.None,
+          falloff = GlassFalloff.Uniform,
+          intensity = { 1f },
           role = GlassRole.Interactive,
           optics = optics,
           opticalDepth = depth,
           pressed = { press.progress.fastCoerceIn(0f, 1f) },
+          exports = null,
+          layerBlock = pressLayer,
+          sampleOnce = false,
+          resampleIntervalMillis = 0L,
           frozen = frozen,
           heldWhileMoving = heldWhileMoving,
-          layerBlock = pressLayer,
+          nestInContainer = true,
+          fit = fit,
         )
       },
     )

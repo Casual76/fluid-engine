@@ -42,6 +42,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
@@ -68,9 +69,14 @@ private val HudSpace = 150.dp
  *
  * Senza `material.scene` la pagina mostra l'elenco delle scene. Gli extra si leggono solo nella build di debug. La
  * mappa voce del backlog → scena → comando → cosa guardare sta in `LEGGIMI.md`, accanto a questo file.
+ *
+ * @param stage il fondo in cui la scena registra il suo palco, se chi la ospita ne ha uno da dargli: la galleria gli
+ *   passa quello che la sua barra delle schede (e i suoi host) campionano quando nessuna `FluidScreen` ne registra uno.
+ *   Senza, la barra sopra la scena campionava un fondo vuoto e lasciava vedere il testo quasi nitido (S2-pre); con,
+ *   sfoca il palco come ogni altra pagina sfoca la sua. Nullo: un fondo della scena, che vede solo la scena.
  */
 @Composable
-internal fun MaterialPage(bottomInset: Dp, onBack: () -> Unit) {
+internal fun MaterialPage(bottomInset: Dp, stage: GlassBackdropState? = null, onBack: () -> Unit) {
   val context = LocalContext.current
   val activity = remember(context) { context.findActivity() }
   val switches = LocalGalleryGlassSwitches.current
@@ -96,7 +102,7 @@ internal fun MaterialPage(bottomInset: Dp, onBack: () -> Unit) {
     // Una scena cambiata a mano si lascia con «Indietro»: si torna a quella degli extra, o all'elenco.
     BackHandler(enabled = picked != null) { pick(null) }
     key(config, revision) {
-      MaterialRun(config = config, bottomInset = bottomInset, onOpenPanel = { setPanel(true) })
+      MaterialRun(config = config, bottomInset = bottomInset, pageStage = stage, onOpenPanel = { setPanel(true) })
     }
     MaterialPanel(
       visible = panelOpen,
@@ -142,10 +148,17 @@ private fun MaterialMenu(bottomInset: Dp, onBack: () -> Unit, onPick: (MaterialS
 
 /** Una scena in scena: il palco, la scena, l'host del menu della pagina, il riquadro e il pannello. */
 @Composable
-private fun MaterialRun(config: MaterialConfig, bottomInset: Dp, onOpenPanel: () -> Unit) {
+private fun MaterialRun(
+  config: MaterialConfig,
+  bottomInset: Dp,
+  pageStage: GlassBackdropState?,
+  onOpenPanel: () -> Unit,
+) {
   val report = remember { MaterialReport() }
   val clock = remember { MeasureClock() }
-  val stage = rememberGlassBackdrop()
+  // Il palco nel fondo della galleria, se c'è (vedi `MaterialPage`): la barra delle schede sopra la scena lo sfoca.
+  val ownStage = rememberGlassBackdrop()
+  val stage = pageStage ?: ownStage
   val menu = rememberFluidMorphMenuState()
   val view = LocalView.current
   val finger = remember(view) { MaterialFinger(view) }

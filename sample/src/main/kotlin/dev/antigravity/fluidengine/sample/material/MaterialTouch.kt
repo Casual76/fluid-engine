@@ -53,27 +53,68 @@ internal class MaterialFinger(private val view: View) {
   /** Il dito se ne va senza un rilascio: il gesto si annulla (la scena che finisce a metà pressione). */
   fun cancel(at: Offset) {
     if (!isDown) return
-    send(MotionEvent.ACTION_CANCEL, at)
+    val points = if (fingers.size > 1) fingers else listOf(at)
+    send(MotionEvent.ACTION_CANCEL, points)
     isDown = false
+    fingers = emptyList()
   }
 
-  private fun send(action: Int, at: Offset) {
-    val properties = arrayOf(
+  /** Dove stanno le dita mentre sono giù in più d'una ([downAll]); vuota con un dito solo. */
+  private var fingers: List<Offset> = emptyList()
+
+  /**
+   * Più dita che scendono **insieme**, una per punto di [points] (giro di correzione di F1A: due controlli premuti
+   * nello stesso momento, ognuno col suo bagliore). Come le consegna il sistema: la prima con `ACTION_DOWN`, le altre
+   * con `ACTION_POINTER_DOWN`, ognuna col suo `id`.
+   */
+  fun downAll(points: List<Offset>) {
+    if (isDown) cancel(points.first())
+    downTime = SystemClock.uptimeMillis()
+    isDown = true
+    send(MotionEvent.ACTION_DOWN, points.take(1))
+    for (i in 1 until points.size) {
+      send(MotionEvent.ACTION_POINTER_DOWN or (i shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), points.take(i + 1))
+    }
+    fingers = points
+  }
+
+  /** Le dita di [downAll] si spostano tutte insieme. */
+  fun moveAll(points: List<Offset>) {
+    if (!isDown) return
+    send(MotionEvent.ACTION_MOVE, points)
+    fingers = points
+  }
+
+  /** Le dita di [downAll] si alzano, dall'ultima alla prima. */
+  fun upAll(points: List<Offset>) {
+    if (!isDown) return
+    for (i in points.size - 1 downTo 1) {
+      send(MotionEvent.ACTION_POINTER_UP or (i shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), points.take(i + 1))
+    }
+    send(MotionEvent.ACTION_UP, points.take(1))
+    isDown = false
+    fingers = emptyList()
+  }
+
+  private fun send(action: Int, at: Offset) = send(action, listOf(at))
+
+  private fun send(action: Int, points: List<Offset>) {
+    val properties = Array(points.size) { index ->
       MotionEvent.PointerProperties().apply {
-        id = 0
+        id = index
         toolType = MotionEvent.TOOL_TYPE_FINGER
-      },
-    )
-    val coords = arrayOf(
+      }
+    }
+    val coords = Array(points.size) { index ->
       MotionEvent.PointerCoords().apply {
-        x = at.x
-        y = at.y
+        x = points[index].x
+        y = points[index].y
         pressure = 1f
         size = 1f
-      },
-    )
+      }
+    }
     val event = MotionEvent.obtain(
-      downTime, SystemClock.uptimeMillis(), action, 1, properties, coords,
+      downTime, SystemClock.uptimeMillis(), action, points.size, properties, coords,
       0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0,
     )
     try {

@@ -264,7 +264,7 @@ class IconSizesInComponentsTest {
           FluidCapsuleAction(FluidIcons.Search, "azione sciolta", onClick = {})
           FluidFloatingTabBar(
             items = listOf(
-              FluidTabItem("home", "Home", FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
+              FluidTabItem("home", "Home", FluidIcons.Home, filledIcon = FluidIcons.Filled.Home),
               FluidTabItem("search", "Cerca", FluidIcons.Search),
             ),
             selectedRoute = "home",

@@ -262,9 +262,9 @@ private fun RailSection() {
   var route by remember { mutableStateOf("mail") }
   var writes by remember { mutableIntStateOf(0) }
   val items = listOf(
-    FluidTabItem(route = "mail", label = "Posta", icon = FluidIcons.Inbox, selectedIcon = FluidIcons.Filled.Inbox, badge = FluidTabBadge(count = 3)),
-    FluidTabItem(route = "search", label = "Cerca", icon = FluidIcons.Search, selectedIcon = FluidIcons.Filled.Search),
-    FluidTabItem(route = "chat", label = "Chat", icon = FluidIcons.Forum, selectedIcon = FluidIcons.Filled.Forum, badge = FluidTabBadge.Dot),
+    FluidTabItem(route = "mail", label = "Posta", icon = FluidIcons.Inbox, filledIcon = FluidIcons.Filled.Inbox, badge = FluidTabBadge(count = 3)),
+    FluidTabItem(route = "search", label = "Cerca", icon = FluidIcons.Search, filledIcon = FluidIcons.Filled.Search),
+    FluidTabItem(route = "chat", label = "Chat", icon = FluidIcons.Forum, filledIcon = FluidIcons.Filled.Forum, badge = FluidTabBadge.Dot),
   )
   Stage(height = 340.dp, modifier = Modifier.testTag("rail-stage")) { backdrop ->
     Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {

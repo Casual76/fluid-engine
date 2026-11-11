@@ -170,6 +170,8 @@ object FluidGlassDiagnostics {
    *
    * L'interruttore è per i test e per le misure: spento, il primo vetro di ogni famiglia paga la compilazione
    * nel suo primo fotogramma, come fino alla 3.1.2, ed è così che si misura quanto il riscaldamento risparmia.
+   * Acceso, non toglie quel costo al vetro che c'è già nel primo fotogramma della finestra, perché parte dopo:
+   * sul Tab S9 il primo fotogramma di un avvio a freddo costa uguale, acceso o spento.
    * Spegnerlo ferma anche un riscaldamento in attesa; riaccenderlo lo fa ripartire alla prossima superficie
    * che entra in composizione.
    */
@@ -333,7 +335,10 @@ enum class FluidGlassModelReason(val model: FluidGlassModel) {
   /** La fascia in alto (`GlassFalloff.FadeDown`): resta quella di oggi fino al bordo dello scorrimento. */
   FadeDown(FluidGlassModel.Classic),
 
-  /** Una forma che il campo non sa rendere (un contorno generico). */
+  /**
+   * Una forma che il campo non sa rendere: un contorno generico, angoli tagliati, o (4.0.0) un angolo che alla
+   * taglia della superficie scende oltre mezzo lato corto.
+   */
   GenericShape(FluidGlassModel.Classic),
 
   /** Un velo senza lente, bordo né ombra: lo scrim di un modale, non una lastra. */

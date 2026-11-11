@@ -89,7 +89,13 @@ si ottiene sempre, `Liquid` solo dove può esistere. Per ogni superficie decide 
    materiale nuovo ritaglia la sagoma con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno
    sbagliato: una `CutCornerShape`, che pure è una `CornerBasedShape`, usciva con gli angoli tondi, e resta `Classic`
    come ogni sottoclasse di `CornerBasedShape` scritta da un'app. Su un contorno generico il vetro di prima spegne la
-   lente e tiene il resto, che è il ripiego onesto.
+   lente e tiene il resto, che è il ripiego onesto. E la forma deve stare nel campo **alla sua taglia**: Compose riduce
+   due raggi sullo stesso fianco solo quando superano insieme il lato corto, quindi un angolo può scendere oltre mezzo
+   lato (`RoundedCornerShape(topStart = 80.dp, …)` su un lato corto di 100), e il campo, che sceglie l'angolo per
+   quadrante, no: quella forma, a quella taglia, resta `Classic` (motivo `GenericShape`). Si chiede al layout, e solo
+   per le forme con angoli diversi (`GlassFieldFit`): fino alla prima misura la superficie è `Liquid`, quindi una forma
+   che non ci sta si vede nuova per un fotogramma. Il fumetto di chat `22/22/22/6` è `Liquid` da 44 dp di altezza in su
+   e `Classic` a 40.
 5. **L'ottica ha uno spessore**: lente, bordo oppure ombra. Un'ottica senza nessuno dei tre è un velo che sfoca appena
    e scurisce, cioè lo **scrim di un modale**, e il materiale nuovo gli darebbe la smerigliatura e l'ombreggiatura di
    una lastra grande quanto lo schermo.
@@ -261,9 +267,13 @@ già come rettangoli arrotondati al raggio equivalente, e il campo fa lo stesso;
 ritaglio hardware resta un rettangolo arrotondato, perché un ritaglio su un path generico farebbe mascherare il nodo
 fuori schermo a ogni fotogramma, e per le lastre raccordate sta al **98%** del raggio nominale: il raccordo esce di
 poco dal cerchio attorno alla diagonale, e un ritaglio al raggio pieno taglierebbe lì il filo, che è largo due o tre
-pixel. `RoundedCornerShape` e `AbsoluteRoundedCornerShape` prendono i loro quattro raggi come angoli circolari; una
-`CutCornerShape` e ogni altra forma restano `Classic` (fino al ritocco del profilo una `CutCornerShape` usciva con gli
-angoli tondi).
+pixel. `RoundedCornerShape` e `AbsoluteRoundedCornerShape` prendono i loro quattro raggi come angoli circolari, **con
+la riduzione di Compose** (le coppie sullo stesso fianco, contro il lato corto) e quella di Skia (tutti insieme, se due
+raggi accanto superano un lato); le `ContinuousCornerShape` grandi la riduzione di Compose e poi il limite a mezzo lato
+dell'emettitore. Il campo rende esattamente quel contorno quando ogni angolo sta entro mezzo lato corto
+(`GlassSlabGeometry.fits`, provato contro `Shape.createOutline` in `GlassFieldOutlineTest`); altrimenti la superficie
+resta `Classic`. Una `CutCornerShape` e ogni altra forma restano `Classic` (fino al ritocco del profilo una
+`CutCornerShape` usciva con gli angoli tondi).
 
 **La ricetta e il profilo.** Tutti i numeri che una lastra riceve li calcola una funzione pura, `glassRecipe`, da ruolo,
 ottica, taglia, lato del tema, intensità, profondità, qualità e pressione. I numeri **di gusto** (spessore e colore del
@@ -354,6 +364,13 @@ e mai nel percorso dell'avvio**, che è già il fotogramma più lungo che un'app
   non la chiede ancora nessuno, perché ancora nessuno disegna gruppi). Una famiglia con una sorgente rifiutata si salta
   per intero; un disegno fuori schermo che fallisce ferma la sua famiglia per tutto il processo e lo scrive in logcat a
   livello errore (tag `FluidGlass`); una famiglia finita lo scrive a livello informazione.
+- **Cosa non fa (misurato).** Sul Tab S9, avvii a freddo, tre per lato: **non protegge la prima schermata**. Parte dopo
+  il suo primo fotogramma, quindi un vetro che c'è già lì compila i suoi programmi in quel fotogramma, acceso o spento
+  (RenderThread del primo fotogramma 54–61 ms acceso, 54–55 spento). E nella galleria non accorcia neanche la prima
+  pagina aperta tre secondi dopo: il primo fotogramma di «Controlli» costa 45–50 ms di RenderThread acceso e 49–50
+  spento, quello di «Materiale» 13 e 12–13. La causa non è isolata (la prima schermata della galleria ha già del vetro,
+  che può aver compilato gli stessi programmi). Il caso per cui esiste, una prima schermata senza lastre nuove e la
+  prima che entra dopo, sul dispositivo non è ancora misurato.
 
 **Da sapere: un'app chiusa entro pochi secondi dal primo vetro ricompila al lancio dopo.** HWUI scrive la cache dei
 programmi su disco circa quattro secondi dopo una compilazione (misurato sul tablet): un processo che muore prima non

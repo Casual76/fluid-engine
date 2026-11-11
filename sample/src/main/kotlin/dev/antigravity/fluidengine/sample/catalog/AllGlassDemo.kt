@@ -203,9 +203,9 @@ private fun RailSection() {
   var selected by remember { mutableStateOf("home") }
   val items = remember {
     listOf(
-      FluidTabItem("home", "Home", FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
+      FluidTabItem("home", "Home", FluidIcons.Home, filledIcon = FluidIcons.Filled.Home),
       FluidTabItem("star", "Preferiti", FluidIcons.Filled.Star),
-      FluidTabItem("settings", "Opzioni", FluidIcons.Settings, selectedIcon = FluidIcons.Filled.Settings),
+      FluidTabItem("settings", "Opzioni", FluidIcons.Settings, filledIcon = FluidIcons.Filled.Settings),
     )
   }
   Stage(height = 220.dp) { backdrop ->

@@ -2,13 +2,22 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalView
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
+import dev.antigravity.fluidengine.ui.glass.field.glassFieldFits
+import dev.antigravity.fluidengine.ui.glass.field.glassFieldFitsAtAnySize
 import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
 import dev.antigravity.fluidengine.ui.glass.field.glassModelChoice
 
@@ -65,10 +74,12 @@ internal const val FluidGlassLiquidMinSdk: Int = Build.VERSION_CODES.TIRAMISU
  *  3. la superficie non è la fascia in alto ([GlassFalloff.FadeDown]): resta quella di oggi finché non la
  *     sostituisce il bordo dello scorrimento (piano, F2.5);
  *  4. la forma è una che il campo sa rendere ([genericShape] falso): un rettangolo o una forma ad angoli tondi
- *     (`RoundedCornerShape`, `CircleShape`, le forme continue dell'engine; vedi `glassFieldRenders`). Su un
- *     contorno generico il vetro di oggi spegne la lente e tiene il resto; il materiale nuovo ritaglia con lo
- *     shader, e una sagoma che lo shader non conosce uscirebbe col contorno sbagliato: una `CutCornerShape`,
- *     che pure ha quattro «angoli», usciva con gli angoli tondi;
+ *     (`RoundedCornerShape`, `CircleShape`, le forme continue dell'engine; vedi `glassFieldRenders`), **alla
+ *     taglia a cui si disegna** (`glassFieldFits`: un angolo oltre mezzo lato corto, che Compose disegna e il
+ *     campo no, la lascia di qua). Su un contorno generico il vetro di oggi spegne la lente e tiene il resto; il
+ *     materiale nuovo ritaglia con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno
+ *     sbagliato: una `CutCornerShape`, che pure ha quattro «angoli», usciva con gli angoli tondi, e una
+ *     `RoundedCornerShape(topStart = 80.dp, …)` su un lato di 100 usciva con l'angolo a 50;
  *  5. la superficie ha uno spessore ([flat] falso). Un'ottica senza lente, senza bordo e senza ombra non
  *     descrive una lastra: è un velo che sfoca appena e scurisce, cioè lo scrim di un modale. Il materiale
  *     nuovo gli darebbe la smerigliatura e l'ombreggiatura di una lastra grande quanto lo schermo;
@@ -120,14 +131,22 @@ internal fun glassLiquidSlabShadersHealthy(): Boolean =
  * @param optics già passata da `sanitized()`.
  */
 @Composable
-internal fun rememberFluidGlassModel(shape: Shape, falloff: GlassFalloff, optics: GlassOptics): FluidGlassModel {
+internal fun rememberFluidGlassModel(
+  shape: Shape,
+  falloff: GlassFalloff,
+  optics: GlassOptics,
+  fit: GlassFieldFit? = null,
+): FluidGlassModel {
   val requested = LocalFluidGlassModel.current
   // F1A.7: la finestra della superficie, a cui il riscaldamento chiede quando è disegnata e ferma.
   val view = LocalView.current
-  return remember(requested, shape, falloff, optics) {
+  // F1A, giro di correzione: la forma alla taglia misurata. Letto qui, in composizione: quando la misura cambia
+  // risposta la superficie si ricompone e passa all'altro vetro.
+  val fits = fit?.fits ?: true
+  return remember(requested, shape, falloff, optics, fits) {
     // F1A.7: il livello di API su cui il vetro decide, che una build di debug può simulare (`bd/Platform.kt`).
     val sdk = glassApiLevel()
-    val genericShape = !glassFieldRenders(shape)
+    val genericShape = !glassFieldRenders(shape) || !fits
     val flat = optics.isFlatVeil()
     val model = resolveFluidGlassModel(
       sdk = sdk,
@@ -142,3 +161,50 @@ internal fun rememberFluidGlassModel(shape: Shape, falloff: GlassFalloff, optics
     glassModelChoice(model, sdk, requested, falloff, genericShape, flat, view)
   }.model
 }
+
+/**
+ * Se il campo sa rendere la forma di una superficie **alla taglia del suo nodo**, e il modificatore che la misura.
+ *
+ * Una forma con i quattro angoli uguali il campo la rende a ogni taglia (`glassFieldFitsAtAnySize`), e per lei non
+ * c'è niente da misurare: [modifier] è vuoto e [fits] resta vero. Una con angoli diversi dipende dalla taglia (un
+ * fumetto di chat `22/22/22/6` è `Liquid` a 44 dp di altezza, `Classic` a 40, dove Compose disegna l'angolo da 22
+ * oltre mezzo lato): [modifier] la misura al layout e [fits] cambia quando cambia la risposta.
+ *
+ * Il vetro si sceglie in composizione, la taglia arriva dopo: fino alla prima misura [fits] è vero, e una forma che
+ * a quella taglia il campo non sa rendere si disegna `Liquid` **per un fotogramma** (con gli angoli limitati a mezzo
+ * lato, dentro la sagoma) prima di passare a `Classic`. Una forma che resta resa non cambia mai vetro. Un vetro che
+ * cresce e attraversa la soglia (un fumetto che va a capo) cambia vetro quando la attraversa.
+ *
+ * [modifier] va **in testa** alla catena di chi disegna, nello stesso punto con i due vetri: così il nodo che misura
+ * resta lo stesso quando la superficie passa dall'uno all'altro.
+ */
+@Stable
+internal class GlassFieldFit(private val shape: Shape) {
+
+  /** Vero se il campo rende la forma alla taglia misurata (o se non c'è ancora una misura). */
+  var fits: Boolean by mutableStateOf(true)
+    private set
+
+  /** L'ultima risposta scritta, come campo semplice: il layout non legge lo stato che scrive. */
+  private var written = true
+
+  /** Il nodo che misura, o niente se la forma non dipende dalla taglia. */
+  val modifier: Modifier = if (glassFieldFitsAtAnySize(shape)) {
+    Modifier
+  } else {
+    Modifier.layout { measurable, constraints ->
+      val placeable = measurable.measure(constraints)
+      val now = glassFieldFits(shape, Size(placeable.width.toFloat(), placeable.height.toFloat()), this, layoutDirection)
+      // Uno stato scritto al layout: la composizione lo legge al fotogramma dopo.
+      if (now != written) {
+        written = now
+        fits = now
+      }
+      layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+  }
+}
+
+/** [GlassFieldFit] per [shape], ricordata finché la forma resta quella. */
+@Composable
+internal fun rememberGlassFieldFit(shape: Shape): GlassFieldFit = remember(shape) { GlassFieldFit(shape) }

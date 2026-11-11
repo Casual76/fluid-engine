@@ -64,10 +64,12 @@ import kotlin.math.roundToInt
  * @param badge il segno di «c'e' qualcosa» sull'icona della zona ([FluidTabBadge]); null (di serie)
  *   e la zona e' quella di sempre, stesso albero e stesse misure. In coda e con default: una voce
  *   costruita per posizione con tre argomenti compila come prima.
- * @param selectedIcon l'icona della zona **quando e' quella scelta**, di solito la gemella piena di [icon]
- *   (`icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home`): nella tab bar di Apple la scheda scelta e'
- *   piena e le altre al tratto. Null (di serie): [icon] sempre, come fino alla 3.x. In coda e con default, dalla 4.0:
- *   le voci costruite per posizione con tre o quattro argomenti compilano come prima.
+ * @param filledIcon la gemella **piena** di [icon] (`icon = FluidIcons.Home, filledIcon = FluidIcons.Filled.Home`), che
+ *   la tab bar e il rail disegnano **su ogni scheda**, scelta o no: nella tab bar di Apple le icone sono tutte piene,
+ *   anche quelle delle schede non scelte (ricerca R6, piano 3.14), e la scelta si distingue per la pillola e il colore,
+ *   non per il riempimento. Null (di serie): [icon] su ogni scheda, come fino alla 3.x. In coda e con default, dalla
+ *   4.0: le voci costruite per posizione con tre o quattro argomenti compilano come prima. [icon] resta l'icona della
+ *   zona dove serve al tratto (un menu, una riga che la nomina).
  */
 @Immutable
 data class FluidTabItem(
@@ -75,18 +77,19 @@ data class FluidTabItem(
   val label: String,
   val icon: ImageVector,
   val badge: FluidTabBadge? = null,
-  val selectedIcon: ImageVector? = null,
-) {
-  /**
-   * L'icona da disegnare: [selectedIcon] se la zona e' quella scelta e l'app l'ha data, altrimenti [icon].
-   *
-   * Un parametro e non una ricerca della gemella piena nel set dell'engine: la ricerca coprirebbe solo le 31 icone
-   * piene di `FluidIcons`, non quelle che un'app genera per se' (`gen_fluid_icons.py --app`) ne' una coppia Material
-   * (`Icons.Outlined.Home` e `Icons.Rounded.Home`), e chiederebbe una tabella scritta a mano accanto a un set che
-   * nasce da un generatore. Scritto dall'app vale per qualunque coppia.
-   */
-  fun iconFor(selected: Boolean): ImageVector = if (selected) selectedIcon ?: icon else icon
-}
+  val filledIcon: ImageVector? = null,
+)
+
+/**
+ * L'icona che la tab bar e il rail disegnano per la scheda: [FluidTabItem.filledIcon] se l'app l'ha data, altrimenti
+ * [FluidTabItem.icon]. Scelta o no, la stessa (vedi [FluidTabItem.filledIcon]).
+ *
+ * Un parametro e non una ricerca della gemella piena nel set dell'engine: la ricerca coprirebbe solo le 31 icone piene
+ * di `FluidIcons`, non quelle che un'app genera per se' (`gen_fluid_icons.py --app`) ne' una coppia Material
+ * (`Icons.Outlined.Home` e `Icons.Rounded.Home`), e chiederebbe una tabella scritta a mano accanto a un set che nasce da
+ * un generatore. Scritto dall'app vale per qualunque coppia.
+ */
+internal val FluidTabItem.barIcon: ImageVector get() = filledIcon ?: icon
 
 /**
  * Il segno su una zona della barra o del rail: un pallino («ci sono novita'») o un numero.
@@ -394,10 +397,11 @@ private fun FluidTabItemFace(
     verticalArrangement = Arrangement.spacedBy(2.dp),
   ) {
     val glyph: @Composable () -> Unit = {
-      // La gemella piena della zona scelta, come nella barra in basso (4.0), e la sua taglia: 28 dp, il token della tab
-      // bar (erano 24 scritti qui). Il rail e la barra sono la stessa barra su due larghezze e le icone devono pesare uguale.
+      // La gemella piena su ogni zona, come nella barra in basso (4.0: in Apple sono piene anche le non scelte), e la sua
+      // taglia: 28 dp, il token della tab bar (erano 24 scritti qui). Il rail e la barra sono la stessa barra su due
+      // larghezze e le icone devono pesare uguale.
       FluidIcon(
-        imageVector = item.iconFor(selected),
+        imageVector = item.barIcon,
         contentDescription = null,
         tint = contentColor,
         size = FluidTabBarDefaults.RailIconSize,

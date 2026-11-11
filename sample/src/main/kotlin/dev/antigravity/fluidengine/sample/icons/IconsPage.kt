@@ -321,9 +321,9 @@ private fun ChromeStages(dark: Boolean) {
 /** Tre schede con la gemella piena: Home, Cerca, Impostazioni. */
 private val TabItems: List<FluidTabItem>
   get() = listOf(
-    FluidTabItem("home", "Home", FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
-    FluidTabItem("search", "Cerca", FluidIcons.Search, selectedIcon = FluidIcons.Filled.Search),
-    FluidTabItem("settings", "Impostazioni", FluidIcons.Settings, selectedIcon = FluidIcons.Filled.Settings),
+    FluidTabItem("home", "Home", FluidIcons.Home, filledIcon = FluidIcons.Filled.Home),
+    FluidTabItem("search", "Cerca", FluidIcons.Search, filledIcon = FluidIcons.Filled.Search),
+    FluidTabItem("settings", "Impostazioni", FluidIcons.Settings, filledIcon = FluidIcons.Filled.Settings),
   )
 
 /** Un palco alto quanto la barra in alto di uno schermo: la barra di stato, la riga da 44 dp e la coda del vetro. */

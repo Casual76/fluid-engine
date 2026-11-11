@@ -25,7 +25,7 @@ import org.junit.Test
  *
  * Perche' esiste. F1A.11 cambia di serie la taglia e l'inchiostro delle icone dell'engine senza cambiare una firma:
  * e' la condizione perche' un'app aggiorni senza toccare una riga. Le aggiunte sono tre, tutte in coda e con un
- * valore di serie: `FluidBarAction(…, tint)`, `FluidTabItem(…, selectedIcon)` e le API nuove `FluidIcon`,
+ * valore di serie: `FluidBarAction(…, tint)`, `FluidTabItem(…, filledIcon)` e le API nuove `FluidIcon`,
  * `LocalFluidIconSize`, `FluidMetrics`. Le app compilano l'engine dai sorgenti, quindi la prova e' la compilazione:
  * se una di queste chiamate smette di compilare, il file non compila e il test fallisce prima di girare.
  *
@@ -105,14 +105,14 @@ class IconCompatSignaturesTest {
   fun `FluidTabItem - per posizione con tre e quattro argomenti come prima, la gemella piena in coda`() {
     val three = FluidTabItem("home", "Home", Icons.Rounded.Home)
     val four = FluidTabItem("home", "Home", Icons.Rounded.Home, FluidTabBadge.Dot)
-    assertNull(three.selectedIcon)
-    assertNull(four.selectedIcon)
+    assertNull(three.filledIcon)
+    assertNull(four.filledIcon)
     assertEquals(FluidTabBadge.Dot, four.badge)
 
     val five = FluidTabItem("home", "Home", FluidIcons.Home, null, FluidIcons.Filled.Home)
-    val named = FluidTabItem(route = "home", label = "Home", icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home)
+    val named = FluidTabItem(route = "home", label = "Home", icon = FluidIcons.Home, filledIcon = FluidIcons.Filled.Home)
     assertEquals(five, named)
-    assertSame(FluidIcons.Filled.Home, named.selectedIcon)
+    assertSame(FluidIcons.Filled.Home, named.filledIcon)
     // La destrutturazione di prima (quattro componenti) resta quella.
     val (route, label, icon, badge) = four
     assertEquals(listOf("home", "Home", Icons.Rounded.Home, FluidTabBadge.Dot), listOf(route, label, icon, badge))

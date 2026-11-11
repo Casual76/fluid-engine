@@ -17,6 +17,11 @@ internal enum class MaterialScene(val key: String, val title: String, val detail
   Edge("edge", "Il bordo a taglia vera", "Tondo, capsula e menu fermi, con i riquadri in pixel per i ritagli a 6x.", "F1A.6 2, 3"),
   Corner("corner", "L'angolo dei grandi", "Due pannelli grandi con l'angolo continuo, ritagliati al 98%.", "F1A.6 4"),
   Nested("nested", "Vetro annidato", "Tasti e interruttore su un foglio di vetro; il primo tasto si preme da solo.", "F1A.6 5"),
+  Siblings(
+    "siblings", "Vetro annidato, tasti fratelli",
+    "Un pannello che esporta il suo materiale e i tasti in un nodo accanto, sul fondo combinato pagina + pannello.",
+    "F1A.13, giro di correzione",
+  ),
   Press("press", "Pressione", "Un dito finto preme e scorre su un tasto tondo e su una capsula, in ciclo.", "F1A.6 6"),
   Intensity("intensity", "Intensità", "Capsula e pannello che compaiono e spariscono, intensity da 0 a 1 in ciclo.", "F1A.6 9"),
   ListUnderBar("list", "Lista sotto una barra", "Una pagina vera che scorre da sola sotto la barra in alto e una capsula.", "F1A.6 7"),
@@ -84,6 +89,17 @@ internal data class MaterialConfig(
   val contrast: Float? = null,
   /** Il riquadro di stato sopra la scena. */
   val hud: Boolean = true,
+  /**
+   * Il foglio della scena `modal`: di vetro sul palco (di serie), o **senza fondo** (`material.sheet opaque`: l'host
+   * dei modali senza `backdrop`, il foglio pieno che pubblica il proprio colore per i tasti di vetro che ospita).
+   */
+  val opaqueSheet: Boolean = false,
+  /**
+   * Quante dita finte premono nella scena `press` (`material.fingers 2`): con due, il tondo e la capsula della colonna
+   * scendono insieme e scorrono in versi opposti, perché due bagliori stiano in scena nello stesso momento (il bagliore
+   * passa da un'istanza di shader condivisa dal processo: ognuno deve avere il suo punto luce).
+   */
+  val fingers: Int = 1,
 ) {
 
   val key: String
@@ -99,6 +115,8 @@ internal data class MaterialConfig(
       }
       if (scene == MaterialScene.Intensity && intensity != null) parts += "intensity=${number(intensity)}"
       if (scene == MaterialScene.Contrast && contrast != null) parts += "contrast=${number(contrast)}"
+      if (scene == MaterialScene.Modal && opaqueSheet) parts += "sheet=opaque"
+      if (scene == MaterialScene.Press && fingers > 1) parts += "fingers=$fingers"
       return parts.joinToString(" ")
     }
 
@@ -109,6 +127,7 @@ internal data class MaterialConfig(
     /** Le scene che si muovono da sole: per loro contano `cycle` e `period`. */
     val CyclingScenes: Set<MaterialScene> = setOf(
       MaterialScene.Nested,
+      MaterialScene.Siblings,
       MaterialScene.Press,
       MaterialScene.Intensity,
       MaterialScene.ListUnderBar,
@@ -121,7 +140,7 @@ internal data class MaterialConfig(
       // L'angolo e il bordo si guardano sulla pagina vera, dove un filo chiaro sparisce (4.6).
       MaterialScene.Edge, MaterialScene.Corner -> MaterialConfig(scene)
       // Il vetro annidato e la pressione vogliono qualcosa da rifrangere.
-      MaterialScene.Nested, MaterialScene.Press -> MaterialConfig(scene, backdrop = MaterialBackdrop.Text)
+      MaterialScene.Nested, MaterialScene.Siblings, MaterialScene.Press -> MaterialConfig(scene, backdrop = MaterialBackdrop.Text)
       MaterialScene.Apps, MaterialScene.Tints -> MaterialConfig(scene, backdrop = MaterialBackdrop.Photo)
       // La lista ha la sua pagina: il fondo è quello che la lista porta sotto la barra.
       MaterialScene.ListUnderBar -> MaterialConfig(scene, periodSeconds = 4f)
@@ -160,6 +179,12 @@ internal data class MaterialConfig(
           else -> decimal(text)?.coerceIn(0f, 1f) ?: base.contrast
         },
         hud = value("hud")?.let(::flag) ?: base.hud,
+        opaqueSheet = when (value("sheet")) {
+          "opaque", "none", "pieno" -> true
+          "glass", "vetro" -> false
+          else -> base.opaqueSheet
+        },
+        fingers = value("fingers")?.toIntOrNull()?.coerceIn(1, 2) ?: base.fingers,
       )
     }
 

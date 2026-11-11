@@ -91,7 +91,7 @@ internal enum class IconsSection(val key: String, val title: String, val detail:
     "set",
     "Il set",
     "FluidIcons: Material Symbols arrotondate, peso 500. A sinistra al tratto, a destra la gemella piena se c'e' " +
-      "(per la scheda scelta della tab bar); ↔ si gira da destra a sinistra.",
+      "(per le schede della tab bar); ↔ si gira da destra a sinistra.",
   ),
   ;
 
@@ -303,7 +303,7 @@ private fun ChromeStages(dark: Boolean) {
         FluidCapsuleAction(FluidIcons.Delete, "Elimina", onClick = {}, destructive = true)
       }
     }
-    // La tab bar: la scheda scelta con la gemella piena, le altre al tratto e a inchiostro pieno.
+    // La tab bar: tutte le schede con la gemella piena, a inchiostro pieno; la scelta la dicono pillola e colore.
     IconStage(height = FluidMetrics.TabBarHeight + 40.dp, modifier = Modifier.testTag("icons-tabbar-$tag")) { backdrop ->
       var route by remember { mutableStateOf("home") }
       FluidFloatingTabBar(

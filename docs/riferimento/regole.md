@@ -784,7 +784,7 @@ tabella), da `GlassDefaultsTest` (le ottiche e le pellicole di `GlassDefaults` s
 test del vetro di prima rimasti verdi senza una riga cambiata (`GlassMaterialStateTest`, `GlassSizeRuleTest`,
 `GlassPanelMaterialTest`, `GlassRimRecipeTest`), e nella galleria da `GlassPathSelectionTest` (il percorso
 a ogni livello di API, anche simulato) e `GlassNodeCountTest` (una lastra `Classic` ha ancora 5 nodi e 5
-layer). Sul banco lo tiene `glassbench.py compare` sulle immagini `golden/classic`, che dopo l'innesto
+layer, ma solo 2 li legge la diagnostica sul dispositivo: gli altri 3 stanno nei nodi di Kyant e si deducono dal codice). Sul banco lo tiene `glassbench.py compare` sulle immagini `golden/classic`, che dopo l'innesto
 sono rimaste identiche. Quello che nessun test dice è com'è il ripiego su un dispositivo vecchio vero: il
 livello simulato fa disegnare all'engine i suoi rami sul driver di un dispositivo nuovo, non prova la
 piattaforma.

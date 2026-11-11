@@ -45,9 +45,10 @@ import org.junit.runner.RunWith
 
 /**
  * Il gemello sul dispositivo di `GlassNodeCountTest` (sample/src/testDebug): la stessa lastra ferma, con il
- * compilatore vero e **disegnata**, così i layer che nascono al primo disegno ci sono. Gli stessi numeri:
- * `Liquid` 4 nodi e 3 layer (cattura, posa, ombra), senza ombra 3 e 2, `Classic` 5 e 5 (di cui tre nei nodi di
- * Kyant che la diagnostica non conta ancora: si contano dalla catena).
+ * compilatore vero e **disegnata**, così i layer che nascono al primo disegno ci sono. Gli stessi numeri per `Liquid`:
+ * 4 nodi e 3 layer (cattura, posa, ombra), senza ombra 3 e 2. Per `Classic` i nodi sono 5 (tre stanno nei file di Kyant,
+ * che la diagnostica non conta ancora: si contano dalla catena), ma i layer che la diagnostica **legge** sono 2 (cattura e
+ * posa): il «5 e 5» del gemello in Robolectric deduce gli altri tre dal codice dei nodi di Kyant, qui non si leggono.
  *
  * Si lancia nelle sessioni sul tablet (S2), con il comando nel rapporto di F1A.7.
  */

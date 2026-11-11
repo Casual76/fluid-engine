@@ -1,13 +1,16 @@
 # La pagina «Materiale»
 
 Pacchetto F1A.9 del piano «iOS in Android» (`docs/liquid-glass/piano.md`, sezione F1A). Il materiale nuovo
-(`Liquid`) sul pannello vero è stato visto una volta, in S1-ter (`artifacts/liquid-glass/sessioni/S1-ter.md`), con la
-combinazione di **prima** delle scelte di gusto; il profilo di serie di oggi (le scelte di Alessio, F1A.5c) e la
-regola del vetro annidato sul tablet non li ha ancora visti nessuno. Questa pagina li mette davanti alle sessioni sul
-tablet (S2, piano 4.5) voce per voce, **accanto al vetro di prima** (`Classic`), sui sei fondi di 4.6, fermo o con il
-fondo che scorre, e scrive in logcat (tag `FluidMateriale`) ciò che dice la diagnostica dell'engine. Si guida tutta da
-`adb`, senza toccare lo schermo; a mano si apre dal catalogo di Chrome (riga «Materiale») o dalle Impostazioni della
-galleria (sezione «Vetro (solo debug)»).
+(`Liquid`) sul pannello vero è stato visto su **un solo dispositivo, un Tab S9**, in due sessioni e dopo il giro di
+correzione di F1A: S1-ter (`artifacts/liquid-glass/sessioni/S1-ter.md`), con la combinazione di prima delle scelte di
+gusto; S2-pre (`sessioni/S2-pre.md`), con il profilo di serie (le scelte di Alessio, F1A.5c) e con la regola del vetro
+annidato, che nella notifica era un anello vuoto; poi il giro di correzione (`sessioni/F1A-correzione/`), che ha chiuso
+l'annidato sul tablet. Lo stato di ogni voce (visto, visto in parte, mai visto) e **chi la guarda** (una sessione o una
+fase del piano) sono nella tabella «Cosa si è visto e chi guarda il resto», prima della mappa. Questa pagina mette le
+voci davanti alle sessioni sul tablet (S2 e le successive, piano 4.5) voce per voce, **accanto al vetro di prima**
+(`Classic`), sui sei fondi di 4.6, fermo o con il fondo che scorre, e scrive in logcat (tag `FluidMateriale`) ciò che
+dice la diagnostica dell'engine. Si guida tutta da `adb`, senza toccare lo schermo; a mano si apre dal catalogo di
+Chrome (riga «Materiale») o dalle Impostazioni della galleria (sezione «Vetro (solo debug)»).
 
 Chi guarda le foto e i video è Alessio, in chat: la sessione porta collage e ritagli, non giudizi a parole.
 
@@ -299,6 +302,44 @@ pellicola densa di oggi.
 Gli stessi vetri da sinistra a destra e da destra a sinistra: un foglio con gli angoli diversi (38 e 10), una capsula
 con la freccia indietro, un tasto con l'icona in testa, la tab bar con la prima scheda scelta.
 
+## Cosa si è visto e chi guarda il resto
+
+Stato delle voci della mappa dopo S1-ter, S2-pre e il giro di correzione di F1A (un solo dispositivo, il Tab S9, tema di
+sistema chiaro all'ultima sessione; i rapporti stanno in `artifacts/liquid-glass/sessioni/`). Nella colonna **chi**: la
+sessione sul dispositivo o la fase del piano che guarda ciò che manca (`docs/liquid-glass/piano.md`: 4.5 per le sessioni,
+le tabelle «Difetti del materiale nuovo visti sul tablet» e «Dopo S2-pre, F1A.13 e il giro di correzione» per i difetti);
+dove il piano non assegna una voce, il proprietario è **S2**. «Chiuso» vuol dire che non resta niente da guardare per F1A.
+
+| voce | cosa si è visto | cosa manca | chi |
+|---|---|---|---|
+| 6.1, 7.1, 7.2 compilazione, test strumentati, riscaldamento | nessuno shader rifiutato; `OK (3 tests)` × 2, 13 «compila», `half4 flat` rifiutato; riscaldamento 7,7–8,1 ms di filo principale (S1-ter 4,6–6,2) | niente | chiuso |
+| 6.2, A.2 il bordo, chiaro e scuro | combacia col banco entro pochi livelli: tondo scuro +95 contro +93 in alto, chiaro −50 contro −42, un pixel più in fuori | niente | chiuso |
+| 6.3, A.4, A.5 ombra | come il banco sotto il foglio (−16 a ridosso, −10 a 16 dp), nessun rettangolo; l'indicatore da 26 dp senza anello | l'ombra che cresce premendo non si è registrata; la lente pesca l'ombra in fondo ai grandi (1–2 livelli, −5 con `large=step`); un foglio scuro a filo dello schermo ha una banda scura in fondo | l'ombra premuta: **S2**; la lente e la banda: **F3** |
+| 6.4 ritaglio al 98% | a occhio, a 4×, il filo ha spessore costante agli angoli dei grandi | in numeri, sul dispositivo | **S2** |
+| 6.5, A.6 vetro annidato | foglio `Liquid` 84 → 61 su 40; notifica piena 65–67 su 56 (scuro) e 240 su 233 (chiaro); controlli fratelli di un pannello 62 su 48; foglio senza fondo 56 su 43; test strumentato 5 su 5 | il composer di `engine-ai-ui` (non è nella galleria); nella notifica **di vetro** in chiaro il corpo è uguale al pannello (239,9 su 240,2) | composer: **S2**; il corpo in chiaro: **F2** |
+| 6.6 pressione | lente, bagliore e filo puliti, ± 5 livelli a fotogramma, nessun lampo; due bagliori insieme col dito finto: va; +0,7 ms di GPU contro il vetro di prima | il bagliore è piatto su tutta la lastra e in chiaro satura a bianco pieno (visto in S1-ter, uguale nel vetro di prima) | **F6** (S5) |
+| 6.7 lista sotto una barra | scadenze non peggiori del vetro di prima (17,5–20,0% contro 20,8–29,2%) | niente | chiuso |
+| 6.8, C ritorno dallo sfondo e rientro nell'albero | 0 pixel cambiati; l'anello dopo il riciclo di una lista coincide con gli angoli | niente | chiuso |
+| 6.9 `intensity` | ferma a 0,25, 0,5 e 0,75 (S2-pre C13); la comparsa: filo e corpo dal primo fotogramma | il primo fotogramma di un foglio che compare con la lastra nuova non si è guardato a vista | **F1B** (prova 6) |
+| 6.10, 6.11 barra ancorata, menu da un tasto, tab bar | il materiale cambia a vista fra riposo e viaggio; la barra fra le pagine mostra un fotogramma senza vetro all'arrivo, 6 su 6, nei due temi di sistema | il difetto è assegnato, non risolto | il materiale: **F1B**; il fotogramma: **F4A**, prova in F1B.6 |
+| 6.12 modale | il foglio dell'host senza fondo (tasto 56 su 43, a mano) e il foglio scuro con fondo (A.1) | il foglio a schermo intero in chiaro (il tocco è caduto sul bordo) | **S2** |
+| 6.13, 8.2 tinte | l'indicatore da 26 dp (A.5) | `Fixed`, `Colored`, `copiata` e il tono dell'indicatore non risultano guardati nei rapporti | **S2** |
+| 6.14, B.3 destra-sinistra | la barra specchiata della sezione `rtl`: margini 16,0 dp da tutti e due i lati | l'intera galleria in destra-sinistra: con la sola chiave `debug.force_rtl` l'app non si gira | **S2** |
+| 7.3, S2 livello simulato e `Classic` forzato | a 32 e a 30: nessuna caduta, `shader provate=0`; `gallery.model classic` uguale al vetro di prima | un dispositivo vero sotto Android 13 (il livello simulato non prova il driver) | **S2** (serve un dispositivo: piano 4.4); l'S25 è della **S5** |
+| 7.4 primo fotogramma con e senza riscaldamento | misurato: 54–61 ms acceso, 54–55 spento; «Controlli» 45–50 contro 49–50; «Materiale» 13 contro 12–13: il riscaldamento non protegge la prima schermata | se tenerlo, anticiparlo o toglierlo | **F7** (il cancello C6 si riapre) |
+| 7.5 conta dei layer | `Liquid` 4 nodi e 3 layer, `Classic` 5 e 2, `Liquid` senza ombra 3 e 2 | i tre nodi di Kyant del vetro di prima non si contano | chiuso (limite noto) |
+| 8.1 orologio | — | l'orologio non è nella galleria e chiede `Classic` | incarico a parte (piano, sezione 2) |
+| 8.3 composer | — | non è nella galleria | **S2** |
+| 8.4 contrasto medio e alto | le lastre tornano la pellicola densa, dal vivo: tondo chiaro 240 · 229 · 225, pannello scuro 35 · 49 · 60 | niente | chiuso |
+| 8.5, A.7 pannello di Fluidify | solo sul banco: 11,5 dp contro 17,5 | sul tablet, su copertine vere | **S2** |
+| 8.6 leggibilità a contrasto standard | debito dichiarato: peggiore di oggi su fondi del tono opposto al tema | la correzione | **F2** (F2-e) |
+| A.1 fogli e card scuri | foglio 42, card 43, controlli 38; testo secondario 6,2, 6,1, 6,6:1 (dopo la correzione: 46 e 45, 5,9:1, un decimo sotto 6:1) | niente per F1A | chiuso |
+| A.3 smerigliatura in movimento | D: macchie a strisce; M: velatura; C: lettere fantasma; sfarfallio D : M : C da 1,5 : 1,2 : 1 (tab bar) a 2,9 : 2,1 : 1 (capsula) | sotto un menu aperto (è ancora Fluid-physics); dietro la tab bar D lascia più contrasto di iOS 26 (19,0 contro 10,2) | il menu: **F1B**; la tab bar: **F2** (col bordo dello scorrimento) |
+| A.8 cattura al 73% | circa +0,1 ms di GPU; scadenze uguali | niente | chiuso |
+| B.1, B.2, B.4, B.5 icone, barre, tab bar, rail | taglie nitide e monocrome; vetri a 16,0–16,7 dp dal bordo, centri a 52 dp, freccia centrata, tab bar 61,9–62,0 dp, rail verticale, lente a inchiostro, croce a 16,7 dp, titolo lungo troncato; icona piena su ogni scheda (tavola 12) | niente | chiuso |
+| B.5 `set`, B.6 prima costruzione di un'icona | — | la sezione `set` non si è aperta e il costo della prima costruzione non si è misurato | **S2** |
+| B.7 minori | — | la scheda «Preferiti» sempre piena e la faccia a 20 dp del tasto deprecato sono noti, non annotati sul dispositivo | **S2** |
+
 ## La mappa: voce del backlog → scena → comando → cosa guardare → esito atteso
 
 Le voci di F1A.6 sono le quattordici del rapporto di F1A.6 («Backlog del dispositivo, in ordine di rischio»), quelle
@@ -321,11 +362,11 @@ serve lo scuro, `GALLERIA="--es gallery.theme dark"`.
 | 6.12 modale | `modal` | `materiale modal hud off; qa_record foglio 12; qa_finish foglio "$OUT"`; foto ferme con `cycle hold` | il foglio e lo scrim nelle due colonne | il foglio `Liquid` è il materiale nuovo e quello `Classic` il vetro di prima; lo scrim è identico nelle due colonne (resta `Classic`: regola del velo piatto) |
 | 6.13 tinte | `tints` | `materiale tints hud off; qa_shot "$OUT" tinte-foto`; poi `backdrop page`, e il tema scuro | indicatore di sincronizzazione, tasto scelto, capsula su foto, `copiata`, `Colored` | l'indicatore ha il suo tono (regola di F1A.8; F1A.6 lo dava perso), il tasto scelto l'accento, la capsula su foto la pellicola di oggi, `copiata` è arancio, `Colored` segue il fondo |
 | 6.14 destra-sinistra e orologio | `rtl` | `materiale rtl hud off; qa_shot "$OUT" rtl; ritagli rtl foglio-ltr foglio-rtl` | il foglio con gli angoli diversi, la capsula, la tab bar | in `rtl` gli angoli sono specchiati e filo e ritaglio li seguono; nessun angolo «sbagliato». L'orologio non è nella galleria: resta nel backlog (NV qui) |
-| 7.1 i due test strumentati | — | `adb shell pm clear $PKG; adb shell am instrument -w -r -e class dev.antigravity.fluidengine.sample.GlassShaderCompileInstrumentedTest $PKG.test/androidx.test.runner.AndroidJUnitRunner`; lo stesso con `GlassNodeCountInstrumentedTest`; poi `adb logcat -d -s GlassShaderCompile GlassNodeCount FluidGlass` | l'uscita dei due test e il logcat | `OK (3 tests)` per ciascuno; 13 «compila»; `Slab` e `Group` `Done (2/2)`; `Liquid` 4 nodi e 3 layer, senza ombra 3 e 2, `Classic` 5 nodi |
-| 7.2 riscaldamento automatico | — | `adb shell pm clear $PKG; adb logcat -c; adb shell am start -S -W -n "$PKG/$ACT"; sleep 5; adb logcat -d -s FluidGlass` | la riga del riscaldamento | «Riscaldamento del vetro: Slab: Done (2/2)…» circa 0,5–1 s dopo che la prima schermata si ferma; nessun `Failed` |
+| 7.1 i due test strumentati | — | `adb shell pm clear $PKG; adb shell am instrument -w -r -e class dev.antigravity.fluidengine.sample.GlassShaderCompileInstrumentedTest $PKG.test/androidx.test.runner.AndroidJUnitRunner`; lo stesso con `GlassNodeCountInstrumentedTest`; poi `adb logcat -d -s GlassShaderCompile GlassNodeCount FluidGlass` | l'uscita dei due test e il logcat | `OK (3 tests)` per ciascuno; 13 «compila»; `Slab` e `Group` `Done (2/2)`; `Liquid` 4 nodi e 3 layer, senza ombra 3 e 2, `Classic` 5 nodi e 2 layer (letti sul tablet in S1-ter e S2-pre) |
+| 7.2 riscaldamento automatico | — | `adb shell pm clear $PKG; adb logcat -c; adb shell am start -S -W -n "$PKG/$ACT"; sleep 5; adb logcat -d -s FluidGlass` | la riga del riscaldamento | «Riscaldamento del vetro: Slab: Done (2/2)…» circa 0,5–1 s dopo che la prima schermata si ferma; nessun `Failed`. Misurato 7,7–8,1 ms di filo principale (S1-ter 4,6–6,2) |
 | 7.3 livello simulato | `components` | `GALLERIA="--es gallery.api 32" materiale components; qa_shot "$OUT" api32; stato`; lo stesso con `30`; poi `gallery.page Menus` e `AllGlass` con gli stessi extra | la riga `STATO`; le foto accanto a quelle dell'APK di riferimento 3.1.2 | a 32: `superfici liquid=0`, `perche ApiLevel=…`, niente lente, riflesso piatto, Fluid-physics a `Balanced`, nessuna compilazione AGSL nuova in logcat; a 30: tinta piena, Fluid-physics a `Lite` |
-| 7.4 primo fotogramma con e senza riscaldamento | «Misure», `compile` | i comandi «(g bis)» di `../measure/LEGGIMI.md` (`steps engine,body1`, `gallery.model classic`, `gallery.warmup off` e `on`, `pm clear` ogni volta) | le righe `COMPILA … engine-warmup`, `engine-before`, `variant=engine` | `engine-before liquid=0`; spento, `first_render_ms` del passo `engine` porta la compilazione (31–39 più 19–25 ms a freddo); acceso, vicino a quello a caldo (3–6 ms per programma) |
-| 7.5 conta dei layer dal vero | `edge` | `materiale edge model liquid; stato`; poi `model classic` | `nodi` e `layer` della riga `STATO` | con tre lastre ferme `Liquid` (più la barra della galleria) i layer per lastra sono 3, e 2 senza ombra; `Classic` 5 nodi (i tre di Kyant non sono contati: limite noto di F1A.7) |
+| 7.4 primo fotogramma con e senza riscaldamento | «Misure», `compile` | i comandi «(g bis)» di `../measure/LEGGIMI.md` (`steps engine,body1`, `gallery.model classic`, `gallery.warmup off` e `on`, `pm clear` ogni volta) | le righe `COMPILA … engine-warmup`, `engine-before`, `variant=engine` | `engine-before liquid=0`; spento, `first_render_ms` del passo `engine` porta la compilazione (31–39 più 19–25 ms a freddo); acceso, vicino a quello a caldo (3–6 ms per programma). **Poi misurato** sulla prima schermata e sulle pagine aperte dopo: il riscaldamento non le accorcia (54–61 ms acceso contro 54–55 spento; «Controlli» 45–50 contro 49–50), vedi la tabella «Cosa si è visto» |
+| 7.5 conta dei layer dal vero | `edge` | `materiale edge model liquid; stato`; poi `model classic` | `nodi` e `layer` della riga `STATO` | con tre lastre ferme `Liquid` (più la barra della galleria) i layer per lastra sono 3, e 2 senza ombra; `Classic` 5 nodi e 2 layer: i tre nodi di Kyant, e i loro tre layer, non sono contati (limite noto di F1A.7: il «5 e 5» del test in Robolectric li deduce dal codice) |
 | 8.1 orologio | — | — | — | NV in questa sessione: serve l'orologio. Atteso: identico alla 3.x (`engine-wear` fornisce `Classic`) |
 | 8.2 tono dell'indicatore di sincronizzazione | `tints` | come 6.13 | l'indicatore | il tono si vede |
 | 8.3 composer | — | — | — | NV qui: il composer è di `engine-ai-ui`, non è nella galleria (PampAI) |
@@ -388,8 +429,9 @@ tutte le manopole insieme (`edge=…,veil=…,frost=…`) e la galleria intera c
 ## Ordine del giorno proposto
 
 Le voci aggiunte dopo S1-ter (F1A.5c, F1A.11a, F1A.11b e la regola del vetro annidato) sono nella tabella «Voci
-aggiunte» in fondo a questa sezione; la sessione breve che chiude F1A (prima dei critici) prende da lì la parte A e,
-da questa tabella, le righe 2, 3 e 7.
+aggiunte» in fondo a questa sezione. La sessione breve che ha chiuso F1A (S2-pre) ne ha preso la parte A e, da questa
+tabella, le righe 2, 3 e 7; ciò che non ha guardato, e chi lo guarda, è nella tabella «Cosa si è visto e chi guarda il
+resto». L'ordine che segue resta quello di una sessione intera (S2, dopo F1B).
 
 Circa due ore e mezza per la parte del materiale di S2; le altre voci di S2 (Fluid-physics, parità dei tre percorsi,
 icone) hanno le loro pagine.
@@ -417,14 +459,14 @@ Tema scuro con `GALLERIA="--es gallery.theme dark"`. La pagina «Icone» si lanc
 
 | voce | dove e comando | cosa guardare | esito atteso |
 |---|---|---|---|
-| A.1 fogli e card scuri | il foglio «Ancorato al bordo» (Chrome, il tasto del foglio) e la card «Come si risponde» («Da provare», `--es gallery.page totry`), tema scuro; poi con `gallery.tune darklarge=same` e `profile=before` | corpo e testo secondario, con lo strumento di S1-ter (`S1-ter/strumenti/`) | corpo ≈ 41 di luma (in S1-ter 74–75), testo secondario ≥ 6:1 (in S1-ter 3,8:1); con `darklarge=same` torna il grigio medio |
+| A.1 fogli e card scuri | il foglio «Ancorato al bordo» (Chrome, il tasto del foglio) e la card «Come si risponde» («Da provare», `--es gallery.page totry`), tema scuro; poi con `gallery.tune darklarge=same` e `profile=before` | corpo e testo secondario, con lo strumento di S1-ter (`S1-ter/strumenti/`) | corpo ≈ 41 di luma (in S1-ter 74–75), testo secondario ≥ 6:1 (in S1-ter 3,8:1); con `darklarge=same` torna il grigio medio. **Visto** in S2-pre: foglio 42 con 6,2:1, card 43 con 6,1:1, controlli 38 con 6,6:1 (dopo la correzione del vetro annidato, 46 e 45 con 5,9:1) |
 | A.2 bordo scuro | `materiale edge` tema scuro, `ritagli … tondo capsula`; poi `darkedge=faint` e `darkedge=reflex` | il filo chiaro sui fianchi e in alto | di serie un filo chiaro netto tutto intorno (sul banco +52 in alto, +34 sui fianchi), più deciso del 10% della tavola |
 | A.3 smerigliatura in movimento | `materiale components motion scroll hud off` e `materiale list`, sotto la tab bar e un menu aperto; D di serie contro `frost=wide` e `frost=mid` (`qa_record` di ciascuna) | le parole dietro la barra mentre scorrono, lo sfarfallio | D: macchie che si riconoscono come forme, la più mossa (sul banco sfarfallio 7,6 contro 2,2 di C); C: lettere fantasma; M in mezzo. Alessio ha scelto D «con molta difficoltà»: le riprese sono per lui |
 | A.4 ombra dei grandi | `materiale components` e `corner`, chiaro, foto ferme; poi `large=step` e `shadow=ios27` | l'ombra sotto menu e pannelli, ai fianchi | di serie un'ombra larga che dice «più in alto di una barra» senza alone enorme (sul banco 15 livelli a ridosso del pannello, 10 a 16 dp) |
 | A.5 indicatore da 26 dp | `materiale tints`, chiaro e scuro, ritaglio a 6x dell'indicatore | anello chiaro, ombra | il filo e una riga chiara tenue, niente anello bianco, l'ombra non più grande del tondo |
-| A.6 vetro annidato | pagina «Avvisi con azione» (`--es gallery.page NotificationUndo`, tasto «Modifica ordinaria»: la notifica «Operazione aggiornata» con «Ripristina ultima modifica» dentro), tema scuro e chiaro; poi con `gallery.tune nested=off`; poi `materiale nested` nei due temi | il tasto dentro la notifica e il pannello attorno, luma media come in S1-ter (`shots/difetti/4-…`) | scuro: il tasto prende il verde del pannello e sta poco sopra di lui (sul banco 64 su 54; in S1-ter 71, toppa grigia; il vetro di ieri 62); con `nested=off` torna la toppa. Chiaro: come in S1-ter (pulito), l'ombra del tasto più leggera |
-| A.7 pannello di Fluidify | `materiale apps hud off` (`fluidify-pannello`), chiaro e scuro; se si può, sopra copertine vere | la smerigliatura del pannello | due volte la D (9 dp, circa 11 con la crescita dei grandi): le copertine dietro non si leggono, ma il pannello è meno smerigliato di oggi (17,5 dp): giudicare se basta |
-| A.8 costo della cattura al 73% | `adb shell dumpsys gfxinfo $PKG reset; materiale list hud off; …; dumpsys gfxinfo`, di serie e con `frost=r12` (cattura al 40%) | GPU per fotogramma, fotogrammi persi | la D cattura a 0,73 della risoluzione (la A a 0,4): annotare quanto costa in più su una pagina che scorre |
+| A.6 vetro annidato | pagina «Avvisi con azione» (`--es gallery.page NotificationUndo`, tasto «Modifica ordinaria»: la notifica «Operazione aggiornata» con «Ripristina ultima modifica» dentro), tema scuro e chiaro; poi con `gallery.tune nested=off`; poi `materiale nested` nei due temi | il tasto dentro la notifica e il pannello attorno, luma media come in S1-ter (`shots/difetti/4-…`) | scuro: il tasto prende il verde del pannello e sta poco sopra di lui (sul banco 64 su 54; in S1-ter 71, toppa grigia; il vetro di ieri 62); con `nested=off` torna la toppa. Chiaro: come in S1-ter (pulito), l'ombra del tasto più leggera. **Visto**: in S2-pre la notifica era un anello vuoto (56 su 56 in scuro, 233 su 233 in chiaro, `nested=on` e `off` uguali al pixel); dopo la correzione (F1A.13) il tasto sta a 65–67 su 56 in scuro e a 240 su 233 in chiaro, con D, M, r12 e C, e nella scena `nested` a 61 su 40 |
+| A.7 pannello di Fluidify | `materiale apps hud off` (`fluidify-pannello`), chiaro e scuro; se si può, sopra copertine vere | la smerigliatura del pannello | due volte la D (9 dp, circa 11 con la crescita dei grandi): le copertine dietro non si leggono, ma il pannello è meno smerigliato di oggi (17,5 dp): giudicare se basta. **Non fatto** in S2-pre; sul banco 11,5 contro 17,5 dp |
+| A.8 costo della cattura al 73% | `adb shell dumpsys gfxinfo $PKG reset; materiale list hud off; …; dumpsys gfxinfo`, di serie e con `frost=r12` (cattura al 40%) | GPU per fotogramma, fotogrammi persi | la D cattura a 0,73 della risoluzione (la A a 0,4): annotare quanto costa in più su una pagina che scorre. **Misurato** in S2-pre: circa +0,1 ms di GPU (lista 2,43 contro 2,33 ms, pressione 3,15 contro 3,03), scadenze mancate uguali |
 
 **B · Le icone (F1A.11a, F1A.11b)** (circa 30 min):
 
@@ -434,15 +476,17 @@ Tema scuro con `GALLERIA="--es gallery.theme dark"`. La pagina «Icone» si lanc
 | B.2 barre su telefono e tablet | sezione `chrome`, sul tablet e in formato telefono (`wm size 1080x2340`, `wm density 440`, poi `reset`); un titolo lungo | barre a 26 dp, freccia `ArrowBackIosNew` 24 dp, vetri a 16 dp dal bordo e 8 fra loro, `CompactTitleInset` 84 | il titolo lungo si tronca prima dei tasti, nessuna sovrapposizione |
 | B.3 destra-sinistra | sezione `rtl` | le icone che si girano e quelle che no | si girano solo le frecce e le icone direzionali |
 | B.4 tab bar e rail | la barra della galleria (62 dp, icone 28, etichetta 11 sp); il rail su un tablet in orizzontale (≥ 600 dp) | icone, etichette, voce scelta | la tab bar vera a 62 dp, il rail come la tab bar (icone 28, inchiostro pieno) |
-| B.5 ricerca, foglio, impostazioni | il campo di ricerca (lente a inchiostro), la croce del foglio (16 dp), le righe delle Impostazioni con `Dns`, `Shield`, `Language`, `Group`, i tre tasti senza taglia | le icone sostituite | nessuna icona mancante o di Material vecchio; la croce del foglio piccola e centrata |
+| B.5 ricerca, foglio, set | il campo di ricerca (lente a inchiostro), la croce del foglio (16 dp), la sezione `set` della pagina «Icone» (`Dns`, `Shield`, `Language` e `Group`, i quattro cambi di icona, non sono usate da nessun componente né da nessuna riga della galleria: si vedono solo lì), i tre tasti senza taglia | le icone sostituite | nessuna icona mancante o di Material vecchio; la croce del foglio piccola e centrata. Visto in S2-pre: ricerca e croce (16,7 dp dal bordo); non visto: `set` |
 | B.6 prima costruzione | l'apertura della sezione `set` (tutto il set) a freddo (`pm clear` prima), con una traccia Perfetto o `dumpsys gfxinfo`: la pagina non scrive questo tempo in logcat | il fotogramma in cui il set compare | la prima costruzione di un'icona sotto 1 ms (stima di F1A.11a: da misurare) |
 | B.7 minori | «Tutto in vetro», scheda «Preferiti»; `FluidGlassMenuButton` (deprecato) | — | la scheda «Preferiti» è sempre piena (noto, da annotare); la faccia del tasto deprecato a 20 dp |
 
-**C · Ciò che S1-ter non ha fatto** (circa 20 min): l'anello di `HighlightModifier` dopo un rientro nell'albero con
-`gallery.model classic` (6.8 sul vetro di prima); due controlli premuti insieme (serve un dito vero: Alessio, o la scena
-`nested` col dito finto su `conferma` e un `adb shell input tap` sul tondo); la destra-sinistra (`materiale rtl`, voce
-6.14); `intensity` (voce 6.9); il difetto 1 (la barra fra le pagine un fotogramma senza vetro) col tema di **sistema**
-chiaro; il livello simulato 32 e 30 (voce 7.3).
+**C · Ciò che S1-ter non ha fatto** (circa 20 min). Fatto in S2-pre: l'anello di `HighlightModifier` dopo un rientro
+nell'albero, nei due vetri e nei due temi (C10: gli angoli coincidono, 0 pixel cambiati nel foglio); il livello simulato 32
+e 30 (C11: nessuna caduta, nessuno shader provato); la barra fra le pagine col tema di **sistema** chiaro (C12: il
+difetto c'è, 6 su 6); `intensity` ferma e il contrasto di sistema (C13). Fatto nel giro di correzione: due bagliori
+insieme col dito finto (scena `press` con `material.fingers 2`) e la comparsa con `intensity`. **Resta**: la
+destra-sinistra di sistema (`materiale rtl`, voce 6.14, e B.3), che con la sola chiave `debug.force_rtl` non si applica
+(proprietario: S2), e il resto della tabella «Cosa si è visto e chi guarda il resto».
 
 ## Che cosa la pagina non mostra
 

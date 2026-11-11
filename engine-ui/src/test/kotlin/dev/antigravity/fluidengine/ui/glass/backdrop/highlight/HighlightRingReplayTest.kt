@@ -37,7 +37,8 @@ import org.junit.Test
  * quando**: uno stile di prova ([TaggedStyle]) annota ogni lettura del proprio colore, che e' la
  * prima cosa che la configurazione del pennello fa, e il canvas annota ogni disegno dell'anello. Gli
  * uniform li scrive lo stesso passo, dallo stesso stile, subito dopo: che arrivino giusti allo shader
- * resta da guardare sul dispositivo.
+ * lo mostra il dispositivo, non questo test. Sul Tab S9 (S2-pre, C10) gli angoli dell'anello coincidono prima e dopo il
+ * riciclo di una lista e il ritorno dallo sfondo con un foglio aperto (0 pixel cambiati nel foglio).
  *
  * Il banco e' quello di `PhysicsShadowSlotsTest`: `GraphicsLayer` veri di Compose sopra un doppio
  * della piattaforma. In modo software `GraphicsLayer.draw` riesegue la lambda a ogni disegno (la

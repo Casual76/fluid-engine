@@ -33,8 +33,10 @@ import org.junit.Test
  * hanno sotto Android 13. Qui si prova sul JVM con il compilatore finto della sonda: AGSL si dichiara presente
  * (sul JVM `SDK_INT` vale zero) e il compilatore rifiuta per nome.
  *
- * I casi «rifiutata» falliscono sul codice di prima perché nessuno chiedeva il verdetto, quindi nessuna riga
- * d'errore; i casi «accettata» perché sul JVM la sola guardia di API non lasciava passare niente.
+ * Perché questi test sono rossi sul codice di prima è ragionato, non provato: nessuno chiedeva il verdetto (quindi nessuna
+ * riga d'errore nei casi «rifiutata»), e sul JVM la sola guardia di API non lasciava passare niente (i casi «accettata»).
+ * Non si sono mai eseguiti sul codice di prima, e non potrebbero compilare: usano `GlassFieldHealth.installForTesting`,
+ * che prima non esisteva.
  */
 class GlassShaderFallbackTest {
 

@@ -66,9 +66,15 @@ cioè Android 13, e un compilatore che accetti le sue sorgenti), e dove non può
 `glassSurface`, e le sue immagini di riferimento del banco (`golden/classic`) sono rimaste identiche al pixel dopo
 l'innesto del materiale nuovo.
 
-Nessuna firma è cambiata: `glassSurface`, `glassControlSurface`, `GlassOptics`, `GlassTint` (un campo nuovo, in coda
-e con un default), `GlassDefaults` e `GlassRole` si chiamano come prima, e un'app che aggiorna compila senza toccare
-una riga. Cambia, da Android 13, quello che si vede.
+**Cosa non cambia nel codice, e cosa sì.** Nessuna firma sparisce e le chiamate esistenti compilano senza modifiche:
+`glassSurface`, `glassControlSurface`, `GlassOptics`, `GlassDefaults` e `GlassRole` si chiamano come prima. Si aggiungono
+soltanto parametri in coda con un valore di serie (`GlassTint.mode`, con un secondo campo interno, `modeOverlay`;
+`drawBackdrop(onDrawLight, underlay)`; `FluidBarAction(tint)`; `FluidTabItem.filledIcon`) e tipi e letture nuovi
+(`FluidGlassModel`, `LocalFluidGlassModel`, `GlassTintMode`, `FluidGlassDiagnostics`, `FluidIcons`, `FluidIcon`,
+`LocalFluidIconSize`, `FluidMetrics`). La compatibilità binaria non è provata: l'engine si integra come sorgente.
+`GlassTint` è una `data class`: `copy` e le sue prime tre componenti restano come prima, ma `equals` e `hashCode` vedono
+ora anche il modo, quindi due tinte uguali nella 3.x con modi diversi non lo sono più. Cambia, da Android 13, quello che
+si vede.
 
 ### Chi sceglie, e come
 
@@ -162,7 +168,8 @@ stessa frazione, a zero niente. Quindi:
   di serie del ruolo (il più alto fra le ottiche di serie che l'engine usa con quel ruolo: `Bar` 5, `Modal` 3,5,
   `Floating` e `Content` 1,8, `Interactive` 1,4) fa crescere la smerigliatura del profilo nella stessa proporzione,
   fino a tre volte. Un pannello `Modal` che chiede `blurScale = 7` per nascondere una copertina ha due volte la
-  smerigliatura di un pannello di serie (9 dp prima della regola della taglia, 13,5 dp a pannello pieno). Le altre
+  smerigliatura di un pannello di serie (9 dp prima della regola della taglia, 13,5 dp a pannello pieno), ma meno
+  della 3.x: il pannello del lettore di Fluidify esce a 11,5 dp contro i suoi 17,5 (sotto, «I limiti dichiarati oggi»). Le altre
   voci dell'ottica non crescono: lente, bordo e ombra restano quelli del profilo;
 - `vibrancy` non è un attenuatore: 1 resta «nessun filtro», 1,6 (quella di ogni ruolo) dà la saturazione del profilo,
   di più dà di più. `dispersion`, `pressedDepthBoost`, `edgeFloor`, `backdropResolution` (con un pavimento: la
@@ -322,8 +329,11 @@ vuoto con la smerigliatura di serie e una toppa grigia con una più larga (sotto
 pannello pieno non pubblica niente. I numeri stanno nel profilo (`GlassLiquidNestings`), e la manopola `nested=off`
 rimette il vetro annidato di prima per confrontarlo sul tablet.
 
-**Il costo.** Una lastra ferma tiene 3 layer (cattura, posa, ombra) contro i 5 del vetro di prima, e 2 senza ombra; i
-nodi sono 4 contro 5. La risoluzione della cattura si decide sulla smerigliatura del ruolo, prima della regola della
+**Il costo.** Una lastra `Liquid` ferma tiene 4 nodi e 3 layer (cattura, posa, ombra), e 3 e 2 senza ombra; una di
+prima ha 5 nodi e, dei layer, i 2 che la diagnostica legge (cattura e posa). I tre nodi del vetro di prima che stanno
+nei file di Kyant (ombra interna, ombra, anello) non si contano ancora, e i loro tre layer si deducono dal codice: il
+«5 e 5» del test in Robolectric è quella somma, non una lettura del dispositivo (sul tablet: 4 nodi e 3 layer, 5 e 2,
+3 e 2). La risoluzione della cattura si decide sulla smerigliatura del ruolo, prima della regola della
 taglia (in composizione, dove la taglia non c'è ancora): con i 4,5 dp di serie ogni ruolo cattura al 73% della
 risoluzione (le card, che chiedono metà risoluzione, al 40%), e una lastra grande, che sfoca un poco di più, resta
 lì (dalla parte sicura). Una smerigliatura oltre i
@@ -332,10 +342,13 @@ sagoma qui la disegna anche il corpo, dentro la cattura, e al 40% il suo bordo s
 schermo. Con un `layerBlock` (un tasto che cresce sotto il dito) la cattura resta piena, come prima. Una
 pressione cambia un uniform del corpo a ogni fotogramma, e un `RenderEffect` è immutabile: si ricostruisce l'ultimo
 anello della catena, mentre il pezzo a monte (saturazione, sfocatura, mescola) resta finché non cambia. Sul tablet
-(un Tab S9, sessione S1-ter, prima delle scelte di gusto) premere un tasto costa mezzo millisecondo di GPU in più del
-vetro di prima (mediana 2,92 contro 2,45 ms, a pari fotogrammi persi) e una lista che scorre sotto una barra non costa
-di più; il costo della smerigliatura di serie, di una cattura al 73% e di una pagina piena di vetro non è ancora
-misurato.
+(un Tab S9, sessione S2-pre, profilo di serie) premere un tasto costa **0,7 ms** di GPU in più del vetro di prima
+(mediana 3,15 contro 2,45 ms, a pari fotogrammi persi; con la combinazione di prima delle scelte, quella di S1-ter, era
+2,92), perché premere rifà la catena del corpo e disegna la luce in due passate: la cattura al 73% spiega solo circa
+0,1 ms (3,15 contro 3,03 con la cattura al 40%). Una lista che scorre sotto una barra non peggiora le scadenze (GPU
+mediana 2,37–2,47 contro 2,2 ms, fotogrammi oltre la scadenza 17,5–20,0% contro 20,8–29,2% del vetro di prima), e la
+cattura al 73% vi pesa circa 0,1 ms (2,43 contro 2,33 con la cattura al 40%). Il costo di una pagina piena di vetro,
+e su una GPU più debole o sull'S25, non è misurato.
 
 ### Il riscaldamento
 
@@ -361,6 +374,9 @@ e mai nel percorso dell'avvio**, che è già il fotogramma più lungo che un'app
   non la chiede ancora nessuno, perché ancora nessuno disegna gruppi). Una famiglia con una sorgente rifiutata si salta
   per intero; un disegno fuori schermo che fallisce ferma la sua famiglia per tutto il processo e lo scrive in logcat a
   livello errore (tag `FluidGlass`); una famiglia finita lo scrive a livello informazione.
+- **Cosa costa (misurato).** Sul Tab S9 i due programmi della famiglia `Slab` si scaldano in 7,7–8,1 ms di filo
+  principale (4,6–6,2 ms con la combinazione di S1-ter), senza nessuno shader rifiutato; nella pagina «Materiale»
+  8,5–9,5 ms.
 - **Cosa non fa (misurato).** Sul Tab S9, avvii a freddo, tre per lato: **non protegge la prima schermata**. Parte dopo
   il suo primo fotogramma, quindi un vetro che c'è già lì compila i suoi programmi in quel fotogramma, acceso o spento
   (RenderThread del primo fotogramma 54–61 ms acceso, 54–55 spento). E nella galleria non accorcia neanche la prima
@@ -442,21 +458,53 @@ aprire la schermata da guardare.
   F1A.13: la cattura apre sempre con un'operazione, e la card piena pubblica il suo colore (in scuro tasto 67 e chiusura 65 sopra la card a 56, col suo verde, con D, M, r12 e C; 87 senza la
   regola; in chiaro 240 e 238 sopra 233; il banco, scene `gusto/annidato-opaco-*`, dà gli stessi numeri). Un tasto di vetro
   su un contenuto opaco **senza** fondo e fuori da ogni pannello (il foglio a schermo intero) ha ora il velo pieno con
-  ogni smerigliatura, come una lastra sulla pagina: prima, con quella di serie, era il solo filo.
-- **Il materiale nuovo è stato visto su un solo dispositivo, e prima delle scelte di gusto.** Sul Tab S9 (sessione
-  S1-ter, con la combinazione di serie di allora): nessuno shader rifiutato, il riscaldamento fatto in 4,6–6,2 ms dopo
-  il primo fotogramma, il bordo del tasto tondo che combacia col banco entro pochi livelli nei due temi (filo chiaro in
-  alto +17 contro +13, riga scura −49 contro −42, sul tema scuro riflesso in alto +65 contro +64), vetro su vetro
-  pulito sul tema chiaro, nessuna differenza dopo il ritorno dallo sfondo; costi nel paragrafo sopra. Visti lì anche i
-  difetti: la barra fra le pagine resta **un fotogramma senza vetro** quando arriva; il materiale **cambia a vista** fra
-  riposo e viaggio (sotto); sul tema chiaro il bagliore del dito porta la faccia al bianco pieno, come quello di prima;
-  sul tema scuro fogli e card erano un grigio medio col testo secondario a 3,8:1 e il tasto annidato una toppa grigia
-  (le due regole del velo, sopra, li correggono sul banco). Il profilo di serie di oggi (ombra larga, smerigliatura di
-  4,5 dp, bordo scuro più deciso) sul tablet non è ancora stato guardato; tutto il resto di ciò che questa sezione dice
-  dell'aspetto è misurato sul banco (`tools/glassbench`), che rende sul PC con Skia gli shader veri dalle scene scritte
-  dalla ricetta. Restano da guardare in mano, fra l'altro: il ritaglio al 98% sull'angolo dei grandi misurato in
-  numeri, due controlli premuti insieme, la destra-sinistra, `intensity`, bande sul gradiente del corpo, i colori su
-  uno schermo a gamma larga.
+  ogni smerigliatura, come una lastra sulla pagina: prima, con quella di serie, era il solo filo. Dopo la correzione il
+  tasto nella notifica piena sta a 65–67 su 56 in scuro e a 240 su 233 in chiaro, nel foglio `Liquid` a 61 su 40, i
+  controlli fratelli di un pannello che esporta a 62 su 48; il test strumentato `GlassNestingInstrumentedTest` compone
+  i quattro alberi e passa 5 su 5. **Limiti noti**: nella notifica **di vetro** in chiaro il corpo del tasto è uguale al
+  pannello (239,9 su 240,2) e lo staccano solo filo e ombra (assegnato all'adattività, F2); il composer di
+  `engine-ai-ui` cabla i suoi controlli con lo stesso schema e **non è stato visto**, perché non è nella galleria.
+- **Il profilo di serie è stato visto su un solo dispositivo, un Tab S9.** In due sessioni (S1-ter, con la combinazione
+  di prima delle scelte; S2-pre, con quella di serie) e dopo il giro di correzione: nessuno shader rifiutato, il
+  riscaldamento in 7,7–8,1 ms di filo principale dopo il primo fotogramma; il bordo del tasto tondo e della capsula
+  combacia col banco entro pochi livelli nei due temi (sul tondo scuro il picco del filo è +95 in alto contro +93, +70
+  sui fianchi contro +60, +102 in basso contro +102; in chiaro la riga scura −50 contro −42, un pixel più in fuori); i
+  fogli, le card e i controlli scuri hanno corpo 42, 43 e 38 e testo secondario a 6,2, 6,1 e 6,6:1 (con le
+  zone misurate dopo la correzione del vetro annidato, 5,9:1, un decimo sotto 6:1); l'ombra sotto i grandi è quella del
+  banco (−16 a ridosso, −10 a 16 dp) senza rettangoli; l'indicatore da 26 dp non ha anello; l'anello di luce dopo il
+  riciclo di una lista e il ritorno dallo sfondo coincide con gli angoli, 0 pixel cambiati nel foglio; a 32 e a 30
+  simulati l'app non cade e non prova shader; sopra il contrasto di sistema medio e alto le lastre tornano la pellicola
+  densa. Visti lì anche i difetti: la barra fra le pagine resta **un fotogramma senza vetro** quando arriva (6 volte su
+  6, nei due temi di sistema); il materiale **cambia a vista** fra riposo e viaggio (sotto); sul tema chiaro il bagliore
+  del dito porta la faccia al bianco pieno, come quello di prima; la **tab bar scura è più chiara della 3.1.2** (corpo
+  71 contro 47) e la smerigliatura di serie dietro una tab bar **lascia più contrasto di iOS 26** (deviazione standard
+  del testo 19,0 contro 10,2: pareggiarla chiederebbe gli 8–9 dp della manopola `frost=mid`, ed è la conseguenza della
+  scelta «4,5 dp dappertutto»; resta com'è, si riguarda con il bordo dello scorrimento); in fondo ai pannelli grandi la
+  lente prende l'ombra della lastra (1–2 livelli di serie); un foglio scuro a filo dello schermo ha in fondo una banda
+  di circa 24 px più scura. Tutto il resto di ciò che questa sezione dice dell'aspetto è misurato sul banco
+  (`tools/glassbench`), che rende sul PC con Skia gli shader veri dalle scene scritte dalla ricetta; nel profilo di
+  serie 22 delle 34 misure con un intervallo di Apple ci stanno dentro e le 12 fuori hanno ognuna la scelta o il limite
+  della misura che la spiega (`artifacts/liquid-glass/bench/f1a-chiusura/misure-contro-bersagli.md`). **Non visti**:
+  la destra-sinistra di tutto il sistema (con la sola impostazione di sviluppo l'app non si gira: si è misurata solo la
+  barra specchiata), la sezione `set` della pagina «Icone», il foglio a schermo intero in chiaro, l'ombra che cresce
+  premendo, il fotogramma `Liquid` di una forma che poi passa a `Classic`, il ritaglio al 98% sull'angolo dei grandi
+  misurato in numeri, le bande sul gradiente del corpo, i colori su uno schermo a gamma larga, un Android 13 o più
+  vecchio vero e un dispositivo diverso dal Tab S9 (l'S25 è della fase S5). Visti dopo il giro di correzione: due
+  bagliori insieme (ognuno col suo punto luce), la comparsa con `intensity` (filo e corpo dal primo
+  fotogramma) e la pressione di un tasto (± 5 livelli a fotogramma, nessun lampo).
+- **Un'app che dipende da una ottica scritta per nascondere lo sfondo ne ottiene meno di prima.** Il pannello del
+  lettore di Fluidify (`Modal`, `blurScale` 7) esce a 11,5 dp di smerigliatura contro i 17,5 della 3.x, e la scheda del
+  titolo (`Modal` di serie con una pellicola sua) a 4,5 contro 8,75: il materiale nuovo smeriglia un pannello quanto
+  un tasto e la crescita oltre il ruolo non basta a riportarla (`tavole/f1a/compatibilita.md`). Una schermata che
+  dipende da copertine nascoste può tenere `Classic`; su copertine vere non si è guardato.
+- **I tasti di vetro dell'assistente restano alla misura vecchia.** In `engine-ai-ui` il dock ha tre
+  `FluidGlassIconButton` con l'icona a 22, 22 e 20 dp, nell'accento; il composer, tondi da 40 dp con l'icona a 20 dp,
+  nell'inchiostro del testo salvo l'azione principale (l'invio nell'accento, la fine dell'ascolto in rosso). Le barre
+  vicine hanno 26 dp in inchiostro. Nessuna icona Material nei componenti vale per `engine-ui`, `engine-ai-ui`,
+  `engine-richtext` e la galleria, non per `engine-wear` (`FluidWearList` tiene `Icons.Rounded.Refresh`).
+- **Il fumetto di chat convive in due vetri.** Una forma con un angolo oltre mezzo lato corto alla taglia misurata resta
+  `Classic`: il fumetto `22/22/22/6` alto 40 dp (una riga) è il vetro di prima, da 44 dp in su il nuovo, e in una chat
+  stanno insieme finché il campo non sa rendere un angolo oltre mezzo lato (F1B.1).
 - **Fluid-physics, la goccia, la pillola della tab bar e i pomelli sono ancora il vetro di prima** (sopra), e il
   materiale cambia a vista fra riposo e viaggio sulla barra ancorata e sui menu che nascono da un tasto.
 
@@ -1109,8 +1157,8 @@ con più sfocatura che altezza); con le ottiche di serie e la lente accesa il pa
   `GlassDrawParityTest` (ciò che l'innesto passa agli shader è ciò che le scene scrivono, uniform per uniform, su tasto, capsula, tab bar, menu e pannello, chiaro e scuro, due densità), `GlassSceneExportTest` (le scene scritte dalla ricetta),
   `GlassTintModeTest` e `GlassDefaultsTest` (i tre modi, la tinta col colore cambiato, il contrasto alzato, le ottiche e le pellicole di prima invariate), `GlassCompatSignaturesTest` (le chiamate che le app usano compilano, e una tinta a tre argomenti resta la pellicola dipinta),
   `GlassFieldGeometryTest` e `ContinuousCornerFieldTest` (il campo e l'angolo continuo), `GlassShadowTest` (l'ombra a due maschere, anche rieseguita), `GlassWarmUpTest` (il riscaldamento), `ShaderSourceLintTest` (le sorgenti).
-  Nella galleria, in Robolectric: `GlassPathSelectionTest` (il percorso a ogni livello di API, il riscaldamento, il livello simulato) e `GlassNodeCountTest` (4 nodi e 3 layer, 3 e 2 senza ombra, 5 e 5 il vetro di prima). Sul dispositivo: `GlassShaderCompileInstrumentedTest` e `GlassNodeCountInstrumentedTest`.
-- **Non verificato dai test**: com'è il vetro. Gli host dei test non hanno fondale; sfocatura, lente, bordo e ombra si guardano in mano (dimensione D1 di `docs/10-coerenza.md`), e le tre costanti della taglia sono da giudicare su un dispositivo. Il materiale nuovo è misurato sul banco (`tools/glassbench`) e **non è ancora stato visto su un dispositivo**.
+  Nella galleria, in Robolectric: `GlassPathSelectionTest` (il percorso a ogni livello di API, il riscaldamento, il livello simulato) e `GlassNodeCountTest` (4 nodi e 3 layer, 3 e 2 senza ombra; il vetro di prima 5 nodi e 5 layer, di cui 3 dedotti dal codice dei nodi di Kyant che la diagnostica non conta). Sul dispositivo: `GlassShaderCompileInstrumentedTest`, `GlassNodeCountInstrumentedTest` (letture: `Liquid` 4 e 3, `Classic` 5 nodi e 2 layer, `Liquid` senza ombra 3 e 2) e `GlassNestingInstrumentedTest` (quattro alberi con il vetro dentro il vetro, composti davvero, nei due temi, con la regola dell'annidato accesa e spenta; più il fumetto di chat). Dopo la review, sul JVM: `GlassFieldOutlineTest` (il contorno del campo contro `Shape.createOutline`, le forme che restano `Classic` per un angolo oltre mezzo lato corto, il fumetto a due altezze, le forme ad angoli uguali mai misurate), `GlassNestedOnPanelTest` (la cattura che apre sempre con un'operazione, il pannello pieno che pubblica il suo colore, il materiale che resta pubblicato finché un pannello lo pubblica) e `GlassLiquidTraceExportTest` (la traccia del tocco col materiale nuovo).
+- **Non verificato dai test**: com'è il vetro. Gli host dei test non hanno fondale; sfocatura, lente, bordo e ombra si guardano in mano (dimensione D1 di `docs/10-coerenza.md`), e le tre costanti della taglia sono da giudicare su un dispositivo. Il materiale nuovo è misurato sul banco (`tools/glassbench`) e **visto su un solo dispositivo, un Tab S9** (vedi «I limiti dichiarati oggi»).
 
 ## Dove guardare
 

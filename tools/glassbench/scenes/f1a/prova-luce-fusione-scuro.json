@@ -1,0 +1,494 @@
+{
+ "_": "F1A.3, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). Il filo nella zona di fusione, variante a 8. Da sinistra: tondo e capsula col ponte (fusione 16 dp); due capsule sovrapposte con unione netta (fusione 0: il valore di riposo); tre pezzi con il ponte. Il filo dev'essere UNO, continuo, dello stesso spessore dentro i ponti, senza i contorni dei pezzi di partenza.",
+ "width": 700,
+ "height": 150,
+ "density": 3.0,
+ "theme": "dark",
+ "palette": "engine",
+ "corner": "engine",
+ "background": {
+  "kind": "color",
+  "color": "#0D0D0F"
+ },
+ "elements": [
+  {
+   "kind": "material",
+   "theme": "dark",
+   "name": "ponte",
+   "x": 20,
+   "y": 15,
+   "w": 200,
+   "h": 120,
+   "radius": 0,
+   "clip": false,
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-8.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 2,
+     "pieceRect": [
+      [
+       "28dp",
+       "60dp",
+       "22dp",
+       "22dp"
+      ],
+      [
+       "118dp",
+       "60dp",
+       "62dp",
+       "28dp"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "22dp",
+       "22dp",
+       "22dp",
+       "22dp"
+      ],
+      [
+       "28dp",
+       "28dp",
+       "28dp",
+       "28dp"
+      ]
+     ],
+     "pieceBlend": [
+      0,
+      "16.0dp"
+     ],
+     "pieceSmooth": [
+      0.0,
+      0.0
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#3E3E43FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight8ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 2,
+     "pieceRect": [
+      [
+       "28dp",
+       "60dp",
+       "22dp",
+       "22dp"
+      ],
+      [
+       "118dp",
+       "60dp",
+       "62dp",
+       "28dp"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "22dp",
+       "22dp",
+       "22dp",
+       "22dp"
+      ],
+      [
+       "28dp",
+       "28dp",
+       "28dp",
+       "28dp"
+      ]
+     ],
+     "pieceBlend": [
+      0,
+      "16.0dp"
+     ],
+     "pieceSmooth": [
+      0.0,
+      0.0
+     ],
+     "rimWidth": "0.6dp",
+     "rimDark": "#FFFFFF1A",
+     "rimFeather": 0.4,
+     "rimLift": 0.0,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.11,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.65,
+     "glowCenter": "$center",
+     "glowRadius": "44.0dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    }
+   }
+  },
+  {
+   "kind": "material",
+   "theme": "dark",
+   "name": "netta",
+   "x": 250,
+   "y": 15,
+   "w": 190,
+   "h": 120,
+   "radius": 0,
+   "clip": false,
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-8.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 2,
+     "pieceRect": [
+      [
+       "60dp",
+       "50dp",
+       "50dp",
+       "26dp"
+      ],
+      [
+       "120dp",
+       "86dp",
+       "60dp",
+       "26dp"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "26dp",
+       "26dp",
+       "26dp",
+       "26dp"
+      ],
+      [
+       "26dp",
+       "26dp",
+       "26dp",
+       "26dp"
+      ]
+     ],
+     "pieceBlend": [
+      0,
+      "0.0dp"
+     ],
+     "pieceSmooth": [
+      0.0,
+      0.0
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#3E3E43FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight8ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 2,
+     "pieceRect": [
+      [
+       "60dp",
+       "50dp",
+       "50dp",
+       "26dp"
+      ],
+      [
+       "120dp",
+       "86dp",
+       "60dp",
+       "26dp"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "26dp",
+       "26dp",
+       "26dp",
+       "26dp"
+      ],
+      [
+       "26dp",
+       "26dp",
+       "26dp",
+       "26dp"
+      ]
+     ],
+     "pieceBlend": [
+      0,
+      "0.0dp"
+     ],
+     "pieceSmooth": [
+      0.0,
+      0.0
+     ],
+     "rimWidth": "0.6dp",
+     "rimDark": "#FFFFFF1A",
+     "rimFeather": 0.4,
+     "rimLift": 0.0,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.11,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.65,
+     "glowCenter": "$center",
+     "glowRadius": "44.0dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    }
+   }
+  },
+  {
+   "kind": "material",
+   "theme": "dark",
+   "name": "tre",
+   "x": 470,
+   "y": 15,
+   "w": 210,
+   "h": 120,
+   "radius": 0,
+   "clip": false,
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-8.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 3,
+     "pieceRect": [
+      [
+       "30dp",
+       "60dp",
+       "24dp",
+       "24dp"
+      ],
+      [
+       "100dp",
+       "60dp",
+       "40dp",
+       "28dp"
+      ],
+      [
+       "176dp",
+       "60dp",
+       "24dp",
+       "24dp"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "24dp",
+       "24dp",
+       "24dp",
+       "24dp"
+      ],
+      [
+       "28dp",
+       "28dp",
+       "28dp",
+       "28dp"
+      ],
+      [
+       "24dp",
+       "24dp",
+       "24dp",
+       "24dp"
+      ]
+     ],
+     "pieceBlend": [
+      0,
+      "14.0dp",
+      "14.0dp"
+     ],
+     "pieceSmooth": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#3E3E43FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight8ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 3,
+     "pieceRect": [
+      [
+       "30dp",
+       "60dp",
+       "24dp",
+       "24dp"
+      ],
+      [
+       "100dp",
+       "60dp",
+       "40dp",
+       "28dp"
+      ],
+      [
+       "176dp",
+       "60dp",
+       "24dp",
+       "24dp"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "24dp",
+       "24dp",
+       "24dp",
+       "24dp"
+      ],
+      [
+       "28dp",
+       "28dp",
+       "28dp",
+       "28dp"
+      ],
+      [
+       "24dp",
+       "24dp",
+       "24dp",
+       "24dp"
+      ]
+     ],
+     "pieceBlend": [
+      0,
+      "14.0dp",
+      "14.0dp"
+     ],
+     "pieceSmooth": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "rimWidth": "0.6dp",
+     "rimDark": "#FFFFFF1A",
+     "rimFeather": 0.4,
+     "rimLift": 0.0,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.11,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.65,
+     "glowCenter": "$center",
+     "glowRadius": "44.0dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    }
+   }
+  }
+ ],
+ "measure": []
+}

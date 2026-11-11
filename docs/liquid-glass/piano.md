@@ -2017,6 +2017,18 @@ nota, perché la DSL deve nominarlo una volta sola. Le idee per **altri elementi
 dell'interfaccia, non della pagina, che si trasformano), da creare o da rivedere, le raccoglie la ricerca leggera **R8**
 (`ricerca/componenti-dinamici.md`): Alessio decide quali entrano, e se sono molti si apre una fase dedicata dopo F5B.
 
+**Osservazione di Alessio sulla ripresa di partenza della ricerca (2026-11-11, viaggio (e), fondo carico in chiaro):**
+«il testo non si vede perfettamente e non compare con il motion blur, però mi pare non male». Due bersagli per questo
+pacchetto, da misurare sulle stesse riprese (`artifacts/liquid-glass/moto/f1b/partenza/e-ricerca/`):
+- **leggibilità del testo dentro il campo**: il segnaposto («Cerca nelle foto») e le icone sono grigi su un vetro che
+  lascia passare un fondo carico, e si leggono a fatica; vanno decisi tinta e contrasto del contenuto del campo sopra
+  fondi carichi (il velo del campo, o il colore del contenuto, che si adatta a ciò che ha dietro: F2/F3 danno gli
+  strumenti), con una soglia di contrasto scritta e misurata sui due temi;
+- **il contenuto compare sfocato, come in Apple**: oggi segnaposto e tasto di chiusura entrano in sola dissolvenza a
+  metà del viaggio; secondo R7 ciò che cambia identità entra con una sfocatura uniforme che si scioglie (σ ≈ 0,15
+  dell'altezza, scala da 0,75–0,9 a 1, nitido verso la fine del moto). È la stessa regola dello scambio di icone di
+  F4A: il campo la usa, non la riscrive.
+
 **Progetto tecnico.**
 
 - La capsula flottante oggi ridispone la riga senza animazione e ricattura per la taglia nuova

@@ -1157,13 +1157,23 @@ intero**. Viaggio per viaggio:
 | tasto | crescita, picco (+0,4 ms) e presa (entro 2 px, a parte ombra e bagliore che il banco non rende) | il ritorno: nel vero comincia 16,5 ms prima e si posa 25 ms prima; causa non chiusa (il tempo vero fra contatto e rilascio non è registrato) |
 | barra fra due pagine | lo stato a riposo prima e dopo | **il cambio di forma: non convalidato.** Il tablet non mostra i primi 150 ms del push, e nell'unico fotogramma di mezzo il vero ha pezzi a piena taglia e velati dove la traccia li ha al 67% e opachi |
 
-Quindi: il banco si usa per **sagoma, ordine degli eventi e durata del viaggio una volta partito**, e la sua fedeltà è
-provata per il menu e per la presa del tasto, non per la barra. La puntualità della partenza e i fotogrammi lunghi si
-giudicano solo sul dispositivo. **Condizioni prima di approvare un viaggio sui collage del banco** (cioè prima della
-review di F1B): il `pair` del banco legge i tempi veri di una registrazione a cadenza variabile e confronta i contorni
-(pacchetto F0.4c); il ritorno del tasto si rimisura con l'ingresso registrato (`getevent -lt`); la barra si riprende con
-le animazioni rallentate, perché il cambio di forma arrivi allo schermo. Le due riprese sono della prossima sessione sul
-tablet.
+**Dopo F0.4c e S1-ter (2026-11-11)**, con il `pair` del banco che legge i tempi veri di una registrazione e confronta i
+contorni (`glassmotion.py pair --real`), la tabella qui sopra si aggiorna così:
+
+| viaggio | cosa è convalidato in più | cosa resta aperto |
+|---|---|---|
+| menu | **la sagoma, tolto il ritardo**: contorni a 1,8 px, IoU 0,98 dal terzo fotogramma (`convalida-F0-a-contorni.md`) | a pari tempo no: il vero è 25–45 ms indietro (19 px a metà viaggio); il **primo fotogramma** del viaggio non coincide (IoU 0,66) e resta uno scarto locale di 24–26 px sul bordo basso a f69–f71, senza spiegazione |
+| tasto | salita e tenuta (95–99% del contorno nella fascia); **il dito vero**: si alza 571–573 ms dopo l'appoggio, non 567 (S1-ter A4, dal log di `InputDispatcher`: `getevent` non vede l'input iniettato) | misurato dal dito, salita e ritorno hanno lo stesso ritardo entro ~10 ms (è il ritardo di presentazione); a parità di metodo con S1 l'anticipo del ritorno è 15 ms, e **fra 0 e 15 ms restano non attribuiti** |
+| barra fra due pagine | **la sagoma del cambio di forma**, ripresa con le animazioni rallentate (S1-ter A3): stesse posizioni e stesso ordine punto → disco → icona, IoU 0,85 a pari avanzamento, il vero ~3 px più largo perché misura anche il filo. Il confronto mette un banco in chiaro contro un tablet in scuro: vale per la sagoma, non per il materiale | **i tempi**: la scala vista sul tablet è 4,3–4,4 e non 5, quindi i tempi di quella ripresa non si usano |
+
+Le tre condizioni che questo paragrafo poneva «prima di approvare un viaggio sui collage del banco» (il `pair` con tempi
+veri e contorni; il ritorno del tasto con l'ingresso registrato; la barra rallentata) **sono soddisfatte**. Il criterio
+di F0-a, «stessa sagoma, stessi istanti entro un fotogramma», **si restringe per iscritto** a ciò che il banco può
+provare: **il banco certifica sagoma, ordine degli eventi e durata di un viaggio una volta partito**; **non certifica
+gli istanti assoluti** (la partenza, il ritardo di presentazione di 25–45 ms, i fotogrammi lunghi), che si misurano
+solo sul dispositivo, allineando sull'ingresso e non sul primo fotogramma che cambia. Da F1B in poi un viaggio si
+approva sui collage del banco per la forma, e su una ripresa del tablet per i tempi; i due residui senza spiegazione
+(primo fotogramma del menu, 0–15 ms del ritorno del tasto) sono voci della prima sessione di F1B.
 
 **Risultati osservabili.** `glassbench.py check` passa su tutte le sorgenti e fallisce se si reintroduce `flat` (prova:
 un test del banco con una sorgente sbagliata apposta); il lint JVM fallisce sullo stesso caso; `FluidPhysicsTierTest` copre i

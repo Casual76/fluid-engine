@@ -56,7 +56,11 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.CompositionLocalProvider
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassFalloff
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -950,6 +954,8 @@ private val CompileHeight = 56.dp
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun ProtoSources.sourceOf(step: String): String = when {
+  // La superficie vera dell'engine non ha una sorgente della pagina: i suoi programmi sono quelli dell'engine.
+  step == MeasureConfig.EngineStep -> ""
   step.startsWith("body") -> body(step.removePrefix("body").toInt()).source
   step.startsWith("light") -> light(step.removePrefix("light").toInt()).source
   else -> edge
@@ -966,6 +972,14 @@ private fun ProtoSources.sourceOf(step: String): String = when {
  * variante ripetuta entra la seconda volta con il programma già in memoria (resta la sola creazione
  * delle sue superfici), `edge2` è la striscia in basso (stesso programma di `edge`, superfici sue), una
  * luce senza il suo corpo prima entra da sola.
+ *
+ * Il passo `engine` (F1A.9) monta invece una `glassSurface` vera del materiale nuovo (capsula, ruolo `Floating`,
+ * sempre `Liquid`): misura il primo fotogramma del corpo e della luce **dell'engine**, con o senza il riscaldamento
+ * (`gallery.warmup`). Il riscaldamento automatico parte solo a finestra ferma, e questa pagina non lo è mai (il
+ * battito del fondo fermo): con il riscaldamento acceso la scena lo fa girare prima della sequenza con
+ * `FluidGlassDiagnostics.warmUpNow()`, che fa gli stessi disegni fuori schermo. Perché il passo sia a freddo, nessun
+ * vetro `Liquid` deve aver disegnato prima: la barra delle schede della galleria lo è, quindi la misura si lancia
+ * con `gallery.model classic` (vedi `LEGGIMI.md`); la riga `engine-before` dice quante superfici `Liquid` c'erano.
  *
  * La prima compilazione vera è una sola per installazione: il sistema tiene i programmi compilati su
  * disco. Perché il numero sia quello a freddo, prima del lancio va svuotata la cache dell'app
@@ -993,6 +1007,10 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
       verticalArrangement = Arrangement.spacedBy(16.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+      // La superficie vera dell'engine, sopra le sonde: entra al suo passo come le altre.
+      if (plan.engineStep >= 0) {
+        if (shown > plan.engineStep) CompileEngineElement(session) else Spacer(Modifier.size(CompileWidth, CompileHeight))
+      }
       plan.elements.chunked(perRow).forEach { row ->
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
           row.forEach { slot ->
@@ -1035,6 +1053,7 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
       "COMPILA scene=compile variant=engine-all build_ms=${MeasureSummary.millis(engineNanos)}" +
         " sources=${verdicts.size} refused=${if (refused.isEmpty()) "none" else refused.joinToString(",")}",
     )
+    if (plan.engineStep >= 0) engineWarmUpLines(report)
 
     val intro = LongArray(steps.size)
     val build = LongArray(steps.size)
@@ -1045,7 +1064,11 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
       for (index in steps.indices) {
         val step = steps[index]
         val started = System.nanoTime()
-        val error = measureSection("Misure.compila ${step.name}") { protoCompileError(step.source) }
+        val error = if (step.name == MeasureConfig.EngineStep) {
+          null
+        } else {
+          measureSection("Misure.compila ${step.name}") { protoCompileError(step.source) }
+        }
         build[index] = System.nanoTime() - started
         if (error != null) {
           // Una variante che il driver rifiuta non si può disegnare: la sequenza si ferma qui, e lo dice.
@@ -1093,6 +1116,51 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
 }
 
 private fun orMissing(nanos: Long): String = if (nanos < 0L) "n/d" else MeasureSummary.millis(nanos)
+
+/**
+ * Prima della sequenza con il passo `engine`: il riscaldamento dell'engine fatto adesso (se `gallery.warmup` non
+ * l'ha spento) e quante superfici `Liquid` sono già in scena. Una superficie `Liquid` che ha già disegnato ha già
+ * compilato i programmi: allora il passo non è a freddo, e la riga lo dice.
+ */
+private fun engineWarmUpLines(report: MeasureReport) {
+  if (FluidGlassDiagnostics.warmUpEnabled) {
+    val started = System.nanoTime()
+    val status = FluidGlassDiagnostics.warmUpNow()
+    report.line(
+      "COMPILA scene=compile variant=engine-warmup build_ms=${MeasureSummary.millis(System.nanoTime() - started)}" +
+        " state=${status.joinToString("; ").replace(' ', '_')}",
+    )
+  } else {
+    report.line("COMPILA scene=compile variant=engine-warmup off")
+  }
+  val liquid = FluidGlassDiagnostics.liveSurfaces[FluidGlassModel.Liquid] ?: 0
+  report.line(
+    "COMPILA scene=compile variant=engine-before liquid=$liquid" +
+      " diagnostica=${if (FluidGlassDiagnostics.enabled) "on" else "off"}" +
+      (if (liquid > 0) " ATTENZIONE: c'e' gia' vetro Liquid in scena, il passo engine non e' a freddo" else ""),
+  )
+}
+
+/**
+ * La superficie vera del passo `engine`: `glassSurface` come la chiama un'app per una capsula flottante, con
+ * `LocalFluidGlassModel` a `Liquid` qualunque cosa chieda la radice della galleria. Sotto Android 13 o con una
+ * sorgente rifiutata resta `Classic` (la riga `STATO` della diagnostica lo direbbe; qui la scena non c'è nemmeno).
+ */
+@Composable
+private fun CompileEngineElement(session: MeasureSession) {
+  CompositionLocalProvider(LocalFluidGlassModel provides FluidGlassModel.Liquid) {
+    Box(
+      modifier = Modifier
+        .size(CompileWidth, CompileHeight)
+        .glassSurface(
+          state = session.sources.glass,
+          tint = GlassDefaults.floatingTint(),
+          shape = FluidCapsuleShape,
+          role = GlassRole.Floating,
+        ),
+    )
+  }
+}
 
 private val CompileLayout: ProtoLayout =
   { width, height, _ -> add(width / 2f, height / 2f, width / 2f, height / 2f, min(width, height) / 2f) }

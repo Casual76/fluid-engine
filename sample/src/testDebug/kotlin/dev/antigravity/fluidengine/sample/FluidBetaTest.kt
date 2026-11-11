@@ -185,8 +185,9 @@ class FluidBetaGalleryTest {
   @Test
   fun `le voci coprono ogni demo della 3_0, e ogni demo ha almeno una voce`() {
     val targets = allItems.map { it.target }
-    // «Misure» e' uno strumento, non una demo da giudicare in mano: non ha una voce in «Da provare».
-    GalleryPage.entries.filter { it != GalleryPage.ToTry && it != GalleryPage.Measure }.forEach { page ->
+    // «Misure» e «Materiale» sono strumenti, non demo da giudicare in mano: non hanno una voce in «Da provare».
+    val tools = setOf(GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material)
+    GalleryPage.entries.filter { it !in tools }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
     }
     assertTrue("nessuna voce porta alle pagine", targets.any { it is TryTarget.Screen })
@@ -416,6 +417,9 @@ class FluidBetaGalleryTest {
     // questa classe la apre. Il ramo c'e' perche' il `when` resti esaustivo; il segno e' una frase che sta solo
     // nel suo sottotitolo.
     GalleryPage.Measure -> shown("adb logcat -s FluidMisure", substring = true)
+    // «Materiale» (F1A.9), come «Misure»: uno strumento per le sessioni sul dispositivo. Senza `material.scene` mostra
+    // il suo elenco, il cui sottotitolo dice il tag di logcat.
+    GalleryPage.Material -> shown("adb logcat -s FluidMateriale", substring = true)
   }
 }
 

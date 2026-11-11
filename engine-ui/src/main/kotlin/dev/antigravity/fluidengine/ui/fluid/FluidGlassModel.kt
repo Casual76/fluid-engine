@@ -29,7 +29,11 @@ enum class FluidGlassModel {
   /**
    * Il vetro della 3.x: lente di Kyant, pellicola dipinta, anello speculare, un'ombra. È ciò che si vede
    * sotto Android 13, su un dispositivo il cui compilatore rifiuta le sorgenti nuove, e dove un antenato lo
-   * chiede con [LocalFluidGlassModel].
+   * chiede con [LocalFluidGlassModel]; e, qualunque cosa si chieda, sulla fascia in alto
+   * ([GlassFalloff.FadeDown]), sullo scrim dei modali e sulle forme che il campo non sa rendere (vedi
+   * [resolveFluidGlassModel]). Lo disegnano ancora anche le superfici che non passano dalla risoluzione:
+   * Fluid-physics e chi chiama `drawBackdrop` a mano (la goccia, il puck, i pomelli), finché la fase che le
+   * porta sul materiale nuovo non è fatta.
    */
   Classic,
 }
@@ -42,7 +46,9 @@ enum class FluidGlassModel {
  * nuovo (l'orologio), una pagina che mette i due vetri uno accanto all'altro, un'app che vuole restare
  * all'aspetto di prima finché non ha rivisto le proprie schermate.
  *
- *     CompositionLocalProvider(LocalFluidGlassModel provides FluidGlassModel.Classic) { /* vetro di prima */ }
+ *     CompositionLocalProvider(LocalFluidGlassModel provides FluidGlassModel.Classic) { content() }
+ *
+ * Il vetro dentro `content` è allora quello di prima, qualunque dispositivo lo disegni.
  */
 val LocalFluidGlassModel = compositionLocalOf { FluidGlassModel.Liquid }
 
@@ -106,7 +112,8 @@ internal fun glassLiquidSlabShadersHealthy(): Boolean =
 /**
  * Il materiale di una `glassSurface` con questa forma, questa caduta e questa ottica, in questo punto
  * dell'albero. Lo chiedono `glassSurface` e `glassControlSurface`, che devono rispondere allo stesso modo: il
- * tasto decide da qui se il bagliore del dito passa dalla luce del materiale o resta quello di prima.
+ * tasto decide da qui se il bagliore del dito passa dalla luce del materiale o resta quello di prima. Lo
+ * chiede anche l'ombra staccata di un pannello (`glassShadow`), perché resti l'ombra del vetro che le sta sopra.
  *
  * @param optics già passata da `sanitized()`.
  */

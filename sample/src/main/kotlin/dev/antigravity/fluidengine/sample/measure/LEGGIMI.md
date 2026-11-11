@@ -28,12 +28,13 @@ ACT=dev.antigravity.fluidengine.sample.GalleryActivity
 export MSYS_NO_PATHCONV=1          # Git Bash non deve riscrivere i percorsi del dispositivo
 
 # misura <scena> [chiave valore]...   lancia, aspetta la riga FINE, stampa le righe della misura
+# $GALLERIA (facoltativa) porta gli interruttori di tutta la galleria: GALLERIA="--es gallery.model classic" misura ...
 misura() {
   local scene="$1"; shift
   local extras=""
   while [ $# -gt 1 ]; do extras="$extras --es measure.$1 $2"; shift 2; done
   adb logcat -c
-  adb shell am start -S -W -n "$PKG/$ACT" --es gallery.page measure --es measure.scene "$scene" $extras >/dev/null
+  adb shell am start -S -W -n "$PKG/$ACT" --es gallery.page measure --es measure.scene "$scene" $extras $GALLERIA >/dev/null
   for _ in $(seq 1 180); do
     adb logcat -d -s FluidMisure:I | grep -q "FluidMisure: FINE" && break
     sleep 1
@@ -132,7 +133,7 @@ chiave in logcat dice con che cosa la scena è partita davvero.
 | `opaque` `start` `light0` · `usage gpu` | opzioni del `HardwareRenderer` del lettore (opaco, `start()` chiamato, luce azzerata; uso GPU dichiarato all'`ImageReader`): servite alla diagnosi, non cambiano l'esito | `off` | `probe` con `reader` |
 | `verify` | `on`: ogni lettura si fa con `toImageBitmap()` e con il lettore, e si confrontano i pixel (solo `thread reader`, a fondale fermo) | `off` | `probe` |
 | `flip` | ogni quanti millisecondi il fondale sotto le sonde passa da bianco a nero (`0`: mai; almeno `100`) | `0` | `probe` |
-| `steps` | la sequenza, separata da virgole: `body1` `body2` `body4` `body8`, `light1`…`light8`, `edge` (striscia in alto), `edge2` (in basso); anche ripetuti, al più 12 | la sequenza di S1 | `compile` |
+| `steps` | la sequenza, separata da virgole: `body1` `body2` `body4` `body8`, `light1`…`light8`, `edge` (striscia in alto), `edge2` (in basso); anche ripetuti, al più 12; `engine` (una `glassSurface` vera del materiale nuovo, una volta sola: F1A.9) | la sequenza di S1 | `compile` |
 | `tier` | `auto` `full` `balanced` `lite` | `auto` | `physics` |
 | `journey` | `square` (cerchio ↔ quadrato) · `panel` (capsula ↔ pannello) · `pieces` (due tondi ↔ pannello) | `square` | `physics` |
 | `seconds` | durata di una finestra | `8` | tutte tranne `compile` |
@@ -140,7 +141,11 @@ chiave in logcat dice con che cosa la scena è partita davvero.
 | `runs` | numero di finestre | `3` | tutte tranne `compile` |
 | `hud` | `on` `off` | `on` | tutte |
 
-Tema chiaro o scuro: `--es gallery.theme light|dark`, come per il resto della galleria. Il formato
+Tema chiaro o scuro: `--es gallery.theme light|dark`, come per il resto della galleria. Gli interruttori del vetro
+che valgono per tutta la galleria (F1A.9: `gallery.model classic|liquid`, `gallery.api 32|30|off`,
+`gallery.warmup on|off`, `gallery.tune …`) si passano con `$GALLERIA`; sono descritti nel `LEGGIMI.md` della pagina
+«Materiale» (`../material/`). Attenzione: dalla 4.0.0 `glass today` è `glassSurface` **col vetro chiesto dalla
+radice**, cioè il materiale nuovo; per il vetro di prima, `GALLERIA="--es gallery.model classic"`. Il formato
 telefono si ottiene dal dispositivo (`adb shell wm size 1080x2340`, e `wm size reset` alla fine).
 
 ### I quattro montaggi del corpo
@@ -219,6 +224,15 @@ misura compile; sleep 10  # a caldo: i programmi arrivano dal disco
 misura compile steps body1,light1,body8,light8,edge    # il solo insieme deciso dopo S1
 misura compile steps edge,edge2 scale 0.5              # la seconda striscia: stesso programma, superfici sue
 
+# (g bis) il primo fotogramma del materiale nuovo dell'engine, con e senza riscaldamento (F1A.7 e F1A.9). A freddo
+# ogni volta (pm clear). La radice resta Classic: la barra delle schede, Liquid di serie, compilerebbe i programmi al
+# primo fotogramma e il passo non sarebbe piu' a freddo (la riga engine-before lo dice).
+for w in off on; do
+  adb shell pm clear $PKG
+  GALLERIA="--es gallery.model classic --es gallery.warmup $w" misura compile steps engine,body1 warmup 3
+  sleep 10
+done
+
 # (h) Fluid-physics, Full contro Balanced
 for journey in square panel pieces; do
   misura physics journey $journey tier full
@@ -257,6 +271,15 @@ Il modo `background` di S1 (`toImageBitmap()` chiamata da un filo di lavoro) è 
 cadere l'app (`RenderNode.endRecording` fuori dal filo principale, SIGSEGV dentro HWUI). Chi lo chiede
 ottiene `main`, e lo legge nella chiave. In tutti i modi di oggi la miniatura e la radice del lettore
 si registrano sul filo principale.
+
+Con il passo `engine` la scena scrive prima due righe in più. `variant=engine-warmup`: con `gallery.warmup off`
+dice `off`; acceso, il tempo di `FluidGlassDiagnostics.warmUpNow()` sul filo principale e lo stato delle famiglie
+(`Slab:_Done_(2/2)…`). Il riscaldamento automatico qui non partirebbe mai (aspetta una finestra ferma, e il battito
+del fondo fermo la tiene in ridisegno): `warmUpNow()` fa gli stessi disegni fuori schermo, prima della sequenza e
+fuori dalla finestra di misura. `variant=engine-before liquid=N`: le superfici `Liquid` già in scena; con `N` sopra
+zero il passo non è a freddo. **Atteso** (S1-bis e F1A.7): spento, `first_render_ms` del passo `engine` porta la
+compilazione del corpo e della luce (31–39 più 19–25 ms a freddo sul Tab S9); acceso, è vicino a quello «a caldo»
+(3–6 ms per programma) e a `steady_total_ms`.
 
 La scena `compile` scrive una riga `COMPILA` per passo (`body1`, `light1`, `body2`, … `edge`):
 `build_ms` è la costruzione del programma (`RuntimeShader(sorgente)`, sul filo principale);

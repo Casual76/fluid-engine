@@ -243,7 +243,8 @@ internal data class MeasureConfig(
   val verify: Boolean = false,
   /**
    * La sequenza della scena `compile`: nomi fra `body1` `body2` `body4` `body8` `light1` … `light8`,
-   * `edge` (la striscia in alto) ed `edge2` (in basso), anche ripetuti.
+   * `edge` (la striscia in alto) ed `edge2` (in basso), anche ripetuti, ed `engine` (una `glassSurface` vera del
+   * materiale nuovo, una volta sola: F1A.9).
    */
   val steps: List<String> = DefaultCompileSteps,
   /** Il livello chiesto a Fluid-physics; `null` è il tetto del dispositivo. */
@@ -427,22 +428,26 @@ internal data class MeasureConfig(
     val DefaultCompileSteps: List<String> =
       listOf("body1", "light1", "body2", "light2", "body4", "light4", "body8", "light8", "edge")
 
+    /** Il passo che monta una `glassSurface` vera del materiale nuovo (F1A.9), invece di una sonda. */
+    const val EngineStep = "engine"
+
     private val CompileStepNames: Set<String> =
-      DefaultCompileSteps.toSet() + "edge2"
+      DefaultCompileSteps.toSet() + "edge2" + EngineStep
 
     /** Quanti passi al massimo: oltre, gli elementi non starebbero sul palco. */
     const val MaxCompileSteps = 12
 
     /**
      * `body1,light1,edge` → la sequenza. Nulla (e quindi resta il default) se c'è un nome che non
-     * esiste, se è vuota o troppo lunga, o se una striscia è chiesta due volte: una sequenza capita a
-     * metà sarebbe una misura diversa da quella che la chiave dichiara.
+     * esiste, se è vuota o troppo lunga, o se una striscia o `engine` sono chiesti due volte: una
+     * sequenza capita a metà sarebbe una misura diversa da quella che la chiave dichiara.
      */
     fun parseCompileSteps(text: String): List<String>? {
       val names = text.split(',', '+').map { it.trim() }.filter { it.isNotEmpty() }
       if (names.isEmpty() || names.size > MaxCompileSteps) return null
       if (names.any { it !in CompileStepNames }) return null
       if (names.count { it == "edge" } > 1 || names.count { it == "edge2" } > 1) return null
+      if (names.count { it == EngineStep } > 1) return null
       return names
     }
 
@@ -463,8 +468,16 @@ internal data class MeasureConfig(
 /** Un elemento della scena `compile`: a quale passo entra il suo corpo e a quale la sua luce (-1: mai). */
 internal class CompileSlot(val pieces: Int, val bodyStep: Int, var lightStep: Int)
 
-/** Dove va ogni passo della sequenza: gli elementi, e a quale passo entrano le due strisce (-1: mai). */
-internal class CompilePlan(val elements: List<CompileSlot>, val topStrip: Int, val bottomStrip: Int)
+/**
+ * Dove va ogni passo della sequenza: gli elementi, a quale passo entrano le due strisce e la superficie vera
+ * dell'engine (-1: mai).
+ */
+internal class CompilePlan(
+  val elements: List<CompileSlot>,
+  val topStrip: Int,
+  val bottomStrip: Int,
+  val engineStep: Int = -1,
+)
 
 /**
  * Dalla sequenza ai posti sul palco. Una luce va sul corpo con gli stessi pezzi che è entrato prima di
@@ -475,8 +488,10 @@ internal fun compilePlan(steps: List<String>): CompilePlan {
   val elements = ArrayList<CompileSlot>()
   var top = -1
   var bottom = -1
+  var engine = -1
   steps.forEachIndexed { index, name ->
     when {
+      name == MeasureConfig.EngineStep -> if (engine < 0) engine = index
       name == "edge" -> if (top < 0) top = index
       name == "edge2" -> if (bottom < 0) bottom = index
       name.startsWith("body") ->
@@ -488,5 +503,5 @@ internal fun compilePlan(steps: List<String>): CompilePlan {
       }
     }
   }
-  return CompilePlan(elements, top, bottom)
+  return CompilePlan(elements, top, bottom, engine)
 }

@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.Dp
 import dev.antigravity.fluidengine.foundation.AppUpdateInstallState
 import dev.antigravity.fluidengine.foundation.AvailableAppUpdate
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.sample.material.GalleryGlassSwitchesSection
 import dev.antigravity.fluidengine.sample.update.fluidGlassUpdater
 import kotlinx.coroutines.launch
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
@@ -65,6 +66,9 @@ internal fun SettingsTab(
       footnote = "Il tema chiaro serve per giudicare il bordo del vetro che si trasforma: sul chiaro " +
         "è scuro, sullo scuro è la metà più tenue.",
     )
+    // Gli interruttori del vetro per le sessioni sul dispositivo (F1A.9), accanto al tema: solo nella build di debug,
+    // dove la galleria li fornisce. Altrove la sezione non disegna niente.
+    item(key = "glass-switches") { GalleryGlassSwitchesSection() }
     // Le righe della 3.0.1: il selettore che diventa un pop-up, lo slider in una riga, e una riga di scelta
     // con la piastrella dell'app (`leadingTile = false`).
     item(key = "rows-header") { FluidSectionHeader(title = "Righe di impostazioni") }

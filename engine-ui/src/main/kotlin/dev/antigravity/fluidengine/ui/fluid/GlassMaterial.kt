@@ -63,7 +63,13 @@ import dev.antigravity.fluidengine.ui.glass.field.glassShadow as glassFieldShado
  * The optics are done by the vendored `backdrop` renderer in
  * [dev.antigravity.fluidengine.ui.glass.backdrop] (Kyant0/AndroidLiquidGlass, Apache-2.0; see
  * `LICENSES/AndroidLiquidGlass.md`). This file is the engine's opinion about *how much* of it each
- * kind of surface gets, and nothing else: no shader of ours competes with it.
+ * kind of surface gets, and, for this glass, nothing else: no shader of ours competes with it.
+ *
+ * Dalla 4.0.0 quello descritto qui e' il vetro **di prima** ([FluidGlassModel.Classic]). Da Android 13, dove
+ * il compilatore accetta le sue sorgenti, [glassSurface] disegna di serie il materiale nuovo
+ * ([FluidGlassModel.Liquid]): shader dell'engine (`ui/glass/field`), una catena sola sulla cattura, la luce e
+ * l'ombra disegnate a parte. Non passa per i cinque passi qui sotto. Quali superfici restano a questo vetro, e
+ * perche': `resolveFluidGlassModel` in `FluidGlassModel.kt`.
  *
  * What the material actually does, in the order the pixels see it:
  *
@@ -100,7 +106,10 @@ class GlassBackdropState internal constructor(
    * nothing of its own to record, it only says which recordings to stack and in what order.
    */
   internal val layerBackdrop: LayerBackdrop?,
-  /** Depth of the frosting, before each role's own multiplier. */
+  /**
+   * Depth of the frosting, before each role's own multiplier. Solo nel vetro di prima: il materiale nuovo
+   * ([FluidGlassModel.Liquid]) prende la smerigliatura dal proprio profilo e non legge questo raggio.
+   */
   val blurRadius: Dp,
 ) {
 
@@ -133,6 +142,11 @@ class GlassBackdropState internal constructor(
  * smerigliato, e ancora lontanissimo dagli otto dp oltre i quali un pannello trasmette la sua
  * media invece di un'immagine. Questo e' il raggio dei pannelli *piccoli*: quelli grandi ne
  * pagano di piu' per via della regola della taglia, vedi [glassSizeGain].
+ *
+ * Dalla 4.0.0 vale per il vetro di prima ([FluidGlassModel.Classic]). Il materiale nuovo
+ * ([FluidGlassModel.Liquid]) ha la smerigliatura del suo profilo, molto piu' larga, e non legge questo
+ * raggio: qui la lezione «oltre otto dp si trasmette la media» resta vera per il vetro di prima, mentre il
+ * nuovo nasconde lo sfondo con la smerigliatura e si fa riconoscere dal filo e dal riflesso.
  */
 val DefaultGlassBlurRadius: Dp = 2.5.dp
 
@@ -248,12 +262,13 @@ fun Modifier.glassContainer(material: GlassBackdropState): Modifier {
  * campionare (vedi [glassContainer]). Dalla 2.13.0.
  *
  * Va su un nodo che porta **solo** il materiale, mai il contenuto: il contenuto finirebbe nel
- * fondale di cio' che contiene, che e' il feedback ottico. In pratica un fratello sotto al contenuto:
+ * fondale di cio' che contiene, che e' il feedback ottico. In pratica un fratello sotto al contenuto
+ * (i tasti, gli interruttori, le card di vetro che il pannello ospita):
  *
  *     val pane = rememberGlassBackdrop()
  *     Box(modifier) {
  *       Box(Modifier.matchParentSize().glassMaterialSource(pane).liquidGlass(...))
- *       Column(Modifier.glassContainer(pane)) { /* tasti, interruttori, card di vetro */ }
+ *       Column(Modifier.glassContainer(pane)) { controls() }
  *     }
  *
  * Diverso da [glassBackdropSource], che registra una *pagina*: questo registra solo finche' del
@@ -381,10 +396,23 @@ enum class GlassTintMode {
   Colored,
 }
 
-/** Colour treatment of a glass surface. */
+/**
+ * Colour treatment of a glass surface.
+ *
+ * Il costruttore a tre argomenti e' quello di sempre, e una tinta scritta cosi' e' [GlassTintMode.Fixed]: la
+ * pellicola dipinta com'e', nel vetro di prima e nel materiale nuovo.
+ */
 @Immutable
 data class GlassTint(
-  /** Painted over the refracted backdrop. Keep it low: the material is meant to transmit. */
+  /**
+   * Nel vetro di prima ([FluidGlassModel.Classic]) e' la pellicola dipinta sopra il fondale rifratto: tienila
+   * bassa, il materiale deve trasmettere.
+   *
+   * Nel materiale nuovo ([FluidGlassModel.Liquid]) conta il modo risolto ([glassTintLiquidMode]): `Fixed` la
+   * dipinge com'e' al posto del velo del materiale, `Neutral` non la dipinge affatto (il velo lo decide il
+   * materiale, e questa serve solo al vetro di prima), `Colored` la posa sopra il velo, con una luminosita' che
+   * segue lo sfondo. Vedi [GlassTintMode].
+   */
   val overlay: Color,
   /** Used instead of the backdrop on devices without `RenderEffect`. */
   val fallback: Color,
@@ -449,6 +477,11 @@ enum class GlassRole {
  * [refractionAmount] is how far the backdrop is dragged along the surface normal at the very edge.
  * A tall height with a small amount is a gentle dome; a short height with a large amount is a sharp
  * bevel. Apple's controls sit near height == amount.
+ *
+ * Cosi' la legge il vetro di prima ([FluidGlassModel.Classic]). Il materiale nuovo
+ * ([FluidGlassModel.Liquid]) prende smerigliatura, lente, bordo e ombra dal proprio profilo, e di
+ * un'ottica legge alcuni campi come attenuatori (sotto il valore piu' basso fra i ruoli di serie ne
+ * resta la frazione, sopra non c'e' di piu'), altri come oggi, altri per niente: vedi `glassRecipe`.
  */
 @Immutable
 data class GlassOptics(
@@ -1387,8 +1420,22 @@ enum class GlassFalloff {
 /**
  * Turns a composable into a pane of glass over [state]'s content.
  *
- * @param intensity 0 = glass absent, 1 = full material. Animate this instead of the bar's own alpha
- *   so that the controls sitting on the glass stay fully opaque and legible throughout.
+ * Dalla 4.0.0 i materiali sono due ([FluidGlassModel]), con la stessa firma. Da Android 13, con le sorgenti
+ * accettate dal compilatore, su una forma che il campo sa rendere (un rettangolo o una `CornerBasedShape`) e
+ * senza un antenato che chieda il vetro di prima ([LocalFluidGlassModel]), il pannello e' disegnato dal
+ * materiale nuovo ([FluidGlassModel.Liquid]). Altrimenti, e sempre per la fascia ([GlassFalloff.FadeDown]) e
+ * per un velo senza lente, bordo ne' ombra (lo scrim di un modale), dal vetro di prima, al pixel com'era. Nel
+ * materiale nuovo [optics] vale come attenuatore: dal valore piu' basso che ogni campo ha fra i ruoli di serie
+ * in su il materiale e' quello del profilo, sotto ne resta la frazione (vedi `glassRecipe`); il raggio di
+ * [state] non si legge, e la pellicola di [tint] conta secondo il suo modo ([GlassTintMode]).
+ *
+ * @param intensity 0 = il pannello non c'e', 1 = materiale pieno. A zero non si disegna niente, **contenuto
+ *   compreso**. In mezzo il materiale arriva come materiale (nel vetro di prima salgono vividezza, sfocatura,
+ *   lente, pellicola, bordo e ombra; nel nuovo saturazione, lente, velo, luce e ombra, con lo sfondo che passa
+ *   da nitido a smerigliato senza che il raggio cambi), e il contenuto del pannello si dissolve insieme a lui,
+ *   in un layer. Non lascia quindi opachi i controlli che il pannello contiene: un'etichetta che deve restare
+ *   piena mentre il vetro arriva sta fuori dal pannello, in un fratello disegnato dopo. Sotto API 31 segue
+ *   l'intensita' la sola pellicola di ripiego, e il contenuto resta pieno.
  * @param opticalDepth independent weight on the lens, the rim and the shadows, leaving the blur and
  *   the tint alone. A control uses it to melt its own edge away while it is at rest.
  * @param pressed 0 = resting, 1 = fully pressed. Deepens the lens without re-recording anything.
@@ -1396,9 +1443,12 @@ enum class GlassFalloff {
  *   state, so another pane can refract it. That is how a control on a bar bends the bar rather than
  *   the page underneath it. Pair it with [rememberCombinedGlassBackdrop] or [glassContainer]. Dalla
  *   2.13.0 il materiale si registra solo mentre qualcuno lo campiona, e il vetro che sta *dentro*
- *   questo pannello lo trova anche senza: vedi `nestInContainer`.
+ *   questo pannello lo trova anche senza: vedi `nestInContainer`. Mai il contenuto; e nel materiale nuovo
+ *   mai la luce (filo, riflessi, bagliore): un tasto sul pannello campiona il suo corpo, non il suo bordo.
  * @param layerBlock transforms applied to the whole pane. The renderer inverts them when it samples,
- *   so a bar that scales or slides keeps holding the image the world actually has behind it.
+ *   so a bar that scales or slides keeps holding the image the world actually has behind it. L'ombra sta
+ *   dentro questa trasformazione, nel vetro di prima come nel nuovo: un tasto che cresce sotto il dito la porta
+ *   con se'.
  */
 @Composable
 fun Modifier.glassSurface(

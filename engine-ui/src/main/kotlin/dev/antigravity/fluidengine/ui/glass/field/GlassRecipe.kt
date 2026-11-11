@@ -179,9 +179,11 @@ internal class GlassRecipe {
  *   basso che ha in un ruolo di serie in su il materiale è quello del profilo, sotto ne resta la frazione
  *   (vedi [GlassLiquidFullBlurScale]). Così i ruoli di serie sono un vetro solo, e un'ottica scritta a mano
  *   che chiede zero ottiene zero. Tradotti: `blurScale` → sfocatura; `refractionHeight` → banda;
- *   `refractionAmount` → spostamento; `vibrancy` → saturazione (1 resta «spenta»); `highlightAlpha` → forza di
- *   filo e riflesso; `shadowAlpha` → forza dell'ombra (zero = nessuna: `Bar`, `Content`); `dispersion`,
- *   `pressedDepthBoost`, `edgeFloor`, `backdropResolution`, `sizeResponse` come oggi. **Non si leggono**:
+ *   `refractionAmount` → spostamento; `highlightAlpha` → forza di filo e riflesso; `shadowAlpha` → forza
+ *   dell'ombra (zero = nessuna: `Bar`, `Content`). Fanno eccezione, perché non sono attenuatori: `vibrancy` →
+ *   saturazione **in proporzione** (1 resta «spenta», 1,6 dà quella del profilo, di più dà di più), e
+ *   `dispersion`, `pressedDepthBoost`, `edgeFloor`, `backdropResolution` (mai sotto
+ *   [GlassLiquidMinCaptureScale]), `sizeResponse` come oggi. **Non si leggono**:
  *   `depthEffect` (la cupola dipende dalla taglia), `highlightWidth` e `highlightAngle` (il filo è del
  *   profilo), `innerShadow…`, `shadowRadius`;
  * - il **ruolo** ([role]) oggi sceglie soltanto l'ottica di serie, quando [optics] non è data: nessuna misura
@@ -201,8 +203,9 @@ internal class GlassRecipe {
  * - [pressed]: approfondisce lo spostamento di `pressedDepthBoost`, come oggi.
  *
  * ### Velo, pellicola, tinta
- * Di serie il velo è quello del profilo. [film] specificato (la pellicola di un `GlassTint` scritto a mano,
- * `GlassTintMode.Fixed` in F1A.6) **prende il posto del velo**: è il colore dipinto com'è, cioè il
+ * Di serie il velo è quello del profilo. [film] specificato (la pellicola di una tinta che si legge
+ * `GlassTintMode.Fixed`: scritta a mano, di serie con un colore cambiato, o resa densa dal contrasto di sistema;
+ * vedi `glassTintLiquidMode`) **prende il posto del velo**: è il colore dipinto com'è, cioè il
  * comportamento di oggi, e sommarlo al velo darebbe un vetro opaco. [tint] specificato è la tinta di Apple
  * (`Colored`): sta sopra il velo e la sua luminosità segue lo sfondo.
  *

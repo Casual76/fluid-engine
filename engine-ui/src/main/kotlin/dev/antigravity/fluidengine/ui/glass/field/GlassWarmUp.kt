@@ -3,7 +3,9 @@
  * del modello contata nella diagnostica, che è il punto da cui parte.
  *
  * Perché esiste. Un programma AGSL nuovo costa, la prima volta che si disegna, la sua compilazione sul RenderThread:
- * sul Tab S9 i cinque programmi del materiale a freddo costano 139–141 ms in tutto, a caldo 26–30 (S1-bis). Il primo
+ * sul Tab S9 i cinque programmi dei prototipi del materiale (corpo e luce a uno e a otto pezzi, la striscia del bordo)
+ * a freddo costano 139–141 ms in tutto, a caldo 26–30 (S1-bis; gli shader definitivi non erano ancora scritti, e si
+ * rimisurano sul dispositivo). Il primo
  * tasto, la prima capsula, il primo menu di un processo pagherebbero quello scatto nel fotogramma in cui compaiono.
  * Il cancello C6 ha deciso dove si paga invece: **non** nel percorso dell'avvio (è più di un fotogramma), ma dopo il
  * primo fotogramma, per famiglia, quando la finestra è ferma, con un disegno fuori schermo per programma che scalda

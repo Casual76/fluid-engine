@@ -9,7 +9,10 @@
  *  - [glassBody] e [drawGlassLight]: gli stessi numeri messi negli uniform, la catena a monte, i due disegni;
  *  - [GlassLiquidSurface]: lo stato di una superficie, che `glassSurface` ricorda e che dà al nodo le sue
  *    lambda. Tutto ciò che si riusa da un fotogramma all'altro (ricette, array, la catena a monte, l'ombra)
- *    sta lì: nel disegno non si alloca.
+ *    sta lì: il disegno di una lastra ferma non alloca. Quando cambia uno stato che il corpo legge (una
+ *    pressione, l'intensità, la qualità) la catena si rifà, e un `RenderEffect` è immutabile: si ricostruisce
+ *    l'ultimo anello (lo shader del corpo, e la sua unione col pezzo a monte), una volta per cambio. Il pezzo a
+ *    monte resta, finché saturazione, raggio e mescola non cambiano ([GlassBodyChain]).
  *
  * L'ordine dei pixel è quello del piano (3.3): l'ombra prima del nodo e fuori dal suo ritaglio; la cattura
  * con `ColorFilter(saturazione) -> Blur(Clamp) -> mescola w -> corpo`, **un layer solo** (cancello C1); poi

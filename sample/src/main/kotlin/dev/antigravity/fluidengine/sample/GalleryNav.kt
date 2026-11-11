@@ -43,6 +43,12 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
   /** Le scene di misura della prima sessione sul dispositivo (piano «iOS in Android», F0.6): vedi `measure/`. */
   Measure("Misure"),
 
+  /**
+   * Il materiale nuovo accanto a quello di prima, sui sei fondi, per le sessioni sul dispositivo (piano «iOS in
+   * Android», F1A.9): vedi `material/`. Come «Misure», è uno strumento e non una demo di «Da provare».
+   */
+  Material("Materiale"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

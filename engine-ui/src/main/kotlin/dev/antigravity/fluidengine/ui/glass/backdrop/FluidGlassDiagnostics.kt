@@ -7,8 +7,11 @@ import androidx.annotation.MainThread
 import androidx.annotation.VisibleForTesting
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
+import dev.antigravity.fluidengine.ui.glass.field.installGlassLiquidProfileOverride
 import java.util.concurrent.atomic.AtomicIntegerArray
 import java.util.concurrent.atomic.AtomicLong
 
@@ -35,6 +38,9 @@ import java.util.concurrent.atomic.AtomicLong
  * nodi e layer del vetro sono vivi ([liveNodes], [liveLayers]), a che punto è il riscaldamento dei programmi
  * ([warmUp]). I conteggi, come [totalCaptures], costano solo con [enabled] acceso, e contano ciò che nasce
  * **dopo** averlo acceso: lo si accende prima di aprire la schermata da guardare.
+ *
+ * Dalla 4.0.0 (F1A.9), nelle sole build di debug, cambia anche i numeri del materiale nuovo
+ * ([tuneLiquidProfile]): le sessioni sul dispositivo fotografano così le varianti delle tavole di gusto.
  */
 object FluidGlassDiagnostics {
 
@@ -222,6 +228,50 @@ object FluidGlassDiagnostics {
     return true
   }
 
+  // ---- Le manopole del materiale nuovo (4.0.0, F1A.9) --------------------------------------------------------
+
+  @Volatile
+  private var tuning: Map<String, String> = emptyMap()
+
+  /**
+   * Le manopole del materiale nuovo in vigore, coi nomi e i valori normalizzati: vuota vuol dire il profilo di
+   * serie. Fuori da un'app `debuggable` è sempre vuota.
+   */
+  val liquidProfileTuning: Map<String, String> get() = tuning
+
+  /**
+   * Le manopole che [tuneLiquidProfile] riconosce, ognuna con i valori che accetta: le varianti delle tavole di
+   * gusto per nome (`edge` → `ios27`, `ios26`, `today`…), i numeri come intervallo (`blur` → `0..64`).
+   */
+  val liquidProfileKnobs: Map<String, List<String>> get() = GlassLiquidTuning.knobs
+
+  /**
+   * Cambia i numeri del materiale nuovo per le lastre che nascono **da adesso**: le varianti delle tavole di gusto
+   * (bordo, velo, ombra, smerigliatura, lente, grandi, tema scuro) e i numeri in mezzo, per fotografarle sul
+   * pannello vero senza ricompilare (piano «iOS in Android», F1A.9). Ogni chiamata sostituisce tutte le manopole
+   * di prima; `null` o vuota torna al profilo di serie. Una chiave o un valore che non si riconosce si scarta: si
+   * confronta [knobs] con [liquidProfileTuning] per sapere quali.
+   *
+   * **Solo nelle build di debug**, come [simulateApiLevel]: se l'app non è `debuggable` non fa niente e
+   * restituisce `false`, e il profilo resta quello di serie per tutta la vita del processo. Le lastre già in scena
+   * tengono il profilo con cui sono nate: chi cambia le manopole ricrea ciò che vuole vedere.
+   *
+   * @return vero se la richiesta è stata applicata.
+   */
+  @MainThread
+  fun tuneLiquidProfile(context: Context, knobs: Map<String, String>?): Boolean {
+    val debuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    if (!debuggable) return false
+    installLiquidTuning(knobs)
+    return true
+  }
+
+  private fun installLiquidTuning(knobs: Map<String, String>?) {
+    val tuned = if (knobs.isNullOrEmpty()) null else GlassLiquidTuning.apply(GlassLiquidProfile.Shipped, knobs)
+    installGlassLiquidProfileOverride(tuned?.profile?.takeIf { tuned.accepted.isNotEmpty() })
+    tuning = tuned?.accepted ?: emptyMap()
+  }
+
   // ---- Ganci dei test che montano composable ------------------------------------------------------------------
 
   /**
@@ -241,13 +291,15 @@ object FluidGlassDiagnostics {
 
   /**
    * Solo per i test: la sonda vera senza verdetti, nessun livello simulato, il riscaldamento acceso e mai
-   * partito. I conteggi vivi non si azzerano: scendono da soli quando le superfici se ne vanno.
+   * partito, il profilo di serie. I conteggi vivi non si azzerano: scendono da soli quando le superfici se ne
+   * vanno.
    */
   @VisibleForTesting
   fun resetForTesting() {
     GlassFieldHealth.resetForTesting()
     installSimulatedGlassApiLevel(null)
     GlassWarmUp.resetForTesting()
+    installLiquidTuning(null)
   }
 }
 

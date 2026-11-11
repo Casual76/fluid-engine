@@ -52,7 +52,14 @@ import dev.antigravity.fluidengine.sample.catalog.CapsulesAndPartsDemo
 import dev.antigravity.fluidengine.sample.catalog.MenusDemo
 import dev.antigravity.fluidengine.sample.catalog.MoreComponentsDemo
 import dev.antigravity.fluidengine.sample.catalog.RowsAndSheetsDemo
+import dev.antigravity.fluidengine.sample.material.GalleryGlassLaunch
+import dev.antigravity.fluidengine.sample.material.GalleryGlassSwitches
+import dev.antigravity.fluidengine.sample.material.LocalGalleryGlassSwitches
+import dev.antigravity.fluidengine.sample.material.LocalGalleryPageOpener
+import dev.antigravity.fluidengine.sample.material.MaterialPage
+import dev.antigravity.fluidengine.sample.material.rememberGalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.measure.MeasurePage
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import androidx.compose.animation.core.animateFloatAsState
@@ -117,18 +124,38 @@ class GalleryActivity : ComponentActivity() {
     // verifica su emulatore, e la galleria pubblicata non ha scorciatoie nascoste.
     val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     val launch = if (debuggable) GalleryLaunch.parse { intent?.getStringExtra(it) } else GalleryLaunch.None
+    // Gli interruttori del vetro per tutta la galleria (F1A.9: `gallery.model`, `gallery.api`, `gallery.warmup`,
+    // `gallery.tune`), solo nella build di debug. Livello simulato, riscaldamento e manopole valgono per cio' che entra
+    // in composizione dopo: si applicano qui, prima del contenuto, e una volta sola (una rotazione non rimette quelli
+    // degli extra sopra quelli cambiati a mano). La diagnostica si accende qui per la stessa ragione: conta solo cio'
+    // che nasce dopo, e una pagina aperta con `gallery.page` nasce nella prima composizione.
+    val glassLaunch = if (debuggable) GalleryGlassLaunch.parse { intent?.getStringExtra(it) } else GalleryGlassLaunch.None
+    if (debuggable) {
+      FluidGlassDiagnostics.enabled = true
+      if (savedInstanceState == null) GalleryGlassSwitches.applyAtLaunch(this, glassLaunch)
+    }
     setContent {
       // Le impostazioni stanno sopra il tema, non dentro una scheda: "Aspetto" le cambia davvero, e
       // il tema chiaro serve per giudicare il bordo del vetro che si trasforma.
       var settings by remember { mutableStateOf(launch.settings()) }
       val nav = remember { GalleryNav(launch.stack()) }
       val matrix = remember { launch.matrix() }
-      FluidTheme(settings = settings) {
-        // La policy del movimento si installa in radice, come la skill raccomanda alle app: `FluidTheme` non lo
-        // fa, e senza questo con le animazioni di sistema a zero la pillola si ripiegava ancora animata. Sotto,
-        // la matrice «movimento ridotto» (`MatrixScope`) la forza a zero, altrimenti riparte da questa.
-        FluidMotionPolicyProvider {
-          Gallery(settings = settings, onSettingsChange = { settings = it }, nav = nav, matrix = matrix)
+      val glass = rememberGalleryGlassSwitches(glassLaunch)
+      CompositionLocalProvider(
+        LocalGalleryGlassSwitches provides glass.takeIf { debuggable },
+        LocalFluidGlassModel provides glass.model,
+      ) {
+        // Un cambio di livello simulato o di manopole fa rinascere tutta la galleria: una superficie sceglie vetro e
+        // profilo quando nasce. Pila, impostazioni e interruttori stanno sopra la chiave, e restano.
+        key(glass.epoch) {
+          FluidTheme(settings = settings) {
+            // La policy del movimento si installa in radice, come la skill raccomanda alle app: `FluidTheme` non lo
+            // fa, e senza questo con le animazioni di sistema a zero la pillola si ripiegava ancora animata. Sotto,
+            // la matrice «movimento ridotto» (`MatrixScope`) la forza a zero, altrimenti riparte da questa.
+            FluidMotionPolicyProvider {
+              Gallery(settings = settings, onSettingsChange = { settings = it }, nav = nav, matrix = matrix)
+            }
+          }
         }
       }
     }
@@ -223,6 +250,8 @@ internal fun Gallery(
   CompositionLocalProvider(
     LocalFluidGlassModalHostState provides modalHost,
     LocalFluidNotificationHostState provides notificationHost,
+    // Le Impostazioni portano alla pagina «Materiale» dagli interruttori del vetro.
+    LocalGalleryPageOpener provides { page -> nav.open(page) },
   ) {
     // Il registro aptico e la grana scelta sono della radice: sentono anche i menù e le pagine.
     ProvideGalleryTools(tools) {
@@ -258,6 +287,8 @@ internal fun Gallery(
               GalleryPage.MoreComponents -> MoreComponentsPage(bottomInset) { nav.back() }
               // Le misure della prima sessione sul dispositivo: scene fisse, scelte con `measure.scene`.
               GalleryPage.Measure -> MeasurePage(bottomInset) { nav.back() }
+              // Il materiale nuovo accanto a quello di prima, per le sessioni sul dispositivo: `material.scene`.
+              GalleryPage.Material -> MaterialPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

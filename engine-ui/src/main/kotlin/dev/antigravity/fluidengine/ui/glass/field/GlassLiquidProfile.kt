@@ -15,8 +15,10 @@
  *    [GlassLiquidVeils], [GlassLiquidFrosts], [GlassLiquidLenses], [GlassLiquidGrowths],
  *    [GlassLiquidShadows]): «iOS 27 / iOS 26 / oggi» e le proposte dove Apple non è misurata. Le varianti sono
  *    numeri, non altri shader;
- *  - [GlassLiquidProfile] mette insieme un pezzo per tipo e per lato del tema; [GlassLiquidProfile.Default] è
- *    la combinazione di serie. Una tavola di gusto è `Default.copy(un pezzo = un'altra variante)`.
+ *  - [GlassLiquidProfile] mette insieme un pezzo per tipo e per lato del tema; [GlassLiquidProfile.Shipped] è
+ *    la combinazione di serie, e [GlassLiquidProfile.Default] quella con cui si disegna (la stessa, salvo le
+ *    manopole di una build di debug: [GlassLiquidTuning]). Una tavola di gusto è
+ *    `Default.copy(un pezzo = un'altra variante)`.
  *
  * Chi trasforma un profilo negli uniform è `glassRecipe` (`GlassRecipe.kt`), e nessun altro.
  *
@@ -559,6 +561,18 @@ internal data class GlassLiquidProfile(
   companion object {
 
     /**
+     * Il profilo con cui l'engine disegna: [Shipped], salvo in una build di debug a cui
+     * `FluidGlassDiagnostics.tuneLiquidProfile` ha dato delle manopole ([GlassLiquidTuning]).
+     *
+     * È una lettura e non un valore perché le sessioni sul dispositivo devono fotografare le varianti delle
+     * tavole sul pannello vero, senza ricompilare. Il campo che la sostituisce lo scrive solo quella funzione,
+     * dopo aver controllato che l'app sia `debuggable` (come il livello di API simulato): in un'app di rilascio
+     * è [Shipped] per tutta la vita del processo. Chi la legge è una superficie quando nasce: le lastre già in
+     * scena tengono il profilo con cui sono nate.
+     */
+    val Default: GlassLiquidProfile get() = glassLiquidProfileOverride ?: Shipped
+
+    /**
      * La combinazione **di serie**: il materiale di iOS 27 dove è misurato, le proposte di F1A.5 dove non lo è.
      *
      * [smallShadow] a uno: sotto un tasto tondo su bianco R5 M4 misura meno dell'1% entro 0,15 D, e qui il
@@ -566,7 +580,7 @@ internal data class GlassLiquidProfile(
      * chiudere è che il tasto «non sembra su un livello superiore». La variante «come Apple» è
      * [SmallShadowLikeApple]; decide la tavola dell'ombra.
      */
-    val Default: GlassLiquidProfile = GlassLiquidProfile(
+    val Shipped: GlassLiquidProfile = GlassLiquidProfile(
       lightEdge = GlassLiquidEdges.Ios27,
       lightVeil = GlassLiquidVeils.Ios27,
       lightShadow = GlassLiquidShadows.Ios27,
@@ -582,4 +596,166 @@ internal data class GlassLiquidProfile(
     /** [smallShadow] «come Apple»: sotto un tasto resta un quarto dell'ombra della barra (0,8% a 0,03 D). */
     const val SmallShadowLikeApple: Float = 0.25f
   }
+}
+
+// ------------------------------------------------------------------------------------------------------------
+// Le manopole delle sessioni sul dispositivo (F1A.9)
+// ------------------------------------------------------------------------------------------------------------
+
+/** Il profilo che una build di debug ha messo al posto di [GlassLiquidProfile.Shipped], o `null`. */
+@Volatile
+private var glassLiquidProfileOverride: GlassLiquidProfile? = null
+
+/**
+ * Mette [profile] al posto di [GlassLiquidProfile.Shipped] per le superfici che nascono da adesso (`null` lo
+ * toglie). Il chiamante ha già deciso che può: vedi `FluidGlassDiagnostics.tuneLiquidProfile`.
+ */
+internal fun installGlassLiquidProfileOverride(profile: GlassLiquidProfile?) {
+  glassLiquidProfileOverride = profile
+}
+
+/** Il risultato di [GlassLiquidTuning.apply]: il profilo, e le manopole prese e scartate (nomi normalizzati). */
+internal class GlassLiquidTuned(
+  val profile: GlassLiquidProfile,
+  val accepted: Map<String, String>,
+  val rejected: Map<String, String>,
+)
+
+/**
+ * Le **manopole** del profilo: i nomi con cui la galleria chiede, dal vivo, le varianti delle tavole di gusto e i
+ * numeri in mezzo, per fotografarle sul pannello vero (piano «iOS in Android», F1A.9 e sessione S2).
+ *
+ * Due specie. Le **varianti** scelgono un pezzo dai cataloghi qui sopra, con le lettere delle tavole: `edge`
+ * (`ios27`, `ios26`, `today`), `veil` (`ios27`, `ios26`), `shadow` (`ios27`, `ios26`), `round` (`bar`, `apple`: la
+ * riga «il tondo»), `frost` (`r12`, `r24`, `wide`, `ios26`), `lens` (`light`, `medium`, `strong`), `large`
+ * (`none`, `step`, `two`), `darkedge` (`reflex`, `wire`, `today`), `darkveil` (`lighter`, `deeper`). I **numeri**
+ * cambiano un campo del pezzo già scelto, e si applicano dopo tutte le varianti qualunque sia l'ordine in cui
+ * arrivano: vedi [numbers]. Una chiave o un valore che non si riconosce non cambia niente e si riporta.
+ *
+ * Non è una API per le app: si raggiunge solo da `FluidGlassDiagnostics`, e solo in un'app `debuggable`.
+ */
+internal object GlassLiquidTuning {
+
+  private val variants: Map<String, Map<String, (GlassLiquidProfile) -> GlassLiquidProfile>> = linkedMapOf(
+    "edge" to linkedMapOf(
+      "ios27" to { p -> p.copy(lightEdge = GlassLiquidEdges.Ios27) },
+      "ios26" to { p -> p.copy(lightEdge = GlassLiquidEdges.Ios26) },
+      "today" to { p -> p.copy(lightEdge = GlassLiquidEdges.Today) },
+    ),
+    "veil" to linkedMapOf(
+      "ios27" to { p -> p.copy(lightVeil = GlassLiquidVeils.Ios27) },
+      "ios26" to { p -> p.copy(lightVeil = GlassLiquidVeils.Ios26) },
+    ),
+    "shadow" to linkedMapOf(
+      "ios27" to { p -> p.copy(lightShadow = GlassLiquidShadows.Ios27) },
+      "ios26" to { p -> p.copy(lightShadow = GlassLiquidShadows.Ios26) },
+    ),
+    "round" to linkedMapOf(
+      "bar" to { p -> p.copy(smallShadow = 1f) },
+      "apple" to { p -> p.copy(smallShadow = GlassLiquidProfile.SmallShadowLikeApple) },
+    ),
+    "frost" to linkedMapOf(
+      "r12" to { p -> p.copy(frost = GlassLiquidFrosts.Radius12) },
+      "r24" to { p -> p.copy(frost = GlassLiquidFrosts.Radius24) },
+      "wide" to { p -> p.copy(frost = GlassLiquidFrosts.WideMixed) },
+      "ios26" to { p -> p.copy(frost = GlassLiquidFrosts.Ios26) },
+    ),
+    "lens" to linkedMapOf(
+      "light" to { p -> p.copy(lens = GlassLiquidLenses.Light) },
+      "medium" to { p -> p.copy(lens = GlassLiquidLenses.Medium) },
+      "strong" to { p -> p.copy(lens = GlassLiquidLenses.Strong) },
+    ),
+    "large" to linkedMapOf(
+      "none" to { p -> p.copy(growth = GlassLiquidGrowths.None) },
+      "step" to { p -> p.copy(growth = GlassLiquidGrowths.Step) },
+      "two" to { p -> p.copy(growth = GlassLiquidGrowths.TwoSteps) },
+    ),
+    "darkedge" to linkedMapOf(
+      "reflex" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkReflex) },
+      "wire" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkReflexAndWire) },
+      "today" to { p -> p.copy(darkEdge = GlassLiquidEdges.DarkToday) },
+    ),
+    "darkveil" to linkedMapOf(
+      "lighter" to { p -> p.copy(darkVeil = GlassLiquidVeils.DarkLighter) },
+      "deeper" to { p -> p.copy(darkVeil = GlassLiquidVeils.DarkDeeper) },
+    ),
+  )
+
+  private class Knob(val min: Float, val max: Float, val apply: (GlassLiquidProfile, Float) -> GlassLiquidProfile)
+
+  /**
+   * Le manopole a numero, con l'intervallo che accettano. Lato chiaro: `rimwidth` (dp, anche sul lato scuro: il
+   * filo è assoluto), `rimalpha` (la forza del filo scuro), `reflex` (la riga chiara), `halo` (l'alone),
+   * `veilalpha`, `adapt`; smerigliatura: `blur` (dp, prima della crescita dei grandi), `mix` (il nitido sopra);
+   * `bend` (la lente, multiplo della banda); `shadowscale` (le due alfa dell'ombra insieme, sui due lati: il loro
+   * rapporto resta quello registrato); lato scuro: `darkwire` (un filo bianco che copre), `darkreflex`,
+   * `darkveilalpha`.
+   */
+  private val numbers: Map<String, Knob> = linkedMapOf(
+    "rimwidth" to Knob(0f, 4f) { p, v ->
+      p.copy(lightEdge = p.lightEdge.copy(rimWidth = v.dp), darkEdge = p.darkEdge.copy(rimWidth = v.dp))
+    },
+    "rimalpha" to Knob(0f, 1f) { p, v -> p.copy(lightEdge = p.lightEdge.copy(rim = p.lightEdge.rim.copy(alpha = v))) },
+    "reflex" to Knob(0f, 1f) { p, v -> p.copy(lightEdge = p.lightEdge.copy(reflexStrength = v)) },
+    "halo" to Knob(0f, 1f) { p, v -> p.copy(lightEdge = p.lightEdge.copy(reflexHalo = v)) },
+    "veilalpha" to Knob(0f, 1f) { p, v -> p.copy(lightVeil = p.lightVeil.copy(color = p.lightVeil.color.copy(alpha = v))) },
+    "adapt" to Knob(0f, 1f) { p, v -> p.copy(lightVeil = p.lightVeil.copy(adapt = v)) },
+    "blur" to Knob(0f, 64f) { p, v -> p.copy(frost = p.frost.copy(blur = v.dp)) },
+    "mix" to Knob(0f, 1f) { p, v -> p.copy(frost = p.frost.copy(mix = v)) },
+    "bend" to Knob(0f, 3f) { p, v -> p.copy(lens = p.lens.copy(bend = v)) },
+    "shadowscale" to Knob(0f, 8f) { p, v ->
+      p.copy(
+        lightShadow = p.lightShadow.copy(
+          contactAlpha = (p.lightShadow.contactAlpha * v).coerceAtMost(1f),
+          ambientAlpha = (p.lightShadow.ambientAlpha * v).coerceAtMost(1f),
+        ),
+        darkShadow = p.darkShadow.copy(
+          contactAlpha = (p.darkShadow.contactAlpha * v).coerceAtMost(1f),
+          ambientAlpha = (p.darkShadow.ambientAlpha * v).coerceAtMost(1f),
+        ),
+      )
+    },
+    "darkwire" to Knob(0f, 1f) { p, v -> p.copy(darkEdge = p.darkEdge.copy(rim = Color.White.copy(alpha = v))) },
+    "darkreflex" to Knob(0f, 1f) { p, v -> p.copy(darkEdge = p.darkEdge.copy(reflexStrength = v)) },
+    "darkveilalpha" to Knob(0f, 1f) { p, v -> p.copy(darkVeil = p.darkVeil.copy(color = p.darkVeil.color.copy(alpha = v))) },
+  )
+
+  /** Ogni manopola con i valori che accetta: le varianti per nome, i numeri come `min..max`. */
+  val knobs: Map<String, List<String>> = LinkedHashMap<String, List<String>>().apply {
+    for ((name, values) in variants) put(name, values.keys.toList())
+    for ((name, knob) in numbers) put(name, listOf("${number(knob.min)}..${number(knob.max)}"))
+  }
+
+  /**
+   * [requested] applicate a [base]: prima le varianti, poi i numeri, ciascuna specie nell'ordine di [knobs].
+   * Nomi e valori senza distinzione di maiuscole; nei numeri vale anche la virgola.
+   */
+  fun apply(base: GlassLiquidProfile, requested: Map<String, String>): GlassLiquidTuned {
+    val clean = LinkedHashMap<String, String>()
+    for ((key, value) in requested) clean[key.trim().lowercase()] = value.trim().lowercase()
+    val accepted = LinkedHashMap<String, String>()
+    val rejected = LinkedHashMap<String, String>()
+    for ((key, value) in clean) if (key !in variants && key !in numbers) rejected[key] = value
+    var profile = base
+    for ((name, values) in variants) {
+      val value = clean[name] ?: continue
+      val change = values[value]
+      if (change == null) rejected[name] = value else {
+        profile = change(profile)
+        accepted[name] = value
+      }
+    }
+    for ((name, knob) in numbers) {
+      val value = clean[name] ?: continue
+      val v = value.replace(',', '.').toFloatOrNull()
+      if (v == null || !v.isFinite() || v < knob.min || v > knob.max) rejected[name] = value else {
+        profile = knob.apply(profile, v)
+        accepted[name] = number(v)
+      }
+    }
+    return GlassLiquidTuned(profile, accepted, rejected)
+  }
+
+  private fun number(value: Float): String =
+    if (value == value.toInt().toFloat()) value.toInt().toString() else value.toString()
 }

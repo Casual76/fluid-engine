@@ -1841,6 +1841,34 @@ nelle icone («ne fanno un uso davvero massiccio»), e portarla nelle regole del
 **matrice dei casi** del punto 4: è l'ingresso di F4A.1 (le «differenze» fra due modelli) e di F3.4 (la grammatica
 delle icone), e ciò che non sta in questa fase lo assegna alle altre (titoli, ricerca, menu, tab bar).
 
+**Cosa ha trovato R7 (2026-11-11), e cosa cambia nel progetto qui sotto.** `ricerca/sfocatura-e-cambi.md`: 32 righe di
+matrice, sei casi disegnati, 10 regole del contenuto e 17 del modello; le prove in `artifacts/liquid-glass/ricerca/r7/`.
+1. **La sfocatura di Apple nei cambi è uniforme, non di moto** (σx ≈ σy su otto icone, anche su una che si sposta di
+   36 px mentre si sfoca; fiducia alta): è sfocatura uniforme più scala leggera (1 → 0,9), opacità, e il vetro che
+   cambia forma sotto. Niente shader direzionale. Numeri: σ massima ≈ 0,15 dell'altezza dell'icona (3,6–4,4 dp) a
+   200–234 ms; le due icone convivono 70–100 ms; la nuova è nitida a ≈ 430 ms (300–330 ms sul telefono); chi nasce senza
+   predecessore parte da scala 0,75; la tinta entra dentro la sfocatura, a ≈ 130 ms. **Si sfoca solo ciò che cambia
+   identità**: ciò che resta, resta nitido anche se si sposta in fretta. → F3.4.
+2. **Fra pagine i tasti si trasformano sul posto con un tempo loro**, non col progresso della pagina: oggi il morph
+   segue il dito (`FluidPageAnchoredBar.kt:460`). Serve un viaggio che parte col tocco (o al rilascio confermato) e
+   riprende da dove si trova. → F4A.3, F4A.6.
+3. **Un tasto nuovo nasce dal fianco del vicino, con un collo che si rompe** (≈ 400 ms nel push della sessione 256),
+   non da un seme sul proprio centro (`seedAt`, `FluidPageMotion.kt:497`). Accoppiamento: `id`, poi ruolo, poi simbolo,
+   poi ordine dall'esterno. → F3.1, F3.3, F4A.1.
+4. **Lo scambio di icone di oggi ha un buco** (a metà viaggio tutte e due sotto 0,15 di opacità) **e fa lampeggiare
+   anche le icone uguali**, perché le due pagine disegnano due righe sovrapposte: serve una barra disegnata dal modello,
+   un elemento per `id`. → F4A.3, F3.4.
+5. **Il colore è contenuto**: la tinta cambia dentro la finestra della sfocatura, e l'azione principale non si raggruppa
+   mai (un gruppo si divide quando una sua azione diventa principale). → F1B (il viaggio mescola anche la tinta del
+   corpo), F3.4, F4A.2.
+6. **Gesto indietro**: nella demo di UIKit (sessione 284, Note) i tasti restano quelli della pagina in cima per tutto il
+   trascinamento e si trasformano solo al rilascio che conferma: **è la proposta di Alessio**; l'engine oggi fa il
+   contrario.
+Domande aperte per Alessio (D1–D4 del documento): gesto indietro; un'icona uguale in due vetri diversi; da dove nasce
+un tasto nuovo; il cambio di scheda. Le risposte si scrivono qui sotto appena arrivano. **Non visto in nessun
+riferimento**: cambio di scheda, chiudi ↔ indietro nei fogli, il trabocco, il tema scuro, il movimento ridotto, un gesto
+fermato a metà: per quelli serve una registrazione da un iPhone vero (elenco nel documento) o una scelta.
+
 **Progetto tecnico.**
 
 - *Modello* (puro): lista di elementi con `id`, posizione semantica, ruolo, priorità. La risoluzione produce gruppi per lato

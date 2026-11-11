@@ -9,10 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +32,10 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsContentRole
@@ -188,13 +188,13 @@ private fun DemoContents(state: FluidPhysicsState, phase: DemoPhase, stage: IntS
       frame = Rect(w / 2f - gap / 2f - buttonWidth, top, w / 2f - gap / 2f, top + buttonHeight),
       modifier = Modifier.fluidPhysicsContent(state, roleFor(DemoPhase.Buttons)),
     ) {
-      DemoLabel(icon = Icons.Rounded.Share, text = "Condividi")
+      DemoLabel(icon = FluidIcons.Share, text = "Condividi")
     }
     FrameBox(
       frame = Rect(w / 2f + gap / 2f, top, w / 2f + gap / 2f + buttonWidth, top + buttonHeight),
       modifier = Modifier.fluidPhysicsContent(state, roleFor(DemoPhase.Buttons)),
     ) {
-      DemoLabel(icon = Icons.Rounded.Delete, text = "Elimina")
+      DemoLabel(icon = FluidIcons.Delete, text = "Elimina")
     }
   }
 
@@ -215,9 +215,9 @@ private fun DemoContents(state: FluidPhysicsState, phase: DemoPhase, stage: IntS
         modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.SpaceEvenly,
       ) {
-        DemoMenuRow(Icons.Rounded.Share, "Condividi")
-        DemoMenuRow(Icons.Rounded.Star, "Aggiungi ai preferiti")
-        DemoMenuRow(Icons.Rounded.Delete, "Elimina", destructive = true)
+        DemoMenuRow(FluidIcons.Share, "Condividi")
+        DemoMenuRow(FluidIcons.Filled.Star, "Aggiungi ai preferiti")
+        DemoMenuRow(FluidIcons.Delete, "Elimina", destructive = true)
       }
     }
   }

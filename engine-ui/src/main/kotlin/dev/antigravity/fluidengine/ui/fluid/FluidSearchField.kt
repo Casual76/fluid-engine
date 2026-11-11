@@ -19,12 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +53,11 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowDown
+import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowUp
+import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 
 /** Le misure del [FluidSearchField]. */
@@ -272,11 +271,13 @@ fun FluidSearchField(
       .clip(FluidCapsuleShape),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Icon(
-      imageVector = Icons.Rounded.Search,
+    FluidIcon(
+      imageVector = FluidIcons.Search,
       // La lente e' il nome del tasto solo da chiuso: aperto e' decorazione del campo.
       contentDescription = if (open) null else labels.search,
-      tint = if (open) scheme.onSurfaceVariant else scheme.primary,
+      // 4.0 (F1A.11): da chiuso e' un tasto di barra, quindi inchiostro del testo come le altre icone di barra e non
+      // l'accento (R6: 15-17:1 contro 3,5-6,7:1); da aperto e' decorazione del campo e resta nel tono secondario.
+      tint = if (open) scheme.onSurfaceVariant else fluidChromeInk(),
       modifier = Modifier
         .padding(start = FluidSearchFieldDefaults.IconInset)
         .size(FluidSearchFieldDefaults.IconSize),
@@ -315,7 +316,7 @@ fun FluidSearchField(
         if (navigation != null) {
           SearchCounter(query = query, navigation = navigation, labels = labels)
           FluidCapsuleAction(
-            icon = Icons.Rounded.KeyboardArrowUp,
+            icon = FluidIcons.KeyboardArrowUp,
             contentDescription = labels.previous,
             onClick = navigation.onPrevious,
             enabled = navigation.total > 0,
@@ -323,7 +324,7 @@ fun FluidSearchField(
             size = FluidSearchFieldDefaults.ActionSize,
           )
           FluidCapsuleAction(
-            icon = Icons.Rounded.KeyboardArrowDown,
+            icon = FluidIcons.KeyboardArrowDown,
             contentDescription = labels.next,
             onClick = navigation.onNext,
             enabled = navigation.total > 0,
@@ -333,7 +334,7 @@ fun FluidSearchField(
         }
         if (collapsible) {
           FluidCapsuleAction(
-            icon = Icons.Rounded.Close,
+            icon = FluidIcons.Close,
             contentDescription = labels.close,
             onClick = { onExpandedChange?.invoke(false) },
             tint = scheme.onSurface,

@@ -9,13 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +42,13 @@ import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenu
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.Edit
+import dev.antigravity.fluidengine.ui.fluid.icons.Favorite
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreVert
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
@@ -96,10 +96,10 @@ fun MenusDemo() {
 
 /** Le voci di prova: due sezioni, una voce spenta, una distruttiva. */
 private fun demoActions(pick: (String) -> Unit): List<FluidContextAction> = listOf(
-  FluidContextAction(label = "Condividi", icon = Icons.Rounded.Share) { pick("Condividi") },
-  FluidContextAction(label = "Aggiungi ai preferiti", icon = Icons.Rounded.Star) { pick("Aggiungi ai preferiti") },
-  FluidContextAction(label = "Modifica (spenta)", icon = Icons.Rounded.Edit, enabled = false) { pick("Modifica") },
-  FluidContextAction(label = "Elimina", icon = Icons.Rounded.Delete, destructive = true, startsSection = true) {
+  FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { pick("Condividi") },
+  FluidContextAction(label = "Aggiungi ai preferiti", icon = FluidIcons.Filled.Star) { pick("Aggiungi ai preferiti") },
+  FluidContextAction(label = "Modifica (spenta)", icon = FluidIcons.Edit, enabled = false) { pick("Modifica") },
+  FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) {
     pick("Elimina")
   },
 )
@@ -166,14 +166,14 @@ private fun BarSection(pick: (String) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         FluidBarAction(
-          icon = Icons.Rounded.Star,
+          icon = FluidIcons.Filled.Star,
           contentDescription = "Preferiti",
           onClick = { pick("Stella (tocco)") },
           actions = { demoActions(pick) },
           modifier = Modifier.testTag("menus-bar"),
         )
         FluidBarAction(
-          icon = Icons.Rounded.MoreVert,
+          icon = FluidIcons.MoreVert,
           contentDescription = "Altro",
           onClick = {},
           actions = { demoActions(pick) },
@@ -221,8 +221,8 @@ private fun CardSection(pick: (String) -> Unit) {
       .drawBehind { drawRect(Color(0xFF3A7BD5).copy(alpha = 0.18f)) }
       .fluidContextMenu(actions = {
         listOf(
-          FluidContextAction(label = "Copia", icon = Icons.Rounded.Share) { pick("Copia") },
-          FluidContextAction(label = "Mi piace", icon = Icons.Rounded.Favorite) { pick("Mi piace") },
+          FluidContextAction(label = "Copia", icon = FluidIcons.Share) { pick("Copia") },
+          FluidContextAction(label = "Mi piace", icon = FluidIcons.Filled.Favorite) { pick("Mi piace") },
         )
       })
       .testTag("menus-card"),

@@ -25,13 +25,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.VolumeOff
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -91,6 +84,7 @@ import dev.antigravity.fluidengine.aiui.strings.FluidAssistantStrings
 import dev.antigravity.fluidengine.aiui.strings.FluidChatStrings
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRevealingText
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -100,6 +94,13 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowUpward
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowDown
+import dev.antigravity.fluidengine.ui.fluid.icons.Mic
+import dev.antigravity.fluidengine.ui.fluid.icons.Stop
+import dev.antigravity.fluidengine.ui.fluid.icons.VolumeOff
 import dev.antigravity.fluidengine.ui.fluid.rememberCombinedGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 
@@ -331,21 +332,21 @@ fun FluidComposer(
           chips?.invoke(this)
           Spacer(Modifier.weight(1f))
           when (action) {
-            FluidComposerAction.StopListening -> FluidGlassRoundButton(Icons.Rounded.Stop, strings.voiceStop, controlBackdrop, tint = MaterialTheme.colorScheme.error, onClick = onStopListening)
+            FluidComposerAction.StopListening -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.voiceStop, controlBackdrop, tint = MaterialTheme.colorScheme.error, onClick = onStopListening)
             FluidComposerAction.StopAndQueue -> {
-              FluidGlassRoundButton(Icons.Rounded.Stop, strings.stop, controlBackdrop, onClick = onStop)
+              FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
               Spacer(Modifier.width(8.dp))
-              FluidGlassRoundButton(Icons.Rounded.ArrowUpward, strings.sendQueued, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+              FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.sendQueued, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
             }
-            FluidComposerAction.Stop -> FluidGlassRoundButton(Icons.Rounded.Stop, strings.stop, controlBackdrop, onClick = onStop)
-            FluidComposerAction.Mute -> FluidGlassRoundButton(Icons.AutoMirrored.Rounded.VolumeOff, strings.mute, controlBackdrop, onClick = onMute)
+            FluidComposerAction.Stop -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
+            FluidComposerAction.Mute -> FluidGlassRoundButton(FluidIcons.VolumeOff, strings.mute, controlBackdrop, onClick = onMute)
             FluidComposerAction.Voice -> FluidGlassRoundButton(
-              Icons.Rounded.Mic,
+              FluidIcons.Mic,
               strings.voiceStart,
               controlBackdrop,
               onClick = { if (micGranted || !requestMicPermission) onVoice() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) },
             )
-            FluidComposerAction.Send -> FluidGlassRoundButton(Icons.Rounded.ArrowUpward, strings.send, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+            FluidComposerAction.Send -> FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.send, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
           }
         }
       }
@@ -445,7 +446,7 @@ fun FluidComposerChip(label: String, onClick: () -> Unit, modifier: Modifier = M
   ) {
     Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
     Spacer(Modifier.width(2.dp))
-    Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+    FluidIcon(FluidIcons.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
   }
 }
 
@@ -479,7 +480,7 @@ fun FluidComposerPill(
     Text(label, style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
     Spacer(Modifier.width(4.dp))
     if (removable) {
-      Icon(Icons.Rounded.Close, contentDescription = removeDescription, tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+      FluidIcon(FluidIcons.Close, contentDescription = removeDescription, tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
     } else if (trailingLink != null) {
       Icon(trailingLink, contentDescription = null, tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
     }

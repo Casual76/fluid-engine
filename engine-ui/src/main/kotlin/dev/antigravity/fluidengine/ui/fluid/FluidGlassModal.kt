@@ -24,8 +24,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,6 +57,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.CornerRadius
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
@@ -2008,7 +2008,9 @@ private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
     modifier = Modifier
       .fillMaxWidth()
       .height(FluidScreenDefaults.ControlRowHeight)
-      .padding(horizontal = 8.dp),
+      // 4.0 (F1A.11): il vetro della croce sta a 16 dp dal bordo come ogni tasto di barra ([FluidMetrics.ScreenEdgeMargin]);
+      // prima il riquadro da 48 stava a 8 e il vetro a 10. [FluidBarEdgeInset] e' il margine del riquadro, non del vetro.
+      .padding(horizontal = FluidBarEdgeInset),
   ) {
     if (title != null) {
       Text(
@@ -2021,7 +2023,8 @@ private fun FluidFullScreenHeader(title: String?, onDismiss: () -> Unit) {
         textAlign = TextAlign.Center,
         modifier = Modifier
           .align(Alignment.Center)
-          .padding(horizontal = FluidFullScreenCloseTouchTarget),
+          // Il titolo non entra nel riquadro del tasto (48 dp, [FluidMetrics.TouchTarget]) e il margine e' simmetrico.
+          .padding(horizontal = FluidMetrics.TouchTarget),
       )
     }
     FluidFullScreenCloseButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
@@ -2042,7 +2045,7 @@ private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier =
     ) {
       // A inchiostro pieno dalla 4.0 (era all'80%): le icone dei tasti di vetro sono nell'inchiostro del testo (R6).
       FluidIcon(
-        imageVector = Icons.Rounded.Close,
+        imageVector = FluidIcons.Close,
         contentDescription = closeLabel,
         size = FluidFullScreenCloseGlyph,
       )

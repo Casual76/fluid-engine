@@ -16,12 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Archive
-import androidx.compose.material.icons.rounded.Inbox
-import androidx.compose.material.icons.rounded.MarkEmailRead
-import androidx.compose.material.icons.rounded.MarkEmailUnread
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,6 +57,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFastScroller
 import dev.antigravity.fluidengine.ui.fluid.FluidGroupedMaterial
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidJumpPill
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
@@ -75,6 +70,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidGroupedItems
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeActions
+import dev.antigravity.fluidengine.ui.fluid.icons.Archive
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Inbox
+import dev.antigravity.fluidengine.ui.fluid.icons.MarkEmailRead
+import dev.antigravity.fluidengine.ui.fluid.icons.MarkEmailUnread
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidSwipeState
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.haptics.ProvideFluidHapticTrace
@@ -362,7 +362,7 @@ private fun LongListsPage(
             state = LongListsState.Content
             arrive(3)
           },
-          illustration = { Icon(Icons.Rounded.Inbox, contentDescription = null) },
+          illustration = { FluidIcon(FluidIcons.Inbox, contentDescription = null) },
           modifier = Modifier.testTag("demo-empty"),
         )
       }
@@ -388,7 +388,7 @@ private fun LongListsPage(
           title = "Elemento ${id + 1}",
           subtitle = if (isRead) "Letto · settimana ${id / 500 + 1}" else "Da leggere · settimana ${id / 500 + 1}",
           tone = if (isRead) FluidTone.Neutral else FluidTone.Primary,
-          leading = { Icon(if (isRead) Icons.Rounded.MarkEmailRead else Icons.Rounded.MarkEmailUnread, null) },
+          leading = { FluidIcon(if (isRead) FluidIcons.MarkEmailRead else FluidIcons.MarkEmailUnread, null) },
           labels = if (pinned[id] == true || id % 7L == 0L) {
             {
               Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -417,12 +417,12 @@ private fun LongListsPage(
               state = swipe,
               startAction = FluidSwipeAction(
                 label = if (isRead) "Segna da leggere" else "Segna come letto",
-                icon = if (isRead) Icons.Rounded.MarkEmailUnread else Icons.Rounded.MarkEmailRead,
+                icon = if (isRead) FluidIcons.MarkEmailUnread else FluidIcons.MarkEmailRead,
                 color = scheme.primary,
               ) { read[id] = !isRead },
               endAction = FluidSwipeAction(
                 label = "Archivia",
-                icon = Icons.Rounded.Archive,
+                icon = FluidIcons.Archive,
                 color = scheme.tertiary,
                 removesItem = true,
               ) { archive(id) },

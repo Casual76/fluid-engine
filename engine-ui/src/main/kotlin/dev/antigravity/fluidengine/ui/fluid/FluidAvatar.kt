@@ -11,9 +11,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Person
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import java.text.BreakIterator
 import java.util.Locale
@@ -233,8 +232,8 @@ private fun FluidAvatarFace(
     ) {
       val monogram = remember(name) { fluidMonogram(name) }
       if (monogram.isEmpty()) {
-        Icon(
-          imageVector = Icons.Rounded.Person,
+        FluidIcon(
+          imageVector = FluidIcons.Person,
           contentDescription = null,
           tint = readable.ink,
           modifier = Modifier.size(size * FluidAvatarGlyphFraction),
@@ -432,8 +431,8 @@ private fun FluidAvatarCell(item: FluidAvatarItem, size: Dp, modifier: Modifier)
     contentAlignment = Alignment.Center,
   ) {
     if (letter.isEmpty()) {
-      Icon(
-        imageVector = Icons.Rounded.Person,
+      FluidIcon(
+        imageVector = FluidIcons.Person,
         contentDescription = null,
         tint = readable.ink,
         modifier = Modifier.size(size * 0.28f),

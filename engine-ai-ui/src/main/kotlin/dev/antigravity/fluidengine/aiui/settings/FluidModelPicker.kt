@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,10 +29,13 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidPressGrip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
+import dev.antigravity.fluidengine.ui.fluid.icons.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
@@ -71,7 +71,7 @@ private fun ModelRow(
     subtitle = if (model.id == model.displayName) meta else "${model.id}${if (meta.isNotEmpty()) " · $meta" else ""}",
     onClick = onClick,
     leading = if (selected) {
-      { Icon(Icons.Rounded.Check, contentDescription = strings.chosen, tint = MaterialTheme.colorScheme.primary) }
+      { FluidIcon(FluidIcons.Check, contentDescription = strings.chosen, tint = MaterialTheme.colorScheme.primary) }
     } else {
       null
     },

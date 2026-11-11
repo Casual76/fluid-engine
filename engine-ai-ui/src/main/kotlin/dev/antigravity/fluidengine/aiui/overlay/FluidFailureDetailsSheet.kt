@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +23,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
+import dev.antigravity.fluidengine.ui.fluid.icons.ContentCopy
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
@@ -59,7 +59,7 @@ fun FluidFailureDetailsSheet(
           style = FluidButtonStyle.Tinted,
           size = FluidButtonSize.Medium,
           fillWidth = true,
-          leading = { Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp)) },
+          leading = { FluidIcon(FluidIcons.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp)) },
         )
       }
     },

@@ -19,10 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,6 +44,9 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Visibility
+import dev.antigravity.fluidengine.ui.fluid.icons.VisibilityOff
 
 /**
  * A text field.
@@ -348,8 +347,8 @@ private fun FluidRevealButton(revealed: Boolean, enabled: Boolean, onToggle: () 
       ),
     contentAlignment = Alignment.Center,
   ) {
-    Icon(
-      imageVector = if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+    FluidIcon(
+      imageVector = if (revealed) FluidIcons.VisibilityOff else FluidIcons.Visibility,
       contentDescription = null,
       modifier = Modifier.size(FluidFieldTrailingSize),
     )

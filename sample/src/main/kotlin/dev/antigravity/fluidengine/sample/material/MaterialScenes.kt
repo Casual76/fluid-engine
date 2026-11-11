@@ -22,19 +22,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,6 +62,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSize
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSwitch
@@ -88,6 +76,18 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.icons.Add
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBack
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.Favorite
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Home
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreVert
+import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
+import dev.antigravity.fluidengine.ui.fluid.icons.Search
+import dev.antigravity.fluidengine.ui.fluid.icons.Settings
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
@@ -222,15 +222,15 @@ private fun Caption(text: String) {
 // --- Componenti ---------------------------------------------------------------------------------------------
 
 private val DemoTabs = listOf(
-  FluidTabItem(route = "home", label = "Home", icon = Icons.Rounded.Home),
-  FluidTabItem(route = "search", label = "Cerca", icon = Icons.Rounded.Search),
-  FluidTabItem(route = "settings", label = "Altro", icon = Icons.Rounded.Settings),
+  FluidTabItem(route = "home", label = "Home", icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
+  FluidTabItem(route = "search", label = "Cerca", icon = FluidIcons.Search, selectedIcon = FluidIcons.Filled.Search),
+  FluidTabItem(route = "settings", label = "Altro", icon = FluidIcons.Settings, selectedIcon = FluidIcons.Filled.Settings),
 )
 
 private val DemoActions = listOf(
-  FluidContextAction("Condividi", Icons.Rounded.Share) {},
-  FluidContextAction("Aggiungi ai preferiti", Icons.Rounded.Favorite) {},
-  FluidContextAction("Elimina", Icons.Rounded.Delete, destructive = true) {},
+  FluidContextAction("Condividi", FluidIcons.Share) {},
+  FluidContextAction("Aggiungi ai preferiti", FluidIcons.Filled.Favorite) {},
+  FluidContextAction("Elimina", FluidIcons.Delete, destructive = true) {},
 )
 
 @Composable
@@ -243,7 +243,7 @@ private fun ComponentsCell(session: MaterialSession) {
   CellColumn {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
       FluidGlassIconButton(onClick = {}, modifier = Modifier.reported(report, config, "tondo")) {
-        Icon(Icons.Rounded.Star, contentDescription = "Preferito")
+        FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito")
       }
       FluidGlassButton(text = "Scelto", onClick = {}, selected = true, modifier = Modifier.reported(report, config, "scelto"))
       FluidGlassButton(text = "Tasto", onClick = {}, modifier = Modifier.reported(report, config, "tasto"))
@@ -262,7 +262,7 @@ private fun ComponentsCell(session: MaterialSession) {
       actions = { DemoActions },
       onClick = {},
       text = "Menu",
-      icon = Icons.Rounded.MoreVert,
+      icon = FluidIcons.MoreVert,
       backdrop = backdrop,
       opensOnTap = true,
       modifier = Modifier.reported(report, config, "menu"),
@@ -296,9 +296,9 @@ private fun ThreeActionCapsule(session: MaterialSession, onPhoto: Boolean, name:
     backdrop = session.stage,
     onPhoto = onPhoto,
   ) {
-    FluidCapsuleAction(Icons.Rounded.Share, "Condividi", onClick = {})
-    FluidCapsuleAction(Icons.Rounded.Favorite, "Preferito", onClick = {})
-    FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick = {}, destructive = true)
+    FluidCapsuleAction(FluidIcons.Share, "Condividi", onClick = {})
+    FluidCapsuleAction(FluidIcons.Filled.Favorite, "Preferito", onClick = {})
+    FluidCapsuleAction(FluidIcons.Delete, "Elimina", onClick = {}, destructive = true)
   }
 }
 
@@ -381,7 +381,7 @@ private fun EdgeCell(session: MaterialSession) {
   CellColumn(spacing = 28.dp) {
     Spacer(Modifier.height(12.dp))
     FluidGlassIconButton(onClick = {}, modifier = Modifier.reported(session.report, session.config, "tondo")) {
-      Icon(Icons.Rounded.Add, contentDescription = "Aggiungi")
+      FluidIcon(FluidIcons.Add, contentDescription = "Aggiungi")
     }
     Box(
       modifier = Modifier
@@ -448,7 +448,7 @@ private fun NestedScene(session: MaterialSession) {
             modifier = Modifier.trackBounds(target).reported(session.report, session.config, "conferma"),
           )
           FluidGlassIconButton(onClick = {}, backdrop = stage, modifier = Modifier.reported(session.report, session.config, "tondo")) {
-            Icon(Icons.Rounded.Star, contentDescription = "Preferito")
+            FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito")
           }
           FluidSwitch(checked = checked, onCheckedChange = { checked = it }, backdrop = stage)
         }
@@ -481,7 +481,7 @@ private fun PressScene(session: MaterialSession) {
         size = 76.dp,
         modifier = Modifier.trackBounds(round).reported(session.report, session.config, "tondo"),
       ) {
-        Icon(Icons.Rounded.PlayArrow, contentDescription = "Riproduci", modifier = Modifier.size(38.dp))
+        FluidIcon(FluidIcons.Filled.PlayArrow, contentDescription = "Riproduci", modifier = Modifier.size(38.dp))
       }
       val capsule = targets.getOrPut("$key/capsula") { MaterialTarget() }
       FluidGlassButton(
@@ -649,9 +649,9 @@ private fun ListScene(session: MaterialSession) {
                 modifier = Modifier.reported(session.report, config, "capsula"),
                 backdrop = pageBackdrop,
               ) {
-                FluidCapsuleAction(Icons.Rounded.Share, "Condividi", onClick = {})
-                FluidCapsuleAction(Icons.Rounded.Favorite, "Preferito", onClick = {})
-                FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick = {}, destructive = true)
+                FluidCapsuleAction(FluidIcons.Share, "Condividi", onClick = {})
+                FluidCapsuleAction(FluidIcons.Filled.Favorite, "Preferito", onClick = {})
+                FluidCapsuleAction(FluidIcons.Delete, "Elimina", onClick = {}, destructive = true)
               }
             }
           }
@@ -702,7 +702,7 @@ private fun MenuScene(session: MaterialSession) {
         actions = { DemoActions },
         onClick = {},
         text = "Azione",
-        icon = Icons.Rounded.MoreVert,
+        icon = FluidIcons.MoreVert,
         backdrop = session.stage,
         opensOnTap = true,
         modifier = Modifier.trackBounds(target).reported(session.report, session.config, "menu"),
@@ -765,7 +765,7 @@ private fun ModalScene(session: MaterialSession) {
       Text("Foglio di prova", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
       Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         FluidGlassButton(text = "Conferma", onClick = {})
-        FluidGlassIconButton(onClick = {}) { Icon(Icons.Rounded.Star, contentDescription = "Preferito") }
+        FluidGlassIconButton(onClick = {}) { FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito") }
       }
       Text(
         "Vetro chiesto alla radice: ${LocalFluidGlassModel.current.name}. Lo scrim dietro resta il vetro di prima.",
@@ -929,7 +929,7 @@ private fun AppsCell(session: MaterialSession) {
         contentAlignment = Alignment.Center,
       ) {
         if (slab.icon) {
-          Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = ink)
+          FluidIcon(FluidIcons.Filled.PlayArrow, contentDescription = null, tint = ink)
         } else {
           Text(slab.title, style = MaterialTheme.typography.labelMedium, color = ink)
         }
@@ -950,7 +950,7 @@ private fun AppsCell(session: MaterialSession) {
               .glassSurface(state = backdrop, tint = control, shape = FluidCapsuleShape, role = GlassRole.Interactive, optics = optics),
             contentAlignment = Alignment.Center,
           ) {
-            Icon(Icons.Rounded.Add, contentDescription = null, tint = ink)
+            FluidIcon(FluidIcons.Add, contentDescription = null, tint = ink)
           }
         }
         Caption("Fluidify: piatto e in pagina (cattura al 40%)")
@@ -984,7 +984,7 @@ private fun ContrastCell(session: MaterialSession) {
         ) {
           Caption("contrasto $label")
           FluidGlassIconButton(onClick = {}, modifier = Modifier.reported(session.report, session.config, "tondo-$label")) {
-            Icon(Icons.Rounded.Star, contentDescription = "Preferito")
+            FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito")
           }
           FluidGlassButton(text = "Testo", onClick = {}, modifier = Modifier.reported(session.report, session.config, "tasto-$label"))
           FluidCard(glass = true, modifier = Modifier.widthIn(max = 180.dp).reported(session.report, session.config, "card-$label")) {
@@ -1025,13 +1025,13 @@ private fun RtlCell(session: MaterialSession) {
             Text("Angoli 38 e 10", style = MaterialTheme.typography.labelLarge)
           }
           FluidFloatingCapsule(modifier = Modifier.reported(session.report, session.config, "capsula-$label"), backdrop = backdrop) {
-            FluidCapsuleAction(Icons.AutoMirrored.Rounded.ArrowBack, "Indietro", onClick = {})
-            FluidCapsuleAction(Icons.Rounded.Share, "Condividi", onClick = {})
+            FluidCapsuleAction(FluidIcons.ArrowBack, "Indietro", onClick = {})
+            FluidCapsuleAction(FluidIcons.Share, "Condividi", onClick = {})
           }
           FluidGlassButton(
             text = "Avanti",
             onClick = {},
-            leading = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
+            leading = { FluidIcon(FluidIcons.Filled.PlayArrow, contentDescription = null) },
             modifier = Modifier.reported(session.report, session.config, "tasto-$label"),
           )
           FluidFloatingTabBar(

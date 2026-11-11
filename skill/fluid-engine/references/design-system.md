@@ -152,7 +152,7 @@ chiede che l'avviso viaggi con la distribuzione, non che stia in un Markdown nel
   parole dell'engine; `rememberFluidUpdateController` per `fluidUpdateSection`.
 - **Deprecati** (restano per tutta la 3.x): `FluidTabBar` e `FluidFoldingTabBar` — delegano a
   `FluidFloatingTabBar`, quindi chi li chiama prende il vetro nuovo senza toccare niente, ma la
-  barra e' una capsula grande quanto le schede (non da lato a lato, 60 dp e non 64) e si ripiega solo
+  barra e' una capsula grande quanto le schede (non da lato a lato, 62 dp dalla 4.0 e non 64) e si ripiega solo
   se le dai una connessione. Le sue schede dicono ancora `selected` ma non portano più il ruolo `Tab`
   né il tag di test `top_level_<rotta>` (il rail li tiene): un test cerca l'etichetta;
   `FluidGlassMenuButton` → `FluidMorphMenuButton` + host (non delega: serve lo

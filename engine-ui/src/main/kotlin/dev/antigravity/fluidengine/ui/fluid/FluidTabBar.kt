@@ -1,6 +1,5 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
@@ -16,12 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -211,6 +207,13 @@ object FluidTabBarDefaults {
    */
   val RailHeaderSpacing = 8.dp
 
+  /**
+   * L'icona di una scheda del rail: 28 dp, il token della tab bar ([FluidMetrics.TabBarIconSize]; erano 24). Un nome
+   * qui e non il token nudo perche' il rail e' un posto a se' (un'app puo' voler leggere la taglia che ci va) e perche'
+   * una prova lo tiene d'occhio: se un giorno rail e barra si separano, e' una scelta e non una dimenticanza.
+   */
+  val RailIconSize = FluidMetrics.TabBarIconSize
+
   /** Vertical space a screen must leave free so its content clears the floating bar. */
   val ContentInset = Height + BottomMargin
 
@@ -333,9 +336,6 @@ internal fun tabIndicatorTranslation(
   return if (isLtr) travel else containerWidth - travel - tabWidth
 }
 
-/** Applied by the invisible accent copy so a tab can drop its own colour animation there. */
-private val LocalFluidTabTint = compositionLocalOf<Color?> { null }
-
 @Composable
 private fun FluidTabItemContent(
   item: FluidTabItem,
@@ -375,18 +375,11 @@ private fun FluidTabItemFace(
   selected: Boolean,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  // The accent copy is tinted wholesale by a colour filter, so its own colour animation would only
-  // fight it. Everything there resolves to one flat colour and the filter does the rest.
-  val tinted = LocalFluidTabTint.current != null
-  val contentColor by animateColorAsState(
-    targetValue = when {
-      tinted -> MaterialTheme.colorScheme.onSurface
-      selected -> MaterialTheme.colorScheme.onSurface
-      else -> MaterialTheme.colorScheme.onSurfaceVariant
-    },
-    animationSpec = if (reducedMotion) snap() else FluidMotion.color(200),
-    label = "tab tint",
-  )
+  // 4.0 (piano «iOS in Android», F1A.11): l'inchiostro del testo per tutte le schede, scelta o no, come la tab bar in
+  // basso. Prima la scheda non scelta era in `onSurfaceVariant` (grigio) e si leggeva meno di quelle di Apple (R6,
+  // 3,5-6,7:1 contro 15-17:1). A dire quale e' scelta basta la gemella piena e la goccia: il colore non serve piu'.
+  // Un solo colore piatto vale anche per la copia ad accento (la riga tinta dal filtro): niente animazione da litigarci.
+  val contentColor = fluidChromeInk()
 
   val density = LocalDensity.current
   val selectedLiftPx = with(density) { -1.5.dp.toPx() }
@@ -401,13 +394,14 @@ private fun FluidTabItemFace(
     verticalArrangement = Arrangement.spacedBy(2.dp),
   ) {
     val glyph: @Composable () -> Unit = {
-      // La gemella piena della zona scelta, come nella barra in basso (4.0). Taglia e colori del rail restano i suoi.
-      Icon(
+      // La gemella piena della zona scelta, come nella barra in basso (4.0), e la sua taglia: 28 dp, il token della tab
+      // bar (erano 24 scritti qui). Il rail e la barra sono la stessa barra su due larghezze e le icone devono pesare uguale.
+      FluidIcon(
         imageVector = item.iconFor(selected),
         contentDescription = null,
         tint = contentColor,
+        size = FluidTabBarDefaults.RailIconSize,
         modifier = Modifier
-          .size(24.dp)
           .graphicsLayer {
             val scale = 0.94f + 0.06f * settle
             scaleX = scale
@@ -618,18 +612,16 @@ private fun FluidTabRailBody(
       content = { tabs() },
     )
 
-    CompositionLocalProvider(LocalFluidTabTint provides accent) {
-      Column(
-        modifier = Modifier
-          .clearAndSetSemantics {}
-          .alpha(0f)
-          .layerBackdrop(tabsGlass.layerBackdrop!!)
-          .fillMaxSize()
-          .graphicsLayer(colorFilter = ColorFilter.tint(accent)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        content = { tabs() },
-      )
-    }
+    Column(
+      modifier = Modifier
+        .clearAndSetSemantics {}
+        .alpha(0f)
+        .layerBackdrop(tabsGlass.layerBackdrop!!)
+        .fillMaxSize()
+        .graphicsLayer(colorFilter = ColorFilter.tint(accent)),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      content = { tabs() },
+    )
 
     // La goccia. La corsa sta in un layer *prima* del vetro (la scala e lo squash, invece, nel suo
     // `layerBlock`): il renderer inverte quella trasformazione quando campiona, quindi in ogni punto

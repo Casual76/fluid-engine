@@ -17,21 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Archive
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Drafts
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Forum
-import androidx.compose.material.icons.rounded.Inbox
-import androidx.compose.material.icons.rounded.Label
-import androidx.compose.material.icons.rounded.Menu
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Send
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,6 +54,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidDrawer
 import dev.antigravity.fluidengine.ui.fluid.FluidDrawerState
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBar
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
@@ -85,6 +71,20 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidDrawerObscured
 import dev.antigravity.fluidengine.ui.fluid.fluidIdentityColor
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.icons.Archive
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.Drafts
+import dev.antigravity.fluidengine.ui.fluid.icons.Edit
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Folder
+import dev.antigravity.fluidengine.ui.fluid.icons.Forum
+import dev.antigravity.fluidengine.ui.fluid.icons.Inbox
+import dev.antigravity.fluidengine.ui.fluid.icons.Label
+import dev.antigravity.fluidengine.ui.fluid.icons.Menu
+import dev.antigravity.fluidengine.ui.fluid.icons.Search
+import dev.antigravity.fluidengine.ui.fluid.icons.Send
+import dev.antigravity.fluidengine.ui.fluid.icons.Settings
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidDrawerState
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidSelectionState
@@ -238,16 +238,16 @@ private fun BoxScope.PillBar(
     backdrop = backdrop,
     modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 14.dp, vertical = 16.dp),
   ) {
-    tab(key = "mail", title = { Text("Posta") }, icon = { Icon(Icons.Rounded.Inbox, null) }, onClick = { onZone("mail") })
-    tab(key = "search", title = { Text("Cerca") }, icon = { Icon(Icons.Rounded.Search, null) }, onClick = { onZone("search") })
+    tab(key = "mail", title = { Text("Posta") }, icon = { FluidIcon(FluidIcons.Inbox, null) }, onClick = { onZone("mail") })
+    tab(key = "search", title = { Text("Cerca") }, icon = { FluidIcon(FluidIcons.Search, null) }, onClick = { onZone("search") })
     tab(
       key = "chat",
       title = { Text("Chat") },
-      icon = { Icon(Icons.Rounded.Forum, null) },
+      icon = { FluidIcon(FluidIcons.Forum, null) },
       onClick = { onZone("chat") },
       badge = badge,
     )
-    standaloneTab(key = "write", icon = { Icon(Icons.Rounded.Edit, contentDescription = "Scrivi") }, onClick = onWrite)
+    standaloneTab(key = "write", icon = { FluidIcon(FluidIcons.Edit, contentDescription = "Scrivi") }, onClick = onWrite)
   }
 }
 
@@ -262,9 +262,9 @@ private fun RailSection() {
   var route by remember { mutableStateOf("mail") }
   var writes by remember { mutableIntStateOf(0) }
   val items = listOf(
-    FluidTabItem(route = "mail", label = "Posta", icon = Icons.Rounded.Inbox, badge = FluidTabBadge(count = 3)),
-    FluidTabItem(route = "search", label = "Cerca", icon = Icons.Rounded.Search),
-    FluidTabItem(route = "chat", label = "Chat", icon = Icons.Rounded.Forum, badge = FluidTabBadge.Dot),
+    FluidTabItem(route = "mail", label = "Posta", icon = FluidIcons.Inbox, selectedIcon = FluidIcons.Filled.Inbox, badge = FluidTabBadge(count = 3)),
+    FluidTabItem(route = "search", label = "Cerca", icon = FluidIcons.Search, selectedIcon = FluidIcons.Filled.Search),
+    FluidTabItem(route = "chat", label = "Chat", icon = FluidIcons.Forum, selectedIcon = FluidIcons.Filled.Forum, badge = FluidTabBadge.Dot),
   )
   Stage(height = 340.dp, modifier = Modifier.testTag("rail-stage")) { backdrop ->
     Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -276,7 +276,7 @@ private fun RailSection() {
         modifier = Modifier.fillMaxHeight(),
         header = {
           FluidGlassIconButton(onClick = { writes++ }, backdrop = backdrop) {
-            Icon(Icons.Rounded.Edit, contentDescription = "Scrivi")
+            FluidIcon(FluidIcons.Edit, contentDescription = "Scrivi")
           }
         },
       )
@@ -354,7 +354,7 @@ private fun BoxScope.DrawerScene(
         onClick = { state.open() },
         modifier = Modifier.focusRequester(opener),
         backdrop = backdrop,
-      ) { Icon(Icons.Rounded.Menu, contentDescription = "Cartelle") }
+      ) { FluidIcon(FluidIcons.Menu, contentDescription = "Cartelle") }
       Text(
         text = if (selection.isActive) "1 selezionata · cartella: $folder" else "Cartella: $folder",
         style = MaterialTheme.typography.labelLarge,
@@ -383,7 +383,7 @@ private fun BoxScope.DrawerScene(
         label = "Impostazioni",
         selected = false,
         onClick = { state.close() },
-        icon = Icons.Rounded.Settings,
+        icon = FluidIcons.Settings,
         minHeight = FluidSidebarDefaults.ComfortableRowHeight,
       )
     },
@@ -394,11 +394,11 @@ private fun BoxScope.DrawerScene(
 
 private fun LazyListScope.drawerFolders(current: String, onPick: (String) -> Unit) {
   item { FluidSidebarSection(title = "Tutte le caselle") }
-  folderRow("inbox", "Posta in arrivo", Icons.Rounded.Inbox, current, onPick, count = 12)
-  folderRow("starred", "Speciali", Icons.Rounded.Star, current, onPick)
-  folderRow("drafts", "Bozze", Icons.Rounded.Drafts, current, onPick, count = 2)
-  folderRow("sent", "Inviata", Icons.Rounded.Send, current, onPick)
-  folderRow("trash", "Cestino", Icons.Rounded.Delete, current, onPick)
+  folderRow("inbox", "Posta in arrivo", FluidIcons.Inbox, current, onPick, count = 12)
+  folderRow("starred", "Speciali", FluidIcons.Filled.Star, current, onPick)
+  folderRow("drafts", "Bozze", FluidIcons.Drafts, current, onPick, count = 2)
+  folderRow("sent", "Inviata", FluidIcons.Send, current, onPick)
+  folderRow("trash", "Cestino", FluidIcons.Delete, current, onPick)
   for ((name, address) in listOf("Anna Rossi" to "anna@esempio.it", "Lavoro" to "anna.rossi@studio.it")) {
     item(key = "section-$address") {
       FluidSidebarSection(
@@ -408,12 +408,12 @@ private fun LazyListScope.drawerFolders(current: String, onPick: (String) -> Uni
         detail = name,
       )
     }
-    folderRow("$address/inbox", "Posta in arrivo", Icons.Rounded.Inbox, current, onPick, count = 150, identity = address)
-    folderRow("$address/archive", "Archivio", Icons.Rounded.Archive, current, onPick, identity = address)
-    folderRow("$address/projects", "Progetti", Icons.Rounded.Folder, current, onPick, identity = address)
-    folderRow("$address/projects/2026", "2026", Icons.Rounded.Folder, current, onPick, level = 1, count = 4, identity = address)
-    folderRow("$address/projects/2026/q4", "Quarto trimestre", Icons.Rounded.Folder, current, onPick, level = 2, identity = address)
-    folderRow("$address/label", "Fatture", Icons.Rounded.Label, current, onPick, identity = address)
+    folderRow("$address/inbox", "Posta in arrivo", FluidIcons.Inbox, current, onPick, count = 150, identity = address)
+    folderRow("$address/archive", "Archivio", FluidIcons.Archive, current, onPick, identity = address)
+    folderRow("$address/projects", "Progetti", FluidIcons.Folder, current, onPick, identity = address)
+    folderRow("$address/projects/2026", "2026", FluidIcons.Folder, current, onPick, level = 1, count = 4, identity = address)
+    folderRow("$address/projects/2026/q4", "Quarto trimestre", FluidIcons.Folder, current, onPick, level = 2, identity = address)
+    folderRow("$address/label", "Fatture", FluidIcons.Label, current, onPick, identity = address)
   }
 }
 
@@ -500,7 +500,7 @@ private fun VariantStage(tag: String) {
         verticalAlignment = Alignment.CenterVertically,
       ) {
         FluidGlassIconButton(onClick = { drawer.open() }, backdrop = backdrop) {
-          Icon(Icons.Rounded.Menu, contentDescription = "Cartelle")
+          FluidIcon(FluidIcons.Menu, contentDescription = "Cartelle")
         }
         FluidButton(text = if (folded) "Riapri" else "Ripiega", onClick = { folded = !folded }, style = FluidButtonStyle.Tinted)
       }

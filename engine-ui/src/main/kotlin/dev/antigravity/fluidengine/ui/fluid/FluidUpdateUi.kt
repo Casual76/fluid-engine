@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.SystemUpdateAlt
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +14,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.UpdateChannel
+import dev.antigravity.fluidengine.ui.fluid.icons.Error
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.SystemUpdateAlt
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
@@ -99,8 +98,8 @@ fun FluidUpdatePrompt(
     modifier = modifier,
     message = message,
     icon = {
-      Icon(
-        imageVector = if (failed) Icons.Rounded.ErrorOutline else Icons.Rounded.SystemUpdateAlt,
+      FluidIcon(
+        imageVector = if (failed) FluidIcons.Error else FluidIcons.SystemUpdateAlt,
         contentDescription = null,
       )
     },

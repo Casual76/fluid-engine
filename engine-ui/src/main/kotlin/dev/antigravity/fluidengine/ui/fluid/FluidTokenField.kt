@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
@@ -7,8 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
@@ -175,7 +175,7 @@ fun FluidTokenField(
             Box(Modifier.size(48.dp).fluidPressable(enabled = enabled, onClick = {
               onValueChange(value.copy(tokens = value.tokens.filterNot { it.id == token.id }, selectedTokenId = null))
             }, grip = FluidPressGrip.YieldsToScroll).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
-              Icon(Icons.Rounded.Close, null, tint = foreground, modifier = Modifier.size(18.dp))
+              FluidIcon(FluidIcons.Close, null, tint = foreground, modifier = Modifier.size(18.dp))
             }
           }
         }

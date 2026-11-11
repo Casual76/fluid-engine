@@ -16,13 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.FormatBold
-import androidx.compose.material.icons.rounded.FormatItalic
-import androidx.compose.material.icons.rounded.FormatUnderlined
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Inbox
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +61,13 @@ import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Folder
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatBold
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatItalic
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatUnderlined
+import dev.antigravity.fluidengine.ui.fluid.icons.Inbox
+import dev.antigravity.fluidengine.ui.fluid.icons.Settings
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidSelectionState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
@@ -373,7 +373,7 @@ private fun SidebarSection() {
       label = "Posta in arrivo",
       selected = current == "inbox",
       onClick = { current = "inbox" },
-      icon = Icons.Rounded.Inbox,
+      icon = FluidIcons.Inbox,
       minHeight = FluidSidebarDefaults.ComfortableRowHeight,
       trailing = { FluidBadge(count = 12) },
     )
@@ -381,14 +381,14 @@ private fun SidebarSection() {
       label = "Lavoro",
       selected = current == "lavoro",
       onClick = { current = "lavoro" },
-      icon = Icons.Rounded.Folder,
+      icon = FluidIcons.Folder,
       minHeight = FluidSidebarDefaults.ComfortableRowHeight,
     )
     FluidSidebarRow(
       label = "Clienti",
       selected = current == "clienti",
       onClick = { current = "clienti" },
-      icon = Icons.Rounded.Folder,
+      icon = FluidIcons.Folder,
       level = 1,
       minHeight = FluidSidebarDefaults.ComfortableRowHeight,
     )
@@ -405,13 +405,13 @@ private fun SidebarSection() {
       selected = false,
       onClick = {},
       level = 9,
-      icon = Icons.Rounded.Folder,
+      icon = FluidIcons.Folder,
     )
     FluidSidebarRow(
       label = "Impostazioni",
       selected = false,
       onClick = {},
-      icon = Icons.Rounded.Settings,
+      icon = FluidIcons.Settings,
     )
   }
 }
@@ -484,19 +484,19 @@ private fun FormattingSection() {
       label = "Formattazione",
     ) {
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatBold,
+        icon = FluidIcons.FormatBold,
         contentDescription = "Grassetto",
         onClick = { bold = !bold },
         selected = bold,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatItalic,
+        icon = FluidIcons.FormatItalic,
         contentDescription = "Corsivo",
         onClick = { italic = !italic },
         selected = italic,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatUnderlined,
+        icon = FluidIcons.FormatUnderlined,
         contentDescription = "Sottolineato",
         onClick = { underline = !underline },
         selected = underline,

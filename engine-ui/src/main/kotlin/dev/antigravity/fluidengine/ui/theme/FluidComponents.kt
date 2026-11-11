@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.theme
 
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidSpinner
 
 import androidx.compose.animation.AnimatedContent
@@ -35,17 +36,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.CloudOff
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LargeTopAppBar
@@ -58,7 +51,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
@@ -84,6 +76,14 @@ import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSheet
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBack
+import dev.antigravity.fluidengine.ui.fluid.icons.ChevronRight
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.CloudOff
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Info
+import dev.antigravity.fluidengine.ui.fluid.icons.PriorityHigh
+import dev.antigravity.fluidengine.ui.fluid.icons.School
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidContextMenu
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
@@ -256,7 +256,7 @@ fun FluidTopHeader(
     navigationIcon = {
       if (onBack != null) {
         IconButton(onClick = onBack) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = LocalFluidLabels.current.back)
+          FluidIcon(FluidIcons.ArrowBack, contentDescription = LocalFluidLabels.current.back)
         }
       }
     },
@@ -727,22 +727,22 @@ private fun FluidSyncIndicatorSurface(
       label = "sync glyph",
     ) { state ->
       when (state) {
-        null -> Icon(
-          imageVector = Icons.Rounded.Info,
+        null -> FluidIcon(
+          imageVector = FluidIcons.Info,
           contentDescription = null,
           modifier = Modifier.size(14.dp),
           tint = content,
         )
         SyncState.SYNCING -> FluidSpinner(size = 14.dp, color = content)
-        SyncState.OFFLINE -> Icon(
-          imageVector = Icons.Rounded.CloudOff,
+        SyncState.OFFLINE -> FluidIcon(
+          imageVector = FluidIcons.CloudOff,
           contentDescription = null,
           modifier = Modifier.size(13.dp),
           tint = content,
         )
         SyncState.ERROR,
-        SyncState.PARTIAL -> Icon(
-          imageVector = Icons.Rounded.PriorityHigh,
+        SyncState.PARTIAL -> FluidIcon(
+          imageVector = FluidIcons.PriorityHigh,
           contentDescription = null,
           modifier = Modifier.size(13.dp),
           tint = content,
@@ -827,8 +827,8 @@ fun FluidSyncNotice(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
       ) {
-        Icon(
-          imageVector = if (isFailure) Icons.Rounded.PriorityHigh else Icons.Rounded.Info,
+        FluidIcon(
+          imageVector = if (isFailure) FluidIcons.PriorityHigh else FluidIcons.Info,
           contentDescription = null,
           modifier = Modifier.size(20.dp),
           tint = toneColors(tone).content,
@@ -1068,10 +1068,10 @@ fun FluidInlineMessage(
       }
       when {
         onDismiss != null -> IconButton(onClick = onDismiss) {
-          Icon(Icons.Rounded.Close, contentDescription = LocalFluidLabels.current.hide)
+          FluidIcon(FluidIcons.Close, contentDescription = LocalFluidLabels.current.hide)
         }
-        onClick != null -> Icon(
-          imageVector = Icons.Rounded.ChevronRight,
+        onClick != null -> FluidIcon(
+          imageVector = FluidIcons.ChevronRight,
           contentDescription = null,
           modifier = Modifier
             .size(18.dp)
@@ -1492,8 +1492,8 @@ fun FluidListRow(
           if (onClick != null && disclosure) {
             // The disclosure chevron is the one affordance that tells a row apart from a label
             // without needing colour, weight or a border to do it.
-            Icon(
-              imageVector = Icons.Rounded.ChevronRight,
+            FluidIcon(
+              imageVector = FluidIcons.ChevronRight,
               contentDescription = null,
               modifier = Modifier.size(18.dp),
               tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
@@ -1682,8 +1682,8 @@ fun FluidHeroCard(
           color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
       }
-      trailing?.invoke() ?: Icon(
-        imageVector = Icons.Filled.School,
+      trailing?.invoke() ?: FluidIcon(
+        imageVector = FluidIcons.School,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.primary,
       )

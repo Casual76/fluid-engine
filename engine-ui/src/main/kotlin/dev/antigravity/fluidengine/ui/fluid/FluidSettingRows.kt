@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.UnfoldMore
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +37,9 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.icons.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.UnfoldMore
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
@@ -230,8 +229,8 @@ private fun FluidChoiceMark(selected: Boolean) {
       .graphicsLayer { alpha = visibility },
     contentAlignment = Alignment.Center,
   ) {
-    Icon(
-      imageVector = Icons.Rounded.Check,
+    FluidIcon(
+      imageVector = FluidIcons.Check,
       contentDescription = null,
       modifier = Modifier.size(FluidChoiceMarkGlyph),
       tint = MaterialTheme.colorScheme.primary,
@@ -338,8 +337,8 @@ fun <K> FluidPickerRow(
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
         )
-        Icon(
-          imageVector = Icons.Rounded.UnfoldMore,
+        FluidIcon(
+          imageVector = FluidIcons.UnfoldMore,
           contentDescription = null,
           modifier = Modifier.size(18.dp),
           tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),

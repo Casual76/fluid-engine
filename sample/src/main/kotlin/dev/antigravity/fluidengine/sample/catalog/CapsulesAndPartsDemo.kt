@@ -15,14 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +41,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsule
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSize
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidLiveDot
 import dev.antigravity.fluidengine.ui.fluid.FluidPagerDots
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
@@ -63,6 +56,13 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidStepProgress
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.Favorite
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Pause
+import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 
@@ -162,7 +162,7 @@ private fun CapsuleSection() {
       label = "3 selezionate",
       leading = {
         FluidCapsuleAction(
-          icon = Icons.Rounded.Close,
+          icon = FluidIcons.Close,
           contentDescription = "Annulla la selezione",
           onClick = { selecting = false },
           tint = MaterialTheme.colorScheme.onSurface,
@@ -174,9 +174,9 @@ private fun CapsuleSection() {
         style = MaterialTheme.typography.labelLarge,
         modifier = Modifier.padding(horizontal = 8.dp),
       )
-      FluidCapsuleAction(Icons.Rounded.Share, "Condividi", onClick = {})
-      FluidCapsuleAction(Icons.Rounded.Favorite, "Preferito", onClick = {})
-      FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick = {}, destructive = true)
+      FluidCapsuleAction(FluidIcons.Share, "Condividi", onClick = {})
+      FluidCapsuleAction(FluidIcons.Filled.Favorite, "Preferito", onClick = {})
+      FluidCapsuleAction(FluidIcons.Delete, "Elimina", onClick = {}, destructive = true)
     }
   }
   FluidButton(
@@ -208,8 +208,8 @@ private fun CapsuleSection() {
           onClick = { playing = !playing },
           size = FluidGlassSize.Compact,
         ) {
-          Icon(
-            imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+          FluidIcon(
+            imageVector = if (playing) FluidIcons.Filled.Pause else FluidIcons.Filled.PlayArrow,
             contentDescription = if (playing) "Pausa" else "Riproduci",
             tint = MaterialTheme.colorScheme.primary,
           )

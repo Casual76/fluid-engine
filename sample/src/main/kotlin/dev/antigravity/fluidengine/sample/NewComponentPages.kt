@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,9 +50,12 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBackIos
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 
 /**
  * Il tag che ogni pagina dei componenti nuovi porta sulla sua radice: le prove (e il giro su emulatore) lo usano
@@ -377,8 +377,8 @@ private fun BarSlot(modifier: Modifier = Modifier, content: @Composable () -> Un
 private fun BackButton(onBack: () -> Unit, backdrop: GlassBackdropState) {
   val backLabel = LocalFluidLabels.current.back
   FluidGlassIconButton(onClick = onBack, backdrop = backdrop) {
-    Icon(
-      imageVector = Icons.AutoMirrored.Rounded.ArrowBackIos,
+    FluidIcon(
+      imageVector = FluidIcons.ArrowBackIos,
       contentDescription = backLabel,
       tint = MaterialTheme.colorScheme.primary,
       modifier = Modifier.size(20.dp),

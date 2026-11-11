@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,10 +24,14 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.currentCanvasBackdrop
 import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
+import dev.antigravity.fluidengine.ui.fluid.icons.Favorite
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 import kotlin.math.roundToInt
 
@@ -92,10 +92,10 @@ internal fun LazyListScope.touchLabItems(state: TouchLabState) {
         val backdrop = currentCanvasBackdrop() ?: currentGlassBackdrop()
         FluidGlassButton(text = "Vetro", onClick = { state.taps++ }, backdrop = backdrop)
         FluidGlassIconButton(onClick = { state.taps++ }, backdrop = backdrop) {
-          Icon(Icons.Rounded.Favorite, contentDescription = "Preferito", tint = MaterialTheme.colorScheme.primary)
+          FluidIcon(FluidIcons.Filled.Favorite, contentDescription = "Preferito", tint = MaterialTheme.colorScheme.primary)
         }
         FluidGlassIconButton(onClick = { state.taps++ }, backdrop = backdrop) {
-          Icon(Icons.Rounded.Share, contentDescription = "Condividi", tint = MaterialTheme.colorScheme.primary)
+          FluidIcon(FluidIcons.Share, contentDescription = "Condividi", tint = MaterialTheme.colorScheme.primary)
         }
       }
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

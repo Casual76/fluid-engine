@@ -4,10 +4,6 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DragHandle
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -27,7 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import dev.antigravity.fluidengine.ai.provider.ProviderId
 import dev.antigravity.fluidengine.aiui.strings.FluidAiSettingsStrings
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
+import dev.antigravity.fluidengine.ui.fluid.icons.DragHandle
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowDown
+import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowUp
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
@@ -111,14 +112,14 @@ fun FluidProviderOrderList(
           Modifier
         },
         leading = if (draggable && visible.size > 1) {
-          { Icon(Icons.Rounded.DragHandle, contentDescription = strings.orderDrag, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+          { FluidIcon(FluidIcons.DragHandle, contentDescription = strings.orderDrag, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
           null
         },
         badge = {
           Row {
-            ArrowButton(Icons.Rounded.KeyboardArrowUp, strings.orderMoveUp, enabled = index > 0) { move(index, index - 1) }
-            ArrowButton(Icons.Rounded.KeyboardArrowDown, strings.orderMoveDown, enabled = index < visible.lastIndex) { move(index, index + 1) }
+            ArrowButton(FluidIcons.KeyboardArrowUp, strings.orderMoveUp, enabled = index > 0) { move(index, index - 1) }
+            ArrowButton(FluidIcons.KeyboardArrowDown, strings.orderMoveDown, enabled = index < visible.lastIndex) { move(index, index + 1) }
           }
         },
       )

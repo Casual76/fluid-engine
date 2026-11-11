@@ -2,9 +2,6 @@ package dev.antigravity.fluidengine.sample
 
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Checklist
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,8 +13,11 @@ import androidx.compose.ui.unit.Dp
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.icons.Checklist
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
@@ -918,7 +918,7 @@ internal fun ToTryPage(
 /** Il segno della voce "Da provare" nelle schede: la lista di controllo. */
 @Composable
 internal fun ToTryIcon() {
-  Icon(Icons.Rounded.Checklist, contentDescription = null)
+  FluidIcon(FluidIcons.Checklist, contentDescription = null)
 }
 
 /** Quante voci ha il giro piu' nuovo: per la riga che apre la pagina, in cima a Materiale. */

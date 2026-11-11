@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -50,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowForward
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 
 /**
  * Dove una schermata si colloca nella famiglia cromatica dell'app.
@@ -270,8 +270,8 @@ private fun FluidHeroAction(
       fontWeight = FontWeight.Bold,
       color = contentColor,
     )
-    Icon(
-      imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+    FluidIcon(
+      imageVector = FluidIcons.ArrowForward,
       contentDescription = null,
       modifier = Modifier.size(18.dp),
       tint = contentColor.copy(alpha = 0.78f),
@@ -422,8 +422,8 @@ private fun FluidHeroMetricCell(
         overflow = TextOverflow.Ellipsis,
       )
       if (metric.onClick != null) {
-        Icon(
-          imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+        FluidIcon(
+          imageVector = FluidIcons.ArrowForward,
           contentDescription = null,
           modifier = Modifier.size(15.dp),
           tint = contentColor.copy(alpha = 0.62f),

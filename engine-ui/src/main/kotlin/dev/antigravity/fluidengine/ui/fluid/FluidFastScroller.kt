@@ -18,9 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.UnfoldMore
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +52,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.UnfoldMore
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
@@ -503,8 +502,8 @@ fun FluidFastScroller(
         ),
       contentAlignment = Alignment.Center,
     ) {
-      Icon(
-        imageVector = Icons.Rounded.UnfoldMore,
+      FluidIcon(
+        imageVector = FluidIcons.UnfoldMore,
         contentDescription = null,
         modifier = Modifier.size(ThumbGlyph),
         tint = scheme.onSurface.copy(alpha = 0.72f),

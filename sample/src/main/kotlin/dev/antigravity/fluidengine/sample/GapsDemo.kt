@@ -6,14 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CloudOff
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.PhotoLibrary
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
@@ -33,11 +25,19 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSize
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidIndeterminateBar
 import dev.antigravity.fluidengine.ui.fluid.FluidProgressBar
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassGroupsIndexed
+import dev.antigravity.fluidengine.ui.fluid.icons.Add
+import dev.antigravity.fluidengine.ui.fluid.icons.CloudOff
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Folder
+import dev.antigravity.fluidengine.ui.fluid.icons.Mic
+import dev.antigravity.fluidengine.ui.fluid.icons.PhotoLibrary
+import dev.antigravity.fluidengine.ui.fluid.icons.Settings
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.NoOpFluidHaptics
@@ -65,7 +65,7 @@ internal fun LazyListScope.gapsDemoItems() {
       ) {
         FluidGlassSize.entries.forEach { size ->
           FluidGlassIconButton(onClick = {}, size = size) {
-            Icon(Icons.Rounded.Add, contentDescription = "Aggiungi (${size.name})", modifier = Modifier.size(size.iconSize))
+            FluidIcon(FluidIcons.Add, contentDescription = "Aggiungi (${size.name})")
           }
         }
       }
@@ -112,7 +112,7 @@ internal fun LazyListScope.gapsDemoItems() {
         title = "Sei offline",
         message = "Mostro quello che c'era l'ultima volta. Tocca per riprovare adesso.",
         tone = FluidTone.Warning,
-        leading = { Icon(Icons.Rounded.CloudOff, contentDescription = null) },
+        leading = { FluidIcon(FluidIcons.CloudOff, contentDescription = null) },
         action = "Riprova (toccato $taps)",
         onClick = { taps++ },
         glass = true,
@@ -159,7 +159,7 @@ internal fun LazyListScope.gapsDemoItems() {
         value = plain,
         onValueChange = { plain = it },
         label = "Slot a destra da 24 dp",
-        trailing = { Icon(Icons.Rounded.Folder, contentDescription = null) },
+        trailing = { FluidIcon(FluidIcons.Folder, contentDescription = null) },
       )
     }
   }
@@ -194,14 +194,14 @@ internal fun LazyListScope.gapsDemoItems() {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        FluidToneTile(tone = FluidTone.Success) { Icon(Icons.Rounded.Folder, contentDescription = null) }
-        FluidToneTile(tone = FluidTone.Danger) { Icon(Icons.Rounded.Settings, contentDescription = null) }
-        FluidToneTile(color = Color(0xFFE91E63)) { Icon(Icons.Rounded.Mic, contentDescription = null) }
+        FluidToneTile(tone = FluidTone.Success) { FluidIcon(FluidIcons.Folder, contentDescription = null) }
+        FluidToneTile(tone = FluidTone.Danger) { FluidIcon(FluidIcons.Settings, contentDescription = null) }
+        FluidToneTile(color = Color(0xFFE91E63)) { FluidIcon(FluidIcons.Mic, contentDescription = null) }
         FluidToneTile(
           color = Color(0xFF3949AB),
           veil = Color(0xFF3949AB).copy(alpha = 0.30f),
           size = 48.dp,
-        ) { Icon(Icons.Rounded.PhotoLibrary, contentDescription = null) }
+        ) { FluidIcon(FluidIcons.PhotoLibrary, contentDescription = null) }
       }
       Text(
         text = "Un tono dell'engine, un colore qualunque, un velo scelto a parte e una taglia: " +
@@ -220,7 +220,7 @@ internal fun LazyListScope.gapsDemoItems() {
         title = "Nessuna foto",
         detail = "Quando ne aggiungi qualcuna, la trovi qui.",
         illustration = {
-          Icon(Icons.Rounded.PhotoLibrary, contentDescription = null, modifier = Modifier.size(64.dp))
+          FluidIcon(FluidIcons.PhotoLibrary, contentDescription = null, modifier = Modifier.size(64.dp))
         },
       )
     }

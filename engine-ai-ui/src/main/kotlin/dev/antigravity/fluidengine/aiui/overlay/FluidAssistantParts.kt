@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +29,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidLiveDot
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
@@ -39,6 +37,8 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Stop
 
 // I pezzi piccoli dell'overlay, pubblici: le quattro app li avevano uguali e, in due, li avevano
 // privati dentro il file della card. Un'app che compone il proprio pannello (come il dock di
@@ -77,8 +77,8 @@ fun FluidStopPill(
       .fluidPressable(onClick = onStop, role = Role.Button, haptic = null),
     contentAlignment = Alignment.Center,
   ) {
-    Icon(
-      imageVector = Icons.Rounded.Stop,
+    FluidIcon(
+      imageVector = FluidIcons.Filled.Stop,
       contentDescription = contentDescription,
       tint = MaterialTheme.colorScheme.onSurface,
       modifier = Modifier.size(16.dp),

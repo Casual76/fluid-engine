@@ -21,12 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -59,6 +53,7 @@ import dev.antigravity.fluidengine.aiui.strings.FluidAssistantTexts
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidHairline
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdown
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownStyle
@@ -70,6 +65,11 @@ import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassEdge
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Mic
+import dev.antigravity.fluidengine.ui.fluid.icons.Send
+import dev.antigravity.fluidengine.ui.fluid.icons.Stop
 
 /**
  * L'assistente come **pannello ancorato** in basso, invece di aureola + barra + card: e' il
@@ -169,8 +169,8 @@ fun FluidAssistantDock(
           .padding(vertical = 6.dp)
           .semantics { liveRegion = LiveRegionMode.Polite },
       )
-      Icon(
-        imageVector = Icons.Rounded.Close,
+      FluidIcon(
+        imageVector = FluidIcons.Close,
         contentDescription = strings.close,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
@@ -301,13 +301,13 @@ fun FluidAssistantDock(
       )
       when {
         state is AssistantState.Listening -> FluidGlassIconButton(onClick = actions.onStopListening, backdrop = backdrop) {
-          Icon(Icons.Rounded.Stop, contentDescription = strings.finishedSpeaking, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+          FluidIcon(FluidIcons.Filled.Stop, contentDescription = strings.finishedSpeaking, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
         }
         draft.isBlank() -> FluidGlassIconButton(onClick = actions.onAskVoice, backdrop = backdrop) {
-          Icon(Icons.Rounded.Mic, contentDescription = strings.voice, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+          FluidIcon(FluidIcons.Mic, contentDescription = strings.voice, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
         }
         else -> FluidGlassIconButton(onClick = { send(draft) }, backdrop = backdrop) {
-          Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = strings.send, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+          FluidIcon(FluidIcons.Send, contentDescription = strings.send, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
       }
     }

@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +37,10 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSheet
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.fluidExpandOrigin
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
@@ -160,13 +160,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
               onClick = { log = "Aperta: $title" },
               contextActions = {
                 listOf(
-                  FluidContextAction("Segna come letta", Icons.Rounded.Star) {
+                  FluidContextAction("Segna come letta", FluidIcons.Filled.Star) {
                     log = "Letta: $title"
                   },
-                  FluidContextAction("Condividi", Icons.Rounded.Share) {
+                  FluidContextAction("Condividi", FluidIcons.Share) {
                     log = "Condivisa: $title"
                   },
-                  FluidContextAction("Elimina", Icons.Rounded.Delete, destructive = true) {
+                  FluidContextAction("Elimina", FluidIcons.Delete, destructive = true) {
                     log = "Eliminata: $title"
                   },
                 )

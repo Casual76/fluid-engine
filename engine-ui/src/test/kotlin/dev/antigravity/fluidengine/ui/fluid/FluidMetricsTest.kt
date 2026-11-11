@@ -64,5 +64,18 @@ class FluidMetricsTest {
     assertTrue("contenuto $content dp", content <= FluidMetrics.TabBarHeight.value)
   }
 
+  @Test
+  fun `il rail delle schede ha la taglia della tab bar, 28 dp, e l'icona ci sta nella scheda`() {
+    // Cambio voluto, non un test piegato: fino alla 3.x e fino al pacchetto F1A.11b il rail disegnava 24 dp scritti
+    // in FluidTabItemFace e le schede non scelte in `onSurfaceVariant`. Ora e' la stessa barra su due larghezze:
+    // taglia dal token della tab bar e inchiostro pieno per tutte (la scelta si legge dalla gemella piena e dalla goccia).
+    assertEquals(28.dp, FluidTabBarDefaults.RailIconSize)
+    assertEquals(FluidMetrics.TabBarIconSize, FluidTabBarDefaults.RailIconSize)
+    // La scheda del rail e' alta 64 dp: l'icona, i 2 dp d'aria e una riga di etichetta (16 dp di `labelSmall`) ci
+    // stanno con margine, anche con la scheda scelta sollevata di 1,5 dp.
+    val content = FluidTabBarDefaults.RailIconSize.value + 2f + 16f + 1.5f
+    assertTrue("contenuto $content dp", content <= FluidTabBarDefaults.Height.value)
+  }
+
   // Le misure della barra in alto (margini e titolo agganciato) stanno in FluidChromeMotionTest, con la barra.
 }

@@ -209,7 +209,7 @@ Tutti i parametri: [../api/schermata.md](../api/schermata.md).
 - *Tocco sulla riga dei controlli* (44 dp, sotto la barra di stato): torna in cima (`animateScrollToItem(0)`), con
   nome accessibile `FluidLabels.scrollToTop`. `FluidScrollToTopBus.request()` fa lo stesso su ogni schermata
   **davanti**: e' il «riseleziona la scheda» della tab bar.
-- *Titoli e controlli*: a titolo agganciato il margine laterale e' `CompactTitleInset` (76 dp) o, se i controlli di
+- *Titoli e controlli*: a titolo agganciato il margine laterale e' `CompactTitleInset` (84 dp dalla 4.0, 76 prima: i tasti ora stanno a 16 dp dal bordo) o, se i controlli di
   un lato sono piu' larghi, la loro misura + 8 dp, **uguale sui due lati** perche' il titolo resta al centro (3.0.1:
   prima con tre azioni un titolo lungo correva sotto i tasti).
 - *`contentMaxWidth`*: oltre quella larghezza il margine cresce e la colonna resta centrata, **titolo grande
@@ -782,7 +782,7 @@ piu' grande non oltre il primo item visibile.
 
 | oggetto | valori |
 |---|---|
-| `FluidScreenDefaults` | `ControlRowHeight` 44, `ShieldDeadZone` 8, `ShieldRampDistance` 64, `GlassFadeTail` 34, `CompactTitleInset` 76, `HorizontalPadding` 20, `ContentMaxWidth` 760, `ItemSpacing` 14, `TitleTopSpacing` 4, `TitleBottomSpacing` 10, `ContentBottomSpacing` 28, `RefreshTrigger` 76, `RefreshHold` 56; `topBarHeight()`, `bottomContentPadding(extra)` |
+| `FluidScreenDefaults` | `ControlRowHeight` 44, `ShieldDeadZone` 8, `ShieldRampDistance` 64, `GlassFadeTail` 34, `CompactTitleInset` 84, `HorizontalPadding` 20, `ContentMaxWidth` 760, `ItemSpacing` 14, `TitleTopSpacing` 4, `TitleBottomSpacing` 10, `ContentBottomSpacing` 28, `RefreshTrigger` 76, `RefreshHold` 56; `topBarHeight()`, `bottomContentPadding(extra)` |
 | `FluidColumnsDefaults` | `MinColumn` 340, `Spacing` 20, `GridSpacing` 14, `MinCard` 300, `MaxColumns` 3, `WideContentMaxWidth` 1120 |
 | `FluidPaneDefaults` | `MediumBreakpoint` 600, `ExpandedBreakpoint` 1000; `FluidPaneSizes`: side 280, list 380, detailMin 420, rail 112 |
 | `FluidListDetailSizes` | `listMin` 360, `listMax` 500, `listFraction` 0,4, `detailMin` 480 |

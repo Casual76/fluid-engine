@@ -5,19 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.FormatIndentDecrease
-import androidx.compose.material.icons.automirrored.rounded.FormatIndentIncrease
-import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
-import androidx.compose.material.icons.automirrored.rounded.Redo
-import androidx.compose.material.icons.automirrored.rounded.Undo
-import androidx.compose.material.icons.rounded.FormatBold
-import androidx.compose.material.icons.rounded.FormatItalic
-import androidx.compose.material.icons.rounded.FormatListNumbered
-import androidx.compose.material.icons.rounded.FormatQuote
-import androidx.compose.material.icons.rounded.FormatUnderlined
-import androidx.compose.material.icons.rounded.Link
-import androidx.compose.material.icons.rounded.TextFormat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +36,19 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSheetScaffold
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatBold
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatIndentDecrease
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatIndentIncrease
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatItalic
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatListBulleted
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatListNumbered
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatQuote
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatUnderlined
+import dev.antigravity.fluidengine.ui.fluid.icons.Link
+import dev.antigravity.fluidengine.ui.fluid.icons.Redo
+import dev.antigravity.fluidengine.ui.fluid.icons.TextFormat
+import dev.antigravity.fluidengine.ui.fluid.icons.Undo
 
 /**
  * La barra di formattazione sopra la tastiera: «Aa», grassetto, corsivo, sottolineato, elenco puntato,
@@ -125,70 +125,70 @@ fun FluidRichTextToolbar(
     ) {
       val format = state.format
       FluidCapsuleAction(
-        icon = Icons.Rounded.TextFormat,
+        icon = FluidIcons.TextFormat,
         contentDescription = labels.formatting,
         onClick = { state.isFormattingRequested = !state.isFormattingRequested },
         selected = state.isFormattingRequested,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatBold,
+        icon = FluidIcons.FormatBold,
         contentDescription = labels.bold,
         onClick = { state.toggle(FluidRichTextInlineStyle.Bold) },
         selected = format.bold,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatItalic,
+        icon = FluidIcons.FormatItalic,
         contentDescription = labels.italic,
         onClick = { state.toggle(FluidRichTextInlineStyle.Italic) },
         selected = format.italic,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatUnderlined,
+        icon = FluidIcons.FormatUnderlined,
         contentDescription = labels.underline,
         onClick = { state.toggle(FluidRichTextInlineStyle.Underline) },
         selected = format.underline,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.AutoMirrored.Rounded.FormatListBulleted,
+        icon = FluidIcons.FormatListBulleted,
         contentDescription = labels.bulletList,
         onClick = { state.toggleList(FluidRichTextListKind.Bullet) },
         selected = format.list == FluidRichTextListKind.Bullet,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatListNumbered,
+        icon = FluidIcons.FormatListNumbered,
         contentDescription = labels.numberedList,
         onClick = { state.toggleList(FluidRichTextListKind.Numbered) },
         selected = format.list == FluidRichTextListKind.Numbered,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.FormatQuote,
+        icon = FluidIcons.FormatQuote,
         contentDescription = labels.quote,
         onClick = { state.toggleQuote() },
         selected = format.quote,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.AutoMirrored.Rounded.FormatIndentDecrease,
+        icon = FluidIcons.FormatIndentDecrease,
         contentDescription = labels.decreaseIndent,
         onClick = { state.decreaseIndent() },
         enabled = format.canDecreaseIndent,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.AutoMirrored.Rounded.FormatIndentIncrease,
+        icon = FluidIcons.FormatIndentIncrease,
         contentDescription = labels.increaseIndent,
         onClick = { state.increaseIndent() },
         enabled = format.canIncreaseIndent,
         grip = FluidPressGrip.YieldsToScroll,
       )
       FluidCapsuleAction(
-        icon = Icons.Rounded.Link,
+        icon = FluidIcons.Link,
         contentDescription = labels.link,
         onClick = { state.openLinkEditor() },
         selected = format.link != null,
@@ -196,14 +196,14 @@ fun FluidRichTextToolbar(
       )
       if (showHistory) {
         FluidCapsuleAction(
-          icon = Icons.AutoMirrored.Rounded.Undo,
+          icon = FluidIcons.Undo,
           contentDescription = labels.undo,
           onClick = { state.undo() },
           enabled = state.canUndo,
           grip = FluidPressGrip.YieldsToScroll,
         )
         FluidCapsuleAction(
-          icon = Icons.AutoMirrored.Rounded.Redo,
+          icon = FluidIcons.Redo,
           contentDescription = labels.redo,
           onClick = { state.redo() },
           enabled = state.canRedo,
@@ -231,7 +231,7 @@ fun FluidRichTextFormatButton(
 ) {
   val labels = LocalFluidRichTextLabels.current
   FluidCapsuleAction(
-    icon = Icons.Rounded.TextFormat,
+    icon = FluidIcons.TextFormat,
     contentDescription = labels.formatting,
     onClick = {
       val request = !state.isFormattingRequested

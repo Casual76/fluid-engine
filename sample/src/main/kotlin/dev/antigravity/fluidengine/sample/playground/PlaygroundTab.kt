@@ -37,6 +37,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidFormPresets
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsJourney
@@ -47,8 +49,6 @@ import dev.antigravity.fluidengine.ui.theme.FluidCard
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -313,7 +313,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
                 },
                 contextActions = {
                   listOf(
-                    FluidContextAction("Elimina", Icons.Rounded.Delete, destructive = true) {
+                    FluidContextAction("Elimina", FluidIcons.Delete, destructive = true) {
                       savedShapes.remove(shape)
                       scope.launch(Dispatchers.IO) { store.persist(savedShapes.toList()) }
                     },

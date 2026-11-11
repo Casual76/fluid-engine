@@ -18,19 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Animation
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +48,7 @@ import dev.antigravity.fluidengine.sample.icons.IconsPage
 import dev.antigravity.fluidengine.sample.material.MaterialPage
 import dev.antigravity.fluidengine.sample.material.rememberGalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.measure.MeasurePage
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
@@ -85,6 +74,15 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.ProvideFluidChrome
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassModalObscured
+import dev.antigravity.fluidengine.ui.fluid.icons.Animation
+import dev.antigravity.fluidengine.ui.fluid.icons.AutoAwesome
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.GridView
+import dev.antigravity.fluidengine.ui.fluid.icons.Home
+import dev.antigravity.fluidengine.ui.fluid.icons.Settings
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidChromeController
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
@@ -164,11 +162,11 @@ class GalleryActivity : ComponentActivity() {
 }
 
 private val Tabs = listOf(
-  FluidTabItem(route = RouteMaterial, label = "Materiale", icon = Icons.Rounded.Home),
-  FluidTabItem(route = RoutePlayground, label = "Fisica", icon = Icons.Rounded.Animation),
-  FluidTabItem(route = RouteControls, label = "Controlli", icon = Icons.Rounded.GridView),
-  FluidTabItem(route = RouteChrome, label = "Chrome", icon = Icons.Rounded.AutoAwesome),
-  FluidTabItem(route = RouteSettings, label = "Impostazioni", icon = Icons.Rounded.Settings),
+  FluidTabItem(route = RouteMaterial, label = "Materiale", icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
+  FluidTabItem(route = RoutePlayground, label = "Fisica", icon = FluidIcons.Animation, selectedIcon = FluidIcons.Filled.Animation),
+  FluidTabItem(route = RouteControls, label = "Controlli", icon = FluidIcons.GridView, selectedIcon = FluidIcons.Filled.GridView),
+  FluidTabItem(route = RouteChrome, label = "Chrome", icon = FluidIcons.AutoAwesome, selectedIcon = FluidIcons.Filled.AutoAwesome),
+  FluidTabItem(route = RouteSettings, label = "Impostazioni", icon = FluidIcons.Settings, selectedIcon = FluidIcons.Filled.Settings),
 )
 
 /**
@@ -522,17 +520,16 @@ private fun GalleryFloatingControls(
         backdrop = backdrop,
         actions = {
           listOf(
-            FluidContextAction("Condividi", Icons.Rounded.Share) {},
-            FluidContextAction("Aggiungi ai preferiti", Icons.Rounded.Star) {},
-            FluidContextAction("Elimina", Icons.Rounded.Delete, destructive = true) {},
+            FluidContextAction("Condividi", FluidIcons.Share) {},
+            FluidContextAction("Aggiungi ai preferiti", FluidIcons.Filled.Star) {},
+            FluidContextAction("Elimina", FluidIcons.Delete, destructive = true) {},
           )
         },
       )
       FluidGlassIconButton(onClick = {}, backdrop = backdrop) {
-        Icon(
-          imageVector = Icons.Rounded.AutoAwesome,
+        FluidIcon(
+          imageVector = FluidIcons.AutoAwesome,
           contentDescription = "Effetto",
-          modifier = Modifier.size(22.dp),
         )
       }
     }

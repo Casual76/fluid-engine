@@ -44,8 +44,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
@@ -55,6 +53,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFirstOrNull
+import dev.antigravity.fluidengine.ui.fluid.icons.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
@@ -444,7 +444,7 @@ private fun FluidGlassMenuRow(
     // La spunta della voce scelta (3.0.1), a destra come nei menu di scelta di iOS, nel colore della voce:
     // e' un segno di stato, non un'azione, e l'accento lo hanno gia' la goccia e il tasto.
     if (action.selected) {
-      FluidIcon(imageVector = Icons.Rounded.Check, contentDescription = null, tint = tone, size = FluidMenuRowGlyph)
+      FluidIcon(imageVector = FluidIcons.Check, contentDescription = null, tint = tone, size = FluidMenuRowGlyph)
     }
   }
 }

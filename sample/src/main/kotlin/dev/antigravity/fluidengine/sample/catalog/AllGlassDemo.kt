@@ -9,14 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,6 +45,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
@@ -66,6 +60,12 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBarInlineBehavior
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.icons.Favorite
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Home
+import dev.antigravity.fluidengine.ui.fluid.icons.Search
+import dev.antigravity.fluidengine.ui.fluid.icons.Settings
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.theme.FluidSyncAction
@@ -157,7 +157,7 @@ private fun ChipRow(picked: Set<String>, toggle: (String) -> Unit) {
       selected = label in picked,
       onClick = { toggle(label) },
       leading = if (index == 1) {
-        { Icon(Icons.Rounded.Favorite, contentDescription = null) }
+        { FluidIcon(FluidIcons.Filled.Favorite, contentDescription = null) }
       } else {
         null
       },
@@ -203,9 +203,9 @@ private fun RailSection() {
   var selected by remember { mutableStateOf("home") }
   val items = remember {
     listOf(
-      FluidTabItem("home", "Home", Icons.Rounded.Home),
-      FluidTabItem("star", "Preferiti", Icons.Rounded.Star),
-      FluidTabItem("settings", "Opzioni", Icons.Rounded.Settings),
+      FluidTabItem("home", "Home", FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home),
+      FluidTabItem("star", "Preferiti", FluidIcons.Filled.Star),
+      FluidTabItem("settings", "Opzioni", FluidIcons.Settings, selectedIcon = FluidIcons.Filled.Settings),
     )
   }
   Stage(height = 220.dp) { backdrop ->
@@ -279,24 +279,24 @@ private fun TabBarSection() {
       tab(
         key = "home",
         title = { Text("Home") },
-        icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
+        icon = { FluidIcon(FluidIcons.Home, contentDescription = null) },
         onClick = { selected = "home" },
       )
       tab(
         key = "star",
         title = { Text("Preferiti") },
-        icon = { Icon(Icons.Rounded.Star, contentDescription = null) },
+        icon = { FluidIcon(FluidIcons.Filled.Star, contentDescription = null) },
         onClick = { selected = "star" },
       )
       tab(
         key = "settings",
         title = { Text("Opzioni") },
-        icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+        icon = { FluidIcon(FluidIcons.Settings, contentDescription = null) },
         onClick = { selected = "settings" },
       )
       standaloneTab(
         key = "search",
-        icon = { Icon(Icons.Rounded.Search, contentDescription = "Cerca") },
+        icon = { FluidIcon(FluidIcons.Search, contentDescription = "Cerca") },
         onClick = {},
       )
     }
@@ -317,7 +317,7 @@ private fun NowPlaying(modifier: Modifier) {
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(10.dp),
   ) {
-    Icon(Icons.Rounded.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+    FluidIcon(FluidIcons.Filled.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
     Text(
       text = "In riproduzione",
       style = MaterialTheme.typography.titleSmall,

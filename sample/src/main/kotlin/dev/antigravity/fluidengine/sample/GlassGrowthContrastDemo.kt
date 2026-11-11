@@ -4,11 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,9 +14,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Pause
+import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
+import dev.antigravity.fluidengine.ui.fluid.icons.SkipNext
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 
 /**
@@ -73,7 +73,7 @@ internal fun LazyListScope.glassGrowthContrastItems() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
               FluidGlassButton(text = "Tasto", onClick = {})
               FluidGlassIconButton(onClick = {}) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = "Riproduci ($name)", modifier = Modifier.size(22.dp))
+                FluidIcon(FluidIcons.Filled.PlayArrow, contentDescription = "Riproduci ($name)")
               }
             }
           }
@@ -93,11 +93,11 @@ internal fun LazyListScope.glassGrowthContrastItems() {
 @Composable
 private fun GrowthDisc(size: Dp, index: Int) {
   FluidGlassIconButton(onClick = {}, size = size) {
-    Icon(
+    FluidIcon(
       imageVector = when (index % 3) {
-        0 -> Icons.Rounded.PlayArrow
-        1 -> Icons.Rounded.Pause
-        else -> Icons.Rounded.SkipNext
+        0 -> FluidIcons.Filled.PlayArrow
+        1 -> FluidIcons.Filled.Pause
+        else -> FluidIcons.Filled.SkipNext
       },
       contentDescription = "Disco da ${size.value.toInt()} dp",
       modifier = Modifier.size(size / 2),

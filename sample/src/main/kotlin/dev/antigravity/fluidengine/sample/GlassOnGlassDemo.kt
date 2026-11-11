@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +33,7 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidSwitch
@@ -47,6 +45,8 @@ import dev.antigravity.fluidengine.ui.fluid.glassContainer
 import dev.antigravity.fluidengine.ui.fluid.glassMaterialSource
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 
 /**
@@ -107,7 +107,7 @@ internal fun GlassOnGlassStage(modifier: Modifier = Modifier) {
         FluidGlassButton(text = "Attiva", onClick = {}, backdrop = stage)
         BlankGlassPill(stage, Modifier.testTag("stage-blank-pill"))
         FluidGlassIconButton(onClick = {}, backdrop = stage) {
-          Icon(Icons.Rounded.Star, contentDescription = "Preferito")
+          FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito")
         }
       }
       Row(

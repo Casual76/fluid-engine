@@ -18,15 +18,16 @@ Catalogo completo delle firme: [../api/barre.md](../api/barre.md).
 
 | cosa | regola |
 |---|---|
+| **le icone** | un'app mette l'icona e **la taglia arriva dal posto**: `FluidIcon(FluidIcons.Home, contentDescription = null)` dentro una scheda prende 28 dp (`FluidMetrics.TabBarIconSize`), dentro la capsula 26, in un tasto di vetro 0,6 del vetro, in un menu 22, fuori 24; l'inchiostro e' quello del testo (nero sul chiaro, bianco sullo scuro), non piu' l'accento. `FluidIcons` e' il set dell'engine (al tratto, peso 500; `FluidIcons.Filled.*` le gemelle piene); le icone Material (`Icons.Rounded.*`) **continuano a funzionare** alla taglia nuova e un `Icon(…)` con una taglia scritta resta com'e'. Schede: `FluidTabItem(…, icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home)` per la gemella piena sulla scheda scelta, come in Apple |
 | **posa** | la barra **non porta** margine laterale, margine basso ne' barra di sistema: li mette chi la posa. Per la tab bar: `Box(Modifier.align(BottomCenter).navigationBarsPadding().padding(horizontal = HorizontalMargin, vertical = BottomMargin))`. Margini di serie in `FluidFloatingTabBarDefaults`: laterale 14 dp, basso 16 dp «sopra la maniglia dei gesti, non contro di essa» |
-| **spazio da lasciare alla pagina** | `FluidFloatingTabBarDefaults.ContentInset` = `OpenHeight` 60 + `BottomMargin` 16 = **76 dp**, *senza* barra di sistema (la aggiunge `FluidScreen`). Con una banda sopra le schede `contentInsetWithAccessory(accessoryHeight)` = `ContentInset` + banda + `Spacing` 8. Lo si da' **una volta**, alla shell: `ProvideFluidChrome(bottomInset = …)`, vedi [schermata.md](schermata.md) |
+| **spazio da lasciare alla pagina** | `FluidFloatingTabBarDefaults.ContentInset` = `OpenHeight` 62 + `BottomMargin` 16 = **78 dp** (dalla 4.0; erano 60 e 76: chi aveva scritto 76 a mano resta corto di 2), *senza* barra di sistema (la aggiunge `FluidScreen`). Con una banda sopra le schede `contentInsetWithAccessory(accessoryHeight)` = `ContentInset` + banda + `Spacing` 8. Lo si da' **una volta**, alla shell: `ProvideFluidChrome(bottomInset = …)`, vedi [schermata.md](schermata.md) |
 | **la connessione di scorrimento** | `rememberFluidFloatingTabBarScrollConnection()` va su un **antenato delle pagine** con `Modifier.nestedScroll(connection)`; la barra le e' *sorella*, non genitrice, quindi la riceve per argomento. Senza, la barra resta aperta |
 | **il fondale** | `backdrop = chromeController.activeBackdrop.value ?: fallback`: la pagina davanti (vedi `FluidChromeController` in [schermata.md](schermata.md)). Senza `backdrop` la barra e' una capsula piatta, senza vetro e senza lente |
 | **una vibrazione per momento** | tocco su una scheda, sul cerchio o sulla scheda ripiegata: un `Tap` (vocabolario, la rete dei 70 ms fonde quello della barra con quello che l'app suona a sua volta); trascinando la pillola un `Tick` per scheda attraversata, nessun colpo al rilascio. Il campo di ricerca chiuso suona `Open` quando si apre; i tasti della capsula suonano i loro (`fluidPressable`) |
 | **animazioni ridotte** | `FluidFloatingTabBar` **non legge** `LocalFluidMotionPolicy`: piega, pillola e sfocatura gommosa si muovono comunque (letto dal codice; nessun test). La capsula (`enter`/`exit`) e il campo (`FluidMotion.standard()`) la rispettano: restano la dissolvenza e un'apertura di colpo |
 | **margini della capsula/campo al posto della barra** | `Modifier.fluidCapsuleInsets(placement, avoidKeyboard)`: barra di sistema + margini laterali della barra + il suo margine basso (piu' lo spazio della barra se `AboveTabBar`) |
 
-I numeri che la pagina deve conoscere, in dp: `OpenHeight` 60 (un **pavimento**: con testo al 130% cresce invece di tagliare l'etichetta),
+I numeri che la pagina deve conoscere, in dp: `OpenHeight` 62 (`FluidMetrics.TabBarHeight`; un **pavimento**: con testo al 130% cresce invece di tagliare l'etichetta; 60 fino alla 3.x),
 `FoldedHeight` 52, `FoldedSoloHeight` 64 (ripiegata e *sola*: niente banda e niente cerchio accanto), `TabWidth` 88 (un **tetto**), `Spacing` 8.
 
 ## Scegliere in fretta
@@ -161,7 +162,7 @@ raccogliersi). Aperta, il gruppo schede+cerchio e' sempre **centrato** (stile iO
   cerchio, spazio e padding fra le schede. Misurata **un fotogramma dopo** la prima composizione (il peso del figlio tiene insieme il primo). Senza cerchio non si lascia lo spazio per uno:
   prima richiedeva `circleWidthPx > 0` e una barra senza cerchio non si adattava mai (cinque schede a 88 = 448 dp contro i ~383 del telefono: l'ultima fuori dalla pillola, le etichette a capo,
   la barra «alta con cinque voci»).
-- L'etichetta e' una riga sola: stile imposto `labelMedium` (13 sp) centrato — `Text(item.label)` senza stile prenderebbe `bodyLarge` e «Bacheca» andrebbe a capo, raddoppiando la barra di trenta dp — e
+- L'etichetta e' una riga sola: stile imposto `labelMedium` a 11 sp (`FluidMetrics.TabBarLabelSize`, 13 fino alla 3.x) centrato — `Text(item.label)` senza stile prenderebbe `bodyLarge` e «Bacheca» andrebbe a capo, raddoppiando la barra di trenta dp — e
   `OneLine` la misura senza limite e la **scala** fino a `MinLabelScale` 0,75 per farla stare; oltre, la parola e' troppo lunga per essere un'etichetta e viene tagliata. L'altezza e' sempre quella di una riga. Il colore del tuo `Text` vince.
 - **La pillola** e' trascinabile. Rilasciata, si assesta sulla scheda piu' vicina e **naviga solo se c'e' stato un vero trascinamento** (un tocco che passa attraverso la pillola non deve rinavigare). Un `Tick` per scheda
   attraversata, letto dal valore arrotondato (lo stesso istante in cui si assesterebbe). Tutta la pillola si sposta di un massimo di 4 dp nel verso del trascinamento (`EaseOut`), poi rientra
@@ -237,18 +238,18 @@ pagina aspetta la pillola 160 ms; con cinque schede su 360 dp le etichette si re
 
 ## FluidTabRail, FluidTabItem, FluidTabBarDefaults, fluidTabBarPadding
 
-**Cos'e'.** La forma della navigazione per gli schermi larghi: lo stesso materiale e la stessa goccia della pillola, **in piedi su un lato**. `FluidTabItem(route, label, icon)` e' la voce comune a rail e barra a elenco.
+**Cos'e'.** La forma della navigazione per gli schermi larghi: lo stesso materiale e la stessa goccia della pillola, **in piedi su un lato**. `FluidTabItem(route, label, icon, badge, selectedIcon)` e' la voce comune a rail e barra a elenco (`selectedIcon`, dalla 4.0: la gemella piena che la scheda scelta disegna, null = la stessa icona).
 
 ```kotlin
 FluidTabRail(items = tabs, selectedRoute = route, onSelect = { go(it.route) }, backdrop = backdrop, onReselect = { top() })
 ```
 
-**Comportamento.** Largo `FluidTabBarDefaults.RailWidth` 84 dp, una scheda per `FluidTabBarDefaults.Height` 64 dp, pannello di vetro (`Floating`, angoli 28 dp) col **proprio** `backdrop`. L'indicatore e' una **goccia** (`glassDrop`: piena e bianca sul
+**Comportamento.** Largo `FluidTabBarDefaults.RailWidth` 84 dp, una scheda per `FluidTabBarDefaults.Height` 64 dp con l'icona a `RailIconSize` 28 dp (= `FluidMetrics.TabBarIconSize`; 24 fino alla 3.x) e **tutte a inchiostro pieno**, come la tab bar (le non scelte non sono piu' in grigio: la scelta la dicono la goccia e la gemella piena), pannello di vetro (`Floating`, angoli 28 dp) col **proprio** `backdrop`. L'indicatore e' una **goccia** (`glassDrop`: piena e bianca sul
 chiaro, grigia sullo scuro, lente mentre viaggia) che si muove come la pillola della barra quando si tocca una scheda: preme, corre, rilascia; la scheda scelta e' ridisegnata sopra la goccia a riposo e sfuma tre volte piu' in fretta della pressione.
 La prima volta la goccia nasce al suo posto (altrimenti lampeggerebbe da lente appena compare); con animazioni ridotte salta. **Senza una scheda che corrisponda alla rotta la lente non si mostra** (il rail resta in scena anche su una nota, e una lente
 parcheggiata sulla prima scheda direbbe una cosa falsa). Ogni scheda ha `Role.Tab`, `selected` e il tag di test `top_level_<rotta>` (a differenza della barra a elenco). **Non si ripiega** e non ha equivalente nella barra; il rail
 si usa dentro `FluidPaneScaffold` (`rail = { FluidTabRail(...) }`, larghezza di layout `FluidPaneSizes.rail` = `RailWidth` + 2×`HorizontalMargin` = 112 dp, [schermata.md](schermata.md)).
-`FluidTabBarDefaults`: `Height` 64, `RailWidth` 84, `HorizontalMargin` 14, `BottomMargin` 16, `ContentInset` 80 (64+16, **obsoleta come numero per la barra in basso**: usa `FluidFloatingTabBarDefaults.ContentInset`).
+`FluidTabBarDefaults`: `Height` 64, `RailWidth` 84, `RailIconSize` 28, `HorizontalMargin` 14, `BottomMargin` 16, `ContentInset` 80 (64+16, **obsoleta come numero per la barra in basso**: usa `FluidFloatingTabBarDefaults.ContentInset`).
 `fluidTabBarPadding()` = `PaddingValues(horizontal = 14, vertical = 16)`: i margini di serie attorno a una barra flottante.
 
 **Trappole.** Con un'unica scheda l'intervallo della goccia sarebbe vuoto (la molla dividerebbe per zero): la barra usa `coerceAtLeast(1)`. Il rail non vede il fondale da solo: passagli `backdrop`.
@@ -333,7 +334,7 @@ qualcos'altro *misura* la barra (una superficie che cresce dal rettangolo di una
 (`rememberFluidFloatingTabBarScrollConnection(inlineBehavior = Never)`). Deprecata dalla 2.12.0 con `ReplaceWith` che compila; il KDoc diceva «rimozione prevista per la 3.0» ma **nella 3.0.4 c'e' ancora**.
 
 **Cosa si vede cambiare** (il perche' di ogni riga e' nel KDoc di `FluidTabBar.kt`): **larghezza** — una capsula grande quanto le schede (fino a 88 dp ciascuna), centrata nella larghezza offerta, non una barra da lato a lato (con tre
-schede su un telefono e' piu' stretta); **altezza** — 60 dp invece di 64, e un pavimento; **margini** — restano di chi la posa (ne' la vecchia ne' la nuova portano margine laterale, basso o barra di sistema); **non si ripiega** — nessuna pagina la guida,
+schede su un telefono e' piu' stretta); **altezza** — 62 dp (60 fino alla 3.x) invece di 64, e un pavimento; **margini** — restano di chi la posa (ne' la vecchia ne' la nuova portano margine laterale, basso o barra di sistema); **non si ripiega** — nessuna pagina la guida,
 resta aperta come prima; **accessibilita'** — dice `selected` ma ha perso `Role.Tab` e il tag `top_level_<rotta>` (un test cerca l'etichetta, `hasText`; il rail li tiene).
 Il rail ([sopra](#fluidtabrail-fluidtabitem-fluidtabbardefaults-fluidtabbarpadding)) non ha equivalente e resta.
 
@@ -383,14 +384,14 @@ FluidFloatingCapsule(
 
 **Comportamento.**
 
-- **Una lastra sola**: il vetro sta sulla capsula (`glassSurface`, `Floating`, la pellicola della barra: le due non si distinguono), **mai sulle azioni**: `FluidCapsuleAction` e' un'icona piatta (24 dp, accento, `error` se `destructive`) che cresce sotto il dito
+- **Una lastra sola**: il vetro sta sulla capsula (`glassSurface`, `Floating`, la pellicola della barra: le due non si distinguono), **mai sulle azioni**: `FluidCapsuleAction` e' un'icona piatta (26 dp presi dal posto, `FluidMetrics.CapsuleIconSize`; dalla 4.0 nell'inchiostro del testo, e nell'accento solo se `selected` o con un `tint`; `error` se `destructive`) che cresce sotto il dito
   (`FluidPressFeedback.Expand`); ogni lente in piu' e' un layer. Per un'azione che deve staccarsi dal resto (il «Fatto» di una selezione, il play) si mette nelle fessure un tasto di vetro vero (`FluidGlassIconButton`, `FluidGlassButton`): dentro la capsula
   campiona il suo materiale (vetro su vetro, dalla 2.13.0) e riceve il backdrop come `LocalGlassBackdrop`.
 - **`placement`** — la capsula conosce lo schermo solo se glielo dici: `Free` (nessun margine, la posi tu), `ReplacingTabBar` (stessi margini e stessa altezza della barra: la pagina non cambia lo spazio che si e' lasciata), `AboveTabBar` (a `Spacing` 8 dp sopra la barra).
-  Numeri (`bottomOffset` senza barra di sistema): `Free` 0, `ReplacingTabBar` **16**, `AboveTabBar` **84** (`ContentInset` 76 + 8). Spazio per la pagina (`contentInset(placement, capsuleHeight)`, **comprensivo della barra**): `Free` 0; `ReplacingTabBar` 16 + max(h, 60) = 76 con la capsula standard; `AboveTabBar` `contentInsetWithAccessory(h)` = 76 + h + 8 = **144** alla altezza standard 60.
+  Numeri (`bottomOffset` senza barra di sistema): `Free` 0, `ReplacingTabBar` **16**, `AboveTabBar` **86** (`ContentInset` 78 + 8). Spazio per la pagina (`contentInset(placement, capsuleHeight)`, **comprensivo della barra**): `Free` 0; `ReplacingTabBar` 16 + max(h, 62) = 78 con la capsula standard; `AboveTabBar` `contentInsetWithAccessory(h)` = 78 + h + 8 = **148** alla altezza standard 62.
   La barra di sistema la aggiunge `fluidCapsuleInsets`, e la `FluidScreen` per la pagina.
 - **Tiene i tocchi**: un tocco in un punto della capsula che non e' un'azione non arriva alla card sotto (senza, toccare fra due icone apriva la foto dietro); i trascinamenti passano (una pagina che parte a scorrere da qui scorre lo stesso).
-- Altezza minima `Height` = `OpenHeight` 60: un'azione da 48 + 6 + 6. `Spacing` 4 fra i pezzi, `ContentPadding` 6, `ActionSize` 48; `size` sotto 48 stringe il layout ma Compose estende comunque l'area toccabile a 48 (serve a quattro azioni su un telefono stretto).
+- Altezza minima `Height` = `OpenHeight` 62: un'azione da 48 + 7 + 7. `Spacing` 4 fra i pezzi, `ContentPadding` 6 ai lati e 7 sopra e sotto (`(Height - ActionSize) / 2`), `ActionSize` 48; `size` sotto 48 stringe il layout ma Compose estende comunque l'area toccabile a 48 (serve a quattro azioni su un telefono stretto).
   Un'azione spenta resta al suo posto ma velata a 0,38: una capsula che cambia larghezza quando un'azione non c'e' fa saltare il vicino.
 - Entrata: sale da sotto con la molla del chrome (critica, niente rimbalzo: «una barra che rimbalza e' il segno piu' rumoroso di "non e' premium"»), uscita piu' svelta; i margini stanno **dentro** l'animazione, quindi sale da sotto il bordo dello schermo, non da dieci dp piu' in basso.
   Animazioni ridotte: solo la dissolvenza (160/120 ms).
@@ -465,12 +466,12 @@ Un campo sempre in pagina vuole `autoFocus = false`, o una tastiera che sale da 
 
 | oggetto | valori (dp se non detto) |
 |---|---|
-| `FluidFloatingTabBarDefaults` | `TabWidth` 88 (tetto), `OpenHeight` 60 (pavimento), `FoldedHeight` 52, `FoldedSoloHeight` 64, `Spacing` 8, `BottomMargin` 16, `HorizontalMargin` 14, `ContentInset` 76, `contentInsetWithAccessory(h)` = 76 + h + 8; `colors()` (`surfaceContainerHigh`), `shapes()` (`FluidCapsuleShape`), `sizes()` (padding barra 4, scheda in linea 10, scheda aperta 6, `componentSpacing` 8, `tabSpacing` 0), `elevations()` 6 / 12, `labelStyle()` = `labelMedium` centrato |
+| `FluidFloatingTabBarDefaults` | `TabWidth` 88 (tetto), `OpenHeight` 62 (pavimento, `FluidMetrics.TabBarHeight`), `FoldedHeight` 52, `FoldedSoloHeight` 64, `Spacing` 8, `BottomMargin` 16, `HorizontalMargin` 14, `ContentInset` 78, `contentInsetWithAccessory(h)` = 78 + h + 8; `colors()` (`surfaceContainerHigh`), `shapes()` (`FluidCapsuleShape`), `sizes()` (padding barra 4, scheda in linea 10, scheda aperta 6, `componentSpacing` 8, `tabSpacing` 0), `elevations()` 6 / 12, `labelStyle()` = `labelMedium` centrato |
 | `FluidFloatingTabBarGlass` | `blurRadius` = `DefaultGlassBlurRadius` 2,5 (significato doppio), `puckColor` non specificato = `primary`, `puckOpacity` 0,26 |
 | `rememberFluidFloatingTabBarScrollConnection` | `scrollThreshold` 50, `expandThreshold` 8, `inlineBehavior` `OnScrollDown` (`Never`, `OnScrollUp`), `initialIsInline` falso |
 | token di movimento della barra (`FluidMotion`) | `GooeyMillis` 300, `GooeyPulse` (picco 12 dp a meta'), `PuckEnter` 300 ms, `FoldCrossFade`, `TabTugReturn`, `TabPuckLeadMillis` 160, `TabBarFold` (0,9, rigidezza media-bassa) |
 | costanti interne che fanno il comportamento | etichetta ≥ 0,75; inchiostro ≥ 3:1 (`PuckInkMinContrast`); pillola premuta × 78/56, icona × 1,12; scheda in linea 10 dp di padding; cerchio minimo 48 |
-| `FluidFloatingCapsuleDefaults` | `Height` 60, `ActionSize` 48, `Spacing` 4, `ContentPadding` 6, `MaxWidth` 560; `bottomOffset(placement)`, `contentInset(placement, h)`, `enter(reduced)`, `exit(reduced)` |
+| `FluidFloatingCapsuleDefaults` | `Height` 62, `ActionSize` 48, `Spacing` 4, `ContentPadding` 6 ai lati e 7 sopra e sotto, `MaxWidth` 560; `bottomOffset(placement)`, `contentInset(placement, h)`, `enter(reduced)`, `exit(reduced)` |
 | `FluidSearchFieldDefaults` | `Height` 52, `IconSize` 22, `IconInset` 15, `ActionSize` 40, `ExpandedFallbackWidth` 320 |
 | `FluidTabBarDefaults` (rail e barra storica) | `Height` 64, `RailWidth` 84, `HorizontalMargin` 14, `BottomMargin` 16, `ContentInset` 80 |
 | `FluidFoldingTabBarDefaults` | alias dei numeri della barra flottante; `AccessoryHeight` 50, `Inset` 4 |

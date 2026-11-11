@@ -5,15 +5,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowDownward
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowUpward
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 
 /** Verso dove porta una [FluidJumpPill]: in cima (le novita' sopra) o in fondo (le novita' sotto). */
 enum class FluidJumpDirection { Up, Down }
@@ -88,8 +87,8 @@ private fun FluidJumpPillButton(
     // Senza tetto di righe: a testo grande l'etichetta va a capo e il tasto cresce, invece di perdere la parola
     // che dice dove porta.
     leading = {
-      Icon(
-        imageVector = if (fromAbove) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+      FluidIcon(
+        imageVector = if (fromAbove) FluidIcons.ArrowUpward else FluidIcons.ArrowDownward,
         contentDescription = null,
       )
     },

@@ -14,11 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.background
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,6 +38,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Search
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
+import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.navigation.FluidNavHost
 import dev.antigravity.fluidengine.ui.navigation.composable
 import dev.antigravity.fluidengine.ui.navigation.rememberFluidNavController
@@ -117,7 +117,7 @@ internal fun PagesDemo(
         title = "Pagine",
         subtitle = "Apri una pagina e torna indietro col dito dal bordo, come col gesto di sistema.",
         actions = {
-          FluidBarAction(icon = Icons.Rounded.Search, contentDescription = "Cerca", onClick = {})
+          FluidBarAction(icon = FluidIcons.Search, contentDescription = "Cerca", onClick = {})
         },
       ) {
         item(key = "rows") {
@@ -150,8 +150,8 @@ internal fun PagesDemo(
         subtitle = "Trascina verso destra dal bordo sinistro. Lenta oltre un terzo, o con una spinta.",
         onBack = { navController.popBackStack() },
         actions = {
-          FluidBarAction(icon = Icons.Rounded.Share, contentDescription = "Condividi", onClick = {})
-          FluidBarAction(icon = Icons.Rounded.Star, contentDescription = "Preferito", onClick = {})
+          FluidBarAction(icon = FluidIcons.Share, contentDescription = "Condividi", onClick = {})
+          FluidBarAction(icon = FluidIcons.Filled.Star, contentDescription = "Preferito", onClick = {})
         },
       ) {
         item(key = "rows") {
@@ -176,9 +176,9 @@ internal fun PagesDemo(
         subtitle = "Questa prima rimpicciolisce sul posto, poi scivola via.",
         onBack = { navController.popBackStack() },
         actions = {
-          FluidBarAction(icon = Icons.Rounded.Search, contentDescription = "Cerca", onClick = {})
-          FluidBarAction(icon = Icons.Rounded.Share, contentDescription = "Condividi", onClick = {})
-          FluidBarAction(icon = Icons.Rounded.Delete, contentDescription = "Elimina", onClick = {})
+          FluidBarAction(icon = FluidIcons.Search, contentDescription = "Cerca", onClick = {})
+          FluidBarAction(icon = FluidIcons.Share, contentDescription = "Condividi", onClick = {})
+          FluidBarAction(icon = FluidIcons.Delete, contentDescription = "Elimina", onClick = {})
         },
       ) {
         item(key = "chips-header") { FluidSectionHeader(title = "Scorre di lato") }

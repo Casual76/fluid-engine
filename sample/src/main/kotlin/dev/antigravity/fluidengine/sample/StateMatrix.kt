@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,12 +40,15 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidLabels
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Tune
 
 // ======================================================================================================
 // La matrice degli stati della galleria (F1.6)
@@ -285,7 +285,7 @@ internal fun MatrixBarAction(snapshot: MatrixSnapshot, onClick: () -> Unit) {
   // Il tag sta sul contenitore: il tasto della barra azzera la semantica dei suoi figli, tag compreso.
   Box(modifier = Modifier.testTag(MatrixButtonTag)) {
     FluidBarAction(
-      icon = Icons.Rounded.Tune,
+      icon = FluidIcons.Tune,
       contentDescription = matrixButtonDescription(snapshot),
       onClick = onClick,
     )
@@ -310,8 +310,8 @@ internal fun MatrixOverlayButton(
       backdrop = backdrop,
       modifier = Modifier.testTag(MatrixButtonTag),
     ) {
-      Icon(
-        imageVector = Icons.Rounded.Tune,
+      FluidIcon(
+        imageVector = FluidIcons.Tune,
         contentDescription = matrixButtonDescription(snapshot),
         tint = MaterialTheme.colorScheme.primary,
         modifier = Modifier.size(22.dp),

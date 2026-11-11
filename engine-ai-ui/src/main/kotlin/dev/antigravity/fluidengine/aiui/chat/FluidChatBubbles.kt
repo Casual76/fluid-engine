@@ -22,10 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +49,7 @@ import dev.antigravity.fluidengine.aiui.strings.fluidFormat
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdown
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownStyle
@@ -61,6 +58,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Schedule
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidContextMenu
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 
@@ -176,10 +176,10 @@ fun FluidQueuedBubble(
       }
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-      Icon(Icons.Rounded.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+      FluidIcon(FluidIcons.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
       Spacer(Modifier.width(6.dp))
       Text(strings.queued, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-      FluidSmallAction(Icons.Rounded.Close, strings.queuedRemove, onCancel)
+      FluidSmallAction(FluidIcons.Close, strings.queuedRemove, onCancel)
     }
   }
 }

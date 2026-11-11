@@ -33,12 +33,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Error
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -89,6 +83,12 @@ import androidx.compose.ui.util.fastAny
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
+import dev.antigravity.fluidengine.ui.fluid.icons.CheckCircle
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.Error
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Info
+import dev.antigravity.fluidengine.ui.fluid.icons.Warning
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.NoOpFluidHaptics
@@ -1096,10 +1096,10 @@ private fun FluidNotificationCard(
   val labels = LocalFluidLabels.current
   val accent = iconColors.container
   val icon = when (notification.tone) {
-    FluidNotificationTone.Info -> Icons.Rounded.Info
-    FluidNotificationTone.Success -> Icons.Rounded.CheckCircle
-    FluidNotificationTone.Warning -> Icons.Rounded.WarningAmber
-    FluidNotificationTone.Error -> Icons.Rounded.Error
+    FluidNotificationTone.Info -> FluidIcons.Info
+    FluidNotificationTone.Success -> FluidIcons.Filled.CheckCircle
+    FluidNotificationTone.Warning -> FluidIcons.Warning
+    FluidNotificationTone.Error -> FluidIcons.Error
   }
   val surface = lerp(
     MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1257,8 +1257,8 @@ private fun FluidNotificationCard(
             )
           }
           FluidGlassIconButton(onClick = onDismiss) {
-            Icon(
-              imageVector = Icons.Rounded.Close,
+            FluidIcon(
+              imageVector = FluidIcons.Close,
               contentDescription = labels.notificationClose,
               tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )

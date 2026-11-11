@@ -6,9 +6,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -247,7 +246,7 @@ private fun DateTimeChoiceRow(title: String, selected: Boolean, onSelect: () -> 
         onClick = { if (!selected) haptics.play(FluidHapticEvent.Tick); onSelect() },
         enabled = enabled, haptic = null,
       ).semantics { this.selected = selected; role = Role.RadioButton; if (!enabled) disabled() },
-      badge = { if (selected) Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
+      badge = { if (selected) FluidIcon(FluidIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) })
   }
 }
 

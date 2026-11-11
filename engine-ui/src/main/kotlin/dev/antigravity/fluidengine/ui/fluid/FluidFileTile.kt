@@ -2,9 +2,6 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,6 +18,21 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.icons.AudioFile
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
+import dev.antigravity.fluidengine.ui.fluid.icons.Code
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.Description
+import dev.antigravity.fluidengine.ui.fluid.icons.Draft
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.FolderZip
+import dev.antigravity.fluidengine.ui.fluid.icons.Image
+import dev.antigravity.fluidengine.ui.fluid.icons.PictureAsPdf
+import dev.antigravity.fluidengine.ui.fluid.icons.Refresh
+import dev.antigravity.fluidengine.ui.fluid.icons.Slideshow
+import dev.antigravity.fluidengine.ui.fluid.icons.TableChart
+import dev.antigravity.fluidengine.ui.fluid.icons.VideoFile
+import dev.antigravity.fluidengine.ui.fluid.icons.Warning
 import dev.antigravity.fluidengine.ui.theme.FluidTone
 import dev.antigravity.fluidengine.ui.theme.FluidToneTile
 import java.util.Locale
@@ -90,9 +102,9 @@ fun FluidFileTile(
         }
       }
       Column {
-        if (status is FluidFileStatus.Transferring && onCancel != null) FileAction(labels.fileCancel, Icons.Outlined.Close, onCancel)
-        if (status == FluidFileStatus.Failed && onRetry != null) FileAction(labels.fileRetry, Icons.Outlined.Refresh, onRetry)
-        if (onRemove != null) FileAction(labels.fileRemove, Icons.Outlined.DeleteOutline, onRemove)
+        if (status is FluidFileStatus.Transferring && onCancel != null) FileAction(labels.fileCancel, FluidIcons.Close, onCancel)
+        if (status == FluidFileStatus.Failed && onRetry != null) FileAction(labels.fileRetry, FluidIcons.Refresh, onRetry)
+        if (onRemove != null) FileAction(labels.fileRemove, FluidIcons.Delete, onRemove)
         trailingMenu?.invoke()
       }
     }
@@ -184,17 +196,17 @@ private fun FileAction(label: String, icon: ImageVector, action: () -> Unit) {
 @Composable
 private fun FileIcon(kind: FluidFileKind, size: Int) {
   val icon = when (kind) {
-    FluidFileKind.Image -> Icons.Outlined.Image
-    FluidFileKind.Pdf -> Icons.Outlined.PictureAsPdf
-    FluidFileKind.Document -> Icons.Outlined.Description
-    FluidFileKind.Spreadsheet -> Icons.Outlined.TableChart
-    FluidFileKind.Presentation -> Icons.Outlined.Slideshow
-    FluidFileKind.Archive -> Icons.Outlined.FolderZip
-    FluidFileKind.Audio -> Icons.Outlined.AudioFile
-    FluidFileKind.Video -> Icons.Outlined.VideoFile
-    FluidFileKind.Text -> Icons.Outlined.Code
-    FluidFileKind.Executable -> Icons.Outlined.WarningAmber
-    FluidFileKind.Other -> Icons.AutoMirrored.Outlined.InsertDriveFile
+    FluidFileKind.Image -> FluidIcons.Image
+    FluidFileKind.Pdf -> FluidIcons.PictureAsPdf
+    FluidFileKind.Document -> FluidIcons.Description
+    FluidFileKind.Spreadsheet -> FluidIcons.TableChart
+    FluidFileKind.Presentation -> FluidIcons.Slideshow
+    FluidFileKind.Archive -> FluidIcons.FolderZip
+    FluidFileKind.Audio -> FluidIcons.AudioFile
+    FluidFileKind.Video -> FluidIcons.VideoFile
+    FluidFileKind.Text -> FluidIcons.Code
+    FluidFileKind.Executable -> FluidIcons.Warning
+    FluidFileKind.Other -> FluidIcons.Draft
   }
   FluidToneTile(if (kind == FluidFileKind.Executable) FluidTone.Warning else FluidTone.Primary, size = size.dp) {
     Icon(icon, contentDescription = null)

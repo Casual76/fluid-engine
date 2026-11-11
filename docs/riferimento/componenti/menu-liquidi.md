@@ -214,7 +214,7 @@ FluidBarAction(icon = Icons.Rounded.MoreVert, contentDescription = "Altro", onCl
 **Comportamento.** Il pannello si posa **sull'ancora** (`OverAnchor`: il bordo da cui si allontana resta fermo, così il tasto non salta nel
 fotogramma in cui si apre) verso il basso se ci sta, altrimenti verso l'alto dal bordo basso. La sagoma parte dal tasto
 *premuto* (la lente com'è gonfiata dal dito, `FluidPressFeedback.ExpandRound`), con la pelle e la lente del tasto
-(`tintFrom`/`opticsFrom`), e la faccia (l'icona, 22 dp) se ne va entro il 35% del viaggio. Con `Tap` il tocco apre senza il dito
+(`tintFrom`/`opticsFrom`), e la faccia (l'icona: 20 dp scritti nel tasto, non i 22 delle voci del pannello) se ne va entro il 35% del viaggio. Con `Tap` il tocco apre senza il dito
 (il menu si sceglie toccando) e suona `Open`; con `LongPress` il click lungo apre e passa il dito, suonando `Open` solo se il
 menu si apre. `FluidMenuOpensOn` vale solo per questo ingresso: il tasto che si trasforma ha il booleano `opensOnTap`.
 
@@ -361,7 +361,7 @@ vetro su vetro) e la colonna delle voci.
 |---|---|
 | altezza di una riga | `max(48 dp, lineHeight + 24 dp)`: segue il font (al testo grande la riga cresce invece di tagliare) |
 | padding del pannello / banda di sezione | 6 dp / 8 dp |
-| larghezza | 252 dp, o quanto serve alla voce più lunga (etichetta + icona 20 dp + spunta 20 dp + 12 dp fra i segni + 16 dp per lato) fino a **340 dp**, mai oltre lo schermo meno 16 dp per lato; oltre, i puntini (3.0.1) |
+| larghezza | 252 dp, o quanto serve alla voce più lunga (etichetta + icona 22 dp + spunta 22 dp + 12 dp fra i segni + 16 dp per lato; 20 fino alla 3.x, `FluidMetrics.MenuIconSize`) fino a **340 dp**, mai oltre lo schermo meno 16 dp per lato; oltre, i puntini (3.0.1) |
 | distanza dall'ancora / margine | 12 dp / 16 dp |
 | raggio | `FluidRadius.Group` (22 dp) |
 | separatori | linea da 0,5 dp al 12% di `onSurface`, rientrata di 16 dp; fra due sezioni una **banda** (5% sul chiaro, 8% sullo scuro) |

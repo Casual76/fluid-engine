@@ -276,22 +276,22 @@ FluidGlassButton(
 **Uso** (dal `sample`, `GapsDemo` e `GlassGrowthContrastDemo`).
 
 ```kotlin
-// Le tre taglie, con l'icona alla metà del lato
+// Le tre taglie: l'icona prende da sola 0,6 del lato (24, 26, 32 dp), senza scriverlo
 FluidGlassSize.entries.forEach { size ->
   FluidGlassIconButton(onClick = {}, size = size) {
-    Icon(Icons.Rounded.Add, contentDescription = "Aggiungi", modifier = Modifier.size(size.iconSize))
+    FluidIcon(FluidIcons.Add, contentDescription = "Aggiungi")
   }
 }
 FluidGlassButton(text = "Attiva", onClick = {}, selected = true)
 
 // Una misura libera: il disco del trasporto di un player
-FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { Icon(Icons.Rounded.PlayArrow, contentDescription = "Riproduci", modifier = Modifier.size(38.dp)) }
+FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { FluidIcon(FluidIcons.Filled.PlayArrow, contentDescription = "Riproduci") }   // 46 dp, da solo
 ```
 
 **Comportamento.**
 
 - **Taglie** (`FluidGlassSize`, `lens` / `buttonHeight`): `Compact` 40/40 dp, `Regular` 44/48 dp, `Large` 54/54 dp.
-  `touchTarget = lens.coerceAtLeast(48 dp)`; `iconSize = lens / 2` (20, 22, 27 dp). A `Regular` l'albero è quello di prima
+  `touchTarget = lens.coerceAtLeast(48 dp)`; `iconSize = FluidMetrics.iconSizeIn(lens)` = 0,6 del lato al dp intero (24, 26, 32 dp; erano 20, 22, 27: la meta'). A `Regular` l'albero è quello di prima
   della 3.0, nodo per nodo. La ricetta della pressione vale **in proporzione** (crescita = frazione, deriva sul lato corto
   del vetro, bagliore sul lato lungo): nessun numero in dp da riscalare, tranne il tetto di crescita dei tondi (24 dp
   in tutto).
@@ -332,9 +332,12 @@ schermata (`FluidBarAction`, che li usa); serve una pillola con più azioni (`Fl
 
 ## FluidBarAction
 
-**Cos'è.** L'azione della barra superiore: un `FluidGlassIconButton` Regular con l'icona in tinta d'accento (22 dp) sul
-vetro condiviso della barra, quindi con un bordo fisico senza pagare un altro passaggio di sfocatura. In una barra
-non si usa `FluidGlassIconButton` a mano.
+**Cos'è.** L'azione della barra superiore: un `FluidGlassIconButton` Regular con l'icona nell'inchiostro del testo (26 dp, `FluidMetrics.BarIconSize`; fino alla 3.x
+in tinta d'accento a 22) sul vetro condiviso della barra, quindi con un bordo fisico senza pagare un altro passaggio di sfocatura. In una barra
+non si usa `FluidGlassIconButton` a mano. L'icona la mette l'app e **la taglia arriva dal posto**: `icon = FluidIcons.Share` (il set dell'engine, al tratto)
+o un'icona Material, che continua a funzionare; l'accento resta a chi passa `tint` (l'azione principale, `error` per quella distruttiva). Il vetro
+sta a 16 dp dal bordo (`FluidMetrics.ScreenEdgeMargin`) e a 8 dal vetro vicino (`GlassSpacing`); la freccia indietro e' a 24 dp
+(`BackIconSize`) e il titolo agganciato a 84 dp dai bordi.
 
 **Firma essenziale.**
 
@@ -347,6 +350,7 @@ FluidBarAction(
   enabled: Boolean = true,
   actions: (() -> List<FluidContextAction>)? = null,   // le azioni in più: il tasto diventa il menu
   opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress,
+  tint: Color = Color.Unspecified,                      // 4.0: Unspecified = inchiostro del testo; l'accento si chiede qui
 )
 ```
 
@@ -354,12 +358,12 @@ FluidBarAction(
 
 ```kotlin
 FluidBarAction(
-  icon = Icons.Rounded.Star, contentDescription = "Preferiti",
+  icon = FluidIcons.Filled.Star, contentDescription = "Preferiti",
   onClick = { /* tocco: l'azione di sempre */ },
   actions = { demoActions },                 // tenuto premuto: il tasto diventa il menu
 )
 FluidBarAction(
-  icon = Icons.Rounded.MoreVert, contentDescription = "Altro", onClick = {},
+  icon = FluidIcons.MoreVert, contentDescription = "Altro", onClick = {},
   actions = { demoActions }, opensOn = FluidMenuOpensOn.Tap,   // il tocco apre il menu; onClick non è chiamato
 )
 ```
@@ -799,9 +803,9 @@ una `LazyColumn` va in un `item`, non come figlio con altezza fissa.
 
 | | `lens` | `buttonHeight` | `touchTarget` | `iconSize` |
 |---|---|---|---|---|
-| `Compact` | 40 dp | 40 dp | 48 dp | 20 dp |
-| `Regular` | 44 dp | 48 dp | 48 dp | 22 dp |
-| `Large` | 54 dp | 54 dp | 54 dp | 27 dp |
+| `Compact` | 40 dp | 40 dp | 48 dp | 24 dp |
+| `Regular` | 44 dp | 48 dp | 48 dp | 26 dp |
+| `Large` | 54 dp | 54 dp | 54 dp | 32 dp |
 
 **Dal tema**: `FluidRadius.Control` = 12 dp (il pozzo del campo), `FluidCapsuleShape`. **Parole**: `FluidLabels.clear`, `showSecret`, `hideSecret`.
 
@@ -821,7 +825,7 @@ I numeri di slider, interruttore e scrubber sono in [controlli-gesto.md](control
 ## Cosa è verificato dai test
 
 - **`FluidPressTest`, `FluidPressTransformTest`** (`engine-ui`): crescita 0,10 / ×1,5, tetto a 16 dp e a 24 dp, molle di LibrePods, deriva `tanh`, rilascio immediato; vedi [movimento.md](movimento.md).
-- **`FluidGlassSizeTest`, `FluidGlassControlsTest`** (`engine-ui`): lente 40/44/54, bersaglio mai sotto 48 dp, padding e icona crescono con la taglia, l'icona alla metà del lato, il tondo cresce ×1,5 fino al bersaglio e poi del solo tetto; il tasto tondo da 44 dp ha un bersaglio da 48.
+- **`FluidGlassSizeTest`, `FluidGlassControlsTest`** (`engine-ui`): lente 40/44/54, bersaglio mai sotto 48 dp, padding e icona crescono con la taglia, l'icona a 0,6 del lato (24/26/32), il tondo cresce ×1,5 fino al bersaglio e poi del solo tetto; il tasto tondo da 44 dp ha un bersaglio da 48.
 - **`FluidSegmentedRtlTest`** (`engine-ui`): i due versi della goccia sono specchi esatti in ogni punto della corsa. **`FluidTextEditTest`**: `insert`, `wrap`, `toggleLinePrefix` (cursore, selezione, riga).
 - **`FluidButtonDragTest`, `FluidButtonGripTest`** (`sample`, Robolectric): un pulsante in `LazyColumn`/`verticalScroll`/pager non li fa scorrere e segue il dito; un tap fa tre colpi in ordine; il click vale fino a 16 dp oltre il bordo; `haptic = null` clicca in silenzio; `HoldsFinger`/`YieldsToScroll` sui quattro pulsanti (`FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidCapsuleAction`); un chip in `LazyRow` si scioglie e non clicca, un tocco clicca una volta sola.
 - **`AllGlassTest`, `FluidMatrixTest`** (`sample`): un chip su canvas è un tasto di vetro che clicca ed è scelto, su pagina piatta è la pastiglia opaca, spento non clicca; segmentato: il tocco sceglie una volta (su vetro e su pagina piatta), il trascinamento suona un tick per segmento e si posa sul più vicino, un dito che atterra su un altro segmento e scivola prende la goccia, in verticale non sceglie nulla, da destra a sinistra.

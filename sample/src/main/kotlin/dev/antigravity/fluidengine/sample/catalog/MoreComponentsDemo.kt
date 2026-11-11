@@ -22,9 +22,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DragHandle
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +51,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidChip
 import dev.antigravity.fluidengine.ui.fluid.FluidFastScroller
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidImageViewer
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScrubber
@@ -71,6 +69,8 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMoved
 import dev.antigravity.fluidengine.ui.fluid.fluidReorderable
 import dev.antigravity.fluidengine.ui.fluid.fluidUpdateSection
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.icons.DragHandle
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidReorderState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
@@ -343,7 +343,7 @@ private fun ReorderColumnSection() {
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-          Icon(Icons.Rounded.DragHandle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+          FluidIcon(FluidIcons.DragHandle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
           Text(name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         }
       }

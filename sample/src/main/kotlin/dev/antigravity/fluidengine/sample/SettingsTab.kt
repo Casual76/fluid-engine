@@ -14,6 +14,10 @@ import dev.antigravity.fluidengine.foundation.AvailableAppUpdate
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.material.GalleryGlassSwitchesSection
 import dev.antigravity.fluidengine.sample.update.fluidGlassUpdater
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Image
+import dev.antigravity.fluidengine.ui.fluid.icons.Movie
 import kotlinx.coroutines.launch
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
@@ -27,10 +31,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
 import dev.antigravity.fluidengine.ui.fluid.FluidSliderRow
 import dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection
 import dev.antigravity.fluidengine.ui.theme.FluidToneTile
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Movie
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Color
 import kotlin.math.roundToInt
@@ -118,7 +118,7 @@ private fun SettingRowsGroup() {
         onSelect = { format = key },
         leading = {
           FluidToneTile(color = colour) {
-            Icon(if (key == "png") Icons.Rounded.Image else Icons.Rounded.Movie, contentDescription = null)
+            FluidIcon(if (key == "png") FluidIcons.Image else FluidIcons.Movie, contentDescription = null)
           }
         },
         leadingTile = false,

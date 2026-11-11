@@ -16,12 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CheckBox
-import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,6 +51,11 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.icons.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.CheckBox
+import dev.antigravity.fluidengine.ui.fluid.icons.CheckBoxOutlineBlank
+import dev.antigravity.fluidengine.ui.fluid.icons.ContentCopy
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import kotlinx.coroutines.delay
 
 /**
@@ -323,8 +322,8 @@ private fun MarkdownList(
             // Una voce da fare (3.0.1): la casella al posto del pallino, piena se fatta. Disegnata, non un
             // carattere: una casella che non c'e' nel font diventa un quadratino vuoto che non dice niente.
             Box(modifier = Modifier.width(if (list.ordered) 26.dp else 18.dp), contentAlignment = Alignment.TopEnd) {
-              Icon(
-                imageVector = if (checked) Icons.Rounded.CheckBox else Icons.Rounded.CheckBoxOutlineBlank,
+              FluidIcon(
+                imageVector = if (checked) FluidIcons.CheckBox else FluidIcons.CheckBoxOutlineBlank,
                 contentDescription = if (checked) strings.taskDone else strings.taskOpen,
                 tint = style.markerColor,
                 modifier = Modifier.padding(top = 2.dp).size(18.dp),
@@ -405,8 +404,8 @@ private fun MarkdownCode(block: FluidMdBlock.CodeBlock, style: FluidMarkdownStyl
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-          Icon(
-            imageVector = if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy,
+          FluidIcon(
+            imageVector = if (copied) FluidIcons.Check else FluidIcons.ContentCopy,
             contentDescription = strings.copyDescription,
             tint = style.mutedColor,
             modifier = Modifier.size(14.dp),

@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -19,6 +15,10 @@ import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.LocalGalleryMatrix
 import dev.antigravity.fluidengine.sample.matrixDemoSettings
 import dev.antigravity.fluidengine.ui.fluid.*
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Image
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreVert
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 
@@ -54,10 +54,10 @@ fun FileTileDemo() {
 @Composable
 private fun FileTileSamples() {
   FluidListGroup {
-    FluidFileTile("miniatura.jpg", {}, thumbnail = { Icon(Icons.Outlined.Image, null) }, trailingMenu = {
+    FluidFileTile("miniatura.jpg", {}, thumbnail = { FluidIcon(FluidIcons.Image, null) }, trailingMenu = {
       val menu = rememberFluidContextMenu(actions = { listOf(FluidContextAction("Condividi", onClick = {})) })
       FluidGlassIconButton(onClick = { menu.open() }, modifier = Modifier.fluidContextMenuAnchor(menu), grip = FluidPressGrip.YieldsToScroll) {
-        Icon(Icons.Outlined.MoreVert, contentDescription = LocalFluidLabels.current.actions)
+        FluidIcon(FluidIcons.MoreVert, contentDescription = LocalFluidLabels.current.actions)
       }
     })
     listOf("foto.png", "fattura.pdf", "documento.docx", "tabella.xlsx", "presentazione.pptx", "archivio.zip", "audio.mp3", "video.mp4", "sorgente.kt", "fattura.pdf.apk", "sconosciuto").forEach {

@@ -6,13 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.Sync
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +25,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidChoiceRow
 import dev.antigravity.fluidengine.ui.fluid.FluidConfirmSheet
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidPromptAlert
 import dev.antigravity.fluidengine.ui.fluid.FluidPromptValidation
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
@@ -40,6 +34,12 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
 import dev.antigravity.fluidengine.ui.fluid.fluidAppearanceSection
 import dev.antigravity.fluidengine.ui.fluid.fluidPromptNotBlank
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.Edit
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Notifications
+import dev.antigravity.fluidengine.ui.fluid.icons.Speed
+import dev.antigravity.fluidengine.ui.fluid.icons.Sync
 import dev.antigravity.fluidengine.ui.haptics.ProvideFluidHapticTrace
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
@@ -97,7 +97,7 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
               checked = notifications,
               onCheckedChange = { notifications = it },
               tone = FluidTone.Info,
-              leading = { Icon(Icons.Rounded.Notifications, contentDescription = null) },
+              leading = { FluidIcon(FluidIcons.Notifications, contentDescription = null) },
               modifier = Modifier.testTag("demo-toggle-notifications"),
             )
             FluidListDivider()
@@ -108,7 +108,7 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
               onCheckedChange = { background = it },
               enabled = notifications,
               tone = FluidTone.Success,
-              leading = { Icon(Icons.Rounded.Sync, contentDescription = null) },
+              leading = { FluidIcon(FluidIcons.Sync, contentDescription = null) },
             )
             FluidListDivider()
             FluidToggleRow(
@@ -153,7 +153,7 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
               title = "Conferma semplice",
               subtitle = "Foglio dal basso con icona, frase e due tasti.",
               tone = FluidTone.Primary,
-              leading = { Icon(Icons.Rounded.Speed, contentDescription = null) },
+              leading = { FluidIcon(FluidIcons.Speed, contentDescription = null) },
               onClick = { overlay = DemoOverlay.Confirm },
             )
             FluidListDivider()
@@ -161,14 +161,14 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
               title = "Conferma distruttiva",
               subtitle = "Tono rosso, un corpo con gli effetti, il tasto che dice cosa fa.",
               tone = FluidTone.Danger,
-              leading = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+              leading = { FluidIcon(FluidIcons.Delete, contentDescription = null) },
               onClick = { overlay = DemoOverlay.Destroy },
             )
             FluidListDivider()
             FluidListRow(
               title = "Rinomina",
               subtitle = "\"$name\" — avviso con un campo: Invio conferma.",
-              leading = { Icon(Icons.Rounded.Edit, contentDescription = null) },
+              leading = { FluidIcon(FluidIcons.Edit, contentDescription = null) },
               onClick = { overlay = DemoOverlay.Rename },
             )
             FluidListDivider()
@@ -190,7 +190,7 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
         },
         title = "Applicare la modifica?",
         message = "Succede subito e si puo' rifare. Il foglio non si chiude da solo: lo possiede la schermata.",
-        icon = { Icon(Icons.Rounded.Speed, contentDescription = null) },
+        icon = { FluidIcon(FluidIcons.Speed, contentDescription = null) },
         confirmLabel = "Applica",
         onConfirm = {
           overlay = null
@@ -206,7 +206,7 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
         },
         title = "Eliminare 12 elementi?",
         message = "Non si puo' annullare.",
-        icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+        icon = { FluidIcon(FluidIcons.Delete, contentDescription = null) },
         destructive = true,
         confirmLabel = "Elimina dal telefono",
         onConfirm = {

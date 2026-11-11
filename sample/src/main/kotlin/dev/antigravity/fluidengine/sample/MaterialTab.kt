@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +34,9 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidChromeController
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.fluidExpandOrigin
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Notifications
+import dev.antigravity.fluidengine.ui.fluid.icons.Settings
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,12 +116,12 @@ internal fun MaterialTab(bottomInset: Dp, onOpenToTry: () -> Unit = {}) {
     extraBottomPadding = bottomInset,
     actions = {
       FluidBarAction(
-        icon = Icons.Rounded.Notifications,
+        icon = FluidIcons.Notifications,
         contentDescription = "Notifiche",
         onClick = {},
       )
       FluidBarAction(
-        icon = Icons.Rounded.Settings,
+        icon = FluidIcons.Settings,
         contentDescription = "Impostazioni",
         onClick = {},
       )
@@ -200,7 +200,7 @@ internal fun MaterialTab(bottomInset: Dp, onOpenToTry: () -> Unit = {}) {
         eyebrow = "Fascia di sezione",
         value = "7",
         label = "toni sull'anello",
-        icon = Icons.Rounded.Notifications,
+        icon = FluidIcons.Notifications,
       )
     }
     item(key = "vivid-header") { FluidSectionHeader(title = "La card vivida") }

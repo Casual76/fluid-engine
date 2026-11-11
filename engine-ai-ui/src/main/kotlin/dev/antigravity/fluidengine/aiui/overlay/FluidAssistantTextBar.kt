@@ -10,10 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -39,6 +35,10 @@ import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowUpward
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Mic
+import dev.antigravity.fluidengine.ui.fluid.icons.Refresh
 
 /**
  * La barra di scrittura in alto (pressione lunga sul tasto): una capsula di vetro con il campo, il
@@ -84,7 +84,7 @@ fun FluidAssistantTextBar(
     if (leading != null) {
       leading()
     } else {
-      FluidBarIcon(icon = Icons.Rounded.Refresh, description = strings.newConversation, onClick = onNewConversation)
+      FluidBarIcon(icon = FluidIcons.Refresh, description = strings.newConversation, onClick = onNewConversation)
     }
     FluidTextField(
       value = text,
@@ -99,9 +99,9 @@ fun FluidAssistantTextBar(
     )
     Spacer(Modifier.width(4.dp))
     if (text.isBlank()) {
-      if (micAvailable) FluidBarIcon(icon = Icons.Rounded.Mic, description = strings.voice, onClick = onVoice)
+      if (micAvailable) FluidBarIcon(icon = FluidIcons.Mic, description = strings.voice, onClick = onVoice)
     } else {
-      FluidBarIcon(icon = Icons.Rounded.ArrowUpward, description = strings.send, onClick = { submit() }, primary = true)
+      FluidBarIcon(icon = FluidIcons.ArrowUpward, description = strings.send, onClick = { submit() }, primary = true)
     }
   }
 }

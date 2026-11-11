@@ -1411,6 +1411,45 @@ viaggio; goccia; puck e misure della tab bar (R6); vetro dipinto, scrim e notifi
 «Parità»; regole riscritte; S2. **Resta fuori**: ogni comportamento nuovo (i viaggi restano quelli di oggi, cambia cosa li
 veste).
 
+**Priorità di Alessio sul movimento (2026-11-11), valide da qui a F6.** «Attenzione maniacale»: le animazioni sono ciò
+che più contraddistingue Apple, e la differenza si vede subito. Tre regole, che cambiano come si lavora da F1B in poi:
+
+1. **I viaggi d'oro.** I preset che le app usano davvero devono essere perfetti, e sono loro che si lucidano: (a) un
+   tasto che diventa due, e due tasti che si trasformano l'uno nell'altro; (b) un tasto che diventa un menu, e ritorno;
+   (c) un gruppo di tasti che diventa un menu; (d) la barra fra due pagine (tasti che restano, nascono, spariscono,
+   cambiano icona); (e) un tasto che diventa una barra, e la ricerca che si estende; (f) il menu contestuale da pressione
+   lunga; (g) la pillola della tab bar e la tab bar che si riduce a un tasto; (h) la card che diventa finestra e il
+   foglio. L'elenco si allarga solo con ciò che un'app di Alessio usa.
+2. **La trasformazione universale regge, non si lucida.** `morphTo` fra forme qualsiasi (compresi `FluidForm.Poly` e
+   gruppi di taglie diverse) oggi ha difetti lasciati lì perché rari. Il criterio è la **robustezza**: nessuna caduta,
+   nessun valore non finito, nessun contorno che si rovescia o si autointerseca, area e baricentro senza salti, materiale
+   continuo, arrivo esatto alla forma di destinazione; su una serie fissa di coppie di forme. Non si tara il gusto.
+3. **Di Apple si riproduce la logica, non i fotogrammi.** I riferimenti (R4, `riferimenti.md`) dicono le fasi, gli
+   ordini di grandezza e le regole (un solo superamento, il materiale che si fa limpido in viaggio, chi parte prima); il
+   risultato è un motore, e si giudica per regole misurabili su ogni viaggio, non per sovrapposizione a un video.
+
+**Il protocollo dei viaggi d'oro** (ogni viaggio, a ogni fase che lo tocca; è il contenuto dei pacchetti F1B.0 e F1B.6, e
+la prova che i critici ricevono):
+- **prima** di toccare il motore, il viaggio di oggi ripreso sul tablet a 120 Hz, tre ripetizioni, nei due temi, su fondo
+  piatto e su fondo carico, più le varianti che rompono: interrotto e invertito al 25, 50 e 75%, ripreso al volo verso
+  un'altra destinazione, tocchi ripetuti in fretta, gesto indietro a metà; da qui l'elenco dei difetti di partenza, che
+  diventa la lista di accettazione;
+- un **rivelatore di scatti**: per ogni fotogramma del viaggio sagoma (area, baricentro, riquadro, numero di pezzi),
+  materiale (luma del corpo, del filo, dell'ombra) e passo temporale; segnala da solo ogni discontinuità oltre soglia
+  (un fotogramma senza vetro, un cambio di materiale, un'ombra che compare, un pezzo che salta, un contenuto tagliato) e
+  i fotogrammi lunghi; si usa uguale sul banco e sulle riprese del tablet;
+- le **curve**: taglia e posizione nel tempo, con superamento, tempo al picco e tempo di assestamento contro gli
+  intervalli di R4; **tutti** i fotogrammi del viaggio in un collage denso, non un campione;
+- un viaggio è accettato quando il rivelatore non segnala niente in nessuna variante, le curve stanno negli intervalli (o
+  fuori per una scelta scritta), e i primi e gli ultimi cinque fotogrammi, guardati uno per uno, non hanno niente di
+  sbagliato. Ciò che resta fuori si scrive nella tabella dei difetti con la fase che lo chiude: niente «va bene da
+  distratti».
+
+Due pacchetti si aggiungono per questo alla tabella qui sotto: **F1B.0** (prima di F1B.1: riprese di partenza dei viaggi
+d'oro sul tablet, rivelatore di scatti in `tools/glassbench/`, lista di accettazione; Opus) e **F1B.8** (dopo F1B.2: la
+serie di robustezza della trasformazione universale, test puri sul motore più una pagina della galleria che le fa girare
+tutte; Opus). F1B.1 resta a Fable: è il pacchetto più difficile da valutare del progetto.
+
 **Progetto tecnico.**
 
 - `fp/FluidPhysicsEffects.kt`: `slabGroupMorphLens` e `polyMorphLens` diventano due chiamate a `glassBody` con il nucleo

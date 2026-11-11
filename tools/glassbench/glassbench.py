@@ -1033,6 +1033,71 @@ def cmd_selftest(args) -> int:
          abs(shadow["ombra, massimo"] - 5.0) < 0.1 and abs(shadow["ombra, estensione (>= 1 livello)"] - 0.2) < 0.03,
          f"{shadow['ombra, massimo']:.1f}%, {shadow['ombra, estensione (>= 1 livello)']:.2f} H")
 
+    # Fedelta' del ridisegno (F0.3c): le correzioni nate dal confronto con lo scatto del Tab S9 ---
+    # (scenes/s1, artifacts/liquid-glass/bench/f0-3c/fedelta-ridisegno.md). Ognuna e' una regola
+    # del disegno vero che il banco prima non seguiva: qui si prova la regola, non lo scatto.
+    film_dark = r.mix(r.parse_color("#4A4A4E"), r.parse_color(r.ENGINE_PALETTE["dark"]["surfaceContainerHigh"]), 0.34)
+    control = [c * 255 for c in r.mix(film_dark, r.parse_color("#2ED8A0"), 0.20)[:3]]
+    test("mescola: `mix` e' il lerp di Compose in Oklab (pellicola di un tasto scuro, col suo quinto di accento)",
+         max(abs(a - b) for a, b in zip(control, (68.72, 92.29, 84.53))) < 0.3,
+         "({:.1f}, {:.1f}, {:.1f}); la media sRGB darebbe (58.5, 95.0, 85.9)".format(*control))
+    same = r.mix(r.parse_color("#336699"), r.parse_color("#336699"), 0.37)
+    ends = r.mix(r.parse_color("#102030"), r.parse_color("#E0C0A0"), 1.0)
+    test("mescola: un colore con se stesso resta lui, e a 1 si arriva all'altro",
+         max(abs(a - b) for a, b in zip(same, r.parse_color("#336699"))) < 1e-4
+         and max(abs(a - b) for a, b in zip(ends, r.parse_color("#E0C0A0"))) < 1e-4)
+
+    plain = {"role": "compactpanel", "shadowAlpha": 0, "highlightAlpha": 0}
+    odd = pixels({"width": 140, "height": 150, "density": 1.0, "theme": "light", "palette": "engine",
+                  "corner": "round", "background": {"kind": "color", "color": "#C08040"},
+                  "elements": [{"name": "p", "optics": plain, "tint": "panel",
+                                "x": 20, "y": 20, "w": 101, "h": 103, "radius": 0}]}, "fedelta-cattura")
+    inside = odd[60:80, 100:120, :3].reshape(-1, 3).mean(0)
+    last_column = odd[40:100, 120, :3].astype(int)
+    last_row = odd[122, 40:100, :3].astype(int)
+    test("cattura: l'ultima colonna e l'ultima riga di una lastra a risoluzione ridotta sono vetro, non pagina nuda",
+         np.abs(last_column - inside).max() <= 2 and np.abs(last_row - inside).max() <= 2,
+         f"scarto dal corpo: colonna {np.abs(last_column - inside).max():.0f}, riga {np.abs(last_row - inside).max():.0f}")
+
+    big = pixels({"width": 200, "height": 200, "density": 2.0, "theme": "dark", "palette": "engine",
+                  "corner": "engine", "background": {"kind": "color", "color": "#C08040"},
+                  "elements": [{"name": "p", "optics": plain, "tint": "panel",
+                                "x": 20, "y": 20, "w": 160, "h": 160, "radius": 28}]}, "fedelta-pellicola")
+    ys, xs = np.mgrid[0:400, 0:400]
+    cx = np.clip(xs + 0.5, 40 + 56, 360 - 56)
+    cy = np.clip(ys + 0.5, 40 + 56, 360 - 56)
+    well_inside = np.hypot(xs + 0.5 - cx, ys + 0.5 - cy) < 56 - 1.5  # dentro l'arco nominale, al riparo dall'antialias
+    body_pixels = big[..., :3][well_inside].astype(int)
+    test("pellicola: su una sagoma grande riempie tutto il ritaglio al raggio nominale (anche la falce fuori dal path continuo)",
+         (body_pixels.max(0) - body_pixels.min(0)).max() <= 1,
+         f"escursione dentro l'arco nominale: {(body_pixels.max(0) - body_pixels.min(0)).max()} livelli")
+
+    def shadow_rows(density: float):
+        image = pixels({"width": 160, "height": 160, "density": density, "theme": "light", "palette": "engine",
+                        "corner": "round", "background": {"kind": "color", "color": "#C8C8C8"},
+                        "elements": [{"name": "p", "optics": {"role": "compactpanel", "highlightAlpha": 0},
+                                      "tint": "none", "x": 60, "y": 40, "w": 60, "h": 60, "radius": 0}]})
+        x0, y_mid = round(60 * density), round(70 * density)
+        return [200.0 - float(image[y_mid - 4:y_mid + 4, x0 - k, 0].mean()) for k in (1, 2, 3)], image, x0, y_mid
+
+    whole, image, x0, y_mid = shadow_rows(2.0)
+    half, _, _, _ = shadow_rows(2.125)
+    test("ombra: se due raggi sono pixel interi la prima colonna fuori dal bordo ha tutta l'ombra",
+         whole[0] >= whole[1] - 0.6, "{:.1f}, {:.1f}, {:.1f} livelli a 1, 2, 3 px".format(*whole))
+    test("ombra: a densita' 2,125 (18 dp = 76,5 px) il layer frazionario ne lascia circa tre quarti",
+         0.6 * half[1] <= half[0] <= 0.9 * half[1], "{:.1f}, {:.1f}, {:.1f} livelli a 1, 2, 3 px".format(*half))
+    # La capsula flottante dello scatto: 48 px sotto il bordo l'ombra ideale vale 1,1 livelli
+    # (il 5,3% di 0,16 x 0,7 x 190) e nello scatto c'e'. Con l'alfa nel layer, e due
+    # arrotondamenti a 8 bit, li' il banco non lasciava niente.
+    capsule = pixels({"width": 240, "height": 160, "density": 2.125, "theme": "light", "palette": "engine",
+                      "corner": "engine", "background": {"kind": "color", "color": "#BEBEBE"},
+                      "elements": [{"name": "c", "optics": {"role": "floating", "highlightAlpha": 0},
+                                    "tint": "none", "x": 40, "y": 32, "w": 156, "h": 56, "radius": "capsule"}]})
+    bottom = round(32 * 2.125) + round(56 * 2.125)
+    tail = 190.0 - float(capsule[bottom - 1 + 48, 200:300, 0].mean())
+    test("ombra: la coda non si perde nell'arrotondamento (dove l'ombra ideale vale 1,1 livelli ne resta uno)",
+         tail >= 0.9, f"{tail:.1f} livelli a 48 px sotto la capsula")
+
     print(f"\nimmagini di prova in {shown(out_dir)}")
     if failures:
         print(f"FALLITE {len(failures)}: " + "; ".join(failures))

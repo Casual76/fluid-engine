@@ -1,0 +1,195 @@
+{
+  "_": "La riga «oggi» della pagina «Misure» (compare glass both backdrop photo, clip on), tema scuro, uguale allo scatto di S1 sul Tab S9: ritaglio 1088x544 px da (740, 180) dello schermo 2560x1600 a densita' 2,125. Tondo = buttonOptics + controlTint, capsula = optics(Floating) + floatingTint, pannello = panelOptics(compact) + panelTint (TodayElement in sample/.../measure/MeasureScenes.kt). Il fondale e' lo scatto nudo `none-photo-light-fondale.png`, in chiaro: la «foto» della pagina non dipende dal tema (MeasureBackground.kt) e lo scatto scuro lontano dagli elementi e' identico al pixel. Il vero da mettere accanto: `vero-scuro.png` (stesso ritaglio), con `glassbench.py measure --image`. Vedi artifacts/liquid-glass/bench/f0-3c/fedelta-ridisegno.md.",
+  "width": 512.0,
+  "height": 256.0,
+  "density": 2.125,
+  "theme": "dark",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "image",
+    "path": "fondale.png"
+  },
+  "elements": [
+    {
+      "name": "tondo",
+      "optics": "button",
+      "tint": "control",
+      "x": 45.176471,
+      "y": 116.235294,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule"
+    },
+    {
+      "name": "capsula",
+      "optics": "floating",
+      "tint": "floating",
+      "x": 113.411765,
+      "y": 110.588235,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule"
+    },
+    {
+      "name": "pannello",
+      "optics": "compactpanel",
+      "tint": "panel",
+      "x": 293.647059,
+      "y": 42.352941,
+      "w": 170,
+      "h": 192,
+      "radius": 28
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "tondo",
+      "label": "tondo",
+      "scheda": "corpo",
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    },
+    {
+      "kind": "frost",
+      "element": "tondo",
+      "label": "tondo",
+      "scheda": "smeriglio",
+      "colour": true,
+      "rows": [
+        "contrasto",
+        "intervallo",
+        "nitidezza",
+        "laplaciano",
+        "estremi",
+        "colore"
+      ]
+    },
+    {
+      "kind": "edge",
+      "element": "tondo",
+      "side": "top",
+      "label": "tondo alto",
+      "scheda": "bordo"
+    },
+    {
+      "kind": "edge",
+      "element": "tondo",
+      "side": "bottom",
+      "label": "tondo basso",
+      "scheda": "bordo"
+    },
+    {
+      "kind": "shadow",
+      "element": "tondo",
+      "label": "tondo",
+      "scheda": "ombra"
+    },
+    {
+      "kind": "body",
+      "element": "capsula",
+      "label": "capsula",
+      "scheda": "corpo",
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    },
+    {
+      "kind": "frost",
+      "element": "capsula",
+      "label": "capsula",
+      "scheda": "smeriglio",
+      "colour": true,
+      "rows": [
+        "contrasto",
+        "intervallo",
+        "nitidezza",
+        "laplaciano",
+        "estremi",
+        "colore"
+      ]
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "top",
+      "label": "capsula alto",
+      "scheda": "bordo"
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "bottom",
+      "label": "capsula basso",
+      "scheda": "bordo"
+    },
+    {
+      "kind": "shadow",
+      "element": "capsula",
+      "label": "capsula",
+      "scheda": "ombra"
+    },
+    {
+      "kind": "body",
+      "element": "pannello",
+      "label": "pannello",
+      "scheda": "corpo",
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    },
+    {
+      "kind": "frost",
+      "element": "pannello",
+      "label": "pannello",
+      "scheda": "smeriglio",
+      "colour": true,
+      "rows": [
+        "contrasto",
+        "intervallo",
+        "nitidezza",
+        "laplaciano",
+        "estremi",
+        "colore"
+      ]
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "top",
+      "label": "pannello alto",
+      "scheda": "bordo"
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "bottom",
+      "label": "pannello basso",
+      "scheda": "bordo"
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "left",
+      "label": "pannello sinistra",
+      "scheda": "bordo"
+    },
+    {
+      "kind": "shadow",
+      "element": "pannello",
+      "label": "pannello",
+      "scheda": "ombra"
+    }
+  ]
+}

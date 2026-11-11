@@ -1,5 +1,5 @@
 {
-  "_": "Immagini di riferimento del vetro di oggi (modello Classic). Provano la parita' ottica degli shader AGSL e dei numeri che il banco legge da fluid/GlassMaterial.kt, sul PC. Non provano il disegno Kotlin (pellicola, filetto, bordo e ombra, che il banco ridisegna per conto suo), ne' quale ramo glassSurface prende su un dato Android, ne' il ripiego sotto API 33. Si verificano con `glassbench.py compare --golden classic` e si riscrivono, solo di proposito, con `glassbench.py golden classic --update`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`.",
+  "_": "Immagini di riferimento del vetro di oggi (modello Classic). Provano la parita' ottica degli shader AGSL e dei numeri che il banco legge da fluid/GlassMaterial.kt, sul PC. Non provano il disegno Kotlin (pellicola, filetto, bordo e ombra, che il banco ridisegna per conto suo), ne' quale ramo glassSurface prende su un dato Android, ne' il ripiego sotto API 33. Si verificano con `glassbench.py compare --golden classic` e si riscrivono, solo di proposito, con `glassbench.py golden classic --update`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`. F0.3c (11/11/2026): 12 immagini su 13 riscritte dopo aver messo il ridisegno del banco accanto a uno scatto del Tab S9 (scenes/s1): la cattura a risoluzione ridotta copre anche l'ultima colonna e riga, la pellicola riempie il ritaglio hardware e non il path continuo, i colori si mescolano in Oklab come in Compose e la palette `engine` porta la quota di accento, ombra e bordo arrotondano una volta sola. `fluidphysics` non cambia. Limiti misurati del ridisegno, che queste immagini si portano dietro: lungo gli archi una riga di pixel fino a 16 livelli dal vero (antialias del ritaglio hardware); righe 2-4 del bordo entro 3 livelli (5,4 sul tasto tondo scuro); prima riga dell'ombra fuori dal bordo fino a 2 livelli quando due raggi non sono pixel interi; corpo entro 1 livello.",
   "density": 2.0,
   "icons": "service",
   "scenes": [
@@ -7,7 +7,7 @@
       "name": "pagina-chiara",
       "scene": "scenes/rif/pagina-chiara.json",
       "png": "pagina-chiara.png",
-      "sha256": "ae2abbcd8bc7954164513f72a8bd26eee3e72c81c9893405386dddc9bc5d4884",
+      "sha256": "71b38573016ae277035e78dd1a2e08cffffa6d6df05ff2b1b783d696ded9f8e8",
       "size": [
         960,
         540
@@ -17,7 +17,7 @@
       "name": "pagina-scura",
       "scene": "scenes/rif/pagina-scura.json",
       "png": "pagina-scura.png",
-      "sha256": "1b248d6e00ad4d98d08b8e59b4cc223cc1118ef2833f1905d804bbe5995694d3",
+      "sha256": "290760962dc29871206c8ff215d64c24f5ecbdaec88ab50309dec7baf5caa4c0",
       "size": [
         960,
         540
@@ -27,7 +27,7 @@
       "name": "pagina-nera",
       "scene": "scenes/rif/pagina-nera.json",
       "png": "pagina-nera.png",
-      "sha256": "0a88caefb11aeb27af6e759f9fe93759a19eb4fb479e34a13e09508489928f4f",
+      "sha256": "9c3cc54080698e29a70bf7e0d8f6b1c3f6eca0ca6737ff9309dbdb335d3d43e4",
       "size": [
         960,
         540
@@ -37,7 +37,7 @@
       "name": "pagina-bianca",
       "scene": "scenes/rif/pagina-bianca.json",
       "png": "pagina-bianca.png",
-      "sha256": "0d04daaeaaffdede39167569150ccc6df6e9e826b04172aac2ffc6397be9d7a1",
+      "sha256": "6f2ab1a537d5902bf3c9e265bba86a19076a7a7f96614a3d87584f9a15e6237d",
       "size": [
         960,
         540
@@ -47,7 +47,7 @@
       "name": "pagina-testo",
       "scene": "scenes/rif/pagina-testo.json",
       "png": "pagina-testo.png",
-      "sha256": "64dffe8b01589ad3de392716b130f7b246c36d1214864bea49c176b5204ced7c",
+      "sha256": "5eda684c93eec7e4de4f2d553d8785172642e06962f8ab54287fed4d7f32926a",
       "size": [
         960,
         540
@@ -57,7 +57,7 @@
       "name": "pagina-foto",
       "scene": "scenes/rif/pagina-foto.json",
       "png": "pagina-foto.png",
-      "sha256": "d3cc3c839cb688e3b9579c0f366cc20fe7f3c4185c7ded49463e37bdeaf98fe1",
+      "sha256": "447fbf08f106d7a73589fbed61c6ea9bc508282f6718f010f9aaabd0d4f25dc1",
       "size": [
         960,
         540
@@ -67,7 +67,7 @@
       "name": "rif-bianco-nero",
       "scene": "scenes/rif/rif-bianco-nero.json",
       "png": "rif-bianco-nero.png",
-      "sha256": "d1b9fa650b03a67a74aaf7185db33eece39b1e960d2f02cfaa1d503038ccc8df",
+      "sha256": "b6c2fc873f98ef80f91a93e94c9628c50e7c2963517d1c78a30d937dbcc1e582",
       "size": [
         960,
         600
@@ -77,7 +77,7 @@
       "name": "rif-tinta",
       "scene": "scenes/rif/rif-tinta.json",
       "png": "rif-tinta.png",
-      "sha256": "e76a2e0d7276dcefdbb56e94ac223405af4a496126b2ba0158183ceb8b749427",
+      "sha256": "cd3e1738e570bb7c561b8404f0b1ce2e0078a4c624943398e1def552d77e26cf",
       "size": [
         960,
         400
@@ -87,7 +87,7 @@
       "name": "rif-lente-griglia",
       "scene": "scenes/rif/rif-lente-griglia.json",
       "png": "rif-lente-griglia.png",
-      "sha256": "a79151cc13c0e197093800449fbf7ab9fcfd88410f6adb30c8265754bf49bf9a",
+      "sha256": "9572eedd10400d83514263b8a9a857f59054471c11955504051727a0bd04316a",
       "size": [
         600,
         600
@@ -97,7 +97,7 @@
       "name": "rif27-tabbar",
       "scene": "scenes/rif/rif27-tabbar.json",
       "png": "rif27-tabbar.png",
-      "sha256": "149eb219bc27faaafca783ebf4149f635aa708e7b14c04b836cb8c4d5674a99a",
+      "sha256": "ae4d5f3d8c39091880ddd43e4ea07dcbc29a49a3e1d42614cbfbef06db348d53",
       "size": [
         800,
         340
@@ -108,7 +108,7 @@
       "scene": "golden/classic/scene/ruoli.json",
       "png": "ruoli-chiaro.png",
       "theme": "light",
-      "sha256": "f85f4110ff14bd1f50446ae453ca635336486840ef74f231d9560a468088f7e8",
+      "sha256": "d3b21fe601cd32c748827531066968d7bdd5b1e6f14e0a90937b90c6e06c72b3",
       "size": [
         960,
         600
@@ -119,7 +119,7 @@
       "scene": "golden/classic/scene/ruoli.json",
       "png": "ruoli-scuro.png",
       "theme": "dark",
-      "sha256": "c9a3763787512b6d73627a11f7bffee34c284bb40e8e666cd295d4a05d849eec",
+      "sha256": "23ef7b78cfb51d785bbed0b643f1877a81cf8a162f1c864302cdc73fd5253427",
       "size": [
         960,
         600
@@ -146,7 +146,7 @@
   "sources": {
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Shaders.kt": "3272701cebb5d023",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsShaders.kt": "d68ce3d4e3530f36",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "98f8b1265c3ea012",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "58cf5b44645f4060",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "e2bd36d861ccb691"
   }
 }

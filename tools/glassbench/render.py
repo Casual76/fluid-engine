@@ -103,33 +103,24 @@ DEFAULT_PALETTE = {
         "onSurface": "#1D1B20",
     },
 }
-# La palette neutra dell'engine: `surfacePalette()` in theme/FluidTheme.kt (lowest, low, high,
-# onSurface) con l'accento di serie `FluidDefaultBrand`. Ricopiata: una scena la chiede con
-# `"palette": "engine"` (o `"engine-amoled"` per il tema nero). L'engine vero sposta ogni
-# superficie dell'1,2-1,4% verso l'accento: qui no, sono i neutri.
-ENGINE_PALETTE = {
-    "dark": {
-        "surfaceContainerHigh": "#252528",
-        "surfaceContainerLow": "#1D1D20",
-        "primary": "#2ED8A0",
-        "onSurface": "#F2F2F5",
-    },
-    "light": {
-        "surfaceContainerLowest": "#FFFFFF",
-        "surfaceContainerLow": "#FCFCFE",
-        "primary": "#1F9E6E",
-        "onSurface": "#121214",
-    },
+# La palette dell'engine: `surfacePalette()` in theme/FluidTheme.kt con l'accento di serie
+# `FluidDefaultBrand`. Ricopiati: i neutri (lowest, low, high, onSurface) e la quota di accento che
+# l'engine ci mescola (lowest 0,8%, low 2,4%, high 5,5%; nel tema nero lowest resta nero). La
+# mescola e' quella di Compose, in Oklab (vedi `mix`). Una scena la chiede con
+# `"palette": "engine"` (o `"engine-amoled"` per il tema nero).
+#
+# Fino a F0.3c qui stavano i neutri senza accento: nel tema scuro la pellicola usciva piu' grigia
+# del vero di (0,6; 1,5; 1,0) livelli sullo schermo, misurato su uno scatto del Tab S9.
+ENGINE_ACCENT = {"dark": "#2ED8A0", "light": "#1F9E6E"}
+ENGINE_NEUTRALS = {
+    "dark": {"surfaceContainerHigh": "#252528", "surfaceContainerLow": "#1D1D20", "onSurface": "#F2F2F5"},
+    "light": {"surfaceContainerLowest": "#FFFFFF", "surfaceContainerLow": "#FCFCFE", "onSurface": "#121214"},
+    "amoled": {"surfaceContainerHigh": "#1B1B1E", "surfaceContainerLow": "#121214", "onSurface": "#F2F2F5"},
 }
-ENGINE_AMOLED_PALETTE = {
-    "dark": {
-        "surfaceContainerHigh": "#1B1B1E",
-        "surfaceContainerLow": "#121214",
-        "primary": "#2ED8A0",
-        "onSurface": "#F2F2F5",
-    },
-    "light": ENGINE_PALETTE["light"],
-}
+ENGINE_ACCENT_SHARE = {"surfaceContainerLowest": 0.008, "surfaceContainerLow": 0.024, "surfaceContainerHigh": 0.055}
+# Riempite da `_engine_palettes()` appena sotto `mix`, che serve a calcolarle.
+ENGINE_PALETTE: dict = {}
+ENGINE_AMOLED_PALETTE: dict = {}
 PALETTES = {"material": DEFAULT_PALETTE, "engine": ENGINE_PALETTE, "engine-amoled": ENGINE_AMOLED_PALETTE}
 
 
@@ -171,8 +162,66 @@ def parse_color(value) -> tuple[float, float, float, float]:
     return tuple(channels)  # type: ignore[return-value]
 
 
+def _srgb_to_linear(c: float) -> float:
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _linear_to_srgb(c: float) -> float:
+    return c * 12.92 if c <= 0.0031308 else 1.055 * max(c, 0.0) ** (1.0 / 2.4) - 0.055
+
+
+def _to_oklab(rgb) -> tuple[float, float, float]:
+    r, g, b = (_srgb_to_linear(float(c)) for c in rgb[:3])
+    l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1.0 / 3.0)
+    m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1.0 / 3.0)
+    n = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1.0 / 3.0)
+    return (0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * n,
+            1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * n,
+            0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * n)
+
+
+def _from_oklab(lab) -> tuple[float, float, float]:
+    L, A, B = lab
+    l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
+    m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
+    n = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3
+    return (_linear_to_srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * n),
+            _linear_to_srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * n),
+            _linear_to_srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * n))
+
+
 def mix(a, b, t: float):
-    return tuple(a[i] + (b[i] - a[i]) * t for i in range(4))
+    """Il `lerp(Color, Color, fraction)` di Compose: i due colori passano in **Oklab**, li' si
+    interpola, e si torna in sRGB (androidx.compose.ui.graphics.lerp). L'alfa va dritta.
+
+    Non e' la media dei numeri sRGB, e fra un grigio e un colore pieno la differenza si vede: la
+    pellicola di un tasto (`controlTint`, un quinto di accento) esce con il rosso 6-10 livelli piu'
+    alto, cioe' 2-3 livelli sullo schermo. Misurato su uno scatto del Tab S9 (F0.3c): con la media
+    sRGB il corpo del tasto tondo del banco era sotto il vero di 2,0 (chiaro) e 3,1 (scuro) livelli
+    di rosso; in Oklab lo scarto sta sotto il livello."""
+    la, lb = _to_oklab(a), _to_oklab(b)
+    r, g, bl = _from_oklab(tuple(la[i] + (lb[i] - la[i]) * t for i in range(3)))
+    clamp = lambda v: min(max(v, 0.0), 1.0)
+    return (clamp(r), clamp(g), clamp(bl), a[3] + (b[3] - a[3]) * t)
+
+
+def _engine_palettes() -> None:
+    """Le superfici dell'engine: il neutro, piu' la sua quota di accento (theme/FluidTheme.kt)."""
+    for target, families in ((ENGINE_PALETTE, {"dark": "dark", "light": "light"}),
+                             (ENGINE_AMOLED_PALETTE, {"dark": "amoled", "light": "light"})):
+        for theme, family in families.items():
+            accent = parse_color(ENGINE_ACCENT[theme])
+            colours = {}
+            for key, value in ENGINE_NEUTRALS[family].items():
+                share = ENGINE_ACCENT_SHARE.get(key, 0.0)
+                if family == "amoled" and key == "surfaceContainerLowest":
+                    share = 0.0
+                colours[key] = list(mix(parse_color(value), accent, share)) if share else value
+            colours["primary"] = ENGINE_ACCENT[theme]
+            target[theme] = colours
+
+
+_engine_palettes()
 
 
 def color4f(rgba) -> skia.Color4f:
@@ -413,8 +462,9 @@ class Outline:
         circolare al raggio nominale, per ritaglio, pellicola, bordo e ombra;
       * `"engine"`: la scelta per taglia di `ContinuousCornerShape.createOutline` e di
         `ShapeProvider` (glass/backdrop/internal). Sotto `SmallShapeCutoffPx` di lato lungo tutto
-        e' un rettangolo arrotondato al raggio equivalente (x0,82; le capsule no). Sopra, pellicola,
-        bordo e ombra seguono il path continuo e il ritaglio hardware resta al raggio nominale;
+        e' un rettangolo arrotondato al raggio equivalente (x0,82; le capsule no). Sopra, bordo e
+        ombra seguono il path continuo e il ritaglio hardware resta al raggio nominale; la
+        pellicola e' un rettangolo e la ferma il ritaglio hardware (misurato su uno scatto, F0.3c);
       * `"continuous"`: il path continuo sempre, anche sui piccoli (serve ai confronti).
     La lente riceve sempre i raggi nominali (`effects/Lens.kt`), in tutti e tre i modi.
     """
@@ -444,11 +494,6 @@ class Outline:
         else:
             canvas.clipRRect(rrect(self.x, self.y, self.w, self.h, self.clip_radii),
                              skia.ClipOp.kIntersect, True)
-
-    def clip_shape(self, canvas: skia.Canvas) -> None:
-        """Il ritaglio sulla sagoma disegnata (pellicola, bordo): il path dove c'e'."""
-        if self.path is not None:
-            canvas.clipPath(self.path, skia.ClipOp.kIntersect, True)
 
     def draw(self, canvas: skia.Canvas, paint: skia.Paint, dx: float = 0.0, dy: float = 0.0) -> None:
         """La sagoma disegnata (ombra, scavo, bordo), spostata di ([dx], [dy])."""
@@ -1405,12 +1450,37 @@ def draw_shadow(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amount:
     outline = outline or Outline(x, y, w, h, radii)
     radius = ctx.px(optics.shadowRadius)
     offset_y = radius / 6.0  # Shadow.offset = DpOffset(0, radius / 6)
-    canvas.saveLayer(None, skia.Paint(Alphaf=optics.shadowAlpha * amount))
-    paint = skia.Paint(AntiAlias=True, Color4f=skia.Color4f(0, 0, 0, SHADOW_ALPHA[ctx.theme]))
+    # L'alfa del layer (`shadow.alpha`) entra nel colore del pennello invece che nel layer. Sulla
+    # GPU il layer si compone in virgola mobile; qui un layer a 8 bit moltiplicato per 0,5-0,7
+    # arrotonda due volte e la coda dell'ombra, che vale un livello, spariva: nello scatto del Tab
+    # S9 (F0.3c) l'ombra arriva a 48-58 px dal bordo, il banco si fermava a 40.
+    paint = skia.Paint(AntiAlias=True, Color4f=skia.Color4f(
+        0, 0, 0, SHADOW_ALPHA[ctx.theme] * min(optics.shadowAlpha * amount, 1.0)))
     paint.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, blur_sigma(radius)))
-    outline.draw(canvas, paint, 0.0, offset_y)
-    outline.draw(canvas, skia.Paint(AntiAlias=True, BlendMode=skia.BlendMode.kClear))
-    canvas.restore()
+    cut = skia.Paint(AntiAlias=True, BlendMode=skia.BlendMode.kClear)
+
+    # Il layer dell'ombra sta a (-2 raggi, -2 raggi) dalla lastra (`translate(-radius * 2f, ...)`).
+    # Se due raggi non sono un numero intero di pixel (18 dp a densita' 2,125 = 76,5 px) il layer
+    # e' registrato su una griglia spostata di una frazione, e HWUI lo ricampiona in lineare
+    # quando lo compone: lo scavo, che nel layer ha un bordo netto, si allarga di una frazione di
+    # pixel fuori dalla lastra. Nello scatto del Tab S9 (F0.3c) la prima riga fuori dai fianchi
+    # del pannello porta il 70% dell'ombra della seconda; il conto qui da' il 75%. In una scena
+    # `subpixel` la geometria resta esatta, come per tutto il resto (vedi `pixel_grid`).
+    left, top = outline.x - 2.0 * radius, outline.y - 2.0 * radius
+    aligned = abs(left - round(left)) < 1e-3 and abs(top - round(top)) < 1e-3
+    if aligned or ctx.subpixel:
+        canvas.saveLayer(None, None)
+        outline.draw(canvas, paint, 0.0, offset_y)
+        outline.draw(canvas, cut)
+        canvas.restore()
+        return
+    layer = new_surface(int(math.ceil(outline.w + 4.0 * radius)),
+                        int(math.ceil(outline.h + 4.0 * radius + offset_y)))
+    lc = layer.getCanvas()
+    lc.translate(-left, -top)
+    outline.draw(lc, paint, 0.0, offset_y)
+    outline.draw(lc, cut)
+    canvas.drawImage(layer.makeImageSnapshot(), left, top, LINEAR)
 
 
 def draw_shadow_layers(canvas, ctx: Context, outline: Outline, layers, amount: float = 1.0) -> None:
@@ -1472,12 +1542,13 @@ def draw_highlight(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amou
     paint.setStyle(skia.Paint.kStroke_Style)
     paint.setStrokeWidth(stroke)
     paint.setShader(program.make())
-    paint.setAlphaf(rim_colour[3])  # `paint.color = style.color`: l'alfa modula lo shader
+    # `paint.color = style.color`: l'alfa modula lo shader. Ci entra anche l'alfa del layer
+    # (`highlight.alpha`), per la stessa ragione dell'ombra: un solo arrotondamento a 8 bit.
+    paint.setAlphaf(rim_colour[3] * min(optics.highlightAlpha * amount, 1.0))
     if blur_px > 0:
         paint.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, blur_sigma(blur_px)))
 
-    layer = skia.Paint(Alphaf=min(optics.highlightAlpha * amount, 1.0), BlendMode=blend)
-    canvas.saveLayer(None, layer)
+    canvas.saveLayer(None, skia.Paint(BlendMode=blend))
     canvas.translate(x, y)
     canvas.scale(1.0 / res, 1.0 / res)
     if outline is not None and outline.path is not None:
@@ -1495,7 +1566,8 @@ def draw_highlight(canvas, ctx: Context, x, y, w, h, radii, optics: Optics, amou
 
 
 def run_effect_chain(ctx: Context, capture: skia.Image, *, saturation: float, blur_px: float,
-                     lens: dict | None, tag: str, sharp_weight: float | None = None) -> skia.Image:
+                     lens: dict | None, tag: str, sharp_weight: float | None = None,
+                     extent: tuple[int, int] | None = None) -> skia.Image:
     """La catena di `RenderEffect` su una cattura: saturazione -> sfocatura -> [mescola] -> lente.
 
     Con [sharp_weight] (il `w` del piano, 3.6) fra sfocatura e lente entra la **mescola a monte**
@@ -1505,8 +1577,19 @@ def run_effect_chain(ctx: Context, capture: skia.Image, *, saturation: float, bl
 
     cioe' `w * nitido + (1 - w) * sfocato`, dove "nitido" e' la cattura saturata e non sfocata. I
     due filtri di colore scalano la sola alfa (di un colore non premoltiplicato, quindi tutti e
-    quattro i canali premoltiplicati); ogni passaggio arrotonda a 8 bit, come una catena di layer."""
+    quattro i canali premoltiplicati); ogni passaggio arrotonda a 8 bit, come una catena di layer.
+
+    [extent] e' la regione su cui l'effetto viene valutato, quando e' piu' larga della cattura.
+    Su Android il `RenderEffect` di un layer non si ferma ai bordi del layer: HWUI lo calcola su
+    tutto il ritaglio del nodo, arrotondato in fuori (`makeWithFilter(..., clipBounds.roundOut())`
+    in RenderNodeDrawable). Conta quando la cattura e' a risoluzione ridotta: `refreshCapture`
+    tronca la taglia (`(size.width * scale).toInt()`), e un pannello di 361 px al 62,5% registra
+    225 px, che riportati in su ne coprono 360. L'ultima colonna non resta vuota: la sfocatura
+    `TileMode.Clamp` prolunga il bordo della cattura e la lente ci campiona dentro. Misurato su uno
+    scatto del Tab S9 (F0.3c): senza questo il banco lasciava li' la pagina nuda sotto la pellicola,
+    fino a 20 livelli di scarto su una colonna o una riga."""
     width, height = capture.width(), capture.height()
+    out_w, out_h = (max(extent[0], width), max(extent[1], height)) if extent else (width, height)
     image = capture
 
     def stage(name: str, img: skia.Image) -> None:
@@ -1523,6 +1606,16 @@ def run_effect_chain(ctx: Context, capture: skia.Image, *, saturation: float, bl
         stage("1-saturazione", image)
     sharp = image  # il ramo nitido della mescola: saturato, non sfocato
     if blur_px > 0:
+        if (out_w, out_h) != (width, height):
+            # Oltre il bordo della cattura la sfocatura vede il bordo ripetuto (Clamp): lo si stende
+            # prima, poi si sfoca la tela larga. E' la stessa immagine infinita, vista piu' in la'.
+            surface = new_surface(out_w, out_h)
+            paint = skia.Paint()
+            paint.setShader(image.makeShader(skia.TileMode.kClamp, skia.TileMode.kClamp, skia.SamplingOptions()))
+            paint.setBlendMode(skia.BlendMode.kSrc)
+            surface.getCanvas().drawPaint(paint)
+            image = surface.makeImageSnapshot()
+            width, height = out_w, out_h
         surface = new_surface(width, height)
         sigma = blur_sigma(blur_px)
         paint = skia.Paint()
@@ -1560,6 +1653,9 @@ def run_effect_chain(ctx: Context, capture: skia.Image, *, saturation: float, bl
         image = surface.makeImageSnapshot()
         stage("2b-mescola", image)
     if lens is not None:
+        # Senza sfocatura non c'e' niente che prolunghi la cattura: la lente gira comunque su tutta
+        # la regione, e oltre il bordo campiona trasparente.
+        width, height = out_w, out_h
         surface = new_surface(width, height)
         program = ctx.shaders.program(lens["shader"])
         for name, value in lens["uniforms"].items():
@@ -1650,8 +1746,11 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
             else "kotlin:RoundedRectRefractionShaderString",
             "uniforms": uniforms,
         }
+    # Il `RenderEffect` gira su tutto il ritaglio del nodo, non sulla sola cattura troncata.
+    extent = (int(math.ceil(wi * scale - 1e-6)) + int(padding) * 2,
+              int(math.ceil(hi * scale - 1e-6)) + int(padding) * 2)
     material = run_effect_chain(ctx, capture.makeImageSnapshot(), saturation=saturation,
-                                blur_px=blur_px, lens=lens, tag=tag)
+                                blur_px=blur_px, lens=lens, tag=tag, extent=extent)
 
     tint = resolve_tint(ctx, el.get("tint"), role)
 
@@ -1664,8 +1763,11 @@ def render_glass(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         canvas.drawImage(material, -int(padding), -int(padding), LINEAR)
         canvas.restore()
         if tint is not None and amount > 0.001:
-            # La pellicola segue la sagoma disegnata: sui grandi il path continuo, dentro il ritaglio.
-            shape.clip_shape(canvas)
+            # La pellicola e' un `drawRect` (`drawGlassTint`, GlassFalloff.Uniform): la ferma il solo
+            # ritaglio hardware del nodo, che sui grandi sta al raggio nominale. Non segue il path
+            # continuo: nello scatto del Tab S9 (F0.3c) la falce fra il path e l'arco nominale e'
+            # piena di pellicola, e il banco che la ritagliava sul path sbagliava li' fino a 82
+            # livelli su una riga di pixel lungo ogni angolo di un pannello.
             canvas.drawPaint(skia.Paint(Color4f=skia.Color4f(tint[0], tint[1], tint[2], tint[3] * amount)))
         canvas.restore()
 

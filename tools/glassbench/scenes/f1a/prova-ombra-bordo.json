@@ -1,0 +1,155 @@
+{
+  "_": "F1A.4, prova a mano. Il bordo fra vetro e ombra, da guardare a 6x (`--crop` su un angolo e su un tratto dritto). L'ombra e' quella di serie con le alfa moltiplicate per 8, perche' una fessura o una sovrapposizione si vedano. A sinistra il corpo e' una campitura piena (una fessura sarebbe una riga chiara fra vetro e ombra); a destra e' trasparente al 35% (un'ombra che entra sotto il vetro sarebbe una riga scura dentro il bordo). Il corpo e' il campo vero con il raccordo 0,6; la maschera sul banco viene dal path continuo dell'engine, nel nodo dal contorno del campo.",
+  "width": 560,
+  "height": 300,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "pieno",
+      "x": 30,
+      "y": 30,
+      "w": 240,
+      "h": 240,
+      "radius": 38,
+      "clip": false,
+      "capture": {
+        "saturation": 1.0,
+        "blurDp": 0,
+        "paddingDp": 0
+      },
+      "body": {
+        "source": "file:../../shaders/prova-ombra-viaggio.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.6
+          ],
+          "showMode": 0,
+          "aa": 1.25,
+          "fillColor": "#F7F7F9FF"
+        }
+      },
+      "corner": "continuous",
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.192
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.304
+        }
+      ]
+    },
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "trasparente",
+      "x": 300,
+      "y": 30,
+      "w": 240,
+      "h": 240,
+      "radius": 38,
+      "clip": false,
+      "capture": {
+        "saturation": 1.0,
+        "blurDp": 0,
+        "paddingDp": 0
+      },
+      "body": {
+        "source": "file:../../shaders/prova-ombra-viaggio.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.6
+          ],
+          "showMode": 0,
+          "aa": 1.25,
+          "fillColor": "#F7F7F959"
+        }
+      },
+      "corner": "continuous",
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.192
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.304
+        }
+      ]
+    }
+  ]
+}

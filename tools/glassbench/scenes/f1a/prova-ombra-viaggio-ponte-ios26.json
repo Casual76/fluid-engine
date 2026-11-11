@@ -1,0 +1,91 @@
+{
+  "_": "F1A.4, prova a mano dell'ombra in viaggio («ios26»): un tondo che si stacca da una capsula, i due pezzi fusi da un ponte (raggio di fusione 26 dp). Un ponte non ha un path: l'ombra esce dal campo dentro lo shader e ne segue la sagoma. Sonda `prova-ombra-viaggio`, campitura piatta.",
+  "width": 300,
+  "height": 170,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "shader",
+      "name": "viaggio",
+      "source": "file:../../shaders/prova-ombra-viaggio.agsl",
+      "x": 0,
+      "y": 0,
+      "w": 300,
+      "h": 170,
+      "inputs": {},
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          0,
+          0
+        ],
+        "pieceCount": 2,
+        "pieceRect": [
+          [
+            "60dp",
+            "70dp",
+            "28dp",
+            "28dp"
+          ],
+          [
+            "152dp",
+            "70dp",
+            "62dp",
+            "28dp"
+          ]
+        ],
+        "pieceRadii": [
+          [
+            "28dp",
+            "28dp",
+            "28dp",
+            "28dp"
+          ],
+          [
+            "28dp",
+            "28dp",
+            "28dp",
+            "28dp"
+          ]
+        ],
+        "pieceBlend": [
+          0,
+          "26dp"
+        ],
+        "pieceSmooth": [
+          0,
+          0
+        ],
+        "showMode": 0,
+        "aa": 1.25,
+        "fillColor": "#F7F7F9FF",
+        "shadowOffset": [
+          "0dp",
+          "6.7dp"
+        ],
+        "shadowRadii": [
+          "0.0dp",
+          "34.0dp"
+        ],
+        "shadowAlphas": [
+          0.0,
+          0.09
+        ],
+        "shadowColor": "#000000FF"
+      }
+    }
+  ]
+}

@@ -1,0 +1,364 @@
+{
+  "_": "F1A.4, prova a mano della parita' fra riposo e viaggio, ombra «ios27», in VIAGGIO: `GlassTravelShadowBlock` nello shader, composta come la compone il corpo, senza ritaglio hardware e con il margine del campo. Il corpo e' lo stesso nelle due scene (la sonda `prova-ombra-viaggio`: campitura piatta sul campo vero): `compare prova-ombra-riposo-ios27.png prova-ombra-viaggio-ios27.png` misura solo l'ombra. Senza contenuto, pagina chiara.",
+  "width": 610,
+  "height": 300,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "tasto",
+      "x": 60,
+      "y": 128,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": false,
+      "capture": {
+        "saturation": 1.0,
+        "blurDp": 0,
+        "paddingDp": 0
+      },
+      "body": {
+        "source": "file:../../shaders/prova-ombra-viaggio.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "showMode": 0,
+          "aa": 1.25,
+          "fillColor": "#F7F7F9FF",
+          "shadowOffset": [
+            "0dp",
+            "4.0dp"
+          ],
+          "shadowRadii": [
+            "1.5dp",
+            "8.0dp"
+          ],
+          "shadowAlphas": [
+            0.024,
+            0.038
+          ],
+          "shadowColor": "#000000FF"
+        }
+      },
+      "marginDp": 32
+    },
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "capsula",
+      "x": 164,
+      "y": 122,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "clip": false,
+      "capture": {
+        "saturation": 1.0,
+        "blurDp": 0,
+        "paddingDp": 0
+      },
+      "body": {
+        "source": "file:../../shaders/prova-ombra-viaggio.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "showMode": 0,
+          "aa": 1.25,
+          "fillColor": "#F7F7F9FF",
+          "shadowOffset": [
+            "0dp",
+            "4.0dp"
+          ],
+          "shadowRadii": [
+            "1.5dp",
+            "8.0dp"
+          ],
+          "shadowAlphas": [
+            0.024,
+            0.038
+          ],
+          "shadowColor": "#000000FF"
+        }
+      },
+      "marginDp": 32
+    },
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "menu",
+      "x": 380,
+      "y": 54,
+      "w": 170,
+      "h": 192,
+      "radius": 28,
+      "clip": false,
+      "capture": {
+        "saturation": 1.0,
+        "blurDp": 0,
+        "paddingDp": 0
+      },
+      "body": {
+        "source": "file:../../shaders/prova-ombra-viaggio.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.6
+          ],
+          "showMode": 0,
+          "aa": 1.25,
+          "fillColor": "#F7F7F9FF",
+          "shadowOffset": [
+            "0dp",
+            "4.0dp"
+          ],
+          "shadowRadii": [
+            "1.5dp",
+            "8.0dp"
+          ],
+          "shadowAlphas": [
+            0.024,
+            0.038
+          ],
+          "shadowColor": "#000000FF"
+        }
+      },
+      "corner": "continuous",
+      "marginDp": 32
+    }
+  ],
+  "measure": [
+    {
+      "kind": "shadow",
+      "element": "tasto",
+      "label": "viaggio: tasto",
+      "scheda": "A3 / M1 M4",
+      "ref": {
+        "ombra@0.03": [
+          "7,7% (R5 M1, la stessa scena in iOS 26)",
+          "1,7% (R5 M1); 3-4% al bordo (R5 M4)"
+        ],
+        "ombra@0.1": [
+          "6,0%",
+          "1,7% (R5 M1)"
+        ],
+        "ombra@0.2": [
+          "4,7%; 3,7% sotto una capsula su 218 (R4 A3)",
+          "0 (R5 M1)"
+        ],
+        "ombra@0.3": [
+          "3,4%",
+          "0"
+        ],
+        "ombra-max": [
+          "3,7% a 0,20-0,24 H su fondo piatto (R4 A3, alta)",
+          "2-4% al bordo (R5 M1 e M4, alta)"
+        ],
+        "ombra-estensione": [
+          "0,75 H (R4 A3)",
+          "nulla a 0,2-0,25 H (R5)"
+        ],
+        "ombra-sopra": [
+          "1,5-2% (R4 A3)",
+          "-"
+        ],
+        "ombra-lati": [
+          "2% (R4 A3); 2,7% (R5 M1)",
+          "0 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra@0.3",
+        "ombra-max",
+        "ombra-estensione",
+        "ombra-sopra",
+        "ombra-lati"
+      ]
+    },
+    {
+      "kind": "shadow",
+      "element": "capsula",
+      "label": "viaggio: capsula",
+      "scheda": "A3 / M1 M4",
+      "ref": {
+        "ombra@0.03": [
+          "7,7% (R5 M1, la stessa scena in iOS 26)",
+          "1,7% (R5 M1); 3-4% al bordo (R5 M4)"
+        ],
+        "ombra@0.1": [
+          "6,0%",
+          "1,7% (R5 M1)"
+        ],
+        "ombra@0.2": [
+          "4,7%; 3,7% sotto una capsula su 218 (R4 A3)",
+          "0 (R5 M1)"
+        ],
+        "ombra@0.3": [
+          "3,4%",
+          "0"
+        ],
+        "ombra-max": [
+          "3,7% a 0,20-0,24 H su fondo piatto (R4 A3, alta)",
+          "2-4% al bordo (R5 M1 e M4, alta)"
+        ],
+        "ombra-estensione": [
+          "0,75 H (R4 A3)",
+          "nulla a 0,2-0,25 H (R5)"
+        ],
+        "ombra-sopra": [
+          "1,5-2% (R4 A3)",
+          "-"
+        ],
+        "ombra-lati": [
+          "2% (R4 A3); 2,7% (R5 M1)",
+          "0 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra@0.3",
+        "ombra-max",
+        "ombra-estensione",
+        "ombra-sopra",
+        "ombra-lati"
+      ]
+    },
+    {
+      "kind": "shadow",
+      "element": "menu",
+      "label": "viaggio: menu",
+      "scheda": "A3 / M1 M4",
+      "ref": {
+        "ombra@0.03": [
+          "7,7% (R5 M1, la stessa scena in iOS 26)",
+          "1,7% (R5 M1); 3-4% al bordo (R5 M4)"
+        ],
+        "ombra@0.1": [
+          "6,0%",
+          "1,7% (R5 M1)"
+        ],
+        "ombra@0.2": [
+          "4,7%; 3,7% sotto una capsula su 218 (R4 A3)",
+          "0 (R5 M1)"
+        ],
+        "ombra@0.3": [
+          "3,4%",
+          "0"
+        ],
+        "ombra-max": [
+          "3,7% a 0,20-0,24 H su fondo piatto (R4 A3, alta)",
+          "2-4% al bordo (R5 M1 e M4, alta)"
+        ],
+        "ombra-estensione": [
+          "0,75 H (R4 A3)",
+          "nulla a 0,2-0,25 H (R5)"
+        ],
+        "ombra-sopra": [
+          "1,5-2% (R4 A3)",
+          "-"
+        ],
+        "ombra-lati": [
+          "2% (R4 A3); 2,7% (R5 M1)",
+          "0 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra@0.3",
+        "ombra-max",
+        "ombra-estensione",
+        "ombra-sopra",
+        "ombra-lati"
+      ],
+      "refElement": "capsula"
+    }
+  ]
+}

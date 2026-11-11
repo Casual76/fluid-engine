@@ -1,0 +1,374 @@
+{
+  "_": "F1A.4, prova a mano. L'ombra dei grandi, proposta «due-passi»: due passi in piu' (a guadagno pieno raggi x3, alfa x2). La capsula e' il termine di paragone (non cresce: lato corto sotto 64 dp); menu 170 x 192 (guadagno 0,37) e pannello 240 x 240 (guadagno 0,83) crescono con la regola della taglia dell'engine. In iOS 27 l'ombra dei grandi non e' misurata: e' una scelta di gusto.",
+  "width": 640,
+  "height": 300,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "capsula",
+      "x": 20,
+      "y": 122,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "icons": [
+        "fluid:arrow_back|back",
+        "fluid:add|plus",
+        "fluid:circle|circle"
+      ],
+      "iconSizeDp": 26,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.024
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.038
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F7F7F9A6",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "menu",
+      "x": 196,
+      "y": 54,
+      "w": 170,
+      "h": 192,
+      "radius": 28,
+      "rowHeightDp": 44,
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        },
+        {
+          "label": "Elimina",
+          "icon": "fluid:delete|close",
+          "color": "#E5484D"
+        }
+      ],
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 2.617,
+          "offsetDp": [
+            0,
+            1.3085
+          ],
+          "alpha": 0.0329
+        },
+        {
+          "radiusDp": 13.958,
+          "offsetDp": [
+            0,
+            6.979
+          ],
+          "alpha": 0.0521
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F7F7F9A6",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      },
+      "corner": "continuous"
+    },
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "pannello",
+      "x": 386,
+      "y": 30,
+      "w": 240,
+      "h": 240,
+      "radius": 38,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 3.804,
+          "offsetDp": [
+            0,
+            1.9021
+          ],
+          "alpha": 0.0424
+        },
+        {
+          "radiusDp": 20.289,
+          "offsetDp": [
+            0,
+            10.145
+          ],
+          "alpha": 0.0672
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F7F7F9A6",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      },
+      "corner": "continuous"
+    }
+  ],
+  "measure": [
+    {
+      "kind": "shadow",
+      "element": "capsula",
+      "label": "capsula",
+      "scheda": "A3 / M1 M4",
+      "ref": {
+        "ombra@0.03": [
+          "7,7% (R5 M1, la stessa scena in iOS 26)",
+          "1,7% (R5 M1); 3-4% al bordo (R5 M4)"
+        ],
+        "ombra@0.1": [
+          "6,0%",
+          "1,7% (R5 M1)"
+        ],
+        "ombra@0.2": [
+          "4,7%; 3,7% sotto una capsula su 218 (R4 A3)",
+          "0 (R5 M1)"
+        ],
+        "ombra@0.3": [
+          "3,4%",
+          "0"
+        ],
+        "ombra-max": [
+          "3,7% a 0,20-0,24 H su fondo piatto (R4 A3, alta)",
+          "2-4% al bordo (R5 M1 e M4, alta)"
+        ],
+        "ombra-estensione": [
+          "0,75 H (R4 A3)",
+          "nulla a 0,2-0,25 H (R5)"
+        ],
+        "ombra-sopra": [
+          "1,5-2% (R4 A3)",
+          "-"
+        ],
+        "ombra-lati": [
+          "2% (R4 A3); 2,7% (R5 M1)",
+          "0 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra@0.3",
+        "ombra-max",
+        "ombra-estensione",
+        "ombra-sopra",
+        "ombra-lati"
+      ]
+    },
+    {
+      "kind": "shadow",
+      "element": "menu",
+      "label": "menu",
+      "scheda": "A3 / M1 M4",
+      "ref": {
+        "ombra@0.03": [
+          "7,7% (R5 M1, la stessa scena in iOS 26)",
+          "1,7% (R5 M1); 3-4% al bordo (R5 M4)"
+        ],
+        "ombra@0.1": [
+          "6,0%",
+          "1,7% (R5 M1)"
+        ],
+        "ombra@0.2": [
+          "4,7%; 3,7% sotto una capsula su 218 (R4 A3)",
+          "0 (R5 M1)"
+        ],
+        "ombra@0.3": [
+          "3,4%",
+          "0"
+        ],
+        "ombra-max": [
+          "3,7% a 0,20-0,24 H su fondo piatto (R4 A3, alta)",
+          "2-4% al bordo (R5 M1 e M4, alta)"
+        ],
+        "ombra-estensione": [
+          "0,75 H (R4 A3)",
+          "nulla a 0,2-0,25 H (R5)"
+        ],
+        "ombra-sopra": [
+          "1,5-2% (R4 A3)",
+          "-"
+        ],
+        "ombra-lati": [
+          "2% (R4 A3); 2,7% (R5 M1)",
+          "0 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra@0.3",
+        "ombra-max",
+        "ombra-estensione",
+        "ombra-sopra",
+        "ombra-lati"
+      ],
+      "refElement": "capsula"
+    },
+    {
+      "kind": "shadow",
+      "element": "pannello",
+      "label": "pannello",
+      "scheda": "A3 / M1 M4",
+      "ref": {
+        "ombra@0.03": [
+          "7,7% (R5 M1, la stessa scena in iOS 26)",
+          "1,7% (R5 M1); 3-4% al bordo (R5 M4)"
+        ],
+        "ombra@0.1": [
+          "6,0%",
+          "1,7% (R5 M1)"
+        ],
+        "ombra@0.2": [
+          "4,7%; 3,7% sotto una capsula su 218 (R4 A3)",
+          "0 (R5 M1)"
+        ],
+        "ombra@0.3": [
+          "3,4%",
+          "0"
+        ],
+        "ombra-max": [
+          "3,7% a 0,20-0,24 H su fondo piatto (R4 A3, alta)",
+          "2-4% al bordo (R5 M1 e M4, alta)"
+        ],
+        "ombra-estensione": [
+          "0,75 H (R4 A3)",
+          "nulla a 0,2-0,25 H (R5)"
+        ],
+        "ombra-sopra": [
+          "1,5-2% (R4 A3)",
+          "-"
+        ],
+        "ombra-lati": [
+          "2% (R4 A3); 2,7% (R5 M1)",
+          "0 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra@0.3",
+        "ombra-max",
+        "ombra-estensione",
+        "ombra-sopra",
+        "ombra-lati"
+      ],
+      "refElement": "capsula"
+    }
+  ]
+}

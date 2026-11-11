@@ -1,0 +1,300 @@
+{
+  "_": "F1A.4, prova a mano. Le due misure di R5 M4 con l'ombra di serie: in alto la tab bar alta 62 dp su pagina 238 (269 @5:19: ombra 3-4% al bordo, nulla a ~0,25 H), in basso il tasto tondo da 44 dp su bianco 253 (278 f21480: meno dell'1% entro 0,15 D). Corpo: la sonda `sonda-via-a`.",
+  "width": 412,
+  "height": 230,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#EEEEEE"
+  },
+  "page": [
+    {
+      "kind": "rect",
+      "x": 0,
+      "y": 130,
+      "w": 412,
+      "h": 100,
+      "color": "#FDFDFD"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "barra",
+      "x": 16,
+      "y": 40,
+      "w": 310,
+      "h": 62,
+      "radius": "capsule",
+      "icons": [
+        "fluid:home|home",
+        "fluid:grid_view|grid4",
+        "fluid:library_music|menu"
+      ],
+      "iconSizeDp": 28,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.024
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.038
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F7F7F9A6",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "tondo-barra",
+      "x": 334,
+      "y": 49,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "icon": "fluid:search|search",
+      "iconSizeDp": 26,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.024
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.038
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F7F7F9A6",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "theme": "light",
+      "name": "tasto",
+      "x": 40,
+      "y": 158,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "icon": "fluid:arrow_back|back",
+      "iconSizeDp": 26,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.024
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.038
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F7F7F9A6",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      }
+    }
+  ],
+  "measure": [
+    {
+      "kind": "shadow",
+      "element": "barra",
+      "label": "tab bar su 238",
+      "scheda": "M4 M1",
+      "ref": {
+        "ombra@0.03": [
+          "7,7% (R5 M1)",
+          "3-4% al bordo (R5 M4: 229-231 su 238); 1,7% (R5 M1)"
+        ],
+        "ombra@0.1": [
+          "6,0% (R5 M1)",
+          "1,7% (R5 M1)"
+        ],
+        "ombra@0.2": [
+          "4,7% (R5 M1)",
+          "0 (R5 M1); nulla a ~0,25 H (R5 M4)"
+        ],
+        "ombra@0.3": [
+          "3,4%",
+          "0"
+        ],
+        "ombra-max": [
+          "3,7-7,7%",
+          "3-4% al bordo (R5 M4, alta)"
+        ],
+        "ombra-estensione": [
+          "0,75-0,8 H",
+          "nulla a 0,2-0,25 H"
+        ],
+        "ombra-sopra": [
+          "1,5-2% (R4 A3)",
+          "-"
+        ],
+        "ombra-lati": [
+          "2,7% (R5 M1)",
+          "0 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra@0.3",
+        "ombra-max",
+        "ombra-estensione",
+        "ombra-sopra",
+        "ombra-lati"
+      ],
+      "along": 0.6
+    },
+    {
+      "kind": "shadow",
+      "element": "tasto",
+      "label": "tondo su bianco 253",
+      "scheda": "M4",
+      "ref": {
+        "ombra@0.03": [
+          "1-3% subito fuori dal filo (R4 A3)",
+          "-2 livelli, meno dell'1% (R5 M4, alta)"
+        ],
+        "ombra@0.1": [
+          "-",
+          "meno dell'1%"
+        ],
+        "ombra@0.2": [
+          "-",
+          "0: nulla oltre 0,15 D"
+        ],
+        "ombra-max": [
+          "1-3% (R4 A3)",
+          "meno dell'1% (R5 M4, alta)"
+        ],
+        "ombra-estensione": [
+          "-",
+          "entro 0,15 D"
+        ]
+      },
+      "rows": [
+        "ombra@0.03",
+        "ombra@0.1",
+        "ombra@0.2",
+        "ombra-max",
+        "ombra-estensione"
+      ]
+    }
+  ]
+}

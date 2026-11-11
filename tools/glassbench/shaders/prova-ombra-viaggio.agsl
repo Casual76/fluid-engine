@@ -1,0 +1,178 @@
+// SONDA dell'ombra in viaggio (F1A.4): NON e' il materiale.
+//
+// `GlassTravelShadowBlock` (engine-ui/.../ui/glass/field/GlassShadow.kt) e' un blocco senza `main`:
+// l'engine lo include nel corpo, dietro `lightInBody`. Questa sonda lo mette sotto una campitura
+// piatta, con il nucleo a 8 pezzi, per guardare e misurare l'ombra da sola (scene
+// `scenes/f1a/prova-ombra-viaggio-*.json`) e per confrontarla con le maschere a riposo.
+//
+// LA SORGENTE E' IL KOTLIN. Il testo fra i segni `>>>` e `<<<` e' una copia delle due costanti, con
+// i template `$Nome` gia' risolti: non si corregge qui. Se una costante cambia, la copia si riscrive
+// (artifacts/liquid-glass/bench/f1a-4/genera_sonda.py, o a mano), e `GlassShadowTest` fallisce
+// finche' non tornano uguali.
+//
+// `showMode`: 0 = campitura `fillColor` sopra l'ombra, composta come la compone il corpo
+// (`colour * coverage + shade * (1 - coverage)`); 1 = la sola ombra, non scavata (cio' che
+// `glassTravelShadow` restituisce); 2 = la sola ombra, scavata.
+
+uniform float showMode;
+uniform float aa;                        // antialias della maschera (px)
+layout(color) uniform half4 fillColor;
+
+// >>> GlassFieldKernel8
+uniform float2 offset;
+uniform float4 flex;
+uniform float2 flexCenter;
+
+float2 glassFieldPoint(float2 coord) {
+    float2 rel = coord + offset - flexCenter;
+    return flexCenter + float2(dot(flex.xy, rel), dot(flex.zw, rel));
+}
+
+uniform float pieceCount;
+uniform float4 pieceRect[8];
+uniform float4 pieceRadii[8];
+uniform float pieceBlend[8];
+uniform float pieceSmooth[8];
+
+float glassRadiusAt(float2 rel, float4 radii) {
+    if (rel.x >= 0.0) {
+        if (rel.y <= 0.0) return radii.y;
+        else return radii.z;
+    } else {
+        if (rel.y <= 0.0) return radii.x;
+        else return radii.w;
+    }
+}
+
+float3 glassSlab(float2 rel, float2 halfSize, float4 radii, float smoothing) {
+    float minHalf = min(halfSize.x, halfSize.y);
+    float radius = max(min(glassRadiusAt(rel, radii), minHalf), 0.0);
+    // Lo smoothing che il lato corto lascia spendere: zero quando l'angolo e' gia' un semicerchio.
+    float s = radius > 0.0001 ? clamp(min(smoothing, minHalf / radius - 1.0), 0.0, 1.0) : 0.0;
+    float s2 = s * s;
+    float reach = radius * (1.0 + s2 * (0.25 + 0.495 * s));
+    float power = 2.0 + s2 * (0.79 + 1.0 * s);
+    float2 a = abs(rel);
+    float2 side = float2(rel.x < 0.0 ? -1.0 : 1.0, rel.y < 0.0 ? -1.0 : 1.0);
+
+    float2 q = a - (halfSize - float2(reach));
+    float sd;
+    if (q.x <= 0.0 || q.y <= 0.0) {
+        sd = max(q.x, q.y) - reach;
+    } else if (s <= 0.0) {
+        sd = length(q) - reach;
+    } else {
+        float2 qp = pow(q, float2(power - 1.0));
+        float sum = max(dot(qp, q), 1.0e-20);
+        float norm = pow(sum, 1.0 / power);
+        float slope = length(qp) * norm / sum;
+        float m = norm - reach;
+        sd = m / mix(slope, 1.0, clamp(-m / reach, 0.0, 1.0));
+    }
+
+    // La normale: lo stesso pezzo con l'angolo allargato, mai oltre mezzo lato corto.
+    float wide = min(reach * 1.5, minHalf);
+    float2 w = a - (halfSize - float2(wide));
+    float2 n;
+    if (w.x <= 0.0 || w.y <= 0.0) {
+        float gx = step(w.y, w.x);
+        n = float2(gx, 1.0 - gx);
+    } else if (s <= 0.0) {
+        n = w / length(w);
+    } else {
+        float2 wp = pow(w, float2(power - 1.0));
+        float wl = length(wp);
+        n = wl > 1.0e-20 ? wp / wl : float2(0.70710678);
+    }
+    return float3(sd, side * n);
+}
+
+float glassCircleMap(float x) {
+    return 1.0 - sqrt(max(1.0 - x * x, 0.0));
+}
+
+float glassField(float2 p, out float2 normal, out float2 center) {
+    float d = 1000000.0;
+    normal = float2(0.0);
+    center = float2(0.0);
+    for (int i = 0; i < 8; ++i) {
+        if (float(i) >= pieceCount) break;
+        float3 slab = glassSlab(p - pieceRect[i].xy, pieceRect[i].zw, pieceRadii[i], pieceSmooth[i]);
+        if (i == 0) {
+            d = slab.x;
+            normal = slab.yz;
+            center = pieceRect[i].xy;
+        } else {
+            // Il raggio di fusione e' del pezzo: lo unisce a tutto cio' che il ciclo ha gia' fuso.
+            float k = max(pieceBlend[i], 0.0001);
+            float h = clamp(0.5 + 0.5 * (slab.x - d) / k, 0.0, 1.0);
+            d = slab.x + (d - slab.x) * h - k * h * (1.0 - h);
+            normal = mix(slab.yz, normal, h);
+            center = mix(pieceRect[i].xy, center, h);
+        }
+    }
+    return d;
+}
+// <<< GlassFieldKernel8
+
+// >>> GlassTravelShadowBlock
+uniform float2 shadowOffset;
+uniform float2 shadowRadii;
+uniform float2 shadowAlphas;
+layout(color) uniform half4 shadowColor;
+
+float glassShadowSigma(float radius) {
+    return 0.57735 * max(radius, 0.0) + 0.5;
+}
+
+float glassShadowFall(float x, float sigma) {
+    float z = abs(x) / (sigma * 1.41421356);
+    float poly = 1.0 + z * (0.278393 + z * (0.230389 + z * (0.000972 + z * 0.078108)));
+    poly = poly * poly;
+    float tail = 0.5 / (poly * poly);
+    return x >= 0.0 ? tail : 1.0 - tail;
+}
+
+half4 glassTravelShadow(float2 p, float d) {
+    float contactAlpha = max(shadowAlphas.x, 0.0);
+    float ambientAlpha = max(shadowAlphas.y, 0.0);
+    if (contactAlpha + ambientAlpha <= 0.0) return half4(0.0);
+
+    float contactSigma = glassShadowSigma(shadowRadii.x);
+    float ambientSigma = glassShadowSigma(shadowRadii.y);
+    float share = shadowRadii.y > 0.0 ? clamp(shadowRadii.x / shadowRadii.y, 0.0, 1.0) : 1.0;
+    float slide = length(shadowOffset);
+    float contactReach = contactAlpha > 0.0 ? 3.0 * contactSigma + share * slide : 0.0;
+    float ambientReach = ambientAlpha > 0.0 ? 3.0 * ambientSigma + slide : 0.0;
+    float reach = max(contactReach, ambientReach);
+    if (d > reach) return half4(0.0);
+
+    float amount = contactAlpha + ambientAlpha;
+    if (d >= -reach) {
+        // La sagoma vista dal punto spostato: l'unica valutazione del campo che l'ombra aggiunge.
+        float seen = d;
+        if (slide > 0.0) {
+            float2 seenNormal;
+            float2 seenCenter;
+            seen = glassField(p - shadowOffset, seenNormal, seenCenter);
+        }
+        amount = contactAlpha * glassShadowFall(mix(d, seen, share), contactSigma)
+            + ambientAlpha * glassShadowFall(seen, ambientSigma);
+    }
+    half strength = half(min(amount, 1.0)) * shadowColor.a;
+    return half4(shadowColor.rgb * strength, strength);
+}
+// <<< GlassTravelShadowBlock
+
+half4 main(float2 coord) {
+    float2 p = glassFieldPoint(coord);
+    float2 normal;
+    float2 center;
+    float d = glassField(p, normal, center);
+    float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+    half4 shade = glassTravelShadow(p, d);
+    if (showMode > 1.5) return shade * half(1.0 - coverage);
+    if (showMode > 0.5) return shade;
+    half4 colour = half4(fillColor.rgb * fillColor.a, fillColor.a);
+    return colour * half(coverage) + shade * half(1.0 - coverage);
+}

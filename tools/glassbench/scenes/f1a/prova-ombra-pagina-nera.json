@@ -1,0 +1,281 @@
+{
+  "_": "F1A.4, prova a mano dell'ombra a riposo (non e' la ricetta: numeri ricopiati da GlassShadowDefaults.Ios27, i grandi con la crescita `un-passo`). Fondo: nero puro. Tasto 44 dp, capsula, menu, pannello grande sotto il corpo della sonda `sonda-via-a`, senza luce: qui si giudica l'ombra. Le maschere sono quelle del nodo (contatto e ambiente, sommate, scavate sotto la sagoma); sui grandi il banco le prende dal path continuo dell'engine, il nodo dal contorno del campo (scarto fino allo 0,44% del raggio).",
+  "width": 760,
+  "height": 300,
+  "density": 3.0,
+  "theme": "dark",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#000000"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "theme": "dark",
+      "name": "tasto",
+      "x": 30,
+      "y": 128,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "icon": "fluid:add|plus",
+      "iconSizeDp": 26,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.024
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.038
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#2E2E33C8",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "theme": "dark",
+      "name": "capsula",
+      "x": 104,
+      "y": 122,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "icons": [
+        "fluid:arrow_back|back",
+        "fluid:add|plus",
+        "fluid:circle|circle"
+      ],
+      "iconSizeDp": 26,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [
+            0,
+            0.75
+          ],
+          "alpha": 0.024
+        },
+        {
+          "radiusDp": 8.0,
+          "offsetDp": [
+            0,
+            4.0
+          ],
+          "alpha": 0.038
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#2E2E33C8",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "theme": "dark",
+      "name": "menu",
+      "x": 290,
+      "y": 54,
+      "w": 170,
+      "h": 192,
+      "radius": 28,
+      "rowHeightDp": 44,
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        },
+        {
+          "label": "Elimina",
+          "icon": "fluid:delete|close",
+          "color": "#E5484D"
+        }
+      ],
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 2.059,
+          "offsetDp": [
+            0,
+            1.0294
+          ],
+          "alpha": 0.0285
+        },
+        {
+          "radiusDp": 10.979,
+          "offsetDp": [
+            0,
+            5.489
+          ],
+          "alpha": 0.0451
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#2E2E33C8",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      },
+      "corner": "continuous"
+    },
+    {
+      "kind": "material",
+      "theme": "dark",
+      "name": "pannello",
+      "x": 490,
+      "y": 30,
+      "w": 240,
+      "h": 240,
+      "radius": 38,
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 2.652,
+          "offsetDp": [
+            0,
+            1.3259
+          ],
+          "alpha": 0.0332
+        },
+        {
+          "radiusDp": 14.145,
+          "offsetDp": [
+            0,
+            7.072
+          ],
+          "alpha": 0.0526
+        }
+      ],
+      "capture": {
+        "saturation": 1.4,
+        "blurDp": 14,
+        "paddingDp": 14
+      },
+      "body": {
+        "source": "file:../../shaders/sonda-via-a.agsl",
+        "uniforms": {
+          "offset": "$offset",
+          "blend": "0.0dp",
+          "thickness": "12dp",
+          "refraction": "-9dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#2E2E33C8",
+          "bodyShade": 0.03,
+          "aa": 1.25,
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ]
+        }
+      },
+      "corner": "continuous"
+    }
+  ]
+}

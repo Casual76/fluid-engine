@@ -551,6 +551,22 @@ def cmd_selftest(args) -> int:
              "FALLITO file:rotta-apposta.agsl" if "FALLITO file:rotta-apposta.agsl" in sink.getvalue() else "errore non nominato")
         test("`check` esce con 0 sulle sorgenti dell'engine e del banco", with_good == 0)
 
+        # `main` non e' sempre `half4 main`: una firma diversa non deve far saltare la sorgente.
+        for signature in ("float4", "vec4"):
+            broken = BROKEN_SOURCE.replace("half4 main", f"{signature} main")
+            fixed = GOOD_SOURCE.replace("half4 main", f"{signature} main")
+            bad = Path(tmp) / f"rotta-{signature}.agsl"
+            bad.write_text(broken, encoding="utf-8")
+            good = Path(tmp) / f"giusta-{signature}.agsl"
+            good.write_text(fixed, encoding="utf-8")
+            sink = io.StringIO()
+            with contextlib.redirect_stdout(sink):
+                with_bad = cmd_check(argparse.Namespace(also=[str(bad)], quiet=True))
+                with_good = cmd_check(argparse.Namespace(also=[str(good)], quiet=True))
+            test(f"`check` non salta una sorgente sbagliata con `{signature} main`", with_bad == 1,
+                 "nominata" if f"FALLITO file:rotta-{signature}.agsl" in sink.getvalue() else "errore non nominato")
+            test(f"`check` compila una sorgente giusta con `{signature} main`", with_good == 0)
+
         # 2. il lettore dei sorgenti Kotlin e `gf/` ------------------------------------------
         package = Path(tmp) / "field"
         package.mkdir()

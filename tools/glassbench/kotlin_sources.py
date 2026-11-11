@@ -145,8 +145,13 @@ def is_shader_source(source: str) -> bool:
 
 
 def is_complete_shader(source: str) -> bool:
-    """Vero per una sorgente con `main`: i preludi e i blocchi condivisi non lo sono."""
-    return re.search(r"\bhalf4\s+main\s*\(", source) is not None
+    """Vero per una sorgente con `main`: i preludi e i blocchi condivisi non lo sono.
+
+    Il tipo di ritorno non conta: `half4 main`, `float4 main` e `vec4 main` sono tutte firme che il
+    compilatore accetta (e che il lint JVM dell'engine riconosce). Riconoscere solo `half4` faceva
+    saltare in silenzio, come «blocco condiviso», uno shader intero scritto con un'altra firma: `check`
+    dava verde proprio davanti all'errore che deve fermare."""
+    return re.search(r"\b\w+\s+main\s*\(", source) is not None
 
 
 # --------------------------------------------------------------------------------------------

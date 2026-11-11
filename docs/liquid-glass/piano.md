@@ -1815,6 +1815,31 @@ azione principale tinta; badge; titolo e sottotitolo; trabocco con priorità; il
 barra; viaggio fra pagine per `id`; barra che si ritira; il push che si lascia interrompere senza salti (R1 V1). **Resta
 fuori**: barra in basso, **comportamento** della ricerca, tab bar (F4B); menu dal gruppo (F5A).
 
+**Indicazioni di Alessio sui tasti delle barre (2026-11-11), che questa fase deve rispettare.** A parole sue: oggi molti
+tasti dell'interfaccia sono «ancorati alla pagina» (entrano ed escono con lei), mentre devono «shiftare in maniera
+intelligente»: i tasti dipendono dalla pagina, ma durante la navigazione **restano al loro posto e si trasformano** in
+quelli della pagina di arrivo. I suoi esempi, che diventano casi di prova:
+1. da una pagina con un solo tasto (i tre pallini) a una con i tre pallini **e** un secondo tasto separato: il tasto che
+   c'è resta, quello nuovo nasce da lui (o accanto a lui) con una trasformazione, non con un'entrata di pagina;
+2. due tasti che restano due ma **cambiano icona**: il vetro non si muove, le icone si scambiano in modo fluido; Apple
+   lo fa con una sfocatura in movimento (l'icona che esce si sfoca e si sposta, quella che entra arriva sfocata e si
+   mette a fuoco), non con una dissolvenza;
+3. **il gesto indietro predittivo**: un'animazione lasciata a metà è brutta, quindi i tasti **non cambiano finché
+   l'azione non è confermata**: durante il trascinamento la barra resta quella della pagina corrente (la pagina sotto
+   si vede, i tasti no), al rilascio che conferma parte la trasformazione intera, all'annullo non succede niente. Va
+   mostrato ad Alessio sul video accanto alla variante che segue il dito, perché ha detto «probabilmente»;
+4. **tutte le combinazioni**: i modi in cui un tasto può stare in una pagina (da solo, in un gruppo, con testo, azione
+   principale tinta, indietro, chiudi, nel trabocco) incrociati fra pagina di partenza e di arrivo. Per ogni
+   combinazione si sceglie **la trasformazione più naturale per chi guarda** (chi diventa chi, chi nasce da chi, chi si
+   limita a scambiare l'icona), e la si scrive come regola del modello, non come animazione di una pagina;
+5. un uso maggiore dei **tasti collegati fra loro** (più icone in un vetro solo): è il raggruppamento di serie di questo
+   modello.
+E un metodo: **osservare come Apple usa la sfocatura e la sfocatura di moto** per rendere naturali i cambi, non solo
+nelle icone («ne fanno un uso davvero massiccio»), e portarla nelle regole dell'engine. La ricerca **R7**
+(`ricerca/sfocatura-e-cambi.md`) la studia sui fotogrammi di riferimento e sulla documentazione di Apple e scrive la
+**matrice dei casi** del punto 4: è l'ingresso di F4A.1 (le «differenze» fra due modelli) e di F3.4 (la grammatica
+delle icone), e ciò che non sta in questa fase lo assegna alle altre (titoli, ricerca, menu, tab bar).
+
 **Progetto tecnico.**
 
 - *Modello* (puro): lista di elementi con `id`, posizione semantica, ruolo, priorità. La risoluzione produce gruppi per lato

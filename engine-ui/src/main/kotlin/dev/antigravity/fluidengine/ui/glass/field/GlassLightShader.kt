@@ -1,7 +1,20 @@
 /*
- * La LUCE del materiale `Liquid`: filo sul perimetro, riflessi interni, bagliore del dito. Uno strato solo,
- * senza ingressi, che restituisce un colore premoltiplicato da posare in `SrcOver` sopra il corpo e sotto il
- * contenuto (piano 3.3, 3.5).
+ * La LUCE del materiale `Liquid`: filo sul perimetro, riflessi interni, bagliore del dito. Senza ingressi,
+ * sopra il corpo e sotto il contenuto (piano 3.3, 3.5), e in **due parti** che si compongono in due modi:
+ *
+ *  - la **luce che somma** (riga chiara, alone, bagliore del dito): si aggiunge a ciò che ha sotto e satura,
+ *    cioè `Plus`. Una luce posata in `SrcOver` aggiunge solo ciò che manca al bianco, e una forza sola non
+ *    reggeva fondi diversi: 0,95 per avere +10…+17 sul corpo chiaro, 0,23 per avere +26 sul vetro chiaro
+ *    sopra un fondo scuro, e su una foto un bordo molto più acceso di quello di Apple. I numeri di Apple sono
+ *    quelli di una luce che si somma: ≈+26 ovunque, che su un corpo chiaro satura a 255. E il bagliore del
+ *    tocco di oggi è già in `Plus`: in `SrcOver` sul chiaro spariva (+2 livelli);
+ *  - il **filo** (scuro sul lato chiaro, o chiaro in una proposta per il tema scuro): copre, cioè `SrcOver`.
+ *
+ * L'ordine è sempre lo stesso, a riposo e in viaggio: **prima la luce si somma, poi il filo si posa sopra**.
+ * È ciò che tiene il filo pulito sotto il dito: il bagliore schiarisce il corpo, e il filo scurisce il corpo
+ * schiarito della stessa frazione di prima. Al contrario il bagliore si sommerebbe anche al filo, e sotto il
+ * dito il contorno si assottiglierebbe. Decisione dell'orchestratore del 2026-11-11 (F1A.3b), sul rapporto di
+ * F1A.3; sostituisce «un solo modo di comporre» del piano (3.3).
  *
  * Qui ci sono, nell'ordine: i numeri che danno forma alle curve (costanti dentro la sorgente), i valori di
  * serie degli uniform (che la ricetta e il profilo di F1A.5 raccolgono da qui), il blocco che il corpo include
@@ -135,9 +148,9 @@ internal const val GlassLightRimFeather: Float = 0.4f
 internal const val GlassLightRimDarkAlpha: Float = 0.38f
 
 /**
- * Di quanto il filo cede dentro i lobi di luce, 0..1 (`rimLift`). Ritaglio T6 (media): il filo in alto e in
- * basso pesa il 64% di quello dei fianchi. Qui 0,30 e non 0,36 perché il filo dei fianchi è già tenuto sotto
- * quello del T6 ([GlassLightRimDarkAlpha]): in alto e in basso resta quello misurato, −40…−60.
+ * Di quanto il filo cede dentro i lobi di luce (`rimLift`, qui fra 0 e 1). Ritaglio T6 (media): il filo in
+ * alto e in basso pesa il 64% di quello dei fianchi. Qui 0,30 e non 0,36 perché il filo dei fianchi è già
+ * tenuto sotto quello del T6 ([GlassLightRimDarkAlpha]): in alto e in basso resta quello misurato, −40…−60.
  */
 internal const val GlassLightRimLift: Float = 0.30f
 
@@ -149,14 +162,16 @@ internal const val GlassLightRimLift: Float = 0.30f
 internal const val GlassLightReflexHalfWidth: Float = 1.396f
 
 /**
- * La forza del riflesso sul lato chiaro (`reflexStrength`). Alta perché in `SrcOver` il bianco aggiunge solo
- * ciò che manca al bianco: su un corpo a 243 il massimo possibile è +12, ed è quanto misura R5 M4 (250–254,
- * «saturo»).
+ * La forza del riflesso (`reflexStrength`): quanta luce la riga chiara **somma**, in frazione del bianco. Un
+ * decimo sono 25,5 livelli, e **uno solo vale per i due lati**, che è il motivo per cui la luce somma:
+ *  - sul corpo chiaro satura: 237 + 25 dà 255, cioè +18 (ritaglio T6: +13…+19; R5 M4, alta: 250–254 su
+ *    240–243, «saturo»);
+ *  - sul vetro chiaro sopra un fondo scuro +25 (R5 M3, media: +26…+27 su un corpo a 141–146);
+ *  - sul tema scuro +26 (R5 M3, bassa: +10…+25 su un corpo a 58–78).
+ * Fino a F1A.3 erano due numeri, 0,95 sul chiaro e 0,11 sullo scuro, e il vetro chiaro sopra uno scuro ne
+ * chiedeva un terzo (0,23) scritto a mano. Misure sul banco, scene `prova-luce-rif27-*`.
  */
-internal const val GlassLightReflexStrengthLight: Float = 0.95f
-
-/** La forza del riflesso sul lato scuro. R5 M3 (bassa): +10…+25 su un corpo a 58–78. */
-internal const val GlassLightReflexStrengthDark: Float = 0.11f
+internal const val GlassLightReflexStrength: Float = 0.10f
 
 /**
  * Per quanti dp l'alone rientra nel corpo (`reflexDepth`). R5 M4 (media): «torna al corpo in ≈0,08 H» su una
@@ -169,18 +184,28 @@ internal const val GlassLightReflexDepthDp: Float = 7.0f
 /** Quanta riga chiara resta sui fianchi, fuori dai lobi (`reflexFloor`). Ritaglio T6: niente. */
 internal const val GlassLightReflexFloor: Float = 0.0f
 
-/** La forza dell'alone rispetto alla riga, 0..1 (`reflexHalo`). Ritaglio T6: parte da poco più di metà (media). */
-internal const val GlassLightReflexHalo: Float = 0.65f
+/**
+ * La forza dell'alone rispetto alla riga, 0..1 (`reflexHalo`). Ritaglio T6 (media): dove non satura l'alone
+ * parte da +11…+14 e si spegne in ≈20 px; con la riga a 25,5 livelli sono 0,45.
+ */
+internal const val GlassLightReflexHalo: Float = 0.45f
 
 /**
  * Il bagliore del tocco di oggi tradotto negli uniform della luce: `glow` al massimo della pressione, e
  * `glowFill`. `glassButtonGlowRecipe` stende un velo di 0,10 su tutta la faccia e ci somma un punto di 0,15
- * che segue il dito: è `0,25 * mix(campana, 1, 0,4)`, alla lettera. Il raggio resta il lato lungo.
+ * che segue il dito, bianchi e in `Plus`: è `0,25 * mix(campana, 1, 0,4)`, alla lettera, e ora che la luce
+ * somma è anche la stessa resa: +64 sotto il dito e +25 lontano, su qualunque corpo (sul chiaro satura al
+ * bianco, come oggi). Il raggio resta il lato lungo. Il banco lo prova: `prova-luce-bagliore-oggi` e
+ * `-oggi-scuro` mettono il bagliore nuovo accanto a quello di oggi «com'è scritto», e dentro la sagoma sono
+ * uguali al livello.
  *
- * La forma è quella di oggi; **la resa no**, e non può esserlo: oggi il bagliore è bianco in `Plus`, qui è
- * bianco in `SrcOver`, che aggiunge `alfa * (255 - corpo)`. Su un corpo scuro (63) questi numeri danno +47
- * contro i +64 di oggi; su un corpo chiaro (245) danno +2 dove oggi si arriva al bianco. La forza del
- * bagliore è una scelta di F6: qui c'è il fatto.
+ * **Com'è scritto non è detto che sia com'è.** La sorgente di oggi (`GlassGlowShaderString`) restituisce
+ * `color * intensity`, e `color` è uno uniform `layout(color)`: arriva **non premoltiplicato**, quindi con il
+ * bianco al 15% l'uscita ha rgb = intensità e alfa = 0,15 × intensità. Il banco (Skia in software) la somma
+ * così com'è: il punto di oggi rende **bianco pieno** fino a metà raggio, qualunque sia l'alfa (terza riga
+ * delle stesse scene). Se il tablet fa lo stesso, il bagliore «di oggi» che Alessio ha visto non è 0,15 ma
+ * quasi 1, e la taratura di F6 parte da lì. È una voce del backlog del dispositivo; qui i numeri sono quelli
+ * scritti nella ricetta.
  */
 internal const val GlassLightGlowPeak: Float = 0.25f
 
@@ -208,12 +233,15 @@ internal const val GlassLightGlowFill: Float = 0.4f
  *   contorno a cui il filo è a metà forza;
  * - `layout(color) half4 rimDark`: colore del filo, non premoltiplicato; l'alfa è la sua forza. Alfa zero
  *   sul lato scuro: lì il filo non c'è. Il nome dice il caso di serie, non un obbligo: con un colore chiaro è
- *   il «filo chiaro sottile» di una delle proposte per il tema scuro;
+ *   il «filo chiaro sottile» di una delle proposte per il tema scuro, che resta **un filo che copre** e non
+ *   una luce che somma (vedi sotto);
  * - `float rimFeather`: 0..1, quanto è sfumato il bordo interno del filo. Zero è un tratto netto (con un
  *   pixel di antialias); uno è una sfumatura che parte dal contorno e finisce a due spessori. **Aggiunto da
  *   F1A.3**;
- * - `float rimLift`: 0..1, di quanto il filo cede dentro i lobi di luce: zero è un filo uguale su tutto il
- *   perimetro, uno un filo che sparisce dove il riflesso è pieno. **Aggiunto da F1A.3**;
+ * - `float rimLift`: −1..1, dove il filo cede. Zero è un filo uguale su tutto il perimetro. Sopra zero cede
+ *   **dentro** i lobi di luce (a uno sparisce dove la riga chiara è piena): è il filo di iOS 27. Sotto zero
+ *   cede **fuori** dai lobi (a meno uno resta solo dove batte la luce): è il filetto di oggi, pieno sopra e
+ *   sotto e spento sui fianchi. **Aggiunto da F1A.3**, il lato negativo da F1A.3b;
  * - `float2 reflexDir`: vettore unitario, l'asse dei due lobi di riflesso. Con y verso il basso, `(0, -1)` è
  *   il valore di serie: un lobo in alto e, opposto, uno in basso. Lo ruotano il sensore e la variante
  *   «iOS 26»;
@@ -221,8 +249,8 @@ internal const val GlassLightGlowFill: Float = 0.4f
  *   `y` di quello opposto. È l'angolo fra la normale e l'asse a cui la riga chiara si spegne; è piena entro
  *   [GlassLightLobeCore] di quell'angolo. Oltre π/2 i due lobi si sovrappongono sui fianchi; l'alone usa lobi
  *   più stretti ([GlassLightHaloSpan]);
- * - `float reflexStrength`: 0..1, l'alfa della riga chiara al centro di un lobo, prima dell'alfa di
- *   `lightColor`;
+ * - `float reflexStrength`: 0..1, quanta luce la riga chiara somma al centro di un lobo, in frazione di
+ *   `lightColor` (con il bianco, 0,1 sono 25,5 livelli), prima dell'alfa di `lightColor`;
  * - `float reflexDepth`: per quanti pixel l'alone rientra dal filo verso l'interno prima di tornare al corpo;
  * - `float reflexFloor`: 0..1, la frazione di riga chiara che resta fuori dai lobi;
  * - `float reflexHalo`: 0..1, la forza dell'alone rispetto alla riga: zero è la sola riga. **Aggiunto da
@@ -232,34 +260,60 @@ internal const val GlassLightGlowFill: Float = 0.4f
  * - `float glow`: 0..1, la forza del bagliore; a zero il bagliore non si calcola;
  * - `float glowFill`: 0..1, quanto il bagliore ha riempito l'elemento (0 = la campana, 1 = tutta la sagoma);
  * - `layout(color) half4 lightColor`: colore di riflessi e bagliore, non premoltiplicato; la sua alfa
- *   moltiplica tutti e due.
+ *   moltiplica tutti e due. È una luce: si somma, quindi un colore scuro non scurisce, aggiunge poco.
  *
  * I tre uniform aggiunti non sono nell'elenco del piano (3.4). Uno uniform dichiarato e non impostato vale
  * zero, e a zero tutti e tre sono neutri: tratto netto, filo uguale ovunque, nessun alone.
  *
- * ### `half4 glassLight(float2 p, float d, float2 normal)`
- * Riceve ciò che il chiamante ha già in mano, perché il campo si valuti una volta sola:
+ * ### `void glassLightParts(float2 p, float d, float2 normal, bool lit, out half4 glowing, out half4 rim)`
+ * Le due parti della luce in un punto. Riceve ciò che il chiamante ha già in mano, perché il campo si valuti
+ * una volta sola:
  * - `p`: il punto nel sistema del campo, cioè `glassFieldPoint(coord)`;
  * - `d`: la distanza con segno in `p`, cioè ciò che `glassField` ha restituito (negativa dentro, in pixel);
  * - `normal`: la normale che `glassField` ha scritto, **così com'è**: nella zona di fusione non è unitaria,
- *   e questa funzione la vuole proprio così (vedi sotto).
+ *   e questa funzione la vuole proprio così (vedi sotto);
+ * - `lit`: `true` se serve anche la luce che somma. Con `false` (il disegno del solo filo, a riposo) riga,
+ *   alone e bagliore non si calcolano, `glowing` esce a zero, e si esce subito appena dentro il filo.
  *
- * Restituisce la luce in quel punto come colore **premoltiplicato**, da comporre sopra il corpo in `SrcOver`:
- * un filo scuro è nero con la sua alfa, un riflesso è `lightColor` con la sua. È la luce **piena** e **non
- * ritagliata**: non contiene né la copertura della sagoma né `materialize`. Li applica chi chiama:
+ * Scrive due colori **premoltiplicati**, validi (rgb mai sopra l'alfa):
+ * - `glowing`: la **luce che somma**, cioè riga chiara, alone e bagliore: `lightColor` per la sua forza. Va
+ *   aggiunta a ciò che ha sotto, saturando: è `Plus`;
+ * - `rim`: il **filo**: `rimDark` per la sua forza. Va posato sopra, in `SrcOver`.
  *
- *     // programma della luce, a riposo
- *     return glassLight(p, d, normal) * half(coverage * materialize);
- *     // corpo, in viaggio
- *     half4 light = glassLight(p, d, normal) * half(materialize);
- *     colour = light + colour * (1.0 - light.a);      // poi la copertura, una volta, su tutto
+ * Tutte e due sono **piene** e **non ritagliate**: non contengono né la copertura della sagoma né
+ * `materialize`. Li applica chi chiama, **in quest'ordine: prima somma `glowing`, poi posa `rim`**:
  *
- * Fuori dalla sagoma (`d > 0`) il valore non conta: chi chiama lo moltiplica per una copertura nulla.
+ *     // programma della luce, a riposo: due disegni, uno per parte (vedi [GlassLight1ShaderString])
+ *     return (lightPart > 0.5 ? rim : glowing) * half(coverage * materialize);
+ *     // corpo, in viaggio: tutte e due, i conti comuni una volta sola
+ *     colour = min(colour + glowing * half(materialize), half4(1.0));        // Plus
+ *     colour = rim * half(materialize) + colour * (1.0 - rim.a * half(materialize));   // SrcOver
+ *     // poi la copertura, una volta, su tutto
+ *
+ * Fuori dalla sagoma (`d > 0`) i valori non contano: chi chiama li moltiplica per una copertura nulla.
+ *
+ * ### `half4 glassLight(float2 p, float d, float2 normal)`: le due parti in un colore solo. Non si usa
+ * È la firma lasciata da F1A.1 (la tiene ferma `GlassFieldGeometryTest`), e oggi **nessun programma la
+ * chiama**. Restituisce `(glowing.rgb * (1 - rim.a) + rim.rgb, rim.a)`: posato in `SrcOver` dà
+ * `(sotto + luce) * (1 - filo) + filo`, cioè somma e filo in **un disegno solo** invece di due. Ma è un
+ * colore con rgb maggiore dell'alfa, cioè un premoltiplicato **non valido**: Skia in software lo somma come
+ * ci si aspetta (provato sul banco: 128 + 64 = 192), nessuno l'ha provato su un dispositivo, e su un pannello
+ * a gamma larga la conversione di colore può riportarlo dentro l'alfa, cioè azzerare la luce. Resta come
+ * **leva di ottimizzazione da provare sul tablet** (F7): se regge su Mali e Adreno, la luce a riposo torna a
+ * un `drawRect`. Fino ad allora la strada è due disegni. (Non satura prima del filo: dove la luce porta il
+ * corpo oltre il bianco, il filo esce più chiaro che con i due disegni.)
  *
  * ### Com'è fatta, e perché
- * **Tre strati, dal basso**: bagliore e riflesso (luce), poi il filo sopra. Il filo sta sopra la luce perché
- * il bagliore non lo sporchi: sotto il dito il corpo si schiarisce e il filo resta scuro della stessa
- * frazione, quindi il contorno non si assottiglia e non si interrompe mentre il bagliore passa.
+ * **Due parti, e un ordine.** Bagliore e riflesso sono luce: si sommano al corpo. Il filo copre, e sta
+ * **sopra** la luce perché il bagliore non lo sporchi: sotto il dito il corpo si schiarisce e il filo resta
+ * scuro della stessa frazione, quindi il contorno non si assottiglia e non si interrompe mentre il bagliore
+ * passa. Al contrario (prima il filo, poi la somma) il bagliore schiarirebbe anche il filo.
+ *
+ * **Il filo chiaro del tema scuro è un filo.** La proposta «riflesso e un filo chiaro sottile» per il tema
+ * scuro (`rimDark` bianco al 10%) passa dalla parte che copre, non da quella che somma: è un contorno, deve
+ * avere lo stesso peso su tutto il perimetro qualunque cosa ci sia sotto e restare sopra il bagliore, come il
+ * filo scuro. Una luce che somma, su un corpo scuro che lascia passare una foto chiara, satura e sparisce a
+ * tratti. Sul corpo scuro di serie (62) la differenza fra i due modi è di 6 livelli (+19 contro +25).
  *
  * **Il filo** è una banda che parte dal contorno. Il suo bordo esterno non lo disegna questa funzione: è la
  * copertura di chi chiama. Quello interno è una sfumatura centrata su `rimWidth`. È il rischio scritto nel
@@ -286,16 +340,18 @@ internal const val GlassLightGlowFill: Float = 0.4f
  *
  * **Il riflesso** nasce dove il filo finisce: una riga sottile ([GlassLightLineWidth]) e l'alone che rientra
  * per `reflexDepth`. Senza filo nasce dal contorno ([GlassLightRimGate]): è così che `rimDark` a zero, l'asse
- * in diagonale e due lobi più stretti danno i due archi di iOS 26, e l'asse verticale con lobi larghi,
- * `reflexHalo` a zero e `lightColor` scuro dà il filetto pieno sopra e sotto di oggi (`SrcOver` non distingue
- * una luce da un'ombra: decide il colore).
+ * in diagonale e due lobi più stretti danno i due archi di iOS 26. Il bordo di oggi sul tema scuro (bianco in
+ * `Plus`, pieno sopra e sotto) è la riga con lobi larghi e `reflexHalo` a zero; quello di oggi sul tema chiaro
+ * (filetto scuro pieno sopra e sotto) non è più una luce, perché una luce non scurisce: è il filo con
+ * `rimLift` a meno uno.
  *
  * **Il bagliore** è quello di oggi: la campana di Kyant attorno al dito ([GlassLightGlowCore]), che
- * `glowFill` allarga fino a riempire la sagoma. Si somma al riflesso come due luci (`a + b - a * b`), mai
- * oltre uno.
+ * `glowFill` allarga fino a riempire la sagoma. Riflesso e bagliore sono due luci e si sommano, come oggi
+ * velo e punto.
  *
  * **Dove la lastra è piatta si esce subito.** Oltre il filo e il riflesso resta solo il bagliore, ed è quasi
- * tutta l'area: la luce a riposo si ridisegna a ogni fotogramma (piano 3.5), e lì non deve pagare i lobi.
+ * tutta l'area: la luce a riposo si ridisegna a ogni fotogramma (piano 3.5), ora due volte, e lì non deve
+ * pagare i lobi. Il disegno del filo esce ancora prima, appena dentro il filo.
  */
 @Language("AGSL")
 internal const val GlassLightBlock = """
@@ -320,16 +376,14 @@ float glassLightLobe(float facing, float halfWidth, float full) {
     return smoothstep(low, max(cos(halfWidth * full), low + 0.0001), facing);
 }
 
-half4 glassLight(float2 p, float d, float2 normal) {
-    float slope = length(normal);
-    // Pixel veri dal contorno verso l'interno, per cio' che e' sottile (filo e riga): nella zona di fusione
-    // la distanza fusa cresce piu' piano di un pixel per pixel. L'alone, largo e morbido, usa quella fusa.
+void glassLightParts(float2 p, float d, float2 normal, bool lit, out half4 glowing, out half4 rim) {
+    glowing = half4(0.0);
+    rim = half4(0.0);
     float deep = -d;
-    float inside = deep / clamp(slope, $GlassLightMinSlope, 1.0);
 
     // Il bagliore del dito: la campana di oggi, che `glowFill` allarga a tutta la sagoma.
     float touch = 0.0;
-    if (glow > 0.0) {
+    if (lit && glow > 0.0) {
         float radius = max(glowRadius, 0.0001);
         float bell = 1.0 - smoothstep(radius * $GlassLightGlowCore, radius, distance(p, glowCenter));
         touch = clamp(glow * mix(bell, 1.0, clamp(glowFill, 0.0, 1.0)), 0.0, 1.0);
@@ -341,45 +395,77 @@ half4 glassLight(float2 p, float d, float2 normal) {
     float lineWidth = width * $GlassLightLineWidth;
     float lineSoft = max(lineWidth * $GlassLightLineSoft, 0.5);
     float depth = max(reflexDepth, 0.0001);
-    // Oltre il filo e il riflesso c'e' solo il bagliore: e' quasi tutta la lastra, ed esce qui.
-    if (deep > width + feather + max(depth, lineWidth + lineSoft)) {
+    // Oltre il filo (e oltre il riflesso, se la luce e' chiesta) resta solo il bagliore: e' quasi tutta la
+    // lastra, ed esce qui.
+    float reach = width + feather;
+    if (lit) reach += max(depth, lineWidth + lineSoft);
+    if (deep > reach) {
         half far = half(touch) * lightColor.a;
-        return half4(lightColor.rgb * far, far);
+        glowing = half4(lightColor.rgb * far, far);
+        return;
     }
 
-    // Dove guarda il bordo: i due lobi della riga chiara, e quelli piu' stretti dell'alone.
-    // La normale NON si normalizza: dove due pezzi tirano in versi opposti e' corta, e li' la sua direzione
-    // non dice piu' da che parte guarda il bordo. Corta, spegne i lobi da sola.
+    // Pixel veri dal contorno verso l'interno, per cio' che e' sottile (filo e riga): nella zona di fusione
+    // la distanza fusa cresce piu' piano di un pixel per pixel. L'alone, largo e morbido, usa quella fusa.
+    float inside = deep / clamp(length(normal), $GlassLightMinSlope, 1.0);
+
+    // Dove guarda il bordo. La normale NON si normalizza: dove due pezzi tirano in versi opposti e' corta,
+    // e li' la sua direzione non dice piu' da che parte guarda il bordo. Corta, spegne i lobi da sola.
     float facing = dot(normal, reflexDir);
     float lineLobe = max(glassLightLobe(facing, reflexWidths.x, $GlassLightLobeCore),
                          glassLightLobe(-facing, reflexWidths.y, $GlassLightLobeCore));
+
+    // Il filo: dal contorno a `rimWidth`, col bordo interno sfumato. Con `rimLift` sopra zero cede dove
+    // batte la luce; sotto zero cede dove non batte (a -1 resta solo dentro i lobi).
+    float wire = 1.0 - smoothstep(width - feather, width + feather, inside);
+    float lift = clamp(rimLift, -1.0, 1.0);
+    float kept = lift >= 0.0 ? 1.0 - lift * lineLobe : 1.0 + lift * (1.0 - lineLobe);
+    half dark = rimDark.a * half(wire * kept);
+    rim = half4(rimDark.rgb * dark, dark);
+    if (!lit) return;
+
+    // Il riflesso: una riga chiara subito dentro il filo (dal contorno, se il filo non c'e') e un alone,
+    // su lobi piu' stretti, che rientra per `reflexDepth`.
     float haloLobe = max(glassLightLobe(facing, reflexWidths.x * $GlassLightHaloSpan, $GlassLightHaloCore),
                          glassLightLobe(-facing, reflexWidths.y * $GlassLightHaloSpan, $GlassLightHaloCore));
-
-    // Il filo: dal contorno a `rimWidth`, col bordo interno sfumato; cede dove batte la luce.
-    float wire = 1.0 - smoothstep(width - feather, width + feather, inside);
-    half dark = rimDark.a * half(wire * (1.0 - clamp(rimLift, 0.0, 1.0) * lineLobe));
-
-    // Il riflesso: una riga chiara subito dentro il filo (dal contorno, se il filo non c'e') e un alone
-    // che rientra per `reflexDepth`.
     float start = width * wireThere;
     float lineBand = 1.0 - smoothstep(lineWidth - lineSoft, lineWidth + lineSoft, max(inside - start, 0.0));
     float haloBand = pow(1.0 - clamp((deep - start) / depth, 0.0, 1.0), $GlassLightHaloFalloff);
     float reflex = reflexStrength * (1.0 - wire * wireThere)
         * max(mix(reflexFloor, 1.0, lineLobe) * lineBand, reflexHalo * haloLobe * haloBand);
-    reflex = clamp(reflex, 0.0, 1.0);
 
-    // Due luci si sommano senza superare uno; il filo sta sopra, cosi' il bagliore non lo sporca.
-    half light = half(reflex + touch - reflex * touch) * lightColor.a;
-    half under = light * (1.0 - dark);
-    return half4(lightColor.rgb * under + rimDark.rgb * dark, under + dark);
+    // Riflesso e bagliore sono due luci: si sommano.
+    half light = half(clamp(reflex + touch, 0.0, 1.0)) * lightColor.a;
+    glowing = half4(lightColor.rgb * light, light);
+}
+
+half4 glassLight(float2 p, float d, float2 normal) {
+    half4 glowing;
+    half4 rim;
+    glassLightParts(p, d, normal, true, glowing, rim);
+    return half4(glowing.rgb * (1.0 - rim.a) + rim.rgb, rim.a);
 }"""
 
 /**
- * La luce a riposo di **una lastra**: nessun ingresso, si disegna con un `drawRect` sopra il corpo e sotto il
- * contenuto, in `SrcOver`. È il programma di quasi tutti i vetri di una schermata.
+ * La luce a riposo di **una lastra**: nessun ingresso, sopra il corpo e sotto il contenuto. È il programma di
+ * quasi tutti i vetri di una schermata.
+ *
+ * ### Due disegni, in quest'ordine
+ * Lo stesso programma, lo stesso rettangolo, gli stessi uniform salvo uno:
+ *
+ *     1.  lightPart = 0   BlendMode.Plus      la luce che somma: riga chiara, alone, bagliore del dito
+ *     2.  lightPart = 1   BlendMode.SrcOver   il filo
+ *
+ * Tutti e due escono come colori premoltiplicati validi. L'ordine è quello del corpo in viaggio, ed è ciò
+ * che tiene il filo pulito sotto il bagliore (vedi [GlassLightBlock]). Ognuno dei due si può saltare quando
+ * non ha niente da disegnare, e a riposo è il caso comune: il secondo quando l'alfa di `rimDark` è zero (il
+ * lato scuro di serie); il primo quando `reflexStrength` e `glow` sono zero, o l'alfa di `lightColor`.
+ * Chi li ridisegna per il bagliore (che cambia a ogni fotogramma di una pressione) ridisegna tutti e due: il
+ * filo sta sopra, e un disegno in `Plus` rifatto da solo sotto un filo già posato non esiste.
  *
  * ### uniform (oltre a quelli di [GlassFieldKernel1] e di [GlassLightBlock])
+ * - `float lightPart`: quale parte restituire. Sotto 0,5 la luce che somma, sopra il filo. Non c'è un valore
+ *   per «tutte e due in un disegno»: sarebbe l'uscita non valida di `glassLight` (vedi [GlassLightBlock]);
  * - `float materialize`: 0 = niente luce, 1 = piena. È lo stesso uniform del corpo e porta lo stesso valore:
  *   `intensity` (piano 3.3) e la comparsa;
  * - `float aa`: la larghezza in pixel dell'antialias della maschera, la stessa del corpo (1,25): filo e
@@ -390,13 +476,14 @@ half4 glassLight(float2 p, float d, float2 normal) {
  *
  * Il `main` è scritto due volte, qui e in [GlassLight8ShaderString], invece che in un blocco comune: una
  * stringa con un `main` è per il banco e per il lint delle sorgenti un programma intero, da compilare da
- * solo, e un `main` senza il suo nucleo non compila. Sono dieci righe: chi ne cambia una cambia l'altra.
+ * solo, e un `main` senza il suo nucleo non compila. Sono poche righe: chi ne cambia una cambia l'altra.
  */
 @Language("AGSL")
 internal const val GlassLight1ShaderString = """
 $GlassFieldKernel1
 $GlassLightBlock
 
+uniform float lightPart;
 uniform float materialize;
 uniform float aa;
 
@@ -407,12 +494,17 @@ half4 main(float2 coord) {
     float d = glassField(p, normal, center);
     float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
     if (coverage <= 0.0) return half4(0.0);
-    return glassLight(p, d, normal) * half(coverage * clamp(materialize, 0.0, 1.0));
+    bool wire = lightPart > 0.5;
+    half4 glowing;
+    half4 rim;
+    glassLightParts(p, d, normal, !wire, glowing, rim);
+    return (wire ? rim : glowing) * half(coverage * clamp(materialize, 0.0, 1.0));
 }"""
 
 /**
  * La luce a riposo di un **gruppo di lastre fuse** (da 2 a 8): lo stesso testo di [GlassLight1ShaderString]
- * sul nucleo a otto pezzi, con gli stessi uniform. Con un pezzo solo dà la stessa immagine, al pixel.
+ * sul nucleo a otto pezzi, con gli stessi uniform e gli stessi due disegni. Con un pezzo solo dà la stessa
+ * immagine, al pixel.
  *
  * Il filo segue il contorno della sagoma fusa: dentro un ponte è **uno**, dello stesso spessore, e i contorni
  * dei pezzi di partenza non si vedono (è il difetto del bordo a path di oggi, che disegna un contorno per
@@ -423,6 +515,7 @@ internal const val GlassLight8ShaderString = """
 $GlassFieldKernel8
 $GlassLightBlock
 
+uniform float lightPart;
 uniform float materialize;
 uniform float aa;
 
@@ -433,5 +526,9 @@ half4 main(float2 coord) {
     float d = glassField(p, normal, center);
     float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
     if (coverage <= 0.0) return half4(0.0);
-    return glassLight(p, d, normal) * half(coverage * clamp(materialize, 0.0, 1.0));
+    bool wire = lightPart > 0.5;
+    half4 glowing;
+    half4 rim;
+    glassLightParts(p, d, normal, !wire, glowing, rim);
+    return (wire ? rim : glowing) * half(coverage * clamp(materialize, 0.0, 1.0));
 }"""

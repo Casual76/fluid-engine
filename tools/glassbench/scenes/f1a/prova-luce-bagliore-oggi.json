@@ -1,0 +1,2251 @@
+{
+ "_": "F1A.3b, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). La luce a riposo sono DUE disegni dello stesso programma: la luce che somma (`lightPart` 0, lo strato `light` dell'elemento `material`, in `Plus`) e poi il filo (`lightPart` 1, l'elemento `...-filo`, in `SrcOver`). Il bagliore nuovo accanto a quello di oggi, col dito a un terzo. Dall'alto: (1) nuovo, dentro la luce che somma; (2) oggi come e' scritto (velo 0,10 + punto 0,15 in `Plus`, colore premoltiplicato a mano); (3) oggi come il banco rende la sorgente con gli uniform dell'engine (colore non premoltiplicato: somma l'intensita' piena).",
+ "width": 482,
+ "height": 344,
+ "density": 3.0,
+ "theme": "light",
+ "palette": "engine",
+ "corner": "engine",
+ "background": {
+  "kind": "color",
+  "color": "#F2F2F7"
+ },
+ "elements": [
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "tasto-nuovo",
+   "x": 30,
+   "y": 38,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "14.52dp",
+      "17.6dp"
+     ],
+     "glowRadius": "44dp",
+     "glow": 0.25,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "tasto-nuovo-filo",
+   "x": 30,
+   "y": 38,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "14.52dp",
+     "17.6dp"
+    ],
+    "glowRadius": "44dp",
+    "glow": 0.25,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 26,
+   "icon": "fluid:add|plus"
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "capsula-nuovo",
+   "x": 100,
+   "y": 32,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "51.48dp",
+      "22.4dp"
+     ],
+     "glowRadius": "156dp",
+     "glow": 0.25,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "capsula-nuovo-filo",
+   "x": 100,
+   "y": 32,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "51.48dp",
+     "22.4dp"
+    ],
+    "glowRadius": "156dp",
+    "glow": 0.25,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 26,
+   "icons": [
+    "fluid:arrow_back|back",
+    "fluid:add|plus",
+    "fluid:circle|circle"
+   ]
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "menu-nuovo",
+   "x": 282,
+   "y": 16,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "28dp",
+       "28dp",
+       "28dp",
+       "28dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "56.1dp",
+      "35.2dp"
+     ],
+     "glowRadius": "170dp",
+     "glow": 0.25,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "menu-nuovo-filo",
+   "x": 282,
+   "y": 16,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "28dp",
+      "28dp",
+      "28dp",
+      "28dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "56.1dp",
+     "35.2dp"
+    ],
+    "glowRadius": "170dp",
+    "glow": 0.25,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "rowHeightDp": 44,
+   "rows": [
+    {
+     "label": "Copia",
+     "icon": "fluid:ios_share|share"
+    },
+    {
+     "label": "Rispondi",
+     "icon": "fluid:reply|back"
+    }
+   ]
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "tasto-oggi-scritto",
+   "x": 30,
+   "y": 150,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "14.52dp",
+      "17.6dp"
+     ],
+     "glowRadius": "44dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "tasto-oggi-scritto-velo",
+   "theme": "light",
+   "x": 30,
+   "y": 150,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#1A1A1A1A",
+    "radius": "100000dp",
+    "core": 0.5,
+    "position": [
+     "14.52dp",
+     "17.6dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "tasto-oggi-scritto-punto",
+   "theme": "light",
+   "x": 30,
+   "y": 150,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#26262626",
+    "radius": "44dp",
+    "core": 0.5,
+    "position": [
+     "14.52dp",
+     "17.6dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "tasto-oggi-scritto-filo",
+   "x": 30,
+   "y": 150,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "14.52dp",
+     "17.6dp"
+    ],
+    "glowRadius": "44dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 26,
+   "icon": "fluid:add|plus"
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "capsula-oggi-scritto",
+   "x": 100,
+   "y": 144,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "51.48dp",
+      "22.4dp"
+     ],
+     "glowRadius": "156dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "capsula-oggi-scritto-velo",
+   "theme": "light",
+   "x": 100,
+   "y": 144,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#1A1A1A1A",
+    "radius": "100000dp",
+    "core": 0.5,
+    "position": [
+     "51.48dp",
+     "22.4dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "capsula-oggi-scritto-punto",
+   "theme": "light",
+   "x": 100,
+   "y": 144,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#26262626",
+    "radius": "156dp",
+    "core": 0.5,
+    "position": [
+     "51.48dp",
+     "22.4dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "capsula-oggi-scritto-filo",
+   "x": 100,
+   "y": 144,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "51.48dp",
+     "22.4dp"
+    ],
+    "glowRadius": "156dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 26,
+   "icons": [
+    "fluid:arrow_back|back",
+    "fluid:add|plus",
+    "fluid:circle|circle"
+   ]
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "menu-oggi-scritto",
+   "x": 282,
+   "y": 128,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "28dp",
+       "28dp",
+       "28dp",
+       "28dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "56.1dp",
+      "35.2dp"
+     ],
+     "glowRadius": "170dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "menu-oggi-scritto-velo",
+   "theme": "light",
+   "x": 282,
+   "y": 128,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#1A1A1A1A",
+    "radius": "100000dp",
+    "core": 0.5,
+    "position": [
+     "56.1dp",
+     "35.2dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "menu-oggi-scritto-punto",
+   "theme": "light",
+   "x": 282,
+   "y": 128,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#26262626",
+    "radius": "170dp",
+    "core": 0.5,
+    "position": [
+     "56.1dp",
+     "35.2dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "menu-oggi-scritto-filo",
+   "x": 282,
+   "y": 128,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "28dp",
+      "28dp",
+      "28dp",
+      "28dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "56.1dp",
+     "35.2dp"
+    ],
+    "glowRadius": "170dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "rowHeightDp": 44,
+   "rows": [
+    {
+     "label": "Copia",
+     "icon": "fluid:ios_share|share"
+    },
+    {
+     "label": "Rispondi",
+     "icon": "fluid:reply|back"
+    }
+   ]
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "tasto-oggi-sorgente",
+   "x": 30,
+   "y": 262,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "14.52dp",
+      "17.6dp"
+     ],
+     "glowRadius": "44dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "tasto-oggi-sorgente-velo",
+   "theme": "light",
+   "x": 30,
+   "y": 262,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#FFFFFF1A",
+    "radius": "100000dp",
+    "core": 0.5,
+    "position": [
+     "14.52dp",
+     "17.6dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "tasto-oggi-sorgente-punto",
+   "theme": "light",
+   "x": 30,
+   "y": 262,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#FFFFFF26",
+    "radius": "44dp",
+    "core": 0.5,
+    "position": [
+     "14.52dp",
+     "17.6dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "tasto-oggi-sorgente-filo",
+   "x": 30,
+   "y": 262,
+   "w": 44,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "14.52dp",
+     "17.6dp"
+    ],
+    "glowRadius": "44dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 26,
+   "icon": "fluid:add|plus"
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "capsula-oggi-sorgente",
+   "x": 100,
+   "y": 256,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "51.48dp",
+      "22.4dp"
+     ],
+     "glowRadius": "156dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "capsula-oggi-sorgente-velo",
+   "theme": "light",
+   "x": 100,
+   "y": 256,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#FFFFFF1A",
+    "radius": "100000dp",
+    "core": 0.5,
+    "position": [
+     "51.48dp",
+     "22.4dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "capsula-oggi-sorgente-punto",
+   "theme": "light",
+   "x": 100,
+   "y": 256,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#FFFFFF26",
+    "radius": "156dp",
+    "core": 0.5,
+    "position": [
+     "51.48dp",
+     "22.4dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "capsula-oggi-sorgente-filo",
+   "x": 100,
+   "y": 256,
+   "w": 156,
+   "h": 56,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "51.48dp",
+     "22.4dp"
+    ],
+    "glowRadius": "156dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 26,
+   "icons": [
+    "fluid:arrow_back|back",
+    "fluid:add|plus",
+    "fluid:circle|circle"
+   ]
+  },
+  {
+   "kind": "material",
+   "theme": "light",
+   "name": "menu-oggi-sorgente",
+   "x": 282,
+   "y": 240,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "shadow": [
+    {
+     "radiusDp": 2,
+     "offsetDp": [
+      0,
+      1
+     ],
+     "alpha": 0.05
+    },
+    {
+     "radiusDp": 8,
+     "offsetDp": [
+      0,
+      3
+     ],
+     "alpha": 0.03
+    }
+   ],
+   "capture": {
+    "saturation": 1.0,
+    "blurDp": 0,
+    "paddingDp": 0
+   },
+   "body": {
+    "source": "file:../../shaders/prova-campo-1.agsl",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      "$radii"
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "showMode": 0,
+     "aa": 1.25,
+     "gain": 1.0,
+     "isoStep": 1.0,
+     "fillColor": "#F5F5F8FF"
+    }
+   },
+   "light": {
+    "source": "kotlin:GlassLight1ShaderString",
+    "uniforms": {
+     "offset": "$offset",
+     "flex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "flexCenter": [
+      0,
+      0
+     ],
+     "pieceCount": 1,
+     "pieceRect": [
+      [
+       "$center",
+       "$halfSize"
+      ]
+     ],
+     "pieceRadii": [
+      [
+       "28dp",
+       "28dp",
+       "28dp",
+       "28dp"
+      ]
+     ],
+     "pieceBlend": [
+      0
+     ],
+     "pieceSmooth": [
+      0.6
+     ],
+     "lightPart": 0,
+     "rimWidth": "0.6dp",
+     "rimDark": "#00000061",
+     "rimFeather": 0.4,
+     "rimLift": 0.3,
+     "reflexDir": [
+      0,
+      -1
+     ],
+     "reflexWidths": [
+      1.396,
+      1.396
+     ],
+     "reflexStrength": 0.1,
+     "reflexDepth": "7.0dp",
+     "reflexFloor": 0.0,
+     "reflexHalo": 0.45,
+     "glowCenter": [
+      "56.1dp",
+      "35.2dp"
+     ],
+     "glowRadius": "170dp",
+     "glow": 0.0,
+     "glowFill": 0.4,
+     "lightColor": "#FFFFFFFF",
+     "materialize": 1.0,
+     "aa": 1.25
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "menu-oggi-sorgente-velo",
+   "theme": "light",
+   "x": 282,
+   "y": 240,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#FFFFFF1A",
+    "radius": "100000dp",
+    "core": 0.5,
+    "position": [
+     "56.1dp",
+     "35.2dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "menu-oggi-sorgente-punto",
+   "theme": "light",
+   "x": 282,
+   "y": 240,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassGlowShaderString",
+   "blend": "Plus",
+   "uniforms": {
+    "size": "$size",
+    "color": "#FFFFFF26",
+    "radius": "170dp",
+    "core": 0.5,
+    "position": [
+     "56.1dp",
+     "35.2dp"
+    ]
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "menu-oggi-sorgente-filo",
+   "x": 282,
+   "y": 240,
+   "w": 170,
+   "h": 88,
+   "radius": 28,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "28dp",
+      "28dp",
+      "28dp",
+      "28dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": [
+     "56.1dp",
+     "35.2dp"
+    ],
+    "glowRadius": "170dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "rowHeightDp": 44,
+   "rows": [
+    {
+     "label": "Copia",
+     "icon": "fluid:ios_share|share"
+    },
+    {
+     "label": "Rispondi",
+     "icon": "fluid:reply|back"
+    }
+   ]
+  }
+ ],
+ "measure": []
+}

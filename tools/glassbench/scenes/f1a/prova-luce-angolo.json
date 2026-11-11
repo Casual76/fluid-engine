@@ -1,5 +1,5 @@
 {
- "_": "F1A.3, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). L'angolo continuo di un pannello grande (raggio 38 dp, raccordo 0,6). A sinistra col ritaglio hardware acceso, al raggio nominale; a destra spento (ritaglia lo shader).",
+ "_": "F1A.3b, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). La luce a riposo sono DUE disegni dello stesso programma: la luce che somma (`lightPart` 0, lo strato `light` dell'elemento `material`, in `Plus`) e poi il filo (`lightPart` 1, l'elemento `...-filo`, in `SrcOver`). L'angolo continuo di un pannello grande (raggio 38 dp, raccordo 0,6). A sinistra col ritaglio hardware acceso, al raggio nominale; a destra spento (ritaglia lo shader).",
  "width": 300,
  "height": 150,
  "density": 3.0,
@@ -103,7 +103,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "38dp",
+       "38dp",
+       "38dp",
+       "38dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -111,6 +116,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -123,10 +129,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.95,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -134,7 +140,79 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "ritaglio-acceso-filo",
+   "x": 10,
+   "y": 10,
+   "w": 135,
+   "h": 130,
+   "radius": 38,
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "38dp",
+      "38dp",
+      "38dp",
+      "38dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
    }
   },
   {
@@ -229,7 +307,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "38dp",
+       "38dp",
+       "38dp",
+       "38dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -237,6 +320,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -249,10 +333,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.95,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -260,7 +344,79 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "ritaglio-spento-filo",
+   "x": 155,
+   "y": 10,
+   "w": 135,
+   "h": 130,
+   "radius": 38,
+   "clip": false,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "38dp",
+      "38dp",
+      "38dp",
+      "38dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
    }
   }
  ],

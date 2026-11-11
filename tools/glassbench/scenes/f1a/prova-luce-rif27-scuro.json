@@ -1,5 +1,5 @@
 {
- "_": "F1A.3, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). R5 M3 su fondi piatti: sopra, tab bar scura (corpo 68) su un varco nero a luma 19, con le tre proposte per il tema scuro (solo il riflesso / riflesso e filo chiaro / com'e' oggi); sotto, barra CHIARA (corpo 143) sopra un fondo scuro a luma 51, con `reflexStrength` 0,23 e il filo scuro di serie.",
+ "_": "F1A.3b, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). La luce a riposo sono DUE disegni dello stesso programma: la luce che somma (`lightPart` 0, lo strato `light` dell'elemento `material`, in `Plus`) e poi il filo (`lightPart` 1, l'elemento `...-filo`, in `SrcOver`). R5 M3 su fondi piatti: sopra, tab bar scura (corpo 68) su un varco nero a luma 19, con le tre proposte per il tema scuro (solo il riflesso / riflesso e filo chiaro / com'e' oggi); sotto, barra CHIARA (corpo 143) sopra un fondo scuro a luma 51, con la luce di serie e la FORZA DI SERIE.",
  "width": 420,
  "height": 330,
  "density": 3.0,
@@ -20,12 +20,6 @@
    "w": 380,
    "h": 62,
    "radius": "capsule",
-   "iconSizeDp": 28,
-   "icons": [
-    "fluid:home|home",
-    "fluid:grid_view|grid4",
-    "fluid:library_music|menu"
-   ],
    "clip": true,
    "shadow": [
     {
@@ -109,7 +103,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -117,6 +116,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000000",
      "rimFeather": 0.4,
@@ -129,10 +129,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.11,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -140,8 +140,86 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
    }
+  },
+  {
+   "kind": "shader",
+   "theme": "dark",
+   "name": "tabbar-scuro-riflesso-filo",
+   "x": 20,
+   "y": 12,
+   "w": 380,
+   "h": 62,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000000",
+    "rimFeather": 0.4,
+    "rimLift": 0.0,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 28,
+   "icons": [
+    "fluid:home|home",
+    "fluid:grid_view|grid4",
+    "fluid:library_music|menu"
+   ]
   },
   {
    "kind": "material",
@@ -152,12 +230,6 @@
    "w": 380,
    "h": 62,
    "radius": "capsule",
-   "iconSizeDp": 28,
-   "icons": [
-    "fluid:home|home",
-    "fluid:grid_view|grid4",
-    "fluid:library_music|menu"
-   ],
    "clip": true,
    "shadow": [
     {
@@ -241,7 +313,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -249,6 +326,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#FFFFFF1A",
      "rimFeather": 0.4,
@@ -261,10 +339,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.11,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -272,8 +350,86 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
    }
+  },
+  {
+   "kind": "shader",
+   "theme": "dark",
+   "name": "tabbar-scuro-filo-chiaro-filo",
+   "x": 20,
+   "y": 92,
+   "w": 380,
+   "h": 62,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#FFFFFF1A",
+    "rimFeather": 0.4,
+    "rimLift": 0.0,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 28,
+   "icons": [
+    "fluid:home|home",
+    "fluid:grid_view|grid4",
+    "fluid:library_music|menu"
+   ]
   },
   {
    "kind": "material",
@@ -284,12 +440,6 @@
    "w": 380,
    "h": 62,
    "radius": "capsule",
-   "iconSizeDp": 28,
-   "icons": [
-    "fluid:home|home",
-    "fluid:grid_view|grid4",
-    "fluid:library_music|menu"
-   ],
    "clip": true,
    "shadow": [
     {
@@ -373,7 +523,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -381,6 +536,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000000",
      "rimFeather": 0.4,
@@ -404,8 +560,86 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
    }
+  },
+  {
+   "kind": "shader",
+   "theme": "dark",
+   "name": "tabbar-scuro-oggi-filo",
+   "x": 20,
+   "y": 172,
+   "w": 380,
+   "h": 62,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000000",
+    "rimFeather": 0.4,
+    "rimLift": 0.0,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.5533,
+     1.5533
+    ],
+    "reflexStrength": 0.5,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.0,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 28,
+   "icons": [
+    "fluid:home|home",
+    "fluid:grid_view|grid4",
+    "fluid:library_music|menu"
+   ]
   },
   {
    "kind": "material",
@@ -416,12 +650,6 @@
    "w": 380,
    "h": 44,
    "radius": "capsule",
-   "iconSizeDp": 26,
-   "icons": [
-    "fluid:arrow_back|back",
-    "fluid:ios_share|share",
-    "fluid:more_horiz|dots"
-   ],
    "clip": true,
    "shadow": [
     {
@@ -505,7 +733,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -513,6 +746,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -525,10 +759,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.23,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -536,8 +770,86 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
    }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "barra-chiara-filo",
+   "x": 20,
+   "y": 269,
+   "w": 380,
+   "h": 44,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 26,
+   "icons": [
+    "fluid:arrow_back|back",
+    "fluid:ios_share|share",
+    "fluid:more_horiz|dots"
+   ]
   }
  ],
  "measure": [

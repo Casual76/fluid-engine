@@ -1,5 +1,5 @@
 {
- "_": "F1A.3, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). La geometria di `rif27-tabbar-telefono` (R5 T6, M4: 269 @5:19) con la luce di serie: tab bar alta 62 dp e tondo D = H su pagina 238. Corpo: campitura a 237, il valore del corpo di Apple sui fianchi.",
+ "_": "F1A.3b, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). La luce a riposo sono DUE disegni dello stesso programma: la luce che somma (`lightPart` 0, lo strato `light` dell'elemento `material`, in `Plus`) e poi il filo (`lightPart` 1, l'elemento `...-filo`, in `SrcOver`). La geometria di `rif27-tabbar-telefono` (R5 T6, M4: 269 @5:19) con la luce di serie: tab bar alta 62 dp e tondo D = H su pagina 238. Corpo: campitura a 237, il valore del corpo di Apple sui fianchi.",
  "width": 412,
  "height": 130,
  "density": 3.0,
@@ -20,12 +20,6 @@
    "w": 310,
    "h": 62,
    "radius": "capsule",
-   "iconSizeDp": 28,
-   "icons": [
-    "fluid:home|home",
-    "fluid:grid_view|grid4",
-    "fluid:library_music|menu"
-   ],
    "clip": true,
    "shadow": [
     {
@@ -109,7 +103,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -117,6 +116,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -129,10 +129,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.95,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -140,8 +140,86 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
    }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "capsula-filo",
+   "x": 16,
+   "y": 40,
+   "w": 310,
+   "h": 62,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 28,
+   "icons": [
+    "fluid:home|home",
+    "fluid:grid_view|grid4",
+    "fluid:library_music|menu"
+   ]
   },
   {
    "kind": "material",
@@ -152,8 +230,6 @@
    "w": 62,
    "h": 62,
    "radius": "capsule",
-   "iconSizeDp": 28,
-   "icon": "fluid:search|search",
    "clip": true,
    "shadow": [
     {
@@ -237,7 +313,12 @@
       ]
      ],
      "pieceRadii": [
-      "$radii"
+      [
+       "1000dp",
+       "1000dp",
+       "1000dp",
+       "1000dp"
+      ]
      ],
      "pieceBlend": [
       0
@@ -245,6 +326,7 @@
      "pieceSmooth": [
       0.6
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -257,10 +339,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.95,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -268,8 +350,82 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
    }
+  },
+  {
+   "kind": "shader",
+   "theme": "light",
+   "name": "tondo-filo",
+   "x": 334,
+   "y": 40,
+   "w": 62,
+   "h": 62,
+   "radius": "capsule",
+   "clip": true,
+   "inputs": {},
+   "source": "kotlin:GlassLight1ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 1,
+    "pieceRect": [
+     [
+      "$center",
+      "$halfSize"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "1000dp",
+      "1000dp",
+      "1000dp",
+      "1000dp"
+     ]
+    ],
+    "pieceBlend": [
+     0
+    ],
+    "pieceSmooth": [
+     0.6
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
+   },
+   "iconSizeDp": 28,
+   "icon": "fluid:search|search"
   }
  ],
  "measure": [

@@ -1,5 +1,5 @@
 {
- "_": "F1A.3, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). Il filo nella zona di fusione, variante a 8. Da sinistra: tondo e capsula col ponte (fusione 16 dp); due capsule sovrapposte con unione netta (fusione 0: il valore di riposo); tre pezzi con il ponte. Il filo dev'essere UNO, continuo, dello stesso spessore dentro i ponti, senza i contorni dei pezzi di partenza.",
+ "_": "F1A.3b, prova a mano (non e' la ricetta: uniform ricopiati dai valori di serie di GlassLightShader.kt). La luce a riposo sono DUE disegni dello stesso programma: la luce che somma (`lightPart` 0, lo strato `light` dell'elemento `material`, in `Plus`) e poi il filo (`lightPart` 1, l'elemento `...-filo`, in `SrcOver`). Il filo nella zona di fusione, variante a 8. Da sinistra: tondo e capsula col ponte (fusione 16 dp); due capsule sovrapposte con unione netta (fusione 0: il valore di riposo); tre pezzi con il ponte. Il filo dev'essere UNO, continuo, dello stesso spessore dentro i ponti, senza i contorni dei pezzi di partenza.",
  "width": 700,
  "height": 150,
  "density": 3.0,
@@ -13,8 +13,8 @@
  "elements": [
   {
    "kind": "material",
-   "theme": "light",
    "name": "ponte",
+   "theme": "light",
    "x": 20,
    "y": 15,
    "w": 200,
@@ -135,6 +135,7 @@
       0.0,
       0.0
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -147,10 +148,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.95,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -158,13 +159,101 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "ponte-filo",
+   "theme": "light",
+   "x": 20,
+   "y": 15,
+   "w": 200,
+   "h": 120,
+   "radius": 0,
+   "clip": false,
+   "inputs": {},
+   "source": "kotlin:GlassLight8ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 2,
+    "pieceRect": [
+     [
+      "28dp",
+      "60dp",
+      "22dp",
+      "22dp"
+     ],
+     [
+      "118dp",
+      "60dp",
+      "62dp",
+      "28dp"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "22dp",
+      "22dp",
+      "22dp",
+      "22dp"
+     ],
+     [
+      "28dp",
+      "28dp",
+      "28dp",
+      "28dp"
+     ]
+    ],
+    "pieceBlend": [
+     0,
+     "16.0dp"
+    ],
+    "pieceSmooth": [
+     0.0,
+     0.0
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
    }
   },
   {
    "kind": "material",
-   "theme": "light",
    "name": "netta",
+   "theme": "light",
    "x": 250,
    "y": 15,
    "w": 190,
@@ -285,6 +374,7 @@
       0.0,
       0.0
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -297,10 +387,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.95,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -308,13 +398,101 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "netta-filo",
+   "theme": "light",
+   "x": 250,
+   "y": 15,
+   "w": 190,
+   "h": 120,
+   "radius": 0,
+   "clip": false,
+   "inputs": {},
+   "source": "kotlin:GlassLight8ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 2,
+    "pieceRect": [
+     [
+      "60dp",
+      "50dp",
+      "50dp",
+      "26dp"
+     ],
+     [
+      "120dp",
+      "86dp",
+      "60dp",
+      "26dp"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "26dp",
+      "26dp",
+      "26dp",
+      "26dp"
+     ],
+     [
+      "26dp",
+      "26dp",
+      "26dp",
+      "26dp"
+     ]
+    ],
+    "pieceBlend": [
+     0,
+     "0.0dp"
+    ],
+    "pieceSmooth": [
+     0.0,
+     0.0
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
    }
   },
   {
    "kind": "material",
-   "theme": "light",
    "name": "tre",
+   "theme": "light",
    "x": 470,
    "y": 15,
    "w": 210,
@@ -463,6 +641,7 @@
       0.0,
       0.0
      ],
+     "lightPart": 0,
      "rimWidth": "0.6dp",
      "rimDark": "#00000061",
      "rimFeather": 0.4,
@@ -475,10 +654,10 @@
       1.396,
       1.396
      ],
-     "reflexStrength": 0.95,
+     "reflexStrength": 0.1,
      "reflexDepth": "7.0dp",
      "reflexFloor": 0.0,
-     "reflexHalo": 0.65,
+     "reflexHalo": 0.45,
      "glowCenter": "$center",
      "glowRadius": "44.0dp",
      "glow": 0.0,
@@ -486,7 +665,109 @@
      "lightColor": "#FFFFFFFF",
      "materialize": 1.0,
      "aa": 1.25
-    }
+    },
+    "blend": "Plus"
+   }
+  },
+  {
+   "kind": "shader",
+   "name": "tre-filo",
+   "theme": "light",
+   "x": 470,
+   "y": 15,
+   "w": 210,
+   "h": 120,
+   "radius": 0,
+   "clip": false,
+   "inputs": {},
+   "source": "kotlin:GlassLight8ShaderString",
+   "uniforms": {
+    "offset": "$offset",
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 3,
+    "pieceRect": [
+     [
+      "30dp",
+      "60dp",
+      "24dp",
+      "24dp"
+     ],
+     [
+      "100dp",
+      "60dp",
+      "40dp",
+      "28dp"
+     ],
+     [
+      "176dp",
+      "60dp",
+      "24dp",
+      "24dp"
+     ]
+    ],
+    "pieceRadii": [
+     [
+      "24dp",
+      "24dp",
+      "24dp",
+      "24dp"
+     ],
+     [
+      "28dp",
+      "28dp",
+      "28dp",
+      "28dp"
+     ],
+     [
+      "24dp",
+      "24dp",
+      "24dp",
+      "24dp"
+     ]
+    ],
+    "pieceBlend": [
+     0,
+     "14.0dp",
+     "14.0dp"
+    ],
+    "pieceSmooth": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "lightPart": 1,
+    "rimWidth": "0.6dp",
+    "rimDark": "#00000061",
+    "rimFeather": 0.4,
+    "rimLift": 0.3,
+    "reflexDir": [
+     0,
+     -1
+    ],
+    "reflexWidths": [
+     1.396,
+     1.396
+    ],
+    "reflexStrength": 0.1,
+    "reflexDepth": "7.0dp",
+    "reflexFloor": 0.0,
+    "reflexHalo": 0.45,
+    "glowCenter": "$center",
+    "glowRadius": "44.0dp",
+    "glow": 0.0,
+    "glowFill": 0.4,
+    "lightColor": "#FFFFFFFF",
+    "materialize": 1.0,
+    "aa": 1.25
    }
   }
  ],

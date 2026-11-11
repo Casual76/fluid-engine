@@ -117,7 +117,7 @@ uniform float lightInBody;"""
  * compila. Il `main` lo scrivono i due programmi, ed è una riga.
  *
  * Si aspetta, già dichiarati: `uniform shader content`, il nucleo (`glassFieldPoint`, `glassField`,
- * `glassCircleMap`), [GlassBodyUniformsBlock], e i due blocchi `glassLight` e `glassTravelShadow`.
+ * `glassCircleMap`), [GlassBodyUniformsBlock], e i due blocchi `glassLightParts` e `glassTravelShadow`.
  *
  * ### L'ordine dentro un pixel
  * 1. il campo, una volta: distanza, normale, centro; da qui la copertura;
@@ -131,24 +131,34 @@ uniform float lightInBody;"""
  * 6. l'**ombreggiatura**, per ultima: scurisce anche un tasto tinto, come fa il vetro di Apple (R4 A7: il
  *    rosso ha un gradiente laterale);
  * 7. la grana;
- * 8. con `lightInBody`: la luce sopra, l'ombra sotto (vedi qui sotto);
+ * 8. con `lightInBody`: la luce che si somma, il filo sopra, l'ombra sotto (vedi qui sotto);
  * 9. la copertura, una volta, su tutto.
  *
  * Velo, tinta e scurimento si compongono in `SrcOver` e non moltiplicando l'ingresso: dove la cattura è
  * trasparente (un fondale vuoto) il vetro ha lo stesso il suo colore, come oggi la pellicola.
  *
  * ### `lightInBody`: luce e ombra in corpo
- * A riposo vale 0: il corpo non chiama né `glassLight` né `glassTravelShadow`, ed esce subito dove la
- * copertura è nulla. La luce la disegna il suo programma, sopra; l'ombra le due maschere, sotto.
+ * A riposo vale 0: il corpo non chiama né `glassLightParts` né `glassTravelShadow`, ed esce subito dove la
+ * copertura è nulla. La luce la disegna il suo programma, sopra, in due disegni; l'ombra le due maschere,
+ * sotto.
  *
  * In viaggio vale 1 (la sagoma cambia a ogni fotogramma e il corpo si riesegue comunque: piano 3.5), e il
  * corpo compone tutto da sé, in quest'ordine, dal basso:
  *
  *     ombra    glassTravelShadow(p, d) * materialize        fuori dalla sagoma, e scavata sotto di essa
  *     corpo    i passi 2-7                                   dentro la sagoma
- *     luce     glassLight(p, d, normal) * materialize        sopra il corpo, in SrcOver, dentro la sagoma
+ *     luce     glowing * materialize                         SOMMATA al corpo, saturando a 1: è `Plus`
+ *     filo     rim * materialize                             sopra, in SrcOver
  *
- *     uscita = (luce sopra corpo) * copertura + ombra * (1 - copertura)
+ *     acceso = min(corpo + luce, 1)
+ *     uscita = (filo sopra acceso) * copertura + ombra * (1 - copertura)
+ *
+ * La luce ha due parti perché si compongono in due modi (F1A.3b, vedi [GlassLightBlock]): riga chiara, alone
+ * e bagliore del dito sono luce e **si sommano**; il filo **copre**. `glassLightParts` le restituisce
+ * insieme, coi conti comuni fatti una volta. L'ordine è quello dei due disegni della luce a riposo, prima la
+ * somma (`Plus`) e poi il filo (`SrcOver`): così il bagliore non schiarisce il filo, e fra viaggio e riposo
+ * non c'è uno scalino. La somma è su tutti e quattro i canali, come `Plus`: su un corpo opaco l'alfa resta 1,
+ * e su una cattura trasparente (un fondale vuoto) la luce porta con sé la propria alfa.
  *
  * L'ombra è scavata con `1 - copertura`, non composta sotto il corpo: sotto un vetro che lascia passare
  * metà dello sfondo un'ombra non scavata si vedrebbe attraverso, e il vetro di Apple non lo fa (R4 A3: «mai
@@ -157,8 +167,9 @@ uniform float lightInBody;"""
  * senza filo. Luce e ombra prendono `materialize` qui, non nei loro blocchi, che restituiscono il valore
  * pieno.
  *
- * Con i blocchi neutri di F1A.1 (restituiscono zero) l'uscita con `lightInBody` a 1 è identica a quella
- * con 0, pixel per pixel: `(0 sopra corpo) * c + 0 * (1 - c) = corpo * c`.
+ * Con gli uniform di luce e d'ombra a zero i due blocchi restituiscono zero, e l'uscita con `lightInBody` a
+ * 1 è identica a quella con 0, pixel per pixel: `(0 sopra min(corpo + 0, 1)) * c + 0 * (1 - c) = corpo * c`
+ * (lo prova il banco: `prova-corpo-luce-in-corpo-0` contro `-1`, `compare` a differenza zero).
  */
 @Language("AGSL")
 internal const val GlassBodyBlock = """
@@ -234,8 +245,13 @@ half4 glassBody(float2 coord) {
 
     if (lightInBody < 0.5) return body * half(coverage);
 
-    // In viaggio: la luce sopra il corpo, l'ombra sotto e scavata dalla sagoma.
-    half4 lit = glassBodyOver(glassLight(p, d, normal) * half(amount), body);
+    // In viaggio: la luce si somma al corpo e satura (e' `Plus`), il filo le si posa sopra, l'ombra sta sotto
+    // ed e' scavata dalla sagoma.
+    half4 glowing;
+    half4 rim;
+    glassLightParts(p, d, normal, true, glowing, rim);
+    half4 lit = min(body + glowing * half(amount), half4(1.0));
+    lit = glassBodyOver(rim * half(amount), lit);
     half4 under = glassTravelShadow(p, d) * half(amount);
     return lit * half(coverage) + under * half(1.0 - coverage);
 }"""

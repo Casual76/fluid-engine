@@ -1120,6 +1120,19 @@ ma non decide. Le scene a fondale fermo si misurano con `warmup 5` (la prima fin
 | doppio bordo dentro il ponte fra due pezzi, e moiré nel collo | solo `Full` | F1B.1 (nuclei nuovi: un campo solo, un filo solo); il ponte resta solo in viaggio (scelta di Alessio, «Scelte di gusto») |
 | l'ombra a riposo compare in un fotogramma circa 270 ms dopo l'arrivo | `Full` e `Balanced` | F1B.6 (parità viaggio→riposo), voce di S2 |
 | nessun fotogramma registrato fra +17 e +67 ms nel cambio di pagina della barra | tutti e due | da capire in S1-bis con `framestats`; se è un fotogramma lungo, F4A |
+| il menu parte circa 30 ms dopo il click lungo: due fotogrammi con la superficie ferma alla taglia premuta e due fotogrammi lunghi (34 e 25 ms) prima che il vetro si allarghi | tutti e due | F5A (l'apertura non deve aspettare la composizione del pannello); `framestats` in S2 |
+| alla fine del cambio di pagina, quando la superficie condivisa riconsegna il vetro ai tasti, un fotogramma **senza vetro** (restano le icone) | tutti e due | F4A (passaggio di consegne riposo↔palco, 3.7), prova in F1B.6 |
+
+**Convalida del banco del movimento (F0-a), 2026-11-11.** Tre scene che descrivono esattamente ciò che S1 ha registrato
+(`oggi-*-galleria`, 120 Hz, densità 2,125), rese e misurate contro i fotogrammi veri
+(`artifacts/liquid-glass/moto/f0/convalida-F0-a.md`). **La geometria regge**: menu, picco 554 × 464 px nel banco e nel vero,
+riposo entro 1 px; tasto, presa entro 2 px a parte ombra e bagliore, picco a +0,4 ms. **I tempi no, e per una ragione sola**:
+il dispositivo ritarda o perde i primi fotogrammi di una presentazione (menu: circa 28 ms di ritardo costante; barra: i
+primi 150 ms del push non arrivano allo schermo), mentre la traccia parte puntuale. Quindi: il banco si usa per **sagoma,
+ordine degli eventi e durata del viaggio una volta partito**; la puntualità della partenza e i fotogrammi lunghi si
+giudicano solo sul dispositivo, con `framestats`. Per le prossime sessioni serve al banco un `pair` che legga i tempi veri
+dei fotogrammi di una registrazione a cadenza variabile (oggi c'è uno script a parte, `moto/f0/strumenti/convalida.py`):
+si aggiunge prima di S2.
 
 **Risultati osservabili.** `glassbench.py check` passa su tutte le sorgenti e fallisce se si reintroduce `flat` (prova:
 un test del banco con una sorgente sbagliata apposta); il lint JVM fallisce sullo stesso caso; `FluidPhysicsTierTest` copre i

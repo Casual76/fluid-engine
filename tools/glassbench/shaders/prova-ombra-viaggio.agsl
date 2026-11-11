@@ -44,8 +44,62 @@ float glassRadiusAt(float2 rel, float4 radii) {
     }
 }
 
+float3 glassWideBox(float2 rel, float2 halfSize) {
+    float2 b = abs(rel) - halfSize;
+    float2 side = float2(rel.x < 0.0 ? -1.0 : 1.0, rel.y < 0.0 ? -1.0 : 1.0);
+    if (b.x > 0.0 && b.y > 0.0) return float3(length(b), side * (b / length(b)));
+    float gx = step(b.y, b.x);
+    return float3(max(b.x, b.y), side * float2(gx, 1.0 - gx));
+}
+
+float3 glassWideCorner(float3 held, float2 rel, float2 halfSize, float2 side, float radius) {
+    // `q`: il punto visto dal centro dell'arco, con gli assi che puntano al vertice dell'angolo.
+    float2 q = rel * side - (halfSize - float2(radius));
+    if (q.x <= 0.0 || q.y <= 0.0) return held;
+    float len = length(q);
+    if (len - radius <= held.x) return held;
+    return float3(len - radius, side * (q / len));
+}
+
+float glassWideSpread(float radius, float minHalf, float roomX, float roomY) {
+    return max(radius, min(min(radius * 1.5, minHalf), min(roomX, roomY)));
+}
+
+float3 glassWideSlab(float2 rel, float2 halfSize, float4 radii) {
+    float4 r = max(radii, float4(0.0));
+    float3 box = glassWideBox(rel, halfSize);
+    float3 held = glassWideCorner(box, rel, halfSize, float2(-1.0, -1.0), r.x);
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, -1.0), r.y);
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, 1.0), r.z);
+    held = glassWideCorner(held, rel, halfSize, float2(-1.0, 1.0), r.w);
+    float sd = held.x;
+
+    // La normale: gli stessi quattro archi allargati, ognuno dentro il lato che il vicino gli lascia.
+    float minHalf = min(halfSize.x, halfSize.y);
+    float2 whole = halfSize * 2.0;
+    held = glassWideCorner(box, rel, halfSize, float2(-1.0, -1.0),
+        glassWideSpread(r.x, minHalf, whole.x - r.y, whole.y - r.w));
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, -1.0),
+        glassWideSpread(r.y, minHalf, whole.x - r.x, whole.y - r.z));
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, 1.0),
+        glassWideSpread(r.z, minHalf, whole.x - r.w, whole.y - r.y));
+    held = glassWideCorner(held, rel, halfSize, float2(-1.0, 1.0),
+        glassWideSpread(r.w, minHalf, whole.x - r.z, whole.y - r.x));
+    return float3(sd, held.yz);
+}
+
 float3 glassSlab(float2 rel, float2 halfSize, float4 radii, float smoothing) {
     float minHalf = min(halfSize.x, halfSize.y);
+    // Un angolo oltre mezzo lato corto: il quadrante non basta a dire di quale angolo e' un punto. Solo se i
+    // raggi stanno nei lati (due vicini non superano il lato che dividono): un raggio chiesto troppo grande,
+    // il 999 di una capsula, resta limitato a mezzo lato come sempre.
+    if (max(max(radii.x, radii.y), max(radii.z, radii.w)) > minHalf * 1.0001) {
+        float2 room = halfSize * (2.0 * 1.0001);
+        if (max(radii.x + radii.y, radii.w + radii.z) <= room.x
+            && max(radii.x + radii.w, radii.y + radii.z) <= room.y) {
+            return glassWideSlab(rel, halfSize, radii);
+        }
+    }
     float radius = max(min(glassRadiusAt(rel, radii), minHalf), 0.0);
     // Lo smoothing che il lato corto lascia spendere: zero quando l'angolo e' gia' un semicerchio.
     float s = radius > 0.0001 ? clamp(min(smoothing, minHalf / radius - 1.0), 0.0, 1.0) : 0.0;

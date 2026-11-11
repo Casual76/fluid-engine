@@ -25,6 +25,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidPressSprings
 import dev.antigravity.fluidengine.ui.fluid.FluidPressTransform
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
@@ -132,7 +133,17 @@ internal class MenuBuilt(
 /** Dalla cima della riga alla linea di base del testo (17 sp su una riga da 48 dp), a occhio. */
 private const val BaselineInRowDp = 30f
 
-internal fun buildMenuTrace(scene: MenuScene): MenuBuilt {
+/**
+ * @param dress chi veste la traccia: il vetro di oggi (F0.5, di serie) o il materiale nuovo (F1B.1). La corsa è
+ *   la stessa, riga per riga: cambia l'elemento scritto per il tasto premuto e per la superficie del menu.
+ * @param name con [phase], come si chiama la traccia e dove va: di serie quelli di F0.
+ */
+internal fun buildMenuTrace(
+  scene: MenuScene,
+  dress: TraceDress = TraceDress.Today,
+  name: String = scene.name,
+  phase: String = "f0",
+): MenuBuilt {
   val d = scene.density
   val fps = scene.fps
   val palette = TodayPalette()
@@ -210,6 +221,8 @@ internal fun buildMenuTrace(scene: MenuScene): MenuBuilt {
   val relax = TodaySpring(FluidMotion.snappy(), journey.anchorRelax.value, 1f)
   val driver = TodayLiquidDriver(physics, d)
   val material = PhysicsMaterialSource(GlassDefaults.buttonOptics().sanitized(), GlassDefaults.panelOptics(compact = true).sanitized())
+  // Il menu è una superficie di ruolo `Modal` (`FluidMenuLayer`), che parte con l'ottica del tasto.
+  val liquid = LiquidPhysicsDress(GlassRole.Modal, material, d)
   // Il pannello e' posato all'intero piu' vicino, e il ritaglio parla le sue coordinate (FluidMenuLayer).
   val panelBox = Rect(panel.left.roundToInt().toFloat(), panel.top.roundToInt().toFloat(), panel.right, panel.bottom)
   val still = scene.still(origin, palette)
@@ -231,7 +244,9 @@ internal fun buildMenuTrace(scene: MenuScene): MenuBuilt {
       scaleX = transform.scaleX,
       scaleY = transform.scaleY,
     )
-    val button = todayButtonElement(
+    val button = if (dress == TraceDress.Liquid) {
+      liquidButtonElement("tasto", rest, transform, pressAt(t), origin, d, listOf(face))
+    } else todayButtonElement(
       name = "tasto",
       rest = rest,
       transform = transform,
@@ -263,7 +278,7 @@ internal fun buildMenuTrace(scene: MenuScene): MenuBuilt {
     if (plan.mode == PlanModePoly) ringFrames++
 
     val blend = fluidMenuMaterialBlend(p)
-    val look = todayPhysicsLook(
+    val look = if (dress == TraceDress.Liquid) null else todayPhysicsLook(
       plan = plan,
       material = material,
       opticsBlend = blend,
@@ -349,7 +364,11 @@ internal fun buildMenuTrace(scene: MenuScene): MenuBuilt {
 
     frames += GlassTraceFrame(
       glassTraceTimeMs(k, fps),
-      still + todayPhysicsElement("menu", plan, look, origin, d, scene.canvasWidthDp, scene.canvasHeightDp, content),
+      still + if (look == null) {
+        liquid.element("menu", physics, plan, blend, origin, scene.canvasWidthDp, scene.canvasHeightDp, content)
+      } else {
+        todayPhysicsElement("menu", plan, look, origin, d, scene.canvasWidthDp, scene.canvasHeightDp, content)
+      },
     )
     val settled = progress.finished(nanos) && physics.liquid.quiet
     if (settled) tail++ else tail = 0
@@ -359,8 +378,8 @@ internal fun buildMenuTrace(scene: MenuScene): MenuBuilt {
 
   val panelOnCanvas = panel.scaled(1f / d).translate(-scene.canvasOriginDp.x, -scene.canvasOriginDp.y)
   val trace = GlassTrace(
-    name = scene.name,
-    phase = "f0",
+    name = name,
+    phase = phase,
     density = d,
     theme = "light",
     widthDp = scene.canvasWidthDp,

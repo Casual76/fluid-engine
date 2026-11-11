@@ -131,9 +131,9 @@ class GlassShaderCompileInstrumentedTest {
 
     /**
      * Le sorgenti della 4.0.0: lente e riflessi (4), il bagliore del tocco, Fluid-physics (4), il materiale nuovo
-     * (corpo e luce, a un pezzo e a otto: 4).
+     * (corpo e luce, a un pezzo e a otto, e il corpo ad anello di F1B.1: 5).
      */
-    const val MinimumSources = 13
+    const val MinimumSources = 14
 
     /** I programmi del materiale nuovo: quelli che il riscaldamento scalda. */
     val LiquidPrograms = listOf(
@@ -141,6 +141,7 @@ class GlassShaderCompileInstrumentedTest {
       "GlassLight1ShaderString",
       "GlassBody8ShaderString",
       "GlassLight8ShaderString",
+      "GlassBodyRingShaderString",
     )
 
     /** Il caso minimo del difetto: la riga 5 è quella che il compilatore deve indicare. */

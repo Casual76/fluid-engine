@@ -141,10 +141,11 @@ sealed interface FluidForm {
 
     companion object {
       /**
-       * Sei, perché il costo dello shader di gruppo è `pezzi × pixel` e sei rettangoli coprono ogni
-       * composizione che una schermata vera ha mai chiesto (una coppia di tasti, una pila di righe).
+       * Otto dalla 4.0 (erano sei): è il tetto del campo del materiale nuovo, e una barra che cambia contesto
+       * ne ha cinque o sei in transito. Il costo dello shader di gruppo resta `pezzi × pixel`, ma il ciclo esce
+       * sul numero di pezzi vivi: chi ne usa due paga due.
        */
-      const val MaxPieces: Int = 6
+      const val MaxPieces: Int = 8
     }
   }
 
@@ -186,8 +187,10 @@ sealed interface FluidForm {
           bottomRight = resolve(if (ltr) shape.bottomEnd else shape.bottomStart),
           bottomLeft = resolve(if (ltr) shape.bottomStart else shape.bottomEnd),
         ),
-        smoothing = (shape as? ContinuousCornerShape)?.let { ContinuousCornerShape.IosSmoothing }
-          ?: 0f,
+        // Il raccordo della forma, non uno supposto: una forma continua con un altro `smoothing` a riposo
+        // deve avere la sua curva (F1A.1 lo aveva segnato; l'engine usa solo quello di iOS, quindi oggi non
+        // cambia niente).
+        smoothing = (shape as? ContinuousCornerShape)?.smoothing ?: 0f,
       )
     }
   }

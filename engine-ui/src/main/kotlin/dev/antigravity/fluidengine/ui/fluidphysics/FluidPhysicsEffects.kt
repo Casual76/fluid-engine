@@ -1,13 +1,45 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
+import dev.antigravity.fluidengine.ui.fluid.FluidPressState
+import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
+import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
+import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassNestingScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.runtimeShaderEffect
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.field.GlassBodyChain
+import dev.antigravity.fluidengine.ui.glass.field.GlassBodyKernel
+import dev.antigravity.fluidengine.ui.glass.field.GlassDrawInputs
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldMaxPieces
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldPlan
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldRingVertices
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidDispersion
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassRecipe
+import dev.antigravity.fluidengine.ui.glass.field.GlassRingField
+import dev.antigravity.fluidengine.ui.glass.field.glassBody
+import dev.antigravity.fluidengine.ui.glass.field.glassNodeClipCorner
+import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
+import dev.antigravity.fluidengine.ui.glass.field.glassTravelPaddingDp
+import dev.antigravity.fluidengine.ui.glass.field.glassTravelRecipe
+import dev.antigravity.fluidengine.ui.glass.field.lerpGlassRecipe
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Gli array di lavoro per gli uniform, uno per superficie: il piano è in pixel di layout e lo
@@ -318,4 +350,382 @@ internal fun BackdropEffectScope.polyMorphLens(
   polyMorphLens(
     plan, scopeFactor, scratch, refractionHeightPx, refractionAmountPx, depthEffect.asDepthWeight(), tintInShader,
   )
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Il materiale nuovo (4.0, F1B.1): Fluid-physics disegnato dal campo di `glass/field`
+// ----------------------------------------------------------------------------------------------------------
+//
+// A `Full`, dove il materiale nuovo può esistere (`resolvePhysicsGlass`), le due lenti qui sopra non si
+// chiamano: la sagoma la disegna lo stesso corpo di `glassSurface` (`GlassBody8`, `GlassBodyRing`), con la
+// stessa ricetta. Qui c'è la traduzione, tutta pura: dal piano del motore ai pezzi del campo, dal materiale del
+// viaggio alla ricetta, e i due insieme negli ingressi del disegno. Le scene e le tracce del banco le scrivono
+// queste stesse funzioni (`test/.../trace/`), quindi ciò che si guarda sul PC è ciò che l'engine imposta.
+
+/** Su quale distanza la normale di un anello si media fra i lati vicini: vedi [PolyNormalSmooth]. */
+internal const val PhysicsRingNormalSmoothDp: Float = 4f
+
+/**
+ * Il lato corto su cui una superficie fisica chiede la ricetta, in pixel di layout.
+ *
+ * La ricetta di `glassSurface` dipende dalla taglia solo attraverso il lato corto (banda della lente, cupola,
+ * crescita dei grandi, velo scuro dei grandi), e un campo ha **una** ricetta per tutti i suoi pezzi: qui è quella
+ * del pezzo col lato corto più grande. Per i tasti di una barra, che sono alti uguali, è la ricetta di ognuno; per
+ * una lastra sola è la sua. Per la goccia è la sagoma a riposo che insegue, non il contorno che oscilla: la
+ * ricetta non trema con la gelatina, e all'arrivo è quella della lastra ferma.
+ */
+internal fun physicsRecipeShortPx(plan: PhysicsRenderPlan): Float {
+  plan.dropRest?.let { return it.frame.minDimension }
+  if (plan.mode == PlanModePoly) return plan.bounds.minDimension
+  var widest = 0f
+  for (i in 0 until plan.pieceCount.coerceIn(0, PhysicsMaxPieces)) {
+    widest = max(widest, 2f * min(plan.pieceRects[i * 4 + 2], plan.pieceRects[i * 4 + 3]))
+  }
+  return widest
+}
+
+/**
+ * I pezzi del piano di Fluid-physics come li riceve il campo ([GlassFieldPlan]), nello spazio di chi disegna.
+ *
+ * Tre cose separano i due piani, e sono il motivo per cui questa funzione esiste:
+ *  - i **raggi** e il **raccordo** sono quelli che il campo vede ([PhysicsRenderPlan.fieldRadii],
+ *    [PhysicsRenderPlan.fieldSmooth]), cioè la regola forma → piano di `glassSurface`: a riposo una lastra fisica
+ *    ha la sagoma della lastra ferma, pixel per pixel;
+ *  - il **raggio di fusione** è quello del gruppo per quanto il collo è vivo ([PhysicsRenderPlan.fusion]): zero
+ *    a riposo, dove due pezzi distinti sono separati del tutto;
+ *  - le lunghezze passano per [scale] (pixel di chi disegna per pixel di layout: la frazione di risoluzione della
+ *    cattura).
+ */
+internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassFieldPlan): GlassFieldPlan {
+  out.clear()
+  val count = plan.pieceCount.coerceIn(0, min(PhysicsMaxPieces, out.pieces))
+  val fusion = plan.fusion.coerceIn(0f, 1f)
+  for (i in 0 until count) {
+    val at = i * 4
+    out.add(
+      centerX = plan.pieceRects[at] * scale,
+      centerY = plan.pieceRects[at + 1] * scale,
+      halfWidth = plan.pieceRects[at + 2] * scale,
+      halfHeight = plan.pieceRects[at + 3] * scale,
+      topLeft = plan.fieldRadii[at] * scale,
+      topRight = plan.fieldRadii[at + 1] * scale,
+      bottomRight = plan.fieldRadii[at + 2] * scale,
+      bottomLeft = plan.fieldRadii[at + 3] * scale,
+      blend = if (i == 0) 0f else plan.pieceBlend[i] * fusion * scale,
+      smoothing = plan.fieldSmooth[i],
+    )
+  }
+  return out
+}
+
+/**
+ * L'anello del piano di Fluid-physics come lo riceve il nucleo ad anello, nello spazio della cattura.
+ *
+ * @param scale pixel della cattura per pixel di layout.
+ * @param density pixel della cattura per dp.
+ * @param bandOuter fin dove la distanza deve essere vera fuori dalla sagoma, in pixel della cattura.
+ * @param bandInner lo stesso dentro: almeno quanto il corpo legge accanto al contorno.
+ */
+internal fun physicsRingField(
+  plan: PhysicsRenderPlan,
+  scale: Float,
+  density: Float,
+  bandOuter: Float,
+  bandInner: Float,
+  out: GlassRingField,
+): GlassRingField {
+  val count = plan.vertCount.coerceIn(0, GlassFieldRingVertices)
+  out.count = count
+  for (i in 0 until count * 2) out.verts[i] = plan.verts[i] * scale
+  // Le caselle oltre il conteggio non si leggono, ma lo uniform va mandato per intero: niente residui.
+  for (i in count * 2 until out.verts.size) out.verts[i] = 0f
+  val bounds = plan.bounds
+  val soften = plan.soften * scale
+  // L'erosione del campo allarga la sagoma di `soften`: il riquadro la deve contenere.
+  val margin = soften + bandOuter
+  out.bbox[0] = bounds.left * scale - margin
+  out.bbox[1] = bounds.top * scale - margin
+  out.bbox[2] = bounds.right * scale + margin
+  out.bbox[3] = bounds.bottom * scale + margin
+  val smoothPx = PhysicsRingNormalSmoothDp * density
+  out.normalSmooth = smoothPx * smoothPx
+  out.soften = soften
+  out.centerX = bounds.center.x * scale
+  out.centerY = bounds.center.y * scale
+  out.bandOuter = bandOuter
+  out.bandInner = bandInner
+  val rest = plan.dropRest
+  if (rest == null) {
+    out.restCenterX = 0f
+    out.restCenterY = 0f
+    out.restHalfWidth = 0f
+    out.restHalfHeight = 0f
+    out.restRadii.fill(0f)
+    out.dropReach = -1f
+  } else {
+    val f = rest.frame
+    val half = f.minDimension / 2f
+    out.restCenterX = f.center.x * scale
+    out.restCenterY = f.center.y * scale
+    out.restHalfWidth = f.width / 2f * scale
+    out.restHalfHeight = f.height / 2f * scale
+    out.restRadii[0] = rest.cornerRadii.topLeft.coerceIn(0f, half) * scale
+    out.restRadii[1] = rest.cornerRadii.topRight.coerceIn(0f, half) * scale
+    out.restRadii[2] = rest.cornerRadii.bottomRight.coerceIn(0f, half) * scale
+    out.restRadii[3] = rest.cornerRadii.bottomLeft.coerceIn(0f, half) * scale
+    out.dropReach = (plan.dropReach + DropReachMarginPx) * scale
+  }
+  return out
+}
+
+/** Gli appoggi di [physicsLiquidRecipe]: la ricetta del capo d'arrivo (che è anche il risultato) e quella di partenza. */
+internal class PhysicsLiquidRecipes {
+  val to = GlassRecipe()
+  val from = GlassRecipe()
+}
+
+/**
+ * La ricetta del materiale nuovo per una superficie fisica in un fotogramma: **quella di `glassSurface`** per lo
+ * stesso ruolo, la stessa ottica, la stessa taglia e lo stesso lato, più ciò che è del viaggio.
+ *
+ *  - l'**ottica** è quella mescolata fra partenza e arrivo ([PhysicsMaterialSource], la stessa aritmetica
+ *    `a + (b − a) · f` di sempre): ai due capi è l'ottica del capo, alla lettera;
+ *  - la **tinta** di partenza e quella d'arrivo danno due ricette, mescolate campo per campo ([lerpGlassRecipe]):
+ *    una pellicola dipinta com'è (`Fixed`) prende il posto del velo, una tinta di Apple (`Colored`) gli sta
+ *    sopra, e fra le due il viaggio scivola senza un fotogramma in cui il velo scatta;
+ *  - la **frangia** è un peso ([PhysicsMaterial.dispersion]), non l'interruttore dell'ottica: un tasto con la
+ *    frangia che diventa un pannello senza la perde lungo il viaggio;
+ *  - il materiale **in viaggio** ([glassTravelRecipe]) al peso [motion]: a zero niente cambia.
+ *
+ * Con [motion] a zero, senza partenza, è `glassRecipe` e basta: lo prova `PhysicsLiquidRecipeTest`.
+ *
+ * @param shortDp il lato corto in dp ([physicsRecipeShortPx] per la densità dello schermo).
+ * @param motion quanto la sagoma si muove, 0..1 (`LiquidDrop.lens`: zero esatto a goccia posata).
+ */
+internal fun physicsLiquidRecipe(
+  role: GlassRole,
+  material: PhysicsMaterial,
+  shortDp: Float,
+  darkSide: Boolean,
+  amount: Float,
+  quality: Float,
+  press: Float,
+  tint: GlassTint,
+  tintFrom: GlassTint?,
+  tintBlend: Float,
+  nested: Boolean,
+  motion: Float,
+  profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  scratch: PhysicsLiquidRecipes = PhysicsLiquidRecipes(),
+): GlassRecipe {
+  fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
+    val mode = glassTintLiquidMode(of)
+    return glassRecipe(
+      role = role,
+      widthDp = shortDp,
+      heightDp = shortDp,
+      darkSide = darkSide,
+      optics = material.optics,
+      intensity = amount,
+      quality = quality,
+      pressed = press,
+      film = if (mode == GlassTintMode.Fixed) of.overlay else Color.Unspecified,
+      tint = if (mode == GlassTintMode.Colored) of.overlay else Color.Unspecified,
+      nested = nested,
+      profile = profile,
+      out = out,
+    )
+  }
+  val recipe = fill(tint, scratch.to)
+  val blend = clampGlassUnit(tintBlend)
+  if (tintFrom != null && blend < 1f) {
+    fill(tintFrom, scratch.from)
+    lerpGlassRecipe(scratch.from, recipe, blend, recipe)
+  }
+  recipe.dispersion = if (quality > 0.75f) GlassLiquidDispersion * clampGlassUnit(material.dispersion) else 0f
+  return glassTravelRecipe(recipe, profile.travel, motion, quality)
+}
+
+/**
+ * Gli ingressi del disegno di una superficie fisica col materiale nuovo: il piano del motore e la ricetta,
+ * insieme, **nelle unità di chi li riceve** ([GlassDrawInputs]).
+ *
+ * La luce sta **sempre nel corpo** (`lightInBody`), ferma o in viaggio, lastra o anello: il corpo compone filo,
+ * riflesso e bagliore sulla sagoma di quel fotogramma, ponti compresi. Una superficie fisica ferma è così lo
+ * stesso programma con gli stessi uniform del primo fotogramma del suo viaggio: fra le due non c'è niente che
+ * possa scattare. (La prima stesura teneva la luce sul nodo da ferma, come `glassSurface`: sul banco quei due
+ * disegni, che il palco non ritaglia sulla sagoma, lasciavano sul contorno un anello di un pixel diverso dal
+ * viaggio.) Contro una `glassSurface` la differenza è dentro due livelli su 255, e sul pixel di contorno la
+ * chiude il **ritaglio emulato** ([GlassDrawInputs.nodeClip]).
+ *
+ * @param scale pixel della cattura per pixel di layout.
+ * @param screenDensity pixel dello schermo per dp.
+ * @param paddingPx il margine della cattura, in pixel suoi, già intero: quello fisso del viaggio.
+ * @param touchX con [touchY], il dito in pixel di layout (non finito = il centro della sagoma).
+ */
+internal fun physicsLiquidInputs(
+  plan: PhysicsRenderPlan,
+  recipe: GlassRecipe,
+  scale: Float,
+  screenDensity: Float,
+  paddingPx: Float,
+  glowAmount: Float = 0f,
+  touchX: Float = Float.NaN,
+  touchY: Float = Float.NaN,
+  out: GlassDrawInputs = GlassDrawInputs(GlassFieldMaxPieces),
+): GlassDrawInputs {
+  val captureDensity = screenDensity * scale
+  out.setBodyMaterial(recipe, captureDensity, paddingPx)
+  val bounds = plan.bounds
+  val finger = touchX.isFinite() && touchY.isFinite()
+  out.setLightMaterial(
+    recipe = recipe,
+    density = screenDensity,
+    glowAmount = glowAmount,
+    glowCenterX = if (finger) touchX.coerceIn(bounds.left, max(bounds.left, bounds.right)) else bounds.center.x,
+    glowCenterY = if (finger) touchY.coerceIn(bounds.top, max(bounds.top, bounds.bottom)) else bounds.center.y,
+    glowRadius = bounds.maxDimension,
+  )
+  out.setBodyLight(recipe, captureDensity, scale)
+  if (plan.mode == PlanModePoly) {
+    out.kernel = GlassBodyKernel.Ring
+    out.lightInBody = true
+    // Dentro, la distanza deve essere vera fin dove il corpo la legge: la banda della lente, l'ombreggiatura, e
+    // la luce (filo, riga chiara, rientro del riflesso: `GlassLightBlock` esce oltre questa profondità).
+    val light = out.bodyRimWidth * 4f + out.bodyReflexDepth + 2f
+    val inner = max(max(out.thickness, out.bodyShadeDepth), light) + out.aa + 1f
+    physicsRingField(plan, scale, captureDensity, bandOuter = out.aa + 1f, bandInner = inner, out = out.ring)
+    out.body.clear()
+    out.nodeClipCorner = 0f
+  } else {
+    out.kernel = GlassBodyKernel.Eight
+    out.lightInBody = true
+    physicsFieldPlan(plan, scale, out.body)
+    // Il margine d'angolo del ritaglio emulato: quello del pezzo che ne chiede di più.
+    var corner = 0f
+    for (i in 0 until min(plan.pieceCount, GlassFieldMaxPieces)) {
+      val at = i * 4
+      val widest =
+        max(max(plan.fieldRadii[at], plan.fieldRadii[at + 1]), max(plan.fieldRadii[at + 2], plan.fieldRadii[at + 3]))
+      corner = max(corner, glassNodeClipCorner(widest * scale, plan.fieldSmooth[i]))
+    }
+    out.nodeClipCorner = corner
+  }
+  out.light.clear()
+  // Il ritaglio hardware di una superficie fisica è il rettangolo del nodo: la sagoma la ritaglia il corpo, che
+  // emula anche l'antialias del ritaglio che una lastra ha dal suo nodo.
+  out.clipScale = 1f
+  out.nodeClip = true
+  return out
+}
+
+/**
+ * Lo stato di una superficie fisica disegnata dal materiale nuovo: ciò che `fluidPhysicsSurface` ricorda fra
+ * una composizione e l'altra, e le due lambda che dà al nodo. È il gemello di `GlassLiquidSurface` per una
+ * sagoma che può viaggiare.
+ *
+ * Tutto ciò che cambia per fotogramma (intensità, miscele, qualità, pressione, e la sagoma, che sta nello stato)
+ * si legge **in disegno**: uno stato letto negli effetti rifà la sola catena, senza ricomporre.
+ *
+ * Il **margine della cattura** si decide qui, una volta ([paddingDp]): non dipende dalla taglia della sagoma,
+ * quindi un viaggio non rifà la cattura a ogni fotogramma.
+ */
+@Stable
+internal class PhysicsLiquidSurface(
+  private val state: FluidPhysicsState,
+  private val role: GlassRole,
+  private val material: PhysicsMaterialSource,
+  private val darkSide: Boolean,
+  private val screenDensity: Float,
+  private val tint: GlassTint,
+  private val tintFrom: GlassTint?,
+  private val pressState: FluidPressState?,
+  private val glowWeight: Float,
+  private val profile: GlassLiquidProfile,
+  private val intensity: () -> Float,
+  private val tintBlend: () -> Float,
+  private val opticsBlend: () -> Float,
+  private val quality: () -> Float,
+  private val layoutWidth: () -> Float,
+  private val onPanel: () -> Boolean,
+) {
+
+  /** Il margine della cattura per tutta la vita della superficie: vedi [glassTravelPaddingDp]. */
+  val paddingDp: Float = glassTravelPaddingDp(role, material.target, material.origin, profile)
+
+  private val inputs = GlassDrawInputs(GlassFieldMaxPieces)
+  private val recipes = PhysicsLiquidRecipes()
+  private val chain = GlassBodyChain()
+
+  // Il vetro annidato, come in `GlassLiquidSurface`: lo dice il nodo (o il fondo), al primo giro degli effetti.
+  private var nestedSeen = false
+  private var nestedState by mutableStateOf(false)
+
+  private fun noteNesting(scope: BackdropEffectScope) {
+    val panel = onPanel()
+    val onGlass = (scope as? GlassNestingScope)?.standsOnGlass == true || panel
+    if (onGlass != nestedSeen) {
+      nestedSeen = onGlass
+      nestedState = onGlass
+    }
+  }
+
+  /**
+   * Riempie [inputs] per il fotogramma di adesso. Falso se non c'è niente da disegnare.
+   *
+   * @param scale pixel della cattura per pixel di layout (uno per chi disegna sul nodo).
+   */
+  private fun fill(scale: Float, nested: Boolean): Boolean {
+    val amount = clampGlassUnit(intensity())
+    if (amount <= 0.001f || !(scale > 0f) || !(screenDensity > 0f)) return false
+    val plan = state.ensurePlan()
+    val q = quality()
+    val press = pressState?.progress ?: 0f
+    val recipe = physicsLiquidRecipe(
+      role = role,
+      material = material.at(opticsBlend()),
+      shortDp = physicsRecipeShortPx(plan) / screenDensity,
+      darkSide = darkSide,
+      amount = amount,
+      quality = q,
+      press = press,
+      tint = tint,
+      tintFrom = tintFrom,
+      tintBlend = tintBlend(),
+      nested = nested,
+      // La lente in moto: zero esatto a goccia posata, quindi a riposo la ricetta è quella della lastra.
+      motion = state.liquid.lens,
+      profile = profile,
+      scratch = recipes,
+    )
+    val finger = pressState?.glow
+    val bounds = plan.bounds
+    physicsLiquidInputs(
+      plan = plan,
+      recipe = recipe,
+      scale = scale,
+      screenDensity = screenDensity,
+      paddingPx = floor(max(paddingDp * screenDensity * scale, 0f)),
+      glowAmount = clampGlassUnit(press) * glowWeight,
+      touchX = if (finger != null) bounds.left + finger.x else Float.NaN,
+      touchY = if (finger != null) bounds.top + finger.y else Float.NaN,
+      out = inputs,
+    )
+    return true
+  }
+
+  /** `effects` di `drawBackdrop`: la catena del corpo, sulla cattura. */
+  val effects: BackdropEffectScope.() -> Unit = {
+    noteNesting(this)
+    if (size.isSpecified && size.width > 0f && size.height > 0f) {
+      if (fill(scopeFactor(size.width, layoutWidth()), nestedSeen)) glassBody(inputs, chain)
+    }
+  }
+
+  /**
+   * `onDrawLight` di `drawBackdrop`: non disegna niente, perché la luce di una superficie fisica è nel corpo
+   * ([physicsLiquidInputs]). C'è perché è da lei che il nodo sa di portare il materiale nuovo (il censimento di
+   * `FluidGlassDiagnostics` e l'osservazione degli effetti in disegno).
+   */
+  val onDrawLight: DrawScope.() -> Unit = {}
 }

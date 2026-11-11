@@ -81,8 +81,15 @@ import kotlin.math.roundToInt
  * vuole confrontare.
  *
  * È un contenitore che la superficie riusa: le due metà ([setBody], [setLight]) si riscrivono per intero.
+ *
+ * Da F1B.1 lo riempie anche Fluid-physics, per le sagome che viaggiano: allora i pezzi sono fino a otto
+ * ([pieces]) o un anello ([ring]), la luce può stare **dentro il corpo** ([lightInBody], coi suoi numeri nello
+ * spazio della cattura: [setBodyLight]) e il margine della cattura è quello fisso del viaggio.
+ *
+ * @param pieces quante caselle hanno i pezzi: 1 per una lastra ferma di `glassSurface` (i programmi a un
+ *   pezzo), [GlassFieldMaxPieces] per una superficie di Fluid-physics.
  */
-internal class GlassDrawInputs {
+internal class GlassDrawInputs(pieces: Int = 1) {
 
   // ---- La catena a monte (spazio della cattura) ------------------------------------------------------------
 
@@ -104,13 +111,22 @@ internal class GlassDrawInputs {
   // ---- Il corpo (spazio della cattura) ---------------------------------------------------------------------
 
   /** I pezzi come li riceve il corpo. */
-  val body: GlassFieldPlan = GlassFieldPlan(pieces = 1)
+  val body: GlassFieldPlan = GlassFieldPlan(pieces = pieces)
+
+  /** Quale nucleo disegna il corpo: decide il programma, e quali uniform della geometria si impostano. */
+  var kernel: GlassBodyKernel = if (pieces == 1) GlassBodyKernel.One else GlassBodyKernel.Eight
+
+  /** L'anello, per [GlassBodyKernel.Ring]. Nasce alla prima richiesta: una lastra ferma non ne ha bisogno. */
+  val ring: GlassRingField by lazy(LazyThreadSafetyMode.NONE) { GlassRingField() }
   var bodyOffsetX: Float = 0f
   var bodyOffsetY: Float = 0f
   var thickness: Float = 0f
   var refraction: Float = 0f
   var dome: Float = 0f
   var dispersion: Float = 0f
+
+  /** L'ingrandimento della sagoma in moto: zero a riposo. */
+  var magnify: Float = 0f
   var materialize: Float = 0f
   var veilColor: Color = Color.Transparent
   var veilAdapt: Float = 0f
@@ -125,10 +141,38 @@ internal class GlassDrawInputs {
   var grain: Float = 0f
   var aa: Float = GlassLiquidAa
 
+  // ---- La luce in corpo (spazio della cattura), in viaggio -------------------------------------------------
+
+  /**
+   * Vero per una superficie di Fluid-physics, ferma o in viaggio: filo, riflesso e bagliore li compone il corpo
+   * (`lightInBody` a 1) e i due disegni della luce sul nodo non si fanno. I numeri della luce che sono lunghezze o punti arrivano allora nello spazio
+   * della cattura ([setBodyLight]); gli altri (colori, forze, angoli) sono quelli di [setLight].
+   */
+  var lightInBody: Boolean = false
+
+  /**
+   * Vero per chi disegna su un palco rettangolare e non ha il ritaglio del nodo sulla sagoma (Fluid-physics):
+   * il corpo lo emula (`nodeClip` di `GlassBodyUniformsBlock`), così il pixel di contorno è quello di una
+   * `glassSurface`. Falso per una lastra, che il ritaglio vero ce l'ha.
+   */
+  var nodeClip: Boolean = false
+
+  /**
+   * Con [nodeClip], il margine d'angolo del ritaglio emulato in pixel della cattura: quanto il ritaglio di una
+   * lastra raccordata (al 98% del raggio) passa più largo della sagoma in diagonale. Zero per gli angoli
+   * circolari. Vedi [glassNodeClipCorner].
+   */
+  var nodeClipCorner: Float = 0f
+  var bodyRimWidth: Float = 0f
+  var bodyReflexDepth: Float = 0f
+  var bodyGlowCenterX: Float = 0f
+  var bodyGlowCenterY: Float = 0f
+  var bodyGlowRadius: Float = 0f
+
   // ---- La luce (pixel del nodo) ----------------------------------------------------------------------------
 
   /** I pezzi come li riceve la luce: gli stessi del corpo, a risoluzione piena. */
-  val light: GlassFieldPlan = GlassFieldPlan(pieces = 1)
+  val light: GlassFieldPlan = GlassFieldPlan(pieces = pieces)
   var rimWidth: Float = 0f
   var rimDark: Color = Color.Transparent
   var rimFeather: Float = 0f
@@ -183,11 +227,23 @@ internal class GlassDrawInputs {
     glassSlabGeometry(shape, size, density, layoutDirection, maxSidePx, geometry)
     body.setSlab(size.width, size.height, geometry)
     clipScale = geometry.clipScale
+    setBodyMaterial(recipe, d, floor(max(recipe.paddingDp * d, 0f)))
+  }
 
+  /**
+   * I numeri del corpo che **non** sono geometria: la catena a monte e gli uniform del materiale, nello spazio
+   * della cattura. Li usa [setBody] per la lastra ferma, e chi i pezzi li mette da sé (Fluid-physics, F1B.1).
+   *
+   * @param density pixel della cattura per dp.
+   * @param paddingPx il margine della cattura in pixel suoi, già intero: per una lastra ferma quello della
+   *   ricetta, per una superficie che viaggia quello fisso del viaggio ([glassTravelPaddingDp]).
+   */
+  fun setBodyMaterial(recipe: GlassRecipe, density: Float, paddingPx: Float) {
+    val d = density
     saturation = recipe.saturation
     blurPx = recipe.blurDp * d
     mix = recipe.mix
-    paddingPx = floor(max(recipe.paddingDp * d, 0f))
+    this.paddingPx = paddingPx
     // La cattura è più grande della lastra di un margine per lato: `offset` riporta la coordinata del layer
     // nel sistema dell'elemento, come nella lente di oggi.
     bodyOffsetX = -paddingPx
@@ -197,6 +253,7 @@ internal class GlassDrawInputs {
     refraction = recipe.refractionDp * d
     dome = recipe.dome
     dispersion = recipe.dispersion
+    magnify = recipe.magnify
     materialize = recipe.materialize
     veilColor = recipe.veilColor
     veilAdapt = recipe.veilAdapt
@@ -231,11 +288,36 @@ internal class GlassDrawInputs {
     glowAmount: Float = 0f,
     touch: Offset = Offset.Unspecified,
   ) {
-    val d = density.density
     glassSlabGeometry(shape, size, density, layoutDirection, size.maxDimension, geometry)
     light.setSlab(size.width, size.height, geometry)
     clipScale = geometry.clipScale
+    setLightMaterial(
+      recipe = recipe,
+      density = density.density,
+      glowAmount = glowAmount,
+      glowCenterX = if (touch.isSpecified && touch.x.isFinite() && touch.y.isFinite()) touch.x.coerceIn(0f, size.width) else size.width / 2f,
+      glowCenterY = if (touch.isSpecified && touch.x.isFinite() && touch.y.isFinite()) touch.y.coerceIn(0f, size.height) else size.height / 2f,
+      glowRadius = size.maxDimension,
+    )
+  }
 
+  /**
+   * I numeri della luce che **non** sono geometria, in pixel di chi la disegna sul nodo. Li usa [setLight] per la
+   * lastra ferma, e chi i pezzi li mette da sé (Fluid-physics, F1B.1).
+   *
+   * @param density pixel dello schermo per dp.
+   * @param glowCenterX con [glowCenterY], dove sta il dito, già tenuto dentro la sagoma; [glowRadius] il raggio
+   *   della campana (il lato lungo).
+   */
+  fun setLightMaterial(
+    recipe: GlassRecipe,
+    density: Float,
+    glowAmount: Float,
+    glowCenterX: Float,
+    glowCenterY: Float,
+    glowRadius: Float,
+  ) {
+    val d = density
     rimWidth = recipe.rimWidthDp * d
     rimDark = recipe.rimDark
     rimFeather = recipe.rimFeather
@@ -257,19 +339,91 @@ internal class GlassDrawInputs {
     val pressed = clampGlassUnit(glowAmount)
     glow = recipe.glowPeak * pressed
     glowFill = recipe.glowFill
-    glowRadius = size.maxDimension
-    if (touch.isSpecified && touch.x.isFinite() && touch.y.isFinite()) {
-      glowCenterX = touch.x.coerceIn(0f, size.width)
-      glowCenterY = touch.y.coerceIn(0f, size.height)
-    } else {
-      glowCenterX = size.width / 2f
-      glowCenterY = size.height / 2f
-    }
+    this.glowRadius = glowRadius
+    this.glowCenterX = glowCenterX
+    this.glowCenterY = glowCenterY
 
     val lit = recipe.materialize > 0f && recipe.lightColor.alpha > 0f
     drawsGlowing = lit && (recipe.reflexStrength > 0f || glow > 0f)
     drawsRim = recipe.drawsRim
   }
+
+  /**
+   * Le lunghezze e i punti della luce **nello spazio della cattura**, per la luce in corpo ([lightInBody]). Va
+   * chiamata dopo [setLightMaterial], che dà tutto il resto: una sagoma in viaggio ha lo stesso filo e lo stesso
+   * riflesso della lastra ferma, solo composti dal corpo.
+   *
+   * @param density pixel della cattura per dp.
+   * @param scale pixel della cattura per pixel del nodo: porta di là il dito e il raggio del bagliore.
+   */
+  fun setBodyLight(recipe: GlassRecipe, density: Float, scale: Float) {
+    bodyRimWidth = recipe.rimWidthDp * density
+    bodyReflexDepth = recipe.reflexDepthDp * density
+    bodyGlowCenterX = glowCenterX * scale
+    bodyGlowCenterY = glowCenterY * scale
+    bodyGlowRadius = glowRadius * scale
+  }
+}
+
+/**
+ * Il margine d'angolo del ritaglio emulato ([GlassDrawInputs.nodeClipCorner]) per un pezzo di raggio [radius]
+ * (pixel) e raccordo [smoothing]: il ritaglio hardware di una lastra raccordata sta a [GlassSmoothedClipScale]
+ * del raggio, quindi in diagonale passa più largo della sagoma, e lì non taglia. Pura.
+ *
+ * Il raccordo di un pezzo in viaggio sale da zero a quello della forma in modo continuo, e il margine con lui
+ * (pieno da [GlassNodeClipFullSmoothing] in su): niente scatto dove il ritaglio vero passerebbe da 1 a 0,98.
+ */
+internal fun glassNodeClipCorner(radius: Float, smoothing: Float): Float {
+  if (!(radius > 0f) || !(smoothing > 0f)) return 0f
+  val weight = if (smoothing >= GlassNodeClipFullSmoothing) 1f else smoothing / GlassNodeClipFullSmoothing
+  return (1f - GlassSmoothedClipScale) * radius * weight
+}
+
+/** Il raccordo da cui il margine di [glassNodeClipCorner] è pieno: una frazione piccola di quello di iOS (0,6). */
+internal const val GlassNodeClipFullSmoothing: Float = 0.1f
+
+/** Quale nucleo del campo disegna un corpo: vedi `GlassFieldKernel.kt`. */
+internal enum class GlassBodyKernel {
+  /** Una lastra ferma: `GlassBody1`, senza ciclo. */
+  One,
+
+  /** Fino a otto lastre fuse: `GlassBody8`. Gruppi, viaggi fra lastre, e ogni lastra di Fluid-physics. */
+  Eight,
+
+  /** Una sagoma ad anello: `GlassBodyRing`. La goccia in viaggio e le sagome libere. */
+  Ring,
+}
+
+/**
+ * L'anello come lo riceve il nucleo ad anello ([GlassFieldKernelRing]), nello spazio di chi disegna. Un
+ * contenitore riusato: nessuna allocazione per fotogramma.
+ */
+internal class GlassRingField {
+  var count: Int = 0
+
+  /** `verts`: x, y interlacciati; le caselle oltre [count] a zero. */
+  val verts: FloatArray = FloatArray(GlassFieldRingVertices * 2)
+
+  /** `bbox`: sinistra, alto, destra, basso, già allargato di [bandOuter]. */
+  val bbox: FloatArray = FloatArray(4)
+  var normalSmooth: Float = 0f
+  var soften: Float = 0f
+  var centerX: Float = 0f
+  var centerY: Float = 0f
+  var restCenterX: Float = 0f
+  var restCenterY: Float = 0f
+  var restHalfWidth: Float = 0f
+  var restHalfHeight: Float = 0f
+  val restRadii: FloatArray = FloatArray(4)
+
+  /** `dropReach`: negativo se non è una goccia. */
+  var dropReach: Float = -1f
+
+  /** `ringBand.x`: fin dove la distanza è vera fuori dalla sagoma. */
+  var bandOuter: Float = 0f
+
+  /** `ringBand.y`: fin dove è vera dentro. */
+  var bandInner: Float = 0f
 }
 
 /**
@@ -419,7 +573,28 @@ internal class GlassBodyChain {
   }
 }
 
-/** Gli uniform della geometria, uguali per corpo e luce (`GlassFieldKernel1`): un pezzo, flessione a riposo. */
+/** Gli uniform della geometria ad anello ([GlassFieldKernelRing]). */
+private fun RuntimeShader.setGlassRing(ring: GlassRingField, offsetX: Float, offsetY: Float) {
+  setFloatUniform("offset", offsetX, offsetY)
+  setFloatUniform("flex", 1f, 0f, 0f, 1f)
+  setFloatUniform("flexCenter", 0f, 0f)
+  setFloatUniform("vertCount", ring.count.toFloat())
+  setFloatUniform("verts", ring.verts)
+  setFloatUniform("bbox", ring.bbox)
+  setFloatUniform("normalSmooth", ring.normalSmooth)
+  setFloatUniform("soften", ring.soften)
+  setFloatUniform("fieldCenter", ring.centerX, ring.centerY)
+  setFloatUniform("restCenter", ring.restCenterX, ring.restCenterY)
+  setFloatUniform("restHalfSize", ring.restHalfWidth, ring.restHalfHeight)
+  setFloatUniform("restRadii", ring.restRadii)
+  setFloatUniform("dropReach", ring.dropReach)
+  setFloatUniform("ringBand", ring.bandOuter, ring.bandInner)
+}
+
+/**
+ * Gli uniform della geometria a lastre, uguali per corpo e luce (`GlassFieldKernel1`, `GlassFieldKernel8`): i
+ * pezzi del piano, flessione a riposo. Gli array hanno le caselle del programma a cui vanno: uno o otto.
+ */
 private fun RuntimeShader.setGlassField(plan: GlassFieldPlan, offsetX: Float, offsetY: Float) {
   setFloatUniform("offset", offsetX, offsetY)
   // La flessione è di F6.1; va impostata sempre, perché uno uniform non impostato vale zero e una matrice a
@@ -434,8 +609,10 @@ private fun RuntimeShader.setGlassField(plan: GlassFieldPlan, offsetX: Float, of
 }
 
 /**
- * La catena del corpo di una lastra ferma `Liquid`, al posto di `colorControls` + `blur` + `lens` di oggi:
- * saturazione, sfocatura, mescola a monte, e lo shader del corpo come ultimo anello. **Un layer solo.**
+ * La catena del corpo di una superficie `Liquid`, al posto di `colorControls` + `blur` + `lens` di oggi:
+ * saturazione, sfocatura, mescola a monte, e lo shader del corpo come ultimo anello. **Un layer solo.** Il
+ * programma lo sceglie [GlassDrawInputs.kernel]: una lastra ferma, fino a otto lastre fuse, un anello (F1B.1); e
+ * [GlassDrawInputs.lightInBody] gli fa comporre anche la luce, come deve una sagoma in viaggio.
  *
  * Imposta anche il margine della cattura, che viene dalla ricetta a sfocatura piena e non da ciò che la
  * catena ha in questo momento: resta fermo mentre intensità, qualità e pressione cambiano, e la cattura non
@@ -448,19 +625,27 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
   if (!isRuntimeShaderSupported()) return
   padding = inputs.paddingPx
   val upstream = chain.upstream(inputs.saturation, inputs.blurPx, inputs.mix)
-  val shader = obtainEngineShader("GlassBody1", GlassShaderSources.Body1)
+  val shader = when (inputs.kernel) {
+    GlassBodyKernel.One -> obtainEngineShader("GlassBody1", GlassShaderSources.Body1)
+    GlassBodyKernel.Eight -> obtainEngineShader("GlassBody8", GlassShaderSources.Body8)
+    GlassBodyKernel.Ring -> obtainEngineShader("GlassBodyRing", GlassShaderSources.BodyRing)
+  }
   if (shader == null) {
     renderEffect = upstream?.asComposeRenderEffect()
     return
   }
   shader.apply {
-    setGlassField(inputs.body, inputs.bodyOffsetX, inputs.bodyOffsetY)
+    if (inputs.kernel == GlassBodyKernel.Ring) {
+      setGlassRing(inputs.ring, inputs.bodyOffsetX, inputs.bodyOffsetY)
+    } else {
+      setGlassField(inputs.body, inputs.bodyOffsetX, inputs.bodyOffsetY)
+    }
     setFloatUniform("thickness", inputs.thickness)
     setFloatUniform("refraction", inputs.refraction)
     setFloatUniform("dome", inputs.dome)
     setFloatUniform("dispersion", inputs.dispersion)
-    // La goccia in moto: di una lastra ferma, zero.
-    setFloatUniform("magnify", 0f)
+    // La sagoma in moto: di una lastra ferma, zero.
+    setFloatUniform("magnify", inputs.magnify)
     setFloatUniform("materialize", inputs.materialize)
     setColorUniform("veilColor", inputs.veilColor)
     setFloatUniform("veilAdapt", inputs.veilAdapt)
@@ -473,9 +658,33 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
     setFloatUniform("dim", inputs.dim)
     setFloatUniform("grain", inputs.grain)
     setFloatUniform("aa", inputs.aa)
+    setFloatUniform("nodeClip", if (inputs.nodeClip) 1f else 0f, inputs.nodeClipCorner)
     // A riposo luce e ombra non stanno nel corpo: la luce è due disegni sopra, l'ombra due maschere sotto.
-    // L'istanza dello shader è una per processo: chi viaggia (F1B) lo riaccende per sé.
-    setFloatUniform("lightInBody", 0f)
+    // L'istanza dello shader è una per processo, e ogni superficie la riscrive per intero prima di fotografarla
+    // nel suo effetto: chi viaggia accende la luce in corpo per sé, chi è fermo la spegne.
+    if (inputs.lightInBody) {
+      setFloatUniform("lightInBody", 1f)
+      setFloatUniform("rimWidth", inputs.bodyRimWidth)
+      setColorUniform("rimDark", inputs.rimDark)
+      setFloatUniform("rimFeather", inputs.rimFeather)
+      setFloatUniform("rimLift", inputs.rimLift)
+      setFloatUniform("reflexDir", inputs.reflexDirX, inputs.reflexDirY)
+      setFloatUniform("reflexWidths", inputs.reflexHalfWidth, inputs.reflexOppositeHalfWidth)
+      setFloatUniform("reflexStrength", inputs.reflexStrength)
+      setFloatUniform("reflexDepth", inputs.bodyReflexDepth)
+      setFloatUniform("reflexFloor", inputs.reflexFloor)
+      setFloatUniform("reflexHalo", inputs.reflexHalo)
+      setFloatUniform("glowCenter", inputs.bodyGlowCenterX, inputs.bodyGlowCenterY)
+      setFloatUniform("glowRadius", inputs.bodyGlowRadius)
+      setFloatUniform("glow", inputs.glow)
+      setFloatUniform("glowFill", inputs.glowFill)
+      setColorUniform("lightColor", inputs.lightColor)
+      // L'ombra in viaggio è di F1B.2: finché non la accende, a zero in chiaro (uno uniform tiene il valore
+      // dell'ultimo che l'ha scritto, e l'istanza è condivisa).
+      setFloatUniform("shadowAlphas", 0f, 0f)
+    } else {
+      setFloatUniform("lightInBody", 0f)
+    }
   }
   val body = RuntimeShaderEffect(shader, "content")
   renderEffect = if (upstream == null) {
@@ -570,8 +779,17 @@ internal fun glassSamplesLiquidPanel(backdrop: Backdrop, isPanel: (Backdrop) -> 
  * momento in cui il pennello entra nella display list, quindi il primo disegno tiene il suo `lightPart`.
  *
  * @param brush un pennello che porta [shader], tenuto dalla superficie: non si alloca per fotogramma.
+ * @param topLeft con [area], il rettangolo su cui disegnare, di serie tutto il nodo. Una superficie il cui nodo è
+ *   più grande della sagoma (un palco di Fluid-physics) lo restringe al riquadro della sagoma: il programma
+ *   valuta il campo per ogni pixel che gli si dà. La coordinata dello shader resta quella del nodo.
  */
-internal fun DrawScope.drawGlassLight(inputs: GlassDrawInputs, shader: RuntimeShader, brush: Brush) {
+internal fun DrawScope.drawGlassLight(
+  inputs: GlassDrawInputs,
+  shader: RuntimeShader,
+  brush: Brush,
+  topLeft: Offset = Offset.Zero,
+  area: Size = size,
+) {
   if (!inputs.drawsGlowing && !inputs.drawsRim) return
   shader.apply {
     // Si disegna sul nodo, non su una cattura più grande: nessun margine da togliere.
@@ -596,11 +814,11 @@ internal fun DrawScope.drawGlassLight(inputs: GlassDrawInputs, shader: RuntimeSh
   }
   if (inputs.drawsGlowing) {
     shader.setFloatUniform("lightPart", 0f)
-    drawRect(brush = brush, blendMode = BlendMode.Plus)
+    drawRect(brush = brush, topLeft = topLeft, size = area, blendMode = BlendMode.Plus)
   }
   if (inputs.drawsRim) {
     shader.setFloatUniform("lightPart", 1f)
-    drawRect(brush = brush)
+    drawRect(brush = brush, topLeft = topLeft, size = area)
   }
 }
 

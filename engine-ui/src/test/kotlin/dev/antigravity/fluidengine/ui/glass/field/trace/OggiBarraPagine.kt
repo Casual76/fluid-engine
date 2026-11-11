@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidPressTransform
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
@@ -74,7 +75,17 @@ internal class BarBuilt(val trace: GlassTrace, val pairs: List<Pair<Rect, Rect>>
 private const val BarLensDp = 44f
 private const val BarBlendDp = 4f
 
-internal fun buildBarTrace(scene: BarScene): BarBuilt {
+/**
+ * @param dress chi veste la traccia: il vetro di oggi (F0.5, di serie) o il materiale nuovo (F1B.1). La corsa è
+ *   la stessa, riga per riga: cambia l'elemento scritto per i tasti fermi e per la superficie condivisa.
+ * @param name con [phase], come si chiama la traccia e dove va: di serie quelli di F0.
+ */
+internal fun buildBarTrace(
+  scene: BarScene,
+  dress: TraceDress = TraceDress.Today,
+  name: String = scene.name,
+  phase: String = "f0",
+): BarBuilt {
   val d = scene.density
   val fps = scene.fps
   val palette = TodayPalette()
@@ -108,8 +119,11 @@ internal fun buildBarTrace(scene: BarScene): BarBuilt {
   fun icon(b: BarButton, alpha: Float) =
     todayIconLayer(b.name, lens(b), b.icon, b.iconSizeDp, palette.primary, origin, d, alpha = alpha)
 
+  val liquid = LiquidPhysicsDress(GlassRole.Interactive, material, d)
   fun restButtons(buttons: List<BarButton>): List<Map<String, Any?>> = buttons.map { b ->
-    todayButtonElement(
+    if (dress == TraceDress.Liquid) {
+      liquidButtonElement(b.name, lens(b), FluidPressTransform.Identity, 0f, origin, d, listOf(icon(b, 1f)))
+    } else todayButtonElement(
       name = b.name,
       rest = lens(b),
       transform = FluidPressTransform.Identity,
@@ -145,7 +159,7 @@ internal fun buildBarTrace(scene: BarScene): BarBuilt {
     morphs += morph
     driver.frame(nanos)
     val plan = physics.ensurePlan()
-    val look = todayPhysicsLook(
+    val look = if (dress == TraceDress.Liquid) null else todayPhysicsLook(
       plan = plan,
       material = material,
       opticsBlend = 1f,
@@ -159,14 +173,20 @@ internal fun buildBarTrace(scene: BarScene): BarBuilt {
       (listOf(scene.upperBack) + scene.upperActions).map { icon(it, FluidPageMotion.barIconAlpha(morph, ofLower = false)) }
     frames += GlassTraceFrame(
       glassTraceTimeMs(k, fps),
-      listOf(todayPhysicsElement("barra", plan, look, origin, d, scene.widthDp, scene.canvasHeightDp, content)),
+      listOf(
+        if (look == null) {
+          liquid.element("barra", physics, plan, 1f, origin, scene.widthDp, scene.canvasHeightDp, content)
+        } else {
+          todayPhysicsElement("barra", plan, look, origin, d, scene.widthDp, scene.canvasHeightDp, content)
+        },
+      ),
     )
     k++
   }
 
   val trace = GlassTrace(
-    name = scene.name,
-    phase = "f0",
+    name = name,
+    phase = phase,
     density = d,
     theme = "light",
     widthDp = scene.widthDp,

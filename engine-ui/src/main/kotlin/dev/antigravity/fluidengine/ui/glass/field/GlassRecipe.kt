@@ -54,7 +54,7 @@ internal enum class GlassLiquidVariant {
  * quelli degli uniform dove ce n'è uno.
  *
  * Cosa **non** c'è, perché non è del materiale: la geometria (`offset`, `flex`, i pezzi: è il piano del
- * campo, `GlassFieldPlan`), `magnify` (la goccia in moto), `lightInBody` (lo decide il motore: 1 in viaggio),
+ * campo, `GlassFieldPlan`), `lightInBody` (lo decide il motore: 1 in viaggio),
  * `glowCenter`, `glowRadius` e il `glow` del momento (li dà il tocco; qui ci sono il massimo e il
  * riempimento), il filetto di `GlassEdge`.
  */
@@ -98,6 +98,9 @@ internal class GlassRecipe {
   var refractionDp: Float = 0f
   var dome: Float = 0f
   var dispersion: Float = 0f
+
+  /** L'ingrandimento attorno al centro del pezzo: zero a riposo, lo accende solo [glassTravelRecipe]. */
+  var magnify: Float = 0f
   var materialize: Float = 0f
   var veilColor: Color = Color.Transparent
   var veilAdapt: Float = 0f
@@ -283,6 +286,7 @@ internal fun glassRecipe(
   )
   // Tre campioni per pixel sono la prima cosa che se ne va: a pagina in movimento la frangia non si distingue.
   out.dispersion = if (optics.dispersion && q > 0.75f) GlassLiquidDispersion else 0f
+  out.magnify = 0f
   out.paddingDp = max(0f, fullBlur - band)
   out.captureScale = max(
     glassResolutionScale(roleBlur) * optics.backdropResolution,
@@ -465,3 +469,126 @@ private fun lerpSrgb(a: Color, b: Color, t: Float): Color = when {
 private fun mixFloat(a: Float, b: Float, t: Float): Float = a + (b - a) * t
 
 private fun finiteSide(value: Float): Float = if (value.isFinite()) max(value, 0f) else 0f
+
+// ------------------------------------------------------------------------------------------------------------
+// In viaggio (F1B.1)
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * Il margine della cattura di una superficie che **viaggia**, deciso una volta per tutta la sua vita.
+ *
+ * Quello di una lastra ferma è `max(0, sfocatura − spessore della lente)` ([GlassRecipe.paddingDp]), e lo
+ * spessore della lente è una frazione del lato corto: un tasto da 44 dp che diventa un pannello lo muoverebbe a
+ * ogni fotogramma, e un margine che cambia rifà la cattura (invariante 1, piano 3.7). Qui la lente non si sconta
+ * e la taglia non c'entra: è la sfocatura piena del ruolo alla crescita massima dei grandi. È un tetto, non una
+ * stima: una sagoma che tocca il bordo del proprio nodo ha sotto di sé pixel veri a qualunque taglia arrivi.
+ * Costa qualche pixel di cattura in più per lato (con la smerigliatura di serie 6,75 dp).
+ *
+ * Il **raggio** di sfocatura invece può cambiare lungo il viaggio, e cambia (cresce con la sagoma): un raggio
+ * nuovo è un effetto nuovo, non una cattura nuova.
+ *
+ * @param optics i capi del viaggio (l'ottica d'arrivo e, se c'è, quella di partenza): vale il più largo.
+ */
+internal fun glassTravelPaddingDp(
+  role: GlassRole,
+  optics: GlassOptics,
+  opticsFrom: GlassOptics? = null,
+  profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+): Float {
+  val roleScale = glassLiquidRoleBlurScale(role)
+  fun full(o: GlassOptics): Float =
+    profile.frost.blur.value * glassOpticsFrost(o.blurScale, roleScale) * (1f + max(profile.growth.frost, 0f))
+  val widest = max(full(optics), opticsFrom?.let(::full) ?: 0f)
+  return if (widest.isFinite()) max(widest, 0f) else 0f
+}
+
+/**
+ * La ricetta **in viaggio**: [recipe] (quella di riposo per la taglia di adesso) con il materiale di
+ * [GlassLiquidTravel] al peso [motion]. Riscrive [recipe] sul posto e la restituisce.
+ *
+ * Con [motion] a zero non tocca niente, nemmeno un bit: a viaggio fermo, alla partenza e all'arrivo il
+ * materiale è quello di riposo. Cambia la mescola `w` (verso il nitido), lo spostamento della lente, la cupola,
+ * l'ingrandimento e la frangia; **non** il raggio di sfocatura né la banda della lente (tengono il margine), né
+ * velo, tinta, bordo e ombra: una sagoma che viaggia resta dello stesso vetro, più limpido.
+ *
+ * @param motion quanto la sagoma si sta muovendo, 0..1 (`LiquidDrop.lens`).
+ * @param quality la qualità del vetro (`FluidGlassQuality`): sotto 0,75 la frangia non si accende, come a riposo.
+ */
+internal fun glassTravelRecipe(
+  recipe: GlassRecipe,
+  travel: GlassLiquidTravel,
+  motion: Float,
+  quality: Float = 1f,
+): GlassRecipe {
+  val w = clampGlassUnit(motion)
+  if (w <= 0f) return recipe
+  val amount = clampGlassUnit(recipe.materialize)
+  recipe.mix = recipe.mix + (1f - recipe.mix) * clampGlassUnit(travel.clarity) * w * amount
+  recipe.refractionDp = recipe.refractionDp * (1f + max(travel.bend, 0f) * w)
+  recipe.dome = recipe.dome + (1f - recipe.dome) * clampGlassUnit(travel.dome) * w
+  recipe.magnify = max(travel.magnify, 0f) * w
+  if (quality > 0.75f) recipe.dispersion = max(recipe.dispersion, clampGlassUnit(travel.dispersion) * w)
+  return recipe
+}
+
+/**
+ * Due ricette mescolate campo per campo: [a] a zero, [b] a uno, in mezzo `a + (b − a) · t`. Ai due capi
+ * restituisce i numeri del capo, al bit (non un'interpolazione che ci arriva vicino): è ciò che fa di un viaggio
+ * fra due materiali una cosa che parte dal primo e arriva al secondo senza uno scalino.
+ *
+ * La usa Fluid-physics per la tinta di partenza e d'arrivo (`tintFrom`, `tint`): le due ricette nascono dalla
+ * stessa ottica e dalla stessa taglia e differiscono solo in velo e tinta, quindi su tutti gli altri campi
+ * `a + (a − a) · t` restituisce `a`. I colori si mescolano in sRGB componente per componente, come il resto
+ * della ricetta. Scrive in [out], che può essere [a] o [b].
+ */
+internal fun lerpGlassRecipe(a: GlassRecipe, b: GlassRecipe, t: Float, out: GlassRecipe = GlassRecipe()): GlassRecipe {
+  val f = clampGlassUnit(t)
+  fun mix(x: Float, y: Float): Float = if (f <= 0f) x else if (f >= 1f) y else x + (y - x) * f
+  fun mix(x: Color, y: Color): Color = lerpSrgb(x, y, f)
+  out.saturation = mix(a.saturation, b.saturation)
+  out.blurDp = mix(a.blurDp, b.blurDp)
+  out.mix = mix(a.mix, b.mix)
+  out.paddingDp = mix(a.paddingDp, b.paddingDp)
+  out.captureScale = mix(a.captureScale, b.captureScale)
+  out.thicknessDp = mix(a.thicknessDp, b.thicknessDp)
+  out.refractionDp = mix(a.refractionDp, b.refractionDp)
+  out.dome = mix(a.dome, b.dome)
+  out.dispersion = mix(a.dispersion, b.dispersion)
+  out.magnify = mix(a.magnify, b.magnify)
+  out.materialize = mix(a.materialize, b.materialize)
+  out.veilColor = mix(a.veilColor, b.veilColor)
+  out.veilAdapt = mix(a.veilAdapt, b.veilAdapt)
+  out.tintColor = mix(a.tintColor, b.tintColor)
+  out.tintMode = mix(a.tintMode, b.tintMode)
+  out.tintFollow = mix(a.tintFollow, b.tintFollow)
+  out.bodyShade = mix(a.bodyShade, b.bodyShade)
+  out.bodyShadeDepthDp = mix(a.bodyShadeDepthDp, b.bodyShadeDepthDp)
+  out.bodyShadeLeanX = mix(a.bodyShadeLeanX, b.bodyShadeLeanX)
+  out.bodyShadeLeanY = mix(a.bodyShadeLeanY, b.bodyShadeLeanY)
+  out.dim = mix(a.dim, b.dim)
+  out.grain = mix(a.grain, b.grain)
+  out.aa = mix(a.aa, b.aa)
+  out.rimWidthDp = mix(a.rimWidthDp, b.rimWidthDp)
+  out.rimDark = mix(a.rimDark, b.rimDark)
+  out.rimFeather = mix(a.rimFeather, b.rimFeather)
+  out.rimLift = mix(a.rimLift, b.rimLift)
+  out.reflexDirX = mix(a.reflexDirX, b.reflexDirX)
+  out.reflexDirY = mix(a.reflexDirY, b.reflexDirY)
+  out.reflexHalfWidth = mix(a.reflexHalfWidth, b.reflexHalfWidth)
+  out.reflexOppositeHalfWidth = mix(a.reflexOppositeHalfWidth, b.reflexOppositeHalfWidth)
+  out.reflexStrength = mix(a.reflexStrength, b.reflexStrength)
+  out.reflexDepthDp = mix(a.reflexDepthDp, b.reflexDepthDp)
+  out.reflexFloor = mix(a.reflexFloor, b.reflexFloor)
+  out.reflexHalo = mix(a.reflexHalo, b.reflexHalo)
+  out.lightColor = mix(a.lightColor, b.lightColor)
+  out.glowPeak = mix(a.glowPeak, b.glowPeak)
+  out.glowFill = mix(a.glowFill, b.glowFill)
+  out.shadowContactRadiusDp = mix(a.shadowContactRadiusDp, b.shadowContactRadiusDp)
+  out.shadowAmbientRadiusDp = mix(a.shadowAmbientRadiusDp, b.shadowAmbientRadiusDp)
+  out.shadowOffsetXDp = mix(a.shadowOffsetXDp, b.shadowOffsetXDp)
+  out.shadowOffsetYDp = mix(a.shadowOffsetYDp, b.shadowOffsetYDp)
+  out.shadowContactAlpha = mix(a.shadowContactAlpha, b.shadowContactAlpha)
+  out.shadowAmbientAlpha = mix(a.shadowAmbientAlpha, b.shadowAmbientAlpha)
+  out.shadowColor = mix(a.shadowColor, b.shadowColor)
+  return out
+}

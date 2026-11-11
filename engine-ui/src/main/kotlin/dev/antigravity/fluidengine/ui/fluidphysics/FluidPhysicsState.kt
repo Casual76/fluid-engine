@@ -27,6 +27,10 @@ import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.addContinuousRoundRect
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabIsSmall
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -278,6 +282,13 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   /** La versione del corpo elastico con cui e' stato costruito il piano in viaggio. */
   private var transitPlanLiquid = -1
 
+  /**
+   * Il collo di una forma **fermata a metà viaggio** (4.0): se un viaggio fra gruppi viene cancellato mentre i
+   * pezzi sono uniti da un ponte, la forma resta dov'è con il ponte com'era, e il viaggio successivo lo eredita
+   * ([travelFusion]). Zero per ogni forma arrivata o posata con [snapTo]: a riposo i pezzi sono separati.
+   */
+  private var heldFusion = 0f
+
   /** Il piano della forma ferma che ancora oscilla (il corpo che si posa dopo l'arrivo). */
   private val settlePlan = PhysicsRenderPlan()
   private var settlePlanForm: FluidForm? = null
@@ -331,6 +342,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>?, initialVelocity: Float?) {
     val origin = currentForm()
     val transit = buildTransit(origin, target)
+    // Il collo fra i pezzi non riparte da zero se questo viaggio ne interrompe un altro (4.0).
+    transit.fusionStart = activeTransit?.let { it.fusionAt(it.progress.value) } ?: heldFusion
     // L'installazione e il progresso zero DEVONO atterrare nello stesso snapshot, ed è per questo
     // che ogni transito possiede il proprio Animatable, nato a zero: con un progresso condiviso
     // il transito nuovo si mostrava per un fotogramma col valore vecchio (1), cioè con la sagoma
@@ -351,6 +364,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       ?: 0f
     formState = target
     activeTransit = transit
+    heldFusion = 0f
     transitPlanStamp = Float.NaN
     try {
       // Il viaggio sostituito è orfano: fermarlo libera la coroutine che lo stava animando, senza
@@ -369,7 +383,10 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         // `formState`, e togliere il transito faceva scattare la sagoma a fine corsa per un
         // fotogramma — il menu chiuso mentre si apriva saltava al pannello pieno e da lì tornava
         // indietro. Il morphTo successivo parte da questa forma, come un ritargeting vero.
-        if (transit.progress.value != 1f) formState = currentForm()
+        if (transit.progress.value != 1f) {
+          formState = currentForm()
+          heldFusion = transit.fusionAt(transit.progress.value)
+        }
         activeTransit = null
         restPlanForm = null
       }
@@ -380,6 +397,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   fun snapTo(target: FluidForm) {
     activeTransit = null
     formState = target
+    heldFusion = 0f
     restPlanForm = null
   }
 
@@ -521,7 +539,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       }
       if (restPlanForm != form) {
         restPlan.clipToBounds = maskInShader
-        buildRestPlan(restPlan, form)
+        buildRestPlan(restPlan, form, heldFusion)
         restPlanForm = form
       }
       return restPlan
@@ -756,6 +774,15 @@ internal sealed class Transit(
   /** La forma da cui il viaggio e' partito; null per un transito costruito a mano. */
   var origin: FluidForm? = null
 
+  /** Il collo ereditato dal viaggio che questo interrompe (4.0): vedi [travelFusion]. Zero da fermi. */
+  var fusionStart: Float = 0f
+
+  /** Per quanta parte del viaggio il collo nasce e muore: il profilo del materiale, letto alla nascita. */
+  val fusionFade: Float = GlassLiquidProfile.Default.travel.neck
+
+  /** Quanto e' vivo il collo fra i pezzi a progresso [t]: vedi [travelFusion]. */
+  fun fusionAt(t: Float): Float = travelFusion(t, fusionFade, fusionStart)
+
   /** Il riquadro della partenza e quello dell'arrivo: la direzione del viaggio, per l'eredita'. */
   abstract val startFrame: Rect
   abstract val endFrame: Rect
@@ -931,6 +958,29 @@ internal class PhysicsRenderPlan {
   /** La sagoma a riposo che la goccia insegue, se il piano e' una goccia: il bordo ne prende la luce. */
   var dropRest: FluidForm.Slab? = null
 
+  // --- Cio' che legge solo il materiale nuovo (4.0, F1B.1): il vetro di prima non li guarda -----------------
+
+  /**
+   * Quanto e' vivo il collo fra i pezzi, 0..1 ([travelFusion]): zero a riposo, dove i pezzi sono separati del
+   * tutto; in viaggio la campana del progresso. Il raggio di fusione del campo e' [pieceBlend] per questo.
+   */
+  var fusion: Float = 0f
+
+  /**
+   * I raggi di ogni pezzo **come li vede il campo** (`glassSlabGeometry`, la regola forma -> piano di
+   * `glassSurface`): a riposo quelli della lastra ferma (una capsula a mezzo lato, un piccolo al raggio
+   * equivalente, un grande ai nominali); in viaggio il lerp fra quelli dei due capi, cosi' alla partenza e
+   * all'arrivo la sagoma e' quella della lastra ferma e in mezzo non c'e' un fotogramma in cui scatta.
+   */
+  val fieldRadii = FloatArray(PhysicsMaxPieces * 4)
+
+  /** Lo `smoothing` dell'angolo di ogni pezzo come lo vede il campo: vedi [fieldRadii]. */
+  val fieldSmooth = FloatArray(PhysicsMaxPieces)
+
+  /** Gli appoggi della regola forma -> piano: riusati, il piano non alloca per fotogramma. */
+  val fieldFrom = GlassSlabGeometry()
+  val fieldTo = GlassSlabGeometry()
+
   /**
    * Quanto l'anello della goccia si allontana al piu' da [dropRest], in pixel: fuori da questa fascia
    * attorno alla sagoma a riposo lo shader non ha lati da cercare. Senza goccia non conta.
@@ -972,6 +1022,45 @@ private fun PhysicsRenderPlan.writeSlabPiece(index: Int, values: FloatArray) {
   pieceRadii[base + 1] = values[5]
   pieceRadii[base + 2] = values[6]
   pieceRadii[base + 3] = values[7]
+}
+
+/** La regola forma -> piano di una lastra ferma ([glassSlabGeometry]) per [slab], scritta in [out]. */
+private fun fieldGeometryOf(slab: FluidForm.Slab, out: GlassSlabGeometry): GlassSlabGeometry {
+  val f = slab.frame
+  val r = slab.cornerRadii
+  val s = if (slab.smoothing.isFinite()) slab.smoothing else 0f
+  return glassSlabGeometry(
+    width = f.width,
+    height = f.height,
+    topLeft = r.topLeft,
+    topRight = r.topRight,
+    bottomRight = r.bottomRight,
+    bottomLeft = r.bottomLeft,
+    smoothing = s,
+    continuous = s > 0f,
+    // Le forme stanno in pixel dello spazio della superficie, cioe' dello schermo.
+    small = glassSlabIsSmall(f.maxDimension),
+    out = out,
+  )
+}
+
+/**
+ * Scrive in [PhysicsRenderPlan.fieldRadii] e [PhysicsRenderPlan.fieldSmooth] il pezzo [index] come lo vede il
+ * campo: il lerp a [t] fra la regola forma -> piano dei due capi, coi raggi tenuti dentro mezzo lato corto della
+ * taglia di adesso ([values], gli otto numeri di [lerpSlab]).
+ */
+private fun PhysicsRenderPlan.writeFieldPiece(index: Int, from: FluidForm.Slab, to: FluidForm.Slab, t: Float, values: FloatArray) {
+  val a = fieldGeometryOf(from, fieldFrom)
+  val b = if (to === from) a else fieldGeometryOf(to, fieldTo)
+  val half = minOf(values[2], values[3]) / 2f
+  val f = t.coerceIn(0f, 1f)
+  fun mix(x: Float, y: Float): Float = if (f <= 0f) x else if (f >= 1f) y else x + (y - x) * f
+  val base = index * 4
+  fieldRadii[base] = mix(a.topLeft, b.topLeft).coerceIn(0f, half)
+  fieldRadii[base + 1] = mix(a.topRight, b.topRight).coerceIn(0f, half)
+  fieldRadii[base + 2] = mix(a.bottomRight, b.bottomRight).coerceIn(0f, half)
+  fieldRadii[base + 3] = mix(a.bottomLeft, b.bottomLeft).coerceIn(0f, half)
+  fieldSmooth[index] = mix(a.smoothing, b.smoothing)
 }
 
 private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
@@ -1114,12 +1203,15 @@ internal fun Transit.formAt(t: Float): FluidForm = when (this) {
 internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Float) {
   when (transit) {
     is SlabTransit -> if (t > 1f) {
-      buildSlabPlan(plan, transit.overshootPairs(t), transit.blendRadius, 1f)
+      buildSlabPlan(plan, transit.overshootPairs(t), transit.blendRadius, 1f, fusion = 0f)
     } else {
-      buildSlabPlan(plan, transit.pairs, transit.blendRadius, t)
+      buildSlabPlan(plan, transit.pairs, transit.blendRadius, t, fusion = transit.fusionAt(t))
     }
 
-    is RingTransit -> plan.writeRing(transit.ringAt(t), transit.rings.count)
+    is RingTransit -> {
+      plan.writeRing(transit.ringAt(t), transit.rings.count)
+      plan.fusion = 0f
+    }
   }
 }
 
@@ -1133,6 +1225,8 @@ internal fun buildSlabPlan(
   pairs: List<Pair<FluidForm.Slab, FluidForm.Slab>>,
   blendRadius: Float,
   t: Float,
+  /** Quanto e' vivo il collo (4.0): lo legge il solo materiale nuovo. Di serie la campana di [travelFusion]. */
+  fusion: Float = travelFusion(t, GlassLiquidProfile.Default.travel.neck),
 ) {
   // Una fusione all'oltrepasso non estrapola piu' (3.0): tutti i pezzi diventano il traguardo
   // gonfiato, che coincidono — un contorno solo, col ponte spento da effectiveBlendRadius. Il doppio
@@ -1141,6 +1235,7 @@ internal fun buildSlabPlan(
   pairs.forEachIndexed { index, (from, to) ->
     val v = lerpSlab(from, to, t)
     plan.writeSlabPiece(index, v)
+    plan.writeFieldPiece(index, from, to, t, v)
     // In viaggio la sagoma passa per angoli circolari: è l'eccezione documentata — un path
     // continuo ricalcolato a ogni fotogramma è esattamente quello che non ci si può permettere,
     // e in movimento le due curve stanno dentro il pixel.
@@ -1157,6 +1252,7 @@ internal fun buildSlabPlan(
     plan.mergePieceIntoSilhouette(index)
   }
   plan.finishSlabs(pairs.size, blendRadius)
+  plan.fusion = if (pairs.size > 1) fusion.coerceIn(0f, 1f) else 0f
 }
 
 /** Le otto cifre di uno slab fermo: riquadro e raggi, questi tenuti fra zero e mezzo lato. */
@@ -1180,12 +1276,20 @@ internal fun lerpRect(from: Rect, to: Rect, t: Float): Rect = Rect(
   from.bottom + (to.bottom - from.bottom) * t,
 )
 
-internal fun buildRestPlan(plan: PhysicsRenderPlan, form: FluidForm) {
+/**
+ * Il piano di una forma ferma.
+ *
+ * @param fusion quanto e' vivo il collo fra i pezzi di un gruppo per il materiale nuovo (4.0): zero, cioe' pezzi
+ *   separati del tutto, salvo per una forma fermata a meta' viaggio (vedi `FluidPhysicsState`). Il vetro di
+ *   prima non lo legge: il suo gruppo fermo resta fuso col raggio dichiarato, com'era.
+ */
+internal fun buildRestPlan(plan: PhysicsRenderPlan, form: FluidForm, fusion: Float = 0f) {
   when (form) {
     is FluidForm.Slab -> {
       plan.silhouette.rewind()
       writeRestSlab(plan, form, 0)
       plan.finishSlabs(1, 0f)
+      plan.fusion = 0f
     }
 
     is FluidForm.Group -> {
@@ -1194,11 +1298,13 @@ internal fun buildRestPlan(plan: PhysicsRenderPlan, form: FluidForm) {
         writeRestSlab(plan, piece as FluidForm.Slab, index)
       }
       plan.finishSlabs(form.pieces.size, form.blendRadius)
+      plan.fusion = if (form.pieces.size > 1) fusion.coerceIn(0f, 1f) else 0f
     }
 
     is FluidForm.Poly -> {
       val ring = restRing(form)
       plan.writeRing(ring, ring.size / 2)
+      plan.fusion = 0f
     }
   }
 }
@@ -1214,6 +1320,7 @@ private fun writeRestSlab(plan: PhysicsRenderPlan, slab: FluidForm.Slab, index: 
     slab.cornerRadii.bottomLeft.coerceIn(0f, half),
   )
   plan.writeSlabPiece(index, values)
+  plan.writeFieldPiece(index, slab, slab, 1f, values)
   // A riposo la silhouette è quella della casa: raccordo continuo, alla posizione vera del pezzo.
   plan.scratchPiece.rewind()
   plan.scratchPiece.addContinuousRoundRect(

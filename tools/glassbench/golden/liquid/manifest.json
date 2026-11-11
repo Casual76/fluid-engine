@@ -1,5 +1,5 @@
 {
-  "_": "Immagini di riferimento del materiale nuovo (modello Liquid), lastre ferme. Le scene sono SCRITTE DALLA RICETTA dell'engine (GlassSceneExportTest: `scenes/f1a/ricetta/` e `scenes/f1a/gusto/serie-*`), quindi provano insieme gli shader di ui/glass/field (corpo, luce), la regola dell'ombra a riposo e i numeri del profilo di serie (GlassLiquidProfile.Default) passati per `glassRecipe`: un ritocco al profilo o a uno shader, riesportate le scene, le fa cambiare. Non provano l'innesto in glassSurface (F1A.6), ne' il dispositivo. Create da F1A.5 l'11/11/2026 con la combinazione di serie proposta, rigenerate da F1A.5c (commit 5d4fb74) col profilo di serie delle scelte di Alessio: 13 su 13 cambiate, volute. Un ritocco al profilo o a uno shader le fa cambiare: riesportare le scene, poi `glassbench.py golden liquid --update`, con il diff nel rapporto. Si verificano con `glassbench.py compare --golden liquid`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`.",
+  "_": "Immagini di riferimento del materiale nuovo (modello Liquid), lastre ferme. Le scene sono SCRITTE DALLA RICETTA dell'engine (GlassSceneExportTest: `scenes/f1a/ricetta/` e `scenes/f1a/gusto/serie-*`), quindi provano insieme gli shader di ui/glass/field (corpo, luce), la regola dell'ombra a riposo e i numeri del profilo di serie (GlassLiquidProfile.Default) passati per `glassRecipe`: un ritocco al profilo o a uno shader, riesportate le scene, le fa cambiare. Non provano l'innesto in glassSurface (F1A.6), ne' il dispositivo. Create da F1A.5 l'11/11/2026 con la combinazione di serie proposta, rigenerate da F1A.5c (commit 5d4fb74) col profilo di serie delle scelte di Alessio: 13 su 13 cambiate, volute. Un ritocco al profilo o a uno shader le fa cambiare: riesportare le scene, poi `glassbench.py golden liquid --update`, con il diff nel rapporto. Si verificano con `glassbench.py compare --golden liquid`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`. Da F1B.1 (11/11/2026) il riferimento ha anche le scene di Fluid-physics col materiale nuovo, scritte dall'engine (F1bExportTest: `scenes/f1b/`), col prefisso `f1b-`: gruppi a 2, 4 e 8 pezzi, i ponti (con la nascita dal fianco), riposo contro viaggio, l'angolo oltre mezzo lato, la sagoma libera, il gruppo di `fluidphysics`. Le undici in tema chiaro e quattro in scuro (per il peso delle immagini; le altre sette in scuro si rendono dalle stesse scene). Le tredici di prima non sono cambiate di un bit.",
   "density": 2.0,
   "icons": "service",
   "scenes": [
@@ -132,6 +132,158 @@
         1800,
         880
       ]
+    },
+    {
+      "name": "f1b-gruppo-2-chiaro",
+      "scene": "scenes/f1b/gruppo-2-chiaro.json",
+      "png": "f1b-gruppo-2-chiaro.png",
+      "sha256": "17ba8bd8b9c47d4bc23d2abfb7c9a26697d83680714b791bab3c357bed7873e4",
+      "size": [
+        960,
+        1080
+      ]
+    },
+    {
+      "name": "f1b-gruppo-4-chiaro",
+      "scene": "scenes/f1b/gruppo-4-chiaro.json",
+      "png": "f1b-gruppo-4-chiaro.png",
+      "sha256": "d60af57c1873cd2ff3d516f475da629e61d96b82243de122ce7d6afce47ed91f",
+      "size": [
+        960,
+        1080
+      ]
+    },
+    {
+      "name": "f1b-gruppo-8-chiaro",
+      "scene": "scenes/f1b/gruppo-8-chiaro.json",
+      "png": "f1b-gruppo-8-chiaro.png",
+      "sha256": "8e320430049d1f200814515e87d400ba04d0eaf9b7fa202e2cfc558292498d7f",
+      "size": [
+        960,
+        1080
+      ]
+    },
+    {
+      "name": "f1b-ponte-stretto-chiaro",
+      "scene": "scenes/f1b/ponte-stretto-chiaro.json",
+      "png": "f1b-ponte-stretto-chiaro.png",
+      "sha256": "4ee9b04f8ca5caa358f7cc25611e7c90cea801f70c0938c87d81b5124b98b8b9",
+      "size": [
+        1280,
+        1584
+      ]
+    },
+    {
+      "name": "f1b-riposo-contro-viaggio-lastra-chiaro",
+      "scene": "scenes/f1b/riposo-contro-viaggio-lastra-chiaro.json",
+      "png": "f1b-riposo-contro-viaggio-lastra-chiaro.png",
+      "sha256": "2fbe34ed30b2824c20e487e05755e894da14da0bea6da648dd47fdab74d4b241",
+      "size": [
+        960,
+        1380
+      ]
+    },
+    {
+      "name": "f1b-riposo-contro-viaggio-fisica-ferma-chiaro",
+      "scene": "scenes/f1b/riposo-contro-viaggio-fisica-ferma-chiaro.json",
+      "png": "f1b-riposo-contro-viaggio-fisica-ferma-chiaro.png",
+      "sha256": "6466d3eb7e6d8c3a804e2969673f55a42a0d65aaf8cc45d08d75b7c5e9e984fa",
+      "size": [
+        960,
+        1380
+      ]
+    },
+    {
+      "name": "f1b-riposo-contro-viaggio-viaggio-0-chiaro",
+      "scene": "scenes/f1b/riposo-contro-viaggio-viaggio-0-chiaro.json",
+      "png": "f1b-riposo-contro-viaggio-viaggio-0-chiaro.png",
+      "sha256": "6466d3eb7e6d8c3a804e2969673f55a42a0d65aaf8cc45d08d75b7c5e9e984fa",
+      "size": [
+        960,
+        1380
+      ]
+    },
+    {
+      "name": "f1b-riposo-contro-viaggio-viaggio-1-chiaro",
+      "scene": "scenes/f1b/riposo-contro-viaggio-viaggio-1-chiaro.json",
+      "png": "f1b-riposo-contro-viaggio-viaggio-1-chiaro.png",
+      "sha256": "6466d3eb7e6d8c3a804e2969673f55a42a0d65aaf8cc45d08d75b7c5e9e984fa",
+      "size": [
+        960,
+        1380
+      ]
+    },
+    {
+      "name": "f1b-angolo-oltre-meta-chiaro",
+      "scene": "scenes/f1b/angolo-oltre-meta-chiaro.json",
+      "png": "f1b-angolo-oltre-meta-chiaro.png",
+      "sha256": "de7dfa39bf2ab83fa90dc1156bde1c780c35deb998204c0437cef1596f2ac5f3",
+      "size": [
+        1280,
+        1500
+      ]
+    },
+    {
+      "name": "f1b-poly-chiaro",
+      "scene": "scenes/f1b/poly-chiaro.json",
+      "png": "f1b-poly-chiaro.png",
+      "density": 3.0,
+      "sha256": "66ea9da953b36875a03c2e8db5e88f0037d3d50719d094ceb3256d186e0008e6",
+      "size": [
+        1440,
+        1800
+      ]
+    },
+    {
+      "name": "f1b-fluidphysics-gruppo-nuovo-chiaro",
+      "scene": "scenes/f1b/fluidphysics-gruppo-nuovo-chiaro.json",
+      "png": "f1b-fluidphysics-gruppo-nuovo-chiaro.png",
+      "sha256": "81d7e9a35d25c1d0d32a6b33fe19956514889fd9897554f8cfe9dcb3e7855866",
+      "size": [
+        960,
+        540
+      ]
+    },
+    {
+      "name": "f1b-gruppo-8-scuro",
+      "scene": "scenes/f1b/gruppo-8-scuro.json",
+      "png": "f1b-gruppo-8-scuro.png",
+      "sha256": "ea0d14a0f1302450deeb5d314f0db4f161b25afe97435d3dbbf86091beabad0c",
+      "size": [
+        960,
+        1080
+      ]
+    },
+    {
+      "name": "f1b-ponte-stretto-scuro",
+      "scene": "scenes/f1b/ponte-stretto-scuro.json",
+      "png": "f1b-ponte-stretto-scuro.png",
+      "sha256": "2f5152f4fba910d282b0cf6a4e91bbb9789e7164650ac33ed62597eec1345e02",
+      "size": [
+        1280,
+        1584
+      ]
+    },
+    {
+      "name": "f1b-riposo-contro-viaggio-viaggio-0-scuro",
+      "scene": "scenes/f1b/riposo-contro-viaggio-viaggio-0-scuro.json",
+      "png": "f1b-riposo-contro-viaggio-viaggio-0-scuro.png",
+      "sha256": "82fa7a1d5257f1b50655f9d8a2041f74c2de7e3d13317b94cafca71b783cc8b6",
+      "size": [
+        960,
+        1380
+      ]
+    },
+    {
+      "name": "f1b-poly-scuro",
+      "scene": "scenes/f1b/poly-scuro.json",
+      "png": "f1b-poly-scuro.png",
+      "density": 3.0,
+      "sha256": "94165c2715d5322603ffea5bc40790f918caa6ca6e0944baa9ed70c2ecab0987",
+      "size": [
+        1440,
+        1800
+      ]
     }
   ],
   "versions": {
@@ -143,18 +295,19 @@
   "platform": "Windows-10-10.0.26300-SP0",
   "sources": {
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Shaders.kt": "3272701cebb5d023",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsShaders.kt": "d68ce3d4e3530f36",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassBodyShader.kt": "d1b775306462bd38",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldEffects.kt": "53a8ede6afa64b7a",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldGeometry.kt": "33ab17645042d76d",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "71f91a142cc06cd1",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldKernel.kt": "bb215ef95b7f638e",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldPlan.kt": "dc0da6daf2a74eb2",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsShaders.kt": "aa342706550b0c5d",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassBodyShader.kt": "5cbab5e66170635e",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldEffects.kt": "dcfd70314125bbea",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldGeometry.kt": "62ab5252e3876bbe",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "8b9ab2121031078b",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldKernel.kt": "551fb1e28506c858",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldPlan.kt": "631a222d5bf3ae9a",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLightShader.kt": "e7b9c1ef91e12dd4",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLiquidProfile.kt": "a4b7ff415b0b5c85",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassRecipe.kt": "e25b3f6ee387302d",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLiquidProfile.kt": "e99c16893fb7fbe8",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassOpaquePanel.kt": "f91a5f30b161e134",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassRecipe.kt": "71b6581963dcd2e7",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassShadow.kt": "487a65ab36193114",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassWarmUp.kt": "5f0eedb05d0947ae",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "d85c812d2b34c262"
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassWarmUp.kt": "27fe965bee8b17bb",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "530bddefa019b904"
   }
 }

@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -18,13 +19,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidPressState
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
@@ -36,14 +40,30 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.colorControls
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
+import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
+import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
 import dev.antigravity.fluidengine.ui.glass.interaction.GlowRecipe
 import dev.antigravity.fluidengine.ui.glass.interaction.glassButtonGlowRecipe
 
 /**
  * Un pannello di vetro la cui silhouette è quella di [state]: ferma quando lo stato riposa, viva
  * mentre viaggia — con la rifrazione che segue la forma, non un'istantanea di dov'era.
+ *
+ * **Dalla 4.0 il vetro è uno solo.** Al livello [FluidPhysicsTier.Full], dove il materiale nuovo può esistere
+ * (Android 13, le sue sorgenti accettate, `LocalFluidGlassModel` non a `Classic`: vedi `resolvePhysicsGlass`), la
+ * superficie si disegna con **lo stesso corpo e la stessa ricetta di `glassSurface`** (`ui/glass/field`): la
+ * sagoma in viaggio, i pezzi di un gruppo, la goccia e le sagome libere sono lo stesso campo di una lastra ferma,
+ * con il velo, il filo e il riflesso del profilo. In viaggio filo e riflesso li compone il corpo e seguono la
+ * sagoma pixel per pixel, ponti compresi; a riposo una lastra ha i due disegni della luce di ogni altra lastra.
+ * Il collo liquido fra due pezzi esiste **solo in viaggio**: a riposo due pezzi distinti sono separati del tutto.
+ * Dove il materiale nuovo non può esistere vale, immutato, ciò che segue.
  *
  * Costruita su `drawBackdrop`, accanto a `glassSurface` e con la sua stessa grammatica (ruoli,
  * ottiche, tinte, qualità). **A riposo è una lastra** (3.0): una forma ferma si disegna con i numeri
@@ -129,14 +149,21 @@ fun Modifier.fluidPhysicsSurface(
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
   val material = remember(resolved, resolvedFrom) { PhysicsMaterialSource(resolvedFrom, resolved) }
-  val resolvedTier = remember(tier) {
-    resolvePhysicsTier(
+  // Il livello e, a `Full`, quale dei due materiali (4.0): il materiale nuovo dove può esistere, altrimenti il
+  // vetro di prima com'era. Una tabella di verità pura: `resolvePhysicsGlass`.
+  val requestedModel = LocalFluidGlassModel.current
+  val glass = remember(tier, requestedModel) {
+    resolvePhysicsGlass(
+      sdk = glassApiLevel(),
       renderEffectSupported = isRenderEffectSupported(),
       runtimeShaderSupported = isRuntimeShaderSupported(),
-      shadersHealthy = FluidPhysicsShaderHealth.healthy(),
-      requested = tier,
+      classicHealthy = FluidPhysicsShaderHealth::healthy,
+      liquidHealthy = ::physicsLiquidShadersHealthy,
+      requestedTier = tier,
+      requestedModel = requestedModel,
     )
   }
+  val resolvedTier = glass.tier
   state.maskInShader = resolvedTier == FluidPhysicsTier.Full
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   state.density = LocalDensity.current.density
@@ -162,11 +189,100 @@ fun Modifier.fluidPhysicsSurface(
   val quality = LocalFluidGlassQuality.current
   val qualityFactor: () -> Float = remember(quality) { { quality?.level ?: 1f } }
   val blurRadius = backdrop.blurRadius
-  val scratch = remember(state) { PhysicsUniformScratch() }
   // Lo scope degli effetti può lavorare a risoluzione ridotta: ogni pixel di geometria va
   // riportato nel suo spazio, e il fattore è (larghezza dello scope / larghezza di layout).
   val layoutWidth = remember { mutableFloatStateOf(0f) }
   val shapeBlock: () -> Shape = remember(state) { { state.ensurePlan().shape } }
+  val darkSide = GlassDefaults.isDarkSurface()
+
+  // L'ombra del ruolo, disegnata da qui (3.0) e FUORI dal layer del vetro: sta prima di
+  // `drawBackdrop` nella catena, quindi non la ritaglia il rettangolo del nodo e la sagoma la copre
+  // con il proprio fondale. Colore del lato del tema, raggio dell'ottica dichiarata, peso del
+  // materiale di adesso: a riposo e' quella di `glassSurface` di prima. Se il chiamante ne disegna gia' una
+  // (`fluidPhysicsShadow`, il modale), questa tace. La stessa per i due materiali, finche' F1B.2 non la
+  // porta sull'ombra unica.
+  val shadowColor = glassShadowColor(darkSide)
+  val shadowRadius = if (resolved.shadowRadius.value > 0f) resolved.shadowRadius else resolvedFrom?.shadowRadius ?: 0.dp
+  val shadowFirst = rememberGraphicsLayer()
+  val shadowSecond = rememberGraphicsLayer()
+  val shadowLayers = remember(shadowFirst, shadowSecond) { PhysicsShadowLayers(shadowFirst, shadowSecond) }
+  val shadow = remember(state, material, shadowLayers, shadowColor, shadowRadius, qualityFactor) {
+    Modifier.drawBehind {
+      if (state.externalShadows > 0) return@drawBehind
+      val amount = clampGlassUnit(currentIntensity()) * qualityFactor()
+      if (amount <= 0.001f) return@drawBehind
+      val m = material.at(currentOpticsBlend())
+      shadowLayers.draw(
+        scope = this,
+        state = state,
+        radiusPx = shadowRadius.toPx(),
+        color = shadowColor,
+        alpha = m.optics.shadowAlpha * amount,
+      )
+    }
+  }
+
+  if (glass.liquid) {
+    // Il materiale nuovo (4.0, F1B.1): lo stesso corpo e la stessa ricetta di `glassSurface`, sulla sagoma del
+    // motore. Niente pellicola dipinta, niente bordo e niente bagliore a parte: sono nel corpo e nella luce.
+    val screenDensity = LocalDensity.current.density
+    val view = LocalView.current
+    // La famiglia dei gruppi e della goccia si scalda quando una superficie che viaggia entra in scena.
+    remember(view) { GlassWarmUp.request(GlassWarmFamily.Group, view) }
+    val published = exports?.layerBackdrop
+    if (published != null) {
+      // Come una lastra `Liquid`: chi campiona questo materiale da un nodo fratello sta su questo pannello.
+      DisposableEffect(published) {
+        GlassLiquidPanels.publish(published)
+        onDispose { GlassLiquidPanels.withdraw(published) }
+      }
+    }
+    val currentBackdrop by rememberUpdatedState(backdrop.backdrop)
+    val surface = remember(state, role, material, darkSide, screenDensity, quality, tint, tintFrom, pressState, reducedMotion) {
+      PhysicsLiquidSurface(
+        state = state,
+        role = role,
+        material = material,
+        darkSide = darkSide,
+        screenDensity = screenDensity,
+        tint = tint,
+        tintFrom = tintFrom,
+        pressState = pressState,
+        glowWeight = if (reducedMotion) ReducedMotionGlow else 1f,
+        profile = GlassLiquidProfile.Default,
+        intensity = { currentIntensity() },
+        tintBlend = { currentTintBlend() },
+        opticsBlend = { currentOpticsBlend() },
+        quality = { quality?.level ?: 1f },
+        layoutWidth = { layoutWidth.floatValue },
+        onPanel = { glassSamplesLiquidPanel(currentBackdrop, GlassLiquidPanels::isPublished) },
+      )
+    }
+    return this
+      .onSizeChanged { layoutWidth.floatValue = it.width.toFloat() }
+      .then(shadow)
+      .drawBackdrop(
+        backdrop = backdrop.backdrop,
+        shape = shapeBlock,
+        effects = surface.effects,
+        highlight = null,
+        shadow = null,
+        innerShadow = null,
+        exportedBackdrop = published,
+        // La cattura apre sempre con un'operazione, perche' il corpo esista anche su un fondo che non ha niente
+        // da dare: vedi `GlassLiquidOnDrawBackdrop`.
+        onDrawBackdrop = GlassLiquidOnDrawBackdrop,
+        // A risoluzione piena: filo e riflesso li compone il corpo, nella cattura, e devono essere quelli che
+        // la luce di una `glassSurface` disegna sul nodo. A risoluzione ridotta un filo di un pixel e mezzo
+        // uscirebbe piu' molle della lastra a cui la superficie passa il posto, e tornerebbe netto li': uno scatto.
+        backdropScale = PhysicsLiquidCaptureScale,
+        sampleOnce = sampleOnce,
+        backdropScaleFactor = qualityFactor,
+        onDrawLight = surface.onDrawLight,
+      )
+  }
+
+  val scratch = remember(state) { PhysicsUniformScratch() }
 
   val effects: BackdropEffectScope.() -> Unit =
     remember(material, blurRadius, quality, state, resolvedTier, tint, tintFrom, pressState) {
@@ -262,7 +378,6 @@ fun Modifier.fluidPhysicsSurface(
   // sul lato scuro, scuro e in `SrcOver` sul chiaro: `glassRimRecipe`), stessa banda dentro la sagoma,
   // stesso profilo. A riposo e' registrato come lo registra il renderer; in viaggio e' la stessa banda
   // senza la sfocatura di mezza larghezza (vedi [PhysicsRimRenderer]).
-  val darkSide = GlassDefaults.isDarkSurface()
   val rim = remember(darkSide) { glassRimRecipe(darkSide) }
   val rimLayer = rememberGraphicsLayer()
   val rimRenderer = remember(rimLayer) { PhysicsRimRenderer(rimLayer) }
@@ -283,32 +398,6 @@ fun Modifier.fluidPhysicsSurface(
           rim = rim,
         )
       }
-    }
-  }
-
-  // L'ombra del ruolo, disegnata da qui (3.0) e FUORI dal layer del vetro: sta prima di
-  // `drawBackdrop` nella catena, quindi non la ritaglia il rettangolo del nodo e la sagoma la copre
-  // con il proprio fondale. Colore del lato del tema, raggio dell'ottica dichiarata, peso del
-  // materiale di adesso: a riposo e' quella di `glassSurface`. Se il chiamante ne disegna gia' una
-  // (`fluidPhysicsShadow`, il modale), questa tace.
-  val shadowColor = glassShadowColor(darkSide)
-  val shadowRadius = if (resolved.shadowRadius.value > 0f) resolved.shadowRadius else resolvedFrom?.shadowRadius ?: 0.dp
-  val shadowFirst = rememberGraphicsLayer()
-  val shadowSecond = rememberGraphicsLayer()
-  val shadowLayers = remember(shadowFirst, shadowSecond) { PhysicsShadowLayers(shadowFirst, shadowSecond) }
-  val shadow = remember(state, material, shadowLayers, shadowColor, shadowRadius, qualityFactor) {
-    Modifier.drawBehind {
-      if (state.externalShadows > 0) return@drawBehind
-      val amount = clampGlassUnit(currentIntensity()) * qualityFactor()
-      if (amount <= 0.001f) return@drawBehind
-      val m = material.at(currentOpticsBlend())
-      shadowLayers.draw(
-        scope = this,
-        state = state,
-        radiusPx = shadowRadius.toPx(),
-        color = shadowColor,
-        alpha = m.optics.shadowAlpha * amount,
-      )
     }
   }
 
@@ -371,6 +460,21 @@ private fun blendedTint(tint: GlassTint, tintFrom: GlassTint?, blend: Float): Co
 
 /** Il peso del bagliore con le animazioni ridotte: quello di `glassControlSurface`. */
 private const val ReducedMotionGlow = 0.4f
+
+/**
+ * La frazione di risoluzione a cui cattura una superficie fisica disegnata dal materiale nuovo (4.0): piena.
+ *
+ * Una lastra ferma di `glassSurface` cattura a risoluzione ridotta (0,73 con la smerigliatura di serie) perché la
+ * sua luce si disegna sul nodo, a risoluzione piena, e il suo contorno lo taglia il ritaglio hardware. Una
+ * superficie fisica, ferma o in viaggio, ha la luce **nel corpo** e il contorno ritagliato **dal corpo** (che
+ * emula anche l'antialias del ritaglio del nodo: `nodeClip`, in pixel della cattura): a risoluzione ridotta il
+ * filo e l'antialias del contorno sarebbero quelli della cattura ingrandita, cioè diversi da quelli della
+ * `glassSurface` a cui la superficie passa il posto, e il passaggio si vedrebbe. A risoluzione piena l'interno
+ * coincide entro due livelli su 255 (banco, scene `f1b/riposo-contro-viaggio-*`). I tasti di vetro, che hanno
+ * un `layerBlock`, catturano già così. Costo: 1,9 volte i pixel della catena rispetto a 0,73, da misurare in S2
+ * (voce del rapporto di F1B.1).
+ */
+internal const val PhysicsLiquidCaptureScale: Float = 1f
 
 /**
  * Le fermate del punto luce del bagliore: la campana dello shader di `GlassTouchHighlight`

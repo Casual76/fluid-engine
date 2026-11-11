@@ -343,6 +343,33 @@ internal fun effectiveBlendRadius(blend: Float, minGap: Float): Float {
   return (blend + minGap).coerceAtLeast(0f)
 }
 
+/**
+ * Quanto è vivo il **collo** fra i pezzi a progresso [t] di un viaggio, 0..1: zero alla partenza e all'arrivo,
+ * uno nel mezzo (4.0, F1B.1).
+ *
+ * Il collo liquido fra due pezzi esiste solo in viaggio: a riposo due pezzi distinti sono separati del tutto
+ * (scelta di Alessio, 2026-11-11), anche quando stanno vicini quanto due tasti di una barra. Quindi il raggio di
+ * fusione del campo è quello del gruppo per questo peso, che lo fa nascere nei primi [fade] del progresso e
+ * morire negli ultimi, con due smoothstep: continuo, senza un fotogramma in cui il ponte scatta. Il collo che
+ * muore si assottiglia e si strozza da solo, perché uno smooth minimum fa ponte solo finché il varco è meno di
+ * mezzo raggio.
+ *
+ * [start] è la fusione ereditata: un viaggio che ne interrompe un altro a metà (un cambio d'idea, una ripresa al
+ * volo) parte col collo com'era in quell'istante, non da zero, o il ponte sparirebbe in un fotogramma proprio
+ * quando il dito cambia strada. Poi sale a uno e muore come gli altri.
+ *
+ * La legge il solo materiale nuovo (`PhysicsRenderPlan.fusion`): il vetro di prima tiene il suo raggio com'era.
+ */
+internal fun travelFusion(t: Float, fade: Float, start: Float = 0f): Float {
+  if (!t.isFinite()) return 0f
+  val f = fade.coerceIn(0.01f, 0.5f)
+  val p = t.coerceIn(0f, 1f)
+  val s = if (start.isFinite()) start.coerceIn(0f, 1f) else 0f
+  val rise = s + (1f - s) * liquidSmoothstep(0f, f, p)
+  val fall = 1f - liquidSmoothstep(1f - f, 1f, p)
+  return rise * fall
+}
+
 // --- Specchi del campo di distanza -------------------------------------------
 //
 // Le stesse formule che stanno in FluidPhysicsShaders.kt, trascritte in Kotlin. I test le

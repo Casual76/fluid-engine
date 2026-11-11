@@ -89,12 +89,13 @@ internal object GlassShaderSources {
   val SlabGroupDispersion = GlassShaderSource("SlabGroupDispersionShaderString", SlabGroupDispersionShaderString)
   val PolyMorphDispersion = GlassShaderSource("PolyMorphDispersionShaderString", PolyMorphDispersionShaderString)
 
-  // Il materiale `Liquid` (questa cartella): corpo e luce, a una lastra e a otto (cancello C3). Registrati da
-  // F1A.5 perché sonda, lint e test strumentato li conoscano; la lastra ferma (`Body1`, `Light1`) la disegna
-  // l'innesto di F1A.6, quelle a otto pezzi le disegnerà F1B. Tutti e quattro li scalda `GlassWarmUp` (F1A.7),
-  // ognuno nella sua famiglia.
+  // Il materiale `Liquid` (questa cartella): corpo e luce, a una lastra e a otto (cancello C3), e il corpo ad
+  // anello. Registrati perché sonda, lint e test strumentato li conoscano; la lastra ferma (`Body1`, `Light1`) la
+  // disegna l'innesto di F1A.6; quelle a otto pezzi e l'anello li disegna Fluid-physics (F1B.1: gruppi, viaggi,
+  // goccia, sagome libere). Tutti li scalda `GlassWarmUp` (F1A.7), ognuno nella sua famiglia.
   val Body1 = GlassShaderSource("GlassBody1ShaderString", GlassBody1ShaderString)
   val Body8 = GlassShaderSource("GlassBody8ShaderString", GlassBody8ShaderString)
+  val BodyRing = GlassShaderSource("GlassBodyRingShaderString", GlassBodyRingShaderString)
   val Light1 = GlassShaderSource("GlassLight1ShaderString", GlassLight1ShaderString)
   val Light8 = GlassShaderSource("GlassLight8ShaderString", GlassLight8ShaderString)
 
@@ -116,7 +117,15 @@ internal object GlassShaderSources {
    * `ShaderSourceLintTest.everyRegisteredSourceIsOfTodayOrWarmedByExactlyOneFamily` fallisce se una sorgente
    * nuova non sta né qui né in [today], o se sta qui senza una famiglia o in più d'una. È così che la striscia del bordo (F2.4) entrerà nel riscaldamento il giorno in cui si registra.
    */
-  val liquid: List<GlassShaderSource> = listOf(Body1, Body8, Light1, Light8)
+  val liquid: List<GlassShaderSource> = listOf(Body1, Body8, BodyRing, Light1, Light8)
+
+  /**
+   * Ciò che serve a una superficie di Fluid-physics per disegnarsi col materiale nuovo (F1B.1): il corpo a otto
+   * pezzi (lastre, gruppi, viaggi fra lastre) e il corpo ad anello (goccia, sagome libere). La luce è nel corpo,
+   * ferma o in viaggio, quindi nessun programma di luce. Se il compilatore ne rifiuta uno la superficie resta al
+   * vetro di prima **per intero**: mai una goccia nuova che si posa su una lastra di prima.
+   */
+  val travel: List<GlassShaderSource> = listOf(Body8, BodyRing)
 
   /**
    * Nell'ordine in cui `compileAll` le prova: prima il vetro di oggi (lente, riflessi, bagliore), poi

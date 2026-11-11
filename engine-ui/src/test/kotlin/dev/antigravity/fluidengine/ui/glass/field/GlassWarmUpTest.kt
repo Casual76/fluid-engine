@@ -151,7 +151,7 @@ class GlassWarmUpTest {
     bench.core.request(GlassWarmFamily.Slab, gpuWindow = true)
     bench.core.request(GlassWarmFamily.Group, gpuWindow = true)
     // La lastra resta `Classic` (la sua luce è rifiutata): scaldarne il corpo non serve a nessuno.
-    assertEquals(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight), bench.runAll())
+    assertEquals(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight, GlassWarmStep.RingBody), bench.runAll())
     val slab = bench.status(GlassWarmFamily.Slab)
     assertEquals(FluidGlassWarmUpState.Skipped, slab.state)
     assertTrue(slab.detail!!, "GlassLight1ShaderString" in slab.detail!!)
@@ -165,7 +165,7 @@ class GlassWarmUpTest {
     bench.failOn = GlassWarmStep.SlabBody
     bench.core.request(GlassWarmFamily.Slab, gpuWindow = true)
     bench.core.request(GlassWarmFamily.Group, gpuWindow = true)
-    assertEquals(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight), bench.runAll())
+    assertEquals(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight, GlassWarmStep.RingBody), bench.runAll())
     val slab = bench.status(GlassWarmFamily.Slab)
     assertEquals(FluidGlassWarmUpState.Failed, slab.state)
     assertTrue(slab.detail!!, "GlassBody1ShaderString" in slab.detail!! && "rifiutato apposta" in slab.detail!!)

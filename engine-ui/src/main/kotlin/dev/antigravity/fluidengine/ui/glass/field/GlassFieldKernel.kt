@@ -98,6 +98,21 @@ internal const val GlassCornerPowerSquare: Float = 0.79f
 internal const val GlassCornerPowerCube: Float = 1.0f
 
 /**
+ * Da quanto oltre mezzo lato corto un raggio manda la lastra al **ramo largo** di `glassSlab`
+ * ([GlassFieldSlabBlock]): un decimillesimo, lo stesso margine con cui la regola forma → piano chiama
+ * «a mezzo lato» un raggio che ci arriva con l'errore di un `float` (`GlassFieldPlan.kt`). Sotto, il ramo di
+ * sempre limita il raggio a mezzo lato: una capsula non cambia strada per un milionesimo.
+ */
+internal const val GlassFieldWideSlack: Float = 1.0001f
+
+/**
+ * Quanti vertici porta al più l'anello del nucleo [GlassFieldKernelRing]: quelli con cui Fluid-physics disegna
+ * la goccia (`DropRenderPoints`, `PhysicsMaxRingVertices`), più dei 64 di una sagoma libera perché gli angoli
+ * di un pannello restino definiti mentre viaggia.
+ */
+internal const val GlassFieldRingVertices: Int = 96
+
+/**
  * Una lastra: distanza con segno e normale di un rettangolo arrotondato con il raccordo continuo. È il
  * preludio SDF del materiale, uno solo (oggi ce ne sono due copie, in `backdrop/internal/Shaders.kt` e in
  * `fluidphysics/FluidPhysicsShaders.kt`).
@@ -132,6 +147,27 @@ internal const val GlassCornerPowerCube: Float = 1.0f
  * lo taglia lì. E `pow` non è uguale ovunque: Skia su CPU (il banco) lo approssima, e la sagoma resa si
  * scosta dalla formula fino a 0,03 px; una GPU fa meglio.
  *
+ * ### Il ramo largo: un angolo oltre mezzo lato corto (F1B.1)
+ * Compose disegna un angolo più largo di mezzo lato corto quando l'angolo accanto gli lascia il posto (un
+ * fumetto di chat `22/22/22/6` alto 40 dp ha l'angolo in alto a sinistra a 22). Lì il quadrante in cui cade il
+ * punto non dice più di quale angolo è: l'arco da 22 scende sotto la metà dell'altezza. Fino a F1B.1 il campo
+ * limitava il raggio e la forma restava `Classic`: due vetri nella stessa chat.
+ *
+ * Se almeno un raggio supera mezzo lato corto (di [GlassFieldWideSlack]) **e i raggi stanno nei lati** (due
+ * angoli vicini non superano il lato che dividono: è come Compose li consegna) la lastra prende
+ * `glassWideSlab`. Un raggio chiesto semplicemente troppo grande (il 999 di una capsula scritta a mano negli
+ * uniform) non sta nei lati e resta limitato a mezzo lato, come prima di F1B.1. `glassWideSlab` è la
+ * sagoma come intersezione dei quattro quadranti arrotondati, cioè `max(scatola, arco_k)` sui quattro angoli,
+ * dove un arco conta solo nella sua **zona** (oltre il proprio centro su tutti e due gli assi). Dentro la
+ * sagoma è la distanza vera; fuori lo è fin dove serve (accanto al contorno). Le zone di due angoli vicini
+ * non si toccano perché i raggi arrivano già ridotti come li riduce Compose (`glassSlabGeometry`); quelle di
+ * due angoli opposti possono sovrapporsi (una «foglia»), e il `max` le regge. Solo archi di cerchio: il
+ * raccordo continuo l'engine lo ferma da sé a mezzo lato, quindi qui `smoothing` non si legge. La normale è
+ * la stessa costruzione su raggi allargati di [GlassFieldNormalSpread], ognuno tenuto dentro mezzo lato corto e
+ * dentro il lato che il vicino gli lascia (mai sotto il raggio vero). È un ramo su uno uniform: una lastra lo
+ * prende tutta o per niente, e chi non lo prende esegue le righe di prima, al bit (le immagini di riferimento
+ * `golden/liquid` non si muovono). Costa due giri di quattro confronti e al più due radici per giro.
+ *
  * ### `float glassCircleMap(float x)`
  * Il profilo dello spessore di Kyant: 0 dove il vetro è piatto, 1 sul bordo, con la salita di un quarto di
  * cerchio. Lo usa la lente; sta qui perché lo usano tutti i corpi.
@@ -148,8 +184,62 @@ float glassRadiusAt(float2 rel, float4 radii) {
     }
 }
 
+float3 glassWideBox(float2 rel, float2 halfSize) {
+    float2 b = abs(rel) - halfSize;
+    float2 side = float2(rel.x < 0.0 ? -1.0 : 1.0, rel.y < 0.0 ? -1.0 : 1.0);
+    if (b.x > 0.0 && b.y > 0.0) return float3(length(b), side * (b / length(b)));
+    float gx = step(b.y, b.x);
+    return float3(max(b.x, b.y), side * float2(gx, 1.0 - gx));
+}
+
+float3 glassWideCorner(float3 held, float2 rel, float2 halfSize, float2 side, float radius) {
+    // `q`: il punto visto dal centro dell'arco, con gli assi che puntano al vertice dell'angolo.
+    float2 q = rel * side - (halfSize - float2(radius));
+    if (q.x <= 0.0 || q.y <= 0.0) return held;
+    float len = length(q);
+    if (len - radius <= held.x) return held;
+    return float3(len - radius, side * (q / len));
+}
+
+float glassWideSpread(float radius, float minHalf, float roomX, float roomY) {
+    return max(radius, min(min(radius * $GlassFieldNormalSpread, minHalf), min(roomX, roomY)));
+}
+
+float3 glassWideSlab(float2 rel, float2 halfSize, float4 radii) {
+    float4 r = max(radii, float4(0.0));
+    float3 box = glassWideBox(rel, halfSize);
+    float3 held = glassWideCorner(box, rel, halfSize, float2(-1.0, -1.0), r.x);
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, -1.0), r.y);
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, 1.0), r.z);
+    held = glassWideCorner(held, rel, halfSize, float2(-1.0, 1.0), r.w);
+    float sd = held.x;
+
+    // La normale: gli stessi quattro archi allargati, ognuno dentro il lato che il vicino gli lascia.
+    float minHalf = min(halfSize.x, halfSize.y);
+    float2 whole = halfSize * 2.0;
+    held = glassWideCorner(box, rel, halfSize, float2(-1.0, -1.0),
+        glassWideSpread(r.x, minHalf, whole.x - r.y, whole.y - r.w));
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, -1.0),
+        glassWideSpread(r.y, minHalf, whole.x - r.x, whole.y - r.z));
+    held = glassWideCorner(held, rel, halfSize, float2(1.0, 1.0),
+        glassWideSpread(r.z, minHalf, whole.x - r.w, whole.y - r.y));
+    held = glassWideCorner(held, rel, halfSize, float2(-1.0, 1.0),
+        glassWideSpread(r.w, minHalf, whole.x - r.z, whole.y - r.x));
+    return float3(sd, held.yz);
+}
+
 float3 glassSlab(float2 rel, float2 halfSize, float4 radii, float smoothing) {
     float minHalf = min(halfSize.x, halfSize.y);
+    // Un angolo oltre mezzo lato corto: il quadrante non basta a dire di quale angolo e' un punto. Solo se i
+    // raggi stanno nei lati (due vicini non superano il lato che dividono): un raggio chiesto troppo grande,
+    // il 999 di una capsula, resta limitato a mezzo lato come sempre.
+    if (max(max(radii.x, radii.y), max(radii.z, radii.w)) > minHalf * $GlassFieldWideSlack) {
+        float2 room = halfSize * (2.0 * $GlassFieldWideSlack);
+        if (max(radii.x + radii.y, radii.w + radii.z) <= room.x
+            && max(radii.x + radii.w, radii.y + radii.z) <= room.y) {
+            return glassWideSlab(rel, halfSize, radii);
+        }
+    }
     float radius = max(min(glassRadiusAt(rel, radii), minHalf), 0.0);
     // Lo smoothing che il lato corto lascia spendere: zero quando l'angolo e' gia' un semicerchio.
     float s = radius > 0.0001 ? clamp(min(smoothing, minHalf / radius - 1.0), 0.0, 1.0) : 0.0;
@@ -331,4 +421,154 @@ float glassField(float2 p, out float2 normal, out float2 center) {
         }
     }
     return d;
+}"""
+
+/**
+ * Il nucleo ad **anello**: una sagoma chiusa qualsiasi come poligono di al più [GlassFieldRingVertices]
+ * vertici. È la goccia in viaggio e la sagoma libera di Fluid-physics (`FluidForm.Poly`), cioè tutto ciò che
+ * non è un'unione di rettangoli arrotondati (piano 3.7, 3.8).
+ *
+ * Il ciclo è quello di `PolyMorphRefractionShaderString` (`fluidphysics/FluidPhysicsShaders.kt`), portato
+ * nella firma del nucleo: distanza dal lato più vicino, segno per avvolgimento e normale mediata, tutto in un
+ * passaggio. Ha la stessa `glassField` dei nuclei a lastre, quindi sopra ci sta lo stesso corpo, riga per riga.
+ *
+ * ### uniform (oltre a `offset`, `flex`, `flexCenter` di [GlassFieldPointBlock])
+ * - `float vertCount`, `float2 verts[96]`: l'anello, in senso orario sullo schermo, in pixel del sistema del
+ *   campo. Le caselle oltre `vertCount` non si leggono;
+ * - `float4 bbox`: il riquadro dell'anello **allargato di `ringBand.x`** (sinistra, alto, destra, basso). Fuori
+ *   il ciclo non gira;
+ * - `float normalSmooth`: il quadrato della distanza, in pixel dello spazio dello shader, su cui la normale si
+ *   media fra i lati vicini (scioglie lo
+ *   spigolo fra due lati); zero = la direzione dal punto più vicino;
+ * - `float soften`: di quanti pixel il campo si erode per sciogliere le faccette del campionamento. Zero per
+ *   la goccia, che è già fitta agli angoli;
+ * - `float2 fieldCenter`: il centro del riquadro della sagoma: è il `center` che il campo restituisce (cupola e
+ *   ingrandimento della lente girano attorno a lui);
+ * - `float2 restCenter`, `float2 restHalfSize`, `float4 restRadii`, `float dropReach`: la **fascia della
+ *   goccia**. Il contorno di una goccia non si allontana dalla sua sagoma a riposo (un rettangolo arrotondato)
+ *   più di `dropReach` pixel: fuori da quella fascia il ciclo non serve. `dropReach` negativo: non è una
+ *   goccia, nessuna scorciatoia;
+ * - `float2 ringBand`: fin dove la distanza deve essere **vera**: `x` fuori dalla sagoma, `y` dentro. Oltre,
+ *   il nucleo restituisce una distanza approssimata ma dalla parte giusta e non più vicina al contorno di così
+ *   (fuori almeno `x`, dentro più profonda di `y`), con normale nulla. `y` deve coprire tutto ciò che il corpo
+ *   legge accanto al contorno (la banda della lente, l'ombreggiatura, il filo e il rientro del riflesso) e `x`
+ *   l'antialias; chi accende l'ombra in viaggio (F1B.2) allarga `x` e `bbox` di quanto l'ombra arriva.
+ *
+ * ### La normale mediata
+ * Con `normalSmooth` sopra zero la normale è la media delle **normali dei lati** (la perpendicolare di ogni lato,
+ * che esce da un anello in senso orario; se l'anello arriva nell'altro senso la rigira il lato più vicino), col
+ * peso `(normalSmooth / (dd + normalSmooth))²`: 1 sul lato a qualunque densità di schermo, verso zero lontano.
+ * Due differenze dallo shader di oggi (`PolyMorphRefractionShaderString`), tutte e due viste sul banco con la
+ * scena `f1b/poly`:
+ * - oggi il peso è `1 / (dd + normalSmooth)²` e le somme sotto 10⁻⁴ si scartano: sopra `normalSmooth` = 100 px²
+ *   (4 dp a densità 2,5 con la cattura a scala 1) la normale si annulla ovunque, e con lei filo e lente;
+ * - oggi si mediano le direzioni **dai punti più vicini**, che accanto a un vertice tirano di lato: la normale
+ *   oscilla lungo ogni lato. La lente morbida di oggi non lo mostra; il riflesso del materiale nuovo, che legge
+ *   la normale, usciva tratteggiato.
+ * Si controlla guardando quella scena ingrandita: filo e riga chiara devono girare tutta la sagoma, continui.
+ *
+ * ### `float glassField(float2 p, out float2 normal, out float2 center)`
+ * Come nei nuclei a lastre. `normal` è unitaria (nulla nelle scorciatoie, dove il vetro è piatto); `center` è
+ * `fieldCenter`. Su un lato dritto la distanza è esatta; attorno a un vertice è quella del poligono.
+ *
+ * AGSL accetta come indice di un array uniform solo una costante o la variabile di un ciclo a limite
+ * costante: per questo il vertice precedente viaggia in una variabile e il lato di chiusura si fa dopo il
+ * ciclo, con `verts[0]`.
+ */
+@Language("AGSL")
+internal const val GlassFieldKernelRing = """
+$GlassFieldPointBlock
+
+uniform float vertCount;
+uniform float2 verts[$GlassFieldRingVertices];
+uniform float4 bbox;
+uniform float normalSmooth;
+uniform float soften;
+uniform float2 fieldCenter;
+uniform float2 restCenter;
+uniform float2 restHalfSize;
+uniform float4 restRadii;
+uniform float dropReach;
+uniform float2 ringBand;
+$GlassFieldSlabBlock
+
+float glassField(float2 p, out float2 normal, out float2 center) {
+    normal = float2(0.0);
+    center = fieldCenter;
+    // Fuori dal riquadro (gia' allargato di ringBand.x) non c'e' niente: si esce prima del ciclo.
+    float2 beyond = max(max(bbox.xy - p, p - bbox.zw), float2(0.0));
+    if (beyond.x > 0.0 || beyond.y > 0.0) return ringBand.x + length(beyond);
+    // La fascia della goccia: lontano dalla sagoma a riposo il contorno non puo' esserci.
+    if (dropReach >= 0.0) {
+        float restD = glassSlab(p - restCenter, restHalfSize, restRadii, 0.0).x;
+        if (restD - dropReach > ringBand.x) return restD - dropReach;
+        if (restD + dropReach < -ringBand.y) return restD + dropReach;
+    }
+
+    int count = int(vertCount);
+    float best = 1000000000.0;
+    float2 nearest = float2(0.0);
+    float2 nearestSide = float2(0.0);
+    float2 nsum = float2(0.0);
+    float winding = 1.0;
+    float2 first = verts[0];
+    float2 prev = first;
+    for (int i = 1; i < $GlassFieldRingVertices; ++i) {
+        if (i >= count) break;
+        float2 vi = verts[i];
+        float2 e = prev - vi;
+        float2 w = p - vi;
+        float ee = dot(e, e);
+        float t = clamp(dot(w, e) / max(ee, 0.000001), 0.0, 1.0);
+        float2 closest = vi + e * t;
+        float2 delta = p - closest;
+        float dd = dot(delta, delta);
+        // La normale del lato: la perpendicolare che esce da un anello in senso orario. Un lato nullo non pesa.
+        float2 side = float2(-e.y, e.x) * inversesqrt(max(ee, 0.000001));
+        if (dd < best) {
+            best = dd;
+            nearest = closest;
+            nearestSide = side;
+        }
+        // La normale mediata: le normali dei lati vicini, col peso 1 sul lato e verso zero lontano.
+        float wn = normalSmooth / (dd + normalSmooth);
+        nsum += side * (wn * wn);
+        bool c1 = p.y >= vi.y;
+        bool c2 = p.y < prev.y;
+        bool c3 = e.x * w.y > e.y * w.x;
+        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) winding = -winding;
+        prev = vi;
+    }
+    {
+        float2 vi = first;
+        float2 e = prev - vi;
+        float2 w = p - vi;
+        float ee = dot(e, e);
+        float t = clamp(dot(w, e) / max(ee, 0.000001), 0.0, 1.0);
+        float2 closest = vi + e * t;
+        float2 delta = p - closest;
+        float dd = dot(delta, delta);
+        float2 side = float2(-e.y, e.x) * inversesqrt(max(ee, 0.000001));
+        if (dd < best) {
+            best = dd;
+            nearest = closest;
+            nearestSide = side;
+        }
+        float wn = normalSmooth / (dd + normalSmooth);
+        nsum += side * (wn * wn);
+        bool c1 = p.y >= vi.y;
+        bool c2 = p.y < prev.y;
+        bool c3 = e.x * w.y > e.y * w.x;
+        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) winding = -winding;
+    }
+    // Dal punto piu' vicino verso `p`, girata in fuori dal segno dell'avvolgimento: la direzione esatta.
+    float2 away = (p - nearest) * winding;
+    float2 outward = away;
+    if (normalSmooth > 0.0) {
+        // Se l'anello arriva in senso antiorario le normali dei lati guardano dentro: le rigira il lato piu' vicino.
+        outward = dot(nearestSide, away) < 0.0 ? -nsum : nsum;
+    }
+    float len = length(outward);
+    normal = len > 0.0000001 ? outward / len : float2(0.0);
+    return winding * sqrt(best) - soften;
 }"""

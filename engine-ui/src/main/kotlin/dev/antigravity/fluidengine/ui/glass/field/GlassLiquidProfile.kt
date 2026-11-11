@@ -9,8 +9,9 @@
  * manopole), e `GlassShadowDefaults` è un rimando a questo file, tenuto per i suoi test.
  *
  * Com'è fatto:
- *  - cinque **pezzi** ([GlassLiquidEdge], [GlassLiquidVeil], [GlassLiquidFrost], [GlassLiquidLens],
- *    [GlassLiquidGrowth]) più l'ombra, che ha già il suo tipo ([GlassShadowSpec]);
+ *  - sei **pezzi** ([GlassLiquidEdge], [GlassLiquidVeil], [GlassLiquidFrost], [GlassLiquidLens],
+ *    [GlassLiquidGrowth], e da F1B.1 [GlassLiquidTravel]: come cambia il materiale mentre una sagoma viaggia) più
+ *    l'ombra, che ha già il suo tipo ([GlassShadowSpec]);
  *  - per ogni pezzo un **catalogo** delle varianti che vanno in tavola ad Alessio ([GlassLiquidEdges],
  *    [GlassLiquidVeils], [GlassLiquidFrosts], [GlassLiquidLenses], [GlassLiquidGrowths],
  *    [GlassLiquidShadows]): «iOS 27 / iOS 26 / oggi» e le proposte dove Apple non è misurata. Le varianti sono
@@ -153,6 +154,44 @@ internal data class GlassLiquidGrowth(val frost: Float, val shadow: GlassShadowG
  */
 @Immutable
 internal data class GlassLiquidNesting(val veil: Float, val shadow: Float)
+
+/**
+ * Il materiale **in viaggio** (F1B.1): cosa cambia mentre una sagoma di Fluid-physics si muove, rispetto alla
+ * stessa sagoma ferma. È la «ricetta di viaggio»: il bersaglio B1 di R4 (media) dice che in viaggio il vetro di
+ * Apple è «limpido e molto rifrangente», e che smerigliatura e ombra piena arrivano negli ultimi 100–150 ms.
+ *
+ * Ogni numero è il valore **a moto pieno**: la ricetta lo pesa con quanto la sagoma si sta muovendo (la lente in
+ * moto di Fluid-physics, `LiquidDrop.lens`: zero esatto a goccia posata, uno alla velocità di
+ * `FluidMotion.LiquidLensFullSpeedDp`), quindi **a viaggio fermo il materiale è esattamente quello a riposo**, e
+ * alla partenza e all'arrivo non c'è niente da raccordare. È la stessa guida della lente in moto della 3.0
+ * (`liquidMaterial`), che sfocava il 45% in meno e piegava l'80% in più: qui il raggio di sfocatura non si può
+ * toccare (decide il margine della cattura, e un margine che cambia rifà la cattura a ogni fotogramma), quindi la
+ * limpidezza è la mescola `w` del piano 3.6.
+ *
+ * I valori di serie sono **prudenti e a occhio** (11 novembre 2026, sul banco): si scelgono sui video dal
+ * tablet, con le manopole `travel`, `travelclear` e `travelbend` ([GlassLiquidTuning]).
+ *
+ * @param clarity quanto nitido entra nella mescola a moto pieno, 0..1: la mescola `w` va da quella di riposo
+ *   verso uno di questa frazione. Zero = smerigliato come da fermo. È una dissolvenza e non una sfocatura
+ *   intermedia (piano 3.6): oltre 0,4 sul testo si legge l'immagine doppia.
+ * @param bend di quanto cresce lo spostamento della lente a moto pieno: `refraction` per `1 + bend`.
+ * @param dome di quanto la cupola va verso uno a moto pieno, 0..1: la goccia è una lente intera, non un bordo
+ *   smussato.
+ * @param magnify l'ingrandimento attorno al centro della sagoma a moto pieno (`magnify` del corpo).
+ * @param dispersion la frangia cromatica a moto pieno, per una superficie che da ferma non ne ha.
+ * @param neck per quanta parte del viaggio il **collo** fra due pezzi nasce e muore, 0..0,5: la fusione sale da
+ *   zero nei primi `neck` del progresso e torna a zero negli ultimi. A riposo due pezzi distinti sono separati
+ *   del tutto (scelta di Alessio, 2026-11-11): il collo esiste solo in viaggio. Vedi `travelFusion`.
+ */
+@Immutable
+internal data class GlassLiquidTravel(
+  val clarity: Float,
+  val bend: Float,
+  val dome: Float,
+  val magnify: Float,
+  val dispersion: Float,
+  val neck: Float,
+)
 
 // ------------------------------------------------------------------------------------------------------------
 // I numeri che non sono una scelta fra varianti
@@ -699,6 +738,33 @@ internal object GlassLiquidGrowths {
 }
 
 /**
+ * Le varianti del materiale **in viaggio** (F1B.1; né R4 né R5 danno numeri: B1 dice «limpido e rifrangente», a
+ * occhio). Tutte hanno lo stesso collo: quanto dura è della geometria del viaggio, non di quanto è limpido.
+ */
+internal object GlassLiquidTravels {
+
+  /** Il viaggio non cambia il materiale: la sagoma si muove col vetro di riposo. È il termine di paragone. */
+  val Off: GlassLiquidTravel =
+    GlassLiquidTravel(clarity = 0f, bend = 0f, dome = 0f, magnify = 0f, dispersion = 0f, neck = 0.5f)
+
+  /**
+   * **Prudente** (di serie): un quarto di nitido nella mescola, lente una volta e mezza, la cupola a metà strada,
+   * l'ingrandimento della 3.0 (`LensMagnify`, 3,5%), metà della frangia di un tasto. Con la smerigliatura di serie
+   * (4,5 dp) un quarto di nitido alza il contrasto sotto il vetro senza che su un testo si legga la copia nitida
+   * sopra quella sfocata.
+   */
+  val Soft: GlassLiquidTravel =
+    GlassLiquidTravel(clarity = 0.25f, bend = 0.5f, dome = 0.5f, magnify = 0.035f, dispersion = 0.15f, neck = 0.5f)
+
+  /**
+   * **Marcato**: metà nitido, lente doppia, cupola piena. È la lettura più letterale di B1 («limpido e molto
+   * rifrangente»); sul testo la copia nitida si vede. Da guardare sui video prima di sceglierla.
+   */
+  val Strong: GlassLiquidTravel =
+    GlassLiquidTravel(clarity = 0.5f, bend = 1f, dome = 1f, magnify = 0.035f, dispersion = 0.3f, neck = 0.5f)
+}
+
+/**
  * Le varianti del **vetro annidato** (tavola `tavole/f1a/10-annidato.png`). Né R4 né R5 misurano un vetro dentro un
  * vetro: tarate sul banco con pannelli veri e un tasto figlio che ne campiona il materiale (scene
  * `gusto/annidato-*`, `artifacts/liquid-glass/bench/f1a-annidato/`), contro il difetto 4 di S1-ter.
@@ -756,6 +822,8 @@ internal object GlassLiquidNestings {
  *   della barra. È la riga «il tondo» della tavola dell'ombra.
  * @param lightNesting con [darkNesting], cosa cambia per una lastra **annidata** dentro un'altra lastra di vetro,
  *   per lato del tema ([GlassLiquidNesting]). [GlassLiquidNestings.Unchanged] = niente.
+ * @param travel cosa cambia mentre una sagoma viaggia ([GlassLiquidTravel], F1B.1). [GlassLiquidTravels.Off] =
+ *   niente: il vetro in viaggio è quello di riposo.
  */
 @Immutable
 internal data class GlassLiquidProfile(
@@ -772,6 +840,7 @@ internal data class GlassLiquidProfile(
   val smallShadow: Float,
   val lightNesting: GlassLiquidNesting,
   val darkNesting: GlassLiquidNesting,
+  val travel: GlassLiquidTravel = GlassLiquidTravels.Soft,
 ) {
 
   fun edge(darkSide: Boolean): GlassLiquidEdge = if (darkSide) darkEdge else lightEdge
@@ -816,6 +885,7 @@ internal data class GlassLiquidProfile(
      * | lente | media (orchestratore) | [GlassLiquidLenses.Medium] |
      * | grandi | un passo (orchestratore) | [GlassLiquidGrowths.StepForWideShadow], ritarato sull'ombra B |
      * | annidato | velo ×0,35 sullo scuro, ombra a metà (orchestratore, S1-ter difetto 4) | [GlassLiquidNestings.Light], [GlassLiquidNestings.Dark] |
+     * | in viaggio | prudente (F1B.1, da scegliere sui video) | [GlassLiquidTravels.Soft] |
      *
      * [smallShadow] a uno: sotto un tasto tondo su bianco R5 M4 misura meno dell'1% entro 0,15 D, e qui il
      * tasto ha l'ombra della barra. È fuori dal bersaglio **di proposito**: il difetto da chiudere è che il
@@ -835,6 +905,7 @@ internal data class GlassLiquidProfile(
       smallShadow = 1f,
       lightNesting = GlassLiquidNestings.Light,
       darkNesting = GlassLiquidNestings.Dark,
+      travel = GlassLiquidTravels.Soft,
     )
 
     /**
@@ -897,7 +968,8 @@ internal class GlassLiquidTuned(
  * `wire`, `faint`, `today`: `wire` è la B di serie, `faint` la B al 10% della tavola), `darkveil` (`lighter`,
  * `deeper`: il velo scuro dei piccoli), `darklarge` (`deep`, `same`: il velo scuro dei grandi, quello di serie o
  * lo stesso dei piccoli), `nested` (`on`, `off`: il vetro annidato di serie, o come sulla pagina, cioè la toppa
- * grigia di S1-ter). I **numeri** cambiano un campo del pezzo già scelto, e si applicano dopo tutte le
+ * grigia di S1-ter), `travel` (`off`, `soft`, `strong`: il materiale in viaggio, F1B.1: come da fermo, il
+ * prudente di serie, il marcato). I **numeri** cambiano un campo del pezzo già scelto, e si applicano dopo tutte le
  * varianti qualunque sia l'ordine in cui arrivano: vedi [numbers]. Una chiave o un valore che non si riconosce
  * non cambia niente e si riporta.
  *
@@ -964,6 +1036,11 @@ internal object GlassLiquidTuning {
       "on" to { p -> p.copy(lightNesting = GlassLiquidNestings.Light, darkNesting = GlassLiquidNestings.Dark) },
       "off" to { p -> p.copy(lightNesting = GlassLiquidNestings.Unchanged, darkNesting = GlassLiquidNestings.Unchanged) },
     ),
+    "travel" to linkedMapOf(
+      "off" to { p -> p.copy(travel = GlassLiquidTravels.Off) },
+      "soft" to { p -> p.copy(travel = GlassLiquidTravels.Soft) },
+      "strong" to { p -> p.copy(travel = GlassLiquidTravels.Strong) },
+    ),
   )
 
   private class Knob(val min: Float, val max: Float, val apply: (GlassLiquidProfile, Float) -> GlassLiquidProfile)
@@ -975,7 +1052,9 @@ internal object GlassLiquidTuning {
    * `bend` (la lente, multiplo della banda); `shadowscale` (le due alfa dell'ombra insieme, sui due lati: il loro
    * rapporto resta quello registrato); lato scuro: `darkwire` (un filo bianco che copre), `darkreflex`,
    * `darkveilalpha`; il vetro annidato: `nestedveil` (quanto resta del velo sullo **scuro**, il numero che
-   * conta), `nestedlightveil` (lo stesso sul chiaro), `nestedshadow` (quanto resta dell'ombra, sui due lati).
+   * conta), `nestedlightveil` (lo stesso sul chiaro), `nestedshadow` (quanto resta dell'ombra, sui due lati); il
+   * materiale in viaggio (F1B.1): `travelclear` (quanto nitido a moto pieno), `travelbend` (di quanto cresce la
+   * lente), `travelneck` (per quanta parte del viaggio il collo fra due pezzi nasce e muore).
    */
   private val numbers: Map<String, Knob> = linkedMapOf(
     "rimwidth" to Knob(0f, 4f) { p, v ->
@@ -1009,6 +1088,9 @@ internal object GlassLiquidTuning {
     "nestedshadow" to Knob(0f, 1f) { p, v ->
       p.copy(lightNesting = p.lightNesting.copy(shadow = v), darkNesting = p.darkNesting.copy(shadow = v))
     },
+    "travelclear" to Knob(0f, 1f) { p, v -> p.copy(travel = p.travel.copy(clarity = v)) },
+    "travelbend" to Knob(0f, 3f) { p, v -> p.copy(travel = p.travel.copy(bend = v)) },
+    "travelneck" to Knob(0.05f, 0.5f) { p, v -> p.copy(travel = p.travel.copy(neck = v)) },
   )
 
   /** Ogni manopola con i valori che accetta: le varianti per nome, i numeri come `min..max`. */

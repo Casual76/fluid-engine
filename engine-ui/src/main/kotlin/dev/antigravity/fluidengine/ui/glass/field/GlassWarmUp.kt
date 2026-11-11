@@ -100,7 +100,10 @@ internal enum class GlassWarmStep {
   GroupBody,
 
   /** La luce a otto pezzi, nei due modi di comporre. */
-  GroupLight;
+  GroupLight,
+
+  /** Il corpo ad anello (F1B.1: la goccia in viaggio, le sagome libere), sulla stessa catena a monte. */
+  RingBody;
 
   /** La sorgente del programma che questo passo compila. */
   val source: GlassShaderSource
@@ -109,6 +112,7 @@ internal enum class GlassWarmStep {
       SlabLight -> GlassShaderSources.Light1
       GroupBody -> GlassShaderSources.Body8
       GroupLight -> GlassShaderSources.Light8
+      RingBody -> GlassShaderSources.BodyRing
     }
 
   val family: GlassWarmFamily get() = GlassWarmFamily.entries.first { this in it.steps }
@@ -127,11 +131,11 @@ internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>) {
   Slab(listOf(GlassWarmStep.SlabBody, GlassWarmStep.SlabLight)),
 
   /**
-   * I gruppi e i viaggi fra lastre (`Body8`, `Light8`). Oggi non li disegna nessuno, quindi nessuno la chiede: la
-   * chiederà F1B quando una superficie che viaggia entra in composizione. Si scalda già con
+   * I gruppi, i viaggi fra lastre e la goccia (`Body8`, `Light8`, `BodyRing`). La chiede una superficie di
+   * Fluid-physics che si disegna col materiale nuovo, quando entra in composizione (F1B.1). Si scalda anche con
    * `FluidGlassDiagnostics.warmUpNow`, ed è così che il test strumentato la prova.
    */
-  Group(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight));
+  Group(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight, GlassWarmStep.RingBody));
 
   val sources: List<GlassShaderSource> get() = steps.map { it.source }
 }
@@ -693,6 +697,15 @@ internal object GlassOffscreenWarmer {
           val upstream = GlassBodyChain().upstream(inputs.saturation, inputs.blurPx, inputs.mix)
           val body = RuntimeShaderCacheImpl().obtainEngineShader("GlassBody8", GlassShaderSources.Body8)
             ?: error("${GlassShaderSources.Body8.name} non è disponibile")
+          val effect = RuntimeShaderEffect(body, "content").asAndroidRenderEffect()
+          val chain = if (upstream == null) effect else android.graphics.RenderEffect.createChainEffect(effect, upstream)
+          frame.recordBody(chain, inputs.paddingPx, scale)
+        }
+        GlassWarmStep.RingBody -> {
+          val inputs = surface.drawInputs(nodeSize, scale = scale)
+          val upstream = GlassBodyChain().upstream(inputs.saturation, inputs.blurPx, inputs.mix)
+          val body = RuntimeShaderCacheImpl().obtainEngineShader("GlassBodyRing", GlassShaderSources.BodyRing)
+            ?: error("${GlassShaderSources.BodyRing.name} non è disponibile")
           val effect = RuntimeShaderEffect(body, "content").asAndroidRenderEffect()
           val chain = if (upstream == null) effect else android.graphics.RenderEffect.createChainEffect(effect, upstream)
           frame.recordBody(chain, inputs.paddingPx, scale)

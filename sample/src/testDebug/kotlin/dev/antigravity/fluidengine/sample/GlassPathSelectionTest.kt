@@ -221,9 +221,11 @@ class GlassPathSelectionTest {
     // Una scelta per superficie: il tasto la fa una volta sola, perché da `Liquid` disegna da sé.
     assertEquals(3, choices(FluidGlassModelReason.Liquid))
     assertEquals(3, FluidGlassDiagnostics.liveModelChoices.values.sum())
-    assertEquals(3, liquidSurfaces())
-    // Fluid-physics resta il vetro di prima in questa fase: una superficie, senza scelta del modello.
-    assertEquals(1, classicSurfaces())
+    // Da F1B.1 anche la superficie di Fluid-physics disegna col materiale nuovo (a `Full`, con i due corpi sani):
+    // quattro superfici `Liquid`, nessuna di prima. La sua scelta passa da `resolvePhysicsGlass`, che non si conta
+    // fra quelle del modello: le scelte restano tre.
+    assertEquals(4, liquidSurfaces())
+    assertEquals(0, classicSurfaces())
     // Il riscaldamento è stato chiesto (Robolectric dichiara la finestra accelerata: aspetta il momento fermo).
     val warm = slabWarmUp()
     assertTrue("Il riscaldamento della lastra va chiesto: $warm", warm.state != FluidGlassWarmUpState.Idle)
@@ -369,7 +371,8 @@ class GlassPathSelectionTest {
       compose.runOnIdle { generation.intValue++ }
       compose.waitForIdle()
       report("simulazione tolta")
-      assertEquals(3, liquidSurfaces())
+      // Tasto, capsula, menu e, da F1B.1, la superficie di Fluid-physics.
+      assertEquals(4, liquidSurfaces())
 
       // Un'app che non è `debuggable` non simula niente.
       info.flags = flags and ApplicationInfo.FLAG_DEBUGGABLE.inv()

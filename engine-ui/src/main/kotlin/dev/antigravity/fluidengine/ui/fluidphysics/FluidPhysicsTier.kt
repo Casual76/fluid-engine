@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassLiquidMinSdk
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
@@ -16,7 +18,11 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
  * tre i livelli: quello che cambia è solo quanta ottica la veste.
  */
 enum class FluidPhysicsTier {
-  /** SDK 33+: rifrazione SDF per ogni famiglia, ponti liquidi fra i pezzi. */
+  /**
+   * SDK 33+: rifrazione SDF per ogni famiglia, ponti liquidi fra i pezzi. Dalla 4.0 a questo livello la
+   * superficie si disegna col materiale nuovo (`FluidGlassModel.Liquid`) dove può esistere, e col vetro di prima
+   * dove no: vedi `resolvePhysicsGlass`.
+   */
   Full,
 
   /** SDK 31–32, o uno shader che il driver ha rifiutato: sfocatura, vividezza, tinta e bordo. */
@@ -47,6 +53,70 @@ internal fun resolvePhysicsTier(
   if (requested == null) return ceiling
   return if (requested.ordinal > ceiling.ordinal) requested else ceiling
 }
+
+/**
+ * Con cosa si disegna una superficie di Fluid-physics: il livello, e a [FluidPhysicsTier.Full] quale dei due
+ * materiali.
+ */
+internal class PhysicsGlass(val tier: FluidPhysicsTier, val model: FluidGlassModel) {
+  /** Vero se la superficie si disegna col materiale nuovo: corpo, luce e maschera dal campo di `glass/field`. */
+  val liquid: Boolean get() = tier == FluidPhysicsTier.Full && model == FluidGlassModel.Liquid
+
+  override fun equals(other: Any?): Boolean = other is PhysicsGlass && other.tier == tier && other.model == model
+  override fun hashCode(): Int = tier.hashCode() * 31 + model.hashCode()
+  override fun toString(): String = "PhysicsGlass($tier, $model)"
+}
+
+/**
+ * Il livello e il materiale di una superficie di Fluid-physics (4.0, F1B.1). Pura: è la tabella di verità che
+ * `FluidPhysicsTierTest` legge riga per riga.
+ *
+ * Il materiale nuovo si ha a [FluidPhysicsTier.Full] e solo se: qualcuno lo ha chiesto ([requestedModel], cioè
+ * `LocalFluidGlassModel`), il dispositivo ha AGSL ([sdk] da Android 13), e il suo compilatore accetta le tre
+ * sorgenti che servono ([liquidHealthy]: corpo a otto pezzi, corpo ad anello, luce a otto pezzi). Ogni «no»
+ * scende di un gradino, come sempre, e mai con un'eccezione:
+ *
+ *  - materiale nuovo rifiutato o non chiesto, sorgenti di prima sane ([classicHealthy]) → `Full` col vetro di
+ *    prima, al pixel com'era;
+ *  - sorgenti di prima rifiutate ma materiale nuovo sano e chiesto → `Full` col materiale nuovo (un driver che
+ *    inciampa nelle vecchie non deve togliere la lente alle nuove);
+ *  - né le une né le altre, o niente AGSL → `Balanced`; senza `RenderEffect` → `Lite`.
+ *
+ * Una richiesta di livello ([requestedTier]) può solo scendere, e sotto `Full` il materiale è sempre quello di
+ * prima: `Balanced` e `Lite` non hanno uno shader che disegni il campo.
+ *
+ * Le due salute sono funzioni perché la prima domanda compila: chi resta sotto `Full` per un'altra ragione non
+ * deve far compilare niente.
+ */
+internal fun resolvePhysicsGlass(
+  sdk: Int,
+  renderEffectSupported: Boolean,
+  runtimeShaderSupported: Boolean,
+  classicHealthy: () -> Boolean,
+  liquidHealthy: () -> Boolean,
+  requestedTier: FluidPhysicsTier?,
+  requestedModel: FluidGlassModel,
+): PhysicsGlass {
+  val liquidPossible = renderEffectSupported && runtimeShaderSupported &&
+    requestedModel == FluidGlassModel.Liquid && sdk >= FluidGlassLiquidMinSdk &&
+    (requestedTier == null || requestedTier == FluidPhysicsTier.Full)
+  // Prima il materiale nuovo: se c'è, le sorgenti di prima non servono e non si compilano nemmeno.
+  if (liquidPossible && liquidHealthy()) return PhysicsGlass(FluidPhysicsTier.Full, FluidGlassModel.Liquid)
+  val tier = resolvePhysicsTier(
+    renderEffectSupported = renderEffectSupported,
+    runtimeShaderSupported = runtimeShaderSupported,
+    shadersHealthy = runtimeShaderSupported && classicHealthy(),
+    requested = requestedTier,
+  )
+  return PhysicsGlass(tier, FluidGlassModel.Classic)
+}
+
+/**
+ * Le due sorgenti del materiale nuovo che servono a Fluid-physics, provate tutte: [GlassShaderSources.travel].
+ * Un rifiuto è una riga d'errore della sonda col nome della sorgente (`GlassFieldHealth`), e la superficie resta
+ * al vetro di prima.
+ */
+internal fun physicsLiquidShadersHealthy(): Boolean = GlassShaderSources.travel.all(GlassFieldHealth::usable)
 
 /** Il livello per questo processo, senza richieste: il tetto del dispositivo. */
 internal fun currentPhysicsTierCeiling(): FluidPhysicsTier = resolvePhysicsTier(

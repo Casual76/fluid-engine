@@ -91,7 +91,18 @@ import org.intellij.lang.annotations.Language
  *
  * ### Maschera e blocchi
  * - `float aa`: la larghezza in pixel della rampa di copertura sul contorno (1,25 px, come oggi);
- * - `float lightInBody`: 0 a riposo, 1 in viaggio. Vedi [GlassBodyBlock].
+ * - `float lightInBody`: 0 per una lastra di `glassSurface`, che la luce la disegna sul nodo; 1 per Fluid-physics,
+ *   ferma o in viaggio. Vedi [GlassBodyBlock];
+ * - `float2 nodeClip`: il **ritaglio del nodo**, per chi non ce l'ha. Una lastra di `glassSurface` ha lo strato
+ *   ritagliato sulla sagoma, con il suo antialias, e la copertura del campo gli si moltiplica: lì `x` è 0. Chi
+ *   disegna su un palco rettangolare (Fluid-physics, F1B.1) quel ritaglio non ce l'ha, e mette `x` a 1: il corpo
+ *   moltiplica la copertura per quella che il ritaglio avrebbe dato, `clamp(0.5 - d + margine, 0, 1)`. Senza,
+ *   il pixel di contorno di un pezzo in viaggio è il doppio più pieno di quello della stessa lastra ferma, e al
+ *   passaggio di consegne il contorno ingrassa di mezzo pixel (misurato sul banco: fino a 66 livelli su un
+ *   anello largo un pixel). `y` è il **margine d'angolo** in pixel: il ritaglio di una lastra raccordata sta al
+ *   98% del raggio (`GlassSmoothedClipScale`), cioè negli angoli passa più largo della sagoma di
+ *   `(1 - 0,98) · raggio · (|nx| + |ny| - 1)` e lì non taglia; zero per gli angoli circolari, dove ritaglio e
+ *   sagoma coincidono. Tutto in pixel dello spazio dello shader: chi lo accende cattura a scala 1.
  */
 @Language("AGSL")
 internal const val GlassBodyUniformsBlock = """
@@ -112,7 +123,8 @@ uniform float2 bodyShadeLean;
 uniform float dim;
 uniform float grain;
 uniform float aa;
-uniform float lightInBody;"""
+uniform float lightInBody;
+uniform float2 nodeClip;"""
 
 /**
  * Il corpo vero e proprio, uguale per le due varianti: cambia solo il nucleo che gli sta sopra.
@@ -188,6 +200,11 @@ half4 glassBody(float2 coord) {
     float2 center;
     float d = glassField(p, normal, center);
     float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
+    // Il ritaglio del nodo, per chi non ce l'ha: vedi `nodeClip`.
+    if (nodeClip.x > 0.5) {
+        float corner = max(abs(normal.x) + abs(normal.y) - 1.0, 0.0);
+        coverage *= clamp(0.5 - d + nodeClip.y * corner, 0.0, 1.0);
+    }
     float amount = clamp(materialize, 0.0, 1.0);
 
     if (coverage <= 0.0) {
@@ -202,7 +219,14 @@ half4 glassBody(float2 coord) {
     float bend = glassCircleMap(band) * refraction * amount;
     float2 fromCenter = p - center;
     float fromCenterLen = length(fromCenter);
-    float2 lensDir = normal + dome * (fromCenterLen > 0.0001 ? fromCenter / fromCenterLen : float2(0.0));
+    // Il profilo di spessore in un ponte: dove le normali di due pezzi si guardano la loro mescola si accorcia
+    // (vale |1 - 2h| sull'asse fra i due) e li' il vetro e' piatto. La cupola si spegne con lo stesso peso: il
+    // suo versore, da solo, girerebbe di mezzo giro attraversando l'asse (il centro mescolato passa per il
+    // punto) e lascerebbe una piega. Il fattore 1.01 rende il peso esattamente 1 su un pezzo solo, dove la
+    // normale e' unitaria a meno dell'arrotondamento: li' non cambia un bit.
+    float flatness = clamp(length(normal) * 1.01, 0.0, 1.0);
+    float2 lensDir = normal
+        + (dome * flatness) * (fromCenterLen > 0.0001 ? fromCenter / fromCenterLen : float2(0.0));
     // Accorciata a 1, non normalizzata: dove le normali di due pezzi si annullano (in mezzo a un ponte) lo
     // spostamento deve spegnersi, non cambiare verso di colpo.
     lensDir /= max(length(lensDir), 1.0);
@@ -300,11 +324,43 @@ half4 main(float2 coord) {
  * la griglia), così com'è spegne lo spostamento, che è ciò che fa una superficie piatta. Su un pezzo solo la
  * normale è lunga 1 e con la cupola di più, quindi non cambia niente. Velo e tinta non dipendono dalla
  * geometria e non hanno una cucitura da mostrare.
+ *
+ * La **cupola** ha bisogno dello stesso profilo (F1B.1): il suo versore punta via dal centro mescolato, che
+ * nel collo attraversa il punto, e da solo girerebbe di mezzo giro in un paio di dp (una riga verticale
+ * sull'asse mediale, con la sua frangia cromatica: vista sul banco, `bench/f1b-1/prova`). Il corpo la pesa con
+ * la lunghezza della normale mescolata (`flatness`), che sull'asse fra due pezzi che si guardano vale zero e
+ * su un pezzo solo uno.
  */
 @Language("AGSL")
 internal const val GlassBody8ShaderString = """
 uniform shader content;
 $GlassFieldKernel8
+$GlassBodyUniformsBlock
+$GlassLightBlock
+$GlassTravelShadowBlock
+$GlassBodyBlock
+
+half4 main(float2 coord) {
+    return glassBody(coord);
+}"""
+
+/**
+ * Il corpo di una **sagoma ad anello** (F1B.1): la goccia in viaggio e le sagome libere di Fluid-physics
+ * (`FluidForm.Poly`), cioè ciò che non è un'unione di rettangoli arrotondati. Lo stesso [GlassBodyBlock] dei due
+ * programmi a lastre sopra il nucleo [GlassFieldKernelRing]: lente, velo, tinta, ombreggiatura, luce e ombra in
+ * corpo sono le stesse righe, e una goccia che si posa sulla sua lastra cambia nucleo senza cambiare materiale.
+ *
+ * Un anello non ha un programma di luce a riposo: tiene `lightInBody` a 1 anche da fermo (piano 3.4), cioè il
+ * bagliore di una sagoma libera ferma ripaga la catena. Sono il Playground e poco altro.
+ *
+ * Costa il ciclo sui lati (al più [GlassFieldRingVertices]) per ogni pixel della fascia in cui il contorno può
+ * stare (`bbox`, e per la goccia `dropReach`): fuori e nel vetro piatto il nucleo esce prima del ciclo. Con
+ * l'ombra in viaggio accesa il ciclo gira una seconda volta nella sola fascia dell'ombra (`glassTravelShadow`).
+ */
+@Language("AGSL")
+internal const val GlassBodyRingShaderString = """
+uniform shader content;
+$GlassFieldKernelRing
 $GlassBodyUniformsBlock
 $GlassLightBlock
 $GlassTravelShadowBlock

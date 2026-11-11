@@ -130,6 +130,11 @@ internal object GlassFieldGeometry {
     normalSpread: Float = GlassFieldNormalSpread,
   ) {
     val minHalf = min(halfWidth, halfHeight)
+    val widest = max(max(radii[radiiAt], radii[radiiAt + 1]), max(radii[radiiAt + 2], radii[radiiAt + 3]))
+    if (widest > minHalf * GlassFieldWideSlack && isWide(halfWidth, halfHeight, radii, radiiAt)) {
+      wideSlab(relX, relY, halfWidth, halfHeight, radii, radiiAt, out, normalSpread)
+      return
+    }
     val nominal = radiusAt(relX, relY, radii[radiiAt], radii[radiiAt + 1], radii[radiiAt + 2], radii[radiiAt + 3])
     val radius = max(min(nominal, minHalf), 0f)
     val s = effectiveSmoothing(radius, minHalf, smoothing)
@@ -184,6 +189,109 @@ internal object GlassFieldGeometry {
     }
     out.normalX = sideX * nx
     out.normalY = sideY * ny
+  }
+
+  /** Vero se una lastra con questi raggi prende il ramo largo di `glassSlab` (un angolo oltre mezzo lato corto). */
+  fun isWide(halfWidth: Float, halfHeight: Float, radii: FloatArray, radiiAt: Int): Boolean {
+    val topLeft = radii[radiiAt]
+    val topRight = radii[radiiAt + 1]
+    val bottomRight = radii[radiiAt + 2]
+    val bottomLeft = radii[radiiAt + 3]
+    val widest = max(max(topLeft, topRight), max(bottomRight, bottomLeft))
+    if (widest <= min(halfWidth, halfHeight) * GlassFieldWideSlack) return false
+    // I raggi devono stare nei lati, come li consegna Compose: un 999 chiesto per una capsula non è «largo».
+    val roomX = halfWidth * (2f * GlassFieldWideSlack)
+    val roomY = halfHeight * (2f * GlassFieldWideSlack)
+    return max(topLeft + topRight, bottomLeft + bottomRight) <= roomX &&
+      max(topLeft + bottomLeft, topRight + bottomRight) <= roomY
+  }
+
+  /** `glassWideSpread`: il raggio su cui il ramo largo calcola la normale. */
+  private fun wideSpread(radius: Float, minHalf: Float, roomX: Float, roomY: Float, normalSpread: Float): Float =
+    max(radius, min(min(radius * normalSpread, minHalf), min(roomX, roomY)))
+
+  /** `glassWideBox`. */
+  private fun wideBox(relX: Float, relY: Float, halfWidth: Float, halfHeight: Float, held: GlassFieldSample) {
+    val bx = abs(relX) - halfWidth
+    val by = abs(relY) - halfHeight
+    val sideX = if (relX < 0f) -1f else 1f
+    val sideY = if (relY < 0f) -1f else 1f
+    if (bx > 0f && by > 0f) {
+      val length = hypot(bx, by)
+      held.distance = length
+      held.normalX = sideX * (bx / length)
+      held.normalY = sideY * (by / length)
+    } else {
+      val gx = if (bx >= by) 1f else 0f
+      held.distance = max(bx, by)
+      held.normalX = sideX * gx
+      held.normalY = sideY * (1f - gx)
+    }
+  }
+
+  /** `glassWideCorner`: l'arco di un angolo, se il punto sta nella sua zona e l'arco vince. */
+  private fun wideCorner(
+    held: GlassFieldSample,
+    relX: Float,
+    relY: Float,
+    halfWidth: Float,
+    halfHeight: Float,
+    sideX: Float,
+    sideY: Float,
+    radius: Float,
+  ) {
+    val qx = relX * sideX - (halfWidth - radius)
+    val qy = relY * sideY - (halfHeight - radius)
+    if (qx <= 0f || qy <= 0f) return
+    val length = hypot(qx, qy)
+    if (length - radius <= held.distance) return
+    held.distance = length - radius
+    held.normalX = sideX * (qx / length)
+    held.normalY = sideY * (qy / length)
+  }
+
+  /**
+   * `glassWideSlab`: una lastra con un angolo oltre mezzo lato corto. La sagoma è l'intersezione dei quattro
+   * quadranti arrotondati: il più grande fra la scatola e l'arco di ogni angolo nella sua zona. Vedi
+   * [GlassFieldSlabBlock], «Il ramo largo».
+   */
+  private fun wideSlab(
+    relX: Float,
+    relY: Float,
+    halfWidth: Float,
+    halfHeight: Float,
+    radii: FloatArray,
+    radiiAt: Int,
+    out: GlassFieldSample,
+    normalSpread: Float,
+  ) {
+    val tl = max(radii[radiiAt], 0f)
+    val tr = max(radii[radiiAt + 1], 0f)
+    val br = max(radii[radiiAt + 2], 0f)
+    val bl = max(radii[radiiAt + 3], 0f)
+    // Il contenitore del chiamante fa da appoggio: il termine che vince finora, distanza e normale.
+    val held = out
+    wideBox(relX, relY, halfWidth, halfHeight, held)
+    val boxD = held.distance
+    val boxNx = held.normalX
+    val boxNy = held.normalY
+    wideCorner(held, relX, relY, halfWidth, halfHeight, -1f, -1f, tl)
+    wideCorner(held, relX, relY, halfWidth, halfHeight, 1f, -1f, tr)
+    wideCorner(held, relX, relY, halfWidth, halfHeight, 1f, 1f, br)
+    wideCorner(held, relX, relY, halfWidth, halfHeight, -1f, 1f, bl)
+    val distance = held.distance
+
+    val minHalf = min(halfWidth, halfHeight)
+    val wholeX = halfWidth * 2f
+    val wholeY = halfHeight * 2f
+    held.distance = boxD
+    held.normalX = boxNx
+    held.normalY = boxNy
+    wideCorner(held, relX, relY, halfWidth, halfHeight, -1f, -1f, wideSpread(tl, minHalf, wholeX - tr, wholeY - bl, normalSpread))
+    wideCorner(held, relX, relY, halfWidth, halfHeight, 1f, -1f, wideSpread(tr, minHalf, wholeX - tl, wholeY - br, normalSpread))
+    wideCorner(held, relX, relY, halfWidth, halfHeight, 1f, 1f, wideSpread(br, minHalf, wholeX - bl, wholeY - tr, normalSpread))
+    wideCorner(held, relX, relY, halfWidth, halfHeight, -1f, 1f, wideSpread(bl, minHalf, wholeX - br, wholeY - tl, normalSpread))
+    out.distance = distance
   }
 
   /**

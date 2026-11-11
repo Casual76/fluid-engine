@@ -27,8 +27,14 @@ import org.intellij.lang.annotations.Language
 /**
  * Quanti pezzi porta lo shader di gruppo. È il `MaxPieces` di [FluidForm.Group], e i due numeri
  * devono restare uguali: l'array uniform è dimensionato su questo.
+ *
+ * Otto dalla 4.0 (F1B.1), come il campo del materiale nuovo (`GlassFieldMaxPieces`): il piano di resa è uno solo
+ * per i due materiali, e un gruppo di sette pezzi disegnato dal vetro di prima non deve perderne uno. Nelle due
+ * sorgenti di gruppo cambia la taglia degli array e nient'altro: il ciclo esce su `pieceCount`, quindi fino a sei
+ * pezzi i pixel sono quelli di prima (misura di S1, cancello C3: il ciclo a otto che esce sul conteggio costa
+ * come uno tagliato).
  */
-internal const val PhysicsMaxPieces: Int = 6
+internal const val PhysicsMaxPieces: Int = 8
 
 /**
  * Quanti vertici porta lo shader poligonale. È il `MaxVertices` di [FluidFormPresets]: stesso
@@ -80,7 +86,7 @@ float physicsCircleMap(float x) {
 }"""
 
 /**
- * Fino a sei rettangoli arrotondati fusi in un solo campo con uno smooth minimum: la lente, la
+ * Fino a [PhysicsMaxPieces] rettangoli arrotondati fusi in un solo campo con uno smooth minimum: la lente, la
  * maschera e il ponte liquido di un morph a pezzi, in un passaggio.
  *
  * Il gradiente del campo fuso è il mix dei gradienti analitici dei pezzi, pesato dallo stesso `h`

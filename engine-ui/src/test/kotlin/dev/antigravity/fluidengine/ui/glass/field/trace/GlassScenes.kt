@@ -117,7 +117,7 @@ internal class SlabGeometry(
  * con il raccordo di iOS). La soglia dei piccoli è in pixel, quindi dipende dalla densità: una scena vale a
  * più densità solo se ogni sua lastra cade dalla stessa parte a tutte ([SceneDensities]), e qui si controlla.
  */
-internal fun slabGeometry(name: String, w: Double, h: Double, radius: Any?): SlabGeometry {
+internal fun slabGeometry(name: String, w: Double, h: Double, radius: Any?, continuous: Boolean = true): SlabGeometry {
   val short = min(w, h)
   val nominal: List<Double> = when (radius) {
     null, "capsule" -> List(4) { short / 2.0 }
@@ -137,7 +137,7 @@ internal fun slabGeometry(name: String, w: Double, h: Double, radius: Any?): Sla
       bottomRight = nominal[2].toFloat(),
       bottomLeft = nominal[3].toFloat(),
       smoothing = ContinuousCornerShape.IosSmoothing,
-      continuous = true,
+      continuous = continuous,
       small = glassSlabIsSmall((max(w, h) * density).toFloat()),
     )
   }
@@ -145,7 +145,9 @@ internal fun slabGeometry(name: String, w: Double, h: Double, radius: Any?): Sla
     "$name: a una densità è un «grande» e a un'altra un «piccolo»: la scena non varrebbe a tutte e due"
   }
   val geometry = perDensity.first()
-  val radii: Any = if (geometry.nominal) {
+  // Una forma ad angoli circolari (`RoundedCornerShape`, F1B.1): i raggi come Compose li disegna, scritti per
+  // esteso, perché `$radii` del banco sono quelli chiesti e Compose può averli ridotti.
+  val radii: Any = if (geometry.nominal && continuous) {
     "\$radii"
   } else {
     listOf(geometry.topLeft, geometry.topRight, geometry.bottomRight, geometry.bottomLeft).map { glassDp(it) }
@@ -175,11 +177,13 @@ internal fun liquidElement(
   recipe: GlassRecipe,
   theme: String?,
   note: String,
+  /** Falso per una forma ad angoli circolari (`RoundedCornerShape`): di serie le forme continue dell'engine. */
+  continuous: Boolean = true,
 ): LinkedHashMap<String, Any?> {
   val name = shape.getValue("name") as String
   val w = (shape.getValue("w") as Number).toDouble()
   val h = (shape.getValue("h") as Number).toDouble()
-  val geometry = slabGeometry(name, w, h, shape["radius"])
+  val geometry = slabGeometry(name, w, h, shape["radius"], continuous)
 
   fun field(): LinkedHashMap<String, Any?> = linkedMapOf(
     "offset" to "\$offset",

@@ -65,17 +65,19 @@ internal class GlassSlabGeometry {
   var nominal: Boolean = true
 
   /**
-   * Vero se il campo disegna **esattamente** il contorno che la forma disegna a questa taglia; falso se la forma ha un
-   * angolo più largo di mezzo lato corto.
+   * Vero se il campo disegna **esattamente** il contorno che la forma disegna a questa taglia. Da F1B.1 lo è sempre.
    *
-   * Il nucleo sceglie l'angolo per quadrante e ne limita il raggio a mezzo lato corto (`glassSlab`,
-   * [GlassFieldSlabBlock]): un angolo che scende oltre la metà del lato non lo sa rendere. Compose invece lo disegna
-   * (`RoundedCornerShape(topStart = 80.dp, …)` su un lato di 100 resta 80), e il vetro nuovo usciva con l'angolo a 50 e
-   * il contorno esterno diverso dalla forma (F1A, critico C). Dove questo è falso la superficie resta `Classic`
-   * (`resolveFluidGlassModel`), che ritaglia con il contorno della forma; i raggi qui restano limitati, perché il primo
-   * fotogramma prima della misura non esca dalla sagoma.
+   * Fino al giro di correzione di F1A il nucleo sceglieva l'angolo per quadrante e ne limitava il raggio a mezzo lato
+   * corto: un angolo che scende oltre la metà del lato (`RoundedCornerShape(topStart = 80.dp, …)` su un lato di 100,
+   * che Compose disegna a 80) non lo sapeva rendere, qui usciva falso e la superficie restava `Classic`: un fumetto di
+   * chat `22/22/22/6` aveva il vetro di prima su una riga e il nuovo su due. Ora `glassSlab` ha il ramo largo
+   * ([GlassFieldSlabBlock]) e i raggi escono di qui **come Compose li disegna**, senza limite a mezzo lato. Il campo
+   * resta per chi lo legge (`glassFieldFits`, i test): non c'è più una forma ad angoli tondi che lo metta a falso.
    */
   var fits: Boolean = true
+
+  /** Vero se almeno un angolo passa mezzo lato corto: la lastra prende il ramo largo del nucleo. */
+  var wide: Boolean = false
 
   fun set(topLeft: Float, topRight: Float, bottomRight: Float, bottomLeft: Float): GlassSlabGeometry {
     this.topLeft = topLeft
@@ -110,15 +112,15 @@ private const val GlassFieldFitTolerance: Float = 1e-4f
  *
  *  - **angoli circolari** ([continuous] falso: un rettangolo, una `RoundedCornerShape`): il rettangolo arrotondato
  *    con quei raggi, ridotti tutti insieme se due raggi accanto superano un lato (come lo riduce Skia, e
- *    `RoundRect.contains`). Nessun raccordo. Se un raggio resta oltre mezzo lato corto il campo non lo sa rendere:
- *    [GlassSlabGeometry.fits] è falso;
+ *    `RoundRect.contains`). Nessun raccordo. Un raggio può restare oltre mezzo lato corto (l'angolo accanto gli
+ *    lascia il posto): esce com'è, [GlassSlabGeometry.wide] lo dice, e il nucleo lo rende col ramo largo (F1B.1);
  *  - **capsula** (ogni raggio da mezzo lato corto in su): un semicerchio esatto. Raggi a mezzo lato corto,
  *    nessun raccordo, ritaglio pieno. Nel campo il raccordo si spegnerebbe da solo; qui si scrive zero perché
  *    resti zero anche in ciò che si legge;
  *  - **piccoli** ([small]): l'engine li disegna come rettangoli arrotondati al raggio equivalente
  *    (`ContinuousCornerShape.roundedEquivalent`: per 0,82, tranne l'angolo che è già a mezzo lato, che resta
- *    com'è) e ritaglia con gli stessi raggi (`ShapeProvider.fastClipShape`). Il campo usa quei raggi; un angolo
- *    rimasto oltre mezzo lato non lo sa rendere, come sopra;
+ *    com'è) e ritaglia con gli stessi raggi (`ShapeProvider.fastClipShape`). Il campo usa quei raggi, anche oltre
+ *    mezzo lato, come sopra;
  *  - **grandi**: i raggi, limitati a mezzo lato corto come li limita l'emettitore dell'engine
  *    (`continuousCornerPoints`), lo `smoothing` della forma, e il ritaglio hardware a [GlassSmoothedClipScale].
  *    Senza un raggio da arrotondare non c'è raccordo e il ritaglio resta pieno. Il campo li rende sempre.
@@ -152,6 +154,7 @@ internal fun glassSlabGeometry(
   out.clipScale = 1f
   out.nominal = true
   out.fits = true
+  out.wide = false
 
   // Le coppie sullo stesso fianco, come `CornerBasedShape.createOutline`: contro il lato corto, non contro il fianco.
   var tl = finite(topLeft)
@@ -203,8 +206,8 @@ internal fun glassSlabGeometry(
 /**
  * I raggi di un rettangolo arrotondato come lo disegna la piattaforma: se due raggi accanto superano il lato, tutti
  * e quattro si riducono dello stesso fattore, il più piccolo dei quattro lati (`RoundRect.scaledRadiiRect` di
- * Compose, `SkRRect` di Skia). Poi [GlassSlabGeometry.fits]: un raggio oltre mezzo lato corto il campo non lo sa
- * rendere, e [out] riceve i raggi limitati.
+ * Compose, `SkRRect` di Skia). [out] li riceve così, anche oltre mezzo lato corto: il nucleo li rende col ramo
+ * largo, e [GlassSlabGeometry.wide] dice quando.
  */
 private fun roundRectRadii(
   width: Float,
@@ -229,28 +232,27 @@ private fun roundRectRadii(
   val tr = topRight * scale
   val br = bottomRight * scale
   val bl = bottomLeft * scale
+  // Entro la tolleranza un raggio «a mezzo lato» resta a mezzo lato: una capsula non prende il ramo largo per
+  // l'errore di un prodotto.
   val limit = half * (1f + GlassFieldFitTolerance)
-  out.fits = tl <= limit && tr <= limit && br <= limit && bl <= limit
-  fun capped(radius: Float): Float = radius.coerceIn(0f, max(half, 0f))
-  out.set(capped(tl), capped(tr), capped(br), capped(bl))
+  fun settled(radius: Float): Float = if (radius > half && radius <= limit) half else max(radius, 0f)
+  out.set(settled(tl), settled(tr), settled(br), settled(bl))
+  out.wide = tl > limit || tr > limit || br > limit || bl > limit
 }
 
 /**
- * Vero se [shape] ha i quattro angoli uguali (o nessuno): allora il campo la rende **a ogni taglia**, e chi la disegna
- * non deve misurarla per sapere se resta `Liquid`.
+ * Vero se il campo rende [shape] **a ogni taglia**, e chi la disegna non deve misurarla per sapere se resta `Liquid`.
  *
- * Perché: con quattro angoli uguali Compose riduce ogni coppia a non più del lato corto, quindi ogni angolo a non più
- * di mezzo lato, che è ciò che il nucleo sa rendere (vedi [GlassSlabGeometry.fits]). Una forma con angoli diversi
- * dipende dalla taglia: un fumetto di chat `22/22/22/6` è `Liquid` a 44 dp di altezza e `Classic` a 40.
+ * Da F1B.1 vale per ogni forma che il campo sa rendere ([glassFieldRenders]): il ramo largo del nucleo rende anche
+ * l'angolo oltre mezzo lato corto, e un fumetto di chat `22/22/22/6` è `Liquid` a 40 dp come a 44. Prima valeva solo
+ * per i quattro angoli uguali, e le altre forme si misuravano al layout (`GlassFieldFit`): un nodo in più, e un
+ * fotogramma `Liquid` prima di passare a `Classic`.
  */
-internal fun glassFieldFitsAtAnySize(shape: Shape): Boolean =
-  shape === RectangleShape ||
-    (shape is CornerBasedShape &&
-      shape.topStart == shape.topEnd && shape.topStart == shape.bottomEnd && shape.topStart == shape.bottomStart)
+internal fun glassFieldFitsAtAnySize(shape: Shape): Boolean = glassFieldRenders(shape)
 
 /**
- * Vero se il campo disegna il contorno di [shape] a questa taglia ([GlassSlabGeometry.fits]). Chiesto al layout dalle
- * superfici con una forma che dipende dalla taglia ([glassFieldFitsAtAnySize] falso): falso le lascia `Classic`.
+ * Vero se il campo disegna il contorno di [shape] a questa taglia ([GlassSlabGeometry.fits]). Da F1B.1 è
+ * [glassFieldRenders] a ogni taglia; la domanda resta, con la taglia, per chi la fa già e per i test.
  */
 internal fun glassFieldFits(shape: Shape, size: Size, density: Density, layoutDirection: LayoutDirection): Boolean {
   if (!glassFieldRenders(shape)) return false
@@ -367,6 +369,50 @@ internal class GlassFieldPlan(val pieces: Int = GlassFieldMaxPieces) {
     radii[3] = geometry.bottomLeft
     blend[0] = 0f
     smooth[0] = geometry.smoothing
+    return this
+  }
+
+  /** Svuota il piano: nessun pezzo vivo, caselle a zero (uno uniform ad array si manda sempre per intero). */
+  fun clear(): GlassFieldPlan {
+    count = 0
+    rects.fill(0f)
+    radii.fill(0f)
+    blend.fill(0f)
+    smooth.fill(0f)
+    return this
+  }
+
+  /**
+   * Aggiunge un pezzo (F1B.1: i gruppi e i viaggi di Fluid-physics). Oltre [pieces] non fa niente, come lo shader
+   * che non lo leggerebbe.
+   *
+   * @param blend il raggio di fusione col già fuso; la casella del primo pezzo non si legge.
+   */
+  fun add(
+    centerX: Float,
+    centerY: Float,
+    halfWidth: Float,
+    halfHeight: Float,
+    topLeft: Float,
+    topRight: Float,
+    bottomRight: Float,
+    bottomLeft: Float,
+    blend: Float,
+    smoothing: Float,
+  ): GlassFieldPlan {
+    if (count >= pieces) return this
+    val at = count * GlassFieldGeometry.FloatsPerPiece
+    rects[at] = centerX
+    rects[at + 1] = centerY
+    rects[at + 2] = halfWidth
+    rects[at + 3] = halfHeight
+    radii[at] = topLeft
+    radii[at + 1] = topRight
+    radii[at + 2] = bottomRight
+    radii[at + 3] = bottomLeft
+    this.blend[count] = blend
+    smooth[count] = smoothing
+    count++
     return this
   }
 }

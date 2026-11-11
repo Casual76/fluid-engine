@@ -1145,6 +1145,22 @@ fondale fermo si misurano con `warmup 5`; dove una misura è stata fatta con `wa
 | il bagliore della pressione è piatto su tutta la lastra (+64/+65 in scuro), in chiaro satura a bianco pieno e cancella lente e filo, e non segue il dito | uguale in «oggi» e «nuovo» | F6 (tocco: bagliore sotto il dito, intensità sul chiaro fra le scelte di gusto) |
 | l'ombra lontana (16 px dal bordo) è un poco più lunga sul tablet che sul banco | −3 contro −1 livelli | F1A.5c la riguarda ritarando l'ombra B; il banco si corregge se lo scarto resta |
 
+**Dopo S2-pre, F1A.13 e il giro di correzione di F1A (2026-11-11, APK `f1a-finale`)**: il grigio medio dei grandi in
+scuro è chiuso (corpo 42–46, testo secondario 5,9–6,2:1 secondo la zona misurata; era 3,1–4,0:1); il vetro annidato è
+chiuso sul tablet (tasto nella notifica piena 65–67 su 56, nel foglio `Liquid` 61 su 40, controlli fratelli di un
+pannello che esporta 62 su 48, con un test strumentato che compone i casi). Restano, con chi li chiude:
+
+| difetto | misura | chi lo chiude |
+|---|---|---|
+| una forma con un angolo oltre mezzo lato corto resta `Classic`: una bolla di chat 22/22/22/6 su una riga (40 dp) ha il vetro di prima, su due righe il nuovo: **due materiali nella stessa chat** | `GlassFieldOutlineTest` | **F1B.1**: il nucleo nuovo deve saper rendere un angolo oltre mezzo lato (o la bolla va tutta a un materiale): criterio in F1B.6 |
+| fino alla prima misura del layout una forma che non ci sta vale `Liquid`: un fotogramma `Liquid` prima di passare a `Classic` (non verificato a vista) | — | F1B.1, con il punto sopra; da guardare in S2 |
+| nella notifica **di vetro** in chiaro il tasto annidato ha il corpo uguale al pannello (239,9 su 240,2): lo staccano solo filo e ombra | tablet, `sessioni/F1A-correzione/log/3d-logcat-finale.txt` | F2 (adattamento: il velo di un vetro annidato in chiaro) |
+| un foglio scuro a filo dello schermo ha in fondo una banda di ~24 px più scura (luma 24–25 contro 41) nella zona della barra di navigazione | `sessioni/F1A-correzione/shots/R/foglio-scuro.png`, non indagata | F3 (piano flottante e geometria: i margini di sistema); da indagare all'inizio di F1B se riguarda la cattura |
+| l'ombra di un foglio disegnato dopo cade sul pannello grande che ha sopra, e la lente la pesca (247 → 243 con `large=step`, 1–2 livelli di serie); è l'ordine di disegno fra lastre sorelle, vale anche per `Classic` | S2-pre «Minori» | F3: in `FluidGlassContainer` un piano delle ombre sotto tutti i corpi del contenitore |
+| **il riscaldamento non protegge la prima schermata** né le pagine aperte dopo: primo fotogramma 54–61 ms acceso, 54–55 spento; «Controlli» 3 s dopo l'avvio 45–50 contro 49–50 | tre ripetizioni per lato | il cancello C6 si riapre: **F7** decide se tenerlo, anticiparlo (compilare prima del primo disegno) o toglierlo; i documenti dicono già il vero |
+| `FluidGlassIconButton` fuori da una `Surface` prende `LocalContentColor`, di serie nero: icona nera sul vetro scuro | pagina «Materiale» prima della correzione | F2 (inchiostro adattivo: il vetro dà l'inchiostro al suo contenuto) |
+| smerigliatura D dietro la **tab bar**: lascia circa il doppio del contrasto di iOS 26 (dev. std 19,0 contro 10,2); per pareggiare servirebbero 8–9 dp, cioè la M | `bench/f1a-chiusura/misure-contro-bersagli.md` | conseguenza della scelta D «dappertutto»; resta com'è, con M e C nelle manopole; si riguarda in F2 col bordo dello scorrimento |
+
 **Convalida del banco del movimento (F0-a): parziale.** Tre scene che descrivono esattamente ciò che S1 ha registrato
 (`oggi-*-galleria`, 120 Hz, densità 2,125), rese e misurate contro i fotogrammi veri
 (`artifacts/liquid-glass/moto/f0/convalida-F0-a.md`; il confronto dei contorni, fatto con lo strumento del banco, è in
@@ -1317,8 +1333,8 @@ ciascuno, e nessun altro pacchetto deve scrivere negli stessi moduli mentre lavo
 in scuro) e dal bianco puro per corpo, filo e ombra, sul banco; le tabelle `measure` delle scene `rif/` e `rif27-*` accanto
 ai numeri di R5 e R4; un pannello grande ha l'angolo continuo e non un arco di cerchio; gli shader e i numeri di `Classic`
 identici al pixel (`golden/classic/`); la selezione del percorso verde a ogni livello di API; `engine-wear`,
-`engine-ai-ui` e `sample` compilano senza una riga cambiata oltre al tema dell'orologio; la conta dei nodi di una lastra
-ferma è 3, e 2 senza ombra; le azioni delle barre e il tasto indietro hanno icone del set, a 26 e 24 dp, monocrome, a 16 dp
+`engine-ai-ui` e `sample` compilano senza una riga cambiata oltre al tema dell'orologio; una lastra ferma tiene
+4 nodi e 3 layer (3 e 2 senza ombra; il vetro di prima 5 e 2: misurato sul tablet); le azioni delle barre e il tasto indietro hanno icone del set, a 26 e 24 dp, monocrome, a 16 dp
 dal bordo, e né i componenti dell'engine né la galleria nominano più un'icona Material.
 
 **Come si verifica.** Banco fermo: le scene `rif27-*` e `pagina-*` per prime, poi le `rif/` di R4 tranne

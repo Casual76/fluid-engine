@@ -474,9 +474,13 @@ Due velocità, come R3 cap. 3:
   media).
 
 **Dopo S1 (cancello C5): la lettura non passa da `toImageBitmap()`.** Sul Tab S9 ferma il filo principale circa 5 ms a
-lettura, qualunque sia la taglia della miniatura. La miniatura si **registra sul filo principale** (fuori dal principale
-HWUI cade: `RenderNode.endRecording` su un altro filo, SIGSEGV riprodotto) e si **legge su un filo di lavoro** con
-`HardwareRenderer` + `ImageReader`; la prova è in S1-bis. Il resto di questa sezione (segnali, schedulatore, filtro) non
+lettura, qualunque sia la taglia della miniatura, e chiamata da un altro filo fa cadere HWUI (registra un nodo suo sul
+filo che la chiama: SIGSEGV riprodotto). Le miniature si **registrano sul filo principale** e si **leggono con un
+`HardwareRenderer` che rende in un `ImageReader`**: uno per finestra, una casella per sonda, la richiesta fatta dopo il
+disegno della finestra, i conti su un `HandlerThread`. Provato in S1-bis (`artifacts/liquid-glass/sessioni/S1-bis.md`;
+il prototipo è `sample/…/measure/ProbeReader.kt`): nessun fotogramma perso in più con 4 sonde ogni 100 ms, pixel
+identici, 3 ms dalla richiesta al numero. Un `RenderNode` dell'albero della finestra si può disegnare dentro un secondo
+`HardwareRenderer`: era l'incognita, e regge. Il resto di questa sezione (segnali, schedulatore, filtro) non
 cambia; dove il testo dice `toImageBitmap()` si legge «la lettura asincrona».
 
 **Quando si sveglia la sonda.** Non «quando la superficie ricattura»: una sorgente che si ri-registra è raccolta per
@@ -520,9 +524,9 @@ di Haze (`SemanticBlurKernel`, Apache-2.0: 20 coppie più il centro per passata)
 `ui/fluid/FluidScreen.kt` in `FluidTopBar`): i tasti della barra rifrangono il contenuto già dissolto, non la pagina cruda.
 Sotto `Classic` e sotto API 33 resta `FluidTopBarGlass` con `GlassFalloff.FadeDown`.
 
-**Dopo S1 (cancello C4): confermate le due passate a metà risoluzione.** Da chiudere in F2.4: il primo fotogramma della
-striscia costa 45–70 ms anche a caldo (le due superfici fuori schermo nascono lì): vanno create prima del primo
-scorrimento.
+**Dopo S1 (cancello C4): confermate le due passate a metà risoluzione.** Il primo fotogramma lento della striscia visto in
+S1 era la compilazione a freddo del suo programma, non la nascita delle superfici (S1-bis: una seconda striscia costa
+3,9 ms a metà risoluzione): il programma della striscia entra nel riscaldamento di F1A.7, e non serve altro.
 
 **L'aspetto è quello di iOS 26, per decisione** (sezione 2): il contenuto si dissolve sotto i tasti con sfocatura e velo
 progressivi (R4 B7), senza fascia e senza taglio. iOS 27 ha sostituito questo aspetto con una fascia uniforme a taglio netto
@@ -1103,9 +1107,9 @@ una frase delle sezioni 3.x o di una fase, vale questo riquadro.
 | C1 costo dei gesti | **bene** | **corpo a un layer** (3.5). Su tutte le lastre, anche 360×480 dp, un cambio di soli uniform sta nel fotogramma (p90 7,4–7,8 ms con la regola severa, nessun fotogramma perso in più). Il montaggio a due layer non si costruisce; se in S2 la comparsa di un pannello grande non regge, il ripiego è `two-composited`, non `two` (che nella comparsa costa più di `one`). La leva «nodi a monte fermi» non serve: Skia non riusa la sfocatura. La luce a riposo costa 0,1 ms per tre elementi: non si registra in un layer | shader definitivi in S2; flessione in S5; S25 |
 | C2 Fluid-physics a `Full` | **bene** | **resta come in 3.8**: l'anello sta nella finestra di un menu (GPU circa ×2 rispetto a `Balanced`, stessi fotogrammi persi, 2–3%). Sagome e tempi sono identici a `Balanced`: i difetti sono del disegno e muoiono in F1B | GPU del menu al p90 (9 ms) sull'S25 in S5 |
 | C3 pezzi | **bene** | **tetto 8, soglia 4**. GPU 1 : 1,1 : 1,4 : 1,9 per 1, 2, 4, 8 pezzi; il RenderThread non cresce. **In più**: la variante a 8 con uscita su `pieceCount` costa come quella tagliata sul conteggio, quindi le varianti a lastre sono **due, `1` e `8`** (corpo e luce), non quattro | nuclei veri e palco largo 2560 px in S2: se a 2 pezzi la variante a 8 costa in modo misurabile, torna la `2` |
-| C4 bordo dello scorrimento | **bene** | **due passate a metà risoluzione** (+1,0 ms di GPU sul tablet per alto e basso, +0,75 in formato telefono; a piena risoluzione +3,5: no) | il primo fotogramma della striscia (45–70 ms anche a caldo): causa in S1-bis, rimedio in F2.4; S25 in S5 |
-| C5 sonda | **male** | `toImageBitmap()` **non è la via**: ferma il filo principale circa 5 ms a lettura (4 sonde a 100 ms: 10% di fotogrammi persi), e registrare la miniatura fuori dal principale fa cadere HWUI. Via scelta: **`HardwareRenderer` + `ImageReader`**, miniatura registrata sul principale, lettura su un filo di lavoro; si prova e si misura subito (S1-bis). Se non regge: una sola sonda per contenitore, uno schedulatore unico per finestra, al più una lettura ogni 250 ms (misurato: 0,3–0,8% di fotogrammi oltre scadenza contro 0,1–0,7 del pavimento) | esito di S1-bis; statistica e isteresi in F2.1 |
-| C6 prima compilazione | **a metà** | niente riscaldamento nel percorso dell'avvio: a freddo sono circa 230 ms di RenderThread. **Riscaldamento dopo il primo fotogramma, per famiglia, a filo fermo**; meno programmi (le varianti `2` e `4` spariscono, vedi C3). A caldo ogni programma costa 4–5 ms | perché `light8` e la striscia restano lenti anche a caldo (S1-bis); una sola corsa a freddo |
+| C4 bordo dello scorrimento | **bene** | **due passate a metà risoluzione** (+1,0 ms di GPU sul tablet per alto e basso, +0,75 in formato telefono; a piena risoluzione +3,5: no) | S25 in S5. Il primo fotogramma lento della striscia era compilazione a freddo (S1-bis): il suo programma entra nel riscaldamento |
+| C5 sonda | **male in S1, chiuso bene in S1-bis** | `toImageBitmap()` **non è la via**: ferma il filo principale circa 5 ms a lettura (4 sonde a 100 ms: 10% di fotogrammi persi), e chiamata da un altro filo fa cadere HWUI. **Via adottata: `HardwareRenderer` + `ImageReader`, un lettore per finestra** con una casella per sonda; miniature registrate sul principale, richiesta dopo il disegno della finestra, statistiche su un `HandlerThread`. Misurato (S1-bis): 4 sonde ogni 100 ms → `over_pct` 0,6 / 0,1 / 0,1 contro 0,4–0,8 / 0,1 / 0,1 del pavimento; pixel identici a `toImageBitmap()` su 2 575 confronti; un cambio chiaro ↔ scuro visto 92 volte su 92 in 3,2 ms dalla richiesta; nessun crash in 47 corse. Il periodo di 100–150 ms del piano regge. Ripiego, se su un altro dispositivo non reggesse: una lettura ogni 250 ms per finestra con `toImageBitmap()` | S25 e pipeline Vulkan in S5; pagine vere dell'engine, schermo spento e rotazione in S3; statistica e isteresi in F2.1 |
+| C6 prima compilazione | **a metà** | niente riscaldamento nel percorso dell'avvio: i cinque programmi {`body1`, `body8`, `light1`, `light8`, striscia} costano a freddo 139–141 ms di RenderThread (due corse), a caldo 26–30 ms in tutto. **Riscaldamento dopo il primo fotogramma, per famiglia, a filo fermo, striscia compresa.** `light8` e la striscia non erano lenti: HWUI scrive la cache dei programmi su disco 4 s dopo una compilazione, e la misura di S1 fermava il processo prima (con 12 s di attesa: 29 → 5,7 ms e 45 → 8,5 ms). Conseguenza per l'engine: un'app chiusa entro 4 s dal primo vetro ricompila al lancio seguente; non c'è rimedio dal lato nostro, va saputo | a caldo il primo fotogramma di una variante costa ancora 12–19 ms sul filo principale: quanto è della scena di misura e quanto dell'engine si separa in S2 (F1A.7 scalda anche il percorso del principale: un disegno fuori schermo per programma) |
 
 **Regola di misura, corretta da S1.** Sul tablet la scadenza di un fotogramma è 16,67 ms (due vsync a 120 Hz): un
 `total_ms` di 10–12 ms non perde fotogrammi. «Sta nel fotogramma» d'ora in poi vuol dire: **`over_pct` non sopra il
@@ -1119,7 +1123,7 @@ ma non decide. Le scene a fondale fermo si misurano con `warmup 5` (la prima fin
 | contorno della forma di prima dopo A → B → A, e la forma perde la sua ombra | `Full` e `Balanced`, dalla 3.0.0 | **chiuso**: commit `72be580` e `b56d158`; provato sul tablet il 2026-11-11 (0 pixel diversi su cinque andate e ritorni, contro 83 000–140 000 prima) |
 | doppio bordo dentro il ponte fra due pezzi, e moiré nel collo | solo `Full` | F1B.1 (nuclei nuovi: un campo solo, un filo solo); il ponte resta solo in viaggio (scelta di Alessio, «Scelte di gusto») |
 | l'ombra a riposo compare in un fotogramma circa 270 ms dopo l'arrivo | `Full` e `Balanced` | F1B.6 (parità viaggio→riposo), voce di S2 |
-| nessun fotogramma registrato fra +17 e +67 ms nel cambio di pagina della barra | tutti e due | da capire in S1-bis con `framestats`; se è un fotogramma lungo, F4A |
+| **ogni push ha un primo fotogramma lungo**: 65–73 ms di misura/layout a caldo (89–101 ms in tutto, un buco di 83–92 ms sullo schermo), 88–111 ms al primo push di un processo; il pop no. Dal codice la pagina che entra si compone dentro la misura (`ui/fluid/FluidScreen.kt:683`, `:952`): riguarda ogni pagina aperta con `FluidScreen`, non solo la barra | tutti e due, da prima della 3.0 | **F4A, pacchetto nuovo F4A.7** (la pagina che entra si compone prima che il viaggio parta, o il viaggio parte dal fotogramma dopo): prima un profilo (Perfetto) in S2, perché la causa viene dalla lettura del codice e non da una misura |
 | il menu parte circa 30 ms dopo il click lungo: due fotogrammi con la superficie ferma alla taglia premuta e due fotogrammi lunghi (34 e 25 ms) prima che il vetro si allarghi | tutti e due | F5A (l'apertura non deve aspettare la composizione del pannello); `framestats` in S2 |
 | alla fine del cambio di pagina, quando la superficie condivisa riconsegna il vetro ai tasti, un fotogramma **senza vetro** (restano le icone) | tutti e due | F4A (passaggio di consegne riposo↔palco, 3.7), prova in F1B.6 |
 
@@ -1775,6 +1779,7 @@ fuori**: barra in basso, **comportamento** della ricerca, tab bar (F4B); menu da
 | F4A.4 | Barra che si ritira scorrendo: `barMinimize`, inset che seguono, campo di ricerca che resta e diventa vetro | `ui/fluid/FluidScreen.kt` (dopo F4A.2), `ui/fluid/toolbar/FluidToolbarSearch.kt` (dopo F4A.2: lo stato «fissato»), `test/fluid/FluidChromeMotionTest.kt` | F4A.2 | G | Opus |
 | F4A.5 | Galleria «Barre», tracce, scheda | `sample/…/toolbar/`, `sample/…/GalleryNav.kt`, `test/glass/field/trace/`, `ref/componenti/barre.md`, `ref/componenti/schermata.md` | F4A.2–4 | G | Opus |
 | F4A.6 | Push interrotto da gesto o pop: posizione e velocità conservate. Prima il test, che sul codice di oggi deve fallire; poi la correzione | `ui/page/FluidPageHostState.kt`, `test/page/FluidPageInterruptTest.kt`, `ref/componenti/pagine.md` (una riga) | — (non dipende dal materiale: può partire in qualunque momento prima di S4) | G | Sol |
+| F4A.7 | Il primo fotogramma di un push (difetto misurato in S1-bis: 65–73 ms di misura/layout): profilo in S2, poi la pagina che entra si compone prima che il viaggio parta, senza cambiare l'API di `FluidScreen`; prova con `framestats` (nessun fotogramma oltre scadenza nei primi 100 ms di un push a caldo) | `ui/fluid/FluidScreen.kt`, `ui/page/FluidPageHost.kt` e i file che il profilo indica (da dichiarare prima di scrivere), `test/page/FluidPagePushFirstFrameTest.kt` | F4A.6, profilo di S2 | G, D | Fable |
 
 **Risultati osservabili.** Una pagina che passa da «sfoglia» a «seleziona» cambia gruppi e icone senza un'animazione
 scritta; due pagine con barre diverse si passano i tasti per identità; l'azione principale è una spunta tinta da sola a

@@ -2448,18 +2448,35 @@ dichiarativa per farne uno su misura; ognuno è un viaggio d'oro e ne segue il p
 | 3 · composer dentro il campo (cresce su più righe, allegati, invio) | **accettato** | PampAI, Mail |
 | 9 · tasto diviso (azione più freccia che apre il menu dallo stesso vetro) | **accettato** | Mail («Invia ▾ Programma invio», UX-CMP-09) |
 | 14 · pillola del titolo che diventa selettore | **accettato** | Weather (`LocationPill` → `LocationPane`), Mail (titolo = account), Notes (scelta della cartella) |
-| 16 · fila di scelte che diventa menu | «ci può stare, ma voglio capire meglio i casi d'uso» | Transit (`ChipLayoutTest.kt`: i chip impaginati a mano per il testo grande) |
-| 15 · pannello persistente a più altezze | «ci può stare, ma voglio capire meglio i casi d'uso» | Transit (`BottomPanelHost.kt`), in parte Weather e Gallery |
-| 5 · «trova nella pagina» | «ci può stare, ma voglio capire meglio i casi d'uso» | Notes (`TranscriptSearchBar.kt`) |
-| 17 · barre che si nascondono sul contenuto immersivo | «vorrei capirne il caso d'uso, ma tenderei a dire che non importa» | Fluidify (`FullScreenVideo.kt`), Gallery (`ViewerScreen.kt`): a mano funziona già |
+| 16 · fila di scelte che diventa menu | **accettato** dopo i casi d'uso («serve più che altro per accessibilità, ma ci sta»): come comportamento di serie dei filtri a pillole, non come componente a sé | Transit (`ChipLayoutTest.kt`: i chip impaginati a mano per il testo grande) |
+| 15 · pannello persistente a più altezze | **fuori** («non importa») | Transit (`BottomPanelHost.kt`), in parte Weather e Gallery |
+| 5 · «trova nella pagina» | **accettato** («ci sta sì»): un modo del campo di inserimento | Notes (`TranscriptSearchBar.kt`) |
+| 17 · barre che si nascondono sul contenuto immersivo | **trasformata e approvata**: non le barre da sole, ma **i visori di file** (vedi sotto) | Fluidify (`FullScreenVideo.kt`), Gallery (`ViewerScreen.kt`): a mano funziona già |
 
-Entrano quindi in F6B, oltre ai sei della tabella sopra: **10, 11, 3, 9, 14**. Le idee 16, 15 e 5 restano in sospeso finché
-Alessio non ha visto i casi d'uso (spiegati in chat l'11 novembre); la 17 è fuori salvo ripensamento. Non commentate e
-quindi fuori per ora: tasto principale flottante (13, già in F5A), controllo che si espande dal tasto (18),
+Entrano quindi in F6B, oltre ai sei della tabella sopra: **10, 11, 3, 9, 14, 16, 5**, e **i visori di file**. Fuori: 15.
+Non commentate e quindi fuori per ora: tasto principale flottante (13, già in F5A), controllo che si espande dal tasto (18),
 aggiornamento tirando (19), indicatore di posizione con anteprima (20), permesso nel punto in cui serve (21).
 
-Pacchetti, perimetri, bersagli e sottocategorie si scrivono quando R8 è tornata e Alessio ha scelto: fino ad allora
-questa sezione è la traccia, non il progetto. Regola valida da subito per le fasi prima: **non chiudere strade** a questi
+**I visori di file (idea di Alessio, 2026-11-11, «richiede del lavoro più serio, ma può risultare utile: approvato»).**
+Parole sue: «estendendo lo scope potremmo fare dei file viewer, che si adattano in base a cosa viene mostrato»; dei
+**preset per visori di diversi tipi di file**, «non solo per video, ma anche per foto, documenti, audio e roba simile»;
+serve a Universal Converter (`C:\VibeCoded Projects\universal_converter`), che oggi ha un visore per pochi tipi, e
+prepara le fondamenta per un progetto possibile in futuro: un'app archivio con un visualizzatore nello stesso stile per
+la maggior parte dei formati, con strumenti di modifica integrati, «una sorta di Anteprima di Apple sul Mac». Quindi:
+- un **telaio comune** del visore: contenuto a schermo pieno, barre e capsule che si ritirano a un tocco e tornano (è
+  l'idea 17 di R8), gesti (ingrandire, sfogliare, chiudere trascinando: lo zoom da e verso la miniatura è quello di
+  F5B), barra delle azioni e **posto per gli strumenti** (annotare, ritagliare, ruotare…) dichiarati dall'app, pannello
+  delle informazioni, sfogliare più file;
+- i **preset per tipo**, che si adattano a ciò che viene mostrato: immagine (c'è `FluidImageViewer`: è il punto di
+  partenza, da rivedere), video, audio, documento a pagine, testo e codice, e il ripiego «tipo sconosciuto»; l'elenco
+  preciso dei tipi e cosa fa ciascuno si decide con una ricerca breve all'inizio di F6B, guardando Universal Converter,
+  Gallery e Fluidify;
+- **dove sta**: l'interfaccia del visore nell'engine; ciò che decodifica (riproduzione, resa delle pagine) in un modulo
+  a parte e facoltativo, perché `engine-ui` non deve portarsi dietro librerie pesanti: i preset ricevono il contenuto
+  già reso da chi lo sa rendere. È la parte più grossa della fase, e se cresce diventa una fase sua (F6C).
+
+Pacchetti, perimetri, bersagli e sottocategorie si scrivono all'inizio della fase, con le risposte di Alessio qui sopra:
+fino ad allora questa sezione è la traccia, non il progetto. Regola valida da subito per le fasi prima: **non chiudere strade** a questi
 elementi (il modello delle barre di F4A deve poter essere sostituito da un altro modello a metà pagina; il campo di F4B
 deve accettare un contenuto sotto di sé; lo zoom di F5B deve partire da un elemento qualsiasi, non solo da una card).
 

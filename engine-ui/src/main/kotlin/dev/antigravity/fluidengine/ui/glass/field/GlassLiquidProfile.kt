@@ -824,6 +824,10 @@ internal object GlassLiquidNestings {
  *   per lato del tema ([GlassLiquidNesting]). [GlassLiquidNestings.Unchanged] = niente.
  * @param travel cosa cambia mentre una sagoma viaggia ([GlassLiquidTravel], F1B.1). [GlassLiquidTravels.Off] =
  *   niente: il vetro in viaggio è quello di riposo.
+ * @param travelNodeClip se una superficie fisica emula nel corpo l'antialias del ritaglio che una lastra ferma ha dal
+ *   suo nodo (`GlassDrawInputs.nodeClip`). Vero di serie. È una **manopola di diagnosi** (F1B.2, `travelclip=off`
+ *   di `gallery.tune`): la sessione sul tablet dopo F1B.1 ha visto un bordo doppio di 1–2 px sulla capsula di
+ *   «Ordina» a +110 ms, che il banco non riproduce; spenta, dice se viene da qui.
  */
 @Immutable
 internal data class GlassLiquidProfile(
@@ -841,6 +845,7 @@ internal data class GlassLiquidProfile(
   val lightNesting: GlassLiquidNesting,
   val darkNesting: GlassLiquidNesting,
   val travel: GlassLiquidTravel = GlassLiquidTravels.Soft,
+  val travelNodeClip: Boolean = true,
 ) {
 
   fun edge(darkSide: Boolean): GlassLiquidEdge = if (darkSide) darkEdge else lightEdge
@@ -1040,6 +1045,11 @@ internal object GlassLiquidTuning {
       "off" to { p -> p.copy(travel = GlassLiquidTravels.Off) },
       "soft" to { p -> p.copy(travel = GlassLiquidTravels.Soft) },
       "strong" to { p -> p.copy(travel = GlassLiquidTravels.Strong) },
+    ),
+    // F1B.2, diagnosi: il ritaglio emulato delle superfici fisiche (`travelNodeClip`).
+    "travelclip" to linkedMapOf(
+      "on" to { p -> p.copy(travelNodeClip = true) },
+      "off" to { p -> p.copy(travelNodeClip = false) },
     ),
   )
 

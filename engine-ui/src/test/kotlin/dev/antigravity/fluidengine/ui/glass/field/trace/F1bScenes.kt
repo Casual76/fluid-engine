@@ -115,10 +115,12 @@ internal object F1bScenes {
     dark: Boolean,
     rest: Boolean,
     stageMarginDp: Float = 24f,
+    /** F1B.2: l'ombra nel corpo (la tabella riposo ↔ viaggio rifatta con l'ombra accesa). */
+    shadow: Boolean = false,
   ): Map<String, Any?> {
-    val dress = LiquidPhysicsDress(role, PhysicsMaterialSource(null, optics.sanitized()), Density, darkSide = dark)
+    val dress = LiquidPhysicsDress(role, PhysicsMaterialSource(null, optics.sanitized()), Density, darkSide = dark, shadow = shadow)
     val recipe = dress.recipe(plan, opticsBlend = 1f, motion = 0f)
-    val inputs = liquidPhysicsInputs(plan, recipe, Density, dress.paddingDp, rest)
+    val inputs = liquidPhysicsInputs(plan, recipe, Density, dress.paddingDp, rest, shadow)
     return liquidPhysicsElement(
       name = name,
       inputs = inputs,
@@ -261,8 +263,8 @@ internal object F1bScenes {
     TravelEnd("viaggio-1"),
   }
 
-  private fun restVersusTravel(which: RestVersusTravel, theme: Theme): GlassScene = scene(
-    path = "riposo-contro-viaggio-${which.suffix}",
+  private fun restVersusTravel(which: RestVersusTravel, theme: Theme, shadow: Boolean = false): GlassScene = scene(
+    path = if (shadow) "riposo-contro-viaggio-ombra-${which.suffix}" else "riposo-contro-viaggio-${which.suffix}",
     note = "le stesse tre lastre (tasto 44 dp, capsula 156 x 56, menu 170 x 192) rese da quattro percorsi: la lastra di " +
       "`glassSurface`, la superficie fisica ferma, il primo e l'ultimo fotogramma di un viaggio. Questa è «${which.suffix}». " +
       "Si confrontano con `compare`: fuori dall'ombra devono coincidere entro un livello.",
@@ -270,6 +272,8 @@ internal object F1bScenes {
     width = 480,
     bandHeight = 230,
   ) { top, band ->
+    // Con l'ombra il palco della superficie fisica la deve contenere (come i palchi grandi dell'engine).
+    val stage = if (shadow) 100f else 24f
     Slabs.map { slab ->
       val form = slab.form(top)
       val surface = sceneSurface(slab.benchRole)
@@ -288,20 +292,21 @@ internal object F1bScenes {
             "name" to name, "x" to f.left / Density, "y" to f.top / Density, "w" to f.width / Density, "h" to f.height / Density,
             "radius" to slab.radius,
           )
-          val element = withoutShadow(liquidElement(shape, recipe, theme = null, note = "glassSurface, ${slab.benchRole}"))
+          val made = liquidElement(shape, recipe, theme = null, note = "glassSurface, ${slab.benchRole}")
+          val element = if (shadow) made else withoutShadow(made)
           // La stessa risoluzione della superficie fisica: è la sola cosa che il confronto non deve misurare.
           @Suppress("UNCHECKED_CAST")
           (element["capture"] as MutableMap<String, Any?>)["scale"] = 1
           element
         }
-        RestVersusTravel.PhysicsRest -> physics(name, restPlan(form), surface.role, surface.optics, theme.dark, rest = true)
+        RestVersusTravel.PhysicsRest -> physics(name, restPlan(form), surface.role, surface.optics, theme.dark, rest = true, shadow = shadow, stageMarginDp = stage)
         RestVersusTravel.TravelStart -> {
           val plan = PhysicsRenderPlan().also { buildSlabPlan(it, listOf(form to elsewhere(form)), 0f, t = 0f) }
-          physics(name, plan, surface.role, surface.optics, theme.dark, rest = false)
+          physics(name, plan, surface.role, surface.optics, theme.dark, rest = false, shadow = shadow, stageMarginDp = stage)
         }
         RestVersusTravel.TravelEnd -> {
           val plan = PhysicsRenderPlan().also { buildSlabPlan(it, listOf(elsewhere(form) to form), 0f, t = 1f) }
-          physics(name, plan, surface.role, surface.optics, theme.dark, rest = false)
+          physics(name, plan, surface.role, surface.optics, theme.dark, rest = false, shadow = shadow, stageMarginDp = stage)
         }
       }
     }
@@ -394,6 +399,11 @@ internal object F1bScenes {
       physics("gruppo", travelPlan(pieces, 18f), GlassRole.Floating, GlassDefaults.optics(GlassRole.Floating), theme.dark, rest = false, stageMarginDp = 60f),
     )
     return GlassScene("fluidphysics-gruppo-nuovo-${theme.suffix}.json", json)
+  }
+
+  /** F1B.2: le scene di [RestVersusTravel] con l'ombra accesa, a maschere e nel corpo (non sostituiscono quelle di F1B.1). */
+  fun restVersusTravelWithShadow(): List<GlassScene> = Themes.flatMap { theme ->
+    RestVersusTravel.entries.map { restVersusTravel(it, theme, shadow = true) }
   }
 
   fun all(): List<GlassScene> = Themes.flatMap { theme ->

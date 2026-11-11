@@ -89,6 +89,9 @@ internal fun Modifier.fluidPhysicsShadow(
   }
 
   return this.drawBehind {
+    // Col materiale nuovo l'ombra della superficie e' nel suo corpo (F1B.2): questa non disegna, o sotto il vetro
+    // ce ne sarebbero due.
+    if (state.liquidBody) return@drawBehind
     val strength = amount()
     if (strength > PhysicsShadowGate && weight > 0f) {
       val rest = restSize()

@@ -258,6 +258,13 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   internal var externalShadows by mutableIntStateOf(0)
 
   /**
+   * Vero se questo stato lo disegna il materiale nuovo (`Liquid`, F1B.1): allora l'ombra è nel corpo (F1B.2), una
+   * sola, e né l'ombra a parte della superficie né `fluidPhysicsShadow` disegnano niente. Lo imposta la superficie
+   * in composizione; si legge in disegno.
+   */
+  internal var liquidBody: Boolean = false
+
+  /**
    * Se la silhouette la ritaglia lo shader (tier Full) o il clip del layer (tier Balanced).
    * Lo imposta la superficie, una volta: il tetto del tier è un fatto del processo, non cambia.
    */
@@ -581,7 +588,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * goccia di adesso ([dropInnerClip]).
    */
   private fun buildDropPlan(plan: PhysicsRenderPlan, rest: FluidForm.Slab) {
-    val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters)
+    val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters, fieldCorners = liquidBody)
     plan.writeRing(dropRing, DropRenderPoints, smoothPath = false)
     plan.soften = 0f
     val dx = liquid.offsetX
@@ -594,6 +601,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     plan.contentClipRect = dropInnerClip(rest, dropRing, DropRenderPoints, dropPerimeter, dropParameters, dropPoint)
     plan.dropRest = rest
     plan.dropReach = reach
+    plan.dropSettle = physicsDropSettle(liquid.lens, reach / density.coerceAtLeast(0.0001f))
   }
 
   /**
@@ -924,6 +932,13 @@ internal class PhysicsRenderPlan {
    * [blendRadius]; il corpo liquido ne da' uno all'ancora che si svuota.
    */
   val pieceBlend = FloatArray(PhysicsMaxPieces)
+
+  /**
+   * Il raggio di fusione **chiesto** dal gruppo (F1B.2), prima che il varco lo spenga ([blendRadius] è quello
+   * effettivo, che a compenetrazione va a zero): è la scala su cui normale e centro si pesano dove i pezzi si
+   * sovrappongono (`physicsPieceSoft`). Zero per un anello e per una lastra sola.
+   */
+  var nominalBlend: Float = 0f
   var vertCount: Int = 0
   val verts = FloatArray(PhysicsMaxRingVertices * 2)
   var soften: Float = 0f
@@ -986,6 +1001,12 @@ internal class PhysicsRenderPlan {
    * attorno alla sagoma a riposo lo shader non ha lati da cercare. Senza goccia non conta.
    */
   var dropReach: Float = 0f
+
+  /**
+   * Quanto il campo della goccia e' gia' quello della lastra che la sostituira', 0..1 (F1B.2, [physicsDropSettle]):
+   * zero in volo, uno quando si posa. Lo legge solo il materiale nuovo; senza goccia vale zero.
+   */
+  var dropSettle: Float = 0f
 
   /**
    * La sagoma corrente come rettangolo arrotondato, quando lo e' davvero: un solo pezzo di famiglia
@@ -1066,12 +1087,14 @@ private fun PhysicsRenderPlan.writeFieldPiece(index: Int, from: FluidForm.Slab, 
 private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
   mode = PlanModeSlabs
   pieceCount = count
+  nominalBlend = if (count > 1) blend.coerceAtLeast(0f) else 0f
   // Il ponte si spegne dove i pezzi si compenetrano: vedi effectiveBlendRadius — senza questo, la
   // fine di ogni fusione ha un alone di k/4 oltre il bordo, che a riposo sparisce di colpo.
   blendRadius = effectiveBlendRadius(blend, slabMinGap(pieceRects, count))
   pieceBlend.fill(blendRadius)
   contentClipRect = null
   dropRest = null
+  dropSettle = 0f
   soften = 0f
   vertCount = 0
   var union: Rect? = null
@@ -1113,8 +1136,10 @@ private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
 private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int, smoothPath: Boolean = true) {
   mode = PlanModePoly
   pieceCount = 0
+  nominalBlend = 0f
   contentClipRect = null
   dropRest = null
+  dropSettle = 0f
   vertCount = count
   ring.copyInto(verts, endIndex = count * 2)
   soften = PolySoftenPx

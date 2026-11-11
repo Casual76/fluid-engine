@@ -415,6 +415,21 @@ object FluidPageMotion {
   fun barMorph(e: Float): Float = smoothstep(((e - 0.10f) / 0.80f).coerceIn(0f, 1f))
 
   /**
+   * Se in questo fotogramma il vetro dei tasti lo porta la superficie che viaggia (F1B.2): solo mentre la forma si
+   * muove, cioè con [m] (il [barMorph] di adesso) **strettamente** fra i due capi.
+   *
+   * Ai capi la forma è ferma ed è, pezzo per pezzo, quella dei tasti di una delle due pagine (a 0 quelli della
+   * pagina sopra, a 1 quelli della pagina sotto, i semi di chi nasce o muore ridotti a un pixel): lì il vetro lo
+   * disegnano i tasti, ognuno il suo. Così il passaggio di consegne cade quando la forma si ferma (nel push a
+   * `e = 0,10`, circa 210 ms dopo la partenza) e non quando la molla della pagina scende sotto mezzo pixel (circa
+   * 570 ms), e alla partenza la superficie prende il vetro solo quando la forma comincia a muoversi.
+   *
+   * [barMorph] è una `smoothstep` su un argomento tenuto in [0, 1]: ai capi vale 0 e 1 esatti, quindi qui il
+   * confronto è esatto e non serve una soglia.
+   */
+  fun barJourneyCarries(m: Float): Boolean = m > 0f && m < 1f
+
+  /**
    * Le icone sopra i pezzi che viaggiano: quelle della pagina sopra se ne vanno presto
    * (1 − m/0,35), quelle della pagina sotto arrivano tardi ((m − 0,25)/0,5). Le due non sono mai
    * leggibili insieme, in entrambi i versi del viaggio.

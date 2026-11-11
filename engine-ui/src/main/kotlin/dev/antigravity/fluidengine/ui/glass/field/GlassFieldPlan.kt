@@ -356,6 +356,12 @@ internal class GlassFieldPlan(val pieces: Int = GlassFieldMaxPieces) {
   /** `pieceSmooth`: lo `smoothing` chiesto per pezzo. */
   val smooth: FloatArray = FloatArray(pieces)
 
+  /**
+   * `pieceSoft` (F1B.2, solo il nucleo a otto): il raggio su cui normale e centro del pezzo si pesano col già fuso,
+   * se supera quello di fusione. Zero = come la sagoma; lo alza Fluid-physics dove i pezzi si sovrappongono.
+   */
+  val soft: FloatArray = FloatArray(pieces)
+
   /** Una lastra sola, grande [width] x [height], con l'angolo in alto a sinistra nell'origine. */
   fun setSlab(width: Float, height: Float, geometry: GlassSlabGeometry): GlassFieldPlan {
     count = 1
@@ -369,6 +375,7 @@ internal class GlassFieldPlan(val pieces: Int = GlassFieldMaxPieces) {
     radii[3] = geometry.bottomLeft
     blend[0] = 0f
     smooth[0] = geometry.smoothing
+    soft[0] = 0f
     return this
   }
 
@@ -379,6 +386,7 @@ internal class GlassFieldPlan(val pieces: Int = GlassFieldMaxPieces) {
     radii.fill(0f)
     blend.fill(0f)
     smooth.fill(0f)
+    soft.fill(0f)
     return this
   }
 
@@ -387,6 +395,7 @@ internal class GlassFieldPlan(val pieces: Int = GlassFieldMaxPieces) {
    * che non lo leggerebbe.
    *
    * @param blend il raggio di fusione col già fuso; la casella del primo pezzo non si legge.
+   * @param soft il raggio su cui normale e centro si pesano col già fuso (vedi [soft]); di serie zero.
    */
   fun add(
     centerX: Float,
@@ -399,6 +408,7 @@ internal class GlassFieldPlan(val pieces: Int = GlassFieldMaxPieces) {
     bottomLeft: Float,
     blend: Float,
     smoothing: Float,
+    soft: Float = 0f,
   ): GlassFieldPlan {
     if (count >= pieces) return this
     val at = count * GlassFieldGeometry.FloatsPerPiece
@@ -412,6 +422,7 @@ internal class GlassFieldPlan(val pieces: Int = GlassFieldMaxPieces) {
     radii[at + 3] = bottomLeft
     this.blend[count] = blend
     smooth[count] = smoothing
+    this.soft[count] = soft
     count++
     return this
   }

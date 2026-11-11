@@ -306,6 +306,8 @@ $GlassFieldKernel1
 $GlassBodyUniformsBlock
 $GlassLightBlock
 $GlassTravelShadowBlock
+$GlassShadowMask1
+$GlassTravelShadowFunctionBlock
 $GlassBodyBlock
 
 half4 main(float2 coord) {
@@ -338,6 +340,8 @@ $GlassFieldKernel8
 $GlassBodyUniformsBlock
 $GlassLightBlock
 $GlassTravelShadowBlock
+$GlassShadowMask8
+$GlassTravelShadowFunctionBlock
 $GlassBodyBlock
 
 half4 main(float2 coord) {
@@ -364,6 +368,8 @@ $GlassFieldKernelRing
 $GlassBodyUniformsBlock
 $GlassLightBlock
 $GlassTravelShadowBlock
+$GlassShadowMaskRing
+$GlassTravelShadowFunctionBlock
 $GlassBodyBlock
 
 half4 main(float2 coord) {

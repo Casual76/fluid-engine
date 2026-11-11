@@ -39,6 +39,7 @@ uniform float4 pieceRect[8];
 uniform float4 pieceRadii[8];
 uniform float pieceBlend[8];
 uniform float pieceSmooth[8];
+uniform float pieceSoft[8];
 
 float glassRadiusAt(float2 rel, float4 radii) {
     if (rel.x >= 0.0) {
@@ -166,9 +167,14 @@ float glassField(float2 p, out float2 normal, out float2 center) {
             // Il raggio di fusione e' del pezzo: lo unisce a tutto cio' che il ciclo ha gia' fuso.
             float k = max(pieceBlend[i], 0.0001);
             float h = clamp(0.5 + 0.5 * (slab.x - d) / k, 0.0, 1.0);
+            // Normale e centro si pesano su un raggio che non e' mai sotto quello della sagoma, e dove i pezzi si
+            // sovrappongono sale a `pieceSoft` (F1B.2): due pezzi sovrapposti con centri diversi non si contendono
+            // piu' il punto a scatto. La sagoma non cambia: `d` resta quella di sempre.
+            float ka = max(k, pieceSoft[i]);
+            float ha = clamp(0.5 + 0.5 * (slab.x - d) / ka, 0.0, 1.0);
             d = slab.x + (d - slab.x) * h - k * h * (1.0 - h);
-            normal = mix(slab.yz, normal, h);
-            center = mix(pieceRect[i].xy, center, h);
+            normal = mix(slab.yz, normal, ha);
+            center = mix(pieceRect[i].xy, center, ha);
         }
     }
     return d;

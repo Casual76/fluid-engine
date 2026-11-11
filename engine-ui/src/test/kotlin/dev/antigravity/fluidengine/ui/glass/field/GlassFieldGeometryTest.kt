@@ -616,7 +616,13 @@ class GlassFieldGeometryTest {
     )) {
       assertTrue("Il blocco della luce non dichiara più `$uniform`", uniform in GlassLightBlock)
     }
-    assertTrue("half4 glassTravelShadow(float2 p, float d)" in GlassTravelShadowBlock)
+    // Da F1B.2 l'ombra in viaggio è in tre parti: la legge (uniform e caduta), la maschera del nucleo, la funzione.
+    assertTrue("half4 glassTravelShadow(float2 p, float d)" in GlassTravelShadowFunctionBlock)
+    for (mask in listOf(GlassShadowMask1, GlassShadowMask8, GlassShadowMaskRing)) {
+      assertTrue("float glassShadowMask(float2 q, float sigma, out float seen)" in mask)
+    }
+    assertTrue("uniform float pieceSoft[8];" in GlassFieldKernel8)
+    assertFalse("pieceSoft" in GlassFieldKernel1)
     for (uniform in listOf(
       "uniform float2 shadowOffset;", "uniform float2 shadowRadii;", "uniform float2 shadowAlphas;",
       "layout(color) uniform half4 shadowColor;",
@@ -625,7 +631,10 @@ class GlassFieldGeometryTest {
     }
     // `materialize` e `aa` sono del programma che include: se un blocco li dichiarasse, il corpo (che li ha
     // fra i suoi) non compilerebbe più per una doppia dichiarazione.
-    for (block in listOf(GlassFieldKernel1, GlassFieldKernel8, GlassLightBlock, GlassTravelShadowBlock)) {
+    for (block in listOf(
+      GlassFieldKernel1, GlassFieldKernel8, GlassLightBlock, GlassTravelShadowBlock, GlassShadowMask1, GlassShadowMask8,
+      GlassShadowMaskRing, GlassTravelShadowFunctionBlock,
+    )) {
       assertFalse(Regex("""uniform\s+\w+\s+(materialize|aa)\s*;""").containsMatchIn(block))
     }
   }
@@ -639,6 +648,10 @@ class GlassFieldGeometryTest {
       "GlassFieldKernel8" to GlassFieldKernel8,
       "GlassLightBlock" to GlassLightBlock,
       "GlassTravelShadowBlock" to GlassTravelShadowBlock,
+      "GlassShadowMask1" to GlassShadowMask1,
+      "GlassShadowMask8" to GlassShadowMask8,
+      "GlassShadowMaskRing" to GlassShadowMaskRing,
+      "GlassTravelShadowFunctionBlock" to GlassTravelShadowFunctionBlock,
     )
     // Parole che SkSL o GLSL tengono per sé: `flat` ha tenuto Fluid-physics in ripiego dalla 3.0.0 alla
     // 3.1.2. `smooth`, `sample`, `centroid`, `filter` SkSL le lascerebbe passare come nomi, un driver no.

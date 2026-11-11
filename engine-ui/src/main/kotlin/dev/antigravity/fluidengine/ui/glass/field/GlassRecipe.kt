@@ -232,6 +232,10 @@ internal class GlassRecipe {
  * @param optics l'ottica chiesta, già passata da `sanitized()`.
  * @param nested vero per una lastra dentro un'altra lastra di vetro. Non lo decide chi chiama a mano: lo dice il
  *   nodo del vetro, che sa su quale pannello sta (`GlassLiquidSurface.nested`). Falso = una lastra sulla pagina.
+ * @param largeVeil quanto la lastra ha del velo dei grandi, 0..1, se lo decide chi chiama; non finito (di serie) =
+ *   dalla taglia ([glassLiquidLargeVeilGain]). Lo passa solo una superficie che viaggia (F1B.2,
+ *   `PhysicsLargeVeil`): fra un tasto e un pannello il lato corto attraversa la fascia dei due veli in due o tre
+ *   fotogrammi, e il velo che lo seguiva cambiava di colpo.
  * @param out il contenitore da riscrivere; di serie uno nuovo.
  */
 internal fun glassRecipe(
@@ -249,6 +253,7 @@ internal fun glassRecipe(
   tint: Color = Color.Unspecified,
   nested: Boolean = false,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  largeVeil: Float = Float.NaN,
   out: GlassRecipe = GlassRecipe(),
 ): GlassRecipe {
   val amount = clampGlassUnit(intensity)
@@ -297,12 +302,12 @@ internal fun glassRecipe(
   // Dai piccoli ai grandi il velo passa da quello dei piccoli a quello dei grandi del lato (sul chiaro sono lo
   // stesso), senza scatti: un tasto largo e una card piccola restano vicini.
   val veil = profile.veil(darkSide)
-  val largeVeil = profile.largeVeil(darkSide)
-  val large = glassLiquidLargeVeilGain(short)
+  val bigVeil = profile.largeVeil(darkSide)
+  val large = if (largeVeil.isFinite()) clampGlassUnit(largeVeil) else glassLiquidLargeVeilGain(short)
   // Annidata: il materiale sotto ha già il suo velo; del velo di questa lastra ne resta la frazione del profilo.
   // Si moltiplica l'alfa e non il colore: il grigio resta quello del velo, scende quanto copre.
   val nesting = if (nested) profile.nesting(darkSide) else null
-  val sharedVeil = lerpSrgb(veil.color, largeVeil.color, large)
+  val sharedVeil = lerpSrgb(veil.color, bigVeil.color, large)
   val veilColor = if (nesting == null) {
     sharedVeil
   } else {
@@ -311,7 +316,7 @@ internal fun glassRecipe(
   out.materialize = amount
   val fixedFilm = film.isSpecified
   out.veilColor = if (fixedFilm || clear) veilColor.copy(alpha = 0f) else veilColor
-  out.veilAdapt = if (fixedFilm || clear) 0f else mixFloat(veil.adapt, largeVeil.adapt, large)
+  out.veilAdapt = if (fixedFilm || clear) 0f else mixFloat(veil.adapt, bigVeil.adapt, large)
   when {
     fixedFilm -> {
       out.tintColor = film
@@ -327,10 +332,10 @@ internal fun glassRecipe(
     }
   }
   out.tintFollow = GlassLiquidTintFollow
-  out.bodyShade = lerpSrgb(veil.shade, largeVeil.shade, large)
-  out.bodyShadeDepthDp = min(mixFloat(veil.shadeDepth.value, largeVeil.shadeDepth.value, large), short / 2f)
-  out.bodyShadeLeanX = mixFloat(veil.shadeLeanX, largeVeil.shadeLeanX, large)
-  out.bodyShadeLeanY = mixFloat(veil.shadeLeanY, largeVeil.shadeLeanY, large)
+  out.bodyShade = lerpSrgb(veil.shade, bigVeil.shade, large)
+  out.bodyShadeDepthDp = min(mixFloat(veil.shadeDepth.value, bigVeil.shadeDepth.value, large), short / 2f)
+  out.bodyShadeLeanX = mixFloat(veil.shadeLeanX, bigVeil.shadeLeanX, large)
+  out.bodyShadeLeanY = mixFloat(veil.shadeLeanY, bigVeil.shadeLeanY, large)
   out.dim = if (clear) GlassLiquidClearDim else 0f
   out.grain = GlassLiquidGrain
   out.aa = GlassLiquidAa
@@ -487,6 +492,10 @@ private fun finiteSide(value: Float): Float = if (value.isFinite()) max(value, 0
  * Il **raggio** di sfocatura invece può cambiare lungo il viaggio, e cambia (cresce con la sagoma): un raggio
  * nuovo è un effetto nuovo, non una cattura nuova.
  *
+ * L'ombra in corpo (F1B.2) non c'entra: nel margine il corpo non legge lo sfondo per l'ombra, e il layer di una
+ * superficie è comunque ritagliato sul suo nodo (`DrawBackdropModifier`, `clip = true`). Perché l'ombra in viaggio
+ * si veda per intero il **nodo** deve contenerla: vedi [glassTravelShadowReachDp].
+ *
  * @param optics i capi del viaggio (l'ottica d'arrivo e, se c'è, quella di partenza): vale il più largo.
  */
 internal fun glassTravelPaddingDp(
@@ -500,6 +509,41 @@ internal fun glassTravelPaddingDp(
     profile.frost.blur.value * glassOpticsFrost(o.blurScale, roleScale) * (1f + max(profile.growth.frost, 0f))
   val widest = max(full(optics), opticsFrom?.let(::full) ?: 0f)
   return if (widest.isFinite()) max(widest, 0f) else 0f
+}
+
+/**
+ * Fin dove arriva, oltre il contorno, l'ombra in corpo di una superficie che viaggia con [optics] (F1B.2), in dp: il
+ * più largo dei due lati del profilo, alla crescita [gain] della regola della taglia (0 = un tasto, 1 = un pannello
+ * grande), zero se l'ottica non ha ombra. Il mezzo pixel della piattaforma è contato come mezzo dp: per eccesso, a
+ * ogni densità.
+ *
+ * Serve a chi ha un nodo **stretto** attorno alla sagoma: il layer del vetro è ritagliato sul nodo, e un'ombra che
+ * ne esce è tagliata. La barra fra le pagine allarga di tanto il nodo della superficie che viaggia; i palchi grandi
+ * quanto la finestra (menu, modale, Playground) non ne hanno bisogno. Con l'ombra B di serie, per un tasto: 66 dp.
+ */
+internal fun glassTravelShadowReachDp(
+  optics: GlassOptics,
+  gain: Float = 1f,
+  profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+): Float {
+  if (!(optics.shadowAlpha > 0f)) return 0f
+  val grow = 1f + max(profile.growth.shadow.radius, 0f) * clampGlassUnit(gain)
+  var reach = 0f
+  for (dark in booleanArrayOf(false, true)) {
+    val spec = profile.shadow(dark)
+    if (!(spec.contactAlpha + spec.ambientAlpha > 0f) || !(spec.color.alpha > 0f)) continue
+    reach = max(
+      reach,
+      GlassShadowProfile.reach(
+        contactRadius = spec.contactRadius.value * grow,
+        ambientRadius = spec.ambientRadius.value * grow,
+        contactAlpha = spec.contactAlpha,
+        ambientAlpha = spec.ambientAlpha,
+        slide = kotlin.math.hypot(spec.offset.x.value, spec.offset.y.value) * grow,
+      ),
+    )
+  }
+  return if (reach.isFinite()) reach else 0f
 }
 
 /**

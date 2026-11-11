@@ -370,6 +370,12 @@ float glassField(float2 p, out float2 normal, out float2 center) {
  * - `float pieceSmooth[8]`: per pezzo lo `smoothing` dell'angolo, 0..1 (vedi [GlassFieldSlabBlock]). Zero in
  *   viaggio e per i piccoli che l'engine disegna già circolari, lo `smoothing` della forma per i grandi a
  *   riposo; fra i due sale in modo continuo, e la sagoma cambia senza scatti.
+ * - `float pieceSoft[8]`: per pezzo il raggio, in pixel, su cui **normale e centro** (non la distanza) si pesano
+ *   con il già fuso, quando supera `pieceBlend` (F1B.2). Zero = come la sagoma: a riposo, e fra pezzi che non si
+ *   toccano. Lo alza chi prepara gli uniform dove due pezzi si sovrappongono (`physicsFieldPlan`): lì, con il
+ *   collo spento, i due pezzi si contendevano il punto a scatto e la lente mostrava una riga (le cuciture di
+ *   `gruppo-diventa-menu`). Con zero il campo è quello di prima, al bit. Il nucleo a un pezzo non lo dichiara:
+ *   lì non c'è niente da pesare.
  *
  * ### `float glassField(float2 p, out float2 normal, out float2 center)`
  * `p` è il punto nel sistema del campo ([GlassFieldPointBlock]). Restituisce la distanza con segno dal
@@ -398,6 +404,7 @@ uniform float4 pieceRect[$GlassFieldMaxPieces];
 uniform float4 pieceRadii[$GlassFieldMaxPieces];
 uniform float pieceBlend[$GlassFieldMaxPieces];
 uniform float pieceSmooth[$GlassFieldMaxPieces];
+uniform float pieceSoft[$GlassFieldMaxPieces];
 $GlassFieldSlabBlock
 
 float glassField(float2 p, out float2 normal, out float2 center) {
@@ -415,9 +422,14 @@ float glassField(float2 p, out float2 normal, out float2 center) {
             // Il raggio di fusione e' del pezzo: lo unisce a tutto cio' che il ciclo ha gia' fuso.
             float k = max(pieceBlend[i], 0.0001);
             float h = clamp(0.5 + 0.5 * (slab.x - d) / k, 0.0, 1.0);
+            // Normale e centro si pesano su un raggio che non e' mai sotto quello della sagoma, e dove i pezzi si
+            // sovrappongono sale a `pieceSoft` (F1B.2): due pezzi sovrapposti con centri diversi non si contendono
+            // piu' il punto a scatto. La sagoma non cambia: `d` resta quella di sempre.
+            float ka = max(k, pieceSoft[i]);
+            float ha = clamp(0.5 + 0.5 * (slab.x - d) / ka, 0.0, 1.0);
             d = slab.x + (d - slab.x) * h - k * h * (1.0 - h);
-            normal = mix(slab.yz, normal, h);
-            center = mix(pieceRect[i].xy, center, h);
+            normal = mix(slab.yz, normal, ha);
+            center = mix(pieceRect[i].xy, center, ha);
         }
     }
     return d;
@@ -444,10 +456,17 @@ float glassField(float2 p, out float2 normal, out float2 center) {
  *   la goccia, che è già fitta agli angoli;
  * - `float2 fieldCenter`: il centro del riquadro della sagoma: è il `center` che il campo restituisce (cupola e
  *   ingrandimento della lente girano attorno a lui);
- * - `float2 restCenter`, `float2 restHalfSize`, `float4 restRadii`, `float dropReach`: la **fascia della
- *   goccia**. Il contorno di una goccia non si allontana dalla sua sagoma a riposo (un rettangolo arrotondato)
- *   più di `dropReach` pixel: fuori da quella fascia il ciclo non serve. `dropReach` negativo: non è una
- *   goccia, nessuna scorciatoia;
+ * - `float2 restCenter`, `float2 restHalfSize`, `float4 restRadii`, `float restSmooth`, `float dropReach`: la
+ *   **fascia della goccia**. Il contorno di una goccia non si allontana dalla sua sagoma a riposo (la lastra che
+ *   la sostituirà, con i raggi e il raccordo che il campo le dà: la regola forma → piano) più di `dropReach`
+ *   pixel: fuori da quella fascia il ciclo non serve. `dropReach` negativo: non è una goccia, nessuna
+ *   scorciatoia. `restSmooth` a zero (una scena che non lo scrive) è l'angolo circolare di prima;
+ * - `float restBlend`: quanto il campo della goccia è già quello della sua lastra a riposo, 0..1 (F1B.2). Zero in
+ *   volo: il campo è l'anello, al bit. Mentre la goccia si posa sale fino a uno, e all'ultimo fotogramma ad
+ *   anello distanza, normale e centro sono quelli che il nucleo a lastre darà al fotogramma dopo. Senza, la
+ *   normale mediata dell'anello e quella allargata della lastra differivano negli angoli, e con loro il riflesso:
+ *   fino a 74 livelli su 255 alla posa del menu (`bench/f1b-2/posa`). Lo calcola chi prepara gli uniform
+ *   (`physicsDropSettle`);
  * - `float2 ringBand`: fin dove la distanza deve essere **vera**: `x` fuori dalla sagoma, `y` dentro. Oltre,
  *   il nucleo restituisce una distanza approssimata ma dalla parte giusta e non più vicina al contorno di così
  *   (fuori almeno `x`, dentro più profonda di `y`), con normale nulla. `y` deve coprire tutto ciò che il corpo
@@ -488,11 +507,13 @@ uniform float2 fieldCenter;
 uniform float2 restCenter;
 uniform float2 restHalfSize;
 uniform float4 restRadii;
+uniform float restSmooth;
+uniform float restBlend;
 uniform float dropReach;
 uniform float2 ringBand;
 $GlassFieldSlabBlock
 
-float glassField(float2 p, out float2 normal, out float2 center) {
+float glassRingField(float2 p, out float2 normal, out float2 center) {
     normal = float2(0.0);
     center = fieldCenter;
     // Fuori dal riquadro (gia' allargato di ringBand.x) non c'e' niente: si esce prima del ciclo.
@@ -500,7 +521,7 @@ float glassField(float2 p, out float2 normal, out float2 center) {
     if (beyond.x > 0.0 || beyond.y > 0.0) return ringBand.x + length(beyond);
     // La fascia della goccia: lontano dalla sagoma a riposo il contorno non puo' esserci.
     if (dropReach >= 0.0) {
-        float restD = glassSlab(p - restCenter, restHalfSize, restRadii, 0.0).x;
+        float restD = glassSlab(p - restCenter, restHalfSize, restRadii, restSmooth).x;
         if (restD - dropReach > ringBand.x) return restD - dropReach;
         if (restD + dropReach < -ringBand.y) return restD + dropReach;
     }
@@ -571,4 +592,18 @@ float glassField(float2 p, out float2 normal, out float2 center) {
     float len = length(outward);
     normal = len > 0.0000001 ? outward / len : float2(0.0);
     return winding * sqrt(best) - soften;
+}
+
+float glassField(float2 p, out float2 normal, out float2 center) {
+    float d = glassRingField(p, normal, center);
+    // La goccia che si posa (F1B.2): verso il campo della lastra che la sostituira'. Un ramo su uno uniform: in volo
+    // non si esegue, e il campo e' l'anello di sempre.
+    if (restBlend > 0.0) {
+        float3 rest = glassSlab(p - restCenter, restHalfSize, restRadii, restSmooth);
+        float w = clamp(restBlend, 0.0, 1.0);
+        d = mix(d, rest.x, w);
+        normal = mix(normal, rest.yz, w);
+        center = mix(center, restCenter, w);
+    }
+    return d;
 }"""

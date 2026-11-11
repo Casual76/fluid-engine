@@ -85,10 +85,28 @@ internal fun buildBarTrace(
   dress: TraceDress = TraceDress.Today,
   name: String = scene.name,
   phase: String = "f0",
+  /** Il lato scuro (F1B.2): tavolozza, ricetta dei tasti e della superficie, tema della traccia. */
+  dark: Boolean = false,
+  /** L'ombra unica (F1B.2): le maschere dei tasti fermi e l'ombra nel corpo della superficie. */
+  shadow: Boolean = false,
+  /**
+   * Il passaggio di consegne di F1B.2, con l'ordine vero dei segnali (`FluidBarJourney.active`, letto in
+   * composizione dalla superficie e dai tasti): il vetro è della superficie solo mentre la forma si muove
+   * (`FluidPageMotion.barJourneyCarries`); ai capi lo portano i tasti, anche mentre la pagina si muove ancora. Falso:
+   * il passaggio di prima, alla posa della pagina.
+   */
+  handoff: Boolean = false,
+  /**
+   * Di quanto il nodo della superficie che viaggia esce sopra e sotto la riga dei tasti, in dp (F1B.2: l'ombra in
+   * corpo si vede solo dentro il nodo). Null: il palco è tutta la tela, come prima.
+   */
+  stageGrowDp: Float? = null,
+  /** Il fondo della traccia al posto di quello della scena (il lato scuro). */
+  background: Map<String, Any?>? = null,
 ): BarBuilt {
   val d = scene.density
   val fps = scene.fps
-  val palette = TodayPalette()
+  val palette = TodayPalette(dark)
   // La tela parte [rowTopDp] sopra la riga dei controlli: nell'host (la riga) l'origine della tela e' a -rowTop.
   val origin = Offset(0f, -scene.rowTopDp * d)
   fun lens(b: BarButton) = Rect(b.leftDp * d, 0f, (b.leftDp + BarLensDp) * d, BarLensDp * d)
@@ -119,10 +137,13 @@ internal fun buildBarTrace(
   fun icon(b: BarButton, alpha: Float) =
     todayIconLayer(b.name, lens(b), b.icon, b.iconSizeDp, palette.primary, origin, d, alpha = alpha)
 
-  val liquid = LiquidPhysicsDress(GlassRole.Interactive, material, d)
+  val liquid = LiquidPhysicsDress(GlassRole.Interactive, material, d, darkSide = dark, shadow = shadow)
+  // Il nodo della superficie: la riga dei tasti (qui alta quanto le lenti, dall'alto della lente) allargata sopra e
+  // sotto di quanto arriva l'ombra, come in `FluidAnchoredBar`.
+  val stage = stageGrowDp?.let { grow -> Rect(0f, -grow * d, widthPx, (BarLensDp + grow) * d) }
   fun restButtons(buttons: List<BarButton>): List<Map<String, Any?>> = buttons.map { b ->
     if (dress == TraceDress.Liquid) {
-      liquidButtonElement(b.name, lens(b), FluidPressTransform.Identity, 0f, origin, d, listOf(icon(b, 1f)))
+      liquidButtonElement(b.name, lens(b), FluidPressTransform.Identity, 0f, origin, d, listOf(icon(b, 1f)), darkSide = dark, shadow = shadow)
     } else todayButtonElement(
       name = b.name,
       rest = lens(b),
@@ -144,8 +165,21 @@ internal fun buildBarTrace(
   val morphs = ArrayList<Float>()
   var k = 0
   var settledAt = -1
+  var handedBackAt = -1
   while (k < scene.maxFrames) {
     val nanos = glassTraceTimeNanos(k, fps)
+    if (handoff && !travel.finished(nanos)) {
+      // La forma ai capi: il vetro lo portano i tasti della pagina di quel capo (in un push la forma va da quelli di
+      // sotto, m = 1, a quelli di sopra, m = 0), con le icone di quel capo piene.
+      val m = FluidPageMotion.barMorph(FluidPageMotion.exitFraction(FluidPageTransition.Slide, travel.value(nanos), widthPx))
+      if (!FluidPageMotion.barJourneyCarries(m)) {
+        if (m <= 0f && handedBackAt < 0) handedBackAt = k
+        val shown = if (m >= 1f) scene.lower else scene.upperActions + scene.upperBack
+        frames += GlassTraceFrame(glassTraceTimeMs(k, fps), restButtons(shown))
+        k++
+        continue
+      }
+    }
     if (travel.finished(nanos)) {
       // `settle()`: la pagina e' arrivata, la superficie condivisa se ne va e i tasti si ridisegnano.
       if (settledAt < 0) settledAt = k
@@ -175,7 +209,7 @@ internal fun buildBarTrace(
       glassTraceTimeMs(k, fps),
       listOf(
         if (look == null) {
-          liquid.element("barra", physics, plan, 1f, origin, scene.widthDp, scene.canvasHeightDp, content)
+          liquid.element("barra", physics, plan, 1f, origin, scene.widthDp, scene.canvasHeightDp, content, stage = stage)
         } else {
           todayPhysicsElement("barra", plan, look, origin, d, scene.widthDp, scene.canvasHeightDp, content)
         },
@@ -184,16 +218,31 @@ internal fun buildBarTrace(
     k++
   }
 
+  val head = LinkedHashMap(scene.head(settledAt))
+  if (background != null) head["background"] = background
+  if (handedBackAt >= 0) {
+    @Suppress("UNCHECKED_CAST")
+    val events = ArrayList((head["events"] as? List<Map<String, Any?>>) ?: emptyList())
+    events.add(
+      0,
+      linkedMapOf(
+        "t" to round3(glassTraceTimeMs(handedBackAt, fps).toFloat()),
+        "kind" to "mark",
+        "label" to "la forma si ferma: il vetro torna ai tasti (F1B.2)",
+      ),
+    )
+    head["events"] = events
+  }
   val trace = GlassTrace(
     name = name,
     phase = phase,
     density = d,
-    theme = "light",
+    theme = if (dark) "dark" else "light",
     widthDp = scene.widthDp,
     heightDp = scene.canvasHeightDp,
     frames = frames,
     fps = fps,
-    head = scene.head(settledAt),
+    head = head,
   )
   return BarBuilt(trace, pairs, morphs, settledAt)
 }

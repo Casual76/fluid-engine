@@ -3,11 +3,13 @@
  *
  *  - **a riposo** ([GlassShadowLayer], dentro [GlassShadowNode]): due maschere sfumate dal contorno del campo
  *    (contatto e ambiente), scavate sotto la sagoma, registrate una volta in un layer solo;
- *  - **in viaggio** ([GlassTravelShadowBlock]): la stessa ombra calcolata dal campo dentro lo shader del corpo,
- *    che in viaggio si riesegue comunque a ogni fotogramma.
+ *  - **in viaggio** ([GlassTravelShadowBlock], la maschera del nucleo, [GlassTravelShadowFunctionBlock]): la stessa
+ *    ombra calcolata dentro lo shader del corpo, che in viaggio si riesegue comunque a ogni fotogramma. Da F1B.2 è
+ *    la stessa sagoma sfocata delle maschere, in forma chiusa (riquadro sfocato meno gli angoli), non più la caduta
+ *    di un bordo dritto sulla distanza.
  *
  * I due modi partono dagli stessi numeri ([GlassShadowSpec]) e dalla stessa legge di caduta
- * ([GlassShadowProfile]): ciò che li separa è misurato, e sta scritto in [GlassTravelShadowBlock].
+ * ([GlassShadowProfile]): ciò che li separa è misurato, e sta scritto in [GlassTravelShadowFunctionBlock].
  */
 package dev.antigravity.fluidengine.ui.glass.field
 
@@ -46,6 +48,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -200,24 +203,148 @@ internal object GlassShadowProfile {
       ambient * fall(seen, sigma(ambientRadius))
     return min(amount, 1f)
   }
+
+  /**
+   * `glassShadowBox`: un riquadro di mezza taglia [halfWidth] x [halfHeight], centrato nell'origine, pieno e sfocato
+   * con una gaussiana di deviazione [sigma], nel punto ([relX], [relY]). Esatto: la gaussiana è separabile.
+   */
+  fun box(relX: Float, relY: Float, halfWidth: Float, halfHeight: Float, sigma: Float): Float =
+    max(fall(relX - halfWidth, sigma) - fall(relX + halfWidth, sigma), 0f) *
+      max(fall(relY - halfHeight, sigma) - fall(relY + halfHeight, sigma), 0f)
+
+  /**
+   * `glassShadowNotch`: ciò che un angolo di raggio [radius] (raccordo speso [spend]) toglie al riquadro sfocato,
+   * come un punto della sua area nel suo baricentro. [tipX], [tipY] è il vertice dell'angolo, ([inwardX], [inwardY])
+   * la diagonale che entra nel pezzo (componenti ±1).
+   */
+  fun notch(
+    relX: Float,
+    relY: Float,
+    tipX: Float,
+    tipY: Float,
+    inwardX: Float,
+    inwardY: Float,
+    radius: Float,
+    spend: Float,
+    sigma: Float,
+  ): Float {
+    if (radius <= 0.0001f) return 0f
+    val reach = GlassFieldGeometry.cornerReach(radius, spend)
+    val t = GlassFieldGeometry.cornerPower(spend) - 2f
+    val area = reach * reach * (GlassShadowNotchArea0 - t * (GlassShadowNotchArea1 - GlassShadowNotchArea2 * t))
+    val along = reach * (GlassShadowNotchAt0 - t * (GlassShadowNotchAt1 - GlassShadowNotchAt2 * t))
+    val vx = relX - (tipX + inwardX * along)
+    val vy = relY - (tipY + inwardY * along)
+    return area * exp(-(vx * vx + vy * vy) / (2f * sigma * sigma)) / (6.2831853f * sigma * sigma)
+  }
+
+  /**
+   * `glassShadowPiece`: un pezzo del campo pieno e sfocato con deviazione [sigma], nel punto ([relX], [relY])
+   * centrato sul pezzo: il riquadro sfocato ([box]) meno i quattro angoli ([notch]). I raggi seguono la regola del
+   * nucleo ([GlassFieldGeometry.slab]): limitati a mezzo lato corto, col raccordo che il lato lascia spendere,
+   * oppure, nel ramo largo, come sono e circolari.
+   */
+  fun piece(
+    relX: Float,
+    relY: Float,
+    halfWidth: Float,
+    halfHeight: Float,
+    radii: FloatArray,
+    radiiAt: Int,
+    smoothing: Float,
+    sigma: Float,
+  ): Float {
+    val box = box(relX, relY, halfWidth, halfHeight, sigma)
+    if (box <= 0f) return 0f
+    val minHalf = min(halfWidth, halfHeight)
+    val wide = GlassFieldGeometry.isWide(halfWidth, halfHeight, radii, radiiAt)
+    var notches = 0f
+    for (k in 0 until 4) {
+      val nominal = radii[radiiAt + k]
+      val radius = if (wide) max(nominal, 0f) else nominal.coerceIn(0f, max(minHalf, 0f))
+      val spend = if (wide) 0f else GlassFieldGeometry.effectiveSmoothing(radius, minHalf, smoothing)
+      // Alto-sinistra, alto-destra, basso-destra, basso-sinistra.
+      val sx = if (k == 1 || k == 2) 1f else -1f
+      val sy = if (k >= 2) 1f else -1f
+      notches += notch(relX, relY, sx * halfWidth, sy * halfHeight, -sx, -sy, radius, spend, sigma)
+    }
+    return max(box - notches, 0f)
+  }
+
+  /**
+   * La parte «pezzi» di `glassShadowMask` del nucleo a otto ([GlassShadowMask8]), senza il collo: ogni pezzo con la
+   * sua ombra meno la più grande delle parti comuni (riquadri) con i pezzi già contati. Pezzi separati: la somma;
+   * pezzi uguali: uno solo. [rects] e [radii] come gli uniform (centro e mezza taglia; quattro raggi).
+   */
+  fun group(
+    x: Float,
+    y: Float,
+    count: Int,
+    rects: FloatArray,
+    radii: FloatArray,
+    smooth: FloatArray,
+    sigma: Float,
+  ): Float {
+    var cover = 0f
+    for (i in 0 until count) {
+      val at = i * 4
+      val own = piece(x - rects[at], y - rects[at + 1], rects[at + 2], rects[at + 3], radii, at, smooth[i], sigma)
+      var overlap = 0f
+      for (j in 0 until i) {
+        val bt = j * 4
+        val loX = max(rects[at] - rects[at + 2], rects[bt] - rects[bt + 2])
+        val loY = max(rects[at + 1] - rects[at + 3], rects[bt + 1] - rects[bt + 3])
+        val hiX = min(rects[at] + rects[at + 2], rects[bt] + rects[bt + 2])
+        val hiY = min(rects[at + 1] + rects[at + 3], rects[bt + 1] + rects[bt + 3])
+        if (hiX > loX && hiY > loY) {
+          overlap = max(overlap, box(x - (loX + hiX) / 2f, y - (loY + hiY) / 2f, (hiX - loX) / 2f, (hiY - loY) / 2f, sigma))
+        }
+      }
+      cover += max(own - overlap, 0f)
+    }
+    return cover.coerceIn(0f, 1f)
+  }
 }
 
 // ------------------------------------------------------------------------------------------------------------
-// In viaggio: il blocco AGSL
+// In viaggio: i blocchi AGSL
 // ------------------------------------------------------------------------------------------------------------
 
 /**
- * L'**ombra in viaggio** del materiale `Liquid` come blocco AGSL.
+ * Di quanta area un angolo arrotondato toglie al suo quadrato, in frazioni del semiasse al quadrato, e dove sta
+ * il baricentro di ciò che toglie, in frazioni del semiasse dal vertice verso dentro: due polinomi in
+ * `t = esponente − 2` della superellisse dell'angolo (2 è il cerchio: `1 − π/4` e `0,22337`). Ricavati per F1B.2
+ * da una griglia fitta (`artifacts/liquid-glass/bench/f1b-2/ombra/angolo.py`): entro lo 0,5% fra `t` = 0 e 0,5,
+ * cioè fino allo `smoothing` 0,6 di iOS, il solo che l'engine usa. I coefficienti negativi sono scritti positivi
+ * e il segno sta nella formula, così il banco li ricopia senza un meno unario.
+ */
+internal const val GlassShadowNotchArea0: Float = 0.2146f
+
+/** Vedi [GlassShadowNotchArea0]. */
+internal const val GlassShadowNotchArea1: Float = 0.1414f
+
+/** Vedi [GlassShadowNotchArea0]. */
+internal const val GlassShadowNotchArea2: Float = 0.04348f
+
+/** Vedi [GlassShadowNotchArea0]. */
+internal const val GlassShadowNotchAt0: Float = 0.22337f
+
+/** Vedi [GlassShadowNotchArea0]. */
+internal const val GlassShadowNotchAt1: Float = 0.06966f
+
+/** Vedi [GlassShadowNotchArea0]. */
+internal const val GlassShadowNotchAt2: Float = 0.01552f
+
+/**
+ * La **legge** dell'ombra in viaggio del materiale `Liquid`, come blocco AGSL: gli uniform, la caduta e la sagoma
+ * sfocata in forma chiusa di un pezzo del campo. È la prima delle tre parti dell'ombra in viaggio; le altre due
+ * sono la maschera del nucleo ([GlassShadowMask1], [GlassShadowMask8], [GlassShadowMaskRing]) e la funzione che il
+ * corpo chiama ([GlassTravelShadowFunctionBlock]). Il corpo le include in quest'ordine, dopo il nucleo.
  *
  * A riposo l'ombra sono due maschere sfumate in cache ([GlassShadowLayer]). In viaggio la sagoma cambia a ogni
  * fotogramma (un ponte fra due pezzi non ha un path) e rifare due maschere sfocate su CPU a quella cadenza non
  * sta nel fotogramma: l'ombra esce allora dal campo, dentro lo shader del corpo, che in viaggio si riesegue
  * comunque.
- *
- * ### Dove si include
- * Nel solo corpo, dopo il nucleo ([GlassFieldKernel1] o [GlassFieldKernel8]) e prima di `main`: il blocco
- * chiama `glassField` per valutare il campo nel punto spostato. **Dichiara i propri uniform**: chi lo
- * include non li ridichiara. Non dichiara `materialize` né `aa`, che sono del corpo.
  *
  * ### uniform (piano 3.4)
  * - `float2 shadowOffset`: di quanto l'ombra d'**ambiente** è scostata dalla sagoma, in pixel dello spazio
@@ -229,55 +356,29 @@ internal object GlassShadowProfile {
  *   la funzione li porta alla deviazione standard con il conto della piattaforma. Se la cattura è a
  *   risoluzione ridotta non basta moltiplicarli per la scala: li dà [GlassShadowProfile.scaledRadius];
  * - `float2 shadowAlphas`: 0..1, l'alfa di ogni componente **ben sotto la sagoma**: `x` contatto, `y`
- *   ambiente. Sul contorno, a scostamento nullo, ne resta metà: è così anche per una maschera sfumata;
+ *   ambiente. Senza `materialize`, che applica il corpo;
  * - `layout(color) half4 shadowColor`: il colore dell'ombra, non premoltiplicato; la sua alfa moltiplica le
  *   due componenti.
  *
- * Uno uniform non impostato vale zero: con `shadowAlphas` a zero la funzione esce subito e non disegna.
+ * Uno uniform non impostato vale zero: con `shadowAlphas` a zero l'ombra esce subito e non disegna.
  *
- * ### `half4 glassTravelShadow(float2 p, float d)`
- * - `p`: il punto nel sistema del campo, cioè `glassFieldPoint(coord)`;
- * - `d`: la distanza con segno in `p` che il corpo ha già calcolato (negativa dentro, in pixel).
- *
- * Restituisce l'ombra in quel punto come colore **premoltiplicato**, e **non scavata**: vale anche sotto la
- * sagoma, e non contiene né la copertura né `materialize`. La scava e la compone chi chiama, sotto il corpo:
- *
- *     half4 shade = glassTravelShadow(p, d) * half(materialize);
- *     return colour * half(coverage) + shade * half(1.0 - coverage);
- *
- * Perché l'ombra si veda il corpo deve disegnare anche **fuori** dalla sagoma: è il caso delle lastre che
- * viaggiano, che hanno il margine del campo e il ritaglio hardware spento. Il margine deve coprire
- * [GlassShadowProfile.reach], o l'ombra finisce contro il bordo della cattura.
- *
- * ### Quanto costa
- * Una valutazione del campo in più (nel punto spostato), e solo nella fascia dove l'ombra esiste: oltre
- * [GlassShadowProfile.reach] dal contorno esce con zero, e più in dentro di altrettanto esce con l'ombra
- * piena, in entrambi i casi senza toccare il campo. Con scostamento nullo non lo valuta mai.
+ * ### La sagoma sfocata in forma chiusa (F1B.2)
+ * La maschera a riposo è la sagoma piena sfocata con una gaussiana. Fino a F1B.1 lo shader la approssimava con
+ * la caduta di un bordo **dritto** sulla distanza dal contorno: esatta lungo un lato lungo, troppo forte dove il
+ * contorno curva e dove la lastra è piccola rispetto alla sfocatura (con l'ombra B di serie, raggio 34 dp:
+ * 6 livelli sotto un tasto da 44 dp, 3 sotto un menu, su bianco). Ora un pezzo è il suo **riquadro sfocato**, che
+ * è esatto e separabile (`glassShadowBox`: due differenze di caduta per asse), **meno i quattro angoli** che
+ * l'arrotondamento toglie, ognuno come un punto della sua area nel suo baricentro (`glassShadowNotch`): sul banco
+ * numerico entro 0,11 livelli dalla gaussiana vera, su tasto, capsula, menu e pannello
+ * (`artifacts/liquid-glass/bench/f1b-2/ombra/studio3.py`). I raggi seguono la regola del nucleo: limitati a mezzo
+ * lato corto col raccordo che il lato lascia spendere, oppure, nel ramo largo di `glassSlab`, come sono e
+ * circolari.
  *
  * ### Le funzioni di servizio
  * `glassShadowSigma(radius)` e `glassShadowFall(x, sigma)` sono gli specchi di [GlassShadowProfile.sigma] e
- * [GlassShadowProfile.fall]: chi tocca una formula qui tocca la gemella là.
- *
- * ### Quanto dista dall'ombra a riposo (misurato, `artifacts/liquid-glass/bench/f1a-4/studio_ombra.py`)
- * La caduta è quella di una maschera sfumata lungo un bordo **dritto**, esatta. Dove il contorno curva, o
- * dove la lastra è piccola rispetto alla sfocatura, una maschera vera vale meno, e questa funzione non lo sa
- * (non conosce la curvatura: le servirebbero altre tre valutazioni del campo). Su una pagina a 242, a
- * densità 3, fuori dalla sagoma:
- *
- * | ombra | tasto 44 dp | capsula 156 x 56 | menu 170 x 192 | pannello 320 x 400 |
- * |---|---|---|---|---|
- * | di serie (corta, iOS 27) | 0,4 livelli | 0,3 | 0,4 | 0,3 |
- * | «iOS 26» (raggio 34 dp) | 5,6 | 3,4 | 3,0 | 2,4 |
- * | «oggi» (raggio 20 dp) | 3,3 | 2,4 | 2,5 | 1,9 |
- *
- * In viaggio è sempre la più forte delle due. Con l'ombra di serie il passaggio viaggio → riposo non può
- * vedersi (sul banco, `prova-ombra-riposo-ios27` contro `prova-ombra-viaggio-ios27`: nessun pixel oltre un
- * livello fuori dalla sagoma); con una delle due ombre larghe sì, e più sul tasto che sul pannello: se una
- * tavola le sceglie, la parità va chiusa in F1B (quattro campioni del campo dimezzano lo scarto; registrare
- * la maschera a riposo con questa stessa funzione lo azzera). In più, sull'anello di un pixel dove vive
- * l'antialias del contorno, la maschera a riposo è scavata con la copertura del path e poi coperta dal
- * corpo: lì porta circa metà dell'ombra (di serie in media mezzo livello in meno, 2 nel conto e fino a 4
- * su qualche pixel del banco), dove in viaggio il corpo la compone intera.
+ * [GlassShadowProfile.fall]; `glassShadowBox`, `glassShadowNotch` e `glassShadowPiece` di
+ * [GlassShadowProfile.box], [GlassShadowProfile.notch] e [GlassShadowProfile.piece]. Chi tocca una formula qui
+ * tocca la gemella là.
  */
 @Language("AGSL")
 internal const val GlassTravelShadowBlock = """
@@ -298,6 +399,179 @@ float glassShadowFall(float x, float sigma) {
     return x >= 0.0 ? tail : 1.0 - tail;
 }
 
+float glassShadowBox(float2 rel, float2 halfSize, float sigma) {
+    return max(glassShadowFall(rel.x - halfSize.x, sigma) - glassShadowFall(rel.x + halfSize.x, sigma), 0.0)
+        * max(glassShadowFall(rel.y - halfSize.y, sigma) - glassShadowFall(rel.y + halfSize.y, sigma), 0.0);
+}
+
+float glassShadowNotch(float2 rel, float2 tip, float2 inward, float radius, float spend, float sigma) {
+    if (radius <= 0.0001) return 0.0;
+    float s2 = spend * spend;
+    float reach = radius * (1.0 + s2 * ($GlassCornerReachSquare + $GlassCornerReachCube * spend));
+    float t = s2 * ($GlassCornerPowerSquare + $GlassCornerPowerCube * spend);
+    float area = reach * reach * ($GlassShadowNotchArea0 - t * ($GlassShadowNotchArea1 - $GlassShadowNotchArea2 * t));
+    float along = reach * ($GlassShadowNotchAt0 - t * ($GlassShadowNotchAt1 - $GlassShadowNotchAt2 * t));
+    float2 v = rel - (tip + inward * along);
+    return area * exp(-dot(v, v) / (2.0 * sigma * sigma)) / (6.2831853 * sigma * sigma);
+}
+
+float glassShadowSpend(float radius, float minHalf, float smoothing) {
+    return radius > 0.0001 ? clamp(min(smoothing, minHalf / radius - 1.0), 0.0, 1.0) : 0.0;
+}
+
+float glassShadowPiece(float2 rel, float2 halfSize, float4 radii, float smoothing, float sigma) {
+    float box = glassShadowBox(rel, halfSize, sigma);
+    if (box <= 0.0) return 0.0;
+    float minHalf = min(halfSize.x, halfSize.y);
+    float4 r = clamp(radii, float4(0.0), float4(minHalf));
+    float spend = smoothing;
+    // Il ramo largo di `glassSlab`: un angolo oltre mezzo lato corto, se i raggi stanno nei lati, resta com'e'.
+    if (max(max(radii.x, radii.y), max(radii.z, radii.w)) > minHalf * $GlassFieldWideSlack) {
+        float2 room = halfSize * (2.0 * $GlassFieldWideSlack);
+        if (max(radii.x + radii.y, radii.w + radii.z) <= room.x
+            && max(radii.x + radii.w, radii.y + radii.z) <= room.y) {
+            r = max(radii, float4(0.0));
+            spend = 0.0;
+        }
+    }
+    float notch = glassShadowNotch(rel, -halfSize, float2(1.0, 1.0), r.x, glassShadowSpend(r.x, minHalf, spend), sigma)
+        + glassShadowNotch(rel, float2(halfSize.x, -halfSize.y), float2(-1.0, 1.0), r.y,
+            glassShadowSpend(r.y, minHalf, spend), sigma)
+        + glassShadowNotch(rel, halfSize, float2(-1.0, -1.0), r.z, glassShadowSpend(r.z, minHalf, spend), sigma)
+        + glassShadowNotch(rel, float2(-halfSize.x, halfSize.y), float2(1.0, -1.0), r.w,
+            glassShadowSpend(r.w, minHalf, spend), sigma);
+    return max(box - notch, 0.0);
+}"""
+
+/**
+ * La maschera dell'ombra di **una lastra** ([GlassFieldKernel1]): `float glassShadowMask(float2 q, float sigma,
+ * out float seen)` è la sagoma piena sfocata con deviazione `sigma` nel punto `q` (0..1), e `seen` la distanza con
+ * segno della sagoma in `q`. Va dopo [GlassTravelShadowBlock] e prima di [GlassTravelShadowFunctionBlock].
+ */
+@Language("AGSL")
+internal const val GlassShadowMask1 = """
+float glassShadowMask(float2 q, float sigma, out float seen) {
+    seen = glassSlab(q - pieceRect[0].xy, pieceRect[0].zw, pieceRadii[0], pieceSmooth[0]).x;
+    return glassShadowPiece(q - pieceRect[0].xy, pieceRect[0].zw, pieceRadii[0], pieceSmooth[0], sigma);
+}"""
+
+/**
+ * La maschera dell'ombra di **un gruppo** ([GlassFieldKernel8]), la stessa firma di [GlassShadowMask1].
+ *
+ * Una gaussiana è lineare: l'ombra di pezzi **separati** è la somma delle loro (è il caso dei capi di ogni viaggio,
+ * dove la superficie passa il vetro ai tasti, e dei gruppi a riposo). Dove i pezzi si sovrappongono (in viaggio)
+ * la somma conterebbe due volte la parte comune, e sotto due tasti che si toccano l'ombra raddoppierebbe: ogni
+ * pezzo porta allora la sua ombra **meno** la più grande delle sue parti comuni con i pezzi già contati, ognuna
+ * come il riquadro sfocato dell'intersezione dei due riquadri. È esatto per due pezzi e per una fila; per tre
+ * pezzi che si coprono tutti (un gruppo che diventa un menu) eccede di poco, mai di un'ombra intera.
+ *
+ * Il **collo** non è un pezzo: la sua area entra col rapporto fra la caduta del campo fuso e quella dell'unione
+ * netta dei pezzi, entrambe nel punto: uno esatto dove non c'è collo (le due distanze sono le stesse operazioni),
+ * più di uno accanto a un ponte. Così l'ombra segue la sagoma fusa: un'ombra sola, niente doppia ombra dove due
+ * pezzi si toccano.
+ *
+ * `seen` è la distanza del campo fuso, con le stesse righe di `glassField` (senza normale né centro).
+ */
+@Language("AGSL")
+internal const val GlassShadowMask8 = """
+float glassShadowMask(float2 q, float sigma, out float seen) {
+    float cover = 0.0;
+    float fused = 1000000.0;
+    float hard = 1000000.0;
+    for (int i = 0; i < $GlassFieldMaxPieces; ++i) {
+        if (float(i) >= pieceCount) break;
+        float4 ri = pieceRect[i];
+        float d = glassSlab(q - ri.xy, ri.zw, pieceRadii[i], pieceSmooth[i]).x;
+        if (i == 0) {
+            fused = d;
+        } else {
+            float k = max(pieceBlend[i], 0.0001);
+            float h = clamp(0.5 + 0.5 * (d - fused) / k, 0.0, 1.0);
+            fused = d + (fused - d) * h - k * h * (1.0 - h);
+        }
+        hard = min(hard, d);
+        float own = glassShadowPiece(q - ri.xy, ri.zw, pieceRadii[i], pieceSmooth[i], sigma);
+        float overlap = 0.0;
+        for (int j = 0; j < $GlassFieldMaxPieces; ++j) {
+            if (j >= i) break;
+            float4 rj = pieceRect[j];
+            float2 lo = max(ri.xy - ri.zw, rj.xy - rj.zw);
+            float2 hi = min(ri.xy + ri.zw, rj.xy + rj.zw);
+            if (hi.x > lo.x && hi.y > lo.y) {
+                overlap = max(overlap, glassShadowBox(q - (lo + hi) * 0.5, (hi - lo) * 0.5, sigma));
+            }
+        }
+        cover += max(own - overlap, 0.0);
+    }
+    seen = fused;
+    float neck = fused < hard ? glassShadowFall(fused, sigma) / max(glassShadowFall(hard, sigma), 0.000001) : 1.0;
+    return clamp(cover * neck, 0.0, 1.0);
+}"""
+
+/**
+ * La maschera dell'ombra di **una sagoma ad anello** ([GlassFieldKernelRing]), la stessa firma di
+ * [GlassShadowMask1].
+ *
+ * Un poligono qualsiasi non ha una forma chiusa: la maschera è quella del **rettangolo arrotondato che gli fa da
+ * sostituto** (il riquadro della sagoma, cioè `bbox` senza il margine `soften + ringBand.x`, coi raggi della goccia
+ * a riposo tenuti dentro mezzo lato; angoli vivi per una sagoma libera), corretta col rapporto fra la caduta della
+ * sagoma vera e quella del sostituto nel punto. Quando la goccia si posa sulla sua lastra le due sagome coincidono
+ * e la maschera è quella della lastra; mentre si deforma, l'ombra la segue.
+ */
+@Language("AGSL")
+internal const val GlassShadowMaskRing = """
+float glassShadowMask(float2 q, float sigma, out float seen) {
+    float2 normal;
+    float2 center;
+    seen = glassField(q, normal, center);
+    float margin = soften + ringBand.x;
+    float2 halfSize = max((bbox.zw - bbox.xy) * 0.5 - float2(margin), float2(0.0));
+    float4 radii = dropReach >= 0.0 ? min(max(restRadii, float4(0.0)), float4(min(halfSize.x, halfSize.y))) : float4(0.0);
+    float stand = glassShadowPiece(q - fieldCenter, halfSize, radii, 0.0, sigma);
+    float standD = glassSlab(q - fieldCenter, halfSize, radii, 0.0).x;
+    float ratio = glassShadowFall(seen, sigma) / max(glassShadowFall(standD, sigma), 0.000001);
+    return clamp(stand * ratio, 0.0, 1.0);
+}"""
+
+/**
+ * L'**ombra in viaggio** del materiale `Liquid`: `half4 glassTravelShadow(float2 p, float d)`, la terza parte
+ * dell'ombra in viaggio (dopo [GlassTravelShadowBlock] e la maschera del nucleo). Il corpo la chiama con
+ * `lightInBody` a 1.
+ *
+ * - `p`: il punto nel sistema del campo, cioè `glassFieldPoint(coord)`;
+ * - `d`: la distanza con segno in `p` che il corpo ha già calcolato (negativa dentro, in pixel).
+ *
+ * Restituisce l'ombra in quel punto come colore **premoltiplicato**, e **non scavata**: vale anche sotto la
+ * sagoma, e non contiene né la copertura né `materialize`. La scava e la compone chi chiama, sotto il corpo:
+ *
+ *     half4 shade = glassTravelShadow(p, d) * half(materialize);
+ *     return colour * half(coverage) + shade * half(1.0 - coverage);
+ *
+ * L'**ambiente** è la maschera del nucleo nel punto spostato (`glassShadowMask(p - shadowOffset)`): la stessa
+ * sagoma sfocata della maschera a riposo. Il **contatto** (stretto: lì la sfocatura è piccola rispetto alla sagoma
+ * e la caduta di un bordo dritto basta) resta la caduta sulla distanza, interpolata fra quella del punto e quella
+ * del punto spostato (la quota del contatto, [GlassShadowProfile.contactShare]).
+ *
+ * Perché l'ombra si veda il corpo deve disegnare anche **fuori** dalla sagoma, e il layer del vetro è ritagliato sul
+ * suo nodo: il nodo deve contenere [GlassShadowProfile.reach] attorno alla sagoma, o l'ombra finisce contro il suo
+ * bordo. I palchi grandi quanto la finestra lo fanno da sé; un nodo stretto si allarga di
+ * `glassTravelShadowReachDp` (la barra fra le pagine). Lì l'ombra non legge lo sfondo, quindi il margine della
+ * cattura non c'entra. Oltre quella distanza dal contorno esce con zero, e più in dentro di altrettanto con l'ombra
+ * piena (scavata comunque), in entrambi i casi senza valutare il campo.
+ *
+ * ### Quanto costa
+ * Una maschera del nucleo per pixel, nella sola fascia dell'ombra: per una lastra una valutazione del pezzo, quattro
+ * cadute e quattro esponenziali; per un gruppo lo stesso per pezzo, più un confronto di riquadri per coppia (le
+ * coppie che non si toccano non costano altro); per un anello il ciclo sui lati, come prima, più il sostituto.
+ *
+ * ### Quanto dista dall'ombra a riposo
+ * Contro la gaussiana vera (banco numerico) entro 0,11 livelli con l'ombra di serie; contro la maschera di Skia sul
+ * banco, la misura è nel rapporto di F1B.2. Resta, come prima, l'anello di un pixel dove vive l'antialias del
+ * contorno: la maschera a riposo è scavata con la copertura del path e poi coperta dal corpo, e lì porta circa metà
+ * dell'ombra, dove in viaggio il corpo la compone intera.
+ */
+@Language("AGSL")
+internal const val GlassTravelShadowFunctionBlock = """
 half4 glassTravelShadow(float2 p, float d) {
     float contactAlpha = max(shadowAlphas.x, 0.0);
     float ambientAlpha = max(shadowAlphas.y, 0.0);
@@ -314,15 +588,17 @@ half4 glassTravelShadow(float2 p, float d) {
 
     float amount = contactAlpha + ambientAlpha;
     if (d >= -reach) {
-        // La sagoma vista dal punto spostato: l'unica valutazione del campo che l'ombra aggiunge.
+        // La sagoma vista dal punto spostato: la maschera del nucleo, che da' anche la distanza la'.
         float seen = d;
-        if (slide > 0.0) {
+        float ambient = 0.0;
+        if (ambientAlpha > 0.0) {
+            ambient = glassShadowMask(p - shadowOffset, ambientSigma, seen);
+        } else if (slide > 0.0) {
             float2 seenNormal;
             float2 seenCenter;
             seen = glassField(p - shadowOffset, seenNormal, seenCenter);
         }
-        amount = contactAlpha * glassShadowFall(mix(d, seen, share), contactSigma)
-            + ambientAlpha * glassShadowFall(seen, ambientSigma);
+        amount = contactAlpha * glassShadowFall(mix(d, seen, share), contactSigma) + ambientAlpha * ambient;
     }
     half strength = half(min(amount, 1.0)) * shadowColor.a;
     return half4(shadowColor.rgb * strength, strength);
@@ -683,6 +959,8 @@ internal object GlassShadowContour {
    * piattaforma sfoca senza passare da una maschera su CPU.
    */
   fun isCircular(halfWidth: Float, halfHeight: Float, radii: FloatArray, radiiAt: Int, smoothing: Float): Boolean {
+    // Il ramo largo del nucleo (un angolo oltre mezzo lato corto, coi raggi nei lati) ha solo archi di cerchio.
+    if (GlassFieldGeometry.isWide(halfWidth, halfHeight, radii, radiiAt)) return true
     val minHalf = min(halfWidth, halfHeight)
     for (k in 0 until 4) {
       val radius = max(min(radii[radiiAt + k], minHalf), 0f)
@@ -710,6 +988,10 @@ internal object GlassShadowContour {
     out: FloatArray,
   ): Int {
     val minHalf = min(halfWidth, halfHeight)
+    // Il ramo largo del nucleo (F1B.1): un angolo oltre mezzo lato corto, se i raggi stanno nei lati, resta com'è
+    // ed è un arco di cerchio. Fino a F1B.2 qui ogni raggio era limitato a mezzo lato, e l'ombra di un fumetto
+    // `22/22/22/6` alto 40 dp aveva l'angolo di un altro vetro.
+    val wide = GlassFieldGeometry.isWide(halfWidth, halfHeight, radii, radiiAt)
     var points = 0
     // In senso orario dal lato alto: alto-destra, basso-destra, basso-sinistra, alto-sinistra. Per ogni
     // angolo il lato da cui si entra e quello da cui si esce, come direzioni che puntano fuori dal pezzo.
@@ -725,8 +1007,8 @@ internal object GlassShadowContour {
         2 -> { nominal = radii[radiiAt + 3]; entryX = 0f; entryY = 1f; exitX = -1f; exitY = 0f }
         else -> { nominal = radii[radiiAt]; entryX = -1f; entryY = 0f; exitX = 0f; exitY = -1f }
       }
-      val radius = max(min(nominal, minHalf), 0f)
-      val s = GlassFieldGeometry.effectiveSmoothing(radius, minHalf, smoothing)
+      val radius = if (wide) max(nominal, 0f) else max(min(nominal, minHalf), 0f)
+      val s = if (wide) 0f else GlassFieldGeometry.effectiveSmoothing(radius, minHalf, smoothing)
       val reach = GlassFieldGeometry.cornerReach(radius, s)
       val power = GlassFieldGeometry.cornerPower(s)
       // Il vertice dell'angolo e il centro della superellisse, che sta `reach` più in dentro su ogni asse.
@@ -954,7 +1236,14 @@ internal class GlassShadowLayer(private val layer: GraphicsLayer) {
       val centerY = (pieces.rects[at + 1] - metrics.originY) * res
       val minHalf = min(halfWidth, halfHeight)
       for (k in 0 until GlassFieldGeometry.FloatsPerPiece) {
-        scaledRadii[k] = max(min(pieces.radii[at + k] * res, minHalf), 0f)
+        scaledRadii[k] = pieces.radii[at + k] * res
+      }
+      // La regola del nucleo: nel ramo largo i raggi restano come sono (archi di cerchio, `isCircular` vero),
+      // altrimenti ognuno si ferma a mezzo lato corto.
+      if (!GlassFieldGeometry.isWide(halfWidth, halfHeight, scaledRadii, 0)) {
+        for (k in 0 until GlassFieldGeometry.FloatsPerPiece) scaledRadii[k] = max(min(scaledRadii[k], minHalf), 0f)
+      } else {
+        for (k in 0 until GlassFieldGeometry.FloatsPerPiece) scaledRadii[k] = max(scaledRadii[k], 0f)
       }
       val smoothing = pieces.smooth[i]
       if (GlassShadowContour.isCircular(halfWidth, halfHeight, scaledRadii, 0, smoothing)) {

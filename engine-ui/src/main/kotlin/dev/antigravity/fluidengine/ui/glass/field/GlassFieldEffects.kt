@@ -169,6 +169,31 @@ internal class GlassDrawInputs(pieces: Int = 1) {
   var bodyGlowCenterY: Float = 0f
   var bodyGlowRadius: Float = 0f
 
+  // ---- L'ombra in corpo (spazio della cattura), F1B.2 -------------------------------------------------------
+
+  /**
+   * Gli uniform di [GlassTravelShadowBlock], per chi disegna la luce nel corpo ([lightInBody]): lo scostamento
+   * dell'ambiente e i due raggi in pixel della cattura, le due alfa **senza** `materialize` (la applica il corpo),
+   * il colore. Tutto a zero = nessuna ombra. Li scrive [setBodyShadow].
+   */
+  var shadowOffsetX: Float = 0f
+  var shadowOffsetY: Float = 0f
+  var shadowContactRadius: Float = 0f
+  var shadowAmbientRadius: Float = 0f
+  var shadowContactAlpha: Float = 0f
+  var shadowAmbientAlpha: Float = 0f
+  var shadowColor: Color = Color.Transparent
+
+  /** Fin dove arriva l'ombra in corpo oltre il contorno, in pixel della cattura; zero senza ombra. */
+  val shadowReach: Float
+    get() = GlassShadowProfile.reach(
+      shadowContactRadius,
+      shadowAmbientRadius,
+      shadowContactAlpha * shadowColor.alpha,
+      shadowAmbientAlpha * shadowColor.alpha,
+      kotlin.math.hypot(shadowOffsetX, shadowOffsetY),
+    )
+
   // ---- La luce (pixel del nodo) ----------------------------------------------------------------------------
 
   /** I pezzi come li riceve la luce: gli stessi del corpo, a risoluzione piena. */
@@ -363,6 +388,41 @@ internal class GlassDrawInputs(pieces: Int = 1) {
     bodyGlowCenterY = glowCenterY * scale
     bodyGlowRadius = glowRadius * scale
   }
+
+  /**
+   * L'ombra **nel corpo** (F1B.2): gli stessi numeri che la ricetta dà alla maschera a riposo di una lastra di quella
+   * taglia (`GlassRecipe.shadowSpec`), portati nello spazio della cattura. I raggi passano da
+   * [GlassShadowProfile.scaledRadius] (il mezzo pixel della piattaforma non scala); le alfa si dividono per
+   * `materialize`, perché la ricetta le ha già moltiplicate per l'intensità e il corpo le moltiplica di nuovo.
+   *
+   * @param screenDensity pixel dello schermo per dp.
+   * @param scale pixel della cattura per pixel dello schermo.
+   */
+  fun setBodyShadow(recipe: GlassRecipe, screenDensity: Float, scale: Float) {
+    val amount = recipe.materialize
+    if (!recipe.drawsShadow || !(amount > 0.001f) || !(screenDensity > 0f) || !(scale > 0f)) {
+      clearBodyShadow()
+      return
+    }
+    shadowContactRadius = GlassShadowProfile.scaledRadius(recipe.shadowContactRadiusDp * screenDensity, scale)
+    shadowAmbientRadius = GlassShadowProfile.scaledRadius(recipe.shadowAmbientRadiusDp * screenDensity, scale)
+    shadowOffsetX = recipe.shadowOffsetXDp * screenDensity * scale
+    shadowOffsetY = recipe.shadowOffsetYDp * screenDensity * scale
+    shadowContactAlpha = (recipe.shadowContactAlpha / amount).coerceIn(0f, 1f)
+    shadowAmbientAlpha = (recipe.shadowAmbientAlpha / amount).coerceIn(0f, 1f)
+    shadowColor = recipe.shadowColor
+  }
+
+  /** Nessuna ombra nel corpo. */
+  fun clearBodyShadow() {
+    shadowOffsetX = 0f
+    shadowOffsetY = 0f
+    shadowContactRadius = 0f
+    shadowAmbientRadius = 0f
+    shadowContactAlpha = 0f
+    shadowAmbientAlpha = 0f
+    shadowColor = Color.Transparent
+  }
 }
 
 /**
@@ -414,7 +474,15 @@ internal class GlassRingField {
   var restCenterY: Float = 0f
   var restHalfWidth: Float = 0f
   var restHalfHeight: Float = 0f
+
+  /** `restRadii`: i raggi che il campo dà alla lastra a riposo (la regola forma → piano), non quelli nominali. */
   val restRadii: FloatArray = FloatArray(4)
+
+  /** `restSmooth`: il raccordo che il campo dà alla lastra a riposo (zero = angolo circolare). */
+  var restSmooth: Float = 0f
+
+  /** `restBlend`: quanto il campo è già quello della lastra a riposo, 0..1 (F1B.2: la goccia che si posa). */
+  var restBlend: Float = 0f
 
   /** `dropReach`: negativo se non è una goccia. */
   var dropReach: Float = -1f
@@ -424,6 +492,9 @@ internal class GlassRingField {
 
   /** `ringBand.y`: fin dove è vera dentro. */
   var bandInner: Float = 0f
+
+  /** Un appoggio per chi calcola [restRadii] e [restSmooth] con la regola forma → piano: niente allocazioni nel disegno. */
+  internal val restGeometry: GlassSlabGeometry = GlassSlabGeometry()
 }
 
 /**
@@ -587,6 +658,8 @@ private fun RuntimeShader.setGlassRing(ring: GlassRingField, offsetX: Float, off
   setFloatUniform("restCenter", ring.restCenterX, ring.restCenterY)
   setFloatUniform("restHalfSize", ring.restHalfWidth, ring.restHalfHeight)
   setFloatUniform("restRadii", ring.restRadii)
+  setFloatUniform("restSmooth", ring.restSmooth)
+  setFloatUniform("restBlend", ring.restBlend)
   setFloatUniform("dropReach", ring.dropReach)
   setFloatUniform("ringBand", ring.bandOuter, ring.bandInner)
 }
@@ -606,6 +679,8 @@ private fun RuntimeShader.setGlassField(plan: GlassFieldPlan, offsetX: Float, of
   setFloatUniform("pieceRadii", plan.radii)
   setFloatUniform("pieceBlend", plan.blend)
   setFloatUniform("pieceSmooth", plan.smooth)
+  // Solo il nucleo a otto pesa normale e centro su un raggio suo (F1B.2): quello a un pezzo non lo dichiara.
+  if (plan.pieces > 1) setFloatUniform("pieceSoft", plan.soft)
 }
 
 /**
@@ -679,9 +754,12 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
       setFloatUniform("glow", inputs.glow)
       setFloatUniform("glowFill", inputs.glowFill)
       setColorUniform("lightColor", inputs.lightColor)
-      // L'ombra in viaggio è di F1B.2: finché non la accende, a zero in chiaro (uno uniform tiene il valore
-      // dell'ultimo che l'ha scritto, e l'istanza è condivisa).
-      setFloatUniform("shadowAlphas", 0f, 0f)
+      // L'ombra in corpo (F1B.2): sempre scritta per intero, anche a zero, perché uno uniform tiene il valore
+      // dell'ultimo che l'ha scritto e l'istanza dello shader è condivisa.
+      setFloatUniform("shadowOffset", inputs.shadowOffsetX, inputs.shadowOffsetY)
+      setFloatUniform("shadowRadii", inputs.shadowContactRadius, inputs.shadowAmbientRadius)
+      setFloatUniform("shadowAlphas", inputs.shadowContactAlpha, inputs.shadowAmbientAlpha)
+      setColorUniform("shadowColor", inputs.shadowColor)
     } else {
       setFloatUniform("lightInBody", 0f)
     }

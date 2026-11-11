@@ -11,9 +11,11 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.fluidPressedBounds
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsLargeVeil
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsLiquidRecipes
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsRenderPlan
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsFormShortPx
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidInputs
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidRecipe
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsRecipeShortPx
@@ -24,6 +26,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassFieldMaxPieces
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldPlan
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassRecipe
+import dev.antigravity.fluidengine.ui.glass.field.glassLiquidLargeVeilGain
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelPaddingDp
 import kotlin.math.floor
@@ -69,11 +72,12 @@ private fun MutableMap<String, Any?>.putBodyLight(inputs: GlassDrawInputs, densi
   this["glow"] = inputs.glow
   this["glowFill"] = inputs.glowFill
   this["lightColor"] = glassColor(inputs.lightColor)
-  // L'ombra in viaggio è di F1B.2: spenta.
-  this["shadowOffset"] = listOf(glassDp(0f), glassDp(0f))
-  this["shadowRadii"] = listOf(glassDp(0f), glassDp(0f))
-  this["shadowAlphas"] = listOf(0, 0)
-  this["shadowColor"] = "#00000000"
+  // L'ombra in corpo (F1B.2): i numeri che l'engine imposta, lunghezze in dp (la cattura di una superficie fisica è a
+  // scala 1, quindi un raggio in pixel della cattura diviso la densità è il raggio in dp). Zero dove è spenta.
+  this["shadowOffset"] = listOf(glassDp(inputs.shadowOffsetX / density), glassDp(inputs.shadowOffsetY / density))
+  this["shadowRadii"] = listOf(glassDp(inputs.shadowContactRadius / density), glassDp(inputs.shadowAmbientRadius / density))
+  this["shadowAlphas"] = listOf(inputs.shadowContactAlpha, inputs.shadowAmbientAlpha)
+  this["shadowColor"] = glassColor(inputs.shadowColor)
 }
 
 /** I pezzi di un piano del campo come uniform del banco: otto caselle, quelle vuote a zero. */
@@ -102,6 +106,8 @@ private fun MutableMap<String, Any?>.putPieces(plan: GlassFieldPlan, density: Fl
   }
   this["pieceBlend"] = List(n) { i -> if (i >= plan.count) 0 else glassDp(plan.blend[i] / density) }
   this["pieceSmooth"] = List(n) { i -> if (i >= plan.count) 0f else plan.smooth[i] }
+  // Il nucleo a otto pesa normale e centro su un raggio suo (F1B.2); quello a un pezzo non lo dichiara.
+  if (n > 1) this["pieceSoft"] = List(n) { i -> if (i >= plan.count) 0 else glassDp(plan.soft[i] / density) }
 }
 
 /**
@@ -114,14 +120,26 @@ internal fun liquidPhysicsInputs(
   density: Float,
   paddingDp: Float,
   rest: Boolean,
-): GlassDrawInputs = physicsLiquidInputs(
-  plan = plan,
-  recipe = recipe,
-  scale = 1f,
-  screenDensity = density,
-  paddingPx = floor(max(paddingDp * density, 0f)),
-  out = GlassDrawInputs(GlassFieldMaxPieces),
-)
+  /**
+   * Vero (F1B.2) per l'ombra in corpo che l'engine disegna; falso per le scene e le tracce di F1B.1, scritte
+   * **senza ombra** di proposito (la ricetta perde le due alfa prima di diventare ingressi, come una superficie
+   * senza ombra: nessun uniform d'ombra, la fascia dell'anello quella dell'antialias).
+   */
+  shadow: Boolean = false,
+): GlassDrawInputs {
+  if (!shadow) {
+    recipe.shadowContactAlpha = 0f
+    recipe.shadowAmbientAlpha = 0f
+  }
+  return physicsLiquidInputs(
+    plan = plan,
+    recipe = recipe,
+    scale = 1f,
+    screenDensity = density,
+    paddingPx = floor(max(paddingDp * density, 0f)),
+    out = GlassDrawInputs(GlassFieldMaxPieces),
+  )
+}
 
 /**
  * L'elemento `material` di una superficie fisica in un fotogramma: il palco ([stage], pixel dell'host; di serie
@@ -190,11 +208,15 @@ internal fun liquidPhysicsElement(
       body["restCenter"] = listOf(glassDp((r.restCenterX - corner.x) / d), glassDp((r.restCenterY - corner.y) / d))
       body["restHalfSize"] = listOf(glassDp(r.restHalfWidth / d), glassDp(r.restHalfHeight / d))
       body["restRadii"] = List(4) { glassDp(r.restRadii[it] / d) }
+      body["restSmooth"] = r.restSmooth
+      body["restBlend"] = r.restBlend
       body["dropReach"] = glassDp(r.dropReach / d)
     } else {
       body["restCenter"] = listOf(0, 0)
       body["restHalfSize"] = listOf(0, 0)
       body["restRadii"] = listOf(0, 0, 0, 0)
+      body["restSmooth"] = 0
+      body["restBlend"] = 0
       body["dropReach"] = -1
     }
     body["ringBand"] = listOf(glassDp(r.bandOuter / d), glassDp(r.bandInner / d))
@@ -259,7 +281,24 @@ internal fun liquidPhysicsElement(
     if (lights.isNotEmpty()) element["light"] = lights
   }
   if (content.isNotEmpty()) {
-    element["content"] = content
+    // Il contenuto arriva nelle coordinate della tela; il banco lo posa rispetto all'elemento. Con un palco che non
+    // comincia nell'angolo della tela (la barra di F1B.2, col nodo allargato) va riportato al suo angolo, ritaglio
+    // dello strato compreso. Con il palco di serie lo scarto è zero e niente cambia.
+    val dx = (box.left - origin.x) / d
+    val dy = (box.top - origin.y) / d
+    element["content"] = if (dx == 0f && dy == 0f) content else content.map { layer ->
+      LinkedHashMap(layer).also {
+        (layer["x"] as? Number)?.let { x -> it["x"] = round3(x.toFloat() - dx) }
+        (layer["y"] as? Number)?.let { y -> it["y"] = round3(y.toFloat() - dy) }
+        @Suppress("UNCHECKED_CAST")
+        (layer["clip"] as? Map<String, Any?>)?.let { clip ->
+          it["clip"] = LinkedHashMap(clip).also { c ->
+            c["x"] = round3((clip.getValue("x") as Number).toFloat() - dx)
+            c["y"] = round3((clip.getValue("y") as Number).toFloat() - dy)
+          }
+        }
+      }
+    }
     element["contentClip"] = "alpha"
   }
   return element
@@ -292,6 +331,8 @@ internal fun liquidButtonElement(
   density: Float,
   content: List<Map<String, Any?>>,
   darkSide: Boolean = false,
+  /** Vero (F1B.2): il tasto porta la sua ombra a riposo, le due maschere della ricetta. Falso per F1B.1. */
+  shadow: Boolean = false,
 ): Map<String, Any?> {
   val d = density
   val shown = fluidPressedBounds(rest, transform)
@@ -311,7 +352,8 @@ internal fun liquidButtonElement(
     "h" to round3(shown.height / d),
     "radius" to "capsule",
   )
-  val element = withoutShadow(liquidElement(shape, recipe, theme = null, note = "Interactive, tasto, pressed ${round3(pressed)}"))
+  val made = liquidElement(shape, recipe, theme = null, note = "Interactive, tasto, pressed ${round3(pressed)}")
+  val element = if (shadow) made else withoutShadow(made)
   @Suppress("UNCHECKED_CAST")
   (element["capture"] as MutableMap<String, Any?>)["scale"] = 1
   completeRestBody(element)
@@ -364,12 +406,32 @@ internal class LiquidPhysicsDress(
   private val density: Float,
   private val darkSide: Boolean = false,
   private val profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  /** Vero (F1B.2): l'ombra in corpo dell'engine. Falso: le tracce di F1B.1, senza ombra. */
+  private val shadow: Boolean = false,
 ) {
   val paddingDp: Float = glassTravelPaddingDp(role, material.target, material.origin, profile)
   private val recipes = PhysicsLiquidRecipes()
+  private val follower = PhysicsLargeVeil()
+
+  /**
+   * Il peso del velo dei grandi all'istante [timeMs] del fotogramma, come lo calcola `PhysicsLiquidSurface.fill`
+   * ([PhysicsLargeVeil], F1B.2); non finito = dalla taglia, come le tracce di F1B.1.
+   */
+  private fun largeVeil(state: FluidPhysicsState, plan: PhysicsRenderPlan, timeMs: Double): Float {
+    if (!timeMs.isFinite()) return Float.NaN
+    val now = glassLiquidLargeVeilGain(physicsRecipeShortPx(plan) / density)
+    val origin = state.journeyOriginNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it) / density) }
+    val target = state.journeyTargetNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it) / density) }
+    return follower.next(origin ?: now, target ?: now, (timeMs * 1_000_000.0).toLong())
+  }
 
   /** La ricetta del fotogramma, come la chiede `PhysicsLiquidSurface.fill`. */
-  fun recipe(plan: PhysicsRenderPlan, opticsBlend: Float, motion: Float): GlassRecipe = physicsLiquidRecipe(
+  fun recipe(
+    plan: PhysicsRenderPlan,
+    opticsBlend: Float,
+    motion: Float,
+    largeVeil: Float = Float.NaN,
+  ): GlassRecipe = physicsLiquidRecipe(
     role = role,
     material = material.at(opticsBlend),
     shortDp = physicsRecipeShortPx(plan) / density,
@@ -384,6 +446,7 @@ internal class LiquidPhysicsDress(
     motion = motion,
     profile = profile,
     scratch = recipes,
+    largeVeil = largeVeil,
   )
 
   fun element(
@@ -395,10 +458,14 @@ internal class LiquidPhysicsDress(
     canvasWidthDp: Float,
     canvasHeightDp: Float,
     content: List<Map<String, Any?>>,
+    /** Il nodo della superficie, in pixel dell'host; di serie tutta la tela (un palco grande quanto la finestra). */
+    stage: Rect? = null,
+    /** L'istante del fotogramma, ms (F1B.2: il velo dei grandi lo segue nel tempo); non finito = dalla taglia. */
+    timeMs: Double = Double.NaN,
   ): Map<String, Any?> {
-    val recipe = recipe(plan, opticsBlend, state.liquid.lens)
+    val recipe = recipe(plan, opticsBlend, state.liquid.lens, largeVeil(state, plan, timeMs))
     val rest = state.restFormNow() != null
-    val inputs = liquidPhysicsInputs(plan, recipe, density, paddingDp, rest)
+    val inputs = liquidPhysicsInputs(plan, recipe, density, paddingDp, rest, shadow)
     return liquidPhysicsElement(
       name = name,
       inputs = inputs,
@@ -407,6 +474,7 @@ internal class LiquidPhysicsDress(
       canvasWidthDp = canvasWidthDp,
       canvasHeightDp = canvasHeightDp,
       content = content,
+      stage = stage,
       note = if (rest) "fisica ferma" else "fisica in viaggio, luce in corpo",
     )
   }

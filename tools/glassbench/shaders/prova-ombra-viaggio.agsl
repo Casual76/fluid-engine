@@ -33,6 +33,7 @@ uniform float4 pieceRect[8];
 uniform float4 pieceRadii[8];
 uniform float pieceBlend[8];
 uniform float pieceSmooth[8];
+uniform float pieceSoft[8];
 
 float glassRadiusAt(float2 rel, float4 radii) {
     if (rel.x >= 0.0) {
@@ -160,9 +161,14 @@ float glassField(float2 p, out float2 normal, out float2 center) {
             // Il raggio di fusione e' del pezzo: lo unisce a tutto cio' che il ciclo ha gia' fuso.
             float k = max(pieceBlend[i], 0.0001);
             float h = clamp(0.5 + 0.5 * (slab.x - d) / k, 0.0, 1.0);
+            // Normale e centro si pesano su un raggio che non e' mai sotto quello della sagoma, e dove i pezzi si
+            // sovrappongono sale a `pieceSoft` (F1B.2): due pezzi sovrapposti con centri diversi non si contendono
+            // piu' il punto a scatto. La sagoma non cambia: `d` resta quella di sempre.
+            float ka = max(k, pieceSoft[i]);
+            float ha = clamp(0.5 + 0.5 * (slab.x - d) / ka, 0.0, 1.0);
             d = slab.x + (d - slab.x) * h - k * h * (1.0 - h);
-            normal = mix(slab.yz, normal, h);
-            center = mix(pieceRect[i].xy, center, h);
+            normal = mix(slab.yz, normal, ha);
+            center = mix(pieceRect[i].xy, center, ha);
         }
     }
     return d;
@@ -187,6 +193,88 @@ float glassShadowFall(float x, float sigma) {
     return x >= 0.0 ? tail : 1.0 - tail;
 }
 
+float glassShadowBox(float2 rel, float2 halfSize, float sigma) {
+    return max(glassShadowFall(rel.x - halfSize.x, sigma) - glassShadowFall(rel.x + halfSize.x, sigma), 0.0)
+        * max(glassShadowFall(rel.y - halfSize.y, sigma) - glassShadowFall(rel.y + halfSize.y, sigma), 0.0);
+}
+
+float glassShadowNotch(float2 rel, float2 tip, float2 inward, float radius, float spend, float sigma) {
+    if (radius <= 0.0001) return 0.0;
+    float s2 = spend * spend;
+    float reach = radius * (1.0 + s2 * (0.25 + 0.495 * spend));
+    float t = s2 * (0.79 + 1.0 * spend);
+    float area = reach * reach * (0.2146 - t * (0.1414 - 0.04348 * t));
+    float along = reach * (0.22337 - t * (0.06966 - 0.01552 * t));
+    float2 v = rel - (tip + inward * along);
+    return area * exp(-dot(v, v) / (2.0 * sigma * sigma)) / (6.2831853 * sigma * sigma);
+}
+
+float glassShadowSpend(float radius, float minHalf, float smoothing) {
+    return radius > 0.0001 ? clamp(min(smoothing, minHalf / radius - 1.0), 0.0, 1.0) : 0.0;
+}
+
+float glassShadowPiece(float2 rel, float2 halfSize, float4 radii, float smoothing, float sigma) {
+    float box = glassShadowBox(rel, halfSize, sigma);
+    if (box <= 0.0) return 0.0;
+    float minHalf = min(halfSize.x, halfSize.y);
+    float4 r = clamp(radii, float4(0.0), float4(minHalf));
+    float spend = smoothing;
+    // Il ramo largo di `glassSlab`: un angolo oltre mezzo lato corto, se i raggi stanno nei lati, resta com'e'.
+    if (max(max(radii.x, radii.y), max(radii.z, radii.w)) > minHalf * 1.0001) {
+        float2 room = halfSize * (2.0 * 1.0001);
+        if (max(radii.x + radii.y, radii.w + radii.z) <= room.x
+            && max(radii.x + radii.w, radii.y + radii.z) <= room.y) {
+            r = max(radii, float4(0.0));
+            spend = 0.0;
+        }
+    }
+    float notch = glassShadowNotch(rel, -halfSize, float2(1.0, 1.0), r.x, glassShadowSpend(r.x, minHalf, spend), sigma)
+        + glassShadowNotch(rel, float2(halfSize.x, -halfSize.y), float2(-1.0, 1.0), r.y,
+            glassShadowSpend(r.y, minHalf, spend), sigma)
+        + glassShadowNotch(rel, halfSize, float2(-1.0, -1.0), r.z, glassShadowSpend(r.z, minHalf, spend), sigma)
+        + glassShadowNotch(rel, float2(-halfSize.x, halfSize.y), float2(1.0, -1.0), r.w,
+            glassShadowSpend(r.w, minHalf, spend), sigma);
+    return max(box - notch, 0.0);
+}
+// <<< GlassTravelShadowBlock
+
+// >>> GlassShadowMask8
+float glassShadowMask(float2 q, float sigma, out float seen) {
+    float cover = 0.0;
+    float fused = 1000000.0;
+    float hard = 1000000.0;
+    for (int i = 0; i < 8; ++i) {
+        if (float(i) >= pieceCount) break;
+        float4 ri = pieceRect[i];
+        float d = glassSlab(q - ri.xy, ri.zw, pieceRadii[i], pieceSmooth[i]).x;
+        if (i == 0) {
+            fused = d;
+        } else {
+            float k = max(pieceBlend[i], 0.0001);
+            float h = clamp(0.5 + 0.5 * (d - fused) / k, 0.0, 1.0);
+            fused = d + (fused - d) * h - k * h * (1.0 - h);
+        }
+        hard = min(hard, d);
+        float own = glassShadowPiece(q - ri.xy, ri.zw, pieceRadii[i], pieceSmooth[i], sigma);
+        float overlap = 0.0;
+        for (int j = 0; j < 8; ++j) {
+            if (j >= i) break;
+            float4 rj = pieceRect[j];
+            float2 lo = max(ri.xy - ri.zw, rj.xy - rj.zw);
+            float2 hi = min(ri.xy + ri.zw, rj.xy + rj.zw);
+            if (hi.x > lo.x && hi.y > lo.y) {
+                overlap = max(overlap, glassShadowBox(q - (lo + hi) * 0.5, (hi - lo) * 0.5, sigma));
+            }
+        }
+        cover += max(own - overlap, 0.0);
+    }
+    seen = fused;
+    float neck = fused < hard ? glassShadowFall(fused, sigma) / max(glassShadowFall(hard, sigma), 0.000001) : 1.0;
+    return clamp(cover * neck, 0.0, 1.0);
+}
+// <<< GlassShadowMask8
+
+// >>> GlassTravelShadowFunctionBlock
 half4 glassTravelShadow(float2 p, float d) {
     float contactAlpha = max(shadowAlphas.x, 0.0);
     float ambientAlpha = max(shadowAlphas.y, 0.0);
@@ -203,20 +291,22 @@ half4 glassTravelShadow(float2 p, float d) {
 
     float amount = contactAlpha + ambientAlpha;
     if (d >= -reach) {
-        // La sagoma vista dal punto spostato: l'unica valutazione del campo che l'ombra aggiunge.
+        // La sagoma vista dal punto spostato: la maschera del nucleo, che da' anche la distanza la'.
         float seen = d;
-        if (slide > 0.0) {
+        float ambient = 0.0;
+        if (ambientAlpha > 0.0) {
+            ambient = glassShadowMask(p - shadowOffset, ambientSigma, seen);
+        } else if (slide > 0.0) {
             float2 seenNormal;
             float2 seenCenter;
             seen = glassField(p - shadowOffset, seenNormal, seenCenter);
         }
-        amount = contactAlpha * glassShadowFall(mix(d, seen, share), contactSigma)
-            + ambientAlpha * glassShadowFall(seen, ambientSigma);
+        amount = contactAlpha * glassShadowFall(mix(d, seen, share), contactSigma) + ambientAlpha * ambient;
     }
     half strength = half(min(amount, 1.0)) * shadowColor.a;
     return half4(shadowColor.rgb * strength, strength);
 }
-// <<< GlassTravelShadowBlock
+// <<< GlassTravelShadowFunctionBlock
 
 half4 main(float2 coord) {
     float2 p = glassFieldPoint(coord);

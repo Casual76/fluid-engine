@@ -199,8 +199,8 @@ fun Modifier.fluidPhysicsSurface(
   // `drawBackdrop` nella catena, quindi non la ritaglia il rettangolo del nodo e la sagoma la copre
   // con il proprio fondale. Colore del lato del tema, raggio dell'ottica dichiarata, peso del
   // materiale di adesso: a riposo e' quella di `glassSurface` di prima. Se il chiamante ne disegna gia' una
-  // (`fluidPhysicsShadow`, il modale), questa tace. La stessa per i due materiali, finche' F1B.2 non la
-  // porta sull'ombra unica.
+  // (`fluidPhysicsShadow`, il modale), questa tace. Solo per il vetro di prima: col materiale nuovo l'ombra e'
+  // nel corpo (F1B.2), e questa non si monta.
   val shadowColor = glassShadowColor(darkSide)
   val shadowRadius = if (resolved.shadowRadius.value > 0f) resolved.shadowRadius else resolvedFrom?.shadowRadius ?: 0.dp
   val shadowFirst = rememberGraphicsLayer()
@@ -222,9 +222,13 @@ fun Modifier.fluidPhysicsSurface(
     }
   }
 
+  state.liquidBody = glass.liquid
   if (glass.liquid) {
     // Il materiale nuovo (4.0, F1B.1): lo stesso corpo e la stessa ricetta di `glassSurface`, sulla sagoma del
-    // motore. Niente pellicola dipinta, niente bordo e niente bagliore a parte: sono nel corpo e nella luce.
+    // motore. Niente pellicola dipinta, niente bordo, niente bagliore e (F1B.2) niente ombra a parte: sono nel
+    // corpo e nella luce. L'ombra in corpo ha gli stessi due profili di caduta delle maschere a riposo, e si vede
+    // fin dove arriva il nodo (il layer è ritagliato su di lui): i palchi grandi quanto la finestra la contengono, un
+    // nodo stretto va allargato di `glassTravelShadowReachDp` (lo fa la barra fra le pagine).
     val screenDensity = LocalDensity.current.density
     val view = LocalView.current
     // La famiglia dei gruppi e della goccia si scalda quando una superficie che viaggia entra in scena.
@@ -260,7 +264,6 @@ fun Modifier.fluidPhysicsSurface(
     }
     return this
       .onSizeChanged { layoutWidth.floatValue = it.width.toFloat() }
-      .then(shadow)
       .drawBackdrop(
         backdrop = backdrop.backdrop,
         shape = shapeBlock,

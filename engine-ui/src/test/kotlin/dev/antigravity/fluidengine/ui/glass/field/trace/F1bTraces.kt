@@ -12,11 +12,14 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidFormPresets
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsJourney
 import dev.antigravity.fluidengine.ui.fluidphysics.MorphInflationCapDp
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsLargeVeil
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsRenderPlan
 import dev.antigravity.fluidengine.ui.fluidphysics.SlabTransit
 import dev.antigravity.fluidengine.ui.fluidphysics.buildRestPlan
 import dev.antigravity.fluidengine.ui.fluidphysics.buildTransitPlan
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsFormShortPx
+import dev.antigravity.fluidengine.ui.glass.field.glassLiquidLargeVeilGain
 
 /*
  * Le tracce di F1B.1 (`GLASS_TRACE_DIR`, fase `f1b`): i viaggi col MATERIALE NUOVO.
@@ -57,11 +60,12 @@ internal object F1bTraces {
   private fun circle(leftDp: Float, topDp: Float): FluidForm.Slab =
     FluidFormPresets.capsule(Rect(px(leftDp), px(topDp), px(leftDp + 44f), px(topDp + 44f)))
 
-  private fun head(note: String): Map<String, Any?> = linkedMapOf(
+  private fun head(note: String, dark: Boolean = false): Map<String, Any?> = linkedMapOf(
     "_" to note,
     "palette" to "engine",
     "background" to linkedMapOf(
-      "kind" to "text", "background" to "#E3E3E5", "color" to "#0A0A0A", "fontSizeDp" to 22, "lineHeightDp" to 30,
+      "kind" to "text", "background" to if (dark) "#17171A" else "#E3E3E5", "color" to if (dark) "#F2F2F7" else "#0A0A0A",
+      "fontSizeDp" to 22, "lineHeightDp" to 30,
       "paddingDp" to 12,
       "text" to "Signs are made using neon lights. Light is used to define color, tone, and shape. They are " +
         "irreplaceable, and depend on the people who bend them all over the world. Glass is bent by hand, one " +
@@ -100,19 +104,35 @@ internal object F1bTraces {
     legs: List<Leg>,
     /** La miscela del materiale lungo una tappa, dato il progresso: zero resta alla partenza, uno arriva. */
     blendOf: (leg: Int, t: Float) -> Float,
+    /** F1B.2: il lato scuro. */
+    dark: Boolean = false,
+    /** F1B.2: l'ombra nel corpo (l'ombra unica). Falso: le tracce di F1B.1, senza ombra. */
+    shadow: Boolean = false,
+    phase: String = Phase,
   ): JourneyBuilt {
     val material = PhysicsMaterialSource(opticsFrom?.sanitized(), optics.sanitized())
-    val dress = LiquidPhysicsDress(role, material, D)
+    val dress = LiquidPhysicsDress(role, material, D, darkSide = dark, shadow = shadow)
     val plan = PhysicsRenderPlan()
     val frames = ArrayList<GlassTraceFrame>()
     val fusions = ArrayList<Float>()
     val pieces = ArrayList<Int>()
     val rests = ArrayList<Boolean>()
     var k = 0
+    // F1B.2: il velo dei grandi va verso quello della forma d'arrivo nel tempo, come in `PhysicsLiquidSurface.fill`
+    // ([PhysicsLargeVeil]). Le tracce di F1B.1 lo tengono sulla taglia.
+    val follower = PhysicsLargeVeil()
+    fun gainOf(form: FluidForm): Float = glassLiquidLargeVeilGain(physicsFormShortPx(form) / D)
+    val veilOrigin = gainOf(legs.first().from)
+    var veilTarget = veilOrigin
 
     fun emit(rest: Boolean, blend: Float) {
-      val recipe = dress.recipe(plan, blend, motion = 0f)
-      val inputs = liquidPhysicsInputs(plan, recipe, D, dress.paddingDp, rest)
+      val large = if (shadow) {
+        follower.next(veilOrigin, veilTarget, (glassTraceTimeMs(k, Fps) * 1_000_000.0).toLong())
+      } else {
+        Float.NaN
+      }
+      val recipe = dress.recipe(plan, blend, motion = 0f, largeVeil = large)
+      val inputs = liquidPhysicsInputs(plan, recipe, D, dress.paddingDp, rest, shadow)
       val element = liquidPhysicsElement("superficie", inputs, Offset.Zero, D, CanvasWidthDp, CanvasHeightDp)
       frames += GlassTraceFrame(glassTraceTimeMs(k, Fps), listOf(element))
       fusions += plan.fusion
@@ -130,6 +150,7 @@ internal object F1bTraces {
     legs.forEachIndexed { index, leg ->
       val transit = SlabTransit(leg.pairs, leg.blend, overshootCapPx = MorphInflationCapDp * D)
       val spring = TodaySpring(FluidPhysicsJourney.Spring, 0f, 1f)
+      veilTarget = gainOf(leg.to)
       var f = 1
       while (f < 240) {
         val nanos = glassTraceTimeNanos(f, Fps)
@@ -144,25 +165,28 @@ internal object F1bTraces {
 
     val trace = GlassTrace(
       name = name,
-      phase = Phase,
+      phase = phase,
       density = D,
-      theme = "light",
+      theme = if (dark) "dark" else "light",
       widthDp = CanvasWidthDp,
       heightDp = CanvasHeightDp,
       frames = frames,
       fps = Fps,
-      head = head(note),
+      head = head(note, dark),
     )
     return JourneyBuilt(trace, fusions, pieces, rests)
   }
 
   /** Un tasto che diventa due, e i due che tornano uno: `morphTo(Group)` e ritorno. */
-  fun split(): JourneyBuilt {
+  fun split(dark: Boolean = false, shadow: Boolean = false, name: String = SplitName, phase: String = Phase): JourneyBuilt {
     val one = circle(128f, 128f)
     val two = FluidForm.Group(listOf(circle(102f, 128f), circle(154f, 128f)), blendRadius = px(16f))
     val optics = GlassDefaults.buttonOptics()
     return journey(
-      name = SplitName,
+      name = name,
+      dark = dark,
+      shadow = shadow,
+      phase = phase,
       note = "Un tasto da 44 dp che diventa due tasti a 8 dp l'uno dall'altro (fusione 16 dp), e ritorno, col materiale " +
         "nuovo: il transito di `morphTo` verso un `FluidForm.Group` con la molla di serie. A riposo i due pezzi sono " +
         "separati; il collo vive solo in viaggio. Senza ombra (F1B.2).",
@@ -175,7 +199,7 @@ internal object F1bTraces {
   }
 
   /** Un gruppo di tre tasti che diventa un menu: `morphTo(Slab)` da un `FluidForm.Group`. */
-  fun groupToMenu(): JourneyBuilt {
+  fun groupToMenu(dark: Boolean = false, shadow: Boolean = false, name: String = GroupMenuName, phase: String = Phase): JourneyBuilt {
     val group = FluidForm.Group(
       listOf(circle(100f, 228f), circle(152f, 228f), circle(204f, 228f)),
       blendRadius = px(16f),
@@ -186,7 +210,10 @@ internal object F1bTraces {
       smoothing = ContinuousCornerShape.IosSmoothing,
     )
     return journey(
-      name = GroupMenuName,
+      name = name,
+      dark = dark,
+      shadow = shadow,
+      phase = phase,
       note = "Un gruppo di tre tasti da 44 dp che diventa un menu da 170 x 192 dp, col materiale nuovo: il transito di " +
         "`morphTo` da un `FluidForm.Group` a una lastra, molla di serie; l'ottica scivola da quella dei tasti a quella " +
         "del pannello col progresso. Senza ombra (F1B.2) e senza contenuto.",

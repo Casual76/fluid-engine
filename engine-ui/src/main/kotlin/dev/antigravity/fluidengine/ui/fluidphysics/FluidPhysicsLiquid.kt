@@ -14,6 +14,10 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldGeometry
+import dev.antigravity.fluidengine.ui.glass.field.GlassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabIsSmall
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -22,6 +26,7 @@ import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -303,6 +308,10 @@ internal class LiquidDrop(val points: Int = FluidMotion.DropPoints) {
  * Il perimetro di un rettangolo arrotondato a quattro raggi, come nove tratti percorsi dall'alto al
  * centro in senso orario (sullo schermo): mezzo lato alto, angolo in alto a destra, lato destro, ...,
  * l'altra meta' del lato alto. E' il `rrAt` del banco, coi raggi per angolo dell'engine.
+ *
+ * Con [setField] gli angoli sono quelli che il **campo** disegna per quella lastra ferma (F1B.2): la regola forma →
+ * piano di `glassSurface` (raggio equivalente dei piccoli, raccordo continuo dei grandi), cioe' la superellisse del
+ * nucleo, col suo semiasse e il suo esponente. Con [set] restano archi di cerchio al raggio nominale, come sempre.
  */
 internal class RoundedRectPerimeter {
   private val len = FloatArray(9)
@@ -315,6 +324,51 @@ internal class RoundedRectPerimeter {
   private var rTR = 0f
   private var rBR = 0f
   private var rBL = 0f
+
+  // Gli esponenti degli angoli: 2 = cerchio. Con [setField] i raggi qui sopra sono i semiassi della superellisse.
+  private var nTL = 2f
+  private var nTR = 2f
+  private var nBR = 2f
+  private var nBL = 2f
+  private val geometry = GlassSlabGeometry()
+
+  /**
+   * Gli angoli che il campo disegna per [slab] ferma: gli stessi numeri di `buildRestPlan` (la regola forma → piano,
+   * `glassSlabGeometry`), poi semiasse ed esponente della superellisse di ogni angolo come li calcola `glassSlab`.
+   * Cosi' una goccia posata e' la lastra che la sostituisce, angoli compresi (F1B.2: all'ultimo fotogramma ad
+   * anello l'angolo era un cerchio e al primo a lastra il raccordo continuo, 78 livelli su qualche pixel).
+   */
+  fun setField(slab: FluidForm.Slab) {
+    val f = slab.frame
+    val r = slab.cornerRadii
+    val s = if (slab.smoothing.isFinite()) slab.smoothing else 0f
+    val g = glassSlabGeometry(
+      width = f.width,
+      height = f.height,
+      topLeft = r.topLeft,
+      topRight = r.topRight,
+      bottomRight = r.bottomRight,
+      bottomLeft = r.bottomLeft,
+      smoothing = s,
+      continuous = s > 0f,
+      small = glassSlabIsSmall(f.maxDimension),
+      out = geometry,
+    )
+    val half = min(f.width, f.height) / 2f
+    fun reach(radius: Float): Float {
+      val clamped = radius.coerceIn(0f, half)
+      return GlassFieldGeometry.cornerReach(clamped, GlassFieldGeometry.effectiveSmoothing(clamped, half, g.smoothing))
+    }
+    fun power(radius: Float): Float {
+      val clamped = radius.coerceIn(0f, half)
+      return GlassFieldGeometry.cornerPower(GlassFieldGeometry.effectiveSmoothing(clamped, half, g.smoothing))
+    }
+    set(f, FluidCornerRadii(reach(g.topLeft), reach(g.topRight), reach(g.bottomRight), reach(g.bottomLeft)))
+    nTL = power(g.topLeft)
+    nTR = power(g.topRight)
+    nBR = power(g.bottomRight)
+    nBL = power(g.bottomLeft)
+  }
 
   /** La lunghezza totale del perimetro, pixel. */
   var total = 0f
@@ -342,6 +396,10 @@ internal class RoundedRectPerimeter {
     len[7] = q * rTL
     len[8] = max(0f, cx - (left + rTL))
     total = len.sum()
+    nTL = 2f
+    nTR = 2f
+    nBR = 2f
+    nBL = 2f
   }
 
   /** La lunghezza del tratto [k] (0..8: i dispari sono gli angoli). */
@@ -359,13 +417,13 @@ internal class RoundedRectPerimeter {
     val y: Float
     when (k) {
       0 -> { x = cx + rem; y = top }
-      1 -> { val a = arc(rem, rTR); x = right - rTR + rTR * cos(-HalfPi + a); y = top + rTR + rTR * sin(-HalfPi + a) }
+      1 -> { val a = arc(rem, rTR); x = right - rTR + rTR * bend(cos(-HalfPi + a), nTR); y = top + rTR + rTR * bend(sin(-HalfPi + a), nTR) }
       2 -> { x = right; y = top + rTR + rem }
-      3 -> { val a = arc(rem, rBR); x = right - rBR + rBR * cos(a); y = bottom - rBR + rBR * sin(a) }
+      3 -> { val a = arc(rem, rBR); x = right - rBR + rBR * bend(cos(a), nBR); y = bottom - rBR + rBR * bend(sin(a), nBR) }
       4 -> { x = right - rBR - rem; y = bottom }
-      5 -> { val a = arc(rem, rBL); x = left + rBL + rBL * cos(HalfPi + a); y = bottom - rBL + rBL * sin(HalfPi + a) }
+      5 -> { val a = arc(rem, rBL); x = left + rBL + rBL * bend(cos(HalfPi + a), nBL); y = bottom - rBL + rBL * bend(sin(HalfPi + a), nBL) }
       6 -> { x = left; y = bottom - rBL - rem }
-      7 -> { val a = arc(rem, rTL); x = left + rTL + rTL * cos(Pi + a); y = top + rTL + rTL * sin(Pi + a) }
+      7 -> { val a = arc(rem, rTL); x = left + rTL + rTL * bend(cos(Pi + a), nTL); y = top + rTL + rTL * bend(sin(Pi + a), nTL) }
       else -> { x = left + rTL + rem; y = top }
     }
     out[index] = x
@@ -373,6 +431,17 @@ internal class RoundedRectPerimeter {
   }
 
   private fun arc(rem: Float, r: Float): Float = if (r > 0f) rem / r else 0f
+
+  /**
+   * Dal cerchio alla superellisse `|x|^n + |y|^n = 1`: una componente del versore alla `2/n`, col suo segno. A
+   * `n = 2` e' la componente com'e', al bit (gli archi di cerchio di sempre). Per lo stesso angolo il punto non e' a
+   * lunghezza d'arco uguale, ma i tratti degli angoli servono solo a distribuire i punti, non a misurare.
+   */
+  private fun bend(c: Float, n: Float): Float {
+    if (n == 2f) return c
+    val m = abs(c).toDouble().pow(2.0 / n).toFloat()
+    return if (c < 0f) -m else m
+  }
 
   private companion object {
     const val HalfPi = (PI / 2).toFloat()
@@ -465,8 +534,14 @@ internal fun buildDropRing(
   out: FloatArray,
   perimeter: RoundedRectPerimeter,
   parameters: FloatArray,
+  /**
+   * Vero col materiale nuovo (F1B.2): gli angoli sono quelli che il campo disegna per la lastra ferma che sostituira'
+   * la goccia ([RoundedRectPerimeter.setField]), cosi' alla posa anello e lastra coincidono. Falso (il vetro di prima):
+   * archi di cerchio al raggio nominale, come sempre.
+   */
+  fieldCorners: Boolean = false,
 ): Float {
-  perimeter.set(slab.frame, slab.cornerRadii)
+  if (fieldCorners) perimeter.setField(slab) else perimeter.set(slab.frame, slab.cornerRadii)
   renderParameters(perimeter, count, parameters)
   val total = perimeter.total
   val n = drop.points
@@ -592,7 +667,9 @@ internal fun dropRestSlab(from: FluidForm.Slab, to: FluidForm.Slab, t: Float, ga
   )
   else -> {
     val v = lerpSlab(from, to, t)
-    FluidForm.Slab(Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]), FluidCornerRadii(v[4], v[5], v[6], v[7]))
+    // Il raccordo come nei viaggi fra lastre (`writeFieldPiece`): mescolato col progresso, quello d'arrivo all'arrivo.
+    val s = from.smoothing + (to.smoothing - from.smoothing) * t
+    FluidForm.Slab(Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]), FluidCornerRadii(v[4], v[5], v[6], v[7]), smoothing = s)
   }
 }
 

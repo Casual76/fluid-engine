@@ -159,7 +159,9 @@ class GlassShadowTest {
 
   @Test
   fun theShaderBlockSaysWhatTheMirrorSays() {
-    val block = GlassTravelShadowBlock
+    // Da F1B.2 l'ombra in viaggio è in tre parti: la legge, la maschera del nucleo, la funzione che il corpo chiama.
+    // Il contratto si legge sul loro insieme, nell'ordine in cui il corpo le include.
+    val block = listOf(GlassTravelShadowBlock, GlassShadowMask8, GlassTravelShadowFunctionBlock).joinToString("\n")
     assertFalse("resta un `$` di un template Kotlin non risolto", '$' in block)
     assertFalse("un blocco condiviso non ha `main`", Regex("""\bmain\s*\(""").containsMatchIn(block))
     assertEquals("graffe spaiate", block.count { it == '{' }, block.count { it == '}' })
@@ -198,7 +200,12 @@ class GlassShadowTest {
     val file = File(benchFolder("shaders"), "prova-ombra-viaggio.agsl")
     assertTrue("Manca la sonda ${file.path}", file.isFile)
     val text = file.readText().replace("\r\n", "\n")
-    val copies = listOf("GlassFieldKernel8" to GlassFieldKernel8, "GlassTravelShadowBlock" to GlassTravelShadowBlock)
+    val copies = listOf(
+      "GlassFieldKernel8" to GlassFieldKernel8,
+      "GlassTravelShadowBlock" to GlassTravelShadowBlock,
+      "GlassShadowMask8" to GlassShadowMask8,
+      "GlassTravelShadowFunctionBlock" to GlassTravelShadowFunctionBlock,
+    )
     for ((name, source) in copies) {
       val open = "// >>> $name\n"
       val close = "\n// <<< $name"

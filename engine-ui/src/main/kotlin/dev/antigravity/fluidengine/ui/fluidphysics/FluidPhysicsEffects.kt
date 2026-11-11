@@ -32,12 +32,17 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.GlassRingField
 import dev.antigravity.fluidengine.ui.glass.field.glassBody
+import dev.antigravity.fluidengine.ui.glass.field.glassLiquidLargeVeilGain
 import dev.antigravity.fluidengine.ui.glass.field.glassNodeClipCorner
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabIsSmall
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelPaddingDp
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelRecipe
 import dev.antigravity.fluidengine.ui.glass.field.lerpGlassRecipe
+import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 
@@ -384,6 +389,64 @@ internal fun physicsRecipeShortPx(plan: PhysicsRenderPlan): Float {
   return widest
 }
 
+/** Il lato corto su cui una forma ferma chiederebbe la ricetta, in pixel di layout: la regola di [physicsRecipeShortPx]. */
+internal fun physicsFormShortPx(form: FluidForm): Float = when (form) {
+  is FluidForm.Group -> form.pieces.maxOf { it.frame.minDimension }
+  else -> form.frame.minDimension
+}
+
+/** Quanto ci mette il velo di una superficie che viaggia a passare tutto da quello dei piccoli a quello dei grandi. */
+internal const val PhysicsLargeVeilSeconds: Float = 0.3f
+
+/**
+ * Il passo più lungo che [PhysicsLargeVeil] accetta fra due disegni: un disegno dopo una pausa (una superficie ferma
+ * non si ridisegna) conta come un fotogramma a 30 Hz, non come il tempo passato.
+ */
+internal const val PhysicsLargeVeilMaxStepSeconds: Float = 1f / 30f
+
+/**
+ * Il peso del velo dei grandi che una superficie fisica mostra (F1B.2, sessione sul tablet dopo F1B.1, riga 14): sul
+ * lato scuro un tasto ha il velo dei piccoli e un pannello quello dei grandi, più profondo di 33 livelli su 255 sul
+ * fondo scuro (`GlassLiquidVeils.DarkLighter` e `DarkLarge`). Il peso seguiva il lato corto di ogni fotogramma, e la
+ * molla che apre un menu gli fa attraversare la fascia dei due veli (48–96 dp) in due o tre fotogrammi: sul tablet il
+ * tasto grigio diventava il pannello scuro a −6 e −22 livelli, a +92…+141 ms. Nessuna funzione della taglia o del
+ * progresso lo può spalmare: la forma cambia quasi tutta in una decina di fotogrammi.
+ *
+ * Qui il peso è uno stato che va **verso quello della forma d'arrivo** ([target]) a passo costante, tutto il passaggio
+ * in [PhysicsLargeVeilSeconds]: parte con la forma e arriva prima che la forma si posi (un menu si apre in ~450 ms,
+ * si chiude in ~430), quindi al passaggio di consegne con la lastra ferma (o col tasto che torna) è già quello della
+ * lastra. Fra due forme della stessa famiglia di taglia (i tasti della barra, un tasto che diventa due) non si muove.
+ * Al primo disegno parte dal peso della forma di partenza ([origin]): la superficie che nasce col viaggio prende il
+ * posto di un vetro fermo con il suo velo.
+ *
+ * Il tempo è quello del disegno, passato da chi chiama: l'engine il `System.nanoTime` del disegno, il banco
+ * l'istante del fotogramma.
+ */
+internal class PhysicsLargeVeil {
+  private var shown = Float.NaN
+  private var lastNanos = 0L
+
+  /** Il peso da disegnare adesso, 0..1. */
+  fun next(origin: Float, target: Float, nowNanos: Long): Float {
+    val goal = clampGlassUnit(if (target.isFinite()) target else 0f)
+    if (!shown.isFinite()) {
+      shown = clampGlassUnit(if (origin.isFinite()) origin else goal)
+      lastNanos = nowNanos
+      return shown
+    }
+    val dt = ((nowNanos - lastNanos).coerceAtLeast(0L) / 1_000_000_000f).coerceAtMost(PhysicsLargeVeilMaxStepSeconds)
+    lastNanos = nowNanos
+    val step = dt / PhysicsLargeVeilSeconds
+    shown = if (goal > shown) min(goal, shown + step) else max(goal, shown - step)
+    return shown
+  }
+
+  /** Dimentica: il prossimo disegno riparte dalla forma di partenza. */
+  fun reset() {
+    shown = Float.NaN
+  }
+}
+
 /**
  * I pezzi del piano di Fluid-physics come li riceve il campo ([GlassFieldPlan]), nello spazio di chi disegna.
  *
@@ -403,6 +466,7 @@ internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassF
   for (i in 0 until count) {
     val at = i * 4
     out.add(
+      soft = if (i == 0) 0f else physicsPieceSoft(plan, i) * scale,
       centerX = plan.pieceRects[at] * scale,
       centerY = plan.pieceRects[at + 1] * scale,
       halfWidth = plan.pieceRects[at + 2] * scale,
@@ -416,6 +480,37 @@ internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassF
     )
   }
   return out
+}
+
+/**
+ * Il raggio su cui il pezzo [index] pesa normale e centro col già fuso (`pieceSoft`, F1B.2), in pixel di layout: il
+ * suo raggio di fusione **nominale** (non quello del collo di adesso) per quanto si sovrappone ai pezzi che lo
+ * precedono. Zero fra pezzi che non si toccano, cioè a riposo e alle due estremità di ogni viaggio fra tasti.
+ *
+ * Perché: in viaggio il collo nasce e muore col progresso ([PhysicsRenderPlan.fusion]), e verso l'arrivo di un gruppo
+ * che diventa un menu i tre pezzi si coprono quasi del tutto con il collo già spento. Lì l'unione netta sceglie a
+ * scatto di quale pezzo è un punto, e normale e centro saltano da uno all'altro: la lente mostrava due righe
+ * verticali per 3–4 fotogrammi (`moto/f1b/gruppo-diventa-menu/gruppo-diventa-menu-cuciture.png`). Con questo raggio
+ * la lente vede i pezzi sovrapposti come una lente sola; la sagoma non cambia.
+ *
+ * La sovrapposizione è quella dei riquadri: quanto entrano l'uno nell'altro lungo l'asse dove entrano meno, sul
+ * raggio nominale, addolcita. Continua nel tempo, perché lo è la geometria.
+ */
+internal fun physicsPieceSoft(plan: PhysicsRenderPlan, index: Int): Float {
+  // Il raggio chiesto, non quello effettivo: dove i pezzi si compenetrano il varco spegne il secondo, ed è proprio lì
+  // che normale e centro vanno pesati.
+  val nominal = plan.nominalBlend
+  if (!(nominal > 0f)) return 0f
+  val at = index * 4
+  var overlap = 0f
+  for (j in 0 until index) {
+    val bt = j * 4
+    val gapX = abs(plan.pieceRects[at] - plan.pieceRects[bt]) - (plan.pieceRects[at + 2] + plan.pieceRects[bt + 2])
+    val gapY = abs(plan.pieceRects[at + 1] - plan.pieceRects[bt + 1]) - (plan.pieceRects[at + 3] + plan.pieceRects[bt + 3])
+    val depth = -max(gapX, gapY)
+    if (depth > 0f) overlap = max(overlap, (depth / nominal).coerceIn(0f, 1f))
+  }
+  return nominal * overlap * overlap * (3f - 2f * overlap)
 }
 
 /**
@@ -461,6 +556,8 @@ internal fun physicsRingField(
     out.restHalfWidth = 0f
     out.restHalfHeight = 0f
     out.restRadii.fill(0f)
+    out.restSmooth = 0f
+    out.restBlend = 0f
     out.dropReach = -1f
   } else {
     val f = rest.frame
@@ -469,13 +566,69 @@ internal fun physicsRingField(
     out.restCenterY = f.center.y * scale
     out.restHalfWidth = f.width / 2f * scale
     out.restHalfHeight = f.height / 2f * scale
-    out.restRadii[0] = rest.cornerRadii.topLeft.coerceIn(0f, half) * scale
-    out.restRadii[1] = rest.cornerRadii.topRight.coerceIn(0f, half) * scale
-    out.restRadii[2] = rest.cornerRadii.bottomRight.coerceIn(0f, half) * scale
-    out.restRadii[3] = rest.cornerRadii.bottomLeft.coerceIn(0f, half) * scale
+    // La lastra a riposo come la vede il campo (F1B.2): gli stessi raggi e lo stesso raccordo del nucleo a lastre
+    // che la sostituirà (`buildRestPlan`), non i nominali ad arco di cerchio. È la sagoma su cui l'anello si posa
+    // (`RoundedRectPerimeter.setField`), quella della scorciatoia della fascia e quella verso cui va il campo.
+    val smoothing = if (rest.smoothing.isFinite()) rest.smoothing else 0f
+    val g = glassSlabGeometry(
+      width = f.width,
+      height = f.height,
+      topLeft = rest.cornerRadii.topLeft,
+      topRight = rest.cornerRadii.topRight,
+      bottomRight = rest.cornerRadii.bottomRight,
+      bottomLeft = rest.cornerRadii.bottomLeft,
+      smoothing = smoothing,
+      continuous = smoothing > 0f,
+      small = glassSlabIsSmall(f.maxDimension),
+      out = out.restGeometry,
+    )
+    out.restRadii[0] = g.topLeft.coerceIn(0f, half) * scale
+    out.restRadii[1] = g.topRight.coerceIn(0f, half) * scale
+    out.restRadii[2] = g.bottomRight.coerceIn(0f, half) * scale
+    out.restRadii[3] = g.bottomLeft.coerceIn(0f, half) * scale
+    out.restSmooth = g.smoothing
+    out.restBlend = plan.dropSettle
     out.dropReach = (plan.dropReach + DropReachMarginPx) * scale
   }
   return out
+}
+
+/** Sopra questa lente in moto (`LiquidDrop.lens`) il campo della goccia è tutto anello: vedi [physicsDropSettle]. */
+internal const val DropSettleLensFrom: Float = 0.05f
+
+/** Sotto questa lente in moto il campo è tutto lastra: la soglia di quiete della goccia (`LiquidDrop.QuietLens`). */
+internal const val DropSettleLensTo: Float = 0.002f
+
+/** Sopra questo scarto dalla sagoma a riposo, in dp, il campo è tutto anello. */
+internal const val DropSettleReachFromDp: Float = 2.5f
+
+/** Sotto questo scarto il contorno sta già sulla lastra: lo scarto non trattiene più il campo. */
+internal const val DropSettleReachToDp: Float = 0.25f
+
+/**
+ * Quanto il campo di una goccia è già quello della lastra che la sostituirà (F1B.2, `restBlend` di
+ * `GlassFieldKernelRing`): zero in volo, uno quando si posa.
+ *
+ * Perché: la goccia si posa cambiando nucleo, dall'anello alla lastra, e i due nuclei danno la stessa sagoma ma non
+ * lo stesso campo dentro: la normale dell'anello è la media delle normali dei lati, quella della lastra è allargata
+ * negli angoli. Il riflesso la legge, e alla posa del menu negli angoli c'era uno scalino fino a 74 livelli su 255
+ * (63 anche con gli angoli dell'anello sul contorno della lastra). Questo peso porta il campo dall'uno all'altro
+ * mentre la goccia si calma, così al cambio di nucleo non resta niente da cambiare.
+ *
+ * È il prodotto di due rampe sullo stesso stato che decide la posa: la lente in moto ([lens], che decresce in modo
+ * esponenziale) e lo scarto del contorno dalla sagoma a riposo ([reachDp]), tutte e due **in scala logaritmica**,
+ * cioè lineari nel tempo per una coda che si smorza: il passaggio dura una decina di fotogrammi (a 60 Hz) invece di
+ * uno. Lo scarto tiene il peso a zero finché la goccia è ancora deformata: la gelatina in volo resta quella di
+ * sempre, e il contorno si sposta verso la lastra di meno di mezzo pixel. Senza stato: si legge dal fotogramma.
+ */
+internal fun physicsDropSettle(lens: Float, reachDp: Float): Float {
+  fun logRamp(value: Float, from: Float, to: Float): Float {
+    if (!value.isFinite()) return 0f
+    if (value <= to) return 1f
+    if (value >= from) return 0f
+    return (ln(from / value) / ln(from / to)).coerceIn(0f, 1f)
+  }
+  return logRamp(lens, DropSettleLensFrom, DropSettleLensTo) * logRamp(reachDp, DropSettleReachFromDp, DropSettleReachToDp)
 }
 
 /** Gli appoggi di [physicsLiquidRecipe]: la ricetta del capo d'arrivo (che è anche il risultato) e quella di partenza. */
@@ -517,6 +670,8 @@ internal fun physicsLiquidRecipe(
   motion: Float,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   scratch: PhysicsLiquidRecipes = PhysicsLiquidRecipes(),
+  /** Il peso del velo dei grandi ([PhysicsLargeVeil]); non finito = dalla taglia [shortDp], come una lastra ferma. */
+  largeVeil: Float = Float.NaN,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -533,6 +688,7 @@ internal fun physicsLiquidRecipe(
       tint = if (mode == GlassTintMode.Colored) of.overlay else Color.Unspecified,
       nested = nested,
       profile = profile,
+      largeVeil = largeVeil,
       out = out,
     )
   }
@@ -572,6 +728,8 @@ internal fun physicsLiquidInputs(
   glowAmount: Float = 0f,
   touchX: Float = Float.NaN,
   touchY: Float = Float.NaN,
+  /** Il ritaglio emulato ([GlassDrawInputs.nodeClip]); falso solo dalla manopola di diagnosi `travelclip=off`. */
+  nodeClip: Boolean = true,
   out: GlassDrawInputs = GlassDrawInputs(GlassFieldMaxPieces),
 ): GlassDrawInputs {
   val captureDensity = screenDensity * scale
@@ -587,6 +745,9 @@ internal fun physicsLiquidInputs(
     glowRadius = bounds.maxDimension,
   )
   out.setBodyLight(recipe, captureDensity, scale)
+  // L'ombra in corpo (F1B.2): quella della maschera a riposo di una lastra di questa taglia. È ciò che fa sparire
+  // l'ombra a parte di Fluid-physics sotto il materiale nuovo.
+  out.setBodyShadow(recipe, screenDensity, scale)
   if (plan.mode == PlanModePoly) {
     out.kernel = GlassBodyKernel.Ring
     out.lightInBody = true
@@ -594,9 +755,22 @@ internal fun physicsLiquidInputs(
     // la luce (filo, riga chiara, rientro del riflesso: `GlassLightBlock` esce oltre questa profondità).
     val light = out.bodyRimWidth * 4f + out.bodyReflexDepth + 2f
     val inner = max(max(out.thickness, out.bodyShadeDepth), light) + out.aa + 1f
-    physicsRingField(plan, scale, captureDensity, bandOuter = out.aa + 1f, bandInner = inner, out = out.ring)
+    // Fuori, la distanza deve essere vera fin dove l'ombra la legge: il punto spostato (`p - shadowOffset`) di un
+    // pixel dentro la portata dell'ombra sta fino a portata più scostamento dal contorno.
+    val shadow = out.shadowReach
+    val outer = (if (shadow > 0f) shadow + kotlin.math.hypot(out.shadowOffsetX, out.shadowOffsetY) else 0f) + out.aa + 1f
+    physicsRingField(plan, scale, captureDensity, bandOuter = outer, bandInner = inner, out = out.ring)
     out.body.clear()
-    out.nodeClipCorner = 0f
+    // Il margine d'angolo del ritaglio emulato: un anello non ne ha. Una goccia che si posa prende quello della lastra
+    // che la sostituirà, con lo stesso peso del campo (F1B.2): senza, all'ultimo fotogramma ad anello i pixel del
+    // contorno negli angoli restavano fino a 20 livelli diversi dal primo a lastra.
+    val ring = out.ring
+    out.nodeClipCorner = if (ring.dropReach >= 0f && ring.restBlend > 0f) {
+      val widest = max(max(ring.restRadii[0], ring.restRadii[1]), max(ring.restRadii[2], ring.restRadii[3]))
+      glassNodeClipCorner(widest, ring.restSmooth) * ring.restBlend
+    } else {
+      0f
+    }
   } else {
     out.kernel = GlassBodyKernel.Eight
     out.lightInBody = true
@@ -615,7 +789,7 @@ internal fun physicsLiquidInputs(
   // Il ritaglio hardware di una superficie fisica è il rettangolo del nodo: la sagoma la ritaglia il corpo, che
   // emula anche l'antialias del ritaglio che una lastra ha dal suo nodo.
   out.clipScale = 1f
-  out.nodeClip = true
+  out.nodeClip = nodeClip
   return out
 }
 
@@ -656,6 +830,7 @@ internal class PhysicsLiquidSurface(
   private val inputs = GlassDrawInputs(GlassFieldMaxPieces)
   private val recipes = PhysicsLiquidRecipes()
   private val chain = GlassBodyChain()
+  private val largeVeil = PhysicsLargeVeil()
 
   // Il vetro annidato, come in `GlassLiquidSurface`: lo dice il nodo (o il fondo), al primo giro degli effetti.
   private var nestedSeen = false
@@ -681,10 +856,16 @@ internal class PhysicsLiquidSurface(
     val plan = state.ensurePlan()
     val q = quality()
     val press = pressState?.progress ?: 0f
+    val shortDp = physicsRecipeShortPx(plan) / screenDensity
+    // Il velo dei grandi va verso quello della forma d'arrivo a passo costante (F1B.2): vedi [PhysicsLargeVeil].
+    val origin = state.journeyOriginNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it) / screenDensity) }
+    val target = state.journeyTargetNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it) / screenDensity) }
+    val now = glassLiquidLargeVeilGain(shortDp)
+    val large = largeVeil.next(origin = origin ?: now, target = target ?: now, nowNanos = System.nanoTime())
     val recipe = physicsLiquidRecipe(
       role = role,
       material = material.at(opticsBlend()),
-      shortDp = physicsRecipeShortPx(plan) / screenDensity,
+      shortDp = shortDp,
       darkSide = darkSide,
       amount = amount,
       quality = q,
@@ -697,6 +878,7 @@ internal class PhysicsLiquidSurface(
       motion = state.liquid.lens,
       profile = profile,
       scratch = recipes,
+      largeVeil = large,
     )
     val finger = pressState?.glow
     val bounds = plan.bounds
@@ -709,6 +891,7 @@ internal class PhysicsLiquidSurface(
       glowAmount = clampGlassUnit(press) * glowWeight,
       touchX = if (finger != null) bounds.left + finger.x else Float.NaN,
       touchY = if (finger != null) bounds.top + finger.y else Float.NaN,
+      nodeClip = profile.travelNodeClip,
       out = inputs,
     )
     return true

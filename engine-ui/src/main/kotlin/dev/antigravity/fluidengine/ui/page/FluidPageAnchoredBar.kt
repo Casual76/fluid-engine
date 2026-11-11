@@ -20,6 +20,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.currentCompositionLocalContext
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -37,10 +38,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidBackButton
 import dev.antigravity.fluidengine.ui.fluid.FluidBarEdgeInset
@@ -63,11 +66,13 @@ import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.rememberCombinedGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.rememberCompactTitleStyle
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
+import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
+import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
 
 /**
@@ -85,10 +90,11 @@ import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
  *    40% e arriva dallo stesso lato;
  *  - **il tasto indietro** e' uno, mai ricreato: se ce l'hanno tutte e due le pagine sta fermo al
  *    pixel; fra la radice e una figlia nasce (o si spegne) da un seme di un pixel;
- *  - **i tasti di vetro** delle azioni non disegnano il loro vetro mentre le pagine cambiano: una
+ *  - **i tasti di vetro** delle azioni non disegnano il loro vetro mentre la loro forma viaggia: una
  *    superficie sola di Fluid-physics porta i pezzi della pagina che esce su quelli della pagina che
- *    arriva, e le icone si incrociano sopra. Oltre sei pezzi, o con un controllo che non e' una
- *    capsula di vetro, le icone si incrociano e basta;
+ *    arriva, e le icone si incrociano sopra. Il vetro passa di mano quando la forma parte e quando si
+ *    ferma, in un fotogramma solo e senza vuoti ([FluidBarJourney.active], F1B.2). Oltre sei pezzi, o con
+ *    un controllo che non e' una capsula di vetro, le icone si incrociano e basta;
  *  - **i controlli restano disponibili**: durante il movimento risponde la cima della pila richiesta;
  *    la pagina uscente continua a disegnarsi senza poter eseguire azioni.
  */
@@ -158,6 +164,11 @@ internal fun FluidAnchoredBar(
   }
 
   val physics = rememberFluidPhysicsState(FluidForm.Slab(Rect(0f, 0f, 1f, 1f)))
+  // Di quanto si allarga in alto e in basso il nodo della superficie che viaggia: fin dove arriva l'ombra di un tasto
+  // (la regola della taglia non cresce sotto i 64 dp di lato corto, e i pezzi della barra sono tasti).
+  val travelShadowGrowPx = with(density) {
+    glassTravelShadowReachDp(GlassDefaults.buttonOptics().sanitized(), gain = 0f).dp.roundToPx()
+  }
   val journey = remember(state, physics) { FluidBarJourney(state, physics) }
   journey.blendPx = with(density) { 4.dp.toPx() }
   val backKeys = buildSet {
@@ -194,21 +205,46 @@ internal fun FluidAnchoredBar(
         onTapTitle = { state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() },
       ) {
         if (moving) {
-          // Fra il vetro della barra e le icone: i pezzi che viaggiano. Solo durante il movimento.
+          // Fra il vetro della barra e le icone: i pezzi che viaggiano. Composta per tutto il movimento, disegna
+          // solo mentre porta il vetro.
+          //
+          // Chi porta il vetro (F1B.2) è UN segnale, `journey.active`, letto qui IN COMPOSIZIONE come lo leggono i
+          // tasti (`glassControlSurface`, che in composizione decide se montare il proprio vetro). Le due letture
+          // stanno nella stessa passata di composizione, quindi in ogni fotogramma vedono lo stesso valore: o la
+          // superficie o i tasti, mai nessuno dei due, mai tutti e due. Il disegno della superficie legge il valore
+          // di questa composizione (`carries`), non lo stato vivo: uno stato cambiato dopo la composizione (in un
+          // `SideEffect`, al posizionamento) arriverebbe al disegno della superficie un fotogramma prima che ai
+          // tasti. Fino a F1B.1 la superficie spariva con `isMoving` e i tasti riaccendevano il vetro solo alla
+          // ricomposizione dopo: un fotogramma senza vetro a ogni arrivo (partenza.md, difetto 1).
+          val carrying = journey.active
+          val carries by rememberUpdatedState(carrying)
           Box(
             modifier = Modifier
               .matchParentSize()
+              // L'ombra della superficie è nel suo corpo (F1B.2), e il layer del vetro è ritagliato sul nodo: la
+              // riga è alta poco più dei tasti, quindi il nodo si allarga sopra e sotto di quanto arriva l'ombra di
+              // un tasto, perché in viaggio si veda tutta, come quella dei tasti fermi. I pezzi si misurano su
+              // questo nodo, quindi stanno dove stavano.
+              .layout { measurable, constraints ->
+                val grow = travelShadowGrowPx
+                val placeable = measurable.measure(
+                  Constraints.fixed(constraints.maxWidth, constraints.maxHeight + 2 * grow),
+                )
+                layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, -grow) }
+              }
               .onGloballyPositioned { coordinates ->
                 journey.node = coordinates
                 journey.recompute()
               }
+              // Quando non porta il vetro non disegna niente, nemmeno la cattura: è il cancello di `glassPresence`.
+              .drawWithContent { if (carries) drawContent() }
               .fluidPhysicsSurface(
                 state = physics,
                 backdrop = controlBackdrop,
                 tint = GlassDefaults.controlTint(),
                 role = GlassRole.Interactive,
                 optics = GlassDefaults.buttonOptics(),
-                intensity = { if (journey.active) 1f else 0f },
+                intensity = if (carrying) BarTravelFull else BarTravelOff,
               ),
           )
         }
@@ -418,9 +454,27 @@ internal class FluidBarJourney(
   var backKeys: Set<Any> = emptySet()
   var blendPx: Float = 0f
 
-  /** Se la superficie fisica porta i pezzi adesso: i tasti tolgono solo il proprio materiale. */
-  var active by mutableStateOf(false)
-    private set
+  /**
+   * Se i pezzi delle due pagine sono raccolti e la superficie fisica è guidata fra loro. Lo scrive [recompute], che
+   * gira dopo la composizione (nel `SideEffect` della barra e al posizionamento della superficie): da solo non
+   * decide niente, entra in [active].
+   */
+  private var ready by mutableStateOf(false)
+
+  /**
+   * Se la superficie fisica porta il vetro dei tasti in questo fotogramma (F1B.2): i pezzi sono pronti, le pagine si
+   * muovono e la forma è fra i due capi ([FluidPageMotion.barJourneyCarries]). I tasti tolgono allora solo il
+   * proprio materiale, e lo rimettono quando la forma arriva.
+   *
+   * È **il** segnale del passaggio di consegne: lo leggono in composizione la superficie (se disegnare) e i tasti
+   * (se montare il proprio vetro), nella stessa passata. È uno stato derivato: si ricalcola quando la pagina si
+   * muove, ma chi lo legge si ricompone solo quando il valore cambia, cioè due volte per viaggio.
+   */
+  private val carrying = derivedStateOf {
+    ready && state.isMoving && FluidPageMotion.barJourneyCarries(FluidPageMotion.barMorph(state.frontFraction()))
+  }
+
+  val active: Boolean get() = carrying.value
 
   /** Il tasto indietro viaggia solo se ce l'ha una pagina sola: se ce l'hanno tutte e due sta fermo. */
   val backInJourney: Boolean get() = hasBack(state.upper) != hasBack(state.lower)
@@ -430,7 +484,7 @@ internal class FluidBarJourney(
   fun recompute() {
     val node = node?.takeIf { it.isAttached }
     if (node == null || !state.isMoving) {
-      active = false
+      ready = false
       return
     }
     val from = ArrayList<Rect>()
@@ -438,20 +492,20 @@ internal class FluidBarJourney(
     val upper = state.upper
     val lower = state.lower
     if (!collect(upper?.let(sinks::get), node, from) || !collect(lower?.let(sinks::get), node, to)) {
-      active = false
+      ready = false
       return
     }
     if (backInJourney) {
       val back = ArrayList<Rect>()
       if (!collect(backSink, node, back) || back.isEmpty()) {
-        active = false
+        ready = false
         return
       }
       if (hasBack(upper)) from += back.first() else to += back.first()
     }
     val pairs = FluidPageMotion.barPieceJourney(from, to, node.size.width.toFloat())
     if (pairs == null) {
-      active = false
+      ready = false
       return
     }
     physics.driveExternally(
@@ -459,7 +513,7 @@ internal class FluidBarJourney(
       to = formOf(pairs.map { it.second }),
       progress = { FluidPageMotion.barMorph(state.frontFraction()) },
     )
-    active = true
+    ready = true
   }
 
   private fun collect(sink: FluidBarPieceSink?, node: LayoutCoordinates, out: MutableList<Rect>): Boolean {
@@ -601,3 +655,7 @@ private fun FluidPageChromeContent(
 }
 
 private val NoTranslation: () -> Float = { 0f }
+
+/** L'intensità della superficie che viaggia: piena mentre porta il vetro, zero quando lo portano i tasti. */
+private val BarTravelFull: () -> Float = { 1f }
+private val BarTravelOff: () -> Float = { 0f }

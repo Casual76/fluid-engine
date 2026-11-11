@@ -89,7 +89,7 @@ CONTENT_CLIPS = ("auto", "shape", "alpha", "none", "pieces")
 APPLE_KEYS = ("name", "video", "t0Frame", "crop", "collage", "speed", "note")
 ELEMENT_KEYS = {
     "shader": COMMON_KEYS | {"source", "inputs", "uniforms", "blend", "alpha", "scale"},
-    "material": COMMON_KEYS | {"capture", "body", "light", "children"},
+    "material": COMMON_KEYS | {"capture", "body", "light", "children", "clipRadiusScale"},
 }
 PIECE_KEYS = {"x", "y", "w", "h", "radius", "blend", "smooth"}
 # I valori che il banco fermo mette da se' negli uniform, per posto (render.py), e quanti numeri sono.
@@ -356,7 +356,11 @@ def expanded(el: dict, density: float) -> list[dict]:
     elif kind == "material":
         reduced = density * float((el.get("capture") or {}).get("scale", 1.0))
         for part, where in (("body", reduced), ("light", density)):
-            if el.get(part):
+            if isinstance(el.get(part), list):
+                # La luce a riposo dell'engine: piu' strati, ognuno col suo modo di comporre (README.md).
+                el[part] = [dict(layer, uniforms=substituted(layer.get("uniforms") or {}, table, where))
+                            for layer in el[part]]
+            elif el.get(part):
                 el[part] = dict(el[part], uniforms=substituted(el[part].get("uniforms") or {}, table, where))
 
     if el.get("content"):
@@ -702,11 +706,16 @@ def check_element(rep: Report, sources: Sources, frame: int, el: dict, density: 
                 spec = item.get(part)
                 if spec is None:
                     continue
-                if not isinstance(spec, dict) or "source" not in spec:
-                    rep.err(f"{item_where}.{part}", "serve `source`", frame)
-                    continue
-                check_uniforms(rep, sources, f"{item_where}.{part}", frame, spec,
-                               BUILTINS["material"], inputs=need)
+                # `light` puo' essere una lista di strati (la luce che somma, poi il filo).
+                layers = spec if part == "light" and isinstance(spec, list) else [spec]
+                for index, layer in enumerate(layers):
+                    layer_where = f"{item_where}.{part}" + (f"[{index}]" if layers is spec else "")
+                    if not isinstance(layer, dict) or "source" not in layer:
+                        rep.err(layer_where, "serve `source`", frame)
+                        continue
+                    check_uniforms(rep, sources, layer_where, frame, layer, BUILTINS["material"], inputs=need)
+            if "clipRadiusScale" in item and not is_number(item["clipRadiusScale"]):
+                rep.err(item_where, "`clipRadiusScale` deve essere un numero finito", frame)
             capture = item.get("capture") or {}
             for key in capture:
                 if key not in ("saturation", "blurDp", "w", "paddingDp", "scale"):
@@ -3204,6 +3213,13 @@ def cmd_selftest(args) -> int:
     got = expanded(solid, 3.0)[0]
     test("potenze della densita': il corpo le riceve nel mondo della cattura, la luce in pixel di schermo",
          got["body"]["uniforms"]["a"] == 36.0 and got["light"]["uniforms"]["a"] == 144.0)
+
+    layered = dict(solid, light=[{"source": "y", "blend": "Plus", "uniforms": {"a": "16dp^2"}},
+                                 {"source": "y", "uniforms": {"a": "4dp^2"}}], clipRadiusScale=0.98)
+    got = expanded(layered, 3.0)[0]
+    test("luce a strati (F1A.5): ogni strato di `light` riceve i suoi uniform, in pixel di schermo, e tiene il suo modo",
+         [layer["uniforms"]["a"] for layer in got["light"]] == [144.0, 36.0] and got["light"][0]["blend"] == "Plus"
+         and got["clipRadiusScale"] == 0.98, str(got.get("light")))
 
     slab = {"kind": "shader", "name": "s", "source": "kotlin:SlabGroupRefractionShaderString",
             "x": 4, "y": 4, "w": 60, "h": 40, "uniforms": {"pieceRect": "$pieceRect"},

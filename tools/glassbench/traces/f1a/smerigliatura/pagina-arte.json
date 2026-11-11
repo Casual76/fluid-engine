@@ -1,0 +1,500 @@
+{
+ "width": 260,
+ "height": 1177.581470800335,
+ "density": 2.0,
+ "theme": "light",
+ "palette": "engine",
+ "corner": "engine",
+ "background": {
+  "kind": "color",
+  "color": "#F2F2F7"
+ },
+ "page": [
+  {
+   "kind": "background",
+   "x": 0,
+   "y": 0,
+   "w": 260,
+   "h": 250,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 54,
+    "contrast": 1.15,
+    "palette": [
+     "#2A1410",
+     "#B24A18",
+     "#F09A2A",
+     "#5A2412",
+     "#F6C25A",
+     "#F4D21C",
+     "#F09A2A",
+     "#E8451C",
+     "#FCE9A0",
+     "#7A9E1C"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Raccolte",
+   "x": 16,
+   "y": 286,
+   "sizeDp": 26,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "Scelte per te questa settimana",
+   "x": 16,
+   "y": 308,
+   "sizeDp": 13,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 16,
+   "y": 326.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 30,
+    "contrast": 1.2,
+    "palette": [
+     "#0E1A3A",
+     "#1F4E9E",
+     "#F2B21C",
+     "#E8651C",
+     "#0A0F22"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Notte al porto",
+   "x": 18,
+   "y": 450.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "12 brani",
+   "x": 18,
+   "y": 466.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 138,
+   "y": 326.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 36,
+    "contrast": 1.2,
+    "palette": [
+     "#F4D21C",
+     "#F09A2A",
+     "#E8451C",
+     "#FCE9A0",
+     "#7A9E1C"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Agrumi",
+   "x": 140,
+   "y": 450.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "19 brani",
+   "x": 140,
+   "y": 466.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 16,
+   "y": 484.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 42,
+    "contrast": 1.2,
+    "palette": [
+     "#7A0E1E",
+     "#E0243C",
+     "#F06AA8",
+     "#2A0A10",
+     "#F8C8D8"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Ciliegie",
+   "x": 18,
+   "y": 608.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "26 brani",
+   "x": 18,
+   "y": 624.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 138,
+   "y": 484.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 30,
+    "contrast": 1.2,
+    "palette": [
+     "#0E4A52",
+     "#35C2D6",
+     "#B8F0E8",
+     "#1A6E7A",
+     "#F4F1DC"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Laguna",
+   "x": 140,
+   "y": 608.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "33 brani",
+   "x": 140,
+   "y": 624.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 16,
+   "y": 642.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 36,
+    "contrast": 1.2,
+    "palette": [
+     "#2A1048",
+     "#7A3EC8",
+     "#D0A8FF",
+     "#F06AA8",
+     "#120820"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Viola",
+   "x": 18,
+   "y": 766.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "40 brani",
+   "x": 18,
+   "y": 782.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 138,
+   "y": 642.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 42,
+    "contrast": 1.2,
+    "palette": [
+     "#1E5A1E",
+     "#6EC83E",
+     "#F4E21C",
+     "#0E2E12",
+     "#C8F0A0"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Prato",
+   "x": 140,
+   "y": 766.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "47 brani",
+   "x": 140,
+   "y": 782.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 16,
+   "y": 800.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 30,
+    "contrast": 1.2,
+    "palette": [
+     "#C89A5A",
+     "#F4D8A8",
+     "#8A5A2A",
+     "#F8F0E0",
+     "#E8651C"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Sabbia",
+   "x": 18,
+   "y": 924.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "14 brani",
+   "x": 18,
+   "y": 940.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 138,
+   "y": 800.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 36,
+    "contrast": 1.2,
+    "palette": [
+     "#DCEBF8",
+     "#8AB8E8",
+     "#3E6EA8",
+     "#F8FCFF",
+     "#1A2E4A"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Ghiaccio",
+   "x": 140,
+   "y": 924.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "21 brani",
+   "x": 140,
+   "y": 940.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 16,
+   "y": 958.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 42,
+    "contrast": 1.2,
+    "palette": [
+     "#2A1410",
+     "#B24A18",
+     "#F09A2A",
+     "#5A2412",
+     "#F6C25A"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Brace",
+   "x": 18,
+   "y": 1082.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "28 brani",
+   "x": 18,
+   "y": 1098.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 138,
+   "y": 958.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 30,
+    "contrast": 1.2,
+    "palette": [
+     "#111114",
+     "#F4D21C",
+     "#F06AA8",
+     "#35C2D6",
+     "#E8651C"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Neon",
+   "x": 140,
+   "y": 1082.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "35 brani",
+   "x": 140,
+   "y": 1098.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 16,
+   "y": 1116.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 36,
+    "contrast": 1.2,
+    "palette": [
+     "#0E1A3A",
+     "#1F4E9E",
+     "#F2B21C",
+     "#E8651C",
+     "#0A0F22"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Notte al porto",
+   "x": 18,
+   "y": 1240.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "42 brani",
+   "x": 18,
+   "y": 1256.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  },
+  {
+   "kind": "background",
+   "x": 138,
+   "y": 1116.0,
+   "w": 106,
+   "h": 106,
+   "radius": 14,
+   "background": {
+    "kind": "synthetic",
+    "scaleDp": 42,
+    "contrast": 1.2,
+    "palette": [
+     "#F4D21C",
+     "#F09A2A",
+     "#E8451C",
+     "#FCE9A0",
+     "#7A9E1C"
+    ]
+   }
+  },
+  {
+   "kind": "text",
+   "text": "Agrumi",
+   "x": 140,
+   "y": 1240.0,
+   "sizeDp": 13,
+   "weight": 700,
+   "color": "#121214"
+  },
+  {
+   "kind": "text",
+   "text": "49 brani",
+   "x": 140,
+   "y": 1256.0,
+   "sizeDp": 11,
+   "color": "#6A6A72"
+  }
+ ],
+ "elements": []
+}

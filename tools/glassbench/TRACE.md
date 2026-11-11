@@ -196,7 +196,7 @@ Sono le voci di `elements` di una scena, e `README.md` le descrive campo per cam
 | `kind` | cosa rende | campi |
 |---|---|---|
 | `shader` | uno shader a tutta area su un rettangolo: `fluidPhysicsSurface` di oggi, un corpo in una passata | `source`, `x`, `y`, `w`, `h`, `inputs` (la catena a monte di ogni ingresso: `saturation`, `blurDp`, `edge`, `w`), `uniforms`, `marginDp`, `scale`, `clip`, `radius`, `blend`, `alpha` |
-| `material` | il materiale nuovo: ombra, catena a monte, corpo, luce | `x`, `y`, `w`, `h`, `radius`, `clip`, `marginDp`, `capture` (`saturation`, `blurDp`, `w`, `paddingDp`, `scale`), `body` e `light` (`source`, `uniforms`), `children` |
+| `material` | il materiale nuovo: ombra, catena a monte, corpo, luce | `x`, `y`, `w`, `h`, `radius`, `clip`, `marginDp`, `capture` (`saturation`, `blurDp`, `w`, `paddingDp`, `scale`), `body` e `light` (`source`, `uniforms`; `light` puo' essere una **lista di strati**, ognuno col suo `blend`, come nelle scene scritte dalla ricetta), `clipRadiusScale` (il ritaglio a una frazione del raggio), `children` |
 | `glass` | una lastra di oggi (`glassSurface`), con le ottiche lette dall'engine | `role` o `optics`, `tint`, `intensity`, `depth`, `pressed`, `quality`... |
 | `shape` | una sagoma piena o al tratto | vedi `README.md` |
 

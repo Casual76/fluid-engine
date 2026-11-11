@@ -11,6 +11,8 @@ fotogrammi ingranditi, e le curve di una grandezza nel tempo.
     python glassmotion.py video    traccia.json     .mp4 a velocita' vera e rallentato
     python glassmotion.py collage  traccia.json     collage alla cadenza di Apple (29,97 fps)
     python glassmotion.py pair     traccia.json     il nostro collage sopra i fotogrammi di Apple
+    python glassmotion.py pair     traccia.json --real video.mp4 --real-crop x,y,w,h
+                                                    il banco contro una registrazione vera: contorni
     python glassmotion.py first    traccia.json     i primi cinque fotogrammi ingranditi
     python glassmotion.py last     traccia.json     gli ultimi cinque
     python glassmotion.py curve    traccia.json     le sonde nel tempo: CSV, grafico, numeri
@@ -30,8 +32,10 @@ densita' (`"16dp^2"`).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
 import hashlib
+import io
 import json
 import math
 import os
@@ -1856,6 +1860,975 @@ def cmd_collage(args) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------------------------
+# La registrazione vera: tempi dai `pts`, sagoma esatta del banco, contorni a confronto
+# --------------------------------------------------------------------------------------------
+#
+# `pair --real` mette il banco accanto a una registrazione dello schermo (lo `screenrecord` del
+# tablet), non a un video di Apple. Tre cose cambiano rispetto al confronto con Apple:
+#
+#   * il tempo di un fotogramma vero e' il suo `pts`: lo screenrecord e' a cadenza variabile (un
+#     fotogramma solo quando lo schermo cambia), e l'indice non e' un tempo;
+#   * banco e vero sono alla stessa densita', pixel su pixel, quindi si possono confrontare le
+#     **sagome**: quella del banco e' esatta (viene dalla traccia), quella del vero e' la regione che
+#     cambia rispetto al fotogramma fermo;
+#   * il metodo e' uno solo per tutti i viaggi, e sta scritto qui e in TRACE.md.
+#
+# La regola della maschera del vero:
+#
+#   residuo  = fotogramma - pagina prevista, canale per canale (R, G, B); un pixel «e' cambiato» se
+#            almeno un canale si scosta oltre la soglia. Sul colore e non sulla luminanza: un vetro
+#            sopra una pagina colorata la cambia di tinta anche a pari luminanza;
+#            pagina prevista = il fotogramma fermo, oppure, se e' dichiarata una regione di sola
+#            pagina (`--veil-region`), il fotogramma fermo passato per la trasformazione affine del
+#            colore che su quella regione porta il fermo nel fotogramma (la velatura di un menu);
+#   due letture: DENTRO = i pixel in cui almeno un canale va nel verso del vetro (schiarisce, se
+#            il vetro e' chiaro); FUORI = tutti i pixel cambiati, anche quelli che vanno soltanto
+#            nel verso opposto (il filo scuro dentro il bordo, l'ombra fuori). Il bordo vero del vetro
+#            sta fra le due: per questo si misura quanta parte del contorno del banco cade li' in mezzo;
+#   maschera = pixel con il residuo oltre la soglia piu' K (vedi sotto), saldati da una chiusura
+#            morfologica (le fessure piu' sottili di 2 r + 1 pixel: il solco fra cio' che schiarisce
+#            e cio' che scurisce, la riga fra due voci di un menu), ripuliti da un'apertura dello
+#            stesso raggio (via cio' che e' piu' sottile di 2 r + 1 pixel: il rumore del
+#            codificatore; viene DOPO l'unione con K, perche' un anello sottile attorno al vetro a
+#            riposo e' vetro che cresce, non rumore) e riempiti (cio' che un contorno racchiude gli
+#            appartiene: testo e icone dentro il vetro);
+#   il verso del vetro e' quello che, sommato su tutta la registrazione, copre piu' area da solo:
+#            il corpo del vetro e' esteso, filo e ombra sono un alone sottile del verso opposto.
+#
+# Dove il vetro c'era gia' a riposo e c'e' ancora (K), la differenza col fermo non puo' dire niente:
+# K si conta uguale nei due lati, e la tabella da' anche la sovrapposizione **fuori da K**.
+# L'alone del segno opposto fuori dalla sagoma (l'ombra, che il banco non rende) si misura a parte,
+# e accanto alla lettura «solo il segno del vetro» c'e' sempre quella «tutto cio' che cambia»: il
+# bordo vero del vetro sta fra le due, perche' filo e ombra di oggi il banco non li disegna.
+# Cio' che copre il vetro senza essere dell'app (la barra di stato) si dichiara con `--ignore`: li'
+# i due lati si contano uguali.
+# Cio' che cambia a piu' di `FAR_PX` pixel dalla sagoma del banco non e' vetro in nessuna lettura: e'
+# la pagina (sotto un menu viene anche sfocata, e ogni suo bordo cambia). Esce dalle due regioni e
+# si conta a parte, pixel per pixel: se il vetro vero fosse davvero la' lontano, si vedrebbe li'.
+#
+# Due cose questa regola NON sa leggere, e il banco le dichiara invece di contarle:
+#
+#   * SOTTO IL RIPOSO. Quando la sagoma del banco scende sotto quella a riposo (il rimbalzo di un
+#     tasto che torna), nell'anello lasciato libero la differenza col fermo cambia significato: dove
+#     c'era il filo scuro ora c'e' la pagina, piu' chiara, e «schiarisce» non vuol piu' dire «vetro».
+#     Quelle coppie escono dal riassunto e dagli istanti (il «riposo» del vero non si da'), e di
+#     loro si dice soltanto quanta parte dell'anello cambia anche nel vero, in un verso o nell'altro;
+#   * DOVE IL VETRO NON SI STACCA. Dove il vetro differisce dalla pagina prevista meno della soglia
+#     (un pannello chiaro sopra una pagina chiara) il suo bordo non c'e' in nessuna delle due
+#     letture: li' il contorno del banco risulta «fuori dalla fascia» senza che la sagoma sia
+#     diversa. La prova a soglia -30% dice quanto pesa.
+
+REAL_THRESHOLD = 8.0      # livelli (0-255) di cui un canale deve scostarsi perche' un pixel sia «cambiato»
+REAL_OPEN_RADIUS = 2      # apertura morfologica: via cio' che e' piu' sottile di 5 px
+REAL_SENSITIVITY = 0.30   # la soglia si prova anche a -30% e a +30%
+ALIGN_REAL = (6.0, 50)    # primo cambiamento nel vero: piu' di 50 px con |dL| > 6
+ALIGN_BENCH = (2.0, 10)   # ... nel banco, che non ha rumore: piu' di 10 px con |dL| > 2
+MOVE_PX = 150             # «la sagoma si muove»: piu' di 150 px fuori dalla sagoma a riposo
+PEAK_SHARE = 0.99         # «al picco»: l'area a non piu' dell'1% dal massimo
+FAR_PX = 24               # oltre 24 px dalla sagoma del banco cio' che cambia e' «pagina», e si conta a parte
+CONTOUR_REAL = (60, 230, 90)
+CONTOUR_REAL_ALL = (0, 190, 255)
+CONTOUR_BENCH = (255, 60, 220)
+_TIME_IN_NAME = re.compile(r"_t(-?\d+(?:\.\d+)?)")
+
+
+def luma_of(rgb: np.ndarray) -> np.ndarray:
+    a = rgb.astype(np.float32)
+    return 0.2126 * a[..., 0] + 0.7152 * a[..., 1] + 0.0722 * a[..., 2]
+
+
+def video_pts_ms(path: Path) -> list[float]:
+    """Il tempo vero di ogni fotogramma di un video, in millisecondi: il suo `pts`."""
+    if not shutil.which("ffprobe"):
+        raise SystemExit("ffprobe non e' nel PATH")
+    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "frame=pts_time",
+                          "-of", "csv=p=0", str(path)], capture_output=True, text=True, check=True).stdout
+    return [float(x.strip().rstrip(",")) * 1000.0 for x in out.split() if x.strip().rstrip(",")]
+
+
+def video_size(path: Path) -> tuple[int, int]:
+    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                          "-of", "json", str(path)], capture_output=True, text=True, check=True).stdout
+    stream = json.loads(out)["streams"][0]
+    return int(stream["width"]), int(stream["height"])
+
+
+class RealRecording:
+    """Una registrazione vera: un video (i tempi sono i `pts`) o una cartella di fotogrammi con i
+    loro tempi (nel nome, `..._t<ms>.png`, o in `tempi.json`: nome del file -> ms)."""
+
+    def __init__(self, path: Path):
+        self.path = Path(path)
+        if not self.path.exists():
+            raise SystemExit(f"la registrazione non c'e': {shown(self.path)}")
+        if self.path.is_dir():
+            self.files = sorted(p for p in self.path.iterdir() if p.suffix.lower() in (".png", ".jpg", ".jpeg"))
+            if not self.files:
+                raise SystemExit(f"nessun fotogramma in {shown(self.path)}")
+            listed = self.path / "tempi.json"
+            if listed.exists():
+                table = json.loads(listed.read_text(encoding="utf-8"))
+                missing = [p.name for p in self.files if p.name not in table]
+                if missing:
+                    raise SystemExit(f"`tempi.json` non ha il tempo di {missing[0]}")
+                self.times = [float(table[p.name]) for p in self.files]
+            else:
+                found = [_TIME_IN_NAME.search(p.stem) for p in self.files]
+                if not all(found):
+                    raise SystemExit(f"in {shown(self.path)} i tempi non ci sono: servono nel nome "
+                                     "(`f0012_t1435.5.png`) o in `tempi.json`")
+                self.times = [float(m.group(1)) for m in found]
+            order = np.argsort(self.times, kind="stable")
+            self.files = [self.files[i] for i in order]
+            self.times = [self.times[i] for i in order]
+            with Image.open(self.files[0]) as first:
+                self.size = first.size
+        else:
+            self.files = None
+            self.times = video_pts_ms(self.path)
+            self.size = video_size(self.path)
+        if any(b <= a for a, b in zip(self.times, self.times[1:])):
+            raise SystemExit(f"{shown(self.path)}: i tempi dei fotogrammi non crescono")
+
+    def frames(self, crop=None, wanted=None):
+        """Genera (indice, tempo in ms, RGB uint8) per i fotogrammi [wanted] (tutti se None).
+
+        Il ritaglio si fa **in RGB**: in YUV 4:2:0 ffmpeg arrotonda al pari un lato dispari, e una
+        riga in meno fa scivolare di una riga tutti i fotogrammi letti dopo."""
+        x, y, w, h = crop or (0, 0, self.size[0], self.size[1])
+        if x < 0 or y < 0 or x + w > self.size[0] or y + h > self.size[1] or w <= 0 or h <= 0:
+            raise SystemExit(f"il ritaglio {x},{y},{w},{h} esce dalla registrazione ({self.size[0]} x {self.size[1]})")
+        keep = None if wanted is None else set(wanted)
+        if self.files is not None:
+            for i, path in enumerate(self.files):
+                if keep is None or i in keep:
+                    with Image.open(path) as image:
+                        yield i, self.times[i], np.asarray(image.convert("RGB"))[y:y + h, x:x + w].copy()
+            return
+        if not shutil.which("ffmpeg"):
+            raise SystemExit("ffmpeg non e' nel PATH")
+        last = len(self.times) - 1 if keep is None else max(keep)
+        cmd = ["ffmpeg", "-v", "error", "-i", str(self.path), "-fps_mode", "passthrough",
+               "-vf", f"format=gbrp,crop={w}:{h}:{x}:{y}:exact=1", "-frames:v", str(last + 1),
+               "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        size = w * h * 3
+        try:
+            for i in range(last + 1):
+                data = process.stdout.read(size)
+                if len(data) < size:
+                    break
+                if keep is None or i in keep:
+                    yield i, self.times[i], np.frombuffer(data, np.uint8).reshape(h, w, 3).copy()
+        finally:
+            process.stdout.close()
+            process.kill()
+            process.wait()
+
+
+# --- Maschere: aprire, riempire, contornare, misurare ---------------------------------------
+
+
+def _neighbours(mask: np.ndarray, op, fill: bool) -> np.ndarray:
+    """Erosione (`np.logical_and`, bordo vero) o dilatazione (`np.logical_or`, bordo falso) 3 x 3."""
+    h, w = mask.shape
+    padded = np.pad(mask, 1, constant_values=fill)
+    out = padded[1:h + 1, 1:w + 1].copy()
+    for dy in (0, 1, 2):
+        for dx in (0, 1, 2):
+            out = op(out, padded[dy:dy + h, dx:dx + w])
+    return out
+
+
+def opened(mask: np.ndarray, radius: int = REAL_OPEN_RADIUS) -> np.ndarray:
+    """Apertura morfologica: via cio' che e' piu' sottile di 2 * raggio + 1 pixel."""
+    for _ in range(radius):
+        mask = _neighbours(mask, np.logical_and, True)
+    for _ in range(radius):
+        mask = _neighbours(mask, np.logical_or, False)
+    return mask
+
+
+def closed(mask: np.ndarray, radius: int = REAL_OPEN_RADIUS) -> np.ndarray:
+    """Chiusura morfologica: salda cio' che e' separato da meno di 2 * raggio + 1 pixel."""
+    for _ in range(radius):
+        mask = _neighbours(mask, np.logical_or, False)
+    for _ in range(radius):
+        mask = _neighbours(mask, np.logical_and, True)
+    return mask
+
+
+def filled(mask: np.ndarray) -> np.ndarray:
+    """La maschera con i buchi riempiti: e' «fuori» solo cio' che si raggiunge dal bordo dell'immagine
+    camminando su pixel vuoti (4 vicini). Il fuori si propaga a tratti interi lungo righe e colonne,
+    cosi' bastano pochi giri."""
+    empty = ~np.pad(mask, 1, constant_values=False)
+    reached = np.zeros_like(empty)
+    reached[0, :] = reached[-1, :] = reached[:, 0] = reached[:, -1] = True
+
+    def sweep(reached: np.ndarray, empty: np.ndarray) -> np.ndarray:
+        # Lungo ogni riga: un tratto di pixel vuoti e' raggiunto tutto se lo e' in un punto.
+        starts = empty & ~np.pad(empty, ((0, 0), (1, 0)), constant_values=False)[:, :-1]
+        run = np.cumsum(starts, axis=1) + np.arange(empty.shape[0])[:, None] * (empty.shape[1] + 1)
+        hit = np.zeros(run.max() + 2, bool)
+        hit[run[reached & empty]] = True
+        return reached | (empty & hit[run])
+
+    while True:
+        before = int(reached.sum())
+        reached = sweep(reached, empty)
+        reached = sweep(reached.T, empty.T).T
+        if int(reached.sum()) == before:
+            break
+    return ~reached[1:-1, 1:-1]
+
+
+def contour_of(mask: np.ndarray) -> np.ndarray:
+    """I pixel di bordo di una maschera: quelli con almeno un vicino (4) fuori. Il bordo della tela
+    non e' un contorno: una sagoma che esce dalla tela (un tasto premuto contro il bordo dello
+    schermo) li' e' tagliata, non finisce."""
+    padded = np.pad(mask, 1, constant_values=True)
+    inside = padded[:-2, 1:-1] & padded[2:, 1:-1] & padded[1:-1, :-2] & padded[1:-1, 2:]
+    return mask & ~inside
+
+
+def contour_distances(a: np.ndarray, b: np.ndarray) -> dict | None:
+    """La distanza fra i contorni di due maschere, in pixel, nei due versi: da ogni punto del
+    contorno di [a] al punto piu' vicino del contorno di [b] e viceversa. Media, 95° percentile e
+    massimo (la distanza di Hausdorff); `signed` e' la media con il segno per i punti di [a]:
+    positiva dove [a] sta fuori da [b]."""
+    pa, pb = np.argwhere(contour_of(a)).astype(np.float32), np.argwhere(contour_of(b)).astype(np.float32)
+    if len(pa) == 0 or len(pb) == 0:
+        return None
+
+    def directed(p: np.ndarray, q: np.ndarray) -> np.ndarray:
+        out = np.empty(len(p), np.float32)
+        for start in range(0, len(p), 1024):
+            chunk = p[start:start + 1024]
+            d2 = ((chunk[:, None, :] - q[None, :, :]) ** 2).sum(axis=2)
+            out[start:start + 1024] = np.sqrt(d2.min(axis=1))
+        return out
+
+    ab, ba = directed(pa, pb), directed(pb, pa)
+    both = np.concatenate([ab, ba])
+    outside = ~b[pa[:, 0].astype(int), pa[:, 1].astype(int)]
+    return {"mean": float(both.mean()), "p95": float(np.percentile(both, 95)), "max": float(both.max()),
+            "signed": float(np.where(outside, ab, -ab).mean())}
+
+
+def overlap(a: np.ndarray, b: np.ndarray) -> float | None:
+    """Intersezione su unione; None se tutte e due sono vuote (niente da confrontare)."""
+    union = int((a | b).sum())
+    return None if union == 0 else float((a & b).sum()) / union
+
+
+# --- La sagoma esatta del banco: dal dato della traccia ---------------------------------------
+
+
+def _piece_field(pieces: list[dict], ox: float, oy: float, density: float, size: tuple[int, int]) -> np.ndarray:
+    """La distanza con segno dal campo a pezzi, ai centri dei pixel: gli stessi conti di
+    `SlabGroupRefractionShaderString` (rettangoli arrotondati fusi con lo smooth minimum, ognuno
+    con il suo raggio di fusione). Dentro la sagoma e' negativa."""
+    w, h = size
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    xs, ys = xs + 0.5, ys + 0.5
+    d = None
+    for piece in pieces:
+        hw, hh = float(piece["w"]) * density / 2.0, float(piece["h"]) * density / 2.0
+        cx = (ox + float(piece["x"])) * density + hw
+        cy = (oy + float(piece["y"])) * density + hh
+        tl, tr, br, bl = (r * density for r in piece_radii(piece))
+        rx, ry = xs - cx, ys - cy
+        radius = np.where(rx >= 0, np.where(ry <= 0, tr, br), np.where(ry <= 0, tl, bl))
+        radius = np.minimum(radius, min(hw, hh))
+        qx, qy = np.abs(rx) - (hw - radius), np.abs(ry) - (hh - radius)
+        sd = np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - radius
+        if d is None:
+            d = sd
+        else:
+            k = max(float(piece.get("blend", 0.0)) * density, 1e-4)
+            t = np.clip(0.5 + 0.5 * (sd - d) / k, 0.0, 1.0)
+            d = sd + (d - sd) * t - k * t * (1.0 - t)
+    return d
+
+
+def element_silhouette(el: dict, density: float, size: tuple[int, int]) -> np.ndarray:
+    """La sagoma di vetro di un elemento, come maschera in pixel della tela: i `pieces` con i loro
+    ponti, l'anello (`ring`, eroso di `soften`), o il riquadro arrotondato dell'elemento."""
+    w, h = size
+    ox, oy = float(el["x"]), float(el["y"])
+    if el.get("pieces"):
+        return _piece_field(el["pieces"], ox, oy, density, size) < 0
+    if el.get("ring"):
+        surface = skia.Surface(w, h)
+        canvas = surface.getCanvas()
+        canvas.clear(skia.ColorBLACK)
+        path = skia.Path()
+        for i, (x, y) in enumerate(el["ring"]):
+            point = ((ox + float(x)) * density, (oy + float(y)) * density)
+            path.moveTo(*point) if i == 0 else path.lineTo(*point)
+        path.close()
+        canvas.drawPath(path, skia.Paint(AntiAlias=True, Color=skia.ColorWHITE))
+        soften = (el.get("uniforms") or {}).get("soften", 0)
+        match = _DP.match(soften) if isinstance(soften, str) else None
+        soften_px = float(match.group(1)) * density if match else (float(soften) if is_number(soften) else 0.0)
+        if soften_px > 0:
+            # `soften` e' un'erosione della sagoma: lo stesso spessore, tolto lungo il bordo.
+            canvas.drawPath(path, skia.Paint(AntiAlias=True, Color=skia.ColorBLACK, Style=skia.Paint.kStroke_Style,
+                                             StrokeWidth=2.0 * soften_px))
+        return surface.makeImageSnapshot().toarray(colorType=skia.kRGBA_8888_ColorType)[..., 0] > 127
+    box = {"x": 0.0, "y": 0.0, "w": el["w"], "h": el["h"], "radius": el.get("radius", 0.0) or 0.0}
+    return _piece_field([box], ox, oy, density, size) < 0
+
+
+def shape_signature(el: dict) -> str:
+    return json.dumps([el.get("x"), el.get("y"), el.get("w"), el.get("h"), el.get("radius"),
+                       el.get("pieces"), el.get("ring")], sort_keys=True)
+
+
+def tracked_elements(trace: dict) -> list[str]:
+    """Gli elementi la cui sagoma cambia lungo la traccia (o che ci sono solo in certi fotogrammi):
+    quelli fermi dall'inizio alla fine non hanno niente da dire a un confronto per differenza."""
+    seen: dict[str, set] = {}
+    count: dict[str, int] = {}
+    for frame in trace["frames"]:
+        for el in frame_elements(trace, frame):
+            seen.setdefault(el["name"], set()).add(shape_signature(el))
+            count[el["name"]] = count.get(el["name"], 0) + 1
+    return [name for name in seen if len(seen[name]) > 1 or count[name] < len(trace["frames"])]
+
+
+def trace_silhouettes(trace: dict, names: list[str], density: float, size: tuple[int, int]) -> list[np.ndarray]:
+    """Per ogni fotogramma della traccia, l'unione delle sagome degli elementi seguiti."""
+    out = []
+    for frame in trace["frames"]:
+        mask = np.zeros((size[1], size[0]), bool)
+        for el in frame_elements(trace, frame):
+            if el["name"] in names and el.get("kind", "glass") != "shape":
+                mask |= element_silhouette(el, density, size)
+        out.append(mask)
+    return out
+
+
+# --- Il vero: residuo, maschere, allineamento -------------------------------------------------
+
+
+def colour_fit(still: np.ndarray, now: np.ndarray) -> np.ndarray:
+    """La trasformazione affine del colore (3 x 4, ai minimi quadrati) che porta [still] in [now]:
+    la velatura di una pagina sotto un menu scurisce, appiattisce e sposta il colore, e una retta
+    sulla sola luminanza non la descrive su tinte diverse."""
+    a = still.reshape(-1, 3)[::7].astype(np.float64)
+    b = now.reshape(-1, 3)[::7].astype(np.float64)
+    design = np.concatenate([a, np.ones((len(a), 1))], axis=1)
+    matrix, *_ = np.linalg.lstsq(design, b, rcond=None)
+    return matrix.T
+
+
+def residual(still: np.ndarray, now: np.ndarray, matrix: np.ndarray | None) -> tuple[np.ndarray, np.ndarray]:
+    """Quanto il fotogramma si scosta dalla pagina prevista, canale per canale: (il canale che sale
+    di piu', il canale che scende di piu'). Sul colore e non sulla sola luminanza: un vetro sopra
+    una pagina colorata la cambia di tinta anche dove la luminanza resta quella."""
+    predicted = still.astype(np.float32)
+    if matrix is not None:
+        flat = predicted.reshape(-1, 3)
+        predicted = (flat @ matrix[:, :3].T.astype(np.float32) + matrix[:, 3].astype(np.float32)).reshape(still.shape)
+    difference = now.astype(np.float32) - predicted
+    return difference.max(axis=2), difference.min(axis=2)
+
+
+def thresholds(base: float) -> tuple[float, float, float]:
+    return base * (1.0 - REAL_SENSITIVITY), base, base * (1.0 + REAL_SENSITIVITY)
+
+
+def parse_box(text: str | None, what: str):
+    if not text:
+        return None
+    try:
+        values = [int(v) for v in text.split(",")]
+    except ValueError:
+        values = []
+    if len(values) != 4 or values[2] <= 0 or values[3] <= 0:
+        raise SystemExit(f"{what} vuole x,y,w,h in pixel interi della registrazione")
+    return values
+
+
+def first_change(lumas, still: np.ndarray, level: float, count: int):
+    for k, value in enumerate(lumas):
+        if int((np.abs(value - still) > level).sum()) > count:
+            return k
+    return None
+
+
+def area_events(times: list[float], areas: list[float], rest_area: float, start_px: float = MOVE_PX,
+                settle_px: float = MOVE_PX) -> dict:
+    """Gli istanti notevoli di una sagoma, dalla sua area nel tempo: quando esce dalla sagoma a
+    riposo (piu' di [start_px] pixel), quando e' a meta' della corsa, quando arriva al picco (a non
+    piu' dell'1% dal massimo), quando e' tornata a meta' (solo se torna dov'era) e da quando resta
+    ferma (entro [settle_px] pixel, o l'1% della corsa, dall'area finale).
+
+    Le due soglie in pixel sono «un pixel di contorno»: l'area che la sagoma guadagna spostando il
+    bordo di un pixel. Sotto, il vero non vede niente (le sue maschere sono a pixel interi, e un
+    bordo che si sposta di mezzo pixel non passa la soglia), mentre la sagoma del banco e' esatta:
+    senza quella soglia comune il banco «parte» prima e «si ferma» dopo solo perche' vede meglio."""
+    t, a = np.asarray(times, float), np.asarray(areas, float)
+    out: dict = {"primo movimento": None, "un decimo della corsa": None, "meta' della corsa": None,
+                 "picco raggiunto": None, "meta' del ritorno": None, "riposo": None}
+    if len(a) == 0:
+        return out
+    moving = np.nonzero(np.abs(a - rest_area) > start_px)[0]
+    if len(moving) == 0:
+        return out
+    out["primo movimento"] = float(t[moving[0]])
+    swing = a - rest_area
+    top = float(swing[np.argmax(np.abs(swing))])
+    share = swing / top
+    near = np.nonzero(share >= PEAK_SHARE)[0]
+    half = np.nonzero(share >= 0.5)[0]
+
+    def crossing(k: int, level: float = 0.5) -> float:
+        """Fra il fotogramma [k - 1] e il [k], l'istante in cui la corsa passa per [level]: a
+        cadenza variabile due fotogrammi veri possono distare 30 ms, e il primo oltre la quota
+        direbbe l'istante con quell'errore."""
+        if k <= 0 or k >= len(t) or share[k] == share[k - 1]:
+            return float(t[min(max(k, 0), len(t) - 1)])
+        return float(t[k - 1] + (t[k] - t[k - 1]) * (level - share[k - 1]) / (share[k] - share[k - 1]))
+
+    # L'ultima volta che la corsa sta sotto un decimo prima di arrivare a meta': dove il viaggio
+    # comincia davvero (un tasto premuto a lungo cresce un poco molto prima che il menu parta).
+    low = np.nonzero(share[:int(half[0]) + 1] < 0.1)[0]
+    out["un decimo della corsa"] = crossing(int(low[-1]) + 1, 0.1) if len(low) else float(t[0])
+    out["meta' della corsa"] = crossing(int(half[0]))
+    out["picco raggiunto"] = float(t[near[0]])
+    final = float(a[-1])
+    if abs(final - rest_area) < 0.1 * abs(top) and half[-1] + 1 < len(a):   # torna dov'era: un tasto
+        out["meta' del ritorno"] = crossing(int(half[-1]) + 1)
+    tolerance = max((1.0 - PEAK_SHARE) * abs(top), float(settle_px))
+    away = np.nonzero(np.abs(a - final) > tolerance)[0]
+    if len(away) == 0:
+        out["riposo"] = float(t[0])
+    elif away[-1] + 1 < len(a):
+        out["riposo"] = float(t[away[-1] + 1])
+    return out
+
+
+def time_at_area(times: np.ndarray, areas: np.ndarray, target: float) -> float | None:
+    """Quando una serie crescente arriva a [target], interpolando fra i due fotogrammi attorno."""
+    for k in range(1, len(areas)):
+        lo, hi = areas[k - 1], areas[k]
+        if (lo - target) * (hi - target) <= 0 and hi != lo:
+            return float(times[k - 1] + (times[k] - times[k - 1]) * (target - lo) / (hi - lo))
+    return None
+
+
+def draw_contours(image: Image.Image, inner: np.ndarray, outer: np.ndarray, bench_mask: np.ndarray,
+                  factor: float) -> Image.Image:
+    """Il fotogramma alla scala della cella, con i contorni sopra: azzurro e verde le due letture
+    del vero (tutto cio' che cambia, e il solo segno del vetro), magenta la sagoma del banco, per
+    ultima. I contorni si tracciano dopo aver scalato, due pixel di spessore: in un collage
+    rimpicciolito un contorno di un pixel sparisce."""
+    size = (max(int(round(image.width * factor)), 1), max(int(round(image.height * factor)), 1))
+    out = np.asarray(image.resize(size, Image.LANCZOS)).copy()
+    for mask, colour in ((outer, CONTOUR_REAL_ALL), (inner, CONTOUR_REAL), (bench_mask, CONTOUR_BENCH)):
+        small = np.asarray(Image.fromarray(mask.astype(np.uint8) * 255).resize(size, Image.NEAREST)) > 127
+        edge = _neighbours(contour_of(small), np.logical_or, False) if min(size) > 160 else contour_of(small)
+        out[edge] = colour
+    return Image.fromarray(out)
+
+
+def pair_real(args, trace: dict, out: Path, manifest: dict) -> dict:
+    """Il banco contro una registrazione vera: accoppia per tempo, confronta i contorni, scrive il
+    collage e la tabella. Ritorna il riassunto (lo stesso che finisce nel JSON)."""
+    recording = RealRecording(repo_path(args.real))
+    tag = args.real_name or (recording.path.stem if recording.files is None else recording.path.name)
+    if not _NAME.match(tag.lower().replace("_", "-")):
+        raise SystemExit("--real-name vuole minuscole, cifre e trattini (entra nel nome dei file)")
+    tag = tag.lower().replace("_", "-")
+    density = manifest["density"]
+    width, height = manifest["sizePx"]
+    crop = parse_box(args.real_crop, "--real-crop") or [0, 0, recording.size[0], recording.size[1]]
+    veil = parse_box(args.veil_region, "--veil-region")
+    resized = (crop[2], crop[3]) != (width, height)
+    base_thr = float(args.threshold)
+    levels = thresholds(base_thr)
+
+    # --- il banco: sagome esatte, e il primo fotogramma che cambia
+    names = [n.strip() for n in args.elements.split(",")] if args.elements else tracked_elements(trace)
+    if not names:
+        raise SystemExit(f"nessun elemento di `{trace['name']}` cambia sagoma: niente da confrontare (o --elements)")
+    bench_times = frame_times(manifest)
+    shapes = trace_silhouettes(trace, names, density, (width, height))
+    rest_shape = shapes[0]
+
+    # --- il vero, primo giro: residuo e maschere di ogni fotogramma (le immagini non si tengono)
+    union = list(crop)
+    if veil:
+        x0, y0 = min(crop[0], veil[0]), min(crop[1], veil[1])
+        x1, y1 = max(crop[0] + crop[2], veil[0] + veil[2]), max(crop[1] + crop[3], veil[1] + veil[3])
+        union = [x0, y0, x1 - x0, y1 - y0]
+
+    def cut(frame: np.ndarray, box) -> np.ndarray:
+        x, y = box[0] - union[0], box[1] - union[1]
+        return frame[y:y + box[3], x:x + box[2]]
+
+    def canvas_of(frame: np.ndarray) -> np.ndarray:
+        part = cut(frame, crop)
+        if resized:
+            part = np.asarray(Image.fromarray(part).resize((width, height), Image.LANCZOS))
+        return part
+
+    ignore = np.zeros((height, width), bool)
+    ignored = []
+    for text in (args.ignore or "").split(";"):
+        box = parse_box(text.strip(), "--ignore")
+        if box:
+            ignored.append(box)
+            fx, fy = width / crop[2], height / crop[3]
+            x0, y0 = int((box[0] - crop[0]) * fx), int((box[1] - crop[1]) * fy)
+            ignore[max(y0, 0):max(y0 + int(round(box[3] * fy)), 0), max(x0, 0):max(x0 + int(round(box[2] * fx)), 0)] = True
+    last_wanted = None if args.real_to is None else args.real_to
+    wanted = None if last_wanted is None else range(args.real_still, last_wanted + 1)
+    real: list[dict] = []
+    still = still_veil = None
+    for index, t, frame in recording.frames(union, wanted):
+        if index < args.real_still:
+            continue
+        canvas = canvas_of(frame)
+        if still is None:
+            still, still_veil = canvas, (cut(frame, veil).copy() if veil else None)
+        matrix = colour_fit(still_veil, cut(frame, veil)) if veil else None
+        rise, fall = residual(still, canvas, matrix)
+        entry = {"i": index, "t": t, "changed": int((np.abs(luma_of(canvas) - luma_of(still)) > ALIGN_REAL[0]).sum()),
+                 "veil": None, "pos": [], "neg": []}
+        if veil:
+            now_l, still_l = float(luma_of(cut(frame, veil)).mean()), float(luma_of(still_veil).mean())
+            entry["veil"] = round(now_l / still_l, 4) if still_l else None
+        for level in levels:
+            entry["pos"].append(np.packbits(rise > level))      # qualche canale e' salito
+            entry["neg"].append(np.packbits(fall < -level))     # qualche canale e' sceso
+        real.append(entry)
+    if len(real) < 2:
+        raise SystemExit("della registrazione servono almeno due fotogrammi (il fermo e uno dopo)")
+
+    def unpacked(packed: np.ndarray) -> np.ndarray:
+        return np.unpackbits(packed, count=width * height).reshape(height, width).astype(bool)
+
+    # --- l'allineamento
+    real_times = [e["t"] for e in real]
+    if args.align == "first-change":
+        k_real = next((k for k, e in enumerate(real) if e["changed"] > ALIGN_REAL[1]), None)
+        first_luma = luma_of(np.asarray(frame_image(manifest, 0)))
+        k_bench = first_change((luma_of(np.asarray(frame_image(manifest, i))) for i in range(len(bench_times))),
+                               first_luma, *ALIGN_BENCH)
+        if k_real is None or k_bench is None:
+            raise SystemExit("allineamento sul primo cambiamento: in uno dei due lati niente cambia (prova --align VERO_MS:BANCO_MS)")
+        shift = bench_times[k_bench] - real_times[k_real]
+        how = (f"sul primo fotogramma che cambia: vero f{real[k_real]['i']} a {real_times[k_real]:.1f} ms "
+               f"(piu' di {ALIGN_REAL[1]} px con |dL| > {ALIGN_REAL[0]:g}) = banco a {bench_times[k_bench]:+.2f} ms "
+               f"(piu' di {ALIGN_BENCH[1]} px con |dL| > {ALIGN_BENCH[0]:g})")
+    else:
+        try:
+            real_ms, bench_ms = (float(v) for v in args.align.split(":"))
+        except ValueError:
+            raise SystemExit("--align vuole `first-change` oppure VERO_MS:BANCO_MS") from None
+        shift = bench_ms - real_ms
+        how = f"dichiarato: vero a {real_ms:.1f} ms = banco a {bench_ms:+.2f} ms"
+    for e in real:
+        e["tb"] = e["t"] + shift           # il tempo del vero sull'orologio della traccia
+
+    # --- il segno del vetro: quello che, sulla registrazione intera, copre piu' area
+    if args.glass_sign == "auto":
+        pos_area = sum(int(opened(unpacked(e["pos"][1]) & ~unpacked(e["neg"][1]), args.open_radius).sum()) for e in real)
+        neg_area = sum(int(opened(unpacked(e["neg"][1]) & ~unpacked(e["pos"][1]), args.open_radius).sum()) for e in real)
+        sign = "pos" if pos_area >= neg_area else "neg"
+    else:
+        sign = {"light": "pos", "dark": "neg"}[args.glass_sign]
+
+    # --- le due letture del vero, per un fotogramma e una sagoma del banco
+    def seen(raw: np.ndarray, common: np.ndarray, target: np.ndarray) -> np.ndarray:
+        """Una regione del vero: residuo oltre soglia piu' K, chiusa, aperta e riempita; dove la
+        tela e' coperta da qualcosa che non e' dell'app (`--ignore`) vale cio' che dice il banco.
+
+        Prima dell'apertura, una chiusura dello stesso raggio. Nella lettura «tutto cio' che cambia»
+        salda il solco di uno o due pixel che il residuo lascia passando per lo zero fra cio' che
+        schiarisce e cio' che scurisce: senza, un filo scuro sottile attorno al vetro resterebbe
+        staccato e l'apertura lo cancellerebbe come rumore. Nella lettura «dentro» salda le fessure
+        del contenuto (la riga fra due voci di un menu, dove il residuo scende sotto la soglia): una
+        fessura piu' sottile di 2 r + 1 pixel che arriva al bordo non e' un contorno, e senza
+        saldarla i buchi dietro di lei non si riempirebbero."""
+        mask = filled(opened(closed(raw | common, args.open_radius), args.open_radius))
+        mask[ignore] = target[ignore]
+        return mask
+
+    near_cache: dict[int, np.ndarray] = {}
+
+    def near_region(j: int) -> np.ndarray:
+        """Entro `FAR_PX` pixel dalla sagoma del banco (quella di adesso e quella a riposo)."""
+        if j not in near_cache:
+            mask = shapes[j] | rest_shape
+            for _ in range(FAR_PX):
+                mask = _neighbours(mask, np.logical_or, False)
+            near_cache[j] = mask
+        return near_cache[j]
+
+    def readings(e: dict, j: int, level: int = 1) -> dict:
+        """Dentro (solo il segno del vetro) e fuori (tutto cio' che cambia) per il fotogramma vero
+        [e] contro il fotogramma [j] del banco, e quanto del contorno del banco cade fra i due."""
+        shape = shapes[j]
+        common = shape & rest_shape                 # K: vetro a riposo e vetro adesso
+        both = shape | rest_shape                   # dove qualcosa cambia: il vetro che c'e' e quello che c'era
+        inner = seen(unpacked(e[sign][level]), common, shape)
+        outer = seen(unpacked(e["pos"][level]) | unpacked(e["neg"][level]), common, both) | inner
+        near = near_region(j)
+        page = int((outer & ~near).sum())
+        inner, outer = inner & near, outer & near
+        edge = contour_of(shape)
+        count = int(edge.sum())
+        # Un pixel di tolleranza per parte: le maschere sono a pixel interi, e un pixel coperto per
+        # un decimo dal bordo sfumato del vetro e' gia' «cambiato». Il contorno del banco e' il
+        # primo strato dentro la sagoma: passa se la lettura di fuori gli arriva a un pixel, e se
+        # quella di dentro non lo supera di piu' di un pixel (cioe' se sta nei suoi primi due strati).
+        inside_outer = _neighbours(outer, np.logical_or, False)
+        outside_inner = ~_neighbours(_neighbours(inner, np.logical_and, True), np.logical_and, True)
+        band = float((edge & inside_outer & outside_inner).sum()) / count if count else None
+        rim = int(contour_of(inner).sum())
+        return {"inner": inner, "outer": outer, "shape": shape, "page": page,
+                "iou_in": overlap(inner, shape), "iou_out": overlap(outer, both),
+                "iou_new": overlap(inner & ~common, shape & ~common),
+                "band": band, "band_px": round(float(outer.sum() - inner.sum()) / rim, 2) if rim else None}
+
+    # --- le coppie: per tempo, al fotogramma del banco piu' vicino
+    step = float(np.median(np.diff(bench_times))) if len(bench_times) > 1 else 0.0
+    rest_area = float(rest_shape.sum())
+    bench_areas = np.asarray([float(s.sum()) for s in shapes])
+    under_px = max(float(MOVE_PX), float(contour_of(rest_shape).sum()))      # un pixel di contorno a riposo
+    pairs = []
+    for e in real:
+        if e["tb"] < bench_times[0] - step / 2 or e["tb"] > bench_times[-1] + step / 2:
+            continue
+        j = nearest_frame(bench_times, e["tb"])
+        m = readings(e, j)
+        low, high = readings(e, j, 0), readings(e, j, 2)
+        moved = int((m["shape"] ^ rest_shape).sum()) > MOVE_PX or int((m["inner"] ^ rest_shape).sum()) > MOVE_PX
+        # Sotto il riposo: l'anello che la sagoma del banco ha lasciato libero dentro quella a riposo.
+        ring = rest_shape & ~m["shape"] & ~ignore
+        under = float(ring.sum()) > under_px
+        ring_changed = (unpacked(e["pos"][1]) | unpacked(e["neg"][1])) & ring
+        pairs.append({
+            "f": e["i"], "t_vero": round(e["t"], 2), "t_vero_allineato": round(e["tb"], 2),
+            "banco": j, "t_banco": round(bench_times[j], 2), "dt": round(bench_times[j] - e["tb"], 2),
+            "in_moto": bool(moved), "sotto_riposo": bool(under), "anello_px": int(ring.sum()),
+            "anello_cambiato": round(float(ring_changed.sum()) / float(ring.sum()), 3) if under else None,
+            "iou_dentro": m["iou_in"], "iou_fuori": m["iou_out"], "iou_parte_nuova": m["iou_new"],
+            "nella_fascia": m["band"], "fascia_px": m["band_px"], "pagina_px": m["page"],
+            "distanza_dentro": contour_distances(m["inner"], m["shape"]),
+            "distanza_fuori": contour_distances(m["outer"], m["shape"] | rest_shape),
+            "soglia_meno": {"iou_dentro": low["iou_in"], "iou_fuori": low["iou_out"], "nella_fascia": low["band"]},
+            "soglia_piu": {"iou_dentro": high["iou_in"], "iou_fuori": high["iou_out"], "nella_fascia": high["band"]},
+            "area_dentro": int(m["inner"].sum()), "area_fuori": int(m["outer"].sum()), "area_banco": int(m["shape"].sum()),
+            "velo": e["veil"], "_entry": e, "_now": m,
+        })
+    if not pairs:
+        raise SystemExit("nessun fotogramma vero cade dentro i tempi della traccia: controlla --align")
+
+    # --- gli istanti notevoli, dall'area delle due sagome (nel vero: la lettura «dentro»)
+    real_t = np.asarray([p["t_vero_allineato"] for p in pairs])
+    real_areas = np.asarray([float(p["area_dentro"]) for p in pairs])
+    start_px = max(float(MOVE_PX), float(contour_of(rest_shape).sum()))      # un pixel di contorno a riposo
+    settle_px = max(float(MOVE_PX), float(contour_of(shapes[-1]).sum()))     # ... e alla fine
+    bench_events = area_events(bench_times, list(bench_areas), rest_area, start_px, settle_px)
+    real_events = area_events(list(real_t), list(real_areas), rest_area, start_px, settle_px)
+    below = [p for p in pairs if p["sotto_riposo"]]
+    if below:
+        real_events["riposo"] = None        # sotto il riposo l'area del vero non si legge: vedi la regola
+    events = {}
+    for name in bench_events:
+        b, r_ = bench_events[name], real_events[name]
+        events[name] = {"vero": None if r_ is None else round(r_, 1), "banco": None if b is None else round(b, 1),
+                        "scarto": None if b is None or r_ is None else round(b - r_, 1)}
+
+    # --- a pari avanzamento: tolto il ritardo, la sagoma coincide?
+    # L'avanzamento e' l'area fra il riposo e il picco, ognuno contro il **proprio** picco (cosi' un
+    # filo o un'ombra di spessore costante non contano). Nella salita (dal primo movimento al picco)
+    # e nel ritorno (dal picco al riposo, se torna) ogni fotogramma vero si accoppia al fotogramma
+    # del banco con lo stesso avanzamento; fuori da li' resta l'accoppiamento per tempo. Solo dove
+    # l'avanzamento del vero cambia (almeno il 2% fra il fotogramma prima e quello dopo): su un
+    # pianoro (un tasto tenuto premuto) la stessa area vale per centinaia di millisecondi, e il
+    # «ritardo» sarebbe un numero a caso.
+    def phases(times: np.ndarray, areas: np.ndarray, ev: dict):
+        swing = areas - rest_area
+        top = float(swing[np.argmax(np.abs(swing))]) if len(swing) else 0.0
+        progress = swing / top if top else np.zeros_like(swing)
+        peak_t = times[int(np.argmax(progress))] if len(times) else None
+        return progress, peak_t
+
+    bench_progress, bench_peak = phases(np.asarray(bench_times), bench_areas, bench_events)
+    real_progress, real_peak = phases(real_t, real_areas, real_events)
+    returns = bench_events["meta' del ritorno"] is not None
+    lags = {"salita": [], "ritorno": []}
+    for k, p in enumerate(pairs):
+        p["avanzamento"] = None
+        if not p["in_moto"] or p["sotto_riposo"] or real_peak is None or not 0.05 <= real_progress[k] <= 0.95:
+            continue
+        if abs(real_progress[min(k + 1, len(pairs) - 1)] - real_progress[max(k - 1, 0)]) < 0.02:
+            continue
+        phase = "salita" if p["t_vero_allineato"] <= real_peak else ("ritorno" if returns else None)
+        if phase is None:
+            continue
+        side = [c for c in range(len(bench_times))
+                if (bench_times[c] <= bench_peak) == (phase == "salita")]
+        if len(side) < 2:
+            continue
+        t_side, a_side = np.asarray(bench_times)[side], bench_progress[side]
+        when = time_at_area(t_side, a_side, float(real_progress[k]))
+        if when is None:
+            continue
+        j = side[int(np.argmin(np.abs(t_side - when)))]
+        m = readings(p["_entry"], j)
+        lag = round(p["t_vero_allineato"] - when, 1)
+        lags[phase].append(lag)
+        p["avanzamento"] = {"fase": phase, "quota": round(float(real_progress[k]), 3), "banco": j,
+                            "t_banco": round(bench_times[j], 2), "ritardo": lag,
+                            "iou_dentro": m["iou_in"], "iou_fuori": m["iou_out"], "nella_fascia": m["band"],
+                            "distanza_dentro": contour_distances(m["inner"], m["shape"]),
+                            "distanza_fuori": contour_distances(m["outer"], m["shape"] | rest_shape), "_m": m}
+
+    # --- riassunto: solo le coppie in cui la sagoma non e' quella a riposo, e non sta sotto il riposo
+    moving = [p for p in pairs if p["in_moto"] and not p["sotto_riposo"]]
+
+    def stats(values) -> dict | None:
+        values = [v for v in values if v is not None]
+        if not values:
+            return None
+        return {"minimo": round(min(values), 3), "mediana": round(float(np.median(values)), 3),
+                "massimo": round(max(values), 3)}
+
+    def distance(key: str, field: str, source=None):
+        rows = moving if source is None else source
+        return stats((p[key] or {}).get(field) for p in rows)
+
+    matched = [p["avanzamento"] for p in moving if p["avanzamento"]]
+    summary = {
+        "coppie": len(pairs), "coppie_in_moto": len(moving),
+        "dt_massimo": round(max(abs(p["dt"]) for p in pairs), 2),
+        "sotto_riposo": None if not below else {
+            "coppie": len(below), "da_ms": below[0]["t_vero_allineato"], "a_ms": below[-1]["t_vero_allineato"],
+            "anello_px": stats(float(p["anello_px"]) for p in below),
+            "anello_cambiato": stats(p["anello_cambiato"] for p in below)},
+        "nella_fascia": stats(p["nella_fascia"] for p in moving),
+        "nella_fascia_soglia_meno": stats(p["soglia_meno"]["nella_fascia"] for p in moving),
+        "nella_fascia_soglia_piu": stats(p["soglia_piu"]["nella_fascia"] for p in moving),
+        "fascia_px": stats(p["fascia_px"] for p in moving),
+        "pagina_px": stats(float(p["pagina_px"]) for p in moving),
+        "iou_dentro": stats(p["iou_dentro"] for p in moving),
+        "iou_dentro_soglia_meno": stats(p["soglia_meno"]["iou_dentro"] for p in moving),
+        "iou_dentro_soglia_piu": stats(p["soglia_piu"]["iou_dentro"] for p in moving),
+        "iou_fuori": stats(p["iou_fuori"] for p in moving),
+        "iou_fuori_soglia_meno": stats(p["soglia_meno"]["iou_fuori"] for p in moving),
+        "iou_fuori_soglia_piu": stats(p["soglia_piu"]["iou_fuori"] for p in moving),
+        "iou_parte_nuova": stats(p["iou_parte_nuova"] for p in moving),
+        "dentro_distanza_media": distance("distanza_dentro", "mean"),
+        "dentro_distanza_massima": distance("distanza_dentro", "max"),
+        "dentro_distanza_con_segno": distance("distanza_dentro", "signed"),
+        "fuori_distanza_media": distance("distanza_fuori", "mean"),
+        "fuori_distanza_massima": distance("distanza_fuori", "max"),
+        "fuori_distanza_con_segno": distance("distanza_fuori", "signed"),
+        "pari_avanzamento": {
+            "coppie": len(matched),
+            "nella_fascia": stats(a["nella_fascia"] for a in matched),
+            "iou_dentro": stats(a["iou_dentro"] for a in matched),
+            "iou_fuori": stats(a["iou_fuori"] for a in matched),
+            "dentro_distanza_media": distance("distanza_dentro", "mean", matched),
+            "dentro_distanza_con_segno": distance("distanza_dentro", "signed", matched),
+            "fuori_distanza_media": distance("distanza_fuori", "mean", matched),
+            "fuori_distanza_con_segno": distance("distanza_fuori", "signed", matched),
+            "ritardo_salita": stats(lags["salita"]), "ritardo_ritorno": stats(lags["ritorno"]),
+        },
+    }
+
+    # --- il collage: le coppie scelte, con i contorni
+    if args.real_frames:
+        chosen = [p for p in pairs if p["f"] in {int(v) for v in args.real_frames.split(",")}]
+    else:
+        targets = [bench_times[k] for k in stepped_indices(bench_times, args.step_ms)]
+        chosen, taken = [], set()
+        for target in targets:
+            p = min(pairs, key=lambda q: abs(q["t_vero_allineato"] - target))
+            if p["f"] not in taken and abs(p["t_vero_allineato"] - target) <= max(args.step_ms, step):
+                taken.add(p["f"])
+                chosen.append(p)
+    if not chosen:
+        raise SystemExit("nessuna coppia da mettere nel collage: controlla --real-frames o --step-ms")
+    images = {i: canvas_of(frame) for i, _, frame in recording.frames(union, {p["f"] for p in chosen})}
+    cols = max(1, min(args.cols, len(chosen)))
+    box_w, box_h = max(3000 // cols - 4, 80), args.cell_height
+    factor = min(box_w / width, box_h / height, 2.0)
+
+    def sheet(kind: str) -> list:
+        top_row, bottom_row = [], []
+        for p in chosen:
+            matched_here = p["avanzamento"] if kind == "avanzamento" else None
+            if kind == "avanzamento" and matched_here is None:
+                m, j, gap, note = p["_now"], p["banco"], p["dt"], "per tempo"
+            elif kind == "avanzamento":
+                m, j, gap, note = matched_here["_m"], matched_here["banco"], -matched_here["ritardo"], "a pari avanz."
+            else:
+                m, j, gap, note = p["_now"], p["banco"], p["dt"], ""
+            band = "-" if m["band"] is None else f"{100 * m['band']:.0f}%"
+            numbers = (f"fascia {band}  IoU {'-' if m['iou_in'] is None else format(m['iou_in'], '.2f')}"
+                       f"/{'-' if m['iou_out'] is None else format(m['iou_out'], '.2f')}")
+            if p["sotto_riposo"] and matched_here is None:
+                numbers = f"SOTTO IL RIPOSO: anello che cambia {100 * p['anello_cambiato']:.0f}%"
+            top_row.append((f"banco f{j} {bench_times[j]:+.1f} ms {note}", LABEL,
+                            draw_contours(frame_image(manifest, j), m["inner"], m["outer"], m["shape"], factor)))
+            bottom_row.append((f"vero f{p['f']} {p['t_vero_allineato']:+.1f}  dt {gap:+.1f}  {numbers}", LABEL_APPLE,
+                               draw_contours(Image.fromarray(images[p["f"]]), m["inner"], m["outer"], m["shape"], factor)))
+        cells = []
+        for start in range(0, len(chosen), cols):
+            blank = cols - len(top_row[start:start + cols])
+            cells += top_row[start:start + cols] + [("", LABEL, None)] * blank
+            cells += bottom_row[start:start + cols] + [("", LABEL, None)] * blank
+        return cells
+
+    stem = f"{trace['name']}-vs-{tag}"
+    title = (f"{trace['name']} - sopra il banco, sotto il vero ({tag}). Magenta: la sagoma della traccia. Verde: "
+             f"il vero, solo il segno del vetro. Azzurro: il vero, tutto cio' che cambia (soglia {base_thr:g}). ")
+    by_time = contact_sheet(sheet("tempo"), cols, out / f"{stem}.jpg", font_size=15,
+                            title=title + "Coppie per TEMPO: dt = banco - vero, ms")
+    by_progress = contact_sheet(sheet("avanzamento"), cols, out / f"{stem}-pari-avanzamento.jpg", font_size=15,
+                                title=title + "Coppie a PARI AVANZAMENTO: dt = di quanto il banco e' in anticipo, ms")
+
+    # --- la tabella
+    def n(value, digits=2):
+        return "-" if value is None else f"{value:.{digits}f}".replace(".", ",")
+
+    def pct(value):
+        return "-" if value is None else f"{100 * value:.0f}%"
+
+    def row3(label: str, s: dict | None, fmt=n) -> str:
+        return (f"| {label} | - | - | - |" if s is None else
+                f"| {label} | {fmt(s['minimo'])} | {fmt(s['mediana'])} | {fmt(s['massimo'])} |")
+
+    lines = [f"# `{trace['name']}` contro `{tag}`", "",
+             f"Registrazione: `{shown(recording.path)}`, {len(recording.times)} fotogrammi con il loro `pts`; "
+             f"fermo = f{real[0]['i']}; ritaglio {crop[0]},{crop[1]},{crop[2]},{crop[3]}"
+             + (f" (ricampionato a {width} x {height})" if resized else " (pixel su pixel)") + ".",
+             "", f"Allineamento {how}. Sull'orologio della traccia: t = pts {shift:+.2f} ms.",
+             "", f"Sagoma del banco: `{'`, `'.join(names)}`, dal dato della traccia. Maschera del vero: residuo oltre "
+             f"{base_thr:g} livelli (provata anche a {levels[0]:.1f} e a {levels[2]:.1f}), apertura di raggio "
+             f"{args.open_radius}, buchi riempiti; il vetro e' {'piu chiaro' if sign == 'pos' else 'piu scuro'} della pagina"
+             + (" (il segno che copre piu' area)" if args.glass_sign == "auto" else " (dichiarato)")
+             + (f"; pagina velata stimata su {veil[0]},{veil[1]},{veil[2]},{veil[3]}." if veil else "; nessuna velatura.")
+             + (" Fuori dal confronto (`--ignore`): "
+                + "; ".join(",".join(str(v) for v in box) for box in ignored) + "." if ignored else ""),
+             "", "**Dentro** = la regione del solo segno del vetro (sta sotto il bordo vero: le manca il filo). "
+             "**Fuori** = tutto cio' che cambia (sta sopra: ha anche l'ombra). **Nella fascia** = quanta parte del "
+             "contorno del banco cade fra le due, con un pixel di tolleranza. Cio' che cambia a piu' di "
+             f"{FAR_PX} px dalla sagoma del banco e' pagina: sta fuori dalle due regioni e si conta a parte.",
+             "", "## A pari tempo (le sole coppie in cui la sagoma non e' quella a riposo"
+             + (", e non sta sotto il riposo)" if below else ")"), "",
+             "| grandezza | minimo | mediana | massimo |", "|---|---:|---:|---:|",
+             row3("contorno del banco nella fascia", summary["nella_fascia"], pct),
+             row3(f"... con la soglia a {levels[0]:.1f} (-30%)", summary["nella_fascia_soglia_meno"], pct),
+             row3(f"... con la soglia a {levels[2]:.1f} (+30%)", summary["nella_fascia_soglia_piu"], pct),
+             row3("larghezza media della fascia (px)", summary["fascia_px"]),
+             row3(f"pagina che cambia a piu' di {FAR_PX} px dal vetro (pixel; fuori dal confronto)", summary["pagina_px"],
+                  lambda v: n(v, 0)),
+             row3("IoU, dentro", summary["iou_dentro"]),
+             row3("... soglia -30%", summary["iou_dentro_soglia_meno"]),
+             row3("... soglia +30%", summary["iou_dentro_soglia_piu"]),
+             row3("IoU, fuori", summary["iou_fuori"]),
+             row3("... soglia -30%", summary["iou_fuori_soglia_meno"]),
+             row3("... soglia +30%", summary["iou_fuori_soglia_piu"]),
+             row3("IoU dentro, senza la sagoma a riposo (K)", summary["iou_parte_nuova"]),
+             row3("dentro: distanza media fra i contorni (px)", summary["dentro_distanza_media"]),
+             row3("dentro: distanza massima (px)", summary["dentro_distanza_massima"]),
+             row3("dentro: distanza con segno, + = il vero sta fuori dal banco (px)", summary["dentro_distanza_con_segno"]),
+             row3("fuori: distanza media fra i contorni (px)", summary["fuori_distanza_media"]),
+             row3("fuori: distanza massima (px)", summary["fuori_distanza_massima"]),
+             row3("fuori: distanza con segno (px)", summary["fuori_distanza_con_segno"]),
+             "", f"Coppie: {len(pairs)}, di cui {len(moving)} nel riassunto. Scarto di tempo massimo di una coppia: "
+             f"{n(summary['dt_massimo'])} ms (mezzo fotogramma del banco: {n(step / 2)} ms).", ""]
+    if below:
+        under_stats = summary["sotto_riposo"]
+        lines += [f"**Sotto il riposo**: {len(below)} coppie, da {n(under_stats['da_ms'], 1)} a {n(under_stats['a_ms'], 1)} ms. "
+                  "La sagoma del banco scende sotto quella a riposo e li' la differenza col fermo non dice dove sta "
+                  "il vetro (dove c'era il filo scuro ora c'e' la pagina, piu' chiara): queste coppie stanno fuori dal "
+                  "riassunto, e il «riposo» del vero non si da'. Dell'anello che il banco lascia libero (mediana "
+                  f"{n(under_stats['anello_px']['mediana'], 0)} px, al piu' {n(under_stats['anello_px']['massimo'], 0)}) nel vero "
+                  f"cambia, in un verso o nell'altro, il {pct(under_stats['anello_cambiato']['mediana'])} (da "
+                  f"{pct(under_stats['anello_cambiato']['minimo'])} a {pct(under_stats['anello_cambiato']['massimo'])}): "
+                  "tanto ne lascia libero anche il vero, almeno.", ""]
+    same = summary["pari_avanzamento"]
+    lines += [f"## A pari avanzamento ({same['coppie']} coppie nella salita e nel ritorno, fra il 5% e il 95% della corsa)", "",
+              "Ogni fotogramma vero accanto a quello del banco con la stessa quota di area fra riposo e picco: "
+              "la sagoma, tolto il ritardo. Solo dove l'avanzamento cambia (non sui pianori).", "",
+              "| grandezza | minimo | mediana | massimo |", "|---|---:|---:|---:|",
+              row3("contorno del banco nella fascia", same["nella_fascia"], pct),
+              row3("IoU, dentro", same["iou_dentro"]), row3("IoU, fuori", same["iou_fuori"]),
+              row3("dentro: distanza media (px)", same["dentro_distanza_media"]),
+              row3("dentro: distanza con segno (px)", same["dentro_distanza_con_segno"]),
+              row3("fuori: distanza media (px)", same["fuori_distanza_media"]),
+              row3("fuori: distanza con segno (px)", same["fuori_distanza_con_segno"]),
+              row3("ritardo del vero nella salita (ms)", same["ritardo_salita"]),
+              row3("ritardo del vero nel ritorno (ms)", same["ritardo_ritorno"]),
+              "", "## Istanti notevoli (dall'area della sagoma; ms sull'orologio della traccia)", "",
+              f"«Si muove» = l'area si scosta da quella a riposo di piu' di un pixel di contorno ({start_px:.0f} px); "
+              f"«ferma» = resta entro un pixel di contorno ({settle_px:.0f} px), o l'1% della corsa, dall'area finale; "
+              "la meta' della corsa e' interpolata fra due fotogrammi. Nel vero l'area e' quella della lettura «dentro».", "",
+              "| istante | vero | banco | scarto (banco - vero) |", "|---|---:|---:|---:|"]
+    for name, e in events.items():
+        lines.append(f"| {name} | {n(e['vero'], 1)} | {n(e['banco'], 1)} | {n(e['scarto'], 1)} |")
+    lines += ["", "## Coppia per coppia", "",
+              "| f | t vero | t banco | dt | nella fascia | fascia px | IoU dentro | IoU fuori | dentro: d media | d max | "
+              "d segno | fuori: d media | d max | d segno | pari avanz.: ritardo | nella fascia | IoU dentro | IoU fuori | "
+              "pagina px | velo | anello che cambia |",
+              "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    for p in pairs:
+        di, do, a = p["distanza_dentro"] or {}, p["distanza_fuori"] or {}, p["avanzamento"] or {}
+        lines.append(
+            f"| {p['f']}{' (sotto il riposo)' if p['sotto_riposo'] else '' if p['in_moto'] else ' (riposo)'} | "
+            f"{n(p['t_vero_allineato'], 1)} | {n(p['t_banco'], 1)} | "
+            f"{n(p['dt'], 1)} | {pct(p['nella_fascia'])} | {n(p['fascia_px'], 1)} | {n(p['iou_dentro'], 3)} | "
+            f"{n(p['iou_fuori'], 3)} | {n(di.get('mean'), 1)} | {n(di.get('max'), 0)} | {n(di.get('signed'), 1)} | "
+            f"{n(do.get('mean'), 1)} | {n(do.get('max'), 0)} | {n(do.get('signed'), 1)} | {n(a.get('ritardo'), 1)} | "
+            f"{pct(a.get('nella_fascia'))} | {n(a.get('iou_dentro'), 3)} | {n(a.get('iou_fuori'), 3)} | "
+            f"{p['pagina_px']} | {n(p['velo'], 3)} | {pct(p['anello_cambiato'])} |")
+    (out / f"{stem}.md").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+
+    for p in pairs:
+        del p["_entry"], p["_now"]
+        if p["avanzamento"]:
+            del p["avanzamento"]["_m"]
+    result = {"traccia": trace["name"], "registrazione": shown(recording.path), "ritaglio": crop,
+              "allineamento": {"come": how, "spostamento_ms": round(shift, 3)},
+              "metodo": {"soglia": base_thr, "soglie_provate": [round(v, 2) for v in levels],
+                         "apertura": args.open_radius, "segno_del_vetro": "chiaro" if sign == "pos" else "scuro",
+                         "regione_della_velatura": veil, "ignorato": ignored, "elementi": names},
+              "riassunto": summary, "istanti": events, "coppie": pairs,
+              "collage": {"per_tempo": shown(by_time), "a_pari_avanzamento": shown(by_progress)}}
+    (out / f"{stem}.json").write_text(json.dumps(result, indent=1), encoding="utf-8", newline="\n")
+
+    print(f"{len(pairs)} coppie ({len(moving)} nel riassunto"
+          + (f", {len(below)} sotto il riposo e misurate a parte" if below else "")
+          + f"), scarto di tempo al piu' {summary['dt_massimo']:.2f} ms; allineamento {how}")
+    if summary["nella_fascia"]:
+        print(f"a pari tempo: contorno del banco nella fascia, mediana {pct(summary['nella_fascia']['mediana'])} "
+              f"(da {pct(summary['nella_fascia']['minimo'])} a {pct(summary['nella_fascia']['massimo'])}); "
+              f"IoU dentro {n(summary['iou_dentro']['mediana'])}, fuori {n(summary['iou_fuori']['mediana'])}")
+    if same["nella_fascia"]:
+        print(f"a pari avanzamento ({same['coppie']} coppie): nella fascia, mediana {pct(same['nella_fascia']['mediana'])} "
+              f"(minimo {pct(same['nella_fascia']['minimo'])}); ritardo del vero nella salita "
+              f"{'-' if not same['ritardo_salita'] else n(same['ritardo_salita']['mediana'], 1)} ms"
+              + (f", nel ritorno {n(same['ritardo_ritorno']['mediana'], 1)} ms" if same["ritardo_ritorno"] else ""))
+    for name, e in events.items():
+        if e["vero"] is None and e["banco"] is None:
+            continue
+        print(f"  {name}: vero {n(e['vero'], 1)} ms, banco {n(e['banco'], 1)} ms, scarto {n(e['scarto'], 1)} ms")
+    print(f"{shown(by_time)}\n{shown(by_progress)}\n{shown(out / (stem + '.md'))}\n{shown(out / (stem + '.json'))}")
+    return result
+
+
 def chosen_apple(args, trace: dict) -> list[tuple[dict, str]]:
     """Con quali riprese di Apple confrontare: [(blocco, suffisso del file)].
 
@@ -1901,6 +2874,9 @@ def chosen_apple(args, trace: dict) -> list[tuple[dict, str]]:
 
 def cmd_pair(args) -> int:
     trace, out, manifest = prepare(args)
+    if getattr(args, "real", None):
+        pair_real(args, trace, out, manifest)
+        return 0
     for apple, suffix in chosen_apple(args, trace):
         pair_one(args, trace, out, manifest, apple, suffix)
     return 0
@@ -2319,6 +3295,132 @@ def cmd_selftest(args) -> int:
          np.array_equal(kept[:, outside], bare[:, outside]) and not np.array_equal(spill[:, outside], bare[:, outside])
          and not np.array_equal(kept, bare))
 
+    # --- F0.4c: il banco contro una registrazione vera -----------------------------------------
+    a = np.zeros((80, 100), bool)
+    b = np.zeros((80, 100), bool)
+    a[10:50, 10:50] = True
+    b[10:50, 30:70] = True
+    d = contour_distances(a, b)
+    test("contorni: due rettangoli noti, sovrapposizione 1/3 e distanza massima 20 px",
+         abs(overlap(a, b) - 1.0 / 3.0) < 1e-9 and abs(d["max"] - 20.0) < 1e-6, f"{overlap(a, b)} {d}")
+    ys, xs = np.mgrid[0:120, 0:120]
+    small, large = np.hypot(xs - 60, ys - 60) < 30, np.hypot(xs - 60, ys - 60) < 34
+    d = contour_distances(small, large)
+    test("contorni: due cerchi di raggio 30 e 34, distanza 4 px e segno negativo (il primo sta dentro)",
+         abs(d["mean"] - 4.0) < 0.6 and abs(d["signed"] + 4.0) < 0.6 and d["max"] < 5.5
+         and abs(overlap(small, large) - (30.0 / 34.0) ** 2) < 0.01, str(d))
+    ring = large & ~small
+    ring[58:62, 85:100] = False                      # un anello aperto non racchiude niente
+    test("maschere: i buchi si riempiono solo se il contorno e' chiuso",
+         np.array_equal(filled(large & ~small), large) and np.array_equal(filled(ring), ring))
+    speck = small.copy()
+    speck[5:8, 5:8] = True
+    test("maschere: l'apertura toglie il rumore e lascia la sagoma", not opened(speck)[5:8, 5:8].any()
+         and abs(int(opened(speck).sum()) - int(small.sum())) < 40)
+    edge = np.zeros((40, 40), bool)
+    edge[10:30, 25:40] = True
+    test("contorni: il bordo della tela non e' un contorno", not contour_of(edge)[12:28, 39].any()
+         and contour_of(edge)[10, 30])
+    slab = {"kind": "shader", "name": "s", "x": 2, "y": 2, "w": 40, "h": 30,
+            "pieces": [{"x": 4, "y": 5, "w": 20, "h": 10, "radius": 0}]}
+    shape = element_silhouette(slab, 2.0, (100, 80))
+    test("sagoma del banco: un pezzo dritto e' il suo rettangolo, al pixel",
+         int(shape.sum()) == 40 * 20 and shape[14, 12] and not shape[13, 12] and not shape[14, 11])
+    polygon = element_silhouette(dict(slab, pieces=None, ring=[[4, 5], [24, 5], [24, 15], [4, 15]]), 2.0, (100, 80))
+    test("sagoma del banco: un anello e' il suo poligono", abs(int(polygon.sum()) - 800) <= 4)
+    ev = area_events([0, 10, 20, 30, 40, 50, 60], [100, 100, 300, 500, 500, 500, 500], 100.0, 50, 50)
+    test("istanti: primo movimento, meta' della corsa interpolata, picco e riposo di una rampa nota",
+         ev["primo movimento"] == 20 and abs(ev["meta' della corsa"] - 20.0) < 1e-6 and ev["picco raggiunto"] == 30
+         and ev["riposo"] == 30 and ev["meta' del ritorno"] is None, str(ev))
+
+    with tempfile.TemporaryDirectory() as folder:
+        folder = Path(folder)
+        # Una registrazione sintetica a cadenza variabile: gli stessi fotogrammi del banco, alcuni
+        # saltati (uno schermo fermo non produce fotogrammi), con i tempi spostati di 1234,5 ms e
+        # sporcati di +-2 ms. L'accoppiamento deve ritrovare il fotogramma giusto.
+        frames = []
+        for i in range(25):
+            grow = max(0.0, min((i - 3) / 12.0, 1.0))
+            frames.append({"t": round(i * 1000.0 / 120.0, 4), "elements": [{
+                "kind": "shader", "name": "s", "source": "kotlin:SlabGroupRefractionShaderString",
+                "x": 0, "y": 0, "w": 90, "h": 60, "inputs": {"content": {"blurDp": 2, "edge": "clamp"}},
+                "pieces": [{"x": 30 - 14 * grow, "y": 18 - 6 * grow, "w": 26 + 28 * grow, "h": 24 + 12 * grow, "radius": 10}],
+                "uniforms": {"offset": "$offset", "pieceCount": "$pieceCount", "pieceRect": "$pieceRect",
+                             "pieceRadii": "$pieceRadii", "pieceBlend": "$pieceBlend", "refractionHeight": "6dp",
+                             "refractionAmount": "-8dp", "depthEffect": 0, "magnify": 0,
+                             "fieldCenter": ["45dp", "30dp"], "aa": 1.0, "tintColor": "#FFFFFFB0"}}]})
+        synthetic = {"schema": 1, "name": "sintetica", "fps": 120, "density": 2.0, "theme": "light", "size": [90, 60],
+                     "background": {"kind": "color", "color": "#8A8E96"}, "frames": frames}
+        test("registrazione sintetica: la traccia e' valida", not validate(synthetic).lines())
+        made = render_frames(synthetic, folder / "banco", jobs=1, quiet=True)
+        kept = [0, 1, 2, 3, 4, 5, 7, 8, 10, 11, 12, 14, 15, 16, 18, 20, 21, 24]
+        jitter = [0.0, 1.5, -2.0, 0.5, -1.0, 2.0, -1.5, 1.0, 0.0, -0.5, 2.0, -2.0, 1.0, 0.5, -1.0, 1.5, 0.0, -1.5]
+        (folder / "vero").mkdir()
+        for n_, (index, wobble) in enumerate(zip(kept, jitter)):
+            shutil.copy(Path(made["dir"]) / made["frames"][index]["file"],
+                        folder / "vero" / f"f{n_:04d}_t{frames[index]['t'] + 1234.5 + wobble:.2f}.png")
+        options = argparse.Namespace(
+            real=str(folder / "vero"), real_name="sintetica", real_crop=None, veil_region=None, ignore=None,
+            threshold=REAL_THRESHOLD, open_radius=REAL_OPEN_RADIUS, elements=None, glass_sign="auto",
+            align="first-change", real_still=0, real_to=None, real_frames=None, step_ms=APPLE_FRAME_MS,
+            cols=6, cell_height=200)
+        sink = io.StringIO()
+        with contextlib.redirect_stdout(sink):
+            got = pair_real(options, synthetic, folder / "banco", made)
+        right = [p["banco"] for p in got["coppie"]] == kept
+        anchor = jitter[kept.index(4)]              # il fotogramma su cui cade l'allineamento
+        gaps = [abs(p["dt"] - (anchor - w)) for p, w in zip(got["coppie"], jitter)]
+        test("registrazione sintetica: ogni fotogramma vero trova il suo fotogramma del banco (entro mezzo fotogramma)",
+             right and max(gaps) < 0.02 and got["riassunto"]["dt_massimo"] <= 1000.0 / 120.0 / 2.0,
+             f"{[p['banco'] for p in got['coppie']]} scarti {max(gaps):.3f}")
+        test("registrazione sintetica: l'allineamento ritrova lo spostamento dei tempi",
+             abs(got["allineamento"]["spostamento_ms"] + 1234.5 + anchor) < 0.02,
+             str(got["allineamento"]))
+        band = got["riassunto"]["nella_fascia"]
+        test("registrazione sintetica: contro se stesso il banco coincide in sagoma",
+             band is not None and band["minimo"] > 0.99 and got["riassunto"]["iou_dentro"]["minimo"] > 0.97
+             and got["riassunto"]["dentro_distanza_massima"]["massimo"] <= 1.0, str(got["riassunto"]["nella_fascia"]))
+        events = got["istanti"]
+        test("registrazione sintetica: primo movimento e meta' della corsa entro mezzo fotogramma",
+             all(events[k]["scarto"] is not None and abs(events[k]["scarto"]) <= 1000.0 / 120.0 / 2.0
+                 for k in ("primo movimento", "meta' della corsa")), str(events))
+        test("registrazione sintetica: collage e tabella sono scritti",
+             all((REPO_ROOT / got["collage"][k]).exists() or Path(got["collage"][k]).exists() for k in got["collage"])
+             and (folder / "banco" / "sintetica-vs-sintetica.md").exists())
+
+        # Un video vero, a cadenza variabile, ritagliato a lati dispari: i tempi sono i pts, e il
+        # ritaglio non scivola di una riga (in YUV 4:2:0 ffmpeg arrotonda al pari un lato dispari).
+        if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+            ys, xs = np.mgrid[0:48, 0:64]
+            durations = [0.050, 0.010, 0.025, 0.0083, 0.040]
+            starts = np.cumsum([0.0] + durations[:-1])
+            for k in range(len(durations)):
+                pattern = ((7 * ys + 3 * xs + 31 * k) % 200 + 20).astype(np.uint8)
+                Image.fromarray(np.stack([pattern] * 3, axis=2)).save(folder / f"v{k}.png")
+            moments = "+".join(f"eq(N,{k})*{t:.4f}" for k, t in enumerate(starts))
+            done = subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", "10", "-i", "v%d.png",
+                                   "-vf", f"settb=1/10000,setpts='({moments})/TB'", "-fps_mode", "passthrough",
+                                   "-enc_time_base", "1:10000", "-c:v", "libx264", "-qp", "0",
+                                   "-pix_fmt", "yuv420p", "video.mp4"],
+                                  cwd=folder, capture_output=True, text=True)
+            if done.returncode != 0:
+                test("video a cadenza variabile: ffmpeg lo scrive", False, done.stderr[-200:])
+            else:
+                recording = RealRecording(folder / "video.mp4")
+                expected = starts * 1000.0
+                test("video a cadenza variabile: i tempi sono i pts",
+                     len(recording.times) == len(durations) and float(np.abs(np.asarray(recording.times) - expected).max()) < 1.0,
+                     f"{recording.times} attesi {list(expected)}")
+                worst = 0.0
+                for index, _, frame in recording.frames([3, 5, 31, 21]):
+                    truth = ((7 * ys + 3 * xs + 31 * index) % 200 + 20)[5:26, 3:34]
+                    worst = max(worst, float(np.abs(frame[..., 1].astype(float) - truth).max()))
+                    odd = frame.shape[:2] == (21, 31)
+                test("video: un ritaglio a lati dispari resta al suo posto in ogni fotogramma", odd and worst <= 3.0,
+                     f"scarto massimo {worst}")
+        else:
+            print("     (ffmpeg non c'e': le prove sul video sono saltate)")
+
     # Le tracce scritte dall'engine (F0.5), se su questa macchina ci sono: devono restare valide
     # cosi' come sono, perche' si rigenerano solo con Gradle.
     for path in sorted((DEFAULT_OUT / "f0").glob("oggi-*/trace.json")):
@@ -2428,8 +3530,27 @@ def main(argv=None) -> int:
     p = command("collage", cmd_collage, "collage alla cadenza di Apple")
     collage_options(p)
     p.add_argument("--crop", help="x,y,w,h in dp")
-    p = command("pair", cmd_pair, "il nostro collage sopra i fotogrammi del video di Apple, e il video affiancato")
+    p = command("pair", cmd_pair, "il banco accanto al video di Apple, o (--real) a una registrazione vera con i contorni")
     pair_options(p)
+    p.add_argument("--real", metavar="VIDEO|CARTELLA",
+                   help="una registrazione vera (screenrecord): i tempi sono i pts; confronta i contorni")
+    p.add_argument("--real-crop", help="... la tela nella registrazione: x,y,w,h in pixel (ritaglio fatto in RGB)")
+    p.add_argument("--real-name", help="... il suffisso dei file (di serie il nome del video)")
+    p.add_argument("--real-still", type=int, default=0, help="... l'indice del fotogramma fermo (di serie 0)")
+    p.add_argument("--real-to", type=int, help="... l'ultimo fotogramma da leggere (di serie tutti)")
+    p.add_argument("--align", default="first-change",
+                   help="... `first-change` (il primo fotogramma in cui qualcosa cambia) o VERO_MS:BANCO_MS")
+    p.add_argument("--threshold", type=float, default=REAL_THRESHOLD,
+                   help=f"... la soglia del residuo, in livelli (di serie {REAL_THRESHOLD:g}; si prova anche a +-30%%)")
+    p.add_argument("--open-radius", type=int, default=REAL_OPEN_RADIUS, help="... il raggio dell'apertura morfologica")
+    p.add_argument("--veil-region", help="... una regione di sola pagina, x,y,w,h in pixel: da li' si stima la velatura")
+    p.add_argument("--ignore", help="... regioni coperte da cio' che non e' dell'app (la barra di stato): "
+                                    "x,y,w,h in pixel della registrazione, piu' d'una separate da `;`")
+    p.add_argument("--elements", help="... gli elementi di cui confrontare la sagoma (di serie quelli che cambiano)")
+    p.add_argument("--glass-sign", choices=("auto", "light", "dark"), default="auto",
+                   help="... il vetro e' piu' chiaro o piu' scuro della pagina (di serie: il segno che copre piu' area)")
+    p.add_argument("--real-frames", help="... i fotogrammi veri del collage, per indice (di serie uno ogni --step-ms)")
+    p.add_argument("--step-ms", type=float, default=APPLE_FRAME_MS, help="... il passo del collage (di serie 33,4)")
     p.add_argument("--cols", type=int, default=8)
     p.add_argument("--slow", type=float, default=4.0, help="quante volte piu' lento il video affiancato (0 = niente video)")
     p.add_argument("--video-fps", type=float, default=60.0)

@@ -48,6 +48,7 @@ $t  = "artifacts\liquid-glass\moto\F5A\menu-apertura\trace.json"
 & $py $gm pair     $t           # <nome>-vs-apple.jpg e <nome>-vs-apple-lento.mp4, per ogni blocco `apple`
 & $py $gm pair     $t --apple foto                  # uno solo, per nome: <nome>-vs-apple-foto.jpg
 & $py $gm pair     $t --t0-frame 13046 --apple-crop 540,120,840,840 --apple-name foto   # uno al volo
+& $py $gm pair     $t --real video.mp4 --real-crop 1572,744,680,595   # contro una registrazione vera: contorni
 & $py $gm first    $t           # <nome>-primi5.png, ingranditi
 & $py $gm first    $t --at 150  # cinque fotogrammi da 150 ms (uno prima): per un'interruzione
 & $py $gm last     $t           # <nome>-ultimi5.png
@@ -449,6 +450,117 @@ dello stesso istante con i millisecondi, e scrive anche il video affiancato rall
 della traccia conviene sceglierla alla stessa inquadratura del ritaglio (per il telefono di
 `wwdc2025-219_hd`: 1,9 pixel del video per punto).
 
+## Il confronto con una registrazione vera
+
+`pair --real` mette il banco accanto a una registrazione dello schermo (lo `screenrecord` del
+tablet) e confronta le **sagome**. Serve quando la traccia descrive cio' che l'engine fa oggi, alla
+densita' del dispositivo: allora un pixel del banco e' un pixel dello schermo.
+
+```powershell
+$v = "artifacts\liquid-glass\sessioni\S1\video"
+& $py $gm pair $t --real $v\adesso-a-menu-stella.mp4 --real-crop 1572,744,680,595 `
+      --veil-region 480,744,970,595 --real-name s1-contorni --real-to 175
+& $py $gm pair $t --real $v\adesso-t-tasto.mp4 --real-crop 2322,0,238,204 `
+      --ignore "2413,23,40,30;2460,21,55,34" --real-name s1-contorni --real-to 150
+```
+
+| opzione | significato |
+|---|---|
+| `--real` | un video, o una cartella di fotogrammi. Del video valgono i `pts` (`ffprobe`): lo `screenrecord` e' a cadenza variabile e l'indice non e' un tempo. Nella cartella il tempo sta nel nome (`f0012_t1435.50.png`, millisecondi) o in un `tempi.json` (`{"file": ms}`) |
+| `--real-crop x,y,w,h` | la tela della traccia nei pixel della registrazione. Il ritaglio si fa **in RGB**: in YUV 4:2:0 un lato dispari viene arrotondato al pari e i fotogrammi scivolano di una riga. Se la misura non e' quella della tela viene ricampionato, e lo dice |
+| `--align` | `first-change` (di serie): il primo fotogramma in cui qualcosa cambia, nel vero (piu' di 50 px con \|dL\| > 6 rispetto al fermo) e nel banco (piu' di 10 px con \|dL\| > 2). Oppure `VERO_MS:BANCO_MS`: quel `pts` vale quell'istante della traccia |
+| `--real-still N` | il fotogramma fermo, quello da cui si misura la differenza (di serie 0) |
+| `--real-to N` | l'ultimo fotogramma da leggere |
+| `--veil-region x,y,w,h` | una regione di **sola pagina**: da li' si stima la velatura (un menu scurisce la pagina) e la si toglie prima della differenza |
+| `--ignore "x,y,w,h;..."` | cio' che copre la tela senza essere dell'app (le icone della barra di stato): li' i due lati si contano uguali |
+| `--threshold`, `--open-radius` | la soglia del residuo (di serie 8 livelli; il banco la prova sempre anche a -30% e +30%) e il raggio di chiusura e apertura (di serie 2) |
+| `--elements a,b` | gli elementi di cui confrontare la sagoma (di serie quelli la cui forma cambia nella traccia) |
+| `--glass-sign` | `auto` (di serie: il verso che copre piu' area), `light`, `dark` |
+| `--real-name` | il suffisso dei file (di serie il nome del video) |
+| `--real-frames 61,63,70`, `--step-ms` | quali coppie mettere nel collage (di serie una ogni 33,4 ms) |
+
+**L'accoppiamento e' per tempo**: ogni fotogramma vero va con il fotogramma del banco piu' vicino al
+suo `pts` allineato, e lo scarto (`dt`, al piu' mezzo fotogramma del banco) sta scritto in ogni cella
+del collage e in ogni riga della tabella.
+
+**La regola delle sagome** e' una sola per tutti i viaggi (sta scritta per esteso in testa alla
+sezione di `glassmotion.py`):
+
+- la sagoma **del banco** e' esatta: il campo dei `pieces` (lo stesso di
+  `SlabGroupRefractionShaderString`), il poligono del `ring`, o il riquadro dell'elemento;
+- la sagoma **del vero** e' cio' che cambia rispetto al fotogramma fermo: un pixel e' cambiato se un
+  canale (R, G, B) si scosta dalla pagina prevista piu' della soglia. Poi chiusura e apertura
+  morfologica e buchi riempiti;
+- due letture. **Dentro**: i soli pixel che vanno nel verso del vetro (schiariscono, se il vetro e'
+  chiaro). **Fuori**: tutti i pixel cambiati, anche il filo scuro e l'ombra. Il bordo vero sta fra
+  le due;
+- dove il vetro c'era gia' a riposo e c'e' ancora, la differenza col fermo non dice niente: quella
+  parte si conta uguale nei due lati, e la tabella da' anche l'IoU **senza** di lei;
+- cio' che cambia a piu' di 24 px dalla sagoma del banco e' pagina (sotto un menu viene sfocata):
+  esce dal confronto e si conta a parte, in pixel.
+
+**Le misure**, per coppia:
+
+| misura | cosa dice |
+|---|---|
+| nella fascia | quanta parte del contorno del banco cade fra «dentro» e «fuori», con un pixel di tolleranza per parte. Non dipende da dove si mette il confine fra vetro e ombra |
+| IoU dentro, IoU fuori | la sovrapposizione delle due letture con la sagoma del banco |
+| distanza fra i contorni | media, massima (Hausdorff) e con segno (positiva = il vero sta fuori dal banco), in pixel |
+| larghezza della fascia | lo spessore medio fra «dentro» e «fuori»: filo e ombra che il banco non rende |
+| pagina px | i pixel di pagina che cambiano lontano dal vetro |
+| velo | quanto la pagina e' scurita in quel fotogramma (1 = niente) |
+
+Le stesse misure sono rifatte **a pari avanzamento**: ogni fotogramma vero accanto a quello del banco
+con la stessa quota di area fra riposo e picco (solo dove l'avanzamento cambia, non sui pianori). E'
+la sagoma tolto il ritardo, e il ritardo tolto sta nella tabella. Se un viaggio coincide a pari
+avanzamento e non a pari tempo, la forma e' giusta e l'istante no.
+
+**Gli istanti**, dall'area della sagoma: primo movimento, un decimo della corsa, meta', picco, meta'
+del ritorno (se torna), riposo; per ognuno il tempo nel vero, nel banco e lo scarto in ms.
+
+**Cosa esce**, accanto alla traccia: `<nome>-vs-<suffisso>.jpg` (coppie per tempo; magenta la sagoma
+del banco, verde «dentro», azzurro «fuori»), `<nome>-vs-<suffisso>-pari-avanzamento.jpg`,
+`<nome>-vs-<suffisso>.md` e `.json` (riassunto, istanti, e una riga per coppia: tempo vero, tempo del
+banco, scarto, sovrapposizione, distanze).
+
+**Cosa questa regola non sa leggere**, e dichiara invece di contare:
+
+- **sotto il riposo**: quando la sagoma del banco scende sotto quella a riposo (il rimbalzo di un
+  tasto), nell'anello lasciato libero «schiarisce» non vuol piu' dire «vetro». Quelle coppie escono
+  dal riassunto e dagli istanti (il riposo del vero non si da'); di loro resta solo quanta parte
+  dell'anello cambia anche nel vero;
+- **dove il vetro non si stacca dalla pagina** piu' della soglia (un pannello chiaro su una pagina
+  chiara) il bordo non c'e' in nessuna lettura, e li' il contorno del banco risulta fuori dalla
+  fascia senza che la forma sia diversa;
+- **a riposo** le due sagome coincidono per costruzione: non e' una prova;
+- una differenza di forma piu' piccola della fascia (filo e ombra: 8 px attorno al tasto di oggi)
+  non si vede.
+
+## Cosa il banco prova, e cosa no
+
+Misurato in F0 su due viaggi dell'engine di oggi contro il Tab S9
+(`artifacts/liquid-glass/moto/f0/convalida-F0-a-contorni.md`).
+
+**Prova:**
+
+- la **sagoma** in ogni punto del viaggio (menu: contorni a 1,8 px tolto il ritardo; tasto: contorno
+  nella fascia al 95-99% in salita e in tenuta);
+- l'**ordine** degli eventi;
+- la **durata** del viaggio **una volta partito** (menu: dal decimo della corsa al picco 181 ms nel
+  vero, 190 nel banco).
+
+**Non prova:**
+
+- la **puntualita' della partenza**. Il banco parte sempre al suo `t = 0`; il dispositivo no: il
+  menu parte 24-40 ms dopo, il primo fotogramma di un push arriva dopo 65-73 ms;
+- i **fotogrammi lunghi**: uno schermo che resta fermo due fotogrammi, un passo da 20 ms in mezzo
+  a un viaggio a 120 Hz. Nel banco ogni fotogramma dura quanto dice `fps`;
+- il materiale che non rende (filo e ombra di oggi).
+
+Puntualita' e fotogrammi lunghi si giudicano **solo sul dispositivo**. Un viaggio che sul banco e'
+puntuale non e' per questo puntuale in mano; un viaggio che sul banco ha la forma giusta, quella
+forma ce l'ha.
+
 ## La cadenza: 60 o 120 Hz
 
 `fps` dice a che cadenza il viaggio e' stato calcolato, e basta a dichiarare quella del dispositivo:
@@ -578,3 +690,6 @@ si rendono come prima, salvo che niente scatta piu' di un pixel.
 | scena ferma | `durationMs` doveva essere positivo | `0` ammesso |
 | confronti con Apple | un blocco `apple` | anche una lista con `name`; `pair --apple`, `--t0-frame`... |
 | cadenza | `fps` = 60 sottinteso | `fps` e' la cadenza del dispositivo riprodotto (60 o 120) |
+
+F0.4c non tocca lo schema: aggiunge `pair --real` (il confronto con una registrazione vera, per
+contorni) e la regola su cosa il banco prova.

@@ -68,7 +68,7 @@ allega i diff. Non serve Gradle.
 | ottiche dei ruoli, regola della taglia, risoluzione della cattura | `fluid/GlassMaterial.kt` | `XxxOptics = GlassOptics(...)`, i `.copy(...)`, le `const val` |
 | colore del bordo e dell'ombra, alfa delle pellicole, grigi del vetro | `fluid/GlassMaterial.kt` | **ricopiati** in testa a `render.py`, con il nome della funzione d'origine |
 | raccordo continuo degli angoli | `fluid/FluidShape.kt` | **portato** riga per riga in `render.py` (`continuous_path`, `Outline`), con le tre costanti ricopiate |
-| palette neutra dell'engine | `theme/FluidTheme.kt` (`surfacePalette`) | **ricopiata** in `render.py` (`"palette": "engine"`) |
+| palette dell'engine | `theme/FluidTheme.kt` (`surfacePalette`, `FluidDefaultBrand`) | **ricopiati** in `render.py` i neutri, l'accento di serie e la quota di accento di ogni superficie (`"palette": "engine"`); la mescola e' quella di Compose, in Oklab (`mix`) |
 | shader di prova | `tools/glassbench/shaders/*.agsl` | file a parte, letti cosi' come sono |
 | icone dell'engine | `tools/glassbench/icons/*.json` (le scrive `tools/icons/gen_fluid_icons.py`, pacchetto F0.8) | lette se ci sono; finche' mancano il banco usa i suoi disegni di servizio |
 
@@ -97,9 +97,10 @@ Le misure sono in **dp**; `density` le porta in pixel. Esempio minimo:
 Campi della scena: `width`, `height`, `density`, `theme` (`light`/`dark`), `background`, `page`,
 `elements`, `measure`, e:
 
-- `palette`: una famiglia per nome (`material`, di serie: Material 3 di base; `engine`: i neutri di
-  `FluidTheme.kt` con l'accento di serie; `engine-amoled`), oppure un oggetto di colori che ritocca
-  quella di base (`paletteBase` sceglie quale). La palette dell'app sul PC non esiste;
+- `palette`: una famiglia per nome (`material`, di serie: Material 3 di base; `engine`: le superfici
+  di `FluidTheme.kt` con l'accento di serie e la quota di accento che l'engine ci mescola;
+  `engine-amoled`), oppure un oggetto di colori che ritocca quella di base (`paletteBase` sceglie
+  quale). La palette di un'app con un suo accento sul PC non esiste: va scritta nella scena;
 - `corner`: come si disegna la sagoma di ogni lastra (un elemento puo' dire il suo):
   - `round` (di serie, per non cambiare le scene vecchie): rettangolo arrotondato circolare al raggio
     nominale, per tutto;
@@ -399,6 +400,52 @@ filo: li' non si misura.
 `--image foto.png` misura un PNG dato (stessa taglia della scena) al posto del render: uno
 screenshot del dispositivo ritagliato sulla scena, per esempio.
 
+## La scena dello scatto vero (`scenes/s1/`): quanto e' fedele il ridisegno
+
+Pellicola, filo, bordo di luce e ombra l'engine li disegna in Kotlin, e il banco li ridisegna dai
+numeri ricopiati. Quanto quel ridisegno somiglia al vero lo dice una scena sola, messa accanto a
+uno scatto del tablet (F0.3c):
+
+- `s1-oggi-chiaro.json`, `s1-oggi-scuro.json`: la riga «oggi» della pagina «Misure» della galleria
+  (tasto tondo, capsula flottante, pannello compatto), alla taglia, alla densita' (2,125) e nelle
+  posizioni al pixel dello scatto di S1 sul Tab S9;
+- `fondale.png`: il fondale nudo fotografato (un ritaglio di 1088 x 544 px). Vale per i due temi:
+  la «foto» della pagina non dipende dal tema, e lontano dagli elementi lo scatto scuro e' uguale
+  al pixel a quello chiaro;
+- `vero-chiaro.png`, `vero-scuro.png`: lo stesso ritaglio degli scatti veri.
+
+```
+glassbench.py measure scenes/s1/s1-oggi-scuro.json                               # il banco
+glassbench.py measure scenes/s1/s1-oggi-scuro.json --image scenes/s1/vero-scuro.png   # il vero
+glassbench.py render scenes/s1/s1-oggi-scuro.json --no-content -o banco.png
+glassbench.py compare banco.png scenes/s1/vero-scuro.png                         # esce con 1: vedi sotto
+```
+
+Lo scatto non ha rumore (fondale identico al pixel), quindi ogni scarto e' del banco. Cio' che resta
+dopo le correzioni di F0.3c, sui tre elementi e nei due temi:
+
+| grandezza | banco - vero | nota |
+|---|---|---|
+| corpo: luma, colore medio, velo | entro 0,5 livelli di luma, 1 per canale | il residuo e' l'arrotondamento a 8 bit di Skia |
+| smeriglio: contrasto e nitidezza (gradiente) che restano | entro 1,3 punti percentuali | intervallo 2-98% e laplaciano: entro 3 punti |
+| bordo di luce e filo: riga piu' forte | entro 1,2 livelli | |
+| bordo: le righe dopo, sui tratti dritti | entro 3,1 livelli; la somma entro il 5% | il vero rientra di una frazione di pixel in piu' |
+| bordo del tasto tondo scuro, righe 3 e 4 | -5,4 e -2,9 livelli | **limite**: il banco lo fa piu' stretto |
+| ombra: profilo fuori dal bordo, da 2 px in poi | entro 0,6 punti percentuali del fondale (un livello) | l'«estensione» (dove finisce l'ultimo livello) fino a 0,13 H piu' corta |
+| ombra: la prima riga fuori dal bordo, quando due raggi non sono pixel interi | sopra -0,7, sotto +1,2 punti (2 livelli) | **limite**: sui fianchi torna, in verticale no |
+| pixel di bordo lungo gli archi | fino a 16 livelli, su 0-45 pixel per elemento oltre gli 8 | **limite**: l'antialias del ritaglio hardware |
+| tutto il riquadro di un elemento | media 0,2-0,5 livelli, 95% dei pixel entro 1,8 | |
+
+Prima di F0.3c il banco sbagliava di piu', in quattro punti che ora seguono il disegno vero: la
+cattura a risoluzione ridotta lasciava l'ultima colonna o riga senza vetro (fino a 34 livelli), la
+pellicola era ritagliata sul path continuo invece che sul ritaglio hardware (fino a 82 livelli lungo
+gli angoli di un pannello), i colori si mescolavano in sRGB invece che in Oklab (2-3 livelli di
+rosso sul tasto, 1-2 sul corpo scuro), e ombra e bordo arrotondavano due volte (la coda dell'ombra
+si fermava a 40 px invece che a 48-58). `selftest` tiene ferma ognuna delle quattro regole.
+
+Non e' una prova che gira da sola a ogni modifica: vale per la build fotografata. Se cambia il
+disegno Kotlin di pellicola, bordo o ombra, serve uno scatto nuovo (stessa scena, stessi comandi).
+
 ## Confrontare (`compare`) e le immagini di riferimento (`golden/`)
 
 `compare a.png b.png` stampa differenza massima, media e pixel diversi, scrive l'immagine delle
@@ -421,9 +468,10 @@ sorgenti di oggi e i numeri che il banco legge da `GlassMaterial.kt`. Prova fatt
 memoria il vecchio `radiusAt(coord, ...)`, `ruoli-chiaro` e `ruoli-scuro` risultano diverse.
 
 Cosa **non** provano: il disegno Kotlin (pellicola, filetto, bordo e ombra a path, che il banco
-ridisegna per conto suo), quale ramo `glassSurface` prende su un dato Android, il ripiego sotto API
-33. Non sono «la prova che il vetro di oggi non e' cambiato»: sono una delle tre, con i test del
-vetro di oggi che restano verdi e con i controlli di selezione del percorso.
+ridisegna per conto suo: quanto bene, lo dice `scenes/s1/` qui sopra, una volta, su uno scatto),
+quale ramo `glassSurface` prende su un dato Android, il ripiego sotto API 33. Non sono «la prova
+che il vetro di oggi non e' cambiato»: sono una delle tre, con i test del vetro di oggi che restano
+verdi e con i controlli di selezione del percorso.
 
 Quando una immagine non torna, `compare --golden` dice quale sorgente dell'engine e' cambiata da
 quando le immagini sono state create, e avvisa se le versioni installate non sono quelle del
@@ -463,7 +511,14 @@ hanno il velo adattivo, il raccordo continuo degli angoli ne' la taratura (lavor
   nuovo: ombra, catena a monte, corpo, luce, contenuto.
 - **I numeri**: ottiche dei ruoli, regola della taglia, margine della cattura (`padding`),
   risoluzione ridotta della cattura (la catena gira sui pixel ridotti e si riporta in scala, come su
-  HWUI, che applica il `RenderEffect` all'immagine del layer e non allo schermo).
+  HWUI, che applica il `RenderEffect` all'immagine del layer e non allo schermo). La cattura ha la
+  taglia troncata di `refreshCapture`, ma l'effetto gira su tutto il ritaglio del nodo, come su
+  HWUI: oltre il bordo della cattura la sfocatura `Clamp` prolunga l'ultima riga di pixel.
+- **La pellicola**: un rettangolo dentro il ritaglio hardware del nodo (`drawGlassTint`), non
+  dentro il path continuo. I colori si mescolano come in Compose, in Oklab.
+- **Ombra e bordo**: l'alfa del layer entra nel colore del pennello (un arrotondamento solo, come
+  la GPU che compone in virgola mobile), e il layer dell'ombra si ricampiona in lineare quando due
+  raggi non sono un numero intero di pixel.
 - **I raggi di sfocatura**: `sigma = 0,57735 * raggio + 0,5`, il conto di HWUI sia per
   `RenderEffect.createBlurEffect` sia per `BlurMaskFilter`.
 - **La premoltiplicazione**: superfici e ingressi premoltiplicati, come su Android; gli uniform
@@ -475,7 +530,9 @@ hanno il velo adattivo, il raccordo continuo degli angoli ne' la taratura (lavor
 - **Le posizioni**: di serie al pixel intero, come il layout; con `subpixel` frazionarie, senza
   scatti e senza ricampionare il fondale.
 
-Verifica fatta: `scenes/confronto-reale-scuro.json` accanto ai tasti veri di
+Verifica fatta, al pixel: `scenes/s1/` accanto allo scatto del Tab S9 (vedi sopra, con i numeri).
+
+Verifica fatta, a occhio: `scenes/confronto-reale-scuro.json` accanto ai tasti veri di
 `artifacts/migrazione/codex/dopo/08-chats-scuro.png` (stessa densita', palette stimata): stesso
 riempimento, stesso filo chiaro pieno sopra e sotto e spento sui fianchi. `measure` lo ritrova:
 sul tondo di `rif-tondo-scuro` il bordo di oggi e' acceso fra 45 e 135 gradi e fra 225 e 315, e
@@ -496,11 +553,28 @@ manca ai fianchi.
   uniform, niente prima compilazione, niente RenderThread. I tempi del banco sono di CPU e non
   dicono nulla del telefono: i cancelli C1-C6 si chiudono sul dispositivo (pagina «Misure»).
 - **Il movimento.** Una scena e' un fotogramma. Fasi, tempi e sagome in viaggio sono del banco del
-  movimento (`glassmotion.py`).
+  movimento (`glassmotion.py`, descritto in `TRACE.md`). Contro una registrazione dello schermo
+  c'e' `glassmotion.py pair traccia.json --real video.mp4 --real-crop x,y,w,h`: accoppia i
+  fotogrammi per tempo (i `pts`) e confronta i contorni, non le scatole. Anche quel banco ha un
+  confine, misurato in F0: **prova** la sagoma, l'ordine degli eventi e la durata di un viaggio una
+  volta partito; **non prova** la puntualita' della partenza ne' i fotogrammi lunghi, che il
+  dispositivo ritarda (un menu 24-40 ms, il primo fotogramma di un push 65-73 ms) e che si
+  giudicano solo sul dispositivo.
 - **La sfocatura al pixel.** Skia in software approssima la gaussiana con tre passate di media per i
-  sigma grandi; la GPU di Android usa una gaussiana vera, ridotta di scala. La differenza e' sotto la
-  soglia di cio' che si giudica a occhio, ma un confronto pixel per pixel con uno screenshot non
-  torna a zero.
+  sigma grandi; la GPU di Android usa una gaussiana vera, ridotta di scala. Misurato su `scenes/s1/`:
+  nel corpo di una lastra lo scarto dal vero ha deviazione standard 0,5 livelli e non supera 2, e
+  una maschera sfocata (ombra, bordo) sta entro 3,4/255 dalla gaussiana a piena alfa. Un confronto
+  pixel per pixel con uno screenshot non torna a zero: torna a un livello.
+- **L'antialias dei bordi curvi.** Il ritaglio hardware del `RenderNode` e quello di Skia in
+  software coprono in modo diverso i pixel a cavallo di un arco: lungo gli archi resta una riga di
+  pixel con scarti fino a 16 livelli (0-45 pixel per elemento oltre gli 8). Sui tratti dritti a
+  coordinate intere non c'e'.
+- **La prima riga dell'ombra fuori dal bordo, in verticale.** Quando due raggi d'ombra non sono
+  pixel interi (18 dp a densita' 2,125) HWUI ricampiona il layer dell'ombra. Il banco lo fa in
+  lineare e sui fianchi torna (75% contro il 70% vero); sopra e sotto il vero non e' simmetrico
+  (106% e 46%) e il banco si' (75% e 75%): 2 livelli su una riga di pixel. Non so perche'.
+- **Il bordo del tasto tondo sullo scuro.** Le righe 3 e 4 dal bordo escono 5,4 e 2,9 livelli sotto
+  il vero (sul chiaro, e su capsula e pannello, lo scarto e' entro 3). Il bordo vero rientra di piu'.
 - **Lo spazio colore.** Il banco lavora in sRGB a 8 bit, senza linearizzare (come HWUI su uno
   schermo sRGB). Su un pannello P3 HWUI converte i colori, e le superfici intermedie possono essere
   a 16 bit: saturazione e `Plus` sui colori molto vivi possono differire, e la mescola a monte
@@ -513,7 +587,10 @@ manca ai fianchi.
   pixel si ammorbidisce. Quanto si vede quella morbidezza in un viaggio lo dice il dispositivo.
 - **Cio' che l'engine disegna in Kotlin, fuori dagli shader.** Pellicola, bordo e ombra il banco li
   **ridisegna per conto suo** dai numeri ricopiati: se il Kotlin cambia senza cambiare quei numeri,
-  il banco non se ne accorge. Non rende affatto: `glassMask` e `GlassFalloff.FadeDown` (la fascia in
+  il banco non se ne accorge. Il ridisegno e' stato messo accanto a uno scatto vero una volta
+  (`scenes/s1/`, F0.3c), per tre elementi, due temi, una densita' e un fondale: i ruoli `bar`,
+  `content` e `modal`, il vetro su vetro, il tema nero e un accento diverso da quello di serie non
+  sono stati confrontati. Non rende affatto: `glassMask` e `GlassFalloff.FadeDown` (la fascia in
   alto), l'ombra interna (oggi a zero in tutti i ruoli), il filetto (`hairline` e `GlassEdge`), il
   bordo e l'ombra a path di `fluidPhysicsSurface`, il bagliore al tocco, il contrasto di sistema
   (`forSystemContrast`). Un elemento `kind: "shader"` rende lo shader e basta.
@@ -562,6 +639,7 @@ requirements.txt     versioni esatte
 scenes/              oggi-*.json (il vetro di oggi), confronto-reale-scuro.json,
                      fluidphysics-gruppo-oggi.json, f0-raggi-diversi.json, sonda-*.json
 scenes/rif/          le inquadrature dei frame di Apple (R4, R5) e le sei pagine dell'engine
+scenes/s1/           la riga «oggi» della pagina «Misure» uguale a uno scatto del Tab S9, col fondale e gli scatti
 shaders/             le sonde
 traces/              le tracce del banco del movimento (TRACE.md); `check` compila anche i loro `.agsl`
 golden/classic/      immagini di riferimento del vetro di oggi, manifesto, scene proprie

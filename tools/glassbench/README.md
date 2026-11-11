@@ -651,7 +651,9 @@ manca ai fianchi.
   confine, misurato in F0: **prova** la sagoma, l'ordine degli eventi e la durata di un viaggio una
   volta partito; **non prova** la puntualita' della partenza ne' i fotogrammi lunghi, che il
   dispositivo ritarda (un menu 24-40 ms, il primo fotogramma di un push 65-73 ms) e che si
-  giudicano solo sul dispositivo.
+  giudicano solo sul dispositivo. Per quelli, e per trovare da soli gli scatti di un viaggio
+  (fotogramma senza vetro, cambio di materiale, salti, fotogrammi lunghi) su una ripresa del tablet o
+  sui fotogrammi del banco, c'e' `glassjerk.py`, il rivelatore di scatti (`SCATTI.md`).
 - **La sfocatura al pixel.** Skia in software approssima la gaussiana con tre passate di media per i
   sigma grandi; la GPU di Android usa una gaussiana vera, ridotta di scala. Misurato su `scenes/s1/`:
   nel corpo di una lastra lo scarto dal vero ha deviazione standard 0,5 livelli e non supera 2, e
@@ -740,6 +742,7 @@ scenes/rif/          le inquadrature dei frame di Apple (R4, R5) e le sei pagine
 scenes/s1/           la riga «oggi» della pagina «Misure» uguale a uno scatto del Tab S9, col fondale e gli scatti
 shaders/             le sonde
 traces/              le tracce del banco del movimento (TRACE.md); `check` compila anche i loro `.agsl`
+glassjerk.py         il rivelatore di scatti, per riprese del tablet e fotogrammi del banco (SCATTI.md)
 tavola.py            le tavole di gusto: varianti in colonna, inquadrature in riga, ritagli di Apple
 scenes/f1a/          prova-* (prove a mano di F1A.1-F1A.4), ricetta/ e gusto/ (scritte dalla ricetta
                      dell'engine: non si modificano a mano), tavole/ (le descrizioni delle tavole)

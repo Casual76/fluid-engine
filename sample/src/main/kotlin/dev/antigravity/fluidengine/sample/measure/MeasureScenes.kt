@@ -2,6 +2,8 @@ package dev.antigravity.fluidengine.sample.measure
 
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
@@ -21,10 +23,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -39,12 +43,16 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -63,9 +71,12 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawPlainBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.runtimeShaderEffect
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -506,59 +517,251 @@ private fun RuntimeShader.edgeUniforms(
 
 // --- (f): la lettura della miniatura ------------------------------------------------------------------
 
+/** Oltre quanto dal cambio del fondale una lettura chiesta dopo deve già vederlo: tre fotogrammi a 120 Hz. */
+private const val FlipStaleNanos = 25_000_000L
+
+private val MainHandler = Handler(Looper.getMainLooper())
+
+/** Ciò che le due letture della stessa miniatura hanno di diverso, accumulato fra una riga e l'altra. */
+private class VerifyStats {
+  private var count = 0
+  private var lumaMax = 0f
+  private var channelMax = 0
+  private var channelMeanSum = 0f
+
+  @Synchronized
+  fun add(difference: ProbeDifference) {
+    count++
+    lumaMax = maxOf(lumaMax, difference.lumaDelta)
+    channelMax = maxOf(channelMax, difference.maxChannelDelta)
+    channelMeanSum += difference.meanChannelDelta
+  }
+
+  /** `n=… dluma_max=… dpix_max=… dpix_mean=…`, e riparte da zero. */
+  @Synchronized
+  fun takeLine(): String {
+    val mean = if (count > 0) channelMeanSum / count else 0f
+    val line = "n=$count dluma_max=${"%.4f".format(Locale.ROOT, lumaMax)} dpix_max=$channelMax" +
+      " dpix_mean=${"%.3f".format(Locale.ROOT, mean)}"
+    count = 0
+    lumaMax = 0f
+    channelMax = 0
+    channelMeanSum = 0f
+    return line
+  }
+}
+
+/** Ciò che le sonde della scena hanno in comune: le ultime luminanze, la prova chiaro/scuro, il confronto. */
+private class ProbeRig(config: MeasureConfig, private val meter: FrameMeter?) {
+  val lumas = FloatArray(4) { Float.NaN }
+  val flips: FlipTracker? = if (config.flipMillis > 0L) FlipTracker(config.probes, FlipStaleNanos) else null
+  val verify = VerifyStats()
+
+  /** Una lettura finita. Da qualunque filo. */
+  fun onLuma(index: Int, luma: Float, requestedNanos: Long, doneNanos: Long) {
+    if (index !in lumas.indices) return
+    lumas[index] = luma
+    val verdict = flips?.onReading(index, luma, requestedNanos, doneNanos) ?: return
+    when (verdict.kind) {
+      FlipTracker.Kind.Seen -> {
+        meter?.sample("flip_seen", verdict.seenNanos)
+        meter?.sample("flip_wait", verdict.waitNanos)
+        meter?.sample("flip_pipe", verdict.pipeNanos)
+      }
+      FlipTracker.Kind.Stale -> meter?.sample("flip_stale", verdict.waitNanos)
+    }
+  }
+}
+
 /**
  * Ciò che farà `GlassProbe` (piano 3.9), ridotto all'osso: una miniatura del fondale registrata in un
- * layer piccolo, letta con `toImageBitmap()` ogni [MeasureConfig.periodMillis], e i suoi pixel copiati
- * per farne la luminanza media. Si misurano i due tempi, e intanto i fotogrammi dello schermo.
+ * layer piccolo e letta ogni [MeasureConfig.periodMillis], per farne la luminanza media. Si misurano i
+ * tempi della lettura e intanto i fotogrammi dello schermo.
+ *
+ * I modi (`measure.thread`): `main` e `mixed` leggono con `toImageBitmap()`, come in S1; `reader` e
+ * `reader-shared` con [ProbeReaderHub], cioè un `HardwareRenderer` su un `ImageReader`. In tutti la
+ * miniatura si registra sul filo principale, nel disegno del riquadro.
+ *
+ * Due prove di correttezza: `measure.verify on` legge la stessa miniatura nei due modi e confronta i
+ * pixel; `measure.flip <ms>` fa passare il fondale da bianco a nero sotto le sonde e misura dopo quanto
+ * ogni sonda lo vede.
  */
 @Composable
 private fun ProbeScene(session: MeasureSession) {
   val config = session.config
-  val lumas = remember { FloatArray(4) { Float.NaN } }
-  MeasureStage(config, session.clock, session.sources) {
+  val density = LocalDensity.current
+  val meter = session.meter
+  val rig = remember { ProbeRig(config, meter) }
+  val readerMode = config.thread == MeasureThread.Reader || config.thread == MeasureThread.ReaderShared
+  val readerAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+  val sharedHub = remember {
+    if (config.thread == MeasureThread.ReaderShared && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      ProbeReaderHub(config.probes, config.probeSide, density, false, config.rerecord, hubOptions(config)) { reading ->
+        meter?.sample("lat", reading.arrivedNanos - reading.requestedNanos)
+        meter?.sample("work", reading.doneNanos - reading.arrivedNanos)
+        for (index in reading.lumas.indices) {
+          rig.onLuma(index, reading.lumas[index], reading.requestedNanos, reading.doneNanos)
+        }
+      }
+    } else {
+      null
+    }
+  }
+  DisposableEffect(sharedHub) {
+    onDispose { if (sharedHub != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) sharedHub.release() }
+  }
+
+  val dark = remember { mutableStateOf(false) }
+  val overlay: (DrawScope.() -> Unit)? = remember(config.flipMillis) {
+    if (config.flipMillis > 0L) {
+      val block: DrawScope.() -> Unit = { drawRect(if (dark.value) Color.Black else Color.White) }
+      block
+    } else {
+      null
+    }
+  }
+
+  MeasureStage(config, session.clock, session.sources, backdropOverlay = overlay) {
     Row(
       modifier = Modifier
         .align(Alignment.Center)
         .padding(bottom = session.bottomInset),
       horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-      repeat(config.probes) { index -> ProbeBox(session, index, lumas) }
+      repeat(config.probes) { index -> ProbeBox(session, index, rig, sharedHub) }
+    }
+  }
+
+  val flips = rig.flips
+  if (flips != null) {
+    LaunchedEffect(flips) {
+      delay((config.warmupSeconds * 1000f).toLong())
+      while (true) {
+        delay(config.flipMillis)
+        withFrameNanos {
+          dark.value = !dark.value
+          // La sorgente si ri-registra nel disegno di questo stesso fotogramma: l'istante è questo.
+          val missed = flips.mark(System.nanoTime(), dark.value)
+          repeat(missed) { meter?.sample("flip_missed", 0L) }
+        }
+      }
+    }
+  }
+  if (sharedHub != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+    LaunchedEffect(sharedHub) {
+      probeTicker(config.periodMillis, offsetMillis = 0L) { requestAtPhase(sharedHub, config.phase, meter) }
     }
   }
   LaunchedEffect(Unit) {
-    runMeasureWindows(config, session.meter, session.report) { window ->
-      val snapshot = window.samples["snapshot"]
-      val read = window.samples["read"]
-      val failed = window.samples["failed"]?.count ?: 0
-      val luma = lumas.take(config.probes).joinToString(",") { if (it.isNaN()) "-" else "%.3f".format(java.util.Locale.ROOT, it) }
-      "snapshot_ms ${snapshot?.millis() ?: "-"} n=${snapshot?.count ?: 0}" +
-        " | read_ms ${read?.millis() ?: "-"} | failed=$failed luma=$luma"
+    if (readerMode && !readerAvailable) {
+      session.report.line("FINE ${config.key} | HardwareRenderer esiste da Android 10: il modo reader non si monta")
+      return@LaunchedEffect
+    }
+    runMeasureWindows(config, meter, session.report) { window ->
+      val samples = window.samples
+      val luma = rig.lumas.take(config.probes).joinToString(",") {
+        if (it.isNaN()) "-" else "%.3f".format(Locale.ROOT, it)
+      }
+      val failed = samples["failed"]?.count ?: 0
+      buildString {
+        if (readerMode) {
+          val main = samples["main"]
+          append("main_ms ${main?.millis() ?: "-"} n=${main?.count ?: 0}")
+          append(" | record_ms ${samples["record"]?.millis() ?: "-"}")
+          append(" | lat_ms ${samples["lat"]?.millis() ?: "-"}")
+          append(" | work_ms ${samples["work"]?.millis() ?: "-"}")
+          append(" | failed=$failed overrun=${samples["overrun"]?.count ?: 0} luma=$luma")
+        } else {
+          val snapshot = samples["snapshot"]
+          append("snapshot_ms ${snapshot?.millis() ?: "-"} n=${snapshot?.count ?: 0}")
+          append(" | read_ms ${samples["read"]?.millis() ?: "-"} | failed=$failed luma=$luma")
+        }
+        if (flips != null) {
+          val seen = samples["flip_seen"]
+          append(" | flip_seen_ms ${seen?.millis() ?: "-"} n=${seen?.count ?: 0}")
+          append(" | flip_wait_ms ${samples["flip_wait"]?.millis() ?: "-"}")
+          append(" | flip_pipe_ms ${samples["flip_pipe"]?.millis() ?: "-"}")
+          append(" | flip_missed=${samples["flip_missed"]?.count ?: 0} flip_stale=${samples["flip_stale"]?.count ?: 0}")
+        }
+        if (config.verify) append(" | verify ${rig.verify.takeLine()}")
+      }
     }
   }
 }
+
+private fun hubOptions(config: MeasureConfig): ProbeHubOptions = ProbeHubOptions(
+  via = config.via,
+  opaque = config.readerOpaque,
+  start = config.readerStart,
+  gpuUsage = config.readerGpuUsage,
+  light = config.readerLight,
+)
 
 /** Ciò che il disegno lascia alla lettura: dove sta il riquadro, e se la miniatura è stata registrata. */
 private class ProbeHolder {
   var coordinates: LayoutCoordinates? = null
+  var width = 0f
+  var height = 0f
   var recorded = false
   var warned = false
+
+  /** Chi aspetta la prossima lettura del lettore (la prova `verify`). */
+  @Volatile
+  var waiter: CompletableDeferred<ProbeReading>? = null
 }
 
 @Composable
-private fun ProbeBox(session: MeasureSession, index: Int, lumas: FloatArray) {
+private fun ProbeBox(session: MeasureSession, index: Int, rig: ProbeRig, sharedHub: ProbeReaderHub?) {
   val config = session.config
+  val meter = session.meter
   val source: LayerBackdrop = session.sources.layer
   val layer = rememberGraphicsLayer()
   val holder = remember { ProbeHolder() }
   val outline = measurePalette().accent
   val side = config.probeSide
+  val density = LocalDensity.current
+  val ownHub = remember {
+    if (config.thread == MeasureThread.Reader && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      ProbeReaderHub(1, side, density, config.verify, config.rerecord, hubOptions(config)) { reading ->
+        meter?.sample("lat", reading.arrivedNanos - reading.requestedNanos)
+        meter?.sample("work", reading.doneNanos - reading.arrivedNanos)
+        rig.onLuma(index, reading.lumas[0], reading.requestedNanos, reading.doneNanos)
+        holder.waiter?.complete(reading)
+      }
+    } else {
+      null
+    }
+  }
+  DisposableEffect(ownHub) {
+    onDispose { if (ownHub != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ownHub.release() }
+  }
+  // Che cosa la radice del lettore disegna nella casella di questa sonda (`measure.root`).
+  val painter: DrawScope.() -> Unit = remember(config.root, layer, source) {
+    val viaLayer: DrawScope.() -> Unit = { drawLayer(layer) }
+    val direct: DrawScope.() -> Unit = {
+      val coordinates = holder.coordinates
+      if (coordinates != null && coordinates.isAttached && holder.width > 0f && holder.height > 0f) {
+        val asDensity: Density = this
+        scale(side / holder.width, side / holder.height, pivot = Offset.Zero) {
+          with(source) { drawBackdrop(asDensity, coordinates, null) }
+        }
+      }
+    }
+    val solid: DrawScope.() -> Unit = { drawRect(Color(0xFF808080)) }
+    when (config.root) {
+      MeasureRoot.Layer -> viaLayer
+      MeasureRoot.Direct -> direct
+      MeasureRoot.Solid -> solid
+    }
+  }
   Box(
     modifier = Modifier
       .size(120.dp)
       .onGloballyPositioned { holder.coordinates = it }
       .drawWithContent {
         // La miniatura si registra quando il riquadro si disegna, cioè quando cambia la sua geometria:
-        // tiene il fondale per riferimento, quindi dopo basta rileggerla.
+        // tiene il fondale per riferimento, quindi dopo basta rileggerla. Sempre qui, sul filo
+        // principale: una registrazione fuori dal principale fa cadere HWUI.
         val coordinates = holder.coordinates
         val drawable = size.width > 0f && size.height > 0f
         if (drawable && coordinates != null && coordinates.isAttached && source.isReadyToSample()) {
@@ -570,7 +773,13 @@ private fun ProbeBox(session: MeasureSession, index: Int, lumas: FloatArray) {
               with(source) { drawBackdrop(asDensity, coordinates, null) }
             }
           }
+          holder.width = size.width
+          holder.height = size.height
           holder.recorded = true
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ownHub?.setContent(0, painter)
+            sharedHub?.setContent(index, painter)
+          }
         }
         drawContent()
         drawRect(color = outline, style = Stroke(width = 1.dp.toPx()))
@@ -578,52 +787,148 @@ private fun ProbeBox(session: MeasureSession, index: Int, lumas: FloatArray) {
   )
   LaunchedEffect(layer, config) {
     // Più sonde non leggono tutte nello stesso fotogramma: è così che le schedulerà l'engine.
-    delay(config.periodMillis * index / config.probes)
-    while (true) {
-      delay(config.periodMillis)
-      if (!holder.recorded) continue
-      try {
-        val started = System.nanoTime()
-        val image = measureAsyncSection("Misure.miniatura", index) {
-          if (config.thread == MeasureThread.Background) {
-            withContext(Dispatchers.Default) { layer.toImageBitmap() }
-          } else {
-            layer.toImageBitmap()
+    val offsetMillis = config.periodMillis * index / config.probes
+    when {
+      // Un lettore solo per tutte: chiede la scena, una volta per periodo.
+      sharedHub != null -> Unit
+      ownHub != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+        if (config.verify) {
+          verifyLoop(config, layer, holder, ownHub, rig, meter)
+        } else {
+          probeTicker(config.periodMillis, offsetMillis) {
+            if (holder.recorded) requestAtPhase(ownHub, config.phase, meter)
           }
         }
-        val snapped = System.nanoTime()
-        val luma = if (config.thread == MeasureThread.Main) {
-          meanLuma(image)
-        } else {
-          withContext(Dispatchers.Default) { meanLuma(image) }
-        }
-        val read = System.nanoTime()
-        session.meter?.sample("snapshot", snapped - started)
-        session.meter?.sample("read", read - snapped)
-        lumas[index] = luma
-      } catch (error: kotlinx.coroutines.CancellationException) {
-        throw error
-      } catch (error: Exception) {
-        session.meter?.sample("failed", 0L)
-        if (!holder.warned) {
-          holder.warned = true
-          Log.w(MeasureLogTag, "Lettura della miniatura fallita (${config.thread.key}): $error")
+      config.thread == MeasureThread.Main || config.thread == MeasureThread.Mixed -> {
+        delay(offsetMillis)
+        while (true) {
+          delay(config.periodMillis)
+          if (!holder.recorded) continue
+          try {
+            val started = System.nanoTime()
+            val image = measureAsyncSection("Misure.miniatura", index) { layer.toImageBitmap() }
+            val snapped = System.nanoTime()
+            val luma = if (config.thread == MeasureThread.Main) {
+              meanLuma(image)
+            } else {
+              withContext(Dispatchers.Default) { meanLuma(image) }
+            }
+            val read = System.nanoTime()
+            meter?.sample("snapshot", snapped - started)
+            meter?.sample("read", read - snapped)
+            rig.onLuma(index, luma, started, read)
+          } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+          } catch (error: Exception) {
+            meter?.sample("failed", 0L)
+            if (!holder.warned) {
+              holder.warned = true
+              Log.w(MeasureLogTag, "Lettura della miniatura fallita (${config.thread.key}): $error")
+            }
+          }
         }
       }
+      // Il modo reader sotto Android 10: la scena lo ha già detto e non misura niente.
+      else -> Unit
     }
   }
 }
 
 /**
- * La luminanza media (0..1) di una miniatura. `toImageBitmap()` dà un'immagine che vive sulla GPU: per
- * leggerne i pixel va copiata in memoria, ed è quella copia la parte che può costare.
+ * Chiama [read] a istanti fissi (l'inizio più un multiplo del periodo), così il ritmo non scivola del
+ * tempo che la lettura stessa impiega; se resta indietro salta i colpi persi invece di rincorrerli.
  */
-private fun meanLuma(image: ImageBitmap): Float {
+private suspend fun probeTicker(periodMillis: Long, offsetMillis: Long, read: suspend () -> Unit) {
+  val period = periodMillis * 1_000_000L
+  val start = System.nanoTime() + offsetMillis * 1_000_000L
+  var tick = 1L
+  while (true) {
+    val wait = (start + tick * period - System.nanoTime()) / 1_000_000L
+    if (wait > 0L) delay(wait)
+    read()
+    tick = maxOf(tick + 1L, (System.nanoTime() - start) / period + 1L)
+  }
+}
+
+/** Chiede un fotogramma al lettore nel punto del fotogramma della finestra scelto con `measure.phase`. */
+@RequiresApi(Build.VERSION_CODES.Q)
+private suspend fun requestAtPhase(hub: ProbeReaderHub, phase: MeasurePhase, meter: FrameMeter?) {
+  when (phase) {
+    MeasurePhase.Any -> noteRequest(hub.request(), meter)
+    MeasurePhase.Frame -> withFrameNanos { noteRequest(hub.request(), meter) }
+    // Un messaggio accodato dalla callback del fotogramma gira dopo il disegno della finestra, che sta
+    // nello stesso giro del Choreographer: il RenderThread sta rendendo la finestra, il principale è libero.
+    MeasurePhase.Post -> withFrameNanos { MainHandler.post { noteRequest(hub.request(), meter) } }
+  }
+}
+
+private fun noteRequest(request: ProbeRequest, meter: FrameMeter?) {
+  when (request.outcome) {
+    ProbeRequest.Outcome.Sent -> {
+      meter?.sample("main", request.mainNanos)
+      if (request.recordNanos > 0L) meter?.sample("record", request.recordNanos)
+    }
+    ProbeRequest.Outcome.Overrun -> meter?.sample("overrun", 0L)
+    ProbeRequest.Outcome.Refused -> meter?.sample("failed", 0L)
+    ProbeRequest.Outcome.Idle -> Unit
+  }
+}
+
+/**
+ * La prova di correttezza: la stessa miniatura letta con `toImageBitmap()` e subito dopo con il lettore,
+ * e i pixel confrontati. A fondale fermo fra le due letture non cambia niente, quindi ogni differenza è
+ * del modo di leggere.
+ */
+@RequiresApi(Build.VERSION_CODES.Q)
+private suspend fun verifyLoop(
+  config: MeasureConfig,
+  layer: GraphicsLayer,
+  holder: ProbeHolder,
+  hub: ProbeReaderHub,
+  rig: ProbeRig,
+  meter: FrameMeter?,
+) {
+  while (true) {
+    delay(config.periodMillis)
+    if (!holder.recorded) continue
+    val argb = pixelsOf(layer.toImageBitmap())
+    if (argb == null) {
+      meter?.sample("failed", 0L)
+      continue
+    }
+    val waiter = CompletableDeferred<ProbeReading>()
+    holder.waiter = waiter
+    val request = hub.request()
+    noteRequest(request, meter)
+    val reading =
+      if (request.outcome == ProbeRequest.Outcome.Sent) withTimeoutOrNull(1000L) { waiter.await() } else null
+    holder.waiter = null
+    val rgb = reading?.rgb
+    if (rgb == null) {
+      meter?.sample("failed", 0L)
+      continue
+    }
+    rig.verify.add(probeDifference(argb, rgb))
+  }
+}
+
+/**
+ * I pixel di una miniatura di `toImageBitmap()`. L'immagine vive sulla GPU: per leggerla va copiata in
+ * memoria, ed è quella copia la parte che può costare.
+ */
+private fun pixelsOf(image: ImageBitmap): IntArray? {
   val bitmap = image.asAndroidBitmap()
   val readable = if (bitmap.config == Bitmap.Config.HARDWARE) bitmap.copy(Bitmap.Config.ARGB_8888, false) else bitmap
-  if (readable == null || readable.width <= 0 || readable.height <= 0) return Float.NaN
+  if (readable == null || readable.width <= 0 || readable.height <= 0) return null
   val pixels = IntArray(readable.width * readable.height)
   readable.getPixels(pixels, 0, readable.width, 0, 0, readable.width, readable.height)
+  if (readable !== bitmap) readable.recycle()
+  return pixels
+}
+
+/** La luminanza media (0..1) di una miniatura di `toImageBitmap()`. */
+private fun meanLuma(image: ImageBitmap): Float {
+  val pixels = pixelsOf(image) ?: return Float.NaN
   var sum = 0f
   for (pixel in pixels) {
     val r = (pixel shr 16) and 0xFF
@@ -631,7 +936,6 @@ private fun meanLuma(image: ImageBitmap): Float {
     val b = pixel and 0xFF
     sum += (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255f
   }
-  if (readable !== bitmap) readable.recycle()
   return sum / pixels.size
 }
 
@@ -641,37 +945,47 @@ private class CompileStep(val name: String, val source: String)
 
 /** Quanto resta in scena una variante prima che arrivi la successiva: abbastanza fotogrammi per la mediana «a regime». */
 private const val CompileStepMillis = 700L
-private val CompileVariants = intArrayOf(1, 2, 4, 8)
 private val CompileWidth = 156.dp
 private val CompileHeight = 56.dp
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun ProtoSources.sourceOf(step: String): String = when {
+  step.startsWith("body") -> body(step.removePrefix("body").toInt()).source
+  step.startsWith("light") -> light(step.removePrefix("light").toInt()).source
+  else -> edge
+}
+
 /**
- * Ogni variante di shader entra in scena da sola, a distanza di [CompileStepMillis]: prima il corpo a
- * 1, 2, 4, 8 pezzi e la sua luce, poi la striscia del bordo. Per ognuna si prendono il tempo di
- * costruzione del programma (`RuntimeShader(sorgente)`, sul filo principale) e il fotogramma in cui si
- * disegna per la prima volta, accanto alla mediana dei fotogrammi che seguono.
+ * Ogni variante di shader entra in scena da sola, a distanza di [CompileStepMillis], nell'ordine di
+ * [MeasureConfig.steps] (di serie quello di S1: corpo e luce a 1, 2, 4, 8 pezzi, poi la striscia del
+ * bordo). Per ognuna si prendono il tempo di costruzione del programma (`RuntimeShader(sorgente)`, sul
+ * filo principale) e il fotogramma in cui si disegna per la prima volta, accanto alla mediana dei
+ * fotogrammi che seguono.
+ *
+ * La sequenza si può cambiare (`measure.steps`) per capire **che cosa** del primo fotogramma costa: una
+ * variante ripetuta entra la seconda volta con il programma già in memoria (resta la sola creazione
+ * delle sue superfici), `edge2` è la striscia in basso (stesso programma di `edge`, superfici sue), una
+ * luce senza il suo corpo prima entra da sola.
  *
  * La prima compilazione vera è una sola per installazione: il sistema tiene i programmi compilati su
  * disco. Perché il numero sia quello a freddo, prima del lancio va svuotata la cache dell'app
- * (`pm clear`: vedi LEGGIMI.md).
+ * (`pm clear`: vedi LEGGIMI.md). **Il sistema scrive quella cache qualche secondo dopo l'ultima
+ * compilazione**: un processo fermato subito dopo `FINE` (lo fa `am start -S` della misura seguente)
+ * perde gli ultimi programmi, che alla corsa dopo risultano ancora freddi. È ciò che in S1 aveva fatto
+ * sembrare lenti `light8` e la striscia.
  */
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
   val config = session.config
-  val steps = remember(shaders) {
-    buildList {
-      for (pieces in CompileVariants) {
-        add(CompileStep("body$pieces", shaders.body(pieces).source))
-        add(CompileStep("light$pieces", shaders.light(pieces).source))
-      }
-      add(CompileStep("edge", shaders.edge))
-    }
-  }
+  val steps = remember(shaders, config.steps) { config.steps.map { CompileStep(it, shaders.sourceOf(it)) } }
+  val plan = remember(config.steps) { compilePlan(config.steps) }
   var shown by remember { mutableIntStateOf(0) }
   val drive = remember { ProtoDrive() }
 
   MeasureStage(config, session.clock, session.sources) {
+    // Con la sequenza di S1 gli elementi stanno in colonna, come allora; di più, tre per riga.
+    val perRow = if (plan.elements.size <= 5) 1 else 3
     Column(
       modifier = Modifier
         .align(Alignment.Center)
@@ -679,16 +993,27 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
       verticalArrangement = Arrangement.spacedBy(16.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-      CompileVariants.forEachIndexed { index, pieces ->
-        val bodyStep = index * 2
-        if (shown > bodyStep) {
-          CompileElement(session, shaders, pieces, withLight = shown > bodyStep + 1, drive = drive)
-        } else {
-          Spacer(Modifier.size(CompileWidth, CompileHeight))
+      plan.elements.chunked(perRow).forEach { row ->
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+          row.forEach { slot ->
+            val entersAt = if (slot.bodyStep >= 0) slot.bodyStep else slot.lightStep
+            when {
+              shown <= entersAt -> Spacer(Modifier.size(CompileWidth, CompileHeight))
+              slot.bodyStep >= 0 -> CompileElement(
+                session = session,
+                shaders = shaders,
+                pieces = slot.pieces,
+                withLight = slot.lightStep in 0 until shown,
+                drive = drive,
+              )
+              else -> CompileLoneLight(session, shaders, slot.pieces, drive)
+            }
+          }
         }
       }
     }
-    if (shown > steps.lastIndex) EdgeStrip(session, shaders, fromBottom = false)
+    if (plan.topStrip in 0 until shown) EdgeStrip(session, shaders, fromBottom = false)
+    if (plan.bottomStrip in 0 until shown) EdgeStrip(session, shaders, fromBottom = true)
   }
 
   LaunchedEffect(Unit) {
@@ -732,6 +1057,9 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
           shown = index + 1
           now
         }
+        // Solo in logcat, con il suo orario: serve a mettere ogni passo accanto all'istante in cui il
+        // sistema scrive la cache dei programmi su disco.
+        Log.i(MeasureLogTag, "PASSO step=$index variant=${step.name}")
         delay(CompileStepMillis)
       }
       delay(400L)
@@ -751,7 +1079,7 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
       val steadyFrom = intro[index] + 8L * interval
       val steadyTo = intro[index] + CompileStepMillis * 1_000_000L - 2L * interval
       report.line(
-        "COMPILA scene=compile variant=${steps[index].name}" +
+        "COMPILA scene=compile variant=${steps[index].name} step=$index" +
           " build_ms=${MeasureSummary.millis(build[index])}" +
           " first_total_ms=${orMissing(frames.maxBetween(frames.total, from, to))}" +
           " first_ui_ms=${orMissing(frames.maxBetween(frames.ui, from, to))}" +
@@ -765,6 +1093,9 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
 }
 
 private fun orMissing(nanos: Long): String = if (nanos < 0L) "n/d" else MeasureSummary.millis(nanos)
+
+private val CompileLayout: ProtoLayout =
+  { width, height, _ -> add(width / 2f, height / 2f, width / 2f, height / 2f, min(width, height) / 2f) }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
@@ -780,9 +1111,6 @@ private fun CompileElement(
   val spec = remember(config.blurDp, config.dispersion, dark) { ProtoSpec.of(config.blurDp, config.dispersion, dark) }
   val body = remember(shaders, pieces) { shaders.body(pieces) }
   val light = remember(shaders, pieces, withLight) { if (withLight) shaders.light(pieces) else null }
-  val layout: ProtoLayout = remember {
-    { width, height, _ -> add(width / 2f, height / 2f, width / 2f, height / 2f, min(width, height) / 2f) }
-  }
   Box(
     modifier = Modifier
       .size(CompileWidth, CompileHeight)
@@ -797,9 +1125,20 @@ private fun CompileElement(
         scale = 1f,
         shadow = false,
         drive = drive,
-        layout = layout,
+        layout = CompileLayout,
       ),
   )
+}
+
+/** Una luce senza il suo corpo: il programma della luce entra da solo. */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+private fun CompileLoneLight(session: MeasureSession, shaders: ProtoSources, pieces: Int, drive: ProtoDrive) {
+  val config = session.config
+  val dark = GlassDefaults.isDarkSurface()
+  val spec = remember(config.blurDp, config.dispersion, dark) { ProtoSpec.of(config.blurDp, config.dispersion, dark) }
+  val light = remember(shaders, pieces) { shaders.light(pieces) }
+  Box(modifier = Modifier.size(CompileWidth, CompileHeight).protoLightOnly(light, spec, drive, CompileLayout))
 }
 
 // --- (h): Fluid-physics, Full e Balanced ------------------------------------------------------------------

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -86,6 +87,11 @@ internal fun MeasureStage(
   clock: MeasureClock,
   sources: MeasureSources,
   modifier: Modifier = Modifier,
+  /**
+   * Disegnato sopra il fondale e **dentro** la sua registrazione: ciò che legge qui uno stato fa
+   * ri-registrare la sorgente quando lo stato cambia, come una pagina che cambia sotto un vetro fermo.
+   */
+  backdropOverlay: (DrawScope.() -> Unit)? = null,
   content: @Composable BoxScope.() -> Unit,
 ) {
   Box(modifier = modifier.fillMaxSize()) {
@@ -97,7 +103,17 @@ internal fun MeasureStage(
         // Come `glassBackdropSource`: la registrazione, e sotto di lei il fondale rasterizzato una
         // volta sola fuori schermo, così ogni vetro campiona un quadrilatero e non rigira la pagina.
         .layerBackdrop(sources.layer)
-        .glassBackdropSource(sources.glass),
+        .glassBackdropSource(sources.glass)
+        .then(
+          if (backdropOverlay != null) {
+            Modifier.drawWithContent {
+              drawContent()
+              backdropOverlay()
+            }
+          } else {
+            Modifier
+          },
+        ),
     )
     content()
     if (config.motion == MeasureMotion.Still) MeasureHeartbeat(clock)

@@ -207,4 +207,169 @@ class MeasurePureTest {
       parse("measure.scene" to "base", "measure.mount" to "two", "measure.pieces" to "8")!!.key,
     )
   }
+
+  // --- S1-bis: il lettore della sonda e la sequenza della compilazione --------------------------------
+
+  @Test
+  fun `il modo background non esiste piu, e chi lo chiede resta su main e lo legge nella chiave`() {
+    val config = parse("measure.scene" to "probe", "measure.thread" to "background")!!
+    assertEquals(MeasureThread.Main, config.thread)
+    assertTrue(config.key, config.key.contains("thread=main"))
+    assertNull(MeasureThread.entries.firstOrNull { it.key == "background" })
+  }
+
+  @Test
+  fun `il lettore porta in chiave la fase, e le prove solo quando sono accese`() {
+    val reader = parse("measure.scene" to "probe", "measure.thread" to "reader", "measure.period" to "100")!!
+    assertEquals(MeasureThread.Reader, reader.thread)
+    assertEquals(MeasurePhase.Post, reader.phase)
+    assertEquals(
+      "scene=probe backdrop=text motion=scroll speed=900 period=100 thread=reader probes=1 side=16 phase=post",
+      reader.key,
+    )
+    val shared = parse(
+      "measure.scene" to "probe",
+      "measure.thread" to "reader-shared",
+      "measure.probes" to "4",
+      "measure.phase" to "frame",
+      "measure.flip" to "1000",
+      "measure.verify" to "on",
+    )!!
+    assertEquals(MeasureThread.ReaderShared, shared.thread)
+    assertEquals(MeasurePhase.Frame, shared.phase)
+    assertEquals(1000L, shared.flipMillis)
+    assertTrue(shared.verify)
+    assertTrue(shared.key, shared.key.endsWith("probes=4 side=16 phase=frame flip=1000 verify=on"))
+    // Un cambio piu fitto di dieci al secondo non e una prova: resta spento.
+    assertEquals(0L, parse("measure.scene" to "probe", "measure.flip" to "20")!!.flipMillis)
+    // Per `toImageBitmap()` la fase non conta, e la chiave non la porta.
+    assertFalse(parse("measure.scene" to "probe", "measure.phase" to "any")!!.key.contains("phase"))
+  }
+
+  @Test
+  fun `le varianti di diagnosi del lettore stanno in chiave solo quando non sono quelle di serie`() {
+    val plain = parse("measure.scene" to "probe", "measure.thread" to "reader")!!
+    assertEquals(MeasureRoot.Layer, plain.root)
+    assertEquals(MeasureVia.Renderer, plain.via)
+    assertTrue("di serie la radice si ri-registra a ogni richiesta", plain.rerecord)
+    assertFalse(plain.readerOpaque || plain.readerStart || plain.readerGpuUsage || plain.readerLight)
+    val diagnosis = parse(
+      "measure.scene" to "probe",
+      "measure.thread" to "reader",
+      "measure.root" to "direct",
+      "measure.rerecord" to "off",
+      "measure.via" to "lock-hw",
+      "measure.opaque" to "on",
+      "measure.start" to "on",
+      "measure.usage" to "gpu",
+      "measure.light0" to "on",
+    )!!
+    assertEquals(MeasureRoot.Direct, diagnosis.root)
+    assertEquals(MeasureVia.LockHardware, diagnosis.via)
+    assertFalse(diagnosis.rerecord)
+    assertTrue(
+      diagnosis.key,
+      diagnosis.key.endsWith("phase=post root=direct rerecord=off via=lock-hw opaque=on start=on usage=gpu light0=on"),
+    )
+    // Senza lettore le varianti non contano, e la chiave non le porta.
+    val main = parse("measure.scene" to "probe", "measure.root" to "solid", "measure.via" to "lock-sw")!!
+    assertEquals("scene=probe backdrop=text motion=scroll speed=900 period=120 thread=main probes=1 side=16", main.key)
+  }
+
+  @Test
+  fun `la sequenza della compilazione accetta solo nomi veri, e senza extra e quella di S1`() {
+    assertEquals(
+      listOf("body1", "light1", "body2", "light2", "body4", "light4", "body8", "light8", "edge"),
+      MeasureConfig.defaults(MeasureScene.Compile).steps,
+    )
+    assertEquals(
+      listOf("body1", "body8", "light1", "light8", "edge"),
+      MeasureConfig.parseCompileSteps(" body1, body8 ,light1,light8,edge "),
+    )
+    assertEquals(listOf("edge", "edge2"), MeasureConfig.parseCompileSteps("edge+edge2"))
+    assertNull(MeasureConfig.parseCompileSteps(""))
+    assertNull("un nome che non esiste", MeasureConfig.parseCompileSteps("body1,body3"))
+    assertNull("la stessa striscia due volte", MeasureConfig.parseCompileSteps("edge,edge"))
+    assertNull("troppi passi", MeasureConfig.parseCompileSteps(List(13) { "body1" }.joinToString(",")))
+    val custom = parse("measure.scene" to "compile", "measure.steps" to "light8,body8,body8")!!
+    assertEquals("scene=compile backdrop=text steps=light8,body8,body8", custom.key)
+    // Un refuso nella sequenza lascia quella di serie, e la chiave lo dice (niente `steps=`).
+    assertEquals("scene=compile backdrop=text", parse("measure.scene" to "compile", "measure.steps" to "bod1")!!.key)
+  }
+
+  @Test
+  fun `nel piano una luce va sul suo corpo se c e, altrimenti entra da sola`() {
+    val s1 = compilePlan(MeasureConfig.DefaultCompileSteps)
+    assertEquals(4, s1.elements.size)
+    assertEquals(listOf(0, 2, 4, 6), s1.elements.map { it.bodyStep })
+    assertEquals(listOf(1, 3, 5, 7), s1.elements.map { it.lightStep })
+    assertEquals(8, s1.topStrip)
+    assertEquals(-1, s1.bottomStrip)
+
+    val plan = compilePlan(listOf("light8", "body8", "body8", "light8", "edge2", "light8", "light8"))
+    assertEquals(4, plan.elements.size)
+    // La prima luce non ha un corpo prima di lei: da sola.
+    assertEquals(-1, plan.elements[0].bodyStep)
+    assertEquals(0, plan.elements[0].lightStep)
+    // Due corpi uguali sono due elementi; la luce va sull'ultimo che non ne ha, poi sull'altro.
+    assertEquals(1, plan.elements[1].bodyStep)
+    assertEquals(5, plan.elements[1].lightStep)
+    assertEquals(2, plan.elements[2].bodyStep)
+    assertEquals(3, plan.elements[2].lightStep)
+    // Finiti i corpi liberi, un'altra luce entra da sola.
+    assertEquals(-1, plan.elements[3].bodyStep)
+    assertEquals(6, plan.elements[3].lightStep)
+    assertEquals(-1, plan.topStrip)
+    assertEquals(4, plan.bottomStrip)
+  }
+
+  @Test
+  fun `il confronto fra due letture conta luminanza e canali, e pixel uguali danno zero`() {
+    val argb = intArrayOf(0xFF102030.toInt(), 0xFFFFFFFF.toInt(), 0xFF000000.toInt())
+    val same = byteArrayOf(0x10, 0x20, 0x30, -1, -1, -1, 0, 0, 0)
+    val equal = probeDifference(argb, same)
+    assertEquals(0, equal.maxChannelDelta)
+    assertEquals(0f, equal.meanChannelDelta, 0f)
+    assertEquals(0f, equal.lumaDelta, 1e-6f)
+
+    // Il verde del primo pixel sale di 3 livelli, il blu dell'ultimo di 6: 9 livelli su 9 canali.
+    val shifted = byteArrayOf(0x10, 0x23, 0x30, -1, -1, -1, 0, 0, 6)
+    val different = probeDifference(argb, shifted)
+    assertEquals(6, different.maxChannelDelta)
+    assertEquals(1f, different.meanChannelDelta, 1e-6f)
+    assertEquals((0.7152f * 3f + 0.0722f * 6f) / 255f / 3f, different.lumaDelta, 1e-6f)
+
+    // Con uno scarto si legge la seconda casella di un lettore condiviso.
+    val twoSlots = ByteArray(9) + same
+    assertEquals(0, probeDifference(argb, twoSlots, rgbOffset = 9).maxChannelDelta)
+    assertEquals(-1, probeDifference(IntArray(0), same).maxChannelDelta)
+  }
+
+  @Test
+  fun `la prova chiaro scuro dice dopo quanto la sonda vede il cambio, una volta sola`() {
+    val tracker = FlipTracker(probes = 2, staleNanos = 25L)
+    // Prima del primo cambio nessuna lettura c'entra.
+    assertNull(tracker.onReading(0, 0.9f, 0L, 5L))
+    assertEquals(0, tracker.mark(100L, toDark = true))
+    // Chiesta prima del cambio e ancora chiara: legittima, non stantia.
+    assertNull(tracker.onReading(0, 0.9f, 90L, 104L))
+    // Chiesta poco dopo il cambio e ancora chiara: dentro il margine.
+    assertNull(tracker.onReading(0, 0.9f, 110L, 118L))
+    val seen = tracker.onReading(0, 0.05f, 120L, 131L)!!
+    assertEquals(FlipTracker.Kind.Seen, seen.kind)
+    assertEquals(31L, seen.seenNanos)
+    assertEquals(20L, seen.waitNanos)
+    assertEquals(11L, seen.pipeNanos)
+    // La stessa sonda non lo vede due volte.
+    assertNull(tracker.onReading(0, 0.05f, 140L, 150L))
+    // L'altra sonda, chiesta ben dopo il cambio, legge ancora chiaro: stantia.
+    val stale = tracker.onReading(1, 0.9f, 160L, 170L)!!
+    assertEquals(FlipTracker.Kind.Stale, stale.kind)
+    assertEquals(60L, stale.waitNanos)
+    // Al cambio seguente la seconda sonda non aveva ancora visto il primo.
+    assertEquals(1, tracker.mark(300L, toDark = false))
+    assertEquals(FlipTracker.Kind.Seen, tracker.onReading(1, 0.8f, 310L, 320L)!!.kind)
+    assertNull("una lettura senza numero non dice niente", tracker.onReading(0, Float.NaN, 310L, 320L))
+    assertNull(tracker.onReading(7, 0.8f, 310L, 320L))
+  }
 }

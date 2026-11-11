@@ -16,7 +16,7 @@ internal enum class MeasureScene(val key: String, val title: String, val detail:
   Uniforms("uniforms", "Soli uniform, cattura ferma", "Pressione, comparsa e bagliore, nei montaggi a un layer e a due."),
   Pieces("pieces", "Pezzi fusi", "Lo stesso campo con 1, 2, 4, 8 pezzi."),
   Edge("edge", "Bordo dello scorrimento", "La striscia a due passate in alto e in basso, piena e a metà risoluzione."),
-  Probe("probe", "Lettura della miniatura", "toImageBitmap() di un layer piccolo: tempo, frequenza, filo."),
+  Probe("probe", "Lettura della miniatura", "toImageBitmap() contro HardwareRenderer + ImageReader: tempo, frequenza, filo."),
   Compile("compile", "Prima compilazione", "Ogni variante di shader disegnata per la prima volta, una alla volta."),
   Physics("physics", "Fluid-physics, Full e Balanced", "Un viaggio in ciclo con il livello forzato."),
 }
@@ -113,16 +113,63 @@ internal enum class MeasureEdges(val key: String) {
   Bottom("bottom"),
 }
 
-/** Dove girano la lettura della miniatura (`toImageBitmap`) e la copia dei suoi pixel. */
+/**
+ * Come si legge la miniatura. In tutti i modi la miniatura si **registra sul filo principale**: il modo
+ * `background` di S1, che chiamava `toImageBitmap()` da un filo di lavoro, faceva cadere HWUI
+ * (`RenderNode.endRecording` fuori dal principale, SIGSEGV) ed è stato tolto.
+ */
 internal enum class MeasureThread(val key: String) {
-  /** Tutto sul filo principale. */
+  /** `toImageBitmap()` e copia dei pixel sul filo principale. */
   Main("main"),
 
-  /** `toImageBitmap` sul principale, copia dei pixel e statistiche su un filo di lavoro. */
+  /** `toImageBitmap()` sul principale, copia dei pixel e statistiche su un filo di lavoro. */
   Mixed("mixed"),
 
-  /** Tutto su un filo di lavoro. */
-  Background("background"),
+  /**
+   * Un `HardwareRenderer` che rende la miniatura sulla `Surface` di un `ImageReader`: sul principale
+   * resta la sola richiesta di un fotogramma, i pixel arrivano su un `HandlerThread` che fa i conti.
+   * Ogni sonda ha il suo lettore e il suo ritmo.
+   */
+  Reader("reader"),
+
+  /** Come [Reader], ma un lettore solo per tutte le sonde: una richiesta per periodo le legge tutte. */
+  ReaderShared("reader-shared"),
+}
+
+/** Che cosa disegna la radice del lettore: serve a capire che cosa un secondo renderer sa rendere. */
+internal enum class MeasureRoot(val key: String) {
+  /** Il layer della miniatura, per riferimento: lo stesso che legge `toImageBitmap()`. */
+  Layer("layer"),
+
+  /** Il fondale della pagina, disegnato direttamente nella radice, senza il layer della miniatura. */
+  Direct("direct"),
+
+  /** Un grigio pieno: la prova che la catena (renderer, superficie, lettura dei pixel) funziona. */
+  Solid("solid"),
+}
+
+/** Chi rende sulla superficie dell'`ImageReader` nel modo `reader`. */
+internal enum class MeasureVia(val key: String) {
+  /** Un `HardwareRenderer` nostro, con la sua radice: una richiesta è `syncAndDraw`. */
+  Renderer("renderer"),
+
+  /** `Surface.lockHardwareCanvas()`: il renderer lo tiene la superficie, e ogni richiesta ridisegna. */
+  LockHardware("lock-hw"),
+
+  /** `Surface.lockCanvas()`, in memoria: prova la sola lettura dei pixel (con `root solid`). */
+  LockSoftware("lock-sw"),
+}
+
+/** In che punto del fotogramma parte la richiesta del modo `reader` (per gli altri modi non conta). */
+internal enum class MeasurePhase(val key: String) {
+  /** Dentro la callback del fotogramma, prima del disegno della finestra. */
+  Frame("frame"),
+
+  /** Subito dopo il disegno della finestra: il principale aspetta il RenderThread nel tempo morto. */
+  Post("post"),
+
+  /** Quando scade il periodo, in un punto qualunque del fotogramma. */
+  Any("any"),
 }
 
 internal enum class MeasureJourney(val key: String) {
@@ -174,6 +221,31 @@ internal data class MeasureConfig(
   val probes: Int = 1,
   /** Lato della miniatura, in pixel. */
   val probeSide: Int = 16,
+  val phase: MeasurePhase = MeasurePhase.Post,
+  val root: MeasureRoot = MeasureRoot.Layer,
+  /** Vero: la radice del lettore si ri-registra a ogni richiesta, non solo quando cambia una miniatura. */
+  val rerecord: Boolean = true,
+  val via: MeasureVia = MeasureVia.Renderer,
+  /** Le opzioni del `HardwareRenderer` del lettore: opaco, `start()` chiamato, uso GPU dichiarato, luce azzerata. */
+  val readerOpaque: Boolean = false,
+  val readerStart: Boolean = false,
+  val readerGpuUsage: Boolean = false,
+  val readerLight: Boolean = false,
+  /**
+   * Ogni quanti millisecondi il fondale sotto le sonde passa da bianco a nero e viceversa; zero, mai.
+   * È la prova «il fondale cambia sotto un vetro fermo»: si misura dopo quanto la sonda lo vede.
+   */
+  val flipMillis: Long = 0L,
+  /**
+   * Vero: ogni lettura si fa due volte sulla stessa miniatura, con `toImageBitmap()` e con il lettore,
+   * e si confrontano i pixel. Ha senso solo a fondale fermo.
+   */
+  val verify: Boolean = false,
+  /**
+   * La sequenza della scena `compile`: nomi fra `body1` `body2` `body4` `body8` `light1` … `light8`,
+   * `edge` (la striscia in alto) ed `edge2` (in basso), anche ripetuti.
+   */
+  val steps: List<String> = DefaultCompileSteps,
   /** Il livello chiesto a Fluid-physics; `null` è il tetto del dispositivo. */
   val tier: FluidPhysicsTier? = null,
   val journey: MeasureJourney = MeasureJourney.Square,
@@ -227,8 +299,20 @@ internal data class MeasureConfig(
           parts += "thread=${thread.key}"
           parts += "probes=$probes"
           parts += "side=$probeSide"
+          if (thread == MeasureThread.Reader || thread == MeasureThread.ReaderShared) {
+            parts += "phase=${phase.key}"
+            if (root != MeasureRoot.Layer) parts += "root=${root.key}"
+            if (!rerecord) parts += "rerecord=off"
+            if (via != MeasureVia.Renderer) parts += "via=${via.key}"
+            if (readerOpaque) parts += "opaque=on"
+            if (readerStart) parts += "start=on"
+            if (readerGpuUsage) parts += "usage=gpu"
+            if (readerLight) parts += "light0=on"
+          }
+          if (flipMillis > 0L) parts += "flip=$flipMillis"
+          if (verify) parts += "verify=on"
         }
-        MeasureScene.Compile -> Unit
+        MeasureScene.Compile -> if (steps != DefaultCompileSteps) parts += "steps=${steps.joinToString(",")}"
         MeasureScene.Physics -> {
           parts += "tier=${tier?.name?.lowercase() ?: "auto"}"
           parts += "journey=${journey.key}"
@@ -307,6 +391,18 @@ internal data class MeasureConfig(
         thread = value("thread")?.let { name -> MeasureThread.entries.firstOrNull { it.key == name } } ?: base.thread,
         probes = value("probes")?.toIntOrNull()?.coerceIn(1, 4) ?: base.probes,
         probeSide = value("side")?.toIntOrNull()?.coerceIn(1, 64) ?: base.probeSide,
+        phase = value("phase")?.let { name -> MeasurePhase.entries.firstOrNull { it.key == name } } ?: base.phase,
+        root = value("root")?.let { name -> MeasureRoot.entries.firstOrNull { it.key == name } } ?: base.root,
+        rerecord = value("rerecord")?.let(::flag) ?: base.rerecord,
+        via = value("via")?.let { name -> MeasureVia.entries.firstOrNull { it.key == name } } ?: base.via,
+        readerOpaque = value("opaque")?.let(::flag) ?: base.readerOpaque,
+        readerStart = value("start")?.let(::flag) ?: base.readerStart,
+        readerGpuUsage = value("usage")?.let { it == "gpu" } ?: base.readerGpuUsage,
+        readerLight = value("light0")?.let(::flag) ?: base.readerLight,
+        flipMillis = value("flip")?.toLongOrNull()?.takeIf { it == 0L || it >= 100L }?.coerceAtMost(60_000L)
+          ?: base.flipMillis,
+        verify = value("verify")?.let(::flag) ?: base.verify,
+        steps = value("steps")?.let(::parseCompileSteps) ?: base.steps,
         tier = when (value("tier")) {
           "full" -> FluidPhysicsTier.Full
           "balanced" -> FluidPhysicsTier.Balanced
@@ -327,6 +423,29 @@ internal data class MeasureConfig(
     /** Il tetto del campo delle due sonde (`MAX_PIECES` nelle sorgenti). */
     const val MaxPieces = 8
 
+    /** La sequenza di S1: corpo e luce a 1, 2, 4, 8 pezzi, poi la striscia. */
+    val DefaultCompileSteps: List<String> =
+      listOf("body1", "light1", "body2", "light2", "body4", "light4", "body8", "light8", "edge")
+
+    private val CompileStepNames: Set<String> =
+      DefaultCompileSteps.toSet() + "edge2"
+
+    /** Quanti passi al massimo: oltre, gli elementi non starebbero sul palco. */
+    const val MaxCompileSteps = 12
+
+    /**
+     * `body1,light1,edge` → la sequenza. Nulla (e quindi resta il default) se c'è un nome che non
+     * esiste, se è vuota o troppo lunga, o se una striscia è chiesta due volte: una sequenza capita a
+     * metà sarebbe una misura diversa da quella che la chiave dichiara.
+     */
+    fun parseCompileSteps(text: String): List<String>? {
+      val names = text.split(',', '+').map { it.trim() }.filter { it.isNotEmpty() }
+      if (names.isEmpty() || names.size > MaxCompileSteps) return null
+      if (names.any { it !in CompileStepNames }) return null
+      if (names.count { it == "edge" } > 1 || names.count { it == "edge2" } > 1) return null
+      return names
+    }
+
     private fun flag(text: String): Boolean? = when (text) {
       "on", "true", "1", "yes", "si" -> true
       "off", "false", "0", "no" -> false
@@ -339,4 +458,35 @@ internal data class MeasureConfig(
     private fun number(value: Float): String =
       if (value == value.toInt().toFloat()) value.toInt().toString() else String.format(Locale.ROOT, "%.2f", value)
   }
+}
+
+/** Un elemento della scena `compile`: a quale passo entra il suo corpo e a quale la sua luce (-1: mai). */
+internal class CompileSlot(val pieces: Int, val bodyStep: Int, var lightStep: Int)
+
+/** Dove va ogni passo della sequenza: gli elementi, e a quale passo entrano le due strisce (-1: mai). */
+internal class CompilePlan(val elements: List<CompileSlot>, val topStrip: Int, val bottomStrip: Int)
+
+/**
+ * Dalla sequenza ai posti sul palco. Una luce va sul corpo con gli stessi pezzi che è entrato prima di
+ * lei e non ne ha ancora una (com'era in S1); se non c'è, entra da sola. Un corpo ripetuto è un altro
+ * elemento: stesso programma, superfici sue.
+ */
+internal fun compilePlan(steps: List<String>): CompilePlan {
+  val elements = ArrayList<CompileSlot>()
+  var top = -1
+  var bottom = -1
+  steps.forEachIndexed { index, name ->
+    when {
+      name == "edge" -> if (top < 0) top = index
+      name == "edge2" -> if (bottom < 0) bottom = index
+      name.startsWith("body") ->
+        elements += CompileSlot(name.removePrefix("body").toInt(), bodyStep = index, lightStep = -1)
+      name.startsWith("light") -> {
+        val pieces = name.removePrefix("light").toInt()
+        val host = elements.lastOrNull { it.pieces == pieces && it.bodyStep >= 0 && it.lightStep < 0 }
+        if (host != null) host.lightStep = index else elements += CompileSlot(pieces, bodyStep = -1, lightStep = index)
+      }
+    }
+  }
+  return CompilePlan(elements, top, bottom)
 }

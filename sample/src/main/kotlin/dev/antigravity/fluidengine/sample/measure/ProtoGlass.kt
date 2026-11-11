@@ -6,6 +6,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.BlendMode
@@ -346,6 +347,23 @@ internal fun Modifier.protoGlass(
         nestInContainer = false,
       )
     }
+  }
+}
+
+/**
+ * La sola luce, senza corpo sotto: un riquadro che disegna lo shader della luce e nient'altro. Serve
+ * alla scena `compile` per far entrare un programma della luce da solo, in un punto qualunque della
+ * sequenza, senza che entri con lui il corpo su cui di solito sta.
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+internal fun Modifier.protoLightOnly(light: ProtoProgram, spec: ProtoSpec, drive: ProtoDrive, layout: ProtoLayout): Modifier {
+  val field = remember { ProtoField() }
+  val painter = remember(light) { ProtoLight(light) }
+  return this.drawBehind {
+    field.clear()
+    field.layout(size.width, size.height, density)
+    painter.draw(this, field, spec, drive)
   }
 }
 

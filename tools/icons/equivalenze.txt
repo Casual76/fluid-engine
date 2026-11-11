@@ -37,6 +37,16 @@ Grade                star
 NavigateBefore       chevron_left
 NavigateNext         chevron_right
 
+## Material: sagome al tratto che pesano come piene: al loro posto un'icona del set (F0.3c, F1A.11)
+# Le sorgenti di queste quattro hanno campiture (le barre di `storage`, mezzo scudo di `security`, i continenti di
+# `public`, le figurine di `groups`): accanto alle altre icone al tratto pesano come piene (tavole e misure in
+# artifacts/liquid-glass/bench/f0-3c/icone/icone.md). Decisione dell'orchestratore per F1A.11: si migra verso la
+# sagoma vicina al tratto che il set ha gia'. Le quattro restano nel set: un'app che le nomina continua a trovarle.
+Storage              dns ~               # al posto di `storage` (tre barre piene, pesa come piena): i server al tratto
+Security             shield ~            # al posto di `security` (scudo campito a meta'): lo scudo al tratto
+Public               language ~          # al posto di `public` (continenti pieni): il globo a reticolo, al tratto
+Groups               group ~             # al posto di `groups` (figurine piene): due figure al tratto
+
 ## Material: la forma giusta e' quella piena
 CheckCircle          check_circle pieno  # la forma «scelta» della coppia CheckCircle / CheckCircleOutline
 Favorite             favorite pieno      # la forma «accesa» della coppia Favorite / FavoriteBorder

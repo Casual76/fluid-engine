@@ -84,8 +84,10 @@ UI_FLUID_FILES = {
         "FluidAppearance", "FluidUpdateController", "FluidUpdateModel", "FluidUpdateUi",
         "FluidLabels", "FluidLicenses",
     ],
-    # forma e tipo stanno col tema
-    "tema": ["FluidShape", "FluidType"],
+    # forma e tipo stanno col tema; le misure di tasti, barre e icone (FluidMetrics, 4.0) pure
+    "tema": ["FluidShape", "FluidType", "FluidMetrics"],
+    # l'icona che prende taglia e inchiostro dal posto in cui sta (4.0); il set e' la cartella ui/fluid/icons
+    "icone": ["FluidIcon"],
 }
 
 # sottocartelle di ui/fluid che sono una famiglia intera, qualunque nome abbiano i file dentro

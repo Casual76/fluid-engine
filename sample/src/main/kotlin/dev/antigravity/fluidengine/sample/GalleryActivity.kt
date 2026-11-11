@@ -56,6 +56,7 @@ import dev.antigravity.fluidengine.sample.material.GalleryGlassLaunch
 import dev.antigravity.fluidengine.sample.material.GalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.material.LocalGalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.material.LocalGalleryPageOpener
+import dev.antigravity.fluidengine.sample.icons.IconsPage
 import dev.antigravity.fluidengine.sample.material.MaterialPage
 import dev.antigravity.fluidengine.sample.material.rememberGalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.measure.MeasurePage
@@ -289,6 +290,8 @@ internal fun Gallery(
               GalleryPage.Measure -> MeasurePage(bottomInset) { nav.back() }
               // Il materiale nuovo accanto a quello di prima, per le sessioni sul dispositivo: `material.scene`.
               GalleryPage.Material -> MaterialPage(bottomInset) { nav.back() }
+              // Le icone del set e le taglie nuove (F1A.11): `icons.section`.
+              GalleryPage.Icons -> IconsPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

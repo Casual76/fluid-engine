@@ -81,7 +81,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
@@ -445,6 +444,11 @@ fun FluidFloatingTabBar(
             // quello di serie: un colore deciso dall'app (o di una `Surface`) resta com'era. Vedi
             // [floatingBarContentColor], anche per il caso limite del nero fornito di proposito.
             LocalContentColor provides floatingBarContentColor(LocalContentColor.current, MaterialTheme.colorScheme),
+            // LOCAL CHANGE (4.0, R6, piano «iOS in Android» F1A.11): la barra dice alle icone delle schede quanto sono
+            // grandi, 28 dp (erano i 24 che l'app scriveva). La prende ogni `FluidIcon` senza una taglia sua: le schede
+            // della lista di `FluidTabItem`, e quelle che un'app scrive con `tab(icon = { FluidIcon(…) })`. Un `Icon`
+            // con la sua taglia scritta resta com'e'.
+            LocalFluidIconSize provides FluidMetrics.TabBarIconSize,
         ) {
         // Always applied: `gooey` is a no-op at radius 0 (no offscreen layer,
         // no filter), so there is nothing to gate on and nothing to recompose.
@@ -906,9 +910,11 @@ fun FluidFloatingTabBar(
                 // e non sulla scheda, che la barra costruisce da sé e che è un `clickable`: unisce la
                 // semantica dei figli alla propria. Le copie nascoste della riga (quella che la
                 // pillola campiona) la cancellano, quindi non si raddoppia.
+                // 4.0: la scheda scelta mette la sua icona piena, se l'app l'ha data (`FluidTabItem.selectedIcon`,
+                // in Apple la scheda scelta e' piena); la taglia (28 dp) e l'inchiostro li da' la barra.
                 icon = {
-                    Icon(
-                        item.icon,
+                    FluidIcon(
+                        imageVector = item.iconFor(selected = item.route == selectedRoute),
                         contentDescription = null,
                         modifier = Modifier.fluidTabSelected(item.route == selectedRoute),
                     )
@@ -2148,9 +2154,10 @@ private fun SharedTransitionScope.ExpandedTabs(
                         Box(
                             modifier = Modifier
                                 .graphicsLayer {
-                                    // Unselected tabs sit back; the selected one is
-                                    // never dimmed, so the puck must not darken it.
-                                    alpha = if (tab.key == selectedTabKey) 1f else 0.6f
+                                    // Unselected tabs sat back at 60% until 4.0; now at full ink, like
+                                    // Apple's (R6: 4,8:1 against 17:1). The selected one is never dimmed,
+                                    // so the puck must not darken it.
+                                    alpha = if (tab.key == selectedTabKey) 1f else FluidTabUnselectedIconAlpha
                                 }
                                 .then(
                                     if (tab.key == selectedTabKey) {
@@ -2191,7 +2198,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 FluidTabBadgeAnchor(badge) {
                                     Box(
                                         Modifier.graphicsLayer {
-                                            alpha = if (tab.key == selectedTabKey) 1f else 0.6f
+                                            alpha = if (tab.key == selectedTabKey) 1f else FluidTabUnselectedIconAlpha
                                         }
                                     ) {
                                         tab.icon()
@@ -2929,6 +2936,13 @@ private fun rememberFrozenOr(base: () -> Boolean, extra: State<Boolean>): () -> 
 internal const val MinLabelScale = 0.75f
 
 /**
+ * Quanto inchiostro hanno le icone delle schede non scelte: tutto, dalla 4.0. Erano al 60%: R6 ha misurato 4,8:1 di
+ * contrasto contro i 17:1 di Apple, dove le schede non scelte sono a inchiostro pieno e la scelta la dicono la pillola
+ * e l'accento. Resta un nome perche', se S2 dice il contrario, si torna indietro qui.
+ */
+internal const val FluidTabUnselectedIconAlpha = 1f
+
+/**
  * How much a one-line label has to shrink to fit the slot it was given.
  *
  * Out here rather than inside the layout because the interesting cases are arithmetic — a label
@@ -3256,10 +3270,15 @@ object FluidFloatingTabBarDefaults {
      * [ContentInset] left a third less room than the bar occupied, and the bar itself read as a
      * slab rather than a pill.
      *
-     * Sixty is what the content comes to: four of the bar's own padding, six of the tab's, a
+     * Sixty was what the content came to: four of the bar's own padding, six of the tab's, a
      * twenty-four dp icon, and one line of [labelStyle] under it.
+     *
+     * Sessantadue dalla 4.0 ([FluidMetrics.TabBarHeight]): i 62,6 pt della tab bar di iOS 27 (R6). Il contenuto
+     * fa 60 (4 + 6 + icona da 28 + un'etichetta da 11 sp su 14 di interlinea - 2 di accostamento + 6 + 4), il
+     * pavimento lo porta a 62, e col testo ingrandito cresce come prima. Chi riserva lo spazio con [ContentInset]
+     * segue da solo; chi ha scritto 76 dp a mano resta corto di 2.
      */
-    val OpenHeight: Dp = 60.dp
+    val OpenHeight: Dp = FluidMetrics.TabBarHeight
 
     /** How tall it stands once a scroll has folded it back to its inline shape. */
     val FoldedHeight: Dp = 52.dp
@@ -3373,13 +3392,18 @@ object FluidFloatingTabBarDefaults {
      * the obvious thing to write — and `Text` with no style takes `bodyLarge`: sixteen points, a
      * twenty-four point line. Five of those across a phone and "Bacheca" wraps, the wrap doubles
      * the label's height, and the bar grows thirty dp to hold a word that had simply been set too
-     * big. A navigation label is a label; thirteen points is what one is.
+     * big. A navigation label is a label; thirteen points is what one was.
+     *
+     * Undici dalla 4.0 ([FluidMetrics.TabBarLabelSize], Medium come prima): Apple ne usa 10 (R6), e con
+     * l'etichetta piu' piccola e l'icona a 28 dp e' l'icona a dire quale scheda e', non la parola.
      *
      * Only the size and the weight are imposed. A caller that sets a colour on its own `Text`
      * still wins, because the colour is the one thing a tab bar's owner legitimately varies.
      */
     @Composable
     fun labelStyle(): TextStyle = MaterialTheme.typography.labelMedium.copy(
+        fontSize = FluidMetrics.TabBarLabelSize,
+        lineHeight = FluidMetrics.TabBarLabelLineHeight,
         textAlign = TextAlign.Center,
     )
 

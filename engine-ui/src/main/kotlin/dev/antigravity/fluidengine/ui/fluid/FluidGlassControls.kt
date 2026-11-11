@@ -47,8 +47,8 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 
-internal val FluidGlassIconTouchTargetSize: Dp = 48.dp
-internal val FluidGlassIconLensSize: Dp = 44.dp
+internal val FluidGlassIconTouchTargetSize: Dp = FluidMetrics.TouchTarget
+internal val FluidGlassIconLensSize: Dp = FluidMetrics.GlassButtonLens
 
 /** Height of a glass action button, matching [FluidButtonDefaults] at `Medium`. */
 internal val FluidGlassButtonHeight: Dp = 48.dp
@@ -90,8 +90,12 @@ enum class FluidGlassSize(val lens: Dp, val buttonHeight: Dp) {
   /** Il riquadro che il tasto tondo occupa nel layout e che il dito colpisce: mai meno di 48 dp. */
   val touchTarget: Dp get() = lens.coerceAtLeast(FluidGlassIconTouchTargetSize)
 
-  /** Quanto sta bene un'icona dentro il vetro: la meta' del lato (20, 22, 27 dp). */
-  val iconSize: Dp get() = lens / 2
+  /**
+   * Quanto sta bene un'icona dentro il vetro: 0,6 del lato (24, 26, 32 dp), la taglia che il tasto fornisce a una
+   * [FluidIcon] senza `size` ([LocalFluidIconSize]). Fino alla 3.x era la meta' (20, 22, 27): R6 ha misurato che
+   * cosi' l'icona riempiva 0,37 del vetro contro 0,44-0,48 di Apple, e sembrava sottile ([FluidMetrics.IconLensRatio]).
+   */
+  val iconSize: Dp get() = FluidMetrics.iconSizeIn(lens)
 }
 
 /** Il margine laterale dell'etichetta di un [FluidGlassButton]: cresce con l'altezza. */
@@ -449,6 +453,10 @@ fun Modifier.fluidStaticGlassSurface(
  * 44 dp of material inside a 48 dp hit target: the lens is allowed to be the size Apple draws it
  * while the tappable area stays the size accessibility requires.
  *
+ * Dalla 4.0 il tasto dice al contenuto quanto e' grande: una [FluidIcon] senza `size` dentro di lui e' a 0,6 del
+ * vetro ([FluidGlassSize.iconSize], 26 dp a `Regular`), la proporzione delle icone di Apple (R6). Il colore resta
+ * quello del contenuto: il tasto non lo cambia, quindi un'icona tinta dall'app resta tinta.
+ *
  * @param size la taglia ([FluidGlassSize]): 40, 44 (di serie) o 54 dp di vetro. Il riquadro che il
  *   tasto occupa e che il dito colpisce e' sempre almeno 48 dp ([FluidGlassSize.touchTarget]), e la
  *   pressione e' la stessa di sempre in proporzione: vedi [FluidGlassSize]. Per una misura che non e'
@@ -514,7 +522,8 @@ fun FluidGlassIconButton(
  *  * **la crescita sotto il dito ha un tetto**: x1,5 fino a 48 dp, poi 24 dp in tutto e non di piu'
  *    ([FluidPressFeedback.ExpandRound]). Un disco da 76 dp arriva a 100, non a 114: con 16 dp fra due
  *    dischi non si toccano;
- *  * un'icona sta bene alla meta' del lato (`size / 2`: 20, 22, 27 dp per le tre taglie).
+ *  * un'icona sta bene a 0,6 del lato ([FluidMetrics.iconSizeIn]: 24, 26, 32 dp per le tre taglie, 46 in un disco
+ *    da 76), ed e' la taglia che il tasto da' a una [FluidIcon] dentro di lui.
  *
  * Le due strade si scelgono dal tipo: `size = FluidGlassSize.Large` o `size = 76.dp`. Senza `size`
  * vale l'overload con la taglia, `Regular`: questo vuole la misura.
@@ -615,8 +624,10 @@ internal fun FluidGlassIconButtonCore(
           grip = grip,
         ),
       contentAlignment = Alignment.Center,
-      content = content,
-    )
+    ) {
+      // Il tasto dice all'icona quanto e' grande (4.0): 0,6 del vetro. Un'icona con la sua taglia scritta resta com'e'.
+      CompositionLocalProvider(LocalFluidIconSize provides FluidMetrics.iconSizeIn(lens)) { content() }
+    }
   }
 }
 
@@ -698,7 +709,10 @@ fun FluidGlassButton(
   ) {
     CompositionLocalProvider(LocalContentColor provides contentColor) {
       if (leading != null) {
-        Box(modifier = Modifier.size(size.buttonLeading), contentAlignment = Alignment.Center) { leading() }
+        Box(modifier = Modifier.size(size.buttonLeading), contentAlignment = Alignment.Center) {
+          // L'icona davanti all'etichetta prende la taglia del suo posto, non quella di un tasto solo icona.
+          CompositionLocalProvider(LocalFluidIconSize provides size.buttonLeading) { leading() }
+        }
       }
       Text(
         text = text,

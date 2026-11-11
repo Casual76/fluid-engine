@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -80,8 +79,9 @@ object FluidFloatingCapsuleDefaults {
 
   /**
    * L'altezza minima: quella della barra di navigazione aperta ([FluidFloatingTabBarDefaults.OpenHeight]).
-   * Una capsula che prende il posto della barra e' alta quanto lei, e con un'azione da 48 dp piu' sei
-   * dp di margine sopra e sotto e' esattamente 60: non serve forzarla.
+   * Una capsula che prende il posto della barra e' alta quanto lei, e con un'azione da 48 dp piu' il
+   * margine sopra e sotto ([ContentPadding]) lo e' esattamente: non serve forzarla. Dalla 4.0 sono 62 dp
+   * (erano 60), perche' la barra e' cresciuta di 2 (R6): la capsula la segue.
    */
   val Height: Dp = FluidFloatingTabBarDefaults.OpenHeight
 
@@ -91,8 +91,12 @@ object FluidFloatingCapsuleDefaults {
   /** Fra un pezzo e il successivo: le azioni sono vicine, non sparse. */
   val Spacing: Dp = 4.dp
 
-  /** Il margine dentro il vetro: sei dp, quelli della barra di navigazione ([FluidFloatingTabBarDefaults.sizes]) piu' due. */
-  val ContentPadding: PaddingValues = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+  /**
+   * Il margine dentro il vetro: sei dp ai lati, quelli della barra di navigazione ([FluidFloatingTabBarDefaults.sizes])
+   * piu' due; sopra e sotto quanto porta un'azione da [ActionSize] all'altezza della barra ([Height]): 7 dp dalla 4.0
+   * (erano 6 con la barra a 60).
+   */
+  val ContentPadding: PaddingValues = PaddingValues(horizontal = 6.dp, vertical = (Height - ActionSize) / 2)
 
   /**
    * La capsula a tutta larghezza non attraversa un tablet: resta della misura di un telefono grande,
@@ -270,6 +274,9 @@ fun FluidFloatingCapsule(
         CompositionLocalProvider(
           LocalGlassBackdrop provides backdrop,
           LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+          // La taglia delle icone della capsula (4.0, R6): 26 dp, quella delle azioni della barra in alto. La prende
+          // [FluidCapsuleAction] e ogni [FluidIcon] del contenuto senza una taglia sua.
+          LocalFluidIconSize provides FluidMetrics.CapsuleIconSize,
         ) {
           leading?.invoke(this)
           content()
@@ -285,13 +292,20 @@ fun FluidFloatingCapsule(
  *
  * Piatta di proposito: il vetro e' la capsula, e un'icona che cresce sotto il dito (la ricetta del
  * tasto, `FluidPressFeedback.Expand`) dice gia' "sono io" senza una lente e un'ombra per ognuna. Il
- * colore e' l'accento, come per le azioni della barra superiore ([FluidBarAction]); [destructive] usa
- * `error`. Spenta, resta al suo posto ma velata: una capsula che cambia larghezza quando un'azione
+ * colore e' l'inchiostro del contenuto, come per le azioni della barra superiore ([FluidBarAction]); [destructive]
+ * usa `error`. Spenta, resta al suo posto ma velata: una capsula che cambia larghezza quando un'azione
  * non e' disponibile fa saltare quello che sta accanto.
+ *
+ * **Dalla 4.0** (R6, piano «iOS in Android» F1A.11) l'icona e' nell'inchiostro del testo (nella capsula `onSurface`)
+ * invece che nell'accento, come le icone delle barre di Apple, e prende la taglia dal posto in cui sta
+ * ([LocalFluidIconSize]): 26 dp nella [FluidFloatingCapsule] (era 24), 24 fuori. L'accento resta a un'azione accesa
+ * (`selected = true`) e a chi lo chiede con [tint].
  *
  * @param size il lato. Sotto i 48 dp il layout e' piu' stretto ma Compose estende comunque l'area
  *   toccabile a 48: serve a una capsula con quattro azioni su un telefono stretto.
- * @param tint il colore dell'icona; di serie l'accento.
+ * @param tint il colore dell'icona; di serie (`Color.Unspecified`) l'inchiostro del contenuto, e l'accento quando
+ *   l'azione e' accesa. Fino alla 3.x era sempre l'accento: un'app che lo vuole ancora lo passa qui
+ *   (`MaterialTheme.colorScheme.primary`), e un tasto colorato resta colorato.
  * @param grip di chi e' il dito quando la pagina sotto vuole scorrere, come per [fluidPressable]: di
  *   serie dell'azione ([FluidPressGrip.HoldsFinger]); [FluidPressGrip.YieldsToScroll] se la capsula
  *   sta sopra una lista o un pager che deve partire anche da li'. Dalla 3.0.
@@ -318,10 +332,16 @@ fun FluidCapsuleAction(
   selected: Boolean? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
-  val color = when {
+  // Il colore della scelta: quello del disco di un'azione accesa, e dell'icona quando e' accesa.
+  val accent = when {
     destructive -> scheme.error
     tint != Color.Unspecified -> tint
     else -> scheme.primary
+  }
+  // L'icona: l'inchiostro del contenuto di serie (4.0), il colore della scelta se l'app l'ha chiesto o se e' accesa.
+  val color = when {
+    destructive || tint != Color.Unspecified || selected == true -> accent
+    else -> LocalContentColor.current
   }
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val discAlpha by animateFloatAsState(
@@ -356,18 +376,18 @@ fun FluidCapsuleAction(
           Modifier
             .padding(CapsuleActionDiscInset)
             .clip(FluidCapsuleShape)
-            .background(color.copy(alpha = discAlpha))
+            .background(accent.copy(alpha = discAlpha))
         } else {
           Modifier
         },
       ),
     contentAlignment = Alignment.Center,
   ) {
-    Icon(
+    // La taglia dal posto: 26 dp nella capsula, 24 fuori (dentro un campo di ricerca, in una riga dell'app).
+    FluidIcon(
       imageVector = icon,
       contentDescription = contentDescription,
       tint = color,
-      modifier = Modifier.size(24.dp),
     )
   }
 }

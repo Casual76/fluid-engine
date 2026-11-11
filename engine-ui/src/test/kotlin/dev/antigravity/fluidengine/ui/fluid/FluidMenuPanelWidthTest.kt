@@ -34,10 +34,15 @@ class FluidMenuPanelWidthTest {
 
   @Test
   fun `una voce lunga allarga il pannello quanto serve, icona e spunta comprese`() {
-    // 230 di testo + 32 di margini + 12 di respiro verticale contato come margine.
-    val plain = width(listOf(230f))
+    // 220 di testo + 32 di margini + 12 di respiro verticale contato come margine.
+    val plain = width(listOf(220f))
     assertTrue("$plain", plain > 252f && plain < 340f)
-    assertEquals(plain + 64f, width(listOf(230f), icon = true, check = true), 0.01f)
+    // Icona e spunta: un segno e lo spazio fra lui e l'etichetta, per ognuna. Cambio voluto della 4.0 (F1A.11, R6): il
+    // segno e' passato da 20 a 22 dp, quindi 68 dp in tutto e non piu' 64; con la voce da 230 di prima si toccava il
+    // tetto di 340, e il test non provava piu' l'aggiunta. Ora la legge dalle costanti della riga.
+    val marks = 2f * (FluidMenuRowGlyph.value + FluidMenuRowGap.value)
+    assertEquals(68f, marks, 0f)
+    assertEquals(plain + marks, width(listOf(220f), icon = true, check = true), 0.01f)
   }
 
   @Test

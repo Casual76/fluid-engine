@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -438,13 +436,15 @@ private fun FluidGlassMenuRow(
       overflow = TextOverflow.Ellipsis,
       modifier = Modifier.weight(1f),
     )
+    // L'icona della voce a 22 dp dalla 4.0 (erano 20): quella della barra divisa per poco piu' di 1,2, come in
+    // Apple (R6). Il colore e' quello della voce, che e' gia' l'inchiostro del testo (o `error`).
     action.icon?.let {
-      Icon(imageVector = it, contentDescription = null, tint = tone, modifier = Modifier.size(20.dp))
+      FluidIcon(imageVector = it, contentDescription = null, tint = tone, size = FluidMenuRowGlyph)
     }
     // La spunta della voce scelta (3.0.1), a destra come nei menu di scelta di iOS, nel colore della voce:
     // e' un segno di stato, non un'azione, e l'accento lo hanno gia' la goccia e il tasto.
     if (action.selected) {
-      Icon(imageVector = Icons.Rounded.Check, contentDescription = null, tint = tone, modifier = Modifier.size(20.dp))
+      FluidIcon(imageVector = Icons.Rounded.Check, contentDescription = null, tint = tone, size = FluidMenuRowGlyph)
     }
   }
 }

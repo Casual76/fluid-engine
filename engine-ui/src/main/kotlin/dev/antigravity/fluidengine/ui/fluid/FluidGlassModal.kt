@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -2041,11 +2040,11 @@ private fun FluidFullScreenCloseButton(onClick: () -> Unit, modifier: Modifier =
       onClick = onClick,
       modifier = modifier,
     ) {
-      Icon(
+      // A inchiostro pieno dalla 4.0 (era all'80%): le icone dei tasti di vetro sono nell'inchiostro del testo (R6).
+      FluidIcon(
         imageVector = Icons.Rounded.Close,
         contentDescription = closeLabel,
-        tint = LocalContentColor.current.copy(alpha = 0.80f),
-        modifier = Modifier.size(FluidFullScreenCloseGlyph),
+        size = FluidFullScreenCloseGlyph,
       )
     }
     return
@@ -2398,8 +2397,11 @@ private val FluidFullScreenDetachedMargin = 24.dp
 private val FluidFullScreenCloseSize = 30.dp
 private val FluidFullScreenCloseTouchTarget = 44.dp
 
-/** La croce dentro il tasto di vetro: meta' del lato della lente (44 dp), come ogni icona di un tasto tondo. */
-private val FluidFullScreenCloseGlyph = 20.dp
+/**
+ * La croce dentro il tasto di vetro: 0,6 del lato della lente (44 dp), come ogni icona di un tasto tondo, cioe'
+ * 26 dp dalla 4.0 (era la meta', 20: R6).
+ */
+private val FluidFullScreenCloseGlyph = FluidMetrics.BarIconSize
 
 /** How far the sheet must be pushed down before letting go dismisses instead of springing back. */
 private val FluidSheetDismissTravel = 110.dp

@@ -284,7 +284,7 @@ internal fun fluidMenuPanelWidth(
   hostWidthPx: Float,
 ): Float {
   val widest = labelWidthsPx.maxOrNull() ?: 0f
-  // Le misure della riga di FluidGlassMenuPanel: 16 dp per lato, 12 dp fra l'etichetta e ogni segno da 20.
+  // Le misure della riga di FluidGlassMenuPanel: 16 dp per lato, 12 dp fra l'etichetta e ogni segno da 22.
   val extras = (FluidMenuRowSidePadding.value * 2f +
     (if (hasIcon) FluidMenuRowGlyph.value + FluidMenuRowGap.value else 0f) +
     (if (hasCheck) FluidMenuRowGlyph.value + FluidMenuRowGap.value else 0f)) * density +
@@ -504,7 +504,8 @@ internal val FluidMenuPanelMaxWidth = 340.dp
 /** Le misure orizzontali di una riga di menu, le stesse di `FluidMenuPanelRow`. */
 internal val FluidMenuRowSidePadding = 16.dp
 internal val FluidMenuRowGap = 12.dp
-internal val FluidMenuRowGlyph = 20.dp
+/** L'icona e la spunta di una voce: 22 dp dalla 4.0 (erano 20), [FluidMetrics.MenuIconSize] (R6). */
+internal val FluidMenuRowGlyph = FluidMetrics.MenuIconSize
 internal val FluidMenuPanelPadding = 6.dp
 internal val FluidMenuSectionGap = 8.dp
 internal val FluidMenuMinRowHeight = 48.dp

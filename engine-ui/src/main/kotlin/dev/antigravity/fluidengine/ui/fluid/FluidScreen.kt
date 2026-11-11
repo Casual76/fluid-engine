@@ -20,16 +20,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.animation.AnimatedContent
@@ -107,6 +103,9 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.graphics.Color
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBackIosNew
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
 import dev.antigravity.fluidengine.ui.page.FluidPageBarSpec
 import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
@@ -419,8 +418,11 @@ object FluidScreenDefaults {
   /**
    * Room the docked title leaves on each side for bar buttons. Wider than a bar button because the
    * compact title is now large enough that a near miss reads as a collision.
+   *
+   * 84 dp dalla 4.0 (era 76): segue i tasti, che stanno a 16 dp dal bordo invece che a 8
+   * ([FluidMetrics.CompactTitleInset]). Un titolo lungo si tronca 8 dp prima per lato.
    */
-  val CompactTitleInset: Dp = 76.dp
+  val CompactTitleInset: Dp = FluidMetrics.CompactTitleInset
 
   val HorizontalPadding: Dp = 20.dp
 
@@ -1343,7 +1345,7 @@ internal fun FluidTopBar(
             verticalAlignment = Alignment.CenterVertically,
           ) {
             FluidTopBarActions(actions)
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(FluidBarEdgeInset))
           }
         }
       }
@@ -1449,7 +1451,10 @@ private fun Modifier.fluidTopBarTitleInset(controls: FluidTopBarControls?): Modi
 /** Il respiro fra il titolo agganciato e il controllo piu' vicino. */
 private val FluidTopBarTitleGap = 8.dp
 
-/** Le azioni di una barra, a destra, con la spaziatura di sempre. */
+/**
+ * Le azioni di una barra, a destra: [FluidMetrics.GlassSpacing] (8 dp) fra un vetro e l'altro, cioe' 4 dp fra i
+ * riquadri da 48 ([FluidBarActionGap]). Fino alla 3.x erano 2 dp fra i riquadri, 6 fra i vetri.
+ */
 @Composable
 internal fun FluidTopBarActions(
   actions: @Composable RowScope.() -> Unit,
@@ -1457,7 +1462,7 @@ internal fun FluidTopBarActions(
 ) {
   Row(
     modifier = modifier,
-    horizontalArrangement = Arrangement.spacedBy(2.dp),
+    horizontalArrangement = Arrangement.spacedBy(FluidBarActionGap),
     verticalAlignment = Alignment.CenterVertically,
     content = actions,
   )
@@ -1648,18 +1653,24 @@ private fun FluidTitleFacet(
   }
 }
 
+/**
+ * Il tasto indietro di una barra. Dalla 4.0 (R6, piano «iOS in Android» F1A.11): il vetro sta a 16 dp dal bordo
+ * ([FluidBarEdgeInset]; era a 8), la freccia e' `arrow_back_ios_new` del set dell'engine, che a differenza della
+ * `ArrowBackIos` di Material e' centrata nel suo riquadro come il chevron di Apple, a 24 dp (era 20), e
+ * nell'inchiostro del testo invece che nell'accento ([fluidChromeInk]). Si gira da sola da destra a sinistra.
+ */
 @Composable
 internal fun FluidBackButton(onBack: () -> Unit) {
   val backLabel = LocalFluidLabels.current.back
   FluidGlassIconButton(
     onClick = onBack,
-    modifier = Modifier.padding(start = 6.dp),
+    modifier = Modifier.padding(start = FluidBarEdgeInset),
   ) {
-    Icon(
-      imageVector = Icons.AutoMirrored.Rounded.ArrowBackIos,
+    FluidIcon(
+      imageVector = FluidIcons.ArrowBackIosNew,
       contentDescription = backLabel,
-      tint = MaterialTheme.colorScheme.primary,
-      modifier = Modifier.size(20.dp),
+      tint = fluidChromeInk(),
+      size = FluidMetrics.BackIconSize,
     )
   }
 }
@@ -1691,8 +1702,16 @@ fun FluidBarAction(
    * ed e' lui che porta il dito sul menu. Dalla 3.0.
    */
   opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress,
+  /**
+   * Il colore dell'icona. Di serie (`Color.Unspecified`) l'inchiostro del testo del tema, nero sul chiaro e bianco
+   * sullo scuro, come le icone delle barre di Apple: fino alla 3.x era l'accento, e R6 ha misurato che un'icona
+   * nell'accento su un vetro della stessa famiglia fa un terzo del contrasto (3,5-6,7:1 contro 15-17:1) e sembra
+   * piu' sottile di quello che e'. Un tasto colorato resta possibile e non e' di serie: l'accento sull'azione
+   * principale (`MaterialTheme.colorScheme.primary`), `error` su quella distruttiva. Dalla 4.0.
+   */
+  tint: Color = Color.Unspecified,
 ) {
-  val iconTint = MaterialTheme.colorScheme.primary
+  val iconTint = if (tint != Color.Unspecified) tint else fluidChromeInk()
   FluidBarActionImpl(
     contentDescription = contentDescription,
     onClick = onClick,
@@ -1700,15 +1719,17 @@ fun FluidBarAction(
     enabled = enabled,
     actions = actions,
     opensOn = opensOn,
+    // 26 dp dalla 4.0 (era 22): 0,6 del vetro, la proporzione delle icone di Apple (R6). Scritta e non presa dal
+    // tasto perche' la faccia del menu la disegna l'host, fuori dal tasto.
     buttonFace = {
-      Icon(
+      FluidIcon(
         imageVector = icon,
         contentDescription = contentDescription,
         tint = iconTint,
-        modifier = Modifier.size(22.dp),
+        size = FluidMetrics.BarIconSize,
       )
     },
-    menuFace = { Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp)) },
+    menuFace = { FluidIcon(imageVector = icon, contentDescription = null, tint = iconTint, size = FluidMetrics.BarIconSize) },
   )
 }
 
@@ -1772,7 +1793,9 @@ fun FluidBarAction(
         contentAlignment = Alignment.Center,
       ) { content() }
     },
-    menuFace = content,
+    // La faccia del menu la disegna l'host, fuori dal tasto: le si da' la taglia che il tasto da' alla sua icona,
+    // cosi' una [FluidIcon] nel contenuto e' la stessa nei due posti.
+    menuFace = { CompositionLocalProvider(LocalFluidIconSize provides FluidMetrics.BarIconSize) { content() } },
   )
 }
 

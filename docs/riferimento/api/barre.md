@@ -9,10 +9,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `enum class FluidFloatingCapsulePlacement` — Dove sta una [FluidFloatingCapsule] rispetto alla barra di navigazione flottante.
 - `object FluidFloatingCapsuleDefaults` — I numeri della [FluidFloatingCapsule], tutti insieme perche' la barra di selezione e il lettore li condividano.
-  - `val Height: Dp` — L'altezza minima: quella della barra di navigazione aperta ([FluidFloatingTabBarDefaults.OpenHeight]). Una capsula che prende il posto della barra e' alta quanto lei, e con un'azione da 48 dp piu' sei dp di margine sopra e sotto e' esattamente 60: non serve forzarla.
+  - `val Height: Dp` — L'altezza minima: quella della barra di navigazione aperta ([FluidFloatingTabBarDefaults.OpenHeight]). Una capsula che prende il posto della barra e' alta quanto lei, e con un'azione da 48 dp piu' il margine sopra e sotto ([ContentPadding]) lo e' esattamente: non serve forzarla. Dalla 4.0 sono 62 dp (erano 60), perche' la barra e' cresciuta di 2 (R6): la capsula la segue.
   - `val ActionSize: Dp` — Il lato di un'azione ([FluidCapsuleAction]): il bersaglio minimo di un dito.
   - `val Spacing: Dp` — Fra un pezzo e il successivo: le azioni sono vicine, non sparse.
-  - `val ContentPadding: PaddingValues` — Il margine dentro il vetro: sei dp, quelli della barra di navigazione ([FluidFloatingTabBarDefaults.sizes]) piu' due.
+  - `val ContentPadding: PaddingValues` — Il margine dentro il vetro: sei dp ai lati, quelli della barra di navigazione ([FluidFloatingTabBarDefaults.sizes]) piu' due; sopra e sotto quanto porta un'azione da [ActionSize] all'altezza della barra ([Height]): 7 dp dalla 4.0 (erano 6 con la barra a 60).
   - `val MaxWidth: Dp` — La capsula a tutta larghezza non attraversa un tablet: resta della misura di un telefono grande, centrata. Lo stesso tetto che la barra di Fluidweather si dava a mano.
   - `fun bottomOffset(placement: FluidFloatingCapsulePlacement): Dp` — Da quanto sta staccato il bordo basso della capsula dal bordo basso dello schermo, **senza** la barra di sistema (quella la aggiunge [fluidCapsuleInsets]). Puro, perche' e' il numero che decide se una capsula copre la barra o la sfiora.
   - `fun contentInset(placement: FluidFloatingCapsulePlacement, capsuleHeight: Dp = Height): Dp` — Lo spazio che la pagina deve lasciarsi in fondo perche' la capsula non copra il suo contenuto, senza la barra di sistema. [Free] non ne chiede: non si sa dove stia.
@@ -100,7 +100,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidTabBar.kt`
 
-- `data class FluidTabItem(val route: String, val label: String, val icon: ImageVector, val badge: FluidTabBadge? = null)` — Una destinazione della navigazione: la barra a elenco ([FluidFloatingTabBar]) e il rail ([FluidTabRail]).
+- `data class FluidTabItem(val route: String, val label: String, val icon: ImageVector, val badge: FluidTabBadge? = null, val selectedIcon: ImageVector? = null)` — Una destinazione della navigazione: la barra a elenco ([FluidFloatingTabBar]) e il rail ([FluidTabRail]).
+  - `fun iconFor(selected: Boolean): ImageVector` — L'icona da disegnare: [selectedIcon] se la zona e' quella scelta e l'app l'ha data, altrimenti [icon].
 - `data class FluidTabBadge(val count: Int? = null, val contentDescription: String? = null, val color: Color = Color.Unspecified)` — Il segno su una zona della barra o del rail: un pallino («ci sono novita'») o un numero.
   - `companion object`
     - `val Dot: FluidTabBadge` — Il pallino senza numero: «ci sono novita'».

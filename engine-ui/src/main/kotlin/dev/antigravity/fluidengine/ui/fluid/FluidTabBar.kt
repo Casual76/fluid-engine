@@ -63,9 +63,15 @@ import kotlin.math.roundToInt
 /**
  * Una destinazione della navigazione: la barra a elenco ([FluidFloatingTabBar]) e il rail ([FluidTabRail]).
  *
+ * @param icon l'icona della zona. Dalla 4.0 la barra la disegna a 28 dp e a inchiostro pieno anche quando la zona
+ *   non e' quella scelta (R6): la taglia la decide la barra, non l'app.
  * @param badge il segno di «c'e' qualcosa» sull'icona della zona ([FluidTabBadge]); null (di serie)
  *   e la zona e' quella di sempre, stesso albero e stesse misure. In coda e con default: una voce
  *   costruita per posizione con tre argomenti compila come prima.
+ * @param selectedIcon l'icona della zona **quando e' quella scelta**, di solito la gemella piena di [icon]
+ *   (`icon = FluidIcons.Home, selectedIcon = FluidIcons.Filled.Home`): nella tab bar di Apple la scheda scelta e'
+ *   piena e le altre al tratto. Null (di serie): [icon] sempre, come fino alla 3.x. In coda e con default, dalla 4.0:
+ *   le voci costruite per posizione con tre o quattro argomenti compilano come prima.
  */
 @Immutable
 data class FluidTabItem(
@@ -73,7 +79,18 @@ data class FluidTabItem(
   val label: String,
   val icon: ImageVector,
   val badge: FluidTabBadge? = null,
-)
+  val selectedIcon: ImageVector? = null,
+) {
+  /**
+   * L'icona da disegnare: [selectedIcon] se la zona e' quella scelta e l'app l'ha data, altrimenti [icon].
+   *
+   * Un parametro e non una ricerca della gemella piena nel set dell'engine: la ricerca coprirebbe solo le 31 icone
+   * piene di `FluidIcons`, non quelle che un'app genera per se' (`gen_fluid_icons.py --app`) ne' una coppia Material
+   * (`Icons.Outlined.Home` e `Icons.Rounded.Home`), e chiederebbe una tabella scritta a mano accanto a un set che
+   * nasce da un generatore. Scritto dall'app vale per qualunque coppia.
+   */
+  fun iconFor(selected: Boolean): ImageVector = if (selected) selectedIcon ?: icon else icon
+}
 
 /**
  * Il segno su una zona della barra o del rail: un pallino («ci sono novita'») o un numero.
@@ -179,7 +196,7 @@ private val TabBadgeOverlap = 10.dp
  *
  * [Height] e [RailWidth] sono ancora quelle di [FluidTabRail]: 64 dp per scheda, 84 dp di larghezza.
  * Per la barra in basso i numeri giusti sono quelli di [FluidFloatingTabBarDefaults], e
- * [ContentInset] di qui ne riserva 4 dp in più di quanti la barra nuova ne occupi.
+ * [ContentInset] di qui ne riserva 2 dp in più di quanti la barra nuova ne occupi (4 fino alla 3.x, con la barra a 60).
  */
 object FluidTabBarDefaults {
   val Height = 64.dp
@@ -222,9 +239,9 @@ object FluidTabBarDefaults {
  *    grande quanto le sue schede (fino a [FluidFloatingTabBarDefaults.TabWidth] ciascuna, di meno
  *    se non ci stanno) e sta al centro della larghezza offerta: con tre schede su un telefono è
  *    più stretta di prima, non una barra da lato a lato.
- *  - **L'altezza.** [FluidFloatingTabBarDefaults.OpenHeight] (60 dp) invece di 64. È un pavimento:
- *    col carattere ingrandito la barra cresce invece di tagliare l'etichetta. Chi riserva lo spazio
- *    con [FluidTabBarDefaults.ContentInset] ne lascia 4 dp in più del necessario;
+ *  - **L'altezza.** [FluidFloatingTabBarDefaults.OpenHeight] (62 dp dalla 4.0, 60 prima) invece di 64. È un
+ *    pavimento: col carattere ingrandito la barra cresce invece di tagliare l'etichetta. Chi riserva lo spazio
+ *    con [FluidTabBarDefaults.ContentInset] ne lascia 2 dp in più del necessario;
  *    [FluidFloatingTabBarDefaults.ContentInset] è il numero giusto.
  *  - **I margini restano di chi la posa.** Né la barra di prima né la nuova portano dentro di sé il
  *    margine laterale, quello in fondo o lo spazio della barra di sistema: `navigationBarsPadding()`
@@ -384,8 +401,9 @@ private fun FluidTabItemFace(
     verticalArrangement = Arrangement.spacedBy(2.dp),
   ) {
     val glyph: @Composable () -> Unit = {
+      // La gemella piena della zona scelta, come nella barra in basso (4.0). Taglia e colori del rail restano i suoi.
       Icon(
-        imageVector = item.icon,
+        imageVector = item.iconFor(selected),
         contentDescription = null,
         tint = contentColor,
         modifier = Modifier

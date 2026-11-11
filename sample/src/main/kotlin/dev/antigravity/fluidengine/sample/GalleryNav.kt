@@ -49,6 +49,13 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   Material("Materiale"),
 
+  /**
+   * Le icone del set dell'engine e le taglie nuove di barre, capsula, tab bar e menu, nei due temi e da destra a
+   * sinistra (piano «iOS in Android», F1A.11): vedi `icons/`. Uno strumento per le sessioni sul dispositivo, come
+   * «Materiale»: si apre con `--es gallery.page icons`.
+   */
+  Icons("Icone"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

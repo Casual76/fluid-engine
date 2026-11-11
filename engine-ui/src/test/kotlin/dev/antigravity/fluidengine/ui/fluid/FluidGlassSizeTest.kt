@@ -51,10 +51,16 @@ class FluidGlassSizeTest {
   }
 
   @Test
-  fun theIconSitsAtHalfTheLens() {
-    assertEquals(20.dp, FluidGlassSize.Compact.iconSize)
-    assertEquals(22.dp, FluidGlassSize.Regular.iconSize)
-    assertEquals(27.dp, FluidGlassSize.Large.iconSize)
+  fun theIconSitsAtSixTenthsOfTheLens() {
+    // Cambio voluto della 4.0, non un test piegato: fino alla 3.x l'icona era a meta' del vetro (20, 22, 27 dp) e R6
+    // ha misurato che cosi' la sagoma riempiva 0,37 del tasto contro 0,44-0,48 di Apple. A 0,6 del vetro la sagoma
+    // (0,75 del riquadro) sta a 0,44 (piano «iOS in Android», sezione 2 e F1A.11).
+    assertEquals(24.dp, FluidGlassSize.Compact.iconSize)
+    assertEquals(26.dp, FluidGlassSize.Regular.iconSize)
+    assertEquals(32.dp, FluidGlassSize.Large.iconSize)
+    // La stessa regola che il tasto da' alle icone dentro di lui, e quella delle azioni della barra.
+    FluidGlassSize.entries.forEach { assertEquals("$it", FluidMetrics.iconSizeIn(it.lens), it.iconSize) }
+    assertEquals(FluidMetrics.BarIconSize, FluidGlassSize.Regular.iconSize)
   }
 
   @Test

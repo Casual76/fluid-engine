@@ -2,6 +2,11 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidIcon.kt`
+
+- `val LocalFluidIconSize: ProvidableCompositionLocal<Dp>` — La taglia che una [FluidIcon] senza `size` prende dal posto in cui sta.
+- `@Composable fun FluidIcon(imageVector: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, tint: Color = LocalContentColor.current, size: Dp = LocalFluidIconSize.current)` — Un'icona che prende **la taglia dal posto in cui sta** ([LocalFluidIconSize]) e **l'inchiostro dal contenuto** (`LocalContentColor`, come `Icon` di Material).
+
 ## `engine-ui/ui/fluid/icons/FluidIcons.kt`
 
 - `object FluidIcons` — Le icone dell'engine: Material Symbols arrotondate a peso 500, al tratto.

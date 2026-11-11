@@ -65,6 +65,16 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
     role = "I pulsanti (come crescono sotto il dito, lo seguono e vibrano) e le pagine (come si aprono, e il back che le tiene sotto il dito).",
   ),
   FluidLicense(
+    // Dalla 4.0 i componenti dell'engine disegnano le icone del set `FluidIcons` (il tasto indietro per primo), che
+    // sono tracciati di Material Symbols portati come vettori: Apache-2.0 chiede che l'avviso viaggi con l'app.
+    // Vedi LICENSES/MaterialSymbols.md (commit delle sorgenti, peso, cosa abbiamo preso).
+    name = "Material Symbols",
+    author = "Google LLC",
+    licence = "Apache License 2.0",
+    url = "https://github.com/google/material-design-icons",
+    role = "Le icone dell'engine (FluidIcons): Material Symbols arrotondate, peso 500, al tratto e piene.",
+  ),
+  FluidLicense(
     name = "Inter",
     author = "Rasmus Andersson",
     licence = "SIL Open Font License 1.1",

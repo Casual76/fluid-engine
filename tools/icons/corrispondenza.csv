@@ -34,7 +34,7 @@ material;IosShare;ios_share;FluidIcons.IosShare;
 material;Home;home;FluidIcons.Home;piena (tab bar): FluidIcons.Filled.Home
 material;Mic;mic;FluidIcons.Mic;
 material;PlayArrow;play_arrow;FluidIcons.Filled.PlayArrow;riproduzione: pieni come in Apple
-material;Storage;storage;FluidIcons.Storage;
+material;Storage;dns;FluidIcons.Dns;al posto di `storage` (tre barre piene, pesa come piena): i server al tratto
 material;Add;add;FluidIcons.Add;
 material;Place;location_on;FluidIcons.LocationOn;
 material;ContentCopy;content_copy;FluidIcons.ContentCopy;si gira da sola da destra a sinistra
@@ -47,7 +47,7 @@ material;Shield;shield;FluidIcons.Shield;
 material;Cloud;cloud;FluidIcons.Cloud;
 material;CloudDownload;cloud_download;FluidIcons.CloudDownload;
 material;Description;description;FluidIcons.Description;
-material;Groups;groups;FluidIcons.Groups;
+material;Groups;group;FluidIcons.Group;al posto di `groups` (figurine piene): due figure al tratto
 material;Stop;stop;FluidIcons.Filled.Stop;riproduzione: pieni come in Apple
 material;CleaningServices;cleaning_services;FluidIcons.CleaningServices;
 material;DriveFileMove;drive_file_move;FluidIcons.DriveFileMove;si gira da sola da destra a sinistra
@@ -57,7 +57,7 @@ material;Visibility;visibility;FluidIcons.Visibility;
 material;Block;block;;fuori dal set: per averla, la riga `block` in fluid-icons.txt
 material;Layers;layers;FluidIcons.Layers;
 material;Pause;pause;FluidIcons.Filled.Pause;riproduzione: pieni come in Apple
-material;Public;public;FluidIcons.Public;
+material;Public;language;FluidIcons.Language;al posto di `public` (continenti pieni): il globo a reticolo, al tratto
 material;Sync;sync;FluidIcons.Sync;
 material;WaterDrop;water_drop;;fuori dal set: per averla, la riga `water_drop` in fluid-icons.txt
 material;Wifi;wifi;;fuori dal set: per averla, la riga `wifi` in fluid-icons.txt
@@ -238,7 +238,7 @@ material;RadioButtonChecked;radio_button_checked;;fuori dal set: per averla, la 
 material;RadioButtonUnchecked;radio_button_unchecked;;fuori dal set: per averla, la riga `radio_button_unchecked` in fluid-icons.txt
 material;Router;router;;fuori dal set: per averla, la riga `router` in fluid-icons.txt
 material;SaveAlt;download;FluidIcons.Download;piena (tab bar): FluidIcons.Filled.Download
-material;Security;security;FluidIcons.Security;
+material;Security;shield;FluidIcons.Shield;al posto di `security` (scudo campito a meta'): lo scudo al tratto
 material;SignalWifiOff;signal_wifi_off;;fuori dal set: per averla, la riga `signal_wifi_off` in fluid-icons.txt
 material;Slideshow;slideshow;FluidIcons.Slideshow;
 material;StarBorder;star;FluidIcons.Star;piena (tab bar): FluidIcons.Filled.Star

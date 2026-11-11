@@ -92,11 +92,14 @@ class FluidFloatingCapsuleTest {
   @Test
   fun `the default height is the open tab bar and holds a full-size action with its padding`() {
     assertEquals(FluidFloatingTabBarDefaults.OpenHeight, FluidFloatingCapsuleDefaults.Height)
-    // 48 dp di azione piu' sei sopra e sei sotto fanno 60: la capsula non deve crescere per contenerla.
-    assertEquals(
-      FluidFloatingCapsuleDefaults.Height,
-      FluidFloatingCapsuleDefaults.ActionSize + 12.dp,
-    )
+    // 48 dp di azione piu' il margine sopra e sotto fanno l'altezza della barra: la capsula non deve crescere per
+    // contenerla. Cambio voluto della 4.0: la barra e' alta 62 (R6, era 60), e il margine e' passato da 6 a 7 dp
+    // perche' la regola resti vera; prima il test diceva `ActionSize + 12.dp`, cioe' 60.
+    val vertical = FluidFloatingCapsuleDefaults.ContentPadding.calculateTopPadding() +
+      FluidFloatingCapsuleDefaults.ContentPadding.calculateBottomPadding()
+    assertEquals(FluidFloatingCapsuleDefaults.Height, FluidFloatingCapsuleDefaults.ActionSize + vertical)
+    assertEquals(62.dp, FluidFloatingCapsuleDefaults.Height)
+    assertEquals(7.dp, FluidFloatingCapsuleDefaults.ContentPadding.calculateTopPadding())
   }
 
   @Test

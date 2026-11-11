@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidBackButton
+import dev.antigravity.fluidengine.ui.fluid.FluidBarEdgeInset
 import dev.antigravity.fluidengine.ui.fluid.FluidBarTitleMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarActions
@@ -235,7 +236,8 @@ internal fun FluidAnchoredBar(
                 key(page) { BarActions(state, page, spec, controlBackdrop, journey) }
               }
             }
-            Spacer(Modifier.width(6.dp))
+            // Il vetro dell'ultima azione a 16 dp dal bordo (4.0, R6), come in `FluidScreen`.
+            Spacer(Modifier.width(FluidBarEdgeInset))
           }
         }
       }
@@ -590,7 +592,7 @@ private fun FluidPageChromeContent(
           Spacer(Modifier.weight(1f))
           Row(modifier = Modifier.onSizeChanged { controls.endPx = it.width }, verticalAlignment = Alignment.CenterVertically) {
             FluidTopBarActions(actions)
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(FluidBarEdgeInset))
           }
         }
       }

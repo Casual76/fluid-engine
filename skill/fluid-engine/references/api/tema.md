@@ -2,6 +2,27 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidMetrics.kt`
+
+- `object FluidMetrics` — Le misure dei tasti, delle barre e delle icone, in un posto solo (4.0, piano «iOS in Android», F1A.11).
+  - `val GlassButtonLens: Dp` — Il vetro di un tasto tondo solo icona: 44 dp, come i 44,0 pt misurati sul tasto della barra di iOS 27 (R6, fiducia alta). Invariato: il tasto non era piccolo, lo sembrava.
+  - `val TouchTarget: Dp` — Il bersaglio del tocco: mai sotto 48 dp, il minimo di Android (Apple ne documenta 44). Il vetro da 44 sta al centro di questo riquadro, con 2 dp d'aria per lato che contano nei margini qui sotto.
+  - `val ScreenEdgeMargin: Dp` — Dal bordo dello schermo al **vetro** del primo tasto di una barra: 16 dp (prima 8). Apple ne lascia 20,1 pt su uno schermo da 440 pt in iOS 27 e 14-16 pt in iOS 26 (R6, media); 16 avvicina il tasto al margine del contenuto (20 dp) invece di farlo sporgere di 12, ed e' la meta' della ragione per cui i tasti sembravano piccoli.
+  - `val GlassSpacing: Dp` — Fra il vetro di due tasti separati della stessa barra: 8 dp (prima 6). Apple ne misura 12,1 pt (R6, alta), ma con tre azioni sciolte 12 dp sono troppi su un telefono da 360 dp: i 12 restano per due **gruppi** ([GroupSpacing]).
+  - `val GroupSpacing: Dp` — Fra due gruppi di tasti (una capsula di azioni e un tondo accanto): 12 dp, i 12,1 pt di Apple (R6, alta). Lo usa la barra dichiarata a gruppi (F4A.2); oggi nessun componente dell'engine ha gruppi.
+  - `const val IconLensRatio: Float` — Quanto riquadro d'icona sta in un vetro: 0,6 del lato. La sagoma di un'icona occupa circa 0,75 del suo riquadro da 24 (R6), quindi 0,6 dà una sagoma alta 0,44 del vetro: quella di Apple (0,44-0,48, alta). Prima era 0,5.
+  - `val IconSize: Dp` — Un'icona fuori da ogni vetro, barra o menu: 24 dp, il riquadro in cui sono disegnate le icone Material e [dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons]. E' la taglia che `Icon` di Material dava gia' senza modificatore: una [FluidIcon] fuori dai componenti non cambia misura.
+  - `val BarIconSize: Dp` — L'icona di un'azione della barra in alto ([FluidBarAction]): 26 dp, cioe' 0,6 del vetro da 44 (prima 22).
+  - `val BackIconSize: Dp` — La freccia del tasto indietro: 24 dp (prima 20). Un po' sotto le altre icone perche' la freccia e' una sagoma stretta e alta: a 24 dp e' alta 18,8 dp con un tratto di 2,6, contro i 18,7 pt e 2,5 pt del chevron di iOS 27 (R6, alta).
+  - `val CapsuleIconSize: Dp` — L'icona di un'azione della capsula flottante ([FluidCapsuleAction]): 26 dp (prima 24), come in barra.
+  - `val TabBarIconSize: Dp` — L'icona di una scheda della tab bar: 28 dp (prima 24, quella che l'app scriveva). Le icone della tab bar di iOS 27 hanno sagome di 21-31 pt (R6, alta); con le etichette a 11 sp l'icona torna a comandare la scheda, come in Apple (icona sulla maiuscola dell'etichetta: 3,2 in Apple, 1,8 prima nell'engine).
+  - `val MenuIconSize: Dp` — L'icona di una voce di menu: 22 dp (prima 20); riga e testo invariati. In Apple le icone del menu sono quelle della barra divise per 1,3 (R6): 26 / 1,3 = 20, e 22 tiene il peso un passo sopra senza toccare la riga da 48.
+  - `fun iconSizeIn(lens: Dp): Dp` — Il riquadro dell'icona che sta bene in un vetro di lato [lens]: [IconLensRatio] del lato, al dp intero. 24, 26 e 32 dp per i vetri da 40, 44 e 54 dp ([FluidGlassSize]); un disco da 76 dp ne prende 46.
+  - `val TabBarHeight: Dp` — L'altezza della tab bar flottante aperta: 62 dp (prima 60), i 62,6 pt di iOS 27 (R6, alta). E' un pavimento: col testo ingrandito la barra cresce.
+  - `val TabBarLabelSize: TextUnit` — L'etichetta di una scheda: 11 sp (prima 13). Apple ne usa 10 pt (R6, alta); sotto gli 11 l'italiano («Aggiornamenti», «Impostazioni») non guadagna abbastanza da giustificare la lettura peggiore. Se in S2 si legge male, torna a 12 sp qui (piano, F1B).
+  - `val TabBarLabelLineHeight: TextUnit` — L'interlinea dell'etichetta a 11 sp: quella di `labelSmall` del tipo dell'engine, una riga sola.
+  - `val CompactTitleInset: Dp` — Il margine del titolo agganciato da ogni lato: 84 dp (prima 76). Segue i tasti: il vetro ora sta a 16 dp dal bordo e finisce a 16 + 44 = 60, piu' il respiro di sempre. Un titolo lungo si tronca 8 dp prima per lato.
+
 ## `engine-ui/ui/fluid/FluidShape.kt`
 
 - `class ContinuousCornerShape(topStart: CornerSize, topEnd: CornerSize, bottomEnd: CornerSize, bottomStart: CornerSize, smoothing: Float = IosSmoothing) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart)` — A rounded rectangle whose corners are *continuous* rather than circular.

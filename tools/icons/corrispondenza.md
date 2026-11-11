@@ -53,7 +53,7 @@ piena.
 | `Home` | 15 | `FluidIcons.Home` | piena (tab bar): FluidIcons.Filled.Home |
 | `Mic` | 15 | `FluidIcons.Mic` |  |
 | `PlayArrow` | 15 | `FluidIcons.Filled.PlayArrow` | riproduzione: pieni come in Apple |
-| `Storage` | 15 | `FluidIcons.Storage` |  |
+| `Storage` | 15 | `FluidIcons.Dns` | al posto di `storage` (tre barre piene, pesa come piena): i server al tratto |
 | `Add` | 14 | `FluidIcons.Add` |  |
 | `Place` | 14 | `FluidIcons.LocationOn` |  |
 | `ContentCopy` | 13 | `FluidIcons.ContentCopy` | si gira da sola da destra a sinistra |
@@ -66,7 +66,7 @@ piena.
 | `Cloud` | 11 | `FluidIcons.Cloud` |  |
 | `CloudDownload` | 11 | `FluidIcons.CloudDownload` |  |
 | `Description` | 11 | `FluidIcons.Description` |  |
-| `Groups` | 11 | `FluidIcons.Groups` |  |
+| `Groups` | 11 | `FluidIcons.Group` | al posto di `groups` (figurine piene): due figure al tratto |
 | `Stop` | 11 | `FluidIcons.Filled.Stop` | riproduzione: pieni come in Apple |
 | `CleaningServices` | 10 | `FluidIcons.CleaningServices` |  |
 | `DriveFileMove` | 10 | `FluidIcons.DriveFileMove` | si gira da sola da destra a sinistra |
@@ -75,7 +75,7 @@ piena.
 | `Visibility` | 10 | `FluidIcons.Visibility` |  |
 | `Layers` | 9 | `FluidIcons.Layers` |  |
 | `Pause` | 9 | `FluidIcons.Filled.Pause` | riproduzione: pieni come in Apple |
-| `Public` | 9 | `FluidIcons.Public` |  |
+| `Public` | 9 | `FluidIcons.Language` | al posto di `public` (continenti pieni): il globo a reticolo, al tratto |
 | `Sync` | 9 | `FluidIcons.Sync` |  |
 | `ArrowUpward` | 8 | `FluidIcons.ArrowUpward` |  |
 | `ChevronRight` | 8 | `FluidIcons.ChevronRight` | si gira da sola da destra a sinistra |
@@ -169,7 +169,7 @@ piena.
 | `Memory` | 2 | `FluidIcons.Memory` |  |
 | `MenuBook` | 2 | `FluidIcons.MenuBook` | si gira da sola da destra a sinistra |
 | `SaveAlt` | 2 | `FluidIcons.Download` | piena (tab bar): FluidIcons.Filled.Download |
-| `Security` | 2 | `FluidIcons.Security` |  |
+| `Security` | 2 | `FluidIcons.Shield` | al posto di `security` (scudo campito a meta'): lo scudo al tratto |
 | `Slideshow` | 2 | `FluidIcons.Slideshow` |  |
 | `StarBorder` | 2 | `FluidIcons.Star` | piena (tab bar): FluidIcons.Filled.Star |
 | `SystemUpdateAlt` | 2 | `FluidIcons.SystemUpdateAlt` |  |

@@ -2133,6 +2133,26 @@ menu contestuale da pressione lunga con l'elemento in risalto e la pagina scurit
 sorgenti; menu dal tasto e dal gruppo; voci dentro la lente; struttura (sezioni, sottomenu, taglie, ordine, chiusura);
 contestuale con sollevamento, sfondo, anteprima. **Resta fuori**: popover, avvisi, fogli (F5B).
 
+**Osservazione di Alessio sul collage del menu di F1B.1 (2026-11-11, sera).** Guardando l'apertura resa col materiale
+nuovo (stesso viaggio di oggi, vestito a nuovo): «non mi pare troppo diverso da prima». Due cose che per lui decidono
+la somiglianza con Apple, e che questa fase deve chiudere per prime:
+1. **La logica in tre tempi, da generalizzare.** In Apple «i pulsanti si richiudono, poi parte la bolla liquida al
+   centro del nuovo menu e si riespande da lì»: la sorgente si chiude su sé stessa (le icone si sfocano e spariscono,
+   la capsula si stringe in una goccia), la goccia va verso il **centro della destinazione**, e la forma nuova si
+   espande **da quel centro**. Oggi la sagoma cresce dal tasto come un rettangolo storto che si raddrizza: è questo
+   che la fa sembrare «quella di prima». Lui la legge come regola generale («generalizzato»), non come un caso del
+   menu: vale per ogni «una cosa che diventa un'altra più grande altrove» (menu dal tasto e dal gruppo, popover,
+   e i preset di F6B che nascono da un tasto). Da verificare sui frame scelti a mano (`161313`→`161526`) prima di
+   scrivere: dove sta il centro della goccia a ogni fotogramma rispetto al tasto e al centro del menu, e da quale
+   punto parte l'espansione; il superamento «verso il lato lontano dal tasto» di R4 B1 è coerente con questa lettura.
+   Se i frame la confermano diventa la geometria di serie del viaggio (un punto d'origine dell'espansione dichiarato,
+   di serie il centro della destinazione), e va mostrata ad Alessio in video accanto a quella di oggi.
+2. **Le voci non scorrono da sinistra e non sono nitide dal primo fotogramma.** Oggi il testo entra di lato, già a
+   fuoco. Deve entrare come nel bersaglio «contenuto» qui sotto: dentro dal primo fotogramma, piccolo, sfocato e
+   piegato dalla lente, leggibile a ≈170–200 ms, nitido a ≈270 ms, **senza scorrimento laterale**. È la stessa regola
+   della sfocatura uniforme di R7 (ciò che cambia identità entra sfocato e si mette a fuoco), già prevista qui sotto
+   («Le voci dentro la lente»): l'osservazione la rende il primo criterio d'accettazione del pacchetto F5A.2.
+
 **Progetto tecnico.**
 
 - *Preparazione.* `ui/fluid/FluidGlassModal.kt` ha 2411 righe e contiene scrim, anteprima sollevata, portale e host: si

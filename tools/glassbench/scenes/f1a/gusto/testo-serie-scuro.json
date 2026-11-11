@@ -287,7 +287,7 @@
     {
       "kind": "material",
       "name": "annidato",
-      "_ricetta": "glassRecipe: ruolo button, 132 x 40 dp, lato scuro, profilo di serie",
+      "_ricetta": "glassRecipe: ruolo button, 132 x 40 dp, lato scuro, profilo di serie, annidata",
       "x": 486,
       "y": 246,
       "w": 132,
@@ -298,7 +298,7 @@
         {
           "radiusDp": 30.909092,
           "offsetDp": [0, 6.090909],
-          "alpha": 0.18,
+          "alpha": 0.09,
           "color": "#000000"
         }
       ],
@@ -326,7 +326,7 @@
           "dispersion": 0.3,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#78788080",
+          "veilColor": "#7878802D",
           "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,

@@ -290,6 +290,21 @@ mezzo pannello), e la cupola sparisce sopra i 120 dp: un pannello non è una goc
   pensato per un tasto faceva dentro il filo un anello chiaro vistoso e l'ombra era più grande dell'oggetto. Il filo
   resta quello di tutti.
 
+**Il vetro annidato** (un tasto dentro una notifica, un'azione su un foglio, un `glassSurface` che un'app mette dentro
+un altro) campiona il materiale del pannello che lo contiene, che ha già il suo velo: posarne un secondo pieno
+copriva metà di quel materiale, e sul tema scuro il tasto usciva una toppa grigia sopra una notifica tinta, o una
+toppa più chiara su un foglio scuro (sessione sul tablet S1-ter). Quindi una lastra annidata ha **il velo a un terzo
+sul tema scuro** (×0,35: sul banco il tasto nella notifica verde passa da luma 85 a 64 sopra un pannello a 54, e
+prende il verde; nel foglio scuro da 76 a 48 sopra un foglio a 34) e **l'ombra a metà** sui due temi (un tasto sta un
+gradino sopra il pannello, non sopra la pagina: piena, sopra un foglio chiaro, era una nuvola grigia). Sul tema chiaro
+il velo resta: lì il vetro su vetro era già pulito. Filo, riflesso, lente, smerigliatura, una pellicola dipinta com'è e
+la tinta di Apple non cambiano. **Annidato lo dice il nodo**, non un parametro: è la stessa domanda con cui il vetro su
+vetro (2.13.0) trova il pannello fra gli antenati, quindi vale da sola anche per i pannelli di un'app. Un vetro
+**accanto** a un altro (due tasti di una barra, la capsula sopra la pagina, le azioni della barra in alto, che sono
+sorelle della fascia e non figlie) resta una lastra sulla pagina, come una superficie con `nestInContainer = false`. I
+numeri stanno nel profilo (`GlassLiquidNestings`), e la manopola `nested=off` rimette il vetro annidato di prima per
+confrontarlo sul tablet.
+
 **Il costo.** Una lastra ferma tiene 3 layer (cattura, posa, ombra) contro i 5 del vetro di prima, e 2 senza ombra; i
 nodi sono 4 contro 5. La risoluzione della cattura si decide sulla smerigliatura del ruolo, prima della regola della
 taglia (in composizione, dove la taglia non c'è ancora): con i 4,5 dp di serie ogni ruolo cattura al 73% della
@@ -299,8 +314,11 @@ lì (dalla parte sicura). Una smerigliatura oltre i
 sagoma qui la disegna anche il corpo, dentro la cattura, e al 40% il suo bordo sfumato è già largo tre pixel dello
 schermo. Con un `layerBlock` (un tasto che cresce sotto il dito) la cattura resta piena, come prima. Una
 pressione cambia un uniform del corpo a ogni fotogramma, e un `RenderEffect` è immutabile: si ricostruisce l'ultimo
-anello della catena, mentre il pezzo a monte (saturazione, sfocatura, mescola) resta finché non cambia. Quanto costa
-tutto questo con gli shader definitivi, su un dispositivo, non è ancora misurato.
+anello della catena, mentre il pezzo a monte (saturazione, sfocatura, mescola) resta finché non cambia. Sul tablet
+(un Tab S9, sessione S1-ter, prima delle scelte di gusto) premere un tasto costa mezzo millisecondo di GPU in più del
+vetro di prima (mediana 2,92 contro 2,45 ms, a pari fotogrammi persi) e una lista che scorre sotto una barra non costa
+di più; il costo della smerigliatura di serie, di una cattura al 73% e di una pagina piena di vetro non è ancora
+misurato.
 
 ### Il riscaldamento
 
@@ -364,13 +382,15 @@ della 4.0:
   livello non si può simulare per tutta la vita del processo. Solo verso il basso, mai sotto 26; vale per ciò che entra
   in composizione dopo (si ricrea l'attività);
 - **le manopole del profilo**: `tuneLiquidProfile(context, "edge=ios26,blur=24")` sostituisce, per il processo, pezzi del
-  profilo del materiale nuovo (undici manopole a varianti, con le lettere delle tavole di gusto: tutta la
+  profilo del materiale nuovo (dodici manopole a varianti, con le lettere delle tavole di gusto: tutta la
   combinazione, `profile=shipped|before`; bordo, velo, ombra, il tondo, smerigliatura, lente, grandi, bordo scuro,
-  velo scuro dei tasti e dei grandi; tredici a numero), `liquidProfileKnobs` le elenca e `liquidProfileTuning` dice
+  velo scuro dei tasti e dei grandi, il vetro annidato `nested=on|off`; sedici a numero, fra cui `nestedveil`,
+  `nestedlightveil` e `nestedshadow`), `liquidProfileKnobs` le elenca e `liquidProfileTuning` dice
   quali sono in vigore. Le alternative alle scelte di serie restano lì: la smerigliatura `frost=wide` (la C, larga e
   mista) e `frost=mid` (la M, 8 dp) accanto alla D di serie (`frost=ios26`), il bordo scuro della tavola
   (`darkedge=faint`), l'ombra corta (`shadow=ios27`), il velo scuro dei grandi uguale a quello dei tasti
-  (`darklarge=same`), e tutta la combinazione di prima delle scelte (`profile=before`). Servono a **fotografare le varianti sul dispositivo** prima di scrivere un numero nel
+  (`darklarge=same`), il vetro annidato com'era prima della sua regola (`nested=off`), e tutta la combinazione di
+  prima delle scelte (`profile=before`). Servono a **fotografare le varianti sul dispositivo** prima di scrivere un numero nel
   profilo, ed è per questo che la galleria le espone (`gallery.tune`, e la pagina «Materiale»): non sono un modo di
   dare a un'app un vetro suo. **Solo in una build di debug**, come il livello simulato; senza manopole il profilo è
   quello di serie, e il disegno è identico al pixel (`GlassLiquidTuningTest`, e le immagini di riferimento del banco).
@@ -389,20 +409,24 @@ aprire la schermata da guardare.
   contrasto medio e alto non succede, perché lì il vetro torna alla pellicola densa. Il rimedio vero è l'inchiostro e il
   lato che seguono lo sfondo (l'adattività), di una fase successiva; se non bastasse, il ripiego è un pavimento del velo
   per ruolo. Una schermata che sta quasi sempre sopra fondi del tono opposto può tenere il vetro di prima, intanto.
-- **Sul tema scuro un vetro annidato in un pannello tinto esce grigio.** Un tasto di vetro dentro una notifica verde
-  prende il velo scuro dei tasti, un grigio neutro che copre metà di ciò che ha dietro: sopra il verde del pannello
-  si legge come una toppa grigia appoggiata, non come vetro dentro il vetro (sul tablet, luma 71 contro 62 del vetro di
-  prima). Non è un numero del profilo: per costruzione un velo neutro toglie colore a ciò che copre, e un velo meno
-  coprente schiarirebbe il tasto sulla pagina scura. Il rimedio è che un vetro annidato non posi di nuovo il velo
-  intero sopra un materiale già velato, ed è un lavoro dell'innesto, non del profilo; lo stesso vale per un tasto dentro
-  un foglio o una card scuri, che col velo dei grandi stanno più in basso dei tasti.
-- **Il materiale nuovo non è ancora stato visto su un dispositivo.** Tutto ciò che questa sezione dice del suo aspetto
-  è misurato sul banco (`tools/glassbench`), che rende sul PC con Skia gli shader veri dell'engine dalle scene scritte
-  dalla ricetta; il comportamento è provato dai test sul JVM e in Robolectric. Da guardare in mano, fra l'altro: la
-  compilazione e il primo fotogramma, i due disegni della luce, l'ombra sotto un tasto premuto, il ritaglio al 98%
-  sull'angolo dei grandi, il vetro annidato, il bagliore del dito (sul banco, sul lato chiaro, porta la faccia al
-  bianco come quello di prima: va visto se il dispositivo fa lo stesso), bande sul gradiente del corpo, i colori su uno
-  schermo a gamma larga, il ritorno dallo sfondo, il costo di una lastra ferma e di una premuta.
+- **Il vetro annidato sul tema scuro è corretto sul banco, non ancora visto sul tablet.** La regola dell'annidato
+  (sopra) nasce dalla toppa grigia vista sul tablet; il suo esito è misurato sul banco, che rende il tasto figlio sopra
+  il materiale vero del pannello. Da guardare sul tablet: il tasto della notifica verde nel tema scuro (deve prendere
+  il verde) e un tasto su un foglio scuro, accanto alla manopola `nested=off`.
+- **Il materiale nuovo è stato visto su un solo dispositivo, e prima delle scelte di gusto.** Sul Tab S9 (sessione
+  S1-ter, con la combinazione di serie di allora): nessuno shader rifiutato, il riscaldamento fatto in 4,6–6,2 ms dopo
+  il primo fotogramma, il bordo del tasto tondo che combacia col banco entro pochi livelli nei due temi (filo chiaro in
+  alto +17 contro +13, riga scura −49 contro −42, sul tema scuro riflesso in alto +65 contro +64), vetro su vetro
+  pulito sul tema chiaro, nessuna differenza dopo il ritorno dallo sfondo; costi nel paragrafo sopra. Visti lì anche i
+  difetti: la barra fra le pagine resta **un fotogramma senza vetro** quando arriva; il materiale **cambia a vista** fra
+  riposo e viaggio (sotto); sul tema chiaro il bagliore del dito porta la faccia al bianco pieno, come quello di prima;
+  sul tema scuro fogli e card erano un grigio medio col testo secondario a 3,8:1 e il tasto annidato una toppa grigia
+  (le due regole del velo, sopra, li correggono sul banco). Il profilo di serie di oggi (ombra larga, smerigliatura di
+  4,5 dp, bordo scuro più deciso) sul tablet non è ancora stato guardato; tutto il resto di ciò che questa sezione dice
+  dell'aspetto è misurato sul banco (`tools/glassbench`), che rende sul PC con Skia gli shader veri dalle scene scritte
+  dalla ricetta. Restano da guardare in mano, fra l'altro: il ritaglio al 98% sull'angolo dei grandi misurato in
+  numeri, due controlli premuti insieme, la destra-sinistra, `intensity`, bande sul gradiente del corpo, i colori su
+  uno schermo a gamma larga.
 - **Fluid-physics, la goccia, la pillola della tab bar e i pomelli sono ancora il vetro di prima** (sopra), e il
   materiale cambia a vista fra riposo e viaggio sulla barra ancorata e sui menu che nascono da un tasto.
 

@@ -17,7 +17,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelPadding
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelWidth
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPlacement
-import dev.antigravity.fluidengine.ui.fluid.FluidMenuRowGlyph
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuRowSidePadding
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuSectionGap
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
@@ -315,9 +314,9 @@ internal fun buildMenuTrace(scene: MenuScene): MenuBuilt {
         items += linkedMapOf(
           "kind" to "icon",
           "icon" to item.icon,
-          "x" to round3(mapX(panelBox.width - (FluidMenuRowSidePadding.value + FluidMenuRowGlyph.value / 2f) * d) / d),
+          "x" to round3(mapX(panelBox.width - (FluidMenuRowSidePadding.value + OggiMenuGlyphDp / 2f) * d) / d),
           "y" to round3(mapY(top + layout.rowHeightPx / 2f) / d),
-          "sizeDp" to round3(FluidMenuRowGlyph.value * map.scale),
+          "sizeDp" to round3(OggiMenuGlyphDp * map.scale),
           "color" to glassColor(tone),
         )
       }
@@ -386,6 +385,13 @@ private fun menuItemTone(item: MenuItemSpec, palette: TodayPalette): Color {
  * `longPressTimeoutMillis` di serie di Android) e non si muove; quattro voci senza sezioni; tema chiaro,
  * accento di serie; densita' 3, 60 Hz.
  */
+/**
+ * Il glifo delle righe del menu della 3.1.2 (`FluidMenuRowGlyph`), 20 dp. Da F1A.11a la costante dell'engine è 22
+ * (`FluidMetrics.MenuIconSize`, il set di icone nuovo): le tracce «di oggi» sono la registrazione del menu di prima, e
+ * leggerla da lì le cambierebbe (`tools/glassbench/traces/` non deve muoversi).
+ */
+private const val OggiMenuGlyphDp = 20f
+
 internal object OggiMenuApertura {
   const val Name = "oggi-menu-apertura"
 

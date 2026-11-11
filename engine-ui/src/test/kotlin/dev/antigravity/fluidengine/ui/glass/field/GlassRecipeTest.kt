@@ -251,6 +251,99 @@ class GlassRecipeTest {
     }
   }
 
+  // ---- Il vetro annidato (S1-ter, difetto 4) ---------------------------------------------------------------
+
+  /** Il tasto «Ripristina» della notifica: 132 × 40 dp, tasto di vetro. */
+  private fun nestedButton(dark: Boolean, nested: Boolean, profile: GlassLiquidProfile = default) = glassRecipe(
+    role = GlassRole.Interactive, widthDp = 132f, heightDp = 40f, darkSide = dark,
+    optics = GlassDefaults.buttonOptics(), nested = nested, profile = profile,
+  )
+
+  @Test
+  fun onTheDarkSideANestedSlabKeepsAThirdOfItsVeilAndHalfItsShadow() {
+    val alone = nestedButton(dark = true, nested = false)
+    val nested = nestedButton(dark = true, nested = true)
+    // Il velo: stesso grigio, un terzo dell'alfa (0,35 di 0,5).
+    assertEquals(GlassLiquidNestings.Dark.veil, 0.35f, 0f)
+    assertEquals(alone.veilColor.red, nested.veilColor.red, 0f)
+    assertEquals(alone.veilColor.green, nested.veilColor.green, 0f)
+    assertEquals(alone.veilColor.blue, nested.veilColor.blue, 0f)
+    assertEquals(alone.veilColor.alpha * 0.35f, nested.veilColor.alpha, ColourStep)
+    assertEquals(alone.veilAdapt, nested.veilAdapt, 0f)
+    // L'ombra: metà delle alfa, stessi raggi e scostamento.
+    assertEquals(alone.shadowAmbientAlpha * 0.5f, nested.shadowAmbientAlpha, 1e-6f)
+    assertEquals(alone.shadowContactAlpha * 0.5f, nested.shadowContactAlpha, 1e-6f)
+    assertEquals(alone.shadowAmbientRadiusDp, nested.shadowAmbientRadiusDp, 0f)
+    assertEquals(alone.shadowOffsetYDp, nested.shadowOffsetYDp, 0f)
+    // Tutto il resto è quello di una lastra sulla pagina: filo, riflesso, lente, smerigliatura, ombreggiatura.
+    assertEquals(alone.rimDark, nested.rimDark)
+    assertEquals(alone.reflexStrength, nested.reflexStrength, 0f)
+    assertEquals(alone.thicknessDp, nested.thicknessDp, 0f)
+    assertEquals(alone.refractionDp, nested.refractionDp, 0f)
+    assertEquals(alone.blurDp, nested.blurDp, 0f)
+    assertEquals(alone.mix, nested.mix, 0f)
+    assertEquals(alone.saturation, nested.saturation, 0f)
+    assertEquals(alone.bodyShade, nested.bodyShade)
+    assertEquals(alone.captureScale, nested.captureScale, 0f)
+    assertEquals(alone.paddingDp, nested.paddingDp, 0f)
+  }
+
+  @Test
+  fun onTheLightSideANestedSlabKeepsItsVeilAndHalvesItsShadow() {
+    val alone = nestedButton(dark = false, nested = false)
+    val nested = nestedButton(dark = false, nested = true)
+    // Sul chiaro il vetro su vetro era già pulito: il velo resta quello, al bit.
+    assertEquals(alone.veilColor, nested.veilColor)
+    assertEquals(alone.veilAdapt, nested.veilAdapt, 0f)
+    assertEquals(alone.shadowAmbientAlpha * 0.5f, nested.shadowAmbientAlpha, 1e-6f)
+    assertEquals(alone.rimDark, nested.rimDark)
+    assertEquals(alone.reflexStrength, nested.reflexStrength, 0f)
+  }
+
+  @Test
+  fun notNestedIsTheSlabOnThePageAndTheRuleOnlyTouchesTheProfileVeil() {
+    // Di serie una lastra non è annidata: chi non lo dice ha la ricetta di prima, al bit.
+    for (dark in listOf(false, true)) {
+      val implicit = glassRecipe(
+        role = GlassRole.Interactive, widthDp = 132f, heightDp = 40f, darkSide = dark, optics = GlassDefaults.buttonOptics(),
+      )
+      val explicit = nestedButton(dark, nested = false)
+      assertEquals(implicit.veilColor, explicit.veilColor)
+      assertEquals(implicit.shadowAmbientAlpha, explicit.shadowAmbientAlpha, 0f)
+    }
+    // Con il vetro annidato «come sulla pagina» (la manopola `nested=off`) annidata o no è lo stesso.
+    val unchanged = default.copy(lightNesting = GlassLiquidNestings.Unchanged, darkNesting = GlassLiquidNestings.Unchanged)
+    for (dark in listOf(false, true)) {
+      val a = nestedButton(dark, nested = false, profile = unchanged)
+      val b = nestedButton(dark, nested = true, profile = unchanged)
+      assertEquals(a.veilColor, b.veilColor)
+      assertEquals(a.shadowAmbientAlpha, b.shadowAmbientAlpha, 0f)
+    }
+    // La pellicola di una tinta dipinta com'è e la tinta di Apple sono colori dell'app: annidata non li tocca.
+    val film = Color(0x9E202024)
+    val filmed = glassRecipe(
+      GlassRole.Interactive, 132f, 40f, darkSide = true, optics = GlassDefaults.buttonOptics(), film = film, nested = true,
+    )
+    assertEquals(film, filmed.tintColor)
+    assertEquals(0f, filmed.veilColor.alpha, 0f)
+    val tint = Color(0xF234C759)
+    val tinted = glassRecipe(
+      GlassRole.Interactive, 132f, 40f, darkSide = true, optics = GlassDefaults.buttonOptics(), tint = tint, nested = true,
+    )
+    assertEquals(tint, tinted.tintColor)
+    assertEquals(1f, tinted.tintMode, 0f)
+    // Un grande annidato (una card in un foglio): il velo dei grandi, alla stessa frazione.
+    val card = glassRecipe(GlassRole.Content, 300f, 120f, darkSide = true, optics = GlassDefaults.stackedContentOptics())
+    val nestedCard = glassRecipe(
+      GlassRole.Content, 300f, 120f, darkSide = true, optics = GlassDefaults.stackedContentOptics(), nested = true,
+    )
+    assertEquals(GlassLiquidVeils.DarkLarge.color.copy(alpha = 1f), card.veilColor.copy(alpha = 1f))
+    assertEquals(card.veilColor.alpha * 0.35f, nestedCard.veilColor.alpha, ColourStep)
+    // Prima delle scelte la regola non c'era.
+    assertSame(GlassLiquidNestings.Unchanged, GlassLiquidProfile.BeforeChoices.darkNesting)
+    assertSame(GlassLiquidNestings.Unchanged, GlassLiquidProfile.BeforeChoices.lightNesting)
+  }
+
   // ---- intensity, opticalDepth, qualità, pressione (piano 3.3) -----------------------------------------------
 
   @Test

@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.geometry.Offset
+// Fluid Engine addition (F1A, voce 18): lo scope degli effetti dice se la superficie sta su un vetro.
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -82,6 +84,38 @@ private val DefaultOnDrawBackdrop: DrawScope.(DrawScope.() -> Unit) -> Unit = { 
 
 /** Stable identity, so the default never makes an element compare unequal to itself. */
 private val OneScale: () -> Float = { 1f }
+
+/**
+ * Fluid Engine addition (4.0.0, F1A; voce 18 di `LICENSES/AndroidLiquidGlass.md`): lo scope degli effetti di un
+ * nodo del vetro sa se la superficie sta **dentro** un'altra superficie di vetro e ne campiona il materiale.
+ *
+ * E' la risposta che il nodo gia' si da' per il vetro su vetro (2.13.0, [planNesting]): chi lo contiene lo dice
+ * l'albero e non la composizione, perche' un modificatore non puo' fornire un `CompositionLocal` al contenuto.
+ * Il materiale nuovo (`glass/field/GlassFieldEffects.kt`) la legge per non posare il proprio velo pieno sopra un
+ * materiale che ne ha gia' uno. Si legge con un cast (`this as? GlassNestingScope`): lo scope pubblico
+ * ([BackdropEffectScope]) non cambia, e chi non lo chiede non vede niente.
+ */
+internal interface GlassNestingScope {
+
+    /**
+     * Vero se la superficie campiona il materiale di un pannello di vetro che la contiene: infilato nella sua pila
+     * ([NestingPlan.Insert]) o gia' cablato a mano nel suo fondale ([NestingPlan.AlreadyIncluded]: la chiusura
+     * della notifica, il contenuto del modale). Falso sulla pagina, accanto a un altro vetro (due tasti di una
+     * barra, la capsula sopra la pagina), e per chi ha chiesto di non appoggiarsi (`nestInContainer` falso).
+     */
+    val standsOnGlass: Boolean
+}
+
+/**
+ * La regola, pura: dal piano del vetro su vetro alla risposta di [GlassNestingScope.standsOnGlass]. [inserted] e'
+ * vero se il materiale del contenitore e' davvero entrato nella pila (un contenitore che non ne ha da dare lascia
+ * il fondale com'e', e allora la superficie non sta su niente). Fluid Engine addition (F1A, voce 18).
+ */
+internal fun glassStandsOnGlass(plan: NestingPlan, inserted: Boolean): Boolean = when (plan) {
+    NestingPlan.Alone -> false
+    NestingPlan.AlreadyIncluded -> true
+    is NestingPlan.Insert -> inserted
+}
 
 fun Modifier.drawPlainBackdrop(
     backdrop: Backdrop,
@@ -561,10 +595,19 @@ private class DrawBackdropNode(
     GlassContainer, GlassContainerReader, Modifier.Node() {
 
     private val effectScope =
-        object : BackdropEffectScopeImpl() {
+        object : BackdropEffectScopeImpl(), GlassNestingScope {
 
             override val shape: Shape get() = shapeProvider.innerShape
+
+            // Fluid Engine addition (F1A, voce 18): vedi [GlassNestingScope].
+            override val standsOnGlass: Boolean get() = this@DrawBackdropNode.standsOnGlass
         }
+
+    /**
+     * Fluid Engine addition (F1A, voce 18): l'ultima risposta di [resolveContainer] alla domanda «sto dentro un
+     * vetro?», per lo scope degli effetti. Vedi [GlassNestingScope].
+     */
+    private var standsOnGlass = false
 
     private var graphicsLayer: GraphicsLayer? = null
 
@@ -1101,6 +1144,8 @@ private class DrawBackdropNode(
         unregisterReads()
         leaveContainer()
         sampledBackdrop = backdrop
+        // Fluid Engine addition (F1A, voce 18): al prossimo attacco la domanda si rifa' da capo.
+        standsOnGlass = false
 
         // Come contenitore: chi ci stava sopra rifa' la domanda al prossimo disegno, e il layer del
         // materiale torna al contesto (chi lo sta ancora disegnando lo tiene vivo finche' serve).
@@ -1229,6 +1274,16 @@ private class DrawBackdropNode(
             lastCoordinates?.let { coordinates ->
                 if (coordinates.isAttached && next.isCoordinatesDependent) layoutCoordinates = coordinates
             }
+            invalidateDraw()
+        }
+        // Fluid Engine addition (F1A, voce 18): la stessa risposta, per gli effetti che la leggono. Cambia di
+        // rado (all'attacco, quando il pannello di sopra compare o se ne va): gli effetti si rifanno solo allora,
+        // solo se hanno gia' una taglia (altrimenti li fa il primo disegno) e solo per il materiale nuovo, l'unico
+        // che la legge (passa la luce): il vetro di prima non ricostruisce niente in piu'.
+        val onGlass = glassStandsOnGlass(plan, inserted = next is NestedBackdrop)
+        if (onGlass != standsOnGlass) {
+            standsOnGlass = onGlass
+            if (onDrawLight != null && effectScope.size.isSpecified) observeEffects()
             invalidateDraw()
         }
     }

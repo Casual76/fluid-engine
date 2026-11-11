@@ -287,7 +287,7 @@
     {
       "kind": "material",
       "name": "annidato",
-      "_ricetta": "glassRecipe: ruolo button, 132 x 40 dp, lato chiaro, profilo di serie",
+      "_ricetta": "glassRecipe: ruolo button, 132 x 40 dp, lato chiaro, profilo di serie, annidata",
       "x": 486,
       "y": 246,
       "w": 132,
@@ -298,7 +298,7 @@
         {
           "radiusDp": 30.909092,
           "offsetDp": [0, 6.090909],
-          "alpha": 0.09,
+          "alpha": 0.045,
           "color": "#000000"
         }
       ],

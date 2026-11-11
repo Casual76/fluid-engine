@@ -177,6 +177,19 @@ Le modifiche fatte finora:
       un `true` vuol dire ancora che la piattaforma ha l'API (il contratto di `@ChecksSdkIntAtLeast` regge);
       in un'app di rilascio il campo resta vuoto e le due funzioni rispondono come a monte.
 
+18. **Lo scope degli effetti sa se la superficie sta dentro un vetro** (4.0.0, `DrawBackdropModifier.kt`,
+    rifinitura di F1A di `docs/liquid-glass/piano.md`, difetto 4 della sessione S1-ter). Lo scope che il nodo
+    passa agli `effects` implementa anche `GlassNestingScope` (interfaccia interna dell'engine, nello stesso file):
+    `standsOnGlass` e' la risposta che il nodo gia' si da' per il vetro su vetro della voce 2.13.0 (`planNesting`:
+    il materiale del pannello che lo contiene infilato nella pila, o gia' cablato a mano nel fondale), tenuta in un
+    campo del nodo; `glassStandsOnGlass` e' la regola, pura. Quando la risposta cambia (all'attacco, o quando il
+    pannello di sopra compare o se ne va) il nodo rifa' gli effetti, ma solo se hanno gia' una taglia e solo per
+    una superficie che passa `onDrawLight` (il materiale nuovo, l'unico che la legge); al distacco torna falsa.
+    Serve al materiale nuovo (`glass/field/GlassFieldEffects.kt`) per non posare il proprio velo pieno sopra un
+    materiale che ne ha gia' uno: un tasto in una notifica tinta, sul tema scuro, ne usciva una toppa grigia. Lo
+    scope pubblico (`BackdropEffectScope`) non cambia, nessuna firma pubblica cambia, e chi non fa il cast non
+    vede niente: il vetro di sempre (modello `Classic`) non rifa' gli effetti e disegna al pixel come prima.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

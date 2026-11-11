@@ -188,6 +188,9 @@ internal fun buildTapTrace(scene: TapScene): TapBuilt {
 internal object OggiTasto {
   const val Name = "oggi-tasto"
 
+  /** L'icona del tasto `Regular` della 3.1.2 (`FluidGlassSize.Regular.iconSize` prima di F1A.11a). */
+  const val OggiIconSizeDp = 22f
+
   private const val CanvasWidthDp = 110f
   private const val CanvasHeightDp = 96f
   private const val ReleaseFrame = 34
@@ -204,7 +207,10 @@ internal object OggiTasto {
       canvasHeightDp = CanvasHeightDp,
       lensDp = Rect(left, top, left + lens, top + lens),
       icon = "fluid:ios_share|share",
-      iconSizeDp = FluidGlassSize.Regular.iconSize.value,
+      // La taglia dell'icona di **allora**: la traccia è il tasto della 3.1.2, e il suo `iconSize` era 22 dp. Da F1A.11a
+      // `FluidGlassSize.Regular.iconSize` è 26 (il set di icone nuovo): leggerla da lì cambierebbe una traccia «di
+      // oggi» che deve restare la registrazione del vetro di prima (e `tools/glassbench/traces/` non deve muoversi).
+      iconSizeDp = OggiIconSizeDp,
       iconColor = { it.onSurface },
       releaseFrame = ReleaseFrame,
       dragStartMs = 150.0,

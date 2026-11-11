@@ -109,6 +109,33 @@ class GlassLiquidTuningTest {
     assertEquals(Color.White.copy(alpha = 0.1f), tune("darkwire", "0.1").darkEdge.rim)
     assertEquals(0.2f, tune("darkreflex", "0.2").darkEdge.reflexStrength, 0f)
     assertEquals(0.4f, tune("darkveilalpha", "0.4").darkVeil.color.alpha, 0.5f / 255f)
+    // Il vetro annidato: il velo sullo scuro (il numero che conta), sul chiaro, l'ombra sui due lati.
+    assertEquals(0.5f, tune("nestedveil", "0.5").darkNesting.veil, 0f)
+    assertEquals(shipped.lightNesting, tune("nestedveil", "0.5").lightNesting)
+    assertEquals(0.6f, tune("nestedlightveil", "0.6").lightNesting.veil, 0f)
+    assertEquals(shipped.darkNesting, tune("nestedlightveil", "0.6").darkNesting)
+    val shadow = tune("nestedshadow", "0.25")
+    assertEquals(0.25f, shadow.lightNesting.shadow, 0f)
+    assertEquals(0.25f, shadow.darkNesting.shadow, 0f)
+    assertEquals(shipped.darkNesting.veil, shadow.darkNesting.veil, 0f)
+  }
+
+  @Test
+  fun theNestedGlassCanBeTurnedBackToTheSlabOnThePage() {
+    // S1-ter, difetto 4: sul tablet si confronta la regola con la toppa grigia di prima.
+    val off = GlassLiquidTuning.apply(shipped, mapOf("nested" to "off")).profile
+    assertSame(GlassLiquidNestings.Unchanged, off.lightNesting)
+    assertSame(GlassLiquidNestings.Unchanged, off.darkNesting)
+    assertEquals(shipped.copy(lightNesting = GlassLiquidNestings.Unchanged, darkNesting = GlassLiquidNestings.Unchanged), off)
+    val on = GlassLiquidTuning.apply(GlassLiquidProfile.BeforeChoices, mapOf("nested" to "on")).profile
+    assertSame(GlassLiquidNestings.Light, on.lightNesting)
+    assertSame(GlassLiquidNestings.Dark, on.darkNesting)
+    // Di serie la regola c'è.
+    assertSame(GlassLiquidNestings.Light, shipped.lightNesting)
+    assertSame(GlassLiquidNestings.Dark, shipped.darkNesting)
+    // Un numero ritocca la variante scelta, qualunque sia l'ordine.
+    val tuned = GlassLiquidTuning.apply(shipped, linkedMapOf("nestedveil" to "0.5", "nested" to "off")).profile
+    assertEquals(GlassLiquidNestings.Unchanged.copy(veil = 0.5f), tuned.darkNesting)
   }
 
   @Test
@@ -130,6 +157,8 @@ class GlassLiquidTuningTest {
     assertEquals(listOf("shipped", "before"), knobs["profile"])
     assertEquals(listOf("reflex", "wire", "faint", "today"), knobs["darkedge"])
     assertEquals(listOf("deep", "same"), knobs["darklarge"])
+    assertEquals(listOf("on", "off"), knobs["nested"])
+    assertEquals(listOf("0..1"), knobs["nestedveil"])
     assertEquals(listOf("0..64"), knobs["blur"])
     // Ogni valore elencato si accetta: l'elenco è quello che la galleria mostra.
     for ((name, values) in knobs) {

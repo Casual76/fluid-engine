@@ -1,10 +1,13 @@
 # La pagina «Materiale»
 
 Pacchetto F1A.9 del piano «iOS in Android» (`docs/liquid-glass/piano.md`, sezione F1A). Il materiale nuovo
-(`Liquid`) sul pannello vero non l'ha ancora visto nessuno: questa pagina lo mette davanti alla sessione sul tablet
-(S2, piano 4.5) voce per voce, **accanto al vetro di prima** (`Classic`), sui sei fondi di 4.6, fermo o con il fondo
-che scorre, e scrive in logcat (tag `FluidMateriale`) ciò che dice la diagnostica dell'engine. Si guida tutta da
-`adb`, senza toccare lo schermo; a mano si apre dalle Impostazioni della galleria (sezione «Vetro (solo debug)»).
+(`Liquid`) sul pannello vero è stato visto una volta, in S1-ter (`artifacts/liquid-glass/sessioni/S1-ter.md`), con la
+combinazione di **prima** delle scelte di gusto; il profilo di serie di oggi (le scelte di Alessio, F1A.5c) e la
+regola del vetro annidato sul tablet non li ha ancora visti nessuno. Questa pagina li mette davanti alle sessioni sul
+tablet (S2, piano 4.5) voce per voce, **accanto al vetro di prima** (`Classic`), sui sei fondi di 4.6, fermo o con il
+fondo che scorre, e scrive in logcat (tag `FluidMateriale`) ciò che dice la diagnostica dell'engine. Si guida tutta da
+`adb`, senza toccare lo schermo; a mano si apre dal catalogo di Chrome (riga «Materiale») o dalle Impostazioni della
+galleria (sezione «Vetro (solo debug)»).
 
 Chi guarda le foto e i video è Alessio, in chat: la sessione porta collage e ritagli, non giudizi a parole.
 
@@ -157,30 +160,39 @@ senza manopole l'engine disegna il profilo di serie, identico al banco (`compare
 valori senza distinzione di maiuscole; i numeri col punto. Prima le varianti, poi i numeri (un numero cambia il pezzo
 che la variante ha scelto). Una manopola sconosciuta si scarta e la riga `PROFILO` lo dice.
 
+In grassetto ciò che è di serie (le scelte di Alessio sulle tavole, 11 novembre 2026, e la regola dell'annidato):
+senza manopole l'engine disegna quello.
+
 | manopola | valori | la tavola |
 |---|---|---|
-| `edge` | `ios27` · `ios26` · `today` | «il bordo»: A iOS 27 (filo scuro e riflesso in alto e in basso, di serie) / B iOS 26 (due archi di luce) / C oggi (filetto scuro sopra e sotto) |
-| `veil` | `ios27` · `ios26` | «il velo»: A iOS 27 (di serie) / B iOS 26 (bianco 40%). La C «oggi, pellicola» non è un pezzo del profilo: è `gallery.model classic` |
-| `shadow` | `ios27` · `ios26` | «l'ombra»: A corta (di serie) / B larga. La C «oggi» è `gallery.model classic` |
-| `round` | `bar` · `apple` | «il tondo»: A l'ombra della barra (di serie) / D come Apple (un quarto) |
-| `frost` | `r12` · `r24` · `wide` · `ios26` | «la smerigliatura»: A 12 dp (di serie) / B 24 dp / C larga e mista (36 dp con il 12% di nitido) / D iOS 26 (4,5 dp) |
-| `lens` | `light` · `medium` · `strong` | «la lente» (decisa: `medium`) |
-| `large` | `none` · `step` · `two` | «i grandi» (decisa: `step`) |
-| `darkedge` | `reflex` · `wire` · `today` | «il tema scuro», bordo: A solo il riflesso (di serie) / B riflesso e filo chiaro / C com'è oggi |
-| `darkveil` | `lighter` · `deeper` | «il tema scuro», velo: A più chiaro (di serie) / B più profondo |
+| `profile` | `shipped` · `before` | tutta la combinazione: **quella di serie** / quella di prima delle scelte (F1A.5: ombra corta, solo riflesso sullo scuro, velo scuro uguale su ogni taglia, smerigliatura 12 dp, vetro annidato come sulla pagina). Si applica per prima: le altre manopole la ritoccano |
+| `edge` | `ios27` · `ios26` · `today` | «il bordo»: **A iOS 27** (filo scuro e riflesso in alto e in basso) / B iOS 26 (due archi di luce) / C oggi (filetto scuro sopra e sotto) |
+| `veil` | `ios27` · `ios26` | «il velo»: **A iOS 27** / B iOS 26 (bianco 40%). La C «oggi, pellicola» non è un pezzo del profilo: è `gallery.model classic` |
+| `shadow` | `ios27` · `ios26` | «l'ombra»: A corta, due componenti / **B larga, iOS 26** (34 dp, scostata in basso). La C «oggi» è `gallery.model classic` |
+| `round` | `bar` · `apple` | «il tondo»: **A l'ombra della barra** / D come Apple (un quarto) |
+| `frost` | `r12` · `r24` · `wide` · `mid` · `ios26` | «la smerigliatura»: A 12 dp / B 24 dp / C larga e mista (36 dp con il 12% di nitido) / M di mezzo (8 dp) / **D iOS 26, 4,5 dp** |
+| `lens` | `light` · `medium` · `strong` | «la lente»: **`medium`** |
+| `large` | `none` · `step` · `stepwide` · `two` | «i grandi»: **`stepwide`** (un passo tarato sull'ombra larga) / `step` il passo tarato sull'ombra corta / nessuno / due |
+| `darkedge` | `reflex` · `wire` · `faint` · `today` | «il tema scuro», bordo: A solo il riflesso / **B resa più decisa (`wire`: filo bianco al 34% su tutto il perimetro, riflesso 0,20)** / B com'era nella tavola (`faint`, filo al 10%) / C com'è oggi |
+| `darkveil` | `lighter` · `deeper` | «il tema scuro», velo dei tasti: **A più chiaro** / B più profondo |
+| `darklarge` | `deep` · `same` | il velo scuro dei grandi (fogli, card, pannelli, menu): **`deep`** (`#36363C` al 50%: il testo secondario a 6:1 e oltre) / `same` quello dei tasti (il grigio medio di S1-ter, testo a 3,8:1) |
+| `nested` | `on` · `off` | il vetro annidato: **`on`** (sul tema scuro un terzo del velo, sui due temi metà dell'ombra) / `off` come una lastra sulla pagina (la toppa grigia di S1-ter) |
 | `rimwidth` | `0..4` (dp) | lo spessore del filo, sui due lati (di serie 0.6) |
 | `rimalpha` | `0..1` | la forza del filo scuro (di serie 0.32) |
 | `reflex` | `0..1` | la riga chiara (di serie 0.12) |
 | `halo` | `0..1` | l'alone sotto la riga (di serie 0.45) |
 | `veilalpha` | `0..1` | il velo chiaro (di serie 0.46) |
 | `adapt` | `0..1` | quanto il velo si ispessisce dove il fondo gli somiglia (di serie 0.7) |
-| `blur` | `0..64` (dp) | la sfocatura di tasti, capsule e barre (i grandi crescono da qui) |
+| `blur` | `0..64` (dp) | la sfocatura di tasti, capsule e barre, prima della crescita dei grandi (di serie 4.5) |
 | `mix` | `0..1` | il nitido sopra lo sfocato (di serie 0) |
 | `bend` | `0..3` | la lente: lo spostamento in multipli della banda (di serie 0.9) |
 | `shadowscale` | `0..8` | le due alfa dell'ombra insieme, sui due lati |
-| `darkwire` | `0..1` | un filo bianco che copre, sul lato scuro (la B di «tema scuro» è 0.1) |
-| `darkreflex` | `0..1` | la riga chiara sul lato scuro (di serie 0.12) |
-| `darkveilalpha` | `0..1` | il velo scuro (di serie 0.5) |
+| `darkwire` | `0..1` | il filo bianco che copre, sul lato scuro (di serie 0.34; la B della tavola era 0.1) |
+| `darkreflex` | `0..1` | la riga chiara sul lato scuro (di serie 0.20) |
+| `darkveilalpha` | `0..1` | il velo scuro dei tasti (di serie 0.5) |
+| `nestedveil` | `0..1` | quanto resta del velo di un vetro annidato sul tema **scuro** (di serie 0.35) |
+| `nestedlightveil` | `0..1` | lo stesso sul tema chiaro (di serie 1: il velo resta) |
+| `nestedshadow` | `0..1` | quanto resta dell'ombra di un vetro annidato, sui due temi (di serie 0.5) |
 
 Esempio: `GALLERIA="--es gallery.tune edge=ios26,frost=r24" materiale components hud off`.
 
@@ -227,7 +239,10 @@ angoli con `angoli`.
 ### scena nested — Vetro annidato
 Un foglio di vetro (`foglio`) con dentro un tasto (`conferma`), un tasto tondo (`tondo`) e un interruttore, che
 ricevono il fondo della pagina come li scrivono le app. Il dito finto preme `conferma` in ciclo, una colonna dopo
-l'altra.
+l'altra. I tre controlli sono **vetro annidato**: dal nodo (il foglio è fra i loro antenati) nella colonna `Liquid`
+prendono la regola dell'annidato (sul tema scuro un terzo del velo, sui due temi metà dell'ombra); `gallery.tune
+nested=off` li rimette come lastre sulla pagina, per il confronto. Il caso di S1-ter (la notifica verde) è nella
+pagina «Avvisi con azione»: vedi la voce A.6 qui sotto.
 
 ### scena press — Pressione
 Un tasto tondo da 76 dp (`tondo`) e una capsula grande (`capsula`). Il dito finto (eventi di tocco veri, consegnati
@@ -247,8 +262,11 @@ Il tasto che diventa il proprio menu, aperto dal dito finto e richiuso, una colo
 Fluid-physics (vetro di prima) fino a F1B: è la voce che lo guarda.
 
 ### scena modal — Foglio e scrim
-Un foglio vero dell'host dei modali, aperto e chiuso in ciclo, con lo scrim dietro. Si disegna nell'host della radice:
-prende il vetro di `gallery.model`, non delle colonne. Il tasto `apri` lo apre anche a mano.
+Un foglio vero dell'host dei modali, aperto e chiuso in ciclo, con lo scrim dietro, **in ogni colonna**: ogni colonna
+ha il suo host dei modali sotto il suo vetro, quindi il foglio della colonna `Liquid` è il materiale nuovo e quello
+della colonna `Classic` il vetro di prima, aperti e chiusi insieme (fino a F1A.9 il foglio si apriva nell'host della
+radice e prendeva il vetro di `gallery.model` in tutte e due). Lo scrim resta il vetro di prima nelle due colonne
+(regola del velo piatto). Il tasto `apri` li apre anche a mano; il testo nel foglio dice di quale vetro è.
 
 ### scena tints — Tinte
 L'indicatore di sincronizzazione (due stati), il tasto scelto, la capsula su una foto (`onPhoto`), le lastre `Fixed`
@@ -278,17 +296,17 @@ serve lo scuro, `GALLERIA="--es gallery.theme dark"`.
 | voce | scena | comando | cosa guardare | esito atteso |
 |---|---|---|---|---|
 | 6.1 compilazione e primo fotogramma | `components` | `materiale components hud off; qa_shot "$OUT" componenti-chiaro; adb logcat -d -s FluidGlass:*; stato` | il logcat di `FluidGlass`; la riga `STATO`; la foto | nessuna riga «rifiutata»; `shader … rifiutate=-`; `superfici liquid=` sopra zero; tasto e capsula `Liquid` visibili, non neri né vuoti |
-| 6.2 i due disegni della luce | `edge` | `materiale edge hud off; qa_shot "$OUT" bordo-pagina; ritagli bordo-pagina tondo capsula menu`, poi lo stesso con `backdrop white` e con `GALLERIA="--es gallery.theme dark"` | i ritagli a 6x della colonna `Liquid` | sul chiaro una riga chiara in alto e in basso e il filo scuro continuo su tutto il perimetro; sullo scuro solo il riflesso. Se il filo ha il colore della luce, o manca, la piattaforma non fotografa lo shader fra i due disegni come assunto (F1A.3b) |
-| 6.3 nodo dell'ombra | `edge`, `press` | `materiale edge backdrop white hud off; qa_shot "$OUT" ombra-bianco; ritagli ombra-bianco capsula menu`; poi il video di 6.6 | il bordo basso dei ritagli; nel video, l'ombra sotto il tasto premuto | ombra corta sotto capsula e pannello, niente sotto la sagoma, nessun rettangolo; premendo, l'ombra cresce col tasto |
+| 6.2 i due disegni della luce | `edge` | `materiale edge hud off; qa_shot "$OUT" bordo-pagina; ritagli bordo-pagina tondo capsula menu`, poi lo stesso con `backdrop white` e con `GALLERIA="--es gallery.theme dark"` | i ritagli a 6x della colonna `Liquid` | sul chiaro una riga chiara in alto e in basso e il filo scuro continuo su tutto il perimetro; sullo scuro un filo chiaro su tutto il perimetro (pieno in alto e in basso, un poco più tenue sui fianchi) e il riflesso. Se il filo ha il colore della luce, o manca, la piattaforma non fotografa lo shader fra i due disegni come assunto (F1A.3b). Visto in S1-ter con la combinazione di prima: il bordo combacia col banco |
+| 6.3 nodo dell'ombra | `edge`, `press` | `materiale edge backdrop white hud off; qa_shot "$OUT" ombra-bianco; ritagli ombra-bianco capsula menu`; poi il video di 6.6 | il bordo basso dei ritagli; nel video, l'ombra sotto il tasto premuto | ombra larga e morbida sotto capsula e pannello (la B), niente sotto la sagoma, nessun rettangolo; premendo, l'ombra cresce col tasto |
 | 6.4 ritaglio al 98% | `corner` | `materiale corner hud off; qa_shot "$OUT" angolo; angoli angolo menu-grande; angoli angolo foglio`; poi `backdrop page-dark` e tema scuro | gli angoli a 6x, `Liquid` contro `Classic` | il filo ha lo stesso spessore sulla diagonale e sui lati, nessuna mezzaluna di corpo fuori dal filo. Annotare se il bordo del corpo all'angolo esce morbido sotto il filo (cattura a 0,4) |
-| 6.5 vetro annidato | `nested` | `materiale nested hud off; qa_record annidato 14; qa_finish annidato "$OUT"` | i fotogrammi attorno alle righe `PRESSIONE`; gli altri due controlli sul foglio | i tasti rifrangono il corpo del foglio, non il suo filo né il suo bagliore; mentre `conferma` è premuto gli altri non sfarfallano (luminanza piatta nella loro zona) |
+| 6.5 vetro annidato | `nested` | `materiale nested hud off; qa_record annidato 14; qa_finish annidato "$OUT"` | i fotogrammi attorno alle righe `PRESSIONE`; gli altri due controlli sul foglio | i tasti rifrangono il corpo del foglio, non il suo filo né il suo bagliore; mentre `conferma` è premuto gli altri non sfarfallano (luminanza piatta nella loro zona). Nel tema scuro, con la regola dell'annidato: vedi A.6 |
 | 6.6 pressione | `press` | `materiale press hud off; qa_record premi-chiaro 14; qa_finish premi-chiaro "$OUT"`; poi tema scuro; poi `materiale press cycle hold hud off; qa_shot "$OUT" premuto` | lente, bagliore, filo; i fotogrammi persi (`dropped` in `dumpsys gfxinfo $PKG`); la luminanza sotto il dito nella foto `premuto` | la lente si approfondisce, il bagliore segue il dito, il filo resta pulito sotto il bagliore, nessun fotogramma perso. **Sul chiaro: il punto sotto il dito è +64 o bianco pieno?** (la risposta tara F6) |
 | 6.7 lista sotto una barra | `list` | `adb shell dumpsys gfxinfo $PKG reset; materiale list hud off; qa_record lista 20; qa_finish lista "$OUT"; adb shell dumpsys gfxinfo $PKG; adb logcat -d -s FluidGlassDiag` | capsule e tab bar mentre la pagina scorre; le righe `captures=` | le capsule e la barra si aggiornano col contenuto, nessun salto del margine alla soglia di qualità (al più due ricatture per lancio) |
 | 6.8 ritorno dallo sfondo | `components` | `materiale components hud off; qa_shot "$OUT" prima-home; adb shell input keyevent 3; sleep 3; adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n "$PKG/$ACT"; sleep 3; qa_shot "$OUT" dopo-home` | le due foto | identiche: luce e ombra tornano, nessun contorno di un'altra lastra |
 | 6.9 `intensity` | `intensity` | `materiale intensity hud off; qa_record intensita 10; qa_finish intensita "$OUT"`; foto ferme con `intensity 0.25`, `0.5`, `0.75` | i primi fotogrammi della comparsa | una lastra che compare da zero non mostra un rettangolo della pagina vecchia; a metà il contenuto si dissolve come oggi |
 | 6.10 barra ancorata e menu da tasto | `menu` | `materiale menu hud off; qa_record menu 18; qa_finish menu "$OUT"`; la barra ancorata: Chrome → «Pagine» (sotto) | il passaggio fra il tasto fermo (`Liquid`) e il viaggio (vetro di prima) | **atteso un cambio di materiale visibile** fino a F1B: annotare quanto si vede, all'apertura e alla chiusura, e se c'è un fotogramma senza vetro |
-| 6.11 tab bar flottante | `components` | dalla foto `componenti-chiaro`: `ritagli componenti-chiaro tabbar`; e la barra della galleria in fondo con `gallery.model liquid` | l'ombra sotto il pannello; il puck | ombra nuova corta sotto il pannello; il puck (ancora vetro di prima) sopra il vetro nuovo, senza aloni |
-| 6.12 modale | `modal` | `GALLERIA="--es gallery.model liquid" materiale modal hud off; qa_record foglio-liquid 12; qa_finish foglio-liquid "$OUT"`; lo stesso con `gallery.model classic` | lo scrim dietro il foglio, nei due video | lo scrim è identico nei due (resta `Classic`: regola del velo piatto) |
+| 6.11 tab bar flottante | `components` | dalla foto `componenti-chiaro`: `ritagli componenti-chiaro tabbar`; e la barra della galleria in fondo con `gallery.model liquid` | l'ombra sotto il pannello; il puck | ombra nuova, larga, sotto il pannello; il puck (ancora vetro di prima) sopra il vetro nuovo, senza aloni |
+| 6.12 modale | `modal` | `materiale modal hud off; qa_record foglio 12; qa_finish foglio "$OUT"`; foto ferme con `cycle hold` | il foglio e lo scrim nelle due colonne | il foglio `Liquid` è il materiale nuovo e quello `Classic` il vetro di prima; lo scrim è identico nelle due colonne (resta `Classic`: regola del velo piatto) |
 | 6.13 tinte | `tints` | `materiale tints hud off; qa_shot "$OUT" tinte-foto`; poi `backdrop page`, e il tema scuro | indicatore di sincronizzazione, tasto scelto, capsula su foto, `copiata`, `Colored` | l'indicatore ha il suo tono (regola di F1A.8; F1A.6 lo dava perso), il tasto scelto l'accento, la capsula su foto la pellicola di oggi, `copiata` è arancio, `Colored` segue il fondo |
 | 6.14 destra-sinistra e orologio | `rtl` | `materiale rtl hud off; qa_shot "$OUT" rtl; ritagli rtl foglio-ltr foglio-rtl` | il foglio con gli angoli diversi, la capsula, la tab bar | in `rtl` gli angoli sono specchiati e filo e ritaglio li seguono; nessun angolo «sbagliato». L'orologio non è nella galleria: resta nel backlog (NV qui) |
 | 7.1 i due test strumentati | — | `adb shell pm clear $PKG; adb shell am instrument -w -r -e class dev.antigravity.fluidengine.sample.GlassShaderCompileInstrumentedTest $PKG.test/androidx.test.runner.AndroidJUnitRunner`; lo stesso con `GlassNodeCountInstrumentedTest`; poi `adb logcat -d -s GlassShaderCompile GlassNodeCount FluidGlass` | l'uscita dei due test e il logcat | `OK (3 tests)` per ciascuno; 13 «compila»; `Slab` e `Group` `Done (2/2)`; `Liquid` 4 nodi e 3 layer, senza ombra 3 e 2, `Classic` 5 nodi |
@@ -300,7 +318,7 @@ serve lo scuro, `GALLERIA="--es gallery.theme dark"`.
 | 8.2 tono dell'indicatore di sincronizzazione | `tints` | come 6.13 | l'indicatore | il tono si vede |
 | 8.3 composer | — | — | — | NV qui: il composer è di `engine-ai-ui`, non è nella galleria (PampAI) |
 | 8.4 contrasto medio e alto | `contrast` | `materiale contrast hud off; qa_shot "$OUT" contrasto`; poi dal vivo: `adb shell settings put secure contrast_level 0.5`, `qa_shot …`, `1.0`, `qa_shot …`, e **sempre** `adb shell settings put secure contrast_level 0` alla fine | le tre colonne; poi il vetro vero mentre il sistema cambia | sopra lo standard il vetro diventa la pellicola densa di oggi, dal vivo, senza riavviare. Se One UI non propaga `contrast_level`, annotarlo e provare dalle impostazioni a mano (se Alessio vuole) |
-| 8.5 pannello di Fluidify | `apps` | `materiale apps hud off; qa_shot "$OUT" app-chiaro`; poi tema scuro | `fluidify-pannello`, `Liquid` contro `Classic` | col materiale nuovo esce **meno** smerigliato di oggi (sfocatura 7 sopra il ruolo): decisione aperta (crescita con `blurScale`). Le copertine vere restano NV: il fondo è la foto generata |
+| 8.5 pannello di Fluidify | `apps` | `materiale apps hud off; qa_shot "$OUT" app-chiaro`; poi tema scuro | `fluidify-pannello`, `Liquid` contro `Classic` | la sfocatura chiesta oltre il ruolo vale come crescita (F1A.5c): il pannello esce smerigliato due volte la D (9 dp, che la crescita dei grandi porta a circa 11 dp): più del tasto, ancora meno dei 17,5 dp di oggi. Le copertine vere restano NV: il fondo è la foto generata (le copertine: voce C.7) |
 | 8.6 leggibilità a contrasto standard (F1A-g) | `contrast` | `materiale contrast contrast standard backdrop black hud off; qa_shot "$OUT" leggibilita-nero`; poi `backdrop photo` e il tema scuro | il testo su card e pannello | **atteso peggiore di oggi** nel tema chiaro sui fondi scuri: debito dichiarato per F2 (inchiostro e lato adattivi), da portare ad Alessio, non da correggere in sessione |
 | S2 `Classic` forzato | tutte | `GALLERIA="--es gallery.model classic"` con `--es gallery.page Menus`, `AllGlass`, `Gaps` e `materiale components model classic`; accanto all'APK di riferimento 3.1.2 | ogni pagina, nelle due build | identiche (il vetro di prima resta al pixel: `golden/classic`) |
 
@@ -325,13 +343,30 @@ tavola() {   # tavola <nome> <manopole> [extra della pagina...]
   done
 }
 TEMA=""
+tavola serie profile=shipped; tavola prima profile=before
 tavola bordo-A edge=ios27;  tavola bordo-B edge=ios26;  tavola bordo-C edge=today
 tavola velo-A veil=ios27;   tavola velo-B veil=ios26
 tavola ombra-A shadow=ios27; tavola ombra-B shadow=ios26; tavola tondo-D round=apple
-tavola smeriglio-A frost=r12; tavola smeriglio-B frost=r24; tavola smeriglio-C frost=wide; tavola smeriglio-D frost=ios26
+tavola smeriglio-A frost=r12; tavola smeriglio-B frost=r24; tavola smeriglio-C frost=wide
+tavola smeriglio-M frost=mid; tavola smeriglio-D frost=ios26
+tavola grandi-passo-corto large=step
 TEMA="--es gallery.theme dark"
-tavola scuro-A darkedge=reflex; tavola scuro-B darkedge=wire; tavola scuro-C darkedge=today
+tavola scuro-serie profile=shipped; tavola scuro-prima profile=before
+tavola scuro-A darkedge=reflex; tavola scuro-B darkedge=wire; tavola scuro-B-tavola darkedge=faint
+tavola scuro-C darkedge=today
 tavola velo-scuro-A darkveil=lighter; tavola velo-scuro-B darkveil=deeper
+tavola grandi-scuri-come-tasti darklarge=same
+```
+
+Il vetro annidato non sta nella scena `components`: si fotografa con `nested` (e la notifica, voce A.6):
+
+```bash
+for t in light dark; do
+  for n in on off; do
+    GALLERIA="--es gallery.tune nested=$n --es gallery.theme $t" materiale nested model liquid cycle off hud off >/dev/null
+    qa_shot "$OUT" "annidato-$t-$n"
+  done
+done
 ```
 
 Poi i ritagli a 6x del tasto tondo e della capsula di ogni tavola: `riquadro` legge l'ultima riga `RIQUADRO`, quindi
@@ -339,6 +374,10 @@ si ritaglia subito dopo ogni foto (o si rilancia la scena). Per la combinazione 
 tutte le manopole insieme (`edge=…,veil=…,frost=…`) e la galleria intera con `gallery.tune` (le pagine vere).
 
 ## Ordine del giorno proposto
+
+Le voci aggiunte dopo S1-ter (F1A.5c, F1A.11a, F1A.11b e la regola del vetro annidato) sono nella tabella «Voci
+aggiunte» in fondo a questa sezione; la sessione breve che chiude F1A (prima dei critici) prende da lì la parte A e,
+da questa tabella, le righe 2, 3 e 7.
 
 Circa due ore e mezza per la parte del materiale di S2; le altre voci di S2 (Fluid-physics, parità dei tre percorsi,
 icone) hanno le loro pagine.
@@ -357,11 +396,48 @@ icone) hanno le loro pagine.
 Il formato telefono (`adb shell wm size 1080x2340` e `wm density 440`) per una ripresa di `components` e di `press`,
 se resta tempo: le colonne passano una sopra l'altra.
 
+### Voci aggiunte (dopo S1-ter)
+
+Tema scuro con `GALLERIA="--es gallery.theme dark"`. La pagina «Icone» si lancia con `adb shell am start -S -W -n
+"$PKG/$ACT" --es gallery.page icons --es icons.section sizes|chrome|rtl|set` (a mano: Chrome → «Icone»).
+
+**A · Il materiale di serie, dopo le scelte (F1A.5c) e la regola dell'annidato** (circa 40 min):
+
+| voce | dove e comando | cosa guardare | esito atteso |
+|---|---|---|---|
+| A.1 fogli e card scuri | il foglio «Ancorato al bordo» (Chrome, il tasto del foglio) e la card «Come si risponde» («Da provare», `--es gallery.page totry`), tema scuro; poi con `gallery.tune darklarge=same` e `profile=before` | corpo e testo secondario, con lo strumento di S1-ter (`S1-ter/strumenti/`) | corpo ≈ 41 di luma (in S1-ter 74–75), testo secondario ≥ 6:1 (in S1-ter 3,8:1); con `darklarge=same` torna il grigio medio |
+| A.2 bordo scuro | `materiale edge` tema scuro, `ritagli … tondo capsula`; poi `darkedge=faint` e `darkedge=reflex` | il filo chiaro sui fianchi e in alto | di serie un filo chiaro netto tutto intorno (sul banco +52 in alto, +34 sui fianchi), più deciso del 10% della tavola |
+| A.3 smerigliatura in movimento | `materiale components motion scroll hud off` e `materiale list`, sotto la tab bar e un menu aperto; D di serie contro `frost=wide` e `frost=mid` (`qa_record` di ciascuna) | le parole dietro la barra mentre scorrono, lo sfarfallio | D: macchie che si riconoscono come forme, la più mossa (sul banco sfarfallio 7,6 contro 2,2 di C); C: lettere fantasma; M in mezzo. Alessio ha scelto D «con molta difficoltà»: le riprese sono per lui |
+| A.4 ombra dei grandi | `materiale components` e `corner`, chiaro, foto ferme; poi `large=step` e `shadow=ios27` | l'ombra sotto menu e pannelli, ai fianchi | di serie un'ombra larga che dice «più in alto di una barra» senza alone enorme (sul banco 15 livelli a ridosso del pannello, 10 a 16 dp) |
+| A.5 indicatore da 26 dp | `materiale tints`, chiaro e scuro, ritaglio a 6x dell'indicatore | anello chiaro, ombra | il filo e una riga chiara tenue, niente anello bianco, l'ombra non più grande del tondo |
+| A.6 vetro annidato | pagina «Avvisi con azione» (`--es gallery.page NotificationUndo`, tasto «Modifica ordinaria»: la notifica «Operazione aggiornata» con «Ripristina ultima modifica» dentro), tema scuro e chiaro; poi con `gallery.tune nested=off`; poi `materiale nested` nei due temi | il tasto dentro la notifica e il pannello attorno, luma media come in S1-ter (`shots/difetti/4-…`) | scuro: il tasto prende il verde del pannello e sta poco sopra di lui (sul banco 64 su 54; in S1-ter 71, toppa grigia; il vetro di ieri 62); con `nested=off` torna la toppa. Chiaro: come in S1-ter (pulito), l'ombra del tasto più leggera |
+| A.7 pannello di Fluidify | `materiale apps hud off` (`fluidify-pannello`), chiaro e scuro; se si può, sopra copertine vere | la smerigliatura del pannello | due volte la D (9 dp, circa 11 con la crescita dei grandi): le copertine dietro non si leggono, ma il pannello è meno smerigliato di oggi (17,5 dp): giudicare se basta |
+| A.8 costo della cattura al 73% | `adb shell dumpsys gfxinfo $PKG reset; materiale list hud off; …; dumpsys gfxinfo`, di serie e con `frost=r12` (cattura al 40%) | GPU per fotogramma, fotogrammi persi | la D cattura a 0,73 della risoluzione (la A a 0,4): annotare quanto costa in più su una pagina che scorre |
+
+**B · Le icone (F1A.11a, F1A.11b)** (circa 30 min):
+
+| voce | dove e comando | cosa guardare | esito atteso |
+|---|---|---|---|
+| B.1 taglie | «Icone», sezione `sizes`, chiaro e scuro | le taglie dei token sul vetro | 24/26/32 dp nei tasti, inchiostro monocromo, nessuna icona sfocata o tagliata |
+| B.2 barre su telefono e tablet | sezione `chrome`, sul tablet e in formato telefono (`wm size 1080x2340`, `wm density 440`, poi `reset`); un titolo lungo | barre a 26 dp, freccia `ArrowBackIosNew` 24 dp, vetri a 16 dp dal bordo e 8 fra loro, `CompactTitleInset` 84 | il titolo lungo si tronca prima dei tasti, nessuna sovrapposizione |
+| B.3 destra-sinistra | sezione `rtl` | le icone che si girano e quelle che no | si girano solo le frecce e le icone direzionali |
+| B.4 tab bar e rail | la barra della galleria (62 dp, icone 28, etichetta 11 sp); il rail su un tablet in orizzontale (≥ 600 dp) | icone, etichette, voce scelta | la tab bar vera a 62 dp, il rail come la tab bar (icone 28, inchiostro pieno) |
+| B.5 ricerca, foglio, impostazioni | il campo di ricerca (lente a inchiostro), la croce del foglio (16 dp), le righe delle Impostazioni con `Dns`, `Shield`, `Language`, `Group`, i tre tasti senza taglia | le icone sostituite | nessuna icona mancante o di Material vecchio; la croce del foglio piccola e centrata |
+| B.6 prima costruzione | l'apertura della sezione `set` (tutto il set) a freddo (`pm clear` prima), con una traccia Perfetto o `dumpsys gfxinfo`: la pagina non scrive questo tempo in logcat | il fotogramma in cui il set compare | la prima costruzione di un'icona sotto 1 ms (stima di F1A.11a: da misurare) |
+| B.7 minori | «Tutto in vetro», scheda «Preferiti»; `FluidGlassMenuButton` (deprecato) | — | la scheda «Preferiti» è sempre piena (noto, da annotare); la faccia del tasto deprecato a 20 dp |
+
+**C · Ciò che S1-ter non ha fatto** (circa 20 min): l'anello di `HighlightModifier` dopo un rientro nell'albero con
+`gallery.model classic` (6.8 sul vetro di prima); due controlli premuti insieme (serve un dito vero: Alessio, o la scena
+`nested` col dito finto su `conferma` e un `adb shell input tap` sul tondo); la destra-sinistra (`materiale rtl`, voce
+6.14); `intensity` (voce 6.9); il difetto 1 (la barra fra le pagine un fotogramma senza vetro) col tema di **sistema**
+chiaro; il livello simulato 32 e 30 (voce 7.3).
+
 ## Che cosa la pagina non mostra
 
 - **Il menu e i viaggi** sono ancora Fluid-physics (vetro di prima) fino a F1B, in tutte e due le colonne: la scena
   `menu` guarda il passaggio, non il materiale del menu.
-- **Il foglio** della scena `modal` prende il vetro della radice, non delle colonne.
+- **L'host dei modali della radice**: nella scena `modal` ogni colonna ha un host suo. Il foglio di un'app, che si apre
+  nell'host della radice, si guarda con `gallery.model` (6.12 nelle altre pagine).
 - **La barra in alto** di `FluidScreen` (scena `list`) è `Classic` fino a F2.5.
 - **L'ombra** non è nel riscaldamento (F1A.7) e i tre nodi di Kyant del vetro di prima non sono nei conteggi.
 - **La foto** è generata in codice: niente copertine vere (8.5), niente colori P3 veri.

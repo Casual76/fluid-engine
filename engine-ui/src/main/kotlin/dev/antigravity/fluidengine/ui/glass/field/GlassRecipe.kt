@@ -186,6 +186,10 @@ internal class GlassRecipe {
  *   su fogli, card e pannelli;
  * - i **piccolissimi** (lato corto sotto [GlassLiquidTinyBelowDp]) hanno l'ombra in scala col lato e un
  *   riflesso più tenue e meno profondo; il filo no;
+ * - una lastra **annidata** ([nested]: sta dentro un'altra lastra di vetro e ne campiona il materiale) ha il velo
+ *   e l'ombra del profilo moltiplicati per [GlassLiquidProfile.nesting] del suo lato: il materiale che campiona
+ *   ha già un velo, e posarne un secondo pieno fa una toppa (S1-ter, difetto 4). Filo, riflesso, lente,
+ *   smerigliatura, pellicola e tinta restano quelli di una lastra sulla pagina;
  * - l'**ottica** ([optics]) è quella di oggi, e in `Liquid` ogni suo campo è un attenuatore: dal valore più
  *   basso che ha in un ruolo di serie in su il materiale è quello del profilo, sotto ne resta la frazione
  *   (vedi [GlassLiquidFullBlurScale]). Così i ruoli di serie sono un vetro solo, e un'ottica scritta a mano
@@ -223,6 +227,8 @@ internal class GlassRecipe {
  * (`Colored`): sta sopra il velo e la sua luminosità segue lo sfondo.
  *
  * @param optics l'ottica chiesta, già passata da `sanitized()`.
+ * @param nested vero per una lastra dentro un'altra lastra di vetro. Non lo decide chi chiama a mano: lo dice il
+ *   nodo del vetro, che sa su quale pannello sta (`GlassLiquidSurface.nested`). Falso = una lastra sulla pagina.
  * @param out il contenitore da riscrivere; di serie uno nuovo.
  */
 internal fun glassRecipe(
@@ -238,6 +244,7 @@ internal fun glassRecipe(
   pressed: Float = 0f,
   film: Color = Color.Unspecified,
   tint: Color = Color.Unspecified,
+  nested: Boolean = false,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   out: GlassRecipe = GlassRecipe(),
 ): GlassRecipe {
@@ -288,7 +295,15 @@ internal fun glassRecipe(
   val veil = profile.veil(darkSide)
   val largeVeil = profile.largeVeil(darkSide)
   val large = glassLiquidLargeVeilGain(short)
-  val veilColor = lerpSrgb(veil.color, largeVeil.color, large)
+  // Annidata: il materiale sotto ha già il suo velo; del velo di questa lastra ne resta la frazione del profilo.
+  // Si moltiplica l'alfa e non il colore: il grigio resta quello del velo, scende quanto copre.
+  val nesting = if (nested) profile.nesting(darkSide) else null
+  val sharedVeil = lerpSrgb(veil.color, largeVeil.color, large)
+  val veilColor = if (nesting == null) {
+    sharedVeil
+  } else {
+    sharedVeil.copy(alpha = sharedVeil.alpha * clampGlassUnit(nesting.veil))
+  }
   out.materialize = amount
   val fixedFilm = film.isSpecified
   out.veilColor = if (fixedFilm || clear) veilColor.copy(alpha = 0f) else veilColor
@@ -358,7 +373,8 @@ internal fun glassRecipe(
   val shadowAmount = amount * edgeAmount *
     glassOpticsDimmer(optics.shadowAlpha, GlassLiquidFullShadowAlpha) *
     (1f + growth.alpha * gain) *
-    (profile.smallShadow + (1f - profile.smallShadow) * small)
+    (profile.smallShadow + (1f - profile.smallShadow) * small) *
+    (if (nesting == null) 1f else clampGlassUnit(nesting.shadow))
   out.shadowContactRadiusDp = shadow.contactRadius.value * reach
   out.shadowAmbientRadiusDp = shadow.ambientRadius.value * reach
   out.shadowOffsetXDp = shadow.offset.x.value * reach

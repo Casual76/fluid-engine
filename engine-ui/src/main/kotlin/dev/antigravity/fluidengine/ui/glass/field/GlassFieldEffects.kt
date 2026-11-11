@@ -25,6 +25,9 @@ import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -45,6 +48,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassNestingScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShaderCacheImpl
 import dev.antigravity.fluidengine.ui.glass.backdrop.asComposeShader
@@ -553,6 +557,9 @@ internal class GlassTouchLight(val amount: () -> Float, val position: () -> Offs
  * contenitore suo, senza allocare. È aritmetica pura sugli stessi ingressi; legare i tre momenti con una cache
  * vorrebbe dire decidere chi è arrivato per primo.
  *
+ * Un ingresso non viene da chi compone ma dal **nodo**: se la lastra sta dentro un'altra lastra di vetro
+ * ([nested]). Vedi lì.
+ *
  * @param optics già passata da `sanitized()`.
  * @param screenDensity la densità dello schermo: lo scope degli effetti ne ha una rimpicciolita, e i
  *   «piccoli» si decidono sui pixel veri.
@@ -582,7 +589,7 @@ internal class GlassLiquidSurface(
   /** Vero se questa superficie può avere un'ombra: un ruolo senza (`Bar`, `Content`) non monta il nodo. */
   val castsShadow: Boolean = optics.shadowAlpha > 0f
 
-  private fun recipe(widthDp: Float, heightDp: Float, out: GlassRecipe): GlassRecipe = glassRecipe(
+  private fun recipe(widthDp: Float, heightDp: Float, nested: Boolean, out: GlassRecipe): GlassRecipe = glassRecipe(
     role = role,
     widthDp = widthDp,
     heightDp = heightDp,
@@ -594,9 +601,44 @@ internal class GlassLiquidSurface(
     pressed = pressed(),
     film = film(),
     tint = tint(),
+    nested = nested,
     profile = profile,
     out = out,
   )
+
+  // ---- Il vetro annidato -----------------------------------------------------------------------------------
+
+  /** Ciò che il corpo ha visto l'ultima volta: un campo semplice, perché la catena non legga lo stato che scrive. */
+  private var nestedSeen = false
+
+  /** Lo stesso, come stato: luce e ombra lo leggono in disegno, e un cambio le ridisegna. */
+  private var nestedState by mutableStateOf(false)
+
+  /**
+   * Vero se questa lastra sta **dentro** un'altra lastra di vetro e ne campiona il materiale: un tasto in una
+   * notifica, un'azione su un foglio, il `glassSurface` che un'app mette dentro un altro. La ricetta allora
+   * prende il vetro annidato del profilo ([GlassLiquidProfile.nesting]: meno velo, meno ombra).
+   *
+   * Non lo dice nessun parametro: lo dice il nodo del vetro, che per il vetro su vetro (2.13.0) cerca già il
+   * pannello che lo contiene fra i suoi antenati (`GlassNestingScope.standsOnGlass`, da `drawBackdrop`). Un
+   * `CompositionLocal` non basterebbe: un modificatore non lo può fornire al contenuto, e un'app che si fa il
+   * pannello con `glassSurface` su un suo `Box` resterebbe fuori. Un vetro **accanto** a un altro (i tasti di una
+   * barra, la capsula sopra la pagina) non ha un vetro fra gli antenati, e resta una lastra sulla pagina.
+   *
+   * Arriva al primo giro degli effetti, che il nodo fa quando si attacca, prima del primo disegno: il primo
+   * fotogramma ha già il velo giusto. Se il pannello compare o se ne va dopo, il nodo rifà gli effetti; la luce
+   * si ridisegna nello stesso fotogramma, l'ombra (che si disegna prima del nodo) in quello dopo.
+   */
+  val nested: Boolean get() = nestedState
+
+  /** Annota la risposta del nodo. Chiamata dagli [effects]; per i test, dallo scope che la porta. */
+  private fun noteNesting(scope: BackdropEffectScope) {
+    val onGlass = (scope as? GlassNestingScope)?.standsOnGlass == true
+    if (onGlass != nestedSeen) {
+      nestedSeen = onGlass
+      nestedState = onGlass
+    }
+  }
 
   // ---- Il ritaglio hardware --------------------------------------------------------------------------------
 
@@ -645,7 +687,7 @@ internal class GlassLiquidSurface(
   private fun fillBody(size: Size, density: Density, layoutDirection: LayoutDirection): Boolean {
     val d = density.density
     if (!size.isSpecified || !(size.width > 0f) || !(size.height > 0f) || !(d > 0f)) return false
-    val recipe = recipe(size.width / d, size.height / d, bodyRecipe)
+    val recipe = recipe(size.width / d, size.height / d, nestedSeen, bodyRecipe)
     // I pixel dello schermo del lato lungo: il nodo ha una taglia intera, e lo scope la porta moltiplicata
     // per la frazione di risoluzione. Arrotondare toglie l'errore del prodotto, perché corpo e ritaglio
     // cadano sempre dalla stessa parte della soglia dei «piccoli».
@@ -656,8 +698,12 @@ internal class GlassLiquidSurface(
     return true
   }
 
-  /** `effects` di `drawBackdrop`. */
+  /**
+   * `effects` di `drawBackdrop`. Prima di tutto prende dal nodo se la lastra è annidata ([nested]): anche al
+   * primo giro, quando lo scope non ha ancora una taglia e il corpo non si costruisce.
+   */
   val effects: BackdropEffectScope.() -> Unit = {
+    noteNesting(this)
     if (fillBody(size, this, layoutDirection)) glassBody(inputs, chain)
   }
 
@@ -678,7 +724,7 @@ internal class GlassLiquidSurface(
   private fun fillLight(size: Size, density: Density, layoutDirection: LayoutDirection): Boolean {
     val d = density.density
     if (!size.isSpecified || !(size.width > 0f) || !(size.height > 0f) || !(d > 0f)) return false
-    val recipe = recipe(size.width / d, size.height / d, lightRecipe)
+    val recipe = recipe(size.width / d, size.height / d, nestedState, lightRecipe)
     val finger = touch()
     inputs.setLight(
       recipe = recipe,
@@ -755,7 +801,7 @@ internal class GlassLiquidSurface(
    * numeri non cambiano, e a riposo non cambiano mai.
    */
   val shadow: () -> GlassShadowSpec? = shadow@{
-    val recipe = recipe(shadowWidthDp, shadowHeightDp, shadowRecipe)
+    val recipe = recipe(shadowWidthDp, shadowHeightDp, nestedState, shadowRecipe)
     if (!recipe.drawsShadow) return@shadow null
     val held = shadowSpec
     if (held != null &&

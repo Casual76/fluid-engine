@@ -246,6 +246,20 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-measure"),
           onClick = { onOpen(GalleryPage.Measure) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Materiale",
+          subtitle = "Il vetro nuovo accanto a quello di prima, scena per scena: uno strumento per il tablet",
+          modifier = Modifier.testTag("chrome-open-material"),
+          onClick = { onOpen(GalleryPage.Material) },
+        )
+        FluidListDivider()
+        FluidListRow(
+          title = "Icone",
+          subtitle = "Il set dell'engine: taglie, barre, destra-sinistra e tutto il set, per il tablet",
+          modifier = Modifier.testTag("chrome-open-icons"),
+          onClick = { onOpen(GalleryPage.Icons) },
+        )
       }
     }
 

@@ -37,8 +37,10 @@ source "$SCRIPT_DIR/qa-common.sh"
 PACKAGE="dev.antigravity.fluidglass.debug"
 ACTIVITY="dev.antigravity.fluidengine.sample.GalleryActivity"
 
-# I nomi sono quelli di GalleryPage (GalleryNav.kt), nell'ordine dei gruppi del catalogo.
-ALL_PAGES="LongLists Identity DrawerAndTabs NotificationUndo TokenField DateTime RichText WebContent Charts FileTile"
+# I nomi sono quelli di GalleryPage (GalleryNav.kt), nell'ordine dei gruppi del catalogo. In fondo le due pagine
+# strumento del vetro nuovo (piano «iOS in Android», F1A.9 e F1A.11): senza extra mostrano l'elenco delle scene e
+# delle sezioni, che e' cio' che il giro fotografa (le scene si lanciano da sample/.../material/LEGGIMI.md).
+ALL_PAGES="LongLists Identity DrawerAndTabs NotificationUndo TokenField DateTime RichText WebContent Charts FileTile Material Icons"
 # Le combinazioni di serie: chiaro, scuro, testo al 200%, e il caso peggiore (scuro, 200%, movimento ridotto).
 DEFAULT_COMBOS="light dark text200 dark200"
 

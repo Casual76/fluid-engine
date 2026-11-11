@@ -126,8 +126,8 @@ class MaterialPageTest {
 
   private val materialPage = listOf(GalleryEntry.Tab(RouteChrome), GalleryEntry.Page(GalleryPage.Material))
 
-  /** Le scene che mettono i due vetri in colonna (le altre hanno una pagina o un foglio loro). */
-  private val split = MaterialScene.entries - setOf(MaterialScene.ListUnderBar, MaterialScene.Modal)
+  /** Le scene che mettono i due vetri in colonna (la lista ha una pagina sua; il foglio, dalla rifinitura di F1A, è in colonna). */
+  private val split = MaterialScene.entries - setOf(MaterialScene.ListUnderBar)
 
   private fun everySceneComposes(theme: MatrixTheme) {
     val (switches, _) = show(theme, materialPage)
@@ -188,6 +188,22 @@ class MaterialPageTest {
       // Il riquadro di stato legge le stesse cose.
       val status = MaterialStatus.read(FluidGlassModel.Liquid).lines()
       assertTrue(status.toString(), status[1].startsWith("superfici liquid="))
+    }
+  }
+
+  @Test
+  fun `il foglio della scena modal prende il vetro della sua colonna`() {
+    // Fino a F1A.9 il foglio si apriva nell'host della radice e prendeva il vetro di `gallery.model`: le due colonne
+    // mostravano lo stesso foglio. Ora ogni colonna ha il suo host, sotto il suo vetro.
+    show(MatrixTheme.Dark, materialPage, MaterialConfig(MaterialScene.Modal, cycle = MaterialCycle.Hold))
+    settle(1_600)
+    for (model in listOf(FluidGlassModel.Liquid, FluidGlassModel.Classic)) {
+      compose.onNodeWithTag("material-cell-${model.name.lowercase()}", useUnmergedTree = true).assertExists()
+      assertTrue(
+        "il foglio della colonna ${model.name}",
+        compose.onAllNodesWithText("Vetro di questa colonna: ${model.name}", substring = true)
+          .fetchSemanticsNodes().isNotEmpty(),
+      )
     }
   }
 

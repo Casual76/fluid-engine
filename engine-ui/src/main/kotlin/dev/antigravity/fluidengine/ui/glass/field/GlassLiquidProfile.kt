@@ -134,6 +134,26 @@ internal data class GlassLiquidLens(val band: Float, val bend: Float, val dome: 
 @Immutable
 internal data class GlassLiquidGrowth(val frost: Float, val shadow: GlassShadowGrowth)
 
+/**
+ * Il vetro **annidato**: cosa cambia per una lastra che sta *dentro* un'altra lastra di vetro (un tasto in una
+ * notifica, un'azione su un foglio, un'app che mette un `glassSurface` dentro un `glassSurface`) rispetto a una
+ * lastra posata sulla pagina. Lo dice l'innesto, dal nodo: vedi `GlassLiquidSurface.nested`.
+ *
+ * Perché: il vetro annidato campiona il *materiale* del pannello che lo contiene (vetro su vetro, 2.13.0), che
+ * ha già il suo velo. Il velo del tasto posato una seconda volta copre metà di quel materiale: sul lato scuro il
+ * velo neutro dei piccoli (`#787880` al 50%) schiarisce e ingrigisce un pannello tinto (la notifica verde di
+ * S1-ter, difetto 4: una toppa grigia appoggiata sopra, non un tasto dentro), e su un foglio o una card scuri,
+ * che hanno il velo profondo dei grandi, fa una toppa più chiara.
+ *
+ * @param veil quanto resta del velo del profilo (l'alfa, moltiplicata). Uno = come sulla pagina. Non tocca la
+ *   pellicola di una tinta dipinta com'è (`Fixed`) né la tinta di Apple (`Colored`): quelle sono colori che
+ *   l'app ha chiesto, non il velo del materiale.
+ * @param shadow quanto resta dell'ombra (le due alfa; i raggi no). Un tasto dentro un pannello sta un gradino
+ *   sopra il pannello, non sopra la pagina.
+ */
+@Immutable
+internal data class GlassLiquidNesting(val veil: Float, val shadow: Float)
+
 // ------------------------------------------------------------------------------------------------------------
 // I numeri che non sono una scelta fra varianti
 // ------------------------------------------------------------------------------------------------------------
@@ -678,6 +698,48 @@ internal object GlassLiquidGrowths {
   val TwoSteps: GlassLiquidGrowth = GlassLiquidGrowth(frost = 1f, shadow = GlassShadowGrowth(radius = 2f, alpha = 1f))
 }
 
+/**
+ * Le varianti del **vetro annidato** (tavola `tavole/f1a/10-annidato.png`). Né R4 né R5 misurano un vetro dentro un
+ * vetro: tarate sul banco con pannelli veri e un tasto figlio che ne campiona il materiale (scene
+ * `gusto/annidato-*`, `artifacts/liquid-glass/bench/f1a-annidato/`), contro il difetto 4 di S1-ter.
+ */
+internal object GlassLiquidNestings {
+
+  /**
+   * **Come sulla pagina**: niente cambia. È il vetro annidato fino a F1A.5c (la toppa grigia), e la manopola
+   * `nested=off` per rivederlo sul tablet.
+   */
+  val Unchanged: GlassLiquidNesting = GlassLiquidNesting(veil = 1f, shadow = 1f)
+
+  /**
+   * **Lato chiaro** (di serie): il velo resta pieno, l'ombra a metà.
+   *
+   * Il velo: sul chiaro il vetro su vetro era già pulito (S1-ter: filo bianco e riga scura netti, nessun doppio
+   * filo). Sul banco il secondo velo porta il tasto da 236 (la notifica su verde chiaro) a 241, cioè un poco più
+   * bianco e un poco meno verde del pannello, e su un foglio non si vede (243 su 243, il velo che si ispessisce
+   * dove lo sfondo gli somiglia fa già il lavoro): un tasto più chiaro del pannello è un tasto che sta sopra.
+   * Con ×0,35 sarebbe 237: non serve.
+   *
+   * L'ombra: l'ombra B piena di un tasto, sotto il tasto e sopra un foglio chiaro, toglie 12 livelli a ridosso
+   * del bordo e 6 a 16 dp: una nuvola grigia sul pannello. A metà, 6 e 3: il tasto resta staccato dal foglio
+   * senza sporcarlo. A occhio, `bench/f1a-annidato/foglio-ombra.png`.
+   */
+  val Light: GlassLiquidNesting = GlassLiquidNesting(veil = 1f, shadow = 0.5f)
+
+  /**
+   * **Lato scuro** (di serie): il velo a ×0,35, l'ombra a metà.
+   *
+   * Sul banco, tasto da 132 × 40 dp dentro una notifica (pannello vero sopra il verde di S1-ter, luma 54) e dentro
+   * un foglio sulla pagina `#0D0D0F` (luma 34), luma del corpo del tasto: col velo pieno 85 e 76 (la toppa), a
+   * ×0,7 76 e 63, a ×0,5 69 e 55, **a ×0,35 64 e 48**, senza velo 54 e 34. A ×0,35 il tasto prende il verde
+   * del pannello e resta una decina di livelli sopra di lui, col filo chiaro e il riflesso del bordo scuro: si
+   * legge come un tasto dentro, non come un buco (senza velo) né come una toppa. Il vetro di ieri sul tablet
+   * stava a 62 sullo stesso pannello. L'ombra: a metà come sul chiaro (sullo scuro pesava già poco: −6 livelli a
+   * ridosso del tasto, −3 a metà).
+   */
+  val Dark: GlassLiquidNesting = GlassLiquidNesting(veil = 0.35f, shadow = 0.5f)
+}
+
 // ------------------------------------------------------------------------------------------------------------
 // Il profilo
 // ------------------------------------------------------------------------------------------------------------
@@ -692,6 +754,8 @@ internal object GlassLiquidGrowths {
  * @param smallShadow quanto dell'ombra resta sotto una lastra **piccola** (lato corto fino a
  *   [GlassLiquidSmallShadowStartDp]; sale a uno a [GlassLiquidSmallShadowEndDp]). Uno = il tasto ha l'ombra
  *   della barra. È la riga «il tondo» della tavola dell'ombra.
+ * @param lightNesting con [darkNesting], cosa cambia per una lastra **annidata** dentro un'altra lastra di vetro,
+ *   per lato del tema ([GlassLiquidNesting]). [GlassLiquidNestings.Unchanged] = niente.
  */
 @Immutable
 internal data class GlassLiquidProfile(
@@ -706,6 +770,8 @@ internal data class GlassLiquidProfile(
   val lens: GlassLiquidLens,
   val growth: GlassLiquidGrowth,
   val smallShadow: Float,
+  val lightNesting: GlassLiquidNesting,
+  val darkNesting: GlassLiquidNesting,
 ) {
 
   fun edge(darkSide: Boolean): GlassLiquidEdge = if (darkSide) darkEdge else lightEdge
@@ -717,6 +783,9 @@ internal data class GlassLiquidProfile(
   fun largeVeil(darkSide: Boolean): GlassLiquidVeil = if (darkSide) darkLargeVeil else lightVeil
 
   fun shadow(darkSide: Boolean): GlassShadowSpec = if (darkSide) darkShadow else lightShadow
+
+  /** Il vetro annidato di quel lato. */
+  fun nesting(darkSide: Boolean): GlassLiquidNesting = if (darkSide) darkNesting else lightNesting
 
   companion object {
 
@@ -746,6 +815,7 @@ internal data class GlassLiquidProfile(
      * | velo scuro | A, il più chiaro | [GlassLiquidVeils.DarkLighter] sui piccoli; sui grandi [GlassLiquidVeils.DarkLarge] (vincolo del testo, S1-ter) |
      * | lente | media (orchestratore) | [GlassLiquidLenses.Medium] |
      * | grandi | un passo (orchestratore) | [GlassLiquidGrowths.StepForWideShadow], ritarato sull'ombra B |
+     * | annidato | velo ×0,35 sullo scuro, ombra a metà (orchestratore, S1-ter difetto 4) | [GlassLiquidNestings.Light], [GlassLiquidNestings.Dark] |
      *
      * [smallShadow] a uno: sotto un tasto tondo su bianco R5 M4 misura meno dell'1% entro 0,15 D, e qui il
      * tasto ha l'ombra della barra. È fuori dal bersaglio **di proposito**: il difetto da chiudere è che il
@@ -763,11 +833,14 @@ internal data class GlassLiquidProfile(
       lens = GlassLiquidLenses.Medium,
       growth = GlassLiquidGrowths.StepForWideShadow,
       smallShadow = 1f,
+      lightNesting = GlassLiquidNestings.Light,
+      darkNesting = GlassLiquidNestings.Dark,
     )
 
     /**
      * La combinazione di serie **prima delle scelte** (F1A.5): ombra corta, solo riflesso sullo scuro, velo
-     * scuro uguale su ogni taglia, smerigliatura 12 dp, crescita tarata sull'ombra corta. Non la disegna
+     * scuro uguale su ogni taglia, smerigliatura 12 dp, crescita tarata sull'ombra corta, il vetro annidato come
+     * sulla pagina (la regola dell'annidato non c'era). Non la disegna
      * nessuno: è il «prima» delle tavole 8 e 9, e la manopola `profile=before` per rivederla sul tablet. Da
      * 44 dp in su la ricetta la rende come la rendeva allora (la regola dei piccolissimi non tocca quelle
      * taglie, e con 12 dp la cattura stava già a 0,4).
@@ -779,6 +852,8 @@ internal data class GlassLiquidProfile(
       darkShadow = GlassLiquidShadows.Dark,
       frost = GlassLiquidFrosts.Radius12,
       growth = GlassLiquidGrowths.Step,
+      lightNesting = GlassLiquidNestings.Unchanged,
+      darkNesting = GlassLiquidNestings.Unchanged,
     )
 
     /** [smallShadow] «come Apple»: sotto un tasto resta un quarto dell'ombra della barra (0,8% a 0,03 D). */
@@ -821,7 +896,8 @@ internal class GlassLiquidTuned(
  * `lens` (`light`, `medium`, `strong`), `large` (`none`, `step`, `stepwide`, `two`), `darkedge` (`reflex`,
  * `wire`, `faint`, `today`: `wire` è la B di serie, `faint` la B al 10% della tavola), `darkveil` (`lighter`,
  * `deeper`: il velo scuro dei piccoli), `darklarge` (`deep`, `same`: il velo scuro dei grandi, quello di serie o
- * lo stesso dei piccoli). I **numeri** cambiano un campo del pezzo già scelto, e si applicano dopo tutte le
+ * lo stesso dei piccoli), `nested` (`on`, `off`: il vetro annidato di serie, o come sulla pagina, cioè la toppa
+ * grigia di S1-ter). I **numeri** cambiano un campo del pezzo già scelto, e si applicano dopo tutte le
  * varianti qualunque sia l'ordine in cui arrivano: vedi [numbers]. Una chiave o un valore che non si riconosce
  * non cambia niente e si riporta.
  *
@@ -884,6 +960,10 @@ internal object GlassLiquidTuning {
       "deep" to { p -> p.copy(darkLargeVeil = GlassLiquidVeils.DarkLarge) },
       "same" to { p -> p.copy(darkLargeVeil = p.darkVeil) },
     ),
+    "nested" to linkedMapOf(
+      "on" to { p -> p.copy(lightNesting = GlassLiquidNestings.Light, darkNesting = GlassLiquidNestings.Dark) },
+      "off" to { p -> p.copy(lightNesting = GlassLiquidNestings.Unchanged, darkNesting = GlassLiquidNestings.Unchanged) },
+    ),
   )
 
   private class Knob(val min: Float, val max: Float, val apply: (GlassLiquidProfile, Float) -> GlassLiquidProfile)
@@ -894,7 +974,8 @@ internal object GlassLiquidTuning {
    * `veilalpha`, `adapt`; smerigliatura: `blur` (dp, prima della crescita dei grandi), `mix` (il nitido sopra);
    * `bend` (la lente, multiplo della banda); `shadowscale` (le due alfa dell'ombra insieme, sui due lati: il loro
    * rapporto resta quello registrato); lato scuro: `darkwire` (un filo bianco che copre), `darkreflex`,
-   * `darkveilalpha`.
+   * `darkveilalpha`; il vetro annidato: `nestedveil` (quanto resta del velo sullo **scuro**, il numero che
+   * conta), `nestedlightveil` (lo stesso sul chiaro), `nestedshadow` (quanto resta dell'ombra, sui due lati).
    */
   private val numbers: Map<String, Knob> = linkedMapOf(
     "rimwidth" to Knob(0f, 4f) { p, v ->
@@ -923,6 +1004,11 @@ internal object GlassLiquidTuning {
     "darkwire" to Knob(0f, 1f) { p, v -> p.copy(darkEdge = p.darkEdge.copy(rim = Color.White.copy(alpha = v))) },
     "darkreflex" to Knob(0f, 1f) { p, v -> p.copy(darkEdge = p.darkEdge.copy(reflexStrength = v)) },
     "darkveilalpha" to Knob(0f, 1f) { p, v -> p.copy(darkVeil = p.darkVeil.copy(color = p.darkVeil.color.copy(alpha = v))) },
+    "nestedveil" to Knob(0f, 1f) { p, v -> p.copy(darkNesting = p.darkNesting.copy(veil = v)) },
+    "nestedlightveil" to Knob(0f, 1f) { p, v -> p.copy(lightNesting = p.lightNesting.copy(veil = v)) },
+    "nestedshadow" to Knob(0f, 1f) { p, v ->
+      p.copy(lightNesting = p.lightNesting.copy(shadow = v), darkNesting = p.darkNesting.copy(shadow = v))
+    },
   )
 
   /** Ogni manopola con i valori che accetta: le varianti per nome, i numeri come `min..max`. */

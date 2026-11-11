@@ -12,7 +12,11 @@ import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.sanitized
+import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScopeImpl
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassNestingScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.NestingPlan
 import dev.antigravity.fluidengine.ui.glass.backdrop.fitToTexture
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassStandsOnGlass
 import dev.antigravity.fluidengine.ui.glass.field.GlassDrawInputs
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldPlan
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
@@ -26,6 +30,7 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -296,12 +301,33 @@ class GlassDrawParityTest {
     )
   }
 
-  /** Una lastra del campione, su un lato, a una densità: la scena contro l'innesto. */
-  private fun compareSample(scene: GlassScene, shape: Map<String, Any?>, dark: Boolean, density: Float, ask: SceneAsk) {
+  /**
+   * Lo scope degli effetti che il nodo del vetro (`DrawBackdropNode`) dà alla superficie, con la sua risposta alla
+   * domanda «sto dentro un vetro?» ([GlassNestingScope]). Senza taglia, come al primo giro degli effetti, quando
+   * il nodo si attacca: il corpo non si costruisce, la risposta arriva.
+   */
+  private class NodeScope(override val standsOnGlass: Boolean) : BackdropEffectScopeImpl(), GlassNestingScope {
+    override val shape: Shape get() = FluidCapsuleShape
+  }
+
+  /**
+   * Una lastra del campione, su un lato, a una densità: la scena contro l'innesto. [element] è l'elemento della
+   * scena (di serie quello di primo livello che si chiama come [shape]); [standsOnGlass], se c'è, è ciò che il nodo
+   * dice alla superficie al primo giro degli effetti.
+   */
+  private fun compareSample(
+    scene: GlassScene,
+    shape: Map<String, Any?>,
+    dark: Boolean,
+    density: Float,
+    ask: SceneAsk,
+    element: Map<String, Any?>? = null,
+    standsOnGlass: Boolean? = null,
+  ) {
     val name = shape.getValue("name") as String
     val where = "${scene.path} @$density: $name"
     @Suppress("UNCHECKED_CAST")
-    val el = (scene.json["elements"] as List<Map<String, Any?>>).single { it["name"] == name }
+    val el = element ?: (scene.json["elements"] as List<Map<String, Any?>>).single { it["name"] == name }
     val bench = sceneSurface(shape["role"] as String)
     val size = Size(number(shape["w"]) * density, number(shape["h"]) * density)
 
@@ -320,6 +346,10 @@ class GlassDrawParityTest {
       tint = { Color.Unspecified },
       touch = { null },
     )
+    if (standsOnGlass != null) {
+      surface.effects(NodeScope(standsOnGlass))
+      assertEquals(where, standsOnGlass, surface.nested)
+    }
 
     // La frazione di risoluzione: quella che l'innesto decide in composizione è quella scritta nella scena.
     val sceneScale = number(map(el["capture"])["scale"])
@@ -349,6 +379,71 @@ class GlassDrawParityTest {
     // Tasto, capsula, tab bar, menu, pannello; chiaro e scuro; telefono e tablet.
     assertEquals(20, compared)
     assertEquals(listOf("tasto", "capsula", "barra", "menu", "pannello"), GlassScenes.SampleShapes.map { it["name"] })
+  }
+
+  /**
+   * Il vetro annidato (S1-ter, difetto 4): **il segnale arriva dall'innesto**. La superficie non ha un parametro
+   * «annidata»: lo prende dallo scope che il nodo del vetro le dà ([GlassNestingScope]). Detto «sto dentro un
+   * vetro», corpo, luce e ombra ricevono ciò che le scene `gusto/annidato-serie-*` scrivono per i tasti dentro la
+   * notifica e il foglio (la ricetta con `nested`); i pannelli, che stanno sulla pagina, ciò che scrivono per loro.
+   */
+  @Test
+  fun aSlabTheNodeCallsNestedReceivesWhatTheNestedScenesWrite() {
+    var compared = 0
+    for (dark in listOf(false, true)) {
+      val scene = GlassScenes.nested("serie", dark)
+      @Suppress("UNCHECKED_CAST")
+      val elements = scene.json["elements"] as List<Map<String, Any?>>
+      for (shape in GlassScenes.nestedShapes()) {
+        val panel = elements.single { it["name"] == shape["name"] }
+        @Suppress("UNCHECKED_CAST")
+        val childShape = (shape["children"] as List<Map<String, Any?>>).single()
+        @Suppress("UNCHECKED_CAST")
+        val child = (panel["children"] as List<Map<String, Any?>>).single()
+        for (density in SceneDensities) {
+          compareSample(scene, shape, dark, density, SceneAsk(), element = panel, standsOnGlass = false)
+          compareSample(scene, childShape, dark, density, SceneAsk(), element = child, standsOnGlass = true)
+          compared++
+        }
+      }
+    }
+    assertEquals(8, compared)
+  }
+
+  /** Senza la risposta del nodo una lastra non è annidata; e la risposta può cambiare (il pannello se ne va). */
+  @Test
+  fun theNestingComesFromTheNodeAndFollowsIt() {
+    val density = 3f
+    val size = Size(132f * density, 40f * density)
+    val bench = sceneSurface("button")
+    val surface = GlassLiquidSurface(
+      role = bench.role, optics = bench.optics.sanitized(), shape = FluidCapsuleShape, darkSide = true,
+      screenDensity = density, intensity = { 1f }, opticalDepth = { 1f }, pressed = { 0f }, quality = { 1f },
+      film = { Color.Unspecified }, tint = { Color.Unspecified }, touch = { null },
+    )
+    val alone = surface.drawInputs(size).veilColor
+    assertFalse(surface.nested)
+    // Uno scope che non sa niente del vetro su vetro (chi chiama `drawBackdrop` a mano con altri effetti): no.
+    surface.effects(object : BackdropEffectScopeImpl() {
+      override val shape: Shape get() = FluidCapsuleShape
+    })
+    assertFalse(surface.nested)
+    surface.effects(NodeScope(standsOnGlass = true))
+    assertTrue(surface.nested)
+    val nested = surface.drawInputs(size)
+    assertEquals(alone.alpha * 0.35f, nested.veilColor.alpha, 1f / 255f)
+    assertEquals(alone.copy(alpha = 1f), nested.veilColor.copy(alpha = 1f))
+    // Il pannello se ne va: il nodo rifà gli effetti con la risposta nuova, e la lastra torna sulla pagina.
+    surface.effects(NodeScope(standsOnGlass = false))
+    assertFalse(surface.nested)
+    assertEquals(alone, surface.drawInputs(size).veilColor)
+
+    // La regola del nodo, dal piano del vetro su vetro: annidata se il materiale del pannello è nella sua pila,
+    // infilato o già cablato a mano; non da sola, non accanto, non se il pannello non ha materiale da dare.
+    assertFalse(glassStandsOnGlass(NestingPlan.Alone, inserted = false))
+    assertTrue(glassStandsOnGlass(NestingPlan.AlreadyIncluded, inserted = false))
+    assertTrue(glassStandsOnGlass(NestingPlan.Insert(1), inserted = true))
+    assertFalse(glassStandsOnGlass(NestingPlan.Insert(1), inserted = false))
   }
 
   /** Una tinta scritta a mano (`GlassTintMode.Fixed`) è la pellicola dipinta com'è: la variante «velo di oggi» delle tavole. */

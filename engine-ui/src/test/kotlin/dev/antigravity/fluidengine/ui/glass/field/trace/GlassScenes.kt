@@ -9,6 +9,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidEdges
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidFrosts
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidGrowths
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidLenses
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidNestings
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidShadows
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
@@ -41,6 +42,11 @@ import kotlin.math.min
  * Cosa in una scena NON viene dalla ricetta, e perché: la **geometria** (i pezzi del campo, il raccordo, il
  * ritaglio), che è del piano del campo (`gf/GlassFieldPlan.kt`: [slabGeometry] chiede a `glassSlabGeometry`,
  * la stessa funzione che usa l'innesto); e il `glow`, che è del tocco e a riposo vale zero.
+ *
+ * Il vetro annidato: una lastra coi `children` li rende come lastre **annidate** (la ricetta con `nested`, ciò che
+ * l'innesto fa quando il nodo dice che la lastra sta dentro un'altra), e il banco le fa campionare pagina + corpo
+ * del pannello, come l'export di `drawBackdrop`. Una lastra può anche dirsi annidata da sola (`"nested": true`)
+ * quando il pannello sotto è disegnato come pagina (il campione col testo).
  */
 
 /** Come il banco chiama un ruolo (`"role"` di una lastra di oggi) e cosa vuol dire per l'engine. */
@@ -301,11 +307,15 @@ internal class SceneAsk(
   val label: String = "profilo di serie",
 )
 
-/** Una lastra del banco (`kind: "glass"`, col suo `role`) resa dal materiale nuovo. */
+/**
+ * Una lastra del banco (`kind: "glass"`, col suo `role`) resa dal materiale nuovo; i suoi `children` come lastre
+ * annidate, che campionano il suo materiale.
+ */
 internal fun liquidFromGlass(el: Map<String, Any?>, sceneTheme: String, ask: SceneAsk): LinkedHashMap<String, Any?> {
   val surface = sceneSurface(el["role"] as? String ?: "floating")
   val ownTheme = el["theme"] as? String
   val dark = (ownTheme ?: sceneTheme) == "dark"
+  val nested = el["nested"] == true
   val w = (el.getValue("w") as Number).toFloat()
   val h = (el.getValue("h") as Number).toFloat()
   val tint = (el["tint"] as? String)?.takeIf { it.startsWith("#") }?.let { parseColor(it).copy(alpha = SceneTintAlpha) }
@@ -322,12 +332,21 @@ internal fun liquidFromGlass(el: Map<String, Any?>, sceneTheme: String, ask: Sce
     pressed = (el["pressed"] as? Number)?.toFloat() ?: 0f,
     film = if (ask.todayFilm) todayFilm(surface, dark) else Color.Unspecified,
     tint = tint ?: Color.Unspecified,
+    nested = nested,
     profile = ask.profile(surface),
   )
   val note = "glassRecipe: ruolo ${surface.benchRole}, ${fmt(w)} x ${fmt(h)} dp, lato ${if (dark) "scuro" else "chiaro"}, " +
     ask.label + (if (ask.variant == GlassLiquidVariant.Clear) ", variante limpida" else "") +
-    (if (tint != null) ", tinta ${el["tint"]}" else "")
-  return liquidElement(el, recipe, ownTheme, note)
+    (if (tint != null) ", tinta ${el["tint"]}" else "") + (if (nested) ", annidata" else "")
+  val out = liquidElement(el, recipe, ownTheme, note)
+  @Suppress("UNCHECKED_CAST")
+  val children = el["children"] as? List<Map<String, Any?>>
+  if (children != null) {
+    out["children"] = children.map { child ->
+      liquidFromGlass(LinkedHashMap(child).apply { put("nested", true) }, ownTheme ?: sceneTheme, ask)
+    }
+  }
+  return out
 }
 
 /** `#RRGGBB` o `#RRGGBBAA`, come li scrive il banco. */
@@ -616,9 +635,11 @@ internal object GlassScenes {
       "rowsTopDp" to TextRowsTopDp, "rowHeightDp" to TextRowHeightDp, "labelSizeDp" to 15,
       "rows" to textRows("Come si risponde", "Tieni premuto un messaggio.", dark),
     ),
+    // Annidato: il pannello verde è disegnato come pagina, ma il tasto prende la ricetta di un vetro annidato
+    // (con la regola dell'annidato; nella variante `prima` la regola non c'è e niente cambia).
     linkedMapOf(
       "name" to "annidato", "role" to "button", "x" to 486, "y" to 246, "w" to 132, "h" to 40, "radius" to "capsule",
-      "label" to "Ripristina", "labelSizeDp" to 14,
+      "label" to "Ripristina", "labelSizeDp" to 14, "nested" to true,
     ),
     linkedMapOf(
       "name" to "tondo26", "role" to "button", "x" to 486, "y" to 60, "w" to 26, "h" to 26, "radius" to "capsule",
@@ -651,9 +672,74 @@ internal object GlassScenes {
     return GlassScene("gusto/testo-$key-${if (dark) "scuro" else "chiaro"}.json", scene)
   }
 
+  // ---- Il vetro annidato (S1-ter, difetto 4) ---------------------------------------------------------------
+
+  /** Il verde sotto la notifica: lo stesso del pannello del campione col testo, nei due temi. */
+  private fun nestedGreen(dark: Boolean): String = if (dark) "#2C3B35" else "#DCE9E3"
+
+  /**
+   * Le lastre della scena del vetro annidato: una **notifica** (il pannello di `FluidNotification`, sopra una
+   * pagina verde come in S1-ter) col tasto «Ripristina» dentro, e un **foglio** (`panel`) sulla pagina col suo
+   * tasto dentro. I tasti sono `children`: campionano il materiale del pannello, come il vetro su vetro
+   * dell'engine, e la ricetta li rende annidati.
+   */
+  fun nestedShapes(): List<Map<String, Any?>> = listOf(
+    linkedMapOf(
+      "name" to "notifica", "role" to "sharppagepanel", "x" to 30, "y" to 40, "w" to 340, "h" to 104, "radius" to 20,
+      "children" to listOf(
+        linkedMapOf(
+          "name" to "tasto-notifica", "role" to "button", "x" to 16, "y" to 50, "w" to 132, "h" to 40,
+          "radius" to "capsule", "label" to "Ripristina", "labelSizeDp" to 14,
+        ),
+      ),
+    ),
+    linkedMapOf(
+      "name" to "foglio", "role" to "panel", "x" to 420, "y" to 30, "w" to 400, "h" to 170, "radius" to 34,
+      "children" to listOf(
+        linkedMapOf(
+          "name" to "tasto-foglio", "role" to "button", "x" to 24, "y" to 106, "w" to 132, "h" to 40,
+          "radius" to "capsule", "label" to "Ripristina", "labelSizeDp" to 14,
+        ),
+      ),
+    ),
+  )
+
+  /** Le varianti della scena del vetro annidato: con la regola (di serie) e senza (come sulla pagina, fino a F1A.5c). */
+  private val NestedTastes: List<Pair<String, SceneAsk>> = listOf(
+    "serie" to SceneAsk({ Default }, label = "profilo di serie"),
+    "prima" to SceneAsk(
+      { Default.copy(lightNesting = GlassLiquidNestings.Unchanged, darkNesting = GlassLiquidNestings.Unchanged) },
+      label = "profilo di serie col vetro annidato come sulla pagina (fino a F1A.5c)",
+    ),
+  )
+
+  /** La scena del vetro annidato: [key] è `serie` o `prima`. */
+  fun nested(key: String, dark: Boolean): GlassScene {
+    val ask = NestedTastes.toMap().getValue(key)
+    val theme = if (dark) "dark" else "light"
+    val scene = sampleHead(
+      "Scritta dalla ricetta (GlassSceneExportTest): il vetro annidato (S1-ter, difetto 4), variante `$key`, lato " +
+        "${if (dark) "scuro" else "chiaro"}: ${ask.label}. Una notifica sopra una pagina verde e un foglio, ognuno " +
+        "col suo tasto dentro (`children`: campionano il materiale del pannello). Non si modifica a mano: si rigenera.",
+      dark,
+    )
+    scene["width"] = 850
+    scene["height"] = 230
+    scene["page"] = listOf(
+      linkedMapOf("kind" to "rect", "x" to 10, "y" to 16, "w" to 380, "h" to 152, "radius" to 30, "color" to nestedGreen(dark)),
+    )
+    scene["elements"] = nestedShapes().map { liquidFromGlass(it, theme, ask) }
+    return GlassScene("gusto/annidato-$key-${if (dark) "scuro" else "chiaro"}.json", scene)
+  }
+
+  /** Le scene del vetro annidato, nelle due varianti e sui due lati. */
+  fun nestedScenes(): List<GlassScene> =
+    NestedTastes.flatMap { (key, _) -> listOf(nested(key, dark = false), nested(key, dark = true)) }
+
   /** Tutte le scene: le inquadrature rilette da [referenceFolder] (`tools/glassbench/scenes/rif`) e i campioni. */
   fun all(referenceFolder: File): List<GlassScene> =
-    References.map { fromReference(it, File(referenceFolder, "$it.json").readText(Charsets.UTF_8)) } + samples()
+    References.map { fromReference(it, File(referenceFolder, "$it.json").readText(Charsets.UTF_8)) } + samples() +
+      nestedScenes()
 }
 
 /**

@@ -59,6 +59,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBar
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSize
@@ -73,6 +74,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
@@ -89,6 +91,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Settings
 import dev.antigravity.fluidengine.ui.fluid.icons.Share
 import dev.antigravity.fluidengine.ui.fluid.icons.Star
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidCard
@@ -745,36 +748,16 @@ private fun MenuScene(session: MaterialSession) {
 
 /**
  * Un foglio vero dell'host dei modali, con lo scrim dietro (lo scrim resta `Classic` per la regola del velo piatto
- * di F1A.6: deve essere identico a oggi). Il foglio si disegna nell'host alla radice della galleria, quindi prende il
- * vetro della radice: il confronto si fa con `gallery.model`, non con le colonne.
+ * di F1A.6: deve essere identico a oggi), **in ogni colonna**: ogni colonna ha il suo host dei modali, sotto il suo
+ * `LocalFluidGlassModel`, quindi il foglio della colonna `Liquid` è il materiale nuovo e quello della colonna
+ * `Classic` il vetro di prima, aperti e chiusi insieme. Fino a F1A.9 il foglio si disegnava nell'host alla radice
+ * della galleria e prendeva il vetro di `gallery.model`, non quello delle colonne.
  */
 @Composable
 private fun ModalScene(session: MaterialSession) {
   val config = session.config
   var open by remember { mutableStateOf(config.cycle == MaterialCycle.Hold) }
-  FluidGlassModalPortal(
-    visible = open,
-    onDismissRequest = { open = false },
-    presentation = FluidGlassModalPresentation.Sheet,
-    paneTitle = "Foglio di prova",
-  ) {
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(20.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-      Text("Foglio di prova", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-      Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        FluidGlassButton(text = "Conferma", onClick = {})
-        FluidGlassIconButton(onClick = {}) { FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito") }
-      }
-      Text(
-        "Vetro chiesto alla radice: ${LocalFluidGlassModel.current.name}. Lo scrim dietro resta il vetro di prima.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-      Spacer(Modifier.height(120.dp))
-    }
-  }
+  ModelSplit(session) { _ -> ModalCell(session, open) { open = false } }
   Box(
     modifier = Modifier
       .fillMaxSize()
@@ -800,6 +783,43 @@ private fun ModalScene(session: MaterialSession) {
         session.report.line("FOGLIO ${config.key} chiude")
         delay(periodMs * 6 / 10)
       }
+    }
+  }
+}
+
+/**
+ * Il foglio di una colonna: un host dei modali suo, che disegna dentro la colonna e sotto il suo vetro, e il foglio
+ * che ci si apre. Lo scrim rifrange il palco della scena, come quello dell'host della radice rifrange la pagina.
+ */
+@Composable
+private fun ModalCell(session: MaterialSession, open: Boolean, onDismiss: () -> Unit) {
+  val host = rememberFluidGlassModalHostState()
+  CompositionLocalProvider(LocalFluidGlassModalHostState provides host) {
+    Box(modifier = Modifier.fillMaxSize()) {
+      FluidGlassModalPortal(
+        visible = open,
+        onDismissRequest = onDismiss,
+        presentation = FluidGlassModalPresentation.Sheet,
+        paneTitle = "Foglio di prova",
+      ) {
+        Column(
+          modifier = Modifier.fillMaxWidth().padding(20.dp),
+          verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+          Text("Foglio di prova", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+          Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            FluidGlassButton(text = "Conferma", onClick = {})
+            FluidGlassIconButton(onClick = {}) { FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito") }
+          }
+          Text(
+            "Vetro di questa colonna: ${LocalFluidGlassModel.current.name}. Lo scrim dietro resta il vetro di prima.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+          Spacer(Modifier.height(120.dp))
+        }
+      }
+      FluidGlassModalHost(state = host, backdrop = session.stage)
     }
   }
 }

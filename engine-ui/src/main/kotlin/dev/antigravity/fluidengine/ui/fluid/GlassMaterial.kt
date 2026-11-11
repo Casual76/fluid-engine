@@ -1499,6 +1499,12 @@ fun Modifier.glassSurface(
    * [glassContainer]), e [state] resta quello che si vede fuori dai suoi bordi. Se [state] contiene
    * gia' il materiale di quel pannello (un cablaggio a mano con [exports]) non cambia niente. False
    * per la rara superficie che ricostruisce da sola il materiale del pannello su cui sta.
+   *
+   * Nel materiale nuovo ([FluidGlassModel.Liquid]) una superficie che sta cosi' dentro un pannello e' anche
+   * **vetro annidato** (4.0.0): il materiale che campiona ha gia' il suo velo, quindi il suo velo scende (sul
+   * tema scuro a un terzo, sul chiaro resta) e l'ombra si dimezza, perche' un tasto dentro una notifica ne prenda
+   * il colore invece di posarci sopra una toppa grigia. Vale per gli stessi casi e con la stessa regola: un vetro
+   * accanto a un altro, o con questo parametro falso, resta una lastra sulla pagina.
    */
   nestInContainer: Boolean = true,
 ): Modifier {

@@ -111,6 +111,50 @@ class ShaderSourceLintTest {
   }
 
   /**
+   * Il lint tiene il passo con il riscaldamento (F1A.7): ogni sorgente che trova nei file ed è registrata è del
+   * vetro di oggi, oppure è un programma del materiale nuovo e una famiglia di `GlassWarmUp` lo scalda. Un
+   * programma nuovo registrato senza famiglia (la striscia del bordo, in F2.4) fa fallire qui: altrimenti il primo
+   * vetro che lo usa pagherebbe la compilazione nel suo fotogramma, ed è proprio ciò che il cancello C6 vieta.
+   */
+  @Test
+  fun everyRegisteredSourceIsOfTodayOrWarmedByExactlyOneFamily() {
+    val today = GlassShaderSources.today
+    val liquid = GlassShaderSources.liquid
+    val problems = mutableListOf<String>()
+    if (GlassShaderSources.all != today + liquid) {
+      problems += "GlassShaderSources.all non è `today + liquid`: una sorgente nuova va messa in uno dei due elenchi."
+    }
+    for (source in today) {
+      if (source in liquid) problems += "${source.name}: è in tutti e due gli elenchi"
+    }
+    for (source in GlassShaderSources.all) {
+      val families = GlassWarmFamily.entries.filter { source in it.sources }
+      when {
+        source in today && families.isNotEmpty() ->
+          problems += "${source.name}: è del vetro di oggi, e il riscaldamento lo compila per niente (${families.joinToString()})"
+        source in liquid && families.isEmpty() ->
+          problems += "${source.name}: è del materiale nuovo e nessuna famiglia di GlassWarmUp lo scalda"
+        families.size > 1 -> problems += "${source.name}: sta in più famiglie (${families.joinToString()})"
+      }
+    }
+    if (problems.isNotEmpty()) fail(problems.joinToString("\n"))
+    // Le tredici della 4.0.0, per nome: le fasi dopo ne aggiungono, nessuna ne toglie.
+    val names = GlassShaderSources.all.map { it.name }
+    assertTrue("Meno di tredici sorgenti: $names", names.size >= 13)
+    for (name in listOf(
+      "GlassBody1ShaderString", "GlassBody8ShaderString", "GlassLight1ShaderString", "GlassLight8ShaderString",
+      "GlassGlowShaderString",
+    )) {
+      assertTrue("Manca $name: $names", name in names)
+    }
+    println(
+      "Sorgenti registrate: ${names.size}, di cui ${today.size} di oggi e ${liquid.size} del materiale nuovo in " +
+        "${GlassWarmFamily.entries.size} famiglie di riscaldamento " +
+        GlassWarmFamily.entries.joinToString(prefix = "(", postfix = ")") { f -> "${f.name}: ${f.sources.joinToString { it.name }}" },
+    )
+  }
+
+  /**
    * I programmi del materiale `Liquid` sono composti da blocchi che stanno in file diversi della stessa
    * cartella: il lint deve leggere il testo intero, non una riga di `main` sotto cinque `$Nome` irrisolti.
    */

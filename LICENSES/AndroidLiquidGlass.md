@@ -163,6 +163,20 @@ Le modifiche fatte finora:
     registra esattamente cio' che disegnava. Il vetro di sempre (modello `Classic` dell'engine) non li
     passa.
 
+17. **Il nodo si conta, e il livello di API si puo' simulare in debug** (4.0.0, `DrawBackdropModifier.kt`,
+    `Platform.kt`, pacchetto F1A.7 di `docs/liquid-glass/piano.md`).
+    - `DrawBackdropNode` tiene un `GlassNodeCensus` (classe dell'engine, `FluidGlassDiagnostics.kt`): il nodo
+      e la sua cattura all'attacco, il layer della posa alla prima posa, il materiale proprio quando nasce,
+      la superficie con il suo materiale (nuovo se passa `onDrawLight`), tutto restituito al distacco; un
+      aggiornamento dell'elemento riconta la superficie. A monte non c'e' modo di sapere quanti nodi e layer
+      del vetro sono vivi. A diagnostica spenta ogni evento costa una lettura volatile, e il disegno non
+      cambia di un pixel.
+    - `isRenderEffectSupported()` e `isRuntimeShaderSupported()` chiedono `glassApiLevel()` invece di
+      `SDK_INT`: e' `SDK_INT`, salvo in un'app `debuggable` a cui `FluidGlassDiagnostics.simulateApiLevel`
+      ha chiesto di rispondere come un Android piu' vecchio. Il livello simulato puo' solo scendere, quindi
+      un `true` vuol dire ancora che la piattaforma ha l'API (il contratto di `@ChecksSdkIntAtLeast` regge);
+      in un'app di rilascio il campo resta vuoto e le due funzioni rispondono come a monte.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

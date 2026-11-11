@@ -36,6 +36,9 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassLayerKind
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassNodeKind
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassNodeCensus
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.HighlightLayerMaxPx
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.layerResolutionScale
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.blur
@@ -1072,16 +1075,22 @@ internal class GlassShadowNode(
     drawContent()
   }
 
+  /** Ciò che questo nodo ha contato in `FluidGlassDiagnostics` (F1A.7), per restituirlo quando si stacca. */
+  private val census = GlassNodeCensus(FluidGlassNodeKind.Shadow)
+
   override fun onAttach() {
     val layer = requireGraphicsContext().createGraphicsLayer()
     graphicsLayer = layer
     // Un layer nuovo non contiene niente, e con lui nasce un `GlassShadowLayer` che non ha registrato niente.
     painter = GlassShadowLayer(layer)
+    census.attached()
+    census.layer(FluidGlassLayerKind.Shadow)
   }
 
   override fun onDetach() {
     graphicsLayer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
     graphicsLayer = null
     painter = null
+    census.detached()
   }
 }

@@ -51,8 +51,12 @@ half4 main(float2 coord) {
 internal class GlassShaderSource(val name: String, val text: String) {
 
   /**
-   * La risposta di [GlassFieldHealth.usable], una volta data. Sta accanto alla sorgente perché a regime chi
-   * disegna paghi una lettura e basta: né la mappa dei verdetti né la sonda.
+   * Il verdetto del compilatore per [GlassFieldHealth.usable], una volta dato: vero se la accetta. Sta accanto
+   * alla sorgente perché a regime chi disegna paghi una lettura e basta: né la mappa dei verdetti né la sonda.
+   *
+   * Solo il verdetto, non la domanda «c'è AGSL?»: quella si rifà a ogni chiamata (costa un confronto), perché
+   * in una build di debug il livello di API simulato può andare e venire, e una risposta «no» data sotto la
+   * simulazione non deve restare dopo (F1A.7).
    */
   @Volatile
   var usable: Boolean? = null
@@ -86,18 +90,16 @@ internal object GlassShaderSources {
   val PolyMorphDispersion = GlassShaderSource("PolyMorphDispersionShaderString", PolyMorphDispersionShaderString)
 
   // Il materiale `Liquid` (questa cartella): corpo e luce, a una lastra e a otto (cancello C3). Registrati da
-  // F1A.5 perché sonda, lint e test strumentato li conoscano; nessuno li disegna ancora (l'innesto è F1A.6) e
-  // nessuno li scalda (F1A.7).
+  // F1A.5 perché sonda, lint e test strumentato li conoscano; la lastra ferma (`Body1`, `Light1`) la disegna
+  // l'innesto di F1A.6, quelle a otto pezzi le disegnerà F1B. Tutti e quattro li scalda `GlassWarmUp` (F1A.7),
+  // ognuno nella sua famiglia.
   val Body1 = GlassShaderSource("GlassBody1ShaderString", GlassBody1ShaderString)
   val Body8 = GlassShaderSource("GlassBody8ShaderString", GlassBody8ShaderString)
   val Light1 = GlassShaderSource("GlassLight1ShaderString", GlassLight1ShaderString)
   val Light8 = GlassShaderSource("GlassLight8ShaderString", GlassLight8ShaderString)
 
-  /**
-   * Nell'ordine in cui `compileAll` le prova: prima il vetro di oggi (lente, riflessi, bagliore), poi
-   * Fluid-physics, poi il materiale `Liquid`.
-   */
-  val all: List<GlassShaderSource> = listOf(
+  /** Il vetro di oggi e Fluid-physics: ciò che c'era prima della 4.0.0. Nessuno di questi si scalda. */
+  val today: List<GlassShaderSource> = listOf(
     RoundedRectRefraction,
     RoundedRectRefractionWithDispersion,
     DefaultHighlight,
@@ -107,11 +109,20 @@ internal object GlassShaderSources {
     PolyMorphRefraction,
     SlabGroupDispersion,
     PolyMorphDispersion,
-    Body1,
-    Body8,
-    Light1,
-    Light8,
   )
+
+  /**
+   * I programmi del materiale `Liquid`: ognuno sta in una famiglia del riscaldamento (`GlassWarmFamily`), e
+   * `GlassWarmUpTest` fallisce se una sorgente nuova non sta né qui né in [today], o se sta qui senza una
+   * famiglia. È così che la striscia del bordo (F2.4) entrerà nel riscaldamento il giorno in cui si registra.
+   */
+  val liquid: List<GlassShaderSource> = listOf(Body1, Body8, Light1, Light8)
+
+  /**
+   * Nell'ordine in cui `compileAll` le prova: prima il vetro di oggi (lente, riflessi, bagliore), poi
+   * Fluid-physics, poi il materiale `Liquid`.
+   */
+  val all: List<GlassShaderSource> = today + liquid
 }
 
 /**
@@ -214,15 +225,19 @@ internal object GlassFieldHealth {
    *
    * La prima volta può compilare, una volta per processo, e compila nella cache condivisa degli shader: lo
    * shader che la prova accetta è lo stesso che poi si disegna, quindi la domanda non aggiunge compilazioni.
-   * Poi la risposta resta sulla sorgente ([GlassShaderSource.usable]) e a regime costa una lettura.
+   * Poi il verdetto resta sulla sorgente ([GlassShaderSource.usable]) e a regime costa una lettura più il
+   * confronto del livello di API.
    *
    * Sotto Android 13 è sempre falsa: per questo il lint di Android la legge come un controllo di versione.
+   * Lo è anche sotto un livello simulato (F1A.7), e smette di esserlo appena la simulazione si toglie: il «no»
+   * dell'API non si ricorda, si ricorda solo il verdetto del compilatore.
    */
   @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU)
   fun usable(source: GlassShaderSource): Boolean {
+    if (!agslSupported()) return false
     source.usable?.let { return it }
     consultations.incrementAndGet()
-    val result = agslSupported() && probe.verdict(source) == null
+    val result = probe.verdict(source) == null
     source.usable = result
     return result
   }
@@ -245,8 +260,15 @@ internal object GlassFieldHealth {
     agsl: Boolean,
     compile: (GlassShaderSource) -> Unit,
     onRefused: (GlassShaderSource, Throwable) -> Unit,
+  ) = installForTesting({ agsl }, compile, onRefused)
+
+  /** Come sopra, con AGSL che può andare e venire durante il test (un livello simulato che si toglie). */
+  internal fun installForTesting(
+    agsl: () -> Boolean,
+    compile: (GlassShaderSource) -> Unit,
+    onRefused: (GlassShaderSource, Throwable) -> Unit,
   ) {
-    agslSupported = { agsl }
+    agslSupported = agsl
     probe = GlassShaderProbe(GlassShaderSources.all, compile, onRefused)
     forget()
   }
@@ -258,6 +280,27 @@ internal object GlassFieldHealth {
     forget()
   }
 
+  /**
+   * Il gancio dei test che montano composable (Robolectric, `sample/src/testDebug`), da
+   * `FluidGlassDiagnostics.forceShaderVerdictsForTesting`: **ogni** sorgente compila ([accept] vero) o è
+   * rifiutata, senza toccare il compilatore: «sano» vuol dire «il modello si sceglie come su un dispositivo sano»,
+   * non «si può disegnare» (che sotto Robolectric dipende dal modo grafico).
+   *
+   * Diversamente da [installForTesting], la domanda «c'è AGSL?» resta quella del livello di API (vero, o
+   * simulato): sotto Android 13 il gancio non accende niente.
+   */
+  internal fun installVerdictsForTesting(accept: Boolean) {
+    agslSupported = ::isRuntimeShaderSupported
+    probe = GlassShaderProbe(
+      sources = GlassShaderSources.all,
+      compile = { source ->
+        if (!accept) throw IllegalStateException("«${source.name}» rifiutata dal gancio di test")
+      },
+      onRefused = { _, _ -> },
+    )
+    forget()
+  }
+
   private fun forget() {
     for (source in GlassShaderSources.all) source.usable = null
     consultations.set(0)
@@ -266,7 +309,10 @@ internal object GlassFieldHealth {
   private fun deviceProbe() = GlassShaderProbe(
     sources = GlassShaderSources.all,
     compile = { source ->
-      if (isRuntimeShaderSupported()) {
+      // Il livello **vero**, non quello simulato (F1A.7): chi chiede alla sonda ha già controllato
+      // `agslSupported()`, e se una simulazione arrivasse fra la domanda e la compilazione il verdetto
+      // registrato sarebbe un rifiuto falso, per tutto il processo.
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         // Nella cache condivisa: la compilazione della prova è quella che poi disegna (vedi [usable]).
         SharedRuntimeShaders.obtain(source.text)
       } else {

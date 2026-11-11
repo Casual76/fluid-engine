@@ -62,6 +62,8 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+// Fluid Engine addition (F1A.7): il materiale di una superficie, per la diagnostica.
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.emptyBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.materialLayerBackdrop
@@ -379,6 +381,8 @@ private class DrawBackdropElement(
         node.onDrawSurface = onDrawSurface
         node.onDrawFront = onDrawFront
         node.onDrawLight = onDrawLight
+        // Fluid Engine addition (F1A.7): con o senza la luce del materiale nuovo, la superficie si riconta.
+        node.recountSurface()
         node.backdropScale = backdropScale
         node.sampleOnce = sampleOnce
         node.resampleIntervalMillis = resampleIntervalMillis
@@ -563,6 +567,24 @@ private class DrawBackdropNode(
         }
 
     private var graphicsLayer: GraphicsLayer? = null
+
+    /**
+     * Fluid Engine addition (F1A.7): ciò che questo nodo ha contato in `FluidGlassDiagnostics` (il nodo, i suoi
+     * layer, la superficie col suo materiale), per restituirlo quando si stacca. Costa una lettura volatile per
+     * evento a diagnostica spenta.
+     */
+    private val census = GlassNodeCensus(FluidGlassNodeKind.Backdrop)
+
+    /**
+     * Fluid Engine addition (F1A.7): il materiale che la superficie disegna, per la diagnostica. Solo il materiale
+     * nuovo passa la luce ([onDrawLight]); tutto il resto (il vetro di prima, Fluid-physics, chi chiama
+     * `drawBackdrop` a mano) e' il vetro di prima.
+     */
+    fun recountSurface() {
+        if (isAttached) {
+            census.surface(if (onDrawLight != null) FluidGlassModel.Liquid else FluidGlassModel.Classic)
+        }
+    }
 
     private val layoutLayerBlock: GraphicsLayerScope.() -> Unit = {
         clip = true
@@ -904,6 +926,8 @@ private class DrawBackdropNode(
         val placeable = measurable.measure(constraints)
         return layout(placeable.width, placeable.height) {
             placeable.placeWithLayer(IntOffset.Zero, layerBlock = layoutLayerBlock)
+            // Fluid Engine addition (F1A.7): il layer della posa nasce alla prima posa e vive fino al distacco.
+            census.layer(FluidGlassLayerKind.Placement)
         }
     }
 
@@ -1017,6 +1041,10 @@ private class DrawBackdropNode(
     override fun onAttach() {
         val graphicsContext = requireGraphicsContext()
         graphicsLayer = graphicsContext.createGraphicsLayer()
+        // Fluid Engine addition (F1A.7): il nodo, la sua cattura e la superficie, nella diagnostica.
+        census.attached()
+        census.layer(FluidGlassLayerKind.Capture)
+        recountSurface()
         surfaceDirty = true
         recordedSize = IntSize.Zero
         recordedSourceOffsets = null
@@ -1085,6 +1113,9 @@ private class DrawBackdropNode(
             graphicsContext.releaseGraphicsLayer(material.graphicsLayer)
         }
         ownMaterial = null
+        // Fluid Engine addition (F1A.7): cattura, posa e materiale sono rilasciati; si restituisce cio' che si
+        // era contato.
+        census.detached()
     }
 
     // --- Fluid Engine addition (2.13.0): vetro su vetro -----------------------------------------
@@ -1217,6 +1248,8 @@ private class DrawBackdropNode(
 
     private fun createOwnMaterial(): LayerBackdrop {
         val layer = requireGraphicsContext().createGraphicsLayer()
+        // Fluid Engine addition (F1A.7): il materiale proprio, solo quando del vetro dentro lo campiona.
+        census.layer(FluidGlassLayerKind.Material)
         val material = materialLayerBackdrop(layer)
         material.ownerNode = this
         material.onFirstReader = wakeExport

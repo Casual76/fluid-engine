@@ -5,9 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalView
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
+import dev.antigravity.fluidengine.ui.glass.field.glassModelChoice
 
 /**
  * Con quale materiale l'engine disegna il vetro.
@@ -110,14 +113,23 @@ internal fun glassLiquidSlabShadersHealthy(): Boolean =
 @Composable
 internal fun rememberFluidGlassModel(shape: Shape, falloff: GlassFalloff, optics: GlassOptics): FluidGlassModel {
   val requested = LocalFluidGlassModel.current
+  // F1A.7: la finestra della superficie, a cui il riscaldamento chiede quando è disegnata e ferma.
+  val view = LocalView.current
   return remember(requested, shape, falloff, optics) {
-    resolveFluidGlassModel(
-      sdk = Build.VERSION.SDK_INT,
+    // F1A.7: il livello di API su cui il vetro decide, che una build di debug può simulare (`bd/Platform.kt`).
+    val sdk = glassApiLevel()
+    val genericShape = !glassFieldRenders(shape)
+    val flat = optics.isFlatVeil()
+    val model = resolveFluidGlassModel(
+      sdk = sdk,
       shadersHealthy = ::glassLiquidSlabShadersHealthy,
       requested = requested,
       falloff = falloff,
-      genericShape = !glassFieldRenders(shape),
-      flat = optics.isFlatVeil(),
+      genericShape = genericShape,
+      flat = flat,
     )
-  }
+    // F1A.7: la scelta resta contata nella diagnostica, col suo motivo, finché la superficie è in composizione; e
+    // la prima che chiede `Liquid` dove può esistere fa partire il riscaldamento della lastra (`GlassWarmUp`).
+    glassModelChoice(model, sdk, requested, falloff, genericShape, flat, view)
+  }.model
 }

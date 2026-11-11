@@ -42,6 +42,41 @@ class GlassTraceExportTest {
     val radii = last.getValue("radius") as List<Double>
     radii.forEach { assertEquals(22.0, it, 0.002) }
 
+    // Le voci sono ritagliate dal `clip` dello strato (TRACE.md), non da un effetto a maschera.
+    assertVociClipped(trace)
+
+    // Due riprese di Apple, ognuna col suo nome.
+    @Suppress("UNCHECKED_CAST")
+    val apple = trace.head.getValue("apple") as List<Map<String, Any?>>
+    assertEquals(listOf("telefono", "foto"), apple.map { it["name"] })
+
+    finish(trace)
+  }
+
+  @Test
+  fun galleryMenuIsTheTabletOneWithTheStarAndFourItems() {
+    val built = OggiMenuAperturaGalleria.build()
+    val trace = built.trace
+    val d = trace.density
+    assertEquals(120, trace.fps)
+    assertEquals(2.125f, d, 0f)
+
+    // Il pannello: 252 dp di serie, alto 212 (tre righe, la sezione, una riga), sopra l'ancora (la stella).
+    assertEquals(252.0, (built.panelPx.width / d).toDouble(), 0.01)
+    assertEquals(212.0, (built.panelPx.height / d).toDouble(), 0.01)
+    assertEquals(OggiMenuAperturaGalleria.StarDp.top.toDouble(), (built.panelPx.top / d).toDouble(), 0.01)
+
+    // Il preambolo comincia prima del contatto (due fotogrammi fermi) e copre i 500 ms del click lungo.
+    assertTrue(trace.frames.first().tMs <= -500.0 - 2 * 1000.0 / 120 + 1e-6)
+    val beforeTouch = trace.frames.first()
+    assertEquals(listOf("puntini", "tasto"), beforeTouch.elements.map { it["name"] })
+    assertEquals(44.0, buttonPiece(beforeTouch, "tasto").getValue("w") as Double, 0.002)
+
+    assertTrue(built.ringFrames > 0)
+    assertVociClipped(trace)
+    val last = piece(trace.frames.last(), "menu")
+    assertEquals(252.0, last.getValue("w") as Double, 0.002)
+
     finish(trace)
   }
 
@@ -70,6 +105,48 @@ class GlassTraceExportTest {
   }
 
   @Test
+  fun galleryBarGoesFromSearchToBackShareAndStar() {
+    val built = OggiBarraPagineGalleria.build()
+    val trace = built.trace
+    assertEquals(120, trace.fps)
+
+    // Una azione contro due piu' il tasto indietro: tre coppie; la stella sulla lente di «Cerca», gli altri due
+    // dal seme.
+    assertEquals(3, built.pairs.size)
+    assertEquals(2, built.pairs.count { it.second.width < 2f })
+    assertEquals(1f, built.morphs.first(), 0f)
+    assertTrue(built.morphs.last() < 0.01f)
+
+    assertEquals(listOf("a-cerca"), trace.frames.first().elements.map { it["name"] })
+    assertEquals(listOf("b-condividi", "b-preferito", "b-indietro"), trace.frames.last().elements.map { it["name"] })
+    // La lente di «Cerca»: a W - 52 dp, alta 44 sotto la barra di stato (64 px).
+    val search = buttonPiece(trace.frames.first(), "a-cerca")
+    assertEquals((2560 / 2.125 - 52), search.getValue("x") as Double, 0.002)
+    assertEquals(64 / 2.125, search.getValue("y") as Double, 0.002)
+
+    finish(trace)
+  }
+
+  @Test
+  fun galleryTapFollowsTheSwipeAndReleasesAt567() {
+    val built = OggiTastoGalleria.build()
+    val trace = built.trace
+    assertEquals(120, trace.fps)
+    assertEquals(69, OggiTastoGalleria.ReleaseFrame)
+
+    val widths = built.widthsDp
+    assertEquals(44f, widths.first(), 0.001f)
+    assertTrue("picco ${widths.max()}", widths.max() > 66f)
+    assertEquals(44f, widths.last(), 0.05f)
+
+    // A riposo la lente e' quella di «Cerca»: 2560 px - 52 dp, nella tela che comincia a 2322 px.
+    val rest = buttonPiece(trace.frames.first(), "tasto")
+    assertEquals(2560 / 2.125 - 52 - 2322 / 2.125, rest.getValue("x") as Double, 0.002)
+
+    finish(trace)
+  }
+
+  @Test
   fun buttonSwellsPastOneAndAHalfAndPopsBelowRestOnRelease() {
     val built = OggiTasto.build()
     val widths = built.widthsDp
@@ -82,6 +159,24 @@ class GlassTraceExportTest {
     assertEquals(44f, widths.last(), 0.05f)
 
     finish(built.trace)
+  }
+
+  /** Il pezzo di un tasto a riposo o premuto (`todayButtonElement`): uno solo. */
+  private fun buttonPiece(frame: GlassTraceFrame, element: String): Map<String, Any?> = piece(frame, element)
+
+  /** In ogni fotogramma con le voci, lo strato porta `clip` e nessun `effect`; e in qualcuno il ritaglio c'e'. */
+  private fun assertVociClipped(trace: GlassTrace) {
+    var clipped = 0
+    for (frame in trace.frames) {
+      for (el in frame.elements) {
+        @Suppress("UNCHECKED_CAST")
+        val layers = (el["content"] as? List<Map<String, Any?>>).orEmpty()
+        val voci = layers.singleOrNull { it["name"] == "voci" } ?: continue
+        assertTrue("le voci hanno ancora un effetto", "effect" !in voci)
+        if ("clip" in voci) clipped++
+      }
+    }
+    assertTrue("nessun fotogramma con le voci ritagliate", clipped > 0)
   }
 
   private fun piece(frame: GlassTraceFrame, element: String): Map<String, Any?> {

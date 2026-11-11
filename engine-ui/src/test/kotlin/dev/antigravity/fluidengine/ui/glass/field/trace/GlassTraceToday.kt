@@ -7,7 +7,6 @@ import androidx.compose.animation.core.TargetBasedAnimation
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import dev.antigravity.fluidengine.foundation.EngineSettings
@@ -58,6 +57,9 @@ internal class TodayPalette(val dark: Boolean = false) {
 
   val primary: Color = scheme.primary
   val onSurface: Color = scheme.onSurface
+
+  /** Il colore delle voci distruttive di un menu (`FluidGlassMenuRow`: `colorScheme.error`). */
+  val error: Color = scheme.error
 
   /** `GlassDefaults.glassFilm()`: il grigio del vetro con il 34% della tavolozza. */
   val film: Color = if (dark) {
@@ -247,8 +249,8 @@ internal fun todayDispersionUniform(weight: Float): Float = if (!(weight > 0.001
  *    goccia (`tintInShader`), altrimenti la disegna come path in `onDrawSurface`; dentro la sagoma e' la
  *    stessa formula (tinta sopra, SrcOver), cambia solo l'antialias del bordo. `_pellicola` dice quale dei
  *    due fa l'engine in quel fotogramma;
- *  - `normalSmooth` e' un quadrato di lunghezza (px²): `"Xdp"` lo moltiplicherebbe per la densita' una
- *    volta sola, quindi si scrive come numero calcolato alla densita' della traccia, valido solo li'.
+ *  - `normalSmooth` e' un quadrato di lunghezza (px²): si scrive `"16dp^2"` (4 dp al quadrato), cosi' il banco
+ *    lo porta in pixel con la densita' al quadrato e la traccia vale a ogni densita' di rendering.
  *
  * Le coordinate del piano sono pixel dell'host; [origin] e' dove sta l'angolo della tela nell'host.
  */
@@ -296,8 +298,7 @@ internal fun todayPhysicsElement(
       glassDp(dpX(bounds.left - margin)), glassDp(dpY(bounds.top - margin)),
       glassDp(dpX(bounds.right + margin)), glassDp(dpY(bounds.bottom + margin)),
     )
-    val smoothPx = TodayPolyNormalSmoothDp * density
-    uniforms["normalSmooth"] = smoothPx * smoothPx
+    uniforms["normalSmooth"] = glassDpPower((TodayPolyNormalSmoothDp * TodayPolyNormalSmoothDp).toDouble(), 2)
     val rest = plan.dropRest
     if (rest != null) {
       val f = rest.frame
@@ -481,44 +482,6 @@ internal fun todayIconLayer(
   "alpha" to alpha.coerceIn(0f, 1f),
   "scale" to if (scaleX == scaleY) scaleX else listOf(scaleX, scaleY),
 )
-
-/**
- * Il ritaglio di uno strato di contenuto su un rettangolo arrotondato ([round], pixel della tela), come
- * `effect` dello strato: il banco non ha un ritaglio per gli strati, ha gli effetti a shader. E' lo shader a
- * lastre di oggi con un pezzo solo e **spostamento zero** (niente lente, niente ingrandimento, tinta
- * trasparente), cioe' `contenuto x copertura`: il campo e' lo stesso rettangolo arrotondato del ritaglio
- * hardware dell'engine (`Outline.Rounded`), con un pixel d'antialias. Lo strato deve stare a (0, 0): gli
- * uniform sono nelle sue coordinate.
- */
-internal fun todayRoundRectMask(round: RoundRect, density: Float): Map<String, Any?> {
-  fun dp(px: Float) = glassDp(px / density)
-  val cx = (round.left + round.right) / 2f
-  val cy = (round.top + round.bottom) / 2f
-  return linkedMapOf(
-    "source" to "kotlin:SlabGroupRefractionShaderString",
-    "uniforms" to linkedMapOf(
-      "offset" to "\$offset",
-      "pieceCount" to 1,
-      "pieceRect" to listOf(listOf(dp(cx), dp(cy), dp(round.width / 2f), dp(round.height / 2f))),
-      "pieceRadii" to listOf(
-        listOf(
-          dp(round.topLeftCornerRadius.x),
-          dp(round.topRightCornerRadius.x),
-          dp(round.bottomRightCornerRadius.x),
-          dp(round.bottomLeftCornerRadius.x),
-        ),
-      ),
-      "pieceBlend" to listOf("0dp"),
-      "refractionHeight" to "1dp",
-      "refractionAmount" to "0dp",
-      "depthEffect" to 0,
-      "magnify" to 0,
-      "fieldCenter" to listOf(dp(cx), dp(cy)),
-      "aa" to 1,
-      "tintColor" to "#00000000",
-    ),
-  )
-}
 
 /** Tre decimali: i dp di una traccia (TRACE.md). */
 internal fun round3(value: Float): Double = Math.round(value.toDouble() * 1000.0) / 1000.0

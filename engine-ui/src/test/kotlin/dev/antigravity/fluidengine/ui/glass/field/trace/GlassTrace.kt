@@ -61,8 +61,8 @@ internal class GlassTrace(
     out["name"] = name
     out["phase"] = phase
     out["fps"] = fps
-    // Facoltativo, e il validatore lo vuole positivo: una scena ferma (un fotogramma a t = 0) non lo porta.
-    if (frames.last().tMs > 0.0) out["durationMs"] = frames.last().tMs
+    // L'ultimo istante: zero per una scena ferma (un fotogramma solo, a t = 0), che TRACE.md ammette.
+    out["durationMs"] = frames.last().tMs
     out["density"] = density
     out["theme"] = theme
     out["size"] = listOf(widthDp, heightDp)
@@ -106,6 +106,17 @@ internal fun glassDp(value: Double): String {
   } else {
     plain + "dp"
   }
+}
+
+/**
+ * Una grandezza che scala con una **potenza** della densita' (`"16dp^2"`): un'area in px² come `normalSmooth`
+ * dello shader ad anello. Scritta cosi' vale a ogni densita' di rendering (`--density`), mentre un numero
+ * gia' calcolato in pixel varrebbe solo a quella con cui la traccia e' stata scritta.
+ */
+internal fun glassDpPower(value: Double, power: Int): String {
+  require(value.isFinite()) { "una grandezza non finita: $value" }
+  require(power != 0 && power != 1) { "per la potenza $power si usa glassDp" }
+  return GlassTraceJson.fixed(value, 6) + "dp^" + power
 }
 
 /** Un colore non premoltiplicato `#RRGGBBAA`, la forma degli uniform `layout(color)`. */

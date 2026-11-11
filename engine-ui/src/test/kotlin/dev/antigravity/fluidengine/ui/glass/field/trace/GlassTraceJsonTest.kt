@@ -75,8 +75,31 @@ class GlassTraceJsonTest {
     assertEquals(File(root, "artifacts/liquid-glass/moto"), GlassTraceOutput.requestedDir("artifacts/liquid-glass/moto") { root })
     val trace = GlassTrace("prova", "f0", 3f, "light", 10f, 10f, listOf(GlassTraceFrame(0.0, emptyList())))
     assertEquals(File(root, "f0/prova/trace.json"), GlassTraceOutput.fileFor(root, trace))
-    // Una scena ferma (un fotogramma a t = 0) non porta `durationMs`: il validatore lo vuole positivo.
-    assertTrue("durationMs" !in trace.toJson())
+  }
+
+  @Test
+  fun durationIsTheLastInstantAndZeroForAStillScene() {
+    // Una scena ferma (un fotogramma solo, a t = 0) porta `durationMs: 0`, che TRACE.md ammette.
+    val still = GlassTrace("ferma", "f0", 3f, "light", 10f, 10f, listOf(GlassTraceFrame(0.0, emptyList())))
+    assertEquals(0.0, still.toJson()["durationMs"])
+    assertTrue(still.encode(), still.encode().contains("\"durationMs\": 0,"))
+    // Un viaggio: l'ultimo istante, anche con un preambolo prima di t = 0 e a 120 Hz.
+    val frames = (-2..3).map { GlassTraceFrame(glassTraceTimeMs(it, 120), emptyList()) }
+    val moving = GlassTrace("viaggio", "f0", 2.125f, "light", 10f, 10f, frames, fps = 120)
+    assertEquals(25.0, moving.toJson()["durationMs"] as Double, 1e-9)
+  }
+
+  @Test
+  fun aSquaredLengthIsWrittenWithItsPower() {
+    // `normalSmooth` e' 4 dp al quadrato: il banco lo porta in px² con density² (TRACE.md, «Unita'»).
+    assertEquals("16dp^2", glassDpPower(16.0, 2))
+    assertEquals("2.5dp^3", glassDpPower(2.5, 3))
+    try {
+      glassDpPower(1.0, 1)
+      fail("la potenza 1 e' glassDp")
+    } catch (expected: IllegalArgumentException) {
+      // giusto cosi'
+    }
   }
 
   @Test

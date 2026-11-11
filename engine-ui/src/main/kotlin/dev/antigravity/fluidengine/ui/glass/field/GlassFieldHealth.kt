@@ -85,7 +85,18 @@ internal object GlassShaderSources {
   val SlabGroupDispersion = GlassShaderSource("SlabGroupDispersionShaderString", SlabGroupDispersionShaderString)
   val PolyMorphDispersion = GlassShaderSource("PolyMorphDispersionShaderString", PolyMorphDispersionShaderString)
 
-  /** Nell'ordine in cui `compileAll` le prova: prima il vetro di oggi (lente, riflessi, bagliore), poi Fluid-physics. */
+  // Il materiale `Liquid` (questa cartella): corpo e luce, a una lastra e a otto (cancello C3). Registrati da
+  // F1A.5 perché sonda, lint e test strumentato li conoscano; nessuno li disegna ancora (l'innesto è F1A.6) e
+  // nessuno li scalda (F1A.7).
+  val Body1 = GlassShaderSource("GlassBody1ShaderString", GlassBody1ShaderString)
+  val Body8 = GlassShaderSource("GlassBody8ShaderString", GlassBody8ShaderString)
+  val Light1 = GlassShaderSource("GlassLight1ShaderString", GlassLight1ShaderString)
+  val Light8 = GlassShaderSource("GlassLight8ShaderString", GlassLight8ShaderString)
+
+  /**
+   * Nell'ordine in cui `compileAll` le prova: prima il vetro di oggi (lente, riflessi, bagliore), poi
+   * Fluid-physics, poi il materiale `Liquid`.
+   */
   val all: List<GlassShaderSource> = listOf(
     RoundedRectRefraction,
     RoundedRectRefractionWithDispersion,
@@ -96,6 +107,10 @@ internal object GlassShaderSources {
     PolyMorphRefraction,
     SlabGroupDispersion,
     PolyMorphDispersion,
+    Body1,
+    Body8,
+    Light1,
+    Light8,
   )
 }
 

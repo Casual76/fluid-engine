@@ -2166,9 +2166,14 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     * `body`: lo shader del corpo. Ogni suo ingresso riceve l'uscita della catena, trasparente
       fuori dai bordi (`body.inputs` puo' dare a un ingresso una catena sua);
     * `clip`: il ritaglio hardware sulla sagoma. `false` dove la lastra cede o viaggia: allora
-      ritaglia lo shader, e conta il margine;
-    * `light`: lo shader della luce, senza ingressi, a risoluzione piena, posato in `SrcOver`
-      sotto il contenuto;
+      ritaglia lo shader, e conta il margine. `clipRadiusScale` (di serie 1) e' la frazione del
+      raggio nominale a cui sta il ritaglio hardware, con angoli circolari: l'engine ritaglia le
+      lastre raccordate al 98% del raggio, perche' il raccordo del campo esce dal cerchio nominale
+      dello 0,44% del raggio sulla diagonale e il ritaglio al raggio pieno assottiglierebbe il filo;
+    * `light`: lo shader della luce, senza ingressi, a risoluzione piena, sotto il contenuto. Uno
+      strato, o **una lista di strati** disegnati nell'ordine dato, ognuno col suo modo di comporre
+      (`blend`, di serie `SrcOver`): la luce a riposo dell'engine sono due disegni dello stesso
+      programma, prima la luce che somma (`Plus`) e poi il filo (`SrcOver`);
     * il contenuto, `contentLayer` e gli strati di `content` come per gli altri elementi (con
       `clip` falso gli strati sono ritagliati dall'alfa del corpo); `children` campionano pagina
       + corpo, mai la luce ne' il contenuto (l'export di `drawBackdrop`).
@@ -2184,7 +2189,17 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     shape = Outline(x, y, w, h, radii, el.get("corner", ctx.corner),
                     float(el.get("smoothing", IOS_SMOOTHING)))
     clip = bool(el.get("clip", True))
+    clip_scale = float(el.get("clipRadiusScale", 1.0))
     ctx.boxes[tag] = {"x": x, "y": y, "w": w, "h": h, "radii": radii, "kind": "material"}
+
+    def hard_clip(canvas: skia.Canvas) -> None:
+        """Il ritaglio hardware del nodo: la sagoma, o il rettangolo arrotondato a una frazione del
+        raggio nominale (`clipRadiusScale`)."""
+        if clip_scale == 1.0:
+            shape.clip(canvas)
+        else:
+            canvas.clipRRect(rrect(x, y, w, h, [r * clip_scale for r in radii]),
+                             skia.ClipOp.kIntersect, True)
 
     spec = el.get("capture") or {}
     scale = fit_to_texture(float(spec.get("scale", 1.0)), w, h)
@@ -2256,7 +2271,7 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     def draw_body(canvas: skia.Canvas) -> None:
         canvas.save()
         if clip:
-            shape.clip(canvas)
+            hard_clip(canvas)
         canvas.translate(xi, yi)
         canvas.scale(1.0 / scale, 1.0 / scale)
         canvas.drawImage(material, -padding, -padding, LINEAR)
@@ -2275,8 +2290,11 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         draw_body(stack.getCanvas())
         stack_image = stack.makeImageSnapshot()
 
-    light = el.get("light")
-    if light:
+    lights = el.get("light") or []
+    if isinstance(lights, dict):
+        lights = [lights]
+    for index, light in enumerate(lights):
+        stage = f"{tag}-luce" if len(lights) == 1 else f"{tag}-luce-{index}"
         program = ctx.shaders.program(light["source"])
         if program.child_names and not light.get("inputs"):
             raise ValueError(
@@ -2287,8 +2305,7 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         builtins = builtins_for(ctx, 1.0, margin, lw, lh)
         for name, value in (light.get("uniforms") or {}).items():
             program.set(name, uniform_value(ctx, value, builtins))
-        capture_inputs(ctx, program, light.get("inputs") or {}, backdrop, xi, yi, 1.0, lw, lh, margin,
-                       f"{tag}-luce")
+        capture_inputs(ctx, program, light.get("inputs") or {}, backdrop, xi, yi, 1.0, lw, lh, margin, stage)
         surface = new_surface(lw, lh)
         paint = skia.Paint()
         paint.setShader(program.make())
@@ -2296,10 +2313,10 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
         surface.getCanvas().drawRect(skia.Rect.MakeWH(lw, lh), paint)
         glow = surface.makeImageSnapshot()
         if ctx.stages is not None:
-            ctx.stages[f"{tag}-luce"] = glow
+            ctx.stages[stage] = glow
         screen.save()
         if clip:
-            shape.clip(screen)
+            hard_clip(screen)
         composed = layer_paint(light)
         if composed is None:
             screen.drawImage(glow, xi - margin, yi - margin, LINEAR)
@@ -2309,7 +2326,7 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
 
     screen.save()
     if clip:
-        shape.clip(screen)
+        hard_clip(screen)
     place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
     screen.restore()
     place_content_layers(screen, ctx, el, x, y, w, h, tag, shape=shape,

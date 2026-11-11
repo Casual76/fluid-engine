@@ -1,0 +1,148 @@
+{
+  "titolo": "2 · Il velo (tema chiaro)",
+  "domanda": "Che colore ha il vetro? A = quasi chiaro, appena grigio sul bianco (iOS 27). B = bianco al 40%, sul bianco sparisce (iOS 26). C = la pellicola di oggi.",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 2.25,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "iOS 27",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "B",
+      "nome": "iOS 26",
+      "scena": "../gusto/velo-ios26-{lato}.json"
+    },
+    {
+      "lettera": "C",
+      "nome": "oggi (pellicola)",
+      "scena": "../gusto/velo-oggi-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "pagina chiara dell'engine #F2F2F7",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "bianco puro",
+      "fondo": "bianco",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "foto",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "testo",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "il menu sulla foto",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        134,
+        202,
+        224
+      ],
+      "density": 2.0
+    },
+    {
+      "etichetta": "il tasto su bianco, ingrandito 3 volte",
+      "fondo": "bianco",
+      "ritaglio": [
+        22,
+        31,
+        60,
+        60
+      ],
+      "zoom": 3,
+      "density": 3.0
+    },
+    {
+      "etichetta": "Apple, iOS 27",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/T6_scheda_prominente_269_0519.jpg",
+          "ritaglio": [
+            120,
+            20,
+            1290,
+            230
+          ],
+          "etichetta": "Apple iOS 27: tab bar e tondo su pagina 238 (T6)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/E1_bordo_scorrimento_alto_278.jpg",
+          "ritaglio": [
+            790,
+            870,
+            140,
+            120
+          ],
+          "etichetta": "iOS 27: tasto su bianco (E1)"
+        }
+      ],
+      "altezza": 230
+    },
+    {
+      "etichetta": "Apple: sopra iOS 27, sotto iOS 26, sulla stessa scena",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M1_tabbar_ios26_sopra_ios27_sotto.jpg",
+          "ritaglio": [
+            0,
+            536,
+            1540,
+            530
+          ],
+          "etichetta": "Apple iOS 27: accessorio e tab bar sopra arte e testo (M1)"
+        }
+      ],
+      "altezza": 300
+    },
+    {
+      "etichetta": "",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M1_tabbar_ios26_sopra_ios27_sotto.jpg",
+          "ritaglio": [
+            0,
+            0,
+            1540,
+            530
+          ],
+          "etichetta": "Apple iOS 26: la stessa scena (M1)"
+        }
+      ],
+      "altezza": 300
+    }
+  ]
+}

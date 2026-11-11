@@ -1,0 +1,96 @@
+{
+  "titolo": "5b · La lente, variante limpida",
+  "domanda": "Le stesse tre lenti senza smerigliatura ne' velo (la variante limpida, e cio' che si vedra' in viaggio): A = leggera, B = media, C = marcata.",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 2.25,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "leggera",
+      "scena": "../gusto/limpida-leggera-{lato}.json"
+    },
+    {
+      "lettera": "B",
+      "nome": "media",
+      "scena": "../gusto/limpida-media-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "C",
+      "nome": "marcata",
+      "scena": "../gusto/limpida-marcata-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "griglia",
+      "fondo": "griglia",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "testo",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "foto",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "griglia: la tab bar",
+      "fondo": "griglia",
+      "ritaglio": [
+        278,
+        14,
+        244,
+        94
+      ]
+    },
+    {
+      "etichetta": "griglia: il capo della capsula ingrandito 4 volte (senza icone)",
+      "fondo": "griglia",
+      "ritaglio": [
+        100,
+        29,
+        66,
+        62
+      ],
+      "zoom": 4,
+      "density": 2.25,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "Apple, iOS 26",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A_lente_griglia_f1485_f1700.jpg",
+          "ritaglio": [
+            0,
+            20,
+            1412,
+            709
+          ],
+          "etichetta": "iOS 26: la lente grande sulla griglia"
+        }
+      ],
+      "altezza": 330
+    }
+  ]
+}

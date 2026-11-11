@@ -1,0 +1,202 @@
+{
+  "_": "Scritta dalla ricetta (GlassSceneExportTest, F1A.5): e' `scenes/rif/rif-capsula-piatto.json` con ogni lastra sostituita da cio' che `glassRecipe` da' per quel ruolo, quella taglia e quel lato, profilo di serie. Non si modifica a mano: si rigenera. La capsula di 11:46-12:04 su fondo piatto chiaro (218), come f21570: l'ombra del 4%.",
+  "apple": {
+    "frame": "f21570",
+    "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A3_ombra.jpg (primo riquadro)",
+    "scala": "H = 705 px del 4K = 56 dp; ritaglio 2100x1500 px = 167x119 dp"
+  },
+  "width": 168,
+  "height": 120,
+  "density": 3,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#DADADA"
+  },
+  "page": [
+    {
+      "kind": "text",
+      "text": "world around us.",
+      "x": -8,
+      "y": 10,
+      "sizeDp": 25,
+      "color": "#101010"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "name": "capsula",
+      "_ricetta": "glassRecipe: ruolo floating, 130 x 56 dp, lato chiaro, profilo di serie",
+      "x": 19,
+      "y": 20,
+      "w": 130,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [0, 0.75],
+          "alpha": 0.024,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 8,
+          "offsetDp": [0, 4],
+          "alpha": 0.038,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 0.4
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.421053,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#F5F5F775",
+          "veilAdapt": 0.7,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "130dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "130dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "icons": ["fluid:inventory_2|archive", "fluid:add|plus"]
+    }
+  ],
+  "measure": [
+    {
+      "kind": "shadow",
+      "element": "capsula",
+      "scheda": "A3",
+      "fiducia": "alta",
+      "ref": {
+        "ombra@0.03": ["7,7% (R5 M1, la stessa scena in iOS 26)", "1,7% (R5 M1)"],
+        "ombra@0.1": ["6,0%", "1,7%"],
+        "ombra@0.2": ["4,7%; 3,7% sotto una capsula su 218 (R4 A3)", "0"],
+        "ombra@0.3": ["3,4%", "0"],
+        "ombra@0.5": ["1,3%", "0"],
+        "ombra@0.8": ["0", "0"],
+        "ombra-max": ["3,7% (218 -> 210) a 0,20-0,24 H sotto", "2-4% al bordo (R5)"],
+        "ombra-estensione": ["fino a ~0,75 H sotto", "nulla a 0,2-0,25 H (R5)"],
+        "ombra-sopra": ["1,5-2%", "-"],
+        "ombra-lati": ["2%", "0 (R5 M1)"]
+      }
+    },
+    {
+      "kind": "body",
+      "element": "capsula",
+      "scheda": "A2",
+      "fiducia": "alta",
+      "ref": {
+        "corpo-fondo": ["+12...+15 (230-233 su 218)", "+8 su 235 (R5 M1)"]
+      }
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "top",
+      "scheda": "A1",
+      "ref": {
+        "filo-scuro": ["nessuno dove il filo di luce e' acceso (R4 A1)", "-45...-81 livelli, -20...-30% (R5 M1 e M4, alta)"],
+        "filo-largo": ["-", "1-2% di H, 2-3 px (R5 M4, alta)"],
+        "riflesso": ["+21...+53 sui due archi, quasi nullo altrove (R4 A1)", "+10...+16 in alto e in basso (R5 M1 e M4, media)"],
+        "riflesso-largo": ["1,0-2,4% di D (R4 A1, media)", "~1,4% di H (R5 M1)"],
+        "riflesso-rientro": ["4-8 px, poi un alone sul 12-15% di H (R4 A1)", "~0,08 H (R5 M4)"]
+      },
+      "rows": ["filo-scuro", "filo-largo", "riflesso", "riflesso-largo"]
+    }
+  ]
+}

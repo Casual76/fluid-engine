@@ -1,0 +1,168 @@
+{
+  "titolo": "1 · Il bordo (tema chiaro)",
+  "domanda": "Quale bordo? A = filo scuro su tutto il perimetro e riflesso chiaro dentro, in alto e in basso (iOS 27). B = due archi di luce in diagonale, nessun filo (iOS 26). C = il filetto di oggi, pieno sopra e sotto.",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 2.25,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "iOS 27",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "B",
+      "nome": "iOS 26",
+      "scena": "../gusto/bordo-ios26-{lato}.json"
+    },
+    {
+      "lettera": "C",
+      "nome": "oggi",
+      "scena": "../gusto/bordo-oggi-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "pagina chiara dell'engine #F2F2F7",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "bianco puro",
+      "fondo": "bianco",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "foto",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "testo",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "il capo della capsula sulla pagina chiara, ingrandito 6 volte (senza icone)",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        100,
+        29,
+        33,
+        24
+      ],
+      "zoom": 6,
+      "density": 3.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "lo stesso su bianco",
+      "fondo": "bianco",
+      "ritaglio": [
+        100,
+        29,
+        33,
+        24
+      ],
+      "zoom": 6,
+      "density": 3.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "l'angolo del menu sulla pagina chiara, ingrandito 6 volte",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        26,
+        146,
+        33,
+        24
+      ],
+      "zoom": 6,
+      "density": 3.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "Apple",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/T6_scheda_prominente_269_0519.jpg",
+          "ritaglio": [
+            120,
+            20,
+            1290,
+            230
+          ],
+          "etichetta": "Apple iOS 27: tab bar e tondo su pagina 238 (T6)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/T6_scheda_prominente_269_0519.jpg",
+          "ritaglio": [
+            1180,
+            22,
+            150,
+            100
+          ],
+          "etichetta": "iOS 27: il bordo del tondo (T6)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/E1_bordo_scorrimento_alto_278.jpg",
+          "ritaglio": [
+            790,
+            870,
+            140,
+            120
+          ],
+          "etichetta": "iOS 27: tasto su bianco (E1)"
+        }
+      ],
+      "altezza": 240
+    },
+    {
+      "etichetta": "Apple, iOS 26",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A1_bordo_di_luce.jpg",
+          "ritaglio": [
+            0,
+            24,
+            565,
+            424
+          ],
+          "etichetta": "iOS 26: tondo, i due archi (A1)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A1_bordo_di_luce.jpg",
+          "ritaglio": [
+            565,
+            24,
+            565,
+            424
+          ],
+          "etichetta": "iOS 26: capsula (A1)"
+        }
+      ],
+      "altezza": 300
+    }
+  ]
+}

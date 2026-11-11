@@ -1,0 +1,695 @@
+{
+  "_": "Scritta dalla ricetta (GlassSceneExportTest, F1A.5): il campione delle tavole di gusto, variante `ombra-tondo-apple`, lato scuro: ombra dei piccoli come Apple: un quarto di quella della barra. Tasto 44 dp, capsula, tab bar 62 dp, menu, pannello grande. Le tavole le compone `glassbench.py tavola`, che cambia fondale e inquadratura e mai un numero del materiale. Non si modifica a mano: si rigenera.",
+  "width": 900,
+  "height": 440,
+  "density": 3,
+  "theme": "dark",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#0D0D0F"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "name": "tasto",
+      "_ricetta": "glassRecipe: ruolo button, 44 x 44 dp, lato scuro, ombra dei piccoli come Apple: un quarto di quella della barra",
+      "x": 30,
+      "y": 39,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [0, 0.75],
+          "alpha": 0.024,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 8,
+          "offsetDp": [0, 4],
+          "alpha": 0.038,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12,
+        "w": 0,
+        "paddingDp": 1.440001,
+        "scale": 0.4
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.3,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#78788080",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000000",
+            "rimFeather": 0.4,
+            "rimLift": 0,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "icon": "fluid:add|plus",
+      "iconSizeDp": 26
+    },
+    {
+      "kind": "material",
+      "name": "capsula",
+      "_ricetta": "glassRecipe: ruolo floating, 156 x 56 dp, lato scuro, ombra dei piccoli come Apple: un quarto di quella della barra",
+      "x": 104,
+      "y": 33,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [0, 0.75],
+          "alpha": 0.096,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 8,
+          "offsetDp": [0, 4],
+          "alpha": 0.152,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 0.4
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.421053,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#78788080",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000000",
+            "rimFeather": 0.4,
+            "rimLift": 0,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "156dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "icons": ["fluid:arrow_back|back", "fluid:add|plus", "fluid:circle|circle"],
+      "iconSizeDp": 26
+    },
+    {
+      "kind": "material",
+      "name": "barra",
+      "_ricetta": "glassRecipe: ruolo floating, 220 x 62 dp, lato scuro, ombra dei piccoli come Apple: un quarto di quella della barra",
+      "x": 290,
+      "y": 30,
+      "w": 220,
+      "h": 62,
+      "radius": "capsule",
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 1.5,
+          "offsetDp": [0, 0.75],
+          "alpha": 0.096,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 8,
+          "offsetDp": [0, 4],
+          "alpha": 0.152,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 0.4
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0],
+          "thickness": "14.88dp",
+          "refraction": "-13.392dp",
+          "dome": 0.381579,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#78788080",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000000",
+            "rimFeather": 0.4,
+            "rimLift": 0,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "220dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "icons": ["fluid:home|home", "fluid:grid_view|grid4", "fluid:search|search"],
+      "iconSizeDp": 28
+    },
+    {
+      "kind": "material",
+      "name": "menu",
+      "_ricetta": "glassRecipe: ruolo compactpanel, 170 x 192 dp, lato scuro, ombra dei piccoli come Apple: un quarto di quella della barra",
+      "x": 30,
+      "y": 150,
+      "w": 170,
+      "h": 192,
+      "radius": 28,
+      "clip": true,
+      "clipRadiusScale": 0.98,
+      "shadow": [
+        {
+          "radiusDp": 2.058545,
+          "offsetDp": [0, 1.029272],
+          "alpha": 0.113873,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 10.978905,
+          "offsetDp": [0, 5.489452],
+          "alpha": 0.1803,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 14.234179,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 0.4
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0.6],
+          "thickness": "40dp",
+          "refraction": "-36dp",
+          "dome": 0,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#78788080",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0.6],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000000",
+            "rimFeather": 0.4,
+            "rimLift": 0,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "192dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        },
+        {
+          "label": "Elimina",
+          "icon": "fluid:delete|close",
+          "color": "#E5484D"
+        }
+      ],
+      "rowHeightDp": 44
+    },
+    {
+      "kind": "material",
+      "name": "pannello",
+      "_ricetta": "glassRecipe: ruolo panel, 330 x 380 dp, lato scuro, ombra dei piccoli come Apple: un quarto di quella della barra",
+      "x": 540,
+      "y": 30,
+      "w": 330,
+      "h": 380,
+      "radius": 36,
+      "clip": true,
+      "clipRadiusScale": 0.98,
+      "shadow": [
+        {
+          "radiusDp": 3,
+          "offsetDp": [0, 1.5],
+          "alpha": 0.144,
+          "color": "#000000"
+        },
+        {
+          "radiusDp": 16,
+          "offsetDp": [0, 8],
+          "alpha": 0.228,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 18,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 0.4
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0.6],
+          "thickness": "40dp",
+          "refraction": "-36dp",
+          "dome": 0,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#78788080",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0.6],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000000",
+            "rimFeather": 0.4,
+            "rimLift": 0,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "380dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        }
+      ],
+      "rowHeightDp": 52
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "tasto",
+      "label": "tasto",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "tasto",
+      "side": "top",
+      "label": "tasto",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "tasto",
+      "side": "left",
+      "label": "tasto",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "tasto",
+      "side": "bottom",
+      "label": "tasto",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "capsula",
+      "label": "capsula",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "top",
+      "label": "capsula",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "left",
+      "label": "capsula",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "bottom",
+      "label": "capsula",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "barra",
+      "label": "barra",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "barra",
+      "side": "top",
+      "label": "barra",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "barra",
+      "side": "left",
+      "label": "barra",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "barra",
+      "side": "bottom",
+      "label": "barra",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "menu",
+      "label": "menu",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "menu",
+      "side": "top",
+      "label": "menu",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "menu",
+      "side": "left",
+      "label": "menu",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "menu",
+      "side": "bottom",
+      "label": "menu",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "pannello",
+      "label": "pannello",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "top",
+      "label": "pannello",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "left",
+      "label": "pannello",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "bottom",
+      "label": "pannello",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    }
+  ]
+}

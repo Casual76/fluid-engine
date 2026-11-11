@@ -1,0 +1,151 @@
+{
+  "titolo": "3 · L'ombra (tema chiaro)",
+  "domanda": "Quale ombra? A = corta e leggera (iOS 27). B = larga e morbida (iOS 26). C = quella di oggi. E sotto il tasto tondo: come la barra (A) oppure quasi nulla, come fa Apple (D)?",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 1.75,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "iOS 27",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "B",
+      "nome": "iOS 26",
+      "scena": "../gusto/ombra-ios26-{lato}.json"
+    },
+    {
+      "lettera": "C",
+      "nome": "oggi",
+      "scena": "../gusto/ombra-oggi-{lato}.json"
+    },
+    {
+      "lettera": "D",
+      "nome": "tondo come Apple",
+      "scena": "../gusto/ombra-tondo-apple-{lato}.json",
+      "nota": "cambia solo il tasto"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "pagina chiara dell'engine #F2F2F7",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "bianco puro",
+      "fondo": "bianco",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "foto",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "il tasto su bianco, ingrandito 2 volte",
+      "fondo": "bianco",
+      "ritaglio": [
+        14,
+        23,
+        76,
+        84
+      ],
+      "zoom": 2,
+      "density": 3.0
+    },
+    {
+      "etichetta": "il bordo basso della capsula sulla pagina chiara, ingrandito 5 volte (senza icone)",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        150,
+        76,
+        30,
+        24
+      ],
+      "zoom": 5,
+      "density": 3.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "il menu sulla pagina chiara",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        134,
+        202,
+        224
+      ],
+      "density": 2.2
+    },
+    {
+      "etichetta": "Apple, iOS 27",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/T6_scheda_prominente_269_0519.jpg",
+          "ritaglio": [
+            120,
+            20,
+            1290,
+            230
+          ],
+          "etichetta": "Apple iOS 27: tab bar e tondo su pagina 238 (T6)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/E1_bordo_scorrimento_alto_278.jpg",
+          "ritaglio": [
+            790,
+            870,
+            140,
+            120
+          ],
+          "etichetta": "iOS 27: tasto su bianco (E1)"
+        }
+      ],
+      "altezza": 230
+    },
+    {
+      "etichetta": "Apple, iOS 26",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A3_ombra.jpg",
+          "ritaglio": [
+            0,
+            20,
+            706,
+            504
+          ],
+          "etichetta": "iOS 26: ombra su fondo piatto (A3)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A3_ombra.jpg",
+          "ritaglio": [
+            706,
+            555,
+            706,
+            503
+          ],
+          "etichetta": "iOS 26: ombra del menu (A3)"
+        }
+      ],
+      "altezza": 260
+    }
+  ]
+}

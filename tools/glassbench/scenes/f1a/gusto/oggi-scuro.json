@@ -1,0 +1,253 @@
+{
+  "_": "Il campione delle tavole di gusto col VETRO DI OGGI (modello Classic): le stesse cinque lastre di `gusto/serie-*`, rese dal banco con le ottiche lette da fluid/GlassMaterial.kt. E' il «prima» della tavola «tutto insieme». Scritta da GlassSceneExportTest perche' taglie e posizioni restino quelle del campione.",
+  "width": 900,
+  "height": 440,
+  "density": 3,
+  "theme": "dark",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#0D0D0F"
+  },
+  "elements": [
+    {
+      "name": "tasto",
+      "role": "button",
+      "x": 30,
+      "y": 39,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "iconSizeDp": 26,
+      "icon": "fluid:add|plus"
+    },
+    {
+      "name": "capsula",
+      "role": "floating",
+      "x": 104,
+      "y": 33,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "iconSizeDp": 26,
+      "icons": ["fluid:arrow_back|back", "fluid:add|plus", "fluid:circle|circle"]
+    },
+    {
+      "name": "barra",
+      "role": "floating",
+      "x": 290,
+      "y": 30,
+      "w": 220,
+      "h": 62,
+      "radius": "capsule",
+      "iconSizeDp": 28,
+      "icons": ["fluid:home|home", "fluid:grid_view|grid4", "fluid:search|search"]
+    },
+    {
+      "name": "menu",
+      "role": "compactpanel",
+      "x": 30,
+      "y": 150,
+      "w": 170,
+      "h": 192,
+      "radius": 28,
+      "rowHeightDp": 44,
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        },
+        {
+          "label": "Elimina",
+          "icon": "fluid:delete|close",
+          "color": "#E5484D"
+        }
+      ]
+    },
+    {
+      "name": "pannello",
+      "role": "panel",
+      "x": 540,
+      "y": 30,
+      "w": 330,
+      "h": 380,
+      "radius": 36,
+      "rowHeightDp": 52,
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        }
+      ]
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "tasto",
+      "label": "tasto",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "tasto",
+      "side": "top",
+      "label": "tasto",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "tasto",
+      "side": "left",
+      "label": "tasto",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "tasto",
+      "side": "bottom",
+      "label": "tasto",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "capsula",
+      "label": "capsula",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "top",
+      "label": "capsula",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "left",
+      "label": "capsula",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "capsula",
+      "side": "bottom",
+      "label": "capsula",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "barra",
+      "label": "barra",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "barra",
+      "side": "top",
+      "label": "barra",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "barra",
+      "side": "left",
+      "label": "barra",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "barra",
+      "side": "bottom",
+      "label": "barra",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "menu",
+      "label": "menu",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "menu",
+      "side": "top",
+      "label": "menu",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "menu",
+      "side": "left",
+      "label": "menu",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "menu",
+      "side": "bottom",
+      "label": "menu",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "body",
+      "element": "pannello",
+      "label": "pannello",
+      "rows": ["corpo", "fondo", "corpo-fondo", "velo"]
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "top",
+      "label": "pannello",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "left",
+      "label": "pannello",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    },
+    {
+      "kind": "edge",
+      "element": "pannello",
+      "side": "bottom",
+      "label": "pannello",
+      "refDp": 62,
+      "rows": ["filo-scuro", "filo-largo", "riflesso"]
+    }
+  ]
+}

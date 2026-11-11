@@ -1,0 +1,119 @@
+{
+  "titolo": "7 · I grandi: menu e pannelli",
+  "domanda": "Quanto crescono smerigliatura e ombra dal tasto al pannello? A = come una barra. B = un passo in piu'. C = due passi in piu'. (Il filo non cresce mai.)",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 1.625,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "come una barra",
+      "scena": "../gusto/grandi-barra-{lato}.json"
+    },
+    {
+      "lettera": "B",
+      "nome": "un passo",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "C",
+      "nome": "due passi",
+      "scena": "../gusto/grandi-due-passi-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "il menu sulla pagina chiara",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        134,
+        202,
+        224
+      ],
+      "density": 2.2
+    },
+    {
+      "etichetta": "il menu sul testo",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        134,
+        202,
+        224
+      ],
+      "density": 2.2
+    },
+    {
+      "etichetta": "il menu sulla foto",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        134,
+        202,
+        224
+      ],
+      "density": 2.2
+    },
+    {
+      "etichetta": "il pannello grande sul testo (la parte alta)",
+      "fondo": "testo",
+      "ritaglio": [
+        524,
+        14,
+        362,
+        150
+      ]
+    },
+    {
+      "etichetta": "il pannello grande sulla foto (la parte alta)",
+      "fondo": "foto",
+      "ritaglio": [
+        524,
+        14,
+        362,
+        150
+      ]
+    },
+    {
+      "etichetta": "il bordo basso del menu sulla pagina chiara, ingrandito 4 volte (senza righe)",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        60,
+        318,
+        74,
+        46
+      ],
+      "zoom": 4,
+      "density": 2.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "Apple, iOS 26 (in iOS 27 menu e pannelli non sono misurati)",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A3_ombra.jpg",
+          "ritaglio": [
+            706,
+            555,
+            706,
+            503
+          ],
+          "etichetta": "iOS 26: ombra del menu (A3)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A5_smerigliatura.jpg",
+          "ritaglio": [
+            686,
+            20,
+            686,
+            570
+          ],
+          "etichetta": "iOS 26: menu sulla foto (A5)"
+        }
+      ],
+      "altezza": 300
+    }
+  ]
+}

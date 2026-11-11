@@ -601,7 +601,13 @@ class GlassFieldGeometryTest {
     assertTrue("for (int i = 0; i < 8; ++i) {" in GlassFieldKernel8)
     assertTrue("if (float(i) >= pieceCount) break;" in GlassFieldKernel8)
 
-    assertTrue("half4 glassLight(float2 p, float d, float2 normal)" in GlassLightBlock)
+    // La firma di F1A.1 (`half4 glassLight(p, d, normal)`) non c'è più: da F1A.3b la luce ha due parti che si
+    // compongono in due modi, e F1A.5 ha tolto la funzione che le fondeva in un colore non valido.
+    assertTrue(
+      "void glassLightParts(float2 p, float d, float2 normal, bool lit, out half4 glowing, out half4 rim)" in
+        GlassLightBlock,
+    )
+    assertFalse("half4 glassLight(" in GlassLightBlock)
     for (uniform in listOf(
       "uniform float rimWidth;", "layout(color) uniform half4 rimDark;", "uniform float2 reflexDir;",
       "uniform float2 reflexWidths;", "uniform float reflexStrength;", "uniform float reflexDepth;",

@@ -264,9 +264,16 @@ Compone ombra, corpo e luce **nell'ordine dell'engine** (piano 3.3):
    dai bordi (`body.inputs` puo' dare a un ingresso una catena sua);
 4. `clip`: il ritaglio hardware sulla sagoma. `false` dove la lastra cede o viaggia: allora ritaglia
    lo shader, e conta `marginDp`;
-5. `light`: lo shader della luce, **senza ingressi**, a risoluzione piena, posato in `SrcOver`
-   **sotto** il contenuto. Se ha un ingresso il banco si ferma (la luce non legge il fondale), a
-   meno che `light.inputs` lo dichiari;
+   `clipRadiusScale` (di serie 1) mette il ritaglio hardware a una frazione del raggio nominale,
+   con angoli circolari: l'engine ritaglia le lastre **raccordate** al 98% del raggio, perche' il
+   raccordo del campo esce dal cerchio nominale dello 0,44% del raggio sulla diagonale e il
+   ritaglio al raggio pieno assottiglierebbe il filo;
+5. `light`: lo shader della luce, **senza ingressi**, a risoluzione piena, **sotto** il contenuto.
+   Uno strato, oppure **una lista di strati** disegnati nell'ordine dato, ognuno col suo modo di
+   comporre (`blend`, di serie `SrcOver`): la luce a riposo dell'engine sono due disegni dello
+   stesso programma, prima la luce che somma (`lightPart` 0, `Plus`) e poi il filo (`lightPart` 1,
+   `SrcOver`). Se uno strato ha un ingresso il banco si ferma (la luce non legge il fondale), a
+   meno che il suo `inputs` lo dichiari;
 6. il contenuto (`contentLayer`, e gli strati di `content`: con `clip` falso sono ritagliati
    dall'alfa del corpo), poi i `children`, che campionano pagina + corpo, **mai** la luce ne' il
    contenuto: e' l'export di `drawBackdrop`.
@@ -275,8 +282,46 @@ Per il corpo `"12dp"` e i valori `$...` sono nel mondo rimpicciolito della cattu
 luce in pixel di schermo. Il filetto di `GlassEdge` non si rende.
 
 **Gli uniform di una scena `material` non si scrivono a mano**: li calcola `glassRecipe` e li scrive
-lo scrittore delle tracce dell'engine (piano 4.2). Fanno eccezione le prove di F1A.2-F1A.4, prima
-che la ricetta esista, che non diventano mai immagini di riferimento.
+il test `GlassSceneExportTest` dell'engine (piano 4.2). Fanno eccezione le prove di F1A.2-F1A.4
+(`scenes/f1a/prova-*`), scritte prima che la ricetta esistesse, che non diventano mai immagini di
+riferimento.
+
+### Le scene scritte dalla ricetta (`scenes/f1a/ricetta/`, `scenes/f1a/gusto/`)
+
+Non si modificano a mano: si rigenerano dall'engine, e servono un posto Gradle.
+
+```powershell
+$env:GLASS_SCENE_DIR = "tools/glassbench/scenes/f1a"
+powershell -File artifacts\liquid-glass\tools\build-gradle.ps1 `
+  -Task ":engine-ui:testDebugUnitTest --tests *GlassSceneExportTest --rerun" -Name lg-scene
+```
+
+- `ricetta/`: le inquadrature di `scenes/rif/` (tranne il bordo dello scorrimento) con ogni lastra
+  di oggi sostituita da cio' che `glassRecipe` da' per quel ruolo, quella taglia e quel lato.
+  Fondale, pagina e finestre di misura sono quelli di `rif/`: `measure` da' per il materiale nuovo
+  gli stessi numeri della tabella «oggi»;
+- `gusto/`: il **campione** delle tavole (tasto 44 dp, capsula, tab bar 62 dp, menu, pannello
+  grande), una scena per variante di gusto e per lato (`serie-chiaro` e' la combinazione di serie;
+  `bordo-ios26-chiaro`, `smeriglio-mista-scuro`, ...), piu' `oggi-chiaro` e `oggi-scuro`, le stesse
+  lastre col vetro di oggi. Ogni lastra porta in `_ricetta` cio' che ha chiesto alla ricetta.
+
+Una scena vale a densita' 3 e 2,125: la scelta fra raccordo e raggio equivalente dipende dai pixel,
+e lo scrittore si ferma se una lastra cadrebbe da due parti diverse.
+
+### Le tavole di gusto (`tavola`)
+
+```powershell
+& $py $gb tavola tools\glassbench\scenes\f1a\tavole\1-bordo.json -o artifacts\liquid-glass\tavole\f1a
+```
+
+Una tavola e' una griglia descritta in JSON (`tavola.py`, in testa, dice i campi): una colonna per
+variante (una lettera, un nome, una scena di `gusto/`), una riga per inquadratura (un fondo di
+`fondi.json`, un ritaglio del campione in dp, a taglia vera o ingrandito a pixel pieni), e strisce
+di ritagli di Apple. **Non tocca un numero del materiale**: cambia fondale, pagina e inquadratura.
+Ogni cella rende per intero le lastre che il ritaglio tocca e poi ritaglia (una lastra tagliata
+dal bordo della tela catturerebbe il vuoto). I render delle celle stanno in una cache
+(`artifacts/liquid-glass/bench/tavole-cache`, `--no-cache` per rifarli), sotto l'impronta della
+scena e dei sorgenti dell'engine.
 
 ### Il contenuto nel suo layer, con un effetto a shader
 
@@ -510,8 +555,15 @@ verdi e con i controlli di selezione del percorso.
 Quando una immagine non torna, `compare --golden` dice quale sorgente dell'engine e' cambiata da
 quando le immagini sono state create, e avvisa se le versioni installate non sono quelle del
 manifesto. Le immagini si riscrivono solo di proposito (`golden classic --update`, che rifiuta
-versioni diverse da `requirements.txt` senza `--force`), con il diff nel rapporto. La famiglia
-`golden/liquid/` nascera' con la ricetta (F1A): stessa forma, un manifesto suo.
+versioni diverse da `requirements.txt` senza `--force`), con il diff nel rapporto.
+
+`golden/liquid/` sono le immagini del **materiale nuovo**, lastre ferme: 13 PNG a densita' 2, dalle
+scene scritte dalla ricetta (le sei pagine, `rif-bianco-nero`, `rif-tinta`, `rif-lente-griglia`,
+`rif27-tabbar`, `rif27-scuro`, e il campione chiaro e scuro). Stessa forma di `classic`, un
+manifesto suo (`compare --golden liquid`, `golden liquid --update`). Provano gli shader di
+`glass/field`, la regola dell'ombra a riposo e i numeri del profilo di serie passati per
+`glassRecipe`; non l'innesto in `glassSurface`, ne' il dispositivo. Si rigenerano a ogni fase che
+cambia il materiale di proposito: prima si riesportano le scene, poi `--update`.
 
 ## Aggiungere uno shader nuovo
 
@@ -688,6 +740,10 @@ scenes/rif/          le inquadrature dei frame di Apple (R4, R5) e le sei pagine
 scenes/s1/           la riga «oggi» della pagina «Misure» uguale a uno scatto del Tab S9, col fondale e gli scatti
 shaders/             le sonde
 traces/              le tracce del banco del movimento (TRACE.md); `check` compila anche i loro `.agsl`
+tavola.py            le tavole di gusto: varianti in colonna, inquadrature in riga, ritagli di Apple
+scenes/f1a/          prova-* (prove a mano di F1A.1-F1A.4), ricetta/ e gusto/ (scritte dalla ricetta
+                     dell'engine: non si modificano a mano), tavole/ (le descrizioni delle tavole)
 golden/classic/      immagini di riferimento del vetro di oggi, manifesto, scene proprie
+golden/liquid/       immagini di riferimento del materiale nuovo, dalle scene scritte dalla ricetta
 icons/               (quando c'e') i tracciati di FluidIcons scritti dal generatore
 ```

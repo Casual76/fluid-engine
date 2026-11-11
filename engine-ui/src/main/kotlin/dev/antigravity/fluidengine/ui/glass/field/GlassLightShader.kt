@@ -16,9 +16,10 @@
  * dito il contorno si assottiglierebbe. Decisione dell'orchestratore del 2026-11-11 (F1A.3b), sul rapporto di
  * F1A.3; sostituisce «un solo modo di comporre» del piano (3.3).
  *
- * Qui ci sono, nell'ordine: i numeri che danno forma alle curve (costanti dentro la sorgente), i valori di
- * serie degli uniform (che la ricetta e il profilo di F1A.5 raccolgono da qui), il blocco che il corpo include
- * in viaggio, e i due programmi della luce a riposo.
+ * Qui ci sono, nell'ordine: i numeri che danno forma alle curve (costanti dentro la sorgente), il blocco che il
+ * corpo include in viaggio, e i due programmi della luce a riposo. I valori di serie degli uniform **non** sono
+ * qui: da F1A.5 stanno nel profilo ([GlassLiquidEdge], [GlassLiquidEdges] in `GlassLiquidProfile.kt`), con le
+ * loro fonti, e li imposta la ricetta (`glassRecipe`).
  *
  * ### Da dove viene la forma del bordo
  * Dalle schede M1, M3 e M4 di R5, e da una lettura fatta per questo pacchetto sul ritaglio di Apple
@@ -117,101 +118,6 @@ internal const val GlassLightMinSlope: Float = 0.15f
  */
 internal const val GlassLightGlowCore: Float = 0.5f
 
-// ---------------------------------------------------------------------------------------------------------
-// I valori di serie degli uniform. Stanno qui, in un punto solo, finché la ricetta e il profilo (F1A.5) non
-// li raccolgono; le scene `prova-luce-*` del banco li ricopiano a mano, ed è l'unico altro posto. Le
-// lunghezze sono in dp: chi imposta gli uniform le porta in pixel dello spazio dello shader.
-// ---------------------------------------------------------------------------------------------------------
-
-/**
- * Lo spessore del filo, in dp (`rimWidth`). **Assoluto**: lo stesso su tasto, capsula, menu e pannello.
- *
- * R5 M4 (alta): 2–3 px su una tab bar alta 197 px, cioè 62 pt: 0,63–0,94 pt, e «la compressione allarga». Sul
- * ritaglio T6 il filo dei fianchi pesa quanto 1,7 px pieni, cioè 0,53 pt. R4 A1 dà la regola «assoluto».
- * Sei decimi di dp: 1,3 px sul tablet (densità 2,125) e 1,8 px a densità 3.
- */
-internal const val GlassLightRimWidthDp: Float = 0.6f
-
-/**
- * Quanto è sfumato il bordo interno del filo, 0..1 (`rimFeather`). A occhio sul banco, 2026-11-11: abbastanza
- * perché il filo si sciolga nel corpo invece di chiudersi con un secondo bordo netto, non tanto da farne
- * un'ombra interna.
- */
-internal const val GlassLightRimFeather: Float = 0.4f
-
-/**
- * L'alfa del filo scuro sul lato chiaro, dove è più forte, cioè sui fianchi (`rimDark`; il colore è nero).
- * R5 M1, M4 (alta): −45…−80 livelli al pixel; sul tondo su bianco 172–203 (−50…−81). Ritaglio T6: 150–156 sui
- * fianchi di un corpo a 236 (−82…−88). Con 0,38 il banco dà −77 sui fianchi nella scena del T6 e −82 sul
- * tondo su bianco: il tetto del bersaglio. Con 0,42, che ricalca il T6, il tondo su bianco usciva a −91.
- */
-internal const val GlassLightRimDarkAlpha: Float = 0.38f
-
-/**
- * Di quanto il filo cede dentro i lobi di luce (`rimLift`, qui fra 0 e 1). Ritaglio T6 (media): il filo in
- * alto e in basso pesa il 64% di quello dei fianchi. Qui 0,30 e non 0,36 perché il filo dei fianchi è già
- * tenuto sotto quello del T6 ([GlassLightRimDarkAlpha]): in alto e in basso resta quello misurato, −40…−60.
- */
-internal const val GlassLightRimLift: Float = 0.30f
-
-/**
- * La mezza ampiezza dei due lobi di serie, in radianti (80°): `reflexWidths`. Ritaglio T6 (media): la riga è
- * piena fino a 60° dalla verticale e quasi nulla a 75°; in alto e in basso uguale. R5 M1, M4: «in alto e in
- * basso».
- */
-internal const val GlassLightReflexHalfWidth: Float = 1.396f
-
-/**
- * La forza del riflesso (`reflexStrength`): quanta luce la riga chiara **somma**, in frazione del bianco. Un
- * decimo sono 25,5 livelli, e **uno solo vale per i due lati**, che è il motivo per cui la luce somma:
- *  - sul corpo chiaro satura: 237 + 25 dà 255, cioè +18 (ritaglio T6: +13…+19; R5 M4, alta: 250–254 su
- *    240–243, «saturo»);
- *  - sul vetro chiaro sopra un fondo scuro +25 (R5 M3, media: +26…+27 su un corpo a 141–146);
- *  - sul tema scuro +26 (R5 M3, bassa: +10…+25 su un corpo a 58–78).
- * Fino a F1A.3 erano due numeri, 0,95 sul chiaro e 0,11 sullo scuro, e il vetro chiaro sopra uno scuro ne
- * chiedeva un terzo (0,23) scritto a mano. Misure sul banco, scene `prova-luce-rif27-*`.
- */
-internal const val GlassLightReflexStrength: Float = 0.10f
-
-/**
- * Per quanti dp l'alone rientra nel corpo (`reflexDepth`). R5 M4 (media): «torna al corpo in ≈0,08 H» su una
- * tab bar da 62 pt, cioè 5 pt, dove torna vuol dire che non si distingue più; sul ritaglio T6 arriva a zero in
- * 6–7 pt. È una lunghezza assoluta come il filo; se la ricetta la fa crescere con la taglia è una sua scelta
- * (su un tasto da 44 dp sono 7 dp per parte, a occhio regge).
- */
-internal const val GlassLightReflexDepthDp: Float = 7.0f
-
-/** Quanta riga chiara resta sui fianchi, fuori dai lobi (`reflexFloor`). Ritaglio T6: niente. */
-internal const val GlassLightReflexFloor: Float = 0.0f
-
-/**
- * La forza dell'alone rispetto alla riga, 0..1 (`reflexHalo`). Ritaglio T6 (media): dove non satura l'alone
- * parte da +11…+14 e si spegne in ≈20 px; con la riga a 25,5 livelli sono 0,45.
- */
-internal const val GlassLightReflexHalo: Float = 0.45f
-
-/**
- * Il bagliore del tocco di oggi tradotto negli uniform della luce: `glow` al massimo della pressione, e
- * `glowFill`. `glassButtonGlowRecipe` stende un velo di 0,10 su tutta la faccia e ci somma un punto di 0,15
- * che segue il dito, bianchi e in `Plus`: è `0,25 * mix(campana, 1, 0,4)`, alla lettera, e ora che la luce
- * somma è anche la stessa resa: +64 sotto il dito e +25 lontano, su qualunque corpo (sul chiaro satura al
- * bianco, come oggi). Il raggio resta il lato lungo. Il banco lo prova: `prova-luce-bagliore-oggi` e
- * `-oggi-scuro` mettono il bagliore nuovo accanto a quello di oggi «com'è scritto», e dentro la sagoma sono
- * uguali al livello.
- *
- * **Com'è scritto non è detto che sia com'è.** La sorgente di oggi (`GlassGlowShaderString`) restituisce
- * `color * intensity`, e `color` è uno uniform `layout(color)`: arriva **non premoltiplicato**, quindi con il
- * bianco al 15% l'uscita ha rgb = intensità e alfa = 0,15 × intensità. Il banco (Skia in software) la somma
- * così com'è: il punto di oggi rende **bianco pieno** fino a metà raggio, qualunque sia l'alfa (terza riga
- * delle stesse scene). Se il tablet fa lo stesso, il bagliore «di oggi» che Alessio ha visto non è 0,15 ma
- * quasi 1, e la taratura di F6 parte da lì. È una voce del backlog del dispositivo; qui i numeri sono quelli
- * scritti nella ricetta.
- */
-internal const val GlassLightGlowPeak: Float = 0.25f
-
-/** Vedi [GlassLightGlowPeak]. */
-internal const val GlassLightGlowFill: Float = 0.4f
-
 /**
  * La **luce** del materiale `Liquid` come blocco AGSL: filo sul perimetro, riflessi chiari interni, bagliore
  * del dito.
@@ -292,15 +198,15 @@ internal const val GlassLightGlowFill: Float = 0.4f
  *
  * Fuori dalla sagoma (`d > 0`) i valori non contano: chi chiama li moltiplica per una copertura nulla.
  *
- * ### `half4 glassLight(float2 p, float d, float2 normal)`: le due parti in un colore solo. Non si usa
- * È la firma lasciata da F1A.1 (la tiene ferma `GlassFieldGeometryTest`), e oggi **nessun programma la
- * chiama**. Restituisce `(glowing.rgb * (1 - rim.a) + rim.rgb, rim.a)`: posato in `SrcOver` dà
- * `(sotto + luce) * (1 - filo) + filo`, cioè somma e filo in **un disegno solo** invece di due. Ma è un
- * colore con rgb maggiore dell'alfa, cioè un premoltiplicato **non valido**: Skia in software lo somma come
- * ci si aspetta (provato sul banco: 128 + 64 = 192), nessuno l'ha provato su un dispositivo, e su un pannello
- * a gamma larga la conversione di colore può riportarlo dentro l'alfa, cioè azzerare la luce. Resta come
- * **leva di ottimizzazione da provare sul tablet** (F7): se regge su Mali e Adreno, la luce a riposo torna a
- * un `drawRect`. Fino ad allora la strada è due disegni. (Non satura prima del filo: dove la luce porta il
+ * ### Un disegno solo invece di due: una leva di F7, non scritta qui
+ * Fino a F1A.4 il blocco aveva anche `half4 glassLight(p, d, normal)`, la firma lasciata da F1A.1: le due
+ * parti in un colore solo, `(glowing.rgb * (1 - rim.a) + rim.rgb, rim.a)`, che posato in `SrcOver` dà
+ * `(sotto + luce) * (1 - filo) + filo`. Nessun programma la chiamava, e F1A.5 l'ha tolta: è un colore con rgb
+ * maggiore dell'alfa, cioè un premoltiplicato **non valido**, che Skia in software somma come ci si aspetta
+ * (provato sul banco: 128 + 64 = 192) ma che nessuno ha provato su un dispositivo (su un pannello a gamma
+ * larga la conversione di colore può riportarlo dentro l'alfa, cioè azzerare la luce). Resta come **leva di
+ * ottimizzazione da provare sul tablet** (F7): sono quattro righe sopra `glassLightParts`, e se reggono su
+ * Mali e Adreno la luce a riposo torna a un `drawRect`. (Non satura prima del filo: dove la luce porta il
  * corpo oltre il bianco, il filo esce più chiaro che con i due disegni.)
  *
  * ### Com'è fatta, e perché
@@ -438,13 +344,7 @@ void glassLightParts(float2 p, float d, float2 normal, bool lit, out half4 glowi
     half light = half(clamp(reflex + touch, 0.0, 1.0)) * lightColor.a;
     glowing = half4(lightColor.rgb * light, light);
 }
-
-half4 glassLight(float2 p, float d, float2 normal) {
-    half4 glowing;
-    half4 rim;
-    glassLightParts(p, d, normal, true, glowing, rim);
-    return half4(glowing.rgb * (1.0 - rim.a) + rim.rgb, rim.a);
-}"""
+"""
 
 /**
  * La luce a riposo di **una lastra**: nessun ingresso, sopra il corpo e sotto il contenuto. È il programma di
@@ -465,7 +365,7 @@ half4 glassLight(float2 p, float d, float2 normal) {
  *
  * ### uniform (oltre a quelli di [GlassFieldKernel1] e di [GlassLightBlock])
  * - `float lightPart`: quale parte restituire. Sotto 0,5 la luce che somma, sopra il filo. Non c'è un valore
- *   per «tutte e due in un disegno»: sarebbe l'uscita non valida di `glassLight` (vedi [GlassLightBlock]);
+ *   per «tutte e due in un disegno»: sarebbe un premoltiplicato non valido (vedi [GlassLightBlock]);
  * - `float materialize`: 0 = niente luce, 1 = piena. È lo stesso uniform del corpo e porta lo stesso valore:
  *   `intensity` (piano 3.3) e la comparsa;
  * - `float aa`: la larghezza in pixel dell'antialias della maschera, la stessa del corpo (1,25): filo e

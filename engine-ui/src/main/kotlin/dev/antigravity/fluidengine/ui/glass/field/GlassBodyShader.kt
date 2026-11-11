@@ -13,8 +13,9 @@
  * template `$Nome`, un passaggio del campo per pixel, cicli a limite costante, distanze in `float` e colori in
  * `half`, niente derivate, nessun nome che sia una parola di GLSL o di SkSL.
  *
- * I numeri che decidono l'aspetto non stanno nelle sorgenti: sono uniform, e i loro valori di serie stanno
- * tutti in [GlassBodyDefaults], in fondo a questo file. La ricetta e il profilo (F1A.5) li raccolgono da lì.
+ * I numeri che decidono l'aspetto non stanno nelle sorgenti e non stanno in questo file: sono uniform, i loro
+ * valori di serie sono nel profilo ([GlassLiquidProfile], `GlassLiquidProfile.kt`) e li imposta la ricetta
+ * (`glassRecipe`). Fino a F1A.4 stavano qui in coda, in `GlassBodyDefaults`: F1A.5 li ha spostati.
  */
 package dev.antigravity.fluidengine.ui.glass.field
 
@@ -61,11 +62,15 @@ import org.intellij.lang.annotations.Language
  *   *sotto* il bianco, su una pagina grigio chiaro sopra;
  * - `float veilAdapt`: 0 = il velo è quello di `veilColor`, uguale ovunque. Sopra zero il velo **si
  *   ispessisce dove lo sfondo gli somiglia**: la sua alfa diventa `a * (1 + veilAdapt * v²)`, con `v` = 1 meno
- *   la distanza fra la luminanza dello sfondo e quella del velo. È la legge che i bersagli di R5 chiedono e
- *   che un velo costante non dà (su bianco e su pagina chiara il corpo di iOS 27 è quasi opaco, su un colore
- *   saturo lascia passare metà): vale per i due lati senza cambiare formula, perché un velo scuro somiglia
- *   agli sfondi scuri. **In F1A resta a zero**: lato e velo vengono dal tema, e accenderla è lavoro di F2
- *   (piano 3.9), che la tara. La forma della legge è «a occhio», 2026-11-11;
+ *   la distanza fra lo sfondo e il velo **sul canale in cui distano di più**. È la legge che i bersagli di R5
+ *   chiedono e che un velo costante non dà (su bianco e su pagina chiara il corpo di iOS 27 è quasi opaco, su
+ *   un colore saturo lascia passare metà): vale per i due lati senza cambiare formula, perché un velo scuro
+ *   somiglia agli sfondi scuri. Il valore lo dà il profilo ([GlassLiquidVeil.adapt]); la parte guidata dalla
+ *   sonda è di F2 (piano 3.9). La forma della legge è «a occhio», 2026-11-11. **Ritoccata da F1A.5**: fino a
+ *   F1A.2 la distanza era fra le sole luminanze, e accesa portava il velo sopra un giallo saturo (luminoso
+ *   quanto il velo) da 0,44 a 0,77, fuori dal bersaglio più solido di R5 (M1, alta: ≈0,5 su colore saturo).
+ *   Sul canale più distante il giallo resta a 0,39–0,47 e i grigi non cambiano di un livello. Con `veilAdapt`
+ *   a zero le due leggi danno gli stessi pixel;
  * - `layout(color) half4 tintColor`, `float tintMode`, `float tintFollow`: la **tinta**, sopra il velo.
  *   `tintMode` 0 = pellicola fissa: il colore con la sua alfa, com'è, cioè la pellicola che oggi
  *   `glassSurface` disegna sopra la lente (compatibilità). `tintMode` 1 = la tinta di Apple: la tonalità
@@ -220,8 +225,10 @@ half4 glassBody(float2 coord) {
     half3 lumaWeights = half3(0.2126, 0.7152, 0.0722);
     half backdropLuma = dot(seen.rgb, lumaWeights);
 
-    // Il velo: piu' spesso dove lo sfondo gli somiglia, se `veilAdapt` lo chiede.
-    half likeness = 1.0 - abs(backdropLuma - dot(veilColor.rgb, lumaWeights));
+    // Il velo: piu' spesso dove lo sfondo gli somiglia, se `veilAdapt` lo chiede. La somiglianza e' sul canale
+    // che dista di piu': un giallo saturo e' luminoso quanto il velo, ma non gli somiglia.
+    half3 apart = abs(seen.rgb - veilColor.rgb);
+    half likeness = 1.0 - max(apart.r, max(apart.g, apart.b));
     half veil = clamp(veilColor.a * (1.0 + half(veilAdapt) * likeness * likeness), 0.0, 1.0) * half(amount);
     half4 body = glassBodyOver(half4(veilColor.rgb * veil, veil), seen);
 
@@ -306,152 +313,3 @@ $GlassBodyBlock
 half4 main(float2 coord) {
     return glassBody(coord);
 }"""
-
-/**
- * I valori di serie del corpo: **l'unico posto** in cui stanno i numeri che ne decidono l'aspetto. La
- * ricetta e il profilo (F1A.5) li leggono da qui; le scene di prova del banco
- * (`tools/glassbench/scenes/f1a/prova-corpo-*.json`) le scrive uno script che li legge da questo file
- * (`artifacts/liquid-glass/bench/f1a-2/genera_scene.py`), quindi un ritocco qui e una corsa le riallineano.
- *
- * Le lunghezze sono in dp. I colori sono `0xAARRGGBB`, non premoltiplicati, come `Color(...)` di Compose.
- * Dove c'è scritto «a occhio» la data è il 2026-11-11 e l'occhio è quello di chi ha tarato sul banco: la
- * scelta di Alessio arriva con le tavole di F1A.5 e va scritta qui al posto di questa.
- */
-internal object GlassBodyDefaults {
-  /** `aa`: la rampa della maschera, in pixel dello spazio dello shader. È quella di oggi. */
-  const val Aa: Float = 1.25f
-
-  /**
-   * `grain`: **spenta**. Mezzo livello di grana scioglie gli scalini delle rampe, ma alza il gradiente medio
-   * di una superficie liscia a circa 0,5 livelli per pixel, cioè falsa la «nitidezza che resta» di `measure`
-   * proprio dove si tara la smerigliatura (pavimento all'8% invece dell'1–4%). Sul banco gli scalini sono di
-   * un livello e larghi 10–13 px: se sul dispositivo si vedono (voce del backlog di F1A), il rimedio è 0,5.
-   */
-  const val Grain: Float = 0f
-
-  /** `pieceSmooth` dei grandi a riposo: lo `smoothing` di iOS dell'engine (`ContinuousCornerShape`). */
-  const val CornerSmoothing: Float = 0.6f
-
-  /**
-   * La saturazione della catena, prima della sfocatura. Oggi è 1,6 (`vibrancy`); 1,5 perché sotto un velo
-   * al 50% il colore resti «quello dello sfondo» senza diventare acido su una foto. A occhio.
-   */
-  const val Saturation: Float = 1.5f
-
-  /**
-   * Il **raggio di sfocatura** della catena per tasti, capsule e barre: è lui la smerigliatura (a riposo
-   * `w = 0`). Tarato con `measure` sulla capsula di R4 A5 (`prova-corpo-rif-capsula-testo`), dove il vetro di
-   * iOS 26 corrisponde a 4,5 dp (26% di contrasto, 10–12% di nitidezza: è il raggio del ruolo `Floating` di
-   * oggi): con 12 dp resta il **9,8% del contrasto** (R5 M1: 6–13%, alta nel rapporto) e il **4,3% della
-   * nitidezza, cioè il 38–43% di quella di iOS 26** (R5 M1: 35–45%, alta nel rapporto). Sull'arte sintetica
-   * di `rif27-tabbar` lo stesso raggio lascia il 22% (fuori): quella scena ha più basse frequenze dell'arte
-   * di Apple, e nemmeno il vetro «iOS 26» ci sta nei suoi numeri (48% contro 19–27%). Vedi il rapporto di F1A.2.
-   */
-  const val FrostBlurDp: Float = 12f
-
-  /**
-   * Il raggio per menu e pannelli: «non meno smerigliati di una barra» (piano, tabella di F1A), e in iOS 26
-   * lo erano il doppio (R4 A4). Un passo sopra la barra, **a occhio**: è una delle scelte di gusto («i grandi»).
-   */
-  const val FrostBlurLargeDp: Float = 18f
-
-  /**
-   * La variante «ancora più smerigliata» delle tavole: sull'arte di `rif27-tabbar` porta il contrasto al 13%
-   * e l'intervallo del testo dietro la barra a 16 livelli (R5 M1: 16), ma sul testo di R4 A5 lascia il 10%
-   * della nitidezza di iOS 26 invece del 35–45%. Non è di serie.
-   */
-  const val FrostBlurWideDp: Float = 24f
-
-  /**
-   * `veilColor` sul lato chiaro: un grigio quasi bianco al 50%. Misurato: +4 su pagina 238 (R5 M4: +2…+5,
-   * alta), −4/−5 su bianco 253 e 255 (R5 M4: −4…−11, alta), 48% su colore saturo e scuro (R5 M1: ≈0,5,
-   * alta), 148 su foto a luma 50 (R5 M3: 141–146 ±2, media). Fuori di mezzo livello: +5,5 su pagina 235
-   * (R5 M1: +8 ±2). Un velo costante non può dare insieme +8 su 235 e 146 su 51: lo dà `veilAdapt` (F2).
-   */
-  const val VeilLight: Long = 0x80F6F6F8
-
-  /**
-   * `veilColor` sul lato scuro, proposta **più chiara**: 67 sulla pagina `#0D0D0F`, 60 sul nero, 71 sul varco
-   * nero di `rif27-scuro` (R5 M3: 58–78, bassa). Il tema scuro è quasi non misurato: **a occhio**, ed è
-   * una delle scelte di gusto.
-   */
-  const val VeilDark: Long = 0x80787880
-
-  /** `veilColor` sul lato scuro, proposta **più profonda**: 50 sulla pagina scura, 45 sul nero. A occhio. */
-  const val VeilDarkDeep: Long = 0x9E48484E
-
-  /**
-   * `veilAdapt`: zero in F1A (lato e velo vengono dal tema). Il valore che sul banco chiude i bersagli di
-   * R5 sul lato chiaro è 0,8 (vedi il rapporto di F1A.2): è un punto di partenza per F2, non una taratura.
-   */
-  const val VeilAdapt: Float = 0f
-
-  /**
-   * `bodyShade` sul lato chiaro: nero al 7%. Con profondità e sbilanciamento qui sotto, il tondo su bianco
-   * 253 misura 243 in alto, 249 al centro, 248 in basso (R5 M4: 243 in alto, 249 in basso, media).
-   */
-  const val ShadeLight: Long = 0x12000000
-
-  /** `bodyShade` sul lato scuro: più forte, perché un 7% di nero su un corpo a 60 non si vede. A occhio. */
-  const val ShadeDark: Long = 0x33000000
-
-  /** `bodyShadeDepth`: mezzo tasto da 44 dp; chi prepara gli uniform la limita a mezzo lato corto. A occhio. */
-  const val ShadeDepthDp: Float = 22f
-
-  /**
-   * La lunghezza di `bodyShadeLean`, verso l'alto `(0, -ShadeLean)`: l'ombreggiatura è 4 volte più forte in
-   * alto che in basso, come il tondo di R5 M4. Zero dà il «più scuro verso i bordi» della tab bar disegnata;
-   * girato in diagonale dà il gradiente del tondo di iOS 26 (R4 A2), che resta una variante.
-   */
-  const val ShadeLean: Float = 0.6f
-
-  /** `tintFollow`: su nero la tinta scende al 58% del suo valore, su bianco resta piena (R4 A7, alta). */
-  const val TintFollow: Float = 0.42f
-
-  /** `dispersion` dove il ruolo la chiede (oggi i soli tasti): il blu piega il 30% in più. A occhio. */
-  const val Dispersion: Float = 0.3f
-
-  /**
-   * La **lente**, tre proposte (né R4 né R5 la misurano: è una scelta di gusto, «a occhio»). Ognuna sono tre
-   * numeri: `Band` = `thickness` come frazione del lato corto (mai oltre [LensBandMaxDp]); `Bend` =
-   * `refraction` come multiplo di `thickness`; `Dome` = la cupola di un pezzo da 44 dp, che scende a zero a
-   * [LensDomeFadeEndDp] di lato corto. La leggera lascia fermo il 68% centrale di una lente tonda (R4 A2,
-   * bassa: ≈60%), la media il 52%; la marcata su una capsula da 56 dp è la lente del ruolo `Floating` di
-   * oggi (19 dp di banda, 24 di spostamento). Sotto la smerigliatura di serie le tre si distinguono poco:
-   * si vedono in viaggio, nella comparsa e nella variante limpida.
-   */
-  const val LensLightBand: Float = 0.16f
-
-  /** Vedi [LensLightBand]. */
-  const val LensLightBend: Float = 0.6f
-
-  /** Vedi [LensLightBand]. */
-  const val LensLightDome: Float = 0.3f
-
-  /** Vedi [LensLightBand]. La media è quella delle scene di prova. */
-  const val LensMediumBand: Float = 0.24f
-
-  /** Vedi [LensLightBand]. */
-  const val LensMediumBend: Float = 0.9f
-
-  /** Vedi [LensLightBand]. */
-  const val LensMediumDome: Float = 0.5f
-
-  /** Vedi [LensLightBand]. */
-  const val LensStrongBand: Float = 0.34f
-
-  /** Vedi [LensLightBand]. */
-  const val LensStrongBend: Float = 1.25f
-
-  /** Vedi [LensLightBand]. */
-  const val LensStrongDome: Float = 0.8f
-
-  /** Il tetto della banda: su un pannello la lente è un bordo, non mezzo pannello. */
-  const val LensBandMaxDp: Float = 40f
-
-  /** Fino a questo lato corto la cupola è piena. */
-  const val LensDomeFadeStartDp: Float = 44f
-
-  /** Da questo lato corto in su la cupola è zero: un pannello non è una goccia. */
-  const val LensDomeFadeEndDp: Float = 120f
-}

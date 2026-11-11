@@ -1,0 +1,134 @@
+{
+  "titolo": "8 · Tutto insieme, tema chiaro: oggi e la combinazione proposta",
+  "domanda": "A sinistra il vetro di oggi, a destra la combinazione proposta di serie. Gli elementi sembrano oggetti tridimensionali, su un livello sopra la pagina?",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 1.8,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "oggi",
+      "nome": "il vetro di oggi",
+      "scena": "../gusto/oggi-{lato}.json"
+    },
+    {
+      "lettera": "nuovo",
+      "nome": "la combinazione proposta",
+      "scena": "../gusto/serie-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "pagina chiara dell'engine #F2F2F7: tasto, capsula, tab bar",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "bianco puro: tasto, capsula, tab bar",
+      "fondo": "bianco",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "testo: tasto, capsula, tab bar",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "foto: tasto, capsula, tab bar",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "pagina chiara dell'engine #F2F2F7: menu e pannello (rimpiccioliti)",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        14,
+        14,
+        872,
+        412
+      ],
+      "density": 1.05
+    },
+    {
+      "etichetta": "foto: menu e pannello (rimpiccioliti)",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        14,
+        872,
+        412
+      ],
+      "density": 1.05
+    },
+    {
+      "etichetta": "il tasto sulla pagina, ingrandito 5 volte",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        22,
+        31,
+        60,
+        60
+      ],
+      "zoom": 5,
+      "density": 3.0
+    },
+    {
+      "etichetta": "il capo della capsula sulla pagina, ingrandito 6 volte (senza icone)",
+      "fondo": "pagina-chiara",
+      "ritaglio": [
+        100,
+        29,
+        50,
+        28
+      ],
+      "zoom": 6,
+      "density": 3.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "Apple, iOS 27",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/T6_scheda_prominente_269_0519.jpg",
+          "ritaglio": [
+            120,
+            20,
+            1290,
+            230
+          ],
+          "etichetta": "Apple iOS 27: tab bar e tondo su pagina 238 (T6)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/E1_bordo_scorrimento_alto_278.jpg",
+          "ritaglio": [
+            790,
+            870,
+            140,
+            120
+          ],
+          "etichetta": "iOS 27: tasto su bianco (E1)"
+        }
+      ],
+      "altezza": 230
+    }
+  ]
+}

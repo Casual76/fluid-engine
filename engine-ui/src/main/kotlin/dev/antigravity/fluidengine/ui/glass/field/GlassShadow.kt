@@ -36,8 +36,6 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
-import dev.antigravity.fluidengine.ui.fluid.glassShadowColor
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.HighlightLayerMaxPx
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.layerResolutionScale
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.blur
@@ -396,85 +394,30 @@ internal data class GlassShadowSpec(
 internal data class GlassShadowGrowth(val radius: Float, val alpha: Float)
 
 /**
- * I valori di serie dell'ombra e le varianti delle tavole di gusto: l'unico posto dove stanno.
- *
- * La ricetta (`glassRecipe`, F1A.5) parte da qui: sceglie la variante, applica la regola della taglia con
- * [GlassShadowSpec.grown], la forza con [GlassShadowSpec.scaled] e il lato del tema con il colore.
+ * I nomi con cui F1A.4 chiamava i valori di serie dell'ombra. **I numeri non sono più qui**: da F1A.5 stanno
+ * nel profilo, in [GlassLiquidShadows] e [GlassLiquidGrowths] (`GlassLiquidProfile.kt`), con le loro fonti, e
+ * questi sono rimandi. Restano perché `GlassShadowTest` li nomina; il codice nuovo legge il profilo.
  */
 internal object GlassShadowDefaults {
 
-  /**
-   * L'ombra di serie: **corta e leggera, quella di iOS 27**.
-   *
-   * Bersaglio (R5 M1 e M4, fiducia alta): sotto una tab bar 2–4% al bordo (M4: 3–4% su pagina 238; M1: 1,7%
-   * a 0,03 H e a 0,1 H), nulla a 0,2–0,25 H; ai fianchi a 0,2 H niente. Tarata sul banco il 2026-11-11
-   * (`prova-ombra-rif27`, resa con la regola del nodo), sotto una barra alta 62 dp su pagina 238: 2,9% a
-   * 0,03 H, 1,2% a 0,1 H, niente a 0,2 H, massimo 3,8% a ridosso del bordo, estesa 0,17 H; ai fianchi e
-   * sopra, a 0,2 H, zero.
-   *
-   * Cosa resta fuori: sotto un **tasto tondo** su bianco R5 M4 misura meno dell'1% entro 0,15 D, e questa
-   * ricetta gli dà la stessa ombra della barra (3,0% a 0,03 D, 0,5% a 0,2 D). È una scelta, non una svista:
-   * la regola della taglia dell'engine non distingue 44 dp da 62 dp, e il difetto da chiudere è che il tasto
-   * «non sembra su un livello superiore». Se la tavola dell'ombra dice altrimenti, è un guadagno in più
-   * sotto i 64 dp.
-   *
-   * Lo scostamento (4 dp in giù) e la divisione fra contatto e ambiente non sono misurati: **a occhio**
-   * (2026-11-11), perché l'ombra stia sotto e non attorno (R5 M1: ai fianchi zero) e perché a ridosso del
-   * bordo ci sia una riga più scura dell'alone.
-   */
-  val Ios27: GlassShadowSpec = GlassShadowSpec(
-    contactRadius = 1.5.dp,
-    ambientRadius = 8.dp,
-    offset = DpOffset(0.dp, 4.dp),
-    contactAlpha = 0.024f,
-    ambientAlpha = 0.038f,
-  )
+  /** L'ombra di serie del lato chiaro: [GlassLiquidShadows.Ios27]. */
+  val Ios27: GlassShadowSpec get() = GlassLiquidShadows.Ios27
 
-  /**
-   * La variante «iOS 26» delle tavole: **larga**, una componente sola.
-   *
-   * Bersaglio (R4 A3, fiducia alta): sotto una capsula 3,7% a 0,20–0,24 H, estesa fino a 0,75 H; sopra
-   * 1,5–2%, ai lati 2%. R4 ne ricava (fiducia bassa) uno scostamento di 0,10–0,15 H e una sfocatura di
-   * 0,3–0,4 H: su una capsula da 56 dp sono 6,7 dp e una deviazione di 20 dp, cioè un raggio di 34 dp.
-   * Nessun contatto: in iOS 26 non c'è «mai una linea di contatto netta» (R4 A3).
-   */
-  val Ios26: GlassShadowSpec = GlassShadowSpec(
-    contactRadius = 0.dp,
-    ambientRadius = 34.dp,
-    offset = DpOffset(0.dp, 6.7.dp),
-    contactAlpha = 0f,
-    ambientAlpha = 0.09f,
-  )
+  /** La variante «iOS 26» delle tavole: [GlassLiquidShadows.Ios26]. */
+  val Ios26: GlassShadowSpec get() = GlassLiquidShadows.Ios26
 
-  /**
-   * La variante «oggi» delle tavole: l'ombra che `glassSurface` disegna nel modello `Classic`, negli stessi
-   * numeri. Una maschera sola di raggio [radius] (`GlassOptics.shadowRadius`), scesa di un sesto del raggio
-   * (`Shadow.offset`), nel colore del lato del tema ([glassShadowColor]: nero al 16% sul chiaro, al 10%
-   * sullo scuro) per il peso del ruolo [alpha] (`GlassOptics.shadowAlpha`).
-   */
-  fun today(radius: Dp, alpha: Float, darkSide: Boolean): GlassShadowSpec = GlassShadowSpec(
-    contactRadius = 0.dp,
-    ambientRadius = radius,
-    offset = DpOffset(0.dp, radius / 6f),
-    contactAlpha = 0f,
-    ambientAlpha = alpha.coerceIn(0f, 1f),
-    color = glassShadowColor(darkSide),
-  )
+  /** La variante «oggi» delle tavole: [GlassLiquidShadows.today]. */
+  fun today(radius: Dp, alpha: Float, darkSide: Boolean): GlassShadowSpec =
+    GlassLiquidShadows.today(radius, alpha, darkSide)
 
-  /**
-   * L'ombra dei **grandi** (menu, pannelli), che in iOS 27 nessuno ha misurato (in iOS 26 un menu aveva
-   * circa sette volte l'ombra della barra: R4 A3, media). Tre proposte per la tavola «i grandi», **a
-   * occhio** (2026-11-11): la scelta di Alessio diventa il valore di serie.
-   *
-   * Come una barra: l'ombra non cresce. Sotto un menu si legge appena.
-   */
-  val GrowthNone: GlassShadowGrowth = GlassShadowGrowth(radius = 0f, alpha = 0f)
+  /** I grandi «come una barra»: l'ombra di [GlassLiquidGrowths.None]. */
+  val GrowthNone: GlassShadowGrowth get() = GlassLiquidGrowths.None.shadow
 
-  /** Un passo in più: a guadagno pieno raggi doppi e alfa una volta e mezza. Vedi [GrowthNone]. */
-  val GrowthStep: GlassShadowGrowth = GlassShadowGrowth(radius = 1f, alpha = 0.5f)
+  /** I grandi «un passo in più»: l'ombra di [GlassLiquidGrowths.Step]. */
+  val GrowthStep: GlassShadowGrowth get() = GlassLiquidGrowths.Step.shadow
 
-  /** Due passi in più: a guadagno pieno raggi tripli e alfa doppie. Vedi [GrowthNone]. */
-  val GrowthTwoSteps: GlassShadowGrowth = GlassShadowGrowth(radius = 2f, alpha = 1f)
+  /** I grandi «due passi in più»: l'ombra di [GlassLiquidGrowths.TwoSteps]. */
+  val GrowthTwoSteps: GlassShadowGrowth get() = GlassLiquidGrowths.TwoSteps.shadow
 }
 
 // ------------------------------------------------------------------------------------------------------------

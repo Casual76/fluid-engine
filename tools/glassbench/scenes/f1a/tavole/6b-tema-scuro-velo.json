@@ -1,0 +1,105 @@
+{
+  "titolo": "6b · Il tema scuro: il velo",
+  "domanda": "Quanto e' scuro il vetro scuro? A = piu' chiaro (stacca di piu' dalla pagina). B = piu' profondo.",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 1.8,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "piu' chiaro",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "B",
+      "nome": "piu' profondo",
+      "scena": "../gusto/scuro-velo-profondo-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "pagina scura dell'engine #0D0D0F",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "nero puro",
+      "fondo": "nero",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "foto",
+      "fondo": "foto-scuro",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "testo",
+      "fondo": "testo-scuro",
+      "ritaglio": [
+        14,
+        14,
+        508,
+        94
+      ]
+    },
+    {
+      "etichetta": "il menu sulla foto",
+      "fondo": "foto-scuro",
+      "ritaglio": [
+        14,
+        134,
+        202,
+        224
+      ],
+      "density": 2.2
+    },
+    {
+      "etichetta": "Apple",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M3_tab_bar_scura_292_0632.jpg",
+          "ritaglio": [
+            100,
+            230,
+            1180,
+            220
+          ],
+          "etichetta": "Apple iOS 27: tab bar scura (M3)"
+        }
+      ],
+      "altezza": 220
+    },
+    {
+      "etichetta": "",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A6_chiaro_scuro.jpg",
+          "ritaglio": [
+            0,
+            30,
+            2100,
+            686
+          ],
+          "etichetta": "iOS 26: vetro chiaro e scuro su bianco e nero (A6)"
+        }
+      ],
+      "altezza": 300
+    }
+  ]
+}

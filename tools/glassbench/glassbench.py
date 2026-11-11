@@ -460,6 +460,35 @@ def cmd_golden(args) -> int:
 
 
 # --------------------------------------------------------------------------------------------
+# tavola
+# --------------------------------------------------------------------------------------------
+
+
+def cmd_tavola(args) -> int:
+    """Compone una tavola di gusto: varianti in colonna, inquadrature in riga (vedi tavola.py)."""
+    import tavola
+
+    code = 0
+    for raw in args.spec:
+        path = Path(raw).resolve()
+        spec = json.loads(path.read_text(encoding="utf-8"))
+        if args.out and len(args.spec) == 1 and args.out.suffix.lower() == ".png":
+            out = args.out
+        else:
+            out = (args.out or REPO_ROOT / "artifacts/liquid-glass/tavole") / f"{path.stem}.png"
+        cache = None if args.no_cache else (args.cache or DEFAULT_OUT / "tavole-cache")
+        try:
+            done = tavola.compose(spec, path, out, cache, salt=source_fingerprints())
+        except (KeyError, FileNotFoundError, ValueError) as error:
+            print(f"  ERRORE  {shown(path)}: {error}")
+            code = 1
+            continue
+        print(f"  scritta {shown(out)}  {done['size'][0]}x{done['size'][1]}  "
+              f"{done['columns']} colonne, {done['cells']} celle")
+    return code
+
+
+# --------------------------------------------------------------------------------------------
 # sheet
 # --------------------------------------------------------------------------------------------
 
@@ -743,6 +772,84 @@ def cmd_selftest(args) -> int:
     free = image_array(rendered(dict(scene, elements=[loose]), "materiale-senza-ritaglio").image)
     test("materiale: senza ritaglio hardware la maschera e' dello shader",
          float(np.abs(free - px).mean()) < 1.5, f"media {np.abs(free - px).mean():.2f}")
+
+    # 8a. piu' strati di luce, ognuno col suo modo di comporre (F1A.5): la luce a riposo dell'engine
+    # sono due disegni dello stesso programma, prima la luce che somma (`Plus`) e poi il filo
+    # (`SrcOver`). Devono dare gli stessi pixel di cio' che il banco sapeva gia' fare: uno strato
+    # nell'elemento `material` e il secondo come elemento `shader` posato sopra.
+    bare = {k: v for k, v in material.items() if k != "icons"}
+    explicit = ["22dp"] * 4  # un elemento `shader` non ha `$radii`: i raggi della capsula scritti in chiaro
+    base_light = dict(material["light"]["uniforms"], pieceRadii=[explicit])
+    adds = {"source": "file:../shaders/sonda-luce.agsl", "blend": "Plus",
+            "uniforms": dict(base_light, rimDark="#00000000", lightColor="#FFFFFF40")}
+    covers = {"source": "file:../shaders/sonda-luce.agsl",
+              "uniforms": dict(base_light, reflexStrength=0.0, reflexFloor=0.0)}
+    layered = rendered(dict(scene, elements=[dict(bare, light=[adds, covers])]), "materiale-due-luci", stages=True)
+    apart = rendered(dict(scene, elements=[
+        dict(bare, light=adds),
+        dict({k: bare[k] for k in ("x", "y", "w", "h", "radius")}, kind="shader", name="filo", clip=True,
+             inputs={}, **covers)]))
+    two = image_array(layered.image)
+    test("materiale: due strati di luce in lista danno gli stessi pixel di uno strato piu' un elemento `shader`",
+         int(np.abs(two - image_array(apart.image)).max()) == 0 and {"lastra-luce-0", "lastra-luce-1"} <= set(layered.stages),
+         f"scarto {np.abs(two - image_array(apart.image)).max()}, passate {sorted(layered.stages)}")
+    only_add = image_array(rendered(dict(scene, elements=[dict(bare, light=[adds])])).image)
+    no_light_bare = image_array(rendered(dict(scene, elements=[{k: v for k, v in bare.items() if k != "light"}])).image)
+    test("materiale: lo strato in `Plus` puo' solo schiarire, quello in `SrcOver` sopra scurisce",
+         int((only_add - no_light_bare).min()) >= 0 and int((only_add - no_light_bare).max()) > 5
+         and int((two - only_add).min()) < -5,
+         f"somma {int((only_add - no_light_bare).min())}..{int((only_add - no_light_bare).max())}, "
+         f"filo {int((two - only_add).min())}")
+    swapped = image_array(rendered(dict(scene, elements=[dict(bare, light=[covers, adds])])).image)
+    test("materiale: l'ordine degli strati di luce conta (il filo sotto la somma esce piu' chiaro)",
+         int(np.abs(swapped - two).max()) > 0 and float((swapped - two).mean()) >= 0.0,
+         f"scarto {np.abs(swapped - two).max()}")
+
+    # 8a2. il ritaglio hardware a una frazione del raggio nominale (`clipRadiusScale`): l'engine
+    # ritaglia le lastre raccordate al 98% del raggio. A 1 non cambia un pixel; sotto 1 scopre solo
+    # gli angoli.
+    square = dict(bare, radius=20, clip=False, marginDp=4)
+    square.pop("shadow")
+    nominal = image_array(rendered(dict(scene, elements=[dict(square, clip=True)])).image)
+    same = image_array(rendered(dict(scene, elements=[dict(square, clip=True, clipRadiusScale=1.0)])).image)
+    looser = image_array(rendered(dict(scene, elements=[dict(square, clip=True, clipRadiusScale=0.5)])).image)
+    by_shader = image_array(rendered(dict(scene, elements=[square])).image)
+    gap = np.abs(looser - nominal).max(axis=2)
+    ys, xs = np.nonzero(gap)
+    test("materiale: `clipRadiusScale` 1 e' il ritaglio di sempre",
+         int(np.abs(same - nominal).max()) == 0)
+    test("materiale: un ritaglio a meta' raggio cambia solo gli angoli, e li' lascia la maschera allo shader",
+         len(xs) > 0 and int(gap[60 + 20 * 3:60 + 24 * 3, :].max()) == 0 and int(gap[:, 90 + 30 * 3:90 + 90 * 3].max()) == 0
+         and int(np.abs(looser - by_shader)[ys, xs].max()) <= 2,
+         f"{len(xs)} pixel diversi; contro la maschera dello shader, li', {np.abs(looser - by_shader)[ys, xs].max() if len(xs) else '-'}")
+
+    # 8a3. le celle delle tavole di gusto (tavola.py): una lastra che il ritaglio taglia si rende per
+    # intero e si ritaglia dopo. Fuori dalla tela una lastra catturerebbe il vuoto e uscirebbe
+    # trasparente a meta': e' successo, e una tavola cosi' fa scegliere su un vetro che non esiste.
+    import tavola as sheets
+
+    sample = dict(scene, elements=[dict(bare, light=[adds, covers])])
+    ground = {"lato": "chiaro", "background": scene["background"]}
+    cell, (bx, by, bw, bh) = sheets.cell_scene(sample, ground, [100, 24, 40, 30], 3.0)
+    slab = cell["elements"][0]
+    test("tavola: la cella contiene per intero la lastra che il ritaglio taglia",
+         slab["x"] >= 0 and slab["y"] >= 0 and slab["x"] + slab["w"] <= cell["width"]
+         and slab["y"] + slab["h"] <= cell["height"] and (bw, bh) == (120, 90),
+         f"lastra a {slab['x']}, {slab['y']} in una tela {cell['width']} x {cell['height']}; ritaglio {bw} x {bh}")
+    whole = image_array(rendered(sample).image)
+    part = image_array(rendered(cell).image)[by:by + bh, bx:bx + bw]
+    flat_sample = dict(sample, background={"kind": "color", "color": "#E3E3E5"})
+    flat_cell, _ = sheets.cell_scene(flat_sample, {"lato": "chiaro", "background": flat_sample["background"]},
+                                     [100, 24, 40, 30], 3.0)
+    flat_whole = image_array(rendered(flat_sample).image)[72:162, 300:420]
+    flat_part = image_array(rendered(flat_cell).image)[by:by + bh, bx:bx + bw]
+    test("tavola: su un fondo piatto il ritaglio della cella e' quello della scena intera, al pixel",
+         int(np.abs(flat_part - flat_whole).max()) == 0, f"scarto {np.abs(flat_part - flat_whole).max()}")
+    test("tavola: il vetro della cella e' opaco come quello della scena intera (nessuna cattura nel vuoto)",
+         float(np.abs(part[:, :, :3].astype(float).mean() - whole[72:162, 300:420, :3].astype(float).mean())) < 12.0,
+         f"media {part[:, :, :3].mean():.1f} contro {whole[72:162, 300:420, :3].mean():.1f}")
+    far = sheets.cell_scene(sample, ground, [400, 300, 40, 30], 3.0)[0]
+    test("tavola: una lastra lontana dal ritaglio non si rende", far["elements"] == [])
 
     # 8b. posizioni sotto il pixel -----------------------------------------------------------
     import types
@@ -1380,6 +1487,13 @@ def main(argv=None) -> int:
     sheet.add_argument("--height", type=int)
     sheet.add_argument("--labels", help="etichette separate da |")
     sheet.set_defaults(run=cmd_sheet)
+
+    sheet_of = sub.add_parser("tavola", help="compone una tavola di gusto da una descrizione JSON")
+    sheet_of.add_argument("spec", nargs="+", help="una o piu' tavole (.json)")
+    sheet_of.add_argument("-o", "--out", type=Path, help="un .png (una tavola sola) o una cartella")
+    sheet_of.add_argument("--cache", type=Path, help="dove tenere i render delle celle")
+    sheet_of.add_argument("--no-cache", action="store_true", help="rende ogni cella da capo")
+    sheet_of.set_defaults(run=cmd_tavola)
 
     selftest = sub.add_parser("selftest", help="le prove del banco su se stesso")
     selftest.add_argument("-o", "--output", help="cartella delle immagini di prova")

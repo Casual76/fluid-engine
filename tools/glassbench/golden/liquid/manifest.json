@@ -1,0 +1,157 @@
+{
+  "_": "Immagini di riferimento del materiale nuovo (modello Liquid), lastre ferme. Le scene sono SCRITTE DALLA RICETTA dell'engine (GlassSceneExportTest: `scenes/f1a/ricetta/` e `scenes/f1a/gusto/serie-*`), quindi provano insieme gli shader di ui/glass/field (corpo, luce), la regola dell'ombra a riposo e i numeri del profilo di serie (GlassLiquidProfile.Default) passati per `glassRecipe`: un ritocco al profilo o a uno shader, riesportate le scene, le fa cambiare. Non provano l'innesto in glassSurface (F1A.6), ne' il dispositivo. Create da F1A.5 l'11/11/2026 con la combinazione di serie PROPOSTA, prima delle scelte di gusto di Alessio: dopo le scelte vanno rigenerate (riesportare le scene, poi `glassbench.py golden liquid --update`), con il diff nel rapporto. Si verificano con `glassbench.py compare --golden liquid`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`.",
+  "density": 2.0,
+  "icons": "service",
+  "scenes": [
+    {
+      "name": "pagina-chiara",
+      "scene": "scenes/f1a/ricetta/pagina-chiara.json",
+      "png": "pagina-chiara.png",
+      "sha256": "c0efee806504b2e416c44eabc4e9f5be9aa7455b07e035995b2d7498d7cea4c8",
+      "size": [
+        960,
+        540
+      ]
+    },
+    {
+      "name": "pagina-scura",
+      "scene": "scenes/f1a/ricetta/pagina-scura.json",
+      "png": "pagina-scura.png",
+      "sha256": "79940a93cd3109458e4663bba3d7458ca3cbbc7847a758adbfc53af6e8e637b1",
+      "size": [
+        960,
+        540
+      ]
+    },
+    {
+      "name": "pagina-nera",
+      "scene": "scenes/f1a/ricetta/pagina-nera.json",
+      "png": "pagina-nera.png",
+      "sha256": "dcb4d2568b714d0b00ff907c58ad3ad84466c02ccf65c0b791d445bb1c942951",
+      "size": [
+        960,
+        540
+      ]
+    },
+    {
+      "name": "pagina-bianca",
+      "scene": "scenes/f1a/ricetta/pagina-bianca.json",
+      "png": "pagina-bianca.png",
+      "sha256": "80da38c9df90bd55a91599490cba7629e7178701e7ea96b182ad8d5fa8313149",
+      "size": [
+        960,
+        540
+      ]
+    },
+    {
+      "name": "pagina-testo",
+      "scene": "scenes/f1a/ricetta/pagina-testo.json",
+      "png": "pagina-testo.png",
+      "sha256": "89f4c3bbc43a13f9e72fe743972850fd8fb6d234c6aff30adc23d8da79239e50",
+      "size": [
+        960,
+        540
+      ]
+    },
+    {
+      "name": "pagina-foto",
+      "scene": "scenes/f1a/ricetta/pagina-foto.json",
+      "png": "pagina-foto.png",
+      "sha256": "62a311d4f786f82b91e3517e703461a12870d6514fd2e8c610c88eee117e85a8",
+      "size": [
+        960,
+        540
+      ]
+    },
+    {
+      "name": "rif-bianco-nero",
+      "scene": "scenes/f1a/ricetta/rif-bianco-nero.json",
+      "png": "rif-bianco-nero.png",
+      "sha256": "8aefe89dc2722979e018123a43649ecf0e11a1bc698068c913044402a490a382",
+      "size": [
+        960,
+        600
+      ]
+    },
+    {
+      "name": "rif-tinta",
+      "scene": "scenes/f1a/ricetta/rif-tinta.json",
+      "png": "rif-tinta.png",
+      "sha256": "0e352394befe866bb84075f3962745842271723a285e358dffeed4a70f4494d9",
+      "size": [
+        960,
+        400
+      ]
+    },
+    {
+      "name": "rif-lente-griglia",
+      "scene": "scenes/f1a/ricetta/rif-lente-griglia.json",
+      "png": "rif-lente-griglia.png",
+      "sha256": "46de819e7bd03cfc929539cf1b27232c10dd3361d296b4d0816f65dd0e2c4b8f",
+      "size": [
+        600,
+        600
+      ]
+    },
+    {
+      "name": "rif27-tabbar",
+      "scene": "scenes/f1a/ricetta/rif27-tabbar.json",
+      "png": "rif27-tabbar.png",
+      "sha256": "14a1665e19b42fba69b98fa955e972cd36d17097521ba024f7c1dba7038c6aea",
+      "size": [
+        800,
+        340
+      ]
+    },
+    {
+      "name": "rif27-scuro",
+      "scene": "scenes/f1a/ricetta/rif27-scuro.json",
+      "png": "rif27-scuro.png",
+      "sha256": "39914bc9a093456bda30a39aeee0cdb227a9d539d45a1d6a93a8162d92eb7b31",
+      "size": [
+        840,
+        400
+      ]
+    },
+    {
+      "name": "campione-chiaro",
+      "scene": "scenes/f1a/gusto/serie-chiaro.json",
+      "png": "campione-chiaro.png",
+      "sha256": "779a13b44c2c7d7bcceaf1354e6e7b3160021b763e5430364ca078ef29743026",
+      "size": [
+        1800,
+        880
+      ]
+    },
+    {
+      "name": "campione-scuro",
+      "scene": "scenes/f1a/gusto/serie-scuro.json",
+      "png": "campione-scuro.png",
+      "sha256": "16aa3c692b7368a68b60fa560d8bef2c9416f9de1e3c4946c5ef3630c88165c7",
+      "size": [
+        1800,
+        880
+      ]
+    }
+  ],
+  "versions": {
+    "python": "3.11.9",
+    "skia-python": "144.1",
+    "numpy": "2.4.6",
+    "Pillow": "13.0.0"
+  },
+  "platform": "Windows-10-10.0.26300-SP0",
+  "sources": {
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Shaders.kt": "3272701cebb5d023",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsShaders.kt": "d68ce3d4e3530f36",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassBodyShader.kt": "d1b775306462bd38",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldGeometry.kt": "33ab17645042d76d",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "a28e6710cb30c606",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldKernel.kt": "0867be85590e0fdd",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLightShader.kt": "e7b9c1ef91e12dd4",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLiquidProfile.kt": "83fe42d317cc5f38",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassRecipe.kt": "5111642dd6fd1c2d",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassShadow.kt": "df7787895823e7ec",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "e2bd36d861ccb691"
+  }
+}

@@ -110,6 +110,33 @@ class ShaderSourceLintTest {
     if (problems.isNotEmpty()) fail(problems.joinToString("\n"))
   }
 
+  /**
+   * I programmi del materiale `Liquid` sono composti da blocchi che stanno in file diversi della stessa
+   * cartella: il lint deve leggere il testo intero, non una riga di `main` sotto cinque `$Nome` irrisolti.
+   */
+  @Test
+  fun theLintReadsTemplatesFromOtherFilesOfTheSamePackage() {
+    val found = EngineKotlinSources.shaders().associateBy { it.name }
+    for (source in listOf(
+      GlassShaderSources.Body1, GlassShaderSources.Body8, GlassShaderSources.Light1, GlassShaderSources.Light8,
+    )) {
+      val read = found[source.name] ?: error("${source.name} non è fra le sorgenti lette dai file")
+      assertTrue("${source.name}: resta un `\$` irrisolto", '$' !in read.body)
+      // Il nucleo (GlassFieldKernel.kt) e la luce (GlassLightShader.kt) stanno in due file.
+      assertTrue(source.name, "float glassField(float2 p, out float2 normal, out float2 center)" in read.body)
+      assertTrue(source.name, "void glassLightParts(" in read.body)
+      assertTrue("${source.name}: il testo letto non è quello compilato", read.body == source.text)
+    }
+    // Il corpo include anche l'ombra in viaggio (GlassShadow.kt), con le sue costanti scritte come le scrive Kotlin.
+    val body = found.getValue(GlassShaderSources.Body1.name).body
+    assertTrue("half4 glassTravelShadow(float2 p, float d)" in body)
+    assertTrue("3.0 * contactSigma" in body)
+    // E il lint, su quel testo intero, ferma ancora un nome riservato messo in un blocco di un altro file.
+    val broken = body.replace("float deep = -d;", "float flat = -d;")
+    assertNotEquals("Il blocco della luce non ha più `float deep`: la prova va riscritta.", body, broken)
+    assertTrue(AgslLint.check(broken).any { "`flat`" in it })
+  }
+
   /** Il difetto della 3.1.2, rimesso apposta nello shader vero: il lint lo deve fermare. */
   @Test
   fun theLintStopsTheFlatOfThreeOneTwo() {
@@ -805,8 +832,13 @@ private class KotlinShader(val file: File, val line: Int, val name: String?, val
 /**
  * Le stringhe di shader dei sorgenti di `engine-ui`, lette dai file come fa `tools/glassbench/kotlin_sources.py`:
  * una stringa grezza con un `main` AGSL, con `$Nome` e `${Nome}` risolti dalle stringhe e dalle costanti
- * numeriche dello stesso file. Non è un parser di Kotlin; se una forma nuova lo inganna, il confronto con il
- * testo compilato (in [ShaderSourceLintTest.everyShaderStringInTheSourcesIsKnownToTheProbe]) lo dice.
+ * numeriche dello stesso file e, se lì non ci sono, **degli altri file della stessa cartella**, cioè dello
+ * stesso pacchetto. Serve al materiale `Liquid`: `GlassBody1ShaderString` è una riga di `main` sotto cinque
+ * blocchi, e tre stanno in altri file (`$GlassFieldKernel1`, `$GlassLightBlock`, `$GlassTravelShadowBlock`).
+ * Finché il lint risolveva solo dentro il file, il testo che leggeva non era quello compilato.
+ *
+ * Non è un parser di Kotlin; se una forma nuova lo inganna, il confronto con il testo compilato (in
+ * [ShaderSourceLintTest.everyShaderStringInTheSourcesIsKnownToTheProbe]) lo dice.
  */
 private object EngineKotlinSources {
 
@@ -815,12 +847,24 @@ private object EngineKotlinSources {
   private val Interpolation = Regex("""\$\{(\w+)\}|\$([A-Za-z_]\w*)""")
   private val Entry = Regex("""\b(?:half4|float4|vec4)\s+main\s*\(""")
 
+  /** Ciò che un file dichiara: le stringhe grezze, quelle con un nome, e le costanti numeriche. */
+  private class Scan(
+    val file: File,
+    val text: String,
+    val raws: List<KotlinRawStrings.Raw>,
+    val named: Map<String, String>,
+    val nameAt: Map<Int, String>,
+    val numbers: Map<String, String>,
+  )
+
   private val cached: List<KotlinShader> by lazy {
-    root().walkTopDown()
+    val scans = root().walkTopDown()
       .filter { it.isFile && it.extension == "kt" }
       .sortedBy { it.path }
-      .flatMap { shadersIn(it) }
+      .map { scan(it) }
       .toList()
+    val byFolder = scans.groupBy { it.file.parentFile }
+    scans.flatMap { shadersIn(it, byFolder.getValue(it.file.parentFile)) }
   }
 
   fun shaders(): List<KotlinShader> = cached
@@ -834,7 +878,7 @@ private object EngineKotlinSources {
       )
   }
 
-  private fun shadersIn(file: File): List<KotlinShader> {
+  private fun scan(file: File): Scan {
     val text = file.readText().replace("\r\n", "\n")
     val raws = KotlinRawStrings.find(text)
     val named = HashMap<String, String>()
@@ -849,22 +893,31 @@ private object EngineKotlinSources {
     val numbers = NumberConstant.findAll(text).associate {
       it.groupValues[1] to kotlinNumber(it.groupValues[2], it.groupValues[3])
     }
+    return Scan(file, text, raws, named, nameAt, numbers)
+  }
+
+  private fun shadersIn(own: Scan, folder: List<Scan>): List<KotlinShader> {
+    // Prima il file stesso, poi gli altri della cartella nell'ordine dei percorsi: un nome è uno nel pacchetto
+    // (Kotlin non ne ammette due), quindi l'ordine conta solo se il lessico si è lasciato ingannare.
+    val scopes = listOf(own) + folder.filter { it !== own }
 
     fun resolve(body: String, trail: Set<String>): String = Interpolation.replace(body) { m ->
       val ref = m.groupValues[1].ifEmpty { m.groupValues[2] }
+      val string = scopes.firstNotNullOfOrNull { it.named[ref] }
+      val number = scopes.firstNotNullOfOrNull { it.numbers[ref] }
       when {
         ref in trail -> m.value
-        ref in named -> resolve(named.getValue(ref), trail + ref)
-        ref in numbers -> numbers.getValue(ref)
+        string != null -> resolve(string, trail + ref)
+        number != null -> number
         else -> m.value // resta com'è: il lint segnala il `$`
       }
     }
 
-    return raws.mapNotNull { raw ->
-      val name = nameAt[raw.open]
+    return own.raws.mapNotNull { raw ->
+      val name = own.nameAt[raw.open]
       val body = resolve(raw.body, setOfNotNull(name))
       if (!Entry.containsMatchIn(body)) return@mapNotNull null
-      KotlinShader(file, text.substring(0, raw.open).count { it == '\n' } + 1, name, body)
+      KotlinShader(own.file, own.text.substring(0, raw.open).count { it == '\n' } + 1, name, body)
     }
   }
 

@@ -1,0 +1,67 @@
+{
+  "titolo": "5 · La lente",
+  "domanda": "Quanto piega il bordo? A = leggera. B = media. C = marcata. Qui col materiale pieno: sotto la smerigliatura le tre si distinguono poco (la lente si vede davvero nella tavola 5b).",
+  "nota": "Sotto la smerigliatura di serie la lente si legge solo come colore che si addensa al bordo. Conta in viaggio, nella comparsa e nella variante limpida (tavola 5b). Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 2.25,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "leggera",
+      "scena": "../gusto/lente-leggera-{lato}.json"
+    },
+    {
+      "lettera": "B",
+      "nome": "media",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "C",
+      "nome": "marcata",
+      "scena": "../gusto/lente-marcata-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "griglia",
+      "fondo": "griglia",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "testo",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "foto",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "foto: la tab bar",
+      "fondo": "foto",
+      "ritaglio": [
+        278,
+        14,
+        244,
+        94
+      ]
+    }
+  ]
+}

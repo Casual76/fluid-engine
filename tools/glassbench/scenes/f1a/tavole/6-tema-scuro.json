@@ -1,0 +1,119 @@
+{
+  "titolo": "6 · Il tema scuro: il bordo",
+  "domanda": "Che bordo sul vetro scuro? A = solo il riflesso in alto e in basso. B = il riflesso e un filo chiaro sottile tutto intorno. C = com'e' oggi (riga bianca sopra e sotto).",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 2.25,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "solo riflesso",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "B",
+      "nome": "riflesso e filo",
+      "scena": "../gusto/scuro-filo-{lato}.json"
+    },
+    {
+      "lettera": "C",
+      "nome": "oggi",
+      "scena": "../gusto/scuro-oggi-{lato}.json"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "pagina scura dell'engine #0D0D0F",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "nero puro",
+      "fondo": "nero",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "foto",
+      "fondo": "foto-scuro",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "testo",
+      "fondo": "testo-scuro",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ]
+    },
+    {
+      "etichetta": "il capo della capsula sulla pagina scura, ingrandito 6 volte (senza icone)",
+      "fondo": "pagina-scura",
+      "ritaglio": [
+        100,
+        29,
+        33,
+        24
+      ],
+      "zoom": 6,
+      "density": 3.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "lo stesso sulla foto",
+      "fondo": "foto-scuro",
+      "ritaglio": [
+        100,
+        29,
+        33,
+        24
+      ],
+      "zoom": 6,
+      "density": 3.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "Apple",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M3_tab_bar_scura_292_0632.jpg",
+          "ritaglio": [
+            100,
+            230,
+            1180,
+            220
+          ],
+          "etichetta": "Apple iOS 27: tab bar scura (M3)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A1_bordo_di_luce.jpg",
+          "ritaglio": [
+            1131,
+            24,
+            565,
+            424
+          ],
+          "etichetta": "iOS 26: tasto scuro (A1)"
+        }
+      ],
+      "altezza": 230
+    }
+  ]
+}

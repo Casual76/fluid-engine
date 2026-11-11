@@ -1,0 +1,131 @@
+{
+  "titolo": "4 · La smerigliatura",
+  "domanda": "Quanto e come sfoca cio' che ha dietro? A = 12 dp. B = 24 dp, piu' fitta. C = larga, con un filo di nitido sopra (le lettere restano nitide ma tenui). D = poca, come iOS 26.",
+  "nota": "Il banco non e' il dispositivo: Skia in software, sRGB a 8 bit, nessun P3; lungo le curve l'antialias del ritaglio hardware puo' differire di qualche livello su una riga di pixel. La foto e' sintetica.",
+  "density": 1.875,
+  "fondi": "fondi.json",
+  "colonne": [
+    {
+      "lettera": "A",
+      "nome": "12 dp",
+      "scena": "../gusto/serie-{lato}.json",
+      "nota": "di serie"
+    },
+    {
+      "lettera": "B",
+      "nome": "24 dp",
+      "scena": "../gusto/smeriglio-24-{lato}.json"
+    },
+    {
+      "lettera": "C",
+      "nome": "larga e mista",
+      "scena": "../gusto/smeriglio-mista-{lato}.json",
+      "nota": "36 dp + 12% di nitido"
+    },
+    {
+      "lettera": "D",
+      "nome": "iOS 26",
+      "scena": "../gusto/smeriglio-ios26-{lato}.json",
+      "nota": "4,5 dp"
+    }
+  ],
+  "righe": [
+    {
+      "etichetta": "testo: la tab bar",
+      "fondo": "testo",
+      "ritaglio": [
+        278,
+        14,
+        244,
+        94
+      ]
+    },
+    {
+      "etichetta": "foto: la tab bar",
+      "fondo": "foto",
+      "ritaglio": [
+        278,
+        14,
+        244,
+        94
+      ]
+    },
+    {
+      "etichetta": "testo: tasto e capsula",
+      "fondo": "testo",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ],
+      "density": 1.75
+    },
+    {
+      "etichetta": "foto: tasto e capsula",
+      "fondo": "foto",
+      "ritaglio": [
+        14,
+        18,
+        262,
+        86
+      ],
+      "density": 1.75
+    },
+    {
+      "etichetta": "testo sotto la tab bar, ingrandito 3 volte (senza icone)",
+      "fondo": "testo",
+      "ritaglio": [
+        330,
+        34,
+        76,
+        54
+      ],
+      "zoom": 3,
+      "density": 2.0,
+      "senzaContenuto": true
+    },
+    {
+      "etichetta": "Apple: sopra iOS 27 (il testo dietro la tab bar e' tenue ma nitido), sotto iOS 26",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M1_tabbar_ios26_sopra_ios27_sotto.jpg",
+          "ritaglio": [
+            0,
+            536,
+            1540,
+            530
+          ],
+          "etichetta": "Apple iOS 27: accessorio e tab bar sopra arte e testo (M1)"
+        }
+      ],
+      "altezza": 300
+    },
+    {
+      "etichetta": "",
+      "striscia": [
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M1_tabbar_ios26_sopra_ios27_sotto.jpg",
+          "ritaglio": [
+            0,
+            0,
+            1540,
+            530
+          ],
+          "etichetta": "Apple iOS 26: la stessa scena (M1)"
+        },
+        {
+          "file": "artifacts/liquid-glass/riferimenti/ritagli/A5_smerigliatura.jpg",
+          "ritaglio": [
+            0,
+            20,
+            686,
+            570
+          ],
+          "etichetta": "iOS 26: capsula sul testo (A5)"
+        }
+      ],
+      "altezza": 300
+    }
+  ]
+}

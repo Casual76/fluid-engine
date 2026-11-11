@@ -1582,7 +1582,7 @@ striscia così sottile.
 | F2-b | il bordo dello scorrimento: nessuna immagine doppia, nessun disegno dei campioni, nessuna riga dove finisce | 9 |
 | F2-c | tempi del giro e profilo del bordo contro B6 e B7 | 8,5 |
 | F2-d | i grandi non girano: scuriscono in continuo; il lato segue lo sfondo anche quando il vetro è fermo e cambia solo ciò che ha dietro | 8,5 |
-| F2-e | leggibilità di testo e icone sul vetro in ogni stato del giro (contrasto misurato agli estremi) | 7,5 |
+| F2-e | leggibilità di testo e icone sul vetro in ogni stato del giro (contrasto misurato agli estremi). **Debito ereditato da F1A, misurato in F1A.8** (`artifacts/liquid-glass/bench/f1a-8/contrasto.md`): a contrasto di sistema standard il velo nuovo, col solo lato del tema, legge peggio di oggi il testo sopra i fondi opposti (tema chiaro su nero: flottante 4,92 → 3,76, modale 5,26 → 3,79; tema scuro su grigio medio: modale 5,63 → 3,72). F2 lo chiude col lato e l'inchiostro adattivi: **il rapporto inchiostro/corpo non è peggiore di oggi su nessun fondo del campione**, con la stessa tabella rifatta. Se non ci arriva, il ripiego è un pavimento del velo per ruolo (su nero tornerebbe a 4,70 / 5,03 / 5,37, col velo sui colori saturi a 0,52–0,56 contro lo 0,5 di R5) | 7,5 |
 | F2-f | costo: la sonda non gira quando niente cambia; la striscia sostituisce la fascia, non si somma | 7 |
 
 **Rischi e ripieghi.** Sfarfallio che nessuna isteresi doma (R3 rischio 5): il giro vale solo per vetro fermo sopra contenuto

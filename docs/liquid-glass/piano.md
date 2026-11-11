@@ -2439,8 +2439,24 @@ dichiarativa per farne uno su misura; ognuno è un viaggio d'oro e ne segue il p
 | **un elemento che diventa pagina** | il mini lettore sopra la tab bar è «un caso abbastanza isolato», ma il motore deve reggere meglio «pulsanti o elementi che si trasformano a pagina intera, portando di fatto a una nuova pagina» | la geometria è dello zoom fra pagine di F5B: lì si costruisce, qui i preset (mini lettore, card, tasto principale) |
 | **il campo di inserimento dinamico** | vedi F4B | qui i preset d'uso (ricerca, messaggio, nota, domanda all'assistente) |
 
-**Non ancora commentati** da Alessio (restano candidati): il composer di una chat che cresce con allegati e invio;
-l'avviso che nasce dal tasto che l'ha causato; il tasto principale flottante che si apre in azioni; e ciò che R8 aggiunge.
+**Dopo R8** (`ricerca/componenti-dinamici.md`, 23 idee) Alessio ha commentato anche le idee nuove (2026-11-11, sera):
+
+| idea di R8 | risposta di Alessio | dove il bisogno è provato |
+|---|---|---|
+| 10 · avviso che nasce dal tasto, con Annulla | **accettato** | Mail («Invio in corso… Annulla», UX-CMP-08); con i tasti con esito fa il viaggio composto «Invia» |
+| 11 · pillola di attività (un lavoro lungo in corso) | **accettato, «da integrare con gli altri elementi in alto»**: non un oggetto a parte, ma un elemento del modello della barra in alto (F4A) che convive con titolo e tasti e si trasforma con loro | Mail (UX-INB-09), Gallery (`SyncIndicator.kt`), Transit (`NavOverlay.kt`), Notes e Fluidify |
+| 3 · composer dentro il campo (cresce su più righe, allegati, invio) | **accettato** | PampAI, Mail |
+| 9 · tasto diviso (azione più freccia che apre il menu dallo stesso vetro) | **accettato** | Mail («Invia ▾ Programma invio», UX-CMP-09) |
+| 14 · pillola del titolo che diventa selettore | **accettato** | Weather (`LocationPill` → `LocationPane`), Mail (titolo = account), Notes (scelta della cartella) |
+| 16 · fila di scelte che diventa menu | «ci può stare, ma voglio capire meglio i casi d'uso» | Transit (`ChipLayoutTest.kt`: i chip impaginati a mano per il testo grande) |
+| 15 · pannello persistente a più altezze | «ci può stare, ma voglio capire meglio i casi d'uso» | Transit (`BottomPanelHost.kt`), in parte Weather e Gallery |
+| 5 · «trova nella pagina» | «ci può stare, ma voglio capire meglio i casi d'uso» | Notes (`TranscriptSearchBar.kt`) |
+| 17 · barre che si nascondono sul contenuto immersivo | «vorrei capirne il caso d'uso, ma tenderei a dire che non importa» | Fluidify (`FullScreenVideo.kt`), Gallery (`ViewerScreen.kt`): a mano funziona già |
+
+Entrano quindi in F6B, oltre ai sei della tabella sopra: **10, 11, 3, 9, 14**. Le idee 16, 15 e 5 restano in sospeso finché
+Alessio non ha visto i casi d'uso (spiegati in chat l'11 novembre); la 17 è fuori salvo ripensamento. Non commentate e
+quindi fuori per ora: tasto principale flottante (13, già in F5A), controllo che si espande dal tasto (18),
+aggiornamento tirando (19), indicatore di posizione con anteprima (20), permesso nel punto in cui serve (21).
 
 Pacchetti, perimetri, bersagli e sottocategorie si scrivono quando R8 è tornata e Alessio ha scelto: fino ad allora
 questa sezione è la traccia, non il progetto. Regola valida da subito per le fasi prima: **non chiudere strade** a questi

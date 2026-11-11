@@ -2,6 +2,11 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidGlassModel.kt`
+
+- `enum class FluidGlassModel` — Con quale materiale l'engine disegna il vetro.
+- `val LocalFluidGlassModel` — Il materiale chiesto per il vetro di questo sottoalbero. Di serie [FluidGlassModel.Liquid].
+
 ## `engine-ui/ui/fluid/FluidGlassQuality.kt`
 
 - `class FluidGlassQuality internal constructor(private val ceiling: () -> Float = { 1f })` — Quanta ottica il vetro riceve **adesso**, fra 0 e 1.
@@ -118,8 +123,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun warmUpNow(): List<FluidGlassWarmUpStatus>` — Scalda **adesso**, sul filo principale e aspettando ogni fotogramma fuori schermo, tutte le famiglie che il dispositivo può avere, anche con [warmUpEnabled] spento; restituisce lo stato finale.
   - `val simulatedApiLevel: Int? get()` — Il livello di API che il vetro sta simulando, o `null`. Fuori da un'app `debuggable` è sempre `null`.
   - `fun simulateApiLevel(context: Context, level: Int?): Boolean` — Fa rispondere il vetro dell'engine come su un Android più vecchio: `32` (Android 12: `RenderEffect` sì, AGSL no), `30` (Android 11: né l'uno né l'altro), `null` per tornare al vero.
+  - `val liquidProfileTuning: Map<String, String> get()` — Le manopole del materiale nuovo in vigore, coi nomi e i valori normalizzati: vuota vuol dire il profilo di serie. Fuori da un'app `debuggable` è sempre vuota.
+  - `val liquidProfileKnobs: Map<String, List<String>> get()` — Le manopole che [tuneLiquidProfile] riconosce, ognuna con i valori che accetta: le varianti delle tavole di gusto per nome (`edge` → `ios27`, `ios26`, `today`…), i numeri come intervallo (`blur` → `0..64`).
+  - `fun tuneLiquidProfile(context: Context, knobs: Map<String, String>?): Boolean` — Cambia i numeri del materiale nuovo per le lastre che nascono **da adesso**: le varianti delle tavole di gusto (bordo, velo, ombra, smerigliatura, lente, grandi, tema scuro) e i numeri in mezzo, per fotografarle sul pannello vero senza ricompilare (piano «iOS in Android», F1A.9). Ogni chiamata sostituisce tutte le manopole di prima; `null` o vuota torna al profilo di serie.
   - `fun forceShaderVerdictsForTesting(accept: Boolean)` — Solo per i test della galleria (Robolectric): ogni sorgente AGSL dell'engine risulta compilata ([accept] vero) o rifiutata, senza chiedere niente al compilatore. Senza questo gancio, sul livello 35 il modello dipenderebbe da ciò che Robolectric fa di un `RuntimeShader`: in modo grafico `NATIVE` lo compila (F1A.7 l'ha visto), negli altri modi no.
-  - `fun resetForTesting()` — Solo per i test: la sonda vera senza verdetti, nessun livello simulato, il riscaldamento acceso e mai partito. I conteggi vivi non si azzerano: scendono da soli quando le superfici se ne vanno.
+  - `fun resetForTesting()` — Solo per i test: la sonda vera senza verdetti, nessun livello simulato, il riscaldamento acceso e mai partito, il profilo di serie. I conteggi vivi non si azzerano: scendono da soli quando le superfici se ne vanno.
 - `enum class FluidGlassModelReason(val model: FluidGlassModel)` — Perché una superficie ha il materiale che ha: i motivi della risoluzione del modello (`resolveFluidGlassModel` in `ui/fluid/FluidGlassModel.kt`), nell'ordine in cui si chiedono. Il primo che vale decide.
 - `enum class FluidGlassNodeKind` — I nodi del vetro che tengono un layer.
 - `enum class FluidGlassLayerKind` — I layer del vetro.

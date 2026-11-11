@@ -78,7 +78,7 @@ UI_FLUID_FILES = {
         "FluidMotionPolicy", "FluidClock", "FluidGooey",
     ],
     # il materiale
-    "vetro": ["GlassMaterial", "GlassContrast", "FluidGlassQuality", "FluidFillContrast"],
+    "vetro": ["GlassMaterial", "GlassContrast", "FluidGlassQuality", "FluidFillContrast", "FluidGlassModel"],
     # aspetto, aggiornamento in-app, parole, licenze
     "impostazioni": [
         "FluidAppearance", "FluidUpdateController", "FluidUpdateModel", "FluidUpdateUi",

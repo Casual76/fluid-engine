@@ -337,7 +337,14 @@ della 4.0:
   vero: serve a vedere su un dispositivo nuovo se un innesto ha cambiato quei rami, non prova la piattaforma vecchia.
   **Solo in una build di debug**: in un'app che non è `debuggable` la chiamata non fa niente e restituisce `false`, e il
   livello non si può simulare per tutta la vita del processo. Solo verso il basso, mai sotto 26; vale per ciò che entra
-  in composizione dopo (si ricrea l'attività).
+  in composizione dopo (si ricrea l'attività);
+- **le manopole del profilo**: `tuneLiquidProfile(context, "edge=ios26,blur=24")` sostituisce, per il processo, pezzi del
+  profilo del materiale nuovo (nove manopole a varianti, con le lettere delle tavole di gusto: bordo, velo, ombra,
+  smerigliatura, lente, grandi, tema scuro; tredici a numero), `liquidProfileKnobs` le elenca e `liquidProfileTuning`
+  dice quali sono in vigore. Servono a **fotografare le varianti sul dispositivo** prima di scrivere un numero nel
+  profilo, ed è per questo che la galleria le espone (`gallery.tune`, e la pagina «Materiale»): non sono un modo di
+  dare a un'app un vetro suo. **Solo in una build di debug**, come il livello simulato; senza manopole il profilo è
+  quello di serie, e il disegno è identico al pixel (`GlassLiquidTuningTest`, e le immagini di riferimento del banco).
 
 I conteggi, come `totalCaptures`, contano solo ciò che nasce **dopo** l'accensione di `enabled`: si accende prima di
 aprire la schermata da guardare.

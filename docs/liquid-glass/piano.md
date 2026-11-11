@@ -978,7 +978,7 @@ applica si segna NA.
 ### 6.0 Ordine, dipendenze, regole comuni
 
 ```
-F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A ─▶ F5B ─▶ F6 ─▶ F7 ─▶ F8
+F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A ─▶ F5B ─▶ F6 ─▶ F6B ─▶ F7 ─▶ F8
  S1            S2          S3                        S4      S5    S6
 ```
 
@@ -986,7 +986,7 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 |---|---|---|---|---|
 | F0 | Fondamenta e verità di base | 8 | 5 | S1 |
 | F1A | Il materiale a riposo | 11 | 6 | — |
-| F1B | Un solo motore | 7 | 7 | S2 |
+| F1B | Un solo motore | 9 (con F1B.0 e F1B.8, aggiunti l'11 novembre) | 8 | S2 |
 | F2 | Adattività e bordo dello scorrimento | 6 | 6 | — |
 | F3 | Piano flottante e geometria | 7 | 7 | S3 |
 | F4A | Barre dichiarate in alto e fra pagine | 7 | 7 | — |
@@ -994,6 +994,7 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F5A | Menu e menu contestuale | 6 | 6 | — |
 | F5B | Popover, avvisi, fogli, zoom | 5 | 5 | S4 |
 | F6 | Controlli e tocco | 9 | 9 | S5 |
+| F6B | Elementi dinamici preconfigurati (aggiunta l'11 novembre) | da definire dopo R8 | — | una sua |
 | F7 | Ottimizzazione | 7 | 7 | S5, S6 |
 | F8 | Consegna | 6 | 4 | S6 |
 
@@ -2384,6 +2385,38 @@ costa acceso, per scriverlo nella scheda accanto all'interruttore.
 Luce dal movimento (spenta di serie, già deciso): quanto si spostano i riflessi quando è accesa. Quanto lontano arriva la
 luce ai vicini. L'icona al tocco: si sfoca e cresce (Apple) / cresce soltanto. Azioni a scorrimento: tondo con etichetta
 sotto (iOS 27) / com'è oggi.
+
+---
+
+### F6B · Elementi dinamici preconfigurati
+
+**Fase aggiunta l'11 novembre 2026 su decisione di Alessio** («si meritano una fase dedicata alla creazione/modifica di
+elementi di qualità preconfigurati»). Sta dopo F6 perché usa tutto ciò che viene prima (motore unico, adattività, piano
+flottante, barre dichiarate, menu, fogli, tocco) e prima di F7 perché l'ottimizzazione deve misurare anche questi.
+
+**Scopo.** Dare alle app, già fatti e di qualità, gli **elementi che sono parte dell'interfaccia e non della pagina** e
+che si trasformano: oggi ogni app se li costruisce da sé, «e maluccio». Ognuno ha dei **preset** pronti e una forma
+dichiarativa per farne uno su misura; ognuno è un viaggio d'oro e ne segue il protocollo (F1B).
+
+**Cosa entra di sicuro** (commenti di Alessio agli spunti; l'elenco completo, con le priorità, esce dalla ricerca **R8**,
+`ricerca/componenti-dinamici.md`, e dalle sue risposte):
+
+| elemento | cosa ha detto Alessio | note |
+|---|---|---|
+| **barra delle azioni di selezione** | «mi piace: tante app hanno una barra, ma è fatta da loro e maluccio» | con la selezione multipla la tab bar (o la barra in basso) si trasforma nelle azioni e torna com'era alla fine |
+| **tasti con stato di lavoro ed esito** | «molto utile», da allargare: l'aeroplanino dell'invio di una mail che prima «si carica» e, a invio riuscito, **parte** | una famiglia: l'esito è animato secondo il significato dell'icona (invia, salva, scarica, elimina, copia…), con l'esito negativo; è il riscontro all'azione che ogni app deve dare |
+| **filtri e suggerimenti a pillole sotto il campo di ricerca** | «vanno bene per qualsiasi campo di ricerca che ha dei suggerimenti: molto comune» | parte del campo di inserimento dinamico di F4B: qui i preset |
+| **barra sopra la tastiera** | «ottima idea, con dei preset e poi la possibilità di crearla su misura all'inserimento in un'app» | preset (formattazione, suggerimenti, azioni rapide, passaggio fra campi) più la forma dichiarativa |
+| **un elemento che diventa pagina** | il mini lettore sopra la tab bar è «un caso abbastanza isolato», ma il motore deve reggere meglio «pulsanti o elementi che si trasformano a pagina intera, portando di fatto a una nuova pagina» | la geometria è dello zoom fra pagine di F5B: lì si costruisce, qui i preset (mini lettore, card, tasto principale) |
+| **il campo di inserimento dinamico** | vedi F4B | qui i preset d'uso (ricerca, messaggio, nota, domanda all'assistente) |
+
+**Non ancora commentati** da Alessio (restano candidati): il composer di una chat che cresce con allegati e invio;
+l'avviso che nasce dal tasto che l'ha causato; il tasto principale flottante che si apre in azioni; e ciò che R8 aggiunge.
+
+Pacchetti, perimetri, bersagli e sottocategorie si scrivono quando R8 è tornata e Alessio ha scelto: fino ad allora
+questa sezione è la traccia, non il progetto. Regola valida da subito per le fasi prima: **non chiudere strade** a questi
+elementi (il modello delle barre di F4A deve poter essere sostituito da un altro modello a metà pagina; il campo di F4B
+deve accettare un contenuto sotto di sé; lo zoom di F5B deve partire da un elemento qualsiasi, non solo da una card).
 
 ---
 

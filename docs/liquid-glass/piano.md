@@ -1401,6 +1401,7 @@ confronto di Apple accanto):
 | il tema scuro, velo | **A**: più chiaro | è la combinazione di serie **sui piccoli** (tasti, capsule). Sul tablet (S1-ter) lo stesso velo sui grandi dava un grigio medio e il testo secondario a 3,8:1: fogli, card, pannelli e menu prendono un velo più profondo, con un passaggio continuo fra 48 e 96 dp di lato corto (testo secondario 6,3–6,9:1 sul banco). Decisione dell'orchestratore, mostrata ad Alessio nella tavola 9 |
 | la lente | media | scelta dell'orchestratore: col materiale pieno le tre varianti non si distinguono; si riapre in F1B, F3 e F5, dove si vede |
 | i grandi | un passo in più | scelta dell'orchestratore: le tre varianti si distinguono poco; con l'ombra B va ritarata |
+| il vetro in viaggio (limpidezza e lente) | **B**: un po' limpido (`Soft`: limpidezza 0,25, lente 0,5) | scelta di Alessio l'11 novembre 2026 sul video al rallentatore del menu «Ordina» ripreso sul tablet con l'APK di F1B.1 (`artifacts/liquid-glass/moto/f1b/dopo-f1b-1/confronti/menu-apertura-tre-livelli-*-rallentato.mp4`), fra A (smerigliato anche in viaggio), B e C (`Strong`: 0,5 / 1, sotto il vetro si legge una copia nitida del testo). A e C restano nelle manopole `travelclear`/`travelbend`. Da riguardare in F5A, quando le voci del menu entrano sfocate dentro la lente: lì il conflitto di C col testo cambia. Sulla barra i tre livelli non si distinguono |
 
 ---
 

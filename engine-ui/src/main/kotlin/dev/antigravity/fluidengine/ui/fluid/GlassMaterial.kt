@@ -27,7 +27,9 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
@@ -50,6 +52,10 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.ShapeProvider
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.ShadowElement
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
+import dev.antigravity.fluidengine.ui.glass.field.GlassShadowSpec
+import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
+import dev.antigravity.fluidengine.ui.glass.field.glassShadow as glassFieldShadow
 
 /**
  * Fluid Glass — a real refracting material, not a translucent rectangle.
@@ -330,6 +336,38 @@ val LocalFluidSurfaceSide = compositionLocalOf<Boolean?> { null }
 @Composable
 fun currentCanvasBackdrop(): GlassBackdropState? = LocalFluidCanvasBackdrop.current
 
+/**
+ * Cosa vuol dire [GlassTint.overlay] per il materiale nuovo ([FluidGlassModel.Liquid]). Il vetro di prima
+ * ([FluidGlassModel.Classic]) non lo legge: li' `overlay` e' sempre la pellicola dipinta sopra la lente.
+ */
+enum class GlassTintMode {
+  /**
+   * La pellicola dipinta com'e': il colore con la sua alfa, sopra cio' che il vetro trasmette, **al posto**
+   * del velo del materiale. E' il comportamento di sempre, ed e' il default: una tinta che un'app ha scritto
+   * a mano resta quella che ha scritto. Sono `Fixed` anche le tinte dell'engine che sono una pellicola per
+   * mestiere (`darkBarTint` e le sue sorelle sopra una foto, `selectionTint`), e ogni tinta passata da
+   * [forContrast] con un contrasto di sistema sopra lo standard: chi chiede piu' contrasto riceve la
+   * pellicola densa di prima, non un velo che lascia passare.
+   */
+  Fixed,
+
+  /**
+   * Il velo lo decide il materiale: `overlay` serve solo al vetro di prima. Sono cosi' le tinte di serie di
+   * [GlassDefaults] (barra, flottante, controllo, contenuto, modale, pannello).
+   *
+   * Attenzione a `copy`: `GlassDefaults.barTint().copy(overlay = ...)` resta `Neutral`, e il materiale
+   * nuovo quel colore non lo vede. Chi cambia la pellicola di una tinta di serie dice anche come va letta:
+   * `copy(overlay = ..., mode = GlassTintMode.Fixed)` o `Colored`.
+   */
+  Neutral,
+
+  /**
+   * Una tinta alla Apple: `overlay` colora il vetro **sopra** il suo velo, e la sua luminosita' segue cio' che
+   * il vetro ha dietro. E' cosi' [GlassDefaults.tintedModalTint].
+   */
+  Colored,
+}
+
 /** Colour treatment of a glass surface. */
 @Immutable
 data class GlassTint(
@@ -339,6 +377,11 @@ data class GlassTint(
   val fallback: Color,
   /** Hairline drawn on the edge that meets the content. */
   val hairline: Color,
+  /**
+   * Come il materiale nuovo legge [overlay]: vedi [GlassTintMode]. In coda e con un default, perche' il
+   * costruttore a tre argomenti resti quello di sempre (4.0.0).
+   */
+  val mode: GlassTintMode = GlassTintMode.Fixed,
 )
 
 /** The optical job a pane performs; colour remains the separate concern of [GlassTint]. */
@@ -959,6 +1002,7 @@ object GlassDefaults {
       overlay = glassFilm().copy(alpha = if (dark) 0.30f else 0.34f),
       fallback = MaterialTheme.colorScheme.surfaceContainerLow,
       hairline = Color.Transparent,
+      mode = GlassTintMode.Neutral,
     ).forSystemContrast()
   }
 
@@ -1019,6 +1063,7 @@ object GlassDefaults {
       overlay = glassFilm().copy(alpha = if (dark) 0.40f else 0.44f),
       fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.95f else 0.96f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.16f else 0.10f),
+      mode = GlassTintMode.Neutral,
     ).forSystemContrast()
   }
 
@@ -1126,6 +1171,7 @@ object GlassDefaults {
       overlay = glassFilm().copy(alpha = if (dark) 0.48f else 0.52f),
       fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.96f else 0.97f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.18f else 0.08f),
+      mode = GlassTintMode.Neutral,
     ).forSystemContrast()
   }
 
@@ -1153,6 +1199,7 @@ object GlassDefaults {
         scheme.surface.copy(alpha = 0.90f)
       },
       hairline = Color.Transparent,
+      mode = GlassTintMode.Neutral,
     ).forSystemContrast()
   }
 
@@ -1196,6 +1243,7 @@ object GlassDefaults {
       // glass, so an API 30 device sees the page it has always seen rather than a degraded copy.
       fallback = surface,
       hairline = Color.Transparent,
+      mode = GlassTintMode.Neutral,
     ).forSystemContrast()
   }
 
@@ -1215,6 +1263,7 @@ object GlassDefaults {
       overlay = glassFilm().copy(alpha = if (dark) 0.50f else 0.54f),
       fallback = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.97f else 0.98f),
       hairline = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.14f else 0.08f),
+      mode = GlassTintMode.Neutral,
     )
   }
 
@@ -1239,6 +1288,9 @@ object GlassDefaults {
       overlay = lerp(base.overlay, colour, ColourShare).copy(alpha = if (dark) 0.72f else 0.76f),
       fallback = lerp(base.fallback, colour, 0.82f).copy(alpha = if (dark) 0.97f else 0.98f),
       hairline = lerp(base.hairline, colour, 0.30f),
+      // Il colore d'origine e' una tinta, non una pellicola: nel materiale nuovo sta sopra il velo e la sua
+      // luminosita' segue lo sfondo. Vedi [GlassTintMode.Colored].
+      mode = GlassTintMode.Colored,
     ).forSystemContrast()
   }
 
@@ -1375,6 +1427,31 @@ fun Modifier.glassSurface(
   // sampling it. A defined solid material is the honest degradation.
   if (!isRenderEffectSupported()) {
     return this.glassFallback(shape, tint, edge, falloff, intensity)
+  }
+
+  // Il materiale nuovo (4.0.0), dove puo' esistere: Android 13, sorgenti sane, una forma che il campo sa
+  // rendere, e nessun antenato che chieda il vetro di prima. Tutto cio' che segue questo `if` e' il vetro
+  // di prima, lasciato com'era: e' il ripiego, e deve restare identico al pixel.
+  if (rememberFluidGlassModel(shape, falloff, resolved) == FluidGlassModel.Liquid) {
+    return this.glassLiquidSurface(
+      state = state,
+      tint = tint,
+      shape = shape,
+      edge = edge,
+      intensity = intensity,
+      role = role,
+      optics = resolved,
+      opticalDepth = opticalDepth,
+      pressed = pressed,
+      exports = exports,
+      layerBlock = layerBlock,
+      sampleOnce = sampleOnce,
+      resampleIntervalMillis = resampleIntervalMillis,
+      frozen = frozen,
+      heldWhileMoving = heldWhileMoving,
+      nestInContainer = nestInContainer,
+      touch = null,
+    )
   }
 
   val currentIntensity by rememberUpdatedState(intensity)
@@ -1560,6 +1637,178 @@ fun Modifier.glassSurface(
 }
 
 /**
+ * Una `glassSurface` disegnata dal materiale nuovo ([FluidGlassModel.Liquid]): gli stessi ingressi di
+ * [glassSurface], gia' risolti, piu' il bagliore del dito che `glassControlSurface` passa da qui.
+ *
+ * Chi la chiama ha gia' chiesto a [rememberFluidGlassModel] e ha avuto `Liquid`: qui non c'e' un ripiego.
+ *
+ * Cosa cambia rispetto al vetro di prima, nodo per nodo (piano 3.3):
+ *  - **l'ombra** e' `Modifier.glassShadow` di `glass/field` (due maschere in un layer), dentro il layer di
+ *    [layerBlock] e fuori dal ritaglio; un'ottica senza ombra non monta il nodo;
+ *  - **il corpo** e' una catena sola sulla cattura: saturazione, sfocatura, mescola, shader del corpo. Velo,
+ *    tinta e maschera stanno nello shader: niente pellicola dipinta, niente anello, niente ombra interna;
+ *  - **la luce** (filo, riflessi, bagliore) si disegna sopra il corpo e sotto il contenuto, fuori dal
+ *    materiale che il vetro annidato campiona;
+ *  - **`intensity`** non scala piu' il raggio di sfocatura ne' passa da un `saveLayer` attorno a tutto: e'
+ *    `materialize`. A zero non si disegna niente, come prima; fra zero e uno il contenuto si dissolve come
+ *    prima, ma da solo.
+ *
+ * @param optics gia' passata da `sanitized()`.
+ * @param touch il bagliore del dito, o `null` per una lastra che non lo ha.
+ */
+@Composable
+internal fun Modifier.glassLiquidSurface(
+  state: GlassBackdropState,
+  tint: GlassTint,
+  shape: Shape,
+  edge: GlassEdge,
+  intensity: () -> Float,
+  role: GlassRole,
+  optics: GlassOptics,
+  opticalDepth: () -> Float,
+  pressed: () -> Float,
+  exports: GlassBackdropState?,
+  layerBlock: (GraphicsLayerScope.() -> Unit)?,
+  sampleOnce: Boolean,
+  resampleIntervalMillis: Long,
+  frozen: () -> Boolean,
+  heldWhileMoving: () -> Boolean,
+  nestInContainer: Boolean,
+  touch: GlassTouchLight?,
+): Modifier {
+  val currentIntensity by rememberUpdatedState(intensity)
+  val currentDepth by rememberUpdatedState(opticalDepth)
+  val currentPressed by rememberUpdatedState(pressed)
+  val currentTouch by rememberUpdatedState(touch)
+  // Pellicola e tinta sono lette in disegno: un colore che si anima rifa' la catena, non l'elemento del nodo.
+  val currentFilm by rememberUpdatedState(if (tint.mode == GlassTintMode.Fixed) tint.overlay else Color.Unspecified)
+  val currentTint by rememberUpdatedState(if (tint.mode == GlassTintMode.Colored) tint.overlay else Color.Unspecified)
+  // Come nel vetro di prima: la qualita' e' uno stato letto dentro le lambda, non catturato qui.
+  val quality = LocalFluidGlassQuality.current
+  val qualityFactor: () -> Float = remember(quality) { { quality?.level ?: 1f } }
+  val darkSide = GlassDefaults.isDarkSurface()
+  val screenDensity = LocalDensity.current.density
+
+  val surface = remember(role, optics, shape, darkSide, screenDensity, quality) {
+    GlassLiquidSurface(
+      role = role,
+      optics = optics,
+      shape = shape,
+      darkSide = darkSide,
+      screenDensity = screenDensity,
+      intensity = { currentIntensity() },
+      opticalDepth = { currentDepth() },
+      pressed = { currentPressed() },
+      quality = { quality?.level ?: 1f },
+      film = { currentFilm },
+      tint = { currentTint },
+      touch = { currentTouch },
+    )
+  }
+
+  // Del vetro di prima `onDrawSurface` tiene solo il filetto di `GlassEdge`, dove c'e': la pellicola e' nel
+  // corpo. Niente lambda dove non c'e' niente da disegnare.
+  val hairline = tint.hairline
+  val onDrawSurface: DrawScopeBlock? = remember(hairline, edge) {
+    if (edge == GlassEdge.None || hairline.alpha <= 0f) {
+      null
+    } else {
+      {
+        val amount = clampGlassUnit(currentIntensity())
+        if (amount > 0.001f) drawGlassHairline(hairline, edge, amount)
+      }
+    }
+  }
+
+  val shadow = remember(surface) {
+    if (surface.castsShadow) Modifier.glassFieldShadow(surface.shadowOutline, surface.shadow) else Modifier
+  }
+
+  return this
+    .glassPresence(currentIntensity)
+    .drawBackdrop(
+      backdrop = state.backdrop,
+      shape = surface.clipShapeBlock,
+      effects = surface.effects,
+      highlight = null,
+      shadow = null,
+      innerShadow = null,
+      layerBlock = layerBlock,
+      exportedBackdrop = exports?.layerBackdrop,
+      onDrawSurface = onDrawSurface,
+      // Come oggi: con un `layerBlock` la cattura resta a risoluzione piena (il blocco si inverte contro la
+      // densita' dello scope, e una densita' scalata lo sposterebbe).
+      backdropScale = if (layerBlock != null) 1f else surface.captureScale,
+      sampleOnce = sampleOnce,
+      resampleIntervalMillis = resampleIntervalMillis,
+      backdropScaleFactor = qualityFactor,
+      frozen = frozen,
+      heldWhileMoving = heldWhileMoving,
+      nestInContainer = nestInContainer,
+      onDrawLight = surface.onDrawLight,
+      underlay = shadow,
+    )
+    .glassContentFade(currentIntensity)
+}
+
+/**
+ * A intensita' zero una lastra `Liquid` non disegna niente, contenuto compreso: e' cio' che faceva
+ * `glassMask` nel vetro di prima, e chi spegne una superficie con `intensity` conta su questo. Nessun layer:
+ * salta il disegno e basta.
+ */
+private fun Modifier.glassPresence(intensity: () -> Float): Modifier =
+  this.drawWithContent { if (clampGlassUnit(intensity()) > 0.001f) drawContent() }
+
+/**
+ * Il contenuto di una lastra `Liquid` segue `intensity` come nel vetro di prima: pieno a uno, dissolto in
+ * mezzo. Nel vetro di prima lo faceva il `saveLayer` di `glassMask`, che avvolgeva materiale e contenuto
+ * insieme; qui il materiale si dissolve da se' (`materialize`) e il `saveLayer` resta per il solo contenuto,
+ * e solo mentre l'intensita' e' a meta' strada: una lastra piena non paga un buffer.
+ *
+ * Sta **dopo** il nodo del vetro, quindi avvolge cio' che il nodo chiama contenuto e non il materiale.
+ */
+private fun Modifier.glassContentFade(intensity: () -> Float): Modifier = this.drawWithCache {
+  val paint = Paint()
+  val bounds = Rect(0f, 0f, size.width, size.height)
+  onDrawWithContent {
+    val amount = clampGlassUnit(intensity())
+    when {
+      amount <= 0.001f -> Unit
+      amount >= 0.999f -> drawContent()
+      else -> {
+        paint.alpha = amount
+        drawContext.canvas.saveLayer(bounds, paint)
+        drawContent()
+        drawContext.canvas.restore()
+      }
+    }
+  }
+}
+
+/**
+ * Il filetto di `GlassEdge`, da solo: mezzo dp in alto o in basso, col colore di `GlassTint.hairline`. Sono
+ * le stesse righe che chiudono `drawGlassTint`, che il vetro di prima continua a usare: stanno qui in copia
+ * perche' quella funzione non si tocca.
+ */
+private fun DrawScope.drawGlassHairline(color: Color, edge: GlassEdge, amount: Float) {
+  val hairlinePx = maxOf(1f, 0.5f.dp.toPx())
+  val hairline = color.copy(alpha = color.alpha * amount)
+  when (edge) {
+    GlassEdge.None -> Unit
+    GlassEdge.Bottom -> drawRect(
+      color = hairline,
+      topLeft = Offset(0f, size.height - hairlinePx),
+      size = Size(size.width, hairlinePx),
+    )
+    GlassEdge.Top -> drawRect(
+      color = hairline,
+      topLeft = Offset.Zero,
+      size = Size(size.width, hairlinePx),
+    )
+  }
+}
+
+/**
  * L'ombra esterna del vetro, da sola: per un pannello che non e' il pannello di vetro a disegnarla.
  *
  * `glassSurface` disegna la propria ombra, ma dentro la propria superficie: se un antenato la ritaglia
@@ -1574,6 +1823,11 @@ fun Modifier.glassSurface(
  * l'ombra sotto di essa). Non dipende da `RenderEffect`: dove il vetro e' il ripiego, l'ombra c'e'
  * comunque.
  *
+ * Dalla 4.0.0 segue il materiale: dove il pannello e' disegnato dal materiale nuovo
+ * ([FluidGlassModel.Liquid]) questa e' l'ombra **di quel materiale** (le due maschere di `glass/field`, coi
+ * numeri della ricetta per questa ottica e questa taglia), perche' resti "la stessa che disegna il vetro".
+ * Altrimenti la barra flottante avrebbe il corpo nuovo sopra l'ombra larga di prima.
+ *
  * @param optics il ruolo da cui prende raggio e peso; di serie quello flottante.
  * @param radiusScale quanto scalare il raggio: un'ombra piu' bassa (un'elevazione minore) e' piu'
  *   stretta, con lo stesso peso. 0 o meno non disegna niente.
@@ -1586,6 +1840,9 @@ internal fun Modifier.glassShadow(
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val darkSide = GlassDefaults.isDarkSurface()
+  if (rememberFluidGlassModel(shape, GlassFalloff.Uniform, resolved) == FluidGlassModel.Liquid) {
+    return this.glassLiquidShadow(shape, resolved, darkSide, radiusScale)
+  }
   val shapeBlock = remember(shape) { { shape } }
   val shadow: () -> Shadow? = remember(resolved, radiusScale, darkSide) {
     {
@@ -1601,6 +1858,66 @@ internal fun Modifier.glassShadow(
     }
   }
   return this.then(ShadowElement(ShapeProvider(shapeBlock), shadow))
+}
+
+/**
+ * [glassShadow] per il materiale nuovo: l'ombra che una `glassSurface` `Liquid` di questa forma e di questa
+ * ottica disegna da se', a materiale pieno, messa dove chi chiama la vuole.
+ *
+ * @param optics gia' passata da `sanitized()`.
+ * @param radiusScale scala raggi e scostamento insieme (un'elevazione minore e' un'ombra piu' stretta e piu'
+ *   vicina), non le alfa: lo stesso peso, come nel vetro di prima.
+ */
+@Composable
+private fun Modifier.glassLiquidShadow(
+  shape: Shape,
+  optics: GlassOptics,
+  darkSide: Boolean,
+  radiusScale: Float,
+): Modifier {
+  val screenDensity = LocalDensity.current.density
+  val surface = remember(optics, shape, darkSide, screenDensity) {
+    GlassLiquidSurface(
+      role = GlassRole.Floating,
+      optics = optics,
+      shape = shape,
+      darkSide = darkSide,
+      screenDensity = screenDensity,
+      intensity = { 1f },
+      opticalDepth = { 1f },
+      pressed = { 0f },
+      quality = { 1f },
+      film = { Color.Unspecified },
+      tint = { Color.Unspecified },
+      touch = { null },
+    )
+  }
+  val shadow: () -> GlassShadowSpec? = remember(surface, radiusScale) {
+    // La superficie restituisce lo stesso oggetto finche' i numeri non cambiano: quello scalato si rifa'
+    // solo allora, non a ogni disegno.
+    var from: GlassShadowSpec? = null
+    var scaled: GlassShadowSpec? = null
+    val block: () -> GlassShadowSpec? = {
+      val spec = surface.shadow()
+      when {
+        spec == null || !(radiusScale > 0f) -> null
+        radiusScale == 1f -> spec
+        else -> {
+          if (spec !== from) {
+            from = spec
+            scaled = spec.copy(
+              contactRadius = spec.contactRadius * radiusScale,
+              ambientRadius = spec.ambientRadius * radiusScale,
+              offset = DpOffset(spec.offset.x * radiusScale, spec.offset.y * radiusScale),
+            )
+          }
+          scaled
+        }
+      }
+    }
+    block
+  }
+  return if (surface.castsShadow) this.glassFieldShadow(surface.shadowOutline, shadow) else this
 }
 
 /**

@@ -144,6 +144,25 @@ Le modifiche fatte finora:
     stessi uniform. Pacchetto F0.11 di `docs/liquid-glass/piano.md`,
     dal rilievo 1 della review di F0; la prova sul JVM e' `GlassShaderFallbackTest`.
 
+16. **`drawBackdrop` guadagna la luce e un posto sotto la superficie** (4.0.0, `DrawBackdropModifier.kt`,
+    pacchetto F1A.6 di `docs/liquid-glass/piano.md`). Due parametri in coda, con un default che lascia
+    il nodo com'era per chi non li passa:
+    - `onDrawLight`, disegnato dopo `onDrawSurface` e prima del contenuto, e **fuori** dalla
+      registrazione del materiale esportato. A monte tutto cio' che una superficie disegna sopra la
+      propria cattura entra nel materiale che il vetro annidato campiona. Il materiale nuovo dell'engine
+      (`glass/field/`) ha una luce (filo, riflessi, bagliore del dito) che non deve entrarci: un tasto su
+      un pannello rifrangerebbe il bordo del pannello, e un bagliore che cambia a ogni fotogramma
+      rifarebbe la catena di ogni vetro che gli sta dentro;
+    - `underlay`, un `Modifier` posato fra il layer di `layerBlock` e il nodo: dentro la trasformazione
+      della superficie e fuori dal suo ritaglio, cioe' dove a monte stanno gia' `ShadowElement` e
+      `HighlightElement`. Serve all'ombra del materiale nuovo (`Modifier.glassShadow` di
+      `glass/field/GlassShadow.kt`), che non e' una `Shadow` di questa libreria e che altrimenti
+      resterebbe fuori dal layer di un tasto che cresce sotto il dito.
+
+    Nessuna riga di monte cambia comportamento: con i default (`null` e `Modifier`) il nodo disegna e
+    registra esattamente cio' che disegnava. Il vetro di sempre (modello `Classic` dell'engine) non li
+    passa.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

@@ -26,6 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
+import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 
@@ -242,8 +244,47 @@ fun Modifier.glassControlSurface(
         overlay = accent.copy(alpha = 0.36f),
         fallback = accent.copy(alpha = 0.9f),
         hairline = accent.copy(alpha = 0.45f),
+        // La selezione e' una pellicola d'accento, com'e' sempre stata: la tinta di serie e' `Neutral`
+        // (il velo lo decide il materiale nuovo), e copiata cosi' com'e' l'accento non si vedrebbe.
+        mode = GlassTintMode.Fixed,
       ).forContrast(systemContrast)
     }
+  }
+
+  // Il materiale con cui questo vetro si disegna (4.0.0). Lo chiede anche `glassSurface`, con gli stessi
+  // ingressi, quindi le due risposte coincidono; qui serve saperlo prima, perche' col materiale nuovo il
+  // bagliore del dito non e' piu' un disegno a parte sopra il vetro: passa dalla sua luce.
+  val resolvedOptics = remember(optics) { optics.sanitized() }
+  val liquid = rememberFluidGlassModel(shape, GlassFalloff.Uniform, resolvedOptics) == FluidGlassModel.Liquid
+  val touchLight = remember(press, reducedMotion) {
+    GlassTouchLight(
+      // Gli stessi due numeri che riceve il bagliore di prima: la pressione, e il peso che le animazioni
+      // ridotte le lasciano.
+      amount = { press.progress.fastCoerceIn(0f, 1f) * (if (reducedMotion) 0.4f else 1f) },
+      position = { press.glow },
+    )
+  }
+  val pressLayer: (GraphicsLayerScope.() -> Unit)? = if (interactive) {
+    {
+      // The same transform a solid button draws, here in the layer the renderer corrects for:
+      // grow, lean toward the finger through a tanh, stretch along its drag. See
+      // fluidPressTransform for the numbers and the reasons.
+      val transform = fluidPressTransform(
+        feedback = press.feedback,
+        progress = press.progress,
+        lean = press.lean,
+        width = size.width,
+        height = size.height,
+        dp = density,
+        reducedMotion = reducedMotion,
+      )
+      scaleX = transform.scaleX
+      scaleY = transform.scaleY
+      translationX = transform.translationX
+      translationY = transform.translationY
+    }
+  } else {
+    null
   }
 
   return this
@@ -260,6 +301,28 @@ fun Modifier.glassControlSurface(
     .then(
       if (materialSuppressed) {
         Modifier
+      } else if (liquid) {
+        // Gli stessi ingressi che `glassSurface` riceve qui sotto, piu' il bagliore del dito: di una
+        // superficie non interattiva non c'e', come prima.
+        Modifier.glassLiquidSurface(
+          state = backdrop,
+          tint = selectionTint,
+          shape = shape,
+          edge = GlassEdge.None,
+          intensity = { 1f },
+          role = GlassRole.Interactive,
+          optics = resolvedOptics,
+          opticalDepth = depth,
+          pressed = { press.progress.fastCoerceIn(0f, 1f) },
+          exports = null,
+          layerBlock = pressLayer,
+          sampleOnce = false,
+          resampleIntervalMillis = 0L,
+          frozen = frozen,
+          heldWhileMoving = heldWhileMoving,
+          nestInContainer = true,
+          touch = if (interactive) touchLight else null,
+        )
       } else {
         Modifier.glassSurface(
           state = backdrop,
@@ -271,32 +334,12 @@ fun Modifier.glassControlSurface(
           pressed = { press.progress.fastCoerceIn(0f, 1f) },
           frozen = frozen,
           heldWhileMoving = heldWhileMoving,
-          layerBlock = if (interactive) {
-            {
-              // The same transform a solid button draws, here in the layer the renderer corrects for:
-              // grow, lean toward the finger through a tanh, stretch along its drag. See
-              // fluidPressTransform for the numbers and the reasons.
-              val transform = fluidPressTransform(
-                feedback = press.feedback,
-                progress = press.progress,
-                lean = press.lean,
-                width = size.width,
-                height = size.height,
-                dp = density,
-                reducedMotion = reducedMotion,
-              )
-              scaleX = transform.scaleX
-              scaleY = transform.scaleY
-              translationX = transform.translationX
-              translationY = transform.translationY
-            }
-          } else {
-            null
-          },
+          layerBlock = pressLayer,
         )
       },
     )
-    .then(if (interactive) highlight.modifier else Modifier)
+    // Il bagliore di prima, un disegno sopra il vetro: col materiale nuovo e' nella sua luce.
+    .then(if (interactive && !liquid) highlight.modifier else Modifier)
     // Segue il dito da solo solo quando nessuno lo guida: una pressione condivisa la muove il
     // fluidPressable del controllo, e due inseguitori su una pressione scatterebbero due volte a
     // ogni passo del dito.

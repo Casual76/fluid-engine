@@ -1007,7 +1007,8 @@ internal class GlassShadowLayer(private val layer: GraphicsLayer) {
  * L'ombra a riposo sotto una lastra `Liquid`: va **prima** della lastra nella catena dei modificatori, fuori
  * dal suo ritaglio (piano 3.3), al posto di `ShadowNode`.
  *
- * @param outline la sagoma ferma nella forma del campo: gli stessi pezzi che riceve il corpo.
+ * @param outline la sagoma ferma nella forma del campo: gli stessi pezzi che riceve il corpo. A ogni disegno
+ *   si risolve **prima** di chiedere [shadow].
  * @param shadow i numeri dell'ombra, letti **in disegno**: uno stato letto qui dentro (la forza, il colore
  *   della sonda) ridisegna il layer senza ricomporre e senza rifare le maschere. `null` = nessuna ombra (un
  *   ruolo senza, o una lastra che sta viaggiando e la disegna nello shader).
@@ -1059,12 +1060,14 @@ internal class GlassShadowNode(
   private val pieces = GlassShadowPieces()
 
   override fun ContentDrawScope.draw() {
-    val spec = shadow()
     val painter = painter
-    if (spec != null && painter != null) {
+    if (painter != null) {
+      // Prima la sagoma, poi i numeri (ritocco di F1A.6): l'ombra di una lastra cresce con la sua taglia, e
+      // chi dà i numeri la taglia la legge qui, mentre risolve la sagoma (`shadow` non ha un `DrawScope`).
       pieces.clear()
       with(outline) { resolve(pieces) }
-      painter.draw(this, pieces, spec)
+      val spec = shadow()
+      if (spec != null) painter.draw(this, pieces, spec)
     }
     drawContent()
   }

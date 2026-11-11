@@ -16,6 +16,8 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVeils
 import dev.antigravity.fluidengine.ui.glass.field.GlassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.GlassShadowProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabIsSmall
 import java.io.File
 import java.util.Locale
 import kotlin.math.max
@@ -37,8 +39,8 @@ import kotlin.math.min
  *    inquadratura: mai un numero del materiale.
  *
  * Cosa in una scena NON viene dalla ricetta, e perché: la **geometria** (i pezzi del campo, il raccordo, il
- * ritaglio), che è del piano del campo (`GlassFieldPlan`, F1A.6) e qui è anticipata da [slabGeometry]; e il
- * `glow`, che è del tocco e a riposo vale zero.
+ * ritaglio), che è del piano del campo (`gf/GlassFieldPlan.kt`: [slabGeometry] chiede a `glassSlabGeometry`,
+ * la stessa funzione che usa l'innesto); e il `glow`, che è del tocco e a riposo vale zero.
  */
 
 /** Come il banco chiama un ruolo (`"role"` di una lastra di oggi) e cosa vuol dire per l'engine. */
@@ -97,36 +99,52 @@ internal class SlabGeometry(
 )
 
 /**
- * La regola «forma → piano» del piano (3.7), anticipata qui per le scene; il suo posto vero è `GlassFieldPlan`
- * (F1A.6), che deve dare gli stessi numeri:
- *  - capsula: un semicerchio esatto, raggi nominali e nessun raccordo;
+ * La regola «forma → piano» del piano (3.7) per una lastra di una scena. **Non la decide questo file**: la
+ * chiede a `glassSlabGeometry` (`gf/GlassFieldPlan.kt`), la stessa funzione da cui l'innesto prende i raggi
+ * di corpo, luce, ombra e ritaglio (F1A.6). Qui c'è solo la traduzione nella forma del banco:
+ *  - capsula: un semicerchio esatto, raggi nominali (`"$radii"`) e nessun raccordo;
  *  - grandi (lato lungo da [ContinuousCornerShape.SmallShapeCutoffPx] in su): raggi nominali e il raccordo di
- *    iOS; il ritaglio hardware al 98% del raggio, perché il raccordo esce dal cerchio nominale dello 0,44% del
- *    raggio sulla diagonale (decisione dell'orchestratore su F1A.1);
+ *    iOS; il ritaglio hardware al 98% del raggio ([SceneSmoothedClipScale]);
  *  - piccoli: il rettangolo arrotondato al raggio equivalente che l'engine già disegna (x0,82), senza raccordo.
  *
- * La soglia è in pixel, quindi dipende dalla densità: una scena vale a più densità solo se ogni sua lastra
- * cade dalla stessa parte a tutte ([SceneDensities]), e qui si controlla.
+ * Le lastre delle scene hanno la forma dell'engine (`"corner": "engine"`, cioè una `ContinuousCornerShape`
+ * con il raccordo di iOS). La soglia dei piccoli è in pixel, quindi dipende dalla densità: una scena vale a
+ * più densità solo se ogni sua lastra cade dalla stessa parte a tutte ([SceneDensities]), e qui si controlla.
  */
 internal fun slabGeometry(name: String, w: Double, h: Double, radius: Any?): SlabGeometry {
   val short = min(w, h)
   val nominal: List<Double> = when (radius) {
-    null, "capsule" -> return SlabGeometry("\$radii", 0f, false)
+    null, "capsule" -> List(4) { short / 2.0 }
     is Number -> List(4) { radius.toDouble() }
     is List<*> -> radius.map { (it as Number).toDouble() }
     else -> error("$name: raggio non leggibile: $radius")
   }
   require(nominal.size == 4) { "$name: servono quattro raggi, non ${nominal.size}" }
-  if (nominal.all { it >= short / 2.0 }) return SlabGeometry("\$radii", 0f, false)
-  val big = SceneDensities.map { max(w, h) * it >= ContinuousCornerShape.SmallShapeCutoffPx }
-  require(big.distinct().size == 1) {
+  // In dp: la regola non ha un'unità sua, purché lati e raggi abbiano la stessa. Solo la soglia dei piccoli
+  // vuole i pixel, e si chiede a ogni densità.
+  val perDensity = SceneDensities.map { density ->
+    glassSlabGeometry(
+      width = w.toFloat(),
+      height = h.toFloat(),
+      topLeft = nominal[0].toFloat(),
+      topRight = nominal[1].toFloat(),
+      bottomRight = nominal[2].toFloat(),
+      bottomLeft = nominal[3].toFloat(),
+      smoothing = ContinuousCornerShape.IosSmoothing,
+      continuous = true,
+      small = glassSlabIsSmall((max(w, h) * density).toFloat()),
+    )
+  }
+  require(perDensity.map { it.nominal to it.smoothed }.distinct().size == 1) {
     "$name: a una densità è un «grande» e a un'altra un «piccolo»: la scena non varrebbe a tutte e due"
   }
-  return if (big.first()) {
-    SlabGeometry("\$radii", ContinuousCornerShape.IosSmoothing, true)
+  val geometry = perDensity.first()
+  val radii: Any = if (geometry.nominal) {
+    "\$radii"
   } else {
-    SlabGeometry(nominal.map { glassDp(it * ContinuousCornerShape.RoundedEquivalentFactor) }, 0f, false)
+    listOf(geometry.topLeft, geometry.topRight, geometry.bottomRight, geometry.bottomLeft).map { glassDp(it) }
   }
+  return SlabGeometry(radii, geometry.smoothing, geometry.smoothed)
 }
 
 /** I campi di una lastra del banco che dicono cosa c'è stampato sopra: passano così come sono. */
@@ -268,7 +286,10 @@ internal fun liquidElement(
   return out
 }
 
-/** Il ritaglio hardware di una lastra raccordata, in frazione del raggio nominale. Vedi [slabGeometry]. */
+/**
+ * Il ritaglio hardware di una lastra raccordata, in frazione del raggio nominale: `GlassSmoothedClipScale`
+ * dell'engine, scritto come lo scrive una scena (0,98, non il `float` più vicino).
+ */
 internal const val SceneSmoothedClipScale: Double = 0.98
 
 /** Cosa una lastra chiede alla ricetta oltre a ruolo, taglia e lato. */

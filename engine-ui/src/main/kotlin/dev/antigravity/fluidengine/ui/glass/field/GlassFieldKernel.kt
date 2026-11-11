@@ -210,7 +210,7 @@ float glassCircleMap(float x) {
  * ### `float2 glassFieldPoint(float2 coord)`
  * `coord` è l'argomento di `main`. Restituisce `p`, il punto nel **sistema del campo**: pixel dello spazio
  * dello shader, origine nell'angolo in alto a sinistra dell'elemento, y verso il basso. È lo spazio di
- * `pieceRect`, di `glowCenter` e di `shadowOffset`, e l'argomento di `glassField`, `glassLight` e
+ * `pieceRect`, di `glowCenter` e di `shadowOffset`, e l'argomento di `glassField`, `glassLightParts` e
  * `glassTravelShadow`. Lo sfondo invece si campiona sempre in `coord`: `content.eval(coord + spostamento)`.
  *
  * «Pixel dello spazio dello shader» non sono pixel dello schermo quando la cattura è a risoluzione ridotta:

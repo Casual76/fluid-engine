@@ -219,6 +219,28 @@ fun Modifier.drawBackdrop(
      * della barra flottante, che sfoca come la barra partendo dalla pagina cruda.
      */
     nestInContainer: Boolean = true,
+    /**
+     * Fluid Engine addition (4.0.0, F1A.6): la **luce** della superficie, disegnata dopo [onDrawSurface] e
+     * prima del contenuto, e **fuori dal materiale esportato**.
+     *
+     * E' il posto del filo, dei riflessi e del bagliore del dito del materiale `Liquid`
+     * (`glass/field/GlassLightShader.kt`). Sta fuori dall'export per due ragioni: il vetro annidato deve
+     * campionare il corpo del pannello che lo ospita e non il suo bordo ne' il suo bagliore (vetro su
+     * vetro, 2.13.0), e un bagliore che cambia a ogni fotogramma di una pressione renderebbe vecchio
+     * l'export a ogni fotogramma, cioe' rifarebbe la catena di ogni vetro che sta dentro. Uno stato letto
+     * qui ridisegna la superficie e non registra di nuovo il materiale pubblicato.
+     */
+    onDrawLight: (DrawScope.() -> Unit)? = null,
+    /**
+     * Fluid Engine addition (4.0.0, F1A.6): modificatori posati **dentro** la trasformazione di
+     * [layerBlock] e **fuori** dal ritaglio della superficie, prima del nodo: lo stesso posto in cui
+     * stanno l'ombra e il riflesso di sempre.
+     *
+     * Serve all'ombra del materiale `Liquid` (`Modifier.glassShadow` di `glass/field/GlassShadow.kt`), che
+     * non e' una [Shadow]: messa prima di `drawBackdrop` resterebbe fuori dal layer di [layerBlock], e un
+     * tasto che cresce sotto il dito lascerebbe la propria ombra dov'era.
+     */
+    underlay: Modifier = Modifier,
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
@@ -229,6 +251,7 @@ fun Modifier.drawBackdrop(
                 Modifier
             }
         )
+        .then(underlay)
         .then(
             if (innerShadow != null) {
                 InnerShadowElement(
@@ -276,7 +299,8 @@ fun Modifier.drawBackdrop(
                 backdropScaleFactor = backdropScaleFactor,
                 frozen = frozen,
                 heldWhileMoving = heldWhileMoving,
-                nestInContainer = nestInContainer
+                nestInContainer = nestInContainer,
+                onDrawLight = onDrawLight
             )
         )
 }
@@ -297,7 +321,9 @@ private class DrawBackdropElement(
     val frozen: () -> Boolean,
     val heldWhileMoving: () -> Boolean,
     val backdropScaleFactor: () -> Float,
-    val nestInContainer: Boolean
+    val nestInContainer: Boolean,
+    // Fluid Engine addition (F1A.6): vedi `drawBackdrop(onDrawLight)`.
+    val onDrawLight: (DrawScope.() -> Unit)? = null
 ) : ModifierNodeElement<DrawBackdropNode>() {
 
     override fun create(): DrawBackdropNode {
@@ -317,7 +343,8 @@ private class DrawBackdropElement(
             backdropScaleFactor = backdropScaleFactor,
             frozen = frozen,
             heldWhileMoving = heldWhileMoving,
-            nestInContainer = nestInContainer
+            nestInContainer = nestInContainer,
+            onDrawLight = onDrawLight
         )
     }
 
@@ -351,6 +378,7 @@ private class DrawBackdropElement(
         node.onDrawBackdrop = onDrawBackdrop
         node.onDrawSurface = onDrawSurface
         node.onDrawFront = onDrawFront
+        node.onDrawLight = onDrawLight
         node.backdropScale = backdropScale
         node.sampleOnce = sampleOnce
         node.resampleIntervalMillis = resampleIntervalMillis
@@ -389,6 +417,7 @@ private class DrawBackdropElement(
         if (onDrawBackdrop != other.onDrawBackdrop) return false
         if (onDrawSurface != other.onDrawSurface) return false
         if (onDrawFront != other.onDrawFront) return false
+        if (onDrawLight != other.onDrawLight) return false
         if (backdropScale != other.backdropScale) return false
         if (sampleOnce != other.sampleOnce) return false
         if (resampleIntervalMillis != other.resampleIntervalMillis) return false
@@ -408,6 +437,7 @@ private class DrawBackdropElement(
         result = 31 * result + onDrawBackdrop.hashCode()
         result = 31 * result + (onDrawSurface?.hashCode() ?: 0)
         result = 31 * result + (onDrawFront?.hashCode() ?: 0)
+        result = 31 * result + (onDrawLight?.hashCode() ?: 0)
         result = 31 * result + backdropScale.hashCode()
         result = 31 * result + sampleOnce.hashCode()
         result = 31 * result + resampleIntervalMillis.hashCode()
@@ -520,7 +550,9 @@ private class DrawBackdropNode(
     var frozen: () -> Boolean,
     var heldWhileMoving: () -> Boolean,
     var backdropScaleFactor: () -> Float,
-    var nestInContainer: Boolean
+    var nestInContainer: Boolean,
+    // Fluid Engine addition (F1A.6): vedi `drawBackdrop(onDrawLight)`.
+    var onDrawLight: (DrawScope.() -> Unit)? = null
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode,
     GlassContainer, GlassContainerReader, Modifier.Node() {
 
@@ -890,6 +922,9 @@ private class DrawBackdropNode(
         onDrawBehind?.invoke(this)
         drawBackdropLayer()
         onDrawSurface?.invoke(this)
+        // Fluid Engine addition (F1A.6): la luce, sopra il materiale e sotto il contenuto. Non entra
+        // nell'export qui sotto: vedi `drawBackdrop(onDrawLight)`.
+        onDrawLight?.invoke(this)
         drawContent()
         onDrawFront?.invoke(this)
 

@@ -29,7 +29,8 @@ per riferimento.
 | un anello speculare, un'ombra, un'ombra interna | `Highlight`, `Shadow`, `InnerShadow` passati a `drawBackdrop` |
 | un controllo che segue il dito senza soglia di trascinamento | `GlassDragAnimation` + `inspectDragGestures` |
 | il bagliore che segue il dito sul vetro | `GlassTouchHighlight` |
-| sapere se il vetro ricattura troppo | `FluidGlassDiagnostics` |
+| sapere se il vetro ricattura troppo, quale vetro c'è in scena, se gli shader compilano | `FluidGlassDiagnostics` (sezione «Diagnostica») |
+| disegnare una luce che il vetro annidato non deve campionare, o un'ombra che segue il `layerBlock` | `drawBackdrop(onDrawLight = …, underlay = …)` (4.0) |
 | il vetro dentro il vetro | niente da fare ([vetro.md](vetro.md)); questa scheda spiega come funziona sotto |
 | **non così**: aggiornare la libreria a monte sovrascrivendo i file | si fa il diff sui commenti `Fluid Engine change:` (sezione «Cosa abbiamo cambiato») |
 | **non così**: un secondo shader di vetro accanto a `GlassMaterial` | la regola è «nessuno shader di vetro nuovo»; la famiglia SDF di Fluid-physics è la deroga deliberata, nel suo package |
@@ -86,8 +87,19 @@ fun Modifier.layerBackdrop(backdrop: LayerBackdrop, frozen: () -> Boolean = { fa
 
 ## `drawBackdrop` e `drawPlainBackdrop`
 
-**Cos'è.** La porta bassa: un modificatore che registra il fondale, ci applica `effects`, e disegna `onDrawBehind` → fondale → `onDrawSurface` → contenuto →
+**Cos'è.** La porta bassa: un modificatore che registra il fondale, ci applica `effects`, e disegna `onDrawBehind` → fondale → `onDrawSurface` → `onDrawLight` → contenuto →
 `onDrawFront`. `drawBackdrop` aggiunge, sotto, `Highlight`, `Shadow` e `InnerShadow`; `drawPlainBackdrop` no.
+
+**Due parametri della 4.0, per il materiale nuovo** (in coda e con un default che lascia il nodo com'era: il vetro di prima non li passa; voce 16 di
+`LICENSES/AndroidLiquidGlass.md`):
+- **`onDrawLight`**, la **luce** della superficie: disegnata dopo `onDrawSurface` e prima del contenuto, e **fuori** dal materiale pubblicato. È il posto del
+  filo, dei riflessi e del bagliore del dito del materiale `Liquid` ([vetro.md](vetro.md), «Due materiali»). Sta fuori dall'export per due ragioni: il vetro
+  annidato deve campionare il corpo del pannello che lo ospita, non il suo bordo né il suo bagliore; e un bagliore che cambia a ogni fotogramma di una pressione
+  renderebbe vecchio l'export a ogni fotogramma, cioè rifarebbe la catena di ogni vetro che sta dentro. Uno stato letto qui ridisegna la superficie e non
+  registra di nuovo il materiale. La superficie si conta come `Liquid` nella diagnostica proprio se passa questo parametro;
+- **`underlay`**, dei modificatori posati **dentro** la trasformazione di `layerBlock` e **fuori** dal ritaglio, prima del nodo: lo stesso posto in cui stanno
+  l'ombra e l'anello di sempre. Serve all'ombra del materiale nuovo (due maschere in un nodo suo, non una `Shadow` di questa libreria): messa prima di
+  `drawBackdrop` resterebbe fuori dal layer di `layerBlock`, e un tasto che cresce sotto il dito lascerebbe la propria ombra dov'era.
 
 **Firma essenziale** (tutti i parametri: [api/vetro.md](../api/vetro.md)).
 
@@ -109,6 +121,8 @@ fun Modifier.drawBackdrop(
   frozen: () -> Boolean = NeverFrozen,
   heldWhileMoving: () -> Boolean = NeverFrozen,
   nestInContainer: Boolean = true,
+  onDrawLight: (DrawScope.() -> Unit)? = null,           // 4.0: la luce, fuori dal materiale pubblicato
+  underlay: Modifier = Modifier,                         // 4.0: dentro il layerBlock, fuori dal ritaglio
 ): Modifier
 ```
 
@@ -140,17 +154,20 @@ dettaglio del padding sta in `BackdropEffectScope` (sotto).
 
 **Layer e ritaglio.** Il nodo misura il figlio e lo posa con un layer che **ritaglia** (`clip = true`) sulla forma nel suo **equivalente a rettangolo arrotondato** (`fastClipShape`), non sul path esatto: un
 `RenderNode` ritagliato su un path generico non usa il clip hardware e fa mascherare l'intero nodo offscreen, per pannello, per fotogramma. Il clip deve solo impedire che l'immagine rifratta trabocchi; l'angolo
-che l'occhio legge è la tinta e il bordo disegnati sulla superficie, che tengono la silhouette continua esatta. Una sagoma di Fluid-physics in trasformazione (`GlassClipGeometry`) porta il proprio clip
+che l'occhio legge è la tinta e il bordo disegnati sulla superficie, che tengono la silhouette continua esatta. Nel materiale nuovo la sagoma la disegnano la copertura del corpo e la luce,
+dal campo; `glassSurface` passa al nodo come forma lo stesso rettangolo arrotondato che il campo disegna, al **98%** del raggio per le lastre con l'angolo continuo (il raccordo
+esce di poco dal cerchio sulla diagonale, e un ritaglio al raggio pieno taglierebbe lì il filo). Una sagoma di Fluid-physics in trasformazione (`GlassClipGeometry`) porta il proprio clip
 (il rettangolo del nodo): la silhouette vera la scolpisce l'alpha dello shader. Il compositing del nodo è **`Auto`**, non `Offscreen` come a monte: la pila è tutta `SrcOver` e l'isolamento non cambiava un pixel ma
 ri-rasterizzava il pannello (testo compreso) a ogni fotogramma di scorrimento; `Auto` promuove a layer solo dove serve (un `alpha` animato).
 
-**Il materiale pubblicato (`exportedBackdrop`).** Una superficie può pubblicare **sé stessa** — fondale, cattura, superficie e **non** il contenuto — in un `LayerBackdrop`. Il contenuto resta fuori per un motivo ottico,
+**Il materiale pubblicato (`exportedBackdrop`).** Una superficie può pubblicare **sé stessa** — `onDrawBehind`, la cattura con gli effetti, `onDrawSurface`, `onDrawFront`, e **non** il contenuto né la luce (`onDrawLight`) — in un `LayerBackdrop`. Il contenuto resta fuori per un motivo ottico,
 non di risparmio: dentro c'è il vetro che campiona questo materiale, e un tasto che rifrange sé stesso è feedback ottico. Si registra solo se qualcuno lo guarda e solo quando è cambiato (geometria; elemento aggiornato; uno
 stato che i disegni hanno letto, osservato da un `SnapshotStateObserver`), e la manutenzione della cattura è separata dal disegnarla, così l'export non ripete la decisione.
 
 **Trappole.**
 - `shape: () -> Shape` va **ricordata** (`remember(shape) { { shape } }`): `ShapeProvider` ha `equals`/`hashCode` sulla lambda, altrimenti l'elemento non è mai uguale a sé stesso e ogni ricomposizione di
-  ogni pannello rifà `update`, che invalida la cache e ricostruisce tutta la catena (sfocatura, lente, dispersione). Lo stesso vale per `effects`, `highlight`, `shadow`: lambda ricordate.
+  ogni pannello rifà `update`, che invalida la cache e ricostruisce tutta la catena (sfocatura, lente, dispersione). Lo stesso vale per `effects`, `highlight`, `shadow` e `onDrawLight`: lambda ricordate
+  (il materiale nuovo le tiene nello stato della superficie, che si ricrea solo quando cambiano ruolo, ottica, forma, lato del tema, densità o la qualità che la guida).
 - `frozen` e `heldWhileMoving` sono lambda **fuori dall'`equals`** apposta: un chiamante che le ricostruisce a ogni ricomposizione renderebbe l'elemento diverso ogni volta e annullerebbe il cancello che alimentano.
 - Un `layerBlock` viene applicato con `graphicsLayer(layerBlock)` e invertito **solo per scala e rotazione Z** quando si campiona (la posizione si ricava dalle coordinate): una traslazione nel blocco non va sul fondale.
 
@@ -178,8 +195,10 @@ perché del costo e del perché si spegne sotto qualità 0,75.
 **Il padding, spiegato.** Il blur ha bisogno di leggere un margine fuori dal pannello perché il bordo non si sfumi nel trasparente; quel margine è lo spazio che la cattura registra in più. La lente, che di fatto
 piega già l'immagine di `refractionHeight` dentro il perimetro, **copre** quel margine: `padding = max(0, sfocatura − altezza lente)`. Con le ottiche di serie e la lente accesa il padding è **zero** a ogni intensità; sotto
 API 33 senza lente è il raggio, e quel margine che si muove con la taglia o l'intensità fa ricatturare a ogni fotogramma. È il perché la regola della taglia ([vetro.md](vetro.md)) alza la sfocatura **solo fin dove la lente la copre**.
+Il materiale nuovo non passa da `blur` e `lens` di questo scope: monta la sua catena (saturazione, sfocatura, mescola, shader del corpo) e imposta il margine da sé, con la stessa formula ma calcolata **una
+volta**, a qualità piena, sulla sua smerigliatura e sulla fascia della sua lente. Con la smerigliatura larga del profilo il margine di un tasto non è zero, ma è fermo: intensità, qualità e pressione non lo muovono, e la cattura non si rifà.
 
-**Degradazioni.** Sotto API 31 gli effetti sono tutti no-op (`isRenderEffectSupported()`), sotto API 33 `lens`/`runtimeShaderEffect` sono no-op (`isRuntimeShaderSupported()`): blur e vibrancy restano. Dalla 4.0 `lens` lo è anche dove il compilatore del dispositivo rifiuta la sua sorgente: la guardia è il verdetto della sonda (`GlassFieldHealth.usable`, una compilazione per processo e poi una lettura), e lo stesso vale per i riflessi a shader e per il bagliore del tocco. Prima un rifiuto lanciava dentro il disegno. Una
+**Degradazioni.** Sotto API 31 gli effetti sono tutti no-op (`isRenderEffectSupported()`), sotto API 33 `lens`/`runtimeShaderEffect` sono no-op (`isRuntimeShaderSupported()`): blur e vibrancy restano. Dalla 4.0 le due funzioni chiedono `glassApiLevel()` invece di `SDK_INT`: è `SDK_INT`, salvo in un'app `debuggable` a cui `FluidGlassDiagnostics.simulateApiLevel` ha chiesto di rispondere come un Android più vecchio (solo verso il basso, quindi un «sì» vuol dire ancora che la piattaforma ha l'API; voce 17 della licenza). Dalla 4.0 `lens` lo è anche dove il compilatore del dispositivo rifiuta la sua sorgente: la guardia è il verdetto della sonda (`GlassFieldHealth.usable`, una compilazione per processo e poi una lettura), e lo stesso vale per i riflessi a shader e per il bagliore del tocco. Prima un rifiuto lanciava dentro il disegno. Una
 sagoma che non è `RectangleShape`, `AbsoluteRoundedCornerShape` né `CornerBasedShape` **perde la lente** e tiene sfocatura e vividezza (a monte è un'eccezione: «un design system che finisce in cinque app deve degradare»).
 
 **Gli shader sono condivisi per processo** (`RuntimeShaderCache`): a monte ogni pannello ne ha uno, e per Skia la chiave di un programma GPU è l'**istanza**, non il sorgente, quindi ogni pannello che entrava nello schermo
@@ -192,7 +211,8 @@ imposta gli uniform e li **fotografa subito** sullo stesso thread. La sonda degl
 - **`Highlight(width = 0,5 dp, blurRadius = width/2, alpha = 1, style = HighlightStyle.Default)`**: l'anello speculare lungo il perimetro, tratteggiato da uno shader. Tre stili: `HighlightStyle.Plain` (bianco 0,38 in
   `Plus`, senza shader: un anello uniforme); `HighlightStyle.Default` (colore, modo, `angle` 45°, `falloff` 1: intensità `|normale · luce|^falloff`, cioè pieno dove la sagoma guarda verso la luce *e* verso
   il lato opposto, zero sui fianchi); `HighlightStyle.Ambient` (solo la metà rivolta alla luce, in `SrcOver`, `intensity` 0,38). Costanti `Highlight.Default` / `Ambient` / `Plain`. `glassSurface` costruisce lo stile `Default` con
-  colore e modo di `glassRimRecipe` e l'angolo dall'ottica; la goccia usa `Ambient` diviso 1,5.
+  colore e modo di `glassRimRecipe` e l'angolo dall'ottica (nel vetro di prima: il materiale nuovo passa `highlight`, `shadow` e `innerShadow` a `null`, e
+  disegna luce e ombra da sé, con `onDrawLight` e `underlay`); la goccia usa `Ambient` diviso 1,5.
 - **`Shadow(radius = 24 dp, offset = (0, radius/6), color = nero 0,1, alpha, blendMode)`**: l'ombra esterna, scavata **sotto** la sagoma (disegnata fuori da essa).
 - **`InnerShadow(radius = 24 dp, offset = (0, radius), color = nero 0,15, alpha, blendMode)`** e `lerp(start, stop, fraction)` per animarla: l'ombra interna, lo spessore visto dall'interno.
 
@@ -280,6 +300,15 @@ il diff con una versione nuova a monte, che è l'unico modo di aggiornare (si ri
 9. **Una pressione arriva sempre in fondo** (2.11.0): `GlassTouchHighlight` passa da `FluidPressMotion`, `GlassDragAnimation.release` aspetta la pressione.
 10. **I port dei controlli** (`FluidSwitch`, `FluidSlider`): stesse costruzioni e stessi numeri; cambia ciò che l'engine chiede a ogni controllo (accento del tema, `enabled`, aptica, semantica, movimento ridotto, ripiego senza `RenderEffect`).
 11. **Vetro su vetro** (2.13.0): `GlassNesting.kt` accanto ai sorgenti copiati.
+12. **`radiusAt` riceve la coordinata centrata** (4.0): nelle due lenti e nei due riflessi ogni angolo prendeva il raggio di quello in basso a destra; con raggi diversi (un foglio
+    arrotondato solo in alto) lente e bordo seguivano la curva sbagliata. Il difetto è ancora a monte.
+13. **L'anello configura il pennello dentro la propria registrazione** (4.0): lo shader del riflesso è un'istanza per processo, e la registrazione rieseguita dalla piattaforma
+    disegnava con gli uniform dell'ultima superficie (regola «La lambda di `record`…» in [regole.md](../regole.md)).
+14. **Uno shader rifiutato dal dispositivo fa ripiegare, non cadere** (4.0): lente, riflessi e bagliore chiedono il verdetto della propria sorgente (`GlassFieldHealth.usable`) e su un
+    rifiuto prendono il ramo di API 33; la cache guadagna `obtainEngineShader`, che dà `null` invece di lanciare.
+15. **`drawBackdrop` guadagna `onDrawLight` e `underlay`** (4.0): la luce del materiale nuovo fuori dal materiale pubblicato, e un posto per la sua ombra dentro il `layerBlock`.
+16. **Il nodo si conta, e il livello di API si può simulare in debug** (4.0): `DrawBackdropNode` tiene il suo censimento per `FluidGlassDiagnostics` (nodo, cattura, posa, materiale,
+    e la superficie con il suo materiale); `isRenderEffectSupported()` e `isRuntimeShaderSupported()` chiedono `glassApiLevel()`.
 
 ## Licenza e attribuzione
 
@@ -294,8 +323,22 @@ era la libreria di Kyant copiata come sorgente, è un debito d'indirizzo e non d
 `FluidGlassDiagnostics` (oggetto, spento di serie: costa una lettura volatile per cattura): con `enabled = true` conta `totalCaptures` (ricatture dei pannelli) e `totalExports` (materiali pubblicati). Il progetto è che un pannello cattura solo
 quando qualcosa che mostra è cambiato; **a schermo fermo i due numeri devono smettere di muoversi**, ed è così che lo si verifica su un dispositivo invece di crederci. Da accendere solo nelle build di debug.
 
-Dalla 4.0 lo stesso oggetto dice anche **se gli shader del vetro compilano su questo dispositivo**, e queste letture non dipendono da `enabled`: `shaderSourceNames` elenca le sorgenti AGSL dell'engine, `shaderVerdicts` dà i verdetti già chiesti in questo processo
-(nome → `null` se compila, o l'errore del compilatore), `compileAllShaders()` le compila tutte adesso. Un rifiuto scrive comunque una riga d'errore in logcat col tag `FluidGlass`, e chi usa quella sorgente disegna come sotto API 33 invece di lanciare. `compileAllShaders()` costa una compilazione per sorgente: non va chiamata all'avvio.
+Dalla 4.0 lo stesso oggetto dice anche **se gli shader del vetro compilano su questo dispositivo**, e queste letture non dipendono da `enabled`: `shaderSourceNames` elenca le **tredici** sorgenti AGSL dell'engine (le quattro del renderer di Kyant, il bagliore,
+le quattro di Fluid-physics, e le quattro del materiale nuovo: corpo e luce a un pezzo e a otto), `shaderVerdicts` dà i verdetti già chiesti in questo processo (nome → `null` se compila, o l'errore del compilatore; una sorgente che nessuno ha
+ancora usato non compare), `compileAllShaders()` le compila tutte adesso e restituisce i tredici verdetti. Un rifiuto scrive comunque una riga d'errore in logcat col tag `FluidGlass`, e chi usa quella sorgente disegna come sotto API 33 invece
+di lanciare: per il corpo o la luce del materiale nuovo vuol dire che la lastra resta il vetro di prima per intero. `compileAllShaders()` costa una compilazione per sorgente: non va chiamata all'avvio. Sotto Android 13 (vero o simulato) i nomi
+sono tutti, i verdetti nessuno.
+
+E dice **quale vetro c'è in scena e quanto costa tenerlo** (4.0; la scheda [vetro.md](vetro.md), «Due materiali», «La diagnostica», ne spiega l'uso):
+- `liveSurfaces`, le superfici vive per materiale: una per nodo di `drawBackdrop` attaccato, `Liquid` se passa `onDrawLight`, il vetro di prima in ogni altro caso (anche Fluid-physics e
+  chi chiama `drawBackdrop` a mano, che la scelta del modello non la fanno);
+- `liveModelChoices`, le risposte vive della scelta del modello per motivo (`FluidGlassModelReason`): non sono superfici, sono domande, e da qui si legge perché un vetro è rimasto quello di prima;
+- `liveNodes` e `liveLayers`, i nodi e i layer del vetro vivi per tipo (`FluidGlassNodeKind`: il nodo di `drawBackdrop` e quello dell'ombra nuova; `FluidGlassLayerKind`: cattura, posa,
+  materiale pubblicato, ombra), contati dal censimento del nodo. I tre nodi del vetro di prima che stanno fuori da `drawBackdrop` (anello, ombra, ombra interna) non sono ancora contati;
+- `warmUp`, `warmUpEnabled` e `warmUpNow()`, il riscaldamento dei programmi del materiale nuovo;
+- `simulateApiLevel(context, level)` e `simulatedApiLevel`: solo in un'app `debuggable`, il vetro risponde come Android 12 o 11 e l'engine disegna i propri ripieghi sul dispositivo vero.
+
+I conteggi costano solo con `enabled` acceso, e contano ciò che nasce **dopo** l'accensione: un nodo nato a diagnostica spenta non toglie niente quando se ne va, e i numeri non scendono mai sotto zero.
 
 ## Cosa è verificato dai test
 
@@ -307,12 +350,16 @@ Dalla 4.0 lo stesso oggetto dice anche **se gli shader del vetro compilano su qu
 - `SourceGoneHoldTest`: un pannello tiene la cattura nel fotogramma in cui la sua sorgente viene smontata, una sorgente pronta non si tiene mai, chi non ha niente da tenere continua a registrare, una sorgente che non torna non si tiene per sempre.
 - `GlassDropFaceTest` e `GlassDropSquashTest`: la faccia per lato, il contrasto con l'etichetta, l'alfa `1 − p` bit per bit; lo squash dei tre posti che lo avevano, rifatto **come stava scritto prima** e confrontato bit per bit con la funzione condivisa
   (slider, interruttore, pillola), tetto 0,2, movimento ridotto, i numeri di Kyant. `GlassShaderFallbackTest`: lente, riflessi e bagliore con la sorgente rifiutata prendono il ramo di API 33 senza eccezioni, con la sorgente accettata chiedono lo shader di prima, il verdetto si chiede una volta e nessun file arriva al compilatore senza un verdetto. `GlowRecipeTest`: ogni ricetta del bagliore (scuro = Kyant, chiaro non vetro = inchiostro, chiaro vetro = luce bianca che non scurisce mai la faccia e sta nel margine di una faccia chiara, pulsante = LibrePods).
+- `HighlightRingReplayTest`: l'anello rieseguito dalla piattaforma ridisegna la propria sagoma, non quella dell'ultima superficie. `GlassWarmUpTest` (il censimento che conta solo ciò che nasce a
+  diagnostica accesa e lo restituisce tutto, il livello simulato solo in debug e solo verso il basso); nella galleria `GlassNodeCountTest` (nodi e layer per lastra, nei due materiali) e
+  `GlassPathSelectionTest` (il percorso a ogni livello di API, vero o simulato). Che `onDrawLight` stia fuori dal materiale pubblicato lo dice l'ordine del disegno nel nodo, non un test.
 - **Non verificato**: l'aspetto (gli host dei test non hanno fondale), il costo reale su un dispositivo (si misura con `FluidGlassDiagnostics` e con Perfetto), e i fotogrammi di una goccia o di un viaggio.
 
 ## Dove guardare
 
 - `glass/backdrop/Backdrop.kt` (l'interfaccia e i membri nostri), `backdrops/` (`LayerBackdrop`, `layerBackdrop`, `CombinedBackdrop`, `CanvasBackdrop`, `EmptyBackdrop`, `rememberBackdrop`), `DrawBackdropModifier.kt` (`drawBackdrop`, il nodo, la vita di una cattura, `fitToTexture`).
-- `glass/backdrop/BackdropEffectScope.kt`, `effects/` (`Blur`, `ColorFilter`, `Lens`, `RenderEffect`), `internal/Shaders.kt` (gli AGSL: SDF, rifrazione, dispersione, anello), `RuntimeShader.kt`, `RuntimeShaderCache.kt`, `Platform.kt` (API 31 / 33).
+- `glass/backdrop/BackdropEffectScope.kt`, `effects/` (`Blur`, `ColorFilter`, `Lens`, `RenderEffect`), `internal/Shaders.kt` (gli AGSL: SDF, rifrazione, dispersione, anello), `RuntimeShader.kt`, `RuntimeShaderCache.kt`, `Platform.kt` (API 31 / 33, e `glassApiLevel`).
+- Il materiale nuovo, che usa questo nodo con `onDrawLight` e `underlay`: `glass/field/` ([vetro.md](vetro.md), «Due materiali»); la sonda e l'elenco delle sorgenti in `glass/field/GlassFieldHealth.kt`.
 - `glass/backdrop/highlight/`, `shadow/` (anello, ombra, ombra interna, i layer ausiliari), `internal/` (`ShapeProvider`, `InverseLayerScope`, `LayerRecorder`, `Outline`).
 - `glass/backdrop/GlassNesting.kt` (vetro su vetro), `FluidGlassDiagnostics.kt`.
 - `glass/interaction/GlassInteraction.kt` (`inspectDragGestures`, `GlassDragAnimation`, `GlassTouchHighlight`, le ricette del bagliore), `GlassDrop.kt` (la goccia).

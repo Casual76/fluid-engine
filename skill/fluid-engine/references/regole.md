@@ -741,3 +741,166 @@ dell'engine che seguono lo stesso schema, è in `docs/liquid-glass/ricerca/conto
 Un test sul JVM non lo vede da solo, perché lì nessuno butta display list: `PhysicsShadowSlotsTest` e
 `HighlightRingReplayTest` lo provano con `GraphicsLayer` veri sopra un doppio della piattaforma che
 riesegue la lambda a ogni disegno. Un layer nuovo registrato una volta sola chiede lo stesso test.
+
+Il materiale nuovo della 4.0 la rispetta e ha il suo test: l'ombra a due maschere registra dalla sagoma
+che appartiene al suo layer, e `GlassShadowTest` la riesegue come fa la piattaforma (un'ombra rieseguita
+ridisegna la propria sagoma, non l'ultima registrata; dopo che la display list è stata buttata torna una
+volta sola, e giusta). La luce del materiale nuovo non si registra affatto: si disegna a ogni fotogramma,
+e i suoi uniform, che sono di un'istanza di shader condivisa dal processo, si impostano dentro il disegno,
+subito prima di disegnare (`drawGlassLight`).
+
+## Il materiale nuovo: il vetro di prima non si tocca, e la scelta sta in un posto (4.0)
+
+Dalla 4.0 il vetro ha due materiali, `Liquid` (il nuovo, da Android 13) e `Classic` (quello della 3.x),
+dietro la stessa firma di `glassSurface` (la scheda [componenti/vetro.md](componenti/vetro.md), «Due
+materiali»). Due regole li tengono separati.
+
+**Il vetro di prima non si tocca.** È il ripiego di tutto ciò che il materiale nuovo non può disegnare:
+sotto Android 13, su un compilatore che rifiuta, sulla fascia in alto, sullo scrim dei modali,
+sull'orologio, e dove un'app lo chiede. Per questo il suo codice è rimasto dov'era, dietro l'`if` di
+`glassSurface`, e deve restare identico al pixel. Il motivo per essere severi è che un cambio lì non lo
+vede nessuno: le sessioni di prova si fanno su dispositivi recenti, che disegnano l'altro materiale, e un
+ritocco al ripiego arriverebbe in silenzio a ogni dispositivo sotto Android 13. Un'ottica o una pellicola
+nuova per il materiale nuovo va nel suo profilo, mai in `GlassDefaults`, che resta la verità del vetro di
+prima.
+
+**La scelta sta in un posto.** Quale materiale disegna una superficie lo decide `resolveFluidGlassModel`,
+pura, con le sue domande in ordine; chi disegna vetro la chiede (oggi `glassSurface`,
+`glassControlSurface` e l'ombra staccata), mai per conto suo. Il compilatore si chiede per ultimo, perché
+è l'unica domanda che compila, e una superficie che resta `Classic` per un'altra ragione non deve far
+compilare programmi che non disegnerà. Se il corpo o la luce della lastra sono rifiutati la superficie
+resta `Classic` per intero: un corpo nuovo con il bordo di prima non esiste. Una ragione nuova per restare
+al vetro di prima si aggiunge lì e, con lo stesso ordine, ai motivi della diagnostica
+(`FluidGlassModelReason`), perché un ripiego che non si legge da fuori è il difetto di `flat` un'altra volta.
+
+Provato da `GlassModelSelectionTest` (la tabella di verità riga per riga: Android 13, l'antenato che chiede
+`Classic`, il compilatore che rifiuta, la fascia, le forme, il velo senza spessore, il compilatore chiesto
+per ultimo e solo quando decide, corpo e luce insieme, ogni ottica di serie una lastra e lo scrim no), da
+`GlassWarmUpTest` (i motivi della diagnostica danno la stessa risposta della risoluzione, su tutta la
+tabella), da `GlassDefaultsTest` (le ottiche e le pellicole di `GlassDefaults` sono quelle della 3.1.3), dai
+test del vetro di prima rimasti verdi senza una riga cambiata (`GlassMaterialStateTest`, `GlassSizeRuleTest`,
+`GlassPanelMaterialTest`, `GlassRimRecipeTest`), e nella galleria da `GlassPathSelectionTest` (il percorso
+a ogni livello di API, anche simulato) e `GlassNodeCountTest` (una lastra `Classic` ha ancora 5 nodi e 5
+layer). Sul banco lo tiene `glassbench.py compare` sulle immagini `golden/classic`, che dopo l'innesto
+sono rimaste identiche. Quello che nessun test dice è com'è il ripiego su un dispositivo vecchio vero: il
+livello simulato fa disegnare all'engine i suoi rami sul driver di un dispositivo nuovo, non prova la
+piattaforma.
+
+## Il materiale nuovo: i numeri di gusto stanno nel profilo, e le scene escono dalla ricetta (4.0)
+
+**I numeri di gusto vivono solo nel profilo** (`GlassLiquidProfile`): lo spessore e il colore del filo, la
+forza del riflesso, il velo, l'ombra, la smerigliatura, la lente, quanto crescono i grandi. Gli shader
+dicono *come* si disegna un vetro e non portano numeri di gusto (le costanti che restano lì danno forma alle
+curve, e non sono manopole); la ricetta, `glassRecipe`, dice *come* un profilo diventa una lastra di una
+certa taglia, e non ne porta nessuno. Prima i valori di serie stavano in coda ai tre file degli shader, e
+chi voleva cambiare «il bordo» doveva sapere che metà stava nella luce e metà nel corpo. Ogni numero porta
+accanto la sua fonte: la scheda di misura di R4 o R5 con la fiducia, o «a occhio» con la data (e una scelta
+di gusto fatta sulle tavole prende il posto della data). Le varianti che vanno in tavola (iOS 27, iOS 26,
+«oggi») sono numeri nello stesso file, non altri shader: una tavola è il profilo di serie con un pezzo
+cambiato.
+
+**Una scena del materiale nuovo non porta numeri ricopiati a mano.** Uno uniform ricopiato descrive
+un'intenzione, non ciò che l'engine disegnerà, e ciò che si misura contro Apple e ciò che si sceglie su una
+tavola deve essere ciò che arriva allo schermo. Le scene del banco (`tools/glassbench/scenes/f1a/ricetta/` e
+`gusto/`) le scrive un test dalla ricetta, e da quelle nascono le misure, le tavole e le immagini
+`golden/liquid`; un altro test confronta, uniform per uniform, ciò che `glassSurface` passa agli shader con
+ciò che le scene scrivono, nei due spazi (la cattura rimpicciolita per il corpo, lo schermo per la luce).
+Fanno eccezione le prove scritte a mano prima che la ricetta esistesse (`scenes/f1a/prova-*`), che non
+diventano mai immagini di riferimento.
+
+La ricetta è pura e riscrive il contenitore che riceve: si chiama a ogni fotogramma di una pressione senza
+allocare, e l'ombra tiene la sua specifica finché i numeri non cambiano.
+
+Provato da `GlassDrawParityTest` (tasto, capsula, tab bar, menu e pannello, chiaro e scuro, due densità:
+ogni uniform dell'innesto è quello della scena; una pellicola dipinta arriva al corpo come la scena la
+scrive; l'adattatore della superficie non aggiunge niente), da `GlassSceneExportTest` (ogni scena imposta
+esattamente gli uniform che i suoi programmi dichiarano; ogni variante di gusto cambia ciò che dice e solo
+quello), da `GlassRecipeTest` (le varianti danno ciò che dicono; `GlassShadowDefaults` rimanda agli stessi
+oggetti del profilo, non a una seconda copia dei numeri; la ricetta riscrive il contenitore che riceve) e da
+`GlassModelSelectionTest` (i numeri dell'ombra restano finché non cambiano). Quello che i test **non**
+trovano: un numero di gusto scritto in uno shader o nella ricetta, un JSON di `ricetta/` corretto a mano,
+una scena non rigenerata dopo un cambio del profilo (si rigenerano con `GLASS_SCENE_DIR`, istruzioni in
+`tools/glassbench/README.md`). Quelli li trova la review.
+
+## Gli shader del vetro: ogni sorgente si registra, passa dal lint e, se è nuova, si scalda (4.0)
+
+Dalla 3.0.0 alla 3.1.2 una variabile si chiamava `flat`, parola riservata di SkSL: il compilatore rifiutava
+due sorgenti di Fluid-physics, la sonda lo diceva con una sola riga d'avviso, e tutto il motore è rimasto
+al livello `Balanced` su ogni dispositivo senza che nessuno se ne accorgesse. Da lì, quattro regole per
+ogni sorgente AGSL dell'engine:
+
+- **ha un nome ed è nell'elenco della sonda.** Una sorgente completa (con un `main`) è una costante
+  `…ShaderString` registrata in `GlassShaderSources`: la sonda la prova, la diagnostica ne dà il verdetto,
+  il banco e il test strumentato la compilano. Un elenco scritto a mano dimentica una sorgente nuova, ed è
+  così che una sorgente sfugge a ogni controllo: per questo il test legge i sorgenti Kotlin e fallisce se
+  una stringa con un `main` non è nell'elenco, o se il testo dell'elenco non è quello del file;
+- **passa dal lint**, che ferma le parole riservate di SkSL usate come nome (l'unione dei lexer di Android
+  13–16, `flat` compreso), i cicli che il compilatore non sa srotolare, gli indici che non sono costanti e
+  ciò che AGSL non ha. E prima di consegnare `glassbench.py check` la compila sul PC;
+- **chi la usa chiede il verdetto e ha un ripiego.** Su un rifiuto si disegna il ramo che c'è sotto
+  Android 13, mai un'eccezione nel disegno: la lente, i riflessi e il bagliore chiedono
+  `GlassFieldHealth.usable`, il materiale nuovo passa dalla scelta del modello;
+- **se è del materiale nuovo, sta in una famiglia del riscaldamento** (una sola), e quelle del vetro di
+  prima in nessuna. Un programma nuovo senza famiglia pagherebbe la propria compilazione nel primo
+  fotogramma in cui compare, che è ciò che il riscaldamento esiste per evitare.
+
+Gli shader del materiale nuovo vivono in `ui/glass/field/`; la famiglia di Fluid-physics resta la deroga
+dichiarata in «Il morphing vive in un posto solo» finché il suo disegno non passa al materiale nuovo.
+
+Provato da `ShaderSourceLintTest` (ogni sorgente passa il lint; ogni stringa con un `main` è nota alla
+sonda col suo testo; ogni sorgente registrata è del vetro di prima o è scaldata da esattamente una
+famiglia; il lint ferma il `flat` della 3.1.2, le parole riservate, i cicli e gli indici che non vanno),
+da `GlassShaderFallbackTest` (lente, riflessi e bagliore rifiutati prendono il ramo di sotto senza
+eccezioni; nessun percorso di disegno arriva al compilatore senza un verdetto; il verdetto non si chiede a
+ogni disegno), da `GlassWarmUpTest` (ogni passo di una famiglia compila un programma diverso della sua
+famiglia) e sul dispositivo da `GlassShaderCompileInstrumentedTest`, che compila ogni sorgente col
+compilatore vero e prova che rifiuta ancora `flat`.
+
+## Il materiale nuovo: una tinta a cui l'app ha dato un colore resta dipinta (4.0)
+
+`GlassTint` ha un modo (`GlassTintMode`) che dice al materiale nuovo cosa fare di `overlay`: `Fixed` la
+dipinge com'è al posto del velo, `Neutral` lascia il velo al materiale, `Colored` la posa sopra il velo.
+Le tinte di famiglia di `GlassDefaults` sono `Neutral`, perché nel materiale nuovo il velo è del profilo.
+
+Ma un'app che dà un tono a una lastra lo fa con `GlassDefaults.barTint().copy(overlay = colore)`, e se il
+modo sopravvivesse alla `copy` il materiale nuovo quel colore non lo dipingerebbe: l'app cambierebbe
+aspetto senza aver toccato una riga, che è proprio ciò che una versione non deve fare. Quindi **`Neutral`
+vale solo per la pellicola con cui la tinta è nata**: se `overlay` non è più quella, la tinta si legge
+`Fixed`. Conta solo il colore, non l'ordine delle chiamate né chi le fa; `fallback` e `hairline` non
+toccano il modo. E **sopra il contrasto standard ogni tinta è la pellicola densa** (`forContrast` la mette
+in `Fixed`), perché chi chiede più contrasto non vuole un velo che lascia passare lo sfondo.
+
+Per chi scrive una tinta nuova nell'engine: dice il suo modo (`Neutral` per una pellicola di famiglia,
+`Fixed` per una pellicola che è tale per mestiere, `Colored` per un colore d'origine) e passa da
+`forSystemContrast()` una volta sola, come le altre.
+
+Provato da `GlassTintModeTest` (la tinta scritta a mano dipinta com'è, quella di serie col colore cambiato
+che lo mostra, l'ordine delle chiamate che non conta, il colore e non la storia, `fallback` e `hairline` che
+non toccano il modo, il contrasto alzato che dà la pellicola densa, il costruttore a tre argomenti di
+sempre), da `GlassDefaultsTest` (la famiglia è il velo e le pellicole sono dipinte; una tinta di serie col
+colore dell'app lo mostra; col contrasto alzato ogni tinta di serie è la pellicola densa, una volta sola),
+da `GlassCompatSignaturesTest` e `GlassModelSelectionTest` (una tinta a tre argomenti resta la pellicola
+dipinta) e da `GlassDrawParityTest` (la pellicola dipinta arriva al corpo).
+
+## Il materiale nuovo: il margine della cattura resta fermo, e il filo non cresce con la taglia (4.0)
+
+**Il margine della cattura non si muove.** Il raggio di sfocatura decide il margine che la cattura
+registra attorno al pannello, e un margine che cambia rifà la cattura a ogni fotogramma (è l'invariante
+della regola della taglia, «La taglia cambia il conto»). Nel materiale nuovo la comparsa e `intensity`
+non toccano il raggio: passano dalla mescola fra nitido e smerigliato e dalla comparsa nello shader. La
+qualità adattiva scala il raggio, come ha sempre fatto, ma il margine si calcola una volta, a qualità piena,
+e resta quello; ed è un numero intero di pixel, perché il layer si posa al margine e una frazione
+sposterebbe il vetro rispetto al nodo.
+
+**Il filo non cresce con la taglia; smerigliatura e ombra sì.** Lo spessore del filo e il rientro del
+riflesso sono assoluti, gli stessi su un tasto, una capsula, un menu e un pannello: è così nelle misure di
+iOS (R4 A1), e un filo che cresce con la lastra diventa una fascia, il difetto che la tavola del bordo
+nomina. La smerigliatura e l'ombra crescono con la regola della taglia dell'engine, perché un pannello
+grande smerigliato come uno piccolo sembra un piccolo ingrandito.
+
+Provato da `GlassRecipeTest` (`intensity` scala il materiale senza toccare il raggio; a intensità zero lo
+sfondo è nitido; la qualità scala forma e raggio e mai il velo; il margine copre la sfocatura che la lente
+non copre; il filo non cresce con la lastra; smerigliatura e ombra crescono col guadagno della taglia), da
+`GlassModelSelectionTest` (il margine è di pixel interi e non si muove con intensità, qualità o pressione)
+e da `GlassSceneExportTest` (nelle scene il filo è lo stesso su ogni lastra, e i grandi sono più
+smerigliati).

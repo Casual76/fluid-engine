@@ -17,7 +17,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Controlli](controlli.md) | 8 | 54 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 9 | 81 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 153 |
-| [Vetro](vetro.md) | 25 | 156 |
+| [Vetro](vetro.md) | 25 | 173 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 76 |
 | [Tema, forma, tipo](tema.md) | 6 | 81 |
 | [Icone (FluidIcons)](icone.md) | 3 | 195 |
@@ -38,6 +38,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |
 | [engine-ai-bridge](ai-bridge.md) | 4 | 99 |
 | [engine-ai-ui](ai-ui.md) | 28 | 223 |
+| [Non classificato](altro.md) | 1 | 2 |
 
 Le icone fanno eccezione: in [icone.md](icone.md) il set è una tabella con una riga per icona (il nome, quello di Material Symbols, la variante piena), non una riga per dichiarazione.
 

@@ -4,7 +4,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidShape.kt`
 
-- `class ContinuousCornerShape(topStart: CornerSize, topEnd: CornerSize, bottomEnd: CornerSize, bottomStart: CornerSize, private val smoothing: Float = IosSmoothing) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart)` — A rounded rectangle whose corners are *continuous* rather than circular.
+- `class ContinuousCornerShape(topStart: CornerSize, topEnd: CornerSize, bottomEnd: CornerSize, bottomStart: CornerSize, smoothing: Float = IosSmoothing) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart)` — A rounded rectangle whose corners are *continuous* rather than circular.
   - `companion object`
     - `const val IosSmoothing: Float` — How far Apple pushes the curvature ramp. Figma's slider calls this 60%.
 - `fun ContinuousCornerShape(radius: Dp, smoothing: Float = ContinuousCornerShape.IosSmoothing): ContinuousCornerShape`

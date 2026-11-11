@@ -1,0 +1,207 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). Corpo su pagina 238. Da `rif/rif27-tabbar-telefono.json`: Tab bar su telefono, pagina 238, con il tondo della scheda prominente a destra, come 269 @5:19 (classe B). Geometria di R5 T6 con le taglie decise nel piano: barra alta 62 dp, margine 16 dp, distanza 8 dp, tondo D = H.",
+  "apple": {
+    "frame": "269 5:19",
+    "ritaglio": "artifacts/liquid-glass/riferimenti/ios27/ritagli/T6_scheda_prominente_269_0519.jpg",
+    "scala": "H = 197 px del 4K = 62 dp; schermo largo 7,0 H (qui 412 dp = 6,6 H)"
+  },
+  "width": 412,
+  "height": 130,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#EEEEEE"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "name": "capsula",
+      "x": 16,
+      "y": 40,
+      "w": 310,
+      "h": 62,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "14.88dp",
+          "refraction": "-13.392dp",
+          "dome": 0.3816,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "icons": [
+        "fluid:home|home",
+        "fluid:grid_view|grid4",
+        "fluid:library_music|menu"
+      ],
+      "items": [
+        {
+          "kind": "rect",
+          "x": 4.7,
+          "y": 4.7,
+          "w": 98,
+          "h": 52.6,
+          "radius": "capsule",
+          "color": "#00000014"
+        }
+      ],
+      "iconSizeDp": 28
+    },
+    {
+      "kind": "material",
+      "name": "tondo",
+      "x": 334,
+      "y": 40,
+      "w": 62,
+      "h": 62,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "14.88dp",
+          "refraction": "-13.392dp",
+          "dome": 0.3816,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "icon": "fluid:search|search",
+      "iconSizeDp": 28
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "capsula",
+      "at": [
+        0.45,
+        0.35,
+        0.2,
+        0.3
+      ],
+      "scheda": "M4",
+      "fiducia": "alta",
+      "ref": {
+        "corpo": [
+          "-",
+          "240-243 su pagina 238"
+        ],
+        "corpo-fondo": [
+          "+15...+27 (R4 A2)",
+          "+2...+5"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    }
+  ]
+}

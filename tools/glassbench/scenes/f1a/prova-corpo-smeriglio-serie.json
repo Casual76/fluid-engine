@@ -1,0 +1,389 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). Smerigliatura: il raggio di serie, w = 0. Da `rif/rif27-tabbar.json`: Tab bar e accessorio di Musica sopra pagina 235 e arte colorata: e' IL CONFRONTO DI APPLE fra iOS 26 e iOS 27 sulla stessa scena (State of the Union 22:43-22:57, f40864 e f41284), la misura piu' solida di R5. L'arte e' sintetica (dev. std ~70, come quella nuda di Apple: 68-76).",
+  "apple": {
+    "frame": "102 f40864 (iOS 26), f41284 (iOS 27)",
+    "ritaglio": "artifacts/liquid-glass/riferimenti/ios27/ritagli/M1_tabbar_ios26_sopra_ios27_sotto.jpg",
+    "scala": "H della tab bar = 570 px del 4K = 62 dp"
+  },
+  "width": 400,
+  "height": 170,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#EBEBEB"
+  },
+  "page": [
+    {
+      "kind": "background",
+      "x": 0,
+      "y": 0,
+      "w": 122,
+      "h": 82,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 60,
+        "detail": 0.9,
+        "palette": [
+          "#2A1410",
+          "#B24A18",
+          "#F09A2A",
+          "#5A2412",
+          "#F6C25A",
+          "#1C0E0C"
+        ]
+      }
+    },
+    {
+      "kind": "background",
+      "x": 136,
+      "y": 0,
+      "w": 196,
+      "h": 64,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 46,
+        "detail": 1.0,
+        "contrast": 1.25,
+        "palette": [
+          "#111114",
+          "#F4D21C",
+          "#F06AA8",
+          "#1A1A22",
+          "#35C2D6",
+          "#F4D21C",
+          "#E8651C",
+          "#111114"
+        ]
+      }
+    },
+    {
+      "kind": "rect",
+      "x": 136,
+      "y": 64,
+      "w": 196,
+      "h": 14,
+      "color": "#E9C400"
+    },
+    {
+      "kind": "rect",
+      "x": 346,
+      "y": 0,
+      "w": 54,
+      "h": 78,
+      "color": "#F2A21C"
+    },
+    {
+      "kind": "text",
+      "text": "Breaking",
+      "x": 300,
+      "y": 116,
+      "sizeDp": 21,
+      "weight": 700,
+      "color": "#1A1A1C"
+    },
+    {
+      "kind": "text",
+      "text": "Nuevo",
+      "x": 178,
+      "y": 116,
+      "sizeDp": 21,
+      "weight": 700,
+      "color": "#1A1A1C"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "name": "accessorio",
+      "x": 18,
+      "y": 4,
+      "w": 364,
+      "h": 50,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "12dp",
+          "refraction": "-10.8dp",
+          "dome": 0.4605,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "items": [
+        {
+          "kind": "rect",
+          "x": 18,
+          "y": 9,
+          "w": 32,
+          "h": 32,
+          "radius": 7,
+          "color": "#5E7FA8"
+        },
+        {
+          "kind": "text",
+          "text": "WITH ME",
+          "x": 60,
+          "y": 22,
+          "sizeDp": 14,
+          "weight": 700
+        },
+        {
+          "kind": "text",
+          "text": "John Summit & Julia Wolf",
+          "x": 60,
+          "y": 39,
+          "sizeDp": 13
+        },
+        {
+          "kind": "icon",
+          "icon": "fluid:play_arrow|play",
+          "x": 330,
+          "y": 25,
+          "sizeDp": 22
+        }
+      ]
+    },
+    {
+      "kind": "material",
+      "name": "tabbar",
+      "x": 18,
+      "y": 68,
+      "w": 364,
+      "h": 62,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "14.88dp",
+          "refraction": "-13.392dp",
+          "dome": 0.3816,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "icons": [
+        "fluid:home|home",
+        "fluid:grid_view|grid4",
+        "fluid:sensors|circle",
+        "fluid:library_music|menu",
+        "fluid:search|search"
+      ],
+      "items": [
+        {
+          "kind": "rect",
+          "x": 78,
+          "y": 4.7,
+          "w": 70,
+          "h": 52.6,
+          "radius": "capsule",
+          "color": "#00000014"
+        }
+      ],
+      "iconSizeDp": 28
+    }
+  ],
+  "measure": [
+    {
+      "kind": "frost",
+      "element": "accessorio",
+      "label": "arte sotto l'accessorio",
+      "window": [
+        150,
+        8,
+        170,
+        40
+      ],
+      "scheda": "M1",
+      "fiducia": "alta",
+      "ref": {
+        "contrasto": [
+          "19-27% (dev. std 14,2-18,7 su arte nuda 68-76)",
+          "6-13% (4,3-9,5)"
+        ],
+        "intervallo": [
+          "47-52 livelli",
+          "16-34 livelli: il 34-65% di iOS 26"
+        ],
+        "nitidezza": [
+          "-",
+          "dettagli fini al 35-45% di iOS 26"
+        ]
+      }
+    },
+    {
+      "kind": "frost",
+      "element": "tabbar",
+      "label": "testo dietro la tab bar",
+      "window": [
+        296,
+        98,
+        84,
+        24
+      ],
+      "scheda": "M1",
+      "fiducia": "media",
+      "ref": {
+        "contrasto": [
+          "dev. std 10,2, intervallo 38",
+          "dev. std 5,4, intervallo 16 (42-53% di iOS 26)"
+        ]
+      },
+      "rows": [
+        "contrasto",
+        "intervallo",
+        "nitidezza"
+      ]
+    },
+    {
+      "kind": "stepedge",
+      "element": "tabbar",
+      "line": "v:240:66:128",
+      "channel": "b",
+      "scheda": "M1",
+      "fiducia": "media",
+      "ref": {
+        "gradino-locale": [
+          "78% del salto in 24 px (135 su 172)",
+          "40% (64 su 160); il resto si spande su 0,7-0,9 H"
+        ],
+        "gradino-10-90": [
+          "-",
+          "il colore si spande su 0,7-0,9 H"
+        ]
+      }
+    },
+    {
+      "kind": "body",
+      "element": "tabbar",
+      "label": "tab bar su pagina 235",
+      "window": [
+        24,
+        104,
+        40,
+        20
+      ],
+      "scheda": "M1",
+      "fiducia": "alta",
+      "ref": {
+        "corpo": [
+          "250",
+          "243"
+        ],
+        "corpo-fondo": [
+          "+15",
+          "+8"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    }
+  ]
+}

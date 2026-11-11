@@ -1,0 +1,319 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). Tasto 44 dp, capsula e menu sul fondo dato, lente media. Da `rif/pagina-chiara.json`: La pagina chiara dell'engine: #F2F2F7 (neutralBackground, ui/theme/FluidTheme.kt). Gli stessi tre elementi (tasto, capsula, menu) su tutti e sei i fondi: e' dove si decide se il materiale stacca dalla pagina delle app. Nessun frame di Apple: le colonne Apple danno i bersagli di R4 e R5 per lo stesso tipo di fondo.",
+  "width": 480,
+  "height": 270,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "name": "tasto",
+      "x": 30,
+      "y": 113,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 1.44
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "icon": "fluid:add|plus",
+      "iconSizeDp": 26
+    },
+    {
+      "kind": "material",
+      "name": "capsula",
+      "x": 104,
+      "y": 107,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.4211,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "icons": [
+        "fluid:arrow_back|back",
+        "fluid:add|plus",
+        "fluid:circle|circle"
+      ],
+      "iconSizeDp": 26
+    },
+    {
+      "kind": "material",
+      "name": "menu",
+      "x": 290,
+      "y": 39,
+      "w": 170,
+      "h": 192,
+      "radius": 28,
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 18.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.6
+          ],
+          "thickness": "40dp",
+          "refraction": "-36dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        },
+        {
+          "label": "Elimina",
+          "icon": "fluid:delete|close",
+          "color": "#E5484D"
+        }
+      ],
+      "rowHeightDp": 44,
+      "iconSizeDp": 26
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "tasto",
+      "label": "tasto",
+      "scheda": "A2 / M1 M4",
+      "ref": {
+        "corpo-fondo": [
+          "+15...+27 su fondo chiaro (R4 A2, alta)",
+          "+8 su pagina 235, +2...+5 su 238 (R5 M1 e M4, alta)"
+        ],
+        "velo": [
+          "28-48% verso il bianco (R4 A2)",
+          "piu' leggero: +8 invece di +15 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    },
+    {
+      "kind": "body",
+      "element": "capsula",
+      "label": "capsula",
+      "scheda": "A2 / M1 M4",
+      "ref": {
+        "corpo-fondo": [
+          "+15...+27 su fondo chiaro (R4 A2, alta)",
+          "+8 su pagina 235, +2...+5 su 238 (R5 M1 e M4, alta)"
+        ],
+        "velo": [
+          "28-48% verso il bianco (R4 A2)",
+          "piu' leggero: +8 invece di +15 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    },
+    {
+      "kind": "body",
+      "element": "menu",
+      "label": "menu",
+      "scheda": "A2 / M1 M4",
+      "ref": {
+        "corpo-fondo": [
+          "+15...+27 su fondo chiaro (R4 A2, alta)",
+          "+8 su pagina 235, +2...+5 su 238 (R5 M1 e M4, alta)"
+        ],
+        "velo": [
+          "28-48% verso il bianco (R4 A2)",
+          "piu' leggero: +8 invece di +15 (R5 M1)"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    }
+  ]
+}

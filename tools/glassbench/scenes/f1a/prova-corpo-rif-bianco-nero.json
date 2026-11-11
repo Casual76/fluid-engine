@@ -1,0 +1,505 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). Vetro chiaro e scuro su bianco e nero puri; pannello a cavallo. Da `rif/rif-bianco-nero.json`: Vetro chiaro e vetro scuro su bianco e su nero puri, e un pannello grande a cavallo, come la clip sintetica di 15:15-15:40 (classe C). Apple gira il vetro piccolo da chiaro a scuro quando il nero lo copre; l'engine di oggi ha un tema per volta: qui i quattro casi sono fermi, fianco a fianco.",
+  "apple": {
+    "frame": "f27430, f27466, f27520, f27616, f27850, f27934",
+    "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A6_chiaro_scuro.jpg",
+    "scala": "capsula 2,3:1; nel video il bianco e' 226, qui #FFFFFF"
+  },
+  "width": 480,
+  "height": 300,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#FFFFFF"
+  },
+  "page": [
+    {
+      "kind": "rect",
+      "x": 0,
+      "y": 150,
+      "w": 480,
+      "h": 150,
+      "color": "#000000"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "name": "chiaro-su-bianco",
+      "x": 20,
+      "y": 47,
+      "w": 130,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.4211,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "name": "scuro-su-bianco",
+      "x": 170,
+      "y": 47,
+      "w": 130,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.4211,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#78788080",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "theme": "dark"
+    },
+    {
+      "kind": "material",
+      "name": "chiaro-su-nero",
+      "x": 20,
+      "y": 197,
+      "w": 130,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.4211,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "name": "scuro-su-nero",
+      "x": 170,
+      "y": 197,
+      "w": 130,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.4211,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#78788080",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "theme": "dark"
+    },
+    {
+      "kind": "material",
+      "name": "pannello",
+      "x": 330,
+      "y": 40,
+      "w": 130,
+      "h": 220,
+      "radius": 28,
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 18.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.6
+          ],
+          "thickness": "31.2dp",
+          "refraction": "-28.08dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "chiaro-su-bianco",
+      "label": "chiaro su bianco",
+      "scheda": "A6 / M4",
+      "fiducia": "alta",
+      "ref": {
+        "corpo": [
+          "228 su 226",
+          "243-249 su 253"
+        ],
+        "corpo-fondo": [
+          "+2",
+          "-4...-10 (R5 M4)"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo"
+      ]
+    },
+    {
+      "kind": "body",
+      "element": "chiaro-su-nero",
+      "label": "chiaro su nero",
+      "scheda": "A6 / M3",
+      "fiducia": "media",
+      "ref": {
+        "corpo": [
+          "143 (sintetica), 136 (vera), prima di girare",
+          "141-146 su foto a luma 51 (R5 M3)"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    },
+    {
+      "kind": "body",
+      "element": "scuro-su-nero",
+      "label": "scuro su nero",
+      "scheda": "A6 / M3",
+      "fiducia": "media",
+      "ref": {
+        "corpo": [
+          "22 (sintetica), 45 su fondo 28-50 (vera)",
+          "58-78 su nero 15-23 (R5 M3, bassa)"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo"
+      ]
+    },
+    {
+      "kind": "body",
+      "element": "scuro-su-bianco",
+      "label": "scuro su bianco",
+      "scheda": "A6",
+      "fiducia": "media",
+      "ref": {
+        "corpo": [
+          "168-180, prima di tornare chiaro",
+          "-"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo"
+      ]
+    },
+    {
+      "kind": "body",
+      "element": "pannello",
+      "label": "pannello, meta' sul bianco",
+      "at": [
+        0.25,
+        0.12,
+        0.5,
+        0.25
+      ],
+      "scheda": "A2 A6",
+      "fiducia": "media",
+      "ref": {
+        "corpo": [
+          "227-233 su bianco 223 (+4...+10)",
+          "-"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo"
+      ]
+    },
+    {
+      "kind": "body",
+      "element": "pannello",
+      "label": "pannello, meta' sul nero",
+      "at": [
+        0.25,
+        0.63,
+        0.5,
+        0.25
+      ],
+      "scheda": "A6",
+      "fiducia": "media",
+      "ref": {
+        "corpo": [
+          "143 a meta', 48 quando e' tutto sul nero: non gira, scurisce in continuo",
+          "-"
+        ]
+      },
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    }
+  ]
+}

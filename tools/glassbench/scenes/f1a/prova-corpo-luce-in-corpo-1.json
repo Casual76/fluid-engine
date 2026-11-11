@@ -1,0 +1,164 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). `lightInBody` = 1, con margine del campo (12 dp) e senza ritaglio hardware, cioe' come in viaggio. Finche' i blocchi di luce e d'ombra sono neutri `prova-corpo-luce-in-corpo-0` e `-1` sono identiche (`compare` a zero); quando F1A.3 e F1A.4 li riempiono, la `-1` mostra luce e ombra composte dal corpo.",
+  "width": 300,
+  "height": 150,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "synthetic",
+    "scaleDp": 44
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "name": "tasto",
+      "x": 30,
+      "y": 53,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": false,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 1.44
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 1.0
+        }
+      },
+      "icon": "fluid:add|plus",
+      "iconSizeDp": 26,
+      "marginDp": 12
+    },
+    {
+      "kind": "material",
+      "name": "capsula",
+      "x": 110,
+      "y": 47,
+      "w": 160,
+      "h": 56,
+      "radius": "capsule",
+      "clip": false,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.4211,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 1.0
+        }
+      },
+      "icons": [
+        "fluid:arrow_back|back",
+        "fluid:add|plus",
+        "fluid:circle|circle"
+      ],
+      "iconSizeDp": 26,
+      "marginDp": 12
+    }
+  ],
+  "measure": []
+}

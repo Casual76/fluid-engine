@@ -1,0 +1,531 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). In alto `tintMode` 1 (la luminosita' segue lo sfondo), in basso `tintMode` 0 (pellicola fissa, compatibilita'). Da `rif/rif-tinta.json`: La tinta: rosso su bianco e su scacchi, verde su nero, come 16:33-17:20. Nell'engine di oggi la tinta e' una pellicola fissa: qui il colore di Apple all'alfa di tintedModalTint (0,76 sul chiaro). In Apple la tonalita' resta e la luminosita' segue lo sfondo (sul nero il rosso scende al 58%).",
+  "apple": {
+    "frame": "f29795, f29865, f30300",
+    "ritaglio": "artifacts/liquid-glass/riferimenti/ritagli/A7_tinta.jpg",
+    "scala": "tasto ~2,3:1"
+  },
+  "width": 480,
+  "height": 200,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#FFFFFF"
+  },
+  "page": [
+    {
+      "kind": "background",
+      "x": 160,
+      "y": 0,
+      "w": 160,
+      "h": 200,
+      "background": {
+        "kind": "checker",
+        "stepDp": 20,
+        "color": "#000000",
+        "background": "#FFFFFF"
+      }
+    },
+    {
+      "kind": "rect",
+      "x": 320,
+      "y": 0,
+      "w": 160,
+      "h": 200,
+      "color": "#000000"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "name": "rosso-su-bianco",
+      "x": 25,
+      "y": 36,
+      "w": 110,
+      "h": 48,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.48
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "11.52dp",
+          "refraction": "-10.368dp",
+          "dome": 0.4737,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#DE000CF2",
+          "tintMode": 1.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "name": "rosso-su-scacchi",
+      "x": 185,
+      "y": 36,
+      "w": 110,
+      "h": 48,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.48
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "11.52dp",
+          "refraction": "-10.368dp",
+          "dome": 0.4737,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#DE000CF2",
+          "tintMode": 1.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "name": "verde-su-nero",
+      "x": 345,
+      "y": 36,
+      "w": 110,
+      "h": 48,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.48
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "11.52dp",
+          "refraction": "-10.368dp",
+          "dome": 0.4737,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#23700BF2",
+          "tintMode": 1.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "name": "rosso-su-bianco-pellicola",
+      "x": 25,
+      "y": 116,
+      "w": 110,
+      "h": 48,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.48
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "11.52dp",
+          "refraction": "-10.368dp",
+          "dome": 0.4737,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#DE000CC2",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "name": "rosso-su-scacchi-pellicola",
+      "x": 185,
+      "y": 116,
+      "w": 110,
+      "h": 48,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.48
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "11.52dp",
+          "refraction": "-10.368dp",
+          "dome": 0.4737,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#DE000CC2",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    },
+    {
+      "kind": "material",
+      "name": "verde-su-nero-pellicola",
+      "x": 345,
+      "y": 116,
+      "w": 110,
+      "h": 48,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 0.48
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "11.52dp",
+          "refraction": "-10.368dp",
+          "dome": 0.4737,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#23700BC2",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    }
+  ],
+  "measure": [
+    {
+      "kind": "tint",
+      "element": "rosso-su-bianco",
+      "label": "rosso su bianco",
+      "scheda": "A7",
+      "fiducia": "alta",
+      "ref": {
+        "colore": [
+          "(222, 0, 12)",
+          "non rimisurata"
+        ]
+      }
+    },
+    {
+      "kind": "tint",
+      "window": [
+        222,
+        42,
+        16,
+        16
+      ],
+      "label": "rosso su scacco bianco",
+      "scheda": "A7",
+      "fiducia": "alta",
+      "ref": {
+        "colore": [
+          "(222, 0, 12)",
+          "-"
+        ]
+      }
+    },
+    {
+      "kind": "tint",
+      "window": [
+        242,
+        42,
+        16,
+        16
+      ],
+      "label": "rosso su scacco nero",
+      "scheda": "A7",
+      "fiducia": "alta",
+      "ref": {
+        "colore": [
+          "(129, 0, 11): il 58%",
+          "-"
+        ]
+      }
+    },
+    {
+      "kind": "tint",
+      "element": "verde-su-nero",
+      "label": "verde su nero",
+      "scheda": "A7",
+      "fiducia": "alta",
+      "ref": {
+        "colore": [
+          "(35, 112, 11)",
+          "-"
+        ]
+      }
+    },
+    {
+      "kind": "tint",
+      "element": "rosso-su-bianco-pellicola",
+      "label": "pellicola: rosso su bianco"
+    },
+    {
+      "kind": "tint",
+      "element": "verde-su-nero-pellicola",
+      "label": "pellicola: verde su nero"
+    }
+  ]
+}

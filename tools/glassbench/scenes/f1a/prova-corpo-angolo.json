@@ -1,0 +1,95 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). Un pannello 220 x 160 dp, raggio 40, raccordo 0,6, senza ritaglio hardware: la maschera e' quella del campo. Sotto, una fascia nera: il bordo della maschera si guarda sul massimo contrasto. Ritaglio a 6x dell'angolo in alto a sinistra: --crop 16,16,40,40 --zoom 6.",
+  "width": 260,
+  "height": 200,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "name": "pannello",
+      "x": 20,
+      "y": 20,
+      "w": 220,
+      "h": 160,
+      "radius": 40,
+      "clip": false,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 18.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.6
+          ],
+          "thickness": "38.4dp",
+          "refraction": "-34.56dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      }
+    }
+  ],
+  "measure": [],
+  "page": [
+    {
+      "kind": "rect",
+      "x": 0,
+      "y": 100,
+      "w": 260,
+      "h": 100,
+      "color": "#000000"
+    }
+  ]
+}

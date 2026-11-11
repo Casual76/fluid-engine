@@ -1,0 +1,113 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). Corpo su bianco 253: 243 in alto, 249 in basso. Da `rif/rif27-tasto-bianco.json`: Tasto tondo di vetro su bianco 253, come il tasto indietro di 278 f21480 (classe B): il caso in cui in iOS 27 il corpo e' appena grigio e la separazione la fa il filo scuro.",
+  "apple": {
+    "frame": "278 f21480",
+    "ritaglio": "artifacts/liquid-glass/riferimenti/ios27/ritagli/E1_bordo_scorrimento_alto_278.jpg",
+    "scala": "D = 161 px del 4K = 44 dp"
+  },
+  "width": 120,
+  "height": 90,
+  "density": 3.0,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#FDFDFD"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "name": "tasto",
+      "x": 38,
+      "y": 23,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 12.0,
+        "w": 0.0,
+        "paddingDp": 1.44
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.0
+          ],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "icon": "fluid:arrow_back|back",
+      "iconSizeDp": 26
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "tasto",
+      "scheda": "M4",
+      "fiducia": "alta",
+      "ref": {
+        "corpo": [
+          "228 su 226 (R4 A6)",
+          "243 in alto, 249 in basso"
+        ],
+        "corpo-fondo": [
+          "+2 (R4 A2)",
+          "-4...-10"
+        ],
+        "gradiente": [
+          "-",
+          "243 in alto, 249 in basso"
+        ]
+      }
+    }
+  ]
+}

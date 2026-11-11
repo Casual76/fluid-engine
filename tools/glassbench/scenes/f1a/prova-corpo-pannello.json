@@ -1,0 +1,178 @@
+{
+  "_": "F1A.2, prova del corpo (senza luce ne' ombra). Un pannello grande (320 x 400 dp, raggio 36, raccordo continuo) a cavallo di pagina piatta, testo e foto.",
+  "width": 400,
+  "height": 460,
+  "density": 3.0,
+  "theme": "light",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "elements": [
+    {
+      "kind": "material",
+      "name": "pannello",
+      "x": 40,
+      "y": 30,
+      "w": 320,
+      "h": 400,
+      "radius": 36,
+      "clip": true,
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 18.0,
+        "w": 0.0,
+        "paddingDp": 0.0
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0.6
+          ],
+          "thickness": "40dp",
+          "refraction": "-36dp",
+          "dome": 0.0,
+          "dispersion": 0.0,
+          "magnify": 0.0,
+          "materialize": 1.0,
+          "veilColor": "#F6F6F880",
+          "veilAdapt": 0.0,
+          "tintColor": "#00000000",
+          "tintMode": 0.0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0.0,
+            -0.6
+          ],
+          "dim": 0.0,
+          "grain": 0.0,
+          "aa": 1.25,
+          "lightInBody": 0.0
+        }
+      },
+      "rows": [
+        {
+          "label": "Copia",
+          "icon": "fluid:ios_share|share"
+        },
+        {
+          "label": "Rispondi",
+          "icon": "fluid:reply|back"
+        },
+        {
+          "label": "Cerca",
+          "icon": "fluid:search|search"
+        }
+      ],
+      "rowHeightDp": 52,
+      "iconSizeDp": 26
+    }
+  ],
+  "measure": [
+    {
+      "kind": "body",
+      "element": "pannello",
+      "label": "sulla pagina piatta",
+      "at": [
+        0.3,
+        0.08,
+        0.4,
+        0.15
+      ],
+      "rows": [
+        "corpo",
+        "fondo",
+        "corpo-fondo",
+        "velo"
+      ]
+    },
+    {
+      "kind": "frost",
+      "element": "pannello",
+      "label": "sul testo",
+      "at": [
+        0.1,
+        0.34,
+        0.8,
+        0.28
+      ],
+      "rows": [
+        "contrasto",
+        "nitidezza"
+      ]
+    },
+    {
+      "kind": "frost",
+      "element": "pannello",
+      "label": "sulla foto",
+      "at": [
+        0.1,
+        0.72,
+        0.8,
+        0.22
+      ],
+      "rows": [
+        "contrasto",
+        "nitidezza"
+      ],
+      "colour": true
+    }
+  ],
+  "page": [
+    {
+      "kind": "background",
+      "x": 0,
+      "y": 150,
+      "w": 400,
+      "h": 150,
+      "background": {
+        "kind": "text",
+        "background": "#F2F2F7",
+        "color": "#121214",
+        "fontSizeDp": 22,
+        "lineHeightDp": 30,
+        "paddingDp": 12,
+        "text": "Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. Signs are made using neon lights. Light is used to define color, tone, and shape. They are irreplaceable, and depend on the people who bend them all over the world. "
+      }
+    },
+    {
+      "kind": "background",
+      "x": 0,
+      "y": 300,
+      "w": 400,
+      "h": 160,
+      "background": {
+        "kind": "synthetic"
+      }
+    }
+  ]
+}

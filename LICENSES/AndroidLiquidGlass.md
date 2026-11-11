@@ -190,6 +190,20 @@ Le modifiche fatte finora:
     scope pubblico (`BackdropEffectScope`) non cambia, nessuna firma pubblica cambia, e chi non fa il cast non
     vede niente: il vetro di sempre (modello `Classic`) non rifa' gli effetti e disegna al pixel come prima.
 
+19. **La pillola della barra flottante e la sua riga nascosta sul materiale nuovo** (4.0.0, `FluidFloatingTabBar.kt`,
+    pacchetto F1B.4 di `docs/liquid-glass/piano.md`). Dove il vetro e' quello nuovo (`FluidGlassModel.Liquid`: Android
+    13, sorgenti sane, una forma che il campo sa rendere) il puck e la riga tinta nascosta che il puck campiona mentre
+    e' premuto non usano piu' la catena di Kyant (`vibrancy`/`blur`/`lens`, `Highlight`, `Shadow`, `InnerShadow`, la
+    pellicola d'accento in `onDrawSurface`) ma le superfici della ricetta dell'engine (`GlassLiquidSurface`) coi
+    profili di `glass/field/GlassPuckProfile.kt`: la pillola a riposo rifa' dalla pagina cruda il materiale della barra
+    con sopra una selezione piu' scura, premuta posa la sola selezione sopra la riga, che e' il materiale della barra.
+    Le modifiche stanno in una classe privata nuova in fondo al file (`LiquidPuck`, `rememberLiquidPuck`) e in cinque
+    punti marcati `LOCAL CHANGE (F1B.4)` dentro `ExpandedTabs`: la scelta del materiale, un ramo davanti alla
+    `drawBackdrop` della riga nascosta e uno davanti a quella del puck, il colore che cresce mentre il puck compare,
+    e l'inchiostro dell'icona ridisegnata sopra il puck (quello della riga nascosta, al posto dell'accento sul puck).
+    Geometria, molle, trascinamento, squash, il momento in cui la riga nascosta esiste e il fermo della cattura non
+    cambiano. Il ramo di Kyant resta intero e identico, e lo prende ogni barra che resta al vetro di prima.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

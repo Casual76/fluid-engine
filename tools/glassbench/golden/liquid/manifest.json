@@ -1,5 +1,5 @@
 {
-  "_": "Immagini di riferimento del materiale nuovo (modello Liquid), lastre ferme. Le scene sono SCRITTE DALLA RICETTA dell'engine (GlassSceneExportTest: `scenes/f1a/ricetta/` e `scenes/f1a/gusto/serie-*`), quindi provano insieme gli shader di ui/glass/field (corpo, luce), la regola dell'ombra a riposo e i numeri del profilo di serie (GlassLiquidProfile.Default) passati per `glassRecipe`: un ritocco al profilo o a uno shader, riesportate le scene, le fa cambiare. Non provano l'innesto in glassSurface (F1A.6), ne' il dispositivo. Create da F1A.5 l'11/11/2026 con la combinazione di serie proposta, rigenerate da F1A.5c (commit 5d4fb74) col profilo di serie delle scelte di Alessio: 13 su 13 cambiate, volute. Un ritocco al profilo o a uno shader le fa cambiare: riesportare le scene, poi `glassbench.py golden liquid --update`, con il diff nel rapporto. Si verificano con `glassbench.py compare --golden liquid`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`. Da F1B.1 (11/11/2026) il riferimento ha anche le scene di Fluid-physics col materiale nuovo, scritte dall'engine (F1bExportTest: `scenes/f1b/`), col prefisso `f1b-`: gruppi a 2, 4 e 8 pezzi, i ponti (con la nascita dal fianco), riposo contro viaggio, l'angolo oltre mezzo lato, la sagoma libera, il gruppo di `fluidphysics`. Le undici in tema chiaro e quattro in scuro (per il peso delle immagini; le altre sette in scuro si rendono dalle stesse scene). Le tredici di prima non sono cambiate di un bit.",
+  "_": "Immagini di riferimento del materiale nuovo (modello Liquid), lastre ferme. Le scene sono SCRITTE DALLA RICETTA dell'engine (GlassSceneExportTest: `scenes/f1a/ricetta/` e `scenes/f1a/gusto/serie-*`), quindi provano insieme gli shader di ui/glass/field (corpo, luce), la regola dell'ombra a riposo e i numeri del profilo di serie (GlassLiquidProfile.Default) passati per `glassRecipe`: un ritocco al profilo o a uno shader, riesportate le scene, le fa cambiare. Non provano l'innesto in glassSurface (F1A.6), ne' il dispositivo. Create da F1A.5 l'11/11/2026 con la combinazione di serie proposta, rigenerate da F1A.5c (commit 5d4fb74) col profilo di serie delle scelte di Alessio: 13 su 13 cambiate, volute. Un ritocco al profilo o a uno shader le fa cambiare: riesportare le scene, poi `glassbench.py golden liquid --update`, con il diff nel rapporto. Si verificano con `glassbench.py compare --golden liquid`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`. Da F1B.1 (11/11/2026) il riferimento ha anche le scene di Fluid-physics col materiale nuovo, scritte dall'engine (F1bExportTest: `scenes/f1b/`), col prefisso `f1b-`: gruppi a 2, 4 e 8 pezzi, i ponti (con la nascita dal fianco), riposo contro viaggio, l'angolo oltre mezzo lato, la sagoma libera, il gruppo di `fluidphysics`. Le undici in tema chiaro e quattro in scuro (per il peso delle immagini; le altre sette in scuro si rendono dalle stesse scene). Le tredici di prima non sono cambiate di un bit. Da F1B.4 (11/11/2026) quattro scene della pillola della tab bar (`scenes/f1b/puck-*`, scritte da GlassPuckProfileTest con i profili di glass/field/GlassPuckProfile.kt): piatto chiaro e scuro, testo chiaro, foto scura. Aggiunte da sole, senza riscrivere le altre voci ne' `versions`/`platform`/`sources`.",
   "density": 2.0,
   "icons": "service",
   "scenes": [
@@ -283,6 +283,50 @@
       "size": [
         1440,
         1800
+      ]
+    },
+    {
+      "name": "f1b-puck-piatto-chiaro",
+      "scene": "scenes/f1b/puck-piatto-chiaro.json",
+      "png": "f1b-puck-piatto-chiaro.png",
+      "density": 3.0,
+      "sha256": "a1ea8dcd954a001154445130c59777bf49c43c17e8443b3d801433643b6ce7d6",
+      "size": [
+        1200,
+        330
+      ]
+    },
+    {
+      "name": "f1b-puck-piatto-scuro",
+      "scene": "scenes/f1b/puck-piatto-scuro.json",
+      "png": "f1b-puck-piatto-scuro.png",
+      "density": 3.0,
+      "sha256": "7f11c64a02554a8e488611792df106a47a20cf0b2485912dcb76163569114610",
+      "size": [
+        1200,
+        330
+      ]
+    },
+    {
+      "name": "f1b-puck-testo-chiaro",
+      "scene": "scenes/f1b/puck-testo-chiaro.json",
+      "png": "f1b-puck-testo-chiaro.png",
+      "density": 3.0,
+      "sha256": "a8beab858bcb1c8e1258f9bdf369f95290ac7f3a624e2869ab643666f69e7c1e",
+      "size": [
+        1200,
+        330
+      ]
+    },
+    {
+      "name": "f1b-puck-foto-scuro",
+      "scene": "scenes/f1b/puck-foto-scuro.json",
+      "png": "f1b-puck-foto-scuro.png",
+      "density": 3.0,
+      "sha256": "cdb8d505db71fc7bb8f91cd6d32b0fc6e1d7390a958487f3d6b9c4acc4ab6d31",
+      "size": [
+        1200,
+        330
       ]
     }
   ],

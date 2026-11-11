@@ -160,6 +160,17 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
+// LOCAL CHANGE (4.0, piano «iOS in Android» F1B.4): la pillola e la riga nascosta sul materiale nuovo.
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
+import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
+import dev.antigravity.fluidengine.ui.glass.field.glassPuckOverRowProfile
+import dev.antigravity.fluidengine.ui.glass.field.glassPuckProfile
+import dev.antigravity.fluidengine.ui.glass.field.glassPuckRowProfile
+import dev.antigravity.fluidengine.ui.glass.field.glassShadow as glassFieldShadow
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.runtime.Stable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -2089,6 +2100,26 @@ private fun SharedTransitionScope.ExpandedTabs(
     // `tabsTinted` in fase di disegno non darebbe questa garanzia.
     val sampledRowIsHidden = tabsTinted
 
+    // LOCAL CHANGE (4.0, piano «iOS in Android» F1B.4): dove il vetro e' quello nuovo, pillola e riga nascosta
+    // prendono il materiale della ricetta (vedi [LiquidPuck]); altrove, e sotto Android 13, null e tutto com'era.
+    val liquidPuck = if (
+        backdrop != null &&
+        rememberFluidGlassModel(shapes.tabShape, GlassFalloff.Uniform, paneOptics) == FluidGlassModel.Liquid &&
+        glassFieldRenders(shapes.tabBarShape)
+    ) {
+        rememberLiquidPuck(
+            tabShape = shapes.tabShape,
+            tabBarShape = shapes.tabBarShape,
+            optics = paneOptics,
+            darkSide = onDarkBar,
+            barShortSideDp = sizes.barHeight.value,
+            pressed = { dampedDragAnimation.pressProgress },
+            film = if (glassConfig.puckColor.isSpecified) puckWash.copy(alpha = puckWash.alpha * puckRestAlpha) else Color.Unspecified,
+        )
+    } else {
+        null
+    }
+
     // It only needs to be recorded once, though, and that is the difference between this row
     // being affordable and not.
     //
@@ -2347,6 +2378,16 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // .height(56dp) vs the main row's 64dp: what tabsBackdrop
                     // captures needs to be genuinely inset, not full-bleed.
                     .padding(sizes.tabBarContentPadding)
+                    // LOCAL CHANGE (F1B.4): sul materiale nuovo la riga e' il materiale della barra (vedi
+                    // [LiquidPuck.rowModifier]). Il ramo `else` e' la catena di sempre, lasciata com'era anche
+                    // nell'indentazione: la `.drawBackdrop(` qui sotto continua `else Modifier`.
+                    .then(if (liquidPuck != null) {
+                        liquidPuck.rowModifier(
+                            backdrop = backdrop,
+                            background = colors.backgroundColor,
+                            frozen = rememberFrozenOr(LocalFluidTabBarBackdropFrozen.current, tintedRowSettled),
+                        )
+                    } else Modifier
                     // Ported from LiquidBottomTabs: this hidden row isn't just a
                     // tinted icon cutout, it's a real blurred/lensed glass sample
                     // of the screen behind the bar — that's what makes the puck
@@ -2411,7 +2452,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                         // hidden row at a fraction of surface resolution and let the
                         // blur hide the upscale — was left at the 1f (full-res)
                         // default here even though liquidGlass already uses this.
-                    )
+                    )) // LOCAL CHANGE (F1B.4): chiude il `.then(` del ramo Liquid qui sopra.
                     .then(interactiveHighlight.modifier)
                     // NOT a second .padding(sizes.tabBarContentPadding) here — the one
                     // above (before drawBackdrop) already insets this row's measured
@@ -2526,12 +2567,40 @@ private fun SharedTransitionScope.ExpandedTabs(
                     if (enter < 1f) {
                         drawOutline(
                             shapes.tabShape.createOutline(size, layoutDirection, this),
-                            color = puckWash.copy(alpha = puckRestAlpha * (1f - enter)),
+                            // LOCAL CHANGE (F1B.4): sul materiale nuovo cresce il velo della pillola, non l'accento.
+                            color = if (liquidPuck != null) {
+                                liquidPuck.placeholder.copy(alpha = liquidPuck.placeholder.alpha * (1f - enter))
+                            } else {
+                                puckWash.copy(alpha = puckRestAlpha * (1f - enter))
+                            },
                         )
                     }
                 }
                 .then(
-                    if (backdrop != null) {
+                    // LOCAL CHANGE (F1B.4): la pillola sul materiale nuovo (vedi [LiquidPuck]). Stessa scelta del
+                    // fondo del ramo di sempre (pagina, o pagina piu' riga nascosta mentre e' premuta), stessa
+                    // crescita e stesso squash, stesso fermo. Il resto di questo `if` e' com'era.
+                    if (liquidPuck != null && backdrop != null) {
+                        liquidPuck.puckModifier(
+                            backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
+                                .takeIf { sampledRowIsHidden } ?: backdrop,
+                            overRow = sampledRowIsHidden,
+                            layerBlock = {
+                                // Lo stesso `layerBlock` del ramo di sempre: crescita e squash della goccia.
+                                scaleX = dampedDragAnimation.scaleX
+                                scaleY = dampedDragAnimation.scaleY
+                                val squash = glassDropSquash(
+                                    velocity = dampedDragAnimation.velocity,
+                                    divisor = GlassDropRecipe.SquashDivisor,
+                                    signed = true,
+                                    reducedMotion = false
+                                )
+                                scaleX /= squash.xDivisor
+                                scaleY *= squash.yFactor
+                            },
+                            frozen = puckFrozen,
+                        )
+                    } else if (backdrop != null) {
                         Modifier.drawBackdrop(
                             // Only combined while the hidden row above exists.
                             // An empty layer has no version for the surface to
@@ -2727,6 +2796,14 @@ private fun SharedTransitionScope.ExpandedTabs(
                 .clearAndSetSemantics {},
         ) {
             currentTabs.value.getOrNull(puckIndex)?.let { tab ->
+                // LOCAL CHANGE (F1B.4): sul materiale nuovo la pillola non e' piu' tinta d'accento, e la scelta
+                // la dicono pillola e colore del glifo (R6, come in iOS): l'icona e l'etichetta ridisegnate qui
+                // prendono `puckInk`, lo stesso inchiostro della riga nascosta che si vede quando la pillola e'
+                // premuta, cosi' il colore non salta fra riposo e pressione. Un'icona con la sua tinta scritta
+                // la tiene. Sul vetro di prima niente cambia.
+                CompositionLocalProvider(
+                    LocalContentColor provides if (liquidPuck != null) puckInk else LocalContentColor.current,
+                ) {
                 // Must go through Tab, not just tab.icon(): Tab is a Column of
                 // icon THEN title, so drawing the icon alone centres it on the
                 // puck while the row centres it on the icon+title pair — which is
@@ -2752,8 +2829,141 @@ private fun SharedTransitionScope.ExpandedTabs(
                         .fillMaxSize()
                         .padding(sizes.tabExpandedContentPadding),
                 )
+                } // LOCAL CHANGE (F1B.4): chiude il `CompositionLocalProvider` dell'inchiostro.
             }
         }
+    }
+}
+
+/**
+ * LOCAL CHANGE (4.0, piano «iOS in Android» F1B.4): la pillola e la riga nascosta **sul materiale nuovo**
+ * (`FluidGlassModel.Liquid`), coi profili di `glass/field/GlassPuckProfile.kt`.
+ *
+ * Tre superfici della ricetta (`GlassLiquidSurface`, la stessa classe che disegna ogni `glassSurface` `Liquid`):
+ *  - [rest], la pillola a riposo: campiona la pagina cruda e rifa' il materiale della barra con sopra la selezione
+ *    (`glassPuckProfile`);
+ *  - [over], la pillola premuta: campiona la pagina **e** la riga nascosta, che porta gia' il materiale della barra,
+ *    e ci posa solo la selezione (`glassPuckOverRowProfile`). Le due differiscono solo nella catena a monte e nel
+ *    velo: la sagoma, la lente, il bordo e l'ombra sono gli stessi;
+ *  - [row], la riga nascosta: il materiale della barra (`glassPuckRowProfile`).
+ *
+ * Geometria e tempi della pillola non cambiano: posizione, crescita sotto il dito, squash, comparsa, la riga nascosta
+ * che esiste solo mentre la pillola e' premuta. Cambia cosa le veste. Sotto Android 13, con `FluidGlassModel.Classic`
+ * o con una forma che il campo non sa rendere la barra non arriva qui e resta al pixel quella di prima.
+ */
+@Stable
+private class LiquidPuck(
+    val rest: GlassLiquidSurface,
+    val over: GlassLiquidSurface,
+    val row: GlassLiquidSurface,
+    /** Il colore che cresce al posto della pillola mentre compare (vedi `puckEnter`): il suo velo. */
+    val placeholder: Color,
+) {
+    /** L'ombra della pillola (la stessa a riposo e premuta), dentro il layer della crescita e fuori dal ritaglio. */
+    val shadow: Modifier =
+        if (rest.castsShadow) Modifier.glassFieldShadow(rest.shadowOutline, rest.shadow) else Modifier
+
+    /**
+     * La riga nascosta: il materiale della barra sulla pagina, con il fondo della barra se l'app gliene ha dato uno.
+     * La luce no: il filo lo disegna la pillola, sulla sua sagoma.
+     */
+    fun rowModifier(backdrop: Backdrop, background: Color, frozen: () -> Boolean): Modifier = Modifier.drawBackdrop(
+        backdrop = backdrop,
+        shape = row.clipShapeBlock,
+        effects = row.effects,
+        highlight = null,
+        shadow = null,
+        innerShadow = null,
+        onDrawBackdrop = GlassLiquidOnDrawBackdrop,
+        onDrawSurface = if (background.alpha > 0f) {
+            { drawRect(background) }
+        } else {
+            null
+        },
+        backdropScale = row.captureScale,
+        frozen = frozen,
+        // Come la riga di sempre: e' il materiale del pannello rifatto dalla pagina cruda.
+        nestInContainer = false,
+    )
+
+    /**
+     * La pillola. [overRow] e' vero mentre campiona anche la riga nascosta: cambia nella stessa composizione che
+     * cambia [backdrop], quindi catena e fondo non si sfasano (come la sfocatura del ramo di sempre).
+     */
+    fun puckModifier(
+        backdrop: Backdrop,
+        overRow: Boolean,
+        layerBlock: GraphicsLayerScope.() -> Unit,
+        frozen: () -> Boolean,
+    ): Modifier {
+        val surface = if (overRow) over else rest
+        return Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = surface.clipShapeBlock,
+            effects = surface.effects,
+            highlight = null,
+            shadow = null,
+            innerShadow = null,
+            layerBlock = layerBlock,
+            onDrawBackdrop = GlassLiquidOnDrawBackdrop,
+            // Con un `layerBlock` la cattura resta a risoluzione piena, come in ogni `glassSurface` `Liquid`.
+            backdropScale = 1f,
+            frozen = frozen,
+            // Vetro su vetro: no, come la pillola di sempre. Il materiale della barra lo rifa' da sola.
+            nestInContainer = false,
+            onDrawLight = surface.onDrawLight,
+            underlay = shadow,
+        )
+    }
+}
+
+/**
+ * Le tre superfici di [LiquidPuck], ricordate finche' non cambia cio' che le definisce. Gli ingressi che si muovono
+ * (la pressione, la pellicola) sono letti in disegno.
+ *
+ * @param barShortSideDp il lato corto della barra (la sua altezza): il velo della pillola e della riga e' quello che
+ *   la barra ha a quella taglia, non quello che avrebbero da sole.
+ * @param film la pellicola che l'app ha chiesto per la pillola (`FluidFloatingTabBarGlass.puckColor`), o
+ *   `Color.Unspecified`: di serie la pillola non e' tinta d'accento, come in iOS (R6).
+ */
+@Composable
+private fun rememberLiquidPuck(
+    tabShape: Shape,
+    tabBarShape: Shape,
+    optics: GlassOptics,
+    darkSide: Boolean,
+    barShortSideDp: Float,
+    pressed: () -> Float,
+    film: Color,
+): LiquidPuck {
+    val quality = LocalFluidGlassQuality.current
+    val screenDensity = LocalDensity.current.density
+    val currentPressed by rememberUpdatedState(pressed)
+    // La pellicola cambia di rado (e' una scelta dell'app): quando cambia, le superfici si rifanno.
+    return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film) {
+        fun surface(shape: Shape, profile: GlassLiquidProfile, pressedNow: () -> Float, filmNow: () -> Color) =
+            GlassLiquidSurface(
+                role = GlassRole.Floating,
+                optics = optics,
+                shape = shape,
+                darkSide = darkSide,
+                screenDensity = screenDensity,
+                intensity = { 1f },
+                opticalDepth = { 1f },
+                pressed = pressedNow,
+                quality = { quality?.level ?: 1f },
+                film = filmNow,
+                tint = { Color.Unspecified },
+                touch = { null },
+                profile = profile,
+            )
+        val restProfile = glassPuckProfile(barShortSideDp)
+        LiquidPuck(
+            rest = surface(tabShape, restProfile, { currentPressed() }, { film }),
+            over = surface(tabShape, glassPuckOverRowProfile(barShortSideDp), { currentPressed() }, { film }),
+            row = surface(tabBarShape, glassPuckRowProfile(barShortSideDp), { 0f }, { Color.Unspecified }),
+            placeholder = if (film.isSpecified) film else restProfile.veil(darkSide).color,
+        )
     }
 }
 

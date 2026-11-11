@@ -1865,8 +1865,16 @@ matrice, sei casi disegnati, 10 regole del contenuto e 17 del modello; le prove 
 6. **Gesto indietro**: nella demo di UIKit (sessione 284, Note) i tasti restano quelli della pagina in cima per tutto il
    trascinamento e si trasformano solo al rilascio che conferma: **è la proposta di Alessio**; l'engine oggi fa il
    contrario.
-Domande aperte per Alessio (D1–D4 del documento): gesto indietro; un'icona uguale in due vetri diversi; da dove nasce
-un tasto nuovo; il cambio di scheda. Le risposte si scrivono qui sotto appena arrivano. **Non visto in nessun
+**Risposte di Alessio alle domande D1–D4 (2026-11-11, sera: «va bene così» sulle opzioni consigliate)**, da mostrare
+comunque in video quando si costruiscono, perché possa cambiarle vedendole:
+- **D1 · gesto indietro**: i tasti **aspettano la conferma**; durante il trascinamento resta la barra della pagina in
+  cima, al rilascio che conferma parte la trasformazione intera, all'annullo niente;
+- **D2 · la stessa icona in due vetri diversi**: **resta nitida e scorre con il suo vetro** (si sfoca solo ciò che
+  cambia identità);
+- **D3 · un tasto nuovo**: **nasce dal fianco del vicino, con il collo liquido**; se non ha un vicino, per lente sul
+  posto;
+- **D4 · cambio di scheda** con tasti diversi in alto: **come un cambio di stato**, i tasti si trasformano sul posto,
+  senza un verso. **Non visto in nessun
 riferimento**: cambio di scheda, chiudi ↔ indietro nei fogli, il trabocco, il tema scuro, il movimento ridotto, un gesto
 fermato a metà: per quelli serve una registrazione da un iPhone vero (elenco nel documento) o una scelta.
 
@@ -2474,6 +2482,16 @@ la maggior parte dei formati, con strumenti di modifica integrati, «una sorta d
 - **dove sta**: l'interfaccia del visore nell'engine; ciò che decodifica (riproduzione, resa delle pagine) in un modulo
   a parte e facoltativo, perché `engine-ui` non deve portarsi dietro librerie pesanti: i preset ricevono il contenuto
   già reso da chi lo sa rendere. È la parte più grossa della fase, e se cresce diventa una fase sua (F6C).
+
+**Scelte di Alessio sull'impostazione della fase (2026-11-11, sera: «va bene così» sulle opzioni consigliate):**
+- **ordine**: barra delle azioni di selezione → tasti con stato ed esito → avviso che nasce dal tasto, con «un elemento
+  che diventa pagina» portato avanti in parallelo (è motore: F5B.3 e F4A.6); poi gli altri;
+- **preset dei tasti con esito nella prima versione**: invia, salva, copia, scarica/carica, preferito;
+- **un elemento che diventa pagina**: la versione completa: sagoma continua e interrompibile, il dito che guida apertura
+  e chiusura, la pagina d'arrivo è una rotta vera (indietro, collegamenti, ripristino), e **Fluidify e Gallery migrano**
+  dal loro codice scritto a mano (la migrazione delle app resta un incarico a parte, ma è la prova che regge);
+- **campo dall'alto**: decide **l'app, pagina per pagina**, se resta in cima o sale sopra la tastiera; i tasti
+  inglobati si sfocano, rientrano nel campo e tornano alla chiusura.
 
 Pacchetti, perimetri, bersagli e sottocategorie si scrivono all'inizio della fase, con le risposte di Alessio qui sopra:
 fino ad allora questa sezione è la traccia, non il progetto. Regola valida da subito per le fasi prima: **non chiudere strade** a questi

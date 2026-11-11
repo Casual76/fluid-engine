@@ -104,6 +104,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanel
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1793,6 +1794,10 @@ private fun FluidGlassModalSheet(
   // tasto messi nel foglio rifrangono il foglio, non la pagina dietro lo scrim. Registrato solo se
   // dentro c'e' del vetro che lo campiona.
   val sheetGlass = rememberGlassBackdrop()
+  // Senza fondo il foglio e' pieno (4.0.0, F1A.13): col materiale nuovo pubblica il proprio colore e fa da
+  // contenitore, come la notifica senza fondo, perche' il vetro che ci sta dentro sia vetro su vetro e non un
+  // tasto che campiona il niente. La pagina intera no: e' una pagina, e un tasto ci sta sopra come su una pagina.
+  val sheetFill = if (backdrop == null && !fullScreen) rememberGlassOpaquePanel() else null
   val dismissThresholdPx = with(density) { FluidSheetDismissTravel.toPx() }
   val flingDismissPx = with(density) { FluidSheetDismissVelocity.toPx() }
 
@@ -1930,6 +1935,10 @@ private fun FluidGlassModalSheet(
               ?: paneTint?.let { androidx.compose.ui.graphics.lerp(surface, it, 0.08f) }
               ?: surface
             Modifier.background(page, shape)
+          } else if (sheetFill != null) {
+            Modifier
+              .glassOpaquePanel(sheetFill.layerBackdrop, MaterialTheme.colorScheme.surfaceContainerHigh, shape)
+              .glassContainer(sheetFill)
           } else {
             Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
           },

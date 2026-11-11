@@ -89,6 +89,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Error
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Info
 import dev.antigravity.fluidengine.ui.fluid.icons.Warning
+import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanel
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.NoOpFluidHaptics
@@ -1114,10 +1115,14 @@ private fun FluidNotificationCard(
   // The card publishes its own material so the close button standing on it refracts the card and
   // not the page behind it — see LocalGlassBackdrop.
   val cardGlass = rememberGlassBackdrop()
+  // Senza fondo la card e' piena (4.0.0, F1A.13): col materiale nuovo pubblica il proprio colore e fa da
+  // contenitore, cosi' la chiusura e le azioni stanno sulla card come su un pannello di vetro (la regola
+  // dell'annidato, il verde della card) invece di campionare il fondo vuoto. Col vetro di prima, null: com'era.
+  val panelGlass = if (backdrop == null) rememberGlassOpaquePanel() else null
   val controlBackdrop = if (backdrop != null) {
     rememberCombinedGlassBackdrop(backdrop, cardGlass)
   } else {
-    null
+    panelGlass
   }
   val glassModifier = if (backdrop != null) {
     Modifier.glassSurface(
@@ -1201,6 +1206,15 @@ private fun FluidNotificationCard(
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
       Column(
         modifier = Modifier
+          // La card piena col suo materiale (F1A.13): lo stesso colore che la `Surface` dipinge, ripetuto qui
+          // perche' sia anche cio' che i controlli campionano. Solo il fondo, mai il contenuto.
+          .then(
+            if (panelGlass != null) {
+              Modifier.glassOpaquePanel(panelGlass.layerBackdrop, surface, shape).glassContainer(panelGlass)
+            } else {
+              Modifier
+            },
+          )
           // L'allungamento del dito sta fuori da `animateContentSize`: e' il dito a guidarlo, e
           // passato per una molla seguirebbe con un ritardo che si leggerebbe come elasticita'.
           .fluidNotificationStretch { drag.stretchPx }

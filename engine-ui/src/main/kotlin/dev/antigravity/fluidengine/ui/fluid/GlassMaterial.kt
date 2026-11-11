@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -52,8 +53,13 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.ShapeProvider
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.ShadowElement
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
 import dev.antigravity.fluidengine.ui.glass.field.GlassShadowSpec
+import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanelPublishes
+import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.field.glassShadow as glassFieldShadow
 
@@ -290,6 +296,25 @@ fun Modifier.glassMaterialSource(state: GlassBackdropState): Modifier {
 @Composable
 fun rememberEmptyGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState =
   remember(blurRadius) { GlassBackdropState(emptyBackdrop(), null, blurRadius) }
+
+/**
+ * Il materiale di un pannello **opaco** dell'engine che ospita controlli di vetro (4.0.0, F1A.13), o null quando
+ * quei controlli resterebbero vetro di prima.
+ *
+ * La notifica senza fondo e il foglio senza fondo sono pannelli pieni. Col materiale nuovo i controlli di vetro che
+ * ci stanno dentro campionavano il fondo vuoto: niente da rifrangere, nessuna regola dell'annidato, e un corpo che
+ * c'era o no secondo la smerigliatura (vedi `GlassLiquidOnDrawBackdrop`). Il pannello pubblica allora il proprio
+ * fondo (`glassOpaquePanel`) e fa da contenitore ([glassContainer]): i controlli sono vetro su vetro, prendono il
+ * colore del pannello e la regola dell'annidato. Col vetro di prima niente cambia, e il materiale non c'e'.
+ */
+@Composable
+internal fun rememberGlassOpaquePanel(): GlassBackdropState? {
+  val requested = LocalFluidGlassModel.current
+  val publishes = remember(requested) {
+    glassOpaquePanelPublishes(glassApiLevel(), ::glassLiquidSlabShadersHealthy, requested)
+  }
+  return if (publishes) rememberGlassBackdrop() else null
+}
 
 /** The backdrop a control should use unless its caller names a different one. */
 @Composable
@@ -1779,6 +1804,18 @@ internal fun Modifier.glassLiquidSurface(
   val darkSide = GlassDefaults.isDarkSurface()
   val screenDensity = LocalDensity.current.density
 
+  // Il vetro annidato dal fondo (F1A.13): il materiale che questa lastra pubblica, per i controlli che lo
+  // campionano da un nodo fratello (`GlassLiquidPanels`), e la domanda opposta, se il fondo di questa lastra
+  // contiene il materiale pubblicato da un'altra. Il fondo e' letto in disegno, come gli altri ingressi.
+  val published = exports?.layerBackdrop
+  if (published != null) {
+    DisposableEffect(published) {
+      GlassLiquidPanels.publish(published)
+      onDispose { GlassLiquidPanels.withdraw(published) }
+    }
+  }
+  val currentBackdrop by rememberUpdatedState(state.backdrop)
+
   val surface = remember(role, optics, shape, darkSide, screenDensity, quality) {
     GlassLiquidSurface(
       role = role,
@@ -1793,6 +1830,7 @@ internal fun Modifier.glassLiquidSurface(
       film = { currentFilm },
       tint = { currentTint },
       touch = { currentTouch },
+      onPanel = { glassSamplesLiquidPanel(currentBackdrop, GlassLiquidPanels::isPublished) },
     )
   }
 
@@ -1825,6 +1863,9 @@ internal fun Modifier.glassLiquidSurface(
       innerShadow = null,
       layerBlock = layerBlock,
       exportedBackdrop = exports?.layerBackdrop,
+      // La cattura apre sempre con un'operazione, perche' il corpo esista anche quando il fondo non ha niente da
+      // dare: vedi `GlassLiquidOnDrawBackdrop` (F1A.13).
+      onDrawBackdrop = GlassLiquidOnDrawBackdrop,
       onDrawSurface = onDrawSurface,
       // Come oggi: con un `layerBlock` la cattura resta a risoluzione piena (il blocco si inverte contro la
       // densita' dello scope, e una densita' scalata lo sposterebbe).

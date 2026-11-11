@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -305,17 +305,20 @@ internal fun MatrixOverlayButton(
   modifier: Modifier = Modifier,
 ) {
   Box(modifier = modifier) {
-    FluidGlassIconButton(
-      onClick = onClick,
-      backdrop = backdrop,
-      modifier = Modifier.testTag(MatrixButtonTag),
-    ) {
-      FluidIcon(
-        imageVector = FluidIcons.Tune,
-        contentDescription = matrixButtonDescription(snapshot),
-        tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.size(22.dp),
-      )
+    // La regola delle barre (4.0): inchiostro del testo e taglia dal posto, come le azioni di `FluidScreen`. Il tasto
+    // sta fuori da ogni schermata (nella fascia sopra la demo), dove nessuno da' l'inchiostro e il default di
+    // Material e' il nero: lo si da' qui, quello che `FluidScreen` da' alle sue barre. La taglia la da' il tasto.
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+      FluidGlassIconButton(
+        onClick = onClick,
+        backdrop = backdrop,
+        modifier = Modifier.testTag(MatrixButtonTag),
+      ) {
+        FluidIcon(
+          imageVector = FluidIcons.Tune,
+          contentDescription = matrixButtonDescription(snapshot),
+        )
+      }
     }
     if (!snapshot.isDefault) FluidBadge(modifier = Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 6.dp))
   }

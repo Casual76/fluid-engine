@@ -299,11 +299,18 @@ prende il verde; nel foglio scuro da 76 a 48 sopra un foglio a 34) e **l'ombra a
 gradino sopra il pannello, non sopra la pagina: piena, sopra un foglio chiaro, era una nuvola grigia). Sul tema chiaro
 il velo resta: lì il vetro su vetro era già pulito. Filo, riflesso, lente, smerigliatura, una pellicola dipinta com'è e
 la tinta di Apple non cambiano. **Annidato lo dice il nodo**, non un parametro: è la stessa domanda con cui il vetro su
-vetro (2.13.0) trova il pannello fra gli antenati, quindi vale da sola anche per i pannelli di un'app. Un vetro
-**accanto** a un altro (due tasti di una barra, la capsula sopra la pagina, le azioni della barra in alto, che sono
-sorelle della fascia e non figlie) resta una lastra sulla pagina, come una superficie con `nestInContainer = false`. I
-numeri stanno nel profilo (`GlassLiquidNestings`), e la manopola `nested=off` rimette il vetro annidato di prima per
-confrontarlo sul tablet.
+vetro (2.13.0) trova il pannello fra gli antenati, quindi vale da sola anche per i pannelli di un'app. Lo dice anche
+il **fondo** (4.0.0, F1A.13): una lastra che campiona il materiale pubblicato con `exports` da un pannello `Liquid` sta
+su quel pannello anche se non ne è figlia, cioè lo schema di `exports` con i controlli in un nodo fratello del
+pannello e `rememberCombinedGlassBackdrop(pagina, materiale)`. Un vetro **accanto** a un altro (due tasti di una
+barra, la capsula sopra la pagina) resta una lastra sulla pagina, come una superficie con `nestInContainer = false`;
+le azioni della barra in alto campionano il materiale della fascia, che è vetro di prima e non pubblica, e restano
+lastre sulla pagina anche loro. Un pannello **pieno** dell'engine con dentro del vetro (la notifica quando l'host non
+ha un fondo, il foglio del modale senza fondo) pubblica il proprio colore come materiale e fa da contenitore: i suoi
+tasti sono vetro annidato e ne prendono il colore. Prima campionavano il fondo vuoto, e sul Tab S9 erano un anello
+vuoto con la smerigliatura di serie e una toppa grigia con una più larga (sotto, «Da sapere»). Col vetro di prima il
+pannello pieno non pubblica niente. I numeri stanno nel profilo (`GlassLiquidNestings`), e la manopola `nested=off`
+rimette il vetro annidato di prima per confrontarlo sul tablet.
 
 **Il costo.** Una lastra ferma tiene 3 layer (cattura, posa, ombra) contro i 5 del vetro di prima, e 2 senza ombra; i
 nodi sono 4 contro 5. La risoluzione della cattura si decide sulla smerigliatura del ruolo, prima della regola della
@@ -409,10 +416,16 @@ aprire la schermata da guardare.
   contrasto medio e alto non succede, perché lì il vetro torna alla pellicola densa. Il rimedio vero è l'inchiostro e il
   lato che seguono lo sfondo (l'adattività), di una fase successiva; se non bastasse, il ripiego è un pavimento del velo
   per ruolo. Una schermata che sta quasi sempre sopra fondi del tono opposto può tenere il vetro di prima, intanto.
-- **Il vetro annidato sul tema scuro è corretto sul banco, non ancora visto sul tablet.** La regola dell'annidato
-  (sopra) nasce dalla toppa grigia vista sul tablet; il suo esito è misurato sul banco, che rende il tasto figlio sopra
-  il materiale vero del pannello. Da guardare sul tablet: il tasto della notifica verde nel tema scuro (deve prendere
-  il verde) e un tasto su un foglio scuro, accanto alla manopola `nested=off`.
+- **Il vetro annidato sul tablet.** In un foglio di vetro scuro (pagina «Materiale», scena `nested`) il tasto scende
+  da 84 a 61 sopra un foglio a 40; nella notifica di vetro della radice la chiusura sta a 48 sopra la card a 35 (75
+  senza la regola). Nella notifica **piena** di «Avvisi con azione» (l'host senza fondo) i tasti campionavano il fondo
+  vuoto: una cattura senza operazioni, che la piattaforma non disegna, quindi niente corpo con la smerigliatura di
+  serie e con quella di mezzo (il margine della cattura, `max(0, sfocatura − banda della lente)`, era zero), il velo
+  pieno sopra il niente con una più larga, e nessuna regola dell'annidato perché la card non era un vetro. Corretto in
+  F1A.13: la cattura apre sempre con un'operazione, e la card piena pubblica il suo colore (in scuro tasto 67 e chiusura 65 sopra la card a 56, col suo verde, con D, M, r12 e C; 87 senza la
+  regola; in chiaro 240 e 238 sopra 233; il banco, scene `gusto/annidato-opaco-*`, dà gli stessi numeri). Un tasto di vetro
+  su un contenuto opaco **senza** fondo e fuori da ogni pannello (il foglio a schermo intero) ha ora il velo pieno con
+  ogni smerigliatura, come una lastra sulla pagina: prima, con quella di serie, era il solo filo.
 - **Il materiale nuovo è stato visto su un solo dispositivo, e prima delle scelte di gusto.** Sul Tab S9 (sessione
   S1-ter, con la combinazione di serie di allora): nessuno shader rifiutato, il riscaldamento fatto in 4,6–6,2 ms dopo
   il primo fotogramma, il bordo del tasto tondo che combacia col banco entro pochi livelli nei due temi (filo chiaro in

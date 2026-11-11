@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -170,27 +172,32 @@ private fun MaterialRun(config: MaterialConfig, bottomInset: Dp, onOpenPanel: ()
       topInset = if (config.hud) HudSpace else 0.dp,
     )
   }
-  Box(modifier = Modifier.fillMaxSize().testTag("material-page")) {
-    MaterialStage(config, clock, stage) { MaterialSceneContent(session) }
-    FluidMorphMenuHost(state = menu, backdrop = stage)
-    if (config.hud) {
-      MaterialHud(
-        config = config,
-        report = report,
-        status = status,
-        onOpenPanel = onOpenPanel,
-        modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(8.dp),
-      )
-    } else {
-      // Senza riquadro (le foto) il pannello si apre toccando l'angolo in alto a destra: niente si disegna lì.
-      Box(
-        modifier = Modifier
-          .align(Alignment.TopEnd)
-          .statusBarsPadding()
-          .size(56.dp)
-          .pointerInput(onOpenPanel) { detectTapGestures { onOpenPanel() } }
-          .testTag("material-panel-corner"),
-      )
+  // L'inchiostro del tema per tutto ciò che sta sulla scena (S2-pre, difetto 3): la pagina non è una `FluidScreen` né
+  // una `Surface`, e senza questo titoli, scritte e icone senza un colore loro prendevano il nero di Material anche
+  // sul vetro scuro. È quello che `FluidScreen` dà al suo contenuto.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+    Box(modifier = Modifier.fillMaxSize().testTag("material-page")) {
+      MaterialStage(config, clock, stage) { MaterialSceneContent(session) }
+      FluidMorphMenuHost(state = menu, backdrop = stage)
+      if (config.hud) {
+        MaterialHud(
+          config = config,
+          report = report,
+          status = status,
+          onOpenPanel = onOpenPanel,
+          modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(8.dp),
+        )
+      } else {
+        // Senza riquadro (le foto) il pannello si apre toccando l'angolo in alto a destra: niente si disegna lì.
+        Box(
+          modifier = Modifier
+            .align(Alignment.TopEnd)
+            .statusBarsPadding()
+            .size(56.dp)
+            .pointerInput(onOpenPanel) { detectTapGestures { onOpenPanel() } }
+            .testTag("material-panel-corner"),
+        )
+      }
     }
   }
 }

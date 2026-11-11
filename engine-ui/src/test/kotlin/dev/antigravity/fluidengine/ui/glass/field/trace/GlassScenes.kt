@@ -732,9 +732,53 @@ internal object GlassScenes {
     return GlassScene("gusto/annidato-$key-${if (dark) "scuro" else "chiaro"}.json", scene)
   }
 
-  /** Le scene del vetro annidato, nelle due varianti e sui due lati. */
+  /**
+   * Il colore della card **piena** della notifica (`FluidNotification` senza fondo: `surfaceContainerHigh` col
+   * 9% / 4,5% dell'accento), misurato sul Tab S9 in F1A.13 (RGB 45,59,55 e 225,235,233).
+   */
+  private fun opaqueCard(dark: Boolean): String = if (dark) "#2D3B37" else "#E1EBE9"
+
+  /**
+   * Le lastre della scena del pannello **opaco** (F1A.13): «Ripristina ultima modifica» (alto 48 dp) e la croce
+   * (44 dp) sopra la card piena della notifica di «Avvisi con azione». La card è un rettangolo della pagina, come la
+   * vede il tasto che ne campiona il fondo (`glassOpaquePanel`); i tasti si dicono annidati da soli, come il nodo
+   * li fa col contenitore della card.
+   */
+  fun opaqueShapes(): List<Map<String, Any?>> = listOf(
+    linkedMapOf(
+      "name" to "tasto", "role" to "button", "x" to 30, "y" to 92, "w" to 300, "h" to 48, "radius" to "capsule",
+      "label" to "Ripristina ultima modifica", "labelSizeDp" to 15, "nested" to true,
+    ),
+    linkedMapOf(
+      "name" to "croce", "role" to "button", "x" to 350, "y" to 24, "w" to 44, "h" to 44, "radius" to "capsule",
+      "iconSizeDp" to 24, "icon" to "fluid:close|close", "nested" to true,
+    ),
+  )
+
+  /** La scena del pannello opaco: [key] è `serie` (con la regola) o `prima` (come sulla pagina: la toppa). */
+  fun opaqueNested(key: String, dark: Boolean): GlassScene {
+    val ask = NestedTastes.toMap().getValue(key)
+    val theme = if (dark) "dark" else "light"
+    val scene = sampleHead(
+      "Scritta dalla ricetta (GlassSceneExportTest, F1A.13): il vetro annidato su un pannello **opaco** (la notifica " +
+        "senza fondo di «Avvisi con azione»), variante `$key`, lato ${if (dark) "scuro" else "chiaro"}: ${ask.label}. " +
+        "La card piena è un rettangolo della pagina col colore misurato sul Tab S9; il tasto e la croce ne campionano " +
+        "il fondo da annidati. Non si modifica a mano: si rigenera.",
+      dark,
+    )
+    scene["width"] = 440
+    scene["height"] = 170
+    scene["page"] = listOf(
+      linkedMapOf("kind" to "rect", "x" to 10, "y" to 10, "w" to 410, "h" to 150, "radius" to 20, "color" to opaqueCard(dark)),
+    )
+    scene["elements"] = opaqueShapes().map { liquidFromGlass(it, theme, ask) }
+    return GlassScene("gusto/annidato-opaco-$key-${if (dark) "scuro" else "chiaro"}.json", scene)
+  }
+
+  /** Le scene del vetro annidato, nelle due varianti e sui due lati: su un pannello di vetro e su uno opaco. */
   fun nestedScenes(): List<GlassScene> =
-    NestedTastes.flatMap { (key, _) -> listOf(nested(key, dark = false), nested(key, dark = true)) }
+    NestedTastes.flatMap { (key, _) -> listOf(nested(key, dark = false), nested(key, dark = true)) } +
+      NestedTastes.flatMap { (key, _) -> listOf(opaqueNested(key, dark = false), opaqueNested(key, dark = true)) }
 
   /** Tutte le scene: le inquadrature rilette da [referenceFolder] (`tools/glassbench/scenes/rif`) e i campioni. */
   fun all(referenceFolder: File): List<GlassScene> =

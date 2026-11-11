@@ -24,8 +24,10 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
@@ -47,6 +49,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
+import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassNestingScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
@@ -56,6 +59,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.fitToTexture
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RuntimeShaderEffect
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.obtainEngineShader
+import java.util.WeakHashMap
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -481,6 +485,76 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
   }
 }
 
+/**
+ * `onDrawBackdrop` di una lastra `Liquid`: prima del fondo, una cancellazione dell'area della cattura, poi il fondo.
+ *
+ * Perché: il corpo è un `RenderEffect` sul layer della cattura, e la piattaforma non disegna un layer che non ha
+ * **nessuna** operazione registrata, quindi non ne esegue nemmeno l'effetto. Un fondo che non ha niente da dare (il
+ * fondo vuoto di un controllo su un contenuto opaco, una sorgente non ancora posata) non registra niente; la cattura
+ * allora conteneva solo la traslazione del margine, se il margine c'era. Il corpo esisteva o no a seconda del
+ * margine (`max(0, sfocatura − banda della lente)`), cioè della smerigliatura: con i 4,5 dp di serie e con gli 8 di
+ * M il margine di un tasto è zero e il tasto restava un anello vuoto (solo la luce, che si disegna sul nodo); con
+ * 12 dp o 36 il corpo c'era, velo pieno sopra il niente. Misurato sul Tab S9 (F1A.13): con `blur=11.4` il tasto da
+ * 48 dp (banda 11,5 dp, margine zero) è vuoto e la croce da 44 (banda 10,6, margine 1,8 px) ha il corpo.
+ *
+ * La cancellazione è un'operazione vera (`Clear` non è un disegno «che non disegna niente», che il registratore
+ * scarterebbe), e su un layer appena nato non cambia un pixel. Con un fondo vero il fondo le si disegna sopra.
+ */
+internal val GlassLiquidOnDrawBackdrop: DrawScope.(drawBackdrop: DrawScope.() -> Unit) -> Unit = { drawBackdrop ->
+  drawRect(color = Color.Transparent, blendMode = BlendMode.Clear)
+  drawBackdrop()
+}
+
+// ------------------------------------------------------------------------------------------------------------
+// I materiali pubblicati dalle lastre `Liquid`
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * I materiali che una lastra `Liquid` pubblica con `exports` (4.0.0, F1A.13): con quante lastre li pubblicano.
+ *
+ * Servono al vetro annidato quando il controllo **non è figlio** del pannello su cui sta, cioè lo schema che il KDoc
+ * di `exports` insegna alle app («un controllo su una barra»): il pannello in un nodo, i controlli in un fratello che
+ * campiona `rememberCombinedGlassBackdrop(pagina, materiale)`. Il nodo del controllo non trova un vetro fra i suoi
+ * antenati e per lui la superficie sta sulla pagina; ma un controllo che campiona il materiale di un pannello sta su
+ * quel pannello, e il velo pieno sopra un materiale che ne ha già uno è la toppa grigia (S1-ter, difetto 4).
+ *
+ * Solo le lastre `Liquid` pubblicano qui: la fascia in alto delle barre è vetro di prima (`Classic`), e i tasti che
+ * ci stanno sopra restano lastre sulla pagina, come la regola dell'annidato ha deciso (F1A.12).
+ *
+ * Un contatore di stato per materiale, in una mappa debole: chi lo legge negli effetti viene rifatto quando il
+ * materiale comincia o smette di essere pubblicato, e solo lui. Si usa dal thread principale.
+ */
+internal object GlassLiquidPanels {
+
+  private val counts = WeakHashMap<Backdrop, MutableIntState>()
+
+  private fun counter(material: Backdrop): MutableIntState = counts.getOrPut(material) { mutableIntStateOf(0) }
+
+  /** Una lastra `Liquid` comincia a pubblicare [material]. */
+  fun publish(material: Backdrop) {
+    counter(material).intValue += 1
+  }
+
+  /** La lastra smette: [material] resta pubblicato finché un'altra lo pubblica. */
+  fun withdraw(material: Backdrop) {
+    val counter = counts[material] ?: return
+    if (counter.intValue > 0) counter.intValue -= 1
+  }
+
+  /** Vero se una lastra `Liquid` pubblica [part]. Letto negli effetti: è uno stato. */
+  fun isPublished(part: Backdrop): Boolean = counter(part).intValue > 0
+}
+
+/**
+ * Vero se [backdrop] contiene, a qualunque profondità, un materiale che [isPanel] riconosce come pubblicato da un
+ * pannello `Liquid`: la superficie che lo campiona sta su quel pannello. Pura. Vedi [GlassLiquidPanels].
+ */
+internal fun glassSamplesLiquidPanel(backdrop: Backdrop, isPanel: (Backdrop) -> Boolean): Boolean {
+  var found = false
+  backdrop.forEachPart { part -> if (!found && isPanel(part)) found = true }
+  return found
+}
+
 // ------------------------------------------------------------------------------------------------------------
 // La luce a riposo
 // ------------------------------------------------------------------------------------------------------------
@@ -565,6 +639,9 @@ internal class GlassTouchLight(val amount: () -> Float, val position: () -> Offs
  *   «piccoli» si decidono sui pixel veri.
  * @param film la pellicola di un `GlassTint` dipinto com'è (`GlassTintMode.Fixed`), o non specificato.
  * @param tint la tinta di Apple (`GlassTintMode.Colored`), o non specificato.
+ * @param onPanel vero se il fondo che la lastra campiona contiene il materiale pubblicato da un pannello `Liquid`
+ *   (F1A.13, [GlassLiquidPanels]): l'altra metà della risposta di [nested]. Letta negli effetti, quindi uno stato
+ *   che legge li rifà quando cambia.
  */
 @Stable
 internal class GlassLiquidSurface(
@@ -581,6 +658,7 @@ internal class GlassLiquidSurface(
   private val tint: () -> Color,
   private val touch: () -> GlassTouchLight?,
   private val profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  private val onPanel: () -> Boolean = { false },
 ) {
 
   /** Vedi [glassLiquidCaptureScale]. */
@@ -625,15 +703,28 @@ internal class GlassLiquidSurface(
    * pannello con `glassSurface` su un suo `Box` resterebbe fuori. Un vetro **accanto** a un altro (i tasti di una
    * barra, la capsula sopra la pagina) non ha un vetro fra gli antenati, e resta una lastra sulla pagina.
    *
+   * L'altra metà (F1A.13): una lastra che campiona il **materiale pubblicato** da un pannello `Liquid` ([onPanel],
+   * [GlassLiquidPanels]) sta su quel pannello anche se non ne è figlia. È lo schema di `exports` con i controlli in
+   * un nodo fratello del pannello: il nodo non ha un vetro fra gli antenati, ma il fondo dice su cosa sta. La
+   * fascia delle barre è vetro di prima e non pubblica qui: i loro tasti restano lastre sulla pagina.
+   *
+   * Un pannello **opaco** dell'engine (la notifica senza fondo, il foglio senza fondo) diventa un contenitore anche
+   * lui, col proprio fondo come materiale (`glassOpaquePanel`): i suoi tasti arrivano qui dalla prima metà.
+   *
    * Arriva al primo giro degli effetti, che il nodo fa quando si attacca, prima del primo disegno: il primo
    * fotogramma ha già il velo giusto. Se il pannello compare o se ne va dopo, il nodo rifà gli effetti; la luce
    * si ridisegna nello stesso fotogramma, l'ombra (che si disegna prima del nodo) in quello dopo.
    */
   val nested: Boolean get() = nestedState
 
-  /** Annota la risposta del nodo. Chiamata dagli [effects]; per i test, dallo scope che la porta. */
+  /**
+   * Annota la risposta del nodo, o del fondo. Chiamata dagli [effects]; per i test, dallo scope che la porta.
+   * [onPanel] si chiede sempre, anche quando il nodo ha già risposto di sì: è letto qui perché la sua lettura
+   * iscriva gli effetti al suo stato, e una lastra che oggi sta in un pannello domani può starne fuori.
+   */
   private fun noteNesting(scope: BackdropEffectScope) {
-    val onGlass = (scope as? GlassNestingScope)?.standsOnGlass == true
+    val panel = onPanel()
+    val onGlass = (scope as? GlassNestingScope)?.standsOnGlass == true || panel
     if (onGlass != nestedSeen) {
       nestedSeen = onGlass
       nestedState = onGlass

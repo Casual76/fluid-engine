@@ -524,7 +524,8 @@ di Haze (`SemanticBlurKernel`, Apache-2.0: 20 coppie più il centro per passata)
 `ui/fluid/FluidScreen.kt` in `FluidTopBar`): i tasti della barra rifrangono il contenuto già dissolto, non la pagina cruda.
 Sotto `Classic` e sotto API 33 resta `FluidTopBarGlass` con `GlassFalloff.FadeDown`.
 
-**Dopo S1 (cancello C4): confermate le due passate a metà risoluzione.** Il primo fotogramma lento della striscia visto in
+**Dopo S1 (cancello C4): confermate le due passate; la risoluzione (piena o metà) si sceglie a occhio in F2.4, partendo
+dalla piena, perché sul tablet stanno nel fotogramma tutte e due.** Il primo fotogramma lento della striscia visto in
 S1 era la compilazione a freddo del suo programma, non la nascita delle superfici (S1-bis: una seconda striscia costa
 3,9 ms a metà risoluzione): il programma della striscia entra nel riscaldamento di F1A.7, e non serve altro.
 
@@ -988,7 +989,7 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F1B | Un solo motore | 7 | 7 | S2 |
 | F2 | Adattività e bordo dello scorrimento | 6 | 6 | — |
 | F3 | Piano flottante e geometria | 7 | 7 | S3 |
-| F4A | Barre dichiarate in alto e fra pagine | 6 | 6 | — |
+| F4A | Barre dichiarate in alto e fra pagine | 7 | 7 | — |
 | F4B | In basso: capsula, ricerca, tab bar | 5 | 5 | — |
 | F5A | Menu e menu contestuale | 6 | 6 | — |
 | F5B | Popover, avvisi, fogli, zoom | 5 | 5 | S4 |
@@ -996,7 +997,7 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F7 | Ottimizzazione | 7 | 7 | S5, S6 |
 | F8 | Consegna | 6 | 4 | S6 |
 
-In tutto **83 pacchetti**, **73** dei quali chiedono almeno una volta un posto Gradle, e **6 sessioni** per 14–19 ore
+In tutto **84 pacchetti** (83 nel piano di partenza, più F4A.7 nato dalle misure di S1-bis), **74** dei quali chiedono almeno una volta un posto Gradle, e **6 sessioni** per 14–19 ore
 previste sul dispositivo (è il programma iniziale: una fase riaperta da una sessione può chiederne un'altra, da concordare). Con tre critici per fase sono almeno 36 valutazioni, fino a 144 se ogni fase usasse i tre giri. Il
 piano non dà una durata totale: dipende dalle code di Gradle, dalla RAM e da quante fasi si riaprono, e inventarla non
 aiuterebbe nessuno.
@@ -1099,44 +1100,60 @@ ci sono.
 | C6 prima compilazione | (g) | riscaldamento all'avvio | riscaldamento pigro per famiglia + meno varianti (4 e 8 fuse in una) |
 
 **Cancelli chiusi dopo S1 (2026-11-11).** Decisi dall'orchestratore sui numeri di `artifacts/liquid-glass/sessioni/S1.md`
-(Tab S9, Adreno 740, 120 Hz; tre finestre da 8 s per misura, concordi entro 0,15 ms). Dove questo riquadro contraddice
+(Tab S9, Adreno 740, 120 Hz; tre finestre da 8 s per misura: le mediane di `render_ms` e `gpu_ms` concordano entro
+0,15 ms, `total_ms` e `ui_ms` no; la prima finestra delle scene ferme è fuori e si scarta, dichiarandolo; qualche
+finestra isolata è fuori ed è segnata nelle tabelle di S1). Un solo dispositivo, con uno specchio dello schermo attivo. Dove questo riquadro contraddice
 una frase delle sezioni 3.x o di una fase, vale questo riquadro.
 
 | cancello | esito | decisione | cosa resta da riconfermare |
 |---|---|---|---|
 | C1 costo dei gesti | **bene** | **corpo a un layer** (3.5). Su tutte le lastre, anche 360×480 dp, un cambio di soli uniform sta nel fotogramma (p90 7,4–7,8 ms con la regola severa, nessun fotogramma perso in più). Il montaggio a due layer non si costruisce; se in S2 la comparsa di un pannello grande non regge, il ripiego è `two-composited`, non `two` (che nella comparsa costa più di `one`). La leva «nodi a monte fermi» non serve: Skia non riusa la sfocatura. La luce a riposo costa 0,1 ms per tre elementi: non si registra in un layer | shader definitivi in S2; flessione in S5; S25 |
 | C2 Fluid-physics a `Full` | **bene** | **resta come in 3.8**: l'anello sta nella finestra di un menu (GPU circa ×2 rispetto a `Balanced`, stessi fotogrammi persi, 2–3%). Sagome e tempi sono identici a `Balanced`: i difetti sono del disegno e muoiono in F1B | GPU del menu al p90 (9 ms) sull'S25 in S5 |
-| C3 pezzi | **bene** | **tetto 8, soglia 4**. GPU 1 : 1,1 : 1,4 : 1,9 per 1, 2, 4, 8 pezzi; il RenderThread non cresce. **In più**: la variante a 8 con uscita su `pieceCount` costa come quella tagliata sul conteggio, quindi le varianti a lastre sono **due, `1` e `8`** (corpo e luce), non quattro | nuclei veri e palco largo 2560 px in S2: se a 2 pezzi la variante a 8 costa in modo misurabile, torna la `2` |
-| C4 bordo dello scorrimento | **bene** | **due passate a metà risoluzione** (+1,0 ms di GPU sul tablet per alto e basso, +0,75 in formato telefono; a piena risoluzione +3,5: no) | S25 in S5. Il primo fotogramma lento della striscia era compilazione a freddo (S1-bis): il suo programma entra nel riscaldamento |
-| C5 sonda | **male in S1, chiuso bene in S1-bis** | `toImageBitmap()` **non è la via**: ferma il filo principale circa 5 ms a lettura (4 sonde a 100 ms: 10% di fotogrammi persi), e chiamata da un altro filo fa cadere HWUI. **Via adottata: `HardwareRenderer` + `ImageReader`, un lettore per finestra** con una casella per sonda; miniature registrate sul principale, richiesta dopo il disegno della finestra, statistiche su un `HandlerThread`. Misurato (S1-bis): 4 sonde ogni 100 ms → `over_pct` 0,6 / 0,1 / 0,1 contro 0,4–0,8 / 0,1 / 0,1 del pavimento; pixel identici a `toImageBitmap()` su 2 575 confronti; un cambio chiaro ↔ scuro visto 92 volte su 92 in 3,2 ms dalla richiesta; nessun crash in 47 corse. Il periodo di 100–150 ms del piano regge. Ripiego, se su un altro dispositivo non reggesse: una lettura ogni 250 ms per finestra con `toImageBitmap()` | S25 e pipeline Vulkan in S5; pagine vere dell'engine, schermo spento e rotazione in S3; statistica e isteresi in F2.1 |
+| C3 pezzi | **bene, indicativo** (pezzi piccoli, shader di prova, senza ombra in viaggio) | **tetto 8, soglia 4**. GPU 1 : 1,1 : 1,4 : 1,9 per 1, 2, 4, 8 pezzi; il RenderThread non cresce. **In più**: la variante a 8 con uscita su `pieceCount` non si distingue da quella tagliata sul conteggio (differenze di 0,01–0,02 ms, sotto la dispersione fra finestre), quindi le varianti a lastre partono in **due, `1` e `8`** (corpo e luce), non quattro: è una scelta di lavoro, non una misura chiusa | **condizione di S2, non rinviabile**: nuclei veri e palco largo 2560 px; se a 2 pezzi la variante a 8 costa in modo misurabile, torna la `2` |
+| C4 bordo dello scorrimento | **bene, indicativo** (shader di prova, un dispositivo) | **due passate.** La risoluzione **non è ancora decisa**: a metà la striscia in alto e in basso costa +1,0 ms di GPU sul tablet (+0,75 in formato telefono), a piena +3,5 (+2,2); con la regola di misura corretta **stanno nel fotogramma tutte e due** (a piena: GPU al p90 5,2 ms, `over_pct` 0,6 / 0,1 / 0,0 contro 0,5 / 0,1 / 0,1 del pavimento). Nessuno ha ancora guardato la striscia a metà risoluzione. Siccome la resa viene prima del costo (sezione 2), **F2.4 parte dalla piena e sceglie a occhio** fra piena e metà, su tavole del banco e sul tablet; la metà resta la leva di F7 e il ripiego se un dispositivo non regge | la scelta a occhio in F2 (sottocategoria F2-b); S25 in S5. Il primo fotogramma lento della striscia era compilazione a freddo (S1-bis): il suo programma entra nel riscaldamento |
+| C5 sonda | **male in S1, chiuso bene in S1-bis** | `toImageBitmap()` **non è la via**: ferma il filo principale circa 5 ms a lettura (4 sonde a 100 ms: 10% di fotogrammi persi), e chiamata da un altro filo fa cadere HWUI. **Via adottata: `HardwareRenderer` + `ImageReader`, un lettore per finestra** con una casella per sonda; miniature registrate sul principale, richiesta dopo il disegno della finestra, statistiche su un `HandlerThread`. Misurato (S1-bis), 4 sonde ogni 100 ms: con il lettore unico `over_pct` 0,3 / 0,1 / 0,1, con quattro lettori distinti 0,6 / 0,1 / 0,1, contro 0,4–0,8 / 0,1 / 0,1 del pavimento; pixel identici a `toImageBitmap()` su 2 575 confronti; un cambio chiaro ↔ scuro visto 92 volte su 92 in 3,2 ms dalla richiesta; nessun crash in 47 corse. Il periodo di 100–150 ms del piano regge. Ripiego, se su un altro dispositivo non reggesse: una lettura ogni 250 ms per finestra con `toImageBitmap()` | è provato il meccanismo, non la sonda dell'engine: fondale sintetico, sola luminanza media, cadenza fissa. In F2.1 la prima prova sul dispositivo è su una pagina vera (liste che si ri-registrano, più sorgenti, `exports`), e il caso in cui il lettore si prende un ridisegno che spettava alla finestra va costruito apposta o escluso per costruzione; S25 e pipeline Vulkan in S5; schermo spento e rotazione in S3; varianza, colore medio e isteresi in F2.1 |
 | C6 prima compilazione | **a metà** | niente riscaldamento nel percorso dell'avvio: i cinque programmi {`body1`, `body8`, `light1`, `light8`, striscia} costano a freddo 139–141 ms di RenderThread (due corse), a caldo 26–30 ms in tutto. **Riscaldamento dopo il primo fotogramma, per famiglia, a filo fermo, striscia compresa.** `light8` e la striscia non erano lenti: HWUI scrive la cache dei programmi su disco 4 s dopo una compilazione, e la misura di S1 fermava il processo prima (con 12 s di attesa: 29 → 5,7 ms e 45 → 8,5 ms). Conseguenza per l'engine: un'app chiusa entro 4 s dal primo vetro ricompila al lancio seguente; non c'è rimedio dal lato nostro, va saputo | a caldo il primo fotogramma di una variante costa ancora 12–19 ms sul filo principale: quanto è della scena di misura e quanto dell'engine si separa in S2 (F1A.7 scalda anche il percorso del principale: un disegno fuori schermo per programma) |
 
 **Regola di misura, corretta da S1.** Sul tablet la scadenza di un fotogramma è 16,67 ms (due vsync a 120 Hz): un
 `total_ms` di 10–12 ms non perde fotogrammi. «Sta nel fotogramma» d'ora in poi vuol dire: **`over_pct` non sopra il
 pavimento della stessa scena**, e p90 di `ui + render` e di `gpu` ciascuno sotto il periodo; il p90 di `total_ms` si riporta
-ma non decide. Le scene a fondale fermo si misurano con `warmup 5` (la prima finestra esce dal transitorio).
+ma non decide. `over_pct` confronta ogni fotogramma con la **sua** scadenza, che per un fotogramma partito tardi si
+allunga: per questo accanto a `over_pct` si riporta sempre il **numero di fotogrammi della finestra** contro quello atteso
+(a 120 Hz, 955–960 in 8 s): una finestra con meno fotogrammi ne ha persi, qualunque cosa dica `over_pct`. Le scene a
+fondale fermo si misurano con `warmup 5`; dove una misura è stata fatta con `warmup 2` valgono le finestre 2 e 3.
 
 **Difetti del motore di oggi visti a `Full`** (S1, sezione C2), con chi li chiude:
 
 | difetto | dove | chi lo chiude |
 |---|---|---|
-| contorno della forma di prima dopo A → B → A, e la forma perde la sua ombra | `Full` e `Balanced`, dalla 3.0.0 | **chiuso**: commit `72be580` e `b56d158`; provato sul tablet il 2026-11-11 (0 pixel diversi su cinque andate e ritorni, contro 83 000–140 000 prima) |
+| contorno della forma di prima dopo A → B → A, e la forma perde la sua ombra | `Full` e `Balanced`, dalla 3.0.0 | **chiuso**: commit `72be580` e `b56d158`; provato sul tablet il 2026-11-11 su cinque andate e ritorni, tema chiaro, `Full`: nel palco nessun pixel oltre 2 livelli su 255 fra la forma prima e dopo (in una coppia 32 pixel differiscono di 1–2 livelli; oltre soglia cambia solo la barra di stato), contro 83 000–140 000 prima. Tema scuro, `Balanced` e il ritorno predittivo annullato: nella prossima sessione sul tablet |
 | doppio bordo dentro il ponte fra due pezzi, e moiré nel collo | solo `Full` | F1B.1 (nuclei nuovi: un campo solo, un filo solo); il ponte resta solo in viaggio (scelta di Alessio, «Scelte di gusto») |
+| il collo fra due pezzi ha l'orlo molle e non ha filo né ombra propri: netto sui cerchi, sfumato nel punto stretto | solo `Full` | F1B.1; prova in F1B.6: orlo di larghezza costante lungo il collo, misurato sul banco |
 | l'ombra a riposo compare in un fotogramma circa 270 ms dopo l'arrivo | `Full` e `Balanced` | F1B.6 (parità viaggio→riposo), voce di S2 |
+| nel viaggio del menu i divisori sporgono dal bordo destro del vetro di 10–15 px e le voci sono tagliate in volo (`S1/collage/full-balanced/menu-ordina-meta-viaggio-1a1.jpg`) | tutti e due | F5A: il contenuto del menu sta dentro la sagoma in viaggio, deformato dalla lente ma intero (3.4, `GlassContentLens`); prova sul banco del movimento |
 | **ogni push ha un primo fotogramma lungo**: 65–73 ms di misura/layout a caldo (89–101 ms in tutto, un buco di 83–92 ms sullo schermo), 88–111 ms al primo push di un processo; il pop no. Dal codice la pagina che entra si compone dentro la misura (`ui/fluid/FluidScreen.kt:683`, `:952`): riguarda ogni pagina aperta con `FluidScreen`, non solo la barra | tutti e due, da prima della 3.0 | **F4A, pacchetto nuovo F4A.7** (la pagina che entra si compone prima che il viaggio parta, o il viaggio parte dal fotogramma dopo): prima un profilo (Perfetto) in S2, perché la causa viene dalla lettura del codice e non da una misura |
 | il menu parte circa 30 ms dopo il click lungo: due fotogrammi con la superficie ferma alla taglia premuta e due fotogrammi lunghi (34 e 25 ms) prima che il vetro si allarghi | tutti e due | F5A (l'apertura non deve aspettare la composizione del pannello); `framestats` in S2 |
 | alla fine del cambio di pagina, quando la superficie condivisa riconsegna il vetro ai tasti, un fotogramma **senza vetro** (restano le icone) | tutti e due | F4A (passaggio di consegne riposo↔palco, 3.7), prova in F1B.6 |
 
-**Convalida del banco del movimento (F0-a), 2026-11-11.** Tre scene che descrivono esattamente ciò che S1 ha registrato
+**Convalida del banco del movimento (F0-a): parziale.** Tre scene che descrivono esattamente ciò che S1 ha registrato
 (`oggi-*-galleria`, 120 Hz, densità 2,125), rese e misurate contro i fotogrammi veri
-(`artifacts/liquid-glass/moto/f0/convalida-F0-a.md`). **La geometria regge**: menu, picco 554 × 464 px nel banco e nel vero,
-riposo entro 1 px; tasto, presa entro 2 px a parte ombra e bagliore, picco a +0,4 ms. **I tempi no, e per una ragione sola**:
-il dispositivo ritarda o perde i primi fotogrammi di una presentazione (menu: circa 28 ms di ritardo costante; barra: i
-primi 150 ms del push non arrivano allo schermo), mentre la traccia parte puntuale. Quindi: il banco si usa per **sagoma,
-ordine degli eventi e durata del viaggio una volta partito**; la puntualità della partenza e i fotogrammi lunghi si
-giudicano solo sul dispositivo, con `framestats`. Per le prossime sessioni serve al banco un `pair` che legga i tempi veri
-dei fotogrammi di una registrazione a cadenza variabile (oggi c'è uno script a parte, `moto/f0/strumenti/convalida.py`):
-si aggiunge prima di S2.
+(`artifacts/liquid-glass/moto/f0/convalida-F0-a.md`; il confronto dei contorni, fatto con lo strumento del banco, è in
+`convalida-F0-a-contorni.md`). Il criterio era «stessa sagoma, stessi istanti entro un fotogramma»: **non è rispettato per
+intero**. Viaggio per viaggio:
+
+| viaggio | cosa è convalidato | cosa no |
+|---|---|---|
+| menu | il riquadro della sagoma alla presa, al picco (554 × 464 px nei due lati) e a riposo (entro 1 px); la fase premuta entro un fotogramma | gli istanti del viaggio: il vero è in ritardo di **24–40 ms** (mediana 28), perché dopo il click lungo il tablet tiene ferma la superficie per due fotogrammi lunghi; tolta la mediana restano fino a 12 ms a metà viaggio |
+| tasto | crescita, picco (+0,4 ms) e presa (entro 2 px, a parte ombra e bagliore che il banco non rende) | il ritorno: nel vero comincia 16,5 ms prima e si posa 25 ms prima; causa non chiusa (il tempo vero fra contatto e rilascio non è registrato) |
+| barra fra due pagine | lo stato a riposo prima e dopo | **il cambio di forma: non convalidato.** Il tablet non mostra i primi 150 ms del push, e nell'unico fotogramma di mezzo il vero ha pezzi a piena taglia e velati dove la traccia li ha al 67% e opachi |
+
+Quindi: il banco si usa per **sagoma, ordine degli eventi e durata del viaggio una volta partito**, e la sua fedeltà è
+provata per il menu e per la presa del tasto, non per la barra. La puntualità della partenza e i fotogrammi lunghi si
+giudicano solo sul dispositivo. **Condizioni prima di approvare un viaggio sui collage del banco** (cioè prima della
+review di F1B): il `pair` del banco legge i tempi veri di una registrazione a cadenza variabile e confronta i contorni
+(pacchetto F0.4c); il ritorno del tasto si rimisura con l'ingresso registrato (`getevent -lt`); la barra si riprende con
+le animazioni rallentate, perché il cambio di forma arrivi allo schermo. Le due riprese sono della prossima sessione sul
+tablet.
 
 **Risultati osservabili.** `glassbench.py check` passa su tutte le sorgenti e fallisce se si reintroduce `flat` (prova:
 un test del banco con una sorgente sbagliata apposta); il lint JVM fallisce sullo stesso caso; `FluidPhysicsTierTest` copre i

@@ -1351,6 +1351,19 @@ confronto di Apple accanto):
 | i grandi (menu, pannelli: non misurati in iOS 27) | smerigliatura e ombra come una barra / un passo in più / due passi in più |
 | tutto insieme | **una tavola finale** con la combinazione scelta, perché le tavole sopra variano una cosa alla volta e la combinazione altrimenti si vedrebbe per la prima volta in S2 |
 
+**Scelte di Alessio (2026-11-11)**, sulle tavole di `artifacts/liquid-glass/tavole/f1a/` (rese dal banco, non dal dispositivo):
+
+| scelta | risposta | cosa comporta |
+|---|---|---|
+| il bordo | **A, iOS 27**: filo scuro sul perimetro e riflesso interno in alto e in basso | è la combinazione di serie |
+| il velo | **A, iOS 27**: quasi chiaro, appena grigio sul bianco | è la combinazione di serie |
+| l'ombra | **B, iOS 26**: larga e morbida («anche se in realtà la differenza si nota poco») | un'eccezione a «iOS 27 dove differisce», come il bordo dello scorrimento. Con un'ombra larga la parità riposo ↔ viaggio non regge da sola (4–6 livelli di scarto, misurati in F1A.4): **va chiusa in F1B** (registrare la maschera a riposo con la stessa funzione dello shader, o più campioni del campo), ed è una prova di F1B.6. Il bersaglio dell'ombra diventa R4 A3 (3,7% a 0,2 H, estesa 0,75 H) |
+| la smerigliatura | **indeciso fra C (larga e mista) e D (iOS 26)** | si decide su un confronto in movimento (video del banco con lo sfondo che scorre); fino ad allora nel codice resta A |
+| il tema scuro, bordo | **B**: riflesso e un filo chiaro sottile | l'orchestratore lo rende più deciso di come appare nella tavola (nel ritaglio di Apple il filo chiaro in alto è netto) |
+| il tema scuro, velo | **A**: più chiaro | è la combinazione di serie |
+| la lente | media | scelta dell'orchestratore: col materiale pieno le tre varianti non si distinguono; si riapre in F1B, F3 e F5, dove si vede |
+| i grandi | un passo in più | scelta dell'orchestratore: le tre varianti si distinguono poco; con l'ombra B va ritarata |
+
 ---
 
 ### F1B · Un solo motore

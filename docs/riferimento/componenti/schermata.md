@@ -56,7 +56,8 @@ pagina che *deve* tenere una griglia propria si usa il titolo che si ritira senz
 
 | ho bisogno di… | uso |
 |---|---|
-| una pagina che scorre col titolo grande e la barra di vetro | `FluidScreen(title) { item { … } }` |
+| una pagina che scorre col titolo grande e la barra di vetro | `FluidScreen(title) { item { … } }` (sotto `Liquid` il contenuto passa sotto la barra sciogliendosi nel colore del fondo: sezione «Il bordo dello scorrimento») |
+| il bordo dello scorrimento su una barra mia (un overlay, una capsula, una barra in basso) | `FluidScrollEdge(backdrop, edge, height, exports = …)`, con il ripiego scelto da te dove `fluidScrollEdgeAvailable()` e' falso |
 | una pagina di dettaglio (apri una riga, leggi, torna) | `FluidContainerScaffold(title, onBack, hero, secondary)` — o direttamente `FluidScreen(onBack = …)` |
 | tira per aggiornare | `FluidScreen(isRefreshing, onRefresh)`; l'app deve far passare `isRefreshing` da `true` a `false` |
 | aggiornare da tastiera (Ctrl+R / F5) | `FluidChromeController.refreshFront()` dal gestore dei tasti |
@@ -200,9 +201,11 @@ Tutti i parametri: [../api/schermata.md](../api/schermata.md).
   che esce dal suo slot (`hasVisualOverflow`). Allora le due copie si dissolvono con una finestra disgiunta
   (il grande sparisce fra il 60% e il 78% della corsa, il compatto entra fra l'82% e il 100%: mai entrambi leggibili);
   con animazioni ridotte il passaggio e' secco a progresso 1.
-- *Il vetro compare prima del titolo agganciato*: appena qualcosa passa sotto l'orologio. Intensita' = max di due
-  rampe, 8 dp di zona morta + 64 dp di rampa dallo scostamento, e il progresso del titolo meno il suo 16% iniziale
-  (`GlassCollapseDeadZone`); cosi' in cima la pagina resta pulita.
+- *Il vetro compare prima del titolo agganciato*: appena qualcosa passa sotto l'orologio. Dalla 4.0, col materiale `Liquid`, il
+  «vetro» della barra e' il **bordo dello scorrimento** (sezione sotto): una striscia in cui il contenuto si scioglie nel colore
+  del fondo, che sostituisce la fascia, e lo stesso in fondo sopra la tab bar. Sotto Android 13 e con `Classic` resta la fascia
+  di sempre. Intensita' = max di due rampe, 8 dp di zona morta + 64 dp di rampa dallo scostamento, e il progresso del titolo
+  meno il suo 16% iniziale (`GlassCollapseDeadZone`); cosi' in cima la pagina resta pulita e la striscia non disegna ne' cattura.
 - *`titleFacets`*: a titolo agganciato la barra mostra a rotazione, ogni 2,4 s, il nome della pagina e poi le
   faccette (un conteggio, uno stato); il nome e' sempre il primo e quello a cui si torna, e tornando in cima si
   azzera. A faccetta attiva il titolo esce verso l'alto e la faccetta entra dal basso (una ruota sola).
@@ -286,6 +289,93 @@ fuori da `FluidScreen` qui sotto.
 
 **Versione.** Dalle prime 1.x; `overlay` 1.3.0; `ambient` 1.5.0; `contentMaxWidth` 1.32.0 (760 dp); `metrics` e colonne 2.5.0; barra ancorata
 all'host delle pagine 3.0.0; margine del titolo che segue i controlli 3.0.1.
+
+## Il bordo dello scorrimento
+
+**Cos'e'.** Sotto i tasti di una barra il contenuto che scorre non passa piu' dietro una fascia di vetro: **si scioglie nel
+colore del fondo** della pagina, con una sfocatura che cresce verso il bordo dello schermo. E' `scrollEdgeEffectStyle` di
+SwiftUI, nell'aspetto di iOS 26 (decisione del 2026-11-10: la fascia uniforme a taglio netto di iOS 27 non si fa). Nessuna
+lastra, nessuna sagoma, nessuna lente, nessun filo: una striscia larga quanto lo schermo. Le app che usano `FluidScreen` non
+scrivono niente: la barra in alto della schermata, quella che si comprime (`FluidCollapsingTopBar`), la barra ancorata
+all'host delle pagine e `FluidPageChrome` lo disegnano da sole, e lo stesso fa `FluidScreen` in fondo, sopra la tab bar.
+
+**Quando c'e'.** Solo dove `fluidScrollEdgeAvailable()` e' vero: Android 13 o piu' (AGSL), il materiale `Liquid` chiesto
+(`LocalFluidGlassModel`) e un compilatore che accetta il programma della striscia **e** quelli delle lastre (un rifiuto del
+corpo o della luce porta tutto il processo a `Classic`, e una striscia nuova sotto tasti di prima e' una combinazione che
+nessuno ha scelto). Una scelta sola, letta nello stesso modo da tutte le barre (`fluidChromeScrollEdge()`), perche' fra una
+barra e l'altra non stia mai un materiale diverso. E solo **quando serve**, come in iOS (il bordo c'e' dove un elemento
+fissato copre il contenuto): in alto l'intensita' e' quella di sempre, il massimo di due rampe (8 dp di zona morta e 64 dp
+di rampa dallo scostamento, e il progresso del titolo meno il suo 16% iniziale), in basso la stessa soglia e la stessa rampa
+dallo scorrimento che resta verso la fine. In cima alla lista, o a fine lista in basso, l'intensita' e' zero e la striscia
+**non disegna e non cattura**: una pagina ferma non paga niente.
+
+**Com'e' fatto.** `FluidScrollEdge(backdrop, edge, height, …)` e' alto `height` (dal bordo dello schermo al bordo dei
+controlli verso il contenuto: barra di stato piu' 44 dp in alto) piu' `FluidScrollEdgeDefaults.reach`, la coda in cui sfocatura
+e velo finiscono: 61,6 dp sotto i tasti in alto (1,4 altezze di tasto, `H` = 44 dp) e 86,8 dp sopra la tab bar (1,4 volte i
+suoi 62 dp). Chi lo posa gli lascia quello spazio: il riquadro della barra non sposta niente (titolo e tasti stanno nella
+riga in cima, la lista ha il suo margine, e il riquadro non prende tocchi), ma impilato in una colonna spingerebbe giu' il
+resto. Il profilo e' misurato su Apple in altezze di tasto dal bordo basso dei controlli: la sfocatura cresce verso il
+bordo dello schermo e il velo verso il colore del fondo si spegne in 1,35 `H`, con la dissolvenza dell'alfa d'uscita fra 1,3 e 1,4 `H`. Si disegna
+con **due passate** dello stesso programma (orizzontale, poi verticale con velo e dissolvenza) su una cattura a **piena
+risoluzione**: la meta' resta una leva della fase di ottimizzazione, e alla densita' del tablet uscirebbe dalle tolleranze
+(il 50% a 0,56 `H`). Il nucleo della sfocatura viene da Haze (Apache-2.0, `LICENSES/Haze.md`, con la sua voce in
+`FluidEngineLicenses`). I tasti che stanno sopra rifrangono il contenuto **gia' sciolto**: la striscia lo pubblica con
+`exports` e la barra lo combina con la pagina, come faceva con la fascia.
+
+**Gli stili.** `FluidScrollEdgeStyle.Automatic` (di serie) e' il bordo morbido in alto e il velo senza sfocatura in basso; `Soft` e'
+il bordo morbido anche in basso; `Hard` e' una fascia del colore del fondo che nasconde il contenuto, con un passaggio in
+meno di 0,2 `H`, per le pagine con un'intestazione fissa sotto la barra (le colonne di una tabella); `Hidden` non disegna
+niente, e il contenuto passa nitido sotto i tasti (`scrollEdgeEffectHidden`).
+
+**Il velo: leggero e progressivo (scelta di Alessio).** Sul tablet il primo profilo, preso dai ritagli attorno ai tasti, era
+«spintissimo»: il velo verso il bianco o il nero del tema arrivava fino al 70%, un tetto che non veniva da nessuna misura di
+iOS 26. Misurato su Apple nella stessa foto che sale sotto una barra chiara, il velo e' del 32–39% dietro i tasti e cala
+fino al 2% a un'altezza di tasto sotto. La scelta e': **tetto 0,36 in alto e in basso** e una **curva sola, dolce, su ogni
+contenuto** (anche sul testo), liscia e con pendenza zero all'attacco, perche' su una tinta unita un velo che passa da niente
+a tutto in pochi pixel si vede troppo. Nodi (distanza in `H` dal bordo basso dei tasti → velo): −0,65 → 0,36, −0,4 → 0,32,
+0 → 0,26, +0,2 → 0,18, +0,4 → 0,10, +0,7 → 0,05, +1 → 0,02, +1,35 → 0, con un'interpolazione cubica monotona e una grana
+di mezzo livello. Misurato sul tablet su una tinta unita: 34, 26, 18, 10, 5 e 2% a −0,5, 0, +0,2, +0,4, +0,7 e +1 `H`, senza
+riga dove finisce (residuo sotto 0,3 livelli). Sopra un **contenuto scuro**, in tema chiaro, la striscia **scurisce** invece
+di velare di bianco (come Apple, ×0,70–0,72 dietro i tasti): lo decide la sonda dello sfondo (`darkContent`, il lato con le
+due soglie del filtro, animato in 300 ms; la prima lettura no), ed e' provato sul banco ma **non visto sul tablet**; in tema
+scuro il velo va gia' verso il fondo scuro e la sonda non si monta. Per riguardare il profilo sul dispositivo ci sono le
+manopole di debug `edgeveil`, `edgefade`, `edgecap` e `edgecurve` (`gallery.tune`); a 1, o senza, i numeri sono quelli di serie al bit.
+
+**In basso.** Sotto la tab bar il contenuto **sfuma senza sfocarsi**, come iOS 26 sul telefono: `Automatic` in basso e'
+`FadeOnly` (scelta di Alessio del 2026-11-12), cioe' il velo e la dissolvenza senza la sfocatura; `Soft` la porterebbe, `Hidden`
+la spegne. In fondo conta il controllo piu' alto: la tab bar, che la schermata conosce da `LocalFluidBottomInset`, e, nella struttura, i
+controlli che si registrano (`RegisterFluidScreenBottomEdge`, interno; oggi nessuno lo chiama: la capsula flottante lo fara' con
+il seguito del bordo). Un controllo che arriva o se ne va accende e spegne il bordo con la molla con cui entra la capsula. Per iOS 26 l'unica fonte e' secondaria, e per iOS 27 nessuna: l'aspetto in basso e' da giudicare a occhio.
+**Aperto**: oggi la tab bar rifrange la pagina cruda e non il contenuto sfumato (esportare vorrebbe dire dare alla chrome un
+fondale combinato, e un export la sonda lo legge come una sorgente che non avvisa): se ne occupa il seguito del bordo
+(F2.5b), con la capsula flottante che si registra in fondo e il bordo che segue la tab bar quando si piega.
+
+**Il ripiego.** Dove il bordo non c'e' (sotto Android 13, con `FluidGlassModel.Classic`, con un compilatore che rifiuta) la
+barra tiene la **fascia di vetro di sempre** (`FluidTopBarGlass`, `glassSurface(falloff = FadeDown)`, e la sua coda di 34 dp),
+identica al pixel, e in basso non c'e' niente. `FluidScrollEdge` stesso, dove non puo' disegnare, **non disegna niente**: il
+ripiego e' di chi lo posa.
+
+**Deprecazioni.** `FluidScreenDefaults.ShieldDeadZone` e `ShieldRampDistance` (la barra non ha piu' uno «schermo» di vetro) sono
+deprecati con un `ReplaceWith` verso `ScrollEdgeDeadZone` e `ScrollEdgeRampDistance`, **stesso valore** (8 e 64 dp): valgono
+anche per la fascia di ripiego. `FluidScreenDefaults.GlassFadeTail` (34 dp) e' deprecato e resta solo per la fascia di
+ripiego; sotto `Liquid` la barra lascia `FluidScrollEdgeDefaults.reach`. Il parametro `tint` di `FluidCollapsingTopBar` e' ignorato sotto `Liquid` (Kotlin non sa deprecare un parametro solo: lo dice il KDoc), perche'
+la striscia non ha pellicola. Non e' ancora deprecato, perche' non e' ancora sostituito, `glassSurface(falloff = FadeDown)`.
+
+**Se hai scritto a mano una fascia.** Un `glassSurface(falloff = FadeDown)` (o `GlassEdge`) di un'app **non cambia da solo**:
+sotto il materiale nuovo resta la fascia di prima e quindi `Classic` (domanda 3 della scelta, in [vetro.md](vetro.md)).
+Se vuole il bordo mette `FluidScrollEdge(backdrop, edge, height, exports = …)` con `style = Automatic`, lascia `height + reach`
+di spazio e tiene la fascia come ripiego dove `fluidScrollEdgeAvailable()` e' falso; i tasti sopra la striscia campionano
+`rememberCombinedGlassBackdrop(pagina, exports)`. Una app che misurava la barra con `GlassFadeTail` per il padding della lista
+non deve cambiare niente: la lista ha il suo margine, e il riquadro piu' alto della barra non sposta nulla.
+
+**Trappole.**
+
+- **`intensity` a zero non disegna e non cattura**, nemmeno l'export: i tasti sopra non tengono una striscia vecchia, perche'
+  l'effetto di quella cattura si rifa' appena l'intensita' cambia. Non usare `Modifier.alpha` per «spegnerla».
+- **Il bordo non e' un vetro**: niente `GlassRole`, niente ottica, niente pellicola. Non ha senso metterci sopra un
+  `glassSurface` perche' «faccia lo stesso effetto»: la sfocatura che cresce verso il bordo e' del programma.
+- **Si giudica sul tablet a schermo intero**, non su un ritaglio attorno ai tasti: il velo pesante restava fuori dai ritagli
+  del banco con cui il profilo era stato scelto la prima volta. La galleria ha la scena `scorrimento` della pagina «Adattivita'».
 
 ## FluidBarAction
 
@@ -782,7 +872,7 @@ piu' grande non oltre il primo item visibile.
 
 | oggetto | valori |
 |---|---|
-| `FluidScreenDefaults` | `ControlRowHeight` 44, `ShieldDeadZone` 8, `ShieldRampDistance` 64, `GlassFadeTail` 34, `CompactTitleInset` 84, `HorizontalPadding` 20, `ContentMaxWidth` 760, `ItemSpacing` 14, `TitleTopSpacing` 4, `TitleBottomSpacing` 10, `ContentBottomSpacing` 28, `RefreshTrigger` 76, `RefreshHold` 56; `topBarHeight()`, `bottomContentPadding(extra)` |
+| `FluidScreenDefaults` | `ControlRowHeight` 44, `ScrollEdgeDeadZone` 8, `ScrollEdgeRampDistance` 64 (i vecchi `ShieldDeadZone` e `ShieldRampDistance`, deprecati, hanno lo stesso valore), `GlassFadeTail` 34 (deprecato: solo per la fascia di ripiego), `CompactTitleInset` 84, `HorizontalPadding` 20, `ContentMaxWidth` 760, `ItemSpacing` 14, `TitleTopSpacing` 4, `TitleBottomSpacing` 10, `ContentBottomSpacing` 28, `RefreshTrigger` 76, `RefreshHold` 56; `topBarHeight()`, `bottomContentPadding(extra)` |
 | `FluidColumnsDefaults` | `MinColumn` 340, `Spacing` 20, `GridSpacing` 14, `MinCard` 300, `MaxColumns` 3, `WideContentMaxWidth` 1120 |
 | `FluidPaneDefaults` | `MediumBreakpoint` 600, `ExpandedBreakpoint` 1000; `FluidPaneSizes`: side 280, list 380, detailMin 420, rail 112 |
 | `FluidListDetailSizes` | `listMin` 360, `listMax` 500, `listFraction` 0,4, `detailMin` 480 |
@@ -803,13 +893,15 @@ piu' grande non oltre il primo item visibile.
 - `FluidAmbientTest` (5): intensita' 0 = fondo piatto, sette toni sette colori, `urgent`, polarita' del fondo rispettata, motivo in scala. `FluidFastScrollTest` (18, puri) e `MoreComponentsTest` (lista corta senza maniglia, target proprio, `minItems`).
   `FluidSectionIndexTest` (6) e, in Robolectric, `FluidMatrixTest`/`AllGlassTest`: tenere premuto apre il nastro, `GestureStart` senza `Tick`, il tick per tacca, la bolla.
 - `FluidHeadingSemanticsTest`: il titolo grande e' `heading()`.
+- Il bordo dello scorrimento: `FluidScrollEdgeTest` (la disponibilita' e il ripiego, il profilo di ogni stile, `reach`), `FluidScreenScrollEdgeTest` (17: la taglia del riquadro della barra, i nomi deprecati, l'intensita' in alto e in basso, lo scorrimento che resta, chi sta in fondo e il suo registro, il lato dalla sonda), `FluidAnchoredBarEdgeTest` (3: la barra ancorata pesa la striscia fra due pagine come pesava la fascia), `GlassScrollEdgeTest`, `GlassScrollEdgeSceneTest` e `GlassScrollEdgeTuningTest` (il profilo, il velo e le manopole sul banco). **Non provato dai test**: lo scurimento sul contenuto scuro sul dispositivo (e' provato sul banco), e il costo della striscia doppia in un lancio.
 - **Non provati da test**: refresh col dito e `FluidEdgeOverscrollState` composto in una pagina vera, `FluidScreen` con `metrics`, tutti i fotogrammi del morph (da guardare sul dispositivo).
 
 ## Dove guardare
 
 Percorsi sotto `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 
-- `FluidScreen.kt` — `FluidScreen`, `FluidBarAction`, `FluidChromeController`, `ProvideFluidChrome`, `FluidScrollToTopBus`, `FluidScreenDefaults`, la barra (`FluidTopBar*`), il titolo grande (`FluidLargeTitle`), `FluidTitleMorphState`, facette, intensita' del vetro.
+- `FluidScreen.kt` — `FluidScreen`, `FluidBarAction`, `FluidChromeController`, `ProvideFluidChrome`, `FluidScrollToTopBus`, `FluidScreenDefaults`, la barra (`FluidTopBar*`, `FluidTopBarBackground`: bordo o fascia), il titolo grande (`FluidLargeTitle`), `FluidTitleMorphState`, facette, intensita' del vetro, il bordo in basso.
+- `FluidScrollEdge.kt` — il bordo dello scorrimento (`FluidScrollEdge`, `FluidScrollEdgeStyle`, `FluidScrollEdgeDefaults`, `fluidScrollEdgeAvailable()`); il programma e il profilo sono in `ui/glass/field/GlassScrollEdgeShader.kt`.
 - `FluidCollapsingHeader.kt` — il titolo che si ritira fuori da `FluidScreen` (`FluidTitleCollapse`, `FluidCollapseScroll`).
 - `FluidScrollPhysics.kt` / `FluidOverscroll.kt` — gomma, `FluidEdgeOverscrollState`, snap del fling, regole dei due titoli; i due modificatori pubblici.
 - `FluidAmbient.kt`, `FluidAmbientSurface.kt` — fondale e fondale di finestra. `FluidContainerScaffold.kt` — dettaglio opaco.

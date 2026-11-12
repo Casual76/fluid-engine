@@ -9,7 +9,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 
 | famiglia | file | dichiarazioni |
 |---|---|---|
-| [Schermata e scheletro](schermata.md) | 16 | 177 |
+| [Schermata e scheletro](schermata.md) | 16 | 179 |
 | [Barre di navigazione e di azione](barre.md) | 5 | 96 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 26 | 219 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
@@ -17,8 +17,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Controlli](controlli.md) | 8 | 54 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 9 | 81 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 153 |
-| [Vetro](vetro.md) | 27 | 186 |
-| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 76 |
+| [Vetro](vetro.md) | 29 | 205 |
+| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 77 |
 | [Tema, forma, tipo](tema.md) | 7 | 99 |
 | [Icone (FluidIcons)](icone.md) | 4 | 197 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |

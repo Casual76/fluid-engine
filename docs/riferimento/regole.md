@@ -827,7 +827,7 @@ dietro la stessa firma di `glassSurface` (la scheda [componenti/vetro.md](compon
 materiali»). Due regole li tengono separati.
 
 **Il vetro di prima non si tocca.** È il ripiego di tutto ciò che il materiale nuovo non può disegnare:
-sotto Android 13, su un compilatore che rifiuta, sulla fascia in alto, sullo scrim dei modali,
+sotto Android 13, su un compilatore che rifiuta, sulla fascia in alto dove il bordo dello scorrimento non c'è, sullo scrim dei modali,
 sull'orologio, e dove un'app lo chiede. Per questo il suo codice è rimasto dov'era, dietro l'`if` di
 `glassSurface`, e deve restare identico al pixel. Il motivo per essere severi è che un cambio lì non lo
 vede nessuno: le sessioni di prova si fanno su dispositivi recenti, che disegnano l'altro materiale, e un

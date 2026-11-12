@@ -188,7 +188,7 @@ class FluidBetaGalleryTest {
     // «Misure», «Materiale» e «Icone» sono strumenti per le sessioni sul dispositivo: non hanno una voce in «Da provare».
     val tools = setOf(
       GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material, GalleryPage.Icons, GalleryPage.Robustness, GalleryPage.Parity,
-      GalleryPage.Painted,
+      GalleryPage.Painted, GalleryPage.Adaptive,
     )
     GalleryPage.entries.filter { it !in tools }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
@@ -241,6 +241,9 @@ class FluidBetaGalleryTest {
   @Test
   fun `il vetro dipinto fuori dall'host si apre con due tocchi da Chrome`() =
     opensFromChrome("chrome-open-painted", GalleryPage.Painted)
+
+  @Test
+  fun `l'adattivita' si apre con due tocchi da Chrome`() = opensFromChrome("chrome-open-adaptive", GalleryPage.Adaptive)
 
   @Test
   fun `la riga in cima a Materiale apre Da provare con un tocco`() {
@@ -436,6 +439,8 @@ class FluidBetaGalleryTest {
     GalleryPage.Parity -> shown("F1B.6 ·", substring = true)
     // «Vetro dipinto», come «Parità»: il segno è il sottotitolo, che dice che foglio e avviso stanno fuori dall'host.
     GalleryPage.Painted -> shown("Fuori dall'host ·", substring = true)
+    // «Adattività» (F2.6), come «Parità»: il segno è il sottotitolo con la sigla del pacchetto e la scena.
+    GalleryPage.Adaptive -> shown("F2.6 ·", substring = true)
   }
 }
 

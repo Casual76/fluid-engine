@@ -3,8 +3,15 @@ package dev.antigravity.fluidengine.sample
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.foundation.AccentMode
+import dev.antigravity.fluidengine.sample.adaptive.AdaptiveDark
+import dev.antigravity.fluidengine.sample.adaptive.AdaptiveLaunch
+import dev.antigravity.fluidengine.sample.adaptive.AdaptiveScene
+import dev.antigravity.fluidengine.sample.adaptive.AdaptiveTone
+import dev.antigravity.fluidengine.sample.adaptive.adaptiveCoverage
+import dev.antigravity.fluidengine.sample.adaptive.adaptiveEdge
 import dev.antigravity.fluidengine.sample.painted.PaintedLaunch
 import dev.antigravity.fluidengine.sample.painted.PaintedOpen
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -206,5 +213,47 @@ class GalleryMatrixPureTest {
     assertEquals(PaintedOpen.Alert, PaintedLaunch.parse(mapOf("painted.open" to "avviso")::get))
     assertEquals(PaintedOpen.None, PaintedLaunch.parse(mapOf("painted.open" to "boh")::get))
     assertEquals(PaintedOpen.None, PaintedLaunch.parse(mapOf<String, String>()::get))
+  }
+
+  @Test
+  fun `la pagina dell'adattivita' si apre da riga di comando, con la scena, il tema e il fondo chiesti`() {
+    assertEquals(GalleryPage.Adaptive, (launch("gallery.page" to "adaptive").stack().last() as GalleryEntry.Page).page)
+    val (config, start) = AdaptiveLaunch.parse(inheritedDark = false, inherited = FluidGlassModel.Liquid, extra = mapOf(
+      "adaptive.scene" to " Scacchiera ",
+      "adaptive.theme" to "scuro",
+      "adaptive.model" to "classic",
+      "adaptive.auto" to "true",
+      "adaptive.dark" to "scuro",
+      "adaptive.cell" to "24",
+      "adaptive.share" to "0,4",
+    )::get)
+    assertEquals(AdaptiveScene.Checker, config.scene)
+    assertTrue(config.dark)
+    assertEquals(FluidGlassModel.Classic, config.model)
+    assertTrue(start.auto)
+    assertEquals(AdaptiveDark.Dark, start.dark)
+    assertEquals(24, start.cell)
+    assertEquals(0.4f, start.share, 1e-6f)
+    // Senza extra: la prima scena, il tema e il vetro ereditati, niente automatico. Un refuso non fa fallire il lancio.
+    val (plain, plainStart) = AdaptiveLaunch.parse(true, FluidGlassModel.Liquid, mapOf("adaptive.scene" to "boh", "adaptive.share" to "x")::get)
+    assertEquals(AdaptiveScene.Flip, plain.scene)
+    assertTrue(plain.dark)
+    assertEquals(FluidGlassModel.Liquid, plain.model)
+    assertEquals(false, plainStart.auto)
+    assertEquals(0f, plainStart.share, 0f)
+  }
+
+  @Test
+  fun `la copertura di un vetro sopra la fascia scura che sale dal fondo`() {
+    // Stage alto 1000: quota 0 = nessuna fascia, 1 = tutto nero; un vetro fra 400 e 500.
+    assertEquals(0f, adaptiveCoverage(400f, 500f, adaptiveEdge(0f, 1000f)), 0f)
+    assertEquals(1f, adaptiveCoverage(400f, 500f, adaptiveEdge(1f, 1000f)), 0f)
+    assertEquals(0.5f, adaptiveCoverage(400f, 500f, adaptiveEdge(0.55f, 1000f) ), 1e-6f)
+    assertEquals(0f, adaptiveCoverage(500f, 500f, 100f), 0f)
+    // Il giro dei toni del fondo: bianco, grigio, nero, grigio, e daccapo.
+    assertEquals(
+      listOf(AdaptiveTone.White, AdaptiveTone.Grey, AdaptiveTone.Black, AdaptiveTone.Grey, AdaptiveTone.White),
+      (0..4).map { AdaptiveTone.atStep(it) },
+    )
   }
 }

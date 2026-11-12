@@ -71,6 +71,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   Painted("Vetro dipinto"),
 
+  /**
+   * Dove si prova ciò che F2 ha dato al vetro e alle schermate (piano «iOS in Android», F2.6): il vetro che si adatta a ciò
+   * che ha dietro (giro chiaro/scuro, inchiostro, tasto tinto, cursore dell'utente), i grandi che scuriscono e il bordo dello
+   * scorrimento, in sette scene con un parametro di lancio ciascuna: vedi `adaptive/`. Si apre con
+   * `--es gallery.page adaptive`. Uno strumento per le sessioni sul dispositivo, come «Parità».
+   */
+  Adaptive("Adattività"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

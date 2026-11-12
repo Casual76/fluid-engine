@@ -276,6 +276,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-parity"),
           onClick = { onOpen(GalleryPage.Parity) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Adattività",
+          subtitle = "F2.6: il vetro che si adatta allo sfondo, il bordo dello scorrimento, il cursore dell'utente",
+          modifier = Modifier.testTag("chrome-open-adaptive"),
+          onClick = { onOpen(GalleryPage.Adaptive) },
+        )
       }
     }
 

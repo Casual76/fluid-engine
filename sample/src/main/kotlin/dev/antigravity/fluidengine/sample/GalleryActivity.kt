@@ -302,6 +302,8 @@ internal fun Gallery(
               GalleryPage.Parity -> dev.antigravity.fluidengine.sample.parity.ParityPage(bottomInset, stage = fallbackBackdrop) { nav.back() }
               // Il vetro dipinto fuori dall'host: `painted.open sheet|alert`.
               GalleryPage.Painted -> dev.antigravity.fluidengine.sample.painted.PaintedPage(bottomInset) { nav.back() }
+              // L'adattività (F2.6): `adaptive.scene`, `adaptive.theme`, `adaptive.model`, `adaptive.auto`, `adaptive.tone`…
+              GalleryPage.Adaptive -> dev.antigravity.fluidengine.sample.adaptive.AdaptivePage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

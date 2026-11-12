@@ -147,9 +147,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `val LocalFluidItemSpacing` — Quanto spazio questa schermata mette fra due item della sua lista.
 - `object FluidScreenDefaults`
   - `val ControlRowHeight: Dp` — Height of the control row of the bar, matching the 44pt UIKit navigation bar.
-  - `val ShieldDeadZone: Dp` — Initial travel kept optically clear, so a tiny touch does not flash the material on.
-  - `val ShieldRampDistance: Dp` — Travel after the dead zone over which the top material reaches full strength.
-  - `val GlassFadeTail: Dp` — Soft tail below the 44 dp control row; it removes the hard edge of a rectangular top bar.
+  - `val ScrollEdgeDeadZone: Dp` — Lo scorrimento che resta limpido prima che il bordo dello scorrimento compaia, perché un tocco appena accennato non lo faccia lampeggiare. Dalla 4.0 vale per il bordo dello scorrimento ([FluidScrollEdge]) in alto e in basso, e per la fascia di vetro dove questa resta (sotto Android 13, `FluidGlassModel.Classic`).
+  - `val ScrollEdgeRampDistance: Dp` — Lo scorrimento, dopo [ScrollEdgeDeadZone], in cui il bordo dello scorrimento arriva pieno.
+  - `val ShieldDeadZone: Dp` — **DEPRECATO: Dalla 4.0 la barra non ha più uno «schermo» di vetro: la soglia è quella del bordo dello scorrimento. ** — Initial travel kept optically clear, so a tiny touch does not flash the material on.
+  - `val ShieldRampDistance: Dp` — **DEPRECATO: Dalla 4.0 la barra non ha più uno «schermo» di vetro: la rampa è quella del bordo dello scorrimento. ** — Travel after the dead zone over which the top material reaches full strength.
+  - `val GlassFadeTail: Dp` — **DEPRECATO: Dalla 4.0, sotto il materiale Liquid, la barra lascia FluidScrollEdgeDefaults.reach sotto la riga dei tasti; ** — Soft tail below the 44 dp control row; it removes the hard edge of a rectangular top bar.
   - `val CompactTitleInset: Dp` — Room the docked title leaves on each side for bar buttons. Wider than a bar button because the compact title is now large enough that a near miss reads as a collision.
   - `val HorizontalPadding: Dp`
   - `val ContentMaxWidth: Dp` — Quanto puo' allargarsi il contenuto di una pagina prima che il margine cresca al posto suo.

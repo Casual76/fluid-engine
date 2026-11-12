@@ -5,6 +5,28 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidGlass.kt`
+
+- `class FluidGlass private constructor(internal val variant: Variant, val tint: Color, val isInteractive: Boolean)` — Quale vetro: la configurazione del materiale nuovo, come `Glass` in SwiftUI.
+  - `val isClear: Boolean get()` — Vero per [Clear].
+  - `val isIdentity: Boolean get()` — Vero per [Identity]: il vetro non c'è.
+  - `fun tint(color: Color?): FluidGlass` — Lo stesso vetro tinto di [color]; `null` o [Color.Unspecified] toglie la tinta. Su [Identity] non cambia niente.
+  - `fun interactive(enabled: Boolean = true): FluidGlass` — Lo stesso vetro che reagisce al dito (o no, con [enabled] falso). Su [Identity] non cambia niente.
+  - `companion object`
+    - `val Regular: FluidGlass` — Il vetro di serie: smerigliato e adattivo.
+    - `val Clear: FluidGlass` — Il vetro limpido: nessuna smerigliatura né adattività, scurimento del 35% sotto. Vedi [FluidGlass].
+    - `val Identity: FluidGlass` — Nessun vetro: il contenuto com'è, nella stessa struttura.
+
+## `engine-ui/ui/fluid/FluidGlassAdaptive.kt`
+
+- `object FluidGlassPreference` — I punti notevoli del cursore del vetro: in iOS 27 è in Impostazioni › Aspetto › Liquid Glass, e ha sostituito la scelta a due della 26.1 (R5 M2). Il valore va da [Transparent] a [Colored]; [Default] è il vetro dell'engine così com'è, al bit.
+  - `const val Transparent: Float` — Ultra trasparente: poca diffusione, il testo dietro il vetro si legge piegato dalla lente.
+  - `const val Default: Float` — Di serie: il vetro del profilo, senza ritocchi.
+  - `const val Colored: Float` — Del tutto colorato: una lastra quasi opaca del colore dello sfondo, nessuna forma dietro.
+- `val LocalFluidGlassPreference: ProvidableCompositionLocal<Float>` — Il cursore del vetro per questo sottoalbero, da [FluidGlassPreference.Transparent] (0) a [FluidGlassPreference.Colored] (1); di serie [FluidGlassPreference.Default].
+- `class FluidGlassAppearance internal constructor(val isDark: Boolean, val darkness: Float, val backdropLuminance: Float, val isMeasured: Boolean)` — Ciò che un vetro del materiale nuovo sa di sé e dello sfondo che ha dietro, per chi disegna **sopra** di lui: da quale lato sta (chiaro o scuro), quanto è scurito, e quanto è luminoso lo sfondo.
+- `val LocalFluidGlassAppearance: ProvidableCompositionLocal<FluidGlassAppearance?>` — L'aspetto del vetro su cui sta questo contenuto, o `null` fuori da un vetro adattivo. Lo fornisce il vetro (F2.3). `GlassDefaults.isDarkSurface()` lo legge per primo: dentro un vetro misurato il lato è quello del vetro.
+
 ## `engine-ui/ui/fluid/FluidGlassModel.kt`
 
 - `enum class FluidGlassModel` — Con quale materiale l'engine disegna il vetro.
@@ -117,7 +139,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val shaderSourceNames: List<String> get()` — I nomi di tutte le sorgenti AGSL dell'engine, nell'ordine in cui [compileAllShaders] le prova. Non dipende dal dispositivo: anche sotto Android 13 l'elenco è intero, vuoti sono solo i verdetti.
   - `val shaderVerdicts: Map<String, Throwable?> get()` — I verdetti che il vetro ha già chiesto in questo processo: nome della sorgente → `null` se il compilatore del dispositivo l'ha accettata, o il suo errore (il messaggio è quello del compilatore, con riga e motivo). Una sorgente che nessuno ha ancora usato non compare: la sonda compila solo quando serve. Sotto Android 13 la sonda non compila niente e la mappa resta vuota.
   - `fun compileAllShaders(): Map<String, Throwable?>` — Compila adesso ogni sorgente AGSL dell'engine che non sia già stata provata, e restituisce tutti i verdetti: nome della sorgente → `null` o l'errore del compilatore. Ogni rifiuto scrive anche una riga di log a livello errore (tag `FluidGlass`).
-  - `val liveSurfaces: Map<FluidGlassModel, Int> get()` — Le superfici di vetro vive, per il materiale che disegnano: una per nodo di `drawBackdrop` attaccato. `Liquid` è una superficie che disegna la luce del materiale nuovo, qualunque strada l'abbia scelta (anche Fluid-physics, la goccia e la pillola della tab bar, quando sono sul materiale nuovo); tutte le altre sono il vetro di prima, comprese quelle di chi chiama `drawBackdrop` a mano.
+  - `val liveSurfaces: Map<FluidGlassModel, Int>` — Le superfici di vetro vive, per il materiale che disegnano: una per nodo di `drawBackdrop` attaccato. `Liquid` è una superficie che disegna la luce del materiale nuovo, qualunque strada l'abbia scelta (anche Fluid-physics, la goccia e la pillola della tab bar, quando sono sul materiale nuovo); tutte le altre sono il vetro di prima, comprese quelle di chi chiama `drawBackdrop` a mano.
+  - `val liveScrollEdges: Int get()` — Le strisce del bordo dello scorrimento vive (`FluidScrollEdge`, F2.5): una per striscia attaccata, contata con la regola dei nodi (se la diagnostica è accesa quando si attacca). Non sono vetro (nessuna lastra, nessuna luce): per questo stanno qui e non in [liveSurfaces]. Il loro nodo e i suoi layer restano in [liveNodes] e [liveLayers].
   - `val liveModelChoices: Map<FluidGlassModelReason, Int> get()` — Le risposte vive della risoluzione del modello (`rememberFluidGlassModel`), per motivo: una per chiamata in composizione, finché la chiamata resta in composizione.
   - `val liveNodes: Map<FluidGlassNodeKind, Int> get()` — I nodi del vetro vivi che tengono un layer, per tipo. Contati dove nascono e dove si staccano.
   - `val liveLayers: Map<FluidGlassLayerKind, Int> get()` — I layer del vetro vivi, per tipo: creati e rilasciati dai nodi di [liveNodes]. Stesso limite.
@@ -251,6 +274,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `class FluidGlassProbeReading internal constructor(val luminance: Float, val deviation: Float, val gradient: Float, val red: Float, val green: Float, val blue: Float, val coverage: Float, val dark: Boolean, val fresh: Boolean, val uptimeMillis: Long)` — Una lettura della sonda, come la vede una prova sul dispositivo. Non è un'API per le app.
 - `object FluidGlassProbeDiagnostics` — La sonda dello sfondo vista da fuori, per le prove strumentate (`GlassProbeInstrumentedTest` nel modulo della galleria, che non vede gli `internal` dell'engine). Non è un'API per le app: nessun componente la usa, e la sonda vera entra nei vetri con F2.2.
+  - `fun wakes(): Map<String, Long>` — Perché le sonde si sono svegliate, per motivo (F2.3): una revisione di una sorgente, un riposizionamento, una lettura osservata cambiata, il timer (cadenza o scadenza del filtro), e le letture partite (con o senza miniatura nuova). Su una pagina ferma, dopo la prima misura, non deve crescere niente.
+  - `val totalSlotsRefused: Long get()` — Le sonde rimaste senza casella (o spinte fuori da una più importante).
+  - `val peakSlots: Int get()` — Il massimo di caselle occupate insieme in un lettore di finestra, da [resetPeakSlots] (F2.3): quante sonde radice ha la pagina più carica che si è aperta intanto. Il tetto è 64.
+  - `fun resetPeakSlots()` — Riparte il conto di [peakSlots].
+  - `fun resetForTesting()` — Azzera i contatori, per i test.
   - `val totalRequests: Long get()` — I fotogrammi chiesti ai lettori in tutto il processo (una richiesta può leggere più sonde).
   - `val totalReadings: Long get()` — Le letture consegnate alle sonde.
   - `val totalFailures: Long get()` — Le letture fallite (fotogramma rifiutato, lettore che non risponde).

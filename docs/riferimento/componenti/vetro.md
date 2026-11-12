@@ -27,8 +27,10 @@ che porta il vetro verso quello di iOS 27: le lastre di `glassSurface` e `glassC
 Fluid-physics ferme e in viaggio (menu, popover, finestra che si espande, barra fra le pagine), la pillola della tab
 bar e la goccia dei controlli e dei menu. **È un materiale solo**: tutte queste strade passano dalla stessa ricetta,
 e chi ha bisogno di qualcosa di diverso (la pillola un po' più scura, la goccia limpida) lo deriva dal profilo di
-serie senza numeri suoi. Il vetro di prima, **`Classic`**, resta com'era sotto Android 13, sulla fascia in alto,
-sullo scrim dei modali e dove un'app lo chiede. Il vetro **dipinto** di fogli e avvisi in un'altra finestra è
+serie senza numeri suoi. Il vetro di prima, **`Classic`**, resta com'era sotto Android 13, sulla fascia in alto dove
+il bordo dello scorrimento non c'è (vedi [schermata.md](schermata.md)), sullo scrim dei
+modali e dove un'app lo chiede. Da Android 13 il vetro nuovo **si adatta a ciò che ha dietro** (sezione «Il vetro che si
+adatta»). Il vetro **dipinto** di fogli e avvisi in un'altra finestra è
 derivato dalla stessa ricetta (sezione «Il vetro dipinto»). La sezione che segue, «Due materiali», dice chi sceglie,
 cosa cambia per un'app che aggiorna e com'è fatto il materiale nuovo. Il resto della scheda vale per tutti e due
 dove parla di API (sorgenti, fondali, `glassSurface`, ruoli, tinte, qualità, vetro su vetro, costo), e descrive il
@@ -93,8 +95,10 @@ si ottiene sempre, `Liquid` solo dove può esistere. Per ogni superficie decide 
 1. **Il sottoalbero chiede `Liquid`.**
 2. **Il dispositivo ha AGSL** (Android 13, livello 33; il livello simulato di una build di debug conta, vedi «La
    diagnostica»).
-3. **La superficie non è la fascia in alto** (`GlassFalloff.FadeDown`). La fascia resta quella di oggi finché non la
-   sostituisce il bordo dello scorrimento, che è di una fase successiva.
+3. **La superficie non è la fascia in alto** (`GlassFalloff.FadeDown`). La fascia delle schermate dell'engine non è più
+   un vetro sotto il materiale nuovo: lì la sostituisce il bordo dello scorrimento (`FluidScrollEdge`, [schermata.md](schermata.md)),
+   che non è una lastra. Resta la fascia, e quindi `Classic`, dove il bordo non c'è (sotto Android 13, con `Classic`, con un
+   compilatore che rifiuta la striscia) e per un `glassSurface(falloff = FadeDown)` scritto a mano da un'app.
 4. **La forma è una che il campo sa rendere**: `RectangleShape` o una forma ad angoli tondi (`RoundedCornerShape`,
    `AbsoluteRoundedCornerShape`, `CircleShape`, le `ContinuousCornerShape` dell'engine, capsula compresa). Il
    materiale nuovo ritaglia la sagoma con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno
@@ -127,7 +131,8 @@ ha preso un materiale si legge nella diagnostica (sotto).
 |---|---|---|
 | tasti di vetro e chip (`glassControlSurface`), capsula flottante, campo di ricerca, pannello della tab bar, rail, `FluidSidebar`, foglio, `FluidDrawer`, notifica, suggerimenti, fast scroller, le superfici di `engine-ai-ui` | `Liquid` | passano da `glassSurface` o `glassControlSurface`, con forme dell'engine |
 | card e gruppi lista con `glass = true` (ruolo `Content`) | `Liquid`, senza ombra | lo stesso: il vetro sul contenuto resta disponibile, e dove un'app lo chiede è il materiale nuovo |
-| la barra in alto di `FluidScreen` (la fascia) | `Classic` | `FadeDown`, domanda 3 |
+| la barra in alto di `FluidScreen`, della barra che si comprime, della barra ancorata e di `FluidPageChrome` | nessuno: il bordo dello scorrimento | sotto `Liquid` il contenuto si scioglie nel colore del fondo, senza lastra (`FluidScrollEdge`, [schermata.md](schermata.md)) |
+| la fascia in alto, dove il bordo non c'è (sotto Android 13, con `Classic`, striscia rifiutata) e un `glassSurface(falloff = FadeDown)` scritto da un'app | `Classic` | `FadeDown`, domanda 3 |
 | lo scrim dei modali | `Classic` | un velo senza spessore, domanda 5 |
 | popover, menu che nascono da un tasto, menu contestuale, finestra che si espande, barra fra le pagine **in viaggio**, ogni `fluidPhysicsSurface` | `Liquid` al livello `Full`, fermi e in viaggio | Fluid-physics sceglie con `resolvePhysicsGlass` (le stesse domande, più il livello: a `Balanced` e `Lite` resta il vetro di prima). Corpo, luce e ombra sono quelli di `glassSurface`, con la luce e l'ombra nel corpo |
 | la pillola della tab bar e la riga nascosta che campiona da premuta | `Liquid` | il vetro della barra un po' più scuro, `GlassPuckProfile`, derivato dal profilo di serie |
@@ -236,7 +241,8 @@ CompositionLocalProvider(LocalFluidGlassModel provides FluidGlassModel.Classic) 
 ```
 
 Ha senso per una schermata che conta su ottiche che chiedono più del ruolo, o che sta quasi sempre sopra fondi del tono
-opposto al tema (copertine scure in un'app chiara), finché l'adattività non c'è; per una pagina che mette i due vetri a
+opposto al tema (copertine scure in un'app chiara) e ha pannelli grandi con testo, che dall'adattività non guadagnano (la sezione «Il vetro che si adatta»
+dice chi si adatta); per una pagina che mette i due vetri a
 confronto; per un modulo che non è ancora passato al materiale nuovo, come l'orologio. Non serve «per sicurezza»: dove
 il materiale nuovo non può esistere l'engine torna al vetro di prima da solo. Vale per le superfici sotto quel punto,
 che rifanno la scelta se il valore cambia.
@@ -339,8 +345,8 @@ il **fondo** (4.0.0, F1A.13): una lastra che campiona il materiale pubblicato co
 su quel pannello anche se non ne è figlia, cioè lo schema di `exports` con i controlli in un nodo fratello del
 pannello e `rememberCombinedGlassBackdrop(pagina, materiale)`. Un vetro **accanto** a un altro (due tasti di una
 barra, la capsula sopra la pagina) resta una lastra sulla pagina, come una superficie con `nestInContainer = false`;
-le azioni della barra in alto campionano il materiale della fascia, che è vetro di prima e non pubblica, e restano
-lastre sulla pagina anche loro. Un pannello **pieno** dell'engine con dentro del vetro (la notifica quando l'host non
+le azioni della barra in alto campionano ciò che la barra pubblica (il contenuto già sciolto del bordo dello scorrimento,
+o il materiale della fascia di prima, che non pubblica) e restano lastre sulla pagina anche loro. Un pannello **pieno** dell'engine con dentro del vetro (la notifica quando l'host non
 ha un fondo, il foglio del modale senza fondo) pubblica il proprio colore come materiale e fa da contenitore: i suoi
 tasti sono vetro annidato e ne prendono il colore. Prima campionavano il fondo vuoto, e sul Tab S9 erano un anello
 vuoto con la smerigliatura di serie e una toppa grigia con una più larga (sotto, «Da sapere»). Col vetro di prima il
@@ -368,6 +374,134 @@ mediana 2,37–2,47 contro 2,2 ms, fotogrammi oltre la scadenza 17,5–20,0% con
 cattura al 73% vi pesa circa 0,1 ms (2,43 contro 2,33 con la cattura al 40%). Il costo di una pagina piena di vetro,
 e su una GPU più debole o sull'S25, non è misurato.
 
+### Il vetro che si adatta (4.0)
+
+Da Android 13, col materiale `Liquid`, un vetro sa che cosa ha dietro. Non è un'opzione che si accende: è ciò che il vetro
+fa, e le app non chiamano niente. Il lavoro si divide in tre: una **sonda** misura lo sfondo, un **filtro** decide da che
+parte sta il vetro, e il **materiale** (la ricetta, `glassRecipe`) trasforma la misura in velo, ombra e tinta. Ogni passo
+ha i suoi numeri e le sue fonti nel KDoc di `ui/glass/field/` (`GlassProbe.kt`, `GlassProbeScheduler.kt`,
+`GlassAdaptiveFilter.kt`) e di `ui/fluid/FluidGlassAdaptive.kt`; qui c'è quanto basta a usarlo e a non romperlo.
+
+**Cosa misura la sonda.** Su una miniatura dello sfondo sotto il vetro (registrata a 64 px e ridotta a blocchi a 16×16, così
+il testo che scorre di meno di un pixel non fa tremare la media) calcola la luminanza media (0,2126 R + 0,7152 G + 0,0722 B sui
+valori sRGB a 8 bit), la varianza, il colore medio, la copertura (una lettura che copre meno di metà dei pixel non si
+consegna) e la **trama**: l'energia dei gradienti fra pixel vicini, che separa il testo da un fondo piatto meglio della
+varianza (0 sotto 0,01, 1 sopra 0,06 della sua radice). Legge con un **lettore per finestra** (un `ImageReader`, un
+`HardwareRenderer` suo e un filo di lavoro), partendo dopo il disegno della finestra: il filo principale non si ferma, e
+una richiesta che serve più vetri costa come una. La sonda sta solo sulle **lastre radice**; un vetro dentro un altro
+vetro non misura, e prende il lato da chi lo contiene.
+
+**Quando legge.** Niente eventi, niente letture. Gli eventi sono tre: una **revisione** della sorgente (il layer che il vetro
+campiona si è registrato di nuovo, ed è l'unico modo di sapere che sotto un vetro fermo lo sfondo è cambiato), un cambio di
+**geometria** (il vetro si è spostato rispetto allo sfondo) e, per le sorgenti che non avvisano (un `CanvasBackdrop`), una
+cadenza fissa di 500 ms. Al più una lettura ogni 120 ms; la sonda tace durante un movimento veloce (sopra 500 dp/s di
+spostamento relativo, e per 100 ms dopo) e sotto il livello 0,9 di `FluidGlassQuality`, cioè mentre la pagina corre. Una
+lettura fallita raddoppia l'attesa fino a 2 s e si ritenta al più tre volte, poi si aspetta un evento. Una pagina ferma non
+legge e non cattura: lo prova `GlassProbeQuietTest` sul computer (nessuna richiesta, nessuna cattura, nessuno stato scritto),
+e sul tablet, a pagina ferma per otto secondi, la scheda «Materiale» e «Icone» non hanno disegnato un fotogramma.
+
+**Come decide il lato.** Il filtro fa una media mobile della luminanza (costante di 200 ms), con **due soglie distanti**: sotto
+0,45 il vetro va sul lato scuro, sopra 0,62 torna sul chiaro, in mezzo resta dove sta; dopo ogni giro non ne fa un altro
+per 400 ms. Così un fondo che sta a metà, una scacchiera che passa sotto, una lettura che trema di un centesimo non lo
+fanno saltare avanti e indietro. La **prima lettura decide subito** (un vetro che nasce sopra una foto scura non si mostra
+prima chiaro), con le stesse soglie partendo dal lato del tema. Il filtro ha una scadenza: dopo l'ultima lettura la media
+continua a muoversi, e se attraverserà una soglia lo farà a un istante calcolabile, quando nessuna lettura nuova arriverà
+a ricordarlo. Tutti questi numeri sono ipotesi da tarare sul tablet (sessione S3), non misure.
+
+**Cosa cambia nel vetro.**
+
+- **Il lato e l'inchiostro** (il giro, sotto).
+- **Il velo.** Sul lato chiaro ha un pavimento (il vetro chiaro sopra il nero passa da 112 a 140 su 255, dove Apple sta fra
+  136 e 143); sul lato scuro i **grandi** hanno un velo più profondo di quello dei piccoli, con un soffitto che gli impedisce
+  di salire sopra la parte chiara dello sfondo.
+- **L'ombra**, che si rinforza sopra il testo o una foto, come in iOS 26: per la trama che la sonda misura sale di 4,9 volte
+  (18% di scurimento sotto la capsula sopra il testo, contro 3,7% sul fondo piatto), con un tetto di 0,45 sulla somma delle
+  alfa. È la scelta A di Alessio; il rinforzo a metà o nessuno sono nei profili (`GlassLiquidAdaptives`).
+- **La tinta** `GlassTintMode.Colored`: la tonalità resta, la luminosità segue lo sfondo (piena su bianco, al 58% su nero).
+  Per un tasto tinto il corpo prende **l'alone del colore del tasto e un filo chiaro**, come in iOS 26 (scelta C di Alessio,
+  un'eccezione al filo scuro scelto per gli altri tasti). Si ottiene con una `GlassTint` a tre argomenti più `mode =
+  GlassTintMode.Colored`, su un `glassSurface`; oggi non c'è un componente «tasto tinto» pronto.
+- **Il cursore dell'utente** (sotto).
+
+**Il giro dei piccoli.** Quando lo sfondo sotto un vetro piccolo passa da chiaro a scuro (o il contrario) il vetro **gira**: il
+corpo scende in 300 ms (una curva che segue il corpo del tasto di Apple, quasi tutto nei primi 200 ms), l'inchiostro del
+contenuto svanisce nel corpo in 110 ms, passando per un fotogramma a contrasto quasi zero, e risale dall'altra parte, pieno
+a 700 ms. Non c'è un ritardo in più: i 130 ms di Apple fra lo scuro che copre tutto il tasto e il corpo che si muove li dà già
+il filtro (il lato è deciso 128–158 ms dopo la copertura piena). Un giro che cambia idea a metà riparte dai valori di quell'istante
+e si disfa in un tempo proporzionale alla strada che resta: mai uno scatto. La composizione vede solo **da che parte** sta
+l'inchiostro, che cambia una volta per giro, nel fotogramma in cui il contenuto è trasparente; il resto lo scrive il disegno,
+senza ricomporre.
+
+**Chi gira e chi no.** Gira solo un vetro il cui contenuto **segue l'inchiostro** (il patto interno `GlassInk`): un vetro che
+girasse con sopra il testo scuro del tema diventerebbe illeggibile proprio dal lato in cui doveva aiutare. Lo danno i
+componenti dell'engine che sanno cosa disegnano dentro: `FluidGlassIconButton`, `FluidGlassButton` (non quello `selected`,
+che è una pellicola d'accento e non gira) e `FluidFloatingCapsule`. **Non girano**: un `glassSurface` qualunque, la tab bar
+(`FluidFloatingTabBar`), i pannelli, i fogli e i menu: tengono il lato del tema, con il velo, l'ombra e la tinta che
+seguono comunque lo sfondo. `GlassInk` è interno, quindi oggi un'app non può far girare un vetro suo. **I grandi** (ruoli
+`Modal` e `Content`) non girano mai: la ricetta li fa scurire **in continuo** con la quota di nero che hanno sotto
+(R4 A6: da 143 a 48 su nero pieno in circa 1,5 s), ma solo se il loro contenuto segue l'inchiostro, e **nessun pannello
+grande dell'engine lo fa ancora**: un menu o un foglio di serie tiene il lato del tema (sul tema scuro, con il velo
+profondo dei grandi). La pagina «Adattività» della galleria (scena `grandi`) lo mostra, ed è una voce aperta.
+
+**L'inchiostro.** Il vetro fornisce al suo contenuto `LocalContentColor` del proprio lato: sul lato del tema è l'inchiostro
+del tema, al pixel di oggi; dall'altro lato è `#121214` sul vetro chiaro girato da un tema scuro e `#F2F2F5` sul vetro scuro
+girato da un tema chiaro (R4 A6). Fornisce anche `LocalFluidGlassAppearance`, un `FluidGlassAppearance` con `isDark`,
+`darkness` (0..1), `backdropLuminance` (NaN finché non è misurata) e `isMeasured`: chi disegna sopra il vetro e vuole
+sapere da che parte sta lo legge da lì. Cambia **una volta per giro**, non a ogni fotogramma. Un `tint` scritto dall'app
+resta quello dell'app: segue l'inchiostro solo chi legge `LocalContentColor`. L'accento resta per l'azione principale.
+Misurato sul banco, a contrasto di sistema standard, **ogni riga del campione** (capsula, tasto, tasto con etichetta, barra,
+modale; i cinque fondi; i due temi) sta sopra la soglia (testo 4,5:1, icone 3:1), con il minimo a 5,57:1: i difetti di
+leggibilità sopra fondi del tono opposto al tema, che la 4.0 aveva dichiarato, sono chiusi. Alcune righe sono più basse
+di quelle di prima (nel tema scuro la capsula su nero da 14,81 a 10,18), restando sopra soglia.
+
+**`FluidGlass`.** È la configurazione del vetro come in SwiftUI: `FluidGlass.Regular` (di serie, smerigliato e adattivo),
+`FluidGlass.Clear` (più trasparente, **non si adatta**) e `FluidGlass.Identity` (nessun vetro, senza cambiare l'albero: serve
+ad accendere e spegnere il vetro senza perdere stato né animazioni), con `.tint(colore)` e `.interactive()`. `Clear` non ha
+smerigliatura (la mescola va a uno, il raggio resta) e uno scurimento fisso del 35% sotto il vetro, come dice Apple, che
+tiene leggibile ciò che gli sta sopra; va usato solo su contenuto ricco che regge lo scurimento e con sopra un contenuto
+chiaro e marcato. **Oggi è solo il tipo**: il modificatore che lo posa (`Modifier.fluidGlass(glass, shape, backdrop)`)
+nasce con il contenitore in F3.2, e nessun componente lo consuma ancora, quindi `Clear` non si vede sul dispositivo. Con
+`Classic` e sotto Android 13 `Clear` è `Regular`. Lo scurimento di `Clear` che segue lo sfondo, invece del 35% fisso, è una
+manopola di debug (`cleardim=follow`), non un comportamento.
+
+**Il cursore dell'utente.** `LocalFluidGlassPreference` va da `FluidGlassPreference.Transparent` (0) a `Colored` (1), di serie
+`Default` (0,5), e muove insieme la diffusione e il velo di ogni vetro nuovo, soprattutto la diffusione: all'estremo
+trasparente il vetro ha poca diffusione e il testo dietro si legge piegato dalla lente; all'estremo colorato è una lastra
+quasi opaca del colore dello sfondo, senza forma dietro. A metà è il vetro di serie, **al bit**. Non tocca `Clear`, il vetro
+di prima e il vetro sotto Android 13. **Il valore lo conserva l'app**: la riga facoltativa di `fluidAppearanceSection`
+(`glassPreference` e `onGlassPreferenceChange`, insieme) disegna il cursore con l'etichetta «Trasparente / Di serie /
+Colorato» e restituisce il valore; l'app lo fornisce poi attorno al suo contenuto,
+`CompositionLocalProvider(LocalFluidGlassPreference provides valore) { … }`, come fa col resto dell'aspetto. L'engine non ha
+un campo nuovo nelle impostazioni. Gli estremi sono provati sul banco, ma il giudizio di Apple sui suoi (ritoccati nella beta
+5 di iOS 27) è su una misura sola, di fiducia bassa.
+
+**Con `Classic` e sotto Android 13.** Non c'è niente di tutto questo: nessuna sonda, nessun giro, nessun velo o ombra che
+segua lo sfondo, nessun inchiostro che cambi, il cursore non fa niente e `Clear` è `Regular`. Il vetro è quello di prima,
+al pixel. `LocalFluidGlassAppearance` è `null` fuori da un vetro adattivo, e `FluidGlassProbeDiagnostics.isAvailable` dice
+se la sonda può esistere.
+
+**Cosa costa.**
+
+- **Nodi:** una lastra radice porta **un nodo in più** (la sonda), accanto ai 4 di una lastra `Liquid` ferma; un vetro
+  annidato non ne ha. Con il bordo dello scorrimento in alto, in tema chiaro, la striscia monta una sonda sua per decidere se
+  scurire.
+- **Letture:** nessuna a pagina ferma; durante un cambio, al più una ogni 120 ms per finestra, e una richiesta al lettore
+  legge tutte le sonde che la chiedono nello stesso fotogramma. Sul Tab S9 una lettura costa 2–2,7 ms sul filo principale nel
+  tempo morto dopo il disegno e 0,2–0,4 ms sul filo di lavoro; letta in modo sincrono ne costerebbe circa 5, e quattro sonde
+  ogni 100 ms farebbero perdere il 10% dei fotogrammi.
+- **Memoria del lettore:** un lettore per finestra con **64 caselle** in una griglia 8×8, un'immagine da 512×512 px (1 MiB
+  RGBA) per immagine, al più tre: **3 MiB per finestra**. Oltre le 64 sonde entrano prima i vetri più grandi e più vicini al
+  centro; chi non entra non misura e tiene il lato del tema (chi viene spinto fuori da uno più importante tiene l'ultimo lato
+  misurato). La pagina più carica della galleria («Icone») ne usa 33. `FluidGlassProbeDiagnostics.peakSlots` e
+  `totalSlotsRefused` lo dicono.
+- **Il resto:** la prima misura non si anima; i valori animati (luminanza, trama, colore) arrivano in 300 ms con una
+  catena di animazioni che riparte solo se la lettura cambia di più di un centesimo (di due per trama e colore).
+
+La sonda si legge da fuori con `FluidGlassProbeDiagnostics` (richieste, letture, fallimenti, risvegli per motivo,
+`probe(backdrop)` per le prove strumentate): non è un'API per le app. Per guardare tutto questo sul tablet c'è la pagina
+**«Adattività»** della galleria (`--es gallery.page adaptive`, `sample/…/adaptive/LEGGIMI.md`), con sette scene e righe in
+logcat (`FluidAdattivo`).
+
 ### Il riscaldamento
 
 Un programma AGSL si compila la prima volta che la GPU lo esegue, sul RenderThread: senza preparazione il primo tasto,
@@ -377,8 +511,9 @@ e mai nel percorso dell'avvio**, che è già il fotogramma più lungo che un'app
 
 - **Quando parte.** Alla prima superficie di vetro che entra in composizione in un albero che chiede `Liquid`, su un
   dispositivo che lo può avere e senza un rifiuto del compilatore, anche se quella superficie resta `Classic` per la
-  forma, la caduta o il velo: la barra in alto di ogni `FluidScreen` è la fascia, spesso l'unico vetro della prima
-  schermata, e aspettare la prima lastra nuova vorrebbe dire scaldare troppo tardi. Le app non chiamano niente.
+  forma, la caduta o il velo: la barra in alto di ogni `FluidScreen` è la fascia (o, dove c'è, il bordo dello scorrimento,
+  che chiede da sé il riscaldamento del suo programma), spesso l'unico vetro della prima schermata, e aspettare la prima
+  lastra nuova vorrebbe dire scaldare troppo tardi. Le app non chiamano niente.
 - **Come aspetta.** La finestra deve aver disegnato almeno una volta, non ridisegnare da 120 ms, essere visibile, e la
   coda del filo principale dev'essere vuota. Poi si disegna **un programma per volta**, fuori schermo (un
   `HardwareRenderer` suo su un `ImageReader` grande quanto un tasto, che non tocca niente di ciò che è a schermo), e si
@@ -465,15 +600,14 @@ aprire la schermata da guardare.
 
 ### I limiti dichiarati oggi
 
-- **A contrasto standard, sopra un fondo del tono opposto al tema, il testo si legge peggio di prima.** Il velo nuovo è
-  tarato per lasciar passare lo sfondo, e la pellicola di prima, densa fra il 34 e il 56%, teneva meglio il testo
-  quando dietro c'era il contrario del tema. Misurato sul banco, rapporto fra inchiostro e corpo al centro della lastra:
-  nel tema chiaro su nero la capsula flottante scende da 4,92 a 3,76, il modale da 5,26 a 3,79, la card da 5,57 a 3,78,
-  tutti sotto 4,5:1; nel tema scuro cala quasi ovunque, per esempio il modale su un grigio medio da 5,63 a 3,72 e la
-  capsula sulla pagina scura da 13,63 a 8,84. Altrove migliora (il tasto su nero, nel tema chiaro, da 2,57 a 3,66). A
-  contrasto medio e alto non succede, perché lì il vetro torna alla pellicola densa. Il rimedio vero è l'inchiostro e il
-  lato che seguono lo sfondo (l'adattività), di una fase successiva; se non bastasse, il ripiego è un pavimento del velo
-  per ruolo. Una schermata che sta quasi sempre sopra fondi del tono opposto può tenere il vetro di prima, intanto.
+- **A contrasto standard, sopra un fondo del tono opposto al tema, il testo si leggeva peggio di prima: è chiuso con
+  l'adattività.** Il velo nuovo, tarato per lasciar passare lo sfondo, faceva scendere sul banco il rapporto fra inchiostro
+  e corpo sotto 4,5:1 (nel tema chiaro su nero la capsula flottante 4,92 → 3,76, il modale 5,26 → 3,79, la card 5,57 →
+  3,78; nel tema scuro il modale su un grigio medio 5,63 → 3,72). Con il lato e l'inchiostro che seguono lo sfondo e il pavimento
+  del velo, la stessa tabella rifatta (`artifacts/liquid-glass/bench/f2-3/contrasto.md`) dà ogni riga sopra soglia, minimo
+  5,57:1. **Resta**: un vetro che non gira (tab bar, pannelli, fogli, un `glassSurface` qualunque) tiene il lato del tema e
+  si serve del velo e dell'inchiostro del tema; il margine lì è quello della tabella, non di più. A contrasto medio e alto
+  il vetro torna alla pellicola densa, come prima.
 - **Il vetro annidato sul tablet.** In un foglio di vetro scuro (pagina «Materiale», scena `nested`) il tasto scende
   da 84 a 61 sopra un foglio a 40; nella notifica di vetro della radice la chiusura sta a 48 sopra la card a 35 (75
   senza la regola). Nella notifica **piena** di «Avvisi con azione» (l'host senza fondo) i tasti campionavano il fondo
@@ -541,16 +675,30 @@ aprire la schermata da guardare.
   risoluzione, perché luce e contorno stanno nel corpo; a metà risoluzione il gruppo che diventa menu torna al 3,4%, ma
   il filo scatterebbe al passaggio di consegne. È il debito della fase di ottimizzazione. Il costo di una pagina piena
   di vetro e su un'altra GPU non è misurato.
-- **Difetti aperti visti sul tablet** (sessione di chiusura): sotto il collo fra due pezzi, che ora dura
-  91–121 ms, una banda d'ombra più scura sopra e sotto la vita (7–11 livelli in scuro, per 5–9 fotogrammi), e il collo
-  breve (16–33 ms) quando due pezzi si riuniscono; il costo delle trasformazioni
+- **Difetti aperti visti sul tablet** (sessione di chiusura della terza fase, e le fasi dopo): il collo breve (16–33 ms)
+  quando due pezzi si riuniscono (quello fra due pezzi che si separano dura ora 91–121 ms, e la **banda d'ombra** sopra e
+  sotto la vita, che c'era, **è chiusa**: sul tablet da −19…−21 a −2…−4 livelli in scuro, da −9…−14 a −1…−3 in chiaro, e sul
+  banco da 4–6,5 livelli a meno di 1 su un tasto); il costo delle trasformazioni
   contestuali (sopra); sul tema scuro il clic lungo su «Azione» che cambia corpo in un fotogramma (il bagliore della
   pressione sparisce al passaggio di consegne, come nella 3.1.2); il bordo doppio di «Ordina» nei primi 110 ms circa;
   una riga debole (1–2 livelli) per un fotogramma quando un tasto diventa due e quando un gruppo diventa menu; la
   pillola della tab bar premuta, che a pressione zero non è identica a quella a riposo (sul banco +7 livelli sul testo
   chiaro, −3 sulla foto; sul tablet +14 in scuro); al bordo della lente della goccia sopra il testo una mezzaluna
   specchiata, dalla piega del campo che al bordo ha pendenza infinita; nella pagina «Parità» l'ombra sotto il pannello
-  di Fluid-physics più scura di 12 livelli. Confermati sul tablet nella sessione finale della
+  di Fluid-physics più scura di 12 livelli. **Aperti da ciò che la fase adattiva ha trovato**: l'ombra di un pezzo a
+  sfocatura stretta (`glassShadowPiece`: angoli puntiformi sotto mezza sfocatura, errore fino a 0,29 sui tondi grandi e circa
+  0,2 con l'ombra corta su un tasto), la parte comune a lente di due pezzi sovrapposti (−4…−6 livelli) e l'ombra della goccia
+  (`GlassShadowMaskRing`, stesso rapporto di cadute, non misurata), che vanno a F3.3; la cucitura verticale di un fotogramma
+  del collo e i viaggi interrotti o invertiti, non ripresi sul tablet. **Aperti sull'adattività**: i numeri del filtro, i tempi
+  del giro e la profondità del vetro girato (74 su 255 contro 43 di Apple) sono ipotesi che si scelgono sulle riprese del
+  tablet (S3), non sul banco; i grandi non scuriscono in continuo finché nessun pannello grande segue l'inchiostro; `Clear`
+  non ha ancora un componente che lo posi (F3.2); le immagini di riferimento del banco per il tasto tinto di iOS 26 non sono
+  rimisurate sullo stato attuale. **Aperti sul bordo dello scorrimento** (se ne occupa il seguito, F2.5b; vedi
+  [schermata.md](schermata.md)): in basso la tab bar mostra ancora il contenuto non sfumato; il bordo in basso resta 10 dp
+  troppo alto quando la tab bar si piega a 52 dp; la striscia della pagina che esce, tornando indietro, si spegne in tre
+  fotogrammi; sulle foto sature una riga di testo si intuisce ancora dietro la metà bassa dei tasti (13,9% di contrasto
+  contro l'8% di Apple); la diagnostica conta le strisce fra le superfici `classic`; lo scurimento sul contenuto scuro è
+  provato sul banco e non è stato visto sul tablet. Confermati sul tablet nella sessione finale della
   fase: la notifica con la larghezza ferma e un bordo solo (nell'angolo, in uscita, restano due o tre contorni per
   circa 60 ms), l'etichetta e l'icona della scheda scelta col contrasto alto (8,8:1), il segmentato che cambia aspetto
   una volta sola, l'indice di sezione che non fa più scorrere la pagina, il disco del tasto indietro fra due pagine,

@@ -57,6 +57,13 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
   Icons("Icone"),
   Robustness("Robustezza"),
 
+  /**
+   * La stessa forma resa dalle strade diverse del materiale (`glassSurface`, Fluid-physics ferma, vetro dipinto, pillola,
+   * goccia) fianco a fianco sullo stesso fondo (piano «iOS in Android», F1B.6): vedi `parity/`. Uno strumento per le
+   * sessioni sul dispositivo: si apre con `--es gallery.page parity`.
+   */
+  Parity("Parità"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

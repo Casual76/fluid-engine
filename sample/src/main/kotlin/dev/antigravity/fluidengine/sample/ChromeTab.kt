@@ -267,6 +267,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-robustness"),
           onClick = { onOpen(GalleryPage.Robustness) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Parità",
+          subtitle = "F1B.6: la stessa forma da glassSurface, Fluid-physics, dipinto, pillola e goccia",
+          modifier = Modifier.testTag("chrome-open-parity"),
+          onClick = { onOpen(GalleryPage.Parity) },
+        )
       }
     }
 

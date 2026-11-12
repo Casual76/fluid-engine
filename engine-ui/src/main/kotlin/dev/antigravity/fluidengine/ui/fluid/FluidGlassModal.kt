@@ -104,6 +104,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
 import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanel
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import kotlinx.coroutines.delay
@@ -1003,7 +1004,8 @@ internal fun FluidGlassModalScrim(
   val dark = GlassDefaults.isDarkSurface()
   val tint = remember(dark) {
     GlassTint(
-      overlay = Color.Black.copy(alpha = if (dark) 0.20f else 0.12f),
+      // Lo scrim dei modali e quello dei pannelli dipinti sono uno (F1B.5): i livelli stanno in `GlassPaintedScrim`.
+      overlay = GlassPaintedScrim.color(dark),
       // Below API 31 there is no blur at all, so the scrim stops pretending and becomes a wall. The
       // modal works identically; you simply cannot see through it.
       fallback = Color.Black.copy(alpha = 0.92f),
@@ -1258,7 +1260,7 @@ private fun FluidAnchoredPopover(
   val windowTintWithScrim = remember(windowPanelTint, windowDark) {
     windowPanelTint.copy(
       overlay = windowPanelTint.overlay.compositeOver(
-        Color.Black.copy(alpha = if (windowDark) 0.20f else 0.12f),
+        GlassPaintedScrim.color(windowDark),
       ),
     )
   }

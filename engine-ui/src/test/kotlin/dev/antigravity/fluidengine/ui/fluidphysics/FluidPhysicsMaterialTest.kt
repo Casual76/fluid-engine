@@ -17,6 +17,13 @@ import org.junit.Test
  * "A riposo e' una lastra" (3.0): la superficie fisica calcola sfocatura, lente, cupola, frangia e
  * pressione con la stessa funzione per tutto il viaggio, e quella funzione da' i numeri di
  * `glassSurface`. E il materiale che viaggia fra due ottiche non sporca mai la cattura.
+ *
+ * Dalla 4.0 (F1B.6) questi attesi descrivono il **vetro di prima** (`Classic`, `Balanced`, e `Full` dove il materiale
+ * nuovo non c'è): `physicsLensUniforms` contro la lente di prima di `glassSurface`. Restano tutti veri e nessuno cambia,
+ * perché quel ramo è il ripiego e deve restare al pixel (regole, «il vetro di prima non si tocca»). Solo
+ * `lerpGlassOptics` e `PhysicsMaterialSource` valgono per i due materiali: la ricetta del materiale nuovo mescola
+ * l'ottica con la stessa aritmetica. Il materiale nuovo ha i suoi attesi in `PhysicsLiquidTest` e, contro
+ * `glassSurface`, in `GlassRecipeParityTest`.
  */
 class FluidPhysicsMaterialTest {
 

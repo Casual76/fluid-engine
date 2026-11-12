@@ -297,6 +297,8 @@ internal fun Gallery(
               // Le icone del set e le taglie nuove (F1A.11): `icons.section`.
               GalleryPage.Icons -> IconsPage(bottomInset) { nav.back() }
               GalleryPage.Robustness -> dev.antigravity.fluidengine.sample.robustness.RobustnessPage(bottomInset) { nav.back() }
+              // La parità delle strade del materiale (F1B.6): `parity.scene`, `parity.theme`, `parity.breathe`, `parity.model`.
+              GalleryPage.Parity -> dev.antigravity.fluidengine.sample.parity.ParityPage(bottomInset, stage = fallbackBackdrop) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

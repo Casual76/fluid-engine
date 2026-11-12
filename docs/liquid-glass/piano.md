@@ -1792,6 +1792,23 @@ sfuma senza sfocare / nessun effetto.
 | verso che colore si scioglie il contenuto | il colore del fondo della pagina, come Apple (proposta dell'orchestratore: «va bene») |
 | risoluzione della cattura della striscia | **piena** (proposta dell'orchestratore: «va benissimo, molto meglio»); la metà resta una leva di F7 e alla densità del tablet esce dalle tolleranze di R4 B7 |
 
+**Correzione di Alessio dopo aver visto il bordo sul tablet (2026-11-12, sera).** Sulle catture a schermo intero del
+Tab S9 (`artifacts/liquid-glass/sessioni/f2-5/per-alessio/`): «quanto è spinto il colore bianco e nero in base al tema
+di sistema: vorrei che fosse molto leggero, come su Apple, ora invece è spintissimo». Le tavole del banco su cui
+aveva scelto il profilo erano ritagli attorno ai tasti: la zona pesante restava fuori. Regola da qui in avanti: **veli
+e dissolvenze si scelgono su catture del tablet a schermo intero**. Misura nuova su Apple (WWDC25 219, la stessa foto
+mentre sale sotto la barra, f17040–f17140): con la barra chiara il velo verso il bianco dietro i tasti è **32–39%**
+(39% a −1,0 H, 37% a −0,7, 32% a −0,4), 26% al bordo basso dei tasti, 18% a +0,2 H, 10% a +0,4, 5% a +0,7, 2% a +1 H;
+quando la foto **riempie la barra** non c'è velo bianco: la barra gira e la foto scurisce a ×0,70–0,72. Il tetto di 0,7
+del primo profilo non veniva da nessuna misura di iOS 26. Scelta sulla tavola a quattro livelli dal tablet
+(`…/velo/tavola-velo.png`): **B, tetto 0,36 in alto e in basso** (la C, a metà, gli piaceva di più sulle catture
+mostrate, ma teme sia un effetto di quelle), **con un cambiamento**: «il velo è progressivo, un po' come il blur: adesso
+in pochi pixel passa da niente a tutto e su tinta unita si vede troppo, mentre sul testo va bene; è anche il motivo
+per cui su iOS è variabile, in base al contenuto dietro». Quindi: curva della foto (f17074), lunga oltre 2 H, liscia e
+con pendenza zero all'attacco, come valore di serie; curva di R4 B7 (più ripida) quando la sonda dice che dietro c'è
+testo; mescola animata fra le due; lo scurimento ×0,7 sopra una foto scura che riempie la barra. Sostituisce la riga
+«profilo del bordo morbido: A» della tabella qui sopra per ciò che riguarda il velo; la sfocatura resta quella.
+
 **Scelte di Alessio sul materiale adattivo (2026-11-12)**, sulle tavole di `artifacts/liquid-glass/tavole/f2/adattivo/`
 (rese dal banco; da riguardare sul tablet in S3):
 

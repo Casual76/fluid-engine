@@ -1792,6 +1792,16 @@ sfuma senza sfocare / nessun effetto.
 | verso che colore si scioglie il contenuto | il colore del fondo della pagina, come Apple (proposta dell'orchestratore: «va bene») |
 | risoluzione della cattura della striscia | **piena** (proposta dell'orchestratore: «va benissimo, molto meglio»); la metà resta una leva di F7 e alla densità del tablet esce dalle tolleranze di R4 B7 |
 
+**Scelte di Alessio sul materiale adattivo (2026-11-12)**, sulle tavole di `artifacts/liquid-glass/tavole/f2/adattivo/`
+(rese dal banco; da riguardare sul tablet in S3):
+
+| scelta | risposta |
+|---|---|
+| ombra sopra il testo o una foto | **A**: si rinforza come in iOS 26 (×4,9 dalla trama che la sonda misura; tetto 0,45 sulla somma delle alfa) |
+| tasto tinto: bordo e ombra | **C, «iOS 26»**: alone del colore del tasto e filo chiaro (l'orchestratore proponeva B, il solo alone). È un'eccezione al filo scuro di iOS 27 scelto per gli altri tasti: vale solo per i tasti tinti |
+| `Clear` | **B**: oscuramento fisso del 35%, come indica Apple; quello che segue lo sfondo resta nella manopola `cleardim=follow` |
+| il cursore dell'utente, i grandi che scuriscono | mostrati senza chiedere una scelta: si giudicano sul tablet |
+
 ---
 
 ### F3 · Piano flottante e geometria

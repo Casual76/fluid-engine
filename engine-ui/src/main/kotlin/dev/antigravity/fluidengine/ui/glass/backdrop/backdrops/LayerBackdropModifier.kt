@@ -108,6 +108,9 @@ private class LayerBackdropNode(
         if (recorded && frozen()) return
         recordLayer(this@LayerBackdropNode, backdrop.graphicsLayer) { backdrop.onDraw(this@draw) }
         recorded = true
+        // Fluid Engine addition (4.0.0, F2.1): chi campiona questo layer non ricattura quando cambia,
+        // quindi lo si dice a chi vuole saperlo (la sonda dello sfondo). Tenuto fermo, non avvisa.
+        backdrop.bumpRevision()
     }
 
     override fun onAttach() {
@@ -134,3 +137,10 @@ private class LayerBackdropNode(
         if (backdrop.ownerNode === this) backdrop.ownerNode = null
     }
 }
+
+/**
+ * Fluid Engine addition (4.0.0, F2.1): se chi registra [this] adesso e' un `layerBackdrop`, cioe' un
+ * nodo che avvisa a ogni nuova registrazione (vedi `LayerBackdrop.revision`). Sta qui perche' il nodo
+ * e' privato a questo file.
+ */
+internal fun LayerBackdrop.isRecordedByLayerBackdropNode(): Boolean = ownerNode is LayerBackdropNode

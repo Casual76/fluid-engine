@@ -121,6 +121,58 @@ class LayerBackdrop internal constructor(
     /** Se chi esporta in questo layer deve registrarlo a questo fotogramma. */
     internal val wantsRecording: Boolean get() = exportWanted(onDemand, readerCount)
 
+    /**
+     * Fluid Engine addition (4.0.0, F2.1): quante volte chi possiede questo layer lo ha registrato di nuovo.
+     *
+     * Serve alla sonda dello sfondo (`glass/field/GlassProbe.kt`). Una superficie che campiona questo layer
+     * non ricattura quando il layer si ri-registra: la sua cattura lo tiene per riferimento e mostra da
+     * sola il contenuto nuovo. Quindi sotto un vetro fermo lo sfondo puo' passare da bianco a nero senza
+     * che nessuna cattura lo sappia; lo sa solo chi registra. Non e' uno stato di snapshot apposta: cambia
+     * nel disegno della sorgente, e chi lo legge non deve essere invalidato da lui.
+     *
+     * Lo incrementa [bumpRevision]: oggi solo `layerBackdrop` (la pagina). I layer pubblicati dai pannelli
+     * (`exports`, i materiali) li registra `DrawBackdropNode`, che non lo chiama: per la sonda sono
+     * sorgenti che non avvisano ([announcesRevisions] falso), e le legge a cadenza fissa.
+     */
+    internal var revision: Long = 0L
+        private set
+
+    private var revisionListeners: Array<LayerRevisionListener> = NoRevisionListeners
+
+    /** Fluid Engine addition (F2.1): si iscrive alle revisioni. Dal filo principale. */
+    internal fun addRevisionListener(listener: LayerRevisionListener) {
+        if (revisionListeners.any { it === listener }) return
+        revisionListeners += listener
+    }
+
+    /** Fluid Engine addition (F2.1): toglie un iscritto. Dal filo principale. */
+    internal fun removeRevisionListener(listener: LayerRevisionListener) {
+        if (revisionListeners.none { it === listener }) return
+        revisionListeners = revisionListeners.filter { it !== listener }.toTypedArray()
+    }
+
+    /** Fluid Engine addition (F2.1): quanti si sono iscritti. Per i test. */
+    internal val revisionListenerCount: Int get() = revisionListeners.size
+
+    /**
+     * Fluid Engine addition (F2.1): il layer e' appena stato registrato di nuovo. Chiamata nel disegno di
+     * chi lo registra, quindi gli iscritti non lavorano qui: lasciano un segnale e basta. Non alloca:
+     * l'elenco si copia solo quando qualcuno si iscrive o se ne va, e chi se ne va durante l'avviso non
+     * disturba il giro in corso.
+     */
+    internal fun bumpRevision() {
+        revision++
+        val listeners = revisionListeners
+        for (listener in listeners) listener.onRevision(this, revision)
+    }
+
+    /**
+     * Fluid Engine addition (F2.1): se questo layer avvisa quando si ri-registra. Vero solo quando lo
+     * registra un `layerBackdrop` (vedi [revision]); altrimenti chi vuole sapere se e' cambiato deve
+     * guardare da se'.
+     */
+    internal val announcesRevisions: Boolean get() = isRecordedByLayerBackdropNode()
+
     private var inverseLayerScope: InverseLayerScope? = null
 
     override fun DrawScope.drawBackdrop(
@@ -186,3 +238,13 @@ internal class ReaderCount {
  * su richiesta solo se qualcuno lo sta guardando. Pura, per poterla provare in un test.
  */
 internal fun exportWanted(onDemand: Boolean, readers: Int): Boolean = !onDemand || readers > 0
+
+/**
+ * Fluid Engine addition (4.0.0, F2.1): chi vuole sapere quando un [LayerBackdrop] si ri-registra.
+ * Chiamato nel disegno della sorgente, sul filo principale: niente lavoro e niente stato di snapshot.
+ */
+internal fun interface LayerRevisionListener {
+    fun onRevision(source: LayerBackdrop, revision: Long)
+}
+
+private val NoRevisionListeners = emptyArray<LayerRevisionListener>()

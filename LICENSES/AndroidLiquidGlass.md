@@ -218,6 +218,16 @@ Le modifiche fatte finora:
     `BackdropEffectsUpdatesTest` (sul JVM, con un osservatore di snapshot vero e le superfici del materiale nuovo): con
     la regola di monte fallisce.
 
+21. **Le sorgenti dicono quando si registrano di nuovo** (4.0.0, `LayerBackdrop.kt`, `LayerBackdropModifier.kt`, F2.1).
+    Una superficie che campiona un layer non ricattura quando il layer cambia: sotto un vetro fermo lo sfondo puo'
+    passare da bianco a nero senza che nessuna cattura lo sappia, e lo sa solo chi registra. Alla sonda dello sfondo
+    (`glass/field/GlassProbe.kt`) serve saperlo. `LayerBackdrop` guadagna un contatore (`revision`), gli ascoltatori
+    (`LayerRevisionListener`, `addRevisionListener`, `removeRevisionListener`) e `announcesRevisions`;
+    `LayerBackdropNode` chiama `bumpRevision()` dopo ogni registrazione, non quando e' tenuto fermo da `frozen`;
+    `isRecordedByLayerBackdropNode()` dice chi registra. Tutto interno, marcato `Fluid Engine addition (4.0.0, F2.1)`;
+    nessuna firma pubblica cambia; senza iscritti l'avviso costa un incremento. I layer pubblicati dai pannelli
+    (`exports`), che registra `DrawBackdropNode`, non avvisano: la sonda li legge a cadenza fissa.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

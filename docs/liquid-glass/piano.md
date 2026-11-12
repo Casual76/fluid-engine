@@ -1603,6 +1603,16 @@ media: la clip è rallentata); come durata, almeno quella della partenza (~75 ms
 senza le sue punte. Prova: `glassmotion` sulle tracce di (a) e (c), poi le riprese di (a) e (c) nei
 due temi nella sessione S3, con un rallentatore partenza | F1B | F1B.9 per Alessio.
 
+**Esito di F1B.9 (2026-11-12, commit 71c6bb7).** Il collo vive nel tempo del viaggio (letto dallo stato della molla),
+non nel suo progresso (`fp/FluidPhysicsNeck.kt`). Sul Tab S9 le divisioni durano 115–121 ms in (a) e 91–114 ms in (c),
+coi lobi tondi e una rottura sola. **Scelta di Alessio: A, il collo più lungo** (`GlassLiquidNeck = 0,38`, la frazione
+del tempo di viaggio a cui si rompe), contro B più breve (0,35, 76–101 ms), sui video
+`artifacts/liquid-glass/moto/f1b/collo/per-alessio/`. Restano: le **riunioni** a 16–33 ms, senza più la V (i pezzi si
+toccano dopo ~30 ms: allungarle vuol dire ridisegnare i tempi della fusione, F3 e F4A); una **banda d'ombra** sopra e
+sotto la vita (pacchetto piccolo in corso su `gf/GlassShadow.kt`); le interruzioni a metà non ancora riprese sul
+tablet (S3); 40 percorsi di robustezza su `uno-otto` dichiarati noti (un salto d'area dello 0,1% alla ridirezione, che
+c'era già: F3.3; provato e scartato `smoothing = 0f` nella forma fotografata in volo, che ne apre 240 altri).
+
 **Difetti aperti e fase che li chiude.** Le misure sono della sessione finale; «partenza» è l'engine prima di F1B.
 
 | difetto | misura | fase |

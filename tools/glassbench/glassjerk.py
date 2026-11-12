@@ -112,6 +112,14 @@ SOGLIE = {
     # di F1B.0, chiaro). Guardati: tre falsi allarmi a 4,5-6 sul tasto indietro che nasce e muore.
     "presenza_min": 8.0,
     "icona_livello": 60.0,
+    # ... e il fotogramma deve aver PERSO la sagoma: la sua area fuori dai vetri fermi dichiarati sotto la meta' di
+    # quella dei due vicini. Quando il vetro corre (la pillola del segmentato, la tab bar «lontane») o la pagina scivola
+    # sotto la barra, la sagoma comune dei vicini non sta dove sta il vetro, e la prova vedeva un vuoto con la pillola li'
+    # (S2: segmentato f201, tab bar f242; tasto indietro in C->B chiaro f236): erano 10 + 7 + 9 falsi allarmi, tutti
+    # con area propria pari a quella dei vicini (0,8-2,1 volte). I vuoti veri hanno area propria 0-0,15 volte i vicini
+    # (la barra all'arrivo, il disco del tasto indietro in B->C). Se i vicini hanno meno di `pezzo_min` px fuori dai
+    # fermi il vetro in gioco e' quello fermo, e la prova resta quella di sempre.
+    "vuoto_area": 0.5,
     # Regioni grandi: oltre 350 000 px si lavora a meta' risoluzione (le lunghezze e le aree delle soglie
     # sono in pixel della sorgente e si convertono); il filo di 2-3 px li' si legge peggio.
     "regione_grande": 350_000,
@@ -157,6 +165,23 @@ SOGLIE = {
     # RIPETUTO: dentro un viaggio un fotogramma che non cambia (meno di un quarto della soglia di moto)
     # fra due che cambiano.
     "ripetuto": 0.25,
+    # L'ORIGINE non va oltre il seme `--origine` allargato di tanto (px): filo, riga scura e ombra del tasto. La parte
+    # di una macchia di differenza che tocca il seme ma va oltre e' vetro di DESTINAZIONE: dopo F1B.2 l'ombra larga
+    # del menu «Ordina» unisce il pannello aperto al tasto in una macchia sola, e senza questo limite tutto il
+    # pannello diventava «origine» e la sagoma si rovesciava (S2, riga 9; review F1B, A2 e D6).
+    "origine_margine": 24,
+    # RIPOSO: dopo l'arrivo la forma e' ferma; un evento di uno o due fotogrammi senza moto di forma (il cambio sta
+    # DENTRO una sagoma che non si sposta) non e' un viaggio, e' materiale. Il cambio si misura sugli stessi pixel,
+    # riposo prima contro riposo dopo: l'interno della zona cambiata (chiusa, riempita, erosa) deve valere almeno
+    # `pezzo_min` px e cambiare di oltre `materiale_abs` livelli (mediana); il moto di forma lascia solo bordi
+    # sottili (interno sotto un quarto della zona cambiata) e resta un viaggio. Lo scalino noto: «Ordina» in scuro,
+    # chiudendo, resta col velo del pannello ~330 ms e torna grigio in un fotogramma a +650 ms (+32 livelli; alla
+    # partenza +6).
+    "riposo_interno": 0.25,
+    # ... e il confronto di tutto il riposo: il primo fotogramma fermo dopo l'arrivo contro l'ultimo prima del viaggio
+    # dopo, sugli stessi pixel; uno scalino oltre `materiale_abs` di cui almeno questa frazione cade in un fotogramma
+    # e' MAT anche quando non ha fatto un «viaggio» (meno pixel della soglia di moto).
+    "riposo_scalino": 0.6,
 }
 
 KINDS = {
@@ -612,6 +637,7 @@ class Plate:
             self.ignore |= box_mask((h, w), b, capsule=False)
         r = L(SOGLIE["raggio"])
         self.flat_mean = None
+        self.origin_cut = 0
         if mode == "piatta":
             border = np.concatenate([before[:3].reshape(-1, 3), before[-3:].reshape(-1, 3),
                                      before[:, :3].reshape(-1, 3), before[:, -3:].reshape(-1, 3)])
@@ -649,11 +675,15 @@ class Plate:
             seed = np.zeros((h, w), bool)
             for b in origin:
                 seed |= box_mask((h, w), b, capsule=False)
+            # il vetro di PRIMA sta attorno al seme: filo e ombra compresi, non oltre (vedi `origine_margine`)
+            zone = dilate(seed, L(SOGLIE["origine_margine"])) if seed.any() else seed
             self.origin_glass = np.zeros((h, w), bool)
+            self.origin_cut = 0
             for k in range(1, n + 1):
                 part = labels == k
                 if (part & seed).any():
-                    self.origin_glass |= part
+                    self.origin_glass |= part & zone
+                    self.origin_cut += int((part & ~zone).sum())
             self.target_glass = d & ~self.origin_glass
             self.rgb[self.origin_glass] = after.astype(np.float32)[self.origin_glass]
         self.known = ~self.ignore if mode == "piatta" else ~self.static & ~self.ignore
@@ -878,9 +908,14 @@ def analyse(src: Source, region, *, t_from=None, t_to=None, before_t=None, after
     bsize = (560, max(1, int(round(bh_ * 560 / bw_))))
     track_next = [1]
     wanted = set(idx_all)
+    # la luma di ogni fotogramma, ridotta (larga al piu' ~420 px), per il confronto dei riposi (`find_rest_events`)
+    rq = max(1, int(math.ceil(bw_ / 420)))
+    rest_lums = {}
     for i, t, rgb in src.frames(region, sorted(wanted)):
         rgb = down(rgb)
         lum = luma(rgb)
+        hq, wq = lum.shape[0] // rq, lum.shape[1] // rq
+        rest_lums[i] = lum[:hq * rq, :wq * rq].reshape(hq, rq, wq, rq).mean(axis=(1, 3)).round().astype(np.uint8)
         sil, changed = silhouette(rgb, plate)
         if times_only:   # solo tempi: una pagina velata non separa la sagoma, restano moto e cadenza
             sil = np.zeros_like(sil)
@@ -897,6 +932,7 @@ def analyse(src: Source, region, *, t_from=None, t_to=None, before_t=None, after
             rec["moto_px"] = 0
         area = int(round(sil.sum() * inv * inv))
         rec["area"] = area
+        rec["area_libera"] = int(round((sil & ~plate.static).sum() * inv * inv)) if plate.static.any() else area
         if area:
             ys, xs = np.nonzero(sil)
             rec.update(cx=float(xs.mean() + 0.5) * inv, cy=float(ys.mean() + 0.5) * inv,
@@ -991,9 +1027,12 @@ def analyse(src: Source, region, *, t_from=None, t_to=None, before_t=None, after
               "scala": s_,
               "prima": {"i": b_i, "t": times[b_i]}, "dopo": {"i": a_i, "t": times[a_i]},
               "origine_px": int(plate.origin_glass.sum() * inv * inv),
+              "origine_tagliata_px": int(plate.origin_cut * inv * inv),
               "destinazione_px": int(plate.target_glass.sum() * inv * inv),
-              "fermi_px": int(plate.static.sum() * inv * inv), "pixel": npx, "soglie": SOGLIE, "fotogrammi": frames}
+              "fermi_px": int(plate.static.sum() * inv * inv), "pixel": npx, "soglie": SOGLIE,
+              "solo_tempi": bool(times_only), "fotogrammi": frames}
     find_journeys(result, inputs)
+    find_rest_events(result, rest_lums, rq * inv)
     find_flags(result)
     result["_cells"], result["_contours"], result["_big"] = cells, contours, big
     return result
@@ -1055,6 +1094,142 @@ def find_journeys(res: dict, inputs) -> None:
                                     "dal_dito": frames[kmin]["t"] - j["t0"],
                                     "rapporto": (low / ref) if ref > 1.0 else None}
     res["viaggi"] = journeys
+    res["_inputs"] = inputs or []
+
+
+def _rest_change(pre: np.ndarray, post: np.ndarray, px: float) -> dict | None:
+    """Il cambio fra due fotogrammi (luma ridotta, `px` pixel della sorgente per lato) sugli stessi pixel. La zona
+    cambiata (oltre `cambio`) si chiude e si riempie: e' la sagoma ferma che ha cambiato materiale (un cambio di
+    corpo sotto la soglia dentro un filo che la supera resta dentro); erosa di un pixel e' l'«interno». Un moto di
+    forma lascia bordi sottili, con poco interno (`forma` vero)."""
+    d = post.astype(np.float32) - pre.astype(np.float32)
+    ch = np.abs(d) > SOGLIE["cambio"]
+    if ch.sum() < 4:
+        return None
+    zone = filled(closed(ch, 1))
+    inner = erode(zone, 1)
+    zone_px, inner_px = int(zone.sum()), int(inner.sum())
+    form = inner_px < SOGLIE["pezzo_min"] / px ** 2 or inner_px < SOGLIE["riposo_interno"] * zone_px
+    out = {"forma": form, "zona_px": int(round(zone_px * px * px)), "interno_px": int(round(inner_px * px * px)),
+           "maschera": inner}
+    if inner_px:
+        med = float(np.median(d[inner]))
+        sig = np.abs(d[inner]) > 2
+        first = float(np.median(pre[inner]))
+        out.update(mediana=med, prima=first, dopo=first + med,
+                   verso=float((np.sign(d[inner][sig]) == np.sign(med)).mean()) if sig.any() and med else 0.0)
+    return out
+
+
+def find_rest_events(res: dict, lums: dict, px: float) -> None:
+    """Il materiale da fermo, dopo l'arrivo (review F1B, A1/A2).
+
+    1. Un «viaggio» di uno o due fotogrammi che segue un viaggio vero senza un dito in mezzo, e il cui cambio sta
+       dentro una sagoma ferma (`_rest_change`, non `forma`), non e' un viaggio: e' un evento di materiale. Esce
+       dall'elenco dei viaggi; se il corpo cambia di oltre `materiale_abs` diventa una segnalazione MAT.
+    2. Per ogni viaggio vero, il riposo dopo l'arrivo: il primo fotogramma fermo contro l'ultimo prima del dito (o del
+       viaggio) seguente, sugli stessi pixel. Uno scalino oltre `materiale_abs` che per almeno `riposo_scalino` cade in
+       un fotogramma e' MAT anche se non ha fatto un «viaggio»; un cambio lento e' scritto come deriva."""
+    frames = res["fotogrammi"]
+    inputs = res.get("_inputs") or []
+    journeys = res["viaggi"]
+    true = [j for j in journeys if j["fotogrammi"] >= 3]
+    events, kept = [], []
+
+    def finger_between(t0, t1):
+        return any(t0 < ev["t"] <= t1 and ev["tipo"] != "muove" for ev in inputs)
+
+    def still_shape(a, b):
+        """Senza moto di forma fra i fotogrammi a e b: con la sagoma, baricentro entro 1,5 px e area entro il 3%;
+        senza (solo tempi, o sagoma vuota) decide `_rest_change` (il cambio riempie una zona o lascia bordi)."""
+        fa, fb = frames[a], frames[b]
+        if not res.get("solo_tempi") and fa["area"] and fb["area"]:
+            return (math.hypot(fb["cx"] - fa["cx"], fb["cy"] - fa["cy"]) <= 1.5
+                    and abs(fb["area"] - fa["area"]) <= 0.03 * max(fa["area"], fb["area"])), True
+        ch = _rest_change(lums[fa["i"]], lums[fb["i"]], px)
+        return bool(ch and not ch["forma"]), False
+
+    for j in journeys:
+        if j["fotogrammi"] <= 2 and j["inizio"] >= 1:
+            prev = [p for p in true if p["fine"] < j["inizio"]]
+            if prev and not finger_between(frames[prev[-1]["fine"]]["t"], frames[j["inizio"]]["t"]):
+                p = prev[-1]
+                a, b = j["inizio"] - 1, j["fine"]
+                still, by_shape = still_shape(a, b)
+                if still:
+                    ev = {"k": j["inizio"], "i": frames[j["inizio"]]["i"], "t": frames[j["inizio"]]["t"],
+                          "fotogrammi": j["fotogrammi"], "segue": p["n"], "per_sagoma": by_shape,
+                          "dopo_arrivo_ms": frames[j["inizio"]]["t"] - frames[p["fine"]]["t"],
+                          "dal_dito": frames[j["inizio"]]["t"] - p["t0"]}
+                    dcs = [frames[k]["d_corpo"] for k in range(j["inizio"], j["fine"] + 1)]
+                    if by_shape and None not in dcs and frames[a].get("corpo") is not None:
+                        # il corpo sulla sagoma comune, fotogramma su fotogramma (lo stesso `d_corpo` del MAT in viaggio)
+                        ev.update(mediana=float(sum(dcs)), prima=frames[a]["corpo"], dopo=frames[a]["corpo"] + float(sum(dcs)),
+                                  interno_px=None, verso=None)
+                        for name in ("filo_alto", "filo_basso"):
+                            if frames[a].get(name) is not None and frames[b].get(name) is not None:
+                                ev[name] = frames[b][name] - frames[a][name]
+                    else:
+                        ch = _rest_change(lums[frames[a]["i"]], lums[frames[b]["i"]], px)
+                        if ch:
+                            ev.update({k: v for k, v in ch.items() if k not in ("maschera", "forma")})
+                    events.append(ev)
+                    continue
+        kept.append(j)
+    for n, j in enumerate(kept):
+        j["n_rivelatore"] = j["n"]
+        j["n"] = n + 1
+    renum = {j["n_rivelatore"]: j["n"] for j in kept}
+    for ev in events:
+        ev["segue"] = renum.get(ev["segue"], ev["segue"])
+    res["viaggi"] = kept
+    res["eventi_riposo"] = events
+    # 2. i riposi dopo l'arrivo
+    rests = []
+    true = [j for j in kept if j["fotogrammi"] >= 3]
+    for j in true:
+        a = j["fine"] + 1
+        if a >= len(frames):
+            continue
+        t_a = frames[a]["t"]
+        nxt = next((q for q in true if q["inizio"] > j["fine"]), None)
+        t_end = frames[nxt["inizio"]]["t"] if nxt else frames[-1]["t"] + 1.0
+        downs = [ev["t"] for ev in inputs if t_a < ev["t"] < t_end and ev["tipo"] in ("giu", "tasto giu")]
+        if downs:
+            t_end = downs[0]
+        zs = [k for k in range(a, len(frames)) if frames[k]["t"] < t_end]
+        if not zs or zs[-1] <= a:
+            rests.append({"viaggio": j["n"], "arrivo": frames[a]["i"], "fine": frames[a]["i"], "durata_ms": 0.0,
+                          "esito": "riposo di un fotogramma"})
+            continue
+        z = zs[-1]
+        ch = _rest_change(lums[frames[a]["i"]], lums[frames[z]["i"]], px)
+        rec = {"viaggio": j["n"], "arrivo": frames[a]["i"], "fine": frames[z]["i"], "durata_ms": frames[z]["t"] - t_a}
+        if not ch or ch["forma"] or "mediana" not in ch or abs(ch["mediana"]) <= SOGLIE["materiale_abs"]:
+            rec["esito"] = "fermo" if not ch or "mediana" not in ch else f"fermo ({ch['mediana']:+.1f} livelli)"
+            rests.append(rec)
+            continue
+        inner = ch["maschera"]
+        series = [(k, float(np.median(lums[frames[k]["i"]][inner]))) for k in range(a, z + 1)]
+        steps = [(series[q][0], series[q][1] - series[q - 1][1]) for q in range(1, len(series))]
+        k_step, big = max(steps, key=lambda s: abs(s[1]))
+        rec.update(prima=ch["prima"], dopo=ch["dopo"], mediana=ch["mediana"], interno_px=ch["interno_px"],
+                   scalino_i=frames[k_step]["i"], scalino=big, dopo_arrivo_ms=frames[k_step]["t"] - t_a,
+                   dal_dito=frames[k_step]["t"] - j["t0"])
+        if abs(big) >= SOGLIE["riposo_scalino"] * abs(ch["mediana"]):
+            rec["esito"] = "scalino"
+            if not any(ev["k"] <= k_step <= ev["k"] + max(ev["fotogrammi"], 1) - 1 for ev in events):
+                events.append({"k": k_step, "i": frames[k_step]["i"], "t": frames[k_step]["t"], "fotogrammi": 0,
+                               "segue": j["n"], "dopo_arrivo_ms": frames[k_step]["t"] - t_a,
+                               "dal_dito": frames[k_step]["t"] - j["t0"], "mediana": big,
+                               "prima": series[[s[0] for s in series].index(k_step) - 1][1],
+                               "dopo": series[[s[0] for s in series].index(k_step)][1],
+                               "interno_px": ch["interno_px"], "verso": ch["verso"], "forma": False})
+        else:
+            rec["esito"] = "deriva"
+        rests.append(rec)
+    events.sort(key=lambda e: e["t"])
+    res["riposi"] = rests
 
 
 def curves(frames, s, e, t0) -> dict:
@@ -1187,6 +1362,17 @@ def find_flags(res: dict) -> None:
            for name in ("filo_alto", "filo_basso", "ombra")}
     res["tipici"] = {"d_corpo": typ_body, **typ}
 
+    res["vuoti_scartati"] = []
+
+    def lost_shape(k, n_mid):
+        """Il vetro in mezzo ha perso la sagoma (vedi `vuoto_area`)? (vero/falso, testo)."""
+        own = max(frames[q].get("area_libera", frames[q]["area"]) for q in range(k, k + n_mid))
+        nb = [frames[q].get("area_libera", frames[q]["area"]) for q in (k - 1, k + n_mid) if 0 <= q < len(frames)]
+        ref = min(nb) if nb else 0
+        if ref < A(SOGLIE["pezzo_min"]):
+            return True, ""
+        return own < SOGLIE["vuoto_area"] * ref, f"area propria {own} px contro {ref} dei vicini"
+
     for k in range(len(frames)):
         f = frames[k]
         # VUOTO
@@ -1194,12 +1380,20 @@ def find_flags(res: dict) -> None:
         if vt:
             ref = min(vt[0], vt[2])
             if ref >= SOGLIE["presenza_min"] and vt[1] < SOGLIE["vuoto_rapporto"] * ref:
-                flag(k, "vuoto", f"scarto dalla pagina {vt[1]:.1f} contro {vt[0]:.1f} prima e {vt[2]:.1f} dopo (livelli)")
+                lost, why = lost_shape(k, 1)
+                if lost:
+                    flag(k, "vuoto", f"scarto dalla pagina {vt[1]:.1f} contro {vt[0]:.1f} prima e {vt[2]:.1f} dopo (livelli)")
+                else:
+                    res["vuoti_scartati"].append({"i": f["i"], "k": k, "perche": why})
         vt2 = f.get("vuoto_test2")
         if vt2:
             ref = min(vt2[0], vt2[3])
             if ref >= SOGLIE["presenza_min"] and max(vt2[1], vt2[2]) < SOGLIE["vuoto_rapporto"] * ref:
-                flag(k, "vuoto", f"due fotogrammi: scarto {vt2[1]:.1f} e {vt2[2]:.1f} contro {vt2[0]:.1f} / {vt2[3]:.1f}")
+                lost, why = lost_shape(k, 2) if k + 1 < len(frames) else (True, "")
+                if lost:
+                    flag(k, "vuoto", f"due fotogrammi: scarto {vt2[1]:.1f} e {vt2[2]:.1f} contro {vt2[0]:.1f} / {vt2[3]:.1f}")
+                else:
+                    res["vuoti_scartati"].append({"i": f["i"], "k": k, "perche": "due fotogrammi: " + why})
         if k == 0:
             continue
         # MATERIALE sul corpo comune
@@ -1284,6 +1478,26 @@ def find_flags(res: dict) -> None:
             last_area, earlier = chain[0], max(chain[1:], default=0)
             if last_area > SOGLIE["nascita_px"] and last_area > SOGLIE["nascita_frazione"] * max(earlier, 1):
                 flag(k, "morte", f"pezzo sparito da {last_area} px (3 fotogrammi prima {earlier})")
+    # MATERIALE da fermo, dopo l'arrivo (`find_rest_events`): riposo prima contro riposo dopo sugli stessi pixel
+    for ev in res.get("eventi_riposo", []):
+        for name in ("filo_alto", "filo_basso"):   # il filo da fermo (senza un salto di corpo che lo spieghi)
+            if ev.get(name) is not None and abs(ev[name]) > SOGLIE["filo_abs"] and not (
+                    ev.get("mediana") is not None and abs(ev["mediana"]) > SOGLIE["materiale_abs"]):
+                flags.append({"k": ev["k"], "i": ev["i"], "t": ev["t"], "tipo": "filo", "segue": ev["segue"], "nota": "riposo",
+                              "misura": f"da fermo, {ev['dopo_arrivo_ms']:.0f} ms dopo l'arrivo: {name.replace('_', ' ')} "
+                                        f"{ev[name]:+.1f} livelli in un fotogramma"})
+        if ev.get("mediana") is not None and abs(ev["mediana"]) > SOGLIE["materiale_abs"]:
+            same = next((q for q in flags if q["tipo"] == "materiale" and q["k"] == ev["k"]), None)
+            if same:   # il salto sul corpo comune l'ha gia' visto: si dice che e' da fermo, una volta sola
+                same["segue"], same["nota"] = ev["segue"], "riposo"
+                same["misura"] += f"; da fermo, {ev['dopo_arrivo_ms']:.0f} ms dopo l'arrivo ({ev['mediana']:+.1f} sugli stessi pixel)"
+                continue
+            where = f"su {ev['interno_px']} px di una zona ferma" if ev.get("interno_px") else "sulla sagoma ferma"
+            fl = {"k": ev["k"], "i": ev["i"], "t": ev["t"], "tipo": "materiale", "segue": ev["segue"],
+                  "misura": f"da fermo, {ev['dopo_arrivo_ms']:.0f} ms dopo l'arrivo: corpo da {ev['prima']:.0f} a "
+                            f"{ev['dopo']:.0f} ({ev['mediana']:+.1f} livelli) sugli stessi pixel, {where}, in un fotogramma",
+                  "nota": "riposo"}
+            flags.append(fl)
     # FUORI
     for k, f in enumerate(frames):
         if f["contenuto_fuori"] > SOGLIE["fuori_px"]:
@@ -1302,9 +1516,16 @@ def find_flags(res: dict) -> None:
     pieces_ = at.get("nascita", set()) | at.get("morte", set())
     blind = {k for k, f in enumerate(frames) if f.get("cieco")}
     near_blind = {k + d for k in blind for d in (-1, 0, 1, 2)}
+    # uno scalino da fermo (MAT dopo l'arrivo) spiega filo, ombra e geometria dello stesso fotogramma
+    rest_steps = {fl["k"]: fl["segue"] for fl in flags if fl["tipo"] == "materiale" and fl.get("nota") == "riposo"}
+    rest_any = {ev["k"]: ev["segue"] for ev in res.get("eventi_riposo", [])}
     kept = []
     for fl in flags:
-        if fl["tipo"] in ("materiale", "filo", "ombra", "salto", "area", "nascita", "morte", "fuori") and fl["k"] in empties:
+        if fl["k"] in rest_any and not fl.get("segue"):
+            fl["segue"] = rest_any[fl["k"]]
+        if fl["tipo"] in ("filo", "ombra", "salto", "area", "nascita", "morte", "fuori") and fl["k"] in rest_steps                 and fl.get("nota") != "riposo":
+            fl["spiegato"] = "dallo scalino da fermo"
+        elif fl["tipo"] in ("materiale", "filo", "ombra", "salto", "area", "nascita", "morte", "fuori") and fl["k"] in empties:
             fl["spiegato"] = "dal vuoto"
         elif fl["tipo"] in ("materiale", "filo", "ombra", "salto", "area", "nascita", "morte", "fuori", "vuoto")                 and fl["k"] in near_blind:
             fl["spiegato"] = "dalla pagina che scorre (sagoma cieca)"
@@ -1315,7 +1536,10 @@ def find_flags(res: dict) -> None:
         kept.append(fl)
     kept.sort(key=lambda x: (x["t"], x["tipo"]))
     for fl in kept:
-        fl["viaggio"] = next((j["n"] for j in res["viaggi"] if j["inizio"] - 1 <= fl["k"] <= j["fine"] + 1), None)
+        if fl.get("segue"):   # un evento da fermo: appartiene al viaggio che ha appena posato la forma
+            fl["viaggio"] = fl["segue"]
+        else:
+            fl["viaggio"] = next((j["n"] for j in res["viaggi"] if j["inizio"] - 1 <= fl["k"] <= j["fine"] + 1), None)
         j = next((j for j in res["viaggi"] if j["n"] == fl["viaggio"]), None)
         fl["dal_dito"] = fl["t"] - j["t0"] if j else None
     res["segnalazioni"] = kept
@@ -1462,8 +1686,15 @@ def write_report(res: dict, out: Path, name: str, args_text: str) -> Path:
              f"{len(res['fotogrammi'])} fotogrammi, passo mediano in moto {fmt(res.get('passo_mediano_ms'))} ms.",
              f"Pagina prevista: {'piatta (un colore)' if res['piatta'] else 'dai due riposi'}, PRIMA f{res['prima']['i']} "
              f"({fmt(res['prima']['t'])} ms), DOPO f{res['dopo']['i']} ({fmt(res['dopo']['t'])} ms); vetro all'origine "
-             f"{res['origine_px']} px, a destinazione {res['destinazione_px']} px, fermo dichiarato {res['fermi_px']} px.",
+             f"{res['origine_px']} px, a destinazione {res['destinazione_px']} px, fermo dichiarato {res['fermi_px']} px"
+             + (f" (dell'origine {res['origine_tagliata_px']} px oltre il seme allargato sono passati alla destinazione)"
+                if res.get("origine_tagliata_px") else "") + ".",
              f"Comando: `{args_text}`", ""]
+    if res.get("solo_tempi"):
+        lines += ["**Modo solo tempi: la sagoma NON e' misurata (NM).** Vuoto, salto di materiale sul corpo in viaggio, "
+                  "filo, ombra, salto, area, nascite, morti e contenuto fuori non sono stati cercati: il loro zero qui "
+                  "non vuol dire «pulito». Restano viaggi, tempi, fotogrammi lunghi e ripetuti, e il materiale da "
+                  "fermo dopo l'arrivo (che non usa la sagoma).", ""]
     active = [f for f in res["segnalazioni"] if not f.get("spiegato")]
     lines += ["## Segnalazioni", ""]
     if not active:
@@ -1479,6 +1710,10 @@ def write_report(res: dict, out: Path, name: str, args_text: str) -> Path:
         lines += [f"Fotogrammi ciechi ({len(blind)}): la pagina che scorre attraversa la regione da cima a fondo e si "
                   f"fonde col vetro; li' la sagoma non si misura e le prove di geometria tacciono: "
                   + ", ".join(f"f{i}" for i in blind[:40]) + ("…" if len(blind) > 40 else ""), ""]
+    dropped = res.get("vuoti_scartati") or []
+    if dropped:
+        lines += ["Vuoti scartati (la prova dello scarto li vedeva, ma il fotogramma ha la sua sagoma: il vetro corre o la "
+                  "pagina scivola sotto; vedi `vuoto_area`): " + ", ".join(f"f{d['i']} ({d['perche']})" for d in dropped), ""]
     expl = [f for f in res["segnalazioni"] if f.get("spiegato")]
     if expl:
         lines += ["Spiegate (non contano): " + ", ".join(f"f{f['i']} {KINDS[f['tipo']]} ({f['spiegato']})" for f in expl), ""]
@@ -1515,6 +1750,26 @@ def write_report(res: dict, out: Path, name: str, args_text: str) -> Path:
             ratio = f"{100 * q['rapporto']:.0f}%" if q["rapporto"] is not None else "–"
             lines.append(f"| {j['n']} | {name} | {fmt(q['prima'])} | {fmt(q['dopo'])} | {fmt(q['minimo'])} | "
                          f"f{q['i']}, {fmt(q['dal_dito'], 0)} ms | {ratio} |")
+    evs = res.get("eventi_riposo") or []
+    if evs:
+        lines += ["", "Eventi da fermo dopo l'arrivo (non sono viaggi: il cambio sta dentro una sagoma ferma; oltre "
+                  f"{fmt(SOGLIE['materiale_abs'])} livelli sono MAT):", "",
+                  "| fotogramma | segue il viaggio | dopo l'arrivo (ms) | dal dito (ms) | corpo prima → dopo | cambio | "
+                  "interno (px) | stesso verso |", "|---:|---:|---:|---:|---|---:|---:|---:|"]
+        for ev in evs:
+            lines.append(f"| f{ev['i']} | {ev['segue']} | {fmt(ev['dopo_arrivo_ms'], 0)} | {fmt(ev['dal_dito'], 0)} | "
+                         f"{fmt(ev.get('prima'), 0)} → {fmt(ev.get('dopo'), 0)} | {fmt(ev.get('mediana'))} | "
+                         f"{ev.get('interno_px') or '–'} | {fmt(100 * ev['verso'], 0) + '%' if ev.get('verso') is not None else '–'} |")
+    rests = res.get("riposi") or []
+    if rests:
+        lines += ["", "Riposo dopo ogni arrivo (primo fotogramma fermo contro l'ultimo prima del dito o del viaggio "
+                  "seguente, sugli stessi pixel):", "",
+                  "| viaggio | da | a | durata (ms) | esito | cambio | scalino |", "|---:|---:|---:|---:|---|---:|---|"]
+        for r in rests:
+            step = (f"f{r['scalino_i']}, {fmt(r['scalino'])} livelli, {fmt(r['dopo_arrivo_ms'], 0)} ms dopo l'arrivo"
+                    if r.get("scalino_i") is not None else "–")
+            lines.append(f"| {r['viaggio']} | f{r['arrivo']} | f{r['fine']} | {fmt(r['durata_ms'], 0)} | {r['esito']} | "
+                         f"{fmt(r.get('mediana'))} | {step} |")
     lines += ["", "Tempi in ms dal dito (l'ultimo ingresso prima del primo fotogramma in moto) quando la ripresa "
               "ha l'orologio e il log; altrimenti dal primo fotogramma che cambia.", ""]
     lines += ["## Immagini", ""]
@@ -1623,7 +1878,7 @@ def synthetic(defect: str, theme: str, n: int = 40, dt: float = 1000.0 / 120.0):
     times, images = [], []
     t = 0.0
     expect = {"vuoto": 20, "materiale": 15, "salto": 18, "ombra": 25, "lungo": 12, "ripetuto": 14,
-              "nascita": 22, "fuori": 10, "pulita": None}[defect]
+              "nascita": 22, "fuori": 10, "pulita": None, "riposo": n + 1}[defect]
     yy, xx = np.mgrid[0:H, 0:W]
     for k in range(n):
         if defect == "lungo" and k == expect:
@@ -1677,6 +1932,19 @@ def synthetic(defect: str, theme: str, n: int = 40, dt: float = 1000.0 / 120.0):
     # Fermo dopo: dieci fotogrammi a riposo a 120 Hz non arrivano da screenrecord; un ultimo dopo 400 ms si'.
     times.append(times[-1] + 400.0)
     images.append(images[-1].copy())
+    if defect == "riposo":
+        # Lo scalino da fermo (review F1B, A1): la forma posata cambia velo in un fotogramma ~330 ms dopo
+        # l'arrivo, senza muoversi (in scuro +30, come «Ordina» che torna grigio; in chiaro -20), e resta cosi'.
+        qx = np.abs(xx + 0.5 - cx) - (hw - hh)
+        qy = np.abs(yy + 0.5 - cy)
+        dist = np.hypot(np.maximum(qx, 0), qy) + np.minimum(np.maximum(qx, qy), 0) - hh
+        body = (dist <= -4.5) & ~((np.abs(xx + 0.5 - cx) < 9) & (np.abs(yy + 0.5 - cy) < 9))
+        step = images[-1].astype(np.float32)
+        step[body] += 30.0 if theme == "dark" else -20.0
+        times.append(times[-1] + 330.0)
+        images.append(np.clip(step, 0, 255).astype(np.uint8))
+        times.append(times[-1] + 400.0)
+        images.append(images[-1].copy())
     return images, times, expect
 
 
@@ -1684,12 +1952,14 @@ def cmd_selftest(args) -> int:
     failures = 0
     rows = []
     for theme in ("light", "dark"):
-        for defect in ("pulita", "vuoto", "materiale", "salto", "ombra", "lungo", "ripetuto", "nascita", "fuori"):
+        for defect in ("pulita", "vuoto", "materiale", "salto", "ombra", "lungo", "ripetuto", "nascita", "fuori", "riposo"):
             images, times, expect = synthetic(defect, theme)
             src = Source.in_memory(images, times)
-            res = analyse(src, (0, 0, src.size[0], src.size[1]), plate_mode="piatta", keep_cells=False)
+            # il riposo DOPO e' quello dell'arrivo: nel caso «riposo» lo scalino viene dopo, e non e' la pagina prevista
+            res = analyse(src, (0, 0, src.size[0], src.size[1]), plate_mode="piatta", keep_cells=False,
+                          after_t=times[expect - 1] if defect == "riposo" else None)
             active = [f for f in res["segnalazioni"] if not f.get("spiegato")]
-            want = None if defect == "pulita" else defect
+            want = None if defect == "pulita" else {"riposo": "materiale"}.get(defect, defect)
             hits = [f for f in active if f["tipo"] == want and abs(f["i"] - expect) <= 1] if want else []
             others = [f for f in active if f["tipo"] != want]
             if want is None:
@@ -1698,6 +1968,9 @@ def cmd_selftest(args) -> int:
                 # il difetto voluto, al suo fotogramma; nient'altro che le sue conseguenze dirette (un salto di
                 # posizione sposta anche l'area di chi esce dalla regione: si tollera solo nello stesso fotogramma)
                 ok = bool(hits) and all(abs(f["i"] - expect) <= 1 for f in others)
+            if defect == "riposo":   # e lo scalino non e' un viaggio: e' un evento da fermo, e nessun viaggio lo contiene
+                ok = ok and not any(j["inizio"] <= expect <= j["fine"] for j in res["viaggi"])                     and [e["i"] for e in res.get("eventi_riposo", [])
+                         if abs(e.get("mediana") or 0.0) > SOGLIE["materiale_abs"]] == [expect]
             failures += not ok
             rows.append(f"{'ok ' if ok else 'NO '} {theme:5s} {defect:10s} atteso {expect if expect is not None else '-':>4} "
                         f"trovato: " + (", ".join(f"{KINDS[f['tipo']]}@f{f['i']}" for f in active) or "niente"))

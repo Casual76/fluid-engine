@@ -64,6 +64,13 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   Parity("Parità"),
 
+  /**
+   * Il vetro **dipinto** dove si vede davvero (F1B, giro di correzione): la galleria ha l'host dei modali alla radice,
+   * e con l'host foglio e avviso sono di vetro vero. Qui si aprono fuori dall'host (`ModalBottomSheet`, `Dialog`), con
+   * un tasto e un pannello dipinti sulla pagina: vedi `painted/`. Si apre con `--es gallery.page painted`.
+   */
+  Painted("Vetro dipinto"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

@@ -203,7 +203,8 @@ senza manopole l'engine disegna quello.
 | `nestedshadow` | `0..1` | quanto resta dell'ombra di un vetro annidato, sui due temi (di serie 0.5) |
 | `travelclear` | `0..1` | in viaggio, quanto nitido entra nella mescola a moto pieno (di serie 0.25) |
 | `travelbend` | `0..3` | in viaggio, di quanto cresce lo spostamento della lente a moto pieno (di serie 0.5) |
-| `travelneck` | `0.05..0.5` | per quanta parte del viaggio il collo fra due pezzi nasce e muore (di serie 0.5) |
+| `travelneck` | `0.05..0.5` | in quanta parte finale del viaggio il collo fra due pezzi si spegne (di serie 0.32) |
+| `knobrim` | `on` · `off` | la goccia, non un numero del profilo: **`off`** il pomello a riposo senza filo né riflesso (arrivano con la pressione) / `on` filo e riflesso anche a riposo, com'erano dopo F1B.3 |
 
 Esempio: `GALLERIA="--es gallery.tune edge=ios26,frost=r24" materiale components hud off`.
 

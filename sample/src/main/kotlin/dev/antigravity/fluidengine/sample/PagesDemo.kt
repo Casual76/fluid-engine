@@ -1,5 +1,8 @@
 package dev.antigravity.fluidengine.sample
 
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -17,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +32,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.sample.material.GalleryGlassLaunch
+import dev.antigravity.fluidengine.sample.material.GalleryGlassSwitches
+import dev.antigravity.fluidengine.sample.material.rememberGalleryGlassSwitches
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidAlert
 import dev.antigravity.fluidengine.ui.fluid.FluidAlertAction
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
@@ -72,13 +81,27 @@ class PagesDemoActivity : ComponentActivity() {
     enableEdgeToEdge()
     // Come in GalleryActivity: niente velo di contrasto di sistema sotto la barra di navigazione.
     if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+    // Il vetro chiesto (`gallery.model`), con lo stesso codice di GalleryActivity e solo nella build di debug: la
+    // galleria lo passa quando apre questa attività ([pagesDemoIntent]), così l'avviso della bozza, che qui sta fuori
+    // da un host (la `Dialog` di piattaforma, vetro dipinto), si fotografa anche col vetro di prima.
+    val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    val glassLaunch = if (debuggable) GalleryGlassLaunch.parse { intent?.getStringExtra(it) } else GalleryGlassLaunch.None
+    if (debuggable && savedInstanceState == null) GalleryGlassSwitches.applyAtLaunch(this, glassLaunch)
     setContent {
-      FluidTheme(settings = remember { EngineSettings() }) {
-        PagesDemo()
+      val glass = rememberGalleryGlassSwitches(glassLaunch)
+      CompositionLocalProvider(LocalFluidGlassModel provides glass.model) {
+        FluidTheme(settings = remember { EngineSettings() }) {
+          PagesDemo()
+        }
       }
     }
   }
 }
+
+/** L'intent che apre [PagesDemoActivity] col vetro [model] che la galleria chiede (l'extra `gallery.model`). */
+internal fun pagesDemoIntent(context: Context, model: FluidGlassModel): Intent =
+  Intent(context, PagesDemoActivity::class.java)
+    .putExtra(GalleryGlassLaunch.ExtraModel, model.name.lowercase())
 
 internal const val PagesRouteA = "a"
 internal const val PagesRouteB = "b"

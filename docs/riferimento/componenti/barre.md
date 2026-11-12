@@ -129,7 +129,9 @@ FluidFloatingTabBar(
 Sono **tre stati visivi** su una sola scena: `INLINE` (ripiegata), `EXPANDED` (tutte le schede) e `SEARCH_EXPANDED`. Il passaggio e' un `AnimatedContent`
 con dissolvenza (`FluidMotion.FoldCrossFade`, rigidezza media-bassa critica) piu' elementi condivisi (`tabGroup`, `standaloneTab`, `accessory`, l'icona della scheda scelta), un
 impulso di sfocatura «gommosa» che sale a 12 dp a meta' e torna a zero (`GooeyPeakBlur`, `FluidMotion.GooeyMillis` = 300 ms) e la pillola che *cresce* in 300 ms (`PuckEnter`, scala di partenza 0,82):
-non fa parte dell'elemento condiviso, quindi l'unica cosa che la tiene con le altre e' la durata uguale.
+non fa parte dell'elemento condiviso, quindi l'unica cosa che la tiene con le altre e' la durata uguale. Dalla 4.0 la sfocatura gommosa
+(`Modifier.gooey`, `FluidGooey.kt`) **resta quella di prima** anche col materiale nuovo: è un effetto sul pannello della barra mentre si
+ripiega, non una strada del materiale, e passa al materiale nuovo con la tab bar che si riduce a un tasto, in una fase successiva del progetto.
 
 **La decisione sta in `FluidFloatingTabBarScrollConnection`** (la connessione che l'app attacca alla pagina):
 
@@ -190,8 +192,12 @@ raccogliersi). Aperta, il gruppo schede+cerchio e' sempre **centrato** (stile iO
   seconda sfocatura: campiona la pagina e rifà da sé il materiale della barra (`GlassPuckProfile`, derivato dal profilo
   di serie, senza numeri suoi salvo quanto è più scura). Premuta guarda la riga nascosta, che è il materiale della
   barra con le icone d'accento, e posa sopra solo la differenza di scuro: premuta o no è la stessa pillola. **L'accento
-  sta sull'icona e sull'etichetta della scheda scelta** (`legibleInk`, almeno 3:1 contro il fondo che hanno dietro),
-  non sulla pillola. Sotto Android 13 e con `FluidGlassModel.Classic` è la pillola di prima, con la lavata d'accento.
+  sta sull'icona e sull'etichetta della scheda scelta** (`legibleInk`, almeno 3:1 contro la pellicola di serie della
+  barra), non sulla pillola. Sopra il contrasto di sistema standard pillola e riga nascosta prendono la pellicola densa
+  della barra con sopra la selezione (`glassPuckFilm`): restano lo stesso materiale della barra, e l'etichetta scelta,
+  che è testo, tiene almeno 4,5:1 e mai meno contrasto dell'inchiostro di prima. Premuta, la lente della pillola cresce
+  con la pressione da zero (a riposo non piega niente); filo e ombra restano quelli a riposo. Sotto Android 13 e con `FluidGlassModel.Classic` è la pillola di prima,
+  con la lavata d'accento.
   *Come si verifica*: a schermo, la pillola è grigia e l'icona scelta è nell'accento; nella pagina «Parità» della
   galleria, accanto a un tasto di vetro. *Se non va*: una pillola colorata d'accento sopra la barra vuol dire che
   l'app ha scritto `puckColor` (sotto) o che quel dispositivo disegna il vetro di prima.

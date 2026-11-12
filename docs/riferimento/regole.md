@@ -381,9 +381,10 @@ ciascuna sta in `docs/10-coerenza.md`.
   4.0 anche la goccia del menu (`FluidMenuDrop`) chiama `glassDrop`, dove prima ne aveva una copia.
   Geometria e tempi «faccia piena → lente» sono quelli di sempre. Il vetro sotto la faccia dipende dal
   materiale: **col materiale nuovo** (da Android 13, `Liquid`) è la ricetta dei tasti attraverso il
-  profilo `GlassDropProfile`, derivato da quello di serie: a riposo la faccia piena porta **il filo, il
-  riflesso e l'ombra di un tasto** (l'ombra ridotta dalla regola del vetro annidato dentro una lastra o
-  un menu), e sotto il dito resta una **lente limpida**, senza velo né smerigliatura, con un tono scuro
+  profilo `GlassDropProfile`, derivato da quello di serie: a riposo è la faccia piena con **l'ombra di
+  un tasto** (ridotta dalla regola del vetro annidato dentro una lastra o un menu), **senza filo né
+  riflesso**: arrivano con la lente, in proporzione alla pressione, e a pressione piena sono quelli dei
+  tasti. Sotto il dito resta una **lente limpida**, senza velo né smerigliatura, con un tono scuro
   leggero al posto del velo, che piega forte al bordo e cresce con la pressione. **Col vetro di prima** è
   la ricetta di Kyant: sfocatura `8 dp × (1 − p)`, lente che sale con la pressione, ombra interna solo
   premuta.
@@ -423,9 +424,10 @@ bianca è `1 − p` bit per bit come nei pomelli (`GlassDropFaceTest`).
 **La goccia, come si verifica.** Nel codice: nessun pomello, cursore o pillola scritto a mano con `drawBackdrop`,
 `graphicsLayer` e un cerchio bianco (`grep -n "drawBackdrop(" ` fuori da `engine/`); i controlli dell'engine
 (`FluidSwitch`, `FluidSlider`, `FluidSegmentedControl`) passano da `glassDrop` da soli. A schermo, da Android 13: il
-pomello a riposo ha lo stesso filo e la stessa ombra del tasto di vetro accanto (pagina «Parità» della galleria), e
-sotto il dito il fondo si vede limpido, piegato al bordo, mai smerigliato. **Se la violi.** Un pomello di un altro
-vetro accanto ai tasti (senza filo, con un'ombra propria), o una lente grigia e sfocata sotto il dito: il «secondo
+pomello a riposo ha la stessa ombra del tasto di vetro accanto e nessun filo (pagina «Parità» della galleria), il
+filo e il riflesso del tasto arrivano premendo, e sotto il dito il fondo si vede limpido, piegato al bordo, mai
+smerigliato. **Se la violi.** Un pomello di un altro vetro accanto ai tasti (con un'ombra propria, o un filo a riposo
+che i tasti non hanno), o una lente grigia e sfocata sotto il dito: il «secondo
 vetro» che il profilo della goccia toglie. Provato da `GlassDropProfileTest`, `LiquidDropTest`, `DropPlanTest`,
 `GlassDropSquashTest`, `GlassDropFaceTest` e, contro il profilo di serie, da `GlassRecipeParityTest`.
 
@@ -836,11 +838,10 @@ prima.
 **La scelta sta in un posto.** Quale materiale disegna una superficie lo decide `resolveFluidGlassModel`,
 pura, con le sue domande in ordine; chi disegna vetro la chiede (oggi `glassSurface`,
 `glassControlSurface`, l'ombra staccata, la pillola della tab bar e la goccia; Fluid-physics la chiede con
-`resolvePhysicsGlass`, che aggiunge il livello), mai per conto suo. **L'eccezione nota** è il vetro dipinto
-(`fluidStaticGlassSurface`, il foglio e l'avviso di piattaforma): non chiede il modello, quindi il suo corpo e il
-suo bordo vengono dalla ricetta nuova anche con `Classic` e sotto Android 13, mentre la sua ombra (`glassShadow`) la
-scelta la fa. È scritta come prova saltata e nota in `GlassRecipeParityTest`, ed è da decidere (vedi la scheda del
-vetro, «Il vetro dipinto»). Il compilatore si chiede per ultimo, perché
+`resolvePhysicsGlass`, che aggiunge il livello; il vetro dipinto di fogli e avvisi la chiede con
+`paintedGlassTakesLiquid`, che è `resolveFluidGlassModel` senza forma da misurare), mai per conto suo. Così una
+superficie non è mai un ibrido: con `Classic`, sotto Android 13 o con le sorgenti rifiutate, corpo, bordo, ombra e
+scrim tornano tutti quelli di prima. Il compilatore si chiede per ultimo, perché
 è l'unica domanda che compila, e una superficie che resta `Classic` per un'altra ragione non deve far
 compilare programmi che non disegnerà. Se il corpo o la luce della lastra sono rifiutati la superficie
 resta `Classic` per intero: un corpo nuovo con il bordo di prima non esiste. Una ragione nuova per restare
@@ -1017,9 +1018,10 @@ pagina «Parità» della galleria (`--es gallery.page parity`) mette le strade u
 tasti, un foglio dipinto che non cambia quando cambia il profilo, e una scelta di gusto fatta sulle tavole che
 arriva a quattro strade su cinque.
 
-**Le disparità note** (prove saltate in `GlassRecipeParityTest`, con la ragione stampata come `NOTO F1B.6`): il
-vetro dipinto non chiede il modello (sotto, «Il vetro dipinto e lo scrim»); sul tema scuro, fra un piccolo e un
-grande, il primo fotogramma di un viaggio di Fluid-physics ha già fatto un passo di velo (sopra).
+Il test prova anche la tabella di verità delle cinque strade (modello chiesto × livello di API × livello di
+Fluid-physics): nessuna prende il materiale nuovo sotto Android 13 o con `Classic`, nessuna lo lascia dove dovrebbe
+averlo. Non ha prove saltate: le due disparità che aveva trovato (il dipinto che non chiedeva il modello, un passo di
+velo al primo fotogramma di un viaggio sul tema scuro) sono state corrette, e ora le prova.
 
 ## Il vetro dipinto e lo scrim: uno scrim solo, e il dipinto è la ricetta (4.0)
 
@@ -1032,43 +1034,66 @@ uniforme è esatto, su una foto o un testo no, ed è la differenza dichiarata (u
 
 **Lo scrim è uno**: un nero al **12%** sul chiaro e al **20%** sullo scuro, per i modali di vetro dell'host e per i
 pannelli dipinti. I livelli stanno in `GlassPaintedScrim`, e chi disegna uno scrim li legge da lì (anche
-`FluidGlassModal`). Prima il foglio di piattaforma aveva un nero al 42% e l'avviso il velo della `Dialog`: tre scrim
-per la stessa cosa. Lo scrim dell'host in più smeriglia la pagina; quello di piattaforma non può, e non lo compensa
-scurendo di più.
+`FluidGlassModal`). Prima il codice chiedeva tre scrim per la stessa cosa: un nero al 42% per il foglio di
+piattaforma, il velo della `Dialog` per l'avviso, il 12/20% per i modali dell'host. Quale dei due casi tocca a un'app
+lo decide l'host: **dentro un `FluidGlassModalHost`**, che è il caso normale di un'app dell'engine, `FluidSheet` e
+`FluidAlert` sono modali di vetro dell'host e il loro scrim era e resta il 12/20%; **fuori da un host** (un'app senza
+host, o un avviso con `inHost = false`) sono il foglio di piattaforma (`ModalBottomSheet`) e la `Dialog`, che col
+materiale nuovo passano dal 42% e dal velo della `Dialog` allo scrim unico, e con `Classic` o sotto Android 13 li
+riprendono. Lo scrim dell'host in più smeriglia la pagina; quello di piattaforma non può, e non lo compensa scurendo
+di più. Un vetro dipinto **sulla pagina**, fuori da un foglio o da un avviso dipinti, non ha scrim sotto e si calcola
+sopra la pagina del tema.
 
-**Il dipinto non chiede il modello** (disparità nota di F1B.6): con `FluidGlassModel.Classic` e sotto Android 13
-corpo e bordo restano quelli della ricetta nuova, mentre l'ombra (`glassShadow`) torna quella di prima. Finché non si
-decide, un'app che tiene `Classic` vede il foglio di piattaforma nuovo con l'ombra di prima.
+**Il dipinto sceglie il materiale come ogni altro vetro** (`paintedGlassTakesLiquid`, chiesto da
+`fluidStaticGlassSurface`, `FluidSheet` e `FluidAlert`): da Android 13, col materiale `Liquid` e le sorgenti delle
+lastre accettate, è quello descritto qui; con `FluidGlassModel.Classic`, sotto Android 13 o con le sorgenti
+rifiutate è **per intero** quello della 3.x (il dipinto di prima, il contenitore al 92%, lo scrim e il velo della
+`Dialog` di prima, nessuna ombra del vetro). Mai un foglio nuovo con l'ombra di prima, né il contrario.
 
 **Come si verifica.** Nel codice di un'app: `grep -n "Color.Black.copy(alpha" ` attorno a un foglio o a un dialogo:
 nessuno scrim scritto a mano sopra quelli dell'engine; `grep -n "scrimColor\|setDimAmount"`: nessun valore proprio. A
-schermo: un foglio di piattaforma e un foglio dell'host abbassano la pagina dello stesso tanto. Per l'engine:
-`GlassPaintedProfileTest` (lo scrim è uno, il corpo è la formula dello shader, il dipinto segue il profilo) e
-`GlassRecipeParityTest`. **Se la violi.** Due fogli della stessa app con due pagine dietro di luminosità diversa, e
-un foglio dipinto che resta indietro quando il profilo cambia.
+schermo: un foglio di piattaforma e un foglio dell'host abbassano la pagina dello stesso tanto; con `Classic` il
+foglio di piattaforma è tutto quello della 3.x (pagina dietro leggibile attraverso il contenitore al 92%, nessun filo
+del vetro nuovo). Il foglio di piattaforma si vede solo **senza host**: nella galleria è la pagina «Vetro dipinto»
+(`--es gallery.page painted`); le altre pagine hanno l'host alla radice e mostrano il foglio di vetro. Per l'engine: `GlassPaintedProfileTest` (lo scrim è uno, il corpo è la formula dello shader, il
+dipinto segue il profilo) e `GlassRecipeParityTest` (la riga del dipinto nella tabella di verità). **Se la violi.**
+Due fogli della stessa app con due pagine dietro di luminosità diversa, un foglio dipinto che resta indietro quando il
+profilo cambia, o un foglio ibrido (corpo di un vetro, ombra o scrim dell'altro).
 
-## Il passaggio di consegne fra il vetro che viaggia e il vetro fermo: un segnale solo (4.0)
+## Il passaggio di consegne fra il vetro che viaggia e il vetro fermo: una decisione sola, letta nella stessa fase (4.0)
 
 Quando una forma ferma comincia a viaggiare, o un viaggio finisce, il vetro passa da una superficie all'altra: i
 tasti della barra ancorata, ognuno col suo `glassSurface`, lasciano il posto alla superficie di Fluid-physics che li
-porta fra le due pagine, e alla fine la riprendono. **Il passaggio lo decide un segnale solo**, letto da tutte e due
-le parti nello stesso momento (in disegno, non in composizione), e cade **quando la forma è ferma**, non quando la
-pagina dietro finisce di posarsi. In ogni fotogramma il vetro lo disegna o la superficie che viaggia o il tasto,
-mai nessuno dei due e mai tutti e due.
+porta fra le due pagine, e alla fine la riprendono. **Il passaggio lo decide una decisione sola**, e tutti e due i
+chiamanti la leggono **nella stessa fase**: oggi in composizione. La superficie che viaggia legge `journey.active` nella
+composizione della barra; i tasti leggono la stessa decisione nella stessa passata di composizione
+(`glassControlSurface`, attraverso `LocalFluidBarPieceSink`, e in composizione montano o tolgono il proprio vetro).
+Chi poi disegna (la superficie che viaggia) usa **il valore di quella composizione**, passato come valore, e non
+rilegge lo stato vivo nel proprio disegno. Il passaggio cade **quando la forma è ferma**, non quando la pagina dietro
+finisce di posarsi. In ogni fotogramma il vetro lo disegna o la superficie che viaggia o il tasto, mai nessuno dei
+due e mai tutti e due.
 
-Il perché: fino alla 4.0 il passaggio dipendeva da due segnali letti in composizione e cambiati in fotogrammi diversi
-(la pagina che si posa e uno stato scritto in un `SideEffect`), e sul Tab S9 ogni arrivo aveva **un fotogramma senza
-vetro** (6 arrivi su 6) e alla partenza un fotogramma con due vetri e l'ombra doppia; e il vetro tornava ai tasti
-quando la molla della pagina scendeva sotto mezzo pixel, molto dopo che la forma si era fermata. Col materiale nuovo
-fermo e viaggio sono lo stesso vetro, quindi il passaggio non si vede: purché sia uno.
+Il perché: uno stato può cambiare **dopo** la composizione (in un `SideEffect`, al posizionamento), e allora una lettura
+in disegno lo vede nel fotogramma stesso, mentre una lettura in composizione lo vede solo al fotogramma dopo. Se dei
+due chiamanti uno legge in composizione e l'altro in disegno, per un fotogramma non sono d'accordo: è esattamente ciò
+che succedeva fino alla 4.0, con due segnali diversi (la pagina che si posa e uno stato scritto in un `SideEffect`).
+Sul Tab S9 ogni arrivo aveva **un fotogramma senza vetro** (6 arrivi su 6), alla partenza un fotogramma con due vetri e
+l'ombra doppia, e il vetro tornava ai tasti quando la molla della pagina scendeva sotto mezzo pixel, molto dopo che la
+forma si era fermata. Leggere in composizione da tutte e due le parti è la scelta di oggi perché i tasti, per togliere
+il vetro, devono smontare un modificatore, e quello si fa solo in composizione. Col materiale nuovo fermo e viaggio
+sono lo stesso vetro, quindi il passaggio non si vede: purché sia uno.
 
 **Come si verifica.** Per l'engine: `FluidBarHandoffTest` (falliva 3 su 3 sul codice di prima). Per chiunque scriva
-una consegna simile (una superficie che sostituisce dei vetri fermi durante un moto): `grep -n "SideEffect"` vicino a
-uno stato che decide chi disegna il vetro; deve esserci un solo stato, letto in disegno. A schermo, a fotogrammi
-(`-fps_mode passthrough`, il rivelatore di scatti `tools/glassbench/glassjerk.py`): all'arrivo nessun fotogramma con
-le sole icone, alla partenza nessun fotogramma con l'ombra doppia. **Se la violi.** Un lampo di icone senza vetro
-alla fine di ogni push e di ogni ritorno, e un bordo più scuro (due vetri sovrapposti) nel primo fotogramma del
-viaggio.
+una consegna simile (una superficie che sostituisce dei vetri fermi durante un moto): trova lo stato che decide **chi**
+disegna il vetro e **tutti** i punti che lo leggono (`grep -n` sul suo nome). Devono essere nella stessa fase: tutti
+nel corpo di un `@Composable`, o tutti dentro lambda di disegno (`drawBehind`, `drawWithContent`, `onDraw…`,
+`graphicsLayer {}`), mai misti; e chi disegna con il valore deciso in composizione lo riceve come valore
+(`rememberUpdatedState` del valore letto lì), non rilegge lo stato dentro la lambda. Un `SideEffect` che **scrive**
+quello stato è lecito (la decisione arriva a tutti e due alla composizione dopo); non lo è uno dei lettori che la vede
+prima dell'altro. A schermo, a fotogrammi (`-fps_mode passthrough`, il rivelatore di scatti
+`tools/glassbench/glassjerk.py`): all'arrivo nessun fotogramma con le sole icone, alla partenza nessun fotogramma con
+l'ombra doppia. **Se la violi.** Un lampo di icone senza vetro alla fine di ogni push e di ogni ritorno, e un bordo più
+scuro (due vetri sovrapposti) nel primo fotogramma del viaggio.
 
 ## Un tasto che nasce dal fianco del vicino nasce un dp dentro (4.0)
 
@@ -1092,7 +1117,9 @@ Da Android 13, col materiale nuovo, la pillola della scheda scelta di `FluidFloa
 sottile e l'ombra ridotta di un vetro dentro un vetro (`GlassPuckProfile`). Non è più una macchia d'accento:
 **l'accento passa all'icona e all'etichetta** della scheda scelta, portato fino a 3:1 contro il fondo che ha dietro.
 `FluidFloatingTabBarGlass.puckColor`, se l'app lo scrive, diventa una **pellicola** di quel colore sulla pillola, non
-un riempimento pieno. Sotto Android 13 e con `FluidGlassModel.Classic` la pillola è quella di prima.
+un riempimento pieno. Sopra il contrasto di sistema standard la pillola segue la pellicola densa della barra
+(`glassPuckFilm`), come il resto della barra, e l'etichetta scelta, che è testo, tiene almeno 4,5:1 e mai meno
+contrasto dell'inchiostro di prima. Sotto Android 13 e con `FluidGlassModel.Classic` la pillola è quella di prima.
 
 **Come si verifica.** Nel codice: `grep -n "puckColor"`: se c'è, è una scelta (una pellicola tinta), non il modo di
 far vedere la scheda scelta; nessuna scheda con l'icona colorata a mano. A schermo: la pillola è grigia e un po' più

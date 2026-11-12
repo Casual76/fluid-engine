@@ -37,10 +37,12 @@ source "$SCRIPT_DIR/qa-common.sh"
 PACKAGE="dev.antigravity.fluidglass.debug"
 ACTIVITY="dev.antigravity.fluidengine.sample.GalleryActivity"
 
-# I nomi sono quelli di GalleryPage (GalleryNav.kt), nell'ordine dei gruppi del catalogo. In fondo le due pagine
-# strumento del vetro nuovo (piano «iOS in Android», F1A.9 e F1A.11): senza extra mostrano l'elenco delle scene e
-# delle sezioni, che e' cio' che il giro fotografa (le scene si lanciano da sample/.../material/LEGGIMI.md).
-ALL_PAGES="LongLists Identity DrawerAndTabs NotificationUndo TokenField DateTime RichText WebContent Charts FileTile Material Icons"
+# I nomi sono quelli di GalleryPage (GalleryNav.kt), nell'ordine dei gruppi del catalogo. In fondo le pagine strumento
+# del vetro nuovo (piano «iOS in Android»): Material e Icons (F1A.9, F1A.11) senza extra mostrano l'elenco delle scene e
+# delle sezioni (le scene si lanciano da sample/.../material/LEGGIMI.md); Robustness (F1B.8) apre il primo caso della
+# serie; Parity (F1B.6) apre la griglia delle strade del materiale sul fondo di serie, Painted il vetro dipinto fuori dall'host (le altre scene e il vetro Classic
+# si lanciano da sample/.../parity/LEGGIMI.md). E' cio' che il giro fotografa.
+ALL_PAGES="LongLists Identity DrawerAndTabs NotificationUndo TokenField DateTime RichText WebContent Charts FileTile Material Icons Robustness Parity Painted"
 # Le combinazioni di serie: chiaro, scuro, testo al 200%, e il caso peggiore (scuro, 200%, movimento ridotto).
 DEFAULT_COMBOS="light dark text200 dark200"
 

@@ -120,7 +120,9 @@ FluidFormPresets.fromFreehand(points, rounding = 6f)      // tratto a mano liber
   pixel; il ponte esiste **solo al tier `Full`** (sotto, i pezzi restano geometria separata che si sovrappone: più
   povero, mai rotto). Col materiale nuovo (`Liquid`: «Comportamento» di `fluidPhysicsSurface`, sotto) il ponte esiste **solo in viaggio**:
   a riposo i pezzi di un gruppo sono staccati del tutto, anche quando si toccano, e il collo nasce e si scioglie dentro
-  il viaggio (`GlassLiquidTravel.neck`); un viaggio interrotto riparte dal collo che c'era. Col vetro di prima a `Full`
+  il viaggio (`GlassLiquidTravel.neck`): nasce nella prima metà e si spegne nell'ultimo 32% (`GlassLiquidNeck`), senza
+  cuspidi a V. Un viaggio interrotto riparte dal collo che c'era. Aperto: vita e ponte durano circa 33 ms, contro gli
+  oltre 150 della 3.1.2, perché il collo segue il progresso e non il tempo che manca alla posa. Col vetro di prima a `Full`
   due pezzi vicini restano saldati anche fermi. Il raggio effettivo si spegne man mano che i pezzi si compenetrano, perché `smin(a, a, k) = a − k/4`
   gonfierebbe l'unione di un quarto del raggio e alla posa l'alone sparirebbe di colpo.
 - `blob` ha 12 vertici, `irregularity` 0..0,6; `star` ha `points` fra 3 e 32; `trapezoid` tiene l'inset fra 0 e 0,45.
@@ -289,9 +291,11 @@ Box(
   fermo e primo fotogramma del viaggio sono lo stesso programma con gli stessi uniform; il ritaglio del nodo che una
   `glassSurface` ha dal suo nodo qui lo emula il corpo. **In viaggio** il vetro è un po' più limpido e la lente un po'
   più forte, quanto la sagoma si muove e mai da ferma (`GlassLiquidProfile.travel`); la tinta e l'ottica di partenza e
-  d'arrivo (`tintFrom`, `opticsFrom`) si mescolano campo per campo, esatte ai capi. Un'eccezione nota, scritta come prova saltata: sul tema
-  scuro, fra un piccolo e un grande, il velo dei grandi fa al primo fotogramma del viaggio il passo di 1/30 s (sotto,
-  «Cosa è verificato dai test»).
+  d'arrivo (`tintFrom`, `opticsFrom`) si mescolano campo per campo, esatte ai capi. Anche il velo dei grandi sul tema
+  scuro, che fra un piccolo e un grande va da quello della partenza a quello dell'arrivo in 0,3 s, al primo fotogramma
+  del viaggio è ancora quello della superficie ferma: il suo tempo parte quando cambia la meta. Richiudendo, il velo
+  torna a quello del tasto seguendo il verso del gesto (la risalita della molla di chiusura non è una riapertura), e
+  con `snapTo` o col movimento ridotto si posa subito.
 - **Col vetro di prima** a riposo è una lastra della 3.0: la stessa funzione di `glassSurface` di prima per sfocatura,
   lente, frangia e pressione (`physicsLensUniforms`), il bordo e l'ombra registrati con la ricetta del renderer. Che la
   taglia che conta sia quella della **sagoma** (non del nodo) vale per i due materiali: è la «regola della taglia» di
@@ -638,8 +642,7 @@ sono provati via gli specchi Kotlin del campo di distanza, sul banco e, sul disp
 - `GlassRecipeParityTest` (in `ui/glass/field/`): una superficie fisica ferma col materiale nuovo riceve gli stessi numeri
   di corpo, luce e ombra della `glassSurface` della stessa forma (tasto, capsula, pannello; due temi, due densità,
   intensità, qualità, pellicola); l'arrivo di un viaggio è la `glassSurface` della forma d'arrivo; il primo fotogramma
-  è la superficie ferma, **salvo una nota** (sul tema scuro, fra un piccolo e un grande, il velo dei grandi fa al primo
-  fotogramma un passo di 1/30 s di strada: fino a 7 livelli nel colore del velo, `PhysicsLargeVeil`); sotto Android 13,
+  è la superficie ferma, anche nel velo dei grandi sul tema scuro (`PhysicsLargeVeil`); sotto Android 13,
   con `Classic` o con un livello chiesto sotto `Full` la superficie non prende il materiale nuovo.
 - `PhysicsLiquidTest`, `F1b2GeometryTest`: il livello e il materiale come tabella di verità; il piano porta otto pezzi; a
   riposo i pezzi sono separati e il collo vive solo in viaggio; la ricetta di un viaggio coincide ai capi con quella

@@ -317,7 +317,7 @@ Tutto in `ui/theme/RouteMotion.kt` e `ui/theme/Motion.kt`. Questa e' la tabella 
 | tubatura dell'origine del tocco in `savedStateHandle` (crescita dal punto toccato) | a carico dell'app | `transition = FluidPageTransition.Expand` |
 
 Non sono deprecati e restano utili: `LocalFluidRouteFront` (chi e' davanti: lo forniscono l'host e `FluidPaneScaffold`; chi disegna chrome sopra le pagine lo legge), `LocalRouteMotionSignals`/`RouteMotionSignals.glassQuality`
-(il vetro che scende a `FluidGlassQuality.ScrollingFloor` per 40 ms a ogni timbro di movimento) e `FluidMotionScheme` in `Motion.kt`.
+(il vetro che scende a `FluidGlassQuality.ScrollingFloor` per 40 ms a ogni timbro di movimento; dalla 4.0 non la riga dei tasti della barra ancorata, che resta a qualità piena: [pagine-back-e-barra.md](pagine-back-e-barra.md)) e `FluidMotionScheme` in `Motion.kt`.
 `FluidMotionScheme` non e' una cosa delle pagine: e' il `MotionScheme` che `FluidTheme` passa a Material 3 (`defaultSpatialSpec` = `FluidMotion.standard()`, `fastSpatialSpec` = `snappy()`, `slowSpatialSpec` = `smooth()`, `defaultEffectsSpec` = `snappy()`, `fastEffectsSpec` = `instant()`, `slowEffectsSpec` = `smooth()`),
 cosi' switch, chip e fogli di Material si muovono sulle stesse molle della chrome custom; non c'e' niente da sostituire.
 `FluidTouchOriginState`/`rememberFluidTouchOrigin`/`fluidTouchOriginTracker`/`MotionOrigin` (l'origine del tocco della vecchia crescita) restano pubblici e non deprecati, ma nel codice dell'engine non li legge piu' nessuno: l'host registra il punto toccato da solo.

@@ -1,6 +1,5 @@
 package dev.antigravity.fluidengine.sample
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +34,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidNotificationTone
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSheet
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.fluidExpandOrigin
 import dev.antigravity.fluidengine.ui.fluid.icons.Delete
@@ -179,11 +179,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
     item(key = "pages-header") { FluidSectionHeader(title = "Navigazione") }
     item(key = "pages") {
       val context = LocalContext.current
+      // Le pagine sono un'altra attività: il vetro chiesto alla galleria (`gallery.model`) va con loro.
+      val requestedModel = LocalFluidGlassModel.current
       FluidListGroup(glass = true) {
         FluidListRow(
           title = "Pagine",
           subtitle = "Apertura da destra, indietro sotto il dito (3.0)",
-          onClick = { context.startActivity(Intent(context, PagesDemoActivity::class.java)) },
+          onClick = { context.startActivity(pagesDemoIntent(context, requestedModel)) },
         )
       }
     }
@@ -313,7 +315,7 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
       }
     }
 
-    item(key = "legacy-header") { FluidSectionHeader(title = "Finestre di piattaforma") }
+    item(key = "legacy-header") { FluidSectionHeader(title = "Notifiche, fogli e avvisi") }
     item(key = "legacy") {
       FluidListGroup(glass = true) {
         FluidListRow(
@@ -361,14 +363,27 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
         FluidListDivider()
         FluidListRow(
           title = "FluidSheet (deprecato)",
-          subtitle = "Finestra separata: gradienti dipinti, non vetro",
+          subtitle = "Con l'host della galleria è il foglio di vetro dell'host, non una finestra",
           onClick = { legacySheet = true },
         )
         FluidListDivider()
         FluidListRow(
           title = "FluidAlert",
-          subtitle = "Dialog di sistema, stesso confine",
+          subtitle = "Con l'host della galleria è l'avviso di vetro dell'host",
           onClick = { alertOpen = true },
+        )
+      }
+    }
+
+    // Il vetro dipinto dove si vede davvero: senza l'host della radice foglio e avviso sono le finestre di piattaforma.
+    item(key = "painted-header") { FluidSectionHeader(title = "Fuori dall'host (vetro dipinto)") }
+    item(key = "painted") {
+      FluidListGroup(glass = true) {
+        FluidListRow(
+          title = "Vetro dipinto",
+          subtitle = "Foglio e avviso di piattaforma senza host, e un tasto dipinto sulla pagina",
+          modifier = Modifier.testTag("chrome-open-painted"),
+          onClick = { onOpen(GalleryPage.Painted) },
         )
       }
     }
@@ -381,9 +396,9 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
       ) {
         Text(
-          text = "Questo vive in una finestra sua, quindi non può leggere il GraphicsLayer " +
-            "dell'app. Guarda il fondo: è dipinto, non rifratto. È il confine di sistema per " +
-            "cui esiste FluidGlassModalPortal.",
+          text = "La galleria ha l'host dei modali alla radice, quindi FluidSheet qui non apre una finestra: " +
+            "è il foglio di vetro dell'host, che rifrange la pagina. Il foglio di piattaforma, dipinto, " +
+            "sta in «Fuori dall'host (vetro dipinto)».",
           style = MaterialTheme.typography.bodyMedium,
         )
         FluidButton(text = "Chiudi", onClick = { legacySheet = false }, fillWidth = true)
@@ -395,7 +410,7 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
     FluidAlert(
       onDismissRequest = { alertOpen = false },
       title = "Eliminare?",
-      message = "Anche l'alert sta in una finestra separata.",
+      message = "Con l'host della galleria anche l'avviso è di vetro vero, dentro l'host.",
       actions = listOf(
         FluidAlertAction("Annulla", onClick = { alertOpen = false }),
         FluidAlertAction(

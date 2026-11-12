@@ -211,11 +211,12 @@ internal fun Gallery(
   // Dove porta una voce di "Da provare": una scheda o una pagina della galleria, o la schermata a parte
   // delle pagine (un'attivita': il suo "Indietro" e' quello di sistema).
   val context = LocalContext.current
+  val requestedModel = LocalFluidGlassModel.current
   val openTarget: (TryTarget) -> Unit = { target ->
     when (target) {
       is TryTarget.Tab -> nav.openTab(target.route)
       is TryTarget.Page -> nav.open(target.page)
-      is TryTarget.Screen -> context.startActivity(Intent(context, PagesDemoActivity::class.java))
+      is TryTarget.Screen -> context.startActivity(pagesDemoIntent(context, requestedModel))
     }
   }
 
@@ -299,6 +300,8 @@ internal fun Gallery(
               GalleryPage.Robustness -> dev.antigravity.fluidengine.sample.robustness.RobustnessPage(bottomInset) { nav.back() }
               // La parità delle strade del materiale (F1B.6): `parity.scene`, `parity.theme`, `parity.breathe`, `parity.model`.
               GalleryPage.Parity -> dev.antigravity.fluidengine.sample.parity.ParityPage(bottomInset, stage = fallbackBackdrop) { nav.back() }
+              // Il vetro dipinto fuori dall'host: `painted.open sheet|alert`.
+              GalleryPage.Painted -> dev.antigravity.fluidengine.sample.painted.PaintedPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

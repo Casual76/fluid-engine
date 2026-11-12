@@ -5,13 +5,11 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
 import android.util.Log
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -20,7 +18,6 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
@@ -38,9 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -142,6 +143,8 @@ internal data class ParityConfig(
 /** Una taglia della pagina: la stessa forma, lo stesso ruolo e la stessa ottica per tutte le strade. */
 private class ParitySize(
   val key: String,
+  /** La lettera del riquadro: T tasto, C capsula, P pannello. Con il numero della colonna fa il codice («T1»). */
+  val letter: String,
   val title: String,
   val width: Dp,
   val height: Dp,
@@ -153,9 +156,9 @@ private class ParitySize(
 }
 
 private val ParitySizes = listOf(
-  ParitySize("tasto", "tasto · 44 × 44 · Interactive", 44.dp, 44.dp, null, GlassRole.Interactive, GlassDefaults.buttonOptics()),
-  ParitySize("capsula", "capsula · 160 × 44 · Floating", 160.dp, 44.dp, null, GlassRole.Floating, GlassDefaults.optics(GlassRole.Floating)),
-  ParitySize("pannello", "pannello · 200 × 120, angolo 28 · Modal", 200.dp, 120.dp, 28.dp, GlassRole.Modal, GlassDefaults.panelOptics()),
+  ParitySize("tasto", "T", "tasto · 44 × 44 · Interactive", 44.dp, 44.dp, null, GlassRole.Interactive, GlassDefaults.buttonOptics()),
+  ParitySize("capsula", "C", "capsula · 160 × 44 · Floating", 160.dp, 44.dp, null, GlassRole.Floating, GlassDefaults.optics(GlassRole.Floating)),
+  ParitySize("pannello", "P", "pannello · 200 × 120, angolo 28 · Modal", 200.dp, 120.dp, 28.dp, GlassRole.Modal, GlassDefaults.panelOptics()),
 )
 
 /**
@@ -164,6 +167,29 @@ private val ParitySizes = listOf(
  * `glassTravelShadowReachDp`), e i riquadri stanno abbastanza lontani da non sovrapporsi.
  */
 private val ShadowRoom = 48.dp
+
+/**
+ * Dove sta ogni vetro della pagina, in pixel della finestra: codice → riquadro. Lo scrivono i riquadri quando si
+ * posano, lo legge [ParityLog] (righe `RIQUADRO`), perché chi ritaglia le foto del tablet prenda lo stesso punto su ogni
+ * fondo e in ogni tema, anche se la pagina è scorsa. Una mappa semplice: si legge solo per scriverla in logcat.
+ */
+private class ParityReport {
+  val boxes = linkedMapOf<String, Pair<String, Rect>>()
+
+  fun place(code: String, what: String): Modifier = Modifier.onGloballyPositioned { coordinates ->
+    boxes[code] = what to coordinates.boundsInWindow()
+  }
+
+  fun log() {
+    for ((code, entry) in boxes) {
+      val (what, r) = entry
+      Log.i(
+        ParityLogTag,
+        "RIQUADRO $code $what x=${r.left.toInt()} y=${r.top.toInt()} w=${r.width.toInt()} h=${r.height.toInt()}",
+      )
+    }
+  }
+}
 
 /** Una tinta che lascia il velo al materiale, uguale per tutte le strade che ne prendono una. */
 private val ParityTint = GlassTint(
@@ -199,6 +225,7 @@ internal fun ParityPage(bottomInset: Dp, stage: GlassBackdropState? = null, onBa
     }
   }
   var config by remember { mutableStateOf(launched) }
+  val report = remember { ParityReport() }
   val ownStage = rememberGlassBackdrop()
   val glassStage = stage ?: ownStage
   val clock = remember { MeasureClock() }
@@ -224,10 +251,10 @@ internal fun ParityPage(bottomInset: Dp, stage: GlassBackdropState? = null, onBa
             clock = clock,
             stage = glassStage,
           ) {
-            ParityGrid(config, glassStage, bottomInset, onBack = onBack, onChange = { config = it })
+            ParityGrid(config, glassStage, bottomInset, report, onBack = onBack, onChange = { config = it })
           }
         }
-        ParityLog(config)
+        ParityLog(config, report)
       }
     }
   }
@@ -239,6 +266,7 @@ private fun ParityGrid(
   config: ParityConfig,
   stage: GlassBackdropState,
   bottomInset: Dp,
+  report: ParityReport,
   onBack: () -> Unit,
   onChange: (ParityConfig) -> Unit,
 ) {
@@ -275,24 +303,42 @@ private fun ParityGrid(
           onChange(config.copy(model = if (config.model == FluidGlassModel.Liquid) FluidGlassModel.Classic else FluidGlassModel.Liquid))
         },
       )
+      // Le posizioni si scrivono da sole 1,5 s dopo ogni cambio; dopo aver fatto scorrere la pagina, di nuovo da qui.
+      FluidGlassButton(text = "Scrivi posizioni", onClick = { report.log() }, modifier = Modifier.testTag("parity-report"))
     }
+    Text(
+      "Ogni vetro ha un codice (T tasto, C capsula, P pannello; 1 glassSurface, 2 Fluid-physics, 3 dipinto) e una " +
+        "cornice ad angoli a ${ShadowRoom.value.toInt()} dp dal vetro: si ritaglia sulla cornice. In logcat (FluidParita) " +
+        "le righe RIQUADRO danno la posizione di ogni vetro in pixel della finestra.",
+      style = MaterialTheme.typography.bodySmall,
+    )
     for (size in ParitySizes) {
       Spacer(Modifier.height(12.dp))
       Text(size.title, style = MaterialTheme.typography.titleSmall)
-      Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
+      // Le colonne vanno a capo quando la finestra è stretta (il tablet in verticale, un telefono): nessuna tagliata, e
+      // nessuno scorrimento orizzontale che sposti un riquadro fra una foto e l'altra.
+      FlowRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        ParityCell("glassSurface", size) {
+        ParityCell("${size.letter}1", "glassSurface", size.width, size.height) {
           Box(
             modifier = Modifier
               .size(size.width, size.height)
+              .then(report.place("${size.letter}1", "${size.key}/glassSurface"))
               .glassSurface(state = stage, tint = ParityTint, shape = size.shape, role = size.role, optics = size.optics),
           )
         }
-        ParityCell("Fluid-physics ferma", size) { PhysicsSlab(size, stage, config.breathe) }
-        ParityCell("vetro dipinto", size) {
-          Box(modifier = Modifier.size(size.width, size.height).fluidStaticGlassSurface(shape = size.shape))
+        ParityCell("${size.letter}2", "Fluid-physics ferma", size.width, size.height) {
+          PhysicsSlab(size, stage, config.breathe, report.place("${size.letter}2", "${size.key}/fisica"))
+        }
+        ParityCell("${size.letter}3", "vetro dipinto", size.width, size.height) {
+          Box(
+            modifier = Modifier
+              .size(size.width, size.height)
+              .then(report.place("${size.letter}3", "${size.key}/dipinto"))
+              .fluidStaticGlassSurface(shape = size.shape),
+          )
         }
       }
     }
@@ -304,22 +350,40 @@ private fun ParityGrid(
       verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
       val reference = ParitySizes.first()
-      Box(
-        modifier = Modifier
-          .size(reference.width, reference.height)
-          .glassSurface(state = stage, tint = ParityTint, shape = reference.shape, role = reference.role, optics = reference.optics),
-      )
+      ParityCell("R", "tasto di riferimento", reference.width, reference.height) {
+        Box(
+          modifier = Modifier
+            .size(reference.width, reference.height)
+            .then(report.place("R", "riferimento/glassSurface"))
+            .glassSurface(state = stage, tint = ParityTint, shape = reference.shape, role = reference.role, optics = reference.optics),
+        )
+      }
       var selected by remember { mutableStateOf("casa") }
       val items = remember {
         listOf(FluidTabItem("casa", "Casa", FluidIcons.Home), FluidTabItem("cerca", "Cerca", FluidIcons.Search))
       }
-      Box(modifier = Modifier.width(260.dp).testTag("parity-puck")) {
-        FluidTabBar(items = items, selectedRoute = selected, onSelect = { selected = it.route }, backdrop = stage)
+      ParityCell("L", "pillola della tab bar", 260.dp, 72.dp) {
+        Box(modifier = Modifier.width(260.dp).then(report.place("L", "pillola/tabbar")).testTag("parity-puck")) {
+          FluidTabBar(items = items, selectedRoute = selected, onSelect = { selected = it.route }, backdrop = stage)
+        }
       }
       var on by remember { mutableStateOf(true) }
-      FluidSwitch(checked = on, onCheckedChange = { on = it }, backdrop = stage, modifier = Modifier.testTag("parity-switch"))
+      ParityCell("G1", "goccia: interruttore", 64.dp, 28.dp) {
+        FluidSwitch(
+          checked = on,
+          onCheckedChange = { on = it },
+          backdrop = stage,
+          modifier = Modifier.then(report.place("G1", "goccia/interruttore")).testTag("parity-switch"),
+        )
+      }
       var value by remember { mutableFloatStateOf(0.5f) }
-      FluidSlider(value = value, onValueChange = { value = it }, modifier = Modifier.width(200.dp).testTag("parity-slider"))
+      ParityCell("G2", "goccia: cursore", 200.dp, 48.dp) {
+        FluidSlider(
+          value = value,
+          onValueChange = { value = it },
+          modifier = Modifier.width(200.dp).then(report.place("G2", "goccia/cursore")).testTag("parity-slider"),
+        )
+      }
     }
     Spacer(Modifier.height(ShadowRoom / 2))
     Text(
@@ -330,17 +394,37 @@ private fun ParityGrid(
   }
 }
 
-/** Un riquadro: il nome della strada sopra, e attorno lo spazio per l'ombra di Fluid-physics. */
+/**
+ * Un riquadro: sopra il codice e il nome della strada; sotto, il vetro al centro di una **cornice di riferimento**
+ * grande quanto il vetro più [ShadowRoom] per lato, segnata da quattro angoli sottili. La cornice è la stessa su ogni
+ * fondo e in ogni tema, e contiene l'ombra di Fluid-physics: chi ritaglia una foto del tablet ritaglia sugli angoli e
+ * ha lo stesso punto del vetro in ogni colonna. Gli angoli sono a filo della cornice, lontani dal vetro e dalla sua
+ * ombra di contatto.
+ */
 @Composable
-private fun ParityCell(label: String, size: ParitySize, content: @Composable () -> Unit) {
-  Column(
-    modifier = Modifier.widthIn(min = size.width + ShadowRoom * 2),
-    horizontalAlignment = Alignment.CenterHorizontally,
-  ) {
-    Text(label, style = MaterialTheme.typography.labelMedium)
-    Spacer(Modifier.height(ShadowRoom))
-    content()
-    Spacer(Modifier.height(ShadowRoom))
+private fun ParityCell(code: String, label: String, width: Dp, height: Dp, content: @Composable () -> Unit) {
+  val ink = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+  Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Text("$code · $label", style = MaterialTheme.typography.labelMedium)
+    Box(
+      modifier = Modifier
+        .size(width + ShadowRoom * 2, height + ShadowRoom * 2)
+        .drawBehind {
+          val arm = 10.dp.toPx()
+          val stroke = 1.dp.toPx()
+          val w = size.width
+          val h = size.height
+          for ((x, dx) in listOf(0f to 1f, w to -1f)) {
+            for ((y, dy) in listOf(0f to 1f, h to -1f)) {
+              drawLine(ink, Offset(x, y), Offset(x + dx * arm, y), stroke)
+              drawLine(ink, Offset(x, y), Offset(x, y + dy * arm), stroke)
+            }
+          }
+        },
+      contentAlignment = Alignment.Center,
+    ) {
+      content()
+    }
   }
 }
 
@@ -349,7 +433,7 @@ private fun ParityCell(label: String, size: ParitySize, content: @Composable () 
  * due secondi). Il nodo è più grande della forma di [ShadowRoom] per lato; la forma sta al centro.
  */
 @Composable
-private fun PhysicsSlab(size: ParitySize, stage: GlassBackdropState, breathe: Boolean) {
+private fun PhysicsSlab(size: ParitySize, stage: GlassBackdropState, breathe: Boolean, place: Modifier) {
   val density = LocalDensity.current
   val room = with(density) { ShadowRoom.toPx() }
   val w = with(density) { size.width.toPx() }
@@ -377,7 +461,8 @@ private fun PhysicsSlab(size: ParitySize, stage: GlassBackdropState, breathe: Bo
       state.morphTo(rest)
     }
   }
-  Box(modifier = Modifier.size(size.width, size.height)) {
+  // Il registro prende il riquadro della forma, non quello del nodo (più grande di [ShadowRoom] per lato).
+  Box(modifier = Modifier.size(size.width, size.height).then(place)) {
     Box(
       modifier = Modifier
         .align(Alignment.Center)
@@ -395,7 +480,7 @@ private fun PhysicsSlab(size: ParitySize, stage: GlassBackdropState, breathe: Bo
  * galleria. Se il censimento non torna con le righe, la regola scritta qui non è più quella del codice.
  */
 @Composable
-private fun ParityLog(config: ParityConfig) {
+private fun ParityLog(config: ParityConfig, report: ParityReport) {
   LaunchedEffect(config) {
     val api = FluidGlassDiagnostics.simulatedApiLevel ?: Build.VERSION.SDK_INT
     Log.i(ParityLogTag, "AVVIO ${config.key} | API effettiva $api (vera ${Build.VERSION.SDK_INT})")
@@ -413,7 +498,8 @@ private fun ParityLog(config: ParityConfig) {
     for (size in ParitySizes) {
       Log.i(ParityLogTag, "riquadro ${size.key}/glassSurface: $slab")
       Log.i(ParityLogTag, "riquadro ${size.key}/fisica: $physics")
-      Log.i(ParityLogTag, "riquadro ${size.key}/dipinto: ricetta (nessuna scelta del modello: vale anche con Classic e sotto Android 13)")
+      // Il dipinto sceglie con `paintedGlassTakesLiquid`: le domande di una lastra, senza la forma.
+      Log.i(ParityLogTag, "riquadro ${size.key}/dipinto: ${if (slab == "Liquid") "dipinto dalla ricetta (Liquid)" else "dipinto della 3.x (Classic)"}")
     }
     Log.i(ParityLogTag, "riquadro pillola: ${if (slab == "Liquid") "Liquid (GlassPuckProfile)" else "pillola di prima"}")
     Log.i(ParityLogTag, "riquadro goccia: ${if (slab == "Liquid") "Liquid (GlassDropProfile)" else "goccia di Kyant"}")
@@ -421,6 +507,7 @@ private fun ParityLog(config: ParityConfig) {
     Log.i(ParityLogTag, "censimento: $census")
     val refused = verdicts.filterValues { it != null }.keys
     Log.i(ParityLogTag, "shader rifiutati: ${if (refused.isEmpty()) "nessuno" else refused.joinToString()}")
+    report.log()
   }
 }
 

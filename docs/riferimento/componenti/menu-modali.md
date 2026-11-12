@@ -433,9 +433,13 @@ sempre. Sostituto: `FluidGlassModalPortal(presentation = Sheet)` + `FluidSheetSc
 Il foglio di piattaforma (e l'avviso nella `Dialog`, sotto) dalla 4.0 è il vetro dipinto **dalla ricetta** del materiale
 nuovo: il corpo è il colore pieno che il vetro vero avrebbe sopra la pagina del tema sotto lo scrim (non si legge più,
 nitida, la pagina dietro: prima il contenitore era la superficie al 92%), filo e riflesso sul bordo cominciano alla cima
-del foglio, sopra la maniglia, e lo scrim è quello dei modali di vetro, nero al 12% sul chiaro e al 20% sullo scuro (era
-il 42%). Un vetro dipinto dentro il foglio si posa come vetro annidato. Non chiede il modello: con `Classic` e sotto
-Android 13 resta così, con l'ombra di prima ([vetro.md](vetro.md), «Il vetro dipinto»).
+del foglio, sopra la maniglia, e lo scrim è quello dei modali di vetro, nero al 12% sul chiaro e al 20% sullo scuro
+(nella 3.x era un nero al 42%). Un vetro dipinto dentro il foglio si posa come vetro annidato. Il foglio di piattaforma
+c'è solo **senza host**: il caso normale di un'app, con un `FluidGlassModalHost` alla radice, apre il foglio di vetro
+dell'host, il cui scrim era e resta il 12/20%. Nella galleria, che ha l'host, il foglio e l'avviso di piattaforma si
+vedono nella pagina «Vetro dipinto» (`--es gallery.page painted`). Sceglie il materiale come ogni
+altro vetro: con `Classic`, sotto Android 13 o con le sorgenti rifiutate il foglio di piattaforma è per intero quello
+della 3.x, contenitore al 92%, scrim e dipinto di prima, nessuna ombra ([vetro.md](vetro.md), «Il vetro dipinto»).
 
 `FluidGrabber` è la maniglia: capsula 36×5 dp al 18% di `onSurface` (quella di Material è quasi il doppio, ed è la prima
 cosa che tradisce un foglio). Il foglio di vetro la mette da solo.

@@ -3,6 +3,8 @@ package dev.antigravity.fluidengine.sample
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.foundation.AccentMode
+import dev.antigravity.fluidengine.sample.painted.PaintedLaunch
+import dev.antigravity.fluidengine.sample.painted.PaintedOpen
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -194,5 +196,15 @@ class GalleryMatrixPureTest {
     }
     // Una voce spiega la matrice stessa.
     assertTrue(items.any { it.area == TryArea.StateMatrix })
+  }
+
+  @Test
+  fun `la pagina del vetro dipinto si apre da riga di comando, col foglio o l'avviso gia' aperti`() {
+    assertEquals(GalleryPage.Painted, (launch("gallery.page" to "painted").stack().last() as GalleryEntry.Page).page)
+    assertEquals(PaintedOpen.Sheet, PaintedLaunch.parse(mapOf("painted.open" to "sheet")::get))
+    assertEquals(PaintedOpen.Sheet, PaintedLaunch.parse(mapOf("painted.open" to " Foglio ")::get))
+    assertEquals(PaintedOpen.Alert, PaintedLaunch.parse(mapOf("painted.open" to "avviso")::get))
+    assertEquals(PaintedOpen.None, PaintedLaunch.parse(mapOf("painted.open" to "boh")::get))
+    assertEquals(PaintedOpen.None, PaintedLaunch.parse(mapOf<String, String>()::get))
   }
 }

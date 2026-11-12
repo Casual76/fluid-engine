@@ -88,7 +88,7 @@ L'engine è un livello visivo e tattile; i suoi difetti veri non stanno nel comp
   «Parità» (`parity`, con `parity.scene piatto|testo|foto`, `parity.theme`, `parity.breathe on`, `parity.model`:
   la stessa forma da `glassSurface`, Fluid-physics ferma, vetro dipinto, pillola e goccia, fianco a fianco; logcat
   `FluidParita`). Le manopole del profilo del vetro si danno con `--es gallery.tune "chiave=valore,…"` (fra cui quelle
-  del viaggio: `travel`, `travelclear`, `travelbend`, `travelneck`, `travelclip`; elenco in `componenti/vetro.md`,
+  del viaggio: `travel`, `travelclear`, `travelbend`, `travelneck`, `travelclip`; e `knobrim=on`, che rimette filo e riflesso sul pomello a riposo; elenco in `componenti/vetro.md`,
   «La diagnostica»), il livello di API simulato con `--es gallery.api 32`.
 - **Il banco del vetro** (`tools/glassbench/`): rende sul PC gli shader veri dalle scene scritte dalla ricetta e
   confronta con le immagini di riferimento (`glassbench.py compare --golden classic|liquid`); il rivelatore di scatti

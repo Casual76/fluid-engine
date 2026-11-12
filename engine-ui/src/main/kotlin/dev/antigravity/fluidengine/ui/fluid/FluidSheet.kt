@@ -42,7 +42,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInParent
@@ -136,7 +139,7 @@ fun FluidSheet(
     onDismissRequest = onDismissRequest,
     // L'ombra del vetro, fuori dal ritaglio del foglio (il `modifier` sta prima della `Surface` del foglio). Non
     // segue lo scatto del gesto indietro predittivo, che Material applica dentro: si vede appena, sopra lo scrim.
-    modifier = if (liquid) modifier.glassShadow(sheetShape, GlassDefaults.panelOptics()) else modifier,
+    modifier = if (liquid) modifier.paintedSheetShadow(sheetState, sheetShape) else modifier,
     sheetState = sheetState,
     shape = sheetShape,
     // ModalBottomSheet owns a separate platform window, so it cannot sample a FluidScreen's
@@ -192,6 +195,39 @@ fun FluidSheet(
     }
   }
 }
+
+/**
+ * L'ombra del foglio dipinto, **dove sta il foglio** (F1B, chiusura).
+ *
+ * Il `modifier` di `ModalBottomSheet` sta prima dello spostamento con cui Material porta il foglio alla sua
+ * altezza: un'ombra messa li' e basta si disegnava in cima alla finestra, grande quanto il foglio, ferma per
+ * tutto il tempo in cui il foglio era aperto (visto sul tablet nella sessione finale di F1B). Qui il disegno
+ * dell'ombra e' spostato dello scostamento del foglio, letto in disegno (segue il foglio fotogramma per
+ * fotogramma senza ricomporre), e cio' che viene dopo nella catena, cioe' il foglio, e' riportato indietro
+ * della stessa misura: resta dove Material lo mette.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Modifier.paintedSheetShadow(sheetState: SheetState, shape: Shape): Modifier {
+  val offset = remember(sheetState) {
+    {
+      // `requireOffset` lancia finche' il foglio non ha una misura: fino ad allora l'ombra sta fuori schermo.
+      val y = try {
+        sheetState.requireOffset()
+      } catch (_: IllegalStateException) {
+        Float.NaN
+      }
+      if (y.isFinite()) y else SheetShadowAway
+    }
+  }
+  return this
+    .drawWithContent { translate(top = offset()) { this@drawWithContent.drawContent() } }
+    .glassShadow(shape, GlassDefaults.panelOptics())
+    .drawWithContent { translate(top = -offset()) { this@drawWithContent.drawContent() } }
+}
+
+/** Dove sta l'ombra del foglio dipinto finche' il foglio non ha una posizione: ben oltre il fondo di ogni schermo. */
+private const val SheetShadowAway = 100_000f
 
 /** Lo scrim del foglio di piattaforma col vetro di prima ([FluidGlassModel.Classic]): quello della 3.x. */
 private const val ClassicSheetScrimAlpha = 0.42f

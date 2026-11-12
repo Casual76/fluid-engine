@@ -121,7 +121,7 @@ FluidFormPresets.fromFreehand(points, rounding = 6f)      // tratto a mano liber
   povero, mai rotto). Col materiale nuovo (`Liquid`: «Comportamento» di `fluidPhysicsSurface`, sotto) il ponte esiste **solo in viaggio**:
   a riposo i pezzi di un gruppo sono staccati del tutto, anche quando si toccano, e il collo nasce e si scioglie dentro
   il viaggio (`GlassLiquidTravel.neck`): nasce nella prima metà e si spegne nell'ultimo 32% (`GlassLiquidNeck`), senza
-  cuspidi a V. Un viaggio interrotto riparte dal collo che c'era. Aperto: vita e ponte durano circa 33 ms, contro gli
+  cuspidi a V. Un viaggio interrotto riparte dal collo che c'era. Aperto: vita e ponte durano circa 25–33 ms, contro gli
   oltre 150 della 3.1.2, perché il collo segue il progresso e non il tempo che manca alla posa. Col vetro di prima a `Full`
   due pezzi vicini restano saldati anche fermi. Il raggio effettivo si spegne man mano che i pezzi si compenetrano, perché `smin(a, a, k) = a − k/4`
   gonfierebbe l'unione di un quarto del raggio e alla posa l'alone sparirebbe di colpo.

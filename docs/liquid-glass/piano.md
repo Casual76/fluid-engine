@@ -1556,6 +1556,84 @@ si legge male in italiano, torna a 12 sp con una riga in `FluidMetrics`.
 conferma sul pannello vero delle scelte di F1A; con le icone nuove, se il vetro del tasto a 44 dp sembra ancora piccolo
 (44 / 46: R6 lo lascia aperto, e 46 alza la riga dei controlli).
 
+**Chiusura di F1B (2026-11-12).** La fase è chiusa sul suo scopo: ciò che aveva una ricetta sua (superfici di
+Fluid-physics, goccia dei controlli e delle voci, pillola della tab bar, vetro dipinto, notifica) lo disegna il materiale
+unico, e fra fermo e in viaggio il vetro non cambia più aspetto. I viaggi d'oro **non** sono accettati col protocollo qui
+sopra (0 su 18): F1B veste i viaggi di oggi senza cambiarne il comportamento, e ogni motivo ha la sua fase nella tabella
+dei difetti qui sotto. Prove, in ordine: `artifacts/liquid-glass/sessioni/S2.md` (prima sessione sul tablet e tabella di
+accettazione); `artifacts/liquid-glass/review/F1B/` (quattro critici, giro 0: nessun bloccante, F1B-a, -b, -d, -e sotto
+il minimo); **un solo giro di correzione**, per decisione di Alessio, senza un secondo giro di critici;
+`artifacts/liquid-glass/sessioni/F1B-finale.md` (la sessione finale sul tablet, che verifica il giro di correzione).
+Verifica dell'orchestratore sui sorgenti finali: `engine-ui` 5.721 test, 0 falliti, 1.696 saltati (i percorsi noti e dichiarati della robustezza); `sample` 730 test, 0 falliti, 16 saltati; banco `liquid` 38/38,
+`classic` 13/13.
+
+Chiuso e provato sul tablet: nessuno scalino di velo da fermo all'apertura e alla chiusura dei menu (16 analisi, due
+temi); la barra arriva e torna col suo vetro, e il disco del tasto indietro c'è sempre fra due pagine (0 ms di assenza,
+erano 84–108); il segmentato cambia aspetto una volta sola; l'indice di sezione non fa scorrere la pagina; etichetta e
+icona della scheda scelta leggibili a contrasto di sistema alto (etichetta da 2,9:1 a 8,8:1; l'icona corretta alla
+chiusura con lo stesso inchiostro); il tasto dipinto vale quanto il vetro vero nella pagina «Parità» (240,4 contro 240,7);
+lo scrim del vetro dipinto è quello deciso (12% chiaro, 20% scuro; 42% con `Classic`, che resta il dipinto della 3.x
+intero); l'ombra del foglio dipinto sta attorno al foglio (alla sessione finale era disegnata in cima alla finestra:
+corretta alla chiusura, `ui/fluid/FluidSheet.kt`, `paintedSheetShadow`); il compilatore degli shader del tablet accetta
+tutti i programmi (3 test strumentati).
+
+**Decisioni di Alessio alla chiusura (2026-11-12).**
+
+- **Il collo liquido** fra due pezzi è uscito troppo breve (~25 ms, alla partenza ~75 ms ma con punte): «è da migliorare,
+  ma mi va bene farlo insieme alla prossima fase per non rallentarci troppo». Diventa il pacchetto **F1B.9**, che gira
+  **in parallelo a F2** (perimetri disgiunti) e anticipa la parte «collo» di F3.3.
+- **Il costo delle trasformazioni grandi** (più a scatti di prima) «aspetta la fase di ottimizzazione», anche per il tasto
+  che diventa pagina intera: «per ora puntiamo alla qualità». Va in **F7** coi numeri qui sotto come traguardo. Fino a
+  F7 non si propongono prove di ottimizzazione.
+- **Il vetro in viaggio**: B, «un po' limpido» (tabella delle scelte di F1A, ultima riga).
+- **Il pomello dell'interruttore** a riposo è senza filo grigio (variante applicata di serie dall'orchestratore e mostrata;
+  Alessio non ha obiettato). La manopola di debug `knobrim=on` lo rimette. Conseguenza da mostrargli in F6.3: il pomello
+  del cursore a riposo su pagina chiara si stacca poco (1,14:1; la posizione la dice la pista).
+
+**F1B.9 · Il collo che dura** (nuovo; Opus; parte con F2.1 e F2.4). Il collo fra due pezzi che si separano o si uniscono
+vive per un tempo suo, regolato sul **tempo che manca alla posa** e non sul progresso del viaggio (oggi muore nell'ultimo
+32% del progresso, `fp/FluidPhysicsEffects.kt` `physicsNeckBlend`, e con la molla dei tasti dura 3 fotogrammi); senza
+punte, senza la V al primo contatto di (c); a riposo i pezzi restano separati del tutto (decisione dell'11 novembre).
+Perimetro: `fp/FluidPhysicsEffects.kt` (solo il collo), `fp/FluidPhysicsGeometry.kt` (solo il collo), un file nuovo
+`fp/FluidPhysicsNeck.kt` coi suoi numeri e i suoi test; `gf/GlassLiquidProfile.kt` solo nelle righe di `GlassLiquidNeck`
+e solo prima che parta F2.2, che ha quel file nel suo perimetro. Bersaglio: l'ordine delle fasi di R4 B2 (d), cioè un
+collo che si strozza coi lobi tondi e si rompe una volta sola, ben prima del riposo (in Apple ≈200 ms prima, fiducia
+media: la clip è rallentata); come durata, almeno quella della partenza (~75 ms, che ad Alessio piaceva come animazione),
+senza le sue punte. Prova: `glassmotion` sulle tracce di (a) e (c), poi le riprese di (a) e (c) nei
+due temi nella sessione S3, con un rallentatore partenza | F1B | F1B.9 per Alessio.
+
+**Difetti aperti e fase che li chiude.** Le misure sono della sessione finale; «partenza» è l'engine prima di F1B.
+
+| difetto | misura | fase |
+|---|---|---|
+| collo liquido breve in (a) e (c); in (c) una V per un fotogramma al primo contatto | ~25 ms, partenza ~75 ms con punte | **F1B.9** |
+| cucitura debole al contatto fra due pezzi, in (a) e (c) | 1–2 fotogrammi | F3.3 |
+| ombra sotto un pannello di Fluid-physics più scura di quella dei pannelli vicini (pagina «Parità») | 230 contro 241 | F3.3 |
+| robustezza della trasformazione universale: 1.696 percorsi noti e dichiarati su 3.956 (`MorphRobustnessKnownTest`): 72 anello non valido verso estremi degeneri, 538 cambio istantaneo alla ridirezione (`fp/FluidPhysicsState.kt`), 964 sola soglia d'accelerazione dell'oracolo, 56 sicura di velocità della lente, 66 posa immediata attesa; due sagome «arrotolate» in scuro (concavità 4,7–5,9%, senza incroci); rettangolo chiaro, candidato `gf/GlassShadow.kt` (maschera d'ambiente dell'anello) | nessuna caduta, tutti arrivano | F3.3 |
+| costo di (c) gruppo → menu, (f) menu contestuale, (h) card → foglio: tre o quattro volte la partenza; causa misurata: la cattura a piena risoluzione della superficie in viaggio (`PhysicsLiquidCaptureScale = 1f`) | vedi F7, «Debito di costo ereditato da F1B» | **F7** |
+| `Light8` riscaldato all'avvio ma mai disegnato (`gf/GlassWarmUp.kt`) | – | F7 |
+| barra fra pagine: buco e lampeggio delle icone al cambio, nascita da pallina, gesto indietro; `barPieceJourney` porta 6 pezzi, non 8 (`ui/page/FluidPageMotion.kt`) | – | F4A |
+| pillola della tab bar: icona ed etichetta doppie per un fotogramma a ogni cambio di scheda (c'era già alla partenza) | 1 fotogramma, ~40 px di scarto | F4B.3 |
+| pillola premuta: salto di velo in un passo in scuro; etichetta sotto la pillola premuta in scuro; pillola a pressione zero non identica al riposo | +19 livelli; 2,9:1; +7…+14 livelli | F4B.3 |
+| fermata a ogni cambio di scheda (la galleria ricompone la pagina; `TabPuckLeadMillis` 160): serve un aiuto dell'engine per tenere vive le pagine delle schede | 175–184 ms | F4B, poi F7 |
+| ricerca (e): la barra che si apre avanza a passi irregolari (fotogrammi ripetuti); il testo del campo si legge male sul fondo carico e non entra sfocato | 20% di passi lunghi | F4B |
+| menu: bagliore della pressione perso al passaggio nel clic lungo in scuro (`ui/fluid/FluidMenuLayer.kt` disegna la sagoma senza `pressState`); bordo doppio di «Ordina» nei primi ~110 ms (non diagnosticato); sottotiro alla chiusura (`FluidMenuJourney`, c'era già); alla chiusura del menu contestuale la pagina cambia velo in un fotogramma (c'era già alla partenza) | −8,5%; +17 chiaro, −15 scuro | F5A |
+| notifica in uscita: due o tre contorni annidati nell'angolo; angolo quadrato dell'ombra sotto l'angolo tondo | ~60 ms; 3–6 livelli | F5B |
+| tasto annidato nella notifica chiara uguale al pannello; etichetta della scheda scelta sopra una foto in scuro; debito di leggibilità di F2-e | 4,4:1 | F2 |
+| mezzaluna specchiata al bordo della lente (`glassCircleMap`, pendenza infinita al bordo); lente meno forte di Apple | 1,29× contro ~1,6× | F6.3 |
+| il velo di contrasto della barra di navigazione di Android scurisce il fondo dei fogli: oggi lo spegne solo la galleria, serve un aiuto dell'engine | – | F3 |
+| bolla della chat e compositore di `engine-ai-ui`: la galleria non li raggiunge, mai visti sul tablet col materiale nuovo | – | F2.6 (pagina della galleria) |
+
+**Limiti dello strumento** (da togliere prima della prima fase che deve accettare un viaggio d'oro, F3): su fondi del
+tutto velati ((f), (h), Expand, pillola premuta) la sagoma non è misurata; i riposi sovrapposti di (a) e (c) non danno
+salti né pezzi fuori posto; le curve non sono confrontate in automatico con gli intervalli di R4; gli scalini sotto 6
+livelli non si vedono. Un rilievo della sessione finale è stato tolto dall'orchestratore dopo aver riguardato le strisce:
+«la barra della ricerca alterna fra due larghezze» era la lettura delle due colonne del collage come una sola; la barra
+avanza a passi irregolari, ed è la riga della ricerca nella tabella.
+
+**Scelte di gusto previste dopo S2 e non poste.** Il superamento della goccia resta com'è e si richiede in F6.3, dove la
+goccia cambia; il vetro del tasto resta a 44 dp e si richiede in F4A, con le barre nuove.
+
 ---
 
 ### F2 · Adattività e bordo dello scorrimento
@@ -1640,7 +1718,10 @@ non si fa.
 | F2.6 | Galleria, tracce (`giro`, `bordo`), schede | `sample/…/adaptive/`, `sample/…/GalleryNav.kt`, `test/glass/field/trace/`, `ref/componenti/vetro.md`, `ref/componenti/schermata.md` | F2.5 | G | Opus |
 
 F2.4 non dipende dall'adattività e parte insieme a F2.1: lavora sul banco e chiede Gradle solo alla fine, per compilare il
-Kotlin nuovo (la regola di 6.0 vale anche per lui). `FluidScreen.kt` lo tocca solo F2.5. La pagina della galleria di F2.6
+Kotlin nuovo (la regola di 6.0 vale anche per lui). Con loro parte **F1B.9, il collo che dura** (chiusura di F1B): perimetro
+in `fp/`, disgiunto da tutta F2 salvo le righe di `GlassLiquidNeck` in `gf/GlassLiquidProfile.kt`, che tocca solo prima
+di F2.2; le sue riprese entrano in S3. Modelli: la colonna qui sopra è del piano iniziale; per la regola dell'11 novembre
+(«meno Fable») i pacchetti di F2 partono con Opus 5.5 al massimo sforzo, e Fable resta per ciò che si rivela più difficile. `FluidScreen.kt` lo tocca solo F2.5. La pagina della galleria di F2.6
 ha anche la prova «bianco → nero»: un vetro fermo sopra un fondo che cambia colore senza muoversi.
 
 **Risultati osservabili.** Una capsula che passa da una foto chiara a una scura gira corpo e icone con ritardo e
@@ -2017,6 +2098,14 @@ tastiera che arriva in ritardo, con la rotazione, con il gesto indietro. Il tipo
 nota, perché la DSL deve nominarlo una volta sola. Le idee per **altri elementi dello stesso genere** (parti
 dell'interfaccia, non della pagina, che si trasformano), da creare o da rivedere, le raccoglie la ricerca leggera **R8**
 (`ricerca/componenti-dinamici.md`): Alessio decide quali entrano, e se sono molti si apre una fase dedicata dopo F5B.
+
+**Osservazione di Alessio sull'altezza del campo (2026-11-12, guardando le strisce della ricerca).** Il campo di testo
+che si apre dal tasto di ricerca «è troppo alto»: oggi tiene l'altezza del tasto, che è grande perché è un tasto; per un
+campo in cui si scrive vuole «qualcosa di più basso, che è più naturale da vedere». Quindi nel viaggio (e) l'altezza
+**cambia**: dal tasto (44 dp) a un campo più basso, con la misura presa dai campi di ricerca di Apple (R6 e
+`riferimenti.md`) e mostrata ad Alessio in due o tre varianti; la zona di tocco resta di 44 dp anche se il vetro è più
+basso. È una cosa piccola: senza fretta, e basta un modello leggero (parole sue: «non serve Opus per una roba del
+genere»).
 
 **Osservazione di Alessio sulla ripresa di partenza della ricerca (2026-11-11, viaggio (e), fondo carico in chiaro):**
 «il testo non si vede perfettamente e non compare con il motion blur, però mi pare non male». Due bersagli per questo
@@ -2554,6 +2643,23 @@ non imposto da un bilancio (e in quel caso passa da Alessio come confronto).
 8. **sorgenti a schermo intero registrate solo se qualcuno le legge** (il candidato 2.14 mai fatto,
    `ref/componenti/vetro.md:600-605`): è il costo noto più grande dell'S25 (47 passate GPU, misura del 2026-10-13);
 9. **bordo dello scorrimento**: tenuta della cattura, metà risoluzione, striscia solo quando il contenuto è sotto.
+
+**Debito di costo ereditato da F1B (decisione di Alessio, 2026-11-12).** Le trasformazioni grandi col materiale unico
+costano tre o quattro volte quelle di prima, perché la superficie in viaggio si cattura a piena risoluzione
+(`PhysicsLiquidCaptureScale = 1f`: luce e filo sono nel corpo). Prova già fatta: a metà risoluzione (c) passa dall'11,8%
+al 3,4% di fotogrammi lenti (GPU al novantesimo percentile da 16 a 8 ms); spegnendo l'ombra in corpo, 5,4%. Il rimedio
+atteso è la luce di nuovo su un nodo suo, o la cattura ridotta col filo fuori dal corpo. **Traguardo: tornare ai numeri
+della partenza**, sul Tab S9, con `dumpsys gfxinfo` sulle stesse prove (`moto/f1b/partenza/strumenti/lotto-gfx-cfh.sh`):
+
+| prova (tema scuro) | partenza: lenti · p50/p90/p95 ms | dopo F1B |
+|---|---|---|
+| (c) un gruppo di tasti che diventa un menu | 3% · 14/18/20 | 11% · 15/32/34 |
+| (f) il menu contestuale | 5% · 13/25/30 | 27% · 9/65/73 |
+| (h) la card che diventa foglio | 13% · 18/30/32 | 24% · 18/44/48 |
+| il tasto che diventa pagina intera | da misurare quando esiste (F5B) | – |
+
+Lo stesso vale per i passi lunghi dentro i viaggi (oltre 12,5 ms): (c) dal 4% al 31%, (f) dal 22% al 54%, (h) dal 26% al
+55%. Fino a F7 il costo non si tocca e non si porta ad Alessio: «per ora puntiamo alla qualità».
 
 **Bilanci.** Non si inventano adesso: si fissano in S5 sulla baseline, con due regole. (i) Nessuno scenario è peggio della
 3.1.2 misurata **sullo stesso dispositivo** con l'APK di riferimento conservato in F0 (sul tablet in S1, sul telefono in

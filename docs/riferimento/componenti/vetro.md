@@ -541,7 +541,7 @@ aprire la schermata da guardare.
   risoluzione, perché luce e contorno stanno nel corpo; a metà risoluzione il gruppo che diventa menu torna al 3,4%, ma
   il filo scatterebbe al passaggio di consegne. È il debito della fase di ottimizzazione. Il costo di una pagina piena
   di vetro e su un'altra GPU non è misurato.
-- **Difetti aperti visti sul tablet** (sessione di chiusura): il collo fra due pezzi che dura circa 33 ms (contro
+- **Difetti aperti visti sul tablet** (sessione di chiusura): il collo fra due pezzi che dura circa 25 ms (contro
   oltre 150 nella 3.1.2: segue il progresso del viaggio, non il tempo che manca alla posa); il costo delle trasformazioni
   contestuali (sopra); sul tema scuro il clic lungo su «Azione» che cambia corpo in un fotogramma (il bagliore della
   pressione sparisce al passaggio di consegne, come nella 3.1.2); il bordo doppio di «Ordina» nei primi 110 ms circa;
@@ -549,10 +549,13 @@ aprire la schermata da guardare.
   pillola della tab bar premuta, che a pressione zero non è identica a quella a riposo (sul banco +7 livelli sul testo
   chiaro, −3 sulla foto; sul tablet +14 in scuro); al bordo della lente della goccia sopra il testo una mezzaluna
   specchiata, dalla piega del campo che al bordo ha pendenza infinita; nella pagina «Parità» l'ombra sotto il pannello
-  di Fluid-physics più scura di 12 livelli. Corretti nel codice dopo quella sessione, **senza conferma sul tablet**: i
-  bordi inferiori impilati e il taglio a destra della notifica, l'etichetta della scheda scelta a circa 3,5:1 col
-  contrasto alto, l'icona di partenza doppia nella pillola cambiando scheda, il segmentato che cambiava aspetto quattro
-  volte, l'indice di sezione che faceva scorrere la pagina, il disco del tasto indietro fra due pagine.
+  di Fluid-physics più scura di 12 livelli. Confermati sul tablet nella sessione finale della
+  fase: la notifica con la larghezza ferma e un bordo solo (nell'angolo, in uscita, restano due o tre contorni per
+  circa 60 ms), l'etichetta e l'icona della scheda scelta col contrasto alto (8,8:1), il segmentato che cambia aspetto
+  una volta sola, l'indice di sezione che non fa più scorrere la pagina, il disco del tasto indietro fra due pagine,
+  l'ombra del foglio dipinto attorno al foglio. **Non corretta**: l'icona di partenza doppia nella pillola, per un
+  fotogramma a ogni cambio di scheda (c'era già nella 3.1.2). In più: alla chiusura del menu contestuale la pagina
+  cambia velo in un fotogramma (c'era già nella 3.1.2); l'etichetta sotto la pillola premuta, in scuro, è a 2,9:1.
 
 ### Il vetro dipinto
 

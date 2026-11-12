@@ -2821,11 +2821,14 @@ private fun SharedTransitionScope.ExpandedTabs(
             currentTabs.value.getOrNull(puckIndex)?.let { tab ->
                 // LOCAL CHANGE (F1B.4): sul materiale nuovo la pillola non e' piu' tinta d'accento, e la scelta
                 // la dicono pillola e colore del glifo (R6, come in iOS): l'icona e l'etichetta ridisegnate qui
-                // prendono `puckInk`, lo stesso inchiostro della riga nascosta che si vede quando la pillola e'
-                // premuta, cosi' il colore non salta fra riposo e pressione. Un'icona con la sua tinta scritta
-                // la tiene. Sul vetro di prima niente cambia.
+                // prendono l'inchiostro della riga nascosta che si vede quando la pillola e' premuta, cosi' il
+                // colore non salta fra riposo e pressione. Un'icona con la sua tinta scritta la tiene. Sul vetro
+                // di prima niente cambia.
+                // LOCAL CHANGE (F1B, chiusura): quell'inchiostro e' `puckTextInk`, lo stesso della riga nascosta, non
+                // piu' `puckInk`. A contrasto standard sono lo stesso colore; a contrasto di sistema alto `puckInk`
+                // restava l'accento tal quale e sul tablet l'icona scendeva a 2,9:1 accanto all'etichetta a 8,8:1.
                 CompositionLocalProvider(
-                    LocalContentColor provides if (liquidPuck != null) puckInk else LocalContentColor.current,
+                    LocalContentColor provides if (liquidPuck != null) puckTextInk else LocalContentColor.current,
                 ) {
                 // Must go through Tab, not just tab.icon(): Tab is a Column of
                 // icon THEN title, so drawing the icon alone centres it on the

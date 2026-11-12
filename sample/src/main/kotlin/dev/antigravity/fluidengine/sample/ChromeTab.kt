@@ -260,6 +260,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-icons"),
           onClick = { onOpen(GalleryPage.Icons) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Robustezza",
+          subtitle = "La serie fissa F1B.8: singole, poligoni e gruppi fino a otto pezzi",
+          modifier = Modifier.testTag("chrome-open-robustness"),
+          onClick = { onOpen(GalleryPage.Robustness) },
+        )
       }
     }
 

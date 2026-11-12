@@ -186,7 +186,7 @@ class FluidBetaGalleryTest {
   fun `le voci coprono ogni demo della 3_0, e ogni demo ha almeno una voce`() {
     val targets = allItems.map { it.target }
     // «Misure», «Materiale» e «Icone» sono strumenti per le sessioni sul dispositivo: non hanno una voce in «Da provare».
-    val tools = setOf(GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material, GalleryPage.Icons)
+    val tools = setOf(GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material, GalleryPage.Icons, GalleryPage.Robustness)
     GalleryPage.entries.filter { it !in tools }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
     }
@@ -422,6 +422,9 @@ class FluidBetaGalleryTest {
     GalleryPage.Material -> shown("adb logcat -s FluidMateriale", substring = true)
     // «Icone» (F1A.11), come «Materiale»: il segno e' la frase del sottotitolo che dice l'extra della sezione.
     GalleryPage.Icons -> shown("--es icons.section", substring = true)
+    // «Robustezza» (F1B.8), come «Materiale»: uno strumento per le sessioni sul dispositivo. Il segno e' il
+    // sottotitolo, che dice la sigla del pacchetto e il caso in corso.
+    GalleryPage.Robustness -> shown("F1B.8 ·", substring = true)
   }
 }
 

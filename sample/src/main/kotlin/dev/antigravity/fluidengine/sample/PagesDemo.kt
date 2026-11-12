@@ -70,6 +70,8 @@ class PagesDemoActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
+    // Come in GalleryActivity: niente velo di contrasto di sistema sotto la barra di navigazione.
+    if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
     setContent {
       FluidTheme(settings = remember { EngineSettings() }) {
         PagesDemo()

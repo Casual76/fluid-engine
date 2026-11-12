@@ -119,6 +119,10 @@ class GalleryActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
+    // Android, da 10 in su, sotto la barra di navigazione a tre tasti stende un velo di contrasto (un nero al 40%
+    // circa, su tutta la larghezza): sopra un foglio di vetro e' una fascia scura in fondo. La galleria disegna da
+    // se' fino al bordo, quindi lo spegne (F1B.5: misurato sul Tab S9 in tema scuro).
+    if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
     // Gli extra di lancio (pagina e matrice di partenza) li legge solo la build di debug: servono al giro di
     // verifica su emulatore, e la galleria pubblicata non ha scorciatoie nascoste.
     val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -292,6 +296,7 @@ internal fun Gallery(
               GalleryPage.Material -> MaterialPage(bottomInset, stage = fallbackBackdrop) { nav.back() }
               // Le icone del set e le taglie nuove (F1A.11): `icons.section`.
               GalleryPage.Icons -> IconsPage(bottomInset) { nav.back() }
+              GalleryPage.Robustness -> dev.antigravity.fluidengine.sample.robustness.RobustnessPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

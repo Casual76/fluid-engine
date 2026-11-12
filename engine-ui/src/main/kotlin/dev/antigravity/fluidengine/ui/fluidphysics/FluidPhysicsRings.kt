@@ -39,7 +39,11 @@ internal fun buildMatchedRings(from: FluidForm, to: FluidForm): MatchedRings {
     val cubicsStart = morph.asCubics(0f)
     val cubicsEnd = morph.asCubics(1f)
     check(cubicsStart.size == cubicsEnd.size && cubicsStart.isNotEmpty())
-    sampleMatchedCubics(cubicsStart, cubicsEnd)
+    sampleMatchedCubics(cubicsStart, cubicsEnd).also {
+      // F1B.8: Morph puo' accoppiare una concavita' con il lato sbagliato del pannello.
+      // Il ripiego gia' previsto per gli input degeneri serve anche per queste corrispondenze.
+      check(matchedRingsAreSimple(it)) { "Corrispondenza con incroci: uso il ripiego perimetrale." }
+    }
   }
   // Il Morph può rifiutare un input degenere (vertici coincidenti, aree nulle). La risposta non è
   // un crash a metà gesto: due anelli ricampionati per lunghezza d'arco, allineati sul punto più
@@ -48,10 +52,29 @@ internal fun buildMatchedRings(from: FluidForm, to: FluidForm): MatchedRings {
     val count = FluidFormPresets.FreehandVertices
     MatchedRings(
       count = count,
-      start = ringToArray(alignRingStart(fallbackRing(from, count))),
-      end = ringToArray(alignRingStart(fallbackRing(to, count))),
+      start = ringToArray(alignRingStart(ensureClockwise(fallbackRing(from, count)))),
+      end = ringToArray(alignRingStart(ensureClockwise(fallbackRing(to, count)))),
     )
   }
+}
+
+/** Controllo al decollo, mai nel disegno: campioni fissi della corrispondenza candidata. */
+private fun matchedRingsAreSimple(rings: MatchedRings): Boolean {
+  val n = rings.count
+  val p = FloatArray(n * 2)
+  fun cross(a: Int, b: Int, c: Int): Float =
+    (p[b*2]-p[a*2])*(p[c*2+1]-p[a*2+1])-(p[b*2+1]-p[a*2+1])*(p[c*2]-p[a*2])
+  for (step in 0..32) {
+    val t = step / 32f
+    for (k in p.indices) p[k] = rings.start[k] + (rings.end[k]-rings.start[k])*t
+    if (p.any { !it.isFinite() }) return false
+    for (i in 0 until n) for (j in i+2 until n) {
+      if (i == 0 && j == n-1) continue
+      val b = (i+1)%n; val d = (j+1)%n
+      if (cross(i,b,j)*cross(i,b,d) < -0.001f && cross(j,d,i)*cross(j,d,b) < -0.001f) return false
+    }
+  }
+  return true
 }
 
 /** L'anello di una forma ferma, per il piano di riposo delle sagome libere. */

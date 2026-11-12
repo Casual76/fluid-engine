@@ -104,6 +104,11 @@ android {
     jvmTarget = engine.jvmTarget
   }
 
+  sourceSets {
+    // La pagina e' in main: il catalogo si compila qui, mai nel main di engine-ui.
+    main.java.srcDir project(':engine-ui').file('src/robustness/kotlin')
+  }
+
   testOptions {
     unitTests {
       // Robolectric legge manifest e risorse dell'app (i font del tema, l'attivita' di prova).

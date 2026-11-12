@@ -18,6 +18,11 @@ android {
     compose = true
   }
 
+  sourceSets {
+    // F1B.8: catalogo del banco condiviso col sample, escluso dalla libreria.
+    test.java.srcDir 'src/robustness/kotlin'
+  }
+
   testOptions {
     unitTests {
       // I test restano logica pura, ma il piano di resa di Fluid-physics porta con sé un

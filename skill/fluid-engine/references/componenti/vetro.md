@@ -19,10 +19,14 @@ già tutto questo: un'app che le usa non scrive mai `glassSurface`. Questa sched
 pannello nuovo, a chi deve capire perché un pannello si vede in un modo, a chi deve tenere sotto controllo
 il costo.
 
-**Dalla 4.0 i materiali sono due.** Da Android 13 le lastre di `glassSurface` e `glassControlSurface` sono
-disegnate di serie dal materiale nuovo, **`Liquid`**, che porta il vetro verso quello di iOS 27; il vetro di
-prima, **`Classic`**, resta com'era sotto Android 13, sulla fascia in alto, sullo scrim dei modali, dove un'app lo
-chiede, e (per ora) in tutto ciò che passa da Fluid-physics. La sezione che segue, «Due materiali», dice chi sceglie,
+**Dalla 4.0 i materiali sono due.** Da Android 13 il vetro è disegnato di serie dal materiale nuovo, **`Liquid`**,
+che porta il vetro verso quello di iOS 27: le lastre di `glassSurface` e `glassControlSurface`, le superfici di
+Fluid-physics ferme e in viaggio (menu, popover, finestra che si espande, barra fra le pagine), la pillola della tab
+bar e la goccia dei controlli e dei menu. **È un materiale solo**: tutte queste strade passano dalla stessa ricetta,
+e chi ha bisogno di qualcosa di diverso (la pillola un po' più scura, la goccia limpida) lo deriva dal profilo di
+serie senza numeri suoi. Il vetro di prima, **`Classic`**, resta com'era sotto Android 13, sulla fascia in alto,
+sullo scrim dei modali e dove un'app lo chiede. Il vetro **dipinto** di fogli e avvisi in un'altra finestra è
+derivato dalla stessa ricetta (sezione «Il vetro dipinto»). La sezione che segue, «Due materiali», dice chi sceglie,
 cosa cambia per un'app che aggiorna e com'è fatto il materiale nuovo. Il resto della scheda vale per tutti e due
 dove parla di API (sorgenti, fondali, `glassSurface`, ruoli, tinte, qualità, vetro su vetro, costo), e descrive il
 vetro di prima dove dà numeri di ottica: la catena qui sotto, la tabella dei ruoli, l'ottica, la regola della taglia
@@ -52,7 +56,8 @@ del vetro di prima e le alfa delle pellicole.
 | un pannello sopra uno sfondo che si muove, troppo caro | `resampleIntervalMillis`, `frozen`, `heldWhileMoving` (sezione «Il costo») |
 | vetro su ogni riga di una lista | **non così**: un `FluidListGroup` è un nodo, non dodici |
 | un'ombra sotto il vetro | **non così** `Modifier.shadow`: trapela dentro la sagoma. Il vetro disegna la propria; `glassShadow` (interna) per un antenato che ritaglia |
-| una goccia (pomello, pillola) con `GlassRole.Interactive` | **non così**: la goccia non legge i ruoli (`glass/interaction/GlassDrop.kt`), vedi [vetro-backdrop.md](vetro-backdrop.md) |
+| una goccia (pomello, pillola) con `GlassRole.Interactive` | **non così**: la goccia ha il suo vetro (`glassDrop` in `glass/interaction/GlassDrop.kt`, col materiale nuovo il profilo `GlassDropProfile`), vedi [vetro-backdrop.md](vetro-backdrop.md) |
+| vedere le strade del vetro una accanto all'altra | la pagina «Parità» della galleria (`--es gallery.page parity`) |
 | scalare un nodo di vetro per farlo «rimbalzare» | **non così**: il layer scalato rifrange ciò che non c'è più. La trasformazione sta nel `layerBlock` di `glassSurface` |
 
 ## Due materiali: `Liquid` e `Classic` (4.0)
@@ -92,13 +97,13 @@ si ottiene sempre, `Liquid` solo dove può esistere. Per ogni superficie decide 
    materiale nuovo ritaglia la sagoma con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno
    sbagliato: una `CutCornerShape`, che pure è una `CornerBasedShape`, usciva con gli angoli tondi, e resta `Classic`
    come ogni sottoclasse di `CornerBasedShape` scritta da un'app. Su un contorno generico il vetro di prima spegne la
-   lente e tiene il resto, che è il ripiego onesto. E la forma deve stare nel campo **alla sua taglia**: Compose riduce
-   due raggi sullo stesso fianco solo quando superano insieme il lato corto, quindi un angolo può scendere oltre mezzo
-   lato (`RoundedCornerShape(topStart = 80.dp, …)` su un lato corto di 100), e il campo, che sceglie l'angolo per
-   quadrante, no: quella forma, a quella taglia, resta `Classic` (motivo `GenericShape`). Si chiede al layout, e solo
-   per le forme con angoli diversi (`GlassFieldFit`): fino alla prima misura la superficie è `Liquid`, quindi una forma
-   che non ci sta si vede nuova per un fotogramma. Il fumetto di chat `22/22/22/6` è `Liquid` da 44 dp di altezza in su
-   e `Classic` a 40.
+   lente e tiene il resto, che è il ripiego onesto. **La taglia non conta più** (dalla 4.0, F1B.1): Compose riduce due
+   raggi sullo stesso fianco solo quando superano insieme il lato corto, quindi un angolo può scendere oltre mezzo
+   lato (`RoundedCornerShape(topStart = 80.dp, …)` su un lato corto di 100, il fumetto di chat `22/22/22/6` alto 40
+   dp), e il campo lo rende col suo ramo largo, col contorno di Compose al pixel. Quelle forme sono `Liquid` a ogni
+   taglia e non cambiano vetro quando crescono: in una chat c'è un vetro solo. (Fino alla prima stesura della 4.0
+   restavano `Classic` a quella taglia, e si misuravano al layout con `GlassFieldFit`, che oggi per ogni forma che il
+   campo sa rendere non misura niente.)
 5. **L'ottica ha uno spessore**: lente, bordo oppure ombra. Un'ottica senza nessuno dei tre è un velo che sfoca appena
    e scurisce, cioè lo **scrim di un modale**, e il materiale nuovo gli darebbe la smerigliatura e l'ombreggiatura di
    una lastra grande quanto lo schermo.
@@ -121,15 +126,20 @@ ha preso un materiale si legge nella diagnostica (sotto).
 | card e gruppi lista con `glass = true` (ruolo `Content`) | `Liquid`, senza ombra | lo stesso: il vetro sul contenuto resta disponibile, e dove un'app lo chiede è il materiale nuovo |
 | la barra in alto di `FluidScreen` (la fascia) | `Classic` | `FadeDown`, domanda 3 |
 | lo scrim dei modali | `Classic` | un velo senza spessore, domanda 5 |
-| popover, menu che nascono da un tasto, menu contestuale, finestra che si espande, barra fra le pagine **in viaggio**, ogni `fluidPhysicsSurface` | vetro di prima | passano da Fluid-physics, che ha shader suoi e non chiede il modello |
-| la pillola della tab bar, la goccia dei menu, i pomelli di cursore e interruttore | vetro di prima | chiamano `drawBackdrop` con una ricetta loro |
+| popover, menu che nascono da un tasto, menu contestuale, finestra che si espande, barra fra le pagine **in viaggio**, ogni `fluidPhysicsSurface` | `Liquid` al livello `Full`, fermi e in viaggio | Fluid-physics sceglie con `resolvePhysicsGlass` (le stesse domande, più il livello: a `Balanced` e `Lite` resta il vetro di prima). Corpo, luce e ombra sono quelli di `glassSurface`, con la luce e l'ombra nel corpo |
+| la pillola della tab bar e la riga nascosta che campiona da premuta | `Liquid` | il vetro della barra un po' più scuro, `GlassPuckProfile`, derivato dal profilo di serie |
+| la goccia: pomelli di cursore e interruttore, pillola del segmentato, indicatore del rail, lente dell'indice, goccia delle voci dei menu | `Liquid` | `glassDrop` con `GlassDropProfile`, derivato dal profilo di serie: faccia piena a riposo con la luce dei tasti, lente limpida sotto il dito |
+| il vetro dipinto: `fluidStaticGlassSurface`, il foglio e l'avviso di piattaforma (fuori da un `FluidGlassModalHost`) | la ricetta, **a ogni livello di API e anche con `Classic`** | non chiede il modello (disparità nota di F1B.6: sotto, «Il vetro dipinto») |
 | l'orologio (`engine-wear`) | `Classic` | `FluidWearTheme` lo chiede: il materiale nuovo sull'orologio è un incarico a parte |
 | tutto, sotto Android 13 o dove il compilatore rifiuta | `Classic` | domande 2 e 6 |
 
-**Lo stato di oggi si vede, ed è dichiarato.** Ciò che passa da Fluid-physics e le gocce sono ancora il vetro di prima,
-e portarli sul materiale nuovo è il lavoro della fase successiva del progetto. Fino ad allora sulla barra ancorata
-delle pagine e sui menu che nascono da un tasto il materiale cambia a vista fra riposo (nuovo) e viaggio (di prima), e
-la pillola, la goccia e i pomelli sono il vetro di prima sopra barre nuove.
+**Un materiale, fermo e in viaggio.** Fino alla 4.0 la barra ancorata delle pagine e i menu che nascono da un tasto
+cambiavano materiale a vista fra riposo e viaggio, e la pillola, la goccia e i pomelli erano un altro vetro sopra barre
+nuove. Oggi tutte le strade passano dalla stessa ricetta (`glassRecipe`), e un test le confronta sugli ingressi:
+`GlassRecipeParityTest` (una superficie fisica ferma riceve gli stessi numeri della `glassSurface` della stessa
+forma; i profili della pillola, della goccia e del dipinto seguono quello di serie; nessuna strada prende il materiale
+nuovo sotto Android 13 o con `Classic`, salvo il dipinto). La pagina «Parità» della galleria le mette una accanto
+all'altra sullo stesso fondo, per guardarle sul dispositivo.
 
 ### Un'app che aggiorna senza toccare il codice
 
@@ -275,9 +285,10 @@ pixel. `RoundedCornerShape` e `AbsoluteRoundedCornerShape` prendono i loro quatt
 la riduzione di Compose** (le coppie sullo stesso fianco, contro il lato corto) e quella di Skia (tutti insieme, se due
 raggi accanto superano un lato); le `ContinuousCornerShape` grandi la riduzione di Compose e poi il limite a mezzo lato
 dell'emettitore. Il campo rende esattamente quel contorno quando ogni angolo sta entro mezzo lato corto
-(`GlassSlabGeometry.fits`, provato contro `Shape.createOutline` in `GlassFieldOutlineTest`); altrimenti la superficie
-resta `Classic`. Una `CutCornerShape` e ogni altra forma restano `Classic` (fino al ritocco del profilo una
-`CutCornerShape` usciva con gli angoli tondi).
+(`GlassSlabGeometry.fits`, provato contro `Shape.createOutline` in `GlassFieldOutlineTest`), e dalla 4.0 (F1B.1) anche
+quando un angolo supera mezzo lato corto perché quello accanto gli lascia il posto: lì il nucleo prende un ramo largo,
+sempre col contorno di Compose. Una `CutCornerShape` e ogni forma che non è ad angoli tondi restano `Classic` (fino al
+ritocco del profilo una `CutCornerShape` usciva con gli angoli tondi).
 
 **La ricetta e il profilo.** Tutti i numeri che una lastra riceve li calcola una funzione pura, `glassRecipe`, da ruolo,
 ottica, taglia, lato del tema, intensità, profondità, qualità e pressione. I numeri **di gusto** (spessore e colore del
@@ -370,8 +381,10 @@ e mai nel percorso dell'avvio**, che è già il fotogramma più lungo che un'app
   mescola) e la luce nei suoi due disegni; e il percorso del filo principale (ricetta, catena, pennello), perché il
   disegno fuori schermo passa dalla stessa classe che disegna ogni lastra. Non scalda l'ombra, che sono due maschere
   sfumate e non uno shader: se serve, lo dirà la misura sul dispositivo.
-- **Per famiglie.** La lastra (`Slab`: un pezzo; la chiede oggi ogni albero `Liquid`) e i gruppi (`Group`: otto pezzi;
-  non la chiede ancora nessuno, perché ancora nessuno disegna gruppi). Una famiglia con una sorgente rifiutata si salta
+- **Per famiglie.** La lastra (`Slab`, due passi: corpo e luce a un pezzo; la chiede ogni albero `Liquid`) e i gruppi
+  (`Group`, tre passi: corpo a otto pezzi, luce a otto pezzi, corpo ad anello; la chiede una superficie di
+  Fluid-physics che si disegna col materiale nuovo, quando entra in composizione). La luce a otto pezzi oggi non la
+  disegna nessuno (Fluid-physics compone la luce nel corpo), ma la famiglia la scalda lo stesso. Una famiglia con una sorgente rifiutata si salta
   per intero; un disegno fuori schermo che fallisce ferma la sua famiglia per tutto il processo e lo scrive in logcat a
   livello errore (tag `FluidGlass`); una famiglia finita lo scrive a livello informazione.
 - **Cosa costa (misurato).** Sul Tab S9 i due programmi della famiglia `Slab` si scaldano in 7,7–8,1 ms di filo
@@ -395,13 +408,14 @@ fotogramma «a freddo», e quando un utente dice che l'app «la prima volta scat
 `FluidGlassDiagnostics` dice da fuori quale vetro c'è in scena e se il dispositivo lo sa disegnare. Le letture nuove
 della 4.0:
 
-- **gli shader**: `shaderSourceNames` elenca le tredici sorgenti AGSL dell'engine (nove del vetro di prima e di
-  Fluid-physics, quattro del materiale nuovo), `shaderVerdicts` i verdetti già chiesti in questo processo (`null` se
+- **gli shader**: `shaderSourceNames` elenca le quattordici sorgenti AGSL dell'engine (nove del vetro di prima e di
+  Fluid-physics, cinque del materiale nuovo: corpo e luce a un pezzo e a otto, corpo ad anello), `shaderVerdicts` i verdetti già chiesti in questo processo (`null` se
   la sorgente compila, altrimenti l'errore del compilatore), e `compileAllShaders()` le compila adesso tutte. Non
   dipendono da `enabled`. Un rifiuto scrive comunque una riga d'errore in logcat (tag `FluidGlass`);
 - **quale vetro, e perché**: con `enabled` acceso, `liveSurfaces` conta le superfici vive per materiale (è `Liquid`
-  una superficie che disegna la luce del materiale nuovo; tutto il resto, Fluid-physics e chi chiama `drawBackdrop` a
-  mano compresi, è il vetro di prima) e `liveModelChoices` le risposte vive della scelta per motivo
+  una superficie che porta la luce del materiale nuovo, Fluid-physics, pillola e goccia comprese quando lo prendono;
+  tutto il resto, chi chiama `drawBackdrop` a mano compreso, è il vetro di prima; il vetro dipinto non è una
+  superficie del nodo e non si conta) e `liveModelChoices` le risposte vive della scelta per motivo
   (`FluidGlassModelReason`, nello stesso ordine delle sei domande: `Liquid`, `ClassicRequested`, `ApiLevel`,
   `FadeDown`, `GenericShape`, `FlatVeil`, `ShadersRefused`). Le risposte non sono superfici: un tasto che resta
   `Classic` chiede due volte, l'ombra staccata di una barra chiede senza essere una superficie;
@@ -422,11 +436,14 @@ della 4.0:
   livello non si può simulare per tutta la vita del processo. Solo verso il basso, mai sotto 26; vale per ciò che entra
   in composizione dopo (si ricrea l'attività);
 - **le manopole del profilo**: `tuneLiquidProfile(context, "edge=ios26,blur=24")` sostituisce, per il processo, pezzi del
-  profilo del materiale nuovo (dodici manopole a varianti, con le lettere delle tavole di gusto: tutta la
+  profilo del materiale nuovo (quattordici manopole a varianti, con le lettere delle tavole di gusto: tutta la
   combinazione, `profile=shipped|before`; bordo, velo, ombra, il tondo, smerigliatura, lente, grandi, bordo scuro,
-  velo scuro dei tasti e dei grandi, il vetro annidato `nested=on|off`; sedici a numero, fra cui `nestedveil`,
-  `nestedlightveil` e `nestedshadow`), `liquidProfileKnobs` le elenca e `liquidProfileTuning` dice
-  quali sono in vigore. Le alternative alle scelte di serie restano lì: la smerigliatura `frost=wide` (la C, larga e
+  velo scuro dei tasti e dei grandi, il vetro annidato `nested=on|off`, il materiale in viaggio
+  `travel=off|soft|strong` e il ritaglio emulato delle superfici fisiche `travelclip=on|off`, che è una manopola di
+  diagnosi; diciannove a numero, fra cui `nestedveil`, `nestedlightveil`, `nestedshadow` e, per il viaggio,
+  `travelclear` (quanto nitido entra nella mescola a moto pieno, 0..1), `travelbend` (di quanto cresce lo spostamento
+  della lente, 0..3) e `travelneck` (per quanta parte del viaggio il collo nasce e muore, 0,05..0,5)),
+  `liquidProfileKnobs` le elenca e `liquidProfileTuning` dice quali sono in vigore. Le alternative alle scelte di serie restano lì: la smerigliatura `frost=wide` (la C, larga e
   mista) e `frost=mid` (la M, 8 dp) accanto alla D di serie (`frost=ios26`), il bordo scuro della tavola
   (`darkedge=faint`), l'ombra corta (`shadow=ios27`), il velo scuro dei grandi uguale a quello dei tasti
   (`darklarge=same`), il vetro annidato com'era prima della sua regola (`nested=off`), e tutta la combinazione di
@@ -475,7 +492,9 @@ aprire la schermata da guardare.
   riciclo di una lista e il ritorno dallo sfondo coincide con gli angoli, 0 pixel cambiati nel foglio; a 32 e a 30
   simulati l'app non cade e non prova shader; sopra il contrasto di sistema medio e alto le lastre tornano la pellicola
   densa. Visti lì anche i difetti: la barra fra le pagine resta **un fotogramma senza vetro** quando arriva (6 volte su
-  6, nei due temi di sistema); il materiale **cambia a vista** fra riposo e viaggio (sotto); sul tema chiaro il bagliore
+  6, nei due temi di sistema) e il materiale **cambia a vista** fra riposo e viaggio, tutti e due affrontati in F1B
+  (un materiale solo fermo e in viaggio; un segnale solo per il passaggio di consegne, che nei ritorni è ancora in
+  correzione: sotto); sul tema chiaro il bagliore
   del dito porta la faccia al bianco pieno, come quello di prima; la **tab bar scura è più chiara della 3.1.2** (corpo
   71 contro 47) e la smerigliatura di serie dietro una tab bar **lascia più contrasto di iOS 26** (deviazione standard
   del testo 19,0 contro 10,2: pareggiarla chiederebbe gli 8–9 dp della manopola `frost=mid`, ed è la conseguenza della
@@ -502,16 +521,63 @@ aprire la schermata da guardare.
   nell'inchiostro del testo salvo l'azione principale (l'invio nell'accento, la fine dell'ascolto in rosso). Le barre
   vicine hanno 26 dp in inchiostro. Nessuna icona Material nei componenti vale per `engine-ui`, `engine-ai-ui`,
   `engine-richtext` e la galleria, non per `engine-wear` (`FluidWearList` tiene `Icons.Rounded.Refresh`).
-- **Il fumetto di chat convive in due vetri.** Una forma con un angolo oltre mezzo lato corto alla taglia misurata resta
-  `Classic`: il fumetto `22/22/22/6` alto 40 dp (una riga) è il vetro di prima, da 44 dp in su il nuovo, e in una chat
-  stanno insieme finché il campo non sa rendere un angolo oltre mezzo lato (F1B.1).
-- **Fluid-physics, la goccia, la pillola della tab bar e i pomelli sono ancora il vetro di prima** (sopra), e il
-  materiale cambia a vista fra riposo e viaggio sulla barra ancorata e sui menu che nascono da un tasto.
+- **Il vetro dipinto non chiede il modello.** Con `FluidGlassModel.Classic` e sotto Android 13 il corpo e il bordo di
+  `fluidStaticGlassSurface`, del foglio e dell'avviso di piattaforma vengono dalla ricetta nuova, e la loro ombra
+  (`glassShadow`) da quella di prima: un'app che tiene `Classic` vede un foglio di piattaforma ibrido. È una prova nota
+  di `GlassRecipeParityTest`, da decidere (sotto, «Il vetro dipinto»).
+- **Il primo fotogramma di un viaggio fra un piccolo e un grande, sul tema scuro.** Il velo dei grandi di una superficie
+  fisica va da quello della partenza a quello dell'arrivo in 0,3 s, a passi del tempo del disegno; ma il primo disegno
+  dopo una pausa conta come un fotogramma a 30 Hz, quindi il primo fotogramma del viaggio (sagoma ancora quella ferma)
+  ha già fatto l'11% della strada fra i due veli: fino a 7 livelli nel colore del velo, 3–4 a schermo. Sul tema chiaro i
+  due veli sono lo stesso. È una prova nota di `GlassRecipeParityTest`.
+- **L'ombra di una superficie fisica si vede solo dentro il suo nodo.** Col materiale nuovo l'ombra è nel corpo, e il
+  layer del vetro è ritagliato sul nodo: un nodo stretto attorno alla sagoma la taglia. I palchi dell'engine grandi
+  quanto la finestra la contengono, e la barra fra le pagine allarga il suo nodo; un'app che mette `fluidPhysicsSurface`
+  su un nodo della taglia della forma lo deve allargare (o lasciare la superficie su un palco).
+- **La barra fra le pagine e il menu a goccia sono in correzione** (visto sul tablet dopo l'ombra unica della 4.0):
+  il passaggio di consegne della barra ha una regressione nei ritorni (non nei push), e il menu che nasce da un tasto
+  con la goccia costa di più col materiale nuovo che col vetro di prima. La regola del passaggio di consegne è in
+  [regole.md](../regole.md), «Il passaggio di consegne fra il vetro che viaggia e il vetro fermo».
+
+### Il vetro dipinto
+
+Un foglio (`FluidSheet`) o un avviso (`FluidAlert`) fuori da un `FluidGlassModalHost` stanno in un'altra finestra di
+piattaforma, dove non c'è niente da catturare, e il loro vetro è **dipinto**; lo stesso per `fluidStaticGlassSurface`,
+che un'app usa in quelle finestre. Dalla 4.0 il dipinto non ha numeri suoi: si calcola dalla ricetta di serie di un
+pannello modale (`GlassPaintedProfile.kt`) con le formule degli shader, quindi è lo stesso vetro del materiale nuovo
+in tutto ciò che un colore pieno può essere.
+
+- **Il corpo** è il colore pieno che il vetro vero ha sopra la pagina del tema (`colorScheme.background`) sotto lo
+  scrim: il velo con il suo ispessimento, la tinta, l'ombreggiatura verso il contorno. Su una pagina uniforme è esatto;
+  su una foto o su un testo il vetro vero cambia e il dipinto no, ed è la differenza dichiarata: un dipinto non finge
+  una pagina sfocata, e dal foglio non si legge più, nitida, la pagina dietro (prima il contenitore era la superficie al
+  92%). Il corpo del foglio lo dipinge il contenitore, che copre anche la maniglia.
+- **Il bordo**: sul chiaro il filo scuro sul perimetro e la riga chiara con l'alone in alto e in basso, sullo scuro il
+  filo chiaro e il riflesso, le stesse formule della luce su tratti della sagoma rientrata; il bordo del foglio comincia
+  alla sua cima, sopra la maniglia.
+- **L'ombra** è quella del vetro (`glassShadow`, le due maschere della ricetta).
+- **Annidato**: un vetro dipinto dentro un foglio o un avviso dipinti si posa come un vetro annidato (meno velo e meno
+  ombra), sopra il corpo del pannello e non sopra la pagina.
+- **Lo scrim** dei pannelli dipinti è quello dei modali di vetro: nero al 12% sul chiaro, al 20% sullo scuro
+  (`GlassPaintedScrim`, da cui legge anche `FluidGlassModal`). Il foglio di piattaforma aveva il 42%, l'avviso il velo
+  della `Dialog`.
+
+**Non segue il contrasto di sistema** e **non chiede il modello**: con `Classic` e sotto Android 13 resta derivato
+dalla ricetta, mentre l'ombra torna quella di prima (sopra, «I limiti dichiarati oggi»). Cosa farne (tenere il dipinto
+nuovo per tutti, o rimettere quello della 3.x dove il vetro è `Classic`) è una decisione aperta.
+
+**Come si verifica in un'app.** Nel codice: nessun foglio o dialogo con uno scrim proprio (`grep -n "scrimColor\|setDimAmount"`)
+o un fondo traslucido scritto a mano al posto di `fluidStaticGlassSurface`. A schermo: un foglio di piattaforma e un
+foglio dell'host abbassano la pagina dello stesso tanto, e il filo del foglio è lo stesso dei tasti.
 
 ### Per chi tocca il materiale
 
 Le regole, con il perché e il test che tiene ciascuna, sono in [regole.md](../regole.md): le sezioni della 4.0 «Il
-materiale nuovo: …» e «Gli shader del vetro: …». In breve:
+materiale nuovo: …», «Un materiale solo: …», «Il vetro dipinto e lo scrim: …» e «Gli shader del vetro: …». In breve:
+
+- **un materiale solo**: ogni strada del vetro passa da `glassRecipe`, e un profilo derivato (pillola, goccia, dipinto)
+  si scrive con `copy` dal profilo che riceve, dichiarando i soli numeri che lo distinguono: `GlassRecipeParityTest`
+  legge i tre file e fallisce su un numero nuovo non dichiarato;
 
 - **il vetro di prima non si tocca.** Tutto ciò che segue l'`if` di `glassSurface` è il ripiego e deve restare identico
   al pixel; un cambio d'aspetto lì è un cambio per ogni dispositivo sotto Android 13;
@@ -1157,6 +1223,8 @@ con più sfocatura che altezza); con le ottiche di serie e la lente accesa il pa
   `GlassDrawParityTest` (ciò che l'innesto passa agli shader è ciò che le scene scrivono, uniform per uniform, su tasto, capsula, tab bar, menu e pannello, chiaro e scuro, due densità), `GlassSceneExportTest` (le scene scritte dalla ricetta),
   `GlassTintModeTest` e `GlassDefaultsTest` (i tre modi, la tinta col colore cambiato, il contrasto alzato, le ottiche e le pellicole di prima invariate), `GlassCompatSignaturesTest` (le chiamate che le app usano compilano, e una tinta a tre argomenti resta la pellicola dipinta),
   `GlassFieldGeometryTest` e `ContinuousCornerFieldTest` (il campo e l'angolo continuo), `GlassShadowTest` (l'ombra a due maschere, anche rieseguita), `GlassWarmUpTest` (il riscaldamento), `ShaderSourceLintTest` (le sorgenti).
+  Le strade del materiale (F1B): `GlassRecipeParityTest` (una superficie fisica ferma = la `glassSurface` della stessa forma, su corpo, luce e ombra, entro un decimillesimo di dp; i capi di un viaggio = la superficie ferma; i profili derivati seguono quello di serie e i loro numeri propri sono un elenco chiuso; la tabella di verità modello × livello di API × livello di Fluid-physics per le cinque strade; due prove note e saltate, il dipinto che non chiede il modello e il primo passo del velo sul tema scuro),
+  `GlassPuckProfileTest`, `GlassDropProfileTest`, `GlassPaintedProfileTest` (ogni profilo derivato, contro le misure di Apple sul banco), `PhysicsLiquidTest` (Fluid-physics sul materiale nuovo).
   Nella galleria, in Robolectric: `GlassPathSelectionTest` (il percorso a ogni livello di API, il riscaldamento, il livello simulato) e `GlassNodeCountTest` (4 nodi e 3 layer, 3 e 2 senza ombra; il vetro di prima 5 nodi e 5 layer, di cui 3 dedotti dal codice dei nodi di Kyant che la diagnostica non conta). Sul dispositivo: `GlassShaderCompileInstrumentedTest`, `GlassNodeCountInstrumentedTest` (letture: `Liquid` 4 e 3, `Classic` 5 nodi e 2 layer, `Liquid` senza ombra 3 e 2) e `GlassNestingInstrumentedTest` (quattro alberi con il vetro dentro il vetro, composti davvero, nei due temi, con la regola dell'annidato accesa e spenta; più il fumetto di chat). Dopo la review, sul JVM: `GlassFieldOutlineTest` (il contorno del campo contro `Shape.createOutline`, le forme che restano `Classic` per un angolo oltre mezzo lato corto, il fumetto a due altezze, le forme ad angoli uguali mai misurate), `GlassNestedOnPanelTest` (la cattura che apre sempre con un'operazione, il pannello pieno che pubblica il suo colore, il materiale che resta pubblicato finché un pannello lo pubblica) e `GlassLiquidTraceExportTest` (la traccia del tocco col materiale nuovo).
 - **Non verificato dai test**: com'è il vetro. Gli host dei test non hanno fondale; sfocatura, lente, bordo e ombra si guardano in mano (dimensione D1 di `docs/10-coerenza.md`), e le tre costanti della taglia sono da giudicare su un dispositivo. Il materiale nuovo è misurato sul banco (`tools/glassbench`) e **visto su un solo dispositivo, un Tab S9** (vedi «I limiti dichiarati oggi»).
 

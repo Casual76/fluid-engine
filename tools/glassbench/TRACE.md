@@ -59,6 +59,11 @@ $t  = "artifacts\liquid-glass\moto\F5A\menu-apertura\trace.json"
 & $py $gm selftest              # le prove del banco su se stesso
 ```
 
+**Gli scatti, fotogramma per fotogramma**: `tools/glassbench/glassjerk.py`, il rivelatore di scatti, legge i
+fotogrammi di una traccia resa qui (o di una ripresa del tablet) e segnala da solo le discontinuità di sagoma, di
+materiale e di tempo (un fotogramma senza vetro, un cambio di materiale, un'ombra che compare, un pezzo che salta, un
+fotogramma lungo). Come si usa, le soglie e i limiti: [SCATTI.md](SCATTI.md).
+
 Opzioni comuni: `-o cartella` (di serie `artifacts/liquid-glass/moto/<phase>/<name>/`, con
 `prove` al posto della fase se la traccia non la dice; e' ignorata da git: fotogrammi e video non
 si tracciano), `--jobs N` (processi di rendering, di serie 2, al

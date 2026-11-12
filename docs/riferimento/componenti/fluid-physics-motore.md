@@ -9,6 +9,13 @@ comportamento di cose pubbliche (`FluidPhysicsState`, `Modifier.fluidPhysicsSurf
 senza garanzia di stabilità. Catalogo delle firme pubbliche: [../api/fluid-physics.md](../api/fluid-physics.md). Il materiale (ottica, ruoli, regola
 della taglia, `glassRimRecipe`, `glassShadowColor`) è di [vetro.md](vetro.md); i menu sopra il motore sono di [menu-modali.md](menu-modali.md).
 
+**Due materiali, un motore.** La geometria (piano di resa, transiti, goccia) è una sola. Il disegno no: al livello `Full`,
+da Android 13, dove nessuno chiede `Classic` e il compilatore accetta `GlassBody8ShaderString` e
+`GlassBodyRingShaderString`, la superficie si disegna col **materiale nuovo** (`Liquid`), cioè col corpo di
+`glassSurface` alimentato dal piano del motore (sezione «Il materiale nuovo», sotto); altrimenti col **vetro di prima**,
+gli shader SDF di questo package con bordo e ombra a parte (sezioni «Gli shader del vetro di prima» e «Materiale, bordo, ombra (il vetro di prima)»), al pixel
+com'era. Decide `resolvePhysicsGlass` (`FluidPhysicsTier.kt`), pura.
+
 ## Le tre discipline non negoziabili
 
 Ereditate dal contratto di `DrawBackdropModifier` e scritte in testa a `FluidPhysicsShaders.kt`. Un fotogramma sbagliato di
@@ -23,7 +30,8 @@ solito ne viola una.
    fotogramma senza costringere il layer a re-registrare. (Al tier `Balanced`, senza shader a mascherare, il clip torna la sagoma esatta:
    `FluidPhysicsSilhouetteShape.fastClipOutline` con `clipToBounds = false`.)
 
-Corollari che si pagano: il **padding della cattura non cambia mai** durante il morph (la sfocatura non supera mai l'altezza di
+Corollari che si pagano: il **padding della cattura non cambia mai** durante il morph (col materiale nuovo è un numero fisso per
+tutta la vita della superficie, `glassTravelPaddingDp`; col vetro di prima la sfocatura non supera mai l'altezza di
 lente che la copre: `max(0, sfocatura − altezza)` vale zero a ogni taglia e a ogni miscela, e sotto ¼ px è portato a zero per non
 rifare la cattura per puro arrotondamento: `physicsLensPadding`, `CapturePaddingSnapPx`); **a riposo l'istanza di `Shape` è una sola**
 (l'identità diversa invalida la cache dell'`Outline`, ed è voluta *solo* in viaggio); **uno shader di vetro nuovo accanto a
@@ -34,7 +42,9 @@ Apache-2.0 di Kyant (`LICENSES/AndroidLiquidGlass.md`).
 
 `PhysicsRenderPlan` è «tutto quello che serve a disegnare un fotogramma, in array riusati»: si riscrive, non si rialloca. L'unica
 allocazione per cambio di progresso è l'istantanea di `shape`, voluta. Contiene: `mode` (`PlanModeSlabs` 0 o `PlanModePoly` 1), fino a
-6 pezzi (rettangolo come centro+mezze misure, quattro raggi, raggio di fusione per pezzo), fino a 96 vertici di un anello, `soften`
+8 pezzi (6 fino alla 3.x; rettangolo come centro+mezze misure, quattro raggi, raggio di fusione per pezzo; per il materiale
+nuovo anche i raggi e il raccordo che il campo vede, `fieldRadii` e `fieldSmooth`, cioè la regola forma → piano di
+`glassSurface`, e quanto il collo è vivo, `fusion`, zero a riposo), fino a 96 vertici di un anello, `soften`
 (erosione del campo poligonale: `PolySoftenPx` 3 px, per sciogliere le faccette del campionamento), `silhouette` (il `Path` condiviso da tinta,
 bordo e maschera: *per costruzione raccontano la stessa sagoma*), i riquadri `bounds` (quello del corpo) e `contentBounds`
 (dove posare il contenuto), `contentClipRect`, `dropRest`/`dropReach`, `silhouetteRoundRect` (un `RoundRect` solo se la forma è davvero una
@@ -105,14 +115,53 @@ Vedi la descrizione d'uso in [fluid-physics.md](fluid-physics.md), «A riposo un
   a riposo niente cambia. Altezza +60%, spostamento +80%, sfocatura −45% (la sfocatura scende mentre l'altezza sale: il patto del margine regge per costruzione), cupola che si accende, frangia a 0,5, ingrandimento 3,5% (`liquidMagnify`).
 - Il gonfiore oltre l'1 e la partenza sgonfiata sotto lo 0 (`dropRestSlab`): `1 + gain·(t − 1)` per asse oltre l'1, `1 + gain·t` sotto lo 0 (con un minimo di 0,5) attorno al centro della partenza.
 
-## Gli shader
+## Il materiale nuovo (4.0)
+
+Col materiale nuovo il motore non ha shader suoi: dà il piano al corpo del materiale (`ui/glass/field/`), e la superficie
+è un gemello di `glassSurface` per una sagoma che può viaggiare (`PhysicsLiquidSurface`, in `FluidPhysicsEffects.kt`).
+
+- **Il programma.** Per lastre e gruppi il corpo a otto pezzi (`GlassBody8ShaderString`: `physicsFieldPlan` porta i pezzi
+  del piano nel `GlassFieldPlan`); per la goccia in viaggio e le sagome libere il corpo ad anello
+  (`GlassBodyRingShaderString`: `physicsRingField`, con la normale come media delle normali dei lati). Il nucleo a un
+  pezzo di `glassSurface` (`GlassBody1`) non lo usa: anche una lastra sola ferma passa dal nucleo a otto, perché ferma e
+  primo fotogramma del viaggio siano lo stesso programma.
+- **La ricetta** è quella di `glassSurface` (`physicsLiquidRecipe` chiama `glassRecipe`) per il ruolo, l'ottica mescolata
+  fra partenza e arrivo (`PhysicsMaterialSource`), il **lato corto** della sagoma (per un gruppo, quello del pezzo più
+  alto; per la goccia, la sagoma a riposo che insegue, non il contorno che oscilla), il tema e lo stato; la tinta di
+  partenza e d'arrivo danno due ricette mescolate campo per campo (`lerpGlassRecipe`), esatte ai capi; poi il materiale
+  di viaggio (`glassTravelRecipe`) al peso della lente in moto (`LiquidDrop.lens`, zero esatto a goccia posata). Il velo
+  dei grandi sul tema scuro va verso quello della forma d'arrivo a passo costante in 0,3 s (`PhysicsLargeVeil`).
+- **Luce e ombra nel corpo, sempre** (`lightInBody`): filo, riflesso e bagliore li compone il corpo, fermo o in viaggio; il
+  disegno della luce sul nodo non si fa. L'ombra è quella delle maschere a riposo di una lastra di quella taglia,
+  calcolata nello shader sulla sagoma di ogni fotogramma (`setBodyShadow`): una sola sui ponti, e visibile solo dentro il
+  nodo. `PhysicsRimRenderer`, `DropRimMesh`, `PhysicsShadowLayers` e `fluidPhysicsShadow` col materiale nuovo non si
+  montano.
+- **Il ritaglio emulato.** Una `glassSurface` è ritagliata sul suo nodo con l'antialias del ritaglio hardware; il palco di
+  Fluid-physics no. Il corpo lo emula (`nodeClip`, con il margine d'angolo delle lastre raccordate,
+  `glassNodeClipCorner`), così il pixel di contorno è quello di una `glassSurface`. La manopola di diagnosi
+  `travelclip=off` lo spegne.
+- **Il margine della cattura** è uno per tutta la vita della superficie (`glassTravelPaddingDp`: la sfocatura piena del
+  ruolo alla crescita massima dei grandi), e la cattura è a risoluzione piena (`PhysicsLiquidCaptureScale` = 1): filo e
+  riflesso sono nella cattura, e a risoluzione ridotta uscirebbero più molli della lastra a cui la superficie passa il posto.
+- **Il collo** esiste solo in viaggio (`travelFusion`, la durata in `GlassLiquidTravel.neck`): a riposo i pezzi sono
+  staccati del tutto; nel collo un contorno solo, senza piega (la cupola si spegne sull'asse fra due pezzi). Dove più
+  pezzi si fondono in uno, normale e centro si pesano dove i pezzi si sovrappongono (`pieceSoft`): niente cuciture nella
+  lente. Mentre la goccia si calma il campo dell'anello va verso quello della lastra che la sostituirà (`restBlend`).
+
+**Come si verifica.** `GlassRecipeParityTest` (ferma = la `glassSurface` della stessa forma; i capi di un viaggio = la
+superficie ferma; la tabella dei percorsi), `PhysicsLiquidTest`, `F1b2GeometryTest`, e sul banco le scene
+`tools/glassbench/scenes/f1b/riposo-contro-viaggio-*`, `gruppo-*`, `ponte-stretto-*`, `cuciture-*` (`compare --golden
+liquid`). **Se lo rompi**: uno scalino di velo, filo o ombra fra ferma e viaggio, due cuciture verticali in una fusione,
+un pixel di contorno più pieno di quello di una `glassSurface`.
+
+## Gli shader del vetro di prima
 
 Quattro sorgenti in `FluidPhysicsShaders.kt`, tutte AGSL costanti: `SlabGroupRefractionShaderString` e `PolyMorphRefractionShaderString`, e le due varianti con la frangia cromatica
 `SlabGroupDispersionShaderString`, `PolyMorphDispersionShaderString` (sette volte i campioni nella banda della lente: provate a parte e solo se le altre passano, e solo sopra la qualità 0,75 come in
 `glassSurface`). Il preludio SDF (`radiusAt`, `sdRoundedRect`, `gradSdRoundedRect`) deriva da quello del renderer vendored di Kyant, ri-dichiarato perché lì è `private`; la struttura della rifrazione (circleMap, banda
 di displacement al bordo, cupola) è la stessa: **lo stesso vetro anche mentre cambia forma**, più la maschera.
 
-- **Gruppo**: fino a `PhysicsMaxPieces` (6) rettangoli, ognuno con rettangolo, quattro raggi e raggio di fusione; il campo è lo smooth minimum dei campi, e il ponte è materiale che nessun path descrive
+- **Gruppo**: fino a `PhysicsMaxPieces` (8) rettangoli, ognuno con rettangolo, quattro raggi e raggio di fusione; il campo è lo smooth minimum dei campi, e il ponte è materiale che nessun path descrive
   → con più pezzi la **tinta sta nello shader** (`tintInShader`), non in un `drawPath`. Il raggio effettivo (`effectiveBlendRadius`) scala col varco con segno (`slabMinGap`): pieno da staccati, spento
   a compenetrazione.
 - **Poligono**: fino a `PhysicsMaxRingVertices` (96) vertici (64 per una sagoma libera, 96 per l'anello della goccia), con le normali mediate fra lati vicini su 4 dp (`PolyNormalSmooth`) per sciogliere lo spigolo fra due lati.
@@ -129,7 +178,10 @@ di displacement al bordo, cupola) è la stessa: **lo stesso vetro anche mentre c
   verdetto decide il tier: basta **una** sorgente di base rifiutata per fermare tutto il motore a `Balanced`, anche i gruppi il cui shader compila. Come si legge e
   cosa lo controlla: «Il livello che gira davvero», sotto.
 
-## Materiale, bordo, ombra
+## Materiale, bordo, ombra (il vetro di prima)
+
+Questa sezione descrive il disegno col vetro di prima. Col materiale nuovo materiale, bordo e ombra sono nel corpo
+(sopra, «Il materiale nuovo»); di qui valgono per i due solo `lerpGlassOptics` e `PhysicsMaterialSource`.
 
 - **Materiale** (`FluidPhysicsMaterial.kt`): `PhysicsMaterial` = ottica + due *pesi* (cupola e frangia), perché i `Boolean` di `GlassOptics` non si sfumano e uno shader prende `float`. `lerpGlassOptics` fa `a + (b − a)·f` (non il `lerp` di Compose,
   che fra due capi uguali sbaglia di un ulp: un'altezza un ulp sotto la sfocatura apre un margine di cattura di mezzo milionesimo di pixel, abbastanza per rifare la cattura); i due Boolean passano al capo d'arrivo a metà. `physicsLensUniforms` = *la formula di
@@ -163,8 +215,10 @@ riga che lo diceva era un `Log.w`. Tutto ciò che questa scheda descrive del `Fu
 non si era mai visto. La variabile ora è `flatSample`, e dalla 4.0.0 il livello che gira su SDK 33+ è `Full` dovunque il compilatore accetta le due sorgenti di base. La
 geometria non dipende dal livello, quindi sagome e tempi dei viaggi restano quelli di prima: cambia il disegno, e lo vedono le app senza aver cambiato una riga.
 
-**Come si legge il verdetto.** Ogni sorgente AGSL dell'engine (le quattro di Fluid-physics, le quattro del renderer di Kyant e il bagliore del tocco, nove, elencate in `GlassShaderSources` col nome della
-costante Kotlin) ha un verdetto suo, dato da `GlassFieldHealth` alla prima richiesta e tenuto per il processo.
+**Come si legge il verdetto.** Ogni sorgente AGSL dell'engine (le quattro di Fluid-physics, le quattro del renderer di Kyant e il bagliore del tocco, nove del vetro di prima, più le cinque del
+materiale nuovo: quattordici, elencate in `GlassShaderSources` col nome della costante Kotlin) ha un verdetto suo, dato da `GlassFieldHealth` alla prima richiesta e tenuto per il
+processo. Per il materiale nuovo Fluid-physics chiede `GlassBody8ShaderString` e `GlassBodyRingShaderString` (`GlassShaderSources.travel`): se ne cade una, la superficie resta al vetro
+di prima per intero; se cadono quelle di prima e le nuove compilano, il materiale nuovo si disegna lo stesso.
 
 - **In logcat**: un rifiuto è una riga a livello errore col tag `FluidGlass`, il nome della sorgente e il messaggio del compilatore con la riga; se la sorgente è di base,
   `FluidPhysicsShaderHealth` aggiunge una riga d'errore col tag `FluidPhysics` («Fluid-physics fermo a Balanced, senza lente ne' ponti: rifiutati […]») e una per la frangia
@@ -187,9 +241,10 @@ compilatore rifiuta ancora `flat`: si lancia a ogni sessione sul dispositivo. Un
 
 ## Se modifichi il motore
 
-1. **A riposo, bit identico.** Qualunque cosa cambi nel disegno di un fotogramma fermo cambia lo scalino di partenza e di arrivo. `RestStateDisciplineTest`, `DropPlanTest`, `FluidPhysicsMaterialTest` ne sono i guardiani.
+1. **A riposo, bit identico.** Qualunque cosa cambi nel disegno di un fotogramma fermo cambia lo scalino di partenza e di arrivo. `RestStateDisciplineTest`, `DropPlanTest`, `FluidPhysicsMaterialTest` (vetro di prima) e `GlassRecipeParityTest` (materiale nuovo: ferma = `glassSurface`, capi del viaggio = ferma) ne sono i guardiani.
+   Col materiale nuovo **non si scrive un numero del materiale qui**: la ricetta è `glassRecipe` col profilo di serie, e un cambio d'aspetto si fa nel profilo, per tutte le strade insieme.
 2. **Niente allocazioni per fotogramma** oltre l'istantanea di `shape`; array riusati; niente `Path.op` per fotogramma se non per i gruppi (e lì `mergePieceIntoSilhouette` esiste perché sotto-path separati farebbero tracciare al bordo *entrambi* i contorni di due pezzi sovrapposti: una doppia linea).
-3. **`PhysicsMaxPieces` = `FluidForm.Group.MaxPieces`, `PhysicsMaxVertices` = `FluidFormPresets.MaxVertices`**: l'array uniform è dimensionato su quelle costanti e devono restare uguali.
+3. **`PhysicsMaxPieces` = `FluidForm.Group.MaxPieces` = `GlassFieldMaxPieces` (8), `PhysicsMaxVertices` = `FluidFormPresets.MaxVertices`**: gli array uniform sono dimensionati su quelle costanti e devono restare uguali.
 4. **Nessuna molla nuova scritta a mano fuori da `FluidMotion`**, salvo qui: `spring(`, `tween(` e `keyframes` letterali sono ammessi in `fluidphysics/**` (come nel renderer): per questo `FluidPhysicsJourney` può avere la rincorsa. Se un numero lo vede l'utente in mano, diventa token di `FluidMotion`.
 5. **Mai** il lerp estrapolato oltre l'1 né una fusione che estrapola oltre il coincidere (`smin(a, a, k) = a − k/4` gonfia l'unione).
 6. **Giudicare in mano**: dopo ogni modifica al disegno, la [ricetta di QA a fotogrammi](fluid-physics.md) (cattura densa, primi cinque fotogrammi, collage a 5× e a 1×). I test non hanno fondale.
@@ -201,7 +256,7 @@ compilatore rifiuta ancora `flat`: si lancia a ogni sessione sul dispositivo. Un
 
 ## Cosa è verificato dai test
 
-Vedi la sezione omonima di [fluid-physics.md](fluid-physics.md). I test del motore che qui servono: `RestStateDisciplineTest` (istanza stabile a riposo, snapshot nuovo in viaggio), `FluidPhysicsMaterialTest` (la lente a riposo = quella di `glassSurface`, il padding che non si muove), `LiquidDropTest` (coda, zero esatto, tensione del bordo), `DropPlanTest`
+Vedi la sezione omonima di [fluid-physics.md](fluid-physics.md). I test del motore che qui servono: `RestStateDisciplineTest` (istanza stabile a riposo, snapshot nuovo in viaggio), `FluidPhysicsMaterialTest` (vetro di prima: la lente a riposo = quella di prima di `glassSurface`, il padding che non si muove), `PhysicsLiquidTest` e `F1b2GeometryTest` (materiale nuovo: livello e materiale, otto pezzi, collo, ricetta ai capi, margine, luce nel corpo, ritaglio emulato, cuciture, posa della goccia), `GlassRecipeParityTest` (parità con `glassSurface` sugli ingressi), `MorphRobustnessTest` (la serie fissa di 43 coppie di forme), `LiquidDropTest` (coda, zero esatto, tensione del bordo), `DropPlanTest`
 (piano della posa = lastra al bit, annullo a metà), `DropRimTest` (il profilo del bordo), `ExternalDriveStartFrameTest` e `ExternalGroupDriveTest` (la guida esterna), `PolySdfMathTest` (gli specchi del campo), `MatchedRingsTest` (la parametrizzazione degli anelli), `UniformScaleMappingTest` (lo spazio dello scope).
 
 Per il disegno e gli shader: `PhysicsShadowSlotsTest` (dopo Cerchio → Quadrato → Cerchio il posto del Cerchio, rieseguito, ridisegna il Cerchio e non il Quadrato; a metà viaggio partenza e arrivo
@@ -219,10 +274,11 @@ spento (`isRuntimeShaderSupported()` è falso): si guarda sul dispositivo. La co
 | `FluidPhysicsJourney.kt` | `HouseJourneySpec`, `inheritedProgressVelocity`, `morphOvershootScale`, `inflateSlab`/`inflateRing` |
 | `FluidPhysicsGeometry.kt` | RDP, ricampionamento, `lerpSlab`, `matchPieces`, `slabMinGap`, `effectiveBlendRadius`, gli specchi del campo di distanza |
 | `FluidPhysicsRings.kt` | `MatchedRings`, `buildMatchedRings`, `restRing`, il fallback senza `Morph` |
-| `FluidPhysicsShaders.kt`, `FluidPhysicsEffects.kt` | le quattro sorgenti AGSL; `slabGroupMorphLens`/`polyMorphLens` che impostano gli uniform |
+| `FluidPhysicsShaders.kt`, `FluidPhysicsEffects.kt` | le quattro sorgenti AGSL del vetro di prima; `slabGroupMorphLens`/`polyMorphLens` che impostano gli uniform; per il materiale nuovo `physicsLiquidRecipe`, `physicsLiquidInputs`, `physicsFieldPlan`, `physicsRingField`, `PhysicsLargeVeil`, `PhysicsLiquidSurface` |
+| `ui/glass/field/` (fuori dal package) | il materiale nuovo: `glassRecipe`, il profilo, i nuclei del campo (`GlassFieldKernel.kt`), corpo e luce, l'ombra in corpo, il riscaldamento |
 | `FluidPhysicsMaterial.kt` | `lerpGlassOptics`, `physicsLensUniforms`, `physicsLensPadding` |
 | `FluidPhysicsRim.kt`, `FluidPhysicsShadow.kt` | il bordo (`PhysicsRimRenderer`, `DropRimMesh`) e l'ombra (`PhysicsShadowLayers`, `fluidPhysicsShadow`) |
 | `FluidPhysicsShape.kt`, `FluidPhysicsClip.kt` | `GlassClipGeometry`, la sagoma del clip del contenuto |
-| `FluidPhysicsTier.kt` | `resolvePhysicsTier`, `FluidPhysicsShaderHealth`, quali sorgenti decidono il livello (`PhysicsBaseShaders`, `PhysicsDispersionShaders`) |
+| `FluidPhysicsTier.kt` | `resolvePhysicsTier`, `resolvePhysicsGlass` (livello e materiale), `FluidPhysicsShaderHealth`, quali sorgenti decidono il livello (`PhysicsBaseShaders`, `PhysicsDispersionShaders`) |
 | `ui/glass/field/GlassFieldHealth.kt` (fuori dal package) | `GlassShaderSources` (l'elenco di tutte le sorgenti AGSL), `GlassShaderProbe` (un verdetto per sorgente), `GlassFieldHealth` (la sonda del processo, la riga `FluidGlass` in logcat) |
 | `ui/glass/backdrop/FluidGlassDiagnostics.kt` | le letture pubbliche: `shaderSourceNames`, `shaderVerdicts`, `compileAllShaders()` |

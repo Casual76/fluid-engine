@@ -557,12 +557,17 @@ quando le immagini sono state create, e avvisa se le versioni installate non son
 manifesto. Le immagini si riscrivono solo di proposito (`golden classic --update`, che rifiuta
 versioni diverse da `requirements.txt` senza `--force`), con il diff nel rapporto.
 
-`golden/liquid/` sono le immagini del **materiale nuovo**, lastre ferme: 13 PNG a densita' 2, dalle
-scene scritte dalla ricetta (le sei pagine, `rif-bianco-nero`, `rif-tinta`, `rif-lente-griglia`,
-`rif27-tabbar`, `rif27-scuro`, e il campione chiaro e scuro). Stessa forma di `classic`, un
-manifesto suo (`compare --golden liquid`, `golden liquid --update`). Provano gli shader di
-`glass/field`, la regola dell'ombra a riposo e i numeri del profilo di serie passati per
-`glassRecipe`; non l'innesto in `glassSurface`, ne' il dispositivo. Si rigenerano a ogni fase che
+`golden/liquid/` sono le immagini del **materiale nuovo**: 38 PNG a densita' 2, dalle scene scritte
+dalla ricetta. Le prime 13 sono le lastre ferme di F1A (le sei pagine, `rif-bianco-nero`, `rif-tinta`,
+`rif-lente-griglia`, `rif27-tabbar`, `rif27-scuro`, e il campione chiaro e scuro), rimaste identiche
+al bit; le altre 25 sono di F1B (`f1b-*`): Fluid-physics sul materiale nuovo (gruppi a 2, 4 e 8 pezzi,
+il ponte stretto, la sagoma libera, l'angolo oltre mezzo lato, fermo contro viaggio), la pillola
+della tab bar (`f1b-puck-*`) e la goccia (`f1b-pomello-*`, `f1b-goccia-*`). Erano 28 dopo F1B.1, 32
+dopo F1B.4, 38 dopo F1B.3. Stessa forma di `classic`, un manifesto suo (`compare --golden liquid`,
+`golden liquid --update`). Provano gli shader di `glass/field`, la regola dell'ombra a riposo e i
+numeri del profilo di serie passati per `glassRecipe`; non l'innesto in `glassSurface`, ne' il
+dispositivo. Le scene del vetro dipinto (`scenes/f1b/dipinto-*`) non hanno immagini di riferimento:
+le rende `scenes/f1b/dipinto-rendi.py`. Si rigenerano a ogni fase che
 cambia il materiale di proposito: prima si riesportano le scene, poi `--update`.
 
 ## Aggiungere uno shader nuovo

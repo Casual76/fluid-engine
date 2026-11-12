@@ -83,6 +83,19 @@ L'engine è un livello visivo e tattile; i suoi difetti veri non stanno nel comp
   `wm size` (e si ripristina con `wm size reset`).
 - Per la **prestazione** (RenderThread, cache GPU) le sorgenti di vetro a schermo intero sempre registrate sono il
   costo da cercare: `componenti/vetro.md`. I rilievi precedenti sono in `artifacts/perf/` (`README.md`).
+- **Le pagine strumento della galleria** (solo nella build di debug gli extra; si aprono anche dal catalogo di Chrome),
+  ognuna col suo `LEGGIMI.md` in `sample/src/main/kotlin/dev/antigravity/fluidengine/sample/<cartella>/`:
+  «Misure» (`--es gallery.page measure`, scene fisse per i tempi di fotogramma), «Materiale» (`material`: il vetro
+  nuovo accanto a quello di prima, scena per scena; logcat `FluidMateriale`), «Icone» (`icons`), «Robustezza»
+  (`robustness`, con `robustness.case` e `robustness.auto`: la serie fissa della trasformazione universale) e
+  «Parità» (`parity`, con `parity.scene piatto|testo|foto`, `parity.theme`, `parity.breathe on`, `parity.model`:
+  la stessa forma da `glassSurface`, Fluid-physics ferma, vetro dipinto, pillola e goccia, fianco a fianco; logcat
+  `FluidParita`). Le manopole del profilo del vetro si danno con `--es gallery.tune "chiave=valore,…"` (fra cui quelle
+  del viaggio: `travel`, `travelclear`, `travelbend`, `travelneck`, `travelclip`; elenco in `componenti/vetro.md`,
+  «La diagnostica»), il livello di API simulato con `--es gallery.api 32`.
+- **Il banco del vetro** (`tools/glassbench/`): rende sul PC gli shader veri dalle scene scritte dalla ricetta e
+  confronta con le immagini di riferimento (`glassbench.py compare --golden classic|liquid`); il rivelatore di scatti
+  `glassjerk.py` legge i fotogrammi del tablet e del banco (`tools/glassbench/SCATTI.md`).
 
 ## Prima di dire «ho finito»
 

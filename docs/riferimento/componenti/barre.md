@@ -173,7 +173,9 @@ raccogliersi). Aperta, il gruppo schede+cerchio e' sempre **centrato** (stile iO
   Squash con segno e diviso 10, non cancellato dalle animazioni ridotte (eccezione nota: la pillola e' uno dei tre metri della ricetta).
 - **Un tocco su una scheda** muove la pillola *subito* (`animateToValue`: preme, viaggia, rilascia, come se l'avesse trascinata il dito) e **la pagina aspetta** `FluidMotion.TabPuckLeadMillis` (160 ms)
   prima di costruirsi: comporre una pagina nuova occupa il thread principale e il fotogramma successivo puo' arrivare con 80 ms di ritardo; l'animazione e' corretta ma avanza di 80 ms in un colpo, e si vede la
-  pillola sulla scheda che hai lasciato e poi a tre quarti, senza niente in mezzo. Le due cose sono messe in fila invece che in gara. Un tocco sulla scheda gia' scelta chiama `onClick` **subito** (non c'e' niente da attendere).
+  pillola sulla scheda che hai lasciato e poi a tre quarti, senza niente in mezzo. Le due cose sono messe in fila invece che in gara. **Non basta, se la pagina d'arrivo si compone da
+  zero**: a 160 ms la pillola è ancora in viaggio, e sul Tab S9 si ferma 100–190 ms a metà strada a ogni cambio di scheda (misurato prima della 4.0). Le pagine delle schede vanno tenute vive o
+  precomposte: è una regola per le app, in [../regole.md](../regole.md), «Le app: le pagine delle schede restano vive». Un tocco sulla scheda gia' scelta chiama `onClick` **subito** (non c'e' niente da attendere).
   Se l'app rifiuta il cambio, l'effetto di sincronizzazione riporta la pillola.
 - **Selezione fatta altrove** (back, deep link, un'altra schermata): la pillola arriva con `animateToValue` (preme e si assesta come dopo un rilascio), perche' nient'altro la annuncia. La prima volta si posa senza animare.
 - **Rilasciare la pillola sulla scheda gia' scelta** chiama `onClick` di quella scheda: nella forma a elenco e' `onReselect`.
@@ -182,6 +184,17 @@ raccogliersi). Aperta, il gruppo schede+cerchio e' sempre **centrato** (stile iO
   lente campiona, cosi' l'icona scelta si vede attraverso il vetro nel colore d'accento; la riga si registra due fotogrammi e poi si ferma (`tintedRowSettled`): serve un'immagine da rifrangere, non una viva.
   L'icona scelta e' ridisegnata nitida *sopra* la pillola e sfuma in un terzo della rampa di pressione. L'inchiostro e' l'accento portato verso nero (chiaro) o bianco (scuro) del minimo che regge **3:1**
   contro la pellicola del pannello sopra la pagina peggiore (`legibleInk`, `PuckInkMinContrast`): da 1,1:1 a 7,8:1 su un riquadro verde. Senza `backdrop` la pillola e' un disco piatto (`backgroundColor` da 50% a 100%).
+- **Col materiale nuovo (4.0, da Android 13) la pillola è vetro.** A riposo è il vetro della barra **un po' più
+  scuro** sui due temi (misure di iOS: 219 su una pagina a 238 nel chiaro, una decina di livelli sotto la barra nello
+  scuro), col filo sottile della barra (a metà sul chiaro) e l'ombra ridotta di un vetro dentro un vetro, senza una
+  seconda sfocatura: campiona la pagina e rifà da sé il materiale della barra (`GlassPuckProfile`, derivato dal profilo
+  di serie, senza numeri suoi salvo quanto è più scura). Premuta guarda la riga nascosta, che è il materiale della
+  barra con le icone d'accento, e posa sopra solo la differenza di scuro: premuta o no è la stessa pillola. **L'accento
+  sta sull'icona e sull'etichetta della scheda scelta** (`legibleInk`, almeno 3:1 contro il fondo che hanno dietro),
+  non sulla pillola. Sotto Android 13 e con `FluidGlassModel.Classic` è la pillola di prima, con la lavata d'accento.
+  *Come si verifica*: a schermo, la pillola è grigia e l'icona scelta è nell'accento; nella pagina «Parità» della
+  galleria, accanto a un tasto di vetro. *Se non va*: una pillola colorata d'accento sopra la barra vuol dire che
+  l'app ha scritto `puckColor` (sotto) o che quel dispositivo disegna il vetro di prima.
 - **Il colore di icone ed etichette: quello dell'app, e `onSurface` solo se nessuno l'ha deciso** (`floatingBarContentColor`). Le schede leggono `LocalContentColor`, che fuori da una `Surface` vale il suo valore di serie, `Color.Black`: su vetro scuro, nero su grigio scuro. Se il valore e' quello di serie la barra imposta `onSurface` del tema; qualunque altro valore (il colore di una `Surface`, un `LocalContentColor provides Ink` in radice) resta, cosi' un'app che aggiorna a parametri invariati non cambia aspetto. **Caso limite:** un'app che fornisce davvero il nero puro e' indistinguibile da una che non ha detto niente (un CompositionLocal non dice se e' stato impostato), quindi quel nero diventa `onSurface`; sul tema chiaro la differenza e' minima, e per tenerlo basta un colore non esattamente `Color.Black`. Mai un colore a mano.
 - La luce del dito sul vetro e' **additiva** (`GlassTouchHighlight(onGlass = true)`, bianca e stretta); sulla fila opaca di prima era nero all'8%, e su tema chiaro tenere premuta la pillola ingrigiva la fascia chiara in alto. Sul tema scuro non cambia niente.
 
@@ -212,8 +225,8 @@ spazio). Lo stato ripiegato per scorrimento **non cambia** con `searchMode`. Men
 *esattamente* quanto il pannello che coprono, e quanto sfoca lo sa solo chi lo dipinge: se lo fa la barra e' il raggio di **base** (`DefaultGlassBlurRadius` 2,5 dp; la barra moltiplica per il ruolo `Floating` ×1,8 e
 applica la regola della taglia e la qualita' di scorrimento: con il valore di serie 4,5 dp, come il pannello); se lo passi tu e' il raggio **finale**, preso tal quale: passa lo stesso numero che dai al tuo pannello.
 La 2.12.0 li aveva confusi (la pillola sfocava 1,8 volte la barra intorno), la 2.12.1 li ha rimessi. Il puck premuto non aggiunge sfocatura (la riga ha gia' quella del pannello: una in piu' sfocherebbe anche le icone).
-`puckColor` non specificato = l'accento (`primary`): una lavata d'accento al `puckOpacity` che scende a un quarto mentre e' premuta; un tempo erano due grigi rigidi, e su un tema chiaro la scheda scelta sedeva sotto un disco grigio-nero che non
-apparteneva all'app. `accentColor` (default `primary`) tinge la riga nascosta. `LocalFluidTabBarBackdropFrozen` e' vero esattamente nei fotogrammi di una transizione: le superfici di vetro riusano l'ultima cattura invece di
+Col vetro di prima `puckColor` non specificato = l'accento (`primary`): una lavata d'accento al `puckOpacity` che scende a un quarto mentre e' premuta; un tempo erano due grigi rigidi, e su un tema chiaro la scheda scelta sedeva sotto un disco grigio-nero che non
+apparteneva all'app. **Col materiale nuovo** `puckColor` non specificato = nessuna lavata (la pillola è il vetro più scuro, e la scelta la dice l'accento su icona ed etichetta); un `puckColor` scritto dall'app diventa una **pellicola** di quel colore sulla pillola (al `puckOpacity`), dipinta com'è al posto del velo, non un riempimento pieno ([../regole.md](../regole.md), «La scheda scelta la dicono la pillola e l'accento»). `accentColor` (default `primary`) tinge la riga nascosta. `LocalFluidTabBarBackdropFrozen` e' vero esattamente nei fotogrammi di una transizione: le superfici di vetro riusano l'ultima cattura invece di
 rifare lo schermo a ogni fotogramma mentre i loro limiti si animano; un pannello dell'app lo raggiunge leggendo `scrollConnection.morphing`.
 
 **Comportamento (riassunto).** Tre stati, una sola connessione; la pillola e' una lente; l'altezza e' un pavimento (`FluidFloatingTabBarSizes.barHeight`, `inlineHeight`, `inlineSoloHeight`); il gruppo e' centrato; la scheda in linea e' sempre quella scelta; la
@@ -470,7 +483,7 @@ Un campo sempre in pagina vuole `autoFocus = false`, o una tastiera che sale da 
 | oggetto | valori (dp se non detto) |
 |---|---|
 | `FluidFloatingTabBarDefaults` | `TabWidth` 88 (tetto), `OpenHeight` 62 (pavimento, `FluidMetrics.TabBarHeight`), `FoldedHeight` 52, `FoldedSoloHeight` 64, `Spacing` 8, `BottomMargin` 16, `HorizontalMargin` 14, `ContentInset` 78, `contentInsetWithAccessory(h)` = 78 + h + 8; `colors()` (`surfaceContainerHigh`), `shapes()` (`FluidCapsuleShape`), `sizes()` (padding barra 4, scheda in linea 10, scheda aperta 6, `componentSpacing` 8, `tabSpacing` 0), `elevations()` 6 / 12, `labelStyle()` = `labelMedium` centrato |
-| `FluidFloatingTabBarGlass` | `blurRadius` = `DefaultGlassBlurRadius` 2,5 (significato doppio), `puckColor` non specificato = `primary`, `puckOpacity` 0,26 |
+| `FluidFloatingTabBarGlass` | `blurRadius` = `DefaultGlassBlurRadius` 2,5 (significato doppio), `puckColor` non specificato = `primary` col vetro di prima, nessuna pellicola col materiale nuovo, `puckOpacity` 0,26 |
 | `rememberFluidFloatingTabBarScrollConnection` | `scrollThreshold` 50, `expandThreshold` 8, `inlineBehavior` `OnScrollDown` (`Never`, `OnScrollUp`), `initialIsInline` falso |
 | token di movimento della barra (`FluidMotion`) | `GooeyMillis` 300, `GooeyPulse` (picco 12 dp a meta'), `PuckEnter` 300 ms, `FoldCrossFade`, `TabTugReturn`, `TabPuckLeadMillis` 160, `TabBarFold` (0,9, rigidezza media-bassa) |
 | costanti interne che fanno il comportamento | etichetta ≥ 0,75; inchiostro ≥ 3:1 (`PuckInkMinContrast`); pillola premuta × 78/56, icona × 1,12; scheda in linea 10 dp di padding; cerchio minimo 48 |

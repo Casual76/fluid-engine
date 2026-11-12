@@ -216,7 +216,8 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
   chiude da solo, lo chiude chi lo possiede con `visible = false`. Lo scrim smette di mangiare i tocchi non appena la
   chiusura è richiesta (la pagina è già sua mentre l'uscita finisce di sfumare).
 - **Lo scrim è quasi niente, di proposito.** Sfocatura ×1,5 della base, nessuno spostamento (una lente grande quanto
-  lo schermo piega gli angoli e sembra un fish-eye), velo nero 12% sul chiaro / 20% sullo scuro, `sizeResponse = 0`
+  lo schermo piega gli angoli e sembra un fish-eye), velo nero 12% sul chiaro / 20% sullo scuro (gli stessi livelli
+  dello scrim dei pannelli dipinti: stanno in `GlassPaintedScrim`, e `FluidGlassModal` li legge da lì), `sizeResponse = 0`
   (altrimenti la regola della taglia lo sfocherebbe fino alla media della pagina). Se togliesse la pagina il vetro
   non servirebbe: un rettangolo dipinto costa meno. Arriva con un alpha sul pannello finito, **mai** con
   l'`intensity` del materiale (che cambia il raggio di sfocatura e ricatturerebbe tutto lo schermo a ogni
@@ -428,6 +429,13 @@ Dalla 3.0 (fase 9) con un host alla radice **non apre una finestra**: chiede all
 grabber, i suoi inset). Alla richiesta di chiusura il foglio esce con l'animazione dell'host e **solo dopo (300 ms)**
 chiama `onDismissRequest`: chi lo toglie prima dalla composizione perde l'uscita. Senza host è il foglio di piattaforma di
 sempre. Sostituto: `FluidGlassModalPortal(presentation = Sheet)` + `FluidSheetScaffold`.
+
+Il foglio di piattaforma (e l'avviso nella `Dialog`, sotto) dalla 4.0 è il vetro dipinto **dalla ricetta** del materiale
+nuovo: il corpo è il colore pieno che il vetro vero avrebbe sopra la pagina del tema sotto lo scrim (non si legge più,
+nitida, la pagina dietro: prima il contenitore era la superficie al 92%), filo e riflesso sul bordo cominciano alla cima
+del foglio, sopra la maniglia, e lo scrim è quello dei modali di vetro, nero al 12% sul chiaro e al 20% sullo scuro (era
+il 42%). Un vetro dipinto dentro il foglio si posa come vetro annidato. Non chiede il modello: con `Classic` e sotto
+Android 13 resta così, con l'ombra di prima ([vetro.md](vetro.md), «Il vetro dipinto»).
 
 `FluidGrabber` è la maniglia: capsula 36×5 dp al 18% di `onSurface` (quella di Material è quasi il doppio, ed è la prima
 cosa che tradisce un foglio). Il foglio di vetro la mette da solo.

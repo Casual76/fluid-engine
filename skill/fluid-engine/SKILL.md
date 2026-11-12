@@ -129,6 +129,13 @@ Sempre vero e facile da dimenticare: **il tema non porta i componenti.** `FluidT
 angoli e curve; il vetro, l'overscroll e le liste raggruppate arrivano solo chiamando `FluidScreen`,
 `FluidListGroup` e il materiale. Un'app con solo il tema si vede quasi identica a prima: dillo così.
 
+Due regole per le app dalla 4.0, con il perché e la verifica in `references/regole.md`: **dopo `enableEdgeToEdge()`
+si spegne il velo di contrasto della barra di navigazione** (`if (Build.VERSION.SDK_INT >= 29)
+window.isNavigationBarContrastEnforced = false`: altrimenti, con la navigazione a tre tasti, una fascia scura in fondo
+a ogni foglio), e **le pagine delle schede di una tab bar restano vive o precomposte** (se ogni cambio di scheda
+compone la pagina da zero, la pillola si ferma a metà viaggio). Per vedere le strade del vetro una accanto all'altra:
+la pagina «Parità» della galleria (`--es gallery.page parity`).
+
 ## Compiti frequenti
 
 Ogni compito ha la sua ricetta con i passi e il perché in `references/ricette.md`. Qui, il filo.

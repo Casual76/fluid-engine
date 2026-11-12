@@ -161,7 +161,8 @@ quello vero, o sotto 26).
 
 I numeri del profilo (`ui/glass/field/GlassLiquidProfile.kt`) che le tavole di gusto di F1A mettono a confronto,
 cambiati dal vivo per fotografarli sul pannello. Solo nella build di debug (`FluidGlassDiagnostics.tuneLiquidProfile`):
-senza manopole l'engine disegna il profilo di serie, identico al banco (`compare --golden liquid` 13 su 13). Nomi e
+senza manopole l'engine disegna il profilo di serie, identico al banco (`compare --golden liquid`, 38 immagini su 38).
+Le stesse forme rese dalle strade diverse del materiale, fianco a fianco, sono nella pagina «Parità» (`parity/LEGGIMI.md`). Nomi e
 valori senza distinzione di maiuscole; i numeri col punto. Prima le varianti, poi i numeri (un numero cambia il pezzo
 che la variante ha scelto). Una manopola sconosciuta si scarta e la riga `PROFILO` lo dice.
 
@@ -182,6 +183,8 @@ senza manopole l'engine disegna quello.
 | `darkveil` | `lighter` · `deeper` | «il tema scuro», velo dei tasti: **A più chiaro** / B più profondo |
 | `darklarge` | `deep` · `same` | il velo scuro dei grandi (fogli, card, pannelli, menu): **`deep`** (`#36363C` al 50%: il testo secondario a 6:1 e oltre) / `same` quello dei tasti (il grigio medio di S1-ter, testo a 3,8:1) |
 | `nested` | `on` · `off` | il vetro annidato: **`on`** (sul tema scuro un terzo del velo, sui due temi metà dell'ombra) / `off` come una lastra sulla pagina (la toppa grigia di S1-ter) |
+| `travel` | `off` · `soft` · `strong` | il materiale **in viaggio** delle superfici di Fluid-physics (F1B.1): `off` il vetro di riposo anche in moto / **`soft`, un po' limpido** (nitido 0,25, lente ×1,5, cupola a metà, ingrandimento 3,5%, frangia 0,15) / `strong` (nitido 0,5, lente ×2, cupola piena, frangia 0,3). Pesato da quanto la sagoma si muove: da ferma non cambia niente |
+| `travelclip` | `on` · `off` | **manopola di diagnosi** (F1B.2): il ritaglio del nodo che il corpo di una superficie fisica emula; **`on`** di serie, `off` per vedere se un bordo doppio viene da lì |
 | `rimwidth` | `0..4` (dp) | lo spessore del filo, sui due lati (di serie 0.6) |
 | `rimalpha` | `0..1` | la forza del filo scuro (di serie 0.32) |
 | `reflex` | `0..1` | la riga chiara (di serie 0.12) |
@@ -198,6 +201,9 @@ senza manopole l'engine disegna quello.
 | `nestedveil` | `0..1` | quanto resta del velo di un vetro annidato sul tema **scuro** (di serie 0.35) |
 | `nestedlightveil` | `0..1` | lo stesso sul tema chiaro (di serie 1: il velo resta) |
 | `nestedshadow` | `0..1` | quanto resta dell'ombra di un vetro annidato, sui due temi (di serie 0.5) |
+| `travelclear` | `0..1` | in viaggio, quanto nitido entra nella mescola a moto pieno (di serie 0.25) |
+| `travelbend` | `0..3` | in viaggio, di quanto cresce lo spostamento della lente a moto pieno (di serie 0.5) |
+| `travelneck` | `0.05..0.5` | per quanta parte del viaggio il collo fra due pezzi nasce e muore (di serie 0.5) |
 
 Esempio: `GALLERIA="--es gallery.tune edge=ios26,frost=r24" materiale components hud off`.
 

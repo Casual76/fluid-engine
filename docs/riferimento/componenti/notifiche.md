@@ -173,8 +173,10 @@ fun FluidNotificationHost(
   angoli da 20 dp, larga al più 560 dp. **Senza `backdrop` non è vetro**: una velatura opaca con un bordo da 0,5 dp dell'accento e l'ombra di
   piattaforma da 12 dp. (Con il vetro l'ombra la disegna il vetro: quella di piattaforma, su una superficie trasparente, trapela dentro la sagoma
   e si vedeva una fascia scura attorno a un rettangolo chiaro.)
-- **Arrivo e uscita.** Scende con slide (un terzo della sua altezza), dissolvenza di 150 ms e scala 0,97 dall'alto; se ne va con slide di un quarto,
-  dissolvenza di 180 ms e scala 0,985. Una card **lanciata via** non ripete l'uscita (`ExitTransition.None`): si è già dissolta, e un'uscita di
+- **Arrivo e uscita.** Scende con slide (un terzo della sua altezza), dissolvenza di 150 ms e cresce da 0,97 dall'alto; se ne va con slide di un quarto,
+  dissolvenza di 180 ms e cala a 0,985. Dalla 4.0 la crescita e il calo sono **la sagoma della card che cambia misura** (con la stessa molla), non un
+  `scaleIn`/`scaleOut` su un antenato del vetro: il contenuto resta della sua misura e il fondale che il vetro campiona non si ingrandisce
+  (`FluidNotificationShapeTest`; regola in [../regole.md](../regole.md), «Un ingresso non scala un vetro»). Una card **lanciata via** non ripete l'uscita (`ExitTransition.None`): si è già dissolta, e un'uscita di
   ordinanza sarebbe una scena vuota che tiene in coda la notifica dopo.
 - **Il vetro che si muove.** Spostamento e opacità stanno su un `graphicsLayer` *fuori* dal vetro: il vetro li vede come una pagina intera che scorre. La
   card si muove, il fondale che campiona no. **Mai scala** (scalare un vetro scala il fondale campionato, «la pagina dietro sembra muoversi»);

@@ -11,7 +11,12 @@ accessori minuti (`FluidHairline`, `FluidRowValue`). Stanno tutti in `engine-ui`
 Il modello mentale, in due frasi. **Un tasto cresce sotto il dito e tiene il dito** (finché è giù la pagina sotto non
 scorre), e il suo vetro risponde alla stessa pressione. **Un controllo che si afferra e scorre** (interruttore,
 slider, scrubber, segmentato) ha un pomello a «goccia»: bianco e opaco a riposo, lente di vetro sotto il dito; il
-gesto è dell'intera riga, il rilascio decide, e un dito che va in verticale resta della pagina.
+gesto è dell'intera riga, il rilascio decide, e un dito che va in verticale resta della pagina. Dalla 4.0, col materiale
+nuovo (da Android 13), la goccia è lo stesso vetro dei tasti: a riposo la faccia piena porta il filo, il riflesso e
+l'ombra di un tasto di vetro, e sotto il dito resta una **lente limpida** (niente velo né smerigliatura, un tono scuro
+leggero) che piega forte al bordo e cresce con la pressione. Una funzione sola, `glassDrop`, per tutti i controlli e
+per la goccia delle voci dei menu (profilo `GlassDropProfile`, derivato da quello di serie); geometria e tempi della
+goccia sono quelli di prima. Sotto Android 13 e con `Classic` resta la goccia di Kyant.
 
 **La scheda è in due file**: questo (tasti, scelte, testo, regole comuni) e [controlli-gesto.md](controlli-gesto.md)
 (`FluidSwitch`, `FluidSlider`, `FluidScrubber`, e le licenze dei port di Kyant0 e LibrePods).

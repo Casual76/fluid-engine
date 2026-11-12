@@ -81,14 +81,14 @@ FluidForm (cosa) ──morphTo / driveExternally──► FluidPhysicsState (qua
 **Cos'è.** Il vocabolario del sottosistema: qualsiasi cosa il motore trasformi prima diventa uno di tre casi.
 `FluidForm.Slab` è la famiglia di lavoro (un rettangolo a quattro raggi: rettangolo, quadrato, cerchio, capsula,
 angolo continuo; interpolarne due è un lerp di otto numeri e la rifrazione resta piena per tutto il viaggio);
-`FluidForm.Poly` è una sagoma chiusa qualsiasi; `FluidForm.Group` sono fino a sei lastre rese come **una** superficie
-liquida.
+`FluidForm.Poly` è una sagoma chiusa qualsiasi; `FluidForm.Group` sono fino a otto lastre rese come **una** superficie
+liquida (sei fino alla 3.x).
 
 ```kotlin
 FluidForm.Slab(frame: Rect, cornerRadii: FluidCornerRadii = FluidCornerRadii.Zero,
                smoothing: Float = ContinuousCornerShape.IosSmoothing)
 FluidForm.Poly(frame: Rect, vertices: List<Offset>, rounding: Float = 0f)   // vertici 0..1 nel frame, in senso orario di schermo
-FluidForm.Group(pieces: List<FluidForm>, blendRadius: Float = 48f)           // pezzi: solo Slab, da 1 a FluidForm.Group.MaxPieces (6)
+FluidForm.Group(pieces: List<FluidForm>, blendRadius: Float = 48f)           // pezzi: solo Slab, da 1 a FluidForm.Group.MaxPieces (8)
 FluidForm.circle(center, radius)                                            // la forma di riposo del Playground
 FluidForm.slabOf(shape: CornerBasedShape, frame, density, layoutDirection)  // un componente entra col suo FluidRadius
 ```
@@ -114,11 +114,14 @@ FluidFormPresets.fromFreehand(points, rounding = 6f)      // tratto a mano liber
 - `Poly`: `require` fra 3 e `FluidFormPresets.MaxVertices` (64) vertici, altrimenti `IllegalArgumentException`. I vertici sono
   di *controllo* (non il campionamento di resa); il raccordo `rounding` è uniforme, in pixel; per più fedeltà a un
   vertice si aggiungono vertici.
-- `Group`: `require` non vuoto, al massimo 6 pezzi, **solo `Slab`**, niente gruppi dentro gruppi (è una disposizione,
-  non un albero). Il costo dello shader di gruppo è `pezzi × pixel`: sei rettangoli coprono ogni composizione che una
-  schermata abbia mai chiesto. Il `frame` di un gruppo è l'unione dei pezzi. `blendRadius` è il raggio di fusione in
+- `Group`: `require` non vuoto, al massimo 8 pezzi (`FluidForm.Group.MaxPieces`; 6 fino alla 3.x), **solo `Slab`**, niente
+  gruppi dentro gruppi (è una disposizione, non un albero). Il costo dello shader di gruppo è `pezzi × pixel`: otto
+  rettangoli coprono ogni barra e ogni gruppo di tasti che l'engine disegna. Il `frame` di un gruppo è l'unione dei pezzi. `blendRadius` è il raggio di fusione in
   pixel; il ponte esiste **solo al tier `Full`** (sotto, i pezzi restano geometria separata che si sovrappone: più
-  povero, mai rotto). Il raggio effettivo si spegne man mano che i pezzi si compenetrano, perché `smin(a, a, k) = a − k/4`
+  povero, mai rotto). Col materiale nuovo (`Liquid`: «Comportamento» di `fluidPhysicsSurface`, sotto) il ponte esiste **solo in viaggio**:
+  a riposo i pezzi di un gruppo sono staccati del tutto, anche quando si toccano, e il collo nasce e si scioglie dentro
+  il viaggio (`GlassLiquidTravel.neck`); un viaggio interrotto riparte dal collo che c'era. Col vetro di prima a `Full`
+  due pezzi vicini restano saldati anche fermi. Il raggio effettivo si spegne man mano che i pezzi si compenetrano, perché `smin(a, a, k) = a − k/4`
   gonfierebbe l'unione di un quarto del raggio e alla posa l'alone sparirebbe di colpo.
 - `blob` ha 12 vertici, `irregularity` 0..0,6; `star` ha `points` fra 3 e 32; `trapezoid` tiene l'inset fra 0 e 0,45.
 - `fromFreehand`: semplifica (Ramer–Douglas–Peucker, tolleranza 1,5% della diagonale), toglie il punto doppio se il dito
@@ -272,17 +275,38 @@ Box(
 ```
 
 **Comportamento.**
-- **A riposo è una lastra** (3.0): per lo stesso ruolo, ottica e tinta ha *gli stessi numeri* di `glassSurface` —
-  la stessa funzione per sfocatura, lente, frangia e pressione, il bordo e l'ombra registrati con la ricetta del renderer —
-  quindi alla partenza e all'arrivo non c'è nessuno scalino. In viaggio gli stessi numeri seguono la sagoma. Che la
-  taglia che conta sia quella della **sagoma** (non del nodo) è parte della «regola della taglia» di [vetro.md](vetro.md).
-- Tre cose la separano da `glassSurface`: il clip del layer **non insegue la sagoma** (al tier `Full` resta il rettangolo
-  del nodo e la silhouette la scolpisce l'alpha dello shader); bordo e ombra li disegna lei (gli anelli del renderer si
-  ri-registrano solo alla ricomposizione, terrebbero la fotografia della sagoma di partenza); il nodo può essere più grande
-  della sagoma.
-- L'ombra del ruolo è disegnata da lei **fuori dal layer del vetro** (prima di `drawBackdrop`), così il rettangolo del nodo
-  non la ritaglia; se qualcuno ne disegna già una per lo stesso stato da fuori (`fluidPhysicsShadow`, la finestra dei
-  modali) la sua tace — due ombre sono il doppio del peso di una lastra.
+- **Due materiali, come `glassSurface`** (4.0). Al tier `Full`, da Android 13, dove `LocalFluidGlassModel` non chiede
+  `Classic` e il compilatore accetta le due sorgenti del materiale nuovo che servono qui (`GlassBody8ShaderString` e
+  `GlassBodyRingShaderString`), la superficie è disegnata dal **materiale `Liquid`**, lo stesso corpo di `glassSurface`:
+  stesso velo, smerigliatura, filo, riflesso e ombra, **fermi e in viaggio**. Altrimenti (`Balanced`, `Lite`, `Classic`
+  chiesto, una sorgente rifiutata) è il vetro di prima, al pixel com'era. Decide `resolvePhysicsGlass`, pura (la tabella
+  di verità sta in `PhysicsLiquidTest` e `GlassRecipeParityTest`); un rifiuto fa tornare la superficie al vetro di prima
+  **per intero**, mai una goccia nuova che si posa su una lastra di prima.
+- **Col materiale nuovo, a riposo è la `glassSurface` della stessa forma** (stesso ruolo, ottica, taglia, tema, intensità,
+  qualità e tinta: stessi numeri di corpo, luce e ombra, provato da `GlassRecipeParityTest`), e il primo e l'ultimo
+  fotogramma di un viaggio sono la superficie ferma: niente scalino alla partenza né all'arrivo, perché la ricetta di
+  viaggio (`glassTravelRecipe`) a moto zero non cambia un bit. Luce e ombra stanno **nel corpo** anche da ferma, quindi
+  fermo e primo fotogramma del viaggio sono lo stesso programma con gli stessi uniform; il ritaglio del nodo che una
+  `glassSurface` ha dal suo nodo qui lo emula il corpo. **In viaggio** il vetro è un po' più limpido e la lente un po'
+  più forte, quanto la sagoma si muove e mai da ferma (`GlassLiquidProfile.travel`); la tinta e l'ottica di partenza e
+  d'arrivo (`tintFrom`, `opticsFrom`) si mescolano campo per campo, esatte ai capi. Un'eccezione nota, scritta come prova saltata: sul tema
+  scuro, fra un piccolo e un grande, il velo dei grandi fa al primo fotogramma del viaggio il passo di 1/30 s (sotto,
+  «Cosa è verificato dai test»).
+- **Col vetro di prima** a riposo è una lastra della 3.0: la stessa funzione di `glassSurface` di prima per sfocatura,
+  lente, frangia e pressione (`physicsLensUniforms`), il bordo e l'ombra registrati con la ricetta del renderer. Che la
+  taglia che conta sia quella della **sagoma** (non del nodo) vale per i due materiali: è la «regola della taglia» di
+  [vetro.md](vetro.md).
+- Cosa la separa da `glassSurface`: il clip del layer **non insegue la sagoma** (al tier `Full` resta il rettangolo del
+  nodo e la silhouette la scolpisce lo shader); il nodo può essere più grande della sagoma; il margine della cattura è
+  **uno per tutto il viaggio** (col materiale nuovo `glassTravelPaddingDp`: la sfocatura piena del ruolo alla crescita
+  massima dei grandi), e col materiale nuovo la cattura è a risoluzione piena.
+- **L'ombra.** Col materiale nuovo è nel corpo, la stessa delle maschere a riposo di una lastra di quella taglia, una
+  sola anche sui ponti; si vede **solo dentro il nodo**, perché il layer del vetro è ritagliato lì: un palco grande
+  quanto la finestra (menu, modale, Playground) la contiene, un nodo stretto attorno alla sagoma va allargato
+  (`glassTravelShadowReachDp`, come fa la barra fra le pagine), o l'ombra esce tagliata a filo del nodo. Col vetro di
+  prima l'ombra del ruolo è disegnata **fuori dal layer del vetro** (prima di `drawBackdrop`); se qualcuno ne disegna
+  già una per lo stesso stato da fuori (`fluidPhysicsShadow`, la finestra dei modali) la sua tace — due ombre sono il
+  doppio del peso di una lastra.
 - `tintFrom`/`tintBlend` e `opticsFrom`/`opticsBlend` sono lambda lette **in fase di disegno**; il blend è tenuto fra 0 e 1
   (la molla ha overshoot ma il materiale non oltrepassa mai i propri capi: un terzo materiale non l'ha chiesto nessuno).
   Il patto del padding regge per costruzione fra due ottiche di serie (la sfocatura non supera mai l'altezza della lente
@@ -300,12 +324,17 @@ Box(
 
 **Trappole.**
 - La superficie legge `LocalFluidMotionPolicy` e `LocalFluidPhysicsLiquid` per decidere se c'è la goccia.
-- Bordo: sul lato chiaro è una riga **scura** in `SrcOver`, sullo scuro luce in `Plus` (`glassRimRecipe`); non si gira il solo colore.
+- Bordo: col materiale nuovo è il filo e il riflesso del profilo, nel corpo, sulla sagoma di ogni fotogramma (ponti
+  compresi). Col vetro di prima sul lato chiaro è una riga **scura** in `SrcOver`, sullo scuro luce in `Plus`
+  (`glassRimRecipe`); non si gira il solo colore.
+- Col materiale nuovo l'ombra si vede solo dentro il nodo: un nodo stretto attorno alla sagoma la taglia (sopra,
+  «L'ombra»). Si verifica a schermo: un'ombra che finisce con uno spigolo dritto a pochi dp dalla sagoma.
 - Un `Modifier.shadow` di piattaforma sotto un vetro trapela dentro la sagoma: l'ombra è del vetro.
 
 **Non usarla quando.** Il pannello sta fermo e nessuno lo trasforma: `glassSurface`.
 
-**Versione.** 1.9.0; `exports` 2.9.0; `opticsFrom`/`opticsBlend`/`pressState`, «a riposo una lastra», bordo e ombra del vetro: 3.0.0.
+**Versione.** 1.9.0; `exports` 2.9.0; `opticsFrom`/`opticsBlend`/`pressState`, «a riposo una lastra», bordo e ombra del vetro: 3.0.0;
+il materiale `Liquid` fermo e in viaggio, gruppi a otto pezzi, collo solo in viaggio, ombra nel corpo: 4.0.0.
 
 ## Contenuto: fluidPhysicsContent e fluidPhysicsClip
 
@@ -348,7 +377,8 @@ Modifier.fluidPhysicsClip(state, active = { true })                             
 
 ## A riposo una lastra, in viaggio una goccia
 
-**A riposo** una superficie fisica è una lastra: stesso materiale di `glassSurface`, stesso bordo, stessa ombra, e *nessun
+**A riposo** una superficie fisica è una lastra: stesso materiale di `glassSurface` (col materiale nuovo, gli stessi
+numeri di corpo, luce e ombra; col vetro di prima, la stessa lente con bordo e ombra del renderer), e *nessun
 fotogramma chiesto* (il conducente della goccia aspetta con uno `snapshotFlow` finché niente si muove).
 
 **In viaggio** una superficie che va fra due **lastre** (un solo pezzo per parte: `morphTo` e `driveExternally`
@@ -356,8 +386,12 @@ a una lastra) è una **goccia** (3.0, variante C del banco scelta da Alessio: «
 che non è geometricamente ben definito»): il contorno è fatto di 48 punti presi dalla sagoma a riposo di quell'istante, ognuno su una molla
 verso il suo punto — dura accanto all'ancora (il tasto, la riga, il centro della partenza), morbida lontano — con una
 tensione del bordo leggera fra i vicini. Lontano dall'ancora i punti restano indietro: la coda attaccata al tasto fa da collo.
-La lente in moto piega di più (altezza +60%, spostamento +80%, sfocatura −45%, ingrandimento al centro 3,5%, un filo di
-frangia), poi alla posa torna esattamente la lastra.
+In moto il vetro si fa più limpido e piega di più, poi alla posa torna esattamente la lastra. Col materiale nuovo è la
+ricetta di viaggio del profilo (`GlassLiquidProfile.travel`: più nitido nella mescola, lente più forte, cupola, un
+filo d'ingrandimento e di frangia; il raggio di sfocatura e la banda della lente no, perché decidono il margine della
+cattura), e mentre la goccia si calma il suo campo passa a quello della lastra che la sostituirà, così alla posa non
+resta niente da cambiare. Col vetro di prima è la lente in moto della 3.0 (altezza +60%, spostamento +80%, sfocatura
+−45%, ingrandimento al centro 3,5%, un filo di frangia).
 
 - **Primo fotogramma = lastra del mittente**; sotto ¼ di pixel dal riposo, e sotto 3 dp/s, la goccia si posa e il piano torna
   quello di prima *al bit*, senza gradino.
@@ -506,7 +540,7 @@ identica sui tre livelli**; cambia solo quanta ottica la veste:
 
 | tier | quando | cosa disegna |
 |---|---|---|
-| `Full` | SDK 33+ (`RuntimeShader`) e shader accettati dal driver | rifrazione SDF per ogni famiglia, ponte liquido fra i pezzi, goccia con lente in moto, frangia dove l'ottica la chiede; la silhouette la ritaglia lo shader |
+| `Full` | SDK 33+ (`RuntimeShader`) e shader accettati dal driver | col materiale nuovo (di serie, dove le sue sorgenti compilano e nessuno chiede `Classic`): il corpo di `glassSurface` con luce e ombra nel corpo, fermo e in viaggio, collo solo in viaggio. Col vetro di prima: rifrazione SDF per ogni famiglia, ponte liquido fra i pezzi (anche a riposo), goccia con lente in moto, frangia dove l'ottica la chiede. In tutti e due la silhouette la ritaglia lo shader |
 | `Balanced` | SDK 31–32, o uno shader che il driver ha rifiutato | sfocatura, vividezza, tinta (path) e bordo; **senza** lente, ponte, frangia. Il clip del layer torna la sagoma esatta (più caro, su un morph transiente) |
 | `Lite` | sotto SDK 31 | niente fondale: la tinta solida di ripiego (`tint.fallback`), ritagliata sul path che si trasforma |
 
@@ -520,7 +554,7 @@ identica sui tre livelli**; cambia solo quanta ottica la veste:
   così che una parola riservata in uno shader ha tenuto tutto il motore a `Balanced` per tutta la 3.x: vedi la scheda del
   motore. La frangia ha la sua sonda a parte: un driver che la rifiuta toglie solo la frangia.
 - Costi veri: un fotogramma di morph = uniform nuovi su shader compilato + un passaggio GPU; **a riposo zero**, la goccia non
-  chiede fotogrammi; un gruppo costa `pezzi × pixel` (max 6); una sagoma libera ha un loop di fino a 96 vertici (64 quella
+  chiede fotogrammi; un gruppo costa `pezzi × pixel` (max 8); una sagoma libera ha un loop di fino a 96 vertici (64 quella
   disegnata a mano o preset; 96 l'anello della goccia); la sfocatura costa quanto in `glassSurface` e la **cattura del
   fondale si fa una volta** (mai una ri-cattura durante il viaggio: il padding resta zero e fermo).
   Il primo giro dopo un'installazione compila le varianti nuove degli shader (la sorgente è fissa: la cache è per processo).
@@ -578,7 +612,7 @@ proprietario fra tasto e finestra, il lampo di un fotogramma si guardano in mano
 
 | cosa | valore | dove |
 |---|---|---|
-| `FluidForm.Group.MaxPieces` | 6 | `FluidForm.kt` (e `PhysicsMaxPieces` dello shader, devono restare uguali) |
+| `FluidForm.Group.MaxPieces` | 8 (6 fino alla 3.x) | `FluidForm.kt` (e `PhysicsMaxPieces` dello shader e `GlassFieldMaxPieces` del campo, devono restare uguali) |
 | `FluidForm.Group.blendRadius` di serie | 48 px | idem |
 | `FluidFormPresets.MaxVertices` / `FreehandVertices` | 64 / 48 | `FluidFormPresets.kt` |
 | `FluidPhysicsJourney.Spring` | damping `FluidMotion.MenuOpenDamping` 0,62; risposta 0,36 s | `FluidPhysicsJourney.kt` |
@@ -597,8 +631,24 @@ Nessun oggetto `…Defaults` in questa famiglia: i numeri stanno in `FluidMotion
 
 ## Cosa è verificato dai test
 
-131 test JVM in `engine-ui/src/test/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/` (nessuno esegue AGSL: gli shader
-sono provati via gli specchi Kotlin del campo di distanza e, sul dispositivo, a fotogrammi):
+159 metodi di test JVM in `engine-ui/src/test/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/`, più la serie di
+robustezza (946 prove parametriche), e la parità del materiale in `…/ui/glass/field/` (nessuno esegue AGSL: gli shader
+sono provati via gli specchi Kotlin del campo di distanza, sul banco e, sul dispositivo, a fotogrammi):
+
+- `GlassRecipeParityTest` (in `ui/glass/field/`): una superficie fisica ferma col materiale nuovo riceve gli stessi numeri
+  di corpo, luce e ombra della `glassSurface` della stessa forma (tasto, capsula, pannello; due temi, due densità,
+  intensità, qualità, pellicola); l'arrivo di un viaggio è la `glassSurface` della forma d'arrivo; il primo fotogramma
+  è la superficie ferma, **salvo una nota** (sul tema scuro, fra un piccolo e un grande, il velo dei grandi fa al primo
+  fotogramma un passo di 1/30 s di strada: fino a 7 livelli nel colore del velo, `PhysicsLargeVeil`); sotto Android 13,
+  con `Classic` o con un livello chiesto sotto `Full` la superficie non prende il materiale nuovo.
+- `PhysicsLiquidTest`, `F1b2GeometryTest`: il livello e il materiale come tabella di verità; il piano porta otto pezzi; a
+  riposo i pezzi sono separati e il collo vive solo in viaggio; la ricetta di un viaggio coincide ai capi con quella
+  della lastra ferma; il margine della cattura non si muove; la luce è sempre nel corpo; il ritaglio emulato segue quello
+  di una `glassSurface`; la posa della goccia e le cuciture della fusione.
+- `MorphRobustnessTest`, `MorphRobustnessDiagnosticsTest`: la trasformazione universale su una serie fissa di 43 coppie di
+  forme (catalogo `engine-ui/src/robustness/`, lo stesso della pagina «Robustezza» della galleria), interrotta, invertita,
+  ridiretta, a 60 e 120 Hz: nessuna eccezione, nessun valore non finito, contorno senza incroci, area e baricentro senza
+  salti, materiale continuo, arrivo esatto. Dieci prove note e dichiarate (la goccia nel 24 ↔ 600 e verso un lato zero).
 
 - `RestStateDisciplineTest`, `FluidPhysicsCancelTest`: a riposo piano e `Shape` sono la **stessa istanza** a ogni fotogramma, in viaggio
   ogni progresso è un'istantanea nuova; gli estremi di un transito sono le forme; ogni viaggio, anche i duri via scalo, atterra senza eccezioni;
@@ -606,8 +656,9 @@ sono provati via gli specchi Kotlin del campo di distanza e, sul dispositivo, a 
 - `FluidPhysicsJourneyTest`, `MorphOvershootTest`: la molla di serie parte subito, oltrepassa e si posa; `House` parte piano e atterra esatta;
   la velocità ereditata è la proiezione sul viaggio nuovo e sta nei suoi tetti; l'oltrepasso è gonfiore uniforme, con tetti in frazione e in pixel,
   e una fusione oltre l'1 è un contorno solo.
-- `FluidPhysicsMaterialTest`: **a riposo la lente è esattamente quella che calcola `glassSurface`** per ogni ottica di serie; la miscela è esatta ai capi
-  e il margine di cattura non si muove mai; cupola e frangia sfumano.
+- `FluidPhysicsMaterialTest` (il **vetro di prima**): a riposo la lente è esattamente quella che il vetro di prima di
+  `glassSurface` calcola per ogni ottica di serie; la miscela è esatta ai capi e il margine di cattura non si muove mai;
+  cupola e frangia sfumano.
 - `LiquidDropTest`, `DropPlanTest`, `DropRimTest`: la coda resta indietro di `2ζu/√kMin`, accanto all'ancora nessun ritardo, **zero esatto
   alla posa e nessun fotogramma chiesto**, il piano della posa è la lastra al bit, il tempo è quello delle animazioni, il bordo ha il profilo della lastra.
 - `ExternalDriveStartFrameTest`, `ExternalGroupDriveTest`: la partenza viva, la cache del piano, il drive fra gruppi (due tasti→tre, tre→semi, sei per parte).

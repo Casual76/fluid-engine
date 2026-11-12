@@ -1586,9 +1586,10 @@ tutti i programmi (3 test strumentati).
   che diventa pagina intera: «per ora puntiamo alla qualità». Va in **F7** coi numeri qui sotto come traguardo. Fino a
   F7 non si propongono prove di ottimizzazione.
 - **Il vetro in viaggio**: B, «un po' limpido» (tabella delle scelte di F1A, ultima riga).
-- **Il pomello dell'interruttore** a riposo è senza filo grigio (variante applicata di serie dall'orchestratore e mostrata;
-  Alessio non ha obiettato). La manopola di debug `knobrim=on` lo rimette. Conseguenza da mostrargli in F6.3: il pomello
-  del cursore a riposo su pagina chiara si stacca poco (1,14:1; la posizione la dice la pista).
+- **Il pomello** di interruttore e cursore a riposo è **senza filo grigio, ovunque**: scelta A di Alessio (2026-11-12), sulla
+  tavola `moto/f1b/finale/per-alessio/pomello-di-serie-e-knobrim.png`, fra senza filo, col filo, e col filo solo sul
+  cursore; gli era stato detto che in chiaro il pomello del cursore si stacca poco dalla pagina (1,14:1; la posizione la
+  dice la pista). La manopola di debug `knobrim=on` rimette il filo.
 
 **F1B.9 · Il collo che dura** (nuovo; Opus; parte con F2.1 e F2.4). Il collo fra due pezzi che si separano o si uniscono
 vive per un tempo suo, regolato sul **tempo che manca alla posa** e non sul progresso del viaggio (oggi muore nell'ultimo

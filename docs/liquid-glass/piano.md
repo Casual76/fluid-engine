@@ -1772,6 +1772,16 @@ come in R5 M3 / pronta come in R4 A6. Ombra sopra il testo: ×4,9 come iOS 26 / 
 vetro che ha girato: come la scelta di F1A / più profondo. Il cursore: come si presentano i due estremi. Bordo in basso:
 sfuma senza sfocare / nessun effetto.
 
+**Scelte di Alessio sul bordo dello scorrimento (2026-11-12)**, sulle tavole di `artifacts/liquid-glass/tavole/f2/bordo/`
+(rese dal banco, coi ritagli di Apple accanto; da riguardare sul tablet in S3):
+
+| scelta | risposta |
+|---|---|
+| profilo del bordo morbido | **A**: quello misurato su Apple (R4 B7), né più corto né più lungo |
+| in basso, sotto barra e tab bar | **A**: il contenuto sfuma senza sfocarsi, come iOS 26 (`FluidScrollEdgeBottomAutomatic = FadeOnly`) |
+| verso che colore si scioglie il contenuto | il colore del fondo della pagina, come Apple (proposta dell'orchestratore: «va bene») |
+| risoluzione della cattura della striscia | **piena** (proposta dell'orchestratore: «va benissimo, molto meglio»); la metà resta una leva di F7 e alla densità del tablet esce dalle tolleranze di R4 B7 |
+
 ---
 
 ### F3 · Piano flottante e geometria

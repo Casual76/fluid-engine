@@ -535,15 +535,19 @@ internal class PhysicsDriveHeading {
  *  - i **raggi** e il **raccordo** sono quelli che il campo vede ([PhysicsRenderPlan.fieldRadii],
  *    [PhysicsRenderPlan.fieldSmooth]), cioè la regola forma → piano di `glassSurface`: a riposo una lastra fisica
  *    ha la sagoma della lastra ferma, pixel per pixel;
- *  - il **raggio di fusione** è quello del gruppo per quanto il collo è vivo ([PhysicsRenderPlan.fusion]): zero
- *    a riposo, dove due pezzi distinti sono separati del tutto;
+ *  - il **raggio di fusione** è quello del collo ([PhysicsRenderPlan.fusion]): zero a riposo, dove due pezzi
+ *    distinti sono separati del tutto. Nei viaggi di `morphTo` il collo vive nel tempo e il raccordo è quello di
+ *    [physicsTimedNeckBlend] (F1B.9); nelle guide esterne e nei piani costruiti a mano è ancora il raggio del gruppo
+ *    per il peso del progresso ([physicsNeckBlend]);
  *  - le lunghezze passano per [scale] (pixel di chi disegna per pixel di layout: la frazione di risoluzione della
  *    cattura).
  */
 internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassFieldPlan): GlassFieldPlan {
   out.clear()
   val count = plan.pieceCount.coerceIn(0, min(PhysicsMaxPieces, out.pieces))
-  val fusion = plan.fusion.coerceIn(0f, 1f)
+  val timed = physicsNeckIsTimed(plan.fusion)
+  val neck = if (timed) physicsNeckDecode(plan.fusion) else -1f
+  val fusion = if (timed) 0f else plan.fusion.coerceIn(0f, 1f)
   for (i in 0 until count) {
     val at = i * 4
     out.add(
@@ -556,7 +560,11 @@ internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassF
       topRight = plan.fieldRadii[at + 1] * scale,
       bottomRight = plan.fieldRadii[at + 2] * scale,
       bottomLeft = plan.fieldRadii[at + 3] * scale,
-      blend = if (i == 0) 0f else physicsNeckBlend(plan, i) * fusion * scale,
+      blend = when {
+        i == 0 -> 0f
+        timed -> physicsTimedNeckBlend(plan, i, neck) * scale
+        else -> physicsNeckBlend(plan, i) * fusion * scale
+      },
       smoothing = plan.fieldSmooth[i],
     )
   }
@@ -565,7 +573,9 @@ internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassF
 
 /**
  * Il raggio di fusione del pezzo [index] col già fuso, per il materiale nuovo, prima del peso del collo
- * ([PhysicsRenderPlan.fusion]), in pixel di layout (giro di correzione unico di F1B, rilievo 3 del critico A).
+ * ([PhysicsRenderPlan.fusion]), in pixel di layout (giro di correzione unico di F1B, rilievo 3 del critico A). Dopo
+ * F1B.9 vale per il collo che segue il **progresso** (guide esterne, piani costruiti a mano); i viaggi di `morphTo`
+ * usano [physicsTimedNeckBlend].
  *
  * Il vetro di prima spegne il ponte con la compenetrazione misurata **sul raggio di fusione** (`effectiveBlendRadius`):
  * due pezzi che si compenetrano di più di quel raggio si uniscono netti, e ai capi di una fusione (pezzi coincidenti)

@@ -179,9 +179,9 @@ internal data class GlassLiquidNesting(val veil: Float, val shadow: Float)
  *   smussato.
  * @param magnify l'ingrandimento attorno al centro della sagoma a moto pieno (`magnify` del corpo).
  * @param dispersion la frangia cromatica a moto pieno, per una superficie che da ferma non ne ha.
- * @param neck per quanta parte del viaggio il **collo** fra due pezzi nasce e muore, 0..0,5: la fusione sale da
- *   zero nei primi `neck` del progresso e torna a zero negli ultimi. A riposo due pezzi distinti sono separati
- *   del tutto (scelta di Alessio, 2026-11-11): il collo esiste solo in viaggio. Vedi `travelFusion`.
+ * @param neck a che frazione del **tempo** di un viaggio di `morphTo` (fino alla posa della molla) il **collo** fra
+ *   due pezzi si rompe, 0,05..0,5 (F1B.9): più grande, il collo dura di più. A riposo due pezzi distinti sono
+ *   separati del tutto (scelta di Alessio, 2026-11-11): il collo esiste solo in viaggio. Vedi `physicsNeckAt`.
  */
 @Immutable
 internal data class GlassLiquidTravel(
@@ -738,25 +738,23 @@ internal object GlassLiquidGrowths {
 }
 
 /**
- * Per quanta parte del viaggio il collo nasce e muore (`GlassLiquidTravel.neck`, giro di correzione unico di F1B,
- * rilievo 3 del critico A): **0,32**. Era 0,5, cioè il collo pieno solo a metà viaggio e una frazione all'inizio e alla
- * fine: in (a), un tasto che diventa due, i pezzi si staccano verso l'85% del progresso, e lì il raccordo valeva un
- * quinto del suo raggio; il ponte viveva un fotogramma. Con 0,32 il collo è pieno da un terzo a due terzi del viaggio e
- * all'85% ne resta circa metà: il ponte si assottiglia coi lobi tondi e si rompe da solo, perché i pezzi si allontanano,
- * poco prima della posa. Non meno di 0,31: sotto, fra due progressi a 0,01 la fusione cambia di più di 0,05
- * (`PhysicsLiquidTest`). Varianti da guardare con la manopola `travelneck` (0,05–0,5): 0,2 (collo più lungo), 0,5 (quello
- * di prima).
+ * A che frazione del tempo di un viaggio di `morphTo` il collo fra due pezzi si rompe (`GlassLiquidTravel.neck`,
+ * F1B.9): **0,38**, cioè ~250 ms dopo la partenza con la molla di serie (~660 ms alla posa), ~410 ms prima della posa.
+ * Il collo vive per un tempo suo, non col progresso: la molla porta i pezzi quasi all'arrivo in ~160 ms, e un collo
+ * legato al progresso (F1B, 0,32 dell'ultima parte del progresso) durava due o tre fotogrammi a 120 Hz.
  *
- * **Sul tablet il ponte resta corto** (stesso giro, aperto): in (a) la molla del playground porta i cerchi quasi alla
- * distanza d'arrivo in ~70 ms, e la fusione segue il progresso, quindi vita e ponte durano uno o due fotogrammi a 120 Hz
- * (le cuspidi a V non ci sono più). Né `travelneck` da 0,06 a 0,2 né un raggio del ponte proporzionato ai pezzi (provato
- * e tolto) lo allungano: serve un collo che muore nel **tempo** verso la posa, non nel progresso.
+ * Sul tablet (`moto/f1b/collo/`), con 0,38 il collo si vede ~125 ms in (a), un tasto che diventa due, e ~100–115 ms in
+ * (c), un menu che torna gruppo; con 0,325 era 66–74 ms, sotto i ~75 ms della partenza che ad Alessio piacevano. Si
+ * rompe una volta sola, durante l'oltrepasso della molla, prima che i lobi si assestino (l'ordine delle fasi di R4 B2
+ * (d); Apple rompe ≈200 ms prima del riposo, fiducia media). L'alternativa più breve mostrata ad Alessio è 0,35. Varianti
+ * con la manopola `travelneck` (0,05–0,5). Le guide esterne (la barra fra le pagine) tengono il collo nel progresso di
+ * F1B (`PhysicsProgressNeckFade`, 0,32).
  */
-internal const val GlassLiquidNeck: Float = 0.32f
+internal const val GlassLiquidNeck: Float = 0.38f
 
 /**
  * Le varianti del materiale **in viaggio** (F1B.1; né R4 né R5 danno numeri: B1 dice «limpido e rifrangente», a
- * occhio). Tutte hanno lo stesso collo ([GlassLiquidNeck]): quanto dura è della geometria del viaggio, non di quanto è
+ * occhio). Tutte hanno lo stesso collo ([GlassLiquidNeck]): quanto dura è del tempo del viaggio, non di quanto è
  * limpido.
  */
 internal object GlassLiquidTravels {
@@ -1082,7 +1080,7 @@ internal object GlassLiquidTuning {
    * `darkveilalpha`; il vetro annidato: `nestedveil` (quanto resta del velo sullo **scuro**, il numero che
    * conta), `nestedlightveil` (lo stesso sul chiaro), `nestedshadow` (quanto resta dell'ombra, sui due lati); il
    * materiale in viaggio (F1B.1): `travelclear` (quanto nitido a moto pieno), `travelbend` (di quanto cresce la
-   * lente), `travelneck` (per quanta parte del viaggio il collo fra due pezzi nasce e muore).
+   * lente), `travelneck` (a che frazione del tempo del viaggio il collo fra due pezzi si rompe, F1B.9).
    */
   private val numbers: Map<String, Knob> = linkedMapOf(
     "rimwidth" to Knob(0f, 4f) { p, v ->

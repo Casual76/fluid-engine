@@ -296,6 +296,12 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    */
   private var heldFusion = 0f
 
+  /**
+   * Come [heldFusion], per il collo nel tempo (F1B.9): la coordinata del collo di un viaggio di [morphTo] fermato a
+   * metà, che la forma ferma disegna e il viaggio dopo eredita. Null per ogni forma arrivata o posata con [snapTo].
+   */
+  private var heldNeck: Float? = null
+
   /** Il piano della forma ferma che ancora oscilla (il corpo che si posa dopo l'arrivo). */
   private val settlePlan = PhysicsRenderPlan()
   private var settlePlanForm: FluidForm? = null
@@ -351,6 +357,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     val transit = buildTransit(origin, target)
     // Il collo fra i pezzi non riparte da zero se questo viaggio ne interrompe un altro (4.0).
     transit.fusionStart = activeTransit?.let { it.fusionAt(it.progress.value) } ?: heldFusion
+    // Il collo nel tempo (F1B.9) parte da quello che c'era: un viaggio interrotto o invertito non lo fa saltare.
+    transit.neckStart = activeTransit?.let { it.neckAt(it.progress.value) } ?: heldNeck ?: -1f
     // L'installazione e il progresso zero DEVONO atterrare nello stesso snapshot, ed è per questo
     // che ogni transito possiede il proprio Animatable, nato a zero: con un progresso condiviso
     // il transito nuovo si mostrava per un fotogramma col valore vecchio (1), cioè con la sagoma
@@ -369,9 +377,12 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         )
       }
       ?: 0f
+    // L'orologio del collo: il tempo che manca alla posa, letto dalla stessa molla che muove il progresso.
+    transit.neckClock = PhysicsNeckClock.of(spec ?: FluidPhysicsJourney.Spring, seed)
     formState = target
     activeTransit = transit
     heldFusion = 0f
+    heldNeck = null
     transitPlanStamp = Float.NaN
     try {
       // Il viaggio sostituito è orfano: fermarlo libera la coroutine che lo stava animando, senza
@@ -393,6 +404,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         if (transit.progress.value != 1f) {
           formState = currentForm()
           heldFusion = transit.fusionAt(transit.progress.value)
+          heldNeck = transit.neckAt(transit.progress.value)
         }
         activeTransit = null
         restPlanForm = null
@@ -405,6 +417,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     activeTransit = null
     formState = target
     heldFusion = 0f
+    heldNeck = null
     restPlanForm = null
   }
 
@@ -556,7 +569,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       }
       if (restPlanForm != form) {
         restPlan.clipToBounds = maskInShader
-        buildRestPlan(restPlan, form, heldFusion)
+        buildRestPlan(restPlan, form, heldNeck?.let(::physicsNeckEncode) ?: heldFusion)
         restPlanForm = form
       }
       return restPlan
@@ -798,11 +811,35 @@ internal sealed class Transit(
   /** Il collo ereditato dal viaggio che questo interrompe (4.0): vedi [travelFusion]. Zero da fermi. */
   var fusionStart: Float = 0f
 
-  /** Per quanta parte del viaggio il collo nasce e muore: il profilo del materiale, letto alla nascita. */
-  val fusionFade: Float = GlassLiquidProfile.Default.travel.neck
+  /**
+   * Per quanta parte del viaggio il collo nel progresso nasce e muore: quello di F1B, congelato
+   * ([PhysicsProgressNeckFade]); lo usano le guide esterne e i transiti costruiti a mano.
+   */
+  val fusionFade: Float = PhysicsProgressNeckFade
 
   /** Quanto e' vivo il collo fra i pezzi a progresso [t]: vedi [travelFusion]. */
   fun fusionAt(t: Float): Float = travelFusion(t, fusionFade, fusionStart)
+
+  /**
+   * L'orologio del collo nel tempo (F1B.9): lo installa [FluidPhysicsState.morphTo] con la molla del viaggio. Null
+   * per una guida esterna e per un transito costruito a mano, che restano sul collo nel progresso.
+   */
+  var neckClock: PhysicsNeckClock? = null
+
+  /** La coordinata del collo ereditata dal viaggio che questo interrompe (F1B.9): -1 da fermi. */
+  var neckStart: Float = -1f
+
+  /** A che frazione del tempo del viaggio il collo si rompe: il profilo del materiale, letto alla nascita. */
+  val neckBreak: Float = GlassLiquidProfile.Default.travel.neck
+
+  /**
+   * La coordinata del collo a progresso [t] (F1B.9, [physicsNeckAt]), col tempo letto dalla molla in quello stato; null
+   * senza un orologio.
+   */
+  fun neckAt(t: Float): Float? = neckClock?.let { physicsNeckAt(it.elapsed(t, progress.velocity), neckStart, neckBreak) }
+
+  /** Cio' che il piano porta in `fusion` a progresso [t]: il collo nel tempo se c'e' un orologio, se no il progresso. */
+  fun planFusionAt(t: Float): Float = neckAt(t)?.let(::physicsNeckEncode) ?: fusionAt(t)
 
   /** Il riquadro della partenza e quello dell'arrivo: la direzione del viaggio, per l'eredita'. */
   abstract val startFrame: Rect
@@ -991,6 +1028,9 @@ internal class PhysicsRenderPlan {
   /**
    * Quanto e' vivo il collo fra i pezzi, 0..1 ([travelFusion]): zero a riposo, dove i pezzi sono separati del
    * tutto; in viaggio la campana del progresso. Il raggio di fusione del campo e' [pieceBlend] per questo.
+   *
+   * Nei viaggi di `morphTo` (F1B.9) la stessa casella porta invece il collo nel tempo, spostato in 2..4
+   * ([physicsNeckEncode]): una casella sola, cosi' chi copia il piano porta il collo con se'.
    */
   var fusion: Float = 0f
 
@@ -1240,10 +1280,12 @@ internal fun Transit.formAt(t: Float): FluidForm = when (this) {
  */
 internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Float) {
   when (transit) {
+    // Il collo nel tempo (F1B.9) vive anche all'oltrepasso: la molla non e' posata, e il collo si rompe quando lo
+    // dice il suo orologio. Il collo nel progresso li' e' spento, com'era.
     is SlabTransit -> if (t > 1f) {
-      buildSlabPlan(plan, transit.overshootPairs(t), transit.blendRadius, 1f, fusion = 0f)
+      buildSlabPlan(plan, transit.overshootPairs(t), transit.blendRadius, 1f, fusion = transit.neckAt(t)?.let(::physicsNeckEncode) ?: 0f)
     } else {
-      buildSlabPlan(plan, transit.pairs, transit.blendRadius, t, fusion = transit.fusionAt(t))
+      buildSlabPlan(plan, transit.pairs, transit.blendRadius, t, fusion = transit.planFusionAt(t))
     }
 
     is RingTransit -> {
@@ -1263,8 +1305,11 @@ internal fun buildSlabPlan(
   pairs: List<Pair<FluidForm.Slab, FluidForm.Slab>>,
   blendRadius: Float,
   t: Float,
-  /** Quanto e' vivo il collo (4.0): lo legge il solo materiale nuovo. Di serie la campana di [travelFusion]. */
-  fusion: Float = travelFusion(t, GlassLiquidProfile.Default.travel.neck),
+  /**
+   * Quanto e' vivo il collo (4.0): lo legge il solo materiale nuovo. Di serie la campana di [travelFusion]; un valore
+   * fra 2 e 4 e' il collo nel tempo (F1B.9, [physicsNeckEncode]).
+   */
+  fusion: Float = travelFusion(t, PhysicsProgressNeckFade),
 ) {
   // Una fusione all'oltrepasso non estrapola piu' (3.0): tutti i pezzi diventano il traguardo
   // gonfiato, che coincidono — un contorno solo, col ponte spento da effectiveBlendRadius. Il doppio
@@ -1290,7 +1335,7 @@ internal fun buildSlabPlan(
     plan.mergePieceIntoSilhouette(index)
   }
   plan.finishSlabs(pairs.size, blendRadius)
-  plan.fusion = if (pairs.size > 1) fusion.coerceIn(0f, 1f) else 0f
+  plan.fusion = if (pairs.size > 1) physicsNeckSanitize(fusion) else 0f
 }
 
 /** Le otto cifre di uno slab fermo: riquadro e raggi, questi tenuti fra zero e mezzo lato. */
@@ -1336,7 +1381,7 @@ internal fun buildRestPlan(plan: PhysicsRenderPlan, form: FluidForm, fusion: Flo
         writeRestSlab(plan, piece as FluidForm.Slab, index)
       }
       plan.finishSlabs(form.pieces.size, form.blendRadius)
-      plan.fusion = if (form.pieces.size > 1) fusion.coerceIn(0f, 1f) else 0f
+      plan.fusion = if (form.pieces.size > 1) physicsNeckSanitize(fusion) else 0f
     }
 
     is FluidForm.Poly -> {

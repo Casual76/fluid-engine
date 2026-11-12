@@ -363,7 +363,10 @@ internal fun effectiveBlendRadius(blend: Float, minGap: Float): Float {
  * Nasce in [rise] e muore in [fade] (giro di correzione unico di F1B, rilievo 3 del critico A): fino a qui le due rampe
  * erano la stessa, metà viaggio per parte, e il collo era pieno solo a metà strada. La nascita resta di metà viaggio (due
  * pezzi staccati a riposo si tendono il ponte senza uno scatto, anche a 60 Hz, dove la molla corre); la morte è più corta
- * (`GlassLiquidNeck`), così il collo c'è ancora quando i pezzi si staccano, si assottiglia e si rompe da solo.
+ * ([PhysicsProgressNeckFade]), così il collo c'è ancora quando i pezzi si staccano, si assottiglia e si rompe da solo.
+ *
+ * Dopo F1B.9 è il collo delle sole guide esterne e dei transiti costruiti a mano: i viaggi di `morphTo` hanno il collo
+ * nel tempo ([physicsNeckAt]), perché col progresso la molla di serie lo consumava in due o tre fotogrammi.
  */
 internal fun travelFusion(t: Float, fade: Float, start: Float = 0f, rise: Float = TravelFusionRise): Float {
   if (!t.isFinite()) return 0f

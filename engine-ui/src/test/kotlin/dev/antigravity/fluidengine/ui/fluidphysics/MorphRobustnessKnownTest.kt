@@ -12,6 +12,14 @@ package dev.antigravity.fluidengine.ui.fluidphysics
  * della ricetta. Questi casi rimangono esclusi dalla certificazione di quel limite, stampati, non nascosti.
  * Finitezza, completamento, addormentamento e array finali restano obbligatori anche per tutti i noti.
  * Nessuna lettura di log o registrazione automatica durante l'esecuzione dei test.
+ *
+ * Aggiornata alla corsa lg-f2-insieme2 (F1B.9, il collo nel tempo): 1654 chiavi. Tolte le 78 che ora passano senza
+ * rilievi; aggiunte 36 chiavi di `uno-otto` e `uno-otto-inverso` (ridirezione al 25% e al 75%) e allargate 4 con
+ * `passo-zero:area`, classe RITARGETING. Il salto (0,10-0,13% d'area, soglia 0,10%) c'era gia': alla ridirezione
+ * `Transit.formAt` fotografa la forma col raccordo continuo di serie e il raggio del campo scende di circa 5 px;
+ * lo copriva il rigonfiamento del collo di prima, che F1B.9 ha tolto. Provato e scartato: `smoothing = 0f` nella
+ * forma fotografata chiude queste chiavi e altre 175 note, ma apre 240 `passo-zero:area` sulle ridirezioni con la
+ * goccia (corsa lg-f2-insieme). Da chiudere in F3.3.
  */
 internal object MorphRobustnessKnown {
   private val records = listOf(
@@ -1344,34 +1352,16 @@ internal object MorphRobustnessKnown {
     taglie-diverse-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     taglie-diverse-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     taglie-diverse-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    taglie-diverse-inverso/goccia-interrompi75/120/chiaro|passo-zero:baricentro-x|RITARGETING
     taglie-diverse-inverso/goccia-interrompi75/120/scuro|passo-zero:baricentro-x,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    taglie-diverse-inverso/goccia-interrompi75/60/chiaro|passo-zero:baricentro-x|RITARGETING
     taglie-diverse-inverso/goccia-interrompi75/60/scuro|passo-zero:baricentro-x,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     taglie-diverse-inverso/goccia-inverti25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse-inverso/goccia-inverti25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    taglie-diverse-inverso/goccia-inverti75/120/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/goccia-inverti75/120/scuro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/goccia-inverti75/60/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/goccia-inverti75/60/scuro|passo-zero:baricentro-x|RITARGETING
     taglie-diverse-inverso/goccia-terza25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse-inverso/goccia-terza25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    taglie-diverse-inverso/goccia-terza75/120/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/goccia-terza75/120/scuro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/goccia-terza75/60/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/goccia-terza75/60/scuro|passo-zero:baricentro-x|RITARGETING
     taglie-diverse-inverso/inverti25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse-inverso/inverti25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    taglie-diverse-inverso/inverti75/120/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/inverti75/120/scuro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/inverti75/60/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/inverti75/60/scuro|passo-zero:baricentro-x|RITARGETING
     taglie-diverse-inverso/terza25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse-inverso/terza25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    taglie-diverse-inverso/terza75/120/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/terza75/120/scuro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/terza75/60/chiaro|passo-zero:baricentro-x|RITARGETING
-    taglie-diverse-inverso/terza75/60/scuro|passo-zero:baricentro-x|RITARGETING
     taglie-diverse/goccia-inverti25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse/goccia-inverti25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse/goccia-terza25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -1380,12 +1370,6 @@ internal object MorphRobustnessKnown {
     taglie-diverse/inverti25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse/terza25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse/terza25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    tre-cinque-inverso/goccia-inverti50/120/chiaro|accelerazione:baricentro-x|SOGLIA_ACCELERAZIONE
-    tre-cinque-inverso/goccia-inverti50/120/scuro|accelerazione:baricentro-x|SOGLIA_ACCELERAZIONE
-  """,
-  """
-    tre-cinque-inverso/inverti50/120/chiaro|accelerazione:baricentro-x|SOGLIA_ACCELERAZIONE
-    tre-cinque-inverso/inverti50/120/scuro|accelerazione:baricentro-x|SOGLIA_ACCELERAZIONE
     triangolo-stella5-inverso/doppio/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     triangolo-stella5-inverso/doppio/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     triangolo-stella5-inverso/goccia-doppio/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -1406,6 +1390,8 @@ internal object MorphRobustnessKnown {
     triangolo-stella5-inverso/terza50/120/scuro|passo-zero:ombra-ambiente,passo-zero:sfocatura|RITARGETING
     triangolo-stella5-inverso/terza50/60/chiaro|passo-zero:sfocatura|RITARGETING
     triangolo-stella5-inverso/terza50/60/scuro|passo-zero:ombra-ambiente,passo-zero:sfocatura|RITARGETING
+  """,
+  """
     triangolo-stella5/doppio/120/chiaro|passo-zero:sfocatura|RITARGETING
     triangolo-stella5/doppio/120/scuro|passo-zero:ombra-ambiente,passo-zero:sfocatura|RITARGETING
     triangolo-stella5/doppio/60/chiaro|passo-zero:sfocatura|RITARGETING
@@ -1534,8 +1520,6 @@ internal object MorphRobustnessKnown {
     un-pixel/inverti50/120/scuro|accelerazione:area,accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     un-pixel/inverti75/120/chiaro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     un-pixel/inverti75/120/scuro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-  """,
-  """
     un-pixel/inverti75/60/chiaro|accelerazione:area|SOGLIA_ACCELERAZIONE
     un-pixel/inverti75/60/scuro|accelerazione:area|SOGLIA_ACCELERAZIONE
     un-pixel/terza25/120/chiaro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -1546,9 +1530,7 @@ internal object MorphRobustnessKnown {
     un-pixel/terza75/120/scuro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     un-pixel/terza75/60/chiaro|accelerazione:area|SOGLIA_ACCELERAZIONE
     un-pixel/terza75/60/scuro|accelerazione:area|SOGLIA_ACCELERAZIONE
-    uno-due-inverso/goccia-interrompi25/120/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-due-inverso/goccia-interrompi25/60/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi50/120/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
@@ -1560,6 +1542,8 @@ internal object MorphRobustnessKnown {
     uno-due-inverso/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-inverti25/120/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-inverti25/120/scuro|passo-zero:area|RITARGETING
+  """,
+  """
     uno-due-inverso/goccia-inverti25/60/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-inverti25/60/scuro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-inverti50/120/chiaro|passo-zero:area|RITARGETING
@@ -1666,74 +1650,56 @@ internal object MorphRobustnessKnown {
     uno-due/terza75/120/scuro|passo-zero:area|RITARGETING
     uno-due/terza75/60/chiaro|passo-zero:area|RITARGETING
     uno-due/terza75/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-interrompi25/120/chiaro|passo-zero:area|RITARGETING
     uno-otto-inverso/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi25/60/chiaro|passo-zero:area|RITARGETING
     uno-otto-inverso/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi50/120/chiaro|passo-zero:area|RITARGETING
     uno-otto-inverso/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi50/60/chiaro|passo-zero:area|RITARGETING
     uno-otto-inverso/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi75/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-inverti25/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-inverti25/120/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-inverti25/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-inverti25/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-inverti50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-inverti50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-inverti50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-inverti50/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-terza25/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-terza25/120/scuro|passo-zero:area|RITARGETING
-  """,
-  """
-    uno-otto-inverso/goccia-terza25/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-terza25/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-terza50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-terza50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-terza50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-terza50/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti25/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti25/120/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti25/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti25/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/inverti50/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza25/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza25/120/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza25/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza25/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/terza50/60/scuro|passo-zero:area|RITARGETING
-    uno-otto/goccia-interrompi25/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-interrompi50/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-interrompi75/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-interrompi75/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-inverti75/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-inverti75/120/scuro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-inverti75/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-inverti75/60/scuro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-terza75/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-terza75/120/scuro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-terza75/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/goccia-terza75/60/scuro|passo-zero:area|RITARGETING
+    uno-otto-inverso/inverti75/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/inverti75/120/scuro|passo-zero:area|RITARGETING
+    uno-otto-inverso/inverti75/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/inverti75/60/scuro|passo-zero:area|RITARGETING
+    uno-otto-inverso/terza75/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/terza75/120/scuro|passo-zero:area|RITARGETING
+    uno-otto-inverso/terza75/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto-inverso/terza75/60/scuro|passo-zero:area|RITARGETING
+    uno-otto/goccia-interrompi25/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto/goccia-interrompi25/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-interrompi50/60/chiaro|passo-zero:area|RITARGETING
     uno-otto/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto/goccia-interrompi75/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-inverti50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto/goccia-inverti50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto/goccia-inverti50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto/goccia-inverti50/60/scuro|passo-zero:area|RITARGETING
-    uno-otto/goccia-terza50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto/goccia-terza50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto/goccia-terza50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto/goccia-terza50/60/scuro|passo-zero:area|RITARGETING
-    uno-otto/inverti50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto/inverti50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto/inverti50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto/inverti50/60/scuro|passo-zero:area|RITARGETING
-    uno-otto/terza50/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto/terza50/120/scuro|passo-zero:area|RITARGETING
-    uno-otto/terza50/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto/terza50/60/scuro|passo-zero:area|RITARGETING
+    uno-otto/goccia-inverti25/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto/goccia-inverti25/120/scuro|passo-zero:area|RITARGETING
+    uno-otto/goccia-inverti25/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto/goccia-inverti25/60/scuro|passo-zero:area|RITARGETING
+    uno-otto/goccia-terza25/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto/goccia-terza25/120/scuro|passo-zero:area|RITARGETING
+    uno-otto/goccia-terza25/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto/goccia-terza25/60/scuro|passo-zero:area|RITARGETING
+    uno-otto/inverti25/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto/inverti25/120/scuro|passo-zero:area|RITARGETING
+    uno-otto/inverti25/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto/inverti25/60/scuro|passo-zero:area|RITARGETING
+  """,
+  """
+    uno-otto/terza25/120/chiaro|passo-zero:area|RITARGETING
+    uno-otto/terza25/120/scuro|passo-zero:area|RITARGETING
+    uno-otto/terza25/60/chiaro|passo-zero:area|RITARGETING
+    uno-otto/terza25/60/scuro|passo-zero:area|RITARGETING
   """
   ).flatMap { it.trimIndent().lines().filter { line -> line.isNotBlank() } }.associate { line ->
     val fields=line.split('|'); require(fields.size==3) { line }; fields[0] to (fields[1].split(',').toSet() to fields[2])

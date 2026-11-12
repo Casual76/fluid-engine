@@ -195,6 +195,10 @@ internal class GlassRecipe {
  *   quello dei grandi ([GlassLiquidAdaptive.darkDeepenFrom]).
  * @property texture quanto lo sfondo è fitto, 0..1 (`GlassBackdropStats.texture`): l'ombra sul testo.
  * @property color il colore medio dello sfondo: il colore dell'ombra ([GlassLiquidAdaptive.shadowHue]).
+ * @property holdsSide vero se questo vetro **non gira** perché il suo contenuto non segue l'inchiostro (F2.3: un
+ *   `glassSurface` qualunque, le barre che non danno l'inchiostro): sul lato scuro prende allora il soffitto del velo
+ *   dei grandi ([GlassLiquidAdaptive.darkCeiling]), l'unico modo che gli resta di tenere leggibile il testo chiaro
+ *   sopra una pagina bianca. Falso di serie: chi gira, gira.
  */
 internal class GlassAdaptiveMaterial {
   var measured: Boolean = false
@@ -204,6 +208,7 @@ internal class GlassAdaptiveMaterial {
   var lightLevel: Float = Float.NaN
   var texture: Float = 0f
   var color: Color = Color.Unspecified
+  var holdsSide: Boolean = false
 
   /** Nessuna misura e il lato del tema: la ricetta di oggi. Restituisce sé stesso. */
   fun unmeasured(): GlassAdaptiveMaterial {
@@ -214,6 +219,7 @@ internal class GlassAdaptiveMaterial {
     lightLevel = Float.NaN
     texture = 0f
     color = Color.Unspecified
+    holdsSide = false
     return this
   }
 
@@ -294,6 +300,22 @@ internal fun glassVeilFloorAlpha(veil: Color, darkLevel: Float, floor: Float): F
   val b = clampGlassUnit(darkLevel)
   if (!(v > floor) || !(b < floor)) return 0f
   return clampGlassUnit((floor - b) / (v - b))
+}
+
+/**
+ * Lo specchio di [glassVeilFloorAlpha] sul lato scuro (F2.3): l'alfa che il velo [veil] deve avere perché il corpo,
+ * sopra uno sfondo di luma [lightLevel], non salga sopra la luma [ceiling]: `(sfondo − soffitto) / (sfondo − velo)`.
+ * Zero se non serve (sfondo già sotto il soffitto, o un velo che non ci scende).
+ *
+ * È ciò che tiene leggibile il testo chiaro di un pannello del tema scuro sopra una pagina bianca: i grandi non girano
+ * (R4 A6), e senza soffitto il loro corpo sul bianco sta a 154 di luma, col testo chiaro a 2,5:1.
+ */
+internal fun glassVeilCeilingAlpha(veil: Color, lightLevel: Float, ceiling: Float): Float {
+  if (!lightLevel.isFinite() || !(ceiling < 1f)) return 0f
+  val v = 0.2126f * veil.red + 0.7152f * veil.green + 0.0722f * veil.blue
+  val b = clampGlassUnit(lightLevel)
+  if (!(v < ceiling) || !(b > ceiling)) return 0f
+  return clampGlassUnit((b - ceiling) / (b - v))
 }
 
 /**
@@ -399,7 +421,7 @@ internal fun glassPreferenceVeil(preference: Float, profile: GlassLiquidPreferen
  *   diffusione, verso uno ne aggiunge e ispessisce il velo ([GlassLiquidPreference]). Non tocca la risoluzione della
  *   cattura, che l'innesto fissa in composizione dal ruolo (vedi `captureScale`);
  * - un vetro **tinto** (`tint`) prende, se il profilo lo chiede, l'ombra del suo colore e il filo chiaro di iOS 26
- *   ([GlassLiquidAdaptive.tintHalo], [GlassLiquidAdaptive.tintRim]: di serie spenti).
+ *   ([GlassLiquidAdaptive.tintHalo], [GlassLiquidAdaptive.tintRim]: di serie accesi, scelta di Alessio del 2026-11-12).
  *
  * ### Cosa decide chi
  * - il **profilo** decide l'aspetto: velo, bordo, ombra, smerigliatura, lente, e di quanto crescono i grandi;
@@ -605,6 +627,13 @@ private fun glassRecipeSide(
   if (sensed != null && !darkSide) {
     val floor = glassVeilFloorAlpha(veilColor, sensed.darkLevel, adapt.lightFloor)
     if (floor > veilColor.alpha) veilColor = veilColor.copy(alpha = floor)
+  }
+  // Il soffitto del velo scuro dei grandi (F2.3): sopra la parte chiara dello sfondo il corpo non sale oltre
+  // `darkCeiling`. I grandi non schiariscono e non girano: si fanno piu' profondi. I piccoli girano; quelli che non
+  // possono (il loro contenuto non segue l'inchiostro: `holdsSide`) fanno come i grandi.
+  if (sensed != null && darkSide && (adapt.darkensContinuously(role) || sensed.holdsSide)) {
+    val ceiling = glassVeilCeilingAlpha(veilColor, sensed.lightLevel, adapt.darkCeiling)
+    if (ceiling > veilColor.alpha) veilColor = veilColor.copy(alpha = ceiling)
   }
   out.materialize = amount
   val fixedFilm = film.isSpecified

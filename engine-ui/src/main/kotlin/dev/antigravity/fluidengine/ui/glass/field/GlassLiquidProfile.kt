@@ -232,6 +232,8 @@ internal data class GlassLiquidTravel(
  * @param tintRim quanto il filo di un vetro tinto diventa la tinta schiarita e meno satura di iOS 26 (R4 A7: (224, 103,
  *   116) su un rosso (222, 0, 12)), 0..1. Non è adattivo.
  * @param continuous i ruoli che scuriscono in continuo invece di girare: pannelli e fogli (`Modal`), card (`Content`).
+ * @param darkCeiling la luma (0..1, sRGB) sopra cui il corpo **scuro** di un grande (un ruolo di [continuous]) non sale
+ *   sopra la parte chiara dello sfondo: lo specchio di [lightFloor] (F2.3). Uno = nessun soffitto.
  *   Barre, capsule e tasti girano (3.9).
  */
 @Immutable
@@ -246,6 +248,7 @@ internal data class GlassLiquidAdaptive(
   val tintHalo: Float,
   val tintRim: Float,
   val continuous: Set<GlassRole>,
+  val darkCeiling: Float = 1f,
 ) {
   /** Vero se [role] scurisce in continuo con la quota di nero, invece di girare. */
   fun darkensContinuously(role: GlassRole): Boolean = role in continuous
@@ -914,6 +917,15 @@ internal const val GlassAdaptiveUniformDarkFrom: Float = 0.45f
 internal const val GlassAdaptiveUniformDarkTo: Float = 0.10f
 
 /**
+ * Il soffitto del corpo scuro dei grandi sopra la parte chiara dello sfondo ([GlassLiquidAdaptive.darkCeiling], F2.3):
+ * decisione dell'orchestratore (2026-11-12), un pannello del tema scuro sopra una pagina bianca deve tenere il testo
+ * chiaro (#F2F2F5) ad almeno 4,5:1. Il conto dice luma 111 per 4,5:1 sul corpo piatto; il valore tiene il margine per
+ * l'ombreggiatura del corpo verso il bordo e per la saturazione, ed è verificato sul banco col corpo reso
+ * (`artifacts/liquid-glass/bench/f2-3/contrasto.md`).
+ */
+internal const val GlassLiquidDarkCeiling: Float = 0.40f
+
+/**
  * Quanto ci mettono i bersagli continui del materiale (velo, ombra, colore dell'ombra) a raggiungere una lettura nuova
  * della sonda: il tempo del corpo nel giro (R4 B6, alta: 300 ms, quasi tutto nei primi 200).
  */
@@ -959,9 +971,13 @@ internal object GlassLiquidAdaptives {
    *  - il velo scuro dei piccoli passa a quello dei grandi fra una parte chiara a luma 0,10 e 0,40: sopra il grigio
    *    medio il testo chiaro torna sopra 6:1 (era 3,7, il vetro di ieri 5,5);
    *  - ombra sul testo ×4,9, come iOS 26 (R4 A3, alta): l'ombra B di serie è quella di iOS 26, e la sua misura sul
-   *    testo è questa. **In attesa della scelta di Alessio** (tavola 1: ×4,9 / a metà / nessun rinforzo);
-   *  - colore dell'ombra dalla tonalità dello sfondo a metà; `Clear` col 35% fisso (HIG); tasto tinto con filo e ombra
-   *    di serie (tavola 3: A).
+   *    testo è questa. Scelta di Alessio (2026-11-12, tavola 1: A);
+   *  - colore dell'ombra dalla tonalità dello sfondo a metà; `Clear` col 35% fisso (HIG; Alessio, 2026-11-12,
+   *    tavola 4: B);
+   *  - il tasto tinto di iOS 26: l'ombra prende il colore della tinta (l'alone di R4 A7) e il filo è la tinta schiarita
+   *    e meno satura (R4 A7). Scelta di Alessio (2026-11-12, tavola 3: C). Vale solo per un vetro tinto (`Colored`):
+   *    né la pellicola dipinta (`Fixed`, la selezione) né il vetro di prima ([FluidGlassModel.Classic], sotto
+   *    Android 13) passano di qui.
    */
   val Shipped: GlassLiquidAdaptive = GlassLiquidAdaptive(
     lightFloor = 0.55f,
@@ -971,9 +987,10 @@ internal object GlassLiquidAdaptives {
     shadowOnText = 4.9f,
     shadowHue = 0.5f,
     clearDimFollow = 0f,
-    tintHalo = 0f,
-    tintRim = 0f,
+    tintHalo = 1f,
+    tintRim = 1f,
     continuous = setOf(GlassRole.Modal, GlassRole.Content),
+    darkCeiling = GlassLiquidDarkCeiling,
   )
 
   /** L'**ombra sul testo** nelle tre proposte della tavola 1: A come iOS 26, B a metà strada, C nessun rinforzo. */
@@ -985,10 +1002,13 @@ internal object GlassLiquidAdaptives {
   /** Vedi [ShadowOnTextIos26]. */
   val ShadowOnTextNone: Float = 1f
 
-  /** Tavola 3, B: l'ombra del vetro tinto prende il suo colore (l'alone di R4 A7). */
-  val TintHalo: GlassLiquidAdaptive = Shipped.copy(tintHalo = 1f)
+  /** Tavola 3, A: il tasto tinto senza alone e senza filo chiaro (di serie fino alla scelta del 2026-11-12). */
+  val TintPlain: GlassLiquidAdaptive = Shipped.copy(tintHalo = 0f, tintRim = 0f)
 
-  /** Tavola 3, C: alone del colore e filo chiaro della tinta, cioè il tasto tinto di iOS 26 (R4 A7). */
+  /** Tavola 3, B: l'ombra del vetro tinto prende il suo colore (l'alone di R4 A7), il filo resta quello di serie. */
+  val TintHalo: GlassLiquidAdaptive = Shipped.copy(tintHalo = 1f, tintRim = 0f)
+
+  /** Tavola 3, C: alone del colore e filo chiaro della tinta, cioè il tasto tinto di iOS 26 (R4 A7). È [Shipped]. */
   val TintHaloAndRim: GlassLiquidAdaptive = Shipped.copy(tintHalo = 1f, tintRim = 1f)
 
   /** Tavola 4, B: lo scurimento di `Clear` segue lo sfondo (pieno sul chiaro, niente sul già scuro). */
@@ -996,6 +1016,7 @@ internal object GlassLiquidAdaptives {
 
   /** Nessuna adattività: il vetro del lato del tema anche con la sonda. Il termine di paragone. */
   val Off: GlassLiquidAdaptive = Shipped.copy(
+    darkCeiling = 1f,
     lightFloor = 0f,
     darkDeepenFrom = 1f,
     darkDeepenTo = 1f,
@@ -1197,8 +1218,9 @@ internal class GlassLiquidTuned(
  * grigia di S1-ter), `travel` (`off`, `soft`, `strong`: il materiale in viaggio, F1B.1: come da fermo, il
  * prudente di serie, il marcato), e da F2.2 l'adattività: `adaptive` (`on`, `off`), `textshadow` (`ios26`, `half`, `none`:
  * la tavola 1), `tinted` (`plain`, `halo`, `ios26`: la tavola 3), `cleardim` (`fixed`, `follow`: la tavola 4), coi numeri
- * `lightfloor`, `textshadowx`, `shadowhue`. I **numeri** cambiano un campo del pezzo già scelto, e si applicano dopo tutte le
- * varianti qualunque sia l'ordine in cui arrivano: vedi [numbers]. Una chiave o un valore che non si riconosce
+ * `lightfloor`, `textshadowx`, `shadowhue` (e da F2.3 `darkceiling`, il soffitto del velo scuro). I **numeri**
+ * cambiano un campo del pezzo già scelto, e si applicano dopo tutte le varianti qualunque sia l'ordine in cui arrivano:
+ * vedi [numbers]. Una chiave o un valore che non si riconosce
  * non cambia niente e si riporta.
  *
  * Non è una API per le app: si raggiunge solo da `FluidGlassDiagnostics`, e solo in un'app `debuggable`.
@@ -1347,6 +1369,8 @@ internal object GlassLiquidTuning {
     "lightfloor" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(lightFloor = v)) },
     "textshadowx" to Knob(1f, 8f) { p, v -> p.copy(adaptive = p.adaptive.copy(shadowOnText = v)) },
     "shadowhue" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(shadowHue = v)) },
+    // F2.3: il soffitto del velo scuro dei grandi.
+    "darkceiling" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(darkCeiling = v)) },
   )
 
   /** Ogni manopola con i valori che accetta: le varianti per nome, i numeri come `min..max`. */

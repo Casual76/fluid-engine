@@ -45,6 +45,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Density
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRecordedByDrawBackdropNode
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.InverseLayerScope
 
 private val DefaultOnDraw: ContentDrawScope.() -> Unit = { drawContent() }
@@ -130,9 +131,9 @@ class LayerBackdrop internal constructor(
      * che nessuna cattura lo sappia; lo sa solo chi registra. Non e' uno stato di snapshot apposta: cambia
      * nel disegno della sorgente, e chi lo legge non deve essere invalidato da lui.
      *
-     * Lo incrementa [bumpRevision]: oggi solo `layerBackdrop` (la pagina). I layer pubblicati dai pannelli
-     * (`exports`, i materiali) li registra `DrawBackdropNode`, che non lo chiama: per la sonda sono
-     * sorgenti che non avvisano ([announcesRevisions] falso), e le legge a cadenza fissa.
+     * Lo incrementa [bumpRevision]: `layerBackdrop` (la pagina) e, dalla 4.0.0 (F2.3), `DrawBackdropNode` dopo
+     * ogni registrazione di un export o del materiale di un pannello. Prima i layer pubblicati non avvisavano, e
+     * la sonda dei vetri che li campionano li leggeva a cadenza fissa per sempre, anche a riposo.
      */
     internal var revision: Long = 0L
         private set
@@ -167,11 +168,12 @@ class LayerBackdrop internal constructor(
     }
 
     /**
-     * Fluid Engine addition (F2.1): se questo layer avvisa quando si ri-registra. Vero solo quando lo
-     * registra un `layerBackdrop` (vedi [revision]); altrimenti chi vuole sapere se e' cambiato deve
-     * guardare da se'.
+     * Fluid Engine addition (F2.1): se questo layer avvisa quando si ri-registra. Vero quando lo registra un
+     * `layerBackdrop` (vedi [revision]) e, dalla 4.0.0 (Fluid Engine addition, F2.3), quando lo registra un nodo del
+     * vetro (un export, il materiale di un pannello); altrimenti chi vuole sapere se e' cambiato deve guardare da se'.
      */
-    internal val announcesRevisions: Boolean get() = isRecordedByLayerBackdropNode()
+    internal val announcesRevisions: Boolean
+        get() = isRecordedByLayerBackdropNode() || isRecordedByDrawBackdropNode()
 
     private var inverseLayerScope: InverseLayerScope? = null
 

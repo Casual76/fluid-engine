@@ -167,7 +167,10 @@ class GlassNodeCountTest {
   fun `una lastra Liquid ferma ha 4 nodi e 3 layer`() {
     FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
     val (glass, counted) = measure("Liquid", GlassRole.Floating)
-    assertEquals(4, glass.nodes)
+    // Dalla 4.0 (F2.3) piu' la sonda dello sfondo, un nodo accanto al vetro di una lastra radice: 5. I layer non
+    // cambiano (la miniatura della sonda non e' un layer di posa ne' uno che la diagnostica conta).
+    assertEquals(5, glass.nodes)
+    assertTrue(glass.elements.toString(), glass.elements.any { it == "GlassProbeElement" })
     assertTrue(glass.elements.toString(), glass.elements.any { it == "DrawBackdropElement" })
     assertTrue(glass.elements.toString(), glass.elements.any { it == "GlassShadowElement" })
     assertTrue(glass.elements.toString(), glass.elements.none { it in KyantClassicNodes })
@@ -185,7 +188,9 @@ class GlassNodeCountTest {
   fun `una lastra Liquid senza ombra ha 3 nodi e 2 layer`() {
     FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
     val (glass, counted) = measure("Liquid senza ombra", GlassRole.Content)
-    assertEquals(3, glass.nodes)
+    // Piu' la sonda (F2.3): 4.
+    assertEquals(4, glass.nodes)
+    assertTrue(glass.elements.toString(), glass.elements.any { it == "GlassProbeElement" })
     assertTrue(glass.elements.toString(), glass.elements.none { it == "GlassShadowElement" })
     assertEquals(mapOf(FluidGlassNodeKind.Backdrop to 1), counted.first)
     assertEquals(mapOf(FluidGlassLayerKind.Capture to 1, FluidGlassLayerKind.Placement to 1), counted.second)

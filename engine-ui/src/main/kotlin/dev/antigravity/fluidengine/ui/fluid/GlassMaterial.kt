@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,9 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
+import dev.antigravity.fluidengine.ui.glass.field.glassProbe
+import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
+import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 import dev.antigravity.fluidengine.ui.glass.field.GlassShadowSpec
 import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanelPublishes
 import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
@@ -1408,10 +1412,23 @@ object GlassDefaults {
    *
    * Public since 2.10.0, for the effects an app draws *over* glass — a touch highlight, a burst of
    * light — which have to turn over with the material exactly as its rim does.
+   *
+   * **Dalla 4.0 (F2.3) il lato è per superficie dove il vetro è misurato**: dentro il contenuto di un vetro che segue
+   * lo sfondo ([LocalFluidGlassAppearance] misurato) il lato è quello del vetro, che può aver girato contro il tema
+   * (un tasto chiaro sopra una foto scura diventa scuro, R4 B6). Lì un controllo annidato, una tinta, un bagliore
+   * girano col vetro su cui stanno. Dove il vetro non è misurato (prima della prima lettura, il vetro di prima, sotto
+   * Android 13, fuori da ogni vetro) resta il lato del tema, come prima.
    */
   @Composable
   fun isDarkSurface(): Boolean =
-    darkSurface(LocalFluidSurfaceSide.current, MaterialTheme.colorScheme.surface)
+    surfaceSide(LocalFluidGlassAppearance.current, LocalFluidSurfaceSide.current, MaterialTheme.colorScheme.surface)
+
+  /**
+   * La regola per intero, pura: il vetro misurato su cui si sta ([glass]) vince, poi il lato dichiarato, poi la
+   * palette. Vedi [isDarkSurface].
+   */
+  internal fun surfaceSide(glass: FluidGlassAppearance?, declaredSide: Boolean?, surface: Color): Boolean =
+    if (glass != null && glass.isMeasured) glass.isDark else darkSurface(declaredSide, surface)
 
   /**
    * The rule itself, out where it can be read and tested without a composition.
@@ -1578,6 +1595,7 @@ internal fun Modifier.glassSurfaceFitted(
   heldWhileMoving: () -> Boolean,
   nestInContainer: Boolean,
   fit: GlassFieldFit?,
+  ink: GlassInk? = null,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
 
@@ -1585,6 +1603,7 @@ internal fun Modifier.glassSurfaceFitted(
   // backdrop there would hand a *sharp* copy of the page to the bar, which is worse than not
   // sampling it. A defined solid material is the honest degradation.
   if (!isRenderEffectSupported()) {
+    ink?.unbind()
     return this.glassFallback(shape, tint, edge, falloff, intensity)
   }
 
@@ -1615,8 +1634,11 @@ internal fun Modifier.glassSurfaceFitted(
       heldWhileMoving = heldWhileMoving,
       nestInContainer = nestInContainer,
       touch = null,
+      ink = ink,
     )
   }
+  // Il vetro di prima non misura niente: il contenuto resta col suo inchiostro.
+  ink?.unbind()
 
   val currentIntensity by rememberUpdatedState(intensity)
   // Il livello di qualità è letto come *stato*, dentro le lambda che lo usano, non catturato qui:
@@ -1817,8 +1839,15 @@ internal fun Modifier.glassSurfaceFitted(
  *    `materialize`. A zero non si disegna niente, come prima; fra zero e uno il contenuto si dissolve come
  *    prima, ma da solo.
  *
+ * Dalla 4.0 (F2.2, F2.3) la lastra **radice** porta la sonda dello sfondo (`glassProbe`, un nodo accanto a
+ * `drawBackdrop`, con lo stesso `Backdrop`) e il suo stato adattivo: la ricetta prende cio' che lo sfondo chiede (velo,
+ * ombra, cursore dell'utente) e, se il contenuto segue l'inchiostro ([ink]), il lato che gira. Una lastra annidata non
+ * misura: prende il lato da chi la ospita. Finche' la sonda non ha letto niente la lastra e' quella di prima, al pixel.
+ *
  * @param optics gia' passata da `sanitized()`.
  * @param touch il bagliore del dito, o `null` per una lastra che non lo ha.
+ * @param ink il patto col contenuto ([GlassInk]): se c'e', il contenuto segue l'inchiostro del lato del vetro, e solo
+ *   allora la lastra gira (un piccolo) o scurisce in continuo (un grande). Null: il lato resta quello del tema.
  */
 @Composable
 internal fun Modifier.glassLiquidSurface(
@@ -1839,6 +1868,7 @@ internal fun Modifier.glassLiquidSurface(
   heldWhileMoving: () -> Boolean,
   nestInContainer: Boolean,
   touch: GlassTouchLight?,
+  ink: GlassInk? = null,
 ): Modifier {
   val currentIntensity by rememberUpdatedState(intensity)
   val currentDepth by rememberUpdatedState(opticalDepth)
@@ -1867,7 +1897,30 @@ internal fun Modifier.glassLiquidSurface(
   }
   val currentBackdrop by rememberUpdatedState(state.backdrop)
 
-  val surface = remember(role, optics, shape, darkSide, screenDensity, quality) {
+  // ---- La sonda e il lato (F2.2, F2.3) ----
+  // Il cursore dell'utente entra fra le chiavi: cambia il raggio, cioe' il margine della cattura, e la superficie si
+  // rifa', come per la qualita'. A meta' corsa (di serie) non tocca niente.
+  val preference = LocalFluidGlassPreference.current
+  // Il vetro adattivo che ospita questo contenuto, se c'e': una lastra dentro di lui e' annidata, non misura, e prende
+  // il lato da lui (3.9).
+  val host = LocalGlassAdaptiveHost.current
+  val probe = rememberGlassProbeState(initialDark = darkSide)
+  // Una pellicola fissa (la selezione d'accento) non gira: il suo colore e' la sua informazione.
+  val adaptiveState = rememberGlassAdaptiveState(
+    probe = probe,
+    role = role,
+    darkSide = darkSide,
+    inkFollows = ink != null,
+    flipAllowed = tintMode != GlassTintMode.Fixed,
+  )
+  val currentHost by rememberUpdatedState(host)
+  // Se la lastra sta dentro un vetro: lo risponde il nodo, e la risposta vive qui, accanto alla superficie e non
+  // dentro. Una superficie ricreata (una forma che non e' uguale a se stessa basta) parte da cio' che il nodo ha gia'
+  // risposto: altrimenti ripartirebbe «non annidata», gli effetti la correggerebbero, e la correzione ricomporrebbe
+  // questa funzione, che la legge qui sotto per la sonda. Vedi `GlassLiquidSurface.nestedState`.
+  val nesting = remember { mutableStateOf(false) }
+
+  val surface = remember(role, optics, shape, darkSide, screenDensity, quality, preference, adaptiveState) {
     GlassLiquidSurface(
       role = role,
       optics = optics,
@@ -1882,7 +1935,26 @@ internal fun Modifier.glassLiquidSurface(
       tint = { currentTint },
       touch = { currentTouch },
       onPanel = { glassSamplesLiquidPanel(currentBackdrop, GlassLiquidPanels::isPublished) },
+      adaptive = { out, nested ->
+        val within = currentHost
+        when {
+          // Annidata in un vetro adattivo: nessuna misura, il lato di chi la ospita (in continuo, se lui gira).
+          within != null -> out.unmeasured().also { it.darkness = within.sideNow }
+          // Annidata altrove: il lato del tema, come prima.
+          nested -> null
+          else -> adaptiveState.fill(out)
+        }
+      },
+      preference = preference,
+      nesting = nesting,
     )
+  }
+
+  // La sonda solo sulle lastre radice: non dentro un vetro adattivo (host) e non dove il nodo ha trovato un vetro sotto
+  // di se' (`nested`, uno stato che la superficie scrive al primo giro degli effetti). Un nodo in piu', nient'altro.
+  val probes = host == null && !surface.nested && glassProbeAvailable()
+  if (ink != null) {
+    if (probes) ink.bind(adaptiveState, darkSide) else ink.unbind()
   }
 
   // Del vetro di prima `onDrawSurface` tiene solo il filetto di `GlassEdge`, dove c'e': la pellicola e' nel
@@ -1903,8 +1975,17 @@ internal fun Modifier.glassLiquidSurface(
     if (surface.castsShadow) Modifier.glassFieldShadow(surface.shadowOutline, surface.shadow) else Modifier
   }
 
+  val contentAlpha: () -> Float = remember(adaptiveState, ink != null) {
+    if (ink == null) {
+      { currentIntensity() }
+    } else {
+      { currentIntensity() * adaptiveState.inkAlpha() }
+    }
+  }
+
   return this
     .glassPresence(currentIntensity)
+    .glassProbe(state.backdrop, probe, enabled = probes)
     .drawBackdrop(
       backdrop = state.backdrop,
       shape = surface.clipShapeBlock,
@@ -1930,7 +2011,9 @@ internal fun Modifier.glassLiquidSurface(
       onDrawLight = surface.onDrawLight,
       underlay = shadow,
     )
-    .glassContentFade(currentIntensity)
+    // Il contenuto segue l'intensita' e, dove c'e' l'inchiostro, la sua dissolvenza attorno al contrasto zero del giro:
+    // letta in disegno, un fotogramma per volta, senza ricomporre.
+    .glassContentFade(contentAlpha)
 }
 
 /**

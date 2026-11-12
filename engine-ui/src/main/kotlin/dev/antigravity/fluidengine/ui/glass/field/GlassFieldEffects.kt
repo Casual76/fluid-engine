@@ -25,11 +25,13 @@ import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
@@ -962,6 +965,14 @@ internal class GlassTouchLight(val amount: () -> Float, val position: () -> Offs
  * @param onPanel vero se il fondo che la lastra campiona contiene il materiale pubblicato da un pannello `Liquid`
  *   (F1A.13, [GlassLiquidPanels]): l'altra metà della risposta di [nested]. Letta negli effetti, quindi uno stato
  *   che legge li rifà quando cambia.
+ * @param adaptive ciò che lo sfondo chiede al materiale (F2.2, innesto di F2.3): riempie il contenitore che riceve,
+ *   sapendo se la lastra è annidata, e lo restituisce; o restituisce null, e la ricetta è quella del lato [darkSide].
+ *   Null (di serie) = nessuna sonda. Letta in disegno e negli effetti: i valori animati che legge li rifanno.
+ * @param preference il cursore dell'utente (`LocalFluidGlassPreference`): a metà corsa non tocca niente.
+ * @param nesting dove sta la risposta di [nested] (F2.3): di serie dentro la superficie; `glassSurface` la tiene
+ *   **accanto** (un `remember` sullo stesso nodo), perché una superficie ricreata (una chiave nuova: una forma che non è
+ *   uguale a se stessa, un lato che cambia) parta da ciò che il nodo ha già risposto e non da «non annidata». Vedi
+ *   [nested].
  */
 @Stable
 internal class GlassLiquidSurface(
@@ -979,6 +990,9 @@ internal class GlassLiquidSurface(
   private val touch: () -> GlassTouchLight?,
   private val profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   private val onPanel: () -> Boolean = { false },
+  private val adaptive: ((out: GlassAdaptiveMaterial, nested: Boolean) -> GlassAdaptiveMaterial?)? = null,
+  private val preference: Float = FluidGlassPreference.Default,
+  nesting: MutableState<Boolean> = mutableStateOf(false),
 ) {
 
   /** Vedi [glassLiquidCaptureScale]. */
@@ -987,7 +1001,18 @@ internal class GlassLiquidSurface(
   /** Vero se questa superficie può avere un'ombra: un ruolo senza (`Bar`, `Content`) non monta il nodo. */
   val castsShadow: Boolean = optics.shadowAlpha > 0f
 
-  private fun recipe(widthDp: Float, heightDp: Float, nested: Boolean, out: GlassRecipe): GlassRecipe = glassRecipe(
+  /**
+   * La ricetta di un momento. [material] e [side] sono i contenitori del momento: l'ingresso adattivo, e la ricetta
+   * dell'altro lato quando il lato è a metà strada (il giro, un grande che scurisce). Nessuna allocazione.
+   */
+  private fun recipe(
+    widthDp: Float,
+    heightDp: Float,
+    nested: Boolean,
+    out: GlassRecipe,
+    material: GlassAdaptiveMaterial,
+    side: GlassRecipe,
+  ): GlassRecipe = glassRecipe(
     role = role,
     widthDp = widthDp,
     heightDp = heightDp,
@@ -1001,16 +1026,36 @@ internal class GlassLiquidSurface(
     tint = tint(),
     nested = nested,
     profile = profile,
+    adaptive = adaptive?.invoke(material, nested),
+    preference = preference,
     out = out,
+    scratch = side,
   )
 
   // ---- Il vetro annidato -----------------------------------------------------------------------------------
 
-  /** Ciò che il corpo ha visto l'ultima volta: un campo semplice, perché la catena non legga lo stato che scrive. */
-  private var nestedSeen = false
+  /**
+   * Ciò che il corpo ha visto l'ultima volta: un campo semplice, perché la catena non legga lo stato che scrive. Parte
+   * dalla risposta che [nestedState] ha già (F2.3): vedi `nesting`.
+   *
+   * Letta **senza osservazione**: la goccia, la pillola e l'ombra costruiscono la superficie dentro un `remember` in
+   * composizione, e una lettura osservata qui iscriverebbe chi le compone allo stato che gli effetti scrivono subito
+   * dopo. Con una forma che non è uguale a se stessa (la goccia del rail, `ContinuousCornerShape(22.dp)`) era un altro
+   * giro per fotogramma. L'unica lettura in composizione voluta è quella di `glassSurface`, esplicita ([nested]).
+   */
+  private var nestedSeen = Snapshot.withoutReadObservation { nesting.value }
 
-  /** Lo stesso, come stato: luce e ombra lo leggono in disegno, e un cambio le ridisegna. */
-  private var nestedState by mutableStateOf(false)
+  /**
+   * Lo stesso, come stato: luce e ombra lo leggono in disegno, e un cambio le ridisegna; dalla 4.0 (F2.3) lo legge anche
+   * `glassSurface` in composizione, per decidere se montare la sonda.
+   *
+   * Per questo vive in `nesting`, fuori dalla superficie. Se nascesse qui, una superficie ricreata ripartirebbe da
+   * «non annidata»: gli effetti la correggerebbero scrivendo questo stato, la scrittura ricomporrebbe chi l'ha letto, e
+   * se una chiave della superficie non è uguale a se stessa (`ContinuousCornerShape` non ha `equals`) la ricomposizione
+   * la ricreerebbe ancora. Era il ciclo della galleria ferma (F2.3, rilievo 1): un giro per fotogramma, per sempre, con
+   * un export e una cattura per giro.
+   */
+  private var nestedState by nesting
 
   /**
    * Vero se questa lastra sta **dentro** un'altra lastra di vetro e ne campiona il materiale: un tasto in una
@@ -1089,6 +1134,8 @@ internal class GlassLiquidSurface(
 
   private val inputs = GlassDrawInputs()
   private val bodyRecipe = GlassRecipe()
+  private val bodyAdaptive = GlassAdaptiveMaterial()
+  private val bodySide = GlassRecipe()
   private val chain = GlassBodyChain()
 
   /**
@@ -1098,7 +1145,7 @@ internal class GlassLiquidSurface(
   private fun fillBody(size: Size, density: Density, layoutDirection: LayoutDirection): Boolean {
     val d = density.density
     if (!size.isSpecified || !(size.width > 0f) || !(size.height > 0f) || !(d > 0f)) return false
-    val recipe = recipe(size.width / d, size.height / d, nestedSeen, bodyRecipe)
+    val recipe = recipe(size.width / d, size.height / d, nestedSeen, bodyRecipe, bodyAdaptive, bodySide)
     // I pixel dello schermo del lato lungo: il nodo ha una taglia intera, e lo scope la porta moltiplicata
     // per la frazione di risoluzione. Arrotondare toglie l'errore del prodotto, perché corpo e ritaglio
     // cadano sempre dalla stessa parte della soglia dei «piccoli».
@@ -1121,6 +1168,8 @@ internal class GlassLiquidSurface(
   // ---- La luce ---------------------------------------------------------------------------------------------
 
   private val lightRecipe = GlassRecipe()
+  private val lightAdaptive = GlassAdaptiveMaterial()
+  private val lightSide = GlassRecipe()
 
   // L'istanza è quella della cache di processo, la stessa che la sonda ha compilato; il pennello è di questa
   // superficie. Pigri: una superficie che non si disegna mai non li chiede.
@@ -1135,7 +1184,7 @@ internal class GlassLiquidSurface(
   private fun fillLight(size: Size, density: Density, layoutDirection: LayoutDirection): Boolean {
     val d = density.density
     if (!size.isSpecified || !(size.width > 0f) || !(size.height > 0f) || !(d > 0f)) return false
-    val recipe = recipe(size.width / d, size.height / d, nestedState, lightRecipe)
+    val recipe = recipe(size.width / d, size.height / d, nestedState, lightRecipe, lightAdaptive, lightSide)
     val finger = touch()
     inputs.setLight(
       recipe = recipe,
@@ -1190,6 +1239,8 @@ internal class GlassLiquidSurface(
   // ---- L'ombra ---------------------------------------------------------------------------------------------
 
   private val shadowRecipe = GlassRecipe()
+  private val shadowAdaptive = GlassAdaptiveMaterial()
+  private val shadowSide = GlassRecipe()
   private val shadowGeometry = GlassSlabGeometry()
   private var shadowWidthDp = 0f
   private var shadowHeightDp = 0f
@@ -1212,7 +1263,7 @@ internal class GlassLiquidSurface(
    * numeri non cambiano, e a riposo non cambiano mai.
    */
   val shadow: () -> GlassShadowSpec? = shadow@{
-    val recipe = recipe(shadowWidthDp, shadowHeightDp, nestedState, shadowRecipe)
+    val recipe = recipe(shadowWidthDp, shadowHeightDp, nestedState, shadowRecipe, shadowAdaptive, shadowSide)
     if (!recipe.drawsShadow) return@shadow null
     val held = shadowSpec
     if (held != null &&

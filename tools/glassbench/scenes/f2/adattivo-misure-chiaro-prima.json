@@ -275,8 +275,8 @@
           "shadowOnText": 4.9,
           "shadowHue": 0.5,
           "clearDimFollow": 0.0,
-          "tintHalo": 0.0,
-          "tintRim": 0.0,
+          "tintHalo": 1.0,
+          "tintRim": 1.0,
           "lightFloor": 0.55
         }
       }
@@ -498,8 +498,8 @@
           "shadowOnText": 4.9,
           "shadowHue": 0.5,
           "clearDimFollow": 0.0,
-          "tintHalo": 0.0,
-          "tintRim": 0.0,
+          "tintHalo": 1.0,
+          "tintRim": 1.0,
           "lightFloor": 0.55
         }
       }
@@ -721,8 +721,8 @@
           "shadowOnText": 4.9,
           "shadowHue": 0.5,
           "clearDimFollow": 0.0,
-          "tintHalo": 0.0,
-          "tintRim": 0.0,
+          "tintHalo": 1.0,
+          "tintRim": 1.0,
           "lightFloor": 0.55
         }
       }
@@ -944,8 +944,8 @@
           "shadowOnText": 4.9,
           "shadowHue": 0.5,
           "clearDimFollow": 0.0,
-          "tintHalo": 0.0,
-          "tintRim": 0.0,
+          "tintHalo": 1.0,
+          "tintRim": 1.0,
           "lightFloor": 0.55
         }
       }

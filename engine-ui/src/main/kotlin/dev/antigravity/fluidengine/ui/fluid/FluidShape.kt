@@ -61,6 +61,29 @@ class ContinuousCornerShape(
     bottomStart: CornerSize,
   ): ContinuousCornerShape = ContinuousCornerShape(topStart, topEnd, bottomEnd, bottomStart, smoothing)
 
+  // Uguaglianza per valore, come `RoundedCornerShape`: due forme con gli stessi angoli e lo stesso raccordo sono la
+  // stessa forma. Senza, una forma creata in composizione era ogni volta una chiave nuova per `remember`, e chi ne
+  // dipende (la lastra del vetro per prima) si rifaceva a ogni ricomposizione (F2.3: era un anello del ciclo di
+  // ridisegno a riposo della scheda «Materiale»).
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is ContinuousCornerShape) return false
+    return topStart == other.topStart &&
+      topEnd == other.topEnd &&
+      bottomEnd == other.bottomEnd &&
+      bottomStart == other.bottomStart &&
+      smoothing == other.smoothing
+  }
+
+  override fun hashCode(): Int {
+    var result = topStart.hashCode()
+    result = 31 * result + topEnd.hashCode()
+    result = 31 * result + bottomEnd.hashCode()
+    result = 31 * result + bottomStart.hashCode()
+    result = 31 * result + smoothing.hashCode()
+    return result
+  }
+
   override fun createOutline(
     size: Size,
     topStart: Float,

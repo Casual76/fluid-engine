@@ -241,6 +241,10 @@ fun FluidFloatingCapsule(
   content: @Composable RowScope.() -> Unit,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  // F2.3: le azioni della capsula seguono l'inchiostro del lato del vetro, e solo cosi' la capsula gira con lo sfondo
+  // (una capsula chiara che passa sopra una foto scura diventa scura, R4 B6). Sul lato del tema l'inchiostro e' quello
+  // di sempre, `onSurface`.
+  val ink = rememberGlassInk()
   AnimatedVisibility(
     visible = visible,
     modifier = modifier,
@@ -262,7 +266,7 @@ fun FluidFloatingCapsule(
           // Tiene i tocchi che nessuna azione ha preso, senza toccare i trascinamenti: una pagina che
           // parte a scorrere da qui scorre lo stesso.
           .pointerInput(Unit) { detectTapGestures { } }
-          .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto)
+          .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto, ink = ink)
           .padding(contentPadding)
           .semantics {
             isTraversalGroup = true
@@ -271,16 +275,17 @@ fun FluidFloatingCapsule(
         horizontalArrangement = Arrangement.spacedBy(FluidFloatingCapsuleDefaults.Spacing),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        CompositionLocalProvider(
-          LocalGlassBackdrop provides backdrop,
-          LocalContentColor provides MaterialTheme.colorScheme.onSurface,
-          // La taglia delle icone della capsula (4.0, R6): 26 dp, quella delle azioni della barra in alto. La prende
-          // [FluidCapsuleAction] e ogni [FluidIcon] del contenuto senza una taglia sua.
-          LocalFluidIconSize provides FluidMetrics.CapsuleIconSize,
-        ) {
-          leading?.invoke(this)
-          content()
-          trailing?.invoke(this)
+        GlassInkContent(ink, MaterialTheme.colorScheme.onSurface) {
+          CompositionLocalProvider(
+            LocalGlassBackdrop provides backdrop,
+            // La taglia delle icone della capsula (4.0, R6): 26 dp, quella delle azioni della barra in alto. La prende
+            // [FluidCapsuleAction] e ogni [FluidIcon] del contenuto senza una taglia sua.
+            LocalFluidIconSize provides FluidMetrics.CapsuleIconSize,
+          ) {
+            leading?.invoke(this@Row)
+            content()
+            trailing?.invoke(this@Row)
+          }
         }
       }
     }
@@ -409,10 +414,35 @@ private const val CapsuleActionDisabledAlpha = 0.38f
  * mano: la regola della taglia ([glassSizedOptics]) la applica il vetro da solo.
  */
 @Composable
-internal fun Modifier.fluidFloatingGlass(backdrop: GlassBackdropState, onPhoto: Boolean): Modifier =
-  glassSurface(
+internal fun Modifier.fluidFloatingGlass(
+  backdrop: GlassBackdropState,
+  onPhoto: Boolean,
+  ink: GlassInk? = null,
+): Modifier =
+  // `glassSurface` coi suoi valori di serie per il ruolo `Floating`, scritti, piu' il patto dell'inchiostro (F2.3): con
+  // [ink] il vetro gira lato con lo sfondo, e chi lo chiama avvolge il contenuto in [GlassInkContent].
+  glassSurfaceFitted(
     state = backdrop,
     tint = if (onPhoto) GlassDefaults.floatingTintOnPhoto() else GlassDefaults.floatingTint(),
     shape = FluidCapsuleShape,
+    edge = GlassEdge.None,
+    falloff = GlassFalloff.Uniform,
+    intensity = FloatingFullIntensity,
     role = GlassRole.Floating,
+    optics = GlassDefaults.optics(GlassRole.Floating),
+    opticalDepth = FloatingFullIntensity,
+    pressed = FloatingNotPressed,
+    exports = null,
+    layerBlock = null,
+    sampleOnce = false,
+    resampleIntervalMillis = 0L,
+    frozen = FloatingNeverFrozen,
+    heldWhileMoving = FloatingNeverFrozen,
+    nestInContainer = true,
+    fit = null,
+    ink = ink,
   )
+
+private val FloatingFullIntensity: () -> Float = { 1f }
+private val FloatingNotPressed: () -> Float = { 0f }
+private val FloatingNeverFrozen: () -> Boolean = { false }

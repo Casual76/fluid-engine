@@ -572,6 +572,13 @@ internal fun holdsCaptureOfGoneSource(
     notReadyForMillis: Long,
 ): Boolean = !ready && sampled && notReadyForMillis < SourceGoneGraceMillis
 
+/**
+ * Fluid Engine addition (4.0.0, F2.3): se questo layer lo registra un nodo del vetro (un export, il materiale di un
+ * pannello). Per [LayerBackdrop.announcesRevisions]: quei layer avvisano quando si registrano di nuovo. Qui perche'
+ * `DrawBackdropNode` e' privato a questo file.
+ */
+internal fun LayerBackdrop.isRecordedByDrawBackdropNode(): Boolean = ownerNode is DrawBackdropNode
+
 private class DrawBackdropNode(
     var backdrop: Backdrop,
     var shapeProvider: ShapeProvider,
@@ -1034,6 +1041,10 @@ private class DrawBackdropNode(
                     }
                 }
                 FluidGlassDiagnostics.onExport()
+                // Fluid Engine addition (4.0.0, F2.3): l'export avvisa chi lo legge (la sonda dei vetri che stanno
+                // sopra questo pannello) che si e' registrato di nuovo, come fa la pagina. Senza, quei vetri lo
+                // leggevano a cadenza fissa per sempre.
+                export.bumpRevision()
             }
         }
     }

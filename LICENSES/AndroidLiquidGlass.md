@@ -228,6 +228,14 @@ Le modifiche fatte finora:
     nessuna firma pubblica cambia; senza iscritti l'avviso costa un incremento. I layer pubblicati dai pannelli
     (`exports`), che registra `DrawBackdropNode`, non avvisano: la sonda li legge a cadenza fissa.
 
+22. **Anche il materiale pubblicato avvisa** (4.0.0, `DrawBackdropModifier.kt`, `LayerBackdrop.kt`, F2.3). Dopo ogni
+    registrazione del materiale pubblicato (un export, o il materiale che un pannello pubblica per il vetro che
+    contiene), `DrawBackdropNode` chiama `bumpRevision()` sul layer, e `LayerBackdrop.announcesRevisions` e' vero anche
+    per i layer registrati da `DrawBackdropNode` (nuova `isRecordedByDrawBackdropNode()`). Cosi' la sonda dei vetri che
+    campionano un pannello sa quando il materiale cambia, invece di leggerlo a cadenza fissa per sempre (la voce 21
+    lo lasciava fuori). Marcato `Fluid Engine addition (4.0.0, F2.3)`; nessuna firma pubblica cambia; con la pagina
+    ferma non produce ne' export ne' letture (`GlassProbeQuietTest`).
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

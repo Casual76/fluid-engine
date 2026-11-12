@@ -154,7 +154,7 @@ class GlassNodeCountInstrumentedTest {
   fun aRestingLiquidSlabHasFourNodesAndThreeLayers() {
     val (nodes, census) = measure("Liquid", GlassRole.Floating, FluidGlassModel.Liquid)
     assumeTheSlabCompiles()
-    assertEquals(4, nodes)
+    assertEquals(5, nodes) // 4.0 (F2.3): piu' la sonda dello sfondo
     assertEquals(mapOf(FluidGlassNodeKind.Backdrop to 1, FluidGlassNodeKind.Shadow to 1), census.first)
     assertEquals(
       mapOf(FluidGlassLayerKind.Capture to 1, FluidGlassLayerKind.Placement to 1, FluidGlassLayerKind.Shadow to 1),
@@ -166,7 +166,7 @@ class GlassNodeCountInstrumentedTest {
   fun aLiquidSlabWithoutShadowHasThreeNodesAndTwoLayers() {
     val (nodes, census) = measure("Liquid senza ombra", GlassRole.Content, FluidGlassModel.Liquid)
     assumeTheSlabCompiles()
-    assertEquals(3, nodes)
+    assertEquals(4, nodes) // 4.0 (F2.3): piu' la sonda dello sfondo
     assertEquals(mapOf(FluidGlassNodeKind.Backdrop to 1), census.first)
     assertEquals(mapOf(FluidGlassLayerKind.Capture to 1, FluidGlassLayerKind.Placement to 1), census.second)
   }

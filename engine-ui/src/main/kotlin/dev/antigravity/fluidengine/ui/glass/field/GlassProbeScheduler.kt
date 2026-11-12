@@ -64,6 +64,15 @@ internal const val GlassProbeMotionWindowMillis: Long = 32L
  */
 internal const val GlassProbeMaxBackoffMillis: Long = 2_000L
 
+/**
+ * Quante letture fallite di fila la sonda ritenta da sola, a tempo (F2.3). Oltre, si comporta come dopo una lettura
+ * saltata: aspetta il prossimo evento (una revisione, uno spostamento). Prima di F2.3 ritentava per sempre, ogni 2 s col
+ * lettore rifatto a ogni tentativo: una pagina ferma con un lettore che non risponde (Robolectric, una piattaforma che
+ * non consegna l'immagine) non arrivava mai a riposo. Tre tentativi coprono un rifiuto passeggero (superficie persa,
+ * contesto fermo) in 0,24 + 0,48 + 0,96 s.
+ */
+internal const val GlassProbeMaxRetries: Int = 3
+
 /** Che cosa fare adesso. */
 internal sealed interface GlassProbeDecision {
   /** Leggere ora. [rerecord]: la geometria è cambiata (o non c'è ancora una miniatura) e va registrata di nuovo. */
@@ -81,7 +90,10 @@ internal enum class GlassProbeOutcome {
   /** I numeri sono arrivati. */
   Read,
 
-  /** Il lettore ha rifiutato o non ha risposto: si riprova, con un'attesa che cresce. */
+  /**
+   * Il lettore ha rifiutato o non ha risposto: si riprova, con un'attesa che cresce, al più [GlassProbeMaxRetries]
+   * volte di fila; poi si aspetta il prossimo evento.
+   */
   Failed,
 
   /**
@@ -101,6 +113,7 @@ internal enum class GlassProbeOutcome {
  *   [GlassProbeFastMotionDpPerSecond] per la densità (il valore di serie vale a densità 1, per i test).
  * @param motionQuietMillis quanto silenzio dopo l'ultimo spostamento veloce.
  * @param maxBackoffMillis il tetto dell'attesa dopo letture fallite.
+ * @param maxRetries quante letture fallite di fila si ritentano da sole ([GlassProbeMaxRetries]).
  */
 internal class GlassProbeScheduler(
   private val minIntervalMillis: Long = GlassProbeMinIntervalMillis,
@@ -108,12 +121,20 @@ internal class GlassProbeScheduler(
   private val fastPxPerSecond: Float = GlassProbeFastMotionDpPerSecond,
   private val motionQuietMillis: Long = GlassProbeMotionQuietMillis,
   private val maxBackoffMillis: Long = GlassProbeMaxBackoffMillis,
+  private val maxRetries: Int = GlassProbeMaxRetries,
 ) {
   /** Un evento è arrivato dopo l'inizio dell'ultima lettura: ne serve un'altra. */
   private var pendingRead = false
 
   /** La geometria è cambiata dopo l'ultima registrazione della miniatura. */
   private var pendingRerecord = false
+
+  /**
+   * L'ultima lettura è fallita e va ritentata a tempo (F2.3). Non è un evento: dopo [maxRetries] fallimenti di fila non
+   * fa più partire niente da sola, ma resta, e la lettura che parte col prossimo evento rifà la miniatura se serviva.
+   */
+  private var retry = false
+  private var retryRerecord = false
 
   /** Una lettura è stata chiesta e non è ancora tornata. */
   var inFlight: Boolean = false
@@ -174,7 +195,7 @@ internal class GlassProbeScheduler(
   fun next(nowMillis: Long): GlassProbeDecision {
     if (inFlight || suspended) return GlassProbeDecision.Idle
     val cadenceDue = unannounced && (lastSentAt == Long.MIN_VALUE || nowMillis - lastSentAt >= cadenceMillis)
-    val due = pendingRead || pendingRerecord || cadenceDue
+    val due = pendingRead || pendingRerecord || cadenceDue || retryDue
     if (!due) {
       return if (unannounced) GlassProbeDecision.WaitUntil(lastSentAt + cadenceMillis) else GlassProbeDecision.Idle
     }
@@ -183,8 +204,11 @@ internal class GlassProbeScheduler(
       val earliest = lastSentAt + interval()
       if (nowMillis < earliest) return GlassProbeDecision.WaitUntil(earliest)
     }
-    return GlassProbeDecision.Read(rerecord = pendingRerecord || reads == 0)
+    return GlassProbeDecision.Read(rerecord = pendingRerecord || retryRerecord || reads == 0)
   }
+
+  /** Un ritentativo a tempo è ancora permesso: l'ultima lettura è fallita, e non più di [maxRetries] di fila. */
+  private val retryDue: Boolean get() = retry && failures <= maxRetries
 
   /**
    * La lettura decisa da [next] è partita a [nowMillis] (con o senza una nuova miniatura, [rerecord]). Gli eventi
@@ -194,7 +218,11 @@ internal class GlassProbeScheduler(
     inFlight = true
     sentRerecord = rerecord
     pendingRead = false
-    if (rerecord) pendingRerecord = false
+    retry = false
+    if (rerecord) {
+      pendingRerecord = false
+      retryRerecord = false
+    }
     previousSentAt = lastSentAt
     lastSentAt = nowMillis
     reads++
@@ -207,9 +235,10 @@ internal class GlassProbeScheduler(
     when (outcome) {
       GlassProbeOutcome.Read -> failures = 0
       GlassProbeOutcome.Failed -> {
+        // Non un evento: un ritentativo, a tempo finché ce ne sono (vedi [retryDue]), poi col prossimo evento.
         failures++
-        pendingRead = true
-        if (sentRerecord) pendingRerecord = true
+        retry = true
+        if (sentRerecord) retryRerecord = true
       }
       GlassProbeOutcome.Skipped -> {
         // Niente attesa che cresce e niente nuovo tentativo a tempo: si riparte dal prossimo evento. Ma la lettura
@@ -228,7 +257,7 @@ internal class GlassProbeScheduler(
    * chi possiede la sonda non richiama [next] a tempo: aspetta il prossimo evento, perché un tentativo subito
    * salterebbe di nuovo.
    */
-  val hasPending: Boolean get() = pendingRead || pendingRerecord
+  val hasPending: Boolean get() = pendingRead || pendingRerecord || retryDue
 
   /** Lo spazio minimo fra due letture adesso: la cadenza massima, raddoppiata a ogni fallimento di fila. */
   fun interval(): Long {

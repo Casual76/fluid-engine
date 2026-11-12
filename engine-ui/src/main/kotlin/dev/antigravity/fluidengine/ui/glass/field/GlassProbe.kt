@@ -125,8 +125,52 @@ internal const val GlassProbeReadSide: Int = 64
  */
 internal const val GlassProbeStatsSide: Int = 16
 
-/** Le caselle di un lettore: al più tante sonde per finestra. Oltre, la sonda in più resta sul lato del tema. */
-internal const val GlassProbeMaxSlots: Int = 8
+/**
+ * Le caselle di un lettore: al più tante sonde per finestra. Fino a F2.2 erano 8; da F2.3 ogni lastra radice ha la sua
+ * sonda, e le 8 finivano già sulla scheda «Materiale» della galleria. 64 è circa il doppio della pagina più carica
+ * della galleria (il giro di `GlassProbeQuietTest`, F2.3: «Icone» 33 sonde radice insieme, «Robustezza» 32, «Tutto in
+ * vetro» 26, la scheda «Materiale» 15). Le caselle stanno in una griglia di [GlassProbeSlotColumns] colonne: l'immagine
+ * del lettore è 512 × 512 px, 1 MiB per immagine RGBA, al più tre, cioè 3 MiB per finestra (con le 8 di prima in fila
+ * erano 384 KiB), e il lato più lungo resta 512 px, molto sotto la texture minima di GLES 3.0 (2048; in fila sarebbero
+ * stati 4096). Una richiesta disegna e conta **solo** le caselle chieste: il tempo di una lettura non cresce col tetto. Oltre il tetto vale la regola di [glassProbePriority]: entrano prima i vetri più grandi e più vicini al centro
+ * della finestra; chi non entra non misura e tiene il lato del tema; chi viene spinto fuori da uno più importante tiene
+ * l'ultimo lato misurato (nessuno scatto).
+ */
+internal const val GlassProbeMaxSlots: Int = 64
+
+/** Le colonne della griglia delle caselle nell'immagine del lettore (vedi [GlassProbeMaxSlots]). */
+internal const val GlassProbeSlotColumns: Int = 8
+
+/**
+ * Dove sta la casella [slot] nell'immagine del lettore, in pixel: il bordo sinistro e quello alto, per caselle di lato
+ * [side]. Pure, e le stesse per chi posa le miniature e per chi le legge: se i due conti divergessero, ogni sonda
+ * leggerebbe la casella di un'altra, e solo sul dispositivo (in Robolectric l'immagine non arriva).
+ */
+internal fun glassProbeSlotLeft(slot: Int, side: Int): Int = slot % GlassProbeSlotColumns * side
+
+/** Vedi [glassProbeSlotLeft]. */
+internal fun glassProbeSlotTop(slot: Int, side: Int): Int = slot / GlassProbeSlotColumns * side
+
+/**
+ * L'importanza di una sonda per le caselle del lettore, 0..1: l'area del vetro rispetto a quella della finestra, pesata
+ * da quanto sta vicino al centro (al centro conta intera, in un angolo metà). Pura. Un vetro grande in mezzo allo
+ * schermo cambia l'aspetto della pagina più di un tasto in un angolo; a pari area vince il più centrale.
+ */
+internal fun glassProbePriority(
+  width: Float,
+  height: Float,
+  centerX: Float,
+  centerY: Float,
+  windowWidth: Float,
+  windowHeight: Float,
+): Float {
+  if (!(windowWidth > 0f) || !(windowHeight > 0f)) return 0f
+  val area = (max(width, 0f) * max(height, 0f) / (windowWidth * windowHeight)).coerceIn(0f, 1f)
+  val dx = (centerX - windowWidth / 2f) / (windowWidth / 2f)
+  val dy = (centerY - windowHeight / 2f) / (windowHeight / 2f)
+  val distance = (sqrt(dx * dx + dy * dy) / sqrt(2f)).coerceIn(0f, 1f)
+  return area * (1f - 0.5f * distance)
+}
 
 /** Una lettura che non torna entro questo tempo butta il lettore: se ne fa uno nuovo alla prossima richiesta. */
 internal const val GlassProbeReadTimeoutMillis: Long = 1_000L
@@ -457,6 +501,8 @@ internal class GlassProbeNode(
 
   override var thumbnailLayer: GraphicsLayer? = null
     private set
+  override var priority: Float = 0f
+    private set
   private var thumbnailDirty = true
   private var recordedGeometry: FloatArray? = null
   private var lastGeometry: FloatArray? = null
@@ -467,6 +513,7 @@ internal class GlassProbeNode(
 
   private val revisionListener = LayerRevisionListener { _, _ ->
     revisionSeen = true
+    FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Revision)
     signal()
   }
 
@@ -477,6 +524,7 @@ internal class GlassProbeNode(
 
   private val timerMessage = Runnable {
     timerAt = Long.MAX_VALUE
+    FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Timer)
     pump()
   }
 
@@ -531,10 +579,12 @@ internal class GlassProbeNode(
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
     this.coordinates = coordinates
+    FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Positioned)
     signal()
   }
 
   override fun onObservedReadsChanged() {
+    FluidGlassProbeDiagnostics.onWake(GlassProbeWake.ObservedReads)
     signal()
   }
 
@@ -613,6 +663,7 @@ internal class GlassProbeNode(
       return
     }
     scheduler.onReadSent(now, rerecord)
+    FluidGlassProbeDiagnostics.onWake(if (rerecord) GlassProbeWake.ReadRerecord else GlassProbeWake.Read)
     if (rerecord) thumbnailDirty = true
     // Una richiesta che il lettore non accetta chiude subito la lettura: una sonda «in volo» per sempre non legge più.
     if (!reader.request(slot)) scheduler.onReadDone(now, GlassProbeOutcome.Failed)
@@ -625,8 +676,10 @@ internal class GlassProbeNode(
     slot = -1
     val target = view ?: return null
     val obtained = GlassProbeWindowReader.obtain(target) ?: return null
+    priority = currentPriority(target)
     val assigned = obtained.register(this)
     if (assigned < 0) {
+      FluidGlassProbeDiagnostics.onSlotRefused()
       Log.w(GlassProbeLogTag, "Sonda dello sfondo: più di $GlassProbeMaxSlots vetri radice in una finestra, questo resta sul lato del tema")
       return null
     }
@@ -634,6 +687,36 @@ internal class GlassProbeNode(
     slot = assigned
     thumbnailDirty = true
     return obtained
+  }
+
+  /** L'importanza di questo vetro adesso, nella finestra di [view] (vedi [glassProbePriority]). */
+  private fun currentPriority(view: View): Float {
+    val self = coordinates ?: return 0f
+    if (!self.isAttached) return 0f
+    val position = try {
+      self.positionInWindow()
+    } catch (_: Exception) {
+      return 0f
+    }
+    val size = self.size
+    val root = view.rootView
+    return glassProbePriority(
+      width = size.width.toFloat(),
+      height = size.height.toFloat(),
+      centerX = position.x + size.width / 2f,
+      centerY = position.y + size.height / 2f,
+      windowWidth = root.width.toFloat(),
+      windowHeight = root.height.toFloat(),
+    )
+  }
+
+  override fun onEvicted() {
+    // Un vetro più importante ha preso la casella: questo resta con l'ultima lettura (nessuno scatto) e non legge più.
+    reader = null
+    slot = -1
+    unavailable = true
+    FluidGlassProbeDiagnostics.onSlotRefused()
+    Log.w(GlassProbeLogTag, "Sonda dello sfondo: casella ceduta a un vetro più grande o più centrale, questo tiene l'ultimo lato")
   }
 
   private fun releaseSlot() {
@@ -743,6 +826,12 @@ internal interface GlassProbeClient {
   /** La miniatura da posare nella casella, già registrata da [prepareThumbnail]. */
   val thumbnailLayer: GraphicsLayer?
 
+  /** L'importanza della sonda per le caselle ([glassProbePriority]), fissata quando ha chiesto la casella. */
+  val priority: Float
+
+  /** Un vetro più importante ha preso la casella: questa sonda non legge più, e il vetro tiene l'ultimo lato misurato. */
+  fun onEvicted()
+
   /** Subito prima della richiesta, sul principale: registra la miniatura se serve. Falso = niente da leggere adesso. */
   fun prepareThumbnail(): Boolean
 
@@ -767,18 +856,19 @@ internal interface GlassProbeClient {
 internal class GlassProbeWindowReader private constructor(private val root: View) {
 
   /** Una richiesta partita: quali caselle, con quale generazione (una casella liberata e ripresa non riceve dati vecchi). */
-  private class Batch(val mask: Int, val generations: IntArray, val sentAt: Long)
+  private class Batch(val mask: Long, val generations: IntArray, val sentAt: Long)
 
   private val side = GlassProbeReadSide
   // Non `width`: dentro `RenderNode(...).apply { }` quel nome sarebbe la larghezza del nodo, cioè zero (il tranello di
   // S1-bis, «una radice larga zero non disegna niente e non dà nessun errore»).
-  private val imageWidth = side * GlassProbeMaxSlots
+  private val imageWidth = side * GlassProbeSlotColumns
+  private val imageHeight = side * ((GlassProbeMaxSlots + GlassProbeSlotColumns - 1) / GlassProbeSlotColumns)
   private val density = root.resources.displayMetrics.density
   private val main = Handler(Looper.getMainLooper())
   private val thread = HandlerThread("FluidGlass.sonda").apply { start() }
   private val worker = Handler(thread.looper)
-  private val reader = ImageReader.newInstance(imageWidth, side, PixelFormat.RGBA_8888, MaxImages)
-  private val rootNode = RenderNode("FluidGlass.sonda").also { it.setPosition(0, 0, imageWidth, side) }
+  private val reader = ImageReader.newInstance(imageWidth, imageHeight, PixelFormat.RGBA_8888, MaxImages)
+  private val rootNode = RenderNode("FluidGlass.sonda").also { it.setPosition(0, 0, imageWidth, imageHeight) }
   private val renderer = HardwareRenderer().also {
     it.setName("FluidGlass.sonda")
     it.setContentRoot(rootNode)
@@ -790,7 +880,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   private val clients = arrayOfNulls<GlassProbeClient>(GlassProbeMaxSlots)
   private val generations = IntArray(GlassProbeMaxSlots)
   private val pending = ConcurrentLinkedQueue<Batch>()
-  private var requested = 0
+  private var requested = 0L
   private var framePosted = false
   private var watchdogPosted = false
 
@@ -812,7 +902,11 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     reader.setOnImageAvailableListener({ source -> drain(source) }, worker)
   }
 
-  /** Prende una casella libera per [client]; -1 se sono finite. Dal principale. */
+  /**
+   * Prende una casella per [client]. Se sono finite, la prende a chi ha l'importanza ([GlassProbeClient.priority]) più
+   * bassa, se è più bassa di quella di [client]: quello resta col suo ultimo lato misurato e non legge più
+   * ([GlassProbeClient.onEvicted]). -1 se [client] non entra. Dal principale.
+   */
   @MainThread
   fun register(client: GlassProbeClient): Int {
     if (released) return -1
@@ -820,10 +914,26 @@ internal class GlassProbeWindowReader private constructor(private val root: View
       if (clients[index] == null) {
         clients[index] = client
         generations[index]++
+        FluidGlassProbeDiagnostics.onSlotsInUse(clients.count { it != null })
         return index
       }
     }
-    return -1
+    var weakest = -1
+    var weakestPriority = client.priority
+    for (index in clients.indices) {
+      val other = clients[index] ?: continue
+      if (other.priority < weakestPriority) {
+        weakest = index
+        weakestPriority = other.priority
+      }
+    }
+    if (weakest < 0) return -1
+    val evicted = clients[weakest]
+    clients[weakest] = client
+    generations[weakest]++
+    requested = requested and (1L shl weakest).inv()
+    evicted?.onEvicted()
+    return weakest
   }
 
   /** Libera la casella [slot]; l'ultima chiude il lettore. Dal principale. */
@@ -832,7 +942,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     if (slot !in clients.indices) return
     clients[slot] = null
     generations[slot]++
-    requested = requested and (1 shl slot).inv()
+    requested = requested and (1L shl slot).inv()
     if (clients.all { it == null }) release()
   }
 
@@ -843,7 +953,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   @MainThread
   fun request(slot: Int): Boolean {
     if (released || slot !in clients.indices || clients[slot] == null) return false
-    requested = requested or (1 shl slot)
+    requested = requested or (1L shl slot)
     if (!framePosted) {
       framePosted = true
       Choreographer.getInstance().postFrameCallback(frameCallback)
@@ -856,26 +966,26 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     framePosted = false
     if (released) return
     val asked = requested
-    if (asked == 0) return
+    if (asked == 0L) return
     if (pending.size >= MaxInFlight) {
       // Le richieste restano: le riprende l'arrivo dell'immagine in volo (vedi `deliver`).
       return
     }
-    requested = 0
+    requested = 0L
     // In secondo piano non si legge: il fotogramma sarebbe rifiutato, e al ritorno la finestra ridisegna e le sorgenti
     // avvisano da sole.
     val visible = root.isAttachedToWindow && root.isShown && root.windowVisibility == View.VISIBLE
-    var drawable = 0
+    var drawable = 0L
     for (slot in clients.indices) {
-      if (asked and (1 shl slot) == 0) continue
+      if (asked and (1L shl slot) == 0L) continue
       val client = clients[slot] ?: continue
       if (visible && client.prepareThumbnail() && client.thumbnailLayer != null) {
-        drawable = drawable or (1 shl slot)
+        drawable = drawable or (1L shl slot)
       } else {
         client.onProbeResult(GlassProbeOutcome.Skipped, null)
       }
     }
-    if (drawable == 0) return
+    if (drawable == 0L) return
     recordRoot(drawable)
     val batch = Batch(drawable, generations.copyOf(), SystemClock.uptimeMillis())
     pending.add(batch)
@@ -899,19 +1009,19 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   }
 
   /** La radice: la miniatura di ogni casella chiesta, al suo posto. Le altre restano trasparenti. */
-  private fun recordRoot(mask: Int) {
+  private fun recordRoot(mask: Long) {
     val canvas = rootNode.beginRecording()
     try {
       drawScope.draw(
         Density(density),
         LayoutDirection.Ltr,
         androidx.compose.ui.graphics.Canvas(canvas),
-        Size(imageWidth.toFloat(), side.toFloat()),
+        Size(imageWidth.toFloat(), imageHeight.toFloat()),
       ) {
         for (slot in clients.indices) {
-          if (mask and (1 shl slot) == 0) continue
+          if (mask and (1L shl slot) == 0L) continue
           val layer = clients[slot]?.thumbnailLayer ?: continue
-          translate(left = (slot * side).toFloat()) {
+          translate(left = glassProbeSlotLeft(slot, side).toFloat(), top = glassProbeSlotTop(slot, side).toFloat()) {
             clipRect(0f, 0f, side.toFloat(), side.toFloat()) { drawLayer(layer) }
           }
         }
@@ -948,7 +1058,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   }
 
   /** Le statistiche delle caselle in [mask]. Sul filo di lavoro. */
-  private fun read(image: Image, mask: Int): Array<GlassBackdropStats?> {
+  private fun read(image: Image, mask: Long): Array<GlassBackdropStats?> {
     val plane = image.planes[0]
     val buffer = plane.buffer
     val rowStride = plane.rowStride
@@ -957,10 +1067,12 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     if (row.size < rowBytes) row = ByteArray(rowBytes)
     val out = arrayOfNulls<GlassBackdropStats>(GlassProbeMaxSlots)
     for (slot in 0 until GlassProbeMaxSlots) {
-      if (mask and (1 shl slot) == 0) continue
+      if (mask and (1L shl slot) == 0L) continue
       reducer.begin()
+      val top = glassProbeSlotTop(slot, side)
+      val left = glassProbeSlotLeft(slot, side) * pixelStride
       for (y in 0 until side) {
-        buffer.position(y * rowStride + slot * side * pixelStride)
+        buffer.position((top + y) * rowStride + left)
         buffer.get(row, 0, rowBytes)
         reducer.addRow(y, row, 0, pixelStride)
       }
@@ -973,7 +1085,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   private fun deliver(batch: Batch, results: Array<GlassBackdropStats?>?) {
     if (released) return
     for (slot in clients.indices) {
-      if (batch.mask and (1 shl slot) == 0) continue
+      if (batch.mask and (1L shl slot) == 0L) continue
       if (generations[slot] != batch.generations[slot]) continue
       val client = clients[slot] ?: continue
       val stats = results?.get(slot)
@@ -981,7 +1093,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     }
     if (released) return
     // Richieste rimaste indietro mentre due fotogrammi erano in volo.
-    if (requested != 0 && !framePosted) {
+    if (requested != 0L && !framePosted) {
       framePosted = true
       Choreographer.getInstance().postFrameCallback(frameCallback)
     }
@@ -989,7 +1101,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
 
   private fun fail(batch: Batch) {
     for (slot in clients.indices) {
-      if (batch.mask and (1 shl slot) == 0) continue
+      if (batch.mask and (1L shl slot) == 0L) continue
       if (generations[slot] != batch.generations[slot]) continue
       clients[slot]?.onProbeResult(GlassProbeOutcome.Failed, null)
     }
@@ -1075,6 +1187,9 @@ internal class GlassProbeWindowReader private constructor(private val root: View
 // La diagnostica per le prove sul dispositivo
 // ------------------------------------------------------------------------------------------------------------
 
+/** Perché una sonda si è svegliata (vedi [FluidGlassProbeDiagnostics.wakes]). */
+internal enum class GlassProbeWake { Revision, Positioned, ObservedReads, Timer, Read, ReadRerecord }
+
 /**
  * Una lettura della sonda, come la vede una prova sul dispositivo. Non è un'API per le app.
  *
@@ -1113,6 +1228,52 @@ object FluidGlassProbeDiagnostics {
   private val requests = AtomicLong()
   private val readings = AtomicLong()
   private val failures = AtomicLong()
+  private val refused = AtomicLong()
+  private val peak = AtomicInteger()
+  private val wakes = Array(GlassProbeWake.entries.size) { AtomicLong() }
+
+  /**
+   * Perché le sonde si sono svegliate, per motivo (F2.3): una revisione di una sorgente, un riposizionamento, una
+   * lettura osservata cambiata, il timer (cadenza o scadenza del filtro), e le letture partite (con o senza miniatura
+   * nuova). Su una pagina ferma, dopo la prima misura, non deve crescere niente.
+   */
+  fun wakes(): Map<String, Long> = GlassProbeWake.entries.associate { it.name to wakes[it.ordinal].get() }
+
+  /** Le sonde rimaste senza casella (o spinte fuori da una più importante). */
+  val totalSlotsRefused: Long get() = refused.get()
+
+  /**
+   * Il massimo di caselle occupate insieme in un lettore di finestra, da [resetPeakSlots] (F2.3): quante sonde radice ha
+   * la pagina più carica che si è aperta intanto. Il tetto è 64.
+   */
+  val peakSlots: Int get() = peak.get()
+
+  /** Riparte il conto di [peakSlots]. */
+  fun resetPeakSlots() {
+    peak.set(0)
+  }
+
+  internal fun onSlotsInUse(count: Int) {
+    peak.accumulateAndGet(count) { a, b -> max(a, b) }
+  }
+
+  internal fun onWake(reason: GlassProbeWake) {
+    wakes[reason.ordinal].incrementAndGet()
+  }
+
+  internal fun onSlotRefused() {
+    refused.incrementAndGet()
+  }
+
+  /** Azzera i contatori, per i test. */
+  fun resetForTesting() {
+    requests.set(0)
+    readings.set(0)
+    failures.set(0)
+    refused.set(0)
+    peak.set(0)
+    wakes.forEach { it.set(0) }
+  }
 
   /** I fotogrammi chiesti ai lettori in tutto il processo (una richiesta può leggere più sonde). */
   val totalRequests: Long get() = requests.get()

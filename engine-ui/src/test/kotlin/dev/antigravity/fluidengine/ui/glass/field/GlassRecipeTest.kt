@@ -981,13 +981,24 @@ class GlassRecipeTest {
       role = GlassRole.Interactive, widthDp = 110f, heightDp = 48f, darkSide = false,
       optics = GlassDefaults.buttonOptics(), tint = tint, profile = profile,
     )
-    val plain = tinted()
+    val plain = tinted(default.copy(adaptive = GlassLiquidAdaptives.TintPlain))
     assertEquals(Color.Black, plain.shadowColor)
     assertEquals(GlassLiquidEdges.Ios27.rim, plain.rimDark)
     val halo = tinted(default.copy(adaptive = GlassLiquidAdaptives.TintHalo))
     assertEquals(tint.copy(alpha = 1f), halo.shadowColor)
     assertEquals(plain.rimDark, halo.rimDark)
     val ios26 = tinted(default.copy(adaptive = GlassLiquidAdaptives.TintHaloAndRim))
+    // Di serie è il tasto tinto di iOS 26 (scelta di Alessio del 2026-11-12, tavola 3: C).
+    val shipped = tinted()
+    assertEquals(ios26.shadowColor, shipped.shadowColor)
+    assertEquals(ios26.rimDark, shipped.rimDark)
+    // Un vetro che non è tinto non cambia: alone e filo vengono solo dalla tinta.
+    val untinted = glassRecipe(role = GlassRole.Interactive, widthDp = 110f, heightDp = 48f, darkSide = false,
+      optics = GlassDefaults.buttonOptics())
+    val untintedPlain = glassRecipe(role = GlassRole.Interactive, widthDp = 110f, heightDp = 48f, darkSide = false,
+      optics = GlassDefaults.buttonOptics(), profile = default.copy(adaptive = GlassLiquidAdaptives.TintPlain))
+    assertEquals(untintedPlain.shadowColor, untinted.shadowColor)
+    assertEquals(untintedPlain.rimDark, untinted.rimDark)
     // Il filo è la tinta schiarita: più chiaro e meno saturo del corpo (R4 A7).
     assertTrue(ios26.rimDark.green > 0.3f && ios26.rimDark.red > 0.9f)
     assertEquals(GlassLiquidTintRimAlpha, ios26.rimDark.alpha, ColourStep)

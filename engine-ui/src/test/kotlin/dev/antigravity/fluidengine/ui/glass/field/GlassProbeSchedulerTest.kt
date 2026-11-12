@@ -230,18 +230,57 @@ class GlassProbeSchedulerTest {
   }
 
   @Test
-  fun `dopo un fallimento si riprova, con un'attesa che raddoppia fino al tetto`() {
+  fun `dopo un fallimento si riprova, con un'attesa che raddoppia, tre volte`() {
     val bench = Bench()
     bench.outcome = { GlassProbeOutcome.Failed }
     bench.frame(0L) { onGeometry(0L, 0f) }
     bench.run(8L, 8_000L)
     val gaps = bench.reads.zipWithNext { a, b -> b - a }
-    // 240, 480, 960, 1 920, poi il tetto di 2 000 (arrotondati al fotogramma di 8 ms).
-    assertTrue("attese: $gaps", gaps.first() in 240L..248L)
+    // 240, 480, 960 (arrotondati al fotogramma di 8 ms); poi, F2.3, niente a tempo: si aspetta il prossimo evento.
+    assertEquals("la lettura e tre tentativi: ${bench.reads}", 4, bench.reads.size)
+    assertTrue("attese: $gaps", gaps[0] in 240L..248L)
     assertTrue("attese: $gaps", gaps[1] in 480L..488L)
     assertTrue("attese: $gaps", gaps[2] in 960L..968L)
-    assertTrue("il tetto: $gaps", gaps.drop(4).all { it in 2_000L..2_008L })
     assertTrue("ogni tentativo rifà la miniatura che non è mai stata letta", bench.rerecords.all { it })
+    assertEquals("finiti i tentativi, ferma", GlassProbeDecision.Idle, bench.scheduler.next(8_000L))
+    assertFalse("finiti i tentativi, niente in attesa", bench.scheduler.hasPending)
+  }
+
+  @Test
+  fun `finiti i tentativi, il prossimo evento legge, con l'attesa cresciuta fino al tetto`() {
+    val bench = Bench()
+    bench.outcome = { GlassProbeOutcome.Failed }
+    bench.frame(0L) { onGeometry(0L, 0f) }
+    bench.run(8L, 4_000L)
+    assertEquals(4, bench.reads.size)
+    // Una revisione: si legge (e si rifà la miniatura, mai letta), al più presto dopo l'attesa di 4 fallimenti.
+    bench.frame(4_000L) { onRevision(4_000L) }
+    bench.run(4_008L, 9_000L)
+    assertEquals("una lettura sola per l'evento: ${bench.reads}", 5, bench.reads.size)
+    assertTrue("la miniatura si rifà", bench.rerecords.last())
+    // E dopo quel fallimento (il quinto di fila) nessun ritentativo a tempo.
+    assertEquals(GlassProbeDecision.Idle, bench.scheduler.next(9_000L))
+    // Una lettura riuscita riporta tutto da capo.
+    bench.outcome = { GlassProbeOutcome.Read }
+    bench.frame(9_000L) { onRevision(9_000L) }
+    bench.run(9_008L, 12_000L)
+    assertEquals(6, bench.reads.size)
+    assertEquals(120L, bench.scheduler.interval())
+  }
+
+  @Test
+  fun `un fallimento passeggero si ritenta da solo e poi la sonda si ferma`() {
+    val bench = Bench()
+    var first = true
+    bench.outcome = {
+      val failed = first
+      first = false
+      if (failed) GlassProbeOutcome.Failed else GlassProbeOutcome.Read
+    }
+    bench.frame(0L) { onGeometry(0L, 0f) }
+    bench.run(8L, 5_000L)
+    assertEquals("la lettura fallita e il tentativo riuscito, poi niente: ${bench.reads}", 2, bench.reads.size)
+    assertEquals(GlassProbeDecision.Idle, bench.scheduler.next(5_000L))
   }
 
   @Test
@@ -336,8 +375,9 @@ class GlassProbeSchedulerTest {
   }
 
   @Test
-  fun `il materiale di un pannello non avvisa, la sonda lo legge a cadenza fissa`() {
-    // Lo registra `DrawBackdropNode`, non un `layerBackdrop`: nessuno chiama la revisione.
+  fun `un materiale che nessun nodo registra non avvisa, la sonda lo legge a cadenza fissa`() {
+    // Dalla 4.0.0 (F2.3) il materiale di un pannello avvisa quando lo registra `DrawBackdropNode`
+    // (`isRecordedByDrawBackdropNode`): qui non lo registra nessuno, e resta una sorgente che non avvisa.
     val source: LayerBackdrop = materialLayerBackdrop(fakeLayer())
     assertFalse(source.announcesRevisions)
   }

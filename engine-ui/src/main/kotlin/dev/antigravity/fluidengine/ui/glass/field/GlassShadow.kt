@@ -563,6 +563,8 @@ float glassShadowMask(float2 q, float sigma, out float seen) {
  * Una maschera del nucleo per pixel, nella sola fascia dell'ombra: per una lastra una valutazione del pezzo, quattro
  * cadute e quattro esponenziali; per un gruppo lo stesso per pezzo, più un confronto di riquadri per coppia (le
  * coppie che non si toccano non costano altro); per un anello il ciclo sui lati, come prima, più il sostituto.
+ * Il corpo non la chiama dove la sagoma copre tutto (lì l'ombra è scavata a zero): la fascia è quella fuori dal
+ * contorno, più il pixel dell'antialias.
  *
  * ### Quanto dista dall'ombra a riposo
  * Contro la gaussiana vera (banco numerico) entro 0,11 livelli con l'ombra di serie; contro la maschera di Skia sul

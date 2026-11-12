@@ -399,8 +399,9 @@ internal fun physicsFormShortPx(form: FluidForm): Float = when (form) {
 internal const val PhysicsLargeVeilSeconds: Float = 0.3f
 
 /**
- * Il passo più lungo che [PhysicsLargeVeil] accetta fra due disegni: un disegno dopo una pausa (una superficie ferma
- * non si ridisegna) conta come un fotogramma a 30 Hz, non come il tempo passato.
+ * Il passo più lungo che [PhysicsLargeVeil] accetta fra due disegni dello stesso viaggio: un fotogramma perso conta
+ * come un fotogramma a 30 Hz, non come il tempo passato. Il primo disegno di un viaggio non fa passi (vedi
+ * [PhysicsLargeVeil]).
  */
 internal const val PhysicsLargeVeilMaxStepSeconds: Float = 1f / 30f
 
@@ -419,18 +420,32 @@ internal const val PhysicsLargeVeilMaxStepSeconds: Float = 1f / 30f
  * Al primo disegno parte dal peso della forma di partenza ([origin]): la superficie che nasce col viaggio prende il
  * posto di un vetro fermo con il suo velo.
  *
+ * **Il tempo parte col viaggio** (giro di correzione di F1B.2, dal test di parità di F1B.6): quando la meta cambia
+ * (una superficie ferma che parte, un viaggio che cambia strada) quel disegno non fa passi, e il tempo si conta da
+ * lì. Prima il primo disegno del viaggio, che arriva dopo la pausa della superficie ferma, faceva il passo massimo
+ * ([PhysicsLargeVeilMaxStepSeconds]): sul tema scuro l'11% della strada fra i due veli, ~3–4 livelli a schermo, nel
+ * fotogramma in cui la sagoma è ancora quella ferma. Ora il primo fotogramma del viaggio è la superficie ferma.
+ *
  * Il tempo è quello del disegno, passato da chi chiama: l'engine il `System.nanoTime` del disegno, il banco
  * l'istante del fotogramma.
  */
 internal class PhysicsLargeVeil {
   private var shown = Float.NaN
+  private var goal = Float.NaN
   private var lastNanos = 0L
 
   /** Il peso da disegnare adesso, 0..1. */
   fun next(origin: Float, target: Float, nowNanos: Long): Float {
-    val goal = clampGlassUnit(if (target.isFinite()) target else 0f)
+    val wanted = clampGlassUnit(if (target.isFinite()) target else 0f)
     if (!shown.isFinite()) {
-      shown = clampGlassUnit(if (origin.isFinite()) origin else goal)
+      shown = clampGlassUnit(if (origin.isFinite()) origin else wanted)
+      goal = wanted
+      lastNanos = nowNanos
+      return shown
+    }
+    if (wanted != goal) {
+      // Un viaggio che parte (o cambia meta): il tempo si azzera qui, e questo disegno resta quello di prima.
+      goal = wanted
       lastNanos = nowNanos
       return shown
     }
@@ -444,6 +459,7 @@ internal class PhysicsLargeVeil {
   /** Dimentica: il prossimo disegno riparte dalla forma di partenza. */
   fun reset() {
     shown = Float.NaN
+    goal = Float.NaN
   }
 }
 
@@ -755,10 +771,12 @@ internal fun physicsLiquidInputs(
     // la luce (filo, riga chiara, rientro del riflesso: `GlassLightBlock` esce oltre questa profondità).
     val light = out.bodyRimWidth * 4f + out.bodyReflexDepth + 2f
     val inner = max(max(out.thickness, out.bodyShadeDepth), light) + out.aa + 1f
-    // Fuori, la distanza deve essere vera fin dove l'ombra la legge: il punto spostato (`p - shadowOffset`) di un
-    // pixel dentro la portata dell'ombra sta fino a portata più scostamento dal contorno.
-    val shadow = out.shadowReach
-    val outer = (if (shadow > 0f) shadow + kotlin.math.hypot(out.shadowOffsetX, out.shadowOffsetY) else 0f) + out.aa + 1f
+    // Fuori, la distanza deve essere vera solo fin dove arriva il **contatto** (giro di correzione di F1B.2): è la sola
+    // parte dell'ombra che la legge. L'ambiente legge la maschera del nucleo (per l'anello il rettangolo sostituto), e
+    // oltre la fascia il nucleo dà una distanza per difetto senza il ciclo sui lati. Con la fascia a tutta l'ombra
+    // (~85 dp per un pannello) il ciclo girava su circa quattro volte i pixel di F1B.1, e il menu a goccia costava il
+    // triplo di GPU sul tablet.
+    val outer = out.shadowContactReach + out.aa + 1f
     physicsRingField(plan, scale, captureDensity, bandOuter = outer, bandInner = inner, out = out.ring)
     out.body.clear()
     // Il margine d'angolo del ritaglio emulato: un anello non ne ha. Una goccia che si posa prende quello della lastra
@@ -897,11 +915,27 @@ internal class PhysicsLiquidSurface(
     return true
   }
 
+  /**
+   * L'intensità della catena che il layer porta adesso: quella dell'ultimo giro degli effetti che l'ha costruita. Un giro
+   * a intensità zero non tocca la catena (il nodo tiene l'effetto di prima), quindi nemmeno questo numero. Per i test.
+   */
+  internal var chainAmount: Float = 0f
+    private set
+
   /** `effects` di `drawBackdrop`: la catena del corpo, sulla cattura. */
   val effects: BackdropEffectScope.() -> Unit = {
     noteNesting(this)
+    // L'intensità si legge per prima, sempre, anche a taglia ignota (giro di correzione di F1B.2). `drawBackdrop` fa girare
+    // questi effetti sotto osservazione solo all'attacco del nodo, quando la taglia non c'è ancora, e al primo disegno, con
+    // la taglia, li rifà **fuori** dall'osservazione: se a taglia ignota si usciva prima di leggerla, nessuno guardava più
+    // l'intensità, e una superficie nata spenta restava spenta. È la barra fra le pagine nei ritorni (sul tablet 7 su 7
+    // senza vetro per tutto il viaggio): la superficie entra a intensità zero e si accende quando la forma parte.
+    intensity()
     if (size.isSpecified && size.width > 0f && size.height > 0f) {
-      if (fill(scopeFactor(size.width, layoutWidth()), nestedSeen)) glassBody(inputs, chain)
+      if (fill(scopeFactor(size.width, layoutWidth()), nestedSeen)) {
+        glassBody(inputs, chain)
+        chainAmount = inputs.materialize
+      }
     }
   }
 

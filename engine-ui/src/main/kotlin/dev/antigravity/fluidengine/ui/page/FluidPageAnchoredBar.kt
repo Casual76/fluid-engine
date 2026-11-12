@@ -60,6 +60,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidChromeController
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
@@ -196,10 +197,18 @@ internal fun FluidAnchoredBar(
     // Un colore di base sotto il contesto di ogni pagina (3.0.1): una registrazione che non lo dice
     // (una pagina senza `FluidScreen`, un'app senza `Surface` alla radice) ha comunque il testo del fondo,
     // non il nero di `LocalContentColor` fuori da una `Surface`. Chi lo dice vince: il suo contesto sta sopra.
+    //
+    // La riga dei tasti non prende la qualità ridotta delle transizioni (giro di correzione di F1B.2, riga 16 del
+    // tablet): mentre due pagine si muovono `RouteMotionSignals.glassQuality` scende a `ScrollingFloor` (0,25), e la
+    // superficie che viaggia catturava a un quarto della risoluzione, con il bordo speculare ridotto. Il filo di un
+    // pixel e mezzo, ingrandito quattro volte, era un filo grigio sottile senza la riga chiara: «un altro bordo» per
+    // tutto il viaggio, che tornava netto al passaggio ai tasti fermi. Il banco, a qualità piena, non lo vedeva. I
+    // tasti sono pochi e piccoli: il vetro della barra sotto (`FluidTopBarGlass`) e le pagine restano al minimo.
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
       LocalContentColor provides MaterialTheme.colorScheme.onBackground,
       LocalFluidCanvasBackdrop provides null,
+      LocalFluidGlassQuality provides null,
     ) {
       FluidTopBarRow(
         onTapTitle = { state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() },
@@ -377,6 +386,11 @@ private fun BarActions(
       LocalFluidBarPieceSink provides sink,
       // Il contesto della pagina porta il suo canvas: nella barra un controllo sta sul vetro della barra.
       LocalFluidCanvasBackdrop provides null,
+      // E la sua qualità, che scende mentre le pagine si muovono: i tasti della barra restano a qualità piena come la
+      // superficie che viaggia (vedi `FluidPageAnchoredBar`). Un tasto che nasce durante la transizione (il primo push
+      // e il primo ritorno dopo l'avvio, i tasti di C) si disegnava a 0,25 e non si ridisegnava fino a pagina posata:
+      // a +650…+720 ms il filo, la riga chiara e l'ombra comparivano a scatto (riga 18 del tablet).
+      LocalFluidGlassQuality provides null,
     ) {
       FluidTopBarActions(
         actions = spec.actions,

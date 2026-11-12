@@ -164,10 +164,21 @@ class F1b2GeometryTest {
     }
     assertEquals(1f, last, 0f)
     assertTrue("arriva in $k fotogrammi", k * frame / 1e9f <= PhysicsLargeVeilSeconds + 0.04f)
-    // Fermo, resta. Dopo una pausa lunga (una superficie che non si ridisegna) il primo passo è di un fotogramma.
+    // Fermo, resta. Dopo una pausa lunga (una superficie che non si ridisegna) il viaggio che parte non fa passi al
+    // suo primo disegno: il primo fotogramma del viaggio è la superficie ferma (giro di correzione di F1B.2).
     assertEquals(1f, veil.next(origin = 0f, target = 1f, nowNanos = 10_000_000_000L), 0f)
-    val back = veil.next(origin = 1f, target = 0f, nowNanos = 20_000_000_000L)
-    assertEquals(1f - PhysicsLargeVeilMaxStepSeconds / PhysicsLargeVeilSeconds, back, 1e-4f)
+    assertEquals(1f, veil.next(origin = 1f, target = 0f, nowNanos = 20_000_000_000L), 0f)
+    // Il tempo si conta da lì: il disegno dopo fa il passo di un fotogramma.
+    val back = veil.next(origin = 1f, target = 0f, nowNanos = 20_000_000_000L + frame)
+    assertEquals(1f - frame / 1e9f / PhysicsLargeVeilSeconds, back, 1e-4f)
+    // Un fotogramma perso nello stesso viaggio conta al più come un fotogramma a 30 Hz.
+    val late = veil.next(origin = 1f, target = 0f, nowNanos = 21_000_000_000L)
+    assertEquals(back - PhysicsLargeVeilMaxStepSeconds / PhysicsLargeVeilSeconds, late, 1e-4f)
+    // Anche una superficie ferma che si ridisegna ogni fotogramma (il fondo che scorre) parte senza passo.
+    val busy = PhysicsLargeVeil()
+    for (i in 0..10) assertEquals(0f, busy.next(origin = 0f, target = 0f, nowNanos = i * frame), 0f)
+    assertEquals(0f, busy.next(origin = 0f, target = 1f, nowNanos = 11 * frame), 0f)
+    assertTrue(busy.next(origin = 0f, target = 1f, nowNanos = 12 * frame) > 0f)
     // Fra due forme della stessa famiglia di taglia non si muove.
     val bar = PhysicsLargeVeil()
     for (i in 0..30) assertEquals(0f, bar.next(origin = 0f, target = 0f, nowNanos = i * frame), 0f)

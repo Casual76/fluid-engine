@@ -194,6 +194,20 @@ internal class GlassDrawInputs(pieces: Int = 1) {
       kotlin.math.hypot(shadowOffsetX, shadowOffsetY),
     )
 
+  /**
+   * Fin dove arriva il solo **contatto** oltre il contorno, in pixel (F1B.2, giro di correzione): è l'unica parte
+   * dell'ombra che legge la distanza dal contorno (l'ambiente legge la maschera del nucleo, nel punto spostato). Oltre,
+   * al corpo basta una distanza approssimata per difetto, e il nucleo ad anello non deve fare il ciclo sui lati.
+   */
+  val shadowContactReach: Float
+    get() = GlassShadowProfile.reach(
+      shadowContactRadius,
+      shadowAmbientRadius,
+      shadowContactAlpha * shadowColor.alpha,
+      0f,
+      kotlin.math.hypot(shadowOffsetX, shadowOffsetY),
+    )
+
   // ---- La luce (pixel del nodo) ----------------------------------------------------------------------------
 
   /** I pezzi come li riceve la luce: gli stessi del corpo, a risoluzione piena. */

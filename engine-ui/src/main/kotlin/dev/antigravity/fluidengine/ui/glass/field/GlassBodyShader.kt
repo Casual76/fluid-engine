@@ -170,6 +170,9 @@ uniform float2 nodeClip;"""
  *     acceso = min(corpo + luce, 1)
  *     uscita = (filo sopra acceso) * copertura + ombra * (1 - copertura)
  *
+ * Con la copertura piena il secondo termine è zero e l'ombra non si calcola: gli stessi pixel, ma sotto un menu
+ * (sagoma ad anello) la maschera dell'ombra non rifà il ciclo sui lati in ogni pixel del corpo.
+ *
  * La luce ha due parti perché si compongono in due modi (F1A.3b, vedi [GlassLightBlock]): riga chiara, alone
  * e bagliore del dito sono luce e **si sommano**; il filo **copre**. `glassLightParts` le restituisce
  * insieme, coi conti comuni fatti una volta. L'ordine è quello dei due disegni della luce a riposo, prima la
@@ -283,6 +286,9 @@ half4 glassBody(float2 coord) {
     glassLightParts(p, d, normal, true, glowing, rim);
     half4 lit = min(body + glowing * half(amount), half4(1.0));
     lit = glassBodyOver(rim * half(amount), lit);
+    // Dove la sagoma copre tutto l'ombra è scavata a zero: non si calcola (giro di correzione di F1B.2, riga 15).
+    // Sotto un menu la sua maschera rifaceva il ciclo dell'anello in quasi ogni pixel, per poi moltiplicarlo per 0.
+    if (coverage >= 1.0) return lit;
     half4 under = glassTravelShadow(p, d) * half(amount);
     return lit * half(coverage) + under * half(1.0 - coverage);
 }"""

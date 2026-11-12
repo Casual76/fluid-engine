@@ -1,10 +1,26 @@
 package dev.antigravity.fluidengine.ui.page
 
 import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.LayoutCoordinates
+import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
+import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsLiquidSurface
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
+import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScopeImpl
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import java.lang.reflect.Proxy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,8 +46,9 @@ import org.junit.Test
  *     vetro se il suo collettore non lo spegne);
  *  3. gli effetti e il posizionamento: il `SideEffect` della barra e `onGloballyPositioned` della superficie
  *     chiamano `journey.recompute()`; la superficie è posizionata solo se è composta;
- *  4. il disegno: la superficie disegna se è composta e porta il vetro **secondo la composizione**; i tasti hanno il
- *     vetro se la composizione non l'ha spento.
+ *  4. il disegno: la superficie disegna se è composta e porta il vetro **secondo la composizione**, e il suo vetro si
+ *     vede se la catena che i suoi effetti hanno costruito ha l'intensità ([TravelNode]: gli effetti girano quando li
+ *     fa girare `drawBackdrop`, non quando servirebbe); i tasti hanno il vetro se la composizione non l'ha spento.
  *
  * Col codice di F1B.1 (`active` scritto da `recompute` e falso solo a pagine ferme, la superficie tolta con
  * `isMoving`) questo test fallisce in due punti: al fotogramma del `settle` nessuno disegna il vetro (il vuoto di
@@ -103,6 +120,76 @@ class FluidBarHandoffTest {
   private val frameNanos = 8_333_333L
 
   /**
+   * La superficie che viaggia **come la tratta `drawBackdrop`** (giro di correzione di F1B.2, riga 17 della sessione sul
+   * tablet). Disegnare non basta: la superficie mostra la catena che i suoi effetti hanno costruito l'ultima volta che
+   * sono girati, e `DrawBackdropNode` li fa girare in tre momenti soli:
+   *  - all'**attacco** (`onAttach` → `observeEffects`), sotto osservazione, quando la taglia non c'è ancora;
+   *  - al **primo disegno**, quando la taglia arriva (`effectScope.update` vero), ma **fuori** dall'osservazione;
+   *  - quando cambia uno stato letto in un giro **osservato** (`onObservedReadsChanged`).
+   * Prima di questo modello il test diceva «la superficie disegna il vetro» se il suo cancello era aperto. Sul tablet
+   * i ritorni restavano senza vetro per tutto il viaggio: gli effetti di `PhysicsLiquidSurface` uscivano, a taglia
+   * ignota, prima di leggere l'intensità, e al primo disegno la leggevano a zero senza che nessuno la osservasse; il
+   * passaggio a «porta il vetro» non li rifaceva più. Nel push li salvava un'altra lettura (il nodo che chiede se sta su
+   * un pannello), che qui non c'è: questo modello fallisce nei due versi col codice di prima.
+   *
+   * Gli oggetti sono quelli veri: [PhysicsLiquidSurface] e i suoi effetti, un osservatore di snapshot di Compose.
+   */
+  private inner class TravelNode {
+    /** Lo `rememberUpdatedState(intensity)` di `fluidPhysicsSurface`: lo scrive la composizione della barra. */
+    val intensity = mutableStateOf(TravelOff)
+    val surface = PhysicsLiquidSurface(
+      state = physics,
+      role = GlassRole.Interactive,
+      material = PhysicsMaterialSource(null, GlassDefaults.buttonOptics().sanitized()),
+      darkSide = false,
+      screenDensity = 2f,
+      tint = NeutralTint,
+      tintFrom = null,
+      pressState = null,
+      glowWeight = 1f,
+      profile = GlassLiquidProfile.Default,
+      intensity = { intensity.value() },
+      tintBlend = { 1f },
+      opticsBlend = { 1f },
+      quality = { 1f },
+      layoutWidth = { width },
+      onPanel = { false },
+    )
+    private val scope = object : BackdropEffectScopeImpl() {
+      override val shape: Shape = RectangleShape
+    }
+
+    /** Un giro osservato (`observeEffects`): lo stato letto qui lo rifà quando cambia. */
+    fun observed() {
+      observer.observeReads(this, onObservedChanged) { surface.effects(scope) }
+    }
+
+    /** `DrawBackdropNode.draw`: la taglia arriva qui, e gli effetti girano fuori dall'osservazione. */
+    fun draw() {
+      val size = Size(width, 380f)
+      if (scope.size != size) {
+        scope.size = size
+        surface.effects(scope)
+      }
+    }
+
+    fun detach() = observer.clear(this)
+  }
+
+  private val stale = LinkedHashSet<TravelNode>()
+  private val onObservedChanged: (TravelNode) -> Unit = { stale += it }
+  private val observer = SnapshotStateObserver { it() }.also { it.start() }
+  private var travel: TravelNode? = null
+
+  /** Compose applica la composizione: gli osservatori di ciò che è cambiato rifanno i loro giri prima del disegno. */
+  private fun applyChanges() {
+    Snapshot.sendApplyNotifications()
+    val nodes = stale.toList()
+    stale.clear()
+    nodes.forEach { it.observed() }
+  }
+
+  /**
    * Un fotogramma a 120 Hz, nell'ordine di Compose (vedi la testa). [afterComposition] è ciò che l'host fa nel suo
    * `SideEffect`: `onStack` con la pila nuova.
    */
@@ -110,25 +197,47 @@ class FluidBarHandoffTest {
     // 1. Le animazioni.
     nanos += frameNanos
     clock.sendFrame(nanos)
-    // 2. La composizione: le letture della barra e dei tasti, nella stessa passata.
+    // 2. La composizione: le letture della barra e dei tasti, nella stessa passata. La superficie, se è composta, riceve
+    // l'intensità di questa composizione; il nodo si attacca quando la superficie entra.
     val composedMoving = state.isMoving
     val composedActive = journey.active
     val m = if (state.isMoving) FluidPageMotion.barMorph(state.frontFraction()) else 0f
+    if (composedMoving) {
+      val node = travel ?: TravelNode().also { travel = it }
+      node.intensity.value = if (composedActive) TravelFull else TravelOff
+    }
     // 3. Effetti e posizionamento: la pila nuova (host), poi il viaggio (barra). La superficie è posizionata, e
     // il suo nodo attaccato, solo se questa composizione l'ha messa.
     afterComposition()
     stageComposed = composedMoving
     journey.node = stage
     journey.recompute()
-    // 4. Il disegno, con ciò che la composizione ha deciso.
+    val node = travel
+    if (composedMoving && node != null && node !in attached) {
+      attached += node
+      node.observed()
+    }
+    if (!composedMoving && node != null) {
+      node.detach()
+      attached -= node
+      travel = null
+    }
+    applyChanges()
+    // 4. Il disegno, con ciò che la composizione ha deciso. Il nodo della superficie disegna (e prende la sua taglia)
+    // dal fotogramma in cui c'è; il suo vetro si vede se il cancello è aperto **e** la sua catena ha l'intensità.
+    val drawn = if (composedMoving) travel else null
+    drawn?.draw()
+    val chain = drawn?.surface?.chainAmount ?: 0f
     return Seen(
       tMs = nanos / 1e6f,
       moving = composedMoving,
       m = m,
-      travelDraws = composedMoving && composedActive,
+      travelDraws = composedMoving && composedActive && chain > 0.001f,
       buttonsGlass = !composedActive,
     )
   }
+
+  private val attached = HashSet<TravelNode>()
 
   /** Un viaggio intero: il fotogramma in cui arriva la pila nuova, poi fino a riposo e qualche fotogramma oltre. */
   private fun journeyTo(stack: List<Any>): List<Seen> {
@@ -205,5 +314,19 @@ class FluidBarHandoffTest {
     assertTrue("a metà push la superficie porta il vetro", seen.last().travelDraws)
     seen += journeyTo(listOf("A"))
     assertOneGlassEveryFrame("push interrotto", seen)
+  }
+
+  private companion object {
+    /** Le due intensità che la barra passa alla superficie (`BarTravelFull`, `BarTravelOff` di `FluidAnchoredBar`). */
+    val TravelFull: () -> Float = { 1f }
+    val TravelOff: () -> Float = { 0f }
+
+    /** La tinta conta poco qui: la superficie deve solo costruire la sua catena. */
+    val NeutralTint = GlassTint(
+      overlay = Color.Transparent,
+      fallback = Color.Transparent,
+      hairline = Color.Transparent,
+      mode = GlassTintMode.Neutral,
+    )
   }
 }

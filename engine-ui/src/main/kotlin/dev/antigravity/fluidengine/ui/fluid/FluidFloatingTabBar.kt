@@ -165,6 +165,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
 import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
+import dev.antigravity.fluidengine.ui.glass.field.glassPuckFilm
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckOverRowProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckRowProfile
@@ -2078,7 +2079,9 @@ private fun SharedTransitionScope.ExpandedTabs(
     val tabsBackdrop = rememberLayerBackdrop()
     // Quello che c'e' *sotto* le icone tinte, dentro il puck: la pellicola del pannello, e l'inchiostro
     // che su quella pellicola si legge. Vedi [legibleInk] e il commento sulla riga nascosta.
-    val paneFilm = GlassDefaults.floatingTint().overlay
+    // LOCAL CHANGE (F1B.5, giro di correzione): la tinta letta una volta, per la pellicola e per la pillola nuova.
+    val paneTint = GlassDefaults.floatingTint()
+    val paneFilm = paneTint.overlay
     val puckInk = remember(accentColor, paneFilm, onDarkBar) {
         legibleInk(accentColor, paneFilm, onDarkBar)
     }
@@ -2115,6 +2118,9 @@ private fun SharedTransitionScope.ExpandedTabs(
             barShortSideDp = sizes.barHeight.value,
             pressed = { dampedDragAnimation.pressProgress },
             film = if (glassConfig.puckColor.isSpecified) puckWash.copy(alpha = puckWash.alpha * puckRestAlpha) else Color.Unspecified,
+            // LOCAL CHANGE (F1B.5, giro di correzione): la pellicola della barra quando e' dipinta com'e' (`Fixed`, cioe'
+            // sopra il contrasto di sistema standard): pillola e riga nascosta la seguono. Un pannello dell'app: non si sa.
+            barFilm = if (!appSuppliesPane && glassTintLiquidMode(paneTint) == GlassTintMode.Fixed) paneTint.overlay else Color.Unspecified,
         )
     } else {
         null
@@ -2925,6 +2931,9 @@ private class LiquidPuck(
  *   la barra ha a quella taglia, non quello che avrebbero da sole.
  * @param film la pellicola che l'app ha chiesto per la pillola (`FluidFloatingTabBarGlass.puckColor`), o
  *   `Color.Unspecified`: di serie la pillola non e' tinta d'accento, come in iOS (R6).
+ * @param barFilm la pellicola della barra quando non e' il velo del profilo (il contrasto di sistema la fa densa e
+ *   `Fixed`), o `Color.Unspecified`: la riga nascosta la prende com'e', la pillola a riposo con sopra la selezione
+ *   (`glassPuckFilm`), cosi' sotto contrasto pillola e barra sono ancora lo stesso materiale.
  */
 @Composable
 private fun rememberLiquidPuck(
@@ -2935,12 +2944,13 @@ private fun rememberLiquidPuck(
     barShortSideDp: Float,
     pressed: () -> Float,
     film: Color,
+    barFilm: Color = Color.Unspecified,
 ): LiquidPuck {
     val quality = LocalFluidGlassQuality.current
     val screenDensity = LocalDensity.current.density
     val currentPressed by rememberUpdatedState(pressed)
     // La pellicola cambia di rado (e' una scelta dell'app): quando cambia, le superfici si rifanno.
-    return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film) {
+    return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film, barFilm) {
         fun surface(shape: Shape, profile: GlassLiquidProfile, pressedNow: () -> Float, filmNow: () -> Color) =
             GlassLiquidSurface(
                 role = GlassRole.Floating,
@@ -2958,11 +2968,13 @@ private fun rememberLiquidPuck(
                 profile = profile,
             )
         val restProfile = glassPuckProfile(barShortSideDp)
+        // La pellicola dell'app vince; senza, sotto contrasto, quella della barra con la selezione (`glassPuckFilm`).
+        val restFilm = if (film.isSpecified) film else glassPuckFilm(barFilm, darkSide)
         LiquidPuck(
-            rest = surface(tabShape, restProfile, { currentPressed() }, { film }),
+            rest = surface(tabShape, restProfile, { currentPressed() }, { restFilm }),
             over = surface(tabShape, glassPuckOverRowProfile(barShortSideDp), { currentPressed() }, { film }),
-            row = surface(tabBarShape, glassPuckRowProfile(barShortSideDp), { 0f }, { Color.Unspecified }),
-            placeholder = if (film.isSpecified) film else restProfile.veil(darkSide).color,
+            row = surface(tabBarShape, glassPuckRowProfile(barShortSideDp), { 0f }, { barFilm }),
+            placeholder = if (restFilm.isSpecified) restFilm else restProfile.veil(darkSide).color,
         )
     }
 }

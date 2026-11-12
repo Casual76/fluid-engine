@@ -21,9 +21,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -44,6 +51,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassPainted
 import dev.antigravity.fluidengine.ui.glass.field.glassPaintedSeen
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 
 internal val FluidGlassIconTouchTargetSize: Dp = FluidMetrics.TouchTarget
 internal val FluidGlassIconLensSize: Dp = FluidMetrics.GlassButtonLens
@@ -388,6 +396,10 @@ fun Modifier.fluidStaticGlassSurface(
   selected: Boolean = false,
   pressure: () -> Float = { 0f },
 ): Modifier {
+  // Sotto Android 13 e con `Classic` resta il dipinto della 3.x, intero: corpo, bordo e niente ombra.
+  if (!rememberPaintedGlassLiquid(LocalFluidGlassModel.current)) {
+    return fluidStaticGlassSurfaceClassic(shape = shape, selected = selected, pressure = pressure)
+  }
   val scheme = MaterialTheme.colorScheme
   // Chiaro o scuro lo decide una regola sola, `GlassDefaults.isDarkSurface()`: la luminanza di
   // `surface` ignora l'alpha, quindi un'app con una pellicola traslucida in `surface` veniva
@@ -418,6 +430,125 @@ fun Modifier.fluidStaticGlassSurface(
       film = film,
       pressure = pressure,
     )
+}
+
+/**
+ * Se il vetro dipinto di questo punto dell'albero e' quello del materiale nuovo (`glass/field/GlassPaintedProfile.kt`)
+ * o quello della 3.x ([fluidStaticGlassSurfaceClassic]). La **stessa regola** di ogni altro vetro,
+ * [resolveFluidGlassModel], cosi' un foglio di piattaforma non e' mai un ibrido: sotto Android 13, con
+ * [FluidGlassModel.Classic] chiesto da un antenato o su un dispositivo che rifiuta le sorgenti delle lastre, corpo,
+ * bordo, ombra e scrim sono tutti quelli di prima. La forma non conta (il dipinto non ha un campo da rendere) e non e'
+ * una caduta ne' un velo piatto. La chiedono `fluidStaticGlassSurface`, `FluidSheet` e l'avviso di `FluidAlert`.
+ *
+ * @param requested il materiale chiesto, cioe' [LocalFluidGlassModel] di chi chiama.
+ */
+internal fun paintedGlassTakesLiquid(
+  requested: FluidGlassModel,
+  sdk: Int = glassApiLevel(),
+  shadersHealthy: () -> Boolean = ::glassLiquidSlabShadersHealthy,
+): Boolean = resolveFluidGlassModel(
+  sdk = sdk,
+  shadersHealthy = shadersHealthy,
+  requested = requested,
+  falloff = GlassFalloff.Uniform,
+  genericShape = false,
+) == FluidGlassModel.Liquid
+
+/** [paintedGlassTakesLiquid] ricordata per [requested]: la sonda delle sorgenti si chiede una volta. */
+@Composable
+internal fun rememberPaintedGlassLiquid(requested: FluidGlassModel): Boolean =
+  remember(requested) { paintedGlassTakesLiquid(requested) }
+
+/**
+ * Il vetro dipinto **della 3.x**, alla lettera (com'era `fluidStaticGlassSurface` fino alla 4.0): tre gradienti in
+ * diagonale e un tratto interno, nessuna ombra. E' cio' che si vede dove il vetro e' [FluidGlassModel.Classic]
+ * ([paintedGlassTakesLiquid] falso), e non deve cambiare di un pixel.
+ */
+@Composable
+internal fun Modifier.fluidStaticGlassSurfaceClassic(
+  shape: Shape,
+  selected: Boolean,
+  pressure: () -> Float,
+): Modifier {
+  val scheme = MaterialTheme.colorScheme
+  // Chiaro o scuro lo decide una regola sola, `GlassDefaults.isDarkSurface()`: la luminanza di
+  // `surface` ignora l'alpha, quindi un'app con una pellicola traslucida in `surface` veniva
+  // letta come chiara sempre, e dichiarare da che parte sta (`LocalFluidSurfaceSide`) non serviva.
+  val lightSurface = !GlassDefaults.isDarkSurface()
+  val body = if (selected) scheme.primary else scheme.surface
+  val topLight = Color.White.copy(alpha = if (lightSurface) 0.86f else 0.58f)
+  val quietLight = Color.White.copy(alpha = if (lightSurface) 0.24f else 0.16f)
+  val lowerShade = Color.Black.copy(alpha = if (lightSurface) 0.30f else 0.52f)
+  val innerShade = scheme.onSurface.copy(alpha = if (lightSurface) 0.22f else 0.32f)
+
+  return this.drawWithCache {
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val insetPx = 2.dp.toPx()
+    val innerSize = Size(
+      width = (size.width - insetPx * 2f).coerceAtLeast(0f),
+      height = (size.height - insetPx * 2f).coerceAtLeast(0f),
+    )
+    val innerOutline = if (innerSize.width > 0f && innerSize.height > 0f) {
+      shape.createOutline(innerSize, layoutDirection, this)
+    } else {
+      null
+    }
+    val diagonal = Offset(size.width, size.height)
+    val bodyBrush = Brush.linearGradient(
+      colorStops = arrayOf(
+        0f to body.copy(alpha = if (selected) 0.30f else 0.18f),
+        0.46f to body.copy(alpha = if (selected) 0.18f else 0.10f),
+        1f to body.copy(alpha = if (selected) 0.24f else 0.15f),
+      ),
+      start = Offset.Zero,
+      end = diagonal,
+    )
+    val rimBrush = Brush.linearGradient(
+      colorStops = arrayOf(
+        0f to topLight,
+        0.38f to quietLight,
+        0.68f to Color.Transparent,
+        1f to lowerShade,
+      ),
+      start = Offset.Zero,
+      end = diagonal,
+    )
+    val innerBrush = Brush.linearGradient(
+      colorStops = arrayOf(
+        0f to quietLight,
+        0.50f to Color.Transparent,
+        1f to innerShade,
+      ),
+      start = Offset.Zero,
+      end = diagonal,
+    )
+    val baseRimWidth = 1.35.dp.toPx()
+    val innerRimWidth = 0.95.dp.toPx()
+
+    onDrawBehind {
+      val pressed = pressure().coerceIn(0f, 1f)
+      drawOutline(outline = outline, brush = bodyBrush, alpha = 1f)
+      drawOutline(
+        outline = outline,
+        brush = rimBrush,
+        alpha = 1f - pressed * 0.18f,
+        style = Stroke(width = baseRimWidth * (1f - pressed * 0.24f)),
+      )
+      innerOutline?.let {
+        translate(insetPx, insetPx) {
+          drawOutline(
+            outline = it,
+            brush = innerBrush,
+            alpha = 1f - pressed * 0.12f,
+            style = Stroke(width = innerRimWidth),
+          )
+        }
+      }
+      if (pressed > 0.001f) {
+        drawOutline(outline = outline, color = scheme.onSurface.copy(alpha = 0.055f * pressed))
+      }
+    }
+  }
 }
 
 /**

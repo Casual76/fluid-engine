@@ -42,6 +42,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.Dp
 
 /**
@@ -130,15 +131,44 @@ internal fun glassPuckBarVeil(
 internal fun glassPuckSelectedVeil(veil: GlassLiquidVeil, selection: Float): GlassLiquidVeil {
   val s = clampUnit(selection)
   if (s <= 0f) return veil
-  val a = clampUnit(veil.color.alpha)
+  val color = underBlack(veil.color, s) ?: return veil
+  return veil.copy(color = color, adapt = 0f)
+}
+
+/**
+ * Un colore [color] (non premoltiplicato) con sopra un nero di alfa [s], come **un** colore solo:
+ * `sopra(sopra(fondo, color), nero)` scritto come `sopra(fondo, risultato)`, esatto. `null` se non resta niente.
+ */
+private fun underBlack(color: Color, s: Float): Color? {
+  val a = clampUnit(color.alpha)
   val alpha = 1f - (1f - a) * (1f - s)
-  if (!(alpha > 0f)) return veil
+  if (!(alpha > 0f)) return null
   // Il nero non porta colore: resta quello del velo, pesato per quanto ne passa sotto il nero.
   val k = a * (1f - s) / alpha
-  return veil.copy(
-    color = Color(red = veil.color.red * k, green = veil.color.green * k, blue = veil.color.blue * k, alpha = alpha),
-    adapt = 0f,
-  )
+  return Color(red = color.red * k, green = color.green * k, blue = color.blue * k, alpha = alpha)
+}
+
+/**
+ * La pellicola della pillola **a riposo** quando la barra non ha il velo del profilo ma una **pellicola dipinta** com'è
+ * ([barFilm]): sopra il contrasto di sistema standard la tinta della barra (`GlassDefaults.floatingTint()`, che passa da
+ * `forSystemContrast`) si fa densa e `Fixed`, e col materiale nuovo una tinta `Fixed` prende il posto del velo. La
+ * pillola, che rifà il materiale della barra, deve rifare **quella** pellicola, non il velo del profilo: prima restava
+ * velata e trasparente sopra una barra densa (F1B.5, giro di correzione). È la pellicola della barra con sopra la
+ * selezione del lato, come una pellicola sola (lo stesso conto di [glassPuckSelectedVeil]); la riga nascosta prende
+ * [barFilm] così com'è, e la pillola premuta sopra di lei posa solo la selezione ([glassPuckOverRowProfile]).
+ *
+ * @param barFilm la pellicola della barra, o `Color.Unspecified` se la barra ha il velo del profilo: allora anche il
+ *   risultato è `Unspecified` e la pillola resta quella di [glassPuckProfile].
+ */
+internal fun glassPuckFilm(
+  barFilm: Color,
+  darkSide: Boolean,
+  selection: GlassPuckSelection = GlassPuckSelections.Ios27,
+): Color {
+  if (!barFilm.isSpecified) return Color.Unspecified
+  val s = clampUnit(selection.of(darkSide))
+  if (s <= 0f) return barFilm
+  return underBlack(barFilm, s) ?: barFilm
 }
 
 /**

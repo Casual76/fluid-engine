@@ -40,9 +40,11 @@ enum class FluidGlassModel {
    * sotto Android 13, su un dispositivo il cui compilatore rifiuta le sorgenti nuove, e dove un antenato lo
    * chiede con [LocalFluidGlassModel]; e, qualunque cosa si chieda, sulla fascia in alto
    * ([GlassFalloff.FadeDown]), sullo scrim dei modali e sulle forme che il campo non sa rendere (vedi
-   * [resolveFluidGlassModel]). Lo disegnano ancora anche le superfici che non passano dalla risoluzione:
-   * Fluid-physics e chi chiama `drawBackdrop` a mano (la goccia, il puck, i pomelli), finché la fase che le
-   * porta sul materiale nuovo non è fatta.
+   * [resolveFluidGlassModel]). Le altre strade del vetro scelgono con la stessa regola, e dove la risposta è
+   * `Classic` sono quelle di prima **per intero**: Fluid-physics (che il materiale nuovo lo ha solo al livello
+   * `Full`, `resolvePhysicsGlass`), la goccia dei controlli e delle voci di menù, la pillola della tab bar e il
+   * vetro dipinto di fogli e avvisi di piattaforma. Resta il vetro di prima, qualunque cosa si chieda, chi chiama
+   * `drawBackdrop` a mano senza passare il materiale.
    */
   Classic,
 }
@@ -75,11 +77,11 @@ internal const val FluidGlassLiquidMinSdk: Int = Build.VERSION_CODES.TIRAMISU
  *     sostituisce il bordo dello scorrimento (piano, F2.5);
  *  4. la forma è una che il campo sa rendere ([genericShape] falso): un rettangolo o una forma ad angoli tondi
  *     (`RoundedCornerShape`, `CircleShape`, le forme continue dell'engine; vedi `glassFieldRenders`), **alla
- *     taglia a cui si disegna** (`glassFieldFits`: un angolo oltre mezzo lato corto, che Compose disegna e il
- *     campo no, la lascia di qua). Su un contorno generico il vetro di oggi spegne la lente e tiene il resto; il
- *     materiale nuovo ritaglia con lo shader, e una sagoma che lo shader non conosce uscirebbe col contorno
- *     sbagliato: una `CutCornerShape`, che pure ha quattro «angoli», usciva con gli angoli tondi, e una
- *     `RoundedCornerShape(topStart = 80.dp, …)` su un lato di 100 usciva con l'angolo a 50;
+ *     taglia a cui si disegna** (`glassFieldFits`: da F1B.1 il campo rende anche un angolo oltre mezzo lato
+ *     corto, come lo disegna Compose, e la taglia non cambia più la risposta). Su un contorno generico il vetro
+ *     di oggi spegne la lente e tiene il resto; il materiale nuovo ritaglia con lo shader, e una sagoma che lo
+ *     shader non conosce uscirebbe col contorno sbagliato: una `CutCornerShape`, che pure ha quattro «angoli»,
+ *     uscirebbe con gli angoli tondi;
  *  5. la superficie ha uno spessore ([flat] falso). Un'ottica senza lente, senza bordo e senza ombra non
  *     descrive una lastra: è un velo che sfoca appena e scurisce, cioè lo scrim di un modale. Il materiale
  *     nuovo gli darebbe la smerigliatura e l'ombreggiatura di una lastra grande quanto lo schermo;

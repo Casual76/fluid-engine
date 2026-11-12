@@ -1,7 +1,12 @@
 package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.ui.graphics.Color
+import dev.antigravity.fluidengine.ui.fluid.FluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
+import dev.antigravity.fluidengine.ui.fluid.forContrast
+import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.legibleInk
 import dev.antigravity.fluidengine.ui.fluid.sanitized
@@ -159,6 +164,36 @@ class GlassPuckProfileTest {
     assertEquals(base.darkEdge.copy(rim = puck.darkEdge.rim), puck.darkEdge)
     assertEquals(base.frost, puck.frost)
     assertEquals(base.lens, puck.lens)
+  }
+
+  /**
+   * Sotto contrasto di sistema (F1B.5, giro di correzione) la tinta della barra si fa densa e `Fixed`, e col materiale
+   * nuovo prende il posto del velo: la pillola rifà **quella** pellicola con sopra la selezione, non il velo del profilo.
+   */
+  @Test
+  fun underSystemContrastThePuckFollowsTheBarFilm() {
+    // La tinta della barra com'è in `GlassDefaults.floatingTint()` (il grigio di `glassFilm` senza la quota di palette).
+    for (dark in listOf(false, true)) {
+      val film = if (dark) Color(0xFF4A4A4E).copy(alpha = 0.48f) else Color(0xFFFAFAFA).copy(alpha = 0.52f)
+      val standard = GlassTint(overlay = film, fallback = Color.Gray, hairline = Color.Transparent, mode = GlassTintMode.Neutral)
+      // A contrasto standard la barra ha il velo del profilo: niente pellicola, la pillola resta quella di sempre.
+      assertEquals(GlassTintMode.Neutral, glassTintLiquidMode(standard.forContrast(FluidSystemContrast.Standard)))
+      assertEquals(Color.Unspecified, glassPuckFilm(Color.Unspecified, dark))
+      for (contrast in listOf(FluidSystemContrast.Medium, FluidSystemContrast.High)) {
+        val bar = standard.forContrast(contrast)
+        assertEquals("contrasto $contrast: la barra è una pellicola", GlassTintMode.Fixed, glassTintLiquidMode(bar))
+        val puck = glassPuckFilm(bar.overlay, dark)
+        val s = GlassPuckSelections.Ios27.of(dark)
+        for (page in listOf(0.05f, 0.5f, 0.95f)) {
+          // Sopra la pagina: la barra è la sua pellicola; la pillola è la barra con sopra un nero della selezione.
+          val barOver = page * (1f - bar.overlay.alpha) + bar.overlay.red * bar.overlay.alpha
+          val expected = barOver * (1f - s)
+          val puckOver = page * (1f - puck.alpha) + puck.red * puck.alpha
+          assertEquals("contrasto $contrast, pagina $page, dark=$dark", expected, puckOver, eightBit)
+          assertTrue("la pillola resta più scura della barra", puckOver < barOver)
+        }
+      }
+    }
   }
 
   @Test

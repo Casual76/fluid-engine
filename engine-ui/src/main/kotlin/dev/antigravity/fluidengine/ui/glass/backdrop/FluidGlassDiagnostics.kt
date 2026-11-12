@@ -108,9 +108,9 @@ object FluidGlassDiagnostics {
 
   /**
    * Le superfici di vetro vive, per il materiale che disegnano: una per nodo di `drawBackdrop` attaccato.
-   * `Liquid` è una superficie che disegna la luce del materiale nuovo; tutte le altre sono il vetro di prima,
-   * comprese quelle che la risoluzione del modello non la passano affatto (Fluid-physics, che in questa fase
-   * resta il vetro di prima, e chi chiama `drawBackdrop` a mano).
+   * `Liquid` è una superficie che disegna la luce del materiale nuovo, qualunque strada l'abbia scelta (anche
+   * Fluid-physics, la goccia e la pillola della tab bar, quando sono sul materiale nuovo); tutte le altre sono il
+   * vetro di prima, comprese quelle di chi chiama `drawBackdrop` a mano.
    *
    * Sono queste le superfici da contare per sapere «quante lastre nuove ci sono su questa pagina»; il
    * perché di ognuna sta in [liveModelChoices].

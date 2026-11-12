@@ -465,31 +465,149 @@ float glassShadowMask(float2 q, float sigma, out float seen) {
  * come il riquadro sfocato dell'intersezione dei due riquadri. È esatto per due pezzi e per una fila; per tre
  * pezzi che si coprono tutti (un gruppo che diventa un menu) eccede di poco, mai di un'ombra intera.
  *
- * Il **collo** non è un pezzo: la sua area entra col rapporto fra la caduta del campo fuso e quella dell'unione
- * netta dei pezzi, entrambe nel punto: uno esatto dove non c'è collo (le due distanze sono le stesse operazioni),
- * più di uno accanto a un ponte. Così l'ombra segue la sagoma fusa: un'ombra sola, niente doppia ombra dove due
- * pezzi si toccano.
+ * Il **collo** non è un pezzo, e la sua ombra si **aggiunge**: per ogni coppia con un raccordo
+ * (`glassShadowNeck`, dentro il ciclo delle parti comuni, che c'era già) l'area che lo smooth minimum mette fra i
+ * due pezzi, sfocata. È la stessa geometria con cui la CPU sceglie il raccordo (`physicsNeckPairBlend`): due capi
+ * tondi di raggio medio `r` che si guardano lungo l'asse dove i pezzi entrano meno, coi centri a `2c`. In quelle
+ * coordinate il collo è una regione fissa del piano delle due distanze `(a, b)` (fra i due capi, fino a dove il
+ * rigonfiamento `(k - |a - b|)² / 4k` arriva a zero), e la mappa bipolare la riporta nel piano: un poligono di nove
+ * vertici, il cui laccio dà area, baricentro e momenti secondi di mezzo collo. Ogni metà (sopra e sotto l'asse)
+ * diventa il riquadro sfocato con la stessa area e gli stessi momenti, che è esatto in forma chiusa
+ * (`glassShadowBox`). Fra due tratti dritti che si guardano si aggiunge il ponte, un riquadro largo quanto il varco.
+ *
+ * Fino a F1B.9 il collo entrava come rapporto fra la caduta del campo fuso e quella dell'unione netta, moltiplicato
+ * per la somma dei pezzi: accanto a un ponte la somma conta già due pezzi, e il rapporto di due code di gaussiana
+ * gonfia anche i residui degli angoli. Sopra e sotto la vita l'ombra usciva fino a una maschera piena dove la vera è
+ * quasi nulla: la banda scura del collo che dura. Contro la gaussiana vera della sagoma fusa
+ * (`artifacts/liquid-glass/bench/ombra-collo/`), due tasti tondi a cinque larghezze del collo: oggi fino a 0,14,
+ * così entro 0,010. Dove non c'è raccordo (`pieceBlend` a zero: a riposo, pezzi separati, una fila) la maschera è
+ * quella di prima al bit; al crescere del raccordo da zero il collo nasce da un'area nulla, senza scalini.
+ *
+ * Cosa resta, misurato: la parte comune di due pezzi sovrapposti è ancora il riquadro dell'intersezione dei
+ * riquadri (per due tondi è una lente, e l'ombra lì esce più chiara: fino a 0,13 di maschera); e il pezzo stesso
+ * (riquadro meno quattro angoli puntiformi) si allontana dalla gaussiana quando la sfocatura è meno di metà del
+ * raggio d'angolo (0,04 a 0,4 r, 0,29 a 0,22 r: i tondi grandi della scena del tablet). Il collo su quei tondi
+ * resta entro 0,11 (oggi 0,99).
+ *
+ * Costo: niente cicli nuovi sui pezzi. Per coppia con raccordo acceso il collo costa un poligono di nove vertici
+ * (cinque radici) e due o tre riquadri sfocati, circa quanto due pezzi; una coppia senza raccordo, un confronto.
  *
  * `seen` è la distanza del campo fuso, con le stesse righe di `glassField` (senza normale né centro).
  */
 @Language("AGSL")
 internal const val GlassShadowMask8 = """
+float2 glassNeckPoint(float a, float b, float r, float c, float anchor) {
+    float pa = a + r;
+    float pb = b + r;
+    float u = (pa * pa - pb * pb) / (4.0 * c);
+    return float2(u, sqrt(max(pa * pa - (u + c) * (u + c), 0.0)) - anchor);
+}
+
+void glassNeckEdge(float2 p0, float2 p1, inout float2 first, inout float2 second) {
+    float cr = p0.x * p1.y - p1.x * p0.y;
+    first += float2(cr, (p0.y + p1.y) * cr);
+    second += float2(p0.x * p0.x + p0.x * p1.x + p1.x * p1.x, p0.y * p0.y + p0.y * p1.y + p1.y * p1.y) * cr;
+}
+
+float glassShadowNeck(float2 q, float4 ri, float4 radI, float4 rj, float4 radJ, float k, float sigma) {
+    // I due capi che si guardano, come li vede la CPU: l'asse dove i pezzi entrano meno, il raggio medio.
+    float2 apart = abs(ri.xy - rj.xy) - (ri.zw + rj.zw);
+    bool alongX = apart.x >= apart.y;
+    float depth = -max(apart.x, apart.y);
+    float rI = dot(clamp(radI, float4(0.0), float4(min(ri.z, ri.w))), float4(0.25));
+    float rJ = dot(clamp(radJ, float4(0.0), float4(min(rj.z, rj.w))), float4(0.25));
+    float r = 0.5 * (rI + rJ);
+    if (r <= 0.001) return 0.0;
+    float c = max(max(2.0 * r - depth, 0.0) * 0.5, 0.001 * r);
+    float gap = 2.0 * (c - r);
+    if (gap > 0.0 && k <= gap) return 0.0;
+    float2 pu = alongX ? float2(ri.x, rj.x) : float2(ri.y, rj.y);
+    float2 hu = alongX ? float2(ri.z, rj.z) : float2(ri.w, rj.w);
+    float2 pv = alongX ? float2(ri.y, rj.y) : float2(ri.x, rj.x);
+    float2 hv = alongX ? float2(ri.w, rj.w) : float2(ri.z, rj.z);
+    float toward = pu.x < pu.y ? 1.0 : -1.0;
+    float midU = 0.5 * (pu.x + toward * hu.x + pu.y - toward * hu.y);
+    float midV = 0.5 * (max(pv.x - hv.x, pv.y - hv.y) + min(pv.x + hv.x, pv.y + hv.y));
+    float straight = max(min(pv.x + hv.x - rI, pv.y + hv.y - rJ) - max(pv.x - hv.x + rI, pv.y - hv.y + rJ), 0.0);
+    float2 local = alongX ? q : q.yx;
+
+    // Mezzo collo dalla parte del capo A (centro in (-c, 0)): il contorno dal piede sul capo al punto di mezzo,
+    // giu' fino all'asse, e l'arco del capo che torna al piede. Il raccordo ha un tetto (la CPU resta sotto 1,64 c),
+    // oltre il quale il piede girerebbe dietro al capo.
+    float kk = min(k, 1.6 * c);
+    bool joined = gap <= 0.0 || kk >= 2.0 * gap;
+    float tEnd = joined ? 0.0 : sqrt(max(kk * (2.0 * gap - kk), 0.0));
+    float2 low = c >= r ? float2(r - c, 0.0) : float2(0.0, sqrt(max(r * r - c * c, 0.0)));
+    float2 foot = glassNeckPoint(0.0, kk, r, c, 0.0);
+    float anchor = 0.5 * (foot.y + low.y);
+    foot.y -= anchor;
+    low.y -= anchor;
+    float2 first = float2(0.0);
+    float2 second = float2(0.0);
+    float2 prev = foot;
+    for (int m = 1; m <= 3; ++m) {
+        float t = kk + (tEnd - kk) * float(m) / 3.0;
+        float a = (kk - t) * (kk - t) / (4.0 * kk);
+        float2 next = glassNeckPoint(a, a + t, r, c, anchor);
+        if (m == 3 && joined) next.x = 0.0;
+        glassNeckEdge(prev, next, first, second);
+        prev = next;
+    }
+    if (joined && c >= r) {
+        float2 axis = float2(0.0, -anchor);
+        glassNeckEdge(prev, axis, first, second);
+        prev = axis;
+    }
+    glassNeckEdge(prev, low, first, second);
+    float2 hub = float2(-c, -anchor);
+    float2 e0 = normalize(low - hub);
+    float2 e1 = normalize(foot - hub);
+    float2 half1 = normalize(e0 + e1);
+    float2 arc1 = hub + r * normalize(e0 + half1);
+    float2 arc2 = hub + r * half1;
+    float2 arc3 = hub + r * normalize(half1 + e1);
+    glassNeckEdge(low, arc1, first, second);
+    glassNeckEdge(arc1, arc2, first, second);
+    glassNeckEdge(arc2, arc3, first, second);
+    glassNeckEdge(arc3, foot, first, second);
+
+    float neck = 0.0;
+    float area = 0.5 * first.x;
+    if (abs(area) > 0.000001 && (gap <= 0.0 || kk > gap)) {
+        float centre = first.y / (6.0 * area);
+        float spreadU = max(second.x / (12.0 * area), 0.0);
+        float spreadV = max(second.y / (12.0 * area) - centre * centre, 0.0);
+        float2 halfSize = max(sqrt(3.0 * float2(spreadU, spreadV)), float2(0.001));
+        float density = abs(area) / (2.0 * halfSize.x * halfSize.y);
+        float rise = 0.5 * straight + anchor + centre;
+        neck = density * (glassShadowBox(local - float2(midU, midV + rise), halfSize, sigma)
+            + glassShadowBox(local - float2(midU, midV - rise), halfSize, sigma));
+    }
+    // Il ponte fra due tratti dritti che si guardano: pieno quando il collo e' unito, due veli quando non lo e'.
+    if (straight > 0.0 && gap > 0.0 && k > gap) {
+        float t = sqrt(max(k * (2.0 * gap - k), 0.0));
+        float filled = k >= 2.0 * gap ? gap : (k - t) * (k - t) / (2.0 * k);
+        neck += filled / gap * glassShadowBox(local - float2(midU, midV), float2(0.5 * gap, 0.5 * straight), sigma);
+    }
+    return neck;
+}
+
 float glassShadowMask(float2 q, float sigma, out float seen) {
     float cover = 0.0;
+    float neck = 0.0;
     float fused = 1000000.0;
-    float hard = 1000000.0;
     for (int i = 0; i < $GlassFieldMaxPieces; ++i) {
         if (float(i) >= pieceCount) break;
         float4 ri = pieceRect[i];
         float d = glassSlab(q - ri.xy, ri.zw, pieceRadii[i], pieceSmooth[i]).x;
+        float blend = pieceBlend[i];
         if (i == 0) {
             fused = d;
         } else {
-            float k = max(pieceBlend[i], 0.0001);
+            float k = max(blend, 0.0001);
             float h = clamp(0.5 + 0.5 * (d - fused) / k, 0.0, 1.0);
             fused = d + (fused - d) * h - k * h * (1.0 - h);
         }
-        hard = min(hard, d);
         float own = glassShadowPiece(q - ri.xy, ri.zw, pieceRadii[i], pieceSmooth[i], sigma);
         float overlap = 0.0;
         for (int j = 0; j < $GlassFieldMaxPieces; ++j) {
@@ -500,12 +618,14 @@ float glassShadowMask(float2 q, float sigma, out float seen) {
             if (hi.x > lo.x && hi.y > lo.y) {
                 overlap = max(overlap, glassShadowBox(q - (lo + hi) * 0.5, (hi - lo) * 0.5, sigma));
             }
+            if (blend > 0.0001) {
+                neck += glassShadowNeck(q, ri, pieceRadii[i], rj, pieceRadii[j], blend, sigma);
+            }
         }
         cover += max(own - overlap, 0.0);
     }
     seen = fused;
-    float neck = fused < hard ? glassShadowFall(fused, sigma) / max(glassShadowFall(hard, sigma), 0.000001) : 1.0;
-    return clamp(cover * neck, 0.0, 1.0);
+    return clamp(cover + neck, 0.0, 1.0);
 }"""
 
 /**

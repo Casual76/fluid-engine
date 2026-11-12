@@ -1,0 +1,92 @@
+{
+ "_": "ombra-collo: due tondi R 60 px, varco 24, raccordo 100, sigma 42.2",
+ "width": 640,
+ "height": 480,
+ "density": 1.0,
+ "theme": "light",
+ "background": {
+  "kind": "color",
+  "color": "#FFFFFF"
+ },
+ "elements": [
+  {
+   "kind": "shader",
+   "name": "ombra",
+   "source": "file:../../shaders/prova-ombra-viaggio.agsl",
+   "x": 0,
+   "y": 0,
+   "w": 640,
+   "h": 480,
+   "inputs": {},
+   "uniforms": {
+    "offset": [
+     0,
+     0
+    ],
+    "flex": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "flexCenter": [
+     0,
+     0
+    ],
+    "pieceCount": 2,
+    "pieceRect": [
+     [
+      248.0,
+      240.0,
+      60.0,
+      60.0
+     ],
+     [
+      392.0,
+      240.0,
+      60.0,
+      60.0
+     ]
+    ],
+    "pieceRadii": [
+     [
+      60.0,
+      60.0,
+      60.0,
+      60.0
+     ],
+     [
+      60.0,
+      60.0,
+      60.0,
+      60.0
+     ]
+    ],
+    "pieceBlend": [
+     0.0,
+     100.0
+    ],
+    "pieceSmooth": [
+     0.0,
+     0.0
+    ],
+    "showMode": 1,
+    "aa": 1.0,
+    "fillColor": "#FFFFFFFF",
+    "shadowOffset": [
+     0,
+     0
+    ],
+    "shadowRadii": [
+     0.0,
+     72.2266
+    ],
+    "shadowAlphas": [
+     0.0,
+     1.0
+    ],
+    "shadowColor": "#000000FF"
+   }
+  }
+ ]
+}

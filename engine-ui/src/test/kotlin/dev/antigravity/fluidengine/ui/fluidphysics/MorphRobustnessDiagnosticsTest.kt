@@ -51,7 +51,7 @@ class MorphRobustnessDiagnosticsTest {
       runCurrent()
       val material = PhysicsMaterialSource(GlassDefaults.buttonOptics().sanitized(), GlassDefaults.panelOptics(compact = true).sanitized())
       val veil = PhysicsLargeVeil()
-      val oracle = MorphRobustnessTest(case, "diagnosi", hz)
+      val oracle = MorphRobustnessTest(case, "diagnosi", hz, false)
       val restPoints = FloatArray(state.liquid.points * 2)
       val ring = FloatArray(DropRenderPoints * 2)
       val perimeter = RoundedRectPerimeter()
@@ -78,11 +78,12 @@ class MorphRobustnessDiagnosticsTest {
         }
         val crossings = if (count > 2) crossings(vertices, count) else 0
         val largeNow = glassLiquidLargeVeilGain(physicsRecipeShortPx(plan))
-        val large = veil.next(
+        val meta = state.journeyTargetNow()
+        val large = if (meta == null) veil.settle(largeNow, time) else veil.next(
           state.journeyOriginNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it)) } ?: largeNow,
-          state.journeyTargetNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it)) } ?: largeNow, time)
+          glassLiquidLargeVeilGain(physicsFormShortPx(meta)), time)
         val recipe = physicsLiquidRecipe(GlassRole.Modal, material.at(state.progress), physicsRecipeShortPx(plan),
-          false, 1f, 1f, 0f, GlassTint(Color.Transparent, Color.Transparent, Color.Transparent),
+          false, 1f, 1f, 0f, GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, dev.antigravity.fluidengine.ui.fluid.GlassTintMode.Neutral),
           null, state.progress, false, state.liquid.lens, largeVeil = large)
         val metrics = oracle.metrics(plan, validateContour = false)
         val displacement = state.liquid.displacementX.indices.maxOf {

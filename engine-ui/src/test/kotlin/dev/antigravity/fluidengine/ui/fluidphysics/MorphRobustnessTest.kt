@@ -24,131 +24,30 @@ private class MorphRobustnessClock : MonotonicFrameClock {
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @RunWith(Parameterized::class)
-class MorphRobustnessTest(private val case: MorphRobustnessCases.Case, private val variant: String, private val hz: Int) {
+class MorphRobustnessTest(private val case: MorphRobustnessCases.Case, private val variant: String, private val hz: Int, private val dark: Boolean) {
   companion object {
-    // 20 scale del viaggio/s: copre il picco della molla e la derivata dell'area (due assi).
-    // Si moltiplica per il passo reale; a passo zero resta solo la tolleranza numerica.
-    private const val MaxNormalizedSpeed = 20f
-    // Noti F1B.8: non si cambia la dinamica della goccia dei preset comuni per questi estremi.
-    // 24<->600: supera la soglia di continuita'; destinazione <=1 px: l'anello si incrocia.
-    // Le altre dieci varianti degli stessi casi restano obbligatorie e non sono saltate.
-    private val knownDropCases = mapOf(
-      "taglia-24-600" to "continuita' oltre soglia nella goccia: crescita 25 volte per asse",
-      "taglia-24-600-inverso" to "continuita' oltre soglia nella goccia: contrazione 25 volte per asse",
-      "larghezza-zero-inverso" to "anello elastico autointersecato contraendosi a larghezza zero",
-      "altezza-zero-inverso" to "anello elastico autointersecato contraendosi ad altezza zero",
-      "un-pixel-inverso" to "anello elastico autointersecato contraendosi a un pixel",
-    )
-    @JvmStatic @Parameterized.Parameters(name = "{0} / {1} / {2}Hz")
+    @JvmStatic @Parameterized.Parameters(name = "{index}/{1}/{2}Hz/scuro={3}")
     fun cases() = MorphRobustnessCases.all.flatMap { c ->
-      listOf("diretto", "inverti25", "inverti50", "inverti75", "terza25", "terza50", "terza75", "doppio", "irregolare", "zero", "goccia").flatMap { v ->
-        listOf(60, 120).map { arrayOf<Any>(c, v, it) }
+      val base = listOf("diretto", "inverti25", "inverti50", "inverti75", "terza25", "terza50", "terza75", "doppio", "irregolare", "zero")
+      (base + "goccia" + base.drop(1).map { "goccia-$it" } + listOf("goccia-interrompi25","goccia-interrompi50","goccia-interrompi75")).flatMap { v ->
+        listOf(60,120).flatMap { hz -> listOf(false,true).map { arrayOf<Any>(c,v,hz,it) } }
       }
     }
   }
-
-  private var frameLabel = ""
-  @Test fun viaggio() = runTest {
-    if (variant == "goccia") knownDropCases[case.name]?.let { reason ->
-      println("NOTO F1B.8 ${case.name}/$variant/${hz}Hz: $reason")
-      org.junit.Assume.assumeTrue(reason, false)
-    }
-    val clock = MorphRobustnessClock()
-    val state = FluidPhysicsState(case.from).apply { liquidAllowed = variant == "goccia" }
-    var target = case.to
-    val jobs = mutableListOf(launch(clock) { state.morphTo(target) })
-    runCurrent()
-    if (variant == "doppio") {
-      target = MorphRobustnessCases.third
-      jobs += launch(clock) { state.morphTo(target) }
-      runCurrent()
-    }
-    var time = 0L
-    var changed = false
-    var previous: FloatArray? = null
-    val scale = maxOf(case.from.frame.maxDimension, case.to.frame.maxDimension,
-      (case.from.frame.center - case.to.frame.center).getDistance(), 1f)
-    val optics = GlassDefaults.panelOptics(compact = true).sanitized()
-    val source = PhysicsMaterialSource(GlassDefaults.buttonOptics().sanitized(), optics)
-    val veil = PhysicsLargeVeil()
-    var count = 0
-    while (count < hz * 4) {
-      val dt = when {
-        variant == "zero" && count == 8 -> 0L
-        variant == "irregolare" && count == 8 -> 100_000_000L
-        else -> 1_000_000_000L / hz
-      }
-      time += dt
-      clock.frames.send(time)
-      runCurrent()
-      if (variant == "goccia") {
-        val slab = state.dropRestSlabNow()
-        if (slab == null) state.liquid.reset() else {
-          val rest = FloatArray(state.liquid.points * 2)
-          sampleRestContour(slab, state.liquid.points, rest)
-          val anchor = state.dropAnchorNow()
-          state.liquid.step(time, rest, anchor.x, anchor.y, dev.antigravity.fluidengine.ui.fluid.FluidMotion.DropAnchorReachDp, 1f)
-        }
-      }
-      val p = state.ensurePlan()
-      finite(p)
-      assertTrue(p.pieceCount in 0..PhysicsMaxPieces)
-      assertTrue(p.vertCount in 0..PhysicsMaxRingVertices)
-      frameLabel = "${case.name}/$variant frame=$count progress=${state.progress}"
-      val metrics = metrics(p)
-      val nowVeil = glassLiquidLargeVeilGain(physicsRecipeShortPx(p))
-      val large = veil.next(
-        state.journeyOriginNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it)) } ?: nowVeil,
-        state.journeyTargetNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it)) } ?: nowVeil, time)
-      val recipe = physicsLiquidRecipe(GlassRole.Modal, source.at(state.progress), physicsRecipeShortPx(p),
-        false, 1f, 1f, 0f, dev.antigravity.fluidengine.ui.fluid.GlassTint(androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color.Transparent), null, state.progress, false, state.liquid.lens, largeVeil = large)
-      val inputs = physicsLiquidInputs(p, recipe, 1f, 1f, 0f)
-      finite(inputs)
-      finite(recipe)
-      val values = metrics + floatArrayOf(recipe.veilColor.alpha, recipe.blurDp / 50f, recipe.refractionDp / 50f)
-      previous?.let { old ->
-        val limit = MaxNormalizedSpeed * dt / 1e9f + .001f
-        val delta = maxOf(abs(values[0] - old[0]) / (scale * scale),
-          hypot(values[1] - old[1], values[2] - old[2]) / scale,
-          (3..5).maxOf { abs(values[it] - old[it]) })
-        assertTrue("${case.name}/$variant frame=$count salto=$delta limite=$limit", delta <= limit)
-      }
-      previous = values
-      val threshold = when {
-        variant.endsWith("25") -> .25f
-        variant.endsWith("50") -> .50f
-        else -> .75f
-      }
-      if (!changed && (variant.startsWith("inverti") || variant.startsWith("terza")) && state.progress >= threshold) {
-        changed = true
-        target = if (variant.startsWith("inverti")) case.from else MorphRobustnessCases.third
-        jobs += launch(clock) { state.morphTo(target) }
-        runCurrent()
-        finite(state.ensurePlan())
-      }
-      count++
-      if (jobs.all { it.isCompleted } && state.liquid.quiet) break
-    }
-    assertTrue("il motore non si addormenta", jobs.all { it.isCompleted })
-    assertFalse(state.isMorphing)
-    assertTrue(state.liquid.quiet)
-    assertEquals(target, state.form)
-    assertEquals(target, state.restFormNow())
-    val final = metrics(state.ensurePlan())
-    val expected = PhysicsRenderPlan().also { buildRestPlan(it, target) }
-    assertArrayEquals("arrivo entro 0,001 px / px²", metrics(expected), final, .001f)
-    val arrived = state.ensurePlan()
-    assertEquals(expected.mode, arrived.mode)
-    assertEquals(expected.pieceCount, arrived.pieceCount)
-    assertEquals(expected.vertCount, arrived.vertCount)
-    assertArrayEquals(expected.pieceRects.copyOf(expected.pieceCount*4), arrived.pieceRects.copyOf(arrived.pieceCount*4), .001f)
-    assertArrayEquals(expected.fieldRadii.copyOf(expected.pieceCount*4), arrived.fieldRadii.copyOf(arrived.pieceCount*4), .001f)
-    assertArrayEquals(expected.verts.copyOf(expected.vertCount*2), arrived.verts.copyOf(arrived.vertCount*2), .001f)
-    assertSame(state.ensurePlan(), state.ensurePlan())
+  @Test fun viaggio() {
+    val key = "${case.name}/$variant/${hz}/${if (dark) "scuro" else "chiaro"}"
+    val result = MorphRobustnessRun.execute(case,variant,hz,dark)
+    val issues = result.issues
+    println("ORACOLO|$key|raffinati=${result.refinedAway}")
+    issues.forEach { (kind, detail) -> println("RILIEVO|$key|$kind|$detail") }
+    val unknown = issues.keys - MorphRobustnessKnown.issues[key].orEmpty()
+    assertTrue("NON_NOTI|$key|${unknown.sorted().joinToString(",")}", unknown.isEmpty())
+    println("ESITO|$key|${if (issues.isEmpty()) "PASS" else "NOTO"}|${MorphRobustnessKnown.classification(key,issues.keys)}")
+    org.junit.Assume.assumeTrue("Noti dichiarati: ${issues.keys}", issues.isEmpty())
   }
 
   /** Visita anche array e oggetti degli uniform, inclusi gli slot inattivi; esclude path e cache Compose. */
-  private fun finite(root: Any) {
+  internal fun finite(root: Any) {
     val seen = java.util.IdentityHashMap<Any, Boolean>()
     fun visit(value: Any?) {
       if (value == null || seen.put(value, true) != null) return
@@ -174,7 +73,7 @@ class MorphRobustnessTest(private val case: MorphRobustnessCases.Case, private v
     visit(root)
   }
 
-  internal fun metrics(p: PhysicsRenderPlan, validateContour: Boolean = true): FloatArray {
+  internal fun metrics(p: PhysicsRenderPlan, validateContour: Boolean = true, subdivisions: Int = 24): FloatArray {
     if (p.mode == PlanModePoly) {
       val pts = List(p.vertCount) { Offset(p.verts[it * 2], p.verts[it * 2 + 1]) }
       val area = signedArea(pts)
@@ -183,7 +82,7 @@ class MorphRobustnessTest(private val case: MorphRobustnessCases.Case, private v
       if (validateContour) for (i in pts.indices) for (j in i + 2 until pts.size) {
         if (i == 0 && j == pts.lastIndex) continue
         val a = pts[i]; val b = pts[(i+1)%pts.size]; val c = pts[j]; val d = pts[(j+1)%pts.size]
-        assertFalse("$frameLabel contorno autointersecato: $i/$j", cross(a,b,c)*cross(a,b,d) < -0.001f && cross(c,d,a)*cross(c,d,b) < -0.001f)
+        assertFalse("contorno autointersecato: $i/$j", cross(a,b,c)*cross(a,b,d) < -0.001f && cross(c,d,a)*cross(c,d,b) < -0.001f)
       }
       var x = 0f; var y = 0f
       for (i in pts.indices) {
@@ -212,11 +111,16 @@ class MorphRobustnessTest(private val case: MorphRobustnessCases.Case, private v
     val field = GlassFieldPlan(GlassFieldMaxPieces)
     physicsFieldPlan(p, 1f, field)
     val box = p.bounds
+    // Il collo nuovo resta vivo anche su pezzi compenetrati: il campo pu? uscire dai
+    // riquadri delle lastre. La quadratura deve coprire anche questa fascia, non troncarla.
+    val margin = field.blend.maxOrNull()?.coerceAtLeast(0f) ?: 0f
+    xs += box.left-margin; xs += box.right+margin
+    ys += box.top-margin; ys += box.bottom+margin
     var area=0f; var mx=0f; var my=0f
     // Celle delimitate dai pezzi: un tasto di 44 px a 70000 px dagli altri non sparisce
     // fra due campioni di una griglia uniforme sul riquadro intero.
     val xx=xs.distinct().sorted(); val yy=ys.distinct().sorted()
-    val n=12
+    val n=subdivisions
     for (u in 0 until xx.size-1) for (v in 0 until yy.size-1) {
       val w=xx[u+1]-xx[u]; val h=yy[v+1]-yy[v]
       val cell=w*h/(n*n)

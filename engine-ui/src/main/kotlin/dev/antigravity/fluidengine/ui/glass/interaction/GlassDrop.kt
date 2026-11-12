@@ -29,10 +29,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -56,6 +62,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassDropRole
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
+import dev.antigravity.fluidengine.ui.glass.field.glassDropLightAmount
 import dev.antigravity.fluidengine.ui.glass.field.glassDropProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
 import dev.antigravity.fluidengine.ui.glass.field.glassShadow
@@ -360,6 +367,23 @@ private fun Modifier.glassDropLiquid(
   val shadow = remember(surface) {
     if (surface.castsShadow) Modifier.glassShadow(surface.shadowOutline, surface.shadow) else Modifier
   }
+  // La luce dei tasti (filo e riflesso) viene con la lente: in proporzione alla pressione, e a riposo niente, sul
+  // pomello bianco un contorno grigio che Apple non ha (vedi `glassDropLightAmount`). A riposo e a pressione piena si
+  // disegna diretta, com'era; in mezzo, per i pochi fotogrammi in cui la faccia sfuma, ogni suo tratto con l'alfa
+  // moltiplicato per la pressione ([GlassDropFadedLight]). Non un layer con l'alfa: il riflesso è una somma (`Plus`), e
+  // in un layer si sommerebbe al layer vuoto invece che alla goccia; tornando al disegno diretto a pressione piena la
+  // luce scatterebbe. La pressione si legge qui, in disegno: un suo cambio ridisegna la luce.
+  val fadedLight = remember { GlassDropFadedLight() }
+  val onDrawLight: DrawScope.() -> Unit = remember(surface, motion) {
+    {
+      val amount = glassDropLightAmount(motion.progress())
+      when {
+        amount <= GlassDropLightEpsilon -> Unit
+        amount >= 1f - GlassDropLightEpsilon -> surface.onDrawLight(this)
+        else -> fadedLight.draw(this, amount) { surface.onDrawLight(this) }
+      }
+    }
+  }
   return this.drawBackdrop(
     backdrop = backdrop,
     shape = surface.clipShapeBlock,
@@ -373,9 +397,57 @@ private fun Modifier.glassDropLiquid(
     onDrawSurface = onDrawSurface,
     // Con un `layerBlock` la cattura resta a risoluzione piena, come in ogni `glassSurface` `Liquid`.
     backdropScale = 1f,
-    onDrawLight = surface.onDrawLight,
+    onDrawLight = onDrawLight,
     underlay = shadow,
   )
+}
+
+/** Sotto questa frazione la luce della goccia non si disegna, sopra il suo complemento si disegna diretta. */
+private const val GlassDropLightEpsilon = 0.002f
+
+/**
+ * La luce della goccia più debole (giro di correzione di F1B.3): lo scope del nodo, con l'alfa di ogni `drawRect`
+ * moltiplicato per la quantità di luce. La luce del vetro nuovo (`drawGlassLight`) è fatta di soli `drawRect` (il
+ * riflesso in `Plus`, il filo sopra), quindi ogni tratto resta quello che è, con la sua miscela, solo più debole: la
+ * stessa cosa che il banco fa con l'`alpha` dei suoi elementi `shader`. Se un giorno la luce disegnasse altro che
+ * rettangoli, quel tratto passerebbe a pieno: va aggiunto qui.
+ *
+ * Tiene l'ultimo scope ricevuto, che il nodo riusa da un fotogramma all'altro: nessuna allocazione in disegno, se non
+ * quando lo scope cambia.
+ */
+internal class GlassDropFadedLight {
+  private var faded: Faded? = null
+
+  /** Disegna [block] su [base] con l'alfa di ogni rettangolo per [amount]. */
+  fun draw(base: DrawScope, amount: Float, block: DrawScope.() -> Unit) {
+    val scope = faded?.takeIf { it.base === base } ?: Faded(base).also { faded = it }
+    scope.amount = amount
+    scope.block()
+  }
+
+  internal class Faded(val base: DrawScope) : DrawScope by base {
+    var amount: Float = 1f
+
+    override fun drawRect(
+      brush: Brush,
+      topLeft: Offset,
+      size: Size,
+      alpha: Float,
+      style: DrawStyle,
+      colorFilter: ColorFilter?,
+      blendMode: BlendMode,
+    ) = base.drawRect(brush, topLeft, size, alpha * amount, style, colorFilter, blendMode)
+
+    override fun drawRect(
+      color: Color,
+      topLeft: Offset,
+      size: Size,
+      alpha: Float,
+      style: DrawStyle,
+      colorFilter: ColorFilter?,
+      blendMode: BlendMode,
+    ) = base.drawRect(color, topLeft, size, alpha * amount, style, colorFilter, blendMode)
+  }
 }
 
 /**

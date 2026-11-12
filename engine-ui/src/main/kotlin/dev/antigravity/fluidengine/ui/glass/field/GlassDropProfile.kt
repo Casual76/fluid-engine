@@ -36,7 +36,10 @@
  *    (`travel=strong` sul tablet), la goccia lo segue. Senza frangia ([GlassDropOptics]);
  *  - **la lente cresce con la pressione**: è la profondità ottica della ricetta (`opticalDepth` = pressione, con
  *    [GlassDropOptics], il cui `edgeFloor` uno tiene filo e ombra fermi), come la lente di Kyant cresceva con `p`.
- *    La banda resta, quindi il margine della cattura non si muove.
+ *    La banda resta, quindi il margine della cattura non si muove;
+ *  - **la luce viene con la lente** ([glassDropLightAmount], giro di correzione dopo S2): filo e riflesso dei tasti
+ *    compaiono in proporzione alla pressione, mentre la faccia sfuma. A riposo la goccia è la faccia pulita con la
+ *    sua ombra, come il pomello di Apple.
  *
  * Fuori da qui (F5A): il «punto di luce forte» sulla goccia limpida fra 33 e 67 ms (R4 B1 b).
  */
@@ -163,5 +166,67 @@ internal fun glassDropRecipe(
   profile = profile,
   out = out,
 )
+
+// ------------------------------------------------------------------------------------------------------------
+// La luce della goccia: solo sotto il dito (F1B.3, giro di correzione)
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * Quanta della luce dei tasti (il filo e il riflesso) porta la goccia alla pressione [pressure]: **quanta ne porta la
+ * lente**, cioè la pressione stessa. A riposo zero, sotto il dito tutta.
+ *
+ * Perché: a riposo la goccia è la faccia piena, bianca sui pomelli. Con la luce dei tasti sopra, sul chiaro il filo
+ * scuro disegnava una riga grigia di un pixel attorno al pomello (S2, parte 2.1: 202 fra la pista a 214 e il bianco a
+ * 244; `moto/f1b/S2/per-alessio/ferma-manopola-prima-dopo-x4.png`), che la partenza non aveva e il pomello di Apple
+ * (B5) non ha: il pomello bianco di Apple a riposo è una faccia pulita con la sua ombra. Il filo è del **vetro**, e il
+ * vetro c'è quando la faccia sfuma: per questo segue la pressione, proporzionale, come la lente. Il riflesso va con lui:
+ * su una faccia bianca non si vede, e su quella grigia della lastra scura disegnava un secondo contorno chiaro.
+ * L'ombra no: resta ferma, a riposo e premuta.
+ *
+ * [restRim] vero (la manopola di debug `knobrim=on`, [GlassDropTuning]) rimette la luce di prima, piena a ogni
+ * pressione: la scelta consigliata ad Alessio è la nuova, e può ancora dire «com'era».
+ */
+internal fun glassDropLightAmount(pressure: Float, restRim: Boolean = GlassDropTuning.restRim): Float =
+  if (restRim) 1f else clampUnit(pressure)
+
+/**
+ * La manopola di debug della goccia, `knobrim` (`on` | `off`): `on` rimette il filo e il riflesso sul pomello a
+ * riposo, com'erano dopo F1B.3. Come le manopole del profilo ([GlassLiquidTuning]) vale solo in un'app `debuggable` e
+ * per ciò che si disegna da adesso; chi la installa è lo stesso che installa quelle (`FluidGlassDiagnostics`).
+ *
+ * Sta qui e non fra le varianti di [GlassLiquidTuning] perché non è un numero del materiale: è la scelta di quando la
+ * goccia mostra la luce.
+ */
+internal object GlassDropTuning {
+
+  /** Il nome della manopola, come lo scrive `gallery.tune`. */
+  const val Knob: String = "knobrim"
+
+  /** I valori che accetta. */
+  val Values: List<String> = listOf("on", "off")
+
+  /** Vero se la luce sta anche sul pomello a riposo (la manopola a `on`). Di serie falso. */
+  @Volatile
+  var restRim: Boolean = false
+    private set
+
+  /**
+   * Prende la manopola da [knobs] (nome e valore senza distinzione di maiuscole) e la applica; senza la manopola, o
+   * con `null`, torna di serie. Restituisce il valore preso (`on` o `off`), `null` se la manopola non c'era, o se il
+   * suo valore non si riconosce (allora non cambia niente).
+   */
+  fun apply(knobs: Map<String, String>?): String? {
+    val raw = knobs?.entries?.firstOrNull { it.key.trim().lowercase() == Knob }?.value
+    if (raw == null) {
+      restRim = false
+      return null
+    }
+    return when (raw.trim().lowercase()) {
+      "on" -> "on".also { restRim = true }
+      "off" -> "off".also { restRim = false }
+      else -> null
+    }
+  }
+}
 
 private fun clampUnit(value: Float): Float = if (value.isFinite()) value.coerceIn(0f, 1f) else 0f

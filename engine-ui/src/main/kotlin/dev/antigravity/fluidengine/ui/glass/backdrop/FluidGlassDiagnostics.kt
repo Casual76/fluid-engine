@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.annotation.MainThread
 import androidx.annotation.VisibleForTesting
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.glass.field.GlassDropTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidTuning
@@ -245,7 +246,8 @@ object FluidGlassDiagnostics {
    * Le manopole che [tuneLiquidProfile] riconosce, ognuna con i valori che accetta: le varianti delle tavole di
    * gusto per nome (`edge` → `ios27`, `ios26`, `today`…), i numeri come intervallo (`blur` → `0..64`).
    */
-  val liquidProfileKnobs: Map<String, List<String>> get() = GlassLiquidTuning.knobs
+  val liquidProfileKnobs: Map<String, List<String>>
+    get() = GlassLiquidTuning.knobs + (GlassDropTuning.Knob to GlassDropTuning.Values)
 
   /**
    * Cambia i numeri del materiale nuovo per le lastre che nascono **da adesso**: le varianti delle tavole di gusto
@@ -271,7 +273,10 @@ object FluidGlassDiagnostics {
   private fun installLiquidTuning(knobs: Map<String, String>?) {
     val tuned = if (knobs.isNullOrEmpty()) null else GlassLiquidTuning.apply(GlassLiquidProfile.Shipped, knobs)
     installGlassLiquidProfileOverride(tuned?.profile?.takeIf { tuned.accepted.isNotEmpty() })
-    tuning = tuned?.accepted ?: emptyMap()
+    // La manopola della goccia (`knobrim`) non è un numero del profilo: la tiene `GlassDropTuning`, e passa di qui
+    // perché chi fotografa usa una porta sola. Senza la manopola torna di serie (pomello senza filo a riposo).
+    val rim = GlassDropTuning.apply(knobs)
+    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it })
   }
 
   // ---- Ganci dei test che montano composable ------------------------------------------------------------------

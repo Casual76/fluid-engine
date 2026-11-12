@@ -237,10 +237,46 @@ fun FluidSectionIndex(
       /** Dove sta la barretta a riposo: il centro della sua corsa, alla frazione data. */
       fun restBarCenterY(fraction: Float): Float =
         restBarHPx / 2f + fraction * (trackHeight(0f) - restBarHPx).coerceAtLeast(0f)
-      fun indexForFraction(fraction: Float): Int =
-        (fraction * (sampledSections.size - 1)).roundToInt().coerceIn(0, sampledSections.lastIndex)
       fun lensCenterY(): Float =
         trackTop(1f) + markInsetPx + fingerFraction * (trackHeight(1f) - 2f * markInsetPx)
+
+      // Cio' che il gesto legge mentre e' in corso, sempre aggiornato (F1B.3, giro di correzione). Il gesto non
+      // riparte quando la composizione cambia (vedi `SharedPointerElement`): legge questi valori quando gli
+      // servono, non quelli del momento in cui e' nato.
+      val currentSelectedIndex by rememberUpdatedState(selectedIndex)
+      val currentSections by rememberUpdatedState(sampledSections)
+      val currentUsableExpanded by rememberUpdatedState((trackHeight(1f) - 2f * markInsetPx).coerceAtLeast(1f))
+      val currentHaptics by rememberUpdatedState(haptics)
+      val currentReducedMotion by rememberUpdatedState(reducedMotion)
+      val gestureHost = remember(scope, expansion) {
+        FluidSectionIndexGestureHost(
+          selectedIndex = { currentSelectedIndex },
+          count = { currentSections.size },
+          usableExpandedPx = { currentUsableExpanded },
+          onHeld = { originFraction ->
+            currentHaptics.play(FluidHapticEvent.GestureStart)
+            frozenFraction = originFraction
+            interacting = true
+            fingerFraction = originFraction
+            scope.launch {
+              if (currentReducedMotion) expansion.snapTo(1f)
+              else expansion.animateTo(1f, FluidMotion.snappy())
+            }
+          },
+          onFraction = { fraction -> fingerFraction = fraction },
+          onIndex = { index ->
+            currentHaptics.play(FluidHapticEvent.Tick)
+            currentSections.getOrNull(index)?.let { currentOnSelect(it, FluidSectionSelectionMotion.Immediate) }
+          },
+          onRelease = {
+            interacting = false
+            scope.launch {
+              if (currentReducedMotion) expansion.snapTo(0f)
+              else expansion.animateTo(0f, FluidMotion.snappy())
+            }
+          },
+        )
+      }
 
 
       // The rail. Its size lives in a layout lambda and its marks in a draw lambda, both reading
@@ -453,90 +489,114 @@ fun FluidSectionIndex(
             },
             labels = LocalFluidLabels.current,
           )
-          .sharedPointerInput(sampledSections, touchSlop, reducedMotion) {
-            awaitEachGesture {
-              val down = awaitFirstDown(requireUnconsumed = false)
-
-              // **Si prende il gesto solo tenendo premuto.**
-              //
-              // Prima lo prendeva al tocco, e doveva: lasciato libero, lo scorrevole della lista
-              // rivendica il movimento alla *sua* soglia e la pagina scorre sotto il dito invece
-              // dell'indice. Ma un controllo che rivendica al tocco rivendica anche tutti i tocchi
-              // che non erano per lui — e stando sul bordo destro, all'altezza del pollice, quelli
-              // sono la maggioranza: la lista saltava a una sezione a caso circa un gesto su cinque.
-              //
-              // La pressione lunga scioglie il nodo senza compromessi, perche' le due intenzioni si
-              // distinguono da sole: chi vuole scorrere si muove subito, chi vuole l'indice si
-              // ferma. Finche' il dito e' fermo la lista non ha ancora niente da rivendicare, quindi
-              // prenderlo qui non toglie niente a nessuno; e se invece si muove, non consumiamo mai
-              // e lo scorrimento parte come se questo nodo non esistesse.
-              val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                while (true) {
-                  val event = awaitPointerEvent()
-                  val change = event.changes.firstOrNull { it.id == down.id }
-                    ?: return@withTimeoutOrNull false
-                  if (!change.pressed || change.isConsumed) return@withTimeoutOrNull false
-                  if (distance(down.position, change.position) > touchSlop) {
-                    return@withTimeoutOrNull false
-                  }
-                }
-                @Suppress("UNREACHABLE_CODE")
-                false
-              } ?: true
-              if (!held) return@awaitEachGesture
-
-              haptics.play(FluidHapticEvent.GestureStart)
-              // Il nastro si apre *dove sei*, e il trascinamento e' relativo a quel punto. Mappare
-              // la y del dito in assoluto sul nastro aperto significherebbe che il solo aprirlo
-              // sposta la selezione, perche' la barretta a riposo e il nastro aperto non hanno la
-              // stessa altezza: si terrebbe premuto senza muovere un millimetro e la pagina
-              // salterebbe comunque.
-              val originY = down.position.y
-              val originFraction = selectedIndex / (sampledSections.size - 1f).coerceAtLeast(1f)
-              frozenFraction = originFraction
-              val usableExpanded =
-                (trackHeight(1f) - 2f * markInsetPx).coerceAtLeast(1f)
-              // Parte da dove sei: la goccia nasce sotto il dito sulla tacca della sezione attiva, e il
-              // primo evento a dito fermo non e' una tacca attraversata. Con `null` suonava un Tick subito
-              // dopo il `GestureStart` della pressione lunga (due colpi per un momento) e riselezionava
-              // la sezione dov'era gia'.
-              var lastDragIndex = selectedIndex
-              interacting = true
-              fingerFraction = originFraction
-              scope.launch {
-                if (reducedMotion) expansion.snapTo(1f)
-                else expansion.animateTo(1f, FluidMotion.snappy())
-              }
-
-              while (true) {
-                val event = awaitPointerEvent()
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                val position = change.position
-                change.consume()
-                val fraction = (
-                  originFraction + (position.y - originY) / usableExpanded
-                  ).coerceIn(0f, 1f)
-                fingerFraction = fraction
-                val index = indexForFraction(fraction)
-                if (index != lastDragIndex) {
-                  lastDragIndex = index
-                  haptics.play(FluidHapticEvent.Tick)
-                  currentOnSelect(sampledSections[index], FluidSectionSelectionMotion.Immediate)
-                }
-                if (change.changedToUpIgnoreConsumed() || !change.pressed) break
-              }
-
-              interacting = false
-              scope.launch {
-                if (reducedMotion) expansion.snapTo(0f)
-                else expansion.animateTo(0f, FluidMotion.snappy())
-              }
-            }
+          // Il gesto (la pressione lunga che prende il nastro, poi il trascinamento) sta in
+          // `fluidSectionIndexGesture`, e legge cio' che cambia attraverso `gestureHost`. Le chiavi sono
+          // quelle che cambiano il gesto stesso: una ricomposizione a meta' trascinamento (la sezione
+          // scelta che cambia sotto il dito) non lo fa ripartire. Vedi `SharedPointerElement`.
+          .sharedPointerInput(touchSlop, reducedMotion, gestureHost) {
+            fluidSectionIndexGesture(touchSlop, gestureHost)
           },
       )
     }
   }
 }
+
+/**
+ * Cio' che il gesto dell'indice chiede e comunica a chi lo disegna, tutto **letto quando serve** (F1B.3, giro di
+ * correzione). Il gesto vive quanto il nodo che lo porta, non quanto una composizione: i valori che cambiano mentre il
+ * dito trascina (la sezione scelta, quante sezioni ci sono, l'altezza del nastro aperto) li chiede qui.
+ */
+internal class FluidSectionIndexGestureHost(
+  val selectedIndex: () -> Int,
+  val count: () -> Int,
+  val usableExpandedPx: () -> Float,
+  /** La pressione lunga ha preso il gesto: il nastro si apre alla frazione della sezione scelta. */
+  val onHeld: (originFraction: Float) -> Unit,
+  /** Dove sta il dito sul nastro aperto, 0..1. */
+  val onFraction: (Float) -> Unit,
+  /** Il dito ha attraversato una tacca: la sezione [Int] e' quella nuova. */
+  val onIndex: (Int) -> Unit,
+  /** Il dito si e' alzato, o il gesto e' stato tolto: il nastro si richiude. */
+  val onRelease: () -> Unit,
+)
+
+/**
+ * Il gesto dell'indice di sezione: **si prende solo tenendo premuto**, poi segue il dito sul nastro aperto.
+ *
+ * Prima lo prendeva al tocco, e doveva: lasciato libero, lo scorrevole della lista rivendica il movimento alla *sua*
+ * soglia e la pagina scorre sotto il dito invece dell'indice. Ma un controllo che rivendica al tocco rivendica anche
+ * tutti i tocchi che non erano per lui — e stando sul bordo destro, all'altezza del pollice, quelli sono la
+ * maggioranza: la lista saltava a una sezione a caso circa un gesto su cinque.
+ *
+ * La pressione lunga scioglie il nodo senza compromessi, perche' le due intenzioni si distinguono da sole: chi vuole
+ * scorrere si muove subito, chi vuole l'indice si ferma. Finche' il dito e' fermo la lista non ha ancora niente da
+ * rivendicare, quindi prenderlo qui non toglie niente a nessuno; e se invece si muove, **prima della presa non si
+ * consuma mai** e lo scorrimento parte come se questo nodo non esistesse.
+ *
+ * **Dopo la presa si consuma ogni cambio, fino al sollevamento** (F1B.3, giro di correzione, S2 parte 2.1: la pagina
+ * scorreva di 103 px su 120 di dito). Il consumo c'era gia'; si perdeva perche' il gesto ripartiva a ogni
+ * ricomposizione (vedi `SharedPointerElement`), e il gesto nuovo, in attesa di un dito che scende, lasciava i cambi
+ * del dito gia' giu' senza consumarli. Lo scorrevole della lista (Compose 1.10, `DragGestureNode`) li raccoglie: chi
+ * vede un cambio consumato da un figlio non si arrende, aspetta un evento che nessuno ha consumato e da li' riparte
+ * dalla soglia. 120 px di dito meno la soglia (8 dp, 17 px sul tablet) sono i 103 px misurati.
+ *
+ * Il trascinamento e' relativo a dove il dito ha preso: il nastro si apre *dove sei*, e mappare la y del dito in
+ * assoluto sul nastro aperto sposterebbe la selezione al solo aprirlo (la barretta a riposo e il nastro aperto non
+ * hanno la stessa altezza).
+ */
+internal suspend fun PointerInputScope.fluidSectionIndexGesture(touchSlop: Float, host: FluidSectionIndexGestureHost) {
+  awaitEachGesture {
+    val down = awaitFirstDown(requireUnconsumed = false)
+    val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+      while (true) {
+        val event = awaitPointerEvent()
+        val change = event.changes.firstOrNull { it.id == down.id }
+          ?: return@withTimeoutOrNull false
+        if (!change.pressed || change.isConsumed) return@withTimeoutOrNull false
+        if (distance(down.position, change.position) > touchSlop) {
+          return@withTimeoutOrNull false
+        }
+      }
+      @Suppress("UNREACHABLE_CODE")
+      false
+    } ?: true
+    if (!held) return@awaitEachGesture
+
+    val count = host.count()
+    val originY = down.position.y
+    val originFraction = host.selectedIndex() / (count - 1f).coerceAtLeast(1f)
+    // Parte da dove sei: la goccia nasce sotto il dito sulla tacca della sezione attiva, e il primo evento a dito
+    // fermo non e' una tacca attraversata. Con `null` suonava un Tick subito dopo il `GestureStart` della pressione
+    // lunga (due colpi per un momento) e riselezionava la sezione dov'era gia'.
+    var lastDragIndex = host.selectedIndex()
+    host.onHeld(originFraction)
+    try {
+      while (true) {
+        val event = awaitPointerEvent()
+        // Ogni cambio, non solo quello del dito: anche un secondo dito appoggiato dopo la presa e' dell'indice, o
+        // lo scorrevole lo prenderebbe come un evento che nessuno ha consumato.
+        event.changes.forEach { it.consume() }
+        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+        val fraction = (originFraction + (change.position.y - originY) / host.usableExpandedPx()).coerceIn(0f, 1f)
+        host.onFraction(fraction)
+        val index = fluidSectionIndexForFraction(fraction, host.count())
+        if (index != lastDragIndex) {
+          lastDragIndex = index
+          host.onIndex(index)
+        }
+        if (change.changedToUpIgnoreConsumed() || !change.pressed) break
+      }
+    } finally {
+      // Anche se il gesto viene tolto a meta' (il nodo che se ne va, una chiave che cambia): il nastro non resta
+      // aperto sotto un dito che non c'e' piu'.
+      host.onRelease()
+    }
+  }
+}
+
+/** La sezione a una frazione del nastro: la tacca piu' vicina. */
+internal fun fluidSectionIndexForFraction(fraction: Float, count: Int): Int =
+  if (count <= 1) 0 else (fraction * (count - 1)).roundToInt().coerceIn(0, count - 1)
 
 /** Da quanto e' grande la lente nel primo fotogramma dell'apertura: il 40%, e arriva intera. */
 private const val LensRestScale = 0.4f
@@ -727,13 +787,20 @@ private fun Modifier.sectionIndexSemantics(
  *
  * Compose stops hit-testing at the first sibling it lands on. That is the right default and it was
  * the wrong one here: this strip stands over a scrolling list, so every touch that fell on it was a
- * touch the list never heard about """ + D + u""" and since the rail only claims a gesture after a long press,
+ * touch the list never heard about — and since the rail only claims a gesture after a long press,
  * a finger that landed on the bar and immediately dragged got **nothing at all**. Not a scroll, not
  * an index: a gesture that vanished. Shrinking the target made it rarer without making it right.
  *
  * Sharing removes the choice from geometry entirely. Both nodes receive every event; the list acts
  * on movement, the rail acts on stillness, and whichever recognises its own gesture first consumes
  * it. Nothing has to be small any more to be safe.
+ *
+ * **Restarts only when a key changes**, like `pointerInput` (F1B.3, giro di correzione). Until then it
+ * replaced its gesture whenever the block changed identity, and the block is a new lambda at every
+ * recomposition that changes what it captures: the section under the finger changing mid-drag was
+ * enough. The gesture in progress was cancelled, the new one sat waiting for a finger to come down,
+ * and the moves of the finger already down went through unconsumed, for the list to pick up. The
+ * block now reads what changes through [FluidSectionIndexGestureHost].
  */
 private fun Modifier.sharedPointerInput(
   key1: Any?,
@@ -742,7 +809,11 @@ private fun Modifier.sharedPointerInput(
   block: suspend PointerInputScope.() -> Unit,
 ): Modifier = this then SharedPointerElement(key1, key2, key3, block)
 
-private data class SharedPointerElement(
+/**
+ * The element of [sharedPointerInput]: equal to another with the same keys, **whatever the block**, so
+ * a recomposition that only rebuilds the lambda leaves the running gesture alone.
+ */
+internal class SharedPointerElement(
   private val key1: Any?,
   private val key2: Any?,
   private val key3: Any?,
@@ -750,6 +821,7 @@ private data class SharedPointerElement(
 ) : ModifierNodeElement<SharedPointerNode>() {
   override fun create(): SharedPointerNode = SharedPointerNode(block)
 
+  /** Only reached when a key changed: a new gesture, with the block of now. */
   override fun update(node: SharedPointerNode) {
     node.update(block)
   }
@@ -757,9 +829,19 @@ private data class SharedPointerElement(
   override fun InspectorInfo.inspectableProperties() {
     name = "sharedPointerInput"
   }
+
+  override fun equals(other: Any?): Boolean =
+    other is SharedPointerElement && key1 == other.key1 && key2 == other.key2 && key3 == other.key3
+
+  override fun hashCode(): Int {
+    var result = key1?.hashCode() ?: 0
+    result = 31 * result + (key2?.hashCode() ?: 0)
+    result = 31 * result + (key3?.hashCode() ?: 0)
+    return result
+  }
 }
 
-private class SharedPointerNode(
+internal class SharedPointerNode(
   block: suspend PointerInputScope.() -> Unit,
 ) : DelegatingNode(), PointerInputModifierNode {
 

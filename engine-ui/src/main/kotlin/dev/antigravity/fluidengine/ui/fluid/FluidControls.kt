@@ -80,6 +80,7 @@ import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDropFaceAlpha
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
 import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
@@ -481,9 +482,22 @@ fun <T> FluidSegmentedControl(
       }
     }
 
+    // Quale segmento sta sotto la goccia in questo istante: la goccia a riposo ha la faccia piena e
+    // copre l'etichetta che le sta sotto, quindi quella la ridisegna sopra. Derivato, cosi' si
+    // ricompone quando la goccia entra in un segmento nuovo e non a ogni fotogramma.
+    val dropIndex by remember(pill, options.size) {
+      derivedStateOf { segmentedDropIndex(pill.value, options.size) }
+    }
+
     val segments: @Composable RowScope.() -> Unit = {
       options.forEachIndexed { index, option ->
+        // Due domande diverse (F1B.3, giro di correzione: il difetto 12 della partenza). La scelta, per il tocco e
+        // per TalkBack, e' quella fatta: `currentIndex`, che cambia al tocco. L'**aspetto** dell'etichetta (nero e
+        // seminero, o grigio) e' quello del segmento su cui sta la goccia: cambia una volta, quando la goccia ci
+        // arriva, sotto la lente. Prima cambiava al tocco, e l'etichetta d'arrivo diventava nera prima che la
+        // goccia partisse.
         val isSelected = index == currentIndex
+        val looksSelected = segmentedLabelLooksSelected(index, dropIndex)
         Box(
           modifier = Modifier
             .weight(1f)
@@ -507,16 +521,9 @@ fun <T> FluidSegmentedControl(
             ),
           contentAlignment = Alignment.Center,
         ) {
-          face(option, isSelected)
+          face(option, looksSelected)
         }
       }
-    }
-
-    // Quale segmento sta sotto la goccia in questo istante: la goccia a riposo ha la faccia piena e
-    // copre l'etichetta che le sta sotto, quindi quella la ridisegna sopra. Derivato, cosi' si
-    // ricompone quando la goccia entra in un segmento nuovo e non a ogni fotogramma.
-    val dropIndex by remember(pill, options.size) {
-      derivedStateOf { pill.value.roundToInt().coerceIn(0, options.size - 1) }
     }
 
     // Il contenitore: la lastra della pista, e dentro tutto il resto. Il vetro che sta dentro un
@@ -562,8 +569,8 @@ fun <T> FluidSegmentedControl(
           .then(pill.modifier)
           .then(
             if (lensAvailable) {
-              // La goccia di Kyant, coi numeri del pomello dello slider (lente 10/14 dp, sfocatura
-              // 8 dp che scende a zero): bianca a riposo (grigia sullo scuro), lente sotto il dito.
+              // La goccia (`glassDrop`): bianca a riposo (grigia sullo scuro), lente sotto il dito; col
+              // vetro nuovo il materiale della goccia, altrimenti quella di Kyant coi numeri dello slider.
               // La scala e lo squash stanno nel suo `layerBlock`, mai in un layer sopra: il
               // renderer inverte quella trasformazione quando campiona, e la lente ha in mano le
               // etichette che ci sono davvero dietro.
@@ -594,18 +601,23 @@ fun <T> FluidSegmentedControl(
       // 4. The selected label, again, on top of the resting drop.
       //
       // Decorativa: il segmento sotto ha il tocco e la semantica, e questa non deve portarsi via
-      // nessuno dei due (non ha modificatori di puntatore, quindi il tocco la attraversa). Segue la
-      // traslazione e la crescita della goccia, e sfuma tre volte piu' in fretta della pressione: a
-      // un terzo del gesto non c'e' piu', e resta solo la copia che la lente piega.
+      // nessuno dei due (non ha modificatori di puntatore, quindi il tocco la attraversa).
+      //
+      // E' l'etichetta **stampata sulla faccia** (F1B.3, giro di correzione): sta sul segmento della goccia
+      // (`dropIndex`), cioe' esattamente sopra l'etichetta che copre, e non segue `pill.value` fra un segmento e
+      // l'altro; e c'e' quanto c'e' la faccia (`glassDropFaceAlpha`). Prima seguiva la goccia e sfumava tre volte
+      // piu' in fretta della pressione: alla partenza l'etichetta era doppia (una che viaggiava con la goccia,
+      // una al suo posto sotto la faccia che sfumava), e al rilascio la faccia tornava prima di lei, e
+      // l'etichetta sotto si leggeva sbiadita.
       Box(
         modifier = Modifier
           .clearAndSetSemantics {}
           .padding(inset)
           .graphicsLayer {
-            translationX = segmentedDropTranslation(pill.value, segmentWidth, rtl)
+            translationX = segmentedOverlayTranslation(dropIndex, segmentWidth, rtl)
             scaleX = pill.scaleX
             scaleY = pill.scaleY
-            alpha = (1f - pill.pressProgress * 3f).coerceIn(0f, 1f)
+            alpha = segmentedOverlayAlpha(dropFace, pill.pressProgress)
           }
           .fillMaxHeight()
           .width(with(density) { segmentWidth.toDp() }),
@@ -632,6 +644,24 @@ internal fun segmentedDirection(rtl: Boolean): Float = if (rtl) -1f else 1f
  */
 internal fun segmentedDropTranslation(value: Float, segmentWidth: Float, rtl: Boolean): Float =
   segmentedDirection(rtl) * value * segmentWidth
+
+/** Il segmento su cui sta la goccia: il piu' vicino al suo valore, dentro la pista. */
+internal fun segmentedDropIndex(value: Float, count: Int): Int =
+  if (count <= 0 || !value.isFinite()) 0 else value.roundToInt().coerceIn(0, count - 1)
+
+/**
+ * Se l'etichetta del segmento [index] ha l'aspetto della scelta (nera e seminera) nella pista e nella copia d'accento:
+ * quando la goccia ci sta sopra ([dropIndex]), non quando e' stato scelto. Un solo cambio d'aspetto per tocco, sotto
+ * la lente: vedi `FluidSegmentedControl`.
+ */
+internal fun segmentedLabelLooksSelected(index: Int, dropIndex: Int): Boolean = index == dropIndex
+
+/** Dove sta l'etichetta ridisegnata sopra la goccia: sul segmento della goccia, sopra l'etichetta che copre. */
+internal fun segmentedOverlayTranslation(dropIndex: Int, segmentWidth: Float, rtl: Boolean): Float =
+  segmentedDropTranslation(dropIndex.toFloat(), segmentWidth, rtl)
+
+/** Quanto si vede l'etichetta ridisegnata sopra la goccia: quanto la faccia su cui e' stampata. */
+internal fun segmentedOverlayAlpha(face: Color, pressure: Float): Float = glassDropFaceAlpha(face, pressure)
 
 /** Di quanti segmenti un movimento orizzontale del dito sposta la goccia: lo stesso verso, specchiato. */
 internal fun segmentedDragDelta(dragAmountX: Float, segmentWidth: Float, rtl: Boolean): Float =

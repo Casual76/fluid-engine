@@ -154,6 +154,49 @@ class GlassDropProfileTest {
   }
 
   @Test
+  fun theLightComesWithTheLensAndTheRestingKnobIsACleanFace() {
+    // A riposo niente filo né riflesso: il pomello è la faccia con la sua ombra (S2: il filo a 202 attorno al bianco).
+    assertEquals(0f, glassDropLightAmount(0f, restRim = false), 0f)
+    // Sotto il dito la luce viene in proporzione alla pressione, come la lente.
+    for (p in listOf(0.1f, 0.25f, 0.5f, 0.9f)) assertEquals(p, glassDropLightAmount(p, restRim = false), 0f)
+    assertEquals(1f, glassDropLightAmount(1f, restRim = false), 0f)
+    // Fuori da 0..1 (una molla che sfora) resta dentro.
+    assertEquals(1f, glassDropLightAmount(1.03f, restRim = false), 0f)
+    assertEquals(0f, glassDropLightAmount(-0.02f, restRim = false), 0f)
+    // Con la manopola `knobrim=on` la luce di prima, piena a ogni pressione.
+    assertEquals(1f, glassDropLightAmount(0f, restRim = true), 0f)
+    assertEquals(1f, glassDropLightAmount(0.4f, restRim = true), 0f)
+    // L'ombra non dipende dalla pressione: resta quella del tasto anche a riposo (vedi sotto).
+    for (dark in listOf(false, true)) {
+      assertEquals(drop(40f, 24f, dark, 0f).shadowAmbientAlpha, drop(40f, 24f, dark, 1f).shadowAmbientAlpha, 0f)
+      assertTrue(drop(40f, 24f, dark, 0f).shadowAmbientAlpha > 0f)
+    }
+  }
+
+  @Test
+  fun theKnobRimKnobTakesOnAndOffAndNothingElse() {
+    try {
+      assertEquals("on", GlassDropTuning.apply(mapOf("KnobRim" to " ON ")))
+      assertTrue(GlassDropTuning.restRim)
+      assertEquals("off", GlassDropTuning.apply(mapOf("knobrim" to "off")))
+      assertEquals(false, GlassDropTuning.restRim)
+      GlassDropTuning.apply(mapOf("knobrim" to "on"))
+      // Un valore che non si riconosce non cambia niente e non si prende.
+      assertEquals(null, GlassDropTuning.apply(mapOf("knobrim" to "forse")))
+      assertTrue(GlassDropTuning.restRim)
+      // Le manopole senza `knobrim` (o nessuna) tornano di serie.
+      assertEquals(null, GlassDropTuning.apply(mapOf("edge" to "ios26")))
+      assertEquals(false, GlassDropTuning.restRim)
+      GlassDropTuning.apply(mapOf("knobrim" to "on"))
+      assertEquals(null, GlassDropTuning.apply(null))
+      assertEquals(false, GlassDropTuning.restRim)
+      assertEquals(listOf("on", "off"), GlassDropTuning.Values)
+    } finally {
+      GlassDropTuning.apply(null)
+    }
+  }
+
+  @Test
   fun theOpticsAreTheKeysWithTheRimFloored() {
     assertEquals(key.copy(edgeFloor = 1f, dispersion = false), GlassDropOptics)
     assertEquals(GlassRole.Interactive, GlassDropRole)
@@ -167,8 +210,17 @@ class GlassDropProfileTest {
       @Suppress("UNCHECKED_CAST")
       val elements = scene.json["elements"] as List<Map<String, Any?>>
       assertTrue(scene.path, elements.any { it["kind"] == "material" })
-      // La luce della goccia sta sopra la faccia: due strati a parte, dopo il corpo.
-      assertTrue(scene.path, elements.any { (it["name"] as String).endsWith("-luce-filo") })
+      val dropLights = elements.filter { (it["name"] as String).let { n -> n.startsWith("pomello-luce") || n.startsWith("cursore-luce") } }
+      if (scene.path.startsWith("pomello-")) {
+        // A riposo il pomello è la faccia pulita: niente luce (il tasto accanto la tiene).
+        assertTrue(scene.path, dropLights.isEmpty())
+      } else {
+        // Sotto il dito la luce della goccia sta sopra la faccia: due strati a parte, dopo il corpo, con l'alfa della
+        // pressione dove non è piena.
+        assertTrue(scene.path, dropLights.any { (it["name"] as String).endsWith("-luce-filo") })
+        val half = scene.path.startsWith("goccia-a-meta-")
+        for (light in dropLights) assertEquals(scene.path, if (half) 0.5 else null, light["alpha"])
+      }
     }
     val traces = listOf(DropTrace.build(dark = false), DropTrace.build(dark = true))
     for (trace in traces) {
@@ -257,8 +309,13 @@ internal object DropElements {
       "all'alfa ${round3(faceAlpha)}; luce sopra la faccia, negli elementi $name-luce-*"
     val body = liquidElement(shape, recipe, theme = null, note = note)
 
+    // La luce dei tasti viene con la lente (`glassDropLightAmount`): a riposo niente, in mezzo l'alfa della pressione.
+    // Nel nodo ogni rettangolo della luce ha l'alfa per quella quantità (`GlassDropFadedLight`), con la sua miscela:
+    // qui ogni elemento porta la stessa `alpha`, ed è la stessa cosa.
+    val lightAmount = glassDropLightAmount(p, restRim = false)
     @Suppress("UNCHECKED_CAST")
-    val layers = body.remove("light") as? List<Map<String, Any?>> ?: emptyList()
+    val layers = (body.remove("light") as? List<Map<String, Any?>> ?: emptyList())
+      .takeIf { lightAmount > 0.002f } ?: emptyList()
     val lights = layers.map { layer ->
       val additive = layer["blend"] == "Plus"
       linkedMapOf<String, Any?>(
@@ -270,6 +327,7 @@ internal object DropElements {
         "clip" to true,
       ).also { el ->
         if (additive) el["blend"] = "Plus"
+        if (lightAmount < 0.998f) el["alpha"] = round3(lightAmount)
         @Suppress("UNCHECKED_CAST")
         el["uniforms"] = LinkedHashMap(layer["uniforms"] as Map<String, Any?>)
         lightRadii(el, body)

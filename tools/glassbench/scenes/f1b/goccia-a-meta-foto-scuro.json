@@ -243,6 +243,7 @@
       "radius": "capsule",
       "clip": true,
       "blend": "Plus",
+      "alpha": 0.5,
       "uniforms": {
         "offset": "$offset",
         "flex": [1, 0, 0, 1],
@@ -282,6 +283,7 @@
       "h": 30,
       "radius": "capsule",
       "clip": true,
+      "alpha": 0.5,
       "uniforms": {
         "offset": "$offset",
         "flex": [1, 0, 0, 1],
@@ -389,6 +391,7 @@
       "radius": "capsule",
       "clip": true,
       "blend": "Plus",
+      "alpha": 0.5,
       "uniforms": {
         "offset": "$offset",
         "flex": [1, 0, 0, 1],
@@ -428,6 +431,7 @@
       "h": 30,
       "radius": "capsule",
       "clip": true,
+      "alpha": 0.5,
       "uniforms": {
         "offset": "$offset",
         "flex": [1, 0, 0, 1],
@@ -652,6 +656,7 @@
       "radius": 8.375,
       "clip": true,
       "blend": "Plus",
+      "alpha": 0.5,
       "uniforms": {
         "offset": "$offset",
         "flex": [1, 0, 0, 1],
@@ -691,6 +696,7 @@
       "h": 33.5,
       "radius": 8.375,
       "clip": true,
+      "alpha": 0.5,
       "uniforms": {
         "offset": "$offset",
         "flex": [1, 0, 0, 1],

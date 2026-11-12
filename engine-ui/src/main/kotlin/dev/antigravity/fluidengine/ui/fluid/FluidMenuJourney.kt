@@ -223,6 +223,28 @@ internal fun fluidPressedBounds(rest: Rect, transform: FluidPressTransform): Rec
   return Rect(cx - hw, cy - hh, cx + hw, cy + hh)
 }
 
+/**
+ * Il segnaposto di partenza del viaggio di un menu che parte da un tasto (`FluidMenuJourney.install`): la
+ * **taglia del tasto a riposo** ([rest]), centrata **dove il dito l'ha spinto** ([pressed]).
+ *
+ * Perché (F1B.3, sessione sul tablet dopo F1B.2): la geometria della partenza la da' la partenza viva
+ * (`startFrame`, il tasto premuto che torna a riposo), e il segnaposto serve a riconoscere la corsa, a dire
+ * da dove parte l'ancora della goccia (il suo centro) e da quale **materiale** parte il viaggio: il velo dei
+ * grandi della superficie che viaggia parte da quello della forma di partenza (`PhysicsLargeVeil`, dal lato
+ * corto del segnaposto). Il tasto premuto e' gonfiato dal dito (un tasto da 44 dp arriva a ~65), ma il suo
+ * vetro prende il velo dai 44 dp del nodo: la scala della pressione e' un `graphicsLayer`. Col segnaposto
+ * gonfiato, sul lato scuro la goccia nasceva con un terzo del velo dei grandi e il primo fotogramma del clic
+ * lungo saltava di −10 livelli rispetto al tasto. Il centro resta quello del tasto premuto: l'ancora della
+ * goccia non si sposta.
+ *
+ * Con un [rest] senza area (il tasto non ancora posato) resta [pressed], com'era.
+ */
+internal fun fluidMenuOriginFrame(rest: Rect, pressed: Rect): Rect {
+  if (!(rest.width > 0f) || !(rest.height > 0f)) return pressed
+  val c = pressed.center
+  return Rect(c.x - rest.width / 2f, c.y - rest.height / 2f, c.x + rest.width / 2f, c.y + rest.height / 2f)
+}
+
 /** [fluidPressedBounds] con la pressione di adesso di [press]. Fuori dal disegno: e' un'istantanea. */
 internal fun fluidPressedBounds(rest: Rect, press: FluidPressState, density: Float): Rect =
   fluidPressedBounds(
@@ -669,7 +691,12 @@ internal class FluidMenuJourney {
     val a = anchor
     // Il `from` e' fisso per un'apertura (il tasto premuto, o il seme): e' il segnaposto con cui
     // `driveExternally` riconosce la stessa corsa. La partenza vera, viva, la da' [startFrame].
-    val start = if (a != null) a.pressedBounds.translate(-hostOrigin.x, -hostOrigin.y) else seed ?: to
+    // F1B.3: il segnaposto ha la taglia del tasto a riposo (vedi [fluidMenuOriginFrame]).
+    val start = if (a != null) {
+      fluidMenuOriginFrame(rest = a.restBounds, pressed = a.pressedBounds).translate(-hostOrigin.x, -hostOrigin.y)
+    } else {
+      seed ?: to
+    }
     // Tondo per costruzione: il tasto e' una capsula, la goccia del contestuale un cerchio.
     val from = FluidForm.Slab(
       frame = start,

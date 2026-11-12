@@ -13,6 +13,13 @@
  * file with a second modifier (`glassDropFace`). They are the same drop: one modifier, [glassDrop],
  * with the face and the motion as parameters. The thumbs keep white and their `GlassDragAnimation`
  * (the overload that takes a drag), and their output does not change by a bit.
+ *
+ * 4.0, F1B.3 (piano «iOS in Android»): dove il vetro è quello nuovo (`FluidGlassModel.Liquid`, da Android 13) il
+ * corpo della goccia non è più la ricetta di Kyant qui sopra ma il materiale, con il profilo della goccia
+ * (`glass/field/GlassDropProfile.kt`): la luce e l'ombra dei tasti, e sotto il dito una lente limpida. Geometria e
+ * tempi non cambiano (la faccia, lo squash, la crescita); sotto Android 13 e con `FluidGlassModel.Classic` la
+ * ricetta di Kyant resta quella di sempre, con i suoi numeri. Anche la goccia delle voci di menù passa da qui
+ * (`FluidGlassMenuPanel.kt`): era una copia in linea.
  */
 package dev.antigravity.fluidengine.ui.glass.interaction
 
@@ -26,10 +33,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassFalloff
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
@@ -38,6 +51,14 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
+import dev.antigravity.fluidengine.ui.glass.field.GlassDropOptics
+import dev.antigravity.fluidengine.ui.glass.field.GlassDropRole
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
+import dev.antigravity.fluidengine.ui.glass.field.glassDropProfile
+import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
+import dev.antigravity.fluidengine.ui.glass.field.glassShadow
 import kotlin.math.abs
 
 /**
@@ -220,6 +241,11 @@ internal val NeverReducedMotion: () -> Boolean = { false }
  *  - **cresce e si deforma** col movimento di [motion]: scala X e Y separate, e lo squash dalla
  *    velocita' ([glassDropSquash]).
  *
+ * Questo e' il vetro di Kyant, che resta dove il materiale nuovo non c'e'. Dove c'e' (F1B.3) faccia,
+ * crescita e squash sono gli stessi, ma sotto la faccia c'e' il materiale: a riposo la faccia porta il filo,
+ * il riflesso e l'ombra dei tasti, e sotto il dito sfuma su una lente limpida che piega quanto la pressione
+ * (`glass/field/GlassDropProfile.kt`). [lensSize] vale solo per il vetro di Kyant.
+ *
  * Nel `layerBlock` e non in un `graphicsLayer` antenato: il renderer inverte quella trasformazione
  * quando campiona, quindi la lente ha in mano la pista che c'e' davvero dietro. La traslazione
  * lungo la pista la mette chi chiama, in un `graphicsLayer` *prima* di questo modificatore.
@@ -234,6 +260,11 @@ internal val NeverReducedMotion: () -> Boolean = { false }
  * @param squashDivisor [GlassDropRecipe.SquashDivisor], o quello dell'interruttore.
  * @param squashSigned vedi [glassDropSquash].
  * @param reducedMotion letto nel `layerBlock`, a ogni fotogramma.
+ * @param squashVertical vero se la goccia corre in verticale (le voci di un menù): lo squash allunga l'asse Y e
+ *   accorcia l'X. Di serie in orizzontale, come i pomelli.
+ * @param place ciò che il chiamante mette nel `layerBlock` **prima** della scala e dello squash: traslazione, alfa.
+ *   È il posto della goccia del menù (fra le celle, portato sulla sagoma del viaggio): nel `layerBlock` e non in un
+ *   layer sopra, perché il renderer inverta anche quella quando campiona. Una scala scritta qui viene sostituita.
  */
 @Composable
 internal fun Modifier.glassDrop(
@@ -245,6 +276,120 @@ internal fun Modifier.glassDrop(
   squashSigned: Boolean = false,
   reducedMotion: () -> Boolean = NeverReducedMotion,
   shape: Shape = FluidCapsuleShape,
+  squashVertical: Boolean = false,
+  place: (GraphicsLayerScope.() -> Unit)? = null,
+): Modifier {
+  // Letto ad ogni fotogramma, ma tenuto in uno stato: una lambda nuova a ogni ricomposizione del
+  // chiamante cambierebbe l'identita' del `layerBlock`, e un modificatore che non e' uguale a se
+  // stesso si invalida a ogni ricomposizione.
+  val currentReducedMotion by rememberUpdatedState(reducedMotion)
+  val layerBlock: GraphicsLayerScope.() -> Unit =
+    remember(motion, squashDivisor, squashSigned, squashVertical, place) {
+      {
+        place?.invoke(this)
+        scaleX = motion.scaleX()
+        scaleY = motion.scaleY()
+        val squash = glassDropSquash(motion.velocity(), squashDivisor, squashSigned, currentReducedMotion())
+        if (squashVertical) {
+          // Lungo il moto si allunga, di traverso si accorcia: in un menu il moto e' verticale.
+          scaleY /= squash.xDivisor
+          scaleX *= squash.yFactor
+        } else {
+          scaleX /= squash.xDivisor
+          scaleY *= squash.yFactor
+        }
+      }
+    }
+  // Piena a riposo e sparita sotto il dito: e' questa faccia che la lente sostituisce. Per i pomelli e'
+  // il bianco, voluto e non del tema (una pillola chiara anche sul tema scuro); per una goccia in una
+  // lastra e' quella del tema. Col bianco opaco il conto e' quello di prima, bit per bit: `1 * (1 - p)`,
+  // con la pressione tenuta fra 0 e 1 (fuori, il colore l'avrebbe tenuta comunque).
+  val onDrawSurface: DrawScope.() -> Unit = remember(motion, face) {
+    { drawRect(face.copy(alpha = glassDropFaceAlpha(face, motion.progress()))) }
+  }
+
+  // Quale vetro: il materiale nuovo dove puo' esistere (Android 13, sorgenti sane, nessun antenato che chieda il
+  // vetro di prima, una forma che il campo sa rendere), altrimenti la ricetta di Kyant, intera.
+  val model = rememberFluidGlassModel(shape, GlassFalloff.Uniform, GlassDropOptics)
+  if (model == FluidGlassModel.Liquid) {
+    return glassDropLiquid(backdrop, motion, shape, layerBlock, onDrawSurface)
+  }
+  return glassDropKyant(backdrop, motion, lensSize, shape, layerBlock, onDrawSurface)
+}
+
+/**
+ * La goccia sul materiale nuovo (F1B.3): corpo, luce e ombra di `GlassLiquidSurface` con il profilo della goccia
+ * (`glassDropProfile`) e l'ottica dei tasti (`GlassDropOptics`); la pressione e' la profondita' ottica, cioe' quanto la
+ * lente piega. La faccia ([onDrawSurface]) sta fra il corpo e la luce: a riposo copre il corpo e porta sopra di se' il
+ * filo e il riflesso dei tasti; sotto il dito sfuma, e resta la lente limpida.
+ *
+ * L'ombra e' quella della ricetta, posata dentro il `layerBlock` (cresce con la goccia) e fuori dal ritaglio; la
+ * regola del vetro annidato la riduce quando la goccia sta in una lastra (il nodo lo sa: `GlassNestingScope`).
+ */
+@Composable
+private fun Modifier.glassDropLiquid(
+  backdrop: Backdrop,
+  motion: GlassDropMotion,
+  shape: Shape,
+  layerBlock: GraphicsLayerScope.() -> Unit,
+  onDrawSurface: DrawScope.() -> Unit,
+): Modifier {
+  val darkSide = GlassDefaults.isDarkSurface()
+  val quality = LocalFluidGlassQuality.current
+  val screenDensity = LocalDensity.current.density
+  val currentBackdrop by rememberUpdatedState(backdrop)
+  val surface = remember(motion, shape, darkSide, screenDensity, quality) {
+    GlassLiquidSurface(
+      role = GlassDropRole,
+      optics = GlassDropOptics,
+      shape = shape,
+      darkSide = darkSide,
+      screenDensity = screenDensity,
+      intensity = { 1f },
+      // La lente cresce con la pressione, come cresceva quella di Kyant: a riposo piatta, sotto il dito piena.
+      opticalDepth = { motion.progress() },
+      pressed = { 0f },
+      quality = { quality?.level ?: 1f },
+      film = { Color.Unspecified },
+      tint = { Color.Unspecified },
+      touch = { null },
+      profile = glassDropProfile(),
+      onPanel = { glassSamplesLiquidPanel(currentBackdrop, GlassLiquidPanels::isPublished) },
+    )
+  }
+  val shadow = remember(surface) {
+    if (surface.castsShadow) Modifier.glassShadow(surface.shadowOutline, surface.shadow) else Modifier
+  }
+  return this.drawBackdrop(
+    backdrop = backdrop,
+    shape = surface.clipShapeBlock,
+    effects = surface.effects,
+    highlight = null,
+    shadow = null,
+    innerShadow = null,
+    layerBlock = layerBlock,
+    // La cattura apre sempre con un'operazione, perche' il corpo esista anche sopra un fondo vuoto.
+    onDrawBackdrop = GlassLiquidOnDrawBackdrop,
+    onDrawSurface = onDrawSurface,
+    // Con un `layerBlock` la cattura resta a risoluzione piena, come in ogni `glassSurface` `Liquid`.
+    backdropScale = 1f,
+    onDrawLight = surface.onDrawLight,
+    underlay = shadow,
+  )
+}
+
+/**
+ * La goccia di Kyant: la ricetta di sempre, dove il materiale nuovo non c'e' (sotto Android 13, `Classic`). I numeri
+ * sono quelli di [GlassDropRecipe] e [lensSize], e non cambiano.
+ */
+@Composable
+private fun Modifier.glassDropKyant(
+  backdrop: Backdrop,
+  motion: GlassDropMotion,
+  lensSize: GlassDropLens,
+  shape: Shape,
+  layerBlock: GraphicsLayerScope.() -> Unit,
+  onDrawSurface: DrawScope.() -> Unit,
 ): Modifier {
   val shapeBlock = remember(shape) { { shape } }
 
@@ -279,27 +424,6 @@ internal fun Modifier.glassDrop(
       InnerShadow(radius = GlassDropRecipe.PressedInnerShadowRadius * progress, alpha = progress)
     }
   }
-  // Letto ad ogni fotogramma, ma tenuto in uno stato: una lambda nuova a ogni ricomposizione del
-  // chiamante cambierebbe l'identita' del `layerBlock`, e un modificatore che non e' uguale a se
-  // stesso si invalida a ogni ricomposizione.
-  val currentReducedMotion by rememberUpdatedState(reducedMotion)
-  val layerBlock: GraphicsLayerScope.() -> Unit =
-    remember(motion, squashDivisor, squashSigned) {
-      {
-        scaleX = motion.scaleX()
-        scaleY = motion.scaleY()
-        val squash = glassDropSquash(motion.velocity(), squashDivisor, squashSigned, currentReducedMotion())
-        scaleX /= squash.xDivisor
-        scaleY *= squash.yFactor
-      }
-    }
-  // Piena a riposo e sparita sotto il dito: e' questa faccia che la lente sostituisce. Per i pomelli e'
-  // il bianco, voluto e non del tema (una pillola chiara anche sul tema scuro); per una goccia in una
-  // lastra e' quella del tema. Col bianco opaco il conto e' quello di prima, bit per bit: `1 * (1 - p)`,
-  // con la pressione tenuta fra 0 e 1 (fuori, il colore l'avrebbe tenuta comunque).
-  val onDrawSurface: DrawScope.() -> Unit = remember(motion, face) {
-    { drawRect(face.copy(alpha = glassDropFaceAlpha(face, motion.progress()))) }
-  }
 
   return this.drawBackdrop(
     backdrop = backdrop,
@@ -315,7 +439,8 @@ internal fun Modifier.glassDrop(
 
 /**
  * [glassDrop] su una [GlassDragAnimation]: il caso dei pomelli (slider, interruttore), del segmentato
- * e del rail. Il movimento e' quello delle sue molle ([rememberDropMotion]).
+ * e del rail. Il movimento e' quello delle sue molle ([rememberDropMotion]). La goccia del menù, che ha
+ * anche un posto e un asse suoi, chiama la forma generale.
  */
 @Composable
 internal fun Modifier.glassDrop(

@@ -1,5 +1,5 @@
 {
-  "_": "Immagini di riferimento del materiale nuovo (modello Liquid), lastre ferme. Le scene sono SCRITTE DALLA RICETTA dell'engine (GlassSceneExportTest: `scenes/f1a/ricetta/` e `scenes/f1a/gusto/serie-*`), quindi provano insieme gli shader di ui/glass/field (corpo, luce), la regola dell'ombra a riposo e i numeri del profilo di serie (GlassLiquidProfile.Default) passati per `glassRecipe`: un ritocco al profilo o a uno shader, riesportate le scene, le fa cambiare. Non provano l'innesto in glassSurface (F1A.6), ne' il dispositivo. Create da F1A.5 l'11/11/2026 con la combinazione di serie proposta, rigenerate da F1A.5c (commit 5d4fb74) col profilo di serie delle scelte di Alessio: 13 su 13 cambiate, volute. Un ritocco al profilo o a uno shader le fa cambiare: riesportare le scene, poi `glassbench.py golden liquid --update`, con il diff nel rapporto. Si verificano con `glassbench.py compare --golden liquid`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`. Da F1B.1 (11/11/2026) il riferimento ha anche le scene di Fluid-physics col materiale nuovo, scritte dall'engine (F1bExportTest: `scenes/f1b/`), col prefisso `f1b-`: gruppi a 2, 4 e 8 pezzi, i ponti (con la nascita dal fianco), riposo contro viaggio, l'angolo oltre mezzo lato, la sagoma libera, il gruppo di `fluidphysics`. Le undici in tema chiaro e quattro in scuro (per il peso delle immagini; le altre sette in scuro si rendono dalle stesse scene). Le tredici di prima non sono cambiate di un bit. Da F1B.4 (11/11/2026) quattro scene della pillola della tab bar (`scenes/f1b/puck-*`, scritte da GlassPuckProfileTest con i profili di glass/field/GlassPuckProfile.kt): piatto chiaro e scuro, testo chiaro, foto scura. Aggiunte da sole, senza riscrivere le altre voci ne' `versions`/`platform`/`sources`.",
+  "_": "Immagini di riferimento del materiale nuovo (modello Liquid), lastre ferme. Le scene sono SCRITTE DALLA RICETTA dell'engine (GlassSceneExportTest: `scenes/f1a/ricetta/` e `scenes/f1a/gusto/serie-*`), quindi provano insieme gli shader di ui/glass/field (corpo, luce), la regola dell'ombra a riposo e i numeri del profilo di serie (GlassLiquidProfile.Default) passati per `glassRecipe`: un ritocco al profilo o a uno shader, riesportate le scene, le fa cambiare. Non provano l'innesto in glassSurface (F1A.6), ne' il dispositivo. Create da F1A.5 l'11/11/2026 con la combinazione di serie proposta, rigenerate da F1A.5c (commit 5d4fb74) col profilo di serie delle scelte di Alessio: 13 su 13 cambiate, volute. Un ritocco al profilo o a uno shader le fa cambiare: riesportare le scene, poi `glassbench.py golden liquid --update`, con il diff nel rapporto. Si verificano con `glassbench.py compare --golden liquid`. Le voci `versions`, `platform`, `sources`, `sha256` e `size` le scrive `--update`. Da F1B.1 (11/11/2026) il riferimento ha anche le scene di Fluid-physics col materiale nuovo, scritte dall'engine (F1bExportTest: `scenes/f1b/`), col prefisso `f1b-`: gruppi a 2, 4 e 8 pezzi, i ponti (con la nascita dal fianco), riposo contro viaggio, l'angolo oltre mezzo lato, la sagoma libera, il gruppo di `fluidphysics`. Le undici in tema chiaro e quattro in scuro (per il peso delle immagini; le altre sette in scuro si rendono dalle stesse scene). Le tredici di prima non sono cambiate di un bit. Da F1B.4 (11/11/2026) quattro scene della pillola della tab bar (`scenes/f1b/puck-*`, scritte da GlassPuckProfileTest con i profili di glass/field/GlassPuckProfile.kt): piatto chiaro e scuro, testo chiaro, foto scura. Aggiunte da sole, senza riscrivere le altre voci ne' `versions`/`platform`/`sources`. Da F1B.3 (12/11/2026) 6 scene della goccia (`scenes/f1b/pomello-*` e `goccia-*`, scritte da GlassDropProfileTest col profilo di glass/field/GlassDropProfile.kt): pomello-piatta-chiaro, pomello-piatta-scuro, goccia-a-meta-testo-chiaro, goccia-lente-piatta-chiaro, goccia-lente-testo-scuro, goccia-lente-foto-chiaro. Aggiunte da sole, senza riscrivere le altre voci ne' `versions`/`platform`/`sources`.",
   "density": 2.0,
   "icons": "service",
   "scenes": [
@@ -326,6 +326,72 @@
       "sha256": "cdb8d505db71fc7bb8f91cd6d32b0fc6e1d7390a958487f3d6b9c4acc4ab6d31",
       "size": [
         1200,
+        330
+      ]
+    },
+    {
+      "name": "f1b-pomello-piatta-chiaro",
+      "scene": "scenes/f1b/pomello-piatta-chiaro.json",
+      "png": "f1b-pomello-piatta-chiaro.png",
+      "density": 3.0,
+      "sha256": "f26511562900f0df53fa9f35cfa67157402398b8a9e35878731e162691e96fdd",
+      "size": [
+        1290,
+        330
+      ]
+    },
+    {
+      "name": "f1b-pomello-piatta-scuro",
+      "scene": "scenes/f1b/pomello-piatta-scuro.json",
+      "png": "f1b-pomello-piatta-scuro.png",
+      "density": 3.0,
+      "sha256": "88bc56dcc3ea33428702d6cc2f43faa9b3b0378172def79f98631cd5277cd9a8",
+      "size": [
+        1290,
+        330
+      ]
+    },
+    {
+      "name": "f1b-goccia-a-meta-testo-chiaro",
+      "scene": "scenes/f1b/goccia-a-meta-testo-chiaro.json",
+      "png": "f1b-goccia-a-meta-testo-chiaro.png",
+      "density": 3.0,
+      "sha256": "72f1158e50c77d89cd165769621ace5c9e4c98559dfa731bf4e9dbb0efb58d74",
+      "size": [
+        1290,
+        330
+      ]
+    },
+    {
+      "name": "f1b-goccia-lente-piatta-chiaro",
+      "scene": "scenes/f1b/goccia-lente-piatta-chiaro.json",
+      "png": "f1b-goccia-lente-piatta-chiaro.png",
+      "density": 3.0,
+      "sha256": "6074f3a4995ad14972956fcf69503e4e8749f98dfb0f63d3600deb00e3012b72",
+      "size": [
+        1290,
+        330
+      ]
+    },
+    {
+      "name": "f1b-goccia-lente-testo-scuro",
+      "scene": "scenes/f1b/goccia-lente-testo-scuro.json",
+      "png": "f1b-goccia-lente-testo-scuro.png",
+      "density": 3.0,
+      "sha256": "9720b2f7cd0a1610378a0506232f902e8705a152cc27218341162aab7f5a58b6",
+      "size": [
+        1290,
+        330
+      ]
+    },
+    {
+      "name": "f1b-goccia-lente-foto-chiaro",
+      "scene": "scenes/f1b/goccia-lente-foto-chiaro.json",
+      "png": "f1b-goccia-lente-foto-chiaro.png",
+      "density": 3.0,
+      "sha256": "ad9891bda55359f250083383052038413fba113b6e6c47c85c01dc26467dbd7d",
+      "size": [
+        1290,
         330
       ]
     }

@@ -55,16 +55,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
-import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
-import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
-import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
-import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
-import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
-import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropMotion
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
-import dev.antigravity.fluidengine.ui.glass.interaction.glassDropSquash
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -450,15 +446,18 @@ private fun FluidGlassMenuRow(
 }
 
 /**
- * La goccia del menu: la ricetta di `glassDrop` (Kyant), con i numeri del pomello dello slider —
- * bianca a riposo, lente 10/14 dp sotto il dito, `Ambient` ÷ 1,5, ombra interna solo premuta, ombra
- * fissa 4 dp al 5% — e una capsula rientrata 4 × 2 dp dalla cella.
+ * La goccia del menu: **la** goccia, `glassDrop` (`glass/interaction/GlassDrop.kt`), con la lente del
+ * pomello dello slider e la faccia bianca dei pomelli, in una capsula rientrata 4 × 2 dp dalla cella.
+ * Fino a F1B.3 era una copia in linea della ricetta di Kyant; ora e' la stessa funzione dei controlli, e
+ * col materiale nuovo ha la loro stessa luce (e la loro ombra, che la regola del vetro annidato riduce:
+ * la goccia sta nel pannello).
  *
- * Tutto nel `layerBlock`: il posto ([fluidMenuDropCenter] fra le celle, portato sulla sagoma di
- * adesso da [contentMap]), la scala (quella del viaggio per quella della molla) e lo schiacciamento
- * sull'asse del moto (verticale per un menu; orizzontale fra i due pulsanti affiancati di un avviso).
- * Il renderer inverte quel blocco quando campiona, quindi la lente ha in mano quello che c'e' davvero
- * sotto, ovunque sia.
+ * Ciò che e' del menu e non della goccia sta nel suo movimento ([GlassDropMotion]: la scala del viaggio
+ * per quella della molla, la velocita' in voci al secondo) e nel posto ([fluidMenuDropCenter] fra le
+ * celle, portato sulla sagoma di adesso da [contentMap], e la presenza), che `glassDrop` mette nel suo
+ * `layerBlock` prima della scala. Lo schiacciamento sta sull'asse del moto (verticale per un menu;
+ * orizzontale fra i due pulsanti affiancati di un avviso). Il renderer inverte quel blocco quando
+ * campiona, quindi la lente ha in mano quello che c'e' davvero sotto, ovunque sia.
  *
  * Il cancello `drawWithContent` fuori dal layer e' la seconda trappola del vetro in movimento: a
  * presenza zero non si registra niente.
@@ -479,15 +478,24 @@ internal fun FluidMenuDrop(
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val insetX = with(density) { FluidMenuDropInsetX.toPx() }
   val insetY = with(density) { FluidMenuDropInsetY.toPx() }
-  val lens = GlassDropLens.Slider
 
-  val layerBlock: GraphicsLayerScope.() -> Unit = remember(state, selection, vertical, reducedMotion) {
+  // Il movimento della goccia del menu: la pressione della molla; la scala, quella della molla per quella
+  // del viaggio (la goccia cresce con la sagoma che la porta); la velocita', in celle al secondo.
+  val motion = remember(state) {
+    GlassDropMotion(
+      progress = { state.drag.pressProgress },
+      scaleX = { contentMap().scale * state.drag.scaleX },
+      scaleY = { contentMap().scale * state.drag.scaleY },
+      velocity = { state.drag.velocity * state.span },
+    )
+  }
+  // Il posto: la capsula sta posata al centro del pannello (vedi `layoutCell`); la si porta sul centro della
+  // cella sotto il dito, e da li' dove la sagoma di adesso porta il contenuto — la stessa mappa delle voci,
+  // attorno allo stesso centro. E la presenza, per l'opacita' del contenuto.
+  val place: GraphicsLayerScope.() -> Unit = remember(state, selection) {
     {
       val g = selection.geometry
       val map = contentMap()
-      // La capsula sta posata al centro del pannello (vedi `layoutCell`): la si porta sul centro
-      // della cella sotto il dito, e da li' dove la sagoma di adesso porta il contenuto — la stessa
-      // mappa delle voci, attorno allo stesso centro.
       val fromCenter = if (g != null && g.cells.isNotEmpty()) {
         val local = fluidMenuDropCenter(g, state.drag.value) - g.panel.topLeft
         (local - Offset(g.panel.width / 2f, g.panel.height / 2f)) * map.scale
@@ -496,21 +504,6 @@ internal fun FluidMenuDrop(
       }
       translationX = fromCenter.x + map.translation.x
       translationY = fromCenter.y + map.translation.y
-      val squash = glassDropSquash(
-        velocity = state.drag.velocity * state.span,
-        divisor = GlassDropRecipe.SquashDivisor,
-        signed = false,
-        reducedMotion = reducedMotion,
-      )
-      val sx = map.scale * state.drag.scaleX
-      val sy = map.scale * state.drag.scaleY
-      if (vertical) {
-        scaleY = sy / squash.xDivisor
-        scaleX = sx * squash.yFactor
-      } else {
-        scaleX = sx / squash.xDivisor
-        scaleY = sy * squash.yFactor
-      }
       alpha = (state.presence.value * contentAlpha()).coerceIn(0f, 1f)
     }
   }
@@ -522,33 +515,17 @@ internal fun FluidMenuDrop(
         if (state.presence.value * contentAlpha() > 0.004f) drawContent()
       }
       .layoutCell(cellSize, insetX, insetY)
-      .drawBackdrop(
+      .glassDrop(
         backdrop = backdrop.backdrop,
-        shape = { FluidCapsuleShape },
-        effects = {
-          val p = state.drag.pressProgress.coerceIn(0f, 1f)
-          blur(GlassDropRecipe.RestBlur.toPx() * (1f - p))
-          lens(lens.height.toPx() * p, lens.amount.toPx() * p, chromaticAberration = p > 0.01f)
-        },
-        highlight = {
-          Highlight.Ambient.copy(
-            width = Highlight.Ambient.width / GlassDropRecipe.HighlightDivisor,
-            blurRadius = Highlight.Ambient.blurRadius / GlassDropRecipe.HighlightDivisor,
-            alpha = state.drag.pressProgress.coerceIn(0f, 1f),
-          )
-        },
-        shadow = {
-          Shadow(
-            radius = GlassDropRecipe.RestShadowRadius,
-            color = Color.Black.copy(alpha = GlassDropRecipe.RestShadowAlpha),
-          )
-        },
-        innerShadow = {
-          val p = state.drag.pressProgress.coerceIn(0f, 1f)
-          InnerShadow(radius = GlassDropRecipe.PressedInnerShadowRadius * p, alpha = p)
-        },
-        layerBlock = layerBlock,
-        onDrawSurface = { drawRect(Color.White.copy(alpha = (1f - state.drag.pressProgress).coerceIn(0f, 1f))) },
+        motion = motion,
+        lensSize = GlassDropLens.Slider,
+        face = GlassDropFaces.Light,
+        squashDivisor = GlassDropRecipe.SquashDivisor,
+        squashSigned = false,
+        reducedMotion = { reducedMotion },
+        shape = FluidCapsuleShape,
+        squashVertical = vertical,
+        place = place,
       ),
   )
 }

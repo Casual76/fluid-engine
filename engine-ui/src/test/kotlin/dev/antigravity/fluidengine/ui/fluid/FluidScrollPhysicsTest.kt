@@ -179,6 +179,9 @@ class FluidScrollPhysicsTest {
     assertTrue(reveal > 0f)
   }
 
+  // La fascia di vetro (`GlassFalloff.FadeDown`): dalla 4.0 (F2.5) è il ripiego del bordo dello scorrimento, sotto
+  // Android 13 e con `FluidGlassModel.Classic`, e deve restare quella di sempre. Il bordo dello scorrimento ha i suoi
+  // test (`FluidScrollEdgeTest`, `FluidScreenScrollEdgeTest`).
   @Test
   fun glassFadeDown_growsItsCoverageInsteadOfAppearingAtFullHeight() {
     fun coverage(amount: Float): Float = fadeDownStops(amount)[2].first

@@ -1,5 +1,5 @@
 {
- "_": "F2.4, bordo dello scorrimento: in basso, `basso-niente`, tema chiaro, testo. Scritta da artifacts/liquid-glass/bench/f2-4/bordo.py, specchio di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
+ "_": "F2.4, bordo dello scorrimento: in basso, `basso-niente`, tema chiaro, testo. Scritta da tools/glassbench/scenes/f2/bordo-genera.py, specchio di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
  "width": 360.0,
  "height": 300.0,
  "density": 3.0,

@@ -1,5 +1,5 @@
 {
- "_": "F2.4, bordo dello scorrimento: variante `corto`, tema scuro, testo. Scritta da artifacts/liquid-glass/bench/f2-4/bordo.py, specchio di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
+ "_": "F2.4, bordo dello scorrimento: variante `corto`, tema scuro, testo. Scritta da tools/glassbench/scenes/f2/bordo-genera.py, specchio di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
  "width": 360.0,
  "height": 300.0,
  "density": 3.0,
@@ -26,31 +26,83 @@
     "side": "top",
     "controlsDp": 88.0,
     "unitDp": 44.0,
-    "stripDp": 122,
+    "stripDp": 132,
     "density": 3.0,
     "scale": 1.0,
     "veilColor": "#0D0D0F",
     "shadeDark": 0.0,
     "profile": {
-     "blur_full_at": -1.0499999999999998,
-     "blur_zero_at": 0.735,
+     "blur_full_at": -1.0499999523162842,
+     "blur_zero_at": 0.7350000143051147,
      "blur_shape": 1.4,
      "blur_sigma": 0.084,
      "blur_share": 1.0,
-     "veil_scale": 0.6853782339811795,
-     "veil_reach": 0.77,
-     "veil_shape": 1.5,
-     "veil_cap": 0.7,
+     "veil_points": [
+      [
+       -0.45499998331069946,
+       0.36
+      ],
+      [
+       -0.2800000011920929,
+       0.32
+      ],
+      [
+       0.0,
+       0.26
+      ],
+      [
+       0.14000000059604645,
+       0.18
+      ],
+      [
+       0.2800000011920929,
+       0.1
+      ],
+      [
+       0.4899999797344208,
+       0.05
+      ],
+      [
+       0.699999988079071,
+       0.02
+      ],
+      [
+       0.9449999928474426,
+       0.0
+      ]
+     ],
+     "text_points": [
+      [
+       0.11900000274181366,
+       0.36
+      ],
+      [
+       0.2800000011920929,
+       0.22
+      ],
+      [
+       0.42000001668930054,
+       0.13
+      ],
+      [
+       0.5950000286102295,
+       0.06
+      ],
+      [
+       0.7699999809265137,
+       0.0
+      ]
+     ],
      "dark_dim": 0.2,
-     "fade_from": 0.6649999999999999,
-     "fade_to": 0.77
+     "fade_from": 0.9100000262260437,
+     "fade_to": 0.9800000190734863
     }
    },
    "source": "kotlin:GlassEdgeBlurShaderString",
    "x": 0,
    "y": 0,
    "w": 360.0,
-   "h": 122,
+   "h": 132,
    "scale": 1.0,
    "inputs": {
     "content": {}
@@ -154,27 +206,76 @@
      132.0
     ],
     "blurRamp": [
-     -1.0499999999999998,
-     0.735,
+     -1.0499999523162842,
+     0.7350000143051147,
      1.4,
      1.0
     ],
-    "veilRamp": [
-     0.685378,
-     0.77,
-     1.5,
-     0.7
+    "veilKnots": [
+     [
+      -0.455,
+      0.36,
+      0.0,
+      0.0
+     ],
+     [
+      -0.28,
+      0.32,
+      -0.221748,
+      0.0
+     ],
+     [
+      0.0,
+      0.26,
+      -0.328267,
+      0.0
+     ],
+     [
+      0.14,
+      0.18,
+      -0.571429,
+      0.0
+     ],
+     [
+      0.28,
+      0.1,
+      -0.345622,
+      0.0
+     ],
+     [
+      0.49,
+      0.05,
+      -0.178571,
+      0.0
+     ],
+     [
+      0.7,
+      0.02,
+      -0.104628,
+      0.0
+     ],
+     [
+      0.945,
+      0.0,
+      0.0,
+      0.0
+     ]
+    ],
+    "veilKnob": [
+     1,
+     1
     ],
     "veilColor": "#0D0D0F",
     "shade": [
      0.0,
-     0.431881
+     0.769231
     ],
     "fadeRamp": [
-     0.665,
-     0.77
+     0.91,
+     0.98
     ],
     "amount": 1.0,
+    "grain": 0.5,
     "finish": 0
    },
    "passes": [

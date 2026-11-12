@@ -1,5 +1,5 @@
 {
- "_": "F2.4, bordo dello scorrimento: variante `duro`, tema scuro, foto. Scritta da artifacts/liquid-glass/bench/f2-4/bordo.py, specchio di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
+ "_": "F2.4, bordo dello scorrimento: variante `duro`, tema scuro, foto. Scritta da tools/glassbench/scenes/f2/bordo-genera.py, specchio di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
  "width": 360.0,
  "height": 300.0,
  "density": 3.0,
@@ -32,10 +32,26 @@
      "blur_shape": 1.0,
      "blur_sigma": 0.084,
      "blur_share": 1.0,
-     "veil_scale": 16.7,
-     "veil_reach": 0.15,
-     "veil_shape": 1.5,
-     "veil_cap": 0.97,
+     "veil_points": [
+      [
+       0.0,
+       0.97
+      ],
+      [
+       0.15,
+       0.0
+      ]
+     ],
+     "text_points": [
+      [
+       0.0,
+       0.97
+      ],
+      [
+       0.15,
+       0.0
+      ]
+     ],
      "dark_dim": 0.2,
      "fade_from": 0.1,
      "fade_to": 0.15
@@ -154,22 +170,71 @@
      1.0,
      1.0
     ],
-    "veilRamp": [
-     16.7,
-     0.15,
-     1.5,
-     0.97
+    "veilKnots": [
+     [
+      0.0,
+      0.97,
+      0.0,
+      0.0
+     ],
+     [
+      0.15,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      1.15,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      2.15,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      3.15,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      4.15,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      5.15,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      6.15,
+      0.0,
+      0.0,
+      0.0
+     ]
+    ],
+    "veilKnob": [
+     1,
+     1
     ],
     "veilColor": "#0D0D0F",
     "shade": [
      0.0,
-     0.212745
+     0.206186
     ],
     "fadeRamp": [
      0.1,
      0.15
     ],
     "amount": 1.0,
+    "grain": 0.5,
     "finish": 0
    },
    "passes": [

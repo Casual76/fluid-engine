@@ -6,7 +6,8 @@ La verita' e' il Kotlin: `GlassScrollEdgeSceneTest` rilegge le scene e rifa' gli
 `glassScrollEdgeUniforms`; se questo file e il Kotlin divergono il test fallisce.
 
 uso: python bordo-genera.py scene            # scrive le scene
-     python bordo-genera.py misure           # contrasto e velo contro R4 B7
+     python bordo-genera.py report [md]      # contrasto e velo contro R4 B7 e la foto f17074
+     python bordo-genera.py profilo SCENA... # il profilo della luminanza su una tinta unita
 """
 from __future__ import annotations
 
@@ -89,6 +90,83 @@ def kernel(sigma: float):
 # Il profilo, in altezze dei tasti (H), e gli uniform
 # ------------------------------------------------------------------------------------------------
 
+VEIL_KNOTS = 8          # GlassEdgeVeilKnots
+GRAIN = 0.5             # GlassScrollEdgeGrain
+
+
+class Curve:
+    """Specchio di `GlassVeilCurve`: Hermite cubica per nodi (d, velo), tangenti di Fritsch-Carlson dentro e zero ai
+    due capi (monotona, senza spigoli, arriva al tetto e allo zero in piano). Costante prima del primo nodo e dopo
+    l'ultimo."""
+
+    def __init__(self, points):
+        self.d = [f32(a) for a, _ in points]
+        self.v = [f32(b) for _, b in points]
+        n = len(points)
+        assert 2 <= n <= VEIL_KNOTS
+        self.m = [0.0] * n
+        for k in range(1, n - 1):
+            h0 = self.d[k] - self.d[k - 1]
+            h1 = self.d[k + 1] - self.d[k]
+            s0 = (self.v[k] - self.v[k - 1]) / h0
+            s1 = (self.v[k + 1] - self.v[k]) / h1
+            if s0 == 0 or s1 == 0 or (s0 > 0) != (s1 > 0):
+                self.m[k] = 0.0
+            else:
+                w1 = 2 * h1 + h0
+                w2 = h1 + 2 * h0
+                self.m[k] = (w1 + w2) / (w1 / s0 + w2 / s1)
+
+    @property
+    def end(self) -> float:
+        return self.d[-1]
+
+    def _segment(self, x: float) -> int:
+        i = 0
+        while x >= self.d[i + 1]:
+            i += 1
+        return i
+
+    def at(self, x: float) -> float:
+        if x <= self.d[0]:
+            return self.v[0]
+        if x >= self.d[-1]:
+            return self.v[-1]
+        i = self._segment(x)
+        h = self.d[i + 1] - self.d[i]
+        t = (x - self.d[i]) / h
+        return ((2 * t ** 3 - 3 * t * t + 1) * self.v[i] + (t ** 3 - 2 * t * t + t) * h * self.m[i] +
+                (3 * t * t - 2 * t ** 3) * self.v[i + 1] + (t ** 3 - t * t) * h * self.m[i + 1])
+
+    def slope(self, x: float) -> float:
+        if x <= self.d[0] or x >= self.d[-1]:
+            return 0.0
+        i = self._segment(x)
+        h = self.d[i + 1] - self.d[i]
+        t = (x - self.d[i]) / h
+        return ((6 * t * t - 6 * t) * self.v[i] + (3 * t * t - 4 * t + 1) * h * self.m[i] +
+                (6 * t - 6 * t * t) * self.v[i + 1] + (3 * t * t - 2 * t) * h * self.m[i + 1]) / h
+
+    def knots(self) -> list:
+        """Lo uniform `veilKnots` (`writeKnots`): (d, velo, pendenza, 0) per nodo; i posti in piu' ripetono l'ultimo
+        valore a d crescenti con pendenza zero."""
+        n = len(self.d)
+        out = []
+        for i in range(VEIL_KNOTS):
+            j = min(i, n - 1)
+            d = self.d[i] if i < n else self.d[-1] + (i - n + 1)
+            out.append([round(d, 6), round(self.v[j], 6), round(self.m[i], 6) if i < n else 0.0, 0.0])
+        return out
+
+
+# La curva dolce di serie (f17074, giro sul velo di F2.5) e quella ripida del testo (R4 B7), in H.
+PHOTO = ((-0.65, 0.36), (-0.4, 0.32), (0.0, 0.26), (0.2, 0.18), (0.4, 0.10), (0.7, 0.05), (1.0, 0.02), (1.35, 0.0))
+TEXT_CURVE = ((0.17, 0.36), (0.4, 0.22), (0.6, 0.13), (0.85, 0.06), (1.1, 0.0))
+HARD_CURVE = ((0.0, 0.97), (0.15, 0.0))
+# f17074 (WWDC25 219), barra chiara: il velo misurato sulla foto, per la colonna della tabella.
+APPLE_PHOTO = {-1.0: 39, -0.7: 37, -0.4: 32, 0.0: 26, 0.2: 18, 0.4: 10, 0.7: 5, 1.0: 2}
+
+
 @dataclass(frozen=True)
 class Profile:
     blur_full_at: float     # d (H) da cui verso il bordo la sfocatura e' piena
@@ -96,51 +174,54 @@ class Profile:
     blur_shape: float       # esponente della rampa
     blur_sigma: float       # sigma piena, in H
     blur_share: float       # quota della sfocatura (0 = sfuma senza sfocare)
-    veil_scale: float
-    veil_reach: float       # d (H) dove il velo finisce
-    veil_shape: float
-    veil_cap: float
+    veil_points: tuple      # la curva del velo di serie, nodi (d, velo)
+    text_points: tuple      # la curva di `edgecurve=text`
     dark_dim: float         # sul contenuto scuro: scurimento al bordo dei tasti (0,2 = "0,8 del valore")
     fade_from: float        # alfa d'uscita: dove comincia a scendere
     fade_to: float          #               dove e' zero
 
-    def veil_raw(self, d: float) -> float:
-        x = max(self.veil_reach - d, 0.0)
-        return self.veil_scale * x ** self.veil_shape if x > 0 else 0.0
+    def curve(self, text: bool = False) -> Curve:
+        return Curve(self.text_points if text else self.veil_points)
 
-    def veil(self, d: float) -> float:
-        raw = self.veil_raw(d)
-        knee = 0.12
-        h = max(knee - abs(raw - self.veil_cap), 0.0) / knee
-        return max(min(raw, self.veil_cap) - h * h * knee * 0.25, 0.0)
+    def veil(self, d: float, text: bool = False) -> float:
+        return self.curve(text).at(d)
+
+    @property
+    def veil_end(self) -> float:
+        return max(self.veil_points[-1][0], self.text_points[-1][0])
+
+    @property
+    def reach(self) -> float:
+        return max(self.veil_end, self.blur_zero_at, self.fade_to)
 
     def scaled(self, k: float) -> "Profile":
         """Lo stesso profilo stirato di [k] in d: piu' corto (k < 1) o piu' lungo (k > 1)."""
-        return replace(self, blur_full_at=self.blur_full_at * k, blur_zero_at=self.blur_zero_at * k,
-                       veil_reach=self.veil_reach * k, veil_scale=self.veil_scale / k ** self.veil_shape,
-                       fade_from=self.fade_from * k, fade_to=self.fade_to * k)
+        st = lambda pts: tuple((f32(f32(d) * f32(k)), v) for d, v in pts)
+        return replace(self, blur_full_at=f32(self.blur_full_at * k), blur_zero_at=f32(self.blur_zero_at * k),
+                       veil_points=st(self.veil_points), text_points=st(self.text_points),
+                       fade_from=f32(self.fade_from * k), fade_to=f32(self.fade_to * k))
 
 
 SOFT = Profile(
     blur_full_at=-1.5, blur_zero_at=1.05, blur_shape=1.4, blur_sigma=0.084, blur_share=1.0,
-    veil_scale=0.4014, veil_reach=1.1, veil_shape=1.5, veil_cap=0.70,
-    dark_dim=0.2, fade_from=0.95, fade_to=1.1,
+    veil_points=PHOTO, text_points=TEXT_CURVE,
+    dark_dim=0.2, fade_from=1.3, fade_to=1.4,
 )
 
 # A meta' risoluzione la cattura e' gia' morbida (circa 0,4 dp di sigma a densita' 3): dove il testo deve tornare
 # nitido la striscia si dissolve sulla pagina, da prima.
-HALF_FADE = (0.45, 1.1)
+HALF_FADE = (0.45, 1.4)
 
 
 def at_resolution(profile: Profile, scale: float) -> Profile:
     if scale >= 1.0:
         return profile
-    k = (profile.veil_reach / SOFT.veil_reach)
+    k = profile.veil_end / SOFT.veil_end
     return replace(profile, fade_from=HALF_FADE[0] * k, fade_to=HALF_FADE[1] * k)
 
 HARD = Profile(
     blur_full_at=-0.6, blur_zero_at=0.0, blur_shape=1.0, blur_sigma=0.084, blur_share=1.0,
-    veil_scale=16.7, veil_reach=0.15, veil_shape=1.5, veil_cap=0.97,
+    veil_points=HARD_CURVE, text_points=HARD_CURVE,
     dark_dim=0.2, fade_from=0.1, fade_to=0.15,
 )
 
@@ -148,7 +229,8 @@ FADE_ONLY = replace(SOFT, blur_share=0.0)
 
 
 def uniforms(profile: Profile, *, side: str, controls_dp: float, unit_dp: float, strip_dp: float,
-             density: float, scale: float, veil_color: str, shade_dark: float = 0.0, amount: float = 1.0) -> dict:
+             density: float, scale: float, veil_color: str, shade_dark: float = 0.0, amount: float = 1.0,
+             text: bool = False) -> dict:
     px = density * scale
     unit = unit_dp * px
     sigma = profile.blur_sigma * unit
@@ -159,7 +241,8 @@ def uniforms(profile: Profile, *, side: str, controls_dp: float, unit_dp: float,
         line, sign = controls_dp * px, 1.0
     else:
         line, sign = (strip_dp - controls_dp) * px, -1.0
-    v0 = profile.veil(0.0)
+    curve = profile.curve(text)
+    v0 = curve.at(0.0)
     return {
         "axis": [1, 0],
         "bounds": [0, 0, "$captureSize"],
@@ -167,11 +250,13 @@ def uniforms(profile: Profile, *, side: str, controls_dp: float, unit_dp: float,
         "taps": [[round(o, 6), round(w, 7)] for o, w in zip(offs, ws)],
         "edgeLine": [round(line, 4), sign, round(unit, 4)],
         "blurRamp": [profile.blur_full_at, profile.blur_zero_at, profile.blur_shape, profile.blur_share],
-        "veilRamp": [round(profile.veil_scale, 6), round(profile.veil_reach, 6), profile.veil_shape, profile.veil_cap],
+        "veilKnots": curve.knots(),
+        "veilKnob": [1, 1],
         "veilColor": veil_color,
         "shade": [shade_dark, round(profile.dark_dim / v0, 6) if v0 > 0 else 0.0],
         "fadeRamp": [round(profile.fade_from, 6), round(profile.fade_to, 6)],
         "amount": amount,
+        "grain": GRAIN,
         "finish": 0,
     }
 
@@ -180,8 +265,7 @@ def strip_element(profile: Profile, *, name: str, side: str, controls_dp: float,
                   width_dp: float, screen_dp: float, density: float, scale: float, veil_color: str,
                   shade_dark: float = 0.0, children=None, meta: dict | None = None) -> dict:
     profile = at_resolution(profile, scale)
-    reach = max(profile.veil_reach, profile.blur_zero_at, profile.fade_to)
-    strip = controls_dp + reach * unit_dp
+    strip = controls_dp + profile.reach * unit_dp
     strip = math.ceil(strip)
     u = uniforms(profile, side=side, controls_dp=controls_dp, unit_dp=unit_dp, strip_dp=strip,
                  density=density, scale=scale, veil_color=veil_color, shade_dark=shade_dark)
@@ -289,7 +373,7 @@ def scene(name: str, profile, *, theme: str, ground: str, side: str = "top", sca
     else:
         elements.extend(kids)
     out = {
-        "_": f"F2.4, bordo dello scorrimento: {note} Scritta da artifacts/liquid-glass/bench/f2-4/bordo.py, specchio "
+        "_": f"F2.4, bordo dello scorrimento: {note} Scritta da tools/glassbench/scenes/f2/bordo-genera.py, specchio "
              "di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
         "width": WIDTH, "height": HEIGHT, "density": DENSITY, "theme": "light" if theme == "chiaro" else "dark",
         "palette": "engine", "corner": "engine",
@@ -470,6 +554,34 @@ def dark_ratio(path: Path, ds=(-1.0, -0.5, 0.0, 0.43, 0.85)):
     return out
 
 
+def flat_profile(path: Path, x=(70, 200)) -> dict:
+    """Il profilo della luminanza su una tinta unita, riga per riga: la media nella colonna [x] e la sua derivata.
+    Il salto della derivata fra righe vicine (medie su 5 righe, contro la grana) dice se c'e' uno spigolo che si vede
+    come una riga (banda di Mach); lo si confronta con quello della curva esatta alla stessa scala."""
+    import numpy as np
+    from measure import luma, to_rgb
+    from render import parse_color
+    data, r = render(path)
+    meta = data["elements"][0]["_bordo"]
+    d = r.density
+    L, P = luma(to_rgb(r.image)), luma(to_rgb(r.page))
+    x0, x1 = int(x[0] * d), int(x[1] * d)
+    rows = L[:, x0:x1].mean(1)
+    page = P[:, x0:x1].mean(1)
+    edge_y = meta["controlsDp"] * d
+    unit = meta["unitDp"] * d
+    c = parse_color(meta["veilColor"])
+    ground = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) * 255
+    ideal = np.array([page[y] + (ground - page[y]) * SOFT.veil((y - edge_y) / unit) for y in range(len(rows))])
+    smooth = lambda a: np.convolve(a, np.ones(5) / 5, mode="valid")
+    slope = np.diff(smooth(rows))
+    slope_ideal = np.diff(smooth(ideal))
+    return {"rows": len(rows), "top": float(rows[0]), "page": float(page[-1]),
+            "max_slope": float(np.abs(slope).max()), "max_jump": float(np.abs(np.diff(slope)).max()),
+            "ideal_jump": float(np.abs(np.diff(slope_ideal)).max()),
+            "luma": rows.tolist(), "ideal": ideal.tolist(), "edge_y": edge_y, "unit": unit}
+
+
 def crossing(curve: dict, level: float):
     """Dove l'inviluppo passa [level] (%), interpolando fra i punti misurati (H sotto il bordo basso dei tasti)."""
     pts = sorted(curve.items())
@@ -482,7 +594,11 @@ def crossing(curve: dict, level: float):
 def report(out_md: Path):
     scenes = SCENES
     rows = []
-    lines = ["# F2.4 · misure del bordo dello scorrimento contro R4 B7", "",
+    lines = ["# F2.4 · misure del bordo dello scorrimento contro R4 B7 e la foto f17074", "",
+             "Dal giro sul velo di F2.5 (2026-11-12, scelta di Alessio) il velo di serie e' la curva dolce misurata su "
+             "una foto in iOS 26 (f17074), su ogni contenuto, col tetto di 0,36; la curva ripida del testo di R4 resta "
+             "per la manopola `edgecurve=text`. Il contrasto del testo qui sotto e' quindi quello della curva dolce: "
+             "lo si confronta con R4 per sapere di quanto il testo resta piu' leggibile sotto i tasti.", "",
              "Metodo di R4 (`scrolledge.py testo`): deviazione della luma per riga nella colonna 70–200 dp, massimo su "
              "8 fotogrammi col testo che scorre a passi di 1/8 di riga, rapporto con la pagina nuda; velo = "
              "spostamento della luminanza media verso il colore del fondo, su una pagina grigia uniforme. Distanze in "
@@ -509,21 +625,42 @@ def report(out_md: Path):
         lines.append(f"| 50% a | 0,43 H (+-0,1) | {c50:.2f} H | {c50 - 0.43:+.2f} H |" if c50 is not None else "| 50% a | 0,43 H | - | - |")
         lines.append(f"| 95% da | 0,95 H (+-0,1) | {c95:.2f} H | {c95 - 0.95:+.2f} H |" if c95 is not None else "| 95% da | 0,95 H | - | - |")
         lines.append("")
-    targets_v = [(0.17, 36), (0.4, 22), (0.6, 13), (0.85, 6), (1.1, 0)]
+    r4_text = {0.17: 36, 0.4: 22, 0.6: 13, 0.85: 6, 1.1: 0}
+    veil_ds = tuple(sorted(set(APPLE_PHOTO) | set(r4_text) | {1.35}))
     for name in ("bordo-r4-chiaro-velo", "bordo-meta-chiaro-velo"):
-        curve = veil_curve(scenes / f"{name}.json", ds=(-1.0, -0.5, 0.0) + tuple(d for d, _ in targets_v))
-        lines += [f"## {name}: velo verso il colore del fondo", "", "| d (H) | R4 B7 | banco | scarto |",
-                  "|---|---|---|---|"]
-        for d, target in targets_v:
-            lines.append(f"| {d:g} | {target}% | {curve[d]:.1f}% | {curve[d] - target:+.1f} |")
-        for d in (-1.0, -0.5, 0.0):
-            lines.append(f"| {d:g} | - | {curve[d]:.1f}% | - |")
+        curve = veil_curve(scenes / f"{name}.json", ds=veil_ds)
+        lines += [f"## {name}: velo verso il colore del fondo", "",
+                  "Il tetto di serie e' 0,36: sopra -0,65 H la foto (37-39%) e la curva si separano per scelta.", "",
+                  "| d (H) | foto (f17074) | curva di serie | R4 B7 (testo) | banco | scarto dalla curva |",
+                  "|---|---|---|---|---|---|"]
+        for d in veil_ds:
+            apple = f"{APPLE_PHOTO[d]}%" if d in APPLE_PHOTO else "-"
+            r4 = f"{r4_text[d]}%" if d in r4_text else "-"
+            want = SOFT.veil(d) * 100
+            lines.append(f"| {d:g} | {apple} | {want:.1f}% | {r4} | {curve[d]:.1f}% | {curve[d] - want:+.1f} |")
         lines.append("")
+    lines += ["## bordo-r4-chiaro-velo: il profilo della luminanza, riga per riga", "",
+              "Su una tinta unita (#6E6E73) ogni riga di pixel fra 70 e 200 dp: luminanza media e sua derivata (livelli "
+              "per pixel). Una riga che si vede sarebbe un salto della derivata; il passo piu' grande fra due righe "
+              "vicine e' qui sotto, accanto al passo piu' grande della derivata della curva disegnata alla stessa scala. "
+              "Sul banco lo scarto sta tutto fra 1,3 e 1,4 H, nella dissolvenza dell'alfa d'uscita: Skia in software "
+              "arrotonda a 8 bit il colore premoltiplicato, e li' il velo e' gia' sotto il mezzo livello, quindi resta "
+              "una riga di un livello. Sul Tab S9 la stessa zona non ha righe (residuo <= 0,3 livelli, F2.5).",
+              ""]
+    prof = flat_profile(scenes / "bordo-r4-chiaro-velo.json")
+    lines += [f"| misura | banco |", "|---|---|",
+              f"| righe misurate | {prof['rows']} |",
+              f"| luminanza al bordo dello schermo / della pagina | {prof['top']:.1f} / {prof['page']:.1f} |",
+              f"| derivata massima (livelli/px) | {prof['max_slope']:.3f} |",
+              f"| salto massimo della derivata fra righe vicine (media su 5 righe) | {prof['max_jump']:.3f} |",
+              f"| lo stesso per la curva esatta | {prof['ideal_jump']:.3f} |", ""]
     ratios = dark_ratio(scenes / "bordo-r4-chiaro-scurisce.json")
     lines += ["## bordo-r4-chiaro-scurisce: contenuto scuro (#3A3A3C), lato scuro", "",
-              "| d (H) | R4 B7 | banco (luminanza resa / pagina) |", "|---|---|---|"]
+              "| d (H) | riferimento | banco (luminanza resa / pagina) |", "|---|---|---|"]
+    refs = {0.0: "~0,8 al bordo dei tasti (R4 B7, fiducia bassa)", -1.0: "x0,70-0,72 (Apple f17140, la foto che "
+            "riempie la barra)", -0.5: "x0,70-0,72 (f17140)"}
     for d, r in ratios.items():
-        lines.append(f"| {d:g} | {'~0,8 (fiducia bassa)' if d == 0 else '-'} | {r:.3f} |")
+        lines.append(f"| {d:g} | {refs.get(d, '-')} | {r:.3f} |")
     out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(out_md)
 
@@ -540,6 +677,15 @@ def main(argv):
         for p in argv[2:]:
             path = Path(p)
             print(path.name, {k: round(v, 1) for k, v in contrast_curve(path).items()})
+    elif cmd == "profilo":
+        out = {}
+        for p in argv[2:]:
+            path = Path(p)
+            prof = flat_profile(path)
+            out[path.stem] = prof
+            print(path.name, {k: round(v, 3) for k, v in prof.items() if isinstance(v, float)})
+        print(json.dumps({k: {"luma": v["luma"], "ideal": v["ideal"], "edge_y": v["edge_y"], "unit": v["unit"]}
+                          for k, v in out.items()}), file=sys.stderr)
     elif cmd == "velo":
         for p in argv[2:]:
             path = Path(p)

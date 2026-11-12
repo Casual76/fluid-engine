@@ -10,6 +10,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassDropTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidTuning
+import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import dev.antigravity.fluidengine.ui.glass.field.installGlassLiquidProfileOverride
@@ -247,7 +248,7 @@ object FluidGlassDiagnostics {
    * gusto per nome (`edge` → `ios27`, `ios26`, `today`…), i numeri come intervallo (`blur` → `0..64`).
    */
   val liquidProfileKnobs: Map<String, List<String>>
-    get() = GlassLiquidTuning.knobs + (GlassDropTuning.Knob to GlassDropTuning.Values)
+    get() = GlassLiquidTuning.knobs + (GlassDropTuning.Knob to GlassDropTuning.Values) + GlassScrollEdgeTuning.Knobs
 
   /**
    * Cambia i numeri del materiale nuovo per le lastre che nascono **da adesso**: le varianti delle tavole di gusto
@@ -276,7 +277,10 @@ object FluidGlassDiagnostics {
     // La manopola della goccia (`knobrim`) non è un numero del profilo: la tiene `GlassDropTuning`, e passa di qui
     // perché chi fotografa usa una porta sola. Senza la manopola torna di serie (pomello senza filo a riposo).
     val rim = GlassDropTuning.apply(knobs)
-    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it })
+    // Le manopole del velo del bordo dello scorrimento (`edgeveil`, `edgefade`, `edgecap`, F2.5): anche loro non
+    // sono numeri del profilo, e passano di qui per la stessa ragione. Senza, tornano a 1 (il bordo di serie).
+    val edge = GlassScrollEdgeTuning.apply(knobs)
+    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge
   }
 
   // ---- Ganci dei test che montano composable ------------------------------------------------------------------

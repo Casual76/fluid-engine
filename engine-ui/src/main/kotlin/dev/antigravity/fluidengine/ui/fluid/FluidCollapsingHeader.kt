@@ -124,8 +124,9 @@ fun rememberFluidTitleCollapse(
     }
   }
 
-  val deadZonePx = with(density) { FluidScreenDefaults.ShieldDeadZone.toPx() }
-  val rampPx = with(density) { FluidScreenDefaults.ShieldRampDistance.toPx() }
+  // Sotto `Liquid` decide quando c'è il bordo dello scorrimento (F2.5), altrove la fascia: la stessa regola.
+  val deadZonePx = with(density) { FluidScreenDefaults.ScrollEdgeDeadZone.toPx() }
+  val rampPx = with(density) { FluidScreenDefaults.ScrollEdgeRampDistance.toPx() }
   val glassIntensity = remember(scroll, progress, deadZonePx, rampPx) {
     derivedStateOf {
       calculateGlassIntensity(
@@ -236,6 +237,12 @@ fun FluidCollapsingTitle(
  * the status bar, and carrying the title itself once the heading has gone by.
  *
  * Place it last inside the screen's own top-aligned `Box`, over the list.
+ *
+ * Dalla 4.0, col materiale `Liquid`, al posto del vetro c'è il **bordo dello scorrimento** come in [FluidScreen]
+ * (F2.5): il contenuto che passa sotto la barra si scioglie nel colore del fondo, e i tasti rifrangono quello. Il
+ * riquadro della barra arriva 61,6 dp sotto la riga dei tasti invece di 34 ([FluidScrollEdgeDefaults.reach]): posata
+ * sopra la lista come chiede questa pagina non sposta niente; impilata in una colonna spingerebbe giù di 27,6 dp quello
+ * che le sta sotto. Sotto Android 13 e con `FluidGlassModel.Classic` resta la fascia di vetro di sempre.
  */
 @Composable
 fun FluidCollapsingTopBar(
@@ -248,6 +255,10 @@ fun FluidCollapsingTopBar(
    *
    * Null is [GlassDefaults.barTint], which lightens — right over a page, wrong
    * over a full-bleed picture. See [GlassDefaults.darkBarTint].
+   *
+   * **Deprecato dalla 4.0** (piano «iOS in Android» 3.11): col materiale `Liquid` la barra non ha pellicola (il bordo
+   * dello scorrimento si scioglie nel colore del fondo) e questo valore è ignorato. Resta per la fascia di ripiego,
+   * sotto Android 13 e con `FluidGlassModel.Classic`. Kotlin non sa deprecare un parametro solo: lo dice qui.
    */
   barTint: GlassTint? = null,
   onBack: (() -> Unit)? = null,

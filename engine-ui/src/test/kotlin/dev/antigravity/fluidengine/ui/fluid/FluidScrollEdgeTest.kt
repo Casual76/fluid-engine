@@ -57,17 +57,18 @@ class FluidScrollEdgeTest {
 
   @Test
   fun theStripReachesBeyondTheControlsAsFarAsItsProfile() {
-    // Il bordo morbido sotto tasti da 44 dp: 1,1 H = 48,4 dp oltre il bordo dei tasti (R4 B7: velo nullo a 1,1 H), a
+    // Il bordo morbido sotto tasti da 44 dp: 1,4 H = 61,6 dp oltre il bordo dei tasti (il velo dolce finisce a 1,35 H,
+    // la dissolvenza a 1,4), a
     // qualunque risoluzione della cattura (la metà sposta la dissolvenza, non la portata).
     assertEquals(
       GlassScrollEdgeProfile.Soft.reach,
       GlassScrollEdgeProfile.Soft.atResolution(GlassScrollEdgeCaptureScale).reach,
       0f,
     )
-    assertEquals(48.4f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top).value, 1e-3f)
+    assertEquals(61.6f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top).value, 1e-3f)
     assertEquals(44.dp, FluidScrollEdgeDefaults.ControlHeight)
     // Una tab bar da 62 dp si porta dietro un bordo proporzionato.
-    assertEquals(68.2f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Bottom, controlHeight = 62.dp).value, 1e-3f)
+    assertEquals(86.8f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Bottom, controlHeight = 62.dp).value, 1e-3f)
     assertEquals(6.6f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Hard).value, 1e-3f)
     assertEquals(0f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Hidden).value, 0f)
   }

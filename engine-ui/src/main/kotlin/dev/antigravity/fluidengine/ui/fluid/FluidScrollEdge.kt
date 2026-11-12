@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -159,11 +160,14 @@ internal val FluidScrollEdgeBottomAutomatic: GlassScrollEdgeProfile? = GlassScro
  *   (`rememberCombinedGlassBackdrop(backdrop, exports)`).
  * @param intensity da 0 (nessun effetto: il contenuto è tutto sotto i controlli o non c'è niente da coprire) a 1. Scala
  *   sfocatura e velo, non l'alfa di un'immagine sfocata: a metà strada non c'è un'immagine doppia. Letto al disegno.
+ *   A zero la striscia non disegna niente, **cattura compresa**, come la fascia che sostituisce (F2.5,
+ *   [glassScrollEdgeDraws]).
  * @param controlHeight `H`, l'altezza dei tasti dei controlli: l'unità del profilo.
  * @param color il colore in cui il contenuto si scioglie: di serie il fondo del tema (`colorScheme.background`), che è
  *   il colore della pagina di `FluidScreen`.
  * @param darkContent da 0 a 1, quanto il contenuto sotto la striscia è scuro rispetto al fondo chiaro: lì la striscia
- *   scurisce invece di schiarire (R4 B7, fiducia bassa). Letto al disegno; di serie 0. Lo fornirà la sonda dello sfondo.
+ *   scurisce invece di schiarire (R4 B7, fiducia bassa). Letto al disegno; di serie 0. Nelle barre dell'engine lo dà
+ *   la sonda dello sfondo (F2.5, `rememberFluidScrollEdgeShade`).
  */
 @Composable
 fun FluidScrollEdge(
@@ -209,6 +213,9 @@ fun FluidScrollEdge(
     modifier = modifier
       .fillMaxWidth()
       .height(height + controlHeight * profile.reach)
+      // Il cancello (F2.5): a intensità zero il nodo della striscia non si disegna, e quindi non cattura e non fa
+      // girare le due passate. Prima di un nodo che posa con un layer: saltarne il disegno salta anche il layer.
+      .drawWithContent { if (glassScrollEdgeDraws(currentIntensity())) drawContent() }
       .drawPlainBackdrop(
         backdrop = backdrop.backdrop,
         shape = { RectangleShape },
@@ -221,6 +228,21 @@ fun FluidScrollEdge(
 
 private val FullScrollEdgeIntensity: () -> Float = { 1f }
 private val NoDarkContent: () -> Float = { 0f }
+
+/** Sotto questa intensità la striscia non c'è: la stessa soglia della lastra (`glassPresence`). */
+internal const val GlassScrollEdgeOffBelow: Float = 0.001f
+
+/**
+ * Se la striscia si disegna a intensità [amount] (F2.5): sotto [GlassScrollEdgeOffBelow] no, e allora non cattura e
+ * non fa girare le due passate, come la fascia che sostituisce (F2-f). Una pagina che si apre in cima non paga niente
+ * finché il contenuto non passa sotto i controlli.
+ *
+ * Spegnerla così non lascia ai tasti una striscia vecchia: l'export ([FluidScrollEdge] `exports`) tiene la cattura
+ * **per riferimento**, e l'effetto di quella cattura il nodo lo rifà appena l'intensità cambia, fuori dal disegno
+ * (`DrawBackdropNode.updateEffects`, osservato). Quando il cancello si chiude l'effetto è già quello a zero, cioè
+ * trasparente.
+ */
+internal fun glassScrollEdgeDraws(amount: Float): Boolean = amount > GlassScrollEdgeOffBelow
 
 /**
  * Ciò che una striscia tiene fra un disegno e l'altro: gli uniform (riscritti, mai riallocati) e il nucleo della

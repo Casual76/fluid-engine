@@ -112,6 +112,13 @@ import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
 import dev.antigravity.fluidengine.ui.page.LocalFluidPageTransition
 import dev.antigravity.fluidengine.ui.page.RegisterFluidPageBar
 import androidx.compose.runtime.currentCompositionLocalContext
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.mutableStateMapOf
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidAdaptiveMillis
+import dev.antigravity.fluidengine.ui.glass.field.glassProbe
+import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
+import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 
 /**
  * Coordinates chrome that lives above the navigation host without sharing render layers between
@@ -391,8 +398,18 @@ val LocalFluidScrollToTop: ProvidableCompositionLocal<FluidScrollToTopBus?> =
 /**
  * Room a screen must leave at the bottom for the floating tab bar. Provided by the app shell so no
  * screen has to know whether it is currently hosted under one.
+ *
+ * Dalla 4.0 dice anche se in basso c'è una tab bar: sopra zero, sotto il materiale `Liquid`, la [FluidScreen] mette
+ * in fondo il suo bordo dello scorrimento (vedi [FluidScreenBottomEdge]).
  */
 val LocalFluidBottomInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
+
+/**
+ * La coda della fascia di vetro sotto la riga dei tasti, dove la fascia resta (il ripiego del bordo dello scorrimento).
+ * Fuori da [FluidScreenDefaults] perché il nome pubblico ([FluidScreenDefaults.GlassFadeTail]) è deprecato, e l'engine
+ * che la usa ancora per il ripiego non deve passare da lui.
+ */
+internal val FluidTopBarClassicFadeTail: Dp = 34.dp
 
 /**
  * Quanto spazio questa schermata mette fra due item della sua lista.
@@ -406,14 +423,44 @@ object FluidScreenDefaults {
   /** Height of the control row of the bar, matching the 44pt UIKit navigation bar. */
   val ControlRowHeight: Dp = 44.dp
 
+  /**
+   * Lo scorrimento che resta limpido prima che il bordo dello scorrimento compaia, perché un tocco appena accennato
+   * non lo faccia lampeggiare. Dalla 4.0 vale per il bordo dello scorrimento ([FluidScrollEdge]) in alto e in basso, e
+   * per la fascia di vetro dove questa resta (sotto Android 13, `FluidGlassModel.Classic`).
+   */
+  val ScrollEdgeDeadZone: Dp = 8.dp
+
+  /** Lo scorrimento, dopo [ScrollEdgeDeadZone], in cui il bordo dello scorrimento arriva pieno. */
+  val ScrollEdgeRampDistance: Dp = 64.dp
+
   /** Initial travel kept optically clear, so a tiny touch does not flash the material on. */
-  val ShieldDeadZone: Dp = 8.dp
+  @Deprecated(
+    "Dalla 4.0 la barra non ha più uno «schermo» di vetro: la soglia è quella del bordo dello scorrimento. " +
+      "Stesso valore.",
+    ReplaceWith("FluidScreenDefaults.ScrollEdgeDeadZone"),
+  )
+  val ShieldDeadZone: Dp = ScrollEdgeDeadZone
 
   /** Travel after the dead zone over which the top material reaches full strength. */
-  val ShieldRampDistance: Dp = 64.dp
+  @Deprecated(
+    "Dalla 4.0 la barra non ha più uno «schermo» di vetro: la rampa è quella del bordo dello scorrimento. " +
+      "Stesso valore.",
+    ReplaceWith("FluidScreenDefaults.ScrollEdgeRampDistance"),
+  )
+  val ShieldRampDistance: Dp = ScrollEdgeRampDistance
 
-  /** Soft tail below the 44 dp control row; it removes the hard edge of a rectangular top bar. */
-  val GlassFadeTail: Dp = 34.dp
+  /**
+   * Soft tail below the 44 dp control row; it removes the hard edge of a rectangular top bar.
+   *
+   * Dalla 4.0 vale solo dove resta la fascia di vetro (sotto Android 13, `FluidGlassModel.Classic`, un compilatore che
+   * rifiuta la striscia). Sotto il materiale `Liquid` il bordo dello scorrimento arriva più in basso, fin dove lo porta
+   * il suo profilo: [FluidScrollEdgeDefaults.reach] (61,6 dp sotto la riga dei tasti).
+   */
+  @Deprecated(
+    "Dalla 4.0, sotto il materiale Liquid, la barra lascia FluidScrollEdgeDefaults.reach sotto la riga dei tasti; " +
+      "questo resta per la fascia di ripiego.",
+  )
+  val GlassFadeTail: Dp = FluidTopBarClassicFadeTail
 
   /**
    * Room the docked title leaves on each side for bar buttons. Wider than a bar button because the
@@ -623,6 +670,12 @@ private fun TextUnit.scaleBy(factor: Float): TextUnit = if (isSpecified) this * 
  *    `LargeTopAppBar` changes the `Scaffold`'s reported padding as it collapses, so the content
  *    shifts on top of scrolling — the jitter that reads as "the animation is wrong".
  *  * Scrolling to the top always reaches the top. Nothing has to be dragged back open afterwards.
+ *
+ * Dalla 4.0, col materiale `Liquid`, la barra non ha più una fascia di vetro: il contenuto che passa sotto i tasti si
+ * scioglie nel colore del fondo (il **bordo dello scorrimento**, [FluidScrollEdge], l'aspetto di iOS 26), e lo stesso
+ * in fondo quando c'è una tab bar ([LocalFluidBottomInset]), dove il contenuto sfuma senza sfocarsi. Il bordo c'è solo
+ * quando il contenuto passa davvero sotto un elemento fissato. Sotto Android 13 e con `FluidGlassModel.Classic` resta
+ * la fascia di vetro di sempre, e in basso niente.
  */
 @Composable
 fun FluidScreen(
@@ -860,8 +913,11 @@ private fun FluidScreenLayout(
   // finished leaving. Waiting for the title means a stretch of scrolling where text slides under the
   // clock with nothing behind it — the moment that makes an edge-to-edge layout look unfinished
   // rather than deliberate.
-  val shieldDeadZonePx = with(density) { FluidScreenDefaults.ShieldDeadZone.toPx() }
-  val shieldRampDistancePx = with(density) { FluidScreenDefaults.ShieldRampDistance.toPx() }
+  //
+  // Dalla 4.0 sotto `Liquid` il «materiale» è il bordo dello scorrimento (F2.5), e questa intensità decide quando c'è:
+  // solo quando il contenuto che scorre passa sotto la barra (R1 E1).
+  val shieldDeadZonePx = with(density) { FluidScreenDefaults.ScrollEdgeDeadZone.toPx() }
+  val shieldRampDistancePx = with(density) { FluidScreenDefaults.ScrollEdgeRampDistance.toPx() }
   val glassIntensity = remember(
     listState,
     collapseProgress,
@@ -917,10 +973,17 @@ private fun FluidScreenLayout(
     fluidGlassQualityScrollConnection(glassQuality)
   }
 
+  // Il bordo dello scorrimento in basso (F2.5): solo col materiale nuovo, e solo se in fondo c'è qualcosa (la tab bar,
+  // o un controllo che si è registrato). Altrove niente, come oggi: in basso la fascia non c'è mai stata.
+  val scrollEdge = fluidChromeScrollEdge()
+  val bottomEdges = if (scrollEdge) remember { FluidScreenBottomEdges() } else null
+  val bottomEdge = bottomEdges?.let { fluidScreenBottomEdge(LocalFluidBottomInset.current, it.registered) }
+
   CompositionLocalProvider(
     LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     LocalFluidCanvasBackdrop provides canvasBackdrop,
     LocalFluidGlassQuality provides glassQuality,
+    LocalFluidScreenBottomEdges provides bottomEdges,
   ) {
   Box(
     modifier = Modifier
@@ -1026,6 +1089,11 @@ private fun FluidScreenLayout(
           { overscroll.refreshPull }
         },
       )
+    }
+
+    // Sopra la lista e sotto la barra, l'overlay e la tab bar (che sta fuori, sopra la schermata).
+    if (bottomEdges != null) {
+      FluidScreenBottomScrollEdge(backdrop = backdrop, edge = bottomEdge, listState = listState)
     }
 
     FluidTopBar(
@@ -1182,6 +1250,157 @@ internal fun smoothStep(value: Float): Float {
   return clamped * clamped * (3f - 2f * clamped)
 }
 
+// ------------------------------------------------------------------------------------------------------------
+// Il bordo dello scorrimento in basso (F2.5)
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * I controlli in fondo a una [FluidScreen] sotto cui il contenuto si scioglie: [inset] è dove sta il loro bordo alto,
+ * dal fondo dello schermo **sopra la barra di sistema** (come [LocalFluidBottomInset]); [controlHeight] è quanto sono
+ * alti, l'unità `H` del profilo (la tab bar 62 dp: [FluidMetrics.TabBarHeight]).
+ */
+@Immutable
+internal data class FluidScreenBottomEdge(val inset: Dp, val controlHeight: Dp)
+
+/**
+ * Chi sta in fondo (F2.5): la tab bar, che una schermata conosce da [LocalFluidBottomInset], e i controlli che si sono
+ * registrati ([RegisterFluidScreenBottomEdge]: una capsula flottante, una barra in basso). Vince quello più alto: il
+ * contenuto si scioglie sotto il controllo più lontano dal bordo. Null: niente in fondo, e allora nessun bordo, come
+ * in iOS (il bordo dello scorrimento c'è solo dove un elemento fissato copre il contenuto, R1 E1).
+ */
+internal fun fluidScreenBottomEdge(
+  tabBarInset: Dp,
+  registered: Collection<FluidScreenBottomEdge>,
+  tabBarHeight: Dp = FluidMetrics.TabBarHeight,
+): FluidScreenBottomEdge? {
+  var best: FluidScreenBottomEdge? = if (tabBarInset > 0.dp) FluidScreenBottomEdge(tabBarInset, tabBarHeight) else null
+  for (edge in registered) {
+    if (edge.inset <= 0.dp) continue
+    if (best == null || edge.inset > best.inset) best = edge
+  }
+  return best
+}
+
+/** I controlli in fondo che si sono registrati in una [FluidScreen]: uno stato, perché la schermata li segua. */
+@Stable
+internal class FluidScreenBottomEdges {
+  private val entries = mutableStateMapOf<Any, FluidScreenBottomEdge>()
+
+  val registered: Collection<FluidScreenBottomEdge> get() = entries.values
+
+  fun set(key: Any, edge: FluidScreenBottomEdge?) {
+    if (edge == null) entries.remove(key) else entries[key] = edge
+  }
+}
+
+/** Il registro della [FluidScreen] più vicina, se ha il bordo in basso; null altrove (e sempre sotto `Classic`). */
+internal val LocalFluidScreenBottomEdges: ProvidableCompositionLocal<FluidScreenBottomEdges?> =
+  staticCompositionLocalOf { null }
+
+/**
+ * Un controllo che sta in fondo a una [FluidScreen] (nel suo `overlay`) si fa conoscere, perché il contenuto si sciolga
+ * sotto di lui come sotto la tab bar. [edge] null: c'è ma non copre niente (nascosto, posato altrove). Fuori da una
+ * [FluidScreen] col bordo in basso non fa niente.
+ *
+ * È il gancio della capsula flottante (`FluidFloatingCapsule` con un `placement` diverso da `Free`), che lo chiama
+ * mentre è in scena; la schermata accende e spegne il bordo con la sua presenza, senza scatti.
+ */
+@Composable
+internal fun RegisterFluidScreenBottomEdge(edge: FluidScreenBottomEdge?) {
+  val edges = LocalFluidScreenBottomEdges.current ?: return
+  val key = remember { Any() }
+  DisposableEffect(edges, key, edge) {
+    edges.set(key, edge)
+    onDispose { edges.set(key, null) }
+  }
+}
+
+/**
+ * Quanto è presente il bordo in basso, dallo scorrimento che resta verso la fine: come [calculateGlassIntensity] in
+ * alto, con la stessa soglia e la stessa rampa. A fine lista l'ultimo elemento sta sopra i controlli e non c'è niente
+ * da sciogliere: zero. [remainingPx] infinito (l'ultimo elemento non è ancora disposto) vale pieno.
+ */
+internal fun calculateBottomEdgeIntensity(remainingPx: Float, deadZonePx: Float, rampDistancePx: Float): Float {
+  if (remainingPx.isNaN() || remainingPx <= deadZonePx) return 0f
+  val ramp = rampDistancePx.coerceAtLeast(1f)
+  return smoothStep(((remainingPx - deadZonePx) / ramp).coerceIn(0f, 1f))
+}
+
+/**
+ * Lo scorrimento che resta verso la fine di una lista, in px, dalle misure del suo ultimo layout: infinito se l'ultimo
+ * elemento non è fra quelli disposti, zero se la lista è già in fondo (o non scorre). [lastEnd] è dove finisce l'ultimo
+ * elemento disposto, [viewportEnd] e [afterContentPadding] quelli di `LazyListLayoutInfo`: in fondo l'ultimo elemento
+ * finisce dove comincia il margine dopo il contenuto.
+ */
+internal fun bottomEdgeRemainingPx(
+  lastIndex: Int,
+  totalItems: Int,
+  lastEnd: Int,
+  viewportEnd: Int,
+  afterContentPadding: Int,
+): Float {
+  if (lastIndex < 0 || totalItems <= 0) return 0f
+  if (lastIndex < totalItems - 1) return Float.POSITIVE_INFINITY
+  return (lastEnd - (viewportEnd - afterContentPadding)).toFloat().coerceAtLeast(0f)
+}
+
+private fun LazyListState.bottomEdgeRemainingPx(): Float {
+  val info = layoutInfo
+  val last = info.visibleItemsInfo.lastOrNull() ?: return 0f
+  return bottomEdgeRemainingPx(
+    lastIndex = last.index,
+    totalItems = info.totalItemsCount,
+    lastEnd = last.offset + last.size,
+    viewportEnd = info.viewportEndOffset,
+    afterContentPadding = info.afterContentPadding,
+  )
+}
+
+/**
+ * La striscia in fondo a una [FluidScreen] (F2.5): sopra la tab bar o un controllo registrato il contenuto **sfuma
+ * senza sfocarsi** (scelta di Alessio del 2026-11-12: `Automatic` in basso è `FadeOnly`, come iOS 26).
+ *
+ * Non esporta, quindi la tab bar rifrange la pagina e non il contenuto già sfumato. Esportare vorrebbe dire darle, dal
+ * registro della chrome e dalla barra ancorata fra due pagine, un fondale combinato con questo export; e un export la
+ * sonda dello sfondo lo legge come una sorgente che non avvisa, cioè a cadenza fissa anche a riposo (F2-f). Prima
+ * serve che un export avvisi quando avvisa la pagina che cattura.
+ *
+ * Un controllo registrato che arriva o se ne va accende e spegne il bordo con la sua molla ([FluidMotion.snappy], la
+ * stessa con cui la capsula entra), e mentre si spegne il bordo resta dov'era: niente scatti.
+ */
+@Composable
+private fun BoxScope.FluidScreenBottomScrollEdge(
+  backdrop: GlassBackdropState,
+  edge: FluidScreenBottomEdge?,
+  listState: LazyListState,
+) {
+  val last = remember { arrayOfNulls<FluidScreenBottomEdge>(1) }
+  if (edge != null) last[0] = edge
+  val presence = animateFloatAsState(
+    targetValue = if (edge != null) 1f else 0f,
+    animationSpec = FluidMotion.snappy(),
+    label = "fluidScreenBottomEdge",
+  )
+  val shown = remember(presence) { derivedStateOf { presence.value > 0f } }
+  val geometry = last[0] ?: return
+  if (edge == null && !shown.value) return
+  val density = LocalDensity.current
+  val deadZonePx = with(density) { FluidScreenDefaults.ScrollEdgeDeadZone.toPx() }
+  val rampPx = with(density) { FluidScreenDefaults.ScrollEdgeRampDistance.toPx() }
+  val scrolled = remember(listState, deadZonePx, rampPx) {
+    derivedStateOf { calculateBottomEdgeIntensity(listState.bottomEdgeRemainingPx(), deadZonePx, rampPx) }
+  }
+  val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+  FluidScrollEdge(
+    backdrop = backdrop,
+    edge = FluidScrollEdgeSide.Bottom,
+    height = navigationBar + geometry.inset,
+    modifier = Modifier.align(Alignment.BottomCenter),
+    intensity = { scrolled.value * presence.value },
+    controlHeight = geometry.controlHeight,
+  )
+}
+
 @Composable
 internal fun FluidLargeTitle(
   title: String,
@@ -1294,15 +1513,20 @@ internal fun FluidTopBar(
   val tint = barTint ?: GlassDefaults.barTint()
   // The bar publishes its own finished material so the actions standing on it refract *it* rather
   // than the page three layers down — a lens resting on frosted glass shows the frosting.
+  //
+  // Dalla 4.0 sotto `Liquid` ciò che la barra pubblica è il contenuto già dissolto dal bordo dello scorrimento (F2.5):
+  // i tasti rifrangono quello, non la pagina cruda.
   val barGlass = rememberGlassBackdrop()
   val controlBackdrop = rememberCombinedGlassBackdrop(backdrop, barGlass)
+  val scrollEdge = fluidChromeScrollEdge()
 
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .height(statusBar + FluidScreenDefaults.ControlRowHeight + FluidScreenDefaults.GlassFadeTail),
+      .height(fluidTopBarChromeHeight(statusBar, scrollEdge)),
   ) {
-    FluidTopBarGlass(
+    FluidTopBarBackground(
+      scrollEdge = scrollEdge,
       backdrop = backdrop,
       tint = tint,
       intensity = { glassIntensity.value },
@@ -1354,10 +1578,122 @@ internal fun FluidTopBar(
 }
 
 /**
+ * Se le barre dell'engine (in alto e in fondo a una [FluidScreen], la barra che collassa, la barra ancorata e
+ * `FluidPageChrome`) disegnano il bordo dello scorrimento invece della fascia di vetro (F2.5). Una scelta sola, letta
+ * nello stesso modo da tutte, perché fra una barra e l'altra non possa mai stare un materiale diverso: è
+ * [fluidScrollEdgeAvailable], cioè Android 13 o più, il materiale `Liquid` chiesto e i programmi accettati dal
+ * compilatore.
+ */
+@Composable
+internal fun fluidChromeScrollEdge(): Boolean = fluidScrollEdgeAvailable()
+
+/**
+ * Quanto è alto il riquadro della barra in alto: barra di stato, riga dei tasti e sotto la coda dello sfondo (F2.5).
+ *
+ * Col bordo dello scorrimento ([scrollEdge]) la coda è [FluidScrollEdgeDefaults.reach] del lato alto (1,4 altezze di
+ * tasto, 61,6 dp: fin dove arrivano il velo dolce e la sua dissolvenza); con la fascia di ripiego resta quella di
+ * sempre ([FluidTopBarClassicFadeTail], 34 dp). Il riquadro non sposta niente: titolo e tasti stanno nella riga in
+ * cima, la lista sotto ha il suo margine, e il riquadro non prende tocchi (solo la riga dei tasti è toccabile).
+ */
+internal fun fluidTopBarChromeHeight(statusBar: Dp, scrollEdge: Boolean): Dp =
+  statusBar + FluidScreenDefaults.ControlRowHeight +
+    if (scrollEdge) FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top) else FluidTopBarClassicFadeTail
+
+/**
+ * Lo sfondo della barra in alto (F2.5, piano 3.10): dove c'è il materiale nuovo il **bordo dello scorrimento** (il
+ * contenuto che scorre si scioglie nel colore del fondo sotto i tasti, l'aspetto di iOS 26), altrove la fascia di
+ * vetro di sempre ([FluidTopBarGlass]), identica. [scrollEdge] è [fluidChromeScrollEdge]: falso sotto Android 13,
+ * con `FluidGlassModel.Classic` e con un compilatore che rifiuta la striscia o la lastra.
+ *
+ * Mai tutte e due: la scelta è una sola, in composizione, e cambia solo se cambia il modello chiesto.
+ *
+ * [intensity] è quella di sempre ([calculateGlassIntensity]): decide quando la striscia c'è, cioè solo quando il
+ * contenuto passa sotto la barra (R1 E1). [exports] è dove la striscia pubblica il contenuto già dissolto per i tasti;
+ * [tint] vale solo per la fascia: la striscia non ha pellicola.
+ */
+@Composable
+internal fun BoxScope.FluidTopBarBackground(
+  scrollEdge: Boolean,
+  backdrop: GlassBackdropState,
+  tint: GlassTint,
+  intensity: () -> Float,
+  exports: GlassBackdropState?,
+) {
+  if (!scrollEdge) {
+    FluidTopBarGlass(backdrop = backdrop, tint = tint, intensity = intensity, exports = exports)
+    return
+  }
+  val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val shade = rememberFluidScrollEdgeShade(backdrop)
+  FluidScrollEdge(
+    backdrop = backdrop,
+    edge = FluidScrollEdgeSide.Top,
+    height = statusBar + FluidScreenDefaults.ControlRowHeight,
+    modifier = Modifier.align(Alignment.TopCenter).then(shade.modifier),
+    exports = exports,
+    intensity = intensity,
+    darkContent = shade.darkContent,
+  )
+}
+
+/**
+ * Il lato della striscia in alto (F2.5): sopra un contenuto scuro, in tema chiaro, la striscia **scurisce** invece di
+ * velare verso il bianco (R4 B7, fiducia bassa; `darkContent` di [FluidScrollEdge]).
+ *
+ * Lo decide la sonda dello sfondo di F2.1 ([glassProbe]) messa sul nodo della striscia, con lo stesso `Backdrop`: legge
+ * la pagina sotto tutta la striscia e il suo filtro sceglie il lato con le due soglie e la permanenza. È una scelta di
+ * tutta la barra, come in Apple (`f17058` contro `f17132`), non pixel per pixel. Il passaggio si anima nel tempo del
+ * corpo del giro ([GlassLiquidAdaptiveMillis], R4 B6); la prima lettura no, come per il materiale adattivo: una barra
+ * che nasce sopra una foto scura non deve prima velarla di bianco.
+ *
+ * In tema scuro non c'è niente da decidere (il velo va già verso il fondo scuro) e la sonda non si monta: nessun nodo,
+ * nessuna lettura. Nemmeno dove la sonda non esiste (sotto Android 13, ma lì non c'è nemmeno la striscia).
+ */
+@Stable
+internal class FluidScrollEdgeShade(val modifier: Modifier, val darkContent: () -> Float)
+
+private val NoScrollEdgeShade = FluidScrollEdgeShade(Modifier) { 0f }
+
+@Composable
+internal fun rememberFluidScrollEdgeShade(backdrop: GlassBackdropState): FluidScrollEdgeShade {
+  if (GlassDefaults.isDarkSurface() || !glassProbeAvailable()) return NoScrollEdgeShade
+  val probe = rememberGlassProbeState(initialDark = false)
+  val shade = remember(probe) { Animatable(0f) }
+  LaunchedEffect(probe, shade) {
+    var measured = false
+    snapshotFlow { probe.target.let { fluidScrollEdgeShadeTarget(it.measured, it.dark) } }
+      .distinctUntilChanged()
+      .collect { target ->
+        if (target == null) return@collect
+        if (!measured) {
+          measured = true
+          shade.snapTo(target)
+        } else {
+          shade.animateTo(target, tween(durationMillis = GlassLiquidAdaptiveMillis))
+        }
+      }
+  }
+  val probed = backdrop.backdrop
+  return remember(probe, shade, probed) {
+    FluidScrollEdgeShade(Modifier.glassProbe(probed, probe)) { shade.value }
+  }
+}
+
+/** Il lato della striscia per una lettura della sonda: 1 scurisce, 0 vela; null finché non c'è una lettura. */
+internal fun fluidScrollEdgeShadeTarget(measured: Boolean, dark: Boolean): Float? = when {
+  !measured -> null
+  dark -> 1f
+  else -> 0f
+}
+
+/**
  * Il vetro della barra, da solo (3.0: la barra divisa in vetro, titolo e controlli, perche' l'host
  * delle pagine ne disegna una per tutte). Clip only the sampled material: the title itself is allowed
  * to travel below this drawing region while it is still anchored to the large heading; clipping the
  * whole bar cut the lower half of the glyphs during the first third of the morph.
+ *
+ * Dalla 4.0 è il **ripiego** del bordo dello scorrimento ([FluidTopBarBackground]): sotto Android 13, con
+ * `FluidGlassModel.Classic` e con un compilatore che rifiuta la striscia resta questa, la fascia di sempre.
  */
 @Composable
 internal fun BoxScope.FluidTopBarGlass(

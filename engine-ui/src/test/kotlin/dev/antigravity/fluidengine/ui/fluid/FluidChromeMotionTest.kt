@@ -49,10 +49,18 @@ class FluidChromeMotionTest {
     assertTrue("un tasto occupa $oneButton", FluidScreenDefaults.CompactTitleInset >= oneButton)
   }
 
+  // --- Quando lo sfondo della barra c'è -----------------------------------------------------------------------------
+  //
+  // Dalla 4.0 (F2.5) la stessa intensità guida il bordo dello scorrimento sotto `Liquid` e la fascia di vetro dove
+  // resta (sotto Android 13, `Classic`): i test qui sotto valgono per tutti e due. Soglia e rampa sono quelle di serie,
+  // coi nomi nuovi (`ScrollEdgeDeadZone`, `ScrollEdgeRampDistance`; i vecchi `Shield*` sono deprecati, stesso valore).
+
   @Test
   fun glassIntensity_usesDeadZoneAndSmoothLongRamp() {
     val deadZone = 8f
     val ramp = 64f
+    assertEquals(deadZone, FluidScreenDefaults.ScrollEdgeDeadZone.value, 0f)
+    assertEquals(ramp, FluidScreenDefaults.ScrollEdgeRampDistance.value, 0f)
 
     assertEquals(0f, calculateGlassIntensity(0, 0, 0f, deadZone, ramp), 0f)
     assertEquals(0f, calculateGlassIntensity(0, 8, 0f, deadZone, ramp), 0f)

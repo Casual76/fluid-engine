@@ -51,8 +51,10 @@ import dev.antigravity.fluidengine.ui.fluid.FluidBarTitleMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarActions
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarControls
-import dev.antigravity.fluidengine.ui.fluid.FluidTopBarGlass
+import dev.antigravity.fluidengine.ui.fluid.FluidTopBarBackground
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarRow
+import dev.antigravity.fluidengine.ui.fluid.fluidChromeScrollEdge
+import dev.antigravity.fluidengine.ui.fluid.fluidTopBarChromeHeight
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarTitle
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
@@ -142,17 +144,16 @@ internal fun FluidAnchoredBar(
   val tint = (upperSpec ?: lowerSpec)?.barTint ?: GlassDefaults.barTint()
   // Letta in disegno: muove l'intensita' fra le due pagine, e per questo fa anche rifare la cattura
   // a ogni fotogramma del movimento (le pagine si spostano sotto un vetro che sta fermo).
+  //
+  // Dalla 4.0 sotto `Liquid` pesa allo stesso modo il bordo dello scorrimento (F2.5): fra una pagina in cima (niente
+  // sotto la barra, zero) e una scorsa (uno) la striscia arriva e se ne va con la pagina, senza scatti, perche'
+  // l'intensita' scala sfocatura e velo e non l'alfa di un'immagine.
   val intensity: () -> Float = remember(state) {
     {
       val e = state.frontFraction()
       var amount = 0f
       for ((page, spec) in currentShown) {
-        val weight = when (state.roleOf(page)) {
-          PageRole.Upper -> 1f - e
-          PageRole.Lower -> e
-          PageRole.Gone -> 0f
-        }
-        amount += weight * spec.glassIntensity.value
+        amount += anchoredBarPageWeight(state.roleOf(page), e) * spec.glassIntensity.value
       }
       amount.coerceIn(0f, 1f)
     }
@@ -186,14 +187,22 @@ internal fun FluidAnchoredBar(
   val controls = remember { FluidTopBarControls() }
   // In un pop upper e' la pagina uscente: non deve conservare i callback della barra.
   val activeSpec = state.interactionPage?.let { registry[it]?.spec }
+  val scrollEdge = fluidChromeScrollEdge()
 
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .height(statusBar + FluidScreenDefaults.ControlRowHeight + FluidScreenDefaults.GlassFadeTail),
+      .height(fluidTopBarChromeHeight(statusBar, scrollEdge)),
   ) {
     if (barBackdrop != null) {
-      FluidTopBarGlass(backdrop = barBackdrop, tint = tint, intensity = intensity, exports = barGlass)
+      // Il bordo dello scorrimento col materiale nuovo, la fascia altrove (F2.5): vedi `FluidTopBarBackground`.
+      FluidTopBarBackground(
+        scrollEdge = scrollEdge,
+        backdrop = barBackdrop,
+        tint = tint,
+        intensity = intensity,
+        exports = barGlass,
+      )
     }
     // Un colore di base sotto il contesto di ogni pagina (3.0.1): una registrazione che non lo dice
     // (una pagina senza `FluidScreen`, un'app senza `Surface` alla radice) ha comunque il testo del fondo,
@@ -204,7 +213,7 @@ internal fun FluidAnchoredBar(
     // superficie che viaggia catturava a un quarto della risoluzione, con il bordo speculare ridotto. Il filo di un
     // pixel e mezzo, ingrandito quattro volte, era un filo grigio sottile senza la riga chiara: «un altro bordo» per
     // tutto il viaggio, che tornava netto al passaggio ai tasti fermi. Il banco, a qualità piena, non lo vedeva. I
-    // tasti sono pochi e piccoli: il vetro della barra sotto (`FluidTopBarGlass`) e le pagine restano al minimo.
+    // tasti sono pochi e piccoli: lo sfondo della barra sotto (`FluidTopBarBackground`) e le pagine restano al minimo.
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
       LocalContentColor provides MaterialTheme.colorScheme.onBackground,
@@ -289,6 +298,18 @@ internal fun FluidAnchoredBar(
       }
     }
   }
+}
+
+/**
+ * Quanto conta l'intensità di una pagina nello sfondo della barra ancorata, a [frontFraction] del movimento: tutta
+ * quella di sopra a riposo, tutta quella di sotto quando sta per tornare davanti, in mezzo in proporzione. Le due
+ * somme fanno sempre uno, quindi fra una pagina in cima (zero) e una scorsa (uno) lo sfondo va e viene con la pagina,
+ * senza salti: era il peso della fascia, ed è quello del bordo dello scorrimento (F2.5).
+ */
+internal fun anchoredBarPageWeight(role: PageRole, frontFraction: Float): Float = when (role) {
+  PageRole.Upper -> 1f - frontFraction
+  PageRole.Lower -> frontFraction
+  PageRole.Gone -> 0f
 }
 
 /** Il titolo di una pagina nella barra, con il suo moto e, per quella sotto, la parte che si vede. */
@@ -579,6 +600,14 @@ internal class FluidBarJourney(
  * Dentro un [FluidPageHost] si descrive e la disegna l'host, ancorata come quella di ogni altra
  * pagina; fuori si disegna qui, in cima a chi la chiama (da mettere in un `Box` sopra il contenuto).
  * Senza [backdrop] la barra e' trasparente: titolo e controlli sul contenuto.
+ *
+ * Dalla 4.0, col materiale `Liquid`, lo sfondo della barra e' il **bordo dello scorrimento** (F2.5): il contenuto
+ * sotto i tasti si scioglie nel colore del fondo, sempre pieno perche' questa barra non sa quanto la pagina e' scorsa.
+ * Il riquadro arriva 61,6 dp sotto la riga dei tasti invece di 34: sopra il contenuto non sposta niente. Sotto Android
+ * 13 e con `FluidGlassModel.Classic` resta la fascia di vetro.
+ *
+ * [barTint] e' **deprecato dalla 4.0** (piano «iOS in Android» 3.11): col materiale `Liquid` e' ignorato (la striscia
+ * non ha pellicola) e vale solo per la fascia di ripiego. Kotlin non sa deprecare un parametro solo: lo dice qui.
  */
 @Composable
 fun FluidPageChrome(
@@ -647,13 +676,21 @@ private fun FluidPageChromeContent(
     currentGlassBackdrop()
   }
   val tint = barTint ?: GlassDefaults.barTint()
+  val scrollEdge = fluidChromeScrollEdge()
   Box(
     modifier = modifier
       .fillMaxWidth()
-      .height(statusBar + FluidScreenDefaults.ControlRowHeight + FluidScreenDefaults.GlassFadeTail),
+      .height(fluidTopBarChromeHeight(statusBar, scrollEdge)),
   ) {
     if (backdrop != null) {
-      FluidTopBarGlass(backdrop = backdrop, tint = tint, intensity = { 1f }, exports = barGlass)
+      // Una pagina che non e' una `FluidScreen` non dice quanto e' scorsa: la barra resta piena, come la fascia.
+      FluidTopBarBackground(
+        scrollEdge = scrollEdge,
+        backdrop = backdrop,
+        tint = tint,
+        intensity = FullBarIntensity,
+        exports = barGlass,
+      )
     }
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop, LocalFluidCanvasBackdrop provides null) {
       val controls = remember { FluidTopBarControls() }
@@ -692,6 +729,9 @@ private fun FluidPageChromeContent(
 }
 
 private val NoTranslation: () -> Float = { 0f }
+
+/** L'intensità dello sfondo di una [FluidPageChrome] da sola: sempre piena (una lambda stabile, non una per ricomposizione). */
+private val FullBarIntensity: () -> Float = { 1f }
 
 /** L'intensità della superficie che viaggia: piena mentre porta il vetro, zero quando lo portano i tasti. */
 private val BarTravelFull: () -> Float = { 1f }

@@ -15,7 +15,7 @@ import org.junit.Test
  * Le scene del bordo dello scorrimento sul banco (`tools/glassbench/scenes/f2/bordo-*.json`) descrivono ciò che
  * l'engine disegnerà (piano 4.2, «scene dalla ricetta»).
  *
- * Le scrive uno specchio Python della logica pura (`artifacts/liquid-glass/bench/f2-4/bordo.py`), perché F2.4 ha tarato
+ * Le scrive uno specchio Python della logica pura (`tools/glassbench/scenes/f2/bordo-genera.py`), perché F2.4 ha tarato
  * il profilo sul banco prima di poter compilare. Questo test chiude il giro al contrario: per ogni striscia legge
  * il profilo che la scena dichiara (`_bordo.variant`: `soft`, `hard`, `fadeOnly`, `soft*0.7`, `soft*1.4`), la
  * risoluzione, la geometria e il colore, rifà gli uniform con [glassScrollEdgeUniforms] e li confronta con quelli
@@ -102,7 +102,9 @@ class GlassScrollEdgeSceneTest {
     same("taps", u.taps)
     same("edgeLine", u.edgeLine)
     same("blurRamp", u.blurRamp)
-    same("veilRamp", u.veilRamp)
+    same("veilKnots", u.veilKnots)
+    same("veilKnob", u.veilKnob)
+    same("grain", floatArrayOf(u.grain))
     same("shade", u.shade)
     same("fadeRamp", u.fadeRamp)
     same("amount", floatArrayOf(u.amount))

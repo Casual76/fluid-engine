@@ -1805,8 +1805,9 @@ del primo profilo non veniva da nessuna misura di iOS 26. Scelta sulla tavola a 
 mostrate, ma teme sia un effetto di quelle), **con un cambiamento**: «il velo è progressivo, un po' come il blur: adesso
 in pochi pixel passa da niente a tutto e su tinta unita si vede troppo, mentre sul testo va bene; è anche il motivo
 per cui su iOS è variabile, in base al contenuto dietro». Quindi: curva della foto (f17074), lunga oltre 2 H, liscia e
-con pendenza zero all'attacco, come valore di serie; curva di R4 B7 (più ripida) quando la sonda dice che dietro c'è
-testo; mescola animata fra le due; lo scurimento ×0,7 sopra una foto scura che riempie la barra. Sostituisce la riga
+con pendenza zero all'attacco, **su ogni contenuto** (subito dopo ha precisato: «anche nel testo, se la fai più dolce va
+bene»: nessuna curva diversa per il testo, quella di R4 B7 resta solo nella manopola `edgecurve=text`); lo scurimento
+×0,7 sopra una foto scura che riempie la barra. Sostituisce la riga
 «profilo del bordo morbido: A» della tabella qui sopra per ciò che riguarda il velo; la sfocatura resta quella.
 
 **Scelte di Alessio sul materiale adattivo (2026-11-12)**, sulle tavole di `artifacts/liquid-glass/tavole/f2/adattivo/`

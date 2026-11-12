@@ -219,6 +219,30 @@ class GlassPaintedProfileTest {
     }
   }
 
+  /**
+   * F1B, giro di correzione (pagina «Parità» sul tablet: tasto dipinto 231 contro 241 del vetro vero in chiaro): un
+   * vetro dipinto che non sta su un pannello dipinto si posa sulla pagina **senza** scrim; lo scrim è dei pannelli.
+   */
+  @Test
+  fun aPaintedControlOnThePageSeesThePageNotTheScrim() {
+    for (dark in listOf(false, true)) {
+      val page = GlassPaintedPage.of(dark)
+      assertEquals(page, glassPaintedControlSeen(null, page, dark))
+      val panel = glassPaintedPanelBody(page, dark, base)
+      assertEquals(panel, glassPaintedControlSeen(panel, page, dark))
+      // Una pagina traslucida si posa sulla pagina di riferimento, come per i pannelli, ma senza scrim.
+      val film = page.copy(alpha = 0.5f)
+      val seen = glassPaintedControlSeen(null, film, dark)
+      assertEquals(1f, seen.alpha, 0f)
+      assertTrue(seen.red > glassPaintedSeen(film, dark).red)
+      // Il tasto dipinto sulla pagina chiara: il corpo del vetro vero su quella pagina (stessa ricetta, stesso fondo).
+      val recipe = glassPaintedRecipe(120f, 44f, dark, profile = base)
+      val onPage = glassPaintedBody(recipe, glassPaintedControlSeen(null, page, dark))
+      val underScrim = glassPaintedBody(recipe, glassPaintedSeen(page, dark))
+      assertTrue("sulla pagina il tasto è più chiaro che sotto lo scrim (dark=$dark)", onPage.red > underScrim.red)
+    }
+  }
+
   @Test
   fun theScrimIsOneAndHasTheModalLevels() {
     assertEquals(0.12f, GlassPaintedScrim.alpha(false), 0f)

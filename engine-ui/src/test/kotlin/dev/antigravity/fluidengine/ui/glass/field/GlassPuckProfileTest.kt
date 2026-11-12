@@ -196,10 +196,53 @@ class GlassPuckProfileTest {
     }
   }
 
+  /**
+   * F1B, giro di correzione (S2 righe 21 e 25: icona doppia nella pillola premuta, salto al primo fotogramma): la lente
+   * della pillola ha profondità zero a riposo e sale con la pressione, come nel ramo di prima; il filo e l'ombra no,
+   * restano quelli a riposo. Al primo fotogramma premuto la pillola sopra la riga ha la stessa luce, la stessa ombra e
+   * nessuno spostamento: la copia rifratta della riga coincide con la copia nitida che sta ancora sopra.
+   */
+  @Test
+  fun thePuckLensRisesWithThePressureAndTheEdgeStays() {
+    val optics = glassPuckOptics(GlassDefaults.optics(GlassRole.Floating).sanitized())
+    assertEquals(1f, optics.edgeFloor, 0f)
+    assertEquals(0f, glassPuckLensDepth(0f), 0f)
+    assertEquals(1f, glassPuckLensDepth(1f), 0f)
+    assertEquals(0f, glassPuckLensDepth(Float.NaN), 0f)
+    for (dark in listOf(false, true)) {
+      fun at(profile: GlassLiquidProfile, p: Float) = glassRecipe(
+        role = GlassRole.Floating, widthDp = 88f, heightDp = 54f, darkSide = dark, optics = optics,
+        opticalDepth = glassPuckLensDepth(p), pressed = p, profile = profile,
+      )
+      val rest = at(glassPuckProfile(bar), 0f)
+      val over = glassPuckOverRowProfile(bar)
+      val first = at(over, 0f)
+      assertEquals("a riposo la lente non sposta", 0f, rest.refractionDp, 0f)
+      assertEquals("al primo fotogramma premuto la lente non sposta", 0f, first.refractionDp, 0f)
+      // Il bordo e l'ombra non dipendono dalla pressione: sono quelli a riposo.
+      assertEquals(rest.rimDark, first.rimDark)
+      assertEquals(rest.reflexStrength, first.reflexStrength, 0f)
+      assertEquals(rest.shadowAmbientAlpha, first.shadowAmbientAlpha, 0f)
+      var last = 0f
+      for (p in listOf(0.1f, 0.3f, 0.6f, 1f)) {
+        val r = at(over, p)
+        assertTrue("la lente cresce con la pressione ($p, dark=$dark)", -r.refractionDp > last)
+        last = -r.refractionDp
+        assertEquals(rest.rimDark, r.rimDark)
+      }
+      // A pressione piena la lente è quella della pillola di F1B.4 (profondità uno), più la spinta della pressione.
+      val full = glassRecipe(
+        role = GlassRole.Floating, widthDp = 88f, heightDp = 54f, darkSide = dark,
+        optics = GlassDefaults.optics(GlassRole.Floating).sanitized(), profile = over,
+      )
+      assertTrue(last >= -full.refractionDp)
+    }
+  }
+
   @Test
   fun theScenesAreConsistentAndWrittenOnlyWhenAsked() {
     val scenes = PuckScenes.all()
-    assertEquals(12, scenes.size)
+    assertEquals(30, scenes.size)
     for (scene in scenes) {
       @Suppress("UNCHECKED_CAST")
       val elements = scene.json["elements"] as List<Map<String, Any?>>
@@ -281,7 +324,22 @@ internal object PuckScenes {
     optics = GlassDefaults.optics(GlassRole.Floating).sanitized(), profile = profile,
   )
 
-  fun scene(kind: String, dark: Boolean, pressed: Boolean): GlassScene {
+  /** La pillola come la disegna `LiquidPuck` (giro di correzione di F1B): bordo pieno, lente che sale con [press]. */
+  private fun puckRecipe(profile: GlassLiquidProfile, w: Int, h: Int, dark: Boolean, press: Float): GlassRecipe = glassRecipe(
+    role = GlassRole.Floating, widthDp = w.toFloat(), heightDp = h.toFloat(), darkSide = dark,
+    optics = glassPuckOptics(GlassDefaults.optics(GlassRole.Floating).sanitized()),
+    opticalDepth = glassPuckLensDepth(press), pressed = press, profile = profile,
+  )
+
+  /** Le pressioni delle scene della pillola premuta: la prima deve rendere la pillola a riposo. */
+  val Pressures: List<Float> = listOf(0f, 0.1f, 0.3f, 1f)
+
+  private fun pressName(press: Float): String = when (press) {
+    1f -> ""
+    else -> "p" + String.format(Locale.ROOT, "%02d", (press * 10f + 0.5f).toInt()) + "-"
+  }
+
+  fun scene(kind: String, dark: Boolean, pressed: Boolean, press: Float = if (pressed) 1f else 0f): GlassScene {
     val theme = if (dark) "dark" else "light"
     val side = if (dark) "scuro" else "chiaro"
     val barShape = linkedMapOf<String, Any?>(
@@ -300,9 +358,9 @@ internal object PuckScenes {
       )
       barEl["children"] = listOf(
         liquidElement(
-          child, recipe(glassPuckOverRowProfile(BarH.toFloat()), TabW, PuckH, dark), null,
-          "glassRecipe: ruolo floating, $TabW x $PuckH dp, lato $side, glassPuckOverRowProfile($BarH) " +
-            "(la pillola premuta sopra la riga nascosta: qui sopra il corpo della barra)",
+          child, puckRecipe(glassPuckOverRowProfile(BarH.toFloat()), TabW, PuckH, dark, press), null,
+          "glassRecipe: ruolo floating, $TabW x $PuckH dp, lato $side, glassPuckOverRowProfile($BarH), glassPuckOptics, " +
+            "pressione $press (la pillola premuta sopra la riga nascosta: qui sopra il corpo della barra)",
         ),
       )
       listOf(barEl)
@@ -314,14 +372,15 @@ internal object PuckScenes {
       listOf(
         barEl,
         liquidElement(
-          puck, recipe(glassPuckProfile(BarH.toFloat()), TabW, PuckH, dark), null,
-          "glassRecipe: ruolo floating, $TabW x $PuckH dp, lato $side, glassPuckProfile($BarH) (la pillola a riposo)",
+          puck, puckRecipe(glassPuckProfile(BarH.toFloat()), TabW, PuckH, dark, 0f), null,
+          "glassRecipe: ruolo floating, $TabW x $PuckH dp, lato $side, glassPuckProfile($BarH), glassPuckOptics, " +
+            "lente a profondità zero (la pillola a riposo)",
         ),
       )
     }
     val json = linkedMapOf<String, Any?>(
       "_" to "Scritta dalla ricetta (GlassPuckProfileTest, F1B.4): la tab bar e la sua pillola " +
-        (if (pressed) "PREMUTA (figlia della barra: campiona pagina e corpo della barra, come la riga nascosta)"
+        (if (pressed) "PREMUTA a pressione $press (figlia della barra: campiona pagina e corpo della barra, come la riga nascosta)"
         else "A RIPOSO (campiona la pagina cruda)") +
         ", fondo $kind, lato $side. Non si modifica a mano: si rigenera.",
       "width" to 400, "height" to 110, "density" to 3.0, "theme" to theme, "palette" to "engine", "corner" to "engine",
@@ -334,11 +393,13 @@ internal object PuckScenes {
           "window" to listOf(BarX + Inset + 8, BarY + Inset + 10, 14, 14), "rows" to listOf("corpo", "fondo", "corpo-fondo")),
       ),
     )
-    val name = if (pressed) "puck-premuta-$kind-$side.json" else "puck-$kind-$side.json"
+    val name = if (pressed) "puck-premuta-${pressName(press)}$kind-$side.json" else "puck-$kind-$side.json"
     return GlassScene(name, json)
   }
 
   fun all(): List<GlassScene> = listOf("piatto", "testo", "foto").flatMap { kind ->
-    listOf(false, true).flatMap { dark -> listOf(scene(kind, dark, pressed = false), scene(kind, dark, pressed = true)) }
+    listOf(false, true).flatMap { dark ->
+      listOf(scene(kind, dark, pressed = false)) + Pressures.map { scene(kind, dark, pressed = true, press = it) }
+    }
   }
 }

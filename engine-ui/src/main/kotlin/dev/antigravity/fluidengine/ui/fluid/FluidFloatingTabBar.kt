@@ -166,6 +166,8 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
 import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckFilm
+import dev.antigravity.fluidengine.ui.glass.field.glassPuckLensDepth
+import dev.antigravity.fluidengine.ui.glass.field.glassPuckOptics
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckOverRowProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckRowProfile
@@ -2085,6 +2087,19 @@ private fun SharedTransitionScope.ExpandedTabs(
     val puckInk = remember(accentColor, paneFilm, onDarkBar) {
         legibleInk(accentColor, paneFilm, onDarkBar)
     }
+    // LOCAL CHANGE (F1B, giro di correzione): la pellicola della barra quando e' dipinta com'e' (`Fixed`, cioe' sopra
+    // il contrasto di sistema standard), per la pillola nuova; e l'inchiostro dell'etichetta, che e' testo (4,5:1) e
+    // non si schiarisce quando il contrasto sale (vedi [puckLabelInk]). Un pannello dell'app: la pellicola non si sa.
+    val barFilm = if (!appSuppliesPane && glassTintLiquidMode(paneTint) == GlassTintMode.Fixed) paneTint.overlay else Color.Unspecified
+    val systemContrast = LocalFluidSystemContrast.current
+    val puckTextInk = remember(accentColor, paneFilm, barFilm, onDarkBar, systemContrast) {
+        puckLabelInk(
+            accent = accentColor,
+            barFilm = barFilm,
+            standardFilm = filmBeforeContrast(paneFilm, systemContrast),
+            onDarkSide = onDarkBar,
+        )
+    }
     // Whether the accent-tinted copy of the tabs is worth keeping alive; see
     // where it is composed below.
     // Whenever the puck is pressed, by a finger or by a tap on a tab — because that copy of the
@@ -2118,9 +2133,9 @@ private fun SharedTransitionScope.ExpandedTabs(
             barShortSideDp = sizes.barHeight.value,
             pressed = { dampedDragAnimation.pressProgress },
             film = if (glassConfig.puckColor.isSpecified) puckWash.copy(alpha = puckWash.alpha * puckRestAlpha) else Color.Unspecified,
-            // LOCAL CHANGE (F1B.5, giro di correzione): la pellicola della barra quando e' dipinta com'e' (`Fixed`, cioe'
-            // sopra il contrasto di sistema standard): pillola e riga nascosta la seguono. Un pannello dell'app: non si sa.
-            barFilm = if (!appSuppliesPane && glassTintLiquidMode(paneTint) == GlassTintMode.Fixed) paneTint.overlay else Color.Unspecified,
+            // LOCAL CHANGE (F1B.5, giro di correzione): sopra il contrasto standard pillola e riga nascosta seguono la
+            // pellicola della barra (vedi `barFilm` qui sopra).
+            barFilm = barFilm,
         )
     } else {
         null
@@ -2471,7 +2486,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // peggiore delle pagine. L'accento tal quale e' piu' chiaro di quasi ogni fondo
                     // di mezzo tono, e con la pellicola sola non arriva a 3:1 sopra un riquadro
                     // vivido (a conti fatti 2.2:1 sul verde della galleria; senza pellicola, misurato, 1.1:1).
-                    .graphicsLayer(colorFilter = ColorFilter.tint(puckInk)),
+                    // LOCAL CHANGE (F1B, giro di correzione): col materiale nuovo la riga porta l'etichetta che si legge
+                    // sotto la pillola premuta: l'inchiostro del testo (a contrasto standard e' lo stesso).
+                    .graphicsLayer(colorFilter = ColorFilter.tint(if (liquidPuck != null) puckTextInk else puckInk)),
                 horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
             ) {
                 allTabs.forEachIndexed { index, tab ->
@@ -2825,7 +2842,14 @@ private fun SharedTransitionScope.ExpandedTabs(
                     } else {
                         { FluidTabBadgeAnchor(badge) { tab.icon() } }
                     },
-                    title = { tab.title() },
+                    // LOCAL CHANGE (F1B, giro di correzione): l'etichetta e' testo, col suo inchiostro (4,5:1).
+                    title = {
+                        if (liquidPuck != null) {
+                            CompositionLocalProvider(LocalContentColor provides puckTextInk) { tab.title() }
+                        } else {
+                            tab.title()
+                        }
+                    },
                     isInline = false,
                     isStandalone = false,
                     // No press zoom: only visible at rest, where the row's own lerp
@@ -2951,15 +2975,27 @@ private fun rememberLiquidPuck(
     val currentPressed by rememberUpdatedState(pressed)
     // La pellicola cambia di rado (e' una scelta dell'app): quando cambia, le superfici si rifanno.
     return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film, barFilm) {
-        fun surface(shape: Shape, profile: GlassLiquidProfile, pressedNow: () -> Float, filmNow: () -> Color) =
+        fun surface(
+            shape: Shape,
+            profile: GlassLiquidProfile,
+            pressedNow: () -> Float,
+            filmNow: () -> Color,
+            // LOCAL CHANGE (F1B, giro di correzione): la pillola ha la lente che sale con la pressione e il bordo pieno
+            // (`glassPuckOptics`, `glassPuckLensDepth`); la riga nascosta e' il materiale della barra, com'era.
+            puck: Boolean,
+        ) =
             GlassLiquidSurface(
                 role = GlassRole.Floating,
-                optics = optics,
+                optics = if (puck) glassPuckOptics(optics) else optics,
                 shape = shape,
                 darkSide = darkSide,
                 screenDensity = screenDensity,
                 intensity = { 1f },
-                opticalDepth = { 1f },
+                opticalDepth = if (puck) {
+                    { glassPuckLensDepth(currentPressed()) }
+                } else {
+                    { 1f }
+                },
                 pressed = pressedNow,
                 quality = { quality?.level ?: 1f },
                 film = filmNow,
@@ -2971,9 +3007,9 @@ private fun rememberLiquidPuck(
         // La pellicola dell'app vince; senza, sotto contrasto, quella della barra con la selezione (`glassPuckFilm`).
         val restFilm = if (film.isSpecified) film else glassPuckFilm(barFilm, darkSide)
         LiquidPuck(
-            rest = surface(tabShape, restProfile, { currentPressed() }, { restFilm }),
-            over = surface(tabShape, glassPuckOverRowProfile(barShortSideDp), { currentPressed() }, { film }),
-            row = surface(tabBarShape, glassPuckRowProfile(barShortSideDp), { 0f }, { barFilm }),
+            rest = surface(tabShape, restProfile, { currentPressed() }, { restFilm }, puck = true),
+            over = surface(tabShape, glassPuckOverRowProfile(barShortSideDp), { currentPressed() }, { film }, puck = true),
+            row = surface(tabBarShape, glassPuckRowProfile(barShortSideDp), { 0f }, { barFilm }, puck = false),
             placeholder = if (restFilm.isSpecified) restFilm else restProfile.veil(darkSide).color,
         )
     }
@@ -3231,8 +3267,7 @@ internal fun legibleInk(
     onDarkSide: Boolean,
     minContrast: Float = PuckInkMinContrast,
 ): Color {
-    val worstPage = if (onDarkSide) Color(0xFFCCCCCC) else Color.Black
-    val worstBackground = film.compositeOver(worstPage)
+    val worstBackground = film.compositeOver(puckInkWorstPage(onDarkSide))
     if (inkContrast(accent, worstBackground) >= minContrast) return accent
     val toward = if (onDarkSide) Color.White else Color.Black
     // Il contrasto cresce monotono verso l'estremo: una ricerca binaria trova il minimo spostamento.
@@ -3247,6 +3282,59 @@ internal fun legibleInk(
         }
     }
     return androidx.compose.ui.graphics.lerp(accent, toward, high)
+}
+
+/** La pagina peggiore per l'inchiostro di [legibleInk]: nera sul chiaro, grigio chiaro sullo scuro. */
+internal fun puckInkWorstPage(onDarkSide: Boolean): Color = if (onDarkSide) Color(0xFFCCCCCC) else Color.Black
+
+/**
+ * LOCAL CHANGE (F1B, giro di correzione): il contrasto minimo dell'**etichetta** della scheda scelta col materiale
+ * nuovo. E' testo (11 sp), non un glifo: 4,5:1, non i 3:1 di [PuckInkMinContrast].
+ */
+internal const val PuckLabelMinContrast = 4.5f
+
+/**
+ * LOCAL CHANGE (F1B, giro di correzione): la pellicola [film] com'era **prima** del contrasto di sistema [contrast]
+ * (`GlassTint.forContrast` porta l'alfa `a` a `a + (1 - a) * v`; qui il conto inverso). A contrasto standard e' [film].
+ */
+internal fun filmBeforeContrast(film: Color, contrast: Float): Color {
+    val v = FluidSystemContrast.veil(contrast)
+    if (!film.isSpecified || v <= 0f || v >= 1f) return film
+    return film.copy(alpha = ((film.alpha - v) / (1f - v)).coerceIn(0f, 1f))
+}
+
+/**
+ * LOCAL CHANGE (F1B, giro di correzione): l'inchiostro dell'etichetta della scheda scelta col materiale nuovo.
+ *
+ * Fino al giro di correzione l'etichetta prendeva l'inchiostro del glifo ([legibleInk], 3:1 contro la pellicola sopra
+ * la pagina peggiore). A contrasto di sistema alto la pellicola della barra si fa densa, quel fondo si schiarisce, e
+ * l'accento passava il 3:1 **senza scurirsi**: sul tablet l'etichetta scendeva da 10,9:1 a 3,5:1 (S2; 2,9:1 misurando il
+ * fondo locale). Qui:
+ *  - a contrasto standard ([barFilm] non specificata: la barra ha il velo del profilo) e' l'inchiostro del glifo, com'era;
+ *  - sopra lo standard il fondo e' quello che c'e' davvero sotto l'etichetta, la pellicola della barra con la selezione
+ *    della pillola (`glassPuckFilm`) sopra la pagina peggiore; fra l'inchiostro del glifo **a contrasto standard**,
+ *    quello del glifo adesso e quello che su quel fondo fa 4,5:1, si prende quello che contrasta di piu'. Quindi
+ *    almeno 4,5:1 dove si puo', e mai meno di cio' che l'inchiostro di prima farebbe sullo stesso fondo: chi chiede piu'
+ *    contrasto non ne riceve meno.
+ *
+ * @param standardFilm la pellicola della barra a contrasto standard ([filmBeforeContrast]).
+ */
+internal fun puckLabelInk(
+    accent: Color,
+    barFilm: Color,
+    standardFilm: Color,
+    onDarkSide: Boolean,
+): Color {
+    val glyphStandard = legibleInk(accent, standardFilm, onDarkSide)
+    if (!barFilm.isSpecified) return glyphStandard
+    val under = glassPuckFilm(barFilm, onDarkSide)
+    val reference = under.compositeOver(puckInkWorstPage(onDarkSide))
+    val candidates = listOf(
+        glyphStandard,
+        legibleInk(accent, barFilm, onDarkSide),
+        legibleInk(accent, under, onDarkSide, PuckLabelMinContrast),
+    )
+    return candidates.maxBy { inkContrast(it, reference) }
 }
 
 internal fun inkContrast(foreground: Color, background: Color): Float {

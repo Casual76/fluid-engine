@@ -142,12 +142,24 @@ private fun overOpaque(dst: Color, src: Color, alpha: Float = src.alpha): Color 
 
 /**
  * Ciò che il vetro vero vedrebbe dietro un pannello modale su [page]: la pagina (piena: se il tema la dà
- * traslucida si posa sulla pagina di riferimento del lato) sotto lo scrim del lato.
+ * traslucida si posa sulla pagina di riferimento del lato) sotto lo scrim del lato. Vale per i **pannelli** (il foglio
+ * e l'avviso di piattaforma), che stanno sopra uno scrim; un vetro dipinto che non ne ha uno sotto è
+ * [glassPaintedControlSeen].
  */
 internal fun glassPaintedSeen(page: Color, darkSide: Boolean): Color {
   val full = if (page.alpha >= 1f) page else overOpaque(GlassPaintedPage.of(darkSide), page)
   return overOpaque(full, GlassPaintedScrim.color(darkSide))
 }
+
+/**
+ * Ciò che vedrebbe dietro di sé un vetro dipinto **che non è un pannello modale** (`fluidStaticGlassSurface`): il corpo
+ * del pannello dipinto che lo porta ([panel], da [LocalGlassPaintedPanel]), e se non ce n'è uno la pagina del tema
+ * **senza scrim** (piena come in [glassPaintedSeen]). Fino al giro di correzione di F1B anche questo caso prendeva la
+ * pagina sotto lo scrim: un tasto dipinto posato sulla pagina usciva di uno scrim più scuro del vetro vero accanto (sul
+ * tablet, pagina «Parità», 231 contro 241 in chiaro).
+ */
+internal fun glassPaintedControlSeen(panel: Color?, page: Color, darkSide: Boolean): Color =
+  panel ?: if (page.alpha >= 1f) page else overOpaque(GlassPaintedPage.of(darkSide), page)
 
 // ------------------------------------------------------------------------------------------------------------
 // La ricetta e il corpo

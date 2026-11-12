@@ -416,7 +416,13 @@ private fun FluidAlertDialog(
     // Lo scrim dei pannelli dipinti (F1B.5): lo stesso nero del foglio di piattaforma e dei modali di vetro, al
     // posto del velo di piattaforma della `Dialog`.
     val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-    SideEffect { if (liquid) dialogWindow?.setDimAmount(GlassPaintedScrim.alpha(darkSide)) }
+    // Il velo di piattaforma della finestra com'era prima che lo toccassimo: letto in composizione, alla prima, prima
+    // di ogni `SideEffect`. Con `Classic` si rimette quello, anche se il modello cambia con la `Dialog` aperta (C, R12).
+    val platformDim = remember(dialogWindow) { dialogWindow?.attributes?.dimAmount }
+    SideEffect {
+      val window = dialogWindow ?: return@SideEffect
+      window.setDimAmount(paintedDialogDim(liquid, darkSide, platformDim ?: window.attributes.dimAmount))
+    }
     val alertShape = ContinuousCornerShape(FluidRadius.Card)
     Column(
       modifier = modifier
@@ -499,6 +505,13 @@ private fun FluidAlertDialog(
     }
   }
 }
+
+/**
+ * Il velo della `Dialog` di [FluidAlert] fuori dall'host: lo scrim dei pannelli dipinti col materiale nuovo, il velo di
+ * piattaforma [platformDim] (quello che la finestra aveva) col vetro di prima.
+ */
+internal fun paintedDialogDim(liquid: Boolean, darkSide: Boolean, platformDim: Float): Float =
+  if (liquid) GlassPaintedScrim.alpha(darkSide) else platformDim
 
 /** How much of the window an alert may occupy before its message starts scrolling instead. */
 private const val AlertMaxHeightFraction = 0.86f

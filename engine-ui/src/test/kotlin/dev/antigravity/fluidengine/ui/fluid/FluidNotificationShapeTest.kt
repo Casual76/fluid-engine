@@ -1,6 +1,8 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.TargetBasedAnimation
+import androidx.compose.animation.core.VectorConverter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,6 +50,62 @@ class FluidNotificationShapeTest {
       last = side
       s += 0.0005f
     }
+  }
+
+  /**
+   * Giro di correzione di F1B (S2, parte 2.3: blocco tagliato a destra e bordi impilati): in **ogni fotogramma** della
+   * molla vera della comparsa, a 120 Hz, in entrata e in uscita, la sagoma (vetro, `Surface`, ritaglio, ombra: un nodo
+   * solo, la colonna della card) e il contenuto hanno la stessa larghezza, il contenuto non sporge mai di lato, e in
+   * fondo sporge al più del 3% dell'altezza, dentro il margine di 12 dp (lo ritaglia la stessa sagoma).
+   */
+  @Test
+  fun inEveryFrameOfTheSpringShapeAndContentShareOneMeasure() {
+    val density = 2.125f
+    val bottomMarginPx = 12f * density
+    for ((width, contentHeight) in listOf(1190 to 170, 1080 to 240, 720 to 153, 1 to 1)) {
+      for ((from, to) in listOf(NotificationEnterShapeScale to 1f, 1f to NotificationExitShapeScale)) {
+        val animation = TargetBasedAnimation(
+          animationSpec = FluidMotion.snappy<Float>(),
+          typeConverter = Float.VectorConverter,
+          initialValue = from,
+          targetValue = to,
+        )
+        val frame = 1_000_000_000L / 120L
+        var t = 0L
+        var frames = 0
+        var lastHeight = -1
+        while (true) {
+          val scale = animation.getValueFromNanos(t)
+          val layout = fluidNotificationShapeLayout(width, contentHeight, scale)
+          val where = "$width x $contentHeight, $from -> $to, fotogramma $frames (scala $scale)"
+          assertEquals(where, layout.width, layout.contentWidth)
+          assertEquals(where, width, layout.width)
+          assertTrue(where, layout.height <= layout.contentHeight)
+          val overflow = layout.contentHeight - layout.height
+          assertTrue("$where: sporge $overflow px", overflow <= contentHeight * 0.03f + 1f && overflow <= bottomMarginPx + 1f)
+          // In entrata la sagoma solo cresce, in uscita solo cala: nessun bordo che torna indietro.
+          if (lastHeight >= 0) {
+            if (to > from) assertTrue(where, layout.height >= lastHeight) else assertTrue(where, layout.height <= lastHeight)
+          }
+          lastHeight = layout.height
+          frames++
+          if (t >= animation.durationNanos) break
+          t += frame
+        }
+        assertTrue("la molla ha dei fotogrammi: $frames", frames > 3)
+        assertEquals(fluidNotificationShapeSide(contentHeight, to), lastHeight)
+      }
+    }
+  }
+
+  @Test
+  fun theCardNoLongerNarrowsItsGlassNode() {
+    val root = listOf(File("src/main/kotlin"), File("engine-ui/src/main/kotlin")).first { it.isDirectory }
+    val source = File(root, "dev/antigravity/fluidengine/ui/fluid/FluidNotification.kt").readText()
+    // La cornice che restringeva il solo nodo del vetro, con il contenuto misurato pieno, non c'è più: la sagoma e il
+    // contenuto hanno una misura sola (`fluidNotificationShape`, sulla colonna della card).
+    assertTrue("fluidNotificationShapeFrame" !in source)
+    assertTrue(".fluidNotificationShape(shape, shapeScale)" in source)
   }
 
   @Test

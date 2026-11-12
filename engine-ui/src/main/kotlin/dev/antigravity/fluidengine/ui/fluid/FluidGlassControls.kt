@@ -48,7 +48,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedSelectionAlpha
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.field.LocalGlassPaintedPanel
 import dev.antigravity.fluidengine.ui.glass.field.glassPainted
-import dev.antigravity.fluidengine.ui.glass.field.glassPaintedSeen
+import dev.antigravity.fluidengine.ui.glass.field.glassPaintedControlSeen
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
@@ -405,10 +405,10 @@ fun Modifier.fluidStaticGlassSurface(
   // `surface` ignora l'alpha, quindi un'app con una pellicola traslucida in `surface` veniva
   // letta come chiara sempre, e dichiarare da che parte sta (`LocalFluidSurfaceSide`) non serviva.
   val darkSide = GlassDefaults.isDarkSurface()
-  // Su un pannello dipinto (il foglio e l'avviso di piattaforma) sta sul suo corpo, annidato; altrimenti e' lui il
-  // pannello, sopra la pagina del tema abbassata dallo scrim.
+  // Su un pannello dipinto (il foglio e l'avviso di piattaforma) sta sul suo corpo, annidato; altrimenti sulla pagina
+  // del tema, senza scrim: i pannelli modali, che uno scrim sotto lo hanno, il fondo lo passano da se'.
   val panel = LocalGlassPaintedPanel.current
-  val seen = panel ?: glassPaintedSeen(scheme.background, darkSide)
+  val seen = glassPaintedControlSeen(panel, scheme.background, darkSide)
   val film = if (selected) scheme.primary.copy(alpha = GlassPaintedSelectionAlpha) else Color.Unspecified
   // L'ombra e' quella del vetro (le maschere della ricetta, o quella di prima dove il materiale e' `Classic`); da
   // annidato pesa quanto la regola dell'annidato del profilo dice.

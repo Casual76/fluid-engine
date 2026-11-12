@@ -44,6 +44,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.Dp
+import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 
 /**
  * La **selezione**: quanto la pillola è più scura della barra, come un nero di questa alfa posato sopra il velo
@@ -213,6 +214,22 @@ internal fun glassPuckProfile(
     darkNesting = GlassLiquidNestings.Unchanged,
   )
 }
+
+/**
+ * L'ottica con cui si disegnano la pillola a riposo e la pillola premuta: quella della barra, con il bordo e l'ombra
+ * **pieni a ogni profondita' ottica** (`edgeFloor` uno). Cosi' la profondita' ([glassPuckLensDepth]) muove solo la
+ * lente, e il filo e l'ombra della pillola non cambiano quando la si preme.
+ */
+internal fun glassPuckOptics(optics: GlassOptics): GlassOptics = optics.copy(edgeFloor = 1f)
+
+/**
+ * La profondita' della lente della pillola: la pressione (giro di correzione di F1B). **Zero a riposo**, e cresce da
+ * zero con la pressione, come nel ramo di prima («la rifrazione e' minima a riposo», `FluidFloatingTabBar`): sopra la
+ * pillola a riposo c'e' la copia nitida dell'icona e dell'etichetta, che sfuma nel primo terzo della pressione, e una
+ * lente gia' piena le staccava dalla copia rifratta della riga nascosta, cioe' l'icona doppia vista sul tablet (S2,
+ * riga 25). Con la lente che sale insieme alla pressione, al primo fotogramma premuto le due copie coincidono.
+ */
+internal fun glassPuckLensDepth(pressed: Float): Float = clampUnit(pressed)
 
 /**
  * La pillola **premuta**, sopra la riga nascosta ([glassPuckRowProfile]) che porta già sfocatura, saturazione e

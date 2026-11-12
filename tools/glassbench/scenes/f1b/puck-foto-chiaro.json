@@ -195,7 +195,7 @@
     {
       "kind": "material",
       "name": "pillola",
-      "_ricetta": "glassRecipe: ruolo floating, 88 x 54 dp, lato chiaro, glassPuckProfile(62) (la pillola a riposo)",
+      "_ricetta": "glassRecipe: ruolo floating, 88 x 54 dp, lato chiaro, glassPuckProfile(62), glassPuckOptics, lente a profondità zero (la pillola a riposo)",
       "x": 24,
       "y": 28,
       "w": 88,
@@ -229,7 +229,7 @@
           "pieceBlend": [0],
           "pieceSmooth": [0],
           "thickness": "12.96dp",
-          "refraction": "-11.664dp",
+          "refraction": "0dp",
           "dome": 0.434211,
           "dispersion": 0,
           "magnify": 0,

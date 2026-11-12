@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.ui.glass.field.glassPuckFilm
 import dev.antigravity.fluidengine.ui.theme.resolveFluidColorScheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -86,6 +87,49 @@ class FluidPuckInkTest {
     // Moved along the line to black, never sideways: a green accent stays a green ink.
     val ink = legibleInk(Color(0xFF1F9D6B), lightFilm, onDarkSide = false)
     assertTrue("green stays the dominant channel", ink.green > ink.red && ink.green > ink.blue)
+  }
+
+  /**
+   * F1B, giro di correzione (S2: a contrasto alto l'etichetta scelta scendeva da 10,9:1 a 3,5:1). L'etichetta è testo:
+   * sopra lo standard, sul fondo che c'è davvero sotto (la pellicola densa della barra con la selezione della pillola),
+   * almeno 4,5:1; e a ogni livello mai meno contrasto di quello che l'inchiostro di prima farebbe sullo stesso fondo.
+   */
+  @Test
+  fun theSelectedLabelIsTextAtEveryContrastLevel() {
+    for (dark in listOf(false, true)) {
+      val standardFilm = if (dark) darkFilm else lightFilm
+      val tint = GlassTint(overlay = standardFilm, fallback = Color.Gray, hairline = Color.Transparent, mode = GlassTintMode.Neutral)
+      accents(isDark = dark).forEach { accent ->
+        // A contrasto standard la barra ha il velo del profilo: l'etichetta è l'inchiostro di sempre.
+        assertEquals(
+          legibleInk(accent, standardFilm, dark),
+          puckLabelInk(accent, Color.Unspecified, standardFilm, dark),
+        )
+        var lastContrast = 0f
+        for (level in listOf(FluidSystemContrast.Medium, 0.75f, FluidSystemContrast.High)) {
+          val bar = tint.forContrast(level)
+          assertEquals(GlassTintMode.Fixed, glassTintLiquidMode(bar))
+          // La pellicola di prima si ricava da quella densa. Un colore di Compose tiene l'alfa a 8 bit: invertendo, il mezzo
+          // livello si moltiplica per 1 / (1 - v).
+          val back = filmBeforeContrast(bar.overlay, level)
+          val tolerance = (1.5f / 255f) / (1f - FluidSystemContrast.veil(level))
+          assertEquals("alfa a contrasto $level", standardFilm.alpha, back.alpha, tolerance)
+          val label = puckLabelInk(accent, bar.overlay, back, dark)
+          val under = glassPuckFilm(bar.overlay, dark)
+          for (page in listOf(puckInkWorstPage(dark), greenCard, defaultPage, Color.Black, Color.White)) {
+            val behind = under.compositeOver(page)
+            val got = inkContrast(label, behind)
+            val before = inkContrast(legibleInk(accent, bar.overlay, dark), behind)
+            assertTrue("accento $accent, contrasto $level, pagina $page, dark=$dark: $got contro $before di prima", got >= before - 0.01f)
+          }
+          val reference = under.compositeOver(puckInkWorstPage(dark))
+          val got = inkContrast(label, reference)
+          assertTrue("accento $accent, contrasto $level, dark=$dark: $got", got >= PuckLabelMinContrast - 0.01f)
+          assertTrue("più contrasto non ne dà meno: $got dopo $lastContrast", got >= lastContrast - 0.01f)
+          lastContrast = got
+        }
+      }
+    }
   }
 
   private fun accents(isDark: Boolean): List<Color> = listOf(

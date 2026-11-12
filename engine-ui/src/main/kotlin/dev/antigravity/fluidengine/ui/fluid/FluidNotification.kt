@@ -60,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -1093,13 +1094,20 @@ private fun Modifier.fluidNotificationStretch(extraPx: () -> Float): Modifier =
 // La comparsa per geometria (4.0, F1B.5)
 // -------------------------------------------------------------------------------------------------
 //
-// La card arriva un poco piu' piccola e cresce. Fino alla 4.0 lo faceva uno `scaleIn(0,97)` sull'
+// La card arriva un poco piu' bassa e cresce. Fino alla 4.0 lo faceva uno `scaleIn(0,97)` sull'
 // `AnimatedVisibility`, cioe' un layer scalato sopra il vetro: il vetro della card campionava una
 // pagina che il layer poi rimpiccioliva, e mentre cresceva il fondale "respirava" dentro di lei (la
-// prima delle tre trappole del vetro in movimento, `ref/regole.md`). Adesso cresce la **sagoma**: il
-// nodo del vetro e' misurato a 0,97 della card intera e si allarga fino a lei, il vetro ricampiona la
-// pagina che ha davvero dietro a ogni passo, e il contenuto resta della sua misura (non si scala
-// niente): la sagoma gli cresce attorno, ritagliata dalla card.
+// prima delle tre trappole del vetro in movimento, `ref/regole.md`). Adesso cresce la **sagoma**.
+//
+// Una misura sola (giro di correzione di F1B): la colonna della card dichiara, in ogni fotogramma, la
+// sagoma di quel fotogramma, e vetro, `Surface`, ritaglio, ombra e materiale esportato la leggono dallo
+// stesso nodo. La prima versione restringeva il nodo del vetro a 0,97 della **larghezza** e misurava il
+// contenuto pieno: per un quarto dell'arrivo il contenuto sporgeva di mezzo 3% per lato (14-18 px sul
+// tablet) proprio dove sta il tasto di chiusura, che campiona il materiale esportato dalla card, piu'
+// stretto di lui; sul tablet erano il blocco tagliato a destra e i bordi impilati (S2, parte 2.3). Ora
+// cresce **solo l'altezza**, ancorata in alto come il `transformOrigin` di prima: la larghezza e' sempre
+// quella piena, il testo non va a capo in un altro punto, e cio' che avanza in basso (al piu' il 3%
+// dell'altezza, dentro il margine di 12 dp) lo ritaglia la stessa sagoma.
 
 /** La taglia della sagoma della card all'arrivo, in frazione della card intera: quella dello `scaleIn` di prima. */
 internal const val NotificationEnterShapeScale: Float = 0.97f
@@ -1128,49 +1136,47 @@ internal fun fluidNotificationShapeSide(fullPx: Int, scale: Float): Int {
   return (fullPx * scale.coerceAtLeast(0f) + 0.5f).toInt().coerceIn(0, fullPx)
 }
 
-/** La larghezza piena della card, scritta dalla misura esterna e letta da quella interna nello stesso passaggio. */
-private class NotificationShapeFrame {
-  var fullWidth: Int = -1
-}
+/**
+ * La misura della card in un fotogramma della comparsa: [width] x [height] e' la sagoma (vetro, `Surface`, ritaglio,
+ * ombra, materiale esportato: un nodo solo), [contentWidth] x [contentHeight] il contenuto, posato in alto a sinistra.
+ */
+internal class NotificationShapeLayout(
+  val width: Int,
+  val height: Int,
+  val contentWidth: Int,
+  val contentHeight: Int,
+)
 
 /**
- * Fuori dal vetro: la card occupa la sua larghezza piena, ma il nodo del vetro (e tutto cio' che segue nella
- * catena) e' misurato alla larghezza della sagoma, centrato. Il vetro, la `Surface` e il suo ritaglio vedono la
- * sagoma; la colonna dentro la riporta alla misura piena ([fluidNotificationShapeContent]).
+ * La regola della comparsa, pura: il contenuto misurato [width] x [contentHeight] alla sua misura; la sagoma larga
+ * quanto lui e alta [scale] di lui ([fluidNotificationShapeSide]). Mai piu' larga ne' piu' alta del contenuto.
  */
-private fun Modifier.fluidNotificationShapeFrame(frame: NotificationShapeFrame, scale: () -> Float): Modifier =
-  layout { measurable, constraints ->
-    val s = scale()
-    if (s >= 1f || !constraints.hasBoundedWidth) {
-      frame.fullWidth = -1
-      val placeable = measurable.measure(constraints)
-      return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-    }
-    val full = constraints.maxWidth
-    val width = fluidNotificationShapeSide(full, s)
-    frame.fullWidth = full
-    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
-    layout(full, placeable.height) { placeable.place((full - width) / 2, 0) }
-  }
+internal fun fluidNotificationShapeLayout(width: Int, contentHeight: Int, scale: Float): NotificationShapeLayout =
+  NotificationShapeLayout(
+    width = width,
+    height = fluidNotificationShapeSide(contentHeight, scale),
+    contentWidth = width,
+    contentHeight = contentHeight,
+  )
 
 /**
- * Dentro il vetro: il contenuto e' misurato alla larghezza **piena** della card (il testo non va a capo in un altro
- * punto mentre la card cresce), e la colonna dichiara la misura della sagoma, larga quanto il nodo del vetro e alta
- * [scale] del contenuto, ancorata in alto. Cio' che avanza lo ritaglia la card.
+ * La sagoma della card nella comparsa ([fluidNotificationShapeLayout]): va sulla colonna dentro la `Surface`, che ne
+ * prende la misura, e con lei il vetro, il ritaglio, l'ombra e il materiale esportato. Il contenuto resta della sua
+ * misura; mentre la sagoma e' piu' bassa, cio' che avanza in fondo lo ritaglia [shape] alla misura della sagoma (un
+ * layer letto in disegno, acceso solo durante la crescita: a riposo la colonna non ha un ritaglio in piu').
  */
-private fun Modifier.fluidNotificationShapeContent(frame: NotificationShapeFrame, scale: () -> Float): Modifier =
-  layout { measurable, constraints ->
-    val s = scale()
-    val full = frame.fullWidth
-    if (s >= 1f || full <= 0 || !constraints.hasBoundedWidth || full == constraints.maxWidth) {
-      val placeable = measurable.measure(constraints)
-      return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+private fun Modifier.fluidNotificationShape(shape: Shape, scale: () -> Float): Modifier =
+  this
+    .graphicsLayer {
+      val growing = scale() < 1f
+      clip = growing
+      this.shape = shape
     }
-    val placeable = measurable.measure(constraints.copy(minWidth = full, maxWidth = full))
-    val width = constraints.maxWidth
-    val height = constraints.constrainHeight(fluidNotificationShapeSide(placeable.height, s))
-    layout(width, height) { placeable.place((width - full) / 2, 0) }
-  }
+    .layout { measurable, constraints ->
+      val placeable = measurable.measure(constraints)
+      val frame = fluidNotificationShapeLayout(placeable.width, placeable.height, scale())
+      layout(frame.width, constraints.constrainHeight(frame.height)) { placeable.place(0, 0) }
+    }
 
 @Composable
 private fun FluidNotificationCard(
@@ -1249,7 +1255,6 @@ private fun FluidNotificationCard(
   }
   val expanded = drag.expanded
   val showActions = expanded && notification.actions.isNotEmpty()
-  val shapeFrame = remember { NotificationShapeFrame() }
 
   Surface(
     modifier = modifier
@@ -1274,8 +1279,6 @@ private fun FluidNotificationCard(
       // default, cioe' opaco e al suo posto: una card lanciata via e appena tolta ricomparirebbe
       // un istante, intera, dov'era. A opacita' quasi zero non si registra niente.
       .drawWithContent { if (drag.alpha > NotificationGateAlpha) drawContent() }
-      // La comparsa: la sagoma (vetro, `Surface`, ritaglio, ombra) cresce per misura, non per scala.
-      .fluidNotificationShapeFrame(shapeFrame, shapeScale)
       .then(glassModifier)
       .semantics {
         paneTitle = labels.notification
@@ -1301,8 +1304,9 @@ private fun FluidNotificationCard(
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
       Column(
         modifier = Modifier
-          // Il contenuto alla misura piena dentro la sagoma che cresce (la comparsa, qui sopra).
-          .fluidNotificationShapeContent(shapeFrame, shapeScale)
+          // La comparsa: la sagoma di questo fotogramma, per la colonna e quindi per la `Surface`, il vetro, il
+          // ritaglio e l'ombra; il contenuto alla sua misura, ritagliato dalla stessa sagoma.
+          .fluidNotificationShape(shape, shapeScale)
           // La card piena col suo materiale (F1A.13): lo stesso colore che la `Surface` dipinge, ripetuto qui
           // perche' sia anche cio' che i controlli campionano. Solo il fondo, mai il contenuto.
           .then(

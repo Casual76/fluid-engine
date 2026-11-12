@@ -1,5 +1,5 @@
 {
-  "_": "Scritta dalla ricetta (GlassPuckProfileTest, F1B.4): la tab bar e la sua pillola PREMUTA (figlia della barra: campiona pagina e corpo della barra, come la riga nascosta), fondo foto, lato scuro. Non si modifica a mano: si rigenera.",
+  "_": "Scritta dalla ricetta (GlassPuckProfileTest, F1B.4): la tab bar e la sua pillola PREMUTA a pressione 1.0 (figlia della barra: campiona pagina e corpo della barra, come la riga nascosta), fondo foto, lato scuro. Non si modifica a mano: si rigenera.",
   "width": 400,
   "height": 110,
   "density": 3,
@@ -195,7 +195,7 @@
         {
           "kind": "material",
           "name": "pillola",
-          "_ricetta": "glassRecipe: ruolo floating, 88 x 54 dp, lato scuro, glassPuckOverRowProfile(62) (la pillola premuta sopra la riga nascosta: qui sopra il corpo della barra)",
+          "_ricetta": "glassRecipe: ruolo floating, 88 x 54 dp, lato scuro, glassPuckOverRowProfile(62), glassPuckOptics, pressione 1.0 (la pillola premuta sopra la riga nascosta: qui sopra il corpo della barra)",
           "x": 4,
           "y": 4,
           "w": 88,
@@ -229,7 +229,7 @@
               "pieceBlend": [0],
               "pieceSmooth": [0],
               "thickness": "12.96dp",
-              "refraction": "-11.664dp",
+              "refraction": "-15.746dp",
               "dome": 0.434211,
               "dispersion": 0,
               "magnify": 0,

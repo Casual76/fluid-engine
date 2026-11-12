@@ -75,6 +75,15 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
     role = "Le icone dell'engine (FluidIcons): Material Symbols arrotondate, peso 500, al tratto e piene.",
   ),
   FluidLicense(
+    // Dalla 4.0 il bordo dello scorrimento (`FluidScrollEdge`) usa il nucleo della sfocatura progressiva di Haze,
+    // portato come sorgente. Vedi LICENSES/Haze.md (commit, cosa abbiamo preso, cosa è cambiato).
+    name = "Haze",
+    author = "Chris Banes and the Haze project contributors — Copyright 2024–2026",
+    licence = "Apache License 2.0",
+    url = "https://github.com/chrisbanes/haze",
+    role = "Il bordo dello scorrimento: la sfocatura che cresce verso il bordo, in due passate.",
+  ),
+  FluidLicense(
     name = "Inter",
     author = "Rasmus Andersson",
     licence = "SIL Open Font License 1.1",

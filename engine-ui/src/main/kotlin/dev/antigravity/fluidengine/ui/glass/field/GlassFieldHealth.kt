@@ -99,6 +99,10 @@ internal object GlassShaderSources {
   val Light1 = GlassShaderSource("GlassLight1ShaderString", GlassLight1ShaderString)
   val Light8 = GlassShaderSource("GlassLight8ShaderString", GlassLight8ShaderString)
 
+  // La striscia del bordo dello scorrimento (F2.4, `GlassScrollEdgeShader.kt`): una sorgente per le due passate.
+  // Non decide se il materiale è `Liquid`: se il compilatore la rifiuta resta la fascia di prima, e solo quella.
+  val EdgeBlur = GlassEdgeBlurSource
+
   /** Il vetro di oggi e Fluid-physics: ciò che c'era prima della 4.0.0. Nessuno di questi si scalda. */
   val today: List<GlassShaderSource> = listOf(
     RoundedRectRefraction,
@@ -115,9 +119,9 @@ internal object GlassShaderSources {
   /**
    * I programmi del materiale `Liquid`: ognuno sta in una famiglia del riscaldamento (`GlassWarmFamily`), e
    * `ShaderSourceLintTest.everyRegisteredSourceIsOfTodayOrWarmedByExactlyOneFamily` fallisce se una sorgente
-   * nuova non sta né qui né in [today], o se sta qui senza una famiglia o in più d'una. È così che la striscia del bordo (F2.4) entrerà nel riscaldamento il giorno in cui si registra.
+   * nuova non sta né qui né in [today], o se sta qui senza una famiglia o in più d'una. È così che la striscia del bordo (F2.4) è entrata nel riscaldamento il giorno in cui si è registrata.
    */
-  val liquid: List<GlassShaderSource> = listOf(Body1, Body8, BodyRing, Light1, Light8)
+  val liquid: List<GlassShaderSource> = listOf(Body1, Body8, BodyRing, Light1, Light8, EdgeBlur)
 
   /**
    * Ciò che serve a una superficie di Fluid-physics per disegnarsi col materiale nuovo (F1B.1): il corpo a otto

@@ -103,7 +103,10 @@ internal enum class GlassWarmStep {
   GroupLight,
 
   /** Il corpo ad anello (F1B.1: la goccia in viaggio, le sagome libere), sulla stessa catena a monte. */
-  RingBody;
+  RingBody,
+
+  /** La striscia del bordo dello scorrimento (F2.4): le due passate in catena, come le costruisce il suo nodo. */
+  EdgeBlur;
 
   /** La sorgente del programma che questo passo compila. */
   val source: GlassShaderSource
@@ -113,6 +116,7 @@ internal enum class GlassWarmStep {
       GroupBody -> GlassShaderSources.Body8
       GroupLight -> GlassShaderSources.Light8
       RingBody -> GlassShaderSources.BodyRing
+      EdgeBlur -> GlassShaderSources.EdgeBlur
     }
 
   val family: GlassWarmFamily get() = GlassWarmFamily.entries.first { this in it.steps }
@@ -122,9 +126,9 @@ internal enum class GlassWarmStep {
  * Una famiglia: i programmi che servono insieme a una cosa che può stare in scena. Si scalda per intero o per
  * niente: se il compilatore ne rifiuta uno, la cosa resta `Classic` e scaldare gli altri non serve.
  *
- * La **striscia del bordo dello scorrimento** (due passate, il programma più caro a freddo: 43–51 ms) entra qui come
- * famiglia sua quando esisterà (F2.4): `GlassShaderSources.liquid` e `ShaderSourceLintTest` non lasciano registrare
- * un programma nuovo del materiale senza una famiglia.
+ * La **striscia del bordo dello scorrimento** (due passate, il programma più caro a freddo: 43–51 ms) è una
+ * famiglia sua (F2.4): `GlassShaderSources.liquid` e `ShaderSourceLintTest` non lasciano registrare un programma
+ * nuovo del materiale senza una famiglia.
  */
 internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>) {
   /** La lastra ferma: tasti, capsule, menu, pannelli. La chiede ogni albero che vuole `Liquid` (vedi sopra). */
@@ -135,7 +139,13 @@ internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>) {
    * Fluid-physics che si disegna col materiale nuovo, quando entra in composizione (F1B.1). Si scalda anche con
    * `FluidGlassDiagnostics.warmUpNow`, ed è così che il test strumentato la prova.
    */
-  Group(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight, GlassWarmStep.RingBody));
+  Group(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight, GlassWarmStep.RingBody)),
+
+  /**
+   * La striscia del bordo dello scorrimento (F2.4): il programma più caro a freddo (43–51 ms in S1). La chiede
+   * `FluidScrollEdge` quando entra in composizione e può disegnare.
+   */
+  ScrollEdge(listOf(GlassWarmStep.EdgeBlur));
 
   val sources: List<GlassShaderSource> get() = steps.map { it.source }
 }
@@ -720,6 +730,11 @@ internal object GlassOffscreenWarmer {
             drawRect(brush = brush)
           }
         }
+        GlassWarmStep.EdgeBlur -> frame.recordBody(
+          glassScrollEdgeWarmEffect(d, side) ?: error("${GlassShaderSources.EdgeBlur.name} non è disponibile"),
+          0f,
+          1f,
+        )
       }
       frame.submit(blocking, handler, onReleased)
     } catch (t: Throwable) {

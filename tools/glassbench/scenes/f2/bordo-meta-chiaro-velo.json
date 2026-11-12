@@ -1,0 +1,188 @@
+{
+ "_": "F2.4, bordo dello scorrimento: fondo grigio uniforme: il velo, come spostamento della luminanza verso il fondo. Scritta da artifacts/liquid-glass/bench/f2-4/bordo.py, specchio di gf/GlassScrollEdgeShader.kt; GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta.",
+ "width": 360.0,
+ "height": 300.0,
+ "density": 3.0,
+ "theme": "light",
+ "palette": "engine",
+ "corner": "engine",
+ "background": {
+  "kind": "color",
+  "color": "#6E6E73"
+ },
+ "elements": [
+  {
+   "kind": "shader",
+   "name": "bordo",
+   "_bordo": {
+    "scena": "bordo-meta-chiaro-velo",
+    "nota": "fondo grigio uniforme: il velo, come spostamento della luminanza verso il fondo.",
+    "variant": "soft",
+    "side": "top",
+    "controlsDp": 88.0,
+    "unitDp": 44.0,
+    "stripDp": 137,
+    "density": 3.0,
+    "scale": 0.5,
+    "veilColor": "#F2F2F7",
+    "shadeDark": 0.0,
+    "profile": {
+     "blur_full_at": -1.5,
+     "blur_zero_at": 1.05,
+     "blur_shape": 1.4,
+     "blur_sigma": 0.084,
+     "blur_share": 1.0,
+     "veil_scale": 0.4014,
+     "veil_reach": 1.1,
+     "veil_shape": 1.5,
+     "veil_cap": 0.7,
+     "dark_dim": 0.2,
+     "fade_from": 0.45,
+     "fade_to": 1.1
+    }
+   },
+   "source": "kotlin:GlassEdgeBlurShaderString",
+   "x": 0,
+   "y": 0,
+   "w": 360.0,
+   "h": 137,
+   "scale": 0.5,
+   "inputs": {
+    "content": {}
+   },
+   "uniforms": {
+    "axis": [
+     1,
+     0
+    ],
+    "bounds": [
+     0,
+     0,
+     "$captureSize"
+    ],
+    "centerWeight": 0.0720727,
+    "taps": [
+     [
+      1.487802,
+      0.1384419
+     ],
+     [
+      3.471562,
+      0.1178128
+     ],
+     [
+      5.455383,
+      0.0881163
+     ],
+     [
+      7.439297,
+      0.0579237
+     ],
+     [
+      9.423338,
+      0.0334649
+     ],
+     [
+      11.407537,
+      0.0169923
+     ],
+     [
+      13.391926,
+      0.007583
+     ],
+     [
+      15.376532,
+      0.002974
+     ],
+     [
+      17.0,
+      0.0006546
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "edgeLine": [
+     132.0,
+     1.0,
+     66.0
+    ],
+    "blurRamp": [
+     -1.5,
+     1.05,
+     1.4,
+     1.0
+    ],
+    "veilRamp": [
+     0.4014,
+     1.1,
+     1.5,
+     0.7
+    ],
+    "veilColor": "#F2F2F7",
+    "shade": [
+     0.0,
+     0.431881
+    ],
+    "fadeRamp": [
+     0.45,
+     1.1
+    ],
+    "amount": 1.0,
+    "finish": 0
+   },
+   "passes": [
+    {
+     "uniforms": {
+      "axis": [
+       0,
+       1
+      ],
+      "finish": 1
+     }
+    }
+   ]
+  }
+ ]
+}

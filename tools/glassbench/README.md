@@ -213,7 +213,15 @@ in una passata, e **senza ingressi** quella della luce.
 - `scale`: rende lo shader a una frazione della risoluzione e lo riporta in scala;
 - `marginDp`: allarga cattura e disegno oltre il rettangolo (una lastra che cede o viaggia); lo
   shader riceve `$offset` = -margine;
-- `clip`: ritaglia l'uscita sulla sagoma (`radius`, `corner`).
+- `clip`: ritaglia l'uscita sulla sagoma (`radius`, `corner`);
+- `passes` (F2.4): altre passate in catena sulla stessa cattura, nell'ordine, come
+  `RenderEffect.createChainEffect(questa, la precedente)`. Ognuna e' `{"uniforms": {...}}` (piu', facoltativi,
+  `source` e `input`): l'ingresso e' l'uscita della passata prima, letta in modo lineare e trasparente fuori dai
+  bordi. Con la stessa sorgente gli uniform non scritti restano quelli della passata prima, come fa l'engine con
+  la sua istanza unica dello shader. E' la striscia del bordo dello scorrimento: due passate dello stesso
+  programma (`scenes/f2/bordo-*`);
+- `children` (F2.4): lastre posate sopra lo shader che ne campionano l'uscita (fondale = pagina + uscita dello
+  shader), con coordinate relative all'elemento: i tasti di una barra sopra la striscia che la barra esporta.
 
 **La mescola a monte (via A, piano 3.6).** Con `"w"` l'ingresso passa per la catena che Android puo'
 fare con un `RenderEffect` a un solo ingresso:
@@ -749,6 +757,10 @@ shaders/             le sonde
 traces/              le tracce del banco del movimento (TRACE.md); `check` compila anche i loro `.agsl`
 glassjerk.py         il rivelatore di scatti, per riprese del tablet e fotogrammi del banco (SCATTI.md)
 tavola.py            le tavole di gusto: varianti in colonna, inquadrature in riga, ritagli di Apple
+scenes/f2/           bordo-* (F2.4): la striscia del bordo dello scorrimento in ogni variante delle tavole, le
+                     scene di misura del velo e dello scurimento, la controprova con la maschera d'alfa. Le scrive
+                     lo specchio Python di gf/GlassScrollEdgeShader.kt (F2.4: `artifacts/liquid-glass/bench/f2-4/
+                     bordo.py`); GlassScrollEdgeSceneTest rifa' gli uniform in Kotlin e li confronta
 scenes/f1a/          prova-* (prove a mano di F1A.1-F1A.4), ricetta/ e gusto/ (scritte dalla ricetta
                      dell'engine: non si modificano a mano), tavole/ (le descrizioni delle tavole)
 golden/classic/      immagini di riferimento del vetro di oggi, manifesto, scene proprie

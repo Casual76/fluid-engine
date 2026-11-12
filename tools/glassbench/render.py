@@ -2113,6 +2113,30 @@ def render_shader(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     paint.setBlendMode(skia.BlendMode.kSrc)
     layer.getCanvas().drawRect(skia.Rect.MakeWH(cw, ch), paint)
     result = layer.makeImageSnapshot()
+    # F2.4: altre passate sulla stessa cattura, nell'ordine (`RenderEffect.createChainEffect(questa, la prima)`).
+    # L'ingresso di una passata e' l'uscita della precedente, letta in modo lineare e trasparente fuori dai bordi.
+    # Con la stessa sorgente gli uniform non scritti restano quelli della passata prima: e' cio' che fa l'engine,
+    # che ha un'istanza sola dello shader per sorgente e la riscrive prima di fotografarla nell'effetto.
+    previous_uniforms = dict(el.get("uniforms") or {})
+    for index, step in enumerate(el.get("passes") or []):
+        source = step.get("source", el["source"])
+        uniforms = dict(previous_uniforms) if source == el["source"] else {}
+        uniforms.update(step.get("uniforms") or {})
+        chained = ctx.shaders.program(source)
+        for name, value in uniforms.items():
+            chained.set(name, uniform_value(scaled, value, builtins))
+        if not chained.child_names:
+            raise ValueError(f"`{source}`: una passata in catena deve avere un ingresso")
+        chained.set_child(step.get("input", chained.child_names[0]), image_shader(result))
+        layer = new_surface(cw, ch)
+        paint = skia.Paint()
+        paint.setShader(chained.make())
+        paint.setBlendMode(skia.BlendMode.kSrc)
+        layer.getCanvas().drawRect(skia.Rect.MakeWH(cw, ch), paint)
+        if ctx.stages is not None:
+            ctx.stages[f"{tag}-passata-{index + 1}"] = result
+        result = layer.makeImageSnapshot()
+        previous_uniforms = uniforms
     if ctx.stages is not None:
         ctx.stages[f"{tag}-uscita"] = result
 
@@ -2141,6 +2165,17 @@ def render_shader(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
     place_content(screen, ctx, el, x, y, w, h, f"{tag}-contenuto")
     place_content_layers(screen, ctx, el, x, y, w, h, tag, shape=shape, mask=draw_output,
                          default="alpha" if program.child_names else "none")
+    # F2.4: lastre che stanno sopra lo shader e ne campionano l'uscita, come i tasti di una barra campionano la
+    # striscia del bordo che la barra esporta (`exports`): fondale = pagina + uscita dello shader, mai il contenuto.
+    children = el.get("children") or []
+    if children:
+        stack = new_surface(backdrop.width(), backdrop.height())
+        stack.getCanvas().drawImage(backdrop, 0, 0)
+        draw_output(stack.getCanvas(), layer_paint(el))
+        stack_image = stack.makeImageSnapshot()
+        for i, child in enumerate(children):
+            render_element(ctx, child, screen, stack_image, origin=(x, y),
+                           tag=child.get("name", f"{tag}-{i}"))
 
 
 def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,

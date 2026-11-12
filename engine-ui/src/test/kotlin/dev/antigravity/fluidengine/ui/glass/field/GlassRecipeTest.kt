@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassBlurFloor
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.glassSizeGain
@@ -785,5 +786,242 @@ class GlassRecipeTest {
     assertEquals(1.44f, oldButton.paddingDp, 1e-4f)
     assertEquals(GlassLiquidMinCaptureScale, oldButton.captureScale, 0f)
     assertEquals(GlassLiquidVeils.DarkLighter.color, panel(dark = true, profile = before).veilColor)
+  }
+
+  // ---- Il materiale adattivo (F2.2) ---------------------------------------------------------------------------
+
+  /** Ogni campo della ricetta, per confrontarne due al bit (Float e Color in scatola: NaN uguale a NaN). */
+  private fun fields(recipe: GlassRecipe): Map<String, Any?> =
+    GlassRecipe::class.java.declaredFields
+      .filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }
+      .onEach { it.isAccessible = true }
+      .associate { it.name to it.get(recipe) }
+
+  private fun assertSameRecipe(where: String, expected: GlassRecipe, actual: GlassRecipe) {
+    val a = fields(expected)
+    val b = fields(actual)
+    assertTrue("$where: la ricetta non ha campi?", a.size > 40)
+    for ((name, value) in a) assertEquals("$where: $name", value, b[name])
+  }
+
+  private fun measured(
+    luminance: Float,
+    deviation: Float = 0f,
+    texture: Float = 0f,
+    color: Color = Color(luminance, luminance, luminance),
+  ): GlassAdaptiveMaterial = GlassAdaptiveMaterial().measure(luminance, deviation, texture, color)
+
+  private val shapes = listOf(
+    Triple(GlassRole.Interactive, 44f to 44f, GlassDefaults.buttonOptics()),
+    Triple(GlassRole.Floating, 156f to 56f, GlassDefaults.optics(GlassRole.Floating)),
+    Triple(GlassRole.Bar, 360f to 62f, GlassDefaults.optics(GlassRole.Bar)),
+    Triple(GlassRole.Modal, 170f to 192f, GlassDefaults.panelOptics(compact = true)),
+    Triple(GlassRole.Modal, 330f to 380f, GlassDefaults.panelOptics()),
+    Triple(GlassRole.Content, 300f to 96f, GlassDefaults.optics(GlassRole.Content)),
+    Triple(GlassRole.Interactive, 26f to 26f, GlassDefaults.buttonOptics()),
+  )
+
+  @Test
+  fun withoutAMeasureAndWithTheCursorInTheMiddleTheRecipeIsTheOneOfBeforeToTheBit() {
+    // Il vincolo di F2.2: finché la sonda non misura (o non c'è), e col cursore a metà, niente cambia aspetto.
+    var cases = 0
+    for ((role, size, optics) in shapes) {
+      for (dark in listOf(false, true)) {
+        for (variant in GlassLiquidVariant.entries) {
+          for ((film, tint) in listOf(
+            Color.Unspecified to Color.Unspecified,
+            Color(0x80FBFBFB) to Color.Unspecified,
+            Color.Unspecified to Color(0xF2DE000C),
+          )) {
+            for (nested in listOf(false, true)) {
+              for ((intensity, quality) in listOf(1f to 1f, 0.4f to 0.6f)) {
+                fun recipe(adaptive: GlassAdaptiveMaterial?, preference: Float) = glassRecipe(
+                  role = role, widthDp = size.first, heightDp = size.second, darkSide = dark, variant = variant,
+                  optics = optics, intensity = intensity, quality = quality, pressed = 0.3f, film = film, tint = tint,
+                  nested = nested, adaptive = adaptive, preference = preference,
+                )
+                val before = recipe(null, FluidGlassPreference.Default)
+                val where = "$role ${size.first}x${size.second} scuro=$dark $variant film=${film.isSpecifiedOrNot()} " +
+                  "tinta=${tint.isSpecifiedOrNot()} annidata=$nested"
+                assertSameRecipe("$where, adattivo vuoto", before, recipe(GlassAdaptiveMaterial(), FluidGlassPreference.Default))
+                assertSameRecipe("$where, cursore non finito", before, recipe(null, Float.NaN))
+                val side = GlassAdaptiveMaterial().also { it.darkness = if (dark) 1f else 0f }
+                assertSameRecipe("$where, lato esplicito", before, recipe(side, FluidGlassPreference.Default))
+                cases++
+              }
+            }
+          }
+        }
+      }
+    }
+    assertEquals(7 * 2 * 2 * 3 * 2 * 2, cases)
+  }
+
+  private fun Color.isSpecifiedOrNot(): String = if (this == Color.Unspecified) "no" else "sì"
+
+  @Test
+  fun theContinuousSideIsTheBlendOfTheTwoSidesAndTheSideAtItsEnds() {
+    for ((role, size, optics) in shapes) {
+      fun recipe(darkness: Float, darkSide: Boolean = false) = glassRecipe(
+        role = role, widthDp = size.first, heightDp = size.second, darkSide = darkSide, optics = optics,
+        adaptive = GlassAdaptiveMaterial().also { it.darkness = darkness },
+      )
+      val light = glassRecipe(role = role, widthDp = size.first, heightDp = size.second, darkSide = false, optics = optics)
+      val dark = glassRecipe(role = role, widthDp = size.first, heightDp = size.second, darkSide = true, optics = optics)
+      // Il lato continuo vince sul lato del tema: a zero è il chiaro anche se il tema è scuro.
+      assertSameRecipe("$role a 0", light, recipe(0f, darkSide = true))
+      assertSameRecipe("$role a 1", dark, recipe(1f, darkSide = false))
+      assertSameRecipe("$role oltre 1", dark, recipe(3f))
+      for (t in listOf(0.25f, 0.5f, 0.74f)) {
+        assertSameRecipe("$role a $t", lerpGlassRecipe(light, dark, t), recipe(t))
+      }
+    }
+    // Senza un contenitore di riserva la ricetta se lo alloca; con, lo usa e non tocca il risultato.
+    val scratch = GlassRecipe()
+    val a = glassRecipe(role = GlassRole.Modal, widthDp = 170f, heightDp = 192f, darkSide = false,
+      adaptive = GlassAdaptiveMaterial().also { it.darkness = 0.4f })
+    val b = glassRecipe(role = GlassRole.Modal, widthDp = 170f, heightDp = 192f, darkSide = false,
+      adaptive = GlassAdaptiveMaterial().also { it.darkness = 0.4f }, scratch = scratch)
+    assertSameRecipe("con o senza contenitore di riserva", a, b)
+  }
+
+  @Test
+  fun overADarkBackdropTheLightVeilHasAFloor() {
+    // Sul nero il vetro chiaro di Apple sta a 136–143 (R4 A6): il velo deve arrivare all'alfa che porta il corpo a
+    // 0,55 di luma, cioè 0,55 / luma del velo (0,961).
+    val black = capsuleMeasured(measured(0f))
+    val veilLuma = 0.2126f * 0xF5 / 255f + 0.7152f * 0xF5 / 255f + 0.0722f * 0xF7 / 255f
+    assertEquals(0.55f / veilLuma, black.veilColor.alpha, ColourStep)
+    assertEquals(capsule().veilColor.copy(alpha = 1f), black.veilColor.copy(alpha = 1f))
+    // Sopra la pagina chiara, sopra un grigio medio uniforme e sopra il testo nero su bianco non serve niente.
+    for (luma in listOf(0.95f, 0.5f)) assertEquals(capsule().veilColor, capsuleMeasured(measured(luma)).veilColor)
+    assertEquals(capsule().veilColor, capsuleMeasured(measured(0.85f, deviation = 0.05f, texture = 1f)).veilColor)
+    // Metà nero e metà bianco: la parte scura è il nero, e il pavimento la guarda.
+    assertEquals(black.veilColor, capsuleMeasured(measured(0.443f, deviation = 0.443f)).veilColor)
+    // Il lato scuro non ha pavimento, e la variante limpida non ha velo.
+    assertEquals(capsule(dark = true).veilColor, capsuleMeasured(measured(0f), dark = true).veilColor)
+    assertEquals(0f, capsuleMeasured(measured(0f), variant = GlassLiquidVariant.Clear).veilColor.alpha, 0f)
+  }
+
+  private fun capsuleMeasured(
+    material: GlassAdaptiveMaterial,
+    dark: Boolean = false,
+    variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
+    profile: GlassLiquidProfile = default,
+  ) = glassRecipe(
+    role = GlassRole.Floating, widthDp = 156f, heightDp = 56f, darkSide = dark, variant = variant, profile = profile,
+    adaptive = material,
+  )
+
+  @Test
+  fun overALightBackdropTheSmallDarkVeilBecomesTheLargeOne() {
+    // Sulla pagina scura il velo scuro dei piccoli resta la scelta di Alessio; sopra un grigio medio passa a quello
+    // dei grandi, perché il testo chiaro si legga (F2-e: 3,7 → 6,1 contro il 5,5 di ieri).
+    assertEquals(capsule(dark = true).veilColor, capsuleMeasured(measured(0.05f), dark = true).veilColor)
+    assertEquals(GlassLiquidVeils.DarkLarge.color, capsuleMeasured(measured(0.5f), dark = true).veilColor)
+    val partly = capsuleMeasured(measured(0.25f), dark = true).veilColor
+    assertTrue(partly.red < capsule(dark = true).veilColor.red && partly.red > GlassLiquidVeils.DarkLarge.color.red)
+    // Sul lato chiaro non c'è un velo dei grandi: niente cambia.
+    assertEquals(capsule().veilColor, capsuleMeasured(measured(0.5f)).veilColor)
+  }
+
+  @Test
+  fun overTextTheShadowGrowsWithTheSameShapeAndAHeadroom() {
+    val flat = capsuleMeasured(measured(0.95f))
+    val text = capsuleMeasured(measured(0.88f, deviation = 0.1f, texture = 1f))
+    // Sul piatto l'ombra è quella di serie; sul testo ×4,9 (R4 A3), e la forma non cambia.
+    assertEquals(capsule().shadowAmbientAlpha, flat.shadowAmbientAlpha, 0f)
+    assertEquals(capsule().shadowAmbientAlpha * 4.9f, text.shadowAmbientAlpha, 1e-5f)
+    assertEquals(flat.shadowAmbientRadiusDp, text.shadowAmbientRadiusDp, 0f)
+    assertEquals(flat.shadowOffsetYDp, text.shadowOffsetYDp, 0f)
+    // A metà trama, a metà strada.
+    val half = capsuleMeasured(measured(0.9f, texture = 0.5f))
+    assertEquals(capsule().shadowAmbientAlpha * 2.95f, half.shadowAmbientAlpha, 1e-5f)
+    // Il tetto: l'ombra B scura (0,18) non va oltre 0,45.
+    val darkText = capsuleMeasured(measured(0.88f, texture = 1f), dark = true)
+    assertEquals(GlassLiquidShadowOnTextCap, darkText.shadowContactAlpha + darkText.shadowAmbientAlpha, 1e-5f)
+    // La variante C della tavola: nessun rinforzo.
+    val none = default.copy(adaptive = default.adaptive.copy(shadowOnText = GlassLiquidAdaptives.ShadowOnTextNone))
+    assertEquals(capsule().shadowAmbientAlpha, capsuleMeasured(measured(0.88f, texture = 1f), profile = none).shadowAmbientAlpha, 0f)
+    // La variante limpida non si adatta.
+    val clear = capsuleMeasured(GlassAdaptiveMaterial(), variant = GlassLiquidVariant.Clear)
+    assertEquals(clear.shadowAmbientAlpha,
+      capsuleMeasured(measured(0.88f, texture = 1f), variant = GlassLiquidVariant.Clear).shadowAmbientAlpha, 0f)
+  }
+
+  @Test
+  fun theShadowTakesTheHueOfASaturatedBackdropAndStaysBlackOnANeutralOne() {
+    for (grey in listOf(0f, 0.5f, 1f)) {
+      assertEquals(Color.Black, capsuleMeasured(measured(grey)).shadowColor)
+    }
+    val red = capsuleMeasured(measured(0.3f, color = Color(0.9f, 0.1f, 0.1f))).shadowColor
+    assertTrue("rossa: $red", red.red > red.green && red.red > red.blue && red.red < 0.4f)
+    // Spenta (shadowHue 0) resta nera anche sul rosso.
+    val off = default.copy(adaptive = default.adaptive.copy(shadowHue = 0f))
+    assertEquals(Color.Black, capsuleMeasured(measured(0.3f, color = Color(0.9f, 0.1f, 0.1f)), profile = off).shadowColor)
+  }
+
+  @Test
+  fun clearDimsByThirtyFivePercentAndCanFollowTheBackdrop() {
+    val clear = capsuleMeasured(GlassAdaptiveMaterial(), variant = GlassLiquidVariant.Clear)
+    assertEquals(1f, clear.mix, 0f)
+    assertEquals(0.35f, clear.dim, 0f)
+    assertEquals(0.35f, capsuleMeasured(measured(0.05f), variant = GlassLiquidVariant.Clear).dim, 0f)
+    // La C della tavola 4: piena sul chiaro, niente sul già scuro.
+    val follows = default.copy(adaptive = GlassLiquidAdaptives.ClearDimFollows)
+    assertEquals(0.35f, capsuleMeasured(measured(0.9f), variant = GlassLiquidVariant.Clear, profile = follows).dim, 1e-6f)
+    assertEquals(0f, capsuleMeasured(measured(0.05f), variant = GlassLiquidVariant.Clear, profile = follows).dim, 0f)
+    assertEquals(0.35f, capsuleMeasured(GlassAdaptiveMaterial(), variant = GlassLiquidVariant.Clear, profile = follows).dim, 0f)
+  }
+
+  @Test
+  fun aTintedSlabCanCastItsColourAndWearALightRim() {
+    val tint = Color(0xF2DE000C)
+    fun tinted(profile: GlassLiquidProfile = default) = glassRecipe(
+      role = GlassRole.Interactive, widthDp = 110f, heightDp = 48f, darkSide = false,
+      optics = GlassDefaults.buttonOptics(), tint = tint, profile = profile,
+    )
+    val plain = tinted()
+    assertEquals(Color.Black, plain.shadowColor)
+    assertEquals(GlassLiquidEdges.Ios27.rim, plain.rimDark)
+    val halo = tinted(default.copy(adaptive = GlassLiquidAdaptives.TintHalo))
+    assertEquals(tint.copy(alpha = 1f), halo.shadowColor)
+    assertEquals(plain.rimDark, halo.rimDark)
+    val ios26 = tinted(default.copy(adaptive = GlassLiquidAdaptives.TintHaloAndRim))
+    // Il filo è la tinta schiarita: più chiaro e meno saturo del corpo (R4 A7).
+    assertTrue(ios26.rimDark.green > 0.3f && ios26.rimDark.red > 0.9f)
+    assertEquals(GlassLiquidTintRimAlpha, ios26.rimDark.alpha, ColourStep)
+    // Una pellicola dipinta com'è non è una tinta: niente alone.
+    val film = glassRecipe(role = GlassRole.Interactive, widthDp = 110f, heightDp = 48f, darkSide = false,
+      optics = GlassDefaults.buttonOptics(), film = tint, profile = default.copy(adaptive = GlassLiquidAdaptives.TintHalo))
+    assertEquals(Color.Black, film.shadowColor)
+  }
+
+  @Test
+  fun theUserCursorMovesTheFrostAndTheVeilAndNotTheCapture() {
+    fun at(preference: Float) = glassRecipe(
+      role = GlassRole.Floating, widthDp = 156f, heightDp = 56f, darkSide = false, preference = preference,
+    )
+    val middle = at(FluidGlassPreference.Default)
+    val clear = at(0f)
+    val coloured = at(1f)
+    assertEquals(middle.blurDp * 0.3f, clear.blurDp, 1e-4f)
+    assertEquals(middle.blurDp * 2.67f, coloured.blurDp, 1e-3f)
+    assertEquals(middle.veilColor.alpha * 0.92f, clear.veilColor.alpha, ColourStep)
+    assertEquals(middle.veilColor.alpha * 1.3f, coloured.veilColor.alpha, ColourStep)
+    // La risoluzione la fissa l'innesto in composizione: il cursore non la tocca.
+    assertEquals(middle.captureScale, clear.captureScale, 0f)
+    assertEquals(middle.captureScale, coloured.captureScale, 0f)
+    // Il margine segue il raggio: con 12 dp su una banda di 13,4 dp ancora zero, su un tasto no.
+    val buttonColoured = glassRecipe(role = GlassRole.Interactive, widthDp = 44f, heightDp = 44f, darkSide = false,
+      optics = GlassDefaults.buttonOptics(), preference = 1f)
+    assertEquals(buttonColoured.blurDp - buttonColoured.thicknessDp, buttonColoured.paddingDp, 1e-4f)
+    // In mezzo, sale sempre.
+    var last = 0f
+    for (step in 0..10) {
+      val blur = at(step / 10f).blurDp
+      assertTrue("a ${step / 10f}: $blur dopo $last", blur > last)
+      last = blur
+    }
   }
 }

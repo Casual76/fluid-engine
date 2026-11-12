@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassBlurFloor
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -29,6 +30,7 @@ import dev.antigravity.fluidengine.ui.fluid.glassResolutionScale
 import dev.antigravity.fluidengine.ui.fluid.glassSizeGain
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 
 /**
  * La variante di vetro, nel senso di Apple. Il tipo pubblico (`FluidGlass.Regular` / `Clear` / `Identity`)
@@ -175,7 +177,229 @@ internal class GlassRecipe {
 }
 
 /**
+ * Ciò che lo sfondo chiede al materiale (F2.2, piano 3.9): gli ingressi **adattivi** della ricetta, già filtrati e
+ * animati da chi possiede la sonda (`rememberGlassAdaptiveState`, in `ui/fluid/FluidGlassAdaptive.kt`). Come
+ * [GlassRecipe] è un contenitore che chi chiama **riusa**: si riempie prima di ogni ricetta, senza allocare.
+ *
+ * Due specie di numeri:
+ *  - [darkness] è il **lato**, continuo: 0 = il lato chiaro del profilo, 1 = lo scuro, in mezzo la mescola delle due
+ *    ricette. Non finito = il lato del tema (`darkSide`). Vale anche senza misura: è il punto a cui si aggancia il
+ *    giro dei piccoli (F2.3), che lo anima coi tempi di R4 B6; per i grandi lo scrive l'adattività stessa (la quota di
+ *    nero, [glassBlackShare]);
+ *  - tutto il resto vale **solo** con [measured] vero. Con [measured] falso la ricetta è quella del lato, al bit.
+ *
+ * @property luminance la luminanza media dello sfondo (0..1).
+ * @property darkLevel la luma della **parte scura** dello sfondo (0..1): [glassAdaptiveDarkLevel]. Decide il
+ *   pavimento del velo chiaro ([GlassLiquidAdaptive.lightFloor]).
+ * @property lightLevel la luma della **parte chiara** dello sfondo: decide quanto il velo scuro dei piccoli passa a
+ *   quello dei grandi ([GlassLiquidAdaptive.darkDeepenFrom]).
+ * @property texture quanto lo sfondo è fitto, 0..1 (`GlassBackdropStats.texture`): l'ombra sul testo.
+ * @property color il colore medio dello sfondo: il colore dell'ombra ([GlassLiquidAdaptive.shadowHue]).
+ */
+internal class GlassAdaptiveMaterial {
+  var measured: Boolean = false
+  var darkness: Float = Float.NaN
+  var luminance: Float = Float.NaN
+  var darkLevel: Float = Float.NaN
+  var lightLevel: Float = Float.NaN
+  var texture: Float = 0f
+  var color: Color = Color.Unspecified
+
+  /** Nessuna misura e il lato del tema: la ricetta di oggi. Restituisce sé stesso. */
+  fun unmeasured(): GlassAdaptiveMaterial {
+    measured = false
+    darkness = Float.NaN
+    luminance = Float.NaN
+    darkLevel = Float.NaN
+    lightLevel = Float.NaN
+    texture = 0f
+    color = Color.Unspecified
+    return this
+  }
+
+  /**
+   * Una misura: la luminanza media [luminance] e la sua deviazione standard [deviation] (0..1), la trama [texture], il
+   * colore medio [color]. Le due parti dello sfondo le ricava [glassAdaptiveDarkLevel] con lo scarto [spread] del
+   * profilo. Il lato ([darkness]) non lo tocca. Restituisce sé stesso.
+   */
+  fun measure(
+    luminance: Float,
+    deviation: Float,
+    texture: Float,
+    color: Color,
+    spread: Float = GlassLiquidAdaptives.Shipped.darkLevelSpread,
+  ): GlassAdaptiveMaterial {
+    measured = luminance.isFinite()
+    this.luminance = luminance
+    darkLevel = glassAdaptiveDarkLevel(luminance, deviation, spread)
+    lightLevel = glassAdaptiveLightLevel(luminance, deviation, spread)
+    this.texture = if (texture.isFinite()) clampGlassUnit(texture) else 0f
+    this.color = color
+    return this
+  }
+}
+
+/**
+ * La luma della parte **scura** dello sfondo: [spread] deviazioni standard sotto la media, mai sotto zero. Su un fondo
+ * uniforme è la media; su metà nero e metà bianco è zero, cioè il pavimento del velo chiaro guarda il nero, che è dove
+ * il corpo chiaro si legge peggio. Non finito se la media non lo è.
+ */
+internal fun glassAdaptiveDarkLevel(luminance: Float, deviation: Float, spread: Float): Float {
+  if (!luminance.isFinite()) return Float.NaN
+  val dev = if (deviation.isFinite()) max(deviation, 0f) else 0f
+  return clampGlassUnit(luminance - max(spread, 0f) * dev)
+}
+
+/** La luma della parte **chiara** dello sfondo: [spread] deviazioni standard sopra la media. Vedi [glassAdaptiveDarkLevel]. */
+internal fun glassAdaptiveLightLevel(luminance: Float, deviation: Float, spread: Float): Float {
+  if (!luminance.isFinite()) return Float.NaN
+  val dev = if (deviation.isFinite()) max(deviation, 0f) else 0f
+  return clampGlassUnit(luminance + max(spread, 0f) * dev)
+}
+
+/**
+ * La **quota di nero** sotto un vetro, 0..1, dalla luminanza media [luminance] e dalla sua varianza [variance] della
+ * miniatura: ciò che fa scurire i grandi (R4 A6: il velo segue la quota di nero).
+ *
+ * La media da sola non la dà: metà nero e metà bianco e un grigio uniforme hanno la stessa media, e il grigio non deve
+ * scurire niente (sarebbe il testo sopra un pannello chiaro letto su un corpo grigio: F2-e). Due stime, e vale la più
+ * alta:
+ *  - **due parti**: se lo sfondo è nero per una quota `q` e chiaro (a qualunque livello) per il resto, allora
+ *    `varianza / (varianza + media²) = q` esattamente. Un fondo uniforme ha varianza zero e dà zero;
+ *  - **tutto scuro**: un fondo scuro uniforme (la pagina scura, una foto notturna) non ha due parti, ma è nero quanto
+ *    basta: da [GlassAdaptiveUniformDarkFrom] di media in giù la quota sale fino a uno a [GlassAdaptiveUniformDarkTo].
+ *
+ * Il testo nero su una pagina bianca (media 0,85, deviazione 0,03–0,06 sulla miniatura 16×16) dà meno dell'1%.
+ */
+internal fun glassBlackShare(luminance: Float, variance: Float): Float {
+  if (!luminance.isFinite()) return 0f
+  val m = clampGlassUnit(luminance)
+  val v = if (variance.isFinite()) max(variance, 0f) else 0f
+  val parts = if (v + m * m > 1e-6f) v / (v + m * m) else 0f
+  val uniform = clampGlassUnit(
+    (GlassAdaptiveUniformDarkFrom - m) / (GlassAdaptiveUniformDarkFrom - GlassAdaptiveUniformDarkTo),
+  )
+  return clampGlassUnit(max(parts, uniform))
+}
+
+/**
+ * L'alfa che il velo [veil] deve avere perché il corpo, sopra uno sfondo di luma [darkLevel], non scenda sotto la luma
+ * [floor]: `(floor − sfondo) / (velo − sfondo)`, nelle luma sRGB pesate come nello shader. Zero se non serve (sfondo già
+ * sopra il pavimento, o un velo che non ci arriva). Il corpo è `velo · a + sfondo · (1 − a)` prima dell'ispessimento
+ * per pixel (`veilAdapt`), che può solo aggiungere: il pavimento resta un pavimento.
+ */
+internal fun glassVeilFloorAlpha(veil: Color, darkLevel: Float, floor: Float): Float {
+  if (!darkLevel.isFinite() || !(floor > 0f)) return 0f
+  val v = 0.2126f * veil.red + 0.7152f * veil.green + 0.0722f * veil.blue
+  val b = clampGlassUnit(darkLevel)
+  if (!(v > floor) || !(b < floor)) return 0f
+  return clampGlassUnit((floor - b) / (v - b))
+}
+
+/**
+ * Quanto il velo scuro dei piccoli è passato a quello dei grandi, 0..1, con la parte chiara dello sfondo a luma
+ * [lightLevel] (un passo morbido fra [GlassLiquidAdaptive.darkDeepenFrom] e [GlassLiquidAdaptive.darkDeepenTo]).
+ */
+internal fun glassAdaptiveDeepen(lightLevel: Float, adaptive: GlassLiquidAdaptive): Float {
+  if (!lightLevel.isFinite() || !(adaptive.darkDeepenTo > adaptive.darkDeepenFrom)) return 0f
+  val t = clampGlassUnit((lightLevel - adaptive.darkDeepenFrom) / (adaptive.darkDeepenTo - adaptive.darkDeepenFrom))
+  return t * t * (3f - 2f * t)
+}
+
+/**
+ * Il colore dell'ombra sopra uno sfondo di colore medio [backdrop]: [base] (il nero del profilo) che va verso una tinta
+ * profonda dello stesso colore (portato a [GlassAdaptiveShadowShade] sul canale più forte) per la saturazione dello
+ * sfondo per [hue]. Un'ombra nera su un colore saturo lo ingrigisce; questa lo scurisce restando sua (R3 cap. 6: «ombre
+ * colorate dal colore medio»). Su uno sfondo **neutro** (bianco, grigio, nero) restituisce [base] al bit.
+ */
+internal fun glassAdaptiveShadowColor(base: Color, backdrop: Color, hue: Float): Color {
+  if (!(hue > 0f) || !backdrop.isSpecified) return base
+  val r = backdrop.red
+  val g = backdrop.green
+  val b = backdrop.blue
+  val hi = max(r, max(g, b))
+  val chroma = hi - min(r, min(g, b))
+  if (!(chroma > 0f) || !(hi > 0f)) return base
+  val k = GlassAdaptiveShadowShade / hi
+  val shade = Color(red = r * k, green = g * k, blue = b * k, alpha = base.alpha)
+  return lerpSrgb(base, shade, clampGlassUnit(chroma * hue))
+}
+
+/**
+ * Di quanto si moltiplicano le alfa dell'ombra sopra uno sfondo di trama [texture] (0 = piatto, 1 = testo o foto):
+ * in linea da uno a [onText], ma mai oltre il tetto [GlassLiquidShadowOnTextCap] sulla somma delle due alfa, che senza
+ * rinforzo è [restTotal] (e un'ombra già oltre il tetto non scende). Uno al bit sopra uno sfondo piatto.
+ */
+internal fun glassShadowOnText(texture: Float, onText: Float, restTotal: Float): Float {
+  if (!(texture > 0f) || !(onText > 1f)) return 1f
+  val wanted = 1f + (onText - 1f) * clampGlassUnit(texture)
+  if (!(restTotal > 0f)) return wanted
+  return min(wanted, max(1f, GlassLiquidShadowOnTextCap / restTotal))
+}
+
+/**
+ * Quanto scurisce la variante limpida, in frazione di [GlassLiquidClearDim], sopra uno sfondo di luminanza media
+ * [luminance]: uno di serie (il 35% sempre: HIG); con [follow] a uno, pieno sopra uno sfondo chiaro e niente sopra
+ * uno già scuro («su contenuto già scuro non serve»: R1 M2), con un passo morbido fra luma 0,15 e 0,6.
+ */
+internal fun glassClearDimScale(luminance: Float, follow: Float): Float {
+  if (!(follow > 0f) || !luminance.isFinite()) return 1f
+  val t = clampGlassUnit((luminance - GlassClearDimDarkBelow) / (GlassClearDimBrightAbove - GlassClearDimDarkBelow))
+  val bright = t * t * (3f - 2f * t)
+  return 1f - clampGlassUnit(follow) * (1f - bright)
+}
+
+/** Sotto questa luminanza media lo scurimento di `Clear` che segue lo sfondo è nullo. Vedi [glassClearDimScale]. */
+internal const val GlassClearDimDarkBelow: Float = 0.15f
+
+/** Sopra questa è pieno. Vedi [glassClearDimScale]. */
+internal const val GlassClearDimBrightAbove: Float = 0.6f
+
+/**
+ * Il raggio di sfocatura col cursore dell'utente a [preference] (0..1), come multiplo di quello del profilo: **uno al
+ * bit** a metà corsa (e per un valore non finito), [GlassLiquidPreference.frostClear] a zero,
+ * [GlassLiquidPreference.frostColored] a uno, in mezzo per moltiplicazione (un raggio si percepisce in proporzione: da
+ * 1,35 a 4,5 dp è lo stesso passo che da 4,5 a 15).
+ */
+internal fun glassPreferenceFrost(preference: Float, profile: GlassLiquidPreference): Float {
+  if (!preference.isFinite()) return 1f
+  val p = clampGlassUnit(preference)
+  return when {
+    p == FluidGlassPreference.Default -> 1f
+    p < FluidGlassPreference.Default ->
+      max(profile.frostClear, 0f).pow(1f - p / FluidGlassPreference.Default)
+    else -> max(profile.frostColored, 0f).pow((p - FluidGlassPreference.Default) / (1f - FluidGlassPreference.Default))
+  }
+}
+
+/**
+ * L'alfa del velo col cursore dell'utente a [preference], come multiplo di quella del profilo: uno al bit a metà
+ * corsa, in linea verso [GlassLiquidPreference.veilClear] e [GlassLiquidPreference.veilColored].
+ */
+internal fun glassPreferenceVeil(preference: Float, profile: GlassLiquidPreference): Float {
+  if (!preference.isFinite()) return 1f
+  val p = clampGlassUnit(preference)
+  return when {
+    p == FluidGlassPreference.Default -> 1f
+    p < FluidGlassPreference.Default -> profile.veilClear + (1f - profile.veilClear) * (p / FluidGlassPreference.Default)
+    else -> 1f + (profile.veilColored - 1f) * (p - FluidGlassPreference.Default) / (1f - FluidGlassPreference.Default)
+  }
+}
+
+/**
  * La ricetta del materiale `Liquid`.
+ *
+ * ### Il lato, la sonda, il cursore (F2.2)
+ * - [adaptive] porta il **lato continuo** (`darkness`: fra 0 e 1 la ricetta è la mescola, campo per campo, della
+ *   ricetta del lato chiaro e di quella del lato scuro, con [lerpGlassRecipe]; agli estremi è quella del lato, al bit)
+ *   e, se la sonda ha misurato, ciò che lo sfondo chiede: il pavimento del velo chiaro, il velo scuro dei piccoli che
+ *   passa a quello dei grandi, l'ombra più forte sul testo e col colore dello sfondo, lo scurimento di `Clear`. Vedi
+ *   [GlassLiquidAdaptive]. La variante limpida non ha comportamento adattivo (R1 M2), salvo il suo scurimento;
+ * - [preference] è il **cursore dell'utente** (`LocalFluidGlassPreference`): a metà non tocca niente, verso zero toglie
+ *   diffusione, verso uno ne aggiunge e ispessisce il velo ([GlassLiquidPreference]). Non tocca la risoluzione della
+ *   cattura, che l'innesto fissa in composizione dal ruolo (vedi `captureScale`);
+ * - un vetro **tinto** (`tint`) prende, se il profilo lo chiede, l'ombra del suo colore e il filo chiaro di iOS 26
+ *   ([GlassLiquidAdaptive.tintHalo], [GlassLiquidAdaptive.tintRim]: di serie spenti).
  *
  * ### Cosa decide chi
  * - il **profilo** decide l'aspetto: velo, bordo, ombra, smerigliatura, lente, e di quanto crescono i grandi;
@@ -236,7 +460,12 @@ internal class GlassRecipe {
  *   dalla taglia ([glassLiquidLargeVeilGain]). Lo passa solo una superficie che viaggia (F1B.2,
  *   `PhysicsLargeVeil`): fra un tasto e un pannello il lato corto attraversa la fascia dei due veli in due o tre
  *   fotogrammi, e il velo che lo seguiva cambiava di colpo.
+ * @param adaptive ciò che lo sfondo chiede al materiale (F2.2): il lato continuo e, se c'è, la misura della sonda. Null
+ *   (di serie) = il lato [darkSide] e nessuna misura, cioè la ricetta di prima, al bit.
+ * @param preference il cursore dell'utente, 0..1; di serie a metà ([FluidGlassPreference.Default]), dove non tocca niente.
  * @param out il contenitore da riscrivere; di serie uno nuovo.
+ * @param scratch un secondo contenitore per la ricetta dell'altro lato, quando il lato è a metà strada; se manca e
+ *   serve, se ne alloca uno. Chi chiama a ogni fotogramma ne tiene uno.
  */
 internal fun glassRecipe(
   role: GlassRole,
@@ -254,7 +483,54 @@ internal fun glassRecipe(
   nested: Boolean = false,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   largeVeil: Float = Float.NaN,
+  adaptive: GlassAdaptiveMaterial? = null,
+  preference: Float = FluidGlassPreference.Default,
   out: GlassRecipe = GlassRecipe(),
+  scratch: GlassRecipe? = null,
+): GlassRecipe {
+  val darkness = adaptive?.darkness ?: Float.NaN
+  val side = if (darkness.isFinite()) clampGlassUnit(darkness) else if (darkSide) 1f else 0f
+  val live = adaptive?.takeIf { it.measured }
+  if (side <= 0f || side >= 1f) {
+    return glassRecipeSide(
+      role, widthDp, heightDp, side >= 1f, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
+      nested, profile, largeVeil, live, preference, out,
+    )
+  }
+  glassRecipeSide(
+    role, widthDp, heightDp, false, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
+    nested, profile, largeVeil, live, preference, out,
+  )
+  val dark = glassRecipeSide(
+    role, widthDp, heightDp, true, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
+    nested, profile, largeVeil, live, preference, scratch ?: GlassRecipe(),
+  )
+  return lerpGlassRecipe(out, dark, side, out)
+}
+
+/**
+ * La ricetta di **un lato**: tutto ciò che [glassRecipe] dice, con il lato deciso. [live] è la misura della sonda, o
+ * null se non c'è (allora i soli ingressi che contano sono quelli di prima di F2.2, più il cursore).
+ */
+private fun glassRecipeSide(
+  role: GlassRole,
+  widthDp: Float,
+  heightDp: Float,
+  darkSide: Boolean,
+  variant: GlassLiquidVariant,
+  optics: GlassOptics,
+  intensity: Float,
+  opticalDepth: Float,
+  quality: Float,
+  pressed: Float,
+  film: Color,
+  tint: Color,
+  nested: Boolean,
+  profile: GlassLiquidProfile,
+  largeVeil: Float,
+  live: GlassAdaptiveMaterial?,
+  preference: Float,
+  out: GlassRecipe,
 ): GlassRecipe {
   val amount = clampGlassUnit(intensity)
   val q = clampGlassUnit(quality)
@@ -262,13 +538,19 @@ internal fun glassRecipe(
   val short = finiteSide(min(widthDp, heightDp))
   val gain = glassSizeGain(short) * clampGlassUnit(optics.sizeResponse)
   val clear = variant == GlassLiquidVariant.Clear
+  // Ciò che la sonda chiede al corpo, all'ombra e al velo: niente per la variante limpida, che non ha comportamento
+  // adattivo (R1 M2) salvo il suo scurimento.
+  val adapt = profile.adaptive
+  val sensed = if (clear) null else live
 
   // ---- La catena ---------------------------------------------------------------------------------------------
   val frost = profile.frost
   // La smerigliatura del ruolo, prima della regola della taglia: è anche quella su cui si decide la
-  // risoluzione della cattura (vedi `captureScale`).
+  // risoluzione della cattura (vedi `captureScale`). Il cursore dell'utente non ci entra: la risoluzione la fissa
+  // l'innesto in composizione dal ruolo, e la ricetta deve dire lo stesso numero.
   val roleBlur = frost.blur.value * glassOpticsFrost(optics.blurScale, glassLiquidRoleBlurScale(role))
-  val fullBlur = roleBlur * (1f + profile.growth.frost * gain)
+  // A metà corsa il cursore vale uno, e per uno si moltiplica al bit.
+  val fullBlur = roleBlur * (1f + profile.growth.frost * gain) * glassPreferenceFrost(preference, profile.preference)
   out.blurDp = fullBlur * (FluidGlassBlurFloor + (1f - FluidGlassBlurFloor) * q)
   out.mix = 1f - (1f - (if (clear) 1f else clampGlassUnit(frost.mix))) * amount
   // `vibrancy` 1 resta «nessun filtro»; quella di serie (1,6) dà la saturazione del profilo; in mezzo, in
@@ -303,15 +585,26 @@ internal fun glassRecipe(
   // stesso), senza scatti: un tasto largo e una card piccola restano vicini.
   val veil = profile.veil(darkSide)
   val bigVeil = profile.largeVeil(darkSide)
-  val large = if (largeVeil.isFinite()) clampGlassUnit(largeVeil) else glassLiquidLargeVeilGain(short)
+  var large = if (largeVeil.isFinite()) clampGlassUnit(largeVeil) else glassLiquidLargeVeilGain(short)
+  // Il velo scuro dei piccoli passa a quello dei grandi sopra uno sfondo che ha una parte chiara (F2.2): sul chiaro
+  // `largeVeil` è lo stesso velo dei piccoli, e qui non cambia niente.
+  if (sensed != null && darkSide) large = max(large, glassAdaptiveDeepen(sensed.lightLevel, adapt))
   // Annidata: il materiale sotto ha già il suo velo; del velo di questa lastra ne resta la frazione del profilo.
   // Si moltiplica l'alfa e non il colore: il grigio resta quello del velo, scende quanto copre.
   val nesting = if (nested) profile.nesting(darkSide) else null
   val sharedVeil = lerpSrgb(veil.color, bigVeil.color, large)
-  val veilColor = if (nesting == null) {
+  var veilColor = if (nesting == null) {
     sharedVeil
   } else {
     sharedVeil.copy(alpha = sharedVeil.alpha * clampGlassUnit(nesting.veil))
+  }
+  // Il cursore dell'utente: a metà corsa vale uno, e il velo non si tocca.
+  val veilScale = glassPreferenceVeil(preference, profile.preference)
+  if (veilScale != 1f) veilColor = veilColor.copy(alpha = clampGlassUnit(veilColor.alpha * veilScale))
+  // Il pavimento del velo chiaro (F2.2): il corpo non scende sotto `lightFloor` sopra la parte scura dello sfondo.
+  if (sensed != null && !darkSide) {
+    val floor = glassVeilFloorAlpha(veilColor, sensed.darkLevel, adapt.lightFloor)
+    if (floor > veilColor.alpha) veilColor = veilColor.copy(alpha = floor)
   }
   out.materialize = amount
   val fixedFilm = film.isSpecified
@@ -336,7 +629,7 @@ internal fun glassRecipe(
   out.bodyShadeDepthDp = min(mixFloat(veil.shadeDepth.value, bigVeil.shadeDepth.value, large), short / 2f)
   out.bodyShadeLeanX = mixFloat(veil.shadeLeanX, bigVeil.shadeLeanX, large)
   out.bodyShadeLeanY = mixFloat(veil.shadeLeanY, bigVeil.shadeLeanY, large)
-  out.dim = if (clear) GlassLiquidClearDim else 0f
+  out.dim = if (clear) GlassLiquidClearDim * glassClearDimScale(live?.luminance ?: Float.NaN, adapt.clearDimFollow) else 0f
   out.grain = GlassLiquidGrain
   out.aa = GlassLiquidAa
 
@@ -367,6 +660,16 @@ internal fun glassRecipe(
   out.lightColor = edge.light
   out.glowPeak = GlassLiquidGlowPeak
   out.glowFill = GlassLiquidGlowFill
+  // Il filo di un vetro tinto (`Colored`), se il profilo lo chiede: la tinta schiarita e meno satura di iOS 26 (R4 A7).
+  val tinted = tint.isSpecified && !fixedFilm
+  if (tinted && adapt.tintRim > 0f) {
+    val lighter = lerpSrgb(tint.copy(alpha = 1f), Color.White, GlassLiquidTintRimLighten)
+    out.rimDark = lerpSrgb(
+      out.rimDark,
+      lighter.copy(alpha = GlassLiquidTintRimAlpha * lightAmount),
+      clampGlassUnit(adapt.tintRim),
+    )
+  }
 
   // ---- L'ombra -----------------------------------------------------------------------------------------------
   // Cresce con la regola della taglia, cala sotto i piccoli se il profilo lo chiede, e segue intensità,
@@ -379,18 +682,30 @@ internal fun glassRecipe(
   val small = clampGlassUnit(
     (short - GlassLiquidSmallShadowStartDp) / (GlassLiquidSmallShadowEndDp - GlassLiquidSmallShadowStartDp),
   )
-  val shadowAmount = amount * edgeAmount *
+  // Sopra uno sfondo fitto (testo, foto) l'ombra si rinforza (R4 A3: ×4,9 in iOS 26), con la stessa forma: cambiano
+  // solo le due alfa, insieme, quindi il nodo non rifà le maschere (le alfa le mette il layer in disegno).
+  // Il rinforzo ha un tetto ([GlassLiquidShadowOnTextCap]): l'ombra B scura (0,18) per ×4,9 farebbe una nube.
+  val restAmount = amount * edgeAmount *
     glassOpticsDimmer(optics.shadowAlpha, GlassLiquidFullShadowAlpha) *
     (1f + growth.alpha * gain) *
     (profile.smallShadow + (1f - profile.smallShadow) * small) *
     (if (nesting == null) 1f else clampGlassUnit(nesting.shadow))
+  val shadowAmount = restAmount *
+    glassShadowOnText(sensed?.texture ?: 0f, adapt.shadowOnText, (shadow.contactAlpha + shadow.ambientAlpha) * restAmount)
   out.shadowContactRadiusDp = shadow.contactRadius.value * reach
   out.shadowAmbientRadiusDp = shadow.ambientRadius.value * reach
   out.shadowOffsetXDp = shadow.offset.x.value * reach
   out.shadowOffsetYDp = shadow.offset.y.value * reach
   out.shadowContactAlpha = clampGlassUnit(shadow.contactAlpha * shadowAmount)
   out.shadowAmbientAlpha = clampGlassUnit(shadow.ambientAlpha * shadowAmount)
-  out.shadowColor = shadow.color
+  // Il colore: quello del profilo; con la sonda prende la tonalità dello sfondo (mai su uno sfondo neutro); un vetro
+  // tinto, se il profilo lo chiede, proietta l'alone del suo colore (R4 A7). Il colore lo mette il layer in disegno.
+  var shadowColor = shadow.color
+  if (sensed != null) shadowColor = glassAdaptiveShadowColor(shadowColor, sensed.color, adapt.shadowHue)
+  if (tinted && adapt.tintHalo > 0f) {
+    shadowColor = lerpSrgb(shadowColor, tint.copy(alpha = shadowColor.alpha), clampGlassUnit(adapt.tintHalo))
+  }
+  out.shadowColor = shadowColor
   return out
 }
 

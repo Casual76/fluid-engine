@@ -1,0 +1,508 @@
+{
+  "_": "F2.2, scritta da artifacts/liquid-glass/bench/f2-2/adattivo.py (specchio di glassRecipe col materiale adattivo; GlassAdaptiveSceneTest la confronta con l'engine). Non si modifica a mano: si rigenera. Tavola 4, B: clear.",
+  "width": 400,
+  "height": 130,
+  "density": 3,
+  "palette": "engine",
+  "corner": "engine",
+  "theme": "light",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "page": [
+    {
+      "kind": "background",
+      "x": 0,
+      "y": 0,
+      "w": 200,
+      "h": 130,
+      "background": {
+        "kind": "synthetic",
+        "lift": 0.18,
+        "contrast": 0.9
+      }
+    },
+    {
+      "kind": "background",
+      "x": 200,
+      "y": 0,
+      "w": 200,
+      "h": 130,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 80,
+        "detail": 0.5,
+        "contrast": 0.8,
+        "lift": -0.085,
+        "palette": [
+          "#3A3028",
+          "#5A4A3A",
+          "#2A2622",
+          "#4A4038",
+          "#30302E"
+        ]
+      }
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "name": "capsula-chiara",
+      "_ricetta": "F2.2, specchio di glassRecipe: capsula (floating), lato chiaro, variante limpida, sonda: luma 0.833, dev 0.120, trama 1.00",
+      "x": 22,
+      "y": 37,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 34,
+          "offsetDp": [
+            0,
+            6.7
+          ],
+          "alpha": 0.09,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 4.5,
+        "w": 1,
+        "paddingDp": 0,
+        "scale": 0.73
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.421053,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#F5F5F700",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0,
+            -0.6
+          ],
+          "dim": 0.35,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              0,
+              0
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "156dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              0,
+              0
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "156dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "icons": [
+        "fluid:arrow_back|back",
+        "fluid:add|plus",
+        "fluid:circle|circle"
+      ],
+      "contentColor": "#FFFFFF",
+      "_adattivo": {
+        "base": "capsula",
+        "benchRole": "floating",
+        "w": 156.0,
+        "h": 56.0,
+        "dark": false,
+        "darkness": null,
+        "measured": true,
+        "preference": 0.5,
+        "variant": "clear",
+        "tint": null,
+        "adaptive": {
+          "shadowOnText": 4.9,
+          "shadowHue": 0.5,
+          "clearDimFollow": 0.0,
+          "tintHalo": 0.0,
+          "tintRim": 0.0,
+          "lightFloor": 0.55
+        },
+        "luminance": 0.832857,
+        "deviation": 0.12012,
+        "variance": 0.01442883,
+        "gradient": 0.065752,
+        "texture": 1.0,
+        "color": "#F1D765"
+      }
+    },
+    {
+      "kind": "material",
+      "name": "capsula-scura",
+      "_ricetta": "F2.2, specchio di glassRecipe: capsula (floating), lato chiaro, variante limpida, sonda: luma 0.204, dev 0.039, trama 0.17",
+      "x": 222,
+      "y": 37,
+      "w": 156,
+      "h": 56,
+      "radius": "capsule",
+      "clip": true,
+      "shadow": [
+        {
+          "radiusDp": 34,
+          "offsetDp": [
+            0,
+            6.7
+          ],
+          "alpha": 0.09,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 4.5,
+        "w": 1,
+        "paddingDp": 0,
+        "scale": 0.73
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            0,
+            0
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0
+          ],
+          "thickness": "13.44dp",
+          "refraction": "-12.096dp",
+          "dome": 0.421053,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#F5F5F700",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0,
+            -0.6
+          ],
+          "dim": 0.35,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              0,
+              0
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "156dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              0,
+              0
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": "$center",
+            "glowRadius": "156dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "icons": [
+        "fluid:arrow_back|back",
+        "fluid:add|plus",
+        "fluid:circle|circle"
+      ],
+      "contentColor": "#FFFFFF",
+      "_adattivo": {
+        "base": "capsula",
+        "benchRole": "floating",
+        "w": 156.0,
+        "h": 56.0,
+        "dark": false,
+        "darkness": null,
+        "measured": true,
+        "preference": 0.5,
+        "variant": "clear",
+        "tint": null,
+        "adaptive": {
+          "shadowOnText": 4.9,
+          "shadowHue": 0.5,
+          "clearDimFollow": 0.0,
+          "tintHalo": 0.0,
+          "tintRim": 0.0,
+          "lightFloor": 0.55
+        },
+        "luminance": 0.203649,
+        "deviation": 0.039246,
+        "variance": 0.00154026,
+        "gradient": 0.023066,
+        "texture": 0.169186,
+        "color": "#3B332A"
+      }
+    }
+  ]
+}

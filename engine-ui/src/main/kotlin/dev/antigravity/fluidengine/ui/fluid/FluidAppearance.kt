@@ -80,6 +80,12 @@ data class FluidAppearanceStrings(
   val glassDetail: String = "Superfici di vetro dove la schermata le prevede.",
   val haptics: String = "Aptica",
   val hapticsDetail: String = "Le vibrazioni che accompagnano i tocchi.",
+  /** Il cursore del vetro (4.0): il titolo, e le parole dei due estremi e del centro. */
+  val glassPreference: String = "Aspetto del vetro",
+  val glassPreferenceDetail: String = "Da trasparente, che lascia vedere ciò che c'è dietro, a colorato.",
+  val glassPreferenceTransparent: String = "Trasparente",
+  val glassPreferenceDefault: String = "Di serie",
+  val glassPreferenceColored: String = "Colorato",
 ) {
   /** Il nome di una delle tre voci di tema. [ThemeMode.AMOLED] e' "Scuro": il nero e' un interruttore. */
   fun themeLabel(mode: ThemeMode): String = when (mode) {
@@ -214,6 +220,21 @@ object FluidAppearance {
   fun switchRows(glassRow: Boolean, haptics: Boolean): List<FluidAppearanceSwitch> = buildList {
     if (glassRow) add(FluidAppearanceSwitch.Glass)
     if (haptics) add(FluidAppearanceSwitch.Haptics)
+  }
+
+  /**
+   * Il valore del cursore del vetro in parole, per la riga e per TalkBack: «Trasparente» nel primo quinto, «Colorato»
+   * nell'ultimo, «Di serie» attorno al centro, e altrimenti la percentuale (0% = trasparente). Un valore non finito
+   * è il centro.
+   */
+  fun glassPreferenceLabel(value: Float, strings: FluidAppearanceStrings): String {
+    val v = if (value.isFinite()) value.coerceIn(0f, 1f) else FluidGlassPreference.Default
+    return when {
+      v <= 0.2f -> strings.glassPreferenceTransparent
+      v >= 0.8f -> strings.glassPreferenceColored
+      kotlin.math.abs(v - FluidGlassPreference.Default) < 0.05f -> strings.glassPreferenceDefault
+      else -> "${kotlin.math.round(v * 100f).toInt()}%"
+    }
   }
 }
 
@@ -362,6 +383,11 @@ fun FluidAccentPicker(
  * @param accent il gruppo dell'accento, con il suo selettore (3.0.4); falso per un'app con un colore solo.
  * @param haptics la riga dell'aptica (3.0.4); falso per un'app che l'ha gia' altrove. Se non resta nessuna riga
  *   nel gruppo (niente aptica e niente vetro) il gruppo non si disegna.
+ * @param glassPreference il cursore del vetro (4.0), fra trasparente (0) e colorato (1), come quello di iOS 27 in
+ *   Impostazioni › Aspetto: la riga compare solo se passi insieme questo e [onGlassPreferenceChange]. Come per
+ *   [glassEnabled], **il valore lo conserva l'app** (nessun campo nuovo in [EngineSettings]) e lo fornisce con
+ *   `LocalFluidGlassPreference` attorno al suo contenuto. Il centro ([FluidGlassPreference.Default]) e' il vetro di
+ *   serie, e il cursore ci si aggancia.
  */
 fun LazyListScope.fluidAppearanceSection(
   settings: EngineSettings,
@@ -379,6 +405,8 @@ fun LazyListScope.fluidAppearanceSection(
   pureBlack: Boolean = true,
   accent: Boolean = true,
   haptics: Boolean = true,
+  glassPreference: Float? = null,
+  onGlassPreferenceChange: ((Float) -> Unit)? = null,
 ) {
   // Una modifica che non cambia niente non e' una modifica: lo store non la riscrive e il flusso non
   // si muove per niente. Tocca la riga gia' scelta, ed e' il caso piu' comune di tutti.
@@ -462,6 +490,20 @@ fun LazyListScope.fluidAppearanceSection(
           }
         }
       }
+    }
+  }
+  // Il cursore del vetro: un gruppo suo sotto gli interruttori, perche' e' un valore e non un si' o un no (e il gruppo
+  // degli interruttori ha un tipo pubblico per le sue righe, che un valore in piu' romperebbe nelle app).
+  if (glassPreference != null && onGlassPreferenceChange != null) item(key = "$keyPrefix-glass-preference") {
+    FluidListGroup(glass = glass) {
+      FluidSliderRow(
+        title = strings.glassPreference,
+        subtitle = strings.glassPreferenceDetail,
+        value = if (glassPreference.isFinite()) glassPreference.coerceIn(0f, 1f) else FluidGlassPreference.Default,
+        onValueChange = onGlassPreferenceChange,
+        valueLabel = FluidAppearance.glassPreferenceLabel(glassPreference, strings),
+        snapValues = listOf(FluidGlassPreference.Default),
+      )
     }
   }
   if (footnote != null) {

@@ -65,8 +65,12 @@ import org.intellij.lang.annotations.Language
  *   la distanza fra lo sfondo e il velo **sul canale in cui distano di più**. È la legge che i bersagli di R5
  *   chiedono e che un velo costante non dà (su bianco e su pagina chiara il corpo di iOS 27 è quasi opaco, su
  *   un colore saturo lascia passare metà): vale per i due lati senza cambiare formula, perché un velo scuro
- *   somiglia agli sfondi scuri. Il valore lo dà il profilo ([GlassLiquidVeil.adapt]); la parte guidata dalla
- *   sonda è di F2 (piano 3.9). La forma della legge è «a occhio», 2026-11-11. **Ritoccata da F1A.5**: fino a
+ *   somiglia agli sfondi scuri. Il valore lo dà il profilo ([GlassLiquidVeil.adapt]). La parte guidata dalla
+ *   sonda (F2.2, piano 3.9) non passa di qui ma dagli stessi uniform, impostati dalla ricetta poche volte al secondo:
+ *   l'alfa di `veilColor` col pavimento del velo chiaro, il colore di `veilColor` che sul lato scuro va verso quello
+ *   dei grandi, e la mescola dei due lati ([GlassLiquidAdaptive]). Un pavimento **per pixel** chiederebbe un uniform
+ *   in più, e con lui ogni scrittore di scene del banco: la misura media basta al bersaglio di R4 A6 (vetro chiaro sul
+ *   nero 140, bersaglio 136–143; vedi `artifacts/liquid-glass/bench/f2-2/misure.md`). La forma della legge è «a occhio», 2026-11-11. **Ritoccata da F1A.5**: fino a
  *   F1A.2 la distanza era fra le sole luminanze, e accesa portava il velo sopra un giallo saturo (luminoso
  *   quanto il velo) da 0,44 a 0,77, fuori dal bersaglio più solido di R5 (M1, alta: ≈0,5 su colore saturo).
  *   Sul canale più distante il giallo resta a 0,39–0,47 e i grigi non cambiano di un livello. Con `veilAdapt`

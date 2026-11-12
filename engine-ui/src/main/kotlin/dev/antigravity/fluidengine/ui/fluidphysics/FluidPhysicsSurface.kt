@@ -195,33 +195,6 @@ fun Modifier.fluidPhysicsSurface(
   val shapeBlock: () -> Shape = remember(state) { { state.ensurePlan().shape } }
   val darkSide = GlassDefaults.isDarkSurface()
 
-  // L'ombra del ruolo, disegnata da qui (3.0) e FUORI dal layer del vetro: sta prima di
-  // `drawBackdrop` nella catena, quindi non la ritaglia il rettangolo del nodo e la sagoma la copre
-  // con il proprio fondale. Colore del lato del tema, raggio dell'ottica dichiarata, peso del
-  // materiale di adesso: a riposo e' quella di `glassSurface` di prima. Se il chiamante ne disegna gia' una
-  // (`fluidPhysicsShadow`, il modale), questa tace. Solo per il vetro di prima: col materiale nuovo l'ombra e'
-  // nel corpo (F1B.2), e questa non si monta.
-  val shadowColor = glassShadowColor(darkSide)
-  val shadowRadius = if (resolved.shadowRadius.value > 0f) resolved.shadowRadius else resolvedFrom?.shadowRadius ?: 0.dp
-  val shadowFirst = rememberGraphicsLayer()
-  val shadowSecond = rememberGraphicsLayer()
-  val shadowLayers = remember(shadowFirst, shadowSecond) { PhysicsShadowLayers(shadowFirst, shadowSecond) }
-  val shadow = remember(state, material, shadowLayers, shadowColor, shadowRadius, qualityFactor) {
-    Modifier.drawBehind {
-      if (state.externalShadows > 0) return@drawBehind
-      val amount = clampGlassUnit(currentIntensity()) * qualityFactor()
-      if (amount <= 0.001f) return@drawBehind
-      val m = material.at(currentOpticsBlend())
-      shadowLayers.draw(
-        scope = this,
-        state = state,
-        radiusPx = shadowRadius.toPx(),
-        color = shadowColor,
-        alpha = m.optics.shadowAlpha * amount,
-      )
-    }
-  }
-
   state.liquidBody = glass.liquid
   if (glass.liquid) {
     // Il materiale nuovo (4.0, F1B.1): lo stesso corpo e la stessa ricetta di `glassSurface`, sulla sagoma del
@@ -283,6 +256,36 @@ fun Modifier.fluidPhysicsSurface(
         backdropScaleFactor = qualityFactor,
         onDrawLight = surface.onDrawLight,
       )
+  }
+
+  // Giro di correzione unico di F1B (rilievo R13 del critico C): i due layer dell'ombra si creano qui, nel solo ramo
+  // del vetro di prima che li usa; col materiale nuovo l'ombra e' nel corpo, e una superficie fisica Liquid (i palchi
+  // dei menu compresi) non li crea piu'.
+  // L'ombra del ruolo, disegnata da qui (3.0) e FUORI dal layer del vetro: sta prima di
+  // `drawBackdrop` nella catena, quindi non la ritaglia il rettangolo del nodo e la sagoma la copre
+  // con il proprio fondale. Colore del lato del tema, raggio dell'ottica dichiarata, peso del
+  // materiale di adesso: a riposo e' quella di `glassSurface` di prima. Se il chiamante ne disegna gia' una
+  // (`fluidPhysicsShadow`, il modale), questa tace. Solo per il vetro di prima: col materiale nuovo l'ombra e'
+  // nel corpo (F1B.2), e questa non si monta.
+  val shadowColor = glassShadowColor(darkSide)
+  val shadowRadius = if (resolved.shadowRadius.value > 0f) resolved.shadowRadius else resolvedFrom?.shadowRadius ?: 0.dp
+  val shadowFirst = rememberGraphicsLayer()
+  val shadowSecond = rememberGraphicsLayer()
+  val shadowLayers = remember(shadowFirst, shadowSecond) { PhysicsShadowLayers(shadowFirst, shadowSecond) }
+  val shadow = remember(state, material, shadowLayers, shadowColor, shadowRadius, qualityFactor) {
+    Modifier.drawBehind {
+      if (state.externalShadows > 0) return@drawBehind
+      val amount = clampGlassUnit(currentIntensity()) * qualityFactor()
+      if (amount <= 0.001f) return@drawBehind
+      val m = material.at(currentOpticsBlend())
+      shadowLayers.draw(
+        scope = this,
+        state = state,
+        radiusPx = shadowRadius.toPx(),
+        color = shadowColor,
+        alpha = m.optics.shadowAlpha * amount,
+      )
+    }
   }
 
   val scratch = remember(state) { PhysicsUniformScratch() }

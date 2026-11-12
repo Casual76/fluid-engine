@@ -178,6 +178,7 @@ internal fun FluidAnchoredBar(
   }
   SideEffect {
     journey.backKeys = backKeys
+    journey.knownPages = shown.mapTo(HashSet()) { it.first }
     journey.recompute()
   }
   val shiftPx = with(density) { FluidPageMotion.BarTitleShiftDp.dp.toPx() }
@@ -434,8 +435,12 @@ private fun BarBackButton(state: FluidPageHostState, journey: FluidBarJourney, o
   CompositionLocalProvider(LocalFluidBarPieceSink provides sink) {
     Box(
       modifier = Modifier.graphicsLayer {
-        val upperHas = journey.hasBack(state.upper)
-        val lowerHas = journey.hasBack(state.lower)
+        // Una pagina che la barra non ha ancora composto vale come l'altra (vedi `FluidBarJourney.known`): fra B e C la
+        // freccia non si spegne per un fotogramma.
+        val upperKnown = journey.known(state.upper)
+        val lowerKnown = journey.known(state.lower)
+        val upperHas = if (upperKnown || !lowerKnown) journey.hasBack(state.upper) else journey.hasBack(state.lower)
+        val lowerHas = if (lowerKnown || !upperKnown) journey.hasBack(state.lower) else journey.hasBack(state.upper)
         val m = FluidPageMotion.barMorph(state.frontFraction())
         alpha = when {
           // Tutte e due lo hanno: fermo al pixel, sempre intero.
@@ -466,6 +471,12 @@ internal class FluidBarJourney(
   val sinks = HashMap<Any, FluidBarPieceSink>()
   var backSink: FluidBarPieceSink? = null
   var backKeys: Set<Any> = emptySet()
+
+  /**
+   * Le pagine di cui la barra ha già composto la registrazione (quelle che la sua composizione ha mostrato), scritte col
+   * `SideEffect` insieme a [backKeys]. Vedi [backInJourney].
+   */
+  var knownPages: Set<Any> = emptySet()
   var blendPx: Float = 0f
 
   /**
@@ -491,7 +502,19 @@ internal class FluidBarJourney(
   val active: Boolean get() = carrying.value
 
   /** Il tasto indietro viaggia solo se ce l'ha una pagina sola: se ce l'hanno tutte e due sta fermo. */
-  val backInJourney: Boolean get() = hasBack(state.upper) != hasBack(state.lower)
+  val backInJourney: Boolean
+    get() = known(state.upper) && known(state.lower) && hasBack(state.upper) != hasBack(state.lower)
+
+  /**
+   * Il tasto indietro viaggia solo fra due pagine che la barra ha già composto (giro di correzione unico di F1B, rilievo 1
+   * del critico D). La pila nuova arriva allo stato (`onStack`, nel `SideEffect` dell'host) dopo la composizione: per un
+   * fotogramma la cima è una pagina che la barra non ha ancora visto, e [backKeys] non la contiene. Fra B e C, che hanno
+   * tutte e due l'indietro, sembrava allora che l'indietro l'avesse una sola: col primo fotogramma del push lungo (la
+   * pagina C si compone, ~175 ms) la forma era già in viaggio, il tasto spegneva il suo vetro per una composizione e,
+   * rimontandolo, restava senza disco per 84–108 ms (sul tablet, 4 su 4 nei due temi). Una pagina non ancora composta non
+   * dice ancora niente: il tasto resta dov'è finché le due pagine non sono note.
+   */
+  fun known(page: Any?): Boolean = page == null || page in knownPages
 
   fun hasBack(page: Any?): Boolean = page != null && page in backKeys
 

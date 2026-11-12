@@ -204,6 +204,20 @@ Le modifiche fatte finora:
     Geometria, molle, trascinamento, squash, il momento in cui la riga nascosta esiste e il fermo della cattura non
     cambiano. Il ramo di Kyant resta intero e identico, e lo prende ogni barra che resta al vetro di prima.
 
+20. **Ogni giro degli effetti e' osservato** (4.0.0, `DrawBackdropModifier.kt`, giro di correzione unico di F1B di
+    `docs/liquid-glass/piano.md`; rilievi R1 e 7 dei critici). A monte `DrawBackdropNode` rifa' gli effetti all'attacco
+    e quando cambia uno stato letto in un giro precedente, sotto `observeReads`, e nel disegno quando lo scope cambia
+    (taglia, densita', scala della cattura) **fuori** dall'osservazione. All'attacco la taglia non c'e' ancora, e un
+    effetto che senza taglia esce presto legge poco o niente: le letture del giro del disegno, quello che legge tutto,
+    non rifacevano mai la catena. Ne usciva un corpo fermo mentre la luce (che si ridisegna) andava avanti, e la barra
+    fra le pagine senza vetro nei ritorni. Ora il nodo passa per `BackdropEffectsUpdates` (classe interna in fondo allo
+    stesso file): i tre giri chiamano lo stesso `observeReads { updateEffects() }`, anche quello del disegno. Tre punti
+    marcati `LOCAL CHANGE (F1B, voce 20)`: il campo del nodo, il disegno, `observeEffects`. Nessuna firma pubblica cambia;
+    a parita' di stato gli effetti producono la stessa catena di prima (il vetro di sempre disegna al pixel come prima),
+    cambia solo che, quando uno stato letto dopo la taglia cambia, la catena si rifa'. La prova e'
+    `BackdropEffectsUpdatesTest` (sul JVM, con un osservatore di snapshot vero e le superfici del materiale nuovo): con
+    la regola di monte fallisce.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

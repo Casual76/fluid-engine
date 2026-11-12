@@ -359,16 +359,25 @@ internal fun effectiveBlendRadius(blend: Float, minGap: Float): Float {
  * quando il dito cambia strada. Poi sale a uno e muore come gli altri.
  *
  * La legge il solo materiale nuovo (`PhysicsRenderPlan.fusion`): il vetro di prima tiene il suo raggio com'era.
+ *
+ * Nasce in [rise] e muore in [fade] (giro di correzione unico di F1B, rilievo 3 del critico A): fino a qui le due rampe
+ * erano la stessa, metà viaggio per parte, e il collo era pieno solo a metà strada. La nascita resta di metà viaggio (due
+ * pezzi staccati a riposo si tendono il ponte senza uno scatto, anche a 60 Hz, dove la molla corre); la morte è più corta
+ * (`GlassLiquidNeck`), così il collo c'è ancora quando i pezzi si staccano, si assottiglia e si rompe da solo.
  */
-internal fun travelFusion(t: Float, fade: Float, start: Float = 0f): Float {
+internal fun travelFusion(t: Float, fade: Float, start: Float = 0f, rise: Float = TravelFusionRise): Float {
   if (!t.isFinite()) return 0f
   val f = fade.coerceIn(0.01f, 0.5f)
+  val r = rise.coerceIn(0.01f, 0.5f)
   val p = t.coerceIn(0f, 1f)
   val s = if (start.isFinite()) start.coerceIn(0f, 1f) else 0f
-  val rise = s + (1f - s) * liquidSmoothstep(0f, f, p)
+  val born = s + (1f - s) * liquidSmoothstep(0f, r, p)
   val fall = 1f - liquidSmoothstep(1f - f, 1f, p)
-  return rise * fall
+  return born * fall
 }
+
+/** In quanta parte del viaggio nasce il collo: vedi [travelFusion]. */
+internal const val TravelFusionRise: Float = 0.5f
 
 // --- Specchi del campo di distanza -------------------------------------------
 //

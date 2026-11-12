@@ -738,14 +738,32 @@ internal object GlassLiquidGrowths {
 }
 
 /**
+ * Per quanta parte del viaggio il collo nasce e muore (`GlassLiquidTravel.neck`, giro di correzione unico di F1B,
+ * rilievo 3 del critico A): **0,32**. Era 0,5, cioè il collo pieno solo a metà viaggio e una frazione all'inizio e alla
+ * fine: in (a), un tasto che diventa due, i pezzi si staccano verso l'85% del progresso, e lì il raccordo valeva un
+ * quinto del suo raggio; il ponte viveva un fotogramma. Con 0,32 il collo è pieno da un terzo a due terzi del viaggio e
+ * all'85% ne resta circa metà: il ponte si assottiglia coi lobi tondi e si rompe da solo, perché i pezzi si allontanano,
+ * poco prima della posa. Non meno di 0,31: sotto, fra due progressi a 0,01 la fusione cambia di più di 0,05
+ * (`PhysicsLiquidTest`). Varianti da guardare con la manopola `travelneck` (0,05–0,5): 0,2 (collo più lungo), 0,5 (quello
+ * di prima).
+ *
+ * **Sul tablet il ponte resta corto** (stesso giro, aperto): in (a) la molla del playground porta i cerchi quasi alla
+ * distanza d'arrivo in ~70 ms, e la fusione segue il progresso, quindi vita e ponte durano uno o due fotogrammi a 120 Hz
+ * (le cuspidi a V non ci sono più). Né `travelneck` da 0,06 a 0,2 né un raggio del ponte proporzionato ai pezzi (provato
+ * e tolto) lo allungano: serve un collo che muore nel **tempo** verso la posa, non nel progresso.
+ */
+internal const val GlassLiquidNeck: Float = 0.32f
+
+/**
  * Le varianti del materiale **in viaggio** (F1B.1; né R4 né R5 danno numeri: B1 dice «limpido e rifrangente», a
- * occhio). Tutte hanno lo stesso collo: quanto dura è della geometria del viaggio, non di quanto è limpido.
+ * occhio). Tutte hanno lo stesso collo ([GlassLiquidNeck]): quanto dura è della geometria del viaggio, non di quanto è
+ * limpido.
  */
 internal object GlassLiquidTravels {
 
   /** Il viaggio non cambia il materiale: la sagoma si muove col vetro di riposo. È il termine di paragone. */
   val Off: GlassLiquidTravel =
-    GlassLiquidTravel(clarity = 0f, bend = 0f, dome = 0f, magnify = 0f, dispersion = 0f, neck = 0.5f)
+    GlassLiquidTravel(clarity = 0f, bend = 0f, dome = 0f, magnify = 0f, dispersion = 0f, neck = GlassLiquidNeck)
 
   /**
    * **Prudente** (di serie): un quarto di nitido nella mescola, lente una volta e mezza, la cupola a metà strada,
@@ -754,14 +772,14 @@ internal object GlassLiquidTravels {
    * sopra quella sfocata.
    */
   val Soft: GlassLiquidTravel =
-    GlassLiquidTravel(clarity = 0.25f, bend = 0.5f, dome = 0.5f, magnify = 0.035f, dispersion = 0.15f, neck = 0.5f)
+    GlassLiquidTravel(clarity = 0.25f, bend = 0.5f, dome = 0.5f, magnify = 0.035f, dispersion = 0.15f, neck = GlassLiquidNeck)
 
   /**
    * **Marcato**: metà nitido, lente doppia, cupola piena. È la lettura più letterale di B1 («limpido e molto
    * rifrangente»); sul testo la copia nitida si vede. Da guardare sui video prima di sceglierla.
    */
   val Strong: GlassLiquidTravel =
-    GlassLiquidTravel(clarity = 0.5f, bend = 1f, dome = 1f, magnify = 0.035f, dispersion = 0.3f, neck = 0.5f)
+    GlassLiquidTravel(clarity = 0.5f, bend = 1f, dome = 1f, magnify = 0.035f, dispersion = 0.3f, neck = GlassLiquidNeck)
 }
 
 /**

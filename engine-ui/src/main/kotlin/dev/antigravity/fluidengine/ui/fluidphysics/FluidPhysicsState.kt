@@ -463,6 +463,16 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     return activeTransit?.origin
   }
 
+  /**
+   * La guida esterna, se c'è: i suoi due capi e il progresso di adesso (fase di disegno). Una guida non dice **dove va**
+   * il gesto: un menu che si richiude è la stessa guida (tasto → pannello) col progresso che scende. Chi deve sapere la
+   * meta effettiva (il velo dei grandi, giro di correzione unico di F1B) la legge dal verso del progresso.
+   */
+  internal fun externalDriveNow(): PhysicsDriveNow? {
+    val drive = externalDrive ?: return null
+    return PhysicsDriveNow(drive.from, drive.to, drive.progress())
+  }
+
   /** Dove arriva il viaggio in corso, o null a riposo. */
   internal fun journeyTargetNow(): FluidForm? {
     val drive = externalDrive
@@ -725,6 +735,9 @@ fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
   state.density = LocalDensity.current.density
   return state
 }
+
+/** I capi di una guida esterna e il suo progresso in un istante: vedi [FluidPhysicsState.externalDriveNow]. */
+internal class PhysicsDriveNow(val from: FluidForm, val to: FluidForm, val progress: Float)
 
 /**
  * La guida esterna: un transito di lastre il cui orologio appartiene al chiamante. Un pezzo per

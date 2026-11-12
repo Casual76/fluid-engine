@@ -710,7 +710,17 @@ private fun RuntimeShader.setGlassField(plan: GlassFieldPlan, offsetX: Float, of
  * Se il compilatore del dispositivo rifiuta la sorgente (non dovrebbe succedere: la superficie sarebbe rimasta
  * `Classic`) resta la catena a monte, cioè un vetro smerigliato senza lente: mai un'eccezione nel disegno.
  */
+/**
+ * Per i test: chi vuole sapere quale corpo un giro degli effetti sta per installare. Sul JVM lo shader non c'è e
+ * [glassBody] esce subito, quindi una prova che legge la catena davvero installata (un giro che non chiama [glassBody]
+ * installa **niente**: `BackdropEffectScopeImpl.apply` azzera l'effetto a ogni giro) la legge da qui. Nullo in
+ * produzione: costa un confronto per catena costruita. Giro di correzione unico di F1B, rilievo R3 del critico C.
+ */
+@Volatile
+internal var glassBodyProbe: ((scope: BackdropEffectScope, inputs: GlassDrawInputs) -> Unit)? = null
+
 internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: GlassBodyChain) {
+  glassBodyProbe?.invoke(this, inputs)
   if (!isRuntimeShaderSupported()) return
   padding = inputs.paddingPx
   val upstream = chain.upstream(inputs.saturation, inputs.blurPx, inputs.mix)

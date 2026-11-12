@@ -42,6 +42,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassTravelRecipe
 import dev.antigravity.fluidengine.ui.glass.field.lerpGlassRecipe
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
@@ -456,10 +457,74 @@ internal class PhysicsLargeVeil {
     return shown
   }
 
+  /**
+   * Fermo su [value], subito (giro di correzione unico di F1B, rilievi A1, C R2 e D 8): una superficie a riposo ha il
+   * velo della sua forma. Una superficie ferma non si ridisegna, quindi un velo che a riposo «cammina ancora» resta a
+   * metà finché qualcosa non ridisegna: dopo un salto (`snapTo`, il movimento ridotto) il pannello restava col velo del
+   * tasto. Nei viaggi normali il cammino arriva prima della posa ([PhysicsLargeVeilSeconds]), quindi qui non c'è scatto.
+   */
+  fun settle(value: Float, nowNanos: Long): Float {
+    shown = clampGlassUnit(if (value.isFinite()) value else 0f)
+    goal = shown
+    lastNanos = nowNanos
+    return shown
+  }
+
   /** Dimentica: il prossimo disegno riparte dalla forma di partenza. */
   fun reset() {
     shown = Float.NaN
     goal = Float.NaN
+  }
+}
+
+/**
+ * Di quanto il progresso di una guida deve scendere sotto l'arrivo perché il gesto conti come un ritorno, e salire sopra
+ * la partenza perché conti come una riapertura: l'oltrepasso della molla d'apertura torna verso l'1 scendendo, il
+ * sottopasso di quella di chiusura (`FluidMotion.dropClose`, ζ 0,72: 3,8% sotto lo zero) torna verso lo 0 salendo, e
+ * l'uno e l'altro, rientrando, restano entro l'1%. Vedi [PhysicsDriveHeading].
+ */
+internal const val PhysicsDriveReturnMargin: Float = 0.02f
+
+/** Lo spostamento minimo del progresso fra due disegni che dice un verso. */
+internal const val PhysicsDriveHeadingEpsilon: Float = 0.0005f
+
+/**
+ * **Dove va il gesto** di una guida esterna (giro di correzione unico di F1B; rilievo 1 del critico A, R2 del critico C).
+ * Una guida è tasto → pannello per tutta la vita del menu: aprendo il progresso sale, richiudendo scende, e i capi non
+ * cambiano. Il velo dei grandi mirava al pannello anche nel ritorno, e sul tablet, in scuro, il tasto ripreso restava col
+ * velo del pannello per ~330 ms da fermo e tornava grigio in un fotogramma (−31 livelli su «Ordina», −33 su «altro»).
+ *
+ * Il verso è quello del progresso: sale, sopra la partenza di più di [PhysicsDriveReturnMargin] → verso l'arrivo; scende,
+ * sotto l'arrivo di più dello stesso margine → verso la partenza; fermo → quello di prima. L'oltrepasso che torna all'1
+ * non è un ritorno, e il sottopasso della chiusura che risale allo 0 non è una riapertura: la prima stesura contava come
+ * riapertura ogni salita, e sul tablet, in scuro, la molla della chiusura che rientra da sotto lo zero (~+420…+600 ms
+ * dal dito) riportava il velo verso il pannello per metà strada, −15 livelli sul tasto ormai fermo, poi +17 in un
+ * fotogramma alla posa, su «Ordina» e su «altro», tre chiusure su tre. Un annullo a metà è un ritorno; una riapertura
+ * durante il ritorno torna verso l'arrivo.
+ */
+internal class PhysicsDriveHeading {
+  private var last = Float.NaN
+
+  /** Vero se adesso il gesto va verso l'arrivo (`to`), falso se torna alla partenza (`from`). */
+  var towardEnd: Boolean = true
+    private set
+
+  fun update(progress: Float): Boolean {
+    if (last.isFinite() && progress.isFinite()) {
+      if (progress > last + PhysicsDriveHeadingEpsilon && progress > PhysicsDriveReturnMargin) {
+        towardEnd = true
+      } else if (progress < last - PhysicsDriveHeadingEpsilon && progress < 1f - PhysicsDriveReturnMargin) {
+        towardEnd = false
+      }
+    }
+    if (progress.isFinite()) last = progress
+    return towardEnd
+  }
+
+  /** A un capo, fermi: da lì il gesto può solo ripartire verso l'altro. */
+  fun restAt(progress: Float) {
+    last = progress
+    towardEnd = progress < 0.5f
   }
 }
 
@@ -491,11 +556,55 @@ internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassF
       topRight = plan.fieldRadii[at + 1] * scale,
       bottomRight = plan.fieldRadii[at + 2] * scale,
       bottomLeft = plan.fieldRadii[at + 3] * scale,
-      blend = if (i == 0) 0f else plan.pieceBlend[i] * fusion * scale,
+      blend = if (i == 0) 0f else physicsNeckBlend(plan, i) * fusion * scale,
       smoothing = plan.fieldSmooth[i],
     )
   }
   return out
+}
+
+/**
+ * Il raggio di fusione del pezzo [index] col già fuso, per il materiale nuovo, prima del peso del collo
+ * ([PhysicsRenderPlan.fusion]), in pixel di layout (giro di correzione unico di F1B, rilievo 3 del critico A).
+ *
+ * Il vetro di prima spegne il ponte con la compenetrazione misurata **sul raggio di fusione** (`effectiveBlendRadius`):
+ * due pezzi che si compenetrano di più di quel raggio si uniscono netti, e ai capi di una fusione (pezzi coincidenti)
+ * non resta l'alone di k/4 di uno smooth minimum. Ma il ponte serve proprio lì: un tasto che diventa due è, per quasi
+ * tutto il viaggio, due cerchi che si compenetrano, e con il ponte spento la sagoma aveva due cuspidi a V, poi due
+ * cerchi staccati in un fotogramma («due monete che scivolano», sul tablet in (a) e in (c)).
+ *
+ * Qui il raccordo resta finché c'è una V da raccordare, con due tetti che tengono via l'alone:
+ *  - **i fianchi**: due pezzi che si compenetrano di meno della somma dei raggi dei loro capi si toccano coi capi
+ *    arrotondati, e la V c'è (due cerchi: fino a coincidere); oltre, i loro fianchi dritti coincidono, non c'è una V e un
+ *    raccordo gonfierebbe il fianco comune di un quarto del suo raggio. Il raccordo si spegne nell'ultimo quarto di quella
+ *    compenetrazione;
+ *  - **i centri**: mai più di metà della distanza fra i centri. Dove i due campi differiscono di più del raggio di fusione
+ *    lo smooth minimum non gonfia niente, e sugli archi lontani dalla V differiscono quanto i centri sono lontani: così
+ *    l'alone sta solo nella V, e due pezzi che coincidono (la fine di ogni riunione) non ne hanno.
+ * Fra pezzi staccati è il raggio del gruppo, come prima.
+ */
+internal fun physicsNeckBlend(plan: PhysicsRenderPlan, index: Int): Float {
+  val nominal = plan.nominalBlend
+  if (!(nominal > 0f)) return 0f
+  val at = index * 4
+  var blend = nominal
+  for (j in 0 until index) {
+    val bt = j * 4
+    val dx = abs(plan.pieceRects[at] - plan.pieceRects[bt])
+    val dy = abs(plan.pieceRects[at + 1] - plan.pieceRects[bt + 1])
+    val depth = -max(dx - (plan.pieceRects[at + 2] + plan.pieceRects[bt + 2]), dy - (plan.pieceRects[at + 3] + plan.pieceRects[bt + 3]))
+    if (!(depth > 0f)) continue
+    val ends = physicsPieceCorner(plan, index) + physicsPieceCorner(plan, j)
+    val flanks = if (ends > 0f) 1f - liquidSmoothstep(0.75f * ends, ends, depth) else 0f
+    blend = min(blend, min(nominal * flanks, 0.5f * hypot(dx, dy)))
+  }
+  return blend
+}
+
+/** Il raggio d'angolo medio del pezzo [index] nel campo, in pixel di layout: quanto sono tondi i suoi capi. */
+private fun physicsPieceCorner(plan: PhysicsRenderPlan, index: Int): Float {
+  val at = index * 4
+  return (plan.fieldRadii[at] + plan.fieldRadii[at + 1] + plan.fieldRadii[at + 2] + plan.fieldRadii[at + 3]) / 4f
 }
 
 /**
@@ -840,6 +949,8 @@ internal class PhysicsLiquidSurface(
   private val quality: () -> Float,
   private val layoutWidth: () -> Float,
   private val onPanel: () -> Boolean,
+  /** L'istante del disegno, in nanosecondi: il velo dei grandi cammina col tempo ([PhysicsLargeVeil]). */
+  private val clock: () -> Long = System::nanoTime,
 ) {
 
   /** Il margine della cattura per tutta la vita della superficie: vedi [glassTravelPaddingDp]. */
@@ -849,6 +960,41 @@ internal class PhysicsLiquidSurface(
   private val recipes = PhysicsLiquidRecipes()
   private val chain = GlassBodyChain()
   private val largeVeil = PhysicsLargeVeil()
+  private val driveHeading = PhysicsDriveHeading()
+
+  /** Il peso del velo dei grandi dell'ultimo disegno (0..1, non finito prima del primo). Per i test. */
+  internal var largeVeilShown: Float = Float.NaN
+    private set
+
+  private fun veilGain(form: FluidForm): Float = glassLiquidLargeVeilGain(physicsFormShortPx(form) / screenDensity)
+
+  /**
+   * Il peso del velo dei grandi per questo disegno ([now]: quello della taglia di adesso). Va verso quello della forma
+   * a cui va **il gesto** a passo costante ([PhysicsLargeVeil], F1B.2), e a riposo è quello della forma ferma, subito
+   * (giro di correzione unico di F1B):
+   * - con una guida esterna (i menu, il modale, la pillola che diventa player) la meta è il capo verso cui va il
+   *   progresso ([PhysicsDriveHeading]): richiudendo un menu il velo torna a quello del tasto, e a progresso esattamente
+   *   0 o 1 (la molla del chiamante posata) è quello di quel capo;
+   * - con `morphTo` la meta è la forma d'arrivo (un ritorno a metà la cambia), e a riposo, anche dopo un salto
+   *   (`snapTo`, il movimento ridotto), è la forma ferma.
+   */
+  private fun largeVeilWeight(now: Float): Float {
+    val t = clock()
+    val drive = state.externalDriveNow()
+    if (drive != null) {
+      val from = veilGain(drive.from)
+      val to = veilGain(drive.to)
+      val p = drive.progress
+      if (p == 0f || p == 1f) {
+        driveHeading.restAt(p)
+        return largeVeil.settle(if (p == 0f) from else to, t)
+      }
+      return largeVeil.next(origin = from, target = if (driveHeading.update(p)) to else from, nowNanos = t)
+    }
+    val target = state.journeyTargetNow() ?: return largeVeil.settle(now, t)
+    val origin = state.journeyOriginNow()?.let(::veilGain) ?: now
+    return largeVeil.next(origin = origin, target = veilGain(target), nowNanos = t)
+  }
 
   // Il vetro annidato, come in `GlassLiquidSurface`: lo dice il nodo (o il fondo), al primo giro degli effetti.
   private var nestedSeen = false
@@ -875,11 +1021,8 @@ internal class PhysicsLiquidSurface(
     val q = quality()
     val press = pressState?.progress ?: 0f
     val shortDp = physicsRecipeShortPx(plan) / screenDensity
-    // Il velo dei grandi va verso quello della forma d'arrivo a passo costante (F1B.2): vedi [PhysicsLargeVeil].
-    val origin = state.journeyOriginNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it) / screenDensity) }
-    val target = state.journeyTargetNow()?.let { glassLiquidLargeVeilGain(physicsFormShortPx(it) / screenDensity) }
-    val now = glassLiquidLargeVeilGain(shortDp)
-    val large = largeVeil.next(origin = origin ?: now, target = target ?: now, nowNanos = System.nanoTime())
+    val large = largeVeilWeight(glassLiquidLargeVeilGain(shortDp))
+    largeVeilShown = large
     val recipe = physicsLiquidRecipe(
       role = role,
       material = material.at(opticsBlend()),
@@ -915,27 +1058,15 @@ internal class PhysicsLiquidSurface(
     return true
   }
 
-  /**
-   * L'intensità della catena che il layer porta adesso: quella dell'ultimo giro degli effetti che l'ha costruita. Un giro
-   * a intensità zero non tocca la catena (il nodo tiene l'effetto di prima), quindi nemmeno questo numero. Per i test.
-   */
-  internal var chainAmount: Float = 0f
-    private set
-
   /** `effects` di `drawBackdrop`: la catena del corpo, sulla cattura. */
   val effects: BackdropEffectScope.() -> Unit = {
     noteNesting(this)
-    // L'intensità si legge per prima, sempre, anche a taglia ignota (giro di correzione di F1B.2). `drawBackdrop` fa girare
-    // questi effetti sotto osservazione solo all'attacco del nodo, quando la taglia non c'è ancora, e al primo disegno, con
-    // la taglia, li rifà **fuori** dall'osservazione: se a taglia ignota si usciva prima di leggerla, nessuno guardava più
-    // l'intensità, e una superficie nata spenta restava spenta. È la barra fra le pagine nei ritorni (sul tablet 7 su 7
-    // senza vetro per tutto il viaggio): la superficie entra a intensità zero e si accende quando la forma parte.
+    // L'intensità si legge per prima, anche a taglia ignota (giro di correzione di F1B.2, riga 17 del tablet: la barra
+    // senza vetro nei ritorni). Dal giro di correzione unico la radice è chiusa nel nodo (`BackdropEffectsUpdates`: anche
+    // il giro del disegno che porta la taglia è osservato); questa lettura resta, e costa una chiamata.
     intensity()
     if (size.isSpecified && size.width > 0f && size.height > 0f) {
-      if (fill(scopeFactor(size.width, layoutWidth()), nestedSeen)) {
-        glassBody(inputs, chain)
-        chainAmount = inputs.materialize
-      }
+      if (fill(scopeFactor(size.width, layoutWidth()), nestedSeen)) glassBody(inputs, chain)
     }
   }
 

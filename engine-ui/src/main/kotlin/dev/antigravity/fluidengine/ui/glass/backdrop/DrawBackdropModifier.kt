@@ -609,6 +609,10 @@ private class DrawBackdropNode(
      */
     private var standsOnGlass = false
 
+    // LOCAL CHANGE (F1B, voce 20 di `LICENSES/AndroidLiquidGlass.md`): ogni giro degli effetti e' osservato, anche
+    // quello del disegno in cui lo scope prende la taglia. Vedi [BackdropEffectsUpdates].
+    private val effectsUpdates = BackdropEffectsUpdates(observe = { block -> observeReads(block) }, rebuild = { updateEffects() })
+
     private var graphicsLayer: GraphicsLayer? = null
 
     /**
@@ -620,8 +624,10 @@ private class DrawBackdropNode(
 
     /**
      * Fluid Engine addition (F1A.7): il materiale che la superficie disegna, per la diagnostica. Solo il materiale
-     * nuovo passa la luce ([onDrawLight]); tutto il resto (il vetro di prima, Fluid-physics, chi chiama
-     * `drawBackdrop` a mano) e' il vetro di prima.
+     * nuovo passa la luce ([onDrawLight]): sono `Liquid` le lastre di `glassSurface` e `glassControlSurface`, le
+     * superfici di Fluid-physics col materiale nuovo, la pillola e la goccia quando lo prendono; tutto il resto (il
+     * vetro di prima, Fluid-physics a `Balanced`/`Lite` o con `Classic`, chi chiama `drawBackdrop` a mano senza
+     * `onDrawLight`) e' il vetro di prima.
      */
     fun recountSurface() {
         if (isAttached) {
@@ -981,9 +987,8 @@ private class DrawBackdropNode(
             size.width,
             size.height
         )
-        if (effectScope.update(this, effectiveScale)) {
-            updateEffects()
-        }
+        // LOCAL CHANGE (F1B, voce 20): a monte `if (update) updateEffects()`, fuori dall'osservazione.
+        effectsUpdates.onDraw(scopeChanged = effectScope.update(this, effectiveScale))
 
         refreshCapture()
         onDrawBehind?.invoke(this)
@@ -1057,7 +1062,7 @@ private class DrawBackdropNode(
     }
 
     private fun observeEffects() {
-        observeReads { updateEffects() }
+        effectsUpdates.refresh() // LOCAL CHANGE (F1B, voce 20): a monte `observeReads { updateEffects() }`, uguale.
     }
 
     private fun updateEffects() {
@@ -1331,4 +1336,42 @@ private fun sameSampling(a: Backdrop, b: Backdrop): Boolean {
     if (a === b) return true
     if (a !is NestedBackdrop || b !is NestedBackdrop) return false
     return a.material === b.material && a.insertAt == b.insertAt && a.layers == b.layers
+}
+
+/**
+ * LOCAL CHANGE (F1B, giro di correzione unico; voce 20 di `LICENSES/AndroidLiquidGlass.md`): **quando** il nodo rifà gli
+ * effetti, e sotto quale osservazione.
+ *
+ * A monte gli effetti girano in tre momenti: all'attacco e quando cambia uno stato letto in un giro precedente, sotto
+ * `observeReads` (le letture del giro sono quelle che lo rifaranno); e nel disegno, quando lo scope cambia (la taglia,
+ * la densità, la scala della cattura), **fuori** dall'osservazione. All'attacco la taglia non c'è ancora: un effetto
+ * che senza taglia esce presto (il corpo del vetro nuovo, `GlassLiquidSurface.fillBody`; la superficie fisica,
+ * `PhysicsLiquidSurface.fill`) legge in quel giro poco o niente, e il giro del disegno, che legge tutto, non iscriveva
+ * niente. Da lì intensità, profondità, qualità, pressione, pellicola, tinta, miscele, la lente in moto potevano
+ * cambiare senza che la catena si rifacesse: la luce (che si ridisegna) andava avanti, il corpo restava fermo. È la
+ * radice della barra senza vetro nei ritorni (riga 17 della sessione sul tablet dopo F1B.2) e dei rilievi R1 e 7 dei
+ * critici della fase.
+ *
+ * Qui ogni giro passa da [observe]: anche quello del disegno, e anche quello che apre un ramo nuovo (una superficie
+ * che si accende legge, nel giro che la accende, gli ingressi che prima non leggeva). Le letture osservate sono
+ * sempre quelle dell'ultimo giro. Per il vetro di sempre (`Classic`) gli effetti producono la stessa catena di prima a
+ * parità di stato: cambia solo che, quando uno stato letto dopo la taglia cambia, la catena si rifà.
+ *
+ * Una classe e non due righe nel nodo perché la regola si prova sul JVM con un osservatore vero
+ * (`BackdropEffectsUpdatesTest`), senza un nodo attaccato.
+ *
+ * @param observe esegue il blocco iscrivendone le letture (nel nodo, `observeReads`).
+ * @param rebuild rifà gli effetti (nel nodo, `updateEffects`).
+ */
+internal class BackdropEffectsUpdates(
+    private val observe: (block: () -> Unit) -> Unit,
+    private val rebuild: () -> Unit,
+) {
+    /** All'attacco, e quando cambia uno stato letto nell'ultimo giro. */
+    fun refresh() = observe(rebuild)
+
+    /** Nel disegno: se lo scope è cambiato, un giro **osservato**. A monte era `rebuild()` nudo. */
+    fun onDraw(scopeChanged: Boolean) {
+        if (scopeChanged) refresh()
+    }
 }

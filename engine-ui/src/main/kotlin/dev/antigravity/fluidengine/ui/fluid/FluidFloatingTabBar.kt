@@ -91,6 +91,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
@@ -324,6 +325,11 @@ fun FluidFloatingTabBar(
         FluidRouteSignal.listen(routeView, listener)
         onDispose { FluidRouteSignal.stop(routeView, listener) }
     }
+    // LOCAL CHANGE (4.0, seguito di F2.5): la barra dice alle schermate della stessa finestra se e' piegata, perche' il
+    // bordo dello scorrimento in basso segua la sua altezza (52 dp piegata, 62 aperta). Vedi `FluidTabBarFold`.
+    val foldSignal = remember(routeView) { FluidTabBarFold.of(routeView) }
+    SideEffect { foldSignal.value = scrollConnection.isInline }
+    DisposableEffect(foldSignal) { onDispose { foldSignal.value = false } }
     var lastTabKey by remember(scrollConnection) { mutableStateOf(selectedTabKey) }
     LaunchedEffect(scrollConnection, selectedTabKey) {
         if (lastTabKey != selectedTabKey) {

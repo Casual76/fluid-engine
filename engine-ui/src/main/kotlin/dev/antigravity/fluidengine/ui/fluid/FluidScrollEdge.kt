@@ -14,10 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawPlainBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RuntimeShaderEffect
@@ -28,6 +30,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurSource
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeCaptureScale
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeUniforms
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
@@ -50,7 +53,7 @@ enum class FluidScrollEdgeSide { Top, Bottom }
 enum class FluidScrollEdgeStyle {
   /**
    * Il comportamento di serie: in alto il bordo morbido ([Soft]); in basso il velo senza sfocatura, come iOS 26 sul
-   * telefono (R1 E1). Quale dei due in basso è una scelta di Alessio ancora aperta (tavola «in basso», F2.4).
+   * telefono (R1 E1). In basso Alessio ha scelto il velo senza sfocatura ([FadeOnly]) sulla tavola «in basso» di F2.4.
    */
   Automatic,
 
@@ -182,6 +185,39 @@ fun FluidScrollEdge(
   color: Color = Color.Unspecified,
   darkContent: () -> Float = NoDarkContent,
 ) {
+  FluidScrollEdgeStrip(
+    backdrop = backdrop,
+    edge = edge,
+    height = height,
+    modifier = modifier,
+    style = style,
+    exports = exports,
+    intensity = intensity,
+    controlHeight = controlHeight,
+    color = color,
+    darkContent = darkContent,
+    split = NoSplit,
+  )
+}
+
+/**
+ * [FluidScrollEdge] con il taglio fra due pagine ([split], letto al disegno; null = nessun taglio): la usa la barra
+ * ancorata dell'host delle pagine, dove ogni pagina si porta la sua striscia mentre si muove.
+ */
+@Composable
+internal fun FluidScrollEdgeStrip(
+  backdrop: GlassBackdropState,
+  edge: FluidScrollEdgeSide,
+  height: Dp,
+  modifier: Modifier,
+  style: FluidScrollEdgeStyle,
+  exports: GlassBackdropState?,
+  intensity: () -> Float,
+  controlHeight: Dp,
+  color: Color,
+  darkContent: () -> Float,
+  split: () -> GlassScrollEdgeSplit?,
+) {
   if (!fluidScrollEdgeAvailable()) return
   val base = fluidScrollEdgeProfile(edge, style) ?: return
   // Il programma della striscia è il più caro a freddo (43–51 ms sul Tab S9): si scalda fuori schermo quando la prima
@@ -193,6 +229,7 @@ fun FluidScrollEdge(
   val veil = if (color.isSpecified) color else MaterialTheme.colorScheme.background
   val currentIntensity by rememberUpdatedState(intensity)
   val currentDark by rememberUpdatedState(darkContent)
+  val currentSplit by rememberUpdatedState(split)
   val state = remember { GlassScrollEdgeState() }
   val top = edge == FluidScrollEdgeSide.Top
   val effects: BackdropEffectScope.() -> Unit = remember(state, profile, top, height, controlHeight, veil) {
@@ -206,6 +243,7 @@ fun FluidScrollEdge(
         veil = veil,
         darkContent = currentDark(),
         amount = currentIntensity(),
+        split = currentSplit(),
       )
     }
   }
@@ -216,6 +254,8 @@ fun FluidScrollEdge(
       // Il cancello (F2.5): a intensità zero il nodo della striscia non si disegna, e quindi non cattura e non fa
       // girare le due passate. Prima di un nodo che posa con un layer: saltarne il disegno salta anche il layer.
       .drawWithContent { if (glassScrollEdgeDraws(currentIntensity())) drawContent() }
+      // Nella diagnostica la striscia si conta a parte, non come vetro di prima (dal seguito di F2.5).
+      .then(ScrollEdgeCensusElement)
       .drawPlainBackdrop(
         backdrop = backdrop.backdrop,
         shape = { RectangleShape },
@@ -226,7 +266,40 @@ fun FluidScrollEdge(
   )
 }
 
+/**
+ * Conta la striscia in `FluidGlassDiagnostics.liveScrollEdges` finché il suo nodo è attaccato, con la regola dei nodi
+ * del vetro: se la diagnostica è accesa quando si attacca. Così `liveSurfaces` non la conta come `Classic`.
+ */
+private object ScrollEdgeCensusElement : ModifierNodeElement<ScrollEdgeCensusNode>() {
+  override fun create(): ScrollEdgeCensusNode = ScrollEdgeCensusNode()
+
+  override fun update(node: ScrollEdgeCensusNode) = Unit
+
+  override fun hashCode(): Int = 0x5ced6e
+
+  override fun equals(other: Any?): Boolean = other === this
+}
+
+private class ScrollEdgeCensusNode : Modifier.Node() {
+  private var counted = false
+
+  override fun onAttach() {
+    if (FluidGlassDiagnostics.enabled) {
+      counted = true
+      FluidGlassDiagnostics.countScrollEdge(+1)
+    }
+  }
+
+  override fun onDetach() {
+    if (counted) {
+      counted = false
+      FluidGlassDiagnostics.countScrollEdge(-1)
+    }
+  }
+}
+
 private val FullScrollEdgeIntensity: () -> Float = { 1f }
+private val NoSplit: () -> GlassScrollEdgeSplit? = { null }
 private val NoDarkContent: () -> Float = { 0f }
 
 /** Sotto questa intensità la striscia non c'è: la stessa soglia della lastra (`glassPresence`). */
@@ -279,6 +352,7 @@ internal fun BackdropEffectScope.glassScrollEdge(
   veil: Color,
   darkContent: Float,
   amount: Float,
+  split: GlassScrollEdgeSplit? = null,
 ) {
   if (!isRuntimeShaderSupported()) return
   padding = 0f
@@ -295,6 +369,7 @@ internal fun BackdropEffectScope.glassScrollEdge(
     darkContent = darkContent,
     amount = amount,
     kernel = kernel,
+    split = split,
   )
   val shader = obtainEngineShader("GlassEdgeBlur", GlassEdgeBlurSource) ?: return
   state.uniforms.applyTo(shader, pass = 0)

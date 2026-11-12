@@ -101,13 +101,15 @@ class GlassScrollEdgeSceneTest {
     same("centerWeight", floatArrayOf(u.centerWeight))
     same("taps", u.taps)
     same("edgeLine", u.edgeLine)
-    same("blurRamp", u.blurRamp)
+    same("blurKnots", u.blurKnots)
+    same("blurShare", floatArrayOf(u.blurShare))
     same("veilKnots", u.veilKnots)
     same("veilKnob", u.veilKnob)
     same("grain", floatArrayOf(u.grain))
     same("shade", u.shade)
     same("fadeRamp", u.fadeRamp)
     same("amount", floatArrayOf(u.amount))
+    same("split", u.split)
     if (written["veilColor"] != veilText || u.veilColor != color(veilText)) out += "$file: colore del velo"
     // La seconda passata cambia solo direzione e finitura: il resto lo eredita, come l'istanza unica dello shader.
     @Suppress("UNCHECKED_CAST")

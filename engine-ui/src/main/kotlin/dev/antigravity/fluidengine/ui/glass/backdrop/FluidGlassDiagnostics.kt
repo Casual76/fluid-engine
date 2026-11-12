@@ -116,8 +116,29 @@ object FluidGlassDiagnostics {
    *
    * Sono queste le superfici da contare per sapere «quante lastre nuove ci sono su questa pagina»; il
    * perché di ognuna sta in [liveModelChoices].
+   *
+   * Le strisce del bordo dello scorrimento non ci sono: stanno in [liveScrollEdges] (dal seguito di F2.5; prima si
+   * contavano `Classic`, perché il loro nodo è quello di `drawPlainBackdrop`, senza la luce).
    */
-  val liveSurfaces: Map<FluidGlassModel, Int> get() = snapshot(FluidGlassModel.entries, surfaces)
+  val liveSurfaces: Map<FluidGlassModel, Int>
+    get() {
+      val out = snapshot(FluidGlassModel.entries, surfaces)
+      out[FluidGlassModel.Classic] = (out.getValue(FluidGlassModel.Classic) - scrollEdges.get()).coerceAtLeast(0)
+      return out
+    }
+
+  private val scrollEdges = java.util.concurrent.atomic.AtomicInteger()
+
+  /**
+   * Le strisce del bordo dello scorrimento vive (`FluidScrollEdge`, F2.5): una per striscia attaccata, contata con la
+   * regola dei nodi (se la diagnostica è accesa quando si attacca). Non sono vetro (nessuna lastra, nessuna luce):
+   * per questo stanno qui e non in [liveSurfaces]. Il loro nodo e i suoi layer restano in [liveNodes] e [liveLayers].
+   */
+  val liveScrollEdges: Int get() = scrollEdges.get()
+
+  internal fun countScrollEdge(delta: Int) {
+    scrollEdges.addAndGet(delta)
+  }
 
   /**
    * Le risposte vive della risoluzione del modello (`rememberFluidGlassModel`), per motivo: una per chiamata
@@ -142,7 +163,7 @@ object FluidGlassDiagnostics {
   /** I layer del vetro vivi, per tipo: creati e rilasciati dai nodi di [liveNodes]. Stesso limite. */
   val liveLayers: Map<FluidGlassLayerKind, Int> get() = snapshot(FluidGlassLayerKind.entries, layers)
 
-  private fun <K> snapshot(keys: List<K>, values: AtomicIntegerArray): Map<K, Int> {
+  private fun <K> snapshot(keys: List<K>, values: AtomicIntegerArray): MutableMap<K, Int> {
     val out = LinkedHashMap<K, Int>(keys.size)
     for ((index, key) in keys.withIndex()) out[key] = values.get(index)
     return out

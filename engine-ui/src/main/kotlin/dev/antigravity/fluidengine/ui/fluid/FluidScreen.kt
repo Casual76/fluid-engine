@@ -30,6 +30,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -48,6 +51,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -88,6 +92,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
@@ -118,6 +123,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidAdaptiveMillis
 import dev.antigravity.fluidengine.ui.glass.field.glassProbe
 import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
+import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
 import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 
 /**
@@ -837,8 +843,35 @@ private fun FluidScreenLayout(
 
   titleMorphState.FollowPageHost()
 
-  DisposableEffect(chromeController, chromeRegistration, backdrop) {
-    chromeController?.registerBackdrop(chromeRegistration, backdrop)
+  // Il bordo dello scorrimento in basso (F2.5): solo col materiale nuovo, e solo se in fondo c'è qualcosa (la tab bar,
+  // o un controllo che si è registrato). Altrove niente, come oggi: in basso la fascia non c'è mai stata.
+  val scrollEdge = fluidChromeScrollEdge()
+  val bottomEdges = if (scrollEdge) remember { FluidScreenBottomEdges() } else null
+  // Dal seguito di F2.5: la striscia in basso pubblica il contenuto già sfumato ([bottomGlass]), e la chrome (la tab
+  // bar), la barra in alto (e quindi la barra ancorata fra due pagine) e l'`overlay` (capsule, barre in basso) rifrangono
+  // la pagina con sopra quello ([chromeBackdrop]), come i tasti in alto rifrangono la striscia in alto. La striscia in
+  // basso cattura la pagina e basta: niente giri. A pagina ferma l'export non si registra di nuovo e avvisa solo quando
+  // lo fa (F2.3), quindi non costa niente.
+  val bottomGlass = key(bottomEdges != null) { if (bottomEdges != null) rememberGlassBackdrop() else null }
+  val chromeBackdrop = key(backdrop, bottomGlass) {
+    if (bottomGlass == null) backdrop else rememberCombinedGlassBackdrop(backdrop, bottomGlass)
+  }
+
+  // Dal seguito di F2.5: la lista che scorre non rifà la registrazione della pagina (si sposta il layer del contenuto,
+  // sotto `glassBackdropSource`, e il nodo che registra non ridisegna), quindi la pagina non avvisa e le sonde dei vetri
+  // che la leggono (la barra, la tab bar, i tasti) non rileggono finché qualcosa non la ridisegna: sopra un riquadro
+  // scuro arrivato scorrendo la barra restava sul lato chiaro. Lo scorrimento è un cambio dello sfondo, e lo si dice
+  // qui. Lo schedulatore della sonda raccoglie gli avvisi (al più una lettura ogni 120 ms) e tace nei movimenti veloci;
+  // a pagina ferma non ne parte nessuno.
+  LaunchedEffect(listState, bodyBackdrop) {
+    val layer = bodyBackdrop.layerBackdrop ?: return@LaunchedEffect
+    snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+      .drop(1)
+      .collect { layer.bumpRevision() }
+  }
+
+  DisposableEffect(chromeController, chromeRegistration, chromeBackdrop) {
+    chromeController?.registerBackdrop(chromeRegistration, chromeBackdrop)
     onDispose { chromeController?.unregisterBackdrop(chromeRegistration) }
   }
 
@@ -973,12 +1006,6 @@ private fun FluidScreenLayout(
     fluidGlassQualityScrollConnection(glassQuality)
   }
 
-  // Il bordo dello scorrimento in basso (F2.5): solo col materiale nuovo, e solo se in fondo c'è qualcosa (la tab bar,
-  // o un controllo che si è registrato). Altrove niente, come oggi: in basso la fascia non c'è mai stata.
-  val scrollEdge = fluidChromeScrollEdge()
-  val bottomEdges = if (scrollEdge) remember { FluidScreenBottomEdges() } else null
-  val bottomEdge = bottomEdges?.let { fluidScreenBottomEdge(LocalFluidBottomInset.current, it.registered) }
-
   CompositionLocalProvider(
     LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     LocalFluidCanvasBackdrop provides canvasBackdrop,
@@ -1093,12 +1120,12 @@ private fun FluidScreenLayout(
 
     // Sopra la lista e sotto la barra, l'overlay e la tab bar (che sta fuori, sopra la schermata).
     if (bottomEdges != null) {
-      FluidScreenBottomScrollEdge(backdrop = backdrop, edge = bottomEdge, listState = listState)
+      FluidScreenBottomScrollEdge(backdrop = backdrop, edges = bottomEdges, listState = listState, exports = bottomGlass)
     }
 
     FluidTopBar(
       title = title,
-      backdrop = backdrop,
+      backdrop = chromeBackdrop,
       barTint = null,
       collapseProgress = collapseProgress,
       activeFacet = activeFacet,
@@ -1115,7 +1142,7 @@ private fun FluidScreenLayout(
       },
     )
 
-    CompositionLocalProvider(LocalFluidPageBar provides null) { overlay(backdrop) }
+    CompositionLocalProvider(LocalFluidPageBar provides null) { overlay(chromeBackdrop) }
   }
   }
 }
@@ -1360,10 +1387,11 @@ private fun LazyListState.bottomEdgeRemainingPx(): Float {
  * La striscia in fondo a una [FluidScreen] (F2.5): sopra la tab bar o un controllo registrato il contenuto **sfuma
  * senza sfocarsi** (scelta di Alessio del 2026-11-12: `Automatic` in basso è `FadeOnly`, come iOS 26).
  *
- * Non esporta, quindi la tab bar rifrange la pagina e non il contenuto già sfumato. Esportare vorrebbe dire darle, dal
- * registro della chrome e dalla barra ancorata fra due pagine, un fondale combinato con questo export; e un export la
- * sonda dello sfondo lo legge come una sorgente che non avvisa, cioè a cadenza fissa anche a riposo (F2-f). Prima
- * serve che un export avvisi quando avvisa la pagina che cattura.
+ * Esporta in [exports] (dal seguito di F2.5, ora che un export avvisa quando si registra di nuovo): la tab bar, le
+ * capsule e la barra in basso rifrangono il contenuto già sfumato, non la pagina cruda.
+ *
+ * La tab bar si piega mentre si scorre (52 dp invece di 62, [FluidFloatingTabBarDefaults.FoldedHeight]): il bordo la
+ * segue, con il tempo della piega ([FluidMotion.GooeyMillis]), invece di restare 10 dp più su ([fluidTabBarEdgeInset]).
  *
  * Un controllo registrato che arriva o se ne va accende e spegne il bordo con la sua molla ([FluidMotion.snappy], la
  * stessa con cui la capsula entra), e mentre si spegne il bordo resta dov'era: niente scatti.
@@ -1371,9 +1399,16 @@ private fun LazyListState.bottomEdgeRemainingPx(): Float {
 @Composable
 private fun BoxScope.FluidScreenBottomScrollEdge(
   backdrop: GlassBackdropState,
-  edge: FluidScreenBottomEdge?,
+  edges: FluidScreenBottomEdges,
   listState: LazyListState,
+  exports: GlassBackdropState?,
 ) {
+  val tabBarHeight by rememberFluidTabBarHeight()
+  val edge = fluidScreenBottomEdge(
+    tabBarInset = fluidTabBarEdgeInset(LocalFluidBottomInset.current, tabBarHeight),
+    registered = edges.registered,
+    tabBarHeight = tabBarHeight,
+  )
   val last = remember { arrayOfNulls<FluidScreenBottomEdge>(1) }
   if (edge != null) last[0] = edge
   val presence = animateFloatAsState(
@@ -1396,9 +1431,50 @@ private fun BoxScope.FluidScreenBottomScrollEdge(
     edge = FluidScrollEdgeSide.Bottom,
     height = navigationBar + geometry.inset,
     modifier = Modifier.align(Alignment.BottomCenter),
+    exports = exports,
     intensity = { scrolled.value * presence.value },
     controlHeight = geometry.controlHeight,
   )
+}
+
+/**
+ * Dove sta il bordo alto della tab bar, dal fondo dello schermo sopra la barra di sistema, quando è alta
+ * [tabBarHeight]: lo spazio che la schermata le lascia ([LocalFluidBottomInset], misurato sulla barra aperta) meno quello
+ * che la piega le toglie. Zero se la schermata non ha la tab bar.
+ */
+internal fun fluidTabBarEdgeInset(bottomInset: Dp, tabBarHeight: Dp): Dp =
+  if (bottomInset > 0.dp) {
+    (bottomInset - (FluidFloatingTabBarDefaults.OpenHeight - tabBarHeight)).coerceAtLeast(0.dp)
+  } else {
+    0.dp
+  }
+
+/**
+ * Quanto è alta adesso la tab bar della finestra: 62 dp aperta, 52 piegata, e in mezzo mentre si piega (con il tempo
+ * della piega). La barra lo dice con [FluidTabBarFold]; senza una barra che lo dica, aperta.
+ */
+@Composable
+private fun rememberFluidTabBarHeight(): State<Dp> {
+  val view = LocalView.current
+  val folded = remember(view) { FluidTabBarFold.of(view) }
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  return animateDpAsState(
+    targetValue = if (folded.value) FluidFloatingTabBarDefaults.FoldedHeight else FluidFloatingTabBarDefaults.OpenHeight,
+    animationSpec = if (reducedMotion) snap() else tween(FluidMotion.GooeyMillis),
+    label = "fluidTabBarHeight",
+  )
+}
+
+/**
+ * Se la barra delle schede flottante di una finestra è piegata (dal seguito di F2.5): la scrive
+ * [FluidFloatingTabBar] (che sta accanto al contenuto, fuori dalle schermate), la legge il bordo dello scorrimento in
+ * basso di ogni [FluidScreen] della stessa finestra. Per `View`, come [FluidRouteSignal] fa nel verso opposto. Solo dal
+ * filo principale.
+ */
+internal object FluidTabBarFold {
+  private val states = java.util.WeakHashMap<android.view.View, MutableState<Boolean>>()
+
+  fun of(view: android.view.View): MutableState<Boolean> = states.getOrPut(view) { mutableStateOf(false) }
 }
 
 @Composable
@@ -1519,6 +1595,7 @@ internal fun FluidTopBar(
   val barGlass = rememberGlassBackdrop()
   val controlBackdrop = rememberCombinedGlassBackdrop(backdrop, barGlass)
   val scrollEdge = fluidChromeScrollEdge()
+  val shade = if (scrollEdge) rememberFluidScrollEdgeShade(backdrop) else NoScrollEdgeShade
 
   Box(
     modifier = Modifier
@@ -1531,9 +1608,15 @@ internal fun FluidTopBar(
       tint = tint,
       intensity = { glassIntensity.value },
       exports = barGlass,
+      shade = shade,
     )
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
+      // Il titolo segue il lato della striscia (dal seguito di F2.5): dove la barra scurisce sopra un contenuto scuro
+      // diventa chiaro, come in Apple (`f17140`, «Thailand Trip» bianco), invece di restare scuro su scuro. Le azioni lo
+      // leggono da [LocalFluidScrollEdgeShade].
+      LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade),
+      LocalFluidScrollEdgeShade provides shade,
       // Un controllo nella barra sta sul vetro della barra, non sul canvas della pagina che la barra
       // copre (3.0.1): chi chiede prima il canvas (chip, segmentato, campo di ricerca, tasto di vetro)
       // qui trova la barra.
@@ -1609,7 +1692,8 @@ internal fun fluidTopBarChromeHeight(statusBar: Dp, scrollEdge: Boolean): Dp =
  *
  * [intensity] è quella di sempre ([calculateGlassIntensity]): decide quando la striscia c'è, cioè solo quando il
  * contenuto passa sotto la barra (R1 E1). [exports] è dove la striscia pubblica il contenuto già dissolto per i tasti;
- * [tint] vale solo per la fascia: la striscia non ha pellicola.
+ * [tint] vale solo per la fascia: la striscia non ha pellicola. [split] è il taglio fra due pagine della barra ancorata
+ * (dal seguito di F2.5): ognuna si porta la sua striscia.
  */
 @Composable
 internal fun BoxScope.FluidTopBarBackground(
@@ -1618,23 +1702,43 @@ internal fun BoxScope.FluidTopBarBackground(
   tint: GlassTint,
   intensity: () -> Float,
   exports: GlassBackdropState?,
+  split: () -> GlassScrollEdgeSplit? = NoTopBarSplit,
+  shade: FluidScrollEdgeShade,
 ) {
   if (!scrollEdge) {
     FluidTopBarGlass(backdrop = backdrop, tint = tint, intensity = intensity, exports = exports)
     return
   }
   val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-  val shade = rememberFluidScrollEdgeShade(backdrop)
-  FluidScrollEdge(
+  // La sonda legge solo la barra (barra di stato e riga dei tasti), non la coda della striscia sotto (dal seguito di
+  // F2.5): decide il contenuto che sta dietro la barra, come in Apple, dove una foto scura che entra da sotto si vela e
+  // la stessa foto che riempie la barra si scurisce (`f17058` contro `f17132`). Con la coda, il riquadro che arriva
+  // dopo e il fondo chiaro ai lati tenevano sul lato chiaro una barra piena di blu.
+  if (shade !== NoScrollEdgeShade) {
+    Box(
+      Modifier
+        .align(Alignment.TopCenter)
+        .fillMaxWidth()
+        .height(statusBar + FluidScreenDefaults.ControlRowHeight)
+        .then(shade.modifier),
+    )
+  }
+  FluidScrollEdgeStrip(
     backdrop = backdrop,
     edge = FluidScrollEdgeSide.Top,
     height = statusBar + FluidScreenDefaults.ControlRowHeight,
-    modifier = Modifier.align(Alignment.TopCenter).then(shade.modifier),
+    modifier = Modifier.align(Alignment.TopCenter),
+    style = FluidScrollEdgeStyle.Automatic,
     exports = exports,
     intensity = intensity,
+    controlHeight = FluidScrollEdgeDefaults.ControlHeight,
+    color = Color.Unspecified,
     darkContent = shade.darkContent,
+    split = split,
   )
 }
+
+private val NoTopBarSplit: () -> GlassScrollEdgeSplit? = { null }
 
 /**
  * Il lato della striscia in alto (F2.5): sopra un contenuto scuro, in tema chiaro, la striscia **scurisce** invece di
@@ -1642,8 +1746,8 @@ internal fun BoxScope.FluidTopBarBackground(
  *
  * Lo decide la sonda dello sfondo di F2.1 ([glassProbe]) messa sul nodo della striscia, con lo stesso `Backdrop`: legge
  * la pagina sotto tutta la striscia e il suo filtro sceglie il lato con le due soglie e la permanenza. È una scelta di
- * tutta la barra, come in Apple (`f17058` contro `f17132`), non pixel per pixel. Il passaggio si anima nel tempo del
- * corpo del giro ([GlassLiquidAdaptiveMillis], R4 B6); la prima lettura no, come per il materiale adattivo: una barra
+ * tutta la barra, come in Apple (`f17058` contro `f17132`), non pixel per pixel. Il passaggio si anima in
+ * [FluidScrollEdgeShadeMillis]; la prima lettura no, come per il materiale adattivo: una barra
  * che nasce sopra una foto scura non deve prima velarla di bianco.
  *
  * In tema scuro non c'è niente da decidere (il velo va già verso il fondo scuro) e la sonda non si monta: nessun nodo,
@@ -1652,7 +1756,51 @@ internal fun BoxScope.FluidTopBarBackground(
 @Stable
 internal class FluidScrollEdgeShade(val modifier: Modifier, val darkContent: () -> Float)
 
-private val NoScrollEdgeShade = FluidScrollEdgeShade(Modifier) { 0f }
+internal val NoScrollEdgeShade = FluidScrollEdgeShade(Modifier) { 0f }
+
+/**
+ * L'inchiostro di ciò che sta nella barra (il titolo, le azioni) secondo il lato della striscia: [base] sul lato chiaro,
+ * bianco quando la striscia scurisce sopra un contenuto scuro ([FluidScrollEdgeShade.darkContent]). Letto in
+ * composizione: cambia solo mentre il lato cambia.
+ *
+ * Non scivola insieme allo sfondo: a metà passaggio sarebbe grigio su grigio (sul Tab S9, a metà degli 800 ms, titolo e
+ * icone sparivano). Gira in fretta dove l'inchiostro scuro e il bianco danno lo stesso contrasto
+ * ([fluidScrollEdgeInkFraction]), così il contrasto non scende mai a zero.
+ */
+@Composable
+internal fun fluidScrollEdgeInk(base: Color, shade: FluidScrollEdgeShade): Color {
+  val dark = shade.darkContent()
+  if (dark <= 0f) return base
+  return androidx.compose.ui.graphics.lerp(base, FluidScrollEdgeDarkInk, fluidScrollEdgeInkFraction(dark))
+}
+
+/**
+ * Quanto bianco nell'inchiostro della barra per il lato della striscia [dark] (0 vela, 1 scurisce): zero fino a 0,3,
+ * uno da 0,5, smoothstep in mezzo. Il velo chiaro della barra porta lo sfondo a circa 147 livelli e lo scurimento a 72
+ * (riquadro blu, Tab S9): inchiostro scuro e bianco hanno lo stesso contrasto verso i 118 livelli, al 40% del passaggio.
+ */
+internal fun fluidScrollEdgeInkFraction(dark: Float): Float {
+  val t = ((dark - 0.3f) / 0.2f).coerceIn(0f, 1f)
+  return t * t * (3f - 2f * t)
+}
+
+/** L'inchiostro sulla striscia scurita: bianco, come il titolo di Apple su una foto che riempie la barra. */
+internal val FluidScrollEdgeDarkInk: Color = Color.White
+
+/**
+ * Il lato della striscia della barra in cui sta il contenuto (dal seguito di F2.5): lo forniscono la barra in alto e
+ * la barra ancorata, lo leggono le azioni della barra ([FluidBarAction]) per il loro inchiostro di serie. Null fuori
+ * da una barra, o dove la striscia non c'è.
+ */
+internal val LocalFluidScrollEdgeShade: ProvidableCompositionLocal<FluidScrollEdgeShade?> =
+  staticCompositionLocalOf { null }
+
+/** [base] secondo il lato della striscia della barra in cui sta il contenuto ([LocalFluidScrollEdgeShade]). */
+@Composable
+internal fun fluidBarInk(base: Color): Color {
+  val shade = LocalFluidScrollEdgeShade.current ?: return base
+  return fluidScrollEdgeInk(base, shade)
+}
 
 @Composable
 internal fun rememberFluidScrollEdgeShade(backdrop: GlassBackdropState): FluidScrollEdgeShade {
@@ -1669,7 +1817,7 @@ internal fun rememberFluidScrollEdgeShade(backdrop: GlassBackdropState): FluidSc
           measured = true
           shade.snapTo(target)
         } else {
-          shade.animateTo(target, tween(durationMillis = GlassLiquidAdaptiveMillis))
+          shade.animateTo(target, tween(durationMillis = FluidScrollEdgeShadeMillis, easing = FluidScrollEdgeShadeEasing))
         }
       }
   }
@@ -1678,6 +1826,17 @@ internal fun rememberFluidScrollEdgeShade(backdrop: GlassBackdropState): FluidSc
     FluidScrollEdgeShade(Modifier.glassProbe(probed, probe)) { shade.value }
   }
 }
+
+/**
+ * Quanto dura il passaggio della striscia fra velo chiaro e scurimento (dal seguito di F2.5): 800 ms, con una curva
+ * simmetrica ([FluidScrollEdgeShadeEasing]). Col tempo del corpo del vetro ([GlassLiquidAdaptiveMillis], 300 ms) sul Tab
+ * S9 tutta la barra passava da 147 a 72 livelli in un terzo di secondo (10–90% in circa 140 ms), e si leggeva come un
+ * lampo; la striscia è larga quanto lo schermo, il giro di un tasto no.
+ */
+internal const val FluidScrollEdgeShadeMillis: Int = 800
+
+/** La curva del passaggio: ease-in-out sinusoidale, che non concentra il cambio in testa come `FastOutSlowIn`. */
+internal val FluidScrollEdgeShadeEasing: Easing = CubicBezierEasing(0.37f, 0f, 0.63f, 1f)
 
 /** Il lato della striscia per una lettura della sonda: 1 scurisce, 0 vela; null finché non c'è una lettura. */
 internal fun fluidScrollEdgeShadeTarget(measured: Boolean, dark: Boolean): Float? = when {
@@ -2047,7 +2206,9 @@ fun FluidBarAction(
    */
   tint: Color = Color.Unspecified,
 ) {
-  val iconTint = if (tint != Color.Unspecified) tint else fluidChromeInk()
+  // Dal seguito di F2.5 l'inchiostro di serie segue il lato della striscia della barra, come il titolo: dove la barra
+  // scurisce sopra un contenuto scuro l'icona diventa chiara (Apple, `f17140`). Un `tint` dell'app resta suo.
+  val iconTint = if (tint != Color.Unspecified) tint else fluidBarInk(fluidChromeInk())
   FluidBarActionImpl(
     contentDescription = contentDescription,
     onClick = onClick,

@@ -28,6 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -35,6 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
@@ -245,6 +250,16 @@ fun FluidFloatingCapsule(
   // (una capsula chiara che passa sopra una foto scura diventa scura, R4 B6). Sul lato del tema l'inchiostro e' quello
   // di sempre, `onSurface`.
   val ink = rememberGlassInk()
+  // Dal seguito di F2.5: una capsula posata in fondo (non `Free`) accende il bordo dello scorrimento in basso della
+  // [FluidScreen] in cui sta, come la tab bar: il contenuto si scioglie sotto di lei. Il bordo sta sul suo lato alto, e
+  // la sua altezza e' l'unita' del profilo. Esce con `visible` (la schermata lo spegne con la sua molla).
+  var measuredHeightPx by remember { mutableIntStateOf(0) }
+  if (placement != FluidFloatingCapsulePlacement.Free) {
+    val height = maxOf(with(LocalDensity.current) { measuredHeightPx.toDp() }, minHeight)
+    RegisterFluidScreenBottomEdge(
+      if (visible) FluidScreenBottomEdge(FluidFloatingCapsuleDefaults.bottomOffset(placement) + height, height) else null,
+    )
+  }
   AnimatedVisibility(
     visible = visible,
     modifier = modifier,
@@ -263,6 +278,7 @@ fun FluidFloatingCapsule(
         modifier = Modifier
           .then(if (fillWidth) Modifier.fillMaxWidth().widthIn(max = FluidFloatingCapsuleDefaults.MaxWidth) else Modifier)
           .heightIn(min = minHeight)
+          .onSizeChanged { measuredHeightPx = it.height }
           // Tiene i tocchi che nessuna azione ha preso, senza toccare i trascinamenti: una pagina che
           // parte a scorrere da qui scorre lo stesso.
           .pointerInput(Unit) { detectTapGestures { } }

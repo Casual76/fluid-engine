@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.page
 
+import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
@@ -52,6 +53,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarActions
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarControls
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarBackground
+import dev.antigravity.fluidengine.ui.fluid.NoScrollEdgeShade
+import dev.antigravity.fluidengine.ui.fluid.FluidScrollEdgeShade
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidScrollEdgeShade
+import dev.antigravity.fluidengine.ui.fluid.fluidScrollEdgeInk
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidScrollEdgeShade
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarRow
 import dev.antigravity.fluidengine.ui.fluid.fluidChromeScrollEdge
 import dev.antigravity.fluidengine.ui.fluid.fluidTopBarChromeHeight
@@ -148,15 +154,28 @@ internal fun FluidAnchoredBar(
   // Dalla 4.0 sotto `Liquid` pesa allo stesso modo il bordo dello scorrimento (F2.5): fra una pagina in cima (niente
   // sotto la barra, zero) e una scorsa (uno) la striscia arriva e se ne va con la pagina, senza scatti, perche'
   // l'intensita' scala sfocatura e velo e non l'alfa di un'immagine.
+  //
+  // Dal seguito di F2.5 la striscia, mentre le pagine si muovono, non pesa più le due intensità con la corsa: ogni
+  // pagina si porta la sua ([anchoredBarSplit]), dove sta in quel fotogramma. Con la corsa, la striscia della pagina che
+  // esce in un ritorno si spegneva tutta nei primi fotogrammi (la molla è veloce all'inizio: metà corsa in sei), mentre
+  // la pagina era ancora per metà sullo schermo. Qui l'intensità serve al cancello: c'è se una delle due ce l'ha.
   val intensity: () -> Float = remember(state) {
     {
-      val e = state.frontFraction()
-      var amount = 0f
-      for ((page, spec) in currentShown) {
-        amount += anchoredBarPageWeight(state.roleOf(page), e) * spec.glassIntensity.value
+      if (state.isMoving) {
+        anchoredBarSplit(state, currentShown, null)?.let { maxOf(it.inside, it.outside) } ?: 0f
+      } else {
+        val e = state.frontFraction()
+        var amount = 0f
+        for ((page, spec) in currentShown) {
+          amount += anchoredBarPageWeight(state.roleOf(page), e) * spec.glassIntensity.value
+        }
+        amount.coerceIn(0f, 1f)
       }
-      amount.coerceIn(0f, 1f)
     }
+  }
+  val splitHolder = remember(state) { GlassScrollEdgeSplit() }
+  val split: () -> GlassScrollEdgeSplit? = remember(state, splitHolder) {
+    { if (state.isMoving) anchoredBarSplit(state, currentShown, splitHolder) else null }
   }
   val barGlass = rememberGlassBackdrop()
   val controlBackdrop = if (barBackdrop != null) {
@@ -188,6 +207,11 @@ internal fun FluidAnchoredBar(
   // In un pop upper e' la pagina uscente: non deve conservare i callback della barra.
   val activeSpec = state.interactionPage?.let { registry[it]?.spec }
   val scrollEdge = fluidChromeScrollEdge()
+  val shade = if (scrollEdge && barBackdrop != null) {
+    key(barBackdrop) { rememberFluidScrollEdgeShade(barBackdrop) }
+  } else {
+    NoScrollEdgeShade
+  }
 
   Box(
     modifier = Modifier
@@ -202,6 +226,8 @@ internal fun FluidAnchoredBar(
         tint = tint,
         intensity = intensity,
         exports = barGlass,
+        split = split,
+        shade = shade,
       )
     }
     // Un colore di base sotto il contesto di ogni pagina (3.0.1): una registrazione che non lo dice
@@ -216,7 +242,8 @@ internal fun FluidAnchoredBar(
     // tasti sono pochi e piccoli: lo sfondo della barra sotto (`FluidTopBarBackground`) e le pagine restano al minimo.
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
-      LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+      // Il titolo segue il lato della striscia (dal seguito di F2.5): vedi `fluidScrollEdgeInk`.
+      LocalContentColor provides fluidScrollEdgeInk(MaterialTheme.colorScheme.onBackground, shade),
       LocalFluidCanvasBackdrop provides null,
       LocalFluidGlassQuality provides null,
     ) {
@@ -268,7 +295,7 @@ internal fun FluidAnchoredBar(
           )
         }
         for ((page, spec) in shown) {
-          key(page) { BarTitle(state, page, spec, shiftPx, controls) }
+          key(page) { BarTitle(state, page, spec, shiftPx, controls, shade) }
         }
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -288,7 +315,7 @@ internal fun FluidAnchoredBar(
             Box(contentAlignment = Alignment.CenterEnd) {
               // L'azione della destinazione corrente deve vincere anche l'hit test fra due icone.
               for ((page, spec) in shown.sortedBy { it.first == state.interactionPage }) {
-                key(page) { BarActions(state, page, spec, controlBackdrop, journey) }
+                key(page) { BarActions(state, page, spec, controlBackdrop, journey, shade) }
               }
             }
             // Il vetro dell'ultima azione a 16 dp dal bordo (4.0, R6), come in `FluidScreen`.
@@ -298,6 +325,53 @@ internal fun FluidAnchoredBar(
       }
     }
   }
+}
+
+/**
+ * Il taglio della striscia della barra fra due pagine che si muovono (dal seguito di F2.5): la pagina sopra copre da
+ * [FluidPageHostState.upperCoverage], e lì vale la sua intensità; fuori quella della pagina sotto. Null se non c'è niente
+ * da tagliare. Scrive in [into] (riusato a ogni fotogramma), o in uno nuovo.
+ */
+internal fun anchoredBarSplit(
+  state: FluidPageHostState,
+  shown: List<Pair<Any, FluidPageBarSpec>>,
+  into: GlassScrollEdgeSplit?,
+): GlassScrollEdgeSplit? {
+  var upper = 0f
+  var lower = 0f
+  var any = false
+  for ((page, spec) in shown) {
+    when (state.roleOf(page)) {
+      PageRole.Upper -> {
+        upper = spec.glassIntensity.value
+        any = true
+      }
+      PageRole.Lower -> {
+        lower = spec.glassIntensity.value
+        any = true
+      }
+      PageRole.Gone -> Unit
+    }
+  }
+  if (!any) return null
+  val (from, to) = state.upperCoverage()
+  return anchoredBarSplitOf(from, to, upper, lower, into)
+}
+
+/** La parte pura di [anchoredBarSplit]: la pagina sopra copre da [from] a [to] px. */
+internal fun anchoredBarSplitOf(
+  from: Float,
+  to: Float,
+  upper: Float,
+  lower: Float,
+  into: GlassScrollEdgeSplit? = null,
+): GlassScrollEdgeSplit {
+  val split = into ?: GlassScrollEdgeSplit()
+  split.from = from
+  split.to = to
+  split.inside = upper.coerceIn(0f, 1f)
+  split.outside = lower.coerceIn(0f, 1f)
+  return split
 }
 
 /**
@@ -320,6 +394,7 @@ private fun BoxScope.BarTitle(
   spec: FluidPageBarSpec,
   shiftPx: Float,
   controls: FluidTopBarControls,
+  shade: FluidScrollEdgeShade,
 ) {
   val motion = remember(state, page, shiftPx) {
     FluidBarTitleMotion(
@@ -331,6 +406,8 @@ private fun BoxScope.BarTitle(
     )
   }
   CompositionLocalProvider(spec.context) {
+    // Il titolo segue il lato della striscia della barra anche col contesto della pagina (dal seguito di F2.5).
+    CompositionLocalProvider(LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade)) {
     Box(
       modifier = Modifier
         .matchParentSize()
@@ -370,6 +447,7 @@ private fun BoxScope.BarTitle(
       )
     }
   }
+    }
 }
 
 /** (alpha, traslazione x) del titolo agganciato di [page] in questo fotogramma. */
@@ -390,6 +468,7 @@ private fun BarActions(
   spec: FluidPageBarSpec,
   controlBackdrop: GlassBackdropState,
   journey: FluidBarJourney,
+  shade: FluidScrollEdgeShade,
 ) {
   val sink = remember(journey, page) {
     FluidBarPieceSink(suppressed = { journey.active }, onChanged = journey::recompute)
@@ -406,6 +485,8 @@ private fun BarActions(
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,
       LocalFluidBarPieceSink provides sink,
+      // Il lato della striscia della barra, dopo il contesto della pagina (dal seguito di F2.5): vedi `fluidBarInk`.
+      LocalFluidScrollEdgeShade provides shade,
       // Il contesto della pagina porta il suo canvas: nella barra un controllo sta sul vetro della barra.
       LocalFluidCanvasBackdrop provides null,
       // E la sua qualità, che scende mentre le pagine si muovono: i tasti della barra restano a qualità piena come la
@@ -690,6 +771,7 @@ private fun FluidPageChromeContent(
         tint = tint,
         intensity = FullBarIntensity,
         exports = barGlass,
+        shade = if (scrollEdge) rememberFluidScrollEdgeShade(backdrop) else NoScrollEdgeShade,
       )
     }
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop, LocalFluidCanvasBackdrop provides null) {

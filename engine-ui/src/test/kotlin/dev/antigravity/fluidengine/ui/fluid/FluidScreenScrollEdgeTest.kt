@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -166,7 +167,74 @@ class FluidScreenScrollEdgeTest {
     assertEquals(86.8f, reach.value, 0.001f)
   }
 
+  @Test
+  fun bottomEdge_followsTheFoldedTabBar() {
+    // Aperta (62 dp) il bordo sta dove la schermata lascia lo spazio; piegata (52 dp) scende di 10 dp con la barra.
+    val inset = FluidFloatingTabBarDefaults.ContentInset
+    assertEquals(inset, fluidTabBarEdgeInset(inset, FluidFloatingTabBarDefaults.OpenHeight))
+    assertEquals(inset - 10.dp, fluidTabBarEdgeInset(inset, FluidFloatingTabBarDefaults.FoldedHeight))
+    assertEquals(16.dp + 52.dp, fluidTabBarEdgeInset(inset, 52.dp))
+    // A metà piega, a metà strada.
+    assertEquals(inset - 5.dp, fluidTabBarEdgeInset(inset, 57.dp))
+    // Senza tab bar niente bordo, piegata o no.
+    assertEquals(0.dp, fluidTabBarEdgeInset(0.dp, 52.dp))
+    val folded = fluidScreenBottomEdge(
+      tabBarInset = fluidTabBarEdgeInset(inset, 52.dp),
+      registered = emptyList(),
+      tabBarHeight = 52.dp,
+    )
+    assertEquals(FluidScreenBottomEdge(68.dp, 52.dp), folded)
+  }
+
+  @Test
+  fun capsuleAboveTheTabBar_winsOverTheFoldedBar() {
+    // La capsula sopra la tab bar si registra col suo lato alto: 78 + 8 + 62 dp dal fondo.
+    val capsule = FluidScreenBottomEdge(
+      FluidFloatingCapsuleDefaults.bottomOffset(FluidFloatingCapsulePlacement.AboveTabBar) + 62.dp,
+      62.dp,
+    )
+    assertEquals(148.dp, capsule.inset)
+    assertEquals(capsule, fluidScreenBottomEdge(fluidTabBarEdgeInset(78.dp, 52.dp), listOf(capsule), 52.dp))
+    // Al posto della tab bar: lo stesso lato alto della barra aperta.
+    assertEquals(78.dp, FluidFloatingCapsuleDefaults.bottomOffset(FluidFloatingCapsulePlacement.ReplacingTabBar) + 62.dp)
+  }
+
+  // --- La diagnostica -------------------------------------------------------------------------------------------
+
+  @Test
+  fun diagnostics_countStripsApartFromTheClassicGlass() {
+    val classic = FluidGlassDiagnostics.liveSurfaces.getValue(FluidGlassModel.Classic)
+    val strips = FluidGlassDiagnostics.liveScrollEdges
+    // Il nodo della striscia si conta `Classic` (non ha la luce); la striscia lo toglie da lì e lo mette a parte.
+    FluidGlassDiagnostics.countSurface(FluidGlassModel.Classic, +2)
+    FluidGlassDiagnostics.countScrollEdge(+2)
+    try {
+      assertEquals(classic, FluidGlassDiagnostics.liveSurfaces.getValue(FluidGlassModel.Classic))
+      assertEquals(strips + 2, FluidGlassDiagnostics.liveScrollEdges)
+    } finally {
+      FluidGlassDiagnostics.countSurface(FluidGlassModel.Classic, -2)
+      FluidGlassDiagnostics.countScrollEdge(-2)
+    }
+  }
+
   // --- Il lato della striscia -------------------------------------------------------------------------------------
+
+  @Test
+  fun barInk_turnsQuicklyWhereBothInksReadTheSame() {
+    // Fino a 0,3 l'inchiostro del tema, da 0,5 bianco, in mezzo una svolta morbida: mai grigio su grigio per tutto il
+    // passaggio della striscia.
+    assertEquals(0f, fluidScrollEdgeInkFraction(0f), 0f)
+    assertEquals(0f, fluidScrollEdgeInkFraction(0.3f), 0f)
+    assertEquals(0.5f, fluidScrollEdgeInkFraction(0.4f), 1e-6f)
+    assertEquals(1f, fluidScrollEdgeInkFraction(0.5f), 0f)
+    assertEquals(1f, fluidScrollEdgeInkFraction(1f), 0f)
+    var last = 0f
+    for (i in 0..100) {
+      val now = fluidScrollEdgeInkFraction(i / 100f)
+      assertTrue(now >= last)
+      last = now
+    }
+  }
 
   @Test
   fun shade_waitsForAReading_thenFollowsTheSide() {

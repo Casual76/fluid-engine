@@ -52,6 +52,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidScrollEdgeDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidScrollEdgeSide
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidTabItem
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -326,11 +328,15 @@ private val TabItems: List<FluidTabItem>
     FluidTabItem("settings", "Impostazioni", FluidIcons.Settings, filledIcon = FluidIcons.Filled.Settings),
   )
 
-/** Un palco alto quanto la barra in alto di uno schermo: la barra di stato, la riga da 44 dp e la coda del vetro. */
+/**
+ * Un palco alto quanto la barra in alto di uno schermo: la barra di stato, la riga da 44 dp e sotto la coda del bordo
+ * dello scorrimento (dalla 4.0, F2.5: 1,4 altezze di tasto, fin dove arrivano velo e dissolvenza; la coda della fascia,
+ * 34 dp, tagliava la striscia).
+ */
 @Composable
 private fun BarStage(modifier: Modifier = Modifier, content: @Composable BoxScope.(GlassBackdropState) -> Unit) {
   IconStage(
-    height = FluidScreenDefaults.topBarHeight() + FluidScreenDefaults.GlassFadeTail,
+    height = FluidScreenDefaults.topBarHeight() + FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top),
     modifier = modifier,
     content = content,
   )

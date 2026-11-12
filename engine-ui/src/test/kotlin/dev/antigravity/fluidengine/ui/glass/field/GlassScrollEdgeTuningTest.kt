@@ -71,7 +71,7 @@ class GlassScrollEdgeTuningTest {
     assertEquals(0f, uniforms(top = true).veilKnob[0], 0f)
     assertEquals(0f, uniforms(top = false).veilKnob[0], 0f)
     // La sfocatura non si tocca: senza velo in alto resta.
-    assertEquals(GlassScrollEdgeProfile.Soft.blurShare, uniforms(top = true).blurRamp[3], 0f)
+    assertEquals(GlassScrollEdgeProfile.Soft.blurShare, uniforms(top = true).blurShare, 0f)
   }
 
   @Test

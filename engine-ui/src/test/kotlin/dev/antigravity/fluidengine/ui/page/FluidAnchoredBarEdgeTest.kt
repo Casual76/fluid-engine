@@ -43,4 +43,20 @@ class FluidAnchoredBarEdgeTest {
     }
     assertEquals(1f, previous, 1e-5f)
   }
+
+  @Test
+  fun whilePagesMove_eachCarriesItsOwnStrip() {
+    // Un ritorno: la pagina sopra (scorsa, intensità 1) è a metà corsa e copre da 800 a 1600 px; quella sotto è in cima.
+    val split = anchoredBarSplitOf(from = 800f, to = 1600f, upper = 1f, lower = 0f)
+    assertEquals(800f, split.from, 0f)
+    assertEquals(1600f, split.to, 0f)
+    // Sulla pagina che esce la striscia è intera, non pesata con la corsa (che a metà la dava a 0,5).
+    assertEquals(1f, split.inside, 0f)
+    assertEquals(0f, split.outside, 0f)
+    assertEquals(0.5f, barIntensity(frontFraction = 0.5f, upper = 1f, lower = 0f), 1e-6f)
+    // Le intensità restano fra zero e uno.
+    val clamped = anchoredBarSplitOf(from = 0f, to = 10f, upper = 2f, lower = -1f)
+    assertEquals(1f, clamped.inside, 0f)
+    assertEquals(0f, clamped.outside, 0f)
+  }
 }

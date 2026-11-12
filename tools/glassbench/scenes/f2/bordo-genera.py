@@ -90,7 +90,7 @@ def kernel(sigma: float):
 # Il profilo, in altezze dei tasti (H), e gli uniform
 # ------------------------------------------------------------------------------------------------
 
-VEIL_KNOTS = 8          # GlassEdgeVeilKnots
+VEIL_KNOTS = 10         # GlassEdgeVeilKnots
 GRAIN = 0.5             # GlassScrollEdgeGrain
 
 
@@ -163,15 +163,17 @@ class Curve:
 PHOTO = ((-0.65, 0.36), (-0.4, 0.32), (0.0, 0.26), (0.2, 0.18), (0.4, 0.10), (0.7, 0.05), (1.0, 0.02), (1.35, 0.0))
 TEXT_CURVE = ((0.17, 0.36), (0.4, 0.22), (0.6, 0.13), (0.85, 0.06), (1.1, 0.0))
 HARD_CURVE = ((0.0, 0.97), (0.15, 0.0))
+# La sfocatura del bordo morbido (`GlassScrollEdgeProfile.SoftBlur`, `SoftBlurSigma`): quota della sigma piena a d.
+SOFT_BLUR_SIGMA = 0.16
+SOFT_BLUR = ((-1.5, 1.0), (-1.0, 0.875), (-0.5, 0.5), (-0.25, 0.28125), (0.0, 0.15125), (0.2, 0.11275),
+             (0.43, 0.07256), (0.75, 0.02578), (1.05, 0.0))
 # f17074 (WWDC25 219), barra chiara: il velo misurato sulla foto, per la colonna della tabella.
 APPLE_PHOTO = {-1.0: 39, -0.7: 37, -0.4: 32, 0.0: 26, 0.2: 18, 0.4: 10, 0.7: 5, 1.0: 2}
 
 
 @dataclass(frozen=True)
 class Profile:
-    blur_full_at: float     # d (H) da cui verso il bordo la sfocatura e' piena
-    blur_zero_at: float     # d (H) da cui verso il contenuto non c'e' sfocatura
-    blur_shape: float       # esponente della rampa
+    blur_points: tuple      # la quota della sigma piena a ogni d, nodi (d, quota)
     blur_sigma: float       # sigma piena, in H
     blur_share: float       # quota della sfocatura (0 = sfuma senza sfocare)
     veil_points: tuple      # la curva del velo di serie, nodi (d, velo)
@@ -179,6 +181,12 @@ class Profile:
     dark_dim: float         # sul contenuto scuro: scurimento al bordo dei tasti (0,2 = "0,8 del valore")
     fade_from: float        # alfa d'uscita: dove comincia a scendere
     fade_to: float          #               dove e' zero
+
+    def blur_curve(self) -> Curve:
+        return Curve(self.blur_points)
+
+    def blur(self, d: float) -> float:
+        return self.blur_curve().at(d) * self.blur_share
 
     def curve(self, text: bool = False) -> Curve:
         return Curve(self.text_points if text else self.veil_points)
@@ -192,18 +200,18 @@ class Profile:
 
     @property
     def reach(self) -> float:
-        return max(self.veil_end, self.blur_zero_at, self.fade_to)
+        return max(self.veil_end, self.blur_points[-1][0], self.fade_to)
 
     def scaled(self, k: float) -> "Profile":
         """Lo stesso profilo stirato di [k] in d: piu' corto (k < 1) o piu' lungo (k > 1)."""
         st = lambda pts: tuple((f32(f32(d) * f32(k)), v) for d, v in pts)
-        return replace(self, blur_full_at=f32(self.blur_full_at * k), blur_zero_at=f32(self.blur_zero_at * k),
+        return replace(self, blur_points=st(self.blur_points),
                        veil_points=st(self.veil_points), text_points=st(self.text_points),
                        fade_from=f32(self.fade_from * k), fade_to=f32(self.fade_to * k))
 
 
 SOFT = Profile(
-    blur_full_at=-1.5, blur_zero_at=1.05, blur_shape=1.4, blur_sigma=0.084, blur_share=1.0,
+    blur_points=SOFT_BLUR, blur_sigma=SOFT_BLUR_SIGMA, blur_share=1.0,
     veil_points=PHOTO, text_points=TEXT_CURVE,
     dark_dim=0.2, fade_from=1.3, fade_to=1.4,
 )
@@ -220,7 +228,7 @@ def at_resolution(profile: Profile, scale: float) -> Profile:
     return replace(profile, fade_from=HALF_FADE[0] * k, fade_to=HALF_FADE[1] * k)
 
 HARD = Profile(
-    blur_full_at=-0.6, blur_zero_at=0.0, blur_shape=1.0, blur_sigma=0.084, blur_share=1.0,
+    blur_points=((-0.6, 1.0), (-0.3, 0.5), (0.0, 0.0)), blur_sigma=0.084, blur_share=1.0,
     veil_points=HARD_CURVE, text_points=HARD_CURVE,
     dark_dim=0.2, fade_from=0.1, fade_to=0.15,
 )
@@ -249,13 +257,15 @@ def uniforms(profile: Profile, *, side: str, controls_dp: float, unit_dp: float,
         "centerWeight": round(cw, 7),
         "taps": [[round(o, 6), round(w, 7)] for o, w in zip(offs, ws)],
         "edgeLine": [round(line, 4), sign, round(unit, 4)],
-        "blurRamp": [profile.blur_full_at, profile.blur_zero_at, profile.blur_shape, profile.blur_share],
+        "blurKnots": profile.blur_curve().knots(),
+        "blurShare": profile.blur_share,
         "veilKnots": curve.knots(),
         "veilKnob": [1, 1],
         "veilColor": veil_color,
         "shade": [shade_dark, round(profile.dark_dim / v0, 6) if v0 > 0 else 0.0],
         "fadeRamp": [round(profile.fade_from, 6), round(profile.fade_to, 6)],
         "amount": amount,
+        "split": [1, 0, 0, 0],
         "grain": GRAIN,
         "finish": 0,
     }

@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.ui.graphics.Color
 import kotlin.math.abs
+import kotlin.math.pow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -73,8 +74,9 @@ class GlassScrollEdgeTest {
   @Test
   fun theFullSigmaStopsAtTheLimitOfTheKernel() {
     val soft = GlassScrollEdgeProfile.Soft
-    // Tasti da 44 dp a densità 3, cattura piena: 0,084 H = 11,1 px, sotto il tetto.
-    assertEquals(0.084f * 132f, GlassScrollEdgeUniforms.sigmaFor(soft, 132f), 1e-4f)
+    // Tasti da 44 dp a densità 3, cattura piena: 0,16 H = 21,1 px (raggio 35,7 px), sotto il tetto.
+    assertEquals(0.16f * 132f, GlassScrollEdgeUniforms.sigmaFor(soft, 132f), 1e-4f)
+    assertTrue(GlassEdgeBlurKernel.sigmaToRadius(GlassScrollEdgeUniforms.sigmaFor(soft, 132f)) < GlassEdgeBlurMaxRadiusPx)
     // Tasti enormi: la sigma si ferma al raggio di 38,5 px che Haze tiene per la sfocatura progressiva.
     val capped = GlassScrollEdgeUniforms.sigmaFor(soft, 1000f)
     assertEquals(GlassEdgeBlurMaxRadiusPx, GlassEdgeBlurKernel.sigmaToRadius(capped), 1e-3f)
@@ -167,24 +169,49 @@ class GlassScrollEdgeTest {
   }
 
   @Test
-  fun theBlurRampIsFullAboveAndZeroBelow() {
+  fun theBlurIsFullAboveAndZeroBelow() {
     val soft = GlassScrollEdgeProfile.Soft
     assertEquals(1f, soft.blur(-2f), 0f)
-    assertEquals(1f, soft.blur(soft.blurFullAt), 1e-6f)
-    assertEquals(0f, soft.blur(soft.blurZeroAt), 0f)
+    assertEquals(1f, soft.blur(-1.5f), 1e-6f)
+    assertEquals(0f, soft.blur(1.05f), 0f)
     assertEquals(0f, soft.blur(1.1f), 0f)
     var last = 2f
     var d = -2f
     while (d < 1.2f) {
       val b = soft.blur(d)
-      assertTrue(b <= last)
+      assertTrue(b <= last + 1e-6f)
       last = b
       d += 0.01f
     }
-    // Sigma al bordo dei tasti e a 0,43 H, con tasti da 44 dp: le due grandezze con cui il banco tocca R4.
+    assertEquals(0f, GlassScrollEdgeProfile.FadeOnly.blur(-2f), 0f)
+  }
+
+  @Test
+  fun theBlurHasNoCornersEither() {
+    // La sigma che cambia di colpo si vedrebbe come una riga dove il testo passa da nitido a sfocato.
+    val blur = GlassScrollEdgeProfile.SoftBlur
+    val coarse = biggestSlopeJump(blur, 0.002f)
+    val fine = biggestSlopeJump(blur, 0.0005f)
+    assertTrue("la pendenza della sfocatura salta di $coarse", coarse < 0.1f)
+    assertTrue("uno spigolo nella sfocatura ($coarse, $fine)", fine < 0.3f * coarse)
+  }
+
+  @Test
+  fun belowTheButtonsTheBlurIsTheOneBefore() {
+    // Dal seguito di F2.5 la sfocatura cresce di più dietro i tasti, ma dal bordo dei tasti in giù la sigma in dp resta
+    // quella di prima, `0,084 · ((1,05 − d)/2,55)^1,4` H: lì il testo deve restare leggibile com'era. Le due grandezze
+    // con cui il banco tocca R4: 1,1 dp al bordo e 0,5 a 0,43 H, con tasti da 44 dp.
+    val soft = GlassScrollEdgeProfile.Soft
+    fun before(d: Float) = 0.084f * ((1.05f - d) / 2.55f).coerceIn(0f, 1f).toDouble().pow(1.4).toFloat()
+    for (d in listOf(0f, 0.2f, 0.43f, 0.75f, 1.05f)) {
+      // I nodi sono arrotondati alla quarta cifra: 1e-4 H sono 0,004 dp.
+      assertEquals("sigma a $d H", before(d), soft.blur(d) * soft.blurSigma, 1e-4f)
+    }
     assertEquals(1.1f, soft.blur(0f) * soft.blurSigma * 44f, 0.1f)
     assertEquals(0.5f, soft.blur(0.43f) * soft.blurSigma * 44f, 0.1f)
-    assertEquals(0f, GlassScrollEdgeProfile.FadeOnly.blur(-2f), 0f)
+    // Dietro i tasti, di più: 3,5 dp al centro (era 1,8), 7 dp in cima (era 3,7).
+    assertTrue(soft.blur(-0.5f) * soft.blurSigma > 1.8f * before(-0.5f))
+    assertEquals(0.16f, soft.blur(-1.5f) * soft.blurSigma, 1e-6f)
   }
 
   @Test
@@ -270,7 +297,9 @@ class GlassScrollEdgeTest {
     val soft = GlassScrollEdgeProfile.Soft
     val u = glassScrollEdgeUniforms(soft, top = true, widthPx = 1080f, heightPx = 410f, controlsPx = 264f,
       unitPx = 132f, veilColor = Color(0xFF0D0D0F), darkContent = 2f, amount = -1f)
-    assertEquals(listOf(soft.blurFullAt, soft.blurZeroAt, soft.blurShape, soft.blurShare), u.blurRamp.toList())
+    val blurKnots = FloatArray(GlassEdgeVeilKnots * 4).also { soft.blur.writeKnots(it) }
+    assertEquals(blurKnots.toList(), u.blurKnots.toList())
+    assertEquals(soft.blurShare, u.blurShare, 0f)
     val knots = FloatArray(GlassEdgeVeilKnots * 4).also { soft.veil.writeKnots(it) }
     assertEquals(knots.toList(), u.veilKnots.toList())
     assertEquals(listOf(1f, 1f), u.veilKnob.toList())
@@ -281,12 +310,30 @@ class GlassScrollEdgeTest {
     assertEquals(1f, u.shade[0], 0f)
     assertEquals(soft.darkDim, u.shade[1] * soft.veil(0f), 1e-6f)
     assertEquals(0f, u.amount, 0f)
-    val kernel = GlassEdgeBlurKernel.forSigma(0.084f * 132f)
+    val kernel = GlassEdgeBlurKernel.forSigma(GlassScrollEdgeProfile.SoftBlurSigma * 132f)
     assertEquals(kernel.centerWeight, u.centerWeight, 0f)
     for (i in 0 until GlassEdgeBlurTapPairs) {
       assertEquals(kernel.offsets[i], u.taps[2 * i], 0f)
       assertEquals(kernel.weights[i], u.taps[2 * i + 1], 0f)
     }
+  }
+
+  @Test
+  fun theSplitIsOffUnlessTwoPagesAreMoving() {
+    val soft = GlassScrollEdgeProfile.Soft
+    val u = glassScrollEdgeUniforms(soft, top = true, widthPx = 1080f, heightPx = 410f, controlsPx = 264f,
+      unitPx = 132f, veilColor = Color(0xFFF2F2F7), amount = 0.7f)
+    // Spento: `from > to`, e lo shader usa `amount` ovunque.
+    assertTrue(u.split[0] > u.split[1])
+    u.fill(soft, top = true, widthPx = 1080f, heightPx = 410f, controlsPx = 264f, unitPx = 132f,
+      veilColor = Color(0xFFF2F2F7), darkContent = 0f, amount = 1f, kernel = GlassEdgeBlurKernel.Identity,
+      split = GlassScrollEdgeSplit(from = 540f, to = 1620f, outside = 0f, inside = 1f))
+    assertEquals(listOf(540f, 1620f, 0f, 1f), u.split.toList())
+    // Un taglio vuoto (la pagina sopra non copre niente) è spento.
+    u.fill(soft, top = true, widthPx = 1080f, heightPx = 410f, controlsPx = 264f, unitPx = 132f,
+      veilColor = Color(0xFFF2F2F7), darkContent = 0f, amount = 1f, kernel = GlassEdgeBlurKernel.Identity,
+      split = GlassScrollEdgeSplit(from = 10f, to = 5f, outside = 1f, inside = 1f))
+    assertTrue(u.split[0] > u.split[1])
   }
 
   @Test

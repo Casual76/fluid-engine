@@ -80,7 +80,7 @@ import kotlin.math.sqrt
 internal const val GlassEdgeBlurTapPairs: Int = 20
 
 /** I nodi di una curva del velo nello shader ([GlassVeilCurve]): le curve più corte si riempiono col loro ultimo valore. */
-internal const val GlassEdgeVeilKnots: Int = 8
+internal const val GlassEdgeVeilKnots: Int = 10
 
 /**
  * Mezzo livello (su 255) di grana sul velo: la rampa lenta della curva della foto, su una tinta unita a 8 bit, fa
@@ -126,6 +126,13 @@ internal const val GlassEdgeBlurMaxRadiusPx: Float = 38.5f
  * una foto (`f17074`) su ogni contenuto; la manopola di debug `edgecurve=text` ci scrive quella ripida del testo (R4
  * B7). `veilKnob` = (scala del velo, tetto delle manopole; 1 = nessun tetto).
  *
+ * La sfocatura è una curva dello stesso tipo (`blurKnots`, dal seguito di F2.5): la quota della sigma piena a `d`, per
+ * poterla far crescere dietro i tasti senza toccarla sotto. `blurShare` a zero = sfuma senza sfocare.
+ *
+ * `split` (dal seguito di F2.5): fra due pagine che si muovono ognuna si porta la sua striscia. Fra `split.x` e `split.y`
+ * (px) sta la pagina sopra e l'intensità è `split.w`, fuori quella sotto e vale `split.z`; con `split.x > split.y`
+ * vale `amount` ovunque.
+ *
  * `grain`: mezzo livello di grana fissa sul velo (la stessa formula del corpo del vetro, `GlassBodyShader`), contro gli
  * scalini a 8 bit di una rampa lenta su una tinta unita. Pesa zero dove il velo non c'è.
  */
@@ -137,13 +144,15 @@ uniform float4 bounds;
 uniform float centerWeight;
 uniform float2 taps[$GlassEdgeBlurTapPairs];
 uniform float3 edgeLine;
-uniform float4 blurRamp;
+uniform float4 blurKnots[$GlassEdgeVeilKnots];
+uniform float blurShare;
 uniform float4 veilKnots[$GlassEdgeVeilKnots];
 uniform float2 veilKnob;
 layout(color) uniform half4 veilColor;
 uniform float2 shade;
 uniform float2 fadeRamp;
 uniform float amount;
+uniform float4 split;
 uniform float grain;
 uniform float finish;
 
@@ -157,12 +166,6 @@ float edgeDepth(float2 p) {
     return (p.y - edgeLine.x) * edgeLine.y / max(edgeLine.z, 0.0001);
 }
 
-float blurWeight(float d) {
-    float t = clamp((blurRamp.y - d) / max(blurRamp.y - blurRamp.x, 0.0001), 0.0, 1.0);
-    float shaped = t > 0.0 ? pow(t, blurRamp.z) : 0.0;
-    return shaped * blurRamp.w * amount;
-}
-
 float hermite(float4 a, float4 b, float d) {
     float h = b.x - a.x;
     float t = (d - a.x) / h;
@@ -170,6 +173,26 @@ float hermite(float4 a, float4 b, float d) {
     float t3 = t2 * t;
     return (2.0 * t3 - 3.0 * t2 + 1.0) * a.y + (t3 - 2.0 * t2 + t) * h * a.z
         + (3.0 * t2 - 2.0 * t3) * b.y + (t3 - t2) * h * b.z;
+}
+
+float blurCurve(float d) {
+    if (d <= blurKnots[0].x) return blurKnots[0].y;
+    float v = blurKnots[$GlassEdgeVeilKnots - 1].y;
+    for (int i = 0; i < $GlassEdgeVeilKnots - 1; i++) {
+        float4 a = blurKnots[i];
+        float4 b = blurKnots[i + 1];
+        if (d >= a.x && d < b.x) v = hermite(a, b, d);
+    }
+    return v;
+}
+
+float blurWeight(float d, float a) {
+    return max(blurCurve(d), 0.0) * blurShare * a;
+}
+
+float amountAt(float x) {
+    if (split.x > split.y) return amount;
+    return (x >= split.x && x <= split.y) ? split.w : split.z;
 }
 
 float veilCurve(float d) {
@@ -183,19 +206,20 @@ float veilCurve(float d) {
     return v;
 }
 
-float veilWeight(float d) {
+float veilWeight(float d, float a) {
     float v = veilCurve(d);
     if (veilKnob.y < 0.999) {
         float knee = 0.12;
         float h = max(knee - abs(v - veilKnob.y), 0.0) / knee;
         v = max(min(v, veilKnob.y) - h * h * knee * 0.25, 0.0);
     }
-    return max(v, 0.0) * veilKnob.x * amount;
+    return max(v, 0.0) * veilKnob.x * a;
 }
 
 half4 main(float2 coord) {
     float d = edgeDepth(coord);
-    float s = blurWeight(d);
+    float a = amountAt(coord.x);
+    float s = blurWeight(d, a);
     float4 sum = float4(content.eval(clampToBounds(coord))) * centerWeight;
     if (s > 0.0001) {
         for (int i = 0; i < $GlassEdgeBlurTapPairs; i++) {
@@ -217,7 +241,7 @@ half4 main(float2 coord) {
     if (fadeRamp.y > fadeRamp.x) {
         cover = 1.0 - smoothstep(fadeRamp.x, fadeRamp.y, d);
     }
-    float w = veilWeight(d);
+    float w = veilWeight(d, a);
     float v = min(w / max(cover, 0.0001), 1.0);
     half3 veiled = mix(c.rgb, veilColor.rgb * c.a, half(v * (1.0 - shade.x)));
     half3 rgb = veiled * half(1.0 - shade.y * v * shade.x);
@@ -225,7 +249,7 @@ half4 main(float2 coord) {
         float noise = fract(52.9829189 * fract(dot(coord, float2(0.06711056, 0.00583715)))) - 0.5;
         rgb = clamp(rgb + half(noise * grain * min(w * 50.0, 1.0) / 255.0) * c.a, half3(0.0), half3(c.a));
     }
-    return half4(rgb, c.a) * half(cover * clamp(amount * 4.0, 0.0, 1.0));
+    return half4(rgb, c.a) * half(cover * clamp(a * 4.0, 0.0, 1.0));
 }
 """
 
@@ -508,9 +532,8 @@ internal class GlassVeilCurve(points: List<Pair<Float, Float>>) {
  * Perché in `H` e non in dp: R4 misura così (140 px del video = 1 H), e così una barra più alta (la tab bar, 62 dp)
  * si porta dietro un bordo proporzionato senza un secondo profilo.
  *
- * - **Sfocatura**: piena (sigma [blurSigma] `H`) da [blurFullAt] verso il bordo, zero da [blurZeroAt] verso il
- *   contenuto, in mezzo `t^`[blurShape] con `t` lineare. Lo spigolo in [blurFullAt] non si vede: è un raggio che
- *   smette di crescere, non una luminanza. [blurShare] a zero = sfuma senza sfocare.
+ * - **Sfocatura**: la curva [blur] ([GlassVeilCurve]) dà la quota della sigma piena ([blurSigma] `H`) a ogni `d`: 1
+ *   verso il bordo dello schermo, zero dove il contenuto torna nitido. [blurShare] a zero = sfuma senza sfocare.
  * - **Velo** verso il colore del fondo: la curva [veil] ([GlassVeilCurve]); [veilText] è quella che la manopola di
  *   debug `edgecurve=text` mette al suo posto.
  * - **Scurimento** sul contenuto scuro ([darkDim]): quanto il contenuto scende al bordo dei tasti (`d` = 0) quando
@@ -521,9 +544,7 @@ internal class GlassVeilCurve(points: List<Pair<Float, Float>>) {
  */
 @Immutable
 internal data class GlassScrollEdgeProfile(
-  val blurFullAt: Float,
-  val blurZeroAt: Float,
-  val blurShape: Float,
+  val blur: GlassVeilCurve,
   val blurSigma: Float,
   val blurShare: Float,
   val veil: GlassVeilCurve,
@@ -537,24 +558,20 @@ internal data class GlassScrollEdgeProfile(
   val veilEnd: Float get() = max(veil.end, veilText.end)
 
   /** Quanto la striscia va oltre il bordo dei tasti, in `H`: dopo, la pagina è quella nuda. */
-  val reach: Float get() = max(veilEnd, max(blurZeroAt, fadeTo))
+  val reach: Float get() = max(veilEnd, max(blur.end, fadeTo))
 
   /** Il velo a `d` (lo stesso conto dello shader, senza manopole); [text] = la curva di `edgecurve=text`. */
   fun veil(d: Float, text: Boolean = false): Float = (if (text) veilText else veil).at(d)
 
   /** La quota della sfocatura piena a `d` (lo stesso conto dello shader, senza l'intensità). */
-  fun blur(d: Float): Float {
-    val t = ((blurZeroAt - d) / max(blurZeroAt - blurFullAt, 1e-4f)).coerceIn(0f, 1f)
-    return if (t > 0f) t.toDouble().pow(blurShape.toDouble()).toFloat() * blurShare else 0f
-  }
+  fun blur(d: Float): Float = blur.at(d) * blurShare
 
   /**
    * Lo stesso profilo stirato di [k] lungo `d`: più corto (`k` < 1) o più lungo (`k` > 1). Il velo a `k·d` vale quello
    * di serie a `d`, la sfocatura piena resta la stessa. Serve alla tavola «profilo di serie / più corto / più lungo».
    */
   fun scaled(k: Float): GlassScrollEdgeProfile = copy(
-    blurFullAt = blurFullAt * k,
-    blurZeroAt = blurZeroAt * k,
+    blur = blur.scaled(k),
     veil = veil.scaled(k),
     veilText = veilText.scaled(k),
     fadeFrom = fadeFrom * k,
@@ -573,6 +590,38 @@ internal data class GlassScrollEdgeProfile(
   }
 
   companion object {
+    /**
+     * La sigma piena del bordo morbido, in `H`: 0,16 H, 7 dp sotto tasti da 44 dp (dal seguito di F2.5; era 0,084 H). La
+     * raggiunge solo in cima, sopra −1,5 H.
+     */
+    const val SoftBlurSigma: Float = 0.16f
+
+    /**
+     * La sfocatura del bordo morbido, in quote di [SoftBlurSigma] (dal seguito di F2.5, 2026-11-12): dietro i tasti
+     * cresce fino a togliere al testo il contrasto che R4 B7 misura in Posta (`f16636`–`f16700`, fiducia alta) — 3–5%
+     * sopra i tasti, 8% al loro centro — con la sola sfocatura, perché il velo resta la curva dolce scelta da Alessio
+     * (tetto 0,36) e da solo non lo fa (col velo a 0,34 una riga si intuiva ancora dietro la metà bassa dei tasti: 13,9%
+     * a −0,5 H sul banco). Sul banco: 3,4% a −1,5 H, 4,1% a −1 H, 7,4% a −0,5 H (scuro 3,8 / 4,5 / 8,4).
+     *
+     * Dal bordo dei tasti in giù è **la sfocatura di prima**, in valore assoluto (1,06 dp al bordo, 0,8 a +0,2 H, 0,51
+     * a +0,43 H, zero a +1,05 H): lì il testo deve restare leggibile com'era (26,8% al bordo, 60,6% a 0,43 H, pieno da
+     * 0,95 H). Per questo i nodi da 0 in giù sono la rampa di prima, `0,084 · ((1,05 − d)/2,55)^1,4`, divisa per la
+     * sigma nuova.
+     */
+    val SoftBlur: GlassVeilCurve = GlassVeilCurve(
+      listOf(
+        -1.5f to 1f,
+        -1f to 0.875f,
+        -0.5f to 0.5f,
+        -0.25f to 0.28125f,
+        0f to 0.15125f,
+        0.2f to 0.11275f,
+        0.43f to 0.07256f,
+        0.75f to 0.02578f,
+        1.05f to 0f,
+      ),
+    )
+
     /** Vedi [atResolution]. Scelte sul banco il 2026-11-12 (F2.4): la coda torna nitida come a risoluzione piena. */
     const val HalfResolutionFadeFrom: Float = 0.45f
     const val HalfResolutionFadeTo: Float = 1.4f
@@ -581,8 +630,8 @@ internal data class GlassScrollEdgeProfile(
      * Il bordo **morbido** di iOS 26 (`Automatic` in alto e `Soft`):
      *  - **sfocatura** da R4 B7 (Posta su telefono 9:07–9:41, `f16636`–`f16700`, fiducia alta): contrasto del testo
      *    pieno da 0,95 H sotto il bordo basso dei tasti, 50% a 0,43 H, 20% al bordo, 8% al centro dei tasti, 3–5%
-     *    sopra (sigma piena 0,084 H = 3,7 dp sotto tasti da 44 dp). Sul testo il contrasto lo toglie la sfocatura, non
-     *    il velo: per questo il velo dolce regge anche lì;
+     *    sopra ([SoftBlur], sigma piena [SoftBlurSigma]). Sul testo il contrasto lo toglie la sfocatura, non il velo:
+     *    per questo il velo dolce regge anche lì;
      *  - **velo**: la curva dolce della foto ([GlassVeilCurve.Photo]) col tetto di 0,36 (decisione di Alessio del
      *    2026-11-12 sulla tavola del velo: «B», con il velo progressivo); fino a quel giorno era `0,4014 (1,1 − d)^1,5`
      *    di R4 col tetto di 0,7, che non veniva da una misura di iOS 26;
@@ -592,10 +641,8 @@ internal data class GlassScrollEdgeProfile(
      *  - **dissolvenza** dell'alfa fra 1,3 e 1,4 H, oltre la fine del velo (1,35 H).
      */
     val Soft: GlassScrollEdgeProfile = GlassScrollEdgeProfile(
-      blurFullAt = -1.5f,
-      blurZeroAt = 1.05f,
-      blurShape = 1.4f,
-      blurSigma = 0.084f,
+      blur = SoftBlur,
+      blurSigma = SoftBlurSigma,
       blurShare = 1f,
       veil = GlassVeilCurve.Photo,
       veilText = GlassVeilCurve.Text,
@@ -614,9 +661,7 @@ internal data class GlassScrollEdgeProfile(
      * sotto un velo del 95% si legge ancora (F2.4, 2026-11-12).
      */
     val Hard: GlassScrollEdgeProfile = GlassScrollEdgeProfile(
-      blurFullAt = -0.6f,
-      blurZeroAt = 0f,
-      blurShape = 1f,
+      blur = GlassVeilCurve(listOf(-0.6f to 1f, -0.3f to 0.5f, 0f to 0f)),
       blurSigma = 0.084f,
       blurShare = 1f,
       veil = GlassVeilCurve.Hard,
@@ -648,7 +693,8 @@ internal class GlassScrollEdgeUniforms {
   val taps: FloatArray = FloatArray(GlassEdgeBlurTapPairs * 2)
   val bounds: FloatArray = FloatArray(4)
   val edgeLine: FloatArray = FloatArray(3)
-  val blurRamp: FloatArray = FloatArray(4)
+  val blurKnots: FloatArray = FloatArray(GlassEdgeVeilKnots * 4)
+  var blurShare: Float = 1f
   val veilKnots: FloatArray = FloatArray(GlassEdgeVeilKnots * 4)
   val veilKnob: FloatArray = FloatArray(2)
   var veilColor: Color = Color.Unspecified
@@ -656,6 +702,9 @@ internal class GlassScrollEdgeUniforms {
   val fadeRamp: FloatArray = FloatArray(2)
   var amount: Float = 1f
   var grain: Float = GlassScrollEdgeGrain
+
+  /** Il taglio fra due pagine ([GlassScrollEdgeSplit]): (da, a, intensità fuori, intensità dentro); spento di serie. */
+  val split: FloatArray = floatArrayOf(1f, 0f, 0f, 0f)
 
   /**
    * Riempie gli uniform per una striscia larga [widthPx] e alta [heightPx] (px della cattura), con il bordo dei
@@ -676,6 +725,7 @@ internal class GlassScrollEdgeUniforms {
     veilScale: Float = GlassScrollEdgeTuning.veilScale(top),
     veilCeiling: Float = GlassScrollEdgeTuning.veilCeiling,
     textCurve: Boolean = GlassScrollEdgeTuning.textCurve,
+    split: GlassScrollEdgeSplit? = null,
   ) {
     centerWeight = kernel.centerWeight
     for (i in 0 until GlassEdgeBlurTapPairs) {
@@ -690,10 +740,8 @@ internal class GlassScrollEdgeUniforms {
     edgeLine[0] = if (top) controlsPx else heightPx - controlsPx
     edgeLine[1] = if (top) 1f else -1f
     edgeLine[2] = unitPx
-    blurRamp[0] = profile.blurFullAt
-    blurRamp[1] = profile.blurZeroAt
-    blurRamp[2] = profile.blurShape
-    blurRamp[3] = profile.blurShare
+    profile.blur.writeKnots(blurKnots)
+    blurShare = profile.blurShare
     // La curva del velo: quella del profilo, o quella del testo se la manopola `edgecurve=text` la chiede. Le altre
     // manopole ([GlassScrollEdgeTuning]) la scalano e la tagliano; a 1 i numeri sono quelli del profilo, al bit.
     val curve = if (textCurve) profile.veilText else profile.veil
@@ -708,6 +756,17 @@ internal class GlassScrollEdgeUniforms {
     fadeRamp[0] = profile.fadeFrom
     fadeRamp[1] = profile.fadeTo
     this.amount = amount.coerceIn(0f, 1f)
+    if (split != null && split.to >= split.from) {
+      this.split[0] = split.from
+      this.split[1] = split.to
+      this.split[2] = split.outside.coerceIn(0f, 1f)
+      this.split[3] = split.inside.coerceIn(0f, 1f)
+    } else {
+      this.split[0] = 1f
+      this.split[1] = 0f
+      this.split[2] = 0f
+      this.split[3] = 0f
+    }
   }
 
   /** Scrive gli uniform nello shader per la passata [pass] (0 orizzontale, 1 verticale e finitura). */
@@ -717,7 +776,8 @@ internal class GlassScrollEdgeUniforms {
     shader.setFloatUniform("centerWeight", centerWeight)
     shader.setFloatUniform("taps", taps)
     shader.setFloatUniform("edgeLine", edgeLine)
-    shader.setFloatUniform("blurRamp", blurRamp)
+    shader.setFloatUniform("blurKnots", blurKnots)
+    shader.setFloatUniform("blurShare", blurShare)
     shader.setFloatUniform("veilKnots", veilKnots)
     shader.setFloatUniform("veilKnob", veilKnob)
     shader.setFloatUniform("grain", grain)
@@ -725,6 +785,7 @@ internal class GlassScrollEdgeUniforms {
     shader.setFloatUniform("shade", shade)
     shader.setFloatUniform("fadeRamp", fadeRamp)
     shader.setFloatUniform("amount", amount)
+    shader.setFloatUniform("split", split)
     shader.setFloatUniform("finish", if (pass == 0) 0f else 1f)
   }
 
@@ -741,6 +802,18 @@ internal class GlassScrollEdgeUniforms {
     }
   }
 }
+
+/**
+ * Il taglio della striscia fra due pagine che si muovono (dal seguito di F2.5): fra [from] e [to] (px della striscia)
+ * sta la pagina sopra, con la sua intensità [inside]; fuori quella sotto, con [outside]. Così la striscia di una pagina
+ * che esce se ne va con lei, invece di spegnersi tutta insieme con la corsa (che è veloce all'inizio).
+ */
+internal class GlassScrollEdgeSplit(
+  @JvmField var from: Float = 0f,
+  @JvmField var to: Float = -1f,
+  @JvmField var outside: Float = 0f,
+  @JvmField var inside: Float = 0f,
+)
 
 /**
  * Le manopole di debug del **velo** della striscia (F2.5, giro sul velo del 2026-11-12): per far scegliere ad Alessio

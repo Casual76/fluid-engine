@@ -1,19 +1,19 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FloatExponentialDecaySpec
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -59,13 +59,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalDensity
@@ -626,20 +626,23 @@ fun FluidNotificationHost(
         .padding(horizontal = 12.dp, vertical = 8.dp),
       contentAlignment = Alignment.TopCenter,
     ) {
+      // Lanciata via, la card se ne va col dito: niente uscita.
+      val exitNone = reducedMotion ||
+        thrownNotificationId != null && thrownNotificationId == presentation.notification?.id
       AnimatedVisibility(
         visibleState = visibilityState,
+        // Spostamento e opacita' sono un layer *fuori* dal vetro (il vetro li vede come una pagina che scorre). La
+        // crescita no: fino alla 4.0 era uno `scaleIn` da 0,97, cioe' un layer scalato **antenato del vetro**, che
+        // rifrange cio' che non c'e' piu' (`ref/regole.md`, «un ingresso non scala un vetro»). Ora e' la sagoma a
+        // nascere piu' piccola e a crescere ([fluidNotificationShapeScale] qui sotto), con la stessa molla.
         enter = if (reducedMotion) EnterTransition.None else slideInVertically(
           initialOffsetY = { -it / 3 },
           animationSpec = FluidMotion.intOffset(
             dampingRatio = FluidMotion.DampingChrome,
             stiffness = FluidMotion.ResponseSnappy,
           ),
-        ) + fadeIn(animationSpec = FluidMotion.fadeIn(150)) + scaleIn(
-          initialScale = 0.97f,
-          transformOrigin = TransformOrigin(0.5f, 0f),
-          animationSpec = FluidMotion.snappy(),
-        ),
-        exit = if (reducedMotion || thrownNotificationId != null && thrownNotificationId == presentation.notification?.id) {
+        ) + fadeIn(animationSpec = FluidMotion.fadeIn(150)),
+        exit = if (exitNone) {
           ExitTransition.None
         } else {
           slideOutVertically(
@@ -648,16 +651,21 @@ fun FluidNotificationHost(
               dampingRatio = FluidMotion.DampingChrome,
               stiffness = FluidMotion.ResponseSnappy,
             ),
-          ) + fadeOut(animationSpec = FluidMotion.fadeOut(NotificationExitMillis)) + scaleOut(
-            targetScale = 0.985f,
-            transformOrigin = TransformOrigin(0.5f, 0f),
-            animationSpec = FluidMotion.snappy(),
-          )
+          ) + fadeOut(animationSpec = FluidMotion.fadeOut(NotificationExitMillis))
         },
       ) {
+        // La taglia della sagoma: 0,97 all'arrivo e 0,985 all'uscita, ancorata in alto al centro, con la molla che
+        // aveva la scala (`snappy`). Letta nel layout della card, mai nella composizione: la molla non ricompone.
+        val shapeScale = transition.animateFloat(
+          transitionSpec = { FluidMotion.snappy() },
+          label = "notification shape",
+        ) { state ->
+          fluidNotificationShapeScale(state, reducedMotion = reducedMotion, exitNone = exitNone)
+        }
         presentation.notification?.let { notification ->
           FluidNotificationCard(
             notification = notification,
+            shapeScale = { shapeScale.value },
             onDismiss = { if (state.currentNotification?.id == notification.id) state.dismissCurrent() },
             onAction = { state.performAction(notification.id, it) },
             backdrop = backdrop,
@@ -1081,11 +1089,95 @@ private fun Modifier.fluidNotificationStretch(extraPx: () -> Float): Modifier =
     layout(placeable.width, placeable.height + extra) { placeable.place(0, 0) }
   }
 
+// -------------------------------------------------------------------------------------------------
+// La comparsa per geometria (4.0, F1B.5)
+// -------------------------------------------------------------------------------------------------
+//
+// La card arriva un poco piu' piccola e cresce. Fino alla 4.0 lo faceva uno `scaleIn(0,97)` sull'
+// `AnimatedVisibility`, cioe' un layer scalato sopra il vetro: il vetro della card campionava una
+// pagina che il layer poi rimpiccioliva, e mentre cresceva il fondale "respirava" dentro di lei (la
+// prima delle tre trappole del vetro in movimento, `ref/regole.md`). Adesso cresce la **sagoma**: il
+// nodo del vetro e' misurato a 0,97 della card intera e si allarga fino a lei, il vetro ricampiona la
+// pagina che ha davvero dietro a ogni passo, e il contenuto resta della sua misura (non si scala
+// niente): la sagoma gli cresce attorno, ritagliata dalla card.
+
+/** La taglia della sagoma della card all'arrivo, in frazione della card intera: quella dello `scaleIn` di prima. */
+internal const val NotificationEnterShapeScale: Float = 0.97f
+
+/** La taglia della sagoma della card a fine uscita: quella dello `scaleOut` di prima. */
+internal const val NotificationExitShapeScale: Float = 0.985f
+
+/**
+ * La taglia della sagoma in ogni stato della comparsa: piena a card visibile; piccola prima dell'arrivo e dopo
+ * l'uscita, salvo che l'arrivo o l'uscita non ci siano (animazioni ridotte, card lanciata via).
+ */
+internal fun fluidNotificationShapeScale(state: EnterExitState, reducedMotion: Boolean, exitNone: Boolean): Float =
+  when (state) {
+    EnterExitState.Visible -> 1f
+    EnterExitState.PreEnter -> if (reducedMotion) 1f else NotificationEnterShapeScale
+    EnterExitState.PostExit -> if (exitNone) 1f else NotificationExitShapeScale
+  }
+
+/**
+ * Un lato della sagoma a [scale] del lato pieno [fullPx], in pixel interi: mai piu' grande del pieno, mai
+ * negativo. A scala uno (o non finita) e' il pieno, al pixel: la card a riposo non cambia di un pixel.
+ */
+internal fun fluidNotificationShapeSide(fullPx: Int, scale: Float): Int {
+  if (fullPx <= 0) return fullPx.coerceAtLeast(0)
+  if (!scale.isFinite() || scale >= 1f) return fullPx
+  return (fullPx * scale.coerceAtLeast(0f) + 0.5f).toInt().coerceIn(0, fullPx)
+}
+
+/** La larghezza piena della card, scritta dalla misura esterna e letta da quella interna nello stesso passaggio. */
+private class NotificationShapeFrame {
+  var fullWidth: Int = -1
+}
+
+/**
+ * Fuori dal vetro: la card occupa la sua larghezza piena, ma il nodo del vetro (e tutto cio' che segue nella
+ * catena) e' misurato alla larghezza della sagoma, centrato. Il vetro, la `Surface` e il suo ritaglio vedono la
+ * sagoma; la colonna dentro la riporta alla misura piena ([fluidNotificationShapeContent]).
+ */
+private fun Modifier.fluidNotificationShapeFrame(frame: NotificationShapeFrame, scale: () -> Float): Modifier =
+  layout { measurable, constraints ->
+    val s = scale()
+    if (s >= 1f || !constraints.hasBoundedWidth) {
+      frame.fullWidth = -1
+      val placeable = measurable.measure(constraints)
+      return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+    val full = constraints.maxWidth
+    val width = fluidNotificationShapeSide(full, s)
+    frame.fullWidth = full
+    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+    layout(full, placeable.height) { placeable.place((full - width) / 2, 0) }
+  }
+
+/**
+ * Dentro il vetro: il contenuto e' misurato alla larghezza **piena** della card (il testo non va a capo in un altro
+ * punto mentre la card cresce), e la colonna dichiara la misura della sagoma, larga quanto il nodo del vetro e alta
+ * [scale] del contenuto, ancorata in alto. Cio' che avanza lo ritaglia la card.
+ */
+private fun Modifier.fluidNotificationShapeContent(frame: NotificationShapeFrame, scale: () -> Float): Modifier =
+  layout { measurable, constraints ->
+    val s = scale()
+    val full = frame.fullWidth
+    if (s >= 1f || full <= 0 || !constraints.hasBoundedWidth || full == constraints.maxWidth) {
+      val placeable = measurable.measure(constraints)
+      return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+    val placeable = measurable.measure(constraints.copy(minWidth = full, maxWidth = full))
+    val width = constraints.maxWidth
+    val height = constraints.constrainHeight(fluidNotificationShapeSide(placeable.height, s))
+    layout(width, height) { placeable.place((width - full) / 2, 0) }
+  }
+
 @Composable
 private fun FluidNotificationCard(
   notification: FluidNotification,
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier,
+  shapeScale: () -> Float = { 1f },
   backdrop: GlassBackdropState? = null,
   onTouchChanged: (Boolean) -> Unit = {},
   onExpandedChanged: (Boolean) -> Unit = {},
@@ -1157,6 +1249,7 @@ private fun FluidNotificationCard(
   }
   val expanded = drag.expanded
   val showActions = expanded && notification.actions.isNotEmpty()
+  val shapeFrame = remember { NotificationShapeFrame() }
 
   Surface(
     modifier = modifier
@@ -1181,6 +1274,8 @@ private fun FluidNotificationCard(
       // default, cioe' opaco e al suo posto: una card lanciata via e appena tolta ricomparirebbe
       // un istante, intera, dov'era. A opacita' quasi zero non si registra niente.
       .drawWithContent { if (drag.alpha > NotificationGateAlpha) drawContent() }
+      // La comparsa: la sagoma (vetro, `Surface`, ritaglio, ombra) cresce per misura, non per scala.
+      .fluidNotificationShapeFrame(shapeFrame, shapeScale)
       .then(glassModifier)
       .semantics {
         paneTitle = labels.notification
@@ -1206,6 +1301,8 @@ private fun FluidNotificationCard(
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
       Column(
         modifier = Modifier
+          // Il contenuto alla misura piena dentro la sagoma che cresce (la comparsa, qui sopra).
+          .fluidNotificationShapeContent(shapeFrame, shapeScale)
           // La card piena col suo materiale (F1A.13): lo stesso colore che la `Surface` dipinge, ripetuto qui
           // perche' sia anche cio' che i controlli campionano. Solo il fondo, mai il contenuto.
           .then(

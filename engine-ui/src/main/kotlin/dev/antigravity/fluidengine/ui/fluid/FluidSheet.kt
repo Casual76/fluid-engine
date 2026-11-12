@@ -32,6 +32,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,15 +42,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
+import dev.antigravity.fluidengine.ui.glass.field.LocalGlassPaintedPanel
+import dev.antigravity.fluidengine.ui.glass.field.glassPainted
+import dev.antigravity.fluidengine.ui.glass.field.glassPaintedPanelBody
+import dev.antigravity.fluidengine.ui.glass.field.glassPaintedSeen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -109,17 +118,29 @@ fun FluidSheet(
     return
   }
   val sheetShape = ContinuousCornerShape(topStart = FluidRadius.Sheet, topEnd = FluidRadius.Sheet)
+  val darkSide = GlassDefaults.isDarkSurface()
+  val page = MaterialTheme.colorScheme.background
+  // Il vetro dipinto del foglio (F1B.5, `glass/field/GlassPaintedProfile.kt`): il corpo e' il colore pieno che il
+  // foglio di vetro ha sopra la pagina del tema sotto lo scrim, e lo dipinge il contenitore, che copre anche la
+  // maniglia. Prima il contenitore era la superficie al 92%: dal foglio si leggeva la pagina dietro, nitida.
+  val body = remember(page, darkSide) { glassPaintedPanelBody(page, darkSide) }
+  val seen = remember(page, darkSide) { glassPaintedSeen(page, darkSide) }
+  // Dove comincia il contenuto sotto la maniglia: il bordo dipinto sale fin li', alla cima vera del foglio.
+  var contentTop by remember { mutableFloatStateOf(0f) }
+  val bottomBleed = with(LocalDensity.current) { SheetBottomBleed.toPx() }
   ModalBottomSheet(
     onDismissRequest = onDismissRequest,
-    modifier = modifier,
+    // L'ombra del vetro, fuori dal ritaglio del foglio (il `modifier` sta prima della `Surface` del foglio). Non
+    // segue lo scatto del gesto indietro predittivo, che Material applica dentro: si vede appena, sopra lo scrim.
+    modifier = modifier.glassShadow(sheetShape, GlassDefaults.panelOptics()),
     sheetState = sheetState,
     shape = sheetShape,
     // ModalBottomSheet owns a separate platform window, so it cannot sample a FluidScreen's
-    // GraphicsLayer. Keep the window translucent and add the same optical rim draw-only below;
-    // the live-backdrop path remains reserved for in-root overlays.
-    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+    // GraphicsLayer: the painted glass below stands in for it; the live-backdrop path remains
+    // reserved for in-root overlays.
+    containerColor = body,
     contentColor = MaterialTheme.colorScheme.onSurface,
-    scrimColor = Color.Black.copy(alpha = 0.42f),
+    scrimColor = GlassPaintedScrim.color(darkSide),
     tonalElevation = 0.dp,
     dragHandle = if (showGrabber) {
       { FluidGrabber() }
@@ -131,22 +152,41 @@ fun FluidSheet(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .fluidStaticGlassSurface(shape = sheetShape),
+        .onPlaced { contentTop = it.positionInParent().y }
+        // Filo, riflesso e ombreggiatura sulla sagoma di tutto il foglio: dalla cima (sopra la maniglia) a oltre
+        // il fondo, che sta a filo dello schermo e non ha bordo. Il corpo lo dipinge il contenitore.
+        .glassPainted(
+          shape = sheetShape,
+          darkSide = darkSide,
+          seen = seen,
+          largeVeil = 1f,
+          drawBody = false,
+          extendTop = { contentTop },
+          extendBottomPx = bottomBleed,
+        ),
     ) {
-      if (title != null) {
-        Text(
-          text = title,
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
-          style = MaterialTheme.typography.titleLarge,
-          textAlign = TextAlign.Center,
-        )
+      CompositionLocalProvider(LocalGlassPaintedPanel provides body) {
+        if (title != null) {
+          Text(
+            text = title,
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 20.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+          )
+        }
+        content()
       }
-      content()
     }
   }
 }
+
+/**
+ * Di quanto la sagoma dipinta del foglio scende oltre il suo fondo: piu' del filo, della riga chiara, dell'alone e
+ * dell'ombreggiatura (7 dp di rientro, 22 di ombreggiatura), cosi' il fondo a filo dello schermo non ha un bordo.
+ */
+private val SheetBottomBleed = 48.dp
 
 /**
  * Il foglio di [FluidSheet] nell'host: la presentazione `Sheet` del portale, per la durata della
@@ -349,10 +389,18 @@ private fun FluidAlertDialog(
   val windowHeight = with(LocalDensity.current) {
     LocalWindowInfo.current.containerSize.height.toDp()
   }
+  val darkSide = GlassDefaults.isDarkSurface()
+  val page = scheme.background
+  val body = remember(page, darkSide) { glassPaintedPanelBody(page, darkSide) }
+  val seen = remember(page, darkSide) { glassPaintedSeen(page, darkSide) }
   Dialog(
     onDismissRequest = onDismissRequest,
     properties = DialogProperties(usePlatformDefaultWidth = false),
   ) {
+    // Lo scrim dei pannelli dipinti (F1B.5): lo stesso nero del foglio di piattaforma e dei modali di vetro, al
+    // posto del velo di piattaforma della `Dialog`.
+    val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+    SideEffect { dialogWindow?.setDimAmount(GlassPaintedScrim.alpha(darkSide)) }
     val alertShape = ContinuousCornerShape(FluidRadius.Card)
     Column(
       modifier = modifier
@@ -361,13 +409,15 @@ private fun FluidAlertDialog(
           scaleY = scale
           this.alpha = alpha
         }
+        // L'ombra del vetro, fuori dal ritaglio. Il layer qui sopra scala un dipinto, non un vetro: si puo'.
+        .glassShadow(alertShape, GlassDefaults.panelOptics())
         .widthIn(max = 280.dp)
         .heightIn(max = windowHeight * AlertMaxHeightFraction)
         .clip(alertShape)
-        // Dialog is another platform window: use the optical fallback rather than pretending the
-        // screen's live sample can cross that boundary.
-        .background(scheme.surfaceContainerHigh.copy(alpha = 0.92f))
-        .fluidStaticGlassSurface(shape = alertShape),
+        // Dialog is another platform window: use the painted glass (F1B.5, the same material as the
+        // glass alert in the host, painted) rather than pretending the screen's live sample can
+        // cross that boundary.
+        .glassPainted(shape = alertShape, darkSide = darkSide, seen = seen, largeVeil = 1f),
     ) {
       Column(
         modifier = Modifier
@@ -396,8 +446,14 @@ private fun FluidAlertDialog(
           )
         }
         // Il contenuto dell'app sta sulla card, non sulla pagina del chiamante (3.0.1): la finestra
-        // eredita il suo `LocalContentColor`, che fuori da una `Surface` vale nero.
-        content?.let { slot -> CompositionLocalProvider(LocalContentColor provides scheme.onSurface) { slot(this) } }
+        // eredita il suo `LocalContentColor`, che fuori da una `Surface` vale nero. Un vetro dipinto
+        // dentro sa di stare sul corpo dell'avviso (F1B.5).
+        content?.let { slot ->
+          CompositionLocalProvider(
+            LocalContentColor provides scheme.onSurface,
+            LocalGlassPaintedPanel provides body,
+          ) { slot(this) }
+        }
       }
 
       val hairline = scheme.onSurface.copy(alpha = 0.12f)

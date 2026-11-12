@@ -1,0 +1,542 @@
+{
+  "_": "Scritta dalla ricetta (GlassPaintedProfileTest, F1B.5): il foglio di vetro VERO nell'host (l'elemento) e, in `_dipinto`, i passi del vetro dipinto di oggi e di quello nuovo (pixel del pannello a densita' 3), che dipinto-rendi.py disegna accanto. Fondo foto, lato scuro. Non si modifica a mano: si rigenera.",
+  "width": 360,
+  "height": 320,
+  "density": 3,
+  "theme": "dark",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "synthetic",
+    "scaleDp": 46,
+    "detail": 1,
+    "contrast": 1.25,
+    "palette": ["#111114", "#F4D21C", "#F06AA8", "#1A1A22", "#35C2D6", "#F4D21C", "#E8651C", "#111114"]
+  },
+  "page": [
+    {
+      "kind": "rect",
+      "x": 0,
+      "y": 0,
+      "w": 360,
+      "h": 320,
+      "color": "#00000033"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "name": "foglio",
+      "_ricetta": "glassRecipe: ruolo Modal, panelOptics, 360 x 236 dp, lato scuro (il foglio di vetro nell'host)",
+      "x": 0,
+      "y": 116,
+      "w": 360,
+      "h": 236,
+      "radius": [38, 38, 0, 0],
+      "clip": true,
+      "clipRadiusScale": 0.98,
+      "shadow": [
+        {
+          "radiusDp": 41.626106,
+          "offsetDp": [0, 8.202791],
+          "alpha": 0.206916,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 6.18223,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 0.73
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0.6],
+          "thickness": "40dp",
+          "refraction": "-36dp",
+          "dome": 0,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#36363C80",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0.6],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#FFFFFF57",
+            "rimFeather": 0.4,
+            "rimLift": -0.25,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.2,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.55,
+            "glowCenter": "$center",
+            "glowRadius": "360dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0.6],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#FFFFFF57",
+            "rimFeather": 0.4,
+            "rimLift": -0.25,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.2,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.55,
+            "glowCenter": "$center",
+            "glowRadius": "360dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "items": [
+        {
+          "kind": "rect",
+          "x": 162,
+          "y": 8,
+          "w": 36,
+          "h": 5,
+          "radius": 2.5,
+          "color": "#F2F2F52E"
+        },
+        {
+          "kind": "text",
+          "text": "Ancorato al bordo",
+          "x": 20,
+          "y": 49,
+          "sizeDp": 22,
+          "weight": 600,
+          "align": "left",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 1 di contenuto, sopra la pagina.",
+          "x": 20,
+          "y": 83,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#AAAAB2"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 2 di contenuto, sopra la pagina.",
+          "x": 20,
+          "y": 109,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#AAAAB2"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 3: il testo principale si legge qui.",
+          "x": 20,
+          "y": 135,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#F2F2F5"
+        }
+      ]
+    }
+  ],
+  "_dipinto": {
+    "pannello": {
+      "name": "foglio",
+      "x": 0,
+      "y": 116,
+      "w": 360,
+      "h": 236,
+      "radius": [38, 38, 0, 0]
+    },
+    "oggi": {
+      "scrim": 0.42,
+      "shadow": [],
+      "under": [
+        {
+          "offset": [0, 0],
+          "size": [1080, 708],
+          "radii": [114, 114, 0, 0],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 708],
+          "stops": [[0, "#1C1D20EB"], [1, "#1C1D20EB"]]
+        }
+      ],
+      "handle": [
+        {
+          "kind": "rect",
+          "x": 162,
+          "y": 8,
+          "w": 36,
+          "h": 5,
+          "radius": 2.5,
+          "color": "#F2F2F52E"
+        }
+      ],
+      "over": [
+        {
+          "offset": [0, 63],
+          "size": [1080, 645],
+          "radii": [114, 114, 0, 0],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 63],
+          "to": [1080, 708],
+          "stops": [[0, "#1C1D202E"], [0.46, "#1C1D201A"], [1, "#1C1D2026"]]
+        },
+        {
+          "offset": [0, 63],
+          "size": [1080, 645],
+          "radii": [114, 114, 0, 0],
+          "strokePx": 4.05,
+          "blend": "SrcOver",
+          "from": [0, 63],
+          "to": [1080, 708],
+          "stops": [[0, "#FFFFFF94"], [0.38, "#FFFFFF29"], [0.68, "#00000000"], [1, "#00000085"]]
+        },
+        {
+          "offset": [6, 69],
+          "size": [1068, 633],
+          "radii": [114, 114, 0, 0],
+          "strokePx": 2.85,
+          "blend": "SrcOver",
+          "from": [6, 69],
+          "to": [1086, 714],
+          "stops": [[0, "#FFFFFF29"], [0.5, "#00000000"], [1, "#F2F2F552"]]
+        }
+      ],
+      "items": [
+        {
+          "kind": "text",
+          "text": "Ancorato al bordo",
+          "x": 20,
+          "y": 49,
+          "sizeDp": 22,
+          "weight": 600,
+          "align": "left",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 1 di contenuto, sopra la pagina.",
+          "x": 20,
+          "y": 83,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#AAAAB2"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 2 di contenuto, sopra la pagina.",
+          "x": 20,
+          "y": 109,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#AAAAB2"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 3: il testo principale si legge qui.",
+          "x": 20,
+          "y": 135,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#F2F2F5"
+        }
+      ]
+    },
+    "nuovo": {
+      "scrim": 0.2,
+      "shadow": [
+        {
+          "radiusDp": 41.626106,
+          "offsetDp": [0, 8.202791],
+          "alpha": 0.206916,
+          "color": "#000000"
+        }
+      ],
+      "under": [
+        {
+          "offset": [0, 0],
+          "size": [1080, 708],
+          "radii": [114, 114, 0, 0],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 708],
+          "stops": [[0, "#212125FF"], [1, "#212125FF"]]
+        }
+      ],
+      "handle": [
+        {
+          "kind": "rect",
+          "x": 162,
+          "y": 8,
+          "w": 36,
+          "h": 5,
+          "radius": 2.5,
+          "color": "#F2F2F52E"
+        }
+      ],
+      "over": [
+        {
+          "offset": [0, 0],
+          "size": [1080, 852],
+          "radii": [114, 114, 0, 0],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0, "#00000033"], [0.004842, "#0000002D"], [0.009683, "#00000027"], [0.014525, "#00000022"], [0.019366, "#0000001D"], [0.024208, "#00000018"], [0.029049, "#00000014"], [0.033891, "#00000010"], [0.038732, "#0000000D"], [0.043574, "#0000000A"], [0.048415, "#00000007"], [0.053257, "#00000005"], [0.058099, "#00000003"], [0.06294, "#00000002"], [0.067782, "#00000001"], [0.072623, "#00000000"], [0.077465, "#00000000"], [0.922535, "#00000000"], [0.927377, "#00000000"], [0.932218, "#00000000"], [0.93706, "#00000000"], [0.941901, "#00000001"], [0.946743, "#00000001"], [0.951585, "#00000002"], [0.956426, "#00000002"], [0.961268, "#00000003"], [0.966109, "#00000004"], [0.970951, "#00000005"], [0.975792, "#00000006"], [0.980634, "#00000007"], [0.985475, "#00000008"], [0.990317, "#0000000A"], [0.995158, "#0000000B"], [1, "#0000000D"]]
+        },
+        {
+          "offset": [0, 0],
+          "size": [1080, 852],
+          "radii": [114, 114, 0, 0],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [1080, 0],
+          "stops": [[0, "#00000020"], [0.003819, "#0000001C"], [0.007639, "#00000018"], [0.011458, "#00000015"], [0.015278, "#00000012"], [0.019097, "#0000000F"], [0.022917, "#0000000C"], [0.026736, "#0000000A"], [0.030556, "#00000008"], [0.034375, "#00000006"], [0.038194, "#00000004"], [0.042014, "#00000003"], [0.045833, "#00000002"], [0.049653, "#00000001"], [0.053472, "#00000000"], [0.057292, "#00000000"], [0.061111, "#00000000"], [0.938889, "#00000000"], [0.942708, "#00000000"], [0.946528, "#00000000"], [0.950347, "#00000001"], [0.954167, "#00000002"], [0.957986, "#00000003"], [0.961806, "#00000004"], [0.965625, "#00000006"], [0.969444, "#00000008"], [0.973264, "#0000000A"], [0.977083, "#0000000C"], [0.980903, "#0000000F"], [0.984722, "#00000012"], [0.988542, "#00000015"], [0.992361, "#00000018"], [0.996181, "#0000001C"], [1, "#00000020"]]
+        },
+        {
+          "offset": [3.6, 3.6],
+          "size": [1072.800049, 844.799988],
+          "radii": [110.400002, 110.400002, 0, 0],
+          "strokePx": 3.6,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.004225, "#FFFFFF33"], [0.008641, "#FFFFFF33"], [0.021585, "#FFFFFF33"], [0.042178, "#FFFFFF33"], [0.064351, "#FFFFFF33"], [0.069014, "#FFFFFF32"], [0.069777, "#FFFFFF31"], [0.075355, "#FFFFFF2C"], [0.081073, "#FFFFFF24"], [0.086917, "#FFFFFF1B"], [0.092873, "#FFFFFF11"], [0.098926, "#FFFFFF09"], [0.100266, "#FFFFFF07"], [0.105063, "#FFFFFF02"], [0.111268, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.995775, "#FFFFFF00"], [0.995776, "#FFFFFF00"], [0.995777, "#FFFFFF02"], [0.995778, "#FFFFFF07"], [0.995779, "#FFFFFF09"], [0.99578, "#FFFFFF11"], [0.995782, "#FFFFFF1B"], [0.995783, "#FFFFFF24"], [0.995784, "#FFFFFF2C"], [0.995785, "#FFFFFF31"], [0.995786, "#FFFFFF32"], [0.995787, "#FFFFFF33"], [0.995788, "#FFFFFF33"], [0.99579, "#FFFFFF33"], [0.995791, "#FFFFFF33"], [0.995792, "#FFFFFF33"]]
+        },
+        {
+          "offset": [6.125, 6.125],
+          "size": [1067.75, 839.75],
+          "radii": [107.875, 107.875, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.007189, "#FFFFFF14"], [0.011503, "#FFFFFF14"], [0.015595, "#FFFFFF14"], [0.019878, "#FFFFFF14"], [0.024152, "#FFFFFF13"], [0.024984, "#FFFFFF12"], [0.030877, "#FFFFFF10"], [0.037514, "#FFFFFF0D"], [0.044273, "#FFFFFF09"], [0.044848, "#FFFFFF09"], [0.052825, "#FFFFFF05"], [0.061388, "#FFFFFF01"], [0.070474, "#FFFFFF00"], [0.070496, "#FFFFFF00"], [0.101033, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.992811, "#FFFFFF00"], [0.992812, "#FFFFFF00"], [0.992813, "#FFFFFF00"], [0.992814, "#FFFFFF00"], [0.992816, "#FFFFFF01"], [0.992817, "#FFFFFF05"], [0.992818, "#FFFFFF09"], [0.992819, "#FFFFFF09"], [0.99282, "#FFFFFF0D"], [0.992821, "#FFFFFF10"], [0.992822, "#FFFFFF12"], [0.992824, "#FFFFFF13"], [0.992825, "#FFFFFF14"], [0.992826, "#FFFFFF14"], [0.992827, "#FFFFFF14"], [0.992828, "#FFFFFF14"]]
+        },
+        {
+          "offset": [7.575, 7.575],
+          "size": [1064.849976, 836.849976],
+          "radii": [106.425003, 106.425003, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.008891, "#FFFFFF11"], [0.013147, "#FFFFFF11"], [0.017184, "#FFFFFF11"], [0.021409, "#FFFFFF11"], [0.025626, "#FFFFFF10"], [0.026446, "#FFFFFF10"], [0.03226, "#FFFFFF0E"], [0.038808, "#FFFFFF0B"], [0.045477, "#FFFFFF08"], [0.046043, "#FFFFFF08"], [0.053913, "#FFFFFF04"], [0.062361, "#FFFFFF01"], [0.071325, "#FFFFFF00"], [0.071347, "#FFFFFF00"], [0.101473, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.991109, "#FFFFFF00"], [0.99111, "#FFFFFF00"], [0.991111, "#FFFFFF00"], [0.991113, "#FFFFFF00"], [0.991114, "#FFFFFF01"], [0.991115, "#FFFFFF04"], [0.991116, "#FFFFFF08"], [0.991117, "#FFFFFF08"], [0.991118, "#FFFFFF0B"], [0.991119, "#FFFFFF0E"], [0.991121, "#FFFFFF10"], [0.991122, "#FFFFFF10"], [0.991123, "#FFFFFF11"], [0.991124, "#FFFFFF11"], [0.991125, "#FFFFFF11"], [0.991126, "#FFFFFF11"]]
+        },
+        {
+          "offset": [9.025, 9.025],
+          "size": [1061.949951, 833.950012],
+          "radii": [104.974998, 104.974998, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.010593, "#FFFFFF0F"], [0.014791, "#FFFFFF0F"], [0.018773, "#FFFFFF0F"], [0.02294, "#FFFFFF0F"], [0.0271, "#FFFFFF0E"], [0.027909, "#FFFFFF0E"], [0.033643, "#FFFFFF0C"], [0.040102, "#FFFFFF0A"], [0.04668, "#FFFFFF07"], [0.047239, "#FFFFFF07"], [0.055002, "#FFFFFF04"], [0.063334, "#FFFFFF01"], [0.072177, "#FFFFFF00"], [0.072198, "#FFFFFF00"], [0.101914, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.989407, "#FFFFFF00"], [0.989408, "#FFFFFF00"], [0.98941, "#FFFFFF00"], [0.989411, "#FFFFFF00"], [0.989412, "#FFFFFF01"], [0.989413, "#FFFFFF04"], [0.989414, "#FFFFFF07"], [0.989415, "#FFFFFF07"], [0.989416, "#FFFFFF0A"], [0.989418, "#FFFFFF0C"], [0.989419, "#FFFFFF0E"], [0.98942, "#FFFFFF0E"], [0.989421, "#FFFFFF0F"], [0.989422, "#FFFFFF0F"], [0.989423, "#FFFFFF0F"], [0.989424, "#FFFFFF0F"]]
+        },
+        {
+          "offset": [10.475, 10.475],
+          "size": [1059.050049, 831.049988],
+          "radii": [103.525002, 103.525002, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.012295, "#FFFFFF0D"], [0.016435, "#FFFFFF0D"], [0.020362, "#FFFFFF0D"], [0.024471, "#FFFFFF0C"], [0.028574, "#FFFFFF0C"], [0.029372, "#FFFFFF0C"], [0.035027, "#FFFFFF0A"], [0.041397, "#FFFFFF08"], [0.047884, "#FFFFFF06"], [0.048435, "#FFFFFF06"], [0.05609, "#FFFFFF03"], [0.064308, "#FFFFFF01"], [0.073028, "#FFFFFF00"], [0.073049, "#FFFFFF00"], [0.102354, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.987705, "#FFFFFF00"], [0.987707, "#FFFFFF00"], [0.987708, "#FFFFFF00"], [0.987709, "#FFFFFF00"], [0.98771, "#FFFFFF01"], [0.987711, "#FFFFFF03"], [0.987712, "#FFFFFF06"], [0.987713, "#FFFFFF06"], [0.987715, "#FFFFFF08"], [0.987716, "#FFFFFF0A"], [0.987717, "#FFFFFF0C"], [0.987718, "#FFFFFF0C"], [0.987719, "#FFFFFF0C"], [0.98772, "#FFFFFF0D"], [0.987722, "#FFFFFF0D"], [0.987723, "#FFFFFF0D"]]
+        },
+        {
+          "offset": [11.925, 11.925],
+          "size": [1056.150024, 828.150024],
+          "radii": [102.074997, 102.074997, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.013996, "#FFFFFF0A"], [0.018079, "#FFFFFF0A"], [0.021951, "#FFFFFF0A"], [0.026003, "#FFFFFF0A"], [0.030047, "#FFFFFF0A"], [0.030834, "#FFFFFF0A"], [0.03641, "#FFFFFF08"], [0.042691, "#FFFFFF07"], [0.049087, "#FFFFFF05"], [0.04963, "#FFFFFF05"], [0.057179, "#FFFFFF03"], [0.065281, "#FFFFFF01"], [0.073879, "#FFFFFF00"], [0.0739, "#FFFFFF00"], [0.102795, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.986004, "#FFFFFF00"], [0.986005, "#FFFFFF00"], [0.986006, "#FFFFFF00"], [0.986007, "#FFFFFF00"], [0.986008, "#FFFFFF01"], [0.986009, "#FFFFFF03"], [0.98601, "#FFFFFF05"], [0.986012, "#FFFFFF05"], [0.986013, "#FFFFFF07"], [0.986014, "#FFFFFF08"], [0.986015, "#FFFFFF0A"], [0.986016, "#FFFFFF0A"], [0.986017, "#FFFFFF0A"], [0.986018, "#FFFFFF0A"], [0.98602, "#FFFFFF0A"], [0.986021, "#FFFFFF0A"]]
+        },
+        {
+          "offset": [13.375, 13.375],
+          "size": [1053.25, 825.25],
+          "radii": [100.625, 100.625, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.015698, "#FFFFFF08"], [0.019723, "#FFFFFF08"], [0.02354, "#FFFFFF08"], [0.027534, "#FFFFFF08"], [0.031521, "#FFFFFF08"], [0.032297, "#FFFFFF08"], [0.037794, "#FFFFFF07"], [0.043985, "#FFFFFF05"], [0.05029, "#FFFFFF04"], [0.050826, "#FFFFFF04"], [0.058267, "#FFFFFF02"], [0.066255, "#FFFFFF01"], [0.07473, "#FFFFFF00"], [0.074751, "#FFFFFF00"], [0.103235, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.984302, "#FFFFFF00"], [0.984303, "#FFFFFF00"], [0.984304, "#FFFFFF00"], [0.984305, "#FFFFFF00"], [0.984306, "#FFFFFF01"], [0.984307, "#FFFFFF02"], [0.984309, "#FFFFFF04"], [0.98431, "#FFFFFF04"], [0.984311, "#FFFFFF05"], [0.984312, "#FFFFFF07"], [0.984313, "#FFFFFF08"], [0.984314, "#FFFFFF08"], [0.984315, "#FFFFFF08"], [0.984317, "#FFFFFF08"], [0.984318, "#FFFFFF08"], [0.984319, "#FFFFFF08"]]
+        },
+        {
+          "offset": [14.825, 14.825],
+          "size": [1050.349976, 822.349976],
+          "radii": [99.175003, 99.175003, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.0174, "#FFFFFF07"], [0.021367, "#FFFFFF07"], [0.025129, "#FFFFFF07"], [0.029065, "#FFFFFF06"], [0.032995, "#FFFFFF06"], [0.03376, "#FFFFFF06"], [0.039177, "#FFFFFF05"], [0.04528, "#FFFFFF04"], [0.051494, "#FFFFFF03"], [0.052022, "#FFFFFF03"], [0.059356, "#FFFFFF02"], [0.067228, "#FFFFFF00"], [0.075582, "#FFFFFF00"], [0.075602, "#FFFFFF00"], [0.103676, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.9826, "#FFFFFF00"], [0.982601, "#FFFFFF00"], [0.982602, "#FFFFFF00"], [0.982603, "#FFFFFF00"], [0.982604, "#FFFFFF00"], [0.982605, "#FFFFFF02"], [0.982607, "#FFFFFF03"], [0.982608, "#FFFFFF03"], [0.982609, "#FFFFFF04"], [0.98261, "#FFFFFF05"], [0.982611, "#FFFFFF06"], [0.982612, "#FFFFFF06"], [0.982614, "#FFFFFF06"], [0.982615, "#FFFFFF07"], [0.982616, "#FFFFFF07"], [0.982617, "#FFFFFF07"]]
+        },
+        {
+          "offset": [16.275, 16.275],
+          "size": [1047.449951, 819.450012],
+          "radii": [97.724998, 97.724998, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.019102, "#FFFFFF05"], [0.02301, "#FFFFFF05"], [0.026718, "#FFFFFF05"], [0.030597, "#FFFFFF05"], [0.034469, "#FFFFFF05"], [0.035222, "#FFFFFF04"], [0.040561, "#FFFFFF04"], [0.046574, "#FFFFFF03"], [0.052697, "#FFFFFF02"], [0.053218, "#FFFFFF02"], [0.060444, "#FFFFFF01"], [0.068201, "#FFFFFF00"], [0.076433, "#FFFFFF00"], [0.076452, "#FFFFFF00"], [0.104116, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.980898, "#FFFFFF00"], [0.980899, "#FFFFFF00"], [0.9809, "#FFFFFF00"], [0.980901, "#FFFFFF00"], [0.980902, "#FFFFFF00"], [0.980904, "#FFFFFF01"], [0.980905, "#FFFFFF02"], [0.980906, "#FFFFFF02"], [0.980907, "#FFFFFF03"], [0.980908, "#FFFFFF04"], [0.980909, "#FFFFFF04"], [0.98091, "#FFFFFF05"], [0.980912, "#FFFFFF05"], [0.980913, "#FFFFFF05"], [0.980914, "#FFFFFF05"], [0.980915, "#FFFFFF05"]]
+        },
+        {
+          "offset": [17.725, 17.725],
+          "size": [1044.550049, 816.549988],
+          "radii": [96.275002, 96.275002, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.020804, "#FFFFFF03"], [0.024654, "#FFFFFF03"], [0.028307, "#FFFFFF03"], [0.032128, "#FFFFFF03"], [0.035943, "#FFFFFF03"], [0.036685, "#FFFFFF03"], [0.041944, "#FFFFFF03"], [0.047868, "#FFFFFF02"], [0.053901, "#FFFFFF02"], [0.054413, "#FFFFFF02"], [0.061533, "#FFFFFF01"], [0.069175, "#FFFFFF00"], [0.077284, "#FFFFFF00"], [0.077303, "#FFFFFF00"], [0.104557, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.979196, "#FFFFFF00"], [0.979197, "#FFFFFF00"], [0.979198, "#FFFFFF00"], [0.979199, "#FFFFFF00"], [0.979201, "#FFFFFF00"], [0.979202, "#FFFFFF01"], [0.979203, "#FFFFFF02"], [0.979204, "#FFFFFF02"], [0.979205, "#FFFFFF02"], [0.979206, "#FFFFFF03"], [0.979208, "#FFFFFF03"], [0.979209, "#FFFFFF03"], [0.97921, "#FFFFFF03"], [0.979211, "#FFFFFF03"], [0.979212, "#FFFFFF03"], [0.979213, "#FFFFFF03"]]
+        },
+        {
+          "offset": [19.174999, 19.174999],
+          "size": [1041.650024, 813.650024],
+          "radii": [94.824997, 94.824997, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.022506, "#FFFFFF02"], [0.026298, "#FFFFFF02"], [0.029895, "#FFFFFF02"], [0.033659, "#FFFFFF02"], [0.037417, "#FFFFFF02"], [0.038148, "#FFFFFF02"], [0.043328, "#FFFFFF02"], [0.049162, "#FFFFFF01"], [0.055104, "#FFFFFF01"], [0.055609, "#FFFFFF01"], [0.062621, "#FFFFFF00"], [0.070148, "#FFFFFF00"], [0.078135, "#FFFFFF00"], [0.078154, "#FFFFFF00"], [0.104997, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.977494, "#FFFFFF00"], [0.977495, "#FFFFFF00"], [0.977496, "#FFFFFF00"], [0.977498, "#FFFFFF00"], [0.977499, "#FFFFFF00"], [0.9775, "#FFFFFF00"], [0.977501, "#FFFFFF01"], [0.977502, "#FFFFFF01"], [0.977503, "#FFFFFF01"], [0.977504, "#FFFFFF02"], [0.977506, "#FFFFFF02"], [0.977507, "#FFFFFF02"], [0.977508, "#FFFFFF02"], [0.977509, "#FFFFFF02"], [0.97751, "#FFFFFF02"], [0.977511, "#FFFFFF02"]]
+        },
+        {
+          "offset": [20.624998, 20.624998],
+          "size": [1038.75, 810.75],
+          "radii": [93.375, 93.375, 0, 0],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.024208, "#FFFFFF01"], [0.027942, "#FFFFFF01"], [0.031484, "#FFFFFF01"], [0.035191, "#FFFFFF01"], [0.038891, "#FFFFFF01"], [0.03961, "#FFFFFF01"], [0.044711, "#FFFFFF01"], [0.050457, "#FFFFFF01"], [0.056307, "#FFFFFF00"], [0.056805, "#FFFFFF00"], [0.06371, "#FFFFFF00"], [0.071121, "#FFFFFF00"], [0.078987, "#FFFFFF00"], [0.079005, "#FFFFFF00"], [0.105438, "#FFFFFF00"], [0.133803, "#FFFFFF00"], [0.975792, "#FFFFFF00"], [0.975793, "#FFFFFF00"], [0.975795, "#FFFFFF00"], [0.975796, "#FFFFFF00"], [0.975797, "#FFFFFF00"], [0.975798, "#FFFFFF00"], [0.975799, "#FFFFFF00"], [0.9758, "#FFFFFF00"], [0.975801, "#FFFFFF01"], [0.975803, "#FFFFFF01"], [0.975804, "#FFFFFF01"], [0.975805, "#FFFFFF01"], [0.975806, "#FFFFFF01"], [0.975807, "#FFFFFF01"], [0.975808, "#FFFFFF01"], [0.975809, "#FFFFFF01"]]
+        },
+        {
+          "offset": [0.9, 0.9],
+          "size": [1078.199951, 850.200012],
+          "radii": [113.099998, 113.099998, 0, 0],
+          "strokePx": 1.8,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 852],
+          "stops": [[0.001056, "#FFFFFF57"], [0.00558, "#FFFFFF57"], [0.018841, "#FFFFFF57"], [0.039937, "#FFFFFF57"], [0.062652, "#FFFFFF57"], [0.06743, "#FFFFFF56"], [0.068211, "#FFFFFF56"], [0.073926, "#FFFFFF54"], [0.079784, "#FFFFFF51"], [0.08577, "#FFFFFF4D"], [0.091872, "#FFFFFF49"], [0.098073, "#FFFFFF45"], [0.099446, "#FFFFFF44"], [0.10436, "#FFFFFF42"], [0.110717, "#FFFFFF41"], [0.133803, "#FFFFFF41"], [0.998944, "#FFFFFF41"], [0.998945, "#FFFFFF41"], [0.998946, "#FFFFFF42"], [0.998947, "#FFFFFF44"], [0.998948, "#FFFFFF45"], [0.998949, "#FFFFFF49"], [0.99895, "#FFFFFF4D"], [0.998952, "#FFFFFF51"], [0.998953, "#FFFFFF54"], [0.998954, "#FFFFFF56"], [0.998955, "#FFFFFF56"], [0.998956, "#FFFFFF57"], [0.998957, "#FFFFFF57"], [0.998959, "#FFFFFF57"], [0.99896, "#FFFFFF57"], [0.998961, "#FFFFFF57"]]
+        }
+      ],
+      "items": [
+        {
+          "kind": "text",
+          "text": "Ancorato al bordo",
+          "x": 20,
+          "y": 49,
+          "sizeDp": 22,
+          "weight": 600,
+          "align": "left",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 1 di contenuto, sopra la pagina.",
+          "x": 20,
+          "y": 83,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#AAAAB2"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 2 di contenuto, sopra la pagina.",
+          "x": 20,
+          "y": 109,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#AAAAB2"
+        },
+        {
+          "kind": "text",
+          "text": "Riga 3: il testo principale si legge qui.",
+          "x": 20,
+          "y": 135,
+          "sizeDp": 15,
+          "weight": 400,
+          "align": "left",
+          "color": "#F2F2F5"
+        }
+      ],
+      "_corpo": "#212125FF"
+    }
+  }
+}

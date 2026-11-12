@@ -21,16 +21,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -43,7 +36,12 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedSelectionAlpha
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
+import dev.antigravity.fluidengine.ui.glass.field.LocalGlassPaintedPanel
+import dev.antigravity.fluidengine.ui.glass.field.glassPainted
+import dev.antigravity.fluidengine.ui.glass.field.glassPaintedSeen
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 
@@ -372,6 +370,17 @@ fun Modifier.glassControlSurface(
  * puts in its own window and which therefore cannot read another window's `GraphicsLayer`. Painted
  * gradients are an honest fallback there, and a bad idea anywhere a real backdrop exists — the whole
  * point of the rest of this file is that painted highlights do not survive contact with a finger.
+ *
+ * Dalla 4.0 (F1B.5) il dipinto e' **lo stesso vetro** del materiale `Liquid`, non un vetro suo: corpo, filo sul
+ * perimetro, riga chiara e alone dentro il bordo, ombreggiatura verso il contorno e ombra sono calcolati dalla
+ * ricetta di serie alla taglia della superficie (`glass/field/GlassPaintedProfile.kt`), e cambiano se cambia il
+ * profilo. Cio' che non puo' avere, la pagina sfocata dietro e la lente, non lo finge: il corpo e' il colore pieno
+ * che il vetro vero ha sopra la pagina del tema sotto lo scrim dei modali. Dentro un foglio o un avviso di
+ * piattaforma dell'engine la superficie sa di stare su quel pannello, e vi si posa come un vetro annidato (velo e
+ * ombra ridotti, come un tasto dentro una notifica).
+ *
+ * @param selected la pellicola d'accento della selezione al posto del velo, come in [glassControlSurface].
+ * @param pressure 0..1: il bagliore del vetro premuto, uniforme (un dipinto non sa dov'e' il dito).
  */
 @Composable
 fun Modifier.fluidStaticGlassSurface(
@@ -383,81 +392,32 @@ fun Modifier.fluidStaticGlassSurface(
   // Chiaro o scuro lo decide una regola sola, `GlassDefaults.isDarkSurface()`: la luminanza di
   // `surface` ignora l'alpha, quindi un'app con una pellicola traslucida in `surface` veniva
   // letta come chiara sempre, e dichiarare da che parte sta (`LocalFluidSurfaceSide`) non serviva.
-  val lightSurface = !GlassDefaults.isDarkSurface()
-  val body = if (selected) scheme.primary else scheme.surface
-  val topLight = Color.White.copy(alpha = if (lightSurface) 0.86f else 0.58f)
-  val quietLight = Color.White.copy(alpha = if (lightSurface) 0.24f else 0.16f)
-  val lowerShade = Color.Black.copy(alpha = if (lightSurface) 0.30f else 0.52f)
-  val innerShade = scheme.onSurface.copy(alpha = if (lightSurface) 0.22f else 0.32f)
-
-  return this.drawWithCache {
-    val outline = shape.createOutline(size, layoutDirection, this)
-    val insetPx = 2.dp.toPx()
-    val innerSize = Size(
-      width = (size.width - insetPx * 2f).coerceAtLeast(0f),
-      height = (size.height - insetPx * 2f).coerceAtLeast(0f),
-    )
-    val innerOutline = if (innerSize.width > 0f && innerSize.height > 0f) {
-      shape.createOutline(innerSize, layoutDirection, this)
+  val darkSide = GlassDefaults.isDarkSurface()
+  // Su un pannello dipinto (il foglio e l'avviso di piattaforma) sta sul suo corpo, annidato; altrimenti e' lui il
+  // pannello, sopra la pagina del tema abbassata dallo scrim.
+  val panel = LocalGlassPaintedPanel.current
+  val seen = panel ?: glassPaintedSeen(scheme.background, darkSide)
+  val film = if (selected) scheme.primary.copy(alpha = GlassPaintedSelectionAlpha) else Color.Unspecified
+  // L'ombra e' quella del vetro (le maschere della ricetta, o quella di prima dove il materiale e' `Classic`); da
+  // annidato pesa quanto la regola dell'annidato del profilo dice.
+  val shadowOptics = remember(panel != null, darkSide) {
+    val optics = GlassDefaults.panelOptics()
+    if (panel == null) {
+      optics
     } else {
-      null
-    }
-    val diagonal = Offset(size.width, size.height)
-    val bodyBrush = Brush.linearGradient(
-      colorStops = arrayOf(
-        0f to body.copy(alpha = if (selected) 0.30f else 0.18f),
-        0.46f to body.copy(alpha = if (selected) 0.18f else 0.10f),
-        1f to body.copy(alpha = if (selected) 0.24f else 0.15f),
-      ),
-      start = Offset.Zero,
-      end = diagonal,
-    )
-    val rimBrush = Brush.linearGradient(
-      colorStops = arrayOf(
-        0f to topLight,
-        0.38f to quietLight,
-        0.68f to Color.Transparent,
-        1f to lowerShade,
-      ),
-      start = Offset.Zero,
-      end = diagonal,
-    )
-    val innerBrush = Brush.linearGradient(
-      colorStops = arrayOf(
-        0f to quietLight,
-        0.50f to Color.Transparent,
-        1f to innerShade,
-      ),
-      start = Offset.Zero,
-      end = diagonal,
-    )
-    val baseRimWidth = 1.35.dp.toPx()
-    val innerRimWidth = 0.95.dp.toPx()
-
-    onDrawBehind {
-      val pressed = pressure().coerceIn(0f, 1f)
-      drawOutline(outline = outline, brush = bodyBrush, alpha = 1f)
-      drawOutline(
-        outline = outline,
-        brush = rimBrush,
-        alpha = 1f - pressed * 0.18f,
-        style = Stroke(width = baseRimWidth * (1f - pressed * 0.24f)),
-      )
-      innerOutline?.let {
-        translate(insetPx, insetPx) {
-          drawOutline(
-            outline = it,
-            brush = innerBrush,
-            alpha = 1f - pressed * 0.12f,
-            style = Stroke(width = innerRimWidth),
-          )
-        }
-      }
-      if (pressed > 0.001f) {
-        drawOutline(outline = outline, color = scheme.onSurface.copy(alpha = 0.055f * pressed))
-      }
+      optics.copy(shadowAlpha = optics.shadowAlpha * GlassLiquidProfile.Default.nesting(darkSide).shadow.coerceIn(0f, 1f))
     }
   }
+  return this
+    .glassShadow(shape, shadowOptics)
+    .glassPainted(
+      shape = shape,
+      darkSide = darkSide,
+      seen = seen,
+      nested = panel != null,
+      film = film,
+      pressure = pressure,
+    )
 }
 
 /**

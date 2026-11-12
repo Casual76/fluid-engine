@@ -1,0 +1,588 @@
+{
+  "_": "Scritta dalla ricetta (GlassPaintedProfileTest, F1B.5): il avviso di vetro VERO nell'host (l'elemento) e, in `_dipinto`, i passi del vetro dipinto di oggi e di quello nuovo (pixel del pannello a densita' 3), che dipinto-rendi.py disegna accanto. Fondo pagina, lato scuro. Non si modifica a mano: si rigenera.",
+  "width": 360,
+  "height": 320,
+  "density": 3,
+  "theme": "dark",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#0E0F10"
+  },
+  "page": [
+    {
+      "kind": "rect",
+      "x": 0,
+      "y": 0,
+      "w": 360,
+      "h": 320,
+      "color": "#00000033"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "material",
+      "name": "avviso",
+      "_ricetta": "glassRecipe: ruolo Modal, panelOptics, 280 x 136 dp, lato scuro (il avviso di vetro nell'host)",
+      "x": 40,
+      "y": 92,
+      "w": 280,
+      "h": 136,
+      "radius": 18,
+      "clip": true,
+      "clipRadiusScale": 0.98,
+      "shadow": [
+        {
+          "radiusDp": 35.96666,
+          "offsetDp": [0, 7.087548],
+          "alpha": 0.186941,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 4.933823,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 0.73
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [1, 0, 0, 1],
+          "flexCenter": [0, 0],
+          "pieceCount": 1,
+          "pieceRect": [["$center", "$halfSize"]],
+          "pieceRadii": ["$radii"],
+          "pieceBlend": [0],
+          "pieceSmooth": [0.6],
+          "thickness": "32.64dp",
+          "refraction": "-29.376dp",
+          "dome": 0,
+          "dispersion": 0,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#36363C80",
+          "veilAdapt": 0,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000033",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [0, -0.6],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0.6],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#FFFFFF57",
+            "rimFeather": 0.4,
+            "rimLift": -0.25,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.2,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.55,
+            "glowCenter": "$center",
+            "glowRadius": "280dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [1, 0, 0, 1],
+            "flexCenter": [0, 0],
+            "pieceCount": 1,
+            "pieceRect": [["$center", "$halfSize"]],
+            "pieceRadii": ["$radii"],
+            "pieceBlend": [0],
+            "pieceSmooth": [0.6],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#FFFFFF57",
+            "rimFeather": 0.4,
+            "rimLift": -0.25,
+            "reflexDir": [0, -1],
+            "reflexWidths": [1.396, 1.396],
+            "reflexStrength": 0.2,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.55,
+            "glowCenter": "$center",
+            "glowRadius": "280dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "items": [
+        {
+          "kind": "text",
+          "text": "Eliminare la nota?",
+          "x": 140,
+          "y": 38,
+          "sizeDp": 17,
+          "weight": 600,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "Non si potrà recuperare: resta solo",
+          "x": 140,
+          "y": 62,
+          "sizeDp": 13,
+          "weight": 400,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "nel cestino per trenta giorni.",
+          "x": 140,
+          "y": 79,
+          "sizeDp": 13,
+          "weight": 400,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 92,
+          "w": 280,
+          "h": 0.5,
+          "color": "#F2F2F51F"
+        },
+        {
+          "kind": "rect",
+          "x": 140,
+          "y": 92,
+          "w": 0.5,
+          "h": 44,
+          "color": "#F2F2F51F"
+        },
+        {
+          "kind": "text",
+          "text": "Annulla",
+          "x": 70,
+          "y": 120,
+          "sizeDp": 17,
+          "weight": 400,
+          "align": "center",
+          "color": "#2ED8A0"
+        },
+        {
+          "kind": "text",
+          "text": "Elimina",
+          "x": 210,
+          "y": 120,
+          "sizeDp": 17,
+          "weight": 600,
+          "align": "center",
+          "color": "#FF6961"
+        }
+      ]
+    }
+  ],
+  "_dipinto": {
+    "pannello": {
+      "name": "avviso",
+      "x": 40,
+      "y": 92,
+      "w": 280,
+      "h": 136,
+      "radius": 18
+    },
+    "oggi": {
+      "scrim": 0.6,
+      "shadow": [],
+      "under": [
+        {
+          "offset": [0, 0],
+          "size": [840, 408],
+          "radii": [0, 0, 0, 0],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0, "#282D2EEB"], [1, "#282D2EEB"]]
+        }
+      ],
+      "handle": [],
+      "over": [
+        {
+          "offset": [0, 0],
+          "size": [840, 408],
+          "radii": [54, 54, 54, 54],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [840, 408],
+          "stops": [[0, "#1C1D202E"], [0.46, "#1C1D201A"], [1, "#1C1D2026"]]
+        },
+        {
+          "offset": [0, 0],
+          "size": [840, 408],
+          "radii": [54, 54, 54, 54],
+          "strokePx": 4.05,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [840, 408],
+          "stops": [[0, "#FFFFFF94"], [0.38, "#FFFFFF29"], [0.68, "#00000000"], [1, "#00000085"]]
+        },
+        {
+          "offset": [6, 6],
+          "size": [828, 396],
+          "radii": [54, 54, 54, 54],
+          "strokePx": 2.85,
+          "blend": "SrcOver",
+          "from": [6, 6],
+          "to": [846, 414],
+          "stops": [[0, "#FFFFFF29"], [0.5, "#00000000"], [1, "#F2F2F552"]]
+        }
+      ],
+      "items": [
+        {
+          "kind": "text",
+          "text": "Eliminare la nota?",
+          "x": 140,
+          "y": 38,
+          "sizeDp": 17,
+          "weight": 600,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "Non si potrà recuperare: resta solo",
+          "x": 140,
+          "y": 62,
+          "sizeDp": 13,
+          "weight": 400,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "nel cestino per trenta giorni.",
+          "x": 140,
+          "y": 79,
+          "sizeDp": 13,
+          "weight": 400,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 92,
+          "w": 280,
+          "h": 0.5,
+          "color": "#F2F2F51F"
+        },
+        {
+          "kind": "rect",
+          "x": 140,
+          "y": 92,
+          "w": 0.5,
+          "h": 44,
+          "color": "#F2F2F51F"
+        },
+        {
+          "kind": "text",
+          "text": "Annulla",
+          "x": 70,
+          "y": 120,
+          "sizeDp": 17,
+          "weight": 400,
+          "align": "center",
+          "color": "#2ED8A0"
+        },
+        {
+          "kind": "text",
+          "text": "Elimina",
+          "x": 210,
+          "y": 120,
+          "sizeDp": 17,
+          "weight": 600,
+          "align": "center",
+          "color": "#FF6961"
+        }
+      ]
+    },
+    "nuovo": {
+      "scrim": 0.2,
+      "shadow": [
+        {
+          "radiusDp": 35.96666,
+          "offsetDp": [0, 7.087548],
+          "alpha": 0.186941,
+          "color": "#000000"
+        }
+      ],
+      "under": [
+        {
+          "offset": [0, 0],
+          "size": [840, 408],
+          "radii": [54, 54, 54, 54],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0, "#212125FF"], [1, "#212125FF"]]
+        }
+      ],
+      "handle": [],
+      "over": [
+        {
+          "offset": [0, 0],
+          "size": [840, 408],
+          "radii": [54, 54, 54, 54],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0, "#00000033"], [0.01011, "#0000002D"], [0.020221, "#00000027"], [0.030331, "#00000022"], [0.040441, "#0000001D"], [0.050551, "#00000018"], [0.060662, "#00000014"], [0.070772, "#00000010"], [0.080882, "#0000000D"], [0.090993, "#0000000A"], [0.101103, "#00000007"], [0.111213, "#00000005"], [0.121324, "#00000003"], [0.131434, "#00000002"], [0.141544, "#00000001"], [0.151654, "#00000000"], [0.161765, "#00000000"], [0.838235, "#00000000"], [0.848346, "#00000000"], [0.858456, "#00000000"], [0.868566, "#00000000"], [0.878676, "#00000001"], [0.888787, "#00000001"], [0.898897, "#00000002"], [0.909007, "#00000002"], [0.919118, "#00000003"], [0.929228, "#00000004"], [0.939338, "#00000005"], [0.949449, "#00000006"], [0.959559, "#00000007"], [0.969669, "#00000008"], [0.979779, "#0000000A"], [0.98989, "#0000000B"], [1, "#0000000D"]]
+        },
+        {
+          "offset": [0, 0],
+          "size": [840, 408],
+          "radii": [54, 54, 54, 54],
+          "strokePx": 0,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [840, 0],
+          "stops": [[0, "#00000020"], [0.004911, "#0000001C"], [0.009821, "#00000018"], [0.014732, "#00000015"], [0.019643, "#00000012"], [0.024554, "#0000000F"], [0.029464, "#0000000C"], [0.034375, "#0000000A"], [0.039286, "#00000008"], [0.044196, "#00000006"], [0.049107, "#00000004"], [0.054018, "#00000003"], [0.058929, "#00000002"], [0.063839, "#00000001"], [0.06875, "#00000000"], [0.073661, "#00000000"], [0.078571, "#00000000"], [0.921429, "#00000000"], [0.926339, "#00000000"], [0.93125, "#00000000"], [0.936161, "#00000001"], [0.941071, "#00000002"], [0.945982, "#00000003"], [0.950893, "#00000004"], [0.955804, "#00000006"], [0.960714, "#00000008"], [0.965625, "#0000000A"], [0.970536, "#0000000C"], [0.975446, "#0000000F"], [0.980357, "#00000012"], [0.985268, "#00000015"], [0.990179, "#00000018"], [0.995089, "#0000001C"], [1, "#00000020"]]
+        },
+        {
+          "offset": [3.6, 3.6],
+          "size": [832.799988, 400.799988],
+          "radii": [50.400002, 50.400002, 50.400002, 50.400002],
+          "strokePx": 3.6,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.008824, "#FFFFFF33"], [0.013033, "#FFFFFF33"], [0.025373, "#FFFFFF33"], [0.045004, "#FFFFFF33"], [0.066143, "#FFFFFF33"], [0.070588, "#FFFFFF32"], [0.071315, "#FFFFFF31"], [0.076633, "#FFFFFF2C"], [0.082084, "#FFFFFF24"], [0.087656, "#FFFFFF1B"], [0.093333, "#FFFFFF11"], [0.099104, "#FFFFFF09"], [0.100381, "#FFFFFF07"], [0.104955, "#FFFFFF02"], [0.11087, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.88913, "#FFFFFF00"], [0.895045, "#FFFFFF02"], [0.899619, "#FFFFFF07"], [0.900896, "#FFFFFF09"], [0.906667, "#FFFFFF11"], [0.912344, "#FFFFFF1B"], [0.917916, "#FFFFFF24"], [0.923367, "#FFFFFF2C"], [0.928685, "#FFFFFF31"], [0.929412, "#FFFFFF32"], [0.933857, "#FFFFFF33"], [0.954996, "#FFFFFF33"], [0.974627, "#FFFFFF33"], [0.986967, "#FFFFFF33"], [0.991176, "#FFFFFF33"]]
+        },
+        {
+          "offset": [6.125, 6.125],
+          "size": [827.75, 395.75],
+          "radii": [47.875, 47.875, 47.875, 47.875],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.015012, "#FFFFFF14"], [0.019011, "#FFFFFF14"], [0.022803, "#FFFFFF14"], [0.026771, "#FFFFFF14"], [0.030733, "#FFFFFF13"], [0.031504, "#FFFFFF12"], [0.036965, "#FFFFFF10"], [0.043116, "#FFFFFF0D"], [0.049381, "#FFFFFF09"], [0.049913, "#FFFFFF09"], [0.057306, "#FFFFFF05"], [0.065241, "#FFFFFF01"], [0.073663, "#FFFFFF00"], [0.073683, "#FFFFFF00"], [0.101983, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.898017, "#FFFFFF00"], [0.926317, "#FFFFFF00"], [0.926337, "#FFFFFF00"], [0.934758, "#FFFFFF01"], [0.942694, "#FFFFFF05"], [0.950087, "#FFFFFF09"], [0.950619, "#FFFFFF09"], [0.956884, "#FFFFFF0D"], [0.963035, "#FFFFFF10"], [0.968496, "#FFFFFF12"], [0.969267, "#FFFFFF13"], [0.973229, "#FFFFFF14"], [0.977197, "#FFFFFF14"], [0.98099, "#FFFFFF14"], [0.984988, "#FFFFFF14"]]
+        },
+        {
+          "offset": [7.575, 7.575],
+          "size": [824.849976, 392.850006],
+          "radii": [46.424999, 46.424999, 46.424999, 46.424999],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.018566, "#FFFFFF11"], [0.022443, "#FFFFFF11"], [0.026121, "#FFFFFF11"], [0.029969, "#FFFFFF11"], [0.033811, "#FFFFFF10"], [0.034558, "#FFFFFF10"], [0.039854, "#FFFFFF0E"], [0.045819, "#FFFFFF0B"], [0.051894, "#FFFFFF08"], [0.05241, "#FFFFFF08"], [0.059579, "#FFFFFF04"], [0.067274, "#FFFFFF01"], [0.07544, "#FFFFFF00"], [0.07546, "#FFFFFF00"], [0.102903, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.897097, "#FFFFFF00"], [0.92454, "#FFFFFF00"], [0.92456, "#FFFFFF00"], [0.932726, "#FFFFFF01"], [0.940421, "#FFFFFF04"], [0.94759, "#FFFFFF08"], [0.948106, "#FFFFFF08"], [0.954181, "#FFFFFF0B"], [0.960146, "#FFFFFF0E"], [0.965442, "#FFFFFF10"], [0.966189, "#FFFFFF10"], [0.970031, "#FFFFFF11"], [0.973879, "#FFFFFF11"], [0.977557, "#FFFFFF11"], [0.981434, "#FFFFFF11"]]
+        },
+        {
+          "offset": [9.025, 9.025],
+          "size": [821.950012, 389.950012],
+          "radii": [44.974998, 44.974998, 44.974998, 44.974998],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.02212, "#FFFFFF0F"], [0.025876, "#FFFFFF0F"], [0.029439, "#FFFFFF0F"], [0.033167, "#FFFFFF0F"], [0.036888, "#FFFFFF0E"], [0.037612, "#FFFFFF0E"], [0.042743, "#FFFFFF0C"], [0.048522, "#FFFFFF0A"], [0.054407, "#FFFFFF07"], [0.054907, "#FFFFFF07"], [0.061852, "#FFFFFF04"], [0.069307, "#FFFFFF01"], [0.077218, "#FFFFFF00"], [0.077237, "#FFFFFF00"], [0.103823, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.896177, "#FFFFFF00"], [0.922764, "#FFFFFF00"], [0.922782, "#FFFFFF00"], [0.930693, "#FFFFFF01"], [0.938148, "#FFFFFF04"], [0.945093, "#FFFFFF07"], [0.945593, "#FFFFFF07"], [0.951478, "#FFFFFF0A"], [0.957257, "#FFFFFF0C"], [0.962388, "#FFFFFF0E"], [0.963112, "#FFFFFF0E"], [0.966833, "#FFFFFF0F"], [0.970561, "#FFFFFF0F"], [0.974124, "#FFFFFF0F"], [0.97788, "#FFFFFF0F"]]
+        },
+        {
+          "offset": [10.475, 10.475],
+          "size": [819.049988, 387.049988],
+          "radii": [43.525002, 43.525002, 43.525002, 43.525002],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.025674, "#FFFFFF0D"], [0.029309, "#FFFFFF0D"], [0.032757, "#FFFFFF0D"], [0.036365, "#FFFFFF0C"], [0.039966, "#FFFFFF0C"], [0.040667, "#FFFFFF0C"], [0.045632, "#FFFFFF0A"], [0.051224, "#FFFFFF08"], [0.05692, "#FFFFFF06"], [0.057404, "#FFFFFF06"], [0.064125, "#FFFFFF03"], [0.071339, "#FFFFFF01"], [0.078995, "#FFFFFF00"], [0.079013, "#FFFFFF00"], [0.104742, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.895258, "#FFFFFF00"], [0.920986, "#FFFFFF00"], [0.921005, "#FFFFFF00"], [0.928661, "#FFFFFF01"], [0.935875, "#FFFFFF03"], [0.942596, "#FFFFFF06"], [0.94308, "#FFFFFF06"], [0.948776, "#FFFFFF08"], [0.954368, "#FFFFFF0A"], [0.959333, "#FFFFFF0C"], [0.960034, "#FFFFFF0C"], [0.963635, "#FFFFFF0C"], [0.967243, "#FFFFFF0D"], [0.970691, "#FFFFFF0D"], [0.974326, "#FFFFFF0D"]]
+        },
+        {
+          "offset": [11.925, 11.925],
+          "size": [816.150024, 384.149994],
+          "radii": [42.075001, 42.075001, 42.075001, 42.075001],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.029228, "#FFFFFF0A"], [0.032742, "#FFFFFF0A"], [0.036075, "#FFFFFF0A"], [0.039563, "#FFFFFF0A"], [0.043044, "#FFFFFF0A"], [0.043721, "#FFFFFF0A"], [0.048521, "#FFFFFF08"], [0.053927, "#FFFFFF07"], [0.059433, "#FFFFFF05"], [0.0599, "#FFFFFF05"], [0.066398, "#FFFFFF03"], [0.073372, "#FFFFFF01"], [0.080773, "#FFFFFF00"], [0.08079, "#FFFFFF00"], [0.105662, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.894338, "#FFFFFF00"], [0.91921, "#FFFFFF00"], [0.919227, "#FFFFFF00"], [0.926628, "#FFFFFF01"], [0.933602, "#FFFFFF03"], [0.9401, "#FFFFFF05"], [0.940567, "#FFFFFF05"], [0.946073, "#FFFFFF07"], [0.951479, "#FFFFFF08"], [0.956279, "#FFFFFF0A"], [0.956956, "#FFFFFF0A"], [0.960437, "#FFFFFF0A"], [0.963925, "#FFFFFF0A"], [0.967258, "#FFFFFF0A"], [0.970772, "#FFFFFF0A"]]
+        },
+        {
+          "offset": [13.375, 13.375],
+          "size": [813.25, 381.25],
+          "radii": [40.625, 40.625, 40.625, 40.625],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.032782, "#FFFFFF08"], [0.036175, "#FFFFFF08"], [0.039393, "#FFFFFF08"], [0.04276, "#FFFFFF08"], [0.046122, "#FFFFFF08"], [0.046776, "#FFFFFF08"], [0.05141, "#FFFFFF07"], [0.05663, "#FFFFFF05"], [0.061946, "#FFFFFF04"], [0.062397, "#FFFFFF04"], [0.068671, "#FFFFFF02"], [0.075405, "#FFFFFF01"], [0.08255, "#FFFFFF00"], [0.082567, "#FFFFFF00"], [0.106582, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.893418, "#FFFFFF00"], [0.917433, "#FFFFFF00"], [0.91745, "#FFFFFF00"], [0.924595, "#FFFFFF01"], [0.931329, "#FFFFFF02"], [0.937603, "#FFFFFF04"], [0.938055, "#FFFFFF04"], [0.94337, "#FFFFFF05"], [0.94859, "#FFFFFF07"], [0.953224, "#FFFFFF08"], [0.953878, "#FFFFFF08"], [0.95724, "#FFFFFF08"], [0.960607, "#FFFFFF08"], [0.963825, "#FFFFFF08"], [0.967218, "#FFFFFF08"]]
+        },
+        {
+          "offset": [14.825, 14.825],
+          "size": [810.349976, 378.350006],
+          "radii": [39.174999, 39.174999, 39.174999, 39.174999],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.036336, "#FFFFFF07"], [0.039607, "#FFFFFF07"], [0.042711, "#FFFFFF07"], [0.045958, "#FFFFFF06"], [0.0492, "#FFFFFF06"], [0.04983, "#FFFFFF06"], [0.054299, "#FFFFFF05"], [0.059333, "#FFFFFF04"], [0.064459, "#FFFFFF03"], [0.064894, "#FFFFFF03"], [0.070944, "#FFFFFF02"], [0.077437, "#FFFFFF00"], [0.084328, "#FFFFFF00"], [0.084344, "#FFFFFF00"], [0.107502, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.892498, "#FFFFFF00"], [0.915656, "#FFFFFF00"], [0.915672, "#FFFFFF00"], [0.922563, "#FFFFFF00"], [0.929056, "#FFFFFF02"], [0.935106, "#FFFFFF03"], [0.935541, "#FFFFFF03"], [0.940667, "#FFFFFF04"], [0.945701, "#FFFFFF05"], [0.95017, "#FFFFFF06"], [0.9508, "#FFFFFF06"], [0.954042, "#FFFFFF06"], [0.957289, "#FFFFFF07"], [0.960392, "#FFFFFF07"], [0.963664, "#FFFFFF07"]]
+        },
+        {
+          "offset": [16.275, 16.275],
+          "size": [807.450012, 375.450012],
+          "radii": [37.724998, 37.724998, 37.724998, 37.724998],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.03989, "#FFFFFF05"], [0.04304, "#FFFFFF05"], [0.046029, "#FFFFFF05"], [0.049156, "#FFFFFF05"], [0.052277, "#FFFFFF05"], [0.052885, "#FFFFFF04"], [0.057188, "#FFFFFF04"], [0.062035, "#FFFFFF03"], [0.066972, "#FFFFFF02"], [0.067391, "#FFFFFF02"], [0.073217, "#FFFFFF01"], [0.07947, "#FFFFFF00"], [0.086106, "#FFFFFF00"], [0.086121, "#FFFFFF00"], [0.108422, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.891578, "#FFFFFF00"], [0.913879, "#FFFFFF00"], [0.913894, "#FFFFFF00"], [0.92053, "#FFFFFF00"], [0.926783, "#FFFFFF01"], [0.932609, "#FFFFFF02"], [0.933028, "#FFFFFF02"], [0.937965, "#FFFFFF03"], [0.942812, "#FFFFFF04"], [0.947115, "#FFFFFF04"], [0.947723, "#FFFFFF05"], [0.950844, "#FFFFFF05"], [0.953971, "#FFFFFF05"], [0.95696, "#FFFFFF05"], [0.96011, "#FFFFFF05"]]
+        },
+        {
+          "offset": [17.725, 17.725],
+          "size": [804.549988, 372.549988],
+          "radii": [36.275002, 36.275002, 36.275002, 36.275002],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.043444, "#FFFFFF03"], [0.046473, "#FFFFFF03"], [0.049347, "#FFFFFF03"], [0.052354, "#FFFFFF03"], [0.055355, "#FFFFFF03"], [0.055939, "#FFFFFF03"], [0.060077, "#FFFFFF03"], [0.064738, "#FFFFFF02"], [0.069485, "#FFFFFF02"], [0.069888, "#FFFFFF02"], [0.07549, "#FFFFFF01"], [0.081502, "#FFFFFF00"], [0.087883, "#FFFFFF00"], [0.087898, "#FFFFFF00"], [0.109342, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.890658, "#FFFFFF00"], [0.912102, "#FFFFFF00"], [0.912117, "#FFFFFF00"], [0.918498, "#FFFFFF00"], [0.92451, "#FFFFFF01"], [0.930112, "#FFFFFF02"], [0.930515, "#FFFFFF02"], [0.935262, "#FFFFFF02"], [0.939923, "#FFFFFF03"], [0.944061, "#FFFFFF03"], [0.944645, "#FFFFFF03"], [0.947646, "#FFFFFF03"], [0.950653, "#FFFFFF03"], [0.953527, "#FFFFFF03"], [0.956556, "#FFFFFF03"]]
+        },
+        {
+          "offset": [19.174999, 19.174999],
+          "size": [801.650024, 369.649994],
+          "radii": [34.825001, 34.825001, 34.825001, 34.825001],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.046998, "#FFFFFF02"], [0.049906, "#FFFFFF02"], [0.052665, "#FFFFFF02"], [0.055551, "#FFFFFF02"], [0.058433, "#FFFFFF02"], [0.058994, "#FFFFFF02"], [0.062966, "#FFFFFF02"], [0.067441, "#FFFFFF01"], [0.071998, "#FFFFFF01"], [0.072385, "#FFFFFF01"], [0.077763, "#FFFFFF00"], [0.083535, "#FFFFFF00"], [0.089661, "#FFFFFF00"], [0.089675, "#FFFFFF00"], [0.110261, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.889739, "#FFFFFF00"], [0.910325, "#FFFFFF00"], [0.910339, "#FFFFFF00"], [0.916465, "#FFFFFF00"], [0.922238, "#FFFFFF00"], [0.927615, "#FFFFFF01"], [0.928002, "#FFFFFF01"], [0.932559, "#FFFFFF01"], [0.937034, "#FFFFFF02"], [0.941006, "#FFFFFF02"], [0.941567, "#FFFFFF02"], [0.944449, "#FFFFFF02"], [0.947335, "#FFFFFF02"], [0.950094, "#FFFFFF02"], [0.953002, "#FFFFFF02"]]
+        },
+        {
+          "offset": [20.624998, 20.624998],
+          "size": [798.75, 366.75],
+          "radii": [33.375, 33.375, 33.375, 33.375],
+          "strokePx": 1.45,
+          "blend": "Plus",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.050551, "#FFFFFF01"], [0.053339, "#FFFFFF01"], [0.055983, "#FFFFFF01"], [0.058749, "#FFFFFF01"], [0.061511, "#FFFFFF01"], [0.062048, "#FFFFFF01"], [0.065855, "#FFFFFF01"], [0.070144, "#FFFFFF01"], [0.074511, "#FFFFFF00"], [0.074882, "#FFFFFF00"], [0.080035, "#FFFFFF00"], [0.085568, "#FFFFFF00"], [0.091438, "#FFFFFF00"], [0.091452, "#FFFFFF00"], [0.111181, "#FFFFFF00"], [0.132353, "#FFFFFF00"], [0.867647, "#FFFFFF00"], [0.888819, "#FFFFFF00"], [0.908548, "#FFFFFF00"], [0.908562, "#FFFFFF00"], [0.914432, "#FFFFFF00"], [0.919964, "#FFFFFF00"], [0.925118, "#FFFFFF00"], [0.925489, "#FFFFFF00"], [0.929856, "#FFFFFF01"], [0.934145, "#FFFFFF01"], [0.937952, "#FFFFFF01"], [0.938489, "#FFFFFF01"], [0.941251, "#FFFFFF01"], [0.944017, "#FFFFFF01"], [0.946661, "#FFFFFF01"], [0.949449, "#FFFFFF01"]]
+        },
+        {
+          "offset": [0.9, 0.9],
+          "size": [838.200012, 406.200012],
+          "radii": [53.099998, 53.099998, 53.099998, 53.099998],
+          "strokePx": 1.8,
+          "blend": "SrcOver",
+          "from": [0, 0],
+          "to": [0, 408],
+          "stops": [[0.002206, "#FFFFFF57"], [0.006641, "#FFFFFF57"], [0.019642, "#FFFFFF57"], [0.040325, "#FFFFFF57"], [0.062596, "#FFFFFF57"], [0.067279, "#FFFFFF56"], [0.068045, "#FFFFFF56"], [0.073648, "#FFFFFF54"], [0.079392, "#FFFFFF51"], [0.085261, "#FFFFFF4D"], [0.091243, "#FFFFFF49"], [0.097323, "#FFFFFF45"], [0.098668, "#FFFFFF44"], [0.103487, "#FFFFFF42"], [0.109719, "#FFFFFF41"], [0.132353, "#FFFFFF41"], [0.867647, "#FFFFFF41"], [0.890281, "#FFFFFF41"], [0.896513, "#FFFFFF42"], [0.901332, "#FFFFFF44"], [0.902677, "#FFFFFF45"], [0.908757, "#FFFFFF49"], [0.914739, "#FFFFFF4D"], [0.920609, "#FFFFFF51"], [0.926352, "#FFFFFF54"], [0.931955, "#FFFFFF56"], [0.932721, "#FFFFFF56"], [0.937404, "#FFFFFF57"], [0.959675, "#FFFFFF57"], [0.980358, "#FFFFFF57"], [0.99336, "#FFFFFF57"], [0.997794, "#FFFFFF57"]]
+        }
+      ],
+      "items": [
+        {
+          "kind": "text",
+          "text": "Eliminare la nota?",
+          "x": 140,
+          "y": 38,
+          "sizeDp": 17,
+          "weight": 600,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "Non si potrà recuperare: resta solo",
+          "x": 140,
+          "y": 62,
+          "sizeDp": 13,
+          "weight": 400,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "text",
+          "text": "nel cestino per trenta giorni.",
+          "x": 140,
+          "y": 79,
+          "sizeDp": 13,
+          "weight": 400,
+          "align": "center",
+          "color": "#F2F2F5"
+        },
+        {
+          "kind": "rect",
+          "x": 0,
+          "y": 92,
+          "w": 280,
+          "h": 0.5,
+          "color": "#F2F2F51F"
+        },
+        {
+          "kind": "rect",
+          "x": 140,
+          "y": 92,
+          "w": 0.5,
+          "h": 44,
+          "color": "#F2F2F51F"
+        },
+        {
+          "kind": "text",
+          "text": "Annulla",
+          "x": 70,
+          "y": 120,
+          "sizeDp": 17,
+          "weight": 400,
+          "align": "center",
+          "color": "#2ED8A0"
+        },
+        {
+          "kind": "text",
+          "text": "Elimina",
+          "x": 210,
+          "y": 120,
+          "sizeDp": 17,
+          "weight": 600,
+          "align": "center",
+          "color": "#FF6961"
+        }
+      ],
+      "_corpo": "#212125FF"
+    }
+  }
+}

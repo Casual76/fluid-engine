@@ -215,8 +215,8 @@ riga che lo diceva era un `Log.w`. Tutto ciò che questa scheda descrive del `Fu
 non si era mai visto. La variabile ora è `flatSample`, e dalla 4.0.0 il livello che gira su SDK 33+ è `Full` dovunque il compilatore accetta le due sorgenti di base. La
 geometria non dipende dal livello, quindi sagome e tempi dei viaggi restano quelli di prima: cambia il disegno, e lo vedono le app senza aver cambiato una riga.
 
-**Come si legge il verdetto.** Ogni sorgente AGSL dell'engine (le quattro di Fluid-physics, le quattro del renderer di Kyant e il bagliore del tocco, nove del vetro di prima, più le cinque del
-materiale nuovo: quattordici, elencate in `GlassShaderSources` col nome della costante Kotlin) ha un verdetto suo, dato da `GlassFieldHealth` alla prima richiesta e tenuto per il
+**Come si legge il verdetto.** Ogni sorgente AGSL dell'engine (le quattro di Fluid-physics, le quattro del renderer di Kyant e il bagliore del tocco, nove del vetro di prima, più le sei del
+materiale nuovo: quindici, elencate in `GlassShaderSources` col nome della costante Kotlin) ha un verdetto suo, dato da `GlassFieldHealth` alla prima richiesta e tenuto per il
 processo. Per il materiale nuovo Fluid-physics chiede `GlassBody8ShaderString` e `GlassBodyRingShaderString` (`GlassShaderSources.travel`): se ne cade una, la superficie resta al vetro
 di prima per intero; se cadono quelle di prima e le nuove compilano, il materiale nuovo si disegna lo stesso.
 

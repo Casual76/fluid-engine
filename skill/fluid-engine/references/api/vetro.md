@@ -244,6 +244,17 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `val Default: Shadow`
 
+## `engine-ui/ui/glass/field/GlassProbe.kt`
+
+- `class FluidGlassProbeReading internal constructor(val luminance: Float, val deviation: Float, val gradient: Float, val red: Float, val green: Float, val blue: Float, val coverage: Float, val dark: Boolean, val fresh: Boolean, val uptimeMillis: Long)` — Una lettura della sonda, come la vede una prova sul dispositivo. Non è un'API per le app.
+- `object FluidGlassProbeDiagnostics` — La sonda dello sfondo vista da fuori, per le prove strumentate (`GlassProbeInstrumentedTest` nel modulo della galleria, che non vede gli `internal` dell'engine). Non è un'API per le app: nessun componente la usa, e la sonda vera entra nei vetri con F2.2.
+  - `val totalRequests: Long get()` — I fotogrammi chiesti ai lettori in tutto il processo (una richiesta può leggere più sonde).
+  - `val totalReadings: Long get()` — Le letture consegnate alle sonde.
+  - `val totalFailures: Long get()` — Le letture fallite (fotogramma rifiutato, lettore che non risponde).
+  - `val liveReaders: Int` — I lettori di finestra aperti adesso.
+  - `val isAvailable: Boolean get()` — Se la sonda può esistere su questo dispositivo (Android 13 e oltre).
+  - `fun probe(backdrop: Backdrop, onReading: (FluidGlassProbeReading) -> Unit): Modifier` — Una sonda su [backdrop], con il proprio filtro (lato iniziale chiaro): [onReading] riceve, sul filo principale, ogni lettura (`fresh` vero) e ogni giro che il filtro fa alla sua scadenza (`fresh` falso). Sotto Android 13 non aggiunge niente.
+
 ## `engine-ui/ui/glass/interaction/GlassInteraction.kt`
 
 - `suspend fun PointerInputScope.inspectDragGestures(onDragStart: (down: PointerInputChange) -> Unit = {}, onDragEnd: (change: PointerInputChange) -> Unit = {}, onDragCancel: () -> Unit = {}, onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit)` — Drag recognition without a slop threshold.

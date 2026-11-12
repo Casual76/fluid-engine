@@ -412,8 +412,8 @@ fotogramma «a freddo», e quando un utente dice che l'app «la prima volta scat
 `FluidGlassDiagnostics` dice da fuori quale vetro c'è in scena e se il dispositivo lo sa disegnare. Le letture nuove
 della 4.0:
 
-- **gli shader**: `shaderSourceNames` elenca le quattordici sorgenti AGSL dell'engine (nove del vetro di prima e di
-  Fluid-physics, cinque del materiale nuovo: corpo e luce a un pezzo e a otto, corpo ad anello), `shaderVerdicts` i verdetti già chiesti in questo processo (`null` se
+- **gli shader**: `shaderSourceNames` elenca le quindici sorgenti AGSL dell'engine (nove del vetro di prima e di
+  Fluid-physics, sei del materiale nuovo: corpo e luce a un pezzo e a otto, corpo ad anello, striscia del bordo dello scorrimento), `shaderVerdicts` i verdetti già chiesti in questo processo (`null` se
   la sorgente compila, altrimenti l'errore del compilatore), e `compileAllShaders()` le compila adesso tutte. Non
   dipendono da `enabled`. Un rifiuto scrive comunque una riga d'errore in logcat (tag `FluidGlass`);
 - **quale vetro, e perché**: con `enabled` acceso, `liveSurfaces` conta le superfici vive per materiale (è `Liquid`
@@ -538,8 +538,9 @@ aprire la schermata da guardare.
   risoluzione, perché luce e contorno stanno nel corpo; a metà risoluzione il gruppo che diventa menu torna al 3,4%, ma
   il filo scatterebbe al passaggio di consegne. È il debito della fase di ottimizzazione. Il costo di una pagina piena
   di vetro e su un'altra GPU non è misurato.
-- **Difetti aperti visti sul tablet** (sessione di chiusura): il collo fra due pezzi che dura circa 25 ms (contro
-  oltre 150 nella 3.1.2: segue il progresso del viaggio, non il tempo che manca alla posa); il costo delle trasformazioni
+- **Difetti aperti visti sul tablet** (sessione di chiusura): sotto il collo fra due pezzi, che ora dura
+  91–121 ms, una banda d'ombra più scura sopra e sotto la vita (7–11 livelli in scuro, per 5–9 fotogrammi), e il collo
+  breve (16–33 ms) quando due pezzi si riuniscono; il costo delle trasformazioni
   contestuali (sopra); sul tema scuro il clic lungo su «Azione» che cambia corpo in un fotogramma (il bagliore della
   pressione sparisce al passaggio di consegne, come nella 3.1.2); il bordo doppio di «Ordina» nei primi 110 ms circa;
   una riga debole (1–2 livelli) per un fotogramma quando un tasto diventa due e quando un gruppo diventa menu; la

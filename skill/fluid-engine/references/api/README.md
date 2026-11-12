@@ -6,7 +6,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 
 | famiglia | file | dichiarazioni |
 |---|---|---|
-| [Schermata e scheletro](schermata.md) | 15 | 170 |
+| [Schermata e scheletro](schermata.md) | 16 | 177 |
 | [Barre di navigazione e di azione](barre.md) | 5 | 96 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 26 | 219 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
@@ -14,7 +14,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Controlli](controlli.md) | 8 | 54 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 9 | 81 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 153 |
-| [Vetro](vetro.md) | 26 | 178 |
+| [Vetro](vetro.md) | 27 | 186 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 76 |
 | [Tema, forma, tipo](tema.md) | 7 | 99 |
 | [Icone (FluidIcons)](icone.md) | 4 | 197 |

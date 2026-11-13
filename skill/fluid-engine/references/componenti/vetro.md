@@ -472,9 +472,13 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   i menu (`FluidMenuLayer`, il pannello di `FluidMorphMenuButton`), il pop-up e il foglio di `FluidGlassModalPortal`, gli
   avvisi, `FluidDrawer`, `FluidSidebar`, `FluidNotification`, `FluidCoachMark`. Sul tema chiaro il corpo va verso lo scuro
   con la quota di nero che hanno sotto, senza girare: R4 A6, da 143 a 48 su nero pieno in circa 1,5 s, e a metà copertura il
-  velo segue la quota (61 al 74%, 89 al 47%, 111 al 25%). Sul tema scuro restano scuri, con il soffitto del velo sopra un fondo
+  velo segue la quota (Apple: 111 al 25%, 89 al 47%, 61 al 74%, 48 al 100%). **Tempi e isteresi valgono per un cambio netto
+  dello sfondo** (il nero che arriva, o se ne va, e poi sta fermo): quando lo sfondo cambia in continuo, per esempio una
+  lista che scorre sotto il pannello, il grande insegue in ritardo, anche di secondi, e l'inchiostro può cambiare lato
+  tardi; l'inseguimento è **in correzione**. Sul tema scuro restano scuri, con il soffitto del velo sopra un fondo
   chiaro: scuriscono, non schiariscono. L'inchiostro passa di lato quando il lato continuo passa metà, con un'**isteresi**
-  (dal chiaro allo scuro a 0,56, indietro a 0,44): un foglio fermo sopra uno sfondo nero per metà non fa ballare il suo testo.
+  (dal chiaro allo scuro a 0,56, indietro a 0,44, a sfondo che si è assestato): un foglio fermo sopra uno sfondo nero per metà
+  non fa ballare il suo testo.
   Il pop-up a riposo porta la pellicola con la sua quota di scrim, sul lato del tema com'era; quando la finestra scurisce,
   o sul tema scuro sopra un fondo chiaro, quella pellicola cede alla ricetta adattiva, col soffitto, come il foglio. Sul
   tablet, a nero pieno, il foglio e il pop-up stanno a 27 su 255 e il pannello laterale a 55 (Apple 48); sul tema scuro
@@ -504,8 +508,10 @@ l'azione principale. Misurato sul banco, a contrasto di sistema standard, **ogni
 (testo 4,5:1, glifi 3:1): capsula, tasto, tasto con etichetta, barra e modale sui cinque fondi e i due temi
 (`bench/f2-3/contrasto.md`, minimo 5,57:1), e con il passo che fa girare la tab bar e scurire i grandi
 (`bench/f2-3b/contrasto.md`: tab bar, accento del puck, menu, pannello e foglio, sei fondi con una foto, minimo 5,04:1).
-Alcune righe sono più basse di prima restando sopra soglia: nel tema scuro la capsula su nero da 14,81 a 10,18; nel tema
-chiaro il menu e il pannello sopra la foto (da 6,37 a 5,26 e da 6,38 a 5,04), perché scuriscono con la parte scura della
+Il criterio che si può dire dimostrato è «ogni riga sopra soglia» (minimo 5,04:1 nelle 48 righe di
+`artifacts/liquid-glass/bench/f2-3b/contrasto.md`), **non** «non peggiore di prima»: alcune righe sono più basse di prima,
+restando sopra soglia: nel tema scuro la capsula su nero da 14,81 a 10,18; nel tema chiaro il menu e il pannello sopra la
+foto (da 6,37 a 5,26 e da 6,38 a 5,04), perché scuriscono con la parte scura della
 foto e tengono l'inchiostro scuro. A metà copertura un inchiostro solo non regge le due metà del corpo (sopra il nero 90–110,
 sopra il chiaro 150–180): è lo stesso limite di Apple.
 
@@ -660,11 +666,23 @@ aprire la schermata da guardare.
   e corpo sotto 4,5:1 (nel tema chiaro su nero la capsula flottante 4,92 → 3,76, il modale 5,26 → 3,79, la card 5,57 →
   3,78; nel tema scuro il modale su un grigio medio 5,63 → 3,72). Con il lato e l'inchiostro che seguono lo sfondo e il pavimento
   del velo, la stessa tabella rifatta (`artifacts/liquid-glass/bench/f2-3/contrasto.md`) dà ogni riga sopra soglia, minimo
-  5,57:1; con la tab bar che gira e i grandi che scuriscono (`bench/f2-3b/contrasto.md`) ogni riga resta sopra, minimo
-  5,04:1. **Resta**: un vetro che tiene il lato del tema (un `glassSurface` dell'app, le card, i vetri annidati) si serve
+  5,57:1; con la tab bar che gira e i grandi che scuriscono (`bench/f2-3b/contrasto.md`, 48 righe) ogni riga resta sopra,
+  minimo 5,04:1. Il criterio è «ogni riga sopra soglia», non «non peggiore di prima»: alcune righe del tema scuro scendono
+  rispetto a prima (la capsula su nero da 14,81 a 10,18) e due del tema chiaro sopra la foto (il menu da 6,37 a 5,26, il
+  pannello da 6,38 a 5,04). **Resta**: un vetro che tiene il lato del tema (un `glassSurface` dell'app, le card, i vetri annidati) si serve
   del velo e dell'inchiostro del tema; il margine lì è quello della tabella, non di più. Un pannello grande coperto a metà da
   nero non ha un inchiostro che regga le due metà del corpo (come in iOS). A contrasto medio e alto
   il vetro torna alla pellicola densa, come prima.
+- **Difetti noti dell'adattività, visti sul tablet (S3) e non chiusi.** Senza promesse di data. **In correzione in questo
+  giro**: in tema scuro la barra in alto non si adatta (la sonda della striscia non si monta, `FluidScreen.kt`), quindi il
+  titolo bianco sta su una striscia ancora chiara per circa 0,7 s quando passa un contenuto chiaro; e scorrendo in fretta
+  la barra e la tab bar possono girare due volte in poco tempo (la tab bar, sopra un riquadro scuro veloce, resta circa
+  0,7 s con le icone grigio su grigio). **Limiti**: a metà copertura nessun inchiostro regge le due metà di un grande (il
+  limite lo ha anche Apple); `Classic` in tema scuro sopra una foto chiara ha i tasti in testa a 1,85:1, perché con
+  `Classic` e sotto Android 13 il vetro non si adatta e questo caso è fuori dall'adattività. **Costo**: scorrere una lista
+  sul vetro nuovo costa più del vetro di prima, soprattutto sulle foto: sul Tab S9, a freddo e con più corse alternate, il
+  19–26% di fotogrammi lenti contro circa il 12% di `Classic`; fra F2.5b e S3 non è peggiorato. Aspetta la fase di
+  ottimizzazione (lo scorrimento annuncia un cambio dello sfondo a ogni passo).
 - **Il vetro annidato sul tablet.** In un foglio di vetro scuro (pagina «Materiale», scena `nested`) il tasto scende
   da 84 a 61 sopra un foglio a 40; nella notifica di vetro della radice la chiusura sta a 48 sopra la card a 35 (75
   senza la regola). Nella notifica **piena** di «Avvisi con azione» (l'host senza fondo) i tasti campionavano il fondo
@@ -747,18 +765,27 @@ aprire la schermata da guardare.
   0,2 con l'ombra corta su un tasto), la parte comune a lente di due pezzi sovrapposti (−4…−6 livelli) e l'ombra della goccia
   (`GlassShadowMaskRing`, stesso rapporto di cadute, non misurata), che vanno a F3.3; la cucitura verticale di un fotogramma
   del collo e i viaggi interrotti o invertiti, non ripresi sul tablet. **Aperti sull'adattività**: i numeri del filtro, i tempi
-  del giro e la profondità del vetro girato (74 su 255 contro 43 di Apple) sono ipotesi che si scelgono sulle riprese del
-  tablet (S3), non sul banco; sopra il nero pieno un grande scende a 27 contro 48 di Apple, e a metà copertura il soffitto
-  del velo scuro dei grandi lo tiene più chiaro (110 contro 89 al 47%), manopole della stessa scelta; a pagina ferma una
-  `FluidScreen` col bordo dello scorrimento disegna ancora 16 fotogrammi in 8 s sul tablet (tre sonde rileggono a cadenza
-  fissa, 500 ms, una sorgente che non avvisa: visto in F2.3b, non risolto; le scene sul palco stanno a zero); `Clear`
-  non ha ancora un componente che lo posi (F3.2); le immagini di riferimento del banco per il tasto tinto di iOS 26 non sono
-  rimisurate sullo stato attuale. **Aperti sul bordo dello scorrimento** (se ne occupa il seguito, F2.5b; vedi
-  [schermata.md](schermata.md)): in basso la tab bar mostra ancora il contenuto non sfumato; il bordo in basso resta 10 dp
-  troppo alto quando la tab bar si piega a 52 dp; la striscia della pagina che esce, tornando indietro, si spegne in tre
-  fotogrammi; sulle foto sature una riga di testo si intuisce ancora dietro la metà bassa dei tasti (13,9% di contrasto
-  contro l'8% di Apple); la diagnostica conta le strisce fra le superfici `classic`; lo scurimento sul contenuto scuro è
-  provato sul banco e non è stato visto sul tablet. Confermati sul tablet nella sessione finale della
+  del giro e la profondità del vetro dei grandi e dei piccoli girati sono **scelte di Alessio ancora aperte**, da fare
+  sulle riprese del tablet (S3) e non sul banco; non c'è un numero definitivo. Le manopole sono `fliptime`, `flipwait`,
+  `flipon`, `flipoff`, `darklargealpha` ed `edgedim` (`gallery.tune`). Misure di oggi, sul tablet di serie: il pop-up dei
+  grandi fa 116 / 83 / 70 / 27 al 25 / 47 / 74 / 100% di nero (Apple 111 / 89 / 61 / 48), quindi sopra il nero pieno scende
+  a 27 contro 48, e a metà copertura il soffitto del velo scuro lo tiene più chiaro; per il vetro girato, 74 su 255 contro
+  43 di Apple, che è una misura e non una scelta fatta. **I numeri dei grandi non si leggono dal banco**: il suo modello
+  non ha la ricetta del pop-up (il banco dà 110 / 110 / 69 / 27 agli stessi quattro livelli di nero, e il «110 contro 89 al
+  47%» che si leggeva qui era un numero del banco, non del tablet); da ricontrollare in F3. Aperti anche: l'inseguimento di
+  uno sfondo che cambia in continuo (vedi sopra, in correzione) e i difetti noti dell'adattività, nei limiti dichiarati più
+  su. `Clear` non ha ancora un componente che lo posi (F3.2). **Chiusi dopo l'ultima stesura di questa scheda**: a
+  pagina ferma una `FluidScreen` col bordo dello scorrimento non disegna più niente (0 fotogrammi in 8 s sul tablet su
+  Materiale, Icone e scorrimento; chiuso da F2.3c, che fa contare ogni lettura a vuoto verso il tetto dei tre
+  ritentativi); il confronto del banco con le immagini di riferimento, tasto tinto compreso, è stato rifatto dopo F2.5b e
+  F2.3c (38 su 38). **Chiusi sul bordo dello scorrimento** (F2.5b e F2.3c; vedi [schermata.md](schermata.md)): in basso la
+  tab bar rifrange il contenuto sfumato, non la pagina cruda; il bordo in basso segue la tab bar quando si piega a 52 dp
+  (21 px, cioè i 10 dp della piega); la striscia della pagina che esce, tornando indietro, resta su di lei finché esce;
+  lo scurimento sul contenuto scuro si è visto sul tablet (×0,723 in cima, ×0,799 al bordo dei tasti; Apple ×0,70–0,72 e
+  ×0,8); la riga di testo dietro la metà bassa dei tasti sulle foto sature è a 7,4–8,4% di contrasto contro l'8% di Apple
+  (sul banco); la tab bar della chrome gira su ogni pagina e la barra in alto decide una volta sola per striscia, titolo e
+  tasti (F2.3c). **Ancora aperto**: la diagnostica conta le strisce fra le superfici `classic` (per contarle a parte c'è
+  `FluidGlassDiagnostics.liveScrollEdges`). Confermati sul tablet nella sessione finale della
   fase: la notifica con la larghezza ferma e un bordo solo (nell'angolo, in uscita, restano due o tre contorni per
   circa 60 ms), l'etichetta e l'icona della scheda scelta col contrasto alto (8,8:1), il segmentato che cambia aspetto
   una volta sola, l'indice di sezione che non fa più scorrere la pagina, il disco del tasto indietro fra due pagine,

@@ -344,7 +344,10 @@ istante la striscia scurisce col corpo del giro, il titolo e le azioni cambiano 
 il lato e la misura dalla barra, il contenuto che svanisce con lei. Prima la striscia decideva da se' e scuriva in 800 ms,
 il titolo cambiava a meta' della striscia e ogni tasto decideva con la sua sonda: sul tablet il titolo restava scuro su una
 striscia gia' scura per circa 200 ms. Lo stesso vale per la barra ancorata fra due pagine. In tema scuro il velo va gia'
-verso il fondo scuro, la sonda non si monta e i tasti girano da soli come prima. Dove la barra passa al lato scuro anche le
+verso il fondo scuro, la sonda non si monta e i tasti girano da soli come prima. **Difetto noto, in correzione in questo
+giro**: per questo, in tema scuro, la barra non si adatta, e quando sotto passa un contenuto chiaro il titolo bianco sta per
+circa 0,7 s su una striscia ancora chiara (sotto 3:1); i tasti girano ognuno per conto suo, fuori fase col titolo. Un altro
+difetto in correzione: scorrendo in fretta, la barra e la tab bar possono girare due volte in poco tempo. Dove la barra passa al lato scuro anche le
 **icone della barra di stato** passano al chiaro (4.0, F2.3b; vedi [tema.md](tema.md)). Lo scorrimento della lista e' un
 cambio dello sfondo che la sorgente annuncia da se' (vedi [vetro.md](vetro.md), «Lo scorrimento è un cambio dello
 sfondo»): `FluidScreen` aggiunge solo lo scorrimento fatto dal codice. Per riguardare il profilo sul dispositivo ci sono le
@@ -353,11 +356,12 @@ manopole di debug `edgeveil`, `edgefade`, `edgecap` e `edgecurve` (`gallery.tune
 **In basso.** Sotto la tab bar il contenuto **sfuma senza sfocarsi**, come iOS 26 sul telefono: `Automatic` in basso e'
 `FadeOnly` (scelta di Alessio del 2026-11-12), cioe' il velo e la dissolvenza senza la sfocatura; `Soft` la porterebbe, `Hidden`
 la spegne. In fondo conta il controllo piu' alto: la tab bar, che la schermata conosce da `LocalFluidBottomInset`, e, nella struttura, i
-controlli che si registrano (`RegisterFluidScreenBottomEdge`, interno; oggi nessuno lo chiama: la capsula flottante lo fara' con
-il seguito del bordo). Un controllo che arriva o se ne va accende e spegne il bordo con la molla con cui entra la capsula. Per iOS 26 l'unica fonte e' secondaria, e per iOS 27 nessuna: l'aspetto in basso e' da giudicare a occhio.
-**Aperto**: oggi la tab bar rifrange la pagina cruda e non il contenuto sfumato (esportare vorrebbe dire dare alla chrome un
-fondale combinato, e un export la sonda lo legge come una sorgente che non avvisa): se ne occupa il seguito del bordo
-(F2.5b), con la capsula flottante che si registra in fondo e il bordo che segue la tab bar quando si piega.
+controlli che si registrano (`RegisterFluidScreenBottomEdge`, interno; dal seguito del bordo, F2.5b, la capsula flottante si
+registra con l'altezza misurata: provato nei test, non sul tablet). Un controllo che arriva o se ne va accende e spegne il bordo con la molla con cui entra la capsula. Per iOS 26 l'unica fonte e' secondaria, e per iOS 27 nessuna: l'aspetto in basso e' da giudicare a occhio.
+**Chiuso da F2.5b**: la tab bar rifrange il contenuto sfumato (la striscia in basso esporta, e la sonda la legge come una
+sorgente che avvisa); sul tablet il vetro del tasto Home, con la tab bar piegata, sopra un riquadro rosa passa da 247/147/176
+a 247/184/203. Il bordo segue la tab bar quando si piega a 52 dp (21 px, i 10 dp della piega), e la striscia della pagina
+che esce resta su di lei finché esce.
 
 **Il ripiego.** Dove il bordo non c'e' (sotto Android 13, con `FluidGlassModel.Classic`, con un compilatore che rifiuta) la
 barra tiene la **fascia di vetro di sempre** (`FluidTopBarGlass`, `glassSurface(falloff = FadeDown)`, e la sua coda di 34 dp),
@@ -431,8 +435,9 @@ val backdrop = chrome.activeBackdrop.value ?: fallback   // per la tab bar, i mo
 
 **Comportamento.**
 
-- **Lo scrittore di riserva** (4.0, F2.3c): `ProvideFluidChrome` posa le pagine in un `Box` (che passa i vincoli minimi) e
-  registra le pagine dentro il `fallback` della shell quando la pagina davanti non lo registra da se' (non e' una
+- **Lo scrittore di riserva** (4.0, F2.3c): `ProvideFluidChrome` posa oggi le pagine in un `Box` (che passa i vincoli minimi), e questo cambia come si dispongono
+  le pagine di una shell: è **in correzione** (si vuole che torni trasparente al layout), e le app non devono scrivere
+  niente per quel `Box`. Registra le pagine dentro il `fallback` della shell quando la pagina davanti non lo registra da se' (non e' una
   `FluidScreen` e non ci posa `glassBackdropSource`). Cosi' la tab bar sopra una pagina qualunque rifrange cio' che ha
   dietro e gira. La chrome va **fuori** dal contenuto di `ProvideFluidChrome`, come nel modello sopra.
 - `activeBackdrop`: l'**ultima registrazione fra quelle che si dichiarano davanti**; se nessuna lo dichiara,

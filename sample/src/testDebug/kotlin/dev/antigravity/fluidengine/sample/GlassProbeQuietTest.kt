@@ -19,12 +19,14 @@ import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
 import dev.antigravity.fluidengine.ui.fluid.rememberCombinedGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
+import dev.antigravity.fluidengine.ui.fluid.rememberEmptyGlassBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.FluidGlassProbeDiagnostics
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
@@ -207,6 +209,26 @@ class GlassProbeQuietTest {
   fun aGlassInsideTheSourceItSamplesReadsOnceAndThenRests() {
     val still = quiet("dentro la sorgente") { InsideTheSource() }
     assertQuiet("dentro la sorgente", still)
+  }
+
+  /**
+   * F2.3c, visto sul tablet (scena `scorrimento`, 17 fotogrammi in 8 s a pagina ferma): un vetro su un fondale senza
+   * sorgenti (qui il fondale vuoto di `currentGlassBackdrop()` fuori da una sorgente) non ha mai niente da leggere, e la
+   * cadenza fissa delle sorgenti che non avvisano lo rileggeva per sempre. Dopo il tetto delle letture a vuoto si ferma.
+   */
+  @Test
+  fun aGlassOverABackdropWithNoSourcesStopsAsking() {
+    val still = quiet("fondale senza sorgenti") {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        Box(Modifier.fillMaxSize().background(Color(0xFF7FA7D9))) {
+          Column(Modifier.padding(24.dp)) {
+            FluidGlassIconButton(onClick = {}, backdrop = rememberEmptyGlassBackdrop()) { Icon() }
+            FluidGlassButton(text = "Tasto", onClick = {}, backdrop = rememberEmptyGlassBackdrop())
+          }
+        }
+      }
+    }
+    assertQuiet("fondale senza sorgenti", still)
   }
 
   @Test

@@ -393,8 +393,12 @@ campiona si è registrato di nuovo, ed è l'unico modo di sapere che sotto un ve
 **geometria** (il vetro si è spostato rispetto allo sfondo) e, per le sorgenti che non avvisano (un `CanvasBackdrop`), una
 cadenza fissa di 500 ms. Al più una lettura ogni 120 ms; la sonda tace durante un movimento veloce (sopra 500 dp/s di
 spostamento relativo, e per 100 ms dopo) e sotto il livello 0,9 di `FluidGlassQuality`, cioè mentre la pagina corre. Una
-lettura fallita raddoppia l'attesa fino a 2 s e si ritenta al più tre volte, poi si aspetta un evento. Una pagina ferma non
-legge e non cattura: lo prova `GlassProbeQuietTest` sul computer (nessuna richiesta, nessuna cattura, nessuno stato scritto),
+lettura fallita raddoppia l'attesa fino a 2 s e si ritenta al più tre volte, poi si aspetta un evento. Dalla 4.0 (F2.3c) lo
+stesso tetto vale per **ogni lettura a vuoto** di fila: fallita, saltata, o tornata senza niente da leggere (la miniatura
+copre meno di metà dei pixel: un fondale senza sorgenti o che nessuno registra). Dopo la quarta la cadenza fissa delle
+sorgenti che non avvisano si ferma, e la sonda riparte solo da un avviso (una revisione, uno spostamento) o da una lettura
+vera; sul tablet tre tasti di vetro su un fondale vuoto rileggevano ogni 500 ms per sempre, e una `FluidScreen` ferma
+disegnava 17 fotogrammi in 8 s. Una pagina ferma non legge e non cattura: lo prova `GlassProbeQuietTest` sul computer (nessuna richiesta, nessuna cattura, nessuno stato scritto),
 e sul tablet, a pagina ferma per otto secondi, la scheda «Materiale» e «Icone» non hanno disegnato un fotogramma.
 
 **Lo scorrimento è un cambio dello sfondo.** Una lista che scorre dentro una sorgente non fa registrare di nuovo il nodo
@@ -405,6 +409,22 @@ lanciato) e avvisa a ogni passo; il limite di una lettura ogni 120 ms e il silen
 sopra. A pagina ferma non arriva niente. Non sente uno scorrimento fatto dal codice (`scrollToItem`, `animateScrollBy`), che
 non passa dallo scorrimento annidato: `FluidScreen` lo dice da sé per la sua lista, un'altra lista lo vedrà alla prossima
 revisione della pagina.
+
+**Una sorgente dentro un'altra avvisa anche lei** (4.0, F2.3c). Una registrazione tiene per riferimento i layer dei
+figli: quando un figlio che è a sua volta una sorgente si registra di nuovo da solo (un palco che cambia colore dentro la
+pagina), la registrazione di fuori mostra già il contenuto nuovo ma non lo sapeva. Adesso un layer che si disegna dentro la
+registrazione di un altro lo ricorda, e quando avvisa avvisa anche lui. Resta il limite per un figlio che ha un layer suo
+ma non è una sorgente (un'animazione dentro un `graphicsLayer`): la registrazione di fuori non lo sa finché qualcosa non
+la ridisegna.
+
+**La chrome sopra una pagina qualunque** (4.0, F2.3c). La shell dà alla tab bar, ai modali e ai menu il fondale della
+pagina davanti (`activeBackdrop`) o, se la pagina non ne dichiara uno, un `fallback`. Se la pagina davanti non è una
+`FluidScreen` e non registra quel `fallback` da sé, nessuno lo registrava: la tab bar campionava un layer vuoto, non
+rifrangeva niente e la sua sonda non leggeva mai (sul tablet, sopra il nero della pagina «Adattività», un grigio medio con le
+icone scure). Adesso `ProvideFluidChrome` è lo **scrittore di riserva**: registra le pagine dentro ogni layer che un vetro
+**fuori** dalle pagine campiona e che nessuno registra (né una pagina né un pannello che lo esporta), e avvisa a ogni
+registrazione e a ogni scorrimento. Appena una pagina registra il fondale da sé, lascia. Un vetro dentro le pagine non
+chiede mai la riserva: campionerebbe una registrazione che contiene sé stesso.
 
 **Come decide il lato.** Il filtro fa una media mobile della luminanza (costante di 200 ms), con **due soglie distanti**: sotto
 0,45 il vetro va sul lato scuro, sopra 0,62 torna sul chiaro, in mezzo resta dove sta; dopo ogni giro non ne fa un altro

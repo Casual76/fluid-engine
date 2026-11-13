@@ -336,13 +336,18 @@ a tutto in pochi pixel si vede troppo. Nodi (distanza in `H` dal bordo basso dei
 0 → 0,26, +0,2 → 0,18, +0,4 → 0,10, +0,7 → 0,05, +1 → 0,02, +1,35 → 0, con un'interpolazione cubica monotona e una grana
 di mezzo livello. Misurato sul tablet su una tinta unita: 34, 26, 18, 10, 5 e 2% a −0,5, 0, +0,2, +0,4, +0,7 e +1 `H`, senza
 riga dove finisce (residuo sotto 0,3 livelli). Sopra un **contenuto scuro**, in tema chiaro, la striscia **scurisce** invece
-di velare di bianco (come Apple, ×0,70–0,72 dietro i tasti): lo decide la sonda dello sfondo (`darkContent`, il lato con le
-due soglie del filtro, animato in 300 ms; la prima lettura no); in tema scuro il velo va gia' verso il fondo scuro e la
-sonda non si monta. Dove la striscia scurisce e il titolo passa al bianco, anche le **icone della barra di stato** passano al
-chiaro (4.0, F2.3b; vedi [tema.md](tema.md)). I tasti della barra sono vetri piccoli col patto dell'inchiostro e **girano**
-come i tasti di vetro; lo scorrimento della lista e' un cambio dello sfondo che la sorgente annuncia da se' (vedi
-[vetro.md](vetro.md), «Lo scorrimento è un cambio dello sfondo»): `FluidScreen` aggiunge solo lo scorrimento fatto dal
-codice. Per riguardare il profilo sul dispositivo ci sono le
+di velare di bianco (come Apple, ×0,70–0,72 dietro i tasti). **Una decisione sola per tutta la barra** (4.0, F2.3c): la
+barra e' un vetro che gira come un tasto, con la sonda della striscia (legge la pagina dietro la barra) e la legge del
+giro dei tasti (le sue manopole: corpo in 300 ms, inchiostro che svanisce e risale). Dalla stessa lettura e nello stesso
+istante la striscia scurisce col corpo del giro, il titolo e le azioni cambiano lato passando per il fotogramma trasparente
+(col tema del lato: un'icona in `onSurface` segue anche lei), e i tasti della barra sono **ospitati**: niente sonda loro,
+il lato e la misura dalla barra, il contenuto che svanisce con lei. Prima la striscia decideva da se' e scuriva in 800 ms,
+il titolo cambiava a meta' della striscia e ogni tasto decideva con la sua sonda: sul tablet il titolo restava scuro su una
+striscia gia' scura per circa 200 ms. Lo stesso vale per la barra ancorata fra due pagine. In tema scuro il velo va gia'
+verso il fondo scuro, la sonda non si monta e i tasti girano da soli come prima. Dove la barra passa al lato scuro anche le
+**icone della barra di stato** passano al chiaro (4.0, F2.3b; vedi [tema.md](tema.md)). Lo scorrimento della lista e' un
+cambio dello sfondo che la sorgente annuncia da se' (vedi [vetro.md](vetro.md), «Lo scorrimento è un cambio dello
+sfondo»): `FluidScreen` aggiunge solo lo scorrimento fatto dal codice. Per riguardare il profilo sul dispositivo ci sono le
 manopole di debug `edgeveil`, `edgefade`, `edgecap` e `edgecurve` (`gallery.tune`); a 1, o senza, i numeri sono quelli di serie al bit.
 
 **In basso.** Sotto la tab bar il contenuto **sfuma senza sfocarsi**, come iOS 26 sul telefono: `Automatic` in basso e'
@@ -426,6 +431,10 @@ val backdrop = chrome.activeBackdrop.value ?: fallback   // per la tab bar, i mo
 
 **Comportamento.**
 
+- **Lo scrittore di riserva** (4.0, F2.3c): `ProvideFluidChrome` posa le pagine in un `Box` (che passa i vincoli minimi) e
+  registra le pagine dentro il `fallback` della shell quando la pagina davanti non lo registra da se' (non e' una
+  `FluidScreen` e non ci posa `glassBackdropSource`). Cosi' la tab bar sopra una pagina qualunque rifrange cio' che ha
+  dietro e gira. La chrome va **fuori** dal contenuto di `ProvideFluidChrome`, come nel modello sopra.
 - `activeBackdrop`: l'**ultima registrazione fra quelle che si dichiarano davanti**; se nessuna lo dichiara,
   l'ultima in assoluto (anteprime, galleria, una schermata sola in un'Activity). *Davanti non e' «registrata per ultima»*:
   per tutto un back predittivo le due pagine sono composte e eleggere la piu' recente faceva rifrangere alla

@@ -32,7 +32,7 @@ from pathlib import Path
 UI_FLUID_FILES = {
     # una schermata e il suo scheletro
     "schermata": [
-        "FluidScreen", "FluidScrollEdge", "FluidCollapsingHeader", "FluidContainerScaffold", "FluidListDetail",
+        "FluidScreen", "FluidChromePageWriter", "FluidScrollEdge", "FluidCollapsingHeader", "FluidContainerScaffold", "FluidListDetail",
         "FluidPaneScaffold", "FluidSidebar", "FluidColumns", "FluidGridColumns",
         "FluidReadingWidth", "FluidAmbient", "FluidAmbientSurface", "FluidOverscroll",
         "FluidScrollPhysics", "FluidFastScroller", "FluidSectionIndex",

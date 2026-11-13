@@ -73,6 +73,12 @@ internal const val GlassProbeMaxBackoffMillis: Long = 2_000L
  */
 internal const val GlassProbeMaxRetries: Int = 3
 
+// Dalla 4.0 (F2.3c) lo stesso tetto vale per **ogni** lettura a vuoto di fila, non solo per quelle fallite: anche una
+// lettura che torna senza niente da leggere ([GlassProbeOutcome.Empty]) o che salta ([GlassProbeOutcome.Skipped]). Sul
+// tablet tre tasti di vetro che campionavano un fondale senza sorgenti rileggevano ogni 500 ms per sempre (la cadenza
+// fissa delle sorgenti che non avvisano), e una pagina ferma disegnava 17 fotogrammi in 8 s. Oltre il tetto la cadenza
+// fissa si ferma, e la sonda riparte solo da un avviso (una revisione, uno spostamento) o da una lettura vera.
+
 /** Che cosa fare adesso. */
 internal sealed interface GlassProbeDecision {
   /** Leggere ora. [rerecord]: la geometria è cambiata (o non c'è ancora una miniatura) e va registrata di nuovo. */
@@ -102,6 +108,13 @@ internal enum class GlassProbeOutcome {
    * cambia (la finestra che torna ridisegna, e le sorgenti avvisano).
    */
   Skipped,
+
+  /**
+   * La lettura è tornata, ma senza abbastanza da leggere (4.0, F2.3c): la miniatura copre meno di metà dei pixel,
+   * perché la sorgente è vuota o nessuno l'ha registrata. Non è un errore e non è una lettura: conta fra le letture a
+   * vuoto (vedi [GlassProbeMaxRetries]), e si aspetta il prossimo evento.
+   */
+  Empty,
 }
 
 /**
@@ -146,6 +159,12 @@ internal class GlassProbeScheduler(
   private var lastGeometryAt = Long.MIN_VALUE
   private var fastUntil = Long.MIN_VALUE
   private var failures = 0
+
+  /**
+   * Le letture a vuoto di fila (fallite, saltate o tornate senza niente da leggere), dall'ultima lettura vera o
+   * dall'ultimo avviso. Oltre [maxRetries] la cadenza fissa si ferma (F2.3c).
+   */
+  private var unproductive = 0
   private var unannounced = false
   private var suspended = false
 
@@ -156,6 +175,7 @@ internal class GlassProbeScheduler(
   /** Una sorgente si è registrata di nuovo: lo sfondo può essere cambiato anche se niente si è mosso. */
   fun onRevision(nowMillis: Long) {
     pendingRead = true
+    unproductive = 0
   }
 
   /**
@@ -165,6 +185,7 @@ internal class GlassProbeScheduler(
   fun onGeometry(nowMillis: Long, movedPx: Float) {
     pendingRead = true
     pendingRerecord = true
+    unproductive = 0
     val previous = lastGeometryAt
     lastGeometryAt = nowMillis
     if (previous == Long.MIN_VALUE || !movedPx.isFinite() || movedPx <= 0f) return
@@ -194,10 +215,11 @@ internal class GlassProbeScheduler(
   /** Che cosa fare a [nowMillis]. Non cambia niente: solo [onReadSent] e [onReadDone] lo fanno. */
   fun next(nowMillis: Long): GlassProbeDecision {
     if (inFlight || suspended) return GlassProbeDecision.Idle
-    val cadenceDue = unannounced && (lastSentAt == Long.MIN_VALUE || nowMillis - lastSentAt >= cadenceMillis)
+    val cadence = unannounced && unproductive <= maxRetries
+    val cadenceDue = cadence && (lastSentAt == Long.MIN_VALUE || nowMillis - lastSentAt >= cadenceMillis)
     val due = pendingRead || pendingRerecord || cadenceDue || retryDue
     if (!due) {
-      return if (unannounced) GlassProbeDecision.WaitUntil(lastSentAt + cadenceMillis) else GlassProbeDecision.Idle
+      return if (cadence) GlassProbeDecision.WaitUntil(lastSentAt + cadenceMillis) else GlassProbeDecision.Idle
     }
     if (nowMillis < fastUntil) return GlassProbeDecision.WaitUntil(fastUntil)
     if (lastSentAt != Long.MIN_VALUE) {
@@ -233,9 +255,19 @@ internal class GlassProbeScheduler(
     if (!inFlight) return
     inFlight = false
     when (outcome) {
-      GlassProbeOutcome.Read -> failures = 0
+      GlassProbeOutcome.Read -> {
+        failures = 0
+        unproductive = 0
+      }
+      GlassProbeOutcome.Empty -> {
+        // Letta, ma niente da leggere: lo spazio fra due letture conta, e si aspetta il prossimo evento (o, per una
+        // sorgente che non avvisa, la cadenza fissa finché il tetto delle letture a vuoto lo permette).
+        failures = 0
+        unproductive++
+      }
       GlassProbeOutcome.Failed -> {
         // Non un evento: un ritentativo, a tempo finché ce ne sono (vedi [retryDue]), poi col prossimo evento.
+        unproductive++
         failures++
         retry = true
         if (sentRerecord) retryRerecord = true
@@ -243,6 +275,7 @@ internal class GlassProbeScheduler(
       GlassProbeOutcome.Skipped -> {
         // Niente attesa che cresce e niente nuovo tentativo a tempo: si riparte dal prossimo evento. Ma la lettura
         // non c'è stata, quindi ciò che era in attesa resta in attesa.
+        unproductive++
         pendingRead = true
         if (sentRerecord) pendingRerecord = true
         // Lo spazio fra due letture conta da quelle vere: una lettura saltata non deve ritardare la prossima.

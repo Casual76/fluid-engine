@@ -831,8 +831,11 @@ internal class GlassProbeNode(
     if (!isAttached) return
     val scheduler = scheduler ?: return
     val now = SystemClock.uptimeMillis()
-    scheduler.onReadDone(now, outcome)
-    if (outcome == GlassProbeOutcome.Read && stats != null && stats.coverage >= GlassProbeMinCoverage) {
+    val delivered = outcome == GlassProbeOutcome.Read && stats != null && stats.coverage >= GlassProbeMinCoverage
+    // Una lettura che torna senza abbastanza da leggere (una sorgente vuota o non registrata) non è una lettura (F2.3c):
+    // per lo schedulatore è a vuoto, e dopo il tetto la cadenza fissa si ferma.
+    scheduler.onReadDone(now, if (outcome == GlassProbeOutcome.Read && !delivered) GlassProbeOutcome.Empty else outcome)
+    if (delivered && stats != null) {
       state.publish(now, stats)
       FluidGlassProbeDiagnostics.onReading()
       onReading?.invoke(stats, state.target, true)

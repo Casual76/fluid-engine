@@ -382,8 +382,12 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
   /** Da che parte sta l'inchiostro, per la composizione: cambia una volta per giro. */
   val inkOnDark: Boolean by derivedStateOf { GlassFlipLaw.inkOnDark(ink) }
 
-  /** La parte che il contenuto ha composto per ultima ([noteComposedInk]): campo semplice, letto in disegno. */
-  private var composedInkOnDark = false
+  /** La parte che il contenuto ha composto per ultima ([noteComposedInk]), letta in disegno. */
+  // Stato dalla 4.0 (F2.3c): chi legge [inkAlpha] in disegno (un `graphicsLayer`) deve rileggerlo quando la composizione
+  // annota la parte nuova. Da campo semplice, un vetro che nasceva già sul lato opposto (la prima lettura scatta, e
+  // l'inchiostro poi non si muove più) lasciava la scheda scelta della tab bar trasparente per sempre: il suo layer
+  // aveva letto «trasparente» prima dell'annotazione, e niente lo rileggeva.
+  private var composedInkOnDark by mutableStateOf(false)
 
   /** Il lato dei piccoli e dei grandi, adesso, per i vetri annidati che lo prendono da qui. Letto in disegno. */
   val sideNow: Float
@@ -774,6 +778,20 @@ internal val LocalGlassAdaptiveHost: ProvidableCompositionLocal<GlassAdaptiveSta
 internal val LocalGlassInkFade: ProvidableCompositionLocal<() -> Float> = staticCompositionLocalOf { NoInkFade }
 
 private val NoInkFade: () -> Float = { 1f }
+
+/**
+ * Un ospite che sta **sullo stesso fondale** dei vetri che ospita (4.0, F2.3c): la barra in alto di una schermata, la
+ * cui striscia legge la pagina sotto la barra, e i tasti che stanno sulla striscia. I tasti ospitati prendono da lui
+ * il lato **e la misura** (la pagina sotto la barra è anche quella sotto di loro), e il loro contenuto svanisce e
+ * risale con la sua dissolvenza ([fade], in disegno): non sta dentro un vetro che lo dissolve per loro.
+ *
+ * Diverso dall'ospite di un foglio o di un pop-up ([LocalGlassAdaptiveHost] e basta): lì il vetro annidato sta sul
+ * materiale dell'ospite, non sulla pagina, e prende solo il lato.
+ */
+internal class GlassSharedHost(val fade: () -> Float)
+
+/** Vedi [GlassSharedHost]. Null fuori da una barra che lo fornisce. */
+internal val LocalGlassSharedHost: ProvidableCompositionLocal<GlassSharedHost?> = staticCompositionLocalOf { null }
 
 /**
  * Il contenuto di un vetro che segue l'inchiostro [ink]: `LocalContentColor` del lato del vetro ([themeInk] sul lato

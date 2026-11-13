@@ -10,6 +10,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerRecordingStack
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.chromeWritesFallback
 
 /**
  * Quando la sonda dello sfondo legge (F2.1, piano 3.9): le regole di [GlassProbeScheduler], e il contatore di
@@ -199,6 +201,42 @@ class GlassProbeSchedulerTest {
     assertEquals("tornate a sorgenti che avvisano, la cadenza fissa si ferma", 5, bench.reads.size)
   }
 
+  /**
+   * F2.3c, visto sul tablet: tre tasti di vetro su un fondale senza sorgenti rileggevano ogni 500 ms per sempre, e ogni
+   * lettura tornava senza niente da leggere. Una lettura a vuoto (vuota, saltata o fallita) conta: dopo il tetto la
+   * cadenza fissa si ferma, e la sonda riparte solo da un avviso.
+   */
+  @Test
+  fun `una sorgente che non avvisa e torna sempre vuota smette dopo il tetto e riparte a un avviso`() {
+    // (Una lettura saltata non richiama lo schedulatore da sola: il nodo aspetta un evento. Qui il banco lo richiama a ogni
+    // fotogramma, quindi si prova la lettura vuota, che torna e richiama.)
+    for (empty in listOf(GlassProbeOutcome.Empty)) {
+      val bench = Bench()
+      bench.outcome = { empty }
+      bench.frame(0L) {
+        setUnannounced(true)
+        onGeometry(0L, 0f)
+      }
+      bench.run(8L, 5_000L)
+      assertEquals("$empty: quattro letture a vuoto e poi basta", listOf(0L, 504L, 1_008L, 1_512L), bench.reads)
+      // Un avviso: si riparte, per altre quattro al più.
+      bench.frame(5_000L) { onRevision(5_000L) }
+      bench.run(5_008L, 9_000L)
+      assertEquals("$empty: dopo l'avviso", listOf(5_000L, 5_504L, 6_008L, 6_512L), bench.readsBetween(5_000L, 9_000L))
+    }
+  }
+
+  @Test
+  fun `una lettura vera rimette in moto la cadenza fissa`() {
+    val bench = Bench()
+    var n = 0
+    // Due letture vuote, poi vere: la cadenza non si ferma mai.
+    bench.outcome = { if (n++ < 2) GlassProbeOutcome.Empty else GlassProbeOutcome.Read }
+    bench.frame(0L) { setUnannounced(true) }
+    bench.run(8L, 4_100L)
+    assertEquals(9, bench.reads.size)
+  }
+
   @Test
   fun `una sorgente che non avvisa e' letta anche senza alcun evento`() {
     val bench = Bench()
@@ -380,6 +418,52 @@ class GlassProbeSchedulerTest {
     // (`isRecordedByDrawBackdropNode`): qui non lo registra nessuno, e resta una sorgente che non avvisa.
     val source: LayerBackdrop = materialLayerBackdrop(fakeLayer())
     assertFalse(source.announcesRevisions)
+  }
+
+  // --- F2.3c: l'avviso che risale, lo scrittore di riserva della chrome ----------------------------------------
+
+  /**
+   * Sul tablet il palco della pagina «Adattività» si registrava di nuovo da solo dentro la registrazione della chrome:
+   * quella mostrava il colore nuovo per riferimento, ma non avvisava, e la tab bar sopra non girava. Un layer che si
+   * disegna dentro la registrazione di un altro lo ricorda, e quando avvisa avvisa anche lui.
+   */
+  @Test
+  fun `l'avviso di un layer dentro un altro risale a chi lo contiene, una volta`() {
+    val outer = materialLayerBackdrop(fakeLayer())
+    val inner = materialLayerBackdrop(fakeLayer())
+    val heard = mutableListOf<String>()
+    outer.addRevisionListener { _, revision -> heard += "fuori$revision" }
+    inner.addRevisionListener { _, revision -> heard += "dentro$revision" }
+    LayerRecordingStack.enter(outer)
+    LayerRecordingStack.enter(inner)
+    LayerRecordingStack.exit(inner)
+    LayerRecordingStack.enter(inner)
+    LayerRecordingStack.exit(inner)
+    LayerRecordingStack.exit(outer)
+    assertEquals("la pila torna vuota", 0, LayerRecordingStack.depth)
+    assertEquals("il contenitore si ricorda una volta", 1, inner.containerCount)
+    assertEquals("chi contiene non è contenuto", 0, outer.containerCount)
+    inner.bumpRevision()
+    assertEquals(listOf("dentro1", "fuori1"), heard)
+    // Un giro chiuso (che un albero non fa, ma un cablaggio a mano sì) non gira per sempre.
+    outer.noteContainer(inner)
+    inner.bumpRevision()
+    assertEquals(listOf("dentro1", "fuori1", "dentro2", "fuori2"), heard)
+  }
+
+  @Test
+  fun `la chrome registra un layer solo se un vetro fuori lo campiona e nessuna pagina lo registra`() {
+    assertTrue(chromeWritesFallback(adopted = true, hasPageWriter = false))
+    assertFalse("una pagina lo registra: è lei lo scrittore", chromeWritesFallback(adopted = true, hasPageWriter = true))
+    assertFalse("nessuno lo campiona: niente da registrare", chromeWritesFallback(adopted = false, hasPageWriter = false))
+  }
+
+  @Test
+  fun `un layer registrato dalla chrome come riserva avvisa`() {
+    val source = materialLayerBackdrop(fakeLayer())
+    assertFalse(source.announcesRevisions)
+    source.fallbackWriter = object : androidx.compose.ui.Modifier.Node() {}
+    assertTrue("la sonda di chi lo campiona aspetta i suoi avvisi, senza cadenza fissa", source.announcesRevisions)
   }
 
   private companion object {

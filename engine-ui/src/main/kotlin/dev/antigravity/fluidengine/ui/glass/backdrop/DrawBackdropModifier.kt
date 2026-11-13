@@ -67,6 +67,12 @@ import androidx.compose.ui.unit.IntSize
 // Fluid Engine addition (F1A.7): il materiale di una superficie, per la diagnostica.
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriter
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriters
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LocalInsideLayerFallback
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.platform.LocalView
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.emptyBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.materialLayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.highlight.Highlight
@@ -408,7 +414,10 @@ private class DrawBackdropElement(
         node.exportDirty = true
         val nestingChanged = node.nestInContainer != nestInContainer
         node.nestInContainer = nestInContainer
-        if (backdropChanged) node.registerReads()
+        if (backdropChanged) {
+            node.registerReads()
+            node.adoptFallbacks()
+        }
         if (backdropChanged || nestingChanged) node.resolveContainer()
         node.onDrawBehind = onDrawBehind
         node.onDrawBackdrop = onDrawBackdrop
@@ -599,7 +608,7 @@ private class DrawBackdropNode(
     // Fluid Engine addition (F1A.6): vedi `drawBackdrop(onDrawLight)`.
     var onDrawLight: (DrawScope.() -> Unit)? = null
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode,
-    GlassContainer, GlassContainerReader, Modifier.Node() {
+    GlassContainer, GlassContainerReader, CompositionLocalConsumerModifierNode, Modifier.Node() {
 
     private val effectScope =
         object : BackdropEffectScopeImpl(), GlassNestingScope {
@@ -988,6 +997,8 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
+        // Fluid Engine addition (4.0.0, F2.3c): uno scrittore di riserva arrivato dopo l'attacco (la chrome rifatta).
+        if (fallbackWriter == null) adoptFallbacks()
         if (containerDirty) resolveContainer()
         effectiveScale = fitToTexture(
             backdropScale * quantiseScaleFactor(backdropScaleFactor()),
@@ -1111,6 +1122,7 @@ private class DrawBackdropNode(
 
         bindExport()
         registerReads()
+        adoptFallbacks()
         resolveContainer()
         // E come contenitore: il vetro che c'era gia' dentro adesso sta su questo pannello.
         adoptNestedReaders()
@@ -1219,6 +1231,38 @@ private class DrawBackdropNode(
     fun unregisterReads() {
         registeredReads.forEach { it.removeReader() }
         registeredReads = emptyList()
+        releaseFallbacks()
+    }
+
+    // --- Fluid Engine addition (4.0.0, F2.3c): lo scrittore di riserva ---------------------------------------
+
+    private var fallbackAdopted: List<LayerBackdrop> = emptyList()
+    private var fallbackWriter: LayerFallbackWriter? = null
+
+    /**
+     * Un vetro **fuori** dalla pagina (la tab bar, un modale, un menu montati dalla chrome) chiede alla chrome della
+     * sua finestra di registrare i layer che campiona, se nessuna pagina lo fa. Dentro la pagina mai: campionerebbe una
+     * registrazione che contiene sé stesso. Vedi `LayerBackdrop.fallbackWriter`.
+     */
+    fun adoptFallbacks() {
+        if (!isAttached || fallbackWriter != null) return
+        if (currentValueOf(LocalInsideLayerFallback)) return
+        val writer = LayerFallbackWriters.of(currentValueOf(LocalView).rootView) ?: return
+        val layers = ArrayList<LayerBackdrop>(0)
+        // Le sorgenti vere sotto gli involucri (sfocatura, combinazioni): `layerSources`, come la sonda.
+        // Tutti: un export ha il suo scrittore (il pannello), e lo scrittore di riserva lo lascia stare da sé.
+        for (part in backdrop.layerSources) if (part is LayerBackdrop && part !in layers) layers += part
+        if (layers.isEmpty()) return
+        layers.forEach { writer.adopt(it) }
+        fallbackAdopted = layers
+        fallbackWriter = writer
+    }
+
+    private fun releaseFallbacks() {
+        val writer = fallbackWriter ?: return
+        fallbackAdopted.forEach { writer.release(it) }
+        fallbackAdopted = emptyList()
+        fallbackWriter = null
     }
 
     private fun leaveContainer() {

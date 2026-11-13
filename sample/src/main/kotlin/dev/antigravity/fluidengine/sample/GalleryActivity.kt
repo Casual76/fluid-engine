@@ -95,6 +95,9 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import kotlinx.coroutines.delay
+import androidx.compose.material3.Text
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 
 /**
  * Fluid Glass.
@@ -354,16 +357,39 @@ internal fun Gallery(
               vertical = FluidFloatingTabBarDefaults.BottomMargin,
             ),
         ) {
+          // Le schede scritte col contenuto di scope (F2.3c) perche' la prima icona dica in logcat l'aspetto del vetro
+          // della barra (`ASPETTO tabbar-galleria`, `adb logcat -s FluidAdattivo`): e' la tab bar di ogni app, e la
+          // pagina «Adattivita'» la guarda girare. Stesse schede, stessa semantica della forma con `items`.
           FluidFloatingTabBar(
-            items = Tabs,
-            selectedRoute = nav.route,
-            onSelect = { nav.selectTab(it.route) },
-            // Un secondo tocco sulla scheda gia' scelta: sotto una pagina la chiude, altrimenti la
-            // scheda torna in cima.
-            onReselect = { if (nav.canGoBack) nav.popToRoot() else scrollToTop.request() },
+            selectedTabKey = nav.route,
             scrollConnection = tabBarScroll,
             backdrop = backdrop,
-          )
+          ) {
+            Tabs.forEachIndexed { index, item ->
+              tab(
+                key = item.route,
+                title = { Text(item.label) },
+                icon = {
+                  FluidIcon(
+                    imageVector = item.filledIcon ?: item.icon,
+                    contentDescription = null,
+                    modifier = Modifier.semantics { selected = item.route == nav.route },
+                  )
+                  if (index == 0) dev.antigravity.fluidengine.sample.adaptive.AppearanceLog("tabbar-galleria")
+                },
+                // Un secondo tocco sulla scheda gia' scelta: sotto una pagina la chiude, altrimenti la
+                // scheda torna in cima.
+                onClick = {
+                  if (item.route == nav.route) {
+                    if (nav.canGoBack) nav.popToRoot() else scrollToTop.request()
+                  } else {
+                    nav.selectTab(item.route)
+                  }
+                },
+                badge = item.badge,
+              )
+            }
+          }
         }
 
         if (nav.page == null && nav.route == RouteMaterial) {

@@ -93,6 +93,21 @@ class LayerBackdrop internal constructor(
     internal var ownerNode: Modifier.Node? = null
 
     /**
+     * Fluid Engine addition (4.0.0, F2.3c): se un `layerBackdrop` (una pagina) registra questo layer adesso. Stato di
+     * snapshot apposta, a differenza di [ownerNode]: lo legge in disegno lo scrittore di riserva della chrome
+     * ([fallbackWriter]), che deve riprendere a registrare quando la pagina se ne va.
+     */
+    internal var hasPageWriter: Boolean by mutableStateOf(false)
+
+    /**
+     * Fluid Engine addition (4.0.0, F2.3c): chi registra questo layer quando nessuna pagina lo fa. È la chrome
+     * (`ProvideFluidChrome`): una tab bar, un modale, un menu montati sopra la pagina campionano il fondale che la shell
+     * gli dà, e se la pagina davanti non lo registra (non è una `FluidScreen` e non lo registra da sé) il fondale resta
+     * vuoto: il vetro non ha niente da rifrangere e la sua sonda non legge mai. Vedi [LayerFallbackWriter].
+     */
+    internal var fallbackWriter: Modifier.Node? = null
+
+    /**
      * Fluid Engine addition (2.13.0): registrato solo su richiesta.
      *
      * Vale per il materiale che un pannello pubblica (`exports`, e quello che pubblica da solo per
@@ -162,10 +177,40 @@ class LayerBackdrop internal constructor(
      * disturba il giro in corso.
      */
     internal fun bumpRevision() {
-        revision++
-        val listeners = revisionListeners
-        for (listener in listeners) listener.onRevision(this, revision)
+        // Fluid Engine addition (4.0.0, F2.3c): l'avviso risale a chi contiene questo layer nella propria registrazione
+        // (vedi [noteContainer]). La guardia ferma un giro chiuso.
+        if (bumping) return
+        bumping = true
+        try {
+            revision++
+            val listeners = revisionListeners
+            for (listener in listeners) listener.onRevision(this, revision)
+            val outer = containers
+            for (container in outer) container.bumpRevision()
+        } finally {
+            bumping = false
+        }
     }
+
+    private var bumping = false
+
+    /**
+     * Fluid Engine addition (4.0.0, F2.3c): i layer che contengono questo nella propria registrazione. Una registrazione
+     * tiene per riferimento i layer dei figli: quando un figlio si registra di nuovo da solo, la registrazione di fuori
+     * mostra già il contenuto nuovo ma non lo sa, e non avvisa. Sul tablet il palco della pagina «Adattività» cambiava
+     * colore dentro la registrazione della chrome e la tab bar sopra non girava. Chi sta dentro avvisa anche chi lo
+     * contiene. Li impara mentre si disegna dentro la registrazione di fuori ([LayerRecordingStack]).
+     */
+    private var containers: Array<LayerBackdrop> = NoContainers
+
+    /** Fluid Engine addition (4.0.0, F2.3c): [outer] contiene questo layer nella sua registrazione. */
+    internal fun noteContainer(outer: LayerBackdrop) {
+        if (outer === this || containers.any { it === outer }) return
+        containers += outer
+    }
+
+    /** Fluid Engine addition (4.0.0, F2.3c): quanti layer contengono questo. Per i test. */
+    internal val containerCount: Int get() = containers.size
 
     /**
      * Fluid Engine addition (F2.1): se questo layer avvisa quando si ri-registra. Vero quando lo registra un
@@ -173,7 +218,8 @@ class LayerBackdrop internal constructor(
      * vetro (un export, il materiale di un pannello); altrimenti chi vuole sapere se e' cambiato deve guardare da se'.
      */
     internal val announcesRevisions: Boolean
-        get() = isRecordedByLayerBackdropNode() || isRecordedByDrawBackdropNode()
+        get() = isRecordedByLayerBackdropNode() || isRecordedByDrawBackdropNode() ||
+            (ownerNode == null && fallbackWriter != null)
 
     private var inverseLayerScope: InverseLayerScope? = null
 
@@ -240,6 +286,69 @@ internal class ReaderCount {
  * su richiesta solo se qualcuno lo sta guardando. Pura, per poterla provare in un test.
  */
 internal fun exportWanted(onDemand: Boolean, readers: Int): Boolean = !onDemand || readers > 0
+
+private val NoContainers = emptyArray<LayerBackdrop>()
+
+/**
+ * Fluid Engine addition (4.0.0, F2.3c): i layer che si stanno registrando adesso, dal più esterno. Chi si disegna mentre
+ * uno di loro registra sta nella sua registrazione: lo ricorda ([LayerBackdrop.noteContainer]), e quando poi si registra
+ * di nuovo da solo avvisa anche lui. Solo il filo principale (il disegno di Compose).
+ */
+internal object LayerRecordingStack {
+    private val stack = ArrayList<LayerBackdrop>(4)
+
+    fun enter(layer: LayerBackdrop) {
+        for (outer in stack) layer.noteContainer(outer)
+        stack.add(layer)
+    }
+
+    fun exit(layer: LayerBackdrop) {
+        val at = stack.lastIndexOf(layer)
+        if (at >= 0) stack.removeAt(at)
+    }
+
+    /** Per i test. */
+    internal val depth: Int get() = stack.size
+}
+
+/**
+ * Fluid Engine addition (4.0.0, F2.3c): chi registra, in una finestra, i layer che un vetro campiona e che nessuna
+ * pagina registra ([LayerBackdrop.fallbackWriter]). Lo è la chrome (`ProvideFluidChrome`), una per finestra.
+ */
+internal interface LayerFallbackWriter {
+    /** Un vetro fuori dalla pagina campiona [layer]: se nessuna pagina lo registra, lo registra la chrome. */
+    fun adopt(layer: LayerBackdrop)
+
+    /** Quel vetro non lo campiona più. */
+    fun release(layer: LayerBackdrop)
+}
+
+/** Fluid Engine addition (4.0.0, F2.3c): gli scrittori di riserva, per finestra (la vista radice). */
+internal object LayerFallbackWriters {
+    private val byRoot = java.util.WeakHashMap<android.view.View, LayerFallbackWriter>()
+
+    fun register(root: android.view.View, writer: LayerFallbackWriter) {
+        byRoot[root] = writer
+    }
+
+    fun unregister(root: android.view.View, writer: LayerFallbackWriter) {
+        if (byRoot[root] === writer) byRoot.remove(root)
+    }
+
+    fun of(root: android.view.View): LayerFallbackWriter? = byRoot[root]
+}
+
+/**
+ * Fluid Engine addition (4.0.0, F2.3c): vero dentro il contenuto che la chrome registra come riserva. Un vetro lì dentro
+ * non chiede mai la registrazione di riserva: campionerebbe una registrazione che contiene sé stesso.
+ */
+internal val LocalInsideLayerFallback = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/**
+ * Fluid Engine addition (4.0.0, F2.3c): se la chrome registra [this] come riserva: qualcuno fuori dalla pagina lo
+ * campiona ([adopted]) e nessuna pagina lo registra. Pura, per i test.
+ */
+internal fun chromeWritesFallback(adopted: Boolean, hasPageWriter: Boolean): Boolean = adopted && !hasPageWriter
 
 /**
  * Fluid Engine addition (4.0.0, F2.1): chi vuole sapere quando un [LayerBackdrop] si ri-registra.

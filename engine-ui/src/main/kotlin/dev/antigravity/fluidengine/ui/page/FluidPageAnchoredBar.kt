@@ -83,6 +83,8 @@ import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
+import dev.antigravity.fluidengine.ui.fluid.LocalGlassSharedHost
+import dev.antigravity.fluidengine.ui.fluid.GlassInkContent
 
 /**
  * La barra ancorata (3.0, fase 8): **una per host**, sopra le pagine e sotto la chrome dell'app.
@@ -246,7 +248,11 @@ internal fun FluidAnchoredBar(
       LocalContentColor provides fluidScrollEdgeInk(MaterialTheme.colorScheme.onBackground, shade),
       LocalFluidCanvasBackdrop provides null,
       LocalFluidGlassQuality provides null,
+      // F2.3c: i tasti della barra sono ospitati dalla decisione della barra (vedi `FluidScrollEdgeShade.host`).
+      LocalGlassSharedHost provides shade.shared,
     ) {
+      // F2.3c: il titolo e i tasti prendono il lato dalla stessa decisione della striscia, col tema del lato.
+      GlassInkContent(shade.ink, LocalContentColor.current) {
       FluidTopBarRow(
         onTapTitle = { state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() },
       ) {
@@ -322,6 +328,7 @@ internal fun FluidAnchoredBar(
             Spacer(Modifier.width(FluidBarEdgeInset))
           }
         }
+      }
       }
     }
   }
@@ -411,6 +418,8 @@ private fun BoxScope.BarTitle(
     Box(
       modifier = Modifier
         .matchParentSize()
+        // F2.3c: il titolo svanisce e risale con l'inchiostro della barra quando la barra cambia lato.
+        .graphicsLayer { alpha = shade.fade() }
         .drawWithContent {
           when (state.roleOf(page)) {
             PageRole.Gone -> Unit
@@ -487,6 +496,8 @@ private fun BarActions(
       LocalFluidBarPieceSink provides sink,
       // Il lato della striscia della barra, dopo il contesto della pagina (dal seguito di F2.5): vedi `fluidBarInk`.
       LocalFluidScrollEdgeShade provides shade,
+      // F2.3c: i tasti della barra sono ospitati dalla decisione della barra.
+      LocalGlassSharedHost provides shade.shared,
       // Il contesto della pagina porta il suo canvas: nella barra un controllo sta sul vetro della barra.
       LocalFluidCanvasBackdrop provides null,
       // E la sua qualità, che scende mentre le pagine si muovono: i tasti della barra restano a qualità piena come la

@@ -61,6 +61,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
 import dev.antigravity.fluidengine.ui.glass.interaction.GlowRecipe
 import dev.antigravity.fluidengine.ui.glass.interaction.glassButtonGlowRecipe
+import dev.antigravity.fluidengine.ui.fluid.LocalGlassSharedHost
 
 /**
  * Un pannello di vetro la cui silhouette è quella di [state]: ferma quando lo stato riposa, viva
@@ -279,6 +280,8 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
     // sulla pagina, e la risposta resta agli effetti (vedi l'anello di F2.3 in `GlassLiquidSurface.nestedState`).
     val host = LocalGlassAdaptiveHost.current
     val currentHost by rememberUpdatedState(host)
+    // F2.3c: un ospite sullo stesso fondale (la barra di una schermata) dà anche la misura.
+    val currentShared by rememberUpdatedState(LocalGlassSharedHost.current)
     val probes = ink != null && host == null && glassProbeAvailable()
     val probe = rememberGlassProbeState(initialDark = darkSide)
     val adaptiveState = rememberGlassAdaptiveState(
@@ -299,6 +302,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
         { out, nested ->
           val within = currentHost
           when {
+            within != null && currentShared != null -> within.fill(out)
             within != null -> out.unmeasured().also { it.darkness = within.sideNow }
             nested -> null
             else -> adaptiveState.fill(out)

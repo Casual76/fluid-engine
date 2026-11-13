@@ -65,9 +65,15 @@ private class LayerBackdropElement(
     override fun update(node: LayerBackdropNode) {
         if (node.backdrop != backdrop) {
             node.backdrop.layerCoordinates = null
-            if (node.backdrop.ownerNode === node) node.backdrop.ownerNode = null
+            if (node.backdrop.ownerNode === node) {
+                node.backdrop.ownerNode = null
+                node.backdrop.hasPageWriter = false
+            }
             node.backdrop = backdrop
-            if (node.isAttached) backdrop.ownerNode = node
+            if (node.isAttached) {
+                backdrop.ownerNode = node
+                backdrop.hasPageWriter = true
+            }
         }
         node.frozen = frozen
         node.invalidateDraw()
@@ -102,12 +108,19 @@ private class LayerBackdropNode(
     private var recorded = false
 
     override fun ContentDrawScope.draw() {
-        drawContent()
-        // Held still: the tree is drawn the ordinary way, which reuses every child that did not
-        // change, and the glass goes on sampling the capture from before the movement started.
-        if (recorded && frozen()) return
-        recordLayer(this@LayerBackdropNode, backdrop.graphicsLayer) { backdrop.onDraw(this@draw) }
-        recorded = true
+        // Fluid Engine addition (4.0.0, F2.3c): chi si disegna qui dentro sta nella registrazione di questo layer, e
+        // quando poi si registra di nuovo da solo lo avvisa (vedi `LayerRecordingStack`).
+        LayerRecordingStack.enter(backdrop)
+        try {
+            drawContent()
+            // Held still: the tree is drawn the ordinary way, which reuses every child that did not
+            // change, and the glass goes on sampling the capture from before the movement started.
+            if (recorded && frozen()) return
+            recordLayer(this@LayerBackdropNode, backdrop.graphicsLayer) { backdrop.onDraw(this@draw) }
+            recorded = true
+        } finally {
+            LayerRecordingStack.exit(backdrop)
+        }
         // Fluid Engine addition (4.0.0, F2.1): chi campiona questo layer non ricattura quando cambia,
         // quindi lo si dice a chi vuole saperlo (la sonda dello sfondo). Tenuto fermo, non avvisa.
         backdrop.bumpRevision()
@@ -116,6 +129,8 @@ private class LayerBackdropNode(
     override fun onAttach() {
         // Fluid Engine addition (2.13.0): chi registra questo layer, per il vetro su vetro.
         backdrop.ownerNode = this
+        // Fluid Engine addition (4.0.0, F2.3c): una pagina lo registra, la chrome lascia.
+        backdrop.hasPageWriter = true
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
@@ -134,7 +149,10 @@ private class LayerBackdropNode(
 
     override fun onDetach() {
         backdrop.layerCoordinates = null
-        if (backdrop.ownerNode === this) backdrop.ownerNode = null
+        if (backdrop.ownerNode === this) {
+            backdrop.ownerNode = null
+            backdrop.hasPageWriter = false
+        }
     }
 }
 

@@ -1994,6 +1994,9 @@ internal fun Modifier.glassLiquidSurface(
   // Il vetro adattivo che ospita questo contenuto, se c'e': una lastra dentro di lui e' annidata, non misura, e prende
   // il lato da lui (3.9).
   val host = LocalGlassAdaptiveHost.current
+  // F2.3c: un ospite sullo stesso fondale (la barra di una schermata) dà anche la misura e la dissolvenza.
+  val sharedHost = LocalGlassSharedHost.current
+  val currentShared by rememberUpdatedState(sharedHost)
   val probe = rememberGlassProbeState(initialDark = darkSide)
   // Una pellicola fissa (la selezione d'accento) non gira: il suo colore e' la sua informazione.
   val adaptiveState = rememberGlassAdaptiveState(
@@ -2029,6 +2032,8 @@ internal fun Modifier.glassLiquidSurface(
       adaptive = { out, nested ->
         val within = currentHost
         when {
+          // Su un ospite che legge lo stesso fondale (la barra): il suo lato e la sua misura (F2.3c).
+          within != null && currentShared != null -> within.fill(out)
           // Annidata in un vetro adattivo: nessuna misura, il lato di chi la ospita (in continuo, se lui gira).
           within != null -> out.unmeasured().also { it.darkness = within.sideNow }
           // Annidata altrove: il lato del tema, come prima.
@@ -2066,11 +2071,14 @@ internal fun Modifier.glassLiquidSurface(
     if (surface.castsShadow) Modifier.glassFieldShadow(surface.shadowOutline, surface.shadow) else Modifier
   }
 
-  val contentAlpha: () -> Float = remember(adaptiveState, ink != null) {
-    if (ink == null) {
-      { currentIntensity() }
-    } else {
-      { currentIntensity() * adaptiveState.inkAlpha() }
+  val contentAlpha: () -> Float = remember(adaptiveState, ink != null, sharedHost) {
+    // F2.3c: ospitata da una barra, il contenuto svanisce e risale con l'inchiostro della barra.
+    val hostFade = sharedHost?.fade
+    when {
+      ink == null && hostFade == null -> { { currentIntensity() } }
+      ink == null -> { { currentIntensity() * hostFade!!() } }
+      hostFade == null -> { { currentIntensity() * adaptiveState.inkAlpha() } }
+      else -> { { currentIntensity() * adaptiveState.inkAlpha() * hostFade() } }
     }
   }
 

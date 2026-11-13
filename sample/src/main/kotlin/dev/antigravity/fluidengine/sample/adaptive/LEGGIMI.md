@@ -105,6 +105,30 @@ Vetro, Automatico e quelli propri della scena) sono anche loro vetro, e anche lo
    passa la variante al vetro, nasce in F3.2). Il riquadro tratteggiato dice dove andrà; la manopola di debug `cleardim`
    (`gallery.tune`) riguarda solo l'ombra che la ricetta darebbe a `Clear`, non la fa comparire.
 
+## Le manopole di S3
+
+Le scelte che restano ad Alessio (S3) si riprendono sul tablet con le manopole di debug di `gallery.tune` (l'elenco completo
+è in `material/LEGGIMI.md`). Senza manopole tutto è di serie, al bit; valgono per i vetri e le sonde che nascono dopo, quindi
+si danno al lancio insieme alla scena:
+
+| manopola | valori | cosa cambia | dove si vede |
+|---|---|---|---|
+| `fliptime` | `ios26` (di serie) · `swift` · `slow` | i tempi del giro: corpo 300 / 200 / 450 ms, inchiostro pieno a 700 / 450 / 1000 ms | `bianco-nero` con `adaptive.auto true`; la barra in alto di `scorrimento` con `adaptive.fullbar true` |
+| `flipwait` | `20`–`2000` ms (di serie 200) | quanto il filtro aspetta prima di decidere il lato (la costante di tempo della media) | come sopra |
+| `flipon` · `flipoff` | `0`–`1` (di serie 0,45 e 0,62) | le due soglie del filtro: verso lo scuro, di ritorno al chiaro. `flipon` sotto `flipoff` | `soglia` con `adaptive.auto true`; la scheda Materiale sui riquadri colorati |
+| `darkveilalpha` | `0`–`1` (di serie 0,5) | la profondità di un vetro piccolo girato sul nero (e del vetro scuro del tema scuro): sul tablet 0,5 / 0,39 / 0,29 danno 55 / 43 / 32. Sopra una foto scura il piccolo prende il velo dei grandi e la tab bar la sua pellicola: lì quasi non cambia (70–74) | `bianco-nero` sul nero, sui due temi |
+| `darklargealpha` | `0`–`1` (di serie 0,5) | la profondità di un grande sopra il nero pieno (foglio, pop-up, pannello) | `grandi` con `adaptive.share 1` |
+| `darkceiling` | `0`–`1` (di serie 0,40) | il soffitto del velo scuro dei grandi a copertura parziale | `grandi` con `adaptive.share` a metà |
+| `edgedim` | `0`–`1` (di serie 0,2) | lo scurimento della striscia del bordo dello scorrimento sul lato scuro | `scorrimento` con `adaptive.fullbar true` |
+
+```powershell
+adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene bianco-nero --es adaptive.auto true --es gallery.tune fliptime=swift,flipwait=100
+adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene soglia --es adaptive.auto true --es gallery.tune flipon=0.55,flipoff=0.7
+adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene grandi --es adaptive.share 1 --es gallery.tune darklargealpha=0.89
+```
+
+La riga `PROFILO` del tag `FluidMateriale` dice quali manopole l'engine ha preso e quali ha scartato.
+
 ## Cosa scrive in logcat
 
 Tag `FluidAdattivo`. Una riga per cosa; i tempi sono `SystemClock.uptimeMillis()`, lo stesso orologio delle letture.

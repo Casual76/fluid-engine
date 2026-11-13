@@ -726,6 +726,7 @@ internal class GlassScrollEdgeUniforms {
     veilCeiling: Float = GlassScrollEdgeTuning.veilCeiling,
     textCurve: Boolean = GlassScrollEdgeTuning.textCurve,
     split: GlassScrollEdgeSplit? = null,
+    darkDim: Float = GlassScrollEdgeTuning.darkDim ?: profile.darkDim,
   ) {
     centerWeight = kernel.centerWeight
     for (i in 0 until GlassEdgeBlurTapPairs) {
@@ -752,7 +753,8 @@ internal class GlassScrollEdgeUniforms {
     this.veilColor = veilColor
     val atEdge = curve.at(0f)
     shade[0] = darkContent.coerceIn(0f, 1f)
-    shade[1] = if (atEdge > 0f) profile.darkDim / atEdge else 0f
+    // Lo scurimento del profilo, o quello della manopola `edgedim` (S3): senza manopola è quello del profilo, al bit.
+    shade[1] = if (atEdge > 0f) darkDim / atEdge else 0f
     fadeRamp[0] = profile.fadeFrom
     fadeRamp[1] = profile.fadeTo
     this.amount = amount.coerceIn(0f, 1f)
@@ -838,12 +840,20 @@ internal object GlassScrollEdgeTuning {
   const val CapKnob: String = "edgecap"
   const val CurveKnob: String = "edgecurve"
 
+  /**
+   * S3: lo **scurimento** della striscia sul lato scuro ([GlassScrollEdgeProfile.darkDim]) come numero assoluto,
+   * 0..1: quanto scende il contenuto al bordo dei tasti. Di serie 0,2 (×0,80 al bordo e ×0,72 dietro i tasti); più
+   * grande, striscia più scura sopra una foto a metà luma (il titolo bianco di F2.3c a 2,7–3,0:1).
+   */
+  const val DimKnob: String = "edgedim"
+
   /** Le manopole e i valori che accettano, come le elenca `FluidGlassDiagnostics.liquidProfileKnobs`. */
   val Knobs: Map<String, List<String>> = mapOf(
     VeilKnob to listOf("0..1"),
     FadeKnob to listOf("0..1"),
     CapKnob to listOf("0..1"),
     CurveKnob to listOf("photo", "text"),
+    DimKnob to listOf("0..1"),
   )
 
   @Volatile
@@ -863,12 +873,17 @@ internal object GlassScrollEdgeTuning {
   var textCurve: Boolean = false
     private set
 
+  /** Lo scurimento chiesto da `edgedim`, o `null`: quello del profilo. */
+  @Volatile
+  var darkDim: Float? = null
+    private set
+
   /** La scala del velo per il lato alto ([top]) o basso. */
   fun veilScale(top: Boolean): Float = if (top) topVeil else bottomFade
 
   /**
    * Prende le manopole da [knobs] (nomi senza distinzione di maiuscole, numeri fra 0 e 1, col punto o la virgola) e le
-   * applica; quelle che mancano tornano a 1. Restituisce quelle prese, coi valori normalizzati; una manopola con un
+   * applica; quelle che mancano tornano a 1 (`edgedim` allo scurimento del profilo). Restituisce quelle prese, coi valori normalizzati; una manopola con un
    * valore che non si riconosce resta a 1 e non compare.
    */
   fun apply(knobs: Map<String, String>?): Map<String, String> {
@@ -885,6 +900,10 @@ internal object GlassScrollEdgeTuning {
     val curve = knobs?.entries?.firstOrNull { it.key.trim().lowercase() == CurveKnob }?.value?.trim()?.lowercase()
     textCurve = curve == "text"
     if (curve == "text" || curve == "photo") taken[CurveKnob] = curve
+    // Lo scurimento non è una scala: senza manopola resta quello del profilo (null), non 1.
+    darkDim = knobs?.entries?.firstOrNull { it.key.trim().lowercase() == DimKnob }?.value
+      ?.let(::glassScrollEdgeKnobValue)
+      ?.also { taken[DimKnob] = glassScrollEdgeKnobText(it) }
     return taken
   }
 }

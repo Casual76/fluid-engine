@@ -109,6 +109,12 @@ class GlassLiquidTuningTest {
     assertEquals(Color.White.copy(alpha = 0.1f), tune("darkwire", "0.1").darkEdge.rim)
     assertEquals(0.2f, tune("darkreflex", "0.2").darkEdge.reflexStrength, 0f)
     assertEquals(0.4f, tune("darkveilalpha", "0.4").darkVeil.color.alpha, 0.5f / 255f)
+    // S3: l'alfa del velo scuro dei grandi; il colore resta, il velo dei piccoli non si tocca.
+    val deepLarge = tune("darklargealpha", "0.89")
+    assertEquals(0.89f, deepLarge.darkLargeVeil.color.alpha, 0.5f / 255f)
+    assertEquals(shipped.darkLargeVeil.color.copy(alpha = 1f), deepLarge.darkLargeVeil.color.copy(alpha = 1f))
+    assertEquals(shipped.darkLargeVeil.copy(color = deepLarge.darkLargeVeil.color), deepLarge.darkLargeVeil)
+    assertEquals(shipped.darkVeil, deepLarge.darkVeil)
     // Il vetro annidato: il velo sullo scuro (il numero che conta), sul chiaro, l'ombra sui due lati.
     assertEquals(0.5f, tune("nestedveil", "0.5").darkNesting.veil, 0f)
     assertEquals(shipped.lightNesting, tune("nestedveil", "0.5").lightNesting)
@@ -159,6 +165,7 @@ class GlassLiquidTuningTest {
     assertEquals(listOf("deep", "same"), knobs["darklarge"])
     assertEquals(listOf("on", "off"), knobs["nested"])
     assertEquals(listOf("0..1"), knobs["nestedveil"])
+    assertEquals(listOf("0..1"), knobs["darklargealpha"])
     assertEquals(listOf("0..64"), knobs["blur"])
     // Ogni valore elencato si accetta: l'elenco è quello che la galleria mostra.
     for ((name, values) in knobs) {

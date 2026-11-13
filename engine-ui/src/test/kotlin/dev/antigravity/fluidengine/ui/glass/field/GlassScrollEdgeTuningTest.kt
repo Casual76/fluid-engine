@@ -49,6 +49,26 @@ class GlassScrollEdgeTuningTest {
   }
 
   @Test
+  fun edgedim_isTheDarkeningOnTheDarkSide_andWithoutItTheProfileOne() {
+    val atEdge = GlassScrollEdgeProfile.Soft.veil.at(0f)
+    // Senza manopola: lo scurimento del profilo (0,2 al bordo dei tasti), al bit.
+    GlassScrollEdgeTuning.apply(null)
+    assertNull(GlassScrollEdgeTuning.darkDim)
+    assertEquals(GlassScrollEdgeProfile.Soft.darkDim / atEdge, uniforms(top = true).shade[1], 0f)
+    // Con la manopola: il numero chiesto, e il velo non cambia.
+    val taken = GlassScrollEdgeTuning.apply(mapOf("EdgeDim" to "0,35"))
+    assertEquals(mapOf("edgedim" to "0.35"), taken)
+    val u = uniforms(top = true)
+    assertEquals(0.35f / atEdge, u.shade[1], 1e-6f)
+    assertEquals(knots(GlassScrollEdgeProfile.Soft.veil), u.veilKnots.toList())
+    assertEquals(listOf(1f, 1f), u.veilKnob.toList())
+    // Fuori da 0..1: resta quello del profilo e non si prende.
+    assertTrue(GlassScrollEdgeTuning.apply(mapOf("edgedim" to "1.5")).isEmpty())
+    assertNull(GlassScrollEdgeTuning.darkDim)
+    assertEquals(listOf("0..1"), GlassScrollEdgeTuning.Knobs["edgedim"])
+  }
+
+  @Test
   fun theCeiling_keepsTheCurveAndCutsWhatIsAbove() {
     GlassScrollEdgeTuning.apply(mapOf("edgecap" to "0.2"))
     val u = uniforms(top = true)

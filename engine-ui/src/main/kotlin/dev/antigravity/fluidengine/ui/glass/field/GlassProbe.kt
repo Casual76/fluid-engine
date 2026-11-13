@@ -375,7 +375,8 @@ internal fun glassProbeStats(
 @Stable
 internal class GlassProbeState(
   initialDark: Boolean,
-  internal val filter: GlassAdaptiveFilter = GlassAdaptiveFilter(initialDark),
+  // Di serie il filtro di sempre; in una build di debug le manopole del giro (`flipwait`, `flipon`, `flipoff`, S3).
+  internal val filter: GlassAdaptiveFilter = GlassAdaptiveTuning.filter(initialDark),
 ) {
   /** L'ultima lettura consegnata, o null se non ce n'è ancora una. */
   var stats: GlassBackdropStats? by mutableStateOf(null)

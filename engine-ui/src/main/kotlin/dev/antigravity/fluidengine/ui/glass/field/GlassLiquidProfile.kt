@@ -1218,7 +1218,8 @@ internal class GlassLiquidTuned(
  * grigia di S1-ter), `travel` (`off`, `soft`, `strong`: il materiale in viaggio, F1B.1: come da fermo, il
  * prudente di serie, il marcato), e da F2.2 l'adattività: `adaptive` (`on`, `off`), `textshadow` (`ios26`, `half`, `none`:
  * la tavola 1), `tinted` (`plain`, `halo`, `ios26`: la tavola 3), `cleardim` (`fixed`, `follow`: la tavola 4), coi numeri
- * `lightfloor`, `textshadowx`, `shadowhue` (e da F2.3 `darkceiling`, il soffitto del velo scuro). I **numeri**
+ * `lightfloor`, `textshadowx`, `shadowhue` (e da F2.3 `darkceiling`, il soffitto del velo scuro; da S3
+ * `darklargealpha`, l'alfa del velo scuro dei grandi). I **numeri**
  * cambiano un campo del pezzo già scelto, e si applicano dopo tutte le varianti qualunque sia l'ordine in cui arrivano:
  * vedi [numbers]. Una chiave o un valore che non si riconosce
  * non cambia niente e si riporta.
@@ -1371,6 +1372,10 @@ internal object GlassLiquidTuning {
     "shadowhue" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(shadowHue = v)) },
     // F2.3: il soffitto del velo scuro dei grandi.
     "darkceiling" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(darkCeiling = v)) },
+    // S3: l'alfa del velo scuro dei grandi (la profondità di un grande sopra il nero pieno: di serie 0,5, corpo 27).
+    "darklargealpha" to Knob(0f, 1f) { p, v ->
+      p.copy(darkLargeVeil = p.darkLargeVeil.copy(color = p.darkLargeVeil.color.copy(alpha = v)))
+    },
   )
 
   /** Ogni manopola con i valori che accetta: le varianti per nome, i numeri come `min..max`. */

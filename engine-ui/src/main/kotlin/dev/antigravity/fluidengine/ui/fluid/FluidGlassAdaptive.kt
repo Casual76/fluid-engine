@@ -50,6 +50,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
+import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveTarget
 import dev.antigravity.fluidengine.ui.glass.field.GlassBackdropStats
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidAdaptiveMillis
@@ -216,6 +217,16 @@ internal object GlassFlipTimings {
   /** Più svelto: corpo in 200 ms, inchiostro in 450. Scelta di gusto da confrontare (tavola 1, B). */
   val Swift: GlassFlipTiming =
     GlassFlipTiming(bodyDelayMillis = 0, bodyMillis = 200, inkCrossMillis = 70, inkMillis = 450)
+
+  /**
+   * Più lento (S3): corpo in 450 ms, inchiostro pieno a 1000; l'inchiostro vecchio svanisce in 160 ms, nella stessa
+   * proporzione di [Ios26] (110 su 700). Da confrontare sul tablet, non una scelta.
+   */
+  val Slow: GlassFlipTiming =
+    GlassFlipTiming(bodyDelayMillis = 0, bodyMillis = 450, inkCrossMillis = 160, inkMillis = 1000)
+
+  /** Le varianti per nome, come le chiede la manopola di debug `fliptime` (`GlassAdaptiveTuning`). */
+  val Named: Map<String, GlassFlipTiming> = linkedMapOf("ios26" to Ios26, "swift" to Swift, "slow" to Slow)
 }
 
 /**
@@ -640,6 +651,7 @@ internal const val GlassLargeInkHysteresis: Float = 0.06f
  * @param large se la superficie scurisce in continuo invece di girare: di serie lo dice il ruolo
  *   (`GlassLiquidAdaptive.continuous`: pannelli, fogli, card); un componente lo può dire da sé (F2.3b: la barra
  *   laterale è `Floating` ma è un pannello laterale, e i pannelli laterali di Apple non girano).
+ * @param timing i tempi del giro: di serie [GlassFlipTimings.Ios26], o quelli della manopola di debug `fliptime` (S3).
  */
 @Composable
 internal fun rememberGlassAdaptiveState(
@@ -649,7 +661,7 @@ internal fun rememberGlassAdaptiveState(
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   inkFollows: Boolean = false,
   flipAllowed: Boolean = true,
-  timing: GlassFlipTiming = GlassFlipTimings.Ios26,
+  timing: GlassFlipTiming = GlassAdaptiveTuning.flipTiming,
   large: Boolean = profile.adaptive.darkensContinuously(role),
 ): GlassAdaptiveState {
   val state = remember(probe, timing) { GlassAdaptiveState(timing) }

@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.annotation.MainThread
 import androidx.annotation.VisibleForTesting
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassDropTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
@@ -269,7 +270,8 @@ object FluidGlassDiagnostics {
    * gusto per nome (`edge` → `ios27`, `ios26`, `today`…), i numeri come intervallo (`blur` → `0..64`).
    */
   val liquidProfileKnobs: Map<String, List<String>>
-    get() = GlassLiquidTuning.knobs + (GlassDropTuning.Knob to GlassDropTuning.Values) + GlassScrollEdgeTuning.Knobs
+    get() = GlassLiquidTuning.knobs + (GlassDropTuning.Knob to GlassDropTuning.Values) + GlassScrollEdgeTuning.Knobs +
+      GlassAdaptiveTuning.Knobs
 
   /**
    * Cambia i numeri del materiale nuovo per le lastre che nascono **da adesso**: le varianti delle tavole di gusto
@@ -301,7 +303,10 @@ object FluidGlassDiagnostics {
     // Le manopole del velo del bordo dello scorrimento (`edgeveil`, `edgefade`, `edgecap`, F2.5): anche loro non
     // sono numeri del profilo, e passano di qui per la stessa ragione. Senza, tornano a 1 (il bordo di serie).
     val edge = GlassScrollEdgeTuning.apply(knobs)
-    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge
+    // Le manopole del giro (`fliptime`, `flipwait`, `flipon`, `flipoff`, S3): comportamento del filtro e della legge
+    // del giro, non numeri del profilo. Senza, il giro di serie.
+    val flip = GlassAdaptiveTuning.apply(knobs)
+    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge + flip
   }
 
   // ---- Ganci dei test che montano composable ------------------------------------------------------------------

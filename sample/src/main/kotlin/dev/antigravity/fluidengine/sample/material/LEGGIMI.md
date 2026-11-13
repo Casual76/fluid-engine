@@ -205,6 +205,15 @@ senza manopole l'engine disegna quello.
 | `travelbend` | `0..3` | in viaggio, di quanto cresce lo spostamento della lente a moto pieno (di serie 0.5) |
 | `travelneck` | `0.05..0.5` | a che frazione del tempo di un viaggio di `morphTo` (fino alla posa della molla) il collo fra due pezzi si rompe: più grande, collo più lungo (di serie 0.38, ~250 ms con la molla di serie; F1B.9). Le guide esterne (la barra fra le pagine) non lo leggono |
 | `knobrim` | `on` · `off` | la goccia, non un numero del profilo: **`off`** il pomello a riposo senza filo né riflesso (arrivano con la pressione) / `on` filo e riflesso anche a riposo, com'erano dopo F1B.3 |
+| `darkceiling` | `0..1` | il soffitto del velo scuro dei grandi a copertura parziale (F2.3; di serie 0.40). Sul tablet (S3, pop-up sopra il nero al 47%): di serie 83, a 1 (spento) 124; il banco dava 110 e 90 |
+| `darklargealpha` | `0..1` | l'alfa del velo scuro dei grandi (`#36363C`, di serie 0.5): la profondità di un foglio, un pop-up o un pannello sopra il nero pieno. Sul tablet (S3, pop-up, nero al 25/47/74/100%): di serie 116/83/70/27, con 0.89 117/89/83/48 (Apple 111/89/61/48) |
+| `edgedim` | `0..1` | non un numero del profilo: lo scurimento della striscia del bordo dello scorrimento sul lato scuro, al bordo dei tasti (di serie 0.2: ×0,80 al bordo e ×0,72 dietro i tasti) |
+| `fliptime` | `ios26` · `swift` · `slow` | non un numero del profilo: i tempi del giro dei piccoli. **`ios26`** (corpo 300 ms, inchiostro pieno a 700, misurato su Apple) / `swift` (200 e 450) / `slow` (450 e 1000) |
+| `flipwait` | `20..2000` (ms) | non un numero del profilo: la costante di tempo della media del filtro della sonda, cioè quanto aspetta prima di decidere il lato (di serie 200) |
+| `flipon` · `flipoff` | `0..1` | non numeri del profilo: le due soglie del filtro sulla luminanza media, verso lo scuro e di ritorno al chiaro (di serie 0.45 e 0.62). `flipon` deve stare sotto `flipoff`: una coppia rovesciata si scarta tutta |
+
+Le manopole del giro (`fliptime`, `flipwait`, `flipon`, `flipoff`) valgono per le sonde e i vetri che nascono dopo, come le
+altre; le prove sul tablet sono nella pagina «Adattività» (`adaptive/LEGGIMI.md`, «Le manopole di S3»).
 
 Esempio: `GALLERIA="--es gallery.tune edge=ios26,frost=r24" materiale components hud off`.
 

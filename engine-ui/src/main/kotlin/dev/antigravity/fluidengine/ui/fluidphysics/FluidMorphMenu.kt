@@ -60,6 +60,8 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassInk
+import dev.antigravity.fluidengine.ui.fluid.GlassInkContent
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
@@ -84,6 +86,8 @@ import dev.antigravity.fluidengine.ui.fluid.unclippedBoundsInRoot
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
+import dev.antigravity.fluidengine.ui.fluid.glassControlSurfaceInked
+import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 
 /**
  * Il tasto che SI ESPANDE nel proprio menù contestuale — la prima integrazione vera di
@@ -320,6 +324,9 @@ fun FluidMorphMenuButton(
   val density = LocalDensity.current.density
   val haptics = LocalFluidHaptics.current
   val tint = GlassDefaults.controlTint()
+  // F2.3b: il tasto possiede la sua etichetta e gira come i tasti di vetro; la sua faccia in viaggio dentro l'host resta
+  // dell'inchiostro del tema (si spegne nel primo terzo del viaggio).
+  val buttonInk = rememberGlassInk()
 
   SideEffect {
     anchor.face = { MorphMenuAnchorLabel(text = text, icon = icon, color = contentColor) }
@@ -359,7 +366,19 @@ fun FluidMorphMenuButton(
       .drawWithContent { if (!anchor.hidden) drawContent() }
       // interactive = true, di nuovo: senza, il tasto era l'unico della fila a non accendersi
       // sotto il dito — "ha perso quella capacità", ed è vero.
-      .glassControlSurface(backdrop = backdrop, pressState = press)
+      .glassControlSurfaceInked(
+        backdrop = backdrop,
+        shape = FluidCapsuleShape,
+        tint = tint,
+        optics = GlassDefaults.buttonOptics(),
+        selected = false,
+        interactive = true,
+        depth = { 1f },
+        frozen = { false },
+        heldWhileMoving = { false },
+        pressState = press,
+        ink = buttonInk,
+      )
       .fluidPressable(
         pressState = press,
         onClick = if (opensOnTap) openTapped else onClick,
@@ -379,7 +398,9 @@ fun FluidMorphMenuButton(
     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    MorphMenuAnchorLabel(text = text, icon = icon, color = contentColor)
+    GlassInkContent(buttonInk, contentColor) {
+      MorphMenuAnchorLabel(text = text, icon = icon, color = LocalContentColor.current)
+    }
   }
 }
 
@@ -454,6 +475,9 @@ fun FluidMorphMenuHost(
   // la goccia. Il contenuto e' in nodi fratelli della superficie, quindi lo dichiara con
   // `glassContainer`. Si registra solo mentre la goccia lo campiona.
   val menuGlass = rememberGlassBackdrop()
+  // F2.3b: il pannello possiede le sue voci e scurisce in continuo (un grande, `Modal`); le voci lo seguono. La faccia
+  // del tasto in viaggio resta del tasto.
+  val menuInk = rememberGlassInk()
 
   // Il colore del testo sul pannello (3.0.1): l'host sta alla radice, fuori da una `Surface`, dove
   // `LocalContentColor` vale nero. Le voci hanno il loro colore, ma una faccia del tasto o un'icona
@@ -486,7 +510,8 @@ fun FluidMorphMenuHost(
         Box(
           modifier = Modifier
             .fillMaxSize()
-            .fluidPhysicsSurface(
+            .fluidPhysicsSurfaceInked(
+              ink = menuInk,
               state = state.physics,
               backdrop = backdrop,
               tint = GlassDefaults.panelTint(),
@@ -527,26 +552,32 @@ fun FluidMorphMenuHost(
         }
 
         // Le voci: arrivano attaccate alla superficie e, al ritorno, la seguono finche' si spengono.
-        FluidGlassMenuPanel(
-          actions = state.actions,
-          selection = state.selection,
-          layout = layout,
-          panelMaterial = menuGlass,
-          pageBackdrop = backdrop,
-          contentAlpha = { fluidMenuContentAlpha(progress(), closing = state.journey.closing) },
-          contentMap = {
-            fluidMenuLiquidContentMap(
-              target = panel,
-              current = state.physics.contentBoundsNow(),
-              alpha = fluidMenuContentAlpha(progress(), closing = state.journey.closing),
-            )
-          },
-          onPick = { index -> state.pick(index, haptics) },
-          modifier = Modifier.frame(panel),
-          paneTitle = LocalFluidLabels.current.actions,
-          // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
-          travelClip = { state.physics.travelClipIn(panel, progress()) },
-        )
+        GlassInkContent(menuInk, LocalContentColor.current) {
+          FluidGlassMenuPanel(
+            actions = state.actions,
+            selection = state.selection,
+            layout = layout,
+            panelMaterial = menuGlass,
+            pageBackdrop = backdrop,
+            // F2.3b: con la dissolvenza dell'inchiostro attorno al passaggio di lato.
+            contentAlpha = {
+              fluidMenuContentAlpha(progress(), closing = state.journey.closing) * (menuInk.state?.inkAlpha() ?: 1f)
+            },
+            contentMap = {
+              fluidMenuLiquidContentMap(
+                target = panel,
+                current = state.physics.contentBoundsNow(),
+                alpha = fluidMenuContentAlpha(progress(), closing = state.journey.closing) *
+                  (menuInk.state?.inkAlpha() ?: 1f),
+              )
+            },
+            onPick = { index -> state.pick(index, haptics) },
+            modifier = Modifier.frame(panel),
+            paneTitle = LocalFluidLabels.current.actions,
+            // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
+            travelClip = { state.physics.travelClipIn(panel, progress()) },
+          )
+        }
       }
     }
   }

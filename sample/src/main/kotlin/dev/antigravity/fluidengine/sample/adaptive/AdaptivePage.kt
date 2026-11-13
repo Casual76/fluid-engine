@@ -115,6 +115,12 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import dev.antigravity.fluidengine.sample.measure.generateMeasurePhoto
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import dev.antigravity.fluidengine.ui.fluid.FluidDrawer
+import dev.antigravity.fluidengine.ui.fluid.FluidDrawerState
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidDrawerState
+import dev.antigravity.fluidengine.ui.fluid.FluidSidebarRow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 
 /**
  * La pagina «Adattività» (piano «iOS in Android», F2.6): dove si prova e si riprende dal tablet tutto ciò che F2 ha dato
@@ -341,6 +347,7 @@ private fun StageScene(
   val photo = rememberPhotoBrush()
   val morph = rememberFluidMorphMenuState()
   val modalHost = rememberFluidGlassModalHostState()
+  val drawer = rememberFluidDrawerState(initiallyOpen = config.scene == AdaptiveScene.Large && live.largeAtStart == AdaptiveLarge.Panel)
   val draw = remember(config, live, density, photo) { fundOf(config, live, density, photo) }
 
   AutomaticMotion(config, live)
@@ -363,22 +370,26 @@ private fun StageScene(
           GlassSet(stage, probeSource, report, morph, tabBar = true)
         }
         AdaptiveScene.Large -> CompositionLocalProvider(LocalFluidGlassModalHostState provides modalHost) {
-          LargeScene(stage, probeSource, report, live)
+          LargeScene(stage, probeSource, report, live, drawer)
         }
         AdaptiveScene.Cursor -> CursorScene(stage, probeSource, report, live)
         AdaptiveScene.Variants -> VariantsScene(stage, probeSource, report)
         AdaptiveScene.Scroll -> Unit
       }
     }
+    // Il pannello laterale della scena dei grandi (F2.3b): alla radice del palco, dopo la pagina e prima degli host.
+    if (config.scene == AdaptiveScene.Large) LargePanel(stage, drawer)
     FluidMorphMenuHost(state = morph, backdrop = stage)
-    // Il foglio della scena dei grandi si disegna qui, dentro il palco e sotto il suo vetro (come nella pagina «Materiale»).
+    // Il foglio e il pop-up della scena dei grandi si disegnano qui, dentro il palco e sotto il suo vetro (come nella
+    // pagina «Materiale»).
     if (config.scene == AdaptiveScene.Large) FluidGlassModalHost(state = modalHost, backdrop = stage)
   }
 }
 
 private fun sceneCaption(scene: AdaptiveScene): String = when (scene) {
   AdaptiveScene.Flip ->
-    "Il vetro sta fermo e cambia il fondo (bianco, grigio, nero e ritorno). A mano col tasto «Fondo»; con «Automatico» ogni 2 s."
+    "Il vetro sta fermo e cambia il fondo (bianco, grigio, nero e ritorno). A mano col tasto «Fondo»; con «Automatico» ogni 2 s. " +
+      "Girano i tasti, la capsula, la tab bar e il tasto che apre il menu; il tinto e il vetro dell'app restano del tema."
   AdaptiveScene.Threshold ->
     "Il fondo è bianco e una fascia nera sale dal basso: la quota si regola col cursore, o sale e scende da sola con «Automatico». " +
       "Le righe COPERTURA dicono quanto di ogni vetro è sopra il nero."
@@ -444,16 +455,29 @@ private fun GlassSet(
       FluidCapsuleAction(FluidIcons.Filled.Favorite, "Preferito", onClick = {})
       FluidCapsuleAction(FluidIcons.Delete, "Elimina", onClick = {}, destructive = true)
     }
-    MenuPanel(stage, probeSource, report, "menu", width = 200.dp, height = 168.dp, compact = true)
+    // Un pannello fatto a mano dall'app (`glassSurface` pubblico): resta del lato del tema (F2.3b).
+    MenuPanel(stage, probeSource, report, "vetro-app", width = 200.dp, height = 168.dp, compact = true)
     if (tabBar) {
+      // F2.3b: la tab bar gira come i tasti. Le schede sono quelle di `DemoTabs`, scritte col contenuto di scope perche'
+      // la prima icona dica l'aspetto del vetro della barra (riga ASPETTO tabbar).
       FluidFloatingTabBar(
-        items = DemoTabs,
-        selectedRoute = tab,
-        onSelect = { tab = it.route },
+        selectedTabKey = tab,
         scrollConnection = tabScroll,
         backdrop = stage,
         modifier = Modifier.then(report.place("tabbar")).adaptiveProbe(probeSource, "tabbar"),
-      )
+      ) {
+        DemoTabs.forEachIndexed { index, item ->
+          tab(
+            key = item.route,
+            title = { Text(item.label) },
+            icon = {
+              FluidIcon(imageVector = item.filledIcon ?: item.icon, contentDescription = null)
+              if (index == 0) AppearanceLog("tabbar")
+            },
+            onClick = { tab = item.route },
+          )
+        }
+      }
     }
     FluidMorphMenuButton(
       state = morph,
@@ -494,7 +518,11 @@ private fun TintedSlab(
   }
 }
 
-/** Un pannello della taglia e del ruolo di un menu aperto (`Modal`, ottica del pannello), con tre righe. */
+/**
+ * Un pannello della taglia e del ruolo di un menu aperto (`Modal`, ottica del pannello), con tre righe, fatto a mano con
+ * `glassSurface` come lo farebbe un'app: il vetro segue lo sfondo (velo, ombra, tinta) ma tiene il **lato del tema**, perche'
+ * l'engine non sa di che colore sia il testo che l'app ci mette sopra (F2.3b). E' il controesempio dei grandi dell'engine.
+ */
 @Composable
 private fun MenuPanel(
   stage: GlassBackdropState,
@@ -532,9 +560,10 @@ private fun MenuPanel(
 // ------------------------------------------------------------------------------------------------------------
 
 /**
- * Un menu e un foglio aperti sopra un fondo bianco con una fascia nera che sale dal basso (la quota si regola). I grandi non
- * girano; la ricetta li fa **scurire in continuo** con la quota di nero, ma solo se il contenuto segue l'inchiostro (`GlassInk`),
- * e nessun pannello grande dell'engine lo fa: si vede il comportamento di oggi.
+ * I grandi dell'engine sopra un fondo bianco con una fascia nera che sale dal basso (la quota si regola): un pop-up (il menu
+ * di `FluidGlassModalPortal`), un foglio e, a richiesta, il pannello laterale (`FluidDrawer`). Sul tema chiaro scuriscono in
+ * continuo con la quota di nero che hanno sotto e il loro contenuto li segue (il tema del lato quando il lato passa meta');
+ * sul tema scuro restano scuri. Accanto, un pannello fatto a mano con `glassSurface` che resta del tema (F2.3b).
  */
 @Composable
 private fun LargeScene(
@@ -542,22 +571,54 @@ private fun LargeScene(
   probeSource: dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop,
   report: AdaptiveReport,
   live: AdaptiveLive,
+  drawer: FluidDrawerState,
 ) {
-  var sheetOpen by remember { mutableStateOf(true) }
+  // Uno alla volta (`adaptive.large`, di serie il foglio): ogni grande porta il suo velo, e il secondo coprirebbe il primo.
+  var sheetOpen by remember { mutableStateOf(live.largeAtStart == AdaptiveLarge.Sheet) }
+  var menuOpen by remember { mutableStateOf(live.largeAtStart == AdaptiveLarge.Popup) }
+  var menuOrigin by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
   ShareSlider(live, "Quota di nero dal basso")
   Caption(
-    "I grandi non girano. La ricetta li fa scurire in continuo con la quota di nero (da 143 a 48 su nero pieno in circa " +
-      "1,5 s), ma solo se il loro contenuto segue l'inchiostro del vetro, e nessun pannello grande dell'engine lo fa ancora: " +
-      "questi, di serie, tengono il lato del tema. Il menu sta al centro, il foglio in fondo.",
+    "I grandi dell'engine non girano: scuriscono in continuo con la quota di nero che hanno sotto (da 143 a 48 su nero " +
+      "pieno in circa 1,5 s) e il loro contenuto li segue, col tema del lato quando il lato passa metà. Uno alla volta: il " +
+      "pop-up nasce dal suo tasto, il foglio sta in fondo, il pannello si apre a sinistra; si chiudono toccando fuori. Il " +
+      "vetro a destra è fatto a mano dall'app con glassSurface: resta del tema.",
   )
-  FluidGlassButton(
-    text = if (sheetOpen) "Chiudi il foglio" else "Apri il foglio",
-    onClick = { sheetOpen = !sheetOpen },
-    modifier = Modifier.testTag("adaptive-sheet"),
-  )
+  Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+    FluidGlassButton(
+      text = if (sheetOpen) "Chiudi il foglio" else "Foglio",
+      onClick = { sheetOpen = !sheetOpen; menuOpen = false },
+      modifier = Modifier.testTag("adaptive-sheet"),
+    )
+    FluidGlassButton(
+      text = "Pop-up",
+      onClick = { menuOpen = !menuOpen; sheetOpen = false },
+      // L'ancora senza registrarla (`fluidExpandOrigin` nasconderebbe il tasto mentre il pop-up e' aperto).
+      modifier = Modifier.testTag("adaptive-menu").onGloballyPositioned { menuOrigin = it.boundsInRoot() },
+    )
+    FluidGlassButton(
+      text = "Pannello",
+      onClick = { sheetOpen = false; menuOpen = false; drawer.open() },
+      modifier = Modifier.testTag("adaptive-panel"),
+    )
+  }
   Spacer(Modifier.height(16.dp))
-  Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-    MenuPanel(stage, probeSource, report, "menu-grande", width = 240.dp, height = 220.dp, compact = false)
+  Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+    MenuPanel(stage, probeSource, report, "vetro-app", width = 200.dp, height = 168.dp, compact = true)
+  }
+  FluidGlassModalPortal(
+    visible = menuOpen,
+    onDismissRequest = { menuOpen = false },
+    origin = { menuOrigin },
+    paneTitle = "Menu di prova",
+  ) {
+    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+      Text("Condividi", style = MaterialTheme.typography.bodyLarge)
+      Text("Preferiti", style = MaterialTheme.typography.bodyLarge)
+      Text("Il testo segue il lato", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("Elimina", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+      AppearanceLog("menu")
+    }
   }
   FluidGlassModalPortal(
     visible = sheetOpen,
@@ -571,13 +632,37 @@ private fun LargeScene(
         FluidGlassButton(text = "Conferma", onClick = {})
         FluidGlassIconButton(onClick = {}) { FluidIcon(FluidIcons.Filled.Star, contentDescription = "Preferito") }
       }
-      Text("Il lato del foglio segue la quota di nero.", style = MaterialTheme.typography.bodyMedium)
+      Text("Il foglio scurisce con la quota di nero, e il testo lo segue.", style = MaterialTheme.typography.bodyMedium)
+      Text(
+        "Il testo secondario prende il tema del lato.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
       AppearanceLog("foglio")
       Spacer(Modifier.height(80.dp))
     }
   }
   LaunchedEffect(live, report) {
     snapshotFlow { (live.share * 20f).roundToInt() }.collect { report.logCoverage(live.share) }
+  }
+}
+
+/** Il pannello laterale della scena dei grandi (`FluidDrawer`, `Modal`): scurisce in continuo come il foglio. */
+@Composable
+private fun LargePanel(stage: GlassBackdropState, drawer: FluidDrawerState) {
+  FluidDrawer(
+    state = drawer,
+    backdrop = stage,
+    paneTitle = "Pannello di prova",
+    header = {
+      Text("Pannello", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+      Text("Scurisce con lo sfondo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      AppearanceLog("pannello")
+    },
+  ) {
+    item { FluidSidebarRow(label = "Posta in arrivo", icon = FluidIcons.Home, selected = true, onClick = { drawer.close() }) }
+    item { FluidSidebarRow(label = "Preferiti", icon = FluidIcons.Filled.Star, selected = false, onClick = { drawer.close() }) }
+    item { FluidSidebarRow(label = "Impostazioni", icon = FluidIcons.Settings, selected = false, onClick = { drawer.close() }) }
   }
 }
 

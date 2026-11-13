@@ -1222,8 +1222,11 @@ private fun FluidNotificationCard(
   } else {
     panelGlass
   }
+  // F2.3b: la notifica possiede il suo testo e scurisce in continuo (un grande, `Modal`); il testo la segue.
+  val notificationInk = rememberGlassInk()
   val glassModifier = if (backdrop != null) {
-    Modifier.glassSurface(
+    Modifier.glassSurfaceInked(
+      ink = notificationInk,
       state = backdrop,
       tint = GlassDefaults.panelTint(),
       shape = shape,
@@ -1302,110 +1305,112 @@ private fun FluidNotificationCard(
     shadowElevation = if (backdrop == null) 12.dp else 0.dp,
   ) {
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
-      Column(
-        modifier = Modifier
-          // La comparsa: la sagoma di questo fotogramma, per la colonna e quindi per la `Surface`, il vetro, il
-          // ritaglio e l'ombra; il contenuto alla sua misura, ritagliato dalla stessa sagoma.
-          .fluidNotificationShape(shape, shapeScale)
-          // La card piena col suo materiale (F1A.13): lo stesso colore che la `Surface` dipinge, ripetuto qui
-          // perche' sia anche cio' che i controlli campionano. Solo il fondo, mai il contenuto.
-          .then(
-            if (panelGlass != null) {
-              Modifier.glassOpaquePanel(panelGlass.layerBackdrop, surface, shape).glassContainer(panelGlass)
-            } else {
-              Modifier
-            },
-          )
-          // L'allungamento del dito sta fuori da `animateContentSize`: e' il dito a guidarlo, e
-          // passato per una molla seguirebbe con un ritardo che si leggerebbe come elasticita'.
-          .fluidNotificationStretch { drag.stretchPx }
-          // L'apertura cambia l'altezza del contenitore, e il vetro la segue: e' layout, non scala.
-          // Critica, perche' un contenitore non rimbalza. Il ritaglio comprende i bordi della card,
-          // cosi' la crescita dei tasti non viene tagliata a filo.
-          .animateContentSize(
-            animationSpec = if (reducedMotion) snap() else FluidMotion.intSize(
-              dampingRatio = FluidMotion.DampingChrome,
-              stiffness = FluidMotion.ResponseStandard,
+      GlassInkContent(notificationInk, LocalContentColor.current) {
+        Column(
+          modifier = Modifier
+            // La comparsa: la sagoma di questo fotogramma, per la colonna e quindi per la `Surface`, il vetro, il
+            // ritaglio e l'ombra; il contenuto alla sua misura, ritagliato dalla stessa sagoma.
+            .fluidNotificationShape(shape, shapeScale)
+            // La card piena col suo materiale (F1A.13): lo stesso colore che la `Surface` dipinge, ripetuto qui
+            // perche' sia anche cio' che i controlli campionano. Solo il fondo, mai il contenuto.
+            .then(
+              if (panelGlass != null) {
+                Modifier.glassOpaquePanel(panelGlass.layerBackdrop, surface, shape).glassContainer(panelGlass)
+              } else {
+                Modifier
+              },
+            )
+            // L'allungamento del dito sta fuori da `animateContentSize`: e' il dito a guidarlo, e
+            // passato per una molla seguirebbe con un ritardo che si leggerebbe come elasticita'.
+            .fluidNotificationStretch { drag.stretchPx }
+            // L'apertura cambia l'altezza del contenitore, e il vetro la segue: e' layout, non scala.
+            // Critica, perche' un contenitore non rimbalza. Il ritaglio comprende i bordi della card,
+            // cosi' la crescita dei tasti non viene tagliata a filo.
+            .animateContentSize(
+              animationSpec = if (reducedMotion) snap() else FluidMotion.intSize(
+                dampingRatio = FluidMotion.DampingChrome,
+                stiffness = FluidMotion.ResponseStandard,
+              ),
             ),
-          ),
-      ) {
-        Row(
-          modifier = Modifier.padding(
-            start = 14.dp,
-            top = 12.dp,
-            end = 6.dp,
-            bottom = if (showActions) 0.dp else 12.dp,
-          ),
-          horizontalArrangement = Arrangement.spacedBy(12.dp),
-          // In alto, e non al centro: a card aperta il testo cresce, e l'icona e il tasto devono
-          // restare dove l'occhio li cerca. Per una riga sola i 5 dp sopra e sotto rifanno
-          // esattamente il centro di prima (tasto da 48, tessera da 38).
-          verticalAlignment = Alignment.Top,
         ) {
-          Box(
-            modifier = Modifier
-              .padding(top = 5.dp)
-              .size(38.dp)
-              .background(iconColors.container, ContinuousCornerShape(11.dp)),
-            contentAlignment = Alignment.Center,
+          Row(
+            modifier = Modifier.padding(
+              start = 14.dp,
+              top = 12.dp,
+              end = 6.dp,
+              bottom = if (showActions) 0.dp else 12.dp,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            // In alto, e non al centro: a card aperta il testo cresce, e l'icona e il tasto devono
+            // restare dove l'occhio li cerca. Per una riga sola i 5 dp sopra e sotto rifanno
+            // esattamente il centro di prima (tasto da 48, tessera da 38).
+            verticalAlignment = Alignment.Top,
           ) {
-            Icon(icon, contentDescription = null, tint = iconColors.content, modifier = Modifier.size(21.dp))
-          }
-          Column(
-            modifier = Modifier
-              .weight(1f)
-              .padding(vertical = 5.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-          ) {
-            if (notification.title.isNotEmpty() || notification.inlineActions.isEmpty()) Text(
-              text = notification.title,
-              style = MaterialTheme.typography.titleSmall,
-              fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-              text = notification.message,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-              // Chiusa: due righe, e il resto si apre tirando. Aperta: tutto.
-              maxLines = if (expanded) Int.MAX_VALUE else NotificationCollapsedLines,
-              overflow = TextOverflow.Ellipsis,
-            )
-          }
-          FluidGlassIconButton(onClick = onDismiss) {
-            FluidIcon(
-              imageVector = FluidIcons.Close,
-              contentDescription = labels.notificationClose,
-              tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-        }
-        if (notification.inlineActions.isNotEmpty()) {
-          Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            notification.inlineActions.forEach { action ->
-              FluidGlassButton(
-                text = action.label,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                onClick = { onAction(action) },
+            Box(
+              modifier = Modifier
+                .padding(top = 5.dp)
+                .size(38.dp)
+                .background(iconColors.container, ContinuousCornerShape(11.dp)),
+              contentAlignment = Alignment.Center,
+            ) {
+              Icon(icon, contentDescription = null, tint = iconColors.content, modifier = Modifier.size(21.dp))
+            }
+            Column(
+              modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 5.dp),
+              verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+              if (notification.title.isNotEmpty() || notification.inlineActions.isEmpty()) Text(
+                text = notification.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+              )
+              Text(
+                text = notification.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Chiusa: due righe, e il resto si apre tirando. Aperta: tutto.
+                maxLines = if (expanded) Int.MAX_VALUE else NotificationCollapsedLines,
+                overflow = TextOverflow.Ellipsis,
+              )
+            }
+            FluidGlassIconButton(onClick = onDismiss) {
+              FluidIcon(
+                imageVector = FluidIcons.Close,
+                contentDescription = labels.notificationClose,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
               )
             }
           }
-        }
-        if (showActions) {
-          Row(
-            // Allineate al testo (14 + 38 + 12), non all'icona: sono cose che si fanno *su* quel testo.
-            modifier = Modifier.padding(start = 64.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            notification.actions.forEach { action ->
-              FluidGlassButton(
-                text = action.label,
-                onClick = {
-                  onAction(action)
-                },
-              )
+          if (notification.inlineActions.isNotEmpty()) {
+            Column(
+              modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+              verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              notification.inlineActions.forEach { action ->
+                FluidGlassButton(
+                  text = action.label,
+                  modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                  onClick = { onAction(action) },
+                )
+              }
+            }
+          }
+          if (showActions) {
+            Row(
+              // Allineate al testo (14 + 38 + 12), non all'icona: sono cose che si fanno *su* quel testo.
+              modifier = Modifier.padding(start = 64.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              notification.actions.forEach { action ->
+                FluidGlassButton(
+                  text = action.label,
+                  onClick = {
+                    onAction(action)
+                  },
+                )
+              }
             }
           }
         }

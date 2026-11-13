@@ -25,7 +25,11 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -53,6 +57,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidLargeDarkenMillis
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassProbeState
 import dev.antigravity.fluidengine.ui.glass.field.glassBlackShare
+import dev.antigravity.fluidengine.ui.theme.LocalFluidThemeSides
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.pow
@@ -519,7 +524,7 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
    */
   fun wanted(target: GlassAdaptiveTarget): Int = when {
     !target.measured -> -1
-    drivesDarkness -> if (darkness.value >= 0.5f) 1 else 0
+    drivesDarkness -> glassLargeInkSide(darkness.value, GlassFlipLaw.inkOnDark(ink))
     else -> if (target.dark) 1 else 0
   }
 
@@ -561,6 +566,63 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
 }
 
 /**
+ * Dove passa l'inchiostro di un **grande** (F2.3b): il suo lato continuo ([GlassAdaptiveMaterial.darkness], la quota di
+ * nero animata) passa metà, con un'isteresi di [GlassLargeInkHysteresis] per parte. Un foglio fermo sopra uno sfondo
+ * a metà (la quota oscilla di qualche centesimo da una lettura all'altra) non fa ballare il tema del suo contenuto: va
+ * sullo scuro a 0,5 + h e torna sul chiaro a 0,5 − h. Pura: 1 scuro, 0 chiaro.
+ *
+ * @param darkness il lato continuo adesso, 0..1.
+ * @param onDark se l'inchiostro adesso è quello del lato scuro.
+ */
+internal fun glassLargeInkSide(darkness: Float, onDark: Boolean): Int {
+  val d = if (darkness.isFinite()) darkness else 0f
+  return if (onDark) {
+    if (d > GlassLargeInkTurn - GlassLargeInkHysteresis) 1 else 0
+  } else {
+    if (d >= GlassLargeInkTurn + GlassLargeInkHysteresis) 1 else 0
+  }
+}
+
+/** Che cosa fa il lato di una superficie col materiale nuovo e la sonda (F2.3b): vedi [glassInkMode]. */
+internal enum class GlassInkMode {
+  /** Resta del lato del tema: nessun patto dell'inchiostro, o una pellicola fissa. Il velo e l'ombra seguono lo stesso. */
+  Theme,
+
+  /** Gira, corpo e inchiostro, con la legge del giro ([GlassFlipLaw]): i piccoli, le barre, la tab bar. */
+  Flip,
+
+  /** Scurisce in continuo con la quota di nero, e l'inchiostro passa di lato a metà ([glassLargeInkSide]): i grandi. */
+  Continuous,
+}
+
+/**
+ * La regola, pura (F2.3b). Senza il patto dell'inchiostro ([inkFollows] falso) il vetro non sa di che colore è ciò che
+ * gli sta sopra, e resta del tema. Con il patto, un grande ([large]: pannelli, fogli, menu, il pannello laterale)
+ * scurisce in continuo; un piccolo gira, salvo che [flipAllowed] sia falso (la pellicola fissa del tasto tinto o della
+ * selezione d'accento: il suo colore è la sua informazione).
+ */
+internal fun glassInkMode(inkFollows: Boolean, large: Boolean, flipAllowed: Boolean): GlassInkMode = when {
+  !inkFollows -> GlassInkMode.Theme
+  large -> GlassInkMode.Continuous
+  flipAllowed -> GlassInkMode.Flip
+  else -> GlassInkMode.Theme
+}
+
+/**
+ * Il lato continuo a cui l'inchiostro di un grande passa di lato: metà. Il contenuto segue la parte più grande del
+ * pannello; sopra uno sfondo diviso a metà nessun inchiostro va bene su tutte e due le parti (R4 A6, F2-e in
+ * `artifacts/liquid-glass/bench/f2-3b/contrasto.md`).
+ */
+internal const val GlassLargeInkTurn: Float = 0.5f
+
+/**
+ * Metà della fascia in cui l'inchiostro di un grande non cambia (F2.3b): 0,06 di lato continuo, cioè circa sei punti di
+ * quota di nero. La quota stimata da una miniatura ferma trema di meno di un punto (`bench/f2-1/probe_stats.md`), e la
+ * banda morta delle letture (`GlassReadingDeadBand`) ne toglie già un centesimo.
+ */
+internal const val GlassLargeInkHysteresis: Float = 0.06f
+
+/**
  * Lo stato adattivo di una superficie radice che porta la sonda [probe]: segue `probe.target` e `probe.stats` e li anima
  * per la ricetta (vedi [GlassAdaptiveState]).
  *
@@ -571,6 +633,9 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
  *   con il testo scuro del tema lo renderebbe illeggibile (il conto in `artifacts/liquid-glass/bench/f2-2/contrasto.md`).
  * @param flipAllowed falso per un vetro che non deve girare anche se l'inchiostro lo seguirebbe (una pellicola fissa,
  *   come la selezione d'accento).
+ * @param large se la superficie scurisce in continuo invece di girare: di serie lo dice il ruolo
+ *   (`GlassLiquidAdaptive.continuous`: pannelli, fogli, card); un componente lo può dire da sé (F2.3b: la barra
+ *   laterale è `Floating` ma è un pannello laterale, e i pannelli laterali di Apple non girano).
  */
 @Composable
 internal fun rememberGlassAdaptiveState(
@@ -581,11 +646,12 @@ internal fun rememberGlassAdaptiveState(
   inkFollows: Boolean = false,
   flipAllowed: Boolean = true,
   timing: GlassFlipTiming = GlassFlipTimings.Ios26,
+  large: Boolean = profile.adaptive.darkensContinuously(role),
 ): GlassAdaptiveState {
   val state = remember(probe, timing) { GlassAdaptiveState(timing) }
-  val large = profile.adaptive.darkensContinuously(role)
-  val continuous = inkFollows && large
-  val flipping = inkFollows && !large && flipAllowed
+  val mode = glassInkMode(inkFollows = inkFollows, large = large, flipAllowed = flipAllowed)
+  val continuous = mode == GlassInkMode.Continuous
+  val flipping = mode == GlassInkMode.Flip
   val inking = flipping || continuous
   // Il modo si fissa in composizione, non in un effetto: il primo fotogramma deve già stare sul lato del tema (un
   // effetto arriva dopo il primo disegno, e il lato di partenza dello stato è il chiaro).
@@ -658,7 +724,14 @@ internal fun glassReadingsAlike(
  * sotto Android 13).
  */
 @Stable
-internal class GlassInk {
+internal class GlassInk(
+  /**
+   * Se il contenuto è quello di un pannello **grande** che scurisce in continuo (F2.3b), o null: lo dice il ruolo della
+   * superficie (`GlassLiquidAdaptive.continuous`). Un componente lo dice da sé quando il ruolo non basta (la barra
+   * laterale, `Floating` ma pannello laterale).
+   */
+  val large: Boolean? = null,
+) {
   /** Lo stato della superficie che gira, o null se non gira. Scritto in composizione dalla superficie. */
   var state: GlassAdaptiveState? by mutableStateOf(null)
     private set
@@ -682,9 +755,9 @@ internal class GlassInk {
   }
 }
 
-/** Un [GlassInk] che vive quanto il componente. */
+/** Un [GlassInk] che vive quanto il componente. [large]: vedi [GlassInk.large]. */
 @Composable
-internal fun rememberGlassInk(): GlassInk = remember { GlassInk() }
+internal fun rememberGlassInk(large: Boolean? = null): GlassInk = remember(large) { GlassInk(large) }
 
 /**
  * Lo stato adattivo del vetro che ospita questo contenuto, per i vetri **annidati** dentro di lui: prendono il lato dal
@@ -693,21 +766,43 @@ internal fun rememberGlassInk(): GlassInk = remember { GlassInk() }
 internal val LocalGlassAdaptiveHost: ProvidableCompositionLocal<GlassAdaptiveState?> = staticCompositionLocalOf { null }
 
 /**
+ * La dissolvenza dell'inchiostro del vetro che contiene (F2.3b), da leggere **in disegno**: uno a riposo, zero nel
+ * fotogramma in cui l'inchiostro cambia lato. Il contenuto disegnato nel nodo del vetro la riceve già; serve a ciò che il
+ * vetro mostra senza disegnarlo nel suo contenuto: la riga d'accento nascosta della tab bar, che il puck campiona da un
+ * suo layer. Fuori da un vetro col patto, sempre uno. Lo fornisce [GlassInkContent].
+ */
+internal val LocalGlassInkFade: ProvidableCompositionLocal<() -> Float> = staticCompositionLocalOf { NoInkFade }
+
+private val NoInkFade: () -> Float = { 1f }
+
+/**
  * Il contenuto di un vetro che segue l'inchiostro [ink]: `LocalContentColor` del lato del vetro ([themeInk] sul lato
  * del tema, al pixel di oggi; dall'altro lato [FluidGlassInkOnLight] o [FluidGlassInkOnDark]),
  * [LocalFluidGlassAppearance] e [LocalGlassAdaptiveHost]. La struttura non cambia mai, legato o no: il contenuto non
  * perde stato quando la superficie trova (o perde) la sonda.
  *
- * La dissolvenza dell'inchiostro attorno al contrasto zero la fa la superficie in disegno (`glassContentFade`), non qui.
- * Un `tint` scritto dall'app resta quello dell'app: segue solo chi legge `LocalContentColor`.
+ * **Il tema del lato del vetro** (F2.3b). Quando l'inchiostro è dall'altro lato del tema, dentro il vetro c'è anche lo
+ * schema di colori di quel lato, con lo stesso accento ([LocalFluidThemeSides], da `FluidTheme`), e
+ * `LocalFluidSurfaceSide` dice quel lato: così segue anche il contenuto che legge `MaterialTheme.colorScheme` (il testo
+ * di un foglio, una riga di un menu, la voce scelta della tab bar), non solo chi legge `LocalContentColor`. Cambia
+ * **una volta per attraversamento**, nel fotogramma in cui il contenuto è trasparente (la dissolvenza la fa la
+ * superficie in disegno, `glassContentFade`): mai una ricomposizione per fotogramma, mai un fotogramma col testo del
+ * lato sbagliato ([GlassAdaptiveState.inkAlpha]). Il `MaterialTheme` c'è sempre, girato o no, perché la struttura non
+ * cambi; lo stile del testo e l'indicazione di chi sta fuori passano com'erano (`MaterialTheme` li rimetterebbe di
+ * serie). Fuori da `FluidTheme` resta solo l'inchiostro.
+ *
+ * Un colore scritto dall'app (un `tint`, un `color` passato a mano) resta quello dell'app: chi vuole seguire il vetro
+ * legge [LocalFluidGlassAppearance].
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun GlassInkContent(ink: GlassInk, themeInk: Color, content: @Composable () -> Unit) {
   val state = ink.state
   val darkSide = ink.darkSide
   val onDark = state?.inkOnDark ?: darkSide
+  val flipped = state != null && onDark != darkSide
   val color = when {
-    state == null || onDark == darkSide -> themeInk
+    !flipped -> themeInk
     onDark -> FluidGlassInkOnDark
     else -> FluidGlassInkOnLight
   }
@@ -715,10 +810,27 @@ internal fun GlassInkContent(ink: GlassInk, themeInk: Color, content: @Composabl
   val appearance = state?.appearance ?: LocalFluidGlassAppearance.current
   val host = state ?: LocalGlassAdaptiveHost.current
   if (state != null) SideEffect { state.noteComposedInk(onDark) }
-  CompositionLocalProvider(
-    LocalContentColor provides color,
-    LocalFluidGlassAppearance provides appearance,
-    LocalGlassAdaptiveHost provides host,
-    content = content,
-  )
+  val sides = LocalFluidThemeSides.current
+  val scheme = if (flipped && sides != null) sides.scheme(onDark) else MaterialTheme.colorScheme
+  val side = if (flipped) onDark else LocalFluidSurfaceSide.current
+  val textStyle = LocalTextStyle.current
+  val indication = LocalIndication.current
+  val fade = remember(state) { if (state == null) NoInkFade else { { state.inkAlpha() } } }
+  MaterialTheme(
+    colorScheme = scheme,
+    motionScheme = MaterialTheme.motionScheme,
+    shapes = MaterialTheme.shapes,
+    typography = MaterialTheme.typography,
+  ) {
+    CompositionLocalProvider(
+      LocalTextStyle provides textStyle,
+      LocalIndication provides indication,
+      LocalContentColor provides color,
+      LocalFluidSurfaceSide provides side,
+      LocalFluidGlassAppearance provides appearance,
+      LocalGlassAdaptiveHost provides host,
+      LocalGlassInkFade provides fade,
+      content = content,
+    )
+  }
 }

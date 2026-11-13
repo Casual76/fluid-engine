@@ -66,6 +66,9 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import dev.antigravity.fluidengine.ui.fluid.GlassInkContent
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassInk
+import dev.antigravity.fluidengine.ui.fluid.glassSurfaceInked
 
 /** Di quanto il callout scivola nell'entrata e nell'uscita: pochi dp, verso l'elemento che spiega. */
 private val FluidCoachMarkRise = 8.dp
@@ -290,8 +293,11 @@ fun FluidCoachMark(
 ) {
   val shape = ContinuousCornerShape(FluidRadius.Card)
   val scheme = MaterialTheme.colorScheme
+  // F2.3b: il suggerimento possiede il suo testo e scurisce in continuo (un grande, `Modal`); il testo lo segue.
+  val coachInk = rememberGlassInk()
   val surface = if (backdrop != null) {
-    Modifier.glassSurface(
+    Modifier.glassSurfaceInked(
+      ink = coachInk,
       state = backdrop,
       tint = GlassDefaults.panelTint(),
       shape = shape,
@@ -330,72 +336,76 @@ fun FluidCoachMark(
       .then(surface)
       .padding(16.dp),
   ) {
-    Text(
-      text = tutorial.title,
-      style = MaterialTheme.typography.titleSmall,
-      fontWeight = FontWeight.SemiBold,
-      color = scheme.onSurface,
-    )
-    Spacer(Modifier.height(4.dp))
-    Text(
-      text = tutorial.text,
-      style = MaterialTheme.typography.bodyMedium,
-      color = scheme.onSurfaceVariant,
-    )
-    tutorial.hint?.let { hint ->
-      Spacer(Modifier.height(10.dp))
-      FluidGestureHintAnimation(
-        hint = hint,
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(44.dp),
-      )
-    }
-    Spacer(Modifier.height(12.dp))
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
+    GlassInkContent(coachInk, LocalContentColor.current) {
+      @Suppress("NAME_SHADOWING")
+      val scheme = MaterialTheme.colorScheme
       Text(
-        text = labels.optOut,
-        style = MaterialTheme.typography.labelMedium,
-        color = scheme.onSurfaceVariant.copy(alpha = 0.85f),
-        modifier = Modifier
-          .fluidPressable(onClick = onOptOut, role = Role.Button, feedback = FluidPressFeedback.Expand)
-          .padding(vertical = 6.dp, horizontal = 2.dp),
+        text = tutorial.title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = scheme.onSurface,
       )
-      Spacer(Modifier.width(12.dp))
-      if (dismissOnGlass) {
-        // Un tasto di vetro, scelto: l'accento entra nel materiale invece di un riempimento che lo
-        // sostituisce, come ogni tasto di vetro scelto. Sta su un pannello di vetro, e ne campiona il
-        // materiale da solo (vetro su vetro, 2.13.0), non la pagina dietro. Il colpo e' `Close`, come
-        // la capsula che sostituisce.
-        FluidGlassButton(
-          text = labels.dismiss,
-          onClick = onDismiss,
-          backdrop = backdrop!!,
-          selected = true,
-          size = FluidGlassSize.Compact,
-          haptic = FluidHapticEvent.Close,
-        )
-      } else {
-        Text(
-          text = labels.dismiss,
-          style = MaterialTheme.typography.labelLarge,
-          fontWeight = FontWeight.SemiBold,
-          color = scheme.onPrimaryContainer,
-          // The press outside the fill, so the capsule grows and not only its word (2.11.0).
+      Spacer(Modifier.height(4.dp))
+      Text(
+        text = tutorial.text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = scheme.onSurfaceVariant,
+      )
+      tutorial.hint?.let { hint ->
+        Spacer(Modifier.height(10.dp))
+        FluidGestureHintAnimation(
+          hint = hint,
           modifier = Modifier
-            .fluidPressable(
-              onClick = onDismiss,
-              role = Role.Button,
-              haptic = FluidHapticEvent.Close,
-              feedback = FluidPressFeedback.Expand,
-            )
-            .background(scheme.primaryContainer, FluidCapsuleShape)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .fillMaxWidth()
+            .height(44.dp),
         )
+      }
+      Spacer(Modifier.height(12.dp))
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+      ) {
+        Text(
+          text = labels.optOut,
+          style = MaterialTheme.typography.labelMedium,
+          color = scheme.onSurfaceVariant.copy(alpha = 0.85f),
+          modifier = Modifier
+            .fluidPressable(onClick = onOptOut, role = Role.Button, feedback = FluidPressFeedback.Expand)
+            .padding(vertical = 6.dp, horizontal = 2.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        if (dismissOnGlass) {
+          // Un tasto di vetro, scelto: l'accento entra nel materiale invece di un riempimento che lo
+          // sostituisce, come ogni tasto di vetro scelto. Sta su un pannello di vetro, e ne campiona il
+          // materiale da solo (vetro su vetro, 2.13.0), non la pagina dietro. Il colpo e' `Close`, come
+          // la capsula che sostituisce.
+          FluidGlassButton(
+            text = labels.dismiss,
+            onClick = onDismiss,
+            backdrop = backdrop!!,
+            selected = true,
+            size = FluidGlassSize.Compact,
+            haptic = FluidHapticEvent.Close,
+          )
+        } else {
+          Text(
+            text = labels.dismiss,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = scheme.onPrimaryContainer,
+            // The press outside the fill, so the capsule grows and not only its word (2.11.0).
+            modifier = Modifier
+              .fluidPressable(
+                onClick = onDismiss,
+                role = Role.Button,
+                haptic = FluidHapticEvent.Close,
+                feedback = FluidPressFeedback.Expand,
+              )
+              .background(scheme.primaryContainer, FluidCapsuleShape)
+              .padding(horizontal = 18.dp, vertical = 8.dp),
+          )
+        }
       }
     }
   }

@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.LocalContentColor
 
 object FluidSidebarDefaults {
   /** L'aria fra la barra e i bordi della finestra: galleggia, non e' incollata. */
@@ -74,12 +75,16 @@ fun FluidSidebar(
   content: LazyListScope.() -> Unit,
 ) {
   val shape = ContinuousCornerShape(FluidRadius.Group)
+  // F2.3b: la barra laterale e' un pannello laterale, e i pannelli laterali di Apple si adattano senza girare (WWDC25):
+  // scurisce in continuo come un grande anche se il suo vetro e' quello flottante. Il contenuto la segue.
+  val sidebarInk = rememberGlassInk(large = true)
   Column(
     modifier = modifier
       .fillMaxHeight()
       .windowInsetsPadding(WindowInsets.systemBars)
       .padding(FluidSidebarDefaults.Margin)
-      .glassSurface(
+      .glassSurfaceInked(
+        ink = sidebarInk,
         state = backdrop,
         tint = GlassDefaults.floatingTint(),
         shape = shape,
@@ -87,21 +92,23 @@ fun FluidSidebar(
       )
       .clip(shape),
   ) {
-    if (header != null) {
-      Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-        content = header,
+    GlassInkContent(sidebarInk, LocalContentColor.current) {
+      if (header != null) {
+        Column(
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+          content = header,
+        )
+      }
+      LazyColumn(
+        modifier = Modifier.weight(1f).fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        content = content,
       )
-    }
-    LazyColumn(
-      modifier = Modifier.weight(1f).fillMaxWidth(),
-      contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-      verticalArrangement = Arrangement.spacedBy(2.dp),
-      content = content,
-    )
-    if (footer != null) {
-      FluidHairline()
-      Column(modifier = Modifier.fillMaxWidth().padding(8.dp), content = footer)
+      if (footer != null) {
+        FluidHairline()
+        Column(modifier = Modifier.fillMaxWidth().padding(8.dp), content = footer)
+      }
     }
   }
 }

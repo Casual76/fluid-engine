@@ -18,6 +18,9 @@ import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -34,6 +37,12 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidSystemContrast
 import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 
 /**
  * The seed of an app palette.
@@ -157,7 +166,23 @@ fun FluidTheme(
     dynamicScheme = dynamicScheme,
   )
 
-  if (systemBars) SystemBarsAppearance(isDark)
+  // I due lati del tema (4.0, F2.3b): il vetro che gira o scurisce dà al suo contenuto lo schema del lato del vetro,
+  // con lo stesso accento. L'altro lato si calcola solo la prima volta che un vetro lo chiede.
+  val sides = remember(colors, settings, brand, presets, isDark, useDynamic, context) {
+    FluidThemeSides(isDark = isDark, current = colors) { dark ->
+      val dynamicOther = if (useDynamic) {
+        if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+      } else {
+        null
+      }
+      resolveFluidColorScheme(settings = settings, isDark = dark, brand = brand, presets = presets, dynamicScheme = dynamicOther)
+    }
+  }
+
+  // Il lato sotto la barra di stato (4.0, F2.3b): una schermata la cui barra scurisce sopra un contenuto scuro chiede le
+  // icone chiare. Solo il tema che governa la finestra lo fornisce; un tema su una toppa passa quello di fuori.
+  val statusBar = if (systemBars) remember { FluidStatusBarSide() } else LocalFluidStatusBarSide.current
+  if (systemBars && statusBar != null) SystemBarsAppearance(isDark, statusBar)
 
   // L'aptica del design system (1.19.0): un solo motore per tema, dietro l'interruttore condiviso.
   val haptics = rememberAndroidFluidHaptics(enabled = settings.hapticsEnabled)
@@ -167,6 +192,8 @@ fun FluidTheme(
     // Vedi LocalFluidSurfaceSide: un'app che mette una pellicola traslucida in `surface` non e'
     // leggibile in quel modo, e questa e' la strada per cui non deve accorgersene.
     LocalFluidSurfaceSide provides isDark,
+    LocalFluidThemeSides provides sides,
+    LocalFluidStatusBarSide provides statusBar,
     // Il contrasto del sistema (Android 14+): il vetro si fa piu' denso e il suo bordo piu' netto.
     LocalFluidSystemContrast provides rememberFluidSystemContrast(),
   ) {
@@ -193,19 +220,85 @@ fun FluidTheme(
  * light page. The theme already knows which side it resolved to, and that answer cannot be faked.
  */
 @Composable
-private fun SystemBarsAppearance(isDark: Boolean) {
+private fun SystemBarsAppearance(isDark: Boolean, statusBar: FluidStatusBarSide) {
   val view = LocalView.current
   val lightBars = !isDark
   if (!view.isInEditMode) {
     SideEffect {
       val window = (view.context as? Activity)?.window ?: return@SideEffect
+      // Letto senza osservazione: il lato sotto la barra di stato cambia senza ricomporre il tema (vedi sotto).
+      val darkUnder = Snapshot.withoutReadObservation { statusBar.darkUnder }
       WindowCompat.getInsetsController(window, view).apply {
-        isAppearanceLightStatusBars = lightBars
+        isAppearanceLightStatusBars = lightBars && !darkUnder
         isAppearanceLightNavigationBars = lightBars
+      }
+    }
+    // 4.0 (F2.3b): la barra in alto di una schermata che scurisce sopra un contenuto scuro chiede le icone chiare, e le
+    // riprende quando torna chiara. Un effetto e non la composizione: il tema avvolge tutta l'app.
+    LaunchedEffect(view, statusBar, lightBars) {
+      snapshotFlow { statusBar.darkUnder }.collect { darkUnder ->
+        val window = (view.context as? Activity)?.window ?: return@collect
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = lightBars && !darkUnder
       }
     }
   }
 }
+
+/**
+ * Che cosa c'è sotto la barra di stato (4.0, F2.3b), per le icone di sistema: il tema le vuole del suo lato, ma una
+ * schermata la cui barra in alto **scurisce** sopra un contenuto scuro (il bordo dello scorrimento, tema chiaro) le
+ * vuole chiare, come Apple sopra una foto che riempie la barra. La chiede una schermata alla volta, quella davanti
+ * ([claim]); lascia quando torna indietro o se ne va ([release]).
+ */
+@Stable
+internal class FluidStatusBarSide {
+  private var owner: Any? by mutableStateOf(null)
+  private var dark: Boolean by mutableStateOf(false)
+
+  /** Vero se la schermata davanti dice che sotto la barra di stato è scuro. */
+  val darkUnder: Boolean get() = owner != null && dark
+
+  /** La schermata [owner] è davanti, e sotto la barra di stato è scuro ([darkUnder]) o no. */
+  fun claim(owner: Any, darkUnder: Boolean) {
+    this.owner = owner
+    dark = darkUnder
+  }
+
+  /** [owner] non chiede più niente: se era lui a chiedere, tornano le icone del tema. */
+  fun release(owner: Any) {
+    if (this.owner === owner) {
+      this.owner = null
+      dark = false
+    }
+  }
+}
+
+/** Vedi [FluidStatusBarSide]. Null fuori da un [FluidTheme] che governa la finestra. */
+internal val LocalFluidStatusBarSide = staticCompositionLocalOf<FluidStatusBarSide?> { null }
+
+/**
+ * I due lati del tema dell'app (4.0, F2.3b): lo schema di colori del lato del tema ([isDark]) e, su richiesta, quello
+ * dell'altro lato, con lo stesso accento (lo stesso preset, o lo stesso colore dinamico del sistema).
+ *
+ * Lo chiede il vetro che gira o che scurisce (`GlassInkContent`): quando il suo inchiostro passa all'altro lato, dentro
+ * di lui il contenuto ha il tema di quel lato, così segue anche chi legge `MaterialTheme.colorScheme` e non solo chi
+ * legge `LocalContentColor`. Null fuori da [FluidTheme]: lì il contenuto di un vetro girato segue solo l'inchiostro.
+ */
+@Stable
+internal class FluidThemeSides(
+  val isDark: Boolean,
+  private val current: ColorScheme,
+  private val resolve: (dark: Boolean) -> ColorScheme,
+) {
+  private var other: ColorScheme? = null
+
+  /** Lo schema del lato [dark]: quello del tema, o quello dell'altro lato (calcolato una volta). */
+  fun scheme(dark: Boolean): ColorScheme =
+    if (dark == isDark) current else other ?: resolve(dark).also { other = it }
+}
+
+/** Vedi [FluidThemeSides]. */
+internal val LocalFluidThemeSides = staticCompositionLocalOf<FluidThemeSides?> { null }
 
 /** Accent roles are kept as pairs: a background colour is never detached from its readable content. */
 @Immutable

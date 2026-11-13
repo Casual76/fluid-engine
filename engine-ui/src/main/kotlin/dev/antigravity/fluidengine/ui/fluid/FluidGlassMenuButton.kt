@@ -94,6 +94,8 @@ fun FluidGlassMenuButton(
   // La pressione del vetro, condivisa: al click lungo serve il tasto COME IL DITO LO STA GONFIANDO,
   // da cui parte la sagoma del menu (3.0).
   val press = rememberFluidPressState(FluidPressFeedback.Expand)
+  // F2.3b: il tasto possiede la sua etichetta e gira come i tasti di vetro.
+  val buttonInk = rememberGlassInk()
   val density = LocalDensity.current.density
   val tint = GlassDefaults.controlTint()
   val faceColor = MaterialTheme.colorScheme.onSurface
@@ -167,11 +169,18 @@ fun FluidGlassMenuButton(
       .defaultMinSize(minWidth = FluidGlassMenuButtonHeight)
       // The full control treatment, not a plain pane: it leans toward the finger, swells while it
       // is held and lights up where it was touched.
-      .glassControlSurface(
+      .glassControlSurfaceInked(
         backdrop = backdrop,
         shape = shape,
+        tint = GlassDefaults.controlTint(),
+        optics = GlassDefaults.buttonOptics(),
+        selected = false,
         interactive = enabled,
+        depth = { 1f },
+        frozen = { false },
+        heldWhileMoving = { false },
         pressState = press,
+        ink = buttonInk,
       )
       // Un tasto come gli altri (3.0): la pressione e' condivisa col vetro, il dito e' suo fino al
       // sollevamento, il click anche dopo un trascinamento. Il click lungo apre, e non ha un colpo suo:
@@ -187,27 +196,29 @@ fun FluidGlassMenuButton(
       .padding(horizontal = if (text != null) 18.dp else 0.dp),
     contentAlignment = Alignment.Center,
   ) {
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-      Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        icon?.let {
-          Icon(
-            imageVector = it,
-            contentDescription = if (text == null) contentDescription else null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurface,
-          )
-        }
-        text?.let {
-          Text(
-            text = it,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-          )
+    GlassInkContent(buttonInk, LocalContentColor.current) {
+      CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          icon?.let {
+            Icon(
+              imageVector = it,
+              contentDescription = if (text == null) contentDescription else null,
+              modifier = Modifier.size(20.dp),
+              tint = MaterialTheme.colorScheme.onSurface,
+            )
+          }
+          text?.let {
+            Text(
+              text = it,
+              style = MaterialTheme.typography.bodyLarge,
+              fontWeight = FontWeight.SemiBold,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+            )
+          }
         }
       }
     }

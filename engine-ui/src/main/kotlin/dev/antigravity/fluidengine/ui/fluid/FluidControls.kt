@@ -780,17 +780,25 @@ fun FluidChip(
     // Una pressione sola per il click e per il vetro, come in FluidGlassButton: la lente cresce, segue
     // il dito e si accende sulla stessa linea del tempo su cui il click viene confermato.
     val press = rememberFluidPressState(FluidPressFeedback.Expand)
+    // F2.3b: il chip possiede la sua etichetta e gira come i tasti (il chip scelto no: e' una pellicola d'accento).
+    val chipInk = rememberGlassInk()
     Box(
       modifier = modifier
         .alpha(if (enabled) 1f else 0.4f)
         .defaultMinSize(minHeight = 48.dp)
         .semantics { this.selected = selected }
-        .glassControlSurface(
+        .glassControlSurfaceInked(
           backdrop = glass,
           shape = FluidCapsuleShape,
+          tint = GlassDefaults.controlTint(),
+          optics = GlassDefaults.buttonOptics(),
           selected = selected,
           interactive = enabled,
+          depth = { 1f },
+          frozen = { false },
+          heldWhileMoving = { false },
           pressState = press,
+          ink = chipInk,
         )
         .fluidPressable(
           onClick = onClick,
@@ -803,7 +811,7 @@ fun FluidChip(
         )
         .padding(horizontal = 14.dp, vertical = 6.dp),
       contentAlignment = Alignment.Center,
-    ) { face() }
+    ) { GlassInkContent(chipInk, LocalContentColor.current) { face() } }
     return
   }
 

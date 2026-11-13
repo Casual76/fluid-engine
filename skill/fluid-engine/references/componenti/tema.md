@@ -103,7 +103,10 @@ setContent {
   netto; segue il cambio con l'app aperta).
 - **Barre di sistema.** Con `systemBars = true` un `SideEffect` imposta `isAppearanceLightStatusBars` e
   `isAppearanceLightNavigationBars` sulla finestra dell'`Activity` (`!isDark`). Fuori da una `Activity` (finestre di dialogo) o in
-  anteprima di Studio non fa niente.
+  anteprima di Studio non fa niente. Dalla 4.0 le **icone della barra di stato seguono la barra in alto** di `FluidScreen`:
+  dove il bordo dello scorrimento scurisce sopra un contenuto scuro (tema chiaro) e il titolo passa al bianco, anche orologio
+  e icone passano al chiaro, e tornano scuri quando la barra torna chiara. Lo chiede solo la schermata davanti; lo governa
+  solo il tema con `systemBars = true` (un tema annidato passa quello di fuori). La barra di navigazione resta del tema.
 - **Forme Material.** `extraSmall` = `FluidRadius.Small`, `small` = `Control`, `medium` = `Card`, `large` = `Group`,
   `extraLarge` = `Sheet`, tutte continue. Un componente Material che legge `MaterialTheme.shapes.*` ha gia' l'angolo giusto.
 - **Costo.** Il tema non crea layer ne' registrazioni: ricostruisce lo schema colori a ogni cambio di `settings`/`isDark`.

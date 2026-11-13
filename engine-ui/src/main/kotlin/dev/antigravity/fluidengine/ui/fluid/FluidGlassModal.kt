@@ -64,6 +64,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsShadow
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
+import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurfaceInked
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -1235,6 +1236,8 @@ private fun FluidAnchoredPopover(
   // Il pannello registra se stesso, cosi' quello che ci sta dentro puo' rifrangere *lui* invece
   // della pagina, che sta dietro uno scrim e non e' affar suo.
   val paneGlass = rememberGlassBackdrop()
+  // F2.3b: la finestra possiede il suo contenuto e scurisce in continuo (un grande, `Modal`); il contenuto la segue.
+  val popoverInk = rememberGlassInk()
   val windowPhysics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   // Fluid Engine, 1.9.5: la finestra e' di Fluid-physics. La sagoma viaggia dal rettangolo
   // dell'ancora a quella del pannello con la rifrazione addosso — non un pannello scalato, la
@@ -1305,7 +1308,8 @@ private fun FluidAnchoredPopover(
           cornerRadiusPx = paneRadiusPx,
           amount = windowAmount,
         )
-        .fluidPhysicsSurface(
+        .fluidPhysicsSurfaceInked(
+          ink = popoverInk,
           state = windowPhysics,
           // La pagina CRUDA, non il composito pagina+scrim. Gli exports dello scrim registrano
           // il suo materiale a forza PIENA (l'arrivo dello scrim e' un alpha sul pannello
@@ -1335,6 +1339,10 @@ private fun FluidAnchoredPopover(
           // classico. Il contenuto vive in un nodo fratello, quindi non la trova da solo: lo dice
           // `glassContainer(paneGlass)` qui sotto. Registrato solo se dentro c'e' del vetro.
           exports = paneGlass,
+          // F2.3b: la pellicola con la quota di scrim (`tintFrom`, fissa) vale sul lato del tema; quando la finestra
+          // scurisce sopra uno sfondo scuro cede alla ricetta adattiva, come il foglio. Sul tablet il corpo restava a
+          // 136 sopra il nero col testo gia' bianco.
+          restingFilmYields = true,
         ),
     )
     // L'immagine della riga, in viaggio: parte dalla sua posizione esatta, segue il centro della
@@ -1457,6 +1465,9 @@ private fun FluidAnchoredPopover(
               scaleY = lerp(placement.startScaleY, 1f, gc) * shrink
               transformOrigin = TransformOrigin(placement.pivotX, placement.pivotY)
             }
+            // F2.3b: la dissolvenza dell'inchiostro attorno al passaggio di lato (il contenuto sta in un nodo fratello
+            // della finestra, quindi la fa lui): mai un fotogramma col testo del lato sbagliato.
+            alpha *= popoverInk.state?.inkAlpha() ?: 1f
           }
           .then(
             // Il vetro lo disegna la finestra qui sopra; senza fondale, il ripiego opaco.
@@ -1516,7 +1527,7 @@ private fun FluidAnchoredPopover(
             LocalFluidCanvasBackdrop provides paneGlass,
             LocalFluidCanvasIsGlass provides true,
           ) {
-            content()
+            GlassInkContent(popoverInk, LocalContentColor.current) { content() }
           }
         }
       }
@@ -1796,6 +1807,8 @@ private fun FluidGlassModalSheet(
   // tasto messi nel foglio rifrangono il foglio, non la pagina dietro lo scrim. Registrato solo se
   // dentro c'e' del vetro che lo campiona.
   val sheetGlass = rememberGlassBackdrop()
+  // F2.3b: il foglio possiede il suo contenuto e scurisce in continuo (un grande, `Modal`); il contenuto lo segue.
+  val sheetInk = rememberGlassInk()
   // Senza fondo il foglio e' pieno (4.0.0, F1A.13): col materiale nuovo pubblica il proprio colore e fa da
   // contenitore, come la notifica senza fondo, perche' il vetro che ci sta dentro sia vetro su vetro e non un
   // tasto che campiona il niente. La pagina intera no: e' una pagina, e un tasto ci sta sopra come su una pagina.
@@ -1918,7 +1931,8 @@ private fun FluidGlassModalSheet(
         }
         .then(
           if (backdrop != null && !fullScreen) {
-            Modifier.glassSurface(
+            Modifier.glassSurfaceInked(
+              ink = sheetInk,
               state = backdrop,
               tint = GlassDefaults.panelTint(paneTint),
               shape = shape,
@@ -1983,8 +1997,10 @@ private fun FluidGlassModalSheet(
           LocalFluidCanvasBackdrop provides sheetGlass,
           LocalFluidCanvasIsGlass provides true,
         ) {
-          content()
-          footer?.invoke(this)
+          GlassInkContent(sheetInk, LocalContentColor.current) {
+            content()
+            footer?.invoke(this)
+          }
         }
       } else {
         content()

@@ -400,6 +400,15 @@ lettura fallita raddoppia l'attesa fino a 2 s e si ritenta al più tre volte, po
 legge e non cattura: lo prova `GlassProbeQuietTest` sul computer (nessuna richiesta, nessuna cattura, nessuno stato scritto),
 e sul tablet, a pagina ferma per otto secondi, la scheda «Materiale» e «Icone» non hanno disegnato un fotogramma.
 
+**Lo scorrimento è un cambio dello sfondo.** Una lista che scorre dentro una sorgente non fa registrare di nuovo il nodo
+della sorgente (si sposta il layer del contenuto, e la registrazione lo tiene per riferimento), quindi da sola non
+avviserebbe, e un tasto fermo sopra una lista che scorre non girerebbe. La sorgente (`glassBackdropSource`) sente con uno
+scorrimento annidato ogni scorrimento che un suo figlio consuma (lista, griglia, pager, colonna con `verticalScroll`, anche
+lanciato) e avvisa a ogni passo; il limite di una lettura ogni 120 ms e il silenzio nei movimenti veloci restano quelli
+sopra. A pagina ferma non arriva niente. Non sente uno scorrimento fatto dal codice (`scrollToItem`, `animateScrollBy`), che
+non passa dallo scorrimento annidato: `FluidScreen` lo dice da sé per la sua lista, un'altra lista lo vedrà alla prossima
+revisione della pagina.
+
 **Come decide il lato.** Il filtro fa una media mobile della luminanza (costante di 200 ms), con **due soglie distanti**: sotto
 0,45 il vetro va sul lato scuro, sopra 0,62 torna sul chiaro, in mezzo resta dove sta; dopo ogni giro non ne fa un altro
 per 400 ms. Così un fondo che sta a metà, una scacchiera che passa sotto, una lettura che trema di un centesimo non lo
@@ -432,27 +441,56 @@ e si disfa in un tempo proporzionale alla strada che resta: mai uno scatto. La c
 l'inchiostro, che cambia una volta per giro, nel fotogramma in cui il contenuto è trasparente; il resto lo scrive il disegno,
 senza ricomporre.
 
-**Chi gira e chi no.** Gira solo un vetro il cui contenuto **segue l'inchiostro** (il patto interno `GlassInk`): un vetro che
-girasse con sopra il testo scuro del tema diventerebbe illeggibile proprio dal lato in cui doveva aiutare. Lo danno i
-componenti dell'engine che sanno cosa disegnano dentro: `FluidGlassIconButton`, `FluidGlassButton` (non quello `selected`,
-che è una pellicola d'accento e non gira) e `FluidFloatingCapsule`. **Non girano**: un `glassSurface` qualunque, la tab bar
-(`FluidFloatingTabBar`), i pannelli, i fogli e i menu: tengono il lato del tema, con il velo, l'ombra e la tinta che
-seguono comunque lo sfondo. `GlassInk` è interno, quindi oggi un'app non può far girare un vetro suo. **I grandi** (ruoli
-`Modal` e `Content`) non girano mai: la ricetta li fa scurire **in continuo** con la quota di nero che hanno sotto
-(R4 A6: da 143 a 48 su nero pieno in circa 1,5 s), ma solo se il loro contenuto segue l'inchiostro, e **nessun pannello
-grande dell'engine lo fa ancora**: un menu o un foglio di serie tiene il lato del tema (sul tema scuro, con il velo
-profondo dei grandi). La pagina «Adattività» della galleria (scena `grandi`) lo mostra, ed è una voce aperta.
+**Chi gira, chi scurisce e chi no.** Il lato di un vetro cambia solo se il suo contenuto **segue l'inchiostro** (il patto
+interno `GlassInk`): un vetro che girasse con sopra il testo scuro del tema diventerebbe illeggibile proprio dal lato in cui
+doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il proprio contenuto, e il ruolo decide come:
 
-**L'inchiostro.** Il vetro fornisce al suo contenuto `LocalContentColor` del proprio lato: sul lato del tema è l'inchiostro
-del tema, al pixel di oggi; dall'altro lato è `#121214` sul vetro chiaro girato da un tema scuro e `#F2F2F5` sul vetro scuro
-girato da un tema chiaro (R4 A6). Fornisce anche `LocalFluidGlassAppearance`, un `FluidGlassAppearance` con `isDark`,
+- **Girano** come i piccoli (corpo e inchiostro, la legge del giro sopra): `FluidGlassIconButton`, `FluidGlassButton` (non
+  quello `selected`, che è una pellicola d'accento), `FluidFloatingCapsule`, la **tab bar flottante** (`FluidFloatingTabBar`,
+  e quindi `FluidTabBar` e `FluidFoldingTabBar`: icone, etichette, la barra piegata, il tondo della ricerca accanto), il
+  campo di ricerca flottante, il chip di vetro, `FluidGlassMenuButton` e il tasto di `FluidMorphMenuButton`. La pillola della
+  tab bar è vetro annidato e prende il lato della barra. L'accento della scheda scelta resta accento sui due lati: dentro il
+  vetro girato il contenuto ha lo schema del lato con lo stesso accento, e il puck lo porta a 3:1 sulla pellicola.
+- **Scuriscono in continuo**, e il contenuto li segue (ruoli `Modal` e `Content`, più la barra laterale che lo dice da sé):
+  i menu (`FluidMenuLayer`, il pannello di `FluidMorphMenuButton`), il pop-up e il foglio di `FluidGlassModalPortal`, gli
+  avvisi, `FluidDrawer`, `FluidSidebar`, `FluidNotification`, `FluidCoachMark`. Sul tema chiaro il corpo va verso lo scuro
+  con la quota di nero che hanno sotto, senza girare: R4 A6, da 143 a 48 su nero pieno in circa 1,5 s, e a metà copertura il
+  velo segue la quota (61 al 74%, 89 al 47%, 111 al 25%). Sul tema scuro restano scuri, con il soffitto del velo sopra un fondo
+  chiaro: scuriscono, non schiariscono. L'inchiostro passa di lato quando il lato continuo passa metà, con un'**isteresi**
+  (dal chiaro allo scuro a 0,56, indietro a 0,44): un foglio fermo sopra uno sfondo nero per metà non fa ballare il suo testo.
+  Il pop-up a riposo porta la pellicola con la sua quota di scrim, sul lato del tema com'era; quando la finestra scurisce,
+  o sul tema scuro sopra un fondo chiaro, quella pellicola cede alla ricetta adattiva, col soffitto, come il foglio. Sul
+  tablet, a nero pieno, il foglio e il pop-up stanno a 27 su 255 e il pannello laterale a 55 (Apple 48); sul tema scuro
+  sopra la pagina chiara pop-up e pannello stanno a 102.
+- **Tengono il lato del tema**, con velo, ombra e tinta che seguono comunque lo sfondo: un `glassSurface` o
+  `glassControlSurface` dell'app (non hanno un contenuto loro: l'engine non sa cosa ci disegna sopra l'app), il tasto tinto
+  (pellicola fissa), un vetro annidato (prende il lato dall'host), le card di vetro e le righe raggruppate, il binario dei
+  segmenti, la bolla dello scorrimento veloce, le gocce di slider, switch e scrubber, la barra ancorata, la barra `Classic` di
+  `FluidTopBarGlass`. Con `Classic` e sotto Android 13 niente di questo cambia, al pixel.
+
+`GlassInk` è interno: un'app non può far girare o scurire un vetro suo, e un pannello di vetro fatto a mano con
+`glassSurface` resta del tema (vedi le trappole). La pagina «Adattività» della galleria mostra le tre famiglie una accanto
+all'altra (scene `bianco-nero`, `soglia`, `grandi`), con la riga `ASPETTO` di ciascuna nel log.
+
+**L'inchiostro e il tema del lato.** Il vetro fornisce al suo contenuto `LocalContentColor` del proprio lato: sul lato del
+tema è l'inchiostro del tema, al pixel di oggi; dall'altro lato è `#121214` sul vetro chiaro girato da un tema scuro e
+`#F2F2F5` sul vetro scuro girato da un tema chiaro (R4 A6). Quando il lato non è quello del tema dà anche **il tema del
+lato** dentro il vetro: lo schema colori chiaro o scuro dell'engine con lo stesso accento (`MaterialTheme.colorScheme`),
+`LocalFluidSurfaceSide` e l'host dei vetri annidati; un `Text` in `onSurfaceVariant`, un'icona in `primary`, un vetro
+annidato seguono il lato senza saperlo. Fornisce anche `LocalFluidGlassAppearance`, un `FluidGlassAppearance` con `isDark`,
 `darkness` (0..1), `backdropLuminance` (NaN finché non è misurata) e `isMeasured`: chi disegna sopra il vetro e vuole
-sapere da che parte sta lo legge da lì. Cambia **una volta per giro**, non a ogni fotogramma. Un `tint` scritto dall'app
-resta quello dell'app: segue l'inchiostro solo chi legge `LocalContentColor`. L'accento resta per l'azione principale.
-Misurato sul banco, a contrasto di sistema standard, **ogni riga del campione** (capsula, tasto, tasto con etichetta, barra,
-modale; i cinque fondi; i due temi) sta sopra la soglia (testo 4,5:1, icone 3:1), con il minimo a 5,57:1: i difetti di
-leggibilità sopra fondi del tono opposto al tema, che la 4.0 aveva dichiarato, sono chiusi. Alcune righe sono più basse
-di quelle di prima (nel tema scuro la capsula su nero da 14,81 a 10,18), restando sopra soglia.
+sapere da che parte sta lo legge da lì. Cambia **una volta per giro** (per un grande, una volta per attraversamento della
+metà), nel fotogramma in cui il contenuto è trasparente: mai a ogni fotogramma, mai un fotogramma col testo del lato
+sbagliato. Un colore scritto a mano dall'app (un `tint`, un `Color(0xFF…)`) resta quello dell'app: segue il lato solo chi
+legge il tema o `LocalContentColor`, e chi vuole decidere da sé legge `LocalFluidGlassAppearance`. L'accento resta per
+l'azione principale. Misurato sul banco, a contrasto di sistema standard, **ogni riga del campione** sta sopra la soglia
+(testo 4,5:1, glifi 3:1): capsula, tasto, tasto con etichetta, barra e modale sui cinque fondi e i due temi
+(`bench/f2-3/contrasto.md`, minimo 5,57:1), e con il passo che fa girare la tab bar e scurire i grandi
+(`bench/f2-3b/contrasto.md`: tab bar, accento del puck, menu, pannello e foglio, sei fondi con una foto, minimo 5,04:1).
+Alcune righe sono più basse di prima restando sopra soglia: nel tema scuro la capsula su nero da 14,81 a 10,18; nel tema
+chiaro il menu e il pannello sopra la foto (da 6,37 a 5,26 e da 6,38 a 5,04), perché scuriscono con la parte scura della
+foto e tengono l'inchiostro scuro. A metà copertura un inchiostro solo non regge le due metà del corpo (sopra il nero 90–110,
+sopra il chiaro 150–180): è lo stesso limite di Apple.
 
 **`FluidGlass`.** È la configurazione del vetro come in SwiftUI: `FluidGlass.Regular` (di serie, smerigliato e adattivo),
 `FluidGlass.Clear` (più trasparente, **non si adatta**) e `FluidGlass.Identity` (nessun vetro, senza cambiare l'albero: serve
@@ -605,8 +643,10 @@ aprire la schermata da guardare.
   e corpo sotto 4,5:1 (nel tema chiaro su nero la capsula flottante 4,92 → 3,76, il modale 5,26 → 3,79, la card 5,57 →
   3,78; nel tema scuro il modale su un grigio medio 5,63 → 3,72). Con il lato e l'inchiostro che seguono lo sfondo e il pavimento
   del velo, la stessa tabella rifatta (`artifacts/liquid-glass/bench/f2-3/contrasto.md`) dà ogni riga sopra soglia, minimo
-  5,57:1. **Resta**: un vetro che non gira (tab bar, pannelli, fogli, un `glassSurface` qualunque) tiene il lato del tema e
-  si serve del velo e dell'inchiostro del tema; il margine lì è quello della tabella, non di più. A contrasto medio e alto
+  5,57:1; con la tab bar che gira e i grandi che scuriscono (`bench/f2-3b/contrasto.md`) ogni riga resta sopra, minimo
+  5,04:1. **Resta**: un vetro che tiene il lato del tema (un `glassSurface` dell'app, le card, i vetri annidati) si serve
+  del velo e dell'inchiostro del tema; il margine lì è quello della tabella, non di più. Un pannello grande coperto a metà da
+  nero non ha un inchiostro che regga le due metà del corpo (come in iOS). A contrasto medio e alto
   il vetro torna alla pellicola densa, come prima.
 - **Il vetro annidato sul tablet.** In un foglio di vetro scuro (pagina «Materiale», scena `nested`) il tasto scende
   da 84 a 61 sopra un foglio a 40; nella notifica di vetro della radice la chiusura sta a 48 sopra la card a 35 (75
@@ -691,7 +731,10 @@ aprire la schermata da guardare.
   (`GlassShadowMaskRing`, stesso rapporto di cadute, non misurata), che vanno a F3.3; la cucitura verticale di un fotogramma
   del collo e i viaggi interrotti o invertiti, non ripresi sul tablet. **Aperti sull'adattività**: i numeri del filtro, i tempi
   del giro e la profondità del vetro girato (74 su 255 contro 43 di Apple) sono ipotesi che si scelgono sulle riprese del
-  tablet (S3), non sul banco; i grandi non scuriscono in continuo finché nessun pannello grande segue l'inchiostro; `Clear`
+  tablet (S3), non sul banco; sopra il nero pieno un grande scende a 27 contro 48 di Apple, e a metà copertura il soffitto
+  del velo scuro dei grandi lo tiene più chiaro (110 contro 89 al 47%), manopole della stessa scelta; a pagina ferma una
+  `FluidScreen` col bordo dello scorrimento disegna ancora 16 fotogrammi in 8 s sul tablet (tre sonde rileggono a cadenza
+  fissa, 500 ms, una sorgente che non avvisa: visto in F2.3b, non risolto; le scene sul palco stanno a zero); `Clear`
   non ha ancora un componente che lo posi (F3.2); le immagini di riferimento del banco per il tasto tinto di iOS 26 non sono
   rimisurate sullo stato attuale. **Aperti sul bordo dello scorrimento** (se ne occupa il seguito, F2.5b; vedi
   [schermata.md](schermata.md)): in basso la tab bar mostra ancora il contenuto non sfumato; il bordo in basso resta 10 dp
@@ -978,6 +1021,11 @@ fun Modifier.glassSurface(
   (non finito → 1), `pressedDepthBoost` fra 0 e 2, `backdropResolution` fra 0,1 e 1, ogni altro valore non
   finito è riportato a un valore sicuro. Un'altezza di rifrazione negativa fa campionare lo shader fuori
   dal proprio input e una alfa NaN avvelena tutta la catena: per questo si corregge, non si propaga.
+- **Un pannello di vetro fatto a mano resta del lato del tema** (4.0). `glassSurface` non ha un contenuto suo, quindi
+  non gira e non scurisce in continuo come il menu o il foglio dell'engine: sopra uno sfondo nero, sul tema chiaro,
+  resta un vetro chiaro col pavimento del velo e l'inchiostro del tema, leggibile ma non come in iOS. Per un menu, un
+  foglio, un pannello laterale, un pop-up si usano i componenti dell'engine, che il contenuto lo possiedono e lo fanno
+  seguire al lato (vedi «Chi gira, chi scurisce e chi no»).
 
 **Non usarlo quando.** Per un tasto usa `glassControlSurface`; per una sagoma che deve trasformarsi,
 `fluidPhysicsSurface` (schede Controlli e Fluid-physics): lì si disegna il vetro in viaggio.

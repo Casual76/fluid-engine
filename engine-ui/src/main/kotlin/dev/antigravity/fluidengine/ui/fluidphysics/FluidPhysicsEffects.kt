@@ -38,6 +38,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
 import dev.antigravity.fluidengine.ui.glass.field.glassSlabIsSmall
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelPaddingDp
+import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelRecipe
 import dev.antigravity.fluidengine.ui.glass.field.lerpGlassRecipe
 import kotlin.math.abs
@@ -770,6 +771,9 @@ internal fun physicsDropSettle(lens: Float, reachDp: Float): Float {
 internal class PhysicsLiquidRecipes {
   val to = GlassRecipe()
   val from = GlassRecipe()
+
+  /** La ricetta dell'altro lato quando il lato è a metà (F2.3b, `glassRecipe(scratch)`). */
+  val side = GlassRecipe()
 }
 
 /**
@@ -807,6 +811,16 @@ internal fun physicsLiquidRecipe(
   scratch: PhysicsLiquidRecipes = PhysicsLiquidRecipes(),
   /** Il peso del velo dei grandi ([PhysicsLargeVeil]); non finito = dalla taglia [shortDp], come una lastra ferma. */
   largeVeil: Float = Float.NaN,
+  /** Ciò che lo sfondo chiede al materiale (F2.3b), come in `GlassLiquidSurface`; null = il lato del tema. */
+  adaptive: GlassAdaptiveMaterial? = null,
+  /**
+   * Vero se [tintFrom] è la pellicola **fissa del lato del tema** di un grande a riposo (F2.3b: la finestra del pop-up,
+   * pannello più la sua quota di scrim): vale sul lato del tema, e via via che il grande scurisce verso l'altro lato
+   * ([adaptive], `darkness`) lascia il posto alla ricetta adattiva di [tint]. Senza, una pellicola fissa chiara si
+   * dipingerebbe uguale su tutti e due i lati, e il corpo di un pop-up sopra il nero resterebbe chiaro (136 su 255 sul
+   * tablet) mentre il suo testo è già passato al bianco. Falso (di serie): [tintFrom] com'è, per i viaggi dei menu.
+   */
+  restingFilmYields: Boolean = false,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -824,17 +838,52 @@ internal fun physicsLiquidRecipe(
       nested = nested,
       profile = profile,
       largeVeil = largeVeil,
+      adaptive = adaptive,
       out = out,
+      scratch = scratch.side,
     )
   }
   val recipe = fill(tint, scratch.to)
   val blend = clampGlassUnit(tintBlend)
   if (tintFrom != null && blend < 1f) {
-    fill(tintFrom, scratch.from)
+    val away = if (restingFilmYields) physicsAwayFromThemeSide(adaptive, darkSide, profile.adaptive.darkCeiling) else 0f
+    if (away > 0f && adaptive != null && glassTintLiquidMode(tintFrom) == GlassTintMode.Fixed) {
+      // La pellicola fissa del lato del tema, letta col lato del tema (com'era prima di F2.3b, al bit a lato del tema)...
+      val darkness = adaptive.darkness
+      adaptive.darkness = if (darkSide) 1f else 0f
+      fill(tintFrom, scratch.from)
+      adaptive.darkness = darkness
+      // ...che cede alla ricetta adattiva di adesso quanto il grande si è allontanato dal lato del tema.
+      lerpGlassRecipe(scratch.from, recipe, away, scratch.from)
+    } else {
+      fill(tintFrom, scratch.from)
+    }
     lerpGlassRecipe(scratch.from, recipe, blend, recipe)
   }
   recipe.dispersion = if (quality > 0.75f) GlassLiquidDispersion * clampGlassUnit(material.dispersion) else 0f
   return glassTravelRecipe(recipe, profile.travel, motion, quality)
+}
+
+/**
+ * Quanto la pellicola fissa del lato del tema di un grande a riposo deve cedere alla ricetta adattiva, 0..1 (F2.3b).
+ *
+ * Sul tema chiaro: quanto il grande ha scurito ([adaptive], `darkness`). Sul tema scuro un grande non schiarisce, quindi
+ * il lato resta pieno, ma sopra uno sfondo chiaro deve prendere il soffitto del velo dei grandi ([ceiling]): la pellicola
+ * cede quanto la parte chiara dello sfondo (`lightLevel`) sale oltre il soffitto, fino al bianco. Sopra la pagina scura del
+ * tema resta zero, cioè la pellicola di prima al bit. Zero anche senza una misura.
+ */
+internal fun physicsAwayFromThemeSide(adaptive: GlassAdaptiveMaterial?, darkSide: Boolean, ceiling: Float): Float {
+  val d = adaptive?.darkness ?: return 0f
+  if (!d.isFinite()) return 0f
+  val side = clampGlassUnit(d)
+  if (!darkSide) return side
+  val light = adaptive.lightLevel
+  val under = if (adaptive.measured && light.isFinite() && ceiling < 1f) {
+    clampGlassUnit((light - ceiling) / (1f - ceiling))
+  } else {
+    0f
+  }
+  return maxOf(1f - side, under)
 }
 
 /**
@@ -961,7 +1010,17 @@ internal class PhysicsLiquidSurface(
   private val onPanel: () -> Boolean,
   /** L'istante del disegno, in nanosecondi: il velo dei grandi cammina col tempo ([PhysicsLargeVeil]). */
   private val clock: () -> Long = System::nanoTime,
+  /**
+   * Ciò che lo sfondo chiede al materiale (4.0, F2.3b: i menu che scuriscono), come in `GlassLiquidSurface`: riempie il
+   * contenitore che riceve sapendo se la sagoma è annidata, e lo restituisce, o null (il lato [darkSide]). Letto negli
+   * effetti, che le letture animate rifanno.
+   */
+  private val adaptive: ((out: GlassAdaptiveMaterial, nested: Boolean) -> GlassAdaptiveMaterial?)? = null,
+  /** Vedi `physicsLiquidRecipe(restingFilmYields)`: solo la finestra del pop-up. */
+  private val restingFilmYields: Boolean = false,
 ) {
+
+  private val adaptiveMaterial = GlassAdaptiveMaterial()
 
   /** Il margine della cattura per tutta la vita della superficie: vedi [glassTravelPaddingDp]. */
   val paddingDp: Float = glassTravelPaddingDp(role, material.target, material.origin, profile)
@@ -1050,6 +1109,8 @@ internal class PhysicsLiquidSurface(
       profile = profile,
       scratch = recipes,
       largeVeil = large,
+      adaptive = adaptive?.invoke(adaptiveMaterial, nested),
+      restingFilmYields = restingFilmYields,
     )
     val finger = pressState?.glow
     val bounds = plan.bounds

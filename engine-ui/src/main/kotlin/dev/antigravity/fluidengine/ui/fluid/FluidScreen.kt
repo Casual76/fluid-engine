@@ -125,6 +125,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassProbe
 import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
 import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
+import dev.antigravity.fluidengine.ui.theme.LocalFluidStatusBarSide
 
 /**
  * Coordinates chrome that lives above the navigation host without sharing render layers between
@@ -863,6 +864,10 @@ private fun FluidScreenLayout(
   // scuro arrivato scorrendo la barra restava sul lato chiaro. Lo scorrimento è un cambio dello sfondo, e lo si dice
   // qui. Lo schedulatore della sonda raccoglie gli avvisi (al più una lettura ogni 120 ms) e tace nei movimenti veloci;
   // a pagina ferma non ne parte nessuno.
+  // Dalla 4.0 (F2.3b) lo scorrimento col dito lo dice già la sorgente (`GlassScrollAnnouncer`, nel modificatore di
+  // `glassBackdropSource`), per ogni lista di ogni app. Questo resta per lo scorrimento fatto dal codice (la scheda
+  // toccata di nuovo che torna in cima, `scrollToItem`), che non passa dallo scorrimento annidato. Col dito i due avvisi
+  // cadono nello stesso fotogramma e la sonda ne fa un segnale solo: non costa una lettura in più.
   LaunchedEffect(listState, bodyBackdrop) {
     val layer = bodyBackdrop.layerBackdrop ?: return@LaunchedEffect
     snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
@@ -1596,6 +1601,9 @@ internal fun FluidTopBar(
   val controlBackdrop = rememberCombinedGlassBackdrop(backdrop, barGlass)
   val scrollEdge = fluidChromeScrollEdge()
   val shade = if (scrollEdge) rememberFluidScrollEdgeShade(backdrop) else NoScrollEdgeShade
+  // Le icone della barra di stato seguono la barra (4.0, F2.3b): dove la striscia scurisce sopra un contenuto scuro e
+  // il titolo passa al bianco, anche orologio e icone di sistema passano al chiaro. Solo la schermata davanti.
+  FluidStatusBarFollowsShade(shade)
 
   Box(
     modifier = Modifier
@@ -1800,6 +1808,25 @@ internal val LocalFluidScrollEdgeShade: ProvidableCompositionLocal<FluidScrollEd
 internal fun fluidBarInk(base: Color): Color {
   val shade = LocalFluidScrollEdgeShade.current ?: return base
   return fluidScrollEdgeInk(base, shade)
+}
+
+/**
+ * Le icone di sistema sopra la barra in alto (4.0, F2.3b): chiare quando la striscia scurisce sopra un contenuto scuro,
+ * nello stesso punto in cui il titolo passa al bianco ([fluidScrollEdgeInkFraction] a metà, lato a 0,4). Le governa il
+ * tema che possiede la finestra ([LocalFluidStatusBarSide]); senza, o senza la striscia, niente.
+ */
+@Composable
+private fun FluidStatusBarFollowsShade(shade: FluidScrollEdgeShade) {
+  if (shade === NoScrollEdgeShade) return
+  val statusBar = LocalFluidStatusBarSide.current ?: return
+  val front = LocalFluidRouteFront.current
+  val owner = remember { Any() }
+  LaunchedEffect(statusBar, shade, owner, front) {
+    snapshotFlow { front.value to (fluidScrollEdgeInkFraction(shade.darkContent()) >= 0.5f) }
+      .distinctUntilChanged()
+      .collect { (isFront, dark) -> if (isFront) statusBar.claim(owner, dark) else statusBar.release(owner) }
+  }
+  DisposableEffect(statusBar, owner) { onDispose { statusBar.release(owner) } }
 }
 
 @Composable

@@ -337,8 +337,12 @@ a tutto in pochi pixel si vede troppo. Nodi (distanza in `H` dal bordo basso dei
 di mezzo livello. Misurato sul tablet su una tinta unita: 34, 26, 18, 10, 5 e 2% a −0,5, 0, +0,2, +0,4, +0,7 e +1 `H`, senza
 riga dove finisce (residuo sotto 0,3 livelli). Sopra un **contenuto scuro**, in tema chiaro, la striscia **scurisce** invece
 di velare di bianco (come Apple, ×0,70–0,72 dietro i tasti): lo decide la sonda dello sfondo (`darkContent`, il lato con le
-due soglie del filtro, animato in 300 ms; la prima lettura no), ed e' provato sul banco ma **non visto sul tablet**; in tema
-scuro il velo va gia' verso il fondo scuro e la sonda non si monta. Per riguardare il profilo sul dispositivo ci sono le
+due soglie del filtro, animato in 300 ms; la prima lettura no); in tema scuro il velo va gia' verso il fondo scuro e la
+sonda non si monta. Dove la striscia scurisce e il titolo passa al bianco, anche le **icone della barra di stato** passano al
+chiaro (4.0, F2.3b; vedi [tema.md](tema.md)). I tasti della barra sono vetri piccoli col patto dell'inchiostro e **girano**
+come i tasti di vetro; lo scorrimento della lista e' un cambio dello sfondo che la sorgente annuncia da se' (vedi
+[vetro.md](vetro.md), «Lo scorrimento è un cambio dello sfondo»): `FluidScreen` aggiunge solo lo scorrimento fatto dal
+codice. Per riguardare il profilo sul dispositivo ci sono le
 manopole di debug `edgeveil`, `edgefade`, `edgecap` e `edgecurve` (`gallery.tune`); a 1, o senza, i numeri sono quelli di serie al bit.
 
 **In basso.** Sotto la tab bar il contenuto **sfuma senza sfocarsi**, come iOS 26 sul telefono: `Automatic` in basso e'

@@ -1,4 +1,4 @@
-# Adattività F2.6
+# Adattività (F2.6, F2.3b)
 
 La pagina dove si prova, e si riprende dal tablet, ciò che la fase F2 ha dato all'engine: il vetro che si adatta a ciò che
 ha dietro (la sonda dello sfondo, il giro chiaro/scuro dei piccoli con l'inchiostro, il velo e l'ombra adattivi, il tasto
@@ -8,8 +8,8 @@ cima alle schermate. Dal catalogo Chrome aprire **Adattività**, oppure da riga 
 Sette scene. Si cambia a mano col tasto «Scena», e ognuna si lancia da `adb` con `adaptive.scene`. In logcat
 (`adb logcat -s FluidAdattivo`) la pagina scrive ciò che serve a chi misura (sotto, «Cosa scrive in logcat»).
 
-Comandi da eseguire da chi possiede il tablet (qui non sono stati eseguiti: la pagina è stata scritta e provata solo
-con Robolectric):
+Comandi da eseguire da chi possiede il tablet (provati sul Tab S9 in F2.3b, con le riprese in
+`artifacts/liquid-glass/sessioni/f2-3b/`):
 
 ```powershell
 $A = "dev.antigravity.fluidglass.debug/dev.antigravity.fluidengine.sample.GalleryActivity"
@@ -22,6 +22,7 @@ adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene sc
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene scorrimento --es adaptive.auto true
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene scorrimento --es adaptive.fullbar true --es adaptive.theme scuro
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene grandi --es adaptive.share 0.6
+adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene grandi --es adaptive.auto true --es adaptive.large popup
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene cursore --es adaptive.cursor 0
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene cursore --es adaptive.cursor 1
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene varianti
@@ -46,6 +47,7 @@ quelli delle altre pagine: chiudere l'attività prima di un nuovo lancio con ext
 | `adaptive.dark` | `nero`, `scuro`, `grigio` | il tono dei riquadri scuri della scacchiera (nero puro, 25%, 40%) |
 | `adaptive.cell` | `8`–`96` | il lato di una casella della scacchiera, in dp (di serie 32) |
 | `adaptive.fullbar` | `true` | scorrimento: i riquadri scuri sono alti e riempiono la zona della barra |
+| `adaptive.large` | `foglio` (di serie), `popup`, `pannello` | grandi: quale grande è aperto alla partenza, uno alla volta (F2.3b) |
 
 Un valore che non si riconosce lascia quello di serie. Il tema e il modello cambiati dal tasto rifanno la scena da capo; il
 fondo, la quota, il cursore, i riquadri e l'automatico no, perché la prova è proprio un vetro **fermo** sopra un fondo
@@ -57,13 +59,14 @@ Tutte le scene sul palco (la prima, la seconda, la terza, la quinta, la sesta e 
 che la pagina disegna e registra da sé; lo scorrimento è una `FluidScreen` vera. In ogni scena i tasti in cima (Scena, Tema,
 Vetro, Automatico e quelli propri della scena) sono anche loro vetro, e anche loro si adattano al fondo.
 
-1. **`bianco-nero` · bianco → nero sotto un vetro fermo.** Un tasto tondo, una capsula con tre icone, un tasto tinto, un menu
-   aperto (un pannello della taglia e del ruolo di un menu), una barra con la tab bar e il tasto che diventa menu (toccato,
-   si apre), tutti fermi sopra un fondo che cambia colore senza muoversi: bianco, grigio medio, nero e ritorno. A mano col
-   tasto «Fondo» (bianco → grigio → nero → bianco); con `adaptive.auto true` il fondo cambia ogni 2 s nel giro bianco, grigio,
-   nero, grigio, bianco. È la prova del giro chiaro/scuro e dell'inchiostro. **Girano solo i vetri il cui contenuto segue
-   l'inchiostro** (il patto `GlassInk`): il tondo, la capsula e i tasti con l'etichetta. Il tasto tinto, il menu, la tab bar
-   e il tasto che diventa menu non girano: tengono il lato del tema, con il velo e l'ombra che seguono lo sfondo. Il tinto
+1. **`bianco-nero` · bianco → nero sotto un vetro fermo.** Un tasto tondo, una capsula con tre icone, un tasto tinto, un
+   pannello fatto a mano dall'app (`vetro-app`: un `glassSurface` della taglia e del ruolo di un menu), la tab bar e il tasto
+   che diventa menu (toccato, si apre), tutti fermi sopra un fondo che cambia colore senza muoversi: bianco, grigio medio,
+   nero e ritorno. A mano col tasto «Fondo» (bianco → grigio → nero → bianco); con `adaptive.auto true` il fondo cambia ogni
+   2 s nel giro bianco, grigio, nero, grigio, bianco. È la prova del giro chiaro/scuro e dell'inchiostro. **Girano i vetri
+   il cui contenuto segue l'inchiostro** (il patto `GlassInk`): il tondo, la capsula, i tasti con l'etichetta, **la tab bar**
+   (F2.3b: icone, etichette e pillola; l'accento della scheda scelta resta accento) e il tasto che diventa menu. Il tasto
+   tinto e il vetro dell'app non girano: tengono il lato del tema, con il velo e l'ombra che seguono lo sfondo. Il tinto
    conserva la tonalità e muove la luminosità (piena su bianco, 58% su nero).
 2. **`soglia` · la soglia.** Gli stessi vetri sopra un fondo bianco con una fascia nera che sale dal basso. Un cursore regola la
    quota (`adaptive.share`); con `adaptive.auto true` sale da 0 a 1 in 8 s e riscende in 8 s. Per vedere a che quota di
@@ -81,15 +84,17 @@ Vetro, Automatico e quelli propri della scena) sono anche loro vetro, e anche lo
    alti 720 dp e riempiono tutta la zona della barra (il caso in cui la striscia scurisce e la barra gira); il tasto
    «Barra piena» della pagina lo accende e lo spegne. Con `adaptive.auto true` la lista scorre da sola 2400 dp in 8 s e
    torna in 8 s, a velocità costante. Provarla anche con `adaptive.model classic` (la fascia di sempre, in basso niente).
-5. **`grandi` · i grandi.** Un menu (un pannello della taglia di un menu grande) e un foglio vero dell'host dei modali, aperti
-   sopra un fondo bianco con una fascia nera che sale dal basso, con la quota regolabile (cursore, `adaptive.share`, o
-   `adaptive.auto true` che la fa salire e scendere). Il tasto «Chiudi/Apri il foglio» toglie e rimette il foglio. **Cosa
-   aspettarsi oggi**: la ricetta fa scurire in continuo i grandi con la quota di nero (R4 A6: da 143 a 48 su nero pieno in
-   circa 1,5 s), ma solo per un vetro il cui contenuto segue l'inchiostro, e nessun pannello grande dell'engine lo fa
-   ancora (lo fanno il tondo, la capsula e i tasti con l'etichetta, che sono piccoli). Quindi il menu e il foglio di questa
-   scena, che sono pannelli di serie, **non scuriscono in continuo**: tengono il lato del tema, con il velo e il pavimento
-   della ricetta. Se sul tablet scuriscono, qualcosa è cambiato; se no, è il comportamento di oggi e la voce resta
-   aperta (vedi `vetro.md`).
+5. **`grandi` · i grandi.** I grandi veri dell'engine sopra un fondo bianco con una fascia nera che sale dal basso, con la
+   quota regolabile (cursore, `adaptive.share`, o `adaptive.auto true` che la fa salire e scendere): un pop-up (il menu di
+   `FluidGlassModalPortal`, che nasce dal suo tasto), un foglio (in fondo) e il pannello laterale (`FluidDrawer`), **uno
+   alla volta**: ognuno porta il suo velo sulla pagina e il secondo coprirebbe il primo. Alla partenza è aperto quello di
+   `adaptive.large` (di serie il foglio); i tasti «Foglio», «Pop-up» e «Pannello» passano dall'uno all'altro, e si chiudono
+   toccando fuori. A destra il vetro dell'app (`vetro-app`, un `glassSurface`), visibile sotto il velo del grande aperto. **Cosa aspettarsi** (F2.3b): sul tema chiaro i
+   grandi **scuriscono in continuo** con la quota di nero che hanno sotto, senza girare (R4 A6: da 143 a 48 su nero pieno in
+   circa 1,5 s; a metà copertura il velo segue la quota), e il loro contenuto li segue: quando il lato continuo passa metà
+   (0,56 salendo, 0,44 scendendo) il testo passa al chiaro, una volta, nel fotogramma in cui è trasparente, e il testo
+   secondario e l'accento prendono il tema scuro. Sul tema scuro restano scuri. Il vetro dell'app resta del lato del tema:
+   è il controesempio (vedi `vetro.md`, «Chi gira, chi scurisce e chi no»).
 6. **`cursore` · il cursore dell'utente.** Una foto, i vetri di serie e, sotto, la riga di `fluidAppearanceSection`
    («Aspetto del vetro») collegata a `LocalFluidGlassPreference`: il cursore va da trasparente (0) a colorato (1), a metà è il
    vetro di serie al bit, e la riga si aggancia al centro. I due estremi e il centro sono anche tre tasti a portata di
@@ -121,8 +126,11 @@ Due cose da sapere su `LETTURA` e `ASPETTO`:
 - `LETTURA` viene da **una sonda in più**, che la pagina monta sul riquadro con lo stesso fondo (registrato una seconda volta
   come sorgente) e lo stesso filtro di quella del vetro. Dice il lato che il vetro **deciderebbe** a quel riquadro; non è
   lo stato interno del vetro. Lo stato interno lo dice `ASPETTO`, ma solo dove il contenuto del vetro lo può leggere: sul
-  tondo, sul tasto tinto, sui pannelli e sul foglio. Sulla capsula e sulla tab bar c'è solo `LETTURA`. Nello scorrimento
-  non c'è nessuna delle due: la sonda della striscia sta dentro la barra.
+  tondo, sul tasto tinto, sul vetro dell'app (`vetro-app`), sulla tab bar (`tabbar`, dalla prima icona), sul pop-up
+  (`menu`), sul foglio (`foglio`) e sul pannello laterale (`pannello`). Sulla capsula c'è solo `LETTURA`. Per un grande
+  `ASPETTO` esce quando l'inchiostro passa di lato (una volta per attraversamento della metà), con lo scurimento di quel
+  momento; lo scurimento in continuo fra un passaggio e l'altro non scrive righe. Nello scorrimento non c'è nessuna delle
+  due: la sonda della striscia sta dentro la barra.
 - La seconda registrazione del fondo e le sonde in più sono **strumenti di misura**: costano un layer e qualche nodo in più.
   Questa pagina non è un esempio di come si monta il vetro in un'app.
 
@@ -132,7 +140,8 @@ I numeri sono ipotesi da tarare in S3 (la sessione sul tablet), non misure sul d
 
 1. Un vetro piccolo che segue l'inchiostro gira quando la media sotto di lui scende sotto 0,45 (e torna sopra 0,62): su
    bianco → nero a una quota si vede il corpo scendere in 300 ms circa e l'inchiostro attraversare il corpo, con **un
-   fotogramma** a contrasto quasi zero. Tondo e capsula girano; il tinto, la tab bar e il menu no.
+   fotogramma** a contrasto quasi zero. Tondo, capsula e tab bar girano; il tinto e il vetro dell'app no. I grandi (scena
+   `grandi`) scuriscono senza girare e il loro testo passa al chiaro una volta sola, a metà strada.
 2. Nessuna icona illeggibile per più di un fotogramma; nessuno scatto del corpo; nessuno sfarfallio sulla scacchiera.
 3. Il tasto tinto resta del suo colore (la tonalità) su bianco e su nero: la luminosità segue lo sfondo (piena su bianco,
    58% su nero), con l'alone del colore del tasto e il filo chiaro.
@@ -146,6 +155,7 @@ I numeri sono ipotesi da tarare in S3 (la sessione sul tablet), non misure sul d
 ## Da dove vengono i numeri
 
 Il piano è `docs/liquid-glass/piano.md` (sezione F2); le misure e i rapporti: `artifacts/liquid-glass/bench/f2-1/` … `f2-4/` e
-`artifacts/liquid-glass/sessioni/f2-5/`. Le tre schede dell'engine che descrivono ciò che qui si guarda sono
+`artifacts/liquid-glass/sessioni/f2-5/`; la tab bar che gira e i grandi che scuriscono: `bench/f2-3b/contrasto.md` e
+`artifacts/liquid-glass/sessioni/f2-3b/`. Le tre schede dell'engine che descrivono ciò che qui si guarda sono
 `skill/fluid-engine/references/componenti/vetro.md` (sezione «Il vetro che si adatta»), `schermata.md` («Il bordo dello
 scorrimento») e `fluid-physics.md`.

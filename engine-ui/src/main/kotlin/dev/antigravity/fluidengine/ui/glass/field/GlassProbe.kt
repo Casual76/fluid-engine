@@ -69,6 +69,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
@@ -423,9 +424,19 @@ internal fun glassProbeAvailable(): Boolean = isRuntimeShaderSupported()
  * Va accanto a `drawBackdrop` nel ramo `Liquid` di una superficie **radice**: una superficie annidata in un pannello o
  * iscritta a un contenitore prende lato e inchiostro da chi la ospita (3.9). Non tocca la firma di `drawBackdrop` né la
  * sua cattura. Sotto Android 13, o con [enabled] falso, non aggiunge niente.
+ *
+ * [region] (F2.3b): la parte del nodo sotto cui leggere, in pixel del nodo, quando il vetro non è grande quanto il suo
+ * nodo (un menu di Fluid-physics si disegna in un palco grande quanto la finestra, e la sua sagoma è il rettangolo del
+ * piano). Letta col nodo che osserva: quando cambia, la sonda lo sa come uno spostamento. Null = tutto il nodo; un
+ * rettangolo vuoto = niente da leggere adesso.
  */
-internal fun Modifier.glassProbe(backdrop: Backdrop, state: GlassProbeState, enabled: Boolean = true): Modifier =
-  if (!enabled || !glassProbeAvailable()) this else this then GlassProbeElement(backdrop, state, null)
+internal fun Modifier.glassProbe(
+  backdrop: Backdrop,
+  state: GlassProbeState,
+  enabled: Boolean = true,
+  region: (() -> Rect?)? = null,
+): Modifier =
+  if (!enabled || !glassProbeAvailable()) this else this then GlassProbeElement(backdrop, state, null, region)
 
 /**
  * Chi vuole sapere di ogni consegna, oltre allo stato (la diagnostica): l'ultima lettura, il bersaglio, e se è una
@@ -437,12 +448,14 @@ private class GlassProbeElement(
   val backdrop: Backdrop,
   val state: GlassProbeState?,
   val onReading: GlassProbeListener?,
+  val region: (() -> Rect?)? = null,
 ) : ModifierNodeElement<GlassProbeNode>() {
 
-  override fun create(): GlassProbeNode = GlassProbeNode(backdrop, state ?: GlassProbeState(initialDark = false), onReading)
+  override fun create(): GlassProbeNode =
+    GlassProbeNode(backdrop, state ?: GlassProbeState(initialDark = false), onReading).also { it.region = region }
 
   override fun update(node: GlassProbeNode) {
-    node.update(backdrop, state, onReading)
+    node.update(backdrop, state, onReading, region)
   }
 
   override fun InspectorInfo.inspectableProperties() {
@@ -453,13 +466,15 @@ private class GlassProbeElement(
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (other !is GlassProbeElement) return false
-    return backdrop == other.backdrop && state === other.state && onReading === other.onReading
+    return backdrop == other.backdrop && state === other.state && onReading === other.onReading &&
+      region === other.region
   }
 
   override fun hashCode(): Int {
     var result = backdrop.hashCode()
     result = 31 * result + (state?.hashCode() ?: 0)
     result = 31 * result + (onReading?.hashCode() ?: 0)
+    result = 31 * result + (region?.hashCode() ?: 0)
     return result
   }
 }
@@ -494,6 +509,9 @@ internal class GlassProbeNode(
   private var coordinates: LayoutCoordinates? = null
   private var sources: List<LayerBackdrop> = emptyList()
   private var sourcesUnannounced = true
+
+  /** La parte del nodo sotto cui leggere (F2.3b): vedi [glassProbe]. */
+  internal var region: (() -> Rect?)? = null
 
   private var reader: GlassProbeWindowReader? = null
   private var slot = -1
@@ -533,9 +551,15 @@ internal class GlassProbeNode(
     backdrop: Backdrop,
     state: GlassProbeState?,
     onReading: GlassProbeListener?,
+    region: (() -> Rect?)? = null,
   ) {
     this.onReading = onReading
     if (state != null) this.state = state
+    if (region !== this.region) {
+      this.region = region
+      recordedGeometry = null
+      if (isAttached) signal()
+    }
     if (backdrop != this.backdrop) {
       unsubscribe()
       this.backdrop = backdrop
@@ -617,6 +641,7 @@ internal class GlassProbeNode(
     observeReads {
       for (layer in sources) layer.layerCoordinates
       quality?.level
+      region?.invoke()
     }
     if (revisionSeen) {
       revisionSeen = false
@@ -698,13 +723,13 @@ internal class GlassProbeNode(
     } catch (_: Exception) {
       return 0f
     }
-    val size = self.size
+    val area = probedArea(self) ?: return 0f
     val root = view.rootView
     return glassProbePriority(
-      width = size.width.toFloat(),
-      height = size.height.toFloat(),
-      centerX = position.x + size.width / 2f,
-      centerY = position.y + size.height / 2f,
+      width = area.width,
+      height = area.height,
+      centerX = position.x + area.center.x,
+      centerY = position.y + area.center.y,
       windowWidth = root.width.toFloat(),
       windowHeight = root.height.toFloat(),
     )
@@ -733,15 +758,14 @@ internal class GlassProbeNode(
   private fun currentGeometry(): FloatArray? {
     val self = coordinates ?: return null
     if (!self.isAttached) return null
-    val size = self.size
-    if (size.width <= 0 || size.height <= 0) return null
+    val area = probedArea(self) ?: return null
     val out = FloatArray(2 + 2 * max(1, sources.size))
-    out[0] = size.width.toFloat()
-    out[1] = size.height.toFloat()
+    out[0] = area.width
+    out[1] = area.height
     if (sources.isEmpty()) {
       val position = self.positionInWindow()
-      out[2] = position.x
-      out[3] = position.y
+      out[2] = position.x + area.left
+      out[3] = position.y + area.top
       return out
     }
     for ((index, layer) in sources.withIndex()) {
@@ -752,10 +776,18 @@ internal class GlassProbeNode(
       } catch (_: Exception) {
         return null
       }
-      out[2 + 2 * index] = offset.x
-      out[3 + 2 * index] = offset.y
+      out[2 + 2 * index] = offset.x + area.left
+      out[3 + 2 * index] = offset.y + area.top
     }
     return out
+  }
+
+  /** La parte del nodo sotto cui si legge, in pixel del nodo: [region], o tutto il nodo. Null se vuota. */
+  private fun probedArea(self: LayoutCoordinates): Rect? {
+    val size = self.size
+    val asked = region
+    val area = if (asked == null) Rect(0f, 0f, size.width.toFloat(), size.height.toFloat()) else asked() ?: return null
+    return if (area.width > 0f && area.height > 0f && area.width.isFinite() && area.height.isFinite()) area else null
   }
 
   /** Di quanto si è mosso il vetro dall'ultimo giro (lo scarto più grande), 0 alla nascita, null se è fermo. */
@@ -778,13 +810,15 @@ internal class GlassProbeNode(
     val recorded = recordedGeometry
     if (thumbnailDirty || recorded == null || !recorded.contentEquals(geometry)) {
       val density = requireDensity()
-      val size = self.size
-      val scaleX = GlassProbeReadSide / size.width.toFloat()
-      val scaleY = GlassProbeReadSide / size.height.toFloat()
+      val area = probedArea(self) ?: return false
+      val scaleX = GlassProbeReadSide / area.width
+      val scaleY = GlassProbeReadSide / area.height
       val source = backdrop
       layer.record(density, LayoutDirection.Ltr, IntSize(GlassProbeReadSide, GlassProbeReadSide)) {
         scale(scaleX, scaleY, pivot = Offset.Zero) {
-          with(source) { drawBackdrop(density, self, null) }
+          translate(left = -area.left, top = -area.top) {
+            with(source) { drawBackdrop(density, self, null) }
+          }
         }
       }
       recordedGeometry = geometry

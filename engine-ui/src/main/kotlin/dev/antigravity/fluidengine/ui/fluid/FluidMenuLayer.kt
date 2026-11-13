@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,6 +72,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsTier
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
+import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurfaceInked
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlinx.coroutines.launch
@@ -359,11 +361,14 @@ private fun FluidMenuLayerContent(
       // mentre la riga la riassorbe — mai un seme fermo che sfuma da solo (era il rettangolo pallido
       // che restava a mezz'aria dopo la chiusura).
       val windowAmount: () -> Float = if (anchor != null) ({ 1f }) else ({ fade() * fluidMenuDropPresence(progress()) })
+      // F2.3b: il menu possiede le sue voci e scurisce in continuo (un grande, `Modal`); le voci lo seguono.
+      val menuInk = rememberGlassInk()
       Box(
         modifier = Modifier
           .fillMaxSize()
           .drawWithContent { if (windowAmount() > 0.004f) drawContent() }
-          .fluidPhysicsSurface(
+          .fluidPhysicsSurfaceInked(
+            ink = menuInk,
             state = physics,
             backdrop = backdrop ?: noBackdrop,
             tint = windowTint,
@@ -402,18 +407,20 @@ private fun FluidMenuLayerContent(
         }
       }
 
+      GlassInkContent(menuInk, LocalContentColor.current) {
       FluidGlassMenuPanel(
         actions = actions,
         selection = selection,
         layout = layout,
         panelMaterial = if (backdrop != null) paneGlass else null,
         pageBackdrop = backdrop,
-        contentAlpha = { fluidMenuContentAlpha(progress(), closing = journey.closing) },
+        // F2.3b: la dissolvenza dell'inchiostro attorno al passaggio di lato (le voci stanno in un nodo fratello).
+        contentAlpha = { fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f) },
         contentMap = {
           fluidMenuLiquidContentMap(
             target = panel,
             current = physics.contentBoundsNow(),
-            alpha = fluidMenuContentAlpha(progress(), closing = journey.closing),
+            alpha = fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f),
           )
         },
         onPick = pick,
@@ -432,6 +439,7 @@ private fun FluidMenuLayerContent(
           )
         },
       )
+      }
     }
   }
 }
@@ -579,6 +587,8 @@ private fun FluidAlertLayerContent(
   val contentMap: () -> FluidMenuContentMap = {
     fluidMenuContentMap(target = pane.rect, current = physics.contentBoundsNow(), minScale = 0.9f, maxScale = 1.1f)
   }
+  // F2.3b: l'avviso possiede il suo testo e i suoi pulsanti e scurisce in continuo (un grande, `Modal`).
+  val alertInk = rememberGlassInk()
 
   Box(
     modifier = Modifier
@@ -597,7 +607,8 @@ private fun FluidAlertLayerContent(
       modifier = Modifier
         .fillMaxSize()
         .drawWithContent { if (fade() > 0.004f) drawContent() }
-        .fluidPhysicsSurface(
+        .fluidPhysicsSurfaceInked(
+          ink = alertInk,
           state = physics,
           backdrop = backdrop ?: noBackdrop,
           tint = windowTint,
@@ -614,17 +625,20 @@ private fun FluidAlertLayerContent(
       // quindi l'origine resta quella dell'host e la sagoma e la card parlano le stesse coordinate.
       modifier = Modifier.fillMaxSize().imePadding(),
       content = {
-        FluidAlertCard(
-          spec = spec,
-          selection = selection,
-          focusRequester = focusRequester,
-          pane = pane,
-          material = if (backdrop != null) alertGlass else null,
-          backdrop = backdrop,
-          fade = fade,
-          contentMap = contentMap,
-          onPick = pick,
-        )
+        GlassInkContent(alertInk, LocalContentColor.current) {
+          FluidAlertCard(
+            spec = spec,
+            selection = selection,
+            focusRequester = focusRequester,
+            pane = pane,
+            material = if (backdrop != null) alertGlass else null,
+            backdrop = backdrop,
+            // F2.3b: la dissolvenza dell'inchiostro attorno al passaggio di lato.
+            fade = { fade() * (alertInk.state?.inkAlpha() ?: 1f) },
+            contentMap = contentMap,
+            onPick = pick,
+          )
+        }
       },
     ) { measurables, constraints ->
       val w = min(maxWidthPx, constraints.maxWidth - marginPx * 2f).roundToInt().coerceAtLeast(1)

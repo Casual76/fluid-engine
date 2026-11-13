@@ -59,6 +59,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowDown
 import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowUp
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import androidx.compose.material3.LocalContentColor
 
 /** Le misure del [FluidSearchField]. */
 object FluidSearchFieldDefaults {
@@ -238,6 +239,8 @@ fun FluidSearchField(
     wasOpen = open
   }
   BackHandler(enabled = collapsible && open) { onExpandedChange?.invoke(false) }
+  // F2.3b: il campo possiede la sua lente e il suo testo e gira come i tasti di vetro.
+  val searchInk = rememberGlassInk()
 
   Row(
     modifier = modifier
@@ -251,7 +254,7 @@ fun FluidSearchField(
       .heightIn(min = FluidSearchFieldDefaults.Height)
       // Tiene i tocchi che il campo non ha preso: un tocco sul margine del vetro non arriva alla card sotto.
       .pointerInput(Unit) { detectTapGestures { } }
-      .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto)
+      .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto, ink = searchInk)
       // Chiuso, tutto il cerchio e' un tasto. La crescita sta *dentro* il vetro (la lente che cresce
       // si legge, il vetro che cresce da un antenato rifrange un fondale che non c'e' piu'), e l'aptica
       // e' quella di un tasto che apre qualcosa: Open al posto del click.
@@ -271,75 +274,77 @@ fun FluidSearchField(
       .clip(FluidCapsuleShape),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    FluidIcon(
-      imageVector = FluidIcons.Search,
-      // La lente e' il nome del tasto solo da chiuso: aperto e' decorazione del campo.
-      contentDescription = if (open) null else labels.search,
-      // 4.0 (F1A.11): da chiuso e' un tasto di barra, quindi inchiostro del testo come le altre icone di barra e non
-      // l'accento (R6: 15-17:1 contro 3,5-6,7:1); da aperto e' decorazione del campo e resta nel tono secondario.
-      tint = if (open) scheme.onSurfaceVariant else fluidChromeInk(),
-      modifier = Modifier
-        .padding(start = FluidSearchFieldDefaults.IconInset)
-        .size(FluidSearchFieldDefaults.IconSize),
-    )
-    if (showContent) {
-      Row(
+    GlassInkContent(searchInk, LocalContentColor.current) {
+      FluidIcon(
+        imageVector = FluidIcons.Search,
+        // La lente e' il nome del tasto solo da chiuso: aperto e' decorazione del campo.
+        contentDescription = if (open) null else labels.search,
+        // 4.0 (F1A.11): da chiuso e' un tasto di barra, quindi inchiostro del testo come le altre icone di barra e non
+        // l'accento (R6: 15-17:1 contro 3,5-6,7:1); da aperto e' decorazione del campo e resta nel tono secondario.
+        tint = if (open) scheme.onSurfaceVariant else fluidChromeInk(),
         modifier = Modifier
-          .weight(1f)
-          .graphicsLayer { alpha = fluidSearchContentAlpha(progress.value) }
-          .padding(start = 10.dp, end = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        SearchTextField(
-          query = query,
-          onQueryChange = onQueryChange,
-          placeholder = placeholder ?: labels.search,
-          keyboardOptions = keyboardOptions,
-          onSearch = {
-            if (onSearch != null) {
-              onSearch()
-            } else {
-              keyboard?.hide()
-              focusManager.clearFocus()
-            }
-          },
-          focus = focus,
-          modifier = Modifier.weight(1f),
-        )
-        AnimatedVisibility(
-          visible = query.isNotEmpty() && open,
-          enter = fadeIn(FluidMotion.fadeIn(140)) + scaleIn(FluidMotion.snappy(), initialScale = 0.6f),
-          exit = fadeOut(FluidMotion.fadeOut(120)) + scaleOut(FluidMotion.fadeOut(120), targetScale = 0.6f),
+          .padding(start = FluidSearchFieldDefaults.IconInset)
+          .size(FluidSearchFieldDefaults.IconSize),
+      )
+      if (showContent) {
+        Row(
+          modifier = Modifier
+            .weight(1f)
+            .graphicsLayer { alpha = fluidSearchContentAlpha(progress.value) }
+            .padding(start = 10.dp, end = 6.dp),
+          verticalAlignment = Alignment.CenterVertically,
         ) {
-          SearchClearButton(label = labels.clear, onClick = { onQueryChange("") })
-        }
-        if (navigation != null) {
-          SearchCounter(query = query, navigation = navigation, labels = labels)
-          FluidCapsuleAction(
-            icon = FluidIcons.KeyboardArrowUp,
-            contentDescription = labels.previous,
-            onClick = navigation.onPrevious,
-            enabled = navigation.total > 0,
-            tint = scheme.onSurface,
-            size = FluidSearchFieldDefaults.ActionSize,
+          SearchTextField(
+            query = query,
+            onQueryChange = onQueryChange,
+            placeholder = placeholder ?: labels.search,
+            keyboardOptions = keyboardOptions,
+            onSearch = {
+              if (onSearch != null) {
+                onSearch()
+              } else {
+                keyboard?.hide()
+                focusManager.clearFocus()
+              }
+            },
+            focus = focus,
+            modifier = Modifier.weight(1f),
           )
-          FluidCapsuleAction(
-            icon = FluidIcons.KeyboardArrowDown,
-            contentDescription = labels.next,
-            onClick = navigation.onNext,
-            enabled = navigation.total > 0,
-            tint = scheme.onSurface,
-            size = FluidSearchFieldDefaults.ActionSize,
-          )
-        }
-        if (collapsible) {
-          FluidCapsuleAction(
-            icon = FluidIcons.Close,
-            contentDescription = labels.close,
-            onClick = { onExpandedChange?.invoke(false) },
-            tint = scheme.onSurface,
-            size = FluidSearchFieldDefaults.ActionSize,
-          )
+          AnimatedVisibility(
+            visible = query.isNotEmpty() && open,
+            enter = fadeIn(FluidMotion.fadeIn(140)) + scaleIn(FluidMotion.snappy(), initialScale = 0.6f),
+            exit = fadeOut(FluidMotion.fadeOut(120)) + scaleOut(FluidMotion.fadeOut(120), targetScale = 0.6f),
+          ) {
+            SearchClearButton(label = labels.clear, onClick = { onQueryChange("") })
+          }
+          if (navigation != null) {
+            SearchCounter(query = query, navigation = navigation, labels = labels)
+            FluidCapsuleAction(
+              icon = FluidIcons.KeyboardArrowUp,
+              contentDescription = labels.previous,
+              onClick = navigation.onPrevious,
+              enabled = navigation.total > 0,
+              tint = scheme.onSurface,
+              size = FluidSearchFieldDefaults.ActionSize,
+            )
+            FluidCapsuleAction(
+              icon = FluidIcons.KeyboardArrowDown,
+              contentDescription = labels.next,
+              onClick = navigation.onNext,
+              enabled = navigation.total > 0,
+              tint = scheme.onSurface,
+              size = FluidSearchFieldDefaults.ActionSize,
+            )
+          }
+          if (collapsible) {
+            FluidCapsuleAction(
+              icon = FluidIcons.Close,
+              contentDescription = labels.close,
+              onClick = { onExpandedChange?.invoke(false) },
+              tint = scheme.onSurface,
+              size = FluidSearchFieldDefaults.ActionSize,
+            )
+          }
         }
       }
     }

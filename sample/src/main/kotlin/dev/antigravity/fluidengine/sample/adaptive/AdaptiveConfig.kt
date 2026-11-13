@@ -14,7 +14,7 @@ internal enum class AdaptiveScene(val key: String, val title: String, val voice:
   Threshold("soglia", "La soglia", "a che quota di scuro il vetro piccolo gira, salendo e scendendo"),
   Checker("scacchiera", "La scacchiera", "il vetro vicino alla soglia non deve girare avanti e indietro"),
   Scroll("scorrimento", "Scorrimento su foto e testo", "il bordo dello scorrimento e il giro mentre si scorre"),
-  Large("grandi", "I grandi", "un menu e un foglio sopra metà chiaro e metà nero: non girano, e oggi non scuriscono in continuo (serve l'inchiostro che li segue)"),
+  Large("grandi", "I grandi", "un pop-up, un foglio e un pannello sopra chiaro e nero: scuriscono in continuo con la quota di nero e il contenuto li segue; un vetro dell'app resta del tema"),
   Cursor("cursore", "Il cursore dell'utente", "il vetro fra trasparente e colorato, coi due estremi a portata di tocco"),
   Variants("varianti", "Clear e tasto tinto", "il vetro di serie, il tinto e Clear sopra una foto chiara e una scura"),
   ;
@@ -78,7 +78,19 @@ internal data class AdaptiveStart(
   /** Il lato di una casella della scacchiera, in dp. */
   val cell: Int = 32,
   val auto: Boolean = false,
+  /** Solo per i grandi: quale grande è aperto alla partenza (F2.3b). */
+  val large: AdaptiveLarge = AdaptiveLarge.Sheet,
 )
+
+/**
+ * Il grande aperto alla partenza nella scena dei grandi (F2.3b). Uno alla volta: ognuno porta il suo velo sulla pagina, e
+ * il secondo aperto coprirebbe il primo.
+ */
+internal enum class AdaptiveLarge(val key: String) {
+  Sheet("foglio"),
+  Popup("popup"),
+  Panel("pannello"),
+}
 
 internal object AdaptiveLaunch {
   const val ExtraScene = "adaptive.scene"
@@ -91,6 +103,7 @@ internal object AdaptiveLaunch {
   const val ExtraDark = "adaptive.dark"
   const val ExtraCell = "adaptive.cell"
   const val ExtraFullBar = "adaptive.fullbar"
+  const val ExtraLarge = "adaptive.large"
 
   private val truthy = setOf("true", "1", "on", "yes", "si", "sì", "acceso")
 
@@ -126,6 +139,7 @@ internal object AdaptiveLaunch {
       dark = value(ExtraDark)?.let { name -> AdaptiveDark.entries.firstOrNull { it.key == name } } ?: AdaptiveDark.Black,
       cell = value(ExtraCell)?.toIntOrNull()?.coerceIn(8, 96) ?: 32,
       auto = value(ExtraAuto) in truthy,
+      large = value(ExtraLarge)?.let { name -> AdaptiveLarge.entries.firstOrNull { it.key == name } } ?: AdaptiveLarge.Sheet,
     )
     return config to start
   }

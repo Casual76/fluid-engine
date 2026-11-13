@@ -164,6 +164,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 // LOCAL CHANGE (4.0, piano «iOS in Android» F1B.4): la pillola e la riga nascosta sul materiale nuovo.
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
 import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckFilm
@@ -422,8 +423,14 @@ fun FluidFloatingTabBar(
         // E il caso opposto: il pannello l'ha costruito l'app. La barra non puo' vedere come sfoca,
         // quindi `FluidFloatingTabBarGlass.blurRadius` e' il suo raggio finale (vedi il KDoc).
         val appSuppliesPane = tabBarContentModifier !== Modifier
+        // LOCAL CHANGE (4.0, F2.3b): la barra possiede il suo contenuto, e col suo pannello gira come i tasti (R4 B6,
+        // WWDC25: «le barre e la tab bar girano come i piccoli»). Un patto solo per tutti i pannelli della barra (la
+        // riga, il tondo della ricerca, l'accessorio): sono lo stesso modificatore, e girano insieme. Il pannello di
+        // un'app (`tabBarContentModifier`) non lo sa fare: resta del lato del tema.
+        val ink = rememberGlassInk()
         val ownGlass = if (makesOwnGlass) {
-            Modifier.glassSurface(
+            Modifier.glassSurfaceInked(
+                ink = ink,
                 state = backdropState,
                 tint = GlassDefaults.floatingTint(),
                 shape = shapes.tabBarShape,
@@ -432,6 +439,7 @@ fun FluidFloatingTabBar(
         } else {
             tabBarContentModifier
         }
+        val barInk = floatingBarContentColor(LocalContentColor.current, MaterialTheme.colorScheme)
 
         // And when the bar makes its own glass, the bar has no fill.
         //
@@ -463,13 +471,15 @@ fun FluidFloatingTabBar(
             // vale dalla 3.0.7 e prima, non e' una regressione. Ripiega su `onSurface` solo se il colore e'
             // quello di serie: un colore deciso dall'app (o di una `Surface`) resta com'era. Vedi
             // [floatingBarContentColor], anche per il caso limite del nero fornito di proposito.
-            LocalContentColor provides floatingBarContentColor(LocalContentColor.current, MaterialTheme.colorScheme),
+            LocalContentColor provides barInk,
             // LOCAL CHANGE (4.0, R6, piano «iOS in Android» F1A.11): la barra dice alle icone delle schede quanto sono
             // grandi, 28 dp (erano i 24 che l'app scriveva). La prende ogni `FluidIcon` senza una taglia sua: le schede
             // della lista di `FluidTabItem`, e quelle che un'app scrive con `tab(icon = { FluidIcon(…) })`. Un `Icon`
             // con la sua taglia scritta resta com'e'.
             LocalFluidIconSize provides FluidMetrics.TabBarIconSize,
         ) {
+        // LOCAL CHANGE (4.0, F2.3b): il contenuto della barra segue il suo vetro (inchiostro, tema del lato, aspetto).
+        GlassInkContent(ink, barInk) {
         // Always applied: `gooey` is a no-op at radius 0 (no offscreen layer,
         // no filter), so there is nothing to gate on and nothing to recompose.
         Box(Modifier.gooey { gooeyBlurPx * gooeyProgress.value }) {
@@ -548,6 +558,7 @@ fun FluidFloatingTabBar(
             }
             }
             }
+        }
         }
         }
     }
@@ -2085,6 +2096,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     // Invisible tinted copy of the tabs, sampled by the puck below so the
     // selected icon shows through the glass in the accent color.
     val tabsBackdrop = rememberLayerBackdrop()
+    val inkFade = LocalGlassInkFade.current
     // Quello che c'e' *sotto* le icone tinte, dentro il puck: la pellicola del pannello, e l'inchiostro
     // che su quella pellicola si legge. Vedi [legibleInk] e il commento sulla riga nascosta.
     // LOCAL CHANGE (F1B.5, giro di correzione): la tinta letta una volta, per la pellicola e per la pillola nuova.
@@ -2398,7 +2410,15 @@ private fun SharedTransitionScope.ExpandedTabs(
                     .clearAndSetSemantics {}
                     .alpha(0f)
                     .layerBackdrop(tabsBackdrop, frozen = { tintedRowSettled.value })
-                    .graphicsLayer { translationX = panelOffset }
+                    // F2.3b: la riga d'accento svanisce e risale con l'inchiostro della barra quando la barra gira. Il
+                    // puck la campiona da questo layer, fuori dalla dissolvenza del contenuto: senza, sul tablet la
+                    // scheda scelta restava nell'accento del lato vecchio per i sei fotogrammi in cui il resto e'
+                    // trasparente, e passava all'altro di colpo. Dentro la registrazione, come lo spostamento: cambia
+                    // senza registrare di nuovo.
+                    .graphicsLayer {
+                        translationX = panelOffset
+                        alpha = inkFade()
+                    }
                     // Padding here (not after drawBackdrop, like the tail
                     // .padding below) so it actually shrinks this row's own
                     // measured bounds — matching LiquidBottomTabs' explicit
@@ -2816,7 +2836,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // strength over a puck still growing under it read as two
                     // things appearing at different times.
                     alpha = (1f - dampedDragAnimation.pressProgress * 3f)
-                        .fastCoerceIn(0f, 1f) * puckEnter.value
+                        .fastCoerceIn(0f, 1f) * puckEnter.value *
+                        // F2.3b: con l'inchiostro della barra quando gira. Questa scheda ridisegnata sta fuori dalla
+                        // dissolvenza del contenuto: sul tablet restava nell'accento del lato vecchio per i sei
+                        // fotogrammi in cui il resto e' trasparente, e passava all'altro di colpo.
+                        inkFade()
                 }
                 .width(sizes.tabWidth)
                 .fillMaxHeight()
@@ -2982,6 +3006,14 @@ private fun rememberLiquidPuck(
     val quality = LocalFluidGlassQuality.current
     val screenDensity = LocalDensity.current.density
     val currentPressed by rememberUpdatedState(pressed)
+    // LOCAL CHANGE (4.0, F2.3b): pillola e riga nascosta sono vetro annidato nella barra, e la barra gira: prendono il
+    // lato da lei, in continuo, come i vetri annidati di `glassSurface` (`LocalGlassAdaptiveHost`). Senza una barra che
+    // gira (il pannello dell'app, il vetro di prima) restano sul lato del tema, al pixel di prima.
+    val host = LocalGlassAdaptiveHost.current
+    val currentHost by rememberUpdatedState(host)
+    val fromHost: (GlassAdaptiveMaterial, Boolean) -> GlassAdaptiveMaterial? = remember {
+        { out, _ -> currentHost?.let { within -> out.unmeasured().also { it.darkness = within.sideNow } } }
+    }
     // La pellicola cambia di rado (e' una scelta dell'app): quando cambia, le superfici si rifanno.
     return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film, barFilm) {
         fun surface(
@@ -3011,6 +3043,7 @@ private fun rememberLiquidPuck(
                 tint = { Color.Unspecified },
                 touch = { null },
                 profile = profile,
+                adaptive = fromHost,
             )
         val restProfile = glassPuckProfile(barShortSideDp)
         // La pellicola dell'app vince; senza, sotto contrasto, quella della barra con la selezione (`glassPuckFilm`).

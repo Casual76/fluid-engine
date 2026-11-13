@@ -56,6 +56,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.ShadowElement
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
 import dev.antigravity.fluidengine.ui.glass.field.glassProbe
@@ -66,6 +67,9 @@ import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanelPublishes
 import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.field.glassShadow as glassFieldShadow
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 /**
  * Fluid Glass — a real refracting material, not a translucent rectangle.
@@ -128,6 +132,34 @@ class GlassBackdropState internal constructor(
 
   /** False below API 33: blur and vibrancy still work, the lens does not. */
   val refractionSupported: Boolean get() = isRuntimeShaderSupported()
+
+  /**
+   * Chi annuncia lo scorrimento di questa sorgente (4.0, F2.3b): vedi [GlassScrollAnnouncer]. Uno per sorgente, perché
+   * il modificatore resti lo stesso fra una composizione e l'altra. Null per uno stato combinato, che non registra.
+   */
+  internal val scrollAnnouncer: GlassScrollAnnouncer? = layerBackdrop?.let { GlassScrollAnnouncer(it) }
+}
+
+/**
+ * **Lo scorrimento è un cambio dello sfondo** (4.0, F2.3b). Una lista che scorre dentro una sorgente di vetro
+ * ([glassBackdropSource]) non fa ridisegnare il nodo che registra la pagina: si sposta il layer del contenuto, e la
+ * registrazione lo tiene per riferimento. Quindi la pagina non avvisa ([LayerBackdrop.bumpRevision]), e la sonda dei
+ * vetri che la leggono non rilegge: un tasto fermo sopra una lista che scorre non girava (scoperto in F2.5b, e risolto
+ * allora solo dentro `FluidScreen`).
+ *
+ * Questa connessione sta nel modificatore della sorgente, e sente ogni scorrimento che un suo figlio consuma (una lista,
+ * una griglia, un pager, una colonna con `verticalScroll`, anche lanciato): a ogni passo la sorgente avvisa. A pagina
+ * ferma non arriva niente, quindi nessun avviso; lo schedulatore della sonda raccoglie gli avvisi di un movimento (al
+ * più una lettura ogni 120 ms) e tace nei movimenti veloci. Non consuma niente.
+ *
+ * Non sente uno scorrimento fatto dal codice (`scrollToItem`, `animateScrollBy`): quello non passa dallo scorrimento
+ * annidato. `FluidScreen` lo dice da sé per la sua lista (vedi lì).
+ */
+internal class GlassScrollAnnouncer(private val layer: LayerBackdrop) : NestedScrollConnection {
+  override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+    if (consumed != Offset.Zero) layer.bumpRevision()
+    return Offset.Zero
+  }
 }
 
 /**
@@ -222,7 +254,10 @@ fun Modifier.glassBackdropSource(
 ): Modifier {
   // A combined state has no layer of its own; the states it was built from record theirs.
   val layer = state.layerBackdrop ?: return this
+  val announcer = state.scrollAnnouncer ?: return this
   return this
+    // 4.0 (F2.3b): lo scorrimento di un figlio è un cambio dello sfondo, e la sorgente lo dice. Vedi [GlassScrollAnnouncer].
+    .nestedScroll(announcer)
     .layerBackdrop(layer, frozen)
     // Rasterised **once**, sampled many times. A recording holds its content by reference, so
     // every pane replaying it re-executes the source's entire op stream — and a screen's chrome
@@ -1471,6 +1506,13 @@ enum class GlassFalloff {
  * in su il materiale e' quello del profilo, sotto ne resta la frazione (vedi `glassRecipe`); il raggio di
  * [state] non si legge, e la pellicola di [tint] conta secondo il suo modo ([GlassTintMode]).
  *
+ * **Il lato resta quello del tema** (4.0, F2.3b). Nel materiale nuovo il pannello misura lo sfondo e ne segue velo, ombra
+ * e tinta, ma non gira e non scurisce in continuo: questo modificatore non ha un contenuto suo, e l'engine non sa di che
+ * colore sia cio' che l'app ci disegna sopra. Un vetro che girasse sotto un testo del tema lo renderebbe illeggibile
+ * proprio dal lato in cui doveva aiutare. Girano (i tasti di vetro, la tab bar) e scuriscono col contenuto che li segue
+ * (menu, fogli, pannelli) solo i componenti dell'engine che possiedono il proprio contenuto: vedi la scheda del vetro,
+ * «Chi gira, chi scurisce e chi no».
+ *
  * @param intensity 0 = il pannello non c'e', 1 = materiale pieno. A zero non si disegna niente, **contenuto
  *   compreso**. In mezzo il materiale arriva come materiale (nel vetro di prima salgono vividezza, sfocatura,
  *   lente, pellicola, bordo e ombra; nel nuovo saturazione, lente, velo, luce e ombra, con lo sfondo che passa
@@ -1568,6 +1610,54 @@ fun Modifier.glassSurface(
   heldWhileMoving = heldWhileMoving,
   nestInContainer = nestInContainer,
   fit = null,
+)
+
+/**
+ * [glassSurface] per i componenti dell'engine che **possiedono il loro contenuto** (4.0, F2.3b): gli stessi ingressi e
+ * gli stessi valori di serie, più il patto dell'inchiostro [ink]. Il componente avvolge il suo contenuto in
+ * `GlassInkContent(ink, …)`: col materiale nuovo e la sonda il vetro gira (un piccolo) o scurisce in continuo (un
+ * grande), e il contenuto lo segue. `glassSurface` pubblico non lo fa: non sa che cosa gli sta sopra.
+ */
+@Composable
+internal fun Modifier.glassSurfaceInked(
+  ink: GlassInk,
+  state: GlassBackdropState,
+  tint: GlassTint,
+  shape: Shape = RectangleShape,
+  edge: GlassEdge = GlassEdge.None,
+  falloff: GlassFalloff = GlassFalloff.Uniform,
+  intensity: () -> Float = { 1f },
+  role: GlassRole = if (falloff == GlassFalloff.FadeDown) GlassRole.Bar else GlassRole.Floating,
+  optics: GlassOptics = GlassDefaults.optics(role),
+  opticalDepth: () -> Float = { 1f },
+  pressed: () -> Float = { 0f },
+  exports: GlassBackdropState? = null,
+  layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
+  sampleOnce: Boolean = role == GlassRole.Content,
+  resampleIntervalMillis: Long = 0L,
+  frozen: () -> Boolean = { false },
+  heldWhileMoving: () -> Boolean = { false },
+  nestInContainer: Boolean = true,
+): Modifier = glassSurfaceFitted(
+  state = state,
+  tint = tint,
+  shape = shape,
+  edge = edge,
+  falloff = falloff,
+  intensity = intensity,
+  role = role,
+  optics = optics,
+  opticalDepth = opticalDepth,
+  pressed = pressed,
+  exports = exports,
+  layerBlock = layerBlock,
+  sampleOnce = sampleOnce,
+  resampleIntervalMillis = resampleIntervalMillis,
+  frozen = frozen,
+  heldWhileMoving = heldWhileMoving,
+  nestInContainer = nestInContainer,
+  fit = null,
+  ink = ink,
 )
 
 /**
@@ -1912,6 +2002,7 @@ internal fun Modifier.glassLiquidSurface(
     darkSide = darkSide,
     inkFollows = ink != null,
     flipAllowed = tintMode != GlassTintMode.Fixed,
+    large = ink?.large ?: GlassLiquidProfile.Default.adaptive.darkensContinuously(role),
   )
   val currentHost by rememberUpdatedState(host)
   // Se la lastra sta dentro un vetro: lo risponde il nodo, e la risposta vive qui, accanto alla superficie e non

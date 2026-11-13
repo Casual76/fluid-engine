@@ -51,6 +51,9 @@ internal class AdaptiveLive(start: AdaptiveStart) {
   var cell by mutableIntStateOf(start.cell)
   var auto by mutableStateOf(start.auto)
 
+  /** Il grande aperto alla partenza nella scena dei grandi (`adaptive.large`). */
+  val largeAtStart: AdaptiveLarge = start.large
+
   /** La scacchiera sposta il disegno di una frazione di casella quando è 1 (solo con `auto`). */
   var phase by mutableIntStateOf(0)
 }
@@ -115,11 +118,20 @@ internal fun AdaptiveStage(
 ) {
   report.density = LocalDensity.current.density
   Box(modifier = Modifier.fillMaxSize().then(report.place(AdaptiveReport.StageName))) {
+    // F2.3b, visto sul tablet: la sorgente di misura sta in un fratello **sotto** il palco, con lo stesso fondo. Annidata
+    // nel palco (`glassBackdropSource(stage).layerBackdrop(probeSource)`), quando il fondo cambiava si registrava di nuovo
+    // solo lei: il palco teneva il suo layer per riferimento e non avvisava, quindi le sonde dei vetri non rileggevano e
+    // nessun vetro girava, mentre le righe LETTURA (che leggono la sorgente di misura) giravano.
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .layerBackdrop(probeSource)
+        .drawBehind(draw),
+    )
     Box(
       modifier = Modifier
         .fillMaxSize()
         .glassBackdropSource(stage)
-        .layerBackdrop(probeSource)
         .drawBehind(draw),
     )
     CompositionLocalProvider(LocalGlassBackdrop provides stage, LocalFluidCanvasBackdrop provides stage) {
@@ -158,6 +170,13 @@ internal fun Modifier.adaptiveProbe(source: LayerBackdrop, name: String): Modifi
 internal fun AppearanceLog(name: String) {
   val appearance = LocalFluidGlassAppearance.current
   LaunchedEffect(name, appearance) {
+    // Una riga per cambio: un contenuto composto in piu' copie (le icone della tab bar: la riga vera e quella nascosta
+    // che la pillola guarda) la direbbe una volta per copia.
+    val line = appearance?.let { "${it.isDark} ${it.darkness} ${it.backdropLuminance} ${it.isMeasured}" } ?: "-"
+    val now = android.os.SystemClock.uptimeMillis()
+    val last = AppearanceLogLast[name]
+    if (last != null && last.first == line && now - last.second < 500L) return@LaunchedEffect
+    AppearanceLogLast[name] = line to now
     if (appearance == null) {
       Log.i(AdaptiveLogTag, "ASPETTO $name nessun vetro adattivo qui (vetro di prima, annidato o sotto Android 13)")
     } else {
@@ -171,6 +190,9 @@ internal fun AppearanceLog(name: String) {
   }
   Spacer(Modifier.size(0.dp))
 }
+
+/** L'ultima riga `ASPETTO` di ogni nome, con l'istante: per non ripeterla per ogni copia dello stesso contenuto. */
+private val AppearanceLogLast = HashMap<String, Pair<String, Long>>()
 
 /**
  * I contatori della sonda a pagina viva: una riga `SONDA` quando cambiano (richieste al lettore, letture, fallimenti,

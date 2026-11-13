@@ -175,6 +175,10 @@ internal fun Modifier.fluidTouchTarget(min: Dp = FluidGlassIconTouchTargetSize):
  * backdrop and keeps showing what is genuinely behind it, instead of dragging a frozen picture
  * along.
  *
+ * **Il lato resta quello del tema** (4.0, F2.3b), come per [glassSurface]: il controllo segue lo sfondo con velo, ombra e
+ * tinta ma non gira, perche' l'engine non sa di che colore sia l'etichetta che l'app ci mette sopra. Girano i tasti
+ * dell'engine che possiedono la propria etichetta ([FluidGlassIconButton], [FluidGlassButton], i tasti dei menu).
+ *
  * @param backdrop what the control refracts. Give it the surface the control sits *on* — see
  *   [rememberCombinedGlassBackdrop] — not the page underneath that surface.
  * @param interactive false for a control that is only decorative or disabled; it keeps the material

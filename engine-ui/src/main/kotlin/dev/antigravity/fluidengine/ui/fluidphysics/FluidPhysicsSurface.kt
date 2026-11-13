@@ -43,6 +43,16 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.effects.colorControls
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
+import androidx.compose.ui.geometry.Rect
+import dev.antigravity.fluidengine.ui.fluid.GlassInk
+import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
+import dev.antigravity.fluidengine.ui.fluid.LocalGlassAdaptiveHost
+import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassAdaptiveState
+import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
+import dev.antigravity.fluidengine.ui.glass.field.glassProbe
+import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
+import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
@@ -145,6 +155,54 @@ fun Modifier.fluidPhysicsSurface(
    * risposta, come prima della 3.0.
    */
   pressState: FluidPressState? = null,
+): Modifier = fluidPhysicsSurfaceInked(
+  state = state,
+  backdrop = backdrop,
+  tint = tint,
+  role = role,
+  optics = optics,
+  tier = tier,
+  intensity = intensity,
+  tintFrom = tintFrom,
+  tintBlend = tintBlend,
+  opticsFrom = opticsFrom,
+  opticsBlend = opticsBlend,
+  sampleOnce = sampleOnce,
+  exports = exports,
+  pressState = pressState,
+  ink = null,
+)
+
+/**
+ * [fluidPhysicsSurface] per i componenti dell'engine che possiedono il loro contenuto (4.0, F2.3b): i menu, il
+ * pannello che nasce dal tasto, i fogli in viaggio. Col materiale nuovo e un [ink] la superficie porta la sonda
+ * dello sfondo (sotto la **sagoma**, non sotto il palco: il nodo può essere grande quanto la finestra) e il suo
+ * stato adattivo, e scurisce in continuo (un grande) o gira (un piccolo); il componente avvolge il contenuto in
+ * `GlassInkContent` e ne moltiplica la dissolvenza per `ink.state?.inkAlpha()`. Senza [ink], è [fluidPhysicsSurface].
+ */
+@Composable
+internal fun Modifier.fluidPhysicsSurfaceInked(
+  state: FluidPhysicsState,
+  backdrop: GlassBackdropState,
+  tint: GlassTint,
+  role: GlassRole = GlassRole.Floating,
+  optics: GlassOptics = GlassDefaults.optics(role),
+  tier: FluidPhysicsTier? = null,
+  intensity: () -> Float = { 1f },
+  tintFrom: GlassTint? = null,
+  tintBlend: () -> Float = { 1f },
+  opticsFrom: GlassOptics? = null,
+  opticsBlend: () -> Float = { 1f },
+  sampleOnce: Boolean = false,
+  exports: GlassBackdropState? = null,
+  pressState: FluidPressState? = null,
+  /** Il patto dell'inchiostro (4.0, F2.3b): vedi [fluidPhysicsSurface] e `GlassInkContent`. */
+  ink: GlassInk?,
+  /**
+   * [tintFrom] è la pellicola fissa del lato del tema di un grande a riposo, che cede alla ricetta adattiva quando il
+   * grande scurisce (F2.3b, la finestra del pop-up): vedi `physicsLiquidRecipe(restingFilmYields)`.
+   */
+  restingFilmYields: Boolean = false,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
@@ -180,6 +238,7 @@ fun Modifier.fluidPhysicsSurface(
   }
 
   if (resolvedTier == FluidPhysicsTier.Lite) {
+    ink?.unbind()
     return this.physicsFallback(state, tint, intensity)
   }
 
@@ -215,7 +274,40 @@ fun Modifier.fluidPhysicsSurface(
       }
     }
     val currentBackdrop by rememberUpdatedState(backdrop.backdrop)
-    val surface = remember(state, role, material, darkSide, screenDensity, quality, tint, tintFrom, pressState, reducedMotion) {
+    // La sonda e il lato (F2.3b): solo per chi ha un contenuto che segue l'inchiostro ([ink]), e solo radice (non
+    // dentro un vetro adattivo). Niente lettura della risposta «annidata» in composizione: la sagoma di un menu sta
+    // sulla pagina, e la risposta resta agli effetti (vedi l'anello di F2.3 in `GlassLiquidSurface.nestedState`).
+    val host = LocalGlassAdaptiveHost.current
+    val currentHost by rememberUpdatedState(host)
+    val probes = ink != null && host == null && glassProbeAvailable()
+    val probe = rememberGlassProbeState(initialDark = darkSide)
+    val adaptiveState = rememberGlassAdaptiveState(
+      probe = probe,
+      role = role,
+      darkSide = darkSide,
+      inkFollows = probes,
+      flipAllowed = glassTintLiquidMode(tint) != GlassTintMode.Fixed,
+      large = ink?.large ?: GlassLiquidProfile.Default.adaptive.darkensContinuously(role),
+    )
+    if (ink != null) {
+      if (probes) ink.bind(adaptiveState, darkSide) else ink.unbind()
+    }
+    val adaptive: ((GlassAdaptiveMaterial, Boolean) -> GlassAdaptiveMaterial?)? = if (ink == null) {
+      null
+    } else {
+      remember(adaptiveState) {
+        { out, nested ->
+          val within = currentHost
+          when {
+            within != null -> out.unmeasured().also { it.darkness = within.sideNow }
+            nested -> null
+            else -> adaptiveState.fill(out)
+          }
+        }
+      }
+    }
+    val probedArea: () -> Rect? = remember(state) { { state.ensurePlan().bounds } }
+    val surface = remember(state, role, material, darkSide, screenDensity, quality, tint, tintFrom, pressState, reducedMotion, adaptive, restingFilmYields) {
       PhysicsLiquidSurface(
         state = state,
         role = role,
@@ -233,10 +325,13 @@ fun Modifier.fluidPhysicsSurface(
         quality = { quality?.level ?: 1f },
         layoutWidth = { layoutWidth.floatValue },
         onPanel = { glassSamplesLiquidPanel(currentBackdrop, GlassLiquidPanels::isPublished) },
+        adaptive = adaptive,
+        restingFilmYields = restingFilmYields,
       )
     }
     return this
       .onSizeChanged { layoutWidth.floatValue = it.width.toFloat() }
+      .glassProbe(backdrop.backdrop, probe, enabled = probes, region = probedArea)
       .drawBackdrop(
         backdrop = backdrop.backdrop,
         shape = shapeBlock,
@@ -257,6 +352,9 @@ fun Modifier.fluidPhysicsSurface(
         onDrawLight = surface.onDrawLight,
       )
   }
+
+  // Il vetro di prima non misura niente: il contenuto resta col suo inchiostro (F2.3b).
+  ink?.unbind()
 
   // Giro di correzione unico di F1B (rilievo R13 del critico C): i due layer dell'ombra si creano qui, nel solo ramo
   // del vetro di prima che li usa; col materiale nuovo l'ombra e' nel corpo, e una superficie fisica Liquid (i palchi

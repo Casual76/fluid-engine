@@ -417,6 +417,8 @@ fun FluidDrawer(
         val panelWidth = fluidDrawerWidth(width, maxWidth)
         val shape = ContinuousCornerShape(FluidRadius.Group)
         val title = paneTitle ?: labels.drawer
+        // F2.3b: il pannello possiede il suo contenuto e scurisce in continuo (un grande, `Modal`); il contenuto lo segue.
+        val drawerInk = rememberGlassInk()
         Column(
           modifier = Modifier
             .align(Alignment.CenterStart)
@@ -448,7 +450,8 @@ fun FluidDrawer(
             }
             .then(
               if (backdrop != null) {
-                Modifier.glassSurface(
+                Modifier.glassSurfaceInked(
+                  ink = drawerInk,
                   state = backdrop,
                   tint = GlassDefaults.panelTint(),
                   shape = shape,
@@ -461,22 +464,24 @@ fun FluidDrawer(
             )
             .clip(shape),
         ) {
-          if (header != null) {
-            Column(
-              modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-              content = header,
+          GlassInkContent(drawerInk, LocalContentColor.current) {
+            if (header != null) {
+              Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                content = header,
+              )
+            }
+            LazyColumn(
+              modifier = Modifier.weight(1f).fillMaxWidth(),
+              state = listState,
+              contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+              verticalArrangement = Arrangement.spacedBy(2.dp),
+              content = content,
             )
-          }
-          LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            content = content,
-          )
-          if (footer != null) {
-            FluidHairline()
-            Column(modifier = Modifier.fillMaxWidth().padding(8.dp), content = footer)
+            if (footer != null) {
+              FluidHairline()
+              Column(modifier = Modifier.fillMaxWidth().padding(8.dp), content = footer)
+            }
           }
         }
       }

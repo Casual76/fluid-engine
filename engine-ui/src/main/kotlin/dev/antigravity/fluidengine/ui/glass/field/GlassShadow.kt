@@ -1149,8 +1149,12 @@ internal object GlassShadowContour {
       for (i in 0..steps) {
         val t = (PI / 2.0) * i / steps
         // |x|^n + |y|^n = reach^n: seno e coseno alla 2/n. Con n = 2 è l'arco di cerchio.
-        val along = (reach * sin(t).pow(exponent)).toFloat()
-        val across = (reach * cos(t).pow(exponent)).toFloat()
+        // Fermati a [0, 1] (F3.8b): con 13, 26, 47 o 52 segmenti `(π/2)·i/steps` all'ultimo punto supera π/2 di
+        // 2·10⁻¹⁶, il coseno vale −1,6·10⁻¹⁶, e un negativo alla 2/n non intera è NaN. Bastava un punto: la sagoma
+        // intera non era più finita e la piattaforma non disegnava niente, cioè la lastra restava **senza ombra** (il
+        // pannello `glassSurface` di «Parità», 200 × 120 dp con angoli continui da 28 dp: 26 segmenti sul Tab S9).
+        val along = (reach * sin(t).coerceIn(0.0, 1.0).pow(exponent)).toFloat()
+        val across = (reach * cos(t).coerceIn(0.0, 1.0).pow(exponent)).toFloat()
         out[points * 2] = coreX + entryX * across + exitX * along
         out[points * 2 + 1] = coreY + entryY * across + exitY * along
         points++

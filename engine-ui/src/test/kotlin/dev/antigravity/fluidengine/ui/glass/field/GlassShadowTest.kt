@@ -384,6 +384,43 @@ class GlassShadowTest {
     }
   }
 
+  /**
+   * F3.8b: con 13, 26, 47 o 52 segmenti l'ultimo punto di un angolo cadeva a `t` appena oltre π/2, il coseno era
+   * negativo di 10⁻¹⁶ e la potenza a esponente non intero dava NaN. Un solo punto non finito e la piattaforma non
+   * disegnava la sagoma: il pannello `glassSurface` di «Parità» (425 × 255 px, raggi 59,5 px, raccordo 0,6, 26
+   * segmenti sul Tab S9) era senza ombra, quello di «Materiale» (30 segmenti) no.
+   */
+  @Test
+  fun everyCornerCountGivesAFiniteContourThatClosesOnTheSides() {
+    val points = FloatArray(GlassShadowContour.MaxFloats)
+    val counts = mutableSetOf<Int>()
+    // Il caso del dispositivo, coi numeri che il nodo ha scritto in logcat.
+    val panel = floatArrayOf(59.5f, 59.5f, 59.5f, 59.5f)
+    val reach = GlassFieldGeometry.cornerReach(59.5f, GlassFieldGeometry.effectiveSmoothing(59.5f, 127.5f, 0.6f))
+    assertEquals("il pannello di «Parità» ha 26 segmenti per angolo", 26, GlassShadowContour.segments(reach))
+    // Poi ogni numero di segmenti, da un raggio di 1 px a uno che arriva al tetto.
+    var radius = 1f
+    while (radius <= 500f) {
+      val radii = if (radius == 1f) panel else floatArrayOf(radius, radius, radius, radius)
+      val r = radii[0]
+      val half = 2f * r + 20f
+      val count = GlassShadowContour.slab(344.5f, 244.5f, half * 1.6f, half, radii, 0, 0.6f, points)
+      counts += GlassShadowContour.segments(
+        GlassFieldGeometry.cornerReach(r, GlassFieldGeometry.effectiveSmoothing(r, half, 0.6f)),
+      )
+      for (i in 0 until count * 2) {
+        assertTrue("raggio $r: la coordinata $i (${points[i]}) non è finita", points[i].isFinite())
+      }
+      // Ogni angolo comincia e finisce sui due lati che lo chiudono: il primo punto sul lato alto, l'ultimo
+      // dell'angolo alto-destro sul fianco destro (x = centro + mezza larghezza).
+      assertEquals("raggio $r: il contorno parte dal lato alto", 244.5f - half, points[1], 1e-3f)
+      val perCorner = count / 4
+      assertEquals("raggio $r: l'angolo alto-destro finisce sul fianco", 344.5f + half * 1.6f, points[(perCorner - 1) * 2], 1e-3f)
+      radius = if (radius == 1f) 1.25f else radius + 0.25f
+    }
+    for (n in listOf(13, 26, 47, 52)) assertTrue("nessun raggio provato ha $n segmenti", n in counts)
+  }
+
   @Test
   fun circularPiecesStayRoundRects() {
     // Dove l'angolo è un arco di cerchio il pezzo resta un `RoundRect`, che la piattaforma sfoca senza una

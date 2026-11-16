@@ -82,6 +82,10 @@ UI_FLUID_FILES = {
         "GlassMaterial", "GlassContrast", "FluidGlassQuality", "FluidFillContrast", "FluidGlassModel",
         # il vetro come configurazione (`FluidGlass`) e il vetro che si adatta: sonda, giro, inchiostro, cursore (4.0, F2)
         "FluidGlass", "FluidGlassAdaptive",
+        # il piano flottante: contenitore, identità, unione, transizioni (4.0, F3.2)
+        "FluidGlassContainer",
+        # il contenuto che si sfoca e si incrocia nei cambi di un vetro (4.0, F3.4)
+        "FluidGlassContentTransition",
     ],
     # aspetto, aggiornamento in-app, parole, licenze
     "impostazioni": [

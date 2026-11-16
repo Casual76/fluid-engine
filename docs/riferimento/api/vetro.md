@@ -16,6 +16,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `val Regular: FluidGlass` — Il vetro di serie: smerigliato e adattivo.
     - `val Clear: FluidGlass` — Il vetro limpido: nessuna smerigliatura né adattività, scurimento del 35% sotto. Vedi [FluidGlass].
     - `val Identity: FluidGlass` — Nessun vetro: il contenuto com'è, nella stessa struttura.
+- `@Composable fun Modifier.fluidGlass(glass: FluidGlass = FluidGlass.Regular, shape: Shape = FluidCapsuleShape, backdrop: GlassBackdropState = currentGlassBackdrop()): Modifier` — Posa un vetro dietro a questo elemento: `glassEffect(_:in:)` di SwiftUI.
 
 ## `engine-ui/ui/fluid/FluidGlassAdaptive.kt`
 
@@ -26,6 +27,36 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `val LocalFluidGlassPreference: ProvidableCompositionLocal<Float>` — Il cursore del vetro per questo sottoalbero, da [FluidGlassPreference.Transparent] (0) a [FluidGlassPreference.Colored] (1); di serie [FluidGlassPreference.Default].
 - `class FluidGlassAppearance internal constructor(val isDark: Boolean, val darkness: Float, val backdropLuminance: Float, val isMeasured: Boolean)` — Ciò che un vetro del materiale nuovo sa di sé e dello sfondo che ha dietro, per chi disegna **sopra** di lui: da quale lato sta (chiaro o scuro), quanto è scurito, e quanto è luminoso lo sfondo.
 - `val LocalFluidGlassAppearance: ProvidableCompositionLocal<FluidGlassAppearance?>` — L'aspetto del vetro su cui sta questo contenuto, o `null` fuori da un vetro adattivo. Lo fornisce il vetro (F2.3). `GlassDefaults.isDarkSurface()` lo legge per primo: dentro un vetro misurato il lato è quello del vetro.
+
+## `engine-ui/ui/fluid/FluidGlassContainer.kt`
+
+- `sealed class FluidGlassAnimation` — Come il contenitore anima i cambi dei suoi vetri. In SwiftUI è l'animazione della transazione (`withAnimation`); qui non si chiama niente: **il contenitore anima da solo** ogni cambio, e questo dice come.
+  - `data object Default : FluidGlassAnimation()` — Di serie: la molla [FluidMotion.standard] stirata nei bilanci del piano, [FluidMotion.PlaneContextMillis] per un cambio di contesto, [FluidMotion.PlaneAppearMillis] per una comparsa e [FluidMotion.PlaneDisappearMillis] per una scomparsa. Un cambio a metà viaggio riparte da dove si trova, con la velocità che ha.
+  - `data object None : FluidGlassAnimation()` — Nessun viaggio: i vetri vanno al posto nuovo nel fotogramma dopo il cambio. Anche con il movimento ridotto.
+  - `class Custom(val spec: FiniteAnimationSpec<Float>) : FluidGlassAnimation()` — La spec dell'app per ogni lato e raggio di ogni vetro, col suo tempo (i bilanci di serie non contano). Una molla conserva la velocità di un viaggio interrotto; una curva a durata no, e alla ripartenza riparte da ferma.
+- `object FluidGlassContainerDefaults` — I valori di serie di [FluidGlassContainer].
+  - `val Spacing: Dp` — Fin dove due vetri dello stesso contenitore sono **un grappolo** (una cattura sola, un campo fuso in viaggio) e fin dove un vetro nuovo **nasce dal vicino** invece di comparire per lente.
+- `class FluidGlassNamespace internal constructor()` — Lo spazio dei nomi delle identità dei vetri: `@Namespace` di SwiftUI. Due `id` uguali in due spazi diversi sono due vetri diversi; lo stesso `id` nello stesso spazio, prima e dopo un cambio, è **lo stesso vetro** che si sposta.
+- `@Composable fun rememberFluidGlassNamespace(): FluidGlassNamespace` — Uno spazio dei nomi che vive quanto il punto della composizione che lo chiede.
+- `enum class FluidGlassTransition` — Come un vetro che arriva o se ne va entra nel cambio: `glassEffectTransition` di SwiftUI.
+- `fun Modifier.fluidGlassId(id: Any, namespace: FluidGlassNamespace): Modifier` — L'identità del vetro che **segue** questo modificatore nella stessa catena (`glassEffectID` di SwiftUI).
+- `fun Modifier.fluidGlassUnion(id: Any, namespace: FluidGlassNamespace): Modifier` — Unisce il vetro che segue in **una sagoma sola** con gli altri della stessa unione (`glassEffectUnion` di SwiftUI): fusi a riposo in un campo, anche oltre lo `spacing` del contenitore (mai oltre otto pezzi). Stesso ordine di [fluidGlassId]: vale per il [fluidGlass] alla sua destra.
+- `fun Modifier.fluidGlassTransition(transition: FluidGlassTransition): Modifier` — Come il vetro che segue compare e scompare (`glassEffectTransition` di SwiftUI). Stesso ordine di [fluidGlassId]: vale per il [fluidGlass] alla sua destra.
+- `@Composable fun FluidGlassContainer(modifier: Modifier = Modifier, spacing: Dp = FluidGlassContainerDefaults.Spacing, animation: FluidGlassAnimation = FluidGlassAnimation.Default, content: @Composable () -> Unit)` — Il contenitore del piano flottante: `GlassEffectContainer(spacing:)` di SwiftUI.
+- `object FluidGlassContainerDiagnostics` — Il contenitore visto da fuori, per le prove (il test del piano nel modulo della galleria, che non vede gli `internal` dell'engine) e per le sessioni sul dispositivo. Non è un'API per le app.
+  - `val totalJourneys: Long get()` — I viaggi partiti (un cambio a riposo), in tutto il processo.
+  - `val totalRetargets: Long get()` — I viaggi ripartiti a metà (uno stato cambiato mentre il vetro viaggiava).
+  - `val totalOrderWarnings: Long get()` — Quante volte un `fluidGlassId`, `fluidGlassUnion` o `fluidGlassTransition` è stato scritto **dopo** il suo vetro (o senza vetro alla sua destra): non ha effetto, e in debug il log lo dice.
+  - `val liveContainers: Int get()` — I contenitori in scena adesso.
+  - `val lastJourney: List<FluidGlassFlightRecord> get()` — Chi è andato dove nell'ultimo viaggio partito o ripartito: un record per vetro in volo.
+  - `val lastRest: List<FluidGlassPieceRecord> get()` — I pezzi dell'ultimo riposo stabilito, con i raggi già risolti (le forme concentriche comprese).
+  - `fun resetForTesting()` — Azzera i contatori e i record, per i test.
+- `class FluidGlassFlightRecord internal constructor(val fromId: Any?, val toId: Any?, val change: String, val bornFromId: Any?, val mergesIntoId: Any?)` — Un vetro in volo nell'ultimo viaggio: da quale `id` a quale (null per un vetro senza `id`), che cambio è (`Matched`, `BornFromNeighbour`, `MergeIntoNeighbour`, `Materialize`, `Dematerialize`, `Identity`) e, per chi nasce o confluisce, l'`id` del vicino.
+- `class FluidGlassPieceRecord internal constructor(val id: Any?, val bounds: Rect, val cornerRadii: FluidCornerRadii, val clusterSize: Int)` — Un vetro a riposo: il suo `id` (o null), il riquadro nel contenitore in pixel e i quattro raggi risolti.
+
+## `engine-ui/ui/fluid/FluidGlassContentTransition.kt`
+
+- `@Composable fun <S> FluidGlassContentTransition(targetState: S, modifier: Modifier = Modifier, key: (S) -> Any? = { it }, blurReference: Dp = GlassContentDefaults.BlurReference, contentColor: ((S) -> Color)? = null, contentAlignment: Alignment = Alignment.Center, content: @Composable (S) -> Unit)` — Il contenuto di un vetro che cambia, alla maniera di Apple (`blurReplace` dentro un vetro, R7 A.2): chi esce si sfoca, rimpicciolisce appena e svanisce; chi entra arriva sfocato e si fa nitido; i due si incrociano al massimo della sfocatura, e la tinta cambia lì dentro. Il contenuto con la **stessa [key]** nei due stati non si tocca: resta nitido anche se il vetro intorno corre (R7 A3, D2 di Alessio).
 
 ## `engine-ui/ui/fluid/FluidGlassModel.kt`
 
@@ -275,6 +306,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `class FluidGlassProbeReading internal constructor(val luminance: Float, val deviation: Float, val gradient: Float, val red: Float, val green: Float, val blue: Float, val coverage: Float, val dark: Boolean, val fresh: Boolean, val uptimeMillis: Long)` — Una lettura della sonda, come la vede una prova sul dispositivo. Non è un'API per le app.
 - `object FluidGlassProbeDiagnostics` — La sonda dello sfondo vista da fuori, per le prove strumentate (`GlassProbeInstrumentedTest` nel modulo della galleria, che non vede gli `internal` dell'engine). Non è un'API per le app: nessun componente la usa, e la sonda vera entra nei vetri con F2.2.
+  - `val liveProbes: Int get()` — Le sonde attaccate adesso, in tutto il processo (F3.2): un nodo di sonda in scena, letto o no. Un `FluidGlassContainer` ne ha **una** per tutti i suoi pezzi; ogni vetro radice fuori da un contenitore la sua.
   - `fun wakes(): Map<String, Long>` — Perché le sonde si sono svegliate, per motivo (F2.3): una revisione di una sorgente, un riposizionamento, una lettura osservata cambiata, il timer (cadenza o scadenza del filtro), e le letture partite (con o senza miniatura nuova). Su una pagina ferma, dopo la prima misura, non deve crescere niente.
   - `val totalSlotsRefused: Long get()` — Le sonde rimaste senza casella (o spinte fuori da una più importante).
   - `val peakSlots: Int get()` — Il massimo di caselle occupate insieme in un lettore di finestra, da [resetPeakSlots] (F2.3): quante sonde radice ha la pagina più carica che si è aperta intanto. Il tetto è 64.

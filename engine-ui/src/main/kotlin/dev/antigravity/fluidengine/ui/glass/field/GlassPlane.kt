@@ -1,7 +1,9 @@
 package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.VectorizedFiniteAnimationSpec
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
@@ -129,20 +131,28 @@ internal data class GlassPlaneInterruption(val atMs: Double, val state: GlassPla
 }
 
 /**
- * Prima implementazione interna dei bersagli R4 B2 (alta) e B3 (media). I numeri sono un profilo, non curve
- * parallele: si valuta la spec di FluidMotion, cambiando solo l'unità di tempo. F3.2 può passare il proprio
- * profilo; il consolidamento dei nuovi token in FluidMotion richiede quel file, fuori dal perimetro F3.1.
+ * I bersagli R4 B2 (alta) e B3 (media), dai token del piano in [FluidMotion] (F3.2). I numeri sono un profilo, non
+ * curve parallele: si valuta la spec di FluidMotion, cambiando solo l'unità di tempo.
+ *
+ * [spec] è l'animazione di un'app (`FluidGlassAnimation.Custom`, F3.2): se c'è, sostituisce la molla di serie per ogni
+ * canale e i bilanci non contano più (il tempo è quello della spec). Null: la molla [FluidMotion.standard] stirata nei
+ * bilanci.
  */
 internal data class GlassPlaneMotion(
-  val contextMs: Double = FluidMotion.DurationExpand.toDouble(),
-  val appearMs: Double = 430.0,
-  val disappearMs: Double = 470.0,
-  val initialContourScale: Float = 1.09f,
+  val contextMs: Double = FluidMotion.PlaneContextMillis.toDouble(),
+  val appearMs: Double = FluidMotion.PlaneAppearMillis.toDouble(),
+  val disappearMs: Double = FluidMotion.PlaneDisappearMillis.toDouble(),
+  val initialContourScale: Float = FluidMotion.PlaneAppearScale,
+  val spec: FiniteAnimationSpec<Float>? = null,
 ) {
   init {
     require(listOf(contextMs, appearMs, disappearMs).all { it.isFinite() && it > 0.0 })
     require(initialContourScale.isFinite() && initialContourScale >= 1f)
   }
+
+  /** La spec vettorizzata con cui viaggia ogni canale: la molla di serie, o quella dell'app. */
+  internal val vectorized: VectorizedFiniteAnimationSpec<AnimationVector1D> =
+    spec?.vectorize(Float.VectorConverter) ?: PlaneSpring
 }
 
 /**
@@ -171,13 +181,16 @@ internal class GlassPlaneJourney private constructor(
     // Un orologio comune per chi viaggia insieme: molle per lato con tempi diversi farebbero sorpassare
     // due pezzi che l'accoppiamento aveva ordinato correttamente.
     val contexts = flights.filter { it.pair.change in PlaneTravellingChanges }
-    if (contexts.isNotEmpty()) {
+    // Una spec dell'app porta il suo tempo: i bilanci sono quelli della molla di serie.
+    if (contexts.isNotEmpty() && motion.spec == null) {
       val scale = planeTimeScale(contexts, motion.contextMs)
       contexts.forEach { it.timeScale = scale }
     }
-    flights.filter { it !in contexts }.forEach { flight ->
-      val budget = if (flight.pair.change == GlassPlaneChange.Dematerialize) motion.disappearMs else motion.appearMs
-      flight.timeScale = planeTimeScale(listOf(flight), budget)
+    if (motion.spec == null) {
+      flights.filter { it !in contexts }.forEach { flight ->
+        val budget = if (flight.pair.change == GlassPlaneChange.Dematerialize) motion.disappearMs else motion.appearMs
+        flight.timeScale = planeTimeScale(listOf(flight), budget)
+      }
     }
     durationMs = flights.maxOfOrNull { it.durationNanos() / it.timeScale / 1_000_000.0 } ?: 0.0
     val spacing = max(from.spacing, to.spacing)
@@ -322,8 +335,9 @@ private fun planePairs(from: GlassPlaneState, to: GlassPlaneState, seeds: Map<An
   return PlanePairing(pairs, crossingIds)
 }
 
-private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFrame>, motion: GlassPlaneMotion) {
+private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFrame>, private val motion: GlassPlaneMotion) {
   val id = GlassPlaneFlightId(pair.source?.key, pair.target?.key, pair.change)
+  private val spring = motion.vectorized
   private val seed = seeds[pair.source?.key ?: pair.neighbour?.key]
   private val origin = pair.source ?: pair.neighbour ?: pair.target!!
   private val destination = pair.target ?: pair.neighbour ?: pair.source!!
@@ -349,7 +363,7 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
 
   fun durationNanos(scale: Double = timeScale): Long = if (pair.change == GlassPlaneChange.Identity) 0L else
     initial.indices.maxOf { index ->
-      PlaneSpring.getDurationNanos(AnimationVector1D(initial[index]), AnimationVector1D(target[index]),
+      spring.getDurationNanos(AnimationVector1D(initial[index]), AnimationVector1D(target[index]),
         AnimationVector1D((velocity[index] / scale).toFloat()))
     }
 
@@ -361,11 +375,11 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
       val a = AnimationVector1D(initial[index])
       val b = AnimationVector1D(target[index])
       val v = AnimationVector1D((velocity[index] / timeScale).toFloat())
-      val finished = pair.change == GlassPlaneChange.Identity || nanos >= PlaneSpring.getDurationNanos(a, b, v)
+      val finished = pair.change == GlassPlaneChange.Identity || nanos >= spring.getDurationNanos(a, b, v)
       value[index] = if (finished) target[index] else if (nanos == 0L) initial[index]
-        else PlaneSpring.getValueFromNanos(nanos, a, b, v).value
+        else spring.getValueFromNanos(nanos, a, b, v).value
       speed[index] = if (finished) 0f else if (nanos == 0L) velocity[index]
-        else (PlaneSpring.getVelocityFromNanos(nanos, a, b, v).value * timeScale).toFloat()
+        else (spring.getVelocityFromNanos(nanos, a, b, v).value * timeScale).toFloat()
     }
     // I vincoli fisici restano veri anche con la velocità contraria di un viaggio interrotto.
     for ((low, high) in listOf(0 to 2, 1 to 3)) {
@@ -398,6 +412,7 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
 
   /** Limite conservativo della risposta libera + impulso iniziale della stessa molla: niente palco che respira. */
   fun sweptBounds(): Rect {
+    if (motion.spec != null) return sampledBounds()
     val damping = FluidMotion.DampingStandard.toDouble()
     val damped = sqrt(1.0 - damping * damping)
     val overshoot = exp(-Math.PI * damping / damped)
@@ -407,7 +422,31 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
     return Rect(min(startRect.left, endRect.left) - margin(0), min(startRect.top, endRect.top) - margin(1),
       max(startRect.right, endRect.right) + margin(2), max(startRect.bottom, endRect.bottom) + margin(3))
   }
+
+  /**
+   * Il palco di una spec dell'app (F3.2): di una spec qualsiasi non si conosce una forma chiusa dell'oltrepasso, quindi
+   * si campiona la traiettoria vera. [PlaneSweptSamples] campioni più i due capi: una spec che oltrepassa fra due
+   * campioni lo fa di meno di quanto la curva cambi in un sessantaquattresimo del viaggio.
+   */
+  private fun sampledBounds(): Rect {
+    var left = min(startRect.left, endRect.left)
+    var top = min(startRect.top, endRect.top)
+    var right = max(startRect.right, endRect.right)
+    var bottom = max(startRect.bottom, endRect.bottom)
+    val total = durationNanos() / timeScale / 1_000_000.0
+    for (step in 0..PlaneSweptSamples) {
+      val bounds = frame(total * step / PlaneSweptSamples).bounds
+      left = min(left, bounds.left)
+      top = min(top, bounds.top)
+      right = max(right, bounds.right)
+      bottom = max(bottom, bounds.bottom)
+    }
+    return Rect(left, top, right, bottom)
+  }
 }
+
+/** Quanti campioni misurano il palco di una spec dell'app: vedi `PlaneFlight.sampledBounds`. */
+private const val PlaneSweptSamples = 64
 
 private fun planeTimeScale(flights: List<PlaneFlight>, budgetMs: Double): Double {
   var scale = 1.0

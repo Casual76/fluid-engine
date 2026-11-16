@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
+import androidx.compose.ui.graphics.graphicsLayer
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedSelectionAlpha
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.field.LocalGlassPaintedPanel
@@ -239,15 +241,28 @@ internal fun Modifier.glassControlSurfaceInked(
   heldWhileMoving: () -> Boolean,
   pressState: FluidPressState?,
   ink: GlassInk?,
+  /**
+   * Gli attributi del piano (`fluidGlassId`, …) scritti sul `modifier` dell'app quando il componente lo posa su un nodo
+   * **esterno** al vetro (il riquadro del tocco di [FluidGlassIconButton]): il componente li legge da lì e li inoltra.
+   * Quelli scritti nella catena del vetro vincono.
+   */
+  forwardedAttributes: FluidGlassAttributes? = null,
 ): Modifier {
   val accent = MaterialTheme.colorScheme.primary
   val scope = rememberCoroutineScope()
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val onDark = GlassDefaults.isDarkSurface()
+  // Dentro un `FluidGlassContainer` (4.0, F3.2) il tasto è un pezzo del piano flottante, di qualunque forma il campo
+  // sappia rendere: il vetro lo disegna il contenitore, e gli attributi scritti alla sua sinistra (`fluidGlassId`, …)
+  // sono suoi, come per un `fluidGlass`.
+  val attributes = fluidGlassAttributesOf(this).takeIf { it != FluidGlassAttributes.None }
+    ?: forwardedAttributes ?: FluidGlassAttributes.None
+  val planeContainer = currentFluidGlassContainer(shape)
   // Dentro la barra ancorata delle pagine (3.0) il tasto dice dove sta la sua lente e, mentre le
   // pagine cambiano, spegne il proprio vetro: lo porta una superficie sola di Fluid-physics, che fa
-  // diventare i tasti della pagina che esce quelli della pagina che arriva. Fuori, niente.
-  val pieceSink = LocalFluidBarPieceSink.current
+  // diventare i tasti della pagina che esce quelli della pagina che arriva. Fuori, niente. In un contenitore del piano
+  // vince il contenitore (F4A porterà la barra sul piano).
+  val pieceSink = if (planeContainer == null) LocalFluidBarPieceSink.current else null
   val barPiece = remember(pieceSink, shape) {
     if (pieceSink != null) FluidBarPiece(capsule = shape == FluidCapsuleShape) else null
   }
@@ -312,6 +327,21 @@ internal fun Modifier.glassControlSurfaceInked(
   // ingressi, quindi le due risposte coincidono; qui serve saperlo prima, perche' col materiale nuovo il
   // bagliore del dito non e' piu' un disegno a parte sopra il vetro: passa dalla sua luce.
   val resolvedOptics = remember(optics) { optics.sanitized() }
+  if (planeContainer != null) {
+    return this.glassControlPiece(
+      container = planeContainer,
+      attributes = attributes,
+      backdrop = backdrop,
+      shape = shape,
+      tint = selectionTint,
+      optics = resolvedOptics,
+      interactive = interactive,
+      press = press,
+      tracksOwnPress = pressState == null,
+      reducedMotion = reducedMotion,
+      ink = ink,
+    )
+  }
   // La forma alla taglia del controllo (F1A, giro di correzione): una sola misura, per la scelta di qui e per il
   // vetro di prima qui sotto, perche' i due rispondano uguale.
   val fit = rememberGlassFieldFit(shape)
@@ -416,6 +446,57 @@ internal fun Modifier.glassControlSurfaceInked(
     // fluidPressable del controllo, e due inseguitori su una pressione scatterebbero due volte a
     // ogni passo del dito.
     .then(if (interactive && pressState == null) Modifier.fluidPressTracking(ownPress, ownsPress = true) else Modifier)
+}
+
+/**
+ * Un tasto di vetro dentro un `FluidGlassContainer` (4.0, F3.2): si iscrive al piano come pezzo, e il suo vetro lo
+ * disegna il contenitore con la stessa tinta, la stessa ottica, la stessa pressione e lo stesso bagliore (il blocco
+ * della pressione arriva alla lastra come `layerBlock`, e al contenuto come layer suo). Non sonda: il lato è del
+ * contenitore, e **il tasto annidato prende il lato del contenitore** anche col suo inchiostro ([ink] si lega alla
+ * decisione del contenitore). `depth`, `frozen` e `heldWhileMoving` li decide il contenitore.
+ */
+@Composable
+private fun Modifier.glassControlPiece(
+  container: FluidGlassContainerState,
+  attributes: FluidGlassAttributes,
+  backdrop: GlassBackdropState,
+  shape: Shape,
+  tint: GlassTint,
+  optics: GlassOptics,
+  interactive: Boolean,
+  press: FluidPressState,
+  tracksOwnPress: Boolean,
+  reducedMotion: Boolean,
+  ink: GlassInk?,
+): Modifier {
+  val adaptive = container.adaptive
+  if (ink != null) {
+    if (adaptive != null) ink.bind(adaptive, GlassDefaults.isDarkSurface()) else ink.unbind()
+  }
+  val layer = remember(press, reducedMotion, interactive) {
+    if (interactive) fluidGlassPressLayer(press, reducedMotion) else null
+  }
+  val touch = remember(press, reducedMotion, interactive) {
+    if (interactive) fluidGlassTouchLight(press, reducedMotion) else null
+  }
+  val look = remember(backdrop, tint, optics, shape, press, touch, layer) {
+    FluidGlassLook(
+      backdrop = backdrop,
+      tint = tint,
+      role = GlassRole.Interactive,
+      optics = optics,
+      variant = GlassLiquidVariant.Regular,
+      shape = shape,
+      press = press,
+      touch = touch,
+      layerBlock = layer,
+    )
+  }
+  return this
+    .then(FluidGlassMarkerElement)
+    .fluidGlassPiece(container, look, attributes)
+    .then(if (layer != null) Modifier.graphicsLayer(layer) else Modifier)
+    .then(if (interactive && tracksOwnPress) Modifier.fluidPressTracking(press, ownsPress = true) else Modifier)
 }
 
 /**
@@ -751,6 +832,9 @@ internal fun FluidGlassIconButtonCore(
   // lato del tema l'inchiostro e' quello che il tasto trova intorno, come prima.
   val ink = rememberGlassInk()
   val ambientInk = LocalContentColor.current
+  // Il `modifier` dell'app sta sul riquadro del tocco, fuori dal vetro: gli attributi del piano scritti lì (`fluidGlassId`,
+  // …) sono del vetro qui dentro (F3.2).
+  val planeAttributes = fluidGlassAttributesOf(modifier)
   Box(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
@@ -774,6 +858,7 @@ internal fun FluidGlassIconButtonCore(
           heldWhileMoving = NeverFrozen,
           pressState = press,
           ink = ink,
+          forwardedAttributes = planeAttributes,
         )
         // The click sits inside the material, so the glass reacts to the same press the action does.
         .fluidPressable(

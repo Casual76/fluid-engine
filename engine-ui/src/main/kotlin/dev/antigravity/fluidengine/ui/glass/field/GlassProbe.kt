@@ -222,6 +222,12 @@ private const val GlassProbeLogTag = "FluidGlass"
  * @property coverage l'alfa medio: 1 = tutta la miniatura è coperta da sorgenti opache.
  * @property darkShare la quota dei punti della miniatura più scuri di [GlassFlipCoverageDarkLuma] (G1, per
  *   `flipby=coverage`); NaN se chi l'ha costruita non la sa.
+ * @property textEnergy [gradientEnergy] senza i **bordi netti** (F3.2): tolti, per asse, i due bordi diritti più forti
+ *   (ognuno sulla sua linea di confine fra celle e sulla vicina più forte, dove cade un bordo a metà cella). Il bordo di
+ *   un riquadro a tinta unita sotto il vetro non è testo: contato come tale, rinforzava l'ombra «sul testo» sopra una
+ *   card piatta. Il testo, una foto e una scacchiera hanno l'energia sparsa su molte linee e restano fitti (la prova sui
+ *   casi del banco è in `artifacts/liquid-glass/sessioni/f3-2/trama.md`). Chi costruisce le statistiche a mano e non lo
+ *   sa la lascia uguale a [gradientEnergy].
  */
 @Immutable
 internal data class GlassBackdropStats(
@@ -233,6 +239,7 @@ internal data class GlassBackdropStats(
   val blue: Float,
   val coverage: Float,
   val darkShare: Float = Float.NaN,
+  val textEnergy: Float = gradientEnergy,
 ) {
   /** La deviazione standard della luminanza. */
   val deviation: Float get() = sqrt(max(variance, 0f))
@@ -243,8 +250,11 @@ internal data class GlassBackdropStats(
   /** Il colore medio (per il colore dell'ombra, F2.2). */
   val color: Color get() = Color(red.coerceIn(0f, 1f), green.coerceIn(0f, 1f), blue.coerceIn(0f, 1f))
 
-  /** Quanto lo sfondo è fitto: 0 piatto, 1 testo o immagine fitta. Vedi [GlassProbeTextureFlat]. */
-  val texture: Float get() = glassBackdropTexture(gradient)
+  /**
+   * Quanto lo sfondo è fitto: 0 piatto, 1 testo o immagine fitta. Vedi [GlassProbeTextureFlat]. Dalla radice di
+   * [textEnergy] (F3.2), non di [gradientEnergy]: un bordo netto da solo non è trama.
+   */
+  val texture: Float get() = glassBackdropTexture(sqrt(max(textEnergy, 0f)))
 }
 
 /** La trama da [gradient] (radice dell'energia dei gradienti): una rampa morbida fra le due soglie. Pura. */
@@ -274,6 +284,10 @@ internal class GlassProbeStatsReducer(
   private val factor = readSide / statsSide
   private val cells = FloatArray(statsSide * statsSide * 4)
   private val lumas = FloatArray(statsSide * statsSide)
+
+  /** L'energia di ogni confine verticale fra due colonne di celle (i bordi verticali), e di ogni confine orizzontale. */
+  private val columnEdges = FloatArray(statsSide - 1)
+  private val rowEdges = FloatArray(statsSide - 1)
 
   /** Comincia una miniatura nuova. */
   fun begin() {
@@ -324,20 +338,25 @@ internal class GlassProbeStatsReducer(
       if (lumas[i] < GlassFlipCoverageDarkLuma) darkCells++
     }
     var energy = 0.0
+    columnEdges.fill(0f)
+    rowEdges.fill(0f)
     for (row in 0 until statsSide) {
       for (col in 0 until statsSide) {
         val here = lumas[row * statsSide + col]
         if (col + 1 < statsSide) {
           val d = lumas[row * statsSide + col + 1] - here
           energy += d * d
+          columnEdges[col] += d * d
         }
         if (row + 1 < statsSide) {
           val d = lumas[(row + 1) * statsSide + col] - here
           energy += d * d
+          rowEdges[row] += d * d
         }
       }
     }
     val pairs = 2 * statsSide * (statsSide - 1)
+    val edges = glassProbeStraightEdges(columnEdges) + glassProbeStraightEdges(rowEdges)
     return GlassBackdropStats(
       luminance = mean,
       variance = (squares / count).toFloat(),
@@ -347,8 +366,38 @@ internal class GlassProbeStatsReducer(
       blue = (sumB / count).toFloat(),
       coverage = (sumA / count).toFloat(),
       darkShare = darkCells.toFloat() / count,
+      textEnergy = (max(energy - edges, 0.0) / pairs).toFloat(),
     )
   }
+}
+
+/** Quanti bordi diritti per asse [glassProbeStraightEdges] toglie dalla trama: i due lati di un riquadro. */
+internal const val GlassProbeStraightEdgesPerAxis: Int = 2
+
+/**
+ * L'energia dei bordi diritti di un asse (F3.2), da togliere alla trama: [lines] è l'energia di ogni confine fra due
+ * file di celle (lo **riscrive**). Per [GlassProbeStraightEdgesPerAxis] volte si prende il confine più forte e, con lui,
+ * il vicino più forte: un bordo che cade a metà cella lascia una cella intermedia e divide la sua energia su due confini
+ * accanto. Due bordi per asse sono i quattro lati di un riquadro tutto dentro la miniatura; un bordo obliquo resta
+ * trama (è sparso su molti confini), e così il testo, che ha l'energia su molte linee. Pura.
+ */
+internal fun glassProbeStraightEdges(lines: FloatArray): Double {
+  var removed = 0.0
+  repeat(GlassProbeStraightEdgesPerAxis) {
+    var strongest = -1
+    for (i in lines.indices) if (lines[i] > 0f && (strongest < 0 || lines[i] > lines[strongest])) strongest = i
+    if (strongest < 0) return removed
+    removed += lines[strongest]
+    lines[strongest] = 0f
+    val before = if (strongest > 0) lines[strongest - 1] else -1f
+    val after = if (strongest + 1 < lines.size) lines[strongest + 1] else -1f
+    val neighbour = if (after > before) strongest + 1 else strongest - 1
+    if (neighbour in lines.indices && lines[neighbour] > 0f) {
+      removed += lines[neighbour]
+      lines[neighbour] = 0f
+    }
+  }
+  return removed
 }
 
 /**
@@ -598,11 +647,13 @@ internal class GlassProbeNode(
     recordedGeometry = null
     lastGeometry = null
     unavailable = false
+    FluidGlassProbeDiagnostics.onProbeAttached(1)
     subscribe()
     signal()
   }
 
   override fun onDetach() {
+    FluidGlassProbeDiagnostics.onProbeAttached(-1)
     unsubscribe()
     handler.removeCallbacks(pumpMessage)
     handler.removeCallbacks(timerMessage)
@@ -1344,7 +1395,18 @@ object FluidGlassProbeDiagnostics {
   private val failures = AtomicLong()
   private val refused = AtomicLong()
   private val peak = AtomicInteger()
+  private val live = AtomicInteger()
   private val wakes = Array(GlassProbeWake.entries.size) { AtomicLong() }
+
+  /**
+   * Le sonde attaccate adesso, in tutto il processo (F3.2): un nodo di sonda in scena, letto o no. Un
+   * `FluidGlassContainer` ne ha **una** per tutti i suoi pezzi; ogni vetro radice fuori da un contenitore la sua.
+   */
+  val liveProbes: Int get() = live.get()
+
+  internal fun onProbeAttached(delta: Int) {
+    live.addAndGet(delta)
+  }
 
   /**
    * Perché le sonde si sono svegliate, per motivo (F2.3): una revisione di una sorgente, un riposizionamento, una

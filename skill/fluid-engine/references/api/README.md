@@ -13,8 +13,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
 | [Controlli](controlli.md) | 8 | 54 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 9 | 81 |
-| [Pressione, gesto e movimento](movimento.md) | 7 | 153 |
-| [Vetro](vetro.md) | 29 | 206 |
+| [Pressione, gesto e movimento](movimento.md) | 7 | 157 |
+| [Vetro](vetro.md) | 31 | 232 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 77 |
 | [Tema, forma, tipo](tema.md) | 8 | 108 |
 | [Icone (FluidIcons)](icone.md) | 4 | 197 |

@@ -158,6 +158,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val ChartEnterMillis: Int` — Quanto dura la crescita d'ingresso di un grafico, in millisecondi: piu' lenta di un'uscita, sobria.
   - `fun chartEnter(): FiniteAnimationSpec<Float>` — L'ingresso di un grafico: una frazione 0..1 per cui si moltiplicano barre, arco e tracciato. Una curva senza rimbalzo ([EaseOut]) e non una molla: una barra che supera il suo valore e torna indietro direbbe per un attimo un numero falso.
   - `fun chartSelect(): SpringSpec<Float>` — Il segmento o la barra scelti che si evidenziano, e tornano: critica, col passo dei controlli.
+  - `const val PlaneContextMillis: Int` — Un cambio di contesto: pezzi che si spostano, cambiano forma, nascono da un vicino o vi confluiscono, in millisecondi. R4 B2 (a, c), fiducia **alta**: 270–330 ms sul telefono; il centro della forchetta, che è anche [DurationExpand]: un pezzo che diventa un altro e una destinazione che nasce dal tasto toccato sono lo stesso gesto.
+  - `const val PlaneAppearMillis: Int` — Una comparsa per lente (`Materialize`), in millisecondi. R4 B3, fiducia **media**: la rifrazione sale e il contorno si stringe in 430 ms, con l'opacità del corpo ferma; il simbolo si condensa da 2× a 1× nello stesso tempo.
+  - `const val PlaneDisappearMillis: Int` — Una scomparsa per lente, in millisecondi. R4 B3, fiducia **media**: il simbolo se ne va in 130 ms, la rifrazione va a zero entro 400, poi il contorno; più lenta della comparsa perché l'ultima cosa che sparisce è il bordo.
+  - `const val PlaneAppearScale: Float` — Di quanto è più largo il contorno di un vetro che compare all'inizio (e di uno che scompare alla fine). R4 B3, fiducia **media**: 8–10% più largo; 1,09 è il centro della forchetta. Scelta di gusto aperta (piano, F3: «8–10% di R4 / meno»).
 
 ## `engine-ui/ui/fluid/FluidMotionPolicy.kt`
 

@@ -704,4 +704,36 @@ object FluidMotion {
   /** Il segmento o la barra scelti che si evidenziano, e tornano: critica, col passo dei controlli. */
   fun chartSelect(): SpringSpec<Float> = spring(DampingChrome, ResponseSnappy)
   // --- fine pm-f1/gg1 ---
+
+  // --- Il piano flottante (4.0, piano «iOS in Android», F3.2) ---
+  //
+  // I bilanci di tempo dei viaggi del vetro dentro un `FluidGlassContainer`. Non sono curve: il piano valuta sempre la
+  // molla [standard] e ne cambia solo l'unità di tempo, così il viaggio arriva nel bilancio senza perdere la velocità
+  // ereditata da un viaggio interrotto (`GlassPlaneJourney`). Erano i numeri provvisori di F3.1 in `GlassPlaneMotion`.
+
+  /**
+   * Un cambio di contesto: pezzi che si spostano, cambiano forma, nascono da un vicino o vi confluiscono, in
+   * millisecondi. R4 B2 (a, c), fiducia **alta**: 270–330 ms sul telefono; il centro della forchetta, che è anche
+   * [DurationExpand]: un pezzo che diventa un altro e una destinazione che nasce dal tasto toccato sono lo stesso gesto.
+   */
+  const val PlaneContextMillis: Int = DurationExpand
+
+  /**
+   * Una comparsa per lente (`Materialize`), in millisecondi. R4 B3, fiducia **media**: la rifrazione sale e il
+   * contorno si stringe in 430 ms, con l'opacità del corpo ferma; il simbolo si condensa da 2× a 1× nello stesso tempo.
+   */
+  const val PlaneAppearMillis: Int = 430
+
+  /**
+   * Una scomparsa per lente, in millisecondi. R4 B3, fiducia **media**: il simbolo se ne va in 130 ms, la rifrazione
+   * va a zero entro 400, poi il contorno; più lenta della comparsa perché l'ultima cosa che sparisce è il bordo.
+   */
+  const val PlaneDisappearMillis: Int = 470
+
+  /**
+   * Di quanto è più largo il contorno di un vetro che compare all'inizio (e di uno che scompare alla fine). R4 B3,
+   * fiducia **media**: 8–10% più largo; 1,09 è il centro della forchetta. Scelta di gusto aperta (piano, F3: «8–10% di
+   * R4 / meno»).
+   */
+  const val PlaneAppearScale: Float = 1.09f
 }

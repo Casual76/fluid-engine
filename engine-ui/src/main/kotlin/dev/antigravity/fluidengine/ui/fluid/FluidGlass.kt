@@ -2,15 +2,26 @@
  * Il vetro come configurazione (piano «iOS in Android», 3.13 e F2.2): il `Glass` di SwiftUI. Chi scrive un'app dice
  * quale vetro vuole (di serie, limpido, nessuno), se è tinto e se reagisce al dito; come si disegna lo decide l'engine.
  *
- * Qui c'è il **tipo**. Il modificatore che lo posa su un elemento, `Modifier.fluidGlass(glass, shape, backdrop)`, nasce
- * in F3.2 col contenitore; fino ad allora il tipo si traduce nel materiale con le funzioni interne in fondo al file.
+ * Qui c'è il **tipo** e il modificatore che lo posa su un elemento, `Modifier.fluidGlass(glass, shape, backdrop)`
+ * (`glassEffect(_:in:)` di SwiftUI, F3.2); il contenitore che lo raccoglie in un piano è `FluidGlassContainer`.
  */
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.util.fastCoerceIn
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidClearDim
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
+import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 
 /**
  * Quale vetro: la configurazione del materiale nuovo, come `Glass` in SwiftUI.
@@ -20,9 +31,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
  *     FluidGlass.Clear.interactive()            // limpido, e reagisce al dito
  *     FluidGlass.Identity                       // nessun vetro, senza cambiare l'albero
  *
- * **Per ora nessuna API pubblica accetta un `FluidGlass`**: c'è il tipo, non ancora chi lo posa. Il modificatore
- * `Modifier.fluidGlass` e il primo uso vero di [Clear] arrivano con F3.2, col contenitore; fino ad allora i componenti
- * dell'engine scelgono il loro vetro da soli e gli esempi qui sopra sono la forma che avrà.
+ * Lo posa su un elemento [fluidGlass]; dentro un `FluidGlassContainer` i vetri formano un piano che si anima da solo.
  *
  * Le tre varianti non si mescolano (Apple, WWDC25 219):
  *  - [Regular] è il vetro di quasi tutto: leggibile su qualunque sfondo e a qualunque taglia, perché si adatta a ciò
@@ -118,3 +127,151 @@ internal val FluidGlass.presence: Float
  */
 internal val FluidGlass.recipeTint: Color
   get() = if (variant == FluidGlass.Variant.Identity) Color.Unspecified else tint
+
+// ------------------------------------------------------------------------------------------------------------
+// Il modificatore (F3.2)
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * Posa un vetro dietro a questo elemento: `glassEffect(_:in:)` di SwiftUI.
+ *
+ * ```
+ * Icon(FluidIcons.Play, null, Modifier.size(44.dp).fluidGlass())                  // una capsula di vetro di serie
+ * Text("Fatto", Modifier.fluidGlass(FluidGlass.Regular.tint(accent).interactive()))
+ * Box(Modifier.fluidGlass(FluidGlass.Clear, RoundedCornerShape(24.dp))) { … }      // limpido, sopra una foto
+ * ```
+ *
+ * **Dentro un [FluidGlassContainer]** l'elemento è un pezzo del piano: il vetro lo disegna il contenitore (dietro al
+ * contenuto, una cattura per grappolo), lo fonde coi vicini, lo porta da uno stato all'altro quando l'app cambia lo
+ * stato, e ne decide il lato insieme a tutti gli altri; il contenuto ne riceve l'inchiostro. L'identità e il modo di
+ * comparire si dichiarano **prima**, nella stessa catena: `Modifier.fluidGlassId(id, ns).fluidGlass()` (vedi
+ * [fluidGlassId]: scritti dopo non hanno effetto).
+ *
+ * **Fuori da un contenitore** è un vetro a sé, come [glassSurface] (o [glassControlSurface] se reagisce al dito): segue
+ * lo sfondo con velo e ombra, ma **non gira** chiaro/scuro, perché un modificatore non sa di che colore è ciò che l'app
+ * gli disegna sopra. Per il patto dell'inchiostro, un contenitore anche con un pezzo solo.
+ *
+ * [FluidGlass.Clear] è il vetro limpido: niente smerigliatura, uno scurimento fisso del 35% sotto (HIG), nessuna
+ * adattività. [FluidGlass.Identity] non disegna niente e lascia il contenuto com'è. Col vetro di prima
+ * (`FluidGlassModel.Classic`, e sotto Android 13) il limpido è il vetro di serie.
+ *
+ * Una [FluidConcentricShape] si risolve al layout contro il contenitore di forma più vicino ([fluidContainerShape]).
+ *
+ * @param glass quale vetro: [FluidGlass.Regular] di serie.
+ * @param shape la sagoma: la capsula di serie. Una forma che il campo non sa rendere (un `Outline` generico) resta un
+ *   vetro a sé anche in un contenitore.
+ * @param backdrop ciò che il vetro rifrange: di serie quello del punto in cui sta ([currentGlassBackdrop]).
+ */
+@Composable
+fun Modifier.fluidGlass(
+  glass: FluidGlass = FluidGlass.Regular,
+  shape: Shape = FluidCapsuleShape,
+  backdrop: GlassBackdropState = currentGlassBackdrop(),
+): Modifier {
+  // Gli attributi scritti alla sinistra di questo vetro, nella stessa catena (il contratto dell'ordine).
+  val attributes = fluidGlassAttributesOf(this)
+  val marked = this.then(FluidGlassMarkerElement)
+  if (glass.isIdentity) return marked
+  val baseTint = GlassDefaults.controlTint()
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val press = if (glass.isInteractive) rememberFluidPressState(FluidPressFeedback.Expand) else null
+  val container = currentFluidGlassContainer(shape)
+  if (container != null) {
+    val touch = remember(press, reducedMotion) { press?.let { fluidGlassTouchLight(it, reducedMotion) } }
+    val layer = remember(press, reducedMotion) { press?.let { fluidGlassPressLayer(it, reducedMotion) } }
+    val look = remember(glass, shape, backdrop, baseTint, press, touch, layer) {
+      fluidGlassLook(glass, shape, backdrop, baseTint, press, touch, layer)
+    }
+    return marked
+      .fluidGlassPiece(container, look, attributes)
+      // Il contenuto cresce e segue il dito col vetro, che lo fa nella sua superficie con lo stesso blocco.
+      .then(if (layer != null) Modifier.graphicsLayer(layer) else Modifier)
+      .then(if (press != null) Modifier.fluidPressTracking(press, ownsPress = true) else Modifier)
+  }
+  return marked.fluidGlassAlone(glass, shape, backdrop, baseTint)
+}
+
+/** Un `fluidGlass` fuori da un contenitore: la superficie di sempre, con la forma concentrica risolta al layout. */
+@Composable
+private fun Modifier.fluidGlassAlone(
+  glass: FluidGlass,
+  shape: Shape,
+  backdrop: GlassBackdropState,
+  baseTint: GlassTint,
+): Modifier {
+  val concentric = shape as? FluidConcentricShape
+  val layoutDirection = LocalLayoutDirection.current
+  val radii = if (concentric != null) rememberFluidConcentricRadii(concentric.minimum) else null
+  val drawn = if (concentric != null && radii != null) {
+    remember(concentric, radii.radii, layoutDirection) { concentric.resolvedTo(radii.radii, layoutDirection) }
+  } else {
+    shape
+  }
+  val head = if (radii != null) this.fluidConcentricRadii(radii) else this
+  // Il limpido è una variante del materiale nuovo: col vetro di prima è il vetro di serie (vedi [FluidGlass]).
+  val fit = rememberGlassFieldFit(drawn)
+  val requested = fluidGlassOptics(glass).sanitized()
+  val liquid = rememberFluidGlassModel(drawn, GlassFalloff.Uniform, requested, fit) == FluidGlassModel.Liquid
+  val drawnGlass = if (liquid || !glass.isClear) glass else FluidGlass.Regular.interactive(glass.isInteractive)
+  val tint = fluidGlassTint(drawnGlass, baseTint)
+  val optics = fluidGlassOptics(drawnGlass)
+  return if (glass.isInteractive) {
+    head.glassControlSurface(backdrop = backdrop, shape = drawn, tint = tint, optics = optics)
+  } else {
+    head.glassSurface(state = backdrop, tint = tint, shape = drawn, role = GlassRole.Floating, optics = optics)
+  }
+}
+
+/**
+ * La pellicola di un `fluidGlass`: quella di serie dei controlli; la tinta di Apple ([GlassTintMode.Colored]: la
+ * tonalità resta, la luminosità segue lo sfondo) se il vetro è tinto; per il limpido lo scurimento fisso
+ * [GlassLiquidClearDim] come pellicola nera (che prende il posto del velo e non gira).
+ *
+ * **Il limpido è un ponte** (F3.2): la variante [GlassLiquidVariant.Clear] della ricetta non arriva ancora alle
+ * superfici (`GlassLiquidSurface` e `PhysicsLiquidSurface` non la ricevono), quindi qui la si ottiene con gli ingressi
+ * che arrivano: pellicola nera al 35% e smerigliatura a zero ([fluidGlassOptics]). A riposo è lo stesso conto (velo
+ * zero, nessuna adattività, scurimento del 35%); manca la mescola che tiene il raggio per animare fra le due varianti.
+ * Quando la variante arriverà alle superfici, questa funzione tornerà la pellicola di serie per il limpido.
+ */
+internal fun fluidGlassTint(glass: FluidGlass, base: GlassTint): GlassTint = when {
+  glass.isClear -> GlassTint(
+    overlay = Color.Black.copy(alpha = GlassLiquidClearDim),
+    fallback = base.fallback,
+    hairline = base.hairline,
+    mode = GlassTintMode.Fixed,
+  )
+  glass.recipeTint.isSpecified -> GlassTint(
+    overlay = glass.tint,
+    fallback = glass.tint.compositeOver(base.fallback),
+    hairline = base.hairline,
+    mode = GlassTintMode.Colored,
+  )
+  else -> base
+}
+
+/** Il bagliore del dito di un `fluidGlass` interattivo, come quello di `glassControlSurface`. */
+internal fun fluidGlassTouchLight(press: FluidPressState, reducedMotion: Boolean): GlassTouchLight = GlassTouchLight(
+  amount = { press.progress.fastCoerceIn(0f, 1f) * (if (reducedMotion) 0.4f else 1f) },
+  position = { press.glow },
+)
+
+/**
+ * La trasformazione della pressione di un `fluidGlass` interattivo (cresce, si piega verso il dito), la stessa di
+ * `glassControlSurface`: il vetro la riceve come `layerBlock` (il renderer la corregge quando campiona), il contenuto
+ * come layer suo.
+ */
+internal fun fluidGlassPressLayer(press: FluidPressState, reducedMotion: Boolean): GraphicsLayerScope.() -> Unit = {
+  val transform = fluidPressTransform(
+    feedback = press.feedback,
+    progress = press.progress,
+    lean = press.lean,
+    width = size.width,
+    height = size.height,
+    dp = density,
+    reducedMotion = reducedMotion,
+  )
+  scaleX = transform.scaleX
+  scaleY = transform.scaleY
+  translationX = transform.translationX
+  translationY = transform.translationY
+}

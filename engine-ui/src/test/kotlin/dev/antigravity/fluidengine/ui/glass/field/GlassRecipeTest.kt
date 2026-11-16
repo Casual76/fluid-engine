@@ -199,10 +199,11 @@ class GlassRecipeTest {
     assertEquals(0.5f, glassLiquidLargeVeilGain((GlassLiquidDarkLargeStartDp + GlassLiquidDarkLargeEndDp) / 2f), 1e-6f)
     assertEquals(1f, glassLiquidLargeVeilGain(GlassLiquidDarkLargeEndDp), 0f)
     assertEquals(0f, glassLiquidLargeVeilGain(Float.NaN), 0f)
-    // G1 (scelta 3 di S3): il velo scuro dei piccoli scende a 0,39; quello dei grandi resta a 0,5 (la scelta 4, 0,89, è
-    // ferma: il testo secondario sul foglio scuro scenderebbe sotto 6:1). Fino a S3 erano alla stessa alfa.
+    // G1 (scelta 3 di S3): il velo scuro dei piccoli scende a 0,39. Quello dei grandi è a 0,63 (scelta di Alessio, 2026-11-16,
+    // sul tablet fra 0,5 / 0,63 / 0,89: 0,89 porterebbe il testo secondario del foglio scuro sotto 6:1). Fino a S3 erano alla
+    // stessa alfa.
     assertEquals(99f / 255f, GlassLiquidVeils.DarkLighter.color.alpha, 1e-6f)
-    assertEquals(128f / 255f, GlassLiquidVeils.DarkLarge.color.alpha, 1e-6f)
+    assertEquals(161f / 255f, GlassLiquidVeils.DarkLarge.color.alpha, 1e-6f)
     // Sul chiaro il velo non cambia con la taglia: il testo vi si legge come oggi.
     assertEquals(button().veilColor, panel().veilColor)
     assertEquals(button().veilAdapt, panel().veilAdapt, 0f)

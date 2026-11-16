@@ -37,6 +37,11 @@ package dev.antigravity.fluidengine.ui.fluidphysics
  * stesso istante (`doppio`), le cancellazioni (`goccia-interrompi`), le terze tappe di uno-due e uno-otto; e i 62
  * `passo-zero:velo-a` della posa attesa: la posa a riposo ferma il velo dei grandi perche' a riposo non c'e' un orologio che lo porti avanti
  * (`PhysicsLargeVeil.settle`), e non si risolve senza un fotogramma che la superficie a riposo non chiede.
+ *
+ * F2 valori finali (corsa lg-f2-valori, 2026-11-16): il velo scuro dei grandi passa a 0,63 (scelta di Alessio sul tablet),
+ * quindi il salto d'alfa della stessa posa attesa sale da 0,11 a 0,24 (61 livelli su 255 invece di 28) e 4 chiavi
+ * POSA_ATTESA che avevano solo i grigi del velo passano a `passo-zero:velo-a`: `uno-due-inverso` e `uno-otto-inverso`,
+ * `goccia-interrompi50`, 60 e 120 Hz, scuro. Stessa causa e stessa classe delle 62 di G1, non un regresso del collo.
  */
 internal object MorphRobustnessKnown {
   private val records = listOf(
@@ -1478,9 +1483,9 @@ internal object MorphRobustnessKnown {
     uno-due-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi50/120/chiaro|passo-zero:area|RITARGETING
-    uno-due-inverso/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due-inverso/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi50/60/chiaro|passo-zero:area|RITARGETING
-    uno-due-inverso/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due-inverso/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi75/120/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi75/60/chiaro|passo-zero:area|RITARGETING
@@ -1499,8 +1504,8 @@ internal object MorphRobustnessKnown {
     uno-due/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi75/120/chiaro|passo-zero:area|RITARGETING
     uno-otto-inverso/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi75/60/chiaro|passo-zero:area|RITARGETING

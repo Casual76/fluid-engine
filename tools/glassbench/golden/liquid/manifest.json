@@ -17,7 +17,7 @@
       "name": "pagina-scura",
       "scene": "scenes/f1a/ricetta/pagina-scura.json",
       "png": "pagina-scura.png",
-      "sha256": "49a096617c04c8b27b8e93f269509a08e0c8667ce9f8d6a3e5a0901b2db5c15a",
+      "sha256": "aaf4c5e6186ef6c5e641208f0ddb11c540c426fef74162af3b67bf605207f1c8",
       "size": [
         960,
         540
@@ -27,7 +27,7 @@
       "name": "pagina-nera",
       "scene": "scenes/f1a/ricetta/pagina-nera.json",
       "png": "pagina-nera.png",
-      "sha256": "a948f4d92c0ff3d7e2611f6888308ac3deff9998343c4d7e7965f5b6abadec4a",
+      "sha256": "34081c2d14b63f9b2ec19c6fcdcc7b6ac4335b724806266f1a76da82ae55c304",
       "size": [
         960,
         540
@@ -67,7 +67,7 @@
       "name": "rif-bianco-nero",
       "scene": "scenes/f1a/ricetta/rif-bianco-nero.json",
       "png": "rif-bianco-nero.png",
-      "sha256": "30fa1906cd43e08710ff6a2af5159153037f1bbca860af603db550725373f03b",
+      "sha256": "601bd8fe37198eed5d9278433087648d92d5e0fd8432832eefcbcb6e046796be",
       "size": [
         960,
         600
@@ -107,7 +107,7 @@
       "name": "rif27-scuro",
       "scene": "scenes/f1a/ricetta/rif27-scuro.json",
       "png": "rif27-scuro.png",
-      "sha256": "a02cf4cdd4ee0784792fdc00fef90cd861dca6041855f96355e59c340d322e84",
+      "sha256": "81ac3f0e17490170e8044b6b6404bb394fdb1d60257baaf8517f546e3d86e380",
       "size": [
         840,
         400
@@ -127,7 +127,7 @@
       "name": "campione-scuro",
       "scene": "scenes/f1a/gusto/serie-scuro.json",
       "png": "campione-scuro.png",
-      "sha256": "6255bf7a6f3c4aeb7577f88fd5484250c7b44e46bbbe114b687ec349b292dd12",
+      "sha256": "fd5544e311cd30cc18ccfbe6369fd999e761cae389c72a0ff3499101eae0e5a5",
       "size": [
         1800,
         880
@@ -268,7 +268,7 @@
       "name": "f1b-riposo-contro-viaggio-viaggio-0-scuro",
       "scene": "scenes/f1b/riposo-contro-viaggio-viaggio-0-scuro.json",
       "png": "f1b-riposo-contro-viaggio-viaggio-0-scuro.png",
-      "sha256": "bed553ec62256ddf8ba4dcf9ccb64cf552459279089057b1fc1a79bc34592c33",
+      "sha256": "9905fefd6c843e176621e70b2f49ae2e79f906c9a93e899161a34085520dc1a7",
       "size": [
         960,
         1380
@@ -279,7 +279,7 @@
       "scene": "scenes/f1b/poly-scuro.json",
       "png": "f1b-poly-scuro.png",
       "density": 3.0,
-      "sha256": "94165c2715d5322603ffea5bc40790f918caa6ca6e0944baa9ed70c2ecab0987",
+      "sha256": "911f0859b8e9a064dc3ce1676e01f567daa87d2009d5d09caf7f577361e0d25d",
       "size": [
         1440,
         1800
@@ -406,26 +406,27 @@
   "sources": {
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/backdrop/internal/Shaders.kt": "3272701cebb5d023",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluidphysics/FluidPhysicsShaders.kt": "aa342706550b0c5d",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassAdaptiveFilter.kt": "95b0a22361ff76ab",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassAdaptiveTuning.kt": "0f29448b82732f8a",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassBodyShader.kt": "fa1d2acec47cf922",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassAdaptiveFilter.kt": "6ebc9b3e2828fe44",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassAdaptiveTuning.kt": "4f728bf348b42a7c",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassBodyShader.kt": "71215f6785391f54",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassDropProfile.kt": "6bce72af5d976a42",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldEffects.kt": "2fa573f4702e1e81",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldGeometry.kt": "62ab5252e3876bbe",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldEffects.kt": "b1beeffb53b6e4bc",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldGeometry.kt": "95c6608d1783cbdd",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldHealth.kt": "38cc182d0db08abf",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldKernel.kt": "3a96e3477e6a9c62",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldKernel.kt": "2f222dc08744bbfc",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassFieldPlan.kt": "3875bdf0344058c4",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLightShader.kt": "e7b9c1ef91e12dd4",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLiquidProfile.kt": "095b5c4fc40c1fac",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassLiquidProfile.kt": "5f0e14e57db0c9b9",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassOpaquePanel.kt": "f91a5f30b161e134",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassPaintedProfile.kt": "1cdf55ee2e5f7432",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassProbe.kt": "4a26fa75e726b24f",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassPlane.kt": "7597d08c905d135e",
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassProbe.kt": "084fbb33d6d42b4b",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassProbeScheduler.kt": "423aa5b876ac9ae3",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassPuckProfile.kt": "9d1162966ab37753",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassRecipe.kt": "c5597b8fe1446d9d",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassScrollEdgeShader.kt": "25c3ad777ff11eb8",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassShadow.kt": "1e349e76a45eebe9",
     "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/glass/field/GlassWarmUp.kt": "d39324770209ef1d",
-    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "1d94a769909045a6"
+    "engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/GlassMaterial.kt": "edd4fa3e298d4c06"
   }
 }

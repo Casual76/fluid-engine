@@ -14,8 +14,8 @@
  * Dalla G1 (rilievi A-R3, B-R5, B-R10: scorrendo, barra e tab bar passano troppo tempo a girare), la scelta «cosa fa il
  * vetro mentre scorri»:
  *
- * - `flipdwell` = millisecondi, 0..3000 (di serie 400): la permanenza minima dopo un giro
- *   ([GlassAdaptiveMinDwellMillis]); a 1000 nessun vetro gira due volte in meno di un secondo;
+ * - `flipdwell` = millisecondi, 0..3000 (di serie 1000): la permanenza minima dopo un giro
+ *   ([GlassAdaptiveMinDwellMillis]); di serie nessun vetro gira due volte in meno di un secondo;
  * - `flipscroll` = `live` (di serie: decide mentre scorre) | `rest` (mentre lo sfondo scorre più svelto di
  *   [GlassFlipRestSpeedDp] il lato resta quello dell'ultimo riposo, e si decide quando rallenta o si ferma) | `ahead`
  *   (la sonda legge la fascia che sta **entrando** sotto il vetro, [GlassFlipAheadMillis] avanti nel verso dello

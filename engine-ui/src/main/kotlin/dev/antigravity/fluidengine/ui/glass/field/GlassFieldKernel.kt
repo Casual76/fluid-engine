@@ -404,8 +404,8 @@ float glassField(float2 p, out float2 normal, out float2 center) {
  * e due più a fondo di un raggio di fusione (`smoothstep(0, k, -max(dPezzo, dFuso))`): vicino al contorno, dove fa il
  * raccordo, resta intero, e il contorno (`d = 0`) non cambia di un pixel. Dove `h` è 0 o 1 il termine è comunque zero:
  * un gruppo a riposo (`pieceBlend` zero) dà gli stessi bit di prima. Lo specchio Kotlin di questa funzione
- * (`GlassFieldGeometry.fieldDistance`) dà ancora la distanza col rigonfiamento: il segno è lo stesso, e i test che lo
- * usano (aree, contatti) leggono il segno.
+ * (`GlassFieldGeometry.fieldDistance`) ha lo stesso attenuarsi del rigonfiamento dal pacchetto F3.2c: stessa
+ * distanza, non solo lo stesso segno (prima dava ancora il rigonfiamento intero).
  *
  * ### Normale e centro fra pezzi che si compenetrano (F3.3)
  * Dentro un pezzo, vicino all'altro, la normale del pezzo punta al suo arco **nascosto** dall'altro, che non è contorno.

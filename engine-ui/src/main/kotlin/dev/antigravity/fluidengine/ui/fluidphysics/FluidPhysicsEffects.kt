@@ -584,8 +584,8 @@ internal fun physicsFieldPlan(
   out: GlassFieldPlan,
   /**
    * L'esponente della vita del collo nel tempo. Non finito (di serie): quello del piano ([PhysicsRenderPlan.neckPinch]:
-   * [PhysicsNeckPinchExponent] per i viaggi di `morphTo`, [PhysicsPlaneNeckPinch] per il piano flottante). Un numero lo
-   * scavalca: lo fanno le varianti delle tavole di gusto di F3.3.
+   * [PhysicsNeckPinchExponent], lo stesso per i viaggi di `morphTo` e per il piano flottante: un collo solo per tutto
+   * l'engine, 2026-11-16). Un numero lo scavalca: lo fanno le varianti delle tavole di gusto di F3.3.
    */
   neckPinch: Float = Float.NaN,
 ): GlassFieldPlan {

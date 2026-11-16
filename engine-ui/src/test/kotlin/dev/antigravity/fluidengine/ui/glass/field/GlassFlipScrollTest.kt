@@ -47,18 +47,24 @@ class GlassFlipScrollTest {
 
   @Test
   fun aOneSecondDwellNeverFlipsTwiceInLessThanASecond() {
-    val filter = GlassAdaptiveKnobs.parse(mapOf("flipdwell" to "1000")).filter(initialDark = false)
-    var t = 0L
-    val flips = mutableListOf<Long>()
-    // Un riquadro scuro ogni 600 ms, scuro per 300: col filtro di serie (400 ms) giri a ogni passaggio.
-    filter.sample(t, 0.9f)
-    while (t < 6_000L) {
-      t += 20L
-      val dark = (t % 600L) < 300L
-      if (filter.sample(t, if (dark) 0.05f else 0.9f)) flips += t
+    // La permanenza di serie è 1 s (criterio F2-a: mai due giri in meno di un secondo sullo stesso vetro; era 400 ms).
+    assertEquals(1_000L, GlassAdaptiveMinDwellMillis)
+    for (filter in listOf(
+      GlassAdaptiveKnobs.parse(emptyMap()).filter(initialDark = false),
+      GlassAdaptiveKnobs.parse(mapOf("flipdwell" to "1000")).filter(initialDark = false),
+    )) {
+      var t = 0L
+      val flips = mutableListOf<Long>()
+      // Un riquadro scuro ogni 600 ms, scuro per 300: con 400 ms di permanenza girerebbe a ogni passaggio.
+      filter.sample(t, 0.9f)
+      while (t < 6_000L) {
+        t += 20L
+        val dark = (t % 600L) < 300L
+        if (filter.sample(t, if (dark) 0.05f else 0.9f)) flips += t
+      }
+      assertTrue("qualche giro: $flips", flips.isNotEmpty())
+      for (i in 1 until flips.size) assertTrue("${flips[i - 1]} → ${flips[i]}", flips[i] - flips[i - 1] >= 1_000L)
     }
-    assertTrue("qualche giro: $flips", flips.isNotEmpty())
-    for (i in 1 until flips.size) assertTrue("${flips[i - 1]} → ${flips[i]}", flips[i] - flips[i - 1] >= 1_000L)
   }
 
   @Test

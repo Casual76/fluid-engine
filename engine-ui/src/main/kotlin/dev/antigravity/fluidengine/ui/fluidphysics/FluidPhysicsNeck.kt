@@ -22,8 +22,8 @@ import kotlin.math.sqrt
 //
 //  - ν = 1: il collo è pieno, cioè il raccordo più grande che non porta mai il contorno fuori dal filo dei lobi
 //    ([physicsNeckFull]): due pezzi vicini sono una goccia sola, senza tacca né perlina;
-//  - 0 < ν < 1: la vita del collo è ν^(2/3) di quella piena, la legge della rottura di un getto (il raggio del
-//    collo va come il tempo alla rottura alla 2/3): si assottiglia piano e si strozza di colpo;
+//  - 0 < ν < 1: la vita del collo è ν^(1/2) di quella piena (era ν^(2/3), la legge della rottura di un getto, fino alla
+//    scelta di Alessio del 2026-11-16, «spesso»): si assottiglia piano e si strozza di colpo;
 //  - ν = 0: la rottura, una volta sola, a una frazione fissa del tempo del viaggio (`GlassLiquidNeck`);
 //  - -1 < ν < 0: pezzi staccati, i lobi che si ritirano;
 //  - ν = -1: nessun raccordo. È il riposo: pezzi separati del tutto (scelta di Alessio, 2026-11-11).
@@ -59,22 +59,24 @@ internal const val PhysicsNeckRise: Float = 0.09f
 internal const val PhysicsNeckPinch: Float = 0.12f
 
 /**
- * L'esponente della vita del collo dei viaggi di `morphTo` (menu, barre, pannelli): raggio del collo ∝ (tempo alla
- * rottura)^(2/3), la legge della rottura di un getto non viscoso. Con un esponente uno il collo indugiava sottile per
- * 4–5 fotogrammi (le «punte» della partenza); con 2/3 resta spesso più a lungo e si strozza in un fotogramma.
+ * L'esponente della vita del collo, **uno solo per tutto l'engine**: raggio del collo ∝ (tempo alla rottura)^(1/2). I
+ * viaggi di `morphTo` (menu, barre, pannelli) e il piano flottante (`FluidGlassContainer`) lo condividono.
  *
- * Il piano flottante ha il suo, [PhysicsPlaneNeckPinch] (scelta di Alessio, 2026-11-16): questo resta quello tarato sul
- * tablet in F1B.9, perché fuori dai contenitori niente cambi.
+ * **Scelta di Alessio, 2026-11-16**, sulla tavola «quanto si strozza il collo» di F3.3 (spesso 1/2 / di serie 2/3 /
+ * filo 1): «spesso», 1/2. Il collo resta pieno più a lungo e si strozza più di colpo, sempre una volta sola; il collo
+ * lungo (la rottura a [GlassLiquidNeck], 0,38, scelta A) non cambia. F3.2c l'aveva messo solo nel piano; il pacchetto
+ * «F2 valori finali» l'ha portato anche ai viaggi di `morphTo`, che restavano a 2/3, la legge della rottura di un getto
+ * non viscoso tarata in F1B.9. Con un esponente uno il collo indugiava sottile per 4–5 fotogrammi (le «punte» della
+ * partenza); sotto uno resta spesso più a lungo e si strozza in un fotogramma, e 1/2 più di 2/3.
  */
-internal const val PhysicsNeckPinchExponent: Float = 2f / 3f
+internal const val PhysicsNeckPinchExponent: Float = 1f / 2f
 
 /**
- * L'esponente della vita del collo dei viaggi del **piano flottante** (`FluidGlassContainer`). **Scelta di Alessio,
- * 2026-11-16**, sulla tavola «quanto si strozza il collo» di F3.3 (spesso 1/2 / di serie 2/3 / filo 1): «spesso», 1/2.
- * Il collo resta pieno più a lungo e si strozza più di colpo, sempre una volta sola; il collo lungo (la rottura a
- * [GlassLiquidNeck], 0,38, scelta A) non cambia.
+ * L'esponente del collo del piano flottante: lo stesso di [PhysicsNeckPinchExponent] (un collo solo per tutto l'engine,
+ * 2026-11-16). Resta un nome a parte perché il piano lo legge così (`PhysicsPlaneShape.pinch`, `buildPlanePlan`) e la
+ * tavola di F3.3 lo variava da solo; chi lo cambia oggi cambia entrambi.
  */
-internal const val PhysicsPlaneNeckPinch: Float = 0.5f
+internal const val PhysicsPlaneNeckPinch: Float = PhysicsNeckPinchExponent
 
 /**
  * Fin dove il collo arriva, in multipli del raggio di fusione del gruppo (`blendRadius`, la distanza di fusione che
@@ -361,7 +363,7 @@ private val PhysicsNeckTouchShape: Float = run {
  *
  * Staccati, il ponte c'è se il raccordo supera il doppio del varco (lo smooth minimum fa ponte finché il varco è meno
  * di mezzo raggio): fra la rottura (ν = 0, raccordo = 2·varco) e il pieno la vita del collo a metà strada è
- * ν^(2/3) della vita piena, con ν la più bassa fra la coordinata dell'orologio e quella della distanza
+ * ν^(1/2) della vita piena, con ν la più bassa fra la coordinata dell'orologio e quella della distanza
  * ([physicsNeckReachCoordinate]). Oltre il limite geometrico il raccordo si ritira ([PhysicsNeckGeometricRetract]).
  * Sovrapposti, il raccordo è la stessa forma del contatto scalata sul pieno di adesso: al contatto le due regole
  * coincidono, e due pezzi che coincidono (la fine di ogni riunione) non hanno raccordo.

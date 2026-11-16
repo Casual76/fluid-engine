@@ -1193,7 +1193,7 @@ internal class PhysicsRenderPlan {
   /** L'unione di ogni pezzo, -1 se non ne ha: vedi [planeNeck]. */
   val pieceUnion = IntArray(PhysicsMaxPieces) { -1 }
 
-  /** L'esponente della vita del collo nel tempo di questo piano: [PhysicsNeckPinchExponent] salvo il piano flottante. */
+  /** L'esponente della vita del collo nel tempo di questo piano: [PhysicsNeckPinchExponent], uno solo per tutto l'engine (il collo «spesso», 1/2, scelta di Alessio del 2026-11-16). */
   var neckPinch: Float = PhysicsNeckPinchExponent
 
   /**

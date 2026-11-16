@@ -133,10 +133,10 @@ nascono dopo, quindi si danno al lancio insieme alla scena:
 | `flipwait` | `20`–`2000` ms (di serie 200) | quanto il filtro aspetta prima di decidere il lato (la costante di tempo della media) | come sopra |
 | `flipon` · `flipoff` | `0`–`1` (di serie 0,45 e 0,62) | le due soglie del filtro: verso lo scuro, di ritorno al chiaro. `flipon` sotto `flipoff` | `soglia` con `adaptive.auto true`; la scheda Materiale sui riquadri colorati |
 | `darkveilalpha` | `0`–`1` (di serie 0,39 dalla G1, prima 0,5) | la profondità di un vetro piccolo girato sul nero (e del vetro scuro del tema scuro): sul tablet 0,5 / 0,39 / 0,29 danno 55 / 43 / 32. Sopra una foto scura il piccolo prende il velo dei grandi e la tab bar la sua pellicola: lì quasi non cambia (70–74) | `bianco-nero` sul nero, sui due temi |
-| `darklargealpha` | `0`–`1` (di serie 0,5) | la profondità di un grande sopra il nero pieno (foglio, pop-up, pannello) | `grandi` con `adaptive.share 1` |
+| `darklargealpha` | `0`–`1` (di serie 0,63, scelta di Alessio del 2026-11-16; prima 0,5) | la profondità di un grande sopra il nero pieno (foglio, pop-up, pannello) | `grandi` con `adaptive.share 1` |
 | `darkceiling` | `0`–`1` (di serie 0,40) | il soffitto del velo scuro dei grandi a copertura parziale | `grandi` con `adaptive.share` a metà |
 | `edgedim` | `0`–`1` (di serie 0,2) | lo scurimento della striscia del bordo dello scorrimento sul lato scuro | `scorrimento` con `adaptive.fullbar true` |
-| `flipdwell` | `0`–`3000` ms (di serie 400) | la permanenza minima dopo un giro: a 1000 nessun vetro gira due volte in meno di un secondo | `scorrimento` con `adaptive.auto true` e `adaptive.speed 2` |
+| `flipdwell` | `0`–`3000` ms (di serie 1000 dalla chiusura di F2; prima 400) | la permanenza minima dopo un giro: a 1000 nessun vetro gira due volte in meno di un secondo | `scorrimento` con `adaptive.auto true` e `adaptive.speed 2` |
 | `flipscroll` | `live` (di serie) · `rest` · `ahead` | cosa fa il vetro mentre lo sfondo scorre: decide come sempre; tiene il lato dell'ultimo riposo finché il contenuto scorre più svelto di 120 dp/s; legge la fascia che entra sotto il vetro, 300 ms avanti (mai fuori dalla registrazione) | come sopra, lento (`adaptive.speed 1`) e veloce (`2`), due temi |
 | `flipby` · `flipcover` | `luminance` (di serie) · `coverage`; `0,55`–`0,95` (di serie 0,75) | decide sulla quota della miniatura più scura della soglia invece che sulla media: verso lo scuro a `flipcover`, di ritorno al chiaro a `1 − flipcover` | come sopra; `soglia` con `adaptive.auto true` |
 

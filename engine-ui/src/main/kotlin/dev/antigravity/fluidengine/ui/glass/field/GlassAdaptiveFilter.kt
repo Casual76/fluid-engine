@@ -50,8 +50,13 @@ internal const val GlassAdaptiveDarkBelow: Float = 0.45f
 /** Sopra questa torna sul lato chiaro (R3 cap. 3: attorno a 0,62). Da tarare in S3. */
 internal const val GlassAdaptiveLightAbove: Float = 0.62f
 
-/** Quanto resta su un lato, al minimo, dopo un giro (R3 cap. 3: 300–500 ms). Da tarare in S3. */
-internal const val GlassAdaptiveMinDwellMillis: Long = 400L
+/**
+ * Quanto resta su un lato, al minimo, dopo un giro: **1000 ms** (R3 cap. 3 diceva 300–500; erano 400 fino a F2). La
+ * chiusura di F2 sul tablet (2026-11-16) ha mostrato che con 400 ms il vetro `live` fa doppi giri mentre si scorre (tab bar
+ * 8 giri / 4 doppi, tasti 10 / 7 in 10 s nel caso veloce): il criterio F2-a, riscritto, vuole che nessun vetro giri due
+ * volte in meno di circa un secondo, e con 1 s i doppi giri spariscono. Decisione dell'orchestratore, 2026-11-16.
+ */
+internal const val GlassAdaptiveMinDwellMillis: Long = 1000L
 
 /**
  * Ciò che il filtro consegna: il lato deciso e i numeri dell'ultima lettura, come bersagli. Uguaglianza strutturale:

@@ -176,8 +176,8 @@ class GlassSceneExportTest {
     // la barra, sempre più scure con la taglia.
     fun veil(name: String) = uniforms(element(dark, name)["body"])["veilColor"] as String
     assertEquals("#78788063", veil("tasto"))
-    assertEquals("#36363C80", veil("menu"))
-    assertEquals("#36363C80", veil("pannello"))
+    assertEquals("#36363CA1", veil("menu"))
+    assertEquals("#36363CA1", veil("pannello"))
     val greys = listOf("tasto", "capsula", "barra", "menu").map { veil(it).substring(1, 3).toInt(16) }
     assertEquals(greys.sortedDescending(), greys)
     assertTrue(greys[1] < greys[0] && greys[2] > greys[3])
@@ -212,7 +212,7 @@ class GlassSceneExportTest {
     val after = scene("gusto/testo-serie-scuro.json")
     val before = scene("gusto/testo-prima-scuro.json")
     for (name in listOf("foglio", "card")) {
-      assertEquals("#36363C80", uniforms(element(after, name)["body"])["veilColor"])
+      assertEquals("#36363CA1", uniforms(element(after, name)["body"])["veilColor"])
       assertEquals("#78788063", uniforms(element(before, name)["body"])["veilColor"])
     }
     // Il tasto annidato prende il vetro annidato: sullo scuro un terzo del velo (0,35 di 0x63 = 0x23; G1, scelta 3 di S3), e

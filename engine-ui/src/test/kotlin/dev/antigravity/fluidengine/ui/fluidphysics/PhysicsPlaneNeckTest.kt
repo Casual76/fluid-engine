@@ -131,10 +131,10 @@ class PhysicsPlaneNeckTest {
 
   @Test
   fun thePlaneNeckIsThickAsAlessioChose() {
-    // Scelta di Alessio, 2026-11-16 (tavola «quanto si strozza il collo»): «spesso», 1/2, per il piano flottante; i
-    // viaggi di `morphTo` restano a 2/3, perché fuori dai contenitori niente cambi.
+    // Scelta di Alessio, 2026-11-16 (tavola «quanto si strozza il collo»): «spesso», 1/2. Un collo solo per tutto
+    // l'engine: lo stesso esponente per il piano flottante e per i viaggi di `morphTo` (F3.2c l'aveva messo solo nel piano).
     assertEquals(0.5f, PhysicsPlaneNeckPinch, 0f)
-    assertEquals(2f / 3f, PhysicsNeckPinchExponent, 0f)
+    assertEquals(0.5f, PhysicsNeckPinchExponent, 0f)
     val plan = PhysicsRenderPlan()
     val slabs = listOf(piece("a", 132f), piece("b", 184f)).map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) }
     buildPlanePlan(plan, PhysicsPlaneShape(slabs, nominal, neck = 0.2f))
@@ -142,9 +142,10 @@ class PhysicsPlaneNeckTest {
     val field = physicsFieldPlan(plan, 1f, GlassFieldPlan(GlassFieldMaxPieces))
     val gap = 8f * d
     assertEquals(physicsNeckPairBlend(-gap, 2f * 22f * d, nominal, 0.2f, 0.5f), field.blend[1], 1e-3f)
-    // Un piano di `morphTo` resta col suo.
+    // Un piano di `morphTo` ha lo stesso: un collo solo.
     val other = PhysicsRenderPlan()
     buildRestPlan(other, FluidForm.Group(slabs, nominal), physicsNeckEncode(0.2f))
+    assertEquals(PhysicsPlaneNeckPinch, other.neckPinch, 0f)
     assertEquals(PhysicsNeckPinchExponent, other.neckPinch, 0f)
   }
 
@@ -279,7 +280,7 @@ class PhysicsPlaneNeckTest {
     val r = 66f
     val ends = 2f * r
     val gap = 0.36f * r
-    for (pinch in listOf(0.5f, PhysicsNeckPinchExponent, 1f)) {
+    for (pinch in listOf(0.5f, 2f / 3f, 1f)) {
       // Pieno e rotto sono gli stessi per ogni variante: cambia solo la strada fra i due.
       assertEquals(physicsNeckPairBlend(-gap, ends, nominal, 1f), physicsNeckPairBlend(-gap, ends, nominal, 1f, pinch), 1e-3f)
       assertEquals(2f * gap, physicsNeckPairBlend(-gap, ends, nominal, 0f, pinch), 1e-3f)

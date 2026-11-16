@@ -7,7 +7,6 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
-import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsNeckPinchExponent
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusionDp
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeck
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeckPinch
@@ -470,7 +469,7 @@ internal object F33Traces {
       Variant("larga · 24 dp, fusi a riposo", fusionDp = 24f, restFused = true))
     // La tavola com'era quando Alessio l'ha giudicata (2026-11-16): ha scelto la prima, che oggi è di serie.
     val pinch = listOf(Variant("spesso · si spezza di colpo", pinch = 0.5f),
-      Variant("di serie · 2/3 (proposta)", pinch = PhysicsNeckPinchExponent),
+      Variant("di serie · 2/3 (proposta)", pinch = 2f / 3f),
       Variant("filo · si assottiglia a lungo", pinch = 1f))
     val scale = listOf(Variant("1,09 · R4 (proposta)", contourScale = 1.09f), Variant("1,045", contourScale = 1.045f),
       Variant("1,00 · niente scala", contourScale = 1f))

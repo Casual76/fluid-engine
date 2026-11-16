@@ -1991,6 +1991,15 @@ a ogni fotogramma (lo fa già la lastra ferma) e il costo si misura in S3.
 riposo quando sono vicini). Quanto si strozza il collo prima di rompersi. Scala iniziale della comparsa (8–10% di R4 /
 meno).
 
+**Scelte di Alessio (2026-11-16)**, sulle tavole del banco di `artifacts/liquid-glass/sessioni/f3-3/per-alessio/` (tre
+varianti affiancate, Apple sotto):
+
+| scelta | risposta |
+|---|---|
+| distanza di fusione di serie | **media, 16 dp** (`FluidGlassContainerDefaults.Spacing`, `PhysicsPlaneFusionDp`): si fondono in viaggio, a riposo i pezzi distinti restano separati (decisione dell'11 novembre); i pezzi dichiarati con `fluidGlassUnion` sono una sagoma sola anche a riposo. In più, parole sue: «con incitamento agli utilizzatori dell'engine a sfruttare l'unione in blocchi di tasti quando appropriato»: la scheda `piano-flottante.md` e `regole.md` lo raccomandano con un esempio (F3.2c), le barre dell'engine dichiarano i loro blocchi con l'unione (F4A.2), e il controllo d'adozione lo segnala (F9) |
+| quanto si strozza il collo | **spesso** (esponente 1/2; l'orchestratore proponeva 2/3): il collo resta largo e si spezza netto; resta il collo lungo, A, 0,38 |
+| scala iniziale della comparsa | **1,09**, la misura di R4 B3 |
+
 ---
 
 ### F4A · Barre dichiarate in alto e fra pagine

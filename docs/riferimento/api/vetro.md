@@ -64,6 +64,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `class GlassBackdropState internal constructor(internal val backdrop: Backdrop, internal val layerBackdrop: LayerBackdrop?, val blurRadius: Dp)` — Fluid Glass — a real refracting material, not a translucent rectangle.
   - `val supported: Boolean get()` — False below API 31: no `RenderEffect`, so surfaces fall back to a solid material.
   - `val refractionSupported: Boolean get()` — False below API 33: blur and vibrancy still work, the lens does not.
+  - `fun notifyChanged()` — Tells the glass sampling this source that what it shows has changed although the source did not redraw.
 - `val DefaultGlassBlurRadius: Dp` — Reference depth of the frosting. **Two and a half dp.**
 - `@Composable fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState`
 - `@Composable fun rememberCombinedGlassBackdrop(behind: GlassBackdropState, inFront: GlassBackdropState, blurRadius: Dp = inFront.blurRadius): GlassBackdropState` — Stacks two backdrops into one, back to front.

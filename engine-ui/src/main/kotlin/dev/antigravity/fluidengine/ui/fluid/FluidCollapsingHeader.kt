@@ -243,6 +243,8 @@ fun FluidCollapsingTitle(
  * riquadro della barra arriva 61,6 dp sotto la riga dei tasti invece di 34 ([FluidScrollEdgeDefaults.reach]): posata
  * sopra la lista come chiede questa pagina non sposta niente; impilata in una colonna spingerebbe giù di 27,6 dp quello
  * che le sta sotto. Sotto Android 13 e con `FluidGlassModel.Classic` resta la fascia di vetro di sempre.
+ *
+ * `barTint` sotto `Liquid` è **ignorato** (la striscia non ha pellicola): vale solo per quella fascia di ripiego.
  */
 @Composable
 fun FluidCollapsingTopBar(
@@ -251,6 +253,10 @@ fun FluidCollapsingTopBar(
   backdrop: GlassBackdropState,
   modifier: Modifier = Modifier,
   /**
+   * **Sotto `Liquid` è ignorato**: dove c'è il bordo dello scorrimento ([fluidScrollEdgeAvailable]) la barra non ha
+   * pellicola, e un `darkBarTint` passato qui non scurisce niente. Conta solo per la fascia di ripiego (sotto
+   * Android 13 e con `FluidGlassModel.Classic`); sotto `Liquid` il lato della barra lo decide la sonda.
+   *
    * What the bar is made of, when the family's own film is the wrong answer.
    *
    * Null is [GlassDefaults.barTint], which lightens — right over a page, wrong

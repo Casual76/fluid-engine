@@ -69,7 +69,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriter
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriters
-import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LocalInsideLayerFallback
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriterKey
+import androidx.compose.ui.node.findNearestAncestor
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.platform.LocalView
@@ -1246,7 +1247,9 @@ private class DrawBackdropNode(
      */
     fun adoptFallbacks() {
         if (!isAttached || fallbackWriter != null) return
-        if (currentValueOf(LocalInsideLayerFallback)) return
+        // Un vetro dentro le pagine non chiede mai la riserva: campionerebbe una registrazione che contiene sé stesso.
+        // Dalla 4.0 G1 «dentro» vuol dire sotto il nodo scrittore (`Modifier.fluidChromePages`), non un CompositionLocal.
+        if (findNearestAncestor(LayerFallbackWriterKey) != null) return
         val writer = LayerFallbackWriters.of(currentValueOf(LocalView).rootView) ?: return
         val layers = ArrayList<LayerBackdrop>(0)
         // Le sorgenti vere sotto gli involucri (sfocatura, combinazioni): `layerSources`, come la sonda.

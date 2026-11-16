@@ -80,6 +80,8 @@ internal data class AdaptiveStart(
   val auto: Boolean = false,
   /** Solo per i grandi: quale grande è aperto alla partenza (F2.3b). */
   val large: AdaptiveLarge = AdaptiveLarge.Sheet,
+  /** Solo per lo scorrimento automatico: quante volte più svelto di 300 dp/s (G1, il caso veloce: 2). */
+  val speed: Float = 1f,
 )
 
 /**
@@ -104,6 +106,7 @@ internal object AdaptiveLaunch {
   const val ExtraCell = "adaptive.cell"
   const val ExtraFullBar = "adaptive.fullbar"
   const val ExtraLarge = "adaptive.large"
+  const val ExtraSpeed = "adaptive.speed"
 
   private val truthy = setOf("true", "1", "on", "yes", "si", "sì", "acceso")
 
@@ -140,6 +143,7 @@ internal object AdaptiveLaunch {
       cell = value(ExtraCell)?.toIntOrNull()?.coerceIn(8, 96) ?: 32,
       auto = value(ExtraAuto) in truthy,
       large = value(ExtraLarge)?.let { name -> AdaptiveLarge.entries.firstOrNull { it.key == name } } ?: AdaptiveLarge.Sheet,
+      speed = value(ExtraSpeed)?.replace(',', '.')?.toFloatOrNull()?.takeIf { it.isFinite() }?.coerceIn(0.25f, 8f) ?: 1f,
     )
     return config to start
   }

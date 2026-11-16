@@ -72,4 +72,36 @@ class FluidScrollEdgeTest {
     assertEquals(6.6f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Hard).value, 1e-3f)
     assertEquals(0f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Hidden).value, 0f)
   }
+
+  @Test
+  fun whereItCannotDrawItKeepsTheSamePlace() {
+    // D-R10: il posto che il componente pubblico tiene vuoto dove la striscia non si disegna è l'altezza del `Box`
+    // della striscia (`FluidScrollEdgeStrip`: `height + controlHeight * profile.reach`, col profilo alla risoluzione
+    // della cattura), al bit, per ogni lato, stile e altezza dei tasti; ed è `height + reach` della scheda.
+    val heights = listOf(0.dp, 68.dp, 112.5.dp)
+    val controls = listOf(FluidScrollEdgeDefaults.ControlHeight, 52.dp, 62.dp)
+    for (edge in FluidScrollEdgeSide.entries) {
+      for (style in FluidScrollEdgeStyle.entries) {
+        for (height in heights) {
+          for (control in controls) {
+            val extent = fluidScrollEdgeExtent(edge, style, height, control)
+            if (style == FluidScrollEdgeStyle.Hidden) {
+              // `Hidden` non ha striscia: non occupa niente, né dove si disegna né altrove.
+              assertNull(extent)
+            } else {
+              val profile = fluidScrollEdgeProfile(edge, style)!!.atResolution(GlassScrollEdgeCaptureScale)
+              assertEquals(height + control * profile.reach, extent)
+              assertEquals(height + FluidScrollEdgeDefaults.reach(edge, style, control), extent)
+            }
+          }
+        }
+      }
+    }
+    // In alto, morbido, sotto barra di stato e tasti da 44 dp: 68 + 61,6 dp.
+    assertEquals(
+      129.6f,
+      fluidScrollEdgeExtent(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Automatic, 68.dp, 44.dp)!!.value,
+      1e-3f,
+    )
+  }
 }

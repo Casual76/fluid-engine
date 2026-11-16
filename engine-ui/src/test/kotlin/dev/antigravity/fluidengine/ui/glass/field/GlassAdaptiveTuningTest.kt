@@ -22,7 +22,9 @@ class GlassAdaptiveTuningTest {
   @Test
   fun withoutKnobs_theFlipAndTheFilterAreTheShippedOnes() {
     assertEquals(emptyMap<String, String>(), GlassAdaptiveTuning.apply(null))
-    assertSame(GlassFlipTimings.Ios26, GlassAdaptiveTuning.flipTiming)
+    // G1 (scelta 1 di S3): di serie il giro svelto.
+    assertSame(GlassFlipTimings.Swift, GlassAdaptiveTuning.flipTiming)
+    assertSame(GlassFlipTimings.Shipped, GlassAdaptiveTuning.flipTiming)
     val shipped = GlassAdaptiveKnobs.parse(emptyMap())
     assertSame(GlassAdaptiveKnobs.Shipped, shipped)
     assertEquals(GlassAdaptiveTimeConstantMillis, shipped.waitMillis, 0f)
@@ -45,7 +47,7 @@ class GlassAdaptiveTuningTest {
     assertEquals(160, GlassFlipTimings.Slow.inkCrossMillis)
     // Un nome che non c'è resta di serie e non si prende.
     val wrong = GlassAdaptiveKnobs.parse(mapOf("fliptime" to "lentissimo"))
-    assertSame(GlassFlipTimings.Ios26, wrong.timing)
+    assertSame(GlassFlipTimings.Shipped, wrong.timing)
     assertTrue(wrong.taken.isEmpty())
     // Installata, la legge chi nasce dopo.
     GlassAdaptiveTuning.apply(mapOf("fliptime" to "swift"))

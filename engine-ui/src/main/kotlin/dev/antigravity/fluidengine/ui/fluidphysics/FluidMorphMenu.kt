@@ -67,6 +67,8 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuAnchorInkAlpha
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchorFace
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuGeometryOf
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
@@ -329,7 +331,9 @@ fun FluidMorphMenuButton(
   val buttonInk = rememberGlassInk()
 
   SideEffect {
-    anchor.face = { MorphMenuAnchorLabel(text = text, icon = icon, color = contentColor) }
+    // G1 (C-R2): la faccia in viaggio segue l'inchiostro del tasto ([FluidMenuAnchor.ink]), come la sua etichetta qui.
+    anchor.face = { MorphMenuAnchorLabel(text = text, icon = icon, color = LocalContentColor.current) }
+    anchor.ink = buttonInk
     anchor.tintFrom = tint
     anchor.opticsFrom = GlassDefaults.buttonOptics()
   }
@@ -526,6 +530,8 @@ fun FluidMorphMenuHost(
               opticsFrom = anchor.opticsFrom ?: GlassDefaults.buttonOptics(),
               opticsBlend = { fluidMenuMaterialBlend(progress()) },
               exports = menuGlass,
+              // G1 (C-R2): il pannello nasce col lato, la misura e l'inchiostro del tasto.
+              adoptFrom = anchor.ink?.state,
             ),
         )
 
@@ -537,7 +543,7 @@ fun FluidMorphMenuHost(
             modifier = Modifier
               .fillMaxSize()
               .graphicsLayer {
-                alpha = fluidMenuFaceAlpha(progress())
+                alpha = fluidMenuFaceAlpha(progress()) * fluidMenuAnchorInkAlpha(anchor)
                 val map = fluidMenuContentMap(target = anchorLocal, current = state.physics.contentBoundsNow())
                 translationX = map.translation.x
                 translationY = map.translation.y
@@ -547,7 +553,7 @@ fun FluidMorphMenuHost(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
           ) {
-            anchor.face?.invoke()
+            FluidMenuAnchorFace(anchor)
           }
         }
 

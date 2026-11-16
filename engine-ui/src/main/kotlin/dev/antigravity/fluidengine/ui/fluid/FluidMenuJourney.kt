@@ -575,6 +575,13 @@ internal class FluidMenuAnchor {
 
   var face: (@Composable () -> Unit)? = null
 
+  /**
+   * L'inchiostro del tasto (4.0, G1, rilievo C-R2): il suo stato adattivo e il lato del tema, o null se il tasto non
+   * gira. L'host disegna la faccia in viaggio con questo (il lato, la fase e la dissolvenza del tasto, anche a metà
+   * giro) e fa nascere il materiale del pannello dal suo stato.
+   */
+  var ink: GlassInk? = null
+
   /** Il materiale del tasto: la sagoma parte da qui e arriva a quello del pannello. */
   var tintFrom: GlassTint? = null
   var opticsFrom: GlassOptics? = null
@@ -583,6 +590,24 @@ internal class FluidMenuAnchor {
 
   var hidden by mutableStateOf(false)
 }
+
+/**
+ * La faccia dell'ancora dentro l'host (G1, C-R2): con l'inchiostro del tasto ([FluidMenuAnchor.ink]), così la faccia in
+ * viaggio è quella del tasto al primo e all'ultimo fotogramma, girata o a metà giro. Senza inchiostro, com'era.
+ */
+@androidx.compose.runtime.Composable
+internal fun FluidMenuAnchorFace(anchor: FluidMenuAnchor) {
+  val face = anchor.face ?: return
+  val ink = anchor.ink
+  if (ink == null) {
+    face()
+    return
+  }
+  GlassInkContent(ink, androidx.compose.material3.LocalContentColor.current) { face() }
+}
+
+/** Quanto è visibile la faccia dell'ancora per la dissolvenza dell'inchiostro del tasto. Letto in disegno. */
+internal fun fluidMenuAnchorInkAlpha(anchor: FluidMenuAnchor): Float = anchor.ink?.state?.inkAlpha() ?: 1f
 
 // --- Il viaggio ------------------------------------------------------------------------------
 

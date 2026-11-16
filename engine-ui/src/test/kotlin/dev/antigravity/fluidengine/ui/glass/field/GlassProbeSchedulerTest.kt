@@ -396,6 +396,26 @@ class GlassProbeSchedulerTest {
   }
 
   @Test
+  fun `l'app dice che lo sfondo e' cambiato e chi ascolta lo sente, anche da uno stato combinato`() {
+    // G1, C-R4 e D-R8: lo scorrimento da codice e un figlio col suo layer non fanno ridisegnare la sorgente.
+    val page = materialLayerBackdrop(fakeLayer())
+    val bar = materialLayerBackdrop(fakeLayer())
+    val heard = mutableListOf<String>()
+    page.addRevisionListener { _, revision -> heard += "page$revision" }
+    bar.addRevisionListener { _, revision -> heard += "bar$revision" }
+    val state = dev.antigravity.fluidengine.ui.fluid.GlassBackdropState(page, page, androidx.compose.ui.unit.Dp(2.5f))
+    state.notifyChanged()
+    assertEquals(listOf("page1"), heard)
+    val combined = dev.antigravity.fluidengine.ui.fluid.GlassBackdropState(
+      dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.combinedBackdrop(page, bar),
+      null,
+      androidx.compose.ui.unit.Dp(2.5f),
+    )
+    combined.notifyChanged()
+    assertEquals(listOf("page1", "page2", "bar1"), heard)
+  }
+
+  @Test
   fun `chi se ne va durante l'avviso non disturba il giro in corso`() {
     val source = materialLayerBackdrop(fakeLayer())
     val heard = mutableListOf<String>()

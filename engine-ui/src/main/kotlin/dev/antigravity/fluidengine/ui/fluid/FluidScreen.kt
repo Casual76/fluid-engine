@@ -86,6 +86,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.isFinite
 import androidx.compose.ui.util.lerp
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.background
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -126,7 +127,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
 import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 import dev.antigravity.fluidengine.ui.theme.LocalFluidStatusBarSide
-import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LocalInsideLayerFallback
+import dev.antigravity.fluidengine.ui.theme.LocalFluidThemeSides
 
 /**
  * Coordinates chrome that lives above the navigation host without sharing render layers between
@@ -871,9 +872,20 @@ private fun FluidScreenLayout(
   // cadono nello stesso fotogramma e la sonda ne fa un segnale solo: non costa una lettura in più.
   LaunchedEffect(listState, bodyBackdrop) {
     val layer = bodyBackdrop.layerBackdrop ?: return@LaunchedEffect
+    var lastIndex = listState.firstVisibleItemIndex
+    var lastOffset = listState.firstVisibleItemScrollOffset
     snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
       .drop(1)
-      .collect { layer.bumpRevision() }
+      .collect { (index, offset) ->
+        // G1: quanto si è spostato il contenuto, per le varianti di debug `flipscroll` (di serie nessuno lo legge). Dentro
+        // lo stesso elemento è esatto; al cambio d'elemento si salta un passo.
+        if (index == lastIndex) {
+          layer.scrollMotion.notePosition(android.os.SystemClock.uptimeMillis(), (lastOffset - offset).toFloat())
+        }
+        lastIndex = index
+        lastOffset = offset
+        layer.bumpRevision()
+      }
   }
 
   DisposableEffect(chromeController, chromeRegistration, chromeBackdrop) {
@@ -1417,9 +1429,11 @@ private fun BoxScope.FluidScreenBottomScrollEdge(
   )
   val last = remember { arrayOfNulls<FluidScreenBottomEdge>(1) }
   if (edge != null) last[0] = edge
+  // Col movimento ridotto il bordo in basso c'è o non c'è, senza dissolvenza (G1, rilievo C-R3), come l'altezza della
+  // tab bar più sotto.
   val presence = animateFloatAsState(
     targetValue = if (edge != null) 1f else 0f,
-    animationSpec = FluidMotion.snappy(),
+    animationSpec = if (LocalFluidMotionPolicy.current.reducedMotion) snap() else FluidMotion.snappy(),
     label = "fluidScreenBottomEdge",
   )
   val shown = remember(presence) { derivedStateOf { presence.value > 0f } }
@@ -1753,6 +1767,7 @@ internal fun BoxScope.FluidTopBarBackground(
     color = Color.Unspecified,
     darkContent = shade.darkContent,
     split = split,
+    veil = shade.veil,
   )
 }
 
@@ -1768,8 +1783,12 @@ private val NoTopBarSplit: () -> GlassScrollEdgeSplit? = { null }
  * [FluidScrollEdgeShadeMillis]; la prima lettura no, come per il materiale adattivo: una barra
  * che nasce sopra una foto scura non deve prima velarla di bianco.
  *
- * In tema scuro non c'è niente da decidere (il velo va già verso il fondo scuro) e la sonda non si monta: nessun nodo,
- * nessuna lettura. Nemmeno dove la sonda non esiste (sotto Android 13, ma lì non c'è nemmeno la striscia).
+ * In tema scuro (4.0, G1, rilievi A-R2 e B-R3) la barra decide nello specchio: il lato di riposo è lo scuro (il velo va
+ * verso il fondo scuro, il titolo è quello del tema), e sopra un contenuto chiaro che riempie la barra gira verso il
+ * chiaro: la striscia vela verso il fondo del tema chiaro ([veil]), il titolo e le azioni prendono l'inchiostro scuro e
+ * il tema chiaro, i tasti ospitati girano con lei. Fino a F2.3c sul tema scuro la sonda non si montava: il titolo bianco
+ * restava sulla striscia chiara e ogni tasto girava per conto suo. La sonda non si monta solo dove non esiste (sotto
+ * Android 13, ma lì non c'è nemmeno la striscia).
  */
 @Stable
 internal class FluidScrollEdgeShade(
@@ -1785,6 +1804,14 @@ internal class FluidScrollEdgeShade(
   val host: GlassAdaptiveState? = null,
   /** Il patto dell'inchiostro del titolo e delle azioni, legato a [host]. */
   val ink: GlassInk = NoShadeInk,
+  /** Vero se la barra è del tema scuro: il suo lato di riposo è lo scuro e gira verso il chiaro (G1). */
+  val darkTheme: Boolean = false,
+  /**
+   * Il colore verso cui la striscia vela adesso, letto **in disegno**; null = il fondo del tema. Sul tema scuro va dal
+   * fondo scuro a quello del tema chiaro col lato della barra (G1); sul tema chiaro è null e la striscia scurisce con
+   * [darkContent] come prima.
+   */
+  val veil: (() -> Color)? = null,
 ) {
   /** Da che parte sta l'inchiostro della barra: cambia una volta per attraversamento, nel fotogramma trasparente. */
   val inkOnDark: Boolean get() = host?.inkOnDark ?: false
@@ -1813,7 +1840,13 @@ internal val NoScrollEdgeShade = FluidScrollEdgeShade(Modifier, { 0f })
 @Composable
 internal fun fluidScrollEdgeInk(base: Color, shade: FluidScrollEdgeShade): Color =
   // F2.3c: dalla decisione della barra, una volta per attraversamento (la dissolvenza la fa chi disegna: [FluidScrollEdgeShade.fade]).
-  if (shade.inkOnDark) FluidScrollEdgeDarkInk else base
+  // G1: sul tema scuro lo specchio: il lato scuro è quello di riposo e l'inchiostro resta quello del tema; quando la
+  // barra gira verso il chiaro, l'inchiostro scuro del giro (lo stesso che dà `GlassInkContent` a chi sta dentro).
+  when {
+    shade.darkTheme -> if (shade.host != null && !shade.inkOnDark) FluidGlassInkOnLight else base
+    shade.inkOnDark -> FluidScrollEdgeDarkInk
+    else -> base
+  }
 
 /**
  * Quanto bianco nell'inchiostro della barra per il lato della striscia [dark] (0 vela, 1 scurisce): zero fino a 0,3,
@@ -1864,31 +1897,54 @@ private fun FluidStatusBarFollowsShade(shade: FluidScrollEdgeShade) {
 
 @Composable
 internal fun rememberFluidScrollEdgeShade(backdrop: GlassBackdropState): FluidScrollEdgeShade {
-  if (GlassDefaults.isDarkSurface() || !glassProbeAvailable()) return NoScrollEdgeShade
-  val probe = rememberGlassProbeState(initialDark = false)
+  if (!glassProbeAvailable()) return NoScrollEdgeShade
+  val darkTheme = GlassDefaults.isDarkSurface()
+  // Sul tema scuro la striscia vela verso il fondo scuro a riposo e verso quello del tema chiaro quando la barra gira.
+  val darkVeil = MaterialTheme.colorScheme.background
+  val lightVeil = LocalFluidThemeSides.current?.scheme(false)?.background ?: FluidScrollEdgeLightVeilFallback
+  val probe = rememberGlassProbeState(initialDark = darkTheme)
   // F2.3c: la barra è un vetro che gira, con la legge del giro dei tasti (i tempi sono le sue manopole): il filtro
   // della sonda decide il lato (0,45 e 0,62, la permanenza), la prima lettura decide subito, e striscia, titolo e
   // tasti si muovono da quella decisione.
   val host = rememberGlassAdaptiveState(
     probe = probe,
     role = GlassRole.Floating,
-    darkSide = false,
+    darkSide = darkTheme,
     inkFollows = true,
     flipAllowed = true,
     large = false,
   )
   val ink = rememberGlassInk(large = false)
-  ink.bind(host, darkSide = false)
+  ink.bind(host, darkSide = darkTheme)
   val probed = backdrop.backdrop
-  return remember(probe, host, ink, probed) {
+  return remember(probe, host, ink, probed, darkTheme, darkVeil, lightVeil) {
     FluidScrollEdgeShade(
       modifier = Modifier.glassProbe(probed, probe),
-      darkContent = { fluidScrollEdgeShadeOf(host.sideNow) },
+      // Sul tema scuro la striscia non scurisce: cambia il colore del velo ([veil]).
+      darkContent = if (darkTheme) NoShadeDarkness else { { fluidScrollEdgeShadeOf(host.sideNow) } },
       host = host,
       ink = ink,
+      darkTheme = darkTheme,
+      veil = if (darkTheme) {
+        { fluidScrollEdgeDarkThemeVeil(lightVeil, darkVeil, host.sideNow) }
+      } else {
+        null
+      },
     )
   }
 }
+
+private val NoShadeDarkness: () -> Float = { 0f }
+
+/** Il fondo del tema chiaro quando il tema non dà l'altro lato (`LocalFluidThemeSides`): quello dell'engine. */
+private val FluidScrollEdgeLightVeilFallback = Color(0xFFF2F2F7)
+
+/**
+ * Il velo della striscia sul tema scuro per il lato della barra [side] (il corpo del giro: 1 scuro, 0 chiaro; NaN senza
+ * misura = il fondo scuro): dal fondo scuro [dark] a quello del tema chiaro [light]. Pura (G1).
+ */
+internal fun fluidScrollEdgeDarkThemeVeil(light: Color, dark: Color, side: Float): Color =
+  if (side.isFinite()) lerp(light, dark, side.coerceIn(0f, 1f)) else dark
 
 /** Lo scurimento della striscia per il lato della barra [side] (il corpo del giro, 0..1; NaN senza misura = 0). Pura. */
 internal fun fluidScrollEdgeShadeOf(side: Float): Float = if (side.isFinite()) side.coerceIn(0f, 1f) else 0f
@@ -2392,6 +2448,11 @@ private fun FluidBarActionImpl(
   val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
   val density = LocalDensity.current.density
   val tint = GlassDefaults.controlTint()
+  // G1 (C-R2): nella barra il tasto prende il lato dalla barra che lo ospita; la faccia in viaggio e il pannello del
+  // menu partono da lì (vedi [FluidMenuAnchor.ink]).
+  val barHost = LocalGlassAdaptiveHost.current
+  val faceInk = rememberGlassInk()
+  if (barHost != null) faceInk.bind(barHost, GlassDefaults.isDarkSurface()) else faceInk.unbind()
 
   SideEffect {
     entry.presentation = FluidGlassModalPresentation.Expand
@@ -2400,6 +2461,7 @@ private fun FluidBarActionImpl(
     entry.menuAnchor = anchor
     entry.menuHandOff = anchor.handOff
     anchor.face = menuFace
+    anchor.ink = if (barHost != null) faceInk else null
     anchor.tintFrom = tint
     anchor.opticsFrom = GlassDefaults.buttonOptics()
   }
@@ -2462,13 +2524,13 @@ private fun FluidBarActionImpl(
 /**
  * Provides the chrome registry, tab-bar allowance and scroll-to-top bus to every screen below.
  *
- * Dalla 4.0 (F2.3c) posa le pagine in un `Box` (che passa i vincoli minimi, come il `Box` della shell in cui sta) e ne è
- * lo **scrittore di riserva**: se la chrome sopra le pagine (la tab bar, i modali, i menu) campiona un fondale che
- * nessuna pagina registra, il `fallback` della shell quando la pagina davanti non è una [FluidScreen], lo registra qui,
- * con le pagine dentro. Così una tab bar sopra una pagina qualunque rifrange ciò che ha davvero dietro e gira quando
- * cambia. Una pagina che registra da sé il fondale che riceve (una [FluidScreen], o una pagina che posa
- * `glassBackdropSource` sul `fallback`) resta lo scrittore, e qui non si registra niente. La chrome va **fuori** da
- * questo contenuto, come nel modello della shell: un vetro dentro non chiede mai la riserva.
+ * Solo CompositionLocal: nessun nodo e nessun layout, il contenuto si misura e si posa come se non ci fosse (un
+ * `Modifier.weight` in una `Column`, un `matchParentSize` in un `Box` arrivano al genitore). In F2.3c avvolgeva le
+ * pagine in un `Box` per esserne lo **scrittore di riserva**; dalla 4.0 G1 lo scrittore è un modificatore a sé,
+ * [fluidChromePages], da posare sul contenitore delle pagine: con quello, se la chrome sopra le pagine (la tab bar, i
+ * modali, i menu) campiona un fondale che nessuna pagina registra (il `fallback` della shell quando la pagina davanti
+ * non è una [FluidScreen]), lo registra il contenitore, con le pagine dentro, e la tab bar sopra una pagina qualunque
+ * rifrange ciò che ha davvero dietro e gira quando cambia.
  */
 @Composable
 fun ProvideFluidChrome(
@@ -2481,8 +2543,6 @@ fun ProvideFluidChrome(
     LocalFluidChromeController provides controller,
     LocalFluidBottomInset provides bottomInset,
     LocalFluidScrollToTop provides scrollToTop,
-    LocalInsideLayerFallback provides true,
-  ) {
-    Box(modifier = Modifier.then(FluidChromePageWriterElement), propagateMinConstraints = true) { content() }
-  }
+    content = content,
+  )
 }

@@ -29,6 +29,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
@@ -45,6 +46,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.GlassInk
+import dev.antigravity.fluidengine.ui.fluid.GlassAdaptiveState
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassAdaptiveHost
 import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
@@ -204,6 +206,8 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
    * grande scurisce (F2.3b, la finestra del pop-up): vedi `physicsLiquidRecipe(restingFilmYields)`.
    */
   restingFilmYields: Boolean = false,
+  /** G1 (C-R2): lo stato adattivo da cui nasce (il tasto da cui parte un menu): vedi `GlassAdaptiveState.adopt`. */
+  adoptFrom: GlassAdaptiveState? = null,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
@@ -248,6 +252,9 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
   val currentOpticsBlend by rememberUpdatedState(opticsBlend)
   val quality = LocalFluidGlassQuality.current
   val qualityFactor: () -> Float = remember(quality) { { quality?.level ?: 1f } }
+  // Il cursore dell'utente (giro di correzione di F2): lo stesso che legge `glassSurface`, perché un menu che nasce da
+  // un tasto parta dal vetro del tasto e si posi su quello della lastra ferma. Solo il materiale nuovo lo usa.
+  val preference = LocalFluidGlassPreference.current
   val blurRadius = backdrop.blurRadius
   // Lo scope degli effetti può lavorare a risoluzione ridotta: ogni pixel di geometria va
   // riportato nel suo spazio, e il fattore è (larghezza dello scope / larghezza di layout).
@@ -291,6 +298,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
       inkFollows = probes,
       flipAllowed = glassTintLiquidMode(tint) != GlassTintMode.Fixed,
       large = ink?.large ?: GlassLiquidProfile.Default.adaptive.darkensContinuously(role),
+      adoptFrom = if (probes) adoptFrom else null,
     )
     if (ink != null) {
       if (probes) ink.bind(adaptiveState, darkSide) else ink.unbind()
@@ -311,7 +319,10 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
       }
     }
     val probedArea: () -> Rect? = remember(state) { { state.ensurePlan().bounds } }
-    val surface = remember(state, role, material, darkSide, screenDensity, quality, tint, tintFrom, pressState, reducedMotion, adaptive, restingFilmYields) {
+    val surface = remember(
+      state, role, material, darkSide, screenDensity, quality, tint, tintFrom, pressState, reducedMotion, adaptive,
+      restingFilmYields, preference,
+    ) {
       PhysicsLiquidSurface(
         state = state,
         role = role,
@@ -331,6 +342,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
         onPanel = { glassSamplesLiquidPanel(currentBackdrop, GlassLiquidPanels::isPublished) },
         adaptive = adaptive,
         restingFilmYields = restingFilmYields,
+        preference = preference,
       )
     }
     return this

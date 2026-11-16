@@ -3004,6 +3004,8 @@ private fun rememberLiquidPuck(
     barFilm: Color = Color.Unspecified,
 ): LiquidPuck {
     val quality = LocalFluidGlassQuality.current
+    // G1 (B-R4): il cursore dell'utente arriva anche alla pillola e alla riga nascosta, come alla barra.
+    val preference = LocalFluidGlassPreference.current
     val screenDensity = LocalDensity.current.density
     val currentPressed by rememberUpdatedState(pressed)
     // LOCAL CHANGE (4.0, F2.3b): pillola e riga nascosta sono vetro annidato nella barra, e la barra gira: prendono il
@@ -3015,7 +3017,7 @@ private fun rememberLiquidPuck(
         { out, _ -> currentHost?.let { within -> out.unmeasured().also { it.darkness = within.sideNow } } }
     }
     // La pellicola cambia di rado (e' una scelta dell'app): quando cambia, le superfici si rifanno.
-    return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film, barFilm) {
+    return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film, barFilm, preference) {
         fun surface(
             shape: Shape,
             profile: GlassLiquidProfile,
@@ -3044,6 +3046,7 @@ private fun rememberLiquidPuck(
                 touch = { null },
                 profile = profile,
                 adaptive = fromHost,
+                preference = preference,
             )
         val restProfile = glassPuckProfile(barShortSideDp)
         // La pellicola dell'app vince; senza, sotto contrasto, quella della barra con la selezione (`glassPuckFilm`).

@@ -73,6 +73,7 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidNotificationHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.ProvideFluidChrome
+import dev.antigravity.fluidengine.ui.fluid.fluidChromePages
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassModalObscured
 import dev.antigravity.fluidengine.ui.fluid.icons.Animation
 import dev.antigravity.fluidengine.ui.fluid.icons.AutoAwesome
@@ -274,6 +275,9 @@ internal fun Gallery(
           Box(
             modifier = Modifier
               .fillMaxSize()
+              // Lo scrittore di riserva della chrome (G1: non lo posa più `ProvideFluidChrome`), fuori dagli altri
+              // come prima: registra le pagine anche oscurate, e il loro scorrimento gli arriva per ultimo.
+              .fluidChromePages()
               .nestedScroll(tabBarScroll)
               .fluidGlassModalObscured(),
           ) {

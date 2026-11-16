@@ -381,6 +381,8 @@ private fun FluidMenuLayerContent(
             opticsFrom = anchor?.opticsFrom,
             opticsBlend = { fluidMenuMaterialBlend(progress()) },
             exports = if (backdrop != null) paneGlass else null,
+            // G1 (C-R2): il pannello nasce col lato, la misura e l'inchiostro del tasto.
+            adoptFrom = anchor?.ink?.state,
           ),
       )
 
@@ -394,7 +396,7 @@ private fun FluidMenuLayerContent(
               height = with(density) { rest.height.toDp() },
             )
             .graphicsLayer {
-              alpha = fluidMenuFaceAlpha(progress())
+              alpha = fluidMenuFaceAlpha(progress()) * fluidMenuAnchorInkAlpha(anchor)
               val map = fluidMenuContentMap(target = rest, current = physics.contentBoundsNow())
               translationX = map.translation.x
               translationY = map.translation.y
@@ -403,7 +405,7 @@ private fun FluidMenuLayerContent(
             },
           contentAlignment = Alignment.Center,
         ) {
-          anchor.face?.invoke()
+          FluidMenuAnchorFace(anchor)
         }
       }
 

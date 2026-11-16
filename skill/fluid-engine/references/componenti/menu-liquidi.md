@@ -211,7 +211,12 @@ FluidBarAction(icon = Icons.Rounded.MoreVert, contentDescription = "Altro", onCl
 **Comportamento.** Il pannello si posa **sull'ancora** (`OverAnchor`: il bordo da cui si allontana resta fermo, così il tasto non salta nel
 fotogramma in cui si apre) verso il basso se ci sta, altrimenti verso l'alto dal bordo basso. La sagoma parte dal tasto
 *premuto* (la lente com'è gonfiata dal dito, `FluidPressFeedback.ExpandRound`), con la pelle e la lente del tasto
-(`tintFrom`/`opticsFrom`), e la faccia (l'icona: 20 dp scritti nel tasto, non i 22 delle voci del pannello) se ne va entro il 35% del viaggio. Con `Tap` il tocco apre senza il dito
+(`tintFrom`/`opticsFrom`), e la faccia (l'icona: 20 dp scritti nel tasto, non i 22 delle voci del pannello) se ne va entro il 35% del viaggio.
+**Dal tasto girato** (4.0, G1): col materiale nuovo il pannello nasce dove il tasto è adesso (il suo lato, la sua misura,
+il suo inchiostro, anche a metà giro) e la sua prima lettura insegue da lì invece di scattare; la faccia in viaggio porta
+l'inchiostro del tasto, con la sua dissolvenza. Prima nasceva dal tema: aprire «Altro» da un tasto girato sul nero
+partiva da una sagoma chiara col testo scuro del tema. Vale anche per `FluidGlassMenuButton` e per le azioni della barra
+che aprono un menu (che prendono il lato dalla barra che le ospita). Con `Tap` il tocco apre senza il dito
 (il menu si sceglie toccando) e suona `Open`; con `LongPress` il click lungo apre e passa il dito, suonando `Open` solo se il
 menu si apre. `FluidMenuOpensOn` vale solo per questo ingresso: il tasto che si trasforma ha il booleano `opensOnTap`.
 

@@ -98,7 +98,6 @@ fun FluidGlassMenuButton(
   val buttonInk = rememberGlassInk()
   val density = LocalDensity.current.density
   val tint = GlassDefaults.controlTint()
-  val faceColor = MaterialTheme.colorScheme.onSurface
 
   SideEffect {
     entry.presentation = FluidGlassModalPresentation.Expand
@@ -106,20 +105,27 @@ fun FluidGlassMenuButton(
     entry.onDismissRequest = { entry.visible = false }
     entry.menuAnchor = anchor
     entry.menuHandOff = anchor.handOff
+    // G1 (C-R2): la faccia in viaggio è quella del tasto, col suo inchiostro ([FluidMenuAnchor.ink]): dentro
+    // `GlassInkContent` del tasto `onSurface` è quello del lato del vetro, girato o no.
     anchor.face = {
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        icon?.let { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = faceColor) }
-        text?.let {
-          Text(
-            text = it,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = faceColor,
-            maxLines = 1,
-          )
+      CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+          icon?.let {
+            Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = LocalContentColor.current)
+          }
+          text?.let {
+            Text(
+              text = it,
+              style = MaterialTheme.typography.bodyLarge,
+              fontWeight = FontWeight.SemiBold,
+              color = LocalContentColor.current,
+              maxLines = 1,
+            )
+          }
         }
       }
     }
+    anchor.ink = buttonInk
     anchor.tintFrom = tint
     anchor.opticsFrom = GlassDefaults.buttonOptics()
   }

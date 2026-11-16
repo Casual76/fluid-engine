@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
@@ -173,6 +174,9 @@ internal fun glassPaintedControlSeen(panel: Color?, page: Color, darkSide: Boole
  * @param film una pellicola che prende il posto del velo (la selezione), o `Unspecified`.
  * @param largeVeil quanto del velo dei grandi; di serie dalla taglia. Fogli e avvisi passano uno: sono grandi
  *   anche quando sono bassi, e il loro colore si sceglie prima della misura (è il `containerColor` del foglio).
+ * @param preference il cursore dell'utente (`LocalFluidGlassPreference`, giro di correzione di F2), come lo riceve il
+ *   pannello di vetro vero: del dipinto muove il velo (la smerigliatura su un colore pieno non cambia niente). Di
+ *   serie a metà corsa, dove non tocca niente.
  */
 internal fun glassPaintedRecipe(
   widthDp: Float,
@@ -182,6 +186,7 @@ internal fun glassPaintedRecipe(
   film: Color = Color.Unspecified,
   largeVeil: Float = Float.NaN,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  preference: Float = FluidGlassPreference.Default,
   out: GlassRecipe = GlassRecipe(),
 ): GlassRecipe = glassRecipe(
   role = GlassRole.Modal,
@@ -193,6 +198,7 @@ internal fun glassPaintedRecipe(
   nested = nested,
   profile = profile,
   largeVeil = largeVeil,
+  preference = preference,
   out = out,
 )
 
@@ -223,13 +229,18 @@ internal fun glassPaintedBody(recipe: GlassRecipe, seen: Color): Color {
 /**
  * Il corpo di un **pannello** dipinto (foglio, avviso) di lato [darkSide] sopra la pagina [page]: velo dei grandi,
  * pagina sotto lo scrim. Non dipende dalla misura: è il `containerColor` del foglio.
+ *
+ * @param preference il cursore dell'utente: vedi [glassPaintedRecipe].
  */
 internal fun glassPaintedPanelBody(
   page: Color,
   darkSide: Boolean,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  preference: Float = FluidGlassPreference.Default,
 ): Color = glassPaintedBody(
-  glassPaintedRecipe(PanelReferenceDp, PanelReferenceDp, darkSide, largeVeil = 1f, profile = profile),
+  glassPaintedRecipe(
+    PanelReferenceDp, PanelReferenceDp, darkSide, largeVeil = 1f, profile = profile, preference = preference,
+  ),
   glassPaintedSeen(page, darkSide),
 )
 
@@ -543,6 +554,8 @@ private fun paintedOutline(
  * @param extendTop di quanti px la sagoma dipinta sale **sopra** il nodo, letto in disegno: il contenuto del
  *   foglio di piattaforma sta sotto la maniglia, e il vetro del foglio comincia sopra di lei.
  * @param extendBottomPx di quanti px la sagoma scende sotto il nodo (il fondo del foglio sta oltre lo schermo).
+ * @param preference il cursore dell'utente (`LocalFluidGlassPreference`), letto da chi chiama dove legge il modello del
+ *   vetro: vedi [glassPaintedRecipe].
  */
 internal fun Modifier.glassPainted(
   shape: Shape,
@@ -555,6 +568,7 @@ internal fun Modifier.glassPainted(
   pressure: () -> Float = { 0f },
   extendTop: () -> Float = { 0f },
   extendBottomPx: Float = 0f,
+  preference: Float = FluidGlassPreference.Default,
 ): Modifier = this.drawWithCache {
   val top = max(extendTop().let { if (it.isFinite()) it else 0f }, 0f)
   val area = Size(size.width, size.height + top + max(extendBottomPx, 0f))
@@ -567,6 +581,7 @@ internal fun Modifier.glassPainted(
     film = if (film.isSpecified) film else Color.Unspecified,
     largeVeil = largeVeil,
     profile = profile,
+    preference = preference,
   )
   val corners = glassPaintedCorners(shape, area, this, layoutDirection)
   val plan = glassPaintedPlan(recipe, seen, area.width, area.height, density, corners)

@@ -98,8 +98,9 @@ fun Shell(content: @Composable () -> Unit) {
       bottomInset = FluidFloatingTabBarDefaults.ContentInset,
       scrollToTop = scrollToTop,
     ) {
-      // La connessione sta su un antenato delle pagine: e' da qui che la barra sente scorrere.
-      Box(Modifier.fillMaxSize().nestedScroll(tabScroll)) { content() }
+      // La connessione sta su un antenato delle pagine: e' da qui che la barra sente scorrere. `fluidChromePages`
+      // (4.0, G1) fa del contenitore delle pagine lo scrittore di riserva della chrome: vedi sotto.
+      Box(Modifier.fillMaxSize().fluidChromePages().nestedScroll(tabScroll)) { content() }
     }
     Box(
       Modifier
@@ -338,17 +339,22 @@ di mezzo livello. Misurato sul tablet su una tinta unita: 34, 26, 18, 10, 5 e 2%
 riga dove finisce (residuo sotto 0,3 livelli). Sopra un **contenuto scuro**, in tema chiaro, la striscia **scurisce** invece
 di velare di bianco (come Apple, ×0,70–0,72 dietro i tasti). **Una decisione sola per tutta la barra** (4.0, F2.3c): la
 barra e' un vetro che gira come un tasto, con la sonda della striscia (legge la pagina dietro la barra) e la legge del
-giro dei tasti (le sue manopole: corpo in 300 ms, inchiostro che svanisce e risale). Dalla stessa lettura e nello stesso
+giro dei tasti (di serie dalla 4.0 G1 il giro svelto: corpo in 200 ms, inchiostro che svanisce in 70 e risale pieno a
+450; le sue manopole sono quelle dei tasti). Dalla stessa lettura e nello stesso
 istante la striscia scurisce col corpo del giro, il titolo e le azioni cambiano lato passando per il fotogramma trasparente
 (col tema del lato: un'icona in `onSurface` segue anche lei), e i tasti della barra sono **ospitati**: niente sonda loro,
 il lato e la misura dalla barra, il contenuto che svanisce con lei. Prima la striscia decideva da se' e scuriva in 800 ms,
 il titolo cambiava a meta' della striscia e ogni tasto decideva con la sua sonda: sul tablet il titolo restava scuro su una
-striscia gia' scura per circa 200 ms. Lo stesso vale per la barra ancorata fra due pagine. In tema scuro il velo va gia'
-verso il fondo scuro, la sonda non si monta e i tasti girano da soli come prima. **Difetto noto, in correzione in questo
-giro**: per questo, in tema scuro, la barra non si adatta, e quando sotto passa un contenuto chiaro il titolo bianco sta per
-circa 0,7 s su una striscia ancora chiara (sotto 3:1); i tasti girano ognuno per conto suo, fuori fase col titolo. Un altro
-difetto in correzione: scorrendo in fretta, la barra e la tab bar possono girare due volte in poco tempo. Dove la barra passa al lato scuro anche le
-**icone della barra di stato** passano al chiaro (4.0, F2.3b; vedi [tema.md](tema.md)). Lo scorrimento della lista e' un
+striscia gia' scura per circa 200 ms. Lo stesso vale per la barra ancorata fra due pagine. **In tema scuro lo specchio**
+(4.0, G1): il lato di riposo e' lo scuro, e sopra un contenuto chiaro che riempie la barra la decisione gira verso il chiaro;
+la striscia vela allora verso il fondo del tema chiaro, il titolo e le azioni prendono l'inchiostro scuro e il tema chiaro,
+i tasti ospitati girano con lei. Fino a F2.3c in tema scuro la sonda non si montava: il titolo bianco restava circa 0,7 s su
+una striscia gia' chiara e i tasti giravano ognuno per conto suo. Le **icone della barra di stato** seguono la barra nei due
+versi (4.0, F2.3b e G1; vedi [tema.md](tema.md)): chiare dove la barra scurisce sul tema chiaro, scure dove gira verso il
+chiaro sul tema scuro. **Mentre si scorre** la barra e la tab bar decidono come ogni altro vetro (la variante `live`):
+scorrendo in fretta possono girare due volte in meno di un secondo, a ogni riquadro scuro che passa. Le alternative sono
+manopole di debug da scegliere sulle riprese (`flipscroll=rest|ahead`, `flipby=coverage`, `flipdwell`: vedi
+[vetro.md](vetro.md), «Mentre si scorre»). Lo scorrimento della lista e' un
 cambio dello sfondo che la sorgente annuncia da se' (vedi [vetro.md](vetro.md), «Lo scorrimento è un cambio dello
 sfondo»): `FluidScreen` aggiunge solo lo scorrimento fatto dal codice. Per riguardare il profilo sul dispositivo ci sono le
 manopole di debug `edgeveil`, `edgefade`, `edgecap` e `edgecurve` (`gallery.tune`); a 1, o senza, i numeri sono quelli di serie al bit.
@@ -435,11 +441,15 @@ val backdrop = chrome.activeBackdrop.value ?: fallback   // per la tab bar, i mo
 
 **Comportamento.**
 
-- **Lo scrittore di riserva** (4.0, F2.3c): `ProvideFluidChrome` posa oggi le pagine in un `Box` (che passa i vincoli minimi), e questo cambia come si dispongono
-  le pagine di una shell: è **in correzione** (si vuole che torni trasparente al layout), e le app non devono scrivere
-  niente per quel `Box`. Registra le pagine dentro il `fallback` della shell quando la pagina davanti non lo registra da se' (non e' una
-  `FluidScreen` e non ci posa `glassBackdropSource`). Cosi' la tab bar sopra una pagina qualunque rifrange cio' che ha
-  dietro e gira. La chrome va **fuori** dal contenuto di `ProvideFluidChrome`, come nel modello sopra.
+- **`ProvideFluidChrome` e' trasparente al layout**: fornisce solo i `CompositionLocal`, nessun nodo. Un `Modifier.weight`
+  in una `Column` o un `matchParentSize` in un `Box` sotto di lui arrivano al genitore (`FluidChromeLayoutTest`). In F2.3c
+  posava le pagine in un `Box` suo, che sovrapponeva i figli di una `Column` e poteva misurare zero; dalla 4.0 G1 non piu'.
+- **Lo scrittore di riserva** (4.0, F2.3c; dalla G1 un modificatore a se'): `Modifier.fluidChromePages()` sul contenitore
+  delle pagine, **fuori** dalla chrome. Registra le pagine dentro il `fallback` della shell quando la pagina davanti non lo
+  registra da se' (non e' una `FluidScreen` e non ci posa `glassBackdropSource`): cosi' la tab bar sopra una pagina
+  qualunque rifrange cio' che ha dietro e gira. Uno per finestra; non cambia misura ne' posizione di niente, e un layer che
+  nessun vetro della chrome campiona non costa niente. Senza, si torna a prima di F2.3c: sopra una pagina che non registra
+  il fondale la chrome campiona un layer vuoto. Un vetro **dentro** il contenitore non chiede mai la riserva.
 - `activeBackdrop`: l'**ultima registrazione fra quelle che si dichiarano davanti**; se nessuna lo dichiara,
   l'ultima in assoluto (anteprime, galleria, una schermata sola in un'Activity). *Davanti non e' «registrata per ultima»*:
   per tutto un back predittivo le due pagine sono composte e eleggere la piu' recente faceva rifrangere alla

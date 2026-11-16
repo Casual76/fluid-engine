@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -21,11 +22,19 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
@@ -54,6 +63,9 @@ internal class AdaptiveLive(start: AdaptiveStart) {
   /** Il grande aperto alla partenza nella scena dei grandi (`adaptive.large`). */
   val largeAtStart: AdaptiveLarge = start.large
 
+  /** Lo scorrimento automatico: quante volte più svelto di 300 dp/s (`adaptive.speed`, G1). */
+  val speed: Float = start.speed
+
   /** La scacchiera sposta il disegno di una frazione di casella quando è 1 (solo con `auto`). */
   var phase by mutableIntStateOf(0)
 }
@@ -69,6 +81,9 @@ internal class AdaptiveReport {
 
   /** Un nome per un riquadro: lo scrive quando si posa. */
   fun place(name: String): Modifier = Modifier.onGloballyPositioned { boxes[name] = it.boundsInWindow() }
+
+  /** Il bordo alto del riquadro [name] in pixel della finestra, se si è già posato. */
+  fun windowTop(name: String): Float? = boxes[name]?.top
 
   /** Le righe `RIQUADRO`: posizione e lato di ogni vetro nominato, in pixel e in dp. */
   fun logBoxes() {
@@ -218,6 +233,125 @@ internal fun ProbeCountersLog(label: String) {
 
 /** Il bianco, il nero e un colore da un valore a 32 bit. */
 internal fun argb(value: Long): Color = Color(value)
+
+// ------------------------------------------------------------------------------------------------------------
+// La carta della scena `cursore` e il confine della scena `varianti`
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * La carta della scena `cursore`: un giallo sabbia chiaro, perché a cursore 1 il vetro diventi una lastra di un colore che
+ * si riconosce. Chiara apposta: con l'inchiostro (circa un sesto della superficie) la media sotto un vetro dovrebbe restare
+ * lontana dalla soglia del giro (0,45; da confermare con le righe `LETTURA`), così fra 0, 0,5 e 1 cambia solo il cursore
+ * e non il lato.
+ */
+internal val PaperColor = Color(0xFFF6D98A)
+
+/** L'inchiostro della carta, e i due colori di qualche riga. */
+private val PaperInk = Color(0xFF1A1611)
+private val PaperRed = Color(0xFFB3261E)
+private val PaperBlue = Color(0xFF1F3A93)
+
+/** Una riga di testo lunga più di ogni schermo (anche il tablet in orizzontale), senza a capo. */
+private val PaperText =
+  ("La luce passa nel vetro e si piega: le lettere vicino al bordo si allungano, le righe dritte diventano curve e i " +
+    "tratti sottili si sdoppiano. Più il vetro è diffuso, meno resta del disegno e più resta del colore. ").repeat(2)
+
+/** La riga in grassetto, una ogni otto. */
+private val PaperHeading = "Il vetro piega la luce · ".repeat(12)
+
+/**
+ * Le due righe di testo della carta, misurate **una volta** (una riga lunga, senza a capo): la carta le ripete e le
+ * sfalsa, quindi disegnarla non misura niente e non scrive stato.
+ */
+@Immutable
+internal class AdaptivePaper(val line: TextLayoutResult, val heading: TextLayoutResult)
+
+/** Misura le righe della carta, in dp e non in sp: la carta è la stessa con ogni scala del testo, e le riprese si confrontano. */
+@Composable
+internal fun rememberAdaptivePaper(): AdaptivePaper {
+  val measurer = rememberTextMeasurer()
+  val density = LocalDensity.current
+  return remember(measurer, density) {
+    val body = TextStyle(fontSize = with(density) { 15.dp.toSp() })
+    val head = TextStyle(fontSize = with(density) { 17.dp.toSp() }, fontWeight = FontWeight.Bold)
+    AdaptivePaper(
+      line = measurer.measure(PaperText, body, softWrap = false, maxLines = 1),
+      heading = measurer.measure(PaperHeading, head, softWrap = false, maxLines = 1),
+    )
+  }
+}
+
+/**
+ * Il fondo della scena `cursore` (A-R7): dettaglio fine, nitido e statico, che la diffusione del vetro cancella. Sulla carta
+ * [PaperColor], a righe di 24 dp:
+ * - righe di testo nitide (una in grassetto ogni otto, qualcuna rossa o blu), sfalsate perché le parole non si incolonnino;
+ * - una riga sottile da un pixel sotto ogni riga di testo, e una griglia verticale da un pixel ogni 24 dp;
+ * - ogni quattro righe una striscia a contrasto: barre nere da 2 dp alternate alla carta, alte 10 dp.
+ *
+ * A cursore 0 il testo e le barre si leggono attraverso il vetro, piegati dalla lente; a 1 resta una lastra del colore
+ * della carta.
+ */
+internal fun DrawScope.drawPaper(paper: AdaptivePaper) {
+  drawRect(PaperColor)
+  val row = 24.dp.toPx()
+  val hair = 1f
+  // La griglia verticale: sotto la lente le righe dritte si piegano.
+  val grid = PaperInk.copy(alpha = 0.22f)
+  var x = row / 2f
+  while (x < size.width) {
+    drawLine(grid, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = hair)
+    x += row
+  }
+  val bars = Brush.horizontalGradient(
+    0f to PaperInk,
+    0.5f to PaperInk,
+    0.5f to PaperColor,
+    1f to PaperColor,
+    startX = 0f,
+    endX = 4.dp.toPx(),
+    tileMode = TileMode.Repeated,
+  )
+  val rule = PaperInk.copy(alpha = 0.4f)
+  val rows = (size.height / row).toInt() + 1
+  for (i in 0 until rows) {
+    val top = i * row
+    if (i % 4 == 3) {
+      val strip = 10.dp.toPx()
+      drawRect(bars, topLeft = Offset(0f, top + (row - strip) / 2f), size = Size(size.width, strip))
+      continue
+    }
+    val text = if (i % 8 == 0) paper.heading else paper.line
+    val ink = when (i % 7) {
+      2 -> PaperRed
+      5 -> PaperBlue
+      else -> PaperInk
+    }
+    val shift = -((i * 37) % 160).dp.toPx()
+    drawText(text, color = ink, topLeft = Offset(shift, top + (row - text.size.height) / 2f))
+    val ruleY = top + row - hair / 2f
+    drawLine(rule, start = Offset(0f, ruleY), end = Offset(size.width, ruleY), strokeWidth = hair)
+  }
+}
+
+/**
+ * Dove il fondo della scena `varianti` passa dalla foto chiara alla scura, in pixel dal bordo alto del palco (A-R8): a metà
+ * del posto vuoto fra le due righe, misurato dove quel posto si posa. Così la seconda riga sta sulla foto scura qualunque
+ * sia l'altezza dell'intestazione (tablet, telefono, testo grande). Si scrive solo quando il posto si sposta (al primo
+ * posizionamento, o se la pagina scorre), e uno stato uguale non conta come scrittura: ferma, la pagina non scrive niente.
+ * Prima della misura il fondo si divide a metà.
+ */
+@Stable
+internal class AdaptiveSplit {
+  var y by mutableFloatStateOf(Float.NaN)
+    private set
+
+  /** Da posare sul posto vuoto fra le due righe: il confine passa a metà della sua altezza. */
+  fun follow(report: AdaptiveReport): Modifier = Modifier.onGloballyPositioned { c ->
+    // Il palco si posa prima del posto vuoto (i richiami vanno dal padre ai figli), quindi il suo bordo alto c'è già.
+    val stageTop = report.windowTop(AdaptiveReport.StageName) ?: 0f
+    y = c.positionInWindow().y + c.size.height / 2f - stageTop
+  }
+}
 
 /** Una scacchiera di caselle quadrate di [cellPx], [light] e [dark], con il disegno spostato di [shiftPx] in orizzontale. */
 internal fun DrawScope.drawChecker(cellPx: Float, light: Color, dark: Color, shiftPx: Float) {

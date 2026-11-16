@@ -48,6 +48,7 @@ quelli delle altre pagine: chiudere l'attività prima di un nuovo lancio con ext
 | `adaptive.cell` | `8`–`96` | il lato di una casella della scacchiera, in dp (di serie 32) |
 | `adaptive.fullbar` | `true` | scorrimento: i riquadri scuri sono alti e riempiono la zona della barra |
 | `adaptive.large` | `foglio` (di serie), `popup`, `pannello` | grandi: quale grande è aperto alla partenza, uno alla volta (F2.3b) |
+| `adaptive.speed` | `0,25`–`8` (di serie 1) | scorrimento: quante volte più svelto dei 300 dp/s dell'automatico; a 2 un riquadro scuro passa sotto la tab bar in mezzo secondo (G1) |
 
 Un valore che non si riconosce lascia quello di serie. Il tema e il modello cambiati dal tasto rifanno la scena da capo; il
 fondo, la quota, il cursore, i riquadri e l'automatico no, perché la prova è proprio un vetro **fermo** sopra un fondo
@@ -95,36 +96,55 @@ Vetro, Automatico e quelli propri della scena) sono anche loro vetro, e anche lo
    (0,56 salendo, 0,44 scendendo) il testo passa al chiaro, una volta, nel fotogramma in cui è trasparente, e il testo
    secondario e l'accento prendono il tema scuro. Sul tema scuro restano scuri. Il vetro dell'app resta del lato del tema:
    è il controesempio (vedi `vetro.md`, «Chi gira, chi scurisce e chi no»).
-6. **`cursore` · il cursore dell'utente.** Una foto, i vetri di serie e, sotto, la riga di `fluidAppearanceSection`
-   («Aspetto del vetro») collegata a `LocalFluidGlassPreference`: il cursore va da trasparente (0) a colorato (1), a metà è il
-   vetro di serie al bit, e la riga si aggancia al centro. I due estremi e il centro sono anche tre tasti a portata di
-   tocco in cima («Trasparente», «Di serie», «Colorato»).
-7. **`varianti` · `Clear` e tasto tinto.** Il vetro di serie, il tasto tinto (`GlassTintMode.Colored`) e, accanto, il posto di
-   `Clear`, sopra una foto chiara (in alto) e una scura (in basso). **`Clear` non si vede ancora**: il tipo `FluidGlass.Clear`
+6. **`cursore` · il cursore dell'utente.** Dietro i vetri c'è dettaglio fine e nitido, non una foto sfocata: una carta
+   giallo sabbia chiaro con righe di testo a passo di 24 dp (una in grassetto ogni otto, qualcuna rossa o blu, sfalsate perché le
+   parole non si incolonnino), una riga sottile da un pixel sotto ogni riga di testo, una griglia verticale da un pixel ogni
+   24 dp e, ogni quattro righe, una striscia a contrasto di barre nere da 2 dp. Sopra, i vetri di serie (il tondo, il tasto
+   tinto, la capsula, un pannello fatto a mano dall'app) e, sotto, la riga di `fluidAppearanceSection` («Aspetto del vetro»)
+   collegata a `LocalFluidGlassPreference`: il cursore va da trasparente (0) a colorato (1), a metà è il vetro di serie al
+   bit, e la riga si aggancia al centro. I due estremi e il centro sono anche tre tasti a portata di tocco in cima
+   («Trasparente», «Di serie», «Colorato»), e al lancio `adaptive.cursor`. **Cosa guardare**: a 0 il testo, la griglia e le
+   barre si leggono attraverso il vetro, piegati dalla lente verso il bordo; a 1 il dettaglio sparisce e il vetro è una
+   lastra del colore della carta. La carta è chiara apposta: con l'inchiostro la media sotto un vetro dovrebbe restare
+   lontana dalla soglia del giro (stima, da confermare con le righe `LETTURA`), così fra 0, 0,5 e 1 cambia solo il cursore
+   e non il lato. La carta è la stessa nei due temi e non dipende dalla scala del testo.
+7. **`varianti` · `Clear` e tasto tinto.** Due righe uguali: il vetro di serie, il tasto tinto (`GlassTintMode.Colored`) e,
+   accanto, il posto di `Clear`. La prima sta sopra una foto chiara (la foto con un velo bianco), la seconda sopra una scura
+   (con un velo nero): il confine fra le due foto passa a metà dei 160 dp vuoti fra le righe, misurato dove le righe si
+   posano, quindi la seconda riga sta sulla foto scura su ogni schermo (prima il confine stava a metà schermo e sul Tab S9
+   anche la seconda riga cadeva sul chiaro). Sul Tab S9 il confine dovrebbe cadere a circa 400 dp dall'alto e la seconda riga
+   a circa 480–530 dp (stima dalle catture di S3; le righe `RIQUADRO` dicono il vero). Così il tasto tinto si vede su chiaro e
+   su scuro. **`Clear` non si vede ancora**: il tipo `FluidGlass.Clear`
    e la ricetta con la variante limpida ci sono, ma nessun componente li posa (il modificatore `Modifier.fluidGlass`, che
    passa la variante al vetro, nasce in F3.2). Il riquadro tratteggiato dice dove andrà; la manopola di debug `cleardim`
    (`gallery.tune`) riguarda solo l'ombra che la ricetta darebbe a `Clear`, non la fa comparire.
 
-## Le manopole di S3
+## Le manopole del giro (S3, G1)
 
-Le scelte che restano ad Alessio (S3) si riprendono sul tablet con le manopole di debug di `gallery.tune` (l'elenco completo
-è in `material/LEGGIMI.md`). Senza manopole tutto è di serie, al bit; valgono per i vetri e le sonde che nascono dopo, quindi
-si danno al lancio insieme alla scena:
+Le scelte di S3 sono di serie dal giro di correzione G1: il giro svelto (`swift`) con l'attesa di 200 ms, le soglie 0,45 e
+0,62, il velo scuro dei piccoli a 0,39; la profondità dei grandi resta 0,5 (con 0,89 il testo secondario sul foglio scuro
+scende sotto 6:1: `artifacts/liquid-glass/bench/f2-g1/contrasto.md`). Le varianti restano manopole di debug di `gallery.tune`
+(l'elenco completo è in `material/LEGGIMI.md`). Senza manopole tutto è di serie, al bit; valgono per i vetri e le sonde che
+nascono dopo, quindi si danno al lancio insieme alla scena:
 
 | manopola | valori | cosa cambia | dove si vede |
 |---|---|---|---|
-| `fliptime` | `ios26` (di serie) · `swift` · `slow` | i tempi del giro: corpo 300 / 200 / 450 ms, inchiostro pieno a 700 / 450 / 1000 ms | `bianco-nero` con `adaptive.auto true`; la barra in alto di `scorrimento` con `adaptive.fullbar true` |
+| `fliptime` | `swift` (di serie dalla G1) · `ios26` · `slow` | i tempi del giro: corpo 200 / 300 / 450 ms, inchiostro pieno a 450 / 700 / 1000 ms | `bianco-nero` con `adaptive.auto true`; la barra in alto di `scorrimento` con `adaptive.fullbar true` |
 | `flipwait` | `20`–`2000` ms (di serie 200) | quanto il filtro aspetta prima di decidere il lato (la costante di tempo della media) | come sopra |
 | `flipon` · `flipoff` | `0`–`1` (di serie 0,45 e 0,62) | le due soglie del filtro: verso lo scuro, di ritorno al chiaro. `flipon` sotto `flipoff` | `soglia` con `adaptive.auto true`; la scheda Materiale sui riquadri colorati |
-| `darkveilalpha` | `0`–`1` (di serie 0,5) | la profondità di un vetro piccolo girato sul nero (e del vetro scuro del tema scuro): sul tablet 0,5 / 0,39 / 0,29 danno 55 / 43 / 32. Sopra una foto scura il piccolo prende il velo dei grandi e la tab bar la sua pellicola: lì quasi non cambia (70–74) | `bianco-nero` sul nero, sui due temi |
+| `darkveilalpha` | `0`–`1` (di serie 0,39 dalla G1, prima 0,5) | la profondità di un vetro piccolo girato sul nero (e del vetro scuro del tema scuro): sul tablet 0,5 / 0,39 / 0,29 danno 55 / 43 / 32. Sopra una foto scura il piccolo prende il velo dei grandi e la tab bar la sua pellicola: lì quasi non cambia (70–74) | `bianco-nero` sul nero, sui due temi |
 | `darklargealpha` | `0`–`1` (di serie 0,5) | la profondità di un grande sopra il nero pieno (foglio, pop-up, pannello) | `grandi` con `adaptive.share 1` |
 | `darkceiling` | `0`–`1` (di serie 0,40) | il soffitto del velo scuro dei grandi a copertura parziale | `grandi` con `adaptive.share` a metà |
 | `edgedim` | `0`–`1` (di serie 0,2) | lo scurimento della striscia del bordo dello scorrimento sul lato scuro | `scorrimento` con `adaptive.fullbar true` |
+| `flipdwell` | `0`–`3000` ms (di serie 400) | la permanenza minima dopo un giro: a 1000 nessun vetro gira due volte in meno di un secondo | `scorrimento` con `adaptive.auto true` e `adaptive.speed 2` |
+| `flipscroll` | `live` (di serie) · `rest` · `ahead` | cosa fa il vetro mentre lo sfondo scorre: decide come sempre; tiene il lato dell'ultimo riposo finché il contenuto scorre più svelto di 120 dp/s; legge la fascia che entra sotto il vetro, 300 ms avanti (mai fuori dalla registrazione) | come sopra, lento (`adaptive.speed 1`) e veloce (`2`), due temi |
+| `flipby` · `flipcover` | `luminance` (di serie) · `coverage`; `0,55`–`0,95` (di serie 0,75) | decide sulla quota della miniatura più scura della soglia invece che sulla media: verso lo scuro a `flipcover`, di ritorno al chiaro a `1 − flipcover` | come sopra; `soglia` con `adaptive.auto true` |
 
 ```powershell
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene bianco-nero --es adaptive.auto true --es gallery.tune fliptime=swift,flipwait=100
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene soglia --es adaptive.auto true --es gallery.tune flipon=0.55,flipoff=0.7
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene grandi --es adaptive.share 1 --es gallery.tune darklargealpha=0.89
+adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene scorrimento --es adaptive.auto true --es adaptive.speed 2 --es gallery.tune flipscroll=rest,flipdwell=1000
 ```
 
 La riga `PROFILO` del tag `FluidMateriale` dice quali manopole l'engine ha preso e quali ha scartato.
@@ -166,7 +186,12 @@ I numeri sono ipotesi da tarare in S3 (la sessione sul tablet), non misure sul d
    bianco → nero a una quota si vede il corpo scendere in 300 ms circa e l'inchiostro attraversare il corpo, con **un
    fotogramma** a contrasto quasi zero. Tondo, capsula e tab bar girano; il tinto e il vetro dell'app no. I grandi (scena
    `grandi`) scuriscono senza girare e il loro testo passa al chiaro una volta sola, a metà strada.
-2. Nessuna icona illeggibile per più di un fotogramma; nessuno scatto del corpo; nessuno sfarfallio sulla scacchiera.
+2. **Non ancora** «nessuna icona illeggibile per più di un fotogramma»: oggi la barra in alto e la tab bar possono restare
+   sotto 3:1 per alcune centinaia di millisecondi prima e durante una decisione (l'attesa del filtro prima di decidere, poi
+   il giro; nelle misure di F2 il titolo resta a circa 2,4:1 per 150–333 ms, e il bianco fra 2,7 e 3,0:1 fino a 0,7 s sul
+   lato scuro della striscia). È il rilievo D-R3 della revisione di F2, che il giro di correzione sta trattando: la promessa
+   torna assoluta solo quando le riprese la mostrano. Per il resto ci si aspetta nessuno scatto del corpo e nessuno
+   sfarfallio sulla scacchiera.
 3. Il tasto tinto resta del suo colore (la tonalità) su bianco e su nero: la luminosità segue lo sfondo (piena su bianco,
    58% su nero), con l'alone del colore del tasto e il filo chiaro.
 4. Sullo scorrimento: in alto nessuna fascia e nessuna riga; il testo e le foto che passano sotto i tasti si sciolgono nel

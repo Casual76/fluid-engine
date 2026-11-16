@@ -20,6 +20,10 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
  *     FluidGlass.Clear.interactive()            // limpido, e reagisce al dito
  *     FluidGlass.Identity                       // nessun vetro, senza cambiare l'albero
  *
+ * **Per ora nessuna API pubblica accetta un `FluidGlass`**: c'è il tipo, non ancora chi lo posa. Il modificatore
+ * `Modifier.fluidGlass` e il primo uso vero di [Clear] arrivano con F3.2, col contenitore; fino ad allora i componenti
+ * dell'engine scelgono il loro vetro da soli e gli esempi qui sopra sono la forma che avrà.
+ *
  * Le tre varianti non si mescolano (Apple, WWDC25 219):
  *  - [Regular] è il vetro di quasi tutto: leggibile su qualunque sfondo e a qualunque taglia, perché si adatta a ciò
  *    che ha dietro (velo, ombra, lato chiaro o scuro). Va bene sotto il testo;

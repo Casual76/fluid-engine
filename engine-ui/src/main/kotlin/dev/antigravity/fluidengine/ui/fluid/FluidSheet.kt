@@ -127,10 +127,13 @@ fun FluidSheet(
   // Il materiale del dipinto, con la regola di ogni altro vetro: sotto Android 13 e con `Classic` il foglio della 3.x,
   // intero (contenitore al 92%, scrim al 42%, il dipinto di prima, nessuna ombra). Mai un ibrido.
   val liquid = rememberPaintedGlassLiquid(LocalFluidGlassModel.current)
+  // Il cursore dell'utente (giro di correzione di F2): il velo del dipinto lo segue come quello del foglio di vetro
+  // vero.
+  val preference = LocalFluidGlassPreference.current
   // Il vetro dipinto del foglio (F1B.5, `glass/field/GlassPaintedProfile.kt`): il corpo e' il colore pieno che il
   // foglio di vetro ha sopra la pagina del tema sotto lo scrim, e lo dipinge il contenitore, che copre anche la
   // maniglia. Prima il contenitore era la superficie al 92%: dal foglio si leggeva la pagina dietro, nitida.
-  val body = remember(page, darkSide) { glassPaintedPanelBody(page, darkSide) }
+  val body = remember(page, darkSide, preference) { glassPaintedPanelBody(page, darkSide, preference = preference) }
   val seen = remember(page, darkSide) { glassPaintedSeen(page, darkSide) }
   // Dove comincia il contenuto sotto la maniglia: il bordo dipinto sale fin li', alla cima vera del foglio.
   var contentTop by remember { mutableFloatStateOf(0f) }
@@ -171,6 +174,7 @@ fun FluidSheet(
             drawBody = false,
             extendTop = { contentTop },
             extendBottomPx = bottomBleed,
+            preference = preference,
           )
       } else {
         // Il foglio di prima: il dipinto della 3.x sotto la maniglia (lo sceglie lo stesso `fluidStaticGlassSurface`).
@@ -443,7 +447,9 @@ private fun FluidAlertDialog(
   val page = scheme.background
   // Come il foglio: con `Classic` (e sotto Android 13) l'avviso della 3.x, col velo di piattaforma della `Dialog`.
   val liquid = rememberPaintedGlassLiquid(LocalFluidGlassModel.current)
-  val body = remember(page, darkSide) { glassPaintedPanelBody(page, darkSide) }
+  // Il cursore dell'utente, come nel foglio.
+  val preference = LocalFluidGlassPreference.current
+  val body = remember(page, darkSide, preference) { glassPaintedPanelBody(page, darkSide, preference = preference) }
   val seen = remember(page, darkSide) { glassPaintedSeen(page, darkSide) }
   Dialog(
     onDismissRequest = onDismissRequest,
@@ -477,7 +483,13 @@ private fun FluidAlertDialog(
         // cross that boundary. With `Classic`, the painted glass of 3.x over its 92% fill.
         .then(
           if (liquid) {
-            Modifier.glassPainted(shape = alertShape, darkSide = darkSide, seen = seen, largeVeil = 1f)
+            Modifier.glassPainted(
+              shape = alertShape,
+              darkSide = darkSide,
+              seen = seen,
+              largeVeil = 1f,
+              preference = preference,
+            )
           } else {
             Modifier
               .background(scheme.surfaceContainerHigh.copy(alpha = 0.92f))

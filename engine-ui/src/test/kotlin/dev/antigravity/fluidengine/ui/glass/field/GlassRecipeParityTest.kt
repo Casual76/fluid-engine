@@ -14,6 +14,7 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassLiquidMinSdk
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassFalloff
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
@@ -155,7 +156,14 @@ class GlassRecipeParityTest {
   // Gli adattatori: ciò che il nodo riceve
   // ------------------------------------------------------------------------------------------------------------
 
-  private fun stillSurface(piece: Piece, dark: Boolean, density: Float, state: State, tint: GlassTint): GlassLiquidSurface {
+  private fun stillSurface(
+    piece: Piece,
+    dark: Boolean,
+    density: Float,
+    state: State,
+    tint: GlassTint,
+    preference: Float = FluidGlassPreference.Default,
+  ): GlassLiquidSurface {
     val mode = dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode(tint)
     return GlassLiquidSurface(
       role = piece.role,
@@ -170,6 +178,7 @@ class GlassRecipeParityTest {
       film = { if (mode == GlassTintMode.Fixed) tint.overlay else Color.Unspecified },
       tint = { if (mode == GlassTintMode.Colored) tint.overlay else Color.Unspecified },
       touch = { null },
+      preference = preference,
     )
   }
 
@@ -181,6 +190,7 @@ class GlassRecipeParityTest {
     state: State,
     tint: GlassTint,
     widthPx: Float,
+    preference: Float = FluidGlassPreference.Default,
   ): PhysicsLiquidSurface = PhysicsLiquidSurface(
     state = physics,
     role = piece.role,
@@ -198,6 +208,7 @@ class GlassRecipeParityTest {
     quality = { state.quality },
     layoutWidth = { widthPx },
     onPanel = { false },
+    preference = preference,
   )
 
   /**
@@ -389,6 +400,47 @@ class GlassRecipeParityTest {
       compared++
     }
     assertEquals(pieces.size * 2 * densities.size * states.size, compared)
+  }
+
+  /**
+   * Il cursore dell'utente (giro di correzione di F2, D-R1 e B-R4) arriva anche a Fluid-physics: ai due estremi una
+   * superficie fisica ferma è ancora la `glassSurface` della stessa forma, numero per numero. È la condizione perché
+   * un menu che nasce da un tasto non si apra diverso da lui e non cambi alla posa, quando la superficie in viaggio
+   * lascia il posto alla lastra. E non è una parità vuota: diffusione e velo non sono quelli di metà corsa.
+   */
+  @Test
+  fun theUserCursorMovesAStillPhysicsSurfaceLikeTheGlassSurface() {
+    val density = 3f
+    val state = State("riposo", 1f, 1f) { n, _ -> n }
+    var compared = 0
+    for (piece in pieces) for (dark in listOf(false, true)) {
+      val w = piece.widthDp * density
+      val h = piece.heightDp * density
+      val size = Size(w, h)
+      fun physicsAt(preference: Float): Map<String, Float> {
+        val physics = FluidPhysicsState(piece.form(density)).apply {
+          this.density = density
+          maskInShader = true
+        }
+        val surface = physicsSurface(physics, piece, dark, density, state, neutral, w, preference)
+        return material(physicsInputs(surface, w, h, density), density, density)
+      }
+      val middle = physicsAt(FluidGlassPreference.Default)
+      for (preference in listOf(FluidGlassPreference.Transparent, FluidGlassPreference.Colored)) {
+        val where = "${piece.name}, ${if (dark) "scuro" else "chiaro"}, cursore $preference"
+        val still = stillSurface(piece, dark, density, state, neutral, preference)
+        val scale = still.effectiveCaptureScale(size)
+        val g = material(still.drawInputs(size), density * scale, density)
+        val p = physicsAt(preference)
+        assertSameNumbers("$where, corpo e luce", g, p)
+        val blurMoved = abs(p.getValue("blurDp") - middle.getValue("blurDp"))
+        val veilMoved = abs(p.getValue("veilColor.a") - middle.getValue("veilColor.a"))
+        assertTrue("$where: la diffusione si muove ($blurMoved)", blurMoved > Tolerance)
+        assertTrue("$where: il velo si muove ($veilMoved)", veilMoved > Tolerance)
+        compared++
+      }
+    }
+    assertEquals(pieces.size * 2 * 2, compared)
   }
 
   // ------------------------------------------------------------------------------------------------------------
@@ -638,6 +690,68 @@ class GlassRecipeParityTest {
       val before = glassPaintedPanelBody(page, dark, base)
       val after = glassPaintedPanelBody(page, dark, mutations.first { it.first == "velo" }.second)
       assertTrue("il corpo del foglio dipinto segue il velo (${if (dark) "scuro" else "chiaro"})", before != after)
+    }
+  }
+
+  /**
+   * Il cursore dell'utente arriva alla goccia e al vetro dipinto (giro di correzione di F2, D-R1 e B-R4). A metà corsa
+   * le loro ricette sono quelle di prima, al bit. Agli estremi la goccia resta limpida (niente smerigliatura) e il suo
+   * tono al posto del velo si muove come il velo di un tasto; il dipinto ha il velo del pannello di vetro vero allo
+   * stesso cursore, e il corpo del foglio di piattaforma è la formula del dipinto sopra quella ricetta.
+   */
+  @Test
+  fun theUserCursorReachesTheDropAndThePaintedGlass() {
+    val dropPreference = glassDropProfile().preference
+    val panelOptics = GlassDefaults.panelOptics()
+    for (dark in listOf(false, true)) {
+      val side = if (dark) "scuro" else "chiaro"
+      val page = if (dark) Color(0xFF0D0D0F) else Color(0xFFF2F2F7)
+      val dropBefore = glassDropRecipe(24f, 24f, dark, pressure = 1f)
+      val paintedBefore = glassPaintedRecipe(360f, 300f, dark, largeVeil = 1f)
+      val bodyBefore = glassPaintedPanelBody(page, dark)
+      // A metà corsa: niente cambia.
+      assertEquals("goccia, $side", fields(dropBefore),
+        fields(glassDropRecipe(24f, 24f, dark, pressure = 1f, preference = FluidGlassPreference.Default)))
+      assertEquals("dipinto, $side", fields(paintedBefore),
+        fields(glassPaintedRecipe(360f, 300f, dark, largeVeil = 1f, preference = FluidGlassPreference.Default)))
+      assertEquals("corpo del foglio dipinto, $side", bodyBefore,
+        glassPaintedPanelBody(page, dark, preference = FluidGlassPreference.Default))
+
+      for (preference in listOf(FluidGlassPreference.Transparent, FluidGlassPreference.Colored)) {
+        val where = "$side, cursore $preference"
+        // La goccia: limpida a ogni cursore, e il tono segue il cursore come il velo (con un livello su 255 di
+        // arrotondamento).
+        val drop = glassDropRecipe(24f, 24f, dark, pressure = 1f, preference = preference)
+        assertEquals("goccia, $where: resta limpida", 1f, drop.mix, 0f)
+        assertEquals(
+          "goccia, $where: il tono",
+          dropBefore.veilColor.alpha * glassPreferenceVeil(preference, dropPreference),
+          drop.veilColor.alpha,
+          1f / 255f + 1e-4f,
+        )
+        assertTrue("goccia, $where: il tono si muove", drop.veilColor.alpha != dropBefore.veilColor.alpha)
+        // Il dipinto: il velo del pannello vero allo stesso cursore.
+        val painted = glassPaintedRecipe(360f, 300f, dark, largeVeil = 1f, preference = preference)
+        val live =
+          glassRecipe(GlassRole.Modal, 360f, 300f, dark, optics = panelOptics, largeVeil = 1f, preference = preference)
+        assertEquals("dipinto, $where: il velo", live.veilColor, painted.veilColor)
+        assertEquals("dipinto, $where: l'ispessimento", live.veilAdapt, painted.veilAdapt, 0f)
+        assertTrue("dipinto, $where: il velo si muove", painted.veilColor != paintedBefore.veilColor)
+        // Il corpo del foglio di piattaforma: il dipinto sopra la ricetta del pannello vero (320 dp, la taglia con cui
+        // lo chiede `glassPaintedPanelBody`).
+        val reference =
+          glassRecipe(GlassRole.Modal, 320f, 320f, dark, optics = panelOptics, largeVeil = 1f, preference = preference)
+        assertEquals(
+          "corpo del foglio dipinto, $where",
+          glassPaintedBody(reference, glassPaintedSeen(page, dark)),
+          glassPaintedPanelBody(page, dark, preference = preference),
+        )
+      }
+      // All'estremo colorato il corpo del foglio cambia davvero (all'altro il passo può stare dentro un livello).
+      assertTrue(
+        "corpo del foglio dipinto, $side: il cursore colorato lo cambia",
+        glassPaintedPanelBody(page, dark, preference = FluidGlassPreference.Colored) != bodyBefore,
+      )
     }
   }
 

@@ -607,12 +607,16 @@ internal object GlassLiquidVeils {
   )
 
   /**
-   * **Tema scuro, più chiaro** (di serie): 67 sulla pagina `#0D0D0F`, 60 sul nero, 71 sul varco nero di
-   * `rif27-scuro` (R5 M3, bassa: 58–78). L'ombreggiatura è più forte che sul chiaro, perché un 7% di nero su
-   * un corpo a 60 non si vede. A occhio.
+   * **Tema scuro, più chiaro** (di serie): il grigio `#787880` a un'alfa di 0,39 (`0x63`). Il lato scuro di un piccolo
+   * girato e il vetro scuro dei piccoli sul tema scuro. Dalla 4.0 G1 (scelta 3 di S3, «piccolo girato») l'alfa scende da
+   * 0,50 a 0,39: sul tablet il tasto girato sul nero ha il corpo a ≈43 invece di 55 (`sessioni/s3/per-alessio/
+   * 3-piccolo-girato`), e cambia con lui il vetro scuro dei piccoli sul tema scuro (voluto). Fino a S3, con 0,50: 67
+   * sulla pagina `#0D0D0F`, 60 sul nero, 71 sul varco nero di `rif27-scuro` (R5 M3, bassa: 58–78). Sopra una foto
+   * scura il velo conta poco: lì decide la foto (S3, rilievo 7). L'ombreggiatura è più forte che sul chiaro, perché un 7%
+   * di nero su un corpo scuro non si vede. A occhio.
    */
   val DarkLighter: GlassLiquidVeil = GlassLiquidVeil(
-    color = Color(0x80787880),
+    color = Color(0x63787880),
     adapt = 0f,
     shade = Color(0x33000000),
     shadeDepth = 22.dp,
@@ -625,9 +629,11 @@ internal object GlassLiquidVeils {
 
   /**
    * **Tema scuro, i grandi** (di serie per fogli, card, pannelli, menu: vedi [GlassLiquidDarkLargeStartDp]): lo
-   * stesso velo di [DarkLighter] con un grigio più profondo, alla **stessa alfa**. Così la pagina passa quanto
-   * sotto un tasto (metà: il foglio resta un vetro, col filo chiaro e il riflesso del bordo scuro) e il corpo
-   * scende dove il testo secondario dell'engine si legge.
+   * stesso velo di [DarkLighter] con un grigio più profondo, all'alfa di 0,5 (`0x80`). Così la pagina passa per metà
+   * (il foglio resta un vetro, col filo chiaro e il riflesso del bordo scuro) e il corpo scende dove il testo secondario
+   * dell'engine si legge. Fino a S3 era la stessa alfa dei piccoli; dalla G1 i piccoli scendono a 0,39 e questo resta a
+   * 0,5: la scelta 4 di S3 (0,89, 48 sul nero pieno) porta il testo secondario sotto il vincolo qui sotto (5,60:1 sulla
+   * pagina scura, 5,44:1 sul fondo del tablet: `bench/f2-g1/contrasto.md`) ed è ferma.
    *
    * Il vincolo è misurato (S1-ter, difetto 2): il testo `onSurfaceVariant` scuro (`#AAAAB2`) sul corpo deve
    * stare ad almeno 6:1 (99,5° percentile del testo contro la mediana del corpo), come sul vetro di oggi
@@ -1372,7 +1378,10 @@ internal object GlassLiquidTuning {
     "shadowhue" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(shadowHue = v)) },
     // F2.3: il soffitto del velo scuro dei grandi.
     "darkceiling" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(darkCeiling = v)) },
-    // S3: l'alfa del velo scuro dei grandi (la profondità di un grande sopra il nero pieno: di serie 0,5, corpo 27).
+    // S3: l'alfa del velo scuro dei grandi (la profondità di un grande sopra il nero pieno: di serie 0,5, corpo 27). La
+    // scelta 4 di S3 (0,89: 48 sul nero pieno, 89 al 47% sul tablet) è ferma in G1: col grigio di [GlassLiquidVeils.DarkLarge]
+    // il corpo sale a 49 sulla pagina scura e il testo secondario `#AAAAB2` scende a 5,60:1 (5,44:1 sul fondo del tablet),
+    // sotto il vincolo di 6:1 di S1-ter.
     "darklargealpha" to Knob(0f, 1f) { p, v ->
       p.copy(darkLargeVeil = p.darkLargeVeil.copy(color = p.darkLargeVeil.color.copy(alpha = v)))
     },

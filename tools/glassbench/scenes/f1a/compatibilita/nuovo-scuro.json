@@ -691,7 +691,7 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#77777F80",
+          "veilColor": "#77777F64",
           "veilAdapt": 0,
           "tintColor": "#00000000",
           "tintMode": 0,

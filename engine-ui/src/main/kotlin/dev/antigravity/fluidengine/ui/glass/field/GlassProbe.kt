@@ -220,6 +220,8 @@ private const val GlassProbeLogTag = "FluidGlass"
  *   contro 0,006).
  * @property red il rosso medio (0..1), premoltiplicato come arriva dal lettore. Così [green] e [blue].
  * @property coverage l'alfa medio: 1 = tutta la miniatura è coperta da sorgenti opache.
+ * @property darkShare la quota dei punti della miniatura più scuri di [GlassFlipCoverageDarkLuma] (G1, per
+ *   `flipby=coverage`); NaN se chi l'ha costruita non la sa.
  */
 @Immutable
 internal data class GlassBackdropStats(
@@ -230,6 +232,7 @@ internal data class GlassBackdropStats(
   val green: Float,
   val blue: Float,
   val coverage: Float,
+  val darkShare: Float = Float.NaN,
 ) {
   /** La deviazione standard della luminanza. */
   val deviation: Float get() = sqrt(max(variance, 0f))
@@ -314,9 +317,11 @@ internal class GlassProbeStatsReducer(
     }
     val mean = (sumY / count).toFloat()
     var squares = 0.0
+    var darkCells = 0
     for (i in 0 until count) {
       val d = lumas[i] - mean
       squares += d * d
+      if (lumas[i] < GlassFlipCoverageDarkLuma) darkCells++
     }
     var energy = 0.0
     for (row in 0 until statsSide) {
@@ -341,6 +346,7 @@ internal class GlassProbeStatsReducer(
       green = (sumG / count).toFloat(),
       blue = (sumB / count).toFloat(),
       coverage = (sumA / count).toFloat(),
+      darkShare = darkCells.toFloat() / count,
     )
   }
 }
@@ -375,8 +381,13 @@ internal fun glassProbeStats(
 @Stable
 internal class GlassProbeState(
   initialDark: Boolean,
-  // Di serie il filtro di sempre; in una build di debug le manopole del giro (`flipwait`, `flipon`, `flipoff`, S3).
+  // Di serie il filtro di sempre; in una build di debug le manopole del giro (`flipwait`, `flipon`, `flipoff`, S3;
+  // `flipdwell`, `flipby`, `flipcover`, G1).
   internal val filter: GlassAdaptiveFilter = GlassAdaptiveTuning.filter(initialDark),
+  /** Su che cosa decide il filtro (G1, `flipby`): di serie la luminanza media. */
+  internal val by: GlassFlipBy = GlassAdaptiveTuning.by,
+  /** Che cosa fa mentre lo sfondo scorre (G1, `flipscroll`): di serie decide come sempre. */
+  internal val scroll: GlassFlipScroll = GlassAdaptiveTuning.scroll,
 ) {
   /** L'ultima lettura consegnata, o null se non ce n'è ancora una. */
   var stats: GlassBackdropStats? by mutableStateOf(null)
@@ -393,7 +404,7 @@ internal class GlassProbeState(
   /** Una lettura nuova a [nowMillis]. Dal filo principale, fuori dal disegno. */
   internal fun publish(nowMillis: Long, stats: GlassBackdropStats) {
     this.stats = stats
-    filter.sample(nowMillis, stats.luminance)
+    filter.sample(nowMillis, glassFlipValue(stats, by))
     target = filter.target(nowMillis, stats)
     readings++
   }
@@ -526,6 +537,10 @@ internal class GlassProbeNode(
   private var recordedGeometry: FloatArray? = null
   private var lastGeometry: FloatArray? = null
 
+  /** G1, `flipscroll=ahead`: di quanti pixel la lettura guarda avanti adesso, e con quanto è registrata la miniatura. */
+  private var aheadPx = 0f
+  private var recordedAheadPx = 0f
+
   private var pumpPosted = false
   private var revisionSeen = false
   private var timerAt = Long.MAX_VALUE
@@ -653,11 +668,13 @@ internal class GlassProbeNode(
     scheduler.setUnannounced(sourcesUnannounced || sources.any { !it.announcesRevisions })
     val suspended = (quality?.level ?: 1f) < GlassProbeQualityFloor
     scheduler.setSuspended(suspended)
+    // G1: le varianti «cosa fa il vetro mentre scorri» (`flipscroll`). Di serie (`live`) non si legge niente qui.
+    val scrollWake = if (state.scroll == GlassFlipScroll.Live) Long.MAX_VALUE else followScroll(now)
     if (state.advance(now)) {
       // Il filtro ha girato alla sua scadenza, senza una lettura nuova: chi ascolta lo sa con l'ultima lettura.
       state.stats?.let { last -> onReading?.invoke(last, state.target, false) }
     }
-    var wakeAt = state.nextDeadlineMillis()
+    var wakeAt = min(state.nextDeadlineMillis(), scrollWake)
     when (val decision = scheduler.next(now)) {
       is GlassProbeDecision.Read -> startRead(now, decision.rerecord)
       is GlassProbeDecision.WaitUntil -> wakeAt = min(wakeAt, decision.atMillis)
@@ -665,6 +682,62 @@ internal class GlassProbeNode(
         if (suspended && scheduler.hasPending) wakeAt = min(wakeAt, now + GlassProbeSuspendedRecheckMillis)
     }
     armTimer(now, wakeAt)
+  }
+
+  /**
+   * G1, `flipscroll=rest|ahead`: legge il moto delle sorgenti ([LayerBackdrop.scrollMotion]). Con `rest` trattiene il
+   * lato mentre il contenuto scorre più svelto di [GlassFlipRestSpeedDp]; con `ahead` sposta la lettura verso la fascia
+   * che sta entrando. Dice quando ripassare (il contenuto si considera fermo [GlassFlipQuietMillis] dopo l'ultimo passo),
+   * o `Long.MAX_VALUE`.
+   */
+  private fun followScroll(now: Long): Long {
+    var velocity = 0f
+    var lastAt = Long.MIN_VALUE
+    for (layer in sources) {
+      val motion = layer.scrollMotion
+      val v = motion.velocityAt(now)
+      if (abs(v) > abs(velocity)) velocity = v
+      lastAt = max(lastAt, motion.lastAtMillis)
+    }
+    when (state.scroll) {
+      GlassFlipScroll.Rest -> state.filter.holding = abs(velocity) > GlassFlipRestSpeedDp * requireDensity().density
+      GlassFlipScroll.Ahead -> {
+        val ahead = -velocity * GlassFlipAheadMillis / 1000f
+        if (ahead != aheadPx) {
+          aheadPx = ahead
+          // Una lettura nuova con la fascia nuova (lo schedulatore le raccoglie: al più una ogni 120 ms).
+          if (ahead != recordedAheadPx) scheduler?.onRevision(now)
+        }
+      }
+      GlassFlipScroll.Live -> Unit
+    }
+    if (lastAt == Long.MIN_VALUE) return Long.MAX_VALUE
+    val quietAt = lastAt + GlassFlipQuietMillis
+    return if (quietAt > now) quietAt else if (velocity != 0f) now + GlassFlipQuietMillis else Long.MAX_VALUE
+  }
+
+  /**
+   * G1, `flipscroll=ahead`: lo spostamento verticale della lettura dentro le sorgenti, al più
+   * [GlassFlipAheadMaxHeights] altezze del vetro e mai fuori dalla registrazione (fuori non c'è niente da leggere: sotto
+   * la tab bar in fondo allo schermo, sopra la barra in cima).
+   */
+  private fun clampedAhead(self: LayoutCoordinates, area: Rect): Float {
+    if (aheadPx == 0f) return 0f
+    val reach = GlassFlipAheadMaxHeights * area.height
+    var ahead = aheadPx.coerceIn(-reach, reach)
+    for (layer in sources) {
+      val source = layer.layerCoordinates ?: return 0f
+      if (!source.isAttached) return 0f
+      val top = try {
+        source.localPositionOf(self).y + area.top
+      } catch (_: Exception) {
+        return 0f
+      }
+      val lowest = -top
+      val highest = source.size.height - top - area.height
+      ahead = if (lowest > highest) 0f else ahead.coerceIn(lowest, highest)
+    }
+    return ahead
   }
 
   private fun armTimer(now: Long, atMillis: Long) {
@@ -809,9 +882,12 @@ internal class GlassProbeNode(
     val geometry = currentGeometry() ?: return false
     val layer = thumbnailLayer ?: return false
     val recorded = recordedGeometry
-    if (thumbnailDirty || recorded == null || !recorded.contentEquals(geometry)) {
+    // G1, `flipscroll=ahead`: la fascia che sta entrando (di serie sempre zero).
+    val ahead = if (state.scroll == GlassFlipScroll.Ahead) probedArea(self)?.let { clampedAhead(self, it) } ?: 0f else 0f
+    if (thumbnailDirty || recorded == null || !recorded.contentEquals(geometry) || ahead != recordedAheadPx) {
       val density = requireDensity()
-      val area = probedArea(self) ?: return false
+      val area = (probedArea(self) ?: return false).let { if (ahead != 0f) it.translate(0f, ahead) else it }
+      recordedAheadPx = ahead
       val scaleX = GlassProbeReadSide / area.width
       val scaleY = GlassProbeReadSide / area.height
       val source = backdrop

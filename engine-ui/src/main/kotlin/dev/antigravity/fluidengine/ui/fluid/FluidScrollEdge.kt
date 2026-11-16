@@ -99,11 +99,11 @@ object FluidScrollEdgeDefaults {
  * ([LocalFluidGlassModel]) e il compilatore del dispositivo che accetta il programma della striscia e quelli della
  * lastra.
  *
- * Falso, [FluidScrollEdge] non disegna **niente**: chi lo posa sceglie il ripiego, ed è la fascia di oggi
- * (`glassSurface(falloff = GlassFalloff.FadeDown)`), che resta intatta sotto Android 13 e sotto `Classic` (piano 2 e
- * 3.10). La lastra conta anche lei perché un rifiuto del corpo o della luce porta tutto il processo a `Classic`
- * (piano 3.11): i tasti tornerebbero quelli di oggi, e una striscia nuova sotto tasti di oggi è una combinazione che
- * nessuno ha scelto.
+ * Falso, [FluidScrollEdge] non disegna **niente**, ma tiene il suo posto nel layout: chi lo posa sceglie il ripiego,
+ * ed è la fascia di oggi (`glassSurface(falloff = GlassFalloff.FadeDown)`), che resta intatta sotto Android 13 e sotto
+ * `Classic` (piano 2 e 3.10). La lastra conta anche lei perché un rifiuto del corpo o della luce porta tutto il
+ * processo a `Classic` (piano 3.11): i tasti tornerebbero quelli di oggi, e una striscia nuova sotto tasti di oggi è
+ * una combinazione che nessuno ha scelto.
  */
 @Composable
 fun fluidScrollEdgeAvailable(): Boolean {
@@ -137,6 +137,22 @@ internal fun fluidScrollEdgeProfile(edge: FluidScrollEdgeSide, style: FluidScrol
   }
 
 /**
+ * Quanto è alto [FluidScrollEdge]: [height] più la portata del profilo ([FluidScrollEdgeDefaults.reach]), la stessa
+ * altezza del `Box` che la striscia disegna; `null` quando lo stile non ha striscia ([FluidScrollEdgeStyle.Hidden])
+ * e il componente non occupa niente. Dove la striscia non si può disegnare il componente pubblico tiene questo posto,
+ * vuoto (D-R10).
+ */
+internal fun fluidScrollEdgeExtent(
+  edge: FluidScrollEdgeSide,
+  style: FluidScrollEdgeStyle,
+  height: Dp,
+  controlHeight: Dp,
+): Dp? {
+  if (fluidScrollEdgeProfile(edge, style) == null) return null
+  return height + FluidScrollEdgeDefaults.reach(edge, style, controlHeight)
+}
+
+/**
  * `Automatic` in basso: sfuma senza sfocare (iOS 26 sul telefono, R1 E1). La tavola «in basso» di F2.4 chiede ad
  * Alessio se tenerlo o se in basso non mettere niente (`null`): la scelta cambia questa riga sola.
  */
@@ -152,7 +168,10 @@ internal val FluidScrollEdgeBottomAutomatic: GlassScrollEdgeProfile? = GlassScro
  * [height] (dal bordo dello schermo al bordo dei controlli più lontano da lui: barra di stato più riga dei tasti) più
  * [FluidScrollEdgeDefaults.reach], e chi lo posa gli lascia quello spazio. In alto si allinea in cima, in basso in fondo.
  *
- * Disegna solo dove [fluidScrollEdgeAvailable] è vero; altrove non disegna niente e il ripiego è di chi lo posa.
+ * Disegna solo dove [fluidScrollEdgeAvailable] è vero; altrove non disegna niente e il ripiego è di chi lo posa, ma
+ * **tiene il posto** (D-R10): un `Box` vuoto alto lo stesso `height + reach`, così una colonna che lo impila ha lo
+ * stesso layout sotto `Liquid` e sotto `Classic` o Android 12. Con [FluidScrollEdgeStyle.Hidden] non occupa niente,
+ * in tutti e due i casi.
  *
  * @param backdrop il contenuto che scorre, registrato con `glassBackdropSource`.
  * @param edge in alto o in basso.
@@ -185,6 +204,13 @@ fun FluidScrollEdge(
   color: Color = Color.Unspecified,
   darkContent: () -> Float = NoDarkContent,
 ) {
+  if (!fluidScrollEdgeAvailable()) {
+    // D-R10: dove la striscia non si disegna tiene lo stesso posto, vuota; il ripiego lo disegna chi la posa. Solo il
+    // componente pubblico: la barra ancorata dell'host e `FluidScreen` chiamano la striscia solo dove si disegna.
+    val extent = fluidScrollEdgeExtent(edge, style, height, controlHeight) ?: return
+    Box(modifier = modifier.fillMaxWidth().height(extent))
+    return
+  }
   FluidScrollEdgeStrip(
     backdrop = backdrop,
     edge = edge,
@@ -217,6 +243,9 @@ internal fun FluidScrollEdgeStrip(
   color: Color,
   darkContent: () -> Float,
   split: () -> GlassScrollEdgeSplit?,
+  // G1: il colore del velo letto in disegno (la barra in alto sul tema scuro, che vela verso il fondo chiaro quando
+  // gira); null = [color] o il fondo del tema, come prima.
+  veil: (() -> Color)? = null,
 ) {
   if (!fluidScrollEdgeAvailable()) return
   val base = fluidScrollEdgeProfile(edge, style) ?: return
@@ -226,13 +255,14 @@ internal fun FluidScrollEdgeStrip(
   remember(view) { GlassWarmUp.request(GlassWarmFamily.ScrollEdge, view) }
   val scale = GlassScrollEdgeCaptureScale
   val profile = remember(base, scale) { base.atResolution(scale) }
-  val veil = if (color.isSpecified) color else MaterialTheme.colorScheme.background
+  val baseVeil = if (color.isSpecified) color else MaterialTheme.colorScheme.background
+  val currentVeil by rememberUpdatedState(veil)
   val currentIntensity by rememberUpdatedState(intensity)
   val currentDark by rememberUpdatedState(darkContent)
   val currentSplit by rememberUpdatedState(split)
   val state = remember { GlassScrollEdgeState() }
   val top = edge == FluidScrollEdgeSide.Top
-  val effects: BackdropEffectScope.() -> Unit = remember(state, profile, top, height, controlHeight, veil) {
+  val effects: BackdropEffectScope.() -> Unit = remember(state, profile, top, height, controlHeight, baseVeil) {
     {
       glassScrollEdge(
         state = state,
@@ -240,7 +270,7 @@ internal fun FluidScrollEdgeStrip(
         top = top,
         controls = height,
         unit = controlHeight,
-        veil = veil,
+        veil = currentVeil?.invoke() ?: baseVeil,
         darkContent = currentDark(),
         amount = currentIntensity(),
         split = currentSplit(),

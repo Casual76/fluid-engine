@@ -175,7 +175,7 @@ class GlassSceneExportTest {
     // Il velo scuro: quello dei piccoli sul tasto, quello dei grandi su menu e pannello, in mezzo la capsula e
     // la barra, sempre più scure con la taglia.
     fun veil(name: String) = uniforms(element(dark, name)["body"])["veilColor"] as String
-    assertEquals("#78788080", veil("tasto"))
+    assertEquals("#78788063", veil("tasto"))
     assertEquals("#36363C80", veil("menu"))
     assertEquals("#36363C80", veil("pannello"))
     val greys = listOf("tasto", "capsula", "barra", "menu").map { veil(it).substring(1, 3).toInt(16) }
@@ -213,12 +213,12 @@ class GlassSceneExportTest {
     val before = scene("gusto/testo-prima-scuro.json")
     for (name in listOf("foglio", "card")) {
       assertEquals("#36363C80", uniforms(element(after, name)["body"])["veilColor"])
-      assertEquals("#78788080", uniforms(element(before, name)["body"])["veilColor"])
+      assertEquals("#78788063", uniforms(element(before, name)["body"])["veilColor"])
     }
-    // Il tasto annidato prende il vetro annidato: sullo scuro un terzo del velo (0,35 di 0x80 = 0x2D), e
+    // Il tasto annidato prende il vetro annidato: sullo scuro un terzo del velo (0,35 di 0x63 = 0x23; G1, scelta 3 di S3), e
     // nella variante di prima, che la regola non l'aveva, il velo pieno.
-    assertEquals("#7878802D", uniforms(element(after, "annidato")["body"])["veilColor"])
-    assertEquals("#78788080", uniforms(element(before, "annidato")["body"])["veilColor"])
+    assertEquals("#78788023", uniforms(element(after, "annidato")["body"])["veilColor"])
+    assertEquals("#78788063", uniforms(element(before, "annidato")["body"])["veilColor"])
     // Il tondo da 26 dp: il riflesso più tenue e meno profondo di quello del tasto, l'ombra più piccola.
     val dot = element(after, "tondo26")
     val button = element(scene("gusto/serie-scuro.json"), "tasto")
@@ -259,8 +259,8 @@ class GlassSceneExportTest {
     // Sullo scuro il velo del tasto annidato scende a un terzo, lo stesso grigio.
     val dark = children(element(scene("gusto/annidato-serie-scuro.json"), "notifica")).single()
     val darkBefore = children(element(scene("gusto/annidato-prima-scuro.json"), "notifica")).single()
-    assertEquals("#7878802D", uniforms(dark["body"])["veilColor"])
-    assertEquals("#78788080", uniforms(darkBefore["body"])["veilColor"])
+    assertEquals("#78788023", uniforms(dark["body"])["veilColor"])
+    assertEquals("#78788063", uniforms(darkBefore["body"])["veilColor"])
     // I tasti stanno dentro i pannelli: le loro coordinate sono relative al pannello.
     val panel = element(scene("gusto/annidato-serie-chiaro.json"), "notifica")
     val child = children(panel).single()

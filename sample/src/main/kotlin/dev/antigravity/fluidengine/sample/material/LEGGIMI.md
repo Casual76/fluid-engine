@@ -197,7 +197,7 @@ senza manopole l'engine disegna quello.
 | `shadowscale` | `0..8` | le due alfa dell'ombra insieme, sui due lati |
 | `darkwire` | `0..1` | il filo bianco che copre, sul lato scuro (di serie 0.34; la B della tavola era 0.1) |
 | `darkreflex` | `0..1` | la riga chiara sul lato scuro (di serie 0.20) |
-| `darkveilalpha` | `0..1` | il velo scuro dei tasti (di serie 0.5) |
+| `darkveilalpha` | `0..1` | il velo scuro dei tasti (di serie 0.39 dalla G1, scelta 3 di S3; prima 0.5) |
 | `nestedveil` | `0..1` | quanto resta del velo di un vetro annidato sul tema **scuro** (di serie 0.35) |
 | `nestedlightveil` | `0..1` | lo stesso sul tema chiaro (di serie 1: il velo resta) |
 | `nestedshadow` | `0..1` | quanto resta dell'ombra di un vetro annidato, sui due temi (di serie 0.5) |
@@ -208,12 +208,16 @@ senza manopole l'engine disegna quello.
 | `darkceiling` | `0..1` | il soffitto del velo scuro dei grandi a copertura parziale (F2.3; di serie 0.40). Sul tablet (S3, pop-up sopra il nero al 47%): di serie 83, a 1 (spento) 124; il banco dava 110 e 90 |
 | `darklargealpha` | `0..1` | l'alfa del velo scuro dei grandi (`#36363C`, di serie 0.5): la profondità di un foglio, un pop-up o un pannello sopra il nero pieno. Sul tablet (S3, pop-up, nero al 25/47/74/100%): di serie 116/83/70/27, con 0.89 117/89/83/48 (Apple 111/89/61/48) |
 | `edgedim` | `0..1` | non un numero del profilo: lo scurimento della striscia del bordo dello scorrimento sul lato scuro, al bordo dei tasti (di serie 0.2: ×0,80 al bordo e ×0,72 dietro i tasti) |
-| `fliptime` | `ios26` · `swift` · `slow` | non un numero del profilo: i tempi del giro dei piccoli. **`ios26`** (corpo 300 ms, inchiostro pieno a 700, misurato su Apple) / `swift` (200 e 450) / `slow` (450 e 1000) |
+| `fliptime` | `swift` · `ios26` · `slow` | non un numero del profilo: i tempi del giro dei piccoli. **`swift`** (di serie dalla G1: corpo 200 ms, inchiostro pieno a 450) / `ios26` (300 e 700, misurato su Apple) / `slow` (450 e 1000) |
 | `flipwait` | `20..2000` (ms) | non un numero del profilo: la costante di tempo della media del filtro della sonda, cioè quanto aspetta prima di decidere il lato (di serie 200) |
 | `flipon` · `flipoff` | `0..1` | non numeri del profilo: le due soglie del filtro sulla luminanza media, verso lo scuro e di ritorno al chiaro (di serie 0.45 e 0.62). `flipon` deve stare sotto `flipoff`: una coppia rovesciata si scarta tutta |
+| `flipdwell` | `0..3000` (ms) | non un numero del profilo: la permanenza minima dopo un giro (di serie 400) |
+| `flipscroll` | `live` · `rest` · `ahead` | non un numero del profilo: cosa fa il vetro mentre lo sfondo scorre (G1). **`live`** decide come sempre / `rest` tiene il lato dell'ultimo riposo mentre il contenuto scorre più svelto di 120 dp/s / `ahead` legge la fascia che entra sotto il vetro, 300 ms avanti |
+| `flipby` · `flipcover` | `luminance` · `coverage`; `0.55..0.95` | non numeri del profilo: su che cosa decide il filtro (G1). **`luminance`** la media / `coverage` la quota della miniatura più scura di 0,45, verso lo scuro a `flipcover` (di serie 0.75) e di ritorno a `1 − flipcover` |
 
-Le manopole del giro (`fliptime`, `flipwait`, `flipon`, `flipoff`) valgono per le sonde e i vetri che nascono dopo, come le
-altre; le prove sul tablet sono nella pagina «Adattività» (`adaptive/LEGGIMI.md`, «Le manopole di S3»).
+Le manopole del giro (`fliptime`, `flipwait`, `flipon`, `flipoff`, `flipdwell`, `flipscroll`, `flipby`, `flipcover`) valgono
+per le sonde e i vetri che nascono dopo, come le altre; le prove sul tablet sono nella pagina «Adattività»
+(`adaptive/LEGGIMI.md`, «Le manopole del giro»).
 
 Esempio: `GALLERIA="--es gallery.tune edge=ios26,frost=r24" materiale components hud off`.
 

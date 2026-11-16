@@ -21,10 +21,8 @@
  */
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LocalContentColor
@@ -48,6 +46,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameMillis
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveTuning
@@ -59,13 +58,15 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassProbeState
 import dev.antigravity.fluidengine.ui.glass.field.glassBlackShare
 import dev.antigravity.fluidengine.ui.theme.LocalFluidThemeSides
+import kotlin.coroutines.coroutineContext
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
-import kotlinx.coroutines.coroutineScope
+import kotlin.math.sqrt
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 
 // ------------------------------------------------------------------------------------------------------------
 // Il cursore dell'utente
@@ -92,7 +93,10 @@ object FluidGlassPreference {
  * [FluidGlassPreference.Colored] (1); di serie [FluidGlassPreference.Default].
  *
  * Muove insieme la diffusione e il velo di ogni vetro del materiale nuovo, soprattutto la diffusione (in iOS 27 il velo
- * cambia poco fra gli estremi). Non tocca la variante limpida, il vetro di prima ([FluidGlassModel.Classic]) né il
+ * cambia poco fra gli estremi): le lastre ferme (`glassSurface`, `glassControlSurface`), le superfici di Fluid-physics
+ * (menu, pop-up, fogli in viaggio), la pillola della tab bar, le gocce dei controlli (della goccia, che non sfoca, il
+ * solo tono) e il vetro dipinto di fogli e avvisi di piattaforma (il solo velo). Dalla 4.0 G1: prima arrivava solo alle
+ * lastre ferme, e a cursore non di serie un menu si apriva diverso dal suo tasto. Non tocca la variante limpida, il vetro di prima ([FluidGlassModel.Classic]) né il
  * vetro sotto Android 13. **Il valore lo conserva l'app**: la riga facoltativa di `fluidAppearanceSection`
  * (`glassPreference`, `onGlassPreferenceChange`) disegna il cursore e restituisce il valore, e l'app lo fornisce qui
  * attorno al suo contenuto, come fa con il resto dell'aspetto:
@@ -206,7 +210,7 @@ internal data class GlassFlipTiming(
 /** Le varianti dei tempi del giro (tavola `artifacts/liquid-glass/tavole/f2/giro/`, la prima). */
 internal object GlassFlipTimings {
   /**
-   * **Di serie**: i tempi di R4 B6 (alta), misurati sull'interfaccia vera a 6:52 e ricontati qui dalla decisione del
+   * I tempi di R4 B6 (alta), di serie fino a S3 e da allora manopola (`fliptime=ios26`): misurati sull'interfaccia vera a 6:52 e ricontati qui dalla decisione del
    * filtro (~146 ms dopo la copertura piena): corpo in 300 ms, quasi tutto nei primi 200; l'inchiostro scuro svanisce
    * nel corpo in 110 ms (Apple: contrasto zero a 230–270 ms dalla copertura piena) e quello chiaro è pieno a 700 ms
    * (Apple: 90% a 600, coda fino a 830).
@@ -214,9 +218,17 @@ internal object GlassFlipTimings {
   val Ios26: GlassFlipTiming =
     GlassFlipTiming(bodyDelayMillis = 0, bodyMillis = 300, inkCrossMillis = 110, inkMillis = 700)
 
-  /** Più svelto: corpo in 200 ms, inchiostro in 450. Scelta di gusto da confrontare (tavola 1, B). */
+  /**
+   * **Di serie** dalla 4.0 G1 (scelta 1 di S3, «il giro svelto»): corpo in 200 ms, l'inchiostro vecchio svanisce in 70,
+   * quello nuovo pieno a 450. Sul tablet, nel caso veloce (un riquadro scuro che passa sotto la tab bar in mezzo secondo)
+   * fa meno giri accavallati di [Ios26]; l'attesa del filtro resta 200 ms (con 100 ms giri e doppi giri crescono:
+   * `sessioni/f2-g1/`).
+   */
   val Swift: GlassFlipTiming =
     GlassFlipTiming(bodyDelayMillis = 0, bodyMillis = 200, inkCrossMillis = 70, inkMillis = 450)
+
+  /** I tempi di serie: [Swift] (G1). */
+  val Shipped: GlassFlipTiming get() = Swift
 
   /**
    * Più lento (S3): corpo in 450 ms, inchiostro pieno a 1000; l'inchiostro vecchio svanisce in 160 ms, nella stessa
@@ -268,7 +280,7 @@ private const val GlassFlipInkRisePower: Float = 2.5f
  * - **L'inchiostro non si mescola**: è sempre uno dei due inchiostri, più o meno trasparente sopra il corpo
  *   ([inkAlpha]); passa dall'uno all'altro solo da trasparente, cioè nel fotogramma a contrasto zero di R4 B6.
  */
-internal class GlassFlipLaw(private val timing: GlassFlipTiming = GlassFlipTimings.Ios26) {
+internal class GlassFlipLaw(private val timing: GlassFlipTiming = GlassFlipTimings.Shipped) {
 
   /** Il lato verso cui si va: 0 chiaro, 1 scuro. */
   var target: Float = 0f
@@ -368,19 +380,47 @@ internal val FluidGlassInkOnDark: Color = Color(0xFFF2F2F5)
  * **La prima misura non si anima**: un vetro che nasce sopra una foto scura non deve prima mostrarsi del lato del tema
  * e poi cambiare (come fa il filtro della sonda col lato).
  *
+ * I bersagli continui si inseguono con [GlassChase] (G1, rilievo A-R1): una lettura nuova sposta il bersaglio senza far
+ * ripartire da fermo ciò che si stava muovendo. Fino a F2.3c ogni lettura ripartiva con un `tween` da 1,5 s, e sopra uno
+ * sfondo che cambia senza fermarsi (una fascia che sale, una lista sotto un foglio) il lato di un grande restava indietro
+ * di ≈0,45 di quota: sul tablet il pannello girava a quota 0,97 invece che a metà.
+ *
+ * Con il movimento ridotto ([reducedMotion], o la scala di sistema a zero) tutto va subito al bersaglio, corpo e
+ * inchiostro insieme (G1, rilievi C-R3 e D-R2).
+ *
  * Nessuna animazione gira se niente cambia: a riposo la superficie non paga niente (F1A-f).
  */
 @Stable
-internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFlipTimings.Ios26) {
+internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFlipTimings.Shipped) {
   private var measured by mutableStateOf(false)
   private var drivesDarkness by mutableStateOf(false)
-  private val luminance = Animatable(0f)
-  private val deviation = Animatable(0f)
-  private val texture = Animatable(0f)
-  private val red = Animatable(0f)
-  private val green = Animatable(0f)
-  private val blue = Animatable(0f)
-  private val darkness = Animatable(0f)
+  private val luminance = GlassChase(GlassLiquidAdaptiveMillis)
+  private val deviation = GlassChase(GlassLiquidAdaptiveMillis)
+  private val texture = GlassChase(GlassLiquidAdaptiveMillis)
+  private val red = GlassChase(GlassLiquidAdaptiveMillis)
+  private val green = GlassChase(GlassLiquidAdaptiveMillis)
+  private val blue = GlassChase(GlassLiquidAdaptiveMillis)
+  private val darkness = GlassChase(GlassLiquidLargeDarkenMillis)
+  private val chases = arrayOf(luminance, deviation, texture, red, green, blue, darkness)
+
+  /** L'istante dell'ultimo passo degli inseguitori; `Long.MIN_VALUE` quando sono fermi. */
+  private var chasedAt = Long.MIN_VALUE
+
+  /**
+   * La luminanza dello sfondo dell'ultima lettura, **senza** inseguirla: il corpo di un grande che si vede adesso è il
+   * suo velo sopra lo sfondo di adesso (la rifrazione è viva), e il suo inchiostro passa di lato su quel corpo.
+   */
+  private var backdropNow by mutableFloatStateOf(Float.NaN)
+
+  /** Il profilo con cui la ricetta disegna questa superficie: serve a stimare il corpo di un grande ([wanted]). */
+  internal var profile: GlassLiquidProfile = GlassLiquidProfile.Default
+
+  /**
+   * Il movimento ridotto chiesto dall'app o dall'utente (`LocalFluidMotionPolicy`): il giro, l'inchiostro e lo
+   * scurimento vanno subito al bersaglio. Lo scrive [rememberGlassAdaptiveState]; anche la scala di sistema a zero,
+   * letta nel contesto degli effetti, fa lo stesso.
+   */
+  internal var reducedMotion: Boolean = false
 
   // ---- Il giro e l'inchiostro (F2.3) ----
   private val law = GlassFlipLaw(timing)
@@ -481,48 +521,103 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
   suspend fun follow(target: GlassAdaptiveTarget, stats: GlassBackdropStats?, darkSide: Boolean, continuous: Boolean) {
     val darkTarget = if (darkSide) 1f else if (target.measured && stats != null) glassBlackShare(stats.luminance, stats.variance) else 0f
     if (!target.measured || stats == null) {
+      // Nato da un altro stato ([adopt]): tiene quello finché la sua sonda non legge, invece di tornare al tema.
+      if (adopted) return
       measured = false
       drivesDarkness = continuous
-      darkness.snapTo(if (darkSide) 1f else 0f)
+      darkness.snap(if (darkSide) 1f else 0f)
+      backdropNow = Float.NaN
+      chasedAt = Long.MIN_VALUE
       return
     }
     val first = !measured
+    adopted = false
     val color = target.color
     val r = if (color.isSpecifiedColor()) color.red else stats.red
     val g = if (color.isSpecifiedColor()) color.green else stats.green
     val b = if (color.isSpecifiedColor()) color.blue else stats.blue
-    if (first || !drivesDarkness && continuous) {
-      // La prima misura (e il passaggio a una superficie che scurisce) decidono subito.
-      luminance.snapTo(stats.luminance)
-      deviation.snapTo(stats.deviation)
-      texture.snapTo(target.texture)
-      red.snapTo(r)
-      green.snapTo(g)
-      blue.snapTo(b)
-      darkness.snapTo(darkTarget)
+    luminance.aim(stats.luminance)
+    deviation.aim(stats.deviation)
+    texture.aim(target.texture)
+    red.aim(r)
+    green.aim(g)
+    blue.aim(b)
+    darkness.aim(darkTarget)
+    backdropNow = stats.luminance
+    if (first || !drivesDarkness && continuous || reducedNow()) {
+      // La prima misura (e il passaggio a una superficie che scurisce) decidono subito; col movimento ridotto, sempre.
+      for (chase in chases) chase.snap(chase.target)
+      chasedAt = Long.MIN_VALUE
       measured = true
       drivesDarkness = continuous
       return
     }
     drivesDarkness = continuous
-    val body = tween<Float>(durationMillis = GlassLiquidAdaptiveMillis)
-    coroutineScope {
-      launch { luminance.animateTo(stats.luminance, body) }
-      launch { deviation.animateTo(stats.deviation, body) }
-      launch { texture.animateTo(target.texture, body) }
-      launch { red.animateTo(r, body) }
-      launch { green.animateTo(g, body) }
-      launch { blue.animateTo(b, body) }
-      launch { darkness.animateTo(darkTarget, tween(durationMillis = GlassLiquidLargeDarkenMillis)) }
+    chase()
+  }
+
+  /**
+   * Fa avanzare gli inseguitori un fotogramma alla volta finché non arrivano. Cancellabile: una lettura nuova (il
+   * `collectLatest` di [rememberGlassAdaptiveState]) cambia i bersagli e riparte da qui, con posizione e velocità di
+   * adesso e il tempo dall'ultimo passo.
+   */
+  private suspend fun chase() {
+    while (true) {
+      val now = withFrameMillis { it }
+      val step = if (chasedAt == Long.MIN_VALUE) 0L else (now - chasedAt).coerceIn(0L, GlassChaseMaxStepMillis)
+      chasedAt = now
+      var moving = false
+      for (chase in chases) {
+        chase.step(step)
+        if (!chase.settled) moving = true
+      }
+      if (!moving) {
+        chasedAt = Long.MIN_VALUE
+        return
+      }
     }
   }
+
+  /** Vero se adesso il movimento è ridotto: dall'app ([reducedMotion]) o dalla scala di sistema a zero. */
+  private suspend fun reducedNow(): Boolean =
+    reducedMotion || coroutineContext[MotionDurationScale]?.scaleFactor == 0f
 
   /**
    * Il modo del giro: [flipping] = un piccolo il cui contenuto segue l'inchiostro (gira corpo e inchiostro);
    * [inking] = il contenuto segue l'inchiostro (un grande lo cambia quando il suo lato continuo passa metà). Si torna
    * sul lato del tema [darkSide], senza animazione.
    */
+  /** Vero dopo [adopt], finché la sonda non ha letto: la misura e il lato sono quelli presi. */
+  private var adopted = false
+
+  /**
+   * Nasce dove [from] è adesso (4.0, G1, rilievo C-R2): il pannello di un menu che parte da un tasto già girato, o a metà
+   * giro, prende la sua misura, il suo lato e il suo inchiostro, e la sua prima lettura insegue da lì invece di
+   * scattare (prima partiva dal tema e la prima misura scattava: la sagoma del tasto, scura, tornava chiara nel primo
+   * fotogramma del viaggio). [continuous]: questo scurisce in continuo (un grande). Senza misura in [from] non fa niente.
+   * Dopo [reset], in composizione, alla nascita.
+   */
+  fun adopt(from: GlassAdaptiveState, continuous: Boolean) {
+    if (!from.measured) return
+    for (i in 0 until chases.size - 1) chases[i].snap(from.chases[i].value)
+    val side = from.sideNow
+    darkness.snap(if (side.isFinite()) side.coerceIn(0f, 1f) else from.darkness.value)
+    backdropNow = from.backdropNow
+    chasedAt = Long.MIN_VALUE
+    measured = true
+    drivesDarkness = continuous
+    val onDark = from.inkOnDark
+    law.snap(onDark)
+    body = if (flips && side.isFinite()) side.coerceIn(0f, 1f) else law.target
+    ink = law.target
+    sideMeasured = true
+    composedInkOnDark = onDark
+    appearance = from.appearance
+    adopted = true
+  }
+
   fun reset(darkSide: Boolean, flipping: Boolean, inking: Boolean) {
+    adopted = false
     flips = flipping
     inks = inking
     sideMeasured = false
@@ -539,7 +634,14 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
    */
   fun wanted(target: GlassAdaptiveTarget): Int = when {
     !target.measured -> -1
-    drivesDarkness -> glassLargeInkSide(darkness.value, GlassFlipLaw.inkOnDark(ink))
+    drivesDarkness -> {
+      val backdrop = backdropNow
+      if (backdrop.isNaN()) {
+        glassLargeInkSide(darkness.value, GlassFlipLaw.inkOnDark(ink))
+      } else {
+        glassLargeInkSideByBody(glassLargeBodyLuma(backdrop, darkness.value, profile), GlassFlipLaw.inkOnDark(ink))
+      }
+    }
     else -> if (target.dark) 1 else 0
   }
 
@@ -559,6 +661,16 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
     val dark = wanted == 1
     if (!sideMeasured) {
       sideMeasured = true
+      law.snap(dark)
+      body = law.target
+      ink = law.target
+      noteInkSide(luminance())
+      return
+    }
+    if (reducedNow()) {
+      // Movimento ridotto: corpo e inchiostro insieme, subito, senza passare dal trasparente.
+      val to = if (dark) 1f else 0f
+      if (law.target == to && body == to && ink == to) return
       law.snap(dark)
       body = law.target
       ink = law.target
@@ -595,6 +707,139 @@ internal fun glassLargeInkSide(darkness: Float, onDark: Boolean): Int {
     if (d > GlassLargeInkTurn - GlassLargeInkHysteresis) 1 else 0
   } else {
     if (d >= GlassLargeInkTurn + GlassLargeInkHysteresis) 1 else 0
+  }
+}
+
+// ------------------------------------------------------------------------------------------------------------
+// L'inseguitore che non riparte da fermo e l'inchiostro dei grandi sul corpo (G1)
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * `ωT` di una molla con smorzamento critico che su un gradino arriva al 99,5% in `T`: `(1 + x)·e^(−x) = 0,005` dà
+ * `x ≈ 7,43`. Con `T` = 1500 ms (il lato di un grande, R4 A6: «da 143 a 48 in ≈1,5 s») a metà tempo è all'88%.
+ */
+internal const val GlassChaseSettleOmegaT: Float = 7.43f
+
+/** Il passo più lungo che un inseguitore accetta fra due fotogrammi: un fotogramma perso non fa saltare il valore. */
+internal const val GlassChaseMaxStepMillis: Long = 64L
+
+/** Sotto questa distanza dal bersaglio (mezzo livello su 255) e questa velocità (unità al secondo) è arrivato. */
+internal const val GlassChaseRest: Float = 0.002f
+internal const val GlassChaseRestVelocity: Float = 0.02f
+
+/**
+ * Un inseguitore che **non riparte da fermo** (G1, rilievo A-R1): una molla con smorzamento critico, risolta in forma
+ * chiusa a ogni passo (esatta per qualunque passo, mai instabile), che tiene posizione **e velocità** quando il bersaglio
+ * cambia. Su un gradino arriva al 99,5% in [settleMillis] senza oscillare; su una rampa di bersagli (letture ogni
+ * 100–150 ms di uno sfondo che cambia senza fermarsi) insegue con un ritardo costante di `2·v/ω`: con il lato di un
+ * grande (1500 ms) e una fascia che sale di 0,125 al secondo, ≈0,05 di quota. Il `tween` che ripartiva a ogni lettura,
+ * con la sua pendenza nulla all'avvio, restava indietro di ≈0,45.
+ *
+ * Pura: il tempo lo dà chi chiama ([step]). Il valore è uno stato di snapshot, letto in disegno dalla ricetta.
+ */
+@Stable
+internal class GlassChase(settleMillis: Int) {
+  private val omega: Float = GlassChaseSettleOmegaT / (settleMillis.coerceAtLeast(1) / 1000f)
+
+  /** Il valore adesso. */
+  var value: Float by mutableFloatStateOf(0f)
+    private set
+
+  /** La velocità adesso, in unità al secondo. */
+  var velocity: Float = 0f
+    private set
+
+  /** Dove sta andando. */
+  var target: Float = 0f
+    private set
+
+  /** Vero se è arrivato e fermo. */
+  val settled: Boolean
+    get() = abs(value - target) <= GlassChaseRest && abs(velocity) <= GlassChaseRestVelocity
+
+  /** Va subito a [to], fermo. */
+  fun snap(to: Float) {
+    value = to
+    target = to
+    velocity = 0f
+  }
+
+  /** Cambia il bersaglio senza toccare posizione e velocità. */
+  fun aim(to: Float) {
+    target = to
+  }
+
+  /** Avanza di [dtMillis]. */
+  fun step(dtMillis: Long) {
+    if (dtMillis <= 0L) return
+    if (settled) {
+      if (value != target) value = target
+      velocity = 0f
+      return
+    }
+    val t = dtMillis / 1000f
+    val e = value - target
+    val k = velocity + omega * e
+    val decay = exp(-omega * t)
+    val nextE = (e + k * t) * decay
+    val nextV = (velocity - omega * k * t) * decay
+    value = target + nextE
+    velocity = nextV
+    if (settled) {
+      value = target
+      velocity = 0f
+    }
+  }
+}
+
+/**
+ * La luminanza relativa del corpo in cui l'inchiostro chiaro e quello scuro hanno lo stesso contrasto:
+ * `√((Lscuro + 0,05)·(Lchiaro + 0,05)) − 0,05` con gli inchiostri del giro ([FluidGlassInkOnLight] e
+ * [FluidGlassInkOnDark]): ≈0,18, cioè ≈0,46 in luma codificata (≈118 su 255).
+ */
+internal val GlassLargeInkEqualContrastLuma: Float = run {
+  fun lin(c: Float) = if (c <= 0.04045f) c / 12.92f else ((c + 0.055f) / 1.055f).pow(2.4f)
+  fun rel(c: Color) = 0.2126f * lin(c.red) + 0.7152f * lin(c.green) + 0.0722f * lin(c.blue)
+  val equal = sqrt((rel(FluidGlassInkOnLight) + 0.05f) * (rel(FluidGlassInkOnDark) + 0.05f)) - 0.05f
+  // Da luminanza relativa a luma codificata, la stessa scala in cui la ricetta mescola i veli.
+  if (equal <= 0.0031308f) equal * 12.92f else 1.055f * equal.pow(1f / 2.4f) - 0.055f
+}
+
+/** Metà della fascia (in luma codificata) in cui l'inchiostro di un grande non cambia: ≈8 livelli per parte. */
+internal const val GlassLargeInkBodyHysteresis: Float = 0.03f
+
+/**
+ * Il corpo di un grande adesso, in luma codificata (0..1), stimato come lo mescola la ricetta (G1, rilievo A-R6): il
+ * velo chiaro (col pavimento del velo, `lightFloor`) e il velo scuro dei grandi (col suo soffitto, `darkCeiling`) sopra
+ * lo sfondo di luminanza media [backdrop], mescolati per il lato continuo [darkness]. Non è il pixel del corpo (la
+ * smerigliatura, l'ombra e il filo non ci sono): serve a decidere **quando** il contenuto cambia tema, cioè quando il
+ * corpo passa il punto in cui i due inchiostri hanno lo stesso contrasto ([GlassLargeInkEqualContrastLuma]). Pura.
+ */
+internal fun glassLargeBodyLuma(backdrop: Float, darkness: Float, profile: GlassLiquidProfile): Float {
+  val b = if (backdrop.isFinite()) backdrop.coerceIn(0f, 1f) else 0f
+  val d = if (darkness.isFinite()) darkness.coerceIn(0f, 1f) else 0f
+  fun over(veil: Color): Float {
+    val veilLuma = 0.2126f * veil.red + 0.7152f * veil.green + 0.0722f * veil.blue
+    return veilLuma * veil.alpha + b * (1f - veil.alpha)
+  }
+  val adapt = profile.adaptive
+  val light = max(over(profile.lightVeil.color), adapt.lightFloor)
+  val dark = over(profile.darkLargeVeil.color).let { if (adapt.darkCeiling < 1f) min(it, adapt.darkCeiling) else it }
+  return light + (dark - light) * d
+}
+
+/**
+ * Dove passa l'inchiostro di un **grande** dalla 4.0 G1: sul suo corpo ([glassLargeBodyLuma]), dove inchiostro chiaro e
+ * scuro hanno lo stesso contrasto, con un'isteresi di [GlassLargeInkBodyHysteresis] per parte. Il contenuto cambia tema
+ * quando il corpo passa quel punto, non dopo: fino a F2.3c aspettava che il lato continuo (inseguito in 1,5 s) passasse
+ * 0,56, e la riga secondaria restava sotto 3:1 per 1,5 s a ogni passaggio. Pura: 1 scuro, 0 chiaro.
+ */
+internal fun glassLargeInkSideByBody(bodyLuma: Float, onDark: Boolean): Int {
+  if (!bodyLuma.isFinite()) return if (onDark) 1 else 0
+  return if (onDark) {
+    if (bodyLuma < GlassLargeInkEqualContrastLuma + GlassLargeInkBodyHysteresis) 1 else 0
+  } else {
+    if (bodyLuma <= GlassLargeInkEqualContrastLuma - GlassLargeInkBodyHysteresis) 1 else 0
   }
 }
 
@@ -651,7 +896,7 @@ internal const val GlassLargeInkHysteresis: Float = 0.06f
  * @param large se la superficie scurisce in continuo invece di girare: di serie lo dice il ruolo
  *   (`GlassLiquidAdaptive.continuous`: pannelli, fogli, card); un componente lo può dire da sé (F2.3b: la barra
  *   laterale è `Floating` ma è un pannello laterale, e i pannelli laterali di Apple non girano).
- * @param timing i tempi del giro: di serie [GlassFlipTimings.Ios26], o quelli della manopola di debug `fliptime` (S3).
+ * @param timing i tempi del giro: di serie [GlassFlipTimings.Swift] (G1), o quelli della manopola di debug `fliptime` (S3).
  */
 @Composable
 internal fun rememberGlassAdaptiveState(
@@ -663,8 +908,14 @@ internal fun rememberGlassAdaptiveState(
   flipAllowed: Boolean = true,
   timing: GlassFlipTiming = GlassAdaptiveTuning.flipTiming,
   large: Boolean = profile.adaptive.darkensContinuously(role),
+  /** G1: nasce dove questo stato è adesso (il tasto da cui parte un menu): vedi [GlassAdaptiveState.adopt]. */
+  adoptFrom: GlassAdaptiveState? = null,
 ): GlassAdaptiveState {
   val state = remember(probe, timing) { GlassAdaptiveState(timing) }
+  // Il profilo (per la stima del corpo di un grande) e il movimento ridotto si leggono in composizione: valgono per le
+  // letture e i giri che vengono dopo.
+  state.profile = profile
+  state.reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val mode = glassInkMode(inkFollows = inkFollows, large = large, flipAllowed = flipAllowed)
   val continuous = mode == GlassInkMode.Continuous
   val flipping = mode == GlassInkMode.Flip
@@ -673,6 +924,7 @@ internal fun rememberGlassAdaptiveState(
   // effetto arriva dopo il primo disegno, e il lato di partenza dello stato è il chiaro).
   remember(state, darkSide, flipping, inking) {
     state.reset(darkSide, flipping, inking)
+    if (adoptFrom != null && inking) state.adopt(adoptFrom, continuous)
     Unit
   }
   // Le letture della sonda si seguono fuori dalla composizione: lette qui, ricomporrebbero chi possiede il vetro a ogni

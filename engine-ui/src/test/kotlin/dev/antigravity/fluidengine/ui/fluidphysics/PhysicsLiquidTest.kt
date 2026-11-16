@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassLiquidMinSdk
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
@@ -417,6 +418,118 @@ class PhysicsLiquidTest {
     // Con la smerigliatura larga delle manopole il margine cresce, ma resta uno.
     val wide = GlassLiquidProfile.Shipped.copy(frost = dev.antigravity.fluidengine.ui.glass.field.GlassLiquidFrosts.WideMixed)
     assertEquals(36f * 1.5f, glassTravelPaddingDp(GlassRole.Modal, panelOptics, button, wide), 1e-3f)
+  }
+
+  // ---- Il cursore dell'utente (giro di correzione di F2, D-R1 e B-R4) ------------------------------------------
+
+  private fun travelRecipeAt(
+    preference: Float,
+    shortDp: Float,
+    blend: Float,
+    motion: Float,
+    dark: Boolean,
+  ): GlassRecipe =
+    physicsLiquidRecipe(
+      role = GlassRole.Modal,
+      material = PhysicsMaterialSource(button, panelOptics).at(blend),
+      shortDp = shortDp,
+      darkSide = dark,
+      amount = 1f,
+      quality = 1f,
+      press = 0f,
+      tint = neutral,
+      tintFrom = neutral,
+      tintBlend = blend,
+      nested = false,
+      motion = motion,
+      preference = preference,
+    )
+
+  /** La superficie del viaggio tasto → menu, col cursore dato: per il suo margine della cattura. */
+  private fun surfaceAt(preference: Float): PhysicsLiquidSurface = PhysicsLiquidSurface(
+    state = FluidPhysicsState(circle(60f, 150f)).apply { this.density = this@PhysicsLiquidTest.density },
+    role = GlassRole.Modal,
+    material = PhysicsMaterialSource(button, panelOptics),
+    darkSide = false,
+    screenDensity = density,
+    tint = neutral,
+    tintFrom = neutral,
+    pressState = null,
+    glowWeight = 1f,
+    profile = GlassLiquidProfile.Default,
+    intensity = { 1f },
+    tintBlend = { 1f },
+    opticsBlend = { 1f },
+    quality = { 1f },
+    layoutWidth = { 0f },
+    onPanel = { false },
+    preference = preference,
+  )
+
+  /**
+   * Di serie (metà corsa) il cursore non tocca niente: la ricetta di un viaggio è quella di prima al bit, ferma e in
+   * moto, a ogni taglia, a ogni miscela e sui due lati; e il margine della cattura è quello di prima, al bit.
+   */
+  @Test
+  fun atHalfTheUserCursorLeavesTheJourneyAsItWas() {
+    for (dark in listOf(false, true)) for (short in listOf(26f, 44f, 120f, 330f)) {
+      for (blend in listOf(0f, 0.5f, 1f)) for (motion in listOf(0f, 0.4f, 1f)) {
+        assertEquals(
+          "lato $short, miscela $blend, moto $motion, ${if (dark) "scuro" else "chiaro"}",
+          numbers(travelRecipe(short, blend, motion, dark)),
+          numbers(travelRecipeAt(FluidGlassPreference.Default, short, blend, motion, dark)),
+        )
+      }
+    }
+    assertEquals(
+      glassTravelPaddingDp(GlassRole.Modal, panelOptics, button),
+      surfaceAt(FluidGlassPreference.Default).paddingDp,
+      0f,
+    )
+  }
+
+  /**
+   * Ai due estremi del cursore il viaggio parte dalla ricetta del tasto fermo e si posa su quella del pannello fermo
+   * **allo stesso cursore**: il menu non si apre diverso dal tasto e non cambia alla posa. E il margine della cattura
+   * segue il raggio: all'estremo colorato quello di serie non basterebbe più.
+   */
+  @Test
+  fun atBothEndsOfTheUserCursorTheJourneyStartsAndRestsOnTheSlabs() {
+    for (preference in listOf(FluidGlassPreference.Transparent, FluidGlassPreference.Colored)) {
+      for (dark in listOf(false, true)) {
+        val where = "cursore $preference, ${if (dark) "scuro" else "chiaro"}"
+        val start = travelRecipeAt(preference, 44f, blend = 0f, motion = 0f, dark = dark)
+        val restButton = glassRecipe(GlassRole.Interactive, 44f, 44f, dark, optics = button, preference = preference)
+        assertEquals("$where, partenza", numbers(restButton), numbers(start))
+        val end = travelRecipeAt(preference, 170f, blend = 1f, motion = 0f, dark = dark)
+        val restPanel = glassRecipe(GlassRole.Modal, 170f, 192f, dark, optics = panelOptics, preference = preference)
+        assertEquals("$where, posa", numbers(restPanel), numbers(end))
+        // Non è il vetro di serie: diffusione e velo si sono mossi.
+        val stock = travelRecipe(170f, blend = 1f, motion = 0f, dark = dark)
+        assertTrue("$where: la diffusione si muove", end.blurDp != stock.blurDp)
+        assertTrue("$where: il velo si muove", end.veilColor.alpha != stock.veilColor.alpha)
+      }
+      // Il margine resta un tetto: copre la sfocatura di ogni fotogramma del viaggio, a ogni taglia e a ogni miscela.
+      val padding = surfaceAt(preference).paddingDp
+      var widest = 0f
+      var short = 8f
+      while (short <= 400f) {
+        for (blend in listOf(0f, 0.3f, 0.7f, 1f)) for (motion in listOf(0f, 1f)) {
+          val r = travelRecipeAt(preference, short, blend, motion, dark = false)
+          val where = "cursore $preference, lato $short, miscela $blend, moto $motion"
+          assertTrue("$where: ${r.blurDp} > $padding", r.blurDp <= padding + 1e-4f)
+          widest = maxOf(widest, r.blurDp)
+        }
+        short += 7f
+      }
+      val stockPadding = surfaceAt(FluidGlassPreference.Default).paddingDp
+      if (preference == FluidGlassPreference.Colored) {
+        assertTrue("all'estremo colorato il margine di serie ($stockPadding) non copre $widest", widest > stockPadding)
+        assertTrue(padding > stockPadding)
+      } else {
+        assertTrue(padding < stockPadding)
+      }
+    }
   }
 
   // ---- Dove sta la luce ---------------------------------------------------------------------------------------

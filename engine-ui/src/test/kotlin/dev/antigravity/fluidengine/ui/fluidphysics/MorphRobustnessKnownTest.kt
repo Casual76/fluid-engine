@@ -20,6 +20,10 @@ package dev.antigravity.fluidengine.ui.fluidphysics
  * lo copriva il rigonfiamento del collo di prima, che F1B.9 ha tolto. Provato e scartato: `smoothing = 0f` nella
  * forma fotografata chiude queste chiavi e altre 175 note, ma apre 240 `passo-zero:area` sulle ridirezioni con la
  * goccia (corsa lg-f2-insieme). Da chiudere in F3.3.
+ *
+ * G1 (corsa lg-f2-g1): 62 chiavi POSA_ATTESA allargate con `passo-zero:velo-a`. Stessa posa di sempre (cancellazione,
+ * riposo, `PhysicsLargeVeil.settle`), che saltava gia' nei grigi del velo (`velo-r/g/b`): da quando il velo scuro dei
+ * piccoli e' a 0,39 e quello dei grandi resta a 0,5 (scelta 3 di S3), salta anche l'alfa, fino a 16 livelli su 255.
  */
 internal object MorphRobustnessKnown {
   private val records = listOf(
@@ -312,14 +316,14 @@ internal object MorphRobustnessKnown {
     gruppo-poly-inverso/goccia-doppio/120/scuro|passo-zero:area,passo-zero:baricentro-x,passo-zero:baricentro-y|RITARGETING
     gruppo-poly-inverso/goccia-doppio/60/chiaro|passo-zero:area,passo-zero:baricentro-x,passo-zero:baricentro-y|RITARGETING
     gruppo-poly-inverso/goccia-doppio/60/scuro|passo-zero:area,passo-zero:baricentro-x,passo-zero:baricentro-y|RITARGETING
-    gruppo-poly-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    gruppo-poly-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly-inverso/goccia-interrompi50/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    gruppo-poly-inverso/goccia-interrompi50/120/scuro|accelerazione:rifrazione,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    gruppo-poly-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly-inverso/goccia-interrompi50/120/scuro|accelerazione:rifrazione,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly-inverso/goccia-interrompi75/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    gruppo-poly-inverso/goccia-interrompi75/120/scuro|accelerazione:rifrazione,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    gruppo-poly-inverso/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly-inverso/goccia-interrompi75/120/scuro|accelerazione:rifrazione,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly-inverso/goccia-interrompi75/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly-inverso/goccia-inverti50/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     gruppo-poly-inverso/goccia-inverti50/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     gruppo-poly-inverso/goccia-inverti75/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -367,17 +371,17 @@ internal object MorphRobustnessKnown {
     gruppo-poly/diretto/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     gruppo-poly/diretto/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     gruppo-poly/goccia-interrompi25/120/chiaro|passo-zero:area|RITARGETING
-    gruppo-poly/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly/goccia-interrompi25/60/chiaro|passo-zero:area|RITARGETING
-    gruppo-poly/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly/goccia-interrompi50/120/chiaro|passo-zero:area|RITARGETING
-    gruppo-poly/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly/goccia-interrompi50/60/chiaro|passo-zero:area|RITARGETING
-    gruppo-poly/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly/goccia-interrompi75/120/chiaro|accelerazione:rifrazione,passo-zero:area|RITARGETING
-    gruppo-poly/goccia-interrompi75/120/scuro|accelerazione:rifrazione,passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly/goccia-interrompi75/120/scuro|accelerazione:rifrazione,passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly/goccia-interrompi75/60/chiaro|passo-zero:area|RITARGETING
-    gruppo-poly/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    gruppo-poly/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     gruppo-poly/goccia-inverti25/120/chiaro|accelerazione:area,accelerazione:rifrazione,passo-zero:area|RITARGETING
     gruppo-poly/goccia-inverti25/120/scuro|accelerazione:area,accelerazione:rifrazione,passo-zero:area|RITARGETING
     gruppo-poly/goccia-inverti25/60/chiaro|passo-zero:area|RITARGETING
@@ -646,12 +650,12 @@ internal object MorphRobustnessKnown {
     lastra-capsula/terza50/120/scuro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lastra-capsula/terza75/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lastra-capsula/terza75/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    lontanissimi-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi-inverso/goccia-interrompi75/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi-inverso/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi-inverso/goccia-interrompi75/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi-inverso/goccia-interrompi75/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     lontanissimi-inverso/goccia-inverti25/120/chiaro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lontanissimi-inverso/goccia-inverti25/120/scuro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lontanissimi-inverso/goccia-inverti50/120/chiaro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -676,12 +680,12 @@ internal object MorphRobustnessKnown {
     lontanissimi-inverso/terza50/120/scuro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lontanissimi-inverso/terza75/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lontanissimi-inverso/terza75/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    lontanissimi/goccia-interrompi25/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi/goccia-interrompi50/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi/goccia-interrompi75/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    lontanissimi/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi/goccia-interrompi50/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi/goccia-interrompi50/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi/goccia-interrompi75/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    lontanissimi/goccia-interrompi75/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     lontanissimi/goccia-inverti25/120/chiaro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lontanissimi/goccia-inverti25/120/scuro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     lontanissimi/goccia-inverti50/120/chiaro|accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -1072,12 +1076,12 @@ internal object MorphRobustnessKnown {
     raggio-oltre-meta/terza50/60/scuro|passo-zero:area|RITARGETING
     raggio-oltre-meta/terza75/120/chiaro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     raggio-oltre-meta/terza75/120/scuro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    sovrapposti-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti-inverso/goccia-interrompi75/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti-inverso/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti-inverso/goccia-interrompi75/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti-inverso/goccia-interrompi75/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     sovrapposti-inverso/goccia-inverti25/120/chiaro|accelerazione:area,accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     sovrapposti-inverso/goccia-inverti25/120/scuro|accelerazione:area,accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     sovrapposti-inverso/goccia-inverti25/60/chiaro|accelerazione:area|SOGLIA_ACCELERAZIONE
@@ -1112,12 +1116,12 @@ internal object MorphRobustnessKnown {
     sovrapposti-inverso/terza50/120/scuro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     sovrapposti-inverso/terza75/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     sovrapposti-inverso/terza75/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    sovrapposti/goccia-interrompi25/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti/goccia-interrompi50/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti/goccia-interrompi75/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    sovrapposti/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti/goccia-interrompi50/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti/goccia-interrompi50/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti/goccia-interrompi75/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    sovrapposti/goccia-interrompi75/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     sovrapposti/goccia-inverti25/120/chiaro|accelerazione:area,accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     sovrapposti/goccia-inverti25/120/scuro|accelerazione:area,accelerazione:baricentro-x,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     sovrapposti/goccia-inverti50/120/chiaro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -1348,12 +1352,12 @@ internal object MorphRobustnessKnown {
     taglia-24-600/zero/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglia-24-600/zero/60/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglia-24-600/zero/60/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
-    taglie-diverse-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    taglie-diverse-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    taglie-diverse-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    taglie-diverse-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    taglie-diverse-inverso/goccia-interrompi75/120/scuro|passo-zero:baricentro-x,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    taglie-diverse-inverso/goccia-interrompi75/60/scuro|passo-zero:baricentro-x,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    taglie-diverse-inverso/goccia-interrompi25/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    taglie-diverse-inverso/goccia-interrompi25/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    taglie-diverse-inverso/goccia-interrompi50/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    taglie-diverse-inverso/goccia-interrompi50/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    taglie-diverse-inverso/goccia-interrompi75/120/scuro|passo-zero:baricentro-x,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    taglie-diverse-inverso/goccia-interrompi75/60/scuro|passo-zero:baricentro-x,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     taglie-diverse-inverso/goccia-inverti25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse-inverso/goccia-inverti25/120/scuro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     taglie-diverse-inverso/goccia-terza25/120/chiaro|accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
@@ -1530,16 +1534,16 @@ internal object MorphRobustnessKnown {
     un-pixel/terza75/120/scuro|accelerazione:area,accelerazione:rifrazione|SOGLIA_ACCELERAZIONE
     un-pixel/terza75/60/chiaro|accelerazione:area|SOGLIA_ACCELERAZIONE
     un-pixel/terza75/60/scuro|accelerazione:area|SOGLIA_ACCELERAZIONE
-    uno-due-inverso/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-due-inverso/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due-inverso/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due-inverso/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi50/120/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi50/60/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi75/120/chiaro|passo-zero:area|RITARGETING
-    uno-due-inverso/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due-inverso/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-interrompi75/60/chiaro|passo-zero:area|RITARGETING
-    uno-due-inverso/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due-inverso/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due-inverso/goccia-inverti25/120/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/goccia-inverti25/120/scuro|passo-zero:area|RITARGETING
   """,
@@ -1591,17 +1595,17 @@ internal object MorphRobustnessKnown {
     uno-due-inverso/terza75/60/chiaro|passo-zero:area|RITARGETING
     uno-due-inverso/terza75/60/scuro|passo-zero:area|RITARGETING
     uno-due/goccia-interrompi25/120/chiaro|passo-zero:area|RITARGETING
-    uno-due/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due/goccia-interrompi25/60/chiaro|passo-zero:area|RITARGETING
-    uno-due/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due/goccia-interrompi50/120/chiaro|passo-zero:area|RITARGETING
-    uno-due/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due/goccia-interrompi50/60/chiaro|passo-zero:area|RITARGETING
-    uno-due/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due/goccia-interrompi75/120/chiaro|passo-zero:area|RITARGETING
-    uno-due/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due/goccia-interrompi75/60/chiaro|passo-zero:area|RITARGETING
-    uno-due/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-due/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-due/goccia-inverti25/120/chiaro|passo-zero:area|RITARGETING
     uno-due/goccia-inverti25/120/scuro|passo-zero:area|RITARGETING
     uno-due/goccia-inverti25/60/chiaro|passo-zero:area|RITARGETING
@@ -1650,14 +1654,14 @@ internal object MorphRobustnessKnown {
     uno-due/terza75/120/scuro|passo-zero:area|RITARGETING
     uno-due/terza75/60/chiaro|passo-zero:area|RITARGETING
     uno-due/terza75/60/scuro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto-inverso/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi75/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-interrompi75/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-interrompi75/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto-inverso/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto-inverso/goccia-interrompi75/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto-inverso/goccia-inverti75/120/chiaro|passo-zero:area|RITARGETING
     uno-otto-inverso/goccia-inverti75/120/scuro|passo-zero:area|RITARGETING
     uno-otto-inverso/goccia-inverti75/60/chiaro|passo-zero:area|RITARGETING
@@ -1675,13 +1679,13 @@ internal object MorphRobustnessKnown {
     uno-otto-inverso/terza75/60/chiaro|passo-zero:area|RITARGETING
     uno-otto-inverso/terza75/60/scuro|passo-zero:area|RITARGETING
     uno-otto/goccia-interrompi25/120/chiaro|passo-zero:area|RITARGETING
-    uno-otto/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto/goccia-interrompi25/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto/goccia-interrompi25/60/chiaro|passo-zero:area|RITARGETING
-    uno-otto/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-interrompi75/120/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
-    uno-otto/goccia-interrompi75/60/scuro|passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto/goccia-interrompi25/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto/goccia-interrompi50/120/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto/goccia-interrompi50/60/scuro|passo-zero:area,passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto/goccia-interrompi75/120/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
+    uno-otto/goccia-interrompi75/60/scuro|passo-zero:velo-a,passo-zero:velo-b,passo-zero:velo-g,passo-zero:velo-r|POSA_ATTESA
     uno-otto/goccia-inverti25/120/chiaro|passo-zero:area|RITARGETING
     uno-otto/goccia-inverti25/120/scuro|passo-zero:area|RITARGETING
     uno-otto/goccia-inverti25/60/chiaro|passo-zero:area|RITARGETING

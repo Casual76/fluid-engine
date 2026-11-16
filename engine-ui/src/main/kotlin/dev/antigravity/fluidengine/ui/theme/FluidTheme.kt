@@ -227,18 +227,19 @@ private fun SystemBarsAppearance(isDark: Boolean, statusBar: FluidStatusBarSide)
     SideEffect {
       val window = (view.context as? Activity)?.window ?: return@SideEffect
       // Letto senza osservazione: il lato sotto la barra di stato cambia senza ricomporre il tema (vedi sotto).
-      val darkUnder = Snapshot.withoutReadObservation { statusBar.darkUnder }
+      val lightIcons = Snapshot.withoutReadObservation { statusBar.lightStatusBars(lightBars) }
       WindowCompat.getInsetsController(window, view).apply {
-        isAppearanceLightStatusBars = lightBars && !darkUnder
+        isAppearanceLightStatusBars = lightIcons
         isAppearanceLightNavigationBars = lightBars
       }
     }
     // 4.0 (F2.3b): la barra in alto di una schermata che scurisce sopra un contenuto scuro chiede le icone chiare, e le
-    // riprende quando torna chiara. Un effetto e non la composizione: il tema avvolge tutta l'app.
+    // riprende quando torna chiara. Un effetto e non la composizione: il tema avvolge tutta l'app. Dalla G1 (D-R9) nei
+    // due versi: sul tema scuro una barra che gira verso il chiaro chiede le icone scure.
     LaunchedEffect(view, statusBar, lightBars) {
-      snapshotFlow { statusBar.darkUnder }.collect { darkUnder ->
+      snapshotFlow { statusBar.lightStatusBars(lightBars) }.collect { lightIcons ->
         val window = (view.context as? Activity)?.window ?: return@collect
-        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = lightBars && !darkUnder
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = lightIcons
       }
     }
   }
@@ -257,6 +258,13 @@ internal class FluidStatusBarSide {
 
   /** Vero se la schermata davanti dice che sotto la barra di stato è scuro. */
   val darkUnder: Boolean get() = owner != null && dark
+
+  /**
+   * Le icone di sistema scure (`isAppearanceLightStatusBars`): quelle del lato sotto la barra se una schermata lo dice,
+   * altrimenti quelle del tema ([themeLightBars]). Nei due versi (G1, D-R9): sul tema chiaro una barra scurita le vuole
+   * chiare, sul tema scuro una barra girata verso il chiaro le vuole scure.
+   */
+  fun lightStatusBars(themeLightBars: Boolean): Boolean = if (owner != null) !dark else themeLightBars
 
   /** La schermata [owner] è davanti, e sotto la barra di stato è scuro ([darkUnder]) o no. */
   fun claim(owner: Any, darkUnder: Boolean) {

@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.FluidPressState
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
@@ -34,6 +35,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassRingField
 import dev.antigravity.fluidengine.ui.glass.field.glassBody
 import dev.antigravity.fluidengine.ui.glass.field.glassLiquidLargeVeilGain
 import dev.antigravity.fluidengine.ui.glass.field.glassNodeClipCorner
+import dev.antigravity.fluidengine.ui.glass.field.glassPreferenceFrost
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
 import dev.antigravity.fluidengine.ui.glass.field.glassSlabIsSmall
@@ -821,6 +823,13 @@ internal fun physicsLiquidRecipe(
    * tablet) mentre il suo testo è già passato al bianco. Falso (di serie): [tintFrom] com'è, per i viaggi dei menu.
    */
   restingFilmYields: Boolean = false,
+  /**
+   * Il cursore dell'utente (`LocalFluidGlassPreference`, giro di correzione di F2), lo stesso che riceve la lastra
+   * ferma: muove diffusione e velo di tutte e due le ricette del viaggio. Senza, a cursore non di serie un menu si
+   * apriva col vetro di serie da un tasto che non lo era, e alla posa cambiava. Di serie a metà corsa, dove non tocca
+   * niente.
+   */
+  preference: Float = FluidGlassPreference.Default,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -839,6 +848,7 @@ internal fun physicsLiquidRecipe(
       profile = profile,
       largeVeil = largeVeil,
       adaptive = adaptive,
+      preference = preference,
       out = out,
       scratch = scratch.side,
     )
@@ -1018,12 +1028,24 @@ internal class PhysicsLiquidSurface(
   private val adaptive: ((out: GlassAdaptiveMaterial, nested: Boolean) -> GlassAdaptiveMaterial?)? = null,
   /** Vedi `physicsLiquidRecipe(restingFilmYields)`: solo la finestra del pop-up. */
   private val restingFilmYields: Boolean = false,
+  /**
+   * Il cursore dell'utente (`LocalFluidGlassPreference`), come in `GlassLiquidSurface`: vedi
+   * `physicsLiquidRecipe(preference)`. Fisso per la vita della superficie, perché decide anche il margine
+   * ([paddingDp]): chi lo legge in composizione la rifà quando cambia, come `glassSurface`.
+   */
+  private val preference: Float = FluidGlassPreference.Default,
 ) {
 
   private val adaptiveMaterial = GlassAdaptiveMaterial()
 
-  /** Il margine della cattura per tutta la vita della superficie: vedi [glassTravelPaddingDp]. */
-  val paddingDp: Float = glassTravelPaddingDp(role, material.target, material.origin, profile)
+  /**
+   * Il margine della cattura per tutta la vita della superficie: vedi [glassTravelPaddingDp]. Il cursore dell'utente
+   * moltiplica il raggio di sfocatura ([glassPreferenceFrost]), e il margine con lui, perché resti un tetto: a cursore
+   * colorato la sfocatura passa il margine di serie, e il bordo della sagoma sfocherebbe pixel che la cattura non ha. A
+   * metà corsa il fattore è uno, e il margine quello di prima al bit.
+   */
+  val paddingDp: Float = glassTravelPaddingDp(role, material.target, material.origin, profile) *
+    glassPreferenceFrost(preference, profile.preference)
 
   private val inputs = GlassDrawInputs(GlassFieldMaxPieces)
   private val recipes = PhysicsLiquidRecipes()
@@ -1111,6 +1133,7 @@ internal class PhysicsLiquidSurface(
       largeVeil = large,
       adaptive = adaptive?.invoke(adaptiveMaterial, nested),
       restingFilmYields = restingFilmYields,
+      preference = preference,
     )
     val finger = pressState?.glow
     val bounds = plan.bounds

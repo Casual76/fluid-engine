@@ -193,8 +193,10 @@ class GlassFlipTest {
     assertTrue(drawn.any { it.second == 0f })
     // ...e il corpo non torna mai indietro.
     for (i in 1 until drawn.size) assertTrue(drawn[i].first >= drawn[i - 1].first)
-    // Il giro dura quanto dice la legge, a fotogrammi da 16 ms.
-    assertTrue("fotogrammi: ${drawn.size}", drawn.size in 40..50)
+    // Il giro dura quanto dice la legge di serie, a fotogrammi da 16 ms (G1: `swift`, inchiostro pieno a 450 ms, ≈31
+    // fotogrammi; con `ios26` erano 40–50).
+    val expected = GlassFlipTimings.Shipped.inkMillis / 16
+    assertTrue("fotogrammi: ${drawn.size}, attesi ≈$expected", drawn.size in expected - 3..expected + 6)
   }
 
   @Test

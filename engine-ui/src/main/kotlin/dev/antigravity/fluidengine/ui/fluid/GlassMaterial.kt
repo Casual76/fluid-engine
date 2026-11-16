@@ -138,6 +138,35 @@ class GlassBackdropState internal constructor(
    * il modificatore resti lo stesso fra una composizione e l'altra. Null per uno stato combinato, che non registra.
    */
   internal val scrollAnnouncer: GlassScrollAnnouncer? = layerBackdrop?.let { GlassScrollAnnouncer(it) }
+
+  /**
+   * Tells the glass sampling this source that what it shows has changed although the source did not redraw.
+   *
+   * Dalla 4.0 (G1, rilievi C-R4 e D-R8). I vetri che girano (i tasti, le barre, la tab bar) rileggono lo sfondo solo
+   * quando la sorgente avvisa, così a pagina ferma non costano niente. La sorgente avvisa da sé quando si registra di
+   * nuovo (la pagina ridisegna) e quando un suo figlio scorre col dito (anche lanciato). **Non** se ne accorge, e qui
+   * va chiamata, in due casi:
+   *
+   * - **lo scorrimento fatto dal codice** di una lista o di una colonna dentro la sorgente (`scrollToItem`,
+   *   `animateScrollToItem`, `animateScrollTo`, un pager girato da un tasto): non passa dallo scorrimento annidato.
+   *   Dentro una [FluidScreen] la sua lista lo dice già; altrove, per esempio:
+   *   `LaunchedEffect(listState) { snapshotFlow { listState.firstVisibleItemScrollOffset }.collect { backdrop.notifyChanged() } }`;
+   * - **un figlio con un layer suo** che cambia mentre la pagina è ferma (un `graphicsLayer` animato, un video, una
+   *   `Canvas` che si ridisegna da sola): si ridisegna lui, non chi registra la pagina. Una chiamata per fotogramma che
+   *   cambia basta: la sonda raccoglie gli avvisi (al più una lettura ogni 120 ms) e tace nei movimenti veloci.
+   *
+   * Senza, il vetro sopra resta sul lato di prima finché qualcos'altro non fa ridisegnare la pagina. Costa un avviso
+   * (nessuna lettura se nessun vetro adattivo campiona la sorgente). Dal filo principale. Su uno stato combinato
+   * ([rememberCombinedGlassBackdrop]) avvisa ogni sorgente che lo compone.
+   */
+  fun notifyChanged() {
+    val own = layerBackdrop
+    if (own != null) {
+      own.bumpRevision()
+      return
+    }
+    for (part in backdrop.layerSources) if (part is LayerBackdrop) part.bumpRevision()
+  }
 }
 
 /**
@@ -153,11 +182,16 @@ class GlassBackdropState internal constructor(
  * più una lettura ogni 120 ms) e tace nei movimenti veloci. Non consuma niente.
  *
  * Non sente uno scorrimento fatto dal codice (`scrollToItem`, `animateScrollBy`): quello non passa dallo scorrimento
- * annidato. `FluidScreen` lo dice da sé per la sua lista (vedi lì).
+ * annidato. `FluidScreen` lo dice da sé per la sua lista (vedi lì); un'app lo dice con [GlassBackdropState.notifyChanged]
+ * (G1).
  */
 internal class GlassScrollAnnouncer(private val layer: LayerBackdrop) : NestedScrollConnection {
   override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-    if (consumed != Offset.Zero) layer.bumpRevision()
+    if (consumed != Offset.Zero) {
+      // G1: quanto e dove scorre, per le varianti `flipscroll` (di serie nessuno lo legge).
+      layer.scrollMotion.note(android.os.SystemClock.uptimeMillis(), consumed.y)
+      layer.bumpRevision()
+    }
     return Offset.Zero
   }
 }
@@ -235,6 +269,10 @@ fun rememberCombinedGlassBackdrop(
  * up sampling themselves. The body must also paint its own opaque background *inside* the recorded
  * region: a recording of text on transparency refracts into a smear that the sharp original still
  * shows through.
+ *
+ * Il vetro adattivo sopra rilegge lo sfondo quando questa sorgente si registra di nuovo o quando un suo figlio scorre
+ * col dito. Lo scorrimento fatto dal codice e un figlio con un layer suo che cambia a pagina ferma non li vede: lì
+ * l'app chiama [GlassBackdropState.notifyChanged] (4.0, G1).
  */
 fun Modifier.glassBackdropSource(
   state: GlassBackdropState,

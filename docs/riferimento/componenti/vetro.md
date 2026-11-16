@@ -410,21 +410,28 @@ avviserebbe, e un tasto fermo sopra una lista che scorre non girerebbe. La sorge
 scorrimento annidato ogni scorrimento che un suo figlio consuma (lista, griglia, pager, colonna con `verticalScroll`, anche
 lanciato) e avvisa a ogni passo; il limite di una lettura ogni 120 ms e il silenzio nei movimenti veloci restano quelli
 sopra. A pagina ferma non arriva niente. Non sente uno scorrimento fatto dal codice (`scrollToItem`, `animateScrollBy`), che
-non passa dallo scorrimento annidato: `FluidScreen` lo dice da sé per la sua lista, un'altra lista lo vedrà alla prossima
-revisione della pagina.
+non passa dallo scorrimento annidato: `FluidScreen` lo dice da sé per la sua lista; per un'altra lista lo dice l'app con
+`GlassBackdropState.notifyChanged()` (4.0, G1), per esempio
+`LaunchedEffect(listState) { snapshotFlow { listState.firstVisibleItemScrollOffset }.collect { backdrop.notifyChanged() } }`.
+Senza, il vetro sopra resta sul lato di prima finché qualcos'altro non fa ridisegnare la pagina.
 
 **Una sorgente dentro un'altra avvisa anche lei** (4.0, F2.3c). Una registrazione tiene per riferimento i layer dei
 figli: quando un figlio che è a sua volta una sorgente si registra di nuovo da solo (un palco che cambia colore dentro la
 pagina), la registrazione di fuori mostra già il contenuto nuovo ma non lo sapeva. Adesso un layer che si disegna dentro la
 registrazione di un altro lo ricorda, e quando avvisa avvisa anche lui. Resta il limite per un figlio che ha un layer suo
-ma non è una sorgente (un'animazione dentro un `graphicsLayer`): la registrazione di fuori non lo sa finché qualcosa non
-la ridisegna.
+ma non è una sorgente (un'animazione dentro un `graphicsLayer`, un video, una `Canvas` che si ridisegna da sola): la
+registrazione di fuori non lo sa finché qualcosa non la ridisegna. **Lì l'app chiama `notifyChanged()`** sullo stato che ha
+passato a `glassBackdropSource`, una volta per fotogramma che cambia (la sonda raccoglie gli avvisi: al più una lettura ogni
+120 ms). A costo zero a riposo l'engine non può accorgersene da solo: il layer del figlio si ridisegna senza passare dal
+nodo che registra la pagina.
 
 **La chrome sopra una pagina qualunque** (4.0, F2.3c). La shell dà alla tab bar, ai modali e ai menu il fondale della
 pagina davanti (`activeBackdrop`) o, se la pagina non ne dichiara uno, un `fallback`. Se la pagina davanti non è una
 `FluidScreen` e non registra quel `fallback` da sé, nessuno lo registrava: la tab bar campionava un layer vuoto, non
 rifrangeva niente e la sua sonda non leggeva mai (sul tablet, sopra il nero della pagina «Adattività», un grigio medio con le
-icone scure). Adesso `ProvideFluidChrome` è lo **scrittore di riserva**: registra le pagine dentro ogni layer che un vetro
+icone scure). Adesso il contenitore delle pagine è lo **scrittore di riserva** (`Modifier.fluidChromePages()`, che la
+shell posa sul contenitore delle pagine, fuori dalla chrome: dalla 4.0 G1, in F2.3c lo faceva `ProvideFluidChrome` con un
+suo `Box`): registra le pagine dentro ogni layer che un vetro
 **fuori** dalle pagine campiona e che nessuno registra (né una pagina né un pannello che lo esporta), e avvisa a ogni
 registrazione e a ogni scorrimento. Appena una pagina registra il fondale da sé, lascia. Un vetro dentro le pagine non
 chiede mai la riserva: campionerebbe una registrazione che contiene sé stesso.
@@ -435,7 +442,20 @@ per 400 ms. Così un fondo che sta a metà, una scacchiera che passa sotto, una 
 fanno saltare avanti e indietro. La **prima lettura decide subito** (un vetro che nasce sopra una foto scura non si mostra
 prima chiaro), con le stesse soglie partendo dal lato del tema. Il filtro ha una scadenza: dopo l'ultima lettura la media
 continua a muoversi, e se attraverserà una soglia lo farà a un istante calcolabile, quando nessuna lettura nuova arriverà
-a ricordarlo. Tutti questi numeri sono ipotesi da tarare sul tablet (sessione S3), non misure.
+a ricordarlo. Soglie, attesa e permanenza sono state guardate sul tablet in S3 e restano queste (scelta 2 di S3; in G1
+l'attesa di 100 ms, più svelta, è stata provata e scartata: nel caso veloce la tab bar girava 60 volte con 34 doppi giri in
+quattro riprese, contro 12 e 6 con 200 ms; sulla scacchiera nessuno dei due gira).
+
+**Mentre si scorre** (4.0, G1). Di serie il vetro decide anche mentre lo sfondo scorre (`live`): scorrendo in fretta una
+barra può girare due volte in meno di un secondo a ogni riquadro scuro che passa. Le alternative sono manopole di debug
+(`gallery.tune`), da scegliere sulle riprese: `flipdwell` (la permanenza dopo un giro, di serie 400 ms; a 1000 nessun vetro
+gira due volte in meno di un secondo), `flipscroll=rest` (mentre il contenuto scorre più svelto di 120 dp/s il lato resta
+quello dell'ultimo riposo, e si decide quando rallenta o si ferma), `flipscroll=ahead` (la sonda legge la fascia che sta
+**entrando** sotto il vetro, 300 ms avanti, mai fuori dalla registrazione: aiuta la barra in alto quando si scorre in avanti
+e la tab bar quando si torna indietro, non il contrario) e `flipby=coverage` con `flipcover` (decide sulla quota della
+miniatura più scura della soglia invece che sulla media: gira al 75% di scuro e torna al chiaro al 25%, l'uscita simmetrica
+all'entrata). Il moto lo dicono le sorgenti stesse (lo scorrimento annidato e, in `FluidScreen`, la posizione della lista);
+di serie nessuno lo legge.
 
 **Cosa cambia nel vetro.**
 
@@ -453,9 +473,12 @@ a ricordarlo. Tutti questi numeri sono ipotesi da tarare sul tablet (sessione S3
 - **Il cursore dell'utente** (sotto).
 
 **Il giro dei piccoli.** Quando lo sfondo sotto un vetro piccolo passa da chiaro a scuro (o il contrario) il vetro **gira**: il
-corpo scende in 300 ms (una curva che segue il corpo del tasto di Apple, quasi tutto nei primi 200 ms), l'inchiostro del
-contenuto svanisce nel corpo in 110 ms, passando per un fotogramma a contrasto quasi zero, e risale dall'altra parte, pieno
-a 700 ms. Non c'è un ritardo in più: i 130 ms di Apple fra lo scuro che copre tutto il tasto e il corpo che si muove li dà già
+corpo scende in 200 ms (la curva che segue il corpo del tasto di Apple, quasi tutto nella prima metà), l'inchiostro del
+contenuto svanisce nel corpo in 70 ms, passando per un fotogramma a contrasto quasi zero, e risale dall'altra parte, pieno
+a 450 ms. È il giro svelto, di serie dalla 4.0 G1 (scelta 1 di S3); i tempi di Apple a 6:52 (corpo in 300 ms, inchiostro
+pieno a 700) restano la manopola `fliptime=ios26`, e `slow` la variante più lenta. **Col movimento ridotto** (la politica
+dell'app, `LocalFluidMotionPolicy`, o la scala delle animazioni di sistema a zero) corpo e inchiostro vanno al lato nuovo
+insieme, subito, senza il fotogramma trasparente; un grande va al suo lato senza inseguire. Non c'è un ritardo in più: i 130 ms di Apple fra lo scuro che copre tutto il tasto e il corpo che si muove li dà già
 il filtro (il lato è deciso 128–158 ms dopo la copertura piena). Un giro che cambia idea a metà riparte dai valori di quell'istante
 e si disfa in un tempo proporzionale alla strada che resta: mai uno scatto. La composizione vede solo **da che parte** sta
 l'inchiostro, che cambia una volta per giro, nel fotogramma in cui il contenuto è trasparente; il resto lo scrive il disegno,
@@ -477,8 +500,10 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   con la quota di nero che hanno sotto, senza girare: R4 A6, da 143 a 48 su nero pieno in circa 1,5 s, e a metà copertura il
   velo segue la quota (Apple: 111 al 25%, 89 al 47%, 61 al 74%, 48 al 100%). **Tempi e isteresi valgono per un cambio netto
   dello sfondo** (il nero che arriva, o se ne va, e poi sta fermo): quando lo sfondo cambia in continuo, per esempio una
-  lista che scorre sotto il pannello, il grande insegue in ritardo, anche di secondi, e l'inchiostro può cambiare lato
-  tardi; l'inseguimento è **in correzione**. Sul tema scuro restano scuri, con il soffitto del velo sopra un fondo
+  lista che scorre sotto il pannello, il grande la **insegue senza ripartire da fermo** (4.0, G1: una molla con smorzamento
+  critico che tiene posizione e velocità quando arriva una lettura nuova; su una rampa resta indietro di circa 0,05 di
+  quota, prima di circa 0,45), e il suo inchiostro passa di lato quando il **corpo** passa il punto di uguale contrasto fra
+  i due inchiostri (luma ≈118 su 255, con un'isteresi di 0,03), non quando il lato continuo passa metà. Sul tema scuro restano scuri, con il soffitto del velo sopra un fondo
   chiaro: scuriscono, non schiariscono. L'inchiostro passa di lato quando il lato continuo passa metà, con un'**isteresi**
   (dal chiaro allo scuro a 0,56, indietro a 0,44, a sfondo che si è assestato): un foglio fermo sopra uno sfondo nero per metà
   non fa ballare il suo testo.
@@ -768,15 +793,19 @@ aprire la schermata da guardare.
   0,2 con l'ombra corta su un tasto), la parte comune a lente di due pezzi sovrapposti (−4…−6 livelli) e l'ombra della goccia
   (`GlassShadowMaskRing`, stesso rapporto di cadute, non misurata), che vanno a F3.3; la cucitura verticale di un fotogramma
   del collo e i viaggi interrotti o invertiti, non ripresi sul tablet. **Aperti sull'adattività**: i numeri del filtro, i tempi
-  del giro e la profondità del vetro dei grandi e dei piccoli girati sono **scelte di Alessio ancora aperte**, da fare
-  sulle riprese del tablet (S3) e non sul banco; non c'è un numero definitivo. Le manopole sono `fliptime`, `flipwait`,
-  `flipon`, `flipoff`, `darklargealpha` ed `edgedim` (`gallery.tune`). Misure di oggi, sul tablet di serie: il pop-up dei
+  del giro e la profondità del vetro dei grandi e dei piccoli girati sono **scelte di Alessio, fatte sulle riprese di S3**
+  e di serie dalla 4.0 G1: il giro svelto (`swift`) con l'attesa di 200 ms, le soglie 0,45 e 0,62, il velo scuro dei
+  piccoli a 0,39 (il tasto girato sul nero a ≈43 invece di 55; cambia con lui il vetro scuro dei piccoli sul tema scuro).
+  **Ferma** la profondità dei grandi (`darklargealpha` 0,89, 48 sul nero pieno): con quel velo il testo secondario sul
+  foglio scuro scende a 5,60:1 sulla pagina scura e 5,44:1 sul fondo del tablet, sotto il vincolo di 6:1
+  (`artifacts/liquid-glass/bench/f2-g1/contrasto.md`); resta 0,5. Le manopole sono `fliptime`, `flipwait`,
+  `flipon`, `flipoff`, `flipdwell`, `flipscroll`, `flipby`, `flipcover`, `darkveilalpha`, `darklargealpha` ed `edgedim`
+  (`gallery.tune`). Misure di oggi, sul tablet di serie: il pop-up dei
   grandi fa 116 / 83 / 70 / 27 al 25 / 47 / 74 / 100% di nero (Apple 111 / 89 / 61 / 48), quindi sopra il nero pieno scende
   a 27 contro 48, e a metà copertura il soffitto del velo scuro lo tiene più chiaro; per il vetro girato, 74 su 255 contro
   43 di Apple, che è una misura e non una scelta fatta. **I numeri dei grandi non si leggono dal banco**: il suo modello
   non ha la ricetta del pop-up (il banco dà 110 / 110 / 69 / 27 agli stessi quattro livelli di nero, e il «110 contro 89 al
-  47%» che si leggeva qui era un numero del banco, non del tablet); da ricontrollare in F3. Aperti anche: l'inseguimento di
-  uno sfondo che cambia in continuo (vedi sopra, in correzione) e i difetti noti dell'adattività, nei limiti dichiarati più
+  47%» che si leggeva qui era un numero del banco, non del tablet); da ricontrollare in F3. Aperti anche: i difetti noti dell'adattività, nei limiti dichiarati più
   su. `Clear` non ha ancora un componente che lo posi (F3.2). **Chiusi dopo l'ultima stesura di questa scheda**: a
   pagina ferma una `FluidScreen` col bordo dello scorrimento non disegna più niente (0 fotogrammi in 8 s sul tablet su
   Materiale, Icone e scorrimento; chiuso da F2.3c, che fa contare ogni lettura a vuoto verso il tetto dei tre

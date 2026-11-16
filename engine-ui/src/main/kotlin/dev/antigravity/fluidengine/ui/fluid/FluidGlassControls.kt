@@ -455,6 +455,8 @@ fun Modifier.fluidStaticGlassSurface(
   // Su un pannello dipinto (il foglio e l'avviso di piattaforma) sta sul suo corpo, annidato; altrimenti sulla pagina
   // del tema, senza scrim: i pannelli modali, che uno scrim sotto lo hanno, il fondo lo passano da se'.
   val panel = LocalGlassPaintedPanel.current
+  // Il cursore dell'utente (giro di correzione di F2), come nel pannello dipinto che lo porta.
+  val preference = LocalFluidGlassPreference.current
   val seen = glassPaintedControlSeen(panel, scheme.background, darkSide)
   val film = if (selected) scheme.primary.copy(alpha = GlassPaintedSelectionAlpha) else Color.Unspecified
   // L'ombra e' quella del vetro (le maschere della ricetta, o quella di prima dove il materiale e' `Classic`); da
@@ -476,6 +478,7 @@ fun Modifier.fluidStaticGlassSurface(
       nested = panel != null,
       film = film,
       pressure = pressure,
+      preference = preference,
     )
 }
 

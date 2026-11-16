@@ -116,6 +116,13 @@ internal class GlassAdaptiveFilter(
   var flips: Int = 0
     private set
 
+  /**
+   * Vero mentre il lato si trattiene (G1, variante `flipscroll=rest`: mentre lo sfondo scorre il lato resta quello
+   * dell'ultimo riposo). La media continua a seguire le letture; il giro aspetta che torni falso e che chi possiede il
+   * filtro lo richiami ([advance]). La prima lettura decide comunque.
+   */
+  var holding: Boolean = false
+
   private var mean = 0f
   private var meanAt = 0L
   private var held = 0f
@@ -169,7 +176,7 @@ internal class GlassAdaptiveFilter(
    * il lato non cambierà più.
    */
   fun nextDeadlineMillis(): Long {
-    if (!measured) return Long.MAX_VALUE
+    if (!measured || holding) return Long.MAX_VALUE
     val threshold = when {
       !dark && held < darkBelow -> darkBelow
       dark && held > lightAbove -> lightAbove
@@ -200,6 +207,7 @@ internal class GlassAdaptiveFilter(
   }
 
   private fun evaluate(nowMillis: Long): Boolean {
+    if (holding) return false
     if (lastFlipAt != Long.MIN_VALUE && nowMillis - lastFlipAt < minDwellMillis) return false
     val decided = decide(dark, smoothedAt(nowMillis))
     if (decided == dark) return false

@@ -46,6 +46,7 @@
 package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.ui.graphics.Color
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -144,6 +145,9 @@ internal fun glassDropProfile(
  *
  * @param widthDp con [heightDp], la taglia del **nodo** (non quella scalata dal `layerBlock` della pressione).
  * @param nested vero se la goccia sta dentro una lastra di vetro (la pillola del segmentato, la goccia del menù).
+ * @param preference il cursore dell'utente (`LocalFluidGlassPreference`, giro di correzione di F2), come lo legge
+ *   `glassDrop`: muove il tono al posto del velo come il velo di un tasto (la smerigliatura la goccia non l'ha). Di
+ *   serie a metà corsa, dove non tocca niente.
  */
 internal fun glassDropRecipe(
   widthDp: Float,
@@ -153,6 +157,7 @@ internal fun glassDropRecipe(
   nested: Boolean = false,
   quality: Float = 1f,
   profile: GlassLiquidProfile = glassDropProfile(),
+  preference: Float = FluidGlassPreference.Default,
   out: GlassRecipe = GlassRecipe(),
 ): GlassRecipe = glassRecipe(
   role = GlassDropRole,
@@ -164,6 +169,7 @@ internal fun glassDropRecipe(
   quality = quality,
   nested = nested,
   profile = profile,
+  preference = preference,
   out = out,
 )
 

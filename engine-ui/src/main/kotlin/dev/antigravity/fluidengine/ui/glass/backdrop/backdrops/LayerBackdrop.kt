@@ -195,6 +195,13 @@ class LayerBackdrop internal constructor(
     private var bumping = false
 
     /**
+     * Fluid Engine addition (4.0.0, G1): quanto e in che verso scorre il contenuto di questo layer, da chi annuncia lo
+     * scorrimento (`GlassScrollAnnouncer`, lo scrittore della chrome). Lo leggono le sonde quando le manopole di debug
+     * `flipscroll=rest|ahead` lo chiedono; di serie nessuno lo legge. Non è stato di snapshot.
+     */
+    internal val scrollMotion: GlassScrollMotion = GlassScrollMotion()
+
+    /**
      * Fluid Engine addition (4.0.0, F2.3c): i layer che contengono questo nella propria registrazione. Una registrazione
      * tiene per riferimento i layer dei figli: quando un figlio si registra di nuovo da solo, la registrazione di fuori
      * mostra già il contenuto nuovo ma non lo sa, e non avvisa. Sul tablet il palco della pagina «Adattività» cambiava
@@ -342,13 +349,82 @@ internal object LayerFallbackWriters {
  * Fluid Engine addition (4.0.0, F2.3c): vero dentro il contenuto che la chrome registra come riserva. Un vetro lì dentro
  * non chiede mai la registrazione di riserva: campionerebbe una registrazione che contiene sé stesso.
  */
-internal val LocalInsideLayerFallback = androidx.compose.runtime.staticCompositionLocalOf { false }
+internal const val LayerFallbackWriterKey: String = "dev.antigravity.fluidengine.LayerFallbackWriter"
 
 /**
  * Fluid Engine addition (4.0.0, F2.3c): se la chrome registra [this] come riserva: qualcuno fuori dalla pagina lo
  * campiona ([adopted]) e nessuna pagina lo registra. Pura, per i test.
  */
 internal fun chromeWritesFallback(adopted: Boolean, hasPageWriter: Boolean): Boolean = adopted && !hasPageWriter
+
+/**
+ * Fluid Engine addition (4.0.0, G1): il moto recente dello scorrimento di un layer, per le varianti «cosa fa il vetro
+ * mentre scorri» (`flipscroll`). Tiene gli ultimi [GlassScrollMotionSlots] spostamenti con il loro istante e ne fa una
+ * velocità sulla finestra [GlassScrollMotionWindowMillis]: niente allocazioni, niente stato di snapshot. Pura negli
+ * istanti: glieli dà chi chiama.
+ */
+internal class GlassScrollMotion {
+    /** Lo scorrimento annidato (il dito, il lancio): `GlassScrollAnnouncer`, lo scrittore della chrome. */
+    private val nested = GlassScrollMotionRing()
+
+    /** La posizione della lista, che vede anche lo scorrimento fatto dal codice: `FluidScreen`. */
+    private val position = GlassScrollMotionRing()
+
+    /** L'istante dell'ultimo spostamento, o `Long.MIN_VALUE`. */
+    val lastAtMillis: Long get() = maxOf(nested.lastAtMillis, position.lastAtMillis)
+
+    /** Il contenuto si è spostato di [deltaY] pixel sullo schermo (negativo: verso l'alto) a [nowMillis], col dito. */
+    fun note(nowMillis: Long, deltaY: Float) = nested.note(nowMillis, deltaY)
+
+    /**
+     * Lo stesso, dalla posizione della lista. Un canale a parte: col dito arrivano tutti e due per lo stesso passo, e la
+     * velocità è quella del canale più svelto, non la loro somma.
+     */
+    fun notePosition(nowMillis: Long, deltaY: Float) = position.note(nowMillis, deltaY)
+
+    /** La velocità del contenuto a [nowMillis], pixel al secondo (negativa: verso l'alto); 0 se è fermo. */
+    fun velocityAt(nowMillis: Long): Float {
+        val a = nested.velocityAt(nowMillis)
+        val b = position.velocityAt(nowMillis)
+        return if (kotlin.math.abs(a) >= kotlin.math.abs(b)) a else b
+    }
+}
+
+/** Un canale di [GlassScrollMotion]: gli ultimi spostamenti con il loro istante, senza allocare. */
+private class GlassScrollMotionRing {
+    private val at = LongArray(GlassScrollMotionSlots) { Long.MIN_VALUE }
+    private val dy = FloatArray(GlassScrollMotionSlots)
+    private var next = 0
+
+    var lastAtMillis: Long = Long.MIN_VALUE
+        private set
+
+    fun note(nowMillis: Long, deltaY: Float) {
+        if (!deltaY.isFinite() || deltaY == 0f) return
+        at[next] = nowMillis
+        dy[next] = deltaY
+        next = (next + 1) % GlassScrollMotionSlots
+        lastAtMillis = nowMillis
+    }
+
+    fun velocityAt(nowMillis: Long): Float {
+        var sum = 0f
+        var any = false
+        for (i in 0 until GlassScrollMotionSlots) {
+            val t = at[i]
+            if (t == Long.MIN_VALUE || nowMillis - t > GlassScrollMotionWindowMillis || t > nowMillis) continue
+            sum += dy[i]
+            any = true
+        }
+        return if (any) sum * 1000f / GlassScrollMotionWindowMillis else 0f
+    }
+}
+
+/** Quanti spostamenti tiene [GlassScrollMotion]: più dei fotogrammi di una finestra a 120 Hz. */
+internal const val GlassScrollMotionSlots: Int = 16
+
+/** La finestra su cui [GlassScrollMotion] fa la velocità, ms: oltre, il contenuto è fermo. */
+internal const val GlassScrollMotionWindowMillis: Long = 100L
 
 /**
  * Fluid Engine addition (4.0.0, F2.1): chi vuole sapere quando un [LayerBackdrop] si ri-registra.

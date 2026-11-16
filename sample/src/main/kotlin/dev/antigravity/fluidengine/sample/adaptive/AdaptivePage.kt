@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -215,8 +216,11 @@ private fun Controls(
   onBack: () -> Unit,
   onChange: (AdaptiveConfig) -> Unit,
 ) {
-  Text("Adattività", style = MaterialTheme.typography.headlineSmall)
-  Text("F2.6 · ${config.key}", style = MaterialTheme.typography.bodySmall)
+  // Su una lastra del tema (D-R7): stessa altezza di prima, i tasti qui sotto restano dove erano.
+  Column(modifier = Modifier.readablePlate()) {
+    Text("Adattività", style = MaterialTheme.typography.headlineSmall)
+    Text("F2.6 · ${config.key}", style = MaterialTheme.typography.bodySmall)
+  }
   Spacer(Modifier.height(8.dp))
   FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     FluidGlassButton(text = "Indietro", onClick = onBack)
@@ -271,6 +275,28 @@ private fun Controls(
   }
 }
 
+/**
+ * Una lastra quasi opaca del colore del tema dietro un testo della pagina (D-R7). Il titolo, il sottotitolo e le
+ * istruzioni sono testo del tema disegnato sopra il fondo della scena: senza lastra sono bianchi sul bianco in tema scuro
+ * e neri sul nero in tema chiaro, e sulla scacchiera nessun inchiostro va bene ovunque. La lastra si disegna **fuori** dal
+ * riquadro del testo (8 dp ai lati, 3 dp sopra e sotto) e non cambia il layout. Non è vetro e non sta nella sorgente del
+ * palco: nessun vetro la rifrange e nessuna sonda la legge.
+ */
+@Composable
+private fun Modifier.readablePlate(): Modifier {
+  val color = MaterialTheme.colorScheme.background.copy(alpha = 0.88f)
+  return this.drawBehind {
+    val dx = 8.dp.toPx()
+    val dy = 3.dp.toPx()
+    drawRoundRect(
+      color = color,
+      topLeft = Offset(-dx, -dy),
+      size = Size(size.width + 2f * dx, size.height + 2f * dy),
+      cornerRadius = CornerRadius(10.dp.toPx()),
+    )
+  }
+}
+
 // ------------------------------------------------------------------------------------------------------------
 // Le scene sul palco (tutte tranne lo scorrimento)
 // ------------------------------------------------------------------------------------------------------------
@@ -290,8 +316,18 @@ private val DemoActions = listOf(
 private val White = Color.White
 private val Black = Color.Black
 
-/** Il disegno del fondo di una scena sul palco, letto in disegno: cambiarlo non ricompone niente. */
-private fun fundOf(config: AdaptiveConfig, live: AdaptiveLive, density: Float, photo: Brush?): DrawScope.() -> Unit = {
+/**
+ * Il disegno del fondo di una scena sul palco, letto in disegno: cambiarlo non ricompone niente. [paper] è la carta della
+ * scena `cursore` (nulla nelle altre), [edge] il confine fra le due foto della scena `varianti`.
+ */
+private fun fundOf(
+  config: AdaptiveConfig,
+  live: AdaptiveLive,
+  density: Float,
+  photo: Brush?,
+  paper: AdaptivePaper?,
+  edge: AdaptiveSplit,
+): DrawScope.() -> Unit = {
   when (config.scene) {
     AdaptiveScene.Flip -> drawRect(argb(live.tone.argb))
     AdaptiveScene.Threshold, AdaptiveScene.Large -> {
@@ -304,13 +340,16 @@ private fun fundOf(config: AdaptiveConfig, live: AdaptiveLive, density: Float, p
       val shift = if (live.phase == 1) cell * 0.37f else 0f
       drawChecker(cellPx = cell, light = White, dark = argb(live.dark.argb), shiftPx = shift)
     }
-    AdaptiveScene.Cursor -> if (photo != null) drawRect(photo) else drawRect(Color(0xFF6B5A44))
+    // Testo, righe sottili e barre a contrasto su una carta chiara (A-R7): il dettaglio fine che il cursore lascia
+    // vedere a 0 e cancella a 1.
+    AdaptiveScene.Cursor -> if (paper != null) drawPaper(paper) else drawRect(PaperColor)
     AdaptiveScene.Variants -> {
-      // Sopra una foto chiara (la foto con un velo bianco), sotto una scura (con un velo nero).
+      // Sopra una foto chiara (la foto con un velo bianco), sotto una scura (con un velo nero). Il confine passa a metà
+      // del posto vuoto fra le due righe (A-R8); prima della misura, a metà del palco.
       if (photo != null) drawRect(photo) else drawRect(Color(0xFF6B5A44))
-      val half = size.height / 2f
-      drawRect(White.copy(alpha = 0.58f), topLeft = Offset.Zero, size = Size(size.width, half))
-      drawRect(Black.copy(alpha = 0.66f), topLeft = Offset(0f, half), size = Size(size.width, size.height - half))
+      val split = edge.y.takeIf { it.isFinite() }?.coerceIn(0f, size.height) ?: (size.height / 2f)
+      drawRect(White.copy(alpha = 0.58f), topLeft = Offset.Zero, size = Size(size.width, split))
+      drawRect(Black.copy(alpha = 0.66f), topLeft = Offset(0f, split), size = Size(size.width, size.height - split))
     }
     AdaptiveScene.Scroll -> Unit
   }
@@ -348,7 +387,9 @@ private fun StageScene(
   val morph = rememberFluidMorphMenuState()
   val modalHost = rememberFluidGlassModalHostState()
   val drawer = rememberFluidDrawerState(initiallyOpen = config.scene == AdaptiveScene.Large && live.largeAtStart == AdaptiveLarge.Panel)
-  val draw = remember(config, live, density, photo) { fundOf(config, live, density, photo) }
+  val paper = if (config.scene == AdaptiveScene.Cursor) rememberAdaptivePaper() else null
+  val edge = remember { AdaptiveSplit() }
+  val draw = remember(config, live, density, photo, paper, edge) { fundOf(config, live, density, photo, paper, edge) }
 
   AutomaticMotion(config, live)
   FundLog(config, live, report)
@@ -373,7 +414,7 @@ private fun StageScene(
           LargeScene(stage, probeSource, report, live, drawer)
         }
         AdaptiveScene.Cursor -> CursorScene(stage, probeSource, report, live)
-        AdaptiveScene.Variants -> VariantsScene(stage, probeSource, report)
+        AdaptiveScene.Variants -> VariantsScene(stage, probeSource, report, edge)
         AdaptiveScene.Scroll -> Unit
       }
     }
@@ -402,13 +443,17 @@ private fun sceneCaption(scene: AdaptiveScene): String = when (scene) {
 @Composable
 private fun Caption(text: String) {
   if (text.isEmpty()) return
-  Text(text, style = MaterialTheme.typography.bodySmall)
+  Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.readablePlate())
   Spacer(Modifier.height(12.dp))
 }
 
 @Composable
 private fun ShareSlider(live: AdaptiveLive, label: String) {
-  Text("$label: ${"%.0f".format(live.share * 100)}%", style = MaterialTheme.typography.labelLarge)
+  Text(
+    "$label: ${"%.0f".format(live.share * 100)}%",
+    style = MaterialTheme.typography.labelLarge,
+    modifier = Modifier.readablePlate(),
+  )
   FluidSlider(
     value = live.share,
     onValueChange = { live.share = it },
@@ -671,8 +716,10 @@ private fun LargePanel(stage: GlassBackdropState, drawer: FluidDrawerState) {
 // ------------------------------------------------------------------------------------------------------------
 
 /**
- * Il cursore dell'utente (`LocalFluidGlassPreference`): vetro di serie sopra una foto, e sotto la riga di
- * `fluidAppearanceSection` collegata al cursore, coi due estremi anche a portata di tocco nella riga dei comandi.
+ * Il cursore dell'utente (`LocalFluidGlassPreference`): i vetri di serie sopra una carta con testo nitido, righe sottili
+ * e barre a contrasto ([drawPaper], A-R7), e sotto la riga di `fluidAppearanceSection` collegata al cursore, coi due
+ * estremi anche a portata di tocco nella riga dei comandi. Il dettaglio fine è ciò che il cursore muove: a 0 si legge
+ * attraverso il vetro, piegato dalla lente; a 1 sparisce e resta il colore della carta. Una foto sfocata non lo mostrava.
  */
 @Composable
 private fun CursorScene(
@@ -683,8 +730,8 @@ private fun CursorScene(
 ) {
   var settings by remember { mutableStateOf(EngineSettings()) }
   Caption(
-    "Il cursore muove insieme diffusione e velo di ogni vetro nuovo: a 0 il vetro è quasi limpido e il testo dietro si legge " +
-      "piegato dalla lente, a 1 è una lastra del colore dello sfondo. A metà è il vetro di serie, al bit. " +
+    "Dietro i vetri: testo, righe sottili e barre a contrasto. A 0 il vetro è quasi limpido e il testo si legge piegato " +
+      "dalla lente; a 1 è una lastra del colore della carta. A metà è il vetro di serie, al bit. " +
       "Valore ora: ${"%.2f".format(live.cursor)}.",
   )
   Column(
@@ -742,7 +789,9 @@ private fun CursorScene(
 }
 
 /**
- * Il vetro di serie, il tinto e `Clear` accanto, sopra una foto chiara (in alto) e una scura (in basso). **`Clear` non ha
+ * Il vetro di serie, il tinto e `Clear` accanto, sopra una foto chiara (la prima riga) e una scura (la seconda). Il
+ * confine fra le due foto lo dà il posto vuoto fra le righe ([AdaptiveSplit], A-R8): passa a metà di quel posto, quindi
+ * la seconda riga sta sulla foto scura su ogni schermo, e il tinto si vede su chiaro e su scuro. **`Clear` non ha
  * ancora un componente che lo posi**: il tipo `FluidGlass.Clear` e la ricetta ci sono, ma il modificatore che li usa
  * (`Modifier.fluidGlass`) nasce in F3.2. Il riquadro tratteggiato dice dove andrà.
  */
@@ -751,13 +800,15 @@ private fun VariantsScene(
   stage: GlassBackdropState,
   probeSource: dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop,
   report: AdaptiveReport,
+  edge: AdaptiveSplit,
 ) {
   Caption(
-    "In alto una foto chiara, in basso una scura. Per riga: il vetro di serie, il tinto e il posto di Clear, che non è " +
-      "ancora collegato a nessun componente (arriva con Modifier.fluidGlass, F3.2).",
+    "In alto una foto chiara, in basso una scura: il confine passa a metà fra le due righe. Per riga: il vetro di serie, " +
+      "il tinto e il posto di Clear (non ancora collegato: arriva con Modifier.fluidGlass, F3.2).",
   )
   VariantsRow(stage, probeSource, report, "chiara")
-  Spacer(Modifier.height(220.dp))
+  // 80 dp di foto da ogni lato del confine: la lente e la sonda di ogni riga leggono solo la sua foto.
+  Spacer(Modifier.fillMaxWidth().height(160.dp).then(edge.follow(report)))
   VariantsRow(stage, probeSource, report, "scura")
 }
 
@@ -872,13 +923,15 @@ private fun ScrollScene(
       )
     }
   }
-  // Scorre su e giù piano da solo: 8 s in giù e 8 s in su, a velocità costante (nessun lancio: il giro non tace).
+  // Scorre su e giù piano da solo: 8 s in giù e 8 s in su, a velocità costante (nessun lancio: il giro non tace). Con
+  // `adaptive.speed 2` (G1, il caso veloce) a 600 dp/s: un riquadro scuro passa sotto la tab bar in mezzo secondo.
   LaunchedEffect(live.auto, listState) {
     if (!live.auto) return@LaunchedEffect
     val distance = with(density) { 2400.dp.toPx() }
+    val millis = (8_000f / live.speed).toInt()
     while (true) {
-      listState.animateScrollBy(distance, tween(durationMillis = 8_000, easing = LinearEasing))
-      listState.animateScrollBy(-distance, tween(durationMillis = 8_000, easing = LinearEasing))
+      listState.animateScrollBy(distance, tween(durationMillis = millis, easing = LinearEasing))
+      listState.animateScrollBy(-distance, tween(durationMillis = millis, easing = LinearEasing))
     }
   }
 }

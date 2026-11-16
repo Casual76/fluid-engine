@@ -47,6 +47,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassFalloff
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
@@ -343,9 +344,13 @@ private fun Modifier.glassDropLiquid(
 ): Modifier {
   val darkSide = GlassDefaults.isDarkSurface()
   val quality = LocalFluidGlassQuality.current
+  // Il cursore dell'utente (giro di correzione di F2), come in ogni lastra ferma: del corpo limpido muove il tono al
+  // posto del velo. Entra fra le chiavi perché cambia anche il raggio, cioè il margine della cattura, come in
+  // `glassSurface`. A metà corsa non tocca niente.
+  val preference = LocalFluidGlassPreference.current
   val screenDensity = LocalDensity.current.density
   val currentBackdrop by rememberUpdatedState(backdrop)
-  val surface = remember(motion, shape, darkSide, screenDensity, quality) {
+  val surface = remember(motion, shape, darkSide, screenDensity, quality, preference) {
     GlassLiquidSurface(
       role = GlassDropRole,
       optics = GlassDropOptics,
@@ -362,6 +367,7 @@ private fun Modifier.glassDropLiquid(
       touch = { null },
       profile = glassDropProfile(),
       onPanel = { glassSamplesLiquidPanel(currentBackdrop, GlassLiquidPanels::isPublished) },
+      preference = preference,
     )
   }
   val shadow = remember(surface) {

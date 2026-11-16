@@ -11,6 +11,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `@Composable fun FluidAmbientSurface(ambient: FluidAmbient?, modifier: Modifier = Modifier, content: @Composable () -> Unit)` — Un fondale solo, sotto tutta la finestra.
 
+## `engine-ui/ui/fluid/FluidChromePageWriter.kt`
+
+- `fun Modifier.fluidChromePages(): Modifier`
+
 ## `engine-ui/ui/fluid/FluidCollapsingHeader.kt`
 
 - `class FluidTitleCollapse internal constructor(internal val morph: FluidTitleMorphState, internal val progress: State<Float>, internal val glassIntensity: State<Float>, internal val scroll: FluidCollapseScroll)` — The large title that rises into a bar of glass, for a screen that is not a [FluidScreen].

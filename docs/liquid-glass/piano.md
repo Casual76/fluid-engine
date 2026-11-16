@@ -1863,7 +1863,7 @@ stato termico 0 e la superficie a 35 °C o meno (vale per F7).
 | difetto | misura | fase |
 |---|---|---|
 | costo dello scorrimento del vetro nuovo sopra le foto | lenti liquid 19–26% contro classic ~12% (Tab S9, a freddo; F2.5b e S3 uguali) | **F7**, «Debito di costo ereditato da F2» |
-| il titolo della barra in alto sulla striscia, mentre la lista scorre su riquadri chiari e scuri alternati: sotto 3:1 a episodi (decide il lato della striscia, che gira con un giro) | 2,8–4,4 s su 17 s di prova sintetica, episodi di 150–430 ms | **F4A**, con la barra in alto nuova (il titolo e la sua striscia) |
+| il titolo della barra in alto sulla striscia, mentre la lista scorre su riquadri chiari e scuri alternati: sotto 3:1 a episodi (decide il lato della striscia, che gira con un giro) | 2,8–4,4 s su 17 s di prova sintetica, episodi di 150–430 ms | **accettato da Alessio (2026-11-16)**: «il passaggio di tema degli elementi è abbastanza veloce; se per un secondo non è visibile pace, è un caso limite e nessuno vuole leggere il titolo in così poco tempo». Non si lavora più: le energie vanno ai passaggi dei tasti fra le pagine e ai movimenti |
 | l'etichetta del tasto tinto sopra una foto | 3,90:1 su foto scura in tema chiaro, 3,20:1 su foto chiara in tema scuro | F6.4 (stili dei tasti) |
 | `FluidGlassMenuButton` su fondo scuro e un'azione della barra con menu a barra girata: non ripresi (nessuna scena in F2) | – | F5A |
 | il bordo in basso con movimento ridotto: con la scala di sistema a 0 lo scorrimento automatico della galleria salta, quindi non giudicabile da una ripresa | – | sessione S3, a mano |

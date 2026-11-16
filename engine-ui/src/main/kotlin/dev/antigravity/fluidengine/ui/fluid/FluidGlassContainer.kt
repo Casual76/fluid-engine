@@ -25,10 +25,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,10 +67,18 @@ import androidx.compose.ui.util.fastCoerceIn
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusion
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusionDefault
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusionDp
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeck
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneShape
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurfaceInked
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneMotion
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneNeckMs
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
+import dev.antigravity.fluidengine.ui.glass.field.GlassMaterializeChannels
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneChange
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneCluster
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneField
@@ -79,12 +87,14 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneFrame
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneJourney
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneMotion
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlanePiece
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlanePieceFrame
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneRegistry
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneState
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneTransition
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
 import dev.antigravity.fluidengine.ui.glass.field.glassLiquidLargeVeilGain
+import dev.antigravity.fluidengine.ui.glass.field.glassMaterializeChannels
 import dev.antigravity.fluidengine.ui.glass.field.glassProbe
 import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
@@ -131,14 +141,16 @@ sealed class FluidGlassAnimation {
 /** I valori di serie di [FluidGlassContainer]. */
 object FluidGlassContainerDefaults {
   /**
-   * Fin dove due vetri dello stesso contenitore sono **un grappolo** (una cattura sola, un campo fuso in viaggio) e fin
-   * dove un vetro nuovo **nasce dal vicino** invece di comparire per lente.
+   * Fin dove due vetri dello stesso contenitore sono **un grappolo** (una cattura sola, un campo fuso in viaggio), fin
+   * dove un vetro nuovo **nasce dal vicino** invece di comparire per lente, e il raggio di fusione del loro collo.
    *
-   * Scelta di gusto aperta (piano, F3: stretta / media / larga; Apple non la documenta, i suoi esempi usano 20 e 40 pt).
-   * 16 dp è la media: copre i due vetri di un gruppo (8 dp, [FluidMetrics.GlassSpacing]) e due gruppi vicini (12 dp,
-   * [FluidMetrics.GroupSpacing]) con un margine, perché l'arrotondamento al pixel non decida chi si fonde.
+   * **Scelta di Alessio, 2026-11-16** (tavola «distanza di fusione» di F3.3: stretta 8 / media 16 / larga 24): la media,
+   * 16 dp. Copre i due vetri di un gruppo (8 dp, [FluidMetrics.GlassSpacing]) e due gruppi vicini (12 dp,
+   * [FluidMetrics.GroupSpacing]) con un margine, perché l'arrotondamento al pixel non decida chi si fonde. A riposo due
+   * vetri distinti restano separati del tutto; per un blocco di tasti che è **una cosa sola**, [fluidGlassUnion]. Apple
+   * non la documenta (i suoi esempi usano 20 e 40 pt).
    */
-  val Spacing: Dp = 16.dp
+  val Spacing: Dp = PhysicsPlaneFusionDp.dp
 }
 
 /**
@@ -253,11 +265,15 @@ fun FluidGlassContainer(
   val layoutDirection = LocalLayoutDirection.current
   val state = remember { FluidGlassContainerState() }
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  // La manopola delle prove (S3): una delle tre distanze della tavola di F3.3 al posto di quella dell'app.
+  val preview = FluidGlassContainerDiagnostics.fusionPreview?.fusion
+  val fusion = preview ?: PhysicsPlaneFusionDefault
   state.configure(
     density = density,
     layoutDirection = layoutDirection,
-    spacingPx = with(density) { spacing.coerceAtLeast(0.dp).toPx() },
+    spacingPx = with(density) { (if (preview != null) preview.dp.dp else spacing).coerceAtLeast(0.dp).toPx() },
     motion = if (reducedMotion) null else animation.planeMotion(),
+    restFused = fusion.restFused,
   )
 
   // Il contenitore disegna i vetri solo dove il materiale nuovo può esistere (Android 13, sorgenti sane, nessun antenato
@@ -374,6 +390,29 @@ object FluidGlassContainerDiagnostics {
   /** I pezzi dell'ultimo riposo stabilito, con i raggi già risolti (le forme concentriche comprese). */
   val lastRest: List<FluidGlassPieceRecord> get() = rest
 
+  /**
+   * Le tre distanze di fusione della tavola di F3.3, da riprendere sul dispositivo (S3): quella scelta da Alessio è la
+   * media, di serie; le altre due servono a confrontarle dal vivo.
+   */
+  enum class FusionPreview(internal val fusion: PhysicsPlaneFusion) {
+    /** 8 dp: si fondono quasi solo quando si toccano. */
+    Narrow(PhysicsPlaneFusion.Narrow),
+
+    /** 16 dp: la scelta di serie. */
+    Medium(PhysicsPlaneFusion.Medium),
+
+    /** 24 dp, e due vetri distinti entro la distanza restano fusi anche a riposo. */
+    Wide(PhysicsPlaneFusion.Wide),
+  }
+
+  /**
+   * La manopola delle prove: con un valore, **ogni** contenitore usa quella distanza di fusione al posto del suo
+   * `spacing` (e la «larga» fonde anche a riposo). Null, di serie: lo `spacing` di ogni contenitore. Uno stato: i
+   * contenitori in scena si ricompongono quando cambia. Non è un'API per le app (la galleria la legge dall'extra
+   * `plane.fusion`).
+   */
+  var fusionPreview: FusionPreview? by mutableStateOf(null)
+
   /** Azzera i contatori e i record, per i test. */
   fun resetForTesting() {
     journeys.set(0)
@@ -426,8 +465,14 @@ class FluidGlassPieceRecord internal constructor(
   val cornerRadii: FluidCornerRadii,
   /** Quanti pezzi ha il suo grappolo: uno = una cattura sua, di più = una cattura per tutti. */
   val clusterSize: Int,
+  /**
+   * L'unione del vetro (l'`id` di [fluidGlassUnion]), o null. Due vetri dello stesso grappolo con la stessa unione sono
+   * una sagoma sola anche a riposo; distinti, separati del tutto.
+   */
+  val unionId: Any? = null,
 ) {
-  override fun toString(): String = "FluidGlassPieceRecord($id, $bounds, $cornerRadii, cluster=$clusterSize)"
+  override fun toString(): String =
+    "FluidGlassPieceRecord($id, $bounds, $cornerRadii, cluster=$clusterSize${unionId?.let { ", union=$it" } ?: ""})"
 }
 
 // ================================================================================================================
@@ -610,9 +655,33 @@ internal class FluidGlassPlaneDriver {
 
   private var startNanos = 0L
 
-  /** Quanto del viaggio è passato, 0..1, per il collo «nel progresso» di Fluid-physics. */
+  /** Quanto del viaggio è passato, 0..1: all'uno la superficie fisica è ferma. */
   var progress: Float = 1f
     private set
+
+  /**
+   * L'orologio del collo del viaggio in corso (F3.3, [PhysicsPlaneNeck]): parte da -1 a ogni viaggio da fermi, riparte
+   * dal collo di adesso a ogni interruzione (invariante 16), dura il doppio del riposo a vista del viaggio
+   * (`physicsPlaneNeckMs`). Null a riposo.
+   */
+  var neck: PhysicsPlaneNeck? = null
+    private set
+
+  /** Il tempo del viaggio in corso dall'ultima partenza o ripartenza, in millisecondi (scala di sistema compresa). */
+  var elapsedMs: Double = 0.0
+    private set
+
+  /**
+   * Da quanto il vetro si muove, in millisecondi: dalla partenza da fermi, e un'interruzione **non** lo azzera. È il
+   * tempo di `physicsPlaneMotion`, che accende il vetro in viaggio in 40 ms e non deve riaccenderlo a ogni ripartenza.
+   */
+  var movingMs: Double = 0.0
+    private set
+
+  private var movingSinceNanos = 0L
+
+  /** La coordinata del collo di adesso: -1 a riposo. */
+  fun neckNow(): Float = neck?.at(elapsedMs) ?: -1f
 
   /** Che cosa è cambiato in un passo. */
   enum class Change { Nothing, Rest, Started, Retargeted, Moved, Finished }
@@ -635,11 +704,16 @@ internal class FluidGlassPlaneDriver {
       }
       origin = current
       rest = measured
-      journey = GlassPlaneJourney(current, measured, motion!!)
+      val started = GlassPlaneJourney(current, measured, motion!!)
+      journey = started
       startNanos = nanos
+      movingSinceNanos = nanos
       journeyRevision++
-      frame = journey!!.frame(0.0)
+      frame = started.frame(0.0)
       progress = 0f
+      elapsedMs = 0.0
+      movingMs = 0.0
+      neck = PhysicsPlaneNeck(-1f, physicsPlaneNeckMs(started.settleMs))
       return Change.Started
     }
     val elapsed = elapsedMs(nanos, durationScale)
@@ -649,13 +723,19 @@ internal class FluidGlassPlaneDriver {
         rest = measured
         return Change.Finished
       }
-      journey = running.retarget(elapsed, measured)
+      val restarted = running.retarget(elapsed, measured)
+      // Il collo riparte da dove si trova, sul riposo a vista del viaggio nuovo.
+      val neckMs = physicsPlaneNeckMs(restarted.settleMs)
+      neck = neck?.retarget(elapsed, neckMs) ?: PhysicsPlaneNeck(-1f, neckMs)
+      journey = restarted
       origin = measured
       rest = measured
       startNanos = nanos
       journeyRevision++
-      frame = journey!!.frame(0.0)
+      frame = restarted.frame(0.0)
       progress = 0f
+      elapsedMs = 0.0
+      movingMs = sinceMoving(nanos, durationScale)
       return Change.Retargeted
     }
     val now = running.frame(elapsed)
@@ -664,6 +744,8 @@ internal class FluidGlassPlaneDriver {
       return Change.Finished
     }
     frame = now
+    elapsedMs = elapsed
+    movingMs = sinceMoving(nanos, durationScale)
     progress = if (running.durationMs > 0.0) (elapsed / running.durationMs).toFloat().fastCoerceIn(0f, FluidGlassTravelProgressCap) else 0f
     return Change.Moved
   }
@@ -671,11 +753,17 @@ internal class FluidGlassPlaneDriver {
   private fun elapsedMs(nanos: Long, durationScale: Float): Double =
     max(0L, nanos - startNanos) / 1_000_000.0 / durationScale.toDouble()
 
+  private fun sinceMoving(nanos: Long, durationScale: Float): Double =
+    max(0L, nanos - movingSinceNanos) / 1_000_000.0 / durationScale.toDouble()
+
   private fun finish() {
     journey = null
     origin = null
     frame = null
     progress = 1f
+    neck = null
+    elapsedMs = 0.0
+    movingMs = 0.0
   }
 }
 
@@ -720,13 +808,12 @@ private fun radiiAlike(a: FluidCornerRadii, b: FluidCornerRadii): Boolean =
     abs(a.bottomLeft - b.bottomLeft) <= FluidGlassPlaneTolerancePx
 
 /**
- * Le lastre di un campo del palco in questo fotogramma, nelle coordinate del suo nodo (che comincia in [origin]), e
- * quanto del campo c'è (`materialize`). Pura.
+ * Le lastre di un campo del palco in questo fotogramma, nelle coordinate del suo nodo (che comincia in [origin]), quanto
+ * del campo c'è (`materialize`) e i pezzi che le danno, nello stesso ordine. Pura.
  *
- * Un campo fatto **solo** di vetri che compaiono o scompaiono porta la loro rifrazione nell'intensità della superficie,
- * esatta (sono lontani da tutto, quindi di solito uno). In un campo misto la superficie è una sola e l'intensità è del
- * campo: un vetro che compare accanto ad altri si vede dal contorno che si stringe, e si toglie solo sotto
- * [FluidGlassAppearFloor] perché non nasca a piena rifrazione dal nulla.
+ * Chi compare o scompare per lente è sempre un campo a sé (`GlassPlaneJourney.fields`, F3.2c): il suo `materialize` è
+ * quello del campo, esatto, e la superficie lo applica con `glassMaterializeRecipe` (contorno, poi lente). Un campo di
+ * vetri che viaggiano è pieno; un vetro che se ne va senza transizione (`Identity`) non c'è più dal fotogramma dopo.
  */
 internal fun fluidGlassFieldSlabs(
   frame: GlassPlaneFrame,
@@ -735,21 +822,41 @@ internal fun fluidGlassFieldSlabs(
   smoothing: (GlassPlanePiece) -> Float,
 ): FluidGlassFieldShape {
   val members = frame.pieces.filter { it.flightId in flights }
-  val lens = members.all { it.change == GlassPlaneChange.Materialize || it.change == GlassPlaneChange.Dematerialize }
-  val intensity = if (lens) members.maxOfOrNull { it.materialize } ?: 0f else 1f
-  val slabs = members
-    .filter { lens || it.materialize >= FluidGlassAppearFloor }
-    .map {
-      FluidForm.Slab(it.bounds.translate(-origin.x, -origin.y), it.radii, smoothing(it.piece))
-    }
-  return FluidGlassFieldShape(slabs, intensity.fastCoerceIn(0f, 1f))
+  val lens = members.isNotEmpty() &&
+    members.all { it.change == GlassPlaneChange.Materialize || it.change == GlassPlaneChange.Dematerialize }
+  val amount = if (lens) members.maxOf { it.materialize } else 1f
+  val drawn = (if (lens) members else members.filter { it.materialize > 0f }).unionsFirst { it.piece }
+  val slabs = drawn.map {
+    FluidForm.Slab(it.bounds.translate(-origin.x, -origin.y), it.radii, smoothing(it.piece))
+  }
+  return FluidGlassFieldShape(slabs, amount.fastCoerceIn(0f, 1f), drawn)
 }
 
-/** Le lastre di un campo e la sua intensità: vedi [fluidGlassFieldSlabs]. */
-internal class FluidGlassFieldShape(val slabs: List<FluidForm.Slab>, val intensity: Float)
+/** Le lastre di un campo, la sua comparsa e i pezzi che le danno: vedi [fluidGlassFieldSlabs]. */
+internal class FluidGlassFieldShape(
+  val slabs: List<FluidForm.Slab>,
+  val materialize: Float,
+  val members: List<GlassPlanePieceFrame>,
+)
 
-/** Sotto questa rifrazione un vetro che compare in un campo misto non si disegna ancora: vedi [fluidGlassFieldSlabs]. */
-internal const val FluidGlassAppearFloor: Float = 0.05f
+/**
+ * [this] con i pezzi di un'unione in testa, nell'ordine di prima (un ordinamento stabile). Il campo fonde ogni pezzo con
+ * tutto ciò che lo precede con un raggio solo: con le unioni davanti, il loro collo pieno non incontra mai un pezzo
+ * estraneo già fuso, e non deve fermarsi per non fargli ponte (`physicsPlaneNeckBlend`). Le unioni non cambiano durante un
+ * viaggio, quindi l'ordine è lo stesso in ogni fotogramma. Pura.
+ */
+internal inline fun <T> List<T>.unionsFirst(crossinline piece: (T) -> GlassPlanePiece): List<T> =
+  if (none { piece(it).unionId != null }) this else sortedBy { if (piece(it).unionId != null) 0 else 1 }
+
+/**
+ * Le unioni di [pieces] come indici (-1 per chi non ne ha), nell'ordine delle lastre: ciò che `PhysicsPlaneShape.unions`
+ * vuole. Null se nessuno ha un'unione. Pura.
+ */
+internal fun fluidGlassUnionIndices(pieces: List<GlassPlanePiece>): IntArray? {
+  if (pieces.none { it.unionId != null }) return null
+  val seen = HashMap<Any, Int>()
+  return IntArray(pieces.size) { i -> pieces[i].unionId?.let { seen.getOrPut(it) { seen.size } } ?: -1 }
+}
 
 /** La forma di Fluid-physics di un insieme di lastre: una lastra da sola, un gruppo se sono di più. */
 internal fun fluidGlassFormOf(slabs: List<FluidForm.Slab>, blendRadius: Float): FluidForm? = when {
@@ -812,6 +919,15 @@ internal class FluidGlassPiece(val container: FluidGlassContainerState) {
   /** I raggi concentrici del nodo, se la forma è una [FluidConcentricShape]: li scrive il nodo al layout. */
   var concentricRadii: FluidCornerRadii? = null
 
+  /**
+   * Quanto c'è del **simbolo** (il contenuto del pezzo), come `materialize` della comparsa per lente (F3.3, R4 B3): uno
+   * di serie; durante la comparsa quello del suo vetro, e il contenuto ne prende scala (da 2× a 1×) e opacità
+   * (`glassMaterializeChannels`). Zero per un pezzo appena arrivato in un contenitore già a riposo, finché il fotogramma
+   * dopo non decide se nasce da un vicino (pieno) o compare per lente: senza, il simbolo si vedeva pieno, senza vetro,
+   * per il fotogramma in cui il pezzo è stato composto. Scritto dal contenitore, letto in disegno.
+   */
+  val symbol = mutableFloatStateOf(1f)
+
   override fun toString(): String = "FluidGlassPiece(${attributes.id?.id ?: Integer.toHexString(hashCode())})"
 }
 
@@ -830,6 +946,8 @@ internal class FluidGlassRestField(
   val slabs: List<FluidForm.Slab>,
   /** Per un grappolo di un pezzo: la forma da disegnare (quella dell'app, o la concentrica risolta). */
   val shape: Shape?,
+  /** Per un grappolo di più pezzi: la forma del piano ferma, con le unioni (una sagoma sola) e il collo a riposo. */
+  val plane: PhysicsPlaneShape? = null,
 )
 
 /** Un campo del palco. */
@@ -894,11 +1012,17 @@ internal class FluidGlassContainerState {
   var stage: FluidGlassStage? by mutableStateOf(null)
     private set
 
-  /** L'intensità di ogni campo del palco, scritta a ogni fotogramma e letta in disegno. */
-  private val stageIntensity = HashMap<Int, androidx.compose.runtime.MutableFloatState>()
+  /**
+   * La forma di ogni campo del palco (F3.2c): scritta a ogni fotogramma dal passo del contenitore, letta in disegno dalla
+   * superficie fisica del campo ([FluidPhysicsState.driveByFrame]). Una forma nuova solo quando qualcosa cambia.
+   */
+  private val stageShapes = HashMap<Int, MutableState<PhysicsPlaneShape>>()
 
-  /** Il progresso del viaggio per il collo di Fluid-physics, letto in disegno. */
+  /** Il progresso del viaggio, letto in disegno: all'uno la superficie fisica è ferma. */
   private val travelProgress = mutableFloatStateOf(1f)
+
+  /** Se due vetri distinti di un grappolo restano fusi anche a riposo: solo la distanza «larga» della tavola di F3.3. */
+  private var restFused = PhysicsPlaneFusionDefault.restFused
 
   /** Il riquadro sotto cui legge la sonda unica: il grappolo più grande, nel contenitore. */
   private var probeRect by mutableStateOf<Rect?>(null)
@@ -907,8 +1031,20 @@ internal class FluidGlassContainerState {
   var probeBackdrop: GlassBackdropState? by mutableStateOf(null)
     private set
 
-  fun configure(density: Density, layoutDirection: LayoutDirection, spacingPx: Float, motion: GlassPlaneMotion?) {
+  fun configure(
+    density: Density,
+    layoutDirection: LayoutDirection,
+    spacingPx: Float,
+    motion: GlassPlaneMotion?,
+    restFused: Boolean = PhysicsPlaneFusionDefault.restFused,
+  ) {
     val changed = this.density != density || this.layoutDirection != layoutDirection || this.spacingPx != spacingPx
+    if (this.restFused != restFused) {
+      this.restFused = restFused
+      // Il riposo si rifà con le stesse lastre e il collo nuovo.
+      looksDirty = true
+      invalidate()
+    }
     this.density = density
     this.layoutDirection = layoutDirection
     this.spacingPx = spacingPx
@@ -918,6 +1054,9 @@ internal class FluidGlassContainerState {
 
   fun attach(piece: FluidGlassPiece) {
     pieces += piece
+    // In un contenitore già a riposo il pezzo nuovo potrebbe comparire per lente: il suo simbolo aspetta il fotogramma
+    // che lo decide (vedi [FluidGlassPiece.symbol]). Alla prima composizione del contenitore non c'è niente da aspettare.
+    if (renders && driver.rest != null) piece.symbol.floatValue = 0f
     invalidate()
   }
 
@@ -961,19 +1100,21 @@ internal class FluidGlassContainerState {
   /** Il progresso del viaggio per Fluid-physics: letto in disegno dalla guida esterna. */
   val progressNow: () -> Float = { travelProgress.floatValue }
 
-  /** L'intensità di un campo del palco, in disegno. */
-  fun stageIntensityOf(index: Int): () -> Float {
-    val holder = stageIntensity.getOrPut(index) { mutableFloatStateOf(0f) }
-    return { holder.floatValue }
+  /** Se il campo [index] del palco ha qualcosa da disegnare, in disegno: un campo vuoto non disegna niente. */
+  fun stagePresenceOf(index: Int): () -> Float = {
+    if (stageShapes[index]?.value?.slabs.isNullOrEmpty()) 0f else 1f
   }
 
   /**
-   * Un campo del palco si è composto con [physics]: la guida al fotogramma di adesso **subito**, in composizione, perché
-   * il suo primo disegno sia già quello giusto.
+   * Un campo del palco si è composto con [physics]: la guida **una volta** «a fotogramma» sulla forma del campo
+   * ([FluidPhysicsState.driveByFrame]), al fotogramma di adesso subito, in composizione, perché il suo primo disegno sia
+   * già quello giusto. Da lì il passo del contenitore cambia solo la forma.
    */
   fun bindStage(index: Int, physics: FluidPhysicsState) {
     stagePhysics[index] = physics
     driveStage()
+    val holder = stageShapes[index] ?: return
+    physics.driveByFrame({ holder.value }, progressNow)
   }
 
   fun unbindStage(index: Int, physics: FluidPhysicsState) {
@@ -1006,6 +1147,13 @@ internal class FluidGlassContainerState {
       FluidGlassPlaneDriver.Change.Moved -> driveStage()
       FluidGlassPlaneDriver.Change.Finished -> settle(driver.rest ?: measured)
     }
+    // A riposo ogni simbolo è pieno: anche quello di un pezzo che il piano non ha misurato (senza taglia), che non
+    // compare per lente perché non c'è.
+    if (driver.journey == null) revealSymbols()
+  }
+
+  private fun revealSymbols() {
+    for (piece in pieces) if (piece.symbol.floatValue != 1f) piece.symbol.floatValue = 1f
   }
 
   // ---- La misura ----
@@ -1068,7 +1216,7 @@ internal class FluidGlassContainerState {
     looksDirty = false
     stage = null
     stagePhysics.clear()
-    stageIntensity.clear()
+    stageShapes.clear()
     travelProgress.floatValue = 1f
     publishRest(state)
     // Gli aspetti di chi se n'è andato non servono più: il viaggio che li portava è finito.
@@ -1099,14 +1247,25 @@ internal class FluidGlassContainerState {
         )
       } else {
         val node = cluster.bounds.inflate(margin).snapped()
+        val ordered = cluster.pieces.unionsFirst { it }
+        val slabs = ordered.map {
+          FluidForm.Slab(it.bounds.translate(-node.left, -node.top), it.radii, smoothingOf(it))
+        }
         FluidGlassRestField(
           key = cluster.id,
           node = node,
           look = look,
-          slabs = cluster.pieces.map {
-            FluidForm.Slab(it.bounds.translate(-node.left, -node.top), it.radii, smoothingOf(it))
-          },
+          slabs = slabs,
           shape = null,
+          // A riposo due vetri distinti sono separati del tutto (collo a -1, decisione dell'11 novembre); quelli della
+          // stessa unione una sagoma sola (F3.2c). La «larga» della tavola li fonde tutti.
+          plane = PhysicsPlaneShape(
+            slabs = slabs,
+            nominalBlend = spacingPx,
+            neck = if (restFused) 1f else -1f,
+            unions = fluidGlassUnionIndices(ordered),
+            resting = true,
+          ),
         )
       }
     }
@@ -1118,7 +1277,9 @@ internal class FluidGlassContainerState {
       glassLiquidLargeVeilGain(with(density) { biggest.pieces.maxOf { it.bounds.minDimension }.toDp().value }) >= 0.5f
     FluidGlassContainerDiagnostics.onRest(
       state.clusters.flatMap { cluster ->
-        cluster.pieces.map { FluidGlassPieceRecord(it.id.appId(), it.bounds, it.radii, cluster.pieces.size) }
+        cluster.pieces.map {
+          FluidGlassPieceRecord(it.id.appId(), it.bounds, it.radii, cluster.pieces.size, it.unionId.appId())
+        }
       },
     )
   }
@@ -1150,7 +1311,7 @@ internal class FluidGlassContainerState {
       revision = driver.journeyRevision,
       fields = journey.fields.mapIndexed { index, field -> stageFieldOf(index, field, margin) },
     )
-    stageIntensity.keys.retainAll((0 until journey.fields.size).toSet())
+    stageShapes.keys.retainAll((0 until journey.fields.size).toSet())
     driveStage()
     FluidGlassContainerDiagnostics.onJourney(records(driver.frame), retarget)
   }
@@ -1162,19 +1323,40 @@ internal class FluidGlassContainerState {
     return FluidGlassStageField(index, field.bounds.inflate(margin).snapped(), look, field.flights)
   }
 
-  /** Porta il fotogramma di adesso sulle superfici del palco. */
+  /**
+   * Porta il fotogramma di adesso sulle superfici del palco: per ogni campo una forma del piano ([PhysicsPlaneShape]) col
+   * collo nel tempo ([FluidGlassPlaneDriver.neckNow], F3.3), le unioni, la comparsa del campo e il peso del vetro in
+   * viaggio dalla velocità dei suoi lati (`physicsPlaneMotion`). E il simbolo di chi compare per lente.
+   */
   private fun driveStage() {
     val frame = driver.frame ?: return
     val stage = stage ?: return
     travelProgress.floatValue = driver.progress
+    val neck = if (restFused) 1f else driver.neckNow()
+    val movingMs = driver.movingMs.toFloat()
     for (field in stage.fields) {
       val shape = fluidGlassFieldSlabs(frame, field.flights, field.node.topLeft) { smoothingOf(it) }
-      stageIntensity.getOrPut(field.index) { mutableFloatStateOf(0f) }.floatValue = shape.intensity
-      val physics = stagePhysics[field.index] ?: continue
-      val form = fluidGlassFormOf(shape.slabs, spacingPx) ?: continue
-      // La guida esterna sulla geometria di questo fotogramma (il piano la calcola da sé, con l'interruzione): la
-      // superficie fisica ne fa la finestra, col collo nel progresso del viaggio.
-      physics.driveExternally(form, form, progressNow)
+      // Il lato più veloce del campo, in dp al secondo.
+      val speedPx = shape.members.maxOfOrNull { p ->
+        val v = p.velocity.bounds
+        maxOf(maxOf(abs(v.left), abs(v.right)), maxOf(abs(v.top), abs(v.bottom)))
+      } ?: 0f
+      val plane = PhysicsPlaneShape(
+        slabs = shape.slabs.take(FluidForm.Group.MaxPieces),
+        nominalBlend = spacingPx,
+        neck = neck,
+        unions = fluidGlassUnionIndices(shape.members.map { it.piece }),
+        materialize = shape.materialize,
+        motion = physicsPlaneMotion(speedPx / density.density, movingMs),
+      )
+      val holder = stageShapes[field.index]
+      if (holder == null) stageShapes[field.index] = mutableStateOf(plane) else holder.value = plane
+    }
+    // Il simbolo di chi compare per lente segue il suo vetro; chi nasce da un vicino o si sposta è pieno.
+    for (flying in frame.pieces) {
+      val piece = flying.flightId.targetKey as? FluidGlassPiece ?: continue
+      val amount = if (flying.change == GlassPlaneChange.Materialize) flying.materialize else 1f
+      if (piece.symbol.floatValue != amount) piece.symbol.floatValue = amount
     }
   }
 
@@ -1264,13 +1446,19 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
         nestInContainer = true,
         touch = look.touch,
         ink = null,
+        variant = look.variant,
       ),
     )
   } else {
-    // Più pezzi: una cattura sola per tutto il grappolo, ogni pezzo una lastra del campo (a riposo separate del tutto).
-    val form = remember(field) { fluidGlassFormOf(field.slabs, 0f)!! }
-    val physics = rememberFluidPhysicsState(form)
-    SideEffect { if (physics.form != form) physics.snapTo(form) }
+    // Più pezzi: una cattura sola per tutto il grappolo, ogni pezzo una lastra del campo: separate del tutto se sono
+    // distinte, una sagoma sola se sono della stessa unione (F3.2c). La stessa guida «a fotogramma» del palco, ferma.
+    val plane = field.plane ?: PhysicsPlaneShape(field.slabs, nominalBlend = 0f, resting = true)
+    val current = rememberUpdatedState(plane)
+    val physics = rememberFluidPhysicsState(plane.form())
+    remember(physics) {
+      physics.driveByFrame({ current.value }, AtRest)
+      Unit
+    }
     val ink = remember { GlassInk() }
     Box(
       gate.fluidPhysicsSurfaceInked(
@@ -1280,6 +1468,7 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
         role = look.role,
         optics = look.optics,
         ink = ink,
+        variant = look.variant,
       ),
     )
   }
@@ -1297,7 +1486,7 @@ private fun FluidGlassStageSurface(state: FluidGlassContainerState, field: Fluid
   DisposableEffect(physics, field.index) {
     onDispose { state.unbindStage(field.index, physics) }
   }
-  val intensity = remember(field.index) { state.stageIntensityOf(field.index) }
+  val presence = remember(field.index) { state.stagePresenceOf(field.index) }
   val ink = remember { GlassInk() }
   val look = field.look
   Box(
@@ -1309,13 +1498,15 @@ private fun FluidGlassStageSurface(state: FluidGlassContainerState, field: Fluid
         tint = look.tint,
         role = look.role,
         optics = look.optics,
-        intensity = intensity,
+        intensity = presence,
         ink = ink,
+        variant = look.variant,
       ),
   )
 }
 
 private val FullIntensity: () -> Float = { 1f }
+private val AtRest: () -> Float = { 1f }
 private val NoPress: () -> Float = { 0f }
 private val NeverHeld: () -> Boolean = { false }
 
@@ -1344,7 +1535,7 @@ internal fun Modifier.fluidGlassPiece(
   val minimum = (look.shape as? FluidConcentricShape)?.minimum
   return this
     .then(FluidGlassPieceElement(piece, minimum))
-    .fluidGlassContentFade(container::contentFade)
+    .fluidGlassContentFade(container::contentFade) { piece.symbol.floatValue }
 }
 
 private class FluidGlassPieceElement(
@@ -1428,21 +1619,38 @@ private class FluidGlassPiecePositionNode(var piece: FluidGlassPiece) : Modifier
 }
 
 /**
- * Il contenuto di un pezzo segue la dissolvenza dell'inchiostro del contenitore (in disegno, un fotogramma per volta):
- * un layer solo mentre è a metà strada.
+ * Il contenuto di un pezzo segue la dissolvenza dell'inchiostro del contenitore (in disegno, un fotogramma per volta) e,
+ * mentre il suo vetro compare per lente, il **simbolo** della comparsa (F3.3, R4 B3, `glassMaterializeChannels` di
+ * [symbol]): dilatato da 2× a 1× attorno al suo centro e traslucido finché non si condensa. Vale per ogni contenuto del
+ * pezzo, anche una [FluidGlassContentTransition] (che resta ferma mentre il vetro compare). Un layer solo mentre è a
+ * metà strada.
  */
-private fun Modifier.fluidGlassContentFade(fade: () -> Float): Modifier = this.drawWithCache {
+private fun Modifier.fluidGlassContentFade(fade: () -> Float, symbol: () -> Float): Modifier = this.drawWithCache {
   val paint = Paint()
   val bounds = Rect(0f, 0f, size.width, size.height)
+  val channels = GlassMaterializeChannels()
   onDrawWithContent {
-    val amount = fade().fastCoerceIn(0f, 1f)
+    val m = symbol()
+    val growing = m < 1f
+    if (growing) glassMaterializeChannels(m, channels)
+    val amount = fade().fastCoerceIn(0f, 1f) * (if (growing) channels.symbolAlpha else 1f)
+    val scale = if (growing) channels.symbolScale else 1f
     when {
       amount <= 0.001f -> Unit
-      amount >= 0.999f -> drawContent()
+      amount >= 0.999f && scale == 1f -> drawContent()
       else -> {
         paint.alpha = amount
-        drawContext.canvas.saveLayer(bounds, paint)
-        drawContent()
+        val layer = if (scale == 1f) bounds else Rect(
+          center.x - size.width * scale / 2f, center.y - size.height * scale / 2f,
+          center.x + size.width * scale / 2f, center.y + size.height * scale / 2f,
+        )
+        drawContext.canvas.saveLayer(layer, paint)
+        if (scale == 1f) {
+          drawContent()
+        } else {
+          drawContext.transform.scale(scale, scale, center)
+          drawContent()
+        }
         drawContext.canvas.restore()
       }
     }
@@ -1480,11 +1688,12 @@ internal fun fluidGlassLook(
   )
 }
 
-/** L'ottica di serie di un `fluidGlass`: un tasto se reagisce al dito, una superficie flottante altrimenti. */
-internal fun fluidGlassOptics(glass: FluidGlass): GlassOptics {
-  val base = if (glass.isInteractive) GlassDefaults.buttonOptics() else GlassDefaults.optics(GlassRole.Floating)
-  return if (glass.isClear) base.copy(blurScale = 0f) else base
-}
+/**
+ * L'ottica di serie di un `fluidGlass`: un tasto se reagisce al dito, una superficie flottante altrimenti. La stessa per
+ * il limpido (F3.2c): il raggio di sfocatura resta, e la variante della ricetta porta la mescola a nitido (piano 3.6).
+ */
+internal fun fluidGlassOptics(glass: FluidGlass): GlassOptics =
+  if (glass.isInteractive) GlassDefaults.buttonOptics() else GlassDefaults.optics(GlassRole.Floating)
 
 /**
  * Il riquadro di un nodo di superficie sui pixel interi che lo contengono: il nodo si posa a un pixel intero, e le lastre

@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.ui.geometry.Rect
+import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -169,7 +170,10 @@ class GlassPlaneTest {
     assertNull(first.bornFrom)
     assertEquals(44f * 1.09f, first.bounds.width, 0.001f)
     assertEquals(0f, first.materialize, 0f)
-    assertEquals(1f, journey.frame(430.01).target("b").materialize, 0f)
+    // F3.2c: a 430 ms la comparsa è ferma a vista (entro lo 0,2% di `materialize`), e alla fine del viaggio è piena.
+    assertEquals(430.0, journey.settleMs, 0.5)
+    assertEquals(1f, journey.frame(430.0).target("b").materialize, FluidMotion.PlaneRestUnit + 0.0001f)
+    assertEquals(1f, journey.frame(journey.durationMs + 0.01).target("b").materialize, 0f)
     val explicit = b.copy(bounds = Rect(68f, 40f, 112f, 84f), transition = GlassPlaneTransition.Materialize)
     assertEquals(GlassPlaneChange.Materialize, planeJourneyFrame(0.0, state(a), state(a, explicit)).target("b").change)
   }
@@ -184,8 +188,10 @@ class GlassPlaneTest {
     assertRect(a.bounds, exit.bounds)
     assertRect(b.bounds, exit.contentBounds)
     val disappearing = GlassPlaneJourney(state(piece("far", 300f)), state())
-    assertEquals(470.0, disappearing.durationMs, 0.05)
-    assertEquals(0f, disappearing.frame(470.01).pieces.single().materialize, 0f)
+    assertEquals(470.0, disappearing.settleMs, 0.5)
+    assertTrue(disappearing.durationMs >= disappearing.settleMs)
+    assertEquals(0f, disappearing.frame(470.0).pieces.single().materialize, FluidMotion.PlaneRestUnit + 0.0001f)
+    assertEquals(0f, disappearing.frame(disappearing.durationMs + 0.01).pieces.single().materialize, 0f)
   }
 
   @Test fun identityTransitionOptsOutOfTheClock() {
@@ -215,12 +221,31 @@ class GlassPlaneTest {
   }
 
   @Test fun moreThanEightTransientPiecesArePartitionedWithoutDroppingAny() {
-    val a = (0..7).map { piece("a$it", it * 3f).copy(transition = GlassPlaneTransition.Materialize) }
-    val b = (0..7).map { piece("b$it", it * 3f).copy(transition = GlassPlaneTransition.Materialize) }
+    // Sedici vetri che viaggiano tutti vicini (uno si sposta, uno nasce dal vicino): un componente solo, diviso.
+    val a = (0..7).map { piece("a$it", it * 46f, y = 20f) }
+    val b = (0..7).map { piece("a$it", it * 46f + 6f, y = 20f) } + (0..7).map { piece("n$it", it * 46f, y = 70f) }
     val journey = GlassPlaneJourney(GlassPlaneState(a, 12f, canvas), GlassPlaneState(b, 12f, canvas))
     assertEquals(16, journey.frame(70.0).pieces.size)
     assertEquals(16, journey.fields.sumOf { it.flights.size })
-    assertTrue(journey.fields.all { it.flights.size <= 8 && it.kernel == GlassBodyKernel.Eight })
+    assertTrue(journey.fields.size >= 2)
+    assertTrue(journey.fields.all { it.flights.size <= 8 })
+  }
+
+  @Test fun appearingAndDisappearingGlassIsAlwaysAFieldOfItsOwn() {
+    // F3.2c: un vetro che compare per lente accanto a uno che si sposta (entro lo spacing) non entra nel suo campo, così
+    // la sua comparsa (un `materialize` per campo) è esatta.
+    val a = piece("a", 20f)
+    val moved = piece("a", 40f)
+    val forced = piece("m", 92f).copy(transition = GlassPlaneTransition.Materialize)
+    val journey = GlassPlaneJourney(state(a), state(moved, forced))
+    assertEquals(2, journey.fields.size)
+    val lensField = journey.fields.single { field -> field.flights.any { it.targetKey == "m" } }
+    assertEquals(1, lensField.flights.size)
+    assertEquals(GlassBodyKernel.One, lensField.kernel)
+    // Più vetri che compaiono insieme, vicini: uno per campo.
+    val many = GlassPlaneJourney(state(), state(piece("x", 20f), piece("y", 70f), piece("z", 120f)))
+    assertEquals(3, many.fields.size)
+    assertTrue(many.fields.all { it.flights.size == 1 && it.kernel == GlassBodyKernel.One })
   }
 
   @Test fun retargetPreservesEverySideAndItsVelocityIncludingOrthogonalMotion() {
@@ -261,12 +286,45 @@ class GlassPlaneTest {
 
   @Test fun contextLastsThreeHundredMsAndSmallOvershootStaysInsideTheStage() {
     val journey = GlassPlaneJourney(state(piece("a", 20f)), state(piece("a", 80f, width = 100f)))
-    assertEquals(300.0, journey.durationMs, 0.05)
+    // F3.2c: il bilancio è il riposo a vista; la coda sotto il mezzo pixel viene dopo e non si vede.
+    assertEquals(300.0, journey.settleMs, 0.5)
+    assertTrue(journey.durationMs >= journey.settleMs)
     assertFalse(journey.frame(299.0).finished)
-    assertTrue(journey.frame(300.01).finished)
-    val maximum = (0..300).maxOf { journey.frame(it.toDouble()).pieces.single().bounds.width }
+    assertTrue(journey.frame(journey.durationMs + 0.01).finished)
+    val maximum = (0..journey.durationMs.toInt()).maxOf { journey.frame(it.toDouble()).pieces.single().bounds.width }
     assertTrue("oltrepasso $maximum", maximum <= 101.3f)
-    assertEquals(430.0, GlassPlaneJourney(state(), state(piece("a", 20f))).durationMs, 0.05)
+    assertEquals(430.0, GlassPlaneJourney(state(), state(piece("a", 20f))).settleMs, 0.5)
+  }
+
+  @Test fun theVisibleRestFallsInsideTheR4WindowAndTheStartIsNotFrontLoaded() {
+    // Il rilievo di F3.3 (`contesto-capsule-curva`): la capsula da 200 a 88 dp a densità 3 si posava a vista a 133 ms e
+    // consumava il 39% della corsa nei primi 33. R4 B2: 270–330 ms. Il riposo a vista è lo 0,5% della corsa, la
+    // tolleranza di `glassmotion.py curve`.
+    val d = 3f
+    val wide = GlassPlaneState(
+      listOf(GlassPlanePiece("c", Rect(120f * d, 58f * d, 320f * d, 102f * d), FluidCornerRadii.all(22f * d), id = "c")),
+      12f * d, Rect(0f, 0f, 360f * d, 160f * d),
+    )
+    val narrow = GlassPlaneState(
+      listOf(GlassPlanePiece("c", Rect(232f * d, 58f * d, 320f * d, 102f * d), FluidCornerRadii.all(22f * d), id = "c")),
+      12f * d, Rect(0f, 0f, 360f * d, 160f * d),
+    )
+    val journey = GlassPlaneJourney(wide, narrow)
+    val start = 200f * d
+    val end = 88f * d
+    fun width(ms: Double) = journey.frame(ms).pieces.single().bounds.width
+    val tolerance = 0.005f * abs(end - start)
+    var rest = 0.0
+    var ms = 0.0
+    while (ms <= journey.durationMs + 1.0) {
+      if (abs(width(ms) - end) > tolerance) rest = ms + 1.0
+      ms += 1.0
+    }
+    assertTrue("riposo a vista a $rest ms", rest in 270.0..330.0)
+    val early = (start - width(33.0)) / (start - end)
+    assertTrue("nei primi 33 ms il ${early * 100}% della corsa", early < 0.2f)
+    val overshoot = (end - (0..journey.durationMs.toInt()).minOf { width(it.toDouble()) }) / abs(end - start)
+    assertTrue("superamento ${overshoot * 100}%", overshoot <= 0.013f)
   }
 
   @Test fun repeatedInterruptionsRetainTheCurrentJourneyRatherThanTheOriginalEndpoints() {

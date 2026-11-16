@@ -35,7 +35,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `data object None : FluidGlassAnimation()` — Nessun viaggio: i vetri vanno al posto nuovo nel fotogramma dopo il cambio. Anche con il movimento ridotto.
   - `class Custom(val spec: FiniteAnimationSpec<Float>) : FluidGlassAnimation()` — La spec dell'app per ogni lato e raggio di ogni vetro, col suo tempo (i bilanci di serie non contano). Una molla conserva la velocità di un viaggio interrotto; una curva a durata no, e alla ripartenza riparte da ferma.
 - `object FluidGlassContainerDefaults` — I valori di serie di [FluidGlassContainer].
-  - `val Spacing: Dp` — Fin dove due vetri dello stesso contenitore sono **un grappolo** (una cattura sola, un campo fuso in viaggio) e fin dove un vetro nuovo **nasce dal vicino** invece di comparire per lente.
+  - `val Spacing: Dp` — Fin dove due vetri dello stesso contenitore sono **un grappolo** (una cattura sola, un campo fuso in viaggio), fin dove un vetro nuovo **nasce dal vicino** invece di comparire per lente, e il raggio di fusione del loro collo.
 - `class FluidGlassNamespace internal constructor()` — Lo spazio dei nomi delle identità dei vetri: `@Namespace` di SwiftUI. Due `id` uguali in due spazi diversi sono due vetri diversi; lo stesso `id` nello stesso spazio, prima e dopo un cambio, è **lo stesso vetro** che si sposta.
 - `@Composable fun rememberFluidGlassNamespace(): FluidGlassNamespace` — Uno spazio dei nomi che vive quanto il punto della composizione che lo chiede.
 - `enum class FluidGlassTransition` — Come un vetro che arriva o se ne va entra nel cambio: `glassEffectTransition` di SwiftUI.
@@ -50,9 +50,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val liveContainers: Int get()` — I contenitori in scena adesso.
   - `val lastJourney: List<FluidGlassFlightRecord> get()` — Chi è andato dove nell'ultimo viaggio partito o ripartito: un record per vetro in volo.
   - `val lastRest: List<FluidGlassPieceRecord> get()` — I pezzi dell'ultimo riposo stabilito, con i raggi già risolti (le forme concentriche comprese).
+  - `enum class FusionPreview(internal val fusion: PhysicsPlaneFusion)` — Le tre distanze di fusione della tavola di F3.3, da riprendere sul dispositivo (S3): quella scelta da Alessio è la media, di serie; le altre due servono a confrontarle dal vivo.
+  - `var fusionPreview: FusionPreview? by mutableStateOf(null)` — La manopola delle prove: con un valore, **ogni** contenitore usa quella distanza di fusione al posto del suo `spacing` (e la «larga» fonde anche a riposo). Null, di serie: lo `spacing` di ogni contenitore. Uno stato: i contenitori in scena si ricompongono quando cambia. Non è un'API per le app (la galleria la legge dall'extra `plane.fusion`).
   - `fun resetForTesting()` — Azzera i contatori e i record, per i test.
 - `class FluidGlassFlightRecord internal constructor(val fromId: Any?, val toId: Any?, val change: String, val bornFromId: Any?, val mergesIntoId: Any?)` — Un vetro in volo nell'ultimo viaggio: da quale `id` a quale (null per un vetro senza `id`), che cambio è (`Matched`, `BornFromNeighbour`, `MergeIntoNeighbour`, `Materialize`, `Dematerialize`, `Identity`) e, per chi nasce o confluisce, l'`id` del vicino.
-- `class FluidGlassPieceRecord internal constructor(val id: Any?, val bounds: Rect, val cornerRadii: FluidCornerRadii, val clusterSize: Int)` — Un vetro a riposo: il suo `id` (o null), il riquadro nel contenitore in pixel e i quattro raggi risolti.
+- `class FluidGlassPieceRecord internal constructor(val id: Any?, val bounds: Rect, val cornerRadii: FluidCornerRadii, val clusterSize: Int, val unionId: Any? = null)` — Un vetro a riposo: il suo `id` (o null), il riquadro nel contenitore in pixel e i quattro raggi risolti.
 
 ## `engine-ui/ui/fluid/FluidGlassContentTransition.kt`
 

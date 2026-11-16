@@ -1184,3 +1184,10 @@ fluidGlass …», e `FluidGlassContainerDiagnostics.totalOrderWarnings` lo conta
 `FluidGlassContainerTest`, `PlanePageTest`). Nel codice: `grep -n "fluidGlass()\.fluidGlass\(Id\|Union\|Transition\)"`
 e ogni `fluidGlassId` che segue il suo vetro. **Se la violi.** Il vetro è anonimo: si accoppia per lato e posizione,
 nasce dal vicino sbagliato o compare per lente dove doveva staccarsi dal vicino.
+
+**Un blocco di tasti si dichiara con `fluidGlassUnion`** (scelta di Alessio, 2026-11-16). A riposo due vetri distinti
+dello stesso contenitore sono separati del tutto, anche a 8 dp: quando più tasti formano un blocco (azioni dello stesso
+gruppo, una capsula di comandi) si scrive `Modifier.fluidGlassId(id, ns).fluidGlassUnion("blocco", ns)` su ognuno, ed
+è una sagoma sola anche ferma. Non per tasti di significato diverso accostati, né per gruppi lontani o diversi (12 dp):
+fusi, sembrerebbero un comando solo. Esempio e casi: [componenti/piano-flottante.md](componenti/piano-flottante.md),
+«L'unione».

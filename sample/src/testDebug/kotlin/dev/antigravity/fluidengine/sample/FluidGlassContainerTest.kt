@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -108,6 +109,17 @@ class FluidGlassContainerTest {
     }
   }
 
+  /**
+   * Scrive lo stato dal filo del test e lo consegna subito alla composizione (F3.2c). Senza `sendApplyNotifications` la
+   * scrittura arriva alla composizione solo quando il gestore globale degli snapshot gira sul filo principale, e in
+   * certe posizioni della suite (dopo altre classi Robolectric) non arrivava: il test passava da solo e cadeva in
+   * compagnia (F3.6, F3.2b).
+   */
+  private fun change(block: () -> Unit) {
+    block()
+    Snapshot.sendApplyNotifications()
+  }
+
   /** Una pagina con una sorgente da rifrangere e, sopra, [content]. */
   private fun scene(content: @Composable (GlassBackdropState) -> Unit) {
     compose.setContent {
@@ -176,7 +188,7 @@ class FluidGlassContainerTest {
     assertEquals("la prima misura non viaggia", 0L, FluidGlassContainerDiagnostics.totalJourneys)
 
     // Un tasto diventa due: «uno» resta lui, «due» nasce da «uno».
-    two = true
+    change { two = true }
     advance(64)
     assertEquals(1L, FluidGlassContainerDiagnostics.totalJourneys)
     val split = FluidGlassContainerDiagnostics.lastJourney
@@ -189,7 +201,7 @@ class FluidGlassContainerTest {
     assertEquals(2, FluidGlassContainerDiagnostics.lastRest.size)
 
     // Lontano: compare per lente, al suo posto.
-    far = true
+    change { far = true }
     advance(64)
     assertTrue(
       FluidGlassContainerDiagnostics.lastJourney.toString(),
@@ -198,7 +210,7 @@ class FluidGlassContainerTest {
     advance(800)
 
     // «due» se ne va accanto a «uno»: vi confluisce.
-    two = false
+    change { two = false }
     advance(64)
     assertTrue(
       FluidGlassContainerDiagnostics.lastJourney.toString(),
@@ -225,9 +237,9 @@ class FluidGlassContainerTest {
         }
       }
     }
-    two = true
+    change { two = true }
     advance(96)
-    two = false
+    change { two = false }
     advance(64)
     assertEquals(1L, FluidGlassContainerDiagnostics.totalJourneys)
     assertEquals(1L, FluidGlassContainerDiagnostics.totalRetargets)

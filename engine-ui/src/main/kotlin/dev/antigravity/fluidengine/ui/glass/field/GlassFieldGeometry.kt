@@ -333,7 +333,11 @@ internal object GlassFieldGeometry {
         // Il raggio di fusione è del pezzo: lo unisce a tutto ciò che il ciclo ha già fuso.
         val k = max(blend[i], 0.0001f)
         val h = fusionWeight(d, out.distance, blend[i])
-        d = out.distance + (d - out.distance) * h - k * h * (1f - h)
+        // Come il nucleo (F3.3): dentro la sovrapposizione, oltre un raggio di fusione da entrambi i contorni, niente
+        // rigonfiamento. Il contorno non cambia; la profondità sull'asse fra due pezzi sovrapposti sì (F3.2c).
+        val inside = (-max(out.distance, d) / k).coerceIn(0f, 1f)
+        val swell = 1f - inside * inside * (3f - 2f * inside)
+        d = out.distance + (d - out.distance) * h - k * h * (1f - h) * swell
         normalX = out.normalX + (normalX - out.normalX) * h
         normalY = out.normalY + (normalY - out.normalY) * h
         centerX = pieceX + (centerX - pieceX) * h

@@ -640,7 +640,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["49.514dp", "22dp", "22dp", "22dp"], ["61.417dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["52.862dp", "22dp", "22dp", "22dp"], ["55.976dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -674,8 +674,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["55.466dp", "22dp"],
-              "glowRadius": "55.903dp",
+              "glowCenter": ["54.419dp", "22dp"],
+              "glowRadius": "47.114dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -694,8 +694,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [418.39624, 174, 550.39624, 306],
-              "velocityPxPerSecond": [-1326.768677, 0, -1326.768677, 0]
+              "rectPx": [428.441132, 174, 560.441101, 306],
+              "velocityPxPerSecond": [-406.052124, 0, -406.052124, 0]
             },
             {
               "key": "b",
@@ -704,8 +704,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [454.106079, 174, 586.106079, 306],
-              "velocityPxPerSecond": [2155.999023, 0, 2155.999023, 0]
+              "rectPx": [437.783173, 174, 569.783203, 306],
+              "velocityPxPerSecond": [659.834717, 0, 659.834717, 0]
             }
           ]
         }
@@ -738,7 +738,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["41.562dp", "22dp", "22dp", "22dp"], ["74.339dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["49.887dp", "22dp", "22dp", "22dp"], ["60.811dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -772,8 +772,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["57.951dp", "22dp"],
-              "glowRadius": "76.777dp",
+              "glowCenter": ["55.349dp", "22dp"],
+              "glowRadius": "54.924dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -792,8 +792,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [394.540894, 174, 526.540894, 306],
-              "velocityPxPerSecond": [-1426.879639, 0, -1426.879639, 0]
+              "rectPx": [419.515198, 174, 551.515198, 306],
+              "velocityPxPerSecond": [-623.413879, 0, -623.413879, 0]
             },
             {
               "key": "b",
@@ -802,8 +802,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [492.871063, 174, 624.871033, 306],
-              "velocityPxPerSecond": [2318.679199, 0, 2318.679199, 0]
+              "rectPx": [452.287811, 174, 584.287842, 306],
+              "velocityPxPerSecond": [1013.047546, 0, 1013.047546, 0]
             }
           ]
         }
@@ -836,7 +836,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["34.431dp", "22dp", "22dp", "22dp"], ["85.927dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["46.115dp", "22dp", "22dp", "22dp"], ["66.94dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -870,8 +870,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["60.179dp", "22dp"],
-              "glowRadius": "95.496dp",
+              "glowCenter": ["56.528dp", "22dp"],
+              "glowRadius": "64.825dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -890,8 +890,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [373.146973, 174, 505.146973, 306],
-              "velocityPxPerSecond": [-1118.926392, 0, -1118.926392, 0]
+              "rectPx": [408.200165, 174, 540.200195, 306],
+              "velocityPxPerSecond": [-700.281494, 0, -700.281494, 0]
             },
             {
               "key": "b",
@@ -900,8 +900,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [527.636169, 174, 659.636169, 306],
-              "velocityPxPerSecond": [1818.255493, 0, 1818.255493, 0]
+              "rectPx": [470.674713, 174, 602.674744, 306],
+              "velocityPxPerSecond": [1137.957397, 0, 1137.957397, 0]
             }
           ]
         }
@@ -934,7 +934,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["29.253dp", "22dp", "22dp", "22dp"], ["94.342dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["42.173dp", "22dp", "22dp", "22dp"], ["73.346dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -968,8 +968,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["61.798dp", "22dp"],
-              "glowRadius": "109.09dp",
+              "glowCenter": ["57.76dp", "22dp"],
+              "glowRadius": "75.173dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -988,8 +988,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [357.611633, 174, 489.611633, 306],
-              "velocityPxPerSecond": [-756.376526, 0, -756.376526, 0]
+              "rectPx": [396.373962, 174, 528.373962, 306],
+              "velocityPxPerSecond": [-691.589478, 0, -691.589478, 0]
             },
             {
               "key": "b",
@@ -998,8 +998,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [552.881104, 174, 684.881104, 306],
-              "velocityPxPerSecond": [1229.111938, 0, 1229.111938, 0]
+              "rectPx": [489.892303, 174, 621.892334, 306],
+              "velocityPxPerSecond": [1123.832886, 0, 1123.832886, 0]
             }
           ]
         }
@@ -1032,7 +1032,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["25.917dp", "22dp", "22dp", "22dp"], ["99.762dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["38.618dp", "22dp", "22dp", "22dp"], ["79.124dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1066,8 +1066,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["62.84dp", "22dp"],
-              "glowRadius": "117.845dp",
+              "glowCenter": ["58.871dp", "22dp"],
+              "glowRadius": "84.507dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1086,8 +1086,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [347.605835, 174, 479.605835, 306],
-              "velocityPxPerSecond": [-462.93869, 0, -462.93869, 0]
+              "rectPx": [385.706818, 174, 517.706787, 306],
+              "velocityPxPerSecond": [-638.671448, 0, -638.671448, 0]
             },
             {
               "key": "b",
@@ -1096,8 +1096,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [569.140503, 174, 701.140503, 306],
-              "velocityPxPerSecond": [752.275391, 0, 752.275391, 0]
+              "rectPx": [507.22644, 174, 639.22644, 306],
+              "velocityPxPerSecond": [1037.841187, 0, 1037.841187, 0]
             }
           ]
         }
@@ -1130,7 +1130,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["23.953dp", "22dp", "22dp", "22dp"], ["102.955dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["35.243dp", "22dp", "22dp", "22dp"], ["84.609dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1164,8 +1164,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["63.454dp", "22dp"],
-              "glowRadius": "123.002dp",
+              "glowCenter": ["59.926dp", "22dp"],
+              "glowRadius": "93.366dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1184,8 +1184,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [341.711578, 174, 473.711578, 306],
-              "velocityPxPerSecond": [-260.930359, 0, -260.930359, 0]
+              "rectPx": [375.581238, 174, 507.581238, 306],
+              "velocityPxPerSecond": [-559.765625, 0, -559.765625, 0]
             },
             {
               "key": "b",
@@ -1194,8 +1194,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [578.718689, 174, 710.718689, 306],
-              "velocityPxPerSecond": [424.01178, 0, 424.01178, 0]
+              "rectPx": [523.680481, 174, 655.680481, 306],
+              "velocityPxPerSecond": [909.619141, 0, 909.619141, 0]
             }
           ]
         }
@@ -1228,7 +1228,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["22.884dp", "22dp", "22dp", "22dp"], ["104.691dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["32.339dp", "22dp", "22dp", "22dp"], ["89.328dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1262,8 +1262,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["63.788dp", "22dp"],
-              "glowRadius": "125.806dp",
+              "glowCenter": ["60.833dp", "22dp"],
+              "glowRadius": "100.989dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1282,8 +1282,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [338.506958, 174, 470.506958, 306],
-              "velocityPxPerSecond": [-135.600586, 0, -135.600586, 0]
+              "rectPx": [366.869629, 174, 498.869629, 306],
+              "velocityPxPerSecond": [-473.087402, 0, -473.087402, 0]
             },
             {
               "key": "b",
@@ -1292,8 +1292,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [583.926208, 174, 715.926208, 306],
-              "velocityPxPerSecond": [220.350967, 0, 220.350967, 0]
+              "rectPx": [537.836853, 174, 669.836853, 306],
+              "velocityPxPerSecond": [768.767029, 0, 768.767029, 0]
             }
           ]
         }
@@ -1326,7 +1326,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["22.351dp", "22dp", "22dp", "22dp"], ["105.558dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["29.92dp", "22dp", "22dp", "22dp"], ["93.259dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1360,8 +1360,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["63.954dp", "22dp"],
-              "glowRadius": "127.206dp",
+              "glowCenter": ["61.589dp", "22dp"],
+              "glowRadius": "107.339dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1380,8 +1380,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [336.906921, 174, 468.906921, 306],
-              "velocityPxPerSecond": [-64.094391, 0, -64.094391, 0]
+              "rectPx": [359.61261, 174, 491.61261, 306],
+              "velocityPxPerSecond": [-388.474701, 0, -388.474701, 0]
             },
             {
               "key": "b",
@@ -1390,8 +1390,8 @@
               "bornFrom": "a",
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [586.526245, 174, 718.526245, 306],
-              "velocityPxPerSecond": [104.153397, 0, 104.153397, 0]
+              "rectPx": [549.629456, 174, 681.629456, 306],
+              "velocityPxPerSecond": [631.271362, 0, 631.271362, 0]
             }
           ]
         }
@@ -1404,9 +1404,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -1424,7 +1424,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["22.557dp", "22dp", "22dp", "22dp"], ["106.4dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["34.418dp", "22dp", "22dp", "22dp"], ["102.909dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1458,8 +1458,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["64.479dp", "22dp"],
-              "glowRadius": "127.843dp",
+              "glowCenter": ["68.664dp", "22dp"],
+              "glowRadius": "112.491dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1478,8 +1478,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [336.178925, 174, 468.178925, 306],
-              "velocityPxPerSecond": [-25.793839, 0, -25.793839, 0]
+              "rectPx": [353.724548, 174, 485.724548, 306],
+              "velocityPxPerSecond": [-311.361755, 0, -311.361755, 0]
             },
             {
               "key": "b",
@@ -1488,8 +1488,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [587.70929, 174, 719.70929, 306],
-              "velocityPxPerSecond": [41.914986, 0, 41.914986, 0]
+              "rectPx": [559.197632, 174, 691.197632, 306],
+              "velocityPxPerSecond": [505.96286, 0, 505.96286, 0]
             }
           ]
         }
@@ -1502,9 +1502,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -1522,7 +1522,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["27.004dp", "22dp", "22dp", "22dp"], ["99.174dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["34.212dp", "22dp", "22dp", "22dp"], ["103.245dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1556,8 +1556,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["63.089dp", "22dp"],
-              "glowRadius": "116.17dp",
+              "glowCenter": ["68.728dp", "22dp"],
+              "glowRadius": "113.033dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1576,8 +1576,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [349.520538, 174, 481.520538, 306],
-              "velocityPxPerSecond": [1318.694458, 0, 1318.694458, 0]
+              "rectPx": [353.105194, 174, 485.105194, 306],
+              "velocityPxPerSecond": [189.071014, 0, 189.071014, 0]
             },
             {
               "key": "b",
@@ -1586,8 +1586,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [566.029175, 174, 698.029175, 306],
-              "velocityPxPerSecond": [-2142.87915, 0, -2142.87915, 0]
+              "rectPx": [560.204102, 174, 692.204102, 306],
+              "velocityPxPerSecond": [-307.240509, 0, -307.240509, 0]
             }
           ]
         }
@@ -1600,9 +1600,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -1620,7 +1620,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["34.935dp", "22dp", "22dp", "22dp"], ["86.286dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["36.061dp", "22dp", "22dp", "22dp"], ["100.24dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1654,8 +1654,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["60.611dp", "22dp"],
-              "glowRadius": "95.351dp",
+              "glowCenter": ["68.15dp", "22dp"],
+              "glowRadius": "108.179dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1674,8 +1674,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [373.313568, 174, 505.313568, 306],
-              "velocityPxPerSecond": [1426.276245, 0, 1426.276245, 0]
+              "rectPx": [358.652222, 174, 490.652222, 306],
+              "velocityPxPerSecond": [459.222046, 0, 459.222046, 0]
             },
             {
               "key": "b",
@@ -1684,8 +1684,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [527.365479, 174, 659.365479, 306],
-              "velocityPxPerSecond": [-2317.699463, 0, -2317.699463, 0]
+              "rectPx": [551.190125, 174, 683.190125, 306],
+              "velocityPxPerSecond": [-746.235962, 0, -746.235962, 0]
             }
           ]
         }
@@ -1698,9 +1698,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -1718,7 +1718,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["42.072dp", "22dp", "22dp", "22dp"], ["74.689dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["39.105dp", "22dp", "22dp", "22dp"], ["95.293dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1752,8 +1752,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["58.38dp", "22dp"],
-              "glowRadius": "76.618dp",
+              "glowCenter": ["67.199dp", "22dp"],
+              "glowRadius": "100.187dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1772,8 +1772,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [394.722565, 174, 526.722534, 306],
-              "velocityPxPerSecond": [1120.806885, 0, 1120.806885, 0]
+              "rectPx": [367.786102, 174, 499.786102, 306],
+              "velocityPxPerSecond": [581.595398, 0, 581.595398, 0]
             },
             {
               "key": "b",
@@ -1782,8 +1782,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [492.575836, 174, 624.575867, 306],
-              "velocityPxPerSecond": [-1821.311523, 0, -1821.311523, 0]
+              "rectPx": [536.347595, 174, 668.347595, 306],
+              "velocityPxPerSecond": [-945.092651, 0, -945.092651, 0]
             }
           ]
         }
@@ -1796,9 +1796,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -1816,7 +1816,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["47.262dp", "22dp", "22dp", "22dp"], ["66.255dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["42.36dp", "22dp", "22dp", "22dp"], ["90.004dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1850,8 +1850,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["56.758dp", "22dp"],
-              "glowRadius": "62.993dp",
+              "glowCenter": ["66.182dp", "22dp"],
+              "glowRadius": "91.644dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1870,8 +1870,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [410.293671, 174, 542.29364, 306],
-              "velocityPxPerSecond": [758.58783, 0, 758.58783, 0]
+              "rectPx": [377.54953, 174, 509.54953, 306],
+              "velocityPxPerSecond": [602.256775, 0, 602.256775, 0]
             },
             {
               "key": "b",
@@ -1880,8 +1880,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [467.272797, 174, 599.272827, 306],
-              "velocityPxPerSecond": [-1232.705566, 0, -1232.705566, 0]
+              "rectPx": [520.481995, 174, 652.481995, 306],
+              "velocityPxPerSecond": [-978.667358, 0, -978.667358, 0]
             }
           ]
         }
@@ -1894,9 +1894,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -1914,7 +1914,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["50.608dp", "22dp", "22dp", "22dp"], ["60.817dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["45.566dp", "22dp", "22dp", "22dp"], ["84.794dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -1948,8 +1948,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["55.713dp", "22dp"],
-              "glowRadius": "54.208dp",
+              "glowCenter": ["65.18dp", "22dp"],
+              "glowRadius": "83.229dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -1968,8 +1968,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [420.333191, 174, 552.333191, 306],
-              "velocityPxPerSecond": [464.727753, 0, 464.727753, 0]
+              "rectPx": [387.167206, 174, 519.167175, 306],
+              "velocityPxPerSecond": [568.963989, 0, 568.963989, 0]
             },
             {
               "key": "b",
@@ -1978,8 +1978,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [450.958588, 174, 582.958557, 306],
-              "velocityPxPerSecond": [-755.1828, 0, -755.1828, 0]
+              "rectPx": [504.853333, 174, 636.853333, 306],
+              "velocityPxPerSecond": [-924.566711, 0, -924.566711, 0]
             }
           ]
         }
@@ -1992,9 +1992,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2012,7 +2012,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["52.582dp", "22dp", "22dp", "22dp"], ["57.611dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["48.649dp", "22dp", "22dp", "22dp"], ["79.784dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2046,8 +2046,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["55.096dp", "22dp"],
-              "glowRadius": "49.029dp",
+              "glowCenter": ["64.217dp", "22dp"],
+              "glowRadius": "75.135dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2066,8 +2066,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [426.252502, 174, 558.252502, 306],
-              "velocityPxPerSecond": [262.161713, 0, 262.161713, 0]
+              "rectPx": [396.417603, 174, 528.417603, 306],
+              "velocityPxPerSecond": [503.845917, 0, 503.845917, 0]
             },
             {
               "key": "b",
@@ -2076,8 +2076,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [441.339691, 174, 573.339661, 306],
-              "velocityPxPerSecond": [-426.012909, 0, -426.012909, 0]
+              "rectPx": [489.821411, 174, 621.821411, 306],
+              "velocityPxPerSecond": [-818.749756, 0, -818.749756, 0]
             }
           ]
         }
@@ -2090,9 +2090,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2110,7 +2110,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["53.655dp", "22dp", "22dp", "22dp"], ["55.866dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["51.195dp", "22dp", "22dp", "22dp"], ["75.646dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2144,8 +2144,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.761dp", "22dp"],
-              "glowRadius": "46.211dp",
+              "glowCenter": ["63.421dp", "22dp"],
+              "glowRadius": "68.451dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2164,8 +2164,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [429.473511, 174, 561.473511, 306],
-              "velocityPxPerSecond": [136.364456, 0, 136.364456, 0]
+              "rectPx": [404.055878, 174, 536.055908, 306],
+              "velocityPxPerSecond": [430.722076, 0, 430.722076, 0]
             },
             {
               "key": "b",
@@ -2174,8 +2174,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [436.10553, 174, 568.10553, 306],
-              "velocityPxPerSecond": [-221.5923, 0, -221.5923, 0]
+              "rectPx": [477.40918, 174, 609.40918, 306],
+              "velocityPxPerSecond": [-699.923523, 0, -699.923523, 0]
             }
           ]
         }
@@ -2188,9 +2188,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2208,7 +2208,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.192dp", "22dp", "22dp", "22dp"], ["54.994dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["53.44dp", "22dp", "22dp", "22dp"], ["71.999dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2242,8 +2242,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.593dp", "22dp"],
-              "glowRadius": "44.802dp",
+              "glowCenter": ["62.719dp", "22dp"],
+              "glowRadius": "62.559dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2262,8 +2262,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [431.083313, 174, 563.083313, 306],
-              "velocityPxPerSecond": [64.530151, 0, 64.530151, 0]
+              "rectPx": [410.789673, 174, 542.789673, 306],
+              "velocityPxPerSecond": [353.203094, 0, 353.203094, 0]
             },
             {
               "key": "b",
@@ -2272,8 +2272,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [433.489594, 174, 565.489624, 306],
-              "velocityPxPerSecond": [-104.861526, 0, -104.861526, 0]
+              "rectPx": [466.466797, 174, 598.466797, 306],
+              "velocityPxPerSecond": [-573.955139, 0, -573.955139, 0]
             }
           ]
         }
@@ -2286,9 +2286,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2306,7 +2306,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.436dp", "22dp", "22dp", "22dp"], ["54.597dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["55.174dp", "22dp", "22dp", "22dp"], ["69.181dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2340,8 +2340,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.516dp", "22dp"],
-              "glowRadius": "44.16dp",
+              "glowCenter": ["62.178dp", "22dp"],
+              "glowRadius": "58.007dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2360,8 +2360,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [431.816833, 174, 563.816833, 306],
-              "velocityPxPerSecond": [26.019196, 0, 26.019196, 0]
+              "rectPx": [415.991516, 174, 547.991516, 306],
+              "velocityPxPerSecond": [284.990875, 0, 284.990875, 0]
             },
             {
               "key": "b",
@@ -2370,8 +2370,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [432.297668, 174, 564.297668, 306],
-              "velocityPxPerSecond": [-42.281204, 0, -42.281204, 0]
+              "rectPx": [458.013794, 174, 590.013794, 306],
+              "velocityPxPerSecond": [-463.110229, 0, -463.110229, 0]
             }
           ]
         }
@@ -2384,9 +2384,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2404,7 +2404,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.525dp", "22dp", "22dp", "22dp"], ["54.453dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["56.558dp", "22dp", "22dp", "22dp"], ["66.932dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2438,8 +2438,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.489dp", "22dp"],
-              "glowRadius": "44.071dp",
+              "glowCenter": ["61.745dp", "22dp"],
+              "glowRadius": "54.374dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2458,8 +2458,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.081635, 174, 564.081604, 306],
-              "velocityPxPerSecond": [8.182001, 0, 8.182001, 0]
+              "rectPx": [420.143524, 174, 552.143555, 306],
+              "velocityPxPerSecond": [224.932159, 0, 224.932159, 0]
             },
             {
               "key": "b",
@@ -2468,8 +2468,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.867371, 174, 563.867371, 306],
-              "velocityPxPerSecond": [-13.295755, 0, -13.295755, 0]
+              "rectPx": [451.266754, 174, 583.266785, 306],
+              "velocityPxPerSecond": [-365.514801, 0, -365.514801, 0]
             }
           ]
         }
@@ -2482,9 +2482,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2502,7 +2502,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.546dp", "22dp", "22dp", "22dp"], ["54.419dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["57.689dp", "22dp", "22dp", "22dp"], ["65.094dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2536,8 +2536,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.482dp", "22dp"],
-              "glowRadius": "44.127dp",
+              "glowCenter": ["61.392dp", "22dp"],
+              "glowRadius": "51.405dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2556,8 +2556,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.145172, 174, 564.145142, 306],
-              "velocityPxPerSecond": [0.648712, 0, 0.648712, 0]
+              "rectPx": [423.537231, 174, 555.537231, 306],
+              "velocityPxPerSecond": [171.568649, 0, 171.568649, 0]
             },
             {
               "key": "b",
@@ -2566,8 +2566,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.764099, 174, 563.764099, 306],
-              "velocityPxPerSecond": [-1.054157, 0, -1.054157, 0]
+              "rectPx": [445.751984, 174, 577.751953, 306],
+              "velocityPxPerSecond": [-278.799072, 0, -278.799072, 0]
             }
           ]
         }
@@ -2580,9 +2580,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2600,7 +2600,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.541dp", "22dp", "22dp", "22dp"], ["54.427dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["58.506dp", "22dp", "22dp", "22dp"], ["63.766dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2634,8 +2634,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.484dp", "22dp"],
-              "glowRadius": "44.114dp",
+              "glowCenter": ["61.136dp", "22dp"],
+              "glowRadius": "49.26dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2654,8 +2654,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.130554, 174, 564.130554, 306],
-              "velocityPxPerSecond": [-1.865398, 0, -1.865398, 0]
+              "rectPx": [425.98877, 174, 557.98877, 306],
+              "velocityPxPerSecond": [130.079269, 0, 130.079269, 0]
             },
             {
               "key": "b",
@@ -2664,8 +2664,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.787842, 174, 563.787842, 306],
-              "velocityPxPerSecond": [3.031272, 0, 3.031272, 0]
+              "rectPx": [441.76825, 174, 573.76825, 306],
+              "velocityPxPerSecond": [-211.378845, 0, -211.378845, 0]
             }
           ]
         }
@@ -2678,9 +2678,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2698,7 +2698,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.529dp", "22dp", "22dp", "22dp"], ["54.446dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["59.148dp", "22dp", "22dp", "22dp"], ["62.724dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2732,8 +2732,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.487dp", "22dp"],
-              "glowRadius": "44.083dp",
+              "glowCenter": ["60.936dp", "22dp"],
+              "glowRadius": "47.576dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2752,8 +2752,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.09494, 174, 564.09491, 306],
-              "velocityPxPerSecond": [-2.209363, 0, -2.209363, 0]
+              "rectPx": [427.913452, 174, 559.913452, 306],
+              "velocityPxPerSecond": [95.239296, 0, 95.239296, 0]
             },
             {
               "key": "b",
@@ -2762,8 +2762,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.845734, 174, 563.845764, 306],
-              "velocityPxPerSecond": [3.590216, 0, 3.590216, 0]
+              "rectPx": [438.640656, 174, 570.640686, 306],
+              "velocityPxPerSecond": [-154.76387, 0, -154.76387, 0]
             }
           ]
         }
@@ -2776,9 +2776,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2796,7 +2796,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.518dp", "22dp", "22dp", "22dp"], ["54.464dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["59.593dp", "22dp", "22dp", "22dp"], ["62dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2830,8 +2830,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.491dp", "22dp"],
-              "glowRadius": "44.054dp",
+              "glowCenter": ["60.797dp", "22dp"],
+              "glowRadius": "46.407dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2850,8 +2850,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.061188, 174, 564.061218, 306],
-              "velocityPxPerSecond": [-1.791723, 0, -1.791723, 0]
+              "rectPx": [429.249298, 174, 561.249329, 306],
+              "velocityPxPerSecond": [69.433098, 0, 69.433098, 0]
             },
             {
               "key": "b",
@@ -2860,8 +2860,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.900574, 174, 563.900574, 306],
-              "velocityPxPerSecond": [2.911551, 0, 2.911551, 0]
+              "rectPx": [436.469879, 174, 568.469849, 306],
+              "velocityPxPerSecond": [-112.828804, 0, -112.828804, 0]
             }
           ]
         }
@@ -2874,9 +2874,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2894,7 +2894,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.509dp", "22dp", "22dp", "22dp"], ["54.478dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["59.915dp", "22dp", "22dp", "22dp"], ["61.478dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -2928,8 +2928,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.494dp", "22dp"],
-              "glowRadius": "44.032dp",
+              "glowCenter": ["60.696dp", "22dp"],
+              "glowRadius": "45.563dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2948,8 +2948,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.036072, 174, 564.036072, 306],
-              "velocityPxPerSecond": [-1.234822, 0, -1.234822, 0]
+              "rectPx": [430.213867, 174, 562.213867, 306],
+              "velocityPxPerSecond": [49.581585, 0, 49.581585, 0]
             },
             {
               "key": "b",
@@ -2958,8 +2958,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.941376, 174, 563.941406, 306],
-              "velocityPxPerSecond": [2.006586, 0, 2.006586, 0]
+              "rectPx": [434.902466, 174, 566.902466, 306],
+              "velocityPxPerSecond": [-80.570084, 0, -80.570084, 0]
             }
           ]
         }
@@ -2972,9 +2972,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -2992,7 +2992,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.504dp", "22dp", "22dp", "22dp"], ["54.487dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.152dp", "22dp", "22dp", "22dp"], ["61.092dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3026,8 +3026,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.495dp", "22dp"],
-              "glowRadius": "44.017dp",
+              "glowCenter": ["60.622dp", "22dp"],
+              "glowRadius": "44.941dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -3046,8 +3046,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.019623, 174, 564.019653, 306],
-              "velocityPxPerSecond": [-0.766728, 0, -0.766728, 0]
+              "rectPx": [430.924805, 174, 562.924805, 306],
+              "velocityPxPerSecond": [33.924084, 0, 33.924084, 0]
             },
             {
               "key": "b",
@@ -3056,8 +3056,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.968109, 174, 563.968079, 306],
-              "velocityPxPerSecond": [1.245932, 0, 1.245932, 0]
+              "rectPx": [433.747192, 174, 565.747192, 306],
+              "velocityPxPerSecond": [-55.126644, 0, -55.126644, 0]
             }
           ]
         }
@@ -3070,9 +3070,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3090,7 +3090,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.501dp", "22dp", "22dp", "22dp"], ["54.492dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.305dp", "22dp", "22dp", "22dp"], ["60.843dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3124,8 +3124,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.496dp", "22dp"],
-              "glowRadius": "44.009dp",
+              "glowCenter": ["60.574dp", "22dp"],
+              "glowRadius": "44.538dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -3144,8 +3144,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432.009796, 174, 564.009827, 306],
-              "velocityPxPerSecond": [-0.437766, 0, -0.437766, 0]
+              "rectPx": [431.385071, 174, 563.385071, 306],
+              "velocityPxPerSecond": [23.004623, 0, 23.004623, 0]
             },
             {
               "key": "b",
@@ -3154,8 +3154,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [431.98407, 174, 563.98407, 306],
-              "velocityPxPerSecond": [0.711369, 0, 0.711369, 0]
+              "rectPx": [432.999237, 174, 564.999268, 306],
+              "velocityPxPerSecond": [-37.382515, 0, -37.382515, 0]
             }
           ]
         }
@@ -3168,9 +3168,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3188,7 +3188,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.412dp", "22dp", "22dp", "22dp"], ["60.67dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3222,8 +3222,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
-              "glowRadius": "44dp",
+              "glowCenter": ["60.541dp", "22dp"],
+              "glowRadius": "44.258dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -3242,8 +3242,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [431.705353, 174, 563.705322, 306],
+              "velocityPxPerSecond": [14.733503, 0, 14.733503, 0]
             },
             {
               "key": "b",
@@ -3252,8 +3252,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [432.478821, 174, 564.478821, 306],
+              "velocityPxPerSecond": [-23.941946, 0, -23.941946, 0]
             }
           ]
         }
@@ -3266,9 +3266,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3286,7 +3286,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.476dp", "22dp", "22dp", "22dp"], ["60.565dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3320,8 +3320,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
-              "glowRadius": "44dp",
+              "glowCenter": ["60.521dp", "22dp"],
+              "glowRadius": "44.089dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -3340,8 +3340,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [431.898193, 174, 563.898193, 306],
+              "velocityPxPerSecond": [9.208718, 0, 9.208718, 0]
             },
             {
               "key": "b",
@@ -3350,8 +3350,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [432.165436, 174, 564.165405, 306],
+              "velocityPxPerSecond": [-14.96417, 0, -14.96417, 0]
             }
           ]
         }
@@ -3364,9 +3364,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3384,7 +3384,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.515dp", "22dp", "22dp", "22dp"], ["60.502dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3418,8 +3418,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
-              "glowRadius": "44dp",
+              "glowCenter": ["60.508dp", "22dp"],
+              "glowRadius": "44.013dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -3438,8 +3438,8 @@
               "bornFrom": null,
               "mergesInto": null,
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [432.015381, 174, 564.015381, 306],
+              "velocityPxPerSecond": [5.381653, 0, 5.381653, 0]
             },
             {
               "key": "b",
@@ -3448,8 +3448,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [431.975037, 174, 563.975037, 306],
+              "velocityPxPerSecond": [-8.745188, 0, -8.745188, 0]
             }
           ]
         }
@@ -3462,9 +3462,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3482,7 +3482,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.465dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3516,8 +3516,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
-              "glowRadius": "44dp",
+              "glowCenter": ["60.488dp", "22dp"],
+              "glowRadius": "44.045dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -3546,8 +3546,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [431.864899, 174, 563.864868, 306],
+              "velocityPxPerSecond": [-4.383002, 0, -4.383002, 0]
             }
           ]
         }
@@ -3560,9 +3560,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3580,7 +3580,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.449dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3614,8 +3614,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
-              "glowRadius": "44dp",
+              "glowCenter": ["60.479dp", "22dp"],
+              "glowRadius": "44.061dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -3644,8 +3644,8 @@
               "bornFrom": null,
               "mergesInto": "a",
               "materialize": 1,
-              "rectPx": [432, 174, 564, 306],
-              "velocityPxPerSecond": [0, 0, 0, 0]
+              "rectPx": [431.81662, 174, 563.81665, 306],
+              "velocityPxPerSecond": [-1.727996, 0, -1.727996, 0]
             }
           ]
         }
@@ -3658,9 +3658,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3678,7 +3678,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3712,7 +3712,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -3756,9 +3756,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3776,7 +3776,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3810,7 +3810,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -3854,9 +3854,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3874,7 +3874,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3908,7 +3908,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -3952,9 +3952,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -3972,7 +3972,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4006,7 +4006,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -4050,9 +4050,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -4070,7 +4070,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4104,7 +4104,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -4148,9 +4148,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -4168,7 +4168,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4202,7 +4202,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -4246,9 +4246,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -4266,7 +4266,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4300,7 +4300,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -4344,9 +4344,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -4364,7 +4364,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4398,7 +4398,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -4442,9 +4442,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -4462,7 +4462,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4496,7 +4496,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -4540,9 +4540,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -4560,7 +4560,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4594,7 +4594,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,
@@ -4638,9 +4638,9 @@
           "kind": "material",
           "name": "piano0",
           "_ricetta": "F3.1: geometria pura; collo e contenuto demandati a F3.3/F3.4",
-          "x": 111.503,
+          "x": 105.49,
           "y": 58,
-          "w": 129.306,
+          "w": 145.089,
           "h": 44,
           "radius": 0,
           "clip": false,
@@ -4658,7 +4658,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 2,
-              "pieceRect": [["54.497dp", "22dp", "22dp", "22dp"], ["54.497dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRect": [["60.51dp", "22dp", "22dp", "22dp"], ["60.51dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], ["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
               "pieceBlend": ["0dp", "0dp", 0, 0, 0, 0, 0, 0],
               "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
@@ -4692,7 +4692,7 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["54.497dp", "22dp"],
+              "glowCenter": ["60.51dp", "22dp"],
               "glowRadius": "44dp",
               "glow": 0,
               "glowFill": 0.4,

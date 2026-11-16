@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.FloatSpringSpec
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VectorizedFiniteAnimationSpec
 import androidx.compose.ui.geometry.Rect
@@ -174,6 +175,15 @@ internal class GlassPlaneJourney private constructor(
   val crossingIds: Set<Any>
   val durationMs: Double
 
+  /**
+   * Quando i vetri che viaggiano (si spostano, nascono da un vicino, vi confluiscono) sono fermi **a vista** (F3.2c): il
+   * bilancio del contesto ([GlassPlaneMotion.contextMs]) con la molla di serie, la fine del viaggio con una spec
+   * dell'app. È la misura su cui il collo del piano conta il suo orologio (`physicsPlaneNeckMs`). Se i vetri che
+   * viaggiano non si muovono, o non ce ne sono (sole comparse e scomparse, che non hanno collo), vale il riposo a vista
+   * di tutti.
+   */
+  val settleMs: Double
+
   init {
     val pairing = planePairs(from, to, seeds)
     crossingIds = pairing.crossingIds
@@ -193,9 +203,20 @@ internal class GlassPlaneJourney private constructor(
       }
     }
     durationMs = flights.maxOfOrNull { it.durationNanos() / it.timeScale / 1_000_000.0 } ?: 0.0
+    settleMs = if (motion.spec != null) {
+      durationMs
+    } else {
+      fun restMs(of: List<PlaneFlight>) = of.maxOfOrNull { it.restNanos() / it.timeScale / 1_000_000.0 } ?: 0.0
+      // Se i vetri che viaggiano non si muovono (un tasto fermo accanto a uno che compare), il riposo di tutti.
+      restMs(contexts).takeIf { it > 0.0 } ?: restMs(flights)
+    }
     val spacing = max(from.spacing, to.spacing)
+    // Chi compare o scompare per lente è un campo a sé (F3.2c): lo shader ha un `materialize` per campo, e un vetro che
+    // compare accanto a uno che si sposta, nello stesso campo, non poteva avere la sua comparsa (F3.2 la approssimava col
+    // contorno che si stringe e una soglia del 5%). In un campo suo l'ha esatta: contorno, poi lente, poi simbolo. Non si
+    // fonde col vicino mentre compare, e non deve: un vetro che si accende accanto a un altro non gli tira un collo.
     fields = planeComponents(flights) { a, b ->
-      a.pair.piece.sameField(b.pair.piece) &&
+      a.pair.piece.sameField(b.pair.piece) && !a.lens && !b.lens &&
         (planeGap(a.sweptBounds(), b.sweptBounds()) <= spacing || a.pair.piece.sharesUnion(b.pair.piece))
     }.flatMap { component ->
       planePartition(component, { it.sweptBounds() }, max(from.preferredPieces, to.preferredPieces),
@@ -338,6 +359,9 @@ private fun planePairs(from: GlassPlaneState, to: GlassPlaneState, seeds: Map<An
 private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFrame>, private val motion: GlassPlaneMotion) {
   val id = GlassPlaneFlightId(pair.source?.key, pair.target?.key, pair.change)
   private val spring = motion.vectorized
+
+  /** Vero per chi compare o scompare per lente: un campo a sé (vedi `GlassPlaneJourney.fields`). */
+  val lens: Boolean get() = pair.change == GlassPlaneChange.Materialize || pair.change == GlassPlaneChange.Dematerialize
   private val seed = seeds[pair.source?.key ?: pair.neighbour?.key]
   private val origin = pair.source ?: pair.neighbour ?: pair.target!!
   private val destination = pair.target ?: pair.neighbour ?: pair.source!!
@@ -361,11 +385,48 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
   } ?: FloatArray(9)
   var timeScale = 1.0
 
+  /**
+   * Le molle di serie con cui si contano i tempi, canale per canale (F3.2c): la stessa molla di [FluidMotion.standard],
+   * con la soglia del riposo a vista ([FluidMotion.PlaneRestEnvelope] della corsa, mai sotto il mezzo pixel) e quella
+   * della fine ([FluidMotion.PlaneSettlePx]). I valori non dipendono dalla soglia: li dà sempre [spring]. Null con una
+   * spec dell'app, che porta il suo tempo.
+   */
+  private val restSprings: Array<FloatSpringSpec>? = if (motion.spec != null) null else Array(initial.size) { index ->
+    val tolerance = if (index == PlaneMaterializeChannel) FluidMotion.PlaneRestUnit
+      else max(FluidMotion.PlaneRestEnvelope * abs(target[index] - initial[index]), FluidMotion.PlaneSettlePx)
+    planeSpring(tolerance)
+  }
+  private val settleSprings: Array<FloatSpringSpec>? = if (motion.spec != null) null else Array(initial.size) { index ->
+    if (index == PlaneMaterializeChannel) PlaneSettleUnitSpring else PlaneSettlePxSpring
+  }
+
+  /** Quanto dura, nel tempo della molla, fino all'arrivo al mezzo pixel: la fine del viaggio. */
   fun durationNanos(scale: Double = timeScale): Long = if (pair.change == GlassPlaneChange.Identity) 0L else
-    initial.indices.maxOf { index ->
-      spring.getDurationNanos(AnimationVector1D(initial[index]), AnimationVector1D(target[index]),
-        AnimationVector1D((velocity[index] / scale).toFloat()))
+    initial.indices.maxOf { index -> channelNanos(index, scale, settleSprings) }
+
+  /** Quanto dura, nel tempo della molla, fino al riposo a vista: è su questo che si stira il bilancio. */
+  fun restNanos(scale: Double = timeScale): Long = if (pair.change == GlassPlaneChange.Identity) 0L else
+    initial.indices.maxOf { index -> channelNanos(index, scale, restSprings) }
+
+  private fun channelNanos(index: Int, scale: Double, springs: Array<FloatSpringSpec>?): Long {
+    val v = (velocity[index] / scale).toFloat()
+    val own = springs?.get(index) ?: return spring.getDurationNanos(
+      AnimationVector1D(initial[index]), AnimationVector1D(target[index]), AnimationVector1D(v),
+    )
+    return own.getDurationNanos(initial[index], target[index], v)
+  }
+
+  /** La fine di ogni canale col [timeScale] di adesso, calcolata una volta: [frame] gira a ogni fotogramma. */
+  private var endsScale = Double.NaN
+  private val ends = LongArray(initial.size)
+
+  private fun channelEnd(index: Int): Long {
+    if (endsScale != timeScale) {
+      for (i in initial.indices) ends[i] = channelNanos(i, timeScale, settleSprings)
+      endsScale = timeScale
     }
+    return ends[index]
+  }
 
   fun frame(tMs: Double): GlassPlanePieceFrame {
     val nanos = (tMs * 1_000_000.0 * timeScale).toLong().coerceAtLeast(0L)
@@ -375,7 +436,7 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
       val a = AnimationVector1D(initial[index])
       val b = AnimationVector1D(target[index])
       val v = AnimationVector1D((velocity[index] / timeScale).toFloat())
-      val finished = pair.change == GlassPlaneChange.Identity || nanos >= spring.getDurationNanos(a, b, v)
+      val finished = pair.change == GlassPlaneChange.Identity || nanos >= channelEnd(index)
       value[index] = if (finished) target[index] else if (nanos == 0L) initial[index]
         else spring.getValueFromNanos(nanos, a, b, v).value
       speed[index] = if (finished) 0f else if (nanos == 0L) velocity[index]
@@ -448,11 +509,25 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
 /** Quanti campioni misurano il palco di una spec dell'app: vedi `PlaneFlight.sampledBounds`. */
 private const val PlaneSweptSamples = 64
 
+/** Il canale di `materialize` fra i nove di un volo (quattro lati, quattro raggi, `materialize`). */
+private const val PlaneMaterializeChannel = 8
+
+private fun planeSpring(threshold: Float) =
+  FloatSpringSpec(FluidMotion.DampingStandard, FluidMotion.ResponseStandard, threshold)
+
+private val PlaneSettlePxSpring = planeSpring(FluidMotion.PlaneSettlePx)
+private val PlaneSettleUnitSpring = planeSpring(FluidMotion.PlaneSettleUnit)
+
+/**
+ * Di quanto stirare il tempo della molla perché [flights] siano fermi **a vista** in [budgetMs] (F3.2c): vedi la nota sul
+ * piano flottante in [FluidMotion]. Fino a F3.2 si stirava la fine dei conti (un centesimo di pixel), e la parte che si
+ * vede finiva a meno di metà del bilancio.
+ */
 private fun planeTimeScale(flights: List<PlaneFlight>, budgetMs: Double): Double {
   var scale = 1.0
   // L'eredità è in px/s reali, perciò la conversione alla spec deve seguire il cambio di unità di tempo.
   repeat(24) {
-    val next = flights.maxOf { it.durationNanos(scale) } / (budgetMs * 1_000_000.0)
+    val next = flights.maxOf { it.restNanos(scale) } / (budgetMs * 1_000_000.0)
     if (next <= 0.0) return 1.0
     if (abs(next - scale) < 0.000001) return next
     scale = (scale + next) / 2.0

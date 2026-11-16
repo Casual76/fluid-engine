@@ -36,21 +36,30 @@ class PhysicsPlaneNeckTest {
 
   private class Sample(val ms: Double, val connected: Boolean, val waist: Float, val gap: Float, val blend: Float)
 
+  /**
+   * Un viaggio come lo guida il contenitore (F3.2c): la forma del piano di ogni fotogramma ([PhysicsPlaneShape]) col
+   * collo nel tempo lungo il doppio del riposo a vista ([physicsPlaneNeckMs]) e l'esponente del piano ([PhysicsPlaneNeckPinch]),
+   * nel piano di [buildPlanePlan]. Restituisce i campioni e il riposo a vista.
+   */
   private fun journey(from: GlassPlaneState, to: GlassPlaneState): Pair<List<Sample>, Double> {
     val plane = GlassPlaneJourney(from, to)
-    val neck = PhysicsPlaneNeck(-1f, plane.durationMs)
+    val neck = PhysicsPlaneNeck(-1f, physicsPlaneNeckMs(plane.settleMs))
     val out = ArrayList<Sample>()
     var t = 0.0
     while (t <= plane.durationMs + 20.0) {
       val frame = plane.frame(t)
       val slabs = frame.pieces.map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) }
       val plan = PhysicsRenderPlan()
-      buildRestPlan(plan, FluidForm.Group(slabs, nominal), physicsNeckEncode(neck.at(t)))
+      buildPlanePlan(plan, PhysicsPlaneShape(slabs, nominal, neck = neck.at(t)))
       out += measure(t, physicsFieldPlan(plan, 1f, GlassFieldPlan(GlassFieldMaxPieces)))
       t += 1000.0 / 120.0
     }
-    return out to plane.durationMs
+    return out to plane.settleMs
   }
+
+  /** Quanto dura, a 120 Hz, il collo visibile di una riunione: unito e con la vita sotto il 95% del lobo. */
+  private fun reunionNeckMs(samples: List<Sample>): Double =
+    samples.count { it.connected && it.waist > 0f && it.waist < 0.95f } * 1000.0 / 120.0
 
   private fun measure(ms: Double, f: GlassFieldPlan): Sample {
     val ax = minOf(f.rects[0], f.rects[4])
@@ -82,9 +91,13 @@ class PhysicsPlaneNeckTest {
     assertTrue("il piano dura ${duration} ms", duration in 280.0..320.0)
     assertEquals("si rompe una volta sola", 1, changes(samples))
     val broke = samples.first { !it.connected }.ms
-    // R4 B2 (d): ≈200 ms prima del riposo (fiducia media). Con la rottura di serie (0,38) cade a ~114 ms di 300.
-    assertTrue("si rompe a $broke ms", broke in 95.0..135.0)
-    assertTrue("si rompe ${duration - broke} ms prima del riposo", duration - broke in 150.0..215.0)
+    // F3.2c: la rottura di serie (0,38) sull'orologio lungo il doppio del riposo a vista cade a ~228 ms di 300, dopo che i
+    // pezzi si sono staccati (~167 ms): ~70 ms prima del riposo a vista, all'80% circa del moto come in R4 B2 (d).
+    val apart = samples.first { it.gap > 0f }.ms
+    println("F3.2c divisione a 8 dp: si staccano a $apart ms, il collo si rompe a $broke ms, riposo a vista a $duration ms")
+    assertTrue("si rompe a $broke ms", broke in 195.0..260.0)
+    assertTrue("si rompe dopo che si staccano ($apart ms)", broke > apart + 20.0)
+    assertTrue("si rompe ${duration - broke} ms prima del riposo a vista", duration - broke in 40.0..105.0)
     // Prima di rompersi la vita si assottiglia: c'è un collo visibile (sotto il 95% del lobo) per almeno 40 ms.
     val neck = samples.count { it.connected && it.waist > 0f && it.waist < 0.95f } * 1000.0 / 120.0
     assertTrue("collo visibile per $neck ms", neck >= 40.0)
@@ -111,6 +124,69 @@ class PhysicsPlaneNeckTest {
     assertTrue("alla partenza i pezzi sono separati", !samples.first().connected)
     assertEquals("un'unione sola", 1, changes(samples))
     assertTrue("un ponte prima del contatto", samples.any { it.connected && it.gap > 0f })
+    // F3.2c: con i tempi nuovi del piano la riunione si vede (era 25–33 ms a 120 Hz in F3.3).
+    println("F3.2c riunione da 8 dp: collo visibile per ${reunionNeckMs(samples)} ms a 120 Hz")
+    assertTrue("collo visibile nella riunione per ${reunionNeckMs(samples)} ms", reunionNeckMs(samples) >= 40.0)
+  }
+
+  @Test
+  fun thePlaneNeckIsThickAsAlessioChose() {
+    // Scelta di Alessio, 2026-11-16 (tavola «quanto si strozza il collo»): «spesso», 1/2, per il piano flottante; i
+    // viaggi di `morphTo` restano a 2/3, perché fuori dai contenitori niente cambi.
+    assertEquals(0.5f, PhysicsPlaneNeckPinch, 0f)
+    assertEquals(2f / 3f, PhysicsNeckPinchExponent, 0f)
+    val plan = PhysicsRenderPlan()
+    val slabs = listOf(piece("a", 132f), piece("b", 184f)).map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) }
+    buildPlanePlan(plan, PhysicsPlaneShape(slabs, nominal, neck = 0.2f))
+    assertEquals(PhysicsPlaneNeckPinch, plan.neckPinch, 0f)
+    val field = physicsFieldPlan(plan, 1f, GlassFieldPlan(GlassFieldMaxPieces))
+    val gap = 8f * d
+    assertEquals(physicsNeckPairBlend(-gap, 2f * 22f * d, nominal, 0.2f, 0.5f), field.blend[1], 1e-3f)
+    // Un piano di `morphTo` resta col suo.
+    val other = PhysicsRenderPlan()
+    buildRestPlan(other, FluidForm.Group(slabs, nominal), physicsNeckEncode(0.2f))
+    assertEquals(PhysicsNeckPinchExponent, other.neckPinch, 0f)
+  }
+
+  @Test
+  fun aUnionIsOneShapeAtRestAndDistinctPiecesStayApart() {
+    val slabs = listOf(piece("a", 132f), piece("b", 184f), piece("c", 236f))
+      .map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) }
+    fun connectedAt(plan: PhysicsRenderPlan, x: Float): Boolean {
+      val f = physicsFieldPlan(plan, 1f, GlassFieldPlan(GlassFieldMaxPieces))
+      return GlassFieldGeometry.fieldDistance(f.count, f.rects, f.radii, f.blend, f.smooth, x * d, 80f * d) < 0f
+    }
+    val ab = 180f
+    val bc = 232f
+    // a e b della stessa unione (in testa), c distinto: a riposo a-b una sagoma, b-c separati.
+    val union = PhysicsRenderPlan()
+    buildPlanePlan(union, PhysicsPlaneShape(slabs, nominal, neck = -1f, unions = intArrayOf(0, 0, -1), resting = true))
+    assertTrue("l'unione è una sagoma sola a riposo", connectedAt(union, ab))
+    assertTrue("un pezzo distinto accanto all'unione resta staccato", !connectedAt(union, bc))
+    // Senza unioni, a riposo, tutti separati (decisione dell'11 novembre).
+    val apart = PhysicsRenderPlan()
+    buildPlanePlan(apart, PhysicsPlaneShape(slabs, nominal, neck = -1f, resting = true))
+    assertTrue(!connectedAt(apart, ab) && !connectedAt(apart, bc))
+    // Un compagno d'unione che segue un pezzo estraneo più vicino non gli tira un ponte.
+    val foreignFirst = PhysicsRenderPlan()
+    val reordered = listOf(slabs[2], slabs[0], slabs[1])
+    buildPlanePlan(foreignFirst, PhysicsPlaneShape(reordered, nominal, neck = -1f, unions = intArrayOf(-1, 0, 0), resting = true))
+    assertTrue("nessun ponte verso l'estraneo", !connectedAt(foreignFirst, bc))
+    // Il piano di riposo senza unioni dà gli stessi uniform di un gruppo fermo di `buildRestPlan`.
+    val rest = PhysicsRenderPlan()
+    buildRestPlan(rest, FluidForm.Group(slabs, 0f))
+    val a1 = physicsFieldPlan(apart, 1f, GlassFieldPlan(GlassFieldMaxPieces))
+    val a2 = physicsFieldPlan(rest, 1f, GlassFieldPlan(GlassFieldMaxPieces))
+    assertEquals(a2.count, a1.count)
+    for (i in 0 until a1.count) {
+      assertEquals(a2.blend[i], a1.blend[i], 0f)
+      assertEquals(a2.soft[i], a1.soft[i], 0f)
+      assertEquals(a2.smooth[i], a1.smooth[i], 0f)
+      for (k in 0 until 4) {
+        assertEquals(a2.rects[i * 4 + k], a1.rects[i * 4 + k], 0f)
+        assertEquals(a2.radii[i * 4 + k], a1.radii[i * 4 + k], 0f)
+      }
+    }
   }
 
   @Test

@@ -74,9 +74,42 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * cambia a ogni fotogramma.
    */
   val progress: Float
-    get() = externalDrive?.progress?.invoke() ?: activeTransit?.progress?.value ?: 1f
+    get() = planeDrive?.progress?.invoke() ?: externalDrive?.progress?.invoke() ?: activeTransit?.progress?.value ?: 1f
 
   private var externalDrive by mutableStateOf<ExternalWindowDrive?>(null)
+
+  /** La guida «a fotogramma» del piano flottante, se c'è: vedi [driveByFrame]. */
+  private var planeDrive by mutableStateOf<PhysicsPlaneDrive?>(null)
+
+  /**
+   * Mette lo stato al servizio del **piano flottante** (F3.2c, `FluidGlassContainer`): la sagoma di ogni fotogramma è
+   * [frame], letta in disegno, già calcolata dal piano (accoppiamento, nascite, comparse, molle per lato, interruzioni
+   * con la velocità di ogni lato) col suo collo, le sue unioni, la sua comparsa e il peso del vetro in viaggio.
+   *
+   * Perché non [driveExternally]: quella rifà l'accoppiamento (al costo minimo, che può non essere quello del piano) e
+   * porta un progresso solo; chiamata a ogni fotogramma con la geometria del piano allocava una guida, un transito e il
+   * suo `Animatable`, e azzerava la cache del piano. Qui la guida si installa **una volta** e le lambda si sostituiscono
+   * sul posto; il piano di resa si rifà solo quando [frame] restituisce una forma diversa (per identità: chi guida ne
+   * crea una nuova solo quando cambia), e a riposo resta la stessa istanza.
+   *
+   * [progress] dice a chi lo chiede quanto del viaggio è passato: all'uno la superficie è ferma. Niente goccia: il moto
+   * del piano è già una molla per lato, e il vetro in viaggio lo dà [PhysicsPlaneShape.motion].
+   */
+  internal fun driveByFrame(frame: () -> PhysicsPlaneShape, progress: () -> Float) {
+    val current = planeDrive
+    if (current != null) {
+      current.frame = frame
+      current.progress = progress
+      return
+    }
+    externalDrive = null
+    activeTransit = null
+    planeDrive = PhysicsPlaneDrive(frame, progress)
+    planePlanShape = null
+  }
+
+  /** La forma del piano flottante di questo istante, o null se lo stato non è guidato dal piano. Fase di disegno. */
+  internal fun planeShapeNow(): PhysicsPlaneShape? = planeDrive?.frame?.invoke()
 
   /**
    * Mette lo stato al servizio di un orologio ALTRUI: la silhouette è il lerp [from]→[to] al
@@ -150,6 +183,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       if (startFrame != null) current.startFrame = startFrame
       return
     }
+    planeDrive = null
     externalDrive = ExternalWindowDrive(
       transit = SlabTransit(listOf(from to to), blendRadius = 0f),
       from = from,
@@ -191,6 +225,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     val current = externalDrive
     if (current != null && current.from == from && current.to == to && current.startFrame == null) return
     val blend = maxOf(groupBlendOf(from), groupBlendOf(to))
+    planeDrive = null
     externalDrive = ExternalWindowDrive(
       transit = SlabTransit(matchSlabPairs(fromSlabs, toSlabs), blend),
       from = from,
@@ -247,6 +282,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         if (!value) liquid.reset()
         transitPlanStamp = Float.NaN
         restPlanForm = null
+        planePlanShape = null
       }
     }
 
@@ -274,10 +310,15 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         field = value
         restPlanForm = null
         transitPlanStamp = Float.NaN
+        planePlanShape = null
       }
     }
 
   private val restPlan = PhysicsRenderPlan()
+
+  /** Il piano della guida del piano flottante e la forma con cui è stato costruito: vedi [driveByFrame]. */
+  private val planePlan = PhysicsRenderPlan()
+  private var planePlanShape: PhysicsPlaneShape? = null
   private var restPlanForm: FluidForm? = null
   private val transitPlan = PhysicsRenderPlan()
   private var transitPlanStamp = Float.NaN
@@ -383,6 +424,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     // L'orologio del collo: il tempo che manca alla posa, letto dalla stessa molla che muove il progresso.
     transit.neckClock = PhysicsNeckClock.of(spec ?: FluidPhysicsJourney.Spring, seed)
     formState = target
+    planeDrive = null
     activeTransit = transit
     heldFusion = 0f
     heldNeck = null
@@ -417,6 +459,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   /** Arriva senza viaggiare. */
   fun snapTo(target: FluidForm) {
+    planeDrive = null
     activeTransit = null
     formState = target
     heldFusion = 0f
@@ -430,7 +473,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * un'altra cosa (la goccia, una guida esterna). È ciò da cui deve ripartire un viaggio che lo interrompe.
    */
   private fun shownSlabField(): FloatArray? {
-    if (externalDrive != null) return null
+    if (externalDrive != null || planeDrive != null) return null
     val transit = activeTransit as? SlabTransit ?: return null
     val plan = ensurePlan()
     val count = transit.pairs.size
@@ -485,6 +528,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   internal fun restFormNow(): FluidForm? {
     // Una forma arrivata che ancora oscilla non e' ferma: bordo e ombra la seguono come in viaggio.
     if (!liquid.quiet) return null
+    val plane = planeDrive
+    if (plane != null) return if (plane.progress() >= 1f) plane.frame().form() else null
     val drive = externalDrive
     if (drive != null) return if (drive.progress() == 1f) drive.to else null
     if (activeTransit != null) return null
@@ -493,6 +538,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   /** Da dove parte il viaggio in corso, o null a riposo (o per un transito costruito a mano). */
   internal fun journeyOriginNow(): FluidForm? {
+    // Il piano flottante non ha un capo da cui parte: la sua forma è già quella di adesso.
+    if (planeDrive != null) return null
     val drive = externalDrive
     if (drive != null) return drive.from
     return activeTransit?.origin
@@ -504,12 +551,14 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * meta effettiva (il velo dei grandi, giro di correzione unico di F1B) la legge dal verso del progresso.
    */
   internal fun externalDriveNow(): PhysicsDriveNow? {
+    if (planeDrive != null) return null
     val drive = externalDrive ?: return null
     return PhysicsDriveNow(drive.from, drive.to, drive.progress())
   }
 
   /** Dove arriva il viaggio in corso, o null a riposo. */
   internal fun journeyTargetNow(): FluidForm? {
+    if (planeDrive != null) return null
     val drive = externalDrive
     if (drive != null) return drive.to
     return if (activeTransit != null || !liquid.quiet) formState else null
@@ -526,6 +575,16 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   internal fun clipShapeNow(): Shape = ensurePlan().clipShape
 
   internal fun ensurePlan(): PhysicsRenderPlan {
+    val plane = planeDrive
+    if (plane != null) {
+      val shape = plane.frame()
+      if (planePlanShape !== shape) {
+        planePlan.clipToBounds = maskInShader
+        buildPlanePlan(planePlan, shape)
+        planePlanShape = shape
+      }
+      return planePlan
+    }
     val drive = externalDrive
     val liquidVersion = liquid.version
     if (drive != null) {
@@ -655,6 +714,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * partenza sgonfiata sotto lo 0, la forma ferma a riposo. Fase di disegno, o dal conducente.
    */
   internal fun dropRestSlabNow(): FluidForm.Slab? {
+    // Il piano flottante non ha goccia: vedi [driveByFrame].
+    if (planeDrive != null) return null
     val drive = externalDrive
     if (drive != null) {
       val to = drive.to as? FluidForm.Slab ?: return null
@@ -773,6 +834,39 @@ fun rememberFluidPhysicsState(initial: FluidForm): FluidPhysicsState {
 
 /** I capi di una guida esterna e il suo progresso in un istante: vedi [FluidPhysicsState.externalDriveNow]. */
 internal class PhysicsDriveNow(val from: FluidForm, val to: FluidForm, val progress: Float)
+
+/** La guida del piano flottante: vedi [FluidPhysicsState.driveByFrame]. Le lambda si sostituiscono sul posto. */
+private class PhysicsPlaneDrive(var frame: () -> PhysicsPlaneShape, var progress: () -> Float)
+
+/**
+ * Un campo del piano flottante in un fotogramma (F3.2c): ciò che il contenitore calcola e la superficie fisica disegna.
+ * Immutabile: chi guida ne crea una nuova quando qualcosa cambia, e l'identità è la chiave della cache del piano.
+ *
+ * @param slabs le lastre, nelle coordinate del nodo della superficie (al più otto).
+ * @param nominalBlend il raggio di fusione nominale del collo, in pixel di layout (la distanza di fusione del contenitore).
+ * @param neck la coordinata del collo nel tempo (`PhysicsPlaneNeck`, -1..1) fra pezzi distinti: -1 a riposo.
+ * @param unions per ogni lastra l'indice della sua unione, -1 se non ne ha: due lastre della stessa unione hanno sempre il
+ *   collo pieno ([physicsPlaneNeckBlend]). Null: nessuna unione.
+ * @param pinch l'esponente della vita del collo: [PhysicsPlaneNeckPinch] di serie.
+ * @param materialize quanto c'è del campo (comparsa per lente), 0..1: lo applica `glassMaterializeRecipe`. Uno per i
+ *   campi di vetri che viaggiano.
+ * @param motion il peso del vetro in viaggio, 0..1 ([physicsPlaneMotion]): zero da fermi.
+ * @param resting vero per un riposo: la sagoma ha il raccordo continuo della casa, come una forma ferma.
+ */
+internal class PhysicsPlaneShape(
+  val slabs: List<FluidForm.Slab>,
+  val nominalBlend: Float,
+  val neck: Float = -1f,
+  val unions: IntArray? = null,
+  val pinch: Float = PhysicsPlaneNeckPinch,
+  val materialize: Float = 1f,
+  val motion: Float = 0f,
+  val resting: Boolean = false,
+) {
+  /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
+  fun form(): FluidForm = if (slabs.size == 1) slabs.single()
+    else FluidForm.Group(slabs.take(FluidForm.Group.MaxPieces), nominalBlend)
+}
 
 /**
  * La guida esterna: un transito di lastre il cui orologio appartiene al chiamante. Un pezzo per
@@ -1091,6 +1185,18 @@ internal class PhysicsRenderPlan {
   var fusion: Float = 0f
 
   /**
+   * Vero se il piano è del piano flottante ([buildPlanePlan], F3.2c): il raccordo di ogni pezzo è
+   * [physicsPlaneNeckBlend], che conosce le unioni ([pieceUnion]) e l'esponente [neckPinch]. Falso per ogni altro piano.
+   */
+  var planeNeck: Boolean = false
+
+  /** L'unione di ogni pezzo, -1 se non ne ha: vedi [planeNeck]. */
+  val pieceUnion = IntArray(PhysicsMaxPieces) { -1 }
+
+  /** L'esponente della vita del collo nel tempo di questo piano: [PhysicsNeckPinchExponent] salvo il piano flottante. */
+  var neckPinch: Float = PhysicsNeckPinchExponent
+
+  /**
    * I raggi di ogni pezzo **come li vede il campo** (`glassSlabGeometry`, la regola forma -> piano di
    * `glassSurface`): a riposo quelli della lastra ferma (una capsula a mezzo lato, un piccolo al raggio
    * equivalente, un grande ai nominali); in viaggio il lerp fra quelli dei due capi, cosi' alla partenza e
@@ -1214,6 +1320,9 @@ private fun PhysicsRenderPlan.writeFieldPiece(
 private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
   mode = PlanModeSlabs
   pieceCount = count
+  planeNeck = false
+  neckPinch = PhysicsNeckPinchExponent
+  pieceUnion.fill(-1)
   nominalBlend = if (count > 1) blend.coerceAtLeast(0f) else 0f
   // Il ponte si spegne dove i pezzi si compenetrano: vedi effectiveBlendRadius — senza questo, la
   // fine di ogni fusione ha un alone di k/4 oltre il bordo, che a riposo sparisce di colpo.
@@ -1264,6 +1373,9 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int, smoothPath
   mode = PlanModePoly
   pieceCount = 0
   nominalBlend = 0f
+  planeNeck = false
+  neckPinch = PhysicsNeckPinchExponent
+  pieceUnion.fill(-1)
   contentClipRect = null
   dropRest = null
   dropSettle = 0f
@@ -1467,6 +1579,48 @@ internal fun buildRestPlan(plan: PhysicsRenderPlan, form: FluidForm, fusion: Flo
       plan.writeRing(ring, ring.size / 2)
       plan.fusion = 0f
     }
+  }
+}
+
+/**
+ * Il piano di una forma del piano flottante ([PhysicsPlaneShape], F3.2c): le lastre come le dà il piano, i raggi come
+ * li vede il campo (la regola forma -> piano di una lastra ferma, per ogni fotogramma), il collo nel tempo, le unioni e
+ * l'esponente. A riposo la sagoma ha il raccordo continuo (come [buildRestPlan]); in viaggio angoli circolari, come ogni
+ * viaggio di Fluid-physics. Un gruppo fermo senza unioni dà gli stessi uniform di [buildRestPlan] a fusione zero.
+ */
+internal fun buildPlanePlan(plan: PhysicsRenderPlan, shape: PhysicsPlaneShape) {
+  val count = minOf(shape.slabs.size, PhysicsMaxPieces)
+  plan.silhouette.rewind()
+  for (index in 0 until count) {
+    val slab = shape.slabs[index]
+    if (shape.resting) {
+      writeRestSlab(plan, slab, index)
+    } else {
+      val v = slabValues(slab)
+      plan.writeSlabPiece(index, v)
+      plan.writeFieldPiece(index, slab, slab, 1f, v)
+      plan.scratchPiece.rewind()
+      plan.scratchPiece.addRoundRect(
+        RoundRect(
+          rect = Rect(v[0], v[1], v[0] + v[2], v[1] + v[3]),
+          topLeft = CornerRadius(v[4]),
+          topRight = CornerRadius(v[5]),
+          bottomRight = CornerRadius(v[6]),
+          bottomLeft = CornerRadius(v[7]),
+        ),
+      )
+      plan.mergePieceIntoSilhouette(index)
+    }
+  }
+  plan.finishSlabs(count, shape.nominalBlend)
+  if (count > 1) {
+    plan.fusion = physicsNeckEncode(shape.neck)
+    plan.planeNeck = true
+    plan.neckPinch = if (shape.pinch.isFinite() && shape.pinch > 0f) shape.pinch else PhysicsPlaneNeckPinch
+    val unions = shape.unions
+    if (unions != null) for (index in 0 until minOf(count, unions.size)) plan.pieceUnion[index] = unions[index]
+  } else {
+    plan.fusion = 0f
   }
 }
 

@@ -59,11 +59,22 @@ internal const val PhysicsNeckRise: Float = 0.09f
 internal const val PhysicsNeckPinch: Float = 0.12f
 
 /**
- * L'esponente della vita del collo: raggio del collo ∝ (tempo alla rottura)^(2/3), la legge della rottura di un
- * getto non viscoso. Con un esponente uno il collo indugiava sottile per 4–5 fotogrammi (le «punte» della partenza);
- * con 2/3 resta spesso più a lungo e si strozza in un fotogramma.
+ * L'esponente della vita del collo dei viaggi di `morphTo` (menu, barre, pannelli): raggio del collo ∝ (tempo alla
+ * rottura)^(2/3), la legge della rottura di un getto non viscoso. Con un esponente uno il collo indugiava sottile per
+ * 4–5 fotogrammi (le «punte» della partenza); con 2/3 resta spesso più a lungo e si strozza in un fotogramma.
+ *
+ * Il piano flottante ha il suo, [PhysicsPlaneNeckPinch] (scelta di Alessio, 2026-11-16): questo resta quello tarato sul
+ * tablet in F1B.9, perché fuori dai contenitori niente cambi.
  */
 internal const val PhysicsNeckPinchExponent: Float = 2f / 3f
+
+/**
+ * L'esponente della vita del collo dei viaggi del **piano flottante** (`FluidGlassContainer`). **Scelta di Alessio,
+ * 2026-11-16**, sulla tavola «quanto si strozza il collo» di F3.3 (spesso 1/2 / di serie 2/3 / filo 1): «spesso», 1/2.
+ * Il collo resta pieno più a lungo e si strozza più di colpo, sempre una volta sola; il collo lungo (la rottura a
+ * [GlassLiquidNeck], 0,38, scelta A) non cambia.
+ */
+internal const val PhysicsPlaneNeckPinch: Float = 0.5f
 
 /**
  * Fin dove il collo arriva, in multipli del raggio di fusione del gruppo (`blendRadius`, la distanza di fusione che
@@ -205,29 +216,71 @@ internal class PhysicsNeckClock private constructor(
 // --- Il collo dei viaggi del piano flottante (F3.3) ---------------------------------------------------------
 
 /**
- * La distanza di fusione di serie di un contenitore di vetro, in dp: il raggio di fusione nominale del collo fra due
- * pezzi del piano flottante (`PhysicsRenderPlan.nominalBlend`). Fino a questo varco il collo è intero, a una volta e
- * mezza si rompe, al doppio non arriva ([PhysicsNeckReach]).
+ * Le tre distanze di fusione della tavola «distanza di fusione» di F3.3: fin dove due vetri di un contenitore sono un
+ * grappolo, fin dove un vetro nuovo nasce dal vicino, e il raggio di fusione nominale del loro collo
+ * (`PhysicsRenderPlan.nominalBlend`: fino a questo varco il collo è intero, a una volta e mezza si rompe, al doppio non
+ * arriva, [PhysicsNeckReach]). Apple non la documenta (R1 C1: negli esempi 40 e 20 pt).
  *
- * È una **scelta di gusto di Alessio ancora aperta** (F3, «distanza di fusione di serie»): 16 dp è la «media» della
- * tavola `artifacts/liquid-glass/sessioni/f3-3/per-alessio/`, lo stesso valore delle tracce dei viaggi d'oro di F1B,
- * contro 8 dp (stretta: si fondono quasi solo quando si toccano) e 24 dp (larga). Apple non la documenta (R1 C1: negli
- * esempi 40 e 20 pt). Con due vetri a 8 dp (la distanza di serie fra due vetri di un gruppo) il collo di una divisione
- * vive per tutto il tempo dell'orologio e si rompe quando lo dice lui; a 16 dp anche due gruppi a 12 dp si toccano in
- * viaggio. A riposo non conta: i pezzi sono separati del tutto (decisione dell'11 novembre).
+ * @param dp la distanza.
+ * @param restFused vero se due vetri distinti entro la distanza restano **fusi anche a riposo** (la «larga»): contro la
+ *   decisione dell'11 novembre, e infatti non è la scelta di serie.
+ */
+internal enum class PhysicsPlaneFusion(val dp: Float, val restFused: Boolean) {
+  /** Si fondono quasi solo quando si toccano. */
+  Narrow(8f, false),
+
+  /** Due vetri di un gruppo (8 dp) e due gruppi vicini (12 dp) si toccano in viaggio; a riposo separati. */
+  Medium(16f, false),
+
+  /** Fusi già a riposo quando sono vicini. */
+  Wide(24f, true),
+}
+
+/**
+ * La distanza di fusione di serie. **Scelta di Alessio, 2026-11-16**, sulla tavola (a) di F3.3: la media, 16 dp. A
+ * riposo i pezzi distinti restano separati del tutto (decisione dell'11 novembre); quelli uniti da `fluidGlassUnion`
+ * sono una sagoma sola. È **la costante da cambiare** per un'altra delle tre: [PhysicsPlaneFusionDp] e
+ * `FluidGlassContainerDefaults.Spacing` la seguono, e un test lo controlla. Per riprendere le altre due sul dispositivo
+ * c'è la manopola `FluidGlassContainerDiagnostics.fusionPreview`.
+ */
+internal val PhysicsPlaneFusionDefault: PhysicsPlaneFusion = PhysicsPlaneFusion.Medium
+
+/**
+ * La distanza di fusione di serie di un contenitore di vetro, in dp: [PhysicsPlaneFusionDefault]. Una costante del
+ * compilatore (la usano i valori di serie dei parametri e le tracce), quindi un numero: un test la tiene uguale alla
+ * scelta. Con due vetri a 8 dp (la distanza di serie fra due vetri di un gruppo) il collo di una divisione vive per
+ * tutto il tempo dell'orologio e si rompe quando lo dice lui; a 16 dp anche due gruppi a 12 dp si toccano in viaggio.
  */
 internal const val PhysicsPlaneFusionDp: Float = 16f
+
+/**
+ * Quanto è lungo l'orologio del collo del piano flottante, in multipli del riposo a vista del viaggio
+ * (`GlassPlaneJourney.settleMs`): vedi [physicsPlaneNeckMs].
+ *
+ * Perché due (F3.2c). Il collo lungo scelto da Alessio (la rottura a [GlassLiquidNeck], 0,38, scelta A) è stato tarato in
+ * F3.3 su un orologio di 300 ms che era la **coda numerica** della molla: la sagoma era ferma a vista a 133 ms, e il collo
+ * si rompeva a 114, all'86% del moto che si vede, dopo che i pezzi di una divisione si erano staccati. Coi tempi nuovi la
+ * stessa molla è ferma a vista a 300 ms, e i pezzi a 8 dp si staccano a ~167: un orologio di 300 ms romperebbe il collo
+ * a 114 ms, **prima** che si stacchino, e il collo fra due pezzi staccati non ci sarebbe più. Con un orologio lungo il
+ * doppio del riposo a vista la rottura cade a ~0,76 del moto (~228 ms su 300), nella stessa fase della molla di F3.3
+ * (0,74–0,79 sulle geometrie delle sue tracce): cambiano i tempi del piano, non la forma del collo. Apple, nella clip
+ * rallentata di R4 B2 (d), rompe il collo all'80% del tempo fino al riposo (1035 ms su 1300): vale l'ordine delle fasi.
+ */
+internal const val PhysicsPlaneNeckSpan: Float = 2f
+
+/** La durata dell'orologio del collo di un viaggio fermo a vista a [settleMs]: [PhysicsPlaneNeckSpan] volte tanto. */
+internal fun physicsPlaneNeckMs(settleMs: Double): Double = settleMs * PhysicsPlaneNeckSpan
 
 /**
  * L'orologio del collo di un viaggio del piano flottante (`GlassPlaneJourney`): la frazione del tempo del viaggio già
  * passata, e da lì la coordinata del collo con la stessa legge dei viaggi di `morphTo` ([physicsNeckAt]).
  *
- * Il piano non è una molla da cui leggere il tempo che manca: è una funzione del tempo con una durata nota
- * (`durationMs`, la molla di [FluidMotion][dev.antigravity.fluidengine.ui.fluid.FluidMotion] stirata nel bilancio del
- * contesto, 300 ms). Con la rottura di serie ([GlassLiquidNeck], 0,38, scelta A di Alessio) il collo si rompe a
- * ~114 ms, cioè ~186 ms prima del riposo: è il «≈200 ms prima del riposo» di R4 B2 (d) (fiducia media: vale l'ordine
- * delle fasi). Due pezzi che la geometria porta oltre la distanza di fusione prima di allora si staccano prima, per la
- * coordinata della distanza ([physicsNeckReachCoordinate]), con la stessa sequenza.
+ * Il piano non è una molla da cui leggere il tempo che manca: è una funzione del tempo con una durata nota, e
+ * l'orologio dura [physicsPlaneNeckMs] (il doppio del riposo a vista: 600 ms per un cambio di contesto). Con la rottura
+ * di serie ([GlassLiquidNeck], 0,38) il collo si rompe a ~228 ms, ~70 ms prima del riposo a vista, e i lobi sono tondi a
+ * ~300: dopo che i pezzi si sono staccati, come in R4 B2 (d) (fiducia media: vale l'ordine delle fasi). Due pezzi che la
+ * geometria porta oltre la distanza di fusione prima di allora si staccano prima, per la coordinata della distanza
+ * ([physicsNeckReachCoordinate]), con la stessa sequenza.
  *
  * Un viaggio interrotto riparte dal collo che c'era ([retarget]): è l'invariante 16, come per `morphTo`.
  *
@@ -237,6 +290,7 @@ internal const val PhysicsPlaneFusionDp: Float = 16f
  */
 internal class PhysicsPlaneNeck(
   val start: Float = -1f,
+  /** La durata dell'orologio: [physicsPlaneNeckMs] del riposo a vista del viaggio. */
   val durationMs: Double,
   val breakAt: Float = GlassLiquidNeck,
 ) {
@@ -393,4 +447,51 @@ internal fun physicsTimedNeckBlend(
 private fun physicsNeckCorner(plan: PhysicsRenderPlan, index: Int): Float {
   val at = index * 4
   return (plan.fieldRadii[at] + plan.fieldRadii[at + 1] + plan.fieldRadii[at + 2] + plan.fieldRadii[at + 3]) / 4f
+}
+
+/**
+ * Il raccordo del pezzo [index] col già fuso in un piano del **piano flottante** (F3.2c): come [physicsTimedNeckBlend],
+ * ma due pezzi della **stessa unione** (`fluidGlassUnion`, [PhysicsRenderPlan.pieceUnion]) hanno sempre il collo pieno,
+ * fermi o in viaggio, anche oltre la distanza di fusione: sono una sagoma sola, «lì la fusione è una scelta di chi scrive»
+ * (piano, F1A, 2026-11-11). Il raccordo è il pieno ([physicsNeckFull]): fin dove sta nel filo dei lobi (un varco di circa
+ * 1,4 raggi d'angolo) è una goccia con la vita; più lontano il ponte non può esserci senza uscire dai lobi, e l'unione
+ * resta una cattura sola con due sagome. Due pezzi distinti seguono l'orologio [neck] (-1 a riposo: separati del tutto).
+ *
+ * Il campo unisce il pezzo a tutto il già fuso con un raggio solo: un raccordo pieno verso un compagno d'unione farebbe
+ * ponte anche verso un pezzo estraneo più vicino. Per questo il raccordo d'unione si ferma sotto il doppio del varco del
+ * pezzo estraneo più vicino ([PhysicsNeckGeometricRetract] di quel doppio): col compagno resta il ponte, con l'estraneo
+ * no. Il raccordo è il più grande fra quello d'unione e quello dell'orologio.
+ */
+internal fun physicsPlaneNeckBlend(plan: PhysicsRenderPlan, index: Int, neck: Float, pinch: Float): Float {
+  val nominal = plan.nominalBlend
+  if (!(nominal > 0f) || index <= 0) return 0f
+  val union = plan.pieceUnion[index]
+  if (union < 0) return physicsTimedNeckBlend(plan, index, neck, pinch)
+  val at = index * 4
+  var mateDepth = Float.NEGATIVE_INFINITY
+  var mateEnds = 0f
+  var foreignDepth = Float.NEGATIVE_INFINITY
+  var foreignEnds = 0f
+  for (j in 0 until index) {
+    val bt = j * 4
+    val dx = abs(plan.pieceRects[at] - plan.pieceRects[bt])
+    val dy = abs(plan.pieceRects[at + 1] - plan.pieceRects[bt + 1])
+    val depth = -max(dx - (plan.pieceRects[at + 2] + plan.pieceRects[bt + 2]), dy - (plan.pieceRects[at + 3] + plan.pieceRects[bt + 3]))
+    val ends = physicsNeckCorner(plan, index) + physicsNeckCorner(plan, j)
+    if (plan.pieceUnion[j] == union) {
+      if (depth > mateDepth) {
+        mateDepth = depth
+        mateEnds = ends
+      }
+    } else if (depth > foreignDepth) {
+      foreignDepth = depth
+      foreignEnds = ends
+    }
+  }
+  val foreign = if (foreignDepth.isFinite()) physicsNeckPairBlend(foreignDepth, foreignEnds, nominal, neck, pinch) else 0f
+  if (!mateDepth.isFinite()) return foreign
+  // Un'unione è una sagoma sola anche oltre la distanza di fusione: la portata è il varco stesso, decide la geometria.
+  var mate = physicsNeckPairBlend(mateDepth, mateEnds, max(nominal, -mateDepth), 1f, pinch)
+  if (foreignDepth.isFinite() && foreignDepth < 0f) mate = min(mate, 2f * -foreignDepth * PhysicsNeckGeometricRetract)
+  return max(mate, foreign)
 }

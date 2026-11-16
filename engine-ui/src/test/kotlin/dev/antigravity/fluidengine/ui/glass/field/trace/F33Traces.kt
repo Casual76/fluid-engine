@@ -10,10 +10,11 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsNeckPinchExponent
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusionDp
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeck
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeckPinch
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneShape
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsRenderPlan
-import dev.antigravity.fluidengine.ui.fluidphysics.buildRestPlan
+import dev.antigravity.fluidengine.ui.fluidphysics.buildPlanePlan
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidInputs
-import dev.antigravity.fluidengine.ui.fluidphysics.physicsNeckEncode
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsRecipeShortPx
 import dev.antigravity.fluidengine.ui.glass.field.GlassDrawInputs
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldMaxPieces
@@ -30,6 +31,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelRecipe
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneMotion
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneNeckMs
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelPaddingDp
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
 import kotlin.math.abs
@@ -38,9 +40,10 @@ import kotlin.math.max
 
 /*
  * Le tracce e le scene di F3.3 (`GLASS_F33_DIR`, fase `f3-3`): il piano flottante di F3.1 **col collo** e **con la
- * comparsa per lente**. La geometria è quella di produzione (`GlassPlaneJourney`), il collo è `PhysicsPlaneNeck` (lo
- * stesso orologio che userà il contenitore di F3.2), il materiale è `glassRecipe` più `glassMaterializeRecipe`, gli
- * uniform li scrive `physicsLiquidInputs` col campo di `physicsFieldPlan`: niente qui è una seconda descrizione.
+ * comparsa per lente**. La geometria è quella di produzione (`GlassPlaneJourney`), il collo è `PhysicsPlaneNeck` lungo
+ * il doppio del riposo a vista del viaggio (lo stesso orologio del contenitore, F3.2c), il piano è `buildPlanePlan` (quello della guida
+ * «a fotogramma» del contenitore), il materiale è `glassRecipe` più `glassMaterializeRecipe`, gli uniform li scrive
+ * `physicsLiquidInputs` col campo di `physicsFieldPlan`: niente qui è una seconda descrizione.
  *
  * Una traccia può avere più **corsie** affiancate (le varianti delle tavole di gusto, ognuna col suo viaggio e il suo
  * palco) e più **tappe** (uno stato nuovo a un dato istante: se il viaggio di prima non è finito è un'interruzione, e
@@ -55,7 +58,8 @@ internal object F33Traces {
   internal data class Variant(
     val label: String = "",
     val fusionDp: Float = PhysicsPlaneFusionDp,
-    val pinch: Float = PhysicsNeckPinchExponent,
+    /** Di serie quello del piano flottante: «spesso», 1/2 (scelta di Alessio, 2026-11-16). */
+    val pinch: Float = PhysicsPlaneNeckPinch,
     /** Vero per la «larga» della tavola (a): fusi anche a riposo quando sono vicini (contro la decisione dell'11/11). */
     val restFused: Boolean = false,
     val contourScale: Float = 1.09f,
@@ -129,12 +133,12 @@ internal object F33Traces {
       val prev = out.lastOrNull()
       val run = if (prev == null) {
         val journey = GlassPlaneJourney(state, leg.state, motion)
-        Run(leg.atMs, journey, PhysicsPlaneNeck(-1f, journey.durationMs))
+        Run(leg.atMs, journey, PhysicsPlaneNeck(-1f, physicsPlaneNeckMs(journey.settleMs)))
       } else {
         val local = leg.atMs - prev.startMs
         val journey = if (local >= prev.journey.durationMs) GlassPlaneJourney(state, leg.state, motion)
           else prev.journey.retarget(local, leg.state)
-        Run(leg.atMs, journey, prev.neck.retarget(local, journey.durationMs))
+        Run(leg.atMs, journey, prev.neck.retarget(local, physicsPlaneNeckMs(journey.settleMs)))
       }
       out += run
       state = leg.state
@@ -181,8 +185,9 @@ internal object F33Traces {
     motion: Float = 0f,
   ): LinkedHashMap<String, Any?> {
     val plan = PhysicsRenderPlan()
-    val form = if (slabs.size == 1) slabs.single() else FluidForm.Group(slabs, blendRadius = fusionDp * density)
-    buildRestPlan(plan, form, physicsNeckEncode(neck))
+    // Il piano della guida «a fotogramma» del contenitore (F3.2c), con le stesse lastre, lo stesso collo e lo stesso
+    // esponente: a riposo il raccordo continuo, come il riposo del contenitore.
+    buildPlanePlan(plan, PhysicsPlaneShape(slabs, fusionDp * density, neck = neck, pinch = pinch, resting = true))
     val shortDp = physicsRecipeShortPx(plan) / density
     val recipe = glassRecipe(
       role = GlassRole.Interactive, widthDp = shortDp, heightDp = shortDp, darkSide = dark, optics = ButtonOptics,
@@ -294,7 +299,7 @@ internal object F33Traces {
       }.orEmpty()
       val element = fieldElement(
         name = item.name, slabs = item.slabs, neck = item.neck, amount = item.materialize, fusionDp = item.fusionDp,
-        pinch = PhysicsNeckPinchExponent, density = d, dark = scene.dark, widthDp = scene.widthDp,
+        pinch = PhysicsPlaneNeckPinch, density = d, dark = scene.dark, widthDp = scene.widthDp,
         heightDp = scene.heightDp, content = content, note = "F3.3: scena ferma scritta dall'engine",
       )
       element["_collo"] = round3(item.neck)
@@ -463,7 +468,9 @@ internal object F33Traces {
     }
     val fusion = listOf(Variant("stretta · 8 dp", fusionDp = 8f), Variant("media · 16 dp (proposta)", fusionDp = 16f),
       Variant("larga · 24 dp, fusi a riposo", fusionDp = 24f, restFused = true))
-    val pinch = listOf(Variant("spesso · si spezza di colpo", pinch = 0.5f), Variant("di serie · 2/3 (proposta)"),
+    // La tavola com'era quando Alessio l'ha giudicata (2026-11-16): ha scelto la prima, che oggi è di serie.
+    val pinch = listOf(Variant("spesso · si spezza di colpo", pinch = 0.5f),
+      Variant("di serie · 2/3 (proposta)", pinch = PhysicsNeckPinchExponent),
       Variant("filo · si assottiglia a lungo", pinch = 1f))
     val scale = listOf(Variant("1,09 · R4 (proposta)", contourScale = 1.09f), Variant("1,045", contourScale = 1.045f),
       Variant("1,00 · niente scala", contourScale = 1f))

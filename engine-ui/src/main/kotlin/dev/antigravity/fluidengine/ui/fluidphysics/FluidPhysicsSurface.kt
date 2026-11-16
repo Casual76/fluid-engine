@@ -58,6 +58,7 @@ import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
@@ -208,6 +209,11 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
   restingFilmYields: Boolean = false,
   /** G1 (C-R2): lo stato adattivo da cui nasce (il tasto da cui parte un menu): vedi `GlassAdaptiveState.adopt`. */
   adoptFrom: GlassAdaptiveState? = null,
+  /**
+   * La variante del materiale nuovo (F3.2c): [GlassLiquidVariant.Clear] è il limpido della ricetta, lo stesso di una
+   * lastra ferma; il vetro di prima non lo legge. Di serie [GlassLiquidVariant.Regular], al bit come prima.
+   */
+  variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
@@ -321,7 +327,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
     val probedArea: () -> Rect? = remember(state) { { state.ensurePlan().bounds } }
     val surface = remember(
       state, role, material, darkSide, screenDensity, quality, tint, tintFrom, pressState, reducedMotion, adaptive,
-      restingFilmYields, preference,
+      restingFilmYields, preference, variant,
     ) {
       PhysicsLiquidSurface(
         state = state,
@@ -343,6 +349,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
         adaptive = adaptive,
         restingFilmYields = restingFilmYields,
         preference = preference,
+        variant = variant,
       )
     }
     return this

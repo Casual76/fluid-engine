@@ -30,10 +30,13 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassFieldPlan
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldRingVertices
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidDispersion
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
+import dev.antigravity.fluidengine.ui.glass.field.GlassMaterializeChannels
 import dev.antigravity.fluidengine.ui.glass.field.GlassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.GlassRingField
 import dev.antigravity.fluidengine.ui.glass.field.glassBody
 import dev.antigravity.fluidengine.ui.glass.field.glassLiquidLargeVeilGain
+import dev.antigravity.fluidengine.ui.glass.field.glassMaterializeRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassNodeClipCorner
 import dev.antigravity.fluidengine.ui.glass.field.glassPreferenceFrost
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
@@ -579,11 +582,16 @@ internal fun physicsFieldPlan(
   plan: PhysicsRenderPlan,
   scale: Float,
   out: GlassFieldPlan,
-  /** L'esponente della vita del collo nel tempo: di serie quello del motore; lo cambia solo la tavola di gusto di F3.3. */
-  neckPinch: Float = PhysicsNeckPinchExponent,
+  /**
+   * L'esponente della vita del collo nel tempo. Non finito (di serie): quello del piano ([PhysicsRenderPlan.neckPinch]:
+   * [PhysicsNeckPinchExponent] per i viaggi di `morphTo`, [PhysicsPlaneNeckPinch] per il piano flottante). Un numero lo
+   * scavalca: lo fanno le varianti delle tavole di gusto di F3.3.
+   */
+  neckPinch: Float = Float.NaN,
 ): GlassFieldPlan {
   out.clear()
   val count = plan.pieceCount.coerceIn(0, min(PhysicsMaxPieces, out.pieces))
+  val pinch = if (neckPinch.isFinite()) neckPinch else plan.neckPinch
   val timed = physicsNeckIsTimed(plan.fusion)
   val neck = if (timed) physicsNeckDecode(plan.fusion) else -1f
   val fusion = if (timed) 0f else plan.fusion.coerceIn(0f, 1f)
@@ -601,7 +609,9 @@ internal fun physicsFieldPlan(
       bottomLeft = plan.fieldRadii[at + 3] * scale,
       blend = when {
         i == 0 -> 0f
-        timed -> physicsTimedNeckBlend(plan, i, neck, neckPinch) * scale
+        // Il piano flottante (F3.2c): le unioni hanno sempre il collo pieno, i pezzi distinti quello dell'orologio.
+        plan.planeNeck -> physicsPlaneNeckBlend(plan, i, neck, pinch) * scale
+        timed -> physicsTimedNeckBlend(plan, i, neck, pinch) * scale
         else -> physicsNeckBlend(plan, i) * fusion * scale
       },
       smoothing = plan.fieldSmooth[i],
@@ -866,6 +876,12 @@ internal fun physicsLiquidRecipe(
    * niente.
    */
   preference: Float = FluidGlassPreference.Default,
+  /**
+   * La variante del vetro (F3.2c, piano 3.6): [GlassLiquidVariant.Clear] è il limpido vero della ricetta (la mescola a
+   * nitido col raggio che resta, lo scurimento, niente velo né adattività), lo stesso di una lastra ferma. Di serie
+   * [GlassLiquidVariant.Regular], cioè la ricetta di prima, al bit.
+   */
+  variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -874,6 +890,7 @@ internal fun physicsLiquidRecipe(
       widthDp = shortDp,
       heightDp = shortDp,
       darkSide = darkSide,
+      variant = variant,
       optics = material.optics,
       intensity = amount,
       quality = quality,
@@ -961,8 +978,8 @@ internal fun physicsLiquidInputs(
   /** Il ritaglio emulato ([GlassDrawInputs.nodeClip]); falso solo dalla manopola di diagnosi `travelclip=off`. */
   nodeClip: Boolean = true,
   out: GlassDrawInputs = GlassDrawInputs(GlassFieldMaxPieces),
-  /** L'esponente della vita del collo: vedi [physicsFieldPlan]. */
-  neckPinch: Float = PhysicsNeckPinchExponent,
+  /** L'esponente della vita del collo: vedi [physicsFieldPlan] (non finito: quello del piano). */
+  neckPinch: Float = Float.NaN,
 ): GlassDrawInputs {
   val captureDensity = screenDensity * scale
   out.setBodyMaterial(recipe, captureDensity, paddingPx)
@@ -1086,9 +1103,12 @@ internal class PhysicsLiquidSurface(
    * ([paddingDp]): chi lo legge in composizione la rifà quando cambia, come `glassSurface`.
    */
   private val preference: Float = FluidGlassPreference.Default,
+  /** La variante del vetro: vedi `physicsLiquidRecipe(variant)`. Fissa per la vita della superficie. */
+  private val variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
 ) {
 
   private val adaptiveMaterial = GlassAdaptiveMaterial()
+  private val materializeChannels = GlassMaterializeChannels()
 
   /**
    * Il margine della cattura per tutta la vita della superficie: vedi [glassTravelPaddingDp]. Il cursore dell'utente
@@ -1163,6 +1183,8 @@ internal class PhysicsLiquidSurface(
     val plan = state.ensurePlan()
     val q = quality()
     val press = pressState?.progress ?: 0f
+    // Il piano flottante (F3.2c) porta nella sua forma il vetro in viaggio e la comparsa per lente.
+    val planeShape = state.planeShapeNow()
     val shortDp = physicsRecipeShortPx(plan) / screenDensity
     val large = largeVeilWeight(glassLiquidLargeVeilGain(shortDp))
     largeVeilShown = large
@@ -1178,15 +1200,21 @@ internal class PhysicsLiquidSurface(
       tintFrom = tintFrom,
       tintBlend = tintBlend(),
       nested = nested,
-      // La lente in moto: zero esatto a goccia posata, quindi a riposo la ricetta è quella della lastra.
-      motion = state.liquid.lens,
+      // La lente in moto: zero esatto a goccia posata, quindi a riposo la ricetta è quella della lastra. Per il piano
+      // flottante, la velocità dei suoi lati (`physicsPlaneMotion`): zero da fermi.
+      motion = planeShape?.motion ?: state.liquid.lens,
       profile = profile,
       scratch = recipes,
       largeVeil = large,
       adaptive = adaptive?.invoke(adaptiveMaterial, nested),
       restingFilmYields = restingFilmYields,
       preference = preference,
+      variant = variant,
     )
+    // La comparsa per lente (F3.3): contorno, poi lente, col raggio di sfocatura che cresce con lei. A uno non tocca niente.
+    if (planeShape != null && planeShape.materialize < 1f) {
+      glassMaterializeRecipe(recipe, planeShape.materialize, materializeChannels)
+    }
     val finger = pressState?.glow
     val bounds = plan.bounds
     physicsLiquidInputs(

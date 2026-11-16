@@ -144,12 +144,29 @@ class PlanePageTest {
   }
 
   @Test
-  fun `tre viste lontane diventano un grappolo solo con l'unione`() {
+  fun `un blocco di tasti con l'unione e' una sagoma sola a riposo`() {
     open(PlaneScene.Union)
-    assertTrue(rest.toString(), rest.size == 3 && rest.all { it.clusterSize == 1 })
+    // A 8 dp sono già un grappolo (una cattura), ma tre vetri distinti: nessuna unione, separati del tutto a riposo.
+    assertTrue(rest.toString(), rest.size == 3 && rest.all { it.clusterSize == 3 && it.unionId == null })
     command()
     advance(800)
-    assertTrue("unite: $rest", rest.size == 3 && rest.all { it.clusterSize == 3 })
+    assertTrue("unite: $rest", rest.size == 3 && rest.all { it.clusterSize == 3 && it.unionId == "sagoma" })
+    noOrderWarnings()
+  }
+
+  @Test
+  fun `quattro e otto vetri volano insieme, gli otto uniti in un campo solo`() {
+    open(PlaneScene.Many)
+    command()
+    assertEquals("un viaggio per contenitore", 2L, FluidGlassContainerDiagnostics.totalJourneys)
+    advance(800)
+    // `lastRest` è l'ultimo riposo pubblicato, di uno dei due contenitori: quattro vetri distinti in un grappolo, o gli
+    // otto uniti in un grappolo solo.
+    assertTrue(
+      rest.toString(),
+      rest.size == 4 && rest.all { it.unionId == null && it.clusterSize == 4 } ||
+        rest.size == 8 && rest.all { it.unionId == "otto" && it.clusterSize == 8 },
+    )
     noOrderWarnings()
   }
 

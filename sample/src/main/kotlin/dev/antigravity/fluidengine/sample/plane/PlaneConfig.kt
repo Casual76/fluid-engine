@@ -8,13 +8,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 
 /** Il tag di logcat della pagina: `adb logcat -s FluidPiano`. */
 internal const val PlaneLogTag = "FluidPiano"
 
 /**
- * Le nove scene della pagina «Piano flottante» (piano «iOS in Android», F3.6). Ognuna mette davanti un risultato
+ * Le dieci scene della pagina «Piano flottante» (piano «iOS in Android», F3.6 e F3.2c). Ognuna mette davanti un risultato
  * osservabile di F3: [key] è il valore di `plane.scene`, [command] il nome del cambio di stato che la scena sa fare,
  * [voice] cosa si guarda. Ogni scena cambia **solo lo stato** (un `if`, una distanza, un fondo): nessuna animazione è
  * scritta qui, le fa il contenitore.
@@ -33,8 +34,9 @@ internal enum class PlaneScene(val key: String, val title: String, val command: 
     "un tasto lontano dagli altri compare per lente al suo posto (contorno da più largo, rifrazione che sale) e scompare",
   ),
   Union(
-    "unione", "Tre viste in una sagoma", "Unisci / Separa",
-    "tre vetri a distanza maggiore dello spacing: con `fluidGlassUnion` diventano un grappolo solo",
+    "unione", "Un blocco di tasti in una sagoma", "Unisci / Separa",
+    "tre tasti dello stesso gruppo a 8 dp: distinti restano tre vetri anche a riposo; con `fluidGlassUnion` diventano una " +
+      "sagoma sola, ferma",
   ),
   Context(
     "contesto", "Una barra cambia contesto", "Contesto A / B",
@@ -55,6 +57,11 @@ internal enum class PlaneScene(val key: String, val title: String, val command: 
   Interrupt(
     "interruzione", "Interruzione", "Cambia tre volte",
     "il tasto che diventa due, con due cambi a metà viaggio: riparte da dove si trova, senza scatti",
+  ),
+  Many(
+    "molti", "Quattro e otto vetri in volo", "Stringi / Allarga",
+    "una riga di quattro tasti e una di otto (unite: un campo solo) che cambiano passo insieme: il palco porta 4 e 8 " +
+      "pezzi in volo, il caso più caro (il costo si misura in S3)",
   ),
   ;
 
@@ -98,10 +105,17 @@ internal data class PlaneConfig(
   val dark: Boolean = false,
   val spacing: Dp = PlaneSpacing.Medium,
   val model: FluidGlassModel = FluidGlassModel.Liquid,
+  /**
+   * La manopola della distanza di fusione (F3.2c): una delle tre della tavola di F3.3 al posto dello spacing, per
+   * **tutti** i contenitori della pagina, con la «larga» fusa anche a riposo. Null: di serie (la media, scelta da
+   * Alessio il 2026-11-16).
+   */
+  val fusion: FluidGlassContainerDiagnostics.FusionPreview? = null,
 ) {
   /** Una riga leggibile, per logcat e per il sottotitolo. */
   val key: String
-    get() = "${scene.key} · ${if (dark) "scuro" else "chiaro"} · spacing ${PlaneSpacing.label(spacing)} · ${model.name}"
+    get() = "${scene.key} · ${if (dark) "scuro" else "chiaro"} · spacing ${PlaneSpacing.label(spacing)} · ${model.name}" +
+      (fusion?.let { " · fusione ${PlaneLaunch.fusionLabel(it)}" } ?: "")
 }
 
 /**
@@ -152,6 +166,16 @@ internal object PlaneLaunch {
   const val ExtraAuto = "plane.auto"
   const val ExtraInterrupt = "plane.interrupt"
 
+  /** La distanza di fusione della tavola di F3.3 da riprendere: `stretta` (8 dp), `media` (16), `larga` (24, fusi a riposo). */
+  const val ExtraFusion = "plane.fusion"
+
+  /** Il nome di una distanza della tavola, come lo si scrive nell'extra. */
+  fun fusionLabel(fusion: FluidGlassContainerDiagnostics.FusionPreview): String = when (fusion) {
+    FluidGlassContainerDiagnostics.FusionPreview.Narrow -> "stretta"
+    FluidGlassContainerDiagnostics.FusionPreview.Medium -> "media"
+    FluidGlassContainerDiagnostics.FusionPreview.Wide -> "larga"
+  }
+
   /** L'intervallo dell'automatico quando si chiede solo «acceso»: lascia arrivare il viaggio più lungo (470 ms) e guardarlo fermo. */
   const val DefaultAutoMs = 2_000L
 
@@ -193,11 +217,17 @@ internal object PlaneLaunch {
       "liquid" -> FluidGlassModel.Liquid
       else -> inherited
     }
+    val fusion = when (value(ExtraFusion)) {
+      "stretta", "narrow", "8" -> FluidGlassContainerDiagnostics.FusionPreview.Narrow
+      "media", "medium", "16" -> FluidGlassContainerDiagnostics.FusionPreview.Medium
+      "larga", "wide", "24" -> FluidGlassContainerDiagnostics.FusionPreview.Wide
+      else -> null
+    }
     val auto = millisOf(value(ExtraAuto), DefaultAutoMs, min = 300L)
     // La scena «interruzione» interrompe di serie; le altre solo se lo si chiede (`plane.interrupt true` o i ms).
     val interrupt = millisOf(value(ExtraInterrupt), DefaultInterruptMs, min = 16L)
       ?: if (scene == PlaneScene.Interrupt) DefaultInterruptMs else 0L
-    return PlaneConfig(scene, dark, spacing, model) to PlaneStart(autoMs = auto ?: 0L, interruptMs = interrupt)
+    return PlaneConfig(scene, dark, spacing, model, fusion) to PlaneStart(autoMs = auto ?: 0L, interruptMs = interrupt)
   }
 
   /** «acceso» → [default]; un numero → quei ms (mai sotto [min]); «spento» → 0; altro o niente → null (di serie). */

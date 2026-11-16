@@ -10,6 +10,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
@@ -59,6 +60,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
 import dev.antigravity.fluidengine.ui.glass.field.glassProbe
 import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
 import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
@@ -1533,6 +1535,14 @@ enum class GlassFalloff {
 }
 
 /**
+ * La variante del materiale nuovo per le lastre che non la ricevono come parametro (F3.2c). Un `fluidGlass` limpido
+ * **fuori** da un contenitore passa per `glassSurface` o `glassControlSurface`, che non hanno la variante fra i loro
+ * ingressi pubblici: `fluidGlass` la fornisce attorno alla sola chiamata del modificatore, mai attorno a un contenuto, e
+ * [glassLiquidSurface] la legge come valore di serie. Altrove vale [GlassLiquidVariant.Regular].
+ */
+internal val LocalGlassLiquidVariant = staticCompositionLocalOf { GlassLiquidVariant.Regular }
+
+/**
  * Turns a composable into a pane of glass over [state]'s content.
  *
  * Dalla 4.0.0 i materiali sono due ([FluidGlassModel]), con la stessa firma. Da Android 13, con le sorgenti
@@ -1997,6 +2007,11 @@ internal fun Modifier.glassLiquidSurface(
   nestInContainer: Boolean,
   touch: GlassTouchLight?,
   ink: GlassInk? = null,
+  /**
+   * La variante del materiale (F3.2c): [GlassLiquidVariant.Clear] è il limpido vero (vedi `GlassLiquidSurface`). Di
+   * serie quella di [LocalGlassLiquidVariant], cioè [GlassLiquidVariant.Regular] salvo un `fluidGlass` limpido.
+   */
+  variant: GlassLiquidVariant = LocalGlassLiquidVariant.current,
 ): Modifier {
   val currentIntensity by rememberUpdatedState(intensity)
   val currentDepth by rememberUpdatedState(opticalDepth)
@@ -2052,7 +2067,7 @@ internal fun Modifier.glassLiquidSurface(
   // questa funzione, che la legge qui sotto per la sonda. Vedi `GlassLiquidSurface.nestedState`.
   val nesting = remember { mutableStateOf(false) }
 
-  val surface = remember(role, optics, shape, darkSide, screenDensity, quality, preference, adaptiveState) {
+  val surface = remember(role, optics, shape, darkSide, screenDensity, quality, preference, adaptiveState, variant) {
     GlassLiquidSurface(
       role = role,
       optics = optics,
@@ -2081,6 +2096,7 @@ internal fun Modifier.glassLiquidSurface(
       },
       preference = preference,
       nesting = nesting,
+      variant = variant,
     )
   }
 

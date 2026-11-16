@@ -40,7 +40,7 @@ class GlassPlaneTraceExportTest {
           assertEquals(piece.bounds, continuing.bounds)
           assertEquals(piece.velocity, continuing.velocity)
         }
-        assertTrue(abs(scenario.journey.durationMs - 300.0) < 0.1)
+        assertTrue(abs(scenario.journey.settleMs - 300.0) < 0.5)
       }
       output?.let { directory ->
         val file = File(File(directory, trace.name), "trace.json")

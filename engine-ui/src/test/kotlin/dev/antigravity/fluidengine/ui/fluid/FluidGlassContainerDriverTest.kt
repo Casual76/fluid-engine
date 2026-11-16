@@ -187,7 +187,7 @@ class FluidGlassContainerDriverTest {
   }
 
   @Test
-  fun `un campo di sole comparse porta la rifrazione nell'intensita', uno misto toglie solo chi e' appena nato`() {
+  fun `chi compare per lente e' un campo a se', con la sua comparsa esatta`() {
     val driver = FluidGlassPlaneDriver()
     driver.step(0L, state(a), GlassPlaneMotion())
     driver.step(frameNanos, state(a, far), GlassPlaneMotion())
@@ -195,20 +195,68 @@ class FluidGlassContainerDriverTest {
     val frame = driver.frame!!
     val appearing = frame.pieces.single { it.flightId.targetKey == "far" }
     assertEquals(GlassPlaneChange.Materialize, appearing.change)
+    // F3.2c: nessun campo mescola chi compare con chi viaggia.
+    assertTrue(driver.journey!!.fields.all { field -> field.flights.size == 1 || field.flights.none { it.targetKey == "far" } })
     val alone = fluidGlassFieldSlabs(frame, listOf(appearing.flightId), Offset(400f, 20f)) { 0.6f }
-    assertEquals(appearing.materialize, alone.intensity, 0f)
-    assertTrue(alone.intensity > 0f && alone.intensity < 1f)
+    assertEquals(appearing.materialize, alone.materialize, 0f)
+    assertTrue(alone.materialize > 0f && alone.materialize < 1f)
     assertEquals(1, alone.slabs.size)
     assertRect(appearing.bounds.translate(-400f, -20f), alone.slabs.single().frame, message = "nelle coordinate del nodo")
     assertEquals(0.6f, alone.slabs.single().smoothing, 0f)
-
+    // Al primo fotogramma chi compare c'è già, a `materialize` zero: è la ricetta della comparsa a non mostrarlo.
     val start = FluidGlassPlaneDriver()
     start.step(0L, state(a), GlassPlaneMotion())
     start.step(frameNanos, state(a, far), GlassPlaneMotion())
     val t0 = start.frame!!
-    val mixed = fluidGlassFieldSlabs(t0, t0.pieces.map { it.flightId }, Offset.Zero) { 0f }
-    assertEquals(1f, mixed.intensity, 0f)
-    assertEquals("al primo fotogramma chi compare non c'è ancora", 1, mixed.slabs.size)
+    val first = fluidGlassFieldSlabs(t0, listOf(t0.pieces.single { it.flightId.targetKey == "far" }.flightId), Offset.Zero) { 0f }
+    assertEquals(0f, first.materialize, 0f)
+    assertEquals(1, first.slabs.size)
+    // Un campo di vetri che viaggiano è pieno.
+    val moving = fluidGlassFieldSlabs(t0, listOf(t0.pieces.single { it.flightId.targetKey == "a" }.flightId), Offset.Zero) { 0f }
+    assertEquals(1f, moving.materialize, 0f)
+  }
+
+  @Test
+  fun `il collo parte da fermo, riparte da dove si trova e a riposo non c'e'`() {
+    val motion = GlassPlaneMotion()
+    val driver = FluidGlassPlaneDriver()
+    driver.step(0L, state(a), motion)
+    assertNull(driver.neck)
+    assertEquals(-1f, driver.neckNow(), 0f)
+    driver.step(frameNanos, state(a, b), motion)
+    assertEquals("alla partenza il collo è quello da fermi", -1f, driver.neckNow(), 0f)
+    assertEquals("l'orologio dura il doppio del riposo a vista", 2.0 * driver.journey!!.settleMs, driver.neck!!.durationMs, 1e-9)
+    var now = frameNanos
+    repeat(5) {
+      now += frameNanos
+      driver.step(now, state(a, b), motion)
+    }
+    assertTrue("in viaggio il collo c'è", driver.neckNow() > -1f)
+    val old = driver.neck!!
+    val moving = driver.movingMs
+    now += frameNanos
+    assertEquals(FluidGlassPlaneDriver.Change.Retargeted, driver.step(now, state(a), motion))
+    val at = (now - frameNanos) / 1_000_000.0
+    assertEquals("riparte dal collo di adesso", old.at(at), driver.neckNow(), 1e-5f)
+    assertTrue("il vetro in viaggio non si riaccende alla ripartenza", driver.movingMs > moving)
+    while (driver.step(now + frameNanos, state(a), motion) != FluidGlassPlaneDriver.Change.Finished) now += frameNanos
+    assertNull(driver.neck)
+    assertEquals(-1f, driver.neckNow(), 0f)
+  }
+
+  @Test
+  fun `le unioni stanno in testa, nell'ordine di prima, con i loro indici`() {
+    val ns = Any()
+    val p1 = piece("p1", 0f)
+    val u1 = piece("u1", 140f).copy(unionId = ns)
+    val p2 = piece("p2", 280f)
+    val u2 = piece("u2", 420f).copy(unionId = ns)
+    val ordered = listOf(p1, u1, p2, u2).unionsFirst { it }
+    assertEquals(listOf("u1", "u2", "p1", "p2"), ordered.map { it.key })
+    assertEquals(listOf(0, 0, -1, -1), fluidGlassUnionIndices(ordered)!!.toList())
+    assertNull(fluidGlassUnionIndices(listOf(p1, p2)))
+    val plain = listOf(p1, p2)
+    assertSame("senza unioni la stessa lista", plain, plain.unionsFirst { it })
   }
 
   @Test

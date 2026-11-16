@@ -993,6 +993,13 @@ internal class GlassLiquidSurface(
   private val adaptive: ((out: GlassAdaptiveMaterial, nested: Boolean) -> GlassAdaptiveMaterial?)? = null,
   private val preference: Float = FluidGlassPreference.Default,
   nesting: MutableState<Boolean> = mutableStateOf(false),
+  /**
+   * La variante (F3.2c, piano 3.6): [GlassLiquidVariant.Clear] è il limpido della ricetta (`glassRecipe(variant)`): la
+   * mescola a nitido col raggio che resta, lo scurimento, niente velo né adattività. La cattura resta quella del ruolo
+   * ([captureScale]): fra le due varianti cambia solo la mescola, e la cattura non si rifà. Di serie
+   * [GlassLiquidVariant.Regular], la ricetta di prima al bit.
+   */
+  private val variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
 ) {
 
   /** Vedi [glassLiquidCaptureScale]. */
@@ -1017,6 +1024,7 @@ internal class GlassLiquidSurface(
     widthDp = widthDp,
     heightDp = heightDp,
     darkSide = darkSide,
+    variant = variant,
     optics = optics,
     intensity = intensity(),
     opticalDepth = opticalDepth(),

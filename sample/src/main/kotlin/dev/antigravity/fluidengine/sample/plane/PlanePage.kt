@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -154,6 +155,11 @@ internal fun PlaneContent(initial: PlaneConfig, live: PlaneLive, bottomInset: Dp
       LocalFluidGlassModel provides config.model,
       LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     ) {
+      // La manopola della distanza di fusione (F3.2c): vale per tutti i contenitori finché la pagina è aperta.
+      DisposableEffect(config.fusion) {
+        FluidGlassContainerDiagnostics.fusionPreview = config.fusion
+        onDispose { FluidGlassContainerDiagnostics.fusionPreview = null }
+      }
       // La scena rinasce (e il suo stato riparte da capo) solo se cambia lei, il tema, lo spacing o il vetro chiesto.
       key(config) {
         PlaneStage(config, live, bottomInset, onBack, onChange = { live.reset(); config = it })
@@ -251,6 +257,7 @@ internal fun describe(scene: PlaneScene, on: Boolean): String = when (scene) {
   PlaneScene.Context -> if (on) "contesto-B" else "contesto-A"
   PlaneScene.Uniform, PlaneScene.Clear -> if (on) "fondo-scuro" else "fondo-chiaro"
   PlaneScene.Concentric -> if (on) "margini-larghi" else "margini-stretti"
+  PlaneScene.Many -> if (on) "larghi" else "stretti"
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -423,9 +430,10 @@ private fun SceneBody(config: PlaneConfig, live: PlaneLive, frame: PlaneFrame, c
       }
     }
     PlaneScene.Union -> FluidGlassContainer(container, spacing = config.spacing) {
-      // 24 dp: più dello spacing di serie (16) e meno di quello largo (40). Con `plane.spacing larga` sono un grappolo
-      // anche separate, e la scena non prova niente.
-      Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+      // Un blocco di tasti dello stesso gruppo, a 8 dp (la distanza fra due vetri di un gruppo): già un grappolo (una
+      // cattura), ma tre vetri distinti, separati del tutto a riposo. Con l'unione (la raccomandazione della scheda per i
+      // blocchi di tasti, scelta di Alessio del 2026-11-16) sono una sagoma sola anche ferma.
+      Row(horizontalArrangement = Arrangement.spacedBy(FluidMetrics.GlassSpacing)) {
         listOf(FluidIcons.Favorite, FluidIcons.Mic, FluidIcons.Share).forEachIndexed { index, icon ->
           Box(
             modifier = Modifier
@@ -467,6 +475,26 @@ private fun SceneBody(config: PlaneConfig, live: PlaneLive, frame: PlaneFrame, c
       }
     }
     PlaneScene.Concentric -> ConcentricPanel(config, ns, on, container)
+    PlaneScene.Many -> Column {
+      // Quattro tasti: un campo solo in volo (fino a quattro il piano non divide).
+      FluidGlassContainer(container, spacing = config.spacing) {
+        Row(horizontalArrangement = Arrangement.spacedBy(if (on) 14.dp else 4.dp)) {
+          repeat(4) { index ->
+            Box(Modifier.fluidGlassId("q$index", ns).fluidGlass().size(Lens))
+          }
+        }
+      }
+      Spacer(Modifier.height(24.dp))
+      // Otto tasti uniti: un'unione non si divide fino a otto, quindi in volo è un campo solo di otto pezzi (`Body8`
+      // pieno), il palco più caro che il piano costruisce.
+      FluidGlassContainer(spacing = config.spacing) {
+        Row(horizontalArrangement = Arrangement.spacedBy(if (on) 6.dp else 2.dp)) {
+          repeat(8) { index ->
+            Box(Modifier.fluidGlassId("o$index", ns).fluidGlassUnion("otto", ns).fluidGlass().size(36.dp))
+          }
+        }
+      }
+    }
   }
 }
 

@@ -8,6 +8,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -19,7 +20,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.util.fastCoerceIn
-import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidClearDim
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 
@@ -208,38 +208,32 @@ private fun Modifier.fluidGlassAlone(
     shape
   }
   val head = if (radii != null) this.fluidConcentricRadii(radii) else this
-  // Il limpido è una variante del materiale nuovo: col vetro di prima è il vetro di serie (vedi [FluidGlass]).
-  val fit = rememberGlassFieldFit(drawn)
-  val requested = fluidGlassOptics(glass).sanitized()
-  val liquid = rememberFluidGlassModel(drawn, GlassFalloff.Uniform, requested, fit) == FluidGlassModel.Liquid
-  val drawnGlass = if (liquid || !glass.isClear) glass else FluidGlass.Regular.interactive(glass.isInteractive)
-  val tint = fluidGlassTint(drawnGlass, baseTint)
-  val optics = fluidGlassOptics(drawnGlass)
-  return if (glass.isInteractive) {
-    head.glassControlSurface(backdrop = backdrop, shape = drawn, tint = tint, optics = optics)
-  } else {
-    head.glassSurface(state = backdrop, tint = tint, shape = drawn, role = GlassRole.Floating, optics = optics)
+  // Il limpido è una variante del materiale nuovo: col vetro di prima è il vetro di serie (vedi [FluidGlass]), e lì la
+  // variante non si legge.
+  val tint = fluidGlassTint(glass, baseTint)
+  val optics = fluidGlassOptics(glass)
+  // La variante arriva alla lastra per [LocalGlassLiquidVariant] (F3.2c): `glassSurface` e `glassControlSurface` non la
+  // hanno fra i loro ingressi. Fornita attorno alla sola chiamata del modificatore, sempre (la struttura dei gruppi non
+  // cambia fra limpido e di serie), e mai attorno al contenuto.
+  var surface: Modifier = Modifier
+  CompositionLocalProvider(LocalGlassLiquidVariant provides glass.liquidVariant) {
+    surface = if (glass.isInteractive) {
+      head.glassControlSurface(backdrop = backdrop, shape = drawn, tint = tint, optics = optics)
+    } else {
+      head.glassSurface(state = backdrop, tint = tint, shape = drawn, role = GlassRole.Floating, optics = optics)
+    }
   }
+  return surface
 }
 
 /**
- * La pellicola di un `fluidGlass`: quella di serie dei controlli; la tinta di Apple ([GlassTintMode.Colored]: la
- * tonalità resta, la luminosità segue lo sfondo) se il vetro è tinto; per il limpido lo scurimento fisso
- * [GlassLiquidClearDim] come pellicola nera (che prende il posto del velo e non gira).
- *
- * **Il limpido è un ponte** (F3.2): la variante [GlassLiquidVariant.Clear] della ricetta non arriva ancora alle
- * superfici (`GlassLiquidSurface` e `PhysicsLiquidSurface` non la ricevono), quindi qui la si ottiene con gli ingressi
- * che arrivano: pellicola nera al 35% e smerigliatura a zero ([fluidGlassOptics]). A riposo è lo stesso conto (velo
- * zero, nessuna adattività, scurimento del 35%); manca la mescola che tiene il raggio per animare fra le due varianti.
- * Quando la variante arriverà alle superfici, questa funzione tornerà la pellicola di serie per il limpido.
+ * La pellicola di un `fluidGlass`: quella di serie dei controlli, o la tinta di Apple ([GlassTintMode.Colored]: la
+ * tonalità resta, la luminosità segue lo sfondo) se il vetro è tinto. Anche per il limpido: lo scurimento del 35%, il
+ * velo che non c'è e la smerigliatura a nitido li fa la variante della ricetta (`GlassLiquidVariant.Clear`, F3.2c), che
+ * arriva fino alle superfici. Fino a F3.2 qui c'era un ponte (pellicola nera e smerigliatura a zero): a riposo lo stesso
+ * conto, ma senza la mescola che tiene il raggio (piano 3.6), cioè senza poter animare fra le due varianti.
  */
 internal fun fluidGlassTint(glass: FluidGlass, base: GlassTint): GlassTint = when {
-  glass.isClear -> GlassTint(
-    overlay = Color.Black.copy(alpha = GlassLiquidClearDim),
-    fallback = base.fallback,
-    hairline = base.hairline,
-    mode = GlassTintMode.Fixed,
-  )
   glass.recipeTint.isSpecified -> GlassTint(
     overlay = glass.tint,
     fallback = glass.tint.compositeOver(base.fallback),

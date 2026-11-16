@@ -710,11 +710,20 @@ object FluidMotion {
   // I bilanci di tempo dei viaggi del vetro dentro un `FluidGlassContainer`. Non sono curve: il piano valuta sempre la
   // molla [standard] e ne cambia solo l'unità di tempo, così il viaggio arriva nel bilancio senza perdere la velocità
   // ereditata da un viaggio interrotto (`GlassPlaneJourney`). Erano i numeri provvisori di F3.1 in `GlassPlaneMotion`.
+  //
+  // **Il bilancio è il riposo a vista, non la fine dei conti** (F3.2c). Fino a F3.2 la molla si stirava perché arrivasse
+  // a un centesimo di pixel in 300 ms: la coda numerica di una molla smorzata a 0,9 è più di metà del suo tempo, quindi la
+  // sagoma si fermava a vista a 133 ms e il 39% della corsa passava nei primi 33 (rilievo di F3.3 sulla traccia
+  // `contesto-capsule-curva`, contro i 270–330 ms di R4 B2). Ora la molla si stira perché la sua busta scenda a
+  // [PlaneRestEnvelope] della corsa nel bilancio, cioè perché la sagoma entri per sempre nello 0,5% della corsa (la
+  // tolleranza di riposo di `glassmotion.py curve`) a circa il bilancio; il viaggio finisce dopo, quando ogni lato è a
+  // [PlaneSettlePx] dal suo arrivo, e quella coda non si vede.
 
   /**
    * Un cambio di contesto: pezzi che si spostano, cambiano forma, nascono da un vicino o vi confluiscono, in
    * millisecondi. R4 B2 (a, c), fiducia **alta**: 270–330 ms sul telefono; il centro della forchetta, che è anche
    * [DurationExpand]: un pezzo che diventa un altro e una destinazione che nasce dal tasto toccato sono lo stesso gesto.
+   * È l'istante del **riposo a vista** (vedi la nota in testa a questa sezione), non la fine del viaggio.
    */
   const val PlaneContextMillis: Int = DurationExpand
 
@@ -732,8 +741,32 @@ object FluidMotion {
 
   /**
    * Di quanto è più largo il contorno di un vetro che compare all'inizio (e di uno che scompare alla fine). R4 B3,
-   * fiducia **media**: 8–10% più largo; 1,09 è il centro della forchetta. Scelta di gusto aperta (piano, F3: «8–10% di
-   * R4 / meno»).
+   * fiducia **media**: 8–10% più largo; 1,09 è il centro della forchetta. **Scelta di Alessio, 2026-11-16**, sulla tavola
+   * «scala iniziale della comparsa» di F3.3 (1,09 / 1,045 / 1,00): 1,09, come R4.
    */
   const val PlaneAppearScale: Float = 1.09f
+
+  /**
+   * La busta della molla del piano, in frazione della corsa di ogni lato e raggio, che il viaggio raggiunge nel suo
+   * bilancio (F3.2c). Per una molla smorzata a 0,9 che parte ferma, la busta all'1,5% è il punto da cui la sagoma resta per
+   * sempre entro lo 0,5% della corsa: a 300 ms di bilancio il riposo a vista cade a ~294 ms (modello di F3.2c, contro i
+   * 270–330 di R4 B2). Una busta più bassa allungherebbe la parte che si vede, una più alta la accorcerebbe.
+   */
+  const val PlaneRestEnvelope: Float = 0.015f
+
+  /**
+   * La stessa soglia per `materialize` (0..1), assoluta: 0,2%. Più stretta della corsa di un lato, perché l'ultimo 5% di
+   * `materialize` è il simbolo che si condensa da 2× a 1× (`glassMaterializeChannels`): all'1,5% sarebbe ancora 1,2×.
+   */
+  const val PlaneRestUnit: Float = 0.002f
+
+  /**
+   * Quando finisce un viaggio del piano: ogni lato e raggio a mezzo pixel dall'arrivo (la regola dell'engine per il
+   * fermo, `FluidGlassPlaneTolerancePx`). Da lì la geometria è quella d'arrivo, al bit, e il palco lascia il vetro al
+   * riposo senza un salto che si veda.
+   */
+  const val PlaneSettlePx: Float = 0.5f
+
+  /** La stessa soglia per `materialize`: un ventesimo della [PlaneRestUnit]. */
+  const val PlaneSettleUnit: Float = 0.0005f
 }

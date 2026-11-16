@@ -891,6 +891,12 @@ internal fun physicsLiquidRecipe(
    * Zero (di serie) = nessun carattere: i menu e Fluid-physics fuori dal piano restano «un po' limpidi» (scelta B).
    */
   journeyLight: Float = 0f,
+  /**
+   * Il bagliore del dito che il viaggio del piano porta (F3.10, `PhysicsPlaneTouch.amount`), 0..1: porta l'alone del
+   * carattere verso quello di Apple (F3.12b, `GlassLiquidJourney.glowWith`). Zero (di serie) = senza tocco. Conta solo
+   * con [journeyLight] sopra zero.
+   */
+  journeyTouch: Float = 0f,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -935,8 +941,10 @@ internal fun physicsLiquidRecipe(
   recipe.dispersion = if (quality > 0.75f) GlassLiquidDispersion * clampGlassUnit(material.dispersion) else 0f
   glassTravelRecipe(recipe, profile.travel, motion, quality)
   // Dopo il vetro in viaggio, e prima della comparsa per lente (che il chiamante applica dopo): in un campo per lente
-  // il livello è zero e il carattere non tocca niente.
-  return glassJourneyRecipe(recipe, profile.journey, journeyLight, darkSide, variant)
+  // il livello è zero e il carattere non tocca niente. Il lato corto dà la geometria dell'alone (F3.12b).
+  return glassJourneyRecipe(
+    recipe, profile.journey, journeyLight, darkSide, variant, shortDp = shortDp, finger = journeyTouch,
+  )
 }
 
 /**
@@ -1264,6 +1272,8 @@ internal class PhysicsLiquidSurface(
       variant = variant,
       // Il carattere del viaggio del piano (F3.10): solo sul palco, zero ovunque altrove.
       journeyLight = if (planeJourney) planeShape?.journeyLight ?: 0f else 0f,
+      // La luce del dito porta l'alone verso quello di Apple (F3.12b): lo stesso bagliore che `physicsLiquidGlow` disegna.
+      journeyTouch = if (planeJourney) planeShape?.touch?.amount ?: 0f else 0f,
     )
     // La comparsa per lente (F3.3): contorno, poi lente, col raggio di sfocatura che cresce con lei. A uno non tocca niente.
     if (planeShape != null && planeShape.materialize < 1f) {

@@ -148,6 +148,9 @@ class GlassJourneyTest {
         for (level in listOf(0f, -1f, Float.NaN)) {
           val got = fields(glassJourneyRecipe(button(dark), journey, level, dark))
           for ((name, value) in rest) assertEquals("$journey $level $name", value, got[name])
+          // Anche col lato corto e col dito (F3.12b): a livello zero l'alone non c'è, nella sua geometria né in alfa.
+          val touched = fields(glassJourneyRecipe(button(dark), journey, level, dark, shortDp = 44f, finger = 1f))
+          for ((name, value) in rest) assertEquals("$journey $level dito $name", value, touched[name])
         }
       }
       // E il carattere spento non cambia niente nemmeno al colmo.
@@ -174,7 +177,8 @@ class GlassJourneyTest {
     assertEquals(rest.lightColor.red, peak.shadowColor.red, colourStep)
     assertEquals(apple.glow, peak.shadowAmbientAlpha, 1e-6f)
     assertEquals(0f, peak.shadowContactAlpha, 0f)
-    // Cio' che non è del carattere non si muove: lente, riflesso, raggi e scostamento dell'ombra.
+    // Cio' che non è del carattere non si muove: lente, riflesso, e (senza il lato corto, che dà la geometria
+    // dell'alone di F3.12b) raggi e scostamento dell'ombra.
     assertEquals(rest.refractionDp, peak.refractionDp, 0f)
     assertEquals(rest.reflexStrength, peak.reflexStrength, 0f)
     assertEquals(rest.shadowAmbientRadiusDp, peak.shadowAmbientRadiusDp, 0f)
@@ -203,6 +207,136 @@ class GlassJourneyTest {
       assertEquals("e=$e", (1f - e) * shadow, darkPart, 0.004f)
       assertEquals("e=$e", e * apple.glow, r.shadowColor.red * r.shadowAmbientAlpha, 0.004f)
     }
+  }
+
+  // ---- L'alone nella sua geometria (F3.12b) ----------------------------------------------------------------------
+
+  @Test
+  fun atThePeakTheGlowIsTheGlassDroppedAndBlurredLikeApple() {
+    val rest = button()
+    val peak = glassJourneyRecipe(button(), apple, 1f, darkSide = false, shortDp = 44f)
+    // La sagoma spostata in giù di 0,33 del lato corto e sfocata con un raggio di 0,35 (Select → Done, misure.md).
+    assertEquals(GlassJourneyGlowRadius * 44f, peak.shadowAmbientRadiusDp, 1e-4f)
+    assertEquals(GlassJourneyGlowDrop * 44f, peak.shadowOffsetYDp, 1e-4f)
+    assertEquals(0f, peak.shadowOffsetXDp, 0f)
+    // Al colmo l'alone è tutto sul canale di contatto (la caduta sulla distanza del campo fuso), con lo stesso raggio
+    // dell'ambiente: la quota del contatto è uno, cioè vede la sagoma dal punto spostato di tutto lo scostamento.
+    assertEquals(apple.glow, peak.shadowContactAlpha, 1e-6f)
+    assertEquals(0f, peak.shadowAmbientAlpha, 1e-6f)
+    assertEquals(peak.shadowAmbientRadiusDp, peak.shadowContactRadiusDp, 1e-4f)
+    assertEquals(1f, GlassShadowProfile.contactShare(peak.shadowContactRadiusDp, peak.shadowAmbientRadiusDp), 1e-5f)
+    assertEquals(rest.lightColor.red, peak.shadowColor.red, colourStep)
+    // La sigma di Apple, 0,20 del lato corto gonfio, col conto della piattaforma (il mezzo pixel a parte).
+    assertEquals(0.20f * 44f, GlassShadowSigmaPerRadius * peak.shadowAmbientRadiusDp, 0.05f * 44f * 0.2f)
+    // Oltre 64 dp di lato corto l'alone non cresce; senza un lato resta nella geometria dell'ombra (come fino a F3.11).
+    val panel = glassJourneyRecipe(button(), apple, 1f, darkSide = false, shortDp = 200f)
+    assertEquals(GlassJourneyGlowRadius * GlassJourneyGlowSideMaxDp, panel.shadowAmbientRadiusDp, 1e-4f)
+    assertEquals(GlassJourneyGlowDrop * GlassJourneyGlowSideMaxDp, panel.shadowOffsetYDp, 1e-4f)
+    for (side in listOf(Float.NaN, 0f, -5f)) {
+      val none = glassJourneyRecipe(button(), apple, 1f, darkSide = false, shortDp = side)
+      assertEquals(rest.shadowAmbientRadiusDp, none.shadowAmbientRadiusDp, 0f)
+      assertEquals(rest.shadowOffsetYDp, none.shadowOffsetYDp, 0f)
+    }
+  }
+
+  @Test
+  fun halfwayTheGlowShapeGoesWithTheLightShareOfTheMix() {
+    val rest = button()
+    val shadow = rest.shadowAmbientAlpha * rest.shadowColor.alpha
+    var lastRadius = rest.shadowAmbientRadiusDp
+    for (i in 1..10) {
+      val e = i / 10f
+      val r = glassJourneyRecipe(button(), apple, e, darkSide = false, shortDp = 44f)
+      // La quota della luce nella mescola premoltiplicata: è anche la quota della geometria dell'alone.
+      val share = e * apple.glow / ((1f - e) * shadow + e * apple.glow)
+      assertEquals("e=$e", rest.shadowAmbientRadiusDp + (GlassJourneyGlowRadius * 44f - rest.shadowAmbientRadiusDp) * share,
+        r.shadowAmbientRadiusDp, 1e-3f)
+      assertEquals("e=$e", rest.shadowOffsetYDp + (GlassJourneyGlowDrop * 44f - rest.shadowOffsetYDp) * share,
+        r.shadowOffsetYDp, 1e-3f)
+      // Va in un verso solo, senza salti: dall'ombra B (34 dp) all'alone (15,4 dp su un tasto).
+      assertTrue("e=$e", r.shadowAmbientRadiusDp <= lastRadius + 1e-4f)
+      lastRadius = r.shadowAmbientRadiusDp
+      // L'alfa dei due canali insieme resta quella di F3.9 (la parte scura mai più dell'ombra di riposo), e passa
+      // dall'ambiente al contatto con la stessa quota.
+      val both = r.shadowContactAlpha + r.shadowAmbientAlpha
+      assertEquals("e=$e", (1f - e) * shadow, (1f - r.shadowColor.red) * both, 0.004f)
+      assertEquals("e=$e", share * both, r.shadowContactAlpha, 1e-5f)
+    }
+    // Il primo passo è piccolo: a un centesimo di luce la geometria si è mossa poco più di un decimo.
+    val first = glassJourneyRecipe(button(), apple, 0.01f, darkSide = false, shortDp = 44f)
+    assertTrue(abs(first.shadowAmbientRadiusDp - rest.shadowAmbientRadiusDp) < 0.12f * (34f - GlassJourneyGlowRadius * 44f))
+  }
+
+  @Test
+  fun theFingerLightBringsTheGlowOfAppleAndTheDarkSideHalf() {
+    val half = GlassLiquidJourneys.Shipped
+    // L'alfa dell'alone: i due canali insieme (al colmo è tutta sul contatto).
+    fun glowOf(r: GlassRecipe) = r.shadowContactAlpha + r.shadowAmbientAlpha
+    // Senza tocco, a metà; col dito pieno l'alone di Apple (il blocco bianco del render); in mezzo, in proporzione.
+    assertEquals(half.glow, glowOf(glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f)), 1e-6f)
+    assertEquals(GlassJourneyGlowFinger,
+      glowOf(glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f, finger = 1f)), 1e-6f)
+    assertEquals(half.glow + (GlassJourneyGlowFinger - half.glow) * 0.5f,
+      glowOf(glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f, finger = 0.5f)), 1e-6f)
+    // La luce del dito spenta (`finger` del carattere a zero): il tocco non cambia l'alone.
+    assertEquals(half.glow,
+      glowOf(glassJourneyRecipe(button(), half.copy(finger = 0f), 1f, false, shortDp = 44f, finger = 1f)), 1e-6f)
+    // Mai sotto l'alone del carattere, e un tocco non finito vale niente.
+    assertEquals(0.5f, half.copy(glowFinger = 0.2f).glowWith(1f), 0f)
+    assertEquals(half.glow, half.glowWith(Float.NaN), 0f)
+    // Al buio la metà, come la luce (F3.9): l'alfa dell'alone per `darkLight`.
+    assertEquals(GlassJourneyGlowFinger * half.darkLight,
+      glowOf(glassJourneyRecipe(button(dark = true), half, 1f, true, shortDp = 44f, finger = 1f)), 1e-6f)
+    assertEquals(half.glow * half.darkLight,
+      glowOf(glassJourneyRecipe(button(dark = true), half, 1f, true, shortDp = 44f)), 1e-6f)
+  }
+
+  @Test
+  fun theGlowReachStaysInsideTheShadowBReachAndCoversAShortShadow() {
+    val optics = GlassDefaults.buttonOptics().sanitized()
+    val shipped = GlassLiquidProfile.Shipped
+    // Con l'ombra B di serie la portata col carattere è quella di prima: l'alone (61 dp) sta dentro l'ombra (67 dp).
+    val plain = glassTravelShadowReachDp(optics, gain = 0f, profile = shipped)
+    assertEquals(plain, glassTravelShadowReachDp(optics, gain = 0f, profile = shipped, journey = shipped.journey), 0f)
+    val glowReach = GlassShadowProfile.reach(
+      0f, GlassJourneyGlowRadius * GlassJourneyGlowSideMaxDp, 0f, 1f, GlassJourneyGlowDrop * GlassJourneyGlowSideMaxDp,
+    )
+    assertTrue("alone $glowReach, ombra $plain", glowReach < plain)
+    // Con l'ombra corta la portata cresce fino all'alone, e copre l'alone di ogni lato corto.
+    val short = shipped.copy(lightShadow = GlassLiquidShadows.Ios27, darkShadow = GlassLiquidShadows.Dark)
+    val shortReach = glassTravelShadowReachDp(optics, gain = 0f, profile = short, journey = short.journey)
+    assertEquals(glowReach, shortReach, 1e-4f)
+    for (side in listOf(20f, 44f, 64f, 300f)) {
+      val r = glassJourneyRecipe(button(), apple, 1f, darkSide = false, shortDp = side)
+      val reach = GlassShadowProfile.reach(0f, r.shadowAmbientRadiusDp, 0f, 1f, r.shadowOffsetYDp)
+      assertTrue("lato $side", reach <= shortReach + 1e-4f)
+    }
+    // Il carattere spento non porta l'alone.
+    assertEquals(
+      glassTravelShadowReachDp(optics, gain = 0f, profile = short),
+      glassTravelShadowReachDp(optics, gain = 0f, profile = short, journey = GlassLiquidJourneys.Off),
+      0f,
+    )
+  }
+
+  @Test
+  fun theGlowKnobsSetItsShapeAndTheFingerGlow() {
+    val tuned = GlassLiquidTuning.apply(
+      GlassLiquidProfile.Shipped,
+      mapOf("travelglowdrop" to "0,4", "travelglowsize" to "0.3", "travelglowfinger" to "0.8"),
+    )
+    assertTrue(tuned.rejected.isEmpty())
+    val journey = tuned.profile.journey
+    assertEquals(GlassLiquidJourneys.Shipped.copy(glowDrop = 0.4f, glowRadius = 0.3f, glowFinger = 0.8f), journey)
+    assertEquals(listOf("0..0.6"), GlassLiquidTuning.knobs["travelglowdrop"])
+    // Di serie i numeri misurati, in ogni intensità.
+    for (j in listOf(GlassLiquidJourneys.Gentle, GlassLiquidJourneys.Half, apple, GlassLiquidJourneys.Shipped)) {
+      assertEquals(GlassJourneyGlowDrop, j.glowDrop, 0f)
+      assertEquals(GlassJourneyGlowRadius, j.glowRadius, 0f)
+      assertEquals(GlassJourneyGlowFinger, j.glowFinger, 0f)
+      assertTrue(j.glows)
+    }
+    assertFalse(GlassLiquidJourneys.Off.glows)
   }
 
   @Test

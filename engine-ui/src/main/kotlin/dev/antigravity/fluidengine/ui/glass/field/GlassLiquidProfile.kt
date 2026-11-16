@@ -939,11 +939,57 @@ internal const val GlassJourneyLightApple: Float = 1f
 
 /**
  * L'alone di Apple al colmo: l'alfa della luce che prende il posto dell'ombra sotto la sagoma. Nel render, da 0,15 a
- * 0,35 H sotto il bordo, il fondo sale di +74 livelli su 186 (≈ il bianco). L'alone ha la maschera dell'ombra in viaggio
- * (larga e morbida, l'ombra B), che anche all'alfa piena resta sotto Apple nello stesso punto: è il tetto (fiducia
- * bassa: è del solo render; il numero del banco è in `misure.md`).
+ * 0,35 H sotto il bordo, il fondo sale di +74 livelli su 186 (≈ il bianco); a ridosso del bordo basso è bianco quanto il
+ * corpo (+80, satura: `sessioni/f3-12b/misure.md`). Fino a F3.11 l'alone aveva la maschera dell'ombra in viaggio (larga
+ * e morbida, l'ombra B), che anche all'alfa piena restava a metà di Apple: era il tetto. Da F3.12b ha la sua geometria
+ * ([GlassJourneyGlowDrop], [GlassJourneyGlowRadius]) e all'alfa piena arriva al render. Nel render sale un poco dopo la
+ * luce del corpo (metà a 0,09 della fase, colmo a 0,31) e si spegne prima (metà a 0,49, via a 0,69, quando il corpo è
+ * ancora a 0,4 della sua luce); qui segue il livello della luce del carattere, che arriva e se ne va con il corpo.
+ * Fiducia **bassa**: è del solo render; nelle clip a tempo vero (il tocco di R4 B4, il tasto tondo e la capsula
+ * trascinata) il vetro acceso non proietta luce fuori di sé, e sotto resta l'ombra.
  */
 internal const val GlassJourneyGlowApple: Float = 1f
+
+/**
+ * Di quanto l'alone scende sotto la sagoma (F3.12b), in frazione del lato corto **di adesso** (rigonfiamento compreso):
+ * l'alone è la sagoma spostata in giù di tanto e sfocata di [GlassJourneyGlowRadius], come l'ombra d'ambiente.
+ *
+ * Select → Done (R4 B2 (d), render rallentato), al colmo della luce (f9038, fase 0,2), sulla luma meno il fondo pulito:
+ * sotto il blocco la luce è la sagoma spostata di 0,38 H di riposo e sfocata con sigma 0,23 H, all'alfa piena; il
+ * profilo sotto il bordo sta entro 2,5 livelli dal render da 0,05 a 0,7 H (+74 a 0,05 H, +63 a 0,2, +37 a 0,4, +7 a 0,7),
+ * sopra il bordo entro 2 (quasi niente: +2 livelli). Il blocco lì è gonfio del 14% (H' = 1,14 H): 0,33 H'. Ai fianchi il
+ * render ha in più un velo largo e piatto di +10 livelli fino a 0,4 H, che la sagoma spostata non fa (+15 a ridosso,
+ * +6 a 0,2 H): è lo scarto che resta. Fiducia **media-bassa**: una clip, un render, il fit su un fotogramma (stesse cifre
+ * a f9036 e f9037).
+ */
+internal const val GlassJourneyGlowDrop: Float = 0.33f
+
+/**
+ * Il raggio di sfocatura dell'alone, in frazione del lato corto di adesso (F3.12b): la sigma di Apple, 0,23 H = 0,20 H'
+ * ([GlassJourneyGlowDrop]), portata al raggio col conto della piattaforma (`sigma = 0,57735 · raggio`,
+ * [GlassShadowSigmaPerRadius]): 0,35. Il mezzo pixel che la piattaforma aggiunge non c'è: su un tasto da 44 dp sono due
+ * centesimi della sigma. Fiducia media-bassa, come [GlassJourneyGlowDrop].
+ */
+internal const val GlassJourneyGlowRadius: Float = 0.35f
+
+/**
+ * Il lato corto oltre il quale l'alone non cresce più, in dp (F3.12b): 64, dove comincia la regola della taglia
+ * (`glassSizeGain`). Apple lo mostra su un tasto; su un pannello un alone in scala (fino a 0,9 del lato oltre il bordo)
+ * sarebbe una nube, e allargherebbe la fascia del palco in cui il corpo valuta la maschera. Fino a 64 dp la portata
+ * dell'alone (tre sigma più lo scostamento, 61 dp) resta sotto quella dell'ombra B di serie (67 dp): con l'ombra di serie
+ * il margine del palco e la fascia della maschera non crescono. A occhio.
+ */
+internal const val GlassJourneyGlowSideMaxDp: Float = 64f
+
+/**
+ * L'alone della **luce del dito** (F3.12b): quando il bagliore del tocco riempie il vetro che viaggia (F3.10) il vetro è
+ * il blocco bianco del render, e l'alone va verso quello di Apple (uno), qualunque sia l'intensità del carattere: «a
+ * metà» senza tocco l'alone è a metà, col dito è pieno. Segue il livello del bagliore portato (`PhysicsPlaneTouch.amount`)
+ * e sale e si spegne comunque con la luce del carattere: a fase zero è zero anche se il dito c'è, e il passaggio dal
+ * vetro fermo premuto al palco non accende un alone di colpo. Fiducia **bassa**: è l'ipotesi di F3.9 (il blocco bianco
+ * di Select → Done è il vetro toccato), e il tocco a tempo vero di R4 B4 un alone non lo ha.
+ */
+internal const val GlassJourneyGlowFinger: Float = 1f
 
 /**
  * La smerigliatura di Apple al colmo: il raggio per `1 + frost`, e la mescola `w` che torna allo smerigliato. Non si
@@ -1012,6 +1058,11 @@ internal const val GlassJourneyFingerMin: Float = 0.02f
  * @param finger la **luce del dito** (F3.10), 0..1: quanto del bagliore della pressione che ha fatto partire il viaggio
  *   il vetro toccato si porta dietro ([fingerGlow], [fingerFill]). Zero = il bagliore resta al vetro fermo e il viaggio
  *   parte senza (come fino a F3.9).
+ * @param glowDrop la geometria dell'alone (F3.12b): di quanto scende sotto la sagoma, in frazione del lato corto di
+ *   adesso ([GlassJourneyGlowDrop]).
+ * @param glowRadius il suo raggio di sfocatura, in frazione del lato corto di adesso ([GlassJourneyGlowRadius]).
+ * @param glowFinger l'alfa verso cui va l'alone quando la luce del dito riempie il vetro, 0..1 ([GlassJourneyGlowFinger]):
+ *   mai sotto [glow].
  */
 @Immutable
 internal data class GlassLiquidJourney(
@@ -1021,6 +1072,9 @@ internal data class GlassLiquidJourney(
   val frost: Float,
   val swell: Float,
   val finger: Float = 0f,
+  val glowDrop: Float = GlassJourneyGlowDrop,
+  val glowRadius: Float = GlassJourneyGlowRadius,
+  val glowFinger: Float = GlassJourneyGlowFinger,
 ) {
 
   /**
@@ -1031,6 +1085,23 @@ internal data class GlassLiquidJourney(
 
   /** Vero se il carattere non cambia niente: il viaggio del piano col vetro di [GlassLiquidTravel] e basta. */
   val isOff: Boolean get() = !(light > 0f) && !(glow > 0f) && !(frost > 0f) && !(swell > 0f) && !(finger > 0f)
+
+  /**
+   * Vero se il viaggio può accendere un alone (F3.12b): quello del carattere ([glow]) o quello della luce del dito
+   * ([finger] per [glowFinger]). Decide se la portata dell'ombra in viaggio deve tenere anche quella dell'alone.
+   */
+  val glows: Boolean get() = glow > 0f || (finger > 0f && glowFinger > 0f)
+
+  /**
+   * L'alfa dell'alone al colmo della luce, 0..1, col bagliore del dito [touch] (0..1, `PhysicsPlaneTouch.amount`; zero
+   * senza tocco): [glow] senza dito, verso [glowFinger] quanto il dito ha acceso il vetro, mai sotto [glow].
+   */
+  fun glowWith(touch: Float): Float {
+    val base = if (glow.isFinite()) glow.coerceIn(0f, 1f) else 0f
+    val lit = if (touch.isFinite() && finger.isFinite()) touch.coerceIn(0f, 1f) * finger.coerceIn(0f, 1f) else 0f
+    val toward = if (glowFinger.isFinite()) max(base, glowFinger.coerceIn(0f, 1f)) else base
+    return base + (toward - base) * lit
+  }
 
   /**
    * Il livello della luce (e della smerigliatura e dell'alone) alla [phase] del viaggio, 0..1.
@@ -1677,7 +1748,8 @@ internal object GlassLiquidTuning {
    * del viaggio del piano (F3.9): `travellight` (quanto il velo va verso la luce al colmo), `travelglow` (l'alone che
    * prende il posto dell'ombra), `travelfrost` (di quanto cresce il raggio della smerigliatura), `travelswell` (il
    * rigonfiamento, frazione del lato corto), `travelfinger` (F3.10: quanto del bagliore del tocco il vetro toccato si porta
-   * nel viaggio).
+   * nel viaggio); l'alone (F3.12b): `travelglowdrop` (di quanto scende, frazione del lato corto), `travelglowsize` (il suo
+   * raggio di sfocatura, idem), `travelglowfinger` (l'alfa verso cui lo porta la luce del dito).
    */
   private val numbers: Map<String, Knob> = linkedMapOf(
     "rimwidth" to Knob(0f, 4f) { p, v ->
@@ -1721,6 +1793,10 @@ internal object GlassLiquidTuning {
     "travelswell" to Knob(0f, 0.3f) { p, v -> p.copy(journey = p.journey.copy(swell = v)) },
     // F3.10: quanto del bagliore del tocco il vetro toccato si porta nel viaggio.
     "travelfinger" to Knob(0f, 1f) { p, v -> p.copy(journey = p.journey.copy(finger = v)) },
+    // F3.12b: la geometria dell'alone (frazioni del lato corto) e l'alone della luce del dito.
+    "travelglowdrop" to Knob(0f, 0.6f) { p, v -> p.copy(journey = p.journey.copy(glowDrop = v)) },
+    "travelglowsize" to Knob(0f, 0.8f) { p, v -> p.copy(journey = p.journey.copy(glowRadius = v)) },
+    "travelglowfinger" to Knob(0f, 1f) { p, v -> p.copy(journey = p.journey.copy(glowFinger = v)) },
     // F2.2: i numeri dell'adattività.
     "lightfloor" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(lightFloor = v)) },
     "textshadowx" to Knob(1f, 8f) { p, v -> p.copy(adaptive = p.adaptive.copy(shadowOnText = v)) },

@@ -33,10 +33,17 @@ class PhysicsJourneyLightTest {
     r.saturation, r.blurDp, r.mix, r.paddingDp, r.captureScale, r.thicknessDp, r.refractionDp, r.dome, r.dispersion,
     r.magnify, r.materialize, r.veilColor, r.veilAdapt, r.tintColor, r.tintMode, r.tintFollow, r.bodyShade,
     r.bodyShadeDepthDp, r.rimWidthDp, r.rimDark, r.lightColor, r.glowPeak, r.glowFill, r.shadowContactAlpha,
-    r.shadowAmbientAlpha, r.shadowColor,
+    r.shadowAmbientAlpha, r.shadowColor, r.shadowContactRadiusDp, r.shadowAmbientRadiusDp, r.shadowOffsetXDp,
+    r.shadowOffsetYDp,
   )
 
-  private fun recipe(light: Float, dark: Boolean = false, motion: Float = 0.6f, profile: GlassLiquidProfile = GlassLiquidProfile.Shipped) =
+  private fun recipe(
+    light: Float,
+    dark: Boolean = false,
+    motion: Float = 0.6f,
+    profile: GlassLiquidProfile = GlassLiquidProfile.Shipped,
+    touch: Float = 0f,
+  ) =
     physicsLiquidRecipe(
       role = GlassRole.Interactive,
       material = PhysicsMaterialSource(null, button).at(1f),
@@ -52,6 +59,7 @@ class PhysicsJourneyLightTest {
       motion = motion,
       profile = profile,
       journeyLight = light,
+      journeyTouch = touch,
     )
 
   @Test
@@ -62,18 +70,35 @@ class PhysicsJourneyLightTest {
       profile = GlassLiquidProfile.Shipped,
     )
     assertEquals(numbers(plain), numbers(recipe(0f)))
+    // Anche col dito (F3.12b): senza luce del carattere il tocco non accende l'alone.
+    assertEquals(numbers(plain), numbers(recipe(0f, touch = 1f)))
   }
 
   @Test
   fun theLevelIsTheCharacterOfTheJourneyAfterTheTravellingGlass() {
     for (dark in listOf(false, true)) {
       for (level in listOf(0.3f, 1f)) {
-        val expected = glassJourneyRecipe(recipe(0f, dark), GlassLiquidProfile.Shipped.journey, level, dark)
+        // Col lato corto della superficie: l'alone nella sua geometria (F3.12b).
+        val expected = glassJourneyRecipe(recipe(0f, dark), GlassLiquidProfile.Shipped.journey, level, dark, shortDp = 44f)
         val got = recipe(level, dark)
         assertEquals("lato scuro $dark, livello $level", numbers(expected), numbers(got))
         assertNotEquals(numbers(recipe(0f, dark)), numbers(got))
       }
     }
+  }
+
+  @Test
+  fun theFingerThePlaneCarriesBringsTheGlowOfApple() {
+    val journey = GlassLiquidProfile.Shipped.journey
+    // A metà senza tocco, pieno col dito pieno: il blocco bianco del render ha l'alone di Apple (al colmo tutto sul
+    // canale di contatto, la caduta sulla distanza del campo fuso).
+    assertEquals(journey.glow, recipe(1f).shadowContactAlpha + recipe(1f).shadowAmbientAlpha, 1e-6f)
+    assertEquals(journey.glowFinger, recipe(1f, touch = 1f).shadowContactAlpha, 1e-6f)
+    assertEquals(0f, recipe(1f, touch = 1f).shadowAmbientAlpha, 1e-6f)
+    val expected = glassJourneyRecipe(recipe(0f), journey, 0.6f, darkSide = false, shortDp = 44f, finger = 0.7f)
+    assertEquals(numbers(expected), numbers(recipe(0.6f, touch = 0.7f)))
+    // L'alone scende sotto il tasto della sua frazione del lato corto, come quello del render.
+    assertEquals(journey.glowDrop * 44f, recipe(1f).shadowOffsetYDp, 1e-4f)
   }
 
   @Test

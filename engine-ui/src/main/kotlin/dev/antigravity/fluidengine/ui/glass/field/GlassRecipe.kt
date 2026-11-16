@@ -876,7 +876,9 @@ internal fun glassTravelPaddingDp(
  *
  * Con il carattere del viaggio del piano ([journey], F3.9) l'ombra diventa un alone: la sua portata è quella della
  * stessa maschera, quindi cambia solo se l'ombra di un lato non c'era (l'alone c'è comunque). Il rigonfiamento
- * ([glassJourneySwellDp]) allarga la sagoma, non l'ombra: lo aggiunge chi conosce il lato corto.
+ * ([glassJourneySwellDp]) allarga la sagoma, non l'ombra: lo aggiunge chi conosce il lato corto. Da F3.12b l'alone ha la
+ * sua geometria (fino a [GlassJourneyGlowSideMaxDp] di lato corto): la portata è anche la sua, al lato più grande. Con
+ * l'ombra B di serie è la stessa di prima (l'alone arriva a 61 dp, l'ombra a 67).
  */
 internal fun glassTravelShadowReachDp(
   optics: GlassOptics,
@@ -888,6 +890,17 @@ internal fun glassTravelShadowReachDp(
   val grow = 1f + max(profile.growth.shadow.radius, 0f) * clampGlassUnit(gain)
   val glow = if (journey != null && journey.glow > 0f) clampGlassUnit(journey.glow) else 0f
   var reach = 0f
+  if (journey != null && journey.glows) {
+    // L'alone nella sua geometria (F3.12b), al lato più grande per cui cresce.
+    val glowSide = GlassJourneyGlowSideMaxDp
+    reach = GlassShadowProfile.reach(
+      contactRadius = 0f,
+      ambientRadius = max(journey.glowRadius, 0f) * glowSide,
+      contactAlpha = 0f,
+      ambientAlpha = 1f,
+      slide = max(journey.glowDrop, 0f) * glowSide,
+    )
+  }
   for (dark in booleanArrayOf(false, true)) {
     val spec = profile.shadow(dark)
     val ambientAlpha = max(spec.ambientAlpha, if (spec.ambientRadius.value > 0f) glow else 0f)
@@ -923,7 +936,15 @@ internal fun glassTravelShadowReachDp(
  *    l'adattività del velo (`veilAdapt`) cede della stessa quota: altrimenti ispessirebbe il velo già schiarito e la
  *    luce si spegnerebbe più tardi della sua curva (sul banco, metà della discesa in ritardo di ~5% della fase);
  *  - **alone**: l'ombra in viaggio va verso il colore della luce e la sua alfa d'ambiente verso
- *    [GlassLiquidJourney.glow]: sotto la sagoma il fondo si illumina invece di scurire (render: +74 livelli);
+ *    [GlassLiquidJourney.glow]: sotto la sagoma il fondo si illumina invece di scurire (render: +74 livelli). Con la
+ *    luce del dito ([finger], F3.12b) l'alfa va verso [GlassLiquidJourney.glowFinger] ([GlassLiquidJourney.glowWith]). E
+ *    con il lato corto [shortDp] l'alone prende la **sua** geometria (F3.12b): la sagoma scesa di
+ *    [GlassLiquidJourney.glowDrop] e sfocata di [GlassLiquidJourney.glowRadius] del lato corto (non oltre
+ *    [GlassJourneyGlowSideMaxDp]), cioè la luce che il render mostra a ridosso del bordo basso, quasi bianca quanto il
+ *    corpo, invece del velo largo dell'ombra B. La porta il canale di **contatto** dell'ombra in viaggio (la caduta sulla
+ *    distanza del campo fuso dal punto spostato), non la maschera a pezzi dell'ambiente: vedi il commento nel codice.
+ *    Raggi, scostamento e la quota fra i due canali vanno dall'ombra all'alone con la stessa quota con cui il colore va
+ *    dal nero alla luce: dove la mescola è ancora ombra, l'ombra è ancora quella di riposo;
  *  - **smerigliatura**: il raggio cresce di `1 + frost` e la mescola `w` torna verso lo smerigliato di `min(frost, 1)`,
  *    cioè la limpidezza del viaggio ([GlassLiquidTravel.clarity], la scelta B) cede al vetro lattiginoso. Il margine
  *    della cattura che la regge è [glassTravelPaddingDp] con lo stesso [GlassLiquidJourney].
@@ -932,8 +953,17 @@ internal fun glassTravelShadowReachDp(
  * prende l'alone e il rigonfiamento. Con [level] a zero non tocca niente, nemmeno un bit: alla partenza e da
  * [GlassJourneyLightSettle] in poi il materiale è quello della lastra ferma, e il passaggio palco → riposo non salta.
  *
+ * Costa niente in più nello shader: l'alone sono i due canali che il corpo valuta già per l'ombra in viaggio, con altri
+ * numeri; al colmo il canale d'ambiente è a zero e il corpo non valuta nemmeno la maschera a pezzi (una valutazione del
+ * campo nel punto spostato al suo posto). Fino a [GlassJourneyGlowSideMaxDp] la portata resta sotto quella dell'ombra B
+ * di serie, quindi la fascia in cui il corpo lavora non si allarga.
+ *
  * @param level il livello della luce del carattere, 0..1.
  * @param darkSide il lato del tema della ricetta (il velo scuro prende [GlassLiquidJourney.darkLight] della luce).
+ * @param shortDp il lato corto della sagoma di adesso, in dp (`physicsRecipeShortPx` per la densità): dà la geometria
+ *   dell'alone. Non finito (di serie) = l'alone resta nella geometria dell'ombra, come fino a F3.11.
+ * @param finger il bagliore del dito che il viaggio porta (`PhysicsPlaneTouch.amount`, 0..1; zero senza tocco): porta
+ *   l'alone verso [GlassLiquidJourney.glowFinger].
  */
 internal fun glassJourneyRecipe(
   recipe: GlassRecipe,
@@ -941,6 +971,8 @@ internal fun glassJourneyRecipe(
   level: Float,
   darkSide: Boolean,
   variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
+  shortDp: Float = Float.NaN,
+  finger: Float = 0f,
 ): GlassRecipe {
   val e = if (level.isFinite()) clampGlassUnit(level) else 0f
   if (e <= 0f) return recipe
@@ -955,7 +987,7 @@ internal fun glassJourneyRecipe(
     recipe.rimDark = recipe.rimDark.copy(alpha = recipe.rimDark.alpha * (1f - lit))
     recipe.bodyShade = recipe.bodyShade.copy(alpha = recipe.bodyShade.alpha * (1f - lit))
   }
-  val glow = clampGlassUnit(journey.glow) * side * recipe.lightColor.alpha
+  val glow = journey.glowWith(finger) * side * recipe.lightColor.alpha
   if (glow > 0f && recipe.shadowAmbientRadiusDp > 0f) {
     // Una dissolvenza incrociata fra ombra e alone, premoltiplicata: la stessa maschera d'ambiente porta `(1 − e)` del
     // nero dell'ombra ed `e` della luce dell'alone. Così a metà strada il fondo non scurisce più dell'ombra (mescolare
@@ -964,9 +996,30 @@ internal fun glassJourneyRecipe(
     val ambient = recipe.shadowAmbientAlpha * shade.alpha
     val total = (1f - e) * ambient + e * glow
     if (total > 0f) {
-      recipe.shadowColor = lerpSrgb(shade.copy(alpha = 1f), recipe.lightColor.copy(alpha = 1f), e * glow / total)
+      val lightShare = e * glow / total
+      recipe.shadowColor = lerpSrgb(shade.copy(alpha = 1f), recipe.lightColor.copy(alpha = 1f), lightShare)
       recipe.shadowAmbientAlpha = clampGlassUnit(total)
       recipe.shadowContactAlpha = recipe.shadowContactAlpha * shade.alpha * (1f - e)
+      // La geometria dell'alone (F3.12b), con la stessa quota del colore: è dell'ombra quanto la mescola è ombra.
+      val glowSide = glassJourneyGlowSideDp(shortDp)
+      if (glowSide > 0f && lightShare > 0f) {
+        val radius = max(journey.glowRadius, 0f) * glowSide
+        val drop = max(journey.glowDrop, 0f) * glowSide
+        if (radius.isFinite() && drop.isFinite()) {
+          // L'alone passa dal canale d'ambiente (la maschera a pezzi) a quello di contatto (la caduta sulla distanza del
+          // campo fuso, vista dal punto spostato di tutto lo scostamento: i due raggi uguali danno al contatto la quota
+          // uno). Sotto un gruppo che viaggia la maschera conta male le parti comuni dei pezzi (fino a 0,13: con l'ombra
+          // al 9% non si vede, con un alone pieno sono valli di 20–40 livelli lungo il fondo del blob, sul banco); la
+          // distanza fusa non vede i pezzi, segue i colli, e sotto un lato dritto è la maschera esatta.
+          val total01 = clampGlassUnit(total)
+          recipe.shadowContactAlpha = recipe.shadowContactAlpha + lightShare * total01
+          recipe.shadowAmbientAlpha = (1f - lightShare) * total01
+          recipe.shadowContactRadiusDp = mixFloat(recipe.shadowContactRadiusDp, radius, lightShare)
+          recipe.shadowAmbientRadiusDp = mixFloat(recipe.shadowAmbientRadiusDp, radius, lightShare)
+          recipe.shadowOffsetXDp = mixFloat(recipe.shadowOffsetXDp, 0f, lightShare)
+          recipe.shadowOffsetYDp = mixFloat(recipe.shadowOffsetYDp, drop, lightShare)
+        }
+      }
     }
   }
   if (regular && journey.frost > 0f) {
@@ -975,6 +1028,14 @@ internal fun glassJourneyRecipe(
   }
   return recipe
 }
+
+/**
+ * Il lato su cui si misura la geometria dell'alone (F3.12b), in dp: il lato corto della sagoma [shortDp], non oltre
+ * [GlassJourneyGlowSideMaxDp]. Zero se il lato non c'è (non finito o non positivo): l'alone resta nella geometria
+ * dell'ombra.
+ */
+internal fun glassJourneyGlowSideDp(shortDp: Float): Float =
+  if (shortDp.isFinite() && shortDp > 0f) min(shortDp, GlassJourneyGlowSideMaxDp) else 0f
 
 /**
  * Di quanto si sposta in fuori **ogni lato** di un pezzo del piano al livello [level] del rigonfiamento

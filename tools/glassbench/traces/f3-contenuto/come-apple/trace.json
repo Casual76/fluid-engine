@@ -1,0 +1,3230 @@
+{
+  "schema": 1,
+  "name": "come-apple",
+  "phase": "f3-contenuto",
+  "fps": 60,
+  "durationMs": 600,
+  "density": 3,
+  "theme": "light",
+  "size": [135.440186, 55.304741],
+  "_": "F3.4: la capsula di R7 A1 alla T della clip (434 ms). Funzione pura di produzione (GlassContentJourney), T = 434 ms. Vetro di servizio: guarda il contenuto.",
+  "background": {
+    "kind": "color",
+    "color": "#C5C7CD"
+  },
+  "apple": {
+    "video": "wwdc2025-219_hd",
+    "t0Frame": 28857,
+    "crop": [330, 420, 600, 245],
+    "collage": "artifacts/liquid-glass/ricerca/r7/A1_scambio_icone_gruppo_sinistra_f28856-28888.jpg",
+    "_note": "R7 A.3 e A4; R4 B2 (c). Il render di Apple zooma un poco durante la clip: vale la forma, non il pixel."
+  },
+  "frames": [
+    {
+      "t": -83.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -66.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -50,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.045587,
+              "alpha": 0.995588,
+              "scale": 1,
+              "_": "Exit σ/h=0.0025"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.045587,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0025"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.045587,
+              "alpha": 0.995588,
+              "scale": 1,
+              "_": "Exit σ/h=0.0025"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.045587,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0025"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.045587,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0025"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.172508,
+              "alpha": 0.982538,
+              "scale": 1,
+              "_": "Exit σ/h=0.0095"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.172508,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0095"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.172508,
+              "alpha": 0.982538,
+              "scale": 1,
+              "_": "Exit σ/h=0.0095"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.172508,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0095"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.172508,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0095"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.394291,
+              "alpha": 0.961127,
+              "scale": 1,
+              "_": "Exit σ/h=0.0202"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.394291,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0202"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.394291,
+              "alpha": 0.961127,
+              "scale": 1,
+              "_": "Exit σ/h=0.0202"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.394291,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0202"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.394291,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0202"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.852035,
+              "alpha": 0.931634,
+              "scale": 1,
+              "_": "Exit σ/h=0.0338"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.852035,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0338"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.852035,
+              "alpha": 0.931634,
+              "scale": 1,
+              "_": "Exit σ/h=0.0338"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.852035,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0338"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.852035,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0338"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.378915,
+              "alpha": 0.894334,
+              "scale": 1,
+              "_": "Exit σ/h=0.0494"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.378915,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0494"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.378915,
+              "alpha": 0.894334,
+              "scale": 1,
+              "_": "Exit σ/h=0.0494"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.378915,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0494"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.378915,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0494"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.947388,
+              "alpha": 0.849507,
+              "scale": 1,
+              "_": "Exit σ/h=0.0662"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.947388,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0662"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.947388,
+              "alpha": 0.849507,
+              "scale": 1,
+              "_": "Exit σ/h=0.0662"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.947388,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0662"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.947388,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0662"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.529908,
+              "alpha": 0.797429,
+              "scale": 0.992222,
+              "_": "Exit σ/h=0.0835"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.529908,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0835"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.529908,
+              "alpha": 0.797429,
+              "scale": 0.992222,
+              "_": "Exit σ/h=0.0835"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.529908,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0835"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.529908,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0835"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.098932,
+              "alpha": 0.738023,
+              "scale": 0.946975,
+              "_": "Exit σ/h=0.1003"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.098932,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1003"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.098932,
+              "alpha": 0.738023,
+              "scale": 0.946975,
+              "_": "Exit σ/h=0.1003"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.098932,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1003"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.098932,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1003"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.626914,
+              "alpha": 0.660624,
+              "scale": 0.904679,
+              "_": "Exit σ/h=0.1159"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.626914,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1159"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.626914,
+              "alpha": 0.660624,
+              "scale": 0.904679,
+              "_": "Exit σ/h=0.1159"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.626914,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1159"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.626914,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1159"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.086311,
+              "alpha": 0.567251,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1295"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.086311,
+              "alpha": 0.032851,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1295"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.086311,
+              "alpha": 0.567251,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1295"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.086311,
+              "alpha": 0.032851,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1295"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.086311,
+              "alpha": 0.032851,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1295"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.449576,
+              "alpha": 0.467608,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1403"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.449576,
+              "alpha": 0.173087,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1403"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.449576,
+              "alpha": 0.467608,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1403"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.449576,
+              "alpha": 0.173087,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1403"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.449576,
+              "alpha": 0.173087,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1403"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.689168,
+              "alpha": 0.371397,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1474"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.689168,
+              "alpha": 0.324429,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1474"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.689168,
+              "alpha": 0.371397,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1474"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.689168,
+              "alpha": 0.324429,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1474"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.689168,
+              "alpha": 0.324429,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1474"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.77754,
+              "alpha": 0.281854,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.77754,
+              "alpha": 0.414145,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1500"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.77754,
+              "alpha": 0.281854,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.77754,
+              "alpha": 0.414145,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1500"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.77754,
+              "alpha": 0.414145,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1500"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.194867,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.396245,
+              "alpha": 0.48208,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1387"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.194867,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.396245,
+              "alpha": 0.48208,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1387"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.396245,
+              "alpha": 0.48208,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1387"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.118623,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.007132,
+              "alpha": 0.538755,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1272"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.118623,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.007132,
+              "alpha": 0.538755,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1272"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.007132,
+              "alpha": 0.538755,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1272"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.044007,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.618019,
+              "alpha": 0.592086,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1157"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.044007,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.618019,
+              "alpha": 0.592086,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1157"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.618019,
+              "alpha": 0.592086,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1157"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-folder-0",
+              "x": 6.86456,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.00131,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.228906,
+              "alpha": 0.64599,
+              "scale": 0.933798,
+              "_": "Enter σ/h=0.1041"
+            },
+            {
+              "name": "centro-delete-0",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:delete",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.00131,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.228906,
+              "alpha": 0.64599,
+              "scale": 0.933798,
+              "_": "Enter σ/h=0.1041"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.228906,
+              "alpha": 0.64599,
+              "scale": 0.763231,
+              "_": "Born σ/h=0.1041"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.839793,
+              "alpha": 0.696101,
+              "scale": 0.944971,
+              "_": "Enter σ/h=0.0926"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.839793,
+              "alpha": 0.696101,
+              "scale": 0.944971,
+              "_": "Enter σ/h=0.0926"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.839793,
+              "alpha": 0.696101,
+              "scale": 0.802207,
+              "_": "Born σ/h=0.0926"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.45068,
+              "alpha": 0.74074,
+              "scale": 0.958592,
+              "_": "Enter σ/h=0.0811"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.45068,
+              "alpha": 0.74074,
+              "scale": 0.958592,
+              "_": "Enter σ/h=0.0811"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.45068,
+              "alpha": 0.74074,
+              "scale": 0.849837,
+              "_": "Born σ/h=0.0811"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.061567,
+              "alpha": 0.778309,
+              "scale": 0.969603,
+              "_": "Enter σ/h=0.0696"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.061567,
+              "alpha": 0.778309,
+              "scale": 0.969603,
+              "_": "Enter σ/h=0.0696"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.061567,
+              "alpha": 0.778309,
+              "scale": 0.888588,
+              "_": "Born σ/h=0.0696"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.672454,
+              "alpha": 0.80742,
+              "scale": 0.977147,
+              "_": "Enter σ/h=0.0581"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.672454,
+              "alpha": 0.80742,
+              "scale": 0.977147,
+              "_": "Enter σ/h=0.0581"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.672454,
+              "alpha": 0.80742,
+              "scale": 0.915632,
+              "_": "Born σ/h=0.0581"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.283341,
+              "alpha": 0.829414,
+              "scale": 0.984227,
+              "_": "Enter σ/h=0.0465"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.283341,
+              "alpha": 0.829414,
+              "scale": 0.984227,
+              "_": "Enter σ/h=0.0465"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.283341,
+              "alpha": 0.829414,
+              "scale": 0.941409,
+              "_": "Born σ/h=0.0465"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.894228,
+              "alpha": 0.846935,
+              "scale": 0.990452,
+              "_": "Enter σ/h=0.0350"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.894228,
+              "alpha": 0.846935,
+              "scale": 0.990452,
+              "_": "Enter σ/h=0.0350"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.894228,
+              "alpha": 0.846935,
+              "scale": 0.964344,
+              "_": "Born σ/h=0.0350"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.505115,
+              "alpha": 0.862625,
+              "scale": 0.995423,
+              "_": "Enter σ/h=0.0235"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.505115,
+              "alpha": 0.862625,
+              "scale": 0.995423,
+              "_": "Enter σ/h=0.0235"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.505115,
+              "alpha": 0.862625,
+              "scale": 0.982827,
+              "_": "Born σ/h=0.0235"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.216866,
+              "alpha": 0.87913,
+              "scale": 0.998738,
+              "_": "Enter σ/h=0.0120"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.216866,
+              "alpha": 0.87913,
+              "scale": 0.998738,
+              "_": "Enter σ/h=0.0120"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.216866,
+              "alpha": 0.87913,
+              "scale": 0.995246,
+              "_": "Born σ/h=0.0120"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.008341,
+              "alpha": 0.899092,
+              "scale": 0.999998,
+              "_": "Enter σ/h=0.0005"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.008341,
+              "alpha": 0.899092,
+              "scale": 0.999998,
+              "_": "Enter σ/h=0.0005"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.008341,
+              "alpha": 0.899092,
+              "scale": 0.999993,
+              "_": "Born σ/h=0.0005"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.927614,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.927614,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.927614,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.96137,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.96137,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.96137,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.989206,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.989206,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.989206,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 4.96614,
+          "y": 5.643341,
+          "w": 117.381493,
+          "h": 44.018059,
+          "radius": 22.009029,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "sinistra-attach_file-1",
+              "x": 10.250565,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "centro-edit-1",
+              "x": 46.819412,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "destra-add-1",
+              "x": 83.613998,
+              "y": 9.121897,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

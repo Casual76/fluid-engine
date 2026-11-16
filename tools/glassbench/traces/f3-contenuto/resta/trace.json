@@ -1,0 +1,2567 @@
+{
+  "schema": 1,
+  "name": "resta",
+  "phase": "f3-contenuto",
+  "fps": 60,
+  "durationMs": 700,
+  "density": 3,
+  "theme": "light",
+  "size": [170, 60],
+  "_": "F3.4: il «più» resta e corre col vetro (R7 A3, D2): nitido; la cartella accanto diventa graffetta. Funzione pura di produzione (GlassContentJourney), T = 400 ms. Vetro di servizio: guarda il contenuto.",
+  "background": {
+    "kind": "color",
+    "color": "#C5C7CD"
+  },
+  "frames": [
+    {
+      "t": -83.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -66.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -50,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88.243057,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.05342,
+              "alpha": 0.994811,
+              "scale": 1,
+              "_": "Exit σ/h=0.0030"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.05342,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0030"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53.243057,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 88.944443,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.201111,
+              "alpha": 0.979481,
+              "scale": 1,
+              "_": "Exit σ/h=0.0111"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.201111,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0111"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 53.944443,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 90.0625,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.502926,
+              "alpha": 0.954363,
+              "scale": 1,
+              "_": "Exit σ/h=0.0234"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.502926,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0234"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 55.0625,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 91.555557,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.024797,
+              "alpha": 0.919814,
+              "scale": 1,
+              "_": "Exit σ/h=0.0389"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.024797,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0389"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 56.555557,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 93.381943,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.617033,
+              "alpha": 0.876186,
+              "scale": 1,
+              "_": "Exit σ/h=0.0564"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.617033,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0564"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 58.381943,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 95.5,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.24445,
+              "alpha": 0.823836,
+              "scale": 1,
+              "_": "Exit σ/h=0.0750"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.24445,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0750"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 60.5,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 97.868057,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.871868,
+              "alpha": 0.763117,
+              "scale": 0.967826,
+              "_": "Exit σ/h=0.0936"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.871868,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0936"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 62.868057,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 100.444443,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.464103,
+              "alpha": 0.687594,
+              "scale": 0.914781,
+              "_": "Exit σ/h=0.1111"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.464103,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1111"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 65.444443,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 103.1875,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.985974,
+              "alpha": 0.590117,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1266"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.985974,
+              "alpha": 0.013467,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1266"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 68.1875,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 106.055557,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.402297,
+              "alpha": 0.482573,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1389"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.402297,
+              "alpha": 0.14864,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1389"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 71.055557,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 109.006943,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.677892,
+              "alpha": 0.377356,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1470"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.677892,
+              "alpha": 0.316422,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1470"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 74.006943,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 112,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.280054,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.415665,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1500"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 77,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 114.993057,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.186348,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.355388,
+              "alpha": 0.488423,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1375"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 79.993057,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 117.944443,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.103786,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.933201,
+              "alpha": 0.548903,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1250"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 82.944443,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 120.8125,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.027443,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.511013,
+              "alpha": 0.607145,
+              "scale": 0.930098,
+              "_": "Enter σ/h=0.1125"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 85.8125,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 123.555557,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.088825,
+              "alpha": 0.664559,
+              "scale": 0.93722,
+              "_": "Enter σ/h=0.1000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 88.555557,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 126.131943,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.666638,
+              "alpha": 0.716736,
+              "scale": 0.951031,
+              "_": "Enter σ/h=0.0875"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 91.131943,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 128.5,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.24445,
+              "alpha": 0.761634,
+              "scale": 0.965074,
+              "_": "Enter σ/h=0.0750"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 93.5,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 130.618057,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.822262,
+              "alpha": 0.797199,
+              "scale": 0.974278,
+              "_": "Enter σ/h=0.0625"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 95.618057,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 132.444443,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.400075,
+              "alpha": 0.823406,
+              "scale": 0.982175,
+              "_": "Enter σ/h=0.0500"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 97.444443,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 133.9375,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.977888,
+              "alpha": 0.843412,
+              "scale": 0.989206,
+              "_": "Enter σ/h=0.0375"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 98.9375,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 135.055557,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.5557,
+              "alpha": 0.860596,
+              "scale": 0.994862,
+              "_": "Enter σ/h=0.0250"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 100.055557,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 135.756943,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.22625,
+              "alpha": 0.878332,
+              "scale": 0.99863,
+              "_": "Enter σ/h=0.0125"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 100.756943,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.9,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.931776,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.96808,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.994656,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 616.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 633.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 650,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 666.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 683.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 700,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 16,
+          "y": 8,
+          "w": 136,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "primo-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            },
+            {
+              "name": "piu-add-0",
+              "x": 101,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Rest σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

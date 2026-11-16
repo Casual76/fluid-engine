@@ -1,0 +1,2212 @@
+{
+  "schema": 1,
+  "name": "scambio-interrotto",
+  "phase": "f3-contenuto",
+  "fps": 60,
+  "durationMs": 800,
+  "density": 3,
+  "theme": "light",
+  "size": [80, 60],
+  "_": "F3.4: cartella → graffetta, a 150 ms lo stato diventa matita: riparte da dove si trova. Funzione pura di produzione (GlassContentJourney), T = 400 ms. Vetro di servizio: guarda il contenuto.",
+  "background": {
+    "kind": "color",
+    "color": "#C5C7CD"
+  },
+  "events": [
+    {
+      "t": 150,
+      "kind": "interrupt",
+      "label": "lo stato cambia a metà"
+    }
+  ],
+  "frames": [
+    {
+      "t": -83.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -66.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -50,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Exit σ/h=0.0000"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.05342,
+              "alpha": 0.994811,
+              "scale": 1,
+              "_": "Exit σ/h=0.0030"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.05342,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0030"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.201111,
+              "alpha": 0.979481,
+              "scale": 1,
+              "_": "Exit σ/h=0.0111"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.201111,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0111"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.502926,
+              "alpha": 0.954363,
+              "scale": 1,
+              "_": "Exit σ/h=0.0234"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.502926,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0234"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.024797,
+              "alpha": 0.919814,
+              "scale": 1,
+              "_": "Exit σ/h=0.0389"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.024797,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0389"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.617033,
+              "alpha": 0.876186,
+              "scale": 1,
+              "_": "Exit σ/h=0.0564"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.617033,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0564"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.24445,
+              "alpha": 0.823836,
+              "scale": 1,
+              "_": "Exit σ/h=0.0750"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.24445,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0750"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.871868,
+              "alpha": 0.763117,
+              "scale": 0.967826,
+              "_": "Exit σ/h=0.0936"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.871868,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.0936"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.464103,
+              "alpha": 0.687594,
+              "scale": 0.914781,
+              "_": "Exit σ/h=0.1111"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.464103,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1111"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.985974,
+              "alpha": 0.590117,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1266"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.985974,
+              "alpha": 0.013467,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1266"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.808422,
+              "alpha": 0,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1213"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.402297,
+              "alpha": 0.482573,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1389"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.266796,
+              "alpha": 0.011205,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1349"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.266796,
+              "alpha": 0.088842,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1349"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.677892,
+              "alpha": 0.377356,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1470"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.597106,
+              "alpha": 0.008896,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1447"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.597106,
+              "alpha": 0.261163,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1447"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.280054,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.76417,
+              "alpha": 0.006771,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1496"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.76417,
+              "alpha": 0.38452,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1496"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.186348,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.004699,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.507375,
+              "alpha": 0.464173,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1420"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.103786,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.002878,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.085188,
+              "alpha": 0.527908,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1295"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-folder-0",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:folder",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.027443,
+              "scale": 0.9,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.001111,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.663,
+              "alpha": 0.585837,
+              "scale": 0.93,
+              "_": "Enter σ/h=0.1170"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-attach_file-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:attach_file",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.777576,
+              "alpha": 0.000038,
+              "scale": 0.93,
+              "_": "Exit σ/h=0.1500"
+            },
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 3.240813,
+              "alpha": 0.644387,
+              "scale": 0.933548,
+              "_": "Enter σ/h=0.1045"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.818625,
+              "alpha": 0.698684,
+              "scale": 0.945695,
+              "_": "Enter σ/h=0.0920"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 2.396437,
+              "alpha": 0.746438,
+              "scale": 0.960398,
+              "_": "Enter σ/h=0.0795"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.97425,
+              "alpha": 0.785596,
+              "scale": 0.971322,
+              "_": "Enter σ/h=0.0670"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.552062,
+              "alpha": 0.814862,
+              "scale": 0.979405,
+              "_": "Enter σ/h=0.0545"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.129875,
+              "alpha": 0.836712,
+              "scale": 0.986807,
+              "_": "Enter σ/h=0.0420"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.707687,
+              "alpha": 0.854522,
+              "scale": 0.993017,
+              "_": "Enter σ/h=0.0295"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.307699,
+              "alpha": 0.871671,
+              "scale": 0.997523,
+              "_": "Enter σ/h=0.0170"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0.08145,
+              "alpha": 0.891534,
+              "scale": 0.999815,
+              "_": "Enter σ/h=0.0045"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.91907,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.955387,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.987107,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 616.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 633.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 650,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 666.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 683.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 700,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 716.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 733.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 750,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 766.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 783.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 800,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-edit-2",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:edit",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Enter σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -20,7 +20,9 @@ import kotlin.math.roundToInt
  *
  * Prima i numeri erano scritti a mano in ogni componente (22 dp nell'azione della barra, 20 nella freccia, 24 nella
  * capsula e nella tab bar, 6 dp di spaziatore): un'icona cambiava taglia in un posto e non nell'altro. Qui un
- * componente li legge, e chi li cambia li cambia per tutti. F3.5 completa l'oggetto con il passo dei gruppi e le forme.
+ * componente li legge, e chi li cambia li cambia per tutti. F3.5 completa l'oggetto con il passo dei gruppi e i
+ * margini della capsula; le forme che seguono il contenitore stanno in [FluidConcentricShape]. Il bersaglio minimo
+ * e' [TouchTarget].
  */
 object FluidMetrics {
 
@@ -56,6 +58,33 @@ object FluidMetrics {
    * la barra dichiarata a gruppi (F4A.2); oggi nessun componente dell'engine ha gruppi.
    */
   val GroupSpacing: Dp = 12.dp
+
+  /**
+   * Il passo delle icone dentro un gruppo (una capsula di azioni): 44 dp da centro a centro, cioe' un gruppo di n
+   * azioni e' largo n x 44 piu' i suoi margini. E' il passo di iOS 26, 1,0 volte l'altezza della capsula (R6, fiducia
+   * media, render), e sta su ogni larghezza di telefono. iOS 27 in una barra ne misura 62 pt (R6, alta sul frame ma
+   * su una barra sola con simboli larghi): resta un **bersaglio da rivedere** su altri frame, non una regola. Lo usa
+   * la barra dichiarata a gruppi (F4A.2): ogni icona tiene comunque il suo bersaglio da [TouchTarget], che sborda
+   * di 2 dp per lato nel vicino senza cambiare il passo.
+   */
+  val GroupItemPitch: Dp = 44.dp
+
+  // --- Capsula flottante e tab bar ------------------------------------------------------------------------------
+
+  /**
+   * Dal bordo laterale dello schermo al vetro della capsula flottante e della tab bar: 14 dp, il valore di sempre
+   * (`FluidFloatingTabBarDefaults.HorizontalMargin`). Apple ne lascia 18,7 pt (R6, iOS 27, +-0,7 pt); R6 propone di
+   * non toccarlo, e il cambio resta una scelta da portare ad Alessio. Qui sta perche' le barre e i fogli di F4B e F5B
+   * leggano il margine da un posto solo; un test lo tiene uguale a quello della tab bar.
+   */
+  val CapsuleSideMargin: Dp = 14.dp
+
+  /**
+   * Dal fondo (sopra la barra di sistema) al vetro della capsula flottante e della tab bar: 16 dp, il valore di sempre
+   * (`FluidFloatingTabBarDefaults.BottomMargin`). Apple ne misura 20,9 pt dal fondo dello schermo (R6, iOS 27,
+   * +-0,7 pt), ma su Android sotto c'e' la barra dei gesti: i 16 dp si sommano a lei, e R6 li lascia invariati.
+   */
+  val CapsuleBottomMargin: Dp = 16.dp
 
   // --- Icone --------------------------------------------------------------------------------------------------
 

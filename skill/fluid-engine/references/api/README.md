@@ -16,7 +16,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pressione, gesto e movimento](movimento.md) | 7 | 153 |
 | [Vetro](vetro.md) | 29 | 206 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 77 |
-| [Tema, forma, tipo](tema.md) | 7 | 99 |
+| [Tema, forma, tipo](tema.md) | 8 | 108 |
 | [Icone (FluidIcons)](icone.md) | 4 | 197 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 8 | 89 |

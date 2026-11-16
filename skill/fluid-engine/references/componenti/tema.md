@@ -28,6 +28,7 @@ righe e le card di questa scheda sono i mattoni di `FluidScreen` ([schermata.md]
 | sapere se la superficie e' scura **senza** interrogare il sistema | `GlassDefaults.isDarkSurface()` (legge `LocalFluidSurfaceSide`, poi la palette) |
 | un angolo da iOS | `ContinuousCornerShape(FluidRadius.Card)`; mai `RoundedCornerShape` |
 | una pillola che si adatta all'altezza | `FluidCapsuleShape` (raggio = meta' del lato corto) |
+| un angolo che segue quello del contenitore (un tasto in una capsula, una barra in un foglio) | `FluidConcentricShape(minimum)` sul pezzo e `Modifier.fluidContainerShape(forma)` sul contenitore (4.0); chi disegna da se' `rememberFluidConcentricRadii` + `Modifier.fluidConcentricRadii` |
 | un angolo di un rettangolo piccolo (sotto ~256 px) | la stessa `ContinuousCornerShape`: da sola ripiega su un `Outline.Rounded` nativo |
 | il testo con la scala iOS | `MaterialTheme.typography.<slot>`: gli slot Material risolvono la rampa Apple (34/28/22/20/17/15/13/11) |
 | cifre che non ballano (colonna di conteggi, date) | `FluidTextStyles.numeric` / `largeNumeric` (cifre tabulari) |
@@ -256,6 +257,30 @@ Comportamento che il nome non dice:
 
 **`FluidCapsuleShape`.** Raggio sempre meta' del lato corto: interruttori, segmentati, pillole, badge. Non dare mai un raggio
 fisso a una pillola: si vede appena il controllo cambia altezza.
+
+**`FluidConcentricShape(minimum, smoothing)`** (4.0, F3.5; in SwiftUI `ConcentricRectangle` e `containerShape(_:)`). Un angolo
+**concentrico**: raggio del contenitore meno la distanza dal suo bordo, mai sotto `minimum`, mai oltre mezzo lato corto. Ogni
+angolo per conto suo: una barra posata in fondo a un foglio e' concentrica nei due angoli bassi e al minimo in alto; un pezzo
+lontano dagli angoli del contenitore sta al minimo. Con margini diversi dai due lati conta il maggiore (e' l'unico che tiene
+l'angolo interno dentro quello esterno). Il contenitore si dichiara con `Modifier.fluidContainerShape(forma)`: il riquadro e'
+quello che vedono i modificatori alla sua destra, quindi in `Modifier.fluidContainerShape(s).padding(8.dp)` il contenuto prende
+il raggio di `s` meno 8. Un contenitore puo' essere concentrico a sua volta (gruppo in una barra in un foglio).
+
+Comportamento che il nome non dice:
+
+- **Da sola vale il minimo.** Una `Shape` di Compose non sa dove sta: senza un contenitore, o passata a un modificatore che non la
+  risolve (`clip`, `background` di Compose), e' una `ContinuousCornerShape` di raggio `minimum`, e cosi' la vedono lente, riflessi
+  e campo del vetro. La risolvono al layout i modificatori dell'engine che ricevono una forma, in una `ContinuousCornerShape` con
+  lo stesso `smoothing`. **Stato nella 4.0 in corso**: forma, contenitore e risoluzione ci sono (F3.5); i componenti che la
+  risolvono arrivano con il contenitore del vetro (F3.2) e con barre, capsula, tab bar e fogli (F4A, F4B, F5B). Fino ad allora
+  la risolve solo `Modifier.fluidConcentricRadii`.
+- **Chi disegna da se'**: `val c = rememberFluidConcentricRadii(minimum = 8.dp)` e `Modifier.fluidConcentricRadii(c)` sul nodo che
+  disegna; `c.radii` sono i quattro raggi in pixel (angoli fisici, `FluidCornerRadii`), aggiornati al layout. Vanno letti nel
+  **disegno** (`drawBehind`, `drawWithCache`): letti in composizione il primo fotogramma vede il minimo. In SwiftUI 27 e'
+  `GeometryProxy.concentricCornerRadii`; qui serve un modificatore perche' un composable non sa dove verra' posato.
+- **Le misure dei gruppi** stanno in `FluidMetrics`: `GroupSpacing` 12 dp fra due gruppi, `GroupItemPitch` 44 dp fra le icone
+  di un gruppo, `CapsuleSideMargin` 14 e `CapsuleBottomMargin` 16 dp dai bordi per la capsula flottante e la tab bar,
+  `TouchTarget` 48 dp di bersaglio minimo.
 
 **Non usarli quando.** `RoundedCornerShape` e `MaterialTheme.shapes.large` letti a mano come angolo di una superficie di
 contenuto: sono circolari e violano la prima regola del design system (successe dentro l'engine stesso, in `FluidCard` e

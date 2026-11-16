@@ -5,6 +5,15 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidConcentricShape.kt`
+
+- `class FluidConcentricShape(val minimum: Dp = 0.dp, smoothing: Float = ContinuousCornerShape.IosSmoothing) : ContinuousCornerShape(CornerSize(minimum.coerceAtLeast(0.dp)), CornerSize(minimum.coerceAtLeast(0.dp)), CornerSize(minimum.coerceAtLeast(0.dp)), CornerSize(minimum.coerceAtLeast(0.dp)), smoothing)` — Una forma i cui angoli seguono quelli del contenitore: raggio = raggio del contenitore − distanza dal suo bordo, mai sotto [minimum] (4.0, piano «iOS in Android», F3.5; in SwiftUI `ConcentricRectangle` e `.concentric(minimum:)`).
+- `fun Modifier.fluidContainerShape(shape: Shape): Modifier` — Questo nodo è un contenitore di forma [shape]: le [FluidConcentricShape] dei discendenti (e di ciò che segue nella stessa catena) si misurano sul riquadro di questo punto della catena, con gli angoli di [shape].
+- `class FluidConcentricRadiiState internal constructor(val minimum: Dp, initial: FluidCornerRadii)` — I raggi concentrici di un nodo, per chi disegna da sé (in SwiftUI 27 `GeometryProxy.concentricCornerRadii`).
+  - `var radii: FluidCornerRadii by mutableStateOf(initial)` — I quattro raggi in pixel, angoli fisici (sinistra e destra, non inizio e fine). Il [minimum] finché il nodo non è posato o se nessun contenitore è dichiarato sopra di lui.
+- `@Composable fun rememberFluidConcentricRadii(minimum: Dp = 0.dp): FluidConcentricRadiiState` — Lo stato dei raggi concentrici per un nodo che disegna da sé; lo si lega al nodo con [fluidConcentricRadii].
+- `fun Modifier.fluidConcentricRadii(state: FluidConcentricRadiiState): Modifier` — Lega [state] a questo nodo: al layout ci scrive i raggi concentrici del riquadro di questo punto della catena.
+
 ## `engine-ui/ui/fluid/FluidMetrics.kt`
 
 - `object FluidMetrics` — Le misure dei tasti, delle barre e delle icone, in un posto solo (4.0, piano «iOS in Android», F1A.11).
@@ -13,6 +22,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val ScreenEdgeMargin: Dp` — Dal bordo dello schermo al **vetro** del primo tasto di una barra: 16 dp (prima 8). Apple ne lascia 20,1 pt su uno schermo da 440 pt in iOS 27 e 14-16 pt in iOS 26 (R6, media); 16 avvicina il tasto al margine del contenuto (20 dp) invece di farlo sporgere di 12, ed e' la meta' della ragione per cui i tasti sembravano piccoli.
   - `val GlassSpacing: Dp` — Fra il vetro di due tasti separati della stessa barra: 8 dp (prima 6). Apple ne misura 12,1 pt (R6, alta), ma con tre azioni sciolte 12 dp sono troppi su un telefono da 360 dp: i 12 restano per due **gruppi** ([GroupSpacing]).
   - `val GroupSpacing: Dp` — Fra due gruppi di tasti (una capsula di azioni e un tondo accanto): 12 dp, i 12,1 pt di Apple (R6, alta). Lo usa la barra dichiarata a gruppi (F4A.2); oggi nessun componente dell'engine ha gruppi.
+  - `val GroupItemPitch: Dp` — Il passo delle icone dentro un gruppo (una capsula di azioni): 44 dp da centro a centro, cioe' un gruppo di n azioni e' largo n x 44 piu' i suoi margini. E' il passo di iOS 26, 1,0 volte l'altezza della capsula (R6, fiducia media, render), e sta su ogni larghezza di telefono.
+  - `val CapsuleSideMargin: Dp` — Dal bordo laterale dello schermo al vetro della capsula flottante e della tab bar: 14 dp, il valore di sempre (`FluidFloatingTabBarDefaults.HorizontalMargin`). Apple ne lascia 18,7 pt (R6, iOS 27, +-0,7 pt); R6 propone di non toccarlo, e il cambio resta una scelta da portare ad Alessio. Qui sta perche' le barre e i fogli di F4B e F5B leggano il margine da un posto solo; un test lo tiene uguale a quello della tab bar.
+  - `val CapsuleBottomMargin: Dp` — Dal fondo (sopra la barra di sistema) al vetro della capsula flottante e della tab bar: 16 dp, il valore di sempre (`FluidFloatingTabBarDefaults.BottomMargin`). Apple ne misura 20,9 pt dal fondo dello schermo (R6, iOS 27, +-0,7 pt), ma su Android sotto c'e' la barra dei gesti: i 16 dp si sommano a lei, e R6 li lascia invariati.
   - `const val IconLensRatio: Float` — Quanto riquadro d'icona sta in un vetro: 0,6 del lato. La sagoma di un'icona occupa circa 0,75 del suo riquadro da 24 (R6), quindi 0,6 dà una sagoma alta 0,44 del vetro: quella di Apple (0,44-0,48, alta). Prima era 0,5.
   - `val IconSize: Dp` — Un'icona fuori da ogni vetro, barra o menu: 24 dp, il riquadro in cui sono disegnate le icone Material e [dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons]. E' la taglia che `Icon` di Material dava gia' senza modificatore: una [FluidIcon] fuori dai componenti non cambia misura.
   - `val BarIconSize: Dp` — L'icona di un'azione della barra in alto ([FluidBarAction]): 26 dp, cioe' 0,6 del vetro da 44 (prima 22).
@@ -28,7 +40,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidShape.kt`
 
-- `class ContinuousCornerShape(topStart: CornerSize, topEnd: CornerSize, bottomEnd: CornerSize, bottomStart: CornerSize, smoothing: Float = IosSmoothing) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart)` — A rounded rectangle whose corners are *continuous* rather than circular.
+- `open class ContinuousCornerShape(topStart: CornerSize, topEnd: CornerSize, bottomEnd: CornerSize, bottomStart: CornerSize, smoothing: Float = IosSmoothing) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart)` — A rounded rectangle whose corners are *continuous* rather than circular.
   - `companion object`
     - `const val IosSmoothing: Float` — How far Apple pushes the curvature ramp. Figma's slider calls this 60%.
 - `fun ContinuousCornerShape(radius: Dp, smoothing: Float = ContinuousCornerShape.IosSmoothing): ContinuousCornerShape`

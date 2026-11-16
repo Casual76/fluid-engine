@@ -35,7 +35,7 @@ import kotlin.math.tan
  * an ordinary circular corner; iOS sits at roughly `0.6`.
  */
 @Stable
-class ContinuousCornerShape(
+open class ContinuousCornerShape(
   topStart: CornerSize,
   topEnd: CornerSize,
   bottomEnd: CornerSize,
@@ -54,7 +54,11 @@ class ContinuousCornerShape(
    */
   internal val smoothing: Float = smoothing
 
-  override fun copy(
+  /**
+   * Una copia con angoli fissi. Anche da una [FluidConcentricShape] esce una forma ad angoli fissi: chi dà gli angoli
+   * a mano ha smesso di chiederli al contenitore.
+   */
+  final override fun copy(
     topStart: CornerSize,
     topEnd: CornerSize,
     bottomEnd: CornerSize,
@@ -65,9 +69,12 @@ class ContinuousCornerShape(
   // stessa forma. Senza, una forma creata in composizione era ogni volta una chiave nuova per `remember`, e chi ne
   // dipende (la lastra del vetro per prima) si rifaceva a ogni ricomposizione (F2.3: era un anello del ciclo di
   // ridisegno a riposo della scheda «Materiale»).
-  override fun equals(other: Any?): Boolean {
+  //
+  // La classe esatta conta (F3.5): una [FluidConcentricShape] porta gli stessi quattro angoli del suo minimo, ma non
+  // e' la stessa forma di una continua con quel raggio, perche' dentro un contenitore si risolve in altri raggi.
+  final override fun equals(other: Any?): Boolean {
     if (this === other) return true
-    if (other !is ContinuousCornerShape) return false
+    if (other !is ContinuousCornerShape || other.javaClass != javaClass) return false
     return topStart == other.topStart &&
       topEnd == other.topEnd &&
       bottomEnd == other.bottomEnd &&
@@ -75,8 +82,9 @@ class ContinuousCornerShape(
       smoothing == other.smoothing
   }
 
-  override fun hashCode(): Int {
-    var result = topStart.hashCode()
+  final override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + topStart.hashCode()
     result = 31 * result + topEnd.hashCode()
     result = 31 * result + bottomEnd.hashCode()
     result = 31 * result + bottomStart.hashCode()
@@ -84,7 +92,10 @@ class ContinuousCornerShape(
     return result
   }
 
-  override fun createOutline(
+  // `final`: la classe e' aperta solo per [FluidConcentricShape], che deve restare per tutto l'engine una forma
+  // continua (il campo dello shader, la lente e i riflessi leggono `is ContinuousCornerShape` e il suo `smoothing`).
+  // Una sottoclasse che cambiasse la curva ingannerebbe il campo, che ripete *questa* curva e nessun'altra.
+  final override fun createOutline(
     size: Size,
     topStart: Float,
     topEnd: Float,

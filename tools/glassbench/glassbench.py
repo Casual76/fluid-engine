@@ -1410,6 +1410,21 @@ def cmd_selftest(args) -> int:
          f"scarto dal corpo: colonna {np.abs(last_column - inside).max():.0f}, riga {np.abs(last_row - inside).max():.0f}"
          f" (il corpo dista {np.abs(inside - raw_page).max():.0f} dalla pagina)")
 
+    # 4. Una `shape` porta il suo `content` (F3.3): fino a F3.3 `render_element` disegnava la sola sagoma, e il
+    # contenuto delle tracce di F3.4 spariva in silenzio. Un quadrato nero dentro una sagoma bianca, ritagliato da lei.
+    shaped = pixels({"width": 120, "height": 80, "density": 1.0, "theme": "light", "palette": "engine",
+                     "background": {"kind": "color", "color": "#808080"},
+                     "elements": [{"kind": "shape", "name": "s", "x": 20, "y": 20, "w": 80, "h": 40, "radius": 20,
+                                   "corner": "round", "color": "#FFFFFF",
+                                   "content": [{"name": "dentro", "items": [
+                                       {"kind": "rect", "x": -10, "y": 5, "w": 60, "h": 30, "color": "#000000"}]}]}]},
+                    "shape-con-contenuto")
+    test("una `shape` disegna il suo `content`, ritagliato dalla sagoma",
+         int(shaped[40, 50, :3].max()) < 40 and abs(int(shaped[40, 12, 0]) - 0x80) <= 1
+         and int(shaped[40, 85, :3].min()) > 240,
+         f"contenuto {shaped[40, 50, :3].tolist()}, contenuto fuori dalla sagoma {shaped[40, 12, :3].tolist()}, "
+         f"sagoma senza contenuto {shaped[40, 85, :3].tolist()}")
+
     print(f"\nimmagini di prova in {shown(out_dir)}")
     if failures:
         print(f"FALLITE {len(failures)}: " + "; ".join(failures))

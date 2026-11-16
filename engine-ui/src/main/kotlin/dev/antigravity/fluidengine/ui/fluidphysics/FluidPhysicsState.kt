@@ -353,8 +353,11 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   }
 
   private suspend fun morphLeg(target: FluidForm, spec: AnimationSpec<Float>?, initialVelocity: Float?) {
+    // La sagoma del campo che si vede adesso, prima di fotografare la forma (F3.3): vedi [SlabTransit.startField].
+    val shownField = shownSlabField()
     val origin = currentForm()
     val transit = buildTransit(origin, target)
+    if (transit is SlabTransit && shownField != null) transit.inheritField(origin, shownField)
     // Il collo fra i pezzi non riparte da zero se questo viaggio ne interrompe un altro (4.0).
     transit.fusionStart = activeTransit?.let { it.fusionAt(it.progress.value) } ?: heldFusion
     // Il collo nel tempo (F1B.9) parte da quello che c'era: un viaggio interrotto o invertito non lo fa saltare.
@@ -419,6 +422,25 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     heldFusion = 0f
     heldNeck = null
     restPlanForm = null
+  }
+
+  /**
+   * I raggi e il raccordo con cui il campo disegna adesso ogni pezzo di un viaggio fra lastre (cinque numeri per pezzo,
+   * nell'ordine delle coppie del viaggio), o null se non c'è un viaggio fra lastre in corso o se il piano di adesso è
+   * un'altra cosa (la goccia, una guida esterna). È ciò da cui deve ripartire un viaggio che lo interrompe.
+   */
+  private fun shownSlabField(): FloatArray? {
+    if (externalDrive != null) return null
+    val transit = activeTransit as? SlabTransit ?: return null
+    val plan = ensurePlan()
+    val count = transit.pairs.size
+    if (plan.mode != PlanModeSlabs || plan.pieceCount != count) return null
+    return FloatArray(count * SlabFieldStride).also { out ->
+      for (i in 0 until count) {
+        for (k in 0 until 4) out[i * SlabFieldStride + k] = plan.fieldRadii[i * 4 + k]
+        out[i * SlabFieldStride + 4] = plan.fieldSmooth[i]
+      }
+    }
   }
 
   /**
@@ -853,7 +875,41 @@ internal class SlabTransit(
 ) : Transit(overshootCapPx) {
   override val startFrame: Rect = unionOf(pairs) { it.first.frame }
   override val endFrame: Rect = unionOf(pairs) { it.second.frame }
+
+  /**
+   * La sagoma del campo da cui partono i pezzi di questo viaggio, se ne interrompe un altro (F3.3): per ogni lastra di
+   * partenza (per identità) i quattro raggi e il raccordo con cui il campo la disegnava all'istante dell'interruzione.
+   * Null per un viaggio che parte da fermo, dove la partenza è la regola forma -> piano della forma ferma.
+   *
+   * Perché: la forma fotografata a metà volo ([formAt]) è una [FluidForm.Slab] col raccordo continuo di serie, e la regola
+   * forma -> piano le dà un raggio diverso da quello che il campo stava disegnando (una capsula a metà strada fra due
+   * taglie non è più a mezzo lato, e un piccolo col raccordo prende il raggio equivalente, ×0,82): alla ridirezione il
+   * raggio del campo scendeva di circa 5 px in un fotogramma, un salto d'area dello 0,10–0,13% (`passo-zero:area`, classe
+   * RITARGETING di `MorphRobustnessKnownTest`). Fotografare col raccordo a zero lo chiudeva ma ne apriva altri 240 sulle
+   * ridirezioni con la goccia (F1B.9): qui la forma resta quella di prima, e cambia solo da dove parte il campo.
+   */
+  var startField: java.util.IdentityHashMap<FluidForm.Slab, FloatArray>? = null
+    private set
+
+  /**
+   * Prende [field] (cinque numeri per pezzo, [SlabFieldStride]) come sagoma del campo alla partenza delle lastre di
+   * [origin], nell'ordine in cui [origin] le elenca.
+   */
+  fun inheritField(origin: FluidForm, field: FloatArray) {
+    val slabs = when (origin) {
+      is FluidForm.Slab -> listOf(origin)
+      is FluidForm.Group -> origin.pieces.filterIsInstance<FluidForm.Slab>()
+      is FluidForm.Poly -> return
+    }
+    if (slabs.size * SlabFieldStride != field.size) return
+    val map = java.util.IdentityHashMap<FluidForm.Slab, FloatArray>()
+    slabs.forEachIndexed { i, slab -> map[slab] = field.copyOfRange(i * SlabFieldStride, (i + 1) * SlabFieldStride) }
+    startField = map
+  }
 }
+
+/** Quanti numeri porta la sagoma del campo di un pezzo in [SlabTransit.startField]: quattro raggi e il raccordo. */
+internal const val SlabFieldStride: Int = 5
 
 internal class RingTransit(
   val rings: MatchedRings,
@@ -1122,14 +1178,32 @@ private fun fieldGeometryOf(slab: FluidForm.Slab, out: GlassSlabGeometry): Glass
  * Scrive in [PhysicsRenderPlan.fieldRadii] e [PhysicsRenderPlan.fieldSmooth] il pezzo [index] come lo vede il
  * campo: il lerp a [t] fra la regola forma -> piano dei due capi, coi raggi tenuti dentro mezzo lato corto della
  * taglia di adesso ([values], gli otto numeri di [lerpSlab]).
+ *
+ * [shown], se c'è, prende il posto della regola forma -> piano della partenza: è la sagoma del campo che il viaggio
+ * interrotto stava disegnando ([SlabTransit.startField]), cosi' alla ridirezione il campo riparte da lì.
  */
-private fun PhysicsRenderPlan.writeFieldPiece(index: Int, from: FluidForm.Slab, to: FluidForm.Slab, t: Float, values: FloatArray) {
-  val a = fieldGeometryOf(from, fieldFrom)
-  val b = if (to === from) a else fieldGeometryOf(to, fieldTo)
+private fun PhysicsRenderPlan.writeFieldPiece(
+  index: Int,
+  from: FluidForm.Slab,
+  to: FluidForm.Slab,
+  t: Float,
+  values: FloatArray,
+  shown: FloatArray? = null,
+) {
+  val b = fieldGeometryOf(to, fieldTo)
   val half = minOf(values[2], values[3]) / 2f
   val f = t.coerceIn(0f, 1f)
   fun mix(x: Float, y: Float): Float = if (f <= 0f) x else if (f >= 1f) y else x + (y - x) * f
   val base = index * 4
+  if (shown != null && shown.size >= SlabFieldStride) {
+    fieldRadii[base] = mix(shown[0], b.topLeft).coerceIn(0f, half)
+    fieldRadii[base + 1] = mix(shown[1], b.topRight).coerceIn(0f, half)
+    fieldRadii[base + 2] = mix(shown[2], b.bottomRight).coerceIn(0f, half)
+    fieldRadii[base + 3] = mix(shown[3], b.bottomLeft).coerceIn(0f, half)
+    fieldSmooth[index] = mix(shown[4], b.smoothing)
+    return
+  }
+  val a = if (to === from) b else fieldGeometryOf(from, fieldFrom)
   fieldRadii[base] = mix(a.topLeft, b.topLeft).coerceIn(0f, half)
   fieldRadii[base + 1] = mix(a.topRight, b.topRight).coerceIn(0f, half)
   fieldRadii[base + 2] = mix(a.bottomRight, b.bottomRight).coerceIn(0f, half)
@@ -1285,7 +1359,9 @@ internal fun buildTransitPlan(plan: PhysicsRenderPlan, transit: Transit, t: Floa
     is SlabTransit -> if (t > 1f) {
       buildSlabPlan(plan, transit.overshootPairs(t), transit.blendRadius, 1f, fusion = transit.neckAt(t)?.let(::physicsNeckEncode) ?: 0f)
     } else {
-      buildSlabPlan(plan, transit.pairs, transit.blendRadius, t, fusion = transit.planFusionAt(t))
+      buildSlabPlan(
+        plan, transit.pairs, transit.blendRadius, t, fusion = transit.planFusionAt(t), startField = transit.startField,
+      )
     }
 
     is RingTransit -> {
@@ -1310,6 +1386,8 @@ internal fun buildSlabPlan(
    * fra 2 e 4 e' il collo nel tempo (F1B.9, [physicsNeckEncode]).
    */
   fusion: Float = travelFusion(t, PhysicsProgressNeckFade),
+  /** La sagoma del campo da cui partono le lastre di un viaggio che ne interrompe un altro: [SlabTransit.startField]. */
+  startField: Map<FluidForm.Slab, FloatArray>? = null,
 ) {
   // Una fusione all'oltrepasso non estrapola piu' (3.0): tutti i pezzi diventano il traguardo
   // gonfiato, che coincidono — un contorno solo, col ponte spento da effectiveBlendRadius. Il doppio
@@ -1318,7 +1396,7 @@ internal fun buildSlabPlan(
   pairs.forEachIndexed { index, (from, to) ->
     val v = lerpSlab(from, to, t)
     plan.writeSlabPiece(index, v)
-    plan.writeFieldPiece(index, from, to, t, v)
+    plan.writeFieldPiece(index, from, to, t, v, startField?.get(from))
     // In viaggio la sagoma passa per angoli circolari: è l'eccezione documentata — un path
     // continuo ricalcolato a ogni fotogramma è esattamente quello che non ci si può permettere,
     // e in movimento le due curve stanno dentro il pixel.

@@ -399,6 +399,36 @@ internal fun physicsFormShortPx(form: FluidForm): Float = when (form) {
   else -> form.frame.minDimension
 }
 
+/**
+ * Sotto questa velocità dei lati (dp al secondo) un pezzo del piano flottante è fermo per il materiale: vedi
+ * [physicsPlaneMotion].
+ */
+internal const val PhysicsPlaneStillDpPerSecond: Float = 40f
+
+/** Da questa velocità dei lati in su il materiale è tutto quello in viaggio: vedi [physicsPlaneMotion]. */
+internal const val PhysicsPlaneMovingDpPerSecond: Float = 300f
+
+/** In quanti millisecondi dalla partenza il materiale in viaggio si accende: vedi [physicsPlaneMotion]. */
+internal const val PhysicsPlaneMotionRiseMs: Float = 40f
+
+/**
+ * Quanto un campo del piano flottante si sta muovendo, 0..1: il peso del materiale **in viaggio** (`glassTravelRecipe`,
+ * la scelta B di Alessio, «un po' limpido») per i viaggi di `GlassPlaneJourney` (F3.3). È l'equivalente di
+ * `LiquidDrop.lens` per una sagoma che non ha una goccia.
+ *
+ * Viene dalla velocità del lato più veloce ([speedDpPerSecond]): pieno sopra [PhysicsPlaneMovingDpPerSecond], zero sotto
+ * [PhysicsPlaneStillDpPerSecond]. Con la molla del piano (300 ms) il vetro torna smerigliato da ~110 ms, cioè negli ultimi
+ * istanti in cui la sagoma si vede ancora muovere: è il «limpido in viaggio, smerigliato negli ultimi 100–150 ms» di R4 B1
+ * (media). Alla partenza una molla da ferma ha velocità zero e al fotogramma dopo è già veloce: la salita in
+ * [PhysicsPlaneMotionRiseMs] ([elapsedMs], il tempo da quando il contenitore si muove, che **non** si azzera a
+ * un'interruzione) tiene la mescola senza un salto al primo fotogramma.
+ */
+internal fun physicsPlaneMotion(speedDpPerSecond: Float, elapsedMs: Float): Float {
+  if (!speedDpPerSecond.isFinite() || !elapsedMs.isFinite()) return 0f
+  val moving = liquidSmoothstep(PhysicsPlaneStillDpPerSecond, PhysicsPlaneMovingDpPerSecond, speedDpPerSecond)
+  return moving * liquidSmoothstep(0f, PhysicsPlaneMotionRiseMs, elapsedMs)
+}
+
 /** Quanto ci mette il velo di una superficie che viaggia a passare tutto da quello dei piccoli a quello dei grandi. */
 internal const val PhysicsLargeVeilSeconds: Float = 0.3f
 
@@ -545,7 +575,13 @@ internal class PhysicsDriveHeading {
  *  - le lunghezze passano per [scale] (pixel di chi disegna per pixel di layout: la frazione di risoluzione della
  *    cattura).
  */
-internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassFieldPlan): GlassFieldPlan {
+internal fun physicsFieldPlan(
+  plan: PhysicsRenderPlan,
+  scale: Float,
+  out: GlassFieldPlan,
+  /** L'esponente della vita del collo nel tempo: di serie quello del motore; lo cambia solo la tavola di gusto di F3.3. */
+  neckPinch: Float = PhysicsNeckPinchExponent,
+): GlassFieldPlan {
   out.clear()
   val count = plan.pieceCount.coerceIn(0, min(PhysicsMaxPieces, out.pieces))
   val timed = physicsNeckIsTimed(plan.fusion)
@@ -565,7 +601,7 @@ internal fun physicsFieldPlan(plan: PhysicsRenderPlan, scale: Float, out: GlassF
       bottomLeft = plan.fieldRadii[at + 3] * scale,
       blend = when {
         i == 0 -> 0f
-        timed -> physicsTimedNeckBlend(plan, i, neck) * scale
+        timed -> physicsTimedNeckBlend(plan, i, neck, neckPinch) * scale
         else -> physicsNeckBlend(plan, i) * fusion * scale
       },
       smoothing = plan.fieldSmooth[i],
@@ -925,6 +961,8 @@ internal fun physicsLiquidInputs(
   /** Il ritaglio emulato ([GlassDrawInputs.nodeClip]); falso solo dalla manopola di diagnosi `travelclip=off`. */
   nodeClip: Boolean = true,
   out: GlassDrawInputs = GlassDrawInputs(GlassFieldMaxPieces),
+  /** L'esponente della vita del collo: vedi [physicsFieldPlan]. */
+  neckPinch: Float = PhysicsNeckPinchExponent,
 ): GlassDrawInputs {
   val captureDensity = screenDensity * scale
   out.setBodyMaterial(recipe, captureDensity, paddingPx)
@@ -970,7 +1008,21 @@ internal fun physicsLiquidInputs(
   } else {
     out.kernel = GlassBodyKernel.Eight
     out.lightInBody = true
-    physicsFieldPlan(plan, scale, out.body)
+    physicsFieldPlan(plan, scale, out.body, neckPinch)
+    // La terza correzione di Haze (R3 cap. 2, F3.3): l'ottica non viene dalla taglia del layer. La ricetta è già quella
+    // del pezzo col lato corto più grande ([physicsRecipeShortPx]), mai quella del palco; ma in un campo con pezzi di
+    // taglie diverse (un tasto che entra in un pannello) la banda della lente e quella dell'ombreggiatura di un pannello
+    // superano mezzo lato corto del tasto, e sul suo asse le bande dei due lati si incontrano: la normale salta lì.
+    // Il contratto del corpo (`thickness`, `bodyShadeDepth`: «mai oltre mezzo lato corto del pezzo più piccolo») lo
+    // garantisce qui. Con pezzi uguali, o uno solo, non tocca niente: la ricetta tiene già la banda dentro mezzo lato.
+    var smallest = Float.POSITIVE_INFINITY
+    for (i in 0 until min(plan.pieceCount, GlassFieldMaxPieces)) {
+      smallest = min(smallest, min(plan.pieceRects[i * 4 + 2], plan.pieceRects[i * 4 + 3]) * scale)
+    }
+    if (smallest.isFinite() && smallest > 0f) {
+      out.thickness = min(out.thickness, smallest)
+      out.bodyShadeDepth = min(out.bodyShadeDepth, smallest)
+    }
     // Il margine d'angolo del ritaglio emulato: quello del pezzo che ne chiede di più.
     var corner = 0f
     for (i in 0 until min(plan.pieceCount, GlassFieldMaxPieces)) {

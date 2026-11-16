@@ -2382,7 +2382,18 @@ def render_element(ctx: Context, el, screen, backdrop, origin=(0.0, 0.0), tag="e
         render_material(ctx, el, screen, backdrop, origin, tag)
     elif kind == "shape":
         # Una sagoma sopra la pagina e fuori dalla cattura: per confrontare un path con un campo.
-        draw_shape(screen, element_context(ctx, el), el, origin)
+        sctx = element_context(ctx, el)
+        draw_shape(screen, sctx, el, origin)
+        # F3.3: anche una sagoma porta il suo `content` (TRACE.md lo ammette per tutti i tipi). Fino a qui spariva in
+        # silenzio: le tracce del contenuto di F3.4 disegnano il vetro come una `shape`. Lo ritaglia la sagoma stessa:
+        # `shape` (di serie) col suo raccordo, `alpha` con l'alfa di cio' che la sagoma ha disegnato.
+        if el.get("content"):
+            x, y = sctx.px(el["x"]) + origin[0], sctx.px(el["y"]) + origin[1]
+            w, h = sctx.px(el["w"]), sctx.px(el["h"])
+            outline = Outline(x, y, w, h, corner_radii_px(sctx, el.get("radius"), w, h),
+                              el.get("corner", "continuous"), float(el.get("smoothing", IOS_SMOOTHING)))
+            place_content_layers(screen, sctx, el, x, y, w, h, tag, shape=outline,
+                                 mask=lambda canvas: draw_shape(canvas, sctx, el, origin), default="shape")
     else:
         raise KeyError(f"elemento sconosciuto: {kind}")
 

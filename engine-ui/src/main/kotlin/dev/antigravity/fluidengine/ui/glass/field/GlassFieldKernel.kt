@@ -394,6 +394,28 @@ float glassField(float2 p, out float2 normal, out float2 center) {
  * Il gradiente mescolato con `h` è la derivata esatta della distanza fusa dentro la zona di fusione (i
  * termini in `∇h` si annullano: R3 cap. 2), a patto che le normali dei pezzi siano gradienti veri: con la
  * normale allargata lo è lontano dagli angoli.
+ *
+ * ### La fusione si attenua nella sovrapposizione (F3.3, la seconda correzione di Haze, R3 cap. 2)
+ * Lo smooth minimum non solo raccorda fuori: **dentro** due pezzi che si sovrappongono rende la distanza più profonda
+ * di `k·h·(1−h)`, un quarto del raggio di fusione proprio sull'asse fra i due. Il contorno non lo vede, ma lo vede tutto
+ * ciò che legge la profondità: l'ombreggiatura del corpo arriva a 22 dp, cioè attraversa un tasto intero, e lungo
+ * l'asse calava in una riga più chiara (la «cucitura debole al contatto» di (a) e (c) nella sessione finale di F1B,
+ * rifatta sul banco: `scenes/f3/ponte-*`, riga «contatto»). Qui il rigonfiamento si spegne dove il punto è dentro tutti
+ * e due più a fondo di un raggio di fusione (`smoothstep(0, k, -max(dPezzo, dFuso))`): vicino al contorno, dove fa il
+ * raccordo, resta intero, e il contorno (`d = 0`) non cambia di un pixel. Dove `h` è 0 o 1 il termine è comunque zero:
+ * un gruppo a riposo (`pieceBlend` zero) dà gli stessi bit di prima. Lo specchio Kotlin di questa funzione
+ * (`GlassFieldGeometry.fieldDistance`) dà ancora la distanza col rigonfiamento: il segno è lo stesso, e i test che lo
+ * usano (aree, contatti) leggono il segno.
+ *
+ * ### Normale e centro fra pezzi che si compenetrano (F3.3)
+ * Dentro un pezzo, vicino all'altro, la normale del pezzo punta al suo arco **nascosto** dall'altro, che non è contorno.
+ * Subito dopo il contatto, con un collo che si strozza (raggio di fusione piccolo), la normale mescolata girava da un
+ * verso all'altro in pochi pixel sull'asse fra i due, e lì la lente piegava il fondale in due versi: una riga chiara col
+ * bordo scuro per tutta l'altezza della giunzione (la «cucitura debole al contatto» di (a) e (c), sessione finale di
+ * F1B; rifatta sul banco in `scenes/f3/ponte-griglia-chiaro`, riga «contatto», `bench/f3-3/prova-cucitura`). Fra pezzi
+ * che si compenetrano (`pieceSoft` sopra zero, cioè mai a riposo né fra pezzi staccati) il raggio su cui normale e centro
+ * si pesano non scende sotto mezzo semilato corto del pezzo, un quarto del lato corto: circa la banda della lente di un
+ * tasto. Sale da zero nel primo pixel di `pieceSoft`; al contatto il collo pieno è comunque più largo.
  */
 @Language("AGSL")
 internal const val GlassFieldKernel8 = """
@@ -426,8 +448,17 @@ float glassField(float2 p, out float2 normal, out float2 center) {
             // sovrappongono sale a `pieceSoft` (F1B.2): due pezzi sovrapposti con centri diversi non si contendono
             // piu' il punto a scatto. La sagoma non cambia: `d` resta quella di sempre.
             float ka = max(k, pieceSoft[i]);
+            // Fra pezzi che si compenetrano (`pieceSoft` sopra zero) normale e centro si pesano almeno su un quarto del
+            // lato corto del pezzo (F3.3): l'arco nascosto dall'altro non e' contorno, e sull'asse fra i due la lente non
+            // si piega piu' in due versi (la cucitura al contatto). Fra pezzi staccati, cioe' a riposo, non entra.
+            if (pieceSoft[i] > 0.0) {
+                ka = max(ka, 0.5 * min(pieceRect[i].z, pieceRect[i].w) * smoothstep(0.0, 1.0, pieceSoft[i]));
+            }
             float ha = clamp(0.5 + 0.5 * (slab.x - d) / ka, 0.0, 1.0);
-            d = slab.x + (d - slab.x) * h - k * h * (1.0 - h);
+            // Dentro la sovrapposizione (dentro tutti e due, oltre un raggio di fusione) niente rigonfiamento (F3.3):
+            // la sagoma non cambia, la profondita' non fa cresta sull'asse fra i due pezzi.
+            float swell = 1.0 - smoothstep(0.0, k, -max(slab.x, d));
+            d = slab.x + (d - slab.x) * h - k * h * (1.0 - h) * swell;
             normal = mix(slab.yz, normal, ha);
             center = mix(pieceRect[i].xy, center, ha);
         }

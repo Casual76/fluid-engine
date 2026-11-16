@@ -19,7 +19,129 @@
  */
 package dev.antigravity.fluidengine.ui.glass.field
 
+import dev.antigravity.fluidengine.ui.fluid.glassMixRadius
 import org.intellij.lang.annotations.Language
+
+// ------------------------------------------------------------------------------------------------------------
+// La comparsa e la scomparsa per lente (F3.3, R4 B3): che cosa fa `materialize` mentre un vetro nasce o se ne va.
+//
+// Il piano flottante dà a ogni pezzo che compare o scompare un `materialize` 0..1 (la molla di `GlassPlaneJourney`,
+// stirata in 430 ms per la comparsa e 470 per la scomparsa) e la sagoma che parte 1,09 più larga. Qui quel numero
+// diventa tre canali, perché in Apple il vetro non si accende tutto insieme:
+//
+//  - il **contorno** (filo e riflesso, cioè tutta la luce): c'è per primo e se ne va per ultimo. Nei primi 67 ms della
+//    comparsa si vede solo lui, già 8–10% più largo, con la rifrazione quasi nulla; nella scomparsa resta da 400 a
+//    470 ms, poi niente;
+//  - la **lente** e il **corpo** (spostamento, velo, tinta, ombreggiatura, smerigliatura, ombra): crescono dopo il
+//    contorno («la rifrazione cresce», 100–230 ms) e se ne vanno prima («la rifrazione scende a zero», 130–400 ms);
+//  - il **simbolo** (il contenuto): compare dilatato due volte e traslucido, poi si condensa alla sua forma e diventa
+//    opaco (270–370 ms); nella scomparsa svanisce per primo (0–130 ms).
+//
+// **L'opacità del corpo non entra mai**: la copertura della sagoma resta piena, ed è il **raggio di sfocatura** che porta
+// lo sfondo da nitido a smerigliato, crescendo con la lente (`glassMixRadius` di F3.4, `ui/fluid/FluidGlassContentTransition.kt`).
+// Non la mescola a monte `w`: `w` è una dissolvenza (piano 3.6), e per i 430 ms della comparsa le lettere nitide e
+// grigie restavano sopra la loro copia sfocata (F3.4 l'ha misurato: 15 fotogrammi ambigui con la rampa lineare, 5 con
+// una S stretta, che diventa uno scatto). Un ramo solo, nessuna immagine doppia a nessun istante; il margine della
+// cattura resta quello del raggio pieno (invariante 1: la cattura non si rifà). Il prezzo è un `RenderEffect` nuovo a
+// ogni fotogramma della comparsa, da misurare in S3. A `materialize` zero il vetro è lo sfondo nitido com'è: niente
+// lampo all'ingresso.
+//
+// I canali sono funzioni del solo `materialize`, non del tempo: un viaggio interrotto (una comparsa che diventa
+// scomparsa a metà) li porta con sé senza salti, perché il piano tiene continuo `materialize`. Il prezzo è che la
+// molla del piano corre nei primi istanti: nella scomparsa la lente se ne va in 10–125 ms invece che in 130–400. L'ordine
+// delle fasi (simbolo, lente, contorno) resta quello di Apple; i tempi assoluti di B3 sono di fiducia media.
+// ------------------------------------------------------------------------------------------------------------
+
+/** Fin dove di `materialize` sale il contorno: a 0,3 (≈60 ms della comparsa) è pieno. */
+internal const val GlassMaterializeContourEnd: Float = 0.3f
+
+/** Da dove a dove di `materialize` salgono lente e corpo: quasi nulli fino a 67 ms, pieni a ≈200 ms. */
+internal const val GlassMaterializeLensFrom: Float = 0.25f
+
+/** Vedi [GlassMaterializeLensFrom]. */
+internal const val GlassMaterializeLensTo: Float = 0.97f
+
+/** Il simbolo: traslucido da 0,5 a 0,8 di `materialize` (≈90–150 ms), opaco e condensato da 0,95 a 1 (≈220–330 ms). */
+internal const val GlassMaterializeSymbolFrom: Float = 0.5f
+
+/** Vedi [GlassMaterializeSymbolFrom]. */
+internal const val GlassMaterializeSymbolHalf: Float = 0.8f
+
+/** Vedi [GlassMaterializeSymbolFrom]. */
+internal const val GlassMaterializeSymbolCondense: Float = 0.95f
+
+/** Quanto è dilatato il simbolo quando compare (R4 B3: ≈2×). */
+internal const val GlassMaterializeSymbolScale: Float = 2f
+
+/** I tre canali della comparsa a un dato `materialize`: vedi la nota in testa al file. */
+internal class GlassMaterializeChannels {
+  /** Il contorno, 0..1: filo e riflesso. */
+  var contour: Float = 1f
+
+  /** La lente e il corpo, 0..1: mai sopra [contour]. */
+  var lens: Float = 1f
+
+  /** L'opacità del simbolo, 0..1. */
+  var symbolAlpha: Float = 1f
+
+  /** La scala del simbolo attorno al suo centro: da [GlassMaterializeSymbolScale] a 1. */
+  var symbolScale: Float = 1f
+}
+
+private fun glassMaterializeStep(from: Float, to: Float, x: Float): Float {
+  val t = ((x - from) / (to - from)).coerceIn(0f, 1f)
+  return t * t * (3f - 2f * t)
+}
+
+/** I canali della comparsa a [materialize] (0 = il vetro non c'è, 1 = pieno), scritti in [out]. Pura. */
+internal fun glassMaterializeChannels(
+  materialize: Float,
+  out: GlassMaterializeChannels = GlassMaterializeChannels(),
+): GlassMaterializeChannels {
+  val m = if (materialize.isFinite()) materialize.coerceIn(0f, 1f) else 1f
+  out.contour = glassMaterializeStep(0f, GlassMaterializeContourEnd, m)
+  out.lens = minOf(glassMaterializeStep(GlassMaterializeLensFrom, GlassMaterializeLensTo, m), out.contour)
+  out.symbolAlpha = 0.5f * glassMaterializeStep(GlassMaterializeSymbolFrom, GlassMaterializeSymbolHalf, m) +
+    0.5f * glassMaterializeStep(GlassMaterializeSymbolCondense, 1f, m)
+  out.symbolScale = GlassMaterializeSymbolScale -
+    (GlassMaterializeSymbolScale - 1f) * glassMaterializeStep(GlassMaterializeSymbolCondense, 1f, m)
+  return out
+}
+
+/**
+ * Porta una ricetta **piena** ([recipe], fatta con `intensity` 1) alla comparsa di [materialize] (F3.3), con soli
+ * uniform che il corpo ha già: `materialize` diventa il contorno (lo shader lo applica a tutto, luce compresa) e lente,
+ * velo, tinta, ombreggiatura, scurimento, grana e ombra si scalano della quota della lente sul contorno, cosi' che nel
+ * prodotto dello shader valgano la lente. Il raggio di sfocatura e la saturazione seguono la lente (il raggio con
+ * `glassMixRadius`, un ramo solo: vedi la nota in testa); la mescola a monte resta quella del profilo, e il margine
+ * della cattura resta quello del raggio pieno: la cattura non si rifà.
+ *
+ * A [materialize] 1 la ricetta resta com'è, al bit: un vetro fermo non passa mai di qui con un valore diverso.
+ */
+internal fun glassMaterializeRecipe(
+  recipe: GlassRecipe,
+  materialize: Float,
+  channels: GlassMaterializeChannels = GlassMaterializeChannels(),
+): GlassRecipe {
+  val c = glassMaterializeChannels(materialize, channels)
+  if (c.contour >= 1f && c.lens >= 1f) return recipe
+  val share = if (c.contour > 0f) (c.lens / c.contour).coerceIn(0f, 1f) else 0f
+  recipe.materialize = recipe.materialize * c.contour
+  recipe.refractionDp *= share
+  recipe.magnify *= share
+  recipe.veilColor = recipe.veilColor.copy(alpha = recipe.veilColor.alpha * share)
+  recipe.tintColor = recipe.tintColor.copy(alpha = recipe.tintColor.alpha * share)
+  recipe.bodyShade = recipe.bodyShade.copy(alpha = recipe.bodyShade.alpha * share)
+  recipe.dim *= share
+  recipe.grain *= share
+  // L'ombra della ricetta porta già l'intensità (chi la mette nel corpo la divide per `materialize`): qui la lente.
+  recipe.shadowContactAlpha *= c.lens
+  recipe.shadowAmbientAlpha *= c.lens
+  // `w = 1` è il nitido (lente zero), `w = 0` il raggio pieno: la sfocatura cresce con la lente, un ramo solo.
+  recipe.blurDp = glassMixRadius(1f - c.lens, recipe.blurDp)
+  recipe.saturation = 1f + (recipe.saturation - 1f) * c.lens
+  return recipe
+}
 
 /**
  * Gli uniform del corpo, oltre a quelli della geometria (che dichiara il nucleo: `offset`, `flex`,

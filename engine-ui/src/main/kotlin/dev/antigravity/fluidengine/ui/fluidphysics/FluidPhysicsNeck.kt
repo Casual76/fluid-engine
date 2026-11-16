@@ -4,6 +4,7 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FloatSpringSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidNeck
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -68,8 +69,35 @@ internal const val PhysicsNeckPinchExponent: Float = 2f / 3f
  * Fin dove il collo arriva, in multipli del raggio di fusione del gruppo (`blendRadius`, la distanza di fusione che
  * l'app dichiara): fino a un raggio di fusione di varco il collo è intero, a due non c'è più. Due pezzi lontani più di
  * così non si toccano mai, qualunque cosa dica l'orologio.
+ *
+ * Dal pacchetto F3.3 la distanza è una **seconda coordinata del collo** e non più un peso sul raccordo: fra uno e due
+ * raggi di fusione di varco va da 1 a -1 ([physicsNeckReachCoordinate]), e il collo che si vede è quello della
+ * coordinata più bassa fra questa e l'orologio. Così due pezzi che la geometria allontana prima che l'orologio rompa il
+ * collo (i pezzi di F3.1, che finiscono a 40 dp) passano per la stessa sequenza di una rottura nel tempo: la vita si
+ * assottiglia, si rompe a un raggio e mezzo, i lobi si ritirano. Col peso di prima il raccordo scendeva sotto la soglia
+ * del ponte con la vita ancora larga (il ponte spariva in un fotogramma) e lasciava due punte lunghe quanto un quarto
+ * del raggio di fusione, rivolte l'una verso l'altra (`bench/f3-3/esplora`, 67 ms di `uno-due`).
  */
 internal const val PhysicsNeckReach: Float = 2f
+
+/**
+ * Oltre il varco in cui il collo pieno non sta più nel filo dei lobi ([physicsNeckFull] sotto il doppio del varco: per
+ * due capi tondi un varco di circa 1,4 raggi) il ponte non può esserci, e fino a F3.3 il raccordo restava quello pieno:
+ * due punte che **crescevano** con la distanza, perché il raccordo pieno cresce coi centri. Qui il raccordo si ritira
+ * mentre il rapporto `pieno / (2 · varco)` scende da 1 a questo valore: alla soglia vale il doppio del varco (il ponte
+ * appena rotto, continuo col ramo della vita), al 75% non c'è più. È la stessa ritirata dei lobi dopo una rottura nel
+ * tempo, letta sulla geometria.
+ */
+internal const val PhysicsNeckGeometricRetract: Float = 0.75f
+
+/**
+ * La coordinata del collo che dice la sola distanza ([PhysicsNeckReach]): 1 fino a [nominal] di varco, -1 da
+ * `PhysicsNeckReach · nominal` in poi, in mezzo uno smoothstep. Zero, cioè la rottura, a un raggio di fusione e mezzo.
+ */
+internal fun physicsNeckReachCoordinate(gap: Float, nominal: Float): Float {
+  if (!(nominal > 0f) || !gap.isFinite()) return -1f
+  return 1f - 2f * liquidSmoothstep(nominal, PhysicsNeckReach * nominal, gap)
+}
 
 /**
  * Lo spostamento con cui un piano porta il collo nel tempo nella stessa casella del collo nel progresso
@@ -174,6 +202,55 @@ internal class PhysicsNeckClock private constructor(
   }
 }
 
+// --- Il collo dei viaggi del piano flottante (F3.3) ---------------------------------------------------------
+
+/**
+ * La distanza di fusione di serie di un contenitore di vetro, in dp: il raggio di fusione nominale del collo fra due
+ * pezzi del piano flottante (`PhysicsRenderPlan.nominalBlend`). Fino a questo varco il collo è intero, a una volta e
+ * mezza si rompe, al doppio non arriva ([PhysicsNeckReach]).
+ *
+ * È una **scelta di gusto di Alessio ancora aperta** (F3, «distanza di fusione di serie»): 16 dp è la «media» della
+ * tavola `artifacts/liquid-glass/sessioni/f3-3/per-alessio/`, lo stesso valore delle tracce dei viaggi d'oro di F1B,
+ * contro 8 dp (stretta: si fondono quasi solo quando si toccano) e 24 dp (larga). Apple non la documenta (R1 C1: negli
+ * esempi 40 e 20 pt). Con due vetri a 8 dp (la distanza di serie fra due vetri di un gruppo) il collo di una divisione
+ * vive per tutto il tempo dell'orologio e si rompe quando lo dice lui; a 16 dp anche due gruppi a 12 dp si toccano in
+ * viaggio. A riposo non conta: i pezzi sono separati del tutto (decisione dell'11 novembre).
+ */
+internal const val PhysicsPlaneFusionDp: Float = 16f
+
+/**
+ * L'orologio del collo di un viaggio del piano flottante (`GlassPlaneJourney`): la frazione del tempo del viaggio già
+ * passata, e da lì la coordinata del collo con la stessa legge dei viaggi di `morphTo` ([physicsNeckAt]).
+ *
+ * Il piano non è una molla da cui leggere il tempo che manca: è una funzione del tempo con una durata nota
+ * (`durationMs`, la molla di [FluidMotion][dev.antigravity.fluidengine.ui.fluid.FluidMotion] stirata nel bilancio del
+ * contesto, 300 ms). Con la rottura di serie ([GlassLiquidNeck], 0,38, scelta A di Alessio) il collo si rompe a
+ * ~114 ms, cioè ~186 ms prima del riposo: è il «≈200 ms prima del riposo» di R4 B2 (d) (fiducia media: vale l'ordine
+ * delle fasi). Due pezzi che la geometria porta oltre la distanza di fusione prima di allora si staccano prima, per la
+ * coordinata della distanza ([physicsNeckReachCoordinate]), con la stessa sequenza.
+ *
+ * Un viaggio interrotto riparte dal collo che c'era ([retarget]): è l'invariante 16, come per `morphTo`.
+ *
+ * @param start la coordinata del collo alla partenza: -1 da fermi.
+ * @param durationMs quanto dura il viaggio, in millisecondi; zero o meno: un viaggio senza tempo, sempre a riposo.
+ * @param breakAt a che frazione del tempo il collo si rompe.
+ */
+internal class PhysicsPlaneNeck(
+  val start: Float = -1f,
+  val durationMs: Double,
+  val breakAt: Float = GlassLiquidNeck,
+) {
+  /** La coordinata del collo a [tMs] dalla partenza: [start] a zero, -1 dalla fine del viaggio in poi. */
+  fun at(tMs: Double): Float {
+    if (!(durationMs > 0.0) || !tMs.isFinite()) return -1f
+    return physicsNeckAt((tMs / durationMs).toFloat(), start, breakAt)
+  }
+
+  /** L'orologio del viaggio che interrompe questo a [atMs] e dura [nextDurationMs]: parte dal collo di adesso. */
+  fun retarget(atMs: Double, nextDurationMs: Double): PhysicsPlaneNeck =
+    PhysicsPlaneNeck(at(atMs), nextDurationMs, breakAt)
+}
+
 // --- La forma del collo -------------------------------------------------------------------------------------
 
 /**
@@ -225,15 +302,26 @@ private val PhysicsNeckTouchShape: Float = run {
  *   (allora `-depth` è il varco);
  * @param ends la somma dei raggi d'angolo dei due capi che si guardano;
  * @param nominal il raggio di fusione del gruppo: zero, nessun collo; fissa fin dove il collo arriva ([PhysicsNeckReach]).
+ * @param pinch l'esponente della vita ([PhysicsNeckPinchExponent] di serie): lo cambia solo la tavola di gusto di F3.3
+ *   («quanto si strozza il collo»), che rende le varianti dallo stesso codice.
  *
  * Staccati, il ponte c'è se il raccordo supera il doppio del varco (lo smooth minimum fa ponte finché il varco è meno
  * di mezzo raggio): fra la rottura (ν = 0, raccordo = 2·varco) e il pieno la vita del collo a metà strada è
- * ν^(2/3) della vita piena. Sovrapposti, il raccordo è la stessa forma del contatto scalata sul pieno di adesso: al
- * contatto le due regole coincidono, e due pezzi che coincidono (la fine di ogni riunione) non hanno raccordo.
+ * ν^(2/3) della vita piena, con ν la più bassa fra la coordinata dell'orologio e quella della distanza
+ * ([physicsNeckReachCoordinate]). Oltre il limite geometrico il raccordo si ritira ([PhysicsNeckGeometricRetract]).
+ * Sovrapposti, il raccordo è la stessa forma del contatto scalata sul pieno di adesso: al contatto le due regole
+ * coincidono, e due pezzi che coincidono (la fine di ogni riunione) non hanno raccordo.
  */
-internal fun physicsNeckPairBlend(depth: Float, ends: Float, nominal: Float, neck: Float): Float {
+internal fun physicsNeckPairBlend(
+  depth: Float,
+  ends: Float,
+  nominal: Float,
+  neck: Float,
+  pinch: Float = PhysicsNeckPinchExponent,
+): Float {
   if (!(nominal > 0f) || !(ends > 0f) || !depth.isFinite() || !neck.isFinite()) return 0f
   val n = neck.coerceIn(-1f, 1f)
+  val exponent = if (pinch.isFinite() && pinch > 0f) pinch else PhysicsNeckPinchExponent
   val r = ends / 2f
   val gap = -depth
   // Mezza distanza fra i centri dei due capi che si guardano: r + varco/2 staccati, meno di r sovrapposti.
@@ -241,23 +329,30 @@ internal fun physicsNeckPairBlend(depth: Float, ends: Float, nominal: Float, nec
   val full = physicsNeckFull(c / r) * r
   if (gap <= 0f) {
     if (n <= 0f) return 0f
-    val shape = n.pow(2f * PhysicsNeckPinchExponent)
+    val shape = n.pow(2f * exponent)
     val weight = (sqrt(1f + PhysicsNeckTouchShape * shape) - 1f) / (sqrt(1f + PhysicsNeckTouchShape) - 1f)
     return weight * full
   }
-  val reach = 1f - liquidSmoothstep(nominal, PhysicsNeckReach * nominal, gap)
-  if (!(reach > 0f)) return 0f
-  val bridge = min(2f * gap, full)
+  // La distanza è una seconda coordinata del collo: vince la più bassa. Fino a un raggio di fusione di varco vale 1 e
+  // il collo è quello dell'orologio, com'era.
+  val m = min(n, physicsNeckReachCoordinate(gap, nominal))
+  if (m <= -1f) return 0f
+  // Oltre il limite geometrico il raccordo si ritira invece di restare quello pieno. Una rampa lineare e non uno
+  // smoothstep: piatto alla soglia, lo smoothstep lasciava crescere il raccordo (che cresce coi centri) ancora per un
+  // tratto, cioè le punte si allungavano proprio dopo la rottura.
+  val held = if (full >= 2f * gap) 1f
+    else ((full / (2f * gap) - PhysicsNeckGeometricRetract) / (1f - PhysicsNeckGeometricRetract)).coerceIn(0f, 1f)
+  val bridge = min(2f * gap, full) * held
   val k = when {
-    n < 0f -> bridge * (1f + n)
+    m < 0f -> bridge * (1f + m)
     full > 2f * gap -> {
       val fullWaist2 = (r + full / 4f) * (r + full / 4f) - c * c
-      val waist = n.pow(PhysicsNeckPinchExponent) * sqrt(max(fullWaist2, 0f))
+      val waist = m.pow(exponent) * sqrt(max(fullWaist2, 0f))
       4f * (sqrt(c * c + waist * waist) - r)
     }
-    else -> full
+    else -> bridge
   }
-  return reach * max(k, 0f)
+  return max(k, 0f)
 }
 
 /**
@@ -270,7 +365,12 @@ internal fun physicsNeckPairBlend(depth: Float, ends: Float, nominal: Float, nec
  * raggio del campo salta al cambio di destinazione, ma è calcolato per angoli più tondi di quelli disegnati e gonfia
  * la giunzione: sulla serie di robustezza andava peggio (vedi il rapporto di F1B.9).
  */
-internal fun physicsTimedNeckBlend(plan: PhysicsRenderPlan, index: Int, neck: Float): Float {
+internal fun physicsTimedNeckBlend(
+  plan: PhysicsRenderPlan,
+  index: Int,
+  neck: Float,
+  pinch: Float = PhysicsNeckPinchExponent,
+): Float {
   val nominal = plan.nominalBlend
   if (!(nominal > 0f) || index <= 0) return 0f
   val at = index * 4
@@ -286,7 +386,7 @@ internal fun physicsTimedNeckBlend(plan: PhysicsRenderPlan, index: Int, neck: Fl
       bestEnds = physicsNeckCorner(plan, index) + physicsNeckCorner(plan, j)
     }
   }
-  return physicsNeckPairBlend(best, bestEnds, nominal, neck)
+  return physicsNeckPairBlend(best, bestEnds, nominal, neck, pinch)
 }
 
 /** Il raggio d'angolo medio del pezzo [index] nel campo: quanto sono tondi i suoi capi. */

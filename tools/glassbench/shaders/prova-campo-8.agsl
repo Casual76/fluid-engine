@@ -171,8 +171,17 @@ float glassField(float2 p, out float2 normal, out float2 center) {
             // sovrappongono sale a `pieceSoft` (F1B.2): due pezzi sovrapposti con centri diversi non si contendono
             // piu' il punto a scatto. La sagoma non cambia: `d` resta quella di sempre.
             float ka = max(k, pieceSoft[i]);
+            // Fra pezzi che si compenetrano (`pieceSoft` sopra zero) normale e centro si pesano almeno su un quarto del
+            // lato corto del pezzo (F3.3): l'arco nascosto dall'altro non e' contorno, e sull'asse fra i due la lente non
+            // si piega piu' in due versi (la cucitura al contatto). Fra pezzi staccati, cioe' a riposo, non entra.
+            if (pieceSoft[i] > 0.0) {
+                ka = max(ka, 0.5 * min(pieceRect[i].z, pieceRect[i].w) * smoothstep(0.0, 1.0, pieceSoft[i]));
+            }
             float ha = clamp(0.5 + 0.5 * (slab.x - d) / ka, 0.0, 1.0);
-            d = slab.x + (d - slab.x) * h - k * h * (1.0 - h);
+            // Dentro la sovrapposizione (dentro tutti e due, oltre un raggio di fusione) niente rigonfiamento (F3.3):
+            // la sagoma non cambia, la profondita' non fa cresta sull'asse fra i due pezzi.
+            float swell = 1.0 - smoothstep(0.0, k, -max(slab.x, d));
+            d = slab.x + (d - slab.x) * h - k * h * (1.0 - h) * swell;
             normal = mix(slab.yz, normal, ha);
             center = mix(pieceRect[i].xy, center, ha);
         }

@@ -1905,7 +1905,9 @@ misure; S3. **Resta fuori**: barre, menu, fogli (F4–F5), che ne sono i clienti
   grande: i pezzi li ricevono e non sondano (3.9). È qui, e non in F2, che «una barra gira tutta insieme» diventa vero.
 - *Quando qualcosa cambia.* Il contenuto è già al suo posto d'arrivo (invariante 23: non si stira mai). Il piano confronta
   lo stato di prima e quello di adesso: stesso `id` → stesso pezzo che si sposta e cambia forma; `id` nuovo entro `spacing`
-  da un pezzo esistente → **nasce da lui** (`MatchedGeometry`: parte sovrapposto al vicino e se ne stacca); `id` nuovo più
+  da un pezzo esistente → **nasce da lui** (`MatchedGeometry`; dopo F3.11–F3.12: il vetro si accende e aspetta, il vicino,
+  il «donatore», rincula un poco e va per primo verso il suo posto, e chi nasce ne è rilasciato con una molla che supera
+  il posto, gonfio, col contenuto che rimbalza con lui; sui tempi delle clip di Apple a tempo vero); `id` nuovo più
   lontano → **comparsa per lente** (`Materialize`); pezzi senza `id` → accoppiati per lato e posizione come fa oggi
   `barPieceJourney`. Poi un viaggio di Fluid-physics guidato da fuori fra i due gruppi
   (`driveExternally`, `fp/FluidPhysicsState.kt:176`), sul palco.

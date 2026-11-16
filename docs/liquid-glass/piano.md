@@ -1828,8 +1828,8 @@ ha lasciato le quattro scelte alla proposta dell'orchestratore («per le scelte 
 | velocità del giro | **C**: più svelto di B6, con un'attesa breve prima di girare, a condizione che scacchiera e caso veloce non oscillino; altrimenti la stessa velocità con 200 ms | `GlassFlipTimings.Swift` con **200 ms**: la condizione non ha retto (caso veloce, quattro corse: con 100 ms la tab bar fa 60 giri e 34 doppi, con 200 ms 12 e 6; sulla scacchiera nessun giro con nessuna delle due) |
 | soglia del giro | **A**: 0,45 / 0,62 | invariata |
 | profondità del piccolo girato | **B**: più profondo | `darkveilalpha` 0,39 (≈43/255 sul nero); vale anche per il vetro scuro dei piccoli in tema scuro |
-| profondità dei grandi | **B**, come Apple: `darklargealpha` 0,89 (48 sul nero pieno, 89 al 47%) | **resta 0,5, da riguardare con Alessio**: con 0,89 anche i fogli e le card del tema scuro schiariscono (corpo da 34 a 49–51) e il testo secondario scende da 6,87:1 a 5,60:1 (5,44:1 sul fondo del tablet), sotto il vincolo di 6:1 messo in F1A.5c; il vincolo era dell'orchestratore, la scelta è di Alessio, e quell'effetto sul tema scuro non gli era stato mostrato |
-| cosa fa il vetro mentre scorri: `live` / `rest` / `ahead` / a copertura | delegata all'orchestratore, sulle riprese del giro di correzione | **proposta `rest`** (mentre scorre il vetro tiene il lato dell'ultimo riposo, permanenza di 1 s): l'unica variante con 0 giri e 0 s sotto 3:1 nei quattro casi ripresi (`sessioni/f2-g1/per-alessio/1-mentre-scorri/`). Di serie resta `live` con permanenza di 400 ms finché sul tablet non si vedono il caso dei riquadri scuri che riempiono la barra e il costo |
+| profondità dei grandi | **B**, come Apple: `darklargealpha` 0,89 (48 sul nero pieno, 89 al 47%) | **0,63, scelta di Alessio sul tablet (2026-11-16)** fra 0,5 / 0,63 / 0,89 (`artifacts/liquid-glass/sessioni/f2-chiusura/per-alessio/profondita-grandi-tavola.png`): corpo sul nero 27 / 34 / 48, testo secondario 7,45 / 6,87 / 5,69:1 misurati sui pixel. Con 0,89 schiarivano anche fogli e card del tema scuro, effetto che non gli era stato mostrato in S3 |
+| cosa fa il vetro mentre scorri: `live` / `rest` / `ahead` / a copertura | delegata all'orchestratore, sulle riprese del giro di correzione | **`live` con permanenza di 1 s** (decisione dell'orchestratore, 2026-11-16). `rest` era la proposta sulle riprese di G1, ma la sessione di chiusura coi valori finali l'ha smentita: tiene il lato sbagliato fino a ≈8 s dopo un'inversione (titolo bianco a 1,8:1 sul chiaro) e ≈2 s uscendo da un riquadro scuro. `live` con 400 ms fa doppi giri (tab bar 8 giri / 4 doppi, tasti 10 / 7 in 10 s nel caso veloce), contro il criterio F2-a riscritto; la permanenza di 1 s li toglie. Il titolo sulla striscia scende sotto 3:1 per 2,8–4,4 s su 17 in tutte e due le varianti, a episodi di 150–430 ms (dentro la finestra di un giro): lo chiude F4A (riga sotto). Riprese: `sessioni/f2-chiusura/per-alessio/mentre-scorri/` |
 
 **Esito del giro di correzione (2026-11-16, commit 5c93992).** Un solo giro, per decisione di Alessio, senza un secondo
 giro di critici: G1 sull'engine (`artifacts/liquid-glass/review/F2/correzione-G1.md`), G2 sui documenti (commit
@@ -1846,20 +1846,27 @@ scala di sistema a zero; `GlassBackdropState.notifyChanged()` (API nuova) per le
 `FluidScrollEdge` tiene il posto quando non si disegna. I 66 test rossi a metà giro non erano regressi (62 voci note
 della robustezza in più per il salto d'alfa fra piccoli e grandi a 0,39 / 0,5; 4 test legati ai valori di serie).
 
-**F2 resta aperta per una sessione sul tablet** (Alessio lo usava a metà giro). Le riprese mancanti, coi comandi, sono
-in `artifacts/liquid-glass/sessioni/f2-g1/da-riprendere.md`; la prima è un possibile regresso: nelle registrazioni la
-scena `scorrimento` gira a 86–87 fotogrammi al secondo con 74–75 oltre 20 ms, contro 100 e 20 prima del giro, ma le
-riprese «dopo» erano venti di fila col tablet caldo. Si chiude con il `gfxinfo` senza registrazione a tablet freddo,
-alternando gli APK `s3` e `f2-g1`; poi il riposo (zero fotogrammi), `rest` sui riquadri che riempiono la barra, il
-cursore a 0 / 0,5 / 1, le varianti, il movimento ridotto, il menu dal tasto girato con l'APK finale, e le tavole per
-Alessio sulla profondità dei grandi (0,5 / ≈0,63 / 0,89, foglio scuro in tema scuro).
+**Chiusura di F2 (2026-11-16).** La sessione di chiusura sul tablet (`artifacts/liquid-glass/sessioni/f2-chiusura/`,
+APK `f2-g1`) ha chiuso ciò che il giro di correzione aveva lasciato da vedere. **Nessun regresso di costo**: a tablet
+freddo, 24 corse alternate, la scena `scorrimento` fa 1235 fotogrammi in 10 s contro 1234 di `s3`, lenti 2,15% contro
+3,31%, GPU a 6 ms; gli 86–87 fps delle riprese di G1 erano il caldo (a freddo, con l'APK finale, 112–120). Riposo: zero
+fotogrammi in 8 s su sei pagine. Cursore: a 1 le forme dietro si leggono appena (`frostColored` non va allargato).
+Movimento ridotto: tasti e tab bar girano in un fotogramma, il foglio non insegue. Menu da un tasto girato: nessun lampo.
+Uscita della barra scura da un riquadro chiaro: titolo sotto 3:1 per 150–433 ms a ogni uscita, un tratto solo, dentro
+la finestra di un giro. Restano due valori di serie da portare nel codice (`darklargealpha` 0,63, permanenza 1 s:
+pacchetto dopo F3.2c, coi golden toccati) e i difetti qui sotto. **Metodo**: la temperatura della batteria non dice se il
+tablet è freddo (27 °C di batteria con la superficie a 40 °C e lo stato termico già a 1); le misure di costo aspettano lo
+stato termico 0 e la superficie a 35 °C o meno (vale per F7).
 
 **Difetti aperti e fase che li chiude.**
 
 | difetto | misura | fase |
 |---|---|---|
 | costo dello scorrimento del vetro nuovo sopra le foto | lenti liquid 19–26% contro classic ~12% (Tab S9, a freddo; F2.5b e S3 uguali) | **F7**, «Debito di costo ereditato da F2» |
-| scena `scorrimento` più lenta dopo il giro di correzione (da confermare) | 86–87 fps contro 100, nelle registrazioni | sessione sul tablet di F2; se è un regresso, si corregge prima di F3 |
+| il titolo della barra in alto sulla striscia, mentre la lista scorre su riquadri chiari e scuri alternati: sotto 3:1 a episodi (decide il lato della striscia, che gira con un giro) | 2,8–4,4 s su 17 s di prova sintetica, episodi di 150–430 ms | **F4A**, con la barra in alto nuova (il titolo e la sua striscia) |
+| l'etichetta del tasto tinto sopra una foto | 3,90:1 su foto scura in tema chiaro, 3,20:1 su foto chiara in tema scuro | F6.4 (stili dei tasti) |
+| `FluidGlassMenuButton` su fondo scuro e un'azione della barra con menu a barra girata: non ripresi (nessuna scena in F2) | – | F5A |
+| il bordo in basso con movimento ridotto: con la scala di sistema a 0 lo scorrimento automatico della galleria salta, quindi non giudicabile da una ripresa | – | sessione S3, a mano |
 | lo specchio del banco non ha la ricetta del pop-up: i numeri dei grandi non si leggono dal banco | banco 110 / 110 / 69 / 27, tablet 116 / 83 / 70 / 27, Apple 111 / 89 / 61 / 48 al 25 / 47 / 74 / 100% di nero | F3 |
 | i golden del banco sono tutti di F1: nessuna scena prova giro, grandi o bordo | – | F3 |
 | la trama della sonda conta un bordo netto come testo (l'ombra si rinforza sopra un riquadro a tinta unita) | – | F3, con la sonda del contenitore |

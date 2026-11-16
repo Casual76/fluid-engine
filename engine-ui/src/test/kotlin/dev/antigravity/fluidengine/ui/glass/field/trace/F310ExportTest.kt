@@ -43,7 +43,8 @@ class F310ExportTest {
       assertEquals("$fund: al primo fotogramma del palco la luce è zero", 0.0, number(stage(first), "_luce"), 0.0)
       val peak = lit.frames.mapNotNull { stage(it) }.maxOf { number(it, "_luce") }
       assertTrue("$fund: la luce arriva piena ($peak)", peak > 0.99)
-      val late = lit.frames.filter { it.tMs >= 285.0 }.mapNotNull { stage(it) }
+      // F3.12a: il riposo a vista è a 500 ms (era 300): il 90% del viaggio è 450 ms.
+      val late = lit.frames.filter { it.tMs >= 455.0 }.mapNotNull { stage(it) }
       assertTrue("$fund: spenta dal 90% del viaggio", late.all { number(it, "_luce") == 0.0 })
       // Senza tocco nessun bagliore.
       assertTrue("$fund: senza tocco nessun dito", lit.frames.mapNotNull { stage(it) }.all { number(it, "_dito") == 0.0 })
@@ -62,9 +63,9 @@ class F310ExportTest {
       assertEquals("$fund: con la campana del vetro fermo", 0.0, number(first, "_riempito"), 1e-3)
       val full = stage(touched.frames.first { it.tMs >= 120.0 })
       assertTrue("$fund: a 120 ms il bagliore è pieno", number(full, "_dito") > 0.99)
-      val half = stage(touched.frames.first { it.tMs >= 155.0 })
+      val half = stage(touched.frames.first { it.tMs >= 255.0 })
       assertTrue("$fund: a metà viaggio il bagliore ha riempito il vetro", number(half, "_riempito") > 0.98)
-      val late = touched.frames.filter { it.tMs >= 285.0 }.mapNotNull { stage(it) }
+      val late = touched.frames.filter { it.tMs >= 455.0 }.mapNotNull { stage(it) }
       assertTrue("$fund: spento col carattere", late.all { number(it, "_dito") == 0.0 })
     }
   }

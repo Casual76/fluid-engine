@@ -88,16 +88,20 @@ class PhysicsPlaneNeckTest {
   @Test
   fun aSplitBetweenNeighboursThinsAndBreaksOnceAbout200msBeforeRest() {
     val (samples, duration) = journey(state(piece("a", 158f)), state(piece("a", 132f), piece("b", 184f)))
-    assertTrue("il piano dura ${duration} ms", duration in 280.0..320.0)
+    // F3.12a: una divisione è una nascita, e una nascita intera dura mezzo secondo (Apple a tempo vero, scelta di
+    // Alessio); il riposo a vista è la fine della coda del rilascio. Fino a F3.11 era 300 ms, e la geometria finiva a 345.
+    assertTrue("il piano dura ${duration} ms", duration in 480.0..520.0)
     assertEquals("si rompe una volta sola", 1, changes(samples))
     val broke = samples.first { !it.connected }.ms
-    // F3.2c: la rottura di serie (0,38) sull'orologio lungo il doppio del riposo a vista cade a ~228 ms di 300, dopo che i
-    // pezzi si sono staccati (~167 ms): ~70 ms prima del riposo a vista, all'80% circa del moto come in R4 B2 (d).
+    // La rottura di serie (0,38, la scelta di Alessio: non cambia) sull'orologio lungo il doppio del riposo a vista cade
+    // a 0,76 del viaggio: ~380 ms su 500 (era ~228 su 300), dopo che i pezzi si sono staccati e **dopo il colmo del
+    // superamento** di chi è nato (~0,7), come in Apple (R4 B2 (b): colmo a 334 ms, rottura a 400).
     val apart = samples.first { it.gap > 0f }.ms
-    println("F3.2c divisione a 8 dp: si staccano a $apart ms, il collo si rompe a $broke ms, riposo a vista a $duration ms")
-    assertTrue("si rompe a $broke ms", broke in 195.0..260.0)
+    println("F3.12a divisione a 8 dp: si staccano a $apart ms, il collo si rompe a $broke ms, riposo a vista a $duration ms")
+    assertTrue("si rompe a $broke ms", broke in 350.0..410.0)
     assertTrue("si rompe dopo che si staccano ($apart ms)", broke > apart + 20.0)
-    assertTrue("si rompe ${duration - broke} ms prima del riposo a vista", duration - broke in 40.0..105.0)
+    assertTrue("si rompe ${duration - broke} ms prima del riposo a vista", duration - broke in 90.0..150.0)
+    assertTrue("si rompe a ${broke / duration} del viaggio, dopo il colmo del superamento", broke / duration in 0.72..0.82)
     // Prima di rompersi la vita si assottiglia: c'è un collo visibile (sotto il 95% del lobo) per almeno 40 ms.
     val neck = samples.count { it.connected && it.waist > 0f && it.waist < 0.95f } * 1000.0 / 120.0
     assertTrue("collo visibile per $neck ms", neck >= 40.0)

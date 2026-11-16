@@ -86,14 +86,29 @@ class F38aExportTest {
           assertTrue("$name t=${frame.tMs}: la lastra ($left..$right) copre la scritta", left <= x + w / 3 && right >= x + 2 * w / 3)
         }
       }
-      // Riposo a vista a 300 ms: il testo compare dopo metà viaggio, sfocato, ed è nitido prima della fine.
-      assertTrue("$name: «Fatto» compare a $firstSeen ms", firstSeen in 150.0..185.0)
-      val early = layer(trace.frames.first { it.tMs >= 180.0 }, "c-fatto")!!
-      assertTrue("a 180 ms è sfocato", number(early, "blurDp", 0.0) > 1.0)
+      // F3.12a: il riposo a vista è a 500 ms (la nascita intera di Apple a tempo vero; era 300), e il contenuto di chi
+      // nasce conta dal primo rilascio: qui il donatore resta dov'è e rilascia a 0,17, quindi «Fatto» compare a 0,38 del
+      // viaggio (190 ms), dentro il vetro che sta arrivando. In Apple a tempo vero i simboli nuovi si vedono da ~200 ms
+      // e sono nitidi a ~350 (`sessioni/f3-12a/misure.md`).
+      assertTrue("$name: «Fatto» compare a $firstSeen ms", firstSeen in 185.0..215.0)
+      val early = layer(trace.frames.first { it.tMs >= 215.0 }, "c-fatto")!!
+      assertTrue("a 215 ms è sfocato", number(early, "blurDp", 0.0) > 1.0)
       assertTrue("e traslucido", number(early, "alpha", 1.0) < 0.7)
-      val late = layer(trace.frames.first { it.tMs >= 300.0 }, "c-fatto")!!
-      assertEquals("a 300 ms è nitido", 0.0, number(late, "blurDp", 0.0), 0.0)
+      val sharp = layer(trace.frames.first { it.tMs >= 340.0 }, "c-fatto")!!
+      assertEquals("a 340 ms è nitido", 0.0, number(sharp, "blurDp", 0.0), 0.0)
+      val late = layer(trace.frames.first { it.tMs >= 500.0 }, "c-fatto")!!
+      assertEquals("a 500 ms è nitido", 0.0, number(late, "blurDp", 0.0), 0.0)
       assertEquals(1.0, number(late, "alpha", 1.0), 0.0)
+      // Il contenuto rimbalza col suo vetro (F3.12a): al colmo del superamento la scritta è oltre il suo posto, e alla
+      // fine ci torna. «Modifica», il donatore, va verso «Fatto» e poi rimbalza dall'altra parte.
+      val rest = number(layer(trace.frames.last(), "c-fatto")!!, "x", 0.0)
+      val furthest = trace.frames.filter { it.tMs in 300.0..420.0 }.maxOf { number(layer(it, "c-fatto")!!, "x", 0.0) }
+      assertTrue("$name: «Fatto» supera il suo posto di ${furthest - rest} dp", furthest - rest > 3.0)
+      val home = number(layer(trace.frames.first(), "c-modifica")!!, "x", 0.0)
+      val xs = trace.frames.map { number(layer(it, "c-modifica")!!, "x", 0.0) - home }
+      assertTrue("$name: «Modifica» rincula verso «Fatto» di ${xs.max()} dp", xs.max() in 2.5..4.0)
+      assertTrue("$name: e rimbalza dall'altra parte di ${-xs.min()} dp", -xs.min() in 1.5..2.5)
+      assertEquals("$name: alla fine è al suo posto", 0.0, xs.last(), 0.0)
       // «Modifica» resta: mai sfocata, mai traslucida.
       for (frame in trace.frames) {
         val icon = layer(frame, "c-modifica")
@@ -115,38 +130,51 @@ class F38aExportTest {
       assertNotNull("$name: «Seleziona» c'è ancora all'8%", old)
       assertTrue("$name: ed è già sfocata", number(old!!, "blurDp", 0.0) > 0.5)
       val gone = trace.frames.first { it.tMs >= 0.0 && layer(it, "c-seleziona") == null }
-      assertTrue("$name: «Seleziona» è sparita a ${gone.tMs} ms", gone.tMs in 40.0..60.0)
+      // Il 16% del viaggio, che ora dura 500 ms (F3.12a): era 47 ms su 300.
+      assertTrue("$name: «Seleziona» è sparita a ${gone.tMs} ms", gone.tMs in 70.0..95.0)
       for (frame in trace.frames.filter { it.tMs > 0.0 && it.tMs < gone.tMs }) {
         assertNotNull("$name t=${frame.tMs}: ritagliata sul vetro che se ne va", layer(frame, "c-seleziona")!!["clip"])
       }
       assertNull("$name: a riposo non resta niente del vecchio", layer(trace.frames.last(), "c-seleziona"))
       for (key in listOf("c-cerchio", "c-triangolo", "c-fatto")) {
         val first = trace.frames.first { it.tMs >= 0.0 && layer(it, key) != null }
-        assertTrue("$name: $key compare a ${first.tMs} ms", first.tMs in 150.0..185.0)
+        assertTrue("$name: $key compare a ${first.tMs} ms", first.tMs in 250.0..290.0)
         val born = layer(first, key)!!
         assertTrue("$name: $key arriva sfocato", number(born, "blurDp", 0.0) > 1.0)
         assertNotNull("$name: $key arriva dentro il vetro", born["clip"])
-        val sharp = layer(trace.frames.first { it.tMs >= 240.0 }, key)!!
-        assertEquals("$name: $key è nitido a 240 ms", 0.0, number(sharp, "blurDp", 0.0), 0.0)
+        val sharp = layer(trace.frames.first { it.tMs >= 400.0 }, key)!!
+        assertEquals("$name: $key è nitido a 400 ms (quattro quinti di 500)", 0.0, number(sharp, "blurDp", 0.0), 0.0)
         assertEquals("$name: $key a riposo", 1.0, number(layer(trace.frames.last(), key)!!, "alpha", 1.0), 0.0)
       }
     }
   }
 
   @Test
-  fun theTextOfAGlassThatLeavesBlursAwayWhereItWas() {
+  fun theTextOfAGlassThatLeavesBlursAwayInsideItsGlass() {
+    // F3.12a: il contenuto di chi se ne va **viaggia col suo vetro** mentre si sfoca (in Apple i simboli di chi
+    // confluisce entrano nel vicino col loro vetro: 4:51 e 4:59, a tempo vero), invece di restare dov'era ad aspettare
+    // il bordo. Si sposta verso «Modifica», in continuo, e non salta.
     val trace = traces.getValue("due-uno-chiaro")
     val before = layer(trace.frames.first(), "c-fatto")!!
     val x0 = number(before, "x", 0.0)
     val gone = trace.frames.first { it.tMs >= 0.0 && layer(it, "c-fatto") == null }
-    assertTrue("«Fatto» è sparito a ${gone.tMs} ms", gone.tMs in 40.0..60.0)
+    assertTrue("«Fatto» è sparito a ${gone.tMs} ms", gone.tMs in 70.0..95.0)
+    var previous = x0
     for (frame in trace.frames.filter { it.tMs > 0.0 && it.tMs < gone.tMs }) {
       val text = layer(frame, "c-fatto")!!
-      assertEquals("resta dov'era", x0, number(text, "x", 0.0), 0.01)
+      val x = number(text, "x", 0.0)
+      assertTrue("t=${frame.tMs}: va verso il vicino col suo vetro ($previous -> $x)", x <= previous + 1e-6 && previous - x < 6.0)
+      previous = x
       assertNotNull("ritagliato dalla lastra che se ne va", text["clip"])
-      if (frame.tMs >= 24.0) assertTrue("già sfocato a ${frame.tMs} ms", number(text, "blurDp", 0.0) > 0.5)
+      if (frame.tMs >= 40.0) assertTrue("già sfocato a ${frame.tMs} ms", number(text, "blurDp", 0.0) > 0.5)
     }
+    assertTrue("si è spostato di ${x0 - previous} dp prima di sparire", x0 - previous > 1.0)
     assertNull("a riposo non resta niente", layer(trace.frames.last(), "c-fatto"))
+    // «Modifica», che lo accoglie, è spinta tutta intera e torna: la sua icona con lei.
+    val home = number(layer(trace.frames.first(), "c-modifica")!!, "x", 0.0)
+    val pushed = trace.frames.minOf { number(layer(it, "c-modifica")!!, "x", 0.0) - home }
+    assertTrue("«Modifica» è spinta di ${-pushed} dp", -pushed in 5.0..9.0)
+    assertEquals(0.0, number(layer(trace.frames.last(), "c-modifica")!!, "x", 0.0) - home, 0.0)
   }
 
   @Test

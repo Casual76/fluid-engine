@@ -1265,14 +1265,24 @@ internal class FluidGlassSwell(
   val maxPx: Float,
   val density: Float,
 ) {
-  /** Di quanto esce ogni lato di una lastra col lato corto [shortPx], in pixel. */
-  fun growPx(shortPx: Float): Float {
-    if (!(level > 0f) || !(density > 0f)) return 0f
-    return min(glassJourneySwellDp(shortPx / density, level, character) * density, maxPx)
+  /**
+   * Di quanto esce ogni lato di una lastra col lato corto [shortPx], in pixel. [extra] è il rigonfiamento **in più** di
+   * quel pezzo (F3.12a, `GlassPlanePieceFrame.swell`: chi è stato rilasciato arriva gonfio), nelle stesse unità del
+   * livello; si somma, e il tetto vale per la somma.
+   */
+  fun growPx(shortPx: Float, extra: Float = 0f): Float {
+    if (!(density > 0f)) return 0f
+    val more = if (extra.isFinite() && extra > 0f) extra else 0f
+    if (!(level > 0f) && !(more > 0f)) return 0f
+    val short = shortPx / density
+    // Due chiamate: `glassJourneySwellDp` ferma il suo livello a uno, e la somma dei due può superarlo.
+    val grow = glassJourneySwellDp(short, level, character) + glassJourneySwellDp(short, more, character)
+    return min(grow * density, maxPx)
   }
 
-  /** [slab] rigonfiata; a livello zero è [slab], la stessa istanza. */
-  fun of(slab: FluidForm.Slab): FluidForm.Slab = glassJourneySwollen(slab, growPx(slab.frame.minDimension))
+  /** [slab] rigonfiata, col rigonfiamento in più [extra] del suo pezzo; a livello zero è [slab], la stessa istanza. */
+  fun of(slab: FluidForm.Slab, extra: Float = 0f): FluidForm.Slab =
+    glassJourneySwollen(slab, growPx(slab.frame.minDimension, extra))
 
   companion object {
     /** Nessun rigonfiamento: a riposo, e nei campi che compaiono o scompaiono per lente. */
@@ -1310,8 +1320,10 @@ internal fun fluidGlassStagePlane(
     maxOf(maxOf(abs(v.left), abs(v.right)), maxOf(abs(v.top), abs(v.bottom)))
   } ?: 0f
   val slabs = shape.slabs.take(FluidForm.Group.MaxPieces)
+  // Il rigonfiamento comune del viaggio, più quello di ogni pezzo (F3.12a: chi è stato rilasciato arriva gonfio).
+  val swollen = swell.level > 0f || shape.members.any { it.swell > 0f }
   return PhysicsPlaneShape(
-    slabs = if (swell.level > 0f) slabs.map { swell.of(it) } else slabs,
+    slabs = if (swollen) slabs.mapIndexed { index, slab -> swell.of(slab, shape.members[index].swell) } else slabs,
     nominalBlend = spacingPx,
     neck = neck,
     unions = fluidGlassStableUnionIndices(shape.members),
@@ -1335,10 +1347,15 @@ internal fun fluidGlassArrivalOf(change: GlassPlaneChange): GlassPieceArrival = 
  * Come si disegna in questo fotogramma il contenuto di un pezzo che sta in [place] (nel contenitore), col vetro [flying],
  * la parte [role] e l'aspetto [look] (F3.8a). Null per un contenuto fermo e nitido: è quello di riposo, senza ritaglio.
  *
- * Chi resta ([GlassPieceContentRole.Rest], [GlassPieceContentRole.Recover]) **viaggia col suo vetro**: è spostato di
- * quanto il centro della lastra è lontano dal posto d'arrivo (R7 A3: «nitido, si sposta col suo vetro»). Chi nasce,
- * compare o se ne va sta fermo al suo posto (R7 A5). Tutti sono ritagliati sulla lastra in volo, rigonfiata di [swell]
- * come la disegna il palco: mai un contenuto fuori dal suo vetro. Pura.
+ * **Ogni contenuto viaggia col suo vetro** (F3.12a): è spostato di quanto il centro della lastra è lontano dal posto
+ * in cui il contenuto è stato composto. Fino a F3.11 valeva solo per chi resta (R7 A3: «nitido, si sposta col suo
+ * vetro»), e il contenuto di un pezzo che nasce stava fermo al posto d'arrivo mentre il vetro gli rimbalzava attorno;
+ * in Apple i simboli stanno dentro il vetro e fanno il suo rimbalzo (`sessioni/f3-12a/misure.md`: superano il loro
+ * posto di 0,15–0,20 D e tornano, e quelli di chi confluisce entrano nel vicino col loro vetro mentre svaniscono), e
+ * **non cambiano misura** (la larghezza di un simbolo resta entro l'1%): il contenuto trasla, non si stira (invariante
+ * 23). Chi compare o scompare per lente non si sposta: la sua lastra cresce attorno al centro. Tutti sono ritagliati
+ * sulla lastra in volo, rigonfiata di [swell] (col rigonfiamento in più del pezzo) come la disegna il palco: mai un
+ * contenuto fuori dal suo vetro. Pura.
  */
 internal fun fluidGlassContentFlightOf(
   flying: GlassPlanePieceFrame,
@@ -1348,10 +1365,11 @@ internal fun fluidGlassContentFlightOf(
   swell: FluidGlassSwell,
 ): FluidGlassContentFlight? {
   if (flying.still && look == GlassContentLook.Sharp) return null
-  val rides = role.role == GlassPieceContentRole.Rest || role.role == GlassPieceContentRole.Recover
   val lens = flying.change == GlassPlaneChange.Materialize || flying.change == GlassPlaneChange.Dematerialize
   val slab = FluidForm.Slab(flying.bounds, flying.radii)
-  val drawn = if (lens) slab else swell.of(slab)
+  val drawn = if (lens) slab else swell.of(slab, flying.swell)
+  // Un contenuto che non si vede non ha un posto: niente spostamento da ricordare per quando comparirà.
+  val rides = !lens && role.role != GlassPieceContentRole.Hidden
   return FluidGlassContentFlight(
     look = look,
     offset = if (rides) flying.bounds.center - place.center else Offset.Zero,
@@ -2115,10 +2133,12 @@ internal class FluidGlassContainerState {
     val exports = exportsOf(flights.flatMap { listOf(it.targetKey, it.sourceKey) })
     val lens = flights.all { it.change == GlassPlaneChange.Materialize || it.change == GlassPlaneChange.Dematerialize }
     // Il nodo contiene il rigonfiamento al colmo (F3.9): ogni pezzo sta nel riquadro del campo, quindi il lato corto
-    // del campo è un tetto al suo. Chi compare o scompare per lente non si gonfia.
+    // del campo è un tetto al suo. Chi compare o scompare per lente non si gonfia. Dove un vetro nasce da un vicino
+    // c'è anche il suo rigonfiamento in più (F3.12a), che arriva quando quello comune sta scendendo: il tetto è la somma.
+    val born = flights.any { it.change == GlassPlaneChange.BornFromNeighbour }
     val grow = if (lens) 0f else {
       FluidGlassSwell(driver.journeyCharacter, 1f, FluidMotion.PlaneSwellMaxDp * density.density, density.density)
-        .growPx(field.bounds.minDimension)
+        .growPx(field.bounds.minDimension, if (born) FluidMotion.PlaneReleaseSwell else 0f)
     }
     return FluidGlassStageField(
       index, field.bounds.inflate(margin + grow).snapped(), look, flights, exports, union = field.union, lens = lens,
@@ -2209,8 +2229,8 @@ internal class FluidGlassContainerState {
 
   /**
    * L'aspetto del contenuto di ogni pezzo in questo fotogramma (F3.8a): dalla sua parte e dalla fase del volo del suo
-   * vetro, ritagliato sulla lastra in volo. Chi resta viaggia con la sua lastra (di quanto il centro si è spostato dal
-   * posto d'arrivo); chi nasce, compare o se ne va sta fermo al suo posto, e il vetro lo scopre o lo copre.
+   * vetro, ritagliato sulla lastra in volo. Ogni contenuto viaggia con la sua lastra (F3.12a: di quanto il centro si è
+   * spostato dal suo posto), anche quello di chi nasce e di chi confluisce: l'icona rimbalza col vetro.
    */
   private fun driveContents(frame: GlassPlaneFrame) {
     val blur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -2220,9 +2240,10 @@ internal class FluidGlassContainerState {
       val piece = target ?: (flying.flightId.sourceKey as? FluidGlassPiece)?.takeIf { !it.content.attached } ?: continue
       val content = piece.content
       val role = content.role
-      val look = glassPieceContentLook(role, flying.phase, blur)
+      // La fase del contenuto (F3.12a): quella del volo, più avanti per chi nasce quando il primo rilascio viene presto.
+      val look = glassPieceContentLook(role, flying.contentPhase, blur)
       content.look = look
-      if (target == null && glassPieceContentDone(role, flying.phase)) {
+      if (target == null && glassPieceContentDone(role, flying.contentPhase)) {
         (finished ?: HashSet<FluidGlassPiece>().also { finished = it }) += piece
         continue
       }

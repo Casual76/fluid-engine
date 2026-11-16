@@ -116,8 +116,9 @@ class FluidGlassContainerDriverTest {
       frames++
       assertTrue("il viaggio deve finire", frames < 200)
     }
-    // Contesto di 300 ms a 60 Hz: una ventina di fotogrammi.
-    assertTrue("fotogrammi $frames", frames in 12..24)
+    // Una nascita di 500 ms a 60 Hz (F3.12a, i tempi di Apple a tempo vero): una trentina di fotogrammi. Erano una
+    // ventina coi 345 ms di F3.11.
+    assertTrue("fotogrammi $frames", frames in 26..34)
     assertNull(driver.journey)
     assertEquals(1f, driver.progress, 0f)
     for (target in listOf(a, b)) {
@@ -502,6 +503,72 @@ class FluidGlassContainerDriverTest {
     assertEquals(-6f, FluidGlassSwell(character, 1f, 6f, 1f).of(panel).frame.left, 1e-4f)
     // Un carattere senza rigonfiamento non muove niente.
     assertSame(slab, FluidGlassSwell(GlassLiquidJourneys.Off, 1f, 100f, 1f).of(slab))
+    // F3.12a: il rigonfiamento in più di un pezzo (chi è rilasciato arriva gonfio) si somma a quello comune, anche
+    // quando quello comune è a zero, e il tetto vale per la somma.
+    assertEquals(3.3f + 2.97f, FluidGlassSwell(character, 1f, 100f, 1f).growPx(44f, 0.9f), 1e-4f)
+    assertEquals(2.97f, FluidGlassSwell(character, 0f, 100f, 1f).growPx(44f, 0.9f), 1e-4f)
+    assertEquals(6f, FluidGlassSwell(character, 1f, 6f, 1f).growPx(44f, 0.9f), 1e-4f)
+    assertEquals(0f, FluidGlassSwell(GlassLiquidJourneys.Off, 1f, 100f, 1f).growPx(44f, 0.9f), 0f)
+    assertEquals(3.3f, FluidGlassSwell(character, 1f, 100f, 1f).growPx(44f, Float.NaN), 1e-4f)
+  }
+
+  @Test
+  fun `il contenuto viaggia col suo vetro, e chi e' rilasciato arriva gonfio`() {
+    // F3.12a, l'osservazione di Alessio: «su Apple l'icona sembra più parte dell'elemento stesso, in quanto mentre questo
+    // rimbalza l'icona rimbalza con esso». Il contenuto di chi nasce sta al centro del suo vetro (fino a F3.11 restava
+    // fermo al posto d'arrivo), e quello del donatore lo segue nel rinculo.
+    val journey = GlassPlaneJourney(state(a), state(a, b))
+    val character = GlassLiquidJourneys.Apple
+    val born = GlassPieceContent(GlassPieceContentRole.Born)
+    var furthest = 0f
+    var swollen = 0f
+    var recoil = 0f
+    var ms = 0.0
+    while (ms <= journey.durationMs) {
+      val frame = journey.frame(ms)
+      val flying = frame.pieces.single { it.flightId.targetKey == "b" }
+      val swell = FluidGlassSwell(character, character.swell(flying.phase), 100f, 1f)
+      val flight = fluidGlassContentFlightOf(flying, born, GlassContentLook.Sharp, b.bounds, swell)!!
+      assertEquals("t=$ms", flying.bounds.center.x - b.bounds.center.x, flight.offset.x, 1e-3f)
+      furthest = maxOf(furthest, flight.offset.x)
+      // Il ritaglio è la lastra come la disegna il palco: rigonfiata, col rigonfiamento in più del pezzo.
+      val grow = swell.growPx(flying.bounds.minDimension, flying.swell)
+      assertEquals("t=$ms", flying.bounds.width + 2f * grow, flight.clip!!.width, 1e-2f)
+      swollen = maxOf(swollen, swell.growPx(132f, flying.swell) - swell.growPx(132f))
+      val donor = frame.pieces.single { it.flightId.targetKey == "a" }
+      val rides = fluidGlassContentFlightOf(donor, GlassPieceContent.Rest, GlassContentLook.Sharp, a.bounds, swell)!!
+      assertEquals("t=$ms", donor.bounds.center.x - a.bounds.center.x, rides.offset.x, 1e-3f)
+      recoil = maxOf(recoil, rides.offset.x)
+      ms += 5.0
+    }
+    assertTrue("il contenuto supera il suo posto col vetro: $furthest px", furthest > 6f)
+    assertEquals("il donatore porta il suo contenuto nel rinculo", FluidMotion.PlaneDonorRecoil * 132f, recoil, 0.2f)
+    // +13,5% del lato corto in più al colmo (0,9 del 15% del carattere): metà per lato.
+    assertEquals(FluidMotion.PlaneReleaseSwell * 0.15f * 132f / 2f, swollen, 0.3f)
+    // La forma che il palco disegna ha le stesse lastre: quella di chi è nato è più gonfia di quella del donatore.
+    val at = journey.frame(380.0)
+    val level = character.swell(at.pieces.first().phase)
+    val shape = fluidGlassStagePlane(
+      frame = at, flights = journey.fields.single().flights, origin = Offset.Zero, smoothing = { 0f }, spacingPx = 48f,
+      neck = 0f, swell = FluidGlassSwell(character, level, 100f, 1f), density = 1f, movingMs = 380f,
+    )
+    val heights = shape.slabs.map { it.frame.height }
+    assertEquals(2, heights.size)
+    assertTrue("il nato è più alto del donatore: $heights", heights.max() - heights.min() > 15f)
+    // Un contenuto che non si vede non ha uno spostamento da ricordare.
+    val hidden = fluidGlassContentFlightOf(
+      journey.frame(120.0).pieces.single { it.flightId.targetKey == "b" }, GlassPieceContent.Hidden, GlassContentInvisible,
+      b.bounds, FluidGlassSwell.None,
+    )!!
+    assertEquals(Offset.Zero, hidden.offset)
+    // Il contenuto di chi se ne va confluendo entra nel vicino col suo vetro (R4 B2 (b), 4:51).
+    val merging = GlassPlaneJourney(state(a, b), state(a))
+    val leaving = merging.frame(120.0).pieces.single { it.flightId.sourceKey == "b" && it.flightId.targetKey == null }
+    val exit = fluidGlassContentFlightOf(
+      leaving, GlassPieceContent(GlassPieceContentRole.Exit), GlassContentLook.Sharp, b.bounds, FluidGlassSwell.None,
+    )!!
+    assertTrue("va verso il vicino: ${exit.offset.x}", exit.offset.x < -10f)
+    assertEquals(leaving.bounds.center.x - b.bounds.center.x, exit.offset.x, 1e-3f)
   }
 
   @Test

@@ -58,8 +58,9 @@ internal object GlassPlaneTraces {
   }
 
   fun build(scenario: Scenario): GlassTrace {
-    // Cinque fotogrammi di riposo prima di t0 e una coda ferma dopo il viaggio, per verificare le consegne.
-    val frames = (-5..42).map { index ->
+    // Cinque fotogrammi di riposo prima di t0 e una coda ferma dopo il viaggio, per verificare le consegne. Fino a
+    // 783 ms (F3.12a): una nascita ripensata a 150 ms finisce a 650, e servono cinque fotogrammi fermi dopo.
+    val frames = (-5..47).map { index ->
       val time = glassTraceTimeMs(index, Fps)
       val frame = scenario.frame(max(time, 0.0))
       val elements = frame.fields.mapIndexed { fieldIndex, field ->

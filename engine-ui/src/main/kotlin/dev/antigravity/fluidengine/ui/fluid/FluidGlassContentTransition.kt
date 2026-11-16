@@ -546,14 +546,18 @@ internal fun glassContentFrame(
 // partenza, 1 al riposo a vista: `GlassPlanePieceFrame.phase`), e il contenitore le applica ritagliando sempre il
 // contenuto sulla sagoma del vetro in volo:
 //
-//  - **chi nasce da un vicino** (A6): il contenuto non ha un predecessore. Resta al suo posto d'arrivo, non c'è finché il
-//    vetro non l'ha coperto, poi arriva sfocato da scala 0,75 e si fa nitido per ultimo. Apple, «Select» → «Done»: il
-//    contenuto nuovo compare a ~60% del viaggio ed è nitido negli ultimi fotogrammi;
+//  - **chi nasce da un vicino** (A6): il contenuto non ha un predecessore. Non c'è finché il vetro non è arrivato al suo
+//    posto, poi arriva sfocato da scala 0,75 e si fa nitido per ultimo. Apple, «Select» → «Done»: il contenuto nuovo
+//    compare a ~60% del viaggio ed è nitido negli ultimi fotogrammi. Da F3.12a **sta al centro del suo vetro** e fa il
+//    suo rimbalzo (fino a F3.11 restava fermo al posto d'arrivo e il vetro gli oscillava attorno): in Apple i simboli di
+//    un pezzo che nasce superano il loro posto di 0,15–0,20 D col vetro e tornano, senza cambiare misura
+//    (`artifacts/liquid-glass/sessioni/f3-12a/misure.md`);
 //  - **chi compare per lente** (A8): il simbolo si condensa da 2× e sfocato a 1× e nitido fra 0,25 e 0,85 della comparsa,
 //    senza pause;
-//  - **chi se ne va** (A5, A8): resta dov'era, si sfoca e svanisce nel primo 30% del volo (i 130 ms di R4 B3 su 470), e
-//    il bordo che si ritira lo copre;
-//  - **chi resta** (A3): nitido, opaco, e si sposta col suo vetro;
+//  - **chi se ne va** (A5, A8): si sfoca e svanisce nel primo 30% del volo (i 130 ms di R4 B3 su 470), e il bordo che si
+//    ritira lo copre. Chi scompare per lente resta dov'era; chi **confluisce** in un vicino ci entra col suo vetro
+//    mentre svanisce (F3.12a: R4 B2 (b), 4:51 e 4:59);
+//  - **chi resta** (A3): nitido, opaco, e si sposta col suo vetro (anche nel rinculo del donatore di una nascita);
 //  - **un viaggio che riparte a metà** (invariante 16): ogni contenuto riparte dall'aspetto che ha.
 
 /** Che parte fa il contenuto di un pezzo nel viaggio del suo vetro. */
@@ -584,6 +588,11 @@ internal object GlassPieceContentDefaults {
    * rallentata: vale l'ordine delle fasi) al 50% il vetro è ancora vuoto e al 60% «Done» è una macchia chiara. A quella
    * fase la lastra che nasce ha già coperto il posto d'arrivo (la molla del piano fa più del 90% della corsa nella prima
    * metà del tempo), quindi il contenuto non compare mai fuori dal vetro; il ritaglio sulla sagoma lo garantisce comunque.
+   *
+   * Da F3.12a la fase è quella **del contenuto** (`GlassPlanePieceFrame.contentPhase`): conta dal primo rilascio del
+   * viaggio. In quella clip il primo nato lascia il donatore a 0,29, quindi 0,5 è 0,21 dopo il rilascio; quando il
+   * donatore resta dov'è e rilascia a 0,17 (le clip di Apple a tempo vero: i simboli nuovi si vedono da 0,40) il
+   * contenuto compare a 0,38 del viaggio, dentro il vetro che sta ancora arrivando, e viaggia con lui.
    */
   const val BornAt: Float = 0.5f
 

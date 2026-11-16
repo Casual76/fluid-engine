@@ -125,3 +125,35 @@ di Apple sono in `artifacts/liquid-glass/sessioni/f3-11/misure.md`. Cosa cambia 
 - `settleMs` resta il bilancio (300 ms); la fine del viaggio (`durationMs`) è la fine della coda del rilascio (345 ms).
   Il palco contiene il superamento, ed è ancora fisso per tutto il viaggio.
 - Con una spec dell'app (`GlassPlaneMotion.spec`) niente di questo: la spec porta la sua curva, com'era.
+
+## F3.12a: i tempi di Apple a tempo vero, l'attesa, il rinculo, il pezzo che arriva gonfio
+
+Le sei tracce sono state riesportate dal Kotlin dopo F3.12a, e ora hanno **53 fotogrammi** (da −83 a 783 ms: una
+nascita ripensata a 150 ms finisce a 650, e servono cinque fotogrammi fermi dopo). `contesto-capsule` e `comparsa` hanno
+i primi 48 fotogrammi identici a prima, più cinque fermi: chi si sposta soltanto e chi compare per lente non cambiano.
+Le tracce `collo-*` di `F33Traces` sono state riesportate con loro (`GLASS_F33_DIR`): fino a F3.11 erano rimaste alla
+geometria di F3.2c. Le misure di Apple sono in `artifacts/liquid-glass/sessioni/f3-12a/misure.md`. Cosa cambia nel
+contratto, rispetto alla sezione sopra:
+
+- **Una nascita e una confluenza durano 500 ms** (`FluidMotion.PlaneReleaseMillis`), ed è lì che cadono sia il riposo a
+  vista (`settleMs`) sia la fine del viaggio (`durationMs`): contenuto, luce, rigonfiamento e collo contano sullo
+  stesso orologio della geometria. Il collo (rottura a 0,38 di 2 × `settleMs`) si rompe a ~380 ms, dopo il colmo del
+  superamento. Chi si sposta soltanto resta a 300 ms.
+- **L'attesa**: per i primi 0,17 (85 ms) un donatore che deve spostarsi non viaggia (`waitMs`); chi nasce è rilasciato
+  alla fine dell'attesa se il donatore resta dov'è, 0,12 dopo se va lontano almeno quanto è alto (in proporzione, se va
+  meno lontano), poi +0,09 per ogni fratello più vicino. Un viaggio ripartito a metà non aspetta.
+- **La molla di rilascio** ha lo smorzamento 0,6 e il mezzo periodo 0,6 del tempo fra il rilascio e la fine, su tutti i
+  lati: il vetro trasla **rigido** (il lato di coda non si ferma più all'arrivo) e supera il posto del 9,5% della corsa.
+  Lo scarto si spegne fra 0,8 e 1 del bilancio.
+- `GlassPlanePieceFrame.swell`: il **rigonfiamento in più** di chi è stato rilasciato (0,9 del rigonfiamento del
+  carattere, fra l'arrivo e la fine, col colmo a metà). Non è nei riquadri del piano: lo applica chi disegna il palco
+  (`fluidGlassStagePlane`), insieme a quello comune.
+- **Il dondolio** (`PlaneSway`): il donatore di una nascita che resta dov'è rincula verso chi esce di 0,077 del suo
+  lato corto e rimbalza di 0,047 dall'altra parte; chi accoglie un vetro che confluisce è spinto tutto intero
+  dell'8,4% della corsa di quello (al più 0,2 del lato corto) e torna. Chi confluisce non esce più dall'altra parte del
+  vicino. Un vetro che dondola non è `still` (il suo contenuto lo segue), ma per i campi conta come un vetro al suo
+  posto: non tira un collo al vicino fermo che ha dall'altra parte.
+- Il **contenuto** di ogni pezzo va disegnato al centro del suo vetro in volo (`fluidGlassContentFlightOf`): anche
+  quello di chi nasce e di chi confluisce, che prima restava al posto d'arrivo o di partenza.
+- `GlassPlanePieceFrame.contentPhase`: la fase su cui entra il contenuto. È `phase` per tutti; per chi nasce da un
+  vicino è avanti di quanto il primo rilascio del viaggio viene prima di 0,29 (0,12 quando il donatore resta dov'è).

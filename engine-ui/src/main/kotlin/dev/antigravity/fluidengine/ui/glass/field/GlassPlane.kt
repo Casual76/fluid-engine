@@ -10,6 +10,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.GlassContentCurve
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import kotlin.math.abs
+import kotlin.math.atan
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.hypot
@@ -131,6 +132,21 @@ internal data class GlassPlanePieceFrame(
    * e quello del secondo entra. [change] resta `MergeIntoNeighbour` per l'uno e `BornFromNeighbour` per l'altro.
    */
   val relay: Boolean = false,
+  /**
+   * Il **rigonfiamento in più** di questo pezzo (F3.12a), in unità del rigonfiamento del carattere del viaggio
+   * (`GlassLiquidJourney.swell`): si somma al livello comune a tutto il campo. Zero per tutti, tranne chi è stato
+   * rilasciato: in Apple il pezzo nato arriva al suo posto **gonfio** (+19,5% di altezza al colmo del superamento, quando
+   * il donatore è già tornato alla sua misura) e si sgonfia tornando. Un viaggio che riparte lo porta con sé e lo spegne.
+   */
+  val swell: Float = 0f,
+  /**
+   * La fase su cui entra il **contenuto** del pezzo (F3.12a): [phase] per tutti, e più avanti per chi nasce da un vicino
+   * in un viaggio in cui il primo rilascio viene presto. In Apple il contenuto nuovo compare 0,23 del viaggio **dopo il
+   * primo rilascio** e non a una fase fissa: a 0,52 nel render «Select → Done» (rilascio a 0,29: è lì che F3.8a ha
+   * tarato le fasi del contenuto), a 0,40 nelle clip a tempo vero, dove il donatore resta dov'è e rilascia a 0,17. È
+   * questa che il contenitore dà a `glassPieceContentLook`.
+   */
+  val contentPhase: Float = phase,
 )
 
 /** Che cosa fa l'unione dentro un campo in un viaggio (F3.8a): niente, nasce (il collo cresce) o si scioglie (si rompe). */
@@ -184,9 +200,10 @@ internal data class GlassPlaneMotion(
    */
   val joinStill: Boolean = false,
   /**
-   * Il bilancio di chi nasce da un vicino o vi confluisce (F3.11): su questo si stira la molla di rilascio e si contano
-   * il ritardo, lo scaglionamento e la coda. Di serie [FluidMotion.PlaneReleaseMillis] sul bilancio del contesto, e lo
-   * segue se cambia.
+   * Il bilancio di chi nasce da un vicino o vi confluisce (F3.11, F3.12a): la nascita o la confluenza **intera**, da
+   * quando il cambio parte a quando il vetro rilasciato è tornato dal suo superamento. Su questo si contano l'attesa, lo
+   * scaglionamento e la coda, e dentro ci sta la molla di rilascio. Di serie [FluidMotion.PlaneReleaseMillis] sul
+   * bilancio del contesto, e lo segue se cambia.
    */
   val releaseMs: Double = contextMs * FluidMotion.PlaneReleaseMillis / FluidMotion.PlaneContextMillis,
 ) {
@@ -211,12 +228,24 @@ internal data class GlassPlaneMotion(
  * arrivo; chi nasce da lui gli resta dentro, lo segue, e dopo un ritardo ne è **rilasciato** con una molla che supera
  * l'arrivo e torna; più nati partono scaglionati, il più lontano per primo. Chi **confluisce** in un vicino fa il verso
  * opposto: gli entra dentro subito, dovunque quello stia andando. Qui:
- * - chi si sposta soltanto (`Matched`) viaggia com'era: è lui il donatore, e non rimbalza;
+ * - chi si sposta soltanto (`Matched`) viaggia com'era: è lui il donatore;
  * - un vetro che se ne va confluendo proprio nel vetro che nasce da lui è **lo stesso vetro che cambia identità** (la
  *   staffetta, [GlassPlanePieceFrame.relay]): i due volano come uno solo, da dov'era il primo a dove sta il secondo;
  * - gli altri nati e gli altri che confluiscono seguono la coreografia, coi numeri di [FluidMotion] (`PlaneRelease*`,
- *   `PlaneMergeDamping`): la molla è quella del piano, meno smorzata. Con una spec dell'app la coreografia non c'è: la
- *   spec porta la sua curva.
+ *   `PlaneMerge*`, `PlaneDonor*`). Con una spec dell'app la coreografia non c'è: la spec porta la sua curva.
+ *
+ * **I tempi e il rimbalzo di Apple (F3.12a)**, dalle quattro clip a tempo vero dell'interfaccia
+ * (`artifacts/liquid-glass/sessioni/f3-12a/misure.md`): una nascita intera dura mezzo secondo
+ * ([GlassPlaneMotion.releaseMs]) e su quella durata contano geometria, contenuto, luce e collo ([settleMs] è la fine
+ * della coda). In più:
+ * - l'**attesa**: nei primi 0,17 del bilancio nessun vetro viaggia (si gonfia e si accende): il donatore che deve
+ *   spostarsi parte dopo, e chi nasce è rilasciato quando il donatore ha già fatto un pezzo di strada;
+ * - la molla di rilascio sta **fra il rilascio e la fine** (mezzo periodo 0,6 del tempo che resta: chi parte dopo è
+ *   più svelto, e i colmi cadono insieme), e porta il vetro **rigido**: tutti i lati superano l'arrivo, e il contenuto
+ *   sta al centro del vetro e rimbalza con lui;
+ * - chi è rilasciato arriva **gonfio** ([GlassPlanePieceFrame.swell]): è il rigonfiamento che fa il rimbalzo più ampio;
+ * - il **donatore rincula** verso chi esce e poi rimbalza oltre il suo posto, e chi accoglie un vetro che confluisce è
+ *   **spinto** tutto intero e torna (`PlaneSway`).
  */
 internal class GlassPlaneJourney private constructor(
   /** Da dove parte: lo stato di prima, o i vetri in volo all'istante dell'interruzione ([retarget]). */
@@ -241,9 +270,11 @@ internal class GlassPlaneJourney private constructor(
    * bilancio del contesto ([GlassPlaneMotion.contextMs]) con la molla di serie, la fine del viaggio con una spec
    * dell'app. È la misura su cui il collo del piano conta il suo orologio (`physicsPlaneNeckMs`). Se i vetri che
    * viaggiano non si muovono, o non ce ne sono (sole comparse e scomparse, che non hanno collo), vale il riposo a vista
-   * di tutti. Per chi è rilasciato o confluisce (F3.11) conta il suo bilancio ([GlassPlaneMotion.releaseMs]): a
-   * quell'istante è arrivato al suo posto e sta tornando dal superamento (entro il 3% della corsa), e torna del tutto
-   * nella coda, fino a [durationMs]. È su questo orologio che contano il contenuto, la luce e il collo.
+   * di tutti. Per chi è rilasciato o confluisce conta il suo bilancio ([GlassPlaneMotion.releaseMs]), che è la **fine
+   * della coda** (F3.12a): a quell'istante è tornato dal superamento ed è al suo posto, al bit. Fino a F3.11 il riposo a
+   * vista cadeva prima della fine (300 ms contro 345): il contenuto, la luce e il collo finivano prima della geometria,
+   * e il collo si rompeva prima del colmo del superamento; ora stanno tutti sullo stesso orologio, e il collo si rompe
+   * dopo il colmo, come in Apple.
    */
   val settleMs: Double
 
@@ -290,14 +321,42 @@ internal class GlassPlaneJourney private constructor(
         flight.timeScale = planeTimeScale(listOf(flight), budget)
       }
     }
-    // Lo scaglionamento (F3.11): dei nati dallo stesso donatore che vanno dalla stessa parte, il più lontano dal suo
-    // arrivo parte per primo (R4 B2 (d): il tondo a 0,29 della fase, il triangolo a 0,38). Poi ogni volo si prepara sul
-    // suo capo, che a questo punto ha il suo tempo.
-    flights.filter { it.course == PlaneCourse.Released }.groupBy { it.host to it.releaseSide() }.values.forEach { born ->
+    // L'attesa e lo scaglionamento (F3.11, F3.12a). Per l'attesa ([FluidMotion.PlaneReleaseDelay]) nessun vetro
+    // viaggia; poi il donatore parte, e chi nasce è rilasciato quando il donatore ha fatto un pezzo di strada
+    // ([FluidMotion.PlaneReleaseLead]: subito, se il donatore non va da nessuna parte). Dei nati dallo stesso donatore
+    // che vanno dalla stessa parte, il più lontano dal suo arrivo parte per primo (R4 B2 (d): il tondo a 0,29 della
+    // fase, il triangolo a 0,38). Poi ogni volo si prepara sul suo capo, che a questo punto ha il suo tempo.
+    val waitMs = motion.releaseMs * FluidMotion.PlaneReleaseDelay
+    val released = flights.filter { it.course == PlaneCourse.Released }
+    released.groupBy { it.host to it.releaseSide() }.values.forEach { born ->
       born.sortedByDescending { it.releaseReach() }.forEachIndexed { rank, flight ->
-        val delay = FluidMotion.PlaneReleaseDelay + rank * FluidMotion.PlaneReleaseStagger
+        val lead = FluidMotion.PlaneReleaseLead * (flight.host?.travelShare() ?: 0f)
+        val delay = FluidMotion.PlaneReleaseDelay + lead + rank * FluidMotion.PlaneReleaseStagger
         flight.delayMs = motion.releaseMs * min(delay, PlaneReleaseDelayCap)
       }
+    }
+    // Il contenuto di chi nasce entra contando dal primo rilascio (vedi [GlassPlanePieceFrame.contentPhase]): di quanto
+    // il primo rilascio di questo viaggio viene prima di quello di un donatore che si sposta, su cui le fasi sono tarate.
+    val contentLeadMs = if (released.isEmpty()) 0.0 else max(0.0,
+      motion.releaseMs * (FluidMotion.PlaneReleaseDelay + FluidMotion.PlaneReleaseLead) - released.minOf { it.delayMs })
+    // Il donatore e chi accoglie (F3.12a): aspettano, rinculano, sono spinti. In una staffetta i due voli gemelli sono
+    // lo stesso vetro: hanno la stessa attesa e lo stesso dondolio, e restano uguali dal primo all'ultimo fotogramma.
+    fun twinOf(flight: PlaneFlight): PlaneFlight? = if (!flight.pair.relay) null else flights.firstOrNull { other ->
+      other !== flight && other.pair.relay &&
+        (other.pair.target === flight.pair.neighbour && other.pair.neighbour === flight.pair.source ||
+          other.pair.source === flight.pair.neighbour && other.pair.neighbour === flight.pair.target)
+    }
+    val guests = flights.filter { it.course != PlaneCourse.Standard && it.host != null }.groupBy { it.host!! }
+    for ((host, around) in guests) {
+      if (!host.sways) continue
+      val twin = twinOf(host)
+      if (around.any { it.course == PlaneCourse.Released } && host.waits && twin?.waits != false) {
+        host.waitMs = waitMs
+        twin?.waitMs = waitMs
+      }
+      val sway = planeSwayOf(host, around, motion, waitMs, to.bounds) ?: continue
+      host.sway = if (host.sway == null) sway else host.sway!! + sway
+      twin?.let { it.sway = if (it.sway == null) sway else it.sway!! + sway }
     }
     flights.forEach { it.prepare() }
     releaseDelays = flights.filter { it.course == PlaneCourse.Released }.associate { it.pair.target!!.key to it.delayMs }
@@ -318,7 +377,7 @@ internal class GlassPlaneJourney private constructor(
     durationMs = duration
     settleMs = settle
     // La fase di ogni volo: chi compare o scompare per lente conta sul suo bilancio, chi viaggia sul riposo a vista.
-    flights.forEach { it.setPhaseClock(settle) }
+    flights.forEach { it.setPhaseClock(settle, contentLeadMs) }
     stillKeys = flights.filter { it.still }.mapNotNullTo(HashSet()) { it.pair.target?.key }
     val spacing = max(from.spacing, to.spacing)
     // Chi compare o scompare per lente è un campo a sé (F3.2c): lo shader ha un `materialize` per campo, e un vetro che
@@ -547,6 +606,40 @@ private class PlaneFlight(
   } ?: FloatArray(9)
   var timeScale = 1.0
 
+  // ---- Il donatore e chi accoglie (F3.12a) --------------------------------------------------------------------------
+
+  /**
+   * L'**attesa** di un donatore che deve spostarsi, in millisecondi: fino a lì il suo vetro non viaggia (si gonfia e
+   * si accende, col carattere del viaggio), poi parte con la molla del piano. La dà il viaggio; zero per tutti gli altri.
+   */
+  var waitMs = 0.0
+
+  /** Il dondolio di questo volo: il rinculo da chi nasce da lui, la spinta di chi gli confluisce dentro. Null: nessuno. */
+  var sway: PlaneSway? = null
+
+  /**
+   * Vero se questo volo può dondolare e aspettare: un vetro che c'era e c'è (chi si sposta soltanto, o i due gemelli di
+   * una staffetta), con la molla di serie. Chi compare, scompare, nasce o confluisce ha già la sua curva.
+   */
+  val sways: Boolean get() = motion.spec == null && (pair.change == GlassPlaneChange.Matched || pair.relay)
+
+  /**
+   * Vero se questo volo può **aspettare**: parte da fermo (un viaggio ripartito a metà non si ferma ad aspettare:
+   * invariante 16) e va da qualche parte.
+   */
+  val waits: Boolean get() = sways && velocity.all { it == 0f } &&
+    (0..7).any { abs(target[it] - initial[it]) > FluidMotion.PlaneSettlePx }
+
+  /**
+   * Quanta strada fa il centro di questo vetro, in frazione del suo lato corto e mai più di uno: un donatore che va
+   * lontano almeno quanto è alto rilascia chi nasce dopo un pezzo di strada, uno che resta dov'è lo rilascia subito.
+   */
+  fun travelShare(): Float {
+    val short = endRect.minDimension
+    if (!(short > 0f)) return 0f
+    return (planeCenterDistance(startRect, endRect) / short).coerceIn(0f, 1f)
+  }
+
   // ---- La coreografia della nascita e della confluenza (F3.11) ----------------------------------------------------
 
   /** Come viaggia la geometria: vedi [PlaneCourse]. Lo decide il cambio; [follow] lo riporta a `Standard` senza un capo. */
@@ -570,6 +663,9 @@ private class PlaneFlight(
 
   /** Dove arriva il volo: il posto del vetro, o quello del vicino per chi vi confluisce. */
   val arrival: Rect get() = endRect
+
+  /** Da dove parte il volo: il posto di prima, o dove si trovava il vetro di un viaggio interrotto. */
+  val departure: Rect get() = startRect
 
   /** Dopo quanto il donatore rilascia questo vetro, in millisecondi: lo dà il viaggio, che conosce i fratelli. */
   var delayMs = 0.0
@@ -613,19 +709,28 @@ private class PlaneFlight(
   private var travels = false
 
   /**
-   * Il bilancio e la fine della parte rilasciata, in millisecondi veri: zero per un volo `Standard` o fermo. Al bilancio
-   * chi è stato rilasciato è arrivato e sta tornando dal superamento; alla fine è al suo posto, al bit.
+   * La fine della parte rilasciata, in millisecondi veri: il bilancio della nascita ([GlassPlaneMotion.releaseMs]); zero
+   * per un volo `Standard` o fermo. A quell'istante chi è stato rilasciato è tornato dal superamento ed è al suo posto,
+   * al bit: è anche il suo riposo a vista (F3.12a: fino a F3.11 il riposo cadeva prima della fine).
    */
-  private val courseRestMs: Double get() = if (course != PlaneCourse.Standard && travels) motion.releaseMs else 0.0
-  private val courseEndMs: Double get() = courseRestMs * FluidMotion.PlaneReleaseTail
+  private val courseEndMs: Double get() = if (course != PlaneCourse.Standard && travels) motion.releaseMs else 0.0
+
+  /** Il mezzo periodo della molla di chi è rilasciato e l'istante in cui arriva al suo posto la prima volta, in ms. */
+  private var halfMs = 0.0
+  private var arriveMs = 0.0
+
+  /** Il rigonfiamento in più con cui il volo comincia (quello del viaggio interrotto) e in quanto si spegne. */
+  private val swellEntry: Float = if (motion.spec != null) 0f else seed?.swell?.takeIf { it.isFinite() && it > 0f } ?: 0f
+  private val swellFadeMs: Double get() = if (swellEntry > 0f) motion.releaseMs * PlaneSwellCarry else 0.0
 
   /**
    * Prepara il volo quando il suo capo ha già il suo tempo: per chi nasce, dov'è e come si muove all'istante del
    * rilascio, quale lato è di testa, la molla; per chi confluisce, lo scarto dal vicino alla partenza.
    *
-   * Il **lato di testa** è quello dalla parte in cui va il centro: supera l'arrivo del 13% della sua corsa
-   * ([FluidMotion.PlaneReleaseDamping]). Gli altri lati e i raggi viaggiano con la stessa molla ma oltre l'arrivo si
-   * fermano a [FluidMotion.PlaneReleaseTrail], e nessun lato esce dal contenitore.
+   * Chi è rilasciato viaggia **rigido** (F3.12a): tutti i lati e i raggi hanno la stessa molla
+   * ([FluidMotion.PlaneReleaseDamping]) e superano l'arrivo insieme, quindi il centro del vetro, dove sta il contenuto,
+   * rimbalza col vetro. Il **lato di testa** (quello dalla parte in cui va il centro) non esce dal contenitore. Chi
+   * confluisce non esce dal vicino: la sua spinta la prende il vicino, che si sposta tutto ([PlaneSway]).
    */
   fun prepare() {
     if (prepared) return
@@ -641,11 +746,14 @@ private class PlaneFlight(
           releaseFrom[i] = value[i]
           releaseSpeed[i] = speed[i]
         }
+        // La molla sta fra il rilascio e la fine (R4 B2 (b) e (d)): chi è rilasciato dopo è più svelto.
         val damping = FluidMotion.PlaneReleaseDamping.toDouble()
-        bounce = PlaneBounce(damping, planeBounceHalfMs(damping, motion.releaseMs))
+        halfMs = FluidMotion.PlaneReleaseSwing * (motion.releaseMs - delayMs)
+        arriveMs = delayMs + planeBounceArrival(damping) * halfMs
+        bounce = PlaneBounce(damping, halfMs)
         val overshoot = planeBounceOvershoot(damping)
         for (i in 0 until 8) {
-          overshootCap[i] = FluidMotion.PlaneReleaseTrail
+          overshootCap[i] = Float.POSITIVE_INFINITY
           overshootRun[i] = abs(target[i] - releaseFrom[i]) + bounce!!.drift(releaseSpeed[i])
         }
         // Per ogni asse: il lato dalla parte in cui va il centro è di testa, se il contenitore gli lascia posto.
@@ -681,20 +789,11 @@ private class PlaneFlight(
           mergeOffset[i] = initial[i] - value[i]
           mergeSpeed[i] = velocity[i] - speed[i]
         }
-        // Senza ritardo, e col colmo dove cade quello di un rilascio (R4 B2 (b): 334 ms tutti e due): il ritardo del
-        // primo nato più il mezzo periodo della molla di rilascio. Così l'avvicinamento ha il passo di prima (F3.2c: la
-        // riunione si vede, 50 ms di collo), e non quello di una molla più rigida.
-        val peakMs = motion.releaseMs * FluidMotion.PlaneReleaseDelay +
-          planeBounceHalfMs(FluidMotion.PlaneReleaseDamping.toDouble(), motion.releaseMs)
-        bounce = PlaneBounce(FluidMotion.PlaneMergeDamping.toDouble(), peakMs)
-        // Il lato di testa è quello dalla parte in cui va il centro: è lui a uscire dall'altra parte del vicino (la
-        // «spinta»); il lato di coda e i raggi restano dentro, entro il loro tetto.
-        for (i in 0 until 8) overshootCap[i] = FluidMotion.PlaneReleaseTrail
-        for ((low, high) in listOf(0 to 2, 1 to 3)) {
-          val away = mergeOffset[low] + mergeOffset[high]
-          if (abs(away) <= 2f * FluidMotion.PlaneSettlePx) continue
-          overshootCap[if (away > 0f) low else high] = Float.POSITIVE_INFINITY
-        }
+        // Senza attesa, e col colmo dove cade quello di un rilascio (R4 B2 (b): 334 ms tutti e due). Il superamento
+        // non esce dall'altra parte del vicino (F3.12a): chi confluisce resta dentro, entro [PlaneMergeSlack], e la
+        // sua spinta sposta il vicino tutto intero ([planeSwayOf]), come in Apple.
+        bounce = PlaneBounce(FluidMotion.PlaneMergeDamping.toDouble(), motion.releaseMs * FluidMotion.PlaneMergePeak)
+        for (i in 0 until 8) overshootCap[i] = PlaneMergeSlack
         for (i in 0 until 8) overshootRun[i] = abs(mergeOffset[i]) + bounce!!.drift(mergeSpeed[i])
         travels = (0 until 8).any { abs(mergeOffset[it]) > FluidMotion.PlaneSettlePx || mergeSpeed[it] != 0f }
       }
@@ -722,15 +821,18 @@ private class PlaneFlight(
   }
 
   /**
-   * Chi nasce, prima del rilascio: sta nel donatore in volo ([nest], dalla parte del suo posto) e se ne sporge un poco,
-   * sempre di più ([FluidMotion.PlaneReleaseCreep] della strada che gli resta, al quadrato del tempo: parte da fermo).
+   * Chi nasce, prima del rilascio: sta nel donatore in volo ([nest], dalla parte del suo posto) e se ne sporge un poco
+   * ([FluidMotion.PlaneReleaseCreep] della strada che gli resta), con una rampa liscia: parte da fermo e al rilascio è
+   * fermo rispetto al donatore. Così la molla di rilascio parte da ferma, come quella adattata alle clip di Apple (R4 B2
+   * (b): «parte a 84 ms»), e l'arrivo e il colmo cadono dove dice il suo mezzo periodo. Fino a F3.11 lo sporgersi andava
+   * col quadrato del tempo e arrivava al rilascio alla velocità più alta: il vetro partiva 15–20 ms prima di Apple.
    */
   private fun ride(tMs: Double, value: FloatArray, speed: FloatArray) {
     nest(tMs, value, speed, endRect, target)
     if (!(delayMs > 0.0)) return
     val u = (tMs / delayMs).coerceIn(0.0, 1.0)
-    val lean = (FluidMotion.PlaneReleaseCreep * u * u).toFloat()
-    val leaning = (2.0 * FluidMotion.PlaneReleaseCreep * u / delayMs * 1000.0).toFloat()
+    val lean = (FluidMotion.PlaneReleaseCreep * u * u * (3.0 - 2.0 * u)).toFloat()
+    val leaning = (FluidMotion.PlaneReleaseCreep * 6.0 * u * (1.0 - u) / delayMs * 1000.0).toFloat()
     for (i in 0 until 4) {
       val remaining = target[i] - value[i]
       speed[i] = speed[i] * (1f - lean) + leaning * remaining
@@ -740,11 +842,11 @@ private class PlaneFlight(
 
   /**
    * Quanto resta dello scarto dall'arrivo nella coda di un rilascio, e la sua pendenza al secondo: vedi
-   * [FluidMotion.PlaneReleaseTail].
+   * [FluidMotion.PlaneReleaseTailFrom].
    */
   private fun courseTail(tMs: Double, out: FloatArray) {
-    val from = courseRestMs * FluidMotion.PlaneReleaseTailFrom
     val end = courseEndMs
+    val from = end * FluidMotion.PlaneReleaseTailFrom
     if (tMs <= from || end <= from) {
       out[0] = 1f
       out[1] = 0f
@@ -768,6 +870,23 @@ private class PlaneFlight(
     }
     out[0] = value * fade[0]
     out[1] = moving * fade[0] + value * fade[1]
+  }
+
+  /**
+   * Il rigonfiamento in più del volo a [tMs] ([GlassPlanePieceFrame.swell]). Chi è rilasciato si gonfia fra l'arrivo al
+   * suo posto e la fine, col colmo a metà ([FluidMotion.PlaneReleaseSwell]: in Apple il colmo del pezzo nato cade a
+   * ~0,7–0,77 della nascita, dopo quello del donatore). Quello ereditato da un viaggio interrotto si spegne in
+   * [PlaneSwellCarry] del bilancio, da dov'era.
+   */
+  private fun courseSwell(tMs: Double): Float {
+    var level = 0f
+    if (swellEntry > 0f && tMs < swellFadeMs) level = swellEntry * (1f - planeSmoothstep((tMs / swellFadeMs).toFloat()))
+    val end = courseEndMs
+    if (course == PlaneCourse.Released && travels && tMs > arriveMs && tMs < end && end > arriveMs) {
+      val s = sin(Math.PI * (tMs - arriveMs) / (end - arriveMs))
+      level += (FluidMotion.PlaneReleaseSwell * s * s).toFloat()
+    }
+    return level.coerceIn(0f, max(FluidMotion.PlaneReleaseSwell, swellEntry))
   }
 
   /** La geometria (otto canali) di un volo rilasciato o che confluisce a [tMs]. */
@@ -823,11 +942,18 @@ private class PlaneFlight(
     pair.source != null && pair.target != null && pair.source.unionId != pair.target.unionId
 
   /**
-   * Fermo (F3.8a): lo stesso vetro, alla stessa geometria entro la tolleranza del fermo, con la stessa unione e nessuna
-   * velocità ereditata da un viaggio interrotto. Un pezzo fermo non ha bisogno del palco.
+   * **Al suo posto** (F3.8a): lo stesso vetro, alla stessa geometria entro la tolleranza del fermo, con la stessa unione
+   * e nessuna velocità ereditata da un viaggio interrotto. Non va da nessuna parte; può però dondolare ([sway]).
    */
-  val still: Boolean = pair.change == GlassPlaneChange.Matched && !unionChanged && initialAmount == targetAmount &&
-    velocity.all { it == 0f } && (0..7).all { abs(target[it] - initial[it]) <= FluidMotion.PlaneSettlePx }
+  val anchored: Boolean = pair.change == GlassPlaneChange.Matched && !unionChanged && initialAmount == targetAmount &&
+    velocity.all { it == 0f } && (0..7).all { abs(target[it] - initial[it]) <= FluidMotion.PlaneSettlePx } &&
+    swellEntry == 0f
+
+  /**
+   * Fermo: [anchored] e senza dondolio. Un pezzo fermo non ha bisogno del palco. Il donatore di una nascita è al suo
+   * posto ma non è fermo (F3.12a): rincula e rimbalza, e il suo contenuto con lui.
+   */
+  val still: Boolean get() = anchored && sway == null
 
   fun unitedBefore(other: PlaneFlight): Boolean = planeShareUnion(pair.source, other.pair.source)
   fun unitedAfter(other: PlaneFlight): Boolean = planeShareUnion(pair.target, other.pair.target)
@@ -868,8 +994,12 @@ private class PlaneFlight(
   private var phaseMs = 0.0
   private var phaseFrom = 0f
 
+  /** Di quanto è avanti la fase del contenuto di chi nasce, in millisecondi: vedi [GlassPlanePieceFrame.contentPhase]. */
+  private var contentLeadMs = 0.0
+
   /** L'orologio della fase del volo: vedi [GlassPlanePieceFrame.phase]. [settleMs] è il riposo a vista del viaggio. */
-  fun setPhaseClock(settleMs: Double) {
+  fun setPhaseClock(settleMs: Double, contentLeadMs: Double = 0.0) {
+    this.contentLeadMs = if (pair.change == GlassPlaneChange.BornFromNeighbour && contentLeadMs.isFinite()) contentLeadMs else 0.0
     if (curve != null) {
       phaseMs = budgetMs
       phaseFrom = curveFrom
@@ -887,14 +1017,19 @@ private class PlaneFlight(
    * si muove: finisce e riposa non prima di lui.
    */
   fun durationMs(): Double {
-    val own = max(max(durationNanos() / timeScale / 1_000_000.0, curveRemainingMs), courseEndMs)
+    val spring = durationNanos() / timeScale / 1_000_000.0
+    val own = max(max(if (spring > 0.0) waitMs + spring else 0.0, curveRemainingMs), max(courseEndMs, othersEndMs))
     return if (course == PlaneCourse.Merging) max(own, host?.durationMs() ?: 0.0) else own
   }
 
   fun restMs(): Double {
-    val own = max(max(restNanos() / timeScale / 1_000_000.0, curveRemainingMs), courseRestMs)
+    val spring = restNanos() / timeScale / 1_000_000.0
+    val own = max(max(if (spring > 0.0) waitMs + spring else 0.0, curveRemainingMs), max(courseEndMs, othersEndMs))
     return if (course == PlaneCourse.Merging) max(own, host?.restMs() ?: 0.0) else own
   }
+
+  /** Fin quando durano il dondolio e il rigonfiamento ereditato: il volo non finisce e non riposa prima. */
+  private val othersEndMs: Double get() = max(sway?.endMs ?: 0.0, swellFadeMs)
 
   /**
    * Le molle di serie con cui si contano i tempi, canale per canale (F3.2c): la stessa molla di [FluidMotion.standard],
@@ -940,7 +1075,8 @@ private class PlaneFlight(
   }
 
   fun frame(tMs: Double): GlassPlanePieceFrame {
-    val nanos = (tMs * 1_000_000.0 * timeScale).toLong().coerceAtLeast(0L)
+    // Durante l'attesa il vetro di un donatore non viaggia: l'orologio della sua molla parte dopo.
+    val nanos = ((tMs - waitMs) * 1_000_000.0 * timeScale).toLong().coerceAtLeast(0L)
     val value = FloatArray(9)
     val speed = FloatArray(9)
     for (index in springChannels) {
@@ -960,6 +1096,17 @@ private class PlaneFlight(
         else (spring.getVelocityFromNanos(nanos, a, b, v).value * timeScale).toFloat() * tail
     }
     if (course != PlaneCourse.Standard) courseGeometry(tMs, value, speed)
+    // Il dondolio sposta il vetro tutto intero (R4 B2 (b): «si sposta tutto il tondo, non si gonfia un lato»).
+    sway?.let { rocking ->
+      val shift = FloatArray(4)
+      rocking.at(tMs, shift)
+      for (axis in 0..1) {
+        value[axis] += shift[axis]
+        value[axis + 2] += shift[axis]
+        speed[axis] += shift[axis + 2]
+        speed[axis + 2] += shift[axis + 2]
+      }
+    }
     if (curve != null) {
       val index = PlaneMaterializeChannel
       val p = (curveFrom + tMs / budgetMs).toFloat()
@@ -996,7 +1143,7 @@ private class PlaneFlight(
       pair.change, pair.matchedBy, pair.neighbour?.key.takeIf { pair.change == GlassPlaneChange.BornFromNeighbour },
       pair.neighbour?.key.takeIf { pair.change == GlassPlaneChange.MergeIntoNeighbour }, pair.target?.bounds ?: pair.source!!.bounds,
       phase = phaseAt(tMs), still = still, unionFrom = pair.source?.unionId, unionTo = pair.target?.unionId,
-      relay = pair.relay,
+      relay = pair.relay, swell = courseSwell(tMs), contentPhase = phaseAt(tMs + contentLeadMs),
     )
   }
 
@@ -1062,8 +1209,14 @@ private class PlaneFlight(
     val omega = sqrt(FluidMotion.ResponseStandard.toDouble()) * timeScale
     fun margin(index: Int) = (abs(target[index] - initial[index]) * overshoot +
       abs(velocity[index]) / (omega * damped)).toFloat()
-    return Rect(min(startRect.left, endRect.left) - margin(0), min(startRect.top, endRect.top) - margin(1),
-      max(startRect.right, endRect.right) + margin(2), max(startRect.bottom, endRect.bottom) + margin(3))
+    // Un vetro che dondola (F3.12a) esce al più di quanto il dondolio lo sposta, da ogni parte: in forma chiusa, senza
+    // campionare la traiettoria (il palco si calcola nel fotogramma in cui il viaggio parte).
+    val rock = FloatArray(4)
+    sway?.reach(rock)
+    return Rect(
+      min(startRect.left, endRect.left) - margin(0) - rock[0], min(startRect.top, endRect.top) - margin(1) - rock[1],
+      max(startRect.right, endRect.right) + margin(2) + rock[2], max(startRect.bottom, endRect.bottom) + margin(3) + rock[3],
+    )
   }
 
   /**
@@ -1091,8 +1244,13 @@ private class PlaneFlight(
 /** Quanti campioni misurano il palco di una spec dell'app: vedi `PlaneFlight.sampledBounds`. */
 private const val PlaneSweptSamples = 64
 
-/** Ogni quanti millisecondi si campiona la traiettoria di un rilascio per il suo palco: vedi `PlaneFlight.flownBounds`. */
-private const val PlaneFlownStepMs = 2.0
+/**
+ * Ogni quanti millisecondi si campiona la traiettoria di un rilascio per il suo palco: vedi `PlaneFlight.flownBounds`.
+ * Quattro (F3.12a; erano due): una nascita dura 500 ms invece di 345, e il palco si calcola nel fotogramma in cui il
+ * viaggio parte. Fra due campioni un lato esce al più di `a·dt²/8`: un decimo di pixel per una corsa di 300 px, sotto il
+ * margine del fermo.
+ */
+private const val PlaneFlownStepMs = 4.0
 
 /** Il ritardo più lungo di un rilascio, in frazione del suo bilancio: oltre, la molla non avrebbe il tempo di tornare. */
 private const val PlaneReleaseDelayCap = 0.5f
@@ -1103,8 +1261,10 @@ private const val PlaneOvershootFloor = 0.005f
 /**
  * La risposta libera di una molla sottosmorzata attorno al suo arrivo, in forma chiusa (F3.11): la molla di rilascio e
  * quella della confluenza. `FluidMotion.standard` non supera l'arrivo, questa lo supera di proposito; i suoi tempi sono
- * dati dal **mezzo periodo** [halfPeriodMs] (dalla partenza al colmo del superamento, per una molla che parte ferma:
- * vedi [planeBounceHalfMs]).
+ * dati dal **mezzo periodo** [halfPeriodMs] (dalla partenza al colmo del superamento, per una molla che parte ferma).
+ * Fino a F3.11 il mezzo periodo veniva dalla rigidezza della molla del piano stirata su 300 ms (Apple compressa di 1,3
+ * volte); da F3.12a è quello misurato a tempo vero, 0,6 del tempo fra il rilascio e la fine (scelta di Alessio: «Come
+ * Apple»).
  */
 private class PlaneBounce(damping: Double, halfPeriodMs: Double) {
   private val swing = Math.PI / (max(halfPeriodMs, 1.0) / 1000.0)
@@ -1129,20 +1289,201 @@ private fun planeBounceOvershoot(damping: Double): Float =
   exp(-Math.PI * damping / sqrt(1.0 - damping * damping)).toFloat()
 
 /**
- * Il mezzo periodo, in millisecondi, della **molla del piano smorzata a [damping]** sul bilancio [budgetMs]: la
- * rigidezza è quella di [FluidMotion.standard] stirata perché la sua busta scenda a [FluidMotion.PlaneRestEnvelope] nel
- * bilancio (come `planeTimeScale` fa per chi si sposta), lo smorzamento è un altro. Stessa rigidezza, stesse
- * accelerazioni: un rilascio non parte più forte di un vetro che si sposta.
+ * Quando una molla smorzata a [damping] che parte ferma passa per l'arrivo la prima volta, in frazione del suo mezzo
+ * periodo (0,70 a 0,6): da lì chi è stato rilasciato è al suo posto e lo supera.
  */
-private fun planeBounceHalfMs(damping: Double, budgetMs: Double): Double {
-  val scale = PlaneStandardRestNanos / (budgetMs * 1_000_000.0)
-  val natural = sqrt(FluidMotion.ResponseStandard.toDouble()) * scale
-  return Math.PI / (natural * sqrt(1.0 - damping * damping)) * 1000.0
+private fun planeBounceArrival(damping: Double): Double =
+  (Math.PI - atan(sqrt(1.0 - damping * damping) / damping)) / Math.PI
+
+/**
+ * Il **dondolio** di un vetro che c'era e c'è (F3.12a): uno spostamento di tutto il vetro, in forma chiusa, che comincia
+ * e finisce a zero con velocità zero. Sono i due movimenti che Apple fa fare a chi resta
+ * (`artifacts/liquid-glass/sessioni/f3-12a/misure.md`, classe B, a tempo vero, due clip ciascuno):
+ * - il **rinculo** del donatore: mentre chi nasce da lui parte, il donatore gli va dietro di 0,077 D (al colmo a metà
+ *   della salita della molla di rilascio), poi rimbalza dall'altra parte di 0,047 D e torna;
+ * - la **spinta** su chi accoglie: chi confluisce lo sposta tutto intero nel suo verso (0,16 D, l'8,4% della corsa),
+ *   e quello torna al suo posto.
+ * Il contenuto del vetro lo segue (sta al suo centro): è il «tasto di partenza che rimbalza un pochettino».
+ */
+private class PlaneSway(private val terms: List<PlaneSwayTerm>) {
+  /** Quando il dondolio è finito: da lì il vetro è al suo posto, al bit. */
+  val endMs: Double = terms.maxOfOrNull { it.endMs } ?: 0.0
+
+  operator fun plus(other: PlaneSway): PlaneSway = PlaneSway(terms + other.terms)
+
+  /** Lo spostamento a [tMs] lungo x e lungo y, in pixel, e poi le due velocità al secondo: in [out] (quattro posti). */
+  fun at(tMs: Double, out: FloatArray) {
+    out.fill(0f)
+    for (term in terms) term.addTo(tMs, out)
+  }
+
+  /**
+   * Fin dove il dondolio può spostare il vetro, in pixel: verso sinistra, verso l'alto, verso destra, verso il basso, in
+   * [out]. La somma dei colmi di ogni movimento: un tetto, non il massimo esatto (i colmi non cadono insieme).
+   */
+  fun reach(out: FloatArray) {
+    out.fill(0f)
+    for (term in terms) {
+      val second = if (term.secondMs > term.firstMs) term.second else 0f
+      out[term.axis] += max(0f, max(-term.first, -second))
+      out[term.axis + 2] += max(0f, max(term.first, second))
+    }
+  }
 }
 
-/** Quanto ci mette la molla del piano, non stirata e da ferma, a entrare nella busta del riposo a vista di una corsa di uno. */
-private val PlaneStandardRestNanos: Double =
-  planeSpring(FluidMotion.PlaneRestEnvelope).getDurationNanos(0f, 1f, 0f).toDouble()
+/**
+ * Un movimento del dondolio lungo un asse ([axis]: 0 x, 1 y): da zero a [first] fra [startMs] e [firstMs], poi a
+ * [second] a [secondMs] (se viene dopo [firstMs]: altrimenti il secondo colmo non c'è), poi a zero a [endMs]. Ogni
+ * tratto è mezzo coseno: nessuno scalino di posizione né di velocità, nemmeno ai due capi.
+ */
+private class PlaneSwayTerm(
+  val axis: Int,
+  val first: Float,
+  val second: Float,
+  val startMs: Double,
+  val firstMs: Double,
+  val secondMs: Double,
+  val endMs: Double,
+) {
+  fun addTo(tMs: Double, out: FloatArray) {
+    if (tMs <= startMs || tMs >= endMs) return
+    val value: Double
+    val slope: Double
+    when {
+      tMs <= firstMs -> {
+        val span = firstMs - startMs
+        val u = (tMs - startMs) / span
+        value = first * (1.0 - cos(Math.PI * u)) / 2.0
+        slope = first * (Math.PI / 2.0) * sin(Math.PI * u) / span
+      }
+      tMs <= secondMs -> {
+        val span = secondMs - firstMs
+        val u = (tMs - firstMs) / span
+        value = first + (second - first) * (1.0 - cos(Math.PI * u)) / 2.0
+        slope = (second - first) * (Math.PI / 2.0) * sin(Math.PI * u) / span
+      }
+      else -> {
+        val from = if (secondMs > firstMs) second else first
+        val begin = max(firstMs, secondMs)
+        val span = endMs - begin
+        val u = (tMs - begin) / span
+        value = from * (1.0 + cos(Math.PI * u)) / 2.0
+        slope = -from * (Math.PI / 2.0) * sin(Math.PI * u) / span
+      }
+    }
+    out[axis] += value.toFloat()
+    out[axis + 2] += (slope * 1000.0).toFloat()
+  }
+}
+
+/**
+ * Il dondolio che [guests] (chi nasce da [host], chi vi confluisce) danno a [host], o null se non ce n'è. I tempi sono
+ * quelli dei voli di chi lo causa: [waitMs] è l'attesa del viaggio, la fine è il bilancio della nascita.
+ *
+ * Più nati dalla stessa parte tirano insieme, fino a [PlaneSwayGuests] (nel render «Select → Done» il donatore, con due
+ * nati, rimbalza del 9% della sua corsa: due volte il rimbalzo di una nascita sola). Chi accoglie più vetri prende una
+ * spinta sola: non c'è una clip che dica di più. Nessun dondolio porta il vetro fuori dal contenitore ([limits]).
+ */
+private fun planeSwayOf(
+  host: PlaneFlight,
+  guests: List<PlaneFlight>,
+  motion: GlassPlaneMotion,
+  waitMs: Double,
+  limits: Rect,
+): PlaneSway? {
+  val end = motion.releaseMs
+  val place = host.arrival
+  val short = place.minDimension
+  if (!(short > 0f)) return null
+  val terms = ArrayList<PlaneSwayTerm>()
+  val born = guests.filter { it.course == PlaneCourse.Released }
+  val merging = guests.filter { it.course == PlaneCourse.Merging }
+  val recoilShare = min(1f, PlaneSwayGuests / max(born.size, 1))
+  for (guest in born) {
+    val side = guest.releaseSide()
+    val axis = if (side < 2) 0 else 1
+    val toward = if (side % 2 == 0) -1f else 1f
+    // Verso chi esce, e mai più di un decimo della strada che quello fa: un vetro che nasce accanto non strattona.
+    val amount = min(FluidMotion.PlaneDonorRecoil * short, PlaneDonorRecoilReach * guest.releaseReach()) * recoilShare
+    if (!(amount > PlaneSwayFloorPx)) continue
+    // Il rinculo è di un donatore che resta dov'è (le due nascite di classe B). Uno che se ne va non torna indietro
+    // verso chi lascia: nel render «Select → Done» il donatore è al 94% della strada a metà viaggio, senza esitare, e poi
+    // supera il suo posto. Quindi il rinculo si spegne con la strada che il donatore fa, e resta il rimbalzo.
+    val pull = amount * (1f - host.travelShare())
+    val back = min(amount * FluidMotion.PlaneDonorRebound / FluidMotion.PlaneDonorRecoil, planeRoom(place, limits, axis, -toward))
+    val half = FluidMotion.PlaneReleaseSwing * (end - guest.delayMs)
+    val first = guest.delayMs + 0.5 * half
+    val second = first + PlaneSwaySwing * (end - first)
+    val start = max(0.0, guest.delayMs - waitMs)
+    if (!(start < first && first < second && second < end)) continue
+    terms += PlaneSwayTerm(axis, toward * pull, -toward * back, start, first, second, end)
+  }
+  val pushShare = 1f / max(merging.size, 1)
+  for (guest in merging) {
+    val from = guest.departure
+    // Chi parte già dentro chi lo accoglie (una staffetta interrotta, due vetri sovrapposti) è la stessa sagoma: non
+    // ha una corsa con cui spingere.
+    if (planeFused(from, host.departure)) continue
+    val dx = place.center.x - from.center.x
+    val dy = place.center.y - from.center.y
+    val axis = if (abs(dx) >= abs(dy)) 0 else 1
+    val along = if ((if (axis == 0) dx else dy) < 0f) -1f else 1f
+    // La corsa del lato lontano di chi confluisce fino al lato dello stesso nome di chi lo accoglie (R4 B2 (b): 1,94 D).
+    val run = when {
+      axis == 0 && along > 0f -> place.left - from.left
+      axis == 0 -> from.right - place.right
+      along > 0f -> place.top - from.top
+      else -> from.bottom - place.bottom
+    }
+    val push = min(planeBounceOvershoot(FluidMotion.PlaneMergeDamping.toDouble()) * run, FluidMotion.PlaneMergePush * short)
+    val amount = min(push * pushShare, planeRoom(place, limits, axis, along))
+    if (!(amount > PlaneSwayFloorPx)) continue
+    val start = end * PlaneMergePushFrom
+    val peak = end * FluidMotion.PlaneMergePeak
+    if (!(start < peak && peak < end)) continue
+    terms += PlaneSwayTerm(axis, along * amount, 0f, start, peak, peak, end)
+  }
+  return if (terms.isEmpty()) null else PlaneSway(terms)
+}
+
+/** Quanto posto ha [place] dentro [limits] dalla parte [direction] dell'asse [axis]; infinito senza un contenitore. */
+private fun planeRoom(place: Rect, limits: Rect, axis: Int, direction: Float): Float {
+  if (!(limits.width > 0f && limits.height > 0f)) return Float.POSITIVE_INFINITY
+  val room = when {
+    axis == 0 && direction < 0f -> place.left - limits.left
+    axis == 0 -> limits.right - place.right
+    direction < 0f -> place.top - limits.top
+    else -> limits.bottom - place.bottom
+  }
+  // Un pezzo che sta già fuori dal riquadro del contenitore non ha un tetto da quello.
+  return if (room >= 0f) room else Float.POSITIVE_INFINITY
+}
+
+/** Quanti nati dalla stessa parte tirano il donatore al più: vedi [planeSwayOf]. */
+private const val PlaneSwayGuests = 2f
+
+/** Il rinculo del donatore non supera questa frazione della strada di chi nasce: scelta, per i vetri che nascono accanto. */
+private const val PlaneDonorRecoilReach = 0.1f
+
+/**
+ * In che punto fra il colmo del rinculo e la fine cade il colmo del rimbalzo del donatore: 0,68. In Apple il rimbalzo
+ * è al colmo a 467 ms e il donatore torna entro 730; qui tutto finisce col bilancio della nascita (500 ms), quindi il
+ * rimbalzo è al colmo a ~410 e torna in 90 ms. **Scelta**: il palco non tiene il vetro un quarto di secondo in più per
+ * due dp.
+ */
+private const val PlaneSwaySwing = 0.68
+
+/** Sotto questo spostamento, in pixel, un dondolio non c'è. */
+private const val PlaneSwayFloorPx = 0.05f
+
+/** Da quando chi accoglie comincia a essere spinto, in frazione del bilancio: R4 B2 (b), il centro si muove da ~140 ms. */
+private const val PlaneMergePushFrom = 0.28
+
+/** Di quanto chi confluisce può oltrepassare il suo posto dentro il vicino, in frazione della corsa: quasi niente. */
+private const val PlaneMergeSlack = 0.01f
+
+/** In quanta parte del bilancio si spegne il rigonfiamento in più ereditato da un viaggio interrotto. */
+private const val PlaneSwellCarry = 0.3
 
 /**
  * Un asse di `PlaneFlight.nest`: dove sta, fra [lo] e [hi] (che si muovono a [loSpeed] e [hiSpeed]), un tratto lungo
@@ -1242,10 +1583,12 @@ private fun planeSmoothstep(x: Float): Float {
  * e non per questo è vicino al primo.
  */
 private fun planeFlightsMeet(a: PlaneFlight, b: PlaneFlight, spacing: Float, joinStill: Boolean): Boolean {
-  if (joinStill || !a.still && !b.still) return planeGap(a.sweptBounds(), b.sweptBounds()) <= spacing
-  if (a.still && b.still) return false
-  val still = if (a.still) a else b
-  val moving = if (a.still) b else a
+  // Conta chi è al suo posto ([PlaneFlight.anchored]), anche se dondola (F3.12a): il donatore di una nascita che
+  // rincula di qualche pixel non per questo tira un collo al tasto fermo che ha dall'altra parte.
+  if (joinStill || !a.anchored && !b.anchored) return planeGap(a.sweptBounds(), b.sweptBounds()) <= spacing
+  if (a.anchored && b.anchored) return false
+  val still = if (a.anchored) a else b
+  val moving = if (a.anchored) b else a
   if (moving.neighbourKey != null && moving.neighbourKey == still.pair.piece.key) return true
   return planeGap(still.sweptBounds(), moving.freeBounds()) <= spacing
 }

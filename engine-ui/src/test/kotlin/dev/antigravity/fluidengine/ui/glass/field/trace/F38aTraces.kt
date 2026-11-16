@@ -229,8 +229,8 @@ internal object F38aTraces {
           val key = flying.flightId.targetKey ?: flying.flightId.sourceKey ?: continue
           val content = contents[key] ?: continue
           if (flying.flightId.targetKey == null && content.attached) continue
-          content.look = glassPieceContentLook(content.role, flying.phase)
-          if (flying.flightId.targetKey == null && glassPieceContentDone(content.role, flying.phase)) {
+          content.look = glassPieceContentLook(content.role, flying.contentPhase)
+          if (flying.flightId.targetKey == null && glassPieceContentDone(content.role, flying.contentPhase)) {
             done += key
             continue
           }
@@ -285,6 +285,9 @@ internal object F38aTraces {
           element["_collo"] = round3(shape.neck)
           element["_fase"] = round3(driver.phase)
           element["_gonfio"] = round3(if (field.lens) 0f else swell.level)
+          // F3.12a: il rigonfiamento in più di ogni pezzo del campo (chi è stato rilasciato arriva gonfio).
+          element["_gonfio_pezzi"] = frame.pieces.filter { it.flightId in field.flights }
+            .associate { (it.flightId.targetKey ?: it.flightId.sourceKey).toString() to round3(it.swell) }
           element["_luce"] = round3(shape.journeyLight)
           element["_dito"] = round3(shape.touch?.amount ?: 0f)
           element["_riempito"] = round3(shape.touch?.fill ?: 0f)
@@ -443,9 +446,10 @@ internal object F38aTraces {
   private val Select = linkedMapOf(
     "name" to "select-done", "video" to "wwdc2025-219_hd", "t0Frame" to 9031, "crop" to listOf(300, 250, 1320, 587),
     "collage" to "artifacts/liquid-glass/riferimenti/collage/B2_select_done_f9029-9076.jpg",
-    "speed" to 3.9,
+    "speed" to 2.34,
     "note" to "R4 B2 (d), classe C rallentata: vale l'ordine delle fasi. t0 = f9031, l'ultimo fotogramma con «Select» " +
-      "nitido; riposo a f9066 (35 fotogrammi, 1168 ms): 3,9 volte i 300 ms del nostro riposo a vista.",
+      "nitido; riposo a f9066 (35 fotogrammi, 1168 ms): 2,3 volte i 500 ms di una nascita (F3.12a; il render è " +
+      "rallentato di 2,3 volte anche rispetto alle clip di Apple a tempo vero).",
   )
 
   fun scenes(): List<Scene> {
@@ -461,7 +465,7 @@ internal object F38aTraces {
       val theme = if (dark) "scuro" else "chiaro"
       out += Scene(
         "uno-due-$theme", "«Modifica» fa nascere «Fatto»: il testo arriva sfocato dentro il vetro, mai prima", w, h, dark,
-        st(edit), listOf(Step(0.0, st(edit, done))), oneTwo, lastFrame = 54, apple = listOf(Select),
+        st(edit), listOf(Step(0.0, st(edit, done))), oneTwo, lastFrame = 72, apple = listOf(Select),
       )
     }
     // La clip di Apple «Select → Done»: un tasto con la scritta diventa due tondi e «Fatto», e **tutto** il contenuto
@@ -483,17 +487,17 @@ internal object F38aTraces {
       out += Scene(
         "seleziona-fatto-$theme", "«Seleziona» diventa due tondi e «Fatto», come «Select → Done»: il vecchio esce, i nuovi nascono",
         chooseDp, h, dark, chosen(choose), listOf(Step(0.0, chosen(circle, triangle, finish))), chooseLabels,
-        lastFrame = 54, apple = listOf(Select),
+        lastFrame = 72, apple = listOf(Select),
       )
     }
     out += Scene(
       "due-uno-chiaro", "«Fatto» confluisce in «Modifica»: il testo si sfoca dov'era e il bordo lo copre", w, h, false,
-      st(edit, done), listOf(Step(0.0, st(edit))), oneTwo, lastFrame = 54,
+      st(edit, done), listOf(Step(0.0, st(edit))), oneTwo, lastFrame = 72,
     )
     out += Scene(
       "uno-due-interrotto", "«Fatto» nasce, a 150 ms se ne va, a 300 torna: nessuna scritta salta (F3-f)", w, h, false,
       st(edit), listOf(Step(0.0, st(edit, done)), Step(150.0, st(edit)), Step(300.0, st(edit, done))), oneTwo,
-      lastFrame = 90,
+      lastFrame = 108,
     )
     // Due capsule con il loro id: divise a 96 dp, accostate senza varco. Chi resta viaggia nitido col suo vetro.
     val music = piece("musica", 36f, 38f, w = 112f)
@@ -596,7 +600,7 @@ internal object F38aTraces {
             else -> "la luce a metà e la luce del dito, cambio da un tocco su «Seleziona»"
           } + ")",
           chooseDp, h, dark, chosen(choose), listOf(Step(0.0, chosen(circle, triangle, finish))), labels,
-          lastFrame = 54, background = background, apple = listOf(Select), journey = journey, touch = touch,
+          lastFrame = 72, background = background, apple = listOf(Select), journey = journey, touch = touch,
           phase = "f3-10",
         )
       }

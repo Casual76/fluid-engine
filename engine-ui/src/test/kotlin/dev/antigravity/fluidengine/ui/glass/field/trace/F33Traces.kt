@@ -409,24 +409,26 @@ internal object F33Traces {
     val split = "un tasto che diventa due"
     val merge = "due tasti che tornano uno"
     val list = arrayListOf(
+      // F3.12a: una nascita e una confluenza durano 500 ms (erano 345): le tracce arrivano a 600, e a 800 quelle
+      // ripensate a metà, per avere la coda ferma che serve a guardare la consegna.
       Scenario("collo-uno-due", "$split (geometria di F3.1, 40 dp a riposo)", w, h, d, false, text(false),
-        listOf(lane(one, Leg(0.0, two))), apple = listOf(Select)),
+        listOf(lane(one, Leg(0.0, two))), lastFrame = 36, apple = listOf(Select)),
       Scenario("collo-divisione", "$merge (geometria di F3.1)", w, h, d, false, text(false),
-        listOf(lane(two, Leg(0.0, one))), apple = listOf(Tinted)),
+        listOf(lane(two, Leg(0.0, one))), lastFrame = 36, apple = listOf(Tinted)),
       Scenario("collo-uno-due-vicini", "$split, a 8 dp", w, h, d, false, text(false),
-        listOf(lane(oneNear, Leg(0.0, twoNear))), apple = listOf(Select)),
+        listOf(lane(oneNear, Leg(0.0, twoNear))), lastFrame = 36, apple = listOf(Select)),
       Scenario("collo-divisione-vicini", "$merge, da 8 dp", w, h, d, false, text(false),
-        listOf(lane(twoNear, Leg(0.0, oneNear))), apple = listOf(Tinted)),
+        listOf(lane(twoNear, Leg(0.0, oneNear))), lastFrame = 36, apple = listOf(Tinted)),
       Scenario("collo-uno-due-vicini-scuro", "$split, a 8 dp, tema scuro", w, h, d, true, text(true),
-        listOf(lane(oneNear, Leg(0.0, twoNear)))),
+        listOf(lane(oneNear, Leg(0.0, twoNear))), lastFrame = 36),
       Scenario("collo-uno-due-interrotto", "$split, ripensato a 150 ms (F3.1)", w, h, d, false, text(false),
-        listOf(lane(one, Leg(0.0, two), Leg(150.0, one))), lastFrame = 42),
+        listOf(lane(one, Leg(0.0, two), Leg(150.0, one))), lastFrame = 48),
       Scenario("collo-divisione-interrotta", "$merge, ripensato a 150 ms (F3.1)", w, h, d, false, text(false),
-        listOf(lane(two, Leg(0.0, one), Leg(150.0, two))), lastFrame = 42),
+        listOf(lane(two, Leg(0.0, one), Leg(150.0, two))), lastFrame = 48),
       Scenario("collo-uno-due-vicini-interrotto", "$split a 8 dp, ripensato a 80 ms, col collo vivo", w, h, d, false,
-        text(false), listOf(lane(oneNear, Leg(0.0, twoNear), Leg(80.0, oneNear))), lastFrame = 36),
+        text(false), listOf(lane(oneNear, Leg(0.0, twoNear), Leg(80.0, oneNear))), lastFrame = 48),
       Scenario("collo-divisione-vicini-interrotta", "$merge da 8 dp, ripensato a 50 ms, col collo vivo", w, h, d, false,
-        text(false), listOf(lane(twoNear, Leg(0.0, oneNear), Leg(50.0, twoNear))), lastFrame = 36),
+        text(false), listOf(lane(twoNear, Leg(0.0, oneNear), Leg(50.0, twoNear))), lastFrame = 48),
       Scenario("contesto-capsule-curva", "la capsula di F3.1 che si stringe da 200 a 88 dp", w, h, d, false, Flat,
         listOf(lane(st(piece(d, "capsula", 120f, 58f, 200f)), Leg(0.0, st(piece(d, "capsula", 232f, 58f, 88f))))),
         apple = listOf(Context),
@@ -463,7 +465,8 @@ internal object F33Traces {
     fun laneSplit(x0: Float, variant: Variant, name: String): Lane {
       val one = st(piece(d, "$name-a", x0 + 78f, 92f))
       val two = st(piece(d, "$name-a", x0 + 52f, 92f), piece(d, "$name-b", x0 + 104f, 92f))
-      return Lane(name, one, listOf(Leg(0.0, two), Leg(550.0, one)), variant)
+      // La riunione parte quando la divisione è finita e ferma: 650 ms (una nascita dura 500 da F3.12a; erano 550).
+      return Lane(name, one, listOf(Leg(0.0, two), Leg(650.0, one)), variant)
     }
     val fusion = listOf(Variant("stretta · 8 dp", fusionDp = 8f), Variant("media · 16 dp (proposta)", fusionDp = 16f),
       Variant("larga · 24 dp, fusi a riposo", fusionDp = 24f, restFused = true))
@@ -477,12 +480,12 @@ internal object F33Traces {
     val band = linkedMapOf<String, Any?>("kind" to "rect", "x" to 0, "y" to 0, "w" to w, "h" to 44, "color" to "#F4F4F6")
     fun labels(variants: List<Variant>) = listOf(band) + variants.mapIndexed { i, v -> label(v.label, i * 200f + 14f, 28f) }
     val result = ArrayList<Scenario>()
-    result += Scenario("gusto-fusione", "tavola (a): distanza di fusione di serie; divisione a 0 ms, riunione a 550 ms",
+    result += Scenario("gusto-fusione", "tavola (a): distanza di fusione di serie; divisione a 0 ms, riunione a 650 ms",
       w, h, d, false, text(false), fusion.mapIndexed { i, v -> laneSplit(i * 200f, v, "f$i") },
-      lastFrame = 60, page = labels(fusion))
+      lastFrame = 78, page = labels(fusion))
     result += Scenario("gusto-collo", "tavola (b): quanto si strozza il collo (il collo lungo, A, in tutte)",
       w, h, d, false, text(false), pinch.mapIndexed { i, v -> laneSplit(i * 200f, v, "c$i") },
-      lastFrame = 60, page = labels(pinch))
+      lastFrame = 78, page = labels(pinch))
     val playSymbol = Symbol("fluid:play_arrow|plus", "#FFFFFF")
     result += Scenario("gusto-comparsa", "tavola (c): scala iniziale della comparsa; compare a 0 ms, scompare a 600 ms",
       w, h, d, false, Dunes, scale.mapIndexed { i, v ->

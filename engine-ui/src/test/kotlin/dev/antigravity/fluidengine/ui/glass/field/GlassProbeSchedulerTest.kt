@@ -440,6 +440,50 @@ class GlassProbeSchedulerTest {
     assertFalse(source.announcesRevisions)
   }
 
+  // --- F3.8a: la sorgente che si ridisegna -----------------------------------------------------------------------
+
+  /**
+   * S3, F3-g: nelle scene `adattamento` e `clear` del piano flottante e nella pagina «Assistente» nessun vetro girava
+   * quando il fondo passava a scuro. Il fondo cambiava solo in disegno, dentro il layer fuori schermo della sorgente; il
+   * nodo che la registra (e avvisa) sta fuori, e dentro il layer di un antenato non ridisegna. Il nodo di
+   * `glassSourceRedraws` sta dentro quel layer: ridisegna con lui, e avvisa.
+   */
+  @Test
+  fun `una sorgente che si ridisegna avvisa, e un vetro fermo sopra riceve una lettura nuova`() {
+    val source = materialLayerBackdrop(fakeLayer())
+    val bench = Bench()
+    bench.frame(0L) { onGeometry(0L, 0f) }
+    bench.run(8L, 2_000L)
+    assertEquals("un vetro fermo sopra una pagina ferma legge una volta", listOf(0L), bench.reads)
+    // La sonda del vetro (o quella unica di un contenitore) ascolta la sorgente, come fa il suo nodo.
+    var heard = 0
+    source.addRevisionListener { _, _ -> heard++ }
+    // Il fondo cambia: si rifà il layer della sorgente, e con lui ridisegna il nodo dell'avviso.
+    GlassSourceRedrawNode(source).announce()
+    assertEquals(1, heard)
+    assertEquals(1L, source.revision)
+    bench.frame(2_000L) { if (heard > 0) onRevision(2_000L) }
+    bench.run(2_008L, 4_000L)
+    assertEquals("la revisione produce una lettura nuova, senza che il vetro si muova", listOf(0L, 2_000L), bench.reads)
+    assertEquals("e la miniatura non si rifà: basta rileggerla", listOf(true, false), bench.rerecords)
+  }
+
+  @Test
+  fun `l'avviso di una sorgente che si ridisegna arriva anche a chi la contiene`() {
+    // La pagina sta nella registrazione della chrome: la tab bar sopra deve girare con i vetri della pagina.
+    val chrome = materialLayerBackdrop(fakeLayer())
+    val page = materialLayerBackdrop(fakeLayer())
+    val heard = mutableListOf<String>()
+    chrome.addRevisionListener { _, _ -> heard += "chrome" }
+    page.addRevisionListener { _, _ -> heard += "pagina" }
+    LayerRecordingStack.enter(chrome)
+    LayerRecordingStack.enter(page)
+    LayerRecordingStack.exit(page)
+    LayerRecordingStack.exit(chrome)
+    GlassSourceRedrawNode(page).announce()
+    assertEquals(listOf("pagina", "chrome"), heard)
+  }
+
   // --- F2.3c: l'avviso che risale, lo scrittore di riserva della chrome ----------------------------------------
 
   /**

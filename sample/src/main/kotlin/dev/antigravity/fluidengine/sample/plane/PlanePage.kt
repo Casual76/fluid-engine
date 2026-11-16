@@ -40,6 +40,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -201,6 +202,14 @@ private fun PlaneStage(
       modifier = Modifier
         .fillMaxSize()
         .glassBackdropSource(stage)
+        // Il fondo delle scene `adattamento` e `clear` cambia solo in disegno, dentro il layer della sorgente: chi registra
+        // la sorgente non ridisegna e non avvisa, e nessuna sonda rilegge (S3, F3-g: niente girava). Finché
+        // `glassBackdropSource` non lo dice da sé (F3.8a: `glassSourceRedraws`, una riga in `GlassMaterial.kt`), lo dice la
+        // pagina a ogni ridisegno del fondo.
+        .drawWithContent {
+          drawContent()
+          stage.notifyChanged()
+        }
         .drawBehind { fund(photo, config.scene, live.on) },
     )
     CompositionLocalProvider(LocalGlassBackdrop provides stage, LocalFluidCanvasBackdrop provides stage) {

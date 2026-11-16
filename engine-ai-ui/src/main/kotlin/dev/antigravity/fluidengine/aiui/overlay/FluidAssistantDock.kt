@@ -55,7 +55,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidHairline
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdown
-import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
@@ -104,6 +103,8 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Stop
  * @param maxChips quanti chip della risposta (da `Done.chips`); gli altri non si mostrano.
  * @param maxBodyHeight il tetto del corpo, entro quello che la tastiera lascia.
  * @param announceAnswer legge la risposta a chi usa TalkBack, quando e' finita (i primi 600 caratteri).
+ * @param markdownStyle colori e misure del Markdown della risposta. Null, di serie: quello del lato del vetro, letto
+ *   dentro il dock (F3.8a, come nella card). Uno stile dell'app resta quello dell'app.
  */
 @Composable
 fun FluidAssistantDock(
@@ -119,7 +120,7 @@ fun FluidAssistantDock(
   maxChips: Int = 3,
   maxBodyHeight: Dp = 280.dp,
   announceAnswer: Boolean = true,
-  markdownStyle: FluidMarkdownStyle = FluidMarkdownDefaults.style(),
+  markdownStyle: FluidMarkdownStyle? = null,
   onClose: () -> Unit = {},
 ) {
   var draft by remember { mutableStateOf("") }
@@ -158,6 +159,8 @@ fun FluidAssistantDock(
     ) {
       // I tasti e i chip del dock sono vetro annidato del dock, non pezzi del suo contenitore.
       FluidAssistantPanelContent {
+        // Lo stile di serie si legge qui dentro, dove lo schema di colori è quello del lato del dock.
+        val bodyStyle = fluidAssistantMarkdownStyle(markdownStyle)
         // --- testata: cosa sta facendo, e come si chiude ----------------------------------------------
         Row(
           modifier = Modifier
@@ -212,7 +215,7 @@ fun FluidAssistantDock(
               .verticalScroll(scroll)
               .padding(horizontal = 20.dp, vertical = 12.dp),
           ) {
-            FluidMarkdown(body, streaming = state is AssistantState.Answering, animateFirst = false, style = markdownStyle, options = FluidAssistantMarkdownOptions)
+            FluidMarkdown(body, streaming = state is AssistantState.Answering, animateFirst = false, style = bodyStyle, options = FluidAssistantMarkdownOptions)
           }
         }
 

@@ -7,6 +7,7 @@ import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VectorizedFiniteAnimationSpec
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.GlassContentCurve
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import kotlin.math.abs
 import kotlin.math.exp
@@ -109,7 +110,22 @@ internal data class GlassPlanePieceFrame(
   val mergesInto: Any?,
   /** Il contenuto viene posato qui dal cliente, senza usare la taglia della lastra in volo (R2 §8.23). */
   val contentBounds: Rect,
+  /**
+   * La **fase** del volo (F3.8a): il tempo dalla partenza (o dalla ripartenza) diviso per il riposo a vista del volo, 0
+   * alla partenza e 1 al riposo; per una comparsa o una scomparsa per lente il suo bilancio (430 e 470 ms), per chi
+   * viaggia il riposo a vista del viaggio (`GlassPlaneJourney.settleMs`). È su questa che il contenuto del pezzo entra ed
+   * esce (`glassPieceContentLook`). Uno per un volo senza tempo.
+   */
+  val phase: Float = 1f,
+  /** Vero se il pezzo non cambia in questo viaggio: stesso vetro, stessa geometria, stessa unione, nessuna velocità. */
+  val still: Boolean = false,
+  /** L'unione del pezzo prima del cambio e dopo: diverse, l'unione nasce o si scioglie in questo viaggio (F3.8a). */
+  val unionFrom: Any? = null,
+  val unionTo: Any? = null,
 )
+
+/** Che cosa fa l'unione dentro un campo in un viaggio (F3.8a): niente, nasce (il collo cresce) o si scioglie (si rompe). */
+internal enum class GlassPlaneUnionChange { None, Forming, Dissolving }
 
 /** Il kernel e il palco appartengono al viaggio, non al conteggio del fotogramma corrente. */
 internal data class GlassPlaneField(
@@ -117,6 +133,13 @@ internal data class GlassPlaneField(
   val bounds: Rect,
   val kernel: GlassBodyKernel,
   val variant: GlassLiquidVariant,
+  /**
+   * Se nel campo un'unione nasce o si scioglie (F3.8a): «Unisci» e «Separa» sono un viaggio del collo anche quando
+   * nessun pezzo si muove. Chi guida il campo porta il collo di quei pezzi nel tempo invece che pieno.
+   */
+  val union: GlassPlaneUnionChange = GlassPlaneUnionChange.None,
+  /** Vero se nessun pezzo del campo cambia: il suo grappolo può restare al vetro di riposo (F3.8a). */
+  val still: Boolean = false,
 )
 
 internal data class GlassPlaneFrame(
@@ -145,6 +168,12 @@ internal data class GlassPlaneMotion(
   val disappearMs: Double = FluidMotion.PlaneDisappearMillis.toDouble(),
   val initialContourScale: Float = FluidMotion.PlaneAppearScale,
   val spec: FiniteAnimationSpec<Float>? = null,
+  /**
+   * Se due pezzi **fermi** e vicini stanno nello stesso campo del viaggio (F3.8a). Falso di serie: due pezzi che non
+   * cambiano restano separati come a riposo, e nessun collo nasce fra loro solo perché un terzo viaggia. Vero per la
+   * distanza «larga» della tavola di F3.3, dove due pezzi vicini sono fusi anche a riposo.
+   */
+  val joinStill: Boolean = false,
 ) {
   init {
     require(listOf(contextMs, appearMs, disappearMs).all { it.isFinite() && it > 0.0 })
@@ -162,7 +191,8 @@ internal data class GlassPlaneMotion(
  * destinazione è ortogonale alla vecchia: proiettarla su un solo progresso perderebbe quell'informazione.
  */
 internal class GlassPlaneJourney private constructor(
-  private val from: GlassPlaneState,
+  /** Da dove parte: lo stato di prima, o i vetri in volo all'istante dell'interruzione ([retarget]). */
+  val from: GlassPlaneState,
   private val to: GlassPlaneState,
   private val motion: GlassPlaneMotion,
   seeds: Map<Any, GlassPlanePieceFrame>,
@@ -174,6 +204,9 @@ internal class GlassPlaneJourney private constructor(
   val fields: List<GlassPlaneField>
   val crossingIds: Set<Any>
   val durationMs: Double
+
+  /** Le chiavi d'arrivo dei pezzi che in questo viaggio non cambiano (F3.8a): vedi [GlassPlanePieceFrame.still]. */
+  val stillKeys: Set<Any>
 
   /**
    * Quando i vetri che viaggiano (si spostano, nascono da un vicino, vi confluiscono) sono fermi **a vista** (F3.2c): il
@@ -202,30 +235,56 @@ internal class GlassPlaneJourney private constructor(
         flight.timeScale = planeTimeScale(listOf(flight), budget)
       }
     }
-    durationMs = flights.maxOfOrNull { it.durationNanos() / it.timeScale / 1_000_000.0 } ?: 0.0
-    settleMs = if (motion.spec != null) {
-      durationMs
+    var duration = flights.maxOfOrNull { it.durationMs() } ?: 0.0
+    var settle = if (motion.spec != null) {
+      duration
     } else {
-      fun restMs(of: List<PlaneFlight>) = of.maxOfOrNull { it.restNanos() / it.timeScale / 1_000_000.0 } ?: 0.0
+      fun restMs(of: List<PlaneFlight>) = of.maxOfOrNull { it.restMs() } ?: 0.0
       // Se i vetri che viaggiano non si muovono (un tasto fermo accanto a uno che compare), il riposo di tutti.
       restMs(contexts).takeIf { it > 0.0 } ?: restMs(flights)
     }
+    // Un'unione che nasce o si scioglie è un viaggio anche se nessun pezzo si muove (F3.8a): dura quanto un cambio di
+    // contesto, il tempo in cui il collo cresce o si strozza e si rompe.
+    if (flights.any { it.unionChanged }) {
+      settle = max(settle, motion.contextMs)
+      duration = max(duration, settle)
+    }
+    durationMs = duration
+    settleMs = settle
+    // La fase di ogni volo: chi compare o scompare per lente conta sul suo bilancio, chi viaggia sul riposo a vista.
+    flights.forEach { it.setPhaseClock(settle) }
+    stillKeys = flights.filter { it.still }.mapNotNullTo(HashSet()) { it.pair.target?.key }
     val spacing = max(from.spacing, to.spacing)
     // Chi compare o scompare per lente è un campo a sé (F3.2c): lo shader ha un `materialize` per campo, e un vetro che
     // compare accanto a uno che si sposta, nello stesso campo, non poteva avere la sua comparsa (F3.2 la approssimava col
     // contorno che si stringe e una soglia del 5%). In un campo suo l'ha esatta: contorno, poi lente, poi simbolo. Non si
     // fonde col vicino mentre compare, e non deve: un vetro che si accende accanto a un altro non gli tira un collo.
+    //
+    // Due pezzi **fermi** non si uniscono in un campo solo perché sono vicini (F3.8a): a riposo sono separati, e in un
+    // campo comune il collo dell'orologio nasceva pieno fra loro al primo fotogramma del palco e se ne andava a metà
+    // viaggio («cerca» e «preferiti» mentre «play» compare, S3). Un pezzo fermo entra nel campo di uno che cambia, e due
+    // della stessa unione (prima o dopo il cambio) stanno sempre insieme.
     fields = planeComponents(flights) { a, b ->
       a.pair.piece.sameField(b.pair.piece) && !a.lens && !b.lens &&
-        (planeGap(a.sweptBounds(), b.sweptBounds()) <= spacing || a.pair.piece.sharesUnion(b.pair.piece))
+        (a.unitedWith(b) || planeFlightsMeet(a, b, spacing, motion.joinStill))
     }.flatMap { component ->
       planePartition(component, { it.sweptBounds() }, max(from.preferredPieces, to.preferredPieces),
-        { a, b -> a.pair.piece.sharesUnion(b.pair.piece) })
+        { a, b -> a.unitedWith(b) })
     }.map { group ->
+      // Solo fra vetri che c'erano e ci sono: chi nasce in un'unione o vi confluisce ha il collo pieno, come prima.
+      val kept = group.filter { it.pair.source != null && it.pair.target != null }
+      val forming = kept.any { a -> kept.any { b -> a !== b && a.unitedAfter(b) && !a.unitedBefore(b) } }
+      val dissolving = kept.any { a -> kept.any { b -> a !== b && a.unitedBefore(b) && !a.unitedAfter(b) } }
       GlassPlaneField(
         group.map { it.id }, planeBounds(group.map { it.sweptBounds() }),
         if (group.size == 1) GlassBodyKernel.One else GlassBodyKernel.Eight,
         group.first().pair.piece.variant,
+        union = when {
+          forming -> GlassPlaneUnionChange.Forming
+          dissolving -> GlassPlaneUnionChange.Dissolving
+          else -> GlassPlaneUnionChange.None
+        },
+        still = group.all { it.still },
       )
     }
   }
@@ -385,6 +444,67 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
   } ?: FloatArray(9)
   var timeScale = 1.0
 
+  /** Vero se l'unione del pezzo cambia in questo viaggio (F3.8a): nasce, si scioglie o passa a un'altra. */
+  val unionChanged: Boolean =
+    pair.source != null && pair.target != null && pair.source.unionId != pair.target.unionId
+
+  /**
+   * Fermo (F3.8a): lo stesso vetro, alla stessa geometria entro la tolleranza del fermo, con la stessa unione e nessuna
+   * velocità ereditata da un viaggio interrotto. Un pezzo fermo non ha bisogno del palco.
+   */
+  val still: Boolean = pair.change == GlassPlaneChange.Matched && !unionChanged && initialAmount == targetAmount &&
+    velocity.all { it == 0f } && (0..7).all { abs(target[it] - initial[it]) <= FluidMotion.PlaneSettlePx }
+
+  fun unitedBefore(other: PlaneFlight): Boolean = planeShareUnion(pair.source, other.pair.source)
+  fun unitedAfter(other: PlaneFlight): Boolean = planeShareUnion(pair.target, other.pair.target)
+
+  /** Nella stessa unione prima o dopo il cambio: stanno nello stesso campo, perché il loro collo è di questo viaggio. */
+  fun unitedWith(other: PlaneFlight): Boolean = unitedBefore(other) || unitedAfter(other)
+
+  /**
+   * `materialize` di una comparsa o di una scomparsa per lente non segue la molla ma una **curva nel tempo** (F3.8a):
+   * [GlassPlaneAppearCurve] e [GlassPlaneDisappearCurve], sul bilancio del volo. Con la molla i canali della comparsa
+   * (`glassMaterializeChannels`, funzioni del solo `materialize`) correvano nei primi istanti: la comparsa finiva a vista
+   * a ~320 ms invece di 430 e la scomparsa a 240–290 invece di 470 (S3). Con una spec dell'app resta la spec.
+   */
+  private val curve: GlassContentCurve? = when {
+    motion.spec != null -> null
+    appears -> GlassPlaneAppearCurve
+    disappears -> GlassPlaneDisappearCurve
+    else -> null
+  }
+  private val budgetMs: Double = if (disappears) motion.disappearMs else motion.appearMs
+
+  /** Da che punto della curva parte: zero da fermi, il punto col `materialize` di adesso per un volo che riparte. */
+  private val curveFrom: Float = curve?.let { planeCurveInverse(it, initialAmount) } ?: 0f
+
+  /** Quanto manca alla fine della curva, in millisecondi veri: zero senza curva. */
+  private val curveRemainingMs: Double = if (curve == null) 0.0 else (1.0 - curveFrom) * budgetMs
+
+  /** I canali che seguono la molla: tutti, o i soli otto della geometria quando `materialize` ha la sua curva. */
+  private val springChannels: IntRange = if (curve == null) 0..PlaneMaterializeChannel else 0 until PlaneMaterializeChannel
+
+  private var phaseMs = 0.0
+  private var phaseFrom = 0f
+
+  /** L'orologio della fase del volo: vedi [GlassPlanePieceFrame.phase]. [settleMs] è il riposo a vista del viaggio. */
+  fun setPhaseClock(settleMs: Double) {
+    if (curve != null) {
+      phaseMs = budgetMs
+      phaseFrom = curveFrom
+    } else {
+      phaseMs = if (lens) durationMs() else settleMs
+      phaseFrom = 0f
+    }
+  }
+
+  private fun phaseAt(tMs: Double): Float =
+    if (!(phaseMs > 0.0)) 1f else (phaseFrom + tMs / phaseMs).toFloat().coerceIn(0f, PlanePhaseCap)
+
+  /** La fine del volo e il suo riposo a vista, in millisecondi veri. */
+  fun durationMs(): Double = max(durationNanos() / timeScale / 1_000_000.0, curveRemainingMs)
+  fun restMs(): Double = max(restNanos() / timeScale / 1_000_000.0, curveRemainingMs)
+
   /**
    * Le molle di serie con cui si contano i tempi, canale per canale (F3.2c): la stessa molla di [FluidMotion.standard],
    * con la soglia del riposo a vista ([FluidMotion.PlaneRestEnvelope] della corsa, mai sotto il mezzo pixel) e quella
@@ -402,11 +522,11 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
 
   /** Quanto dura, nel tempo della molla, fino all'arrivo al mezzo pixel: la fine del viaggio. */
   fun durationNanos(scale: Double = timeScale): Long = if (pair.change == GlassPlaneChange.Identity) 0L else
-    initial.indices.maxOf { index -> channelNanos(index, scale, settleSprings) }
+    springChannels.maxOf { index -> channelNanos(index, scale, settleSprings) }
 
   /** Quanto dura, nel tempo della molla, fino al riposo a vista: è su questo che si stira il bilancio. */
   fun restNanos(scale: Double = timeScale): Long = if (pair.change == GlassPlaneChange.Identity) 0L else
-    initial.indices.maxOf { index -> channelNanos(index, scale, restSprings) }
+    springChannels.maxOf { index -> channelNanos(index, scale, restSprings) }
 
   private fun channelNanos(index: Int, scale: Double, springs: Array<FloatSpringSpec>?): Long {
     val v = (velocity[index] / scale).toFloat()
@@ -432,15 +552,30 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
     val nanos = (tMs * 1_000_000.0 * timeScale).toLong().coerceAtLeast(0L)
     val value = FloatArray(9)
     val speed = FloatArray(9)
-    for (index in initial.indices) {
+    for (index in springChannels) {
       val a = AnimationVector1D(initial[index])
       val b = AnimationVector1D(target[index])
       val v = AnimationVector1D((velocity[index] / timeScale).toFloat())
-      val finished = pair.change == GlassPlaneChange.Identity || nanos >= channelEnd(index)
+      val end = channelEnd(index)
+      val finished = pair.change == GlassPlaneChange.Identity || nanos >= end
+      // La coda (F3.8a): con la molla di serie lo scarto dall'arrivo si spegne in continuo nell'ultimo tratto del canale,
+      // invece di arrivare a mezzo pixel e scattare all'arrivo (il «ritocco di 1 px» ~120 ms dopo il riposo a vista, S3).
+      val tailFrom = (end * PlaneTailFrom).toLong()
+      val tail = if (restSprings == null || finished || nanos <= tailFrom || end <= tailFrom) 1f
+        else 1f - planeSmoothstep((nanos - tailFrom).toFloat() / (end - tailFrom).toFloat())
       value[index] = if (finished) target[index] else if (nanos == 0L) initial[index]
-        else spring.getValueFromNanos(nanos, a, b, v).value
+        else target[index] + (spring.getValueFromNanos(nanos, a, b, v).value - target[index]) * tail
       speed[index] = if (finished) 0f else if (nanos == 0L) velocity[index]
-        else (spring.getVelocityFromNanos(nanos, a, b, v).value * timeScale).toFloat()
+        else (spring.getVelocityFromNanos(nanos, a, b, v).value * timeScale).toFloat() * tail
+    }
+    if (curve != null) {
+      val index = PlaneMaterializeChannel
+      val p = (curveFrom + tMs / budgetMs).toFloat()
+      val finished = pair.change == GlassPlaneChange.Identity || p >= 1f
+      value[index] = if (finished) target[index] else if (tMs <= 0.0) initial[index] else curve.at(p)
+      // Al secondo, come le altre: la pendenza della curva sul suo bilancio.
+      speed[index] = if (finished) 0f
+        else ((curve.at(p + PlaneCurveStep) - curve.at(p)) / PlaneCurveStep / (budgetMs / 1000.0)).toFloat()
     }
     // I vincoli fisici restano veri anche con la velocità contraria di un viaggio interrotto.
     for ((low, high) in listOf(0 to 2, 1 to 3)) {
@@ -468,7 +603,22 @@ private class PlaneFlight(val pair: PlanePair, seeds: Map<Any, GlassPlanePieceFr
         FluidCornerRadii(speed[4], speed[5], speed[6], speed[7]), speed[8]),
       pair.change, pair.matchedBy, pair.neighbour?.key.takeIf { pair.change == GlassPlaneChange.BornFromNeighbour },
       pair.neighbour?.key.takeIf { pair.change == GlassPlaneChange.MergeIntoNeighbour }, pair.target?.bounds ?: pair.source!!.bounds,
+      phase = phaseAt(tMs), still = still, unionFrom = pair.source?.unionId, unionTo = pair.target?.unionId,
     )
+  }
+
+  /** Il vicino da cui il vetro nasce o in cui confluisce, se ne ha uno. */
+  val neighbourKey: Any? get() = pair.neighbour?.key
+
+  /**
+   * Dove il vetro sta **per conto suo**: per chi nasce da un vicino il posto d'arrivo, per chi vi confluisce quello di
+   * partenza (l'altro capo coincide col vicino, e lì è il vicino a contare); per gli altri tutto ciò che spazzano.
+   */
+  fun freeBounds(): Rect = when {
+    pair.neighbour == null -> sweptBounds()
+    pair.target != null && pair.source == null -> endRect
+    pair.source != null && pair.target == null -> startRect
+    else -> sweptBounds()
   }
 
   /** Limite conservativo della risposta libera + impulso iniziale della stessa molla: niente palco che respira. */
@@ -511,6 +661,74 @@ private const val PlaneSweptSamples = 64
 
 /** Il canale di `materialize` fra i nove di un volo (quattro lati, quattro raggi, `materialize`). */
 private const val PlaneMaterializeChannel = 8
+
+/** Da che frazione del tempo di un canale il suo scarto dall'arrivo comincia a spegnersi: vedi `PlaneFlight.frame`. */
+private const val PlaneTailFrom = 0.7
+
+/** Il passo, in frazione del bilancio, su cui si misura la pendenza della curva di `materialize`. */
+private const val PlaneCurveStep = 0.001f
+
+/** La fase più alta che un volo dichiara: oltre il riposo a vista resta la coda che non si vede. */
+private const val PlanePhaseCap = 4f
+
+/**
+ * `materialize` di una **comparsa** per lente in funzione del tempo, in frazione dei 430 ms di R4 B3 (F3.8a). Le chiavi
+ * portano i canali di `glassMaterializeChannels` agli istanti misurati: il contorno pieno (`materialize` 0,3) a 67 ms, la
+ * lente e il corpo pieni (0,97) a 230 ms, poi fino a uno senza che si veda altro (il simbolo ha la sua curva sulla fase,
+ * `glassPieceContentLook`). Monotona, con derivata continua: nessuna pausa a metà.
+ */
+internal val GlassPlaneAppearCurve: GlassContentCurve =
+  GlassContentCurve(floatArrayOf(0f, 0.156f, 0.535f, 1f), floatArrayOf(0f, 0.3f, 0.97f, 1f))
+
+/**
+ * `materialize` di una **scomparsa** per lente in funzione del tempo, in frazione dei 470 ms di R4 B3 (F3.8a): la lente
+ * resta piena finché il simbolo se ne va (130 ms), scende a zero entro 400 ms (`materialize` 0,27), poi se ne va il
+ * contorno, entro 470.
+ */
+internal val GlassPlaneDisappearCurve: GlassContentCurve =
+  GlassContentCurve(floatArrayOf(0f, 0.277f, 0.851f, 1f), floatArrayOf(1f, 0.97f, 0.27f, 0f))
+
+/**
+ * Il punto di [curve] (monotona su 0..1) che vale [value]: da lì riparte un volo interrotto, senza scalini. Per
+ * bisezione; fuori dai valori della curva, il capo più vicino.
+ */
+internal fun planeCurveInverse(curve: GlassContentCurve, value: Float): Float {
+  val rising = curve.at(1f) >= curve.at(0f)
+  if (!value.isFinite()) return 0f
+  if (rising && value <= curve.at(0f) || !rising && value >= curve.at(0f)) return 0f
+  if (rising && value >= curve.at(1f) || !rising && value <= curve.at(1f)) return 1f
+  var lo = 0f
+  var hi = 1f
+  repeat(28) {
+    val mid = (lo + hi) / 2f
+    if ((curve.at(mid) < value) == rising) lo = mid else hi = mid
+  }
+  return (lo + hi) / 2f
+}
+
+private fun planeSmoothstep(x: Float): Float {
+  val t = x.coerceIn(0f, 1f)
+  return t * t * (3f - 2f * t)
+}
+
+/**
+ * Se due voli stanno nello stesso campo del viaggio per vicinanza (F3.8a). Due vetri che cambiano: se ciò che spazzano
+ * è entro [spacing], come sempre. Due vetri **fermi**: mai (a riposo sono separati), salvo [joinStill]. Un fermo e uno
+ * che cambia: se il fermo è il vicino da cui l'altro nasce o in cui confluisce, o se l'altro gli arriva entro [spacing]
+ * **per conto suo** ([PlaneFlight.freeBounds]): un vetro che nasce dal secondo tasto di una barra parte sovrapposto a lui,
+ * e non per questo è vicino al primo.
+ */
+private fun planeFlightsMeet(a: PlaneFlight, b: PlaneFlight, spacing: Float, joinStill: Boolean): Boolean {
+  if (joinStill || !a.still && !b.still) return planeGap(a.sweptBounds(), b.sweptBounds()) <= spacing
+  if (a.still && b.still) return false
+  val still = if (a.still) a else b
+  val moving = if (a.still) b else a
+  if (moving.neighbourKey != null && moving.neighbourKey == still.pair.piece.key) return true
+  return planeGap(still.sweptBounds(), moving.freeBounds()) <= spacing
+}
+
+private fun planeShareUnion(a: GlassPlanePiece?, b: GlassPlanePiece?): Boolean =
+  a != null && b != null && a.unionId != null && a.unionId == b.unionId
 
 private fun planeSpring(threshold: Float) =
   FloatSpringSpec(FluidMotion.DampingStandard, FluidMotion.ResponseStandard, threshold)

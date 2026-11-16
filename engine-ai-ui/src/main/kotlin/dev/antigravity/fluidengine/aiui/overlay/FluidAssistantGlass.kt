@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.isSpecified
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassAnimation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassNested
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownStyle
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassAppearance
 
@@ -58,6 +60,16 @@ object FluidAssistantInk {
  */
 internal fun fluidAssistantInk(requested: Color, sideInk: Color): Color =
   if (requested.isSpecified) requested else sideInk
+
+/**
+ * Lo stile del Markdown del corpo di un pannello dell'assistente (F3.8a): quello chiesto dall'app, o quello di serie
+ * letto **qui**, cioè dove lo si chiama. Va chiamato dentro il contenuto del pannello ([FluidAssistantPanelContent]),
+ * dove lo schema di colori è quello del lato del vetro: è la stessa regola di [fluidAssistantInk], per il testo della
+ * risposta.
+ */
+@Composable
+internal fun fluidAssistantMarkdownStyle(requested: FluidMarkdownStyle?): FluidMarkdownStyle =
+  requested ?: FluidMarkdownDefaults.style()
 
 /**
  * Se un pezzo piccolo si fa **un contenitore suo** (e allora gira chiaro/scuro con lo sfondo): solo da solo sulla pagina.

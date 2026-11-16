@@ -53,9 +53,9 @@ import kotlin.math.sqrt
  * Le chiavi delle curve vengono dalla tabella di R7 A.3 e dalla figura `r7/A4_curve_scambio_icone.png` (clip 16:02,
  * classe B, T ≈ 434 ms), fiducia alta salvo dove detto.
  *
- * @param durationMs T, l'istante in cui il contenuto nuovo è di nuovo nitido. Di serie **400 ms**: la manopola
- *   consigliata di R7 (300 / 400 / 450), fra i 300–330 ms del telefono (R4 B2 a, classe A) e i 434 della clip
- *   ingrandita (R4 B2 c, R7 A.3). L'opacità del nuovo arriva a 1 poco dopo, a 1,15 T (R7 A.3, «contrasto pieno»).
+ * @param durationMs T, l'istante in cui il contenuto nuovo è di nuovo nitido. Di serie **300 ms**, il bilancio di un
+ *   cambio di contesto del piano ([FluidMotion.PlaneContextMillis]): vedi [GlassContentDefaults.DurationMs]. L'opacità
+ *   del nuovo arriva a 1 poco dopo, a 1,15 T (R7 A.3, «contrasto pieno»).
  * @param peakBlur σ massima in frazione della **sagoma** del contenuto: 0,15 (R7: 0,14–0,17, su otto icone).
  */
 @Immutable
@@ -74,8 +74,21 @@ internal data class GlassContentTiming(
  * non li porta `FluidMotion` (F3.2).
  */
 internal object GlassContentDefaults {
-  /** T di serie (R7 A.6, manopola «T: 300 / **400** / 450 ms»). */
-  const val DurationMs: Float = 400f
+  /**
+   * T di serie: **300 ms**, quanto un cambio di contesto del piano ([FluidMotion.PlaneContextMillis]); un test le tiene
+   * uguali. Fino a F3.8a erano 400, la manopola «consigliata» di R7 A.6 (300 / 400 / 450), a metà fra il telefono e la
+   * clip ingrandita.
+   *
+   * Perché 300 (F3.8a, punto 7 di S3). Le due misure di Apple sono la stessa curva a due velocità: sulla clip ingrandita
+   * di 16:02 (classe B, T ≈ 434 ms) le icone cominciano a sfocarsi a +67 ms dall'ultimo fotogramma fermo (f28857), il
+   * massimo cade a +200–267 (f28863–f28865, le due icone insieme) e quelle nuove sono nitide a +400–434; sul telefono
+   * (219 4:44, classe A, «la più affidabile per i tempi») tutto lo scambio dura 270–330 ms, e il massimo cade a metà:
+   * 135–165 ms, che è ciò che S3 ha letto allineando sulla fase. La forma è la stessa (il massimo a 0,5 T), cambia T.
+   * Il vetro del piano viaggia col tempo del telefono (300 ms): con T a 400 le icone toccavano il massimo a 200 ms e
+   * finivano 100–160 ms dopo il vetro. Con la stessa T del vetro il massimo cade a 150 ms e l'icona nuova è nitida
+   * quando il vetro è fermo a vista.
+   */
+  const val DurationMs: Float = 300f
 
   /** σ massima / altezza della sagoma (R7 A.2–A.3: 0,14–0,17 h, alta). */
   const val PeakBlur: Float = 0.15f
@@ -523,6 +536,214 @@ internal fun glassContentFrame(
   blurAvailable: Boolean = true,
 ): GlassContentFrame = GlassContentJourney.start(from, to, timing, blurAvailable).frame(tMs)
 
+// ================================================================================================================
+// Il contenuto di un pezzo del piano flottante (F3.8a)
+// ================================================================================================================
+//
+// Un vetro che nasce, compare, se ne va o si sposta dentro un `FluidGlassContainer` porta con sé il suo contenuto, e fino
+// a F3.8 il contenuto era solo «al suo posto d'arrivo»: scritto sulla pagina prima che il vetro lo raggiungesse («Fatto»
+// sulla foto senza vetro per 60–140 ms, S3). Le regole sono quelle di R7 A.6, sulla **fase del volo** del pezzo (0 alla
+// partenza, 1 al riposo a vista: `GlassPlanePieceFrame.phase`), e il contenitore le applica ritagliando sempre il
+// contenuto sulla sagoma del vetro in volo:
+//
+//  - **chi nasce da un vicino** (A6): il contenuto non ha un predecessore. Resta al suo posto d'arrivo, non c'è finché il
+//    vetro non l'ha coperto, poi arriva sfocato da scala 0,75 e si fa nitido per ultimo. Apple, «Select» → «Done»: il
+//    contenuto nuovo compare a ~60% del viaggio ed è nitido negli ultimi fotogrammi;
+//  - **chi compare per lente** (A8): il simbolo si condensa da 2× e sfocato a 1× e nitido fra 0,25 e 0,85 della comparsa,
+//    senza pause;
+//  - **chi se ne va** (A5, A8): resta dov'era, si sfoca e svanisce nel primo 30% del volo (i 130 ms di R4 B3 su 470), e
+//    il bordo che si ritira lo copre;
+//  - **chi resta** (A3): nitido, opaco, e si sposta col suo vetro;
+//  - **un viaggio che riparte a metà** (invariante 16): ogni contenuto riparte dall'aspetto che ha.
+
+/** Che parte fa il contenuto di un pezzo nel viaggio del suo vetro. */
+internal enum class GlassPieceContentRole {
+  /** Fermo, o in viaggio col suo vetro: nitido e opaco (R7 A3). */
+  Rest,
+
+  /** Non si vede: un pezzo appena composto, finché il piano non ha deciso come entra. */
+  Hidden,
+
+  /** Il contenuto di un vetro nato da un vicino (R7 A6). */
+  Born,
+
+  /** Il contenuto di un vetro che compare per lente (R7 A8). */
+  Lens,
+
+  /** Torna nitido dall'aspetto che aveva: un contenuto che stava entrando o uscendo e ora resta. */
+  Recover,
+
+  /** Se ne va dall'aspetto che aveva (R7 A5, A8). */
+  Exit,
+}
+
+/** Le fasi della grammatica del contenuto di un pezzo, con la loro scheda. Numeri di gusto, fiducia media. */
+internal object GlassPieceContentDefaults {
+  /**
+   * La fase in cui il contenuto di chi nasce comincia a esserci: 0,5. Nella tavola «Select» → «Done» (classe C,
+   * rallentata: vale l'ordine delle fasi) al 50% il vetro è ancora vuoto e al 60% «Done» è una macchia chiara. A quella
+   * fase la lastra che nasce ha già coperto il posto d'arrivo (la molla del piano fa più del 90% della corsa nella prima
+   * metà del tempo), quindi il contenuto non compare mai fuori dal vetro; il ritaglio sulla sagoma lo garantisce comunque.
+   */
+  const val BornAt: Float = 0.5f
+
+  /**
+   * La fase in cui il contenuto di chi nasce è nitido (σ zero): 0,78. Nella clip di Apple (35 fotogrammi da «Select»
+   * nitido, f9031, al riposo, f9066) il contenuto nuovo compare al 51–54% (f9049–f9050), al 60% è una macchia sfocata,
+   * al 70% è quasi nitido, nitido al 77–80% (f9058–f9059), e i colli si rompono dopo, al 90%. Sulla tavola del banco
+   * (`bench/f3-8a/tavole/`) con 0,82 al 70% la scritta era ancora sfocata dove quella di Apple si legge già.
+   */
+  const val BornSharp: Float = 0.78f
+
+  /** Da dove a dove della comparsa per lente il simbolo si condensa (R7 A8: fra 0,25 e 0,85). */
+  const val LensFrom: Float = 0.25f
+
+  /** Vedi [LensFrom]. */
+  const val LensTo: Float = 0.85f
+
+  /** La scala da cui il simbolo si condensa (R4 B3: ≈2×). */
+  const val LensScale: Float = 2f
+
+  /**
+   * In quanta parte del volo sta la curva d'uscita di F3.4 (T): 0,4, cioè il contenuto è via a 0,26 del volo
+   * ([GlassContentDefaults.ExitEnd] × 0,4). Sui 470 ms di una scomparsa sono 124 ms (R4 B3: «simbolo via in 130 ms»),
+   * sui 300 di una confluenza 79; in Apple «Select» è sfocato dal primo fotogramma (3%) e sparito al 14–17%.
+   */
+  const val ExitSpan: Float = 0.4f
+
+  /** In quanta parte del volo un contenuto che resta torna nitido dall'aspetto che aveva. */
+  const val RecoverSpan: Float = 0.5f
+}
+
+/**
+ * La parte del contenuto di un pezzo e l'aspetto da cui la comincia ([from]: conta per [GlassPieceContentRole.Exit] e
+ * [GlassPieceContentRole.Recover], che partono da dove il contenuto si trova).
+ */
+@Immutable
+internal data class GlassPieceContent(
+  val role: GlassPieceContentRole,
+  val from: GlassContentLook = GlassContentLook.Sharp,
+) {
+  companion object {
+    val Rest = GlassPieceContent(GlassPieceContentRole.Rest)
+    val Hidden = GlassPieceContent(GlassPieceContentRole.Hidden)
+  }
+}
+
+/** L'aspetto di un contenuto che non si vede: è ciò da cui parte chi entra. */
+internal val GlassContentInvisible: GlassContentLook = GlassContentLook(alpha = 0f, scale = 1f, blur = 0f)
+
+/**
+ * L'aspetto del contenuto [content] alla [phase] del volo del suo vetro. Pura: la usano il contenitore e le tracce.
+ * `blur` è σ in frazione dell'altezza della sagoma, come in [GlassContentJourney.look]; sotto API 31 ([blurAvailable]
+ * falso) non c'è sfocatura e chi esce e chi entra si danno il cambio senza sovrapporsi.
+ */
+internal fun glassPieceContentLook(
+  content: GlassPieceContent,
+  phase: Float,
+  blurAvailable: Boolean = true,
+  peakBlur: Float = GlassContentDefaults.PeakBlur,
+): GlassContentLook {
+  val p = if (phase.isFinite()) phase.coerceAtLeast(0f) else 1f
+  val peak = if (blurAvailable) peakBlur else 0f
+  return when (content.role) {
+    GlassPieceContentRole.Rest -> GlassContentLook.Sharp
+    GlassPieceContentRole.Hidden -> GlassContentInvisible
+    GlassPieceContentRole.Born -> {
+      // La curva di chi nasce di F3.4 (opacità, scala da 0,75, σ che scende a zero), portata sulla finestra del volo.
+      val u = glassPieceBornU(p)
+      if (p < GlassPieceContentDefaults.BornAt) {
+        GlassContentInvisible
+      } else {
+        GlassContentLook(
+          alpha = GlassContentCurves.alpha(GlassContentRole.Born, u, blurAvailable),
+          scale = GlassContentCurves.scale(GlassContentRole.Born, u),
+          blur = GlassContentCurves.blur(GlassContentRole.Born, u) * peak,
+        )
+      }
+    }
+    GlassPieceContentRole.Lens -> {
+      val w = ((p - GlassPieceContentDefaults.LensFrom) /
+        (GlassPieceContentDefaults.LensTo - GlassPieceContentDefaults.LensFrom)).coerceIn(0f, 1f)
+      if (p <= GlassPieceContentDefaults.LensFrom) {
+        GlassContentInvisible
+      } else {
+        val shrink = (1f - w) * (1f - w) * (1f - w)
+        GlassContentLook(
+          alpha = glassContentSmoothstep(0f, 0.8f, w),
+          scale = 1f + (GlassPieceContentDefaults.LensScale - 1f) * shrink,
+          blur = peak * (1f - glassContentSmoothstep(0f, 1f, w)),
+        )
+      }
+    }
+    GlassPieceContentRole.Exit -> {
+      val u = p / GlassPieceContentDefaults.ExitSpan
+      val from = content.from
+      GlassContentLook(
+        alpha = (from.alpha * GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable)).coerceIn(0f, 1f),
+        scale = from.scale * GlassContentCurves.scale(GlassContentRole.Exit, u),
+        // La sfocatura non torna mai indietro mentre il contenuto svanisce.
+        blur = max(GlassContentCurves.blur(GlassContentRole.Exit, u) * peak, from.blur),
+      )
+    }
+    GlassPieceContentRole.Recover -> {
+      val s = glassContentSmoothstep(0f, GlassPieceContentDefaults.RecoverSpan, p)
+      val from = content.from
+      if (s >= 1f) GlassContentLook.Sharp else GlassContentLook(
+        alpha = from.alpha + (1f - from.alpha) * s,
+        scale = from.scale + (1f - from.scale) * s,
+        blur = from.blur * (1f - s),
+      )
+    }
+  }
+}
+
+/** L'`u` delle curve di F3.4 a cui sta chi nasce alla fase [phase] del volo: 0,36 a [GlassPieceContentDefaults.BornAt], 1 a `BornSharp`. */
+internal fun glassPieceBornU(phase: Float): Float =
+  GlassContentDefaults.EnterAt + (phase - GlassPieceContentDefaults.BornAt) * (1f - GlassContentDefaults.EnterAt) /
+    (GlassPieceContentDefaults.BornSharp - GlassPieceContentDefaults.BornAt)
+
+/** Vero quando [content] ha finito di muoversi alla [phase]: da lì è fermo (o sparito, per chi esce). */
+internal fun glassPieceContentDone(content: GlassPieceContent, phase: Float): Boolean = when (content.role) {
+  GlassPieceContentRole.Rest, GlassPieceContentRole.Hidden -> true
+  GlassPieceContentRole.Born -> glassPieceBornU(phase) >= GlassContentDefaults.EnterEnd
+  GlassPieceContentRole.Lens -> phase >= GlassPieceContentDefaults.LensTo
+  GlassPieceContentRole.Exit -> phase / GlassPieceContentDefaults.ExitSpan >= GlassContentDefaults.ExitEnd
+  GlassPieceContentRole.Recover -> phase >= GlassPieceContentDefaults.RecoverSpan
+}
+
+/** Che cosa fa il vetro di un pezzo in un viaggio, per il suo contenuto: la sola parte di `GlassPlaneChange` che conta qui. */
+internal enum class GlassPieceArrival { Stays, BornFromNeighbour, ThroughLens, Instant }
+
+/**
+ * La parte che il contenuto di un pezzo prende quando un viaggio parte o riparte.
+ *
+ * @param arrival come arriva il suo vetro; non conta per chi se ne va.
+ * @param now l'aspetto che il contenuto ha adesso (anche quello ereditato dal nodo che aveva la stessa identità), o
+ *   null se non è mai stato disegnato: un pezzo appena composto, senza un predecessore a vista.
+ * @param departed vero se il pezzo non c'è più nello stato d'arrivo: il suo contenuto esce.
+ */
+internal fun glassPieceContentFor(arrival: GlassPieceArrival, now: GlassContentLook?, departed: Boolean): GlassPieceContent {
+  if (departed) {
+    // Un vetro che sparisce senza transizione porta via il contenuto con sé; uno mai visto non ha niente da far uscire.
+    return if (arrival == GlassPieceArrival.Instant || now == null || now.alpha <= 0f) GlassPieceContent.Hidden
+      else GlassPieceContent(GlassPieceContentRole.Exit, now)
+  }
+  return when (arrival) {
+    GlassPieceArrival.BornFromNeighbour -> GlassPieceContent(GlassPieceContentRole.Born)
+    GlassPieceArrival.ThroughLens -> GlassPieceContent(GlassPieceContentRole.Lens)
+    GlassPieceArrival.Instant -> GlassPieceContent.Rest
+    // Un vetro che resta: il contenuto che si vedeva continua (nitido, o tornando nitido da dov'era). Uno mai visto è
+    // un nodo nuovo su un vetro che c'era già (un pezzo tolto e rimesso a metà viaggio): entra come chi nasce, quando il
+    // vetro l'ha raggiunto, invece di comparire di colpo.
+    GlassPieceArrival.Stays -> when (now) {
+      null -> GlassPieceContent(GlassPieceContentRole.Born)
+      GlassContentLook.Sharp -> GlassPieceContent.Rest
+      else -> GlassPieceContent(GlassPieceContentRole.Recover, now)
+    }
+  }
+}
+
 /** Il raggio da dare a `BlurEffect` per una σ in pixel: HWUI usa σ = 0,57735 r + 0,5 (lo stesso conto del bordo). */
 internal fun glassContentBlurRadiusPx(sigmaPx: Float): Float =
   if (sigmaPx <= 0f) 0f else GlassEdgeBlurKernel.sigmaToRadius(sigmaPx)
@@ -600,9 +821,15 @@ fun <S> FluidGlassContentTransition(
     if (!running) return@LaunchedEffect
     // Un orologio solo per tutta la corsa: un'interruzione cambia il viaggio, non riavvia il conto del tempo.
     var lastNanos = -1L
+    var steps = 0
     while (true) {
       val frameNanos = withFrameNanos { it }
-      if (lastNanos >= 0L) nowMs += (frameNanos - lastNanos) / 1_000_000.0
+      if (lastNanos >= 0L) {
+        // I primi passi hanno lo stesso tetto del viaggio del vetro (F3.8a, [FluidMotion.PlaneFirstStepMillis]): un buco
+        // di fotogrammi alla partenza (il pannello che sale da 30 a 120 Hz) è tempo perso, non sfocatura saltata.
+        nowMs += glassContentClockStep((frameNanos - lastNanos) / 1_000_000.0, steps)
+        steps++
+      }
       lastNanos = frameNanos
       val frame = journey.frame(nowMs)
       if (frame.finished) {
@@ -667,6 +894,15 @@ fun <S> FluidGlassContentTransition(
 }
 
 private fun mixedColor(from: Color, to: Color, tint: Float): Color = lerp(from, to, tint.coerceIn(0f, 1f))
+
+/**
+ * Di quanto avanza l'orologio di un cambio di contenuto in un fotogramma lungo [frameMs], il [step]-esimo dalla partenza:
+ * i primi [FluidMotion.PlaneFirstSteps] non più di [FluidMotion.PlaneFirstStepMillis], gli altri quanto è passato. Pura.
+ */
+internal fun glassContentClockStep(frameMs: Double, step: Int): Double {
+  val elapsed = if (frameMs.isFinite()) frameMs.coerceAtLeast(0.0) else 0.0
+  return if (step < FluidMotion.PlaneFirstSteps) min(elapsed, FluidMotion.PlaneFirstStepMillis.toDouble()) else elapsed
+}
 
 /** Quanti pixel di σ: la conversione del composable, esposta al test. */
 internal fun glassContentSigmaPx(blur: Float, referencePx: Float): Float =

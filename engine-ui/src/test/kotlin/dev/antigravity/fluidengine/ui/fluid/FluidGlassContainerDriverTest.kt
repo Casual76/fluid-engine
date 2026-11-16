@@ -5,11 +5,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeck
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneNeckMs
+import dev.antigravity.fluidengine.ui.glass.field.GlassJourneySwellPeak
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidJourneys
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneChange
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneJourney
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneMotion
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlanePiece
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneState
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneTransition
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneUnionChange
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -257,6 +263,258 @@ class FluidGlassContainerDriverTest {
     assertNull(fluidGlassUnionIndices(listOf(p1, p2)))
     val plain = listOf(p1, p2)
     assertSame("senza unioni la stessa lista", plain, plain.unionsFirst { it })
+  }
+
+  // ---- F3.8a ---------------------------------------------------------------------------------------------------
+
+  @Test
+  fun `i primi passi di un viaggio hanno un tetto, un buco di fotogrammi alla partenza e' tempo perso e non moto saltato`() {
+    val motion = GlassPlaneMotion()
+    val capMs = FluidMotion.PlaneFirstStepMillis.toDouble()
+    val driver = FluidGlassPlaneDriver(firstStepCapNanos = FluidMotion.PlaneFirstStepMillis * 1_000_000L)
+    driver.step(0L, state(a), motion)
+    driver.step(frameNanos, state(a, b), motion)
+    assertEquals(0.0, driver.elapsedMs, 0.0)
+    // Il pannello sale da 30 a 120 Hz: 58 ms senza fotogrammi fra il primo e il secondo del viaggio (S3, framestats).
+    var now = frameNanos + 58_300_000L
+    driver.step(now, state(a, b), motion)
+    assertEquals(capMs, driver.elapsedMs, 1e-6)
+    val early = driver.frame!!.pieces.single { it.flightId.targetKey == "b" }.bounds.left - a.bounds.left
+    assertTrue("al secondo fotogramma il vetro ha appena cominciato: $early px", early < 0.1f * (b.bounds.left - a.bounds.left))
+    repeat(2) {
+      now += 8_333_333L
+      driver.step(now, state(a, b), motion)
+    }
+    assertEquals(capMs + 2 * 8.333333, driver.elapsedMs, 1e-3)
+    // Dopo i primi passi l'orologio è quello a muro: un fotogramma lungo a metà viaggio non rallenta il viaggio.
+    now += 50_000_000L
+    driver.step(now, state(a, b), motion)
+    assertEquals(capMs + 2 * 8.333333 + 50.0, driver.elapsedMs, 1e-3)
+    // Una ripartenza a metà non ha tetto: il pannello è già a regime.
+    now += 40_000_000L
+    assertEquals(FluidGlassPlaneDriver.Change.Retargeted, driver.step(now, state(a), motion))
+    now += 40_000_000L
+    driver.step(now, state(a), motion)
+    assertEquals(40.0, driver.elapsedMs, 1e-3)
+    // Senza tetto (chi conta il tempo a mano) il buco è moto saltato, com'era.
+    val plain = FluidGlassPlaneDriver()
+    plain.step(0L, state(a), motion)
+    plain.step(frameNanos, state(a, b), motion)
+    plain.step(frameNanos + 58_300_000L, state(a, b), motion)
+    assertEquals(58.3, plain.elapsedMs, 1e-6)
+  }
+
+  @Test
+  fun `la fase del viaggio va da zero a uno sul riposo a vista, e una ripartenza la riporta a zero`() {
+    val motion = GlassPlaneMotion()
+    val driver = FluidGlassPlaneDriver()
+    assertEquals(1f, driver.phase, 0f)
+    driver.step(0L, state(a), motion)
+    driver.step(frameNanos, state(a, b), motion)
+    assertEquals(0f, driver.phase, 0f)
+    val settle = driver.journey!!.settleMs
+    driver.step(frameNanos + (settle / 2.0 * 1_000_000.0).toLong(), state(a, b), motion)
+    assertEquals(0.5f, driver.phase, 0.001f)
+    driver.step(frameNanos + (settle / 2.0 * 1_000_000.0).toLong() + frameNanos, state(a), motion)
+    assertEquals(0f, driver.phase, 0f)
+  }
+
+  @Test
+  fun `il carattere del viaggio segue la fase, e una ripartenza riparte dalla luce e dal rigonfiamento che ha`() {
+    // L'aggancio di F3.9: la luce e il rigonfiamento del vetro lungo il viaggio, col livello d'entrata nel driver.
+    val motion = GlassPlaneMotion()
+    val character = GlassLiquidJourneys.Apple
+    val driver = FluidGlassPlaneDriver(character = { character })
+    assertEquals("a riposo niente carattere", 0f, driver.journeyLight, 0f)
+    assertEquals(0f, driver.journeySwell, 0f)
+    driver.step(0L, state(a), motion)
+    driver.step(frameNanos, state(a, b), motion)
+    assertEquals("alla partenza la ricetta è quella di riposo", 0f, driver.journeyLight, 0f)
+    assertEquals(0f, driver.journeySwell, 0f)
+    val settle = driver.journey!!.settleMs
+    // Al colmo del rigonfiamento la luce è piena.
+    val peak = frameNanos + (settle * GlassJourneySwellPeak * 1_000_000.0).toLong()
+    driver.step(peak, state(a, b), motion)
+    assertEquals(character.swell(driver.phase), driver.journeySwell, 0f)
+    assertEquals(1f, driver.journeySwell, 0.01f)
+    assertEquals(1f, driver.journeyLight, 0.01f)
+    // Un cambio di stato un fotogramma dopo: il viaggio riparte dalla fase zero, la luce e il rigonfiamento no.
+    driver.step(peak + frameNanos, state(a), motion)
+    assertEquals(0f, driver.phase, 0f)
+    assertTrue("rigonfiamento d'entrata ${driver.journeySwellEntry}", driver.journeySwellEntry > 0.9f)
+    assertTrue("luce d'entrata ${driver.journeyLightEntry}", driver.journeyLightEntry > 0.9f)
+    assertEquals(driver.journeySwellEntry, driver.journeySwell, 1e-6f)
+    assertEquals(driver.journeyLightEntry, driver.journeyLight, 1e-6f)
+    // Da lì scendono senza scalini (a 60 Hz la coda della luce scende al più di un quarto per fotogramma), e
+    // all'arrivo non resta niente: geometria e ricetta di riposo.
+    var t = peak + frameNanos
+    var light = driver.journeyLight
+    var swell = driver.journeySwell
+    while (driver.journey != null) {
+      t += frameNanos
+      driver.step(t, state(a), motion)
+      assertTrue("la luce non fa scalini", abs(driver.journeyLight - light) < 0.3f)
+      assertTrue("il rigonfiamento non fa scalini", abs(driver.journeySwell - swell) < 0.3f)
+      light = driver.journeyLight
+      swell = driver.journeySwell
+      assertTrue(t < 5_000_000_000L)
+    }
+    assertEquals(0f, driver.journeyLight, 0f)
+    assertEquals(0f, driver.journeySwell, 0f)
+    assertEquals(0f, driver.journeyLightEntry, 0f)
+    // Senza carattere (la manopola `journey=off`) niente si accende e niente si gonfia.
+    val plain = FluidGlassPlaneDriver(character = { GlassLiquidJourneys.Off })
+    plain.step(0L, state(a), motion)
+    plain.step(frameNanos, state(a, b), motion)
+    plain.step(peak, state(a, b), motion)
+    assertEquals(0f, plain.journeySwell * plain.journeyCharacter.swell, 0f)
+    assertTrue(plain.journeyCharacter.isOff)
+  }
+
+  @Test
+  fun `un'unione che nasce e' un collo che cresce e resta, una che si scioglie si strozza e si rompe`() {
+    val union = Any()
+    val motion = GlassPlaneMotion()
+    val apart = state(a, b)
+    val united = state(a.copy(unionId = union), b.copy(unionId = union))
+    val driver = FluidGlassPlaneDriver()
+    driver.step(0L, apart, motion)
+    // «Unisci»: nessun pezzo si muove, ma è un viaggio.
+    assertEquals(FluidGlassPlaneDriver.Change.Started, driver.step(frameNanos, united, motion))
+    assertEquals(GlassPlaneUnionChange.Forming, driver.journey!!.fields.single().union)
+    assertEquals("parte dai pezzi separati", -1f, driver.neckNow(GlassPlaneUnionChange.Forming), 0f)
+    // Durante la nascita i due pezzi non sono ancora un'unione piena: il loro collo è quello che cresce.
+    assertNull(fluidGlassStableUnionIndices(driver.frame!!.pieces))
+    var now = frameNanos
+    var last = -1f
+    var frames = 0
+    var bornAt = -1
+    while (driver.step(now + frameNanos, united, motion) != FluidGlassPlaneDriver.Change.Finished) {
+      now += frameNanos
+      frames++
+      val neck = driver.neckNow(GlassPlaneUnionChange.Forming)
+      assertTrue("il collo cresce e non torna indietro: $last -> $neck", neck >= last - 1e-6f)
+      if (bornAt < 0 && neck > 0f) bornAt = frames
+      last = neck
+    }
+    assertTrue("«Unisci» dura un viaggio, non un fotogramma: $frames", frames >= 15)
+    assertTrue("il ponte nasce dopo i primi fotogrammi, non pieno al primo: $bornAt", bornAt in 3..8)
+    assertEquals("alla fine il collo è pieno, com'è l'unione a riposo", 1f, last, 0f)
+    // «Separa»: dal collo pieno, si strozza e si rompe una volta sola.
+    now += frameNanos
+    assertEquals(FluidGlassPlaneDriver.Change.Started, driver.step(now + frameNanos, apart, motion))
+    now += frameNanos
+    assertEquals(GlassPlaneUnionChange.Dissolving, driver.journey!!.fields.single().union)
+    assertEquals("parte dal collo pieno", 1f, driver.neckNow(GlassPlaneUnionChange.Dissolving), 0f)
+    last = 1f
+    var breaks = 0
+    frames = 0
+    while (driver.step(now + frameNanos, apart, motion) != FluidGlassPlaneDriver.Change.Finished) {
+      now += frameNanos
+      frames++
+      val neck = driver.neckNow(GlassPlaneUnionChange.Dissolving)
+      assertTrue("il collo non rinasce: $last -> $neck", neck <= last + 1e-6f)
+      if (last > 0f && neck <= 0f) breaks++
+      last = neck
+    }
+    assertTrue(frames >= 15)
+    assertEquals("una rottura sola", 1, breaks)
+    assertTrue("all'ultimo fotogramma i lobi si sono ritirati: $last", last < -0.95f)
+    assertEquals("a riposo i pezzi sono separati del tutto", -1f, driver.neckNow(GlassPlaneUnionChange.Dissolving), 0f)
+  }
+
+  @Test
+  fun `un'unione ripensata a meta' riparte dal collo che c'e'`() {
+    val union = Any()
+    val motion = GlassPlaneMotion()
+    val apart = state(a, b)
+    val united = state(a.copy(unionId = union), b.copy(unionId = union))
+    val driver = FluidGlassPlaneDriver()
+    driver.step(0L, united, motion)
+    driver.step(frameNanos, apart, motion)
+    val law = PhysicsPlaneNeck(1f, physicsPlaneNeckMs(driver.journey!!.settleMs))
+    var now = frameNanos
+    // «Separa» fino a poco prima della rottura, poi «Unisci» di nuovo.
+    while (driver.neckNow(GlassPlaneUnionChange.Dissolving) > 0.6f) {
+      now += frameNanos
+      driver.step(now, apart, motion)
+    }
+    now += frameNanos
+    assertEquals(FluidGlassPlaneDriver.Change.Retargeted, driver.step(now, united, motion))
+    // Il collo all'istante della ripartenza: quello della legge della divisione, un fotogramma dopo l'ultimo mostrato.
+    val before = law.at((now - frameNanos) / 1_000_000.0)
+    val after = driver.neckNow(GlassPlaneUnionChange.Forming)
+    assertTrue("a metà strada: $before", before > -1f && before < 1f)
+    assertEquals("riparte da dove il collo si trova", before, after, 0.01f)
+    now += frameNanos
+    driver.step(now, united, motion)
+    assertTrue(driver.neckNow(GlassPlaneUnionChange.Forming) >= after)
+    // La salita letta al contrario: -1 da fermi, pieno a metà del riposo a vista, e pieno resta.
+    assertEquals(-1f, fluidGlassUnionFormingNeck(0.0, 300.0), 0f)
+    assertEquals(1f, fluidGlassUnionFormingNeck(150.0, 300.0), 0f)
+    assertEquals(1f, fluidGlassUnionFormingNeck(900.0, 300.0), 0f)
+    assertEquals(0.0, fluidGlassUnionFormingOffsetMs(-1f, 300.0), 0.0)
+    val offset = fluidGlassUnionFormingOffsetMs(0.4f, 300.0)
+    assertEquals(0.4f, fluidGlassUnionFormingNeck(offset, 300.0), 0.01f)
+  }
+
+  @Test
+  fun `i grappoli che non cambiano restano al vetro di riposo, e il palco prende solo chi viaggia`() {
+    // «cerca» e «preferiti» fermi mentre «play» compare (S3): al primo fotogramma del palco si univano con un ponte pieno.
+    val from = state(a, b)
+    val to = state(a, b, far)
+    val journey = GlassPlaneJourney(from, to)
+    val resting = fluidGlassRestingClusters(from, to, journey.stillKeys)
+    assertEquals(setOf<Any>("a", "b"), resting.single().pieces.map { it.key }.toSet())
+    assertEquals("un grappolo di più pezzi si chiama con la sua identità", resting.single().id, fluidGlassRestKey(resting.single()))
+    assertTrue("nessun campo unisce due pezzi fermi", journey.fields.none { field ->
+      field.flights.map { it.targetKey }.containsAll(listOf("a", "b"))
+    })
+    // Un pezzo solo, fermo: la chiave della sua superficie è il pezzo.
+    val alone = fluidGlassRestingClusters(state(a), state(a, far), GlassPlaneJourney(state(a), state(a, far)).stillKeys)
+    assertEquals("a", fluidGlassRestKey(alone.single()))
+    // Se un pezzo del grappolo si muove, tutto il grappolo passa dal palco.
+    val moved = state(a, b.copy(bounds = b.bounds.translate(12f, 0f)), far)
+    assertTrue(fluidGlassRestingClusters(from, moved, GlassPlaneJourney(from, moved).stillKeys).isEmpty())
+    // Un grappolo che prima non c'era (un pezzo nuovo accanto) passa dal palco anche se i vecchi sono fermi.
+    val grown = state(a, b, piece("c", 352f))
+    assertTrue(fluidGlassRestingClusters(from, grown, GlassPlaneJourney(from, grown).stillKeys).isEmpty())
+  }
+
+  @Test
+  fun `il rigonfiamento gonfia ogni lato della quota del carattere, col tetto per i pannelli grandi`() {
+    val character = GlassLiquidJourneys.Apple
+    val slab = FluidForm.Slab(Rect(10f, 10f, 110f, 54f), FluidCornerRadii.all(22f))
+    assertSame("senza rigonfiamento è la stessa lastra", slab, FluidGlassSwell.None.of(slab))
+    assertSame("a livello zero è la stessa lastra", slab, FluidGlassSwell(character, 0f, 100f, 1f).of(slab))
+    // Il 15% del lato corto (44): 3,3 per lato; una capsula resta una capsula.
+    val swollen = FluidGlassSwell(character, 1f, 100f, 1f).of(slab)
+    assertRect(Rect(6.7f, 6.7f, 113.3f, 57.3f), swollen.frame, 1e-4f)
+    assertEquals(25.3f, swollen.cornerRadii.topLeft, 1e-4f)
+    assertEquals(swollen.frame.height / 2f, swollen.cornerRadii.bottomRight, 1e-4f)
+    // La quota è una frazione del lato corto: la densità non la cambia.
+    assertEquals(3.3f, FluidGlassSwell(character, 1f, 100f, 3f).growPx(44f), 1e-4f)
+    // A metà livello, metà della quota.
+    assertEquals(1.65f, FluidGlassSwell(character, 0.5f, 100f, 1f).growPx(44f), 1e-4f)
+    // Su un pannello grande il tetto tiene il rigonfiamento: 30 px senza, 6 col tetto.
+    val panel = FluidForm.Slab(Rect(0f, 0f, 600f, 400f), FluidCornerRadii.all(40f))
+    assertEquals(-30f, FluidGlassSwell(character, 1f, 100f, 1f).of(panel).frame.left, 1e-4f)
+    assertEquals(-6f, FluidGlassSwell(character, 1f, 6f, 1f).of(panel).frame.left, 1e-4f)
+    // Un carattere senza rigonfiamento non muove niente.
+    assertSame(slab, FluidGlassSwell(GlassLiquidJourneys.Off, 1f, 100f, 1f).of(slab))
+  }
+
+  @Test
+  fun `le unioni stabili di un campo, e quelle che cambiano no`() {
+    val union = Any()
+    val ua = a.copy(unionId = union)
+    val ub = b.copy(unionId = union)
+    // Un'unione che c'era e c'è: piena, col suo indice. Chi nasce dentro vi appartiene da subito.
+    val kept = GlassPlaneJourney(state(ua, ub), state(ua, ub, piece("c", 352f).copy(unionId = union))).frame(50.0)
+    assertEquals(listOf(0, 0, 0), fluidGlassStableUnionIndices(kept.pieces)!!.toList())
+    // Un'unione che si scioglie non è più piena dal primo fotogramma del suo viaggio.
+    val dissolving = GlassPlaneJourney(state(ua, ub), state(a, b)).frame(50.0)
+    assertNull(fluidGlassStableUnionIndices(dissolving.pieces))
   }
 
   @Test

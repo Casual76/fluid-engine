@@ -7,7 +7,7 @@
   "density": 3,
   "theme": "light",
   "size": [80, 60],
-  "_": "F3.4: un'icona senza predecessore: dal vuoto, da scala 0,75 (R7 A6). Funzione pura di produzione (GlassContentJourney), T = 400 ms. Vetro di servizio: guarda il contenuto.",
+  "_": "F3.4: un'icona senza predecessore: dal vuoto, da scala 0,75 (R7 A6). Funzione pura di produzione (GlassContentJourney), T = 300 ms. Vetro di servizio: guarda il contenuto.",
   "background": {
     "kind": "color",
     "color": "#C5C7CD"
@@ -235,10 +235,10 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 0.05342,
+              "blurDp": 0.093107,
               "alpha": 0,
               "scale": 0.75,
-              "_": "Born σ/h=0.0030"
+              "_": "Born σ/h=0.0051"
             }
           ]
         }
@@ -268,10 +268,10 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 0.201111,
+              "blurDp": 0.350687,
               "alpha": 0,
               "scale": 0.75,
-              "_": "Born σ/h=0.0111"
+              "_": "Born σ/h=0.0189"
             }
           ]
         }
@@ -279,39 +279,6 @@
     },
     {
       "t": 50,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 0.502926,
-              "alpha": 0,
-              "scale": 0.75,
-              "_": "Born σ/h=0.0234"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 66.666667,
       "elements": [
         {
           "kind": "glass",
@@ -344,6 +311,39 @@
       ]
     },
     {
+      "t": 66.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 1.824,
+              "alpha": 0,
+              "scale": 0.75,
+              "_": "Born σ/h=0.0626"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "t": 83.333333,
       "elements": [
         {
@@ -367,10 +367,10 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 1.617033,
+              "blurDp": 2.664901,
               "alpha": 0,
               "scale": 0.75,
-              "_": "Born σ/h=0.0564"
+              "_": "Born σ/h=0.0874"
             }
           ]
         }
@@ -378,72 +378,6 @@
     },
     {
       "t": 100,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 2.24445,
-              "alpha": 0,
-              "scale": 0.75,
-              "_": "Born σ/h=0.0750"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 116.666667,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 2.871868,
-              "alpha": 0,
-              "scale": 0.75,
-              "_": "Born σ/h=0.0936"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 133.333333,
       "elements": [
         {
           "kind": "glass",
@@ -476,106 +410,73 @@
       ]
     },
     {
+      "t": 116.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.138213,
+              "alpha": 0.046179,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1311"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 4.603836,
+              "alpha": 0.265594,
+              "scale": 0.75,
+              "_": "Born σ/h=0.1449"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "t": 150,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 3.985974,
-              "alpha": 0.013467,
-              "scale": 0.75,
-              "_": "Born σ/h=0.1266"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 166.666667,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 4.402297,
-              "alpha": 0.14864,
-              "scale": 0.75,
-              "_": "Born σ/h=0.1389"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 183.333333,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 4.677892,
-              "alpha": 0.316422,
-              "scale": 0.75,
-              "_": "Born σ/h=0.1470"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 200,
       "elements": [
         {
           "kind": "glass",
@@ -608,7 +509,7 @@
       ]
     },
     {
-      "t": 216.666667,
+      "t": 166.666667,
       "elements": [
         {
           "kind": "glass",
@@ -631,17 +532,17 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 4.355388,
-              "alpha": 0.488423,
+              "blurDp": 4.214659,
+              "alpha": 0.509448,
               "scale": 0.75,
-              "_": "Born σ/h=0.1375"
+              "_": "Born σ/h=0.1333"
             }
           ]
         }
       ]
     },
     {
-      "t": 233.333333,
+      "t": 183.333333,
       "elements": [
         {
           "kind": "glass",
@@ -664,50 +565,17 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 3.933201,
-              "alpha": 0.548903,
+              "blurDp": 3.651742,
+              "alpha": 0.587396,
               "scale": 0.75,
-              "_": "Born σ/h=0.1250"
+              "_": "Born σ/h=0.1167"
             }
           ]
         }
       ]
     },
     {
-      "t": 250,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 3.511013,
-              "alpha": 0.607145,
-              "scale": 0.750343,
-              "_": "Born σ/h=0.1125"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 266.666667,
+      "t": 200,
       "elements": [
         {
           "kind": "glass",
@@ -740,7 +608,7 @@
       ]
     },
     {
-      "t": 283.333333,
+      "t": 216.666667,
       "elements": [
         {
           "kind": "glass",
@@ -763,17 +631,17 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 2.666638,
-              "alpha": 0.716736,
-              "scale": 0.823376,
-              "_": "Born σ/h=0.0875"
+              "blurDp": 2.525909,
+              "alpha": 0.732611,
+              "scale": 0.840777,
+              "_": "Born σ/h=0.0833"
             }
           ]
         }
       ]
     },
     {
-      "t": 300,
+      "t": 233.333333,
       "elements": [
         {
           "kind": "glass",
@@ -796,50 +664,17 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 2.24445,
-              "alpha": 0.761634,
-              "scale": 0.872594,
-              "_": "Born σ/h=0.0750"
+              "blurDp": 1.962992,
+              "alpha": 0.786502,
+              "scale": 0.895493,
+              "_": "Born σ/h=0.0667"
             }
           ]
         }
       ]
     },
     {
-      "t": 316.666667,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 1.822262,
-              "alpha": 0.797199,
-              "scale": 0.905291,
-              "_": "Born σ/h=0.0625"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 333.333333,
+      "t": 250,
       "elements": [
         {
           "kind": "glass",
@@ -872,7 +707,7 @@
       ]
     },
     {
-      "t": 350,
+      "t": 266.666667,
       "elements": [
         {
           "kind": "glass",
@@ -895,17 +730,17 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 0.977888,
-              "alpha": 0.843412,
-              "scale": 0.959734,
-              "_": "Born σ/h=0.0375"
+              "blurDp": 0.837158,
+              "alpha": 0.849287,
+              "scale": 0.967372,
+              "_": "Born σ/h=0.0333"
             }
           ]
         }
       ]
     },
     {
-      "t": 366.666667,
+      "t": 283.333333,
       "elements": [
         {
           "kind": "glass",
@@ -928,50 +763,17 @@
               "icon": "fluid:add",
               "iconSizeDp": 26,
               "color": "#1C1C1E",
-              "blurDp": 0.5557,
-              "alpha": 0.860596,
-              "scale": 0.980732,
-              "_": "Born σ/h=0.0250"
+              "blurDp": 0.301666,
+              "alpha": 0.87215,
+              "scale": 0.99103,
+              "_": "Born σ/h=0.0167"
             }
           ]
         }
       ]
     },
     {
-      "t": 383.333333,
-      "elements": [
-        {
-          "kind": "glass",
-          "name": "vetro",
-          "role": "Interactive",
-          "corner": "continuous",
-          "x": 18,
-          "y": 8,
-          "w": 44,
-          "h": 44,
-          "radius": 22,
-          "contentClip": "shape",
-          "content": [
-            {
-              "name": "tasto-add-1",
-              "x": 9,
-              "y": 9,
-              "w": 26,
-              "h": 26,
-              "icon": "fluid:add",
-              "iconSizeDp": 26,
-              "color": "#1C1C1E",
-              "blurDp": 0.22625,
-              "alpha": 0.878332,
-              "scale": 0.99484,
-              "_": "Born σ/h=0.0125"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 400,
+      "t": 300,
       "elements": [
         {
           "kind": "glass",
@@ -1004,6 +806,204 @@
       ]
     },
     {
+      "t": 316.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.944078,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 0.987758,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "kind": "glass",
+          "name": "vetro",
+          "role": "Interactive",
+          "corner": "continuous",
+          "x": 18,
+          "y": 8,
+          "w": 44,
+          "h": 44,
+          "radius": 22,
+          "contentClip": "shape",
+          "content": [
+            {
+              "name": "tasto-add-1",
+              "x": 9,
+              "y": 9,
+              "w": 26,
+              "h": 26,
+              "icon": "fluid:add",
+              "iconSizeDp": 26,
+              "color": "#1C1C1E",
+              "blurDp": 0,
+              "alpha": 1,
+              "scale": 1,
+              "_": "Born σ/h=0.0000"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "t": 416.666667,
       "elements": [
         {
@@ -1028,7 +1028,7 @@
               "iconSizeDp": 26,
               "color": "#1C1C1E",
               "blurDp": 0,
-              "alpha": 0.931776,
+              "alpha": 1,
               "scale": 1,
               "_": "Born σ/h=0.0000"
             }
@@ -1061,7 +1061,7 @@
               "iconSizeDp": 26,
               "color": "#1C1C1E",
               "blurDp": 0,
-              "alpha": 0.96808,
+              "alpha": 1,
               "scale": 1,
               "_": "Born σ/h=0.0000"
             }
@@ -1094,7 +1094,7 @@
               "iconSizeDp": 26,
               "color": "#1C1C1E",
               "blurDp": 0,
-              "alpha": 0.994656,
+              "alpha": 1,
               "scale": 1,
               "_": "Born σ/h=0.0000"
             }

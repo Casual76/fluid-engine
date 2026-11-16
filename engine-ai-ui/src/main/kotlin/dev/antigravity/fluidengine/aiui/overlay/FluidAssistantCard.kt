@@ -80,6 +80,10 @@ fun fluidDefaultChipLabel(chip: AnswerChip): String = chip.value ?: chip.id
  * @param tapHaptic cosa si sente a quel tocco. ClasseViva: niente (zittire non e' un momento);
  *   FluidWeather: il `Tap` di serie. Qui di serie niente.
  * @param onDetails con un callback, un fallimento ha il tasto "Dettagli" che porta il resoconto.
+ * @param markdownStyle colori e misure del Markdown del corpo. Null, di serie: quello del **lato del vetro**
+ *   ([FluidMarkdownDefaults.style] letto dentro la card), così il testo segue la card quando scurisce (F3.8a: prima era
+ *   un valore di serie nella firma, letto fuori dal contenitore, e in tema chiaro su un fondo scuro la risposta restava
+ *   nera su una card scurita). Uno stile dell'app resta quello dell'app.
  * @param body cambia la resa del corpo (di serie [FluidMarkdown]); riceve il testo e se sta arrivando.
  */
 @Composable
@@ -95,7 +99,7 @@ fun FluidAssistantCard(
   strings: FluidAssistantStrings = FluidAssistantStrings(),
   chipLabel: (AnswerChip) -> String = ::fluidDefaultChipLabel,
   maxBodyHeight: Dp = 380.dp,
-  markdownStyle: FluidMarkdownStyle = FluidMarkdownDefaults.style(),
+  markdownStyle: FluidMarkdownStyle? = null,
   tapHaptic: FluidHapticEvent? = null,
   onDetails: ((FluidFailureReport) -> Unit)? = null,
   showSwitchLine: Boolean = true,
@@ -122,6 +126,8 @@ fun FluidAssistantCard(
     ) {
       // Lo stop, i chip e i vetri degli slot sono vetro annidato della card, non pezzi del suo contenitore.
       FluidAssistantPanelContent {
+        // Lo stile di serie si legge qui dentro, dove lo schema di colori è quello del lato della card.
+        val bodyStyle = fluidAssistantMarkdownStyle(markdownStyle)
         header?.invoke(this)
         Row(verticalAlignment = Alignment.Top) {
           Column(Modifier.weight(1f)) {
@@ -158,7 +164,7 @@ fun FluidAssistantCard(
                 .verticalScroll(scroll),
             ) {
               val streaming = state is AssistantState.Answering
-              if (body != null) body(text, streaming) else FluidMarkdown(text, streaming = streaming, animateFirst = false, style = markdownStyle, options = FluidAssistantMarkdownOptions)
+              if (body != null) body(text, streaming) else FluidMarkdown(text, streaming = streaming, animateFirst = false, style = bodyStyle, options = FluidAssistantMarkdownOptions)
             }
           }
         }

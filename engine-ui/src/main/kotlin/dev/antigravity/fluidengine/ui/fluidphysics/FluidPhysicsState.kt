@@ -852,6 +852,12 @@ private class PhysicsPlaneDrive(var frame: () -> PhysicsPlaneShape, var progress
  *   campi di vetri che viaggiano.
  * @param motion il peso del vetro in viaggio, 0..1 ([physicsPlaneMotion]): zero da fermi.
  * @param resting vero per un riposo: la sagoma ha il raccordo continuo della casa, come una forma ferma.
+ * @param journeyLight il livello della luce del **carattere del viaggio** (F3.9, `GlassLiquidJourney.light`), 0..1: zero
+ *   fuori dal piano, da fermi e nei campi che compaiono o scompaiono per lente. È **l'innesto** dell'aggancio di F3.9
+ *   (`artifacts/liquid-glass/sessioni/f3-9/aggancio.md`), lasciato spento da F3.8a: oggi il contenitore passa zero e
+ *   nessuno lo legge. Il livello lo calcola `FluidGlassPlaneDriver.journeyLight` (che ricorda quello di un viaggio
+ *   interrotto: invariante 16); lo applicherà la ricetta delle superfici fisiche con `glassJourneyRecipe`, dopo il
+ *   vetro in viaggio. Il rigonfiamento dello stesso carattere è già nelle [slabs].
  */
 internal class PhysicsPlaneShape(
   val slabs: List<FluidForm.Slab>,
@@ -862,6 +868,7 @@ internal class PhysicsPlaneShape(
   val materialize: Float = 1f,
   val motion: Float = 0f,
   val resting: Boolean = false,
+  val journeyLight: Float = 0f,
 ) {
   /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
   fun form(): FluidForm = if (slabs.size == 1) slabs.single()

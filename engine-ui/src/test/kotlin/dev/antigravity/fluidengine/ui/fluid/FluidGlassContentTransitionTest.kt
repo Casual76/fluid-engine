@@ -327,6 +327,128 @@ class FluidGlassContentTransitionTest {
     return count
   }
 
+  // ---- Il contenuto di un pezzo del piano (F3.8a) ----------------------------------------------------------------
+
+  private fun pieceLook(role: GlassPieceContentRole, phase: Float, from: GlassContentLook = GlassContentLook.Sharp) =
+    glassPieceContentLook(GlassPieceContent(role, from), phase)
+
+  @Test fun theContentOfABornGlassArrivesBlurredInsideItAndSharpensLast() {
+    // Apple, «Select» → «Done»: al 50% il vetro è vuoto, al 60% «Done» è una macchia, al 70% quasi nitido, all'80% nitido.
+    for (phase in listOf(0f, 0.08f, 0.25f, 0.4f, 0.5f)) {
+      assertEquals("niente contenuto prima del vetro, a $phase", 0f, pieceLook(GlassPieceContentRole.Born, phase).alpha, 0f)
+    }
+    val early = pieceLook(GlassPieceContentRole.Born, 0.6f)
+    assertTrue("al 60% c'è, traslucido: ${early.alpha}", early.alpha in 0.2f..0.6f)
+    assertTrue("e sfocato quasi al massimo: ${early.blur}", early.blur > 0.8f * peak)
+    assertTrue("più piccolo: ${early.scale}", early.scale < 0.8f)
+    val late = pieceLook(GlassPieceContentRole.Born, 0.7f)
+    assertTrue(late.alpha > 0.75f && late.blur < 0.4f * peak && late.blur > 0f)
+    val sharp = pieceLook(GlassPieceContentRole.Born, GlassPieceContentDefaults.BornSharp)
+    assertEquals(0f, sharp.blur, 1e-5f)
+    assertEquals(1f, sharp.scale, 1e-4f)
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Born, 1f))
+    // Opacità e scala salgono e non tornano indietro; la sfocatura, dopo il massimo, scende soltanto.
+    var previous = pieceLook(GlassPieceContentRole.Born, 0.5f)
+    var falling = false
+    var phase = 0.51f
+    while (phase <= 1.1f) {
+      val now = pieceLook(GlassPieceContentRole.Born, phase)
+      assertTrue(now.alpha >= previous.alpha - 1e-5f && now.scale >= previous.scale - 1e-5f)
+      if (now.blur < previous.blur - 1e-6f) falling = true
+      if (falling) assertTrue(now.blur <= previous.blur + 1e-6f)
+      previous = now
+      phase += 0.01f
+    }
+    assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), 0.8f))
+    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), 1f))
+  }
+
+  @Test fun theSymbolOfALensAppearanceCondensesWithoutAPause() {
+    // R7 A8: fra 0,25 e 0,85 della comparsa, da 2× e sfocato a 1× e nitido. S3: una pausa di ~50 ms col simbolo fermo a 2×.
+    assertEquals(0f, pieceLook(GlassPieceContentRole.Lens, 0.25f).alpha, 0f)
+    val start = pieceLook(GlassPieceContentRole.Lens, 0.26f)
+    assertTrue(start.scale > 1.9f && start.blur > 0.95f * peak && start.alpha < 0.05f)
+    var previous = start
+    var phase = 0.27f
+    while (phase <= 0.85f) {
+      val now = pieceLook(GlassPieceContentRole.Lens, phase)
+      assertTrue("la scala scende sempre, a $phase", now.scale < previous.scale)
+      assertTrue("l'opacità non si ferma finché non è piena, a $phase", now.alpha > previous.alpha || now.alpha == 1f)
+      assertTrue(now.blur <= previous.blur)
+      previous = now
+      phase += 0.01f
+    }
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Lens, 0.85f))
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Lens, 1f))
+  }
+
+  @Test fun theContentOfAGlassThatLeavesBlursAwayInTheFirstThirdOfItsFlight() {
+    // Apple: «Select» è già sfocato all'8% e sparito al 25%. R4 B3: il simbolo via in 130 ms su 470.
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Exit, 0f))
+    val soon = pieceLook(GlassPieceContentRole.Exit, 0.08f)
+    assertTrue("all'8% è già sfocato: ${soon.blur}", soon.blur > 0.25f * peak)
+    assertTrue(soon.alpha > 0.7f)
+    assertEquals(0f, pieceLook(GlassPieceContentRole.Exit, 0.3f).alpha, 0f)
+    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Exit), 0.3f))
+    // R4 B3: il simbolo di una scomparsa di 470 ms è via in 130.
+    assertEquals(130f, 470f * GlassPieceContentDefaults.ExitSpan * GlassContentDefaults.ExitEnd, 8f)
+    // Riparte dall'aspetto che aveva (un contenuto che stava entrando e ora se ne va): nessuno scalino.
+    val half = GlassContentLook(alpha = 0.5f, scale = 0.85f, blur = 0.1f)
+    assertEquals(half, pieceLook(GlassPieceContentRole.Exit, 0f, half))
+    val after = pieceLook(GlassPieceContentRole.Exit, 0.1f, half)
+    assertTrue(after.alpha < half.alpha && after.blur >= half.blur && after.scale <= half.scale)
+  }
+
+  @Test fun aContentThatStaysRecoversFromWhereItWas() {
+    val half = GlassContentLook(alpha = 0.4f, scale = 0.8f, blur = 0.12f)
+    assertEquals(half, pieceLook(GlassPieceContentRole.Recover, 0f, half))
+    val mid = pieceLook(GlassPieceContentRole.Recover, 0.25f, half)
+    assertTrue(mid.alpha > half.alpha && mid.blur < half.blur && mid.scale > half.scale)
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Recover, GlassPieceContentDefaults.RecoverSpan, half))
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Rest, 0.3f))
+    assertEquals(0f, pieceLook(GlassPieceContentRole.Hidden, 0.3f).alpha, 0f)
+    // Sotto API 31 niente sfocatura: chi entra e chi esce si danno il cambio.
+    assertEquals(0f, glassPieceContentLook(GlassPieceContent(GlassPieceContentRole.Born), 0.7f, blurAvailable = false).blur, 0f)
+    assertEquals(0f, glassPieceContentLook(GlassPieceContent(GlassPieceContentRole.Exit), 0.1f, blurAvailable = false).blur, 0f)
+  }
+
+  @Test fun eachContentTakesItsPartFromHowItsGlassArrives() {
+    val sharp = GlassContentLook.Sharp
+    val half = GlassContentLook(alpha = 0.5f, scale = 0.9f, blur = 0.1f)
+    // Chi nasce da un vicino e chi compare per lente entrano; chi resta è fermo, o torna nitido da dov'era.
+    assertEquals(GlassPieceContentRole.Born, glassPieceContentFor(GlassPieceArrival.BornFromNeighbour, null, false).role)
+    assertEquals(GlassPieceContentRole.Lens, glassPieceContentFor(GlassPieceArrival.ThroughLens, null, false).role)
+    assertEquals(GlassPieceContent.Rest, glassPieceContentFor(GlassPieceArrival.Stays, sharp, false))
+    // Un nodo nuovo su un vetro che c'era già, senza un predecessore a vista: entra come chi nasce, non di colpo.
+    assertEquals(GlassPieceContentRole.Born, glassPieceContentFor(GlassPieceArrival.Stays, null, false).role)
+    assertEquals(GlassPieceContent(GlassPieceContentRole.Recover, half), glassPieceContentFor(GlassPieceArrival.Stays, half, false))
+    assertEquals(GlassPieceContent.Rest, glassPieceContentFor(GlassPieceArrival.Instant, null, false))
+    // Chi se ne va esce da dov'è; chi non si è mai visto, o sparisce senza transizione, non lascia niente.
+    assertEquals(GlassPieceContent(GlassPieceContentRole.Exit, sharp), glassPieceContentFor(GlassPieceArrival.Stays, sharp, true))
+    assertEquals(GlassPieceContent(GlassPieceContentRole.Exit, half), glassPieceContentFor(GlassPieceArrival.ThroughLens, half, true))
+    assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Stays, null, true))
+    assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Stays, GlassContentInvisible, true))
+    assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Instant, sharp, true))
+  }
+
+  @Test fun theIconsChangeInTheTimeOfTheGlass() {
+    // Punto 7 di S3: il massimo della sfocatura a metà del cambio di contesto del piano (150 ms), non a 200.
+    assertEquals(FluidMotion.PlaneContextMillis.toFloat(), GlassContentDefaults.DurationMs, 0f)
+    assertEquals(GlassContentDefaults.DurationMs, GlassContentTiming().durationMs, 0f)
+    val journey = GlassContentJourney.start("a", "b")
+    val peakAt = (0..400).maxByOrNull { ms -> journey.frame(ms.toDouble()).layers.maxOf { it.look.blur } }!!
+    assertEquals(150, peakAt)
+  }
+
+  @Test fun theFirstStepsOfAContentChangeAreCappedLikeTheGlass() {
+    val cap = FluidMotion.PlaneFirstStepMillis.toDouble()
+    assertEquals(cap, glassContentClockStep(58.3, 0), 0.0)
+    assertEquals(8.3, glassContentClockStep(8.3, 1), 0.0)
+    assertEquals(cap, glassContentClockStep(33.3, FluidMotion.PlaneFirstSteps - 1), 0.0)
+    assertEquals(58.3, glassContentClockStep(58.3, FluidMotion.PlaneFirstSteps), 0.0)
+    assertEquals(0.0, glassContentClockStep(-4.0, 0), 0.0)
+  }
+
   /** La funzione d'errore (Abramowitz e Stegun 7.1.26, errore sotto 1,5e-7): basta per contare i massimi. */
   private fun erf(x: Float): Float {
     val sign = if (x < 0f) -1f else 1f

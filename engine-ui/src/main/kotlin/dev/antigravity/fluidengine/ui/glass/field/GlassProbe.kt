@@ -73,6 +73,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
@@ -81,6 +82,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.ObserverModifierNode
@@ -979,6 +981,62 @@ internal class GlassProbeNode(
     reader = null
     slot = -1
     if (isAttached) onProbeResult(GlassProbeOutcome.Failed, null)
+  }
+}
+
+// ------------------------------------------------------------------------------------------------------------
+// La sorgente che si ridisegna (F3.8a)
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * Fa avvisare [layer] ([LayerBackdrop.bumpRevision]) ogni volta che **il contenuto della sorgente si ridisegna**, anche
+ * quando il nodo che la registra non lo fa. Va posato come ultimo modificatore di una sorgente di vetro, **dentro** il
+ * suo layer fuori schermo (`glassBackdropSource`: dopo `graphicsLayer(compositingStrategy = Offscreen)`).
+ *
+ * Perché serve (S3, F3-g: «la sonda non sente un fondo che cambia solo in disegno»). Una sorgente è
+ * `layerBackdrop(layer).graphicsLayer(Offscreen)`: tutto ciò che la pagina disegna sta nel layer fuori schermo, e il nodo
+ * che registra e avvisa sta fuori, nel layer di chi contiene la sorgente. Quando la pagina cambia solo in disegno (un
+ * fondo che passa da chiaro a scuro, un colore che si anima, un testo che cambia senza cambiare misura) Compose rifà il
+ * layer fuori schermo e nient'altro: se la sorgente sta a sua volta dentro il layer di un antenato (una pagina sotto
+ * `fluidGlassModalObscured`, dentro una transizione, dentro la registrazione della chrome), il nodo che registra non
+ * ridisegna, nessuno avvisa, e nessuna sonda rilegge. I vetri sopra restano sul lato di prima: nelle scene
+ * `adattamento` e `clear` del piano flottante e nella pagina «Assistente» non girava niente, né il contenitore né i tasti
+ * a sé. Dove nessun antenato ha un layer il nodo ridisegna a ogni fotogramma della finestra, e il difetto non si vede:
+ * per questo in «Adattività» girava (lì una sorgente sorella senza layer suo sporcava il layer dell'antenato).
+ *
+ * Questo nodo sta nel layer fuori schermo, quindi ridisegna esattamente quando lui si rifà, e avvisa. Lo scorrimento di
+ * un figlio e un figlio con un layer suo restano come prima (`GlassScrollAnnouncer`, `GlassBackdropState.notifyChanged`).
+ * Non costa letture a pagina ferma: senza ridisegni non c'è avviso, e lo schedulatore raccoglie quelli di un'animazione
+ * (al più una lettura ogni 120 ms).
+ */
+internal fun Modifier.glassSourceRedraws(layer: LayerBackdrop): Modifier = this then GlassSourceRedrawElement(layer)
+
+private class GlassSourceRedrawElement(val layer: LayerBackdrop) : ModifierNodeElement<GlassSourceRedrawNode>() {
+  override fun create(): GlassSourceRedrawNode = GlassSourceRedrawNode(layer)
+
+  override fun update(node: GlassSourceRedrawNode) {
+    node.layer = layer
+  }
+
+  override fun equals(other: Any?): Boolean = this === other || other is GlassSourceRedrawElement && other.layer == layer
+
+  override fun hashCode(): Int = layer.hashCode()
+
+  override fun InspectorInfo.inspectableProperties() {
+    name = "glassSourceRedraws"
+  }
+}
+
+/** Vedi [glassSourceRedraws]. */
+internal class GlassSourceRedrawNode(var layer: LayerBackdrop) : Modifier.Node(), DrawModifierNode {
+  override fun ContentDrawScope.draw() {
+    drawContent()
+    announce()
+  }
+
+  /** Il contenuto della sorgente è stato appena ridisegnato: chi la legge lo deve sapere. Dal disegno: lascia un segnale. */
+  fun announce() {
+    layer.bumpRevision()
   }
 }
 

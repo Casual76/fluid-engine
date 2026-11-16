@@ -63,6 +63,13 @@ rifanno la scena da capo, con lo stato di partenza.
 Le scene sul palco stanno sopra la foto sintetica della galleria (la stessa di «Adattività»); nelle scene del fondo
 (`adattamento`, `clear`) un velo chiaro o scuro, disegnato e non ricomposto: il vetro resta fermo e cambia ciò che ha dietro.
 
+**Dalla F3.8a**, in tutte le scene: il contenuto di un pezzo si vede solo dentro il suo vetro («Fatto» arriva sfocato
+dentro il vetro dopo metà viaggio, e al ritorno si sfoca dov'era; il simbolo di `comparsa` è ritagliato sul tondo); chi
+non cambia resta al suo vetro di riposo (in `comparsa` i due tasti fermi non si uniscono mai); in `unione` il comando
+apre un viaggio del collo (300 ms), non un fotogramma; i vetri che viaggiano si gonfiano nel mezzo. La pagina annuncia
+il disegno del fondo alla sonda (`notifyChanged()` nel disegno della sorgente): è ciò che fa girare `adattamento` e
+`clear`, finché la sorgente dell'engine non lo fa da sola. Cosa riprendere: `artifacts/liquid-glass/sessioni/f3-8a/riprese.md`.
+
 ## Cosa scrive in logcat
 
 Tag `FluidPiano`. I tempi sono `SystemClock.uptimeMillis()`. I riquadri dei pezzi sono in px **del contenitore**; dove

@@ -163,6 +163,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val PlaneRestUnit: Float` — La stessa soglia per `materialize` (0..1), assoluta: 0,2%. Più stretta della corsa di un lato, perché l'ultimo 5% di `materialize` è il simbolo che si condensa da 2× a 1× (`glassMaterializeChannels`): all'1,5% sarebbe ancora 1,2×.
   - `const val PlaneSettlePx: Float` — Quando finisce un viaggio del piano: ogni lato e raggio a mezzo pixel dall'arrivo (la regola dell'engine per il fermo, `FluidGlassPlaneTolerancePx`). Da lì la geometria è quella d'arrivo, al bit, e il palco lascia il vetro al riposo senza un salto che si veda.
   - `const val PlaneSettleUnit: Float` — La stessa soglia per `materialize`: un ventesimo della [PlaneRestUnit].
+  - `const val PlaneFirstStepMillis: Int` — Di quanto avanza al più l'orologio di un viaggio del piano in ognuno dei suoi primi [PlaneFirstSteps] fotogrammi, in millisecondi (F3.8a): un fotogramma a 60 Hz. A schermo fermo un pannello a frequenza variabile gira a 30 Hz, e quando un cambio arriva senza un tocco sale a 120 con un buco di 58–92 ms senza fotogrammi (S3, `framestats`: intervallo da 33,3 a 8,3 ms): con l'orologio a muro il secondo fotogramma del viag…
+  - `const val PlaneFirstSteps: Int` — Quanti fotogrammi dopo la partenza valgono il tetto di [PlaneFirstStepMillis]: quelli della salita del pannello.
+  - `const val PlaneSwellMaxDp: Float` — Il **rigonfiamento** del vetro in viaggio (F3.8a, punto 8) non sposta mai un lato di più di così, in dp. Quanto e quando un pezzo si gonfia lo dice il carattere del viaggio (F3.9, `GlassLiquidJourney.swell`: il 15% del lato corto al 45% della fase, misurato su tasti e barre, cioè 3,6 dp per lato su un tasto da 48 dp e 4,8 su una barra da 64). Questo tetto non li tocca;
 
 ## `engine-ui/ui/fluid/FluidMotionPolicy.kt`
 

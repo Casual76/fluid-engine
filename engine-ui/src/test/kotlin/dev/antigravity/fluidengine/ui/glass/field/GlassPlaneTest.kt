@@ -354,6 +354,156 @@ class GlassPlaneTest {
     }
   }
 
+  // ---- F3.8a ---------------------------------------------------------------------------------------------------
+
+  @Test fun appearanceAndDisappearanceFollowTheR4ClockWithoutAPause() {
+    // S3: la comparsa finiva a vista a ~320 ms con una pausa a metà, la scomparsa a 240–290. `materialize` segue una
+    // curva nel tempo: il contorno (0,3) a 67 ms, la lente piena (0,97) a 230, la fine a 430; via la lente da 130 a 400.
+    val far = piece("far", 300f)
+    val appear = GlassPlaneJourney(state(), state(far))
+    fun up(ms: Double) = appear.frame(ms).target("far").materialize
+    assertEquals(0f, up(0.0), 0f)
+    assertEquals(0.3f, up(67.0), 0.01f)
+    assertEquals(0.97f, up(230.0), 0.01f)
+    assertEquals(1f, up(430.0), 0f)
+    var last = 0f
+    for (ms in 4..428 step 4) {
+      val now = up(ms.toDouble())
+      assertTrue("la comparsa non si ferma né torna indietro a $ms ms: $last -> $now", now > last)
+      last = now
+    }
+    val disappear = GlassPlaneJourney(state(far), state())
+    fun down(ms: Double) = disappear.frame(ms).pieces.single().materialize
+    assertEquals(1f, down(0.0), 0f)
+    assertEquals(0.97f, down(130.0), 0.01f)
+    assertEquals(0.27f, down(400.0), 0.01f)
+    assertEquals(0f, down(470.0), 0f)
+    // La fase di chi compare e di chi scompare conta sul suo bilancio.
+    assertEquals(0.5f, appear.frame(215.0).target("far").phase, 0.001f)
+    assertEquals(0.5f, disappear.frame(235.0).pieces.single().phase, 0.001f)
+  }
+
+  @Test fun anInterruptedAppearanceDisappearsFromWhereItIs() {
+    val far = piece("far", 300f)
+    val appear = GlassPlaneJourney(state(), state(far))
+    val live = appear.frame(150.0).target("far")
+    assertTrue(live.materialize > 0.3f && live.materialize < 0.97f)
+    val leaving = appear.retarget(150.0, state())
+    val first = leaving.frame(0.0).pieces.single()
+    assertEquals(GlassPlaneChange.Dematerialize, first.change)
+    assertEquals(live.materialize, first.materialize, 0f)
+    assertRect(live.bounds, first.bounds, 0f)
+    val next = leaving.frame(8.0).pieces.single()
+    assertTrue("riparte in continuo: ${first.materialize} -> ${next.materialize}",
+      next.materialize < first.materialize && first.materialize - next.materialize < 0.05f)
+    // Parte da metà della sua curva: dura meno dei 470 ms di una scomparsa da pieno.
+    assertTrue(leaving.durationMs < 470.0)
+    assertEquals(0f, leaving.frame(leaving.durationMs + 0.01).pieces.single().materialize, 0f)
+  }
+
+  @Test fun theTailLandsOnTheTargetWithoutAStep() {
+    // S3: ~120 ms dopo il riposo a vista ogni lato arrivava a mezzo pixel dall'arrivo e scattava. Ora lo scarto si
+    // spegne in continuo: fra un millisecondo e l'altro nessun lato si sposta di più di qualche centesimo di pixel.
+    val journey = GlassPlaneJourney(state(piece("a", 20f)), state(piece("a", 140f, width = 90f)))
+    val target = Rect(140f, 40f, 230f, 84f)
+    var previous = journey.frame(journey.settleMs).pieces.single().bounds
+    var worst = 0f
+    var landing = 0f
+    var ms = journey.settleMs + 1.0
+    while (ms <= journey.durationMs + 3.0) {
+      val now = journey.frame(ms).pieces.single().bounds
+      val step = maxOf(abs(now.left - previous.left), abs(now.right - previous.right))
+      worst = maxOf(worst, step)
+      if (ms >= journey.durationMs - 20.0) landing = maxOf(landing, step)
+      previous = now
+      ms += 1.0
+    }
+    assertTrue("il passo più lungo della coda è $worst px al millisecondo", worst < 0.1f)
+    assertTrue("negli ultimi 20 ms il vetro si posa, non scatta: $landing px al millisecondo", landing < 0.01f)
+    assertRect(target, journey.frame(journey.durationMs + 0.01).pieces.single().bounds, 0f)
+  }
+
+  @Test fun stillPiecesKeepToThemselvesAndAreReported() {
+    // «cerca» e «preferiti» fermi a 8 px mentre «play» compare lontano (S3): nessun campo li unisce, quindi nessun collo
+    // nasce fra loro, e il contenitore sa che non cambiano.
+    val a = piece("a", 20f)
+    val b = piece("b", 72f)
+    val far = piece("far", 300f)
+    val journey = GlassPlaneJourney(state(a, b), state(a, b, far))
+    assertEquals(setOf<Any>("a", "b"), journey.stillKeys)
+    assertEquals(3, journey.fields.size)
+    assertTrue(journey.fields.all { it.flights.size == 1 })
+    assertTrue(journey.fields.filter { field -> field.flights.none { it.targetKey == "far" } }.all { it.still })
+    assertTrue(journey.frame(100.0).target("a").still)
+    assertFalse(journey.frame(100.0).target("far").still)
+    // Un pezzo fermo entra nel campo di uno che cambia: «b» sta con chi nasce da lui, «a» no.
+    val born = piece("c", 124f)
+    val birth = GlassPlaneJourney(state(a, b), state(a, b, born))
+    assertEquals(GlassPlaneChange.BornFromNeighbour, birth.frame(0.0).target("c").change)
+    val fields = birth.fields.map { field -> field.flights.map { it.targetKey }.toSet() }
+    assertTrue("campi: $fields", fields.contains(setOf<Any?>("b", "c")) && fields.contains(setOf<Any?>("a")))
+    // La distanza «larga» della tavola tiene fusi i vicini anche a riposo: lì i fermi stanno insieme, come prima.
+    val wide = GlassPlaneJourney(state(a, b), state(a, b, far), GlassPlaneMotion(joinStill = true))
+    assertTrue(wide.fields.any { field -> field.flights.map { it.targetKey }.toSet() == setOf<Any?>("a", "b") })
+    // Chi si sposta, anche di poco, non è fermo.
+    val nudged = GlassPlaneJourney(state(a, b), state(a, piece("b", 76f), far))
+    assertEquals(setOf<Any>("a"), nudged.stillKeys)
+  }
+
+  @Test fun aUnionThatFormsOrDissolvesIsAJourneyEvenIfNothingMoves() {
+    // «Unisci» e «Separa» passavano in un fotogramma (S3): nessun pezzo si muove, quindi il viaggio durava zero.
+    val union = Any()
+    val a = piece("a", 20f)
+    val b = piece("b", 72f)
+    val forming = GlassPlaneJourney(state(a, b), state(a.copy(unionId = union), b.copy(unionId = union)))
+    assertEquals(300.0, forming.settleMs, 0.5)
+    assertTrue(forming.durationMs >= 300.0)
+    assertFalse(forming.frame(299.0).finished)
+    assertTrue(forming.frame(forming.durationMs + 0.01).finished)
+    val field = forming.fields.single()
+    assertEquals(GlassPlaneUnionChange.Forming, field.union)
+    assertEquals(2, field.flights.size)
+    assertFalse(field.still)
+    assertTrue(forming.stillKeys.isEmpty())
+    val flying = forming.frame(150.0).target("a")
+    assertNull(flying.unionFrom)
+    assertEquals(union, flying.unionTo)
+    assertEquals(0.5f, flying.phase, 0.001f)
+    assertRect(a.bounds, flying.bounds, 0f)
+    val dissolving = GlassPlaneJourney(state(a.copy(unionId = union), b.copy(unionId = union)), state(a, b))
+    assertEquals(GlassPlaneUnionChange.Dissolving, dissolving.fields.single().union)
+    assertEquals(300.0, dissolving.settleMs, 0.5)
+    // Un'unione che resta non è un cambio, e i suoi pezzi fermi stanno nello stesso campo.
+    val kept = GlassPlaneJourney(
+      state(a.copy(unionId = union), b.copy(unionId = union)),
+      state(a.copy(unionId = union), b.copy(unionId = union), piece("far", 300f)),
+    )
+    val together = kept.fields.single { it.flights.size == 2 }
+    assertEquals(GlassPlaneUnionChange.None, together.union)
+    assertTrue(together.still)
+    // Chi nasce dentro un'unione ha il collo pieno, come prima: non è un'unione che nasce.
+    val newcomer = piece("c", 124f).copy(unionId = union)
+    val growing = GlassPlaneJourney(
+      state(a.copy(unionId = union), b.copy(unionId = union)),
+      state(a.copy(unionId = union), b.copy(unionId = union), newcomer),
+    )
+    assertTrue(growing.fields.all { it.union == GlassPlaneUnionChange.None })
+  }
+
+  @Test fun theFlightPhaseRunsOnTheVisibleRest() {
+    val a = piece("a", 20f)
+    val born = piece("b", 72f)
+    val journey = GlassPlaneJourney(state(a), state(a, born))
+    assertEquals(0f, journey.frame(0.0).target("b").phase, 0f)
+    assertEquals(0.5f, journey.frame(journey.settleMs / 2.0).target("b").phase, 0.001f)
+    assertEquals(1f, journey.frame(journey.settleMs).target("b").phase, 0.001f)
+    // Chi non si muove conta sulla stessa fase del viaggio, perché il contenuto del vicino entri insieme al suo vetro.
+    assertEquals(0.5f, journey.frame(journey.settleMs / 2.0).target("a").phase, 0.001f)
+    // Un viaggio senza tempo è già arrivato.
+    val identity = GlassPlaneJourney(state(), state(a.copy(transition = GlassPlaneTransition.Identity)))
+    assertEquals(1f, identity.frame(0.0).target("a").phase, 0f)
+  }
+
   @Test fun invalidGeometryDuplicateIdsAndNonFiniteTimesFailBeforePlanning() {
     fun rejects(block: () -> Unit) {
       try { block(); throw AssertionError("input non rifiutato") } catch (_: IllegalArgumentException) { }

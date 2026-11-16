@@ -564,16 +564,16 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "34.773dp", "34.773dp"]],
-              "pieceRadii": [["34.773dp", "34.773dp", "34.773dp", "34.773dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "34.851dp", "34.851dp"]],
+              "pieceRadii": [["34.851dp", "34.851dp", "34.851dp", "34.851dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "16.691dp",
+              "thickness": "16.728dp",
               "refraction": "0dp",
-              "dome": 0.331931,
+              "dome": 0.33091,
               "dispersion": 0.3,
               "magnify": 0,
-              "materialize": 0.042036,
+              "materialize": 0.033638,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
@@ -598,7 +598,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "69.546dp",
+              "glowRadius": "69.702dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -615,8 +615,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.037,
-              "rectDp": [85.227, 45.227, 154.773, 114.773]
+              "materialize": 0.033,
+              "rectDp": [85.149, 45.149, 154.851, 114.851]
             }
           ]
         }
@@ -649,16 +649,16 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "34.522dp", "34.522dp"]],
-              "pieceRadii": [["34.522dp", "34.522dp", "34.522dp", "34.522dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "34.762dp", "34.762dp"]],
+              "pieceRadii": [["34.762dp", "34.762dp", "34.762dp", "34.762dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "16.571dp",
+              "thickness": "16.686dp",
               "refraction": "0dp",
-              "dome": 0.335237,
+              "dome": 0.332076,
               "dispersion": 0.3,
               "magnify": 0,
-              "materialize": 0.372855,
+              "materialize": 0.318051,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
@@ -683,7 +683,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "69.044dp",
+              "glowRadius": "69.524dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -700,8 +700,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.124,
-              "rectDp": [85.478, 45.478, 154.522, 114.522]
+              "materialize": 0.113,
+              "rectDp": [85.238, 45.238, 154.762, 114.762]
             }
           ]
         }
@@ -734,16 +734,16 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "34.185dp", "34.185dp"]],
-              "pieceRadii": [["34.185dp", "34.185dp", "34.185dp", "34.185dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "34.646dp", "34.646dp"]],
+              "pieceRadii": [["34.646dp", "34.646dp", "34.646dp", "34.646dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "16.409dp",
+              "thickness": "16.63dp",
               "refraction": "0dp",
-              "dome": 0.339676,
+              "dome": 0.333608,
               "dispersion": 0.3,
               "magnify": 0,
-              "materialize": 0.900589,
+              "materialize": 0.787475,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
@@ -768,7 +768,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "68.369dp",
+              "glowRadius": "69.292dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -785,8 +785,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.241,
-              "rectDp": [85.815, 45.815, 154.185, 114.185]
+              "materialize": 0.211,
+              "rectDp": [85.354, 45.354, 154.646, 114.646]
             }
           ]
         }
@@ -806,8 +806,8 @@
           "radius": 0,
           "clip": false,
           "capture": {
-            "saturation": 1.030524,
-            "blurDp": 0.274806,
+            "saturation": 1.006426,
+            "blurDp": 0.057866,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -819,17 +819,102 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "33.848dp", "33.848dp"]],
-              "pieceRadii": [["33.848dp", "33.848dp", "33.848dp", "33.848dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "34.489dp", "34.489dp"]],
+              "pieceRadii": [["34.489dp", "34.489dp", "34.489dp", "34.489dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "16.247dp",
-              "refraction": "-0.893dp",
-              "dome": 0.344103,
+              "thickness": "16.555dp",
+              "refraction": "-0.192dp",
+              "dome": 0.335674,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 0.999894,
+              "veilColor": "#F5F5F702",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000000",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "68.978dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.702dp"],
+              "shadowRadii": ["0dp", "34.011dp"],
+              "shadowAlphas": [0, 0.001157],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "_kernel": "One",
+          "_collo": 0.995,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.298,
+              "rectDp": [85.511, 45.511, 154.489, 114.489]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.039705,
+            "blurDp": 0.357518,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "34.332dp", "34.332dp"]],
+              "pieceRadii": [["34.332dp", "34.332dp", "34.332dp", "34.332dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "16.479dp",
+              "refraction": "-1.178dp",
+              "dome": 0.337743,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
-              "veilColor": "#F5F5F707",
+              "veilColor": "#F5F5F709",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
               "tintMode": 0,
@@ -853,32 +938,32 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "67.696dp",
+              "glowRadius": "68.663dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.701dp"],
-              "shadowRadii": ["0dp", "34.006dp"],
-              "shadowAlphas": [0, 0.005495],
+              "shadowOffset": ["0dp", "6.702dp"],
+              "shadowRadii": ["0dp", "34.01dp"],
+              "shadowAlphas": [0, 0.007148],
               "shadowColor": "#000000FF"
             }
           },
           "_kernel": "One",
-          "_collo": 0.995,
+          "_collo": 1,
           "_moto": 0,
           "_piano": [
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.358,
-              "rectDp": [86.152, 46.152, 153.848, 113.848]
+              "materialize": 0.375,
+              "rectDp": [85.668, 45.668, 154.332, 114.332]
             }
           ]
         }
       ]
     },
     {
-      "t": 83.333333,
+      "t": 100,
       "elements": [
         {
           "kind": "material",
@@ -891,8 +976,8 @@
           "radius": 0,
           "clip": false,
           "capture": {
-            "saturation": 1.111822,
-            "blurDp": 1.006612,
+            "saturation": 1.101549,
+            "blurDp": 0.914323,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -904,17 +989,17 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "33.525dp", "33.525dp"]],
-              "pieceRadii": [["33.525dp", "33.525dp", "33.525dp", "33.525dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "34.147dp", "34.147dp"]],
+              "pieceRadii": [["34.147dp", "34.147dp", "34.147dp", "34.147dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "16.092dp",
-              "refraction": "-3.239dp",
-              "dome": 0.34835,
+              "thickness": "16.391dp",
+              "refraction": "-2.996dp",
+              "dome": 0.340167,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
-              "veilColor": "#F5F5F71A",
+              "veilColor": "#F5F5F718",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
               "tintMode": 0,
@@ -938,13 +1023,13 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "67.051dp",
+              "glowRadius": "68.295dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.701dp"],
-              "shadowRadii": ["0dp", "34.004dp"],
-              "shadowAlphas": [0, 0.02013],
+              "shadowOffset": ["0dp", "6.702dp"],
+              "shadowRadii": ["0dp", "34.009dp"],
+              "shadowAlphas": [0, 0.018282],
               "shadowColor": "#000000FF"
             }
           },
@@ -955,108 +1040,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.47,
-              "rectDp": [86.475, 46.475, 153.525, 113.525]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 100,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.215992,
-            "blurDp": 1.944192,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "33.217dp", "33.217dp"]],
-              "pieceRadii": [["33.217dp", "33.217dp", "33.217dp", "33.217dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.944dp",
-              "refraction": "-6.199dp",
-              "dome": 0.352401,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F733",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000008",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "66.435dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.701dp"],
-              "shadowRadii": ["0dp", "34.003dp"],
-              "shadowAlphas": [0, 0.038881],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.082,
-              "scale": 2
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 1,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.577,
-              "rectDp": [86.783, 46.783, 153.217, 113.217]
+              "materialize": 0.459,
+              "rectDp": [85.853, 45.853, 154.147, 114.147]
             }
           ]
         }
@@ -1076,8 +1061,8 @@
           "radius": 0,
           "clip": false,
           "capture": {
-            "saturation": 1.306977,
-            "blurDp": 2.763028,
+            "saturation": 1.184665,
+            "blurDp": 1.662563,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -1089,22 +1074,22 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32.964dp", "32.964dp"]],
-              "pieceRadii": [["32.964dp", "32.964dp", "32.964dp", "32.964dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "33.96dp", "33.96dp"]],
+              "pieceRadii": [["33.96dp", "33.96dp", "33.96dp", "33.96dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.823dp",
-              "refraction": "-8.743dp",
-              "dome": 0.355731,
+              "thickness": "16.301dp",
+              "refraction": "-5.418dp",
+              "dome": 0.342633,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
-              "veilColor": "#F5F5F748",
+              "veilColor": "#F5F5F72B",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
               "tintMode": 0,
               "tintFollow": 0.42,
-              "bodyShade": "#0000000B",
+              "bodyShade": "#00000007",
               "bodyShadeDepth": "22dp",
               "bodyShadeLean": [0, -0.6],
               "dim": 0,
@@ -1123,13 +1108,13 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "65.929dp",
+              "glowRadius": "67.92dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34.002dp"],
-              "shadowAlphas": [0, 0.055258],
+              "shadowOffset": ["0dp", "6.701dp"],
+              "shadowRadii": ["0dp", "34.007dp"],
+              "shadowAlphas": [0, 0.033244],
               "shadowColor": "#000000FF"
             }
           },
@@ -1143,7 +1128,7 @@
               "icon": "fluid:play_arrow|plus",
               "iconSizeDp": 28.8,
               "color": "#FFFFFF",
-              "alpha": 0.288,
+              "alpha": 0.032,
               "scale": 2
             }
           ],
@@ -1155,8 +1140,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.665,
-              "rectDp": [87.036, 47.036, 152.964, 112.964]
+              "materialize": 0.547,
+              "rectDp": [86.04, 46.04, 153.96, 113.96]
             }
           ]
         }
@@ -1176,8 +1161,8 @@
           "radius": 0,
           "clip": false,
           "capture": {
-            "saturation": 1.378941,
-            "blurDp": 3.41064,
+            "saturation": 1.276117,
+            "blurDp": 2.48578,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -1189,22 +1174,22 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32.751dp", "32.751dp"]],
-              "pieceRadii": [["32.751dp", "32.751dp", "32.751dp", "32.751dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "33.793dp", "33.793dp"]],
+              "pieceRadii": [["33.793dp", "33.793dp", "33.793dp", "33.793dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.72dp",
-              "refraction": "-10.723dp",
-              "dome": 0.358544,
+              "thickness": "16.221dp",
+              "refraction": "-8.062dp",
+              "dome": 0.344831,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
-              "veilColor": "#F5F5F759",
+              "veilColor": "#F5F5F741",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
               "tintMode": 0,
               "tintFollow": 0.42,
-              "bodyShade": "#0000000E",
+              "bodyShade": "#0000000A",
               "bodyShadeDepth": "22dp",
               "bodyShadeLean": [0, -0.6],
               "dim": 0,
@@ -1223,13 +1208,13 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "65.501dp",
+              "glowRadius": "67.586dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34.001dp"],
-              "shadowAlphas": [0, 0.068211],
+              "shadowOffset": ["0dp", "6.701dp"],
+              "shadowRadii": ["0dp", "34.006dp"],
+              "shadowAlphas": [0, 0.049707],
               "shadowColor": "#000000FF"
             }
           },
@@ -1243,7 +1228,7 @@
               "icon": "fluid:play_arrow|plus",
               "iconSizeDp": 28.8,
               "color": "#FFFFFF",
-              "alpha": 0.447,
+              "alpha": 0.213,
               "scale": 2
             }
           ],
@@ -1255,8 +1240,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.739,
-              "rectDp": [87.249, 47.249, 152.751, 112.751]
+              "materialize": 0.635,
+              "rectDp": [86.207, 46.207, 153.793, 113.793]
             }
           ]
         }
@@ -1276,8 +1261,8 @@
           "radius": 0,
           "clip": false,
           "capture": {
-            "saturation": 1.432204,
-            "blurDp": 3.889945,
+            "saturation": 1.361378,
+            "blurDp": 3.25317,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -1289,22 +1274,22 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32.566dp", "32.566dp"]],
-              "pieceRadii": [["32.566dp", "32.566dp", "32.566dp", "32.566dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "33.613dp", "33.613dp"]],
+              "pieceRadii": [["33.613dp", "33.613dp", "33.613dp", "33.613dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.632dp",
-              "refraction": "-12.161dp",
-              "dome": 0.360977,
+              "thickness": "16.134dp",
+              "refraction": "-10.495dp",
+              "dome": 0.347203,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
-              "veilColor": "#F5F5F765",
+              "veilColor": "#F5F5F755",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
               "tintMode": 0,
               "tintFollow": 0.42,
-              "bodyShade": "#00000010",
+              "bodyShade": "#0000000D",
               "bodyShadeDepth": "22dp",
               "bodyShadeLean": [0, -0.6],
               "dim": 0,
@@ -1323,13 +1308,13 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "65.131dp",
+              "glowRadius": "67.225dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34.001dp"],
-              "shadowAlphas": [0, 0.077798],
+              "shadowOffset": ["0dp", "6.701dp"],
+              "shadowRadii": ["0dp", "34.005dp"],
+              "shadowAlphas": [0, 0.065054],
               "shadowColor": "#000000FF"
             }
           },
@@ -1343,7 +1328,7 @@
               "icon": "fluid:play_arrow|plus",
               "iconSizeDp": 28.8,
               "color": "#FFFFFF",
-              "alpha": 0.5,
+              "alpha": 0.413,
               "scale": 2
             }
           ],
@@ -1355,8 +1340,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.804,
-              "rectDp": [87.434, 47.434, 152.566, 112.566]
+              "materialize": 0.72,
+              "rectDp": [86.387, 46.387, 153.613, 113.613]
             }
           ]
         }
@@ -1376,8 +1361,8 @@
           "radius": 0,
           "clip": false,
           "capture": {
-            "saturation": 1.464308,
-            "blurDp": 4.178845,
+            "saturation": 1.428628,
+            "blurDp": 3.858398,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -1389,22 +1374,22 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32.425dp", "32.425dp"]],
-              "pieceRadii": [["32.425dp", "32.425dp", "32.425dp", "32.425dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "33.457dp", "33.457dp"]],
+              "pieceRadii": [["33.457dp", "33.457dp", "33.457dp", "33.457dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.564dp",
-              "refraction": "-13.008dp",
-              "dome": 0.362826,
+              "thickness": "16.06dp",
+              "refraction": "-12.39dp",
+              "dome": 0.349245,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
-              "veilColor": "#F5F5F76D",
+              "veilColor": "#F5F5F764",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
               "tintMode": 0,
               "tintFollow": 0.42,
-              "bodyShade": "#00000011",
+              "bodyShade": "#0000000F",
               "bodyShadeDepth": "22dp",
               "bodyShadeLean": [0, -0.6],
               "dim": 0,
@@ -1423,13 +1408,13 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64.851dp",
+              "glowRadius": "66.915dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.083576],
+              "shadowOffset": ["0dp", "6.701dp"],
+              "shadowRadii": ["0dp", "34.004dp"],
+              "shadowAlphas": [0, 0.077159],
               "shadowColor": "#000000FF"
             }
           },
@@ -1455,8 +1440,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.852,
-              "rectDp": [87.575, 47.575, 152.425, 112.425]
+              "materialize": 0.799,
+              "rectDp": [86.543, 46.543, 153.457, 113.457]
             }
           ]
         }
@@ -1476,8 +1461,908 @@
           "radius": 0,
           "clip": false,
           "capture": {
-            "saturation": 1.483238,
-            "blurDp": 4.34918,
+            "saturation": 1.472074,
+            "blurDp": 4.249317,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "33.295dp", "33.295dp"]],
+              "pieceRadii": [["33.295dp", "33.295dp", "33.295dp", "33.295dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.981dp",
+              "refraction": "-13.58dp",
+              "dome": 0.351386,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F76E",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000011",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "66.589dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.701dp"],
+              "shadowRadii": ["0dp", "34.003dp"],
+              "shadowAlphas": [0, 0.084979],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.5,
+              "scale": 2
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 1,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.867,
+              "rectDp": [86.705, 46.705, 153.295, 113.295]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.493224,
+            "blurDp": 4.439559,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "33.158dp", "33.158dp"]],
+              "pieceRadii": [["33.158dp", "33.158dp", "33.158dp", "33.158dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.916dp",
+              "refraction": "-14.13dp",
+              "dome": 0.353186,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F773",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "66.316dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.002dp"],
+              "shadowAlphas": [0, 0.088785],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.5,
+              "scale": 2
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 1,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.92,
+              "rectDp": [86.842, 46.842, 153.158, 113.158]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.499475,
+            "blurDp": 4.495697,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "33.017dp", "33.017dp"]],
+              "pieceRadii": [["33.017dp", "33.017dp", "33.017dp", "33.017dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.848dp",
+              "refraction": "-14.248dp",
+              "dome": 0.355036,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "66.035dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.002dp"],
+              "shadowAlphas": [0, 0.089909],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.523,
+              "scale": 1.954
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 1,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.956,
+              "rectDp": [86.983, 46.983, 153.017, 113.017]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500324,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "32.889dp", "32.889dp"]],
+              "pieceRadii": [["32.889dp", "32.889dp", "32.889dp", "32.889dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.787dp",
+              "refraction": "-14.208dp",
+              "dome": 0.356726,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "65.778dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090003],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.697,
+              "scale": 1.606
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 1,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.971,
+              "rectDp": [87.111, 47.111, 152.889, 112.889]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500252,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "32.784dp", "32.784dp"]],
+              "pieceRadii": [["32.784dp", "32.784dp", "32.784dp", "32.784dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.736dp",
+              "refraction": "-14.163dp",
+              "dome": 0.35811,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "65.567dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090002],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.796,
+              "scale": 1.407
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 0.988,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.978,
+              "rectDp": [87.216, 47.216, 152.784, 112.784]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500189,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "32.678dp", "32.678dp"]],
+              "pieceRadii": [["32.678dp", "32.678dp", "32.678dp", "32.678dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.685dp",
+              "refraction": "-14.117dp",
+              "dome": 0.359502,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "65.356dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090002],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.875,
+              "scale": 1.251
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 0.93,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.984,
+              "rectDp": [87.322, 47.322, 152.678, 112.678]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500144,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "32.592dp", "32.592dp"]],
+              "pieceRadii": [["32.592dp", "32.592dp", "32.592dp", "32.592dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.644dp",
+              "refraction": "-14.08dp",
+              "dome": 0.360628,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "65.185dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090001],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.929,
+              "scale": 1.142
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 0.787,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.988,
+              "rectDp": [87.408, 47.408, 152.592, 112.592]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500106,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "32.507dp", "32.507dp"]],
+              "pieceRadii": [["32.507dp", "32.507dp", "32.507dp", "32.507dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.604dp",
+              "refraction": "-14.043dp",
+              "dome": 0.361746,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "65.015dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.090001],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.964,
+              "scale": 1.073
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 0.544,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.992,
+              "rectDp": [87.493, 47.493, 152.507, 112.507]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500073,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["103.974dp", "103.974dp", "32.421dp", "32.421dp"]],
+              "pieceRadii": [["32.421dp", "32.421dp", "32.421dp", "32.421dp"]],
+              "pieceBlend": ["0dp"],
+              "pieceSmooth": [0],
+              "thickness": "15.562dp",
+              "refraction": "-14.006dp",
+              "dome": 0.362875,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["103.974dp", "103.974dp"],
+              "glowRadius": "64.843dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.090001],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "simbolo",
+              "x": 71.974,
+              "y": 71.974,
+              "w": 64,
+              "h": 64,
+              "icon": "fluid:play_arrow|plus",
+              "iconSizeDp": 28.8,
+              "color": "#FFFFFF",
+              "alpha": 0.983,
+              "scale": 1.033
+            }
+          ],
+          "contentClip": "alpha",
+          "_kernel": "One",
+          "_collo": 0.219,
+          "_moto": 0,
+          "_piano": [
+            {
+              "key": "play",
+              "change": "Materialize",
+              "materialize": 0.995,
+              "rectDp": [87.579, 47.579, 152.421, 112.421]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "piano0",
+          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
+          "x": 16.026,
+          "y": -23.974,
+          "w": 207.948,
+          "h": 207.948,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500041,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -1494,17 +2379,17 @@
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
               "thickness": "15.511dp",
-              "refraction": "-13.492dp",
-              "dome": 0.364288,
+              "refraction": "-13.96dp",
+              "dome": 0.364289,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
-              "veilColor": "#F5F5F771",
+              "veilColor": "#F5F5F775",
               "veilAdapt": 0.7,
               "tintColor": "#00000000",
               "tintMode": 0,
               "tintFollow": 0.42,
-              "bodyShade": "#00000011",
+              "bodyShade": "#00000012",
               "bodyShadeDepth": "22dp",
               "bodyShadeLean": [0, -0.6],
               "dim": 0,
@@ -1529,406 +2414,6 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "6.7dp"],
               "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.086983],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.5,
-              "scale": 2
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 1,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.891,
-              "rectDp": [87.686, 47.686, 152.314, 112.314]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 200,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.493733,
-            "blurDp": 4.443614,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32.223dp", "32.223dp"]],
-              "pieceRadii": [["32.223dp", "32.223dp", "32.223dp", "32.223dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.467dp",
-              "refraction": "-13.746dp",
-              "dome": 0.36548,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F774",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64.447dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.088872],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.5,
-              "scale": 2
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 1,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.922,
-              "rectDp": [87.777, 47.777, 152.223, 112.223]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 216.666667,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.498233,
-            "blurDp": 4.484103,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32.158dp", "32.158dp"]],
-              "pieceRadii": [["32.158dp", "32.158dp", "32.158dp", "32.158dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.436dp",
-              "refraction": "-13.843dp",
-              "dome": 0.366337,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64.317dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.089682],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.5,
-              "scale": 2
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 1,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.945,
-              "rectDp": [87.842, 47.842, 152.158, 112.158]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 233.333333,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.499815,
-            "blurDp": 4.49833,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.819dp",
-              "dome": 0.368421,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.089967],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.572,
-              "scale": 1.856
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 1,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.962,
-              "rectDp": [88, 48, 152, 112]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 250,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.5,
-            "blurDp": 4.5,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
@@ -1943,508 +2428,8 @@
               "icon": "fluid:play_arrow|plus",
               "iconSizeDp": 28.8,
               "color": "#FFFFFF",
-              "alpha": 0.751,
-              "scale": 1.498
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 0.988,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.975,
-              "rectDp": [88, 48, 152, 112]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 266.666667,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.5,
-            "blurDp": 4.5,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.09],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.879,
-              "scale": 1.243
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 0.93,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.984,
-              "rectDp": [88, 48, 152, 112]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 283.333333,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.5,
-            "blurDp": 4.5,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.09],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.951,
-              "scale": 1.099
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 0.787,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.99,
-              "rectDp": [88, 48, 152, 112]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 300,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.5,
-            "blurDp": 4.5,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.09],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.985,
-              "scale": 1.03
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 0.544,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.995,
-              "rectDp": [88, 48, 152, 112]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 316.666667,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.5,
-            "blurDp": 4.5,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.09],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 0.997,
-              "scale": 1.006
-            }
-          ],
-          "contentClip": "alpha",
-          "_kernel": "One",
-          "_collo": 0.219,
-          "_moto": 0,
-          "_piano": [
-            {
-              "key": "play",
-              "change": "Materialize",
-              "materialize": 0.998,
-              "rectDp": [88, 48, 152, 112]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "t": 333.333333,
-      "elements": [
-        {
-          "kind": "material",
-          "name": "piano0",
-          "_ricetta": "F3.3: piano di F3.1, collo nel tempo (PhysicsPlaneNeck), comparsa per lente (glassMaterializeRecipe)",
-          "x": 16.026,
-          "y": -23.974,
-          "w": 207.948,
-          "h": 207.948,
-          "radius": 0,
-          "clip": false,
-          "capture": {
-            "saturation": 1.5,
-            "blurDp": 4.5,
-            "w": 0,
-            "paddingDp": 6.666667,
-            "scale": 1
-          },
-          "body": {
-            "source": "kotlin:GlassBody1ShaderString",
-            "uniforms": {
-              "offset": "$offset",
-              "flex": [1, 0, 0, 1],
-              "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
-              "pieceBlend": ["0dp"],
-              "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
-              "dispersion": 0.3,
-              "magnify": 0,
-              "materialize": 1,
-              "veilColor": "#F5F5F775",
-              "veilAdapt": 0.7,
-              "tintColor": "#00000000",
-              "tintMode": 0,
-              "tintFollow": 0.42,
-              "bodyShade": "#00000012",
-              "bodyShadeDepth": "22dp",
-              "bodyShadeLean": [0, -0.6],
-              "dim": 0,
-              "grain": 0,
-              "aa": 1.25,
-              "lightInBody": 1,
-              "nodeClip": [1, "0dp"],
-              "rimWidth": "0.6dp",
-              "rimDark": "#00000052",
-              "rimFeather": 0.4,
-              "rimLift": 0.3,
-              "reflexDir": [0, -1],
-              "reflexWidths": [1.396, 1.396],
-              "reflexStrength": 0.12,
-              "reflexDepth": "7dp",
-              "reflexFloor": 0,
-              "reflexHalo": 0.45,
-              "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
-              "glow": 0,
-              "glowFill": 0.4,
-              "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.7dp"],
-              "shadowRadii": ["0dp", "34dp"],
-              "shadowAlphas": [0, 0.09],
-              "shadowColor": "#000000FF"
-            }
-          },
-          "content": [
-            {
-              "name": "simbolo",
-              "x": 71.974,
-              "y": 71.974,
-              "w": 64,
-              "h": 64,
-              "icon": "fluid:play_arrow|plus",
-              "iconSizeDp": 28.8,
-              "color": "#FFFFFF",
-              "alpha": 1,
-              "scale": 1
+              "alpha": 0.993,
+              "scale": 1.013
             }
           ],
           "contentClip": "alpha",
@@ -2455,8 +2440,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 0.999,
-              "rectDp": [88, 48, 152, 112]
+              "materialize": 0.997,
+              "rectDp": [87.686, 47.686, 152.314, 112.314]
             }
           ]
         }
@@ -2477,7 +2462,7 @@
           "clip": false,
           "capture": {
             "saturation": 1.5,
-            "blurDp": 4.5,
+            "blurDp": 4.500019,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -2489,13 +2474,13 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "32.213dp", "32.213dp"]],
+              "pieceRadii": [["32.213dp", "32.213dp", "32.213dp", "32.213dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
+              "thickness": "15.462dp",
+              "refraction": "-13.916dp",
+              "dome": 0.365624,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
@@ -2523,7 +2508,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
+              "glowRadius": "64.425dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2543,8 +2528,8 @@
               "icon": "fluid:play_arrow|plus",
               "iconSizeDp": 28.8,
               "color": "#FFFFFF",
-              "alpha": 1,
-              "scale": 1
+              "alpha": 0.998,
+              "scale": 1.004
             }
           ],
           "contentClip": "alpha",
@@ -2555,8 +2540,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 1,
-              "rectDp": [88, 48, 152, 112]
+              "materialize": 0.998,
+              "rectDp": [87.787, 47.787, 152.213, 112.213]
             }
           ]
         }
@@ -2577,7 +2562,7 @@
           "clip": false,
           "capture": {
             "saturation": 1.5,
-            "blurDp": 4.5,
+            "blurDp": 4.500007,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -2589,13 +2574,13 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "32.13dp", "32.13dp"]],
+              "pieceRadii": [["32.13dp", "32.13dp", "32.13dp", "32.13dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
+              "thickness": "15.423dp",
+              "refraction": "-13.88dp",
+              "dome": 0.366705,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
@@ -2623,7 +2608,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
+              "glowRadius": "64.261dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2643,8 +2628,8 @@
               "icon": "fluid:play_arrow|plus",
               "iconSizeDp": 28.8,
               "color": "#FFFFFF",
-              "alpha": 1,
-              "scale": 1
+              "alpha": 0.999,
+              "scale": 1.001
             }
           ],
           "contentClip": "alpha",
@@ -2655,8 +2640,8 @@
             {
               "key": "play",
               "change": "Materialize",
-              "materialize": 1,
-              "rectDp": [88, 48, 152, 112]
+              "materialize": 0.999,
+              "rectDp": [87.87, 47.87, 152.13, 112.13]
             }
           ]
         }
@@ -2677,7 +2662,7 @@
           "clip": false,
           "capture": {
             "saturation": 1.5,
-            "blurDp": 4.5,
+            "blurDp": 4.500001,
             "w": 0,
             "paddingDp": 6.666667,
             "scale": 1
@@ -2689,13 +2674,13 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "32.067dp", "32.067dp"]],
+              "pieceRadii": [["32.067dp", "32.067dp", "32.067dp", "32.067dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
+              "thickness": "15.392dp",
+              "refraction": "-13.853dp",
+              "dome": 0.367545,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
@@ -2723,7 +2708,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
+              "glowRadius": "64.133dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2756,7 +2741,7 @@
               "key": "play",
               "change": "Materialize",
               "materialize": 1,
-              "rectDp": [88, 48, 152, 112]
+              "rectDp": [87.933, 47.933, 152.067, 112.067]
             }
           ]
         }
@@ -2789,13 +2774,13 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "32.026dp", "32.026dp"]],
+              "pieceRadii": [["32.026dp", "32.026dp", "32.026dp", "32.026dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
+              "thickness": "15.372dp",
+              "refraction": "-13.835dp",
+              "dome": 0.368081,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
@@ -2823,7 +2808,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
+              "glowRadius": "64.052dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2856,7 +2841,7 @@
               "key": "play",
               "change": "Materialize",
               "materialize": 1,
-              "rectDp": [88, 48, 152, 112]
+              "rectDp": [87.974, 47.974, 152.026, 112.026]
             }
           ]
         }
@@ -2889,13 +2874,13 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["103.974dp", "103.974dp", "32dp", "32dp"]],
-              "pieceRadii": [["32dp", "32dp", "32dp", "32dp"]],
+              "pieceRect": [["103.974dp", "103.974dp", "32.005dp", "32.005dp"]],
+              "pieceRadii": [["32.005dp", "32.005dp", "32.005dp", "32.005dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
-              "thickness": "15.36dp",
-              "refraction": "-13.824dp",
-              "dome": 0.368421,
+              "thickness": "15.362dp",
+              "refraction": "-13.826dp",
+              "dome": 0.36836,
               "dispersion": 0.3,
               "magnify": 0,
               "materialize": 1,
@@ -2923,7 +2908,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["103.974dp", "103.974dp"],
-              "glowRadius": "64dp",
+              "glowRadius": "64.009dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2956,7 +2941,7 @@
               "key": "play",
               "change": "Materialize",
               "materialize": 1,
-              "rectDp": [88, 48, 152, 112]
+              "rectDp": [87.995, 47.995, 152.005, 112.005]
             }
           ]
         }

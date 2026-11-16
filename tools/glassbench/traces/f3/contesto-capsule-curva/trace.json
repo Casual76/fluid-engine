@@ -2105,7 +2105,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.18dp", "91.09dp", "44.08dp", "22dp"]],
+              "pieceRect": [["225.182dp", "91.09dp", "44.079dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2138,8 +2138,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["225.18dp", "91.09dp"],
-              "glowRadius": "88.16dp",
+              "glowCenter": ["225.182dp", "91.09dp"],
+              "glowRadius": "88.157dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2157,7 +2157,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [231.84, 58, 320, 102]
+              "rectDp": [231.843, 58, 320, 102]
             }
           ]
         }
@@ -2190,7 +2190,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.266dp", "91.09dp", "43.994dp", "22dp"]],
+              "pieceRect": [["225.266dp", "91.09dp", "43.995dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2224,7 +2224,7 @@
               "reflexFloor": 0,
               "reflexHalo": 0.45,
               "glowCenter": ["225.266dp", "91.09dp"],
-              "glowRadius": "87.988dp",
+              "glowRadius": "87.99dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2242,7 +2242,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [232.012, 58, 320, 102]
+              "rectDp": [232.01, 58, 320, 102]
             }
           ]
         }
@@ -2275,7 +2275,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.315dp", "91.09dp", "43.946dp", "22dp"]],
+              "pieceRect": [["225.301dp", "91.09dp", "43.96dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2308,8 +2308,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["225.315dp", "91.09dp"],
-              "glowRadius": "87.892dp",
+              "glowCenter": ["225.301dp", "91.09dp"],
+              "glowRadius": "87.92dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2327,7 +2327,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [232.109, 58, 320, 102]
+              "rectDp": [232.08, 58, 320, 102]
             }
           ]
         }
@@ -2360,7 +2360,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.338dp", "91.09dp", "43.922dp", "22dp"]],
+              "pieceRect": [["225.304dp", "91.09dp", "43.957dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2393,8 +2393,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["225.338dp", "91.09dp"],
-              "glowRadius": "87.845dp",
+              "glowCenter": ["225.304dp", "91.09dp"],
+              "glowRadius": "87.913dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2412,7 +2412,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [232.155, 58, 320, 102]
+              "rectDp": [232.087, 58, 320, 102]
             }
           ]
         }
@@ -2445,7 +2445,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.345dp", "91.09dp", "43.915dp", "22dp"]],
+              "pieceRect": [["225.292dp", "91.09dp", "43.968dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2478,8 +2478,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["225.345dp", "91.09dp"],
-              "glowRadius": "87.83dp",
+              "glowCenter": ["225.292dp", "91.09dp"],
+              "glowRadius": "87.937dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2497,7 +2497,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [232.17, 58, 320, 102]
+              "rectDp": [232.063, 58, 320, 102]
             }
           ]
         }
@@ -2530,7 +2530,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.344dp", "91.09dp", "43.917dp", "22dp"]],
+              "pieceRect": [["225.277dp", "91.09dp", "43.983dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2563,8 +2563,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["225.344dp", "91.09dp"],
-              "glowRadius": "87.833dp",
+              "glowCenter": ["225.277dp", "91.09dp"],
+              "glowRadius": "87.967dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2582,7 +2582,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [232.167, 58, 320, 102]
+              "rectDp": [232.033, 58, 320, 102]
             }
           ]
         }
@@ -2615,7 +2615,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.336dp", "91.09dp", "43.924dp", "22dp"]],
+              "pieceRect": [["225.266dp", "91.09dp", "43.995dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2648,8 +2648,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["225.336dp", "91.09dp"],
-              "glowRadius": "87.848dp",
+              "glowCenter": ["225.266dp", "91.09dp"],
+              "glowRadius": "87.99dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2667,7 +2667,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [232.152, 58, 320, 102]
+              "rectDp": [232.01, 58, 320, 102]
             }
           ]
         }
@@ -2700,7 +2700,7 @@
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
               "pieceCount": 1,
-              "pieceRect": [["225.327dp", "91.09dp", "43.934dp", "22dp"]],
+              "pieceRect": [["225.261dp", "91.09dp", "44dp", "22dp"]],
               "pieceRadii": [["22dp", "22dp", "22dp", "22dp"]],
               "pieceBlend": ["0dp"],
               "pieceSmooth": [0],
@@ -2733,8 +2733,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["225.327dp", "91.09dp"],
-              "glowRadius": "87.867dp",
+              "glowCenter": ["225.261dp", "91.09dp"],
+              "glowRadius": "88dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -2752,7 +2752,7 @@
               "key": "capsula",
               "change": "Matched",
               "materialize": 1,
-              "rectDp": [232.133, 58, 320, 102]
+              "rectDp": [232, 58, 320, 102]
             }
           ]
         }

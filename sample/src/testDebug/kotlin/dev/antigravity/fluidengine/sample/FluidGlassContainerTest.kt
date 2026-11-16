@@ -197,6 +197,10 @@ class FluidGlassContainerTest {
       split.toString(),
       split.any { it.toId == "due" && it.change == "BornFromNeighbour" && it.bornFromId == "uno" },
     )
+    // F3.8a: il contenuto di chi nasce entra col suo vetro, quello di chi resta non si tocca.
+    val born = FluidGlassContainerDiagnostics.lastContents
+    assertTrue(born.toString(), born.any { it.id == "due" && it.role == "Born" && !it.departed })
+    assertTrue(born.toString(), born.any { it.id == "uno" && it.role == "Rest" && !it.departed })
     advance(800)
     assertEquals(2, FluidGlassContainerDiagnostics.lastRest.size)
 
@@ -207,6 +211,10 @@ class FluidGlassContainerTest {
       FluidGlassContainerDiagnostics.lastJourney.toString(),
       FluidGlassContainerDiagnostics.lastJourney.any { it.toId == "lontano" && it.change == "Materialize" },
     )
+    // Chi compare per lente porta un simbolo che si condensa; i due fermi restano com'erano.
+    val lens = FluidGlassContainerDiagnostics.lastContents
+    assertTrue(lens.toString(), lens.any { it.id == "lontano" && it.role == "Lens" })
+    assertTrue(lens.toString(), lens.filter { it.id != "lontano" }.all { it.role == "Rest" })
     advance(800)
 
     // «due» se ne va accanto a «uno»: vi confluisce.
@@ -218,6 +226,9 @@ class FluidGlassContainerTest {
         it.fromId == "due" && it.change == "MergeIntoNeighbour" && it.mergesIntoId == "uno"
       },
     )
+    // Il contenuto di chi se ne va esce da dov'è: lo porta il contenitore, perché il nodo non c'è più.
+    val gone = FluidGlassContainerDiagnostics.lastContents
+    assertTrue(gone.toString(), gone.any { it.id == "due" && it.role == "Exit" && it.departed })
     advance(800)
     assertEquals(
       setOf("uno", "lontano"),

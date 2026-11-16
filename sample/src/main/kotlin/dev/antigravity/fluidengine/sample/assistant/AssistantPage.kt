@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -137,8 +138,11 @@ internal fun AssistantContent(initial: AssistantConfig, live: AssistantLive, bot
       LocalFluidGlassModel provides config.model,
       LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     ) {
-      // La pagina rinasce solo se cambia il tema, il vetro chiesto o la card; il fondo no.
-      key(config) {
+      // La pagina rinasce solo se cambia il tema o il vetro chiesto; il fondo e la card no. La card che cambia è il
+      // contenuto di un pannello che cambia misura sotto lo stesso vetro (F3.8a): quando rinasceva tutta la pagina, ogni
+      // contenitore era nuovo, e un contenitore nuovo posa il vetro un fotogramma dopo il contenuto (il «fotogramma senza
+      // vetro» su card e dock di S3).
+      key(config.dark, config.model) {
         AssistantStage(config, live, bottomInset, onBack, onChange = { config = it })
       }
     }
@@ -167,6 +171,13 @@ private fun AssistantStage(
       modifier = Modifier
         .fillMaxSize()
         .glassBackdropSource(stage)
+        // Il fondo cambia solo in disegno, dentro il layer della sorgente: chi registra la sorgente non ridisegna e non
+        // avvisa, e le sonde dei vetri non rileggono (S3: niente girava). Finché `glassBackdropSource` non lo dice da sé
+        // (F3.8a: `glassSourceRedraws`, una riga in `GlassMaterial.kt`), lo dice la pagina a ogni ridisegno del fondo.
+        .drawWithContent {
+          drawContent()
+          stage.notifyChanged()
+        }
         .drawBehind { fund(photo, live.fund) },
     )
     CompositionLocalProvider(LocalGlassBackdrop provides stage, LocalFluidCanvasBackdrop provides stage) {

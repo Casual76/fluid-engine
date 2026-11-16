@@ -2007,6 +2007,18 @@ varianti affiancate, Apple sotto):
 | quanto si strozza il collo | **spesso** (esponente 1/2; l'orchestratore proponeva 2/3): il collo resta largo e si spezza netto; resta il collo lungo, A, 0,38 |
 | scala iniziale della comparsa | **1,09**, la misura di R4 B3 |
 
+**Il carattere del viaggio (F3.9) e le scelte di Alessio (2026-11-16).** Sulla tavola di S3 Alessio ha scritto «ci
+azzeccano ben di poco, manca la luce, il blur, il testo appare subito». Le misure di F3.9
+(`artifacts/liquid-glass/sessioni/f3-9/misure.md`) correggono la riga «carattere del cambio di contesto» dei bersagli: il
+vetro **non** diventa più limpido; nel render Select → Done diventa un blocco bianco luminoso (probabilmente la luce del
+tocco che riempie il vetro), nelle clip dell'interfaccia vera non schiarisce; il **rigonfiamento è +15–17%** a metà viaggio
+in tutte le clip (non ≈10%). Scelte di Alessio sulla tavola dal banco:
+
+| scelta | risposta |
+|---|---|
+| luce del vetro nei cambi del piano | **a metà, col rigonfiamento di Apple, più la luce del dito**: quando il cambio parte da un tocco sul vetro, la luce della pressione lo riempie e lo accompagna nel viaggio (come nell'interfaccia vera di Apple). Menu e Fluid-physics fuori dal piano restano «un po' limpidi» (scelta B di F1B) |
+| quando si rompe il collo | **com'è oggi** (verso metà viaggio), pur sapendo che in Apple i pezzi restano uniti da colli sottili fino a ~90% del viaggio |
+
 ---
 
 ### F4A · Barre dichiarate in alto e fra pagine

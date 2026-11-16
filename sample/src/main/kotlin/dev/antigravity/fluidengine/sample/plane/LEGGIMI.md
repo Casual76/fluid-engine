@@ -66,9 +66,16 @@ Le scene sul palco stanno sopra la foto sintetica della galleria (la stessa di �
 **Dalla F3.8a**, in tutte le scene: il contenuto di un pezzo si vede solo dentro il suo vetro («Fatto» arriva sfocato
 dentro il vetro dopo metà viaggio, e al ritorno si sfoca dov'era; il simbolo di `comparsa` è ritagliato sul tondo); chi
 non cambia resta al suo vetro di riposo (in `comparsa` i due tasti fermi non si uniscono mai); in `unione` il comando
-apre un viaggio del collo (300 ms), non un fotogramma; i vetri che viaggiano si gonfiano nel mezzo. La pagina annuncia
-il disegno del fondo alla sonda (`notifyChanged()` nel disegno della sorgente): è ciò che fa girare `adattamento` e
-`clear`, finché la sorgente dell'engine non lo fa da sola. Cosa riprendere: `artifacts/liquid-glass/sessioni/f3-8a/riprese.md`.
+apre un viaggio del collo (300 ms), non un fotogramma; i vetri che viaggiano si gonfiano nel mezzo. Cosa riprendere:
+`artifacts/liquid-glass/sessioni/f3-8a/riprese.md`.
+
+**Dalla F3.10**: nel mezzo di ogni viaggio il vetro **si illumina e si fa lattiginoso** (la luce «a metà» del carattere
+del viaggio) e, quando il cambio parte da un tocco su un vetro della scena (i tasti tondi della scena fanno anche da
+comando: «Modifica» in `uno-due`, i tasti di `comparsa` e di `molti`), il bagliore della pressione riempie quel vetro e lo
+accompagna (la luce del dito). Il comando sotto la scena e `plane.auto` cambiano lo stato senza toccare un vetro del
+contenitore: lì la luce del dito non c'è, ed è il confronto. Le manopole in `gallery.tune`: `journey=off|gentle|half|apple`,
+`finger=on|off`. La pagina non annuncia più il disegno del fondo a mano: `adattamento` e `clear` girano perché la
+sorgente dell'engine lo dice da sé. Cosa riprendere: `artifacts/liquid-glass/sessioni/f3-10/riprese.md`.
 
 ## Cosa scrive in logcat
 
@@ -79,7 +86,7 @@ sta il contenitore nella finestra lo dice `RIQUADRO`.
 |---|---|---|
 | `SCENA` | al lancio e a ogni cambio di scena, tema, spacing o vetro | la scena, il tema, lo spacing, il vetro chiesto, l'API, la scala delle animazioni, automatico e interruzione |
 | `STATO scena passo=n stato t` | a ogni cambio di stato (comando, automatico, tocco) | lo stato nuovo in parole e l'istante: da qui si contano i tempi del viaggio |
-| `VIAGGIO partito\|ripartito` | quando il contenitore apre (o fa ripartire) un viaggio | dopo quanti ms dal cambio, i contatori (viaggi, ripartenze) e chi va dove: `da->a:Cambio(vicino)` con `Matched`, `BornFromNeighbour(da x)`, `MergeIntoNeighbour(in x)`, `Materialize`, `Dematerialize`, `Identity` |
+| `VIAGGIO partito\|ripartito` | quando il contenitore apre (o fa ripartire) un viaggio | dopo quanti ms dal cambio, i contatori (viaggi, ripartenze) e chi va dove: `da->a:Cambio(vicino)` con `Matched`, `BornFromNeighbour(da x)`, `MergeIntoNeighbour(in x)`, `Materialize`, `Dematerialize`, `Identity`; `dito=` (F3.10) il bagliore da cui comincia il campo del vetro toccato, `0.00` se il cambio non è partito da un tocco su un vetro del contenitore |
 | `FINE dopo n ms` | quando il riposo d'arrivo è pubblicato | la durata dalla partenza (preciso a 16 ms: si legge a ogni passo di 16 ms, non a ogni fotogramma) e i pezzi a riposo: `id[x,y lxa r=tl/tr/br/bl g=grappolo]` |
 | `RIPOSO` | il primo riposo, e un riposo senza viaggio (un aspetto cambiato) | i pezzi a riposo; con `RIQUADRO`, 1,2 s dopo la scena, anche i contenitori vivi, le sonde vive e gli avvisi d'ordine |
 | `RIQUADRO contenitore` | 1,2 s dopo la scena | il riquadro del contenitore in px della finestra |

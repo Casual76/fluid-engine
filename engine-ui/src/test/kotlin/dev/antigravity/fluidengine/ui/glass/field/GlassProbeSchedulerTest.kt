@@ -12,6 +12,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerRecordingStack
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.chromeWritesFallback
+import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
 
 /**
  * Quando la sonda dello sfondo legge (F2.1, piano 3.9): le regole di [GlassProbeScheduler], e il contatore di
@@ -466,6 +467,40 @@ class GlassProbeSchedulerTest {
     bench.run(2_008L, 4_000L)
     assertEquals("la revisione produce una lettura nuova, senza che il vetro si muova", listOf(0L, 2_000L), bench.reads)
     assertEquals("e la miniatura non si rifà: basta rileggerla", listOf(true, false), bench.rerecords)
+  }
+
+  /**
+   * F3.10: `glassBackdropSource` monta l'avviso **dentro** il suo layer fuori schermo, come ultimo modificatore: è lì
+   * che ridisegna quando cambia solo ciò che il layer disegna. Prima del layer sarebbe il nodo di sempre, che sotto un
+   * antenato col suo layer non ridisegna.
+   */
+  @Test
+  fun `la sorgente monta l'avviso dentro il suo layer, come ultimo modificatore`() {
+    val layer = materialLayerBackdrop(fakeLayer())
+    val state = dev.antigravity.fluidengine.ui.fluid.GlassBackdropState(layer, layer, androidx.compose.ui.unit.Dp(2.5f))
+    val chain = androidx.compose.ui.Modifier.glassBackdropSource(state)
+      .foldIn(mutableListOf<String>()) { names, element -> names.also { it += element::class.java.simpleName } }
+    val offscreen = chain.indexOfLast { it.contains("GraphicsLayer") }
+    val announce = chain.indexOfFirst { it.contains("GlassSourceRedraw") }
+    assertTrue("la catena: $chain", offscreen >= 0 && announce > offscreen)
+    assertEquals("l'avviso è l'ultimo: $chain", chain.lastIndex, announce)
+  }
+
+  @Test
+  fun `una sorgente tenuta ferma non avvisa, come il nodo che la registra`() {
+    val source = materialLayerBackdrop(fakeLayer())
+    var held = true
+    val node = GlassSourceRedrawNode(source) { held }
+    var heard = 0
+    source.addRevisionListener { _, _ -> heard++ }
+    val before = FluidGlassProbeDiagnostics.totalSourceRedraws
+    // Il disegno lo fa il nodo; qui la decisione, come la prende `draw`.
+    if (!node.frozen()) node.announce()
+    assertEquals(0, heard)
+    held = false
+    if (!node.frozen()) node.announce()
+    assertEquals(1, heard)
+    assertEquals(before + 1, FluidGlassProbeDiagnostics.totalSourceRedraws)
   }
 
   @Test

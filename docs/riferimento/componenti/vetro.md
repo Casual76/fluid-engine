@@ -690,7 +690,15 @@ della 4.0:
   diagnosi; in più `knobrim=on|off` (di serie `off`), che non è un numero del profilo ma la scelta della goccia: `on`
   rimette filo e riflesso sul pomello a riposo; diciannove a numero, fra cui `nestedveil`, `nestedlightveil`, `nestedshadow` e, per il viaggio,
   `travelclear` (quanto nitido entra nella mescola a moto pieno, 0..1), `travelbend` (di quanto cresce lo spostamento
-  della lente, 0..3) e `travelneck` (per quanta parte del viaggio il collo nasce e muore, 0,05..0,5)),
+  della lente, 0..3) e `travelneck` (per quanta parte del viaggio il collo nasce e muore, 0,05..0,5));
+  per il **carattere del viaggio del piano flottante** (F3.9, agganciato al palco da F3.10) le varianti
+  `journey=off|gentle|half|apple` (niente, un quarto, a metà, come il render di Apple; di serie `half` col rigonfiamento
+  di Apple) e `finger=on|off` (la luce del dito: il bagliore della pressione che ha fatto partire il viaggio riempie il
+  vetro toccato, di serie `on`), e i numeri `travellight` (quanto il velo va verso la luce al colmo, 0..1),
+  `travelglow` (l'alone che prende il posto dell'ombra, 0..1), `travelfrost` (di quanto cresce il raggio della
+  smerigliatura, 0..4), `travelswell` (il rigonfiamento in frazione del lato corto, 0..0,3) e `travelfinger` (quanto del
+  bagliore del tocco il vetro si porta nel viaggio, 0..1). Valgono solo sul palco del contenitore: menu e Fluid-physics
+  fuori dal piano non li leggono),
   `liquidProfileKnobs` le elenca e `liquidProfileTuning` dice quali sono in vigore. Le alternative alle scelte di serie restano lì: la smerigliatura `frost=wide` (la C, larga e
   mista) e `frost=mid` (la M, 8 dp) accanto alla D di serie (`frost=ios26`), il bordo scuro della tavola
   (`darkedge=faint`), l'ombra corta (`shadow=ios27`), il velo scuro dei grandi uguale a quello dei tasti

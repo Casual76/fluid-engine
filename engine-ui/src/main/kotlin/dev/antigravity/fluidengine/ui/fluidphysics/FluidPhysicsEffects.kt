@@ -45,6 +45,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassSlabIsSmall
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelPaddingDp
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelRecipe
+import dev.antigravity.fluidengine.ui.glass.field.glassJourneyRecipe
 import dev.antigravity.fluidengine.ui.glass.field.lerpGlassRecipe
 import kotlin.math.abs
 import kotlin.math.floor
@@ -835,9 +836,12 @@ internal class PhysicsLiquidRecipes {
  *    sopra, e fra le due il viaggio scivola senza un fotogramma in cui il velo scatta;
  *  - la **frangia** è un peso ([PhysicsMaterial.dispersion]), non l'interruttore dell'ottica: un tasto con la
  *    frangia che diventa un pannello senza la perde lungo il viaggio;
- *  - il materiale **in viaggio** ([glassTravelRecipe]) al peso [motion]: a zero niente cambia.
+ *  - il materiale **in viaggio** ([glassTravelRecipe]) al peso [motion]: a zero niente cambia;
+ *  - il **carattere del viaggio** del piano flottante ([glassJourneyRecipe], F3.9, agganciato da F3.10) al livello
+ *    [journeyLight]: luce, alone e smerigliatura del cambio di contesto. A zero (menu, Fluid-physics fuori dal piano,
+ *    campi per lente, partenza e arrivo) niente cambia, al bit.
  *
- * Con [motion] a zero, senza partenza, è `glassRecipe` e basta: lo prova `PhysicsLiquidRecipeTest`.
+ * Con [motion] e [journeyLight] a zero, senza partenza, è `glassRecipe` e basta: lo prova `PhysicsLiquidRecipeTest`.
  *
  * @param shortDp il lato corto in dp ([physicsRecipeShortPx] per la densità dello schermo).
  * @param motion quanto la sagoma si muove, 0..1 (`LiquidDrop.lens`: zero esatto a goccia posata).
@@ -882,6 +886,11 @@ internal fun physicsLiquidRecipe(
    * [GlassLiquidVariant.Regular], cioè la ricetta di prima, al bit.
    */
   variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
+  /**
+   * Il livello della luce del carattere del viaggio del piano flottante (F3.9, `PhysicsPlaneShape.journeyLight`), 0..1.
+   * Zero (di serie) = nessun carattere: i menu e Fluid-physics fuori dal piano restano «un po' limpidi» (scelta B).
+   */
+  journeyLight: Float = 0f,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -924,7 +933,39 @@ internal fun physicsLiquidRecipe(
     lerpGlassRecipe(scratch.from, recipe, blend, recipe)
   }
   recipe.dispersion = if (quality > 0.75f) GlassLiquidDispersion * clampGlassUnit(material.dispersion) else 0f
-  return glassTravelRecipe(recipe, profile.travel, motion, quality)
+  glassTravelRecipe(recipe, profile.travel, motion, quality)
+  // Dopo il vetro in viaggio, e prima della comparsa per lente (che il chiamante applica dopo): in un campo per lente
+  // il livello è zero e il carattere non tocca niente.
+  return glassJourneyRecipe(recipe, profile.journey, journeyLight, darkSide, variant)
+}
+
+/**
+ * Il bagliore che una superficie fisica disegna in un fotogramma: quello della sua pressione ([press] per [glowWeight],
+ * col dito [finger] in pixel del nodo) o la **luce del dito** del piano flottante ([touch], F3.10), il più forte dei due.
+ * Il riempimento del dito porta il `glowFill` della ricetta verso la sagoma intera, sul posto. Restituisce il centro in
+ * [out] (`x`, `y`, non finiti = il centro della sagoma) e la forza. Pura, salvo la ricetta.
+ */
+internal fun physicsLiquidGlow(
+  press: Float,
+  glowWeight: Float,
+  finger: androidx.compose.ui.geometry.Offset?,
+  bounds: Rect,
+  touch: PhysicsPlaneTouch?,
+  recipe: GlassRecipe,
+  out: FloatArray,
+): Float {
+  val own = clampGlassUnit(press) * glowWeight
+  val carried = touch?.amount?.takeIf { it.isFinite() }?.let(::clampGlassUnit) ?: 0f
+  if (touch != null && carried > own) {
+    out[0] = touch.x
+    out[1] = touch.y
+    val fill = if (touch.fill.isFinite()) clampGlassUnit(touch.fill) else 0f
+    recipe.glowFill = recipe.glowFill + (1f - recipe.glowFill) * fill
+    return carried
+  }
+  out[0] = if (finger != null) bounds.left + finger.x else Float.NaN
+  out[1] = if (finger != null) bounds.top + finger.y else Float.NaN
+  return own
 }
 
 /**
@@ -1105,6 +1146,13 @@ internal class PhysicsLiquidSurface(
   private val preference: Float = FluidGlassPreference.Default,
   /** La variante del vetro: vedi `physicsLiquidRecipe(variant)`. Fissa per la vita della superficie. */
   private val variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
+  /**
+   * Vero per un campo del **palco del piano flottante** (F3.10): la superficie porta il carattere del viaggio
+   * (`PhysicsPlaneShape.journeyLight`), e il margine della cattura è quello del carattere al colmo (`glassTravelPaddingDp`
+   * con `journey`), deciso una volta per tutta la sua vita (invariante 1). Falso (di serie): menu, Fluid-physics fuori
+   * dal piano e i grappoli fermi del contenitore, al bit come prima.
+   */
+  private val planeJourney: Boolean = false,
 ) {
 
   private val adaptiveMaterial = GlassAdaptiveMaterial()
@@ -1116,8 +1164,12 @@ internal class PhysicsLiquidSurface(
    * colorato la sfocatura passa il margine di serie, e il bordo della sagoma sfocherebbe pixel che la cattura non ha. A
    * metà corsa il fattore è uno, e il margine quello di prima al bit.
    */
-  val paddingDp: Float = glassTravelPaddingDp(role, material.target, material.origin, profile) *
-    glassPreferenceFrost(preference, profile.preference)
+  val paddingDp: Float = glassTravelPaddingDp(
+    role, material.target, material.origin, profile, journey = if (planeJourney) profile.journey else null,
+  ) * glassPreferenceFrost(preference, profile.preference)
+
+  /** Il centro del bagliore di questo disegno: vedi [physicsLiquidGlow]. */
+  private val glowAt = FloatArray(2)
 
   private val inputs = GlassDrawInputs(GlassFieldMaxPieces)
   private val recipes = PhysicsLiquidRecipes()
@@ -1210,22 +1262,33 @@ internal class PhysicsLiquidSurface(
       restingFilmYields = restingFilmYields,
       preference = preference,
       variant = variant,
+      // Il carattere del viaggio del piano (F3.10): solo sul palco, zero ovunque altrove.
+      journeyLight = if (planeJourney) planeShape?.journeyLight ?: 0f else 0f,
     )
     // La comparsa per lente (F3.3): contorno, poi lente, col raggio di sfocatura che cresce con lei. A uno non tocca niente.
     if (planeShape != null && planeShape.materialize < 1f) {
       glassMaterializeRecipe(recipe, planeShape.materialize, materializeChannels)
     }
-    val finger = pressState?.glow
     val bounds = plan.bounds
+    // Il bagliore: quello della pressione di questa superficie, o la luce del dito che il palco porta (F3.10).
+    val glow = physicsLiquidGlow(
+      press = press,
+      glowWeight = glowWeight,
+      finger = pressState?.glow,
+      bounds = bounds,
+      touch = if (planeJourney) planeShape?.touch else null,
+      recipe = recipe,
+      out = glowAt,
+    )
     physicsLiquidInputs(
       plan = plan,
       recipe = recipe,
       scale = scale,
       screenDensity = screenDensity,
       paddingPx = floor(max(paddingDp * screenDensity * scale, 0f)),
-      glowAmount = clampGlassUnit(press) * glowWeight,
-      touchX = if (finger != null) bounds.left + finger.x else Float.NaN,
-      touchY = if (finger != null) bounds.top + finger.y else Float.NaN,
+      glowAmount = glow,
+      touchX = glowAt[0],
+      touchY = glowAt[1],
       nodeClip = profile.travelNodeClip,
       out = inputs,
     )

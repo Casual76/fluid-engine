@@ -67,6 +67,7 @@ import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 import dev.antigravity.fluidengine.ui.glass.field.GlassShadowSpec
 import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanelPublishes
 import dev.antigravity.fluidengine.ui.glass.field.glassSamplesLiquidPanel
+import dev.antigravity.fluidengine.ui.glass.field.glassSourceRedraws
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 import dev.antigravity.fluidengine.ui.glass.field.glassShadow as glassFieldShadow
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -272,9 +273,11 @@ fun rememberCombinedGlassBackdrop(
  * region: a recording of text on transparency refracts into a smear that the sharp original still
  * shows through.
  *
- * Il vetro adattivo sopra rilegge lo sfondo quando questa sorgente si registra di nuovo o quando un suo figlio scorre
- * col dito. Lo scorrimento fatto dal codice e un figlio con un layer suo che cambia a pagina ferma non li vede: lì
- * l'app chiama [GlassBackdropState.notifyChanged] (4.0, G1).
+ * Il vetro adattivo sopra rilegge lo sfondo quando questa sorgente si registra di nuovo, quando ciò che disegna si
+ * ridisegna (dalla 4.0, F3.10: anche se cambia solo un colore nel disegno, sotto un antenato col suo layer) o quando un
+ * suo figlio scorre col dito. Lo scorrimento fatto dal codice e un figlio con un layer suo che cambia a pagina ferma non
+ * li vede: lì l'app chiama [GlassBackdropState.notifyChanged] (4.0, G1). A pagina ferma niente si ridisegna, e nessuna
+ * sonda rilegge.
  */
 fun Modifier.glassBackdropSource(
   state: GlassBackdropState,
@@ -307,6 +310,11 @@ fun Modifier.glassBackdropSource(
     // Compositing the source offscreen puts one texture between the op stream and its consumers:
     // the body rasterises once per change, and every pane after that samples a quad.
     .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+    // 4.0 (F3.10): dentro quel layer, il nodo che dice alle sonde che il contenuto si è ridisegnato. Il nodo che registra
+    // la sorgente sta fuori dal layer, e quando cambia solo ciò che il layer disegna (un fondo che passa da chiaro a scuro,
+    // un colore animato) sotto un antenato col suo layer non ridisegna: nessuna sonda rileggeva (S3, F3-g). Questo
+    // ridisegna esattamente quando il layer si rifà. A pagina ferma non si rifà, e non avvisa.
+    .glassSourceRedraws(layer, frozen)
 }
 
 /**

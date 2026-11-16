@@ -185,6 +185,8 @@ senza manopole l'engine disegna quello.
 | `nested` | `on` · `off` | il vetro annidato: **`on`** (sul tema scuro un terzo del velo, sui due temi metà dell'ombra) / `off` come una lastra sulla pagina (la toppa grigia di S1-ter) |
 | `travel` | `off` · `soft` · `strong` | il materiale **in viaggio** delle superfici di Fluid-physics (F1B.1): `off` il vetro di riposo anche in moto / **`soft`, un po' limpido** (nitido 0,25, lente ×1,5, cupola a metà, ingrandimento 3,5%, frangia 0,15) / `strong` (nitido 0,5, lente ×2, cupola piena, frangia 0,3). Pesato da quanto la sagoma si muove: da ferma non cambia niente |
 | `travelclip` | `on` · `off` | **manopola di diagnosi** (F1B.2): il ritaglio del nodo che il corpo di una superficie fisica emula; **`on`** di serie, `off` per vedere se un bordo doppio viene da lì |
+| `journey` | `off` · `gentle` · `half` · `apple` | il **carattere del viaggio** del piano flottante (F3.9, agganciato al palco da F3.10: pagina «Piano flottante», assistente): luce, alone, smerigliatura e rigonfiamento nel mezzo di un cambio di contesto. `off` il viaggio senza carattere (anche senza rigonfiamento) / `gentle` un quarto del render di Apple / **`half` a metà, col rigonfiamento di Apple (di serie, scelta di Alessio)** / `apple` il blocco bianco del render. Menu e Fluid-physics fuori dal piano non lo leggono |
+| `finger` | `on` · `off` | la **luce del dito** (F3.10): quando il cambio parte da un tocco su un vetro del contenitore, il bagliore della pressione riempie quel vetro e lo accompagna nel viaggio. **`on`** di serie |
 | `rimwidth` | `0..4` (dp) | lo spessore del filo, sui due lati (di serie 0.6) |
 | `rimalpha` | `0..1` | la forza del filo scuro (di serie 0.32) |
 | `reflex` | `0..1` | la riga chiara (di serie 0.12) |
@@ -204,6 +206,11 @@ senza manopole l'engine disegna quello.
 | `travelclear` | `0..1` | in viaggio, quanto nitido entra nella mescola a moto pieno (di serie 0.25) |
 | `travelbend` | `0..3` | in viaggio, di quanto cresce lo spostamento della lente a moto pieno (di serie 0.5) |
 | `travelneck` | `0.05..0.5` | a che frazione del tempo di un viaggio di `morphTo` (fino alla posa della molla) il collo fra due pezzi si rompe: più grande, collo più lungo (di serie 0.38, ~250 ms con la molla di serie; F1B.9). Le guide esterne (la barra fra le pagine) non lo leggono |
+| `travellight` | `0..1` | il carattere del viaggio del piano: quanto il velo va verso la luce al colmo (di serie 0.5; 1 = il blocco bianco di Apple) |
+| `travelglow` | `0..1` | il carattere del viaggio del piano: l'alone di luce che prende il posto dell'ombra sotto la sagoma (di serie 0.5) |
+| `travelfrost` | `0..4` | il carattere del viaggio del piano: di quanto cresce il raggio della smerigliatura al colmo (di serie 1, cioè il doppio) |
+| `travelswell` | `0..0.3` | il carattere del viaggio del piano: il rigonfiamento al colmo, in frazione del lato corto (di serie 0.15, la misura di Apple) |
+| `travelfinger` | `0..1` | la luce del dito: quanto del bagliore del tocco il vetro toccato si porta nel viaggio (di serie 1) |
 | `knobrim` | `on` · `off` | la goccia, non un numero del profilo: **`off`** il pomello a riposo senza filo né riflesso (arrivano con la pressione) / `on` filo e riflesso anche a riposo, com'erano dopo F1B.3 |
 | `darkceiling` | `0..1` | il soffitto del velo scuro dei grandi a copertura parziale (F2.3; di serie 0.40). Sul tablet (S3, pop-up sopra il nero al 47%): di serie 83, a 1 (spento) 124; il banco dava 110 e 90 |
 | `darklargealpha` | `0..1` | l'alfa del velo scuro dei grandi (`#36363C`, di serie 0.63 dal 2026-11-16, scelta di Alessio fra 0.5 / 0.63 / 0.89; prima 0.5): la profondità di un foglio, un pop-up o un pannello sopra il nero pieno. Sul tablet (S3, pop-up, nero al 25/47/74/100%): di serie 116/83/70/27, con 0.89 117/89/83/48 (Apple 111/89/61/48) |

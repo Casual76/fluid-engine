@@ -211,6 +211,22 @@ private const val GlassProbeLogTag = "FluidGlass"
 // ------------------------------------------------------------------------------------------------------------
 
 /**
+ * Le statistiche di un fondo **uniforme** di colore [color] (opaco, senza trama): ciò che il lettore finto dei test
+ * ([FluidGlassProbeDiagnostics.readerForTesting]) consegna. Luminanza come quella della miniatura (Rec. 709 sui valori
+ * sRGB), coperto del tutto.
+ */
+internal fun glassProbeUniformStats(color: Color): GlassBackdropStats {
+  val r = color.red.coerceIn(0f, 1f)
+  val g = color.green.coerceIn(0f, 1f)
+  val b = color.blue.coerceIn(0f, 1f)
+  val y = 0.2126f * r + 0.7152f * g + 0.0722f * b
+  return GlassBackdropStats(
+    luminance = y, variance = 0f, gradientEnergy = 0f, red = r, green = g, blue = b, coverage = 1f,
+    darkShare = if (y < GlassFlipCoverageDarkLuma) 1f else 0f,
+  )
+}
+
+/**
  * Ciò che la sonda sa dello sfondo sotto un vetro, da una miniatura 16×16. Unità di luminanza 0..1, sui valori sRGB a
  * 8 bit (Y = 0,2126 R + 0,7152 G + 0,0722 B, come il prototipo di S1-bis e come il banco).
  *
@@ -803,6 +819,14 @@ internal class GlassProbeNode(
 
   private fun startRead(now: Long, rerecord: Boolean) {
     val scheduler = scheduler ?: return
+    val fake = FluidGlassProbeDiagnostics.readerForTesting
+    if (fake != null) {
+      scheduler.onReadSent(now, rerecord)
+      FluidGlassProbeDiagnostics.onWake(if (rerecord) GlassProbeWake.ReadRerecord else GlassProbeWake.Read)
+      FluidGlassProbeDiagnostics.onRequest()
+      handler.post { if (isAttached) onProbeResult(GlassProbeOutcome.Read, glassProbeUniformStats(fake())) }
+      return
+    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
       unavailable = true
       return
@@ -1008,19 +1032,31 @@ internal class GlassProbeNode(
  * un figlio e un figlio con un layer suo restano come prima (`GlassScrollAnnouncer`, `GlassBackdropState.notifyChanged`).
  * Non costa letture a pagina ferma: senza ridisegni non c'è avviso, e lo schedulatore raccoglie quelli di un'animazione
  * (al più una lettura ogni 120 ms).
+ *
+ * Montato da `glassBackdropSource` dalla 4.0 (F3.10): le pagine non annunciano più a mano (`notifyChanged()` nel disegno
+ * del fondo, il ripiego di F3.8a). [frozen] è quello della sorgente: tenuta ferma (uno scorrimento veloce) la sorgente non
+ * si registra e non avvisa, e nemmeno questo nodo, come il nodo che la registra.
  */
-internal fun Modifier.glassSourceRedraws(layer: LayerBackdrop): Modifier = this then GlassSourceRedrawElement(layer)
+internal fun Modifier.glassSourceRedraws(layer: LayerBackdrop, frozen: () -> Boolean = NeverFrozen): Modifier =
+  this then GlassSourceRedrawElement(layer, frozen)
 
-private class GlassSourceRedrawElement(val layer: LayerBackdrop) : ModifierNodeElement<GlassSourceRedrawNode>() {
-  override fun create(): GlassSourceRedrawNode = GlassSourceRedrawNode(layer)
+private val NeverFrozen: () -> Boolean = { false }
+
+private class GlassSourceRedrawElement(
+  val layer: LayerBackdrop,
+  val frozen: () -> Boolean,
+) : ModifierNodeElement<GlassSourceRedrawNode>() {
+  override fun create(): GlassSourceRedrawNode = GlassSourceRedrawNode(layer, frozen)
 
   override fun update(node: GlassSourceRedrawNode) {
     node.layer = layer
+    node.frozen = frozen
   }
 
-  override fun equals(other: Any?): Boolean = this === other || other is GlassSourceRedrawElement && other.layer == layer
+  override fun equals(other: Any?): Boolean =
+    this === other || other is GlassSourceRedrawElement && other.layer == layer && other.frozen === frozen
 
-  override fun hashCode(): Int = layer.hashCode()
+  override fun hashCode(): Int = 31 * layer.hashCode() + System.identityHashCode(frozen)
 
   override fun InspectorInfo.inspectableProperties() {
     name = "glassSourceRedraws"
@@ -1028,14 +1064,18 @@ private class GlassSourceRedrawElement(val layer: LayerBackdrop) : ModifierNodeE
 }
 
 /** Vedi [glassSourceRedraws]. */
-internal class GlassSourceRedrawNode(var layer: LayerBackdrop) : Modifier.Node(), DrawModifierNode {
+internal class GlassSourceRedrawNode(
+  var layer: LayerBackdrop,
+  var frozen: () -> Boolean = NeverFrozen,
+) : Modifier.Node(), DrawModifierNode {
   override fun ContentDrawScope.draw() {
     drawContent()
-    announce()
+    if (!frozen()) announce()
   }
 
   /** Il contenuto della sorgente è stato appena ridisegnato: chi la legge lo deve sapere. Dal disegno: lascia un segnale. */
   fun announce() {
+    FluidGlassProbeDiagnostics.onSourceRedraw()
     layer.bumpRevision()
   }
 }
@@ -1455,6 +1495,26 @@ object FluidGlassProbeDiagnostics {
   private val peak = AtomicInteger()
   private val live = AtomicInteger()
   private val wakes = Array(GlassProbeWake.entries.size) { AtomicLong() }
+  private val sourceRedraws = AtomicLong()
+
+  /**
+   * Quante volte il contenuto di una sorgente di vetro si è ridisegnato e l'ha detto alle sonde (F3.10, il nodo di
+   * `glassSourceRedraws` dentro il layer di `glassBackdropSource`): un fondo che cambia solo in disegno.
+   */
+  val totalSourceRedraws: Long get() = sourceRedraws.get()
+
+  internal fun onSourceRedraw() {
+    sourceRedraws.incrementAndGet()
+  }
+
+  /**
+   * Un **lettore finto**, per i test Robolectric (F3.10), dove il lettore vero non consegna mai l'immagine: con un valore,
+   * ogni lettura che una sonda chiede torna subito (al messaggio dopo, sul filo principale) col colore medio che questa
+   * funzione dice di vedere sotto il vetro in quel momento, uniforme. Le letture si contano come quelle vere
+   * ([totalRequests], [totalReadings]). Null (di serie): il lettore vero. Non è un'API per le app.
+   */
+  @Volatile
+  var readerForTesting: (() -> Color)? = null
 
   /**
    * Le sonde attaccate adesso, in tutto il processo (F3.2): un nodo di sonda in scena, letto o no. Un
@@ -1501,6 +1561,8 @@ object FluidGlassProbeDiagnostics {
 
   /** Azzera i contatori, per i test. */
   fun resetForTesting() {
+    sourceRedraws.set(0)
+    readerForTesting = null
     requests.set(0)
     readings.set(0)
     failures.set(0)

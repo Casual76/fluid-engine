@@ -959,6 +959,31 @@ internal const val GlassJourneyFrostApple: Float = 2f
 internal const val GlassJourneyDarkLight: Float = 0.5f
 
 /**
+ * La **luce del dito** di Apple (F3.10, scelta di Alessio del 16 novembre: «a metà, più la luce del dito»): quanta della
+ * pressione che ha fatto partire il viaggio il vetro toccato si porta dietro. Uno = tutta: il bagliore del tocco (lo
+ * stesso del vetro fermo premuto, `GlassLiquidGlowPeak`) riempie la sagoma e la accompagna, poi si spegne con la luce
+ * del carattere. Fiducia **bassa**: è l'ipotesi di F3.9 sul blocco bianco del render «Select → Done» (comincia con un
+ * tocco su «Select»; le barre di 16:02 e 4:48 cambiano senza tocco e non si illuminano), più R4 B4 (il bagliore del tocco
+ * dell'interfaccia vera riempie il vetro in ~230 ms).
+ */
+internal const val GlassJourneyFingerApple: Float = 1f
+
+/**
+ * Fase del viaggio a cui il bagliore del dito ha **riempito** il vetro (`glowFill` da quello del tasto fermo a uno). R4
+ * B4: il bagliore del tocco riempie il vetro in ~230 ms dal contatto; il viaggio parte al rilascio, quando una parte di
+ * quella strada è già fatta, e sul riposo a vista di un cambio di contesto (300 ms) metà viaggio sono 150 ms. È la fase a
+ * cui la luce del carattere comincia a scendere ([GlassJourneyLightHold]): il vetro è pieno di luce quando la luce è
+ * piena. A occhio.
+ */
+internal const val GlassJourneyFingerFillAt: Float = 0.5f
+
+/**
+ * Sotto questa pressione il tocco non conta: è un vetro che non era premuto quando lo stato è cambiato (un cambio
+ * dall'app, da un timer, da un altro vetro), e il suo viaggio parte dal livello del carattere.
+ */
+internal const val GlassJourneyFingerMin: Float = 0.02f
+
+/**
  * Il **carattere del viaggio** del piano flottante (F3.9): come il vetro di un cambio di contesto, di una nascita dal
  * vicino, di una confluenza, di un'unione e di una separazione cambia **lungo il viaggio**, rispetto alla ricetta di
  * riposo. Non tocca le comparse e le scomparse per lente, che hanno la loro (`glassMaterializeRecipe`, F3.3), né i menu
@@ -984,6 +1009,9 @@ internal const val GlassJourneyDarkLight: Float = 0.5f
  *   smerigliato per `min(frost, 1)`. Zero = la smerigliatura del viaggio di [GlassLiquidTravel].
  * @param swell il rigonfiamento al colmo, in frazione del lato corto di ogni pezzo (0,15 = +15% di altezza per un
  *   tasto): ogni lato si sposta in fuori di metà.
+ * @param finger la **luce del dito** (F3.10), 0..1: quanto del bagliore della pressione che ha fatto partire il viaggio
+ *   il vetro toccato si porta dietro ([fingerGlow], [fingerFill]). Zero = il bagliore resta al vetro fermo e il viaggio
+ *   parte senza (come fino a F3.9).
  */
 @Immutable
 internal data class GlassLiquidJourney(
@@ -992,10 +1020,17 @@ internal data class GlassLiquidJourney(
   val glow: Float,
   val frost: Float,
   val swell: Float,
+  val finger: Float = 0f,
 ) {
 
+  /**
+   * Vero se il carattere porta una luce (velo, alone o smerigliatura): senza, il livello della luce del viaggio è zero
+   * (F3.10, `journey=off` spegne tutto), anche se la curva [light] da sola darebbe il suo inviluppo.
+   */
+  val lights: Boolean get() = light > 0f || glow > 0f || frost > 0f
+
   /** Vero se il carattere non cambia niente: il viaggio del piano col vetro di [GlassLiquidTravel] e basta. */
-  val isOff: Boolean get() = !(light > 0f) && !(glow > 0f) && !(frost > 0f) && !(swell > 0f)
+  val isOff: Boolean get() = !(light > 0f) && !(glow > 0f) && !(frost > 0f) && !(swell > 0f) && !(finger > 0f)
 
   /**
    * Il livello della luce (e della smerigliatura e dell'alone) alla [phase] del viaggio, 0..1.
@@ -1008,19 +1043,55 @@ internal data class GlassLiquidJourney(
    * [GlassJourneyLightRiseMinMs] (mai oltre [GlassJourneyLightHold]). Senza (non finito o zero) la salita è la sola fase
    * di Apple, [GlassJourneyLightRise].
    */
-  fun light(phase: Float, entry: Float = 0f, settleMs: Float = Float.NaN): Float {
-    val rise = if (settleMs.isFinite() && settleMs > 0f) {
-      min(max(GlassJourneyLightRise, GlassJourneyLightRiseMinMs / settleMs), GlassJourneyLightHold)
-    } else {
-      GlassJourneyLightRise
-    }
-    return journeyEnvelope(phase, entry, rise, GlassJourneyLightHold, GlassJourneyLightSettle, longTail = true)
-  }
+  fun light(phase: Float, entry: Float = 0f, settleMs: Float = Float.NaN): Float =
+    journeyEnvelope(phase, entry, journeyLightRise(settleMs), GlassJourneyLightHold, GlassJourneyLightSettle, longTail = true)
 
   /** Il livello del rigonfiamento alla [phase] del viaggio, 0..1; [entry] come in [light]. */
   fun swell(phase: Float, entry: Float = 0f): Float =
     journeyEnvelope(phase, entry, GlassJourneySwellPeak, GlassJourneySwellPeak, GlassJourneySwellSettle)
+
+  /**
+   * Il bagliore del **dito** alla [phase] del viaggio (F3.10), 0..1, nelle unità della pressione di un vetro fermo (il
+   * bagliore è `GlassLiquidGlowPeak` volte questo numero).
+   *
+   * [entry] è il bagliore che il vetro toccato mostrava quando il viaggio è partito (la pressione del dito, appena
+   * rilasciato), o quello del viaggio interrotto: a fase zero il livello è [entry], esattamente, quindi il primo
+   * fotogramma del palco ha il bagliore dell'ultimo del vetro fermo. Da lì sale a [finger] con la salita della luce
+   * del carattere (stesso tempo, almeno [GlassJourneyLightRiseMinMs]), resta, e si spegne con la sua coda lunga: il
+   * bagliore «accompagna il vetro nel viaggio e si spegne col carattere». Senza tocco ([entry] zero e nessun dito) il
+   * chiamante non lo chiede: il viaggio parte dal livello del carattere.
+   */
+  fun fingerGlow(phase: Float, entry: Float, settleMs: Float = Float.NaN): Float {
+    val peak = if (finger.isFinite()) finger.coerceIn(0f, 1f) else 0f
+    val start = if (entry.isFinite()) entry.coerceIn(0f, 1f) else 0f
+    if (!(peak > 0f) && !(start > 0f)) return 0f
+    if (!phase.isFinite()) return 0f
+    val p = phase.coerceIn(0f, 1f)
+    val rise = journeyLightRise(settleMs)
+    val up = start + (peak - start) * journeySmoothstep(p / rise)
+    val down = journeyLongTail((p - GlassJourneyLightHold) / (GlassJourneyLightSettle - GlassJourneyLightHold))
+    return (up * down).coerceIn(0f, 1f)
+  }
+
+  /**
+   * Quanto il bagliore del dito ha **riempito** il vetro alla [phase] (F3.10), 0..1: zero è la campana attorno al dito
+   * del vetro fermo premuto (`glowFill` di serie), uno la sagoma intera. Da [entry] (zero alla partenza, quello del
+   * viaggio interrotto quando riparte) a uno a [GlassJourneyFingerFillAt], con `smoothstep`.
+   */
+  fun fingerFill(phase: Float, entry: Float = 0f): Float {
+    if (!phase.isFinite()) return 1f
+    val start = if (entry.isFinite()) entry.coerceIn(0f, 1f) else 0f
+    return (start + (1f - start) * journeySmoothstep(phase.coerceIn(0f, 1f) / GlassJourneyFingerFillAt)).coerceIn(0f, 1f)
+  }
 }
+
+/** La fase a cui la luce del carattere è salita, per un viaggio fermo a vista a [settleMs]: vedi [GlassLiquidJourney.light]. */
+internal fun journeyLightRise(settleMs: Float): Float =
+  if (settleMs.isFinite() && settleMs > 0f) {
+    min(max(GlassJourneyLightRise, GlassJourneyLightRiseMinMs / settleMs), GlassJourneyLightHold)
+  } else {
+    GlassJourneyLightRise
+  }
 
 /**
  * Sale da [entry] a uno fra 0 e [rise] (`smoothstep`), resta a uno fino a [hold], scende a zero fra [hold] e [settle]:
@@ -1080,13 +1151,18 @@ internal object GlassLiquidJourneys {
   /** Il viaggio del piano senza carattere: il vetro di [GlassLiquidTravel], come fino a F3.8. */
   val Off: GlassLiquidJourney = GlassLiquidJourney(light = 0f, darkLight = 0f, glow = 0f, frost = 0f, swell = 0f)
 
-  /** **Come Apple**: il blocco bianco e smerigliato del render, l'alone sotto, il rigonfiamento delle clip vere. */
+  /**
+   * **Come Apple**: il blocco bianco e smerigliato del render, l'alone sotto, il rigonfiamento delle clip vere, e il
+   * bagliore del dito che riempie il vetro toccato (F3.10). [Half] e [Gentle] tengono il dito intero: è una luce del
+   * tocco, non del carattere, e Alessio l'ha scelta insieme alla luce «a metà».
+   */
   val Apple: GlassLiquidJourney = GlassLiquidJourney(
     light = GlassJourneyLightApple,
     darkLight = GlassJourneyDarkLight,
     glow = GlassJourneyGlowApple,
     frost = GlassJourneyFrostApple,
     swell = GlassJourneySwellApple,
+    finger = GlassJourneyFingerApple,
   )
 
   /** **A metà**: luce, alone e smerigliatura a metà di [Apple], il rigonfiamento a metà. */
@@ -1096,11 +1172,12 @@ internal object GlassLiquidJourneys {
   val Gentle: GlassLiquidJourney = Apple.scaled(0.25f)
 
   /**
-   * **Di serie**, finché Alessio non sceglie sul tablet: la proposta di F3.9, [Half] col rigonfiamento di [Apple]. Il
-   * rigonfiamento è l'unica cosa che Apple fa in tutte le clip, e si misura (classe B); luce, alone e smerigliatura
-   * pieni sono di un solo render, e sul testo e al buio «come Apple» copre tutto: a metà il vetro si illumina e si fa
-   * lattiginoso senza sparire. Agisce solo dove il piano flottante chiama `glassJourneyRecipe` (l'aggancio di
-   * `sessioni/f3-9/aggancio.md`).
+   * **Di serie**, la scelta di Alessio del 16 novembre: [Half] col rigonfiamento di [Apple], **più la luce del dito**
+   * (F3.10). Il rigonfiamento è l'unica cosa che Apple fa in tutte le clip, e si misura (classe B); luce, alone e
+   * smerigliatura pieni sono di un solo render, e sul testo e al buio «come Apple» copre tutto: a metà il vetro si
+   * illumina e si fa lattiginoso senza sparire. Quando il cambio parte da un tocco su un vetro del contenitore, il
+   * bagliore della pressione riempie quel vetro e lo accompagna nel viaggio. Agisce solo sul palco del piano flottante
+   * (`FluidGlassContainer`): menu e Fluid-physics fuori dal piano restano «un po' limpidi» (la scelta B di F1B).
    */
   val Shipped: GlassLiquidJourney = Half.copy(swell = GlassJourneySwellApple)
 
@@ -1386,7 +1463,7 @@ internal data class GlassLiquidProfile(
      * | grandi | un passo (orchestratore) | [GlassLiquidGrowths.StepForWideShadow], ritarato sull'ombra B |
      * | annidato | velo ×0,35 sullo scuro, ombra a metà (orchestratore, S1-ter difetto 4) | [GlassLiquidNestings.Light], [GlassLiquidNestings.Dark] |
      * | in viaggio | prudente (F1B.1, da scegliere sui video) | [GlassLiquidTravels.Soft] |
-     * | carattere del viaggio del piano | a metà col rigonfiamento di Apple (proposta di F3.9, da scegliere sul tablet) | [GlassLiquidJourneys.Shipped] |
+     * | carattere del viaggio del piano | a metà col rigonfiamento di Apple, più la luce del dito (scelta di Alessio del 16 novembre, agganciata da F3.10) | [GlassLiquidJourneys.Shipped] |
      *
      * [smallShadow] a uno: sotto un tasto tondo su bianco R5 M4 misura meno dell'1% entro 0,15 D, e qui il
      * tasto ha l'ombra della barra. È fuori dal bersaglio **di proposito**: il difetto da chiudere è che il
@@ -1471,7 +1548,7 @@ internal class GlassLiquidTuned(
  * lo stesso dei piccoli), `nested` (`on`, `off`: il vetro annidato di serie, o come sulla pagina, cioè la toppa
  * grigia di S1-ter), `travel` (`off`, `soft`, `strong`: il materiale in viaggio, F1B.1: come da fermo, il
  * prudente di serie, il marcato), `journey` (`off`, `gentle`, `half`, `apple`: il carattere dei viaggi del piano
- * flottante, F3.9: niente, leggero, a metà di serie, come Apple), e da F2.2 l'adattività: `adaptive` (`on`, `off`), `textshadow` (`ios26`, `half`, `none`:
+ * flottante, F3.9: niente, leggero, a metà di serie, come Apple), `finger` (`on`, `off`: la luce del dito di F3.10), e da F2.2 l'adattività: `adaptive` (`on`, `off`), `textshadow` (`ios26`, `half`, `none`:
  * la tavola 1), `tinted` (`plain`, `halo`, `ios26`: la tavola 3), `cleardim` (`fixed`, `follow`: la tavola 4), coi numeri
  * `lightfloor`, `textshadowx`, `shadowhue` (e da F2.3 `darkceiling`, il soffitto del velo scuro; da S3
  * `darklargealpha`, l'alfa del velo scuro dei grandi). I **numeri**
@@ -1554,6 +1631,11 @@ internal object GlassLiquidTuning {
       "half" to { p -> p.copy(journey = GlassLiquidJourneys.Half) },
       "apple" to { p -> p.copy(journey = GlassLiquidJourneys.Apple) },
     ),
+    // F3.10: la luce del dito sopra l'intensità scelta con `journey` (per la tavola «con e senza»).
+    "finger" to linkedMapOf(
+      "on" to { p -> p.copy(journey = p.journey.copy(finger = GlassJourneyFingerApple)) },
+      "off" to { p -> p.copy(journey = p.journey.copy(finger = 0f)) },
+    ),
     // F1B.2, diagnosi: il ritaglio emulato delle superfici fisiche (`travelNodeClip`).
     "travelclip" to linkedMapOf(
       "on" to { p -> p.copy(travelNodeClip = true) },
@@ -1594,7 +1676,8 @@ internal object GlassLiquidTuning {
    * lente), `travelneck` (a che frazione del tempo del viaggio il collo fra due pezzi si rompe, F1B.9); il carattere
    * del viaggio del piano (F3.9): `travellight` (quanto il velo va verso la luce al colmo), `travelglow` (l'alone che
    * prende il posto dell'ombra), `travelfrost` (di quanto cresce il raggio della smerigliatura), `travelswell` (il
-   * rigonfiamento, frazione del lato corto).
+   * rigonfiamento, frazione del lato corto), `travelfinger` (F3.10: quanto del bagliore del tocco il vetro toccato si porta
+   * nel viaggio).
    */
   private val numbers: Map<String, Knob> = linkedMapOf(
     "rimwidth" to Knob(0f, 4f) { p, v ->
@@ -1636,6 +1719,8 @@ internal object GlassLiquidTuning {
     "travelglow" to Knob(0f, 1f) { p, v -> p.copy(journey = p.journey.copy(glow = v)) },
     "travelfrost" to Knob(0f, 4f) { p, v -> p.copy(journey = p.journey.copy(frost = v)) },
     "travelswell" to Knob(0f, 0.3f) { p, v -> p.copy(journey = p.journey.copy(swell = v)) },
+    // F3.10: quanto del bagliore del tocco il vetro toccato si porta nel viaggio.
+    "travelfinger" to Knob(0f, 1f) { p, v -> p.copy(journey = p.journey.copy(finger = v)) },
     // F2.2: i numeri dell'adattività.
     "lightfloor" to Knob(0f, 1f) { p, v -> p.copy(adaptive = p.adaptive.copy(lightFloor = v)) },
     "textshadowx" to Knob(1f, 8f) { p, v -> p.copy(adaptive = p.adaptive.copy(shadowOnText = v)) },

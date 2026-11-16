@@ -382,16 +382,24 @@ class FluidGlassContentTransitionTest {
     assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Lens, 1f))
   }
 
-  @Test fun theContentOfAGlassThatLeavesBlursAwayInTheFirstThirdOfItsFlight() {
-    // Apple: «Select» è già sfocato all'8% e sparito al 25%. R4 B3: il simbolo via in 130 ms su 470.
+  @Test fun theContentOfAGlassThatLeavesBlursAwayInTheFirstSixthOfItsFlight() {
+    // Apple (R4 B2 (d), tavola di F3.8a): «Select» è già sfocato al 3% e sparito al 14–17%. F3.10: da 26% a 16%.
     assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Exit, 0f))
+    val first = pieceLook(GlassPieceContentRole.Exit, 0.03f)
+    assertTrue("al 3% comincia a sfocarsi: ${first.blur}", first.blur > 0.05f * peak && first.alpha > 0.85f)
     val soon = pieceLook(GlassPieceContentRole.Exit, 0.08f)
-    assertTrue("all'8% è già sfocato: ${soon.blur}", soon.blur > 0.25f * peak)
-    assertTrue(soon.alpha > 0.7f)
-    assertEquals(0f, pieceLook(GlassPieceContentRole.Exit, 0.3f).alpha, 0f)
-    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Exit), 0.3f))
-    // R4 B3: il simbolo di una scomparsa di 470 ms è via in 130.
-    assertEquals(130f, 470f * GlassPieceContentDefaults.ExitSpan * GlassContentDefaults.ExitEnd, 8f)
+    assertTrue("all'8% è sfocato: ${soon.blur}", soon.blur > 0.5f * peak)
+    assertTrue("all'8% è mezzo svanito: ${soon.alpha}", soon.alpha in 0.5f..0.8f)
+    val gone = GlassPieceContentDefaults.ExitSpan * GlassContentDefaults.ExitEnd
+    assertTrue("sparito fra il 14 e il 17% del volo: $gone", gone in 0.14f..0.17f)
+    assertEquals(0f, pieceLook(GlassPieceContentRole.Exit, 0.17f).alpha, 0f)
+    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Exit), 0.17f))
+    assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Exit), 0.12f))
+    // R4 B3: il simbolo di una scomparsa per lente di 470 ms è via in 130, coi suoi tempi.
+    assertEquals(130f, 470f * GlassPieceContentDefaults.LensExitSpan * GlassContentDefaults.ExitEnd, 8f)
+    val lens = GlassPieceContent(GlassPieceContentRole.Exit, span = GlassPieceContentDefaults.LensExitSpan)
+    assertTrue(glassPieceContentLook(lens, 0.2f).alpha > 0f)
+    assertTrue(glassPieceContentDone(lens, 0.27f))
     // Riparte dall'aspetto che aveva (un contenuto che stava entrando e ora se ne va): nessuno scalino.
     val half = GlassContentLook(alpha = 0.5f, scale = 0.85f, blur = 0.1f)
     assertEquals(half, pieceLook(GlassPieceContentRole.Exit, 0f, half))
@@ -425,7 +433,12 @@ class FluidGlassContentTransitionTest {
     assertEquals(GlassPieceContent.Rest, glassPieceContentFor(GlassPieceArrival.Instant, null, false))
     // Chi se ne va esce da dov'è; chi non si è mai visto, o sparisce senza transizione, non lascia niente.
     assertEquals(GlassPieceContent(GlassPieceContentRole.Exit, sharp), glassPieceContentFor(GlassPieceArrival.Stays, sharp, true))
-    assertEquals(GlassPieceContent(GlassPieceContentRole.Exit, half), glassPieceContentFor(GlassPieceArrival.ThroughLens, half, true))
+    // Chi scompare per lente esce coi tempi della scomparsa (R4 B3), chi confluisce con quelli del cambio di contesto.
+    assertEquals(
+      GlassPieceContent(GlassPieceContentRole.Exit, half, GlassPieceContentDefaults.LensExitSpan),
+      glassPieceContentFor(GlassPieceArrival.ThroughLens, half, true),
+    )
+    assertEquals(GlassPieceContentDefaults.ExitSpan, glassPieceContentFor(GlassPieceArrival.Stays, sharp, true).span, 0f)
     assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Stays, null, true))
     assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Stays, GlassContentInvisible, true))
     assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Instant, sharp, true))

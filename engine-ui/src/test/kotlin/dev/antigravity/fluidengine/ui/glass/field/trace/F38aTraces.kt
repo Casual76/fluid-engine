@@ -14,6 +14,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassPieceContentRole
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassArrivalOf
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassContentFlightOf
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassFingerTouch
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassRestKey
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassRestingClusters
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassStagePlane
@@ -29,13 +30,18 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusionDp
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneShape
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneTouch
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidGlow
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsRenderPlan
 import dev.antigravity.fluidengine.ui.fluidphysics.buildPlanePlan
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidInputs
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsRecipeShortPx
 import dev.antigravity.fluidengine.ui.glass.field.GlassDrawInputs
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldMaxPieces
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidJourney
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidJourneys
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
+import dev.antigravity.fluidengine.ui.glass.field.glassJourneyRecipe
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneChange
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneCluster
 import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneFlightId
@@ -62,10 +68,11 @@ import kotlin.math.max
  * contenitore chiama a ogni fotogramma. Qui c'è solo il giro che le mette in fila (lo stesso di `startContents` e
  * `driveContents`, che nel contenitore lavorano sui nodi) e la scrittura degli strati.
  *
- * Il **rigonfiamento** è quello del carattere del viaggio di F3.9 (il profilo di serie, col livello del conducente:
- * `journeySwell`), già nelle lastre. La **luce** dello stesso carattere non è agganciata al palco (lo farà il pacchetto
- * dopo F3.8a) e qui non c'è, come sul dispositivo: per vederla sul banco si passa la traccia a
- * `tools/glassbench/carattere.py` con `--swell 0` (il rigonfiamento c'è già).
+ * Il **carattere del viaggio** di F3.9 è quello del contenitore (F3.10): il rigonfiamento nelle lastre, la **luce** nella
+ * ricetta del palco (`glassJourneyRecipe` al livello `journeyLight` del conducente, il margine della cattura del carattere
+ * al colmo) e la **luce del dito** (`fluidGlassFingerTouch`, `physicsLiquidGlow`) quando la scena dice quale vetro è stato
+ * toccato ([Scene.touch]). Di serie il carattere del profilo; una scena può darne un altro ([Scene.journey]: le colonne
+ * delle tavole di F3.10). Le tracce di F3.8a già scritte in `traces/f3-8a/` sono di prima dell'aggancio (senza luce).
  *
  * Servono a guardare sul banco ciò che S3 ha visto sul tablet: «Fatto» che non è mai scritto fuori dal vetro, il
  * contenuto di chi se ne va che si sfoca dov'era, due tasti fermi che non si uniscono mentre un terzo compare,
@@ -82,6 +89,12 @@ internal object F38aTraces {
   /** Uno stato nuovo all'istante [atMs] (su un fotogramma: il viaggio parte lì). */
   internal class Step(val atMs: Double, val state: GlassPlaneState)
 
+  /**
+   * Il tocco che fa partire il viaggio (F3.10): il pezzo [key], premuto ad [amount] quando lo stato cambia (il dito si è
+   * appena alzato), col dito in ([u], [v]) del suo riquadro. Prima del cambio il vetro fermo mostra quel bagliore.
+   */
+  internal class Touch(val key: Any, val amount: Float, val u: Float = 0.5f, val v: Float = 0.5f)
+
   internal class Scene(
     val name: String,
     val note: String,
@@ -97,6 +110,12 @@ internal object F38aTraces {
     val spacingDp: Float = PhysicsPlaneFusionDp,
     val background: Map<String, Any?> = Dunes,
     val apple: Any? = null,
+    /** Il carattere del viaggio (F3.9): di serie quello del profilo, come il contenitore. */
+    val journey: GlassLiquidJourney = GlassLiquidProfile.Default.journey,
+    /** Il tocco che fa partire il viaggio (F3.10), o null: un cambio scritto dall'app. */
+    val touch: Touch? = null,
+    /** La fase del banco in cui si scrive la traccia (`traces/<fase>/<nome>`). */
+    val phase: String = Phase,
   )
 
   private val Dunes: Map<String, Any?> = linkedMapOf(
@@ -129,7 +148,7 @@ internal object F38aTraces {
     val spacingPx = scene.spacingDp * d
     val swellMaxPx = FluidMotion.PlaneSwellMaxDp * d
     val motion = GlassPlaneMotion()
-    val driver = FluidGlassPlaneDriver()
+    val driver = FluidGlassPlaneDriver(character = { scene.journey })
     val contents = LinkedHashMap<Any, Content>()
     var stage: List<StageField> = emptyList()
     var resting: List<GlassPlaneCluster> = emptyList()
@@ -170,6 +189,13 @@ internal object F38aTraces {
         }
       } else {
         if (change == FluidGlassPlaneDriver.Change.Started || change == FluidGlassPlaneDriver.Change.Retargeted) {
+          // La luce del dito: il vetro toccato, se la scena lo dice (`noteFinger` del contenitore). Al primo viaggio il
+          // bagliore si vedeva sul vetro fermo se il pezzo era solo nel suo grappolo.
+          val touch = scene.touch
+          if (touch != null && change == FluidGlassPlaneDriver.Change.Started) {
+            val shown = driver.origin?.clusters?.any { it.pieces.size == 1 && it.pieces.first().key == touch.key } == true
+            driver.touched(touch.key, touch.amount, touch.u, touch.v, shown)
+          }
           val target = driver.rest!!
           resting = driver.origin?.let { fluidGlassRestingClusters(it, target, journey.stillKeys) }.orEmpty()
           val restingKeys = resting.flatMapTo(HashSet()) { cluster -> cluster.pieces.map { it.key } }
@@ -219,12 +245,21 @@ internal object F38aTraces {
         val carrying = if (journey == null) rest.clusters else resting
         for (cluster in carrying) {
           val ordered = cluster.pieces.unionsFirst { it }
+          // Prima del cambio il vetro toccato mostra il bagliore della pressione (una lastra ferma premuta: la campana
+          // attorno al dito, col riempimento di serie).
+          val pressed = scene.touch?.takeIf { time < 0.0 && journey == null }
+            ?.let { t -> ordered.firstOrNull { it.key == t.key }?.let { piece -> t to piece } }
           val shape = PhysicsPlaneShape(
             slabs = ordered.map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) },
             nominalBlend = spacingPx,
             neck = -1f,
             unions = fluidGlassUnionIndices(ordered),
             resting = true,
+            touch = pressed?.let { (t, piece) ->
+              PhysicsPlaneTouch(
+                t.amount, piece.bounds.left + piece.bounds.width * t.u, piece.bounds.top + piece.bounds.height * t.v, 0f,
+              )
+            },
           )
           val layers = cluster.pieces.mapNotNull { piece -> contents[piece.key]?.let { layer(scene, piece.key, it) } }
           elements += element("riposo-${restName(cluster)}", shape, scene, null, layers, "riposo: il grappolo tiene il suo vetro")
@@ -236,6 +271,11 @@ internal object F38aTraces {
             frame = frame, flights = field.flights, origin = Offset.Zero, smoothing = { 0f }, spacingPx = spacingPx,
             neck = driver.neckNow(field.union), swell = if (field.lens) FluidGlassSwell.None else swell,
             density = d, movingMs = driver.movingMs.toFloat(),
+            // F3.10: la luce del carattere e quella del dito, come `driveStage`.
+            journeyLight = if (field.lens) 0f else driver.journeyLight,
+            touch = if (field.lens) null else fluidGlassFingerTouch(
+              frame, field.flights, Offset.Zero, driver.finger, driver.fingerGlow, driver.fingerFill,
+            ),
           )
           if (shape.slabs.isEmpty()) continue
           val keys = field.flights.mapNotNull { it.targetKey ?: it.sourceKey }
@@ -245,6 +285,9 @@ internal object F38aTraces {
           element["_collo"] = round3(shape.neck)
           element["_fase"] = round3(driver.phase)
           element["_gonfio"] = round3(if (field.lens) 0f else swell.level)
+          element["_luce"] = round3(shape.journeyLight)
+          element["_dito"] = round3(shape.touch?.amount ?: 0f)
+          element["_riempito"] = round3(shape.touch?.fill ?: 0f)
           element["_unione"] = field.union.name
           element["_contenuto"] = keys.mapNotNull { key ->
             contents[key]?.let { content ->
@@ -270,7 +313,7 @@ internal object F38aTraces {
     }
     scene.apple?.let { head["apple"] = it }
     return GlassTrace(
-      name = scene.name, phase = Phase, density = d, theme = if (scene.dark) "dark" else "light",
+      name = scene.name, phase = scene.phase, density = d, theme = if (scene.dark) "dark" else "light",
       widthDp = scene.widthDp, heightDp = scene.heightDp, fps = Fps, frames = frames, head = head,
     )
   }
@@ -343,16 +386,23 @@ internal object F38aTraces {
       role = GlassRole.Interactive, widthDp = shortDp, heightDp = shortDp, darkSide = scene.dark, optics = ButtonOptics,
       intensity = 1f,
     )
-    // Il vetro in viaggio (scelta B), poi la comparsa: l'ordine di `physicsLiquidRecipe`.
+    // Il vetro in viaggio (scelta B), il carattere del viaggio del palco (F3.10), poi la comparsa: l'ordine di
+    // `physicsLiquidRecipe` e di `PhysicsLiquidSurface.fill`.
     glassTravelRecipe(recipe, GlassLiquidProfile.Default.travel, shape.motion)
+    val journey = if (stage != null) scene.journey else null
+    if (journey != null) glassJourneyRecipe(recipe, journey, shape.journeyLight, scene.dark)
     glassMaterializeRecipe(recipe, shape.materialize)
-    val padding = glassTravelPaddingDp(GlassRole.Interactive, ButtonOptics)
+    val padding = glassTravelPaddingDp(GlassRole.Interactive, ButtonOptics, journey = journey)
+    // Il bagliore: quello del vetro fermo premuto, o la luce del dito che il palco porta.
+    val at = FloatArray(2)
+    val glow = physicsLiquidGlow(0f, 1f, null, plan.bounds, shape.touch, recipe, at)
     val inputs = physicsLiquidInputs(
       plan = plan, recipe = recipe, scale = 1f, screenDensity = d,
-      paddingPx = floor(max(padding * d, 0f)), out = GlassDrawInputs(GlassFieldMaxPieces), neckPinch = shape.pinch,
+      paddingPx = floor(max(padding * d, 0f)), glowAmount = glow, touchX = at[0], touchY = at[1],
+      out = GlassDrawInputs(GlassFieldMaxPieces), neckPinch = shape.pinch,
     )
-    // Il nodo del palco: fin dove arriva l'ombra, più il rigonfiamento al colmo.
-    val reach = (glassTravelShadowReachDp(ButtonOptics, gain = 0f) + 2f + FluidMotion.PlaneSwellMaxDp) * d
+    // Il nodo del palco: fin dove arriva l'ombra (o l'alone del carattere), più il rigonfiamento al colmo.
+    val reach = (glassTravelShadowReachDp(ButtonOptics, gain = 0f, journey = journey) + 2f + FluidMotion.PlaneSwellMaxDp) * d
     val union = stage ?: plan.bounds
     val box = Rect(union.left - reach, union.top - reach, union.right + reach, union.bottom + reach)
     val element = liquidPhysicsElement(
@@ -497,6 +547,60 @@ internal object F38aTraces {
       "separa", "la sagoma torna tre tasti: il collo si strozza e si rompe una volta", blockDp, h, false,
       blockState(true), listOf(Step(0.0, blockState(false))), views, lastFrame = 48,
     )
+    return out
+  }
+
+  /** Il testo sotto il vetro delle tavole «sul testo» (lo stesso delle tracce di F3 e di F3.9). */
+  private val Text: Map<String, Any?> = linkedMapOf(
+    "kind" to "text", "background" to "#E3E3E5", "color" to "#17171A", "fontSizeDp" to 18, "lineHeightDp" to 26,
+    "paddingDp" to 12,
+    "text" to "Il piano porta il vetro da uno stato al successivo. Il testo sotto resta fermo. ".repeat(14),
+  )
+
+  /** F3.8a, prima dell'aggancio: il rigonfiamento di F3.9 senza la luce. È la colonna «oggi» delle tavole di F3.10. */
+  private val BeforeLight: GlassLiquidJourney = GlassLiquidJourneys.Off.copy(swell = GlassLiquidJourneys.Shipped.swell)
+
+  /**
+   * Le scene delle tavole di F3.10 (fase `f3-10`): «Seleziona» diventa due tondi e «Fatto», come «Select → Done», con la
+   * luce del viaggio agganciata. Per ogni fondo (le dune chiare e scure di F3.8a, e un testo) tre colonne: `oggi` (F3.8a:
+   * il rigonfiamento senza la luce), `meta` (la luce «a metà» di serie, senza tocco: un cambio scritto dall'app) e `dito`
+   * (la stessa, ma il cambio parte da un tocco su «Seleziona»: il bagliore della pressione riempie il vetro).
+   */
+  fun f310Scenes(): List<Scene> {
+    val h = 120f
+    val chooseDp = 264f
+    fun chosen(vararg p: GlassPlanePiece) = state(chooseDp, h, *p)
+    val choose = piece("seleziona", 83f, 38f, w = 96f)
+    val circle = piece("cerchio", 30f, 38f)
+    val triangle = piece("triangolo", 87f, 38f)
+    val finish = piece("fatto", 144f, 38f, w = 88f)
+    val labels = mapOf<Any, Label>(
+      "seleziona" to Label(text = "Seleziona"), "cerchio" to Label(icon = "fluid:search", sizeDp = 22f),
+      "triangolo" to Label(icon = "fluid:share", sizeDp = 22f), "fatto" to Label(text = "Fatto"),
+    )
+    val finger = Touch("seleziona", amount = 0.8f, u = 0.42f, v = 0.55f)
+    val out = ArrayList<Scene>()
+    for ((fund, dark, background) in listOf(
+      Triple("chiaro", false, Dunes), Triple("scuro", true, Dunes), Triple("testo", false, Text),
+    )) {
+      for ((variant, journey, touch) in listOf(
+        Triple("oggi", BeforeLight, null),
+        Triple("meta", GlassLiquidJourneys.Shipped, null),
+        Triple("dito", GlassLiquidJourneys.Shipped, finger),
+      )) {
+        out += Scene(
+          "seleziona-$fund-$variant",
+          "F3.10, «Seleziona» diventa tre: $variant (" + when (variant) {
+            "oggi" -> "F3.8a, il rigonfiamento senza la luce"
+            "meta" -> "la luce a metà, cambio senza tocco"
+            else -> "la luce a metà e la luce del dito, cambio da un tocco su «Seleziona»"
+          } + ")",
+          chooseDp, h, dark, chosen(choose), listOf(Step(0.0, chosen(circle, triangle, finish))), labels,
+          lastFrame = 54, background = background, apple = listOf(Select), journey = journey, touch = touch,
+          phase = "f3-10",
+        )
+      }
+    }
     return out
   }
 }

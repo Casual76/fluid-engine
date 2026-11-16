@@ -17,7 +17,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Controlli](controlli.md) | 8 | 54 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 9 | 81 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 164 |
-| [Vetro](vetro.md) | 31 | 239 |
+| [Vetro](vetro.md) | 31 | 242 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 77 |
 | [Tema, forma, tipo](tema.md) | 8 | 108 |
 | [Icone (FluidIcons)](icone.md) | 4 | 197 |

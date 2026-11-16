@@ -40,7 +40,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -201,15 +200,9 @@ private fun PlaneStage(
     Box(
       modifier = Modifier
         .fillMaxSize()
+        // Il fondo cambia solo in disegno, dentro il layer della sorgente: dalla 4.0 (F3.10) lo dice `glassBackdropSource`
+        // da sé (`glassSourceRedraws`, dentro il layer), e le sonde dei vetri rileggono senza che la pagina annunci niente.
         .glassBackdropSource(stage)
-        // Il fondo delle scene `adattamento` e `clear` cambia solo in disegno, dentro il layer della sorgente: chi registra
-        // la sorgente non ridisegna e non avvisa, e nessuna sonda rilegge (S3, F3-g: niente girava). Finché
-        // `glassBackdropSource` non lo dice da sé (F3.8a: `glassSourceRedraws`, una riga in `GlassMaterial.kt`), lo dice la
-        // pagina a ogni ridisegno del fondo.
-        .drawWithContent {
-          drawContent()
-          stage.notifyChanged()
-        }
         .drawBehind { fund(photo, config.scene, live.on) },
     )
     CompositionLocalProvider(LocalGlassBackdrop provides stage, LocalFluidCanvasBackdrop provides stage) {
@@ -721,7 +714,9 @@ private fun JourneyLog(config: PlaneConfig, live: PlaneLive, frame: PlaneFrame, 
             PlaneLogTag,
             "VIAGGIO ${if (event == PlaneJourneyWatch.Event.Started) "partito" else "ripartito"} " +
               "dopo ${t - changedAt} ms dal cambio · viaggi=${FluidGlassContainerDiagnostics.totalJourneys} " +
-              "ripartenze=${FluidGlassContainerDiagnostics.totalRetargets} · ${flights(FluidGlassContainerDiagnostics.lastJourney)} t=$t",
+              "ripartenze=${FluidGlassContainerDiagnostics.totalRetargets} · ${flights(FluidGlassContainerDiagnostics.lastJourney)} " +
+              // F3.10: la luce del dito, il bagliore da cui comincia il campo del vetro toccato (zero senza tocco).
+              "dito=${"%.2f".format(java.util.Locale.ROOT, FluidGlassContainerDiagnostics.lastFinger)} t=$t",
           )
         }
         PlaneJourneyWatch.Event.Finished -> Log.i(

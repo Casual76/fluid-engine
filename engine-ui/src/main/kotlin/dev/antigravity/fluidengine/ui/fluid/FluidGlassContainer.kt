@@ -43,6 +43,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -90,12 +91,14 @@ import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusionDefault
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneFusionDp
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeck
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneShape
+import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneTouch
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurfaceInked
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneMotion
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneNeckMs
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.recordLayer
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.field.GlassJourneyFingerMin
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidJourney
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidJourneys
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
@@ -463,6 +466,9 @@ object FluidGlassContainerDiagnostics {
   @Volatile
   private var contents: List<FluidGlassContentRecord> = emptyList()
 
+  @Volatile
+  private var finger: Float = 0f
+
   /** I viaggi partiti (un cambio a riposo), in tutto il processo. */
   val totalJourneys: Long get() = journeys.get()
 
@@ -498,6 +504,13 @@ object FluidGlassContainerDiagnostics {
   val lastRestLarge: Boolean get() = restLarge
 
   /**
+   * La **luce del dito** dell'ultimo viaggio partito o ripartito (F3.10): il bagliore da cui comincia il campo del vetro
+   * toccato, 0..1 (nelle unità della pressione). Zero se il viaggio non l'ha fatto partire un tocco su un vetro del
+   * contenitore: allora parte dal livello del carattere.
+   */
+  val lastFinger: Float get() = finger
+
+  /**
    * Le tre distanze di fusione della tavola di F3.3, da riprendere sul dispositivo (S3): quella scelta da Alessio è la
    * media, di serie; le altre due servono a confrontarle dal vivo.
    */
@@ -529,11 +542,16 @@ object FluidGlassContainerDiagnostics {
     rest = emptyList()
     restLarge = false
     contents = emptyList()
+    finger = 0f
   }
 
   internal fun onJourney(records: List<FluidGlassFlightRecord>, retarget: Boolean) {
     if (retarget) retargets.incrementAndGet() else journeys.incrementAndGet()
     last = records
+  }
+
+  internal fun onFinger(entry: Float) {
+    finger = entry
   }
 
   internal fun onContents(records: List<FluidGlassContentRecord>) {
@@ -864,19 +882,77 @@ internal class FluidGlassPlaneDriver(
 
   /**
    * Il livello della **luce** del carattere del viaggio adesso, 0..1 (`GlassLiquidJourney.light` alla [phase]): il velo
-   * verso la luce, l'alone e la smerigliatura che la ricetta delle superfici fisiche applicherà con
-   * `glassJourneyRecipe`. Zero a riposo. **Oggi il palco non lo usa**: l'aggancio alla ricetta è del pacchetto dopo
-   * F3.8a, e `FluidGlassContainerState.driveStage` dice dove passarlo. Il livello e la sua entrata sono già qui, provati.
+   * verso la luce, l'alone e la smerigliatura che la ricetta delle superfici fisiche applica con `glassJourneyRecipe`
+   * (F3.10: `FluidGlassContainerState.driveStage` lo mette nella forma di ogni campo che viaggia). Zero a riposo.
    */
   val journeyLight: Float
     get() {
       val running = journey ?: return 0f
-      return character().light(phase, journeyLightEntry, running.settleMs.toFloat())
+      val c = character()
+      // Un carattere senza luce (`journey=off`) non ha livello: il palco dice zero, non l'inviluppo della curva.
+      if (!c.lights) return 0f
+      return c.light(phase, journeyLightEntry, running.settleMs.toFloat())
     }
 
-  /** Il livello del **rigonfiamento** del carattere adesso, 0..1 (`GlassLiquidJourney.swell` alla [phase]): zero a riposo. */
+  /**
+   * Il livello del **rigonfiamento** del carattere adesso, 0..1 (`GlassLiquidJourney.swell` alla [phase]): zero a riposo, e
+   * zero con un carattere senza rigonfiamento (`journey=off`).
+   */
   val journeySwell: Float
-    get() = if (journey == null) 0f else character().swell(phase, journeySwellEntry)
+    get() {
+      if (journey == null) return 0f
+      val c = character()
+      return if (c.swell > 0f) c.swell(phase, journeySwellEntry) else 0f
+    }
+
+  /**
+   * La **luce del dito** del viaggio in corso (F3.10): il vetro toccato che l'ha fatto partire, dove stava il dito, e
+   * da che bagliore comincia. Null senza tocco (un cambio dall'app, da un timer, da un vetro fuori dal contenitore): il
+   * viaggio ha la luce del carattere e basta. La dà il contenitore con [touched], subito dopo la partenza; un viaggio che
+   * riparte se la porta dietro dal bagliore che aveva (invariante 16).
+   */
+  var finger: FluidGlassFinger? = null
+    private set
+
+  /** Il bagliore e il riempimento del dito del viaggio interrotto, da cui riparte quello nuovo: vedi [touched]. */
+  private var fingerGlowCarried = 0f
+  private var fingerFillCarried = 0f
+
+  /** Il bagliore del dito adesso, 0..1 (`GlassLiquidJourney.fingerGlow` alla [phase]): zero senza tocco e a riposo. */
+  val fingerGlow: Float
+    get() {
+      val touched = finger ?: return 0f
+      val running = journey ?: return 0f
+      return character().fingerGlow(phase, touched.entry, running.settleMs.toFloat())
+    }
+
+  /** Quanto il bagliore del dito ha riempito il vetro adesso, 0..1 (`GlassLiquidJourney.fingerFill`): zero senza tocco. */
+  val fingerFill: Float
+    get() {
+      val touched = finger ?: return 0f
+      if (journey == null) return 0f
+      return character().fingerFill(phase, touched.fillEntry)
+    }
+
+  /**
+   * Il viaggio appena partito o ripartito l'ha fatto partire un **tocco** sul pezzo [key] (F3.10): il suo bagliore lo
+   * accompagna. [amount] è la pressione che il vetro ha adesso (`GlassTouchLight.amount`), [u] e [v] dove sta il dito
+   * in frazione del suo riquadro. [shown] dice se il bagliore si vedeva sul vetro fermo (un pezzo solo a riposo: i
+   * grappoli non lo mostrano ancora, F6.1): allora il viaggio comincia da quel bagliore, esatto, e il passaggio riposo →
+   * palco non salta; altrimenti sale da quello che c'era. Con la luce del dito spenta (`GlassLiquidJourney.finger`
+   * zero, `journey=off`) non fa niente.
+   */
+  fun touched(key: Any, amount: Float, u: Float, v: Float, shown: Boolean) {
+    if (journey == null || !(character().finger > 0f)) return
+    val pressed = if (shown && amount.isFinite()) amount.fastCoerceIn(0f, 1f) else 0f
+    finger = FluidGlassFinger(
+      key = key,
+      entry = max(fingerGlowCarried, pressed),
+      fillEntry = fingerFillCarried,
+      u = if (u.isFinite()) u.fastCoerceIn(0f, 1f) else 0.5f,
+      v = if (v.isFinite()) v.fastCoerceIn(0f, 1f) else 0.5f,
+    )
+  }
 
   /**
    * Il collo delle unioni che **cambiano** in questo viaggio (F3.8a): «Unisci» e «Separa» sono un viaggio, non un
@@ -946,6 +1022,9 @@ internal class FluidGlassPlaneDriver(
       movingMs = 0.0
       journeyLightEntry = 0f
       journeySwellEntry = 0f
+      finger = null
+      fingerGlowCarried = 0f
+      fingerFillCarried = 0f
       neck = PhysicsPlaneNeck(-1f, physicsPlaneNeckMs(started.settleMs))
       startUnion(started, from = null)
       return Change.Started
@@ -964,6 +1043,9 @@ internal class FluidGlassPlaneDriver(
       // La luce e il rigonfiamento di adesso, prima di cambiare viaggio: da lì riparte il carattere di quello nuovo.
       val lightNow = journeyLight
       val swellNow = journeySwell
+      // E il bagliore del dito: il viaggio nuovo lo porta da dov'è (F3.10).
+      val fingerNow = fingerGlow
+      val fillNow = fingerFill
       val restarted = running.retarget(elapsed, measured)
       // Il collo riparte da dove si trova, sul riposo a vista del viaggio nuovo.
       val neckMs = physicsPlaneNeckMs(restarted.settleMs)
@@ -979,6 +1061,9 @@ internal class FluidGlassPlaneDriver(
       movingMs = movingNanos / 1_000_000.0 / durationScale.toDouble()
       journeyLightEntry = lightNow
       journeySwellEntry = swellNow
+      fingerGlowCarried = fingerNow
+      fingerFillCarried = fillNow
+      finger = finger?.let { FluidGlassFinger(it.key, fingerNow, fillNow, it.u, it.v) }
       startUnion(restarted, from = unionNow)
       return Change.Retargeted
     }
@@ -1014,9 +1099,46 @@ internal class FluidGlassPlaneDriver(
     movingMs = 0.0
     journeyLightEntry = 0f
     journeySwellEntry = 0f
+    finger = null
+    fingerGlowCarried = 0f
+    fingerFillCarried = 0f
     unionKind = GlassPlaneUnionChange.None
     unionDissolve = null
   }
+}
+
+/**
+ * Il dito che ha fatto partire un viaggio del piano (F3.10): il pezzo toccato [key], il bagliore [entry] e il
+ * riempimento [fillEntry] da cui il viaggio comincia, e dove stava il dito nel pezzo ([u], [v], in frazione del suo
+ * riquadro: segue il pezzo in volo).
+ */
+@Immutable
+internal class FluidGlassFinger(val key: Any, val entry: Float, val fillEntry: Float, val u: Float, val v: Float)
+
+/**
+ * La luce del dito di un campo del palco in un fotogramma (F3.10): il bagliore [glow] e il riempimento [fill] del dito
+ * [finger], centrato dove stava il dito sul pezzo toccato **in volo** (nelle coordinate del nodo del campo, che
+ * comincia in [origin]). Null se il dito non c'è, se il bagliore è spento o se il pezzo toccato non viaggia in questo
+ * campo: gli altri campi hanno la luce del carattere e basta. Pura.
+ */
+internal fun fluidGlassFingerTouch(
+  frame: GlassPlaneFrame,
+  flights: List<GlassPlaneFlightId>,
+  origin: Offset,
+  finger: FluidGlassFinger?,
+  glow: Float,
+  fill: Float,
+): PhysicsPlaneTouch? {
+  if (finger == null || !(glow > 0f)) return null
+  if (flights.none { it.sourceKey == finger.key || it.targetKey == finger.key }) return null
+  val flying = frame.pieces.firstOrNull {
+    it.flightId in flights && (it.flightId.sourceKey == finger.key || it.flightId.targetKey == finger.key)
+  }
+  // Un pezzo che non è più nel fotogramma (confluito del tutto) lascia il bagliore al centro del campo.
+  val b = flying?.bounds
+  val x = if (b != null && b.width > 0f) b.left + b.width * finger.u - origin.x else Float.NaN
+  val y = if (b != null && b.height > 0f) b.top + b.height * finger.v - origin.y else Float.NaN
+  return PhysicsPlaneTouch(glow.fastCoerceIn(0f, 1f), x, y, fill.fastCoerceIn(0f, 1f))
 }
 
 /**
@@ -1164,8 +1286,9 @@ internal class FluidGlassSwell(
  * lato più veloce (`physicsPlaneMotion`). È ciò che il contenitore dà alla superficie fisica di ogni campo a ogni
  * fotogramma, e ciò che le tracce del banco rendono. Pura.
  *
- * [journeyLight] è la luce del carattere del viaggio (F3.9), che la forma porta alla ricetta: di serie zero, perché
- * l'aggancio non c'è ancora (lo fa il pacchetto dopo F3.8a).
+ * [journeyLight] è la luce del carattere del viaggio (F3.9), che la forma porta alla ricetta (`glassJourneyRecipe`,
+ * agganciata da F3.10); [touch] la luce del dito del campo ([fluidGlassFingerTouch]). Di serie zero e null: la forma di
+ * prima, al bit.
  */
 internal fun fluidGlassStagePlane(
   frame: GlassPlaneFrame,
@@ -1178,6 +1301,7 @@ internal fun fluidGlassStagePlane(
   density: Float,
   movingMs: Float,
   journeyLight: Float = 0f,
+  touch: PhysicsPlaneTouch? = null,
 ): PhysicsPlaneShape {
   val shape = fluidGlassFieldSlabs(frame, flights, origin, smoothing)
   // Il lato più veloce del campo, in dp al secondo.
@@ -1194,13 +1318,15 @@ internal fun fluidGlassStagePlane(
     materialize = shape.materialize,
     motion = physicsPlaneMotion(speedPx / density, movingMs),
     journeyLight = journeyLight,
+    touch = touch,
   )
 }
 
 /** Come arriva il vetro di un pezzo, per il suo contenuto: vedi [glassPieceContentFor]. Pura. */
 internal fun fluidGlassArrivalOf(change: GlassPlaneChange): GlassPieceArrival = when (change) {
   GlassPlaneChange.BornFromNeighbour -> GlassPieceArrival.BornFromNeighbour
-  GlassPlaneChange.Materialize -> GlassPieceArrival.ThroughLens
+  // Per chi se ne va (F3.10): il simbolo di chi scompare per lente ha i tempi della scomparsa, non del cambio di contesto.
+  GlassPlaneChange.Materialize, GlassPlaneChange.Dematerialize -> GlassPieceArrival.ThroughLens
   GlassPlaneChange.Identity -> GlassPieceArrival.Instant
   else -> GlassPieceArrival.Stays
 }
@@ -1603,9 +1729,11 @@ internal class FluidGlassContainerState {
     piece.content.attached = true
     // In un contenitore già a riposo il pezzo nuovo nasce da un vicino o compare per lente: il suo contenuto aspetta il
     // fotogramma che lo decide, e poi entra col suo vetro (vedi [FluidGlassPieceContent]). Senza, si vedeva pieno, senza
-    // vetro, per il fotogramma in cui il pezzo è stato composto. Alla prima composizione del contenitore non c'è niente
-    // da aspettare.
-    if (renders && driver.rest != null) piece.content.hide()
+    // vetro, per il fotogramma in cui il pezzo è stato composto. Alla prima composizione del contenitore (F3.10, decisione
+    // aperta 5 di F3.8a) aspetta lo stesso: il vetro di riposo si pubblica al primo passo dell'orologio, e la composizione
+    // che lo monta è quella del fotogramma dopo; il contenuto torna a vista nello stesso passo (`onFrame`, `rest()`), e
+    // vetro e contenuto compaiono nello stesso fotogramma invece del contenuto un fotogramma prima.
+    if (renders) piece.content.hide()
     invalidate()
   }
 
@@ -1903,9 +2031,14 @@ internal class FluidGlassContainerState {
     return (shape as? ContinuousCornerShape)?.smoothing ?: 0f
   }
 
-  /** Di quanto il nodo di una superficie fisica si allarga attorno alla sagoma: fin dove arriva l'ombra in corpo. */
-  private fun shadowMarginPx(): Float =
-    with(density) { glassTravelShadowReachDp(GlassDefaults.buttonOptics().sanitized(), gain = 0f).dp.toPx() }
+  /**
+   * Di quanto il nodo di una superficie fisica si allarga attorno alla sagoma: fin dove arriva l'ombra in corpo. Per un
+   * campo del palco ([journey], F3.10) fin dove arriva l'alone del carattere del viaggio, che prende la maschera
+   * dell'ombra (con l'ombra B di serie la stessa portata); i grappoli fermi restano quelli di sempre, al bit.
+   */
+  private fun shadowMarginPx(journey: GlassLiquidJourney? = null): Float = with(density) {
+    glassTravelShadowReachDp(GlassDefaults.buttonOptics().sanitized(), gain = 0f, journey = journey).dp.toPx()
+  }
 
   // ---- Il palco ----
 
@@ -1914,7 +2047,7 @@ internal class FluidGlassContainerState {
     val target = driver.rest ?: return
     // Il riposo d'arrivo si monta subito, spento: riprenderà il vetro nella composizione in cui il palco lo lascia.
     publishRest(target)
-    val margin = shadowMarginPx()
+    val margin = shadowMarginPx(driver.journeyCharacter)
     // Chi non cambia resta al suo vetro di riposo (F3.8a): il palco prende solo i pezzi che viaggiano.
     val origin = driver.origin
     val resting = if (origin == null) emptyList() else fluidGlassRestingClusters(origin, target, journey.stillKeys)
@@ -1928,9 +2061,46 @@ internal class FluidGlassContainerState {
       resting = resting.mapTo(HashSet()) { fluidGlassRestKey(it) },
     )
     stageShapes.keys.retainAll(stage!!.fields.mapTo(HashSet()) { it.index })
+    noteFinger(retarget)
     startContents()
     driveStage()
     FluidGlassContainerDiagnostics.onJourney(records(driver.frame), retarget)
+  }
+
+  /**
+   * La luce del dito (F3.10): se il viaggio che parte l'ha fatto partire un tocco su un vetro interattivo del
+   * contenitore (un `fluidGlass().interactive()`, un tasto di vetro dell'engine), lo dice al conducente: il pezzo più
+   * premuto adesso, oltre la soglia [GlassJourneyFingerMin]. Il click arriva al rilascio, quindi la pressione sta già
+   * tornando: è il bagliore che il vetro fermo mostra in questo fotogramma, ed è da lì che il palco comincia.
+   */
+  private fun noteFinger(retarget: Boolean) {
+    findFinger(retarget)
+    FluidGlassContainerDiagnostics.onFinger(driver.finger?.entry ?: 0f)
+  }
+
+  private fun findFinger(retarget: Boolean) {
+    val origin = driver.origin ?: return
+    // Solo un vetro che viaggia: uno premuto che resta fermo (un grappolo che non cambia) tiene il suo bagliore lì.
+    val travelling = stage?.fields?.flatMapTo(HashSet()) { field -> field.flights.mapNotNull { it.sourceKey } } ?: return
+    var pressed: GlassPlanePiece? = null
+    var amount = GlassJourneyFingerMin
+    for (piece in origin.pieces) {
+      if (piece.key !in travelling) continue
+      val touch = looks[piece.key]?.touch ?: continue
+      val now = touch.amount()
+      if (now > amount) {
+        amount = now
+        pressed = piece
+      }
+    }
+    val piece = pressed ?: return
+    val at = looks[piece.key]?.touch?.position?.invoke() ?: Offset.Unspecified
+    val b = piece.bounds
+    val u = if (at.isSpecified && b.width > 0f) at.x / b.width else 0.5f
+    val v = if (at.isSpecified && b.height > 0f) at.y / b.height else 0.5f
+    // Il bagliore si vedeva solo sul vetro fermo di un pezzo solo (i grappoli non lo mostrano ancora: F6.1).
+    val shown = !retarget && origin.clusters.any { it.pieces.size == 1 && it.pieces.first().key == piece.key }
+    driver.touched(piece.key, amount, u, v, shown)
   }
 
   private fun stageFieldOf(
@@ -2007,6 +2177,12 @@ internal class FluidGlassContainerState {
     swell = FluidGlassSwell(
       driver.journeyCharacter, driver.journeySwell, FluidMotion.PlaneSwellMaxDp * density.density, density.density,
     )
+    // La luce del carattere (F3.9) e quella del dito (F3.10), agganciate da F3.10: la forma le porta alla ricetta delle
+    // superfici del palco (`physicsLiquidRecipe`, `physicsLiquidGlow`). Chi compare o scompare per lente ha la sua.
+    val light = driver.journeyLight
+    val finger = driver.finger
+    val glow = driver.fingerGlow
+    val fill = driver.fingerFill
     for (field in stage.fields) {
       val plane = fluidGlassStagePlane(
         frame = frame,
@@ -2017,12 +2193,10 @@ internal class FluidGlassContainerState {
         // Il collo dell'orologio, o quello dell'unione che in questo campo nasce o si scioglie.
         neck = if (restFused) 1f else driver.neckNow(field.union),
         swell = if (field.lens) FluidGlassSwell.None else swell,
-        // La **luce** del carattere del viaggio (F3.9) è spenta: l'aggancio alla ricetta è del pacchetto dopo F3.8a
-        // (`sessioni/f3-9/aggancio.md`). Si accende passando qui
-        // `journeyLight = if (field.lens) 0f else driver.journeyLight`, col margine dell'alone in `shadowMarginPx`
-        // (`glassTravelShadowReachDp(journey = …)`) e la ricetta in `physicsLiquidRecipe`.
         density = density.density,
         movingMs = movingMs,
+        journeyLight = if (field.lens) 0f else light,
+        touch = if (field.lens) null else fluidGlassFingerTouch(frame, field.flights, field.node.topLeft, finger, glow, fill),
       )
       val holder = stageShapes[field.index]
       if (holder == null) stageShapes[field.index] = mutableStateOf(plane) else holder.value = plane
@@ -2201,6 +2375,8 @@ private fun FluidGlassStageSurface(state: FluidGlassContainerState, field: Fluid
         exports = field.exports,
         ink = ink,
         variant = look.variant,
+        // Il carattere del viaggio e la luce del dito (F3.10), col margine della cattura del carattere al colmo.
+        planeJourney = true,
       ),
   )
 }

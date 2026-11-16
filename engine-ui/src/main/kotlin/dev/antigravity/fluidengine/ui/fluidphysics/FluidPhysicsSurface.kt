@@ -214,6 +214,12 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
    * lastra ferma; il vetro di prima non lo legge. Di serie [GlassLiquidVariant.Regular], al bit come prima.
    */
   variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
+  /**
+   * Vero per un campo del palco del piano flottante (F3.10): la superficie porta il carattere del viaggio e la luce del
+   * dito che il palco mette nella sua forma (`PhysicsPlaneShape`), e la cattura ha il margine del carattere al colmo. Lo
+   * passa solo `FluidGlassContainer`; falso (di serie) per tutti gli altri, al bit come prima.
+   */
+  planeJourney: Boolean = false,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
@@ -327,7 +333,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
     val probedArea: () -> Rect? = remember(state) { { state.ensurePlan().bounds } }
     val surface = remember(
       state, role, material, darkSide, screenDensity, quality, tint, tintFrom, pressState, reducedMotion, adaptive,
-      restingFilmYields, preference, variant,
+      restingFilmYields, preference, variant, planeJourney,
     ) {
       PhysicsLiquidSurface(
         state = state,
@@ -350,6 +356,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
         restingFilmYields = restingFilmYields,
         preference = preference,
         variant = variant,
+        planeJourney = planeJourney,
       )
     }
     return this

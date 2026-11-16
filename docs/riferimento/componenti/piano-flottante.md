@@ -194,7 +194,7 @@ fermava a vista a 133 ms. **Il collo** si strozza una volta sola, «spesso» (es
 2026-11-16), e si rompe dopo che i pezzi si sono staccati, a circa tre quarti del moto (~228 ms, ~70 ms prima del
 riposo a vista: l'ordine delle fasi di R4 B2 (d), dove Apple lo rompe all'80% del tempo). Il suo orologio dura il doppio
 del riposo a vista, così il collo lungo scelto da Alessio cade nella stessa fase della molla in cui è stato tarato. Durante il viaggio il vetro
-**schiarisce** (il vetro in viaggio, dalla velocità dei suoi lati) e torna smerigliato negli ultimi istanti.
+**si illumina e si fa lattiginoso** (il carattere del viaggio, sotto) e torna al vetro di riposo prima di posarsi.
 
 **Il viaggio parte nel fotogramma del cambio e non lascia code** (F3.8a). I primi tre passi dell'orologio hanno un
 tetto di 17 ms (`FluidMotion.PlaneFirstStepMillis`): a schermo fermo un pannello a frequenza variabile gira a 30 Hz e,
@@ -208,9 +208,27 @@ i vetri di un cambio di contesto, di una nascita dal vicino, di una confluenza, 
 gonfiano** nel mezzo del viaggio, del 15% del lato corto al 45% della fase (3,6 dp per lato su un tasto da 48 dp),
 rientrato al 95%; mai più di `FluidMotion.PlaneSwellMaxDp` (6 dp per lato), così un pannello grande non si deforma. Un
 viaggio interrotto riparte dal rigonfiamento che ha; chi compare o scompare per lente non si gonfia. La manopola è
-`travelswell` (o `journey=off`) di `gallery.tune`. **La luce e la smerigliatura dello stesso carattere non sono ancora
-agganciate al palco**: il livello c'è (`FluidGlassPlaneDriver.journeyLight`), la forma del piano lo sa portare
-(`PhysicsPlaneShape.journeyLight`), e oggi vale zero.
+`travelswell` (o `journey=off`, che spegne tutto il carattere) di `gallery.tune`.
+
+**La luce del viaggio** (F3.9, agganciata al palco da F3.10; scelta di Alessio del 16 novembre: «a metà, col
+rigonfiamento di Apple, più la luce del dito»). Nello stesso viaggio il vetro **si illumina e si fa lattiginoso**: il
+velo va a metà verso il bianco, l'ombra sotto la sagoma diventa un alone di luce, la sfocatura raddoppia e la
+limpidezza del vetro in viaggio cede allo smerigliato. Sale in ~70 ms, resta piena fino a metà viaggio e si spegne con
+una coda lunga entro il 90%: alla partenza e all'arrivo il vetro è quello di riposo al bit. Sul tema scuro prende metà
+della luce. È il render di Apple «Select → Done» preso a metà (`GlassLiquidJourneys.Shipped`): la luce piena è un blocco
+bianco che sul testo e al buio copre tutto. Solo il palco del contenitore la porta: menu e Fluid-physics fuori dal piano
+restano «un po' limpidi» (la scelta B di F1B), e chi compare o scompare per lente ha la sua comparsa.
+
+**La luce del dito** (F3.10). Quando il cambio parte da **un tocco su un vetro del contenitore** (un tasto che diventa
+due quando lo premi, «Seleziona» che diventa tre), il bagliore della pressione di quel vetro **entra nel viaggio**: il
+campo che nasce da lui comincia dal bagliore che il vetro fermo mostrava (il click arriva al rilascio, il dito si sta
+alzando), lo allarga fino a riempire tutta la sagoma entro metà viaggio, e lo spegne con la luce del carattere. In
+Apple il bagliore del tocco riempie il vetro in ~230 ms: è probabilmente il blocco bianco del render. Lo porta ogni
+pezzo interattivo del contenitore: `fluidGlass(FluidGlass.Regular.interactive())`, `glassControlSurface`,
+`FluidGlassButton`, `FluidGlassIconButton`. Un cambio scritto dall'app senza un tocco (un timer, un evento, un vetro
+fuori dal contenitore) parte dal livello del carattere. Le manopole: `journey=off|gentle|half|apple` (le intensità della
+tavola di F3.9), `finger=on|off` e `travelfinger` (quanto bagliore si porta), più `travellight`, `travelglow`,
+`travelfrost`, `travelswell`.
 
 **Un cambio a metà viaggio riparte da dove i vetri si trovano**, con la velocità che hanno, e il collo riparte da quello
 che c'era (invariante 16): niente torna indietro di colpo, niente compare due volte, e il viaggio non va in coda. Con
@@ -251,15 +269,16 @@ consegne, niente ricetta del viaggio, e due tasti fermi a 8 dp restano due tasti
 **Il contenuto di un pezzo si vede solo dentro il suo vetro** (F3.8a). L'app non fa niente: mette e toglie i pezzi come
 sempre, e il contenitore porta il contenuto di ognuno lungo la **fase** del volo del suo vetro (0 alla partenza, 1 al
 riposo a vista), ritagliato a ogni fotogramma sulla sagoma in volo. È la sequenza del render di Apple «Select → Done»
-(R4 B2 (d), R7 A): il vecchio è già sfocato all'8% ed è sparito nel vetro entro il 15%; il nuovo arriva sfocato dentro
-il vetro dopo metà viaggio ed è nitido a quattro quinti.
+(R4 B2 (d), R7 A): il vecchio è già sfocato all'8% ed è sparito nel vetro al 16% (Apple: 14–17%); il nuovo arriva
+sfocato dentro il vetro dopo metà viaggio ed è nitido a quattro quinti.
 
 | il vetro del pezzo | il suo contenuto |
 |---|---|
 | resta (stesso `id`) | **nitido, viaggia col suo vetro**: spostato di quanto il centro della lastra è lontano dal posto d'arrivo, mai stirato |
 | nasce da un vicino | non c'è fino a metà viaggio (il vetro deve prima coprirne il posto); poi arriva sfocato e traslucido al suo posto, nitido al 78% |
 | compare per lente | da un quarto della comparsa, 2× e traslucido, si condensa fino all'85% |
-| se ne va (confluisce o scompare per lente) | **resta dov'era** anche se l'app l'ha già tolto, si sfoca e svanisce nel primo 40% del volo (~130 ms), coperto dal bordo che si ritira |
+| confluisce in un vicino (un cambio di contesto) | **resta dov'era** anche se l'app l'ha già tolto, si sfoca e svanisce entro il 16% del volo (~47 ms; fino a F3.10 il 26%), coperto dal bordo che si ritira |
+| scompare per lente | resta dov'era, si sfoca e svanisce nei primi ~130 ms della scomparsa (R4 B3) |
 | `Identity` | c'è o non c'è, col vetro |
 
 Un cambio a metà viaggio riparte dall'aspetto che il contenuto ha in quel momento (un «Fatto» che stava nascendo e
@@ -415,14 +434,17 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
   `glassControlSurface` li decide il contenitore.
 - **Chi compare accanto a chi si sposta** è un campo a sé (una superficie in più per la durata della comparsa): la sua
   comparsa è esatta, ma mentre compare non si fonde col vicino.
-- **Il primo fotogramma di un contenitore nuovo**: le superfici di riposo si montano nel fotogramma dopo la prima misura,
-  quindi un contenitore appena composto mostra il contenuto un fotogramma prima del vetro. Non ricomporre il contenitore
-  per cambiare stato (una `key(...)` attorno alla pagina): si cambia lo stato dei pezzi, e il piano viaggia.
-- **Una sorgente che cambia solo nel disegno**: la sonda del contenitore rilegge quando la sorgente annuncia un disegno
-  nuovo. Una sorgente sotto un antenato con un suo layer, che cambia colore in `drawBehind` senza ricomporsi, non lo
-  annuncia da sola: finché `glassBackdropSource` non porta `glassSourceRedraws` (una riga, in attesa), chi cambia il
-  fondo così chiama `GlassBackdropState.notifyChanged()` nel disegno della sorgente, come fanno le pagine «Piano
-  flottante» e «Assistente» della galleria.
+- **Il primo fotogramma di un contenitore nuovo**: le superfici di riposo si montano nel fotogramma dopo la prima misura;
+  dalla 4.0 (F3.10) il contenuto dei pezzi aspetta lo stesso fotogramma, e vetro e contenuto compaiono insieme, un
+  fotogramma dopo la composizione. Non ricomporre il contenitore per cambiare stato (una `key(...)` attorno alla
+  pagina): si cambia lo stato dei pezzi, e il piano viaggia.
+- **Una sorgente che cambia solo nel disegno** (un fondo che passa da chiaro a scuro in `drawBehind`, sotto un antenato
+  col suo layer): dalla 4.0 (F3.10) `glassBackdropSource` lo annuncia da sé (`glassSourceRedraws`, dentro il suo layer),
+  e la sonda del contenitore rilegge. Non serve più `GlassBackdropState.notifyChanged()` nel disegno; resta per lo
+  scorrimento fatto dal codice e per un figlio con un suo layer che cambia a pagina ferma.
+- **La luce del dito nei grappoli**: un pezzo di un grappolo di più pezzi a riposo non mostra ancora il bagliore della
+  pressione (F6.1); toccato, il suo viaggio porta il bagliore da zero, in ~70 ms, invece che da quello del vetro fermo.
+  Un `fluidGlassPanel` non è interattivo: il suo tocco non porta luce.
 - **Il rientro iniziale** di una capsula che si allarga (R4 B2 (c): il bordo rientra di 0,19 H prima di allargarsi) non
   c'è: le molle per lato partono ferme e non anticipano.
 - **Altri componenti** che posano il `modifier` dell'app fuori dal vetro non inoltrano ancora gli attributi del piano:
@@ -447,6 +469,9 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
   volta, ogni fotogramma è una forma nuova (una piccola allocazione) e il piano si rifà solo quando la forma cambia.
   Una comparsa accanto a un vetro che si sposta è una superficie in più.
 - **Il contenuto che si sfoca**: un `RenderEffect` di sfocatura per strato, solo durante il cambio.
+- **La luce del viaggio** (F3.10): la cattura di un campo del palco ha il margine della sfocatura al colmo del carattere
+  (con «a metà» il doppio: 13,5 dp per lato invece di 6,75), e nel mezzo del viaggio il raggio raddoppia. Da misurare
+  sul tablet (framestats del RenderThread, `journey=off` contro di serie).
 - **Il contenuto dei pezzi**: un layer per pezzo, sempre (a riposo senza effetti: prende il posto del layer della
   dissolvenza dell'inchiostro); in viaggio un ritaglio a sagoma per pezzo e una sfocatura solo per chi nasce, compare o
   se ne va. Chi se n'è andato tiene il suo layer finché il suo contenuto non è svanito, poi lo rilascia.
@@ -463,8 +488,9 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
 e `lastRest` (un `FluidGlassPieceRecord` per vetro a riposo: `id`, riquadro, raggi risolti, taglia del grappolo, unione,
 `exports` se esporta il suo materiale), `lastRestLarge` (se nell'ultimo riposo il contenitore scurisce in continuo),
 `lastContents` (un `FluidGlassContentRecord` per pezzo dell'ultimo viaggio: `id`, la parte del suo contenuto, se il pezzo
-se n'è andato). Le
-sonde vive: `FluidGlassProbeDiagnostics.liveProbes`. La pagina «Piano flottante» della galleria scrive tutto questo in
+se n'è andato), `lastFinger` (F3.10: il bagliore da cui comincia il campo del vetro toccato nell'ultimo viaggio, zero
+senza tocco). Le sonde vive: `FluidGlassProbeDiagnostics.liveProbes`; i ridisegni delle sorgenti che le hanno svegliate:
+`totalSourceRedraws`. La pagina «Piano flottante» della galleria scrive tutto questo in
 logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine viaggio.
 
 ## Cosa è verificato dai test
@@ -485,6 +511,13 @@ logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine via
   rigonfiamento; in `GlassProbeSchedulerTest` la sorgente che ridisegna e fa rileggere la sonda; `F38aExportTest` legge
   dalle tracce del banco ciò che S3 ha visto sul tablet (nessuna scritta fuori dal vetro, il contenuto di chi nasce dopo
   metà viaggio, due fermi che non passano dal palco, «Unisci» e «Separa» come viaggi).
+- F3.10: `FluidGlassJourneyLightTest` (la luce del carattere nel palco, `journey=off` che spegne luce e rigonfiamento, il
+  tocco che fa partire il campo dal bagliore della pressione e lo riempie, il cambio senza tocco, la ripartenza),
+  `PhysicsJourneyLightTest` (la ricetta col carattere dopo il vetro in viaggio, al bit a livello zero, il margine del
+  palco, il bagliore del dito); in `GlassProbeSchedulerTest` l'avviso montato dentro il layer della sorgente;
+  `F310ExportTest` le tracce delle tavole di F3.10; nella galleria `GlassSourceRedrawsTest` (un contenitore fermo sopra un
+  fondo che cambia solo colore rilegge e gira) e `FluidGlassFingerLightTest` (un tocco vero accende il campo, un cambio
+  dall'app no).
 - Nella galleria, in Robolectric: `FluidGlassContainerTest` (i pezzi si accoppiano come dichiarato, l'ordine, una cattura
   per grappolo e una sonda, il tasto dell'engine come pezzo, la concentrica nell'albero) e `PlanePageTest` (ogni scena
   della pagina «Piano flottante»: il viaggio dichiarato, nessun avviso d'ordine, il fondo che cambia non apre viaggi,

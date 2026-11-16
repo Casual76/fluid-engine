@@ -32,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -170,14 +169,9 @@ private fun AssistantStage(
     Box(
       modifier = Modifier
         .fillMaxSize()
+        // Il fondo cambia solo in disegno, dentro il layer della sorgente: dalla 4.0 (F3.10) lo dice `glassBackdropSource`
+        // da sé (`glassSourceRedraws`, dentro il layer), e le sonde dei vetri rileggono senza che la pagina annunci niente.
         .glassBackdropSource(stage)
-        // Il fondo cambia solo in disegno, dentro il layer della sorgente: chi registra la sorgente non ridisegna e non
-        // avvisa, e le sonde dei vetri non rileggono (S3: niente girava). Finché `glassBackdropSource` non lo dice da sé
-        // (F3.8a: `glassSourceRedraws`, una riga in `GlassMaterial.kt`), lo dice la pagina a ogni ridisegno del fondo.
-        .drawWithContent {
-          drawContent()
-          stage.notifyChanged()
-        }
         .drawBehind { fund(photo, live.fund) },
     )
     CompositionLocalProvider(LocalGlassBackdrop provides stage, LocalFluidCanvasBackdrop provides stage) {

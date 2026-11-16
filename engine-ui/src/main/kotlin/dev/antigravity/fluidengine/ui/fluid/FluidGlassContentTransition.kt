@@ -605,11 +605,19 @@ internal object GlassPieceContentDefaults {
   const val LensScale: Float = 2f
 
   /**
-   * In quanta parte del volo sta la curva d'uscita di F3.4 (T): 0,4, cioè il contenuto è via a 0,26 del volo
-   * ([GlassContentDefaults.ExitEnd] × 0,4). Sui 470 ms di una scomparsa sono 124 ms (R4 B3: «simbolo via in 130 ms»),
-   * sui 300 di una confluenza 79; in Apple «Select» è sfocato dal primo fotogramma (3%) e sparito al 14–17%.
+   * In quanta parte del volo sta la curva d'uscita di F3.4 (T) per il contenuto di un vetro che se ne va **confluendo**
+   * in un altro, cioè in un cambio di contesto: 0,24, il contenuto è via al 16% del volo ([GlassContentDefaults.ExitEnd]
+   * × 0,24), 47 ms sui 300 di un cambio di contesto. In Apple «Select» è sfocato dal primo fotogramma (3%) e sparito al
+   * 14–17% (R4 B2 (d), sulla tavola di F3.8a); fino a F3.10 era 0,4, cioè il 26%, ed era l'ultima cosa del contenuto
+   * lontana dalla clip. L'ingresso del nuovo non cambia (sfocato dal 60%, nitido all'80%).
    */
-  const val ExitSpan: Float = 0.4f
+  const val ExitSpan: Float = 0.24f
+
+  /**
+   * Lo stesso per il simbolo di un vetro che **scompare per lente** (R4 B3): 0,4, cioè via a 0,26 del volo, 124 ms sui
+   * 470 di una scomparsa («simbolo via in 130 ms»). È la scheda che lo misura, e non è quella del cambio di contesto.
+   */
+  const val LensExitSpan: Float = 0.4f
 
   /** In quanta parte del volo un contenuto che resta torna nitido dall'aspetto che aveva. */
   const val RecoverSpan: Float = 0.5f
@@ -623,6 +631,12 @@ internal object GlassPieceContentDefaults {
 internal data class GlassPieceContent(
   val role: GlassPieceContentRole,
   val from: GlassContentLook = GlassContentLook.Sharp,
+  /**
+   * Per [GlassPieceContentRole.Exit]: in quanta parte del volo sta la curva d'uscita. [GlassPieceContentDefaults.ExitSpan]
+   * per chi confluisce in un vicino (un cambio di contesto), [GlassPieceContentDefaults.LensExitSpan] per chi scompare per
+   * lente. Le altre parti non lo leggono.
+   */
+  val span: Float = GlassPieceContentDefaults.ExitSpan,
 ) {
   companion object {
     val Rest = GlassPieceContent(GlassPieceContentRole.Rest)
@@ -677,7 +691,7 @@ internal fun glassPieceContentLook(
       }
     }
     GlassPieceContentRole.Exit -> {
-      val u = p / GlassPieceContentDefaults.ExitSpan
+      val u = p / glassPieceExitSpan(content)
       val from = content.from
       GlassContentLook(
         alpha = (from.alpha * GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable)).coerceIn(0f, 1f),
@@ -708,9 +722,13 @@ internal fun glassPieceContentDone(content: GlassPieceContent, phase: Float): Bo
   GlassPieceContentRole.Rest, GlassPieceContentRole.Hidden -> true
   GlassPieceContentRole.Born -> glassPieceBornU(phase) >= GlassContentDefaults.EnterEnd
   GlassPieceContentRole.Lens -> phase >= GlassPieceContentDefaults.LensTo
-  GlassPieceContentRole.Exit -> phase / GlassPieceContentDefaults.ExitSpan >= GlassContentDefaults.ExitEnd
+  GlassPieceContentRole.Exit -> phase / glassPieceExitSpan(content) >= GlassContentDefaults.ExitEnd
   GlassPieceContentRole.Recover -> phase >= GlassPieceContentDefaults.RecoverSpan
 }
+
+/** La parte del volo in cui sta l'uscita di [content]: la sua, se è un numero sensato, altrimenti quella di serie. */
+private fun glassPieceExitSpan(content: GlassPieceContent): Float =
+  if (content.span.isFinite() && content.span > 0f) content.span else GlassPieceContentDefaults.ExitSpan
 
 /** Che cosa fa il vetro di un pezzo in un viaggio, per il suo contenuto: la sola parte di `GlassPlaneChange` che conta qui. */
 internal enum class GlassPieceArrival { Stays, BornFromNeighbour, ThroughLens, Instant }
@@ -726,8 +744,12 @@ internal enum class GlassPieceArrival { Stays, BornFromNeighbour, ThroughLens, I
 internal fun glassPieceContentFor(arrival: GlassPieceArrival, now: GlassContentLook?, departed: Boolean): GlassPieceContent {
   if (departed) {
     // Un vetro che sparisce senza transizione porta via il contenuto con sé; uno mai visto non ha niente da far uscire.
+    // Il simbolo di chi scompare per lente ha i tempi della scomparsa (R4 B3); chi confluisce quelli del cambio di
+    // contesto (R4 B2 (d)).
+    val span = if (arrival == GlassPieceArrival.ThroughLens) GlassPieceContentDefaults.LensExitSpan
+      else GlassPieceContentDefaults.ExitSpan
     return if (arrival == GlassPieceArrival.Instant || now == null || now.alpha <= 0f) GlassPieceContent.Hidden
-      else GlassPieceContent(GlassPieceContentRole.Exit, now)
+      else GlassPieceContent(GlassPieceContentRole.Exit, now, span)
   }
   return when (arrival) {
     GlassPieceArrival.BornFromNeighbour -> GlassPieceContent(GlassPieceContentRole.Born)

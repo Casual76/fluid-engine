@@ -107,7 +107,7 @@ class F38aExportTest {
   @Test
   fun aLabelledButtonBecomesThreeLikeSelectBecomesDone() {
     // La sequenza della clip di Apple (R4 B2 (d)): il contenuto vecchio è già sfocato all'8% del viaggio e sparito nel
-    // vetro entro un terzo; quello nuovo non c'è prima di metà viaggio, arriva sfocato dentro il vetro ed è nitido a
+    // vetro al 14–17% (F3.10: era il 26%); quello nuovo non c'è prima di metà viaggio, arriva sfocato dentro il vetro ed è nitido a
     // quattro quinti. Mai una scritta nitida fuori dal vetro o prima del vetro.
     for (name in listOf("seleziona-fatto-chiaro", "seleziona-fatto-scuro")) {
       val trace = traces.getValue(name)
@@ -115,7 +115,7 @@ class F38aExportTest {
       assertNotNull("$name: «Seleziona» c'è ancora all'8%", old)
       assertTrue("$name: ed è già sfocata", number(old!!, "blurDp", 0.0) > 0.5)
       val gone = trace.frames.first { it.tMs >= 0.0 && layer(it, "c-seleziona") == null }
-      assertTrue("$name: «Seleziona» è sparita a ${gone.tMs} ms", gone.tMs in 55.0..100.0)
+      assertTrue("$name: «Seleziona» è sparita a ${gone.tMs} ms", gone.tMs in 40.0..60.0)
       for (frame in trace.frames.filter { it.tMs > 0.0 && it.tMs < gone.tMs }) {
         assertNotNull("$name t=${frame.tMs}: ritagliata sul vetro che se ne va", layer(frame, "c-seleziona")!!["clip"])
       }
@@ -139,7 +139,7 @@ class F38aExportTest {
     val before = layer(trace.frames.first(), "c-fatto")!!
     val x0 = number(before, "x", 0.0)
     val gone = trace.frames.first { it.tMs >= 0.0 && layer(it, "c-fatto") == null }
-    assertTrue("«Fatto» è sparito a ${gone.tMs} ms", gone.tMs in 55.0..100.0)
+    assertTrue("«Fatto» è sparito a ${gone.tMs} ms", gone.tMs in 40.0..60.0)
     for (frame in trace.frames.filter { it.tMs > 0.0 && it.tMs < gone.tMs }) {
       val text = layer(frame, "c-fatto")!!
       assertEquals("resta dov'era", x0, number(text, "x", 0.0), 0.01)

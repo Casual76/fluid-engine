@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.ui.fluidphysics
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -853,11 +854,12 @@ private class PhysicsPlaneDrive(var frame: () -> PhysicsPlaneShape, var progress
  * @param motion il peso del vetro in viaggio, 0..1 ([physicsPlaneMotion]): zero da fermi.
  * @param resting vero per un riposo: la sagoma ha il raccordo continuo della casa, come una forma ferma.
  * @param journeyLight il livello della luce del **carattere del viaggio** (F3.9, `GlassLiquidJourney.light`), 0..1: zero
- *   fuori dal piano, da fermi e nei campi che compaiono o scompaiono per lente. È **l'innesto** dell'aggancio di F3.9
- *   (`artifacts/liquid-glass/sessioni/f3-9/aggancio.md`), lasciato spento da F3.8a: oggi il contenitore passa zero e
- *   nessuno lo legge. Il livello lo calcola `FluidGlassPlaneDriver.journeyLight` (che ricorda quello di un viaggio
- *   interrotto: invariante 16); lo applicherà la ricetta delle superfici fisiche con `glassJourneyRecipe`, dopo il
- *   vetro in viaggio. Il rigonfiamento dello stesso carattere è già nelle [slabs].
+ *   fuori dal piano, da fermi e nei campi che compaiono o scompaiono per lente. Lo calcola
+ *   `FluidGlassPlaneDriver.journeyLight` (che ricorda quello di un viaggio interrotto: invariante 16) e lo applica la
+ *   ricetta delle superfici fisiche con `glassJourneyRecipe`, dopo il vetro in viaggio (`physicsLiquidRecipe`, F3.10).
+ *   Il rigonfiamento dello stesso carattere è già nelle [slabs].
+ * @param touch la **luce del dito** del campo (F3.10): il bagliore della pressione che ha fatto partire il viaggio,
+ *   portato dentro il vetro toccato. Null senza tocco: il campo ha la luce del carattere e basta.
  */
 internal class PhysicsPlaneShape(
   val slabs: List<FluidForm.Slab>,
@@ -869,11 +871,24 @@ internal class PhysicsPlaneShape(
   val motion: Float = 0f,
   val resting: Boolean = false,
   val journeyLight: Float = 0f,
+  val touch: PhysicsPlaneTouch? = null,
 ) {
   /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
   fun form(): FluidForm = if (slabs.size == 1) slabs.single()
     else FluidForm.Group(slabs.take(FluidForm.Group.MaxPieces), nominalBlend)
 }
+
+/**
+ * Il bagliore del dito di un campo del piano in un fotogramma (F3.10): lo stesso bagliore di un vetro fermo premuto
+ * (`GlassLiquidGlowPeak` volte [amount], la campana attorno al dito allargata da `glowFill`), che il vetro toccato si
+ * porta nel viaggio. Immutabile, come la forma che lo porta.
+ *
+ * @param amount 0..1, nelle unità della pressione: a fase zero è il bagliore che il vetro fermo mostrava.
+ * @param x con [y], dove sta il dito, in pixel del nodo della superficie (come le lastre); non finito = il centro.
+ * @param fill quanto il bagliore ha riempito la sagoma, 0..1: zero è il `glowFill` del vetro fermo, uno la sagoma intera.
+ */
+@Immutable
+internal class PhysicsPlaneTouch(val amount: Float, val x: Float, val y: Float, val fill: Float)
 
 /**
  * La guida esterna: un transito di lastre il cui orologio appartiene al chiamante. Un pezzo per

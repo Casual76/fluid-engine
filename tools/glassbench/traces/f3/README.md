@@ -101,3 +101,27 @@ La giunzione fra i lobi è ancora l'unione senza collo: è visibile nei collage,
 Non eseguiti `pair` con i filmati Apple o verifiche sul dispositivo; i tempi sono i budget nominali
 del piano e non una certificazione percettiva di R4. `banco/verifica.json` conserva controlli
 numerici e distinzione fra batch eseguito e delta successivo non eseguito.
+
+## F3.11: la coreografia della nascita e della confluenza
+
+Le sei tracce sono state riesportate dal Kotlin dopo F3.11 (`GLASS_PLANE_TRACE_DIR=tools/glassbench/traces/f3`):
+cambiano `uno-due`, `divisione` e le due interrotte; `contesto-capsule` e `comparsa` sono identiche al byte. Le misure
+di Apple sono in `artifacts/liquid-glass/sessioni/f3-11/misure.md`. Cosa cambia nel contratto:
+
+- **Chi nasce da un vicino non parte più dal suo riquadro di partenza.** Sta **dentro il vicino in volo** (della sua
+  misura, o di quella del vicino se è più piccolo, a filo del bordo dalla parte del suo posto), se ne sporge un poco, e
+  dopo il ritardo (`FluidMotion.PlaneReleaseDelay`, 0,17 del bilancio; +0,09 per ogni fratello più vicino dalla stessa
+  parte) ne è **rilasciato** con la molla del piano smorzata a 0,54: il lato di testa supera l'arrivo del 13% della
+  corsa, quello di coda al più del 4%. Al primo fotogramma coincide col vicino solo se ha la sua misura o è più grande.
+- **Chi confluisce in un vicino** ha una molla (0,62) sullo scarto dal vicino **in volo**: gli entra dentro dovunque
+  stia andando, e il lato di testa esce dall'altra parte dell'8% della corsa.
+- **Chi si sposta soltanto non cambia**: stessa molla, stesso orologio, superamento ≤1,3%.
+- **La staffetta** (`GlassPlanePieceFrame.relay`): un vetro che se ne va confluendo nel vetro che nasce da lui vola come
+  un vetro solo, con la molla di chi si sposta.
+- **Tra più vicini** vince ancora il varco minore; a parità, e per chi confluisce, non più la sola distanza fra i centri
+  ma la distanza più due volte la differenza di misura (`planeKinship`): a misure uguali è la regola di prima.
+- **Due vetri fusi non si incrociano**: `planeCrosses` non conta più un sorpasso fra due vetri di cui uno copre il centro
+  dell'altro (prima solo se i centri erano uguali).
+- `settleMs` resta il bilancio (300 ms); la fine del viaggio (`durationMs`) è la fine della coda del rilascio (345 ms).
+  Il palco contiene il superamento, ed è ancora fisso per tutto il viaggio.
+- Con una spec dell'app (`GlassPlaneMotion.spec`) niente di questo: la spec porta la sua curva, com'era.

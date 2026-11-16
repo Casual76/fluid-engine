@@ -791,4 +791,92 @@ object FluidMotion {
    * dp e più), che con la stessa frazione uscirebbero di 8–15 dp per lato fino a toccare i vicini a 16 dp.
    */
   const val PlaneSwellMaxDp: Float = 6f
+
+  // --- La coreografia della nascita e della confluenza (piano «iOS in Android», F3.11) ---
+  //
+  // Un vetro che **nasce da un vicino** non va dritto al suo posto con l'orologio di tutti: il vicino (il «donatore») va
+  // per primo verso il suo arrivo, e chi nasce resta dentro di lui, lo segue, e dopo un ritardo ne viene **rilasciato**
+  // con una molla che supera l'arrivo e torna. Chi **confluisce** in un vicino fa il verso opposto: ci entra subito,
+  // dovunque il vicino stia andando, e lo oltrepassa appena. Le misure sono in
+  // `artifacts/liquid-glass/sessioni/f3-11/misure.md`: quattro clip a tempo vero dell'interfaccia ingrandita (R4 B2 (b),
+  // 4:49, 4:51, 4:57 e 4:59, classe B) e il render rallentato «Select → Done» (R4 B2 (d), classe C).
+  //
+  // **La molla di rilascio è la molla del piano, meno smorzata**: stessa rigidezza (quella di [standard] stirata sul
+  // bilancio), quindi le stesse accelerazioni di ogni altro viaggio del piano, e lo smorzamento misurato in Apple. Non è
+  // la molla di Apple compressa nel bilancio: a tempo vero il rilascio di Apple arriva a 254 ms, è al colmo a 334 e
+  // torna a 500; compresso in 300 ms accelerava due volte e mezzo più di ogni altro vetro dell'engine (il materiale in
+  // viaggio faceva un salto, e il collo di una riunione durava 33 ms invece di 50). Così arriva a ~180 ms, è al colmo a
+  // ~240 e torna entro 345: 1,3 volte più svelto di Apple, con le sue proporzioni.
+
+  /**
+   * Il **bilancio** di un rilascio o di una confluenza, in millisecondi: su questo si stira la molla (come [standard] sul
+   * bilancio di un cambio di contesto) e si contano il ritardo, lo scaglionamento e la coda. Di serie è il bilancio di un
+   * cambio di contesto, perché un tasto che ne fa nascere un altro è un cambio di contesto: a quell'istante chi è stato
+   * rilasciato è arrivato e sta tornando dal suo superamento (entro il 3% della corsa), e alla fine della coda
+   * ([PlaneReleaseTail]) è fermo. Con 375 la molla è quella di Apple a tempo vero (R4 B2 (b): mezzo periodo 250 ms).
+   */
+  const val PlaneReleaseMillis: Int = PlaneContextMillis
+
+  /**
+   * Dopo quanto il donatore rilascia il primo nato, in frazione di [PlaneReleaseMillis]: fino a lì chi nasce sta dentro
+   * il donatore, **che intanto va verso il suo posto**. R4 B2 (b), fiducia **media**: la molla adattata al bordo di testa
+   * parte a 84 ms su 500 (±1 fotogramma su t0) nelle due nascite di classe B; nel render «Select → Done» (R4 B2 (d)) il
+   * tondo lascia il blob quando il donatore è al 32% del suo viaggio (qui al 25%).
+   */
+  const val PlaneReleaseDelay: Float = 0.17f
+
+  /**
+   * Di quanto parte dopo ogni nato in più dello stesso donatore, dalla stessa parte, in frazione di
+   * [PlaneReleaseMillis]: **il più lontano parte per primo**, il più vicino per ultimo. R4 B2 (d), fiducia
+   * **medio-bassa** (una clip, un render, i lobi letti dal bordo alto): il tondo lascia il blob a 0,29 della fase e il
+   * triangolo a 0,38.
+   */
+  const val PlaneReleaseStagger: Float = 0.09f
+
+  /**
+   * Lo smorzamento della molla di rilascio: 0,54, cioè un superamento del 13% della corsa del bordo di testa. R4 B2 (b),
+   * fiducia **alta**: 13,2% nelle due nascite di classe B, col rimbalzo di ritorno all'1,7% (lo stesso rapporto: è una
+   * molla sola); 12% sul centro del tondo nel render. I contenitori dell'engine non rimbalzano: questo è il pezzo che un
+   * vetro lascia andare, non un pannello.
+   */
+  const val PlaneReleaseDamping: Float = 0.54f
+
+  /**
+   * Quanto chi sta per nascere si sporge dal donatore **prima** del rilascio, in frazione della sua corsa: 0,08. R4 B2
+   * (b), fiducia **media**: nei primi 100 ms il bordo di testa ha già fatto il 4, il 7 e il 10% della corsa, prima che la
+   * molla parta. Senza, per il tempo del ritardo il vetro di un donatore fermo non si muoverebbe affatto.
+   */
+  const val PlaneReleaseCreep: Float = 0.08f
+
+  /**
+   * Il superamento più grande del **bordo di coda** di un vetro rilasciato (quello verso il donatore) e dei suoi raggi,
+   * in frazione della corsa: 0,04. Il bordo di coda viaggia con quello di testa (un tondo resta un tondo) ma non lo segue
+   * oltre l'arrivo: al colmo il pezzo è **allungato**, e il varco col donatore non si allarga fino a rompere e rifare il
+   * collo. **Scelta**, fra due misure: 1% dopo la rottura del collo nella classe B (R4 B2 (b)), il corpo quasi rigido del
+   * tondo nel render (R4 B2 (d), 11%).
+   */
+  const val PlaneReleaseTrail: Float = 0.04f
+
+  /**
+   * Lo smorzamento di un vetro che confluisce in un vicino: 0,62, cioè un superamento dell'8,4%. R4 B2 (b), fiducia
+   * **alta**: 8,4% e 8,4% sul bordo lontano nelle due confluenze di classe B. Parte senza ritardo, e il suo colmo cade
+   * dove cade quello di un rilascio (in Apple a 334 ms tutti e due). Il superamento esce dall'altra parte del vicino: è
+   * la «spinta» che in Apple sposta il tondo che resta di 0,17 D (lì si sposta tutto il tondo, qui si gonfia il lato).
+   */
+  const val PlaneMergeDamping: Float = 0.62f
+
+  /**
+   * Da quando lo scarto dall'arrivo di un rilascio comincia a spegnersi, in frazione di [PlaneReleaseMillis]: 0,75, poco
+   * prima del colmo. Vedi [PlaneReleaseTail].
+   */
+  const val PlaneReleaseTailFrom: Float = 0.75f
+
+  /**
+   * Quando finisce un rilascio, in frazione di [PlaneReleaseMillis]: 1,15. Fra [PlaneReleaseTailFrom] e qui lo scarto
+   * dall'arrivo si spegne in continuo: il ritorno dal superamento è più svelto di quello della molla da sola (che
+   * passerebbe per l'arrivo a 1,3 e toccherebbe il fondo del rimbalzo a 1,5), e il rimbalzo di ritorno non c'è. R4 B2
+   * (b): in Apple è l'1,7% della corsa e a 1,5 del ritorno è fermo; il piano chiude prima, perché finché dura il palco
+   * tiene il vetro, e il colmo scende dal 13,3 al 13,1%.
+   */
+  const val PlaneReleaseTail: Float = 1.15f
 }

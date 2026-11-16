@@ -188,7 +188,7 @@ class FluidBetaGalleryTest {
     // «Misure», «Materiale» e «Icone» sono strumenti per le sessioni sul dispositivo: non hanno una voce in «Da provare».
     val tools = setOf(
       GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material, GalleryPage.Icons, GalleryPage.Robustness, GalleryPage.Parity,
-      GalleryPage.Painted, GalleryPage.Adaptive,
+      GalleryPage.Painted, GalleryPage.Adaptive, GalleryPage.Plane,
     )
     GalleryPage.entries.filter { it !in tools }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
@@ -244,6 +244,9 @@ class FluidBetaGalleryTest {
 
   @Test
   fun `l'adattivita' si apre con due tocchi da Chrome`() = opensFromChrome("chrome-open-adaptive", GalleryPage.Adaptive)
+
+  @Test
+  fun `il piano flottante si apre con due tocchi da Chrome`() = opensFromChrome("chrome-open-plane", GalleryPage.Plane)
 
   @Test
   fun `la riga in cima a Materiale apre Da provare con un tocco`() {
@@ -441,6 +444,8 @@ class FluidBetaGalleryTest {
     GalleryPage.Painted -> shown("Fuori dall'host ·", substring = true)
     // «Adattività» (F2.6), come «Parità»: il segno è il sottotitolo con la sigla del pacchetto e la scena.
     GalleryPage.Adaptive -> shown("F2.6 ·", substring = true)
+    // «Piano flottante» (F3.6), come «Adattività»: il segno è il sottotitolo con la sigla del pacchetto e la scena.
+    GalleryPage.Plane -> shown("F3.6 ·", substring = true)
   }
 }
 

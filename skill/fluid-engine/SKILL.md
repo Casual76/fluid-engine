@@ -94,6 +94,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | vibrazioni | `componenti/aptica.md` |
 | il materiale di vetro, i ruoli, il costo; i **due materiali** della 4.0 (`Liquid`, il vetro nuovo, e `Classic`, quello di prima: chi sceglie, cosa cambia per un'app che aggiorna, come tenere il vetro di prima) | `componenti/vetro.md`; la libreria backdrop di Kyant0: `vetro-backdrop.md` |
 | una forma che si trasforma in un'altra (la card che si espande, il tasto che diventa menu) | `componenti/fluid-physics.md`; il motore dentro: `fluid-physics-motore.md` |
+| vetri che cambiano insieme con un `if` (un tasto che diventa due, una barra che cambia azioni, un tasto che compare), il contenuto che si sfoca, gli angoli concentrici: il **piano flottante** della 4.0 (`FluidGlassContainer`) | `componenti/piano-flottante.md` |
 | più pagine, migrare da `NavHost` | `componenti/pagine.md` |
 | back col dito, `BackHandler`, l'ordine del back (menu → pannello → selezione → pagina), barra unica e ancorata | `componenti/pagine-back-e-barra.md` |
 | colori, tipografia, angoli, tema, accento, la palette d'identità | `componenti/tema.md` |

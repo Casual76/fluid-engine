@@ -79,6 +79,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   Adaptive("Adattività"),
 
+  /**
+   * Il piano flottante (piano «iOS in Android», F3.6): un `FluidGlassContainer` per scena, e la scena che cambia solo lo
+   * stato (un tasto che diventa due, capsule che si fondono, comparsa per lente, unione, contesto che si sfoca, giro
+   * uniforme, `Clear`, forme concentriche, interruzione): vedi `plane/`. Si apre con `--es gallery.page plane`. Uno
+   * strumento per le sessioni sul dispositivo, come «Adattività».
+   */
+  Plane("Piano flottante"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

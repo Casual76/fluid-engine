@@ -283,6 +283,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-adaptive"),
           onClick = { onOpen(GalleryPage.Adaptive) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Piano flottante",
+          subtitle = "F3.6: il contenitore che fonde, fa nascere e fa comparire i vetri; contenuto che si sfoca; forme concentriche",
+          modifier = Modifier.testTag("chrome-open-plane"),
+          onClick = { onOpen(GalleryPage.Plane) },
+        )
       }
     }
 

@@ -31,7 +31,7 @@ righe e le card di questa scheda sono i mattoni di `FluidScreen` ([schermata.md]
 | sapere se la superficie e' scura **senza** interrogare il sistema | `GlassDefaults.isDarkSurface()` (legge `LocalFluidSurfaceSide`, poi la palette) |
 | un angolo da iOS | `ContinuousCornerShape(FluidRadius.Card)`; mai `RoundedCornerShape` |
 | una pillola che si adatta all'altezza | `FluidCapsuleShape` (raggio = meta' del lato corto) |
-| un angolo che segue quello del contenitore (un tasto in una capsula, una barra in un foglio) | `FluidConcentricShape(minimum)` sul pezzo e `Modifier.fluidContainerShape(forma)` sul contenitore (4.0); chi disegna da se' `rememberFluidConcentricRadii` + `Modifier.fluidConcentricRadii` |
+| un angolo che segue quello del contenitore (un tasto in una capsula, una barra in un foglio) | `FluidConcentricShape(minimum)` sul pezzo e `Modifier.fluidContainerShape(forma)` sul contenitore (4.0); chi disegna da se' `rememberFluidConcentricRadii` + `Modifier.fluidConcentricRadii`; dentro il piano flottante: [piano-flottante.md](piano-flottante.md) |
 | un angolo di un rettangolo piccolo (sotto ~256 px) | la stessa `ContinuousCornerShape`: da sola ripiega su un `Outline.Rounded` nativo |
 | il testo con la scala iOS | `MaterialTheme.typography.<slot>`: gli slot Material risolvono la rampa Apple (34/28/22/20/17/15/13/11) |
 | cifre che non ballano (colonna di conteggi, date) | `FluidTextStyles.numeric` / `largeNumeric` (cifre tabulari) |

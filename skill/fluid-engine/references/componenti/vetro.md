@@ -508,6 +508,7 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   o sul tema scuro sopra un fondo chiaro, quella pellicola cede alla ricetta adattiva, col soffitto, come il foglio. Sul
   tablet, a nero pieno, il foglio e il pop-up stanno a 27 su 255 e il pannello laterale a 55 (Apple 48); sul tema scuro
   sopra la pagina chiara pop-up e pannello stanno a 102.
+- **Girano insieme**, con una sonda sola, i vetri di un `FluidGlassContainer` e il loro contenuto: è il patto dell'inchiostro delle app (4.0, anche con un pezzo solo), in [piano-flottante.md](piano-flottante.md).
 - **Tengono il lato del tema**, con velo, ombra e tinta che seguono comunque lo sfondo: un `glassSurface` o
   `glassControlSurface` dell'app (non hanno un contenuto loro: l'engine non sa cosa ci disegna sopra l'app), il tasto tinto
   (pellicola fissa), un vetro annidato (prende il lato dall'host), le card di vetro e le righe raggruppate, il binario dei

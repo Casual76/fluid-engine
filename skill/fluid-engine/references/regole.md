@@ -1163,3 +1163,21 @@ per questo, oggi compone solo la scheda in vista, e paga lo stallo.
 schermo, a fotogrammi a 120 Hz: nel viaggio della pillola nessun passo da 100 ms e oltre (il rivelatore di scatti
 `tools/glassbench/glassjerk.py` lo segnala come `LUNGO`; vedi `tools/glassbench/SCATTI.md`). **Se la violi.** La pillola parte, si ferma per un decimo o due di secondo a metà, e
 riparte: il cambio di scheda sembra lento anche su un tablet veloce.
+
+## Il piano flottante: gli attributi prima del vetro, e il vetro di un contenitore è del contenitore (4.0)
+
+`fluidGlassId`, `fluidGlassUnion` e `fluidGlassTransition` valgono per il `fluidGlass` (o il tasto di vetro
+dell'engine) **alla loro destra** nella stessa catena, e per nessun altro: `Modifier.fluidGlassId("play", ns).fluidGlass()`.
+Dentro un `FluidGlassContainer` il vetro dei pezzi lo disegna **il contenitore** (una cattura per grappolo, il palco
+durante un cambio, una sonda sola per il lato): il pezzo disegna solo il contenuto, e l'app scrive solo lo stato, senza
+animazioni né riquadri. Il perché, le firme e i limiti: [componenti/piano-flottante.md](componenti/piano-flottante.md).
+
+Il perché, in breve: un attributo che valesse da tutte e due le parti farebbe accoppiare male un vetro in silenzio, a
+seconda di dove lo si scrive; e un pezzo che disegnasse il proprio vetro dentro un contenitore lo disegnerebbe due volte
+durante un viaggio (il palco e lui) e non girerebbe insieme agli altri.
+
+**Come si verifica.** In una build di debug il log `FluidGlass` dice «… non ha effetto: va scritto prima del
+fluidGlass …», e `FluidGlassContainerDiagnostics.totalOrderWarnings` lo conta (`FluidGlassContainerOrderTest`,
+`FluidGlassContainerTest`, `PlanePageTest`). Nel codice: `grep -n "fluidGlass()\.fluidGlass\(Id\|Union\|Transition\)"`
+e ogni `fluidGlassId` che segue il suo vetro. **Se la violi.** Il vetro è anonimo: si accoppia per lato e posizione,
+nasce dal vicino sbagliato o compare per lente dove doveva staccarsi dal vicino.

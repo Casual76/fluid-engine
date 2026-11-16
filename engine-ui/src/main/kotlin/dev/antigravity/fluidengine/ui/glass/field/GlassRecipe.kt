@@ -15,6 +15,7 @@
  */
 package dev.antigravity.fluidengine.ui.glass.field
 
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.DpOffset
@@ -28,6 +29,8 @@ import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.fluid.glassEdgeDepth
 import dev.antigravity.fluidengine.ui.fluid.glassResolutionScale
 import dev.antigravity.fluidengine.ui.fluid.glassSizeGain
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -840,6 +843,10 @@ private fun finiteSide(value: Float): Float = if (value.isFinite()) max(value, 0
  * superficie è comunque ritagliato sul suo nodo (`DrawBackdropModifier`, `clip = true`). Perché l'ombra in viaggio
  * si veda per intero il **nodo** deve contenerla: vedi [glassTravelShadowReachDp].
  *
+ * Un viaggio del **piano flottante** col suo carattere ([journey], F3.9) sfoca di più nel mezzo: il tetto allora è la
+ * sfocatura al colmo del carattere, `1 + frost` volte. Senza [journey] (menu, Fluid-physics fuori dal piano) il margine
+ * è quello di sempre, al bit.
+ *
  * @param optics i capi del viaggio (l'ottica d'arrivo e, se c'è, quella di partenza): vale il più largo.
  */
 internal fun glassTravelPaddingDp(
@@ -847,11 +854,13 @@ internal fun glassTravelPaddingDp(
   optics: GlassOptics,
   opticsFrom: GlassOptics? = null,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  journey: GlassLiquidJourney? = null,
 ): Float {
   val roleScale = glassLiquidRoleBlurScale(role)
   fun full(o: GlassOptics): Float =
     profile.frost.blur.value * glassOpticsFrost(o.blurScale, roleScale) * (1f + max(profile.growth.frost, 0f))
-  val widest = max(full(optics), opticsFrom?.let(::full) ?: 0f)
+  var widest = max(full(optics), opticsFrom?.let(::full) ?: 0f)
+  if (journey != null && journey.frost > 0f) widest *= 1f + journey.frost
   return if (widest.isFinite()) max(widest, 0f) else 0f
 }
 
@@ -864,30 +873,141 @@ internal fun glassTravelPaddingDp(
  * Serve a chi ha un nodo **stretto** attorno alla sagoma: il layer del vetro è ritagliato sul nodo, e un'ombra che
  * ne esce è tagliata. La barra fra le pagine allarga di tanto il nodo della superficie che viaggia; i palchi grandi
  * quanto la finestra (menu, modale, Playground) non ne hanno bisogno. Con l'ombra B di serie, per un tasto: 66 dp.
+ *
+ * Con il carattere del viaggio del piano ([journey], F3.9) l'ombra diventa un alone: la sua portata è quella della
+ * stessa maschera, quindi cambia solo se l'ombra di un lato non c'era (l'alone c'è comunque). Il rigonfiamento
+ * ([glassJourneySwellDp]) allarga la sagoma, non l'ombra: lo aggiunge chi conosce il lato corto.
  */
 internal fun glassTravelShadowReachDp(
   optics: GlassOptics,
   gain: Float = 1f,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+  journey: GlassLiquidJourney? = null,
 ): Float {
   if (!(optics.shadowAlpha > 0f)) return 0f
   val grow = 1f + max(profile.growth.shadow.radius, 0f) * clampGlassUnit(gain)
+  val glow = if (journey != null && journey.glow > 0f) clampGlassUnit(journey.glow) else 0f
   var reach = 0f
   for (dark in booleanArrayOf(false, true)) {
     val spec = profile.shadow(dark)
-    if (!(spec.contactAlpha + spec.ambientAlpha > 0f) || !(spec.color.alpha > 0f)) continue
+    val ambientAlpha = max(spec.ambientAlpha, if (spec.ambientRadius.value > 0f) glow else 0f)
+    if (!(spec.contactAlpha + ambientAlpha > 0f) || !(spec.color.alpha > 0f || glow > 0f)) continue
     reach = max(
       reach,
       GlassShadowProfile.reach(
         contactRadius = spec.contactRadius.value * grow,
         ambientRadius = spec.ambientRadius.value * grow,
         contactAlpha = spec.contactAlpha,
-        ambientAlpha = spec.ambientAlpha,
+        ambientAlpha = ambientAlpha,
         slide = kotlin.math.hypot(spec.offset.x.value, spec.offset.y.value) * grow,
       ),
     )
   }
   return if (reach.isFinite()) reach else 0f
+}
+
+// ------------------------------------------------------------------------------------------------------------
+// Il carattere del viaggio del piano flottante (F3.9)
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * La ricetta di un viaggio del **piano flottante** al livello di luce [level] del suo carattere ([GlassLiquidJourney],
+ * `journey.light(fase, entrata)`): riscrive [recipe] sul posto e la restituisce. Si chiama **dopo** `glassTravelRecipe`
+ * (e dopo la comparsa, se c'è): parte dal vetro in viaggio e lo porta verso ciò che le immagini di Apple mostrano nel
+ * mezzo di un cambio di contesto (`sessioni/f3-9/misure.md`):
+ *  - **luce**: il velo va verso il colore della luce ([GlassRecipe.lightColor], il bianco) e verso l'alfa piena, quanto
+ *    [GlassLiquidJourney.light] al colmo (sul lato scuro per [GlassLiquidJourney.darkLight]); il filo scuro del bordo
+ *    sfuma con la stessa quota, perché un blocco di luce non ha un contorno scuro (nel render di Apple non c'è), e così
+ *    l'ombreggiatura del corpo verso i bordi (sotto un velo bianco lascerebbe un punto caldo al centro di ogni pezzo,
+ *    dove il blocco di Apple è piatto); e
+ *    l'adattività del velo (`veilAdapt`) cede della stessa quota: altrimenti ispessirebbe il velo già schiarito e la
+ *    luce si spegnerebbe più tardi della sua curva (sul banco, metà della discesa in ritardo di ~5% della fase);
+ *  - **alone**: l'ombra in viaggio va verso il colore della luce e la sua alfa d'ambiente verso
+ *    [GlassLiquidJourney.glow]: sotto la sagoma il fondo si illumina invece di scurire (render: +74 livelli);
+ *  - **smerigliatura**: il raggio cresce di `1 + frost` e la mescola `w` torna verso lo smerigliato di `min(frost, 1)`,
+ *    cioè la limpidezza del viaggio ([GlassLiquidTravel.clarity], la scelta B) cede al vetro lattiginoso. Il margine
+ *    della cattura che la regge è [glassTravelPaddingDp] con lo stesso [GlassLiquidJourney].
+ *
+ * La variante [GlassLiquidVariant.Clear] resta limpida: niente velo, niente smerigliatura (è la sua ragione d'essere);
+ * prende l'alone e il rigonfiamento. Con [level] a zero non tocca niente, nemmeno un bit: alla partenza e da
+ * [GlassJourneyLightSettle] in poi il materiale è quello della lastra ferma, e il passaggio palco → riposo non salta.
+ *
+ * @param level il livello della luce del carattere, 0..1.
+ * @param darkSide il lato del tema della ricetta (il velo scuro prende [GlassLiquidJourney.darkLight] della luce).
+ */
+internal fun glassJourneyRecipe(
+  recipe: GlassRecipe,
+  journey: GlassLiquidJourney,
+  level: Float,
+  darkSide: Boolean,
+  variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
+): GlassRecipe {
+  val e = if (level.isFinite()) clampGlassUnit(level) else 0f
+  if (e <= 0f) return recipe
+  val side = if (darkSide) clampGlassUnit(journey.darkLight) else 1f
+  val regular = variant == GlassLiquidVariant.Regular
+  val lit = clampGlassUnit(journey.light) * side * e
+  if (regular && lit > 0f) {
+    val veil = recipe.veilColor
+    val toward = lerpSrgb(veil.copy(alpha = 1f), recipe.lightColor.copy(alpha = 1f), lit)
+    recipe.veilColor = toward.copy(alpha = veil.alpha + (1f - veil.alpha) * lit)
+    recipe.veilAdapt = recipe.veilAdapt * (1f - lit)
+    recipe.rimDark = recipe.rimDark.copy(alpha = recipe.rimDark.alpha * (1f - lit))
+    recipe.bodyShade = recipe.bodyShade.copy(alpha = recipe.bodyShade.alpha * (1f - lit))
+  }
+  val glow = clampGlassUnit(journey.glow) * side * recipe.lightColor.alpha
+  if (glow > 0f && recipe.shadowAmbientRadiusDp > 0f) {
+    // Una dissolvenza incrociata fra ombra e alone, premoltiplicata: la stessa maschera d'ambiente porta `(1 − e)` del
+    // nero dell'ombra ed `e` della luce dell'alone. Così a metà strada il fondo non scurisce più dell'ombra (mescolare
+    // il colore a parte darebbe un grigio scuro più forte dell'ombra) e al colmo resta la sola luce.
+    val shade = recipe.shadowColor
+    val ambient = recipe.shadowAmbientAlpha * shade.alpha
+    val total = (1f - e) * ambient + e * glow
+    if (total > 0f) {
+      recipe.shadowColor = lerpSrgb(shade.copy(alpha = 1f), recipe.lightColor.copy(alpha = 1f), e * glow / total)
+      recipe.shadowAmbientAlpha = clampGlassUnit(total)
+      recipe.shadowContactAlpha = recipe.shadowContactAlpha * shade.alpha * (1f - e)
+    }
+  }
+  if (regular && journey.frost > 0f) {
+    recipe.blurDp = recipe.blurDp * (1f + journey.frost * e)
+    recipe.mix = recipe.mix * (1f - min(journey.frost, 1f) * e)
+  }
+  return recipe
+}
+
+/**
+ * Di quanto si sposta in fuori **ogni lato** di un pezzo del piano al livello [level] del rigonfiamento
+ * (`journey.swell(fase, entrata)`), in dp: metà di [GlassLiquidJourney.swell] del lato corto [shortDp]. Chi monta il
+ * campo allarga di tanto il riquadro e i quattro raggi del pezzo (una capsula resta una capsula, un angolo resta
+ * concentrico), e il palco di altrettanto. Zero a livello zero: all'arrivo la geometria è quella del piano al bit.
+ */
+internal fun glassJourneySwellDp(shortDp: Float, level: Float, journey: GlassLiquidJourney): Float {
+  if (!shortDp.isFinite() || !level.isFinite() || !(journey.swell > 0f)) return 0f
+  return 0.5f * journey.swell * clampGlassUnit(level) * max(shortDp, 0f)
+}
+
+/**
+ * [slab] rigonfiato: ogni lato in fuori di [growPx] (lo dà [glassJourneySwellDp] per la densità), ogni raggio di
+ * altrettanto e mai oltre il mezzo lato nuovo, cioè la sagoma spostata in fuori della stessa distanza ovunque (una
+ * capsula resta una capsula, un angolo stretto resta concentrico). Con [growPx] zero restituisce [slab] stessa.
+ */
+internal fun glassJourneySwollen(slab: FluidForm.Slab, growPx: Float): FluidForm.Slab {
+  if (!(growPx > 0f) || !growPx.isFinite()) return slab
+  val f = slab.frame
+  val frame = Rect(f.left - growPx, f.top - growPx, f.right + growPx, f.bottom + growPx)
+  val half = frame.minDimension / 2f
+  val r = slab.cornerRadii
+  return FluidForm.Slab(
+    frame = frame,
+    cornerRadii = FluidCornerRadii(
+      topLeft = (r.topLeft + growPx).coerceIn(0f, half),
+      topRight = (r.topRight + growPx).coerceIn(0f, half),
+      bottomRight = (r.bottomRight + growPx).coerceIn(0f, half),
+      bottomLeft = (r.bottomLeft + growPx).coerceIn(0f, half),
+    ),
+    smoothing = slab.smoothing,
+  )
 }
 
 /**

@@ -313,6 +313,8 @@ internal fun Gallery(
               GalleryPage.Adaptive -> dev.antigravity.fluidengine.sample.adaptive.AdaptivePage(bottomInset) { nav.back() }
               // Il piano flottante (F3.6): `plane.scene`, `plane.theme`, `plane.spacing`, `plane.model`, `plane.auto`, `plane.interrupt`.
               GalleryPage.Plane -> dev.antigravity.fluidengine.sample.plane.PlanePage(bottomInset) { nav.back() }
+              // Le superfici dell'assistente (F3.2b): `assistant.fund`, `assistant.auto`, `assistant.theme`, `assistant.model`, `assistant.card`.
+              GalleryPage.Assistant -> dev.antigravity.fluidengine.sample.assistant.AssistantPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

@@ -34,7 +34,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |
 | [engine-ai-bridge](ai-bridge.md) | 4 | 99 |
-| [engine-ai-ui](ai-ui.md) | 28 | 223 |
+| [engine-ai-ui](ai-ui.md) | 29 | 226 |
 
 Le icone fanno eccezione: in [icone.md](icone.md) il set è una tabella con una riga per icona (il nome, quello di Material Symbols, la variante piena), non una riga per dichiarazione.
 

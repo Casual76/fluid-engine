@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +71,10 @@ fun fluidDefaultChipLabel(chip: AnswerChip): String = chip.value ?: chip.id
  * [strings] (`statusFor`), le etichette dei chip in [chipLabel], e gli slot [header] (la traccia dei
  * passi di PampAI, la sua maniglia "Apri in...") e [footer].
  *
+ * **Il vetro** (4.0, F3.2b): resta del lato del tema, con velo e ombra che seguono lo sfondo e il pavimento che la
+ * tiene leggibile. Sarebbe un grande che scurisce in continuo, ma il contenitore pubblico non sa ancora un pannello
+ * `Modal` con dei vetri sopra (lo stop e i chip sarebbero suoi fratelli, non vetro annidato): vedi la scheda.
+ *
  * @param onTapBody un tocco sul corpo: di solito zittisce la voce che sta leggendo.
  * @param tapHaptic cosa si sente a quel tocco. ClasseViva: niente (zittire non e' un momento);
  *   FluidWeather: il `Tap` di serie. Qui di serie niente.
@@ -98,82 +103,86 @@ fun FluidAssistantCard(
   body: (@Composable (text: String, streaming: Boolean) -> Unit)? = null,
 ) {
   val question = FluidAssistantTexts.question(state)
-  Column(
-    modifier = modifier
-      .fillMaxWidth()
-      .glassSurface(state = backdrop, tint = GlassDefaults.modalTint(), shape = ContinuousCornerShape(FluidRadius.Sheet), role = GlassRole.Modal)
-      .fluidPressable(onClick = onTapBody, pressedScale = 1f, role = null, haptic = tapHaptic)
-      .padding(horizontal = 20.dp, vertical = 16.dp),
-  ) {
-    header?.invoke(this)
-    Row(verticalAlignment = Alignment.Top) {
-      Column(Modifier.weight(1f)) {
-        if (!question.isNullOrBlank()) {
-          Text(
-            text = question,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-          )
-          Spacer(Modifier.height(6.dp))
+  // La card resta del lato del tema (F3.2b: il contenitore non sa ancora un pannello `Modal` con dei vetri sopra), e i
+  // pezzi che porta (lo stop, i chip, quelli degli slot) lo sanno: restano vetro annidato del suo lato, non girano da soli.
+  CompositionLocalProvider(LocalFluidAssistantPanel provides true) {
+    Column(
+      modifier = modifier
+        .fillMaxWidth()
+        .glassSurface(state = backdrop, tint = GlassDefaults.modalTint(), shape = ContinuousCornerShape(FluidRadius.Sheet), role = GlassRole.Modal)
+        .fluidPressable(onClick = onTapBody, pressedScale = 1f, role = null, haptic = tapHaptic)
+        .padding(horizontal = 20.dp, vertical = 16.dp),
+    ) {
+      header?.invoke(this)
+      Row(verticalAlignment = Alignment.Top) {
+        Column(Modifier.weight(1f)) {
+          if (!question.isNullOrBlank()) {
+            Text(
+              text = question,
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              maxLines = 2,
+              overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(6.dp))
+          }
+          FluidStatusLine(state, strings)
         }
-        FluidStatusLine(state, strings)
-      }
-      if (state.isBusy && state !is AssistantState.AwaitingConfirmation) {
-        Spacer(Modifier.width(8.dp))
-        FluidStopPill(backdrop, onStop, contentDescription = strings.stop)
-      }
-    }
-    val text = FluidAssistantTexts.bodyText(state)
-    AnimatedContent(
-      targetState = text != null,
-      transitionSpec = { fadeIn(FluidMotion.fadeIn(180)).togetherWith(fadeOut(FluidMotion.fadeOut(120))) },
-      label = "assistantBody",
-    ) { hasBody ->
-      if (hasBody && text != null) {
-        val scroll = rememberScrollState()
-        FluidFollowAnswer(scroll, following = state is AssistantState.Answering)
-        Column(
-          Modifier
-            .padding(top = 10.dp)
-            .heightIn(max = maxBodyHeight)
-            .verticalScroll(scroll),
-        ) {
-          val streaming = state is AssistantState.Answering
-          if (body != null) body(text, streaming) else FluidMarkdown(text, streaming = streaming, animateFirst = false, style = markdownStyle, options = FluidAssistantMarkdownOptions)
+        if (state.isBusy && state !is AssistantState.AwaitingConfirmation) {
+          Spacer(Modifier.width(8.dp))
+          FluidStopPill(backdrop, onStop, contentDescription = strings.stop)
         }
       }
-    }
-    if (pending != null && (state.isBusy || state is AssistantState.AwaitingConfirmation)) {
-      Spacer(Modifier.height(12.dp))
-      FluidConfirmationRow(pending, onConfirm = { onConfirm(pending.id, it) }, strings = strings)
-    }
-    if (state is AssistantState.Done) {
-      if (state.chips.isNotEmpty()) {
-        Spacer(Modifier.height(12.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          state.chips.forEach { chip ->
-            FluidChipPill(label = chipLabel(chip), backdrop = backdrop, onClick = { onChip(chip) })
+      val text = FluidAssistantTexts.bodyText(state)
+      AnimatedContent(
+        targetState = text != null,
+        transitionSpec = { fadeIn(FluidMotion.fadeIn(180)).togetherWith(fadeOut(FluidMotion.fadeOut(120))) },
+        label = "assistantBody",
+      ) { hasBody ->
+        if (hasBody && text != null) {
+          val scroll = rememberScrollState()
+          FluidFollowAnswer(scroll, following = state is AssistantState.Answering)
+          Column(
+            Modifier
+              .padding(top = 10.dp)
+              .heightIn(max = maxBodyHeight)
+              .verticalScroll(scroll),
+          ) {
+            val streaming = state is AssistantState.Answering
+            if (body != null) body(text, streaming) else FluidMarkdown(text, streaming = streaming, animateFirst = false, style = markdownStyle, options = FluidAssistantMarkdownOptions)
           }
         }
       }
-      val switchLine = if (showSwitchLine) FluidAssistantTexts.switchLine(state.switches, strings) else null
-      if (switchLine != null) {
-        Spacer(Modifier.height(10.dp))
-        Text(switchLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      if (pending != null && (state.isBusy || state is AssistantState.AwaitingConfirmation)) {
+        Spacer(Modifier.height(12.dp))
+        FluidConfirmationRow(pending, onConfirm = { onConfirm(pending.id, it) }, strings = strings)
       }
+      if (state is AssistantState.Done) {
+        if (state.chips.isNotEmpty()) {
+          Spacer(Modifier.height(12.dp))
+          FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.chips.forEach { chip ->
+              FluidChipPill(label = chipLabel(chip), backdrop = backdrop, onClick = { onChip(chip) })
+            }
+          }
+        }
+        val switchLine = if (showSwitchLine) FluidAssistantTexts.switchLine(state.switches, strings) else null
+        if (switchLine != null) {
+          Spacer(Modifier.height(10.dp))
+          Text(switchLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+      }
+      if (state is AssistantState.Failed && onDetails != null) {
+        Spacer(Modifier.height(10.dp))
+        FluidButton(
+          text = strings.details,
+          onClick = { onDetails(FluidFailureReport.of(state)) },
+          style = FluidButtonStyle.Tinted,
+          size = FluidButtonSize.Small,
+        )
+      }
+      footer?.invoke(this)
     }
-    if (state is AssistantState.Failed && onDetails != null) {
-      Spacer(Modifier.height(10.dp))
-      FluidButton(
-        text = strings.details,
-        onClick = { onDetails(FluidFailureReport.of(state)) },
-        style = FluidButtonStyle.Tinted,
-        size = FluidButtonSize.Small,
-      )
-    }
-    footer?.invoke(this)
   }
 }
 

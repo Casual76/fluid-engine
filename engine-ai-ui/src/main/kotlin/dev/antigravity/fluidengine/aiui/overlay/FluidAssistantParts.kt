@@ -60,7 +60,13 @@ fun FluidBreathingDot(
   FluidLiveDot(modifier = modifier, color = color, size = size, pulsing = pulsing)
 }
 
-/** Il tasto per interrompere: il materiale dei controlli dell'engine, un bersaglio da 40 dp. */
+/**
+ * Il tasto per interrompere: il materiale dei controlli dell'engine, un bersaglio da 40 dp.
+ *
+ * Da solo sulla pagina **gira** chiaro/scuro con lo sfondo, come i tasti di vetro dell'engine (un contenitore con un
+ * pezzo solo, F3.2b); sulla card è vetro annidato e tiene il lato della card ([LocalFluidAssistantPanel]). Il glifo è
+ * l'inchiostro del lato. Da solo, il `modifier` sta attorno al contenitore.
+ */
 @Composable
 fun FluidStopPill(
   backdrop: GlassBackdropState,
@@ -68,27 +74,33 @@ fun FluidStopPill(
   modifier: Modifier = Modifier,
   contentDescription: String = FluidAssistantStrings().stop,
 ) {
-  Box(
-    modifier = modifier
-      .size(40.dp)
-      .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
-      // Niente tap: quando la richiesta si ferma arriva lo Stop dell'overlay, e due vibrazioni
-      // per un tocco solo si sentono come un difetto.
-      .fluidPressable(onClick = onStop, role = Role.Button, haptic = null),
-    contentAlignment = Alignment.Center,
-  ) {
-    FluidIcon(
-      imageVector = FluidIcons.Filled.Stop,
-      contentDescription = contentDescription,
-      tint = MaterialTheme.colorScheme.onSurface,
-      modifier = Modifier.size(16.dp),
-    )
+  FluidAssistantSmallGlass(modifier) { outer ->
+    Box(
+      modifier = outer
+        .size(40.dp)
+        .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
+        // Niente tap: quando la richiesta si ferma arriva lo Stop dell'overlay, e due vibrazioni
+        // per un tocco solo si sentono come un difetto.
+        .fluidPressable(onClick = onStop, role = Role.Button, haptic = null),
+      contentAlignment = Alignment.Center,
+    ) {
+      FluidIcon(
+        imageVector = FluidIcons.Filled.Stop,
+        contentDescription = contentDescription,
+        // Letto qui, dentro il contenitore: lo schema di colori è quello del lato del vetro.
+        tint = fluidAssistantInk(FluidAssistantInk.Default, MaterialTheme.colorScheme.onSurface),
+        modifier = Modifier.size(16.dp),
+      )
+    }
   }
 }
 
 /**
  * Un chip sotto la risposta, in vetro. [maxLines] 2 per i nomi lunghi (le fermate di Fluid-transit:
  * "STAZIONE SANTA MARIA NOVELLA" si prendeva tutta la riga e gli altri chip restavano larghi quaranta dp).
+ *
+ * Sulla card e sul dock tiene il lato del pannello ([LocalFluidAssistantPanel]); da solo sulla pagina gira come i tasti
+ * dell'engine, con l'etichetta nell'inchiostro del lato (F3.2b). Da solo, il `modifier` sta attorno al contenitore.
  */
 @Composable
 fun FluidChipPill(
@@ -98,25 +110,32 @@ fun FluidChipPill(
   modifier: Modifier = Modifier,
   maxLines: Int = 1,
 ) {
-  Box(
-    modifier = modifier
-      .heightIn(min = 40.dp)
-      .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
-      .fluidPressable(onClick = onClick, role = Role.Button)
-      .padding(horizontal = 14.dp, vertical = if (maxLines > 1) 8.dp else 0.dp),
-    contentAlignment = Alignment.Center,
-  ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.labelLarge,
-      color = MaterialTheme.colorScheme.onSurface,
-      maxLines = maxLines,
-      overflow = TextOverflow.Ellipsis,
-    )
+  FluidAssistantSmallGlass(modifier) { outer ->
+    Box(
+      modifier = outer
+        .heightIn(min = 40.dp)
+        .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
+        .fluidPressable(onClick = onClick, role = Role.Button)
+        .padding(horizontal = 14.dp, vertical = if (maxLines > 1) 8.dp else 0.dp),
+      contentAlignment = Alignment.Center,
+    ) {
+      Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = fluidAssistantInk(FluidAssistantInk.Default, MaterialTheme.colorScheme.onSurface),
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+      )
+    }
   }
 }
 
-/** La card ridotta: un puntino e una riga, perche' l'utente sta guardando altro. */
+/**
+ * La card ridotta: un puntino e una riga, perche' l'utente sta guardando altro.
+ *
+ * **Il vetro** (4.0, F3.2b): resta del lato del tema. Girerebbe come la capsula flottante, ma nel contenitore pubblico
+ * la sua tinta (`floatingTint`) non passa: un `fluidGlass` la disegnerebbe con quella dei controlli. Vedi la scheda.
+ */
 @Composable
 fun FluidCollapsedPill(
   text: String,
@@ -142,7 +161,13 @@ fun FluidCollapsedPill(
   }
 }
 
-/** Il tasto per fermare l'ascolto: una capsula di vetro sotto l'aureola, alta abbastanza da essere un bersaglio vero (48 dp). */
+/**
+ * Il tasto per fermare l'ascolto: una capsula di vetro sotto l'aureola, alta abbastanza da essere un bersaglio vero (48 dp).
+ *
+ * Sta sulla pagina (sotto l'aureola, sopra quello che l'app mostra), quindi **gira** chiaro/scuro con lo sfondo come i
+ * tasti dell'engine, con la scritta nell'inchiostro del lato (F3.2b). Il pallino resta nel colore d'errore su tutti e
+ * due i lati. Il `modifier` è quello della riga che la centra, com'era.
+ */
 @Composable
 fun FluidListeningHint(
   backdrop: GlassBackdropState,
@@ -152,24 +177,28 @@ fun FluidListeningHint(
   strings: FluidAssistantStrings = FluidAssistantStrings(),
 ) {
   Row(modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp), horizontalArrangement = Arrangement.Center) {
-    Row(
-      Modifier
-        .heightIn(min = 48.dp)
-        .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
-        .fluidPressable(onClick = onStop, pressedScale = 1f, role = Role.Button)
-        .padding(horizontal = 20.dp),
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.error, FluidCapsuleShape))
-      Spacer(Modifier.width(10.dp))
-      Text(strings.tapToFinish, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-      if (elapsedMillis >= 1_000) {
-        Spacer(Modifier.width(8.dp))
-        Text(
-          "${elapsedMillis / 1000}s",
-          style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        )
+    FluidAssistantSmallGlass(Modifier) { outer ->
+      Row(
+        outer
+          .heightIn(min = 48.dp)
+          .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
+          .fluidPressable(onClick = onStop, pressedScale = 1f, role = Role.Button)
+          .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        // Letto qui, dentro il contenitore: lo schema di colori è quello del lato del vetro.
+        val ink = fluidAssistantInk(FluidAssistantInk.Default, MaterialTheme.colorScheme.onSurface)
+        Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.error, FluidCapsuleShape))
+        Spacer(Modifier.width(10.dp))
+        Text(strings.tapToFinish, style = MaterialTheme.typography.labelLarge, color = ink)
+        if (elapsedMillis >= 1_000) {
+          Spacer(Modifier.width(8.dp))
+          Text(
+            "${elapsedMillis / 1000}s",
+            style = MaterialTheme.typography.labelMedium,
+            color = ink.copy(alpha = 0.6f),
+          )
+        }
       }
     }
   }

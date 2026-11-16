@@ -28,6 +28,8 @@ le parole in [ai-ui-stringhe.md](ai-ui-stringhe.md). Il catalogo delle firme e' 
 | le impostazioni (chiavi, modelli, ordine) | non qui: [ai-ui-impostazioni.md](ai-ui-impostazioni.md) |
 | cambiare la resa del corpo della risposta (non Markdown) | `FluidAssistantCardOptions(body = ...)` o `FluidAssistantCard(body = ...)` |
 | aggiungere una riga mia sopra/sotto il corpo della card | `header` / `footer` (stessi due slot) |
+| un tasto, uno stop o un chip dell'assistente che gira chiaro/scuro con lo sfondo | posato da solo sulla pagina lo fa da se' (sotto, «Il vetro e il lato») |
+| gli stessi pezzi su un **mio** pannello di vetro, che restino del suo lato | `CompositionLocalProvider(LocalFluidAssistantPanel provides true) { … }` |
 
 **Non cosi'**: non incapsulare l'overlay in un `FluidGlassModalPortal` "perche' e' un pop-up". L'overlay e' non
 modale per scelta (nessuno scrim, i tocchi fuori passano alla pagina); un modale lo renderebbe un dialogo.
@@ -284,10 +286,10 @@ esempio» e' un'intestazione, e a risposta finita (`Done`) il testo (i **primi 6
 | pezzo | cosa e' |
 |---|---|
 | `FluidBreathingDot` | il pallino di `FluidLiveDot`: un respiro solo per tutta l'app, fermo col movimento ridotto |
-| `FluidStopPill` | tasto stop da 40 dp di vetro dei controlli; **nessuna** aptica al tocco (arriva `Stop` dall'overlay) |
-| `FluidChipPill(label, backdrop, onClick, maxLines)` | chip di vetro, minimo 40 dp; `maxLines = 2` per i nomi lunghi |
+| `FluidStopPill` | tasto stop da 40 dp di vetro dei controlli; **nessuna** aptica al tocco (arriva `Stop` dall'overlay); da solo gira, sulla card no |
+| `FluidChipPill(label, backdrop, onClick, maxLines)` | chip di vetro, minimo 40 dp; `maxLines = 2` per i nomi lunghi; da solo gira, su card e dock no |
 | `FluidCollapsedPill(text, backdrop, onExpand, error)` | la card ridotta: puntino (rosso se `error`) e una riga |
-| `FluidListeningHint(backdrop, elapsedMillis, onStop)` | «tocca per finire» sotto l'aureola, bersaglio da 48 dp; mostra i secondi da 1 s in poi |
+| `FluidListeningHint(backdrop, elapsedMillis, onStop)` | «tocca per finire» sotto l'aureola, bersaglio da 48 dp; mostra i secondi da 1 s in poi; la capsula gira |
 | `FluidConfirmationRow(pending, onConfirm, strings, fillButtons)` | titolo + dettaglio + Conferma/Annulla |
 | `FluidAssistantTextBar` | la capsula di scrittura: campo, microfono (solo se `micAvailable` e campo vuoto), invio (campo pieno), freccia circolare «nuova conversazione» (o `leading`) |
 | `FluidBarIcon` | icona della barra: 40 dp di disegno, tocco a 48 |
@@ -295,6 +297,40 @@ esempio» e' un'intestazione, e a risposta finita (`Done`) il testo (i **primi 6
 
 `FluidAssistantTextBar`: l'invio ignora il testo vuoto **e** `busy`; il testo si salva con la pagina (`rememberSaveable`); il
 fuoco arriva da solo solo con `autoFocus` (altrimenti niente tastiera). `leading = {}` toglie il tasto «nuova conversazione».
+
+## Il vetro e il lato (4.0, F3.2b)
+
+Il patto pubblico dell'engine per far girare un vetro chiaro/scuro con lo sfondo e' il contenitore
+([../componenti/piano-flottante.md](../componenti/piano-flottante.md), «Il lato e l'inchiostro»). Qui come lo usa
+l'assistente, superficie per superficie (inventario e famiglie: `artifacts/liquid-glass/review/F2/G1-inventario.md`).
+
+| superficie | prima | adesso | perche' |
+|---|---|---|---|
+| `FluidGlassRoundButton`, `FluidStopPill`, `FluidChipPill`, capsula di `FluidListeningHint`, **da soli** | del tema | **girano** | un `FluidGlassContainer` con un pezzo solo: il vetro (un `glassControlSurface`) lo disegna il contenitore con la stessa tinta, ottica, ruolo e filo; il contenuto prende l'inchiostro del lato |
+| gli stessi **sopra** card, dock, capsula del composer, barra di scrittura | del lato del pannello | del lato del pannello | vetro annidato: se girassero da soli, sopra una foto scura un tasto scuro starebbe su una card rimasta chiara |
+| gli stessi **dentro un `FluidGlassContainer` dell'app** o un vetro adattivo dell'engine | del tema | del contenitore (o dell'ospite) | sono pezzi di quel contenitore: girano con gli altri, e si fondono coi vicini |
+| `FluidAssistantCard`, `FluidAssistantDock` | del tema | **del tema, per ora** | sarebbero grandi che scuriscono; il contenitore disegna un pezzo solo come `fluidGlass` o `glassControlSurface` (non `Modal`, non la loro tinta) e non sa un vetro con dei vetri sopra: lo stop e i chip sarebbero suoi fratelli |
+| `FluidAssistantTextBar`, capsula di `FluidComposer`, `FluidCollapsedPill` | del tema | **del tema, per ora** | girerebbero; dentro il contenitore cambierebbero ruolo (`Modal`/`Floating` → `Floating` o `Interactive`) e tinta (`modalTint`, `floatingTint`, quella del composer → quella dei controlli). Il composer esporta il suo materiale ai tasti, che nel contenitore sarebbero fratelli |
+
+Restare «del tema» vuol dire quello di sempre: velo, ombra e tinta seguono lo sfondo, e il pavimento e il soffitto del
+velo li tengono leggibili ([../componenti/vetro.md](../componenti/vetro.md), «Chi gira, chi scurisce e chi no»).
+
+- **`LocalFluidAssistantPanel`**: vero dentro un pannello di vetro che non gira. La card, il dock, la capsula del composer
+  e la barra lo forniscono al loro contenuto (anche agli slot `header`, `footer`, `leading`). Un'app che posa i pezzi su un
+  suo `glassSurface` lo fornisce a mano; dentro un `FluidGlassContainer` o un vetro adattivo dell'engine non serve.
+- **Colori di serie**: `FluidAssistantInk.Default` vuol dire «l'inchiostro del lato», letto **dentro** il vetro (lo schema
+  di colori del lato): sul lato del tema e' `onSurface`, com'era. E' il valore di serie di `FluidGlassRoundButton(tint)`;
+  un colore passato dall'app (l'accento dell'invio, l'errore dello stop) resta il suo sui due lati. Lo stop, i chip e
+  la capsula dell'ascolto leggono l'inchiostro allo stesso modo; il pallino dell'ascolto resta nel colore d'errore.
+- **Il `modifier`** di un pezzo da solo sta attorno al suo contenitore (`align`, `weight`, `padding`, i tag restano
+  dove li scrive l'app). Il contenitore misura il contenuto senza minimi: un `weight` o una misura imposta dal genitore
+  non allargano piu' il vetro, che resta della sua misura. Su un pannello il `modifier` va al tasto, com'era.
+- **Col vetro di prima e sotto Android 13** il contenitore non disegna e ogni pezzo e' il tasto di sempre.
+- **Da vedere sul tablet**: la pagina «Assistente» della galleria (`--es gallery.page assistant`, `assistant.fund`
+  chiaro|scuro|foto, `assistant.auto`, `assistant.card risposta|lavoro`; logcat `FluidAssistente`).
+- **Cosa manca all'engine** per portare le altre: un pezzo del contenitore col ruolo, la tinta e l'ottica di un
+  `glassSurface` (un `Modifier.fluidGlass` o un pannello pubblico che li accetti), e un pezzo che porta dei vetri
+  annidati (i tasti della card e del composer come vetro sopra di lui, non fratelli), con il suo materiale esportato.
 
 ## L'aureola e il campo di luce
 

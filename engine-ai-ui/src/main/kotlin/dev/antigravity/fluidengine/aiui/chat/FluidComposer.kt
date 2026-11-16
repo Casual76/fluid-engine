@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -80,6 +81,10 @@ import dev.antigravity.fluidengine.aiui.halo.haloBlendForTheme
 import dev.antigravity.fluidengine.aiui.halo.rememberFluidHaloClock
 import dev.antigravity.fluidengine.aiui.halo.sampleCycle
 import dev.antigravity.fluidengine.aiui.halo.wrap01
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantInk
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantSmallGlass
+import dev.antigravity.fluidengine.aiui.overlay.LocalFluidAssistantPanel
+import dev.antigravity.fluidengine.aiui.overlay.fluidAssistantInk
 import dev.antigravity.fluidengine.aiui.strings.FluidAssistantStrings
 import dev.antigravity.fluidengine.aiui.strings.FluidChatStrings
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
@@ -240,6 +245,10 @@ fun rememberFluidListeningGlow(
  * file: i launcher e le miniature sono suoi), i **menu** del "+" e del modello (si aprono con
  * `FluidGlassModalPortal`, ancorati a [onBoundsChange]), la **modifica** di un messaggio, i plugin.
  *
+ * **Il vetro** (4.0, F3.2b): la capsula resta del lato del tema, e i tasti tondi sopra di lei con lei. Girerebbe come
+ * la capsula flottante, ma nel contenitore pubblico i tasti sarebbero suoi fratelli (non campionerebbero il suo
+ * materiale, e la sua esportazione non avrebbe dove andare) e la sua tinta non passa: vedi la scheda.
+ *
  * @param action il tasto a destra; di solito `fluidComposerAction(...)`.
  * @param onSend la domanda parte (o va in coda): l'app svuota il campo con `composer.sent()` se e'
  *   partita davvero, e lo lascia se non e' potuta partire (spenta, senza chiavi).
@@ -297,56 +306,60 @@ fun FluidComposer(
     }
     // La scatola esterna porta l'alone: le macchie stanno dietro al vetro e sbordano attorno, l'anello
     // sopra il bordo. Non clippa, e non deve: la luce vive fuori dalla capsula.
-    Box(if (glow != null) Modifier.fluidListeningGlow(glow, shape) else Modifier) {
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .onGloballyPositioned { onBoundsChange?.invoke(it.boundsInRoot()) }
-          .glassSurface(
-            state = backdrop,
-            tint = composerTint(),
-            shape = shape,
-            role = ComposerRole,
-            exports = composerGlass,
-            resampleIntervalMillis = resampleIntervalMillis,
-          )
-          .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
-      ) {
-        if (fluidComposerShowsVoiceLine(voiceActive, voiceLine != null)) {
-          voiceLine?.invoke()
-        } else {
-          FluidComposerField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = placeholder,
-            enabled = true,
-            onSend = onSend,
-            maxLines = maxLines,
-            modifier = Modifier.fillMaxWidth().focusRequester(inputFocus),
-          )
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          leading?.invoke(this, controlBackdrop)
-          if (leading != null) Spacer(Modifier.width(8.dp))
-          chips?.invoke(this)
-          Spacer(Modifier.weight(1f))
-          when (action) {
-            FluidComposerAction.StopListening -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.voiceStop, controlBackdrop, tint = MaterialTheme.colorScheme.error, onClick = onStopListening)
-            FluidComposerAction.StopAndQueue -> {
-              FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
-              Spacer(Modifier.width(8.dp))
-              FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.sendQueued, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
-            }
-            FluidComposerAction.Stop -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
-            FluidComposerAction.Mute -> FluidGlassRoundButton(FluidIcons.VolumeOff, strings.mute, controlBackdrop, onClick = onMute)
-            FluidComposerAction.Voice -> FluidGlassRoundButton(
-              FluidIcons.Mic,
-              strings.voiceStart,
-              controlBackdrop,
-              onClick = { if (micGranted || !requestMicPermission) onVoice() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+    // La capsula resta del lato del tema (F3.2b: i suoi tasti campionano il suo materiale, e nel contenitore sarebbero
+    // fratelli e non vetro sopra di lei): i tasti tondi lo sanno e restano vetro annidato del suo lato.
+    CompositionLocalProvider(LocalFluidAssistantPanel provides true) {
+      Box(if (glow != null) Modifier.fluidListeningGlow(glow, shape) else Modifier) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { onBoundsChange?.invoke(it.boundsInRoot()) }
+            .glassSurface(
+              state = backdrop,
+              tint = composerTint(),
+              shape = shape,
+              role = ComposerRole,
+              exports = composerGlass,
+              resampleIntervalMillis = resampleIntervalMillis,
             )
-            FluidComposerAction.Send -> FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.send, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+            .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
+        ) {
+          if (fluidComposerShowsVoiceLine(voiceActive, voiceLine != null)) {
+            voiceLine?.invoke()
+          } else {
+            FluidComposerField(
+              value = value,
+              onValueChange = onValueChange,
+              placeholder = placeholder,
+              enabled = true,
+              onSend = onSend,
+              maxLines = maxLines,
+              modifier = Modifier.fillMaxWidth().focusRequester(inputFocus),
+            )
+          }
+          Spacer(Modifier.height(6.dp))
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            leading?.invoke(this, controlBackdrop)
+            if (leading != null) Spacer(Modifier.width(8.dp))
+            chips?.invoke(this)
+            Spacer(Modifier.weight(1f))
+            when (action) {
+              FluidComposerAction.StopListening -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.voiceStop, controlBackdrop, tint = MaterialTheme.colorScheme.error, onClick = onStopListening)
+              FluidComposerAction.StopAndQueue -> {
+                FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
+                Spacer(Modifier.width(8.dp))
+                FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.sendQueued, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+              }
+              FluidComposerAction.Stop -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
+              FluidComposerAction.Mute -> FluidGlassRoundButton(FluidIcons.VolumeOff, strings.mute, controlBackdrop, onClick = onMute)
+              FluidComposerAction.Voice -> FluidGlassRoundButton(
+                FluidIcons.Mic,
+                strings.voiceStart,
+                controlBackdrop,
+                onClick = { if (micGranted || !requestMicPermission) onVoice() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+              )
+              FluidComposerAction.Send -> FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.send, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+            }
           }
         }
       }
@@ -491,6 +504,14 @@ fun FluidComposerPill(
  * Un tasto tondo di vetro, come quelli della barra: il "+", il microfono, l'invio, lo stop. Lo stesso
  * disco per tutti, cambia solo l'icona e, quando serve, il colore. Il [backdrop] e' quello che il disco
  * rifrange: sul composer e' la pila pagina + capsula ([FluidComposer] lo passa a [leading]).
+ *
+ * Sul composer (e su ogni pannello che lo dice con `LocalFluidAssistantPanel`) e' vetro annidato e tiene il lato della
+ * capsula. **Da solo** sulla pagina gira chiaro/scuro con lo sfondo come `FluidGlassIconButton` (F3.2b): si fa un
+ * contenitore con un pezzo solo, e il `modifier` sta attorno al contenitore.
+ *
+ * @param tint il colore dell'icona. Di serie ([FluidAssistantInk.Default]) e' **l'inchiostro del lato**: `onSurface`
+ *   sul lato del tema, com'era, e quello del lato scuro (o chiaro) quando il tasto gira. Un colore dell'app (l'accento
+ *   dell'invio, l'errore dello stop) resta il suo su tutti e due i lati.
  */
 @Composable
 fun FluidGlassRoundButton(
@@ -498,17 +519,20 @@ fun FluidGlassRoundButton(
   description: String,
   backdrop: GlassBackdropState,
   modifier: Modifier = Modifier,
-  tint: Color = MaterialTheme.colorScheme.onSurface,
+  tint: Color = FluidAssistantInk.Default,
   onClick: () -> Unit,
 ) {
-  Box(
-    modifier = modifier
-      .size(40.dp)
-      .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
-      .fluidPressable(onClick = onClick, role = Role.Button),
-    contentAlignment = Alignment.Center,
-  ) {
-    Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(20.dp))
+  FluidAssistantSmallGlass(modifier) { outer ->
+    Box(
+      modifier = outer
+        .size(40.dp)
+        .glassControlSurface(backdrop = backdrop, shape = FluidCapsuleShape)
+        .fluidPressable(onClick = onClick, role = Role.Button),
+      contentAlignment = Alignment.Center,
+    ) {
+      // Letto qui, dentro il contenitore: lo schema di colori e' quello del lato del vetro.
+      Icon(icon, contentDescription = description, tint = fluidAssistantInk(tint, MaterialTheme.colorScheme.onSurface), modifier = Modifier.size(20.dp))
+    }
   }
 }
 

@@ -290,6 +290,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-plane"),
           onClick = { onOpen(GalleryPage.Plane) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Assistente",
+          subtitle = "F3.2b: card, dock, barra, composer, tasti e pillole dell'assistente sopra un fondo che cambia",
+          modifier = Modifier.testTag("chrome-open-assistant"),
+          onClick = { onOpen(GalleryPage.Assistant) },
+        )
       }
     }
 

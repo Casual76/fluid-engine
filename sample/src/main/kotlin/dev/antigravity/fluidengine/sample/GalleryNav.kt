@@ -87,6 +87,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   Plane("Piano flottante"),
 
+  /**
+   * Le superfici dell'assistente (`engine-ai-ui`, piano «iOS in Android», F3.2b) sopra un fondo che cambia (chiaro, scuro,
+   * foto, anche da solo): i pezzi che girano da soli nel contenitore e quelli che per ora restano del lato del tema. Vedi
+   * `assistant/`. Si apre con `--es gallery.page assistant`. Uno strumento per le sessioni sul dispositivo, come
+   * «Adattività».
+   */
+  Assistant("Assistente"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

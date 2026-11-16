@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+  <!--
+    La pagina «Assistente» (F3.2b) porta engine-ai-ui, e con lui engine-ai, che dichiara RECORD_AUDIO per la voce
+    dell'assistente. La galleria non ascolta mai: il permesso non deve arrivare nell'APK.
+  -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+
   <application
       android:allowBackup="false"
       android:dataExtractionRules="@xml/data_extraction_rules"

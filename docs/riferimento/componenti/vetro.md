@@ -512,11 +512,20 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   tablet, a nero pieno, il foglio e il pop-up stanno a 27 su 255 e il pannello laterale a 55 (Apple 48); sul tema scuro
   sopra la pagina chiara pop-up e pannello stanno a 102.
 - **Girano insieme**, con una sonda sola, i vetri di un `FluidGlassContainer` e il loro contenuto: è il patto dell'inchiostro delle app (4.0, anche con un pezzo solo), in [piano-flottante.md](piano-flottante.md).
+  Così girano, **da soli sulla pagina**, i pezzi piccoli di `engine-ai-ui` (F3.2b): `FluidGlassRoundButton`,
+  `FluidStopPill`, `FluidChipPill` e la capsula di `FluidListeningHint` si fanno un contenitore con un pezzo solo, e
+  l'icona o la scritta sono l'inchiostro del lato. Sopra la card, il dock, il composer o la barra di scrittura restano
+  vetro annidato del pannello (`LocalFluidAssistantPanel`, in [../moduli/ai-ui-overlay.md](../moduli/ai-ui-overlay.md)).
 - **Tengono il lato del tema**, con velo, ombra e tinta che seguono comunque lo sfondo: un `glassSurface` o
   `glassControlSurface` dell'app (non hanno un contenuto loro: l'engine non sa cosa ci disegna sopra l'app), il tasto tinto
   (pellicola fissa), un vetro annidato (prende il lato dall'host), le card di vetro e le righe raggruppate, il binario dei
   segmenti, la bolla dello scorrimento veloce, le gocce di slider, switch e scrubber, la barra ancorata, la barra `Classic` di
-  `FluidTopBarGlass`. Con `Classic` e sotto Android 13 niente di questo cambia, al pixel.
+  `FluidTopBarGlass`. **Per ora** anche le superfici di `engine-ai-ui` più grandi di un tasto, coi pezzi che portano: la
+  card e il dock (la famiglia giusta sarebbe «scuriscono»), la barra di scrittura, la capsula del composer e la pillola
+  ridotta (sarebbe «girano»). Il contenitore pubblico disegna un pezzo solo come `fluidGlass` (ruolo `Floating`, tinta dei
+  controlli) o come `glassControlSurface` (ruolo `Interactive`), e non sa un vetro con dei vetri sopra: portarle lì
+  cambierebbe il loro aspetto sul lato del tema, o farebbe dei loro tasti dei fratelli. Con `Classic` e sotto Android 13
+  niente di questo cambia, al pixel.
 
 `GlassInk` è interno: un'app non può far girare o scurire un vetro suo, e un pannello di vetro fatto a mano con
 `glassSurface` resta del tema (vedi le trappole). La pagina «Adattività» della galleria mostra le tre famiglie una accanto
@@ -726,7 +735,7 @@ aprire la schermata da guardare.
   controlli fratelli di un pannello che esporta a 62 su 48; il test strumentato `GlassNestingInstrumentedTest` compone
   i quattro alberi e passa 5 su 5. **Limiti noti**: nella notifica **di vetro** in chiaro il corpo del tasto è uguale al
   pannello (239,9 su 240,2) e lo staccano solo filo e ombra (assegnato all'adattività, F2); il composer di
-  `engine-ai-ui` cabla i suoi controlli con lo stesso schema e **non è stato visto**, perché non è nella galleria.
+  `engine-ai-ui` cabla i suoi controlli con lo stesso schema e **non è stato visto**: dalla F3.2b è nella pagina «Assistente» della galleria, da riprendere.
 - **Il profilo di serie è stato visto su un solo dispositivo, un Tab S9.** In due sessioni (S1-ter, con la combinazione
   di prima delle scelte; S2-pre, con quella di serie) e dopo il giro di correzione: nessuno shader rifiutato, il
   riscaldamento in 7,7–8,1 ms di filo principale dopo il primo fotogramma; il bordo del tasto tondo e della capsula

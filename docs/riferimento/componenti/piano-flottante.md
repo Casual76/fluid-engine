@@ -252,6 +252,11 @@ contenitore non sono mai un grappolo (varianti diverse).
 - **Vetro di prima** (`FluidGlassModel.Classic`) e **sotto Android 13**: il contenitore non disegna; ogni pezzo è il vetro
   di sempre, senza viaggi.
 - **Più di otto pezzi** in un grappolo: il grappolo si divide, dichiarato.
+- **Un pannello col suo ruolo**: un pezzo si disegna come `fluidGlass` (ruolo `Floating`, tinta dei controlli) o come
+  `glassControlSurface` (ruolo `Interactive`); un `glassSurface` `Modal` con la sua tinta, o un pannello che esporta il suo
+  materiale ai tasti sopra di lui, non ha ancora un pezzo che lo renda uguale. Per questo card, dock, barra di scrittura e
+  composer di `engine-ai-ui` restano del lato del tema, e solo i loro pezzi piccoli, da soli, girano col contenitore
+  (F3.2b, [../moduli/ai-ui-overlay.md](../moduli/ai-ui-overlay.md), «Il vetro e il lato»).
 - Il collo, i ponti sottili e la comparsa col materiale vero si stanno tarando (F3.3): la galleria mostra lo stato di
   oggi e le tavole di gusto (distanza di fusione, strozzatura del collo, scala della comparsa) sono di Alessio.
 

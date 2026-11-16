@@ -249,7 +249,7 @@ l'unica modifica certa al nodo vendored in F1A.6, marcata «Fluid Engine additio
 | `FluidGlassQuality` | lente, alfa di filo e ombra, sfocatura fra 0,45 e 1, frangia spenta sotto 0,75, cattura a metà sotto 0,7; mai la pellicola | identico: lente, luce, ombra, raggio fra 0,45 e 1, dispersione, risoluzione; mai il velo |
 | `pressed` | approfondisce lo spostamento | identico (`refraction`) |
 | `edge` e `tint.hairline` | filetto di mezzo dp in alto o in basso (`drawGlassTint`, `ui/fluid/GlassMaterial.kt:1800-1840`) | identico, in `onDrawSurface` |
-| `falloff = FadeDown` | la fascia | **resta `Classic`** qualunque sia il modello, da F1A fino a F2.5; da F2.5 diventa la striscia del bordo (3.10) |
+| `falloff = FadeDown` | la fascia | **resta `Classic`** qualunque sia il modello, da F1A fino a F4A; da F4A diventa la striscia del bordo (3.10). In F2.5 non è stato fatto: `FluidScreen` usa la striscia da sé, una `glassSurface(falloff = FadeDown)` scritta da un'app resta la fascia (chiusura di F2) |
 | `glassMask` (il `saveLayer` delle dissolvenze) | attorno al renderer | non serve: la dissolvenza è `materialize` |
 
 ### 3.4 Gli shader
@@ -549,7 +549,7 @@ con default in coda; l'unica eccezione alla coda è `FluidContextAction`, e ha l
 | `GlassTint(overlay, fallback, hairline)` | costruttore a tre argomenti valido; `mode = Fixed` di default: una tinta scritta a mano resta la pellicola dipinta. Le tinte di `GlassDefaults` passano a `Neutral` |
 | `GlassDefaults` (`optics`, `buttonOptics`, `panelOptics`, `stackedContentOptics`, le 16 tinte, `isDarkSurface`) | firme identiche; i valori servono a `Classic` e alla traduzione |
 | `GlassRole` | invariato |
-| `GlassFalloff.FadeDown`, `GlassEdge`, i parametri `barTint`, `FluidScreenDefaults.GlassFadeTail/ShieldDeadZone/ShieldRampDistance` | restano, deprecati. Una `glassSurface(falloff = FadeDown)` resta `Classic` da F1A a F2.5 (la fascia di oggi, intatta); da F2.5 sotto `Liquid` diventa la striscia del bordo morbido; `barTint` è ignorato |
+| `GlassFalloff.FadeDown`, `GlassEdge`, i parametri `barTint`, `FluidScreenDefaults.GlassFadeTail/ShieldDeadZone/ShieldRampDistance` | restano, deprecati. Una `glassSurface(falloff = FadeDown)` resta `Classic` da F1A a F4A (la fascia di oggi, intatta); da F4A sotto `Liquid` diventa la striscia del bordo morbido (in F2.5 non è stato fatto: chiusura di F2); `barTint` è ignorato |
 | `fluidPhysicsSurface(state, backdrop, tint, role, optics, tier, intensity, tintFrom, tintBlend, opticsFrom, opticsBlend, sampleOnce, exports, pressState)` | firma identica (`fp/FluidPhysicsSurface.kt:76`) |
 | il pacchetto `glass.backdrop` (tutto pubblico: `drawBackdrop`, `lens`, `blur`, `Highlight`, `Shadow`…) | invariato; `lens()` continua a esistere per chi chiama `drawBackdrop` a mano, con il difetto `radiusAt` corretto (F0.2) |
 | `actions: @Composable RowScope.() -> Unit` | resta; `toolbar = { }` è un parametro **accanto** (F4A) |
@@ -1630,10 +1630,10 @@ d'ombra** sopra e sotto la vita, che restava aperta, è chiusa col commit a33d81
 | ricerca (e): la barra che si apre avanza a passi irregolari (fotogrammi ripetuti); il testo del campo si legge male sul fondo carico e non entra sfocato | 20% di passi lunghi | F4B |
 | menu: bagliore della pressione perso al passaggio nel clic lungo in scuro (`ui/fluid/FluidMenuLayer.kt` disegna la sagoma senza `pressState`); bordo doppio di «Ordina» nei primi ~110 ms (non diagnosticato); sottotiro alla chiusura (`FluidMenuJourney`, c'era già); alla chiusura del menu contestuale la pagina cambia velo in un fotogramma (c'era già alla partenza) | −8,5%; +17 chiaro, −15 scuro | F5A |
 | notifica in uscita: due o tre contorni annidati nell'angolo; angolo quadrato dell'ombra sotto l'angolo tondo | ~60 ms; 3–6 livelli | F5B |
-| tasto annidato nella notifica chiara uguale al pannello; etichetta della scheda scelta sopra una foto in scuro; debito di leggibilità di F2-e | 4,4:1 | F2 |
+| tasto annidato nella notifica chiara uguale al pannello; etichetta della scheda scelta sopra una foto in scuro; debito di leggibilità di F2-e | 4,4:1 | F2: il debito di F2-e è chiuso col criterio riscritto (48 righe sopra soglia); l'annidato resta del lato del tema e passa a **F3** (chiusura di F2) |
 | mezzaluna specchiata al bordo della lente (`glassCircleMap`, pendenza infinita al bordo); lente meno forte di Apple | 1,29× contro ~1,6× | F6.3 |
 | il velo di contrasto della barra di navigazione di Android scurisce il fondo dei fogli: oggi lo spegne solo la galleria, serve un aiuto dell'engine | – | F3 |
-| bolla della chat e compositore di `engine-ai-ui`: la galleria non li raggiunge, mai visti sul tablet col materiale nuovo | – | F2.6 (pagina della galleria) |
+| bolla della chat e compositore di `engine-ai-ui`: la galleria non li raggiunge, mai visti sul tablet col materiale nuovo | – | F2.6 non li ha raggiunti: passano a **F3.2**, col contenitore pubblico che darà loro il patto dell'inchiostro (chiusura di F2) |
 
 **Limiti dello strumento** (da togliere prima della prima fase che deve accettare un viaggio d'oro, F3): su fondi del
 tutto velati ((f), (h), Expand, pillola premuta) la sagoma non è misurata; i riposi sovrapposti di (a) e (c) non danno
@@ -1761,11 +1761,11 @@ striscia così sottile.
 
 | id | sottocategoria | minimo |
 |---|---|---|
-| F2-a | il giro chiaro/scuro: mai uno scatto, mai uno sfarfallio, mai un'icona illeggibile per più di un fotogramma | 9 |
+| F2-a | il giro chiaro/scuro: mai uno scatto, mai uno sfarfallio, mai due giri in meno di ~1 s sullo stesso vetro; un'icona sotto 3:1 solo dentro la finestra di un giro (≈600 ms) e l'uscita simmetrica all'entrata. *Riscritto alla chiusura (2026-11-16): diceva «mai un'icona illeggibile per più di un fotogramma», che il giro misurato su Apple (B6: un fotogramma a contrasto zero, icona al 90% solo a 600 ms) non rispetta per costruzione* | 9 |
 | F2-b | il bordo dello scorrimento: nessuna immagine doppia, nessun disegno dei campioni, nessuna riga dove finisce | 9 |
 | F2-c | tempi del giro e profilo del bordo contro B6 e B7 | 8,5 |
 | F2-d | i grandi non girano: scuriscono in continuo; il lato segue lo sfondo anche quando il vetro è fermo e cambia solo ciò che ha dietro | 8,5 |
-| F2-e | leggibilità di testo e icone sul vetro in ogni stato del giro (contrasto misurato agli estremi). **Debito ereditato da F1A, misurato in F1A.8** (`artifacts/liquid-glass/bench/f1a-8/contrasto.md`): a contrasto di sistema standard il velo nuovo, col solo lato del tema, legge peggio di oggi il testo sopra i fondi opposti (tema chiaro su nero: flottante 4,92 → 3,76, modale 5,26 → 3,79; tema scuro su grigio medio: modale 5,63 → 3,72). F2 lo chiude col lato e l'inchiostro adattivi: **il rapporto inchiostro/corpo non è peggiore di oggi su nessun fondo del campione**, con la stessa tabella rifatta. Se non ci arriva, il ripiego è un pavimento del velo per ruolo (su nero tornerebbe a 4,70 / 5,03 / 5,37, col velo sui colori saturi a 0,52–0,56 contro lo 0,5 di R5) | 7,5 |
+| F2-e | leggibilità di testo e icone sul vetro in ogni stato del giro (contrasto misurato agli estremi). **Debito ereditato da F1A, misurato in F1A.8** (`artifacts/liquid-glass/bench/f1a-8/contrasto.md`): a contrasto di sistema standard il velo nuovo, col solo lato del tema, legge peggio di oggi il testo sopra i fondi opposti (tema chiaro su nero: flottante 4,92 → 3,76, modale 5,26 → 3,79; tema scuro su grigio medio: modale 5,63 → 3,72). F2 lo chiude col lato e l'inchiostro adattivi: **il rapporto inchiostro/corpo non è peggiore di oggi su nessun fondo del campione**, con la stessa tabella rifatta. Se non ci arriva, il ripiego è un pavimento del velo per ruolo (su nero tornerebbe a 4,70 / 5,03 / 5,37, col velo sui colori saturi a 0,52–0,56 contro lo 0,5 di R5). *Riscritto alla chiusura (2026-11-16): **ogni riga del campione sopra 4,5:1, e le righe che scendono rispetto a prima sono dichiarate**. Consegnato: 48 righe sopra soglia, minimo 5,04:1 (`artifacts/liquid-glass/bench/f2-g1/contrasto.md`); scendono, restando sopra, la capsula su nero in scuro (14,81 → 10,18), il menu su foto in chiaro (6,37 → 5,26), il pannello (6,38 → 5,04)* | 7,5 |
 | F2-f | costo: la sonda non gira quando niente cambia; la striscia sostituisce la fascia, non si somma | 7 |
 
 **Rischi e ripieghi.** Sfarfallio che nessuna isteresi doma (R3 rischio 5): il giro vale solo per vetro fermo sopra contenuto
@@ -1819,6 +1819,60 @@ bene»: nessuna curva diversa per il testo, quella di R4 B7 resta solo nella man
 | tasto tinto: bordo e ombra | **C, «iOS 26»**: alone del colore del tasto e filo chiaro (l'orchestratore proponeva B, il solo alone). È un'eccezione al filo scuro di iOS 27 scelto per gli altri tasti: vale solo per i tasti tinti |
 | `Clear` | **B**: oscuramento fisso del 35%, come indica Apple; quello che segue lo sfondo resta nella manopola `cleardim=follow` |
 | il cursore dell'utente, i grandi che scuriscono | mostrati senza chiedere una scelta: si giudicano sul tablet |
+
+**Scelte di Alessio dopo S3 (2026-11-13).** Sulle riprese dal tablet di `artifacts/liquid-glass/sessioni/s3/per-alessio/`
+ha lasciato le quattro scelte alla proposta dell'orchestratore («per le scelte lascio tutto come hai deciso te»):
+
+| scelta | risposta | di serie dopo il giro di correzione |
+|---|---|---|
+| velocità del giro | **C**: più svelto di B6, con un'attesa breve prima di girare, a condizione che scacchiera e caso veloce non oscillino; altrimenti la stessa velocità con 200 ms | `GlassFlipTimings.Swift` con **200 ms**: la condizione non ha retto (caso veloce, quattro corse: con 100 ms la tab bar fa 60 giri e 34 doppi, con 200 ms 12 e 6; sulla scacchiera nessun giro con nessuna delle due) |
+| soglia del giro | **A**: 0,45 / 0,62 | invariata |
+| profondità del piccolo girato | **B**: più profondo | `darkveilalpha` 0,39 (≈43/255 sul nero); vale anche per il vetro scuro dei piccoli in tema scuro |
+| profondità dei grandi | **B**, come Apple: `darklargealpha` 0,89 (48 sul nero pieno, 89 al 47%) | **resta 0,5, da riguardare con Alessio**: con 0,89 anche i fogli e le card del tema scuro schiariscono (corpo da 34 a 49–51) e il testo secondario scende da 6,87:1 a 5,60:1 (5,44:1 sul fondo del tablet), sotto il vincolo di 6:1 messo in F1A.5c; il vincolo era dell'orchestratore, la scelta è di Alessio, e quell'effetto sul tema scuro non gli era stato mostrato |
+| cosa fa il vetro mentre scorri: `live` / `rest` / `ahead` / a copertura | delegata all'orchestratore, sulle riprese del giro di correzione | **proposta `rest`** (mentre scorre il vetro tiene il lato dell'ultimo riposo, permanenza di 1 s): l'unica variante con 0 giri e 0 s sotto 3:1 nei quattro casi ripresi (`sessioni/f2-g1/per-alessio/1-mentre-scorri/`). Di serie resta `live` con permanenza di 400 ms finché sul tablet non si vedono il caso dei riquadri scuri che riempiono la barra e il costo |
+
+**Esito del giro di correzione (2026-11-16, commit 5c93992).** Un solo giro, per decisione di Alessio, senza un secondo
+giro di critici: G1 sull'engine (`artifacts/liquid-glass/review/F2/correzione-G1.md`), G2 sui documenti (commit
+e6d15f8). Verifica dell'orchestratore sui sorgenti finali: `engine-ui` 5.925 test, 0 falliti, 1.654 saltati; `sample`
+742, 0, 16; banco `liquid` 38/38 (12 golden scuri rifatti per `darkveilalpha` 0,39, gli altri al bit), `classic` 13/13
+al bit; `check_docs` OK. Chiusi in codice e test: i grandi inseguono lo sfondo senza ripartire da fermo (`GlassChase`;
+sul tablet, con la fascia che copre tutto il foglio, corpo a 56 in 0,70 s, prima 110 in 1,27 s) e il loro contenuto
+cambia tema al punto di pari contrasto; in tema scuro la barra in alto ospita titolo e tasti con una decisione sola
+(sul tablet i tasti girano insieme, otto volte negli stessi istanti) e le icone della barra di stato la seguono nei due
+versi; `ProvideFluidChrome` non posa più nodi (lo scrittore di riserva è `Modifier.fluidChromePages()`, API nuova); il
+menu aperto da un tasto girato nasce dal suo stato (sul tablet nessun lampo chiaro); il cursore dell'utente arriva a
+Fluid-physics, alle gocce, al vetro dipinto e alla pillola della tab bar; movimento ridotto immediato, anche con la
+scala di sistema a zero; `GlassBackdropState.notifyChanged()` (API nuova) per le sorgenti che non avvisano;
+`FluidScrollEdge` tiene il posto quando non si disegna. I 66 test rossi a metà giro non erano regressi (62 voci note
+della robustezza in più per il salto d'alfa fra piccoli e grandi a 0,39 / 0,5; 4 test legati ai valori di serie).
+
+**F2 resta aperta per una sessione sul tablet** (Alessio lo usava a metà giro). Le riprese mancanti, coi comandi, sono
+in `artifacts/liquid-glass/sessioni/f2-g1/da-riprendere.md`; la prima è un possibile regresso: nelle registrazioni la
+scena `scorrimento` gira a 86–87 fotogrammi al secondo con 74–75 oltre 20 ms, contro 100 e 20 prima del giro, ma le
+riprese «dopo» erano venti di fila col tablet caldo. Si chiude con il `gfxinfo` senza registrazione a tablet freddo,
+alternando gli APK `s3` e `f2-g1`; poi il riposo (zero fotogrammi), `rest` sui riquadri che riempiono la barra, il
+cursore a 0 / 0,5 / 1, le varianti, il movimento ridotto, il menu dal tasto girato con l'APK finale, e le tavole per
+Alessio sulla profondità dei grandi (0,5 / ≈0,63 / 0,89, foglio scuro in tema scuro).
+
+**Difetti aperti e fase che li chiude.**
+
+| difetto | misura | fase |
+|---|---|---|
+| costo dello scorrimento del vetro nuovo sopra le foto | lenti liquid 19–26% contro classic ~12% (Tab S9, a freddo; F2.5b e S3 uguali) | **F7**, «Debito di costo ereditato da F2» |
+| scena `scorrimento` più lenta dopo il giro di correzione (da confermare) | 86–87 fps contro 100, nelle registrazioni | sessione sul tablet di F2; se è un regresso, si corregge prima di F3 |
+| lo specchio del banco non ha la ricetta del pop-up: i numeri dei grandi non si leggono dal banco | banco 110 / 110 / 69 / 27, tablet 116 / 83 / 70 / 27, Apple 111 / 89 / 61 / 48 al 25 / 47 / 74 / 100% di nero | F3 |
+| i golden del banco sono tutti di F1: nessuna scena prova giro, grandi o bordo | – | F3 |
+| la trama della sonda conta un bordo netto come testo (l'ombra si rinforza sopra un riquadro a tinta unita) | – | F3, con la sonda del contenitore |
+| tasto annidato nella notifica chiara uguale al pannello (da F1B); gli annidati restano del lato del tema | – | F3, adattamento uniforme del contenitore |
+| nessun contenitore pubblico col patto dell'inchiostro (`FluidGlassPanel` proposto da F2.3b, o `Modifier.fluidGlass`); `Clear` senza consumatori; le superfici di `engine-ai-ui` restano del tema finché non c'è (`artifacts/liquid-glass/review/F2/G1-inventario.md`: card e dock poi scuriscono, barre, tasti e pillole poi girano) | – | **F3.2** (anche `Clear` in galleria) |
+| `glassSurface(falloff = FadeDown)` scritta da un'app resta la fascia `Classic` anche sotto `Liquid` | – | F4A |
+| campo di ricerca aperto dal tasto troppo alto | – | F4B, modello leggero |
+
+**Limiti dichiarati, senza fase.** A metà copertura nessun inchiostro regge le due metà di un grande: è un limite che ha
+anche Apple. `Classic` in tema scuro sopra una foto chiara ha i tasti in testa a 1,85:1: con `Classic` e sotto Android 13
+il vetro non si adatta, per decisione (sezione 2), ed è scritto nelle schede. Un'app che cambia lo sfondo senza che la
+sorgente lo sappia (un layer suo, uno scorrimento da codice) deve chiamare `notifyChanged()`: accorgersene da soli a costo
+zero a riposo non si può.
 
 ---
 
@@ -2709,6 +2763,14 @@ della partenza**, sul Tab S9, con `dumpsys gfxinfo` sulle stesse prove (`moto/f1
 
 Lo stesso vale per i passi lunghi dentro i viaggi (oltre 12,5 ms): (c) dal 4% al 31%, (f) dal 22% al 54%, (h) dal 26% al
 55%. Fino a F7 il costo non si tocca e non si porta ad Alessio: «per ora puntiamo alla qualità».
+
+**Debito di costo ereditato da F2 (2026-11-13).** Scorrere una pagina di foto sotto barra e tab bar del vetro nuovo dà
+il 19–26% di fotogrammi lenti contro il ~12% di `Classic` sul Tab S9 (sul testo 12–15% contro 10–12%; in tema scuro
+uguale sulle pagine della galleria): A/B a freddo dell'orchestratore, `artifacts/liquid-glass/sessioni/s3/costo-freddo/`.
+F2.5b e S3 danno gli stessi numeri. **Metodo, da qui in avanti**: una corsa sola non basta (con lo stesso APK le foto
+vanno dal 18 al 26%); ogni confronto di costo si fa con almeno tre corse alternate per APK, a tablet freddo, scrivendo
+la temperatura della batteria di quel momento (`mSavedBatteryMaxTemp` è il massimo storico, non la temperatura). Si
+aggiunge la scena `scorrimento` della pagina «Adattività» nei due temi, coi numeri della sessione di chiusura di F2.
 
 **Bilanci.** Non si inventano adesso: si fissano in S5 sulla baseline, con due regole. (i) Nessuno scenario è peggio della
 3.1.2 misurata **sullo stesso dispositivo** con l'APK di riferimento conservato in F0 (sul tablet in S1, sul telefono in

@@ -13,7 +13,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,9 +32,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
-import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
-import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassPanel
 import dev.antigravity.fluidengine.ui.fluid.icons.ArrowUpward
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Mic
@@ -50,9 +48,11 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Refresh
  * ("Chiedi al registro…" era dominio di CV, qui e' una parola dell'app). [leading] sostituisce il
  * tasto "nuova conversazione" per chi ne vuole un altro (o nessuno: passa `{}`).
  *
- * **Il vetro** (4.0, F3.2b): resta del lato del tema. Girerebbe come il campo di ricerca flottante, ma dentro il
- * contenitore pubblico un vetro si disegna solo come `fluidGlass` (ruolo `Floating`, tinta dei controlli) o come
- * `glassControlSurface` (ruolo `Interactive`): la capsula `Modal` di oggi cambierebbe aspetto. Vedi la scheda.
+ * **Il vetro** (4.0, F3.2e): una capsula `Modal` del piano flottante. Da sola sulla pagina sta in un
+ * `FluidGlassContainer` con un pezzo solo e **gira** chiaro/scuro con lo sfondo come il campo di ricerca flottante (è un
+ * piccolo, anche se il suo ruolo da solo la farebbe scurire: `large = false`), con le icone e il testo nell'inchiostro del
+ * suo lato. Sul lato del tema è il vetro di prima. Un tasto di vetro che l'app mette in [leading] è vetro annidato della
+ * barra. Il `modifier` sta attorno al contenitore, che passa alla barra i vincoli minimi.
  *
  * @param autoFocus vero quando l'ha chiesta l'utente; falso a risposta finita, perche' riaprire con
  *   la tastiera copre la risposta che si e' appena aspettata.
@@ -79,36 +79,46 @@ fun FluidAssistantTextBar(
     onSend(query)
     text = ""
   }
-  // La barra resta del lato del tema (F3.2b); un tasto di vetro che l'app mette in [leading] lo sa e resta del suo lato.
-  CompositionLocalProvider(LocalFluidAssistantPanel provides true) {
+  // La pellicola si legge qui, fuori dal contenitore: è quella del lato del tema, come prima. Il lato lo fa il contenitore.
+  val tint = GlassDefaults.modalTint()
+  FluidAssistantPanelGlass(modifier) { outer ->
     Row(
-      modifier = modifier
+      modifier = outer
         .fillMaxWidth()
-        .glassSurface(state = backdrop, tint = GlassDefaults.modalTint(), shape = FluidCapsuleShape, role = GlassRole.Modal)
+        .fluidGlassPanel(
+          backdrop = backdrop,
+          tint = tint,
+          shape = FluidCapsuleShape,
+          role = FluidAssistantSurface.TextBar.role,
+          large = FluidAssistantSurface.TextBar.large,
+        )
         .padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      if (leading != null) {
-        leading()
-      } else {
-        FluidBarIcon(icon = FluidIcons.Refresh, description = strings.newConversation, onClick = onNewConversation)
-      }
-      FluidTextField(
-        value = text,
-        onValueChange = { text = it },
-        placeholder = strings.askPlaceholder,
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-        keyboardActions = KeyboardActions(onSend = { submit() }),
-        modifier = Modifier
-          .weight(1f)
-          .focusRequester(focus),
-      )
-      Spacer(Modifier.width(4.dp))
-      if (text.isBlank()) {
-        if (micAvailable) FluidBarIcon(icon = FluidIcons.Mic, description = strings.voice, onClick = onVoice)
-      } else {
-        FluidBarIcon(icon = FluidIcons.ArrowUpward, description = strings.send, onClick = { submit() }, primary = true)
+      // Un tasto di vetro in [leading] è vetro annidato della barra, non un pezzo del suo contenitore.
+      FluidAssistantPanelContent {
+        if (leading != null) {
+          leading()
+        } else {
+          FluidBarIcon(icon = FluidIcons.Refresh, description = strings.newConversation, onClick = onNewConversation)
+        }
+        FluidTextField(
+          value = text,
+          onValueChange = { text = it },
+          placeholder = strings.askPlaceholder,
+          singleLine = true,
+          keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+          keyboardActions = KeyboardActions(onSend = { submit() }),
+          modifier = Modifier
+            .weight(1f)
+            .focusRequester(focus),
+        )
+        Spacer(Modifier.width(4.dp))
+        if (text.isBlank()) {
+          if (micAvailable) FluidBarIcon(icon = FluidIcons.Mic, description = strings.voice, onClick = onVoice)
+        } else {
+          FluidBarIcon(icon = FluidIcons.ArrowUpward, description = strings.send, onClick = { submit() }, primary = true)
+        }
       }
     }
   }

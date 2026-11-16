@@ -435,18 +435,20 @@ chiede mai la riserva: campionerebbe una registrazione che contiene sé stesso.
 
 **Come decide il lato.** Il filtro fa una media mobile della luminanza (costante di 200 ms), con **due soglie distanti**: sotto
 0,45 il vetro va sul lato scuro, sopra 0,62 torna sul chiaro, in mezzo resta dove sta; dopo ogni giro non ne fa un altro
-per 400 ms. Così un fondo che sta a metà, una scacchiera che passa sotto, una lettura che trema di un centesimo non lo
+per 1000 ms (400 fino alla chiusura di F2). Così un fondo che sta a metà, una scacchiera che passa sotto, una lettura che trema di un centesimo non lo
 fanno saltare avanti e indietro. La **prima lettura decide subito** (un vetro che nasce sopra una foto scura non si mostra
 prima chiaro), con le stesse soglie partendo dal lato del tema. Il filtro ha una scadenza: dopo l'ultima lettura la media
 continua a muoversi, e se attraverserà una soglia lo farà a un istante calcolabile, quando nessuna lettura nuova arriverà
-a ricordarlo. Soglie, attesa e permanenza sono state guardate sul tablet in S3 e restano queste (scelta 2 di S3; in G1
+a ricordarlo. Soglie e attesa sono state guardate sul tablet in S3 e restano queste (scelta 2 di S3; in G1
 l'attesa di 100 ms, più svelta, è stata provata e scartata: nel caso veloce la tab bar girava 60 volte con 34 doppi giri in
-quattro riprese, contro 12 e 6 con 200 ms; sulla scacchiera nessuno dei due gira).
+quattro riprese, contro 12 e 6 con 200 ms; sulla scacchiera nessuno dei due gira). La permanenza è **1 s** dalla chiusura
+di F2 (2026-11-16): con 400 ms, nel caso veloce, la tab bar faceva 8 giri e 4 doppi, i tasti 10 e 7 in 10 s; con 1 s i
+doppi giri non ci sono più.
 
-**Mentre si scorre** (4.0, G1). Di serie il vetro decide anche mentre lo sfondo scorre (`live`): scorrendo in fretta una
-barra può girare due volte in meno di un secondo a ogni riquadro scuro che passa. Le alternative sono manopole di debug
-(`gallery.tune`), da scegliere sulle riprese: `flipdwell` (la permanenza dopo un giro, di serie 400 ms; a 1000 nessun vetro
-gira due volte in meno di un secondo), `flipscroll=rest` (mentre il contenuto scorre più svelto di 120 dp/s il lato resta
+**Mentre si scorre** (4.0, G1, chiusa in F2). Di serie il vetro decide anche mentre lo sfondo scorre (`live`) e, con la
+permanenza di 1 s, non gira due volte in meno di un secondo (con 400 ms una barra girava a ogni riquadro scuro che
+passava). Le alternative sono manopole di debug (`gallery.tune`): `flipdwell` (la permanenza dopo un giro, di serie
+1000 ms), `flipscroll=rest` (mentre il contenuto scorre più svelto di 120 dp/s il lato resta
 quello dell'ultimo riposo, e si decide quando rallenta o si ferma), `flipscroll=ahead` (la sonda legge la fascia che sta
 **entrando** sotto il vetro, 300 ms avanti, mai fuori dalla registrazione: aiuta la barra in alto quando si scorre in avanti
 e la tab bar quando si torna indietro, non il contrario) e `flipby=coverage` con `flipcover` (decide sulla quota della
@@ -493,7 +495,8 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   vetro girato il contenuto ha lo schema del lato con lo stesso accento, e il puck lo porta a 3:1 sulla pellicola.
 - **Scuriscono in continuo**, e il contenuto li segue (ruoli `Modal` e `Content`, più la barra laterale che lo dice da sé):
   i menu (`FluidMenuLayer`, il pannello di `FluidMorphMenuButton`), il pop-up e il foglio di `FluidGlassModalPortal`, gli
-  avvisi, `FluidDrawer`, `FluidSidebar`, `FluidNotification`, `FluidCoachMark`. Sul tema chiaro il corpo va verso lo scuro
+  avvisi, `FluidDrawer`, `FluidSidebar`, `FluidNotification`, `FluidCoachMark`, e (dalla F3.2e, da sole sulla pagina) la
+  card e il dock di `engine-ai-ui`. Sul tema chiaro il corpo va verso lo scuro
   con la quota di nero che hanno sotto, senza girare: R4 A6, da 143 a 48 su nero pieno in circa 1,5 s, e a metà copertura il
   velo segue la quota (Apple: 111 al 25%, 89 al 47%, 61 al 74%, 48 al 100%). **Tempi e isteresi valgono per un cambio netto
   dello sfondo** (il nero che arriva, o se ne va, e poi sta fermo): quando lo sfondo cambia in continuo, per esempio una
@@ -511,20 +514,23 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
 - **Girano insieme**, con una sonda sola, i vetri di un `FluidGlassContainer` e il loro contenuto: è il patto dell'inchiostro delle app (4.0, anche con un pezzo solo), in [piano-flottante.md](piano-flottante.md).
   Così girano, **da soli sulla pagina**, i pezzi piccoli di `engine-ai-ui` (F3.2b): `FluidGlassRoundButton`,
   `FluidStopPill`, `FluidChipPill` e la capsula di `FluidListeningHint` si fanno un contenitore con un pezzo solo, e
-  l'icona o la scritta sono l'inchiostro del lato. Sopra la card, il dock, il composer o la barra di scrittura restano
-  vetro annidato del pannello (`LocalFluidAssistantPanel`, in [../moduli/ai-ui-overlay.md](../moduli/ai-ui-overlay.md)).
+  l'icona o la scritta sono l'inchiostro del lato. Dalla F3.2e anche **i pannelli** di `engine-ai-ui`, ognuno un
+  contenitore con un pezzo solo (`fluidGlassPanel`, che il contenitore disegna con gli ingressi di `glassSurface`):
+  **girano** la barra di scrittura (`Modal`, ma alta una riga: `large = false`), la pillola ridotta e la capsula del
+  composer (larga, ma una barra: `large = false`); **scuriscono** in continuo la card e il dock (il dock è `Floating` ma a
+  raggio di foglio: `large = true`). I pezzi sopra di loro sono vetro annidato del pannello (`FluidGlassNested`,
+  `LocalFluidAssistantPanel`): ne campionano il materiale e ne prendono il lato, in
+  [../moduli/ai-ui-overlay.md](../moduli/ai-ui-overlay.md). Un'app fa lo stesso coi suoi pannelli: `fluidGlassPanel` in un
+  contenitore ([piano-flottante.md](piano-flottante.md), «I pannelli e il vetro annidato»).
 - **Tengono il lato del tema**, con velo, ombra e tinta che seguono comunque lo sfondo: un `glassSurface` o
   `glassControlSurface` dell'app (non hanno un contenuto loro: l'engine non sa cosa ci disegna sopra l'app), il tasto tinto
   (pellicola fissa), un vetro annidato (prende il lato dall'host), le card di vetro e le righe raggruppate, il binario dei
   segmenti, la bolla dello scorrimento veloce, le gocce di slider, switch e scrubber, la barra ancorata, la barra `Classic` di
-  `FluidTopBarGlass`. **Per ora** anche le superfici di `engine-ai-ui` più grandi di un tasto, coi pezzi che portano: la
-  card e il dock (la famiglia giusta sarebbe «scuriscono»), la barra di scrittura, la capsula del composer e la pillola
-  ridotta (sarebbe «girano»). Il contenitore pubblico disegna un pezzo solo come `fluidGlass` (ruolo `Floating`, tinta dei
-  controlli) o come `glassControlSurface` (ruolo `Interactive`), e non sa un vetro con dei vetri sopra: portarle lì
-  cambierebbe il loro aspetto sul lato del tema, o farebbe dei loro tasti dei fratelli. Con `Classic` e sotto Android 13
-  niente di questo cambia, al pixel.
+  `FluidTopBarGlass`. Le superfici di `engine-ai-ui` dentro un vetro adattivo dell'engine (un foglio, un pop-up) prendono
+  il lato da lui, come ogni vetro annidato. Con `Classic` e sotto Android 13 niente di questo cambia, al pixel.
 
-`GlassInk` è interno: un'app non può far girare o scurire un vetro suo, e un pannello di vetro fatto a mano con
+`GlassInk` è interno: un'app fa girare o scurire un vetro suo mettendolo in un `FluidGlassContainer` (un `fluidGlass`, o
+un `fluidGlassPanel` per un pannello col suo ruolo e la sua pellicola); un pannello di vetro fatto a mano con
 `glassSurface` resta del tema (vedi le trappole). La pagina «Adattività» della galleria mostra le tre famiglie una accanto
 all'altra (scene `bianco-nero`, `soglia`, `grandi`), con la riga `ASPETTO` di ciascuna nel log.
 
@@ -732,7 +738,7 @@ aprire la schermata da guardare.
   controlli fratelli di un pannello che esporta a 62 su 48; il test strumentato `GlassNestingInstrumentedTest` compone
   i quattro alberi e passa 5 su 5. **Limiti noti**: nella notifica **di vetro** in chiaro il corpo del tasto è uguale al
   pannello (239,9 su 240,2) e lo staccano solo filo e ombra (assegnato all'adattività, F2); il composer di
-  `engine-ai-ui` cabla i suoi controlli con lo stesso schema e **non è stato visto**: dalla F3.2b è nella pagina «Assistente» della galleria, da riprendere.
+  `engine-ai-ui` cabla i suoi controlli con lo stesso schema e **non è stato visto**: dalla F3.2b è nella pagina «Assistente» della galleria, da riprendere (dalla F3.2e la capsula è un pannello del contenitore che esporta lo stesso materiale).
 - **Il profilo di serie è stato visto su un solo dispositivo, un Tab S9.** In due sessioni (S1-ter, con la combinazione
   di prima delle scelte; S2-pre, con quella di serie) e dopo il giro di correzione: nessuno shader rifiutato, il
   riscaldamento in 7,7–8,1 ms di filo principale dopo il primo fotogramma; il bordo del tasto tondo e della capsula
@@ -803,13 +809,15 @@ aprire la schermata da guardare.
   del giro e la profondità del vetro dei grandi e dei piccoli girati sono **scelte di Alessio, fatte sulle riprese di S3**
   e di serie dalla 4.0 G1: il giro svelto (`swift`) con l'attesa di 200 ms, le soglie 0,45 e 0,62, il velo scuro dei
   piccoli a 0,39 (il tasto girato sul nero a ≈43 invece di 55; cambia con lui il vetro scuro dei piccoli sul tema scuro).
-  **Ferma** la profondità dei grandi (`darklargealpha` 0,89, 48 sul nero pieno): con quel velo il testo secondario sul
-  foglio scuro scende a 5,60:1 sulla pagina scura e 5,44:1 sul fondo del tablet, sotto il vincolo di 6:1
-  (`artifacts/liquid-glass/bench/f2-g1/contrasto.md`); resta 0,5. Le manopole sono `fliptime`, `flipwait`,
+  **La profondità dei grandi** (`darklargealpha`): 0,89 (come Apple, 48 sul nero pieno) portava il testo secondario
+  del foglio scuro a 5,60:1 sulla pagina scura e 5,44:1 sul fondo del tablet, sotto il vincolo di 6:1, e schiariva anche
+  fogli e card del tema scuro; **è 0,63, scelta di Alessio sul tablet il 2026-11-16** (0,5 / 0,63 / 0,89: corpo sul nero 27 /
+  34 / 48, testo secondario 7,45 / 6,87 / 5,69:1 misurati sui pixel; tabella sul banco in
+  `artifacts/liquid-glass/bench/f2-g1/contrasto.md`). Le manopole sono `fliptime`, `flipwait`,
   `flipon`, `flipoff`, `flipdwell`, `flipscroll`, `flipby`, `flipcover`, `darkveilalpha`, `darklargealpha` ed `edgedim`
-  (`gallery.tune`). Misure di oggi, sul tablet di serie: il pop-up dei
-  grandi fa 116 / 83 / 70 / 27 al 25 / 47 / 74 / 100% di nero (Apple 111 / 89 / 61 / 48), quindi sopra il nero pieno scende
-  a 27 contro 48, e a metà copertura il soffitto del velo scuro lo tiene più chiaro; per il vetro girato, 74 su 255 contro
+  (`gallery.tune`). Misure sul tablet col velo di prima, 0,5: il pop-up dei
+  grandi faceva 116 / 83 / 70 / 27 al 25 / 47 / 74 / 100% di nero (Apple 111 / 89 / 61 / 48), quindi sopra il nero pieno scendeva
+  a 27 contro 48 (con 0,63 sono 34, sul nero pieno), e a metà copertura il soffitto del velo scuro lo tiene più chiaro; per il vetro girato, 74 su 255 contro
   43 di Apple, che è una misura e non una scelta fatta. **I numeri dei grandi non si leggono dal banco**: il suo modello
   non ha la ricetta del pop-up (il banco dà 110 / 110 / 69 / 27 agli stessi quattro livelli di nero, e il «110 contro 89 al
   47%» che si leggeva qui era un numero del banco, non del tablet); da ricontrollare in F3. Aperti anche: i difetti noti dell'adattività, nei limiti dichiarati più

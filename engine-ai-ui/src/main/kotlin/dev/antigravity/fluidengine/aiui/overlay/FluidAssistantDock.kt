@@ -25,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,9 +62,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
-import dev.antigravity.fluidengine.ui.fluid.GlassEdge
-import dev.antigravity.fluidengine.ui.fluid.GlassRole
-import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassPanel
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Mic
@@ -96,8 +93,12 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Stop
  *  - **chi usa un lettore di schermo** sente il riquadro che si apre (`paneTitle`), lo stato che cambia
  *    (`liveRegion`) e la risposta, una volta, finita.
  *
- * **Il vetro** (4.0, F3.2b): resta del lato del tema, come la card, e per la stessa ragione (i tasti e i chip che
- * porta). Sarebbe un grande che scurisce in continuo.
+ * **Il vetro** (4.0, F3.2e): un pannello del piano flottante, `Floating` a raggio di foglio e a tutta larghezza. Da
+ * solo sulla pagina sta in un `FluidGlassContainer` con un pezzo solo e **scurisce in continuo** come la card (è un
+ * grande, anche se il suo ruolo non lo dice: `large = true`), col testo nell'inchiostro e nello schema di colori del suo
+ * lato. Sul lato del tema è il vetro di prima. Il tasto di vetro della riga d'ingresso e i chip sono vetro annidato del
+ * dock: ne campionano il materiale e ne prendono il lato. Il `modifier` sta attorno al contenitore, che passa al dock i
+ * vincoli minimi.
  *
  * @param suggestions gli esempi toccabili quando non c'e' niente in corso e il campo e' vuoto.
  * @param maxChips quanti chip della risposta (da `Done.chips`); gli altri non si mostrano.
@@ -139,188 +140,194 @@ fun FluidAssistantDock(
     draft = ""
   }
 
-  // Il dock resta del lato del tema (F3.2b: il contenitore non sa ancora un pannello con dei vetri sopra), e i suoi
-  // tasti e chip lo sanno: restano vetro annidato del suo lato, non girano da soli.
-  CompositionLocalProvider(LocalFluidAssistantPanel provides true) {
+  // La pellicola si legge qui, fuori dal contenitore: è quella del lato del tema, come prima. Il lato lo fa il contenitore.
+  val tint = GlassDefaults.floatingTint()
+  FluidAssistantPanelGlass(modifier) { outer ->
     Column(
-      modifier = modifier
+      modifier = outer
         .fillMaxWidth()
         .imePadding()
         .semantics { paneTitle = strings.title }
-        .glassSurface(
-          state = backdrop,
-          tint = GlassDefaults.floatingTint(),
-          shape = ContinuousCornerShape(FluidRadius.Sheet),
-          edge = GlassEdge.None,
-          role = GlassRole.Floating,
+        .fluidGlassPanel(
+          backdrop = backdrop,
+          tint = tint,
+          shape = DockShape,
+          role = FluidAssistantSurface.Dock.role,
+          large = FluidAssistantSurface.Dock.large,
         ),
     ) {
-      // --- testata: cosa sta facendo, e come si chiude ----------------------------------------------
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(start = 20.dp, end = 8.dp)
-          .heightIn(min = 46.dp),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        FluidMicDot(level = micLevel.level, speaking = micLevel.speaking, busy = state.isBusy)
-        Spacer(Modifier.width(10.dp))
-        Text(
-          text = if (pending != null) strings.needsConfirmation else dockStatus(state, strings),
-          style = MaterialTheme.typography.labelLarge,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          maxLines = 5,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier
-            .weight(1f)
-            .padding(vertical = 6.dp)
-            .semantics { liveRegion = LiveRegionMode.Polite },
-        )
-        FluidIcon(
-          imageVector = FluidIcons.Close,
-          contentDescription = strings.close,
-          tint = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier = Modifier
-            .minimumInteractiveComponentSize()
-            .size(38.dp)
-            .clickable(
-              interactionSource = remember { MutableInteractionSource() },
-              indication = null,
-              role = Role.Button,
-              onClick = {
-                actions.onCancel()
-                actions.onDismiss()
-                onClose()
-              },
-            )
-            .padding(9.dp),
-        )
-      }
-
-      if (body.isNotBlank()) {
-        FluidHairline(modifier = Modifier.padding(horizontal = 20.dp))
-        // Il corpo prende quello che resta, non uno spazio fisso: vedi la nota sopra.
-        val scroll = rememberScrollState()
-        Column(
+      // I tasti e i chip del dock sono vetro annidato del dock, non pezzi del suo contenitore.
+      FluidAssistantPanelContent {
+        // --- testata: cosa sta facendo, e come si chiude ----------------------------------------------
+        Row(
           modifier = Modifier
             .fillMaxWidth()
-            .weight(1f, fill = false)
-            .heightIn(max = maxBodyHeight)
-            .verticalScroll(scroll)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(start = 20.dp, end = 8.dp)
+            .heightIn(min = 46.dp),
+          verticalAlignment = Alignment.CenterVertically,
         ) {
-          FluidMarkdown(body, streaming = state is AssistantState.Answering, animateFirst = false, style = markdownStyle, options = FluidAssistantMarkdownOptions)
-        }
-      }
-
-      // --- a riposo: gli esempi da cui cominciare ---------------------------------------------------
-      if (state is AssistantState.Idle && draft.isBlank() && suggestions.isNotEmpty()) {
-        FluidHairline(modifier = Modifier.padding(horizontal = 20.dp))
-        // Come il corpo della risposta, prende quello che avanza e scorre: a riposo la tastiera e'
-        // aperta proprio perche' si e' appena toccato il campo, e con intestazione e tre righe da
-        // 48 dp fisse un telefono piccolo o in orizzontale col carattere grande tagliava il campo.
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f, fill = false)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        ) {
+          FluidMicDot(level = micLevel.level, speaking = micLevel.speaking, busy = state.isBusy)
+          Spacer(Modifier.width(10.dp))
           Text(
-            text = strings.examples,
-            style = MaterialTheme.typography.labelMedium,
+            text = if (pending != null) strings.needsConfirmation else dockStatus(state, strings),
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 5,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-              .padding(bottom = 2.dp)
-              .semantics { heading() },
+              .weight(1f)
+              .padding(vertical = 6.dp)
+              .semantics { liveRegion = LiveRegionMode.Polite },
           )
-          for (suggestion in suggestions) {
-            Text(
-              text = suggestion,
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.primary,
-              modifier = Modifier
-                .fillMaxWidth()
-                .minimumInteractiveComponentSize()
-                .clickable(
-                  interactionSource = remember { MutableInteractionSource() },
-                  indication = null,
-                  role = Role.Button,
-                  onClick = { actions.onAskText(suggestion) },
-                )
-                .padding(vertical = 6.dp),
-            )
+          FluidIcon(
+            imageVector = FluidIcons.Close,
+            contentDescription = strings.close,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+              .minimumInteractiveComponentSize()
+              .size(38.dp)
+              .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = {
+                  actions.onCancel()
+                  actions.onDismiss()
+                  onClose()
+                },
+              )
+              .padding(9.dp),
+          )
+        }
+
+        if (body.isNotBlank()) {
+          FluidHairline(modifier = Modifier.padding(horizontal = 20.dp))
+          // Il corpo prende quello che resta, non uno spazio fisso: vedi la nota sopra.
+          val scroll = rememberScrollState()
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .weight(1f, fill = false)
+              .heightIn(max = maxBodyHeight)
+              .verticalScroll(scroll)
+              .padding(horizontal = 20.dp, vertical = 12.dp),
+          ) {
+            FluidMarkdown(body, streaming = state is AssistantState.Answering, animateFirst = false, style = markdownStyle, options = FluidAssistantMarkdownOptions)
           }
         }
-      }
 
-      // --- i chip della risposta (i posti che ha nominato), da aprire con un tocco -----------------
-      val chips = (state as? AssistantState.Done)?.chips.orEmpty().take(maxChips)
-      if (chips.isNotEmpty()) {
-        // A capo invece che tutti su una riga: coi nomi veri delle fermate il primo si prendeva quasi
-        // tutta la larghezza e gli altri ricevevano quaranta dp, con il testo a capo ogni due lettere.
-        FlowRow(
+        // --- a riposo: gli esempi da cui cominciare ---------------------------------------------------
+        if (state is AssistantState.Idle && draft.isBlank() && suggestions.isNotEmpty()) {
+          FluidHairline(modifier = Modifier.padding(horizontal = 20.dp))
+          // Come il corpo della risposta, prende quello che avanza e scorre: a riposo la tastiera e'
+          // aperta proprio perche' si e' appena toccato il campo, e con intestazione e tre righe da
+          // 48 dp fisse un telefono piccolo o in orizzontale col carattere grande tagliava il campo.
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .weight(1f, fill = false)
+              .verticalScroll(rememberScrollState())
+              .padding(horizontal = 20.dp, vertical = 8.dp),
+          ) {
+            Text(
+              text = strings.examples,
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier
+                .padding(bottom = 2.dp)
+                .semantics { heading() },
+            )
+            for (suggestion in suggestions) {
+              Text(
+                text = suggestion,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .minimumInteractiveComponentSize()
+                  .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { actions.onAskText(suggestion) },
+                  )
+                  .padding(vertical = 6.dp),
+              )
+            }
+          }
+        }
+
+        // --- i chip della risposta (i posti che ha nominato), da aprire con un tocco -----------------
+        val chips = (state as? AssistantState.Done)?.chips.orEmpty().take(maxChips)
+        if (chips.isNotEmpty()) {
+          // A capo invece che tutti su una riga: coi nomi veri delle fermate il primo si prendeva quasi
+          // tutta la larghezza e gli altri ricevevano quaranta dp, con il testo a capo ogni due lettere.
+          FlowRow(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 20.dp)
+              .padding(top = 8.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            for (chip in chips) {
+              FluidChipPill(label = chipLabel(chip), backdrop = backdrop, maxLines = 2, onClick = { actions.onChip(chip) })
+            }
+          }
+        }
+
+        // --- la conferma di un'azione che scrive ------------------------------------------------------
+        // Si guarda l'azione IN ATTESA, non lo stato: lo stato lo scrivono in sei punti diversi
+        // l'orchestratore e la sessione, e basta che uno arrivi dopo perche' il tasto non compaia mai.
+        if (pending != null) {
+          FluidConfirmationRow(
+            pending = pending,
+            onConfirm = { actions.onConfirm(pending.id, it) },
+            strings = strings,
+            fillButtons = true,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+          )
+        }
+
+        // --- la riga in fondo: parlare o scrivere -----------------------------------------------------
+        FluidHairline(modifier = Modifier.padding(horizontal = 20.dp))
+        Row(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 10.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-          for (chip in chips) {
-            FluidChipPill(label = chipLabel(chip), backdrop = backdrop, maxLines = 2, onClick = { actions.onChip(chip) })
-          }
-        }
-      }
-
-      // --- la conferma di un'azione che scrive ------------------------------------------------------
-      // Si guarda l'azione IN ATTESA, non lo stato: lo stato lo scrivono in sei punti diversi
-      // l'orchestratore e la sessione, e basta che uno arrivi dopo perche' il tasto non compaia mai.
-      if (pending != null) {
-        FluidConfirmationRow(
-          pending = pending,
-          onConfirm = { actions.onConfirm(pending.id, it) },
-          strings = strings,
-          fillButtons = true,
-          modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-        )
-      }
-
-      // --- la riga in fondo: parlare o scrivere -----------------------------------------------------
-      FluidHairline(modifier = Modifier.padding(horizontal = 20.dp))
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-      ) {
-        FluidTextField(
-          value = draft,
-          onValueChange = { draft = it },
-          placeholder = strings.askPlaceholder,
-          singleLine = true,
-          keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-          // Il tasto Invio della tastiera diceva "Invia" e non faceva niente: si doveva cercare il
-          // pulsante accanto al campo.
-          keyboardActions = KeyboardActions(onSend = { send(draft) }),
-          modifier = Modifier.weight(1f),
-        )
-        when {
-          state is AssistantState.Listening -> FluidGlassIconButton(onClick = actions.onStopListening, backdrop = backdrop) {
-            FluidIcon(FluidIcons.Filled.Stop, contentDescription = strings.finishedSpeaking, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-          }
-          draft.isBlank() -> FluidGlassIconButton(onClick = actions.onAskVoice, backdrop = backdrop) {
-            FluidIcon(FluidIcons.Mic, contentDescription = strings.voice, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-          }
-          else -> FluidGlassIconButton(onClick = { send(draft) }, backdrop = backdrop) {
-            FluidIcon(FluidIcons.Send, contentDescription = strings.send, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+          FluidTextField(
+            value = draft,
+            onValueChange = { draft = it },
+            placeholder = strings.askPlaceholder,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            // Il tasto Invio della tastiera diceva "Invia" e non faceva niente: si doveva cercare il
+            // pulsante accanto al campo.
+            keyboardActions = KeyboardActions(onSend = { send(draft) }),
+            modifier = Modifier.weight(1f),
+          )
+          when {
+            state is AssistantState.Listening -> FluidGlassIconButton(onClick = actions.onStopListening, backdrop = backdrop) {
+              FluidIcon(FluidIcons.Filled.Stop, contentDescription = strings.finishedSpeaking, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            }
+            draft.isBlank() -> FluidGlassIconButton(onClick = actions.onAskVoice, backdrop = backdrop) {
+              FluidIcon(FluidIcons.Mic, contentDescription = strings.voice, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            }
+            else -> FluidGlassIconButton(onClick = { send(draft) }, backdrop = backdrop) {
+              FluidIcon(FluidIcons.Send, contentDescription = strings.send, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            }
           }
         }
       }
     }
   }
 }
+
+/** La sagoma del dock: il raggio dei fogli. Una sola istanza, perché l'aspetto del pezzo non cambi a ogni composizione. */
+private val DockShape = ContinuousCornerShape(FluidRadius.Sheet)
 
 /**
  * Il pallino della testata: un cerchio che respira col microfono mentre ascolta e pulsa piano

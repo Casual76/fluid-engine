@@ -29,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -83,7 +82,9 @@ import dev.antigravity.fluidengine.aiui.halo.sampleCycle
 import dev.antigravity.fluidengine.aiui.halo.wrap01
 import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantInk
 import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantSmallGlass
-import dev.antigravity.fluidengine.aiui.overlay.LocalFluidAssistantPanel
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantPanelContent
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantPanelGlass
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantSurface
 import dev.antigravity.fluidengine.aiui.overlay.fluidAssistantInk
 import dev.antigravity.fluidengine.aiui.strings.FluidAssistantStrings
 import dev.antigravity.fluidengine.aiui.strings.FluidChatStrings
@@ -94,11 +95,10 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRevealingText
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
-import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
-import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassPanel
 import dev.antigravity.fluidengine.ui.fluid.icons.ArrowUpward
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
@@ -245,9 +245,11 @@ fun rememberFluidListeningGlow(
  * file: i launcher e le miniature sono suoi), i **menu** del "+" e del modello (si aprono con
  * `FluidGlassModalPortal`, ancorati a [onBoundsChange]), la **modifica** di un messaggio, i plugin.
  *
- * **Il vetro** (4.0, F3.2b): la capsula resta del lato del tema, e i tasti tondi sopra di lei con lei. Girerebbe come
- * la capsula flottante, ma nel contenitore pubblico i tasti sarebbero suoi fratelli (non campionerebbero il suo
- * materiale, e la sua esportazione non avrebbe dove andare) e la sua tinta non passa: vedi la scheda.
+ * **Il vetro** (4.0, F3.2e): la capsula è un pannello `Floating` del piano flottante, con la sua pellicola e la sua
+ * esportazione di prima. Sta in un `FluidGlassContainer` con un pezzo solo e **gira** chiaro/scuro con lo sfondo come la
+ * capsula flottante (è larga e alta due righe, ma è una barra: `large = false`), col testo e i tasti nell'inchiostro del
+ * suo lato. I tasti tondi sopra di lei sono vetro annidato: campionano il suo materiale (quello che esporta, come prima)
+ * e prendono il suo lato. Sul lato del tema è il vetro di prima. L'alone sta fuori dal contenitore, attorno alla capsula.
  *
  * @param action il tasto a destra; di solito `fluidComposerAction(...)`.
  * @param onSend la domanda parte (o va in coda): l'app svuota il campo con `composer.sent()` se e'
@@ -292,6 +294,8 @@ fun FluidComposer(
   // vetro smerigliato mostra la smerigliatura, non la pagina sotto.
   val composerGlass = rememberGlassBackdrop()
   val controlBackdrop = rememberCombinedGlassBackdrop(backdrop, composerGlass)
+  // La pellicola si legge qui, fuori dal contenitore: è quella del lato del tema, come prima. Il lato lo fa il contenitore.
+  val capsuleTint = composerTint()
   val micGranted = remember { context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED }
   val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) onVoice() }
   val inputFocus = focusRequester ?: remember { FocusRequester() }
@@ -306,59 +310,61 @@ fun FluidComposer(
     }
     // La scatola esterna porta l'alone: le macchie stanno dietro al vetro e sbordano attorno, l'anello
     // sopra il bordo. Non clippa, e non deve: la luce vive fuori dalla capsula.
-    // La capsula resta del lato del tema (F3.2b: i suoi tasti campionano il suo materiale, e nel contenitore sarebbero
-    // fratelli e non vetro sopra di lei): i tasti tondi lo sanno e restano vetro annidato del suo lato.
-    CompositionLocalProvider(LocalFluidAssistantPanel provides true) {
-      Box(if (glow != null) Modifier.fluidListeningGlow(glow, shape) else Modifier) {
+    Box(if (glow != null) Modifier.fluidListeningGlow(glow, shape) else Modifier) {
+      // La capsula è un pannello del piano (F3.2e): un contenitore con un pezzo solo, e i tasti tondi sono vetro annidato.
+      FluidAssistantPanelGlass(Modifier) { outer ->
         Column(
-          modifier = Modifier
+          modifier = outer
             .fillMaxWidth()
             .onGloballyPositioned { onBoundsChange?.invoke(it.boundsInRoot()) }
-            .glassSurface(
-              state = backdrop,
-              tint = composerTint(),
+            .fluidGlassPanel(
+              backdrop = backdrop,
+              tint = capsuleTint,
               shape = shape,
-              role = ComposerRole,
+              role = FluidAssistantSurface.Composer.role,
+              large = FluidAssistantSurface.Composer.large,
               exports = composerGlass,
               resampleIntervalMillis = resampleIntervalMillis,
             )
             .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
         ) {
-          if (fluidComposerShowsVoiceLine(voiceActive, voiceLine != null)) {
-            voiceLine?.invoke()
-          } else {
-            FluidComposerField(
-              value = value,
-              onValueChange = onValueChange,
-              placeholder = placeholder,
-              enabled = true,
-              onSend = onSend,
-              maxLines = maxLines,
-              modifier = Modifier.fillMaxWidth().focusRequester(inputFocus),
-            )
-          }
-          Spacer(Modifier.height(6.dp))
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            leading?.invoke(this, controlBackdrop)
-            if (leading != null) Spacer(Modifier.width(8.dp))
-            chips?.invoke(this)
-            Spacer(Modifier.weight(1f))
-            when (action) {
-              FluidComposerAction.StopListening -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.voiceStop, controlBackdrop, tint = MaterialTheme.colorScheme.error, onClick = onStopListening)
-              FluidComposerAction.StopAndQueue -> {
-                FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
-                Spacer(Modifier.width(8.dp))
-                FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.sendQueued, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
-              }
-              FluidComposerAction.Stop -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
-              FluidComposerAction.Mute -> FluidGlassRoundButton(FluidIcons.VolumeOff, strings.mute, controlBackdrop, onClick = onMute)
-              FluidComposerAction.Voice -> FluidGlassRoundButton(
-                FluidIcons.Mic,
-                strings.voiceStart,
-                controlBackdrop,
-                onClick = { if (micGranted || !requestMicPermission) onVoice() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+          FluidAssistantPanelContent {
+            if (fluidComposerShowsVoiceLine(voiceActive, voiceLine != null)) {
+              voiceLine?.invoke()
+            } else {
+              FluidComposerField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = placeholder,
+                enabled = true,
+                onSend = onSend,
+                maxLines = maxLines,
+                modifier = Modifier.fillMaxWidth().focusRequester(inputFocus),
               )
-              FluidComposerAction.Send -> FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.send, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              leading?.invoke(this, controlBackdrop)
+              if (leading != null) Spacer(Modifier.width(8.dp))
+              chips?.invoke(this)
+              Spacer(Modifier.weight(1f))
+              when (action) {
+                FluidComposerAction.StopListening -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.voiceStop, controlBackdrop, tint = MaterialTheme.colorScheme.error, onClick = onStopListening)
+                FluidComposerAction.StopAndQueue -> {
+                  FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
+                  Spacer(Modifier.width(8.dp))
+                  FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.sendQueued, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+                }
+                FluidComposerAction.Stop -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.stop, controlBackdrop, onClick = onStop)
+                FluidComposerAction.Mute -> FluidGlassRoundButton(FluidIcons.VolumeOff, strings.mute, controlBackdrop, onClick = onMute)
+                FluidComposerAction.Voice -> FluidGlassRoundButton(
+                  FluidIcons.Mic,
+                  strings.voiceStart,
+                  controlBackdrop,
+                  onClick = { if (micGranted || !requestMicPermission) onVoice() else micLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                )
+                FluidComposerAction.Send -> FluidGlassRoundButton(FluidIcons.ArrowUpward, strings.send, controlBackdrop, tint = MaterialTheme.colorScheme.primary, onClick = onSend)
+              }
             }
           }
         }
@@ -372,16 +378,6 @@ val ComposerCorner: Dp = 26.dp
 
 /** La sagoma della capsula, condivisa con chi deve nascerci dentro o ritornarci (i menu del "+"). */
 val ComposerShape: Shape = ContinuousCornerShape(ComposerCorner)
-
-/**
- * `Floating`, con riserva. E' il ruolo giusto per una capsula che galleggia sulla chat: la lente e'
- * la stessa del `Modal` (19/29 dp contro 20/28), cambia la sfocatura, 1.8 contro 3.5, e con la
- * pagina rifratta sotto la piu' leggera e' quella che lascia vedere che *c'e'* una pagina. Sull'emulatore
- * ogni build con `Floating` su una superficie di questa misura finiva in ANR nel disegno ("main thread
- * affamato", non un loop), e quelle con `Modal` no: sul telefono va provato, e il ripiego e'
- * `GlassRole.Modal`, una parola.
- */
-private val ComposerRole = GlassRole.Floating
 
 /**
  * Quanto del film dei `floatingTint` resta sulla capsula. Il 52% (chiaro) era pensato per una

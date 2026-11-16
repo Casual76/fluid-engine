@@ -243,22 +243,33 @@ fun Modifier.fluidGlassTransition(transition: FluidGlassTransition): Modifier =
  * il vetro non sa di che colore è ciò che gli sta sopra. Per un vetro solo che gira, un contenitore con un pezzo solo.
  *
  * Il contenuto è posato come in un `Box` (in alto all'inizio, il contenitore grande quanto il più grande): di solito è
- * una `Row` o una `Column`.
+ * una `Row` o una `Column`. Di serie il contenuto non riceve i vincoli minimi del contenitore, come in un `Box`; con
+ * [propagateMinConstraints] li riceve, ed è ciò che serve a **un pezzo che sta da solo** nel suo contenitore (F3.2e).
  *
- * Limiti dichiarati: i vetri di uno stesso contenitore sono fratelli (un vetro dentro un altro pezzo dello stesso
- * contenitore non ne campiona il materiale); una forma che il campo non sa rendere (un `Outline` generico) resta un vetro
- * a sé, fuori dal piano; un contenuto che scorre **dentro** il contenitore è un cambio a ogni fotogramma (il contenitore
- * va intorno alla barra, non alla lista). Sotto Android 13 e con il vetro di prima (`FluidGlassModel.Classic`) ogni pezzo
- * disegna il proprio vetro di sempre, senza viaggi.
+ * **I pannelli** (F3.2e). Un vetro che porta del contenuto, con il ruolo, la tinta e l'ottica di un `glassSurface` (una
+ * card, un dock, una barra di scrittura), è un pezzo [fluidGlassPanel]. Un vetro dentro il contenuto di un altro pezzo
+ * è suo **fratello** nel piano, e si fonde con lui; dentro un [FluidGlassNested] (di solito il contenuto di un pannello)
+ * è invece **vetro annidato**: non è un pezzo, campiona il materiale del pannello che lo porta e ne prende il lato.
+ *
+ * Limiti dichiarati: una forma che il campo non sa rendere (un `Outline` generico) resta un vetro a sé, fuori dal piano;
+ * un contenuto che scorre **dentro** il contenitore è un cambio a ogni fotogramma (il contenitore va intorno alla barra,
+ * non alla lista). Sotto Android 13 e con il vetro di prima (`FluidGlassModel.Classic`) ogni pezzo disegna il proprio
+ * vetro di sempre, senza viaggi.
  *
  * @param spacing fin dove due vetri sono un grappolo e un vetro nuovo nasce dal vicino: [FluidGlassContainerDefaults.Spacing].
  * @param animation come si animano i cambi: [FluidGlassAnimation.Default].
+ * @param propagateMinConstraints come in `Box`: vero, il contenuto riceve i vincoli minimi che il contenitore riceve dal
+ *   genitore. Serve a un pezzo solo nel suo contenitore, che riceve il `modifier` dell'app sul contenitore: senza, un
+ *   `Modifier.weight` o una misura imposta dal genitore allargherebbero il contenitore e non il vetro. Falso di serie,
+ *   perché in un contenitore con più pezzi cambierebbe il layout di ciò che ci sta dentro (una `Row` costretta alla
+ *   larghezza del contenitore sposta i pezzi di un `Arrangement.Center`).
  */
 @Composable
 fun FluidGlassContainer(
   modifier: Modifier = Modifier,
   spacing: Dp = FluidGlassContainerDefaults.Spacing,
   animation: FluidGlassAnimation = FluidGlassAnimation.Default,
+  propagateMinConstraints: Boolean = false,
   content: @Composable () -> Unit,
 ) {
   val density = LocalDensity.current
@@ -328,7 +339,7 @@ fun FluidGlassContainer(
         // La sonda legge ciò che rifrangono i pezzi del grappolo più grande; finché non c'è, la sorgente di questo punto.
         .glassProbe((state.probeBackdrop ?: backdrop).backdrop, probe, enabled = probes, region = state::probeRegion),
     ) { measurables, constraints ->
-      val loose = constraints.copy(minWidth = 0, minHeight = 0)
+      val loose = fluidGlassContentConstraints(constraints, propagateMinConstraints)
       val fields = ArrayList<Pair<FluidGlassFieldSlot, androidx.compose.ui.layout.Placeable>>()
       val contents = ArrayList<androidx.compose.ui.layout.Placeable>()
       for (measurable in measurables) {
@@ -354,6 +365,40 @@ fun FluidGlassContainer(
 }
 
 /**
+ * I vincoli del contenuto di un contenitore: quelli del genitore senza i minimi (come un `Box`), o tutti con
+ * [propagateMinConstraints] (come `Box(propagateMinConstraints = true)`). Pura.
+ */
+internal fun fluidGlassContentConstraints(constraints: Constraints, propagateMinConstraints: Boolean): Constraints =
+  if (propagateMinConstraints) constraints else constraints.copy(minWidth = 0, minHeight = 0)
+
+/**
+ * Il contenuto di un pezzo che **ospita vetri annidati** (F3.2e), di solito un [fluidGlassPanel]:
+ *
+ * ```
+ * FluidGlassContainer(propagateMinConstraints = true) {
+ *   Column(Modifier.fluidGlassPanel(backdrop, GlassDefaults.modalTint(), shape, GlassRole.Modal)) {
+ *     FluidGlassNested {
+ *       Text(…)
+ *       FluidGlassIconButton(…)   // vetro annidato del pannello, non un pezzo
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * Qui dentro un vetro (`fluidGlass`, `glassControlSurface`, i tasti di vetro dell'engine) **non è un pezzo** del
+ * contenitore: è un vetro come fuori dal contenitore, che campiona il materiale del pannello su cui sta (il pannello lo
+ * esporta, vedi [fluidGlassPanel]) e ne prende il lato, anche mentre il contenitore gira o scurisce. Senza, starebbe nel
+ * piano accanto al pannello e si fonderebbe con lui come un fratello.
+ *
+ * Non aggiunge nodi di layout: il contenuto si posa come se non ci fosse, e lo scope della `Column` o della `Row` che lo
+ * contiene resta in vista. Fuori da un contenitore non cambia niente.
+ */
+@Composable
+fun FluidGlassNested(content: @Composable () -> Unit) {
+  CompositionLocalProvider(LocalFluidGlassContainer provides null, content = content)
+}
+
+/**
  * Il contenitore visto da fuori, per le prove (il test del piano nel modulo della galleria, che non vede gli `internal`
  * dell'engine) e per le sessioni sul dispositivo. Non è un'API per le app.
  */
@@ -368,6 +413,9 @@ object FluidGlassContainerDiagnostics {
 
   @Volatile
   private var rest: List<FluidGlassPieceRecord> = emptyList()
+
+  @Volatile
+  private var restLarge: Boolean = false
 
   /** I viaggi partiti (un cambio a riposo), in tutto il processo. */
   val totalJourneys: Long get() = journeys.get()
@@ -389,6 +437,13 @@ object FluidGlassContainerDiagnostics {
 
   /** I pezzi dell'ultimo riposo stabilito, con i raggi già risolti (le forme concentriche comprese). */
   val lastRest: List<FluidGlassPieceRecord> get() = rest
+
+  /**
+   * Se, nell'ultimo riposo stabilito, il contenitore è un **grande** che scurisce in continuo invece di girare (F3.2e):
+   * lo dice il pannello che l'ha dichiarato ([fluidGlassPanel], `large` o il suo ruolo), altrimenti la taglia del
+   * grappolo più grande.
+   */
+  val lastRestLarge: Boolean get() = restLarge
 
   /**
    * Le tre distanze di fusione della tavola di F3.3, da riprendere sul dispositivo (S3): quella scelta da Alessio è la
@@ -420,6 +475,7 @@ object FluidGlassContainerDiagnostics {
     orderWarnings.set(0)
     last = emptyList()
     rest = emptyList()
+    restLarge = false
   }
 
   internal fun onJourney(records: List<FluidGlassFlightRecord>, retarget: Boolean) {
@@ -427,8 +483,9 @@ object FluidGlassContainerDiagnostics {
     last = records
   }
 
-  internal fun onRest(records: List<FluidGlassPieceRecord>) {
+  internal fun onRest(records: List<FluidGlassPieceRecord>, large: Boolean = false) {
     rest = records
+    restLarge = large
   }
 
   internal fun onOrderWarning() {
@@ -470,9 +527,15 @@ class FluidGlassPieceRecord internal constructor(
    * una sagoma sola anche a riposo; distinti, separati del tutto.
    */
   val unionId: Any? = null,
+  /**
+   * Se il vetro esporta il suo materiale ai vetri annidati nel suo contenuto (F3.2e): un [fluidGlassPanel], che ne ha
+   * sempre uno (quello dell'app, o uno suo).
+   */
+  val exports: Boolean = false,
 ) {
   override fun toString(): String =
-    "FluidGlassPieceRecord($id, $bounds, $cornerRadii, cluster=$clusterSize${unionId?.let { ", union=$it" } ?: ""})"
+    "FluidGlassPieceRecord($id, $bounds, $cornerRadii, cluster=$clusterSize" +
+      "${unionId?.let { ", union=$it" } ?: ""}${if (exports) ", exports" else ""})"
 }
 
 // ================================================================================================================
@@ -889,10 +952,31 @@ internal data class FluidGlassLook(
   val press: FluidPressState? = null,
   val touch: GlassTouchLight? = null,
   val layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
+  /**
+   * Dove la superficie del pezzo pubblica il proprio materiale, per i vetri annidati nel suo contenuto (F3.2e, un
+   * [fluidGlassPanel]); null per gli altri pezzi, come prima.
+   */
+  val exports: GlassBackdropState? = null,
+  /** Ogni quanto, al massimo, la superficie rifà la cattura: vedi `glassSurface`. Zero, «quando serve», di serie. */
+  val resampleIntervalMillis: Long = 0L,
+  /**
+   * Se il pezzo dichiara di essere un **grande** che scurisce in continuo (vero) o un piccolo che gira (falso), F3.2e: un
+   * [fluidGlassPanel] lo dice sempre (il suo `large`, o il suo ruolo). Null per gli altri pezzi: decide la taglia, come
+   * prima ([fluidGlassContainerLarge]).
+   */
+  val large: Boolean? = null,
 )
 
 /**
- * Un pezzo del contenitore: un `fluidGlass` o un `glassControlSurface`. È la chiave del registro, e porta ciò che il
+ * Se il contenitore è un grande che scurisce in continuo: ciò che ha dichiarato un pezzo del grappolo più grande
+ * ([declared], un pannello), altrimenti la taglia del suo lato corto più grande ([shortSideDp]: dalla metà della rampa
+ * dei grandi della ricetta in su). Pura.
+ */
+internal fun fluidGlassContainerLarge(declared: Boolean?, shortSideDp: Float): Boolean =
+  declared ?: (glassLiquidLargeVeilGain(shortSideDp) >= 0.5f)
+
+/**
+ * Un pezzo del contenitore: un `fluidGlass`, un `fluidGlassPanel` o un `glassControlSurface`. È la chiave del registro, e porta ciò che il
  * piano non sa (come si disegna) e ciò che il layout gli dice (dove sta, i raggi concentrici).
  */
 @Stable
@@ -948,6 +1032,8 @@ internal class FluidGlassRestField(
   val shape: Shape?,
   /** Per un grappolo di più pezzi: la forma del piano ferma, con le unioni (una sagoma sola) e il collo a riposo. */
   val plane: PhysicsPlaneShape? = null,
+  /** Dove il grappolo pubblica il suo materiale: quello del primo suo pezzo che esporta (F3.2e), o null. */
+  val exports: GlassBackdropState? = look.exports,
 )
 
 /** Un campo del palco. */
@@ -957,6 +1043,8 @@ internal class FluidGlassStageField(
   val node: Rect,
   val look: FluidGlassLook,
   val flights: List<GlassPlaneFlightId>,
+  /** Dove il campo pubblica il suo materiale mentre porta il vetro (F3.2e): vedi [FluidGlassRestField.exports]. */
+  val exports: GlassBackdropState? = look.exports,
 )
 
 /** Il palco di un viaggio: cambia quando il viaggio parte o riparte, non a ogni fotogramma. */
@@ -1255,6 +1343,7 @@ internal class FluidGlassContainerState {
           key = cluster.id,
           node = node,
           look = look,
+          exports = exportsOf(cluster.pieces.map { it.key }),
           slabs = slabs,
           shape = null,
           // A riposo due vetri distinti sono separati del tutto (collo a -1, decisione dell'11 novembre); quelli della
@@ -1273,16 +1362,32 @@ internal class FluidGlassContainerState {
     val biggest = state.clusters.maxByOrNull { it.bounds.width * it.bounds.height }
     probeRect = biggest?.bounds
     probeBackdrop = biggest?.let { looks[it.pieces.first().key]?.backdrop }
-    large = biggest != null &&
-      glassLiquidLargeVeilGain(with(density) { biggest.pieces.maxOf { it.bounds.minDimension }.toDp().value }) >= 0.5f
+    // Un pannello dice da sé se è un grande (F3.2e: la card e il dock scuriscono, la capsula larga del composer gira);
+    // gli altri pezzi lo lasciano alla taglia, come prima.
+    large = biggest != null && fluidGlassContainerLarge(
+      declared = biggest.pieces.firstNotNullOfOrNull { looks[it.key]?.large },
+      shortSideDp = with(density) { biggest.pieces.maxOf { it.bounds.minDimension }.toDp().value },
+    )
     FluidGlassContainerDiagnostics.onRest(
       state.clusters.flatMap { cluster ->
         cluster.pieces.map {
-          FluidGlassPieceRecord(it.id.appId(), it.bounds, it.radii, cluster.pieces.size, it.unionId.appId())
+          FluidGlassPieceRecord(
+            id = it.id.appId(),
+            bounds = it.bounds,
+            cornerRadii = it.radii,
+            clusterSize = cluster.pieces.size,
+            unionId = it.unionId.appId(),
+            exports = looks[it.key]?.exports != null,
+          )
         }
       },
+      large = large,
     )
   }
+
+  /** Il materiale che un grappolo o un campo pubblica: quello del primo dei suoi pezzi che ne ha uno (F3.2e). */
+  private fun exportsOf(keys: List<Any?>): GlassBackdropState? =
+    keys.firstNotNullOfOrNull { key -> key?.let { looks[it]?.exports } }
 
   /** La forma di un grappolo di un pezzo: quella dell'app, salvo una concentrica, che si disegna risolta. */
   private fun restShapeOf(look: FluidGlassLook, piece: GlassPlanePiece): Shape {
@@ -1320,7 +1425,8 @@ internal class FluidGlassContainerState {
     val look = field.flights.firstNotNullOfOrNull { flight ->
       flight.targetKey?.let(looks::get) ?: flight.sourceKey?.let(looks::get)
     } ?: looks.values.first()
-    return FluidGlassStageField(index, field.bounds.inflate(margin).snapped(), look, field.flights)
+    val exports = exportsOf(field.flights.flatMap { listOf(it.targetKey, it.sourceKey) })
+    return FluidGlassStageField(index, field.bounds.inflate(margin).snapped(), look, field.flights, exports)
   }
 
   /**
@@ -1437,10 +1543,10 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
         } else {
           NoPress
         },
-        exports = null,
+        exports = field.exports,
         layerBlock = look.layerBlock,
         sampleOnce = false,
-        resampleIntervalMillis = 0L,
+        resampleIntervalMillis = look.resampleIntervalMillis,
         frozen = NeverHeld,
         heldWhileMoving = NeverHeld,
         nestInContainer = true,
@@ -1467,6 +1573,7 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
         tint = look.tint,
         role = look.role,
         optics = look.optics,
+        exports = field.exports,
         ink = ink,
         variant = look.variant,
       ),
@@ -1499,6 +1606,7 @@ private fun FluidGlassStageSurface(state: FluidGlassContainerState, field: Fluid
         role = look.role,
         optics = look.optics,
         intensity = presence,
+        exports = field.exports,
         ink = ink,
         variant = look.variant,
       ),

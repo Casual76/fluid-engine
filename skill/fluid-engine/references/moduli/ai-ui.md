@@ -136,6 +136,8 @@ dentro il loop di frame; dove prende un valore (`FluidAssistantOverlay(micLevel)
 
 **Vetro.** Tutto cio' che e' vetro (card, barra, pillole, composer, picker) rifrange un `GlassBackdropState`. Il composer **esporta** il proprio materiale cosi' i tasti sopra ne piegano la capsula e non la
 pagina sotto. Ruoli: card e barra `Modal`, dock e composer `Floating` (con riserva: il composer in `Floating` e' una scelta provata sul telefono, il ripiego e' `GlassRole.Modal`, una parola).
+Dalla 4.0 ogni superficie da sola sulla pagina sta in un `FluidGlassContainer` con un pezzo solo e segue il lato dello sfondo: card e dock scuriscono in continuo, barra, pillole, composer e tasti girano; i
+pezzi sopra un pannello sono vetro annidato del pannello ([ai-ui-overlay.md](ai-ui-overlay.md), «Il vetro e il lato»).
 `FluidAssistantHalo` e `FluidHaloField` usano **solo gradienti**: niente shader, gira uguale sui device deboli.
 
 **Movimento ridotto** (`LocalFluidMotionPolicy`: scala delle animazioni a zero):
@@ -172,7 +174,7 @@ Errore), una chat con bolle e composer, e la sezione impostazioni. **Non e' nell
 
 ## Cosa e' verificato dai test
 
-114 test su JVM in sei file (`engine-ai-ui/src/test/.../aiui/`): niente schermo, niente vetro, niente moto.
+122 test su JVM in nove file (`engine-ai-ui/src/test/.../aiui/`): niente schermo, niente vetro, niente moto.
 
 | file | garantisce |
 |---|---|
@@ -181,6 +183,7 @@ Errore), una chat con bolle e composer, e la sezione impostazioni. **Non e' nell
 | `FluidAiSettingsLogicTest` (30) | ordine dei servizi, forma delle chiavi, guide, filtri/sezioni/riserve di OpenRouter, crediti e quote, `enabled`, le righe del registro, i segnaposto |
 | `FluidAssistantTextsTest` (18) | la tabella pura delle frasi, i limiti di richieste, i servizi provati |
 | `FluidEnglishStringsTest` (11) | le tre `english()` per riflessione, le varianti senza riserva automatica, `models = false`, `voiceActive` |
+| `FluidAssistantInkTest` (3), `FluidAssistantGlassTest` (3) | l'inchiostro del lato di serie e chi si fa un contenitore (F3.2b); la famiglia dei cinque pannelli: card e dock scuriscono, barra, pillola e composer girano, col ruolo di prima (F3.2e) |
 | `FluidHaloMathTest` (14) | umore dallo stato, velocita' e ampiezza per umore, attacco/rilascio indipendente dalla frequenza, macchie equispaziate sul perimetro, respiro/raggio/alpha, ciclo dei colori, i quattro colori dell'aureola |
 
 **Non verificato** (in `docs/10-coerenza.md` la riga e' tutta «?»): il vetro, il morph dal tasto, il moto, TalkBack reale, il microfono reale, la lettura ad alta voce, la rete. Si guardano in mano sul telefono.

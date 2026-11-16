@@ -17,6 +17,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `val Clear: FluidGlass` — Il vetro limpido: nessuna smerigliatura né adattività, scurimento del 35% sotto. Vedi [FluidGlass].
     - `val Identity: FluidGlass` — Nessun vetro: il contenuto com'è, nella stessa struttura.
 - `@Composable fun Modifier.fluidGlass(glass: FluidGlass = FluidGlass.Regular, shape: Shape = FluidCapsuleShape, backdrop: GlassBackdropState = currentGlassBackdrop()): Modifier` — Posa un vetro dietro a questo elemento: `glassEffect(_:in:)` di SwiftUI.
+- `@Composable fun Modifier.fluidGlassPanel(backdrop: GlassBackdropState, tint: GlassTint, shape: Shape, role: GlassRole = GlassRole.Floating, optics: GlassOptics = GlassDefaults.optics(role), large: Boolean? = null, exports: GlassBackdropState? = null, resampleIntervalMillis: Long = 0L): Modifier` — Un **pannello** di vetro che può essere un pezzo del piano (F3.2e): lo stesso vetro di [glassSurface], con il suo ruolo, la sua tinta e la sua ottica, per un vetro che porta del contenuto (una card, un dock, una barra di scrittura, la capsula di un campo).
 
 ## `engine-ui/ui/fluid/FluidGlassAdaptive.kt`
 
@@ -42,7 +43,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun Modifier.fluidGlassId(id: Any, namespace: FluidGlassNamespace): Modifier` — L'identità del vetro che **segue** questo modificatore nella stessa catena (`glassEffectID` di SwiftUI).
 - `fun Modifier.fluidGlassUnion(id: Any, namespace: FluidGlassNamespace): Modifier` — Unisce il vetro che segue in **una sagoma sola** con gli altri della stessa unione (`glassEffectUnion` di SwiftUI): fusi a riposo in un campo, anche oltre lo `spacing` del contenitore (mai oltre otto pezzi). Stesso ordine di [fluidGlassId]: vale per il [fluidGlass] alla sua destra.
 - `fun Modifier.fluidGlassTransition(transition: FluidGlassTransition): Modifier` — Come il vetro che segue compare e scompare (`glassEffectTransition` di SwiftUI). Stesso ordine di [fluidGlassId]: vale per il [fluidGlass] alla sua destra.
-- `@Composable fun FluidGlassContainer(modifier: Modifier = Modifier, spacing: Dp = FluidGlassContainerDefaults.Spacing, animation: FluidGlassAnimation = FluidGlassAnimation.Default, content: @Composable () -> Unit)` — Il contenitore del piano flottante: `GlassEffectContainer(spacing:)` di SwiftUI.
+- `@Composable fun FluidGlassContainer(modifier: Modifier = Modifier, spacing: Dp = FluidGlassContainerDefaults.Spacing, animation: FluidGlassAnimation = FluidGlassAnimation.Default, propagateMinConstraints: Boolean = false, content: @Composable () -> Unit)` — Il contenitore del piano flottante: `GlassEffectContainer(spacing:)` di SwiftUI.
+- `@Composable fun FluidGlassNested(content: @Composable () -> Unit)` — Il contenuto di un pezzo che **ospita vetri annidati** (F3.2e), di solito un [fluidGlassPanel]:
 - `object FluidGlassContainerDiagnostics` — Il contenitore visto da fuori, per le prove (il test del piano nel modulo della galleria, che non vede gli `internal` dell'engine) e per le sessioni sul dispositivo. Non è un'API per le app.
   - `val totalJourneys: Long get()` — I viaggi partiti (un cambio a riposo), in tutto il processo.
   - `val totalRetargets: Long get()` — I viaggi ripartiti a metà (uno stato cambiato mentre il vetro viaggiava).
@@ -50,11 +52,12 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val liveContainers: Int get()` — I contenitori in scena adesso.
   - `val lastJourney: List<FluidGlassFlightRecord> get()` — Chi è andato dove nell'ultimo viaggio partito o ripartito: un record per vetro in volo.
   - `val lastRest: List<FluidGlassPieceRecord> get()` — I pezzi dell'ultimo riposo stabilito, con i raggi già risolti (le forme concentriche comprese).
+  - `val lastRestLarge: Boolean get()` — Se, nell'ultimo riposo stabilito, il contenitore è un **grande** che scurisce in continuo invece di girare (F3.2e): lo dice il pannello che l'ha dichiarato ([fluidGlassPanel], `large` o il suo ruolo), altrimenti la taglia del grappolo più grande.
   - `enum class FusionPreview(internal val fusion: PhysicsPlaneFusion)` — Le tre distanze di fusione della tavola di F3.3, da riprendere sul dispositivo (S3): quella scelta da Alessio è la media, di serie; le altre due servono a confrontarle dal vivo.
   - `var fusionPreview: FusionPreview? by mutableStateOf(null)` — La manopola delle prove: con un valore, **ogni** contenitore usa quella distanza di fusione al posto del suo `spacing` (e la «larga» fonde anche a riposo). Null, di serie: lo `spacing` di ogni contenitore. Uno stato: i contenitori in scena si ricompongono quando cambia. Non è un'API per le app (la galleria la legge dall'extra `plane.fusion`).
   - `fun resetForTesting()` — Azzera i contatori e i record, per i test.
 - `class FluidGlassFlightRecord internal constructor(val fromId: Any?, val toId: Any?, val change: String, val bornFromId: Any?, val mergesIntoId: Any?)` — Un vetro in volo nell'ultimo viaggio: da quale `id` a quale (null per un vetro senza `id`), che cambio è (`Matched`, `BornFromNeighbour`, `MergeIntoNeighbour`, `Materialize`, `Dematerialize`, `Identity`) e, per chi nasce o confluisce, l'`id` del vicino.
-- `class FluidGlassPieceRecord internal constructor(val id: Any?, val bounds: Rect, val cornerRadii: FluidCornerRadii, val clusterSize: Int, val unionId: Any? = null)` — Un vetro a riposo: il suo `id` (o null), il riquadro nel contenitore in pixel e i quattro raggi risolti.
+- `class FluidGlassPieceRecord internal constructor(val id: Any?, val bounds: Rect, val cornerRadii: FluidCornerRadii, val clusterSize: Int, val unionId: Any? = null, val exports: Boolean = false)` — Un vetro a riposo: il suo `id` (o null), il riquadro nel contenitore in pixel e i quattro raggi risolti.
 
 ## `engine-ui/ui/fluid/FluidGlassContentTransition.kt`
 

@@ -3,16 +3,25 @@ package dev.antigravity.fluidengine.sample.assistant
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ai.orchestrator.MicLevel
+import dev.antigravity.fluidengine.aiui.chat.FluidComposer
+import dev.antigravity.fluidengine.aiui.chat.FluidComposerAction
 import dev.antigravity.fluidengine.aiui.chat.FluidGlassRoundButton
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantActions
 import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantCard
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantDock
+import dev.antigravity.fluidengine.aiui.overlay.FluidAssistantTextBar
 import dev.antigravity.fluidengine.aiui.overlay.FluidChipPill
+import dev.antigravity.fluidengine.aiui.overlay.FluidCollapsedPill
 import dev.antigravity.fluidengine.aiui.overlay.FluidListeningHint
 import dev.antigravity.fluidengine.aiui.overlay.FluidStopPill
 import dev.antigravity.fluidengine.aiui.overlay.LocalFluidAssistantPanel
@@ -31,6 +40,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -42,13 +52,15 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * La pagina «Assistente» (F3.2b) in un albero vero, e i pezzi di `engine-ai-ui` col contenitore: da soli sulla pagina i
- * pezzi piccoli sono **un contenitore con un pezzo solo** (il patto dell'inchiostro: girano), sopra la card, il dock e il
- * composer no (vetro annidato del lato del pannello), dentro un contenitore dell'app sono pezzi di quello. La pagina si
- * apre, cambia fondo, card e vetro senza eccezioni, e il fondo che cambia non apre viaggi.
+ * La pagina «Assistente» (F3.2b, F3.2e) in un albero vero, e le superfici di `engine-ai-ui` col contenitore: da soli
+ * sulla pagina i pezzi piccoli **e i pannelli** (card, dock, barra di scrittura, pillola ridotta, capsula del composer)
+ * sono **un contenitore con un pezzo solo** (il patto dell'inchiostro: girano o scuriscono); i pezzi che i pannelli
+ * portano (stop, chip, tasti tondi, il tasto del dock) **non** sono pezzi (vetro annidato del pannello); dentro un
+ * contenitore dell'app sono pezzi di quello. Il `modifier` dell'app arriva al vetro (`weight`, misura imposta). La pagina
+ * si apre, cambia fondo, card e vetro senza eccezioni, e il fondo che cambia non apre viaggi.
  *
- * Non prova come si vede né il giro: Robolectric non disegna e la sonda non legge. Il giro e l'inchiostro si guardano sul
- * tablet (`artifacts/liquid-glass/sessioni/f3-2b/riprese.md`).
+ * Non prova come si vede né il giro: Robolectric non disegna e la sonda non legge. Il giro, lo scurimento e l'inchiostro
+ * si guardano sul tablet (`artifacts/liquid-glass/sessioni/f3-2b/riprese.md`, `sessioni/f3-2e/riprese.md`).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -93,6 +105,12 @@ class AssistantPageTest {
   /** I pezzi che la pagina posa da soli: due tasti tondi, lo stop, due chip e la capsula dell'ascolto. */
   private val AlonePieces = 6
 
+  /** I pannelli della pagina (F3.2e): pillola ridotta, barra di scrittura, card, dock e composer. */
+  private val Panels = 5
+
+  /** Un contenitore per pezzo piccolo da solo e uno per pannello. */
+  private val PageContainers = AlonePieces + Panels
+
   private fun openPage(config: AssistantConfig = AssistantConfig()): AssistantLive {
     val live = AssistantLive()
     compose.setContent { AssistantContent(config, live, bottomInset = 0.dp, onBack = {}) }
@@ -114,14 +132,14 @@ class AssistantPageTest {
   }
 
   @Test
-  fun `la pagina si apre e ogni pezzo piccolo da solo e' un contenitore con un pezzo`() {
+  fun `la pagina si apre e ogni pezzo e ogni pannello da solo e' un contenitore con un pezzo`() {
     val before = containers
     openPage()
     compose.onNodeWithTag("assistant-page").assertExists()
-    compose.onNodeWithText("F3.2b ·", substring = true).assertExists()
-    // Sei contenitori: uno per pezzo che sta da solo. La card, il dock, la barra e il composer ne aggiungono zero, anche
-    // se portano due chip, due tasti tondi e un tasto dell'engine: sono vetro annidato del loro pannello.
-    assertEquals("contenitori della pagina", AlonePieces, containers - before)
+    compose.onNodeWithText("F3.2e ·", substring = true).assertExists()
+    // Undici contenitori: uno per pezzo piccolo che sta da solo e uno per pannello. I due chip della card, i due tasti
+    // tondi del composer e il tasto dell'engine del dock non ne aggiungono: sono vetro annidato del loro pannello.
+    assertEquals("contenitori della pagina", PageContainers, containers - before)
     val rest = FluidGlassContainerDiagnostics.lastRest
     assertEquals("un riposo d'un contenitore di un pezzo solo: $rest", 1, rest.size)
     assertEquals("il pezzo è un grappolo di uno: $rest", 1, rest.single().clusterSize)
@@ -140,7 +158,7 @@ class AssistantPageTest {
     assertEquals(AssistantFund.Photo, live.fund)
     assertEquals(2, live.step)
     assertEquals("cambiare fondo non è un cambio di stato dei vetri", 0L, FluidGlassContainerDiagnostics.totalJourneys)
-    assertEquals(AlonePieces, containers - before)
+    assertEquals(PageContainers, containers - before)
   }
 
   @Test
@@ -151,7 +169,7 @@ class AssistantPageTest {
     compose.onNodeWithTag("assistant-card").performClick()
     advance(400)
     compose.onNodeWithText("Card: al lavoro").assertExists()
-    assertEquals(AlonePieces, containers - before)
+    assertEquals(PageContainers, containers - before)
     compose.onNodeWithTag("assistant-theme").performClick()
     advance(400)
     compose.onNodeWithText("Tema: scuro").assertExists()
@@ -159,7 +177,7 @@ class AssistantPageTest {
     compose.onNodeWithTag("assistant-model").performClick()
     advance(400)
     compose.onNodeWithText("Vetro: ${FluidGlassModel.Classic.name}").assertExists()
-    assertEquals(AlonePieces, containers - before)
+    assertEquals(PageContainers, containers - before)
     assertEquals(0L, FluidGlassContainerDiagnostics.totalOrderWarnings)
   }
 
@@ -193,7 +211,7 @@ class AssistantPageTest {
   }
 
   @Test
-  fun `la card porta i suoi chip e il suo stop senza contenitori`() {
+  fun `la card e' un pezzo che scurisce, e i suoi chip non sono pezzi`() {
     val before = containers
     showAlone { stage ->
       FluidAssistantCard(
@@ -205,8 +223,113 @@ class AssistantPageTest {
         onConfirm = { _, _ -> },
       )
     }
-    assertEquals(0, containers - before)
+    // Un contenitore, quello della card; un pezzo solo, la card, che esporta il suo materiale ai due chip annidati.
+    assertEquals(1, containers - before)
     compose.onNodeWithText("meteo").assertExists()
+    val rest = FluidGlassContainerDiagnostics.lastRest
+    assertEquals("solo la card è un pezzo: $rest", 1, rest.size)
+    assertTrue("la card esporta il suo materiale: $rest", rest.single().exports)
+    assertTrue("la card scurisce in continuo", FluidGlassContainerDiagnostics.lastRestLarge)
+  }
+
+  @Test
+  fun `la card al lavoro porta lo stop annidato, non un pezzo`() {
+    val before = containers
+    showAlone { stage ->
+      FluidAssistantCard(
+        state = sampleState(AssistantCardState.Working),
+        pending = null,
+        backdrop = stage,
+        onStop = {},
+        onChip = {},
+        onConfirm = { _, _ -> },
+      )
+    }
+    assertEquals(1, containers - before)
+    assertEquals(1, FluidGlassContainerDiagnostics.lastRest.size)
+  }
+
+  @Test
+  fun `il dock e' un pezzo che scurisce, e il suo tasto di vetro non e' un pezzo`() {
+    val before = containers
+    showAlone { stage ->
+      FluidAssistantDock(
+        state = sampleState(AssistantCardState.Answer),
+        micLevel = MicLevel(0f, speaking = false),
+        pending = null,
+        backdrop = stage,
+        actions = FluidAssistantActions(onAskText = {}, onAskVoice = {}),
+      )
+    }
+    assertEquals(1, containers - before)
+    val rest = FluidGlassContainerDiagnostics.lastRest
+    assertEquals("solo il dock è un pezzo: $rest", 1, rest.size)
+    assertTrue("il dock scurisce, anche se è Floating", FluidGlassContainerDiagnostics.lastRestLarge)
+  }
+
+  @Test
+  fun `la barra di scrittura e' un pezzo che gira`() {
+    val before = containers
+    showAlone { stage ->
+      FluidAssistantTextBar(
+        backdrop = stage,
+        busy = false,
+        micAvailable = true,
+        onSend = {},
+        onVoice = {},
+        onNewConversation = {},
+        autoFocus = false,
+      )
+    }
+    assertEquals(1, containers - before)
+    assertEquals(1, FluidGlassContainerDiagnostics.lastRest.size)
+    assertFalse("la barra è Modal ma gira", FluidGlassContainerDiagnostics.lastRestLarge)
+  }
+
+  @Test
+  fun `la pillola ridotta e' un pezzo che gira, e la misura dell'app arriva al vetro`() {
+    val before = containers
+    showAlone { stage ->
+      FluidCollapsedPill(text = "Sole, 24 °C", backdrop = stage, onExpand = {}, modifier = Modifier.width(300.dp))
+    }
+    assertEquals(1, containers - before)
+    val rest = FluidGlassContainerDiagnostics.lastRest
+    assertEquals(1, rest.size)
+    assertFalse(FluidGlassContainerDiagnostics.lastRestLarge)
+    // xhdpi: 300 dp = 600 px. Il `modifier` sta attorno al contenitore, che passa i minimi alla capsula.
+    assertEquals("la larghezza dell'app è quella del vetro: $rest", 600f, rest.single().bounds.width, 0.5f)
+  }
+
+  @Test
+  fun `la capsula del composer e' un pezzo che gira, e i tasti tondi non sono pezzi`() {
+    val before = containers
+    showAlone { stage ->
+      FluidComposer(
+        value = "",
+        onValueChange = {},
+        backdrop = stage,
+        action = FluidComposerAction.Voice,
+        onSend = {},
+        requestMicPermission = false,
+        leading = { controls -> FluidGlassRoundButton(FluidIcons.Mic, "Allega", controls, onClick = {}) },
+      )
+    }
+    assertEquals(1, containers - before)
+    val rest = FluidGlassContainerDiagnostics.lastRest
+    assertEquals("solo la capsula è un pezzo: $rest", 1, rest.size)
+    assertTrue("esporta il suo materiale ai tasti, come prima: $rest", rest.single().exports)
+    assertFalse("larga, ma è una barra: gira", FluidGlassContainerDiagnostics.lastRestLarge)
+  }
+
+  @Test
+  fun `un pezzo piccolo da solo riceve il weight dell'app`() {
+    showAlone { stage ->
+      Row(Modifier.width(300.dp)) {
+        FluidChipPill(label = "meteo", backdrop = stage, onClick = {}, modifier = Modifier.weight(1f))
+      }
+    }
+    val rest = FluidGlassContainerDiagnostics.lastRest
+    assertEquals("il weight allarga il vetro del chip, non solo il contenitore: $rest", 600f, rest.single().bounds.width, 0.5f)
   }
 
   @Test

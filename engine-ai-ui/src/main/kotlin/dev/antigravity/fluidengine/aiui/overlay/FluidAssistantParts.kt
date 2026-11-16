@@ -33,10 +33,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidLiveDot
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
-import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
-import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassPanel
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Stop
 
@@ -133,8 +132,11 @@ fun FluidChipPill(
 /**
  * La card ridotta: un puntino e una riga, perche' l'utente sta guardando altro.
  *
- * **Il vetro** (4.0, F3.2b): resta del lato del tema. Girerebbe come la capsula flottante, ma nel contenitore pubblico
- * la sua tinta (`floatingTint`) non passa: un `fluidGlass` la disegnerebbe con quella dei controlli. Vedi la scheda.
+ * **Il vetro** (4.0, F3.2e): una capsula `Floating` del piano flottante, con la pellicola flottante di prima. Da sola
+ * sulla pagina sta in un `FluidGlassContainer` con un pezzo solo e **gira** chiaro/scuro con lo sfondo come la capsula
+ * flottante, con la riga nell'inchiostro del suo lato; il punto resta nell'accento (o nel colore d'errore) su tutti e
+ * due i lati. Sul lato del tema è il vetro di prima. Il `modifier` sta attorno al contenitore, che passa alla capsula i
+ * vincoli minimi.
  */
 @Composable
 fun FluidCollapsedPill(
@@ -144,20 +146,33 @@ fun FluidCollapsedPill(
   modifier: Modifier = Modifier,
   error: Boolean = false,
 ) {
-  Row(
-    modifier
-      .glassSurface(state = backdrop, tint = GlassDefaults.floatingTint(), shape = FluidCapsuleShape, role = GlassRole.Floating)
-      .fluidPressable(onClick = onExpand, pressedScale = 1f, role = Role.Button)
-      .padding(horizontal = 14.dp, vertical = 10.dp),
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    Box(
-      Modifier
-        .size(8.dp)
-        .background(if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, FluidCapsuleShape),
-    )
-    Spacer(Modifier.width(8.dp))
-    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+  // La pellicola si legge qui, fuori dal contenitore: è quella del lato del tema, come prima. Il lato lo fa il contenitore.
+  val tint = GlassDefaults.floatingTint()
+  FluidAssistantPanelGlass(modifier) { outer ->
+    Row(
+      outer
+        .fluidGlassPanel(
+          backdrop = backdrop,
+          tint = tint,
+          shape = FluidCapsuleShape,
+          role = FluidAssistantSurface.CollapsedPill.role,
+          large = FluidAssistantSurface.CollapsedPill.large,
+        )
+        .fluidPressable(onClick = onExpand, pressedScale = 1f, role = Role.Button)
+        .padding(horizontal = 14.dp, vertical = 10.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      FluidAssistantPanelContent {
+        Box(
+          Modifier
+            .size(8.dp)
+            .background(if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, FluidCapsuleShape),
+        )
+        Spacer(Modifier.width(8.dp))
+        // Letto qui, dentro il contenitore: lo schema di colori è quello del lato del vetro.
+        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+      }
+    }
   }
 }
 

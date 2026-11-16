@@ -449,8 +449,8 @@ class FluidBetaGalleryTest {
     GalleryPage.Adaptive -> shown("F2.6 ·", substring = true)
     // «Piano flottante» (F3.6), come «Adattività»: il segno è il sottotitolo con la sigla del pacchetto e la scena.
     GalleryPage.Plane -> shown("F3.6 ·", substring = true)
-    // «Assistente» (F3.2b), come «Piano flottante»: il segno è il sottotitolo con la sigla del pacchetto.
-    GalleryPage.Assistant -> shown("F3.2b ·", substring = true)
+    // «Assistente» (F3.2b, F3.2e), come «Piano flottante»: il segno è il sottotitolo con la sigla dell'ultimo pacchetto.
+    GalleryPage.Assistant -> shown("F3.2e ·", substring = true)
   }
 }
 

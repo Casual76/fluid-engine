@@ -92,10 +92,11 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import kotlinx.coroutines.delay
 
 /**
- * La pagina «Assistente» (piano «iOS in Android», F3.2b): le superfici di `engine-ai-ui` sopra un fondo che cambia, per
- * la sessione sul tablet. Sopra, i pezzi **che girano da soli** (tasti tondi, stop, chip, la capsula dell'ascolto: ognuno
- * in un contenitore con un pezzo solo, il patto dell'inchiostro); sotto, le superfici **che per ora restano del lato del
- * tema** (la pillola ridotta, la barra di scrittura, la card, il dock, il composer), coi loro pezzi annidati.
+ * La pagina «Assistente» (piano «iOS in Android», F3.2b e F3.2e): le superfici di `engine-ai-ui` sopra un fondo che
+ * cambia, per la sessione sul tablet. Sopra, i pezzi **che girano da soli** (tasti tondi, stop, chip, la capsula
+ * dell'ascolto: ognuno in un contenitore con un pezzo solo, il patto dell'inchiostro); sotto, **i pannelli** (F3.2e),
+ * ognuno anche lui un contenitore con un pezzo solo: la pillola ridotta e la barra di scrittura **girano**, la card e il
+ * dock **scuriscono** in continuo, la capsula del composer **gira**; i pezzi che portano sono vetro annidato del pannello.
  *
  * Il fondo (chiaro, scuro, foto) cambia dal tasto «Fondo» o da solo (`assistant.auto`), e si legge in disegno: le
  * superfici restano ferme e cambia ciò che hanno dietro. In logcat (`adb logcat -s FluidAssistente`) la pagina scrive
@@ -187,7 +188,7 @@ private fun AssistantStage(
         Spacer(Modifier.height(10.dp))
         Alone(stage)
         Spacer(Modifier.height(24.dp))
-        Caption("Per ora del lato del tema, coi loro pezzi annidati: pillola ridotta, barra, card, dock, composer")
+        Caption("Pannelli coi pezzi annidati: pillola e barra girano, card e dock scuriscono, il composer gira")
         Spacer(Modifier.height(10.dp))
         Panels(config, stage)
       }
@@ -216,7 +217,7 @@ private fun Controls(
   Column(modifier = Modifier.plate()) {
     Text("Assistente", style = MaterialTheme.typography.headlineSmall)
     Text(
-      "F3.2b · ${config.key}" + if (scale != 1f) " · animazioni ×${"%.2f".format(scale)}" else "",
+      "F3.2e · ${config.key}" + if (scale != 1f) " · animazioni ×${"%.2f".format(scale)}" else "",
       style = MaterialTheme.typography.bodySmall,
     )
   }
@@ -304,7 +305,7 @@ private fun Alone(stage: GlassBackdropState) {
   FluidListeningHint(backdrop = stage, elapsedMillis = 3_200, onStop = {})
 }
 
-/** Le superfici che per ora restano del lato del tema, coi pezzi che portano. */
+/** I pannelli (F3.2e), ognuno un contenitore con un pezzo solo, coi pezzi annidati che portano. */
 @Composable
 private fun Panels(config: AssistantConfig, stage: GlassBackdropState) {
   val state = remember(config.card) { sampleState(config.card) }

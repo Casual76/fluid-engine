@@ -130,7 +130,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ai-ui/aiui/overlay/FluidAssistantGlass.kt`
 
-- `val LocalFluidAssistantPanel: ProvidableCompositionLocal<Boolean>` — Vero dentro un **pannello di vetro che non gira**: la card e il dock dell'assistente, la capsula del composer e la barra di scrittura lo dicono al loro contenuto. Lì i pezzi piccoli (`FluidGlassRoundButton`, `FluidStopPill`, `FluidChipPill`, `FluidListeningHint`) non si fanno un contenitore loro: sono vetro annidato e prendono il lato del pannello, che oggi è quello del tema.
+- `val LocalFluidAssistantPanel: ProvidableCompositionLocal<Boolean>` — Vero dentro il contenuto di un **pannello di vetro dell'assistente** (la card, il dock, la capsula del composer, la barra di scrittura, F3.2e: lo dicono al loro contenuto). Lì i pezzi piccoli (`FluidGlassRoundButton`, `FluidStopPill`, `FluidChipPill`, `FluidListeningHint`) non si fanno un contenitore loro: sono vetro annidato del pannello, ne campionano il materiale e ne prendono il lato, che gira o scurisce col pann…
 - `object FluidAssistantInk` — I colori di serie dei pezzi dell'assistente. [Default] vuol dire «**l'inchiostro del lato**»: dentro un contenitore che è girato sul lato scuro (o chiaro) il colore è quello del lato, sul lato del tema è `onSurface`, com'era. Un colore scritto dall'app resta il suo, su tutti e due i lati: chi colora a mano e vuole seguire il vetro legge `LocalFluidGlassAppearance`.
   - `val Default: Color` — Il valore di serie di un `tint` o di un `color`: l'inchiostro del lato.
 

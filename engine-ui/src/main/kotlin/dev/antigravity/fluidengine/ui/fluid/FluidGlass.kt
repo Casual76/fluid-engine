@@ -3,7 +3,8 @@
  * quale vetro vuole (di serie, limpido, nessuno), se è tinto e se reagisce al dito; come si disegna lo decide l'engine.
  *
  * Qui c'è il **tipo** e il modificatore che lo posa su un elemento, `Modifier.fluidGlass(glass, shape, backdrop)`
- * (`glassEffect(_:in:)` di SwiftUI, F3.2); il contenitore che lo raccoglie in un piano è `FluidGlassContainer`.
+ * (`glassEffect(_:in:)` di SwiftUI, F3.2), e quello di un pannello che porta contenuto, `Modifier.fluidGlassPanel`
+ * (F3.2e); il contenitore che li raccoglie in un piano è `FluidGlassContainer`.
  */
 package dev.antigravity.fluidengine.ui.fluid
 
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.util.fastCoerceIn
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
 
@@ -190,6 +192,101 @@ fun Modifier.fluidGlass(
   }
   return marked.fluidGlassAlone(glass, shape, backdrop, baseTint)
 }
+
+/**
+ * Un **pannello** di vetro che può essere un pezzo del piano (F3.2e): lo stesso vetro di [glassSurface], con il suo
+ * ruolo, la sua tinta e la sua ottica, per un vetro che porta del contenuto (una card, un dock, una barra di scrittura,
+ * la capsula di un campo). [fluidGlass] non basta, perché ha la ricetta dei controlli (la loro pellicola, il ruolo
+ * `Floating` o `Interactive`) e la tinta di Apple, non la pellicola di un pannello.
+ *
+ * ```
+ * FluidGlassContainer(modifier, propagateMinConstraints = true) {
+ *   Column(Modifier.fluidGlassPanel(backdrop, GlassDefaults.modalTint(), shape, GlassRole.Modal).padding(16.dp)) {
+ *     FluidGlassNested { … }      // i vetri del contenuto sono annidati nel pannello, non suoi fratelli
+ *   }
+ * }
+ * ```
+ *
+ * **Dentro un [FluidGlassContainer]** è un pezzo come un `fluidGlass` (identità, unione e transizione si scrivono prima,
+ * nella stessa catena): il vetro lo disegna il contenitore con questi stessi ingressi, il contenuto ne riceve
+ * l'inchiostro, e il contenitore gira o scurisce col lato. Il pannello **esporta il suo materiale** ([exports], o uno
+ * suo se l'app non ne dà) e fa da contenitore di vetro per il suo contenuto: un vetro dentro un [FluidGlassNested] lo
+ * campiona come su un `glassSurface`, e prende il suo lato.
+ *
+ * **Fuori da un contenitore** (e col vetro di prima, e sotto Android 13) è esattamente `glassSurface(backdrop, tint,
+ * shape, role = role, optics = optics, exports = exports, resampleIntervalMillis = …)`, com'era: del lato del tema.
+ *
+ * @param tint la pellicola del pannello: quella del suo ruolo (`GlassDefaults.modalTint()`, `floatingTint()`, …), letta
+ *   **fuori** dal contenitore, dove il lato è quello del tema.
+ * @param large se il pannello è un **grande** che scurisce in continuo (vero) o un piccolo che gira (falso). Null: lo
+ *   dice il ruolo, come per i grandi dell'engine (`Modal` e `Content` scuriscono). Serve a dire ciò che il ruolo non sa:
+ *   un dock `Floating` a raggio di foglio è un grande, una barra `Modal` alta una riga è un piccolo.
+ * @param exports dove pubblicare il materiale del pannello, se l'app lo vuole anche altrove (un tasto che lo campiona
+ *   per un cablaggio suo, con `rememberCombinedGlassBackdrop`). Dentro un contenitore, null vuol dire un materiale del
+ *   pannello, che si registra solo mentre qualcuno lo campiona.
+ * @param resampleIntervalMillis vedi [glassSurface].
+ */
+@Composable
+fun Modifier.fluidGlassPanel(
+  backdrop: GlassBackdropState,
+  tint: GlassTint,
+  shape: Shape,
+  role: GlassRole = GlassRole.Floating,
+  optics: GlassOptics = GlassDefaults.optics(role),
+  large: Boolean? = null,
+  exports: GlassBackdropState? = null,
+  resampleIntervalMillis: Long = 0L,
+): Modifier {
+  val attributes = fluidGlassAttributesOf(this)
+  val marked = this.then(FluidGlassMarkerElement)
+  val container = currentFluidGlassContainer(shape)
+  if (container != null) {
+    // Il materiale per i vetri annidati: quello dell'app, o uno del pannello (non costa niente finché nessuno lo campiona).
+    val material = exports ?: rememberGlassBackdrop()
+    val look = remember(backdrop, tint, shape, role, optics, large, material, resampleIntervalMillis) {
+      fluidGlassPanelLook(backdrop, tint, shape, role, optics, large, material, resampleIntervalMillis)
+    }
+    return marked
+      .fluidGlassPiece(container, look, attributes)
+      // Il vetro del pannello lo disegna un nodo fratello (la superficie del contenitore): il contenuto lo sa da qui.
+      .glassContainer(material)
+  }
+  return marked.glassSurface(
+    state = backdrop,
+    tint = tint,
+    shape = shape,
+    role = role,
+    optics = optics,
+    exports = exports,
+    resampleIntervalMillis = resampleIntervalMillis,
+  )
+}
+
+/**
+ * L'aspetto di un [fluidGlassPanel] nel contenitore: gli stessi ingressi di `glassSurface` (l'ottica passata da
+ * `sanitized()`, come fa lui), la variante di serie, e il grande dichiarato o quello del ruolo. Pura.
+ */
+internal fun fluidGlassPanelLook(
+  backdrop: GlassBackdropState,
+  tint: GlassTint,
+  shape: Shape,
+  role: GlassRole,
+  optics: GlassOptics,
+  large: Boolean?,
+  exports: GlassBackdropState?,
+  resampleIntervalMillis: Long,
+  profile: GlassLiquidProfile = GlassLiquidProfile.Default,
+): FluidGlassLook = FluidGlassLook(
+  backdrop = backdrop,
+  tint = tint,
+  role = role,
+  optics = optics.sanitized(),
+  variant = GlassLiquidVariant.Regular,
+  shape = shape,
+  exports = exports,
+  resampleIntervalMillis = resampleIntervalMillis,
+  large = large ?: profile.adaptive.darkensContinuously(role),
+)
 
 /** Un `fluidGlass` fuori da un contenitore: la superficie di sempre, con la forma concentrica risolta al layout. */
 @Composable

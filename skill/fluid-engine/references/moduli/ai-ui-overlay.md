@@ -26,6 +26,7 @@ le parole in [ai-ui-stringhe.md](ai-ui-stringhe.md). Il catalogo delle firme e' 
 | cambiare la resa del corpo della risposta (non Markdown) | `FluidAssistantCardOptions(body = ...)` o `FluidAssistantCard(body = ...)` |
 | aggiungere una riga mia sopra/sotto il corpo della card | `header` / `footer` (stessi due slot) |
 | un tasto, uno stop o un chip dell'assistente che gira chiaro/scuro con lo sfondo | posato da solo sulla pagina lo fa da se' (sotto, «Il vetro e il lato») |
+| card, dock, barra, pillola ridotta che girano o scuriscono con lo sfondo | lo fanno da se', da sole sulla pagina (sotto, «Il vetro e il lato») |
 | gli stessi pezzi su un **mio** pannello di vetro, che restino del suo lato | `CompositionLocalProvider(LocalFluidAssistantPanel provides true) { … }` |
 
 **Non cosi'**: non incapsulare l'overlay in un `FluidGlassModalPortal` "perche' e' un pop-up". L'overlay e' non
@@ -295,39 +296,46 @@ esempio» e' un'intestazione, e a risposta finita (`Done`) il testo (i **primi 6
 `FluidAssistantTextBar`: l'invio ignora il testo vuoto **e** `busy`; il testo si salva con la pagina (`rememberSaveable`); il
 fuoco arriva da solo solo con `autoFocus` (altrimenti niente tastiera). `leading = {}` toglie il tasto «nuova conversazione».
 
-## Il vetro e il lato (4.0, F3.2b)
+## Il vetro e il lato (4.0, F3.2b, F3.2e)
 
 Il patto pubblico dell'engine per far girare un vetro chiaro/scuro con lo sfondo e' il contenitore
-([../componenti/piano-flottante.md](../componenti/piano-flottante.md), «Il lato e l'inchiostro»). Qui come lo usa
-l'assistente, superficie per superficie (inventario e famiglie: `artifacts/liquid-glass/review/F2/G1-inventario.md`).
+([../componenti/piano-flottante.md](../componenti/piano-flottante.md), «Il lato e l'inchiostro» e «I pannelli e il vetro
+annidato»). Qui come lo usa l'assistente, superficie per superficie (inventario e famiglie:
+`artifacts/liquid-glass/review/F2/G1-inventario.md`).
 
 | superficie | prima | adesso | perche' |
 |---|---|---|---|
-| `FluidGlassRoundButton`, `FluidStopPill`, `FluidChipPill`, capsula di `FluidListeningHint`, **da soli** | del tema | **girano** | un `FluidGlassContainer` con un pezzo solo: il vetro (un `glassControlSurface`) lo disegna il contenitore con la stessa tinta, ottica, ruolo e filo; il contenuto prende l'inchiostro del lato |
-| gli stessi **sopra** card, dock, capsula del composer, barra di scrittura | del lato del pannello | del lato del pannello | vetro annidato: se girassero da soli, sopra una foto scura un tasto scuro starebbe su una card rimasta chiara |
-| gli stessi **dentro un `FluidGlassContainer` dell'app** o un vetro adattivo dell'engine | del tema | del contenitore (o dell'ospite) | sono pezzi di quel contenitore: girano con gli altri, e si fondono coi vicini |
-| `FluidAssistantCard`, `FluidAssistantDock` | del tema | **del tema, per ora** | sarebbero grandi che scuriscono; il contenitore disegna un pezzo solo come `fluidGlass` o `glassControlSurface` (non `Modal`, non la loro tinta) e non sa un vetro con dei vetri sopra: lo stop e i chip sarebbero suoi fratelli |
-| `FluidAssistantTextBar`, capsula di `FluidComposer`, `FluidCollapsedPill` | del tema | **del tema, per ora** | girerebbero; dentro il contenitore cambierebbero ruolo (`Modal`/`Floating` → `Floating` o `Interactive`) e tinta (`modalTint`, `floatingTint`, quella del composer → quella dei controlli). Il composer esporta il suo materiale ai tasti, che nel contenitore sarebbero fratelli |
+| `FluidGlassRoundButton`, `FluidStopPill`, `FluidChipPill`, capsula di `FluidListeningHint`, **da soli** | del tema | **girano** (F3.2b) | un `FluidGlassContainer` con un pezzo solo: il vetro (un `glassControlSurface`) lo disegna il contenitore con la stessa tinta, ottica, ruolo e filo; il contenuto prende l'inchiostro del lato |
+| `FluidAssistantCard` (`Modal`), `FluidAssistantDock` (`Floating` a raggio di foglio) | del tema | **scuriscono** in continuo (F3.2e) | pannelli con del testo, come il foglio e la notifica: un contenitore con un pezzo solo, il pannello (`fluidGlassPanel`, `large = true`); il testo prende l'inchiostro e lo schema di colori del lato |
+| `FluidAssistantTextBar` (`Modal`), capsula di `FluidComposer` (`Floating`), `FluidCollapsedPill` (`Floating`) | del tema | **girano** (F3.2e) | barre e capsule, come il campo di ricerca flottante e la capsula flottante: un contenitore con un pezzo solo (`fluidGlassPanel`, `large = false`: la barra e' `Modal` e la capsula del composer e' larga, e scurirebbero) |
+| i pezzi piccoli e i tasti dell'engine **sopra** card, dock, capsula del composer, barra di scrittura | del lato del pannello | del lato del pannello, che adesso gira o scurisce | vetro annidato (`FluidGlassNested`): campionano il materiale del pannello e ne prendono il lato; non sono pezzi. Se girassero da soli, sopra una foto scura un tasto scuro starebbe su una card rimasta chiara |
+| tutto questo **dentro un `FluidGlassContainer` dell'app** o un vetro adattivo dell'engine | del tema | del contenitore (o dell'ospite) | sono pezzi di quel contenitore (i pannelli coi loro annidati): girano con gli altri, e si fondono coi vicini |
 
-Restare «del tema» vuol dire quello di sempre: velo, ombra e tinta seguono lo sfondo, e il pavimento e il soffitto del
-velo li tengono leggibili ([../componenti/vetro.md](../componenti/vetro.md), «Chi gira, chi scurisce e chi no»).
+**Sul lato del tema i pannelli sono il vetro di prima.** Il contenitore li disegna con gli stessi ingressi del
+`glassSurface` che avevano (ruolo, pellicola letta fuori dal contenitore, ottica, nessun filo; il composer con la sua
+pellicola alleggerita, la sua esportazione e la sua frequenza di cattura), nella stessa lastra di un pezzo solo: stesso
+corpo, filo, ombra e colori. Cambia che girano o scuriscono.
 
-- **`LocalFluidAssistantPanel`**: vero dentro un pannello di vetro che non gira. La card, il dock, la capsula del composer
-  e la barra lo forniscono al loro contenuto (anche agli slot `header`, `footer`, `leading`). Un'app che posa i pezzi su un
-  suo `glassSurface` lo fornisce a mano; dentro un `FluidGlassContainer` o un vetro adattivo dell'engine non serve.
+- **`LocalFluidAssistantPanel`**: vero dentro il contenuto di un pannello dell'assistente. La card, il dock, la capsula
+  del composer e la barra lo forniscono al loro contenuto (anche agli slot `header`, `footer`, `leading`), insieme a
+  `FluidGlassNested`: i pezzi piccoli sopra di loro non si fanno un contenitore. Un'app che posa i pezzi su un suo
+  `glassSurface` lo fornisce a mano; dentro un `FluidGlassContainer` o un vetro adattivo dell'engine non serve.
+- **Nessun viaggio per i pannelli** (`FluidGlassAnimation.None`): stanno da soli, e crescono mentre la risposta arriva o
+  la tastiera sale; il vetro segue il contenuto nel fotogramma dopo, invece di inseguirlo con la molla del piano.
 - **Colori di serie**: `FluidAssistantInk.Default` vuol dire «l'inchiostro del lato», letto **dentro** il vetro (lo schema
   di colori del lato): sul lato del tema e' `onSurface`, com'era. E' il valore di serie di `FluidGlassRoundButton(tint)`;
   un colore passato dall'app (l'accento dell'invio, l'errore dello stop) resta il suo sui due lati. Lo stop, i chip e
   la capsula dell'ascolto leggono l'inchiostro allo stesso modo; il pallino dell'ascolto resta nel colore d'errore.
-- **Il `modifier`** di un pezzo da solo sta attorno al suo contenitore (`align`, `weight`, `padding`, i tag restano
-  dove li scrive l'app). Il contenitore misura il contenuto senza minimi: un `weight` o una misura imposta dal genitore
-  non allargano piu' il vetro, che resta della sua misura. Su un pannello il `modifier` va al tasto, com'era.
+- **Il `modifier`** di un pezzo o di un pannello da solo sta attorno al suo contenitore (`align`, `weight`, `padding`, i
+  tag restano dove li scrive l'app), e il contenitore passa al pezzo i vincoli minimi (`propagateMinConstraints`, F3.2e):
+  un `weight` o una misura imposta dal genitore allargano il vetro, come prima di F3.2b. Su un pannello il `modifier` di
+  un pezzo piccolo va al tasto, com'era.
 - **Col vetro di prima e sotto Android 13** il contenitore non disegna e ogni pezzo e' il tasto di sempre.
 - **Da vedere sul tablet**: la pagina «Assistente» della galleria (`--es gallery.page assistant`, `assistant.fund`
-  chiaro|scuro|foto, `assistant.auto`, `assistant.card risposta|lavoro`; logcat `FluidAssistente`).
-- **Cosa manca all'engine** per portare le altre: un pezzo del contenitore col ruolo, la tinta e l'ottica di un
-  `glassSurface` (un `Modifier.fluidGlass` o un pannello pubblico che li accetti), e un pezzo che porta dei vetri
-  annidati (i tasti della card e del composer come vetro sopra di lui, non fratelli), con il suo materiale esportato.
+  chiaro|scuro|foto, `assistant.auto`, `assistant.card risposta|lavoro`; logcat `FluidAssistente`). Gli elenchi:
+  `artifacts/liquid-glass/sessioni/f3-2b/riprese.md` e `sessioni/f3-2e/riprese.md`.
+- **Nell'overlay** la barra, la capsula dell'ascolto, la pillola ridotta e la card sono contenitori separati, uno per
+  superficie: ognuno ha la sua sonda e gira (o scurisce) per conto suo, secondo cio' che ha dietro.
 
 ## L'aureola e il campo di luce
 

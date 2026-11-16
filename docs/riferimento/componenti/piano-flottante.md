@@ -37,6 +37,9 @@ fogli della 4.0 sono **clienti** del piano: lo usano, non lo riscrivono.
 | un angolo che segue quello del contenitore | `FluidConcentricShape(minimum)` sul pezzo, `Modifier.fluidContainerShape(forma)` sul contenitore |
 | gli stessi raggi per chi disegna da sé | `rememberFluidConcentricRadii(minimum)` + `Modifier.fluidConcentricRadii(state)` |
 | un vetro solo che gira chiaro/scuro col suo contenuto | un `FluidGlassContainer` con **un pezzo solo** (il patto dell'inchiostro) |
+| un pannello (card, dock, barra di scrittura) col ruolo e la tinta di un `glassSurface`, che gira o scurisce | `Modifier.fluidGlassPanel(backdrop, tint, shape, role, large = …)` in un contenitore (sotto, «I pannelli») |
+| dei tasti di vetro **sopra** un pannello, che ne campionano il materiale | il contenuto del pannello in `FluidGlassNested { … }`: vetro annidato, non pezzi |
+| un pezzo solo nel suo contenitore che riceve `weight` o una misura dal genitore | `FluidGlassContainer(modifier, propagateMinConstraints = true)` |
 | il limpido sopra una foto | `Modifier.fluidGlass(FluidGlass.Clear)` (sotto, «`Clear`») |
 | capire che cosa ha deciso il piano | `FluidGlassContainerDiagnostics` (viaggi, ripartenze, avvisi d'ordine, ultimo viaggio, ultimo riposo) |
 | vedere tutto questo su un dispositivo | la pagina «Piano flottante» della galleria (`--es gallery.page plane`) |
@@ -54,16 +57,19 @@ sotto): un contenitore con un pezzo.
 
 **No** attorno a una lista o a un contenuto che scorre: per il piano ogni fotogramma di scorrimento è un cambio di
 posizione dei pezzi, cioè un viaggio. Un contenitore che si sposta **tutto insieme** (la barra che scorre via) invece non
-cambia niente: le coordinate dei pezzi sono le sue. **No** per un vetro che deve stare dentro un altro vetro dello stesso
-contenitore (i pezzi sono fratelli, sotto). **No** per le superfici che hanno già il loro motore (menu che si
-trasforma, foglio, pop-up): sono clienti del piano nelle fasi che li portano.
+cambia niente: le coordinate dei pezzi sono le sue. Un vetro che sta **dentro** un pannello dello stesso contenitore
+non è un pezzo: va in un `FluidGlassNested` (sotto, «I pannelli»), altrimenti è un fratello del pannello e ci si fonde.
+**No** per le superfici che hanno già il loro motore (menu che si trasforma, foglio, pop-up): sono clienti del piano nelle
+fasi che li portano.
 
 ## Le firme
 
 | SwiftUI | Fluid |
 |---|---|
 | `glassEffect(_:in:)` | `Modifier.fluidGlass(glass = FluidGlass.Regular, shape = FluidCapsuleShape, backdrop = currentGlassBackdrop())` |
-| `GlassEffectContainer(spacing:)` | `FluidGlassContainer(modifier, spacing = FluidGlassContainerDefaults.Spacing, animation = FluidGlassAnimation.Default) { }` |
+| `GlassEffectContainer(spacing:)` | `FluidGlassContainer(modifier, spacing = FluidGlassContainerDefaults.Spacing, animation = FluidGlassAnimation.Default, propagateMinConstraints = false) { }` |
+| `glassEffect` su un pannello che porta contenuto | `Modifier.fluidGlassPanel(backdrop, tint, shape, role = GlassRole.Floating, optics = GlassDefaults.optics(role), large = null, exports = null, resampleIntervalMillis = 0L)` |
+| (i controlli dentro un pannello di vetro) | `FluidGlassNested { … }` |
 | `@Namespace` | `rememberFluidGlassNamespace()` → `FluidGlassNamespace` |
 | `glassEffectID(_:in:)` | `Modifier.fluidGlassId(id, namespace)` |
 | `glassEffectUnion(id:namespace:)` | `Modifier.fluidGlassUnion(id, namespace)` |
@@ -91,7 +97,8 @@ di vetro dell'engine (`FluidGlassIconButton`, `FluidGlassButton`, ogni `glassCon
 pezzi come gli altri; `FluidGlassIconButton` inoltra al suo vetro gli attributi scritti sul suo `modifier`.
 
 Il contenuto del contenitore è posato come in un `Box` (in alto all'inizio, il contenitore grande quanto il più grande
-dei figli): di solito è una `Row` o una `Column`.
+dei figli): di solito è una `Row` o una `Column`. Come in un `Box`, di serie il contenuto **non** riceve i vincoli minimi
+del contenitore; con `propagateMinConstraints = true` li riceve (sotto, «I pannelli»).
 
 ## L'ordine è contratto
 
@@ -271,6 +278,66 @@ un vetro solo basta un contenitore con un pezzo.** Chi colora a mano (`tint = �
 I tasti di vetro dell'engine dentro un contenitore prendono il lato del contenitore anche col loro inchiostro (il
 difetto del «tasto annidato del lato del tema» è chiuso qui, per i tasti dentro un contenitore).
 
+## I pannelli e il vetro annidato
+
+Dalla F3.2e il contenitore sa anche **un pannello**: un vetro che porta contenuto (una card, un dock, la barra di
+scrittura, la capsula di un campo), con il ruolo, la pellicola e l'ottica di un `glassSurface`. `fluidGlass` non basta:
+ha la ricetta dei controlli (la loro pellicola, il ruolo `Floating` o `Interactive`) e la tinta di Apple, non la pellicola
+di un pannello. Le quattro cose che servono:
+
+```kotlin
+// La pellicola si legge FUORI dal contenitore: è quella del lato del tema, e il lato lo fa il contenitore.
+val tint = GlassDefaults.modalTint()
+FluidGlassContainer(modifier, propagateMinConstraints = true) {          // 4. i vincoli dell'app arrivano al vetro
+  Column(
+    Modifier
+      .fillMaxWidth()
+      .fluidGlassPanel(backdrop, tint, shape, GlassRole.Modal)            // 1. il pezzo-pannello
+      .padding(16.dp),
+  ) {
+    FluidGlassNested {                                                    // 2. i vetri qui dentro sono annidati
+      Text(answer)
+      FluidGlassIconButton(onClick = stop) { FluidIcon(FluidIcons.Filled.Stop, null) }
+    }
+  }
+}
+```
+
+1. **Il pezzo-pannello**, `Modifier.fluidGlassPanel(backdrop, tint, shape, role, optics, large, exports,
+   resampleIntervalMillis)`: in un contenitore il vetro lo disegna il contenitore **con gli stessi ingressi** che
+   `glassSurface` riceverebbe (la pellicola dell'app, il ruolo, l'ottica passata da `sanitized()`, nessun filo,
+   l'ombra e il corpo della stessa lastra). Fuori da un contenitore, col vetro di prima e sotto Android 13 **è**
+   `glassSurface(…)`, al pixel com'era. Identità, unione e transizione si scrivono prima, come per `fluidGlass`.
+2. **Il vetro annidato**, `FluidGlassNested { … }`: dentro, un vetro (`fluidGlass`, `glassControlSurface`, i tasti di
+   vetro dell'engine) **non è un pezzo**: è un vetro come fuori dal contenitore, che campiona il materiale del pannello
+   (la regola del vetro annidato: velo e ombra ridotti) e prende il **lato del contenitore**, anche mentre gira o scurisce.
+   Non aggiunge nodi di layout (lo scope della `Column` resta in vista). Senza, un vetro nel contenuto di un pannello è
+   un **fratello** del pannello nel piano e ci si fonde (com'era prima di F3.2e).
+3. **L'export**: il pannello pubblica il suo materiale, sempre. Di serie in uno stato suo, che si registra solo mentre
+   qualcuno lo campiona; con `exports = stato` in quello dell'app (la capsula del composer lo passa ai suoi tasti con
+   `rememberCombinedGlassBackdrop`, come prima). Il nodo del pannello fa da contenitore di vetro (`glassContainer`) per
+   il suo contenuto: il vetro annidato lo trova da solo, come lo trovava dentro un `glassSurface`. In un grappolo di più
+   pezzi esporta la superficie del grappolo (il primo pezzo che esporta), e durante un viaggio il campo che lo porta.
+4. **I vincoli**: un pezzo solo nel suo contenitore riceve il `modifier` dell'app **sul contenitore** (è lui il figlio
+   del genitore: `align`, `weight`, `padding`, i tag restano dove l'app li ha scritti). Con
+   `propagateMinConstraints = true` il contenitore passa al contenuto i vincoli minimi (come
+   `Box(propagateMinConstraints = true)`): un `Modifier.weight` o una misura imposta allargano **il vetro**, non solo il
+   contenitore. Di serie è falso, perché in un contenitore con più pezzi cambierebbe il layout di chi ci sta dentro (una
+   `Row` costretta alla larghezza del contenitore sposta i pezzi di un `Arrangement.Center`): è l'errore di
+   `ProvideFluidChrome` in F2 (C-R1), da non ripetere.
+
+**Gira o scurisce.** Un pannello dice se è un **grande** che scurisce in continuo (`large = true`: card, dock, foglio) o
+un **piccolo** che gira (`large = false`: barre, capsule). Null: lo dice il ruolo, come per i grandi dell'engine (`Modal`
+e `Content` scuriscono). Il contenitore segue ciò che ha dichiarato un pezzo del grappolo più grande; senza
+dichiarazioni (i `fluidGlass` e i tasti) la taglia, come prima. Va detto quando il ruolo sbaglia: una barra di scrittura
+`Modal` alta una riga gira, un dock `Floating` a raggio di foglio scurisce, la capsula larga di un composer (due righe,
+più di cento dp) gira anche se la taglia la direbbe grande.
+
+**Un pannello da solo**: `FluidGlassAnimation.None` è di solito la scelta giusta. Il pannello non ha vicini da cui nascere
+né in cui confluire, e il suo contenuto cresce (una risposta che arriva, la tastiera che sale): con la molla del piano il
+vetro inseguirebbe il contenuto per un terzo di secondo, col testo fuori dal bordo; senza viaggio lo segue nel fotogramma
+dopo. È la scelta dei pannelli di `engine-ai-ui` ([../moduli/ai-ui-overlay.md](../moduli/ai-ui-overlay.md)).
+
 ## `Clear`
 
 `Modifier.fluidGlass(FluidGlass.Clear)` è il limpido: niente smerigliatura, uno scurimento fisso del 35% sotto il vetro
@@ -284,8 +351,11 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
 
 ## Cosa non fa ancora
 
-- **Fratelli, non annidati**: un vetro dentro un altro pezzo dello stesso contenitore non ne campiona il materiale (niente
-  vetro su vetro fra pezzi). Il contenitore dentro un pannello di vetro sì, campiona il pannello (scena `concentriche`).
+- **Fratelli, se non annidati**: un vetro dentro un altro pezzo dello stesso contenitore, fuori da un `FluidGlassNested`,
+  è suo fratello e non ne campiona il materiale. Un vetro annidato in un pannello non viaggia col piano (non è un pezzo):
+  si sposta col contenuto. Il contenitore dentro un pannello di vetro campiona il pannello (scena `concentriche`).
+- **Un pannello che cresce** è un cambio del piano: con `FluidGlassAnimation.None` il vetro lo segue nel fotogramma dopo
+  (un fotogramma di ritardo mentre la tastiera sale o la risposta arriva), con la molla di serie lo insegue.
 - **Forme**: una forma che il campo non sa rendere (un `Outline` generico) resta un vetro a sé, fuori dal piano.
 - **L'unione lontana**: oltre circa un raggio e mezzo d'angolo di varco il collo pieno non sta nel filo dei tasti, e
   l'unione resta una cattura sola con sagome separate. Apple a quella distanza disegna probabilmente una capsula sola
@@ -305,13 +375,11 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
 - **Vetro di prima** (`FluidGlassModel.Classic`) e **sotto Android 13**: il contenitore non disegna; ogni pezzo è il vetro
   di sempre, senza viaggi.
 - **Più di otto pezzi** in un grappolo: il grappolo si divide, dichiarato.
-- **Un pannello col suo ruolo**: un pezzo si disegna come `fluidGlass` (ruolo `Floating`, tinta dei controlli) o come
-  `glassControlSurface` (ruolo `Interactive`); un `glassSurface` `Modal` con la sua tinta, o un pannello che esporta il suo
-  materiale ai tasti sopra di lui, non ha ancora un pezzo che lo renda uguale. Per questo card, dock, barra di scrittura e
-  composer di `engine-ai-ui` restano del lato del tema, e solo i loro pezzi piccoli, da soli, girano col contenitore
-  (F3.2b, [../moduli/ai-ui-overlay.md](../moduli/ai-ui-overlay.md), «Il vetro e il lato»).
+- **Un pannello in un grappolo di più pezzi** prende l'aspetto del primo pezzo del grappolo (un grappolo ha un aspetto
+  solo): un pannello e un tasto vicini si disegnano con la ricetta di chi viene prima. Un pannello sta di solito da solo.
 - Le tre tavole di gusto di F3.3 sono decise (Alessio, 2026-11-16): distanza di fusione media (16 dp), collo «spesso»
-  (1/2), comparsa da 1,09. Il collo dei viaggi di `morphTo` (menu, barre) resta a 2/3, com'era.
+  (1/2), comparsa da 1,09. Il collo «spesso» vale per tutto l'engine: anche i viaggi di `morphTo` (menu, barre, pannelli)
+  hanno l'esponente 1/2 (prima restavano a 2/3; `PhysicsNeckPinchExponent`, e `PhysicsPlaneNeckPinch` è lo stesso numero).
 
 ## Costi noti
 
@@ -332,7 +400,8 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
 `FluidGlassContainerDiagnostics` (per le prove e le sessioni, non per le app): `totalJourneys` (viaggi partiti),
 `totalRetargets` (ripartiti a metà), `totalOrderWarnings`, `liveContainers`, `lastJourney` (un
 `FluidGlassFlightRecord` per vetro in volo: da quale `id` a quale, il cambio, il vicino da cui nasce o in cui confluisce)
-e `lastRest` (un `FluidGlassPieceRecord` per vetro a riposo: `id`, riquadro, raggi risolti, taglia del grappolo, unione). Le
+e `lastRest` (un `FluidGlassPieceRecord` per vetro a riposo: `id`, riquadro, raggi risolti, taglia del grappolo, unione,
+`exports` se esporta il suo materiale), `lastRestLarge` (se nell'ultimo riposo il contenitore scurisce in continuo). Le
 sonde vive: `FluidGlassProbeDiagnostics.liveProbes`. La pagina «Piano flottante» della galleria scrive tutto questo in
 logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine viaggio.
 
@@ -344,12 +413,17 @@ logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine via
   sola a riposo e i distinti separati).
 - `FluidGlassContainerDriverTest`, `FluidGlassContainerOrderTest`, `FluidGlassContainerProbeTest`,
   `FluidGlassContainerLookTest`: il conducente, l'ordine dei modificatori, la sonda unica, l'aspetto dei pezzi.
+  `FluidGlassContainerPanelTest` (F3.2e): l'aspetto del pannello (gli ingressi di `glassSurface`, il grande dichiarato o
+  del ruolo, l'export), la decisione del grande del contenitore, i vincoli del contenuto.
 - `FluidGlassContentTransitionTest` (il contenuto che si sfoca), `FluidConcentricShapeTest` (l'aritmetica dei raggi),
   `FluidMetricsTest`.
 - Nella galleria, in Robolectric: `FluidGlassContainerTest` (i pezzi si accoppiano come dichiarato, l'ordine, una cattura
   per grappolo e una sonda, il tasto dell'engine come pezzo, la concentrica nell'albero) e `PlanePageTest` (ogni scena
   della pagina «Piano flottante»: il viaggio dichiarato, nessun avviso d'ordine, il fondo che cambia non apre viaggi,
-  il comando che interrompe fa un viaggio e due ripartenze).
+  il comando che interrompe fa un viaggio e due ripartenze). `FluidGlassContainerPanelTest` (F3.2e): il pannello è un
+  pezzo che esporta e dichiara il grande, i vetri in `FluidGlassNested` non sono pezzi, senza lo sono, un `weight` e una
+  misura imposta arrivano al vetro, di serie i minimi non passano e un contenitore di più pezzi non cambia layout;
+  `AssistantPageTest` (le superfici di `engine-ai-ui`).
 - **Non verificato dai test**: come si vede. Il collo, la comparsa, il passaggio di consegne, il giro uniforme e il
   contenuto sfocato si guardano sul tablet (sessione S3, elenco in `artifacts/liquid-glass/sessioni/f3-6/riprese-S3.md`)
   e sul banco (`tools/glassbench`, scene `f3/`).
@@ -357,7 +431,8 @@ logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine via
 ## Dove guardare
 
 - `engine-ui/…/ui/fluid/FluidGlassContainer.kt`: contenitore, modificatori e loro ordine, conducente, palco e riposo,
-  sonda unica, diagnostica. `…/ui/fluid/FluidGlass.kt`: `FluidGlass` e `Modifier.fluidGlass`.
+  sonda unica, `FluidGlassNested`, diagnostica. `…/ui/fluid/FluidGlass.kt`: `FluidGlass`, `Modifier.fluidGlass` e
+  `Modifier.fluidGlassPanel`.
 - `…/ui/glass/field/GlassPlane.kt`: la logica pura (registro, grappoli, accoppiamento, viaggio); il contratto delle tracce
   in `tools/glassbench/traces/f3/README.md`.
 - `…/ui/fluid/FluidGlassContentTransition.kt`, `…/ui/fluid/FluidConcentricShape.kt`, `…/ui/fluid/FluidMetrics.kt`, i token

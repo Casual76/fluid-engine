@@ -313,8 +313,10 @@ tiene accanto.
 trailingLink)` (toccarla la toglie; `removable = false` e' un collegamento e al posto della X c'e' una freccia), `FluidGlassRoundButton(icon, description, backdrop, tint, onClick)`
 (40 dp, lo stesso disco per «+», microfono, invio, stop). Dalla 4.0 (F3.2b) `tint` di serie e' `FluidAssistantInk.Default`,
 «l'inchiostro del lato» (sul lato del tema `onSurface`, com'era); un colore dell'app resta il suo. Sulla capsula e' vetro
-annidato del suo lato; da solo sulla pagina gira chiaro/scuro con lo sfondo (un contenitore con un pezzo solo). La capsula
-del composer resta per ora del lato del tema: [ai-ui-overlay.md](ai-ui-overlay.md), «Il vetro e il lato».
+annidato (campiona il materiale che la capsula esporta e ne prende il lato); da solo sulla pagina gira chiaro/scuro con
+lo sfondo (un contenitore con un pezzo solo). **La capsula del composer gira** (F3.2e): e' un pannello del piano
+(`fluidGlassPanel`, ruolo `Floating`, la sua pellicola, `large = false`) in un contenitore con un pezzo solo, l'alone resta
+fuori, attorno a lei: [ai-ui-overlay.md](ai-ui-overlay.md), «Il vetro e il lato».
 
 ## Il Markdown dell'assistente
 

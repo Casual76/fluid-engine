@@ -348,9 +348,10 @@ la striscia vela allora verso il fondo del tema chiaro, il titolo e le azioni pr
 i tasti ospitati girano con lei. Fino a F2.3c in tema scuro la sonda non si montava: il titolo bianco restava circa 0,7 s su
 una striscia gia' chiara e i tasti giravano ognuno per conto suo. Le **icone della barra di stato** seguono la barra nei due
 versi (4.0, F2.3b e G1; vedi [tema.md](tema.md)): chiare dove la barra scurisce sul tema chiaro, scure dove gira verso il
-chiaro sul tema scuro. **Mentre si scorre** la barra e la tab bar decidono come ogni altro vetro (la variante `live`):
-scorrendo in fretta possono girare due volte in meno di un secondo, a ogni riquadro scuro che passa. Le alternative sono
-manopole di debug da scegliere sulle riprese (`flipscroll=rest|ahead`, `flipby=coverage`, `flipdwell`: vedi
+chiaro sul tema scuro. **Mentre si scorre** la barra e la tab bar decidono come ogni altro vetro (la variante `live`),
+con la permanenza di 1 s dopo un giro (4.0, chiusura di F2): scorrendo in fretta non girano due volte in meno di un
+secondo (con 400 ms giravano a ogni riquadro scuro che passava). Le alternative sono
+manopole di debug (`flipscroll=rest|ahead`, `flipby=coverage`, `flipdwell`: vedi
 [vetro.md](vetro.md), «Mentre si scorre»). Lo scorrimento della lista e' un
 cambio dello sfondo che la sorgente annuncia da se' (vedi [vetro.md](vetro.md), «Lo scorrimento è un cambio dello
 sfondo»): `FluidScreen` aggiunge solo lo scorrimento fatto dal codice. Per riguardare il profilo sul dispositivo ci sono le
